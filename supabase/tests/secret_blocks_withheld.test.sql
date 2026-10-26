@@ -234,24 +234,27 @@ select isnt_empty(
   $$ select * from public.get_player_visible_factions('93720000-0000-4000-8000-0000000000c1', '93720000-0000-4000-8000-0000000000e2') $$,
   'the DM previewing as a member of the faction sees it');
 
--- ── Faction deities still resolve for the player the faction is shared with ─
+-- ── A faction's deity reaches the player who knows both, once revealed (World Web, #1084) ─
 
 reset role;
-insert into public.deities (id, user_id, campaign_id, name) values
-  ('93720000-0000-4000-8000-0000000000a1', '93720000-0000-4000-8000-000000000001', '93720000-0000-4000-8000-0000000000c1', 'The Lantern');
-insert into public.faction_deities (faction_id, deity_id, campaign_id, user_id) values
-  ('93720000-0000-4000-8000-000000000071', '93720000-0000-4000-8000-0000000000a1', '93720000-0000-4000-8000-0000000000c1', '93720000-0000-4000-8000-000000000001');
+insert into public.deities (id, user_id, campaign_id, name, player_visible_to) values
+  ('93720000-0000-4000-8000-0000000000a1', '93720000-0000-4000-8000-000000000001', '93720000-0000-4000-8000-0000000000c1', 'The Lantern',
+   array['93720000-0000-4000-8000-0000000000e2']::uuid[]);
+insert into public.world_links (user_id, campaign_id, from_kind, from_faction_id, to_kind, to_deity_id, type, player_visible_to) values
+  ('93720000-0000-4000-8000-000000000001', '93720000-0000-4000-8000-0000000000c1', 'faction', '93720000-0000-4000-8000-000000000071',
+   'deity', '93720000-0000-4000-8000-0000000000a1', 'worships', array['93720000-0000-4000-8000-0000000000e2']::uuid[]);
 set local role authenticated;
 
-select pg_temp.as_user(2);
+select pg_temp.as_user(3);
 select isnt_empty(
-  $$ select 1 from public.faction_deities where faction_id = '93720000-0000-4000-8000-000000000071' $$,
-  'a faction''s deity link still reaches the player the faction is shared with');
+  $$ select 1 from public.get_player_world_ties('93720000-0000-4000-8000-0000000000c1')
+      where from_id = '93720000-0000-4000-8000-000000000071' and to_id = '93720000-0000-4000-8000-0000000000a1' $$,
+  'a faction''s deity reaches the player who belongs to the faction and knows the deity');
 
 select pg_temp.as_user(4);
-select is_empty(
-  $$ select 1 from public.faction_deities where faction_id = '93720000-0000-4000-8000-000000000071' $$,
-  'and not a stranger');
+select throws_ok(
+  $$ select * from public.get_player_world_ties('93720000-0000-4000-8000-0000000000c1') $$,
+  '42501', null, 'and not a stranger');
 
 select * from finish();
 rollback;

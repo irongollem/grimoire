@@ -95,10 +95,10 @@ select throws_ok($$
 $$, '23514', null, 'only a plain relative can be waiting to be sorted');
 
 select throws_ok($$
-  insert into public.npc_relationships (user_id, campaign_id, npc_id, related_npc_id, relationship_type) values
+  insert into public.world_links (user_id, campaign_id, from_kind, from_npc_id, to_kind, to_npc_id, type) values
     ('10830000-0000-4000-8000-000000000001', '10830000-0000-4000-8000-000000000010',
-     '10830000-0000-4000-8000-000000000030', '10830000-0000-4000-8000-000000000032', 'family')
-$$, '23514', null, 'a bond can no longer say "family": that is kin');
+     'npc', '10830000-0000-4000-8000-000000000030', 'npc', '10830000-0000-4000-8000-000000000032', 'family')
+$$, '23503', null, 'a link can never say "family": that is kin');
 
 -- ── The line of succession ──────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ select plan(13);
 -- and someone else's campaign_id. The reachable exploit was the World Bundle
 -- importer: `ImportBundleModal.vue` is mounted at `App.vue:12` with no role check
 -- and opens from the OS `.grimoire` file handler anywhere in the app, including
--- `/play/*`, batch-inserting into locations/npcs/npc_relationships/monsters/items
+-- `/play/*`, batch-inserting into locations/npcs/world_links/monsters/items
 -- at `campaign_id = activeCampaignId` — for a player, the DM's campaign.
 --
 -- The injected rows were not merely litter: `npcs_player_select` keys on
@@ -125,7 +125,7 @@ select is(
       and tablename in (
         'calendar_events','class_features','crafting_recipes',
         'custom_classes','custom_subclasses','encounters','factions','items','locations',
-        'loot_tables','monsters','npc_inventory','npc_relationships','npc_sets','npcs',
+        'loot_tables','monsters','npc_inventory','world_links','npc_sets','npcs',
         'puzzle_rooms','quests','roll_tables','rules',
         'soundboard_pages','soundboard_playlists','sounds','species','spells','traps')),
   '',
@@ -143,7 +143,7 @@ select is(
         'calendar_events', 'class_features', 'crafting_recipes',
         'custom_classes', 'custom_subclasses', 'encounters', 'factions',
         'items', 'locations', 'loot_tables', 'monsters',
-        'npc_inventory', 'npc_relationships', 'npc_sets', 'npcs',
+        'npc_inventory', 'world_links', 'npc_sets', 'npcs',
         'puzzle_rooms', 'quests', 'roll_tables', 'rules',
         'soundboard_pages', 'soundboard_playlists', 'sounds', 'species',
         'spells', 'traps'

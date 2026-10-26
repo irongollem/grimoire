@@ -212,7 +212,6 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["handout_reveals", ["session-learned", "npc-reveals"]],
   ["location_reveals", ["session-learned", "npc-reveals"]],
   ["npc_reveals", ["npc-reveals", PLAYER_NPCS_KEY, "session-learned"]],
-  ["npc_pc_notes", ["npc_pc_notes"]],
   ["npc_memories", [NPC_MEMORIES_KEY]],
   // Who is minding whose character (#1059). Ending one also moves the
   // caretaker's seat, which rings `campaign_members` on its own.
@@ -261,11 +260,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["soundboard_playlists", ["soundboard_playlists", QUEST_BOARD_KEY]],
   ["soundboard_playlist_tracks", ["soundboard_playlist_tracks"]],
   ["npc_sets", ["npc_sets"]],
-  ["faction_deities", ["faction-deities", "deity-factions"]],
-  ["faction_locations", ["faction-locations"]],
-  ["faction_items", ["faction-items"]],
   ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions", PLAYER_KIN_KEY, CONNECTIONS_KEY]],
-  ["faction_relations", ["faction-relations"]],
   // A place's map: the DM's site views, and the players' site state.
   ["location_doors", ["location-doors", "site-doors", "player-visible-site-state"]],
   ["location_map_regions", ["location-map-regions", "player-visible-site-state"]],
@@ -282,7 +277,6 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // with its reason in live_sync_registry.test.sql (live_sync_exempt), which
   // fails on any campaign table that is neither ringing nor exempt.
   ["spell_change_windows", ["spellChangeWindows"]],
-  ["npc_relationships", ["npc_relationships"]],
   // Family trees (#1083). Players cannot read the table; the ring tells them to re-read their kin projection.
   ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   // World Web (#1084). Players cannot read the table; their projection hangs off the same root.

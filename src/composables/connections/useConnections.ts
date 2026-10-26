@@ -32,6 +32,8 @@ export interface CreateConnectionInput {
   playerVisibleTo?: string[];
   /** A membership's role; "Member" when absent. */
   role?: string;
+  /** Set when the tie came from an accepted AI suggestion (links, memberships and kin record it). */
+  aiProvenance?: Record<string, unknown>;
 }
 
 export interface UpdateLinkInput {
@@ -195,6 +197,7 @@ async function writeTie(input: CreateConnectionInput): Promise<void> {
       ...(input.note !== undefined ? { note: input.note } : {}),
       ...(input.told !== undefined ? { told: input.told } : {}),
       ...(input.playerVisibleTo !== undefined ? { player_visible_to: input.playerVisibleTo } : {}),
+      ...(input.aiProvenance !== undefined ? { ai_provenance: input.aiProvenance } : {}),
     });
     if (error) throw error;
     return;
@@ -212,7 +215,12 @@ async function writeTie(input: CreateConnectionInput): Promise<void> {
     }
     case "kin": {
       const row = kinInsertFor(personKeyOf(from), kinKindFor(choice.key), personKeyOf(to), { note: input.note });
-      const { error } = await supabase.from("kin_links").insert({ ...row, campaign_id: campaignId, user_id: userId });
+      const { error } = await supabase.from("kin_links").insert({
+        ...row,
+        campaign_id: campaignId,
+        user_id: userId,
+        ...(input.aiProvenance !== undefined ? { ai_provenance: input.aiProvenance } : {}),
+      });
       if (error) throw error;
       return;
     }

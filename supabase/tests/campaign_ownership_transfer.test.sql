@@ -1027,11 +1027,10 @@ select is(
   'the item attachment''s ref_id is unchanged -- the scoped row''s id was stable through the move'
 );
 
--- ── Scenario 6: join-based FK repoints (faction_items, store_items) ────────
--- A quest-referenced global item is also linked from a campaign faction (via
--- faction_items) and a campaign store (via store_items) -- both reachable
--- only through a campaign-scoped PARENT (the faction / the location), the
--- same join shape as the pre-existing store_items ownership update in step 3.
+-- ── Scenario 6: join-based FK repoints (world_links, store_items) ──────────
+-- A quest-referenced global item is also held by a campaign faction (a world
+-- link, #1084) and sold in a campaign store (via store_items, reachable only
+-- through its campaign-scoped location).
 -- One clone must serve every reference, not only the quest one.
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -1059,8 +1058,9 @@ values ('73300000-0000-4000-8000-000000000612', 'item', '73300000-0000-4000-8000
 insert into public.factions (id, user_id, campaign_id, name)
 values ('73300000-0000-4000-8000-000000000613', '73300000-0000-4000-8000-000000000601', '73300000-0000-4000-8000-000000000610', 'Join repoints faction');
 
-insert into public.faction_items (id, user_id, faction_id, item_id)
-values ('73300000-0000-4000-8000-000000000614', '73300000-0000-4000-8000-000000000601', '73300000-0000-4000-8000-000000000613', '73300000-0000-4000-8000-000000000611');
+insert into public.world_links (id, user_id, campaign_id, from_kind, from_faction_id, to_kind, to_item_id, type)
+values ('73300000-0000-4000-8000-000000000614', '73300000-0000-4000-8000-000000000601', '73300000-0000-4000-8000-000000000610',
+        'faction', '73300000-0000-4000-8000-000000000613', 'item', '73300000-0000-4000-8000-000000000611', 'holds');
 
 insert into public.locations (id, user_id, campaign_id, name)
 values ('73300000-0000-4000-8000-000000000615', '73300000-0000-4000-8000-000000000601', '73300000-0000-4000-8000-000000000610', 'Join repoints store location');
@@ -1079,7 +1079,7 @@ select lives_ok(
     false,
     'promote'
   ) $$,
-  'a transfer repoints join-reachable faction_items and store_items references to the item clone'
+  'a transfer repoints a world link and a store row to the item clone'
 );
 
 reset role;
@@ -1091,9 +1091,9 @@ select is(
   'exactly one clone of the join-referenced item exists for the new owner'
 );
 select is(
-  (select item_id from public.faction_items where id = '73300000-0000-4000-8000-000000000614'),
+  (select to_item_id from public.world_links where id = '73300000-0000-4000-8000-000000000614'),
   (select id from public.items where user_id = '73300000-0000-4000-8000-000000000602' and name = 'Join-referenced item'),
-  'faction_items.item_id, reachable only via its campaign faction parent, is repointed at the clone'
+  'a world link''s item end is repointed at the clone'
 );
 select is(
   (select item_id from public.store_items where id = '73300000-0000-4000-8000-000000000616'),
@@ -1101,9 +1101,9 @@ select is(
   'store_items.item_id, reachable only via its campaign location parent, is repointed at the clone'
 );
 select is(
-  (select user_id from public.faction_items where id = '73300000-0000-4000-8000-000000000614'),
+  (select user_id from public.world_links where id = '73300000-0000-4000-8000-000000000614'),
   '73300000-0000-4000-8000-000000000602'::uuid,
-  'the faction_items junction row itself moved to the new owner'
+  'the world link itself moved to the new owner'
 );
 
 select * from finish();
