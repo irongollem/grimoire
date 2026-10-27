@@ -24,7 +24,7 @@ import { computed } from "vue";
 import { nodeViewProps, NodeViewContent, NodeViewWrapper } from "@tiptap/vue-3";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
-import type { LensVariant } from "@/lib/tiptap/lensPair";
+import type { LensVariant } from "@/lib/tiptap/nodeViewTypes";
 
 // The galley's chrome around a lens pair (Scriptorium board 03): a header strip
 // with the Boxed / Light toggle. The strip exists only in the live editor view,

@@ -28,3 +28,6 @@ export interface IllustrationTarget {
 export interface IllustrationSuggestionOptions {
   onPromptClick?: (target: IllustrationTarget) => void;
 }
+
+/** The lens pair's look: a boxed pair, or the light form for dense entries (#1115). */
+export type LensVariant = "boxed" | "light";

@@ -35,7 +35,8 @@ declare module "@tiptap/core" {
  * alone, so a Deep reading cannot be put into a field players read unstripped.
  */
 
-export type LensVariant = "boxed" | "light";
+export type { LensVariant } from "@/lib/tiptap/nodeViewTypes";
+import type { LensVariant } from "@/lib/tiptap/nodeViewTypes";
 
 export const BRIGHT_PLACEHOLDER = "What a child at the table sees…";
 export const DEEP_PLACEHOLDER = "What an adult at the table understands…";
