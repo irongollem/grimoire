@@ -34,7 +34,7 @@ function setup() {
     class_resources: { rage: { current: 3, max: 3, rest: "long" } },
   } as unknown as PartyMember);
   const uses = useFeatureUses(member, ref([rage]));
-  return uses;
+  return Object.assign(uses, { member });
 }
 
 describe("useFeatureUses write failure", () => {
@@ -45,6 +45,23 @@ describe("useFeatureUses write failure", () => {
     const uses = setup();
     await uses.spend({ key: "rage", amount: 1 });
     expect(uses.remaining("rage")).toBe(2);
+  });
+
+  it("two quick taps spend two uses, not the same one twice", async () => {
+    const uses = setup();
+    await Promise.all([uses.spend({ key: "rage", amount: 1 }), uses.spend({ key: "rage", amount: 1 })]);
+    expect(uses.remaining("rage")).toBe(1);
+  });
+
+  it("follows the character when it refetches with different uses, e.g. spent on another device", async () => {
+    const uses = setup();
+    uses.member.value = { ...uses.member.value, class_resources: { rage: { current: 1, max: 3, rest: "long" } } } as unknown as PartyMember;
+    await Promise.resolve();
+    expect(uses.remaining("rage")).toBe(1);
+  });
+
+  it("a cost-free action is always payable", () => {
+    expect(setup().payable(null)).toBe(true);
   });
 
   it("restores the pool and rethrows when the write fails", async () => {

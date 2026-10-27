@@ -6,7 +6,7 @@ import { defineComponent, ref } from "vue";
 import type { DmNoteSubject } from "@/types/dmNote.types";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useDmNote } from "./useDmNote";
+import { fetchDmNoteColumn, useDmNote } from "./useDmNote";
 
 const mocks = vi.hoisted(() => ({
   serverValue: null as string | null,
@@ -125,6 +125,33 @@ describe("useDmNote", () => {
       user_id: "me", campaign_id: "camp-1", entity_type: "npc", entity_id: "n1", entity_label: "Brenna",
     });
     expect(mocks.upserts[0].opts).toEqual({ onConflict: "user_id,campaign_id,entity_type,entity_id" });
+  });
+
+  it("keeps the saved text in the note's own cache and marks the touch list stale, so the scratchpad shows it without a list refetch", async () => {
+    mocks.serverValue = doc("old");
+    const { handle, queryClient } = setup(npc);
+    await flushPromises();
+    queryClient.setQueryData(["dm-note-touches", "camp-1", null, null], []);
+    handle.draft.content = doc("new");
+    await settle();
+    expect(queryClient.getQueryData(["dm-note", "npcs", "n1"])).toBe(doc("new"));
+    expect(queryClient.getQueryState(["dm-note-touches", "camp-1", null, null])?.isInvalidated).toBe(true);
+  });
+
+  it("does not overwrite what the DM is typing when the server copy changes under them", async () => {
+    mocks.serverValue = doc("old");
+    const { handle, queryClient } = setup(npc);
+    await flushPromises();
+    handle.draft.content = doc("typing");
+    mocks.serverValue = doc("changed elsewhere");
+    await queryClient.invalidateQueries({ queryKey: ["dm-note", "npcs", "n1"] });
+    await flushPromises();
+    expect(handle.draft.content).toBe(doc("typing"));
+  });
+
+  it("reads no column for an entity whose note lives in entity_notes", async () => {
+    expect(await fetchDmNoteColumn("deity", "d1")).toBeNull();
+    expect(mocks.reads).toEqual([]);
   });
 
   it("never saves a column note typed over a read that has not landed, so an NPC opened from the list cannot be blanked (#999)", async () => {

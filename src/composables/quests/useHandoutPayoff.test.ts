@@ -28,4 +28,14 @@ describe("useHandoutPayoff", () => {
     expect(documentLabel("gone")).toBeNull();
     expect(documentLabel(null)).toBeNull();
   });
+
+  // A quest with no campaign yet must not be offered every account-wide document.
+  it("offers nothing while the quest has no campaign", () => {
+    documents.value = [
+      { id: "d2", title: "Account-wide primer", campaign_id: null },
+      { id: "d1", title: "Wanted poster", campaign_id: "camp-a" },
+    ];
+    const { handoutOptions } = useHandoutPayoff(() => null);
+    expect(handoutOptions.value).toEqual([]);
+  });
 });

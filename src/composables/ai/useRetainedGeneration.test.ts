@@ -67,4 +67,17 @@ describe("useRetainedGeneration", () => {
     });
     expect(r.unsaved.value).toBeNull();
   });
+
+  // A retry belongs to the campaign the result was generated under, even when the
+  // switch has not been noticed yet (the watcher runs on the next tick).
+  it("does not retain a retried result under a campaign that was switched to just before the retry", async () => {
+    const r = useRetainedGeneration<string>();
+    await r.run("x", async () => null);
+    expect(r.unsaved.value).toBe("x");
+
+    useCampaignStore().activeCampaignId = "camp-b";
+    await r.run("x", async () => null);
+    await nextTick();
+    expect(r.unsaved.value).toBeNull();
+  });
 });

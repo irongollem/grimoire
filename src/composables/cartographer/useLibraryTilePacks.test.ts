@@ -8,19 +8,17 @@ interface InvokeCall {
   body: Record<string, unknown>;
 }
 
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 const mocks = vi.hoisted(() => ({
   invokeCalls: [] as InvokeCall[],
 }));
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        order: vi.fn(() => ({
-          order: vi.fn(async () => ({ data: [], error: null })),
-        })),
-      })),
-    })),
+    from: fake.client.from,
     functions: {
       invoke: vi.fn(async (fn: string, opts: { body: Record<string, unknown> }) => {
         mocks.invokeCalls.push({ fn, body: opts.body });
@@ -62,6 +60,7 @@ const WEBP_HEADER = [82, 73, 70, 70, 4, 0, 0, 0, 87, 69, 66, 80];
 
 beforeEach(() => {
   mocks.invokeCalls = [];
+  fake.reset();
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -104,6 +103,28 @@ describe("libraryTileUrl", () => {
     const after = libraryTileUrl(pack, { url: "doorwayH/0.webp", rev: 1758529999000 });
 
     expect(before).not.toBe(after);
+  });
+});
+
+describe("useLibraryTilePacks — reading", () => {
+  it("lists packs by sort order, then name, and offers only the published ones to pick from", async () => {
+    fake.seed("library_tile_packs", [
+      { id: "p-b", name: "Beta", sort_order: 1, status: "published" },
+      { id: "p-draft", name: "Aardvark", sort_order: 1, status: "draft" },
+      { id: "p-first", name: "Zeta", sort_order: 0, status: "published" },
+      { id: "p-old", name: "Gamma", sort_order: 2, status: "archived" },
+    ]);
+    const { api } = open();
+    await flushPromises();
+    expect(api().packs.data.value?.map((p) => p.id)).toEqual(["p-first", "p-draft", "p-b", "p-old"]);
+    expect(api().publishedPacks.value.map((p) => p.id)).toEqual(["p-first", "p-b"]);
+  });
+
+  it("surfaces a failed read as an error rather than an empty library", async () => {
+    fake.failNext("library_tile_packs", { message: "denied" });
+    const { api } = open();
+    await flushPromises();
+    expect(api().packs.error.value?.message).toBe("denied");
   });
 });
 

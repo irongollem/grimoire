@@ -23,22 +23,25 @@ describe("installNavigationPending", () => {
   let router: Router;
   let uninstall: () => void;
   let slow: ReturnType<typeof deferred>;
+  let slowToo: ReturnType<typeof deferred>;
   let block = false;
 
   beforeEach(async () => {
     vi.useFakeTimers();
     slow = deferred();
+    slowToo = deferred();
     block = false;
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
         { path: "/", component: Stub },
         { path: "/slow", component: () => slow.promise },
+        { path: "/slow-too", component: () => slowToo.promise },
         { path: "/fast", component: () => Promise.resolve(Stub) },
         {
           path: "/list",
           component: Stub,
-          children: [{ path: ":id", component: Stub }],
+          children: [{ path: ":id", component: Stub }, { path: "slow-child", component: () => slow.promise }],
         },
         { path: "/other-layout", component: () => slow.promise, meta: { layout: "player" } },
       ],
@@ -79,6 +82,49 @@ describe("installNavigationPending", () => {
     await router.push("/list/abc?x=1");
     await vi.advanceTimersByTimeAsync(NAVIGATION_PENDING_DELAY_MS * 2);
     expect(navigationPending.value).toBe(false);
+  });
+
+  it("keeps the page it is on while a child of the same page loads", async () => {
+    await router.push("/list");
+    const nav = router.push("/list/slow-child");
+    await vi.advanceTimersByTimeAsync(NAVIGATION_PENDING_DELAY_MS * 2);
+    expect(navigationPending.value).toBe(false);
+    slow.resolve();
+    await nav;
+  });
+
+  it("does not arm for the first page of the session", async () => {
+    uninstall();
+    const first = createRouter({ history: createMemoryHistory(), routes: [{ path: "/slow", component: () => slow.promise }] });
+    const off = installNavigationPending(first);
+    const nav = first.push("/slow");
+    await vi.advanceTimersByTimeAsync(NAVIGATION_PENDING_DELAY_MS * 2);
+    expect(navigationPending.value).toBe(false);
+    slow.resolve();
+    await nav;
+    off();
+    uninstall = installNavigationPending(router);
+  });
+
+  it("measures the wait from the navigation that is current, not one it replaced", async () => {
+    const first = router.push("/slow");
+    await vi.advanceTimersByTimeAsync(NAVIGATION_PENDING_DELAY_MS / 2);
+    const second = router.push("/slow-too");
+    await vi.advanceTimersByTimeAsync(NAVIGATION_PENDING_DELAY_MS / 2);
+    expect(navigationPending.value).toBe(false);
+    slowToo.resolve();
+    slow.resolve();
+    await Promise.allSettled([first, second]);
+  });
+
+  it("stops watching once uninstalled", async () => {
+    uninstall();
+    const nav = router.push("/slow");
+    await vi.advanceTimersByTimeAsync(NAVIGATION_PENDING_DELAY_MS * 2);
+    expect(navigationPending.value).toBe(false);
+    slow.resolve();
+    await nav;
+    uninstall = installNavigationPending(router);
   });
 
   it("does not arm across a layout change", async () => {

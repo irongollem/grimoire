@@ -3,96 +3,49 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-interface Deferred<T> {
-  promise: Promise<T>;
-  settle: (value: T) => void;
-  fail: (cause: unknown) => void;
-}
-
-function deferred<T>(): Deferred<T> {
-  let settle!: (value: T) => void;
-  let fail!: (cause: unknown) => void;
-  const promise = new Promise<T>((resolve, reject) => {
-    settle = resolve;
-    fail = reject;
-  });
-  return { promise, settle, fail };
-}
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
 const mocks = vi.hoisted(() => ({
   user: { id: "user-1" } as { id: string } | null,
   campaignId: "campaign-1" as string | null,
-  /** The row `select ... maybeSingle()` hands back, keyed by the surface asked for. */
-  rows: new Map<string, { layout: unknown } | null>(),
-  reads: [] as Record<string, unknown>[],
-  upserts: [] as Record<string, unknown>[],
-  deletes: [] as Record<string, unknown>[],
-  /** Left null for an immediate write; set to stall the upsert mid-flight. */
-  pendingWrite: null as null | Deferred<{ data: { layout: unknown }; error: unknown }>,
+  /** Set to stall dashboard_layouts reads / writes until the promise settles. */
+  holdReads: null as null | Promise<void>,
+  holdWrites: null as null | Promise<void>,
   errors: [] as string[],
 }));
 
-/** `delete().eq()...` is awaited with no terminal call, so the real builder is
- *  itself a promise. Making the mock one too — rather than bolting a `then`
- *  onto a plain object — keeps it honest and keeps `unicorn/no-thenable` quiet. */
-interface DeleteChain extends Promise<{ error: unknown }> {
-  eq: (column: string, value: unknown) => DeleteChain;
-}
-
-vi.mock("@/lib/supabase", () => {
-  const readChain = (record: Record<string, unknown>) => {
-    const chain = {
-      eq: (column: string, value: unknown) => {
-        record[column] = value;
-        return chain;
-      },
-      maybeSingle: () => {
-        mocks.reads.push(record);
-        const row = mocks.rows.get(String(record.surface));
-        return { data: row === undefined ? null : row, error: null };
-      },
-    };
-    return chain;
-  };
-
-  const deleteChain = () => {
-    const record: Record<string, unknown> = {};
-    // The filters are applied synchronously right after this is built, so the
-    // microtask below always sees a fully populated record.
-    const settled = Promise.resolve().then(() => {
-      mocks.deletes.push(record);
-      return { error: null };
-    });
-    const chain = Object.assign(settled, {
-      eq: (column: string, value: unknown) => {
-        record[column] = value;
-        return chain;
-      },
-    }) as DeleteChain;
-    return chain;
-  };
-
-  return {
-    supabase: {
-      from: () => ({
-        select: () => readChain({}),
-        upsert: (row: Record<string, unknown>) => {
-          mocks.upserts.push(row);
-          return {
-            select: () => ({
-              single: async () => {
-                if (mocks.pendingWrite) return mocks.pendingWrite.promise;
-                return { data: { layout: row.layout }, error: null };
-              },
-            }),
-          };
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: (table: string) => {
+      const query = fake.client.from(table);
+      if (table !== "dashboard_layouts") return query;
+      // The fake executes at await time, so delaying the await stalls the request
+      // mid-flight; reads and writes are stalled independently.
+      let isWrite = false;
+      return new Proxy(query, {
+        get(target, prop, receiver) {
+          if (prop === "then") {
+            const run = Reflect.get(target, prop, target) as (...args: unknown[]) => unknown;
+            return (...args: unknown[]) =>
+              ((isWrite ? mocks.holdWrites : mocks.holdReads) ?? Promise.resolve()).then(() => run.apply(target, args));
+          }
+          const member = Reflect.get(target, prop, receiver);
+          if ((prop === "upsert" || prop === "delete") && typeof member === "function") {
+            return (...args: unknown[]) => {
+              isWrite = true;
+              return member.apply(receiver, args);
+            };
+          }
+          return member;
         },
-        delete: deleteChain,
-      }),
+      });
     },
-    getCurrentUser: () => mocks.user,
-  };
-});
+  },
+  getCurrentUser: () => mocks.user,
+}));
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
@@ -105,7 +58,7 @@ vi.mock("@/stores/campaign", () => ({
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({
     error: (message: string) => mocks.errors.push(message),
-    fromError: (cause: unknown) => (cause instanceof Error ? cause.message : String(cause)),
+    fromError: (cause: unknown) => (cause !== null && typeof cause === "object" && "message" in cause ? String(cause.message) : String(cause)),
   }),
 }));
 
@@ -138,15 +91,19 @@ const keysOf = (surface: DashboardSurface) =>
   DEFAULT_LAYOUTS[surface].widgets.map((entry) => entry.key);
 
 beforeEach(() => {
+  fake.reset();
   mocks.user = { id: "user-1" };
   mocks.campaignId = "campaign-1";
-  mocks.rows.clear();
-  mocks.reads.length = 0;
-  mocks.upserts.length = 0;
-  mocks.deletes.length = 0;
-  mocks.pendingWrite = null;
+  mocks.holdReads = null;
+  mocks.holdWrites = null;
   mocks.errors.length = 0;
 });
+
+/** Seed one saved row for the signed-in DM, the open campaign and a surface. */
+function saved(surface: string, layout: unknown, owner: { user_id?: string; campaign_id?: string } = {}) {
+  fake.seed("dashboard_layouts", [{ user_id: "user-1", campaign_id: "campaign-1", surface, layout, ...owner }]);
+}
+
 
 /** The height a widget resolves to when a saved blob does not name one. */
 function heightOf(id: string): WidgetHeight {
@@ -168,9 +125,9 @@ describe("useDashboardLayout", () => {
   });
 
   // A blob that does not parse must behave exactly as a missing row. Rendering
-  // half a layout — or crashing the dashboard — would both be worse.
+  // half a layout, or crashing the dashboard, would both be worse.
   it("falls back to the defaults when the stored blob is malformed", async () => {
-    mocks.rows.set("prep", { layout: { widgets: "nope" } });
+    saved("prep", { widgets: "nope" });
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(keysOf("prep"));
@@ -178,20 +135,18 @@ describe("useDashboardLayout", () => {
   });
 
   it("renders a saved arrangement when one exists", async () => {
-    mocks.rows.set("prep", {
-      layout: {
-        widgets: [
-          { key: "party", id: "party", width: "full" },
-          { key: "quests", id: "quests", width: "wide" },
-        ],
-        known: DASHBOARD_WIDGETS.map((w) => w.id),
-      },
+    saved("prep", {
+      widgets: [
+        { key: "party", id: "party", width: "full" },
+        { key: "quests", id: "quests", width: "wide" },
+      ],
+      known: DASHBOARD_WIDGETS.map((w) => w.id),
     });
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
     // Heights are resolved on read (#768): a blob saved before heights existed
     // carries none, and each entry comes back with its widget's own default
-    // rather than absent — which is why the feature needed no migration.
+    // rather than absent, which is why the feature needed no migration.
     expect(api().widgets.value).toEqual([
       { key: "party", id: "party", width: "full", height: heightOf("party") },
       { key: "quests", id: "quests", width: "wide", height: heightOf("quests") },
@@ -200,73 +155,141 @@ describe("useDashboardLayout", () => {
     expect(api().dense.value).toBe(false);
   });
 
+  // The table's RLS says the same thing, but RLS is a ceiling: a second DM's
+  // row, another campaign's row and the other surface's row all exist, and the
+  // read has to name which one is meant.
+  it("reads only this DM's row for this campaign and surface", async () => {
+    const other = { widgets: [{ key: "party", id: "party", width: "full" }], known: [] };
+    saved("prep", other, { user_id: "user-2" });
+    saved("prep", other, { campaign_id: "campaign-2" });
+    saved("session", other);
+    const { api } = open(ref<DashboardSurface>("prep"));
+    await flushPromises();
+    expect(api().widgets.value.map((e) => e.key)).toEqual(keysOf("prep"));
+    expect(api().isCustomized.value).toBe(false);
+  });
+
   // `known` is what lets the merge tell a widget the DM removed from one that
   // shipped later. A save that forgot to stamp it would make every widget look
   // new on the next load.
-  it("stamps every registry id into known on save", async () => {
+  it("stamps every registry id into known on save, filed under this DM, campaign and surface", async () => {
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
     await api().saveLayout([{ key: "party", id: "party", width: "full" }], false);
 
-    const written = mocks.upserts[0];
-    expect(written).toMatchObject({
-      user_id: "user-1",
-      campaign_id: "campaign-1",
-      surface: "prep",
-    });
-    expect(written?.layout).toEqual({
-      widgets: [{ key: "party", id: "party", width: "full" }],
-      known: DASHBOARD_WIDGETS.map((w) => w.id),
-    });
+    expect(fake.rows("dashboard_layouts")).toEqual([
+      {
+        user_id: "user-1",
+        campaign_id: "campaign-1",
+        surface: "prep",
+        layout: {
+          widgets: [{ key: "party", id: "party", width: "full" }],
+          known: DASHBOARD_WIDGETS.map((w) => w.id),
+        },
+      },
+    ]);
+  });
+
+  it("saving again replaces the one row rather than adding a second", async () => {
+    const { api } = open(ref<DashboardSurface>("prep"));
+    await flushPromises();
+    await api().saveLayout([{ key: "party", id: "party", width: "full" }], false);
+    await api().saveLayout([{ key: "quests", id: "quests", width: "cell" }], true);
+
+    const rows = fake.rows("dashboard_layouts");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.layout).toMatchObject({ widgets: [{ key: "quests" }], dense: true });
+  });
+
+  it("keeps each surface's arrangement apart: saving At-the-table does not overwrite Prep", async () => {
+    const surface = ref<DashboardSurface>("prep");
+    const { api } = open(surface);
+    await flushPromises();
+    await api().saveLayout([{ key: "party", id: "party", width: "full" }], false);
+    surface.value = "session";
+    await flushPromises();
+    await api().saveLayout([{ key: "quests", id: "quests", width: "cell" }], false);
+
+    expect(fake.rows("dashboard_layouts").map((r) => r.surface).sort()).toEqual(["prep", "session"]);
+  });
+
+  // A refetch already in flight when a drag saves would otherwise land after the
+  // optimistic write and put the old arrangement back mid-drag.
+  it("is not undone by a read that was already in flight when the arrangement changed", async () => {
+    saved("prep", { widgets: [{ key: "party", id: "party", width: "full" }], known: DASHBOARD_WIDGETS.map((w) => w.id) });
+    let releaseRead!: () => void;
+    mocks.holdReads = new Promise<void>((resolve) => { releaseRead = resolve; });
+    let releaseWrite!: () => void;
+    mocks.holdWrites = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    const { api } = open(ref<DashboardSurface>("prep"));
+    await flushPromises();
+
+    const saving = api().saveLayout([{ key: "quests", id: "quests", width: "cell" }], false);
+    await flushPromises();
+    expect(api().widgets.value.map((e) => e.key)).toEqual(["quests"]);
+
+    mocks.holdReads = null;
+    releaseRead();
+    await flushPromises();
+    expect(api().widgets.value.map((e) => e.key)).toEqual(["quests"]);
+
+    mocks.holdWrites = null;
+    releaseWrite();
+    await saving;
   });
 
   // Customize mode (#763) saves through on every reorder. If the grid waited for
   // the round trip it would snap back mid-drag, which is the whole reason this
   // path is optimistic.
   it("shows the new arrangement before the write resolves", async () => {
-    const write = deferred<{ data: { layout: unknown }; error: unknown }>();
-    mocks.pendingWrite = write;
-
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
 
+    let release!: () => void;
+    mocks.holdWrites = new Promise<void>((resolve) => { release = resolve; });
     const saving = api().saveLayout([{ key: "quests", id: "quests", width: "cell" }], false);
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(["quests"]);
     expect(api().isSaving.value).toBe(true);
+    expect(fake.rows("dashboard_layouts")).toEqual([]);
 
-    write.settle({
-      data: { layout: { widgets: [{ key: "quests", id: "quests", width: "cell" }] } },
-      error: null,
-    });
+    mocks.holdReads = null;
+  mocks.holdWrites = null;
+    release();
     await saving;
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(["quests"]);
+    expect(api().isSaving.value).toBe(false);
   });
 
-  it("puts the previous arrangement back when the write fails", async () => {
-    const write = deferred<{ data: { layout: unknown }; error: unknown }>();
-    mocks.pendingWrite = write;
-
+  it("puts the previous arrangement back, and says so, when the write fails", async () => {
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
 
+    let release!: () => void;
+    mocks.holdWrites = new Promise<void>((resolve) => { release = resolve; });
+    fake.failNext("dashboard_layouts", { message: "offline" });
     const saving = api().saveLayout([{ key: "quests", id: "quests", width: "cell" }], false);
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(["quests"]);
 
-    write.fail(new Error("offline"));
-    await expect(saving).rejects.toThrow("offline");
+    mocks.holdReads = null;
+  mocks.holdWrites = null;
+    release();
+    await expect(saving).rejects.toMatchObject({ message: "offline" });
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(keysOf("prep"));
     expect(mocks.errors).toEqual(["offline"]);
   });
 
-  // Deleting the row *is* the reset — absent means "use the defaults".
-  it("returns to the defaults on reset", async () => {
-    mocks.rows.set("prep", {
-      layout: { widgets: [{ key: "party", id: "party", width: "full" }], known: [] },
-    });
+  // Deleting the row *is* the reset: absent means "use the defaults". It must
+  // delete this DM's row for this surface and no one else's.
+  it("returns to the defaults on reset, leaving other rows alone", async () => {
+    const layout = { widgets: [{ key: "party", id: "party", width: "full" }], known: [] };
+    saved("prep", layout);
+    saved("session", layout);
+    saved("prep", layout, { user_id: "user-2" });
+    saved("prep", layout, { campaign_id: "campaign-2" });
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
     expect(api().isCustomized.value).toBe(true);
@@ -274,17 +297,16 @@ describe("useDashboardLayout", () => {
     await api().resetLayout();
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(keysOf("prep"));
-    expect(mocks.deletes[0]).toMatchObject({ surface: "prep", user_id: "user-1" });
+    const left = fake.rows("dashboard_layouts").map((r) => [r.user_id, r.campaign_id, r.surface].join("/")).sort();
+    expect(left).toEqual(["user-1/campaign-1/session", "user-1/campaign-2/prep", "user-2/campaign-1/prep"]);
   });
 
   // Prep and At-the-table are separate arrangements, so switching the segmented
   // control must read the other row rather than re-show the one in hand.
   it("reads a different row when the surface changes", async () => {
-    mocks.rows.set("session", {
-      layout: {
-        widgets: [{ key: "live-encounter", id: "live-encounter", width: "full" }],
-        known: DASHBOARD_WIDGETS.map((w) => w.id),
-      },
+    saved("session", {
+      widgets: [{ key: "live-encounter", id: "live-encounter", width: "full" }],
+      known: DASHBOARD_WIDGETS.map((w) => w.id),
     });
     const surface = ref<DashboardSurface>("prep");
     const { api } = open(surface);
@@ -294,17 +316,13 @@ describe("useDashboardLayout", () => {
     surface.value = "session";
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(["live-encounter"]);
-    expect(mocks.reads.map((r) => r.surface)).toEqual(["prep", "session"]);
   });
 
-  // Every read is scoped to the signed-in user and the open campaign; the
-  // table's RLS says the same thing, but a query that forgot would silently
-  // return nothing rather than fail.
   it("does not query at all with no campaign open", async () => {
     mocks.campaignId = null;
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
-    expect(mocks.reads).toEqual([]);
+    expect(fake.calls).toEqual([]);
     expect(api().widgets.value.map((e) => e.key)).toEqual(keysOf("prep"));
   });
 });

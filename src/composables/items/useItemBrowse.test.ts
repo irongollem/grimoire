@@ -2,15 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
-import type { ItemBrowsePage, ItemBrowseRow } from "@/types/item.types";
+import type { ItemBrowseRow } from "@/types/item.types";
 import type { ItemBrowseFilters } from "./useItemBrowse";
 
-const mocks = vi.hoisted(() => ({
-  rpc: vi.fn(),
-  slugs: null as unknown,
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const mocks = vi.hoisted(() => ({ slugs: null as unknown }));
 
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc } }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useLibrarySourceSlugs: () => ({ slugs: mocks.slugs, isLoading: ref(false) }),
 }));
@@ -20,7 +21,7 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
 
 import { useItemBrowse, ITEM_BROWSE_PAGE_SIZE } from "./useItemBrowse";
 
-function row(i: number): ItemBrowseRow {
+function row(i: number, over: Partial<ItemBrowseRow> = {}): ItemBrowseRow {
   return {
     id: `item-${i}`,
     name: `Item ${i}`,
@@ -38,22 +39,35 @@ function row(i: number): ItemBrowseRow {
     source: null,
     source_title: null,
     source_document_key: "grimoire-bundled",
+    ...over,
   };
 }
 
-/** Only the first page carries the summary; later pages are rows alone. */
-function laterPage(from: number, count: number): ItemBrowsePage {
-  return { rows: Array.from({ length: count }, (_, i) => row(from + i)) };
+/**
+ * Stand-in for `browse_items`: a catalogue it filters and pages the way the
+ * server does. A filter the server takes as null ("no filter") but the client
+ * sent as "" would match nothing here, as it would there.
+ */
+function serve(catalogue: ItemBrowseRow[]) {
+  fake.onRpc("browse_items", (args) => {
+    const campaign = args.p_campaign_id as string | null;
+    const type = args.p_type as string | null;
+    const search = args.p_search as string | null;
+    const matching = catalogue.filter(
+      (r) =>
+        (r.campaign_id === null || r.campaign_id === campaign) &&
+        (type === null || r.item_type === type) &&
+        (search === null || r.name.toLowerCase().includes(search.toLowerCase())),
+    );
+    const offset = Number(args.p_offset);
+    const rows = matching.slice(offset, offset + Number(args.p_limit));
+    return offset === 0
+      ? { rows, total: matching.length, selectable_ids: ["own-1"], sources: [{ slug: "srd-2024", title: "SRD 2024" }] }
+      : { rows };
+  });
 }
 
-function page(from: number, count: number, total: number): ItemBrowsePage {
-  return {
-    rows: Array.from({ length: count }, (_, i) => row(from + i)),
-    total,
-    selectable_ids: ["own-1"],
-    sources: [{ slug: "srd-2024", title: "SRD 2024" }],
-  };
-}
+const gear = (count: number) => Array.from({ length: count }, (_, i) => row(i));
 
 const NO_FILTERS: ItemBrowseFilters = { search: "", type: "", rarity: "", source: "", scope: "" };
 
@@ -73,33 +87,22 @@ function mountBrowse(filters: () => ItemBrowseFilters = () => NO_FILTERS) {
 
 describe("useItemBrowse (#972)", () => {
   beforeEach(() => {
-    mocks.rpc.mockReset();
+    fake.reset();
     mocks.slugs = ref<string[] | null>(["srd-2024"]);
   });
 
   it("does not query until the enabled sources are known", async () => {
     mocks.slugs = ref(null);
-    mountBrowse();
-    await flushPromises();
-    expect(mocks.rpc).not.toHaveBeenCalled();
-  });
-
-  it("asks browse_items for page 1 with empty filters sent as null", async () => {
-    mocks.rpc.mockResolvedValue({ data: page(0, 3, 3), error: null });
     const { result } = mountBrowse();
     await flushPromises();
-    expect(mocks.rpc).toHaveBeenCalledWith("browse_items", {
-      p_slugs: ["srd-2024"],
-      p_ruleset: "2024",
-      p_campaign_id: "camp-1",
-      p_search: null,
-      p_type: null,
-      p_rarity: null,
-      p_source: null,
-      p_scope: null,
-      p_limit: ITEM_BROWSE_PAGE_SIZE,
-      p_offset: 0,
-    });
+    expect(fake.calls).toEqual([]);
+    expect(result.error.value).toBeNull();
+  });
+
+  it("with no filters set reads the whole catalogue, with its total, selectable ids and sources", async () => {
+    serve(gear(3));
+    const { result } = mountBrowse();
+    await flushPromises();
     expect(result.rows.value).toHaveLength(3);
     expect(result.total.value).toBe(3);
     expect(result.selectableIds.value).toEqual(["own-1"]);
@@ -107,10 +110,18 @@ describe("useItemBrowse (#972)", () => {
     expect(result.hasNextPage.value).toBe(false);
   });
 
+  it("offers general items and the active campaign's own, never another campaign's", async () => {
+    serve([row(0), row(1, { campaign_id: "camp-1" }), row(2, { campaign_id: "camp-2" })]);
+    const { result } = mountBrowse();
+    await flushPromises();
+    expect(result.rows.value.map((r) => r.id)).toEqual(["item-0", "item-1"]);
+  });
+
   it("stops on an empty page instead of asking for the same offset again", async () => {
-    mocks.rpc
-      .mockResolvedValueOnce({ data: page(0, ITEM_BROWSE_PAGE_SIZE, 100), error: null })
-      .mockResolvedValueOnce({ data: laterPage(ITEM_BROWSE_PAGE_SIZE, 0), error: null });
+    // The first page is full and the total claims more, but nothing follows it.
+    fake.onRpc("browse_items", (args) =>
+      Number(args.p_offset) === 0 ? { rows: gear(ITEM_BROWSE_PAGE_SIZE), total: 100 } : { rows: [] },
+    );
     const { result } = mountBrowse();
     await flushPromises();
     await result.fetchNextPage();
@@ -119,46 +130,42 @@ describe("useItemBrowse (#972)", () => {
   });
 
   it("pages by offset and flattens the pages in order", async () => {
-    mocks.rpc
-      .mockResolvedValueOnce({ data: page(0, ITEM_BROWSE_PAGE_SIZE, 60), error: null })
-      .mockResolvedValueOnce({ data: laterPage(ITEM_BROWSE_PAGE_SIZE, 12), error: null });
+    serve(gear(60));
     const { result } = mountBrowse();
     await flushPromises();
     expect(result.hasNextPage.value).toBe(true);
 
     await result.fetchNextPage();
     await flushPromises();
-    expect(mocks.rpc.mock.calls[1][1].p_offset).toBe(ITEM_BROWSE_PAGE_SIZE);
-    expect(result.rows.value).toHaveLength(60);
-    expect(result.rows.value[59].id).toBe("item-59");
+    expect(result.rows.value.map((r) => r.id)).toEqual(gear(60).map((r) => r.id));
     expect(result.total.value).toBe(60);
     expect(result.hasNextPage.value).toBe(false);
   });
 
-  it("sends the filters, and debounces the search text", async () => {
+  it("applies the filters, and waits for the search text to settle before asking", async () => {
     vi.useFakeTimers();
     try {
-      mocks.rpc.mockResolvedValue({ data: page(0, 1, 1), error: null });
-      const filters = ref<ItemBrowseFilters>({ ...NO_FILTERS, type: "weapon", scope: "general" });
-      mountBrowse(() => filters.value);
+      serve([row(0, { item_type: "weapon", name: "Axe" }), row(1, { item_type: "weapon", name: "Sword" }), row(2)]);
+      const filters = ref<ItemBrowseFilters>({ ...NO_FILTERS, type: "weapon" });
+      const { result } = mountBrowse(() => filters.value);
       await vi.advanceTimersByTimeAsync(0);
-      expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_type: "weapon", p_scope: "general", p_search: null });
+      expect(result.rows.value.map((r) => r.name)).toEqual(["Axe", "Sword"]);
 
-      mocks.rpc.mockClear();
+      fake.calls.length = 0;
       filters.value = { ...filters.value, search: " axe " };
       await vi.advanceTimersByTimeAsync(100);
-      expect(mocks.rpc).not.toHaveBeenCalled();
+      expect(fake.calls).toEqual([]);
       await vi.advanceTimersByTimeAsync(300);
-      expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_search: "axe" });
+      expect(result.rows.value.map((r) => r.name)).toEqual(["Axe"]);
     } finally {
       vi.useRealTimers();
     }
   });
 
   it("surfaces an rpc error instead of reading it as an empty catalogue", async () => {
-    mocks.rpc.mockResolvedValue({ data: null, error: new Error("boom") });
+    fake.failNext("browse_items", { message: "boom" });
     const { result } = mountBrowse();
-    await vi.waitFor(() => expect(result.error.value).toBeInstanceOf(Error));
+    await vi.waitFor(() => expect(result.error.value).not.toBeNull());
     expect(result.rows.value).toEqual([]);
   });
 });

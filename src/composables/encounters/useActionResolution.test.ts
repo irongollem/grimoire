@@ -177,7 +177,39 @@ describe("useActionResolution", () => {
     });
   });
 
+  // PHB 2014 "Making an Attack": a 1 always misses and a 20 always hits, whatever the AC. With no readable AC
+  // nothing else can be decided, so anything but a natural 1 or 20 is left to the DM (null).
+  describe("an attack at a target whose AC cannot be read", () => {
+    const unreadable = () => combatant("pc", { ac: "see sheet" });
+    it.each([
+      [1, false, true],
+      [2, null, false],
+      [10, null, false],
+      [19, null, false],
+      [20, true, false],
+    ])("a natural %i is hit=%s", async (natural, hit, fumble) => {
+      promptRoll.mockResolvedValue(d20(natural, 5));
+      const out = await useActionResolution().resolveAttack({
+        attacker: combatant("wolf"), entry: bite, target: unreadable(), withinFiveFeet: true,
+      });
+      expect(out).toMatchObject({ targetAc: null, hit, fumble });
+      expect(out?.critical).toBe(hit === true);
+    });
+  });
+
   describe("rollDamage", () => {
+    // App convention: a roll that comes out negative (1d4-5) deals nothing rather than healing the target.
+    it("never turns a negative damage roll or flat modifier into healing", async () => {
+      promptRoll.mockResolvedValueOnce(dmg(-3));
+      const { rollDamage } = useActionResolution();
+      expect(await rollDamage({ parts: [{ dice: "1d4-5", type: "piercing" }], critical: false, label: "x" })).toEqual([
+        { amount: 0, type: "piercing" },
+      ]);
+      expect(await rollDamage({ parts: [{ dice: "-2", type: "piercing" }], critical: false, label: "x" })).toEqual([
+        { amount: 0, type: "piercing" },
+      ]);
+    });
+
     it("rolls each part separately with its type, doubling dice but not the modifier on a crit", async () => {
       promptRoll.mockResolvedValueOnce(dmg(11)).mockResolvedValueOnce(dmg(5));
       const out = await useActionResolution().rollDamage({
@@ -270,6 +302,8 @@ describe("useActionResolution", () => {
       ]);
       expect(settleSave(results[3], 13)).toMatchObject({ total: 13, success: true });
       expect(settleSave(results[3], 12).success).toBe(false);
+      // A stunned creature fails automatically; no total, however high, rescues it.
+      expect(settleSave(results[2], 30).success).toBe(false);
     });
 
     it("never lets the attacker's roll-mode toggle reach the targets' own saves", async () => {

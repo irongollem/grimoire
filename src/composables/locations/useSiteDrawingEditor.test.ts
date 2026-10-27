@@ -27,10 +27,10 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useUpdateLocation: () => updateLocationStub,
 }));
 
-function makeFakeWorkbench() {
+function makeFakeWorkbench(name = "Test Drawing") {
   let revision = 0;
   return {
-    getName: () => "Test Drawing",
+    getName: () => name,
     getCampaignId: () => null,
     getLayers: () => ({}) as DungeonMapLayers,
     getMetadata: () => ({}),
@@ -178,5 +178,81 @@ describe("useSiteDrawingEditor", () => {
 
     expect(createMapStub.mutateAsync).toHaveBeenCalledOnce();
     expect(updateLocationStub.mutateAsync).toHaveBeenCalledWith({ id: "loc-2", update: { source_map_id: "new-map" } });
+  });
+
+  it("save with nothing unsaved writes nothing", async () => {
+    const editor = useSiteDrawingEditor(location, drawingMap);
+    editor.workbenchRef.value = makeFakeWorkbench() as unknown as SiteDrawingWorkbenchRef;
+    await editor.save();
+    expect(updateMapStub.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("a second save while one is in flight does not write twice", async () => {
+    let resolveUpdate!: (v: unknown) => void;
+    updateMapStub.mutateAsync.mockImplementation(() => new Promise<unknown>((resolve) => { resolveUpdate = resolve; }));
+    const editor = useSiteDrawingEditor(location, drawingMap);
+    editor.workbenchRef.value = makeFakeWorkbench() as unknown as SiteDrawingWorkbenchRef;
+    editor.onEditRevision();
+
+    const first = editor.save();
+    await editor.save();
+    resolveUpdate({});
+    await first;
+
+    expect(updateMapStub.mutateAsync).toHaveBeenCalledOnce();
+  });
+
+  it("names a drawing whose name was cleared after its site, and keeps the drawing's tags", async () => {
+    const editor = useSiteDrawingEditor(location, computed(() => ({ tags: ["undercroft"] })));
+    editor.workbenchRef.value = makeFakeWorkbench("   ") as unknown as SiteDrawingWorkbenchRef;
+    editor.onEditRevision();
+    await editor.save();
+    expect(updateMapStub.mutateAsync).toHaveBeenCalledWith({
+      id: "map-1",
+      update: expect.objectContaining({ name: "Ashmouth Undercroft", tags: ["undercroft"] }),
+    });
+  });
+
+  it("re-arms the save after an edit landed mid-flight, so that edit is written too", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolveUpdate!: (v: unknown) => void;
+      updateMapStub.mutateAsync.mockImplementationOnce(() => new Promise<unknown>((resolve) => { resolveUpdate = resolve; }));
+      const editor = useSiteDrawingEditor(location, drawingMap);
+      const wb = makeFakeWorkbench();
+      editor.workbenchRef.value = wb as unknown as SiteDrawingWorkbenchRef;
+      editor.onEditRevision();
+      wb.bump();
+
+      const first = editor.save();
+      editor.onEditRevision();
+      wb.bump();
+      // A slow save: the debounce armed by the mid-flight edit fires while the first write is still out, and is ignored.
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(updateMapStub.mutateAsync).toHaveBeenCalledOnce();
+      resolveUpdate({});
+      await first;
+      // The re-arm after the save is what writes the late stroke.
+      await vi.advanceTimersByTimeAsync(1500);
+
+      expect(updateMapStub.mutateAsync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("when the workbench reports itself clean again (a Cancel), the pending save is dropped", async () => {
+    vi.useFakeTimers();
+    try {
+      const editor = useSiteDrawingEditor(location, drawingMap);
+      editor.workbenchRef.value = makeFakeWorkbench() as unknown as SiteDrawingWorkbenchRef;
+      editor.onEditRevision();
+      editor.onDirtyChange(false);
+      expect(editor.dirty.value).toBe(false);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(updateMapStub.mutateAsync).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

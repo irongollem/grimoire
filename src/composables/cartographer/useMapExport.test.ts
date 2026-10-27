@@ -345,4 +345,108 @@ describe("useMapExport", () => {
       expect(mocks.bakeAiStyleInput).toHaveBeenCalledWith(map, expect.any(Map), expect.any(Map), null, {}, "gemini");
     });
   });
+
+  describe("a render costs credits, so what fails or repeats must not be charged twice or saved wrong", () => {
+    function exportWith(site?: () => { id: string; name: string; picture: MapImageLayer | null }) {
+      return useMapExport({
+        buildMap: fakeMap, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "Test", glyphs: () => ({}), site,
+      });
+    }
+
+    it("does not start a second render while one is running", async () => {
+      let release!: (v: unknown) => void;
+      mocks.invoke.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+      const exp = exportWith();
+      const first = exp.onGenerateStyle();
+      await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledTimes(1));
+      await exp.onGenerateStyle();
+      expect(mocks.invoke).toHaveBeenCalledTimes(1);
+      release({ data: { image_b64: "x" }, error: null });
+      await first;
+      expect(exp.styleGenerating.value).toBe(false);
+    });
+
+    it("shows a failed render as an error with no result to save", async () => {
+      mocks.invoke.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+      const exp = exportWith();
+      await exp.onGenerateStyle();
+      expect(exp.styleError.value).toBe("boom");
+      expect(exp.showStyleResult.value).toBe(false);
+      expect(exp.styleGenerating.value).toBe(false);
+      await exp.onSaveStyledToAtlas();
+      expect(mocks.uploadToBucket).not.toHaveBeenCalled();
+    });
+
+    it("says what the styler answered when it returns no image", async () => {
+      mocks.invoke.mockResolvedValueOnce({ data: { error: "content_policy" }, error: null });
+      const exp = exportWith();
+      await exp.onGenerateStyle();
+      expect(exp.styleError.value).toBe("content_policy");
+      expect(exp.showStyleResult.value).toBe(false);
+    });
+
+    it("saves nothing without a chosen location or before there is a result", async () => {
+      const exp = exportWith();
+      exp.styleAtlasLocationId.value = "loc-9";
+      await exp.onSaveStyledToAtlas();
+      expect(mocks.uploadToBucket).not.toHaveBeenCalled();
+
+      await exp.onGenerateStyle();
+      exp.styleAtlasLocationId.value = "";
+      await exp.onSaveStyledToAtlas();
+      expect(mocks.uploadToBucket).not.toHaveBeenCalled();
+    });
+
+    it("closes the result once it is saved to the location", async () => {
+      const exp = exportWith();
+      await exp.onGenerateStyle();
+      expect(exp.showStyleResult.value).toBe(true);
+      exp.styleAtlasLocationId.value = "loc-9";
+      await exp.onSaveStyledToAtlas();
+      expect(exp.showStyleResult.value).toBe(false);
+    });
+
+    it("will not save for no one signed in", async () => {
+      const exp = exportWith();
+      await exp.onGenerateStyle();
+      exp.styleAtlasLocationId.value = "loc-9";
+      mocks.getCurrentUser.mockReturnValueOnce(null);
+      await exp.onSaveStyledToAtlas();
+      expect(exp.styleAtlasError.value).toBe("Not authenticated");
+      expect(mocks.uploadToBucket).not.toHaveBeenCalled();
+    });
+
+    it("keeps the result open and reports the error when the upload fails, so the DM can try again", async () => {
+      const exp = exportWith();
+      await exp.onGenerateStyle();
+      exp.styleAtlasLocationId.value = "loc-9";
+      mocks.uploadToBucket.mockResolvedValueOnce(null);
+      await exp.onSaveStyledToAtlas();
+      expect(exp.styleAtlasError.value).toBe("Upload failed");
+      expect(exp.showStyleResult.value).toBe(true);
+      expect(exp.styleAtlasSaving.value).toBe(false);
+      expect(mocks.updatePicture).not.toHaveBeenCalled();
+    });
+
+    it("keeps the result open when writing the picture to the location fails", async () => {
+      const exp = exportWith();
+      await exp.onGenerateStyle();
+      exp.styleAtlasLocationId.value = "loc-9";
+      mocks.updatePicture.mockRejectedValueOnce(new Error("denied"));
+      await exp.onSaveStyledToAtlas();
+      expect(exp.styleAtlasError.value).toBe("denied");
+      expect(exp.showStyleResult.value).toBe(true);
+      expect(mocks.logImageGeneration).not.toHaveBeenCalled();
+    });
+
+    it("sends the chosen preset and the trimmed extra prompt, and none when it is blank", async () => {
+      const exp = exportWith();
+      exp.stylePromptSuffix.value = "  torchlit  ";
+      await exp.onGenerateStyle();
+      expect(mocks.invoke.mock.calls.at(-1)![1].body).toMatchObject({ prompt_suffix: "torchlit", preset_id: exp.selectedPresetId.value });
+      exp.stylePromptSuffix.value = "   ";
+      await exp.onGenerateStyle();
+      expect(mocks.invoke.mock.calls.at(-1)![1].body.prompt_suffix).toBeNull();
+    });
+  });
 });

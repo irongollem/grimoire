@@ -76,4 +76,60 @@ describe("useAttemptCraft", () => {
     expect(args.p_ruined_row.name).toBe("Iron Ingot");
     expect(args.p_degrade).toBeNull();
   });
+
+  // context/features/items-spells-crafting.md "The attempt": success is total >= DC, a plain fail
+  // misses by less than 5, ruin is a natural 1 or a miss of 5 or more. Recipe DC is 12 here.
+  it.each([
+    ["meeting the DC exactly", 12, 12, "success"],
+    ["missing by 1", 11, 11, "fail"],
+    ["missing by 4", 8, 8, "fail"],
+    ["missing by 5", 7, 7, "ruin"],
+    ["a natural 1 that still totals above the DC", 1, 25, "ruin"],
+    ["a natural 2 that totals above the DC", 2, 25, "success"],
+  ])("resolves %s as %s", async (_label, natural, total, outcome) => {
+    roll(natural, total);
+    expect((await run(params())).outcome).toBe(outcome);
+  });
+
+  it("rolls with disadvantage and adds ability, proficiency and every bonus once, when the tools are missing", async () => {
+    roll(15, 15);
+    const result = await run(params({ hasTools: false, abilityMod: 3, profBonus: 2, modifierBonuses: [1, -2] }));
+    expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ mode: "disadvantage", modifier: 4 }));
+    expect(result).toMatchObject({ hasDisadvantage: true });
+  });
+
+  it("rolls normally with the tools in the pack", async () => {
+    roll(15, 15);
+    const result = await run(params({ hasTools: true }));
+    expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ mode: "normal" }));
+    expect(result).toMatchObject({ hasDisadvantage: false });
+  });
+
+  it("writes nothing when the player cancels the roll", async () => {
+    promptRoll.mockResolvedValue(null);
+    await expect(run(params())).rejects.toThrow("Roll cancelled");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("raises craft_apply's refusal instead of reporting a craft that did not happen", async () => {
+    roll(15, 15);
+    rpc.mockResolvedValue({ error: new Error("craft_apply refused") });
+    await expect(run(params())).rejects.toThrow("craft_apply refused");
+  });
+
+  it("leaves no wreckage row on a plain failure, and makes no output on a ruin", async () => {
+    roll(8, 8);
+    await run(params());
+    expect(rpc.mock.calls[0][1].p_ruined_row).toBeNull();
+    rpc.mockClear();
+    roll(1, 1);
+    await run(params());
+    expect(rpc.mock.calls[0][1].p_success_rows).toEqual([]);
+  });
+
+  it("returns no wreckage when a ruin consumed nothing", async () => {
+    roll(1, 1);
+    await run(params({ primaryInventoryItem: null, primaryConsumption: [], ingredientConsumption: [] }));
+    expect(rpc.mock.calls[0][1].p_ruined_row).toBeNull();
+  });
 });

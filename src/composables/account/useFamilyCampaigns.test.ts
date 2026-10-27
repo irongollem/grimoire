@@ -1,6 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h } from "vue";
+import { mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const auth = vi.hoisted(() => ({ user: { id: "parent-1" } as { id: string } | null }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => auth }));
+
 import {
   canRemoveMember,
+  useDecideJoinRequest,
+  useFamilyCampaigns,
+  useRemoveFromFamilyCampaign,
   decisionMessage,
   familyCampaignErrorMessage,
   parseFamilyCampaigns,
@@ -72,13 +87,9 @@ describe("familyCampaignErrorMessage", () => {
     expect(familyCampaignErrorMessage({ message: "Not authorized" }, "remove")).not.toContain("decide");
   });
 
-  it("never leaks raw database text or an em-dash", () => {
+  it("never leaks raw database text", () => {
     const generic = familyCampaignErrorMessage({ message: "duplicate key value violates constraint" }, "decide");
     expect(generic).toBe("Something went wrong. Please try again.");
-    for (const m of ["Not authorized", "Request not found", "Campaign not found"]) {
-      expect(familyCampaignErrorMessage({ message: m }, "decide")).not.toContain("—");
-      expect(familyCampaignErrorMessage({ message: m }, "remove")).not.toContain("—");
-    }
   });
 });
 
@@ -103,5 +114,86 @@ describe("decisionMessage", () => {
       "Jo can now join Kit's table.",
     );
     expect(decisionMessage("joined", request())).toBe("Jo can now join Ashen Vale.");
+  });
+
+  it("names the campaign when the DM has no name at their own table", () => {
+    expect(decisionMessage("joined", request({ kind: "joining_child_campaign", dmName: null }))).toBe(
+      "Jo can now join Ashen Vale.",
+    );
+  });
+});
+
+describe("the parent's reads and answers", () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const invalidate = vi.spyOn(client, "invalidateQueries");
+const keysOf = () =>
+  invalidate.mock.calls.map(([filters]) => (filters !== undefined && typeof filters !== "function" ? filters.queryKey : undefined));
+
+  function inApp<T>(setup: () => T): T {
+    let out!: T;
+    mount(defineComponent({ setup() { out = setup(); return () => h("div"); } }), { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } });
+    return out;
+  }
+
+  beforeEach(() => {
+    fake.reset();
+    client.clear();
+    invalidate.mockClear();
+    auth.user = { id: "parent-1" };
+  });
+
+  it("lists the requests waiting on the parent and the tables each child is at", async () => {
+    fake.onRpc("get_family_campaigns", () => ({
+      children: [{ child_user_id: "k", campaigns: [{ campaign_id: "c1", name: "Ashen Vale", child_role: "player", child_runs_it: false, members: [] }] }],
+      requests: [rawRequest],
+    }));
+    const q = inApp(() => useFamilyCampaigns());
+    await vi.waitFor(() => expect(q.requests.value).toHaveLength(1));
+    expect(q.tablesByChild.value.get("k")?.[0]?.name).toBe("Ashen Vale");
+  });
+
+  it("reports a malformed answer as an error rather than a half-empty page", async () => {
+    fake.onRpc("get_family_campaigns", () => ({ children: [] }));
+    const q = inApp(() => useFamilyCampaigns());
+    await vi.waitFor(() => expect(q.error.value).not.toBeNull());
+    expect(q.requests.value).toEqual([]);
+  });
+
+  it("reads nothing for a signed-out visitor", () => {
+    auth.user = null;
+    inApp(() => useFamilyCampaigns());
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("answers a request with the decision the server made, and refreshes the page either way", async () => {
+    fake.onRpc("decide_campaign_join_request", (args) => (args.p_approve === true ? "pending" : "declined"));
+    const decide = inApp(() => useDecideJoinRequest());
+    expect(await decide.mutateAsync({ requestId: "r1", approve: true })).toBe("pending");
+    expect(await decide.mutateAsync({ requestId: "r1", approve: false })).toBe("declined");
+    expect(keysOf()).toContainEqual(["family-campaigns"]);
+  });
+
+  it("an answer that is not a decision is an error", async () => {
+    fake.onRpc("decide_campaign_join_request", () => "maybe");
+    const decide = inApp(() => useDecideJoinRequest());
+    await expect(decide.mutateAsync({ requestId: "r1", approve: true })).rejects.toThrow(/Unexpected response/);
+  });
+
+  it("a refused answer reaches the caller and still refreshes the page", async () => {
+    fake.failNext("decide_campaign_join_request", { message: "Not authorized" });
+    const decide = inApp(() => useDecideJoinRequest());
+    await expect(decide.mutateAsync({ requestId: "r1", approve: true })).rejects.toMatchObject({ message: "Not authorized" });
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it("removing a member reports the server's refusal and refreshes the page", async () => {
+    fake.onRpc("remove_from_family_campaign", () => null);
+    const remove = inApp(() => useRemoveFromFamilyCampaign());
+    await expect(remove.mutateAsync({ campaignId: "c1", userId: "u9" })).resolves.toBeUndefined();
+    fake.failNext("remove_from_family_campaign", { message: "The campaign's owner cannot be removed" });
+    await expect(remove.mutateAsync({ campaignId: "c1", userId: "u1" })).rejects.toMatchObject({
+      message: "The campaign's owner cannot be removed",
+    });
+    expect(invalidate.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -72,6 +72,27 @@ describe("useSpellBrowse", () => {
     expect(get().hasNextPage.value).toBe(false);
   });
 
+  it("sends blank filters as nulls, and level 0 (cantrips) as the number 0", async () => {
+    mocks.rpc.mockResolvedValue({ data: { rows: [], total: 0, selectable_ids: [] }, error: null });
+    setup({ ...base, search: "   ", source: "" });
+    await flushPromises();
+    expect(mocks.rpc.mock.calls[0][1]).toMatchObject({
+      p_search: null, p_level: null, p_school: null, p_class: null, p_source: "all", p_extra_ids: null,
+    });
+
+    mocks.rpc.mockClear();
+    setup({ ...base, level: "0" });
+    await flushPromises();
+    expect(mocks.rpc.mock.calls[0][1].p_level).toBe(0);
+  });
+
+  it("sends no extra ids for an empty list", async () => {
+    mocks.rpc.mockResolvedValue({ data: { rows: [], total: 0, selectable_ids: [] }, error: null });
+    setup({ ...base, class: "Wizard", extraIds: [] });
+    await flushPromises();
+    expect(mocks.rpc.mock.calls[0][1].p_extra_ids).toBeNull();
+  });
+
   it("passes a subclass's expanded list as extra ids for the class filter", async () => {
     mocks.rpc.mockResolvedValue({ data: { rows: [], total: 0, selectable_ids: [] }, error: null });
     setup({ ...base, class: "Warlock", extraIds: ["srd_bless", "srd_command"] });
@@ -85,6 +106,9 @@ describe("useSpellBrowse", () => {
     await flushPromises();
     expect(mocks.rpc).not.toHaveBeenCalled();
     expect(get().isLoading.value).toBe(true);
+    // Waiting is not failing, and an unloaded list holds nothing.
+    expect(get().error.value).toBeNull();
+    expect([get().total.value, get().selectableIds.value, get().rows.value]).toEqual([0, [], []]);
   });
 
   it("surfaces an rpc error", async () => {

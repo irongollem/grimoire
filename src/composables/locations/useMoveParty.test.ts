@@ -6,10 +6,11 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   toastError: vi.fn(),
   campaign: { activeCampaignId: "c1" as string | null },
+  moving: { value: false },
 }));
 
 vi.mock("@/composables/campaign/useCampaigns", () => ({
-  useSetCampaignLocation: () => ({ mutateAsync: mocks.setCampaignLocation, isPending: { value: false } }),
+  useSetCampaignLocation: () => ({ mutateAsync: mocks.setCampaignLocation, isPending: mocks.moving }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({
@@ -23,6 +24,7 @@ describe("useMoveParty", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.campaign.activeCampaignId = "c1";
+    mocks.moving.value = false;
     mocks.setCampaignLocation.mockResolvedValue(undefined);
   });
 
@@ -62,6 +64,13 @@ describe("useMoveParty", () => {
     const { moveParty } = useMoveParty();
     expect(await moveParty({ ...vault, currentRoomId: "vault", reachable: null })).toBe(false);
     mocks.campaign.activeCampaignId = null;
+    expect(await moveParty({ ...vault, currentRoomId: null, reachable: null })).toBe(false);
+    expect(mocks.setCampaignLocation).not.toHaveBeenCalled();
+  });
+
+  it("ignores a second click while a move is still in flight", async () => {
+    mocks.moving.value = true;
+    const { moveParty } = useMoveParty();
     expect(await moveParty({ ...vault, currentRoomId: null, reachable: null })).toBe(false);
     expect(mocks.setCampaignLocation).not.toHaveBeenCalled();
   });

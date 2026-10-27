@@ -4,39 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
 // #972: the art defaults are a full-table read, so a hook mounted behind a closed
-// panel must send nothing, and a detail page must read its own row only.
+// panel must send nothing. The detail pages' own-row reads are asserted in
+// useLibraryMonsterArt.test.ts and useLibrarySpellArt.test.ts.
 
-interface Read {
-  table: string;
-  filters: [string, unknown][];
-}
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
-const mocks = vi.hoisted(() => ({
-  reads: [] as { table: string; filters: [string, unknown][] }[],
-  rows: {} as Record<string, unknown[]>,
-}));
-
-vi.mock("@/lib/supabase", () => ({
-  getCurrentUser: () => ({ id: "user-1" }),
-  supabase: {
-    from: (table: string) => {
-      const read: Read = { table, filters: [] };
-      mocks.reads.push(read);
-      // A real promise carrying the chain methods, so it is awaitable without a hand-made thenable.
-      const builder: Promise<{ data: unknown[]; error: null }> & {
-        select: () => unknown;
-        eq: (column: string, value: unknown) => unknown;
-      } = Object.assign(Promise.resolve({ data: mocks.rows[table] ?? [], error: null }), {
-        select: () => builder,
-        eq: (column: string, value: unknown) => {
-          read.filters.push([column, value]);
-          return builder;
-        },
-      });
-      return builder;
-    },
-  },
-}));
+vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "user-1" }), supabase: fake.client }));
 
 import { useLibraryArtDefaults } from "./useLibraryArtDefaults";
 import { useLibraryMonsterArtEntry } from "./useLibraryMonsterArt";
@@ -57,63 +33,36 @@ function run<T>(setup: () => T): T {
   return api;
 }
 
-beforeEach(() => {
-  mocks.reads.length = 0;
-  mocks.rows = {};
-});
+beforeEach(() => fake.reset());
 
 describe("art defaults held back while disabled", () => {
   it("sends no request when enabled is false", async () => {
     run(() => useLibraryArtDefaults(false));
     await flushPromises();
-    expect(mocks.reads).toEqual([]);
+    expect(fake.calls).toEqual([]);
   });
 
-  it("fetches when enabled (the default)", async () => {
-    run(() => useLibraryArtDefaults());
+  it("fetches by default, keyed by content type and name", async () => {
+    fake.seed("library_art_defaults", [
+      { content_type: "item", content_name: "ring of protection", image_url: "ring.webp", image_focal_point: null },
+    ]);
+    const defaults = run(() => useLibraryArtDefaults());
     await flushPromises();
-    expect(mocks.reads.map((r) => r.table)).toEqual(["library_art_defaults"]);
+    expect(defaults.data.value).toEqual({ "item:ring of protection": { image_url: "ring.webp", image_focal_point: null } });
   });
 
   it("starts fetching once the gate opens", async () => {
     const open = ref(false);
     run(() => useLibraryArtDefaults(open));
     await flushPromises();
-    expect(mocks.reads).toEqual([]);
+    expect(fake.calls).toEqual([]);
     open.value = true;
     await flushPromises();
-    expect(mocks.reads.map((r) => r.table)).toEqual(["library_art_defaults"]);
+    expect(fake.calls.map((c) => c.target)).toEqual(["library_art_defaults"]);
   });
 });
 
 describe("single-entry art reads", () => {
-  it("reads one monster's canonical row and the caller's own row, merged per field", async () => {
-    mocks.rows.library_monster_art_canonical = [
-      { entry_id: "srd_goblin", image_url: "canon.webp", cutout_url: "cut.webp", portrait_focal_point: null },
-    ];
-    mocks.rows.library_monster_art = [
-      { entry_id: "srd_goblin", image_url: "mine.webp", cutout_url: null, portrait_focal_point: { x: 0.1, y: 0.2 } },
-    ];
-    const q = run(() => useLibraryMonsterArtEntry("srd_goblin"));
-    await flushPromises();
-
-    expect(mocks.reads).toEqual([
-      { table: "library_monster_art_canonical", filters: [["entry_id", "srd_goblin"]] },
-      {
-        table: "library_monster_art",
-        filters: [
-          ["entry_id", "srd_goblin"],
-          ["user_id", "user-1"],
-        ],
-      },
-    ]);
-    expect(q.data.value).toEqual({
-      image_url: "mine.webp",
-      cutout_url: "cut.webp",
-      portrait_focal_point: { x: 0.1, y: 0.2 },
-    });
-  });
-
   it("resolves null when the monster has no art in either layer", async () => {
     const q = run(() => useLibraryMonsterArtEntry("srd_goblin"));
     await flushPromises();
@@ -127,25 +76,6 @@ describe("single-entry art reads", () => {
       useLibrarySpellArtEntry("", true);
     });
     await flushPromises();
-    expect(mocks.reads).toEqual([]);
-  });
-
-  it("reads one spell, the caller's own row winning over canonical", async () => {
-    mocks.rows.library_spell_art_canonical = [{ entry_id: "srd_fireball", image_url: "canon.webp", portrait_focal_point: null }];
-    mocks.rows.library_spell_art = [{ entry_id: "srd_fireball", image_url: "mine.webp", portrait_focal_point: null }];
-    const q = run(() => useLibrarySpellArtEntry("srd_fireball"));
-    await flushPromises();
-
-    expect(mocks.reads.map((r) => [r.table, r.filters])).toEqual([
-      ["library_spell_art_canonical", [["entry_id", "srd_fireball"]]],
-      [
-        "library_spell_art",
-        [
-          ["entry_id", "srd_fireball"],
-          ["user_id", "user-1"],
-        ],
-      ],
-    ]);
-    expect(q.data.value).toEqual({ image_url: "mine.webp", portrait_focal_point: null });
+    expect(fake.calls).toEqual([]);
   });
 });

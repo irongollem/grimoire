@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import type { Npc } from "@/types/npc.types";
 
 const mocks = vi.hoisted(() => ({
@@ -105,6 +105,20 @@ describe("useNpcReveal", () => {
     expect(msg).not.toContain("Lord Vance");
   });
 
+  it("names a member it cannot find as 'A party member' rather than leaving a gap", () => {
+    const { adapter } = useNpcReveal(() => makeNpc());
+    adapter.toggleMember("pc-gone");
+    expect(mocks.sendNarrativeEvent).toHaveBeenCalledWith("A party member encounters Lord Vance.", "npc-1");
+  });
+
+  it("follows the NPC when the row behind it changes", async () => {
+    const row = ref(makeNpc({ player_visible_to: ["pc-1"], player_visible_fields: ["name"], is_revealed: false }));
+    const { visibleTo, fields, isRevealed } = useNpcReveal(() => row.value);
+    row.value = makeNpc({ id: "npc-2", player_visible_to: ["pc-2"], player_visible_fields: ["portrait"], is_revealed: true });
+    await nextTick();
+    expect([visibleTo.value, fields.value, isRevealed.value]).toEqual([["pc-2"], ["portrait"], true]);
+  });
+
   it("announces under 'someone' when the name is not shared", () => {
     const { adapter } = useNpcReveal(() => makeNpc({ player_visible_fields: ["portrait"] }));
     adapter.toggleMember("pc-1");
@@ -180,6 +194,13 @@ describe("useNpcReveal", () => {
       expect(mocks.sendNarrativeEvent).toHaveBeenCalledWith("A disguise falls away.", "npc-1");
     });
 
+    it("announces against the name field the DM just ticked, not the row still in flight", () => {
+      const { setRevealed, setFields } = useNpcReveal(() => makeNpc({ disguise_name: "The Stranger", player_visible_fields: [] }));
+      setFields(["name"]);
+      setRevealed(true);
+      expect(mocks.sendNarrativeEvent).toHaveBeenCalledWith("The Stranger is revealed to be Lord Vance.", "npc-1");
+    });
+
     it("does not announce when hiding the alter ego again", () => {
       const { setRevealed } = useNpcReveal(() => makeNpc({ disguise_name: "X", is_revealed: true }));
       setRevealed(false);
@@ -196,13 +217,8 @@ describe("useNpcReveal", () => {
 });
 
 describe("npcShareUpdate", () => {
-  it("seeds the field list when the NPC is shared", () => {
-    const update = npcShareUpdate(["m1"], []);
-    expect(update.player_visible_to).toEqual(["m1"]);
-    expect(update.player_visible_fields.length).toBeGreaterThan(0);
-  });
-
-  it("leaves the DM's field choice alone when hiding", () => {
+  it("leaves the DM's field choice alone when hiding, even an empty one", () => {
     expect(npcShareUpdate([], ["name"])).toEqual({ player_visible_to: [], player_visible_fields: ["name"] });
+    expect(npcShareUpdate([], [])).toEqual({ player_visible_to: [], player_visible_fields: [] });
   });
 });

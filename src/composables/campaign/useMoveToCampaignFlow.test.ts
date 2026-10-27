@@ -49,6 +49,22 @@ describe("useMoveToCampaignFlow", () => {
     );
   });
 
+  it("says 'was' for a single family link", async () => {
+    mutateAsync.mockResolvedValue({ moved: 1, familyLinksRemoved: 1, worldLinksRemoved: 0 });
+    const { flow } = makeFlow();
+    await flow.move("campaign-1");
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "Moved 1 item to Curse of Strahd. 1 family link to people who stayed behind was removed.",
+    );
+  });
+
+  it("moves nothing for a list with no table to re-scope", async () => {
+    const { flow } = makeFlow({ table: undefined });
+    await flow.move("campaign-1");
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
   it("says how many world links stayed behind (#1084)", async () => {
     mutateAsync.mockResolvedValue({ moved: 1, familyLinksRemoved: 0, worldLinksRemoved: 1 });
     const { flow } = makeFlow({ campaignName: () => "Curse of Strahd" });

@@ -31,6 +31,10 @@ const mocks = vi.hoisted(() => ({
   omits: [] as (boolean | undefined)[],
   uploads: [] as (string | undefined)[],
   failStandUpload: false,
+  emptyStandUpload: false,
+  emptyLiveUpload: false,
+  user: { id: "user-1" } as { id: string } | null,
+  previous: { map_layer_url: "https://cdn/old.webp", map_layer_stand_url: "https://cdn/old-stand.webp", map_layer_stand_live_url: null as string | null },
   deleteNow: vi.fn(),
   deleteUnreferenced: vi.fn(),
 }));
@@ -55,11 +59,13 @@ vi.mock("@/lib/storage", () => ({
   uploadToBucket: async ({ path }: { path?: string }) => {
     mocks.uploads.push(path);
     if (mocks.failStandUpload && path?.endsWith("-stand.webp")) throw new Error("stand upload broke");
+    if (mocks.emptyStandUpload && path?.endsWith("-stand.webp")) return null;
+    if (mocks.emptyLiveUpload && path?.endsWith("-stand-live.webp")) return null;
     if (path?.endsWith("-stand-live.webp")) return "https://cdn/stand-live.webp";
     return path ? "https://cdn/stand.webp" : "https://cdn/x.webp";
   },
 }));
-vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "user-1" }) }));
+vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => mocks.user }));
 vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddingsInBackground: mocks.embed }));
 vi.mock("@/lib/locations/publish", async (importActual) => ({
   ...(await importActual<typeof import("@/lib/locations/publish")>()),
@@ -76,9 +82,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
       id: "site-1",
       location_type: "dungeon",
       campaign_id: "camp-1",
-      map_layer_url: "https://cdn/old.webp",
-      map_layer_stand_url: "https://cdn/old-stand.webp",
-      map_layer_stand_live_url: null,
+      ...mocks.previous,
     }),
   }),
   useUpdateLocation: () => ({ mutateAsync: mocks.updateLocation }),
@@ -127,6 +131,9 @@ describe("useMapPublish.publish", () => {
     mocks.snapshot = SNAPSHOT;
     mocks.uploads.length = 0;
     mocks.failStandUpload = false;
+    mocks.emptyStandUpload = false;
+    mocks.user = { id: "user-1" };
+    mocks.previous = { map_layer_url: "https://cdn/old.webp", map_layer_stand_url: "https://cdn/old-stand.webp", map_layer_stand_live_url: null };
     mocks.deleteNow.mockResolvedValue(undefined);
     mocks.deleteUnreferenced.mockResolvedValue(undefined);
     const record = (name: string) => async () => void mocks.order.push(name);
@@ -352,6 +359,93 @@ describe("useMapPublish.publish", () => {
     expect(review.value.quotaExceeded).toBe(true);
     expect(review.value.error).toBeNull();
     expect(mocks.insertRegions).not.toHaveBeenCalled();
+  });
+});
+
+describe("useMapPublish.publish guards", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.snapshot = SNAPSHOT;
+    mocks.uploads.length = 0;
+    mocks.failStandUpload = false;
+    mocks.emptyStandUpload = false;
+    mocks.emptyLiveUpload = false;
+    mocks.user = { id: "user-1" };
+    mocks.previous = { map_layer_url: "https://cdn/old.webp", map_layer_stand_url: "https://cdn/old-stand.webp", map_layer_stand_live_url: null };
+    mocks.deleteNow.mockResolvedValue(undefined);
+    mocks.deleteUnreferenced.mockResolvedValue(undefined);
+    for (const m of [mocks.updateDrawing, mocks.insertLocations, mocks.insertRegions, mocks.updateRegions, mocks.reconcile, mocks.insertDoors, mocks.updateDoors, mocks.insertPlacements, mocks.updatePlacements, mocks.updateLocation]) {
+      m.mockResolvedValue(undefined);
+    }
+    mocks.plan = {
+      spaces: [{ kind: "update", space: space("s:d"), region: region("reg-d", "room-d"), before: 1, after: 2, reason: "shape" }],
+      ways: [], placements: [], summary: {},
+    } as unknown as PublishPlan;
+  });
+
+  it("a second click while a publish is running writes nothing more", async () => {
+    let release!: () => void;
+    mocks.updateDrawing.mockReturnValueOnce(new Promise<void>((resolve) => { release = resolve; }));
+    const { publish } = setup();
+    const first = publish();
+    await vi.waitFor(() => expect(mocks.updateDrawing).toHaveBeenCalledTimes(1));
+    await publish();
+    release();
+    await first;
+    expect(mocks.updateDrawing).toHaveBeenCalledTimes(1);
+    expect(mocks.updateLocation).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes nothing without a target site", async () => {
+    const publisher = setup();
+    publisher.targetSiteId.value = "";
+    await publisher.publish();
+    expect(mocks.uploads).toEqual([]);
+    expect(mocks.updateDrawing).not.toHaveBeenCalled();
+  });
+
+  it("publishes nothing for no one signed in, and does not refresh a site it never touched", async () => {
+    mocks.user = null;
+    const { publish, review } = setup();
+    await publish();
+    expect(review.value.error).toBe("Not authenticated");
+    expect(mocks.updateDrawing).not.toHaveBeenCalled();
+    expect(mocks.invalidate).not.toHaveBeenCalled();
+  });
+
+  it("an upload that comes back without a url is treated as failed: what landed is removed and the site is untouched", async () => {
+    mocks.emptyStandUpload = true;
+    const { publish, review } = setup();
+    await publish();
+    expect(review.value.error).toBe("Upload failed");
+    expect(mocks.deleteNow).toHaveBeenCalledTimes(1);
+    expect(mocks.updateDrawing).not.toHaveBeenCalled();
+    expect(mocks.invalidate).not.toHaveBeenCalled();
+  });
+
+  it("treats a missing third image as a failed publish when the snapshot needs one", async () => {
+    mocks.snapshot = SWAYING;
+    mocks.emptyLiveUpload = true;
+    const { publish, review } = setup();
+    await publish();
+    expect(review.value.error).toBe("Upload failed");
+    expect(mocks.updateDrawing).not.toHaveBeenCalled();
+  });
+
+  it("a reshaped room alone is enough to reconcile the doors", async () => {
+    const { publish } = setup();
+    await publish();
+    expect(mocks.updateRegions).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcile).toHaveBeenCalledTimes(1);
+  });
+
+  it("never offers an image for removal that the publish has just uploaded", async () => {
+    // The site already points at the picture a re-publish produces (the bake is byte-identical), so the new ground url is also the "old" one.
+    mocks.previous = { map_layer_url: "https://cdn/x.webp", map_layer_stand_url: "https://cdn/old-stand.webp", map_layer_stand_live_url: null };
+    const { publish } = setup();
+    await publish();
+    const offered = mocks.deleteUnreferenced.mock.calls.flatMap(([arg]) => (arg as { urls: (string | null)[] }).urls);
+    expect(offered).toEqual(["https://cdn/old-stand.webp"]);
   });
 });
 

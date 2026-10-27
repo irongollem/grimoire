@@ -95,6 +95,7 @@ describe("switchUserMode — the lens decides which campaign may be restored", (
 
   it("forgets the outgoing campaign when the caller asks it to", () => {
     localStorage.setItem("grimoire_active_campaign", "handed-over");
+    localStorage.setItem(DM_SLOT, "handed-over");
     localStorage.setItem(PLAYER_SLOT, "handed-over");
     const store = useCampaignStore();
 

@@ -24,8 +24,8 @@ interface LibrarySpellArtRow {
 /**
  * Canonical art (library_spell_art_canonical — unowned, admin-managed) and a
  * user's private overrides (library_spell_art) are fetched from separate tables.
- * This is the override-precedence resolution: a user's own art always wins
- * over canonical art for the same entry_id.
+ * This is the override-precedence resolution: a user's own art wins over
+ * canonical art for the same entry_id, field by field.
  */
 export function mergeLibrarySpellArtLayers(
   canonicalRows: readonly LibrarySpellArtRow[],
@@ -35,8 +35,15 @@ export function mergeLibrarySpellArtLayers(
   for (const row of canonicalRows) {
     map[row.entry_id] = { image_url: row.image_url, portrait_focal_point: row.portrait_focal_point };
   }
+  // Per field, as for monsters (#917 story 1): a DM who only moves the focal
+  // point leaves image_url null on their row, and still sees the canonical
+  // picture. A null on the own row means "no override", never "clear it".
   for (const row of ownRows) {
-    map[row.entry_id] = { image_url: row.image_url, portrait_focal_point: row.portrait_focal_point };
+    const canonical = map[row.entry_id];
+    map[row.entry_id] = {
+      image_url: row.image_url ?? canonical?.image_url ?? null,
+      portrait_focal_point: row.portrait_focal_point ?? canonical?.portrait_focal_point ?? null,
+    };
   }
   return map;
 }

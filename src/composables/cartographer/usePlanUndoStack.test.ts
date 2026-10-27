@@ -98,6 +98,63 @@ describe("usePlanUndoStack", () => {
     expect(toasts.value[0]).toMatchObject({ type: "error", message: "RLS denial" });
   });
 
+  it("undoes the latest action first and redoes in the order they were undone", async () => {
+    const stack = usePlanUndoStack();
+    const order: string[] = [];
+    const record = (label: string) => ({
+      label,
+      undo: async () => { order.push(`undo ${label}`); },
+      redo: async () => { order.push(`redo ${label}`); },
+    });
+    stack.push(record("first"));
+    stack.push(record("second"));
+    await stack.undo();
+    await stack.undo();
+    await stack.redo();
+    await stack.redo();
+    expect(order).toEqual(["undo second", "undo first", "redo first", "redo second"]);
+  });
+
+  it("ignores a second undo or redo while one is still running, so one entry is never replayed twice", async () => {
+    const stack = usePlanUndoStack();
+    let release!: () => void;
+    const slow = {
+      label: "slow",
+      undo: vi.fn(() => new Promise<void>((resolve) => { release = resolve; })),
+      redo: vi.fn(async () => {}),
+    };
+    const other = entry("other");
+    stack.push(other);
+    stack.push(slow);
+    const pending = stack.undo();
+    expect(stack.busy.value).toBe(true);
+    await stack.undo(); // dropped: the stack is busy, so "other" is not undone underneath it
+    await stack.redo();
+    release();
+    await pending;
+    expect(stack.busy.value).toBe(false);
+    expect(other.undo).not.toHaveBeenCalled();
+    expect(slow.redo).not.toHaveBeenCalled();
+    expect(stack.canRedo.value).toBe(true);
+  });
+
+  it("ignores a second redo while one is still running", async () => {
+    const stack = usePlanUndoStack();
+    let release!: () => void;
+    const slow = { label: "slow", undo: vi.fn(async () => {}), redo: vi.fn(() => new Promise<void>((resolve) => { release = resolve; })) };
+    const other = entry("other");
+    stack.push(slow);
+    stack.push(other);
+    await stack.undo(); // other
+    await stack.undo(); // slow
+    const pending = stack.redo(); // redoes slow, the older entry, and waits
+    await stack.redo(); // dropped
+    release();
+    await pending;
+    expect(slow.redo).toHaveBeenCalledOnce();
+    expect(other.redo).not.toHaveBeenCalled();
+  });
+
   it("undo and redo on an empty stack are no-ops", async () => {
     const stack = usePlanUndoStack();
     await expect(stack.undo()).resolves.toBeUndefined();

@@ -23,6 +23,13 @@ describe("contentRows", () => {
     expect(rows.map((r) => r.label)).toEqual(["Description", "Size", "Languages"]);
   });
 
+  it("drops blank entries from a list, and does not read an array as per-ability bonuses", () => {
+    expect(row(contentRows("species", { languages: ["Common", "", 4] }), "Languages")).toEqual({
+      label: "Languages", kind: "list", entries: ["Common"],
+    });
+    expect(row(contentRows("species", { ability_score_increases: [2, 1] }), "Ability scores")).toBeUndefined();
+  });
+
   it("skips a field of the wrong type rather than printing it", () => {
     expect(contentRows("species", { size: 3, languages: "Common", traits: "many", speed: "fast" })).toEqual([]);
   });

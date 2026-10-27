@@ -1,25 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CharacterContentReview } from "@/composables/party/useCharacterContentReviews";
+import { defineComponent, h } from "vue";
+import { mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-const refetch = vi.fn();
-const seenIds: (string | null)[] = [];
-
-vi.mock("@/composables/party/useCharacterContentReviews", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/composables/party/useCharacterContentReviews")>();
-  return {
-    ...actual,
-    useCharacterContentReviews: (id: { value: string | null }) => {
-      seenIds.push(id.value);
-      return { refetch: () => { seenIds.push(id.value); return refetch(); } };
-    },
-  };
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
 });
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 
 import { benchedMessage, useBenchedAfterAttach } from "./useBenchedAfterAttach";
-
-function review(status: "pending" | "approved"): CharacterContentReview {
-  return { status } as CharacterContentReview;
-}
 
 describe("benchedMessage", () => {
   it("names the character and the table and counts the choices", () => {
@@ -33,27 +24,42 @@ describe("benchedMessage", () => {
 });
 
 describe("useBenchedAfterAttach", () => {
-  beforeEach(() => {
-    refetch.mockReset();
-    seenIds.length = 0;
+  beforeEach(() => fake.reset());
+
+  function open() {
+    let attach!: ReturnType<typeof useBenchedAfterAttach>;
+    mount(
+      defineComponent({
+        setup() {
+          attach = useBenchedAfterAttach();
+          return () => h("div");
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] } },
+    );
+    return attach;
+  }
+
+  const flag = (id: string, member: string, status: string) => ({
+    id, party_member_id: member, status, created_at: "2026-10-01T00:00:00Z",
   });
 
-  it("counts only the pending flags on the attached character", async () => {
-    refetch.mockResolvedValue({ data: [review("pending"), review("approved"), review("pending")] });
-    const { waitingAfterAttach } = useBenchedAfterAttach();
-    expect(await waitingAfterAttach("char-1")).toBe(2);
-    expect(seenIds.at(-1)).toBe("char-1");
+  it("counts only the pending flags on the character that was just attached", async () => {
+    fake.seed("character_content_reviews", [
+      flag("a", "char-1", "pending"),
+      flag("b", "char-1", "approved"),
+      flag("c", "char-1", "pending"),
+      flag("d", "char-2", "pending"),
+    ]);
+    expect(await open().waitingAfterAttach("char-1")).toBe(2);
   });
 
   it("is zero when nothing is flagged", async () => {
-    refetch.mockResolvedValue({ data: [] });
-    const { waitingAfterAttach } = useBenchedAfterAttach();
-    expect(await waitingAfterAttach("char-1")).toBe(0);
+    expect(await open().waitingAfterAttach("char-1")).toBe(0);
   });
 
-  it("lets a failed read reach the caller", async () => {
-    refetch.mockRejectedValue(new Error("offline"));
-    const { waitingAfterAttach } = useBenchedAfterAttach();
-    await expect(waitingAfterAttach("char-1")).rejects.toThrow("offline");
+  it("lets a failed read reach the caller, so an attach that worked is not undone by it", async () => {
+    fake.failNext("character_content_reviews", { message: "offline" });
+    await expect(open().waitingAfterAttach("char-1")).rejects.toMatchObject({ message: "offline" });
   });
 });

@@ -56,11 +56,6 @@ describe("buildPdfDocumentHtml", () => {
     expect(html).toContain('<body class="sc-theme theme-phb2014">');
   });
 
-  it("applies the onednd2024 theme class on the body by default", () => {
-    const html = buildPdfDocumentHtml(BASE);
-    expect(html).toContain('<body class="sc-theme theme-onednd2024">');
-  });
-
   it("gives each page's text area back the slack it was fitted without, after every other sheet (#1115)", () => {
     const html = buildPdfDocumentHtml(BASE);
     const restore = `${PAGE_CONTENT_SELECTOR} { height: calc(100% - var(--pagedjs-footnotes-height)); }`;
@@ -88,6 +83,11 @@ describe("sanitizePdfFilename", () => {
 
   it("strips characters illegal in filenames and collapses whitespace", () => {
     expect(sanitizePdfFilename('  The  "Lost" / Mine: <Part 1>?  ')).toBe("The Lost Mine Part 1.pdf");
+  });
+
+  it("never lets a title start a hidden file or climb out of the downloads folder", () => {
+    expect(sanitizePdfFilename("..hidden")).toBe("hidden.pdf");
+    expect(sanitizePdfFilename("../../etc/passwd")).toBe("etcpasswd.pdf");
   });
 
   it("falls back to Untitled", () => {

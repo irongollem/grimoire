@@ -1,4 +1,4 @@
-import { defineComponent, h } from "vue";
+import { defineComponent, h, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -22,13 +22,15 @@ vi.mock("@/lib/supabase", () => ({
 
 import { buildImportMatchRequest, useImportEntityMatches } from "./useImportEntityMatches";
 import type { UsableEntity } from "@/lib/documentImport/sanitizeEntities";
+import type { ImportEntityKind } from "@/types/documentImport.types";
 
 function entity(ref: string, data: Record<string, unknown>): UsableEntity {
   return { ref, page: 1, confidence: "complete", data };
 }
 
+// The client would retry a failure if the query let it; the hook must not.
 function open(importRowId: string | null, entitiesByKind: Parameters<typeof useImportEntityMatches>[1]) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 2, retryDelay: 0 } } });
   let api!: ReturnType<typeof useImportEntityMatches>;
   mount(
     defineComponent({
@@ -108,12 +110,22 @@ describe("useImportEntityMatches", () => {
     expect(api().isLoading.value).toBe(false);
   });
 
+  it("does not fetch again when the DM edits the entities in the review card", async () => {
+    const entities = ref<Partial<Record<ImportEntityKind, readonly UsableEntity[]>>>({ npcs: [entity("n1", { name: "Goblin" })] });
+    open("row-1", entities);
+    await flushPromises();
+    entities.value = { npcs: [entity("n1", { name: "Goblin Scout" })] };
+    await flushPromises();
+    expect(mocks.invokeCalls).toHaveLength(1);
+  });
+
   it("surfaces an edge function error rather than silently returning empty candidates", async () => {
     mocks.error = new Error("rate_limited");
     const { api } = open("row-1", { npcs: [entity("n1", { name: "Goblin" })] });
     await flushPromises();
 
-    expect(api().error.value).toBeTruthy();
+    expect(api().error.value?.message).toContain("rate_limited");
+    expect(mocks.invokeCalls).toHaveLength(1);
     expect(api().candidatesFor("npcs").size).toBe(0);
   });
 });

@@ -1,4 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h } from "vue";
+import { mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import type { RulesetKey } from "@/types/ruleset.types";
+
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+
 import {
   isRulesetAdmissible,
   otherRuleset,
@@ -6,6 +17,8 @@ import {
   rulesetLabel,
   rulesetRules,
   rulesetYear,
+  useConvertCharacterCopy,
+  useConvertCharacterRuleset,
 } from "./useCharacterRuleset";
 
 describe("isRulesetAdmissible", () => {
@@ -51,7 +64,7 @@ describe("parseRulesetBounce", () => {
 });
 
 describe("edition names", () => {
-  it("names an edition the way the picker does", () => {
+  it("names an edition for a picker or a standalone label", () => {
     expect(rulesetLabel("2014")).toBe("D&D 5e (2014)");
     expect(rulesetLabel("2024")).toBe("D&D 5e (2024)");
   });
@@ -60,21 +73,71 @@ describe("edition names", () => {
     expect(otherRuleset("2014")).toBe("2024");
     expect(otherRuleset("2024")).toBe("2014");
   });
-});
-
-describe("edition wording", () => {
-  it("names an edition for a picker or a standalone label", () => {
-    expect(rulesetLabel("2014")).toBe("D&D 5e (2014)");
-    expect(rulesetLabel("2024")).toBe("D&D 5e (2024)");
-  });
 
   it("names it for a sentence or a button", () => {
     expect(rulesetRules("2014")).toBe("2014 rules");
     expect(rulesetRules("2024")).toBe("2024 rules");
   });
 
-  it("gives the bare year for a compact suffix", () => {
-    expect(rulesetYear("2014")).toBe("2014");
-    expect(rulesetYear("2024")).toBe("2024");
+  it("refuses an edition that does not exist rather than printing it", () => {
+    const unknown = "3e" as RulesetKey;
+    expect(() => rulesetLabel(unknown)).toThrow(/Unknown ruleset/);
+    expect(() => rulesetYear(unknown)).toThrow(/Unknown ruleset/);
+    expect(() => rulesetRules(unknown)).toThrow(/Unknown ruleset/);
+  });
+});
+
+describe("converting a character", () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const invalidate = vi.spyOn(client, "invalidateQueries");
+
+  function inApp<T>(setup: () => T): T {
+    let out!: T;
+    mount(
+      defineComponent({
+        setup() {
+          out = setup();
+          return () => h("div");
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+    );
+    return out;
+  }
+
+  beforeEach(() => {
+    fake.reset();
+    invalidate.mockClear();
+  });
+
+  it("converts in place to the edition asked for and refreshes everything that renders a character", async () => {
+    const seen: unknown[] = [];
+    fake.onRpc("convert_party_member_ruleset", (args) => {
+      seen.push([args.p_party_member_id, args.p_ruleset]);
+      return null;
+    });
+    await inApp(() => useConvertCharacterRuleset()).mutateAsync({ partyMemberId: "pm1", ruleset: "2024" });
+    expect(seen).toEqual([["pm1", "2024"]]);
+    const refreshed = invalidate.mock.calls.map(([filters]) =>
+      filters !== undefined && typeof filters !== "function" && Array.isArray(filters.queryKey) ? filters.queryKey[0] : undefined,
+    );
+    expect(refreshed).toEqual(expect.arrayContaining(["party", "character-pool", "my-characters", "character_classes", "character_spells", "ruleset_reviews"]));
+  });
+
+  it("a refused conversion reaches the caller and refreshes nothing", async () => {
+    fake.failNext("convert_party_member_ruleset", { message: "not yours" });
+    await expect(inApp(() => useConvertCharacterRuleset()).mutateAsync({ partyMemberId: "pm1", ruleset: "2024" })).rejects.toMatchObject({
+      message: "not yours",
+    });
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it("a converted copy answers with the copy's id, and an answer without one is an error", async () => {
+    fake.onRpc("convert_party_member_copy", () => "copy-1");
+    const copy = inApp(() => useConvertCharacterCopy());
+    expect(await copy.mutateAsync({ partyMemberId: "pm1", ruleset: "2024" })).toBe("copy-1");
+
+    fake.onRpc("convert_party_member_copy", () => null);
+    await expect(copy.mutateAsync({ partyMemberId: "pm1", ruleset: "2024" })).rejects.toThrow(/without an id/);
   });
 });

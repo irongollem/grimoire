@@ -12,9 +12,8 @@
 // knows the active region's `vertices`); this module only knows how to fold
 // one gesture into a ring.
 //
-// The pure reducers moved to `src/lib/map/gestures/pen.ts` (epic #884 S7a,
-// the paint-systems merge) — re-exported below because `planCanvas.ts`
-// is kept for any caller still importing them from this path.
+// The pure reducers live in `src/lib/map/gestures/pen.ts` (epic #884 S7a,
+// the paint-systems merge); import them from there.
 // `useRegionPen` below is the thin reactive wrapper `MapRegionsLayer.vue`
 // actually holds, so the component doesn't re-derive "is the draft ring
 // closeable" or "which node is under the cursor" itself.
@@ -37,20 +36,6 @@ import type { TemplateShape } from "@/lib/locations/polygon";
 import type { GridPoint } from "@/types/locationMapRegion.types";
 import type { GridCalibration } from "@/types/location.types";
 import { cellFractionSize } from "@/lib/locations/gridCalibration";
-
-export {
-  addDraftPoint,
-  canCloseDraft,
-  closeDraft,
-  abandonDraft,
-  moveRingVertex,
-  deleteRingVertex,
-  insertRingVertex,
-  isNearFirstNode,
-  startTemplateDrag,
-  updateTemplateDrag,
-  type TemplateDragState,
-} from "@/lib/map/gestures/pen";
 
 // ── Grid-point <-> canvas-pixel conversion ───────────────────────────────────
 // The inverse pair `gridCalibration.ts` doesn't have: that module converts

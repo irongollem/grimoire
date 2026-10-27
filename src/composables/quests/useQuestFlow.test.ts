@@ -7,11 +7,21 @@ const beat = { id: "beat", canvas_x: 10, canvas_y: 20 } as QuestBeat;
 
 describe("quest beat optimistic position save", () => {
   it("keeps an exact rollback snapshot when applying coordinates", () => {
-    const rows = [beat];
+    const other = { id: "other", canvas_x: 1, canvas_y: 2 } as QuestBeat;
+    const rows = [beat, other];
     const snapshot = prepareQuestBeatOptimisticUpdate(rows, "beat", { canvas_x: 99, canvas_y: -4 });
     expect(snapshot.optimistic?.[0]).toMatchObject({ canvas_x: 99, canvas_y: -4 });
+    // Only the dragged beat moves.
+    expect(snapshot.optimistic?.[1]).toEqual(other);
     expect(snapshot.previous).toBe(rows);
     expect(snapshot.previous?.[0]).toMatchObject({ canvas_x: 10, canvas_y: 20 });
+  });
+
+  it("has nothing to roll back to or show before the beats have loaded", () => {
+    expect(prepareQuestBeatOptimisticUpdate(undefined, "beat", { canvas_x: 1 })).toEqual({
+      previous: undefined,
+      optimistic: undefined,
+    });
   });
 });
 

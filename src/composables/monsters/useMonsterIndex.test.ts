@@ -3,30 +3,12 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-type Call = { table: string; select: string; eq: [string, unknown][]; or: string[]; is: [string, unknown][]; in: [string, unknown][] };
-const mocks = vi.hoisted(() => ({
-  calls: [] as Call[],
-  rows: {} as Record<string, unknown[]>,
-  slugs: null as { value: string[] | null } | null,
-}));
-
-vi.mock("@/lib/supabase", () => {
-  const builder = (table: string) => {
-    const call: Call = { table, select: "", eq: [], or: [], is: [], in: [] };
-    mocks.calls.push(call);
-    const result = () => Promise.resolve({ data: mocks.rows[table] ?? [], error: null });
-    const b: Promise<{ data: unknown[]; error: null }> & Record<string, unknown> = Object.assign(result(), {} as Record<string, unknown>);
-    b.select = (s: string) => ((call.select = s), b);
-    b.eq = (c: string, v: unknown) => (call.eq.push([c, v]), b);
-    b.or = (f: string) => (call.or.push(f), b);
-    b.is = (c: string, v: unknown) => (call.is.push([c, v]), b);
-    b.in = (c: string, v: unknown) => (call.in.push([c, v]), b);
-    b.order = () => b;
-    b.range = () => b;
-    return b;
-  };
-  return { getCurrentUser: () => ({ id: "user-1" }), supabase: { from: builder } };
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
 });
+
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "user-1" }) }));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useLibrarySourceSlugs: () => ({ slugs: ref<string[] | null>(["srd-2024"]), isLoading: ref(false) }),
 }));
@@ -63,75 +45,104 @@ function run<T>(setup: () => T): T {
 }
 
 const entry = (id: string, name: string) => ({
-  id, name, monster_type: "beast", size: "medium", source: "x", image_url: null, challenge_rating: "1",
+  id, name, monster_type: "beast", size: "medium", source: "srd-2024", ruleset: "2024", image_url: null, challenge_rating: "1",
 });
 
 beforeEach(() => {
-  mocks.calls.length = 0;
-  mocks.rows = {};
+  fake.reset();
   campaign.id = null;
 });
 
 describe("useMonsterIndex", () => {
-  it("reads slim columns from the library, filtered by sources and ruleset", async () => {
-    run(() => useMonsterIndex());
-    await flushPromises();
-    const lib = mocks.calls.find((c) => c.table === "library_monsters");
-    expect(lib?.select).toBe(
-      "id, name, monster_type, size, source, source_title, image_url, portrait_focal_point, challenge_rating:stat_block->>challenge_rating, speed:stat_block->>speed",
-    );
-    expect(lib?.select).not.toContain("*");
-    expect(lib?.in).toEqual([["source", ["srd-2024"]]]);
-    expect(lib?.eq).toEqual([["ruleset", "2024"]]);
-  });
-
-  it("scopes custom monsters to the caller, the campaign and its globals, the ruleset, and not open5e imports", async () => {
-    campaign.id = "camp-1";
-    run(() => useMonsterIndex());
-    await flushPromises();
-    const custom = mocks.calls.find((c) => c.table === "monsters");
-    expect(custom?.select).not.toContain("*");
-    expect(custom?.select).toContain("challenge_rating:stat_block->>challenge_rating");
-    // Co-DM (#590): not narrowed to the caller's authorship; the owner's library is readable.
-    expect(custom?.eq).toEqual([]);
-    expect(custom?.or).toEqual([
-      "campaign_id.eq.camp-1,and(campaign_id.is.null,user_id.in.(user-1,owner-1))",
-      "open5e_import.is.null,open5e_import.eq.false",
-      "ruleset.is.null,ruleset.eq.2024",
+  it("lists only library monsters from an enabled source at the table ruleset", async () => {
+    fake.seed("library_monsters", [
+      entry("srd_wolf", "Wolf"),
+      { ...entry("kp_wolf", "Kobold Wolf"), source: "kobold-press" },
+      { ...entry("srd14_wolf", "Old Wolf"), ruleset: "2014" },
     ]);
+    const { data } = run(() => useMonsterIndex(() => ({ sides: "library" })));
+    await flushPromises();
+    expect(data.value?.map((m) => m.id)).toEqual(["srd_wolf"]);
   });
 
-  it("with no active campaign reads only the global custom monsters", async () => {
-    run(() => useMonsterIndex());
+  const mine = (id: string, name: string, over: Record<string, unknown> = {}) => ({
+    ...entry(id, name), open5e_import: false, campaign_id: null, user_id: "user-1", ...over,
+  });
+  const customIds = async () => {
+    const { data } = run(() => useMonsterIndex());
     await flushPromises();
-    const custom = mocks.calls.find((c) => c.table === "monsters");
-    expect(custom?.or).toContain("and(campaign_id.is.null,user_id.eq.user-1)");
+    return data.value?.map((m) => m.id);
+  };
+
+  it("custom monsters: the campaign's rows (any DM's) and the caller's and owner's globals come back, a stranger's, another campaign's and open5e imports do not", async () => {
+    campaign.id = "camp-1";
+    // Co-DM (#590): not narrowed to the caller's authorship; the owner's library is readable.
+    fake.seed("monsters", [
+      mine("own-global", "A"),
+      mine("owner-global", "B", { user_id: "owner-1" }),
+      mine("co-dm-campaign", "C", { user_id: "co-dm", campaign_id: "camp-1" }),
+      mine("stranger-global", "D", { user_id: "stranger" }),
+      mine("other-campaign", "E", { campaign_id: "camp-2" }),
+      mine("imported", "F", { open5e_import: true }),
+      mine("legacy-null-flag", "G", { open5e_import: null }),
+    ]);
+    expect(await customIds()).toEqual(["own-global", "owner-global", "co-dm-campaign", "legacy-null-flag"]);
+  });
+
+  it("custom monsters at another ruleset stay out, and a row with no ruleset fits both", async () => {
+    fake.seed("monsters", [
+      mine("both", "A", { ruleset: null }),
+      mine("current", "B"),
+      mine("old-edition", "C", { ruleset: "2014" }),
+    ]);
+    expect(await customIds()).toEqual(["both", "current"]);
+  });
+
+  it("with no active campaign reads only the caller's global custom monsters", async () => {
+    fake.seed("monsters", [
+      mine("own-global", "A"),
+      mine("owner-global", "B", { user_id: "owner-1" }),
+      mine("campaign-row", "C", { campaign_id: "camp-1" }),
+    ]);
+    expect(await customIds()).toEqual(["own-global"]);
   });
 
   it("merges library then custom, sorted by name, without deduping, marking shared rows", async () => {
-    mocks.rows.library_monsters = [entry("srd_wolf", "Wolf"), entry("srd_ape", "Ape")];
-    mocks.rows.monsters = [{ ...entry("11111111-1111-1111-1111-111111111111", "Wolf"), campaign_id: "camp-1" }];
+    campaign.id = "camp-1";
+    fake.seed("library_monsters", [entry("srd_wolf", "Wolf"), entry("srd_ape", "Ape")]);
+    fake.seed("monsters", [
+      mine("11111111-1111-1111-1111-111111111111", "Wolf", { campaign_id: "camp-1" }),
+      mine("22222222-2222-2222-2222-222222222222", "Bat"),
+    ]);
     const { data } = run(() => useMonsterIndex());
     await flushPromises();
     expect(data.value?.map((m) => [m.name, m.id, m.is_shared, m.campaign_id])).toEqual([
       ["Ape", "srd_ape", true, null],
+      ["Bat", "22222222-2222-2222-2222-222222222222", false, null],
       ["Wolf", "srd_wolf", true, null],
       ["Wolf", "11111111-1111-1111-1111-111111111111", false, "camp-1"],
     ]);
   });
 
   it('reads only the library half with sides: "library"', async () => {
-    mocks.rows.library_monsters = [entry("srd_wolf", "Wolf")];
+    fake.seed("library_monsters", [entry("srd_wolf", "Wolf")]);
     const { data } = run(() => useMonsterIndex(() => ({ sides: "library" })));
     await flushPromises();
-    expect(mocks.calls.map((c) => c.table)).toEqual(["library_monsters"]);
+    expect(fake.calls.map((c) => c.target)).toEqual(["library_monsters"]);
     expect(data.value?.map((m) => m.id)).toEqual(["srd_wolf"]);
   });
 
   it("sends nothing while disabled", async () => {
     const { data } = run(() => useMonsterIndex(() => ({ enabled: false })));
     await flushPromises();
-    expect(mocks.calls).toEqual([]);
+    expect(fake.calls).toEqual([]);
+    expect(data.value).toBeUndefined();
+  });
+
+  it("surfaces a failed library read instead of listing an empty bestiary", async () => {
+    fake.failNext("library_monsters", { message: "boom" });
+    const { data } = run(() => useMonsterIndex(() => ({ sides: "library" })));
+    await flushPromises();
     expect(data.value).toBeUndefined();
   });
 });

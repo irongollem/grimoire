@@ -29,12 +29,18 @@ const member = (user_id: string) => ({ id: `m-${user_id}`, user_id }) as Campaig
 const membersRef = () => mocks.members as ReturnType<typeof ref<CampaignMember[] | undefined>>;
 
 describe("fetchWhisperRecipients", () => {
-  beforeEach(() => mocks.rpc.mockReset());
+  // A braced body: returning the mock would make vitest call it as a teardown.
+  beforeEach(() => {
+    mocks.rpc.mockReset();
+  });
 
   it("returns the ids the server allows, asking for the given campaign", async () => {
-    mocks.rpc.mockResolvedValue({ data: ["u2", "u3"], error: null });
-    await expect(fetchWhisperRecipients("c1")).resolves.toEqual(["u2", "u3"]);
-    expect(mocks.rpc).toHaveBeenCalledWith("get_whisper_recipients", { p_campaign_id: "c1" });
+    // The server answers per campaign, so asking for the wrong one shows in the ids.
+    mocks.rpc.mockImplementation(async (_name: string, args: { p_campaign_id: string }) => ({
+      data: args.p_campaign_id === "c9" ? ["u2", "u3"] : ["someone-in-another-campaign"],
+      error: null,
+    }));
+    await expect(fetchWhisperRecipients("c9")).resolves.toEqual(["u2", "u3"]);
   });
 
   it("throws the RPC error rather than reporting nobody to whisper", async () => {

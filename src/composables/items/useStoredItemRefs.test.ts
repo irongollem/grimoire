@@ -4,21 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import type { Item } from "@/types/item.types";
 
-const mocks = vi.hoisted(() => ({ calls: [] as { table: string; ids: string[] }[] }));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
-vi.mock("@/lib/supabase", () => ({
-  getCurrentUser: () => ({ id: "user-1" }),
-  supabase: {
-    from: (table: string) => ({
-      select: () => ({
-        in: (_col: string, ids: string[]) => {
-          mocks.calls.push({ table, ids });
-          return Promise.resolve({ data: ids.map((id) => ({ id, name: id })), error: null });
-        },
-      }),
-    }),
-  },
-}));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "user-1" }) }));
 // The real module pulls in stores and the catalogue hooks; only the row mapper is needed here.
 vi.mock("@/composables/items/useItems", () => ({
   normalizeLibraryItem: (row: Record<string, unknown>) => ({ ...row, user_id: "" }),
@@ -39,7 +30,9 @@ function run<T>(setup: () => T): T {
 }
 
 beforeEach(() => {
-  mocks.calls.length = 0;
+  fake.reset();
+  fake.seed("library_items", [{ id: "srd_rope", name: "Rope" }, { id: "srd_unrelated", name: "Unrelated" }]);
+  fake.seed("items", [{ id: UUID, name: "Moonblade" }]);
 });
 
 describe("missingLibraryIds", () => {
@@ -57,23 +50,24 @@ describe("missingLibraryIds", () => {
 });
 
 describe("useStoredItemRefs (#972)", () => {
-  it("without a source, resolves the named ids with one by-id read per table and no catalogue read", async () => {
+  it("without a source, resolves exactly the named ids from both tables, never the catalogue", async () => {
     const { find, items } = run(() => useStoredItemRefs(() => [UUID, "srd_rope"]));
     await flushPromises();
-    expect(mocks.calls.slice().sort((a, b) => a.table.localeCompare(b.table))).toEqual([
-      { table: "items", ids: [UUID] },
-      { table: "library_items", ids: ["srd_rope"] },
-    ]);
     expect(items.value.map((i) => i.id).sort()).toEqual([UUID, "srd_rope"].sort());
     expect(find("srd_rope")?.id).toBe("srd_rope");
+    expect(find("srd_unrelated")).toBeUndefined();
+    // The ids were read by the by-id hook; the stored-ref fallback has nothing left to fetch.
+    expect(fake.calls.filter((c) => c.target === "library_items")).toHaveLength(1);
   });
 
   it("with a source, keeps it and fetches only the library ids it lacks", async () => {
     const source = ref<Item[] | undefined>([{ id: UUID, name: "Held" } as Item]);
-    const { find } = run(() => useStoredItemRefs(() => [UUID, "srd_rope"], source));
+    const { find, items } = run(() => useStoredItemRefs(() => [UUID, "srd_rope"], source));
     await flushPromises();
-    expect(mocks.calls).toEqual([{ table: "library_items", ids: ["srd_rope"] }]);
     expect(find(UUID)?.name).toBe("Held");
-    expect(find("srd_rope")).toBeDefined();
+    expect(find("srd_rope")?.name).toBe("Rope");
+    expect(items.value).toHaveLength(2);
+    // The own item's uuid is never read from the base table for a source-backed caller.
+    expect(fake.calls.some((c) => c.target === "items")).toBe(false);
   });
 });

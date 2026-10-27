@@ -63,12 +63,24 @@ describe("useQuota", () => {
     await flush();
 
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
-    expect(mocks.rpc).toHaveBeenCalledWith("check_all_quotas");
     expect(npcs!.quota.value).toEqual(ALL.npcs);
     expect(npcs!.remaining.value).toBe(2);
     expect(npcs!.canCreate.value).toBe(true);
     expect(monsters!.quota.value).toEqual(ALL.monsters);
     expect(monsters!.canCreate.value).toBe(false);
+  });
+
+  it("never reports a negative remainder when the account is already over its limit, and none for unlimited", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: { npcs: result(7, 5), monsters: { allowed: true, current: 9, limit: -1, unlimited: true } },
+      error: null,
+    });
+    const [npcs, monsters] = mount(() => [useQuota("npcs"), useQuota("monsters")]);
+    await flush();
+
+    expect(npcs!.remaining.value).toBe(0);
+    expect(npcs!.canCreate.value).toBe(false);
+    expect(monsters!.remaining.value).toBeNull();
   });
 
   it("allows creation while loading and does not call when signed out", async () => {

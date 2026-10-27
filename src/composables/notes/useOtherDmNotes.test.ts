@@ -7,26 +7,12 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useOtherDmNotes } from "./useOtherDmNotes";
 
-const h = vi.hoisted(() => ({
-  calls: [] as Array<[string, ...unknown[]]>,
-  result: { data: [] as unknown[], error: null as unknown },
-}));
-
-vi.mock("@/lib/supabase", () => {
-  const builder: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "neq"]) {
-    builder[m] = (...args: unknown[]) => {
-      h.calls.push([m, ...args]);
-      return builder;
-    };
-  }
-  // `order` is the last call of the read, so it is where the result arrives.
-  builder.order = (...args: unknown[]) => {
-    h.calls.push(["order", ...args]);
-    return Promise.resolve(h.result);
-  };
-  return { supabase: { from: () => builder }, getCurrentUser: () => null };
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
 });
+
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => null }));
 
 vi.mock("@/composables/campaign/useCampaignMembers", () => ({
   useCampaignMembers: () => ({
@@ -59,24 +45,30 @@ const row = (id: string, user_id: string, content: string | null) => ({
 
 describe("useOtherDmNotes", () => {
   beforeEach(() => {
+    fake.reset();
     setActivePinia(createPinia());
     useAuthStore().user = { id: "u1" } as never;
     useCampaignStore().activeCampaignId = "c1";
-    h.calls.length = 0;
-    h.result = { data: [], error: null };
   });
 
-  it("scopes the read to the campaign, the entity, DM notes and other authors", async () => {
-    run({ type: "faction", id: "f1" });
+  it("returns only co-DMs' DM-written notes on this entity in this campaign (never my own, a player's, or another entity's)", async () => {
+    fake.seed("entity_notes", [
+      row("co", "u2", doc("cult")),
+      { ...row("mine", "u1", doc("mine")) },
+      { ...row("player", "u3", doc("player note")), written_as_dm: false },
+      { ...row("elsewhere", "u2", doc("other campaign")), campaign_id: "c2" },
+      { ...row("other-entity", "u2", doc("other faction")), entity_id: "f2" },
+      { ...row("other-type", "u2", doc("an npc")), entity_type: "npc" },
+    ]);
+    const out = run({ type: "faction", id: "f1" });
     await flushPromises();
-    expect(h.calls).toContainEqual(["eq", "campaign_id", "c1"]);
-    expect(h.calls).toContainEqual(["eq", "entity_id", "f1"]);
-    expect(h.calls).toContainEqual(["eq", "written_as_dm", true]);
-    expect(h.calls).toContainEqual(["neq", "user_id", "u1"]);
+    expect(out.notes.value.map((n) => n.id)).toEqual(["co"]);
   });
 
-  it("names each author and drops blank notes", async () => {
-    h.result = { data: [row("a", "u2", doc("cult")), row("b", "u3", doc("x")), row("c", "u2", null)], error: null };
+  it("names each author and drops notes that are null or an empty document", async () => {
+    fake.seed("entity_notes", [row("a", "u2", doc("cult")), row("b", "u3", doc("x")), row("c", "u2", null),
+      row("d", "u2", JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] })),
+    ]);
     const out = run({ type: "faction", id: "f1" });
     await flushPromises();
     expect(out.notes.value.map((n) => n.heading)).toEqual(["Jeffrey's note", "Another DM's note"]);
@@ -86,6 +78,6 @@ describe("useOtherDmNotes", () => {
     run({ type: "npc", id: "n1" });
     run({ type: "hero", id: "h1" });
     await flushPromises();
-    expect(h.calls).toHaveLength(0);
+    expect(fake.calls).toHaveLength(0);
   });
 });

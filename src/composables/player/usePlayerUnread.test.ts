@@ -108,9 +108,19 @@ describe("unread items", () => {
       { id: "q1", title: "Quest", status: "active", updated_at: "2026-10-02" },
       { id: "q0", title: "Hidden", status: "undiscovered", updated_at: "2026-10-09" },
     ];
-    state.puzzles = [{ id: "p1", name: "Riddle", updated_at: "2026-10-03" }];
-    state.handouts = [{ id: "h1", title: "Map", updated_at: "2026-10-04" }];
-    state.notes = [{ id: "n1", title: "Rumour", updated_at: "2026-10-01" }];
+    // The "read-*" entries are already read, so they must not be listed.
+    state.puzzles = [
+      { id: "p1", name: "Riddle", updated_at: "2026-10-03" },
+      { id: "read-p", name: "Solved", updated_at: "2026-10-12" },
+    ];
+    state.handouts = [
+      { id: "h1", title: "Map", updated_at: "2026-10-04" },
+      { id: "read-h", title: "Seen map", updated_at: "2026-10-12" },
+    ];
+    state.notes = [
+      { id: "n1", title: "Rumour", updated_at: "2026-10-01" },
+      { id: "read-n", title: "Old rumour", updated_at: "2026-10-12" },
+    ];
     state.noticeBoards = [{ id: "b1", name: "The Rusty Flagon's board", updated_at: "2026-10-05" }];
     state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1", "notice_board:b1"]);
     const { items, sections } = usePlayerUnread();

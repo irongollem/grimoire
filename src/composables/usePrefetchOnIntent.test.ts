@@ -44,6 +44,23 @@ describe("usePrefetchOnIntent", () => {
     expect(prefetchRouteData).toHaveBeenCalledWith({ id: "client" }, "/npcs");
   });
 
+  it("restarts the wait on a second entry rather than firing for both", async () => {
+    const wrapper = mount(Host);
+    await wrapper.trigger("pointerenter");
+    vi.advanceTimersByTime(40);
+    await wrapper.trigger("pointerenter");
+    vi.advanceTimersByTime(80);
+    await vi.dynamicImportSettled();
+    expect(prefetchRouteComponents).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing for a link with no destination", async () => {
+    const wrapper = mount(Host, { props: { to: "" } });
+    await wrapper.trigger("focus");
+    await wrapper.trigger("touchstart");
+    expect(prefetchRouteComponents).not.toHaveBeenCalled();
+  });
+
   it("does nothing for a pass-over", async () => {
     const wrapper = mount(Host);
     await wrapper.trigger("pointerenter");

@@ -18,9 +18,11 @@ const { childAccountsTable, tables, authState, authCalls } = vi.hoisted(() => ({
     signInWithPassword: vi.fn(),
     signUp: vi.fn(),
     resetPasswordForEmail: vi.fn(),
+    updateUser: vi.fn(),
+    signOut: vi.fn(),
   },
   tables: {
-    campaign_members: (async () => ({ data: null, error: null })) as () => Promise<Result>,
+    campaign_members: (async () => ({ data: null, error: null })) as (eqs: [string, unknown][]) => Promise<Result>,
     profiles: (async () => ({ data: null, error: null })) as () => Promise<Result>,
   },
   authState: {
@@ -45,23 +47,29 @@ vi.mock("@/lib/supabase", () => ({
         authState.listener = cb;
         return { data: { subscription: { unsubscribe: () => {} } } };
       },
-      signOut: async () => ({ error: null }),
       ...authCalls,
     },
     from: (table: string) => {
+      const eqs: [string, unknown][] = [];
       const run = () =>
         table === "child_accounts"
           ? childAccountsTable.resolve()
           : table === "campaign_members"
-            ? tables.campaign_members()
+            ? tables.campaign_members(eqs)
             : tables.profiles();
       const builder: Record<string, unknown> = {
         select: () => builder,
-        eq: () => builder,
+        eq: (column: string, value: unknown) => {
+          eqs.push([column, value]);
+          return builder;
+        },
         order: () => builder,
         limit: () => builder,
         maybeSingle: run,
         single: run,
+        // A read that is awaited without a terminal call, as supabase-js allows.
+        // oxlint-disable-next-line unicorn/no-thenable
+        then: (resolve: (v: Result) => unknown, reject: (e: unknown) => unknown) => run().then(resolve, reject),
       };
       return builder;
     },
@@ -101,6 +109,8 @@ beforeEach(() => {
   authCalls.signInWithPassword.mockResolvedValue({ data: { user: null, session: null }, error: null });
   authCalls.signUp.mockResolvedValue({ error: null });
   authCalls.resetPasswordForEmail.mockResolvedValue({ error: null });
+  authCalls.updateUser.mockResolvedValue({ error: null });
+  authCalls.signOut.mockResolvedValue({ error: null });
 });
 
 /**
@@ -658,5 +668,124 @@ describe("a failed membership read after a campaign switch", () => {
 
     expect(auth.membership).toEqual(MEMBER);
     errorSpy.mockRestore();
+  });
+});
+
+describe("who the store says the account is", () => {
+  const account = (app_metadata: Record<string, unknown>, email = "someone@example.invalid") =>
+    ({ id: "u1", email, app_metadata }) as unknown as NonNullable<ReturnType<typeof useAuthStore>["user"]>;
+  const seat = (over: Partial<CampaignMember>) => ({ campaign_id: "c1", role: "player", party_member_id: null, display_name: null, ...over }) as CampaignMember;
+
+  // Admin means the JWT carries role "admin" and nothing else does. An ordinary account has no role key at all
+  // (the case that made the NULL guards of 9 Aug 2026 fall through), and a different role value is not admin either.
+  it.each([
+    ["an admin", { role: "admin" }, true],
+    ["an ordinary account with no role claim", {}, false],
+    ["a different role value", { role: "user" }, false],
+    ["a role that only looks like admin", { role: "Admin" }, false],
+  ])("%s: isAppAdmin is %s", (_label, appMetadata, expected) => {
+    const store = useAuthStore();
+    store.user = account(appMetadata);
+    expect(store.isAppAdmin).toBe(expected);
+  });
+
+  it("is not authenticated, not admin and not a DM or player when signed out", () => {
+    const store = useAuthStore();
+    expect(store.isAuthenticated).toBe(false);
+    expect(store.isAppAdmin).toBe(false);
+    expect(store.isDM).toBe(false);
+    expect(store.isPlayer).toBe(false);
+    expect(store.currentRole).toBeNull();
+    expect(store.linkedPartyMemberId).toBeNull();
+  });
+
+  it("reads the seat's role as DM or player, never both", () => {
+    const store = useAuthStore();
+    store.membership = seat({ role: "dm" });
+    expect([store.isDM, store.isPlayer]).toEqual([true, false]);
+    store.membership = seat({ role: "player", party_member_id: "pm1" });
+    expect([store.isDM, store.isPlayer]).toEqual([false, true]);
+    expect(store.linkedPartyMemberId).toBe("pm1");
+  });
+
+  // #635: other people see a display name or a username, and never the email, even when nothing else is known.
+  it("never offers the email as the name other people see", () => {
+    const store = useAuthStore();
+    store.user = account({}, "private@example.invalid");
+    expect(store.publicName).toBeNull();
+
+    store.username = "  Brann  ";
+    expect(store.publicName).toBe("Brann");
+
+    store.membership = seat({ display_name: "Brann the Bold" });
+    expect(store.publicName).toBe("Brann the Bold");
+
+    store.membership = seat({ display_name: "   " });
+    expect(store.publicName).toBe("Brann");
+  });
+});
+
+describe("changing the password", () => {
+  it("signs the account's other sessions out, and says so", async () => {
+    const store = useAuthStore();
+    expect(await store.updatePassword("new-pass")).toEqual({ othersSignedOut: true });
+    expect(authCalls.signOut).toHaveBeenCalledWith({ scope: "others" });
+    expect(store.loading).toBe(false);
+  });
+
+  // The password has changed by then; retrying the call would be refused for reusing it,
+  // so a failed sign-out of other devices is reported, not thrown.
+  it("reports other sessions still signed in, rather than failing a password that did change", async () => {
+    authCalls.signOut.mockResolvedValue({ error: new Error("network") });
+    expect(await useAuthStore().updatePassword("new-pass")).toEqual({ othersSignedOut: false });
+  });
+
+  it("throws a refused change and signs nobody out", async () => {
+    authCalls.updateUser.mockResolvedValue({ error: new Error("weak password") });
+    const store = useAuthStore();
+    await expect(store.updatePassword("x")).rejects.toThrow("weak password");
+    expect(authCalls.signOut).not.toHaveBeenCalled();
+    expect(store.loading).toBe(false);
+  });
+});
+
+describe("inferUserMode", () => {
+  const signedIn = (store: ReturnType<typeof useAuthStore>) => {
+    store.user = { id: "u1", email: "a@example.invalid", app_metadata: {} } as unknown as NonNullable<typeof store.user>;
+  };
+
+  it("picks the DM lens when the account runs any campaign, even if it also plays in others", async () => {
+    const store = useAuthStore();
+    signedIn(store);
+    tables.campaign_members = async () => ({ data: [{ role: "player" }, { role: "dm" }], error: null });
+    expect(await store.inferUserMode()).toBe("dm");
+  });
+
+  it("picks the player lens for an account that only plays, and none for one that is in no campaign", async () => {
+    const store = useAuthStore();
+    signedIn(store);
+    tables.campaign_members = async () => ({ data: [{ role: "player" }], error: null });
+    expect(await store.inferUserMode()).toBe("player");
+    tables.campaign_members = async () => ({ data: [], error: null });
+    expect(await store.inferUserMode()).toBeNull();
+  });
+
+  // Client Reads: a player can see the DM's row in a shared campaign, so an unscoped read would call every player a DM.
+  it("reads only the caller's own seats, not the other members of their campaigns", async () => {
+    const store = useAuthStore();
+    signedIn(store);
+    const seats = [
+      { user_id: "u1", role: "player" },
+      { user_id: "someone-else", role: "dm" },
+    ];
+    tables.campaign_members = async (eqs) => ({
+      data: seats.filter((row) => eqs.every(([column, value]) => row[column as "user_id"] === value)),
+      error: null,
+    });
+    expect(await store.inferUserMode()).toBe("player");
+  });
+
+  it("answers none, and asks nothing, when signed out", async () => {
+    expect(await useAuthStore().inferUserMode()).toBeNull();
   });
 });

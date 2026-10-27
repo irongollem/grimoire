@@ -3,14 +3,11 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, ref } from "vue";
 
-const mocks = vi.hoisted(() => ({
-  rpc: vi.fn(),
-  from: vi.fn(),
-  select: vi.fn(),
-  eq: vi.fn(),
-  not: vi.fn(),
-}));
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc, from: mocks.from } }));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
 const stores = vi.hoisted(() => ({ campaign: { activeCampaignId: "c-1" as string | null } }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => stores.campaign }));
@@ -41,50 +38,44 @@ function run<T>(use: () => T) {
 
 describe("campaign secrets", () => {
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
+    fake.reset();
     stores.campaign.activeCampaignId = "c-1";
     data.sessions = [{ id: "s-14", number: 14 }];
     data.npcs = [{ id: "n-1", name: "Bram", disguise_name: null, disguise_portrait_url: null, is_revealed: true }];
-    mocks.from.mockReturnValue({ select: mocks.select });
-    mocks.select.mockReturnValue({ eq: mocks.eq });
-    mocks.eq.mockReturnValue({ not: mocks.not });
   });
 
   it("lists the campaign's secrets through the RPC", async () => {
     const rows = [{ entity_type: "location", entity_id: "l-1", entity_name: "Crypt", field: "description", secret_id: "x", excerpt: "..." }];
-    mocks.rpc.mockResolvedValue({ data: rows, error: null });
+    fake.onRpc("list_campaign_secrets", () => rows);
     const { result } = run(() => useCampaignSecrets());
     await flushPromises();
-    expect(mocks.rpc).toHaveBeenCalledWith("list_campaign_secrets", { p_campaign_id: "c-1" });
     expect(result().data.value).toEqual(rows);
   });
 
   it("does not fetch when disabled", async () => {
-    mocks.rpc.mockResolvedValue({ data: [], error: null });
+    fake.onRpc("list_campaign_secrets", () => []);
     run(() => useCampaignSecrets(ref(false)));
     await flushPromises();
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
   });
 
   it("surfaces the RPC error", async () => {
-    mocks.rpc.mockResolvedValue({ data: null, error: new Error("Not authorized") });
+    fake.failNext("list_campaign_secrets", { message: "Not authorized" });
     const { result } = run(() => useCampaignSecrets());
     await flushPromises();
     expect(result().error.value?.message).toBe("Not authorized");
   });
 
-  it("labels each disclosed secret by its earliest memory, scoped to the campaign", async () => {
-    mocks.not.mockResolvedValue({
-      data: [
-        { secret_id: "x", npc_id: "n-1", session_id: "s-14", created_at: "2026-01-02" },
-        { secret_id: "y", npc_id: "n-1", session_id: null, created_at: "2026-01-03" },
-      ],
-      error: null,
-    });
+  it("labels each disclosed secret by its earliest memory, from this campaign only and only memories that disclose one", async () => {
+    fake.seed("npc_memories", [
+      { id: "m1", campaign_id: "c-1", secret_id: "x", npc_id: "n-1", session_id: "s-14", created_at: "2026-01-02" },
+      { id: "m2", campaign_id: "c-1", secret_id: "y", npc_id: "n-1", session_id: null, created_at: "2026-01-03" },
+      { id: "m3", campaign_id: "c-1", secret_id: null, npc_id: "n-1", session_id: "s-14", created_at: "2026-01-04" },
+      { id: "m4", campaign_id: "c-2", secret_id: "z", npc_id: "n-1", session_id: "s-14", created_at: "2026-01-05" },
+    ]);
     const { result } = run(() => useDisclosedSecrets());
     await flushPromises();
-    expect(mocks.eq).toHaveBeenCalledWith("campaign_id", "c-1");
-    expect(mocks.not).toHaveBeenCalledWith("secret_id", "is", null);
+    expect([...result().labels.value.keys()].sort()).toEqual(["x", "y"]);
     expect(result().labels.value.get("x")).toBe("known since Session 14 (Bram)");
     expect(result().labels.value.get("y")).toBe("known to the party (Bram)");
   });
@@ -92,6 +83,6 @@ describe("campaign secrets", () => {
   it("does not read memories when disabled", async () => {
     run(() => useDisclosedSecrets(ref(false)));
     await flushPromises();
-    expect(mocks.from).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
   });
 });

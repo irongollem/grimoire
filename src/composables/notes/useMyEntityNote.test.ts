@@ -34,13 +34,18 @@ function row(over: Partial<EntityNote> = {}): EntityNote {
   };
 }
 
-function setup(initial: EntityNote[] = [], isPrivate = true, writtenAsDm = false) {
+function setup(
+  initial: EntityNote[] = [],
+  isPrivate = true,
+  writtenAsDm = false,
+  campaignFor?: (snapshot: { entityId: string }) => Promise<string | null>,
+) {
   const notes = ref<EntityNote[] | undefined>(initial);
   const entityId = ref("npc-1");
   let handle!: ReturnType<typeof useMyEntityNote>;
   mount(defineComponent({
     setup() {
-      handle = useMyEntityNote({ entityType: "npc", entityId, notes, userId: "me", isPrivate, writtenAsDm });
+      handle = useMyEntityNote({ entityType: "npc", entityId, notes, userId: "me", isPrivate, writtenAsDm, campaignFor });
       return () => null;
     },
   }));
@@ -87,6 +92,17 @@ describe("useMyEntityNote", () => {
     expect(setup(notes, true, true).handle.draft.noteId).toBe("as-dm");
   });
 
+  it("never picks up another user's note on the entity, nor the other visibility", () => {
+    const notes = [
+      row({ id: "theirs", user_id: "someone-else" }),
+      row({ id: "my-party-note", is_private: false }),
+      row({ id: "my-private-note" }),
+    ];
+    expect(setup([notes[0]]).handle.draft.noteId).toBeNull();
+    expect(setup(notes, true).handle.draft.noteId).toBe("my-private-note");
+    expect(setup(notes, false).handle.draft.noteId).toBe("my-party-note");
+  });
+
   it("says which kind of note it creates", async () => {
     const { handle } = setup([], true, true);
     handle.draft.content = doc("Cult leader");
@@ -122,6 +138,37 @@ describe("useMyEntityNote", () => {
     handle.draft.content = doc("Shop opens at dawn");
     await settle();
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ is_private: false, shared_with_dm: false }));
+  });
+
+  it("never shares an existing party note with the DM, whatever the toggle says", async () => {
+    const { handle } = setup([row({ is_private: false })], false);
+    handle.draft.sharedWithDm = true;
+    await settle();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ id: "note-1", is_private: false, shared_with_dm: false }));
+  });
+
+  it("saves a note the DM has emptied rather than leaving the old text on the server", async () => {
+    const { handle } = setup([row()]);
+    handle.draft.content = doc("");
+    await settle();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ id: "note-1", content: doc("") }));
+  });
+
+  it.each([
+    ["files the note under the campaign it names", async () => "camp-9", { campaign_id: "camp-9" }],
+    ["files a note under no campaign when the caller says so", async () => null, { campaign_id: null }],
+  ])("%s", async (_label, campaignFor, expected) => {
+    const { handle } = setup([], true, true, campaignFor);
+    handle.draft.content = doc("Cult leader");
+    await settle();
+    expect(create).toHaveBeenCalledWith(expect.objectContaining(expected));
+  });
+
+  it("leaves the campaign off the insert when the caller does not choose one", async () => {
+    const { handle } = setup();
+    handle.draft.content = doc("x");
+    await settle();
+    expect(create.mock.calls[0][0]).not.toHaveProperty("campaign_id");
   });
 
   it("saves the share toggle on an existing note", async () => {
@@ -167,6 +214,26 @@ describe("useMyEntityNote", () => {
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ entity_id: "npc-1", content: doc("About the first NPC") }));
     expect(handle.draft.entityId).toBe("npc-2");
     expect(handle.draft.content).toBeNull();
+  });
+
+  it("clear on a note that was never saved deletes nothing", async () => {
+    const { handle } = setup();
+    await handle.clear();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("clear waits for a save still in flight, so the delete is not followed by a late update", async () => {
+    let finish!: () => void;
+    update.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+    const { handle } = setup([row()]);
+    handle.draft.content = doc("Edited");
+    await vi.advanceTimersByTimeAsync(2500);
+    const cleared = handle.clear();
+    await flushPromises();
+    expect(remove).not.toHaveBeenCalled();
+    finish();
+    await cleared;
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 
   it("clear deletes the note and empties the editor without saving it again", async () => {

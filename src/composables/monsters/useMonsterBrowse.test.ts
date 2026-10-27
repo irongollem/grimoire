@@ -1,13 +1,17 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { defineComponent, h, nextTick, ref } from "vue";
+import { defineComponent, h, nextTick, ref, shallowRef } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { useMonsterBrowse, type MonsterBrowseFilters } from "./useMonsterBrowse";
 
-const rpc = vi.fn();
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
-const slugs = ref<string[] | null>(["srd-2014"]);
+// shallow: the fake clones rpc args, and a reactive proxy cannot be structured-cloned.
+const slugs = shallowRef<string[] | null>(["srd-2014"]);
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useLibrarySourceSlugs: () => ({ slugs }),
 }));
@@ -24,7 +28,13 @@ function row(id: string) {
     challenge_rating: "1", armor_class: 12, hit_points: "10" };
 }
 function page(ids: string[], total: number) {
-  return { data: { rows: ids.map(row), total, scope_total: 99, selectable_ids: ["own-1"], locked_ids: ["own-2"] }, error: null };
+  return { rows: ids.map(row), total, scope_total: 99, selectable_ids: ["own-1"], locked_ids: ["own-2"] };
+}
+/** The args each browse request carried; the rpc takes UI state (a trimmed search, a quota overage) as parameters, so they are the property. */
+const requests = () => fake.calls.filter((c) => c.kind === "rpc").map((c) => c.payload as Record<string, unknown>);
+function serve(...pages: unknown[]) {
+  let next = 0;
+  fake.onRpc("browse_monsters", () => pages[Math.min(next++, pages.length - 1)]);
 }
 
 const filters = ref<MonsterBrowseFilters>({ search: "", source: "all", type: "all" });
@@ -43,7 +53,7 @@ function mountBrowse() {
 
 describe("useMonsterBrowse", () => {
   beforeEach(() => {
-    rpc.mockReset();
+    fake.reset();
     slugs.value = ["srd-2014"];
     quota.value = null;
     filters.value = { search: "", source: "all", type: "all" };
@@ -53,34 +63,43 @@ describe("useMonsterBrowse", () => {
     mounted.splice(0).forEach((w) => w.unmount());
   });
 
-  it("maps filters and scope to the rpc params", async () => {
-    rpc.mockResolvedValue(page(["a"], 1));
+  it("sends the search trimmed, the chosen source and type, and the campaign and ruleset the table plays", async () => {
+    serve(page(["a"], 1));
     filters.value = { search: "  owl ", source: "custom", type: "beast" };
-    quota.value = { unlimited: false, current: 7, limit: 5 };
     vi.useFakeTimers();
     mountBrowse();
     await vi.advanceTimersByTimeAsync(300);
     await flushPromises();
-    expect(rpc).toHaveBeenCalledWith("browse_monsters", {
-      p_slugs: ["srd-2014"], p_ruleset: "2014", p_campaign_id: "camp-1", p_search: "owl",
-      p_source: "custom", p_type: "beast", p_limit: 48, p_offset: 0, p_lock_count: 2,
+    expect(requests()[0]).toMatchObject({
+      p_slugs: ["srd-2014"], p_ruleset: "2014", p_campaign_id: "camp-1", p_search: "owl", p_source: "custom", p_type: "beast",
     });
   });
 
-  it("sends null for no search and no type, and no lock when unlimited", async () => {
-    rpc.mockResolvedValue(page(["a"], 1));
-    quota.value = { unlimited: true, current: 0, limit: -1 };
+  it("sends null for no search and for the all-types choice", async () => {
+    serve(page(["a"], 1));
     mountBrowse();
     await flushPromises();
-    const params = rpc.mock.calls[0]![1];
-    expect(params.p_search).toBeNull();
-    expect(params.p_type).toBeNull();
-    expect(params.p_lock_count).toBe(0);
+    expect(requests()[0]).toMatchObject({ p_search: null, p_type: null });
+  });
+
+  // app convention: a monster quota's overage locks the newest rows; an unlimited plan, a
+  // missing quota, or one still under its limit locks nothing.
+  it.each([
+    ["over the limit by two", { unlimited: false, current: 7, limit: 5 }, 2],
+    ["under the limit", { unlimited: false, current: 3, limit: 5 }, 0],
+    ["unlimited", { unlimited: true, current: 0, limit: -1 }, 0],
+    ["not loaded yet", null, 0],
+  ])("locks %s -> %i rows", async (_label, q, locked) => {
+    serve(page(["a"], 1));
+    quota.value = q;
+    mountBrowse();
+    await flushPromises();
+    expect(requests()[0]?.p_lock_count).toBe(locked);
   });
 
   it("takes totals and id lists from the first page and pages by loaded count", async () => {
     const first = Array.from({ length: 48 }, (_, i) => `a${i}`);
-    rpc.mockResolvedValueOnce(page(first, 60));
+    serve(page(first, 60), { rows: Array.from({ length: 12 }, (_, i) => row(`b${i}`)) });
     const { api } = mountBrowse();
     await flushPromises();
     expect(api.rows.value).toHaveLength(48);
@@ -90,10 +109,9 @@ describe("useMonsterBrowse", () => {
     expect(api.lockedIds.value).toEqual(["own-2"]);
     expect(api.hasNextPage.value).toBe(true);
 
-    rpc.mockResolvedValueOnce({ data: { rows: Array.from({ length: 12 }, (_, i) => row(`b${i}`)) }, error: null });
     await api.fetchNextPage();
     await flushPromises();
-    expect(rpc.mock.calls[1]![1].p_offset).toBe(48);
+    expect(requests()[1]?.p_offset).toBe(48);
     expect(api.rows.value).toHaveLength(60);
     expect(api.total.value).toBe(60);
     expect(api.selectableIds.value).toEqual(["own-1"]);
@@ -105,32 +123,32 @@ describe("useMonsterBrowse", () => {
     slugs.value = null;
     const { api } = mountBrowse();
     await flushPromises();
-    expect(rpc).not.toHaveBeenCalled();
+    expect(requests()).toEqual([]);
     expect(api.isLoading.value).toBe(true);
     slugs.value = ["srd-2014"];
-    rpc.mockResolvedValue(page(["a"], 1));
+    serve(page(["a"], 1));
     await flushPromises();
-    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(requests()).toHaveLength(1);
   });
 
   it("debounces typing into one request", async () => {
-    rpc.mockResolvedValue(page(["a"], 1));
+    serve(page(["a"], 1));
     vi.useFakeTimers();
     mountBrowse();
     await vi.advanceTimersByTimeAsync(0);
-    rpc.mockClear();
+    fake.calls.length = 0;
     filters.value = { ...filters.value, search: "o" };
     await nextTick();
     filters.value = { ...filters.value, search: "ow" };
     await vi.advanceTimersByTimeAsync(100);
-    expect(rpc).not.toHaveBeenCalled();
+    expect(requests()).toEqual([]);
     await vi.advanceTimersByTimeAsync(300);
-    expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc.mock.calls[0]![1].p_search).toBe("ow");
+    expect(requests()).toHaveLength(1);
+    expect(requests()[0]?.p_search).toBe("ow");
   });
 
   it("surfaces an rpc error", async () => {
-    rpc.mockResolvedValue({ data: null, error: new Error("denied") });
+    fake.failNext("browse_monsters", { message: "denied" });
     const { api } = mountBrowse();
     await flushPromises();
     expect(api.error.value?.message).toBe("denied");

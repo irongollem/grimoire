@@ -62,6 +62,24 @@ describe("useNoteCalendarSync", () => {
     );
   });
 
+  it("trims the note title it names the event after, and drops stale end fields on a one-day session", async () => {
+    mocks.createCalEvent.mockResolvedValue({ id: "event-new" });
+    const { syncSessionCalendarEvent } = useNoteCalendarSync();
+
+    await syncSessionCalendarEvent(
+      input({
+        title: "  The Sunken Road  ",
+        session: null,
+        // An end month and day left behind after the end year was cleared.
+        dates: dates({ startYear: 1492, startMonth: 3, startDay: 12, endMonth: 5, endDay: 9 }),
+      }),
+    );
+
+    expect(mocks.createCalEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "The Sunken Road", is_multi_day: false, end_month: null, end_day: null }),
+    );
+  });
+
   it("creates an event and patches the note when a session note gains a start date", async () => {
     mocks.createCalEvent.mockResolvedValue({ id: "event-new" });
     const { syncSessionCalendarEvent } = useNoteCalendarSync();
@@ -82,6 +100,9 @@ describe("useNoteCalendarSync", () => {
         end_day: null,
         linked_note_id: "note-1",
         campaign_id: "campaign-1",
+        event_type: "session",
+        // A session event is the DM's planning; it must not appear on the players' calendar.
+        player_visible: false,
       }),
     );
     // The write-back happens only after the insert resolves — the circular-FK

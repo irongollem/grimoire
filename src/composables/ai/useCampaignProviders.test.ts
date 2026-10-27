@@ -64,10 +64,13 @@ describe("useCampaignProviders", () => {
     expect(textCredits(2)).toBeNull();
     expect(imageCredits(2)).toBeNull();
 
+    // The rows are already in hand, but the config has not loaded: still no price.
     rows.value = [
       row("openai", { text_model: "gpt-5.6-luna", text_enabled: true, text_multiplier: 1.5 }),
       row("gemini", { image_enabled: true, image_multiplier: 3.8 }),
     ];
+    expect(textProvider.value).toBeNull();
+    expect(textCredits(2)).toBeNull();
     loaded.value = true;
     expect(textCredits(2)).toBe(3);
     expect(imageCredits(1)).toBe(4);
@@ -109,6 +112,15 @@ describe("useCampaignProviders", () => {
     expect(textCredits(2)).toBeNull();
     store.providerKeysLoading = false;
     expect(textProvider.value).toBe("openai");
+  });
+
+  it("resolves nothing while the plan loads and the keys decrypt, even with no key stored yet", () => {
+    store.providerKeysLoading = true;
+    planLoading.value = true;
+    isPro.value = false;
+    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    loaded.value = true;
+    expect(useCampaignProviders().textProvider.value).toBeNull();
   });
 
   it("does not wait on decrypting keys for an account whose plan ignores them", () => {

@@ -70,6 +70,38 @@ describe("useWorldWebCamera", () => {
     expect(pan?.y).toBeCloseTo(0, 10);
   });
 
+  it("does not pan back when the graph refused the zoom (already at its limit)", async () => {
+    const g = fakeGraph();
+    g.setZoomLevel = vi.fn(async () => {});
+    await setup(g).camera.onWheel(wheel({ deltaY: -100, ctrlKey: true, clientX: 200 }));
+    expect(g.panBy).not.toHaveBeenCalled();
+  });
+
+  it("keeps the library and the browser's autoscroll out of a middle press only", () => {
+    const { camera } = setup(fakeGraph());
+    const press = (button: number) => {
+      const ev = new MouseEvent("mousedown", { button, cancelable: true });
+      const stop = vi.spyOn(ev, "stopPropagation");
+      camera.onMouseDownCapture(ev);
+      return { prevented: ev.defaultPrevented, stopped: stop.mock.calls.length > 0 };
+    };
+    expect(press(1)).toEqual({ prevented: true, stopped: true });
+    expect(press(0)).toEqual({ prevented: false, stopped: false });
+  });
+
+  it("a middle press counts as taking the camera, so an automatic re-frame stops", () => {
+    const { camera, onTaken } = setup(fakeGraph());
+    const target = document.createElement("div");
+    camera.onPointerDown({ button: 1, clientX: 1, clientY: 1, pointerId: 1, currentTarget: target } as unknown as PointerEvent);
+    expect(onTaken).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives node dragging back when the view goes away", () => {
+    const { wrapper, setNodesDraggable } = setup(fakeGraph());
+    wrapper.unmount();
+    expect(setNodesDraggable).toHaveBeenLastCalledWith(true);
+  });
+
   it("pans on a middle press and not on a left one", () => {
     const g = fakeGraph();
     const { camera } = setup(g);

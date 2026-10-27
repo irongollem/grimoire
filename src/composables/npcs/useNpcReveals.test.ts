@@ -3,8 +3,11 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 
-const mocks = vi.hoisted(() => ({ from: vi.fn(), select: vi.fn(), eq: vi.fn() }));
-vi.mock("@/lib/supabase", () => ({ supabase: { from: mocks.from } }));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
 const stores = vi.hoisted(() => ({
   ui: { dmPreviewMode: false, dmPreviewPartyMemberId: null as string | null },
@@ -32,28 +35,20 @@ function run() {
 }
 
 describe("useNpcReveals", () => {
-  beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.from.mockReturnValue({ select: mocks.select });
-    mocks.select.mockReturnValue({ eq: mocks.eq });
-  });
+  beforeEach(() => fake.reset());
 
-  it("reads one NPC's reveals and keys them by party member", async () => {
-    mocks.eq.mockResolvedValue({
-      data: [{ party_member_id: "pm-1", revealed_at: "2026-10-04T10:00:00Z" }],
-      error: null,
-    });
-    const { client, query } = run();
+  it("reads one NPC's reveals keyed by party member, and no other NPC's", async () => {
+    fake.seed("npc_reveals", [
+      { npc_id: "npc-1", party_member_id: "pm-1", revealed_at: "2026-10-04T10:00:00Z" },
+      { npc_id: "npc-2", party_member_id: "pm-2", revealed_at: "2026-10-05T10:00:00Z" },
+    ]);
+    const { query } = run();
     await flushPromises();
-    expect(mocks.from).toHaveBeenCalledWith("npc_reveals");
-    expect(mocks.select).toHaveBeenCalledWith("party_member_id,revealed_at");
-    expect(mocks.eq).toHaveBeenCalledWith("npc_id", "npc-1");
     expect(query().data.value).toEqual(new Map([["pm-1", "2026-10-04T10:00:00Z"]]));
-    expect(client.getQueryCache().find({ queryKey: ["npc-reveals", "npc-1"] })).toBeDefined();
   });
 
   it("throws the read error instead of reporting no reveals", async () => {
-    mocks.eq.mockResolvedValue({ data: null, error: new Error("denied") });
+    fake.failNext("npc_reveals", { message: "denied" });
     const { query } = run();
     await flushPromises();
     expect(query().isError.value).toBe(true);
@@ -76,28 +71,28 @@ describe("useMyNpcRevealMoments", () => {
   }
 
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
+    fake.reset();
     stores.ui.dmPreviewMode = false;
     stores.ui.dmPreviewPartyMemberId = null;
     stores.auth.linkedPartyMemberId = "pm-1";
-    const second = vi.fn();
-    mocks.from.mockReturnValue({ select: mocks.select });
-    mocks.select.mockReturnValue({ eq: mocks.eq });
-    mocks.eq.mockReturnValue({ eq: second });
-    second.mockResolvedValue({
-      data: [
-        { npc_id: "n1", revealed_at: "2026-10-05T10:00:00Z", session_id: "s2" },
-        { npc_id: "n1", revealed_at: "2026-10-04T10:00:00Z", session_id: "s1" },
-      ],
-      error: null,
-    });
+    stores.campaign.activeCampaignId = "c-1";
   });
 
-  it("scopes by campaign and the player's own member and keeps the earliest per NPC", async () => {
+  const reveal = (campaign: string, member: string, npc: string, at: string, session: string) => ({
+    campaign_id: campaign, party_member_id: member, npc_id: npc, revealed_at: at, session_id: session,
+  });
+
+  it("keeps the earliest meeting per NPC for the player's own character in this campaign, and no one else's", async () => {
+    fake.seed("npc_reveals", [
+      reveal("c-1", "pm-1", "n1", "2026-10-05T10:00:00Z", "s2"),
+      reveal("c-1", "pm-1", "n1", "2026-10-04T10:00:00Z", "s1"),
+      // Earlier than both, but another character's and another campaign's: neither may count.
+      reveal("c-1", "pm-2", "n1", "2026-10-01T10:00:00Z", "s0"),
+      reveal("c-2", "pm-1", "n1", "2026-10-02T10:00:00Z", "s-other"),
+      reveal("c-2", "pm-1", "n9", "2026-10-02T10:00:00Z", "s-other"),
+    ]);
     const { client, query } = runMine();
     await flushPromises();
-    expect(mocks.eq).toHaveBeenCalledWith("campaign_id", "c-1");
-    expect(mocks.select).toHaveBeenCalledWith("npc_id,revealed_at,session_id");
     expect(query().data.value).toEqual(
       new Map([["n1", { revealed_at: "2026-10-04T10:00:00Z", session_id: "s1" }]]),
     );
@@ -105,10 +100,23 @@ describe("useMyNpcRevealMoments", () => {
     expect(client.getQueryCache().find({ queryKey: ["player-npcs", "c-1", "reveals", "pm-1"] })).toBeDefined();
   });
 
+  it("reads as the previewed member in DM preview", async () => {
+    fake.seed("npc_reveals", [
+      reveal("c-1", "pm-1", "n1", "2026-10-04T10:00:00Z", "s1"),
+      reveal("c-1", "pm-7", "n2", "2026-10-06T10:00:00Z", "s3"),
+    ]);
+    stores.ui.dmPreviewMode = true;
+    stores.ui.dmPreviewPartyMemberId = "pm-7";
+    const { query } = runMine();
+    await flushPromises();
+    expect([...query().data.value!.keys()]).toEqual(["n2"]);
+  });
+
   it("does not fetch without a member", async () => {
     stores.auth.linkedPartyMemberId = null;
-    runMine();
+    const { query } = runMine();
     await flushPromises();
-    expect(mocks.from).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
+    expect(query().error.value).toBeNull();
   });
 });

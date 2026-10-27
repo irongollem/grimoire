@@ -21,16 +21,7 @@ interface MutationCall {
   onError?: (err: unknown) => void;
 }
 
-function makeMutationStub() {
-  const calls: MutationCall[] = [];
-  const mutate = vi.fn((vars: unknown, opts?: { onSuccess?: (data: unknown) => void; onError?: (err: unknown) => void }) => {
-    calls.push({ vars, onSuccess: opts?.onSuccess, onError: opts?.onError });
-  });
-  const mutateAsync = vi.fn(async (vars: unknown) => vars);
-  return { mutate, mutateAsync, isPending: { value: false }, calls };
-}
-
-const { updateRegionStub, createRegionStub, deleteRegionStub, regionsData } = vi.hoisted(() => {
+const { updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, updateDoorStub, deleteDoorStub, regionsData, confirmAnswer } = vi.hoisted(() => {
   function stub() {
     const calls: MutationCall[] = [];
     const mutate = vi.fn((vars: unknown, opts?: { onSuccess?: (data: unknown) => void; onError?: (err: unknown) => void }) => {
@@ -43,7 +34,11 @@ const { updateRegionStub, createRegionStub, deleteRegionStub, regionsData } = vi
     updateRegionStub: stub(),
     createRegionStub: stub(),
     deleteRegionStub: stub(),
+    createDoorStub: stub(),
+    updateDoorStub: stub(),
+    deleteDoorStub: stub(),
     regionsData: { value: [] as LocationMapRegion[] },
+    confirmAnswer: { value: true },
   };
 });
 
@@ -55,10 +50,11 @@ vi.mock("@/composables/locations/useLocationMapRegions", () => ({
   dmEdit: (update: Record<string, unknown>) => ({ ...update, derived_from: "dm" }),
 }));
 vi.mock("@/composables/locations/useLocationDoors", () => ({
-  useCreateLocationDoor: makeMutationStub,
-  useUpdateLocationDoor: makeMutationStub,
-  useDeleteLocationDoor: makeMutationStub,
+  useCreateLocationDoor: () => createDoorStub,
+  useUpdateLocationDoor: () => updateDoorStub,
+  useDeleteLocationDoor: () => deleteDoorStub,
 }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: async () => confirmAnswer.value }) }));
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: ref([]) }) }));
 
@@ -86,7 +82,8 @@ function makeRegion(overrides: Partial<LocationMapRegion> = {}): LocationMapRegi
 describe("usePlanPalette", () => {
   beforeEach(() => {
     regionsData.value = [];
-    for (const stub of [updateRegionStub, createRegionStub, deleteRegionStub]) {
+    confirmAnswer.value = true;
+    for (const stub of [updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, updateDoorStub, deleteDoorStub]) {
       stub.calls.length = 0;
       stub.mutate.mockClear();
       stub.mutateAsync.mockClear();
@@ -180,6 +177,117 @@ describe("usePlanPalette", () => {
 
       expect(createRegionStub.mutateAsync).toHaveBeenCalledOnce();
     });
+  });
+});
+
+describe("usePlanPalette pen rings, conversions and doors", () => {
+  beforeEach(() => {
+    regionsData.value = [];
+    confirmAnswer.value = true;
+    for (const stub of [updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, updateDoorStub, deleteDoorStub]) {
+      stub.calls.length = 0;
+      stub.mutate.mockClear();
+      stub.mutateAsync.mockClear();
+      stub.mutateAsync.mockImplementation(async (vars: unknown) => vars);
+    }
+  });
+
+  const SQUARE: [number, number][] = [[0, 0], [3, 0], [3, 3], [0, 3]];
+  const door = (over: Record<string, unknown> = {}) => ({
+    id: "door-1", from_location_id: "a", to_location_id: "b", label: "Oak", is_one_way: false, starts_locked: true,
+    lock_note: "key", is_secret: false, sort_order: 1, door_kind: "door", edge_key: "3,2:W", derived_from: "dm",
+    dungeon_feature_id: null, library_dungeon_feature_id: null, ...over,
+  }) as never;
+
+  it("a pen ring stores its vertices with the cells it encloses, and undo puts the earlier shape back", async () => {
+    regionsData.value = [makeRegion({ id: "r1", cells: ["9,9"] })];
+    const plan = usePlanPalette(computed(() => "site-1"));
+    await plan.commitRing("r1", SQUARE);
+    const stored = (updateRegionStub.mutateAsync.mock.calls[0]![0] as { update: { vertices: unknown; cells: string[] } }).update;
+    expect(stored.vertices).toEqual(SQUARE);
+    expect(stored.cells).toContain("1,1");
+    expect(stored.cells).not.toContain("9,9");
+
+    await plan.undo.undo();
+    expect((updateRegionStub.mutateAsync.mock.calls.at(-1)![0] as { update: { cells: string[]; vertices: unknown } }).update)
+      .toMatchObject({ cells: ["9,9"], vertices: null });
+  });
+
+  it("a failed pen ring rejects so the draft is kept, leaves nothing to undo, and the next read is the earlier shape", async () => {
+    regionsData.value = [makeRegion({ id: "r1", cells: ["9,9"] })];
+    updateRegionStub.mutateAsync.mockRejectedValueOnce(new Error("offline"));
+    const plan = usePlanPalette(computed(() => "site-1"));
+    await expect(plan.commitRing("r1", SQUARE)).rejects.toThrow("offline");
+    expect(plan.undo.canUndo.value).toBe(false);
+    plan.eraseCells(new Set(["9,9"]));
+    expect((updateRegionStub.calls[0]!.vars as { update: { cells: string[] } }).update.cells).toEqual([]);
+  });
+
+  it("painting over a pen-traced shape converts it to cells only when the DM confirms", async () => {
+    const pen = makeRegion({ id: "r1", cells: ["1,1", "2,1"], vertices: SQUARE });
+    confirmAnswer.value = false;
+    const plan = usePlanPalette(computed(() => "site-1"));
+    expect(await plan.confirmConvert(pen)).toBe(false);
+    expect(updateRegionStub.mutateAsync).not.toHaveBeenCalled();
+    expect(plan.undo.canUndo.value).toBe(false);
+
+    confirmAnswer.value = true;
+    expect(await plan.confirmConvert(pen)).toBe(true);
+    expect(updateRegionStub.mutateAsync).toHaveBeenCalledWith({ id: "r1", update: expect.objectContaining({ vertices: null, cells: ["1,1", "2,1"] }) });
+    await plan.undo.undo();
+    expect(updateRegionStub.mutateAsync).toHaveBeenLastCalledWith({ id: "r1", update: expect.objectContaining({ vertices: SQUARE }) });
+  });
+
+  it("cycles a door to an arch and an arch back to a door, undoably", async () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.cycleDoorKind(door({ door_kind: "door" }));
+    plan.cycleDoorKind(door({ door_kind: "arch" }));
+    expect(updateDoorStub.calls.map((c) => (c.vars as { update: { door_kind: string } }).update.door_kind)).toEqual(["arch", "door"]);
+    updateDoorStub.calls[0]!.onSuccess?.({});
+    await plan.undo.undo();
+    expect(updateDoorStub.mutateAsync).toHaveBeenLastCalledWith({ id: "door-1", update: { door_kind: "door" } });
+  });
+
+  it("removing a door can be undone by recreating it with everything it had", async () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.removeDoor(door());
+    expect(deleteDoorStub.calls[0]!.vars).toBe("door-1");
+    deleteDoorStub.calls[0]!.onSuccess?.({});
+    createDoorStub.mutateAsync.mockResolvedValueOnce({ id: "door-2" });
+    await plan.undo.undo();
+    expect(createDoorStub.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "Oak", starts_locked: true, lock_note: "key", edge_key: "3,2:W", from_location_id: "a", to_location_id: "b" }),
+    );
+    // Redoing the removal deletes the recreated door, not the one that is gone.
+    await plan.undo.redo();
+    expect(deleteDoorStub.mutateAsync).toHaveBeenLastCalledWith("door-2");
+  });
+
+  it("starts a new zone with the chosen kind and a trimmed label, or none when blank, and makes it active", async () => {
+    createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "z1" });
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.zoneKind.value = "hazard";
+    plan.zoneLabel.value = "  Spore bloom ";
+    await plan.startNewZone();
+    expect(createRegionStub.mutateAsync).toHaveBeenLastCalledWith({ site_location_id: "site-1", region_role: "zone", zone_kind: "hazard", label: "Spore bloom" });
+    expect(plan.activeRegionId.value).toBe("z1");
+    createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "z2" });
+    plan.zoneLabel.value = "   ";
+    await plan.startNewZone();
+    expect(createRegionStub.mutateAsync).toHaveBeenLastCalledWith(expect.objectContaining({ label: null }));
+  });
+
+  it("claims nothing for an empty floor selection", async () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    await plan.claimFloorRegion([]);
+    expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("creates nothing without a site", async () => {
+    const plan = usePlanPalette(computed(() => null));
+    expect(await plan.startNewSpace()).toBeNull();
+    await plan.claimFloorRegion(["0,0"]);
+    expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
   });
 });
 

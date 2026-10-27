@@ -104,4 +104,44 @@ describe("usePlayerEntityEmbed", () => {
     expect(result.html.value).toBeNull();
     expect(result.isLoading.value).toBe(false);
   });
+
+  it("shows the full stat block once the DM reveals the stats, and finds a discovered custom monster by its own id", () => {
+    const own = "22222222-2222-2222-2222-222222222222";
+    mocks.monsters.mockReturnValue({
+      data: ref(new Map([[own, {
+        id: own, name: "Gnarl", size: "medium", monster_type: "beast", image_url: null, cutout_url: null,
+        stat_block: { armor_class: 12, hit_points: "11", speed: "30 ft.", challenge_rating: "1/2", str: 14, dex: 12, con: 12, int: 2, wis: 10, cha: 6 },
+      }]])),
+      isLoading: ref(false),
+    });
+    mocks.discoveries.mockReturnValue({
+      data: ref([{ library_monster_id: null, monster_id: own, reveal_stats: true }]),
+      isLoading: ref(false),
+    });
+    const html = usePlayerEntityEmbed("monster", own, "camp-1", theme).html.value;
+    expect(html).toContain("Gnarl");
+    expect(html).toContain("sc-statblock");
+    expect(mocks.monsters.mock.calls[0][0]()).toEqual([own]);
+  });
+
+  it("resolves a location from the shared list and a quest from the visible ones, and is absent for ids the player cannot see", () => {
+    mocks.locations.mockReturnValue({
+      data: ref([{ id: "loc-1", name: "The Sunken Keep", location_type: "dungeon", description: null, is_description_shared: false }]),
+      isLoading: ref(false),
+    });
+    mocks.quests.mockReturnValue({
+      data: ref([{ id: "q-1", title: "The Sunken Road", summary: "Find the amulet." }]),
+      isLoading: ref(false),
+    });
+    expect(usePlayerEntityEmbed("location", "loc-1", "camp-1", theme).html.value).toContain("The Sunken Keep");
+    expect(usePlayerEntityEmbed("location", "loc-hidden", "camp-1", theme).html.value).toBeNull();
+    expect(usePlayerEntityEmbed("quest", "q-1", "camp-1", theme).html.value).toContain("The Sunken Road");
+    expect(usePlayerEntityEmbed("quest", "q-hidden", "camp-1", theme).html.value).toBeNull();
+  });
+
+  it("asks for a library spell by its id", () => {
+    mocks.spell.mockReturnValue({ data: ref(undefined), isLoading: ref(false) });
+    usePlayerEntityEmbed("spell", "srd_fireball", "camp-1", theme);
+    expect(mocks.spell.mock.calls[0][0].value).toBe("srd_fireball");
+  });
 });

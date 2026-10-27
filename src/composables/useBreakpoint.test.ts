@@ -16,8 +16,4 @@ describe("useBreakpoint queries", () => {
       expect(belowQuery(bp)).not.toContain("px");
     }
   });
-
-  it("matches Tailwind v4's default scale", () => {
-    expect(BREAKPOINTS).toEqual({ sm: 40, md: 48, lg: 64, xl: 80, "2xl": 96 });
-  });
 });

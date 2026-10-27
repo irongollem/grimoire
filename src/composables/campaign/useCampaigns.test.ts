@@ -39,6 +39,7 @@ import {
   useAllDmCampaigns,
   useDmArchivedCampaigns,
   useDmCampaigns,
+  usePlayerCampaigns,
 } from "./useCampaigns";
 
 describe("fetchCampaignsAs", () => {
@@ -147,5 +148,19 @@ describe("the DM campaign lists share one request", () => {
     expect(read(views!.archived)).toEqual(["b"]);
     expect(read(views!.all)).toEqual(["a", "b"]);
     calls.filters = original;
+  });
+});
+
+describe("the player's campaign list", () => {
+  it("asks for the campaigns this account plays in, never the ones it DMs", async () => {
+    currentUser = { id: "me" };
+    calls.filters = [];
+    mount(defineComponent({ setup() { usePlayerCampaigns(); return () => h("div"); } }), {
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    });
+    await flushPromises();
+    expect(calls.filters).toContainEqual(["campaign_members.role", "player"]);
+    expect(calls.filters).toContainEqual(["campaign_members.user_id", "me"]);
+    expect(calls.filters).toContainEqual(["is_archived", false]);
   });
 });

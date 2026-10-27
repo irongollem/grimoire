@@ -9,6 +9,8 @@ describe("canEditSubclass", () => {
     expect(canEditSubclass({ user_id: "dm" }, dm)).toBe(true);
     expect(canEditSubclass({ user_id: "someone" }, dm)).toBe(false);
     expect(canEditSubclass({ user_id: "dm" }, { userId: null, isAdmin: false })).toBe(false);
+    // Being admin opens the library's rows, not a DM's own homebrew.
+    expect(canEditSubclass({ user_id: "dm" }, admin)).toBe(false);
   });
 
   it("leaves the library's archetypes to an admin", () => {

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   signed: [] as string[][],
   loaded: [] as TilePackManifest[],
   opts: [] as unknown[],
+  unsignable: false,
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -13,7 +14,7 @@ vi.mock("@/lib/supabase", () => ({
       from: () => ({
         createSignedUrls: async (paths: string[]) => {
           mocks.signed.push(paths);
-          return { data: paths.map((p) => ({ signedUrl: `https://signed/${p}` })), error: null };
+          return { data: paths.map((p) => ({ signedUrl: mocks.unsignable ? null : `https://signed/${p}` })), error: null };
         },
       }),
     },
@@ -35,6 +36,7 @@ describe("loadUserPack", () => {
     mocks.signed.length = 0;
     mocks.loaded.length = 0;
     mocks.opts.length = 0;
+    mocks.unsignable = false;
     vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: (blob: Blob) => blob, revokeObjectURL: () => undefined }));
     vi.stubGlobal("fetch", async (blob: Blob) => ({ text: () => blob.text() }));
   });
@@ -57,5 +59,13 @@ describe("loadUserPack", () => {
     const manifest = { pack_id: "mine", assets: {} } as unknown as TilePackManifest;
     await loadUserPack({ user_id: "u1", pack_id: "mine", pack_version: 2, manifest } as never);
     expect(mocks.opts).toEqual([{ lastingUrls: false }]);
+  });
+
+  it("refuses a pack whose tile cannot be signed rather than loading it with a dead url", async () => {
+    mocks.unsignable = true;
+    const manifest = { pack_id: "mine", assets: { floor: [{ variant: 0, url: "tiles/floor-0.webp" }] } } as unknown as TilePackManifest;
+    await expect(loadUserPack({ user_id: "u1", pack_id: "mine", pack_version: 2, manifest } as never))
+      .rejects.toThrow("Could not sign u1/mine/v2/tiles/floor-0.webp");
+    expect(mocks.loaded).toEqual([]);
   });
 });

@@ -160,6 +160,12 @@ describe("seedRecipeChildren", () => {
     expect(writers.insertIngredients).not.toHaveBeenCalled();
   });
 
+  it("asks the database to delete nothing when no recipe was created to roll back", async () => {
+    const writers = fakeWriters();
+    await expect(seedRecipeChildren([recipe()], [], new Map(), writers)).rejects.toThrow("mismatch");
+    expect(writers.deleteRecipes).not.toHaveBeenCalled();
+  });
+
   it("is a no-op — no writers called, nothing to roll back — for an empty import", async () => {
     const writers = fakeWriters();
     await seedRecipeChildren([], [], new Map(), writers);

@@ -10,34 +10,30 @@ type ProjectedItem = Pick<Item, "id" | "name">;
 const OWNED = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const WARE = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+
 const mocks = vi.hoisted(() => ({
-  /** Rows `store_items` hands back for the location under test. */
-  rows: [] as { id: string; item_id: string }[],
   /** Set by the mock factory, so writes to it are reactive. */
   projection: null as Ref<ProjectedItem[]> | null,
+  /** Whether the projection is still loading; set by the mock factory. */
+  loading: null as Ref<boolean> | null,
   refetches: 0,
 }));
 
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          order: () => ({ data: mocks.rows, error: null }),
-        }),
-      }),
-    }),
-  },
-  getCurrentUser: () => ({ id: "player-1" }),
-}));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "player-1" }) }));
 
 vi.mock("@/composables/items/useItems", () => {
   const projection = shallowRef<ProjectedItem[]>([]);
+  const loading = ref(false);
   mocks.projection = projection;
+  mocks.loading = loading;
   return {
     usePlayerItemProjection: () => ({
       data: projection,
-      isLoading: ref(false),
+      isLoading: loading,
       refetch: async () => {
         mocks.refetches += 1;
       },
@@ -67,7 +63,15 @@ vi.mock("@/composables/items/useStoredItemRefs", () => ({
 
 /** Imported after the mocks so the composable picks them up. */
 import type { RawStoreItemRow } from "@/composables/items/useStoreItems";
-const { useSharedStoreItems, resolveStoreItemRow } = await import("@/composables/items/useStoreItems");
+const {
+  useSharedStoreItems,
+  useStoreStockCounts,
+  useAddStoreItem,
+  useAddStoreItems,
+  useUpdateStoreItem,
+  useRemoveStoreItem,
+  resolveStoreItemRow,
+} = await import("@/composables/items/useStoreItems");
 
 /** Mounts a panel that records the ware names it would render, per update. */
 function mountPanel() {
@@ -89,13 +93,35 @@ function mountPanel() {
 
 describe("useSharedStoreItems", () => {
   beforeEach(() => {
-    mocks.rows = [
-      { id: "row-owned", item_id: OWNED },
-      { id: "row-ware", item_id: WARE },
-    ];
+    fake.reset();
+    fake.seed("store_items", [
+      { id: "row-owned", location_id: "loc-1", item_id: OWNED, sort_order: 0 },
+      { id: "row-ware", location_id: "loc-1", item_id: WARE, sort_order: 1 },
+      { id: "row-elsewhere", location_id: "loc-2", item_id: WARE, sort_order: 0 },
+    ]);
     // The snapshot a player's page loaded with: their vault, and no shop.
     mocks.projection!.value = [{ id: OWNED, name: "Tanned Leather" }];
     mocks.refetches = 0;
+    mocks.loading!.value = false;
+  });
+
+  it("lists this shop's wares in sort order, and not another shop's", async () => {
+    fake.seed("store_items", [{ id: "row-first", location_id: "loc-1", item_id: OWNED, sort_order: -1 }]);
+    let ids: string[] = [];
+    mount(
+      defineComponent({
+        setup() {
+          const { data } = useSharedStoreItems(ref("loc-1"));
+          return () => {
+            ids = (data.value ?? []).map((row) => row.id);
+            return h("div");
+          };
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    );
+    await flushPromises();
+    expect(ids).toEqual(["row-first", "row-owned", "row-ware"]);
   });
 
   it("refetches the projection when a ware it does not know appears", async () => {
@@ -130,6 +156,102 @@ describe("useSharedStoreItems", () => {
     await flushPromises();
 
     expect(mocks.refetches).toBe(1);
+  });
+});
+
+describe("useSharedStoreItems refetch rules", () => {
+  beforeEach(() => {
+    fake.reset();
+    mocks.projection!.value = [{ id: OWNED, name: "Tanned Leather" }];
+    mocks.loading!.value = false;
+    mocks.refetches = 0;
+  });
+
+  it("does not refetch the projection for a library ware it cannot resolve, which the projection never holds", async () => {
+    fake.seed("store_items", [
+      { id: "row-library", location_id: "loc-1", item_id: null, library_item_id: "srd_unknown_ware", sort_order: 0 },
+    ]);
+    mountPanel();
+    await flushPromises();
+    expect(mocks.refetches).toBe(0);
+  });
+
+  it("waits for the projection to finish loading before judging a ware unresolved", async () => {
+    mocks.loading!.value = true;
+    fake.seed("store_items", [{ id: "row-ware", location_id: "loc-1", item_id: WARE, sort_order: 0 }]);
+    mountPanel();
+    await flushPromises();
+    expect(mocks.refetches).toBe(0);
+
+    mocks.loading!.value = false;
+    await flushPromises();
+    expect(mocks.refetches).toBe(1);
+  });
+});
+
+describe("store item writes and counts", () => {
+  function inClient<T>(setup: () => T): T {
+    let out!: T;
+    mount(
+      defineComponent({
+        setup() {
+          out = setup();
+          return () => h("div");
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] } },
+    );
+    return out;
+  }
+
+  beforeEach(() => {
+    fake.reset();
+    fake.seed("store_items", [
+      { id: "a", location_id: "loc-1", visible: true },
+      { id: "b", location_id: "loc-1", visible: false },
+      { id: "c", location_id: "loc-2", visible: true },
+      { id: "d", location_id: "loc-3", visible: true },
+    ]);
+  });
+
+  it("counts stock only for the locations asked about", async () => {
+    const q = inClient(() => useStoreStockCounts(ref(["loc-2", "loc-1"])));
+    await vi.waitFor(() => expect(q.data.value?.map((r) => r.location_id).sort()).toEqual(["loc-1", "loc-1", "loc-2"]));
+  });
+
+  it("reads nothing for no locations", async () => {
+    inClient(() => useStoreStockCounts(ref<string[]>([])));
+    await flushPromises();
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("stocks a ware as the signed-in user", async () => {
+    const add = inClient(() => useAddStoreItem());
+    await add.mutateAsync({ location_id: "loc-1", item_id: WARE, library_item_id: null });
+    expect(fake.rows("store_items").find((r) => r.item_id === WARE)).toMatchObject({ location_id: "loc-1", user_id: "player-1" });
+  });
+
+  it("quick-fills a shop with every row stamped with the signed-in user", async () => {
+    const add = inClient(() => useAddStoreItems());
+    await add.mutateAsync([
+      { location_id: "loc-1", item_id: OWNED, library_item_id: null },
+      { location_id: "loc-1", item_id: WARE, library_item_id: null },
+    ]);
+    const added = fake.rows("store_items").filter((r) => r.item_id === OWNED || r.item_id === WARE);
+    expect(added).toHaveLength(2);
+    expect(added.every((r) => r.user_id === "player-1")).toBe(true);
+  });
+
+  it("updates one ware and no other", async () => {
+    const update = inClient(() => useUpdateStoreItem(ref("loc-1")));
+    await update.mutateAsync({ id: "a", update: { price_override: "5 gp" } });
+    expect(fake.rows("store_items").map((r) => r.price_override)).toEqual(["5 gp", undefined, undefined, undefined]);
+  });
+
+  it("removes one ware and no other", async () => {
+    const remove = inClient(() => useRemoveStoreItem(ref("loc-1")));
+    await remove.mutateAsync("a");
+    expect(fake.rows("store_items").map((r) => r.id)).toEqual(["b", "c", "d"]);
   });
 });
 

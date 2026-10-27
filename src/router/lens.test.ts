@@ -16,6 +16,7 @@ vi.mock("@/lib/themeRuntime", () => ({ setTheme: () => {}, setPlayerSeat: () => 
 
 import { routes } from "./routes";
 import {
+  isPlayerArea,
   knownRoleInCampaign,
   lensContradicts,
   resolveRoleInCampaign,
@@ -87,6 +88,13 @@ const UNFENCED = [
 ];
 
 describe("routeLens — which lens a route's campaign belongs to", () => {
+  it("takes /play and what is under it for the player portal, and not a path that merely starts with the word", () => {
+    expect(isPlayerArea("/play")).toBe(true);
+    expect(isPlayerArea("/play/home")).toBe(true);
+    expect(isPlayerArea("/playbook")).toBe(false);
+    expect(isPlayerArea("/npcs")).toBe(false);
+  });
+
   it("fences every authenticated campaign surface", () => {
     const unfenced = ALL_ROUTES.filter((r) => routeLens(r) === null).map((r) => r.name);
 

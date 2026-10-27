@@ -66,6 +66,24 @@ describe("useAmbiencePlayback", () => {
     expect(mocks.releaseAudioTheme).toHaveBeenCalledWith("ambience:inn");
   });
 
+  it("pressing Play again on the place already playing starts it again without ever releasing it", () => {
+    ambientTriggers.value = [owning("ambience:inn", "tavern-scene")];
+
+    useAmbiencePlayback().play({ themeOwnerId: "inn", theme: "tavern", label: "The Inn" });
+
+    expect(mocks.requestAudioCue).toHaveBeenCalledOnce();
+    expect(mocks.releaseAudioTheme).not.toHaveBeenCalled();
+  });
+
+  it("plays a loose sound when no scene answers the theme", () => {
+    playlists.value = [];
+    sounds.value = [{ id: "rain", category: "ambient", tags: ["storm"] } as Sound];
+
+    useAmbiencePlayback().play({ themeOwnerId: "coast", theme: "storm", label: "The Coast" });
+
+    expect(mocks.requestAudioCue).toHaveBeenCalledWith(expect.objectContaining({ target: { soundId: "rain" } }));
+  });
+
   it("leaves the party's own ambience alone", () => {
     ambientTriggers.value = [owning("location:inn", "tavern-scene")];
     const playback = useAmbiencePlayback();

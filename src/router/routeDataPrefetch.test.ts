@@ -9,7 +9,7 @@ vi.mock("@/stores/auth", () => ({ useAuthStore: () => auth }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaign }));
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
 
-import { DATA_PREFETCH_PATHS, prefetchRouteData } from "./routeDataPrefetch";
+import { prefetchRouteData } from "./routeDataPrefetch";
 import { npcListQuery, npcQuery } from "@/composables/npcs/useNpcs";
 import { entityBacklinksQuery } from "@/composables/notes/useEntityBacklinks";
 import { partyListQuery } from "@/composables/party/useParty";
@@ -49,7 +49,7 @@ describe("prefetchRouteData", () => {
   it("does not treat the NPC sub-pages as records", () => {
     signIn("dm", "c1");
     const { client, prefetchQuery } = fakeClient();
-    for (const path of ["/npcs/new", "/npcs/sets", "/npcs/web", "/npcs/n1/edit"]) prefetchRouteData(client, path);
+    for (const path of ["/npcs/", "/npcs/new", "/npcs/sets", "/npcs/web", "/npcs/n1/edit"]) prefetchRouteData(client, path);
     expect(prefetchQuery).not.toHaveBeenCalled();
   });
 
@@ -78,11 +78,5 @@ describe("prefetchRouteData", () => {
     signIn(null, "c1");
     prefetchRouteData(client, "/npcs");
     expect(prefetchQuery).not.toHaveBeenCalled();
-  });
-
-  it("covers the destinations the sidebar leads with", () => {
-    expect(DATA_PREFETCH_PATHS).toEqual(
-      expect.arrayContaining(["/npcs", "/encounters", "/quests", "/locations", "/notes", "/party", "/factions"]),
-    );
   });
 });

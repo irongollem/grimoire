@@ -307,6 +307,7 @@ describe("volume", () => {
     store.play("s1", "https://example.test/a.mp3", "music");
     await flush();
     engineCalls.setSoundVolume.mockClear();
+    created[0].volume = 0.2; // left over from the element-volume fallback
 
     store.setVolume("s1", 0.4);
     expect(engineCalls.setSoundVolume).toHaveBeenCalledWith("s1", 0.4, 0);
@@ -329,6 +330,25 @@ describe("volume", () => {
     store.setMasterVolume(0.5);
     expect(store.masterVolume).toBe(0.5);
     expect(engineCalls.setMasterVolume).toHaveBeenCalledWith(0.5, expect.any(Number));
+  });
+
+  it.each([
+    [1.7, 1],
+    [-0.2, 0],
+  ])("keeps a master fader of %f inside 0 to 1 (%f)", async (asked, got) => {
+    const store = await loadStore();
+    store.setMasterVolume(asked);
+    expect(store.masterVolume).toBe(got);
+  });
+
+  it.each([
+    [1.7, 1],
+    [-0.2, 0],
+  ])("keeps a bus fader of %f inside 0 to 1 (%f)", async (asked, got) => {
+    const store = await loadStore();
+    store.setBusVolume("music", asked);
+    expect(store.busVolumes.music).toBe(got);
+    expect(engineCalls.setBusVolume).toHaveBeenCalledWith("music", got, expect.any(Number));
   });
 
   it("exposes per-bus faders", async () => {
@@ -397,15 +417,69 @@ describe("music playlist advance", () => {
     expect(store.activeMusicPlaylist?.currentIndex).toBe(0);
   });
 
-  it("restarts the current track when prev is pressed more than 3s in", async () => {
+  // Prev: "more than 3s in" restarts the track; otherwise it goes back one (app convention, as every player does).
+  it.each([
+    [10, 1],
+    [3.5, 1],
+    [3, 0],
+    [1, 0],
+  ])("prev at %is into the second track lands on track index %i", async (seconds, landsOn) => {
     const store = await loadStore();
     store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: false }, tracks);
     await flush();
-    store.getState("s1").currentTime = 10;
+    store.musicPlaylistNext();
+    await flush();
+    store.getState("s2").currentTime = seconds;
 
     store.musicPlaylistPrev();
     await flush();
+    expect(store.activeMusicPlaylist?.currentIndex).toBe(landsOn);
+  });
+
+  it("prev on the first track wraps to the last when repeat is on, and stays put when it is off", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, tracks);
+    await flush();
+    store.musicPlaylistPrev();
+    await flush();
+    expect(store.activeMusicPlaylist?.currentIndex).toBe(1);
+
+    store.stopMusicPlaylist();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: false }, tracks);
+    await flush();
+    store.musicPlaylistPrev();
+    await flush();
     expect(store.activeMusicPlaylist?.currentIndex).toBe(0);
+  });
+
+  it("does not fade a lone repeating track out from under itself when it comes round again", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, tracks.slice(0, 1));
+    await flush();
+    engineCalls.fadeOut.mockClear();
+    store.musicPlaylistNext();
+    await flush();
+    expect(engineCalls.fadeOut).not.toHaveBeenCalled();
+    expect(store.activeMusicPlaylist?.currentIndex).toBe(0);
+  });
+
+  it("pausing twice pauses once, and resuming a playlist that is not paused does not restart it", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: false }, tracks);
+    await flush();
+    engineCalls.setSoundVolume.mockClear();
+    engineCalls.fadeIn.mockClear();
+    store.resumeMusicPlaylist();
+    await flush();
+    expect(engineCalls.fadeIn).not.toHaveBeenCalled();
+    expect(engineCalls.setSoundVolume).not.toHaveBeenCalled();
+
+    store.pauseMusicPlaylist();
+    engineCalls.fadeOut.mockClear();
+    store.pauseMusicPlaylist();
+    await flush();
+    expect(engineCalls.fadeOut).not.toHaveBeenCalled();
+    expect(store.activeMusicPlaylist?.paused).toBe(true);
   });
 });
 

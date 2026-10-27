@@ -42,7 +42,49 @@ describe("useNewToYou", () => {
   });
 });
 
+describe("an unmasked person", () => {
+  // Met under a cover, since unmasked, not opened afterwards: shown as a reveal
+  // that carries the cover they were known by.
+  const masked = {
+    ...npc("spy", "2026-10-07T10:00:00Z"),
+    unmasked_at: "2026-10-08T10:00:00Z",
+    disguise_name: "Old Henry",
+    disguise_portrait_url: "https://img.test/henry.webp",
+    disguise_portrait_focal_point: { x: 0.5, y: 0.5 },
+  } as unknown as PlayerNpc;
+
+  it("waits in the strip as unmasked, ahead of being treated as merely new", () => {
+    const { entries } = useNewToYou(ref([masked]), ref(new Map()));
+    expect(entries.value.map((e) => [e.npc.id, e.kind])).toEqual([["spy", "unmasked"]]);
+  });
+
+  it("carries the cover it was known by, which a merely new person has no use for", () => {
+    const item = toNewToYouItem({ npc: masked, kind: "unmasked" }, "Waterdeep");
+    expect(item.cover).toEqual({
+      name: "Old Henry",
+      portraitUrl: "https://img.test/henry.webp",
+      focalPoint: { x: 0.5, y: 0.5 },
+    });
+    expect(item.place).toBe("Waterdeep");
+    expect(toNewToYouItem({ npc: masked, kind: "new" }, null).cover).toBeUndefined();
+  });
+});
+
 describe("toNewToYouItem privacy", () => {
+  const described = (fields: string[]): PlayerNpc =>
+    ({ ...fresh, race: "Elf", occupation: "Smith", relationship: "wary", player_visible_fields: fields }) as unknown as PlayerNpc;
+
+  it.each([
+    [["name"], null],
+    [["race"], "Elf"],
+    [["occupation"], "Smith"],
+    [["race", "occupation"], "Elf · Smith"],
+  ])("with %j visible, shows %j of what they are", (fields, what) => {
+    const { person } = toNewToYouItem({ npc: described(fields), kind: "new" }, null);
+    expect(person.what).toBe(what);
+    expect(person.relationship).toBe("wary");
+  });
+
   const withFields = (fields: string[]): PlayerNpc =>
     ({
       ...fresh,

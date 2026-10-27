@@ -59,4 +59,12 @@ describe("useTermsNotice", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("send-terms-notice", { body: { dryRun: false } });
     expect(qc.getQueryData(["admin", "terms-notice"])).toEqual(after);
   });
+
+  it("a real send refreshes the audit log", async () => {
+    mocks.invoke.mockResolvedValue({ data: STATUS, error: null });
+    const { result, qc } = run(() => useSendTermsNotice());
+    qc.setQueryData(["admin", "audit-log"], []);
+    await result.mutateAsync();
+    expect(qc.getQueryState(["admin", "audit-log"])?.isInvalidated).toBe(true);
+  });
 });

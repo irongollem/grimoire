@@ -2,17 +2,33 @@ import { describe, expect, it } from "vitest";
 import { DOLL_FALLBACK_ERROR, dollErrorMessage } from "./characterDollErrors";
 
 describe("dollErrorMessage", () => {
-  it("turns the function's codes into sentences", () => {
-    expect(dollErrorMessage("no_portrait")).toBe("Add a portrait first: the doll is drawn from it.");
-    expect(dollErrorMessage("doll_in_progress")).toBe("Your doll is already being drawn.");
-    expect(dollErrorMessage("ai_disabled")).toBe("Your DM has turned AI off for this table.");
-    expect(dollErrorMessage("forbidden")).toBe("Only the character's player or the campaign's DM can make its doll.");
-    expect(dollErrorMessage("likeness_acknowledgement_required")).toBe("Confirm the likeness notice first, then try again.");
-    expect(dollErrorMessage("not_found")).toBe("This character could not be found.");
+  const CODES = [
+    "no_portrait",
+    "doll_in_progress",
+    "ai_disabled",
+    "forbidden",
+    "no_campaign",
+    "likeness_acknowledgement_required",
+    "not_found",
+  ];
+
+  it("gives every known code its own sentence, never the generic fallback", () => {
+    const sentences = CODES.map(dollErrorMessage);
+    expect(sentences).not.toContain(DOLL_FALLBACK_ERROR);
+    expect(new Set(sentences).size).toBe(CODES.length);
   });
 
-  it("keeps a screening refusal as the server wrote it", () => {
-    const refusal = "The image was refused by content screening: nope";
+  it("reads a code with stray whitespace the same as the bare code", () => {
+    expect(dollErrorMessage("  no_portrait \n")).toBe(dollErrorMessage("no_portrait"));
+  });
+
+  it.each([
+    "The image was refused by content screening: nope",
+    "Insufficient credits for this doll",
+    "You are generating too fast",
+    "Your account is frozen",
+    "Dolls aren't available on this plan",
+  ])("keeps the server's own wording for a refusal, credit or rate message: %s", (refusal) => {
     expect(dollErrorMessage(refusal)).toBe(refusal);
   });
 

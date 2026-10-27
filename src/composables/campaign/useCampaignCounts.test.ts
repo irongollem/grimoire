@@ -2,32 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h, type App } from "vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-const mocks = vi.hoisted(() => ({
-  calls: [] as { table: string; columns: string; options: unknown }[],
-  results: {} as Record<string, { count: number | null; error: unknown }>,
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
-/** `.select(cols, { head: true })` then any filter, resolving to the table's `{ count, error }`. */
-function chain(table: string): unknown {
-  return new Proxy({}, {
-    get(_target, prop) {
-      if (prop === "then") return (resolve: (v: unknown) => unknown) => resolve(mocks.results[table]);
-      return () => chain(table);
-    },
-  });
-}
-
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    from: (table: string) => ({
-      select: (columns: string, options: unknown) => {
-        mocks.calls.push({ table, columns, options });
-        return chain(table);
-      },
-    }),
-  },
-  getCurrentUser: () => ({ id: "user-1" }),
-}));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "user-1" }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "campaign-1" }) }));
 
 import { useCampaignCounts } from "./useCampaignCounts";
@@ -42,32 +22,30 @@ function mount<T>(client: QueryClient, setup: () => T): T {
   return out;
 }
 
+const rows = (n: number, campaign_id: string, prefix: string) => Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}`, campaign_id }));
+
 describe("useCampaignCounts (#999)", () => {
   beforeEach(() => {
-    mocks.calls.length = 0;
-    mocks.results = {
-      npcs: { count: 12, error: null },
-      encounters: { count: 3, error: null },
-      locations: { count: 7, error: null },
-    };
+    fake.reset();
+    fake.seed("npcs", [...rows(12, "campaign-1", "n"), ...rows(5, "campaign-2", "other-n")]);
+    fake.seed("encounters", [...rows(3, "campaign-1", "e"), ...rows(4, "campaign-2", "other-e")]);
+    fake.seed("locations", rows(7, "campaign-1", "l"));
   });
   afterEach(() => {
     apps.forEach((a) => a.unmount());
     apps = [];
   });
 
-  it("asks the database to count, reading no rows", async () => {
+  it("counts this campaign's NPCs and encounters only", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const counts = mount(client, () => useCampaignCounts());
     await vi.waitFor(() => expect(counts.locations.data.value).toBe(7));
     expect(counts.npcs.data.value).toBe(12);
     expect(counts.encounters.data.value).toBe(3);
-    expect(mocks.calls).toHaveLength(3);
-    for (const call of mocks.calls) expect(call.options).toEqual({ count: "exact", head: true });
   });
 
-  it("fails loudly rather than printing zero when a count is missing", async () => {
-    mocks.results.npcs = { count: null, error: null };
+  it("fails loudly rather than printing zero when the read fails", async () => {
+    fake.failNext("npcs", { message: "boom" });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const counts = mount(client, () => useCampaignCounts());
     await vi.waitFor(() => expect(counts.npcs.isError.value).toBe(true));

@@ -1,12 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { createApp, defineComponent } from "vue";
+
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
 import {
   DSR_DEADLINE_DAYS,
-  DSR_OUTCOME_LABELS,
-  DSR_OUTCOMES,
-  DSR_REQUEST_LABELS,
-  DSR_REQUEST_TYPES,
+  DSR_REQUEST_LIMIT,
   daysUntilDue,
+  useDsrRequests,
+  useFulfilDsrRequest,
   type DsrRequest,
 } from "./useDsrRequests";
 
@@ -27,23 +34,6 @@ function request(overrides: Partial<DsrRequest> = {}): DsrRequest {
   };
 }
 
-describe("the pinned vocabularies", () => {
-  // These mirror CHECK constraints in 20260811152817. A value here with no
-  // label renders as a blank chip in the admin tab, which is how a mismatch
-  // would otherwise reach production unnoticed.
-  it("labels every request type", () => {
-    for (const type of DSR_REQUEST_TYPES) {
-      expect(DSR_REQUEST_LABELS[type]).toBeTruthy();
-    }
-  });
-
-  it("labels every outcome", () => {
-    for (const outcome of DSR_OUTCOMES) {
-      expect(DSR_OUTCOME_LABELS[outcome]).toBeTruthy();
-    }
-  });
-});
-
 describe("daysUntilDue", () => {
   it("counts the Art. 12(3) month from receipt, not from now", () => {
     const received = request({ received_at: "2026-08-01T00:00:00Z" });
@@ -63,5 +53,59 @@ describe("daysUntilDue", () => {
   it("is exactly 0 on the deadline itself", () => {
     const received = request({ received_at: "2026-08-01T00:00:00Z" });
     expect(daysUntilDue(received, new Date("2026-08-31T00:00:00Z"))).toBe(0);
+  });
+});
+
+function run<T>(setup: () => T): { result: T; qc: QueryClient } {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let result!: T;
+  const app = createApp(
+    defineComponent({
+      setup() {
+        result = setup();
+        return () => null;
+      },
+    }),
+  );
+  app.use(VueQueryPlugin, { queryClient: qc });
+  app.mount(document.createElement("div"));
+  return { result, qc };
+}
+
+describe("useDsrRequests", () => {
+  beforeEach(() => fake.reset());
+
+  it("lists the most recent request first and stops at the cap", async () => {
+    const rows = Array.from({ length: DSR_REQUEST_LIMIT + 5 }, (_, i) =>
+      request({ id: `r${i}`, received_at: new Date(Date.UTC(2026, 0, 1) + i * 86_400_000).toISOString() }),
+    );
+    fake.seed("dsr_requests", rows.map((r) => ({ ...r })));
+    const { result } = run(() => useDsrRequests());
+    await vi.waitFor(() => expect(result.data.value).toBeDefined());
+    expect(result.data.value).toHaveLength(DSR_REQUEST_LIMIT);
+    expect(result.data.value?.[0]?.id).toBe(`r${DSR_REQUEST_LIMIT + 4}`);
+  });
+
+  it("reports a failed read instead of showing an empty queue", async () => {
+    fake.failNext("dsr_requests", { message: "boom" });
+    const { result } = run(() => useDsrRequests());
+    await vi.waitFor(() => expect(result.isError.value).toBe(true));
+  });
+});
+
+describe("useFulfilDsrRequest", () => {
+  beforeEach(() => fake.reset());
+
+  it("refreshes the queue after closing a request, and throws the guard's refusal", async () => {
+    fake.onRpc("admin_fulfil_dsr_request", () => null);
+    const { result, qc } = run(() => useFulfilDsrRequest());
+    qc.setQueryData(["admin", "dsr-requests"], []);
+    await result.mutateAsync({ id: "r1", outcome: "fulfilled" });
+    expect(qc.getQueryState(["admin", "dsr-requests"])?.isInvalidated).toBe(true);
+
+    fake.failNext("admin_fulfil_dsr_request", { message: "already answered" });
+    await expect(result.mutateAsync({ id: "r1", outcome: "refused" })).rejects.toMatchObject({
+      message: "already answered",
+    });
   });
 });

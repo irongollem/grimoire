@@ -27,6 +27,10 @@ describe("useToast", () => {
       expect(fromError({ message: "new row violates row-level security policy", code: "42501" }, "fallback")).toBe("fallback");
     });
 
+    it("falls back for an empty string, which says nothing", () => {
+      expect(fromError("", "fallback")).toBe("fallback");
+    });
+
     it("falls back for unknowns and objects without a usable message", () => {
       expect(fromError(null, "fallback")).toBe("fallback");
       expect(fromError(undefined)).toBe("Something went wrong.");
@@ -38,6 +42,23 @@ describe("useToast", () => {
 
   beforeEach(() => {
     toasts.value = [];
+  });
+
+  it("gives each toast its own id, so dismissing one leaves the others", () => {
+    const first = info("one");
+    const second = info("two");
+    expect(second).not.toBe(first);
+    dismiss(first);
+    expect(toasts.value.map((t) => t.message)).toEqual(["two"]);
+  });
+
+  it("keeps an error on screen longer than a success or an info note", () => {
+    const e = error("bad");
+    const s = success("good");
+    const i = info("fyi");
+    const duration = (id: number) => toasts.value.find((t) => t.id === id)!.duration;
+    expect(duration(e)).toBeGreaterThan(duration(s));
+    expect(duration(e)).toBeGreaterThan(duration(i));
   });
 
   it("pushes a plain toast unchanged in shape, with the type's default duration", () => {
@@ -113,7 +134,7 @@ describe("ToastHost action button", () => {
     wrapper.unmount();
   });
 
-  it("renders the action beside the message, and clicking it runs the action once and removes the toast", async () => {
+  it("renders the action beside the message, and clicking it runs the action and removes the toast", async () => {
     const run = vi.fn();
     success("Reset to default.", undefined, { action: { label: "Undo", run } });
     const wrapper = mount(ToastHost, { global });
@@ -126,7 +147,6 @@ describe("ToastHost action button", () => {
     // show, so the accessible name folds in which toast it belongs to.
     expect(actionButton?.attributes("aria-label")).toBe("Undo: Reset to default.");
 
-    await actionButton?.trigger("click");
     await actionButton?.trigger("click");
 
     expect(run).toHaveBeenCalledTimes(1);

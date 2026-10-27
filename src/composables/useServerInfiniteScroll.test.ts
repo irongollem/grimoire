@@ -18,10 +18,10 @@ class StubObserver {
 }
 vi.stubGlobal("IntersectionObserver", StubObserver);
 
-function mountScroll(initialSaved?: number, more = true) {
+function mountScroll(initialSaved?: number, more = true, isReady = true) {
   saved.count = initialSaved;
   const loaded = ref(48);
-  const ready = ref(true);
+  const ready = ref(isReady);
   const hasNextPage = ref(more);
   const isFetchingNextPage = ref(false);
   const fetchNextPage = vi.fn(() => { loaded.value += 48; });
@@ -34,7 +34,7 @@ function mountScroll(initialSaved?: number, more = true) {
       return () => h("div", [h("div", { ref: sentinelRef })]);
     },
   }));
-  return { wrapper, loaded, hasNextPage, fetchNextPage };
+  return { wrapper, loaded, ready, hasNextPage, isFetchingNextPage, fetchNextPage };
 }
 
 describe("useServerInfiniteScroll", () => {
@@ -45,6 +45,22 @@ describe("useServerInfiniteScroll", () => {
     await nextTick();
     observers[0]!.cb([{ isIntersecting: true }]);
     expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not ask again while a page is loading, or when there is no next page", async () => {
+    const { fetchNextPage, isFetchingNextPage, hasNextPage } = mountScroll();
+    await nextTick();
+    isFetchingNextPage.value = true;
+    observers[0]!.cb([{ isIntersecting: true }]);
+    expect(fetchNextPage).not.toHaveBeenCalled();
+
+    isFetchingNextPage.value = false;
+    observers[0]!.cb([{ isIntersecting: false }]);
+    expect(fetchNextPage).not.toHaveBeenCalled();
+
+    hasNextPage.value = false;
+    observers[0]!.cb([{ isIntersecting: true }]);
+    expect(fetchNextPage).not.toHaveBeenCalled();
   });
 
   it("re-observes the sentinel when the loaded count grows", async () => {
@@ -72,6 +88,16 @@ describe("useServerInfiniteScroll", () => {
     expect(loaded.value).toBe(144);
     // 48 -> 96 -> 144: two pages, then it stops at the saved count.
     expect(fetchNextPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits for the first page of the current filters before restoring depth", async () => {
+    const { fetchNextPage, ready } = mountScroll(144, true, false);
+    await nextTick();
+    expect(fetchNextPage).not.toHaveBeenCalled();
+    ready.value = true;
+    await nextTick();
+    await nextTick();
+    expect(fetchNextPage).toHaveBeenCalled();
   });
 
   it("stops restoring when there are no more pages", async () => {

@@ -96,6 +96,13 @@ describe("level 1 choices at creation", () => {
     expect(writes.level_choices).toEqual({});
   });
 
+  it("carries the pools' level 1 maxima through to the character", () => {
+    const { picks } = takeLevelOne([], "Barbarian", []);
+    const classResources: Parameters<typeof levelOneWrites>[0]["classResources"] = { rage: { current: 2, max: 2, rest: "long" } };
+    const writes = levelOneWrites({ ...base, classResources, classChoices: {}, skills: {}, picks, className: "Barbarian", classDefinitionId: "b" });
+    expect(writes.class_resources).toEqual(classResources);
+  });
+
   it("leaves everything alone when nothing is owed", () => {
     const { picks } = takeLevelOne([], "Wizard", []);
     const writes = levelOneWrites({ ...base, classChoices: { a: 1 }, skills: { arcana: "proficient" }, picks, className: "Wizard", classDefinitionId: "w" });
@@ -182,6 +189,23 @@ describe("scoresAfterBonuses", () => {
   it("adds structured species and background increases, capped at 20", () => {
     const out = scoresAfterBonuses({ ...input, scores: { ...scores, dex: 19 }, structured: [{ dexterity: 2 }, { str: 1 }], background: { con: 2 } });
     expect(out).toEqual({ str: 11, dex: 20, con: 15, int: 12, wis: 10, cha: 8 });
+  });
+
+  it("manual mode applies no species increase at all: the typed scores stand", () => {
+    expect(scoresAfterBonuses({ ...input, asiMode: "manual", structured: [{ str: 2 }], customAsi: { ...input.customAsi, cha: 2 } })).toEqual(scores);
+  });
+
+  it("reads an ability by any spelling of its name, and ignores a figure that is not a number", () => {
+    expect(scoresAfterBonuses({ ...input, structured: [{ Dexterity: 2, STR: 1, wis: "two" }] })).toEqual({ ...scores, dex: 17, str: 11 });
+  });
+
+  it("skips a species whose increases are free text even when it also lists a figure", () => {
+    expect(scoresAfterBonuses({ ...input, structured: [{ str: 2, description: "+1 to any other score" }] })).toEqual(scores);
+  });
+
+  it("a custom distribution only ever adds", () => {
+    const out = scoresAfterBonuses({ ...input, asiMode: "custom", customAsi: { ...input.customAsi, dex: -2, wis: 1 } });
+    expect(out).toEqual({ ...scores, wis: 11 });
   });
 
   it("skips free-text species increases and honours a custom distribution instead of species ones", () => {

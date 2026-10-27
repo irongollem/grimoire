@@ -137,6 +137,15 @@ describe("dominantSurface", () => {
     expect(dominantSurface(rows)).toBeNull();
   });
 
+  it("counts a surface at exactly half the window as dominant (the bar is 'at least half')", () => {
+    const rows = [
+      breakdown({ generation_type: "entity_image", screenings: 50 }),
+      breakdown({ generation_type: "npc_portrait", screenings: 25 }),
+      breakdown({ generation_type: "tile_pack", screenings: 25 }),
+    ];
+    expect(dominantSurface(rows)).toMatchObject({ generation_type: "entity_image", share: 0.5 });
+  });
+
   it("names the surface once it reaches half the window, and marks it bulk", () => {
     const rows = [
       breakdown({ generation_type: "tile_pack", screenings: 60 }),

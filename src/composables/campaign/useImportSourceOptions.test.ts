@@ -10,42 +10,13 @@ vi.mock("@/stores/campaign", () => ({
   }),
 }));
 
-const mocks = vi.hoisted(() => ({
-  currentUser: { id: "user-1" } as { id: string } | null,
-  // One canned { data, error } result per table this composable reads.
-  tableData: {} as Record<string, { data: unknown[] | null; error: { message: string } | null }>,
-  calls: [] as { table: string; eqCalls: [string, unknown][] }[],
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const mocks = vi.hoisted(() => ({ currentUser: { id: "user-1" } as { id: string } | null }));
 
-/** Chainable stand-in for supabase-js's PostgrestFilterBuilder — same idiom
- *  as `useLocations.test.ts`'s own `makeQueryChain`: a genuine resolved
- *  `Promise` with filter methods attached, never a hand-rolled `then` (which
- *  oxlint's no-thenable rule flags), so `await` on the chain or on any
- *  method's own return value both resolve to this table's canned result. */
-function makeQueryChain(table: string, call: { table: string; eqCalls: [string, unknown][] }) {
-  const result = mocks.tableData[table] ?? { data: [], error: null };
-  const chain = Promise.resolve(result) as
-    Promise<{ data: unknown[] | null; error: { message: string } | null }> & Record<string, (...args: unknown[]) => unknown>;
-  for (const method of ["select", "not", "is"]) {
-    chain[method] = () => chain;
-  }
-  chain.eq = (col: unknown, value: unknown) => {
-    call.eqCalls.push([col as string, value]);
-    return chain;
-  };
-  return chain;
-}
-
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    from: (table: string) => {
-      const call = { table, eqCalls: [] as [string, unknown][] };
-      mocks.calls.push(call);
-      return makeQueryChain(table, call);
-    },
-  },
-  getCurrentUser: () => mocks.currentUser,
-}));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => mocks.currentUser }));
 
 import { useImportSourceOptions } from "./useImportSourceOptions";
 
@@ -61,30 +32,27 @@ function open() {
     }),
     { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
   );
-  return { api: () => api };
+  return { api: () => api, queryClient };
 }
 
+/** A row of the DM's own naming; the other columns are what marks a book as library-sourced. */
+const own = (source: string, campaign_id: string, over: Record<string, unknown> = {}) => ({
+  user_id: "user-1", source, campaign_id, source_document_key: null, ...over,
+});
+
 beforeEach(() => {
+  fake.reset();
   activeCampaignId.value = "campaign-1";
   mocks.currentUser = { id: "user-1" };
-  mocks.tableData = {
-    monsters: { data: [], error: null },
-    items: { data: [], error: null },
-    spells: { data: [], error: null },
-  };
-  mocks.calls = [];
 });
 
 describe("useImportSourceOptions", () => {
   it("merges the DM's own source titles across monsters/items/spells, ranked by use", async () => {
-    mocks.tableData.monsters = {
-      data: [
-        { source: "Icewind Dale: Rime of the Frostmaiden", campaign_id: "campaign-1" },
-        { source: "Icewind Dale: Rime of the Frostmaiden", campaign_id: "campaign-1" },
-      ],
-      error: null,
-    };
-    mocks.tableData.items = { data: [{ source: "Curse of Strahd", campaign_id: "campaign-1" }], error: null };
+    fake.seed("monsters", [
+      own("Icewind Dale: Rime of the Frostmaiden", "campaign-1", { open5e_import: false }),
+      own("Icewind Dale: Rime of the Frostmaiden", "campaign-1", { open5e_import: false }),
+    ]);
+    fake.seed("items", [own("Curse of Strahd", "campaign-1")]);
 
     const { api } = open();
     await flushPromises();
@@ -95,36 +63,52 @@ describe("useImportSourceOptions", () => {
     ]);
   });
 
-  it("queries every table scoped to the current user only", async () => {
+  it("offers only the DM's own naming: never another account's rows, rows with no source, or books that came from the library or Open5e", async () => {
+    fake.seed("monsters", [
+      own("Mine", "campaign-1", { open5e_import: false }),
+      own("Someone Else's", "campaign-1", { user_id: "user-2", open5e_import: false }),
+      own("Open5e Import", "campaign-1", { open5e_import: true }),
+      own("Library Book", "campaign-1", { source_document_key: "srd-2014", open5e_import: false }),
+      { user_id: "user-1", source: null, campaign_id: "campaign-1", source_document_key: null, open5e_import: false },
+    ]);
+    // Items have no open5e_import column at all.
+    fake.seed("items", [own("Item Book", "campaign-1"), own("Library Item", "campaign-1", { source_document_key: "srd-2014" })]);
+    fake.seed("spells", [own("Spell Book", "campaign-1", { open5e_import: false }), own("Open5e Spell", "campaign-1", { open5e_import: true })]);
+
     const { api } = open();
     await flushPromises();
-    void api();
 
-    for (const call of mocks.calls) {
-      expect(call.eqCalls).toContainEqual(["user_id", "user-1"]);
-    }
-    expect(mocks.calls.map((c) => c.table).sort()).toEqual(["items", "monsters", "spells"]);
+    expect(api().options.value.map((o) => o.value).sort()).toEqual(["Item Book", "Mine", "Spell Book"]);
   });
 
   it("returns nothing when signed out, rather than querying with no user", async () => {
     mocks.currentUser = null;
-    mocks.tableData.monsters = { data: [{ source: "Should Not Appear", campaign_id: "campaign-1" }], error: null };
+    fake.seed("monsters", [own("Should Not Appear", "campaign-1", { open5e_import: false })]);
 
     const { api } = open();
     await flushPromises();
 
     expect(api().options.value).toEqual([]);
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("reports a failed read as an error, never as a DM with no source history", async () => {
+    fake.seed("items", [own("Item Book", "campaign-1")]);
+    fake.failNext("monsters", { message: "connection reset", code: "08006" });
+
+    const { api, queryClient } = open();
+    await flushPromises();
+
+    expect(queryClient.getQueryState(["import-source-options"])?.status).toBe("error");
+    expect(api().options.value).toEqual([]);
   });
 
   it("prefills the most-used title in the active campaign", async () => {
-    mocks.tableData.monsters = {
-      data: [
-        { source: "Icewind Dale: Rime of the Frostmaiden", campaign_id: "other-campaign" },
-        { source: "Icewind Dale: Rime of the Frostmaiden", campaign_id: "other-campaign" },
-        { source: "Curse of Strahd", campaign_id: "campaign-1" },
-      ],
-      error: null,
-    };
+    fake.seed("monsters", [
+      own("Icewind Dale: Rime of the Frostmaiden", "other-campaign", { open5e_import: false }),
+      own("Icewind Dale: Rime of the Frostmaiden", "other-campaign", { open5e_import: false }),
+      own("Curse of Strahd", "campaign-1", { open5e_import: false }),
+    ]);
 
     const { api } = open();
     await flushPromises();
@@ -134,7 +118,7 @@ describe("useImportSourceOptions", () => {
 
   it("falls back to null when there is no active campaign to prefill against", async () => {
     activeCampaignId.value = null;
-    mocks.tableData.monsters = { data: [{ source: "Curse of Strahd", campaign_id: "campaign-1" }], error: null };
+    fake.seed("monsters", [own("Curse of Strahd", "campaign-1", { open5e_import: false })]);
 
     const { api } = open();
     await flushPromises();

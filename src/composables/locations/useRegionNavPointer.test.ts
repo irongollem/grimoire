@@ -72,6 +72,44 @@ describe("tap vs. drag", () => {
     expect(options.onSelect).toHaveBeenCalledWith("target");
   });
 
+  it.each([
+    [6, true],
+    [7, false],
+  ])("a pointer that wandered %i px between down and up is a tap: %s", (distance, isTap) => {
+    const { pointer, options, found } = makeHarness();
+    found.current = makeRegion({ id: "target", space_location_id: null });
+
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(move(distance, 0));
+    window.dispatchEvent(up(distance, 0));
+
+    expect(options.onSelect).toHaveBeenCalledTimes(isTap ? 1 : 0);
+  });
+
+  it("a tap after a drag is a tap again", () => {
+    const { pointer, options, found } = makeHarness();
+    found.current = makeRegion({ id: "target", space_location_id: null });
+
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(move(50, 50));
+    window.dispatchEvent(up(50, 50));
+    pointer.onPointerDown(down(9, 9));
+    window.dispatchEvent(up(9, 9));
+
+    expect(options.onSelect).toHaveBeenCalledOnce();
+  });
+
+  it("a pointer released after the host disposed it clicks nothing", () => {
+    const { pointer, options, found } = makeHarness();
+    found.current = makeRegion({ id: "target", space_location_id: null });
+
+    pointer.onPointerDown(down(1, 1));
+    pointer.dispose();
+    window.dispatchEvent(up(1, 1));
+
+    expect(options.onSelect).not.toHaveBeenCalled();
+  });
+
   it("does not resolve a click once the pointer moved past the tap threshold", () => {
     const { pointer, options, found } = makeHarness();
     found.current = makeRegion({ id: "target", space_location_id: null });
@@ -95,14 +133,14 @@ describe("click routing", () => {
     expect(options.onNavigate).not.toHaveBeenCalled();
   });
 
-  it("selects an unbound shape in browse mode", () => {
-    const { pointer, options, found } = makeHarness();
+  it("does nothing for a click outside the grid", () => {
+    const { pointer, options, found } = makeHarness({ cellAt: vi.fn(() => null) });
     found.current = makeRegion({ id: "target", space_location_id: null });
 
     pointer.onPointerDown(down(1, 1));
     window.dispatchEvent(up(1, 1));
 
-    expect(options.onSelect).toHaveBeenCalledWith("target");
+    expect(options.onSelect).not.toHaveBeenCalled();
   });
 
   it("does not select an unbound shape in run mode", () => {
@@ -138,18 +176,6 @@ describe("click routing", () => {
     expect(options.onNavigate).not.toHaveBeenCalled();
   });
 
-  it("moves the party onto a reachable room in run mode", () => {
-    const { pointer, options, mode, found } = makeHarness();
-    mode.current = "run";
-    found.current = makeRegion({ space_location_id: "room-1" });
-
-    pointer.onPointerDown(down(1, 1));
-    window.dispatchEvent(up(1, 1));
-
-    expect(options.onMoveParty).toHaveBeenCalledWith("room-1");
-    expect(options.onNavigate).not.toHaveBeenCalled();
-  });
-
   // Whether a room is reachable is the host's question (`useMoveParty` asks
   // before an out-of-reach move). The pointer itself never refuses a room in
   // run mode and never navigates away from the surface being run.
@@ -175,5 +201,33 @@ describe("click routing", () => {
 
     expect(options.onMoveParty).toHaveBeenCalledWith("site-2");
     expect(options.onDescend).not.toHaveBeenCalled();
+  });
+});
+
+describe("hover", () => {
+  it("reports the topmost region under the pointer, only when it changes, and null when it leaves", () => {
+    const zone = makeRegion({ id: "zone" });
+    const room = makeRegion({ id: "room" });
+    let under: LocationMapRegion | null = zone;
+    const { pointer, options } = makeHarness({
+      hoverRegionAt: vi.fn(() => under),
+      // A bound space beneath the zone must not win the hover: zones paint above spaces.
+      regionAt: vi.fn(() => room),
+    });
+
+    pointer.onPointerMove(move(1, 1));
+    pointer.onPointerMove(move(2, 2)); // still the zone: not reported again
+    under = null;
+    pointer.onPointerMove(move(3, 3));
+    pointer.onPointerLeave(); // already null: nothing more to report
+
+    expect(vi.mocked(options.onHover).mock.calls).toEqual([["zone"], [null]]);
+  });
+
+  it("leaving while a region is hovered clears it", () => {
+    const { pointer, options } = makeHarness({ hoverRegionAt: vi.fn(() => makeRegion({ id: "room" })) });
+    pointer.onPointerMove(move(1, 1));
+    pointer.onPointerLeave();
+    expect(vi.mocked(options.onHover).mock.calls).toEqual([["room"], [null]]);
   });
 });

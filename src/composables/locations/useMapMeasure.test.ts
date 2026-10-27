@@ -29,7 +29,7 @@ describe("useMapMeasure", () => {
     measure.addPoint({ x: 0.5, y: 0, pin: null });
     expect(measure.summary.value?.distance).toBeCloseTo(100, 6);
     measure.undo();
-    expect(measure.points.value).toHaveLength(1);
+    expect(measure.points.value).toEqual([{ x: 0, y: 0, pin: null }]);
     expect(measure.summary.value).toBeNull();
     scope.stop();
   });
@@ -56,6 +56,17 @@ describe("useMapMeasure", () => {
     }
   });
 
+  it("toggle turns the tool on and, pressed again, off with the route dropped", () => {
+    const { measure, scope } = make();
+    measure.toggle();
+    expect(measure.measuring.value).toBe(true);
+    measure.addPoint({ x: 0, y: 0, pin: null });
+    measure.toggle();
+    expect(measure.measuring.value).toBe(false);
+    expect(measure.points.value).toEqual([]);
+    scope.stop();
+  });
+
   it("leaving the tool drops the route", () => {
     const { measure, scope } = make();
     measure.start();
@@ -69,8 +80,10 @@ describe("useMapMeasure", () => {
   it("Escape leaves measure mode, and only while measuring", () => {
     const { measure, scope } = make();
     const press = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-    press(); // not measuring: nothing to leave, and nothing breaks
-    expect(measure.measuring.value).toBe(false);
+    measure.addPoint({ x: 0, y: 0, pin: null });
+    press(); // not measuring: Escape is not ours to take, and the scratch route stays
+    expect(measure.points.value).toHaveLength(1);
+    measure.clear();
     measure.start();
     measure.addPoint({ x: 0, y: 0, pin: null });
     press();

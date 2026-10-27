@@ -1,63 +1,118 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h } from "vue";
+import { mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-const mocks = vi.hoisted(() => ({
-  from: vi.fn(),
-  insert: vi.fn(), del: vi.fn(),
-  select: vi.fn(), eq: vi.fn(), single: vi.fn(),
-}));
-vi.mock("@/lib/supabase", () => ({
-  supabase: { from: mocks.from },
-  getCurrentUser: () => ({ id: "dm-1" }),
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const campaign = vi.hoisted(() => ({ activeCampaignId: "c1" as string | null }));
 
-import { createPartyMilestone, deletePartyMilestone } from "./usePartyMilestones";
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaign }));
 
-describe("createPartyMilestone", () => {
-  beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.from.mockReturnValue({ insert: mocks.insert });
-    mocks.insert.mockReturnValue({ select: mocks.select });
-    mocks.select.mockReturnValue({ single: mocks.single });
+import {
+  createPartyMilestone,
+  deletePartyMilestone,
+  useCreatePartyMilestone,
+  useDeletePartyMilestone,
+  usePartyMilestones,
+} from "./usePartyMilestones";
+
+const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const invalidate = vi.spyOn(client, "invalidateQueries");
+const keysOf = () =>
+  invalidate.mock.calls.map(([filters]) => (filters !== undefined && typeof filters !== "function" ? filters.queryKey : undefined));
+
+
+function inApp<T>(setup: () => T): T {
+  let out!: T;
+  mount(
+    defineComponent({
+      setup() {
+        out = setup();
+        return () => h("div");
+      },
+    }),
+    { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+  );
+  return out;
+}
+
+beforeEach(() => {
+  fake.reset();
+  invalidate.mockClear();
+  campaign.activeCampaignId = "c1";
+});
+
+describe("usePartyMilestones", () => {
+  it("lists this campaign's milestones oldest first, never another campaign's", async () => {
+    fake.seed("party_milestones", [
+      { id: "late", campaign_id: "c1", created_at: "2026-10-02T00:00:00Z" },
+      { id: "early", campaign_id: "c1", created_at: "2026-10-01T00:00:00Z" },
+      { id: "other", campaign_id: "c2", created_at: "2026-10-01T00:00:00Z" },
+    ]);
+    const q = inApp(() => usePartyMilestones());
+    await vi.waitFor(() => expect(q.data.value?.map((m) => m.id)).toEqual(["early", "late"]));
   });
 
+  it("reports a failed read instead of an empty panel", async () => {
+    fake.failNext("party_milestones", { message: "boom" });
+    const q = inApp(() => usePartyMilestones());
+    await vi.waitFor(() => expect(q.isError.value).toBe(true));
+  });
+
+  it("reads nothing without an active campaign", () => {
+    campaign.activeCampaignId = null;
+    inApp(() => usePartyMilestones());
+    expect(fake.calls).toEqual([]);
+  });
+});
+
+describe("createPartyMilestone", () => {
+  const base = { campaign_id: "c1", quest_id: null, text: "Renown among the dockworkers", source_event_id: null };
+
   it("stamps the current user as created_by when none is given", async () => {
-    mocks.single.mockResolvedValue({ data: { id: "milestone-1" }, error: null });
-    await createPartyMilestone({ campaign_id: "c1", quest_id: null, text: "Renown among the dockworkers", source_event_id: null });
-    expect(mocks.from).toHaveBeenCalledWith("party_milestones");
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ text: "Renown among the dockworkers", created_by: "dm-1" }));
+    await createPartyMilestone(base);
+    expect(fake.rows("party_milestones")).toMatchObject([{ text: "Renown among the dockworkers", created_by: "dm-1" }]);
   });
 
   it("keeps an explicit created_by rather than overwriting it", async () => {
-    mocks.single.mockResolvedValue({ data: { id: "milestone-1" }, error: null });
-    await createPartyMilestone({ campaign_id: "c1", quest_id: null, text: "x", source_event_id: null, created_by: "other-user" });
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ created_by: "other-user" }));
+    await createPartyMilestone({ ...base, created_by: "other-user" });
+    expect(fake.rows("party_milestones")[0]?.created_by).toBe("other-user");
   });
 
-  it("surfaces an insert failure", async () => {
-    const error = new Error("insert failed");
-    mocks.single.mockResolvedValue({ data: null, error });
-    await expect(createPartyMilestone({ campaign_id: "c1", quest_id: null, text: "x", source_event_id: null }))
-      .rejects.toBe(error);
+  it("surfaces an insert failure and stores nothing", async () => {
+    fake.failNext("party_milestones", { message: "insert failed" });
+    await expect(createPartyMilestone(base)).rejects.toMatchObject({ message: "insert failed" });
+    expect(fake.rows("party_milestones")).toEqual([]);
+  });
+
+  it("refreshes the campaign the milestone was added to", async () => {
+    await inApp(() => useCreatePartyMilestone()).mutateAsync(base);
+    expect(keysOf()).toContainEqual(["party_milestones", "c1"]);
   });
 });
 
 describe("deletePartyMilestone", () => {
   beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.from.mockReturnValue({ delete: mocks.del });
-    mocks.del.mockReturnValue({ eq: mocks.eq });
+    fake.seed("party_milestones", [{ id: "m1", campaign_id: "c1" }, { id: "m2", campaign_id: "c1" }]);
   });
 
-  it("deletes the row by id", async () => {
-    mocks.eq.mockResolvedValue({ error: null });
-    await deletePartyMilestone("milestone-1");
-    expect(mocks.from).toHaveBeenCalledWith("party_milestones");
-    expect(mocks.eq).toHaveBeenCalledWith("id", "milestone-1");
+  it("deletes the row by id and no other", async () => {
+    await deletePartyMilestone("m1");
+    expect(fake.rows("party_milestones").map((m) => m.id)).toEqual(["m2"]);
   });
 
-  it("surfaces a delete failure", async () => {
-    const error = new Error("delete failed");
-    mocks.eq.mockResolvedValue({ error });
-    await expect(deletePartyMilestone("milestone-1")).rejects.toBe(error);
+  it("surfaces a delete failure and keeps the row", async () => {
+    fake.failNext("party_milestones", { message: "delete failed" });
+    await expect(deletePartyMilestone("m1")).rejects.toMatchObject({ message: "delete failed" });
+    expect(fake.rows("party_milestones")).toHaveLength(2);
+  });
+
+  it("refreshes the campaign the milestone belonged to", async () => {
+    await inApp(() => useDeletePartyMilestone()).mutateAsync({ id: "m1", campaignId: "c1" });
+    expect(keysOf()).toContainEqual(["party_milestones", "c1"]);
   });
 });

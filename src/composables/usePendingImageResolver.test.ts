@@ -13,13 +13,16 @@ import { usePendingImageDocResolver, usePendingImageResolver } from "./usePendin
 
 vi.mock("@/ai/useImageJob", () => ({ waitForImageJob: vi.fn() }));
 vi.mock("@/ai/useImageGeneration", () => ({ getLocalImageJob: vi.fn() }));
+const toastError = vi.hoisted(() => vi.fn());
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ error: vi.fn() }),
+  useToast: () => ({ error: toastError }),
 }));
 
 import { waitForImageJob } from "@/ai/useImageJob";
+import { getLocalImageJob } from "@/ai/useImageGeneration";
 
 const waitForImageJobMock = vi.mocked(waitForImageJob);
+const getLocalImageJobMock = vi.mocked(getLocalImageJob);
 
 interface FakeAnchor {
   jobId: string;
@@ -104,6 +107,97 @@ describe("usePendingImageResolver", () => {
     expect(anchors).toHaveLength(0);
   });
 
+  it("waits for a job once, however often the document is scanned", async () => {
+    const { editor, images } = makeFakeEditor(["job-once"]);
+    let settle!: (url: string) => void;
+    waitForImageJobMock.mockReturnValue(new Promise<string>((resolve) => { settle = resolve; }));
+
+    const resolver = makeResolver(() => editor);
+    resolver.scan();
+    resolver.scan();
+    settle("https://img/once.webp");
+
+    await vi.waitFor(() => expect(images).toEqual(["https://img/once.webp"]));
+    expect(waitForImageJobMock).toHaveBeenCalledTimes(1);
+  });
+
+  // A settlement wakes every live resolver to re-scan its document; one whose
+  // owner has unmounted must no longer be among them.
+  it("does not wake a resolver whose owner is gone when another job settles", async () => {
+    const stale = makeFakeEditor(["job-late"]);
+    const gone = effectScope();
+    gone.run(() => usePendingImageResolver(() => stale.editor as never));
+    gone.stop();
+
+    const live = makeFakeEditor(["job-live"]);
+    waitForImageJobMock.mockResolvedValue("https://img/live.webp");
+    makeResolver(() => live.editor).scan();
+
+    await vi.waitFor(() => expect(live.images).toEqual(["https://img/live.webp"]));
+    expect(waitForImageJobMock).not.toHaveBeenCalledWith("job-late");
+  });
+
+  it("resolves a job rendered in this session from the local job table, not the server", async () => {
+    const { editor, images } = makeFakeEditor(["local-1"]);
+    getLocalImageJobMock.mockReturnValue(Promise.resolve("https://img/local.webp"));
+
+    makeResolver(() => editor).scan();
+
+    await vi.waitFor(() => expect(images).toEqual(["https://img/local.webp"]));
+    expect(waitForImageJobMock).not.toHaveBeenCalled();
+  });
+
+  it("marks a local job failed when the session that rendered it has ended", async () => {
+    const { editor, anchors } = makeFakeEditor(["local-gone"]);
+    getLocalImageJobMock.mockReturnValue(undefined);
+
+    makeResolver(() => editor).scan();
+
+    await vi.waitFor(() => expect(anchors[0]?.status).toBe("failed"));
+    expect(waitForImageJobMock).not.toHaveBeenCalled();
+  });
+
+  it("says nothing when the placeholder was deleted and the job still finishes", async () => {
+    const { editor, anchors, images } = makeFakeEditor(["job-deleted-ok"]);
+    let settle!: (url: string) => void;
+    waitForImageJobMock.mockReturnValue(new Promise<string>((resolve) => { settle = resolve; }));
+
+    makeResolver(() => editor).scan();
+    anchors.length = 0;
+    settle("https://img/late.webp");
+    await vi.waitFor(() => expect(waitForImageJobMock).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(images).toEqual([]);
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it("leaves a closed editor alone when its job fails", async () => {
+    const { editor, anchors } = makeFakeEditor(["job-closed"]);
+    let fail!: (e: Error) => void;
+    waitForImageJobMock.mockReturnValue(new Promise<string>((_, reject) => { fail = reject; }));
+
+    makeResolver(() => editor).scan();
+    editor.isDestroyed = true;
+    fail(new Error("render exploded"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(anchors[0]?.status).toBe("pending");
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it("tells the user when a job fails after they deleted its placeholder", async () => {
+    const { editor, anchors } = makeFakeEditor(["job-deleted"]);
+    let fail!: (e: Error) => void;
+    waitForImageJobMock.mockReturnValue(new Promise<string>((_, reject) => { fail = reject; }));
+
+    makeResolver(() => editor).scan();
+    anchors.length = 0; // the user deleted the placeholder while it rendered
+    fail(new Error("render exploded"));
+
+    await vi.waitFor(() => expect(toastError).toHaveBeenCalledWith("render exploded"));
+  });
+
   it("hands a mid-wait job over to a later instance holding the anchor", async () => {
     let settle!: (url: string) => void;
     waitForImageJobMock
@@ -124,6 +218,9 @@ describe("usePendingImageResolver", () => {
 
     await vi.waitFor(() => expect(editing.images).toEqual(["https://img/handoff.webp"]));
     expect(editing.anchors).toHaveLength(0);
+    // The editor the user left is destroyed and must not be written to.
+    expect(viewer.images).toEqual([]);
+    expect(viewer.anchors).toHaveLength(1);
   });
 
   it("marks the anchor failed on rejection without re-resolving it", async () => {

@@ -6,7 +6,10 @@ const state = vi.hoisted(() => ({ ids: [] as string[][] }));
 
 vi.mock("@/composables/items/useItemIndex", () => ({
   useItemIndex: () => ({
-    data: { value: [{ id: "a", name: "Rope", image_url: null, rarity: "common", item_type: "gear" }] },
+    data: { value: [
+      { id: "a", name: "Rope", image_url: null, rarity: "common", item_type: "gear" },
+      { id: "b", name: "Torch", image_url: null, rarity: "common", item_type: "gear" },
+    ] },
     isLoading: { value: false },
   }),
 }));
@@ -28,7 +31,9 @@ describe("useLootPool", () => {
     const { itemsById, itemOptions } = useLootPool(() => entryIds.value);
 
     expect(state.ids[0]).toEqual(["gone"]);
-    expect(itemOptions.value).toEqual([{ id: "a", name: "Rope" }]);
+    expect(itemOptions.value).toEqual([{ id: "a", name: "Rope" }, { id: "b", name: "Torch" }]);
+    // A random entry rolls from the index too, not only from what the table stores.
+    expect(itemsById.value.get("b")?.name).toBe("Torch");
     expect(itemsById.value.get("gone")?.name).toBe("Disabled Blade");
     // A stored row wins over the index row of the same id.
     expect(itemsById.value.get("a")?.name).toBe("Rope (stored)");

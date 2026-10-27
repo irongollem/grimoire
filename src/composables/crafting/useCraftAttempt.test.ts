@@ -16,7 +16,7 @@ vi.mock("@/lib/crafting/workbenchAudio", async (orig) => ({
 import { useCraftAttempt } from "./useCraftAttempt";
 import { ref, type MaybeRefOrGetter } from "vue";
 import { buildIngredientSlots, type IngredientSlot } from "@/lib/crafting/ingredients";
-import type { CraftingRecipe } from "@/types/crafting.types";
+import type { CraftingModifier, CraftingOutput, CraftingRecipe } from "@/types/crafting.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -26,6 +26,28 @@ function slotsOf(quality: PartyInventoryItem["quality"]) {
     [{ id: "r1", library_item_id: "iron", item_id: null, quantity: 2, name: "Iron", carried_by: "m", campaign_id: "c", quality } as PartyInventoryItem],
     [],
   );
+}
+
+function setupWith(over: {
+  str?: number;
+  recipe?: Partial<CraftingRecipe>;
+  hasTools?: boolean;
+  hasProficiency?: boolean;
+  modifiers?: CraftingModifier[];
+  outputs?: CraftingOutput[];
+  slots?: IngredientSlot[];
+}) {
+  return useCraftAttempt({
+    recipe: { name: "Nail", dc: 10, discipline: "smithing", ...over.recipe } as unknown as CraftingRecipe,
+    outputs: over.outputs ?? [],
+    slots: over.slots ?? slotsOf("standard"),
+    modifiers: over.modifiers ?? [],
+    member: { id: "m", name: "Brann", proficiency_bonus: 2, int: 10, str: over.str ?? 10, dex: 10, con: 10, wis: 10, cha: 10 } as unknown as PartyMember,
+    hasTools: over.hasTools ?? true,
+    hasProficiency: over.hasProficiency ?? true,
+    workspaceBonus: 0,
+    allItems: [],
+  });
 }
 
 function setup(quality: PartyInventoryItem["quality"] = "standard", slots: MaybeRefOrGetter<IngredientSlot[]> = slotsOf(quality)) {
@@ -145,5 +167,79 @@ describe("useCraftAttempt", () => {
     await a.attempt();
     expect(playWorkSound).toHaveBeenCalledWith("smithing");
     expect(playOutcomeSting).toHaveBeenCalledWith(sting);
+  });
+
+  // Smithing rolls Strength. PHB 2014 "Ability Scores and Modifiers": (score - 10) / 2, rounded down.
+  it.each([
+    [9, -1],
+    [15, 2],
+    [10, 0],
+  ])("takes the Strength modifier of a %i score as %i", (str, mod) => {
+    expect(setupWith({ str }).abilityMod.value).toBe(mod);
+  });
+
+  it("adds the proficiency bonus to the roll only when the player is proficient", async () => {
+    attemptCraft.mockResolvedValue({ roll: 10, total: 12, diff: 2, outcome: "success", hasDisadvantage: false });
+    sendMessage.mockResolvedValue(undefined);
+    await setupWith({ hasProficiency: true }).attempt();
+    expect(attemptCraft.mock.calls.at(-1)?.[0].profBonus).toBe(2);
+    await setupWith({ hasProficiency: false }).attempt();
+    expect(attemptCraft.mock.calls.at(-1)?.[0].profBonus).toBe(0);
+  });
+
+  it.each([
+    ["needs proficiency the player lacks", { requires_proficiency: true }, { hasProficiency: false }],
+    ["needs tools the player lacks", { requires_tools: true }, { hasTools: false }],
+  ])("a recipe that %s is locked and cannot be attempted", async (_label, recipe, who) => {
+    attemptCraft.mockClear();
+    const a = setupWith({ recipe, ...who });
+    expect(a.locked.value).toBe(true);
+    expect(a.canAttempt.value).toBe(false);
+    await a.attempt();
+    expect(attemptCraft).not.toHaveBeenCalled();
+  });
+
+  it("is not locked when the player has what the recipe requires, and only soft-penalises missing tools", () => {
+    expect(setupWith({ recipe: { requires_proficiency: true, requires_tools: true } }).locked.value).toBe(false);
+    expect(setupWith({ recipe: { requires_tools: false }, hasTools: false }).locked.value).toBe(false);
+  });
+
+  it("cannot be attempted while an ingredient is short, and does not roll", async () => {
+    attemptCraft.mockClear();
+    const short = buildIngredientSlots(
+      [{ item_id: null, library_item_id: "iron", tags: null, quantity: 5 }],
+      [{ id: "r1", library_item_id: "iron", item_id: null, quantity: 2, name: "Iron", carried_by: "m", campaign_id: "c", quality: "standard" } as PartyInventoryItem],
+      [],
+    );
+    const a = setupWith({ slots: short });
+    expect(a.canAttempt.value).toBe(false);
+    await a.attempt();
+    expect(attemptCraft).not.toHaveBeenCalled();
+  });
+
+  it("toggling a situation bonus twice takes it off again, and a bonus whose modifier was deleted adds nothing", () => {
+    const a = setupWith({ modifiers: [{ description: "Good light", bonus: 2 } as CraftingModifier] });
+    a.toggleModifier(0);
+    expect(a.modifierBonuses.value).toEqual([2]);
+    a.toggleModifier(0);
+    expect(a.modifierBonuses.value).toEqual([]);
+    a.toggleModifier(5);
+    expect(a.modifierBonuses.value).toEqual([]);
+  });
+
+  it("leaves an output whose name cannot be resolved out of the payload instead of sending an empty name", async () => {
+    attemptCraft.mockResolvedValue({ roll: 10, total: 12, diff: 2, outcome: "success", hasDisadvantage: false });
+    sendMessage.mockResolvedValue(undefined);
+    await setupWith({ outputs: [{ item_id: "ghost", library_item_id: null, quantity: 1 } as CraftingOutput] }).attempt();
+    expect(attemptCraft.mock.calls.at(-1)?.[0].outputItemNames).toEqual({});
+  });
+
+  it("tells the table nothing was touched when the recipe consumes nothing, and names the ingredient when it does", async () => {
+    attemptCraft.mockResolvedValue({ roll: 3, total: 5, diff: -5, outcome: "ruin", hasDisadvantage: false });
+    sendMessage.mockResolvedValue(undefined);
+    await setupWith({ slots: [] }).attempt();
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toContain("nothing to ruin");
+    await setupWith({}).attempt();
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toContain("Primary ingredient ruined");
   });
 });

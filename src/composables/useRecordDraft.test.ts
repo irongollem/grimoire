@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextTick, ref } from "vue";
-import { changedColumns, mergeDraft, useRecordDraft } from "./useRecordDraft";
+import { changedColumns, draftValueEqual, mergeDraft, useRecordDraft } from "./useRecordDraft";
 
 interface Row { id: string; name: string; notes: string | null; tags: string[] }
 interface Draft { name: string; notes: string; tags: string[] }
@@ -32,10 +32,12 @@ describe("useRecordDraft (#946)", () => {
   });
 
   it("brings fresh server values into fields the user has not touched", async () => {
-    const { draft, source } = setup(row);
+    const { draft, source, conflicts } = setup(row);
     draft.notes = "mine";
     source.value = { ...row, name: "Renamed elsewhere", tags: ["baker", "spy"] };
     await nextTick();
+    // Only the user's own field is theirs; the server did not touch it, so nothing conflicts.
+    expect(conflicts.value).toEqual([]);
     expect(draft.name).toBe("Renamed elsewhere");
     expect(draft.tags).toEqual(["baker", "spy"]);
     expect(draft.notes).toBe("mine");
@@ -48,6 +50,35 @@ describe("useRecordDraft (#946)", () => {
     await nextTick();
     expect(draft.name).toBe("Mine");
     expect(conflicts.value).toEqual(["name"]);
+  });
+
+  it("is no conflict when both sides changed a field to the same thing", async () => {
+    const { draft, source, conflicts } = setup(row);
+    draft.name = "Ribbon the Elder";
+    source.value = { ...row, name: "Ribbon the Elder" };
+    await nextTick();
+    expect(conflicts.value).toEqual([]);
+  });
+
+  it("drops a conflict once the user's text matches what the server now holds", async () => {
+    const { draft, source, conflicts } = setup(row);
+    draft.name = "Mine";
+    source.value = { ...row, name: "Theirs" };
+    await nextTick();
+    expect(conflicts.value).toEqual(["name"]);
+
+    draft.name = "Theirs";
+    source.value = { ...row, name: "Theirs", notes: "unrelated" };
+    await nextTick();
+    expect(conflicts.value).toEqual([]);
+  });
+
+  it("keeps the draft when the source briefly reads as nothing (a refetch in flight)", async () => {
+    const { draft, source } = setup(row);
+    draft.notes = "mine";
+    source.value = null;
+    await nextTick();
+    expect(draft.notes).toBe("mine");
   });
 
   it("is clean again when the refetch confirms its own save", async () => {
@@ -92,6 +123,15 @@ describe("useRecordDraft (#946)", () => {
     reset();
     expect(draft.name).toBe("Ribbon");
     expect(dirty.value).toBe(false);
+  });
+});
+
+describe("draftValueEqual", () => {
+  it("tells arrays from objects, and sees a key only one side has", () => {
+    expect(draftValueEqual([], {})).toBe(false);
+    expect(draftValueEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+    expect(draftValueEqual({ a: 1, b: 2 }, { a: 1 })).toBe(false);
+    expect(draftValueEqual({ a: [1, { b: 2 }] }, { a: [1, { b: 2 }] })).toBe(true);
   });
 });
 

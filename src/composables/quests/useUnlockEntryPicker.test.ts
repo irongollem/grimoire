@@ -79,6 +79,14 @@ describe("useUnlockEntryPicker", () => {
     expect(picker.entryBeatId.value).toBe("beat-rumor");
   });
 
+  it("preselects nothing for a quest that is already underway: only an undiscovered one can be unlocked", async () => {
+    const { picker, targetQuestId } = mountPicker();
+    targetQuestId.value = "quest-promoted";
+    await flushPromises();
+    expect(picker.targetQuest.value).toBeUndefined();
+    expect(picker.entryBeatId.value).toBe("");
+  });
+
   it("does not fight back once the DM picks a different beat for the same target", async () => {
     const { picker, targetQuestId } = mountPicker();
     targetQuestId.value = "quest-sequel";

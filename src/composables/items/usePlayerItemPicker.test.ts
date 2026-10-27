@@ -12,6 +12,7 @@ describe("projectionIndexEntry", () => {
       source: null,
       image_url: null,
       campaign_id: "camp-1",
+      ruleset: "2024",
       description: "long text never carried into the picker",
     } as unknown as Item;
     expect(projectionIndexEntry(item)).toEqual({
@@ -25,7 +26,7 @@ describe("projectionIndexEntry", () => {
       image_url: null,
       is_shared: false,
       campaign_id: "camp-1",
-      ruleset: null,
+      ruleset: "2024",
     });
   });
 });

@@ -239,6 +239,57 @@ describe("useHotkeys", () => {
   });
 });
 
+describe("useHotkeys: which binding fires", () => {
+  it("lets a later registration on the same combo shadow the earlier one", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const first = vi.fn();
+    const second = vi.fn();
+    register([{ combo: "mod+k", description: "First", handler: first }]);
+    register([{ combo: "mod+k", description: "Second", handler: second }]);
+
+    dispatch(keyEvent({ key: "k", ...modInit() }));
+
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("claims the key (preventDefault) only when a binding handled it", () => {
+    register([{ combo: "mod+k", description: "Search", handler: vi.fn() }]);
+
+    const handled = keyEvent({ key: "k", ...modInit() });
+    dispatch(handled);
+    const unbound = keyEvent({ key: "j", ...modInit() });
+    dispatch(unbound);
+
+    expect(handled.defaultPrevented).toBe(true);
+    expect(unbound.defaultPrevented).toBe(false);
+  });
+
+  it("is not silenced by an overlay that is switched off or binds nothing", () => {
+    const pageHandler = vi.fn();
+    register([{ combo: "1", description: "Play sound 1", handler: pageHandler }]);
+    register([{ combo: "escape", description: "Close", handler: vi.fn() }], { layer: "overlay", enabled: false });
+    register([], { layer: "overlay" });
+
+    dispatch(keyEvent({ key: "1" }));
+
+    expect(pageHandler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useHotkeys: collision warnings", () => {
+  it("does not warn for the same key in different layers, or when only Shift differs", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    register([{ combo: "mod+k", description: "Page search", handler: vi.fn() }], { layer: "page" });
+    register([{ combo: "mod+k", description: "Global search", handler: vi.fn() }], { layer: "global" });
+    register([{ combo: "mod+shift+k", description: "Shifted", handler: vi.fn() }], { layer: "page" });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
 describe("useActiveHotkeys", () => {
   it("lists visible bindings, omits hidden ones, and reacts to new registrations", () => {
     let active: ReturnType<typeof useActiveHotkeys> | undefined;
@@ -280,5 +331,37 @@ describe("useActiveHotkeys", () => {
     expect(pageEntries?.[0].description).toBe("Second binding");
 
     warnSpy.mockRestore();
+  });
+
+  it("leaves out a registration that is switched off, and lists overlay, then page, then global", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    let active: ReturnType<typeof useActiveHotkeys> | undefined;
+    const scope = effectScope();
+    scope.run(() => {
+      active = useActiveHotkeys();
+    });
+    scopes.push(scope);
+
+    register([{ combo: "mod+g", description: "Global thing", handler: vi.fn() }], { layer: "global" });
+    register([{ combo: "mod+p", description: "Page thing", handler: vi.fn() }], { layer: "page" });
+    register([{ combo: "mod+o", description: "Overlay thing", handler: vi.fn() }], { layer: "overlay" });
+    register([{ combo: "mod+x", description: "Off thing", handler: vi.fn() }], { enabled: false });
+
+    expect(active?.value.map((entry) => entry.description)).toEqual(["Overlay thing", "Page thing", "Global thing"]);
+    warn.mockRestore();
+  });
+
+  it("lists the same key bound in two layers twice, once per layer", () => {
+    let active: ReturnType<typeof useActiveHotkeys> | undefined;
+    const scope = effectScope();
+    scope.run(() => {
+      active = useActiveHotkeys();
+    });
+    scopes.push(scope);
+
+    register([{ combo: "mod+k", description: "Page search", handler: vi.fn() }], { layer: "page" });
+    register([{ combo: "mod+k", description: "Global search", handler: vi.fn() }], { layer: "global" });
+
+    expect(active?.value.filter((entry) => entry.combo === "mod+k").map((entry) => entry.layer)).toEqual(["page", "global"]);
   });
 });

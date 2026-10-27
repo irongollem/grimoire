@@ -4,30 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import type { RunCombatant } from "@/types/encounter.types";
 
-const mocks = vi.hoisted(() => ({
-  campaignId: "campaign-1" as string | null,
-  rows: [] as Record<string, unknown>[],
-  lastFilters: [] as [string, unknown][],
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const mocks = vi.hoisted(() => ({ campaignId: "campaign-1" as string | null }));
 
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    from: vi.fn(() => {
-      mocks.lastFilters = [];
-      // A real Promise instance with the chainable methods attached, rather
-      // than a plain object carrying its own `then` — the query awaits the
-      // builder directly, the way the real postgrest-js builder works.
-      const builder = Object.assign(Promise.resolve({ data: mocks.rows, error: null }), {
-        select: vi.fn(() => builder),
-        eq: vi.fn((col: string, val: unknown) => {
-          mocks.lastFilters.push([col, val]);
-          return builder;
-        }),
-      });
-      return builder;
-    }),
-  },
-}));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
@@ -73,67 +56,68 @@ function open(combatants: RunCombatant[]) {
   return { api: () => api, combatantsRef };
 }
 
+const mini = (over: Record<string, unknown> = {}) => ({
+  campaign_id: "campaign-1",
+  source_table: "monsters",
+  source_id: "mon-1",
+  format: "vtt",
+  status: "ready",
+  thumbnail_url: "https://cdn.example/orc.png",
+  stylized_image_url: null,
+  created_at: "2026-09-01T00:00:00Z",
+  ...over,
+});
+
 beforeEach(() => {
+  fake.reset();
   mocks.campaignId = "campaign-1";
-  mocks.rows = [];
-  mocks.lastFilters = [];
 });
 
 describe("useCombatantMinis", () => {
-  it("queries the minis table scoped to the active campaign, format vtt, status ready", async () => {
-    open([combatant({ instance_id: "m-orc-0", monster_id: "mon-1" })]);
-    await flushPromises();
-
-    expect(mocks.lastFilters).toContainEqual(["campaign_id", "campaign-1"]);
-    expect(mocks.lastFilters).toContainEqual(["format", "vtt"]);
-    expect(mocks.lastFilters).toContainEqual(["status", "ready"]);
-  });
+  const orc = () => [combatant({ instance_id: "m-orc-0", monster_id: "mon-1" })];
 
   it("maps a combatant's instance_id to its source's mini portrait", async () => {
-    mocks.rows = [
-      {
-        source_table: "monsters",
-        source_id: "mon-1",
-        format: "vtt",
-        status: "ready",
-        thumbnail_url: "https://cdn.example/orc.png",
-        stylized_image_url: null,
-        created_at: "2026-09-01T00:00:00Z",
-      },
-    ];
-    const { api } = open([combatant({ instance_id: "m-orc-0", monster_id: "mon-1" })]);
+    fake.seed("minis", [mini()]);
+    const { api } = open(orc());
     await flushPromises();
-
     expect(api().value.get("m-orc-0")).toBe("https://cdn.example/orc.png");
   });
 
-  it("returns an empty map before the query resolves and when no campaign is active", async () => {
-    mocks.campaignId = null;
-    const { api } = open([combatant({ instance_id: "m-orc-0", monster_id: "mon-1" })]);
+  // Which format and status count is combatantPortraitOverrides' rule (its own test); the scope is this read's.
+  it("never takes a portrait from another campaign's mini of the same source", async () => {
+    fake.seed("minis", [mini({ campaign_id: "campaign-2", thumbnail_url: "https://cdn.example/other-campaign.png" })]);
+    const { api } = open(orc());
     await flushPromises();
+    expect(api().value.size).toBe(0);
+  });
 
+  it("reads nothing, and returns no portraits, while no campaign is active", async () => {
+    mocks.campaignId = null;
+    fake.seed("minis", [mini()]);
+    const { api } = open(orc());
+    await flushPromises();
+    expect(api().value.size).toBe(0);
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("returns no portraits, rather than throwing, when the read fails", async () => {
+    fake.seed("minis", [mini()]);
+    fake.failNext("minis", { message: "boom" });
+    const { api } = open(orc());
+    await flushPromises();
     expect(api().value.size).toBe(0);
   });
 
   it("reacts to the combatants list changing without a new query", async () => {
-    mocks.rows = [
-      {
-        source_table: "monsters",
-        source_id: "mon-1",
-        format: "vtt",
-        status: "ready",
-        thumbnail_url: "https://cdn.example/orc.png",
-        stylized_image_url: null,
-        created_at: "2026-09-01T00:00:00Z",
-      },
-    ];
+    fake.seed("minis", [mini()]);
     const { api, combatantsRef } = open([]);
     await flushPromises();
     expect(api().value.size).toBe(0);
 
-    combatantsRef.value = [combatant({ instance_id: "m-orc-0", monster_id: "mon-1" })];
+    combatantsRef.value = orc();
     await flushPromises();
 
     expect(api().value.get("m-orc-0")).toBe("https://cdn.example/orc.png");
+    expect(fake.calls).toHaveLength(1);
   });
 });

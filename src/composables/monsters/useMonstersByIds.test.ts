@@ -3,31 +3,12 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-type Call = { table: string; select: string; eq: [string, unknown][]; in: [string, unknown[]][] };
-const mocks = vi.hoisted(() => ({ calls: [] as Call[], rows: {} as Record<string, Record<string, unknown>[]>, gate: null as Promise<void> | null }));
-
-vi.mock("@/lib/supabase", () => {
-  const builder = (table: string) => {
-    const call: Call = { table, select: "", eq: [], in: [] };
-    mocks.calls.push(call);
-    const b: Promise<{ data: unknown[]; error: null }> & Record<string, unknown> = Object.assign(
-      new Promise<{ data: unknown[]; error: null }>((resolve) => {
-        // Resolve after the chain has been built so `in` has been recorded.
-        void (mocks.gate ?? Promise.resolve()).then(() => {
-          const ids = new Set(call.in.flatMap(([, v]) => v));
-          const rows = (mocks.rows[table] ?? []).filter((r) => ids.size === 0 || ids.has(String(r.id ?? r.entry_id)));
-          resolve({ data: rows, error: null });
-        });
-      }),
-      {} as Record<string, unknown>,
-    );
-    b.select = (s: string) => ((call.select = s), b);
-    b.eq = (c: string, v: unknown) => (call.eq.push([c, v]), b);
-    b.in = (c: string, v: unknown[]) => (call.in.push([c, v]), b);
-    return b;
-  };
-  return { getCurrentUser: () => ({ id: "user-1" }), supabase: { from: builder } };
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
 });
+
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "user-1" }) }));
 
 import { useMonstersByIds } from "./useMonstersByIds";
 
@@ -49,20 +30,17 @@ function run<T>(setup: () => T): T {
 }
 
 beforeEach(() => {
-  mocks.calls.length = 0;
-  mocks.gate = null;
-  mocks.rows = {
-    library_monsters: [
-      { id: "srd_wolf", name: "Wolf", image_url: "lib.webp", portrait_focal_point: null },
-      { id: "srd_bear", name: "Bear", image_url: "bear.webp", portrait_focal_point: null },
-    ],
-    monsters: [{ id: UUID_A, name: "Homebrew", image_url: null }],
-    library_monster_art_canonical: [
-      { entry_id: "srd_wolf", image_url: "art.webp", cutout_url: null, portrait_focal_point: null },
-      { entry_id: "srd_bear", image_url: "bear-art.webp", cutout_url: null, portrait_focal_point: null },
-    ],
-    library_monster_art: [],
-  };
+  fake.reset();
+  fake.seed("library_monsters", [
+    { id: "srd_wolf", name: "Wolf", image_url: "lib.webp", portrait_focal_point: null },
+    { id: "srd_bear", name: "Bear", image_url: "bear.webp", portrait_focal_point: null },
+  ]);
+  // A stored reference outlives the DM's source, ruleset and campaign choices (#597, #961).
+  fake.seed("monsters", [{ id: UUID_A, name: "Homebrew", image_url: null, campaign_id: "some-other-campaign", user_id: "someone" }]);
+  fake.seed("library_monster_art_canonical", [
+    { entry_id: "srd_wolf", image_url: "art.webp", cutout_url: null, portrait_focal_point: null },
+    { entry_id: "srd_bear", image_url: "bear-art.webp", cutout_url: null, portrait_focal_point: null },
+  ]);
 });
 
 /** The by-id fetch waits one macrotask to batch ids, so let that window close before the queries resolve. */
@@ -75,59 +53,54 @@ describe("useMonstersByIds", () => {
   it("sends nothing for an empty or all-null list", async () => {
     const { data } = run(() => useMonstersByIds([null, undefined]));
     await settle();
-    expect(mocks.calls).toEqual([]);
+    expect(fake.calls).toEqual([]);
     expect(data.value.size).toBe(0);
   });
 
-  it("splits library ids from uuids, applies no source, ruleset or campaign filter, and maps both sides", async () => {
-    const { data } = run(() => useMonstersByIds(["srd_wolf", UUID_A, "srd_wolf", null]));
+  it("resolves library ids and uuids alike, whatever campaign or owner the row has, and leaves unknown ids out", async () => {
+    const { data } = run(() => useMonstersByIds(["srd_wolf", UUID_A, "srd_wolf", null, "srd_gone"]));
     await settle();
-    const lib = mocks.calls.find((c) => c.table === "library_monsters");
-    const custom = mocks.calls.find((c) => c.table === "monsters");
-    expect(lib?.in).toEqual([["id", ["srd_wolf"]]]);
-    expect(custom?.in).toEqual([["id", [UUID_A]]]);
-    expect(lib?.eq).toEqual([]);
-    expect(custom?.eq).toEqual([]);
     expect(data.value.get("srd_wolf")?.is_shared).toBe(true);
     expect(data.value.get(UUID_A)?.name).toBe("Homebrew");
-    expect(mocks.calls.some((c) => c.table.startsWith("library_monster_art"))).toBe(false);
+    expect([...data.value.keys()].sort()).toEqual([UUID_A, "srd_wolf"]);
   });
 
-  it("only touches the table a list needs", async () => {
+  it("only reads the table a list needs, and no art unless asked", async () => {
     run(() => useMonstersByIds([UUID_A]));
     await settle();
-    expect(mocks.calls.map((c) => c.table)).toEqual(["monsters"]);
+    expect(fake.calls.map((c) => c.target)).toEqual(["monsters"]);
+
+    fake.calls.length = 0;
+    run(() => useMonstersByIds(["srd_wolf"]));
+    await settle();
+    expect(fake.calls.map((c) => c.target)).toEqual(["library_monsters"]);
   });
 
-  it("chunks long id lists at 100", async () => {
-    const ids = Array.from({ length: 230 }, (_, i) => `srd_m${String(i).padStart(3, "0")}`);
-    run(() => useMonstersByIds(ids));
+  it("merges the caller's own art over the canonical picture, never another account's", async () => {
+    fake.seed("library_monster_art", [
+      { entry_id: "srd_wolf", user_id: "someone-else", image_url: "theirs.webp", cutout_url: null, portrait_focal_point: null },
+    ]);
+    const stranger = run(() => useMonstersByIds(["srd_wolf"], { withArt: true }));
     await settle();
-    const lib = mocks.calls.filter((c) => c.table === "library_monsters");
-    expect(lib.map((c) => c.in[0]![1].length)).toEqual([100, 100, 30]);
-  });
+    expect(stranger.data.value.get("srd_wolf")?.image_url).toBe("art.webp");
 
-  it("merges library art when asked, with a caller-scoped override read", async () => {
-    const { data } = run(() => useMonstersByIds(["srd_wolf"], { withArt: true }));
+    fake.seed("library_monster_art", [
+      { entry_id: "srd_bear", user_id: "user-1", image_url: "mine.webp", cutout_url: null, portrait_focal_point: null },
+    ]);
+    const mine = run(() => useMonstersByIds(["srd_bear"], { withArt: true }));
     await settle();
-    expect(data.value.get("srd_wolf")?.image_url).toBe("art.webp");
-    const own = mocks.calls.find((c) => c.table === "library_monster_art");
-    expect(own?.in).toEqual([["entry_id", ["srd_wolf"]]]);
-    expect(own?.eq).toEqual([["user_id", "user-1"]]);
+    expect(mine.data.value.get("srd_bear")?.image_url).toBe("mine.webp");
   });
 
   it("keeps resolved monsters with their art, and isLoading false, while a grown id set loads", async () => {
     const list = ref(["srd_wolf"]);
     const { data, isLoading } = run(() => useMonstersByIds(list, { withArt: true }));
     await settle();
-    let release!: () => void;
-    mocks.gate = new Promise<void>((r) => (release = r));
     list.value = ["srd_wolf", "srd_bear"];
     await nextTick();
     expect(isLoading.value).toBe(false);
     expect([...data.value.keys()]).toEqual(["srd_wolf"]);
     expect(data.value.get("srd_wolf")?.image_url).toBe("art.webp");
-    release();
     await settle();
     expect([...data.value.keys()].sort()).toEqual(["srd_bear", "srd_wolf"]);
     expect(data.value.get("srd_bear")?.image_url).toBe("bear-art.webp");
@@ -137,8 +110,8 @@ describe("useMonstersByIds", () => {
     const a = run(() => useMonstersByIds(["srd_wolf", UUID_A]));
     const b = run(() => useMonstersByIds(["srd_bear", UUID_A]));
     await settle();
-    expect(mocks.calls.filter((c) => c.table === "library_monsters")).toHaveLength(1);
-    expect(mocks.calls.filter((c) => c.table === "monsters")).toHaveLength(1);
+    expect(fake.calls.filter((c) => c.target === "library_monsters")).toHaveLength(1);
+    expect(fake.calls.filter((c) => c.target === "monsters")).toHaveLength(1);
     expect([...a.data.value.keys()].sort()).toEqual([UUID_A, "srd_wolf"].sort());
     expect([...b.data.value.keys()].sort()).toEqual([UUID_A, "srd_bear"].sort());
   });

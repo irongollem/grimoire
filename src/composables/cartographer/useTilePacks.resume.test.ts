@@ -23,6 +23,7 @@ vi.mock("@/cartographer/styleReference", () => ({
 }));
 
 const { useTilePacks } = await import("./useTilePacks");
+const { useQuery } = await import("@tanstack/vue-query");
 
 function job(id: string, ordinal: number, status: TilePackGenerationJob["status"]): TilePackGenerationJob {
   return {
@@ -64,5 +65,38 @@ describe("useTilePacks runNext", () => {
     const { runNext } = useTilePacks();
     expect(await runNext(runWith([job("a", 1, "normalized"), job("b", 2, "generating")]))).toBe(false);
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("takes the lowest ordinal first, whatever order the rows arrive in", async () => {
+    const { runNext } = useTilePacks();
+    await runNext(runWith([job("late", 3, "pending"), job("first", 1, "pending"), job("mid", 2, "pending")]));
+    expect(invoke.mock.calls[0]![0]).toMatchObject({ action: "generate", job_id: "first" });
+  });
+
+  it("does nothing for a run that is no longer in flight, even with pending jobs left", async () => {
+    const { runNext } = useTilePacks();
+    const packJob = { ...job("a", 1, "pending"), phase: "pack" as const };
+    const finished = { ...runWith([packJob]), status: "completed" } as ReturnType<typeof runWith>;
+    expect(await runNext(finished)).toBe(false);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+});
+
+describe("useTilePacks run polling", () => {
+  // CLAUDE.md "Live Data": job progress is the one sanctioned poll, and only while a run is in flight.
+  it("polls the runs only while one is in flight, so an idle manager sends nothing", () => {
+    useTilePacks();
+    type Poll = (query: { state: { data: { status: string }[] } }) => number | false;
+    const pollOf = (options: unknown): Poll | null =>
+      typeof options === "object" && options !== null && "refetchInterval" in options && typeof options.refetchInterval === "function"
+        ? (options.refetchInterval as Poll)
+        : null;
+    const interval = vi.mocked(useQuery).mock.calls.map(([options]) => pollOf(options)).find((poll) => poll !== null);
+    if (!interval) throw new Error("the runs query sets no refetchInterval");
+    const polled = (...statuses: string[]) => interval({ state: { data: statuses.map((status) => ({ status })) } });
+    expect(polled("completed", "failed")).toBe(false);
+    expect(polled("completed", "generating")).not.toBe(false);
+    expect(polled("proof_pending")).not.toBe(false);
+    expect(polled("cancelling")).not.toBe(false);
   });
 });

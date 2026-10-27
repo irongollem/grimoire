@@ -12,6 +12,9 @@ describe("needsInitiativeRoll", () => {
   it("is false once rolled", () => {
     expect(needsInitiativeRoll([c("m1", 14)], "m1")).toBe(false);
   });
+  it("treats an initiative of 0 as rolled", () => {
+    expect(needsInitiativeRoll([c("m1", 0)], "m1")).toBe(false);
+  });
   it("is false when I am not in the encounter or have no character", () => {
     expect(needsInitiativeRoll([c("m2", null)], "m1")).toBe(false);
     expect(needsInitiativeRoll([c("m1", null)], null)).toBe(false);

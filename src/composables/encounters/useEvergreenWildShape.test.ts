@@ -7,12 +7,13 @@ const mocks = vi.hoisted(() => ({
   store: null as unknown as { combatants: { instance_id: string; type: string; party_member_id?: string; initiative: number | null }[] },
   updatePartyMember: vi.fn(),
   toastInfo: vi.fn(),
+  used: 4,
 }));
 
 vi.mock("@/stores/encounterRun", () => ({ useEncounterRunStore: () => mocks.store }));
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({
-    data: ref([{ id: "pm-oak", name: "Oak", class: "Druid", subclass: null, level: 20, wis: 18, wildshapes_used: 4 }]),
+    data: ref([{ id: "pm-oak", name: "Oak", class: "Druid", subclass: null, level: 20, wis: 18, get wildshapes_used() { return mocks.used; } }]),
   }),
   useUpdatePartyMember: () => ({ mutateAsync: mocks.updatePartyMember }),
 }));
@@ -42,6 +43,7 @@ describe("useEvergreenWildShape", () => {
   beforeEach(() => {
     mocks.updatePartyMember.mockReset().mockResolvedValue(undefined);
     mocks.toastInfo.mockReset();
+    mocks.used = 4;
   });
 
   it("gives a spent druid one use back when their initiative is rolled", async () => {
@@ -89,5 +91,40 @@ describe("useEvergreenWildShape", () => {
     await nextTick();
 
     expect(mocks.updatePartyMember).not.toHaveBeenCalled();
+  });
+
+  // 2024 Druid, Evergreen Wild Shape: you regain a use only "if you have none left".
+  it("does nothing for a druid who still has uses left", async () => {
+    mocks.used = 2;
+    mocks.store = reactive({ combatants: [druid(null)] });
+    mount();
+
+    mocks.store.combatants[0].initiative = 17;
+    await nextTick();
+
+    expect(mocks.updatePartyMember).not.toHaveBeenCalled();
+  });
+
+  it("fires again in the next fight when the roster is replaced", async () => {
+    mocks.store = reactive({ combatants: [druid(null)] });
+    mount();
+    mocks.store.combatants[0].initiative = 17;
+    await nextTick();
+    expect(mocks.updatePartyMember).toHaveBeenCalledTimes(1);
+
+    mocks.store.combatants = [druid(null)];
+    await nextTick();
+    mocks.store.combatants[0].initiative = 12;
+    await nextTick();
+    expect(mocks.updatePartyMember).toHaveBeenCalledTimes(2);
+  });
+
+  it("announces the regained use", async () => {
+    mocks.store = reactive({ combatants: [druid(null)] });
+    mount();
+    mocks.store.combatants[0].initiative = 17;
+    await nextTick();
+    await Promise.resolve();
+    expect(mocks.toastInfo).toHaveBeenCalledWith(expect.stringContaining("Oak"));
   });
 });

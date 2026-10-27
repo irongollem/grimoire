@@ -185,6 +185,25 @@ describe("useRuleset scope", () => {
   });
 });
 
+describe("provideRuleset with no edition chosen inside a seated character's scope", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("keeps the character's build edition and the table's table edition apart", () => {
+    setCampaign("c1", "2024");
+    const seen: Seen[] = [];
+    const inner = defineComponent({
+      setup() {
+        provideRuleset(null);
+        return () => h(Reader(seen));
+      },
+    });
+    mount(Provider(ref({ ruleset: "2014", campaign_id: "c1" }), inner));
+    expect(seen[0]).toEqual({ build: "2014", table: "2024" });
+  });
+});
+
 describe("useContentScope standalone", () => {
   beforeEach(() => {
     setActivePinia(createPinia());

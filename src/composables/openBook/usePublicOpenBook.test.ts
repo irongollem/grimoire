@@ -1,5 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { fetchPublicOpenBook, publicOpenBookUrl } from "./usePublicOpenBook";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+
+import { fetchOpenBookPreview, fetchPublicOpenBook, publicOpenBookUrl } from "./usePublicOpenBook";
 
 const URL_BASE = "https://x.supabase.co/";
 
@@ -32,17 +39,31 @@ describe("fetchPublicOpenBook", () => {
 });
 
 describe("fetchOpenBookPreview", () => {
-  it("reads the draft as the next release, and gives way when refused", async () => {
-    const { fetchOpenBookPreview } = await import("./usePublicOpenBook");
-    const { supabase } = await import("@/lib/supabase");
-    const stats = { places: 1 };
-    vi.spyOn(supabase, "rpc").mockResolvedValueOnce({ data: { v: 1, stats }, error: null } as never);
-    vi.spyOn(supabase, "from").mockReturnValueOnce({
-      select: () => ({ eq: () => ({ order: () => ({ limit: async () => ({ data: [{ number: 3 }], error: null }) }) }) }),
-    } as never);
+  beforeEach(() => fake.reset());
+
+  const draft = () => fake.onRpc("preview_open_book", () => ({ v: 1, stats: { places: 1 } }));
+
+  it("reads the draft dressed as the next release, numbered after this campaign's latest", async () => {
+    draft();
+    fake.seed("open_book_releases", [
+      { campaign_id: "c1", number: 3 },
+      { campaign_id: "c1", number: 1 },
+      { campaign_id: "other", number: 9 },
+    ]);
     const result = await fetchOpenBookPreview("salt", "c1");
     expect(result).toMatchObject({ status: "found", book: { indexable: false, release: { number: 4, pdf_url: null } } });
-    vi.spyOn(supabase, "rpc").mockResolvedValueOnce({ data: null, error: { code: "42501" } } as never);
+  });
+
+  it("numbers the first release 1", async () => {
+    draft();
+    expect(await fetchOpenBookPreview("salt", "c1")).toMatchObject({ book: { release: { number: 1 } } });
+  });
+
+  it("gives way to the public read when the owner check refuses, and throws any other failure", async () => {
+    fake.failNext("preview_open_book", { code: "42501", message: "not the owner" });
     expect(await fetchOpenBookPreview("salt", "c1")).toBeNull();
+
+    fake.failNext("preview_open_book", { code: "XX000", message: "boom" });
+    await expect(fetchOpenBookPreview("salt", "c1")).rejects.toMatchObject({ message: "boom" });
   });
 });

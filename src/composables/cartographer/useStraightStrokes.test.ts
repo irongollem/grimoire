@@ -44,6 +44,22 @@ describe("brush", () => {
     expect(straight.brushPress([2, 2], true)).toEqual([[2, 2]]);
   });
 
+  it("a press without Shift ignores the remembered end", () => {
+    const { straight } = make();
+    straight.brushEnded([3, 1]);
+    expect(straight.brushPress([3, 5], false)).toEqual([[3, 5]]);
+  });
+
+  it("holds the pointer on the stroke start until it has moved far enough to mean a direction", () => {
+    const { straight } = make();
+    straight.brushPress([0, 0], false);
+    // 0.4 away and nearly vertical: too small to lock a vertical ray.
+    expect(straight.brushTarget([0.1, 0.4], true)).toEqual([0, 0]);
+    const along = straight.brushTarget([5, 0.2], true);
+    expect(along[0]).toBeCloseTo(5);
+    expect(along[1]).toBeCloseTo(0);
+  });
+
   it("Shift+press starts from where the last stroke ended", () => {
     const { straight } = make();
     straight.brushPress([1, 1], false);
@@ -135,6 +151,14 @@ describe("cell painters", () => {
     straight.cellEnded();
     straight.beginStroke();
     expect(straight.cellPress([2, 3], true)).toEqual([[2, 0], [2, 1], [2, 2], [2, 3]]);
+  });
+
+  it("a press without Shift ignores the remembered cell", () => {
+    const { straight } = make("floor");
+    straight.cellPress([0, 0], false);
+    straight.cellEnded();
+    straight.beginStroke();
+    expect(straight.cellPress([2, 3], false)).toEqual([[2, 3]]);
   });
 
   it("without Shift a drag paints the cell under the pointer", () => {
@@ -229,6 +253,16 @@ describe("wall", () => {
     // The south edge of the row above is the same line seen from the other cell.
     expect(straight.wallEdgeOffLine({ x: 4, y: 2, side: "S" }, true)).toBe(false);
     expect(straight.wallEdgeOffLine({ x: 4, y: 4, side: "N" }, false)).toBe(false);
+  });
+
+  it("the first edge of a stroke fixes its line, and later edges do not move it", () => {
+    const { straight } = make("wall");
+    straight.beginStroke();
+    straight.noteWallEdge({ x: 2, y: 3, side: "N" });
+    straight.noteWallEdge({ x: 4, y: 3, side: "N" });
+    straight.noteWallEdge({ x: 6, y: 9, side: "N" }); // off the line: still only noted, the origin stays row 3
+    expect(straight.wallEdgeOffLine({ x: 8, y: 3, side: "N" }, true)).toBe(false);
+    expect(straight.wallEdgeOffLine({ x: 8, y: 9, side: "N" }, true)).toBe(true);
   });
 
   it("a vertical stroke stays on its column", () => {

@@ -1,31 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+
 type Inserted = { table: string; rows: Record<string, unknown>[] };
 const inserted: Inserted[] = [];
+const downloads: { blob: Blob; name: string }[] = [];
 
-// The restore writes through supabase; record each insert so the remap can be
-// read back instead of reaching a database.
+// The restore writes through supabase; the fake stores what is inserted and the
+// wrapper records each insert in order, so the remap can be read back.
 vi.mock("@/lib/supabase", () => ({
   getCurrentUser: () => ({ id: "restorer" }),
   supabase: {
-    from: (table: string) => ({
-      insert: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
+    from: (table: string) => {
+      const query = fake.client.from(table);
+      const insert = query.insert.bind(query);
+      query.insert = (rows: Record<string, unknown> | Record<string, unknown>[], options?: unknown) => {
         inserted.push({ table, rows: Array.isArray(rows) ? rows : [rows] });
-        const result = { data: Array.isArray(rows) ? null : rows, error: null };
-        return Object.assign(Promise.resolve(result), {
-          select: () => ({ single: async () => result }),
-        });
-      },
-    }),
+        return insert(rows, options);
+      };
+      return query;
+    },
   },
 }));
+vi.mock("@/lib/downloadBlob", () => ({ downloadBlob: (blob: Blob, name: string) => void downloads.push({ blob, name }) }));
 vi.mock("@/composables/campaign/useCampaigns", () => ({
   disposeHomebrewAndDeleteCampaign: vi.fn(),
 }));
 
+import { flushPromises, mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { defineComponent } from "vue";
 import {
   assertBackupCarriesCharacterEditions,
   executeImport,
+  useExportCampaign,
   type GrimoireBackup,
 } from "./useCampaignBackup";
 
@@ -92,9 +103,59 @@ describe("assertBackupCarriesCharacterEditions definitions", () => {
   });
 });
 
+describe("executeImport restored campaign", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+    fake.reset();
+  });
+
+  it("is the restorer's own new campaign: renamed, unarchived, with fresh feed token and none of the old secrets", async () => {
+    const backup = backupWith({
+      campaign: {
+        id: "old-camp",
+        name: "Old",
+        user_id: "original-dm",
+        is_archived: true,
+        ical_token: "old-token",
+        openai_api_key: "sk-old",
+        anthropic_api_key: "sk-ant-old",
+        gemini_api_key: "g-old",
+        spotify_client_id: "sp-old",
+        ruleset: "2024",
+      },
+    });
+    const campaign = (await executeImport(backup, "Restored")) as { id: string };
+    const row = inserted.find((i) => i.table === "campaigns")!.rows[0];
+    expect(row).toMatchObject({
+      user_id: "restorer",
+      name: "Restored",
+      is_archived: false,
+      openai_api_key: null,
+      anthropic_api_key: null,
+      gemini_api_key: null,
+      spotify_client_id: null,
+      ruleset: "2024",
+    });
+    expect(row.id).not.toBe("old-camp");
+    expect(row.id).toBe(campaign.id);
+    expect(row.ical_token).not.toBe("old-token");
+  });
+
+  it("restores characters under the restorer with no player linked, since players re-link after an import", async () => {
+    const backup = backupWith({
+      party_members: [{ ...member, user_id: "original-dm", owner_user_id: "a-player", campaign_id: "old-camp" }],
+    });
+    const campaign = (await executeImport(backup, "Restored")) as { id: string };
+    const restored = inserted.find((i) => i.table === "party_members")!.rows[0];
+    expect(restored).toMatchObject({ user_id: "restorer", owner_user_id: null, campaign_id: campaign.id });
+    expect(restored.id).not.toBe("pm-1");
+  });
+});
+
 describe("executeImport class definitions", () => {
   beforeEach(() => {
     inserted.length = 0;
+    fake.reset();
   });
 
   it("restores definitions into the new campaign before the characters, and remaps the pins", async () => {
@@ -126,6 +187,7 @@ describe("executeImport class definitions", () => {
 describe("executeImport scriptorium document audience", () => {
   beforeEach(() => {
     inserted.length = 0;
+    fake.reset();
   });
 
   it("remaps player_visible_to onto the restored party, exactly as notes do", async () => {
@@ -150,6 +212,7 @@ describe("executeImport scriptorium document audience", () => {
 describe("executeImport session log", () => {
   beforeEach(() => {
     inserted.length = 0;
+    fake.reset();
   });
 
   it("restores the log before the notes and proposals that point into it", async () => {
@@ -186,6 +249,7 @@ describe("executeImport session log", () => {
 describe("executeImport quest clocks (#1011)", () => {
   beforeEach(() => {
     inserted.length = 0;
+    fake.reset();
   });
 
   const clock = {
@@ -232,6 +296,7 @@ describe("executeImport quest clocks (#1011)", () => {
 describe("executeImport NPC memories (#1019)", () => {
   beforeEach(() => {
     inserted.length = 0;
+    fake.reset();
   });
 
   const memory = {
@@ -311,6 +376,7 @@ describe("executeImport NPC memories (#1019)", () => {
 describe("executeImport kin links (#1083)", () => {
   beforeEach(() => {
     inserted.length = 0;
+    fake.reset();
   });
 
   it("remaps both ends of a kin link onto the restored NPCs and party members", async () => {
@@ -367,6 +433,7 @@ describe("executeImport kin links (#1083)", () => {
 describe("executeImport world links (#1084)", () => {
   beforeEach(() => {
     inserted.length = 0;
+    fake.reset();
   });
 
   const npcs = [{ id: "npc-1", name: "Bram" }, { id: "npc-2", name: "Wren" }];
@@ -420,5 +487,104 @@ describe("executeImport world links (#1084)", () => {
     const rows = inserted.find((i) => i.table === "world_links")!.rows;
     expect(rows.map((r) => r.type).sort()).toEqual(["operates_in", "rival"]);
     expect(inserted.some((i) => i.table === "faction_locations" || i.table === "npc_relationships")).toBe(false);
+  });
+});
+
+describe("exporting a campaign", () => {
+  beforeEach(() => {
+    fake.reset();
+    downloads.length = 0;
+  });
+
+  async function exportBackup(campaignId: string): Promise<GrimoireBackup & { campaign: Record<string, unknown> }> {
+    let mutation!: ReturnType<typeof useExportCampaign>;
+    mount(
+      defineComponent({ setup() { mutation = useExportCampaign(); return () => null; } }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    );
+    await mutation.mutateAsync(campaignId);
+    await flushPromises();
+    return JSON.parse(await downloads[0].blob.text());
+  }
+
+  const campaignRow = (id: string, name: string) => ({
+    id,
+    name,
+    user_id: "the-dm",
+    openai_api_key: "sk-secret",
+    anthropic_api_key: "sk-ant-secret",
+    gemini_api_key: "g-secret",
+    spotify_client_id: "sp-secret",
+    ical_token: "feed-secret",
+  });
+
+  it("never carries the campaign's API keys, feed token or owner, which the file is shared with other people", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "The Mere"), campaignRow("c2", "Other")]);
+    const backup = await exportBackup("c1");
+    expect(backup.campaign).toEqual({ id: "c1", name: "The Mere" });
+    expect(downloads[0].name).toBe("the-mere.grimoire-backup");
+  });
+
+  it("names the file after the campaign without stray dashes", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "  ~The Mere!  ")]);
+    await exportBackup("c1");
+    expect(downloads[0].name).toBe("the-mere.grimoire-backup");
+  });
+
+  it("holds this campaign's rows and their children only", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "The Mere")]);
+    fake.seed("npcs", [{ id: "n1", campaign_id: "c1" }, { id: "n-other", campaign_id: "c2" }]);
+    fake.seed("party_members", [{ id: "pm1", campaign_id: "c1" }, { id: "pm-other", campaign_id: "c2" }]);
+    fake.seed("character_classes", [
+      { id: "cc1", party_member_id: "pm1", class_definition_kind: "system", class_definition_id: "sys" },
+      { id: "cc-other", party_member_id: "pm-other", class_definition_kind: "system", class_definition_id: "sys" },
+    ]);
+    const backup = await exportBackup("c1");
+    expect(backup.npcs.map((r) => r.id)).toEqual(["n1"]);
+    expect(backup.party_members.map((r) => r.id)).toEqual(["pm1"]);
+    expect(backup.character_classes.map((r) => r.id)).toEqual(["cc1"]);
+    expect(backup._meta.entity_counts).toMatchObject({ npcs: 1, party_members: 1 });
+  });
+
+  it("leaves out a consequence rule conditioned on a beat or an edge, which this format has nothing to restore it against", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "The Mere")]);
+    fake.seed("quests", [{ id: "q1", campaign_id: "c1" }]);
+    fake.seed("quest_consequences", [
+      { id: "plain", quest_id: "q1", on_beat_id: null, on_edge_id: null },
+      { id: "beat", quest_id: "q1", on_beat_id: "b1", on_edge_id: null },
+      { id: "edge", quest_id: "q1", on_beat_id: null, on_edge_id: "e1" },
+    ]);
+    const backup = await exportBackup("c1");
+    expect(backup.quest_consequences.map((r) => r.id)).toEqual(["plain"]);
+  });
+
+  it("refuses when a character plays a homebrew class the exporter cannot read, rather than writing a pin to nothing", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "The Mere")]);
+    fake.seed("party_members", [{ id: "pm1", campaign_id: "c1" }]);
+    fake.seed("character_classes", [{ id: "cc1", party_member_id: "pm1", class_definition_kind: "custom", class_definition_id: "hidden-def" }]);
+    let mutation!: ReturnType<typeof useExportCampaign>;
+    mount(
+      defineComponent({ setup() { mutation = useExportCampaign(); return () => null; } }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    );
+    await expect(mutation.mutateAsync("c1")).rejects.toThrow("cannot be backed up");
+    expect(downloads).toEqual([]);
+  });
+
+  it("includes the campaign-less class a character is pinned to, beside the campaign's own", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "The Mere")]);
+    fake.seed("party_members", [{ id: "pm1", campaign_id: "c1" }]);
+    fake.seed("character_classes", [
+      { id: "cc1", party_member_id: "pm1", class_definition_kind: "custom", class_definition_id: "def-global" },
+      { id: "cc2", party_member_id: "pm1", class_definition_kind: "custom", class_definition_id: "def-own" },
+    ]);
+    fake.seed("custom_classes", [
+      { id: "def-own", campaign_id: "c1" },
+      { id: "def-global", campaign_id: null },
+      { id: "def-unrelated", campaign_id: null },
+    ]);
+    const backup = await exportBackup("c1");
+    // One copy each: the campaign's own class is pinned too, and is not fetched twice.
+    expect(backup.custom_classes.map((r) => r.id).sort()).toEqual(["def-global", "def-own"]);
   });
 });

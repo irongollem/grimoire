@@ -4,11 +4,12 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { useLocationTextSearch } from "./useLocationTextSearch";
 
-const mocks = vi.hoisted(() => ({
-  rpc: vi.fn(),
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc } }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "campaign-1" }) }));
 
 function setup(query: string) {
@@ -30,58 +31,62 @@ function setup(query: string) {
 describe("useLocationTextSearch", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mocks.rpc.mockReset();
+    fake.reset();
   });
 
-  it("sends nothing for a query shorter than two characters", async () => {
-    const { matchedIds } = setup("a");
+  /** The database's answer: places of campaign-1 whose text holds the term. */
+  function servePlaces(places: Record<string, string>) {
+    fake.onRpc("search_campaign_location_text", (args) =>
+      args.p_campaign_id === "campaign-1"
+        ? Object.entries(places).filter(([, text]) => text.includes(String(args.p_query))).map(([id]) => id)
+        : [],
+    );
+  }
+
+  it("sends nothing for a query shorter than two characters, and has no term or ids", async () => {
+    const { matchedIds, matchedTerm } = setup("a");
     await vi.advanceTimersByTimeAsync(400);
     await flushPromises();
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
     expect(matchedIds().size).toBe(0);
+    expect(matchedTerm()).toBeNull();
   });
 
   it("waits for typing to pause, then returns the matching ids", async () => {
-    mocks.rpc.mockResolvedValue({ data: ["a", "b"], error: null });
+    servePlaces({ a: "a dragon lair", b: "dragon bones", c: "a quiet inn" });
     const { text, matchedIds } = setup("");
     text.value = " dragon ";
     await nextTick();
     await vi.advanceTimersByTimeAsync(100);
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
     await vi.advanceTimersByTimeAsync(300);
     await flushPromises();
-    expect(mocks.rpc).toHaveBeenCalledWith("search_campaign_location_text", {
-      p_campaign_id: "campaign-1",
-      p_query: "dragon",
-    });
+    // The padded term went out trimmed: " dragon " would match none of the text.
     expect([...matchedIds()]).toEqual(["a", "b"]);
   });
 
   it("keeps the previous ids, and the term they answer, while the next term loads", async () => {
-    mocks.rpc.mockResolvedValueOnce({ data: ["a"], error: null });
+    servePlaces({ a: "a dragon lair" });
     const { text, matchedIds, matchedTerm } = setup("dragon");
     await vi.advanceTimersByTimeAsync(300);
     await flushPromises();
     expect(matchedTerm()).toBe("dragon");
 
-    let release!: (v: { data: string[]; error: null }) => void;
-    mocks.rpc.mockReturnValueOnce(new Promise((r) => { release = r; }));
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    fake.onRpc("search_campaign_location_text", async (args) => {
+      await held;
+      return String(args.p_query) === "dragons" ? ["b"] : [];
+    });
     text.value = "dragons";
     await nextTick();
     await vi.advanceTimersByTimeAsync(300);
-    expect(mocks.rpc).toHaveBeenCalledTimes(2);
     expect([...matchedIds()]).toEqual(["a"]);
     expect(matchedTerm()).toBe("dragon");
 
-    release({ data: ["b"], error: null });
+    release();
     await flushPromises();
     expect([...matchedIds()]).toEqual(["b"]);
     expect(matchedTerm()).toBe("dragons");
-  });
-
-  it("has no term and no ids below the minimum length", async () => {
-    const { matchedTerm } = setup("a");
-    await vi.advanceTimersByTimeAsync(400);
-    expect(matchedTerm()).toBeNull();
   });
 });

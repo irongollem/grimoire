@@ -83,6 +83,8 @@ describe("useCreateQuestFromHook", () => {
     });
 
     expect(result).toEqual({ questId: "quest-1", beatsCreated: 0 });
+    // An unpicked giver or location is "" in the form, and must not reach a uuid column as "".
+    expect(mocks.createQuest.mock.calls[0]![0]).toMatchObject({ giver_npc_id: null, location_id: null });
     expect(mocks.createBeat).not.toHaveBeenCalled();
     expect(mocks.createBeatEdge).not.toHaveBeenCalled();
     expect(mocks.createConsequence).not.toHaveBeenCalled();
@@ -263,5 +265,72 @@ describe("useCreateQuestFromHook", () => {
       aiProvenance: null,
     });
     expect(mocks.createQuest.mock.calls[0]![0]).toMatchObject({ parent_quest_id: null });
+  });
+  // quests.summary is one line (<= 280, no newline); the model's overflow must
+  // land on the opening beat rather than abort the insert or be dropped.
+  it("keeps the first sentence as the summary and moves the rest onto the opening beat", async () => {
+    const { createFromHook } = useCreateQuestFromHook();
+    await createFromHook({
+      hook: hook({
+        summary: "A bell rings under the church. Nobody will say who pulls the rope.",
+        beats: [
+          { key: "opening", title: "The bell rings", dm_content: "A bell tolls.", kind: "social" },
+          { key: "confront", title: "Face the ringer", dm_content: "Something answers.", kind: "combat" },
+        ],
+        routes: [],
+      }),
+      giverNpcId: "",
+      locationId: "",
+      entityPools: emptyPools,
+      aiProvenance: null,
+    });
+
+    expect(mocks.createQuest.mock.calls[0]![0]).toMatchObject({ summary: "A bell rings under the church." });
+    // dm_content is stored as TipTap JSON; the overflow comes first, then the beat's own prose.
+    const opening = String(mocks.createBeat.mock.calls[0]![0].dm_content);
+    expect(opening).toContain("Nobody will say who pulls the rope.");
+    expect(opening.indexOf("Nobody")).toBeLessThan(opening.indexOf("A bell tolls."));
+    expect(String(mocks.createBeat.mock.calls[1]![0].dm_content)).not.toContain("Nobody");
+  });
+
+  it("gives an overflowing summary a beat of its own when the response has no spine", async () => {
+    const { createFromHook } = useCreateQuestFromHook();
+    const result = await createFromHook({
+      hook: hook({ summary: "A bell rings. Nobody will say who pulls the rope." }),
+      giverNpcId: "",
+      locationId: "",
+      entityPools: emptyPools,
+      aiProvenance: null,
+    });
+
+    expect(result.beatsCreated).toBe(1);
+    expect(mocks.createBeat.mock.calls[0]![0]).toMatchObject({ title: "The Silent Bell" });
+    expect(String(mocks.createBeat.mock.calls[0]![0].dm_content)).toContain("Nobody will say who pulls the rope.");
+  });
+
+  it("still returns the quest when the ref write fails: a lost chip is smaller than an undone quest", async () => {
+    mocks.createQuestRefs.mockRejectedValue(new Error("refs down"));
+    const { createFromHook } = useCreateQuestFromHook();
+    await expect(
+      createFromHook({
+        hook: hook({ npcs: ["Brother Ash"] }),
+        giverNpcId: "",
+        locationId: "",
+        entityPools: { npcs: [{ id: "npc-ash", name: "Brother Ash" }], locations: [], factions: [] },
+        aiProvenance: null,
+      }),
+    ).resolves.toMatchObject({ questId: "quest-1" });
+  });
+
+  it("never refs a faction: a quest ref has no faction type", async () => {
+    const { createFromHook } = useCreateQuestFromHook();
+    await createFromHook({
+      hook: hook({ factions: ["The Choir"] }),
+      giverNpcId: "",
+      locationId: "",
+      entityPools: { npcs: [], locations: [], factions: [{ id: "f1", name: "The Choir" }] },
+      aiProvenance: null,
+    });
+    expect(mocks.createQuestRefs.mock.calls[0]?.[0] ?? []).toEqual([]);
   });
 });

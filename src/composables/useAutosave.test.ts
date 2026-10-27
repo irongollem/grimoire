@@ -144,6 +144,15 @@ describe("useAutosave", () => {
     expect(save).toHaveBeenCalledWith({ title: "hidden", tags: [] });
   });
 
+  it("does not flush for the tab becoming visible again", async () => {
+    const { draft, save } = setup();
+    draft.title = "typing";
+    await tick(100);
+    setVisibility("visible");
+    await tick(100);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("flushes on unmount and stops listening to visibilitychange", async () => {
     const { draft, save, wrapper } = setup();
     draft.title = "bye";
@@ -155,6 +164,28 @@ describe("useAutosave", () => {
     setVisibility("hidden");
     await tick(0);
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it("a form paused by canSave does not write from a closed editor when the tab is hidden later", async () => {
+    const ok = ref(false);
+    const { draft, save, wrapper } = setup({ canSave: () => ok.value });
+    draft.title = "";
+    await tick(100);
+    wrapper.unmount();
+    ok.value = true;
+    setVisibility("hidden");
+    await tick(0);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("reset clears an earlier save error", async () => {
+    const { draft, handle } = setup({ save: async () => { throw new Error("nope"); } });
+    draft.title = "x";
+    await tick(2100);
+    expect(handle.status.value).toBe("error");
+    handle.reset();
+    expect(handle.saveError.value).toBe("");
+    expect(handle.status.value).toBe("saved");
   });
 
   it("reset re-hydrates from a given value without triggering a save", async () => {
@@ -180,18 +211,22 @@ describe("useAutosave", () => {
     finish();
     await flushPromises();
     expect(handle.status.value).toBe("saved");
+    // The baseline is still the other record: editing away and back is clean.
+    draft.title = "typing";
+    await vi.advanceTimersByTimeAsync(0);
     draft.title = "Other record";
     await vi.advanceTimersByTimeAsync(0);
     expect(handle.dirty.value).toBe(false);
   });
 
   it("saveNow during a save waits for it, then sends what was typed meanwhile", async () => {
-    const sent: string[] = [];
+    const events: string[] = [];
     let finish!: () => void;
     const { draft, handle } = setup({
       save: async (snapshot) => {
-        sent.push(snapshot.title);
-        if (sent.length === 1) await new Promise<void>((resolve) => { finish = resolve; });
+        events.push(`start ${snapshot.tags.join()}`);
+        if (events.length === 1) await new Promise<void>((resolve) => { finish = resolve; });
+        events.push("end");
       },
     });
     draft.title = "First";
@@ -199,9 +234,12 @@ describe("useAutosave", () => {
     expect(handle.saving.value).toBe(true);
     draft.tags = ["late"];
     const flushed = handle.saveNow();
+    await flushPromises();
+    // Never two writes at once: the second waits for the first to land.
+    expect(events).toEqual(["start "]);
     finish();
     await flushed;
-    expect(sent).toEqual(["First", "First"]);
+    expect(events).toEqual(["start ", "end", "start late", "end"]);
     expect(handle.dirty.value).toBe(false);
   });
 

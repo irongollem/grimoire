@@ -46,6 +46,28 @@ describe("filters", () => {
     expect(await ids(db.from("quests").select("*").is("closed_at", null))).toEqual(["q1", "q3"]);
   });
 
+  it("not(is, null) keeps only rows whose column is set, and not(eq) drops the equal ones", async () => {
+    expect(await ids(db.from("quests").select("*").not("closed_at", "is", null))).toEqual(["q2"]);
+    expect(await ids(db.from("quests").select("*").not("user_id", "eq", "u1"))).toEqual(["q2"]);
+  });
+
+  it("contains matches rows whose array column holds every value asked for, and not a scalar or missing column", async () => {
+    fake.seed("docs", [
+      { id: "d1", shared: ["a", "b"] },
+      { id: "d2", shared: ["b"] },
+      { id: "d3", shared: null },
+      { id: "d4", shared: "a" },
+    ]);
+    expect(await ids(db.from("docs").select("*").contains("shared", ["b"]))).toEqual(["d1", "d2"]);
+    expect(await ids(db.from("docs").select("*").contains("shared", ["a", "b"]))).toEqual(["d1"]);
+  });
+
+  it("records the column list a read asked for, so a test can hold a read to named columns", async () => {
+    await db.from("quests").select("id, title");
+    await db.from("quests").select();
+    expect(fake.calls.map((c) => c.columns)).toEqual(["id, title", null]);
+  });
+
   it.each([
     ["gt", 2, ["q3"]],
     ["gte", 2, ["q2", "q3"]],
@@ -181,7 +203,8 @@ describe("rpc and failures", () => {
 
   it("failNext fails exactly one call and the next succeeds", async () => {
     fake.failNext("quests", { message: "boom" });
-    expect((await db.from("quests").select("*")).error).toEqual({ message: "boom", code: "FAKE" });
+    const { error } = await db.from("quests").select("*");
+    expect(error).toMatchObject({ message: "boom", code: "FAKE" });
     expect((await db.from("quests").select("*")).error).toBeNull();
   });
 
@@ -201,5 +224,165 @@ describe("rpc and failures", () => {
   it("calls records the filters and insert options of a request", async () => {
     await db.from("quests").insert([{ id: "q5" }], { defaultToNull: false });
     expect(fake.calls[0]).toMatchObject({ target: "quests", op: "insert", options: { defaultToNull: false } });
+  });
+});
+
+describe("arguments that are Vue reactive proxies", () => {
+  it("an rpc handler receives the array a ref held, instead of the fake throwing a DataCloneError", async () => {
+    const { ref } = await import("vue");
+    const slugs = ref(["srd-2024"]);
+    fake.onRpc("browse", (args) => args.p_slugs);
+    const { data, error } = await db.rpc("browse", { p_slugs: slugs.value });
+    expect(error).toBeNull();
+    expect(data).toEqual(["srd-2024"]);
+  });
+});
+
+describe("match", () => {
+  it("requires every pair, so dropping one key shows up as a foreign row", async () => {
+    expect(await ids(db.from("quests").select("*").match({ user_id: "u1", rank: 3 }))).toEqual(["q3"]);
+    expect(await ids(db.from("quests").select("*").match({ user_id: "u1" }))).toEqual(["q1", "q3"]);
+  });
+
+  it("filters an update to the matching row", async () => {
+    await db.from("quests").update({ title: "changed" }).match({ user_id: "u1", rank: 1 });
+    expect(fake.rows("quests").map((row) => row.title)).toEqual(["changed", "B", "C"]);
+  });
+});
+
+describe("not() on a path into a json column", () => {
+  it("not(col->key, is, null) matches only rows that hold that key, so a claim on a marker succeeds once", async () => {
+    fake.seed("sheets", [
+      { id: "s1", choices: { marker: { a: 1 }, other: true } },
+      { id: "s2", choices: { other: true } },
+      { id: "s3", choices: null },
+    ]);
+    const { data } = await db.from("sheets").select("*").not("choices->marker", "is", null);
+    expect((data as { id: string }[]).map((row) => row.id)).toEqual(["s1"]);
+  });
+});
+
+describe("like and ilike", () => {
+  const names = [
+    { id: "n1", name: "Rain Barrel" },
+    { id: "n2", name: "brain" },
+    { id: "n3", name: "100% sure" },
+    { id: "n4", name: null },
+    { id: "n5", name: "rXn" },
+    { id: "n6", name: "rXXn" },
+  ];
+  beforeEach(() => fake.seed("names", names));
+
+  it("ilike ignores case and treats % as any run, so a substring pattern finds the row wherever the text sits", async () => {
+    expect(await ids(db.from("names").select("*").ilike("name", "%RAIN%"))).toEqual(["n1", "n2"]);
+  });
+
+  it("like is case sensitive, so ilike cannot be passed off as it", async () => {
+    expect(await ids(db.from("names").select("*").like("name", "%rain%"))).toEqual(["n2"]);
+  });
+
+  it("_ is exactly one character and a pattern is anchored, not a substring test", async () => {
+    expect(await ids(db.from("names").select("*").ilike("name", "r_n"))).toEqual(["n5"]);
+    expect(await ids(db.from("names").select("*").ilike("name", "rain"))).toEqual([]);
+  });
+
+  it("a backslash makes % literal, so a typed percent sign does not become a wildcard", async () => {
+    expect(await ids(db.from("names").select("*").ilike("name", "100\\% %"))).toEqual(["n3"]);
+    expect(await ids(db.from("names").select("*").ilike("name", "100\\_%"))).toEqual([]);
+  });
+
+  it("a null column never matches, even the match-everything pattern", async () => {
+    expect(await ids(db.from("names").select("*").ilike("name", "%"))).not.toContain("n4");
+  });
+});
+
+describe("or", () => {
+  const rows = [
+    { id: "r1", ruleset: null, owner: "u1", campaign_id: "c1", tags: ["rain", "calm"], title: "Heavy Rain" },
+    { id: "r2", ruleset: "2024", owner: "u2", campaign_id: null, tags: ["fire"], title: 'Say "hi"' },
+    { id: "r3", ruleset: "2014", owner: "u1", campaign_id: null, tags: [], title: "Quiet, please (soft)" },
+    { id: "r4", ruleset: "2024", owner: null, campaign_id: "c2", tags: null, title: "x" },
+  ];
+  beforeEach(() => fake.seed("o", rows));
+  const pick = async (expression: string) => ids(db.from("o").select("*").or(expression));
+
+  it("with one matching clause returns the row, not every row", async () => {
+    expect(await pick("owner.eq.u2")).toEqual(["r2"]);
+  });
+
+  it("passes a row when ANY clause matches, so ruleset null-or-equal keeps the other edition out", async () => {
+    expect(await pick("ruleset.is.null,ruleset.eq.2024")).toEqual(["r1", "r2", "r4"]);
+  });
+
+  it("chained or() calls narrow each other, like PostgREST's repeated or= parameters", async () => {
+    const result = await ids(db.from("o").select("*").or("ruleset.is.null,ruleset.eq.2024").or("campaign_id.is.null"));
+    expect(result).toEqual(["r2"]);
+  });
+
+  it("neq never matches a null column", async () => {
+    expect(await pick("ruleset.is.null,ruleset.neq.2024")).toEqual(["r1", "r3"]);
+  });
+
+  it("in reads (a,b) lists, with a quoted member keeping its comma", async () => {
+    expect(await pick("owner.in.(u1,u9)")).toEqual(["r1", "r3"]);
+    expect(await pick('title.in.("Quiet, please (soft)",x)')).toEqual(["r3", "r4"]);
+  });
+
+  it("nested and() needs every inner clause, so the personal-library branch does not leak another user's row", async () => {
+    expect(await pick("campaign_id.eq.c2,and(campaign_id.is.null,owner.in.(u1))")).toEqual(["r3", "r4"]);
+    expect(await pick("campaign_id.eq.c2,and(campaign_id.is.null,owner.in.(u3))")).toEqual(["r4"]);
+  });
+
+  it("a quoted ilike value with escaped quotes matches the title literally", async () => {
+    expect(await pick('title.ilike."%say \\"hi\\"%"')).toEqual(["r2"]);
+    expect(await pick('title.ilike."%rain%",title.ilike."%fire%"')).toEqual(["r1"]);
+  });
+
+  it("cs on an array column matches when every element is present and ignores null or missing arrays", async () => {
+    expect(await pick('tags.cs.{"rain"}')).toEqual(["r1"]);
+    expect(await pick('tags.cs."{\\"rain\\",\\"calm\\"}"')).toEqual(["r1"]);
+    expect(await pick('tags.cs.{"rain","fire"}')).toEqual([]);
+  });
+
+  it("comparison operators order numbers as numbers, not as strings", async () => {
+    fake.seed("n", [{ id: "a", rank: 9 }, { id: "b", rank: 10 }]);
+    expect(await ids(db.from("n").select("*").or("rank.gt.9"))).toEqual(["b"]);
+    expect(await ids(db.from("n").select("*").or("rank.lte.9,rank.gte.10"))).toEqual(["a", "b"]);
+  });
+
+  it("not. negates a clause but still excludes a null column", async () => {
+    expect(await pick("ruleset.not.eq.2024")).toEqual(["r3"]);
+  });
+
+  it.each([
+    ["a bare word", "ruleset"],
+    ["an unknown operator", "ruleset.matches.x"],
+    ["an empty clause", "ruleset.is.null,,owner.eq.u1"],
+    ["an unbalanced paren", "and(owner.eq.u1"],
+    ["is with a non-null value", "owner.is.maybe"],
+  ])("%s throws naming the expression instead of matching every row", (_label, expression) => {
+    expect(() => db.from("o").select("*").or(expression)).toThrow(/cannot interpret or\(\) clause/);
+  });
+});
+
+describe("errors", () => {
+  it("every error the fake returns is an Error carrying code, details and hint, so instanceof Error behaves as in production", async () => {
+    fake.failNext("quests", { message: "boom", code: "23505" });
+    fake.failNext("quests", { message: "boom2" });
+    fake.onRpc("known", () => 1);
+    const results = [
+      await db.from("quests").select("*"),
+      await db.from("quests").select("*"),
+      await db.from("quests").select("*").eq("user_id", "u1").single(),
+      await db.from("quests").update({ title: "x" }),
+      await db.rpc("mystery"),
+    ];
+    for (const { error } of results) {
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({ details: null, hint: null });
+      expect(typeof error?.code).toBe("string");
+      expect(error?.message).not.toBe("");
+    }
+    expect(results[0].error?.code).toBe("23505");
   });
 });

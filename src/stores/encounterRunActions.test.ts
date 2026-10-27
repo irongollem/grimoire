@@ -59,6 +59,19 @@ describe("runner limited abilities", () => {
     expect(store.lastRechargeEvents).toEqual([]);
   });
 
+  it("keeps the recharge lines through commands that are not a turn change", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const store = useEncounterRunStore();
+    store.combatants = [monster("a", 20), monster("b", 5)];
+    store.started = true;
+    store.round = 1;
+    store.useAction("b", "Fire Breath", { recharge: { min: 5, max: 6 } });
+    store.nextTurn();
+    expect(store.lastRechargeEvents).toHaveLength(1);
+    store.adjustHp("a", -2);
+    expect(store.lastRechargeEvents).toHaveLength(1);
+  });
+
   it("restoreAction drops that instance's recharge line for the action", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.01);
     const store = useEncounterRunStore();

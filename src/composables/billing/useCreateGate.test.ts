@@ -25,8 +25,8 @@ describe("useCreateGate", () => {
   });
 
   it("queries useQuota for the given resource", () => {
-    useCreateGate("npcs", "/npcs/new");
-    expect(useQuotaMock).toHaveBeenCalledWith("npcs");
+    useCreateGate("monsters", "/monsters/new");
+    expect(useQuotaMock).toHaveBeenCalledWith("monsters");
   });
 
   describe("handleNew", () => {

@@ -135,6 +135,33 @@ describe("editing a saved character", () => {
     expect(changedEditColumns(draftOf(baseForm()), draftOf(baseForm()), build)).toEqual({});
   });
 
+  it("keeps the used slots of a level whose maximum is saved, and drops a level with none", () => {
+    const payload = buildCharacterPayload({
+      draft: draftOf(baseForm(), [4, 0, 2, 0, 0, 0, 0, 0, 0]),
+      existingSlots: [{ level: 1, max: 4, used: 3 }, { level: 2, max: 2, used: 2 }, { level: 3, max: 2, used: 1 }],
+      playerNameFallback: null,
+    });
+    // Level 2 now has no maximum, so it goes (its two used slots with it); level 3 is read by its own level, not its neighbour's.
+    expect(payload.spell_slots).toEqual([{ level: 1, max: 4, used: 3 }, { level: 3, max: 2, used: 1 }]);
+  });
+
+  it("trims the name, falls back to the account's player name, and turns a blank portrait into null", () => {
+    const blank = buildCharacterPayload({
+      draft: draftOf(baseForm({ name: "  Chicory ", player_name: "" })),
+      existingSlots: null,
+      playerNameFallback: "Sam (account)",
+    });
+    expect(blank).toMatchObject({ name: "Chicory", player_name: "Sam (account)", portrait_url: null });
+
+    const named = buildCharacterPayload({
+      draft: { ...draftOf(baseForm({ player_name: "Sam" })), portraitUrl: "https://img.test/c.png" },
+      existingSlots: null,
+      playerNameFallback: "Sam (account)",
+    });
+    expect(named).toMatchObject({ player_name: "Sam", portrait_url: "https://img.test/c.png" });
+    expect(buildCharacterPayload({ draft: draftOf(baseForm({ player_name: "" })), existingSlots: null, playerNameFallback: null }).player_name).toBeNull();
+  });
+
   it("includes spell slots only when the maxima moved", () => {
     const server = draftOf(baseForm());
     const mine = draftOf(baseForm(), [4, 3, 3, 0, 0, 0, 0, 0, 0]);

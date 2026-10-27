@@ -767,6 +767,15 @@ describe("eraser tool priority", () => {
 });
 
 describe("one-shot tools", () => {
+  it("wrap-walls on a cell with no floor does nothing and pushes no undo step", () => {
+    const { editor, activeTool, layers } = makeHarness();
+    layers.value.floor["5,5" as CellKey] = { floor: { pack_id: "pack-1", pack_version: 3, variant: 0 } };
+    activeTool.value = "wrap";
+    clickCell(editor, 10, 10); // (0,0): empty
+    expect(layers.value.floor["5,5" as CellKey]?.wallN).toBeUndefined();
+    expect(editor.canUndo.value).toBe(false);
+  });
+
   it("wrap-walls places boundary walls around an existing floor region as a single undo step", () => {
     const { editor, activeTool, layers } = makeHarness();
     // Paint a 2x2 floor block by hand (bypassing pointer dispatch — the
@@ -1006,6 +1015,31 @@ describe("Plan layer", () => {
     expect(abandonGestureMock).toHaveBeenCalledOnce();
   });
 
+  it("undoes and redoes the Plan's own edits, and reports the Plan's own undo state, while the Plan layer is active", async () => {
+    const plan = fakePlan();
+    plan.undo.canUndo.value = true;
+    const activeLayer = ref<"drawing" | "plan">("plan");
+    const { editor } = makeHarness({ plan, activeLayer });
+    // The Drawing has an edit of its own to undo, which a Plan undo must not touch.
+    activeLayer.value = "drawing";
+    clickCell(editor, 10, 10);
+    activeLayer.value = "plan";
+    await nextTick();
+    editor.undoEdit();
+    editor.redoEdit();
+    expect(plan.undo.undo).toHaveBeenCalledTimes(1);
+    expect(plan.undo.redo).toHaveBeenCalledTimes(1);
+    expect(editor.canUndo.value).toBe(true);
+    plan.undo.canUndo.value = false;
+    expect(editor.canUndo.value).toBe(false);
+
+    activeLayer.value = "drawing";
+    expect(editor.canUndo.value).toBe(true);
+    editor.undoEdit();
+    expect(plan.undo.undo).toHaveBeenCalledTimes(1);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
   it("does not abandon anything while staying on the Plan layer, or with no site at all", async () => {
     makeHarness(); // no `plan`/`activeLayer` — the standalone-route shape
     await nextTick();
@@ -1037,6 +1071,29 @@ describe("touch", () => {
     editor.onPointerDown(down(10, 10, touch(1)));
     editor.onPointerUp(up(10, 10, touch(1)));
     expect(painted(layers)).toBe(1);
+  });
+
+  it("a finger that only wobbles keeps waiting, and paints once it has moved past the slop", () => {
+    const { editor, layers } = makeHarness();
+    editor.onPointerDown(down(10, 10, touch(1)));
+    editor.onPointerMove(move(12, 10, touch(1))); // 2px: under the slop
+    expect(painted(layers)).toBe(0);
+    editor.onPointerMove(move(60, 10, touch(1)));
+    expect(painted(layers)).toBeGreaterThan(0);
+    editor.onPointerUp(up(60, 10, touch(1)));
+  });
+
+  it("a finger landing while a pinch is still settling is not a tool press", () => {
+    const { editor, layers } = makeHarness();
+    editor.onPointerDown(down(100, 100, touch(1)));
+    editor.onPointerDown(down(200, 100, touch(2)));
+    editor.onPointerUp(up(200, 100, touch(2))); // one finger left, the pinch still on
+    editor.onPointerDown(down(300, 300, touch(3)));
+    vi.advanceTimersByTime(500);
+    editor.onPointerUp(up(300, 300, touch(3)));
+    editor.onPointerUp(up(100, 100, touch(1)));
+    expect(painted(layers)).toBe(0);
+    expect(editor.canUndo.value).toBe(false);
   });
 
   it("two fingers pan and zoom instead of painting", () => {
@@ -1083,7 +1140,31 @@ describe("touch", () => {
 // A plain click selects the cell; a drag pans instead — never paints,
 // whatever tool a previous session left armed.
 
+describe("view mode", () => {
+  it("only pans: a press paints nothing and pushes no undo step, and a drag moves the map", () => {
+    const { editor, layers } = makeHarness({ viewMode: () => true });
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    editor.onPointerMove(move(60, 40));
+    editor.onPointerUp(up(60, 40));
+    expect(layers.value.floor).toEqual({});
+    expect(editor.canUndo.value).toBe(false);
+    expect(editor.viewportOffset.value).not.toEqual(before);
+  });
+});
+
 describe("select tool", () => {
+  it("a click that wobbles within the slop still selects, and does not pan", () => {
+    const selectedCell = ref<[number, number] | null>(null);
+    const { editor } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    editor.onPointerMove(move(12, 11)); // 2px: under the 4px slop
+    editor.onPointerUp(up(12, 11));
+    expect(selectedCell.value).toEqual([0, 0]);
+    expect(editor.viewportOffset.value).toEqual(before);
+  });
+
   it("a plain click selects the cell and paints nothing", () => {
     const selectedCell = ref<[number, number] | null>(null);
     const { editor, layers } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
@@ -1641,6 +1722,19 @@ describe("Shift draws straight", () => {
       activeTool.value = "brush";
       clickCell(editor, 64, 64);
       clickCell(editor, 448, 64);
+      expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
+    });
+
+    it("forgets the end point on Escape", () => {
+      // The key listener lives on the window from onMounted, so the harness is built in a mounted component.
+      let captured!: Harness;
+      mount(defineComponent({ setup() { captured = makeHarness({ brushRadius: ref(0.5) }); return () => h("div"); } }));
+      const { editor, layers, activeTool } = captured;
+      activeTool.value = "brush";
+      clickCell(editor, 64, 64);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      editor.onPointerDown(down(448, 64, shift));
+      editor.onPointerUp(up(448, 64, shift));
       expect(layers.value.floor["1,0" as CellKey]).toBeUndefined();
     });
 

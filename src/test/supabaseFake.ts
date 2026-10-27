@@ -19,13 +19,21 @@
  *   vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "u1" }) }));
  *
  * Supported: select/insert/update/upsert/delete, `.select()` after a write,
- * eq neq in is gt gte lt lte, order, limit, range, single, maybeSingle, rpc
- * (through `onRpc` handlers) and one-shot failures (`failNext`).
+ * eq neq match in is not(is/eq) gt gte lt lte like ilike contains or, order, limit, range, single,
+ * maybeSingle, rpc (through `onRpc` handlers) and one-shot failures (`failNext`).
  *
- * Not interpreted: `or(...)` is recorded in `calls` but does NOT filter, so a
- * test that depends on an `or` must not use this fake for that read. Column
- * lists passed to `select` are ignored (whole rows come back). Ids are not
- * generated: seed or insert rows with the `id` you need.
+ * `or(expression)` parses PostgREST's comma-separated syntax: `col.op.value`
+ * with op eq neq is in gt gte lt lte like ilike cs (and a `not.` before the op),
+ * double-quoted values with `\"` escapes, and nested `and(...)` / `or(...)`.
+ * A row passes when any top-level clause passes; chained `or()` calls are
+ * ANDed, as in PostgREST. A clause it cannot read throws at the `.or()` call
+ * naming it, never "matches everything".
+ *
+ * Every error is a `FakeError` (an `Error` with `code`, `details`, `hint`, like
+ * supabase-js's `PostgrestError`), so `err instanceof Error` holds as in production.
+ *
+ * Not interpreted: column lists passed to `select` are ignored (whole rows come
+ * back). Ids are not generated: seed or insert rows with the `id` you need.
  *
  * Postgres semantics kept on purpose: `neq`, `gt`... never match a null or
  * missing column; `update`/`delete` with no filter is refused (the project's
@@ -40,9 +48,17 @@
 
 export type FakeRow = Record<string, unknown>;
 
-export interface FakeError {
-  message: string;
-  code: string;
+/** What supabase-js returns as `error`: a `PostgrestError`, which is an `Error`. */
+export class FakeError extends Error {
+  readonly code: string;
+  readonly details: string | null = null;
+  readonly hint: string | null = null;
+
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "PostgrestError";
+    this.code = code;
+  }
 }
 
 export interface FakeResult {
@@ -52,7 +68,8 @@ export interface FakeResult {
   count?: number;
 }
 
-export type FakeFilterOp = "eq" | "neq" | "in" | "is" | "gt" | "gte" | "lt" | "lte" | "or";
+export type FakeFilterOp =
+  | "eq" | "neq" | "in" | "is" | "gt" | "gte" | "lt" | "lte" | "like" | "ilike" | "or" | "not" | "contains";
 
 export interface FakeFilter {
   op: FakeFilterOp;
@@ -66,6 +83,8 @@ export interface FakeCall {
   target: string;
   op: "select" | "insert" | "update" | "upsert" | "delete" | "rpc";
   filters: FakeFilter[];
+  /** The column list given to `select(...)`, or null when none was; for a read that must not return `*`. */
+  columns: string | null;
   /** Second argument of insert/upsert (e.g. `{ defaultToNull: false }`). */
   options: unknown;
   /** Rows written, the update values, or the rpc args. */
@@ -84,13 +103,26 @@ interface FakeState {
   calls: FakeCall[];
 }
 
-const NO_ROW_OR_MANY: FakeError = {
-  code: "PGRST116",
-  message: "JSON object requested, multiple (or no) rows returned",
-};
+function noRowOrMany(): FakeError {
+  return new FakeError("JSON object requested, multiple (or no) rows returned", "PGRST116");
+}
 
 function clone<T>(value: T): T {
-  return structuredClone(value);
+  try {
+    return structuredClone(value);
+  } catch {
+    // A Vue reactive proxy (a ref's array passed straight to a query) cannot be structured-cloned; plain JSON can read it.
+    return JSON.parse(JSON.stringify(value)) as T;
+  }
+}
+
+/** A column, or a path into a json column the way PostgREST writes it (`class_choices->starting_grants`). */
+function cell(row: FakeRow, column: string): unknown {
+  let value: unknown = row;
+  for (const part of column.split("->")) {
+    value = typeof value === "object" && value !== null ? (value as FakeRow)[part] : undefined;
+  }
+  return value;
 }
 
 function present(value: unknown): boolean {
@@ -108,6 +140,157 @@ function compare(a: unknown, b: unknown): number | null {
 function ordered(a: unknown, b: unknown, test: (order: number) => boolean): boolean {
   const order = compare(a, b);
   return order !== null && test(order);
+}
+
+/** A SQL LIKE pattern as a regex: `%` any run, `_` one character, `\` makes the next one literal. */
+function likeRegex(pattern: string, caseInsensitive: boolean): RegExp {
+  let source = "";
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === "\\" && i + 1 < pattern.length) {
+      i += 1;
+      source += pattern[i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    } else if (ch === "%") source += "[\\s\\S]*";
+    else if (ch === "_") source += "[\\s\\S]";
+    else source += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${source}$`, caseInsensitive ? "i" : "");
+}
+
+function likeMatches(value: unknown, pattern: string, caseInsensitive: boolean): boolean {
+  return typeof value === "string" && likeRegex(pattern, caseInsensitive).test(value);
+}
+
+class OrSyntaxError extends Error {
+  constructor(clause: string, reason: string, whole: string) {
+    super(`supabaseFake: cannot interpret or() clause "${clause}" (${reason}) in "${whole}"`);
+    this.name = "OrSyntaxError";
+  }
+}
+
+/** Split on commas that sit outside parentheses, braces and double quotes. */
+function splitTop(source: string, whole: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quoted = false;
+  let start = 0;
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    if (quoted) {
+      if (ch === "\\") i += 1;
+      else if (ch === '"') quoted = false;
+    } else if (ch === '"') quoted = true;
+    else if (ch === "(" || ch === "{") depth += 1;
+    else if (ch === ")" || ch === "}") depth -= 1;
+    else if (ch === "," && depth === 0) {
+      parts.push(source.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  if (quoted || depth !== 0) throw new OrSyntaxError(source, "unbalanced quote or parenthesis", whole);
+  parts.push(source.slice(start).trim());
+  return parts;
+}
+
+function unquote(value: string, whole: string): string {
+  if (!value.startsWith('"')) return value;
+  if (value.length < 2 || !value.endsWith('"')) throw new OrSyntaxError(value, "unterminated quoted value", whole);
+  return value.slice(1, -1).replace(/\\(.)/g, "$1");
+}
+
+/** `{a,"b c"}` as its elements. */
+function arrayLiteral(text: string, whole: string): string[] {
+  if (!text.startsWith("{") || !text.endsWith("}")) throw new OrSyntaxError(text, "cs needs a {…} array", whole);
+  const inner = text.slice(1, -1);
+  return inner === "" ? [] : splitTop(inner, whole).map((item) => unquote(item, whole));
+}
+
+function textOf(value: unknown): string | null {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : null;
+}
+
+function operatorPredicate(column: string, op: string, raw: string, whole: string, clause: string): Predicate {
+  const text = unquote(raw, whole);
+  switch (op) {
+    case "eq":
+      return (row) => {
+        const own = textOf(cell(row, column));
+        return own !== null && own === text;
+      };
+    case "neq":
+      return (row) => {
+        const own = textOf(cell(row, column));
+        return own !== null && own !== text;
+      };
+    case "is":
+      if (text === "null") return (row) => !present(cell(row, column));
+      if (text === "true" || text === "false") return (row) => cell(row, column) === (text === "true");
+      throw new OrSyntaxError(clause, `is takes null, true or false, not "${text}"`, whole);
+    case "in": {
+      if (!raw.startsWith("(") || !raw.endsWith(")")) throw new OrSyntaxError(clause, "in needs (a,b)", whole);
+      const inner = raw.slice(1, -1);
+      const items = inner === "" ? [] : splitTop(inner, whole).map((item) => unquote(item, whole));
+      return (row) => {
+        const own = textOf(cell(row, column));
+        return own !== null && items.includes(own);
+      };
+    }
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte": {
+      const test = { gt: (c: number) => c > 0, gte: (c: number) => c >= 0, lt: (c: number) => c < 0, lte: (c: number) => c <= 0 }[op];
+      return (row) => {
+        const own = cell(row, column);
+        return ordered(own, typeof own === "number" ? Number(text) : text, test);
+      };
+    }
+    case "like":
+    case "ilike":
+      return (row) => likeMatches(cell(row, column), text, op === "ilike");
+    case "cs": {
+      const wanted = arrayLiteral(text, whole);
+      return (row) => {
+        const own = cell(row, column);
+        return Array.isArray(own) && wanted.every((item) => own.some((element) => textOf(element) === item));
+      };
+    }
+    default:
+      throw new OrSyntaxError(clause, `unknown operator "${op}"`, whole);
+  }
+}
+
+function clausePredicate(clause: string, whole: string): Predicate {
+  if (clause === "") throw new OrSyntaxError(clause, "empty clause", whole);
+  const group = /^(and|or)\(([\s\S]*)\)$/.exec(clause);
+  if (group) {
+    const parts = splitTop(group[2], whole).map((part) => clausePredicate(part, whole));
+    return group[1] === "and" ? (row) => parts.every((part) => part(row)) : (row) => parts.some((part) => part(row));
+  }
+  const first = clause.indexOf(".");
+  const second = first < 0 ? -1 : clause.indexOf(".", first + 1);
+  if (first <= 0 || second < 0) throw new OrSyntaxError(clause, "expected column.operator.value", whole);
+  const column = clause.slice(0, first);
+  let op = clause.slice(first + 1, second);
+  let rest = clause.slice(second + 1);
+  let negated = false;
+  if (op === "not") {
+    const third = rest.indexOf(".");
+    if (third <= 0) throw new OrSyntaxError(clause, "expected column.not.operator.value", whole);
+    negated = true;
+    op = rest.slice(0, third);
+    rest = rest.slice(third + 1);
+  }
+  const inner = operatorPredicate(column, op, rest, whole, clause);
+  if (!negated) return inner;
+  // SQL NOT(null) is null: a missing column is excluded, except for `is`, which is never null.
+  return op === "is" ? (row) => !inner(row) : (row) => present(cell(row, column)) && !inner(row);
+}
+
+/** The predicate for one `.or(expression)`: a row passes when any top-level clause does. */
+function orPredicate(expression: string): Predicate {
+  const clauses = splitTop(expression, expression).map((clause) => clausePredicate(clause, expression));
+  return (row) => clauses.some((clause) => clause(row));
 }
 
 function takeFailure(state: FakeState, target: string): FakeError | null {
@@ -135,13 +318,15 @@ class FakeQuery implements PromiseLike<FakeResult> {
   private limitTo: number | null = null;
   private skip = 0;
   private cardinality: Cardinality = "many";
+  private columns: string | null = null;
 
   constructor(
     private readonly state: FakeState,
     private readonly table: string,
   ) {}
 
-  select(_columns?: string, options?: { count?: "exact" | "planned" | "estimated"; head?: boolean }): this {
+  select(columns?: string, options?: { count?: "exact" | "planned" | "estimated"; head?: boolean }): this {
+    this.columns = columns ?? null;
     if (this.op !== "select") this.returning = true;
     this.countRows = options?.count !== undefined;
     this.headOnly = options?.head === true;
@@ -183,6 +368,12 @@ class FakeQuery implements PromiseLike<FakeResult> {
     return this.filter("eq", column, value, (row) => present(row[column]) && row[column] === value);
   }
 
+  /** `match({ a: 1, b: 2 })`: every pair must be equal, like chained `eq`. */
+  match(query: Record<string, unknown>): this {
+    for (const [column, value] of Object.entries(query)) this.eq(column, value);
+    return this;
+  }
+
   neq(column: string, value: unknown): this {
     return this.filter("neq", column, value, (row) => present(row[column]) && row[column] !== value);
   }
@@ -195,6 +386,24 @@ class FakeQuery implements PromiseLike<FakeResult> {
     return this.filter("is", column, value, (row) =>
       value === null ? !present(row[column]) : row[column] === value,
     );
+  }
+
+  /** Array containment, like `@>`: the column holds every value given. */
+  contains(column: string, values: readonly unknown[]): this {
+    return this.filter(
+      "contains",
+      column,
+      values,
+      (row) => Array.isArray(row[column]) && values.every((value) => (row[column] as unknown[]).includes(value)),
+    );
+  }
+
+  /** Only the two forms the app uses: `not(col, "is", null)` (a non-null column) and `not(col, "eq", v)`. */
+  not(column: string, operator: "is" | "eq", value: unknown): this {
+    if (operator === "is") {
+      return this.filter("not", column, value, (row) => (value === null ? present(cell(row, column)) : cell(row, column) !== value));
+    }
+    return this.filter("not", column, value, (row) => cell(row, column) !== value);
   }
 
   gt(column: string, value: unknown): this {
@@ -213,9 +422,19 @@ class FakeQuery implements PromiseLike<FakeResult> {
     return this.filter("lte", column, value, (row) => ordered(row[column], value, (c) => c <= 0));
   }
 
-  /** Recorded in `calls` only: the expression is NOT interpreted, so rows are not narrowed by it. */
+  /** Case-sensitive SQL LIKE: `%` any run, `_` one character; a null column never matches. */
+  like(column: string, pattern: string): this {
+    return this.filter("like", column, pattern, (row) => likeMatches(cell(row, column), pattern, false));
+  }
+
+  /** Case-insensitive SQL LIKE; see `like`. */
+  ilike(column: string, pattern: string): this {
+    return this.filter("ilike", column, pattern, (row) => likeMatches(cell(row, column), pattern, true));
+  }
+
+  /** PostgREST's comma-separated filter list (see the file header); throws on a clause it cannot read. */
   or(expression: string): this {
-    return this.filter("or", "", expression, () => true);
+    return this.filter("or", "", expression, orPredicate(expression));
   }
 
   order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): this {
@@ -292,13 +511,13 @@ class FakeQuery implements PromiseLike<FakeResult> {
     if (this.cardinality === "many") return { data: rows.map(clone), error: null };
     if (rows.length === 1) return { data: clone(rows[0]), error: null };
     if (this.cardinality === "maybe" && rows.length === 0) return { data: null, error: null };
-    return { data: null, error: { ...NO_ROW_OR_MANY } };
+    return { data: null, error: noRowOrMany() };
   }
 
   /** The error PostgREST raises for a `single()` write that would touch 0 or 2+ rows. */
   private singleViolation(count: number): FakeError | null {
     if (!this.returning || this.cardinality === "many") return null;
-    if (count > 1 || (count === 0 && this.cardinality === "one")) return { ...NO_ROW_OR_MANY };
+    if (count > 1 || (count === 0 && this.cardinality === "one")) return noRowOrMany();
     return null;
   }
 
@@ -307,6 +526,7 @@ class FakeQuery implements PromiseLike<FakeResult> {
       kind: "table",
       target: this.table,
       op: this.op,
+      columns: this.columns,
       filters: [...this.filters],
       options: this.options,
       payload: clone(this.payload),
@@ -325,10 +545,7 @@ class FakeQuery implements PromiseLike<FakeResult> {
     if (this.op === "insert" || this.op === "upsert") return this.write();
 
     if (!this.predicates.length) {
-      return {
-        data: null,
-        error: { code: "21000", message: `${this.op} requires a WHERE clause` },
-      };
+      return { data: null, error: new FakeError(`${this.op} requires a WHERE clause`, "21000") };
     }
     const hit = this.matching();
     const refused = this.singleViolation(hit.length);
@@ -405,12 +622,12 @@ export function createSupabaseFake(): SupabaseFake {
     client: {
       from: (table) => new FakeQuery(state, table),
       rpc: async (name, args = {}) => {
-        state.calls.push({ kind: "rpc", target: name, op: "rpc", filters: [], options: null, payload: clone(args) });
+        state.calls.push({ kind: "rpc", target: name, op: "rpc", columns: null, filters: [], options: null, payload: clone(args) });
         const failure = takeFailure(state, name);
         if (failure) return { data: null, error: failure };
         const handler = state.handlers.get(name);
         if (!handler) {
-          return { data: null, error: { code: "PGRST202", message: `No fake registered for rpc "${name}"` } };
+          return { data: null, error: new FakeError(`No fake registered for rpc "${name}"`, "PGRST202") };
         }
         const data = await handler(args);
         return { data: data === undefined ? null : data, error: null };
@@ -428,7 +645,7 @@ export function createSupabaseFake(): SupabaseFake {
     },
     failNext(target, error, options) {
       const queue = state.failures.get(target) ?? [];
-      queue.push({ error: { message: error.message, code: error.code ?? "FAKE" }, after: options?.after ?? 0 });
+      queue.push({ error: new FakeError(error.message, error.code ?? "FAKE"), after: options?.after ?? 0 });
       state.failures.set(target, queue);
     },
     calls: state.calls,

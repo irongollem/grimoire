@@ -21,7 +21,14 @@ const mocks = vi.hoisted(() => ({
   campaignId: "campaign-1" as string | null,
   /** The gate the search hands `useLibrarySourceSlugs`: whether it may read the books yet. */
   sourcesActive: null as (() => boolean) | null,
+  /** Read tables from the in-memory fake (honours filters) instead of the canned-result chain. */
+  useFake: false,
 }));
+
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
 vi.mock("@/composables/library/useLibraryMonsterArt", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/composables/library/useLibraryMonsterArt")>()),
@@ -42,7 +49,7 @@ function chain(table: string): unknown {
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
-    from: (table: string) => { mocks.from(table); return chain(table); },
+    from: (table: string) => { mocks.from(table); return mocks.useFake ? fake.client.from(table) : chain(table); },
     rpc: mocks.rpc,
     functions: { invoke: mocks.invoke },
   },
@@ -115,6 +122,8 @@ describe("useGlobalSearch", () => {
     mocks.slugs = ["srd-2024"];
     mocks.ruleset = "2024";
     mocks.calls = [];
+    mocks.useFake = false;
+    fake.reset();
   });
   afterEach(() => {
     apps.forEach((a) => a.unmount());
@@ -195,6 +204,28 @@ describe("useGlobalSearch", () => {
     client.clear();
     const both = await run();
     expect(both.data.value?.failedGroups).toEqual(["Bestiary"]);
+  });
+
+  // The homebrew Goblin and the book's Goblin are one hit, not two; a different
+  // creature that merely shares a word stays.
+  it("lists a custom creature or spell once, hiding the book's entry of the same name in any case", async () => {
+    mocks.byTable = {
+      monsters: { data: [{ id: "m-mine", name: "Goblin" }], error: null },
+      library_monsters: { data: [{ id: "srd_goblin", name: "GOBLIN" }, { id: "srd_boss", name: "Goblin Boss" }], error: null },
+      spells: { data: [{ id: "s-mine", name: "Goblin Cheer" }], error: null },
+      library_spells: { data: [{ id: "srd_cheer", name: "goblin cheer" }], error: null },
+    };
+    const groups = (await run()).data.value?.groups;
+    expect(groups?.find((g) => g.type === "monster")?.items.map((i) => i.id)).toEqual(["m-mine", "srd_boss"]);
+    expect(groups?.find((g) => g.type === "spell")?.items.map((i) => i.id)).toEqual(["s-mine"]);
+  });
+
+  it("shows at most five creatures", async () => {
+    mocks.byTable = {
+      monsters: { data: Array.from({ length: 7 }, (_, i) => ({ id: `m${i}`, name: `Goblin ${i}` })), error: null },
+    };
+    const group = (await run()).data.value?.groups.find((g) => g.type === "monster");
+    expect(group?.items).toHaveLength(5);
   });
 
   it("reports an error only when every read failed", async () => {
@@ -300,6 +331,19 @@ describe("useGlobalSearch", () => {
       ]);
     });
 
+    it("lists each far end once and no more than eight", async () => {
+      mocks.byTable = { deities: { data: [{ id: "d1", name: "The Drowned Lady", titles: null, domains: [] }], error: null } };
+      mocks.rpc.mockResolvedValue({
+        data: [
+          ...Array.from({ length: 10 }, (_, i) => connection({ row_id: `r${i}`, other_id: `n${i}`, other_name: `Person ${i}` })),
+          connection({ row_id: "dup", other_id: "n0", other_name: "Person 0" }),
+        ],
+        error: null,
+      });
+      const ties = (await ask("who worships the drowned lady")).data.value?.groups[0];
+      expect(ties?.items.map((i) => i.id)).toEqual(Array.from({ length: 8 }, (_, i) => `n${i}`));
+    });
+
     it("answers from records too: the members of a faction", async () => {
       mocks.byTable = { factions: { data: [{ id: "f1", name: "The Toll-men" }], error: null } };
       mocks.rpc.mockResolvedValue({
@@ -324,22 +368,68 @@ describe("useGlobalSearch", () => {
   });
 
   describe("library gating", () => {
-    const callsOn = (table: string) => mocks.calls.filter((c) => c.table === table);
 
-    it("reads library monsters and spells only from enabled books at the table edition", async () => {
+    // Rows the search must find, and the foreign ones it must not, per table.
+    const book = (id: string, name: string, over: Record<string, unknown> = {}) => ({ id, name, source: "srd-2024", ruleset: "2024", ...over });
+    const homebrew = (id: string, over: Record<string, unknown> = {}) => ({
+      id, name: `Goblin ${id}`, open5e_import: false, campaign_id: null, user_id: "user-1", ruleset: "2024", ...over,
+    });
+    const idsIn = async (type: string) => {
+      mocks.useFake = true;
+      return (await run()).data.value?.groups.find((g) => g.type === type)?.items.map((i) => i.id);
+    };
+
+    it("library monsters and spells: a disabled book and the other edition do not come back", async () => {
       mocks.slugs = ["srd-2024", "kp-bestiary"];
-      await run();
       for (const table of ["library_monsters", "library_spells"]) {
-        expect(callsOn(table)).toContainEqual({ table, method: "in", args: ["source", ["srd-2024", "kp-bestiary"]] });
-        expect(callsOn(table)).toContainEqual({ table, method: "eq", args: ["ruleset", "2024"] });
+        fake.seed(table, [
+          book("mine", "Goblin"),
+          book("second-book", "Goblin Two", { source: "kp-bestiary" }),
+          book("disabled-book", "Goblin Three", { source: "tome-of-beasts" }),
+          book("other-edition", "Goblin Four", { ruleset: "2014" }),
+        ]);
       }
+      expect(await idsIn("monster")).toEqual(["mine", "second-book"]);
+      expect(await idsIn("spell")).toEqual(["mine", "second-book"]);
     });
 
-    it("applies the edition to custom monsters and spells too", async () => {
-      await run();
+    it("custom monsters and spells: the other edition stays out and a row with no edition fits both", async () => {
       for (const table of ["monsters", "spells"]) {
-        expect(callsOn(table)).toContainEqual({ table, method: "or", args: [expect.stringContaining("ruleset.eq.2024")] });
+        fake.seed(table, [homebrew("current"), homebrew("either", { ruleset: null }), homebrew("other-edition", { ruleset: "2014" })]);
       }
+      expect(await idsIn("monster")).toEqual(["current", "either"]);
+      expect(await idsIn("spell")).toEqual(["current", "either"]);
+    });
+
+    it("custom monsters, items and places: this campaign and the caller's globals come back, another campaign's and a stranger's do not", async () => {
+      fake.seed("monsters", [
+        homebrew("here", { campaign_id: "campaign-1", user_id: "co-dm" }),
+        homebrew("mine"),
+        homebrew("elsewhere", { campaign_id: "campaign-2" }),
+        homebrew("stranger", { user_id: "stranger" }),
+        homebrew("imported", { open5e_import: true }),
+      ]);
+      for (const table of ["items", "locations"]) {
+        fake.seed(table, [
+          { id: "here", name: "Goblin here", campaign_id: "campaign-1", user_id: "co-dm" },
+          { id: "mine", name: "Goblin mine", campaign_id: null, user_id: "user-1" },
+          { id: "elsewhere", name: "Goblin elsewhere", campaign_id: "campaign-2", user_id: "user-1" },
+          { id: "stranger", name: "Goblin stranger", campaign_id: null, user_id: "stranger" },
+        ]);
+      }
+      expect(await idsIn("monster")).toEqual(["here", "mine"]);
+      expect(await idsIn("item")).toEqual(["here", "mine"]);
+      expect(await idsIn("location")).toEqual(["here", "mine"]);
+    });
+
+    it("npc search matches the disguise name too, so a player-facing alias finds the NPC", async () => {
+      fake.seed("npcs", [
+        { id: "real", name: "Goblin Bob", disguise_name: null, campaign_id: "campaign-1" },
+        { id: "alias", name: "Sir Hale", disguise_name: "Old Goblin Man", campaign_id: "campaign-1" },
+        { id: "other-campaign", name: "Goblin Cal", disguise_name: null, campaign_id: "campaign-2" },
+        { id: "unrelated", name: "Sir Hale", disguise_name: "Fred", campaign_id: "campaign-1" },
+      ]);
+      expect(await idsIn("npc")).toEqual(["real", "alias"]);
     });
 
     it("skips the library reads entirely when no book is enabled", async () => {
@@ -357,12 +447,11 @@ describe("useGlobalSearch", () => {
       expect(mocks.from).not.toHaveBeenCalled();
     });
 
-    it("keeps a different book list or edition from reusing the cached answer", async () => {
-      await run();
+    it("keeps a different edition from reusing the cached answer", async () => {
+      fake.seed("library_monsters", [book("new", "Goblin"), book("old", "Goblin", { ruleset: "2014" })]);
+      expect(await idsIn("monster")).toEqual(["new"]);
       mocks.ruleset = "2014";
-      await run();
-      expect(callsOn("library_monsters").filter((c) => c.method === "eq" && c.args[0] === "ruleset").map((c) => c.args[1]))
-        .toEqual(["2024", "2014"]);
+      expect(await idsIn("monster")).toEqual(["old"]);
     });
   });
 
@@ -512,6 +601,29 @@ describe("useGlobalSearch", () => {
       mocks.byTable = { notes: { data: [{ id: "n1", title: "Pig ledger" }], error: null } };
       const search = await runUpsell();
       expect(search.showProUpsell.value).toBe(true);
+    });
+
+    it("still shows when the name search found exactly the few it counts as little", async () => {
+      mocks.isPro = false;
+      mocks.byTable = { notes: { data: [{ id: "n1", title: "a" }, { id: "n2", title: "b" }], error: null } };
+      expect((await runUpsell("two hits")).showProUpsell.value).toBe(true);
+    });
+
+    it("waits for the search that is under way before saying anything", async () => {
+      mocks.isPro = false;
+      const query = ref("pig");
+      const search = mount(() => useGlobalSearch(query));
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS * 2);
+      expect(search.showProUpsell.value).toBe(true);
+
+      query.value = "pig tavern";
+      await vi.advanceTimersByTimeAsync(10);
+      expect(search.showProUpsell.value).toBe(false);
+    });
+
+    it("stays quiet for a term too short to be a question", async () => {
+      mocks.isPro = false;
+      expect((await runUpsell("pi")).showProUpsell.value).toBe(false);
     });
 
     it("stays away when the name search already found plenty", async () => {

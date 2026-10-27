@@ -128,4 +128,53 @@ describe("play recovery (#1098)", () => {
     expect(store.playError).toBe("Device not found");
     expect(store.lastPlayedUrl).toBeNull();
   });
+
+  // Spotify Web API "Start/Resume Playback": albums and playlists go in context_uri, tracks in uris.
+  it.each([
+    ["a track link plays as a one-track uri list", "https://open.spotify.com/track/abc123", { uris: ["spotify:track:abc123"] }],
+    ["a playlist link plays as a context", "https://open.spotify.com/playlist/pl1", { context_uri: "spotify:playlist:pl1" }],
+    ["an album link plays as a context", "https://open.spotify.com/album/al1", { context_uri: "spotify:album:al1" }],
+  ])("%s", async (_label, link, body) => {
+    const store = useSpotifyStore();
+    store.deviceId = "device-1";
+    mockSpotifyFetch.mockResolvedValue(response(204));
+
+    await store.play(link);
+
+    expect(JSON.parse(mockSpotifyFetch.mock.calls[0][1]?.body as string)).toEqual(body);
+    expect(store.lastPlayedUrl).toBe(link);
+  });
+
+  it("says why Spotify refused, or at least the status when it gives no reason", async () => {
+    const store = useSpotifyStore();
+    store.deviceId = "device-1";
+    mockSpotifyFetch.mockResolvedValueOnce(response(403, { error: { message: "Player command failed: Premium required" } }));
+    await store.play("https://open.spotify.com/track/abc123");
+    expect(store.playError).toBe("Player command failed: Premium required");
+
+    mockSpotifyFetch.mockResolvedValueOnce(new Response("<html>", { status: 500 }));
+    await store.play("https://open.spotify.com/track/abc123");
+    expect(store.playError).toBe("Spotify error 500");
+    expect(store.lastPlayedUrl).toBeNull();
+  });
+
+  it("clears an earlier error once a play goes through", async () => {
+    const store = useSpotifyStore();
+    store.deviceId = "device-1";
+    mockSpotifyFetch.mockResolvedValueOnce(new Response("{}", { status: 500 }));
+    await store.play("https://open.spotify.com/track/abc123");
+    expect(store.playError).not.toBeNull();
+
+    mockSpotifyFetch.mockResolvedValueOnce(response(204));
+    await store.play("https://open.spotify.com/track/abc123");
+    expect(store.playError).toBeNull();
+  });
+
+  it("sends nothing when there is no valid token", async () => {
+    const store = useSpotifyStore();
+    store.deviceId = "device-1";
+    mockGetValidToken.mockResolvedValue(null);
+    await store.play("https://open.spotify.com/track/abc123");
+    expect(mockSpotifyFetch).not.toHaveBeenCalled();
+  });
 });

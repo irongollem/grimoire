@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const { reportHandledError } = vi.hoisted(() => ({ reportHandledError: vi.fn() }));
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError }));
 
-import { chatFailureMessage, postgrestCode, sendFailureMessage, useChatSendFailure } from "./chatSendErrors";
+import { postgrestCode, sendFailureMessage, useChatSendFailure } from "./chatSendErrors";
 import { useToast } from "@/composables/useToast";
 
 describe("chatSendErrors", () => {
@@ -11,12 +11,6 @@ describe("chatSendErrors", () => {
     reportHandledError.mockClear();
     const { toasts, dismiss } = useToast();
     for (const t of toasts.value) dismiss(t.id);
-  });
-
-  it("words the failure around what did not happen", () => {
-    expect(chatFailureMessage("post the roll to the chat")).toBe(
-      "Couldn't post the roll to the chat. Please try again.",
-    );
   });
 
   it("toasts and reports to Sentry", () => {

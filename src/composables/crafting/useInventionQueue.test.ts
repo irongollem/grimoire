@@ -3,10 +3,12 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createApp, defineComponent, h } from "vue";
 import { pendingInventionRow } from "./inventionQueue.fixture";
 
-const rpc = vi.fn();
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 const sendMessage = vi.fn();
-const from = vi.fn();
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a), from: (...a: unknown[]) => from(...a) } }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendMessage }) }));
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
 
@@ -35,36 +37,44 @@ function mountWith<T>(qc: QueryClient, setup: () => T): T {
 
 let qc: QueryClient;
 beforeEach(() => {
-  rpc.mockReset();
+  fake.reset();
   sendMessage.mockReset();
-  from.mockReset();
   qc = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
 });
 
 describe("usePendingInventions", () => {
-  it("reads pending drafts of the campaign, oldest first, with the character's name", async () => {
-    const order = vi.fn().mockResolvedValue({
-      data: [{ ...pendingInventionRow("i1"), party_members: { name: "Nessa" } }],
-      error: null,
-    });
-    const eqStatus = vi.fn(() => ({ order }));
-    const eqCampaign = vi.fn(() => ({ eq: eqStatus }));
-    const select = vi.fn(() => ({ eq: eqCampaign }));
-    from.mockReturnValue({ select });
+  const draft = (id: string, over: Record<string, unknown> = {}) => ({
+    ...pendingInventionRow(id),
+    status: "pending",
+    created_at: `2026-10-0${id.slice(1)}T00:00:00Z`,
+    party_members: { name: `Hero ${id}` },
+    ...over,
+  });
+
+  it("lists this campaign's pending drafts oldest first, each with its character's name, and nothing else", async () => {
+    fake.seed("crafting_inventions", [
+      draft("i3"),
+      draft("i1"),
+      draft("i2", { campaign_id: "other-campaign" }),
+      draft("i4", { status: "approved" }),
+    ]);
     const q = mountWith(qc, () => usePendingInventions(() => "c1"));
-    await vi.waitFor(() => expect(q.data.value).toHaveLength(1));
-    expect(from).toHaveBeenCalledWith("crafting_inventions");
-    expect(select).toHaveBeenCalledWith("*, party_members(name)");
-    expect(eqCampaign).toHaveBeenCalledWith("campaign_id", "c1");
-    expect(eqStatus).toHaveBeenCalledWith("status", "pending");
-    expect(order).toHaveBeenCalledWith("created_at", { ascending: true });
-    expect(q.data.value?.[0]?.characterName).toBe("Nessa");
-    expect(q.data.value?.[0]?.invention.id).toBe("i1");
+    await vi.waitFor(() => expect(q.data.value).toBeDefined());
+    expect((q.data.value ?? []).map((p) => [p.invention.id, p.characterName])).toEqual([
+      ["i1", "Hero i1"],
+      ["i3", "Hero i3"],
+    ]);
+  });
+
+  it("gives a draft whose character is gone a neutral name instead of a blank", async () => {
+    fake.seed("crafting_inventions", [draft("i1", { party_members: null })]);
+    const q = mountWith(qc, () => usePendingInventions(() => "c1"));
+    await vi.waitFor(() => expect(q.data.value).toBeDefined());
+    expect(q.data.value?.[0]?.characterName).toBe("A character at your table");
   });
 
   it("throws the read error instead of reporting an empty queue", async () => {
-    const order = vi.fn().mockResolvedValue({ data: null, error: new Error("boom") });
-    from.mockReturnValue({ select: () => ({ eq: () => ({ eq: () => ({ order }) }) }) });
+    fake.failNext("crafting_inventions", { message: "boom" });
     const q = mountWith(qc, () => usePendingInventions(() => "c1"));
     await vi.waitFor(() => expect(q.isError.value).toBe(true));
   });
@@ -72,20 +82,28 @@ describe("usePendingInventions", () => {
   it("does not read without a campaign", () => {
     const q = mountWith(qc, () => usePendingInventions(() => null));
     expect(q.fetchStatus.value).toBe("idle");
-    expect(from).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
   });
 });
 
 describe("useDecideInvention", () => {
   const invention = parseInvention(pendingInventionRow());
+  let decisions: Record<string, unknown>[] = [];
 
-  it("approve calls the RPC, refreshes recipes and items, then announces it", async () => {
+  beforeEach(() => {
+    decisions = [];
+    fake.onRpc("decide_crafting_invention", (args) => {
+      decisions.push(args);
+      return { status: "approved", recipe_id: "r1" };
+    });
+  });
+
+  it("approve refreshes the queue, recipes and items, then announces it", async () => {
     const invalidate = vi.spyOn(qc, "invalidateQueries");
-    rpc.mockResolvedValue({ data: { status: "approved", recipe_id: "r1" }, error: null });
     sendMessage.mockResolvedValue(undefined);
     const d = mountWith(qc, () => useDecideInvention());
     const res = await d.approve(invention, "Nessa");
-    expect(rpc).toHaveBeenCalledWith("decide_crafting_invention", { p_invention_id: "i1", p_decision: "approve" });
+    expect(decisions).toHaveLength(1);
     for (const key of ["crafting-inventions", "crafting-recipes", "items"]) {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] });
     }
@@ -94,7 +112,6 @@ describe("useDecideInvention", () => {
   });
 
   it("a failed chat post is a notice, not an error", async () => {
-    rpc.mockResolvedValue({ data: { status: "approved", recipe_id: "r1" }, error: null });
     sendMessage.mockRejectedValue(new Error("x"));
     const d = mountWith(qc, () => useDecideInvention());
     const res = await d.approve(invention, "Nessa");
@@ -102,24 +119,34 @@ describe("useDecideInvention", () => {
   });
 
   it("a refused approval throws and posts nothing", async () => {
-    rpc.mockResolvedValue({ data: null, error: { code: "CX003", message: "not pending" } });
+    fake.failNext("decide_crafting_invention", { code: "CX003", message: "not pending" });
     const d = mountWith(qc, () => useDecideInvention());
     await expect(d.approve(invention, "Nessa")).rejects.toMatchObject({ code: "CX003" });
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("returnWithNote sends the trimmed note", async () => {
-    rpc.mockResolvedValue({ data: { status: "draft" }, error: null });
+  it("returnWithNote sends the trimmed note as a return, not an approval", async () => {
     const d = mountWith(qc, () => useDecideInvention());
     await d.returnWithNote(invention, "  Make it cheaper  ");
-    expect(rpc).toHaveBeenCalledWith("decide_crafting_invention", { p_invention_id: "i1", p_decision: "return", p_note: "Make it cheaper" });
+    expect(decisions).toEqual([{ p_invention_id: "i1", p_decision: "return", p_note: "Make it cheaper" }]);
   });
 
-  it("returnWithNote refuses an empty or oversized note before asking the server", async () => {
+  it.each([
+    ["an empty note", "   "],
+    ["a note of 1001 characters", "x".repeat(1001)],
+  ])("returnWithNote refuses %s before asking the server", async (_label, note) => {
     const d = mountWith(qc, () => useDecideInvention());
-    await expect(d.returnWithNote(invention, "   ")).rejects.toThrow();
-    await expect(d.returnWithNote(invention, "x".repeat(1001))).rejects.toThrow();
-    expect(rpc).not.toHaveBeenCalled();
+    await expect(d.returnWithNote(invention, note)).rejects.toThrow();
+    expect(decisions).toEqual([]);
+  });
+
+  it.each([
+    ["one character", "x"],
+    ["exactly 1000 characters", "x".repeat(1000)],
+  ])("returnWithNote accepts %s", async (_label, note) => {
+    const d = mountWith(qc, () => useDecideInvention());
+    await d.returnWithNote(invention, note);
+    expect(decisions).toHaveLength(1);
   });
 
   it("maps the refusals to words", () => {
@@ -130,19 +157,20 @@ describe("useDecideInvention", () => {
 });
 
 describe("useDiscardInvention", () => {
-  it("deletes by id and refreshes the queue", async () => {
+  it("deletes only the draft named and refreshes the queue", async () => {
     const invalidate = vi.spyOn(qc, "invalidateQueries");
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    from.mockReturnValue({ delete: () => ({ eq }) });
+    fake.seed("crafting_inventions", [{ id: "i1" }, { id: "i2" }]);
     const d = mountWith(qc, () => useDiscardInvention());
     await d.mutateAsync("i1");
-    expect(eq).toHaveBeenCalledWith("id", "i1");
+    expect(fake.rows("crafting_inventions")).toEqual([{ id: "i2" }]);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["crafting-inventions"] });
   });
 
-  it("throws the delete error", async () => {
-    from.mockReturnValue({ delete: () => ({ eq: vi.fn().mockResolvedValue({ error: new Error("no") }) }) });
+  it("throws the delete error and keeps the draft", async () => {
+    fake.seed("crafting_inventions", [{ id: "i1" }]);
+    fake.failNext("crafting_inventions", { message: "no" });
     const d = mountWith(qc, () => useDiscardInvention());
-    await expect(d.mutateAsync("i1")).rejects.toThrow("no");
+    await expect(d.mutateAsync("i1")).rejects.toMatchObject({ message: "no" });
+    expect(fake.rows("crafting_inventions")).toEqual([{ id: "i1" }]);
   });
 });

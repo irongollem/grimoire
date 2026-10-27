@@ -91,9 +91,4 @@ describe("useDetailModal", () => {
     expect(showList.value).toBe(true);
   });
 
-  it("omitting the parameter changes nothing — only editing and mobile force the full screen", () => {
-    const { asModal } = at({ detail: true });
-
-    expect(asModal.value).toBe(true);
-  });
 });

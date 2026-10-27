@@ -3,27 +3,12 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, ref } from "vue";
 
-type Result = { data: unknown; error: Error | null };
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
-const db = vi.hoisted(() => ({
-  results: {} as Record<string, Result>,
-  calls: [] as { table: string; op: string; args: unknown[] }[],
-}));
-
-/** A chainable stand-in for a PostgREST builder: a promise resolved per table, with the filter methods on it. */
-function builder(table: string) {
-  const chain: Promise<Result> = Promise.resolve(db.results[table] ?? { data: [], error: null });
-  for (const op of ["select", "eq", "is", "in", "or", "update", "match", "order", "range"]) {
-    Object.defineProperty(chain, op, {
-      value: (...args: unknown[]) => {
-        db.calls.push({ table, op, args });
-        return chain;
-      },
-    });
-  }
-  return chain;
-}
-vi.mock("@/lib/supabase", () => ({ supabase: { from: (table: string) => builder(table) } }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c-1" }) }));
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({
@@ -51,51 +36,70 @@ function mountWith<T>(make: () => T): { client: QueryClient; value: T } {
   return { client, value };
 }
 
-describe("useSessionLearned", () => {
-  beforeEach(() => {
-    db.results = {};
-    db.calls = [];
-  });
+/** A reveal row as the app reads it: the entity's name rides along as an embed. */
+const npcReveal = (npc_id: string, party_member_id: string, over: Record<string, unknown> = {}) => ({
+  campaign_id: "c-1", npc_id, party_member_id, revealed_at: "2026-10-04T19:00:00Z", approximate: false,
+  session_id: "s1", npcs: { name: "Old Marta" }, ...over,
+});
 
-  it("shapes one session's people, creatures and quest steps", async () => {
-    db.results.npc_reveals = {
-      data: [
-        { npc_id: "n1", party_member_id: "m1", revealed_at: "2026-10-04T19:00:00Z", approximate: false, session_id: "s1", npcs: { name: "Old Marta" } },
-        { npc_id: "n1", party_member_id: "m2", revealed_at: "2026-10-04T19:01:00Z", approximate: false, session_id: "s1", npcs: { name: "Old Marta" } },
-      ],
-      error: null,
-    };
-    db.results.discovered_monsters = {
-      data: [{ id: "d1", monster_id: null, library_monster_id: "srd_owlbear", visible_to: null, discovered_at: "2026-10-04T20:00:00Z", session_id: "s1", monsters: null }],
-      error: null,
-    };
-    db.results.library_monsters = { data: [{ id: "srd_owlbear", name: "Owlbear" }], error: null };
-    db.results.quest_beat_transitions = {
-      data: [{ id: "t1", to_quest_id: "q1", to_quest_title: "Into the Mere", to_beat_title: "The Gate", transition_kind: "enter", created_at: "2026-10-04T19:30:00Z", seq: 1, session_id: "s1" }],
-      error: null,
-    };
+describe("useSessionLearned", () => {
+  beforeEach(() => fake.reset());
+
+  it("shapes one session's people, creatures and quest steps, and only that session's, in this campaign", async () => {
+    fake.seed("npc_reveals", [
+      npcReveal("n1", "m1"),
+      npcReveal("n1", "m2", { revealed_at: "2026-10-04T19:01:00Z" }),
+      npcReveal("n-other-session", "m1", { session_id: "s2", npcs: { name: "Elsewhen" } }),
+      npcReveal("n-unsorted", "m1", { session_id: null, npcs: { name: "Unsorted" } }),
+      npcReveal("n-other-campaign", "m1", { campaign_id: "c-2", npcs: { name: "Elsewhere" } }),
+    ]);
+    fake.seed("discovered_monsters", [
+      { id: "d1", campaign_id: "c-1", monster_id: null, library_monster_id: "srd_owlbear", visible_to: null, discovered_at: "2026-10-04T20:00:00Z", session_id: "s1", monsters: null },
+      { id: "d3", campaign_id: "c-2", monster_id: null, library_monster_id: "srd_ogre", visible_to: null, discovered_at: "2026-10-04T20:00:00Z", session_id: "s1", monsters: null },
+      { id: "d2", campaign_id: "c-1", monster_id: null, library_monster_id: "srd_ogre", visible_to: null, discovered_at: "2026-10-04T20:00:00Z", session_id: "s2", monsters: null },
+    ]);
+    fake.seed("library_monsters", [{ id: "srd_owlbear", name: "Owlbear" }, { id: "srd_ogre", name: "Ogre" }]);
+    fake.seed("quest_beat_transitions", [
+      { id: "t1", campaign_id: "c-1", to_quest_id: "q1", to_quest_title: "Into the Mere", to_beat_title: "The Gate", transition_kind: "enter", created_at: "2026-10-04T19:30:00Z", seq: 1, session_id: "s1" },
+      { id: "t2", campaign_id: "c-2", to_quest_id: "q9", to_quest_title: "Not Ours", to_beat_title: null, transition_kind: "enter", created_at: "2026-10-04T19:30:00Z", seq: 1, session_id: "s1" },
+    ]);
+    fake.seed("encounter_state", [
+      { id: "e1", campaign_id: "c-1", encounter_id: "enc1", started_at: "2026-10-04T21:00:00Z", updated_at: "2026-10-04T21:30:00Z", session_id: "s1", encounters: { name: "Mere Ambush" } },
+      { id: "e2", campaign_id: "c-1", encounter_id: "enc2", started_at: null, updated_at: "2026-10-05T21:30:00Z", session_id: "s2", encounters: { name: "Next Week" } },
+    ]);
     const { value } = mountWith(() => useSessionLearned("s1"));
     await flushPromises();
 
+    // Newest first: the fight at 21:00, the owlbear at 20:00, the quest at 19:30, the people at 19:00.
     expect(value.entries.value.map((e) => [e.kind, e.name, e.detail])).toEqual([
+      ["combat", "Mere Ambush", ""],
       ["creature", "Owlbear", "The whole party"],
       ["quest", "Into the Mere", "Began · The Gate"],
       ["person", "Old Marta", "The whole party"],
     ]);
-    expect(db.calls).toContainEqual({ table: "npc_reveals", op: "eq", args: ["session_id", "s1"] });
-    expect(db.calls).toContainEqual({ table: "encounter_state", op: "eq", args: ["session_id", "s1"] });
   });
 
-  it("reads the unsorted list as session_id is null, without combat", async () => {
-    const { client } = mountWith(() => useUnsortedLearned());
+  it("reads the unsorted list as the rows filed under no session, without combat", async () => {
+    fake.seed("npc_reveals", [npcReveal("n-unsorted", "m1", { session_id: null, npcs: { name: "Unsorted" } }), npcReveal("n1", "m1")]);
+    const { value, client } = mountWith(() => useUnsortedLearned());
     await flushPromises();
-    expect(db.calls).toContainEqual({ table: "location_reveals", op: "is", args: ["session_id", null] });
-    expect(db.calls.some((c) => c.table === "encounter_state")).toBe(false);
+    expect(value.entries.value.map((e) => e.name)).toEqual(["Unsorted"]);
+    expect(fake.calls.some((c) => c.target === "encounter_state")).toBe(false);
     expect(client.getQueryCache().find({ queryKey: ["session-learned", "c-1", "unsorted"] })).toBeDefined();
   });
 
+  it("reports a failed creature-name lookup instead of naming them all 'A creature'", async () => {
+    fake.seed("discovered_monsters", [
+      { id: "d1", campaign_id: "c-1", monster_id: null, library_monster_id: "srd_owlbear", visible_to: null, discovered_at: "2026-10-04T20:00:00Z", session_id: "s1", monsters: null },
+    ]);
+    fake.failNext("library_monsters", { message: "denied" });
+    const { value } = mountWith(() => useSessionLearned("s1"));
+    await flushPromises();
+    expect(value.error.value?.message).toBe("denied");
+  });
+
   it("reports a failed read instead of an empty list", async () => {
-    db.results.npc_reveals = { data: null, error: new Error("denied") };
+    fake.failNext("npc_reveals", { message: "denied" });
     const { value } = mountWith(() => useSessionLearned("s1"));
     await flushPromises();
     expect(value.error.value?.message).toBe("denied");
@@ -103,10 +107,7 @@ describe("useSessionLearned", () => {
 });
 
 describe("useMoveLearned", () => {
-  beforeEach(() => {
-    db.results = {};
-    db.calls = [];
-  });
+  beforeEach(() => fake.reset());
 
   const entry = {
     kind: "person" as const,
@@ -122,41 +123,50 @@ describe("useMoveLearned", () => {
       { table: "npc_reveals" as const, match: { npc_id: "n1", party_member_id: "m2" } },
     ],
   };
+  const sessionOf = () => fake.rows("npc_reveals").map((r) => [r.party_member_id, r.session_id]);
 
-  it("sets session_id on every underlying row and refreshes the lists", async () => {
+  beforeEach(() => {
+    fake.seed("npc_reveals", [
+      npcReveal("n1", "m1", { session_id: null }),
+      npcReveal("n1", "m2", { session_id: null }),
+      npcReveal("n1", "m3", { session_id: null }),
+      npcReveal("n2", "m1", { session_id: null }),
+    ]);
+  });
+
+  it("sets session_id on the rows behind the entries and no others, and refreshes the lists", async () => {
     const { client, value } = mountWith(() => useMoveLearned());
     const spy = vi.spyOn(client, "invalidateQueries");
     await value.mutateAsync({ entries: [entry], sessionId: "s2" });
-    const updates = db.calls.filter((c) => c.op === "update");
-    expect(updates).toHaveLength(2);
-    expect(updates[0]?.args).toEqual([{ session_id: "s2" }]);
-    expect(db.calls.filter((c) => c.op === "match").map((c) => c.args[0])).toEqual([
-      { npc_id: "n1", party_member_id: "m1" },
-      { npc_id: "n1", party_member_id: "m2" },
-    ]);
+    expect(sessionOf()).toEqual([["m1", "s2"], ["m2", "s2"], ["m3", null], ["m1", null]]);
     expect(spy).toHaveBeenCalledWith({ queryKey: ["session-learned"] });
   });
 
   it("files under no session with null", async () => {
+    fake.reset();
+    fake.seed("npc_reveals", [npcReveal("n1", "m1", { session_id: "s1" }), npcReveal("n1", "m2", { session_id: "s1" })]);
     const { value } = mountWith(() => useMoveLearned());
     await value.mutateAsync({ entries: [entry], sessionId: null });
-    expect(db.calls.find((c) => c.op === "update")?.args).toEqual([{ session_id: null }]);
+    expect(sessionOf()).toEqual([["m1", null], ["m2", null]]);
   });
 
   it("throws a refused update", async () => {
-    db.results.npc_reveals = { data: null, error: new Error("refused") };
+    fake.failNext("npc_reveals", { message: "refused" });
     const { value } = mountWith(() => useMoveLearned());
-    await expect(value.mutateAsync({ entries: [entry], sessionId: "s2" })).rejects.toThrow("refused");
+    await expect(value.mutateAsync({ entries: [entry], sessionId: "s2" })).rejects.toMatchObject({ message: "refused" });
   });
 });
 
 describe("useFileShared", () => {
-  beforeEach(() => {
-    db.results = {};
-    db.calls = [];
-  });
+  beforeEach(() => fake.reset());
 
-  it("files only the chosen members' reveals that are not already in the session", async () => {
+  it("files only the chosen members' reveals of that place", async () => {
+    fake.seed("location_reveals", [
+      { campaign_id: "c-1", location_id: "l1", party_member_id: "m1", session_id: null },
+      { campaign_id: "c-1", location_id: "l1", party_member_id: "m2", session_id: null },
+      { campaign_id: "c-1", location_id: "l1", party_member_id: "m3", session_id: null },
+      { campaign_id: "c-1", location_id: "l2", party_member_id: "m1", session_id: null },
+    ]);
     const { value } = mountWith(() => useFileShared());
     await value.mutateAsync({
       table: "location_reveals",
@@ -165,25 +175,23 @@ describe("useFileShared", () => {
       memberIds: ["m1", "m2"],
       sessionId: "s2",
     });
-    expect(db.calls.map((c) => [c.table, c.op, c.args])).toEqual([
-      ["location_reveals", "update", [{ session_id: "s2" }]],
-      ["location_reveals", "eq", ["location_id", "l1"]],
-      ["location_reveals", "in", ["party_member_id", ["m1", "m2"]]],
-      ["location_reveals", "or", ["session_id.is.null,session_id.neq.s2"]],
+    expect(fake.rows("location_reveals").map((r) => [r.location_id, r.party_member_id, r.session_id])).toEqual([
+      ["l1", "m1", "s2"], ["l1", "m2", "s2"], ["l1", "m3", null], ["l2", "m1", null],
     ]);
   });
 
   it("files a creature by its discovery row", async () => {
+    fake.seed("discovered_monsters", [{ id: "d1", session_id: null }, { id: "d2", session_id: null }]);
     const { value } = mountWith(() => useFileShared());
     await value.mutateAsync({ table: "discovered_monsters", id: "d1", sessionId: "s2" });
-    expect(db.calls.find((c) => c.op === "eq")?.args).toEqual(["id", "d1"]);
+    expect(fake.rows("discovered_monsters")).toEqual([{ id: "d1", session_id: "s2" }, { id: "d2", session_id: null }]);
   });
 
   it("throws a refused update", async () => {
-    db.results.handout_reveals = { data: null, error: new Error("refused") };
+    fake.failNext("handout_reveals", { message: "refused" });
     const { value } = mountWith(() => useFileShared());
     await expect(
       value.mutateAsync({ table: "handout_reveals", entityColumn: "document_id", entityId: "h1", memberIds: ["m1"], sessionId: "s2" }),
-    ).rejects.toThrow("refused");
+    ).rejects.toMatchObject({ message: "refused" });
   });
 });

@@ -1,15 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// useWorldBundle.ts imports @/lib/supabase, which throws at module load when
-// env vars are absent (CI, plain test runs). The functions under test here are
-// pure row transforms — stub the supabase module so the import resolves.
+// The row transforms below are pure; buildBundle reads through the fake, which
+// holds rows and honours the filters.
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 vi.mock("@/lib/supabase", () => ({
-  supabase: {},
+  supabase: fake.client,
   getCurrentUser: () => null,
 }));
 
 import {
   assertBundleCarriesCharacterEditions,
+  buildBundle,
   BUNDLE_FORMAT_VERSION,
   buildIdMap,
   bundleLinkRows,
@@ -500,5 +504,73 @@ describe("world links in a bundle (#1084)", () => {
     });
     const rows = bundleLinkRows(bundle, buildIdMap(bundle), new Set(["npc"]), "camp", "me");
     expect(rows).toEqual([]);
+  });
+});
+
+describe("buildBundle", () => {
+  beforeEach(() => {
+    fake.reset();
+    fake.seed("campaigns", [{ id: "c1", ruleset: "2024", allows_mixed_rulesets: true }]);
+  });
+
+  const owned = (id: string, over: Record<string, unknown> = {}) => ({
+    id, user_id: "exporter", campaign_id: "c1", created_at: "x", updated_at: "y", name: id, ...over,
+  });
+
+  it("carries only the selected rows, stripped of owner, campaign and timestamps, with the campaign's edition", async () => {
+    fake.seed("npcs", [owned("n1"), owned("n2"), owned("n3")]);
+    const bundle = await buildBundle({
+      campaignId: "c1",
+      name: "Mere",
+      description: "",
+      selection: new Map([["npcs", ["n1", "n2"]]]),
+    });
+    expect(bundle.npcs).toEqual([{ id: "n1", name: "n1" }, { id: "n2", name: "n2" }]);
+    expect(bundle.ruleset).toBe("2024");
+    expect(bundle.allows_mixed_rulesets).toBe(true);
+    expect(bundle._meta.entity_counts).toEqual({ npcs: 2 });
+    expect(bundle).not.toHaveProperty("author");
+    expect(bundle).not.toHaveProperty("factions");
+  });
+
+  it("keeps a family link only when both its people travel", async () => {
+    fake.seed("npcs", [owned("n1"), owned("n2"), owned("n3")]);
+    fake.seed("kin_links", [
+      owned("both", { from_npc_id: "n1", to_npc_id: "n2" }),
+      owned("one-end-out", { from_npc_id: "n1", to_npc_id: "n3" }),
+      owned("into-selection", { from_npc_id: "n3", to_npc_id: "n2" }),
+    ]);
+    const bundle = await buildBundle({ campaignId: "c1", name: "Mere", description: "", selection: new Map([["npcs", ["n1", "n2"]]]) });
+    expect(bundle.kin_links?.map((l) => l.id)).toEqual(["both"]);
+  });
+
+  it("never ships the source owner of a character, so the file does not leak who played whom", async () => {
+    fake.seed("party_members", [owned("pm1", { owner_user_id: "a-player" })]);
+    const bundle = await buildBundle({ campaignId: "c1", name: "Mere", description: "", selection: new Map([["party_members", ["pm1"]]]) });
+    expect(bundle.party_members).toEqual([{ id: "pm1", name: "pm1" }]);
+  });
+
+  it("travels a faction with its member NPC rows and a location with its store, for the chosen ones only", async () => {
+    fake.seed("factions", [owned("f1"), owned("f2")]);
+    fake.seed("faction_npcs", [{ id: "fn1", faction_id: "f1", npc_id: "n1" }, { id: "fn2", faction_id: "f2", npc_id: "n1" }]);
+    fake.seed("locations", [owned("l1"), owned("l2")]);
+    fake.seed("store_items", [{ id: "s1", location_id: "l1" }, { id: "s2", location_id: "l2" }]);
+    const bundle = await buildBundle({
+      campaignId: "c1",
+      name: "Mere",
+      description: "",
+      author: "Jeffrey",
+      selection: new Map([["factions", ["f1"]], ["locations", ["l1"]]]),
+    });
+    expect(bundle.faction_npcs?.map((r) => r.id)).toEqual(["fn1"]);
+    expect(bundle.store_items?.map((r) => r.id)).toEqual(["s1"]);
+    expect(bundle.author).toBe("Jeffrey");
+  });
+
+  it("refuses when the source campaign cannot be read, rather than writing a bundle with no edition", async () => {
+    fake.reset();
+    await expect(
+      buildBundle({ campaignId: "c1", name: "Mere", description: "", selection: new Map() }),
+    ).rejects.toThrow("Failed to read source campaign");
   });
 });

@@ -3,12 +3,15 @@ import { createApp, defineComponent, h, nextTick, ref, type App } from "vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import type { Connection } from "@/types/connections.types";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc } }));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 
 import { peopleOf } from "@/lib/worldLinks/connections";
-import { personMatches, useConnectionDrillIn } from "./useConnectionDrillIn";
+import { isDrillInKind, personMatches, useConnectionDrillIn } from "./useConnectionDrillIn";
 
 const row = (over: Partial<Connection>): Connection => ({
   source: "npc_home", row_id: "r", type: "lives_in", outward: false, other_kind: "npc", other_id: "n1", other_name: "Harl",
@@ -37,11 +40,24 @@ describe("personMatches", () => {
   });
 });
 
+describe("isDrillInKind", () => {
+  it("opens places and factions in place, and nothing else in search", () => {
+    expect(isDrillInKind("location")).toBe(true);
+    expect(isDrillInKind("faction")).toBe(true);
+    expect(isDrillInKind("npc")).toBe(false);
+  });
+});
+
 describe("useConnectionDrillIn", () => {
   let apps: App[] = [];
   beforeEach(() => {
-    mocks.rpc.mockReset();
-    mocks.rpc.mockResolvedValue({ data: [row({ other_id: "a", other_name: "Harl" }), row({ other_id: "b", other_name: "Brenna" })], error: null });
+    fake.reset();
+    // Residents of l1 only: the same read for another place answers with other people.
+    fake.onRpc("get_connections", (args) =>
+      args.p_id === "l1" && args.p_campaign_id === "c1"
+        ? [row({ other_id: "a", other_name: "Harl" }), row({ other_id: "b", other_name: "Brenna" })]
+        : [row({ other_id: "z", other_name: "Elsewhere" })],
+    );
     apps.forEach((a) => a.unmount());
     apps = [];
   });
@@ -60,12 +76,12 @@ describe("useConnectionDrillIn", () => {
     const filter = ref("");
     const drill = mount(() => useConnectionDrillIn({ kind: "location", id: "l1" }, open, filter));
     await nextTick();
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(fake.calls).toHaveLength(0);
     expect(drill.count.value).toBeNull();
 
     open.value = true;
     await vi.waitFor(() => expect(drill.count.value).toBe(2));
-    expect(mocks.rpc).toHaveBeenCalledWith("get_connections", { p_kind: "location", p_id: "l1", p_campaign_id: "c1" });
+    expect(drill.people.value?.map((p) => p.other_name)).toEqual(["Harl", "Brenna"]);
 
     filter.value = "bren";
     await nextTick();

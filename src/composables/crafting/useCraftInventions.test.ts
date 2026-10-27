@@ -2,21 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createApp, defineComponent, h } from "vue";
 
-const rpc = vi.fn();
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 const invoke = vi.fn();
-const eq = vi.fn();
-const deleteEq = vi.fn();
 vi.mock("@/lib/supabase", () => ({
   supabase: {
-    rpc: (...a: unknown[]) => rpc(...a),
+    rpc: fake.client.rpc,
+    from: fake.client.from,
     functions: { invoke: (...a: unknown[]) => invoke(...a) },
-    from: () => ({
-      select: () => {
-        const chain = { eq: (...a: unknown[]) => { eq(...a); return chain; }, order: () => Promise.resolve({ data: [], error: null }) };
-        return chain;
-      },
-      delete: () => ({ eq: (...a: unknown[]) => deleteEq(...a) }),
-    }),
   },
 }));
 vi.mock("@edge-shared/edgeError.ts", () => ({ edgeErrorMessage: async () => "edge said no" }));
@@ -45,7 +40,8 @@ function mountWith<T>(qc: QueryClient, setup: () => T): T {
 
 let qc: QueryClient;
 beforeEach(() => {
-  for (const f of [rpc, invoke, eq, deleteEq]) f.mockReset();
+  fake.reset();
+  invoke.mockReset();
   qc = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
 });
 
@@ -58,12 +54,45 @@ describe("inventionErrorMessage", () => {
 });
 
 describe("useMyInventions", () => {
-  it("scopes the read to the caller, the character and the craft", async () => {
+  const row = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    user_id: "u1",
+    party_member_id: "m1",
+    discipline: "smithing",
+    updated_at: `2026-10-0${id.slice(1)}T00:00:00Z`,
+    ...over,
+  });
+
+  it("returns only the caller's drafts for this character and craft, newest change first", async () => {
+    fake.seed("crafting_inventions", [
+      row("i1"),
+      row("i2"),
+      row("i3", { user_id: "someone-else" }),
+      row("i4", { party_member_id: "m2" }),
+      row("i5", { discipline: "alchemy" }),
+    ]);
     const q = mountWith(qc, () => useMyInventions(() => "m1", () => "smithing"));
     await vi.waitFor(() => expect(q.isSuccess.value).toBe(true));
-    expect(eq).toHaveBeenCalledWith("user_id", "u1");
-    expect(eq).toHaveBeenCalledWith("party_member_id", "m1");
-    expect(eq).toHaveBeenCalledWith("discipline", "smithing");
+    expect((q.data.value ?? []).map((i) => (i as { id: string }).id)).toEqual(["i2", "i1"]);
+  });
+
+  it("spans every craft when none is chosen, but still only this character's and the caller's", async () => {
+    fake.seed("crafting_inventions", [row("i1"), row("i5", { discipline: "alchemy" }), row("i3", { user_id: "someone-else" })]);
+    const q = mountWith(qc, () => useMyInventions(() => "m1", () => null));
+    await vi.waitFor(() => expect(q.isSuccess.value).toBe(true));
+    expect((q.data.value ?? []).map((i) => (i as { id: string }).id).sort()).toEqual(["i1", "i5"]);
+  });
+
+  it("reads nothing without a character, and reports a failed read as an error", async () => {
+    fake.seed("crafting_inventions", [row("i1")]);
+    const idle = mountWith(qc, () => useMyInventions(() => null, () => null));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(idle.data.value).toBeUndefined();
+    expect(fake.calls).toEqual([]);
+
+    fake.failNext("crafting_inventions", { message: "boom" });
+    const failing = mountWith(qc, () => useMyInventions(() => "m1", () => "smithing"));
+    await vi.waitFor(() => expect(failing.isError.value).toBe(true));
   });
 });
 
@@ -104,18 +133,26 @@ describe("useCraftInventions", () => {
     await first;
   });
 
-  it("submits through the rpc and words its refusals", async () => {
-    rpc.mockResolvedValue({ error: { code: "CX003" } });
+  it("words a refusal of the submit", async () => {
+    fake.failNext("submit_crafting_invention", { code: "CX003", message: "already sent" });
     const inv = mountWith(qc, useCraftInventions);
     await inv.submit("i1");
-    expect(rpc).toHaveBeenCalledWith("submit_crafting_invention", { p_invention_id: "i1" });
     await vi.waitFor(() => expect(inv.submitError.value).toBe("This draft has already been sent."));
   });
 
-  it("discards by id and takes the error", async () => {
-    deleteEq.mockResolvedValue({ error: null });
+  it("discards the one draft named and leaves the others", async () => {
+    fake.seed("crafting_inventions", [{ id: "i1" }, { id: "i2" }]);
     const inv = mountWith(qc, useCraftInventions);
     await inv.discard("i1");
-    expect(deleteEq).toHaveBeenCalledWith("id", "i1");
+    expect(fake.rows("crafting_inventions")).toEqual([{ id: "i2" }]);
+  });
+
+  it("keeps a failed discard as state and the draft in place", async () => {
+    fake.seed("crafting_inventions", [{ id: "i1" }]);
+    fake.failNext("crafting_inventions", { message: "not yours" });
+    const inv = mountWith(qc, useCraftInventions);
+    expect(await inv.discard("i1")).toBeNull();
+    await vi.waitFor(() => expect(inv.discardError.value).not.toBeNull());
+    expect(fake.rows("crafting_inventions")).toEqual([{ id: "i1" }]);
   });
 });

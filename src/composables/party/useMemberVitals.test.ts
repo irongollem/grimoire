@@ -71,4 +71,24 @@ describe("useMemberVitals", () => {
     );
     expect(v.hp.value).toMatchObject({ current: 20, max: 40 });
   });
+
+  describe("the hit point bar", () => {
+    it.each([
+      ["below zero reads as an empty bar", { current_hp: -3, max_hp: 40, temp_hp: 0 }, 0],
+      ["above the maximum reads as a full bar", { current_hp: 55, max_hp: 40, temp_hp: 0 }, 100],
+      ["a character with no maximum reads as an empty bar", { current_hp: 0, max_hp: 0, temp_hp: 5 }, 0],
+    ])("%s", (_label, hp, pct) => {
+      beast.value = null;
+      expect(vitals(character(hp)).hp.value.pct).toBe(pct);
+    });
+
+    it("draws temporary hit points after the real ones, and only in the room that is left", () => {
+      beast.value = null;
+      // 30 of 40 is 75%; 20 temporary would be 50% of the bar, but only 25% remains.
+      expect(vitals(character({ current_hp: 30, max_hp: 40, temp_hp: 20 })).hp.value.tempPct).toBe(25);
+      // With room to spare it is simply its share of the maximum: 4 of 40.
+      expect(vitals(character({ current_hp: 20, max_hp: 40, temp_hp: 4 })).hp.value.tempPct).toBe(10);
+      expect(vitals(character({ current_hp: 0, max_hp: 0, temp_hp: 5 })).hp.value.tempPct).toBe(0);
+    });
+  });
 });

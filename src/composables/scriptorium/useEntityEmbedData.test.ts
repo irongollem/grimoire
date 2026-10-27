@@ -209,7 +209,7 @@ describe("useEntityEmbedData", () => {
     };
     mocks.tables.spells["spell-1"] = {
       id: "spell-1",
-      name: "Magic Missile",
+      name: "Force Dart",
       level: 1,
       school: "evocation",
       classes: [],
@@ -217,7 +217,7 @@ describe("useEntityEmbedData", () => {
     };
     const { api } = open([{ type: "item", id: "item-1" }]);
     await flushPromises();
-    expect(api().lookup.value["item:item-1"]).toContain("Magic Missile");
+    expect(api().lookup.value["item:item-1"]).toContain("Force Dart");
   });
 
   it("resolves a quest's objectives, giver name and location name", async () => {

@@ -25,7 +25,7 @@ vi.mock("./useOpenBookReleases", () => ({
   useSetReleasePdf: () => ({ mutateAsync: mocks.setPdf }),
 }));
 
-import { PDF_PHASE_LABEL, useOpenBookPdf } from "./useOpenBookPdf";
+import { useOpenBookPdf } from "./useOpenBookPdf";
 
 const snapshot = { book: { title: "The Saltreach" } } as OpenBookSnapshot;
 const release = { id: "r-1", number: 2, created_at: "2026-10-23T10:00:00Z", note: null, pdf_url: "https://cdn/old.pdf" } as OpenBookRelease;
@@ -94,7 +94,6 @@ describe("useOpenBookPdf", () => {
     });
     await pdf.exportRelease({ slug: "s" }, release);
     expect(seen).toEqual(["layout", "print", "upload"]);
-    expect(Object.keys(PDF_PHASE_LABEL)).toEqual(["layout", "print", "upload"]);
   });
 
   it("shows the renderer's refusal and stores nothing", async () => {

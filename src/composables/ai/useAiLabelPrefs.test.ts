@@ -12,14 +12,27 @@ describe("useAiLabelPrefs", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
 
-  it("is on by default and shares one ref between callers", async () => {
+  it("is on by default", async () => {
     const { showAiLabels } = await load();
     expect(showAiLabels.value).toBe(true);
+  });
+
+  it("shares one switch between callers", async () => {
+    const { setShowAiLabels } = await load();
+    const { useAiLabelPrefs } = await import("./useAiLabelPrefs");
+    setShowAiLabels(false);
+    expect(useAiLabelPrefs().showAiLabels.value).toBe(false);
   });
 
   it("reads a saved 'false' in the existing format", async () => {
     localStorage.setItem(KEY, "false");
     expect((await load()).showAiLabels.value).toBe(false);
+  });
+
+  // The labels are on unless the viewer turned them off; a value the app never wrote is not "off".
+  it("reads a stored value it does not recognise as on", async () => {
+    localStorage.setItem(KEY, "garbage");
+    expect((await load()).showAiLabels.value).toBe(true);
   });
 
   it("persists the choice as a bare 'false' / 'true' string", async () => {

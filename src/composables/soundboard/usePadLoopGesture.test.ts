@@ -58,6 +58,56 @@ describe("double-tap", () => {
   });
 });
 
+describe("defaults", () => {
+  it.each([
+    [300, 1],
+    [301, 0],
+  ])("a second click %ims after the first toggles %i time(s) by default", (gap, toggles) => {
+    const onToggleLoop = vi.fn();
+    const gesture = usePadLoopGesture({ onToggleLoop });
+    gesture.onClick();
+    vi.advanceTimersByTime(gap);
+    gesture.onClick();
+    expect(onToggleLoop).toHaveBeenCalledTimes(toggles);
+  });
+
+  it.each([
+    [499, 0],
+    [500, 1],
+  ])("a hold of %ims toggles %i time(s) by default", (hold, toggles) => {
+    const onToggleLoop = vi.fn();
+    const gesture = usePadLoopGesture({ onToggleLoop });
+    gesture.onPointerdown(pointerEvent());
+    vi.advanceTimersByTime(hold);
+    expect(onToggleLoop).toHaveBeenCalledTimes(toggles);
+  });
+
+  it.each([
+    ["10px of wobble is still a hold", { clientX: 10, clientY: 0 }, 1],
+    ["11px is a scroll", { clientX: 11, clientY: 0 }, 0],
+    ["8px across and 8px down (about 11px) is a scroll", { clientX: 8, clientY: 8 }, 0],
+  ])("%s", (_label, to, toggles) => {
+    const onToggleLoop = vi.fn();
+    const gesture = usePadLoopGesture({ onToggleLoop });
+    gesture.onPointerdown(pointerEvent());
+    gesture.onPointermove(pointerEvent(to));
+    vi.advanceTimersByTime(500);
+    expect(onToggleLoop).toHaveBeenCalledTimes(toggles);
+  });
+
+  it("a long-press whose release sent no click does not swallow the next tap", () => {
+    const onToggleLoop = vi.fn();
+    const gesture = usePadLoopGesture({ onToggleLoop });
+    gesture.onPointerdown(pointerEvent());
+    vi.advanceTimersByTime(500); // toggled; the finger slid off the pad, so no click follows
+    gesture.onPointerup();
+
+    gesture.onPointerdown(pointerEvent());
+    gesture.onPointerup();
+    expect(gesture.onClick()).toBe(true);
+  });
+});
+
 describe("long-press", () => {
   it("toggles loop once the hold outlasts the threshold, without waiting for release", () => {
     const onToggleLoop = vi.fn();

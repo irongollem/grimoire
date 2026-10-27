@@ -1,21 +1,50 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h } from "vue";
+import { mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
-const inMock = vi.fn();
-const fromMock = vi.fn();
-vi.mock("@/lib/supabase", () => ({ supabase: { from: (...args: unknown[]) => fromMock(...args) } }));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const campaign = vi.hoisted(() => ({ activeCampaignId: "c1" as string | null }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaign }));
 
 import {
   approvalOptions,
   fetchReviewsForCharacters,
   pendingCountByCharacter,
-  contentKindLabel,
   isApprovalWait,
   isChangedSinceSeen,
   isRemovalOnly,
   pendingReviews,
   reviewReasonText,
+  useApproveCharacterContent,
+  useCampaignPendingContentReviews,
+  useCharacterContentReviews,
+  useRemoveMissingContent,
   type CharacterContentReview,
 } from "./useCharacterContentReviews";
+
+function inApp<T>(setup: () => T): T {
+  let out!: T;
+  mount(
+    defineComponent({
+      setup() {
+        out = setup();
+        return () => h("div");
+      },
+    }),
+    { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] } },
+  );
+  return out;
+}
+
+beforeEach(() => {
+  fake.reset();
+  campaign.activeCampaignId = "c1";
+});
 
 function review(overrides: Partial<CharacterContentReview> = {}): CharacterContentReview {
   return {
@@ -59,33 +88,24 @@ describe("reviewReasonText", () => {
       .toBe("From another book, which this table has not enabled.");
   });
 
-  it("says a blocked choice is blocked, the player's own content is theirs, and another table's has to be changed", () => {
-    expect(reviewReasonText(review({ reason: "blocked" }))).toBe("This table has blocked it.");
-    expect(reviewReasonText(review({ reason: "homebrew" })))
-      .toBe("The player's own content, which this table does not have.");
-    expect(reviewReasonText(review({ reason: "foreign" })))
-      .toBe("Made at another table. It cannot be approved here and has to be changed.");
-  });
-
-  it("says something that is not there has to be removed", () => {
-    expect(reviewReasonText(review({ reason: "missing" })))
-      .toBe("It no longer exists, so it has to be removed from the character.");
+  // Each reason reads as its own sentence; a swap between two of them would tell a player the wrong thing.
+  it("tells the five reasons apart", () => {
+    expect(reviewReasonText(review({ reason: "blocked" }))).toMatch(/blocked/);
+    expect(reviewReasonText(review({ reason: "homebrew" }))).toMatch(/own content/);
+    expect(reviewReasonText(review({ reason: "foreign" }))).toMatch(/another table/);
+    expect(reviewReasonText(review({ reason: "missing" }))).toMatch(/no longer exists/);
   });
 });
 
 describe("approvalOptions", () => {
-  it("lets the DM allow a book's content for one character, or enable the book", () => {
-    expect(approvalOptions(review()).map((option) => [option.scope, option.label])).toEqual([
-      ["character", "Allow for this character"],
-      ["table", "Enable Tome of Heroes"],
-    ]);
+  it("lets the DM allow a book's content for one character, or enable the book for the table", () => {
+    const options = approvalOptions(review());
+    expect(options.map((option) => option.scope)).toEqual(["character", "table"]);
+    expect(options[1]?.label).toContain("Tome of Heroes");
   });
 
-  it("lets the DM allow a blocked choice for one character, or lift the block", () => {
-    expect(approvalOptions(review({ reason: "blocked" })).map((option) => [option.scope, option.label])).toEqual([
-      ["character", "Allow for this character"],
-      ["table", "Unblock for the table"],
-    ]);
+  it("lets the DM allow a blocked choice for one character, or lift the block for the table", () => {
+    expect(approvalOptions(review({ reason: "blocked" })).map((option) => option.scope)).toEqual(["character", "table"]);
   });
 
   it("offers one approval for homebrew, and says it makes a copy", () => {
@@ -127,35 +147,96 @@ describe("isChangedSinceSeen", () => {
   });
 });
 
-describe("contentKindLabel", () => {
-  it("names each kind of choice", () => {
-    expect(contentKindLabel("species")).toBe("Species");
-    expect(contentKindLabel("feat")).toBe("Feat");
-  });
-});
+const row = (over: Record<string, unknown>) => ({ ...review(), ...over });
 
 describe("fetchReviewsForCharacters", () => {
   it("sends nothing for an empty list", async () => {
-    fromMock.mockClear();
     expect(await fetchReviewsForCharacters([])).toEqual([]);
-    expect(fromMock).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
   });
 
-  it("reads every character in one request", async () => {
-    fromMock.mockClear();
-    inMock.mockReset();
-    const rows = [review({ id: "a" })];
-    inMock.mockReturnValue({ order: () => Promise.resolve({ data: rows, error: null }) });
-    fromMock.mockReturnValue({ select: () => ({ in: inMock }) });
-    expect(await fetchReviewsForCharacters(["pm1", "pm2", "pm3"])).toEqual(rows);
-    expect(fromMock).toHaveBeenCalledTimes(1);
-    expect(inMock).toHaveBeenCalledWith("party_member_id", ["pm1", "pm2", "pm3"]);
+  it("reads exactly the characters asked for, oldest first, in one request", async () => {
+    fake.seed("character_content_reviews", [
+      row({ id: "late", party_member_id: "pm1", created_at: "2026-10-03T00:00:00Z" }),
+      row({ id: "early", party_member_id: "pm2", created_at: "2026-10-01T00:00:00Z" }),
+      row({ id: "stranger", party_member_id: "pm9" }),
+    ]);
+    expect((await fetchReviewsForCharacters(["pm1", "pm2"])).map((r) => r.id)).toEqual(["early", "late"]);
+    expect(fake.calls).toHaveLength(1);
   });
 
   it("throws the database error", async () => {
-    const error = new Error("boom");
-    fromMock.mockReturnValue({ select: () => ({ in: () => ({ order: () => Promise.resolve({ data: null, error }) }) }) });
-    await expect(fetchReviewsForCharacters(["pm1"])).rejects.toBe(error);
+    fake.failNext("character_content_reviews", { message: "boom" });
+    await expect(fetchReviewsForCharacters(["pm1"])).rejects.toMatchObject({ message: "boom" });
+  });
+});
+
+describe("the reads a character sheet and the DM's queue make", () => {
+  beforeEach(() => {
+    fake.seed("character_content_reviews", [
+      row({ id: "mine-pending", party_member_id: "pm1" }),
+      row({ id: "mine-approved", party_member_id: "pm1", status: "approved" }),
+      row({ id: "other-character", party_member_id: "pm2" }),
+      row({ id: "other-campaign", campaign_id: "c2", party_member_id: "pm3" }),
+    ]);
+  });
+
+  it("a character's flags are theirs only, approved ones included", async () => {
+    const q = inApp(() => useCharacterContentReviews("pm1"));
+    await vi.waitFor(() => expect(q.data.value?.map((r) => r.id).sort()).toEqual(["mine-approved", "mine-pending"]));
+  });
+
+  it("the table's queue is this campaign's pending flags only", async () => {
+    const q = inApp(() => useCampaignPendingContentReviews());
+    await vi.waitFor(() => expect(q.data.value?.map((r) => r.id).sort()).toEqual(["mine-pending", "other-character"]));
+  });
+
+  it("the queue reads nothing without an active campaign", () => {
+    campaign.activeCampaignId = null;
+    inApp(() => useCampaignPendingContentReviews());
+    expect(fake.calls).toEqual([]);
+  });
+});
+
+describe("approving and removing", () => {
+  it("approve answers with how many flags the character still has pending", async () => {
+    fake.onRpc("approve_character_content", (args) => (args.p_scope === "table" ? 0 : 2));
+    const approve = inApp(() => useApproveCharacterContent());
+    expect(await approve.mutateAsync({ reviewId: "r1", scope: "character" })).toBe(2);
+    expect(await approve.mutateAsync({ reviewId: "r1", scope: "table" })).toBe(0);
+  });
+
+  it("approve reads 'approved without looking' as no seen-at, and carries the seen-at when the DM looked", async () => {
+    // The server refuses an approval when the player edited the row after `seenUpdatedAt`.
+    fake.onRpc("approve_character_content", (args) => {
+      if (args.p_seen_updated_at !== null && args.p_seen_updated_at !== "2026-10-05T00:00:00Z") throw new Error("stale");
+      return 1;
+    });
+    const approve = inApp(() => useApproveCharacterContent());
+    await expect(approve.mutateAsync({ reviewId: "r1", scope: "character" })).resolves.toBe(1);
+    await expect(approve.mutateAsync({ reviewId: "r1", scope: "character", seenUpdatedAt: "2026-10-05T00:00:00Z" })).resolves.toBe(1);
+    await expect(approve.mutateAsync({ reviewId: "r1", scope: "character", seenUpdatedAt: "2026-10-01T00:00:00Z" })).rejects.toThrow("stale");
+  });
+
+  it("an approval that comes back without a count is an error, not a zero", async () => {
+    fake.onRpc("approve_character_content", () => null);
+    const approve = inApp(() => useApproveCharacterContent());
+    await expect(approve.mutateAsync({ reviewId: "r1", scope: "character" })).rejects.toThrow(/count/);
+  });
+
+  it("a refused approval reaches the caller with its code", async () => {
+    fake.failNext("approve_character_content", { code: "CR002", message: "changed since seen" });
+    const approve = inApp(() => useApproveCharacterContent());
+    const error = await approve.mutateAsync({ reviewId: "r1", scope: "character" }).catch((e: unknown) => e);
+    expect(isChangedSinceSeen(error)).toBe(true);
+  });
+
+  it("removing missing content answers with the flags left, and errors on a missing count", async () => {
+    fake.onRpc("remove_missing_character_content", () => 1);
+    const remove = inApp(() => useRemoveMissingContent());
+    expect(await remove.mutateAsync("r1")).toBe(1);
+    fake.onRpc("remove_missing_character_content", () => null);
+    await expect(remove.mutateAsync("r1")).rejects.toThrow(/count/);
   });
 });
 

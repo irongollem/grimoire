@@ -10,9 +10,11 @@
 // click routing's own guard against a click resolving as a fresh selection
 // mid-trace. Plain hover/click-routing coverage — the read/navigate
 // contract this composes — moved to `useRegionNavPointer.test.ts` when
-// that half split out (#884 loose-end cleanup); the "tap vs. drag" cases
-// below stay as a regression that the composition itself is wired up.
-import { describe, it, expect, vi } from "vitest";
+// that half split out (#884 loose-end cleanup); the tap threshold case in
+// "what a tap does" below is the check that the composition itself is wired up.
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { defineComponent, h } from "vue";
+import { mount } from "@vue/test-utils";
 import { useRegionPointer, type UseRegionPointerOptions } from "./useRegionPointer";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -182,31 +184,6 @@ describe("abandonGesture (#884 review finding 2)", () => {
   it("is a harmless no-op when nothing is in flight", () => {
     const { pointer } = makeHarness();
     expect(() => pointer.abandonGesture()).not.toThrow();
-  });
-});
-
-describe("tap vs. drag", () => {
-  it("resolves a plain, unmoved tap into a click", () => {
-    const { pointer, options, region } = makeHarness();
-    region.current = null; // nothing active — a plain click should route
-    vi.mocked(options.regionAt).mockReturnValue(makeRegion({ id: "target", space_location_id: null }));
-
-    pointer.onPointerDown(down(5, 5));
-    window.dispatchEvent(up(5, 5));
-
-    expect(options.onSelect).toHaveBeenCalledWith("target");
-  });
-
-  it("does not resolve a click once the pointer moved past the tap threshold", () => {
-    const { pointer, options, region } = makeHarness();
-    region.current = null;
-    vi.mocked(options.regionAt).mockReturnValue(makeRegion({ id: "target", space_location_id: null }));
-
-    pointer.onPointerDown(down(5, 5));
-    window.dispatchEvent(move(50, 50)); // well past the 6px threshold
-    window.dispatchEvent(up(50, 50));
-
-    expect(options.onSelect).not.toHaveBeenCalled();
   });
 });
 
@@ -436,5 +413,257 @@ describe("hover", () => {
 
     pointer.onPointerLeave();
     expect(options.onHover).toHaveBeenLastCalledWith(null);
+  });
+});
+
+const TRIANGLE: GridPoint[] = [[0, 0], [4, 0], [2, 4]];
+
+// Every pointerdown leaves a window listener until its pointerup; end whatever a test left open.
+afterEach(() => {
+  window.dispatchEvent(up(0, 0));
+});
+
+describe("what a tap does in run mode and in browse mode", () => {
+  it("a tap on a bound room moves the party in run mode even while a shape is selected for tracing", () => {
+    const { pointer, options, mode } = makeHarness();
+    mode.current = "run";
+    vi.mocked(options.regionAt).mockReturnValue(makeRegion({ space_location_id: "room-1" }));
+
+    pointer.onPointerDown(down(5, 5));
+    window.dispatchEvent(up(5, 5));
+
+    expect(options.onMoveParty).toHaveBeenCalledWith("room-1");
+  });
+
+  it.each([
+    [6, true],
+    [7, false],
+  ])("a pointer that wandered %i px is a tap: %s", (distance, isTap) => {
+    const { pointer, options, region } = makeHarness();
+    region.current = null;
+    vi.mocked(options.regionAt).mockReturnValue(makeRegion({ id: "target" }));
+
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(move(distance, 0));
+    window.dispatchEvent(up(distance, 0));
+
+    expect(options.onSelect).toHaveBeenCalledTimes(isTap ? 1 : 0);
+  });
+
+  it("run mode never starts a stroke, whatever tool and shape are selected", () => {
+    const { pointer, mode, region } = makeHarness();
+    mode.current = "run";
+    region.current = makeRegion();
+
+    pointer.onPointerDown(down(2, 2));
+
+    expect(pointer.strokeCells.value).toBeNull();
+  });
+});
+
+describe("painting", () => {
+  it("only starts a stroke on a cell the grid actually lays across the image", () => {
+    const { pointer } = makeHarness({ isPaintable: vi.fn(() => false) });
+    pointer.onPointerDown(down(2, 2));
+    expect(pointer.strokeCells.value).toBeNull();
+  });
+
+  it("ignores cells outside the grid while a stroke is dragged across them", () => {
+    const paintable = new Set(["2,2", "3,3"]);
+    const { pointer } = makeHarness({ isPaintable: vi.fn((cell: CellKey) => paintable.has(cell)) });
+    pointer.onPointerDown(down(2, 2));
+    window.dispatchEvent(move(9, 9));
+    window.dispatchEvent(move(3, 3));
+    expect(pointer.strokeCells.value?.cells).toEqual(["2,2", "3,3"]);
+  });
+});
+
+describe("pen tool details", () => {
+  it("puts the ring back as a draft when closing it fails to save, so nothing is lost", async () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: null });
+    vi.mocked(options.commitRing).mockRejectedValueOnce(new Error("offline"));
+
+    pointer.onPointerDown(down(0, 0));
+    pointer.onPointerDown(down(4, 0));
+    pointer.onPointerDown(down(2, 4));
+    pointer.onPointerDown(down(0.1, 0.1));
+    await vi.waitFor(() => expect(pointer.draftRing.value).toEqual(TRIANGLE));
+  });
+
+  it("a click away from every node of a saved ring adds nothing: a node mid-ring is only ever a double-click", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: TRIANGLE });
+
+    pointer.onPointerDown(down(10, 10));
+
+    expect(pointer.draftRing.value).toEqual([]);
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("snaps a new node to whole cells, and to half cells with alt held", () => {
+    const { pointer, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: null });
+
+    pointer.onPointerDown(down(0.6, 1.4));
+    pointer.onPointerDown(down(6.6, 1.4, { altKey: true }));
+
+    expect(pointer.draftRing.value).toEqual([[1, 1], [6.5, 1.5]]);
+  });
+
+  it("dragging a node of an unsaved draft moves it in the draft, and writes nothing", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: null });
+    pointer.onPointerDown(down(0, 0));
+    pointer.onPointerDown(down(4, 0));
+
+    pointer.onPointerDown(down(4, 0)); // grab the second node
+    window.dispatchEvent(move(6, 0));
+    window.dispatchEvent(up(6, 0));
+
+    expect(pointer.draftRing.value).toEqual([[0, 0], [6, 0]]);
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("dragging a node of a saved ring writes the moved ring on release", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: TRIANGLE });
+
+    pointer.onPointerDown(down(4, 0));
+    window.dispatchEvent(move(6, 0));
+    window.dispatchEvent(up(6, 0));
+
+    expect(options.commitRing).toHaveBeenCalledWith("region-1", [[0, 0], [6, 0], [2, 4]]);
+  });
+
+  it("a double-click on an edge of an unsaved draft inserts a node into the draft", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: null });
+    for (const [x, y] of TRIANGLE) pointer.onPointerDown(down(x, y));
+
+    pointer.onDoubleClick(new MouseEvent("dblclick", { clientX: 2, clientY: 0 }));
+
+    expect(pointer.draftRing.value).toHaveLength(4);
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("a double-click does nothing on any other tool", () => {
+    const { pointer, options, region } = makeHarness(); // paint tool
+    region.current = makeRegion({ vertices: TRIANGLE });
+
+    pointer.onDoubleClick(new MouseEvent("dblclick", { clientX: 2, clientY: 0 }));
+
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("Escape leaves a saved ring alone and ignores every other key", () => {
+    const { pointer, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: null });
+    pointer.onPointerDown(down(0, 0));
+    pointer.onPointerDown(down(4, 0));
+
+    pointer.onKeyDown(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(pointer.draftRing.value).toHaveLength(2);
+
+    region.current = makeRegion({ vertices: TRIANGLE });
+    pointer.onKeyDown(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(pointer.draftRing.value).toHaveLength(2);
+  });
+
+  it("follows the cursor with the point the next click would snap to, on the pen tool only", () => {
+    const { pointer, region, tool, mode } = makeHarness();
+    region.current = makeRegion({ vertices: null });
+
+    tool.current = "pen";
+    pointer.onPointerMove(move(0.6, 1.4));
+    expect(pointer.penHoverPoint.value).toEqual([1, 1]);
+
+    tool.current = "paint";
+    pointer.onPointerMove(move(0.6, 1.4));
+    expect(pointer.penHoverPoint.value).toBeNull();
+
+    tool.current = "pen";
+    pointer.onPointerMove(move(0.6, 1.4));
+    mode.current = "run";
+    pointer.onPointerMove(move(0.6, 1.4));
+    expect(pointer.penHoverPoint.value).toBeNull();
+  });
+});
+
+describe("template details", () => {
+  it("puts the centre on a whole cell, however the pointer landed", () => {
+    const { pointer, region, tool } = makeHarness();
+    tool.current = "template";
+    region.current = makeRegion();
+
+    pointer.onPointerDown(down(5.4, 5.6));
+
+    expect(pointer.templateDraft.value?.center).toEqual([5, 6]);
+  });
+});
+
+describe("a release that came in during a confirmation does not leak into the next gesture", () => {
+  it("the next stroke on a pen-traced region waits for its own release", async () => {
+    const resolvers: ((ok: boolean) => void)[] = [];
+    const { pointer, options, region } = makeHarness({
+      confirmConvert: vi.fn(() => new Promise<boolean>((resolve) => { resolvers.push(resolve); })),
+    });
+    region.current = makeRegion({ vertices: TRIANGLE, cells: ["9,9"] });
+
+    // Gesture 1: released mid-confirm, then declined.
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(up(0, 0));
+    resolvers[0]!(false);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Gesture 2: the confirm is accepted while the pointer is still down.
+    pointer.onPointerDown(down(1, 1));
+    resolvers[1]!(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(options.commitCells).not.toHaveBeenCalled();
+    expect(pointer.strokeCells.value).not.toBeNull();
+
+    window.dispatchEvent(up(1, 1));
+    expect(options.commitCells).toHaveBeenCalledWith("region-1", ["9,9", "1,1"]);
+  });
+});
+
+describe("Escape through the mounted keydown listener", () => {
+  it("abandons an unsaved draft while mounted and stops listening once disposed", () => {
+    let pointer!: ReturnType<typeof useRegionPointer>;
+    const region = makeRegion({ vertices: null });
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          pointer = useRegionPointer({
+            ...makeHarness().options,
+            tool: () => "pen",
+            activeRegion: () => region,
+          });
+          return () => h("div");
+        },
+      }),
+    );
+    const escape = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    pointer.onPointerDown(down(0, 0));
+    expect(pointer.draftRing.value).toHaveLength(1);
+    escape();
+    expect(pointer.draftRing.value).toEqual([]);
+
+    pointer.onPointerDown(down(0, 0));
+    pointer.dispose();
+    escape();
+    expect(pointer.draftRing.value).toHaveLength(1);
+    wrapper.unmount();
   });
 });

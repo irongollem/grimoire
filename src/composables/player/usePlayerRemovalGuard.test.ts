@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick, ref } from "vue";
 
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+
 const h = vi.hoisted(() => ({
-  seatRow: null as { id: string; party_member_id: string | null } | null,
+  /** What the guard hands to Sentry through reportAsync. */
+  reported: [] as unknown[],
   ring: null as null | ((ring: { campaignId: string; table: string }) => void),
   membership: { party_member_id: "mine" as string | null },
   rows: [] as unknown[],
@@ -17,15 +23,8 @@ const h = vi.hoisted(() => ({
   clearActiveCampaign: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase", () => {
-  const chain = {
-    select: () => chain,
-    eq: () => chain,
-    maybeSingle: () => Promise.resolve({ data: h.seatRow, error: null }),
-  };
-  return { supabase: { from: () => chain } };
-});
-vi.mock("@/lib/campaignLiveSync/reportAsync", () => ({ reportAsync: (p: Promise<unknown>) => void p }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+vi.mock("@/lib/campaignLiveSync/reportAsync", () => ({ reportAsync: (p: Promise<unknown>) => void p.catch((e: unknown) => h.reported.push(e)) }));
 vi.mock("@/lib/campaignLiveSync/rings", () => ({
   onCampaignRing: (_t: string[], cb: typeof h.ring) => { h.ring = cb; return () => undefined; },
   onCampaignReconcile: () => () => undefined,
@@ -87,8 +86,23 @@ async function ringOnce() {
   scope.stop();
 }
 
+/**
+ * The campaign's member rows. Other members share the campaign, and I also sit
+ * in another campaign, so a read that is not scoped to me and this campaign
+ * would find a row that is not mine.
+ */
+function seat(mine: { party_member_id: string | null } | null) {
+  fake.reset();
+  fake.seed("campaign_members", [
+    { id: "o1", campaign_id: "c1", user_id: "other", party_member_id: "x" },
+    { id: "o2", campaign_id: "c2", user_id: "me", party_member_id: "y" },
+    ...(mine ? [{ id: "m", campaign_id: "c1", user_id: "me", ...mine }] : []),
+  ]);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  h.reported.length = 0;
   h.ring = null;
   h.membership = { party_member_id: "minded" };
   h.rows = [];
@@ -98,14 +112,14 @@ beforeEach(() => {
 
 describe("usePlayerRemovalGuard", () => {
   it("does nothing while the seat is where it was", async () => {
-    h.seatRow = { id: "m", party_member_id: "minded" };
+    seat({ party_member_id: "minded" });
     await ringOnce();
     expect(h.refreshMembership).not.toHaveBeenCalled();
     expect(h.toastInfo).not.toHaveBeenCalled();
   });
 
   it("follows a seat the server moved and says the character went back", async () => {
-    h.seatRow = { id: "m", party_member_id: "mine" };
+    seat({ party_member_id: "mine" });
     h.rows = [{ party_member_id: "minded", caretaker_user_id: "me", session_id: null, revoked_at: "2026-10-14T10:00:00Z" }];
     await ringOnce();
     expect(h.refreshMembership).toHaveBeenCalledWith("c1");
@@ -115,15 +129,22 @@ describe("usePlayerRemovalGuard", () => {
   });
 
   it("follows a seat I moved myself without a toast while the hand-over is still in force", async () => {
-    h.seatRow = { id: "m", party_member_id: "mine" };
+    seat({ party_member_id: "mine" });
     h.rows = [{ party_member_id: "minded", caretaker_user_id: "me", session_id: null, revoked_at: null }];
     await ringOnce();
     expect(h.refreshMembership).toHaveBeenCalled();
     expect(h.toastInfo).not.toHaveBeenCalled();
   });
 
+  it("says nothing about a character that someone else was looking after", async () => {
+    seat({ party_member_id: "mine" });
+    h.rows = [{ party_member_id: "minded", caretaker_user_id: "someone-else", session_id: null, revoked_at: "2026-10-14T10:00:00Z" }];
+    await ringOnce();
+    expect(h.toastInfo).not.toHaveBeenCalled();
+  });
+
   it("re-reads the session before judging, so a hand-over its ending lapsed says it went back", async () => {
-    h.seatRow = { id: "m", party_member_id: "mine" };
+    seat({ party_member_id: "mine" });
     h.rows = [{ party_member_id: "minded", caretaker_user_id: "me", session_id: "s1", revoked_at: null }];
     h.openSession = "s1";
     h.openSessionAfterRefresh = null;
@@ -132,10 +153,31 @@ describe("usePlayerRemovalGuard", () => {
   });
 
   it("still ejects a player whose membership row is gone", async () => {
-    h.seatRow = null;
+    seat(null);
     h.replace.mockResolvedValue(undefined);
     await ringOnce();
     expect(h.toastError).toHaveBeenCalled();
     expect(h.clearActiveCampaign).toHaveBeenCalled();
+  });
+
+  it("does not eject when it cannot read the membership (a failed read is not 'removed')", async () => {
+    seat({ party_member_id: "minded" });
+    fake.failNext("campaign_members", { message: "network" });
+    await ringOnce();
+    expect(h.toastError).not.toHaveBeenCalled();
+    expect(h.clearActiveCampaign).not.toHaveBeenCalled();
+    expect(h.reported).toHaveLength(1);
+  });
+
+  it("ignores a ring from another campaign", async () => {
+    seat(null);
+    const scope = effectScope();
+    scope.run(() => usePlayerRemovalGuard());
+    await nextTick();
+    h.ring?.({ campaignId: "c2", table: "campaign_members" });
+    await new Promise((r) => setTimeout(r, 0));
+    scope.stop();
+    expect(fake.calls).toEqual([]);
+    expect(h.toastError).not.toHaveBeenCalled();
   });
 });

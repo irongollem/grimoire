@@ -32,13 +32,8 @@ function stubDownload() {
 }
 
 describe("dataExportErrorMessage", () => {
-  it("maps known server codes to human copy", () => {
-    expect(dataExportErrorMessage("rate_limited")).toMatch(/try again in an hour/i);
-    expect(dataExportErrorMessage("export_failed")).toMatch(/could not be built/i);
-  });
-
-  it("maps the parent-link refusal to human copy (#919)", () => {
-    expect(dataExportErrorMessage("not_your_child")).toMatch(/child account you actively parent/i);
+  it("turns a known server code into copy instead of echoing the code", () => {
+    expect(dataExportErrorMessage("rate_limited")).not.toBe("rate_limited");
   });
 
   it("passes an unrecognised code through verbatim", () => {

@@ -1,7 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { emptyLayers, type CellKey } from "@/types/dungeonMap.types";
+import { describe, it, expect, vi } from "vitest";
+import { ref } from "vue";
+import { emptyLayers, type CellKey, type DungeonMap } from "@/types/dungeonMap.types";
 import type { DerivedLink, DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
+vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounters: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/dungeon-features/useTraps", () => ({ useTrapIndex: () => ({ byId: ref(new Map()) }) }));
+vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({ useDungeonFeatureIndex: () => ({ byId: ref(new Map()) }) }));
+vi.mock("@/composables/notes/useNotes", () => ({ useNotes: () => ({ data: ref([]) }) }));
+
 import {
+  useCartographerStructure,
   applySpaceName,
   buildLinkedSummary,
   buildSpaceRows,
@@ -102,6 +109,15 @@ describe("buildWaysSummary", () => {
     expect(buildWaysSummary(cistern, st)).toBe("2 doors → Reliquary · 1 arch → Nave");
   });
 
+  it("names a destination that is not a mapped region", () => {
+    const cistern = space({ key: "s:cistern" });
+    const st = structure({
+      spaces: [cistern],
+      ways: [{ edgeKey: "1,1:N" as never, kind: "door", fromKey: "s:cistern", toKey: "s:elsewhere" }],
+    });
+    expect(buildWaysSummary(cistern, st)).toBe("1 door → an unmapped region");
+  });
+
   it("reports no ways out when the space has none", () => {
     const cistern = space({ key: "s:cistern" });
     expect(buildWaysSummary(cistern, structure({ spaces: [cistern] }))).toBe("No ways out yet.");
@@ -129,5 +145,60 @@ describe("buildLinkedSummary", () => {
   it("ignores links belonging to a different space", () => {
     const links: DerivedLink[] = [{ cellKey: "1,1" as CellKey, spaceKey: "s:nave", metadata: { encounter_id: "e1" } }];
     expect(buildLinkedSummary(links, "s:cistern", resolvers)).toEqual([]);
+  });
+});
+
+describe("useCartographerStructure", () => {
+  const STONE = { pack_id: "base", pack_version: 1, variant: 0 };
+
+  /** Two floor rooms with a gap between them, so two separate spaces. */
+  function twoRooms() {
+    const layers = emptyLayers();
+    layers.floor["0,0" as CellKey] = { floor: STONE };
+    layers.floor["1,0" as CellKey] = { floor: STONE };
+    layers.floor["5,5" as CellKey] = { floor: STONE };
+    return layers;
+  }
+
+  it("selects the space under a click, and nothing when the click lands off every room", () => {
+    const layers = ref(twoRooms());
+    const s = useCartographerStructure(layers, ref({}), ref(null));
+    s.selectSpaceAt(1, 0);
+    expect(s.selectedSpace.value?.cells).toContain("0,0");
+    s.selectSpaceAt(3, 3);
+    expect(s.selectedSpace.value).toBeNull();
+  });
+
+  it("re-detecting drops the selection", () => {
+    const s = useCartographerStructure(ref(twoRooms()), ref({}), ref(null));
+    s.selectSpaceAt(0, 0);
+    s.redetect();
+    expect(s.selectedSpaceKey.value).toBeNull();
+  });
+
+  it("renames the selected space through its annotation, and renames nothing with none selected", () => {
+    const layers = ref(twoRooms());
+    const s = useCartographerStructure(layers, ref({}), ref(null));
+    expect(s.renameSpace("Nave")).toBe(false);
+    s.selectSpaceAt(5, 5);
+    expect(s.renameSpace("Nave")).toBe(true);
+    expect(layers.value.annotation["5,5" as CellKey]?.text).toBe("Nave");
+    expect(s.spaceRows.value.find((r) => r.isSelected)?.displayName).toBe("Nave");
+  });
+
+  it("reports nothing changed without a published map, and counts a newly drawn room against the published one", () => {
+    const layers = ref(twoRooms());
+    expect(useCartographerStructure(layers, ref({}), ref(null)).changedSinceLastPublish.value).toBeNull();
+
+    const published = { layers: twoRooms(), metadata: {} } as unknown as DungeonMap;
+    const s = useCartographerStructure(layers, ref({}), ref(published));
+    expect(s.changedSinceLastPublish.value?.total).toBe(0);
+    layers.value = { ...layers.value, floor: { ...layers.value.floor, ["9,9" as CellKey]: { floor: STONE } } };
+    expect(s.changedSinceLastPublish.value).toMatchObject({ newSpaces: 1, total: 1 });
+
+    const erased = ref(twoRooms());
+    const fewer = useCartographerStructure(erased, ref({}), ref(published));
+    delete erased.value.floor["5,5" as CellKey];
+    expect(fewer.changedSinceLastPublish.value).toMatchObject({ goneSpaces: 1, total: 1 });
   });
 });

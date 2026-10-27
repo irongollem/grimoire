@@ -84,6 +84,22 @@ describe("useWildShapeCandidates", () => {
     expect(data.value[0]).toEqual({ id: "u-1", name: "Homebrew Cat", challenge_rating: "0", is_shared: false });
   });
 
+  it("leaves out revealed custom beasts from another ruleset and legacy open5e imports, and keeps ruleset-less ones", async () => {
+    const beast = { monster_type: "beast", stat_block: { challenge_rating: "0", speed: "40 ft." } };
+    mocks.projection = [
+      { id: "u-2024", name: "Table Cat", ruleset: "2024", ...beast },
+      { id: "u-none", name: "Old Cat", ruleset: null, ...beast },
+      { id: "u-2014", name: "Other Edition Cat", ruleset: "2014", ...beast },
+      { id: "u-5e", name: "Imported Cat", ruleset: "2024", open5e_import: true, ...beast },
+    ];
+    const { data } = run(() => {
+      useCampaignStore().activeCampaignId = "camp-1";
+      return useWildShapeCandidates(() => rules, () => ({ enabled: true }));
+    });
+    await flushPromises();
+    expect(data.value.map((c) => c.id).filter((id) => id.startsWith("u-")).sort()).toEqual(["u-2024", "u-none"]);
+  });
+
   it("a DM reads the whole index and never the player projection", async () => {
     const { data } = run(() => {
       useAppUiStore().dmPreviewMode = true;

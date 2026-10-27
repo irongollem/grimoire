@@ -4,44 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
 
-type Call = { table: string; in: [string, unknown[]][] };
-const mocks = vi.hoisted(() => ({
-  calls: [] as Call[],
-  rpcCalls: [] as string[],
-  rows: {} as Record<string, Record<string, unknown>[]>,
-  projection: [] as Record<string, unknown>[],
-}));
-
-vi.mock("@/lib/supabase", () => {
-  const builder = (table: string) => {
-    const call: Call = { table, in: [] };
-    mocks.calls.push(call);
-    const b: Promise<{ data: unknown[]; error: null }> & Record<string, unknown> = Object.assign(
-      new Promise<{ data: unknown[]; error: null }>((resolve) => {
-        queueMicrotask(() => {
-          const ids = new Set(call.in.flatMap(([, v]) => v));
-          const rows = (mocks.rows[table] ?? []).filter((r) => ids.size === 0 || ids.has(String(r.id ?? r.entry_id)));
-          resolve({ data: rows, error: null });
-        });
-      }),
-      {} as Record<string, unknown>,
-    );
-    b.select = () => b;
-    b.eq = () => b;
-    b.in = (c: string, v: unknown[]) => (call.in.push([c, v]), b);
-    return b;
-  };
-  return {
-    getCurrentUser: () => ({ id: "user-1" }),
-    supabase: {
-      from: builder,
-      rpc: (name: string) => {
-        mocks.rpcCalls.push(name);
-        return Promise.resolve({ data: mocks.projection, error: null });
-      },
-    },
-  };
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
 });
+
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "user-1" }) }));
 
 import { usePlayerMonstersByIds } from "./usePlayerMonstersByIds";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -66,17 +34,23 @@ function run<T>(setup: () => T): T {
   return out;
 }
 
+const UUID_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
 beforeEach(() => {
-  mocks.calls.length = 0;
-  mocks.rpcCalls.length = 0;
-  mocks.projection = [{ id: UUID_A, name: "Homebrew", stat_block: null }];
-  mocks.rows = {
-    library_monsters: [{ id: "srd_wolf", name: "Wolf", image_url: "lib.webp", portrait_focal_point: null }],
-    monsters: [{ id: UUID_A, name: "Homebrew Base", image_url: null }],
-    library_monster_art_canonical: [{ entry_id: "srd_wolf", image_url: "art.webp", cutout_url: null, portrait_focal_point: null }],
-    library_monster_art: [],
-  };
+  fake.reset();
+  // The projection is what the DM chose to show: the second row is another creature the party has met.
+  fake.onRpc("get_player_visible_monsters", () => [
+    { id: UUID_A, name: "Homebrew", stat_block: null },
+    { id: UUID_B, name: "Not held", stat_block: null },
+  ]);
+  fake.seed("library_monsters", [{ id: "srd_wolf", name: "Wolf", image_url: "lib.webp", portrait_focal_point: null }]);
+  fake.seed("monsters", [{ id: UUID_A, name: "Homebrew Base", image_url: null, stat_block: { hit_points: "secret" } }]);
+  fake.seed("library_monster_art_canonical", [
+    { entry_id: "srd_wolf", image_url: "art.webp", cutout_url: null, portrait_focal_point: null },
+  ]);
 });
+
+const rpcNames = () => fake.calls.filter((c) => c.kind === "rpc").map((c) => c.target);
 
 /** The by-id fetch waits one macrotask to batch ids, so let that window close before the queries resolve. */
 async function settle() {
@@ -85,26 +59,25 @@ async function settle() {
 }
 
 describe("usePlayerMonstersByIds", () => {
-  it("reads a player's library ids by id with art, and custom ids from the projection, never the monsters table", async () => {
+  it("gives a player library monsters with art, and custom ones only as the DM's projection shows them, never the monsters table", async () => {
     const { data } = run(() => {
       useCampaignStore().activeCampaignId = "camp-1";
       return usePlayerMonstersByIds(["srd_wolf", UUID_A, null]);
     });
     await settle();
-    expect(mocks.calls.some((c) => c.table === "monsters")).toBe(false);
-    const lib = mocks.calls.find((c) => c.table === "library_monsters");
-    expect(lib?.in).toEqual([["id", ["srd_wolf"]]]);
-    expect(mocks.rpcCalls).toEqual(["get_player_visible_monsters"]);
+    expect(fake.calls.some((c) => c.target === "monsters")).toBe(false);
+    expect(rpcNames()).toEqual(["get_player_visible_monsters"]);
     expect(data.value.get("srd_wolf")?.image_url).toBe("art.webp");
     expect(data.value.get(UUID_A)?.name).toBe("Homebrew");
     expect(data.value.get(UUID_A)?.stat_block).toBeNull();
+    // Only the ids asked for come back, not every creature the projection lists.
+    expect([...data.value.keys()].sort()).toEqual([UUID_A, "srd_wolf"]);
   });
 
   it("sends nothing for an empty list", async () => {
     run(() => usePlayerMonstersByIds([]));
     await settle();
-    expect(mocks.calls).toEqual([]);
-    expect(mocks.rpcCalls).toEqual([]);
+    expect(fake.calls).toEqual([]);
   });
 
   it("does not call the projection when only library ids are held", async () => {
@@ -113,18 +86,17 @@ describe("usePlayerMonstersByIds", () => {
       return usePlayerMonstersByIds(["srd_wolf"]);
     });
     await settle();
-    expect(mocks.rpcCalls).toEqual([]);
+    expect(rpcNames()).toEqual([]);
   });
 
-  it("delegates to the by-id owner read for a DM preview, skipping the projection", async () => {
+  it("reads the owner's rows for a DM preview, skipping the projection", async () => {
     const { data } = run(() => {
       useAppUiStore().dmPreviewMode = true;
       useCampaignStore().activeCampaignId = "camp-1";
       return usePlayerMonstersByIds([UUID_A]);
     });
     await settle();
-    expect(mocks.rpcCalls).toEqual([]);
-    expect(mocks.calls.find((c) => c.table === "monsters")?.in).toEqual([["id", [UUID_A]]]);
+    expect(rpcNames()).toEqual([]);
     expect(data.value.get(UUID_A)?.name).toBe("Homebrew Base");
   });
 });

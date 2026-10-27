@@ -47,9 +47,13 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => store }));
 vi.mock("@/composables/soundboard/useSounds", () => ({
   soundsQueryOptions: (id: string) => ({ queryKey: ["sounds", id] as const, queryFn: () => Promise.resolve(sounds.value) }),
 }));
+/** Lets a test hold a playlist's track fetch open to stage a race. */
+let fetchTracksImpl: (id: string) => Promise<PlaylistTrackWithSound[]> = () => Promise.resolve(tracks);
+const onDesktop = ref(true);
+vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => onDesktop }));
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
   playlistsQueryOptions: (id: string) => ({ queryKey: ["soundboard_playlists", id] as const, queryFn: () => Promise.resolve(playlists.value) }),
-  useFetchPlaylistTracks: () => () => Promise.resolve(tracks),
+  useFetchPlaylistTracks: () => (id: string) => fetchTracksImpl(id),
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c" }) }));
 
@@ -58,8 +62,11 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
  * a cold cache, where the first trigger must load the lists before it acts (#999).
  */
 let libraryCached = true;
+/** A cached copy a mutation has marked stale still has to be loaded afresh. */
+let libraryInvalidated = false;
 const fetchQuery = vi.fn(async (options: { queryKey: readonly unknown[] }) => {
   libraryCached = true;
+  libraryInvalidated = false;
   return options.queryKey[0] === "sounds" ? sounds.value : playlists.value;
 });
 function cachedFor(key: readonly unknown[]) {
@@ -71,7 +78,7 @@ vi.mock("@tanstack/vue-query", () => ({
     getQueryData: (key: readonly unknown[]) => cachedFor(key),
     getQueryState: (key: readonly unknown[]) => {
       const data = cachedFor(key);
-      return data === undefined ? undefined : { data, isInvalidated: false };
+      return data === undefined ? undefined : { data, isInvalidated: libraryInvalidated };
     },
     fetchQuery,
   }),
@@ -115,6 +122,9 @@ beforeEach(async () => {
   soundStates.clear();
   fireSound.mockClear();
   libraryCached = true;
+  libraryInvalidated = false;
+  onDesktop.value = true;
+  fetchTracksImpl = () => Promise.resolve(tracks);
   fetchQuery.mockClear();
   const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
   clearAudioTriggerHandlers();
@@ -158,6 +168,60 @@ describe("a trigger that matches", () => {
     await flush();
 
     expect(store.widgetOpen).toBe(true);
+  });
+
+  it("leaves the floating player shut on a phone, where it would cover the page", async () => {
+    onDesktop.value = false;
+    const { requestAudioTheme } = await mount();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+
+    expect(store.playPlaylist).toHaveBeenCalledOnce();
+    expect(store.widgetOpen).toBe(false);
+  });
+
+  it("lets a loose file stand in for a theme with no playlist, stopping the playlist that held the slot", async () => {
+    const { requestAudioTheme } = await mount();
+    sounds.value = [{ id: "s9", file_url: "u", category: "music", gain_trim: 0.5, tags: ["battle"] } as Sound];
+    store.activeMusicPlaylistId.mockImplementation(() => "travel");
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+
+    expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+    expect(store.play).toHaveBeenCalledWith("s9", "u", "music", 0.5);
+  });
+
+  it("does not stop a playlist for a loose file when none was playing", async () => {
+    const { requestAudioTheme } = await mount();
+    sounds.value = [{ id: "s9", file_url: "u", category: "music", gain_trim: 1, tags: ["battle"] } as Sound];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+
+    expect(store.stopPlaylist).not.toHaveBeenCalled();
+    expect(store.play).toHaveBeenCalledOnce();
+  });
+
+  it("lets the newest request win when an older one's tracks arrive late", async () => {
+    const { requestAudioTheme } = await mount();
+    const battle = playlist({ id: "battle", tags: ["battle"] });
+    const tavern = playlist({ id: "tavern", tags: ["tavern"] });
+    playlists.value = [battle, tavern];
+    let releaseBattle: (t: PlaylistTrackWithSound[]) => void = () => {};
+    fetchTracksImpl = (id) => (id === "battle" ? new Promise((resolve) => { releaseBattle = resolve; }) : Promise.resolve(tracks));
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "music", label: "Tavern", kind: "location" });
+    await flush();
+    releaseBattle(tracks);
+    await flush();
+
+    expect(store.playPlaylist).toHaveBeenCalledTimes(1);
+    expect(store.playPlaylist).toHaveBeenCalledWith(tavern, tracks);
   });
 
   it("plays the tagged playlist", async () => {
@@ -227,6 +291,28 @@ describe("a cold library (#999)", () => {
     playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
 
     requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+
+    expect(fetchQuery).not.toHaveBeenCalled();
+  });
+
+  it("loads the lists afresh when a mutation has marked the cached copy stale", async () => {
+    const { requestAudioTheme } = await mount();
+    libraryInvalidated = true;
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
+    await flush();
+    await flush();
+
+    expect(fetchQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not load the lists for a release, which has nothing to look up", async () => {
+    const { releaseAudioTheme } = await mount();
+    libraryCached = false;
+
+    releaseAudioTheme("encounter:1");
     await flush();
 
     expect(fetchQuery).not.toHaveBeenCalled();

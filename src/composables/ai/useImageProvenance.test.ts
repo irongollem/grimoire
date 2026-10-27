@@ -10,11 +10,11 @@ const mocks = vi.hoisted(() => ({
   fail: false,
 }));
 
-vi.mock("@/lib/storage", () => ({
-  imageProvenanceKey: (url: string) => {
-    const m = /^https:\/\/cdn\.test\/([a-z-]+)\/(.+?)(?:_w\d+)?\.(?:webp|jpeg|png)$/.exec(url);
-    return m ? { bucket: m[1], stem: m[2] } : null;
-  },
+// The key parser is the real one (the registry is keyed by storage object, so
+// the URL-to-key mapping is part of what this composable relies on); only the
+// registry read is replaced.
+vi.mock("@/lib/storage", async (importActual) => ({
+  ...(await importActual<typeof import("@/lib/storage")>()),
   loadImageProvenance: vi.fn(async (key: { bucket: string; stem: string }) => {
     mocks.loadCalls.push(key);
     if (mocks.fail) throw new Error("registry unavailable");
@@ -74,10 +74,12 @@ describe("useImageProvenance", () => {
   it.each([null, undefined, "", "blob:http://x/1", "https://elsewhere.test/a.webp"])(
     "never queries for %s",
     async (value) => {
-      const { result } = setup(value);
+      const { result, client } = setup(value);
       await flushPromises();
       expect(mocks.loadCalls).toHaveLength(0);
       expect(result()).toBeNull();
+      // Not even attempted: a query that ran and failed would report an error for an image that has no mark.
+      expect(client.getQueryCache().getAll().every((q) => q.state.fetchStatus === "idle" && q.state.status !== "error")).toBe(true);
     },
   );
 

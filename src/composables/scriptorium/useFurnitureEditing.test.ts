@@ -128,7 +128,7 @@ describe("useFurnitureEditing", () => {
     wrapper.unmount();
   });
 
-  it("clamps position to [0, 100] and width to a minimum of 5", async () => {
+  it("clamps position to 0 at the left edge", async () => {
     const { container, target } = buildDom();
     items = [item({ x: 5, width: 30 })];
     const wrapper = mountEditing(container);
@@ -138,6 +138,88 @@ describe("useFurnitureEditing", () => {
     dispatchPointer(window, "pointerup", -1000, 42);
     const updated = onChange.mock.calls[0][0] as PageFurnitureItem[];
     expect(updated[0].x).toBe(0);
+    wrapper.unmount();
+  });
+
+  it("clamps position at 100 on the right and width at a minimum of 5 when shrunk past it", async () => {
+    const { container, target } = buildDom();
+    items = [item({ x: 95, y: 20, width: 30 })];
+    let wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointerup", 1000, 42);
+    expect((onChange.mock.calls[0][0] as PageFurnitureItem[])[0].x).toBe(100);
+    wrapper.unmount();
+
+    items = [item({ width: 30 })];
+    wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 59, 59);
+    dispatchPointer(window, "pointerup", -1000, 59);
+    expect((onChange.mock.calls[0][0] as PageFurnitureItem[])[0].width).toBe(5);
+    wrapper.unmount();
+  });
+
+  it("changes only the dragged item and shows the move on the element while the pointer is down", async () => {
+    const { container, target } = buildDom();
+    items = [item({ id: "f1", x: 20, y: 20 }), item({ id: "f2", x: 70, y: 70 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointermove", 62, 82);
+    expect([target.style.left, target.style.top]).toEqual(["30%", "40%"]);
+    dispatchPointer(window, "pointerup", 62, 82);
+    const updated = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(updated.map((i) => [i.id, i.x, i.y])).toEqual([["f1", 30, 40], ["f2", 70, 70]]);
+    wrapper.unmount();
+  });
+
+  it("measures each axis against its own side of the page box, and rounds to a tenth of a percent", async () => {
+    const { container, page, target } = buildDom();
+    stubRect(page, { width: 300, height: 400, left: 0, top: 0, right: 300, bottom: 400 });
+    items = [item({ x: 20, y: 20 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointerup", 43, 82); // +1px of 300 = 0.333...%, +40px of 400 = 10%
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect([moved.x, moved.y]).toEqual([20.3, 30]);
+    wrapper.unmount();
+  });
+
+  it("moves, not resizes, when only one edge of the corner zone is near", async () => {
+    const { container, target } = buildDom();
+    items = [item({ x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 59, 42); // 1px from the right edge, 18px from the bottom
+    dispatchPointer(window, "pointerup", 79, 42);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect([moved.x, moved.width]).toEqual([30, 30]);
+    wrapper.unmount();
+  });
+
+  it("shows the new width on the element while a resize is in progress", async () => {
+    const { container, target } = buildDom();
+    items = [item({ width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 59, 59);
+    dispatchPointer(window, "pointermove", 79, 59);
+    expect(target.style.width).toBe("40%");
+    dispatchPointer(window, "pointerup", 79, 59);
+    wrapper.unmount();
+  });
+
+  it("does not start a drag for an element whose item is no longer in the list", async () => {
+    const { container, target } = buildDom();
+    items = [item({ id: "someone-else" })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointerup", 62, 82);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

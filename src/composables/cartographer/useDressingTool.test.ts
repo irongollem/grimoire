@@ -140,6 +140,69 @@ describe("useDressingTool", () => {
     expect(brushId.value).toBe("table");
   });
 
+  it("a right-click or Alt-click on a prop takes it away as one undo step and drops its selection", () => {
+    for (const press of [{ button: 2 }, { altKey: true }]) {
+      const { tool, layers, selectedId, pushCommand, markDirty } = setup();
+      tool.onPointerDown(pointer(0.5, 0.5));
+      tool.onPointerUp();
+      pushCommand.mockClear();
+      markDirty.mockClear();
+      expect(selectedId.value).not.toBeNull();
+      expect(tool.onPointerDown(pointer(0.5, 0.5, press))).toBe(true);
+      expect(layers.value.dressing).toEqual({});
+      expect(selectedId.value).toBeNull();
+      expect(pushCommand).toHaveBeenCalledTimes(1);
+      expect(markDirty).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("drags a grabbed prop by the cell it was held at, not by its corner", () => {
+    const { tool, layers, brushId, selectedId, pushCommand } = setup();
+    tool.onPointerDown(pointer(0.5, 0.5)); // a 2x1 table at (0, 0)
+    tool.onPointerUp();
+    brushId.value = null;
+    const id = selectedId.value!;
+    pushCommand.mockClear();
+    tool.onPointerDown(pointer(1.5, 0.5)); // held by its second cell
+    tool.onPointerMove([4, 2]);
+    expect(layers.value.dressing[id]).toMatchObject({ x: 3, y: 2 });
+    tool.onPointerUp();
+    expect(pushCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("turning with a prop selected rotates that prop as one undo step and the next placement keeps the turn", () => {
+    const { tool, layers, brushRotation, selectedId, pushCommand } = setup();
+    tool.onPointerDown(pointer(0.5, 0.5));
+    tool.onPointerUp();
+    pushCommand.mockClear();
+    tool.turn(90);
+    const id = selectedId.value!;
+    expect(layers.value.dressing[id]?.rotation).toBe(90);
+    expect(brushRotation.value).toBe(90);
+    expect(pushCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("deleting the selected prop is one undo step and leaves nothing selected", () => {
+    const { tool, layers, selectedId, pushCommand } = setup();
+    tool.onPointerDown(pointer(0.5, 0.5));
+    tool.onPointerUp();
+    pushCommand.mockClear();
+    tool.deleteSelected();
+    expect(layers.value.dressing).toEqual({});
+    expect(selectedId.value).toBeNull();
+    expect(pushCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the selection when the selected prop disappears, as an undo would make it", async () => {
+    const { tool, layers, selectedId } = setup();
+    tool.onPointerDown(pointer(0.5, 0.5));
+    tool.onPointerUp();
+    expect(selectedId.value).not.toBeNull();
+    layers.value = { ...layers.value, dressing: {} };
+    await nextTick();
+    expect(selectedId.value).toBeNull();
+  });
+
   describe("renderScene", () => {
     it("has a ghost only with a prop armed and the cursor over the canvas", () => {
       const { tool, brushId } = setup();

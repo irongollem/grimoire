@@ -55,4 +55,13 @@ describe("useInactivityNotice", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("send-inactivity-notice", { body: { dryRun: false } });
     expect(qc.getQueryData(["admin", "inactivity-notice"])).toEqual(after);
   });
+
+  it("a real send refreshes the audit log and the user list it just changed", async () => {
+    mocks.invoke.mockResolvedValue({ data: STATUS, error: null });
+    const { result, qc } = run(() => useSendInactivityNotice());
+    const keys = [["admin", "audit-log"], ["admin", "users"]];
+    for (const key of keys) qc.setQueryData(key, []);
+    await result.mutateAsync();
+    expect(keys.map((key) => qc.getQueryState(key)?.isInvalidated)).toEqual([true, true]);
+  });
 });

@@ -167,6 +167,11 @@ describe("loadCopySources + planCopyFor", () => {
     expect(mocks.selectCalls).toHaveLength(selectCallsAfterLoad);
   });
 
+  it("fails the load when a read fails, rather than planning from the rows that did arrive", async () => {
+    queueSelect("traps", [], new Error("denied"));
+    await expect(loadCopySources({ table: "traps", ids: ["t1"] })).rejects.toThrow("denied");
+  });
+
   it("throws when there is no signed-in user, rather than planning an ownerless copy", async () => {
     mocks.currentUserId = null;
     queueSelect("traps", [{ id: "t1" }]);
@@ -466,6 +471,31 @@ describe("useCopyToCampaign — npcs/factions batches (#885)", () => {
     // not be written before that entity actually exists.
     expect(mocks.insertCalls.map((c) => c.table)).toEqual(["npcs", "world_links"]);
     expect(outcome).toEqual({ copied: 2, linked: 1, dropped: [], needsSources: null });
+    unmount();
+  });
+
+  it("counts the join rows the database says it wrote, not the ones it was sent", async () => {
+    mocks.insertResponses = [
+      { data: [{ id: "new-n1" }, { id: "new-n2" }], error: null },
+      { data: [{ id: "new-rel-1" }], error: null }, // one of the two links was refused
+    ];
+    const { result, unmount } = withQueryClient(() => useCopyToCampaign());
+    const linkPayloads = {
+      world_links: [
+        { from_npc_id: "new-n1", to_npc_id: "new-n2" },
+        { from_npc_id: "new-n2", to_npc_id: "new-n1" },
+      ],
+    };
+
+    const outcome = await result.mutateAsync({
+      table: "npcs",
+      payloads: [{ id: "new-n1" }, { id: "new-n2" }],
+      linkPayloads,
+      dropped: [],
+      needsSources: null,
+    });
+
+    expect(outcome.linked).toBe(1);
     unmount();
   });
 

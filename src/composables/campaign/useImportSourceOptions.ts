@@ -28,7 +28,9 @@ async function fetchOwnSourceRows(userId: string, table: string, hasOpen5eColumn
   let query = supabase.from(table).select("source, campaign_id").eq("user_id", userId).not("source", "is", null).is("source_document_key", null);
   if (hasOpen5eColumn) query = query.eq("open5e_import", false);
   const { data, error } = await query;
-  if (error || !data) return [];
+  // A failed read must say so: read as "no history", the wizard would offer
+  // no matches and the DM would re-type every source name (Client Reads).
+  if (error) throw error;
 
   const rows: SourceTitleRow[] = [];
   for (const row of data as Record<string, unknown>[]) {

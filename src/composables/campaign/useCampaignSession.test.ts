@@ -153,6 +153,12 @@ describe("the live session is the open log row", () => {
     expect(useAppUiStore().sessionRunning).toBe(false);
   });
 
+  it("ignores a read that answers for a campaign the DM has already left", async () => {
+    openRow = row({ id: "other-campaigns-session", campaign_id: "campaign-2" });
+    await refetchCampaignSession("campaign-2");
+    expect(useAppUiStore().sessionRunning).toBe(false);
+  });
+
   it("clears when the open row is deleted", async () => {
     await readSession(row({ id: "s15" }));
     dropLoggedSession("someone-else");
@@ -162,6 +168,15 @@ describe("the live session is the open log row", () => {
   });
 });
 
+/** Each RPC answers as itself, so which one a call chose shows in the session it adopts. */
+function answerRpcs(answers: Record<string, unknown>) {
+  rpc.mockImplementation(async (name: string) => {
+    if (!(name in answers)) throw new Error(`unexpected rpc ${name}`);
+    const answer = answers[name];
+    return answer instanceof Error ? { data: null, error: answer } : { data: answer, error: null };
+  });
+}
+
 describe("ensureCampaignSession", () => {
   it("reuses the open session without calling the database", async () => {
     await readSession(row({ id: "s15" }));
@@ -169,10 +184,15 @@ describe("ensureCampaignSession", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("starts an unnumbered session when none is open", async () => {
-    rpc.mockResolvedValue({ data: row({ id: "new" }), error: null });
+  it("starts a session when none is open, and says it did", async () => {
+    answerRpcs({ start_campaign_session: row({ id: "new" }) });
     expect(await ensureCampaignSession("campaign-1")).toEqual({ id: "new", started: true });
-    expect(rpc).toHaveBeenCalledWith("start_campaign_session", { p_campaign_id: "campaign-1" });
+  });
+
+  it("never fails the thing the DM asked for when the session cannot be started", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    answerRpcs({ start_campaign_session: new Error("down") });
+    expect(await ensureCampaignSession("campaign-1")).toEqual({ id: null, started: false });
   });
 });
 
@@ -192,13 +212,14 @@ function mountSession(): ReturnType<typeof useCampaignSession> {
   return live;
 }
 
-describe("continuing an ended session (#1058)", () => {
-  it("reopens the row instead of starting another, and says so to the table", async () => {
+describe("starting and ending a session", () => {
+  it("continuing reopens the ended row instead of starting another, and says so to the table (#1058)", async () => {
     const live = mountSession();
-    rpc.mockResolvedValue({ data: row({ id: "s14", number: 14 }), error: null });
+    answerRpcs({
+      resume_campaign_session: row({ id: "s14", number: 14 }),
+      start_campaign_session: row({ id: "wrongly-started" }),
+    });
     await live.start({ continueId: "s14", number: 15, title: "ignored" });
-    expect(rpc).toHaveBeenCalledWith("resume_campaign_session", { p_session_id: "s14" });
-    expect(rpc).not.toHaveBeenCalledWith("start_campaign_session", expect.anything());
     expect(live.session.value?.id).toBe("s14");
     expect(useAppUiStore().sessionRunning).toBe(true);
     expect(announce).toHaveBeenCalledWith("campaign-1", "⚔️ The session continues.");
@@ -206,9 +227,68 @@ describe("continuing an ended session (#1058)", () => {
 
   it("starts a new one when nothing is continued", async () => {
     const live = mountSession();
-    rpc.mockResolvedValue({ data: row({ id: "s15", number: 15 }), error: null });
+    answerRpcs({
+      start_campaign_session: row({ id: "s15", number: 15 }),
+      resume_campaign_session: row({ id: "wrongly-resumed" }),
+    });
     await live.start({ number: 15 });
-    expect(rpc).toHaveBeenCalledWith("start_campaign_session", expect.objectContaining({ p_number: 15 }));
+    expect(live.session.value?.id).toBe("s15");
     expect(announce).toHaveBeenCalledWith("campaign-1", "⚔️ The session begins.");
+  });
+
+  it("does not announce a start that hands back the session already open", async () => {
+    const live = mountSession();
+    await readSession(row({ id: "s15" }));
+    answerRpcs({ start_campaign_session: row({ id: "s15" }) });
+    await live.start();
+    expect(announce).not.toHaveBeenCalled();
+  });
+
+  it("a failed start surfaces the error, adopts nothing and can be tried again", async () => {
+    const live = mountSession();
+    answerRpcs({ start_campaign_session: new Error("denied") });
+    await expect(live.start()).rejects.toMatchObject({ message: "denied" });
+    expect(useAppUiStore().sessionRunning).toBe(false);
+    expect(live.pending.value).toBe(false);
+    expect(announce).not.toHaveBeenCalled();
+  });
+
+  it("a session still starts when the table cannot be told", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const live = mountSession();
+    announce.mockRejectedValue(new Error("chat down"));
+    answerRpcs({ start_campaign_session: row({ id: "s16" }) });
+    await live.start();
+    expect(live.session.value?.id).toBe("s16");
+  });
+
+  it("ignores a second start while one is in flight", async () => {
+    const live = mountSession();
+    let finish!: () => void;
+    rpc.mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ data: row({ id: "s17" }), error: null }); }));
+    const first = live.start();
+    await live.start();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    finish();
+    await first;
+    expect(live.session.value?.id).toBe("s17");
+  });
+
+  it("ending reports what the server closed and re-reads the log, so the session is no longer running", async () => {
+    const live = mountSession();
+    await readSession(row({ id: "s15" }));
+    expect(useAppUiStore().sessionRunning).toBe(true);
+    openRow = null;
+    answerRpcs({ end_campaign_session: { encounters_ended: 2, chains_paused: 1 } });
+    expect(await live.end()).toEqual({ encounters_ended: 2, chains_paused: 1 });
+    expect(useAppUiStore().sessionRunning).toBe(false);
+  });
+
+  it("a failed end leaves the session running", async () => {
+    const live = mountSession();
+    await readSession(row({ id: "s15" }));
+    answerRpcs({ end_campaign_session: new Error("denied") });
+    await expect(live.end()).rejects.toMatchObject({ message: "denied" });
+    expect(useAppUiStore().sessionRunning).toBe(true);
   });
 });

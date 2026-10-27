@@ -1,21 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
-
-vi.mock("@/lib/supabase", () => ({
-  supabase: { rpc: mocks.rpc },
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
 import { archiveQuestBeat } from "./useQuestFlow";
 
-describe("archiveQuestBeat", () => {
-  beforeEach(() => mocks.rpc.mockReset());
+beforeEach(() => fake.reset());
 
+describe("archiveQuestBeat", () => {
   // #853: several threads can stand on the same archived beat at once, so a
-  // single replacement beat/end-runtime pair can no longer say what happens —
+  // single replacement beat/end-runtime pair can no longer say what happens:
   // each thread gets its own entry, beatId null meaning "end this thread".
-  it("uses the single transactional archive RPC, one replacement per thread", async () => {
-    mocks.rpc.mockResolvedValue({ error: null });
+  it("sends one replacement per thread, a null beat meaning end that thread", async () => {
+    let seen: Record<string, unknown> = {};
+    fake.onRpc("archive_quest_beat", (args) => {
+      seen = args;
+      return null;
+    });
     await archiveQuestBeat({
       id: "beat-1",
       replacements: [
@@ -23,8 +27,7 @@ describe("archiveQuestBeat", () => {
         { threadId: "side", beatId: null },
       ],
     });
-    expect(mocks.rpc).toHaveBeenCalledOnce();
-    expect(mocks.rpc).toHaveBeenCalledWith("archive_quest_beat", {
+    expect(seen).toMatchObject({
       p_beat_id: "beat-1",
       p_replacements: [
         { thread_id: "main", beat_id: "beat-2" },
@@ -33,15 +36,10 @@ describe("archiveQuestBeat", () => {
     });
   });
 
-  it("sends no replacements when no thread stands on the archived beat", async () => {
-    mocks.rpc.mockResolvedValue({ error: null });
-    await archiveQuestBeat({ id: "beat-1", replacements: [] });
-    expect(mocks.rpc).toHaveBeenCalledWith("archive_quest_beat", { p_beat_id: "beat-1", p_replacements: [] });
-  });
-
   it("surfaces an RPC failure for safe retry", async () => {
-    const error = new Error("archive rolled back");
-    mocks.rpc.mockResolvedValue({ error });
-    await expect(archiveQuestBeat({ id: "beat-1", replacements: [] })).rejects.toBe(error);
+    fake.failNext("archive_quest_beat", { message: "archive rolled back" });
+    await expect(archiveQuestBeat({ id: "beat-1", replacements: [] })).rejects.toMatchObject({
+      message: "archive rolled back",
+    });
   });
 });

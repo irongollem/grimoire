@@ -1,14 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { createPinia, setActivePinia } from "pinia";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent } from "vue";
+import { useCampaignStore } from "@/stores/campaign";
 
-// useOptionalRules.ts imports @/lib/supabase, which throws at module load when
-// env vars are absent (CI, plain test runs). The function under test is a pure
-// row transform — stub the supabase module so the import resolves.
-vi.mock("@/lib/supabase", () => ({
-  supabase: {},
-  getCurrentUser: () => null,
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => null }));
 
-import { resolveRuleConfig, isRuleEffectivelyEnabled } from "./useOptionalRules";
+import { resolveRuleConfig, isRuleEffectivelyEnabled, useOptionalRules, useUpsertCampaignRule } from "./useOptionalRules";
 import type { CampaignRule } from "@/types/rule.types";
 
 function row(partial: Partial<CampaignRule>): CampaignRule {
@@ -60,5 +63,60 @@ describe("isRuleEffectivelyEnabled", () => {
     // turn_timer + random_initiative both default to off.
     expect(isRuleEffectivelyEnabled([], "turn_timer")).toBe(false);
     expect(isRuleEffectivelyEnabled(undefined, "random_initiative")).toBe(false);
+  });
+
+  it("keeps an on-by-default rule on when it has no row, and an unknown key off", () => {
+    // "crafting" ships on: a campaign that never touched it must keep its tab.
+    expect(isRuleEffectivelyEnabled([], "crafting")).toBe(true);
+    expect(isRuleEffectivelyEnabled([], "not_a_rule")).toBe(false);
+  });
+});
+
+describe("campaign rules over the database", () => {
+  function run<T>(setup: () => T): T {
+    let out!: T;
+    mount(
+      defineComponent({ setup() { out = setup(); return () => null; } }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] } },
+    );
+    return out;
+  }
+
+  beforeEach(() => {
+    fake.reset();
+    setActivePinia(createPinia());
+    useCampaignStore().activeCampaignId = "c1";
+  });
+
+  it("reads the active campaign's rules and no other campaign's", async () => {
+    fake.seed("campaign_rules", [
+      { ...row({ rule_key: "turn_timer" }) },
+      { ...row({ rule_key: "flanking", campaign_id: "c2" }) },
+    ]);
+    const rules = run(() => useOptionalRules());
+    await flushPromises();
+    expect(rules.data.value?.map((r) => r.rule_key)).toEqual(["turn_timer"]);
+  });
+
+  it("reads nothing without an active campaign", async () => {
+    useCampaignStore().activeCampaignId = null;
+    const rules = run(() => useOptionalRules());
+    await flushPromises();
+    expect(fake.calls).toEqual([]);
+    expect(rules.isError.value).toBe(false);
+  });
+
+  it("toggling a rule changes its one row, keeps the tuned config, and leaves other campaigns' rows alone", async () => {
+    useCampaignStore().activeCampaignId = "c9";
+    fake.seed("campaign_rules", [
+      { ...row({ rule_key: "turn_timer", enabled: true, campaign_id: "c2" }) },
+      { ...row({ rule_key: "turn_timer", enabled: true, config: { seconds: 90 }, campaign_id: "c9" }) },
+    ]);
+    const upsert = run(() => useUpsertCampaignRule());
+    await upsert.mutateAsync({ ruleKey: "turn_timer", enabled: false, config: { seconds: 90 } });
+    const rows = fake.rows("campaign_rules");
+    expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.campaign_id === "c9")).toMatchObject({ enabled: false, config: { seconds: 90 } });
+    expect(rows.find((r) => r.campaign_id === "c2")).toMatchObject({ enabled: true });
   });
 });

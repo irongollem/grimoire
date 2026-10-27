@@ -4,12 +4,15 @@ import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 
 const activeCampaignId = ref<string | null>("campaign-1");
-const rpc = vi.fn();
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 
 // `storeToRefs` only picks up a property that is itself a ref, so the mock
 // hands the ref straight through.
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId }) }));
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: (...args: unknown[]) => rpc(...args) } }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
 import { backlinkFromRow, useEntityBacklinks } from "./useEntityBacklinks";
 
@@ -33,40 +36,46 @@ describe("backlinkFromRow", () => {
   });
 });
 
+type Row = { kind: string; id: string; title: string; quest_id: null; quest_title: null };
+const row = (kind: string, id: string, title: string): Row => ({ kind, id, title, quest_id: null, quest_title: null });
+
+/** The index answers per (campaign, target), so a swapped or stale argument shows up as the wrong list. */
+function answerFor(campaignId: string, targetId: string, rows: Row[]) {
+  fake.onRpc("get_entity_backlinks", (args) =>
+    args.p_campaign_id === campaignId && args.p_target_id === targetId ? rows : [row("note", "wrong", "Wrong scope")],
+  );
+}
+
 describe("useEntityBacklinks", () => {
   beforeEach(() => {
-    rpc.mockReset();
+    fake.reset();
     activeCampaignId.value = "campaign-1";
   });
 
-  it("reads the index in one call and sorts notes before NPCs, then by title", async () => {
-    rpc.mockResolvedValue({
-      data: [
-        { kind: "npc", id: "x2", title: "Odric", quest_id: null, quest_title: null },
-        { kind: "note", id: "n2", title: "Zeta", quest_id: null, quest_title: null },
-        { kind: "note", id: "n1", title: "Alpha", quest_id: null, quest_title: null },
-      ],
-      error: null,
-    });
+  it("lists the active campaign's mentions of the entity, notes before NPCs, then by title", async () => {
+    answerFor("campaign-1", "npc-1", [row("npc", "x2", "Odric"), row("note", "n2", "Zeta"), row("note", "n1", "Alpha")]);
     const { result, unmount } = withQueryClient(() => useEntityBacklinks("npc-1"));
     await flushPromises();
-
-    expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith("get_entity_backlinks", { p_campaign_id: "campaign-1", p_target_id: "npc-1" });
     expect(result.data.value?.map((b) => b.title)).toEqual(["Alpha", "Zeta", "Odric"]);
     unmount();
   });
 
-  it("sends nothing without a campaign or an entity", async () => {
-    activeCampaignId.value = null;
-    const { unmount } = withQueryClient(() => useEntityBacklinks("npc-1"));
+  it.each([
+    ["no campaign", null, "npc-1", undefined],
+    ["no entity", "campaign-1", null, undefined],
+    ["the caller holding it back", "campaign-1", "npc-1", () => false],
+  ])("sends nothing with %s", async (_label, campaign, entity, enabled) => {
+    activeCampaignId.value = campaign;
+    const { result, unmount } = withQueryClient(() => useEntityBacklinks(entity, enabled));
     await flushPromises();
-    expect(rpc).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
+    expect(result.isError.value).toBe(false);
     unmount();
   });
 
   it("surfaces a failed read as an error, not as 'mentioned nowhere'", async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: "permission denied" } });
+    fake.onRpc("get_entity_backlinks", () => []);
+    fake.failNext("get_entity_backlinks", { message: "permission denied" });
     const { result, unmount } = withQueryClient(() => useEntityBacklinks("npc-1"));
     await flushPromises();
     expect(result.isError.value).toBe(true);

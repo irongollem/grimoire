@@ -1,80 +1,80 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApp, defineComponent, h } from "vue";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { flushPromises } from "@vue/test-utils";
 
-const mocks = vi.hoisted(() => ({
-  from: vi.fn(),
-  insert: vi.fn(), update: vi.fn(), del: vi.fn(),
-  select: vi.fn(), eq: vi.fn(), single: vi.fn(),
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
 vi.mock("@/lib/supabase", () => ({
-  supabase: { from: mocks.from },
+  supabase: fake.client,
   getCurrentUser: () => ({ id: "dm-1" }),
 }));
 
-import { createNpcFavor, deleteNpcFavor, settleNpcFavor } from "./useNpcFavors";
+import { createNpcFavor, deleteNpcFavor, settleNpcFavor, useNpcFavors, useSettleNpcFavor } from "./useNpcFavors";
 
-describe("createNpcFavor", () => {
-  beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.from.mockReturnValue({ insert: mocks.insert });
-    mocks.insert.mockReturnValue({ select: mocks.select });
-    mocks.select.mockReturnValue({ single: mocks.single });
+function mountWith<T>(setup: () => T): T {
+  let out!: T;
+  const app = createApp(defineComponent({ setup() { out = setup(); return () => h("div"); } }));
+  app.use(VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) });
+  app.mount(document.createElement("div"));
+  return out;
+}
+
+const input = { campaign_id: "c1", npc_id: "npc-1", quest_id: null, text: "A debt of honor", source_event_id: null };
+
+beforeEach(() => fake.reset());
+
+describe("favors an NPC is owed", () => {
+  it("lists one NPC's favors, settled and unsettled, oldest first, and no other NPC's", async () => {
+    fake.seed("npc_favors", [
+      { id: "f2", npc_id: "npc-1", created_at: "2026-02-01", settled_at: null },
+      { id: "f1", npc_id: "npc-1", created_at: "2026-01-01", settled_at: "2026-03-01" },
+      { id: "f3", npc_id: "npc-2", created_at: "2026-01-15", settled_at: null },
+    ]);
+    const query = mountWith(() => useNpcFavors("npc-1"));
+    await flushPromises();
+    expect(query.data.value?.map((f) => f.id)).toEqual(["f1", "f2"]);
   });
 
-  it("stamps the current user as created_by when none is given", async () => {
-    mocks.single.mockResolvedValue({ data: { id: "favor-1" }, error: null });
-    await createNpcFavor({ campaign_id: "c1", npc_id: "npc-1", quest_id: null, text: "A debt of honor", source_event_id: null });
-    expect(mocks.from).toHaveBeenCalledWith("npc_favors");
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ text: "A debt of honor", created_by: "dm-1" }));
-  });
-
-  it("keeps an explicit created_by rather than overwriting it", async () => {
-    mocks.single.mockResolvedValue({ data: { id: "favor-1" }, error: null });
-    await createNpcFavor({ campaign_id: "c1", npc_id: "npc-1", quest_id: null, text: "x", source_event_id: null, created_by: "other-user" });
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ created_by: "other-user" }));
+  it("stamps the current user as created_by when none is given, and keeps an explicit one", async () => {
+    await createNpcFavor(input);
+    await createNpcFavor({ ...input, text: "x", created_by: "other-user" });
+    expect(fake.rows("npc_favors")).toMatchObject([{ created_by: "dm-1" }, { created_by: "other-user" }]);
   });
 
   it("surfaces an insert failure", async () => {
-    const error = new Error("insert failed");
-    mocks.single.mockResolvedValue({ data: null, error });
-    await expect(createNpcFavor({ campaign_id: "c1", npc_id: "npc-1", quest_id: null, text: "x", source_event_id: null }))
-      .rejects.toBe(error);
-  });
-});
-
-describe("settleNpcFavor", () => {
-  beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.from.mockReturnValue({ update: mocks.update });
-    mocks.update.mockReturnValue({ eq: mocks.eq });
-    mocks.eq.mockReturnValue({ select: mocks.select });
-    mocks.select.mockReturnValue({ single: mocks.single });
+    fake.failNext("npc_favors", { message: "insert failed" });
+    await expect(createNpcFavor(input)).rejects.toMatchObject({ message: "insert failed" });
   });
 
-  it("stamps settled_at rather than deleting the row", async () => {
-    mocks.single.mockResolvedValue({ data: { id: "favor-1", settled_at: "now" }, error: null });
-    await settleNpcFavor("favor-1");
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ settled_at: expect.any(String) }));
-    expect(mocks.eq).toHaveBeenCalledWith("id", "favor-1");
-  });
-});
-
-describe("deleteNpcFavor", () => {
-  beforeEach(() => {
-    for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.from.mockReturnValue({ delete: mocks.del });
-    mocks.del.mockReturnValue({ eq: mocks.eq });
+  it("settling stamps settled_at on that favor only and keeps the row", async () => {
+    fake.seed("npc_favors", [
+      { id: "f1", npc_id: "npc-1", settled_at: null },
+      { id: "f2", npc_id: "npc-1", settled_at: null },
+    ]);
+    await settleNpcFavor("f1");
+    const [f1, f2] = fake.rows("npc_favors");
+    expect(typeof f1?.settled_at).toBe("string");
+    expect(f2?.settled_at).toBeNull();
   });
 
-  it("deletes the row by id", async () => {
-    mocks.eq.mockResolvedValue({ error: null });
-    await deleteNpcFavor("favor-1");
-    expect(mocks.from).toHaveBeenCalledWith("npc_favors");
-    expect(mocks.eq).toHaveBeenCalledWith("id", "favor-1");
+  it("refreshes the NPC's favor list after settling", async () => {
+    fake.seed("npc_favors", [{ id: "f1", npc_id: "npc-1", created_at: "2026-01-01", settled_at: null }]);
+    const { list, settle } = mountWith(() => ({ list: useNpcFavors("npc-1"), settle: useSettleNpcFavor() }));
+    await flushPromises();
+    expect(list.data.value?.[0]?.settled_at).toBeNull();
+    await settle.mutateAsync({ id: "f1", npcId: "npc-1" });
+    await flushPromises();
+    expect(list.data.value?.[0]?.settled_at).not.toBeNull();
   });
 
-  it("surfaces a delete failure", async () => {
-    const error = new Error("delete failed");
-    mocks.eq.mockResolvedValue({ error });
-    await expect(deleteNpcFavor("favor-1")).rejects.toBe(error);
+  it("deletes only the favor named, and surfaces a delete failure", async () => {
+    fake.seed("npc_favors", [{ id: "f1", npc_id: "npc-1" }, { id: "f2", npc_id: "npc-1" }]);
+    await deleteNpcFavor("f1");
+    expect(fake.rows("npc_favors").map((f) => f.id)).toEqual(["f2"]);
+    fake.failNext("npc_favors", { message: "delete failed" });
+    await expect(deleteNpcFavor("f2")).rejects.toMatchObject({ message: "delete failed" });
   });
 });

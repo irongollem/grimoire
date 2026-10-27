@@ -17,13 +17,13 @@ function setCampaign(ruleset: RulesetKey | null) {
 }
 
 /** Mounts a host that runs the composable in its own setup and hands back what it returned. */
-function host(member: { value: boolean }, isDmCreate = false) {
+function host(member: { value: boolean }, isDmCreate = false, isEditMode = false) {
   const reset = vi.fn();
   let result!: ReturnType<typeof useCharacterCreationEdition>;
   mount(defineComponent({
     setup() {
       result = useCharacterCreationEdition({
-        isEditMode: false,
+        isEditMode,
         isDmCreate,
         existingMember: null,
         isMemberOfActiveCampaign: () => member.value,
@@ -45,6 +45,13 @@ describe("useCharacterCreationEdition", () => {
     const { result } = host(ref(true));
     expect(result.landingCampaign.value?.id).toBe("campaign-1");
     expect(result.chosenRuleset.value).toBe("2024");
+  });
+
+  it("a DM's roster create lands at the active campaign without sitting at it", () => {
+    setCampaign("2014");
+    const { result } = host(ref(false), true);
+    expect(result.landingCampaign.value?.id).toBe("campaign-1");
+    expect(result.chosenRuleset.value).toBe("2014");
   });
 
   it("has no edition and no table when the creator sits nowhere", () => {
@@ -83,6 +90,19 @@ describe("useCharacterCreationEdition", () => {
     expect(reset).not.toHaveBeenCalled(); // same value
     result.chooseRuleset("2024");
     expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("an existing character keeps its own edition: nothing is seeded and changing it resets nothing", async () => {
+    setCampaign("2024");
+    const member = ref(false);
+    const { result, reset } = host(member, false, true);
+    expect(result.chosenRuleset.value).toBeNull();
+    member.value = true;
+    await Promise.resolve();
+    expect(result.chosenRuleset.value).toBeNull();
+    result.chooseRuleset("2014");
+    result.chooseRuleset("2024");
+    expect(reset).not.toHaveBeenCalled();
   });
 
   it("scopes the lists to the player's own books exactly when the character lands nowhere", async () => {

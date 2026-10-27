@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   auditCalls: 0,
   invokeCalls: [] as InvokeCall[],
   rateLimitIds: new Set<string>(),
+  failIds: new Set<string>(),
   reported: [] as unknown[],
 }));
 
@@ -32,6 +33,10 @@ vi.mock("@/lib/supabase", () => ({
         // The shape supabase-js gives a non-2xx: `data` null, the body on `error.context`.
         if (ids.some((id) => mocks.rateLimitIds.has(id))) {
           const context = new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 });
+          return { data: null, error: Object.assign(new Error("Edge Function returned a non-2xx status code"), { context }) };
+        }
+        if (ids.some((id) => mocks.failIds.has(id))) {
+          const context = new Response(JSON.stringify({ error: "embedding failed" }), { status: 500 });
           return { data: null, error: Object.assign(new Error("Edge Function returned a non-2xx status code"), { context }) };
         }
         return { data: { embedded: ids, unchanged: [], forbidden: [], notFound: [] }, error: null };
@@ -72,6 +77,7 @@ beforeEach(() => {
   mocks.auditCalls = 0;
   mocks.invokeCalls = [];
   mocks.rateLimitIds = new Set();
+  mocks.failIds = new Set();
   mocks.reported = [];
 });
 
@@ -122,10 +128,35 @@ describe("useBackgroundIndexing", () => {
     run();
     await backgroundIndexingSettled();
     expect(mocks.invokeCalls).toHaveLength(0);
+    // Not an error either: a child account is simply never indexed.
+    expect(mocks.reported).toEqual([]);
+  });
+
+  it("embeds the kinds in the order the index prefers, whatever order the audit lists them", async () => {
+    mocks.auditContent = [
+      { kind: "quest", missing: ["q1"], outdated: [] },
+      { kind: "npc", missing: ["n1"], outdated: [] },
+      { kind: "item", missing: ["i1"], outdated: [] },
+    ];
+    run();
+    await backgroundIndexingSettled();
+    expect(mocks.invokeCalls.map((c) => c.body.entity)).toEqual(["item", "npc", "quest"]);
   });
 });
 
 describe("indexCampaign", () => {
+  it("counts a batch that failed as failed, not as still waiting for a later session", async () => {
+    mocks.auditContent = [
+      { kind: "npc", missing: ["n1", "n2"], outdated: [] },
+      { kind: "note", missing: ["bad"], outdated: [] },
+    ];
+    mocks.failIds = new Set(["bad"]);
+    const result = await indexCampaign("campaign-1");
+    expect(result.indexed).toBe(2);
+    expect(result.failed).toBe(1);
+    expect(result.remaining).toBe(0);
+  });
+
   it("stops at the daily allowance and leaves the rest for a later session", async () => {
     mocks.auditContent = [
       { kind: "npc", missing: ["n1"], outdated: [] },

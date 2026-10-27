@@ -16,8 +16,12 @@ const locations = ref<Location[]>([]);
 
 vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => reactive({ sessionRunning }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => reactive({ activeCampaign }) }));
+let locationsEnabled: (() => boolean) | undefined;
 vi.mock("@/composables/locations/useLocations", () => ({
-  useAllLocations: () => ({ data: locations }),
+  useAllLocations: (enabled?: () => boolean) => {
+    locationsEnabled = enabled;
+    return { data: locations };
+  },
 }));
 
 /** An empty inheritance index — every test that isn't about inheritance itself. */
@@ -63,6 +67,17 @@ beforeEach(async () => {
   locations.value = [];
   const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
   clearAudioTriggerHandlers();
+});
+
+describe("usePartyAmbience reads", () => {
+  it("does not load the location list until a session is running", async () => {
+    const { scope, off } = await mount();
+    expect(locationsEnabled?.()).toBe(false);
+    sessionRunning.value = true;
+    expect(locationsEnabled?.()).toBe(true);
+    off();
+    scope.stop();
+  });
 });
 
 describe("resolvePartyAmbience", () => {

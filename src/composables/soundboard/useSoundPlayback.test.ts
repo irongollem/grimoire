@@ -22,7 +22,7 @@ const soundboardStore = {
 };
 
 const spotifyStore = {
-  isReady: true,
+  isReady: true as boolean,
   isPlaying: false,
   lastPlayedUrl: null as string | null,
   repeatMode: 0 as 0 | 1 | 2,
@@ -34,7 +34,7 @@ const spotifyStore = {
 vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => soundboardStore }));
 vi.mock("@/stores/spotify", () => ({ useSpotifyStore: () => spotifyStore }));
 
-const { useSoundTrigger, useSoundToggle, useActionCheck, useSoundPlayback } = await import("./useSoundPlayback");
+const { useSoundTrigger, useSoundToggle, useActionCheck, useSoundPlayback, useBlockedCheck, useAudibleCheck } = await import("./useSoundPlayback");
 
 function sound(over: Partial<Sound> = {}): Sound {
   return {
@@ -162,5 +162,85 @@ describe("loop — a Spotify track on the board loops like any pad", () => {
     useSoundPlayback(() => sound()).toggleLoop();
     expect(soundboardStore.toggleLoop).toHaveBeenCalledWith("s1");
     expect(spotifyStore.setRepeat).not.toHaveBeenCalled();
+  });
+});
+
+describe("what is audible", () => {
+  const track = () => sound({ source_type: "spotify", category: "music", file_url: "spotify:track:1" });
+
+  it("counts a Spotify track as audible only while it is the loaded one and the player is playing", () => {
+    const audible = useAudibleCheck();
+    spotifyStore.lastPlayedUrl = "spotify:track:1";
+    spotifyStore.isPlaying = false;
+    expect(audible(track())).toBe(false);
+    spotifyStore.isPlaying = true;
+    spotifyStore.lastPlayedUrl = "spotify:track:other";
+    expect(audible(track())).toBe(false);
+    spotifyStore.lastPlayedUrl = "spotify:track:1";
+    expect(audible(track())).toBe(true);
+  });
+});
+
+describe("what blocks a sound", () => {
+  it("holds a Spotify track back until the device is ready, and does not fire it", () => {
+    spotifyStore.isReady = false;
+    expect(useBlockedCheck()(sound({ source_type: "spotify", file_url: "spotify:track:1" }))).toBe("Connecting to Spotify device…");
+    useSoundToggle()(sound({ source_type: "spotify", file_url: "spotify:track:1" }));
+    useSoundTrigger()(sound({ source_type: "spotify", file_url: "spotify:track:1" }));
+    expect(spotifyStore.play).not.toHaveBeenCalled();
+    spotifyStore.isReady = true;
+    expect(useBlockedCheck()(sound({ source_type: "spotify", file_url: "spotify:track:1" }))).toBeNull();
+  });
+
+  it("reports a load failure, and nothing else, for an ordinary sound", () => {
+    expect(useBlockedCheck()(sound())).toBeNull();
+    soundboardStore.getState.mockReturnValue({ isPlaying: false, loadError: true });
+    expect(useBlockedCheck()(sound())).toBe("Failed to load");
+  });
+
+  const SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+
+  it.each([
+    ["a .webm file", { file_url: "https://cdn.example/a.webm" }, "WebM: cannot play in Safari"],
+    ["a .webm behind a query string", { file_url: "https://cdn.example/a.webm?token=1" }, "WebM: cannot play in Safari"],
+    ["a .webm storage path under a different url", { file_url: "https://cdn.example/a", storage_path: "u/a.webm" }, "WebM: cannot play in Safari"],
+    ["an mp3", { file_url: "https://cdn.example/a.mp3" }, null],
+  ])("in Safari, %s is %s", async (_label, over, expected) => {
+    vi.resetModules();
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(SAFARI);
+    const fresh = await import("./useSoundPlayback");
+    expect(fresh.useBlockedCheck()(sound(over))).toBe(expected);
+    vi.restoreAllMocks();
+  });
+
+  it("lets Chrome play the same .webm", async () => {
+    expect(useBlockedCheck()(sound({ file_url: "https://cdn.example/a.webm" }))).toBeNull();
+  });
+});
+
+describe("what a press sends to the stores", () => {
+  it("starts a silent sound on its own bus at its own gain", () => {
+    useSoundToggle()(sound({ category: "ambient", gain_trim: 0.7 }));
+    expect(soundboardStore.play).toHaveBeenCalledWith("s1", "https://example.test/thunder.mp3", "ambient", 0.7);
+  });
+
+  it("restarts a playing one-shot on the effects bus at its own gain", () => {
+    setAudible(true);
+    useSoundTrigger()(sound({ category: "effects", gain_trim: 0.7 }));
+    expect(soundboardStore.restart).toHaveBeenCalledWith("s1", "https://example.test/thunder.mp3", "effects", 0.7);
+  });
+
+  it("plays a silent Spotify track by its uri", () => {
+    useSoundToggle()(sound({ source_type: "spotify", category: "music", file_url: "spotify:track:9" }));
+    expect(spotifyStore.play).toHaveBeenCalledWith("spotify:track:9");
+    expect(soundboardStore.play).not.toHaveBeenCalled();
+  });
+
+  it("stops a Spotify track by pausing the player and an audio sound through the soundboard", () => {
+    useSoundPlayback(() => sound({ source_type: "spotify", file_url: "spotify:track:9" })).stop();
+    expect(spotifyStore.pause).toHaveBeenCalledTimes(1);
+    expect(soundboardStore.stop).not.toHaveBeenCalled();
+    useSoundPlayback(() => sound()).stop();
+    expect(soundboardStore.stop).toHaveBeenCalledWith("s1");
   });
 });

@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { defineComponent, nextTick, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
-import type { RunCombatant } from "@/types/encounter.types";
+import type { RunCombatant, WildshapeState } from "@/types/encounter.types";
 import type { AppliedCondition } from "@/types/condition.types";
 
 interface Row {
@@ -12,7 +12,7 @@ interface Row {
   current_initiative: number | null;
   conditions: AppliedCondition[];
   concentration: { spellName: string } | null;
-  wildshape_state: null;
+  wildshape_state: WildshapeState | null;
   death_save_successes: number;
   death_save_failures: number;
 }
@@ -21,6 +21,7 @@ interface Row {
 // when a response returns and what it holds (the value as of when it was read).
 const reads: Array<(rows: Row[]) => void> = [];
 const writes: Array<() => void> = [];
+const updates: Array<{ id: string; update: Record<string, unknown> }> = [];
 const ringListeners: Array<() => void> = [];
 
 vi.mock("@/lib/supabase", () => ({
@@ -43,7 +44,8 @@ vi.mock("@/lib/campaignLiveSync/rings", () => ({
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "camp-1" }) }));
 vi.mock("@/composables/party/useParty", () => ({
   useUpdatePartyMember: () => ({
-    mutateAsync: () => new Promise<void>((resolve) => { writes.push(resolve); }),
+    mutateAsync: (args: { id: string; update: Record<string, unknown> }) =>
+      new Promise<void>((resolve) => { updates.push(args); writes.push(resolve); }),
   }),
 }));
 
@@ -85,12 +87,22 @@ function row(over: Partial<Row>): Row {
 
 const ring = () => ringListeners.forEach((fire) => fire());
 
+// A runner left mounted would answer the next test's rings and `isLive` toggles.
+afterEach(() => {
+  mounted?.unmount();
+  mounted = null;
+});
+
+let mounted: ReturnType<typeof mount> | null = null;
+let sync: ReturnType<typeof useRunnerPartySync> | null = null;
+const isLive = ref(true);
+
 async function setup(hp = 20) {
   setActivePinia(createPinia());
   const store = useEncounterRunStore();
   store.combatants = [player(hp)];
-  const isLive = ref(true);
-  mount(defineComponent({ setup() { useRunnerPartySync(isLive); return () => null; } }));
+  isLive.value = true;
+  mounted = mount(defineComponent({ setup() { sync = useRunnerPartySync(isLive); return () => null; } }));
   await flushPromises();
   // The mount-time read: answer it with the current state so each test starts quiet.
   reads.shift()!([row({ current_hp: hp })]);
@@ -102,6 +114,7 @@ describe("useRunnerPartySync re-reads", () => {
   beforeEach(() => {
     reads.length = 0;
     writes.length = 0;
+    updates.length = 0;
     ringListeners.length = 0;
     vi.useFakeTimers();
   });
@@ -191,7 +204,7 @@ describe("useRunnerPartySync concentration (#1018)", () => {
     setActivePinia(createPinia());
     const store = useEncounterRunStore();
     store.combatants = [player(20), { ...player(20), instance_id: "g-1", type: "monster", party_member_id: undefined, name: "Goblin", conditions: [hold] }];
-    mount(defineComponent({ setup() { useRunnerPartySync(ref(true)); return () => null; } }));
+    mounted = mount(defineComponent({ setup() { useRunnerPartySync(ref(true)); return () => null; } }));
     await flushPromises();
     reads.shift()!([row({ concentration: { spellName: "Hold Person" } })]);
     await flushPromises();
@@ -220,5 +233,160 @@ describe("useRunnerPartySync concentration (#1018)", () => {
     reads.shift()!([row({ concentration: { spellName: "Bless" } })]);
     await flushPromises();
     expect(store.combatants[1]!.conditions).toEqual([]);
+  });
+});
+
+describe("useRunnerPartySync guards", () => {
+  // The store also persists every player change at once; the debounced HP flush is the update that is only `current_hp`.
+  const debounced = () => updates.filter((u) => Object.keys(u.update).join() === "current_hp");
+
+  beforeEach(() => {
+    reads.length = 0;
+    writes.length = 0;
+    updates.length = 0;
+    ringListeners.length = 0;
+    vi.useFakeTimers();
+  });
+
+  it("keeps an HP write that is in flight when a read that began after it started comes back with the old value", async () => {
+    const store = await setup(20);
+    store.adjustHp("p-1", -10);
+    await vi.advanceTimersByTimeAsync(400); // write HP=10 started, not committed
+    ring();
+    await flushPromises(); // read starts after the write did
+    reads.shift()!([row({ current_hp: 20 })]); // the DB has not committed it yet
+    await flushPromises();
+    expect(store.combatants[0]!.hp).toBe(10);
+  });
+
+  it("keeps an HP change still waiting for its debounced write when a read returns the old value", async () => {
+    const store = await setup(20);
+    store.adjustHp("p-1", -10);
+    writes.splice(0).forEach((done) => done()); // the immediate persist has settled; the 400ms flush has not run
+    await flushPromises();
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ current_hp: 20 })]);
+    await flushPromises();
+    expect(store.combatants[0]!.hp).toBe(10);
+  });
+
+  it("writes an HP change once, after the debounce, as the member's current_hp", async () => {
+    const store = await setup(20);
+    store.adjustHp("p-1", -3);
+    store.adjustHp("p-1", -2);
+    await vi.advanceTimersByTimeAsync(399);
+    expect(debounced()).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(debounced()).toEqual([{ id: "pm-1", update: { current_hp: 15 } }]);
+  });
+
+  it("writes no HP when the roster is replaced with the same hit points", async () => {
+    const store = await setup(20);
+    store.combatants = [player(20)];
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(debounced()).toEqual([]);
+  });
+
+  it("writes no HP while the fight is not live", async () => {
+    const store = await setup(20);
+    isLive.value = false;
+    store.adjustHp("p-1", -10);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(debounced()).toEqual([]);
+  });
+
+  it("drops a read that returns after the runner closed", async () => {
+    const store = await setup(20);
+    ring();
+    await flushPromises();
+    mounted!.unmount();
+    reads.shift()!([row({ current_hp: 3, temp_hp: 5 })]);
+    await flushPromises();
+    expect(store.combatants[0]!.hp).toBe(20);
+    expect(store.combatants[0]!.temp_hp).toBeUndefined();
+  });
+
+  it("stops persisting the store's player changes once the runner closed", async () => {
+    const store = await setup(20);
+    mounted!.unmount();
+    store.applyCondition("p-1", { name: "Prone" });
+    await flushPromises();
+    expect(updates).toEqual([]);
+  });
+
+  it("reads once the fight turns live after the runner opened", async () => {
+    setActivePinia(createPinia());
+    useEncounterRunStore().combatants = [player(20)];
+    isLive.value = false;
+    mounted = mount(defineComponent({ setup() { useRunnerPartySync(isLive); return () => null; } }));
+    await flushPromises();
+    reads.shift()!([row({})]);
+    await flushPromises();
+    expect(reads).toHaveLength(0);
+    isLive.value = true;
+    await flushPromises();
+    expect(reads).toHaveLength(1);
+  });
+
+  it("adopts a form the player took on their own sheet, and drops it when the row clears", async () => {
+    const store = await setup(20);
+    const wolf: WildshapeState = { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" };
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ wildshape_state: wolf })]);
+    await flushPromises();
+    expect(store.combatants[0]!.wildshape).toEqual(wolf);
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ wildshape_state: null })]);
+    await flushPromises();
+    expect(store.combatants[0]!.wildshape).toBeUndefined();
+  });
+
+  it("adopts death saves rolled on the player's own sheet", async () => {
+    const store = await setup(20);
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ death_save_successes: 2, death_save_failures: 1 })]);
+    await flushPromises();
+    expect(store.combatants[0]!.death_saves).toEqual({ successes: 2, failures: 1 });
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ death_save_successes: 2, death_save_failures: 2 })]);
+    await flushPromises();
+    expect(store.combatants[0]!.death_saves).toEqual({ successes: 2, failures: 2 });
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ death_save_successes: 3, death_save_failures: 2 })]);
+    await flushPromises();
+    expect(store.combatants[0]!.death_saves).toEqual({ successes: 3, failures: 2 });
+  });
+
+  it("takes a player-rolled initiative only while the fight is live (#504)", async () => {
+    const store = await setup(20);
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ current_initiative: 18 })]);
+    await flushPromises();
+    expect(store.combatants[0]!.initiative).toBe(18);
+
+    isLive.value = false;
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ current_initiative: 4 })]);
+    await flushPromises();
+    expect(store.combatants[0]!.initiative).toBe(18);
+  });
+
+  it("clears every PC's initiative in the store and on their rows as the lobby opens", async () => {
+    const store = await setup(20);
+    const cleared = sync!.clearPartyInitiatives();
+    await flushPromises();
+    writes.splice(0).forEach((done) => done());
+    await cleared;
+    expect(store.combatants[0]!.initiative).toBeNull();
+    expect(updates).toEqual([{ id: "pm-1", update: { current_initiative: null } }]);
   });
 });

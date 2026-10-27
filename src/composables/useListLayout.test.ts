@@ -26,6 +26,14 @@ describe("useListLayout", () => {
     expect(useListLayout("monsters", "grid").value).toBe("grid");
   });
 
+  it("remembers every list's choice, not only the last one made", () => {
+    useListLayout("npcs", "grid").value = "rows";
+    useListLayout("monsters", "grid").value = "rows";
+    useListLayout("spells", "rows").value = "grid";
+    expect(useListLayout("npcs", "grid").value).toBe("rows");
+    expect(useListLayout("monsters", "grid").value).toBe("rows");
+  });
+
   it("falls back to the default for an unknown stored value", async () => {
     localStorage.setItem(KEY, JSON.stringify({ npcs: "gallery" }));
     // The shared ref reads storage once, like a reload does, so use a fresh module.

@@ -34,4 +34,8 @@ describe("pickBreakpointColumns", () => {
     expect(pickBreakpointColumns(spec, at("sm", "md", "lg"))).toBe(3);
     expect(pickBreakpointColumns(spec, at("sm", "md", "lg", "xl", "2xl"))).toBe(4);
   });
+  it("never answers below one column or with a fraction", () => {
+    expect(pickBreakpointColumns({ base: 0 }, at())).toBe(1);
+    expect(pickBreakpointColumns({ base: 1, lg: 2.7 }, at("lg"))).toBe(2);
+  });
 });

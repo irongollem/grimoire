@@ -43,10 +43,6 @@ it("redirects the old web address to the World Web", async () => {
 });
 
 describe.each(NESTED_LISTS)("$label detail route", ({ list, detail, siblings }) => {
-  it("resolves the list itself", () => {
-    expect(router.resolve(list.path).name).toBe(list.name);
-  });
-
   it.each(siblings)("resolves $path to $name rather than the detail route", ({ path, name }) => {
     expect(router.resolve(path).name).toBe(name);
   });

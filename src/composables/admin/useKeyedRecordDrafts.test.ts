@@ -44,4 +44,14 @@ describe("useKeyedRecordDrafts", () => {
     k.reset("b");
     expect(k.drafts.b!.cost).toBe(2);
   });
+
+  it("drops a conflict once the server settles on what the user typed", () => {
+    const k = setup();
+    k.sync("a", { id: "a", name: "A", cost: 1 });
+    k.drafts.a!.name = "Mine";
+    k.sync("a", { id: "a", name: "Theirs", cost: 1 });
+    expect(k.conflicts.a).toEqual(["name"]);
+    k.sync("a", { id: "a", name: "Mine", cost: 1 });
+    expect(k.conflicts.a).toEqual([]);
+  });
 });

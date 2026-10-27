@@ -54,4 +54,28 @@ describe("aggregateModelStats", () => {
     expect(stats[0]!.label).toBe("gpt-image-1.5");
     expect(stats[0]!.count).toBe(2);
   });
+
+  // BYOK rows cost the user's own key, not credits: they count as generations
+  // but must not dilute the average credits a charged generation costs.
+  it("averages credits over charged generations only", () => {
+    const [stat] = aggregateModelStats([
+      row({ delta: -12 }),
+      row({ delta: -8 }),
+      row({ delta: 0, is_byok: true }),
+    ]);
+    expect(stat!.count).toBe(3);
+    expect(stat!.byok_count).toBe(1);
+    expect(stat!.charged_count).toBe(2);
+    expect(stat!.credits).toBe(20);
+    expect(stat!.avg_credits).toBe(10);
+  });
+
+  it("lists the most-used variant first", () => {
+    const stats = aggregateModelStats([
+      row({ quality: "high" }),
+      row({ quality: "low" }),
+      row({ quality: "low" }),
+    ]);
+    expect(stats.map((s) => s.quality)).toEqual(["low", "high"]);
+  });
 });

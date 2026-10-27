@@ -16,6 +16,9 @@ describe("usePlayerCombatPrefs", () => {
     expect((await load()).turnAudioEnabled.value).toBe(true);
     localStorage.setItem(KEY, "false");
     expect((await load()).turnAudioEnabled.value).toBe(false);
+    // Anything but "false" leaves it on: a mangled value must not silence the table.
+    localStorage.setItem(KEY, "banana");
+    expect((await load()).turnAudioEnabled.value).toBe(true);
   });
 
   it("persists the choice as a bare string", async () => {

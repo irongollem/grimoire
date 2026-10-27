@@ -1,5 +1,101 @@
-import { describe, expect, it } from "vitest";
-import { childAccountErrorMessage, childFormErrors, formatAdultOn, type ChildFormState } from "./useFamily";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mount } from "@vue/test-utils";
+import { defineComponent } from "vue";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const auth = vi.hoisted(() => ({ user: { id: "parent-1" } as { id: string } | null }));
+
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => auth }));
+
+import {
+  childAccountErrorMessage,
+  childFormErrors,
+  formatAdultOn,
+  useFamily,
+  type ChildFormState,
+} from "./useFamily";
+
+beforeEach(() => {
+  fake.reset();
+  auth.user = { id: "parent-1" };
+});
+
+function childRow(over: Record<string, unknown>) {
+  return {
+    child_user_id: "kid",
+    parent_user_id: "parent-1",
+    login_name: "kid-login",
+    consented_at: "2026-01-01T00:00:00Z",
+    adult_on: "2040-01-01",
+    ...over,
+  };
+}
+
+async function mountFamily() {
+  let family!: ReturnType<typeof useFamily>;
+  mount(
+    defineComponent({
+      setup() {
+        family = useFamily();
+        return () => null;
+      },
+    }),
+    { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] } },
+  );
+  await vi.waitFor(() => expect(family.isLoading.value).toBe(false));
+  return family;
+}
+
+describe("useFamily", () => {
+  it("lists only the signed-in parent's children, never another family's (an admin's read sees every row)", async () => {
+    fake.seed("child_accounts", [
+      childRow({ child_user_id: "kid-a", login_name: "kid-a" }),
+      childRow({ child_user_id: "kid-b", parent_user_id: "someone-else", login_name: "kid-b" }),
+    ]);
+    fake.seed("profiles", [
+      { user_id: "kid-a", username: "Robin" },
+      { user_id: "kid-b", username: "Not Mine" },
+    ]);
+
+    const { children } = await mountFamily();
+
+    expect(children.value.map((c) => c.child_user_id)).toEqual(["kid-a"]);
+    expect(children.value[0].displayName).toBe("Robin");
+  });
+
+  it("falls back to the login name when the profile row is gone, rather than dropping the child", async () => {
+    fake.seed("child_accounts", [childRow({ child_user_id: "kid-a", login_name: "kid-a-login" })]);
+
+    const { children } = await mountFamily();
+
+    expect(children.value).toHaveLength(1);
+    expect(children.value[0].displayName).toBe("kid-a-login");
+  });
+
+  it("reports a failed read as an error, not as an empty family", async () => {
+    fake.seed("child_accounts", [childRow({})]);
+    fake.failNext("child_accounts", { message: "boom" });
+
+    const { children, error } = await mountFamily();
+
+    expect(error.value).toMatchObject({ message: "boom" });
+    expect(children.value).toEqual([]);
+  });
+
+  it("reports a failed profile lookup as an error too", async () => {
+    fake.seed("child_accounts", [childRow({})]);
+    fake.failNext("profiles", { message: "profiles down" });
+
+    const { error } = await mountFamily();
+
+    expect(error.value).toMatchObject({ message: "profiles down" });
+  });
+});
 
 describe("formatAdultOn", () => {
   it("renders a YYYY-MM-DD adult_on date as Month YYYY", () => {
@@ -27,16 +123,6 @@ describe("childAccountErrorMessage", () => {
   it("passes an unrecognised code through verbatim", () => {
     expect(childAccountErrorMessage("some_new_code")).toBe("some_new_code");
   });
-
-  it("never includes an em-dash", () => {
-    for (const message of Object.values({
-      a: childAccountErrorMessage("child_account"),
-      b: childAccountErrorMessage("request_not_found"),
-      c: childAccountErrorMessage("wrong_parent"),
-    })) {
-      expect(message).not.toContain("—");
-    }
-  });
 });
 
 describe("childFormErrors", () => {
@@ -63,12 +149,11 @@ describe("childFormErrors", () => {
     expect(errors).toContain("Login name must be 3 to 30 lowercase letters, numbers or hyphens.");
   });
 
-  it("flags a password under 8 characters", () => {
-    const errors = childFormErrors(
-      { ...validForm(), password: "short", confirmPassword: "short" },
-      today,
-    );
-    expect(errors).toContain("Password must be at least 8 characters.");
+  it("flags a password of 7 characters and accepts one of 8", () => {
+    const seven = childFormErrors({ ...validForm(), password: "sevench", confirmPassword: "sevench" }, today);
+    expect(seven).toContain("Password must be at least 8 characters.");
+    const eight = childFormErrors({ ...validForm(), password: "eightchr", confirmPassword: "eightchr" }, today);
+    expect(eight).toEqual([]);
   });
 
   it("flags mismatched password confirmation", () => {
@@ -115,6 +200,6 @@ describe("childFormErrors", () => {
       },
       today,
     );
-    expect(errors.length).toBeGreaterThan(3);
+    expect(errors).toHaveLength(6);
   });
 });

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -64,6 +64,58 @@ describe("runner initiative", () => {
     expect(store.round).toBe(1);
   });
 
+  it("a second roll request while one is open does nothing, so a prompt is never asked twice", async () => {
+    const store = useEncounterRunStore();
+    let answer: (v: number | null) => void = () => {};
+    const roller = vi.fn(() => new Promise<number | null>((resolve) => { answer = resolve; }));
+    store.setInitiativeRoller(roller);
+    store.combatants = [combatant("a"), combatant("b")];
+
+    const first = store.rollInitiative("a");
+    await store.rollInitiative("b");
+    expect(await store.rollAllInitiatives()).toBe(false);
+    expect(roller).toHaveBeenCalledTimes(1);
+    answer(9);
+    await first;
+    expect(store.combatants.map((c) => c.initiative)).toEqual([9, null]);
+  });
+
+  it("a cancelled per-row roll keeps the value the row already had", async () => {
+    const store = useEncounterRunStore();
+    store.setInitiativeRoller(async () => null);
+    store.combatants = [combatant("a", { initiative: 14 })];
+    await store.rollInitiative("a");
+    expect(store.combatants[0]!.initiative).toBe(14);
+  });
+
+  it("a per-row roll replaces an existing value, unlike rolling for everyone", async () => {
+    const store = useEncounterRunStore();
+    store.setInitiativeRoller(async () => 5);
+    store.combatants = [combatant("a", { initiative: 14 })];
+    await store.rollInitiative("a");
+    expect(store.combatants[0]!.initiative).toBe(5);
+  });
+
+  it("starting combat that is already under way asks nobody to roll", async () => {
+    const store = useEncounterRunStore();
+    const roller = vi.fn(async () => 3);
+    store.setInitiativeRoller(roller);
+    store.combatants = [combatant("a", { initiative: 15 }), monster("late")];
+    store.started = true;
+    store.round = 2;
+    await store.startCombat();
+    expect(roller).not.toHaveBeenCalled();
+  });
+
+  it("ingested temp HP is taken as the sheet says it, and 0 clears it", () => {
+    const store = useEncounterRunStore();
+    store.combatants = [combatant("a")];
+    store.ingestTempHp("a", 6);
+    expect(store.combatants[0]!.temp_hp).toBe(6);
+    store.ingestTempHp("a", 0);
+    expect(store.combatants[0]!.temp_hp).toBeUndefined();
+  });
+
   it("names the party members who have not rolled, not monsters or companions", () => {
     const store = useEncounterRunStore();
     store.combatants = [
@@ -97,6 +149,21 @@ describe("runner initiative", () => {
 
 describe("runner turn reducer wiring", () => {
   beforeEach(() => setActivePinia(createPinia()));
+
+  it("lists the conditions that ended on a turn change, and only those, each turn", () => {
+    const store = useEncounterRunStore();
+    // Prone from "a" for one round: it ends when "a"'s next turn begins.
+    const prone = { name: "Prone", source: { id: "a" }, ends: { kind: "rounds" as const, remaining: 1 } };
+    store.combatants = [monster("a", { initiative: 20 }), monster("b", { initiative: 5, conditions: [prone] })];
+    store.started = true;
+    store.round = 1;
+    store.nextTurn(); // b's turn
+    expect(store.lastConditionEvents).toEqual([]);
+    store.nextTurn(); // round 2, a's turn: Prone lapses
+    expect(store.lastConditionEvents.map((e) => [e.instanceId, e.name])).toEqual([["b", "Prone"]]);
+    store.nextTurn(); // nothing ends: the old line is replaced, not kept
+    expect(store.lastConditionEvents).toEqual([]);
+  });
 
   it("nextTurn fires an auto event on the new turn and clears surprise at turn end", () => {
     const store = useEncounterRunStore();

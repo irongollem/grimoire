@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { readScratch, scratchKey, writeScratch } from "./useJournalScratch";
+import { createPinia, setActivePinia } from "pinia";
+import { effectScope, nextTick } from "vue";
+import { beforeEach, describe, expect, it } from "vitest";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import { readScratch, scratchKey, useJournalScratch, writeScratch } from "./useJournalScratch";
 
 function memory(): Storage {
   const m = new Map<string, string>();
@@ -54,5 +59,52 @@ describe("journal scratch pad storage", () => {
     };
     expect(readScratch(s, "k")).toBe("");
     expect(() => writeScratch(s, "k", doc("x"))).not.toThrow();
+  });
+});
+
+describe("useJournalScratch", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    safeLocalStorage().clear();
+    useAuthStore().user = { id: "u1" } as never;
+    useCampaignStore().activeCampaignId = "c1";
+  });
+
+  function mountPad() {
+    return effectScope().run(() => useJournalScratch())!;
+  }
+
+  it("keeps each campaign's pad apart: switching campaign shows that campaign's draft, not the last one's", async () => {
+    safeLocalStorage().setItem(scratchKey("u1", "c1"), doc("clue in c1"));
+    safeLocalStorage().setItem(scratchKey("u1", "c2"), doc("clue in c2"));
+    const pad = mountPad();
+    expect(pad.content.value).toBe(doc("clue in c1"));
+    useCampaignStore().activeCampaignId = "c2";
+    await nextTick();
+    expect(pad.content.value).toBe(doc("clue in c2"));
+  });
+
+  it("saves typing under the user's key, and clear empties the pad and removes the saved draft", async () => {
+    const pad = mountPad();
+    pad.content.value = doc("a clue");
+    await nextTick();
+    expect(safeLocalStorage().getItem(scratchKey("u1", "c1"))).toBe(doc("a clue"));
+    expect(pad.isBlank.value).toBe(false);
+    pad.clear();
+    expect(pad.content.value).toBe("");
+    expect(safeLocalStorage().getItem(scratchKey("u1", "c1"))).toBeNull();
+  });
+
+  it.each([
+    ["no one is signed in", null, "c1"],
+    ["no campaign is active", { id: "u1" }, null],
+  ])("stores nothing when %s", async (_label, user, campaign) => {
+    useAuthStore().user = user as never;
+    useCampaignStore().activeCampaignId = campaign;
+    const pad = mountPad();
+    pad.content.value = doc("orphan");
+    await nextTick();
+    const stored = Array.from({ length: safeLocalStorage().length }, (_, i) => safeLocalStorage().key(i));
+    expect(stored.filter((k) => k?.startsWith("grimoire:journal-scratch"))).toEqual([]);
   });
 });

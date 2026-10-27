@@ -13,6 +13,13 @@ describe("useAgeQuestion", () => {
     expect(ageError.value).toBe("Please choose a birth month and year.");
   });
 
+  it("refuses a month chosen without a year", () => {
+    const { birthMonth, resolveAge, ageError } = useAgeQuestion();
+    birthMonth.value = 5;
+    expect(resolveAge()).toBeNull();
+    expect(ageError.value).toBe("Please choose a birth month and year.");
+  });
+
   it("refuses an implausible birth month (too far in the future)", () => {
     const { birthMonth, birthYear, resolveAge, ageError } = useAgeQuestion();
     const nextYear = new Date().getUTCFullYear() + 1;
