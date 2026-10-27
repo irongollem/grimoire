@@ -52,7 +52,36 @@ describe("tiptapToPlainText", () => {
     expect(tiptapToPlainText(doc)).toBe("A bold ideal");
   });
 
-  it("handles list items and hard breaks", () => {
+  it("puts a heading on its own line", () => {
+    const doc = JSON.stringify({
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Title" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Body" }] },
+      ],
+    });
+    expect(tiptapToPlainText(doc)).toBe("Title\nBody");
+  });
+
+  it("turns a hard break into a line break within the paragraph", () => {
+    const doc = JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "one" }, { type: "hardBreak" }, { type: "text", text: "two" }],
+        },
+      ],
+    });
+    expect(tiptapToPlainText(doc)).toBe("one\ntwo");
+  });
+
+  it("returns text that parses as JSON but is not a document unchanged", () => {
+    expect(tiptapToPlainText("42")).toBe("42");
+    expect(tiptapToPlainText("null")).toBe("null");
+  });
+
+  it("handles list items", () => {
     const doc = JSON.stringify({
       type: "doc",
       content: [

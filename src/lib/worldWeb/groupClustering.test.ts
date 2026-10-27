@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  GROUP_CLUSTER_STRENGTH,
   GROUP_GATHER_RADIUS,
   groupClusteringForce,
   groupFenceForce,
@@ -61,6 +62,19 @@ describe("groupClusteringForce", () => {
     };
 
     expect(pullAt(GROUP_GATHER_RADIUS * 4)).toBeGreaterThan(pullAt(GROUP_GATHER_RADIUS * 1.2));
+  });
+
+  it("pulls exactly the excess past the neighbourhood, scaled by alpha and strength", () => {
+    const over = 10;
+    const x = GROUP_GATHER_RADIUS + over;
+    const nodes: ClusterNode[] = [
+      { id: "a", x: -x, y: 0, vx: 0, vy: 0 },
+      { id: "b", x, y: 0, vx: 0, vy: 0 },
+    ];
+    run(nodes, new Map([["f", new Set(["a", "b"])]]), 0.5);
+    // Each sits `over` beyond the radius from the centroid, so it is drawn in by over * alpha * strength.
+    expect(nodes[0].vx).toBeCloseTo(over * 0.5 * GROUP_CLUSTER_STRENGTH);
+    expect(nodes[1].vx).toBeCloseTo(-over * 0.5 * GROUP_CLUSTER_STRENGTH);
   });
 
   it("leaves nodes outside the groups alone", () => {
@@ -138,6 +152,19 @@ describe("groupFenceForce", () => {
     // Centroid is (0, 0) and the reach is 100, so the target is well above the members.
     expect(list[0].vy!).toBeLessThan(0);
     expect(list[0].vx!).toBeCloseTo(0);
+  });
+
+  it("draws the node up beside the members' centroid, not down", () => {
+    const list: ClusterNode[] = [
+      { id: "gate", x: 40, y: 0, vx: 0, vy: 0 },
+      { id: "a", x: -100, y: 0, vx: 0, vy: 0 },
+      { id: "b", x: 100, y: 0, vx: 0, vy: 0 },
+    ];
+    const force = groupFenceForce(() => ({ anchor: "gate", members: new Set(["a", "b"]) }));
+    force.initialize(list);
+    force(1);
+    expect(list[0].vy!).toBeLessThan(0); // screen y grows downward: the fence node is pulled above the shape
+    expect(list[0].vx!).toBeLessThan(0); // and in toward the centroid's x
   });
 
   it("leaves the members where they are", () => {

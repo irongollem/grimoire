@@ -34,14 +34,6 @@ describe("tiptapToMarkdown — block types", () => {
     }
   });
 
-  it("renders a plain paragraph", () => {
-    const md = tiptapToMarkdown({
-      type: "doc",
-      content: [{ type: "paragraph", content: [{ type: "text", text: "Hello there." }] }],
-    });
-    expect(md).toBe("Hello there.");
-  });
-
   it("separates multiple blocks with a blank line", () => {
     const md = tiptapToMarkdown({
       type: "doc",
@@ -51,6 +43,50 @@ describe("tiptapToMarkdown — block types", () => {
       ],
     });
     expect(md).toBe("First.\n\nSecond.");
+  });
+
+  it.each([
+    [9, "######"],
+    [2.7, "##"],
+    [0, "#"],
+    [-3, "#"],
+    [undefined, "#"],
+  ])("clamps heading level %s into 1-6, so it prints %s", (level, hashes) => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{ type: "heading", attrs: level === undefined ? {} : { level }, content: [{ type: "text", text: "T" }] }],
+    });
+    expect(md).toBe(`${hashes} T`);
+  });
+
+  it("drops empty headings and paragraphs rather than printing blank markers", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "A" }] },
+        { type: "heading", attrs: { level: 2 } },
+        { type: "paragraph" },
+        { type: "paragraph", content: [{ type: "text", text: "B" }] },
+      ],
+    });
+    expect(md).toBe("A\n\nB");
+  });
+
+  it("renders a horizontal rule as ---", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Above" }] },
+        { type: "horizontalRule" },
+        { type: "paragraph", content: [{ type: "text", text: "Below" }] },
+      ],
+    });
+    expect(md).toBe("Above\n\n---\n\nBelow");
+  });
+
+  it("trims whitespace from the whole document", () => {
+    const md = tiptapToMarkdown({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "  hi  " }] }] });
+    expect(md).toBe("hi");
   });
 
   it("renders a blockquote with a > prefix", () => {
@@ -93,6 +129,23 @@ describe("tiptapToMarkdown — block types", () => {
     expect(md).toBe("1. One\n2. Two");
   });
 
+  it("puts a nested list on its own lines, indented under its parent item", () => {
+    const item = (text: string, nested?: object) => ({
+      type: "listItem",
+      content: [{ type: "paragraph", content: [{ type: "text", text }] }, ...(nested ? [nested] : [])],
+    });
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [
+        {
+          type: "orderedList",
+          content: [item("Gate", { type: "bulletList", content: [item("Guard"), item("Dog")] }), item("Hall")],
+        },
+      ],
+    });
+    expect(md).toBe("1. Gate\n   - Guard\n   - Dog\n2. Hall");
+  });
+
   it("renders a table as a GitHub-flavoured markdown table", () => {
     const md = tiptapToMarkdown({
       type: "doc",
@@ -119,6 +172,53 @@ describe("tiptapToMarkdown — block types", () => {
       ],
     });
     expect(md).toBe("| Name | HP |\n| --- | --- |\n| Owlbear | 59 |");
+  });
+
+  it("pads a short row to the widest row, and sizes the divider to the same width", () => {
+    const cell = (type: string, text: string) => ({ type, content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [
+        {
+          type: "table",
+          content: [
+            { type: "tableRow", content: [cell("tableHeader", "A")] },
+            { type: "tableRow", content: [cell("tableCell", "1"), cell("tableCell", "2"), cell("tableCell", "3")] },
+            { type: "tableRow", content: [cell("tableCell", "x")] },
+          ],
+        },
+      ],
+    });
+    expect(md).toBe("| A |  |  |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| x |  |  |");
+  });
+
+  it("skips a table with no rows or no cells, and a list with no items", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [
+        { type: "table", content: [] },
+        { type: "table", content: [{ type: "tableRow", content: [] }] },
+        { type: "bulletList", content: [] },
+        { type: "paragraph", content: [{ type: "text", text: "Only this" }] },
+      ],
+    });
+    expect(md).toBe("Only this");
+  });
+
+  it("prints an empty list item as a bare marker, without trailing space", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [
+        {
+          type: "bulletList",
+          content: [
+            { type: "listItem", content: [{ type: "paragraph" }] },
+            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] },
+          ],
+        },
+      ],
+    });
+    expect(md).toBe("-\n- x");
   });
 
   it("skips a node type it doesn't recognize instead of throwing", () => {
@@ -197,6 +297,14 @@ describe("tiptapToMarkdown — marks added for #932 (link, strike, code)", () =>
     const md = tiptapToMarkdown({
       type: "doc",
       content: [{ type: "paragraph", content: [{ type: "text", text: "plain", marks: [{ type: "link", attrs: {} }] }] }],
+    });
+    expect(md).toBe("plain");
+  });
+
+  it("ignores a link mark with an empty href", () => {
+    const md = tiptapToMarkdown({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "plain", marks: [{ type: "link", attrs: { href: "" } }] }] }],
     });
     expect(md).toBe("plain");
   });

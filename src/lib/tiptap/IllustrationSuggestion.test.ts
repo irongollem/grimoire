@@ -63,6 +63,12 @@ describe("findIllustrationSuggestion", () => {
     expect(found?.node.attrs.prompt).toBe("A flooded crypt");
   });
 
+  it.each([-1, 99999])("falls back to finding the chip by its prompt when the recorded position (%i) is outside the document", (pos) => {
+    editor = makeEditor();
+    const found = findIllustrationSuggestion(editor.state.doc, { pos, prompt: "A flooded crypt" });
+    expect(found?.pos).toBe(suggestionPositions(editor)["A flooded crypt"]);
+  });
+
   it("returns null once the chip has been deleted", () => {
     editor = makeEditor();
     const pos = suggestionPositions(editor)["A flooded crypt"];

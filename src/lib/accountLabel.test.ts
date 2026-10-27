@@ -62,14 +62,9 @@ describe("accountLabel", () => {
     ).toBe("Robin");
   });
 
-  it("returns an empty string when nothing safe is available", () => {
-    expect(
-      accountLabel({
-        displayName: null,
-        username: null,
-        email: "robin-the-brave@players.dungeongrimoire.invalid",
-        childLoginName: null,
-      }),
-    ).toBe("");
+  it("returns an empty string when nothing safe is available, a blank login name included", () => {
+    const unsafe = "robin-the-brave@players.dungeongrimoire.invalid";
+    expect(accountLabel({ displayName: null, username: null, email: unsafe, childLoginName: null })).toBe("");
+    expect(accountLabel({ displayName: null, username: null, email: unsafe, childLoginName: "  " })).toBe("");
   });
 });

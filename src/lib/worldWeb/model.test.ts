@@ -34,6 +34,17 @@ describe("buildRestGraph", () => {
     expect(graph.edges).toHaveLength(2);
   });
 
+  it("keeps the kin line as the primary tie whichever order the ties arrive in", () => {
+    const reversed = [...ties].reverse();
+    const edge = buildRestGraph(entityDirectory(reversed, people), reversed, EMPTY_FILTERS).edges.find((e) => e.key === pairKey("npc:maera", "npc:brenna"));
+    expect(edge).toMatchObject({ family: "kin", arrow: true, label: "parent of +1" });
+  });
+
+  it("keeps a pinned node on screen though its kind is hidden", () => {
+    const graph = buildRestGraph(directory, ties, { ...EMPTY_FILTERS, hiddenKinds: new Set(["npc"]), pinned: new Set(["npc:brenna"]) });
+    expect([...graph.nodes.keys()].sort()).toEqual(["deity:lady", "npc:brenna"]);
+  });
+
   it("counts nodes per kind before the chips narrow anything", () => {
     const hidden = buildRestGraph(directory, ties, { ...EMPTY_FILTERS, hiddenKinds: new Set(["deity"]) });
     expect(hidden.nodes.has("deity:lady")).toBe(false);
@@ -59,7 +70,19 @@ describe("buildRestGraph", () => {
   });
 });
 
+describe("entityDirectory", () => {
+  it("lets a person given by the caller replace the bare name a tie carried", () => {
+    const given: WebEntity = { ...person("brenna", "Brenna Ashe"), attitude: "friendly" };
+    expect(entityDirectory(ties, [given]).get("npc:brenna")?.attitude).toBe("friendly");
+  });
+});
+
 describe("badgesFor", () => {
+  it("gives a badge for memberships only, not for other ties to a faction", () => {
+    const other = tie({ row_id: "9", type: "friend", from_id: "loner", to_kind: "faction", to_id: "thane", to_name: "House Thane" });
+    expect(badgesFor([...ties, other]).has("npc:loner")).toBe(false);
+  });
+
   it("turns memberships into faction badges on the person", () => {
     const badges = badgesFor(ties);
     expect(badges.get("npc:brenna")?.pips[0]).toMatchObject({ factionName: "House Thane", role: "Heir", active: true });

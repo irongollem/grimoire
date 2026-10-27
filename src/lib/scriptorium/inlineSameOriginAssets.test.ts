@@ -37,6 +37,14 @@ describe("inlineSameOriginAssets", () => {
     expect(fetchAsset).not.toHaveBeenCalled();
   });
 
+  it("types an asset by its extension, ignoring a cache-busting query, and jpg is image/jpeg", async () => {
+    const fetchAsset = vi.fn(async () => bytes("x"));
+    const out = await inlineSameOriginAssets(`<img src="/a/b.png?v=3"><img src="/a/c.jpg">`, fetchAsset);
+    expect(out).toContain("data:image/png;base64,");
+    expect(out).toContain("data:image/jpeg;base64,");
+    expect(fetchAsset).toHaveBeenCalledWith("/a/b.png?v=3");
+  });
+
   it("fetches each distinct path once", async () => {
     const fetchAsset = vi.fn(async () => bytes("x"));
     await inlineSameOriginAssets(`a{src:url("/fonts/a.ttf")} <img src="/fonts/a.ttf">`, fetchAsset);

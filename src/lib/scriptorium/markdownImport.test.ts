@@ -31,6 +31,23 @@ describe("markdownToScriptoriumContent", () => {
     expect(link!.marks![0].attrs).toEqual({ href: "https://example.com" });
   });
 
+  it("keeps strikethrough as a strike mark", () => {
+    const doc = markdownToScriptoriumContent("a ~~gone~~ b");
+    const gone = doc.content![0].content!.find((n) => n.text === "gone");
+    expect(gone!.marks).toEqual([{ type: "strike" }]);
+  });
+
+  it("an ordered list that starts at 3 keeps counting from 3", () => {
+    const doc = markdownToScriptoriumContent("3. three\n4. four");
+    expect(doc.content![0].type).toBe("orderedList");
+    expect(doc.content![0].attrs).toEqual({ start: 3 });
+  });
+
+  it("an image with no alt text gets a null alt, not an empty string", () => {
+    const doc = markdownToScriptoriumContent("![](https://example.com/a.png)");
+    expect(doc.content![0].attrs!.alt).toBeNull();
+  });
+
   it("joins soft line-breaks into one flowing paragraph", () => {
     const doc = markdownToScriptoriumContent("line one\nline two");
     expect(types(doc)).toEqual(["paragraph"]);
@@ -81,6 +98,26 @@ describe("markdownToScriptoriumContent", () => {
     expect(children[1].content![0].text).toBe("The Kind Country");
   });
 
+  it("reads a plain '--' as the attribution marker too", () => {
+    const doc = markdownToScriptoriumContent("::: quote\nStay.\n\n-- The Gate\n:::");
+    expect(doc.content![0].content!.map((n) => n.type)).toEqual(["paragraph", "attribution"]);
+    expect(doc.content![0].content![1].content![0].text).toBe("The Gate");
+  });
+
+  it.each([
+    ["descriptive", "descriptiveBlock"],
+    ["dm", "noteBlock"],
+    ["dm-note", "noteBlock"],
+  ])("::: %s is an alias for %s", (name, node) => {
+    expect(types(markdownToScriptoriumContent(`::: ${name}\nText.\n:::`))).toEqual([node]);
+  });
+
+  it("matches directive names and arguments case-insensitively", () => {
+    expect(types(markdownToScriptoriumContent("::: NOTE\nText.\n:::"))).toEqual(["noteBlock"]);
+    const lens = markdownToScriptoriumContent("::: LENS LIGHT\n**Bright.** a\n:::");
+    expect(lens.content![0].attrs).toEqual({ variant: "light" });
+  });
+
   it("passes unknown directives through unwrapped", () => {
     const doc = markdownToScriptoriumContent("::: mystery\nStill here.\n:::");
     expect(types(doc)).toEqual(["paragraph"]);
@@ -94,6 +131,7 @@ describe("markdownToScriptoriumContent", () => {
   it("maps blockquotes, rules, and fenced code", () => {
     const doc = markdownToScriptoriumContent("> quoted\n\n---\n\n```txt\nverbatim\n```");
     expect(types(doc)).toEqual(["blockquote", "horizontalRule", "codeBlock"]);
+    expect(doc.content![2].attrs).toEqual({ language: "txt" });
   });
 
   it("lifts images out of paragraphs to block level", () => {
@@ -112,6 +150,10 @@ describe("markdownTitle", () => {
     expect(markdownTitle("intro\n\n# The Kind Country\n\n## Later", "fallback")).toBe(
       "The Kind Country",
     );
+  });
+
+  it("skips a # heading that has no text of its own and takes the next one", () => {
+    expect(markdownTitle("# ![x](a.png)\n\n# Real Title", "fallback")).toBe("Real Title");
   });
 
   it("falls back when there is no # heading", () => {
@@ -208,6 +250,13 @@ describe("::: lens", () => {
     }
   });
 
+  it("only a bold label starts a half: plain 'Deep.' stays ordinary Bright text", () => {
+    const doc = markdownToScriptoriumContent("::: lens\nDeep.\n\nnot a label\n:::");
+    const [bright, deep] = doc.content![0].content!;
+    expect(textOf(bright)).toBe("Deep.not a label");
+    expect(deep.content).toEqual([{ type: "paragraph" }]);
+  });
+
   it("puts text before any label in the Bright half", () => {
     const doc = markdownToScriptoriumContent("::: lens\nOpening.\n\n**Deep.** Under it.\n:::");
     const [bright, deep] = doc.content![0].content!;
@@ -291,6 +340,24 @@ describe("::: art", () => {
     expect(types(doc)).toEqual(["image", "paragraph"]);
     expect(doc.content![0].attrs).toMatchObject({ src: "https://cdn.example/tower.webp", width: "50%", alt: "A leaning tower" });
     expect(doc.content![1].content![0]).toMatchObject({ text: "The tower at dusk", marks: [{ type: "italic" }] });
+  });
+
+  it("names the placeholder after the slug when there is no caption or alt, and still names an anonymous slot", () => {
+    const named = markdownToScriptoriumContent("::: art\nslug: tower-at-dusk\n:::");
+    expect(textOf(named.content![0])).toBe("Art to come: tower-at-dusk");
+    const anonymous = markdownToScriptoriumContent("::: art\nsize: half\n:::");
+    expect(textOf(anonymous.content![0])).toMatch(/^Art to come: \S/);
+  });
+
+  it("joins a field's continuation lines into one value", () => {
+    let caption: string | undefined;
+    markdownToScriptoriumContent("::: art\ncaption: The tower\n  at dusk\n:::", {
+      resolveArt: (slot) => {
+        caption = slot.caption;
+        return null;
+      },
+    });
+    expect(caption).toBe("The tower at dusk");
   });
 
   it("makes a full or column image 100% wide, and a wide or opener one a wide block", () => {
@@ -385,6 +452,13 @@ describe("::: statblock and ::: embed", () => {
     expect(textOf(doc.content![0])).toBe("Embed: Vex (not yet in the campaign)");
   });
 
+  it("reads the embed type case-insensitively", () => {
+    const doc = markdownToScriptoriumContent("::: embed\ntype: NPC\nname: Bram\n:::", {
+      resolveEmbed: () => ({ id: "n-7" }),
+    });
+    expect(doc.content![0].attrs).toMatchObject({ entityType: "npc" });
+  });
+
   it("emits nothing for a directive that names no entity", () => {
     expect(types(markdownToScriptoriumContent("::: statblock\ncr: 3\n:::"))).toEqual(["paragraph"]);
   });
@@ -427,6 +501,29 @@ describe("::: cover", () => {
     expect(attrs.productUrl).toBe("");
     expect(attrs.title).toBe("");
     expect(attrs.titleScrim).toBe(false);
+  });
+
+  it("reads the variant and scrim case-insensitively, and the part number", () => {
+    const attrs = markdownToScriptoriumContent("::: cover PART\npart: Two\nscrim: FALSE\n:::").content![0].attrs!;
+    expect(attrs.variant).toBe("part");
+    expect(attrs.partNumber).toBe("Two");
+    expect(attrs.blurb3).toBe("");
+    expect(attrs.titleScrim).toBe(false);
+  });
+
+  it("asks for each cover's picture under its own slug, with the cover's alt text", () => {
+    const slots: ArtSlot[] = [];
+    const resolveArt = (slot: ArtSlot) => {
+      slots.push(slot);
+      return null;
+    };
+    markdownToScriptoriumContent("::: cover front\nimage: a.png\nalt: Front art\n:::\n\n::: cover back\nimage: b.png\n:::", {
+      resolveArt,
+    });
+    expect(slots).toHaveLength(2);
+    expect(slots[0].slug).not.toBe(slots[1].slug);
+    expect(slots[0]).toMatchObject({ existing: "a.png", alt: "Front art" });
+    expect(slots[0].size).toBe("full");
   });
 
   it("falls back to a front cover with no picture when the variant or image is unknown", () => {

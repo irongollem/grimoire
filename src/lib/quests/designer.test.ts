@@ -105,6 +105,16 @@ describe("sanitizeDesignQuestions", () => {
     expect(sanitizeDesignQuestions(raw)).toHaveLength(3);
   });
 
+  it("keeps the first of two options that share a key, and trims the why", () => {
+    const [kept] = sanitizeDesignQuestions([
+      { key: "q", question: "Who?", why: "  because  ", options: [{ key: "a", label: "First" }, { key: "a", label: "Second" }, { key: "b", label: "Other" }] },
+    ]);
+    expect(kept?.options).toEqual([{ key: "a", label: "First" }, { key: "b", label: "Other" }]);
+    expect(kept?.why).toBe("because");
+    // A repeated option key leaves one option, which is not enough to ask a question with.
+    expect(sanitizeDesignQuestions([{ key: "q", question: "Who?", options: [{ key: "a", label: "First" }, { key: "a", label: "Second" }] }])).toEqual([]);
+  });
+
   it("normalizes a blank about to null and keeps a real one trimmed", () => {
     const raw = [
       { key: "k1", about: "  ", question: "Q1", options: [{ key: "a", label: "A" }, { key: "b", label: "B" }] },
@@ -129,21 +139,21 @@ describe("diffDesignTrees", () => {
     expect(diff.objectivesRemoved).toEqual([]);
   });
 
-  it("marks a beat changed when title/dm_content/kind differ, unchanged otherwise", () => {
-    const prev = tree({
-      beats: [
-        { key: "b1", title: "Open", dm_content: "Original", kind: "neutral" },
-        { key: "b2", title: "Same", dm_content: "Same content", kind: "combat" },
-      ],
-    });
-    const next = tree({
-      beats: [
-        { key: "b1", title: "Open (revised)", dm_content: "Original", kind: "neutral" },
-        { key: "b2", title: "Same", dm_content: "Same content", kind: "combat" },
-      ],
-    });
-    const diff = diffDesignTrees(prev, next);
+  it.each([
+    ["title", { title: "Open (revised)" }],
+    ["dm_content", { dm_content: "Rewritten" }],
+    ["kind", { kind: "combat" }],
+  ] as const)("marks a beat changed when only its %s differs, and leaves an identical one unchanged", (_field, change) => {
+    const original = { key: "b1", title: "Open", dm_content: "Original", kind: "neutral" };
+    const same = { key: "b2", title: "Same", dm_content: "Same content", kind: "combat" };
+    const diff = diffDesignTrees(tree({ beats: [original, same] }), tree({ beats: [{ ...original, ...change }, same] }));
     expect(diff.beats).toEqual({ b1: "changed", b2: "unchanged" });
+  });
+
+  it("ignores a beat with no key in the diff, with or without a previous tree", () => {
+    const keyless = { key: "", title: "Stray", dm_content: "x", kind: "neutral" };
+    expect(diffDesignTrees(null, tree({ beats: [keyless] })).beats).toEqual({});
+    expect(diffDesignTrees(tree({ beats: [] }), tree({ beats: [keyless] })).beats).toEqual({});
   });
 
   it("marks a beat changed when only its player copy differs", () => {

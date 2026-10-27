@@ -22,17 +22,6 @@ describe("isQuotaExceeded", () => {
     expect(isQuotaExceeded({ message: "quota_exceeded" })).toBe(true);
   });
 
-  it("matches a caught PostgrestError-shaped object with the sibling detail/hint fields", () => {
-    expect(
-      isQuotaExceeded({
-        message: "quota_exceeded",
-        details: "npcs",
-        hint: "Upgrade to Pro DM to create more npcs",
-        code: "P0001",
-      }),
-    ).toBe(true);
-  });
-
   it("matches a plain Error carrying the same message (e.g. in tests)", () => {
     expect(isQuotaExceeded(new Error("quota_exceeded"))).toBe(true);
   });

@@ -56,19 +56,6 @@ describe("createRealtimeHeal — subscribe status", () => {
     expect(onReconcile).toHaveBeenCalledTimes(1);
   });
 
-  it("reconciles after an error followed by a rejoin", () => {
-    const c = clock();
-    const onReconcile = vi.fn();
-    const heal = track(createRealtimeHeal(onReconcile, { now: c.now }));
-
-    heal.onStatus("SUBSCRIBED");
-    heal.onStatus("CHANNEL_ERROR");
-    c.advance(10_000);
-    heal.onStatus("SUBSCRIBED");
-
-    expect(onReconcile).toHaveBeenCalledTimes(1);
-  });
-
   it("ignores statuses that are neither a drop nor a join", () => {
     const onReconcile = vi.fn();
     const heal = track(createRealtimeHeal(onReconcile));
@@ -176,7 +163,7 @@ describe("createRealtimeHeal — network and visibility", () => {
     expect(onReconcile).not.toHaveBeenCalled();
   });
 
-  it("reconciles on return when the channel dropped while away", () => {
+  it.each(["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"])("reconciles on return when the channel dropped (%s) while away", (drop) => {
     const c = clock();
     const onReconcile = vi.fn();
     const heal = track(createRealtimeHeal(onReconcile, { now: c.now }));
@@ -184,7 +171,7 @@ describe("createRealtimeHeal — network and visibility", () => {
     heal.onStatus("SUBSCRIBED");
     setVisibility("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
-    heal.onStatus("TIMED_OUT");
+    heal.onStatus(drop);
     c.advance(5_000);
     setVisibility("visible");
     document.dispatchEvent(new Event("visibilitychange"));
@@ -199,8 +186,9 @@ describe("createRealtimeHeal — network and visibility", () => {
 
     setVisibility("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
-    // Long enough that the browser could have frozen the socket silently.
-    c.advance(6 * 60 * 1000);
+    // Long enough that the browser could have frozen the socket silently: the
+    // limit itself counts.
+    c.advance(5 * 60 * 1000);
     setVisibility("visible");
     document.dispatchEvent(new Event("visibilitychange"));
 

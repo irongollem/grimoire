@@ -52,6 +52,14 @@ describe("quest flow adapter", () => {
     expect(withoutEntry.nodes[1]!.data!.isEntry).toBe(false);
   });
 
+  it("calls a route's untitled target 'Untitled beat', and flags no beat as gated by an open gate", () => {
+    const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null }] as QuestBeatEdge[];
+    const openGate = { mode: "all" as const, is_open: true, conditions: [] } satisfies QuestRouteGate;
+    const graph = toQuestFlowGraph([beat("a", 0, 0), { ...beat("b", 1, 1), title: "" }], edges, {}, new Set(), { e: openGate });
+    expect(graph.edges[0]!.data!.targetTitle).toBe("Untitled beat");
+    expect(graph.nodes[1]!.data!.isGated).toBe(false);
+  });
+
   it("retains selection across refreshed row objects and clears deleted beats", () => {
     expect(retainSelectedBeatId("a", [beat("a", 50, 60)])).toBe("a");
     expect(retainSelectedBeatId("a", [beat("b", 50, 60)])).toBeNull();

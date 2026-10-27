@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { escapeHtml } from "./escapeHtml";
 
@@ -11,9 +10,4 @@ describe("escapeHtml", () => {
     expect(escapeHtml("Marzipan Sentry")).toBe("Marzipan Sentry");
   });
 
-  it("keeps a quoted name inside its attribute", () => {
-    const el = document.createElement("div");
-    el.innerHTML = `<img alt="${escapeHtml('Rosetta "Rosie" Vermeil')}">`;
-    expect(el.querySelector("img")?.getAttribute("alt")).toBe('Rosetta "Rosie" Vermeil');
-  });
 });

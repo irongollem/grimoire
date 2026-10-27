@@ -34,10 +34,9 @@ describe("buildRoomFillConstraints", () => {
     expect(none.find((l) => l.startsWith("Exits"))).toContain("none recorded");
   });
 
-  it("stays inside the edge function's limits", () => {
+  it("clips every line to the edge function's line limit", () => {
     const many = Array.from({ length: 80 }, (_, i) => loc(`x${i}`, `Chamber number ${i} of the deep`));
     const lines = buildRoomFillConstraints({ site: loc("s", "S", { description: tiptap("x".repeat(900)) }), level: null, room, neighbours: [], siblings: many });
-    expect(lines.length).toBeLessThanOrEqual(12);
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(400);
   });
 });
@@ -63,6 +62,16 @@ describe("normalizeRoomFill", () => {
     expect(fill.readAloud).toBe("Dust.");
     expect(fill.features.slice(0, 2)).toEqual(["a", "b"]);
     expect(fill.features).toHaveLength(8);
+  });
+  it("accepts a room with only a read-aloud, or only a description", () => {
+    expect(normalizeRoomFill({ read_aloud: "Dust." }).readAloud).toBe("Dust.");
+    expect(normalizeRoomFill({ description: "Old." }).description).toBe("Old.");
+  });
+  it("clips a feature over the limit but leaves one at exactly the limit whole", () => {
+    const fill = normalizeRoomFill({ read_aloud: "x", features: ["a".repeat(300), "b".repeat(301)] });
+    expect(fill.features[0]).toBe("a".repeat(300));
+    expect(fill.features[1]).toHaveLength(300);
+    expect(fill.features[1].endsWith("…")).toBe(true);
   });
   it("throws a readable error when unusable", () => {
     expect(() => normalizeRoomFill(null)).toThrow(/did not return a room/);

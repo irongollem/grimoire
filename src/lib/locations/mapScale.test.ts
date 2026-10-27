@@ -34,6 +34,17 @@ describe("parseMapScale", () => {
   });
 });
 
+describe("parseMapScale bounds", () => {
+  it("accepts points on the very edge of the image (0 and 1 are in range)", () => {
+    const edge: MapScale = { unit: "km", distance: 5, a: { x: 0, y: 0 }, b: { x: 1, y: 1 } };
+    expect(parseMapScale(edge)).toEqual(edge);
+  });
+
+  it("reads a negative coordinate as no scale", () => {
+    expect(parseMapScale({ ...SCALE, a: { x: -0.1, y: 0.5 } })).toBeNull();
+  });
+});
+
 describe("buildMapScale", () => {
   it("builds from valid input", () => {
     const result = buildMapScale({ a: SCALE.a, b: SCALE.b, distance: 100, unit: "mi" });

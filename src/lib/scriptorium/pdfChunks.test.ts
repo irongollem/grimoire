@@ -157,6 +157,7 @@ describe("utf8ByteLength", () => {
     ["emoji", "a 🐉 b 🧙‍♂️ c"],
     ["empty", ""],
     ["lone surrogate", "x\ud83dy"],
+    ["lone high surrogate before a two-byte character", "\ud83dé"],
   ])("matches TextEncoder for %s", (_label, text) => {
     expect(utf8ByteLength(text)).toBe(new TextEncoder().encode(text).length);
   });
@@ -261,6 +262,75 @@ describe("mergePdfs navigation", () => {
     const child = second.lookup(N("First"), PDFDict);
     expect(destPage(doc, child.lookup(N("Dest")))).toBe(3);
     expect(child.lookup(N("Parent"))).toBe(second);
+  });
+});
+
+describe("mergePdfs keeps what the first part says about the document", () => {
+  it("takes the title, author, subject and language from part one and ignores later parts", async () => {
+    const one = await PDFDocument.create();
+    one.addPage([100, 200]);
+    one.setTitle("The Book");
+    one.setAuthor("Jane");
+    one.setSubject("A campaign");
+    one.catalog.set(N("Lang"), PDFString.of("en-GB"));
+    const two = await PDFDocument.create();
+    two.addPage([100, 200]);
+    two.setTitle("Part Two");
+    two.setAuthor("Someone Else");
+    two.catalog.set(N("Lang"), PDFString.of("nl"));
+    const doc = await PDFDocument.load(await mergePdfs([await one.save(), await two.save()]));
+    expect(doc.getTitle()).toBe("The Book");
+    expect(doc.getAuthor()).toBe("Jane");
+    expect(doc.getSubject()).toBe("A campaign");
+    expect((doc.catalog.lookup(N("Lang")) as PDFString).decodeText()).toBe("en-GB");
+  });
+
+  it("does not show the title in the window title bar unless the source asked for it", async () => {
+    const one = await PDFDocument.create();
+    one.addPage([100, 200]);
+    one.setTitle("Quiet", { showInWindowTitleBar: false });
+    const doc = await PDFDocument.load(await mergePdfs([await one.save()]));
+    const prefs = doc.catalog.lookupMaybe(N("ViewerPreferences"), PDFDict);
+    expect(prefs?.get(N("DisplayDocTitle"))?.toString()).not.toBe("true");
+  });
+});
+
+describe("mergePdfs named destinations", () => {
+  const nameTree = (doc: PDFDocument) => {
+    const flat = doc.catalog.lookup(N("Names"), PDFDict).lookup(N("Dests"), PDFDict).lookup(N("Names"), PDFArray);
+    const out: [string, unknown][] = [];
+    for (let i = 0; i < flat.size(); i += 2) out.push([(flat.lookup(i) as PDFString).decodeText(), flat.lookup(i + 1)]);
+    return out;
+  };
+
+  it("lists the merged name tree in sorted key order, whatever order the parts came in", async () => {
+    const doc = await PDFDocument.load(
+      await mergePdfs([
+        await partWithNav({ tag: "p9", style: "tree" }),
+        await partWithNav({ tag: "p1", style: "tree" }),
+      ]),
+    );
+    expect(nameTree(doc).map(([name]) => name)).toEqual(["p1-a", "p1-b", "p9-a", "p9-b"]);
+  });
+
+  it("a destination name defined in two parts keeps the first part's page", async () => {
+    const parts = async (style: "legacy" | "tree") => [
+      await partWithNav({ tag: "same", style }),
+      await partWithNav({ tag: "same", style }),
+    ];
+    const firstPartPage = (doc: PDFDocument, value: unknown) => {
+      const arr = value instanceof PDFDict ? value.lookup(N("D")) : value;
+      const ref = (arr as PDFArray).get(0);
+      return doc.getPages().findIndex((p) => ref instanceof PDFRef && p.ref.tag === ref.tag);
+    };
+
+    const legacy = await PDFDocument.load(await mergePdfs(await parts("legacy")));
+    expect(firstPartPage(legacy, legacy.catalog.lookup(N("Dests"), PDFDict).lookup(N("same-a")))).toBe(0);
+
+    const tree = await PDFDocument.load(await mergePdfs(await parts("tree")));
+    const entries = nameTree(tree);
+    expect(entries.map(([name]) => name)).toEqual(["same-a", "same-b"]);
+    expect(firstPartPage(tree, entries[0][1])).toBe(0);
   });
 });
 

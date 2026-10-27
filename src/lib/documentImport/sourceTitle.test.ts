@@ -37,8 +37,8 @@ describe("rankSourceOptions", () => {
 
   it("breaks a tie alphabetically, for a stable order", () => {
     const rows: SourceTitleRow[] = [
-      { source: "Curse of Strahd", campaignId: "c1" },
       { source: "Icewind Dale", campaignId: "c1" },
+      { source: "Curse of Strahd", campaignId: "c1" },
     ];
     expect(rankSourceOptions(rows).map((o) => o.value)).toEqual(["Curse of Strahd", "Icewind Dale"]);
   });
@@ -46,10 +46,6 @@ describe("rankSourceOptions", () => {
   it("ignores a blank/whitespace-only source", () => {
     const rows: SourceTitleRow[] = [{ source: "   ", campaignId: "c1" }];
     expect(rankSourceOptions(rows)).toEqual([]);
-  });
-
-  it("returns an empty list for no rows", () => {
-    expect(rankSourceOptions([])).toEqual([]);
   });
 });
 

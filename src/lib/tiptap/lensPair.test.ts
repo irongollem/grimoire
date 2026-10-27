@@ -71,6 +71,21 @@ describe("insertLensPair", () => {
     expect(found?.content?.map((n) => n.type)).toEqual(["lensBright", "lensDeep"]);
   });
 
+  it("is bound to Mod-Alt-L", () => {
+    const editor = makeEditor();
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+    const event = new KeyboardEvent("keydown", {
+      key: "l",
+      code: "KeyL",
+      altKey: true,
+      metaKey: mac,
+      ctrlKey: !mac,
+      bubbles: true,
+    });
+    editor.view.someProp("handleKeyDown", (handler) => handler(editor.view, event));
+    expect(editor.getJSON().content?.some((n) => n.type === "lensPair")).toBe(true);
+  });
+
   it("never nests a pair inside a half", () => {
     const editor = makeEditor(doc(pair([para("x")], [para("y")])));
     editor.commands.setTextSelection(4);
@@ -108,6 +123,11 @@ describe("fixed structure", () => {
 });
 
 describe("placeholders", () => {
+  it("does not hint a half that holds more than one empty paragraph", () => {
+    const editor = makeEditor(doc(pair([{ type: "paragraph" }, { type: "paragraph" }], [para("filled")])));
+    expect((editor.view.dom as HTMLElement).querySelector('[data-type="lensBright"] p.is-empty')).toBeNull();
+  });
+
   it("hints each empty half, and only while it is empty", () => {
     const editor = makeEditor(doc(pair([{ type: "paragraph" }], [para("filled")])));
     const dom = editor.view.dom as HTMLElement;
@@ -155,6 +175,12 @@ describe("an editor that may not create a pair", () => {
     const json = paste(editor, slice).content.toJSON() as JSONContent[];
     expect(JSON.stringify(json)).toContain("grim");
     expect(JSON.stringify(json)).not.toContain("lens");
+  });
+
+  it("leaves a paste that holds no lens at all untouched", () => {
+    const editor = makeEditor(undefined, LOCKED);
+    const slice = new Slice(Fragment.from(editor.schema.nodeFromJSON(para("plain"))), 0, 0);
+    expect(paste(editor, slice)).toBe(slice);
   });
 
   it("leaves a creatable editor's paste alone", () => {

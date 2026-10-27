@@ -15,6 +15,17 @@ describe("clockSegmentPath", () => {
     expect(y!).toBeLessThan(20);
   });
 
+  it("runs clockwise: segment 1 of 4 opens at three o'clock and segment 3 at nine", () => {
+    const opening = (index: number) => {
+      const [x, y] = clockSegmentPath(index, 4, 20, 18, 9).slice(2).split(" A")[0]!.split(" ").map(Number);
+      return { x: x!, y: y! };
+    };
+    expect(opening(1).x).toBeGreaterThan(30);
+    expect(Math.abs(opening(1).y - 20)).toBeLessThan(3);
+    expect(opening(3).x).toBeLessThan(10);
+    expect(Math.abs(opening(3).y - 20)).toBeLessThan(3);
+  });
+
   it("uses the small arc for every segment count the app allows", () => {
     for (let n = 3; n <= 12; n += 1) {
       expect(clockSegmentPath(0, n, 20, 18, 9)).toContain(" 0 0 1 ");

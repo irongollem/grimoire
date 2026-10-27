@@ -54,6 +54,16 @@ describe("insertionPos", () => {
     );
   });
 
+  it("inserts where a selection ends, not where it starts", () => {
+    editor = makeEditor("<p>Prep notes.</p><p>More prep.</p>");
+    editor.commands.setTextSelection({ from: 3, to: 13 }); // "ep notes." to the end of the first paragraph
+
+    editor.chain().insertContentAt(insertionPos(editor, true), CHRONICLE).run();
+    expect(editor.getHTML()).toBe(
+      '<p>Prep notes.</p><div data-ai-generated="true"><p>AI recap.</p></div><p>More prep.</p>',
+    );
+  });
+
   it("inserts after an aiGenerated wrapper rather than nesting inside it", () => {
     editor = makeEditor({ type: "doc", content: [CHRONICLE] });
     editor.commands.focus("end"); // cursor now sits inside the first chronicle

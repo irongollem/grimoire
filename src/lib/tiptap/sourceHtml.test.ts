@@ -13,6 +13,11 @@ describe("normalizeSourceHtml", () => {
     expect(out).toBe("<blockquote>You smell smoke.</blockquote>");
   });
 
+  it("does not wrap a blockquote that already carries the hint a second time", () => {
+    const out = normalizeSourceHtml('<blockquote class="read-aloud"><p>Already boxed.</p></blockquote>');
+    expect(out).toBe('<blockquote class="read-aloud"><p>Already boxed.</p></blockquote>');
+  });
+
   it("matches a hinted class case-insensitively and as a substring", () => {
     const out = normalizeSourceHtml('<p class="Read-Aloud-Box">Boxed text.</p>');
     expect(out).toBe("<blockquote>Boxed text.</blockquote>");
@@ -35,6 +40,10 @@ describe("normalizeSourceHtml", () => {
       '<figure><img src="x.png"><figcaption>A owlbear</figcaption></figure><p>Text</p>',
     );
     expect(out).toBe("<p>Text</p>");
+  });
+
+  it("strips a stray <figcaption> that has no <figure> around it", () => {
+    expect(normalizeSourceHtml("<p>Text</p><figcaption>Caption</figcaption>")).toBe("<p>Text</p>");
   });
 
   it("unwraps a tooltip <a>, keeping its text", () => {

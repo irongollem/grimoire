@@ -49,6 +49,12 @@ describe("effectiveEmbedReveal", () => {
       share: false,
       description: false,
     });
+    // Off wins over an explicit description: nothing is shared, so nothing is described.
+    expect(effectiveEmbedReveal({ entityType: "location", reveal: { off: true, description: true } })).toEqual({
+      type: "location",
+      share: false,
+      description: false,
+    });
   });
   it("quest: starts unless off", () => {
     expect(effectiveEmbedReveal({ entityType: "quest" })).toEqual({ type: "quest", start: true });
@@ -94,6 +100,10 @@ describe("normalizeEmbedReveal", () => {
     expect(normalizeEmbedReveal("x")).toBeNull();
     expect(normalizeEmbedReveal([])).toBeNull();
     expect(normalizeEmbedReveal({})).toBeNull();
+  });
+  it("only an exact true switches reveal off", () => {
+    expect(normalizeEmbedReveal({ off: "yes" })).toBeNull();
+    expect(normalizeEmbedReveal({ off: 1 })).toBeNull();
   });
   it("drops unknown NPC field keys and keeps the rest", () => {
     expect(normalizeEmbedReveal({ off: true, fields: ["name", "status", 3], stats: true, junk: 1 })).toEqual({

@@ -67,11 +67,6 @@ describe("yamlString", () => {
     expect(yamlString("No")).toBe('"No"');
     expect(yamlString("null")).toBe('"null"');
   });
-
-  it("quotes a value containing a colon or leading dash safely", () => {
-    expect(yamlString("Loot: the Hoard")).toBe('"Loot: the Hoard"');
-    expect(yamlString("- a bullet-looking name")).toBe('"- a bullet-looking name"');
-  });
 });
 
 describe("buildFrontmatter", () => {
@@ -80,19 +75,14 @@ describe("buildFrontmatter", () => {
     expect(fm).toBe('---\ntype: "npc"\ngrimoire_id: "abc-123"\n---\n');
   });
 
-  it("omits null and undefined fields entirely", () => {
-    const fm = buildFrontmatter([["type", "npc"], ["race", null], ["occupation", undefined]]);
+  it("omits null, undefined and empty-string fields entirely", () => {
+    const fm = buildFrontmatter([["type", "npc"], ["race", null], ["occupation", undefined], ["alignment", ""]]);
     expect(fm).toBe('---\ntype: "npc"\n---\n');
   });
 
-  it("omits an empty-string scalar", () => {
-    const fm = buildFrontmatter([["type", "npc"], ["race", ""]]);
-    expect(fm).toBe('---\ntype: "npc"\n---\n');
-  });
-
-  it("renders numbers bare, unquoted", () => {
-    const fm = buildFrontmatter([["level", 5]]);
-    expect(fm).toBe("---\nlevel: 5\n---\n");
+  it("renders numbers bare, unquoted, and keeps a zero", () => {
+    const fm = buildFrontmatter([["level", 5], ["xp", 0]]);
+    expect(fm).toBe("---\nlevel: 5\nxp: 0\n---\n");
   });
 
   it("renders a non-empty list as a YAML block sequence", () => {

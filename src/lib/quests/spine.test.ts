@@ -94,7 +94,11 @@ describe("planSpineBeats", () => {
       dm_content: "",
       kind: "neutral",
     }));
-    expect(planSpineBeats(beats).length).toBeLessThan(20);
+    // The ceiling is twelve (raised from eight for #829): the first twelve survive, in order.
+    const planned = planSpineBeats(beats);
+    expect(planned).toHaveLength(12);
+    expect(planned[11]!.key).toBe("beat-11");
+    expect(planSpineBeats(beats.slice(0, 12))).toHaveLength(12);
   });
 });
 

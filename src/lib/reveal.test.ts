@@ -27,6 +27,11 @@ describe("revealLabel", () => {
     expect(revealLabel("private", 0)).toBe("Hidden");
   });
 
+  it("says a page already printed in the book is in the book, whoever else can see it", () => {
+    expect(revealLabel("everyone", 3, true)).toBe("In the book");
+    expect(revealLabel("private", 0, true)).toBe("In the book");
+  });
+
   it("counts players, singular and plural", () => {
     expect(revealLabel("partial", 1)).toBe("1 player");
     expect(revealLabel("partial", 2)).toBe("2 players");

@@ -126,14 +126,20 @@ function listItemToMarkdown(item: JsonRecord, options: TiptapToMarkdownOptions |
   return asNodeArray(item.content)
     .map((n) => blockToMarkdown(n, options))
     .filter((b): b is string => b !== null && b.length > 0)
-    .join(" ");
+    .join("\n");
 }
 
 function listToMarkdown(node: JsonRecord, ordered: boolean, options: TiptapToMarkdownOptions | undefined): string | null {
   const items = asNodeArray(node.content);
   if (!items.length) return null;
   return items
-    .map((item, index) => `${ordered ? `${index + 1}.` : "-"} ${listItemToMarkdown(item, options)}`.trimEnd())
+    .map((item, index) => {
+      const marker = ordered ? `${index + 1}.` : "-";
+      // A nested list or a second block in the item starts on its own line,
+      // indented under the marker, or markdown reads it as part of the line.
+      const indent = " ".repeat(marker.length + 1);
+      return `${marker} ${listItemToMarkdown(item, options).split("\n").join(`\n${indent}`)}`.trimEnd();
+    })
     .join("\n");
 }
 

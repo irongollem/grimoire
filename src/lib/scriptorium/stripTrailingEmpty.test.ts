@@ -14,6 +14,11 @@ describe("stripTrailingEmptyParagraphs", () => {
     expect(stripTrailingEmptyParagraphs('<p>x</p><p data-block-id="abc"></p>')).toBe("<p>x</p>");
   });
 
+  it("removes a trailing paragraph holding only &nbsp; or whitespace", () => {
+    expect(stripTrailingEmptyParagraphs("<p>x</p><p>&nbsp;</p>")).toBe("<p>x</p>");
+    expect(stripTrailingEmptyParagraphs("<p>x</p><p> \n </p>\n")).toBe("<p>x</p>");
+  });
+
   it("removes multiple trailing empties", () => {
     expect(stripTrailingEmptyParagraphs("<p>x</p><p></p><p></p>")).toBe("<p>x</p>");
   });

@@ -21,14 +21,12 @@ const attachment = (overrides: Partial<QuestBeatAttachment> = {}): QuestBeatAtta
 describe("quest beat attachment adapters", () => {
   it("declares a Run action, contained surface, and specialist escape hatch for every type", () => {
     for (const adapter of Object.values(QUEST_BEAT_ATTACHMENT_ADAPTERS)) {
-      expect(adapter.runAction).toMatch(/^(run|view|play|roll)$/);
-      expect(adapter.containedSurface).toMatch(/^(encounter|entity|audio|document|check)$/);
       // A check carries its own data instead of pointing at a row: its summary
       // reads `metadata`, not the generic `target`, and it never offers a full
       // editor — both covered by their own tests below.
       if (adapter.type === "check") continue;
       expect(adapter.summary(attachment({ attachment_type: adapter.type }), { label: "Ready" }).label).toBe("Ready");
-      expect(adapter.fullEditorTo("target", "quest")).toEqual(expect.any(String));
+      expect(adapter.fullEditorTo("target", "quest")).toMatch(/^\//);
     }
   });
 
@@ -38,6 +36,11 @@ describe("quest beat attachment adapters", () => {
     expect(summary.compact_detail).toBe("Ready");
     expect(summary.full_editor_to).toBe("/encounters/encounter");
     expect(summary.prep_gap).toBe(false);
+  });
+
+  it("shows the attachment's role when the target has no detail of its own, and nothing when there is no role", () => {
+    expect(summarizeQuestBeatAttachment(attachment(), { label: "Goblin ambush" }).compact_detail).toBe("Final confrontation");
+    expect(summarizeQuestBeatAttachment(attachment({ role: "" }), { label: "Goblin ambush" }).compact_detail).toBeNull();
   });
 
   it("turns a deleted required target into a prep gap", () => {

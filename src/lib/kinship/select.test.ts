@@ -57,6 +57,13 @@ describe("selectAroundFocus", () => {
     expect(sel.members.has(k("odile"))).toBe(false);
   });
 
+  it("stops descending at `down` and does not fold what lies beyond it", () => {
+    const sel = selectAroundFocus(g, k("bren"), { down: 1 });
+    expect(sel.members.has(k("brenna"))).toBe(true);
+    expect(sel.members.has(k("wren"))).toBe(false);
+    expect(sel.folds.has(k("brenna"))).toBe(false); // one step past `down`: nothing to fold into
+  });
+
   it("returns nothing for an unknown focus", () => {
     expect(selectAroundFocus(g, "npc:nobody").members.size).toBe(0);
   });

@@ -24,10 +24,11 @@ const OLD_BOND_WORDS: ReadonlySet<unknown> = new Set([
 
 /**
  * Sort rows so parents come before children (topological order over a
- * self-referential `parentField`). Stable for already-ordered input; rows with
- * no parent (or a parent not present in the set) sort first. Any rows left over
- * after the bounded number of passes (circular refs / missing parents — should
- * not happen) are appended as-is rather than dropped.
+ * self-referential `parentField`). Rows with no parent come first. Sibling
+ * order is not kept (each pass walks the list from the end), so callers must
+ * not rely on it. A row whose parent is not in the set, and any circular
+ * reference, never qualifies; those rows are appended at the end as-is rather
+ * than dropped.
  */
 export function sortByHierarchy(rows: Row[], parentField: string): Row[] {
   const result: Row[] = [];

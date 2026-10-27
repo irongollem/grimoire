@@ -26,6 +26,10 @@ describe("fetchAllRows", () => {
     expect(page).toHaveBeenCalledTimes(2);
   });
 
+  it("refuses a page that returned neither rows nor an error rather than treating it as the end", async () => {
+    await expect(fetchAllRows(async () => ({ data: null, error: null }))).rejects.toThrow(/neither rows nor an error/);
+  });
+
   it("throws the query's error", async () => {
     const error = new PostgrestError({ message: "boom", details: "", hint: "", code: "500" });
     await expect(fetchAllRows(async () => ({ data: null, error }))).rejects.toBe(error);

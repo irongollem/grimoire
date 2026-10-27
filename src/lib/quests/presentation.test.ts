@@ -7,6 +7,7 @@ import {
   type QuestBeatPresentationInput,
   formatUnwrittenRoomsLabel,
   forwardReachableBeatIds,
+  countQuestBeatContentBlocks,
   questBeatKindLabel,
   tallyQuestReach,
   visitedRouteEdgeIds,
@@ -39,6 +40,21 @@ describe("questBeatKindLabel", () => {
   it("labels a known kind and falls back to the raw value for one it does not recognise", () => {
     expect(questBeatKindLabel("explore")).toBe("Explore");
     expect(questBeatKindLabel("legacy-kind")).toBe("legacy-kind");
+  });
+});
+
+describe("countQuestBeatContentBlocks", () => {
+  it("counts the top-level blocks of a stored Tiptap doc", () => {
+    const doc = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }, { type: "paragraph" }, { type: "bulletList" }] });
+    expect(countQuestBeatContentBlocks(doc)).toBe(3);
+    expect(countQuestBeatContentBlocks(JSON.stringify({ type: "doc", content: [] }))).toBe(0);
+  });
+
+  it("has no count for empty, plain-text or non-document content", () => {
+    expect(countQuestBeatContentBlocks(null)).toBeNull();
+    expect(countQuestBeatContentBlocks("")).toBeNull();
+    expect(countQuestBeatContentBlocks("A plain note, not JSON")).toBeNull();
+    expect(countQuestBeatContentBlocks(JSON.stringify({ type: "paragraph", content: [{}] }))).toBeNull();
   });
 });
 
@@ -76,6 +92,8 @@ describe("quest beat presentation", () => {
     expect(deriveQuestBeatPrepGaps({ ...draft, visibility: "hidden", how_it_plays: "Skill challenge" }, [])).toEqual([
       { kind: "improv_review", label: "Review improvised beat" },
     ]);
+    // Once the DM has reviewed the improvisation there is nothing left to ask of it.
+    expect(deriveQuestBeatPrepGaps({ ...draft, visibility: "hidden", how_it_plays: "Skill challenge", improv_reviewed_at: "2026-10-01T00:00:00Z" }, [])).toEqual([]);
   });
 
   it("raises a site gap when the crawl can't actually be walked, and none when it's clean", () => {
@@ -266,6 +284,27 @@ describe("quest beat presentation", () => {
     expect(result.b!.unlocksQuest).toBe(true);
     expect(result.a!.payoffCount).toBe(0);
     expect(result.a!.unlocksQuest).toBe(false);
+  });
+
+  it("flags an unlock only on a beat that has an unlock rule, not on one with other rules", () => {
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b")],
+      edges: [edge("ab", "a", "b")],
+      attachments: [],
+      consequences: [{ id: "c", on_beat_id: "b", action: "reveal" } as QuestConsequence],
+    });
+    expect(result.b!.unlocksQuest).toBe(false);
+  });
+
+  it("does not count a cursor standing on no beat as a run in progress", () => {
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b")],
+      edges: [edge("ab", "a", "b")],
+      attachments: [],
+      runtime: [{ quest_id: "q", thread_id: "t", current_beat_id: null }],
+    });
+    expect(result.a!.reach).toBe("unplayed");
+    expect(result.b!.reach).toBe("unplayed");
   });
 
   it("only names a converge mode once two or more routes actually arrive", () => {

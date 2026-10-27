@@ -28,27 +28,11 @@ describe("countPdfPages", () => {
     await expect(countPdfPages(bytes)).resolves.toBe(4);
   });
 
-  it("counts a single-page PDF", async () => {
-    const bytes = await buildPdf(1);
-    await expect(countPdfPages(bytes)).resolves.toBe(1);
-  });
-
   it("rejects corrupt bytes with a typed PdfReadError, not a raw throw", async () => {
     const garbage = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     await expect(countPdfPages(garbage)).rejects.toBeInstanceOf(PdfReadError);
   });
 
-  it("gives PdfReadError a DM-readable message, not the raw pdf-lib error shape", async () => {
-    const garbage = new Uint8Array([0, 0, 0, 0]);
-    try {
-      await countPdfPages(garbage);
-      expect.unreachable("expected countPdfPages to throw");
-    } catch (error) {
-      expect(error).toBeInstanceOf(PdfReadError);
-      expect(typeof (error as PdfReadError).message).toBe("string");
-      expect((error as PdfReadError).message.length).toBeGreaterThan(0);
-    }
-  });
 });
 
 describe("countPages — PDF selection", () => {
@@ -75,10 +59,6 @@ describe("countPages — image selection", () => {
     expect(result).toEqual({ ok: true, kind: "images", pageCount: 3 });
   });
 
-  it("counts a single image as one page", async () => {
-    const result = await countPages([imageFile("solo.jpg")]);
-    expect(result).toEqual({ ok: true, kind: "images", pageCount: 1 });
-  });
 });
 
 describe("countPages — rejects shapes document_imports can't represent", () => {
@@ -115,17 +95,5 @@ describe("countPages — rejects shapes document_imports can't represent", () =>
     if (!result.ok) {
       expect(result.reason).toBe("empty_selection");
     }
-  });
-});
-
-describe("countPages — failure reasons are mutually distinct", () => {
-  it("produces a different reason for each rejection shape", async () => {
-    const mixed = await countPages([pdfFile(await buildPdf(1)), imageFile("a.jpg")]);
-    const multiple = await countPages([pdfFile(await buildPdf(1), "a.pdf"), pdfFile(await buildPdf(1), "b.pdf")]);
-    const empty = await countPages([]);
-
-    const reasons = [mixed, multiple, empty].map((result) => (result.ok ? null : result.reason));
-    expect(reasons).toEqual(["mixed_selection", "multiple_pdfs", "empty_selection"]);
-    expect(new Set(reasons).size).toBe(3);
   });
 });

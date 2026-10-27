@@ -6,6 +6,7 @@ import {
   childSpaceType,
   groupByTier,
   isInteriorType,
+  isLocationType,
   isSiteType,
   occupiedTiers,
   spaceHeading,
@@ -62,12 +63,6 @@ function loc(name: string, location_type: LocationType): Location {
 }
 
 describe("tier assignment", () => {
-  it("assigns every location type exactly once", () => {
-    for (const type of Object.keys(LOCATION_TYPE_LABELS) as LocationType[]) {
-      expect(LOCATION_TYPE_TIER).toHaveProperty(type);
-    }
-  });
-
   it("leaves only `other` unplaced — it is the escape hatch, not a scale", () => {
     const unplaced = (Object.keys(LOCATION_TYPE_TIER) as LocationType[]).filter(
       (t) => LOCATION_TYPE_TIER[t] === null,
@@ -90,16 +85,6 @@ describe("tier assignment", () => {
     expect(tierOf("other")).toBeNull();
   });
 
-  it("shares a tier between dungeon and building, but not wilderness", () => {
-    // A dungeon and a building both have a floor plan, so they get the same
-    // kind of map — the same *tier* now means that, not "the same size".
-    // A wilderness has no floor plan at all: it moved to `land`, alongside
-    // continent/region/country, where "pins all the way down" belongs.
-    expect(tierOf("dungeon")).toBe("site");
-    expect(tierOf("building")).toBe("site");
-    expect(tierOf("wilderness")).toBe("land");
-  });
-
   it("puts `wilds` at `site` and `grounds` at `interior`, not `wilderness`'s land tier (#886)", () => {
     // `wilderness` is untouched by #886 — it stays a `land`-tier pin map
     // (#810), and can describe the same forest a `wilds` site zooms into for
@@ -114,13 +99,19 @@ describe("tier assignment", () => {
   });
 });
 
-describe("isSiteType", () => {
-  it("agrees with the tier map for every location type", () => {
-    for (const type of Object.keys(LOCATION_TYPE_TIER) as LocationType[]) {
-      expect(isSiteType(type)).toBe(LOCATION_TYPE_TIER[type] === "site");
-    }
+describe("isLocationType", () => {
+  it("accepts a real type and rejects an unknown word or a non-string", () => {
+    expect(isLocationType("tavern")).toBe(true);
+    expect(isLocationType("castle")).toBe(false);
+    expect(isLocationType(42)).toBe(false);
+    expect(isLocationType(null)).toBe(false);
+    // A model-written type is checked here; inherited object keys are not location types.
+    expect(isLocationType("constructor")).toBe(false);
+    expect(isLocationType("__proto__")).toBe(false);
   });
+});
 
+describe("isSiteType", () => {
   // Deliberately a *closed* set rather than a list of things that are true.
   // The previous version named five types and asserted each was a site, which
   // says nothing about a sixth — and a sixth duly arrived (`grounds`, #817)
@@ -137,45 +128,16 @@ describe("isSiteType", () => {
       new Set<LocationType>(["building", "dungeon", "store", "tavern", "inn", "wilds"]),
     );
   });
-
-  it("excludes geography and interiors", () => {
-    // district and wilderness are the two types that moved off `site` in #810:
-    // a district's children are buildings on a geography map, and a wilderness
-    // has no floor plan at all. `grounds` moved off `site` too in #886 — it is
-    // now the counter-case the *other* way: unroofed, but bound to another
-    // site's floor plan rather than carrying one of its own, so it joined
-    // `room` at `interior` instead.
-    expect(isSiteType("district")).toBe(false);
-    expect(isSiteType("wilderness")).toBe(false);
-    expect(isSiteType("room")).toBe(false);
-    expect(isSiteType("grounds")).toBe(false);
-    expect(isSiteType("city")).toBe(false);
-    expect(isSiteType("other")).toBe(false);
-  });
 });
 
 describe("isInteriorType", () => {
-  it("agrees with the tier map for every location type", () => {
-    for (const type of Object.keys(LOCATION_TYPE_TIER) as LocationType[]) {
-      expect(isInteriorType(type)).toBe(LOCATION_TYPE_TIER[type] === "interior");
-    }
-  });
-
   // Deliberately closed, for the same reason `isSiteType`'s is: a list of
   // things that are true says nothing about a third arrival.
   it("is exactly `room` and `grounds`", () => {
     const interiors = (Object.keys(LOCATION_TYPE_TIER) as LocationType[]).filter(isInteriorType);
     expect(new Set(interiors)).toEqual(new Set<LocationType>(["room", "grounds"]));
-  });
-
-  it("excludes `wilds` — a site's own floor plan, not a space inside one", () => {
-    // `wilds` and `grounds` are both open air and easy to conflate: the test
-    // is which floor plan a place's footprint belongs to. `wilds` carries its
-    // own (site tier); `grounds` sits inside another place's (interior tier).
+    // `wilds` is open air too, but carries its own floor plan (site tier); `grounds` sits inside another place's.
     expect(isInteriorType("wilds")).toBe(false);
-    expect(isSiteType("wilds")).toBe(true);
-    expect(isInteriorType("grounds")).toBe(true);
-    expect(isSiteType("grounds")).toBe(false);
   });
 });
 

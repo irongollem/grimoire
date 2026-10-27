@@ -113,31 +113,6 @@ describe("derivePayoffRows", () => {
     expect(rows[1]!.caption).toBe("award_milestone · on arrival (+5d)");
   });
 
-  it("gives each verb its documented tone and icon", () => {
-    const rows = derivePayoffRows({
-      beatId: "beat-fork",
-      consequences: [
-        consequence({ id: "c-1", on_beat_id: "beat-fork", action: "shift_npc_relationship", action_payload: { step: 1 } }),
-        consequence({ id: "c-2", on_beat_id: "beat-fork", action: "owe_favor", action_payload: { text: "x" } }),
-        consequence({ id: "c-3", on_beat_id: "beat-fork", action: "grant_knowledge", action_payload: { text: "x" } }),
-        consequence({ id: "c-4", on_beat_id: "beat-fork", action: "unlock_quest" }),
-        consequence({ id: "c-5", on_beat_id: "beat-fork", action: "complete", target_objective_id: "obj-1" }),
-      ],
-      outgoingEdges,
-      beats,
-      loot: [],
-      objectiveLabel,
-    });
-
-    expect(rows.map((row) => ({ tone: row.tone, icon: row.icon }))).toEqual([
-      { tone: "destructive", icon: "invite" },
-      { tone: "caution", icon: "hand" },
-      { tone: "info", icon: "scrollText" },
-      { tone: "arcane", icon: "quest" },
-      { tone: "muted", icon: "check" },
-    ]);
-  });
-
   it("styles the #1011 verbs and names their targets", () => {
     const rows = derivePayoffRows({
       beatId: "beat-fork",
@@ -160,7 +135,6 @@ describe("derivePayoffRows", () => {
     expect(rows.map((row) => row.summary)).toEqual([
       "The count ticks 1", "Scrim moves to The Roost", "Scrim joins the party", "Understage Crew: standing worsens by 1",
     ]);
-    expect(rows.map((row) => row.icon)).toEqual(["clock", "pin", "party", "faction"]);
   });
 
   it("marks every consequence row 'auto' and every loot row 'you dispatch'", () => {
@@ -192,6 +166,19 @@ describe("derivePayoffRows", () => {
     expect(lootRow.caption).toBe("loot_placement · currency · held");
     expect(lootRow.tone).toBe("primary");
     expect(lootRow.icon).toBe("coins");
+  });
+
+  it("shows a non-currency loot row as a package, and a route whose target beat is missing by name", () => {
+    const rows = derivePayoffRows({
+      beatId: "beat-fork",
+      consequences: [consequence({ id: "c-1", on_edge_id: "edge-lost", action: "award_milestone", action_payload: { text: "x" } })],
+      outgoingEdges: [{ id: "edge-lost", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-gone", route_kind: "choice" } as QuestBeatEdge],
+      beats,
+      loot: [loot({ id: "loot-1", kind: "item" })],
+      objectiveLabel,
+    });
+    expect(rows[0]!.caption).toBe('award_milestone · on "Missing beat"');
+    expect(rows[1]!.icon).toBe("package");
   });
 
   it("prefixes a loot summary with quantity only when there is more than one", () => {

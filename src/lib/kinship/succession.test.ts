@@ -16,11 +16,19 @@ describe("succession helpers", () => {
   );
 
   it("seeds leave out the expelled and defected", () => {
-    expect([...seedKeys(rows)].sort()).toEqual([a, c]);
+    const withDefector = [...rows, ...memberRows([{ npc_id: "d", status: "Defected", succession_rank: 3 }], [])];
+    expect([...seedKeys(withDefector)].sort()).toEqual([a, c]);
   });
 
-  it("orders the line by rank and drops those who left", () => {
-    expect(lineFromRows(rows)).toEqual([c, a]);
+  it("orders the line by rank and drops those who left or hold no rank", () => {
+    const more = memberRows(
+      [
+        { npc_id: "d", status: "Defected", succession_rank: 3 },
+        { npc_id: "e", status: "Active", succession_rank: null },
+      ],
+      [],
+    );
+    expect(lineFromRows([...rows, ...more])).toEqual([c, a]);
   });
 
   it("numbers the line from one", () => {
@@ -36,6 +44,8 @@ describe("succession helpers", () => {
     expect(moveInLine([a, b, c], b, -1)).toEqual([b, a, c]);
     expect(moveInLine([a, b, c], a, -1)).toEqual([a, b, c]);
     expect(moveInLine([a, b, c], c, 1)).toEqual([a, b, c]);
+    expect(moveInLine([a, b, c], b, 1)).toEqual([a, c, b]);
+    expect(moveInLine([a, b], "npc:stranger", 1)).toEqual([a, b]);
   });
 
   it("skips the dead when naming the heir", () => {

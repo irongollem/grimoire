@@ -33,10 +33,15 @@ describe("parseSenses", () => {
     ]);
   });
 
-  it("keeps an unknown sense as text", () => {
-    expect(parseSenses("passive Perception 14")).toEqual([
-      { label: "PP", value: "14" },
+  it("keeps an unrecognised sense as plain text, dropping the unit", () => {
+    expect(parseSenses("keen smell, darkvision 60 ft.")).toEqual([
+      { label: "keen smell", value: "" },
+      { sense: "darkvision", value: "60" },
     ]);
+  });
+
+  it("shortens passive Perception to PP", () => {
+    expect(parseSenses("passive Perception 14")).toEqual([{ label: "PP", value: "14" }]);
   });
 });
 
@@ -47,8 +52,9 @@ describe("senseRanges", () => {
       blindsight: 10,
     });
   });
-  it("keeps the largest of a repeated sense", () => {
+  it("keeps the largest of a repeated sense, whichever comes first", () => {
     expect(senseRanges("darkvision 60 ft., Darkvision 120 ft.")).toEqual({ ...NONE, darkvision: 120 });
+    expect(senseRanges("darkvision 120 ft., Darkvision 60 ft.")).toEqual({ ...NONE, darkvision: 120 });
   });
   it("ignores unrecognised text, rangeless entries and nullish input", () => {
     expect(senseRanges("keen smell, truesight")).toEqual({ ...NONE });

@@ -72,6 +72,23 @@ describe("BlockId extension", () => {
     expect(new Set(ids).size).toBe(2);
   });
 
+  it("keeps the first block's id when a copy is pasted, and re-keys only the copy", async () => {
+    editor = await createEditor("<p>original</p>");
+    const original = editor.getJSON().content![0];
+    editor.commands.insertContentAt(editor.state.doc.content.size, original);
+    const ids = collectBlockIds(editor);
+    expect(ids[0]).toBe(original.attrs?.blockId);
+    expect(ids[1]).not.toBe(ids[0]);
+  });
+
+  it("gives a block with a blank blockId a real one", async () => {
+    editor = await createEditor({
+      type: "doc",
+      content: [{ type: "paragraph", attrs: { blockId: "" }, content: [{ type: "text", text: "x" }] }],
+    });
+    expect(collectBlockIds(editor)[0]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   it("survives a JSON round-trip", async () => {
     editor = await createEditor("<h2>Heading</h2><p>body</p>");
     const json = editor.getJSON();

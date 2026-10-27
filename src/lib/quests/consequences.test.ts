@@ -102,6 +102,14 @@ describe("describeQuestConsequenceAction", () => {
     )).toBe('Knowledge: "???"');
   });
 
+  it.each([
+    ["grant_knowledge", 'Knowledge: "???"'],
+    ["owe_favor", 'Favour owed: "???"'],
+    ["award_milestone", 'Milestone: "???"'],
+  ] as const)("treats a blank %s text as missing, not as an empty quote", (action, expected) => {
+    expect(describeQuestConsequenceAction(row({ action, target_objective_id: null, action_payload: { text: "" } }), objectiveLabel)).toBe(expected);
+  });
+
   it("describes a quest unlock by its own label when no resolver is given", () => {
     expect(describeQuestConsequenceAction(
       row({ action: "unlock_quest", target_objective_id: null, action_payload: {} }),
@@ -128,6 +136,14 @@ describe("describeQuestConsequenceAction", () => {
       objectiveLabel,
       { questLabel, beatLabel },
     )).toBe('Unlock "The stolen cauldron" · enters at "He confesses the tithe"');
+  });
+
+  it("asks for no entry-beat title when the rule names none", () => {
+    expect(describeQuestConsequenceAction(
+      { action: "unlock_quest", target_objective_id: null, action_payload: {}, target_quest_id: "quest-sequel", entry_beat_id: null },
+      objectiveLabel,
+      { questLabel: () => "The stolen cauldron", beatLabel: () => "Somewhere" },
+    )).toBe('Unlock "The stolen cauldron"');
   });
 
   it("drops back to the bare verb when the quest title does not resolve, and drops the suffix when the beat does not", () => {
@@ -181,6 +197,9 @@ describe("relationship shift options", () => {
     expect(relationshipShiftIsGain({ to: "friendly" })).toBe(true);
     expect(relationshipShiftIsGain({ to: "unfriendly" })).toBe(false);
     expect(relationshipShiftIsGain({ step: 2 })).toBe(true);
+    expect(relationshipShiftIsGain({ to: "helpful" })).toBe(true);
+    expect(relationshipShiftIsGain({ step: 0 })).toBe(false);
+    expect(relationshipShiftIsGain({ step: -1 })).toBe(false);
   });
 });
 
@@ -213,6 +232,15 @@ describe("the #1011 verbs", () => {
     const join = { action: "add_companion" as const, target_objective_id: null, target_npc_id: "npc-1", action_payload: {} };
     expect(describeQuestConsequenceAction(join, objectiveLabel, resolver)).toBe("Scrim joins the party");
     expect(describeQuestConsequenceAction(join, objectiveLabel)).toBe("An NPC joins the party");
+  });
+
+  it("reads a half-chosen verb generically rather than naming only part of it", () => {
+    const objectiveLabelUnused = () => "unused";
+    // A clock with no step, an NPC with no place, a faction with no change: each says what the verb is, not a half sentence.
+    expect(describeQuestConsequenceAction({ action: "tick_clock", target_objective_id: null, target_clock_id: "clock-1", action_payload: { step: 0 } }, objectiveLabelUnused, resolver)).toBe("Tick clock (???)");
+    expect(describeQuestConsequenceAction({ action: "move_npc", target_objective_id: null, target_npc_id: "npc-1", target_location_id: null, action_payload: {} }, objectiveLabelUnused, resolver)).toBe("An NPC moves to a place");
+    expect(describeQuestConsequenceAction({ action: "move_npc", target_objective_id: null, target_npc_id: null, target_location_id: "loc-1", action_payload: {} }, objectiveLabelUnused, resolver)).toBe("An NPC moves to a place");
+    expect(describeQuestConsequenceAction({ action: "shift_faction_standing", target_objective_id: null, target_faction_id: "fac-1", action_payload: { step: 0 } }, objectiveLabelUnused, resolver)).toBe("Shift faction standing (???)");
   });
 
   it("describes a faction standing shift in both forms", () => {
@@ -251,6 +279,7 @@ describe("shared #1011 form helpers", () => {
     expect(worldVerbReady("move_npc", { ...draft, npcId: "n" })).toBe(false);
     expect(worldVerbReady("move_npc", { ...draft, npcId: "n", locationId: "l" })).toBe(true);
     expect(worldVerbReady("add_companion", { ...draft, npcId: "n" })).toBe(true);
+    expect(worldVerbReady("add_companion", draft)).toBe(false);
     expect(worldVerbReady("shift_faction_standing", { ...draft, factionId: "f" })).toBe(true);
     expect(worldVerbReady("shift_faction_standing", { ...draft, factionId: "f", shiftKey: "step:0" })).toBe(false);
     expect(worldVerbReady("complete", draft)).toBe(false);

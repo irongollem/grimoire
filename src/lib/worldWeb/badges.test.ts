@@ -84,6 +84,13 @@ describe("factionBadgesByNode", () => {
     expect(without.get("npc:b")!.pips[0].initial).toBe("Z");
   });
 
+  it("counts a membership with no recorded status as active, and a nameless faction gets a placeholder initial", () => {
+    const noStatus = { ...row("a", "Harpers"), status: null as string | null };
+    const nameless = row("b", "  ");
+    expect(factionBadgesByNode([noStatus], byNpc).get("npc:a")!.pips[0].active).toBe(true);
+    expect(factionBadgesByNode([nameless], byNpc).get("npc:b")!.pips[0].initial).toBe("?");
+  });
+
   it("survives a membership whose faction embed came back empty", () => {
     const orphan = { npc_id: "a", faction_id: "f", role: null, status: "Active", faction: null as never };
     expect(() => factionBadgesByNode([orphan], byNpc)).not.toThrow();

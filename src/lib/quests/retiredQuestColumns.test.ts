@@ -15,6 +15,17 @@ describe("stripRetiredQuestColumns", () => {
     expect(Object.keys(stripRetiredQuestColumns(row))).toEqual([]);
   });
 
+  it("removes the columns the migrations dropped from quests", () => {
+    // Named here rather than read from the list: migrations 20260905204533 (description, notes)
+    // and 20260906160921 (the reward columns, flow_enabled_at) are the source of truth.
+    const dropped = [
+      "description", "notes", "rewards", "reward_pp", "reward_gp", "reward_ep", "reward_sp", "reward_cp",
+      "reward_item_ids", "reward_art_objects", "reward_currency_pools", "flow_enabled_at",
+    ];
+    const row = { id: "q1", ...Object.fromEntries(dropped.map((c) => [c, "legacy"])) };
+    expect(stripRetiredQuestColumns(row)).toEqual({ id: "q1" });
+  });
+
   it("keeps everything else, including falsy values", () => {
     const kept = stripRetiredQuestColumns({
       id: "q1",

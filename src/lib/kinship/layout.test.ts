@@ -118,6 +118,62 @@ describe("layoutTree on the Thane family", () => {
   });
 });
 
+describe("layoutTree details", () => {
+  const solo = (id: string, bornYear: number | null): KinPerson => ({ key: `npc:${id}`, name: id, bornYear, diedYear: null, dead: false, isPc: false });
+  const edge = (id: string, from: string, to: string, kind: KinKind): KinEdgeInput => ({ id, from: `npc:${from}`, to: `npc:${to}`, kind, parent_role: null, adoptive: false });
+
+  it("counts only the hidden children on a count card, and draws none for a parent outside the tree", () => {
+    const g = buildKinGraph(["p", "a", "b", "c", "out"].map((n) => solo(n, null)), []);
+    const folds = new Map<PersonKey, PersonKey[]>([
+      ["npc:p", ["npc:a", "npc:b", "npc:c"]],
+      ["npc:out", ["npc:b"]],
+    ]);
+    const layout = layoutTree({ graph: g, members: new Set<PersonKey>(["npc:p", "npc:a"]), folds });
+    const cards = layout.cards.filter((c) => c.foldOf !== null);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({ foldOf: "npc:p", foldCount: 2 }); // a is on the tree, so only b and c are hidden
+  });
+
+  it("bridges the gap between spouses with the bar", () => {
+    const g = buildKinGraph([solo("h", null), solo("w", null)], [edge("1", "h", "w", "spouse")]);
+    const layout = layoutTree({ graph: g, members: new Set<PersonKey>(["npc:h", "npc:w"]), folds: new Map() });
+    const [h, w] = ["npc:h", "npc:w"].map((id) => layout.cards.find((c) => c.id === id)?.x ?? Number.NaN);
+    const left = Math.min(h as number, w as number);
+    expect(layout.marriages).toHaveLength(1);
+    expect(layout.marriages[0]?.x1).toBeCloseTo(left + CARD_W); // from the left card's right edge
+    expect(layout.marriages[0]?.x2).toBeCloseTo(Math.max(h as number, w as number)); // to the right card's left edge
+  });
+
+  it("takes the median birth year of a row, skipping unknown years", () => {
+    const kids = [solo("k1", 1000), solo("k2", 1010), solo("k3", 1040), solo("k4", null)];
+    const g = buildKinGraph(
+      [solo("m", null), ...kids],
+      kids.map((c, i) => edge(`${i}`, "m", c.key.slice(4), "parent")),
+    );
+    const layout = layoutTree({ graph: g, members: new Set(g.people.keys()), folds: new Map() });
+    expect(layout.rowBornYear).toEqual([null, 1010]);
+  });
+
+  it("hangs a child under the parent one row above, not under a later-generation one", () => {
+    // x is a child of a (row 0) and of c, a's grandchild (row 2): x sits on row 1, so only a is a parent in this tree.
+    const ids = ["a", "b", "c", "x"];
+    const g = buildKinGraph(ids.map((n) => solo(n, null)), [edge("1", "a", "b", "parent"), edge("2", "b", "c", "parent"), edge("3", "a", "x", "parent"), edge("4", "c", "x", "parent")]);
+    const layout = layoutTree({ graph: g, members: new Set(g.people.keys()), folds: new Map(), anchor: "npc:a" });
+    const a = layout.cards.find((c) => c.id === "npc:a");
+    const groups = layout.descents.filter((d) => d.children.some((c) => c.id === "npc:x"));
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.anchorX).toBeCloseTo((a?.x ?? Number.NaN) + CARD_W / 2);
+  });
+
+  it("starts the first family at the anchor's", () => {
+    const g = buildKinGraph([solo("early", 1000), solo("late", 2000)], []);
+    const members = new Set<PersonKey>(["npc:early", "npc:late"]);
+    const x = (layout: TreeLayout, id: string) => layout.cards.find((c) => c.id === id)?.x;
+    expect(x(layoutTree({ graph: g, members, folds: new Map() }), "npc:early")).toBe(0);
+    expect(x(layoutTree({ graph: g, members, folds: new Map(), anchor: "npc:late" }), "npc:late")).toBe(0);
+  });
+});
+
 describe("layoutTree edge cases", () => {
   it("handles an empty selection", () => {
     expect(layoutTree({ graph: thane, members: new Set(), folds: new Map() })).toMatchObject({ cards: [], rows: 0, width: 0 });

@@ -9,9 +9,8 @@ import {
   mapExtractedFaction,
   mapExtractedEncounter,
   resolveEncounterCombatants,
-  ENTITY_MAPPERS,
 } from "@/lib/documentImport/normalize";
-import { IMPORT_ENTITY_KINDS, PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
+import { PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
 import type { AiProvenance } from "@/ai/provenance";
 import { emptyDefenses } from "@/types/statBlock.types";
 import type { MonsterStatBlock } from "@/types/monster.types";
@@ -891,31 +890,6 @@ describe("resolveEncounterCombatants", () => {
     expect(resolved).toBe(already);
   });
 });
-
-// ── Dispatcher ───────────────────────────────────────────────────────────────
-
-describe("ENTITY_MAPPERS", () => {
-  it("has exactly one mapper per kind in IMPORT_ENTITY_KINDS, in both directions", () => {
-    const mapperKeys = Object.keys(ENTITY_MAPPERS).sort();
-    const kindList = [...IMPORT_ENTITY_KINDS].sort();
-    expect(mapperKeys).toEqual(kindList);
-  });
-
-  it("every entry is callable and produces a { row, links } envelope", () => {
-    for (const kind of IMPORT_ENTITY_KINDS) {
-      expect(typeof ENTITY_MAPPERS[kind]).toBe("function");
-    }
-
-    // Spot-check a couple of kinds through the dispatcher directly (literal
-    // key access keeps each call's payload type correlated to its mapper).
-    const monster = ENTITY_MAPPERS.monsters({ name: "X" }, CAMPAIGN_ID, PROVENANCE);
-    expect(monster.row.name).toBe("X");
-
-    const quest = ENTITY_MAPPERS.quests({ title: "Y" }, CAMPAIGN_ID, PROVENANCE);
-    expect(quest.row.title).toBe("Y");
-  });
-});
-
 
 describe("mapExtractedMonster — stat_block skills shape", () => {
   // The extraction schema asks for an array of {skill, modifier} pairs because

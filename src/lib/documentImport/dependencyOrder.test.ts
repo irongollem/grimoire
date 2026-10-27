@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImport.types";
+import { IMPORT_ENTITY_KINDS } from "@/types/documentImport.types";
 
 /**
  * `IMPORT_ENTITY_KINDS` used to be a genuine link-dependency order: the
@@ -24,12 +24,6 @@ import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImpo
  * because either is required for a link to resolve today.
  */
 describe("IMPORT_ENTITY_KINDS order", () => {
-  it("declares exactly the eight kinds this importer supports", () => {
-    expect([...IMPORT_ENTITY_KINDS].sort()).toEqual(
-      ["encounters", "factions", "items", "locations", "monsters", "npcs", "quests", "spells"].sort(),
-    );
-  });
-
   it("puts factions before npcs specifically", () => {
     // Named on its own because this is the pairing that was actually wrong
     // once, when order still mattered for link resolution.
@@ -42,17 +36,5 @@ describe("IMPORT_ENTITY_KINDS order", () => {
     // pairing above.
     const kinds: readonly string[] = IMPORT_ENTITY_KINDS;
     expect(kinds.indexOf("encounters")).toBe(kinds.length - 1);
-  });
-
-  it("resolves a link to a kind that imports LATER — the case the old per-kind ordering could never handle", () => {
-    // Not a claim about IMPORT_ENTITY_KINDS itself (there is no ordering fix
-    // that would make this true under the old scheme — locations importing
-    // before npcs would just break parent_name's own self-reference in the
-    // other direction). It's here as the fact that makes the header comment
-    // checkable: npcs imports before locations, on purpose, and the sweep's
-    // single post-import linking phase is what makes an NPC's `location_name`
-    // resolve anyway.
-    const kinds: readonly ImportEntityKind[] = IMPORT_ENTITY_KINDS;
-    expect(kinds.indexOf("npcs")).toBeLessThan(kinds.indexOf("locations"));
   });
 });

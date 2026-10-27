@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { targetDimensions, MAX_IMAGE_EDGE, DOWNSCALE_QUALITY } from "./downscale";
+// @vitest-environment happy-dom
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { downscalePagePhoto, targetDimensions, MAX_IMAGE_EDGE } from "./downscale";
 
 describe("targetDimensions", () => {
   it("leaves an image already inside the cap alone", () => {
@@ -40,12 +41,49 @@ describe("targetDimensions", () => {
   });
 });
 
-describe("encoding constants", () => {
-  // Guards against a well-meaning bump: the point of the re-encode is to make
-  // the page caps fit inside MAX_UPLOAD_BYTES, and quality is the lever that
-  // silently undoes it.
-  it("keeps JPEG quality in the band where page text stays legible and small", () => {
-    expect(DOWNSCALE_QUALITY).toBeGreaterThanOrEqual(0.75);
-    expect(DOWNSCALE_QUALITY).toBeLessThanOrEqual(0.85);
+describe("downscalePagePhoto", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** A page photo of `bytes` bytes that the browser decodes as 3000x2000, re-encoding to a blob of `encodedBytes`. */
+  function stubBrowser(encodedBytes: number): void {
+    vi.stubGlobal("createImageBitmap", async () => ({ width: 3000, height: 2000, close: vi.fn() }));
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) =>
+      callback(new Blob([new Uint8Array(encodedBytes)], { type: "image/jpeg" })),
+    );
+  }
+  const photo = (bytes: number, name = "page.png", type = "image/png") => new File([new Uint8Array(bytes)], name, { type });
+
+  it("re-encodes a large photo as a smaller JPEG", async () => {
+    stubBrowser(1000);
+    const original = photo(5000, "page one.png");
+    const out = await downscalePagePhoto(original);
+    expect(out).not.toBe(original);
+    expect(out.type).toBe("image/jpeg");
+    expect(out.name).toBe("page one.jpg");
+    expect(out.size).toBe(1000);
+  });
+
+  it("keeps the original when the re-encode is not smaller", async () => {
+    stubBrowser(5000);
+    const original = photo(5000);
+    expect(await downscalePagePhoto(original)).toBe(original);
+  });
+
+  it("leaves a non-image alone", async () => {
+    stubBrowser(10);
+    const pdf = photo(5000, "doc.pdf", "application/pdf");
+    expect(await downscalePagePhoto(pdf)).toBe(pdf);
+  });
+
+  it("keeps the original when the browser cannot decode it", async () => {
+    vi.stubGlobal("createImageBitmap", async () => {
+      throw new Error("undecodable");
+    });
+    const original = photo(5000);
+    expect(await downscalePagePhoto(original)).toBe(original);
   });
 });

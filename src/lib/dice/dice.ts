@@ -115,14 +115,15 @@ export function rollDice(
     }
   }
 
-  if (modifier !== 0) labelParts.push(modifier > 0 ? `+${modifier}` : `${modifier}`);
+  // The modifier carries its own sign, so it is appended, not joined with "+".
+  const modifierLabel = modifier > 0 ? `+${modifier}` : modifier < 0 ? `${modifier}` : "";
   const modeLabel = (counts[20] ?? 0) > 0 && mode !== "normal"
     ? ` (${mode === "advantage" ? "Adv" : "Dis"})`
     : "";
 
   return {
     total: sum + modifier,
-    label: labelParts.join("+") + modeLabel,
+    label: labelParts.join("+") + modifierLabel + modeLabel,
     modifier,
     breakdown,
     isCrit,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MARK_COLOURS, resolvePreparedMarks } from "./preparedMarks";
+import { HAZARD_MARK_ICON, MARK_COLOURS, resolvePreparedMarks } from "./preparedMarks";
 import type { PreparedMarksInput } from "./preparedMarks";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
@@ -284,6 +284,16 @@ describe("resolvePreparedMarks", () => {
     expect(marks[0].colour).toBe(MARK_COLOURS.secret_feature);
   });
 
+  it.each(["Hidden Passage", "Moving Wall"] as const)("colours a %s as a secret feature too", (feature_type) => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        placements: [placement({ id: "p2", dungeon_feature_id: "feature-1", source_cell_key: "1,1" })],
+        features: [feature({ feature_type })],
+      }),
+    );
+    expect(marks[0].kind).toBe("secret_feature");
+  });
+
   it("colours an ordinary feature type as a plain feature", () => {
     const marks = resolvePreparedMarks(
       baseInput({
@@ -360,6 +370,27 @@ describe("resolvePreparedMarks", () => {
     expect(marks[0]).toMatchObject({ kind: "encounter", cell: "7,2" });
   });
 
+  it("counts an encounter's combatants in its subtitle, singular for one", () => {
+    const one = resolvePreparedMarks(baseInput({ encounters: [encounter({ combatants: [combatant("c1")] })] }));
+    const two = resolvePreparedMarks(baseInput({ encounters: [encounter()] }));
+    expect(one[0].subtitle).toBe("1 combatant");
+    expect(two[0].subtitle).toBe("2 combatants");
+  });
+
+  it("names a loot mark by its label, or 'Loot cache' without one, and says what kind it is", () => {
+    const [labelled] = resolvePreparedMarks(baseInput({ lootPlacements: [loot({ kind: "item", label: "Silver dagger" })] }));
+    expect(labelled).toMatchObject({ label: "Silver dagger", subtitle: "Silver dagger" });
+    const [bare] = resolvePreparedMarks(baseInput({ lootPlacements: [loot({ kind: "loot_chest", label: "" })] }));
+    expect(bare).toMatchObject({ label: "Loot cache", subtitle: "Loot chest" });
+  });
+
+  it("draws nothing for an encounter or a loot placement that is not in any room", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({ encounters: [encounter({ location_id: null })], lootPlacements: [loot({ location_id: null })] }),
+    );
+    expect(marks).toHaveLength(0);
+  });
+
   it("draws a loot placement at its room's centroid", () => {
     const marks = resolvePreparedMarks(baseInput({ lootPlacements: [loot()] }));
     expect(marks).toHaveLength(1);
@@ -411,5 +442,25 @@ describe("resolvePreparedMarks", () => {
     expect(marks).toHaveLength(2);
     const offsets = marks.map((m) => m.fanOffset).sort((a, b) => a - b);
     expect(offsets).toEqual([0, 0.3]);
+  });
+
+  it("fans a third mark twice as far as the second", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        encounters: [encounter({ id: "e1" }), encounter({ id: "e2" }), encounter({ id: "e3" })],
+      }),
+    );
+    expect(marks.map((m) => m.fanOffset)).toEqual([0, 0.3, 0.6]);
+  });
+
+  it("subtitles a trap with its hazard and detection DC, and uses the hazard's own icon", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        placements: [placement({ trap_id: "trap-1", source_cell_key: "7,2" })],
+        traps: [trap({ hazard_glyph: "pit", detection_dc: 12 })],
+      }),
+    );
+    expect(marks[0].subtitle).toBe("Pit · DC 12");
+    expect(marks[0].icon).toBe(HAZARD_MARK_ICON.pit);
   });
 });

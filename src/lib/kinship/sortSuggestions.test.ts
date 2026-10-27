@@ -51,6 +51,19 @@ describe("suggestSort from birth years", () => {
     });
     expect(suggestSort(old, odile, "")?.choice.relation).toBe("child");
   });
+  it("reads a 15-year gap as a generation and 14 as not, in both directions", () => {
+    const at = (year: number) => p("Someone Else", year);
+    expect(suggestSort(p("A Thane", 1000), at(1015), "")?.choice.relation).toBe("child");
+    expect(suggestSort(p("A Thane", 1000), at(985), "")?.choice.relation).toBe("parent");
+    expect(suggestSort(p("A Thane", 1000), at(1014), "")).toBeNull();
+  });
+  it("calls same-name people siblings up to 10 years apart and not at 11", () => {
+    expect(suggestSort(p("A Thane", 1000), p("B Thane", 1010), "")?.choice.relation).toBe("sibling");
+    expect(suggestSort(p("A Thane", 1000), p("B Thane", 1011), "")).toBeNull();
+  });
+  it("does not make siblings of two people with no family name to share", () => {
+    expect(suggestSort(p("", 1000), p("", 1002), "")).toBeNull();
+  });
   it("suggests siblings for a small gap and a shared family name", () => {
     const tomas = p("Tomas Thane", 1038);
     expect(suggestSort(odile, tomas, "")).toMatchObject({

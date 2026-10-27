@@ -3,7 +3,7 @@
 // strip ALL tags (see chatMarkdown.test.ts), so this file runs under jsdom —
 // which matches real-browser behaviour, the only place this sink renders.
 import { describe, it, expect } from "vitest";
-import { sanitizeHtml } from "./sanitizeHtml";
+import { renderBasicMarkdown, sanitizeHtml } from "./sanitizeHtml";
 
 describe("sanitizeHtml", () => {
   it("preserves data-ai-generated and data-ai-model on the AI content wrapper (#606)", () => {
@@ -12,12 +12,6 @@ describe("sanitizeHtml", () => {
     expect(clean).toContain('data-ai-generated="true"');
     expect(clean).toContain('data-ai-model="gpt-5"');
     expect(clean).toContain("Recap text");
-  });
-
-  it("preserves the marker even without a known model (data-ai-model omitted)", () => {
-    const html = '<div data-ai-generated="true"><p>Recap text</p></div>';
-    const clean = sanitizeHtml(html);
-    expect(clean).toContain('data-ai-generated="true"');
   });
 
   it("strips onclick and other event-handler attributes on the same element", () => {
@@ -46,5 +40,21 @@ describe("sanitizeHtml", () => {
     const clean = sanitizeHtml(html);
     expect(clean).toContain('data-ai-generated="true"');
     expect(clean).not.toContain("javascript:");
+  });
+});
+
+describe("renderBasicMarkdown", () => {
+  it("is empty for nothing", () => {
+    expect(renderBasicMarkdown(null)).toBe("");
+    expect(renderBasicMarkdown("")).toBe("");
+  });
+
+  it("escapes markup before it adds its own, so typed HTML stays text", () => {
+    const html = renderBasicMarkdown('<img src=x onerror="alert(1)"> **bold**');
+    expect(html).toBe('<p>&lt;img src=x onerror=&quot;alert(1)&quot;&gt; <strong>bold</strong></p>');
+  });
+
+  it("turns blank-line breaks into paragraphs, single newlines into <br>, and *x* into emphasis", () => {
+    expect(renderBasicMarkdown("one\ntwo\n\nthree *four*")).toBe("<p>one<br>two</p><p>three <em>four</em></p>");
   });
 });

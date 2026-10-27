@@ -26,9 +26,31 @@ describe("groupMembers", () => {
     expect([...groupMembers(ties, "deity:lady")].sort()).toEqual(["npc:brenna", "party_member:ilse"]);
   });
 
+  it("counts only memberships, and only ties to this very group", () => {
+    const more = [
+      ...ties,
+      tie({ row_id: "9", type: "friend", from_id: "stranger", to_kind: "faction", to_id: "thane", to_name: "House Thane" }), // a link, not a membership
+      tie({ row_id: "10", source: "membership", type: "member_of", from_id: "other", to_kind: "faction", to_id: "toll", to_name: "Toll-men" }),
+    ];
+    expect([...groupMembers(more, "faction:thane")].sort()).toEqual(["npc:a", "npc:b"]);
+    expect([...groupMembers(more, "faction:toll")]).toEqual(["npc:other"]);
+  });
+
   it("is empty for a kind that does not group", () => {
     expect(groupMembers(ties, "item:bell").size).toBe(0);
     expect(groupMembers(ties, "nonsense").size).toBe(0);
+  });
+});
+
+describe("groupOptions ordering", () => {
+  it("puts the bigger group first, and equal groups by name", () => {
+    const m = (row: string, who: string, id: string, name: string) =>
+      tie({ row_id: row, source: "membership", type: "member_of", from_id: who, to_kind: "faction", to_id: id, to_name: name });
+    const options = groupOptions(
+      [m("1", "a", "zeta", "Zeta"), m("2", "b", "alpha", "Alpha"), m("3", "c", "big", "Big"), m("4", "d", "big", "Big")],
+      "faction",
+    );
+    expect(options.map((o) => o.name)).toEqual(["Big", "Alpha", "Zeta"]);
   });
 });
 

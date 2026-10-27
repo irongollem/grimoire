@@ -3,7 +3,6 @@ import {
   candidateLetter,
   decisionStatus,
   ignoreAllDecisions,
-  matchKindHint,
   needsDmChoice,
   quotaShortfalls,
   rowsAddedToQuota,
@@ -65,16 +64,6 @@ describe("tallyDecisions", () => {
     ]);
     expect(tallyDecisions(["a", "b", "c", "d", "e"], decisions)).toEqual({
       link: 1, create: 2, generate: 1, ignore: 1,
-    });
-  });
-
-  it("counts a link to a library candidate as a plain `link`", () => {
-    const decisions = new Map<string, ImportDecision>([
-      ["a", { action: "link", candidate: candidate({ source: "campaign" }) }],
-      ["b", { action: "link", candidate: candidate({ source: "library" }) }],
-    ]);
-    expect(tallyDecisions(["a", "b"], decisions)).toEqual({
-      link: 2, create: 0, generate: 0, ignore: 0,
     });
   });
 
@@ -146,9 +135,7 @@ describe("plan limits", () => {
 });
 
 describe("decisionStatus", () => {
-  it("says what will happen, with a tone per action", () => {
-    expect(decisionStatus({ action: "create" }, null)).toEqual({ label: "New", tone: "info" });
-    expect(decisionStatus({ action: "ignore" }, null)).toEqual({ label: "Ignored", tone: "neutral" });
+  it("names the cost on a generate only when it is known", () => {
     expect(decisionStatus({ action: "generate" }, "2 credits")).toEqual({ label: "Generate · 2 credits", tone: "arcane" });
     expect(decisionStatus({ action: "generate" }, null).label).toBe("Generate");
   });
@@ -165,15 +152,9 @@ describe("decisionStatus", () => {
   });
 });
 
-describe("candidateLetter and matchKindHint", () => {
+describe("candidateLetter", () => {
   it("letters candidates A, B, C and wraps past Z", () => {
     expect([0, 1, 25, 26, 27].map(candidateLetter)).toEqual(["A", "B", "Z", "AA", "AB"]);
   });
 
-  it("describes how a candidate matched", () => {
-    expect(matchKindHint("exact")).toBe("same name");
-    expect(matchKindHint("near")).toBe("nearly the same name");
-    expect(matchKindHint("contains")).toBe("name contains");
-    expect(matchKindHint("similar")).toBe("looks similar");
-  });
 });

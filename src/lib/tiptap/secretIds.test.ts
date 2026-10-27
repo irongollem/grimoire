@@ -38,6 +38,10 @@ describe("reMintSecretIds", () => {
     expect(secretIdsIn(JSON.parse(copy))).not.toContain(A);
   });
 
+  it("returns a string that merely mentions a secret block, and is not JSON, as it came", () => {
+    expect(reMintSecretIds("notes about the secretBlock feature")).toBe("notes about the secretBlock feature");
+  });
+
   it("returns anything without a secret block as it came", () => {
     const plain = { type: "doc", content: [{ type: "paragraph" }] };
     expect(reMintSecretIds(plain)).toBe(plain);

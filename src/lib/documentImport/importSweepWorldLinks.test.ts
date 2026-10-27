@@ -6,7 +6,13 @@ import type { AiProvenance } from "@/ai/provenance";
 import { EXTRACTED_BOND_TYPES, EXTRACTED_STANCES } from "@/types/documentImport.types";
 import { planWorldLinks } from "./importSweepWorldLinks";
 
-const PROVENANCE = { model: "test" } as unknown as AiProvenance;
+const PROVENANCE: AiProvenance = {
+  generatorType: "document_import",
+  provider: "anthropic",
+  model: "claude-test",
+  generatedAt: "2026-10-22T00:00:00.000Z",
+  edited: false,
+};
 const lookups = {
   npcs: [{ id: "n-tam", name: "Tam" }, { id: "n-orsik", name: "Orsik" }],
   factions: [{ id: "f-watch", name: "The Watch" }, { id: "f-ledger", name: "The Ledger" }],
@@ -33,8 +39,15 @@ describe("planWorldLinks", () => {
     expect(apprentice[0]).toMatchObject({ type: "mentor_of", from_npc_id: "n-tam", to_npc_id: "n-orsik" });
   });
 
+  it("labels every written link as AI-made, and leaves out a bond to oneself", () => {
+    const { writes } = plan({ bonds: [{ name: "Tam", type: "friend" }, { name: "Orsik", type: "friend" }] });
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ ai_provenance: PROVENANCE });
+  });
+
   it("maps a near-miss word to the nearest type and drops one it cannot", () => {
     expect(plan({ bonds: [{ name: "Orsik", type: "Teacher" }] }).writes[0]).toMatchObject({ type: "mentor_of" });
+    expect(plan({ bonds: [{ name: "Orsik", type: "Former-Ally" }] }).writes[0]).toMatchObject({ type: "former_ally" });
     const dropped = plan({ bonds: [{ name: "Orsik", type: "nemesis-ish" }] });
     expect(dropped.writes).toEqual([]);
     expect(dropped.unresolved).toEqual([expect.objectContaining({ targetLabel: "bond", name: "Orsik" })]);

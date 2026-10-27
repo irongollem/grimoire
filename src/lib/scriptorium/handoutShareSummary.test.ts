@@ -19,6 +19,10 @@ describe("describeRevealed", () => {
     ).toBe("name, known for");
   });
 
+  it("an NPC with no revealed fields is simply discovered", () => {
+    expect(describeRevealed({ type: "npc", id: "1", name: "Ser Vallis", fields: [], seen_as: null }).detail).toBe("discovered");
+  });
+
   it("says a quest starts, or is merely shown", () => {
     expect(describeRevealed({ type: "quest", id: "q", name: "The Bounty", starts: true }).detail).toBe("the quest starts");
     expect(describeRevealed({ type: "quest", id: "q", name: "The Bounty", starts: false }).detail).toBe("the quest is shown");
@@ -60,6 +64,14 @@ describe("describeRecipients", () => {
 
   it("says the whole party when everyone is in", () => {
     expect(describeRecipients(["Mira", "Tor"], 2)).toBe("The whole party");
+  });
+
+  it("a one-person party is named, not 'the whole party'", () => {
+    expect(describeRecipients(["Mira"], 1)).toBe("Mira");
+  });
+
+  it("with an unknown party size, two names are just listed", () => {
+    expect(describeRecipients(["Mira", "Tor"], 0)).toBe("Mira and Tor");
   });
 
   it("says no one for an empty list", () => {

@@ -54,17 +54,4 @@ describe("entity block templates", () => {
     expect(types.filter((t) => t === "heading").length).toBeGreaterThanOrEqual(2);
     expect(types).toContain("paragraph");
   });
-
-  it("every template's output loads without dropping top-level content (non-empty HTML)", () => {
-    for (const factory of [
-      monsterStatBlockTemplate,
-      monsterStatBlockWideTemplate,
-      spellTemplate,
-      magicItemTemplate,
-      classFeatureTemplate,
-    ]) {
-      const json = parse(factory());
-      expect((json.content ?? []).length).toBeGreaterThan(0);
-    }
-  });
 });

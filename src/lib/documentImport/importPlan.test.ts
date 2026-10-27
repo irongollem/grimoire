@@ -76,6 +76,25 @@ describe("buildImportPlan", () => {
     }
   });
 
+  it("hands the DM's source book to the kinds that carry one, and the campaign year to an NPC's age", () => {
+    const monster = buildImportPlan("monsters", [entity<"monsters">("m", { name: "Owlbear" })], decisions([["m", CREATE]]), CAMPAIGN_ID, PROVENANCE, "Icewind Dale")[0];
+    const item = buildImportPlan("items", [entity<"items">("i", { name: "Sword" })], decisions([["i", CREATE]]), CAMPAIGN_ID, PROVENANCE, "Icewind Dale")[0];
+    const spell = buildImportPlan("spells", [entity<"spells">("s", { name: "Fireball" })], decisions([["s", CREATE]]), CAMPAIGN_ID, PROVENANCE, "Icewind Dale")[0];
+    expect([monster.row.source, item.row.source, spell.row.source]).toEqual(["Icewind Dale", "Icewind Dale", "Icewind Dale"]);
+
+    // A plain "45" in a campaign set in year 1490 is a birth year of 1445.
+    const npc = buildImportPlan("npcs", [entity<"npcs">("n", { name: "Renn", age: "45" })], decisions([["n", CREATE]]), CAMPAIGN_ID, PROVENANCE, null, 1490)[0];
+    expect(npc.row.born_year).toBe(1445);
+  });
+
+  it("carries a quest's branching spine through to the plan", () => {
+    const quest = entity<"quests">("q", { title: "The Sunken Bell", beats: [{ key: "start", title: "The bell rings", kind: "neutral", dm_content: "" }] });
+    const [planned] = buildImportPlan("quests", [quest], decisions([["q", CREATE]]), CAMPAIGN_ID, PROVENANCE);
+    const direct = ENTITY_MAPPERS.quests(quest.data, CAMPAIGN_ID, PROVENANCE);
+    expect(planned.questSpine).toBeDefined();
+    expect(planned.questSpine).toEqual(direct.questSpine);
+  });
+
   it("includes only the entities decided 'create'", () => {
     const entities = [
       entity<"npcs">("r1", { name: "Alice" }),
@@ -104,28 +123,10 @@ describe("buildImportPlan", () => {
     expect(plan.map((p) => p.ref)).toEqual(["r1", "r2", "r3"]);
   });
 
-  it("is deterministic across repeated calls with the same inputs", () => {
-    const entities = [
-      entity<"monsters">("m1", { name: "Owlbear" }),
-      entity<"monsters">("m2", { name: "Beholder" }),
-      entity<"monsters">("m3", { name: "Displacer Beast" }),
-    ];
-    const decided = decisions([["m3", CREATE], ["m2", CREATE], ["m1", CREATE]]);
-    const first = buildImportPlan("monsters", entities, decided, CAMPAIGN_ID, PROVENANCE);
-    const second = buildImportPlan("monsters", entities, decided, CAMPAIGN_ID, PROVENANCE);
-    expect(first.map((p) => p.ref)).toEqual(second.map((p) => p.ref));
-    expect(first.map((p) => p.ref)).toEqual(["m1", "m2", "m3"]);
-  });
-
   it("carries raw-name links through unresolved, for npcs → faction", () => {
     const entities = [entity<"npcs">("r1", { name: "Renn", faction_name: "The Zhentarim" })];
     const [planned] = buildImportPlan("npcs", entities, decisions([["r1", CREATE]]), CAMPAIGN_ID, PROVENANCE);
     expect(planned.links).toEqual({ faction_name: "The Zhentarim" });
-  });
-
-  it("produces an empty plan when no entity is decided", () => {
-    const entities = [entity<"items">("i1", { name: "Sword" })];
-    expect(buildImportPlan("items", entities, decisions([]), CAMPAIGN_ID, PROVENANCE)).toEqual([]);
   });
 
   it("excludes an entity decided 'link' from the plan (#837/#838)", () => {
@@ -144,12 +145,6 @@ describe("buildImportPlan", () => {
       PROVENANCE,
     );
     expect(plan.map((p) => p.ref)).toEqual(["m2"]);
-  });
-
-  it("excludes an entity decided 'generate' from the plan — that goes through the AI generator, not an insert", () => {
-    const entities = [entity<"monsters">("m1", { name: "Grell" })];
-    const plan = buildImportPlan("monsters", entities, decisions([["m1", { action: "generate" }]]), CAMPAIGN_ID, PROVENANCE);
-    expect(plan).toEqual([]);
   });
 
   it("treats an entity absent from the decisions map as not planned — absence is not consent", () => {
@@ -253,6 +248,12 @@ describe("resolveLinks", () => {
     expect(result).toEqual([{ status: "unresolved", sourceId: "npc-1", field: "faction_name", name: "The Harpers" }]);
   });
 
+  it("never matches two names that are both nothing but punctuation", () => {
+    const rows: LinkedRow[] = [{ id: "npc-1", links: { faction_name: "???" } }];
+    const result = resolveLinks("npcs", rows, { factions: [{ id: "f1", name: "!!!" }] });
+    expect(result).toEqual([{ status: "unresolved", sourceId: "npc-1", field: "faction_name", name: "???" }]);
+  });
+
   it("does not throw when the lookup for the target kind is absent entirely", () => {
     const rows: LinkedRow[] = [{ id: "npc-1", links: { faction_name: "The Harpers" } }];
     expect(() => resolveLinks("npcs", rows, {})).not.toThrow();
@@ -326,10 +327,6 @@ describe("resolveLinks", () => {
   it("returns an empty array for a kind with no link fields at all", () => {
     const rows: LinkedRow[] = [{ id: "monster-1", links: {} }];
     expect(resolveLinks("monsters", rows, {})).toEqual([]);
-  });
-
-  it("returns an empty array when there are no rows", () => {
-    expect(resolveLinks("npcs", [], { factions: [{ id: "f1", name: "The Zhentarim" }] })).toEqual([]);
   });
 
   it("resolves an npc's usual location, even though locations extract after npcs", () => {

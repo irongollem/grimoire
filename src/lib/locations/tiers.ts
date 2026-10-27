@@ -120,7 +120,8 @@ export const TIER_COLORS: Record<LocationTier, string> = Object.fromEntries(
  * shape they cannot actually see.
  */
 export function isLocationType(value: unknown): value is LocationType {
-  return typeof value === "string" && value in LOCATION_TYPE_TIER;
+  // `in` would also accept "constructor" or "__proto__" from a model-written type.
+  return typeof value === "string" && Object.hasOwn(LOCATION_TYPE_TIER, value);
 }
 
 export function tierOf(type: LocationType): LocationTier | null {

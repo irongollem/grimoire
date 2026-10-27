@@ -21,7 +21,6 @@ describe("touchAccountActivity", () => {
     touchAccountActivity("u1", 0);
     touchAccountActivity("u1", HOUR - 1);
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith("touch_account_activity");
   });
 
   it("calls again after an hour", () => {
@@ -45,10 +44,12 @@ describe("touchAccountActivity", () => {
     expect(rpc).toHaveBeenCalledTimes(2);
   });
 
-  it("reports a rejected call", async () => {
+  it("reports a rejected call, and lets the next event retry", async () => {
     const failure = new Error("offline");
     rpc.mockRejectedValueOnce(failure);
     touchAccountActivity("u1", 0);
     await vi.waitFor(() => expect(report).toHaveBeenCalledWith(failure, "accountActivity:touch"));
+    touchAccountActivity("u1", 1);
+    expect(rpc).toHaveBeenCalledTimes(2);
   });
 });

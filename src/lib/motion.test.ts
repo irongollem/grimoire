@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
   drawerTransition,
   railTransition,
+  revealIfOutOfView,
   revealKeyframes,
   originTransform,
   REST_TRANSFORM,
@@ -205,15 +206,31 @@ describe("cardTurnStyle", () => {
 });
 
 describe("playFlipTransition", () => {
-  it("does not throw when Web Animations is unavailable", () => {
-    // happy-dom has no `animate`, same as the real test DOM the rest of the
-    // app relies on `canAnimate` to detect. If this threw, every component
-    // that fires a reorder in a test would fail for reasons unrelated to
-    // what it is testing.
+  /** A connected element that reports `rect` when measured and has a spy for Web Animations. */
+  function movableCard(rect: { left: number; top: number }, connected = true) {
     const el = document.createElement("div");
-    document.body.append(el);
-    const snapshot: FlipSnapshot = new Map([[el, { left: 0, top: 0 }]]);
-    expect(() => playFlipTransition(snapshot)).not.toThrow();
+    if (connected) document.body.append(el);
+    Object.defineProperty(el, "getBoundingClientRect", { value: () => rect as DOMRect });
+    const animate = vi.fn();
+    el.animate = animate as unknown as typeof el.animate;
+    return { el, animate };
+  }
+
+  it("slides a card that moved from where it was to where it is", () => {
+    // Moved 100px right and 50px down: it starts 100px left and 50px up of its
+    // new place and settles at rest. A flipped sign slides every reorder the wrong way.
+    const { el, animate } = movableCard({ left: 100, top: 50 });
+    playFlipTransition(new Map([[el, { left: 0, top: 0 }]]));
+    expect(animate).toHaveBeenCalledOnce();
+    const [frames] = animate.mock.calls[0] as unknown as [Keyframe[]];
+    expect(frames).toEqual([{ transform: "translate(-100px, -50px)" }, { transform: REST_TRANSFORM }]);
+    el.remove();
+  });
+
+  it("leaves a card that did not move alone", () => {
+    const { el, animate } = movableCard({ left: 40, top: 40 });
+    playFlipTransition(new Map([[el, { left: 40, top: 40 }]]));
+    expect(animate).not.toHaveBeenCalled();
     el.remove();
   });
 
@@ -232,14 +249,12 @@ describe("playFlipTransition", () => {
     });
   });
 
-  it("is a safe no-op when a captured element has since left the document", () => {
+  it("does not animate an element that has since left the document", () => {
     // A reorder can be followed immediately by a delete — the FLIP snapshot
-    // captured before both mutations may point at an element the delete
-    // just removed. That must not throw or animate a detached node.
-    const el = document.createElement("div");
-    // Deliberately never appended to document.body.
-    const snapshot: FlipSnapshot = new Map([[el, { left: 0, top: 0 }]]);
-    expect(() => playFlipTransition(snapshot)).not.toThrow();
+    // captured before both mutations may point at an element the delete just removed.
+    const { el, animate } = movableCard({ left: 100, top: 100 }, false);
+    playFlipTransition(new Map([[el, { left: 0, top: 0 }]]));
+    expect(animate).not.toHaveBeenCalled();
   });
 });
 
@@ -257,6 +272,106 @@ describe("drawerTransition / railTransition", () => {
       expect(left).toHaveBeenCalledOnce();
       expect(hooks.css).toBe(false);
     }
+  });
+});
+
+describe("drawerTransition travelling", () => {
+  /** A bordered, padded drawer 100px tall inside, with a spy standing in for Web Animations. */
+  function drawer() {
+    const el = document.createElement("div");
+    el.style.paddingTop = "4px";
+    el.style.paddingBottom = "6px";
+    el.style.borderStyle = "solid";
+    el.style.borderTopWidth = "2px";
+    el.style.borderBottomWidth = "1px";
+    el.style.overflow = "auto";
+    Object.defineProperty(el, "scrollHeight", { value: 100 });
+    document.body.append(el); // computed borders only resolve on an attached element
+    const animate = vi.fn(() => ({ finished: Promise.resolve() }) as unknown as Animation);
+    el.animate = animate as unknown as typeof el.animate;
+    return { el, animate };
+  }
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+  const framesOf = (animate: ReturnType<typeof vi.fn>) => (animate.mock.calls[0] as unknown as [Keyframe[]])[0];
+
+  it("opens from a shut box to the content's height plus its borders", () => {
+    // scrollHeight leaves the borders out, so a bordered drawer measured naively
+    // opens a hairline short and clips its last row.
+    const { el, animate } = drawer();
+    drawerTransition().onEnter(el, () => {});
+    const [shut, open] = framesOf(animate);
+    expect(shut.height).toBe("0px");
+    expect(open.height).toBe("103px");
+  });
+
+  it("closes the other way, from open to shut", () => {
+    const { el, animate } = drawer();
+    drawerTransition().onLeave(el, () => {});
+    const [from, to] = framesOf(animate);
+    expect(from.height).toBe("103px");
+    expect(to.height).toBe("0px");
+  });
+
+  it("clips while it travels, gives the overflow back afterwards and tells Vue it is done", async () => {
+    const { el } = drawer();
+    const done = vi.fn();
+    drawerTransition().onEnter(el, done);
+    expect(el.style.overflow).toBe("hidden");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(el.style.overflow).toBe("auto");
+    expect(done).toHaveBeenCalledOnce();
+  });
+});
+
+describe("revealIfOutOfView", () => {
+  /** An IntersectionObserver that reports whatever the test says, once. */
+  function observeAs(isIntersecting: boolean) {
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(private readonly callback: (entries: { isIntersecting: boolean }[]) => void) {}
+        observe() {
+          this.callback([{ isIntersecting }]);
+        }
+        disconnect = disconnect;
+      },
+    );
+    return disconnect;
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("scrolls an element that is off screen into view, nearest edge, and stops watching", () => {
+    const disconnect = observeAs(false);
+    const el = document.createElement("div");
+    const scrollIntoView = vi.fn();
+    el.scrollIntoView = scrollIntoView;
+    revealIfOutOfView(el);
+    expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("leaves an element that is already on screen where it is", () => {
+    observeAs(true);
+    const el = document.createElement("div");
+    const scrollIntoView = vi.fn();
+    el.scrollIntoView = scrollIntoView;
+    revealIfOutOfView(el);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("jumps instead of gliding under reduced motion", () => {
+    observeAs(false);
+    withReducedMotion(() => {
+      const el = document.createElement("div");
+      const scrollIntoView = vi.fn();
+      el.scrollIntoView = scrollIntoView;
+      revealIfOutOfView(el);
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ behavior: "auto" }));
+    });
   });
 });
 

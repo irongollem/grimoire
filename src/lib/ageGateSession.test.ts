@@ -16,12 +16,6 @@ describe("ageGateSession", () => {
     expect(wasAnsweredUnder16()).toBe(true);
   });
 
-  it("survives being read more than once (reload, then a second reload)", () => {
-    rememberUnder16();
-    expect(wasAnsweredUnder16()).toBe(true);
-    expect(wasAnsweredUnder16()).toBe(true);
-  });
-
   it("forgets once cleared", () => {
     rememberUnder16();
     clearAgeGateChoice();

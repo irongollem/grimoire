@@ -58,14 +58,24 @@ describe("readPersistedSession", () => {
     expect(readPersistedSession("test-auth-token", storage)).toEqual(session);
   });
 
-  it("misses on an absent, malformed or partial value", () => {
+  it("misses on an absent or malformed value", () => {
     const storage = memoryStorage();
     expect(readPersistedSession("k", storage)).toBeNull();
 
     storage.setItem("k", "{not json");
     expect(readPersistedSession("k", storage)).toBeNull();
+  });
 
-    storage.setItem("k", JSON.stringify({ access_token: "a", user: { id: "u" } }));
+  // Handing back a session without its refresh token or user would let the app
+  // boot "signed in" and fail on the first refresh.
+  it.each([
+    ["no access token", { refresh_token: "r", user: { id: "u" } }],
+    ["no refresh token", { access_token: "a", user: { id: "u" } }],
+    ["no user", { access_token: "a", refresh_token: "r" }],
+    ["a user without an id", { access_token: "a", refresh_token: "r", user: {} }],
+  ])("misses on a stored session with %s", (_title, stored) => {
+    const storage = memoryStorage();
+    storage.setItem("k", JSON.stringify(stored));
     expect(readPersistedSession("k", storage)).toBeNull();
   });
 

@@ -57,6 +57,29 @@ describe("fieldsForKind", () => {
     expect(long.beatContent).toBeDefined();
   });
 
+  it("takes a quest's summary from its first paragraph, not a title heading, and does not repeat the rest on the beat", () => {
+    const f = fieldsForKind(pageOf("# The Bell\n\nA bell rings. Nobody hears it."), "quest");
+    if (f.kind !== "quest") throw new Error("kind");
+    expect(f.summary).toBe("A bell rings.");
+    expect(text(f.beatContent).match(/Nobody hears it/g)).toHaveLength(1);
+  });
+
+  it("only drops a leading Description heading, not a paragraph that says the word", () => {
+    const f = fieldsForKind(pageOf("Description\n\nA damp cave."), "location");
+    if (f.kind !== "location") throw new Error("kind");
+    expect(text(f.description)).toContain("Description");
+  });
+
+  it("trims empty paragraphs from both ends of a column, and leaves none when nothing is left", () => {
+    const empty = { type: "paragraph" };
+    const real = { type: "paragraph", content: [{ type: "text", text: "Kept." }] };
+    const f = fieldsForKind(pageOf("", { body: { type: "doc", content: [empty, real, empty] } }), "faction");
+    if (f.kind !== "faction") throw new Error("kind");
+    expect(f.description?.content).toEqual([real]);
+    const blank = fieldsForKind(pageOf("", { body: { type: "doc", content: [empty] } }), "faction");
+    expect(blank).toEqual({ kind: "faction" });
+  });
+
   it("keeps a note whole with its category and tags", () => {
     const f = fieldsForKind(pageOf("Body.", { frontmatter: { category: "lore" } }), "note");
     expect(f).toMatchObject({ kind: "note", title: "P", category: "lore", tags: ["t"] });

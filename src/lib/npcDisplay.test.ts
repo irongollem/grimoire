@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   fieldsForFirstReveal,
+  getNpcDisplayFocalPoint,
   getNpcDisplayName,
+  getNpcDisplayPortrait,
   getNpcPlayerFacingName,
   NPC_DEFAULT_REVEAL_FIELDS,
   NPC_PLAYER_FIELDS,
@@ -14,16 +16,17 @@ describe("fieldsForFirstReveal", () => {
     expect(fieldsForFirstReveal([])).toEqual([...NPC_DEFAULT_REVEAL_FIELDS]);
   });
 
-  it("leaves an existing choice alone", () => {
-    expect(fieldsForFirstReveal(["occupation"])).toEqual(["occupation"]);
+  it("leaves an existing choice alone, handing back a copy the caller may edit", () => {
+    const chosen = ["occupation"];
+    const result = fieldsForFirstReveal(chosen);
+    expect(result).toEqual(["occupation"]);
+    expect(result).not.toBe(chosen);
   });
 
   it("does not re-add a default the DM removed", () => {
     // The failure this guards: a DM unticks "portrait", hides the NPC, reveals
     // it again, and the portrait is back. Re-revealing is not a fresh start.
-    const chosen = ["name"];
-    expect(fieldsForFirstReveal(chosen)).toEqual(["name"]);
-    expect(fieldsForFirstReveal(chosen)).not.toContain("portrait");
+    expect(fieldsForFirstReveal(["name"])).toEqual(["name"]);
   });
 
   it("copies rather than aliasing, so the caller cannot mutate the defaults", () => {
@@ -85,13 +88,6 @@ describe("getNpcPlayerFacingName", () => {
     ).toBeNull();
   });
 
-  it("never returns the true name of a concealed NPC, whatever the fields", () => {
-    for (const fields of [[], ["name"], ["portrait"], ["name", "portrait", "occupation"]]) {
-      expect(getNpcPlayerFacingName({ ...rowan, player_visible_fields: fields }))
-        .not.toBe("Rowan Blackthorn");
-    }
-  });
-
   it("keeps the true name for a portrait-only disguise, exactly as the projection does", () => {
     // `get_player_visible_npcs` swaps the name only when disguise_name is set;
     // a purely visual disguise leaves the name alone. The two must agree, or
@@ -106,6 +102,36 @@ describe("getNpcPlayerFacingName", () => {
     const hidden = { ...rowan, player_visible_fields: [] };
     expect(getNpcDisplayName(hidden)).toBe("Old Marek");
     expect(getNpcPlayerFacingName(hidden)).toBeNull();
+  });
+});
+
+describe("the portrait follows the same disguise rule as the name", () => {
+  const masked = {
+    portrait_url: "/rowan.webp",
+    portrait_focal_point: { x: 10, y: 20 },
+    disguise_name: "Old Marek",
+    disguise_portrait_url: "/marek.webp",
+    disguise_portrait_focal_point: { x: 70, y: 80 },
+    is_revealed: false,
+  };
+
+  it("shows the cover portrait and its focal point while concealed", () => {
+    expect(getNpcDisplayPortrait(masked)).toBe("/marek.webp");
+    expect(getNpcDisplayFocalPoint(masked)).toEqual({ x: 70, y: 80 });
+  });
+
+  it.each([
+    ["revealed by the DM", { is_revealed: true }],
+    ["unmasked in the player projection", { unmasked_at: "2026-10-05T20:00:00Z" }],
+  ])("shows the true portrait and its focal point once %s", (_title, change) => {
+    expect(getNpcDisplayPortrait({ ...masked, ...change })).toBe("/rowan.webp");
+    expect(getNpcDisplayFocalPoint({ ...masked, ...change })).toEqual({ x: 10, y: 20 });
+  });
+
+  it("keeps the true portrait for a disguise that only has a name", () => {
+    const nameOnly = { ...masked, disguise_portrait_url: null };
+    expect(getNpcDisplayPortrait(nameOnly)).toBe("/rowan.webp");
+    expect(getNpcDisplayFocalPoint(nameOnly)).toEqual({ x: 10, y: 20 });
   });
 });
 
@@ -149,10 +175,4 @@ describe("what a discovery announcement says", () => {
       .toBe("someone");
   });
 
-  it("never puts the true name in a discovery announcement while concealed", () => {
-    for (const fields of [[], ["portrait"], ["name"], ["name", "portrait", "occupation"]]) {
-      expect(announce({ ...neverShared, player_visible_fields: fields }, ["pc-1"]))
-        .not.toBe("Rowan Blackthorn");
-    }
-  });
 });

@@ -35,6 +35,21 @@ describe("legacyTiesToLinks", () => {
     expect(apprentice).toMatchObject({ from_npc_id: "c", to_npc_id: "d", type: "mentor_of" });
   });
 
+  it("turns a superior or subordinate round the same way as a mentor or apprentice", () => {
+    const [boss] = legacyTiesToLinks({ npc_relationships: [{ npc_id: "a", related_npc_id: "b", relationship_type: "superior" }] });
+    expect(boss).toMatchObject({ from_npc_id: "b", to_npc_id: "a", type: "superior_of" });
+    const [report] = legacyTiesToLinks({
+      npc_pc_notes: [{ npc_id: "n", party_member_id: "pc", relationship_type: "subordinate", notes: "" }],
+    });
+    expect(report).toMatchObject({ from_party_member_id: "pc", to_npc_id: "n", type: "superior_of" });
+  });
+
+  it("carries the AI provenance of a tie over to its link", () => {
+    const provenance = { model: "x" };
+    const [l] = legacyTiesToLinks({ npc_relationships: [{ npc_id: "a", related_npc_id: "b", relationship_type: "friend", ai_provenance: provenance }] });
+    expect(l.ai_provenance).toEqual(provenance);
+  });
+
   it("merges a symmetric bond written once each way and keeps both notes", () => {
     const links = legacyTiesToLinks({
       npc_relationships: [
@@ -44,6 +59,23 @@ describe("legacyTiesToLinks", () => {
     });
     expect(links).toHaveLength(1);
     expect(links[0].note).toBe("from a / from b");
+  });
+
+  it("merges the same bond written twice without repeating a note, and fills an empty told line from the twin, and lists an audience once", () => {
+    const links = legacyTiesToLinks({
+      npc_pc_notes: [
+        { npc_id: "n", party_member_id: "pc1", relationship_type: "friend", notes: "" },
+        { npc_id: "n", party_member_id: "pc1", relationship_type: "friend", notes: "second" },
+      ],
+      npc_relationships: [
+        { npc_id: "a", related_npc_id: "b", relationship_type: "friend", notes: "same" },
+        { npc_id: "b", related_npc_id: "a", relationship_type: "friend", notes: "same" },
+      ],
+    });
+    expect(links.find((l) => l.to_kind === "npc")?.note).toBe("same");
+    const toPc = links.find((l) => l.to_kind === "party_member");
+    expect(toPc?.told).toBe("second");
+    expect(toPc?.player_visible_to).toEqual(["pc1"]);
   });
 
   it("makes an NPC-to-PC note the line that PC reads, revealed to that PC", () => {

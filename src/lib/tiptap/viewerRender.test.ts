@@ -298,6 +298,7 @@ const FIXTURES: Record<string, JSONContent> = {
     { type: "codeBlock", attrs: { language: "js" }, content: [t("if (a < b) {}")] },
     { type: "codeBlock", content: [t("no language")] },
     { type: "codeBlock" },
+    { type: "codeBlock", content: [t("ends with a newline\n")] },
   ),
   "bullet, ordered and nested lists": doc(
     {
@@ -332,6 +333,7 @@ const FIXTURES: Record<string, JSONContent> = {
   "ai-generated wrapper": doc(
     { type: "aiGenerated", attrs: { model: "gpt-x" }, content: [p(t("model text"))] },
     { type: "aiGenerated", content: [p(t("unknown model"))] },
+    { type: "aiGenerated", attrs: { model: "" }, content: [p(t("blank model"))] },
   ),
   "read-aloud box holding paragraphs and a list": doc({
     type: "descriptiveBlock",
@@ -603,6 +605,30 @@ describe("viewerRender — read-only task items", () => {
   });
 });
 
+describe("viewerRender — cell spans", () => {
+  it("leaves out a span that is zero, negative or fractional, where Tiptap would print it verbatim", () => {
+    const html = renderedHtml(
+      doc({
+        type: "table",
+        content: [
+          {
+            type: "tableRow",
+            content: [
+              { type: "tableCell", attrs: { colspan: 0, rowspan: -2 }, content: [p(t("a"))] },
+              { type: "tableCell", attrs: { colspan: 1.5, rowspan: 3 }, content: [p(t("b"))] },
+            ],
+          },
+        ],
+      }),
+    );
+    const [a, b] = Array.from(new DOMParser().parseFromString(html, "text/html").querySelectorAll("td"));
+    expect(a.hasAttribute("colspan")).toBe(false);
+    expect(a.hasAttribute("rowspan")).toBe(false);
+    expect(b.hasAttribute("colspan")).toBe(false);
+    expect(b.getAttribute("rowspan")).toBe("3");
+  });
+});
+
 describe("viewerRender — unknown input", () => {
   it("renders the children of an unknown node and ignores an unknown mark", () => {
     const html = renderedHtml(
@@ -663,6 +689,13 @@ describe("viewerRender — security", () => {
     }
     expect(parsed.querySelector("img")?.getAttribute("alt")).toBe('" onerror="alert(1)');
     expect(parsed.querySelector("p")?.getAttribute("style")).toBe("text-align: center;");
+  });
+
+  it("drops image dimensions that are neither numbers nor strings, rather than printing '[object Object]'", () => {
+    const html = renderedHtml(doc({ type: "image", attrs: { src: "https://cdn.test/a.png", width: { toString: "x" }, height: Number.NaN } }));
+    const img = new DOMParser().parseFromString(html, "text/html").querySelector("img");
+    expect(img?.hasAttribute("width")).toBe(false);
+    expect(img?.hasAttribute("height")).toBe(false);
   });
 
   it("drops an image source that could execute", () => {

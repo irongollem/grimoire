@@ -27,6 +27,23 @@ describe("afterFirstPaint", () => {
     expect(task).toHaveBeenCalledOnce();
   });
 
+  it("waits no longer than the caller's own bound where that is shorter than the fallback cap", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("requestIdleCallback", undefined);
+    const task = vi.fn();
+    afterFirstPaint(task, 300);
+    vi.advanceTimersByTime(300);
+    expect(task).toHaveBeenCalledOnce();
+  });
+
+  it("cancels the pending idle callback by its handle", () => {
+    const cancel = vi.fn();
+    vi.stubGlobal("requestIdleCallback", vi.fn(() => 7));
+    vi.stubGlobal("cancelIdleCallback", cancel);
+    afterFirstPaint(vi.fn())();
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(7);
+  });
+
   it("does not run once cancelled", () => {
     vi.useFakeTimers();
     vi.stubGlobal("requestIdleCallback", undefined);

@@ -6,9 +6,7 @@ import { describe, it, expect } from "vitest";
 import type { JSONContent } from "@tiptap/core";
 import {
   collectEntityRefs,
-  entityRefKey,
   resolveEntityEmbeds,
-  missingEntityMarkerHtml,
   buildEntityEmbedDocumentJson,
   buildEntityEmbedDocumentContent,
   applyEmbedNodeOptions,
@@ -57,15 +55,13 @@ describe("collectEntityRefs", () => {
     expect(collectEntityRefs(undefined)).toEqual([]);
   });
 
-  it("ignores an entityEmbed node missing its attrs", () => {
-    const doc: JSONContent = { type: "doc", content: [{ type: "entityEmbed", attrs: {} }] };
+  it.each([
+    ["no attrs at all", {}],
+    ["a type but no id", { entityType: "npc" }],
+    ["an id but no type", { entityId: "npc-1" }],
+  ])("ignores an entityEmbed node with %s", (_name, attrs) => {
+    const doc: JSONContent = { type: "doc", content: [{ type: "entityEmbed", attrs }] };
     expect(collectEntityRefs(doc)).toEqual([]);
-  });
-});
-
-describe("entityRefKey", () => {
-  it("combines type and id", () => {
-    expect(entityRefKey({ type: "npc", id: "abc" })).toBe("npc:abc");
   });
 });
 
@@ -100,6 +96,15 @@ describe("resolveEntityEmbeds", () => {
     expect(out).toContain("This monster is no longer available.");
   });
 
+  it.each([
+    ["no entity id", '<div data-type="entity-embed" data-entity-type="npc"></div>'],
+    ["no entity type", '<div data-type="entity-embed" data-entity-id="npc-1"></div>'],
+  ])("leaves a placeholder with %s alone instead of resolving it", (_name, html) => {
+    const out = resolveEntityEmbeds(html, { "npc:npc-1": "<p>Aldric</p>" });
+    expect(out).not.toContain("Aldric");
+    expect(out).not.toContain("no longer available");
+  });
+
   it("preserves data-block-id and other attributes on the embed element", () => {
     const html =
       '<div data-block-id="b1" data-type="entity-embed" data-entity-type="npc" data-entity-id="npc-1" class="sc-entity-embed"></div>';
@@ -116,6 +121,18 @@ describe("resolveEntityEmbeds", () => {
     });
     expect(out).toContain("sc-statblock--wide");
     expect(out).not.toContain("sc-statblock--column");
+  });
+
+  it("data-size=column replaces a wide stat block and its entry, leaving no wide class behind", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-size="column"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a":
+        '<div class="sc-statblock-entry sc-statblock-entry--wide"><div class="sc-statblock sc-statblock--wide"></div></div>',
+    });
+    expect(out).toContain("sc-statblock--column");
+    expect(out).toContain("sc-statblock-entry--column");
+    expect(out).not.toContain("--wide");
   });
 
   it("leaves the resolved stat block's own size when data-size is auto or absent", () => {
@@ -190,6 +207,16 @@ describe("resolveEntityEmbeds", () => {
       "monster:a": '<div class="sc-statblock-entry" data-band-position="top"></div>',
     });
     expect(out).toContain('data-band-position="bottom"');
+  });
+
+  it("leaves the entry's band position alone when data-band-position is anything but bottom", () => {
+    const html =
+      '<div data-type="entity-embed" data-entity-type="monster" data-entity-id="a" data-band-position="top"></div>';
+    const out = resolveEntityEmbeds(html, {
+      "monster:a": '<div class="sc-statblock-entry" data-band-position="top"></div>',
+    });
+    expect(out).toContain('data-band-position="top"');
+    expect(out).not.toContain('data-band-position="bottom"');
   });
 
   it("resolves multiple embeds independently", () => {
@@ -292,16 +319,6 @@ describe("applyEmbedNodeOptions", () => {
     const root = container('<img class="sc-entity-art" data-art-kind="picture" src="pic.webp" />');
     applyEmbedNodeOptions(root, { showArt: false });
     expect(root.querySelectorAll("[data-art-kind]").length).toBe(0);
-  });
-});
-
-describe("missingEntityMarkerHtml", () => {
-  it("has type-specific, em-dash-free wording", () => {
-    for (const type of ["npc", "monster", "spell", "item", "location", "quest"] as const) {
-      const html = missingEntityMarkerHtml(type);
-      expect(html).toContain("no longer available");
-      expect(html).not.toContain("—");
-    }
   });
 });
 

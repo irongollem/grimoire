@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { connectionFamily, connectionWord, groupFor, linkInsert, typeChoices } from "./connections";
+import type { Connection, WorldLink } from "@/types/connections.types";
+import { connectionFamily, connectionWord, groupByKind, groupFor, linkInsert, otherEnd, peopleOf, typeChoices } from "./connections";
+
+const conn = (over: Partial<Connection>): Connection => ({
+  source: "link",
+  row_id: "r",
+  type: "friend",
+  outward: true,
+  other_kind: "npc",
+  other_id: "x",
+  other_name: "X",
+  other_image: null,
+  note: null,
+  told: null,
+  player_visible_to: null,
+  ai_provenance: null,
+  role: null,
+  status: null,
+  ...over,
+});
 
 describe("connectionWord", () => {
   it("reads a link from whichever end is on screen", () => {
@@ -23,6 +42,10 @@ describe("connectionFamily", () => {
   it("colours a link by its type and a record as a record", () => {
     expect(connectionFamily({ source: "link", type: "rival", outward: true, other_kind: "npc" }, "npc")).toBe("enmity");
     expect(connectionFamily({ source: "membership", type: "member_of", outward: true, other_kind: "faction" }, "npc")).toBe("record");
+  });
+
+  it("calls a link of a type the catalogue does not know a bond", () => {
+    expect(connectionFamily({ source: "link", type: "no_such_type", outward: true, other_kind: "npc" }, "npc")).toBe("bond");
   });
 });
 
@@ -50,6 +73,55 @@ describe("typeChoices", () => {
 
   it("offers a person and a faction nothing but membership", () => {
     expect(typeChoices("npc", "faction").map((c) => c.key)).toEqual(["member_of"]);
+  });
+});
+
+describe("linkInsert (subject at the from end)", () => {
+  it("writes the subject as the from end when the choice stores it that way", () => {
+    const row = linkInsert({ kind: "npc", id: "n1" }, { kind: "deity", id: "d1" }, { key: "worships", subjectIsFrom: true });
+    expect(row).toEqual({ from_kind: "npc", to_kind: "deity", type: "worships", from_npc_id: "n1", to_deity_id: "d1" });
+  });
+});
+
+describe("otherEnd", () => {
+  const link = { from_kind: "npc", from_id: "n1", to_kind: "deity", to_id: "d1" } as WorldLink;
+  it("names the end that is not the one asking", () => {
+    expect(otherEnd(link, "n1")).toEqual({ kind: "deity", id: "d1" });
+    expect(otherEnd(link, "d1")).toEqual({ kind: "npc", id: "n1" });
+  });
+});
+
+describe("peopleOf", () => {
+  const rows = [
+    conn({ source: "npc_home", row_id: "1", other_kind: "npc" }),
+    conn({ source: "pc_place", row_id: "2", other_kind: "party_member" }),
+    conn({ source: "link", row_id: "3", other_kind: "npc" }), // a link is not a resident
+    conn({ source: "membership", row_id: "4", other_kind: "npc" }),
+    conn({ source: "membership", row_id: "5", other_kind: "faction" }), // a faction's tie to another faction is not a member
+    conn({ source: "npc_home", row_id: "6", other_kind: "item" }),
+  ];
+  it("takes a place's residents and the PCs there, not its links", () => {
+    expect(peopleOf("location", rows).map((c) => c.row_id)).toEqual(["1", "2"]);
+  });
+  it("takes a faction's memberships, and only those held by people", () => {
+    expect(peopleOf("faction", rows).map((c) => c.row_id)).toEqual(["4"]);
+  });
+});
+
+describe("groupByKind", () => {
+  it("orders groups as every sheet does, puts a PC with the people, and leaves empty groups out", () => {
+    const items = [
+      { id: "q", kind: "quest" as const },
+      { id: "pc", kind: "party_member" as const },
+      { id: "i", kind: "item" as const },
+      { id: "n", kind: "npc" as const },
+    ];
+    const grouped = groupByKind(items, (i) => i.kind);
+    expect(grouped.map((g) => [g.group, g.items.map((i) => i.id)])).toEqual([
+      ["people", ["pc", "n"]],
+      ["items", ["i"]],
+      ["quests", ["q"]],
+    ]);
   });
 });
 

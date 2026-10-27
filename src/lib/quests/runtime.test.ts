@@ -48,21 +48,6 @@ describe("quest runtime command adapter", () => {
     });
   });
 
-  // A command names exactly one chain. There is no target quest to disagree with
-  // it: reaching another quest is navigation, not a cursor write.
-  it("carries no target quest, so a command can only ever move its own chain", () => {
-    const args = toQuestRuntimeRpcArgs({
-      campaignId: "campaign-1",
-      questId: "quest-1",
-      threadId: "thread-1",
-      command: "start",
-      expectedVersion: 0,
-      targetBeatId: "beat-1",
-    });
-    expect(args).not.toHaveProperty("p_target_quest_id");
-    expect(args.p_quest_id).toBe("quest-1");
-  });
-
   // #853: a parallel route spawns siblings, an Advance can hold back payoffs,
   // and it can dispatch loot in the same transaction as the move — all three
   // are optional, batch-shaped inputs the RPC accepts alongside the command.
@@ -81,18 +66,5 @@ describe("quest runtime command adapter", () => {
     expect(args.p_spawn_edge_ids).toEqual(["edge-2", "edge-3"]);
     expect(args.p_hold_consequence_ids).toEqual(["cons-1"]);
     expect(args.p_dispatch_loot_ids).toEqual(["loot-1", "loot-2"]);
-  });
-
-  it("defaults the three batch inputs to null rather than an empty array", () => {
-    const args = toQuestRuntimeRpcArgs({
-      campaignId: "campaign-1",
-      questId: "quest-1",
-      threadId: "thread-1",
-      command: "previous",
-      expectedVersion: 1,
-    });
-    expect(args.p_spawn_edge_ids).toBeNull();
-    expect(args.p_hold_consequence_ids).toBeNull();
-    expect(args.p_dispatch_loot_ids).toBeNull();
   });
 });

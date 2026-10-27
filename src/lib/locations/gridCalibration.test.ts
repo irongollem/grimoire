@@ -194,6 +194,13 @@ describe("cellFractionSize", () => {
     expect(cellFractionSize(calibration(), 1000, 1000)).toEqual({ cellWFrac: 0.1, cellHFrac: 0.1 });
   });
 
+  it("scales the cell's height fraction by the image's aspect ratio", () => {
+    // 10 cells across a 1000x500 image: 100px square cells are 0.1 of the width and 0.2 of the height.
+    const size = cellFractionSize(calibration(), 1000, 500);
+    expect(size?.cellWFrac).toBeCloseTo(0.1);
+    expect(size?.cellHFrac).toBeCloseTo(0.2);
+  });
+
   it("is null on a degenerate calibration or image", () => {
     expect(cellFractionSize(calibration({ cells_per_image_width: 0 }), 1000, 1000)).toBeNull();
     expect(cellFractionSize(calibration(), 0, 1000)).toBeNull();

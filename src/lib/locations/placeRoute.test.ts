@@ -6,6 +6,10 @@ describe("placeRoute", () => {
     expect(placeRoute("abc")).toBe("/locations?at=abc");
   });
 
+  it("escapes an id so it cannot add query parameters", () => {
+    expect(placeRoute("a&edit=true")).toBe("/locations?at=a%26edit%3Dtrue");
+  });
+
   it("opens it in a working state when asked", () => {
     expect(placeRoute("abc", "edit")).toBe("/locations?at=abc&edit=true");
     expect(placeRoute("abc", "build")).toBe("/locations?at=abc&build=true");

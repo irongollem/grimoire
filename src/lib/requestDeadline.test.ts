@@ -108,6 +108,13 @@ describe("withRequestDeadline", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("clears its timer when the request itself fails", async () => {
+    const fetcher = withRequestDeadline(vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
+
+    await expect(fetcher(`${API}/rest/v1/npcs`)).rejects.toThrow("Failed to fetch");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("leaves requests without a deadline alone", async () => {
     const base = vi.fn(() => Promise.resolve(new Response("{}")));
     const fetcher = withRequestDeadline(base);

@@ -1,5 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { toReorderEntries, toRpcArrays } from "@/lib/reorder";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+
+import { persistReorder, toReorderEntries } from "@/lib/reorder";
+
+beforeEach(() => fake.reset());
 
 describe("toReorderEntries", () => {
   it("assigns 0-based sort_order by position, preserving input order", () => {
@@ -9,38 +18,34 @@ describe("toReorderEntries", () => {
       { id: "b", sort_order: 2 },
     ]);
   });
-
-  it("returns an empty array for an empty list", () => {
-    expect(toReorderEntries([])).toEqual([]);
-  });
-
-  it("handles a single id", () => {
-    expect(toReorderEntries(["only"])).toEqual([{ id: "only", sort_order: 0 }]);
-  });
 });
 
-describe("toRpcArrays", () => {
-  it("splits entries into parallel id/order arrays, preserving pairing", () => {
-    const entries = [
-      { id: "id-1", sort_order: 5 },
-      { id: "id-2", sort_order: 2 },
-      { id: "id-3", sort_order: 9 },
-    ];
-    expect(toRpcArrays(entries)).toEqual({
-      ids: ["id-1", "id-2", "id-3"],
-      orders: [5, 2, 9],
+describe("persistReorder", () => {
+  it("sends each id with the position it was dragged to", async () => {
+    // Stands in for the reorder_* function, which pairs ids[i] with orders[i].
+    const applied = new Map<string, number>();
+    fake.onRpc("reorder_notes", (args) => {
+      const ids = args.p_ids as string[];
+      const orders = args.p_orders as number[];
+      ids.forEach((id, i) => applied.set(id, orders[i]));
+      return null;
     });
+
+    await persistReorder("reorder_notes", toReorderEntries(["c", "a", "b"]));
+
+    expect(Object.fromEntries(applied)).toEqual({ c: 0, a: 1, b: 2 });
   });
 
-  it("returns empty parallel arrays for an empty list", () => {
-    expect(toRpcArrays([])).toEqual({ ids: [], orders: [] });
+  it("sends nothing for an empty list", async () => {
+    await persistReorder("reorder_notes", []);
+    expect(fake.calls).toHaveLength(0);
   });
 
-  it("round-trips through toReorderEntries for a drag-reordered id list", () => {
-    const orderedIds = ["z", "y", "x"];
-    expect(toRpcArrays(toReorderEntries(orderedIds))).toEqual({
-      ids: ["z", "y", "x"],
-      orders: [0, 1, 2],
+  it("throws the server's refusal so the caller can roll the list back", async () => {
+    fake.onRpc("reorder_notes", () => null);
+    fake.failNext("reorder_notes", { message: "not a member of this campaign" });
+    await expect(persistReorder("reorder_notes", toReorderEntries(["a", "b"]))).rejects.toMatchObject({
+      message: "not a member of this campaign",
     });
   });
 });

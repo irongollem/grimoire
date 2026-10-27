@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildKinGraph,
   childrenOf,
+  comparePeople,
   familyOf,
   type KinEdgeInput,
   type KinPerson,
@@ -95,3 +96,46 @@ describe("buildKinGraph", () => {
     expect(linkBetween(g, npc("e"), npc("f"))).toBeNull();
   });
 });
+
+describe("buildKinGraph input hygiene", () => {
+  it("counts a repeated link id once", () => {
+    const l1 = link("a", "c", "parent");
+    const g = buildKinGraph(people, [l1, { ...l1 }]);
+    expect(g.links).toHaveLength(1);
+    expect(parentsOf(g, npc("c"))).toHaveLength(1);
+  });
+
+  it("keeps the first of two people sharing a key", () => {
+    const g = buildKinGraph([person("a", 1000, "First"), person("a", 1001, "Second")], []);
+    expect(g.people.get(npc("a"))?.name).toBe("First");
+  });
+
+  it("marks a former spouse as former from either end", () => {
+    const g = buildKinGraph(people, [link("a", "b", "former_spouse"), link("c", "d", "spouse")]);
+    expect(spousesOf(g, npc("b"))).toMatchObject([{ key: npc("a"), former: true }]);
+    expect(spousesOf(g, npc("c"))).toMatchObject([{ key: npc("d"), former: false }]);
+  });
+});
+
+describe("comparePeople", () => {
+  const g = buildKinGraph(
+    [person("o", 1000, "Older"), person("y", 1010, "Younger"), person("n", null, "Unknown"), person("zz", null, "Alma"), person("s1", 1020, "Same"), person("s2", 1020, "Same")],
+    [],
+  );
+  const order = (a: string, b: string): number => Math.sign(comparePeople(g, npc(a), npc(b)));
+
+  it("puts the elder first and an unknown birth year last, whichever side it is on", () => {
+    expect(order("o", "y")).toBe(-1);
+    expect(order("y", "o")).toBe(1);
+    expect(order("o", "n")).toBe(-1);
+    expect(order("n", "o")).toBe(1);
+  });
+
+  it("falls back to name when the years are equal or both unknown, then to key", () => {
+    expect(order("zz", "n")).toBe(-1); // Alma before Unknown, both undated, though its key sorts later
+    expect(order("n", "zz")).toBe(1);
+    expect(order("s1", "s2")).toBe(-1); // same year, same name: key decides
+    expect(order("s2", "s1")).toBe(1);
+  });
+});
+

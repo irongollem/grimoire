@@ -192,9 +192,19 @@ describe("matchSpace", () => {
     const space = makeSpace({ cells: ["0,0", "0,1", "1,0", "1,1", "2,0"] });
     const weak = makeRegion({ cells: ["0,0", "0,1", "1,0"], cell_signature: "weak" }); // 3/6 = 0.5
     const strong = makeRegion({ cells: ["0,0", "0,1", "1,0", "1,1"], cell_signature: "strong" }); // 4/5 = 0.8
-    const result = matchSpace(space, [weak, strong], new Map());
-    expect(result?.by).toBe("overlap");
-    expect(result?.region).toBe(strong);
+    for (const candidates of [[weak, strong], [strong, weak]]) {
+      const result = matchSpace(space, candidates, new Map());
+      expect(result?.by).toBe("overlap");
+      expect(result?.region).toBe(strong);
+    }
+  });
+
+  it("matches at exactly half overlap, and not below it", () => {
+    const space = makeSpace({ cells: ["0,0", "0,1", "1,0", "1,1"] });
+    const half = makeRegion({ cells: ["0,0", "0,1"], cell_signature: "half" }); // 2/4 = 0.5
+    expect(matchSpace(space, [half], new Map())?.by).toBe("overlap");
+    const fewer = makeRegion({ cells: ["0,0", "0,1", "5,5"], cell_signature: "few" }); // 2/5 = 0.4
+    expect(matchSpace(space, [fewer], new Map())).toBeNull();
   });
 
   it("falls back to an exact name match when overlap is below threshold", () => {
@@ -352,6 +362,20 @@ describe("planPublish — rooms written before the drawing", () => {
     expect(plan.spaces.find((c) => c.kind === "create")).toMatchObject({ space: third, proposedName: "parlour" });
   });
 
+  it("does not bind a room that already owns a region to a second space of the same name", () => {
+    const region = makeRegion({ cells: ["0,0"], space_location_id: "room-vault" });
+    const matched = makeSpace({ key: "s:0,0", cells: ["0,0"], name: "Vault", signature: region.cell_signature! });
+    const twin = makeSpace({ key: "s:5,5", cells: ["5,5"], name: "The Vault" });
+    const plan = planPublish(
+      makeInput({
+        derived: makeDerived({ spaces: [matched, twin] }),
+        regions: [region],
+        spaces: [boundSpace("room-vault", "The Vault")],
+      }),
+    );
+    expect(plan.spaces.find((c) => c.kind !== "orphan" && c.space === twin)?.kind).toBe("create");
+  });
+
   it("leaves an unlabelled space to be created", () => {
     const space = makeSpace({ cells: ["2,2"] });
     const plan = planPublish(makeInput({ derived: makeDerived({ spaces: [space] }), spaces: [boundSpace("room-x", "Region 1")] }));
@@ -389,29 +413,13 @@ describe("planPublish — ways", () => {
     expect(plan.ways).toEqual([{ kind: "skip", way, door }]);
   });
 
-  it("holds a way whose door starts_locked", () => {
-    const door = makeDoor({ edge_key: "0,1:N", starts_locked: true });
-    const way = makeWay({ edgeKey: "0,1:N" });
-    const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
-    expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
-  });
-
-  it("holds a way whose door is_secret", () => {
-    const door = makeDoor({ edge_key: "0,1:N", is_secret: true });
-    const way = makeWay({ edgeKey: "0,1:N" });
-    const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
-    expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
-  });
-
-  it("holds a way whose door carries a lock_note", () => {
-    const door = makeDoor({ edge_key: "0,1:N", lock_note: "the brass key" });
-    const way = makeWay({ edgeKey: "0,1:N" });
-    const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
-    expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
-  });
-
-  it("holds a way whose door has a DM-authored label", () => {
-    const door = makeDoor({ edge_key: "0,1:N", label: "iron grille" });
+  it.each([
+    ["starts_locked", { starts_locked: true }],
+    ["is_secret", { is_secret: true }],
+    ["a lock_note", { lock_note: "the brass key" }],
+    ["a DM-authored label", { label: "iron grille" }],
+  ] as const)("holds a way whose door has %s", (_what, authoring) => {
+    const door = makeDoor({ edge_key: "0,1:N", ...authoring });
     const way = makeWay({ edgeKey: "0,1:N" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
@@ -566,6 +574,28 @@ describe("planPublish — placements", () => {
     expect(plan.placements).toEqual([
       { kind: "reanchor", placement, spaceRef: { kind: "existing", spaceId: "room-A" } },
     ]);
+  });
+
+  it("reanchors a room-level feature placement once a feature link supplies its cell", () => {
+    const roomA = makeRegion({ cells: ["3,3"], space_location_id: "room-A" });
+    const spaceA = makeSpace({ key: "s:a", cells: ["3,3"], signature: roomA.cell_signature! });
+    const placement = makePlacement({ dungeon_feature_id: "feature-1", location_id: "room-A", source_cell_key: null });
+    const link = makeLink({ cellKey: "3,3", spaceKey: "s:a", metadata: { feature_id: "feature-1" } });
+    const plan = planPublish(
+      makeInput({ derived: makeDerived({ spaces: [spaceA], links: [link] }), regions: [roomA], placements: [placement] }),
+    );
+    expect(plan.placements).toEqual([
+      { kind: "reanchor", placement, spaceRef: { kind: "existing", spaceId: "room-A" } },
+    ]);
+  });
+
+  it("lists placements with no cell after those with one", () => {
+    const table = makePlacement({ loot_table_id: "loot-1", location_id: "room-A", source_cell_key: null });
+    const trapAt = makePlacement({ trap_id: "t1", location_id: "room-A", source_cell_key: "1,1" });
+    for (const placements of [[table, trapAt], [trapAt, table]]) {
+      const plan = planPublish(makeInput({ placements }));
+      expect(plan.placements.map((c) => (c as { placement: LocationPlacement }).placement)).toEqual([trapAt, table]);
+    }
   });
 
   it("reports an encounter link as a note, with a null spaceRef when it sits on no space", () => {

@@ -20,6 +20,8 @@ describe("internalTarget", () => {
     expect(internalTarget("mailto:a@b.c", "a.md")).toBeNull();
     expect(internalTarget("#top", "a.md")).toBeNull();
     expect(internalTarget("../../x.md", "a/b.md")).toBeNull();
+    // A protocol-relative URL is a web address, not a root-relative path.
+    expect(internalTarget("//cdn.example.com/x.html", "a.md")).toBeNull();
   });
 });
 
@@ -39,6 +41,13 @@ describe("findPageForLink", () => {
     expect(findPageForLink("bobs hole", pages)?.ref).toBe("Locations/Bob's Hole.md");
     expect(findPageForLink("Bobby", pages)?.ref).toBe("NPCs/Bob.md");
     expect(findPageForLink("the Bobs", pages)?.ref).toBe("NPCs/Bob.md");
+  });
+  it("prefers the page at exactly that path over a longer path that merely ends with it", () => {
+    const nested = [page("Vault/Bob.md", "Bob"), page("Bob.md", "Bob")];
+    expect(findPageForLink("Bob", nested)?.ref).toBe("Bob.md");
+  });
+  it("does not match a page whose file name only ends with the target's letters", () => {
+    expect(findPageForLink("Bob", [page("NPCs/Hobob.md", "Hobob")])).toBeNull();
   });
   it("returns null for an unknown or ambiguous name", () => {
     expect(findPageForLink("Nobody", pages)).toBeNull();
@@ -72,6 +81,10 @@ describe("resolveArchiveLinks", () => {
         { type: "text", text: "Nowhere", marks: [{ type: "bold" }] },
       ],
     });
+  });
+  it("drops an unresolved link with no label rather than leaving an empty text node", () => {
+    const empty: TiptapDoc = { type: "doc", content: [{ type: "paragraph", content: [archiveLinkNode("Gone", "")] }] };
+    expect(resolveArchiveLinks(empty, () => null).content[0]).toEqual({ type: "paragraph", content: [] });
   });
   it("does not mutate its input", () => {
     const before = JSON.stringify(doc);

@@ -187,7 +187,7 @@ export function buildRoomStack(input: RoomStackInput): RoomStackRow[] {
     rows.push({
       id: `hidden:${door.id}`,
       kind: "hidden",
-      label: feature?.name ?? door.label ?? "Secret way",
+      label: feature?.name || door.label || "Secret way",
       subtitle: joinSubtitle(["Undiscovered", feature ? featureDcPhrase(feature) : null], "Undiscovered"),
       action: "reveal",
       target: door.id,

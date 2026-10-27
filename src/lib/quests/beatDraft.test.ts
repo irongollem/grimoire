@@ -39,6 +39,26 @@ describe("quest beat draft", () => {
     expect(questBeatDraftToUpdate({ ...draft, improv_reviewed: false }, reviewed).improv_reviewed_at).toBe(null);
   });
 
+  it("trims the title and the short fields on save, and turns blank text into null", () => {
+    const update = questBeatDraftToUpdate({
+      ...questBeatToDraft(beat),
+      title: "  Padded  ",
+      dm_content: "",
+      read_aloud: "",
+      how_it_plays: "",
+      rumor_text: "  heard at the dock ",
+      reveal_text: "   ",
+    });
+    expect(update).toMatchObject({
+      title: "Padded",
+      dm_content: null,
+      read_aloud: null,
+      how_it_plays: null,
+      rumor_text: "heard at the dock",
+      reveal_text: null,
+    });
+  });
+
   describe("AI provenance", () => {
     const prov: AiProvenance = { generatorType: "quest_beat_generation", provider: "openai", model: "m", generatedAt: "2026-10-04T00:00:00.000Z", edited: false };
 
@@ -69,6 +89,15 @@ describe("quest beat draft", () => {
       applyBeatFill(draft, { read_aloud: "new" }, prov);
       expect(draft.title).toBe("A choice");
       expect(draft.dm_content).toBe("lead");
+    });
+
+    it("does not read stray whitespace in the title, or a blank field that was null, as the DM editing the AI's work", () => {
+      const bare = { ...beat, dm_content: null, read_aloud: null, ai_provenance: prov } as QuestBeat;
+      expect(questBeatDraftToUpdate(questBeatToDraft(bare)).ai_provenance).toEqual(prov);
+      const draft = questBeatToDraft(beat);
+      applyBeatFill(draft, { title: "Filled", read_aloud: "r", dm_content: "d" }, prov);
+      draft.title = "Filled  ";
+      expect(questBeatDraftToUpdate(draft).ai_provenance).toEqual(prov);
     });
 
     it("compares provenance by value, so a refetched row is not a change", () => {

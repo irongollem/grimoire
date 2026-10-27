@@ -142,6 +142,31 @@ describe("fitEntryArt", () => {
     expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(false);
   });
 
+  it("allows one pixel of rounding on the page's right edge, and no more", () => {
+    for (const [overshoot, splits] of [
+      [1, false],
+      [2, true],
+    ] as const) {
+      const { wrapper, entry } = entryOnPage({ natural: 0, rest: 100, withArt: false });
+      entry.getBoundingClientRect = () => ({ bottom: 100, right: 658 + overshoot }) as DOMRect;
+      fitEntryArt(wrapper, page(1014, 658));
+      expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(splits);
+    }
+  });
+
+  it("counts the bottom margin at the preview's zoom, so a margin that fits on screen is left alone", () => {
+    computedMarginFromInline();
+    const zoom = 0.5;
+    const { wrapper, entry } = entryOnPage({ natural: 0, rest: 0, withArt: false });
+    // Border box ends at 500 on screen; an 18px margin is 9 on screen, so the
+    // margin box ends at 509 and fits a page that ends at 510.
+    Object.defineProperty(entry, "offsetHeight", { value: 200 });
+    entry.getBoundingClientRect = () => ({ top: 400, bottom: 500, height: 100 * zoom * 2, right: 100 }) as DOMRect;
+    entry.style.marginBottom = "18px";
+    fitEntryArt(wrapper, page(510, 700));
+    expect(entry.style.marginBottom).toBe("18px");
+  });
+
   it("lets an entry with no art to shrink split when it overflows", () => {
     const { wrapper, entry } = entryOnPage({ natural: 0, rest: 1100, withArt: false });
     fitEntryArt(wrapper, page(1014));
@@ -183,6 +208,16 @@ describe("fitEntryArt", () => {
       expect(el.querySelector(".sc-statblock--column")).toBeNull();
     }
     expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(false);
+  });
+
+  it.each([
+    [1, true],
+    [2, false],
+  ])("a column entry whose top is %dpx below the page top starts the page: %s", (top, widened) => {
+    // One pixel of rounding is allowed between the page top and the entry.
+    const { wrapper, entry } = columnEntry({ top, columnHeight: 1050, wideHeight: 620 });
+    fitEntryArt(wrapper, page(1014));
+    expect(entry.classList.contains("sc-statblock-entry--wide")).toBe(widened);
   });
 
   it("leaves a column entry lower on its page as it is, to move whole to the next page", () => {
@@ -233,6 +268,13 @@ describe("preloadEntryArt", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("ignores an entry picture that has no src", () => {
+    stubDecode(() => Promise.resolve());
+    const el = document.createElement("div");
+    el.innerHTML = '<div class="sc-statblock-entry"><img class="sc-entity-art"></div>';
+    return expect(preloadEntryArt(el)).resolves.toEqual([]);
   });
 
   it("skips a picture that fails to decode", async () => {

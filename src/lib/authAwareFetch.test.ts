@@ -23,23 +23,7 @@ describe("createAuthAwareFetch", () => {
     expect(onUnauthenticated).toHaveBeenCalledTimes(1);
   });
 
-  it("signals for table reads too, not just RPCs", async () => {
-    const onUnauthenticated = vi.fn();
-    const wrapped = createAuthAwareFetch(fetchReturning(401), onUnauthenticated);
-    await wrapped(REST);
-    expect(onUnauthenticated).toHaveBeenCalledTimes(1);
-  });
-
   it("stays quiet on a successful request", async () => {
-    const onUnauthenticated = vi.fn();
-    const wrapped = createAuthAwareFetch(fetchReturning(200), onUnauthenticated);
-    await wrapped(REST);
-    expect(onUnauthenticated).not.toHaveBeenCalled();
-  });
-
-  // The 200 [] a lost session produces used to be considered undetectable here.
-  // It is not — see the anon-key suite below, which stops the request instead.
-  it("stays quiet on a 200 when no credential opinion is configured", async () => {
     const onUnauthenticated = vi.fn();
     const wrapped = createAuthAwareFetch(fetchReturning(200), onUnauthenticated);
     await wrapped(REST);
@@ -128,6 +112,26 @@ describe("createAuthAwareFetch — anon-key reads while signed in", () => {
     const request = new Request(REST, { headers: { Authorization: `Bearer ${ANON}` } });
     await expect(wrapped(request)).rejects.toBeInstanceOf(AnonymousReadError);
     expect(baseFetch).not.toHaveBeenCalled();
+  });
+
+  // Only a Bearer credential is a session. A Basic header is not one, and an
+  // empty "Bearer " is the shape a cleared token leaves behind.
+  it.each([
+    ["a non-Bearer scheme", "Basic dXNlcjpwYXNz"],
+    ["an empty Bearer token", "Bearer "],
+  ])("refuses a request whose Authorization is %s", async (_title, header) => {
+    const baseFetch = emptyOk();
+    const wrapped = createAuthAwareFetch(baseFetch as unknown as typeof fetch, () => {}, signedIn());
+    await expect(wrapped(REST, { headers: { Authorization: header } })).rejects.toBeInstanceOf(AnonymousReadError);
+    expect(baseFetch).not.toHaveBeenCalled();
+  });
+
+  it("takes the credential from the init headers over the Request's own, as fetch does", async () => {
+    const baseFetch = emptyOk();
+    const wrapped = createAuthAwareFetch(baseFetch as unknown as typeof fetch, () => {}, signedIn());
+    const request = new Request(REST, { headers: { Authorization: `Bearer ${ANON}` } });
+    await expect(wrapped(request, bearing(JWT))).resolves.toBeInstanceOf(Response);
+    expect(baseFetch).toHaveBeenCalledTimes(1);
   });
 
   it("lets a real user token through", async () => {

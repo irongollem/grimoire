@@ -78,6 +78,7 @@ describe("beat and route deltas", () => {
     rule("r4", "complete", "o2", { on_beat_id: "b2" }),
     rule("r5", "fail", "o1", { on_edge_id: "e1" }),
     rule("r6", "raise", "missing", { on_beat_id: "b1" }),
+    rule("r7", "complete", "o2", { on_edge_id: "e2" }), // another route's rule
   ];
   const objectives = [princess, whoTookHer, ledger];
 

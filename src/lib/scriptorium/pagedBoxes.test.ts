@@ -18,6 +18,13 @@ describe("classifyLongBoxes", () => {
     expect(out).not.toContain("sc-box--long");
   });
 
+  it("a box of exactly the threshold is still short, and runs of whitespace count once", () => {
+    const exact = `<div class="sc-note"><p>${textOfLength(LONG_BOX_CHAR_THRESHOLD)}</p></div>`;
+    expect(classifyLongBoxes(exact)).not.toContain("sc-box--long");
+    const spaced = `<div class="sc-note"><p>${"hi\n   ".repeat(200)}</p></div>`;
+    expect(classifyLongBoxes(spaced)).not.toContain("sc-box--long");
+  });
+
   it("marks a note box past the threshold sc-box--long", () => {
     const html = `<div class="sc-note"><p>${textOfLength(LONG_BOX_CHAR_THRESHOLD + 1)}</p></div>`;
     const out = classifyLongBoxes(html);

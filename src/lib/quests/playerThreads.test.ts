@@ -52,6 +52,21 @@ describe("groupPlayerBeatsByThread", () => {
     expect(columns[1]!.isPrimary).toBe(false);
   });
 
+  it("orders the other threads by their earliest beat, not by when they appear in the list", () => {
+    const columns = groupPlayerBeatsByThread([
+      beat({ id: "m", story_order: 0 }),
+      beat({ id: "late", story_order: 5, thread_id: "thread-b", thread_label: "Late" }),
+      beat({ id: "early", story_order: 2, thread_id: "thread-c", thread_label: "Early" }),
+    ]);
+    expect(columns.map((c) => c.label)).toEqual(["Main", "Early", "Late"]);
+  });
+
+  it("puts beats that share a story_order in a fixed order, whatever order they arrived in", () => {
+    const pair = [beat({ id: "zeta", story_order: 1 }), beat({ id: "alpha", story_order: 1 })];
+    expect(groupPlayerBeatsByThread(pair)[0]!.beats.map((b) => b.id)).toEqual(["alpha", "zeta"]);
+    expect(groupPlayerBeatsByThread([...pair].reverse())[0]!.beats.map((b) => b.id)).toEqual(["alpha", "zeta"]);
+  });
+
   it("assigns the primary and secondary tones by column order, not by thread label", () => {
     const columns = groupPlayerBeatsByThread([
       beat({ id: "main-1", thread_id: "thread-main", thread_label: "Main" }),

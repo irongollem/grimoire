@@ -49,6 +49,12 @@ describe("splitFrontmatter", () => {
     expect(splitFrontmatter("﻿---\r\ntitle: x\r\n---\r\nbody").data).toEqual({ title: "x" });
   });
 
+  it("leaves a horizontal rule further down the page alone, and reads decimals as numbers", () => {
+    const page = "# Title\n\n---\nnot: frontmatter\n---\nmore";
+    expect(splitFrontmatter(page)).toEqual({ data: {}, body: page });
+    expect(splitFrontmatter("---\ncr: 0.5\n---\n").data).toEqual({ cr: 0.5 });
+  });
+
   it("skips block scalars rather than misreading them", () => {
     expect(splitFrontmatter("---\nnote: |\n  line\n  more\nkeep: 1\n---\n").data).toEqual({ keep: 1 });
   });

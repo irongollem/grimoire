@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { Editor } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
+import { generateHTML, generateJSON } from "@tiptap/core";
 import { createScriptoriumExtensions } from "./scriptoriumExtensions";
 
 let editors: Editor[] = [];
@@ -169,5 +170,22 @@ describe("createScriptoriumExtensions — full round trip", () => {
     const json = makeEditor(DOCUMENT).getJSON();
     const embed = (json.content ?? []).find((n) => n.type === "entityEmbed");
     expect(embed?.attrs).toMatchObject({ entityType: "npc", entityId: "npc-123" });
+  });
+});
+
+describe("createScriptoriumExtensions — table classes", () => {
+  it("keeps the class on a table, its header cells and its body cells, which the book's styling hangs on", () => {
+    const html =
+      '<table class="sc-class-table"><tbody><tr><th class="sc-abil-name">A</th></tr><tr><td class="sc-abil-gap">b</td></tr></tbody></table>';
+    const json = generateJSON(html, createScriptoriumExtensions());
+    const out = generateHTML(json, createScriptoriumExtensions());
+    expect(out).toContain('<table class="sc-class-table"');
+    expect(out).toContain('class="sc-abil-name"');
+    expect(out).toContain('class="sc-abil-gap"');
+  });
+
+  it("writes no class attribute for a table that never had one", () => {
+    const json = generateJSON("<table><tbody><tr><td>b</td></tr></tbody></table>", createScriptoriumExtensions());
+    expect(generateHTML(json, createScriptoriumExtensions())).not.toContain("class=");
   });
 });

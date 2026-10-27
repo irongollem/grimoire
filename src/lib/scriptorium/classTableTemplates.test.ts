@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { Editor } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
+import { getDefaultSpellSlots, THIRD_CASTER_SLOTS } from "@/types/spell.types";
 import { fullCasterTable, halfCasterTable, thirdCasterTable, martialTable } from "./classTableTemplates";
 
 let editors: Editor[] = [];
@@ -52,5 +53,53 @@ describe("class progression table templates", () => {
     expect(editor.getHTML()).toContain("Ki Points");
     const rows = tableRows(editor.getJSON());
     expect(rows).toHaveLength(21);
+  });
+});
+
+// The progression values are rules data, so they are checked against the
+// repo's own spell-slot tables (PHB 2014 class tables) rather than against
+// themselves: a typo in either copy shows up as a disagreement.
+describe("class progression table values", () => {
+  type Cell = { content?: { content?: { text?: string }[] }[] };
+  type Row = { content: Cell[] };
+  const text = (c: Cell) => c.content?.[0]?.content?.[0]?.text ?? "";
+  /** The data rows of a template as arrays of cell text, header dropped. */
+  function dataRows(table: object): string[][] {
+    const rows = ((table as { content: { content: Row[] }[] }).content[0] as unknown as { content: Row[] }).content;
+    return rows.slice(1).map((r) => r.content.map(text));
+  }
+  const slotCell = (max: number | undefined) => (max ? String(max) : "\u2014");
+  const slotsAt = (cls: "Wizard" | "Paladin", level: number, columns: number) => {
+    const byLevel = new Map(getDefaultSpellSlots(cls, level, "2014").map((s) => [s.level, s.max]));
+    return Array.from({ length: columns }, (_, i) => slotCell(byLevel.get(i + 1)));
+  };
+
+  it("every table gives the proficiency bonus the PHB does: +2 at level 1, rising one every fourth level", () => {
+    for (const rows of [dataRows(fullCasterTable()), dataRows(halfCasterTable()), dataRows(thirdCasterTable()), dataRows(martialTable("Ki"))]) {
+      rows.forEach((row, i) => {
+        expect(row[0]).toBe(String(i + 1));
+        expect(row[1]).toBe(`+${Math.ceil((i + 1) / 4) + 1}`);
+      });
+    }
+  });
+
+  it("full casters match the Wizard's slots and cantrips (3, then 4 at level 4, 5 at level 10)", () => {
+    dataRows(fullCasterTable()).forEach((row, i) => {
+      const level = i + 1;
+      expect(row.slice(4)).toEqual(slotsAt("Wizard", level, 9));
+      expect(row[3]).toBe(String(level >= 10 ? 5 : level >= 4 ? 4 : 3));
+    });
+  });
+
+  it("half casters match the Paladin's slots", () => {
+    dataRows(halfCasterTable()).forEach((row, i) => {
+      expect(row.slice(3)).toEqual(slotsAt("Paladin", i + 1, 5));
+    });
+  });
+
+  it("third casters match the Eldritch Knight's slots", () => {
+    dataRows(thirdCasterTable()).forEach((row, i) => {
+      expect(row.slice(3)).toEqual(Array.from({ length: 4 }, (_, k) => slotCell(THIRD_CASTER_SLOTS[i][k])));
+    });
   });
 });

@@ -75,6 +75,12 @@ describe("htmlToScriptoriumJson", () => {
     expect(f.width).toBe(30); // 238.2 / 794 * 100
   });
 
+  it("a legacy watercolor with no variant or width still gets a usable variant and a visible width", () => {
+    const { furniture } = htmlToScriptoriumJson('<img data-type="watercolor">');
+    expect(furniture[0].props.variant).toBe(1);
+    expect(furniture[0].width).toBeGreaterThan(0);
+  });
+
   it("lifts a legacy watermark <div> into furniture without leaking its text", () => {
     const html = '<p>a</p><div data-type="watermark" data-text="DRAFT" data-rotation="-30" data-opacity="15"><span>DRAFT</span></div>';
     const { content, furniture } = htmlToScriptoriumJson(html);

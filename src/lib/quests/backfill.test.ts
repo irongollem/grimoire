@@ -95,6 +95,16 @@ describe("deriveBeatRecordStates", () => {
     expect(states.a).toEqual({ kind: "here", at: null, note: null });
   });
 
+  it("shows no session note on the current beat unless its newest transition is an assertion", () => {
+    const states = deriveBeatRecordStates({
+      questId: "quest-1",
+      beatIds: ["a"],
+      transitions: [transition({ to_beat_id: "a", transition_kind: "forward", reason: "walked in", created_at: "2026-01-01T00:00:00Z" })],
+      currentBeatId: "a",
+    });
+    expect(states.a).toEqual({ kind: "here", at: "2026-01-01T00:00:00Z", note: null });
+  });
+
   it("ignores transitions belonging to another quest", () => {
     const states = deriveBeatRecordStates({
       questId: "quest-1",

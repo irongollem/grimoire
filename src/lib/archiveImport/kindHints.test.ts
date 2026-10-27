@@ -31,6 +31,14 @@ describe("guessKind precedence", () => {
     expect(guess({ tags: ["world/faction"], folders: ["NPCs"] })).toEqual({ kind: "faction", reason: "tag: #world/faction" });
     expect(guess({ folders: ["Characters"] })).toEqual({ kind: "npc", reason: "folder: Characters" });
   });
+  it("a player-character word in a tag, folder or template is only a hint to skip when the frontmatter says so", () => {
+    expect(guess({ tags: ["pc"], folders: ["NPCs"] })).toEqual({ kind: "npc", reason: "folder: NPCs" });
+    expect(guess({ folders: ["Players"] }).kind).toBe("note");
+    expect(guess({ templateHint: "Player", folders: ["Items"] }).kind).toBe("item");
+  });
+  it("calls it a Grimoire export only when the page carries a grimoire_id", () => {
+    expect(guess({ frontmatter: { type: "faction" } }).reason).toBe("frontmatter type: faction");
+  });
   it("uses the nearest folder and falls back to note", () => {
     expect(guess({ folders: ["NPCs", "Waterdeep", "Items"] }).kind).toBe("item");
     expect(guess({ folders: ["NPCs", "Waterdeep"] }).kind).toBe("npc");

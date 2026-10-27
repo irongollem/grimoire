@@ -10,6 +10,15 @@ describe("preparePagedBody", () => {
     expect(preparePagedBody("<p>Hi</p>", opts)).toBe("<p>Hi</p>");
   });
 
+  it("drops trailing empty paragraphs, and builds the contents list for the page size and numbering it is given", () => {
+    const html = '<nav data-type="toc"></nav><h1>Chapter</h1><p>x</p><p></p>';
+    const a5 = preparePagedBody(html, { ...opts, pageSize: "A5" });
+    expect(a5).toContain("sc-toc-cols-1");
+    expect(a5).toContain("sc-toc-page");
+    expect(a5.endsWith("<p>x</p>")).toBe(true);
+    expect(preparePagedBody(html, { ...opts, showPageNumbers: false })).not.toContain("sc-toc-page");
+  });
+
   it("runs every pre-layout step: long boxes, table headers and wrapped-image groups", () => {
     const html =
       `<div class="sc-note"><p>${"x".repeat(900)}</p></div>` +

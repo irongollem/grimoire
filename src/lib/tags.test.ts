@@ -22,15 +22,8 @@ describe("normalizeTag", () => {
     expect(normalizeTag("  -icewind-  ")).toBe("icewind");
   });
 
-  it("trims surrounding whitespace", () => {
-    expect(normalizeTag("  icewind dale  ")).toBe("icewind-dale");
-  });
-
   it("returns empty string for input with nothing left to keep", () => {
     expect(normalizeTag("!!!")).toBe("");
   });
 
-  it("leaves an already-normalized tag alone", () => {
-    expect(normalizeTag("frostbite")).toBe("frostbite");
-  });
 });

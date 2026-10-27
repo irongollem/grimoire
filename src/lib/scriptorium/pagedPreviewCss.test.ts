@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { EDITOR_PAGE_DIMENSIONS_PX } from "./editorConstants";
 import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR, PRINT_SLACK_PX } from "./pagedPreviewCss";
 
 const base = { pageSize: "A4" as const, inkFriendly: false };
@@ -19,6 +20,14 @@ describe("buildPagedPreviewCss", () => {
     expect(buildPagedPreviewCss(base)).toContain("size: A4;");
     expect(buildPagedPreviewCss({ ...base, pageSize: "Letter" })).toContain("size: letter;");
     expect(buildPagedPreviewCss({ ...base, pageSize: "A5" })).toContain("size: A5;");
+  });
+
+  it.each(["A4", "A5", "Letter"] as const)("a %s cover is a little shorter than its page, so it cannot spill onto a second one", (pageSize) => {
+    const css = buildPagedPreviewCss({ pageSize, inkFriendly: false });
+    const cover = Number(css.match(/\.sc-cover \{[^}]*height: (\d+)px/)?.[1]);
+    const page = EDITOR_PAGE_DIMENSIONS_PX[pageSize].h;
+    expect(cover).toBeLessThan(page);
+    expect(cover).toBeGreaterThan(page - 20);
   });
 
   it("includes break-before rules for hr and pageBreak (Paged.js reads these)", () => {
@@ -61,11 +70,8 @@ describe("buildPagedPreviewCss", () => {
     expect(ink).toContain("background: #fff;");
   });
 
-  it("styles the page chrome containers and footer position context", () => {
-    const css = buildPagedPreviewCss(base);
-    expect(css).toContain(".pagedjs_page");
-    expect(css).toContain(".pagedjs_pages");
-    expect(css).toContain(".pagedjs_pagebox { position: relative; }");
+  it("makes the page box the positioning context the injected footers sit in", () => {
+    expect(buildPagedPreviewCss(base)).toContain(".pagedjs_pagebox { position: relative; }");
   });
 
   it("no longer emits @page footer boxes (injection handles footers)", () => {

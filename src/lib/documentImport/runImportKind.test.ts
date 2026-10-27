@@ -292,8 +292,12 @@ describe("orderLocationsParentsFirst", () => {
   });
 
   it("leaves a self-referencing entity in place rather than treating itself as its own parent", () => {
-    const entities = [loc("a", { name: "A", location_type: "building", parent_name: "A" })];
-    expect(orderLocationsParentsFirst(entities).map((e) => e.ref)).toEqual(["a"]);
+    // The room listed first must still follow its building, even though the building names itself as parent.
+    const entities = [
+      loc("room", { name: "Cellar", location_type: "room", parent_name: "A" }),
+      loc("a", { name: "A", location_type: "building", parent_name: "A" }),
+    ];
+    expect(orderLocationsParentsFirst(entities).map((e) => e.ref)).toEqual(["a", "room"]);
   });
 });
 

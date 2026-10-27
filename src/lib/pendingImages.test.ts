@@ -42,10 +42,6 @@ describe("findPendingImages", () => {
     expect(findPendingImages(doc)).toEqual([{ jobId: "job-nested", prompt: "a tavern" }]);
   });
 
-  it("returns an empty array for an empty doc", () => {
-    expect(findPendingImages({ type: "doc", content: [] })).toEqual([]);
-  });
-
   it("returns an empty array when content is absent entirely", () => {
     expect(findPendingImages({ type: "doc" })).toEqual([]);
   });
@@ -133,10 +129,26 @@ describe("replacePendingImageWithImage / markPendingImageFailed", () => {
     expect(original).toEqual(doc());
   });
 
-  it("keeps the anchor but marks it failed", () => {
+  it("keeps the anchor, with its prompt, but marks it failed", () => {
     const next = markPendingImageFailed(doc(), "job-2");
-    expect(findPendingImages(next)).toEqual([{ jobId: "job-1", prompt: "a dragon" }]);
-    expect(JSON.stringify(next)).toContain('"status":"failed"');
+    expect(next).toEqual({
+      type: "doc",
+      content: [
+        { type: "paragraph" },
+        {
+          type: "columns",
+          content: [anchor("job-1"), { type: "pendingImage", attrs: { jobId: "job-2", prompt: "a dragon", status: "failed" } }],
+        },
+      ],
+    });
+  });
+
+  it("changes only the first anchor when a job id appears twice, as findPendingImages reports the first", () => {
+    const twice = { type: "doc", content: [anchor("job-1"), anchor("job-1")] };
+    expect(replacePendingImageWithImage(twice, "job-1", "u")).toEqual({
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "u" } }, anchor("job-1")],
+    });
   });
 
   it("returns null when the anchor is not there", () => {

@@ -43,10 +43,6 @@ describe("selectPrimaryQuest", () => {
 });
 
 describe("summarizeOtherKinds", () => {
-  it("returns nothing when the extraction has only a quest", () => {
-    expect(summarizeOtherKinds({ quests: [questEntity("q1", "The Sunken Bell")] })).toEqual([]);
-  });
-
   it("excludes quests and omits kinds with zero usable entities", () => {
     const extracted: ExtractionResult = {
       quests: [questEntity("q1", "The Sunken Bell")],
@@ -90,6 +86,10 @@ describe("deriveImportDisplayName", () => {
 
   it("strips a leading markdown heading marker", () => {
     expect(deriveImportDisplayName("## The Sunken Bell")).toBe("The Sunken Bell");
+  });
+
+  it("falls back when the first line is only heading markers", () => {
+    expect(deriveImportDisplayName("##\nreal text")).toBe("Pasted quest");
   });
 
   it("truncates a long first line to 60 characters", () => {

@@ -25,4 +25,14 @@ describe("kinInsertFor", () => {
     const row = kinInsertFor("npc:a", "spouse", "pc:b", { parent_role: "father", adoptive: true });
     expect(row).toMatchObject({ kind: "spouse", parent_role: null, adoptive: false });
   });
+
+  it("carries an adoptive parent link and the note", () => {
+    const row = kinInsertFor("npc:a", "parent", "npc:b", { parent_role: "father", adoptive: true, note: "took him in" });
+    expect(linkEnds(row)).toEqual({ from: "npc:a", to: "npc:b" });
+    expect(row).toMatchObject({ kind: "parent", parent_role: "father", adoptive: true, note: "took him in" });
+  });
+
+  it("keeps the note on a symmetric link too", () => {
+    expect(kinInsertFor("npc:a", "sibling", "npc:b", { note: "half" }).note).toBe("half");
+  });
 });

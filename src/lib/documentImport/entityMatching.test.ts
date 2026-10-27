@@ -69,6 +69,11 @@ describe("parseImportMatches", () => {
     });
   });
 
+  it("reads an empty detail string as no detail", () => {
+    const raw = { matches: { npcs: { n1: [{ targetId: "npc-1", source: "campaign", name: "Reyes", matchKind: "exact", detail: "" }] } } };
+    expect(parseImportMatches(raw).matches.get("npcs")?.get("n1")?.[0].detail).toBeNull();
+  });
+
   it("keeps a near match, the name tier's one-keystroke-away verdict", () => {
     // `match_import_entity_names` returns 'near' for one of the DM's own rows a
     // single edit from the page's name. An unknown kind is dropped as malformed
@@ -139,19 +144,15 @@ describe("canCreateFromPage", () => {
     expect(canCreateFromPage("monsters", { name: "Grell" })).toBe(false);
   });
 
-  it("is false for a monster whose stat_block is an empty object", () => {
-    expect(canCreateFromPage("monsters", { name: "Grell", stat_block: {} })).toBe(false);
-  });
-
   it("is true when stat_block carries at least one meaningful field", () => {
     expect(canCreateFromPage("monsters", { name: "Grell", stat_block: { armor_class: 15 } })).toBe(true);
   });
 
-  it("is false when stat_block's only keys are empty placeholders", () => {
+  it("is false when stat_block's only keys are empty or blank placeholders", () => {
     expect(
       canCreateFromPage("monsters", {
         name: "Grell",
-        stat_block: { saving_throws: "", skills: {}, actions: [] },
+        stat_block: { saving_throws: "", senses: "   ", skills: {}, actions: [] },
       }),
     ).toBe(false);
   });
@@ -217,6 +218,7 @@ describe("normalizeMonsterReferenceRows", () => {
   it("drops a row missing what it needs rather than guessing", () => {
     expect(normalizeMonsterReferenceRows([{ query_name: "Owlbear" }])).toEqual([]);
     expect(normalizeMonsterReferenceRows([null, undefined, "not an object", 42])).toEqual([]);
+    expect(normalizeMonsterReferenceRows([{ monster_id: "id-1", source: "campaign" }])).toEqual([]);
   });
 
   it("drops a campaign-sourced row whose monster_id is missing", () => {
@@ -232,7 +234,4 @@ describe("normalizeMonsterReferenceRows", () => {
     ).toEqual([]);
   });
 
-  it("returns an empty array for an empty input", () => {
-    expect(normalizeMonsterReferenceRows([])).toEqual([]);
-  });
 });

@@ -18,6 +18,12 @@ describe("printPixelSize", () => {
     });
   });
 
+  it("is at least one pixel on each side, however small the printed box", () => {
+    // A 100000 x 1 strip in a box 0.01px tall scales by 0.03125: 3125 wide, and 0.03 tall rounds to 0.
+    expect(printPixelSize({ width: 100000, height: 1 }, { width: 1, height: 0.01 })).toEqual({ width: 3125, height: 1 });
+    expect(printPixelSize({ width: 1, height: 100000 }, { width: 0.01, height: 1 })).toEqual({ width: 1, height: 3125 });
+  });
+
   it("keeps enough pixels to fill a cropped cover box on its tighter axis", () => {
     // A tall picture covering a wide box is cropped top and bottom: its width
     // decides the size it needs.
@@ -37,6 +43,14 @@ describe("needsCompacting", () => {
   it("leaves a JPEG already at print size untouched", () => {
     expect(needsCompacting("https://cdn.example/art.jpeg", natural, natural)).toBe(false);
     expect(needsCompacting("https://cdn.example/art.JPG?v=2", natural, natural)).toBe(false);
+  });
+
+  it("treats a JPEG data URI like a JPEG file", () => {
+    expect(needsCompacting("data:image/jpeg;base64,AAAA", natural, natural)).toBe(false);
+  });
+
+  it("does not mistake a file whose name merely contains .jpg for a JPEG", () => {
+    expect(needsCompacting("https://cdn.example/art.jpg.webp", natural, natural)).toBe(true);
   });
 
   it("shrinks a JPEG larger than print size", () => {

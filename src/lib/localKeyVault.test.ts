@@ -5,7 +5,10 @@ import {
   isLocalCiphertext,
   encryptLocalKey,
   decryptLocalKey,
+  localKeyModeChosen,
+  LOCAL_MODE_KEY,
 } from "@/lib/localKeyVault";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 describe("localKeyVault", () => {
   beforeEach(() => {
@@ -42,6 +45,21 @@ describe("localKeyVault", () => {
     // Legacy plaintext / server enc:v1: values are returned unchanged by decrypt.
     expect(await decryptLocalKey("sk-legacy-plaintext")).toBe("sk-legacy-plaintext");
     expect(await decryptLocalKey("enc:v1:foo:bar")).toBe("enc:v1:foo:bar");
+  });
+
+  it("refuses a local ciphertext that is missing its iv or its data", async () => {
+    await expect(decryptLocalKey("lck:v1:onlyaniv")).rejects.toThrow(/Invalid local key format/);
+  });
+
+  it("reports local mode only when the stored choice is exactly 'local'", () => {
+    const storage = safeLocalStorage();
+    storage.removeItem(LOCAL_MODE_KEY);
+    expect(localKeyModeChosen()).toBe(false);
+    storage.setItem(LOCAL_MODE_KEY, "server");
+    expect(localKeyModeChosen()).toBe(false);
+    storage.setItem(LOCAL_MODE_KEY, "local");
+    expect(localKeyModeChosen()).toBe(true);
+    storage.removeItem(LOCAL_MODE_KEY);
   });
 
   it("fails to decrypt a tampered ciphertext", async () => {

@@ -139,7 +139,7 @@ describe("planAdvance", () => {
             payoff({ consequence_id: "c2" }),
             payoff({ consequence_id: "c3" }),
           ],
-          loot: [loot({ id: "l1" }), loot({ id: "l2" })],
+          loot: [loot({ id: "l1" }), loot({ id: "l2" }), loot({ id: "l3" })],
         }),
       ],
     });
@@ -153,7 +153,7 @@ describe("planAdvance", () => {
     });
 
     expect(plan.fired).toBe(2);
-    expect(plan.held).toBe(1);
+    expect(plan.held).toBe(2); // l2 and l3 stay on the beat
   });
 
   it("treats an edge with no payoff or loot as firing and holding nothing", () => {

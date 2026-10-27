@@ -109,6 +109,24 @@ describe("filterQuestBoard", () => {
     ).map((item) => item.id)).toEqual(["other"]);
   });
 
+  it("finds a quest by title, summary or tag, and only an entity of the right type", () => {
+    const quests = [
+      quest("t", { title: "The Drowned Bell" }),
+      quest("s", { title: "Other", summary: "A bell rings under the lake" }),
+      quest("g", { title: "Third", tags: ["Lakeside"] }),
+      quest("none", { title: "Unrelated" }),
+    ];
+    const ids = (search: string) => filterQuestBoard(quests, { ...emptyFilters, search }, { refs: [] }).map((q) => q.id);
+    expect(ids("drowned")).toEqual(["t"]);
+    expect(ids("under the lake")).toEqual(["s"]);
+    expect(ids("LAKESIDE")).toEqual(["g"]);
+
+    // The same id under another type is a different thing: a faction ref is not a location match.
+    const refs = [ref("none", "faction", "shared-id")];
+    expect(filterQuestBoard(quests, { ...emptyFilters, entity: "location:shared-id" }, { refs })).toEqual([]);
+    expect(filterQuestBoard(quests, { ...emptyFilters, entity: "faction:shared-id" }, { refs }).map((q) => q.id)).toEqual(["none"]);
+  });
+
   it("does not erase quests when beat filters lack authoritative summaries", () => {
     const quests = [quest("legacy-a"), quest("legacy-b")];
     const result = filterQuestBoard(
@@ -139,6 +157,12 @@ describe("filterQuestBoard", () => {
       { ...emptyFilters, prepGapsOnly: true, pendingLootOnly: true },
       { refs: [], summaries },
     ).map((item) => item.id)).toEqual(["both"]);
+  });
+
+  it("keeps a quest with loot waiting to be dispatched or to be claimed under the pending-loot filter", () => {
+    const quests = [quest("none"), quest("held"), quest("chat")];
+    const summaries = { none: ready, held: { ...ready, undispatchedLootCount: 2 }, chat: { ...ready, unclaimedLootCount: 1 } };
+    expect(filterQuestBoard(quests, { ...emptyFilters, pendingLootOnly: true }, { refs: [], summaries }).map((q) => q.id)).toEqual(["held", "chat"]);
   });
 
   it("counts each boolean facet with all other active filters composed", () => {
@@ -216,6 +240,37 @@ describe("deriveQuestBoardSummaries", () => {
       prepGapCount: 1,
       undispatchedLootCount: 1,
     });
+  });
+
+  it("calls a beat that is ready and not yet reached upcoming, not a gap", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a"), boardBeat("beat-b", "quest-a")],
+      edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }],
+    }));
+    expect(summaries["quest-a"]!.beatSegments).toEqual(["upcoming", "upcoming"]);
+  });
+
+  it("gives a cursor with no thread row the thread name Main and a live status, and ignores a cursor on no beat", () => {
+    const orphan = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a")],
+      runtime: [cursor("quest-a", "ghost", "beat-a")],
+    }));
+    expect(orphan["quest-a"]!.threads[0]).toMatchObject({ id: "ghost", label: "Main", status: "live", created_at: "" });
+
+    const ended = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a")],
+      runtime: [{ quest_id: "quest-a", thread_id: "main", current_beat_id: null, status: "running" }],
+      threads: [thread("main", "quest-a")],
+    }));
+    expect(ended["quest-a"]).toMatchObject({ threads: [], isLive: false, primaryThreadId: null, runtimeStatus: null });
+  });
+
+  it("summarises only quests that exist: loot with no quest (room-homed) adds none", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [boardBeat("beat-a", "quest-a")],
+      loot: [{ quest_id: null, delivery_state: "held" }],
+    }));
+    expect(Object.keys(summaries)).toEqual(["quest-a"]);
   });
 
   // #853: a quest can hold several live threads at once. The top-level fields
@@ -349,6 +404,23 @@ describe("deriveQuestBoardSummaries", () => {
   // from the beat that raised the unlock (`unlockedBy`). Both beats belong to
   // `input.beats` already — the entry beat is one of the *target* quest's own
   // beats, campaign-wide data the caller already assembled.
+  it("reads only unlock_quest rules as promoting a quest, and names the first rule that has a beat", () => {
+    const beats = [boardBeat("beat-x", "quest-source", { title: "Named beat" })];
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats,
+      consequences: [
+        // A rule of another kind that merely points at a quest does not unlock it.
+        consequence({ quest_id: "quest-source", on_beat_id: "beat-x", action: "reveal", target_quest_id: "quest-plain" }),
+        // Two unlock rules on one quest: the one without a beat is held, the one with a beat names it.
+        consequence({ quest_id: "quest-source", action: "unlock_quest", target_quest_id: "quest-locked" }),
+        consequence({ quest_id: "quest-source", on_beat_id: "beat-x", action: "unlock_quest", target_quest_id: "quest-locked" }),
+      ],
+    }));
+    expect(summaries["quest-plain"]!.unlockedBy).toBeNull();
+    expect(summaries["quest-locked"]!.unlockedBy).toBe("Named beat");
+    expect(summaries["quest-locked"]!.heldPayoffCount).toBe(1);
+  });
+
   it("names the entry a bridge lands on, distinct from the beat that raised it", () => {
     const beats = [
       boardBeat("beat-source", "quest-source", { title: "The Vault's Keeper" }),
@@ -394,6 +466,14 @@ describe("deriveQuestBoardSummaries", () => {
       threads: [thread("main", "quest-a", { status: "closed" })],
     }));
     expect(settledNoSession["quest-a"]!.settledCaption).toBe("ledger settled");
+
+    // A merged thread has wrapped up as surely as a closed one, and "session #19" names session 19.
+    const mergedAndNumbered = deriveQuestBoardSummaries(payload({
+      beats,
+      endings: [{ quest_id: "quest-a", reason: "end of session #19" }],
+      threads: [thread("main", "quest-a", { status: "closed" }), thread("side", "quest-a", { status: "merged" })],
+    }));
+    expect(mergedAndNumbered["quest-a"]!.settledCaption).toBe("Session 19 · ledger settled");
 
     const neverEnded = deriveQuestBoardSummaries(payload({ beats }));
     expect(neverEnded["quest-a"]!.settledCaption).toBeNull();

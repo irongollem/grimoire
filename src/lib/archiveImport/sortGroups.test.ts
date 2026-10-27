@@ -47,4 +47,11 @@ describe("initiallyOpenGroups", () => {
     expect(open.has("Big")).toBe(false);
     expect(open.size).toBe(8); // 8 x 15 = 120 pages
   });
+
+  it("treats a group of exactly the small-group size as small and one page more as big", () => {
+    const group = (n: number, name: string) => groupPagesByFolder(Array.from({ length: n }, (_, i) => page(`${name}${i}`, [name])))[0];
+    const open = initiallyOpenGroups([group(20, "Edge"), group(21, "Over")]);
+    expect(open.has("Edge")).toBe(true);
+    expect(open.has("Over")).toBe(false);
+  });
 });

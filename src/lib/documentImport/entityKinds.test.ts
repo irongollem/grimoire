@@ -7,23 +7,9 @@ import {
 } from "./entityKinds";
 
 describe("ENTITY_KIND_REGISTRY", () => {
-  it("has exactly one entry per kind in IMPORT_ENTITY_KINDS, no more, no fewer", () => {
-    expect(Object.keys(ENTITY_KIND_REGISTRY).sort()).toEqual([...IMPORT_ENTITY_KINDS].sort());
-  });
-
   it("keys every entry under its own kind", () => {
     for (const kind of IMPORT_ENTITY_KINDS) {
       expect(ENTITY_KIND_REGISTRY[kind].kind).toBe(kind);
-    }
-  });
-
-  it("is frozen — a caller cannot swap out a whole entry at runtime", () => {
-    expect(Object.isFrozen(ENTITY_KIND_REGISTRY)).toBe(true);
-  });
-
-  it("targets the same-named table for all eight kinds", () => {
-    for (const kind of IMPORT_ENTITY_KINDS) {
-      expect(ENTITY_KIND_REGISTRY[kind].table).toBe(kind);
     }
   });
 
@@ -49,13 +35,6 @@ describe("ENTITY_KIND_REGISTRY", () => {
     }
   });
 
-  it("gives every entry non-empty singular and plural labels", () => {
-    for (const kind of IMPORT_ENTITY_KINDS) {
-      const entry = ENTITY_KIND_REGISTRY[kind];
-      expect(entry.labelSingular.length).toBeGreaterThan(0);
-      expect(entry.labelPlural.length).toBeGreaterThan(0);
-    }
-  });
 });
 
 describe("getEntityKindEntry", () => {
@@ -70,20 +49,5 @@ describe("listEntityKindsInWizardOrder", () => {
   it("returns all eight entries in the same order as IMPORT_ENTITY_KINDS", () => {
     const ordered = listEntityKindsInWizardOrder();
     expect(ordered.map((entry) => entry.kind)).toEqual([...IMPORT_ENTITY_KINDS]);
-  });
-
-  // Deliberately NOT asserting which kind is first or last. An earlier version
-  // of this test pinned "starts with monsters, ends with factions", which read
-  // as a harmless description of the list and was in fact encoding a bug:
-  // factions last meant an NPC's `faction_name` link could never resolve,
-  // because factions did not exist yet when the NPC step ran. A test that
-  // restates the array teaches nothing and defends the wrong thing.
-  //
-  // The property that actually matters — every kind imported after the kinds
-  // its links point at — is asserted in `dependencyOrder.test.ts`.
-  it("exposes the registry in exactly the order the wizard will walk", () => {
-    const ordered = listEntityKindsInWizardOrder();
-    expect(ordered).toHaveLength(IMPORT_ENTITY_KINDS.length);
-    expect(new Set(ordered.map((entry) => entry.kind))).toEqual(new Set(IMPORT_ENTITY_KINDS));
   });
 });

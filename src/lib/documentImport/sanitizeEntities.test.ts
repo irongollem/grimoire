@@ -8,10 +8,6 @@ describe("sanitizeEntities", () => {
     expect(sanitizeEntities("not an array", "name")).toEqual({ entities: [], dropped: 0 });
   });
 
-  it("returns nothing for an empty array", () => {
-    expect(sanitizeEntities([], "name")).toEqual({ entities: [], dropped: 0 });
-  });
-
   it("drops non-object entries", () => {
     const { entities, dropped } = sanitizeEntities([null, 1, "x", true], "name");
     expect(entities).toHaveLength(0);

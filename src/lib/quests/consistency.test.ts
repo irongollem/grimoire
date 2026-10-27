@@ -58,14 +58,12 @@ describe("deriveQuestConsistency", () => {
       expect(kinds(findings)).not.toContain("unreachable_beat");
     });
 
-    it("truncates a long title rather than printing an essay", () => {
-      const [finding] = check({ beats: [beat("a"), beat("b", { title: "x".repeat(90) })], edges: [edge("b", "a")] })
-        .filter((f) => f.kind === "unreachable_beat");
-      expect(finding).toBeUndefined();
-      const [long] = check({ beats: [beat("lonely", { title: "y".repeat(90) })], edges: [edge("other", "lonely")] })
-        .filter((f) => f.kind === "unreachable_beat");
-      expect(long?.message).toContain("…");
-      expect(long?.message.length).toBeLessThan(140);
+    it("truncates a long title rather than printing an essay, and leaves one of sixty characters whole", () => {
+      const message = (title: string) => check({ beats: [beat("lonely", { title })], edges: [edge("other", "lonely")] })
+        .find((f) => f.kind === "unreachable_beat")?.message;
+      expect(message("y".repeat(90))).toContain(`${"y".repeat(57)}…`);
+      expect(message("y".repeat(61))).toContain(`${"y".repeat(57)}…`);
+      expect(message("y".repeat(60))).toContain(`"${"y".repeat(60)}"`);
     });
   });
 
@@ -143,6 +141,53 @@ describe("deriveQuestConsistency", () => {
         gates: [gate("e1", "o1", "failed")],
       });
       expect(kinds(findings)).toContain("gate_never_opens");
+      const failedFirst = check({
+        objectives: [objective("o1", "failed")],
+        consequences: [rule("complete", "o1")],
+        gates: [gate("e1", "o1", "complete")],
+      });
+      expect(kinds(failedFirst)).toContain("gate_never_opens");
+    });
+
+    it("reads each verb as the status it leaves behind: fail opens a failed gate and not a complete one", () => {
+      const withGateOn = (status: QuestObjectiveStatus) => check({
+        objectives: [objective("o1", "pending")],
+        consequences: [rule("fail", "o1")],
+        gates: [gate("e1", "o1", status)],
+      });
+      expect(kinds(withGateOn("failed"))).not.toContain("gate_never_opens");
+      expect(kinds(withGateOn("complete"))).toContain("gate_never_opens");
+    });
+
+    it("lets a due date fail only an objective that is, or can become, pending, and only a whole date", () => {
+      const due = { due_year: 1490, due_month: 3, due_day: 14 };
+      // Dormant and nothing raises it: the date never comes into play.
+      expect(kinds(check({ objectives: [objective("o1", "dormant", "o1", due)], gates: [gate("e1", "o1", "failed")] }))).toContain("gate_never_opens");
+      // Raised by a rule, the date can then fail it.
+      expect(kinds(check({ objectives: [objective("o1", "dormant", "o1", due)], consequences: [rule("raise", "o1")], gates: [gate("e1", "o1", "failed")] }))).not.toContain("gate_never_opens");
+      // A year with no month or day is no deadline.
+      const partial = { ...objective("o1", "pending"), due_year: 1490 };
+      expect(kinds(check({ objectives: [partial], gates: [gate("e1", "o1", "failed")] }))).toContain("gate_never_opens");
+    });
+
+    it("reads a gate with no mode recorded as needing every condition", () => {
+      const findings = check({
+        edges: [{ id: "e1", source_beat_id: "a", target_beat_id: "b" }],
+        objectives: [objective("o1", "complete"), objective("o2", "pending")],
+        gates: [gate("e1", "o1", "complete"), gate("e1", "o2", "complete")],
+      });
+      expect(kinds(findings)).toContain("gate_never_opens");
+    });
+
+    it("names the objective that blocks an all-gate, not 'any of' several", () => {
+      const findings = check({
+        edges: [{ id: "e1", source_beat_id: "a", target_beat_id: "b", gate_mode: "all" }],
+        objectives: [objective("o1", "pending", "First"), objective("o2", "pending", "Second")],
+        gates: [gate("e1", "o1", "complete"), gate("e1", "o2", "complete")],
+      });
+      const message = findings.find((f) => f.kind === "gate_never_opens")?.message ?? "";
+      expect(message).toContain('"First"');
+      expect(message).not.toContain("any of");
     });
 
     it("distinguishes failed from complete — the wrong verb does not open the gate", () => {
@@ -258,6 +303,15 @@ describe("deriveQuestConsistency", () => {
       gates: [gate("e1", "o1", "complete")],
     });
     expect(kinds(findings)[0]).toBe("unreachable_beat");
+  });
+
+  it("puts a loop before a gate that can never open", () => {
+    const findings = check({
+      objectives: [objective("o1", "pending"), objective("o2", "pending"), objective("o3", "pending")],
+      consequences: [rule("raise", "o2", "o1"), rule("raise", "o1", "o2")],
+      gates: [gate("e1", "o3", "complete")],
+    });
+    expect(kinds(findings).filter((k) => k !== "objective_never_resolves")).toEqual(["consequence_cycle", "gate_never_opens"]);
   });
 });
 

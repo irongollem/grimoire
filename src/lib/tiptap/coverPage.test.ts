@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { generateHTML } from "@tiptap/core";
+import { generateHTML, generateJSON } from "@tiptap/core";
 import { buildFront, buildBack } from "./coverPage";
 import type { CoverPageAttrs } from "./coverPage";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
@@ -109,6 +109,7 @@ describe("buildBack cover art strip", () => {
   it("keeps the soft accent placeholder dim when there is no art", () => {
     const strip = flattenAll(buildBack({ ...base, variant: "back", backgroundImage: "" }))[0];
     expect(strip.style).toContain("opacity:0.75");
+    expect(strip.style).not.toContain("background-image");
   });
 });
 
@@ -140,6 +141,25 @@ describe("cover tagline — no invented text", () => {
   it("buildBack's bottom bar still prints a set tagline", () => {
     const spec = buildBack({ ...base, variant: "back", tagline: "A Late in the Kind Country side-trip" });
     expect(JSON.stringify(spec)).toContain("A Late in the Kind Country side-trip");
+  });
+});
+
+describe("cover attributes survive storage", () => {
+  it("keeps a switched-off title scrim off after a trip through HTML", () => {
+    const html = generateHTML(
+      { type: "doc", content: [{ type: "coverPage", attrs: { variant: "front", titleScrim: false } }] },
+      EXT,
+    );
+    const back = generateJSON(html, EXT);
+    expect(back.content?.[0]?.attrs?.titleScrim).toBe(false);
+  });
+
+  it("reads a cover with no stored variant as a front cover", () => {
+    const json = generateJSON('<div data-type="coverPage"></div>', EXT);
+    expect(json.content?.[0]?.attrs?.variant).toBe("front");
+    expect(generateHTML({ type: "doc", content: [{ type: "coverPage", attrs: { variant: undefined } }] }, EXT)).toContain(
+      "sc-cover--front",
+    );
   });
 });
 

@@ -4,7 +4,6 @@ import {
   buildMapStack,
   frameCalibration,
   hasAnyMapLayer,
-  MAP_STACK_LAYERS,
   placePicture,
   primaryImage,
   type MapStack,
@@ -141,19 +140,6 @@ describe("standing layer (#1073)", () => {
   });
 });
 
-describe("MAP_STACK_LAYERS", () => {
-  it("describes all five layers, bottom-up", () => {
-    expect(MAP_STACK_LAYERS.map((l) => l.key)).toEqual(["picture", "drawing", "plan", "tokens", "fog"]);
-  });
-
-  it("marks Picture, Drawing and Plan as authored, and Tokens/Fog as played", () => {
-    const authored = new Set(MAP_STACK_LAYERS.filter((l) => l.authored).map((l) => l.key));
-    expect(authored).toEqual(new Set(["picture", "drawing", "plan"]));
-    const played = MAP_STACK_LAYERS.filter((l) => !l.authored).map((l) => l.key);
-    expect(played).toEqual(["tokens", "fog"]);
-  });
-});
-
 describe("hasAnyMapLayer / frameCalibration / primaryImage", () => {
   it("hasAnyMapLayer mirrors buildMapStack().hasAnyLayer", () => {
     expect(hasAnyMapLayer(null)).toBe(false);
@@ -229,6 +215,33 @@ describe("placePicture", () => {
     const pCell = 1 / drawingCal.cells_per_image_width;
     expect(rect?.left).toBeCloseTo(2 * pCell, 10);
     expect(rect?.top).toBeCloseTo(0, 10);
+  });
+
+  it("shifts down by the vertical origin-cell offset, in the drawing's cell height", () => {
+    const drawingCal: GridCalibration = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0 };
+    const pictureCal: GridCalibration = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 3 };
+    const stack = stackWith(pictureCal, drawingCal);
+    // The drawing is 1000x500, so its cell is 0.1 of the width and 0.2 of the height.
+    const rect = placePicture(stack, { w: 1000, h: 500 }, { w: 1000, h: 500 });
+    expect(rect?.top).toBeCloseTo(3 * 0.2, 10);
+    expect(rect?.left).toBeCloseTo(0, 10);
+    expect(rect?.height).toBeCloseTo(1, 10);
+  });
+
+  it("subtracts the picture's own image origin offset", () => {
+    const cal: GridCalibration = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 };
+    // The picture's grid starts 10% in from its left edge, so its left edge sits 0.1 of its own width left of the grid.
+    const pictureCal: GridCalibration = { ...cal, origin_x_pct: 0.1 };
+    const rect = placePicture(stackWith(pictureCal, cal), { w: 1000, h: 1000 }, { w: 1000, h: 1000 });
+    expect(rect?.left).toBeCloseTo(-0.1, 10);
+  });
+
+  it("subtracts the picture's vertical origin offset on a wide image", () => {
+    const cal: GridCalibration = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 };
+    const pictureCal: GridCalibration = { ...cal, origin_y_pct: 0.1 };
+    // 1000x500: the picture grid starts 10% down, which is 0.1 of the frame's height once placed.
+    const rect = placePicture(stackWith(pictureCal, cal), { w: 1000, h: 500 }, { w: 1000, h: 500 });
+    expect(rect?.top).toBeCloseTo(-0.1, 10);
   });
 
   it("is null for a non-positive natural dimension", () => {

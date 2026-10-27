@@ -109,4 +109,59 @@ describe("SecretBlock", () => {
     expect(JSON.stringify(editor.getJSON())).not.toContain("pasted:");
     editor.destroy();
   });
+
+  it("replaces an id that is not a UUID, whether it was stored that way or arrived on a paste", () => {
+    const stored = doc({ type: "secretBlock", attrs: { secretId: "hello" }, content: [para("old")] });
+    const editor = new Editor({ extensions: [StarterKit, SecretBlock], content: stored });
+    editor.commands.setTextSelection(3);
+    editor.commands.insertContent("x");
+    expect(editor.getJSON().content?.[0]?.attrs?.secretId).toMatch(/^[0-9a-f-]{36}$/);
+    editor.destroy();
+
+    const target = new Editor({ extensions: [StarterKit, SecretBlock], content: doc(para("top")) });
+    target.commands.setTextSelection(1);
+    target.view.pasteHTML('<div data-type="secretBlock" data-secret-id="not-a-uuid"><p>one</p></div>');
+    const id = (target.getJSON().content ?? []).find((n) => n.type === "secretBlock")?.attrs?.secretId;
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    target.destroy();
+  });
+
+  it("gives a block that repeats an id already used above it a new one, on load and edit", () => {
+    const twice = doc(
+      { type: "secretBlock", attrs: { secretId: ID }, content: [para("one")] },
+      { type: "secretBlock", attrs: { secretId: ID }, content: [para("two")] },
+    );
+    const editor = new Editor({ extensions: [StarterKit, SecretBlock], content: twice });
+    editor.commands.setTextSelection(3);
+    editor.commands.insertContent("x");
+    const ids = (editor.getJSON().content ?? []).map((n) => n.attrs?.secretId);
+    expect(ids[0]).toBe(ID);
+    expect(ids[1]).not.toBe(ID);
+    expect(ids[1]).toMatch(/^[0-9a-f-]{36}$/);
+    editor.destroy();
+  });
+
+  describe("Mod-Alt-S", () => {
+    const press = (editor: Editor) => {
+      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+      const event = new KeyboardEvent("keydown", { key: "s", code: "KeyS", altKey: true, metaKey: mac, ctrlKey: !mac, bubbles: true });
+      editor.view.someProp("handleKeyDown", (handler) => handler(editor.view, event));
+    };
+
+    it("wraps the block when the editor offers the control", () => {
+      const editor = new Editor({ extensions: [StarterKit, SecretBlock.configure({ creatable: true })], content: doc(para("hush")) });
+      editor.commands.setTextSelection(2);
+      press(editor);
+      expect(editor.getJSON().content?.[0]?.type).toBe("secretBlock");
+      editor.destroy();
+    });
+
+    it("does nothing in an editor that does not offer it", () => {
+      const editor = new Editor({ extensions: [StarterKit, SecretBlock], content: doc(para("hush")) });
+      editor.commands.setTextSelection(2);
+      press(editor);
+      expect(editor.getJSON().content?.[0]?.type).toBe("paragraph");
+      editor.destroy();
+    });
+  });
 });

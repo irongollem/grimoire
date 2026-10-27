@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { crBg, crTier, crToNumber, crText, crLabel, monsterIdentityLine, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
+import { crBg, crTextColor, crTier, crToNumber, crText, crLabel, crVar, monsterIdentityLine, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
 
 describe("crToNumber", () => {
   it("treats CR 0 as zero", () => {
@@ -29,14 +29,8 @@ describe("crToNumber", () => {
     expect(crToNumber(" 1/4 ")).toBeCloseTo(0.25);
   });
 
-  it("parses fractional CRs", () => {
+  it("parses fractional and whole-number CRs", () => {
     expect(crToNumber("1/8")).toBeCloseTo(0.125);
-    expect(crToNumber("1/4")).toBeCloseTo(0.25);
-    expect(crToNumber("1/2")).toBeCloseTo(0.5);
-  });
-
-  it("parses whole-number CRs", () => {
-    expect(crToNumber("1")).toBe(1);
     expect(crToNumber("17")).toBe(17);
   });
 });
@@ -79,17 +73,16 @@ describe("crTier", () => {
   });
 });
 
-describe("crBg", () => {
-  // The classes must be literals in the source or Tailwind never generates
-  // them — a computed `bg-cr-${tier}` compiles, passes tests, and renders
-  // transparent. Asserting the exact strings is what catches that.
-  it("returns a static utility class per tier", () => {
-    expect(crBg("1/4")).toBe("bg-cr-trivial");
-    expect(crBg("3")).toBe("bg-cr-low");
-    expect(crBg("7")).toBe("bg-cr-moderate");
-    expect(crBg("12")).toBe("bg-cr-high");
-    expect(crBg("20")).toBe("bg-cr-deadly");
-    expect(crBg(undefined)).toBe("bg-cr-unknown");
+describe("crBg / crTextColor / crVar", () => {
+  // The three palettes are separate tables keyed by tier. A swapped entry paints
+  // a goblin the colour of a dragon in one place and the right colour in the
+  // others, which no single-helper test notices; checking each against crTier
+  // for a CR in every tier does.
+  it.each(["1/4", "3", "7", "12", "20", undefined])("paints CR %s with its own tier in all three", (cr) => {
+    const tier = crTier(cr);
+    expect(crBg(cr)).toBe(`bg-cr-${tier}`);
+    expect(crTextColor(cr)).toBe(`text-cr-${tier}`);
+    expect(crVar(cr)).toBe(`var(--cr-${tier})`);
   });
 });
 

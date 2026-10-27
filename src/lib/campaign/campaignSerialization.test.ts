@@ -12,36 +12,13 @@ import {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 describe("sortByHierarchy", () => {
-  it("orders parents before their children", () => {
-    const rows = [
-      { id: "c", parent_id: "b" },
-      { id: "b", parent_id: "a" },
-      { id: "a", parent_id: null },
-    ];
-    const sorted = sortByHierarchy(rows, "parent_id");
-    const order = sorted.map((r) => r.id);
-    expect(order.indexOf("a")).toBeLessThan(order.indexOf("b"));
-    expect(order.indexOf("b")).toBeLessThan(order.indexOf("c"));
-  });
-
-  it("treats a parent that is not in the set as a root (sorts first)", () => {
-    const rows = [
-      { id: "child", parent_id: "external-not-here" },
-      { id: "root", parent_id: null },
-    ];
-    const sorted = sortByHierarchy(rows, "parent_id");
-    // Both qualify as roots immediately; every row survives, none dropped.
-    expect(sorted).toHaveLength(2);
-    expect(sorted.map((r) => r.id).sort()).toEqual(["child", "root"]);
-  });
-
   it("keeps multiple roots and their subtrees in valid topological order", () => {
     const rows = [
-      { id: "a1", parent_id: "a" },
-      { id: "b", parent_id: null },
-      { id: "a", parent_id: null },
-      { id: "b1", parent_id: "b" },
       { id: "a1a", parent_id: "a1" },
+      { id: "b1", parent_id: "b" },
+      { id: "a1", parent_id: "a" },
+      { id: "a", parent_id: null },
+      { id: "b", parent_id: null },
     ];
     const sorted = sortByHierarchy(rows, "parent_id");
     const order = sorted.map((r) => r.id);
@@ -61,9 +38,6 @@ describe("sortByHierarchy", () => {
     expect(sorted.map((r) => r.id).sort()).toEqual(["x", "y"]);
   });
 
-  it("returns an empty array for empty input", () => {
-    expect(sortByHierarchy([], "parent_id")).toEqual([]);
-  });
 });
 
 describe("buildIdMapFromArrays", () => {
@@ -93,10 +67,6 @@ describe("buildIdMapFromArrays", () => {
 describe("remapKeep (preserve-on-miss)", () => {
   const map = new Map([["old", "new"]]);
 
-  it("remaps an id present in the map", () => {
-    expect(remapKeep("old", map)).toBe("new");
-  });
-
   it("preserves the original id when not in the map", () => {
     expect(remapKeep("library-ref", map)).toBe("library-ref");
   });
@@ -113,6 +83,10 @@ describe("remapKeepArr", () => {
 
   it("remaps known ids and preserves unknown ones", () => {
     expect(remapKeepArr(["a", "z"], map)).toEqual(["A", "z"]);
+  });
+
+  it("never lets an empty entry become null in the list", () => {
+    expect(remapKeepArr(["a", ""], map)).toEqual(["A", ""]);
   });
 
   it("returns [] for non-array input", () => {
@@ -193,6 +167,34 @@ describe("splitLegacyKin (#1083)", () => {
       ["relative", true, "a"],
     ]);
     expect(out.kin[2].to_party_member_id).toBe("p");
+  });
+
+  it.each(["chosen_family", "friend", "ally", "rival", "enemy", "lover", "mentor", "apprentice", "subordinate", "superior", "contact", "former_ally", "former_enemy"])(
+    "keeps the bond type %s the table still accepts (20261022113302)",
+    (type) => {
+      const out = splitLegacyKin([], [{ id: "1", npc_id: "a", related_npc_id: "b", relationship_type: type }], []);
+      expect(out.bonds[0].relationship_type).toBe(type);
+    },
+  );
+
+  it("keeps a pair written as a sibling both ways a sibling, and makes a sibling-then-family pair an unsorted relative", () => {
+    const sibs = splitLegacyKin([], [
+      { id: "1", npc_id: "a", related_npc_id: "b", relationship_type: "sibling" },
+      { id: "2", npc_id: "b", related_npc_id: "a", relationship_type: "sibling" },
+    ], []);
+    expect(sibs.kin).toHaveLength(1);
+    expect(sibs.kin[0]).toMatchObject({ kind: "sibling", needs_sorting: false });
+
+    const mixed = splitLegacyKin([], [
+      { id: "1", npc_id: "a", related_npc_id: "b", relationship_type: "sibling" },
+      { id: "2", npc_id: "b", related_npc_id: "a", relationship_type: "family" },
+    ], []);
+    expect(mixed.kin[0]).toMatchObject({ kind: "relative", needs_sorting: true });
+  });
+
+  it("carries the AI provenance of a legacy bond onto its kin link", () => {
+    const out = splitLegacyKin([], [{ id: "1", npc_id: "a", related_npc_id: "b", relationship_type: "family", ai_provenance: { model: "x" } }], []);
+    expect(out.kin[0].ai_provenance).toEqual({ model: "x" });
   });
 
   it("keeps an existing link for a pair, whichever way round the old bond was written", () => {

@@ -82,6 +82,130 @@ function npc(over: Partial<Npc> = {}): Npc {
   };
 }
 
+function partyMember(over: Partial<PartyMember> = {}): PartyMember {
+  return {
+    id: "pm-1",
+    user_id: "u1",
+    owner_user_id: null,
+    is_dm_managed: false,
+    ruleset: "2014",
+    campaign_id: "c1",
+    name: "Aria Stormwind",
+    player_name: "Sam",
+    class: "Fighter",
+    subclass: null,
+    level: 5,
+    subrace: null,
+    species_id: null,
+    disguise_species_id: null,
+    disguise_race: null,
+    disguise_subrace: null,
+    background_id: null,
+    max_hp: 40,
+    current_hp: 40,
+    temp_hp: 0,
+    ac: 16,
+    speed: 30,
+    initiative_bonus: 2,
+    current_initiative: null,
+    str: 16, dex: 14, con: 14, int: 10, wis: 10, cha: 10,
+    proficiency_bonus: 3,
+    skill_proficiencies: {},
+    saving_throw_proficiencies: [],
+    conditions: [],
+    curses: [],
+    inspiration: false,
+    death_save_successes: 0,
+    death_save_failures: 0,
+    portrait_url: null,
+    notes: null,
+    sort_order: 0,
+    cp: 0, sp: 0, ep: 0, gp: 0, pp: 0,
+    tool_proficiencies: [],
+    languages: [],
+    weapon_masteries: [],
+    spell_slots: [],
+    current_location_id: null,
+    carry_capacity_override: null,
+    class_resources: {},
+    class_choices: {},
+    active_infusions: [],
+    custom_attacks: [],
+    level_choices: {},
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  ...over,
+  };
+}
+
+function location(over: Partial<Location> = {}): Location {
+  return {
+    id: "loc-1",
+    user_id: "u1",
+    campaign_id: "c1",
+    parent_id: null,
+    name: "Shadowdale",
+    location_type: "region",
+    climate: null,
+    terrain: null,
+    description: null,
+    notes: null,
+    tags: [],
+    image_url: null,
+    map_url: null,
+    map_pins: [],
+    is_map_shared: false,
+    player_visible_to: [],
+    player_summary: null,
+    is_description_shared: false,
+    is_npcs_shared: false,
+    is_inventory_shared: false,
+    npc_owner_id: null,
+    related_location_ids: [],
+    source_map_id: null,
+    is_battle_map: false,
+    grid_calibration: null,
+    map_layer_url: null,
+    map_layer_stand_url: null,
+    map_layer_stand_live_url: null,
+    map_layer_calibration: null,
+    map_live: null,
+    map_scale: null,
+    plan_size: null,
+    era_start: null,
+    era_end: null,
+    audio_theme: null,
+    sort_order: null,
+    map_published_rev: null,
+    is_level: false,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...over,
+  };
+}
+
+function faction(over: Partial<Faction> = {}): Faction {
+  return {
+    id: "fac-1",
+    user_id: "u1",
+    campaign_id: "c1",
+    name: "The Harpers",
+    faction_type: "Secret Society",
+    description: tiptapDoc("A network of do-gooders."),
+    emblem_url: null,
+    alignment: "Neutral Good",
+    player_visible_to: [],
+    tags: ["heroes"],
+    party_standing: "indifferent",
+    descent: null,
+    succession_note: "",
+    seat_location_id: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...over,
+  };
+}
+
 describe("buildMarkdownVault — file layout", () => {
   it("writes one file per entity under its folder, plus a root README", () => {
     const files = buildMarkdownVault(baseInput({ npcs: [npc()] }));
@@ -100,16 +224,11 @@ describe("buildMarkdownVault — file layout", () => {
     expect(files["NPCs/Bandit (2).md"]).toBeDefined();
     expect(files["NPCs/WhoWhat.md"]).toBeDefined();
   });
-
-  it("falls back to Untitled for a nameless entity", () => {
-    const files = buildMarkdownVault(baseInput({ npcs: [npc({ name: "" })] }));
-    expect(files["NPCs/Untitled.md"]).toBeDefined();
-  });
 });
 
 describe("buildMarkdownVault — NPC frontmatter and body", () => {
   it("renders frontmatter fields and converted rich-text sections", () => {
-    const files = buildMarkdownVault(baseInput({ npcs: [npc()] }));
+    const files = buildMarkdownVault(baseInput({ npcs: [npc({ backstory: tiptapDoc("Born in Shadowdale."), notes: tiptapDoc("Is secretly a lich.") })] }));
     const md = files["NPCs/Elminster.md"];
     expect(md).toContain('type: "npc"');
     expect(md).toContain('grimoire_id: "npc-1"');
@@ -120,6 +239,9 @@ describe("buildMarkdownVault — NPC frontmatter and body", () => {
     expect(md).toContain("# Elminster");
     expect(md).toContain("## Appearance\n\nA grey-bearded old man.");
     expect(md).toContain("## Personality\n\nWry and forgetful.");
+    // The vault is the DM's own copy of the campaign: the notes only they read go with it.
+    expect(md).toContain("## Backstory\n\nBorn in Shadowdale.");
+    expect(md).toContain("## DM Notes\n\nIs secretly a lich.");
   });
 
   it("skips a section for a field with no content", () => {
@@ -183,58 +305,7 @@ describe("buildMarkdownVault — @mentions become wikilinks", () => {
   });
 
   it("resolves a party-member mention (entityType 'player') to the Party folder's file name", () => {
-    const pm: PartyMember = {
-      id: "pm-1",
-      user_id: "u1",
-      owner_user_id: null,
-      is_dm_managed: false,
-      ruleset: "2014",
-      campaign_id: "c1",
-      name: "Aria Stormwind",
-      player_name: "Sam",
-      class: "Fighter",
-      subclass: null,
-      level: 5,
-      subrace: null,
-      species_id: null,
-      disguise_species_id: null,
-      disguise_race: null,
-      disguise_subrace: null,
-      background_id: null,
-      max_hp: 40,
-      current_hp: 40,
-      temp_hp: 0,
-      ac: 16,
-      speed: 30,
-      initiative_bonus: 2,
-      current_initiative: null,
-      str: 16, dex: 14, con: 14, int: 10, wis: 10, cha: 10,
-      proficiency_bonus: 3,
-      skill_proficiencies: {},
-      saving_throw_proficiencies: [],
-      conditions: [],
-      curses: [],
-      inspiration: false,
-      death_save_successes: 0,
-      death_save_failures: 0,
-      portrait_url: null,
-      notes: null,
-      sort_order: 0,
-      cp: 0, sp: 0, ep: 0, gp: 0, pp: 0,
-      tool_proficiencies: [],
-      languages: [],
-      weapon_masteries: [],
-      spell_slots: [],
-      current_location_id: null,
-      carry_capacity_override: null,
-      class_resources: {},
-      class_choices: {},
-      active_infusions: [],
-      custom_attacks: [],
-      level_choices: {},
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-    };
+    const pm = partyMember();
     const files = buildMarkdownVault(baseInput({
       partyMembers: [pm],
       npcs: [npc({ appearance: mentionDoc("pm-1", "player") })],
@@ -246,52 +317,6 @@ describe("buildMarkdownVault — @mentions become wikilinks", () => {
 });
 
 describe("buildMarkdownVault — Locations", () => {
-  function location(over: Partial<Location> = {}): Location {
-    return {
-      id: "loc-1",
-      user_id: "u1",
-      campaign_id: "c1",
-      parent_id: null,
-      name: "Shadowdale",
-      location_type: "region",
-      climate: null,
-      terrain: null,
-      description: null,
-      notes: null,
-      tags: [],
-      image_url: null,
-      map_url: null,
-      map_pins: [],
-      is_map_shared: false,
-      player_visible_to: [],
-      player_summary: null,
-      is_description_shared: false,
-      is_npcs_shared: false,
-      is_inventory_shared: false,
-      npc_owner_id: null,
-      related_location_ids: [],
-      source_map_id: null,
-      is_battle_map: false,
-      grid_calibration: null,
-      map_layer_url: null,
-      map_layer_stand_url: null,
-      map_layer_stand_live_url: null,
-      map_layer_calibration: null,
-      map_live: null,
-      map_scale: null,
-      plan_size: null,
-      era_start: null,
-      era_end: null,
-      audio_theme: null,
-      sort_order: null,
-      map_published_rev: null,
-      is_level: false,
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-      ...over,
-    };
-  }
-
   it("links a location's parent as a wikilink when the parent is also exported", () => {
     const files = buildMarkdownVault(baseInput({
       locations: [
@@ -303,6 +328,14 @@ describe("buildMarkdownVault — Locations", () => {
     expect(files["Locations/Shadowdale.md"]).not.toContain("parent:");
   });
 
+  it("resolves a mention of an exported location to its file", () => {
+    const files = buildMarkdownVault(baseInput({
+      locations: [location({ id: "loc-1", name: "Shadowdale" })],
+      npcs: [npc({ appearance: mentionDoc("loc-1", "location") })],
+    }));
+    expect(files["NPCs/Elminster.md"]).toContain("See [[Locations/Shadowdale|Shadowdale]].");
+  });
+
   it("renders the description section from Tiptap JSON", () => {
     const files = buildMarkdownVault(baseInput({
       locations: [location({ description: tiptapDoc("A quiet dale.") })],
@@ -312,27 +345,13 @@ describe("buildMarkdownVault — Locations", () => {
 });
 
 describe("buildMarkdownVault — Factions", () => {
-  function faction(over: Partial<Faction> = {}): Faction {
-    return {
-      id: "fac-1",
-      user_id: "u1",
-      campaign_id: "c1",
-      name: "The Harpers",
-      faction_type: "Secret Society",
-      description: tiptapDoc("A network of do-gooders."),
-      emblem_url: null,
-      alignment: "Neutral Good",
-      player_visible_to: [],
-      tags: ["heroes"],
-      party_standing: "indifferent",
-      descent: null,
-      succession_note: "",
-      seat_location_id: null,
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-      ...over,
-    };
-  }
+  it("resolves a mention of an exported faction to its file", () => {
+    const files = buildMarkdownVault(baseInput({
+      factions: [faction({ id: "fac-1", name: "The Harpers" })],
+      npcs: [npc({ appearance: mentionDoc("fac-1", "faction") })],
+    }));
+    expect(files["NPCs/Elminster.md"]).toContain("See [[Factions/The Harpers|The Harpers]].");
+  });
 
   it("renders faction frontmatter and description", () => {
     const files = buildMarkdownVault(baseInput({ factions: [faction()] }));
@@ -408,6 +427,15 @@ describe("buildMarkdownVault — Quests", () => {
     expect(files["Quests/Side Quest.md"]).toContain('parent: "[[Quests/Main Quest|Main Quest]]"');
   });
 
+  it("lists only a quest's own objectives", () => {
+    const files = buildMarkdownVault(baseInput({
+      quests: [quest({ id: "q-1", title: "Main Quest" }), quest({ id: "q-2", title: "Side Quest" })],
+      questObjectives: [objective({ id: "o1", quest_id: "q-1", description: "Mine" }), objective({ id: "o2", quest_id: "q-2", description: "Theirs" })],
+    }));
+    expect(files["Quests/Main Quest.md"]).toContain("Mine");
+    expect(files["Quests/Main Quest.md"]).not.toContain("Theirs");
+  });
+
   it("omits the Objectives section when there are none", () => {
     const files = buildMarkdownVault(baseInput({ quests: [quest()], questObjectives: [] }));
     expect(files["Quests/The Ashen Vale.md"]).not.toContain("## Objectives");
@@ -457,6 +485,16 @@ describe("buildMarkdownVault — Notes", () => {
     expect(md).toContain("The party arrived at the vale.");
   });
 
+  it("finds the monsters a note mentions, so their names are fetched", () => {
+    const ids = collectMentionedMonsterIds({ npcs: [], locations: [], factions: [], partyMembers: [], notes: [note({ content: mentionDoc("m-note", "monster") })] });
+    expect(ids).toEqual(["m-note"]);
+  });
+
+  it("names session zero: the number 0 is a session, not an absence", () => {
+    const files = buildMarkdownVault(baseInput({ notes: [note()], sessions: [{ ...SESSION, number: 0 }] }));
+    expect(files["Notes/Session 3 recap.md"]).toContain("session: 0");
+  });
+
   it("omits the session fields when the note links none", () => {
     const files = buildMarkdownVault(baseInput({ notes: [note({ category: "general", session_id: null })], sessions: [SESSION] }));
     expect(files["Notes/Session 3 recap.md"]).not.toContain("session:");
@@ -498,14 +536,18 @@ describe("collectMentionedMonsterIds", () => {
     expect(ids).toEqual(["mon-1"]);
   });
 
+  it("finds monster mentions in a location, a faction, a party member and a note, not only in NPCs", () => {
+    const base = { npcs: [], locations: [], factions: [], partyMembers: [], notes: [] };
+    const loc = collectMentionedMonsterIds({ ...base, locations: [location({ description: mentionDoc("m-loc", "monster") })] });
+    const fac = collectMentionedMonsterIds({ ...base, factions: [faction({ description: mentionDoc("m-fac", "monster") })] });
+    const pc = collectMentionedMonsterIds({ ...base, partyMembers: [partyMember({ bonds: mentionDoc("m-pc", "monster") })] });
+    expect([loc, fac, pc]).toEqual([["m-loc"], ["m-fac"], ["m-pc"]]);
+  });
+
   it("ignores non-monster mentions", () => {
     const ids = collectMentionedMonsterIds(baseInput({
       npcs: [npc({ appearance: mentionDoc("npc-2", "npc") })],
     }));
     expect(ids).toEqual([]);
-  });
-
-  it("returns an empty array when there is nothing to scan", () => {
-    expect(collectMentionedMonsterIds(baseInput())).toEqual([]);
   });
 });

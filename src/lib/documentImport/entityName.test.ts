@@ -11,12 +11,9 @@ describe("normalizeEntityName", () => {
     expect(normalizeEntityName("Potions of Healing")).toBe("potion of healing");
   });
 
-  it("returns null for whitespace-only input", () => {
-    expect(normalizeEntityName("   ")).toBeNull();
-  });
-
-  it("returns null for an empty string", () => {
+  it("returns null for empty and whitespace-only input", () => {
     expect(normalizeEntityName("")).toBeNull();
+    expect(normalizeEntityName("   ")).toBeNull();
   });
 
   it("lowercases and trims", () => {
@@ -40,16 +37,6 @@ describe("normalizeEntityName", () => {
     // Guards the {3,} quantifier: a two-letter word ending in "s" is left
     // alone rather than mangled into a one-letter stub.
     expect(normalizeEntityName("Gas")).toBe("gas");
-  });
-
-  it("makes 'Blue Clam' and 'The blue clam' meet at the same key", () => {
-    // The bug this replaces `findByName`'s old lowercase+trim rule to fix
-    // (see importPlan.ts): the extracted heading carried no article at all.
-    expect(normalizeEntityName("Blue Clam")).toBe(normalizeEntityName("The blue clam"));
-  });
-
-  it("leaves a name with no article and no trailing plural unchanged but lowercased", () => {
-    expect(normalizeEntityName("Waterdeep")).toBe("waterdeep");
   });
 
   // The cases below are the ones a real chapter missed on 2 Oct 2026: a book

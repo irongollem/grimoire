@@ -40,6 +40,9 @@ describe("outlinePath", () => {
     const path = outlinePath(["0,0"], 0.1);
     expect(path).toContain("M 0 0.1 h 1");
     expect(path).toContain("M 0.1 0 v 1");
+    // The bottom and right edges are inset inward too (towards the cell), not outward.
+    expect(path).toContain("M 0 0.9 h 1");
+    expect(path).toContain("M 0.9 0 v 1");
   });
 });
 
@@ -65,6 +68,11 @@ describe("textureCells", () => {
     expect(textureCells(["0,0", "1,0", "2,0", "3,0", "5,0"])).toEqual(["0,0", "5,0"]);
   });
 
+  it("weighs the row as well as the column", () => {
+    // (x*7 + y*13) % 5 === 0 : (1,1)=20, (2,2)=40, (0,5)=65 qualify; (0,1)=13 and (1,2)=33 do not.
+    expect(textureCells(["0,1", "1,1", "1,2", "2,2", "0,5"])).toEqual(["1,1", "2,2", "0,5"]);
+  });
+
   it("returns nothing for an empty set", () => {
     expect(textureCells([])).toEqual([]);
   });
@@ -77,6 +85,10 @@ describe("edgeSegment", () => {
 
   it("resolves a W edge to the cell's left side", () => {
     expect(edgeSegment("2,3:W")).toEqual({ x1: 2, y1: 3, x2: 2, y2: 4 });
+  });
+
+  it("shortens a W edge symmetrically from both ends when inset", () => {
+    expect(edgeSegment("2,3:W", 0.2)).toEqual({ x1: 2, y1: 3.2, x2: 2, y2: 3.8 });
   });
 
   it("shortens symmetrically from both ends when inset", () => {

@@ -23,6 +23,8 @@ describe("visibleTags", () => {
     expect(visibleTags(at("tavern", ["Tavern"]))).toEqual([]);
     expect(visibleTags(at("tavern", ["  TAVERN  "]))).toEqual([]);
     expect(visibleTags(at("wilderness", ["Wilderness"]))).toEqual([]);
+    // "Ten Towns", "ten-towns" and "ten_towns" are one tag; a type word split by a separator is too.
+    expect(visibleTags(at("tavern", ["tav ern", "tav-ern", "tav_ern"]))).toEqual([]);
   });
 
   it("leaves everything else alone", () => {

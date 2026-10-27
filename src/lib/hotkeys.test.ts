@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatCombo, isMacPlatform, isTextEntryTarget, matchesCombo, parseCombo } from "@/lib/hotkeys";
 
 describe("parseCombo", () => {
@@ -7,18 +7,8 @@ describe("parseCombo", () => {
     expect(parseCombo("k")).toEqual({ key: "k", mod: false, shift: false, alt: false });
   });
 
-  it("parses a digit key", () => {
-    expect(parseCombo("1")).toEqual({ key: "1", mod: false, shift: false, alt: false });
-  });
-
-  it("parses named keys", () => {
-    expect(parseCombo("space")).toEqual({ key: "space", mod: false, shift: false, alt: false });
-    expect(parseCombo("arrowup")).toEqual({ key: "arrowup", mod: false, shift: false, alt: false });
-  });
-
-  it("parses punctuation keys", () => {
-    expect(parseCombo("?")).toEqual({ key: "?", mod: false, shift: false, alt: false });
-    expect(parseCombo("/")).toEqual({ key: "/", mod: false, shift: false, alt: false });
+  it.each(["1", "space", "arrowup", "?", "/"])("takes %s as a key, not a modifier", (key) => {
+    expect(parseCombo(key)).toEqual({ key, mod: false, shift: false, alt: false });
   });
 
   it("parses a single modifier plus key", () => {
@@ -27,8 +17,7 @@ describe("parseCombo", () => {
     expect(parseCombo("alt+k")).toEqual({ key: "k", mod: false, shift: false, alt: true });
   });
 
-  it("parses multiple modifiers plus key", () => {
-    expect(parseCombo("mod+shift+k")).toEqual({ key: "k", mod: true, shift: true, alt: false });
+  it("parses all three modifiers together", () => {
     expect(parseCombo("mod+shift+alt+k")).toEqual({ key: "k", mod: true, shift: true, alt: true });
   });
 
@@ -164,11 +153,8 @@ describe("formatCombo", () => {
     expect(formatCombo("mod+shift+k", false)).toBe("Ctrl+Shift+K");
   });
 
-  it("formats a lone alt as its symbol on macOS", () => {
+  it("formats alt as its symbol on macOS and by name elsewhere", () => {
     expect(formatCombo("alt+k", true)).toBe("⌥K");
-  });
-
-  it("formats a lone alt with a name elsewhere", () => {
     expect(formatCombo("alt+k", false)).toBe("Alt+K");
   });
 
@@ -243,7 +229,18 @@ describe("isTextEntryTarget", () => {
 });
 
 describe("isMacPlatform", () => {
-  it("returns a boolean without throwing", () => {
-    expect(typeof isMacPlatform()).toBe("boolean");
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    ["the platform string", { platform: "MacIntel", userAgent: "Mozilla/5.0" }],
+    ["the user agent when the platform string is blank (iPadOS)", { platform: "", userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X)" }],
+  ])("is true from %s", (_title, nav) => {
+    vi.stubGlobal("navigator", nav);
+    expect(isMacPlatform()).toBe(true);
+  });
+
+  it("is false on Windows and Linux", () => {
+    vi.stubGlobal("navigator", { platform: "Win32", userAgent: "Mozilla/5.0 (Windows NT 10.0)" });
+    expect(isMacPlatform()).toBe(false);
   });
 });

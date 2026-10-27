@@ -17,6 +17,10 @@ describe("markdownToTiptapNodes", () => {
     });
   });
 
+  it("a fenced block with no language has a null language, not undefined", () => {
+    expect(first("```\nplain\n```")).toMatchObject({ type: "codeBlock", attrs: { language: null } });
+  });
+
   it("nests marks and decodes entities", () => {
     const para = first("**bold _both_** ~~gone~~ `x<y` a &amp; b") as { content: TiptapNode[] };
     expect(para.content).toEqual([
@@ -28,6 +32,11 @@ describe("markdownToTiptapNodes", () => {
       { type: "text", text: "x<y", marks: [{ type: "code" }] },
       { type: "text", text: " a & b" },
     ]);
+  });
+
+  it("decodes the entities marked leaves in text: apostrophes, quotes, brackets and non-breaking spaces", () => {
+    const para = first("it&#39;s&nbsp;fine &lt;b&gt; &quot;q&quot;") as { content: TiptapNode[] };
+    expect(para.content).toEqual([{ type: "text", text: 'it\'s fine <b> "q"' }]);
   });
 
   it("joins soft wraps and honours hard breaks", () => {
@@ -47,6 +56,12 @@ describe("markdownToTiptapNodes", () => {
     expect((tasks.content as TiptapNode[]).map((i) => (i.attrs as { checked: boolean }).checked)).toEqual([false, true]);
 
     expect(first("3. x\n4. y")).toMatchObject({ type: "orderedList", attrs: { start: 3 } });
+  });
+
+  it("a list item that opens with a heading is not given an empty paragraph first", () => {
+    const [list] = markdownToTiptapNodes("- ## Title");
+    const item = (list.content as TiptapNode[])[0];
+    expect(types(item.content as TiptapNode[])).toEqual(["heading"]);
   });
 
   it("turns an Obsidian callout into a blockquote with a bold title line", () => {
@@ -75,6 +90,17 @@ describe("markdownToTiptapNodes", () => {
     expect(JSON.stringify(table.content[1])).toContain('"bold"');
   });
 
+  it("hands a link hook the link's plain label: marks, nested emphasis and inline html reduced to text", () => {
+    let label = "";
+    first("[a **b** <i>c</i>](Bob.md)", {
+      link: (link) => {
+        label = link.label;
+        return null;
+      },
+    });
+    expect(label).toBe("a b c");
+  });
+
   it("makes links into link marks, or lets a hook claim them", () => {
     const plain = first("see [Bob](https://x.test/b)") as { content: TiptapNode[] };
     expect(plain.content[1]).toEqual({ type: "text", text: "Bob", marks: [{ type: "link", attrs: { href: "https://x.test/b" } }] });
@@ -99,6 +125,18 @@ describe("markdownToTiptapNodes", () => {
       expect(refs("[[Bob#History]]")[0]).toMatchObject({ attrs: { target: "Bob", label: "Bob" } });
       expect(refs("[[Bob#^abc|x]]")[0]).toMatchObject({ attrs: { target: "Bob", label: "x" } });
       expect(refs("[[A/B/C]]")[0]).toMatchObject({ attrs: { label: "C" } });
+    });
+
+    it("trims an alias, and falls back to the whole written target when it has no name of its own", () => {
+      expect(refs("[[Bob|  The Bold  ]]")[0]).toMatchObject({ attrs: { target: "Bob", label: "The Bold" } });
+      // A bare heading link has no target before the #, so the label is the text as written.
+      expect(refs("[[#History]]")[0]).toMatchObject({ attrs: { target: "", label: "#History" } });
+    });
+
+    it("keeps the marks a hook put on its own node instead of overwriting them with the surrounding ones", () => {
+      const marked = (md: string) =>
+        (first(md, { wikilink: () => ({ type: "ref", marks: [{ type: "italic" }] }) }) as { content: TiptapNode[] }).content[0];
+      expect(marked("**[[Bob]]**")).toEqual({ type: "ref", marks: [{ type: "italic" }] });
     });
 
     it("lets the hook drop an embed and keeps surrounding marks on a produced node", () => {

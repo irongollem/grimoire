@@ -21,7 +21,13 @@ describe("convexHull", () => {
   it("returns degenerate inputs rather than rejecting them", () => {
     expect(convexHull([])).toEqual([]);
     expect(convexHull([{ x: 3, y: 4 }])).toEqual([{ x: 3, y: 4 }]);
-    expect(convexHull([{ x: 0, y: 0 }, { x: 8, y: 0 }])).toHaveLength(2);
+    expect(convexHull([{ x: 8, y: 0 }, { x: 0, y: 0 }])).toEqual([{ x: 8, y: 0 }, { x: 0, y: 0 }]);
+  });
+
+  it("leaves out a point that lies on an edge, not only one inside", () => {
+    const hull = convexHull([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }, { x: 5, y: 0 }]);
+    expect(hull).toHaveLength(4);
+    expect(hull).not.toContainEqual({ x: 5, y: 0 });
   });
 
   // Three-in-a-row has no area, so the chain halves cancel out. Without the
@@ -57,6 +63,12 @@ describe("padOutward", () => {
   // A lone member sits at its own centroid, so the outward direction is
   // undefined — dividing by that distance yields NaN and the path silently
   // stops rendering.
+  it("moves each vertex outward by exactly the padding", () => {
+    const [corner] = padOutward([{ x: 3, y: 4 }, { x: -3, y: -4 }], 5);
+    expect(corner.x).toBeCloseTo(6); // 3 + 3/5 * 5
+    expect(corner.y).toBeCloseTo(8); // 4 + 4/5 * 5
+  });
+
   it("leaves a single point where it is instead of producing NaN", () => {
     const padded = padOutward([{ x: 4, y: 7 }], 20);
     expect(padded).toEqual([{ x: 4, y: 7 }]);
@@ -111,6 +123,11 @@ describe("clusterByProximity", () => {
   it("follows a chain of neighbours rather than fragmenting it", () => {
     const chain = [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 400, y: 0 }, { x: 600, y: 0 }];
     expect(clusterByProximity(chain, 240)).toHaveLength(1);
+  });
+
+  it("joins members exactly at the threshold and splits those just beyond it", () => {
+    expect(clusterByProximity([{ x: 0, y: 0 }, { x: 240, y: 0 }], 240)).toHaveLength(1);
+    expect(clusterByProximity([{ x: 0, y: 0 }, { x: 241, y: 0 }], 240)).toHaveLength(2);
   });
 
   it("gives a lone member its own cluster", () => {

@@ -15,6 +15,8 @@ describe("itemScopeOf", () => {
 
   it("classifies a UUID row with no campaign as general", () => {
     expect(itemScopeOf({ id: OWNED, campaign_id: null }, ACTIVE)).toBe("general");
+    // With no campaign open, an unscoped row is still general, not "other_campaign".
+    expect(itemScopeOf({ id: OWNED, campaign_id: null }, null)).toBe("general");
   });
 
   it("classifies a UUID row scoped to the active campaign as campaign", () => {

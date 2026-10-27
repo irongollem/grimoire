@@ -18,6 +18,10 @@ describe("quest beat graph traversal", () => {
     expect(findBeatPath("a", "d", edges)).toEqual(["a", "b", "c", "d"]);
   });
 
+  it("is just the beat itself when the start is the target, even inside a cycle", () => {
+    expect(findBeatPath("a", "a", [edge("a", "b"), edge("b", "a")])).toEqual(["a"]);
+  });
+
   it("returns null for an unreachable beat", () => {
     expect(findBeatPath("a", "z", [edge("a", "b"), edge("b", "a")])).toBeNull();
   });

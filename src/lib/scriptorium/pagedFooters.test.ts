@@ -25,6 +25,9 @@ describe("injectPagedFooters", () => {
     injectPagedFooters(c, { showPageNumbers: true, footerText: "Icewind Dale", start: 1 });
     expect(footerTexts(c)).toEqual(["1", "2"]);
     expect(c.querySelector(".sc-footer-text")?.textContent).toBe("Icewind Dale");
+    // The number is printed on both sides of the footer text.
+    const nums = Array.from(c.querySelector(".sc-footer")!.querySelectorAll(".sc-footer-num")).map((e) => e.textContent);
+    expect(nums).toEqual(["1", "1"]);
   });
 
   it("injects no footer when page numbers are off", () => {

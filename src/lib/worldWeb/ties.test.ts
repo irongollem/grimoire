@@ -56,6 +56,8 @@ describe("asConnection", () => {
     const t = tie({ told: "Every dawn" });
     const out = asConnection(t, "npc:brenna");
     expect(out).toMatchObject({ outward: true, other_kind: "deity", other_id: "lady", other_name: "The Drowned Lady", told: "Every dawn" });
+    expect(out.note).toBeNull();
+    expect(asConnection(tie({ note: "Seen at the shrine" }), "npc:brenna").note).toBe("Seen at the shrine");
     const back = asConnection(t, "deity:lady");
     expect(back).toMatchObject({ outward: false, other_kind: "npc", other_id: "brenna", other_name: "Brenna Ashe" });
   });

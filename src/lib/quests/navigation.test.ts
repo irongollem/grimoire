@@ -6,6 +6,12 @@ describe("quest return navigation", () => {
     expect(safeQuestReturnTo("/quests/q?mode=build&beat=b", "/quests/q")).toContain("beat=b");
     expect(safeQuestReturnTo("https://evil.invalid", "/quests/q")).toBe("/quests/q");
     expect(safeQuestReturnTo("//evil.invalid", "/quests/q")).toBe("/quests/q");
+    expect(safeQuestReturnTo(undefined, "/quests/q")).toBe("/quests/q");
+    expect(safeQuestReturnTo(["/quests/other"], "/quests/q")).toBe("/quests/q");
+  });
+
+  it("starts a query string on a path that has none", () => {
+    expect(withQuestReturnTo("/quests/q", "/quests/q/beats/b")).toBe("/quests/q?returnTo=%2Fquests%2Fq%2Fbeats%2Fb");
   });
 
   it("preserves specialist query strings", () => {

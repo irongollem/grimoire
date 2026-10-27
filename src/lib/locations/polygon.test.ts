@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GridPoint } from "@/types/locationMapRegion.types";
 import { cellKey } from "@/types/dungeonMap.types";
-import { cellsInCircle } from "@/lib/map/gestures/template";
+import { cellsForTemplate, cellsInCircle } from "@/lib/map/gestures/template";
 import { canonicalCells } from "@/cartographer/cellSignature";
 import {
   snapPoint,
@@ -37,6 +37,10 @@ describe("snapPoint", () => {
 
   it("rounds a half-cell input down to the nearer intersection", () => {
     expect(snapPoint(2.4, 2.6, "intersection")).toEqual([2, 3]);
+  });
+
+  it("snaps a negative coordinate to the nearest intersection", () => {
+    expect(snapPoint(-2.4, -2.6, "intersection")).toEqual([-2, -3]);
   });
 
   it("never returns a negative zero", () => {
@@ -79,6 +83,11 @@ describe("pointInRing", () => {
 
   it("is true for a point exactly on a vertex", () => {
     expect(pointInRing(0, 0, SQUARE)).toBe(true);
+  });
+
+  it("is false for a point on the line of an edge but beyond its end", () => {
+    expect(pointInRing(6, 0, SQUARE)).toBe(false);
+    expect(pointInRing(-2, 0, SQUARE)).toBe(false);
   });
 
   it("is false with fewer than 3 points", () => {
@@ -127,6 +136,10 @@ describe("cellsInsideRing", () => {
 
   it("returns [] for a ring with fewer than 3 points", () => {
     expect(cellsInsideRing([[0, 0], [4, 0]])).toEqual([]);
+  });
+
+  it("returns [] for a ring that is only one segment drawn back on itself, even if its line passes through cell centres", () => {
+    expect(cellsInsideRing([[0, 0.5], [4, 0.5], [0, 0.5]])).toEqual([]);
   });
 
   it("returns [] for an empty ring", () => {
@@ -182,6 +195,14 @@ describe("nearestVertex", () => {
   it("returns null when nothing is within tolerance", () => {
     expect(nearestVertex(SQUARE, 20, 20, 1)).toBeNull();
   });
+
+  it("picks the closer of two vertices both within tolerance", () => {
+    expect(nearestVertex([[1, 0], [0, 0], [1, 4]], 0.9, 0, 2)).toBe(0);
+  });
+
+  it("accepts a vertex exactly at the tolerance", () => {
+    expect(nearestVertex(SQUARE, 1, 0, 1)).toBe(0);
+  });
 });
 
 describe("nearestEdge", () => {
@@ -194,6 +215,18 @@ describe("nearestEdge", () => {
     expect(nearestEdge(SQUARE, 20, 20, 1)).toBeNull();
   });
 
+  it("picks the closer of two edges within tolerance, and tests the closing edge too", () => {
+    // Near the closing edge (0,4)->(0,0): index 3.
+    expect(nearestEdge(SQUARE, 0.2, 2, 1)).toEqual({ index: 3, point: [0, 2] });
+    // Near the corner (4,0), nearer the top edge (index 0) than the right edge (index 1).
+    expect(nearestEdge(SQUARE, 3.5, 0.1, 1)?.index).toBe(0);
+  });
+
+  it("clamps the projection to the segment, not its infinite line", () => {
+    // (5.6, -0.3) projects past the end of the top edge; the nearest point on the ring is the corner (4,0).
+    expect(nearestEdge(SQUARE, 5.6, -0.3, 2)?.point).toEqual([4, 0]);
+  });
+
   it("returns null for a ring with fewer than 2 points", () => {
     expect(nearestEdge([[0, 0]], 0, 0, 5)).toBeNull();
   });
@@ -204,9 +237,8 @@ describe("templateCells", () => {
     expect(templateCells("circle", [5.4, 5.6], 3.2)).toEqual(cellsInCircle(5, 6, 3));
   });
 
-  it("matches cellsForTemplate for octagon and hex too", () => {
-    expect(templateCells("octagon", [0, 0], 4).length).toBeGreaterThan(0);
-    expect(templateCells("hex", [0, 0], 4).length).toBeGreaterThan(0);
+  it.each(["octagon", "hex"] as const)("passes the %s shape through, not a default", (shape) => {
+    expect(templateCells(shape, [0, 0], 4)).toEqual(cellsForTemplate(0, 0, 4, shape));
   });
 });
 
@@ -234,14 +266,6 @@ describe("templateRing", () => {
     for (const c of circleCells) if (!ringCells.has(c)) diff++;
     expect(diff).toBeLessThanOrEqual(Math.ceil(circleCells.size * 0.1));
   });
-
-  it("produces vertices editable with the pen — a plain ring of GridPoints", () => {
-    const ring = templateRing("octagon", [3, 3], 5);
-    for (const [x, y] of ring) {
-      expect(Number.isFinite(x)).toBe(true);
-      expect(Number.isFinite(y)).toBe(true);
-    }
-  });
 });
 
 describe("simplifyRing", () => {
@@ -251,6 +275,10 @@ describe("simplifyRing", () => {
 
   it("drops a duplicate across the wraparound seam", () => {
     expect(simplifyRing([[0, 0], [4, 0], [4, 4], [0, 0]])).toEqual([[0, 0], [4, 0], [4, 4]]);
+  });
+
+  it("drops a collinear midpoint on a diagonal", () => {
+    expect(simplifyRing([[0, 0], [1, 1], [2, 2], [2, 0]])).toEqual([[0, 0], [2, 2], [2, 0]]);
   });
 
   it("drops collinear midpoints", () => {

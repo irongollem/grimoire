@@ -27,6 +27,7 @@ describe("isGrimoireBundle", () => {
     expect(isGrimoireBundle({ file_type: "nope", version: "2" })).toBe(false);
     expect(isGrimoireBundle(null)).toBe(false);
     expect(isGrimoireBundle("x")).toBe(false);
+    expect(isGrimoireBundle({ file_type: "world_bundle", version: 2 })).toBe(false);
   });
 });
 
@@ -42,6 +43,20 @@ describe("attach/extract round-trip", () => {
 
   it("returns null for a PDF with no attachment", async () => {
     expect(await extractBundleFromPdf(await blankPdf())).toBeNull();
+  });
+
+  it("ignores a JSON attachment that is not a bundle, and still finds the bundle beside it", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([300, 400]);
+    await doc.attach(new TextEncoder().encode(JSON.stringify({ some: "other file" })), "a-notes.json", {
+      mimeType: "application/json",
+    });
+    expect(await extractBundleFromPdf(await doc.save())).toBeNull();
+
+    await doc.attach(new TextEncoder().encode(JSON.stringify(bundle)), "grimoire-campaign.json", {
+      mimeType: "application/json",
+    });
+    expect((await extractBundleFromPdf(await doc.save()))?.name).toBe("Rime of the Frostmaiden");
   });
 
   it("returns null for non-PDF bytes", async () => {

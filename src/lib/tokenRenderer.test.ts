@@ -61,6 +61,7 @@ function makeRecorder(): { ctx: unknown; rec: RecorderCtx } {
       rec.drawImageCalls += 1;
       rec.drawImageArgs.push({ x, y, w, h });
     },
+    closePath: noop,
     translate: noop,
     rotate: noop,
     measureText: (s: string) => ({ width: s.length * 8 }),
@@ -281,6 +282,70 @@ describe("drawToken — imageFit", () => {
     const diam = ir * 2;
     const draw = rec.drawImageArgs.at(-1)!;
     expect(draw.w).toBeCloseTo(diam, 5);
+  });
+
+  // 100x200 portrait on a 512 token: ring centre 256, inner radius 236, so the
+  // image is drawn 472 wide and 944 tall and the picture can slide 472px.
+  // A focal point is the spot (in % of the image) that should sit at the ring's
+  // centre, held so the picture never leaves a gap inside the ring.
+  it.each([
+    [{ x: 50, y: 50 }, -216], // y: 256 - 0.5 * 944, free to centre
+    [{ x: 50, y: 0 }, 20], // the top edge of the picture meets the top of the ring (256 - 236)
+    [{ x: 50, y: 100 }, -452], // the bottom edge meets the bottom of the ring (256 + 236 - 944)
+    [null, -216], // no focal point centres the picture
+  ])("places a tall portrait with focal point %j at y %i", async (focalPoint, expectedY) => {
+    stubImageWithSize(100, 200);
+    const { canvas, rec } = makeCanvas(512);
+    await drawToken(canvas, { ...baseEntity, imageUrl: `blob:cover-focal-${expectedY}-${focalPoint?.y}`, focalPoint });
+
+    const draw = rec.drawImageArgs.at(-1)!;
+    expect(draw.y).toBeCloseTo(expectedY, 5);
+    expect(draw.x).toBeCloseTo(256 - 236, 5); // 472 wide: exactly the ring's width, so no horizontal slack
+  });
+});
+
+describe("drawToken — focal point across a wide picture", () => {
+  // 200x100 on the same 512 token: drawn 944 wide by 472 tall, free to slide 472px sideways.
+  it.each([
+    [50, -216],
+    [0, 20],
+    [100, -452],
+  ])("places a wide picture with focal point x=%i at x %i", async (x, expectedX) => {
+    class StubImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 200;
+      naturalHeight = 100;
+      set src(_v: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+    vi.stubGlobal("Image", StubImage);
+    const { canvas, rec } = makeCanvas(512);
+    await drawToken(canvas, { ...baseEntity, imageUrl: `blob:wide-focal-${x}`, focalPoint: { x, y: 50 } });
+    vi.unstubAllGlobals();
+
+    expect(rec.drawImageArgs.at(-1)!.x).toBeCloseTo(expectedX, 5);
+  });
+});
+
+describe("drawToken — name arc", () => {
+  it("shortens a name too long for the arc with an ellipsis, and leaves a short one whole", async () => {
+    const long = makeCanvas(512);
+    await drawToken(long.canvas, { ...baseEntity, name: "x".repeat(200) }, { showName: true });
+    const longChars = long.rec.texts.map((t) => t.text);
+    expect(longChars).toContain("…");
+    expect(longChars.filter((c) => c === "x").length).toBeLessThan(200);
+
+    const short = makeCanvas(512);
+    await drawToken(short.canvas, baseEntity, { showName: true });
+    expect(short.rec.texts.map((t) => t.text)).not.toContain("…");
+  });
+
+  it("draws no name unless asked to", async () => {
+    const { canvas, rec } = makeCanvas(512);
+    await drawToken(canvas, { ...baseEntity, name: "Zed", imageUrl: null });
+    expect(rec.texts.map((t) => t.text)).toEqual(["Z"]);
   });
 });
 

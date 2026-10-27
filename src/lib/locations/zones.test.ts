@@ -15,8 +15,8 @@ describe("zoneSummary", () => {
     expect(zoneSummary(region("terrain", { movement_cost: 3 }))).toBe("impassable");
   });
 
-  it("falls back to the kind label when terrain carries no payload yet", () => {
-    expect(zoneSummary(region("terrain"))).toBe("Terrain");
+  it("does not call normal-cost (1x) terrain difficult", () => {
+    expect(zoneSummary(region("terrain", { movement_cost: 1 }))).toBe("Terrain");
   });
 
   it("reads each light level", () => {
@@ -26,16 +26,8 @@ describe("zoneSummary", () => {
     expect(zoneSummary(region("light", { light_level: "magical_darkness" }))).toBe("magical darkness");
   });
 
-  it("falls back to the kind label when light carries no level yet", () => {
-    expect(zoneSummary(region("light"))).toBe("Light");
-  });
-
   it("reports a linked trap for hazard zones that carry one", () => {
     expect(zoneSummary(region("hazard", { trap_id: "trap-1" }))).toBe("trap linked");
-  });
-
-  it("falls back to the kind label for a hazard with no trap yet", () => {
-    expect(zoneSummary(region("hazard"))).toBe("Hazard");
   });
 
   it("reports a prompt for trigger zones carrying an encounter or a beat", () => {
@@ -43,12 +35,15 @@ describe("zoneSummary", () => {
     expect(zoneSummary(region("trigger", { beat_id: "beat-1" }))).toBe("prompts a beat");
   });
 
-  it("falls back to the kind label for a trigger with nothing wired yet", () => {
-    expect(zoneSummary(region("trigger"))).toBe("Trigger");
-  });
-
-  it("always reads marker zones as the honest default label", () => {
-    expect(zoneSummary(region("marker"))).toBe("Marker");
+  // A freshly drawn zone, before its editor has been touched, still reads as its kind.
+  it.each([
+    ["terrain", "Terrain"],
+    ["light", "Light"],
+    ["hazard", "Hazard"],
+    ["trigger", "Trigger"],
+    ["marker", "Marker"],
+  ] as const)("a %s zone with no payload falls back to the kind label", (kind, label) => {
+    expect(zoneSummary(region(kind))).toBe(label);
   });
 
   it("returns empty for a region with no zone_kind at all", () => {

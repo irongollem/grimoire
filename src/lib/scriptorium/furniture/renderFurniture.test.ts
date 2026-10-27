@@ -91,6 +91,47 @@ describe("renderFurniture", () => {
     expect(overIdx).toBeGreaterThan(areaIdx); // over is above it
   });
 
+  it("an artist credit with no position sits bottom-right", () => {
+    const c = makeContainer(1);
+    renderFurniture(c, [createFurnitureItem("artistCredit", { type: "page", page: 1 }, { props: { artistName: "Jane" } })]);
+    const cr = box(c, 1).querySelector<HTMLElement>(".sc-furniture--artistCredit")!;
+    expect(cr.style.bottom).toBe("0.5rem");
+    expect(cr.style.right).toBe("0.75rem");
+  });
+
+  describe("interactive (the editor preview)", () => {
+    it("lets clicks reach the item, stacks it above the page content, and outlines only the selected one", () => {
+      const c = makeContainer(1);
+      const under = createFurnitureItem("watercolor", { type: "page", page: 1 }, { z: "under" });
+      const over = createFurnitureItem("art", { type: "page", page: 1 }, { z: "over" });
+      renderFurniture(c, [under, over], { interactive: true, selectedId: over.id });
+      const underEl = box(c, 1).querySelector<HTMLElement>(".sc-furniture--watercolor")!;
+      const overEl = box(c, 1).querySelector<HTMLElement>(".sc-furniture--art")!;
+      expect(underEl.style.pointerEvents).toBe("auto");
+      expect(overEl.style.pointerEvents).toBe("auto");
+      // An interactive "under" item is lifted out from behind the body so it can be grabbed,
+      // yet still sits below an "over" one.
+      expect(Number(underEl.style.zIndex)).toBeGreaterThan(0);
+      expect(Number(overEl.style.zIndex)).toBeGreaterThan(Number(underEl.style.zIndex));
+      expect(overEl.getAttribute("style")).toContain("outline");
+      expect(underEl.getAttribute("style")).not.toContain("outline");
+    });
+
+    it("a watermark is grabbed by its text, not by the page-wide wrapper", () => {
+      const c = makeContainer(1);
+      renderFurniture(c, [createFurnitureItem("watermark", { type: "page", page: 1 })], { interactive: true });
+      const wrap = box(c, 1).querySelector<HTMLElement>(".sc-furniture--watermark")!;
+      expect(wrap.style.pointerEvents).toBe("none");
+      expect(wrap.querySelector<HTMLElement>("span")!.style.pointerEvents).toBe("auto");
+    });
+
+    it("the printed render never takes pointer events", () => {
+      const c = makeContainer(1);
+      renderFurniture(c, [createFurnitureItem("art", { type: "page", page: 1 })]);
+      expect(box(c, 1).querySelector<HTMLElement>(".sc-furniture--art")!.style.pointerEvents).toBe("none");
+    });
+  });
+
   it("is idempotent — re-render replaces, does not stack", () => {
     const c = makeContainer(1);
     const item = createFurnitureItem("watermark", { type: "page", page: 1 });

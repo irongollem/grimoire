@@ -103,14 +103,6 @@ describe("buildCopyPlan — universal shape", () => {
     },
   );
 
-  it.each(["traps", "puzzle_rooms", "loot_tables", "roll_tables"] as BulkScopeTable[])(
-    "has no source-identity columns to strip for %s",
-    (table) => {
-      const row = { id: "src-row", name: "Whatever" };
-      const { payload } = buildCopyPlan(table, row, TARGET_CAMPAIGN, USER_ID, new Map());
-      expect("source_document_key" in payload).toBe(false);
-    },
-  );
 });
 
 describe("buildCopyPlan — items", () => {
@@ -756,11 +748,12 @@ describe("buildCopySetPlan", () => {
         row: { id: "kin-1", from_npc_id: "npc-a", from_party_member_id: null, to_npc_id: null, to_party_member_id: "pc-1", kind: "parent" },
       },
     ];
-    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, refMap([{ id: "npc-a", name: "Aldric", campaignId: OTHER_CAMPAIGN }]));
     expect(plan.linkPayloads.kin_links).toBeUndefined();
     expect(plan.dropped).toHaveLength(1);
     expect(plan.dropped[0].label).toBe("Family links");
     expect(plan.dropped[0].removedEntries).toBe(true);
+    expect(plan.dropped[0].names).toEqual(["Aldric and a player character"]);
   });
 
   it("kin_links cannot go to the general scope: the link is campaign-bound", () => {
@@ -816,6 +809,22 @@ describe("buildCopySetPlan", () => {
       {
         label: "Faction members",
         names: ["a row you no longer have access to"],
+        removedEntries: true,
+        entryNoun: { singular: "member", plural: "members" },
+      },
+    ]);
+  });
+
+  it("a membership broken at both ends is one dropped entry naming both ends", () => {
+    const referenced = refMap([{ id: "fac-elsewhere", name: "The Iron Circle", campaignId: OTHER_CAMPAIGN }]);
+    const joinRows: CopySetJoinRow[] = [
+      { table: "faction_npcs", row: { id: "fn-1", faction_id: "fac-elsewhere", npc_id: "npc-unreadable", role: "Member" } },
+    ];
+    const plan = buildCopySetPlan([], joinRows, TARGET_CAMPAIGN, USER_ID, referenced);
+    expect(plan.dropped).toEqual([
+      {
+        label: "Faction members",
+        names: ["The Iron Circle and a row you no longer have access to"],
         removedEntries: true,
         entryNoun: { singular: "member", plural: "members" },
       },
@@ -1000,18 +1009,11 @@ describe("buildCopySetPlan", () => {
     ]);
   });
 
-  it("faction_party_members never appears among the join tables a batch fetches", () => {
-    const allTables = Object.values(JOIN_TABLES_FOR_ENTITY)
-      .flat()
-      .map((e) => e.table);
-    expect(allTables).not.toContain("faction_party_members" as unknown as CopyJoinTable);
-  });
-
   it("play-state tables never appear among the join tables a batch fetches", () => {
     const allTables = Object.values(JOIN_TABLES_FOR_ENTITY)
       .flat()
       .map((e) => e.table);
-    for (const playState of ["npc_pc_notes", "player_npc_ratings", "npc_favors"]) {
+    for (const playState of ["npc_pc_notes", "player_npc_ratings", "npc_favors", "faction_party_members"]) {
       expect(allTables).not.toContain(playState as unknown as CopyJoinTable);
     }
   });

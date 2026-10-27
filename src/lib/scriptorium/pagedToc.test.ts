@@ -127,6 +127,12 @@ describe("expandTocPlaceholder", () => {
     expect(root.querySelector(".sc-toc")?.textContent).not.toContain("Subsection");
   });
 
+  it("builds the list for the page size it is given", () => {
+    const html = '<nav data-type="toc"></nav><h1>Chapter</h1>';
+    expect(expandTocPlaceholder(html, { showPageNumbers: true, pageSize: "A5" })).toContain("sc-toc-cols-1");
+    expect(expandTocPlaceholder(html, { showPageNumbers: true, pageSize: "A4" })).toContain("sc-toc-cols-2");
+  });
+
   it("reserves no page cells when numbering is off", () => {
     const out = expandTocPlaceholder('<nav data-type="toc"></nav><h1>Chapter</h1>', { showPageNumbers: false });
     expect(out).toContain("Chapter");
@@ -156,6 +162,23 @@ describe("fillPagedTocPages", () => {
     const pages = Array.from(c.querySelectorAll(".sc-toc-page")).map((e) => e.textContent);
     // TOC is page 1, chapter on page 2, section on page 3 — matches the footers.
     expect(pages).toEqual(["2", "3"]);
+  });
+
+  it("numbers from the given start offset", () => {
+    const c = withToc(["<h1>Chapter One</h1>"]);
+    fillPagedTocPages(c, { showPageNumbers: true, start: 5 });
+    // TOC is page 5, the chapter page 6.
+    expect(Array.from(c.querySelectorAll(".sc-toc-page")).map((e) => e.textContent)).toEqual(["6"]);
+  });
+
+  it("a blank heading on a page does not shift the page numbers of the entries after it", () => {
+    // The expanded TOC never lists a blank heading, so its page must not be counted either.
+    const toc = expandTocPlaceholder('<nav data-type="toc"></nav><h1>One</h1><h1> </h1><h1>Two</h1>', {
+      showPageNumbers: true,
+    });
+    const c = makeContainer([toc.split("</nav>")[0] + "</nav>", "<h1>One</h1>", "<h1> </h1>", "<h1>Two</h1>"]);
+    fillPagedTocPages(c, { showPageNumbers: true, start: 1 });
+    expect(Array.from(c.querySelectorAll(".sc-toc-page")).map((e) => e.textContent)).toEqual(["2", "4"]);
   });
 
   it("body starts at 1 when the TOC page carries a skip marker", () => {

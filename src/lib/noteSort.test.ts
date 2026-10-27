@@ -49,6 +49,13 @@ describe("compareEntities — title", () => {
     expect(compareEntities(titled, blank, "title", "desc")).toBeLessThan(0);
     expect(compareEntities(blank, titled, "title", "asc")).toBeGreaterThan(0);
   });
+
+  it("treats a whitespace-only title as blank", () => {
+    const titled = entity({ title: "Something" });
+    const spaces = entity({ title: "   " });
+    expect(compareEntities(titled, spaces, "title", "asc")).toBeLessThan(0);
+    expect(compareEntities(spaces, titled, "title", "asc")).toBeGreaterThan(0);
+  });
 });
 
 describe("compareEntities — manual", () => {
@@ -63,6 +70,12 @@ describe("compareEntities — manual", () => {
     const unordered = entity({ sort_order: null });
     expect(compareEntities(ordered, unordered, "manual", "asc")).toBeLessThan(0);
     expect(compareEntities(unordered, ordered, "manual", "asc")).toBeGreaterThan(0);
+  });
+
+  it("breaks a tie between equal sort_orders by newest-created", () => {
+    const older = entity({ sort_order: 2, created_at: "2026-01-01T00:00:00Z" });
+    const newer = entity({ sort_order: 2, created_at: "2026-02-01T00:00:00Z" });
+    expect(compareEntities(newer, older, "manual", "asc")).toBeLessThan(0);
   });
 
   it("falls back to newest-created when both sort_orders are null", () => {

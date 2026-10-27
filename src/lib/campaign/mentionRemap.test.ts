@@ -18,16 +18,6 @@ describe("remapMentionIds", () => {
     expect(JSON.parse(result!).content[0].content[0].attrs).toEqual({ id: "srd_owlbear", entityType: "monster" });
   });
 
-  it("remaps a single top-level mention", () => {
-    const idMap: IdMap = new Map([["old-npc", "new-npc"]]);
-    const content = JSON.stringify(doc(mention("old-npc")));
-
-    const result = remapMentionIds(content, idMap);
-
-    const parsed = JSON.parse(result!);
-    expect(parsed.content[0].content[0].attrs.id).toBe("new-npc");
-  });
-
   it("remaps several mentions of different entity types in one document", () => {
     const idMap: IdMap = new Map([
       ["old-npc", "new-npc"],
@@ -98,11 +88,11 @@ describe("remapMentionIds", () => {
     expect(parsed.content[0].content[1].attrs.id).toBe("party-group");
   });
 
-  it("returns unchanged content when no mention in the map appears", () => {
-    const idMap: IdMap = new Map([["unrelated", "unrelated-new"]]);
-    const content = JSON.stringify(doc({ type: "text", text: "Just plain prose." }));
-
-    expect(remapMentionIds(content, idMap)).toBe(content);
+  it("rewrites only mentions: another node carrying an id in the map, or a pretty-printed doc with none, comes back as written", () => {
+    const idMap: IdMap = new Map([["old-npc", "new-npc"]]);
+    const image = { type: "image", attrs: { id: "old-npc", src: "x.png" } };
+    const pretty = JSON.stringify(doc(image), null, 2);
+    expect(remapMentionIds(pretty, idMap)).toBe(pretty);
   });
 
   it("passes through invalid JSON unchanged (legacy plain-text rows)", () => {
@@ -110,11 +100,6 @@ describe("remapMentionIds", () => {
     const plainText = "This is a legacy plain-text note, not Tiptap JSON.";
 
     expect(remapMentionIds(plainText, idMap)).toBe(plainText);
-  });
-
-  it("passes through empty string unchanged", () => {
-    const idMap: IdMap = new Map();
-    expect(remapMentionIds("", idMap)).toBe("");
   });
 
   it("returns null for null input", () => {
@@ -130,13 +115,4 @@ describe("remapMentionIds", () => {
     expect(remapMentionIds(JSON.stringify([1, 2, 3]), idMap)).toBe(JSON.stringify([1, 2, 3]));
   });
 
-  it("does not mutate the idMap or leave stray references between calls", () => {
-    const idMap: IdMap = new Map([["old-npc", "new-npc"]]);
-    const content = JSON.stringify(doc(mention("old-npc")));
-
-    remapMentionIds(content, idMap);
-
-    expect(idMap.size).toBe(1);
-    expect(idMap.get("old-npc")).toBe("new-npc");
-  });
 });

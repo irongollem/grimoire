@@ -256,6 +256,52 @@ describe("installSwAutoUpdate registration timing", () => {
   });
 });
 
+// A first visit's worker claims the page with a controllerchange; that is not a
+// new build waiting, so it must not offer a reload. Every later change is one.
+describe("installSwAutoUpdate controllerchange", () => {
+  function stubServiceWorker(controller: object | null) {
+    const sw = Object.assign(new EventTarget(), {
+      controller,
+      register: vi.fn(async () => ({ update: vi.fn(async () => undefined) })),
+    });
+    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: sw });
+    return () => sw.dispatchEvent(new Event("controllerchange"));
+  }
+  const install = (onDeferred: () => void) => {
+    Object.defineProperty(document, "readyState", { configurable: true, get: () => "loading" });
+    return installSwAutoUpdate({ isBusy: () => false, onDeferred });
+  };
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, "serviceWorker");
+    Reflect.deleteProperty(document, "readyState");
+  });
+
+  it("ignores the claim a first install makes, and offers a reload for the next change", async () => {
+    const claim = stubServiceWorker(null);
+    const onDeferred = vi.fn();
+    const handle = install(onDeferred);
+
+    claim();
+    expect(onDeferred).not.toHaveBeenCalled();
+    expect(await handle.takeNavigationReload()).toBe(false);
+
+    claim();
+    expect(onDeferred).toHaveBeenCalledOnce();
+    expect(await handle.takeNavigationReload()).toBe(true);
+  });
+
+  it("offers a reload at once when the page already had a controller", async () => {
+    const claim = stubServiceWorker({});
+    const onDeferred = vi.fn();
+    const handle = install(onDeferred);
+
+    claim();
+    expect(onDeferred).toHaveBeenCalledOnce();
+    expect(await handle.takeNavigationReload()).toBe(true);
+  });
+});
+
 describe("scheduleWhenIdle", () => {
   afterEach(() => Reflect.deleteProperty(window, "requestIdleCallback"));
 

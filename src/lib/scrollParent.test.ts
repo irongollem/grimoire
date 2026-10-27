@@ -42,6 +42,15 @@ describe("scrollParentOf", () => {
     expect(scrollParentOf(leaf)).toBe(leaf.parentElement);
   });
 
+  it("counts a scroller exactly as tall as the window as bounded", () => {
+    const leaf = nest([
+      { overflowY: "auto", height: window.innerHeight },
+      { overflowY: "auto", height: 99999 },
+    ]);
+    // The nearest scroller grows with its content, so the one around it, exactly as tall as the window, is the real one.
+    expect(scrollParentOf(leaf)).toBe(leaf.parentElement?.parentElement);
+  });
+
   it("falls back to the nearest when nothing is bounded, and null when nothing overflows", () => {
     const tall = nest([{ overflowY: "auto", height: 99999 }]);
     expect(scrollParentOf(tall)).toBe(tall.parentElement);

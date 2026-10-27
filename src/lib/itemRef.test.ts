@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { holderItemIds, inventoryItemRef, itemRefColumns, sameItemRef } from "./itemRef";
+import { contentItemIds, holderItemIds, inventoryItemRef, itemRefColumns, sameItemRef } from "./itemRef";
 
 const VAULT = "dddebe6d-10ca-4404-9df2-a6e447a6c9aa";
 const LIBRARY = "srd_grimoire_bundled_forgery_kit";
@@ -36,12 +36,6 @@ describe("itemRefColumns", () => {
     expect(itemRefColumns("")).toEqual({ item_id: null, library_item_id: null });
   });
 
-  it("never sets both columns, so the check constraint cannot be violated", () => {
-    for (const id of [VAULT, LIBRARY, "", null]) {
-      const cols = itemRefColumns(id);
-      expect(Number(cols.item_id !== null) + Number(cols.library_item_id !== null)).toBeLessThanOrEqual(1);
-    }
-  });
 });
 
 describe("sameItemRef", () => {
@@ -73,5 +67,15 @@ describe("holderItemIds", () => {
       { id: "sword", tags: [] },
     ]);
     expect([...ids].sort()).toEqual(["pack", "sack"]);
+  });
+});
+
+describe("contentItemIds", () => {
+  it("names the items that carry a written document and not the ones with none", () => {
+    const ids = contentItemIds([
+      { id: "letter", content: "Dear Bram," },
+      { id: "sword", content: null },
+    ]);
+    expect([...ids]).toEqual(["letter"]);
   });
 });

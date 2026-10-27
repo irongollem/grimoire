@@ -87,6 +87,29 @@ describe("houseLineage", () => {
     expect(h.folds.size).toBe(0);
   });
 
+  it("counts a married pair who both descend from the house as blood", () => {
+    const pair = (n: string): KinPerson => ({ key: k(n), name: n, bornYear: null, diedYear: null, dead: false, isPc: false });
+    const pg = buildKinGraph(
+      ["gran", "x", "y"].map(pair),
+      [l("gran", "x", "parent"), l("gran", "y", "parent"), l("x", "y", "spouse")],
+    );
+    const h = houseLineage(pg, new Set([k("gran"), k("x"), k("y")]), "either");
+    expect([...h.blood].sort()).toEqual(["gran", "x", "y"].map(k).sort());
+    expect(h.marriedIn.size).toBe(0);
+  });
+
+  it("keeps a seed as blood when a descent link reaches it, even if its spouse looked like the blood one", () => {
+    // Gran is a seed. Pa (not a seed) is her child. Mo is Pa's child and a seed, wed to Sy, a seed with a parent among the seeds (Gran).
+    const pair = (n: string): KinPerson => ({ key: k(n), name: n, bornYear: null, diedYear: null, dead: false, isPc: false });
+    const pg = buildKinGraph(
+      ["gran", "pa", "mo", "sy"].map(pair),
+      [l("gran", "pa", "parent"), l("gran", "sy", "parent"), l("pa", "mo", "parent"), l("mo", "sy", "spouse")],
+    );
+    const h = houseLineage(pg, new Set([k("gran"), k("mo"), k("sy")]), "either");
+    expect(h.blood.has(k("mo"))).toBe(true);
+    expect(h.marriedIn.has(k("mo"))).toBe(false);
+  });
+
   it("ignores seeds that are not people", () => {
     expect(houseLineage(g, new Set<PersonKey>(["npc:ghost"]), "either").members.size).toBe(0);
   });

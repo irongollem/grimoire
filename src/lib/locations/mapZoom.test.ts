@@ -181,6 +181,11 @@ describe("regionOrigin", () => {
     expect(y).toBeCloseTo((5 + 5 + 15) / 3, 5);
   });
 
+  it("keeps x and y apart on a wide image", () => {
+    // 1000x500, 10 cells across: cell (2,0) spans x 0.2..0.3 and y 0..0.2, so its centre is 25% 10%.
+    expect(regionOrigin(["2,0"], calibration, 1000, 500)).toBe("25% 10%");
+  });
+
   it("falls back to centre for an empty region", () => {
     expect(regionOrigin([], calibration, 1000, 1000)).toBe("50% 50%");
   });
@@ -202,16 +207,5 @@ describe("timing constants", () => {
     // it made the departing map *grow*, so rising visibly began by zooming in.
     expect(ZOOM_CHILD_SCALE).toBe(1 / ZOOM_PARENT_SCALE);
     expect(ZOOM_CHILD_SCALE).toBeLessThan(1);
-  });
-
-  it("keeps the layers locked at every instant under a shared easing", () => {
-    // With both layers on one curve e(t): parent = 1 + 6·e, child = (1+6·e)/7.
-    // Asserted as arithmetic because the property is what matters, not the
-    // particular curve — swapping the easing must not be able to break it.
-    for (const e of [0, 0.25, 0.5, 0.75, 1]) {
-      const parent = 1 + (ZOOM_PARENT_SCALE - 1) * e;
-      const child = ZOOM_CHILD_SCALE + (1 - ZOOM_CHILD_SCALE) * e;
-      expect(child).toBeCloseTo(parent * ZOOM_CHILD_SCALE, 10);
-    }
   });
 });

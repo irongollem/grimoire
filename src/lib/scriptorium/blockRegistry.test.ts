@@ -69,25 +69,66 @@ describe("BLOCK_REGISTRY", () => {
     expect(types).not.toContain("horizontalRule");
   });
 
-  it('"Front Cover" inserts a coverPage node', () => {
-    const entry = BLOCK_REGISTRY.find((e) => e.label === "Front Cover")!;
+  // Each menu entry must insert what its label promises. Swapping two actions
+  // still yields a valid document, so only the label-to-node pairing catches it.
+  it.each([
+    ["Front Cover", "coverPage", { variant: "front" }],
+    ["Inside Cover", "coverPage", { variant: "inside" }],
+    ["Part Divider", "coverPage", { variant: "part" }],
+    ["Back Cover", "coverPage", { variant: "back" }],
+    ["Table of Contents", "tocBlock", undefined],
+    ["Note", "noteBlock", undefined],
+    ["Wide Block", "wideBlock", undefined],
+    ["Callout Box", "blockquote", undefined],
+    ["Descriptive (Read-Aloud)", "descriptiveBlock", undefined],
+    ["Pull Quote", "quoteBlock", undefined],
+    ["Lens Pair", "lensPair", undefined],
+    ["Skip Page Number", "skipCounting", undefined],
+    ["Reset Page Counter", "resetCounting", undefined],
+    ["Monster Stat Block", "noteBlock", undefined],
+    ["Monster Stat Block (Wide)", "wideBlock", undefined],
+  ] as const)('"%s" inserts a %s node', (label, nodeType, attrs) => {
+    const entry = BLOCK_REGISTRY.find((e) => e.label === label)!;
     const editor = makeEditor();
     entry.action!(editor);
-    expect((editor.getJSON().content ?? []).some((n) => n.type === "coverPage")).toBe(true);
+    const node = (editor.getJSON().content ?? []).find((n) => n.type === nodeType);
+    expect(node).toBeDefined();
+    if (attrs) expect(node!.attrs).toMatchObject(attrs);
   });
 
-  it('"Table of Contents" inserts a tocBlock node', () => {
-    const entry = BLOCK_REGISTRY.find((e) => e.label === "Table of Contents")!;
+  it.each([
+    ["Class Table: Full Caster", "9th"],
+    ["Class Table: Half Caster", "5th"],
+    ["Class Table: Third Caster", "4th"],
+  ])('"%s" inserts the table with slots up to %s level', (label, highest) => {
     const editor = makeEditor();
-    entry.action!(editor);
-    expect((editor.getJSON().content ?? []).some((n) => n.type === "tocBlock")).toBe(true);
+    BLOCK_REGISTRY.find((e) => e.label === label)!.action!(editor);
+    const headers = editor.getHTML().match(/<th[^>]*>[\s\S]*?<\/th>/g) ?? [];
+    expect(headers.at(-1)).toContain(highest);
   });
 
-  it('"Note" toggles a noteBlock wrapper around the current block', () => {
-    const entry = BLOCK_REGISTRY.find((e) => e.label === "Note")!;
+  it.each([
+    ["Spell", "Casting Time"],
+    ["Magic Item", "Charges"],
+    ["Class Feature", "Sub-feature"],
+  ])('"%s" inserts its scaffold', (label, signature) => {
     const editor = makeEditor();
-    entry.action!(editor);
-    expect((editor.getJSON().content ?? []).some((n) => n.type === "noteBlock")).toBe(true);
+    BLOCK_REGISTRY.find((e) => e.label === label)!.action!(editor);
+    expect(editor.getHTML()).toContain(signature);
+  });
+
+  it("each spacer inserts the size its label names", () => {
+    const spacers = BLOCK_REGISTRY.filter((e) => /Spacer/.test(e.label));
+    expect(spacers.length).toBeGreaterThan(0);
+    for (const entry of spacers) {
+      const px = Number(/\((\d+) px\)/.exec(entry.label)![1]);
+      const editor = makeEditor();
+      editor.commands.insertContent({ type: "paragraph", content: [{ type: "text", text: "x" }] });
+      entry.action!(editor);
+      const json = JSON.stringify(editor.getJSON());
+      const vertical = entry.label.startsWith("Vertical");
+      expect(json, entry.label).toContain(vertical ? `"height":${px}` : `"width":${px}`);
+    }
   });
 
   it('"Attribution" is only meaningful inside a quoteBlock — enabled() reflects that', () => {
@@ -116,6 +157,20 @@ describe("BLOCK_REGISTRY", () => {
     entry.action!(editor);
     const html = editor.getHTML();
     expect(html).toContain("Sneak Attack");
+  });
+
+  it.each([
+    ["  Ki Points  ", "Ki Points"],
+    ["   ", null],
+  ])('"Class Table: Martial" trims the column name %j, and a blank one still gets a header', (answer, expected) => {
+    vi.stubGlobal("prompt", () => answer);
+    const entry = BLOCK_REGISTRY.find((e) => e.label === "Class Table: Martial")!;
+    const editor = makeEditor();
+    entry.action!(editor);
+    const headers = JSON.stringify(editor.getJSON()).match(/"tableHeader"[\s\S]*?"text":"([^"]*)"/g) ?? [];
+    const last = /"text":"([^"]*)"$/.exec(headers.at(-1)!)![1];
+    if (expected) expect(last).toBe(expected);
+    else expect(last.trim()).not.toBe("");
   });
 
   it('"Class Table: Martial" inserts nothing when the prompt is cancelled', () => {

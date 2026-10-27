@@ -50,10 +50,10 @@ describe("modalOrigin", () => {
     expect(takeModalOrigin("/npcs/abc")).toBeNull();
   });
 
-  it("keeps an origin for the duration of a normal navigation", () => {
+  it("keeps an origin right up to the one-second limit", () => {
     vi.useFakeTimers();
     rememberModalOrigin("/npcs/abc", RECT);
-    vi.advanceTimersByTime(200);
+    vi.advanceTimersByTime(1000);
 
     expect(takeModalOrigin("/npcs/abc")).toEqual(RECT);
   });

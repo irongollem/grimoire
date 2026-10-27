@@ -72,6 +72,46 @@ describe("writeQuestSpine", () => {
     expect(result.beatIdByKey.get("resolve")).toBe("beat-2");
   });
 
+  it("writes plain choice routes, hidden unreviewed beats, and objectives that stay DM-only", async () => {
+    const deps = makeDeps();
+    await writeQuestSpine(baseInput({
+      beats: twoBeats,
+      routes: [{ from: "opening", to: "confront" }],
+      objectives: [{ description: "Learn who rings", raised_by: "opening" }],
+    }), deps);
+    expect(rowsOf(deps.createBeatEdges)).toEqual([expect.objectContaining({ route_kind: "choice", thread_label: null, source_beat_id: "beat-0", target_beat_id: "beat-1" })]);
+    expect(rowsOf(deps.createBeats).every((b) => b.visibility === "hidden" && b.converge_mode === "any" && b.how_it_plays === null)).toBe(true);
+    expect(rowsOf(deps.createObjectives).every((o) => o.is_player_visible === false)).toBe(true);
+  });
+
+  it("raises each objective on the beat that names it, not on another", async () => {
+    const deps = makeDeps();
+    await writeQuestSpine(baseInput({
+      beats: threeBeats,
+      objectives: [
+        { description: "Root-raised", raised_by: "opening" },
+        { description: "Later-raised", raised_by: "resolve" },
+      ],
+    }), deps);
+    expect(rowsOf(deps.createConsequences).map((c) => [c.on_beat_id, c.target_objective_id])).toEqual([
+      ["beat-0", "objective-0"],
+      ["beat-2", "objective-1"],
+    ]);
+  });
+
+  it("writes no route to or from a beat that never landed", async () => {
+    const deps = makeDeps({
+      createBeats: vi.fn(async (beats: QuestBeatInsert[]): Promise<QuestBeat[]> =>
+        beats.filter((b) => b.title !== "Face the ringer").map((beat) => ({ ...beat, id: `beat-${beat.canvas_x / 320}` }) as QuestBeat),
+      ),
+    });
+    await writeQuestSpine(baseInput({
+      beats: threeBeats,
+      routes: [{ from: "opening", to: "confront" }, { from: "confront", to: "resolve" }, { from: "opening", to: "resolve" }],
+    }), deps);
+    expect(rowsOf(deps.createBeatEdges).map((e) => [e.source_beat_id, e.target_beat_id])).toEqual([["beat-0", "beat-2"]]);
+  });
+
   // #951: one request per list, not per row. The opening beat goes alone
   // because its insert settles the quest's entry beat, which breaks ties on
   // `created_at` — identical across one multi-row insert.

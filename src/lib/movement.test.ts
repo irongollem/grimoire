@@ -33,6 +33,10 @@ describe("parseSpeed", () => {
     ]);
   });
 
+  it("reads a speed written without its unit", () => {
+    expect(parseSpeed("30")).toEqual([{ mode: "walk", value: "30" }]);
+  });
+
   it("keeps a lone walk even at 0 ft", () => {
     expect(parseSpeed("0 ft.")).toEqual([{ mode: "walk", value: "0" }]);
   });
@@ -46,6 +50,7 @@ describe("walkingSpeed", () => {
 
   it("is null when there is no walking speed to read", () => {
     expect(walkingSpeed("0 ft., swim 40 ft.")).toBeNull();
+    expect(walkingSpeed("fly 60 ft.")).toBeNull();
     expect(walkingSpeed(null)).toBeNull();
   });
 });

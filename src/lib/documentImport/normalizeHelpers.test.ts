@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { capProse, resolveEnum } from "@/lib/documentImport/normalize";
 import { PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
 import { ITEM_RARITIES } from "@/types/item.types";
-import { MONSTER_TYPES } from "@/types/monster.types";
 
 /**
  * Tests for the two text helpers `normalize.ts` shares across all eight
@@ -90,9 +89,4 @@ describe("resolveEnum — overlapping candidates", () => {
     expect(resolveEnum("Common", ITEM_RARITIES, "mundane")).toBe("common");
   });
 
-  it("still resolves a plain single match and falls back on nonsense", () => {
-    expect(resolveEnum("Large fiend (demon)", MONSTER_TYPES, "humanoid")).toBe("fiend");
-    expect(resolveEnum("Legendary", ITEM_RARITIES, "mundane")).toBe("legendary");
-    expect(resolveEnum("qwertyuiop", ITEM_RARITIES, "mundane")).toBe("mundane");
-  });
 });

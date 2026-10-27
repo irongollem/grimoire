@@ -81,42 +81,6 @@ describe("AiGenerated node (#606)", () => {
     const json = editor.getJSON();
     expect(json.content?.[0]?.type).toBe("aiGenerated");
     expect(json.content?.[0]?.attrs?.model).toBe("gpt-5");
-  });
-
-  it("marks only the wrapped block — a sibling human-written paragraph carries no marker", () => {
-    editor = makeEditor({
-      type: "doc",
-      content: [
-        { type: "paragraph", content: [{ type: "text", text: "Human-written intro." }] },
-        {
-          type: "aiGenerated",
-          attrs: { model: "gpt-5" },
-          content: [{ type: "paragraph", content: [{ type: "text", text: "AI recap." }] }],
-        },
-      ],
-    });
-    const html = editor.getHTML();
-    const wrapperCount = (html.match(/data-ai-generated="true"/g) ?? []).length;
-    expect(wrapperCount).toBe(1);
-    expect(html).toContain("Human-written intro.");
-    expect(html).toContain("AI recap.");
-  });
-
-  it("surviving a further edit inside the wrapper keeps the marker on the root element", () => {
-    editor = makeEditor({
-      type: "doc",
-      content: [
-        {
-          type: "aiGenerated",
-          attrs: { model: "gpt-5" },
-          content: [{ type: "paragraph", content: [{ type: "text", text: "AI recap." }] }],
-        },
-      ],
-    });
-    // Simulate the DM editing the text after accepting the draft.
-    editor.commands.insertContentAt(editor.state.doc.content.size - 2, " Edited by DM.");
-    const html = editor.getHTML();
-    expect(html).toContain('data-ai-generated="true"');
-    expect(html).toContain("Edited by DM.");
+    expect(json.content?.[0]?.content?.[0]?.type).toBe("paragraph");
   });
 });

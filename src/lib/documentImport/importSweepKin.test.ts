@@ -19,8 +19,14 @@ describe("planNpcKin", () => {
   it("makes the named person the subject: on Izek, the Baron as parent is the Baron's parent link", () => {
     const { writes } = planNpcKin([{ id: "izek", links: { kin: [{ name: "The Baron Vargas", relation: "parent" }] } }], npcs, "c1", PROVENANCE);
     expect(writes).toEqual([
-      expect.objectContaining({ campaign_id: "c1", kind: "parent", from_npc_id: "baron", to_npc_id: "izek" }),
+      expect.objectContaining({ campaign_id: "c1", kind: "parent", from_npc_id: "baron", to_npc_id: "izek", ai_provenance: PROVENANCE }),
     ]);
+  });
+
+  it("links to the first NPC listed when two share a name (the sweep's own rows come first)", () => {
+    const twins = [{ id: "izek-new", name: "Izek" }, { id: "izek-old", name: "Izek" }, ...npcs.filter((n) => n.id !== "izek")];
+    const { writes } = planNpcKin([{ id: "baron", links: { kin: [{ name: "Izek", relation: "child" }] } }], twins, "c1", PROVENANCE);
+    expect(writes[0]).toMatchObject({ from_npc_id: "baron", to_npc_id: "izek-new" });
   });
 
   it("reads child the other way round, and keeps symmetric kinds as written", () => {

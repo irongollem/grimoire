@@ -44,6 +44,25 @@ describe("spanWideTables", () => {
     expect(sources[0].classList.contains(TABLE_SPAN_CLASS)).toBe(false);
   });
 
+  it("tolerates half a pixel of rounding, but spans a table a full pixel over", () => {
+    const fits = book([{ width: 317.5 }]);
+    spanWideTables(fits.wrapper, fits.sourceOf);
+    expect(fits.placed[0].classList.contains(TABLE_SPAN_CLASS)).toBe(false);
+    const over = book([{ width: 318 }]);
+    spanWideTables(over.wrapper, over.sourceOf);
+    expect(over.placed[0].classList.contains(TABLE_SPAN_CLASS)).toBe(true);
+  });
+
+  it("measures the column inside the box's padding (the column is narrower than clientWidth / 2)", () => {
+    // clientWidth 658 less 2 x 20px padding, less the 24px gap, over 2 columns = 297px.
+    const { wrapper, placed } = book([{ width: 310 }]);
+    const box = wrapper.querySelector<HTMLElement>(".phb-two-col")!;
+    box.style.paddingLeft = "20px";
+    box.style.paddingRight = "20px";
+    spanWideTables(wrapper);
+    expect(placed[0].classList.contains(TABLE_SPAN_CLASS)).toBe(true);
+  });
+
   it("leaves a table broken across both columns, whose own box reports their width", () => {
     const { wrapper, placed } = book([{ width: 317 }]);
     Object.defineProperty(placed[0], "offsetWidth", { value: 658 });

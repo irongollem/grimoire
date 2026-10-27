@@ -35,6 +35,15 @@ describe("parseTieQuery", () => {
     expect(parsed?.words).toEqual([{ key: "mentor_of", word: "apprentice of", outward: true, symmetric: false }]);
   });
 
+  it.each([
+    ["who carry the lantern", "carries"],
+    ["who live in the mill", "lives in"],
+    ["what does the guild include", "includes"],
+    ["who involve the heist", "involves"],
+  ])("reads the bare verb in '%s' as the catalogue's '%s'", (query, word) => {
+    expect(parseTieQuery(query)?.words.map((w) => w.word)).toContain(word);
+  });
+
   it("prefers the longest catalogue phrase", () => {
     const parsed = parseTieQuery("who is seen as a rival by the guild");
     expect(parsed?.words.map((w) => w.word)).toEqual(["seen as a rival by"]);
@@ -48,8 +57,13 @@ describe("parseTieQuery", () => {
     expect(parseTieQuery("who worships")).toBeNull();
   });
 
-  it("does not read 'where' as a tie", () => {
-    expect(parseTieQuery("where harl")).toBeNull();
+  it("does not read an everyday 'is' as a tie, only 'is at'", () => {
+    expect(parseTieQuery("who is harl")).toBeNull();
+    expect(parseTieQuery("who is at the inn")?.words.map((w) => w.word)).toEqual(["is at"]);
+  });
+
+  it("drops filler from both ends of the name", () => {
+    expect(parseTieQuery("who controls the crossing and")?.name).toBe("crossing");
   });
 });
 

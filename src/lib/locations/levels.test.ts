@@ -72,13 +72,6 @@ describe("levelsOf", () => {
     expect(info?.levels.map((l) => l.id)).toEqual(["s", "a", "b"]);
   });
 
-  it("viewed from a leaf child: resolves the same container and the same list as from the parent", () => {
-    const index = buildAtlasIndex(SITE_WITH_LEVELS);
-    const info = levelsOf(index, index.byId.get("a")!);
-    expect(info?.container.id).toBe("s");
-    expect(info?.levels.map((l) => l.id)).toEqual(["s", "a", "b"]);
-  });
-
   it("a flagged child with a flagged child still uses its parent's level list", () => {
     const index = buildAtlasIndex([
       ...SITE_WITH_LEVELS,

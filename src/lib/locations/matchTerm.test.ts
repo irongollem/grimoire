@@ -13,4 +13,13 @@ describe("chooseMatchTerm", () => {
   it("uses the live term, without text ids, below the minimum length", () => {
     expect(chooseMatchTerm("d", "dragon", 2)).toEqual({ term: "d", useTextMatches: false });
   });
+
+  it("text ids apply at exactly the minimum length", () => {
+    expect(chooseMatchTerm("dr", "dr", 2)).toEqual({ term: "dr", useTextMatches: true });
+  });
+
+  it("counts the trimmed live term against the minimum, and returns it trimmed", () => {
+    // " d " is one character once trimmed, so it is still below a minimum of 2.
+    expect(chooseMatchTerm(" d ", "dragon", 2)).toEqual({ term: "d", useTextMatches: false });
+  });
 });

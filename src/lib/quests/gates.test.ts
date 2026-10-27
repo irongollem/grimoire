@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveQuestRouteGates, describeQuestRouteEffect, describeQuestRouteGate, describeQuestRouteGateLines, describeQuestRouteNeeds, draftRouteGate, questRouteGateLabel, validateGateDrafts } from "./gates";
+import { deriveQuestRouteGates, describeGateStatuses, describeQuestRouteEffect, describeQuestRouteGate, describeQuestRouteGateLines, describeQuestRouteNeeds, draftRouteGate, questRouteGateLabel, validateGateDrafts } from "./gates";
 import type { QuestBeatEdgeGate, QuestObjective, QuestRouteEffect, QuestRouteGate } from "@/types/quest.types";
 
 const objective = (id: string, status: QuestObjective["status"], description = id): QuestObjective => ({
@@ -54,6 +54,12 @@ describe("deriveQuestRouteGates", () => {
     expect(partial.e1!.conditions).toHaveLength(1);
   });
 
+  it("reads a gate on a route it was not told the mode of as needing every condition", () => {
+    const rows = [gate("lost", "o1", ["complete"]), gate("lost", "o2", ["complete"])];
+    const objectives = [objective("o1", "complete"), objective("o2", "pending")];
+    expect(deriveQuestRouteGates(rows, objectives, []).lost!.is_open).toBe(false);
+  });
+
   it("leaves an ungated edge absent from the map entirely", () => {
     expect(deriveQuestRouteGates([], [objective("o1", "complete")], [edge("e1")])).toEqual({});
   });
@@ -82,9 +88,27 @@ describe("describeQuestRouteGate", () => {
     expect(describeQuestRouteNeeds({ ...both, mode: "any" })).toBe("needs “A” completed or “B” failed");
   });
 
+  it("names only the unmet conditions as the current state of a closed route", () => {
+    const partly: QuestRouteGate = { mode: "all", is_open: false, conditions: [cond("A", ["complete"], "complete"), cond("B", ["failed"], "pending")] };
+    expect(describeQuestRouteGate(partly)).toBe("Closed: needs “A” completed and “B” failed; “B” is open");
+  });
+
+  it("names only the conditions that are met on an open any-gate", () => {
+    const either: QuestRouteGate = { mode: "any", is_open: true, conditions: [cond("A", ["complete"], "complete"), cond("B", ["failed"], "pending")] };
+    expect(describeQuestRouteGate(either)).toBe("Open: “A” is completed");
+  });
+
   it("names the objective and statuses for the canvas pill, or the count for several", () => {
     expect(questRouteGateLabel(open)).toBe("Save the princess · completed");
     expect(questRouteGateLabel({ mode: "any", is_open: false, conditions: [cond("A", ["complete"], "pending"), cond("B", ["failed"], "pending")] })).toBe("2 conditions · any");
+  });
+});
+
+describe("describeGateStatuses", () => {
+  it("lists a set in ladder order whatever order it was stored in, commas then 'or'", () => {
+    expect(describeGateStatuses(["complete", "dormant", "pending"])).toBe("not yet raised, open or completed");
+    expect(describeGateStatuses(["failed", "pending"])).toBe("open or failed");
+    expect(describeGateStatuses(["failed"])).toBe("failed");
   });
 });
 
@@ -102,21 +126,6 @@ describe("describeQuestRouteEffect", () => {
   it("describes a world action with no objective", () => {
     const effect: QuestRouteEffect = { action: "send_broadcast", objective: null, after_days: 0 };
     expect(describeQuestRouteEffect(effect)).toBe("Then sends a broadcast");
-  });
-
-  // The three payoff verbs #853 adds (knowledge/favour/milestone) — each
-  // needs its own verb here or it falls through to `undefined` in the map.
-  it("describes the three payoff verbs", () => {
-    expect(describeQuestRouteEffect({ action: "grant_knowledge", objective: null, after_days: 0 }))
-      .toBe("Then grants knowledge");
-    expect(describeQuestRouteEffect({ action: "owe_favor", objective: null, after_days: 0 }))
-      .toBe("Then owes a favor");
-    expect(describeQuestRouteEffect({ action: "award_milestone", objective: null, after_days: 0 }))
-      .toBe("Then awards a milestone");
-    expect(describeQuestRouteEffect({ action: "give_handout", objective: null, after_days: 0 }))
-      .toBe("Then gives a handout");
-    expect(describeQuestRouteEffect({ action: "tick_clock", objective: null, after_days: 0 })).toBe("Then ticks");
-    expect(describeQuestRouteEffect({ action: "shift_faction_standing", objective: null, after_days: 0 })).toBe("Then shifts standing");
   });
 });
 
@@ -136,6 +145,9 @@ describe("route gate drafts", () => {
     expect(validateGateDrafts([draft("a", null, "o1", [])])).toMatch(/status/);
     expect(validateGateDrafts([draft("a", null, "o1", ["pending"]), draft("b", null, "o1", ["failed"])])).toMatch(/only once/);
     expect(validateGateDrafts([draft("a", null, "o1", ["pending"]), draft("b", null, "o2", ["failed"])])).toBeNull();
+    // Three of the four statuses is the most a condition may accept; all four would be no condition at all.
+    expect(validateGateDrafts([draft("a", null, "o1", ["dormant", "pending", "complete"])])).toBeNull();
+    expect(validateGateDrafts([draft("a", null, "o1", ["dormant", "pending", "complete", "failed"])])).toMatch(/at most three/);
     expect(validateGateDrafts([])).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { entityArtFiguresHtml, applyArtChoice, ENTITY_ART_CHOICES } from "./entityArt";
+import { entityArtFiguresHtml, applyArtChoice } from "./entityArt";
 
 describe("entityArtFiguresHtml", () => {
   it("renders both figures, tagged by kind, when both images exist", () => {
@@ -33,6 +33,12 @@ describe("entityArtFiguresHtml", () => {
     const html = entityArtFiguresHtml({ picture: "pic.webp", cutout: null, alt: "Tom & <the cat>" });
     expect(html).toContain("Tom &amp; &lt;the cat&gt;");
     expect(html).not.toContain("<the cat>");
+  });
+
+  it("escapes the image URLs, so a quote in a URL cannot break out of src", () => {
+    const html = entityArtFiguresHtml({ picture: 'a".webp', cutout: 'b".webp', alt: "x" });
+    expect(html).not.toContain('a".webp');
+    expect(html).not.toContain('b".webp');
   });
 });
 
@@ -93,11 +99,5 @@ describe("applyArtChoice", () => {
     applyArtChoice(root, "picture");
     const kinds = Array.from(root.querySelectorAll("[data-art-kind]")).map((el) => el.getAttribute("data-art-kind"));
     expect(kinds).toEqual(["picture", "picture"]);
-  });
-});
-
-describe("ENTITY_ART_CHOICES", () => {
-  it("lists all three choices", () => {
-    expect(ENTITY_ART_CHOICES).toEqual(["auto", "cutout", "picture"]);
   });
 });

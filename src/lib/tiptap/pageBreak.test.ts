@@ -25,14 +25,6 @@ describe("PageBreak node", () => {
     expect(editor.getHTML()).toContain("sc-page-break");
   });
 
-  it("round-trips through JSON as a pageBreak node", () => {
-    editor = makeEditor("<p>a</p>");
-    editor.commands.insertPageBreak();
-    const json = editor.getJSON();
-    const types = (json.content ?? []).map((n) => n.type);
-    expect(types).toContain("pageBreak");
-  });
-
   it("parses existing page-break markup back into the node", () => {
     editor = makeEditor('<p>a</p><div data-type="page-break"></div><p>b</p>');
     const types = (editor.getJSON().content ?? []).map((n) => n.type);

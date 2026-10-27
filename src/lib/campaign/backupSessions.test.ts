@@ -24,6 +24,20 @@ describe("restoreSessions", () => {
     expect(sessions[0].ended_at).toBe("2026-10-01T18:00:00Z");
   });
 
+  it("keeps the end of a session that had already finished", () => {
+    const { sessions } = restoreSessions(
+      { campaign_sessions: [{ id: "s-old", started_at: "2026-10-01T18:00:00Z", ended_at: "2026-10-01T22:00:00Z" }], notes: [] },
+      idMap, "camp", "me",
+    );
+    expect(sessions[0].ended_at).toBe("2026-10-01T22:00:00Z");
+  });
+
+  it("does not make a session of a numbered note that is not a session note", () => {
+    const { sessions, notes } = restoreSessions({ notes: [{ id: "n", category: "general", session_num: 4 }] }, new Map(), "camp", "me");
+    expect(sessions).toEqual([]);
+    expect(notes[0].session_id).toBeNull();
+  });
+
   it("turns a legacy numbered session note into a session", () => {
     const { sessions, notes } = restoreSessions(
       {
@@ -40,9 +54,9 @@ describe("restoreSessions", () => {
     expect(notes[0]).not.toHaveProperty("session_num");
   });
 
-  it("dates a legacy note by the day it was written when it has no real date", () => {
+  it.each([[undefined], ["the second of May"]])("dates a legacy note by the day it was written when its real date is %s", (real) => {
     const { sessions } = restoreSessions(
-      { notes: [{ id: "n", category: "session", session_num: 1, title: "", created_at: "2026-06-01T10:00:00Z" }] },
+      { notes: [{ id: "n", category: "session", session_num: 1, title: "", session_real_date: real, created_at: "2026-06-01T10:00:00Z" }] },
       new Map(), "camp", "me",
     );
     expect(sessions[0]).toMatchObject({ title: null, played_on: "2026-06-01" });

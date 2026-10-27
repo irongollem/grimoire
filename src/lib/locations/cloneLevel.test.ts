@@ -153,6 +153,32 @@ describe("planCloneLevel", () => {
     expect(plan.siteInsert.description).toBe("A damp crypt beneath the chapel.");
   });
 
+  it("starts the copy as unshared DM ink: notes, tags, sharing and pins do not carry", () => {
+    const worked = loc({
+      ...site,
+      notes: "DM only",
+      tags: ["crypt"],
+      is_map_shared: true,
+      is_description_shared: true,
+      is_npcs_shared: true,
+      is_inventory_shared: true,
+      player_visible_to: ["player-1"],
+      map_pins: [{ child_location_id: "x", child_name: "x", child_type: "room", child_image_url: null, x: 0, y: 0, visible_to_players: true }],
+    });
+    const roomShared = loc({ ...room1, notes: "trap here", is_description_shared: true, tags: ["wet"] });
+    const plan = planCloneLevel({ site: worked, rooms: [roomShared], regions: [], doors: [] });
+    for (const insert of [plan.siteInsert, plan.rooms[0].insert]) {
+      expect(insert.notes).toBeNull();
+      expect(insert.tags).toEqual([]);
+      expect(insert.is_map_shared).toBe(false);
+      expect(insert.is_description_shared).toBe(false);
+      expect(insert.is_npcs_shared).toBe(false);
+      expect(insert.is_inventory_shared).toBe(false);
+      expect(insert.player_visible_to).toEqual([]);
+      expect(insert.map_pins).toEqual([]);
+    }
+  });
+
   it("plans one room per source room, keyed by source id", () => {
     const plan = planCloneLevel({ site, rooms: [room1, room2], regions: [], doors: [] });
     expect(plan.rooms.map((r) => r.sourceId)).toEqual(["room-1", "room-2"]);
@@ -170,6 +196,21 @@ describe("planCloneLevel", () => {
     expect(plan.regions[0].spaceSourceId).toBe("room-1");
     expect(plan.regions[0].insert.cells).toEqual(["0,0"]);
     expect(plan.regions[0].insert.cell_signature).toBeNull();
+  });
+
+  it("carries a zone's role, kind and payload", () => {
+    const plan = planCloneLevel({
+      site,
+      rooms: [room1],
+      regions: [region({ region_role: "zone", zone_kind: "light", zone_payload: { light_level: "dim" }, label: "Gloom" })],
+      doors: [],
+    });
+    expect(plan.regions[0].insert).toMatchObject({
+      region_role: "zone",
+      zone_kind: "light",
+      zone_payload: { light_level: "dim" },
+      label: "Gloom",
+    });
   });
 
   it("drops a region bound to a room outside this level (a nested site)", () => {
@@ -220,6 +261,44 @@ describe("planCloneLevel", () => {
       doors: [door({ to_location_id: "level-2-stair-room" })],
     });
     expect(plan.doors).toHaveLength(0);
+  });
+
+  it("drops a door that starts outside this level's rooms", () => {
+    const plan = planCloneLevel({
+      site,
+      rooms: [room2],
+      regions: [],
+      doors: [door({ from_location_id: "level-0-stair-room", to_location_id: "room-2" })],
+    });
+    expect(plan.doors).toHaveLength(0);
+  });
+
+  it("keeps a door's own properties on the clone", () => {
+    const plan = planCloneLevel({
+      site,
+      rooms: [room1, room2],
+      regions: [],
+      doors: [
+        door({
+          label: "Iron gate",
+          is_one_way: true,
+          starts_locked: true,
+          lock_note: "Key is on the warden",
+          is_secret: true,
+          sort_order: 3,
+          door_kind: "arch",
+        }),
+      ],
+    });
+    expect(plan.doors[0].insert).toMatchObject({
+      label: "Iron gate",
+      is_one_way: true,
+      starts_locked: true,
+      lock_note: "Key is on the warden",
+      is_secret: true,
+      sort_order: 3,
+      door_kind: "arch",
+    });
   });
 
   it("drops a one-sided door (#884) — no far room to clone toward", () => {

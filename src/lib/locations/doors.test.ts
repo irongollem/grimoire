@@ -151,6 +151,12 @@ describe("doorTitle", () => {
     );
   });
 
+  it("names a one-sided door's far end 'leads nowhere yet', not '???'", () => {
+    expect(doorTitle({ from_location_id: "nave", to_location_id: null, door_kind: "door" }, names)).toBe(
+      "Nave → leads nowhere yet",
+    );
+  });
+
   it("falls back to '???' for a space id not in the map", () => {
     expect(doorTitle({ from_location_id: "nave", to_location_id: "unknown", door_kind: "door" }, names)).toBe(
       "Nave → ???",
@@ -349,6 +355,16 @@ describe("edgeAtImageFraction", () => {
     // Cell (0,0) spans image fractions [0, 0.1) — near its top (N) edge.
     const key = edgeAtImageFraction(0.05, 0.005, calibration, 1000, 1000);
     expect(key).toBe("0,0:N");
+  });
+
+  it("snaps a west-edge hover to that cell's W edge", () => {
+    // Cell (1,0) spans x [0.1, 0.2); 0.105 is hard against its left side.
+    expect(edgeAtImageFraction(0.105, 0.05, calibration, 1000, 1000)).toBe("1,0:W");
+  });
+
+  it("canonicalises an east-edge hover to the neighbour's west edge", () => {
+    // Hard against the right of cell (0,0) is the left of cell (1,0).
+    expect(edgeAtImageFraction(0.095, 0.05, calibration, 1000, 1000)).toBe("1,0:W");
   });
 
   it("returns null in the dead middle of a cell", () => {

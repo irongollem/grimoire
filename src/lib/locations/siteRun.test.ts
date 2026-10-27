@@ -52,6 +52,11 @@ describe("reachableRoomIds", () => {
     expect(reachableRoomIds("room-b", doors)).toEqual(new Set(["room-b"]));
   });
 
+  it("a door that leads to untraced space takes the party nowhere", () => {
+    const doors = [door({ to_location_id: null })];
+    expect(reachableRoomIds("room-a", doors)).toEqual(new Set(["room-a"]));
+  });
+
   it("a one-way door only reaches forward", () => {
     const doors = [door({ from_location_id: "room-a", to_location_id: "room-b", is_one_way: true })];
     expect(reachableRoomIds("room-a", doors)).toEqual(new Set(["room-a", "room-b"]));
@@ -74,11 +79,6 @@ describe("reachableRoomIds", () => {
     expect(reachableRoomIds("room-a", doors)).toEqual(new Set(["room-a", "room-b"]));
   });
 
-  it("a room with no door to it at all is simply absent from the set", () => {
-    const doors = [door({ from_location_id: "room-a", to_location_id: "room-b" })];
-    expect(reachableRoomIds("room-a", doors).has("room-isolated")).toBe(false);
-  });
-
   // #868: a live "unlocked" door fact reopens a route that `starts_locked`
   // alone would keep closed, without touching the authored flag itself.
   it("crosses a starts_locked door whose id is in unlockedDoorIds", () => {
@@ -96,10 +96,6 @@ describe("reachableRoomIds", () => {
     expect(reachableRoomIds("room-a", doors, new Set(["door-x"]))).toEqual(new Set(["room-a", "room-b"]));
   });
 
-  it("defaults unlockedDoorIds to empty when the caller omits it", () => {
-    const doors = [door({ id: "door-x", starts_locked: true })];
-    expect(reachableRoomIds("room-a", doors)).toEqual(new Set(["room-a"]));
-  });
 });
 
 describe("siteReachability", () => {

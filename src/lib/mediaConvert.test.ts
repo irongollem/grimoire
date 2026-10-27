@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { readEmbeddedXmp, reembedXmp, hasTransparentPixels } from "./mediaConvert";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { readEmbeddedXmp, reembedXmp, hasTransparentPixels, toOpus } from "./mediaConvert";
 import { embedXmpInWebp, embedXmpInJpeg, readXmpFromWebp, readXmpFromJpeg } from "@edge-shared/provenance/embed.ts";
 
 // Minimal fixture builders — independently transcribed, mirroring the
@@ -84,5 +84,29 @@ describe("hasTransparentPixels", () => {
 
   it("returns false for an empty buffer", () => {
     expect(hasTransparentPixels(new Uint8ClampedArray([]))).toBe(false);
+  });
+});
+
+describe("toOpus", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("hands anything that is not a WAV back untouched, without consulting the recorder", async () => {
+    const isTypeSupported = vi.fn(() => true);
+    vi.stubGlobal("MediaRecorder", { isTypeSupported });
+    const mp3 = new File(["x"], "theme.mp3", { type: "audio/mpeg" });
+
+    expect(await toOpus(mp3)).toBe(mp3);
+    expect(isTypeSupported).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["by its type", new File(["x"], "rain", { type: "audio/x-wav" })],
+    ["by an upper-case extension when the type is blank", new File(["x"], "Rain.WAV", { type: "" })],
+  ])("recognises a WAV %s, and keeps the original when the browser cannot record Opus", async (_title, wav) => {
+    const isTypeSupported = vi.fn(() => false);
+    vi.stubGlobal("MediaRecorder", { isTypeSupported });
+
+    expect(await toOpus(wav)).toBe(wav);
+    expect(isTypeSupported).toHaveBeenCalled();
   });
 });

@@ -43,7 +43,31 @@ describe("buildBeatFillConstraints", () => {
     expect(lines).toContain("Open objectives: Find the bell");
   });
 
-  it("never exceeds twelve lines of four hundred characters", () => {
+  it("lists a dormant objective as open, and leaves the dash off a quest with no summary", () => {
+    const lines = buildBeatFillConstraints({
+      ...base(),
+      quest: { title: "The Drowned Bell", summary: "" },
+      objectives: [{ description: "Wake the bell", status: "dormant" }],
+    });
+    expect(lines[0]).toBe("Quest: The Drowned Bell");
+    expect(lines).toContain("Open objectives: Wake the bell");
+  });
+
+  it("says nothing about a title the DM has not typed yet", () => {
+    const lines = buildBeatFillConstraints({ ...base(), beat: { kind: "explore", title: "  ", dm_content: null } });
+    expect(lines[1]).toBe("This beat: explore");
+  });
+
+  it("leaves a line of exactly four hundred characters whole and clips one character more", () => {
+    const exact = buildBeatFillConstraints({ ...base(), quest: { title: "x".repeat(393), summary: "" } })[0]!;
+    expect(exact).toHaveLength(400);
+    expect(exact.endsWith("…")).toBe(false);
+    const over = buildBeatFillConstraints({ ...base(), quest: { title: "x".repeat(394), summary: "" } })[0]!;
+    expect(over).toHaveLength(400);
+    expect(over.endsWith("…")).toBe(true);
+  });
+
+  it("clips every line to four hundred characters", () => {
     const long = "word ".repeat(300);
     const lines = buildBeatFillConstraints({
       quest: { title: long, summary: long },
@@ -53,7 +77,6 @@ describe("buildBeatFillConstraints", () => {
       objectives: [{ description: long, status: "pending" }],
       stagedAt: long, threadLabel: long,
     });
-    expect(lines.length).toBeLessThanOrEqual(12);
     for (const line of lines) expect(line.length).toBeLessThanOrEqual(400);
   });
 });

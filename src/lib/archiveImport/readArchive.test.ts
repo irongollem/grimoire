@@ -211,7 +211,66 @@ describe("World Anvil", () => {
   });
 });
 
+describe("what is a page and where it sits", () => {
+  it("keeps a user's own README as a page, and drops only Grimoire's index", () => {
+    const r = readArchive([loose("README.md", "Our table rules."), loose("Rules.md", "House rules.")]);
+    expect(r.pages.map((p) => p.path).sort()).toEqual(["README.md", "Rules.md"]);
+  });
+
+  it("skips macOS metadata folders as such, not as hidden files", () => {
+    const r = readArchive([zip({ "__MACOSX/Vault/._a.md": "x", "Vault/a.md": "Real." })]);
+    expect(r.skipped).toContainEqual({ path: "__MACOSX/Vault/._a.md", reason: "macOS archive metadata" });
+  });
+
+  it("strips a shared vault folder but never a kind folder or one of several roots", () => {
+    expect(readArchive([zip({ "NPCs/Bob.md": "Bob.", "NPCs/Al.md": "Al." })]).pages.map((p) => p.path).sort()).toEqual(["NPCs/Al.md", "NPCs/Bob.md"]);
+    expect(readArchive([zip({ "A/x.md": "x", "B/y.md": "y" })]).pages.map((p) => p.path).sort()).toEqual(["A/x.md", "B/y.md"]);
+  });
+
+  it("breaks a cycle of parent: links instead of looping", () => {
+    const r = readArchive([loose("a.md", "---\nparent: \"[[b]]\"\n---\nA."), loose("b.md", "---\nparent: \"[[a]]\"\n---\nB.")]);
+    const parents = r.pages.map((p) => p.parentRef);
+    expect(parents.filter((x) => x === null).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("what a page keeps of its body", () => {
+  it("keeps a heading that is not the page's own title, and a title heading that is not first", () => {
+    const r = readArchive([
+      loose("a.md", "---\ntitle: Mara\n---\n# Backstory\n\nBorn at sea."),
+      loose("b.md", "Intro first.\n\n# B\n\nThen the rest."),
+    ]);
+    expect(JSON.stringify(r.pages[0].body)).toContain("Backstory");
+    expect(JSON.stringify(r.pages[1].body)).toContain('"level":1');
+  });
+
+  it("makes placeholders only of links to other pages, not to images or other files", () => {
+    const r = readArchive([loose("a.md", "See [the map](maps/town.png) and [Town](Town.md).")]);
+    expect(r.pages[0].links).toEqual(["Town"]);
+  });
+
+  it("keeps an index-named HTML page that has prose, or too few links to be a menu", () => {
+    const prose = `<html><body><main><h1>Index of Lore</h1><p>${"Long lore. ".repeat(20)}</p><a href="a.html">A</a><a href="b.html">B</a><a href="c.html">C</a></main></body></html>`;
+    const fewLinks = `<html><body><main><h1>Contents</h1><a href="a.html">A</a><a href="b.html">B</a></main></body></html>`;
+    const r = readArchive([loose("lore/index.html", prose), loose("lore/contents.html", fewLinks)]);
+    expect(r.pages.map((p) => p.path).sort()).toEqual(["lore/contents.html", "lore/index.html"]);
+  });
+
+  it("reads <main> before a sidebar <article>", () => {
+    const html = "<html><body><main><h1>Town</h1><p>The real page.</p></main><article><p>Sidebar teaser.</p></article></body></html>";
+    const r = readArchive([loose("town.html", html)]);
+    expect(JSON.stringify(r.pages[0].body)).toContain("The real page.");
+    expect(JSON.stringify(r.pages[0].body)).not.toContain("Sidebar");
+  });
+});
+
 describe("limits", () => {
+  it("accepts exactly the most pages an archive row may hold", () => {
+    const files: Record<string, string> = {};
+    for (let i = 0; i < MAX_ARCHIVE_PAGES; i++) files[`p${i}.md`] = `Page ${i}`;
+    expect(readArchive([zip(files)]).pages).toHaveLength(MAX_ARCHIVE_PAGES);
+  });
+
   it("refuses more pages than an archive row may hold", () => {
     const files: Record<string, string> = {};
     for (let i = 0; i <= MAX_ARCHIVE_PAGES; i++) files[`p${i}.md`] = `Page ${i}`;

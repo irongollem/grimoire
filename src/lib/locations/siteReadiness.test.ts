@@ -101,6 +101,34 @@ describe("siteReadiness", () => {
     expect(result.caption).toBe("1 space unbound");
   });
 
+  it("pluralises the unbound caption", () => {
+    const result = siteReadiness({
+      location: siteLoc({ map_url: "/map.webp" }),
+      spaces: [{ id: "room-1" }, { id: "room-2" }],
+      regions: [
+        region({ id: "reg-1", cells: ["0,0"], space_location_id: null }),
+        region({ id: "reg-2", cells: ["1,0"], space_location_id: null }),
+      ],
+      doors: [],
+    });
+    expect(result.caption).toBe("2 spaces unbound");
+  });
+
+  it("pluralises the one-sided-ways caption, and ignores a door not yet placed on an edge", () => {
+    const result = siteReadiness({
+      location: siteLoc({ map_url: "/map.webp" }),
+      spaces: [{ id: "room-1" }],
+      regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: "room-1" })],
+      doors: [
+        { from_location_id: "room-1", to_location_id: null, edge_key: "0,0:N" },
+        { from_location_id: "room-1", to_location_id: null, edge_key: "0,0:W" },
+        { from_location_id: "room-1", to_location_id: null, edge_key: null },
+      ],
+    });
+    expect(result.oneSidedWays).toBe(2);
+    expect(result.caption).toBe("2 ways out lead nowhere yet");
+  });
+
   it("reports an untraced room when every region is already bound", () => {
     const result = siteReadiness({
       location: siteLoc({ map_url: "/map.webp" }),
@@ -225,6 +253,10 @@ describe("publishStaleness", () => {
 
   it("is null with no source map", () => {
     expect(publishStaleness({ map_published_rev: 3 }, null, before)).toBeNull();
+  });
+
+  it("is null for a site that has never been published", () => {
+    expect(publishStaleness({ map_published_rev: null }, map({ rev: 3 }), before)).toBeNull();
   });
 
   it("is null when the last publish already carries the map's rev", () => {

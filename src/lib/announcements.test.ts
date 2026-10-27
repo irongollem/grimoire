@@ -18,6 +18,12 @@ describe("pendingAnnouncements", () => {
     expect(pendingAnnouncements(all, new Set(), "2026-09-15T00:00:00Z").map((x) => x.id)).toEqual(["b"]);
   });
 
+  it("shows an announcement to an account created before it, not to one created at the instant it was published", () => {
+    const published = [a("p", "2026-10-02")];
+    expect(pendingAnnouncements(published, new Set(), "2026-10-01T23:59:59Z")).toHaveLength(1);
+    expect(pendingAnnouncements(published, new Set(), "2026-10-02T00:00:00Z")).toHaveLength(0);
+  });
+
   it("shows everything when the account date is unknown", () => {
     expect(pendingAnnouncements(all, new Set(), null)).toHaveLength(2);
   });

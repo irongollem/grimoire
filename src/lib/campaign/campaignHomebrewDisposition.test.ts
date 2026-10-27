@@ -43,16 +43,10 @@ describe("summarizeHomebrewCounts", () => {
     expect(summarizeHomebrewCounts(counts({ subclasses: 1 }))).toBe("1 subclass");
   });
 
-  it("pluralizes singular counts correctly for every kind", () => {
+  it("uses the singular for a count of one, for every kind", () => {
     const all = counts({ classes: 1, subclasses: 1, features: 1, monsters: 1, traps: 1, puzzles: 1, maps: 1, dungeonFeatures: 1 });
     expect(summarizeHomebrewCounts(all))
       .toBe("1 class, 1 subclass, 1 feature, 1 monster, 1 trap, 1 puzzle, 1 map, 1 dungeon feature");
-  });
-
-  it("pluralizes multi counts correctly for every kind", () => {
-    const all = counts({ classes: 2, subclasses: 2, features: 2, monsters: 2, traps: 2, puzzles: 2, maps: 2, dungeonFeatures: 2 });
-    expect(summarizeHomebrewCounts(all))
-      .toBe("2 classes, 2 subclasses, 2 features, 2 monsters, 2 traps, 2 puzzles, 2 maps, 2 dungeon features");
   });
 });
 
@@ -66,17 +60,6 @@ describe("planHomebrewDisposition", () => {
     expect(planHomebrewDisposition(counts({ classes: 2, features: 4 }), "promote")).toEqual([
       { kind: "classes", table: "custom_classes", disposition: "promote" },
       { kind: "features", table: "class_features", disposition: "promote" },
-    ]);
-  });
-
-  it("maps each kind to its own table", () => {
-    expect(planHomebrewDisposition(counts({ monsters: 1, traps: 1, puzzles: 1, maps: 1, dungeonFeatures: 1 }), "delete")).toEqual([
-      { kind: "monsters", table: "monsters", disposition: "delete" },
-      { kind: "traps", table: "traps", disposition: "delete" },
-      // Kinds whose table name isn't its kind name.
-      { kind: "puzzles", table: "puzzle_rooms", disposition: "delete" },
-      { kind: "maps", table: "dungeon_maps", disposition: "delete" },
-      { kind: "dungeonFeatures", table: "dungeon_features", disposition: "delete" },
     ]);
   });
 

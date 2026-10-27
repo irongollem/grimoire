@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   drawDoorToolHoverPass,
+  drawFogPass,
   drawGridPass,
   drawPenOverlay,
-  drawPersistedRingOutline,
   drawSpacesPass,
   drawTemplatePreview,
   drawWaysPass,
@@ -117,6 +117,18 @@ describe("regionFillColor", () => {
     expect(regionFillColor(makeRegion({ space_location_id: null }), opts)).toBe("rgba(255, 255, 255, 0.04)");
   });
 
+  it("in run mode: the party's room is blue, a reachable room green, an unreachable one grey", () => {
+    const base = { mode: "run" as const, activeRegionId: null, partyRoomId: "here", reachableRoomIds: new Set(["here", "next"]) };
+    expect(regionFillColor(makeRegion({ space_location_id: "here" }), base)).toBe("rgba(96, 165, 250, 0.55)");
+    expect(regionFillColor(makeRegion({ space_location_id: "next" }), base)).toBe("rgba(74, 222, 128, 0.28)");
+    expect(regionFillColor(makeRegion({ space_location_id: "far" }), base)).toBe("rgba(120, 113, 108, 0.35)");
+  });
+
+  it("in run mode with no reachability set, every traced room counts as reachable", () => {
+    const base = { mode: "run" as const, activeRegionId: null, partyRoomId: "here", reachableRoomIds: null };
+    expect(regionFillColor(makeRegion({ space_location_id: "far" }), base)).toBe("rgba(74, 222, 128, 0.28)");
+  });
+
   it("shades a bound space by its room facts in browse mode (#868 frame 01)", () => {
     const opts = { mode: "browse" as const, activeRegionId: null, partyRoomId: null, reachableRoomIds: null };
     const region = makeRegion({ space_location_id: "room-1" });
@@ -191,6 +203,20 @@ describe("drawSpacesPass", () => {
     expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(3);
   });
 
+  it("in run mode, outlines only the party's room", () => {
+    const { ctx, calls } = createRecordingCtx();
+    const here = makeRegion({ id: "r-here", space_location_id: "here", cells: ["0,0"] });
+    const away = makeRegion({ id: "r-away", space_location_id: "away", cells: ["1,0"] });
+    drawSpacesPass(
+      ctx,
+      GEOMETRY,
+      [here, away],
+      { mode: "run", activeRegionId: null, partyRoomId: "here", reachableRoomIds: null },
+      identityPointToCanvas,
+    );
+    expect(calls.filter((c) => c.startsWith("strokeRect"))).toHaveLength(1);
+  });
+
   it("skips zone regions entirely", () => {
     const { ctx, calls } = createRecordingCtx();
     const zone = makeRegion({ region_role: "zone", zone_kind: "hazard", cells: ["0,0"] });
@@ -211,11 +237,43 @@ describe("drawZonesPass", () => {
     expect(calls.some((c) => c.startsWith("fillText(ASH"))).toBe(true);
   });
 
+  it("labels a zone with its kind when it has no label of its own, and skips a zone with no kind", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawZonesPass(
+      ctx,
+      GEOMETRY,
+      [
+        makeRegion({ id: "z1", region_role: "zone", zone_kind: "hazard", cells: ["0,0"] }),
+        makeRegion({ id: "z2", region_role: "zone", zone_kind: null, cells: ["1,0"] }),
+      ],
+      null,
+      1,
+    );
+    expect(calls.some((c) => c.startsWith("fillText(HAZARD"))).toBe(true);
+    expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(1);
+  });
+
   it("adds the active-region highlight box on top", () => {
     const { ctx, calls } = createRecordingCtx();
     const zone = makeRegion({ id: "z1", region_role: "zone", zone_kind: "hazard", cells: ["0,0"] });
     drawZonesPass(ctx, GEOMETRY, [zone], "z1", 1);
     expect(calls).toContain("strokeStyle=rgba(96, 165, 250, 0.9)");
+  });
+
+  it("highlights only the active zone, not the others", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawZonesPass(
+      ctx,
+      GEOMETRY,
+      [
+        makeRegion({ id: "z1", region_role: "zone", zone_kind: "hazard", cells: ["0,0"] }),
+        makeRegion({ id: "z2", region_role: "zone", zone_kind: "hazard", cells: ["1,0"] }),
+      ],
+      "z1",
+      1,
+    );
+    // Each zone's own dashed box (2) plus one highlight box on z1 (1).
+    expect(calls.filter((c) => c.startsWith("strokeRect"))).toHaveLength(3);
   });
 });
 
@@ -246,6 +304,36 @@ describe("drawWaysPass", () => {
     expect(calls.some((c) => c.startsWith("setLineDash(") && c !== "setLineDash()")).toBe(true);
   });
 
+  it("colours a locked door gold and an arch in the muted stone", () => {
+    const locked = createRecordingCtx();
+    drawWaysPass(
+      locked.ctx,
+      GEOMETRY,
+      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: true, is_secret: false, to_location_id: "room-b" }],
+      identityPointToCanvas,
+    );
+    expect(locked.calls).toContain("strokeStyle=#fbbf24");
+    const arch = createRecordingCtx();
+    drawWaysPass(
+      arch.ctx,
+      GEOMETRY,
+      [{ edge_key: "0,0:N", door_kind: "arch", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      identityPointToCanvas,
+    );
+    expect(arch.calls).toContain("strokeStyle=#6b5c47");
+  });
+
+  it("draws nothing when the calibration leaves no cell width", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawWaysPass(
+      ctx,
+      { ...GEOMETRY, calibration: { ...CALIBRATION, cells_per_image_width: 0 } },
+      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      identityPointToCanvas,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
   it("skips a way with no edge key", () => {
     const { ctx, calls } = createRecordingCtx();
     drawWaysPass(
@@ -271,6 +359,22 @@ describe("drawWaysPass", () => {
   });
 });
 
+describe("drawFogPass", () => {
+  it("covers every glimpsed cell with fog and an outline, and leaves the dash cleared", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawFogPass(ctx, GEOMETRY, [["0,0", "1,0"], ["3,3"]]);
+    expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(3);
+    expect(calls.filter((c) => c.startsWith("strokeRect"))).toHaveLength(3);
+    expect(calls[calls.length - 1]).toBe("setLineDash()");
+  });
+
+  it("draws nothing when nothing is glimpsed", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawFogPass(ctx, GEOMETRY, []);
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("drawDoorToolHoverPass", () => {
   it("draws a highlighted bar across the hovered edge", () => {
     const { ctx, calls } = createRecordingCtx();
@@ -292,6 +396,7 @@ describe("drawPenOverlay", () => {
     expect(calls).toContain("strokeStyle=rgba(96, 165, 250, 0.9)"); // open-ring outline colour
     expect(calls.some((c) => c.startsWith("setLineDash(5,4)"))).toBe(true); // rubber-band dash
     expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(2); // one square node per point
+    expect(calls).not.toContain("fill()"); // an open ring is not filled
   });
 
   it("golds the first node when the cursor is close enough to close", () => {
@@ -302,7 +407,8 @@ describe("drawPenOverlay", () => {
       [2, 4],
     ];
     drawPenOverlay(ctx, identityPointToCanvas, ring, false, [0.1, 0.1], 9, 0.5);
-    expect(calls).toContain("fillStyle=#fbbf24");
+    // Only the first node turns gold; the others stay paper.
+    expect(calls.filter((c) => c === "fillStyle=#fbbf24")).toHaveLength(1);
   });
 
   it("fills a closed ring in the persisted colour and skips the rubber-band", () => {
@@ -338,24 +444,6 @@ describe("drawTemplatePreview", () => {
     );
     expect(calls).toContain("fillStyle=rgba(167, 139, 250, 0.22)");
     expect(calls).toContain("fill()");
-    expect(calls).toContain("stroke()");
-  });
-});
-
-describe("drawPersistedRingOutline", () => {
-  it("closes and strokes the ring in the bound-region colour", () => {
-    const { ctx, calls } = createRecordingCtx();
-    drawPersistedRingOutline(
-      ctx,
-      identityPointToCanvas,
-      [
-        [0, 0],
-        [2, 0],
-        [1, 2],
-      ],
-    );
-    expect(calls).toContain("strokeStyle=rgba(74, 222, 128, 0.8)");
-    expect(calls).toContain("closePath()");
     expect(calls).toContain("stroke()");
   });
 });

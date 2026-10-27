@@ -277,6 +277,23 @@ describe("buildRoomStack", () => {
     ]);
   });
 
+  it("says '1 combatant' for a lone combatant", () => {
+    const rows = buildRoomStack(baseInput({ encounters: [encounter({ location_id: "room-1", combatants: [combatant("c1")] })] }));
+    expect(rows[0]?.subtitle).toBe("1 combatant");
+  });
+
+  it("only a trigger zone prompts an encounter, not a hazard zone that happens to name one", () => {
+    const zone = region({ id: "zone-1", region_role: "zone", zone_kind: "hazard", zone_payload: { encounter_id: "encounter-1" }, space_location_id: null, cells: ["7,2"] });
+    const rows = buildRoomStack(baseInput({ zones: [zone], encounters: [encounter()], roomRegion: region({ cells: ["7,2"] }) }));
+    expect(rows).toEqual([]);
+  });
+
+  it("calls an unlabelled trigger zone 'this room'", () => {
+    const zone = region({ id: "zone-1", region_role: "zone", zone_kind: "trigger", zone_payload: { encounter_id: "encounter-1" }, space_location_id: null, label: null, cells: ["7,2"] });
+    const rows = buildRoomStack(baseInput({ zones: [zone], encounters: [encounter()], roomRegion: region({ cells: ["7,2"] }) }));
+    expect(rows[0]?.subtitle).toBe("Trigger zone on this room: prompt, never automatic");
+  });
+
   it("surfaces a trigger-zone encounter whose zone intersects the room's own cells", () => {
     const zone = region({
       id: "zone-1",
@@ -331,6 +348,11 @@ describe("buildRoomStack", () => {
     ]);
   });
 
+  it("calls a featureless secret door with no label a secret way rather than leaving the row blank", () => {
+    const rows = buildRoomStack(baseInput({ doors: [door({ dungeon_feature_id: null, label: "" })], features: [] }));
+    expect(rows[0]).toMatchObject({ kind: "hidden", label: "Secret way" });
+  });
+
   it("prefers Perception over Investigation when a feature has both DCs — matches the trap rows' passive-DC convention", () => {
     const rows = buildRoomStack(baseInput({ doors: [door()], features: [feature({ perception_dc: 16, investigation_dc: 14 })] }));
     expect(rows[0]?.subtitle).toBe("Undiscovered · Perception DC 16");
@@ -339,6 +361,13 @@ describe("buildRoomStack", () => {
   it("falls back to Investigation DC when the feature has no Perception DC", () => {
     const rows = buildRoomStack(baseInput({ doors: [door()], features: [feature({ perception_dc: null, investigation_dc: 14 })] }));
     expect(rows[0]?.subtitle).toBe("Undiscovered · Investigation DC 14");
+  });
+
+  it("still names a DC of 0 — zero is a DC, not an absent one", () => {
+    const rows = buildRoomStack(baseInput({ doors: [door()], features: [feature({ perception_dc: 0, investigation_dc: null })] }));
+    expect(rows[0]?.subtitle).toBe("Undiscovered · Perception DC 0");
+    const trapRows = buildRoomStack(baseInput({ placements: [placement({ trap_id: "trap-1" })], traps: [trap({ detection_dc: 0 })] }));
+    expect(trapRows[0]?.subtitle).toBe("Passive 0 notices it");
   });
 
   it("drops a secret door once its `found` fact is asserted — it is an ordinary way out now", () => {
@@ -363,6 +392,10 @@ describe("buildRoomStack", () => {
     ]);
     const withoutNote = buildRoomStack(baseInput({ placements: [placement({ roll_table_id: "roll-1", roll_table: { id: "roll-1", name: "Undercroft debris" } })] }));
     expect(withoutNote[0]?.subtitle).toBe("Roll for what's here");
+    const blankNote = buildRoomStack(baseInput({ placements: [placement({ roll_table_id: "roll-1", roll_table: { id: "roll-1", name: "Undercroft debris" }, note: "" })] }));
+    expect(blankNote[0]?.subtitle).toBe("Roll for what's here");
+    // A placement whose joined table did not load draws no row.
+    expect(buildRoomStack(baseInput({ placements: [placement({ roll_table_id: "roll-1", roll_table: null })] }))).toEqual([]);
   });
 
   it("lists only held loot — a dispatched entry has already told its own story in chat", () => {

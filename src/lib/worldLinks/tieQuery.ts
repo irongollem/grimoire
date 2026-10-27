@@ -51,8 +51,6 @@ interface VocabEntry extends TieWord {
 const PARTICLES = new Set(["of", "by", "to", "with", "in", "at", "from", "for"]);
 /** Heads that would turn "who is at the inn" or "where is Harl" into a tie query. */
 const PHRASE_ONLY_HEADS = new Set(["is", "set", "seen", "quest", "bound", "sworn"]);
-/** Catalogue words too ordinary to mean a tie on their own. */
-const NEVER_WORDS = new Set(["where"]);
 
 const FILLER = new Set([
   "who", "whom", "whose", "what", "which", "that", "are", "is", "was", "were", "all", "the", "a", "an",
@@ -70,7 +68,6 @@ function buildVocabulary(): VocabEntry[] {
   const out: VocabEntry[] = [];
   const seen = new Set<string>();
   const add = (key: string, word: string, outward: boolean, symmetric: boolean) => {
-    if (NEVER_WORDS.has(word.toLowerCase())) return;
     const id = `${key}|${word}|${outward}`;
     if (seen.has(id)) return;
     seen.add(id);
@@ -93,7 +90,10 @@ const VOCABULARY = buildVocabulary();
 
 /** "rivals" and "rival", "worships" and "worship", "boxes" and "box" read the same. */
 function stem(token: string): string {
-  if (token.length > 4 && token.endsWith("es")) return token.slice(0, -2);
+  // "carries" is "carry"; "boxes" and "wishes" drop "es"; "includes" and
+  // "lives" only drop the "s", or they would never meet "include" and "live".
+  if (token.length > 4 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
+  if (token.length > 4 && /(?:s|x|z|ch|sh)es$/.test(token)) return token.slice(0, -2);
   if (token.length > 3 && token.endsWith("s")) return token.slice(0, -1);
   return token;
 }

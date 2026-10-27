@@ -11,6 +11,10 @@ describe("autoFillColumns", () => {
     expect(autoFillColumns(50, 100, 10)).toBe(1);
     expect(autoFillColumns(0, 100, 10)).toBe(1);
   });
+  it("reports one column rather than dividing by a zero track width", () => {
+    expect(autoFillColumns(320, 0, 0)).toBe(1);
+    expect(autoFillColumns(320, 0, 10)).toBe(1);
+  });
 });
 
 describe("row chunking", () => {
@@ -24,6 +28,11 @@ describe("row chunking", () => {
     expect(rowItems(items, 3, 0)).toEqual([1, 2, 3]);
     expect(rowItems(items, 3, 2)).toEqual([7]);
     expect(rowItems(items, 3, 3)).toEqual([]);
+  });
+  it("treats a zero column count as one rather than dividing by it", () => {
+    expect(rowCount(5, 0)).toBe(5);
+    expect(rowItems(items, 0, 2)).toEqual([3]);
+    expect(rowOfItem(4, 0)).toBe(4);
   });
   it("finds the row of an item", () => {
     expect(rowOfItem(0, 3)).toBe(0);

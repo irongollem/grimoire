@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   describeHeldLoot,
-  describeHeldPayoff,
   describeSpineSession,
   describeThreadCursor,
   findBeatArrival,
@@ -16,7 +15,6 @@ import {
 import type { SiteGraphLocation } from "./run";
 import type {
   QuestConsequence,
-  QuestHeldPayoff,
   QuestRoutePayoff,
   QuestRuntimeChoice,
   QuestRuntimeJumpTarget,
@@ -207,6 +205,11 @@ describe("objectiveThreadHint", () => {
     expect(objectiveThreadHint("o1", [consequence()], threads, "t1")).toBe("B");
   });
 
+  it("ignores a rule that raises some other objective", () => {
+    const threads = [threadCursor({ id: "t1", current_beat_id: "beat-a" }), threadCursor({ id: "t2", current_beat_id: "beat-b", label: "Side" })];
+    expect(objectiveThreadHint("o1", [consequence({ target_objective_id: "o2" })], threads, "t1")).toBeNull();
+  });
+
   it("never names the current thread itself", () => {
     const threads = [threadCursor({ id: "t1", current_beat_id: "beat-b" })];
     expect(objectiveThreadHint("o1", [consequence()], threads, "t1")).toBeNull();
@@ -234,19 +237,22 @@ describe("summarizeRoutePayoff", () => {
     expect(summarizeRoutePayoff(payoff())).toBe("reveal · Testify before the Guild");
   });
 
+  it("names a ledger verb alone when its payoff has no target to name", () => {
+    expect(summarizeRoutePayoff(payoff({ target_objective: null }))).toBe("reveal");
+  });
+
+  it.each([
+    ["target_npc", "Scrim"],
+    ["target_quest", "The stolen cauldron"],
+    ["target_document", "The tithe ledger"],
+    ["target_clock", "The count"],
+    ["target_faction", "Understage Crew"],
+  ] as const)("names the target of a world payoff from %s", (field, name) => {
+    expect(summarizeRoutePayoff(payoff({ action: "send_broadcast", target_objective: null, [field]: name }))).toBe(`Then sends a broadcast “${name}”`);
+  });
+
   it("falls back to the world-action sentence for a non-ledger payoff", () => {
     expect(summarizeRoutePayoff(payoff({ action: "send_broadcast", target_objective: null }))).toBe("Then sends a broadcast");
-  });
-});
-
-describe("describeHeldPayoff", () => {
-  it("names the action a held event will perform", () => {
-    const held: QuestHeldPayoff = {
-      event_id: "e1", consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null,
-      target_npc_id: "npc-1", target_quest_id: null, target_document_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, action_payload: {}, after_days: 0,
-      held_at: "2026-01-01T00:00:00Z", beat_id: "beat-1", beat_title: "Confront Ser Vallis",
-    };
-    expect(describeHeldPayoff(held)).toBe("Shifts an NPC's disposition");
   });
 });
 
@@ -276,12 +282,21 @@ describe("findBeatArrival and describeSpineSession", () => {
     expect(findBeatArrival(rows, "q1", "beat-1", true)).toEqual({ kind: "jump", reason: null, createdAt: "2026-01-03T00:00:00Z" });
   });
 
+  it("does not mistake another quest's arrival at a beat with the same id for this one's", () => {
+    expect(findBeatArrival([{ to_quest_id: "q2", to_beat_id: "beat-1", kind: "enter" }], "q1", "beat-1")).toBeNull();
+  });
+
   it("returns null for a beat with no arrival", () => {
     expect(findBeatArrival(rows, "q1", "beat-9")).toBeNull();
   });
 
   it("extracts a session number named in the reason", () => {
     expect(describeSpineSession(findBeatArrival(rows, "q1", "beat-1"), formatDate)).toBe("session 22");
+  });
+
+  it("reads 'session #12' as session 12", () => {
+    const detail = { kind: "enter", reason: "Paused, session #12", createdAt: null };
+    expect(describeSpineSession(detail, formatDate)).toBe("session 12");
   });
 
   it("falls back to the date when the reason names no session", () => {

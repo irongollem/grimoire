@@ -74,20 +74,10 @@ describe("monsterGenerationOptionsFromPage", () => {
     expect(monsterGenerationOptionsFromPage({ monster_type: "a walled city" })).toEqual({});
   });
 
-  it("prefers the longer of two nested enum matches, same rule as resolveEnum", () => {
-    // "very rare" analogue for monster types isn't real 5e vocabulary, but
-    // sizes have the same nesting risk if a future value overlaps — this
-    // pins the longest-match rule against the size list directly.
-    expect(monsterGenerationOptionsFromPage({ size: "gargantuan" })).toEqual({ size: "gargantuan" });
+  it("prefers the longer enum member when a printed type names two", () => {
+    // "celestial" (9) outweighs "beast" (5) listed before it and "fey" (3) listed after it.
+    expect(monsterGenerationOptionsFromPage({ monster_type: "beast-shaped celestial" })).toEqual({ monster_type: "celestial" });
+    expect(monsterGenerationOptionsFromPage({ monster_type: "celestial touched by fey" })).toEqual({ monster_type: "celestial" });
   });
 
-  it("combines a valid challenge rating with a valid type and size", () => {
-    expect(
-      monsterGenerationOptionsFromPage({
-        monster_type: "undead",
-        size: "medium",
-        stat_block: { challenge_rating: "3" },
-      }),
-    ).toEqual({ challenge_rating: "3", monster_type: "undead", size: "medium" });
-  });
 });

@@ -45,6 +45,7 @@ describe("describeDeadline", () => {
   it("says tomorrow, then the date, flagging the near ones", () => {
     expect(describeDeadline(ADAPTER, { year: 1000, month: 1, day: 15 }, today)).toEqual({ label: "due tomorrow", urgency: "soon" });
     expect(describeDeadline(ADAPTER, { year: 1000, month: 1, day: 17 }, today)).toEqual({ label: "due 17 Hammer", urgency: "soon" });
+    expect(describeDeadline(ADAPTER, { year: 1000, month: 1, day: 18 }, today)).toEqual({ label: "due 18 Hammer", urgency: "later" }); // four days out
     expect(describeDeadline(ADAPTER, { year: 1000, month: 2, day: 5 }, today)).toEqual({ label: "due 5 Altu", urgency: "later" });
   });
 

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
 import { THEMES } from "@/lib/themes";
-import { activeThemeId, darkTwinId, darkTwinStyle, previewTheme, setOverride, setPlayerSeat, setTheme, themeInMode } from "./themeRuntime";
+import { SPLASH_COLORS_KEY, activeThemeId, darkTwinId, darkTwinStyle, previewTheme, setOverride, setPlayerSeat, setTheme, themeInMode } from "./themeRuntime";
 
 describe("theme families", () => {
   it("pairs every theme with a member of the other mode", () => {
@@ -66,6 +66,18 @@ describe("applyTheme", () => {
     expect(root.style.getPropertyValue("--tone-success")).toBe("");
     expect(root.style.getPropertyValue("--primary-fill")).toBe("");
     expect(root.getAttribute("data-theme")).toBe("tome");
+  });
+
+  // index.html paints the splash from these before any CSS loads; the wrong pair is a flash of the wrong theme.
+  it("records the colours the next boot's splash screen paints", () => {
+    setOverride("campaign");
+    setTheme("vellum-dark");
+    const dark = THEMES.find((t) => t.id === "vellum-dark");
+    expect(JSON.parse(localStorage.getItem(SPLASH_COLORS_KEY) ?? "null")).toEqual({
+      background: dark?.vars["--background"],
+      primary: dark?.vars["--primary"],
+      mode: "dark",
+    });
   });
 
   it("applies the player's own theme over any campaign's, and follows the campaign again on request", () => {

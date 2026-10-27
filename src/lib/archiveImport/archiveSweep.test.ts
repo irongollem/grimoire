@@ -303,6 +303,45 @@ describe("runArchiveSweep: mentions", () => {
     expect(everything).not.toContain("archiveLink");
   });
 
+  it("never turns a link to a shared-library row into a mention, nor asks its place type", async () => {
+    const town = page("Dunmere.md", { kind: "location" });
+    const mara = page("Mara.md", { kind: "npc", content: [para(link("Dunmere", "Dunmere"))] });
+    const candidate: EntityCandidate = { targetId: "library-place", source: "library", name: "Dunmere", matchKind: "exact", detail: null, distance: null };
+    const { deps, updates } = fakeDeps();
+    const report = await run([entry(mara, "npc"), entry(town, "location", { action: "link", candidate })], deps);
+    expect(updates).toEqual([]);
+    expect(deps.locationTypes).not.toHaveBeenCalled();
+    expect(report.unresolvedLinks.map((u) => u.reason)).toEqual(["a place cannot be mentioned"]);
+  });
+
+  it("reports a target linked twice on one page once", async () => {
+    const quest = page("Bell.md", { kind: "quest", content: [para(text("Rings.")), para(link("Nowhere", "Nowhere"), text(" and "), link("Nowhere", "there"))] });
+    const { deps } = fakeDeps();
+    const report = await run([entry(quest, "quest")], deps);
+    expect(report.unresolvedLinks).toHaveLength(1);
+  });
+
+  it("does not rewrite an opening beat that was never saved", async () => {
+    const town = page("Dunmere.md", { kind: "location" });
+    const quest = page("Bell.md", { kind: "quest", content: [para(text("Rings.")), para(link("Dunmere", "Dunmere"))] });
+    const { deps, updates } = fakeDeps({
+      insertRow: vi.fn(async (table): Promise<InsertRowOutcome> =>
+        table === "quest_beats" ? { status: "failed", message: "no beat" } : { status: "inserted", id: `${table}-ok` },
+      ),
+    });
+    const report = await run([entry(quest, "quest"), entry(town, "location")], deps);
+    expect(updates.filter((u) => u.table === "quest_beats")).toEqual([]);
+    expect(report.failures[0].message).toContain("prose was not saved: no beat");
+  });
+
+  it("does not file an NPC under a faction page it nests beneath", async () => {
+    const guild = page("Guild.md", { kind: "faction" });
+    const npc = page("Guild/Mara.md", { kind: "npc", parentRef: guild.ref });
+    const { deps, inserts } = fakeDeps();
+    await run([entry(guild, "faction"), entry(npc, "npc")], deps);
+    expect(inserts.find((c) => c.table === "npcs")?.row.location_id).toBeUndefined();
+  });
+
   it("does not touch pages linked to an existing record", async () => {
     const candidate: EntityCandidate = { targetId: "x", source: "campaign", name: "Mara", matchKind: "exact", detail: null, distance: null };
     const mara = page("Mara.md", { kind: "npc", content: [para(link("Mara", "Mara"))] });

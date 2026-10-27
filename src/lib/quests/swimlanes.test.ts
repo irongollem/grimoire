@@ -30,6 +30,20 @@ describe("deriveSwimlanes", () => {
     // Bounding box spans petition (x0) through vallis (x600+240), padded 48 either side.
     expect(lanes[0]!.x).toBe(0 - 48);
     expect(lanes[0]!.w).toBe((600 + 240 - 0) + 48 * 2);
+    expect(lanes[0]!.y).toBe(0 - 48);
+    expect(lanes[0]!.h).toBe(120 + 48 * 2); // one row of beats, padded above and below
+  });
+
+  it("pads by the amount asked for", () => {
+    const [lane] = deriveSwimlanes({
+      threads: [thread("main", "live", "2026-09-01T00:00:00Z")],
+      runtime: [{ thread_id: "main", current_beat_id: "ledgers" }],
+      transitions: [],
+      beats,
+      nodeSize,
+      padding: 10,
+    });
+    expect(lane).toMatchObject({ x: 290, y: -10, w: 260, h: 140 });
   });
 
   it("omits a thread with nothing visited and no current beat", () => {

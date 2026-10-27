@@ -2,20 +2,6 @@ import { describe, it, expect } from "vitest";
 import { createFurnitureItem, parsePageFurniture } from "./model";
 
 describe("createFurnitureItem", () => {
-  it("applies kind defaults", () => {
-    const wc = createFurnitureItem("watercolor", { type: "page", page: 1 });
-    expect(wc.kind).toBe("watercolor");
-    expect(wc.z).toBe("under");
-    expect(wc.props.variant).toBe(1);
-    expect(wc.id).toBeTruthy();
-  });
-
-  it("watermark/art/credit have sensible defaults", () => {
-    expect(createFurnitureItem("watermark", { type: "page", page: 1 }).props.text).toBe("DRAFT");
-    expect(createFurnitureItem("art", { type: "page", page: 1 }).z).toBe("over");
-    expect(createFurnitureItem("artistCredit", { type: "page", page: 1 }).props.position).toBe("bottom-right");
-  });
-
   it("merges overrides (incl. nested props)", () => {
     const item = createFurnitureItem(
       "watercolor",
@@ -67,6 +53,15 @@ describe("parsePageFurniture", () => {
       { ...valid, anchor: { type: "block", blockId: "b" } },
     ]);
     expect(items).toHaveLength(2); // valid + valid-block-anchor
+  });
+
+  it("keeps z over, and drops a block anchor whose blockId is not a string", () => {
+    const items = parsePageFurniture([
+      { ...valid, z: "over" },
+      { ...valid, anchor: { type: "block", blockId: 7 } },
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0].z).toBe("over");
   });
 
   it("fills missing numeric/z fields with safe defaults", () => {

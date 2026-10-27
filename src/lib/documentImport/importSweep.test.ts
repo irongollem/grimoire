@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { buildSiteRoomIndex, resolveLocationLoot, type SiteRoomIndex } from "./importSweepLinking";
 import { runImportSweep, type BeatAttachmentWrite, type ImportSweepDeps, type ImportSweepInput } from "./importSweep";
 import type { ImportDecision } from "./entityMatching";
 import type { UsableEntity } from "./sanitizeEntities";
@@ -92,6 +93,43 @@ describe("runImportSweep", () => {
     expect(report.perKind.monsters).toMatchObject({ planned: 1, imported: 1, linked: 1, ignored: 1 });
     expect(deps.insertRow).toHaveBeenCalledTimes(1);
     expect(deps.markComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses to import anything when the document's generation info is missing", async () => {
+    const deps = fakeDeps();
+    await expect(
+      runImportSweep({ ...IMPORT_ROW, ai_provenance: null }, input({ entitiesByKind: { monsters: [usable("m1", { name: "Kobold" })] }, decisions: new Map([["monsters", new Map([["m1", CREATE]])]]) }), deps),
+    ).rejects.toThrow("generation info is missing");
+    expect(deps.insertRow).not.toHaveBeenCalled();
+  });
+
+  it("writes no link resolutions, spine or parent when the sweep created nothing that needs them", async () => {
+    const deps = fakeDeps();
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      input({ entitiesByKind: { monsters: [usable("m1", { name: "Kobold" })] }, decisions: new Map([["monsters", new Map([["m1", CREATE]])]]), parentQuestId: "parent-quest" }),
+      deps,
+    );
+    expect(report.createdQuestId).toBeNull();
+    expect(deps.applyLinkResolutions).not.toHaveBeenCalled();
+    expect(deps.updateQuestParent).not.toHaveBeenCalled();
+  });
+
+  it("gives only the first quest it created the parent quest, and writes no spine for a quest without beats", async () => {
+    const deps = fakeDeps();
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      input({
+        entitiesByKind: { quests: [usable("q1", { title: "The Sunken Bell" }), usable("q2", { title: "The Hollow King" })] },
+        decisions: new Map([["quests", new Map([["q1", CREATE], ["q2", CREATE]])]]),
+        parentQuestId: "parent-quest",
+      }),
+      deps,
+    );
+    expect(report.createdQuestId).toBe("quests-1");
+    expect(deps.updateQuestParent).toHaveBeenCalledTimes(1);
+    expect(deps.updateQuestParent).toHaveBeenCalledWith("quests-1", "parent-quest");
+    expect(deps.writeQuestSpine).not.toHaveBeenCalled();
   });
 
   it("persists imported_counts after every kind it actually imports, for crash-resume", async () => {
@@ -331,6 +369,36 @@ describe("runImportSweep", () => {
       // One write for the lot. Sent one at a time, every ref the beat-attachment
       // trigger had already written came back as a 409 in the DM's console.
       expect(deps.insertQuestRefs).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports a beat staged at a place the page never defines, rather than losing it quietly", async () => {
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: { quests: [usable("q1", { title: "X", beats: [{ key: "b1", title: "Into the crypt", kind: "explore", dm_content: "", location_name: "Atlantis" }] })] },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["quests", new Map([["q1", CREATE]])]]),
+        }),
+        deps,
+      );
+      expect(report.unresolvedLinks).toEqual(['Beat "Into the crypt" → location "Atlantis"']);
+    });
+
+    it("links the quest to an item a beat names that the campaign already had", async () => {
+      const deps = fakeDeps({
+        writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })),
+        fetchNameLookup: vi.fn(async (kind: ImportEntityKind): Promise<readonly NameLookupRow[]> => (kind === "items" ? [{ id: "item-existing", name: "Silver bell" }] : [])),
+      });
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: { quests: [usable("q1", { title: "X", beats: [{ key: "b1", title: "Find it", kind: "explore", dm_content: "", item_names: ["Silver bell"] }] })] },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["quests", new Map([["q1", CREATE]])]]),
+        }),
+        deps,
+      );
+      const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
+      expect(refs).toContainEqual({ quest_id: "quests-1", ref_type: "item", ref_id: "item-existing" });
     });
 
     it("applies parentQuestId to the created quest", async () => {
@@ -692,6 +760,36 @@ describe("runImportSweep", () => {
       expect(report.unresolvedLinks.some((m) => m.includes("Rusty Pick") || m.includes("Guardroom Fight"))).toBe(false);
     });
 
+    it("treats a beat staged at one room as covering the whole site: the sibling room's fight is not re-listed", async () => {
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [
+              usable("site", { name: "Sunless Citadel", location_type: "dungeon" }),
+              usable("r1", { name: "M1. Guardroom", location_type: "room", parent_name: "Sunless Citadel" }),
+              usable("r2", { name: "M2. Armoury", location_type: "room", parent_name: "Sunless Citadel" }),
+            ],
+            encounters: [usable("e1", { name: "Armoury Fight", location_name: "M2. Armoury" })],
+            quests: [
+              usable("q1", {
+                title: "The Mine",
+                beats: [{ key: "b1", title: "Hold the guardroom", kind: "combat", dm_content: "", location_name: "M1. Guardroom", encounter_names: ["Armoury Fight"] }],
+              }),
+            ],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["locations", new Map([["site", CREATE], ["r1", CREATE], ["r2", CREATE]])],
+            ["encounters", new Map([["e1", CREATE]])],
+            ["quests", new Map([["q1", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+      expect(rowsOf(deps.insertBeatAttachments).find((a) => a.attachment_type === "encounter")).toBeUndefined();
+    });
+
     it("does not skip anything for a beat staged at a location that is neither a site nor a room", async () => {
       const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
       await runImportSweep(
@@ -845,6 +943,19 @@ describe("runImportSweep", () => {
         expect.objectContaining({ monster_id: "mon-owlbear-rpc", custom_name: null }),
       ]);
       expect(report.unresolvedLinks).toEqual([]);
+    });
+
+    it("does not rewrite the combatants of an encounter that has none", async () => {
+      const deps = fakeDeps();
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: { encounters: [usable("e1", { name: "Quiet room", combatants: [] })] },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["encounters", new Map([["e1", CREATE]])]]),
+        }),
+        deps,
+      );
+      expect(deps.updateEncounterCombatants).not.toHaveBeenCalled();
     });
 
     it("reports a combatant matching nothing, keyed by the encounter's own name", async () => {
@@ -1008,5 +1119,46 @@ describe("runImportSweep", () => {
     );
     expect(report.unresolvedKin).toBe(1);
     expect(report.perKind.npcs?.imported).toBe(2);
+  });
+});
+
+describe("buildSiteRoomIndex", () => {
+  const room = (name: string, parent_name?: string) => ({ data: { name, parent_name } });
+  const ids = new Map([["cave", "id-cave"], ["tunnel", "id-tunnel"]]);
+
+  it("pairs a room with the site named as its parent, both ways round", () => {
+    const index: SiteRoomIndex = buildSiteRoomIndex([room("Tunnel", "Cave")], ids);
+    expect(index.siteIdOfRoom.get("id-tunnel")).toBe("id-cave");
+    expect([...(index.roomIdsOfSite.get("id-cave") ?? [])]).toEqual(["id-tunnel"]);
+  });
+
+  it("makes no site of a place that names itself as its parent, or whose parent never landed", () => {
+    const index = buildSiteRoomIndex([room("Cave", "Cave"), room("Tunnel", "Ruins")], ids);
+    expect(index.siteIdOfRoom.size).toBe(0);
+    expect(index.roomIdsOfSite.size).toBe(0);
+  });
+});
+
+describe("resolveLocationLoot", () => {
+  it("records room loot only for the placements the database kept", async () => {
+    const recorded: [string, string][] = [];
+    const items = [{ id: "item-1", name: "Silver bell", source: "campaign" as const }, { id: "item-2", name: "Candle", source: "campaign" as const }];
+    const unresolved: string[] = [];
+    const insertLootPlacements = vi.fn(async (rows: { item_ref: string }[]) => {
+      // The batch is refused; the row-by-row retry refuses only the bell.
+      if (rows.length > 1 || rows[0]?.item_ref === "item-1") throw new Error("violates foreign key");
+    });
+    await resolveLocationLoot(
+      [{ locationId: "loc-1", locationName: "Crypt", itemNames: ["Silver bell", "Candle"] }],
+      items,
+      CAMPAIGN_ID,
+      { insertLootPlacements },
+      unresolved,
+      () => {},
+      (locationId, itemId) => recorded.push([locationId, itemId]),
+    );
+    expect(recorded).toEqual([["loc-1", "item-2"]]);
+    expect(unresolved).toHaveLength(1);
+    expect(unresolved[0]).toContain('item "Silver bell"');
   });
 });

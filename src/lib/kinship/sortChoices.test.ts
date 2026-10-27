@@ -70,7 +70,7 @@ describe("choicesFor", () => {
 describe("sortPatch", () => {
   it("writes the parent as the from end when `to` is the parent", () => {
     const patch = sortPatch(row(), { relation: "parent", parentRole: "mother", label: null });
-    expect(patch).toMatchObject({ kind: "parent", from_npc_id: "b", to_npc_id: "a", parent_role: "mother", needs_sorting: false });
+    expect(patch).toMatchObject({ kind: "parent", from_npc_id: "b", to_npc_id: "a", parent_role: "mother", needs_sorting: false, adoptive: false });
   });
   it("keeps the ends when `from` is the parent", () => {
     const patch = sortPatch(row(), { relation: "child", parentRole: null, label: null });
@@ -107,6 +107,15 @@ describe("planSort", () => {
     const plan = planSort(graph, rows, new Map(rows.map((r) => [r.link.id, asParent])));
     expect(plan.entries.map((e) => e.row.link.id)).toEqual(["1", "2"]);
     expect([...plan.refused]).toEqual(["3"]);
+  });
+
+  it("lets a stored parent link be turned round without it counting against itself", () => {
+    // Bo is stored as Ann's child (Ann -> Bo). Choosing "Bo is Ann's parent" reverses it; the old direction must not make that look like a loop.
+    const stored = { id: "1", from: a.key, to: b.key, kind: "parent" as const, parent_role: null, adoptive: false };
+    const graph = buildKinGraph([a, b], [stored]);
+    const plan = planSort(graph, [mk("1", a, b)], new Map([["1", { relation: "parent", parentRole: null, label: null } satisfies SortChoice]]));
+    expect(plan.refused.size).toBe(0);
+    expect(plan.entries).toHaveLength(1);
   });
 
   it("saves everything when nothing loops, and ignores unchosen rows", () => {

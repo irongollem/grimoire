@@ -56,9 +56,20 @@ describe("track", () => {
       expect(() => track({ name: "generator_used", kind: "player@example.com" })).toThrow();
     });
 
-    it("rejects an empty label", () => {
+    it.each([
+      ["an empty label", ""],
+      ["a label that starts with a dash", "-NPC"],
+      ["a label that starts with a space", " NPC"],
+    ])("rejects %s", (_title, kind) => {
       withQueue();
-      expect(() => track({ name: "generator_used", kind: "" })).toThrow();
+      expect(() => track({ name: "generator_used", kind })).toThrow();
+    });
+
+    it("accepts a label of 32 characters and rejects one of 33", () => {
+      const va = withQueue();
+      track({ name: "generator_used", kind: "a".repeat(32) });
+      expect(va).toHaveBeenCalledTimes(1);
+      expect(() => track({ name: "generator_used", kind: "a".repeat(33) })).toThrow();
     });
 
     it("does not send anything when the guard rejects", () => {

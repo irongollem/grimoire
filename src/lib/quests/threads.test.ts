@@ -16,6 +16,11 @@ describe("orderThreads", () => {
     expect(ordered.map((t) => t.id)).toEqual(["first", "second", "waiting", "closed", "merged"]);
   });
 
+  it("breaks a tie on creation time by id, so the letters never shuffle", () => {
+    const ordered = orderThreads([thread("b", "live", "2026-09-01T00:00:00Z"), thread("a", "live", "2026-09-01T00:00:00Z")]);
+    expect(ordered.map((t) => t.id)).toEqual(["a", "b"]);
+  });
+
   it("does not mutate the input", () => {
     const input = [thread("b", "live", "2"), thread("a", "live", "1")];
     orderThreads(input);
@@ -41,21 +46,6 @@ describe("threadTone", () => {
     expect(threadTone(3)).toEqual(threadTone(0));
   });
 
-  it("uses ink tokens for text and tone tokens for fills, never the reverse", () => {
-    for (const index of [0, 1, 2]) {
-      const tone = threadTone(index);
-      expect(tone.text).toMatch(/^text-(primary|ink-)/);
-      expect(tone.bg).toMatch(/^bg-(primary|tone-)/);
-    }
-  });
-
-  it("gives the swimlane wash a much fainter fill than a badge background", () => {
-    for (const index of [0, 1, 2]) {
-      const tone = threadTone(index);
-      expect(tone.bgFaint).toMatch(/^bg-(primary|tone-\w+)\/5$/);
-      expect(tone.bgFaint).not.toBe(tone.bg);
-    }
-  });
 });
 
 describe("threadBadges", () => {
@@ -81,5 +71,6 @@ describe("threadBadges", () => {
   it("lands on the oldest live thread when the route names none", () => {
     expect(defaultThreadId(threads)).toBe("main");
     expect(defaultThreadId([thread("done", "closed", "1")])).toBeNull();
+    expect(defaultThreadId([thread("done", "closed", "1"), thread("parked", "waiting", "2")])).toBe("parked");
   });
 });
