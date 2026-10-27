@@ -43,21 +43,13 @@ function vignette(over: Partial<VignetteOptions>): VignetteOptions {
 }
 
 describe("applyVignette — early exits", () => {
-  it("never reads pixel data when disabled", () => {
+  it.each([
+    ["disabled", { enabled: false, strength: 1 }],
+    ["strength is 0", { enabled: true, strength: 0 }],
+    ["strength is negative", { enabled: true, strength: -0.1 }],
+  ])("never reads pixel data when %s", (_label, over) => {
     const { ctx, getImageData } = makeCtx(10, 10, [200, 200, 200, 255]);
-    applyVignette(ctx, 10, 10, vignette({ enabled: false, strength: 1 }));
-    expect(getImageData).not.toHaveBeenCalled();
-  });
-
-  it("never reads pixel data when strength is 0", () => {
-    const { ctx, getImageData } = makeCtx(10, 10, [200, 200, 200, 255]);
-    applyVignette(ctx, 10, 10, vignette({ enabled: true, strength: 0 }));
-    expect(getImageData).not.toHaveBeenCalled();
-  });
-
-  it("never reads pixel data when strength is negative", () => {
-    const { ctx, getImageData } = makeCtx(10, 10, [200, 200, 200, 255]);
-    applyVignette(ctx, 10, 10, vignette({ enabled: true, strength: -0.1 }));
+    applyVignette(ctx, 10, 10, vignette(over));
     expect(getImageData).not.toHaveBeenCalled();
   });
 });
@@ -76,6 +68,22 @@ describe('applyVignette — "transparent" mode', () => {
     // colour is preserved in transparent mode - only alpha is touched
     expect([r, g, b]).toEqual([200, 150, 50]);
     expect(a).toBe(0);
+  });
+
+  it("eases in along a smoothstep curve rather than a straight ramp", () => {
+    // 100x100, softness 0.5: the inner radius is 70.71 * (1 - 0.425) = 40.66 and the ramp is 30.05 long.
+    // Pixel (98, 50) is 48 from the centre, a quarter (0.244) of the way along. Smoothstep(0.244) = 0.150, so the
+    // alpha left is 255 * 0.85 = 217. A straight ramp would leave 193.
+    const { ctx, pixelAt } = makeCtx(100, 100, [200, 150, 50, 255]);
+    applyVignette(ctx, 100, 100, vignette({ enabled: true, strength: 1, softness: 0.5 }));
+    expect(pixelAt(98, 50)[3]).toBe(217);
+  });
+
+  it("keeps the middle of the frame clear even at full softness", () => {
+    // Softness 1 puts the inner radius at 15% of the half-diagonal (10.6px), not at the centre.
+    const { ctx, pixelAt } = makeCtx(100, 100, [200, 150, 50, 255]);
+    applyVignette(ctx, 100, 100, vignette({ enabled: true, strength: 1, softness: 1 }));
+    expect(pixelAt(55, 50)).toEqual([200, 150, 50, 255]);
   });
 
   it("scales the corner's alpha reduction linearly with strength", () => {

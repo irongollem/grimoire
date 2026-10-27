@@ -113,6 +113,12 @@ describe("combatantPortraitOverrides", () => {
     );
   });
 
+  it("prefers the rendered thumbnail over the stylized reference when both exist", () => {
+    const combatants = [combatant({ instance_id: "m-orc-0", monster_id: "mon-1" })];
+    const minis = [miniRow({ source_id: "mon-1", thumbnail_url: "https://cdn.example/thumb.png", stylized_image_url: "https://cdn.example/stylized.png" })];
+    expect(combatantPortraitOverrides(combatants, minis).get("m-orc-0")).toBe("https://cdn.example/thumb.png");
+  });
+
   it("omits a combatant whose source has no matching mini row", () => {
     const combatants = [combatant({ instance_id: "m-orc-0", monster_id: "mon-1" })];
     expect(combatantPortraitOverrides(combatants, []).size).toBe(0);

@@ -48,6 +48,17 @@ describe("currentBeatsByQuest", () => {
     ]);
   });
 
+  it("shows only the beats that are current, with their text trimmed", () => {
+    const out = currentBeatsByQuest(
+      [q("a", "2026-01-01")],
+      [
+        beat({ id: "1", quest_id: "a", is_current: false, player_text: "Already done" }),
+        beat({ id: "2", quest_id: "a", is_current: true, player_text: "  Open the gate  " }),
+      ],
+    );
+    expect(out[0].current).toEqual([{ threadLabel: null, text: "Open the gate" }]);
+  });
+
   it("skips current beats with no text and other quests' beats", () => {
     const out = currentBeatsByQuest(
       [q("a", "2026-01-01")],

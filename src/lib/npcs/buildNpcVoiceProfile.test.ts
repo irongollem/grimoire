@@ -52,6 +52,23 @@ describe("buildNpcVoiceProfile", () => {
     expect(profile).toContain("Name: Aldric Thorne");
   });
 
+  it("carries each field under its own label", () => {
+    const profile = buildNpcVoiceProfile(makeNpc({ notes: "Owes the guild." }));
+    expect(profile).toContain("Race: Human");
+    expect(profile).toContain("Alignment: Lawful Neutral");
+    expect(profile).toContain("Occupation: Merchant");
+    expect(profile).toContain("Personality: Gruff but fair");
+    expect(profile).toContain("Backstory: Once a soldier");
+    expect(profile).toContain("Notes: Owes the guild.");
+  });
+
+  it("an unrevealed NPC with no disguise is simply itself, not a disguise with no name", () => {
+    const profile = buildNpcVoiceProfile(makeNpc({ disguise_name: null, is_revealed: false }));
+    expect(profile).toContain("Name: Aldric Thorne");
+    expect(profile).not.toContain("IMPORTANT");
+    expect(profile).not.toContain("null");
+  });
+
   it("presents the disguise name and never leaks the true name when unrevealed", () => {
     const npc = makeNpc({
       name: "Aldric Thorne",

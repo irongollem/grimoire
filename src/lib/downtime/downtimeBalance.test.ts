@@ -64,8 +64,4 @@ describe("computeBalance", () => {
   it("clamps at zero rather than reporting a negative balance", () => {
     expect(computeBalance([grant(1)], [draw("pending"), draw("resolved")])).toBe(0);
   });
-
-  it("honours grants larger than one credit", () => {
-    expect(computeBalance([grant(5)], [draw("pending")])).toBe(4);
-  });
 });

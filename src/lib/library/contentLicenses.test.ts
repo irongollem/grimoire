@@ -40,10 +40,7 @@ function makeSource(overrides: Partial<ContentLicenseSource> & { key: string }):
 
 describe("licenseDescriptor", () => {
   it("returns the descriptor for a known key", () => {
-    const d = licenseDescriptor("ogl-10a");
-    expect(d).not.toBeNull();
-    expect(d?.shortName).toBe("OGL 1.0a");
-    expect(d?.reproducesFullText).toBe(true);
+    expect(licenseDescriptor("ogl-10a")?.key).toBe("ogl-10a");
   });
 
   it("returns null for an unknown key", () => {
@@ -73,6 +70,14 @@ describe("groupSourcesByLicense", () => {
       "cc0",
       "some-future-license",
     ]);
+  });
+
+  it("sorts two unrecognised license keys alphabetically", () => {
+    const groups = groupSourcesByLicense([
+      makeSource({ key: "z", license_keys: ["zeta-license"] }),
+      makeSource({ key: "a", license_keys: ["alpha-license"] }),
+    ]);
+    expect(groups.map((g) => g.license.key)).toEqual(["alpha-license", "zeta-license"]);
   });
 
   it("groups an ORC-licensed source (e.g. Black Flag) under the ORC descriptor", () => {

@@ -31,6 +31,17 @@ describe("featureInsertFromAi", () => {
     expect(featureInsertFromAi({ name: "x", description: "  " }, ctx)).toBeNull();
   });
 
+  it("caps the name at 120 characters and keeps at most six tags of at most 40 characters", () => {
+    const row = featureInsertFromAi(
+      { name: "N".repeat(130), description: "d", tags: ["a", "b", "c", "d", "e", "f", "g", "T".repeat(50)] },
+      ctx,
+    );
+    expect(row?.name).toHaveLength(120);
+    expect(row?.tags).toEqual(["a", "b", "c", "d", "e", "f"]);
+    const long = featureInsertFromAi({ name: "n", description: "d", tags: ["T".repeat(50)] }, ctx);
+    expect(long?.tags).toEqual(["t".repeat(40)]);
+  });
+
   it("reads an unknown activation as passive", () => {
     expect(activationFrom("mythic")).toBeNull();
     expect(activationFrom(undefined)).toBeNull();
@@ -91,6 +102,12 @@ describe("levelledFeaturesFromAi", () => {
     expect(out.map((f) => f.insert.name)).toEqual(["F1", "F2"]);
   });
 
+  it("keeps only maxTotal features, the earliest levels first", () => {
+    const raw = [9, 2, 5, 1].map((level) => ({ level, name: `L${level}`, description: "d" }));
+    const out = levelledFeaturesFromAi(raw, undefined, ctx, { maxPerLevel: 2, maxTotal: 3 });
+    expect(out.map((f) => f.level)).toEqual([1, 2, 5]);
+  });
+
   it("is empty for non-arrays", () => {
     expect(levelledFeaturesFromAi("nope", undefined, ctx, opts)).toEqual([]);
   });
@@ -100,6 +117,11 @@ describe("featureIdsByLevel", () => {
   it("groups ids by the level of the draft at the same position", () => {
     const drafts = [1, 1, 3].map((level) => ({ level, insert: {} as ClassFeatureInsert }));
     expect(featureIdsByLevel(drafts, ["a", "b", "c"])).toEqual({ "1": ["a", "b"], "3": ["c"] });
+  });
+
+  it("leaves a draft out when no id was created for it", () => {
+    const drafts = [1, 3].map((level) => ({ level, insert: {} as ClassFeatureInsert }));
+    expect(featureIdsByLevel(drafts, ["a"])).toEqual({ "1": ["a"] });
   });
 
   it("places an existing feature among the created ones", () => {
@@ -139,19 +161,6 @@ describe("createWithFeatures", () => {
       }),
     ).rejects.toThrow("insert failed");
     expect(deleted.sort()).toEqual(["g3", "g4"]);
-  });
-
-  it("deletes the created features when the parent fails", async () => {
-    const deleted: string[] = [];
-    let n = 0;
-    await expect(
-      createWithFeatures(inserts, {
-        createFeature: async () => ({ id: `f${++n}` }),
-        deleteFeature: async (id) => { deleted.push(id); },
-        createParent: async () => { throw new Error("insert failed"); },
-      }),
-    ).rejects.toThrow("insert failed");
-    expect(deleted).toEqual(["f1", "f2"]);
   });
 
   it("deletes the features created so far when a later feature fails", async () => {

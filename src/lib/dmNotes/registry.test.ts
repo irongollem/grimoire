@@ -19,13 +19,14 @@ describe("dm note registry", () => {
     }
   });
 
-  it("maps the column types to their tables", () => {
-    const columns = types.filter((t) => DM_NOTE_ENTITIES[t].store.kind === "column");
-    expect(columns.sort()).toEqual(
-      ["dungeon_feature", "item", "location", "loot_table", "monster", "npc", "puzzle", "roll_table", "trap"],
-    );
-    expect(DM_NOTE_ENTITIES.item.store).toMatchObject({ table: "items", column: "dm_notes" });
-    expect(DM_NOTE_COLUMN_TABLES.has("puzzle_rooms")).toBe(true);
+  // Names the column tables the registry's own consumers (the note editor and the
+  // privacy guard) treat as "stored in a column"; an entity_note type must never leak in.
+  it("lists exactly the column-stored entities' tables as column tables", () => {
+    const expected = types.flatMap((t) => {
+      const store = DM_NOTE_ENTITIES[t].store;
+      return store.kind === "column" ? [store.table] : [];
+    });
+    expect([...DM_NOTE_COLUMN_TABLES].sort()).toEqual(expected.sort());
     expect(DM_NOTE_COLUMN_TABLES.has("deities")).toBe(false);
   });
 
@@ -39,12 +40,15 @@ describe("dm note registry", () => {
     expect(DM_NOTE_ENTITIES.party_member.store).toEqual({ kind: "entity_note", campaignTable: "party_members" });
   });
 
-  it("builds routes", () => {
-    expect(dmNoteEntry("npc").route("a")).toBe("/npcs/a");
-    expect(dmNoteEntry("item").route("a")).toBe("/vault/a");
-    expect(dmNoteEntry("party_member").route("a")).toBe("/party/a");
-    expect(dmNoteEntry("companion").route("a")).toBe("/party");
-    expect(dmNoteEntry("roll_table").route("a")).toEqual({ path: "/dungeon-craft", query: { tab: "roll-tables" } });
+  // companion and roll_table open a list the note lives in, so they cannot carry the id.
+  const IDLESS = new Set<DmNoteEntityType>(["companion", "roll_table"]);
+
+  it.each(types.filter((t) => !IDLESS.has(t)))("sends a %s note to a route that names the entity", (type) => {
+    const target = dmNoteEntry(type).route("abc-123");
+    expect(JSON.stringify(target)).toContain("abc-123");
+  });
+
+  it("sends a location note through the place route", () => {
     expect(dmNoteEntry("location").route("a")).toBe("/locations?at=a");
   });
 });

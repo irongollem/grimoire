@@ -23,6 +23,11 @@ describe("reorderWrites", () => {
     ]);
   });
 
+  it("cannot move the last pin on the board down into the taken stubs behind it", () => {
+    const pins = [pin("a", "up", 1), pin("taken", "taken", 2)];
+    expect(reorderWrites(pins, "a", 1)).toEqual([]);
+  });
+
   it("renumbers from zero when ties would swallow the move, writing only what changes", () => {
     const pins = [pin("a", "up", 0), pin("b", "up", 0), pin("c", "up", 2)];
     expect(reorderWrites(pins, "a", 1)).toEqual([

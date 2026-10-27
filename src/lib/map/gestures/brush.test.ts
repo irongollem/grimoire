@@ -67,12 +67,4 @@ describe("applyBrushStroke", () => {
     const stroke = startBrushStroke("0,0" as CellKey, "paint");
     expect(applyBrushStroke(stroke, ["0,0"] as CellKey[])).toEqual(["0,0"]);
   });
-
-  it("mode inference + apply reproduces the region-paint stroke end to end", () => {
-    // The exact scenario useRegionPointer.test.ts exercises: region already
-    // holds "9,9"; the stroke starts on an empty cell, so it paints.
-    const region: CellKey[] = ["9,9" as CellKey];
-    const stroke = startBrushStroke("0,0" as CellKey, (c) => region.includes(c));
-    expect(applyBrushStroke(stroke, region)).toEqual(["9,9", "0,0"]);
-  });
 });

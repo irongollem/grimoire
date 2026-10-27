@@ -7,6 +7,7 @@ import {
   type AuthSnapshot,
 } from "./authSnapshot";
 import type { CampaignMember } from "@/types/campaign.types";
+import type { ChildAccountLink } from "@/types/childAccount.types";
 
 const member = (campaignId: string) =>
   ({ id: "m1", user_id: "u1", campaign_id: campaignId, role: "dm" }) as unknown as CampaignMember;
@@ -27,6 +28,21 @@ describe("authSnapshot", () => {
   it("round-trips for the same user and campaign", () => {
     writeAuthSnapshot(snap(member("c1")));
     expect(readAuthSnapshot("u1", "c1")).toEqual(snap(member("c1")));
+  });
+
+  it("keeps a child link and a not-yet-loaded flag as written", () => {
+    const childLink: ChildAccountLink = {
+      child_user_id: "u1",
+      parent_user_id: "p1",
+      login_name: "kid",
+      adult_on: "2030-01-01",
+      consent_version: "v1",
+      consented_at: "2026-01-01T00:00:00Z",
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    const written: AuthSnapshot = { ...snap(null), childLink, childLinkLoaded: false };
+    writeAuthSnapshot(written);
+    expect(readAuthSnapshot("u1", undefined)).toEqual(written);
   });
 
   it("misses for another user", () => {

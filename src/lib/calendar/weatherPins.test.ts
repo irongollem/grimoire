@@ -28,6 +28,12 @@ describe("weather pin bookkeeping", () => {
     expect(pinOn(pins, "b", old)).toBeDefined();
   });
 
+  it("keeps a pin on the sixtieth day after its date and drops it on the sixty-first", () => {
+    const pins = withPin(adapter, [set("a", back(PIN_KEEP_DAYS)), set("a", back(PIN_KEEP_DAYS + 1))], set("a", today), today);
+    expect(pinOn(pins, "a", back(PIN_KEEP_DAYS))).toBeDefined();
+    expect(pinOn(pins, "a", back(PIN_KEEP_DAYS + 1))).toBeUndefined();
+  });
+
   it("keeps the latest reroll however old, so today's sky does not flip back", () => {
     const old = back(PIN_KEEP_DAYS + 30);
     const rolled = [reroll(null, old, "x1")];

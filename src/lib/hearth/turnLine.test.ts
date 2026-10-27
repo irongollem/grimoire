@@ -54,15 +54,29 @@ describe("combatTurnLine", () => {
     );
   });
   it("wraps up-next from the last combatant to the first", () => {
-    const line = combatTurnLine({ ...base, active_combatant_index: 2, combatants_live: [goblin, ally, me] }, "ally");
+    // Sorted: me 20, goblin 10. The goblin (last) is active, so the round wraps to me.
+    const first = { ...me, initiative: 20 };
+    const last = { ...goblin, initiative: 10 };
+    const line = combatTurnLine({ ...base, active_combatant_index: 1, combatants_live: [last, first] }, "me");
+    expect(line?.status).toBe("up-next");
+  });
+  it("does not call me up-next when the active combatant cannot be found", () => {
+    const first = { ...me, initiative: 20 };
+    const line = combatTurnLine(
+      { ...base, active_combatant_instance_id: "gone", combatants_live: [first, goblin] },
+      "me",
+    );
     expect(line?.status).toBe("waiting");
-    const line2 = combatTurnLine({ ...base, active_combatant_index: 2, combatants_live: [ally, goblin, me].map((x) => ({ ...x })) }, "me");
-    expect(line2?.status).toBe("your-turn");
   });
   it("never names a hidden combatant before me", () => {
     const line = combatTurnLine({ ...base, active_combatant_index: 0, combatants_live: [goblin, secret, me] }, "me");
     expect(line?.afterName).toBeNull();
     expect(JSON.stringify(line)).not.toContain("Assassin");
+  });
+  it("never names a monster that has no reveal state yet before me", () => {
+    const unrevealed = c({ instance_id: "u", name: "Lurker", initiative: 14 });
+    const line = combatTurnLine({ ...base, active_combatant_index: 0, combatants_live: [goblin, unrevealed, me] }, "me");
+    expect(line?.afterName).toBeNull();
   });
   it("has no afterName when first in the order", () => {
     const line = combatTurnLine({ ...base, active_combatant_index: 0, combatants_live: [me, ally].map((x) => ({ ...x, initiative: x === me ? 20 : 5 })) }, "me");

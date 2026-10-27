@@ -51,6 +51,24 @@ describe("normalizeDungeonFeature", () => {
     expect(r.arcana_dc).toBeNull();
   });
 
+  it("raises a DC below the table's floor to 5, rounds a fraction, and reads padded enum text", () => {
+    const r = normalizeDungeonFeature({ name: "X", perception_dc: 1, investigation_dc: 14.6, feature_type: " secret door " });
+    expect(r.perception_dc).toBe(5);
+    expect(r.investigation_dc).toBe(15);
+    expect(r.feature_type).toBe("Secret Door");
+  });
+
+  it("keeps at most eight tags", () => {
+    const r = normalizeDungeonFeature({ name: "X", tags: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"] });
+    expect(r.tags).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"]);
+  });
+
+  it("carries the provenance object through and invents none", () => {
+    const provenance = { generatorType: "feature", provider: "p", model: "m", generatedAt: "now", edited: false };
+    expect(normalizeDungeonFeature({ name: "X", ai_provenance: provenance }).ai_provenance).toEqual(provenance);
+    expect(normalizeDungeonFeature({ name: "X", ai_provenance: "trust me" })).not.toHaveProperty("ai_provenance");
+  });
+
   it("filters tags and blank text, defaults image prompt to the name", () => {
     const r = normalizeDungeonFeature({ name: "X", tags: ["a", 3, "", "a"], notes: "  ", image_prompt: 5 });
     expect(r.tags).toEqual(["a"]);

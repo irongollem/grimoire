@@ -142,6 +142,25 @@ describe("parseDashboardLayout", () => {
   });
 });
 
+describe("dense packing (#768)", () => {
+  // Opt-in per surface: anything but a literal `true` leaves it off, so a
+  // corrupt row cannot reorder a grid the DM never asked to pack.
+  it.each([
+    ["true", true, true],
+    ["false", false, undefined],
+    ["the string 'true'", "true", undefined],
+    ["1", 1, undefined],
+  ])("parses dense %s", (_label, dense, expected) => {
+    expect(parseDashboardLayout({ widgets: [], dense })?.dense).toBe(expected);
+  });
+
+  it("carries a saved dense flag through the merge, and stays off without one", () => {
+    expect(mergeDashboardLayout({ widgets: [], known: [...KNOWN_WIDGET_IDS], dense: true }, "prep").dense).toBe(true);
+    expect(mergeDashboardLayout({ widgets: [], known: [...KNOWN_WIDGET_IDS] }, "prep").dense).toBe(false);
+    expect(mergeDashboardLayout({ widgets: [], known: [...KNOWN_WIDGET_IDS], dense: false }, "prep").dense).toBe(false);
+  });
+});
+
 describe("mergeDashboardLayout with nothing saved", () => {
   it.each(SURFACES)("renders %s's default layout", (surface) => {
     const merged = mergeDashboardLayout(null, surface);
@@ -201,6 +220,19 @@ describe("mergeDashboardLayout case 1 — widgets the registry no longer offers"
     expect(mergeDashboardLayout(saved, "prep").widgets).toEqual([
       { key: "quests", id: "quests", width: "cell", height: heightOf("quests") },
     ]);
+  });
+
+  // A widget that allows several instances still gives each key one slot.
+  it("collapses two instances of a multi-instance widget that claim the same key", () => {
+    const saved: DashboardLayout = {
+      widgets: [
+        { key: "dm-screen-card", id: "dm-screen-card", width: "cell" },
+        { key: "dm-screen-card", id: "dm-screen-card", width: "wide" },
+        { key: "dm-screen-card-2", id: "dm-screen-card", width: "cell" },
+      ],
+      known: [...KNOWN_WIDGET_IDS],
+    };
+    expect(keysOf(mergeDashboardLayout(saved, "prep").widgets)).toEqual(["dm-screen-card", "dm-screen-card-2"]);
   });
 
   // A hand-edited or corrupt row must not be able to render ten Party widgets.

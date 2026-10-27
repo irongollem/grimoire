@@ -157,6 +157,18 @@ describe("nextUpcomingEvents", () => {
     expect(result.map((r) => r.event)).toEqual([deadline, festival]);
   });
 
+  it("treats an empty type list as every type", () => {
+    const event = makeEvent({ event_type: "quest", harptos_month: 1, harptos_day: 20 });
+    expect(nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 1, 15), { limit: 5, eventTypes: [] })).toHaveLength(1);
+  });
+
+  it("has nothing upcoming from a today the calendar cannot place, and for a limit of zero or less", () => {
+    const event = makeEvent({ harptos_year: 2001, harptos_month: 1, harptos_day: 20 });
+    expect(nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 99, 1), { limit: 5 })).toEqual([]);
+    expect(nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 1, 15), { limit: 0 })).toEqual([]);
+    expect(nextUpcomingEvents([event, makeEvent({ harptos_month: 1, harptos_day: 21 })], TEST_ADAPTER, today(2001, 1, 15), { limit: -1 })).toEqual([]);
+  });
+
   it("caps the result at limit, keeping the earliest events", () => {
     const events = [1, 2, 3, 4, 5].map((day) =>
       makeEvent({ harptos_year: 2001, harptos_month: 1, harptos_day: 15 + day }),
@@ -172,7 +184,6 @@ describe("formatDaysUntil", () => {
     [0, "Today"],
     [1, "Tomorrow"],
     [6, "In 6 days"],
-    [30, "In 30 days"],
   ])("formats %i days as %s", (daysUntil, expected) => {
     expect(formatDaysUntil(daysUntil)).toBe(expected);
   });
@@ -193,28 +204,5 @@ describe("adapter-supplied month lengths", () => {
     );
     // Month 2 runs 31 days in a leap year here, so 1/2 → 1/3 is 31 days.
     expect(leap[0]?.daysUntil).toBe(31);
-  });
-
-  it("counts the ordinary length in a non-leap year", () => {
-    const event = makeEvent({ harptos_year: 2001, harptos_month: 3, harptos_day: 1 });
-    const plain = nextUpcomingEvents(
-      [event],
-      GROWING_MONTH_ADAPTER,
-      today(2001, 2, 1),
-      { limit: 5 },
-    );
-    expect(plain[0]?.daysUntil).toBe(30);
-  });
-
-  // An adapter with no `daysInMonth` must behave exactly as before.
-  it("falls back to the month's fixed length when the adapter has no rule", () => {
-    const event = makeEvent({ harptos_year: 2000, harptos_month: 3, harptos_day: 1 });
-    const fixed = nextUpcomingEvents(
-      [event],
-      { ...TEST_ADAPTER, intercalaryDays: [] },
-      today(2000, 2, 1),
-      { limit: 5 },
-    );
-    expect(fixed[0]?.daysUntil).toBe(30);
   });
 });

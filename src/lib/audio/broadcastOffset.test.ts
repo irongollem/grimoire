@@ -20,6 +20,11 @@ describe("broadcastOffsetSeconds", () => {
     expect(broadcastOffsetSeconds(paused, muchLater)).toBe(10);
   });
 
+  it("keeps running after a resume, even though the old paused_at is still on the row", () => {
+    const resumed = row({ is_paused: false, paused_at: "2026-07-28T20:00:10.000Z" });
+    expect(broadcastOffsetSeconds(resumed, NOW)).toBe(30);
+  });
+
   it("keeps running when paused is set but no instant was recorded", () => {
     expect(broadcastOffsetSeconds(row({ is_paused: true }), NOW)).toBe(30);
   });
@@ -46,6 +51,12 @@ describe("broadcastOffsetSeconds", () => {
 describe("shouldResync", () => {
   it("leaves inaudible drift alone", () => {
     expect(shouldResync(30, 30 + RESYNC_THRESHOLD_S - 0.1)).toBe(false);
+  });
+
+  it("leaves drift of exactly the threshold alone, and corrects anything past it", () => {
+    expect(shouldResync(30, 30 + RESYNC_THRESHOLD_S)).toBe(false);
+    expect(shouldResync(30 + RESYNC_THRESHOLD_S, 30)).toBe(false);
+    expect(shouldResync(30, 30 + RESYNC_THRESHOLD_S + 0.01)).toBe(true);
   });
 
   it("corrects real drift in either direction", () => {

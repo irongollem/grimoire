@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AMBIENT, illuminationGrid, lightLevelAt, segmentTouchesZone, type LitSource } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
-import { DM_VEIL, veilAlpha } from "./darkness";
 
 const torch: LitSource = { x: 10, y: 10, bright: 20, dim: 20 }; // 4 cells bright, 8 cells reach
 
@@ -81,14 +80,6 @@ describe("illuminationGrid", () => {
   });
 });
 
-describe("veilAlpha", () => {
-  it("ties the carve to the DM's veil", () => {
-    expect(veilAlpha(AMBIENT.dark)).toBeCloseTo(DM_VEIL.dark, 9);
-    expect(veilAlpha(AMBIENT.dim)).toBeCloseTo(DM_VEIL.dim, 9);
-    expect(veilAlpha(AMBIENT.daylight)).toBe(DM_VEIL.daylight);
-  });
-});
-
 describe("light against walls", () => {
   const wall = occluders({ walls: ["12,10:W"], doors: [], solid: [] });
   const lamp: LitSource = { x: 10.5, y: 10.5, bright: 30, dim: 0 };
@@ -163,14 +154,33 @@ describe("magical darkness", () => {
     expect(segmentTouchesZone(sphere, 0, 10, 5, 10)).toBe(false);
   });
 
+  it("a lamp behind a sphere lights no sample of the grid beyond it, matching the pointwise level", () => {
+    const lamp: LitSource = { x: 4, y: 10, bright: 60, dim: 0 };
+    const opts = { ambient: 0, sources: [lamp], occluders: NO_OCCLUDERS, minX: 0, minY: 6, cols: 20, rows: 8, samplesPerCell: 2, zones: sphere };
+    const grid = illuminationGrid(opts);
+    for (let j = 0; j < 16; j++) {
+      for (let i = 0; i < 40; i++) {
+        expect(grid[j * 40 + i]).toBeCloseTo(lightLevelAt(0, [lamp], NO_OCCLUDERS, (i + 0.5) / 2, 6 + (j + 0.5) / 2, sphere), 6);
+      }
+    }
+    expect(grid[8 * 40 + 30]).toBe(0); // (15.25, 10.25) is behind the sphere, in the lamp's reach
+  });
+
+  it("counts the edge of a sphere as inside it", () => {
+    expect(lightLevelAt(AMBIENT.daylight, [], NO_OCCLUDERS, 13, 10, sphere)).toBe(0); // exactly 3 cells out
+    expect(lightLevelAt(AMBIENT.daylight, [], NO_OCCLUDERS, 13.01, 10, sphere)).toBe(1);
+  });
+
   it("the grid agrees with the pointwise level, zeroing the sphere even on a daylight map", () => {
     const opts = { ambient: 1, sources: [], occluders: NO_OCCLUDERS, minX: 6, minY: 6, cols: 10, rows: 10, samplesPerCell: 2, zones: sphere };
     const grid = illuminationGrid(opts);
     const w = 20;
     expect(grid[8 * w + 8]).toBe(0); // cell 10, 10
     expect(grid[0]).toBe(1);
-    for (const [i, j] of [[8, 8], [0, 0], [14, 8], [3, 12]]) {
-      expect(grid[j * w + i]).toBeCloseTo(lightLevelAt(1, [], NO_OCCLUDERS, 6 + (i + 0.5) / 2, 6 + (j + 0.5) / 2, sphere), 6);
+    for (let j = 0; j < 20; j++) {
+      for (let i = 0; i < w; i++) {
+        expect(grid[j * w + i]).toBe(lightLevelAt(1, [], NO_OCCLUDERS, 6 + (i + 0.5) / 2, 6 + (j + 0.5) / 2, sphere));
+      }
     }
   });
 });

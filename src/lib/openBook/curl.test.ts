@@ -25,6 +25,13 @@ describe("easeTurn", () => {
     expect(easeTurn(1)).toBe(1);
     expect(easeTurn(2)).toBe(1);
   });
+
+  it("eases in cubically before the middle and out cubically after it", () => {
+    // 4x^3 below the half, 1 - (2 - 2x)^3 / 2 above: 4 * 0.25^3 = 0.0625, 4 * 0.45^3 = 0.3645, and the mirror at 0.75.
+    expect(easeTurn(0.25)).toBeCloseTo(0.0625);
+    expect(easeTurn(0.45)).toBeCloseTo(0.3645);
+    expect(easeTurn(0.75)).toBeCloseTo(0.9375);
+  });
 });
 
 describe("curlFrame", () => {
@@ -73,6 +80,16 @@ describe("curlFrame", () => {
     expect(d(landed)).toBeCloseTo(-d(paper));
   });
 
+  it("keeps the landed paper within the page's top and bottom edges", () => {
+    for (const p of [0.1, 0.3, 0.6, 0.9]) {
+      const f = curlFrame(p, W, H, { reach: 1 });
+      for (const q of f.back) {
+        expect(q.y).toBeGreaterThanOrEqual(-1e-6);
+        expect(q.y).toBeLessThanOrEqual(H + 1e-6);
+      }
+    }
+  });
+
   it("keeps a lone page's folded part from leaving the page", () => {
     const f = curlFrame(0.9, W, H, { reach: 0 });
     for (const q of f.back) expect(q.x).toBeGreaterThanOrEqual(-1e-6);
@@ -92,7 +109,9 @@ describe("css helpers", () => {
   });
 
   it("writes a polygon and a matrix", () => {
-    expect(polygonCss([])).toMatch(/^polygon\(/);
+    // Fewer than three points enclose nothing, so the clip is an empty polygon rather than a sliver.
+    expect(polygonCss([])).toBe("polygon(0 0, 0 0, 0 0)");
+    expect(polygonCss([{ x: 1, y: 1 }, { x: 5, y: 5 }])).toBe("polygon(0 0, 0 0, 0 0)");
     expect(polygonCss([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }])).toBe("polygon(0.00px 0.00px, 1.00px 0.00px, 1.00px 1.00px)");
     expect(matrixCss([1, 0, 0, 1, 2, 3])).toBe("matrix(1.00000, 0.00000, 0.00000, 1.00000, 2.00000, 3.00000)");
   });

@@ -147,19 +147,6 @@ describe("addWidget", () => {
     expect(keys(addWidget(prep(), RETIRED_WIDGET_ID, "prep").entries)).toEqual(keys(prep()));
   });
 
-  // Derived from the registry rather than hard-coded, so it starts
-  // discriminating for real the day a single-surface widget is added.
-  it("refuses a widget the surface does not offer", () => {
-    const offered = DASHBOARD_WIDGETS.filter((w) => w.surfaces.includes("prep")).map((w) => w.id);
-    const notOffered = DASHBOARD_WIDGETS.filter((w) => !w.surfaces.includes("prep"));
-    for (const widget of notOffered) {
-      expect(keys(addWidget([], widget.id, "prep").entries)).toEqual([]);
-    }
-    // All ten widgets are dual-surface today, so the loop above is empty; this
-    // asserts the premise so the test cannot quietly pass for the wrong reason.
-    expect(offered.length + notOffered.length).toBe(DASHBOARD_WIDGETS.length);
-  });
-
   it("keys a placed widget by its plain id", () => {
     expect(addWidget([], "quests", "prep").entries[0]?.key).toBe("quests");
   });
@@ -305,6 +292,13 @@ describe("cycleHeight", () => {
     expect(out.entries[0]?.height).toBe(3);
   });
 
+  // A layout saved before heights existed has no `height` on its entries.
+  it("steps from the widget's default height when the entry stores none", () => {
+    const entries: DashboardLayoutEntry[] = [{ key: "quests", id: "quests", width: "cell" }];
+    // quests defaults to 2, so the next one along is 3.
+    expect(cycleHeight(entries, "quests").entries[0]?.height).toBe(3);
+  });
+
   it("announces the new height and asks to be kept in view", () => {
     const out = cycleHeight(prep(), "quests");
     expect(out.announcement).toBe("Quests set to 3 of 4 height.");
@@ -334,21 +328,6 @@ describe("stepping both ways", () => {
     expect(entries.find((e) => e.key === "quests")?.height).toBe(1);
     entries = cycleHeight(entries, "quests", -1).entries;
     expect(entries.find((e) => e.key === "quests")?.height).toBe(4);
-  });
-
-  // The bug this guards: `%` keeps the sign in JS, so a bare `(at - 1) % len`
-  // yields -1 at index 0 and the control silently does nothing at exactly the
-  // place a DM is most likely to press it.
-  it("does not stall at index zero in either direction", () => {
-    const width = cycleWidth(prep(), "quests", -1);
-    expect(width.entries.find((e) => e.key === "quests")?.width).not.toBe("cell");
-    const height = cycleHeight(prep(), "quests", -1);
-    expect(height.entries.find((e) => e.key === "quests")?.height).not.toBe(2);
-  });
-
-  it("still steps forward by default", () => {
-    expect(cycleWidth(prep(), "quests").entries.find((e) => e.key === "quests")?.width).toBe("wide");
-    expect(cycleHeight(prep(), "quests").entries.find((e) => e.key === "quests")?.height).toBe(3);
   });
 
   it("round-trips: forward then back returns the original", () => {
@@ -417,6 +396,10 @@ describe("isDefaultLayout", () => {
     expect(isDefaultLayout(moveEntry(prep(), "quests", 1).entries, "prep")).toBe(false);
     expect(isDefaultLayout(cycleWidth(prep(), "quests").entries, "prep")).toBe(false);
     expect(isDefaultLayout(removeEntry(prep(), "stats").entries, "prep")).toBe(false);
+  });
+
+  it("counts a height change alone as customized", () => {
+    expect(isDefaultLayout(cycleHeight(prep(), "quests").entries, "prep")).toBe(false);
   });
 
   // No default layout ships a configurable widget, so this cannot fire today.

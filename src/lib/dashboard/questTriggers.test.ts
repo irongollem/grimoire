@@ -53,6 +53,11 @@ describe("deriveDueConsequenceRows", () => {
     expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
+  it("includes an event exactly on the horizon's last day", () => {
+    const rows = [pending({ id: "e1", due_on_day: TODAY.day + CONSEQUENCE_HORIZON_DAYS })];
+    expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY).map((r) => r.eventId)).toEqual(["e1"]);
+  });
+
   it("includes an event inside the horizon, with the right countdown", () => {
     const rows = [pending({ id: "e1", due_on_day: TODAY.day + 5 })];
     const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
@@ -90,6 +95,14 @@ describe("deriveDueConsequenceRows", () => {
     expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
+  it.each([
+    ["year", { due_on_year: null }],
+    ["month", { due_on_month: null }],
+    ["day", { due_on_day: null }],
+  ])("skips an event with only its %s missing", (_part, missing) => {
+    expect(deriveDueConsequenceRows(TEST_ADAPTER, [pending({ id: "e1", ...missing })], TODAY)).toEqual([]);
+  });
+
   it("drops an event whose quest is gone, rather than rendering it nameless", () => {
     const rows = [pending({ id: "e1", quest: null })];
     expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
@@ -103,7 +116,8 @@ describe("deriveDueConsequenceRows", () => {
 
   it("sorts soonest-first, ties broken by quest title", () => {
     const rows = [
-      pending({ id: "later", quest: { id: "q1", title: "Zebra Quest" }, due_on_day: TODAY.day + 10 }),
+      // Alphabetically first, but furthest away: due date outranks title.
+      pending({ id: "later", quest: { id: "q1", title: "Aardvark Quest" }, due_on_day: TODAY.day + 10 }),
       pending({ id: "tie-b", quest: { id: "q2", title: "Bravo Quest" }, due_on_day: TODAY.day + 3 }),
       pending({ id: "tie-a", quest: { id: "q3", title: "Alpha Quest" }, due_on_day: TODAY.day + 3 }),
     ];

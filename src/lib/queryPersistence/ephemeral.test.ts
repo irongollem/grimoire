@@ -21,13 +21,21 @@ describe("containsEphemeral", () => {
     expect(containsEphemeral([() => 1])).toBe(true);
   });
 
-  it("stops descending past depth 12 (and survives cycles)", () => {
-    let deep: unknown = "blob:deep";
-    for (let i = 0; i < 20; i++) deep = { child: deep };
-    expect(containsEphemeral(deep)).toBe(false);
+  it("looks 12 levels down and no further, and survives cycles", () => {
+    const nest = (levels: number) => {
+      let deep: unknown = "blob:deep";
+      for (let i = 0; i < levels; i++) deep = { child: deep };
+      return deep;
+    };
+    expect(containsEphemeral(nest(12))).toBe(true);
+    expect(containsEphemeral(nest(13))).toBe(false);
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
     expect(containsEphemeral(cyclic)).toBe(false);
+  });
+
+  it("does not flag text that merely starts with the word blob", () => {
+    expect(containsEphemeral({ name: "blobfish" })).toBe(false);
   });
 
   it("is cheap on a large array of flat rows", () => {

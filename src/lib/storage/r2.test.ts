@@ -88,6 +88,13 @@ describe("failure classification", () => {
     await expect(uploadToR2("npcPortraits", upload)).rejects.toBeInstanceOf(R2UnavailableError);
   });
 
+  it("treats a signer that answers without any URLs as recoverable", async () => {
+    const { uploadToR2, R2UnavailableError } = await loadR2();
+    invoke.mockResolvedValue({ data: null, error: null });
+
+    await expect(uploadToR2("npcPortraits", upload)).rejects.toBeInstanceOf(R2UnavailableError);
+  });
+
   it("treats a thrown PUT (the CORS failure mode) as recoverable", async () => {
     // The single most likely R2 misconfiguration, and the browser will not say
     // more than "failed". It must never cost the user their upload.
@@ -127,8 +134,15 @@ describe("uploadToR2", () => {
     const outcome = await uploadToR2("npcPortraits", upload, variants);
 
     expect(invoke).toHaveBeenCalledOnce();
+    // The signature covers exactly this key, type and byte length; a signed size of 0 would fail every PUT.
+    expect(invoke.mock.calls[0][1].body.objects[0]).toEqual({ path: upload.path, contentType: "image/webp", size: 1 });
     expect(invoke.mock.calls[0][1].body.objects).toHaveLength(3);
     expect(order).toHaveLength(3);
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: "PUT",
+      headers: { "Content-Type": "image/webp" },
+      body: upload.blob,
+    });
     expect(outcome.uploaded).toHaveLength(3);
     expect(outcome.failed).toEqual([]);
   });
@@ -174,6 +188,16 @@ describe("deleteFromR2", () => {
     expect(invoke).toHaveBeenCalledTimes(3);
     expect(invoke.mock.calls[0][1].body.paths).toHaveLength(64);
     expect(invoke.mock.calls[2][1].body.paths).toHaveLength(22);
+  });
+
+  it("warns instead of throwing when the function refuses, because cleanup is best-effort", async () => {
+    const { deleteFromR2 } = await loadR2();
+    invoke.mockResolvedValue({ data: null, error: new Error("r2 down") });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(deleteFromR2("npcPortraits", ["u1/a.webp"])).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("does nothing for an empty list", async () => {

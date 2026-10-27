@@ -205,6 +205,49 @@ describe("buildTableVitalsRows", () => {
     expect(rows[0]!.resources).toEqual([{ key: "ki", label: "Ki", current: 2, max: 4, rest: "short" }]);
   });
 
+  it("labels every underscore in a resource key as a space", () => {
+    const rows = buildTableVitalsRows([
+      member({ class_resources: { second_wind_charges: { current: 1, max: 1, rest: "short" } } }),
+    ]);
+    expect(rows[0]!.resources[0]!.label).toBe("Second Wind Charges");
+  });
+
+  it("drops a resource whose max is zero, like a zero-max slot", () => {
+    const rows = buildTableVitalsRows([
+      member({ class_resources: { ki: { current: 0, max: 0, rest: "short" } } }),
+    ]);
+    expect(rows).toEqual([]);
+  });
+
+  it("never shows negative slots remaining when used exceeds max", () => {
+    const rows = buildTableVitalsRows([member({ spell_slots: [{ level: 1, max: 2, used: 5 }] })]);
+    expect(rows[0]!.slots[0]!.remaining).toBe(0);
+  });
+
+  it("treats a concentration with an empty spell name as not concentrating", () => {
+    const rows = buildTableVitalsRows([
+      member({
+        concentration: { spellId: null, spellName: "", castAtLevel: 1, startedRound: 2, appliedEffectIds: [] },
+      }),
+    ]);
+    expect(rows).toEqual([]);
+  });
+
+  it("reads a non-numeric startedRound as unknown rather than passing it on", () => {
+    const rows = buildTableVitalsRows([
+      member({
+        concentration: {
+          spellId: null,
+          spellName: "Bless",
+          castAtLevel: 1,
+          startedRound: "4" as unknown as number,
+          appliedEffectIds: [],
+        },
+      }),
+    ]);
+    expect(rows[0]!.concentration).toEqual({ spellName: "Bless", startedRound: null });
+  });
+
   it("treats an empty-object concentration blob as not concentrating", () => {
     const rows = buildTableVitalsRows([
       member({

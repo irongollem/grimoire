@@ -54,8 +54,32 @@ describe("scoreEntry", () => {
     expect(byTag!).toBeGreaterThan(bySecondary!);
   });
 
-  it("matches a word in the middle of a name", () => {
-    expect(scoreEntry("tavern", { name: "Busy tavern" })).not.toBeNull();
+  it("ranks the ways of matching in the documented order, name before tags before the secondary field", () => {
+    // Every entry matches "ice" exactly one way, best way first.
+    const ladder: MatchFields[] = [
+      { name: "Ice" }, // exact name
+      { name: "Iceberg" }, // name prefix
+      { name: "Thin ice sheet" }, // word prefix
+      { name: "Dice roll" }, // substring of the name
+      { name: "Frost", tags: ["ice"] }, // exact tag
+      { name: "Frost", tags: ["iceberg"] }, // tag prefix
+      { name: "Frost", tags: ["dice"] }, // tag substring
+      { name: "Frost", secondary: "Dice Maker" }, // secondary field
+    ];
+    const scores = ladder.map((f) => scoreEntry("ice", f)!);
+    expect(scores.every((s) => s !== null)).toBe(true);
+    expect([...scores].sort((a, b) => b - a)).toEqual(scores);
+    expect(new Set(scores).size).toBe(scores.length);
+  });
+
+  it("scores an entry by its best tag, not the first that matches", () => {
+    const loose = scoreEntry("ice", { name: "Frost", tags: ["dice", "ice"] });
+    const exact = scoreEntry("ice", { name: "Frost", tags: ["ice"] });
+    expect(loose).toBe(exact);
+  });
+
+  it("finds a term in the middle of the secondary field", () => {
+    expect(scoreEntry("dsve", { name: "Anything", secondary: "Vindsvept" })).not.toBeNull();
   });
 
   it("returns null when nothing matches", () => {

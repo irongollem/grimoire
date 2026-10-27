@@ -19,6 +19,10 @@ describe("sourceLabel", () => {
     expect(sourceLabel("deepm", "Deep Magic for 5th Edition", titles)).toBe("Deep Magic for 5th Edition");
   });
 
+  it("prefers a title the row carries over the Open5e label for the same key", () => {
+    expect(sourceLabel("dmag", "Deep Magic: Revised", titles)).toBe("Deep Magic: Revised");
+  });
+
   it("falls back to the Open5e label, then the raw value", () => {
     expect(sourceLabel("tob2", null, titles)).toBe("Tome of Beasts 2");
     // v2 document keys, which imported classes and subclasses carry

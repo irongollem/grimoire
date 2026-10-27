@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { parsePublicUrl, getPublicUrl } from "./urls";
+import { parsePublicUrl, getPublicUrl, isBucketUrl } from "./urls";
 import { BUCKETS, type BucketConfig, type BucketKey } from "./buckets";
 import { assetCdnUrl } from "@edge-shared/cdn-buckets.ts";
 
@@ -80,10 +80,17 @@ describe("parsePublicUrl", () => {
     ).toEqual({ bucket: "chronicle", path: "u1/a.webp" });
   });
 
-  it("decodes percent-encoded paths", () => {
+  it("decodes percent-encoded paths in both shapes", () => {
     expect(parsePublicUrl("https://cdn.example.com/chronicle/user%201/a%20b.webp")?.path).toBe(
       "user 1/a b.webp",
     );
+    expect(
+      parsePublicUrl("https://ref.supabase.co/storage/v1/object/public/chronicle/user%201/a%20b.webp")?.path,
+    ).toBe("user 1/a b.webp");
+  });
+
+  it("strips the query from a relative URL too", () => {
+    expect(parsePublicUrl("npc-portraits/u1/a.webp?v=9")).toEqual({ bucket: "npcPortraits", path: "u1/a.webp" });
   });
 
   it("returns null for buckets outside the registry and for foreign URLs", () => {
@@ -101,6 +108,19 @@ describe("parsePublicUrl", () => {
       expect(url).not.toBeNull();
       expect(parsePublicUrl(url as string)).toEqual({ bucket: key, path: "u1/a.webp" });
     }
+  });
+});
+
+describe("isBucketUrl", () => {
+  it("is true only for a URL in that bucket, in either shape", () => {
+    expect(isBucketUrl("npcPortraits", "https://cdn.example.com/npc-portraits/u1/a.webp")).toBe(true);
+    expect(
+      isBucketUrl("npcPortraits", "https://ref.supabase.co/storage/v1/object/public/npc-portraits/u1/a.webp"),
+    ).toBe(true);
+    expect(isBucketUrl("npcPortraits", "https://cdn.example.com/item-images/u1/a.webp")).toBe(false);
+    expect(isBucketUrl("npcPortraits", "https://images.example.com/external.png")).toBe(false);
+    expect(isBucketUrl("npcPortraits", null)).toBe(false);
+    expect(isBucketUrl("npcPortraits", undefined)).toBe(false);
   });
 });
 

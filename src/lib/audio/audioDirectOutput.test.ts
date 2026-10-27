@@ -149,6 +149,50 @@ describe("audioDirectOutput — ducking", () => {
     expect(music.volume).toBeCloseTo(0.8);
   });
 
+  it("ducks from the levels the buses have now, not from those before an earlier duck", async () => {
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    const music = makeEl();
+    mod.attach("m", music, "music");
+    mod.setSoundVolume("m", 1);
+    mod.duck(0, 0.5);
+    mod.unduck(0);
+    mod.setBusVolume("music", 0.6);
+
+    mod.duck(0, 0.5);
+
+    expect(music.volume).toBeCloseTo(0.3);
+  });
+
+  it("forgets a duck's remembered levels on reset", async () => {
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    const first = makeEl();
+    mod.attach("m", first, "music");
+    mod.duck(0, 0.5); // remembers music at 1, holds it at 0.5
+    mod.reset();
+    mod.setBusVolume("music", 0.8);
+    const second = makeEl();
+    mod.attach("m2", second, "music");
+    mod.setSoundVolume("m2", 1);
+
+    mod.duck(0, 0.5);
+
+    expect(second.volume).toBeCloseTo(0.4);
+  });
+
+  it("a reset in the middle of a duck leaves the buses at their own level, not held down", async () => {
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    mod.attach("m", makeEl(), "music");
+    mod.duck(0, 0.5); // the output mode switches while a sting is ducking the music
+    mod.reset();
+    const next = makeEl();
+    mod.attach("m2", next, "music");
+    mod.setSoundVolume("m2", 1);
+    expect(next.volume).toBeCloseTo(1);
+  });
+
   it("unduck without a preceding duck is a no-op", async () => {
     const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
@@ -195,6 +239,23 @@ describe("audioDirectOutput — fades", () => {
 
     await vi.advanceTimersByTimeAsync(150);
     expect(el.volume).toBeCloseTo(0.6);
+  });
+
+  it("fading out something already silent resolves at once instead of waiting out the time", async () => {
+    vi.useFakeTimers();
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    const el = makeEl();
+    mod.attach("s1", el, "music");
+    mod.setSoundVolume("s1", 0);
+
+    let settled = false;
+    void mod.fadeOut("s1", 2000).then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+
+    expect(settled).toBe(true);
   });
 
   it("a new ramp cancels the one in flight instead of fighting it", async () => {

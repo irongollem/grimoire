@@ -194,6 +194,11 @@ describe("parseTags", () => {
     expect(parseTags(race(), "medium")).toEqual(["humanoid", "medium", "elf"]);
   });
 
+  it("does not repeat a tag when the race is named after one", () => {
+    expect(parseTags(race({ name: "Humanoid" }), null)).toEqual(["humanoid"]);
+    expect(parseTags(race({ name: "Small" }), "small")).toEqual(["humanoid", "small"]);
+  });
+
   it("hyphenates multi-word race names and skips a null size", () => {
     expect(parseTags(race({ name: "Half-Elf" }), null)).toEqual(["humanoid", "half-elf"]);
   });
@@ -269,6 +274,10 @@ describe("buildImportedFields", () => {
     expect(fields.traits.map((trait) => trait.name)).toEqual(["Size"]);
   });
 
+  it("leaves the description null when Open5e has none", () => {
+    expect(buildImportedFields(race({ desc: "" })).description).toBeNull();
+  });
+
   it("resolves ruleset null for a non-5e document", () => {
     const fields = buildImportedFields(
       race({ document: { ...document, gamesystem: { name: "Advanced 5e", key: "a5e" } } }),
@@ -284,17 +293,6 @@ describe("buildImportedFields — source_license", () => {
     ]);
     const fields = buildImportedFields(race(), documentMetadata);
     expect(fields.source_license).toBe("cc-by-40");
-  });
-
-  it("is null when no document-metadata map is passed at all", () => {
-    const fields = buildImportedFields(race());
-    expect(fields.source_license).toBeNull();
-  });
-
-  it("is null when the map doesn't contain this race's document key", () => {
-    const documentMetadata = new Map([["some-other-doc", { ...document, key: "some-other-doc" }]]);
-    const fields = buildImportedFields(race(), documentMetadata);
-    expect(fields.source_license).toBeNull();
   });
 });
 
@@ -333,6 +331,11 @@ describe("groupSubspecies", () => {
     expect(core.map((entry) => entry.key)).toEqual(["srd-2024_elf"]);
     expect(subracesByParent.get("srd-2024_elf")?.map((subrace) => subrace.name)).toEqual(["High Elf"]);
     expect(orphans).toEqual([]);
+  });
+
+  it("keeps every subspecies of one parent, in the order fetched", () => {
+    const { subracesByParent } = groupSubspecies([race(), highElf(), highElf({ key: "srd-2024_wood-elf", name: "Wood Elf" })]);
+    expect(subracesByParent.get("srd-2024_elf")?.map((subrace) => subrace.name)).toEqual(["High Elf", "Wood Elf"]);
   });
 
   it("reports a subspecies whose parent was not fetched instead of dropping it silently", () => {
@@ -385,6 +388,15 @@ describe("subrace size, speed and languages", () => {
   it("fills from the gap table where the record is empty", () => {
     expect(buildSubrace(highElf({ key: "toh_malkin", traits: [] }))).toMatchObject({ size: "small" });
     expect(buildSubrace(highElf({ key: "toh_morel", traits: [] }))).toMatchObject({ size: "small", speed: { walk: 35 } });
+  });
+
+  it("fills a language from the gap table where the record states none, and keeps a parsed one", () => {
+    expect(buildSubrace(highElf({ key: "toh_derro-heritage", traits: [] })).languages).toEqual(["Dwarvish"]);
+    const parsed = buildSubrace(highElf({
+      key: "toh_derro-heritage",
+      traits: [{ name: "Languages", desc: "You can speak, read, and write Common.", type: null }],
+    }));
+    expect(parsed.languages).toEqual(["Common"]);
   });
 
   it("does not override a parsed value with the gap table", () => {

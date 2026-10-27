@@ -47,6 +47,7 @@ describe("labels", () => {
     expect(stubLabel({ taken_by_name: "Aria", taken_session_number: 12 })).toBe("Taken by Aria, session 12");
     expect(stubLabel({ taken_by_name: "Aria", taken_session_number: null })).toBe("Taken by Aria");
     expect(stubLabel({ taken_by_name: null, taken_session_number: 12 })).toBe("Taken");
+    expect(stubLabel({ taken_by_name: "  ", taken_session_number: 12 })).toBe("Taken");
   });
 });
 

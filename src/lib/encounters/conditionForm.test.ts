@@ -39,6 +39,26 @@ describe("conditionForm", () => {
     expect(buildCondition(form)).toEqual({ name: "Exhaustion", level: 3, ends: { kind: "turn", at: "end", of: "self" } });
   });
 
+  it("keeps a round count and a save DC as whole numbers of at least 1", () => {
+    const base = conditionToForm(null);
+    const rounds = { ...base, name: "Blessed", endsKind: "rounds" as const };
+    expect(buildCondition({ ...rounds, rounds: 5 }).ends).toEqual({ kind: "rounds", remaining: 5 });
+    expect(buildCondition({ ...rounds, rounds: 2.9 }).ends).toEqual({ kind: "rounds", remaining: 2 });
+    expect(buildCondition({ ...rounds, rounds: 0 }).ends).toEqual({ kind: "rounds", remaining: 1 });
+    const save = { ...base, name: "Frightened", endsKind: "save" as const };
+    expect(buildCondition({ ...save, saveDc: 13.8 }).ends).toMatchObject({ dc: 13 });
+    expect(buildCondition({ ...save, saveDc: -4 }).ends).toMatchObject({ dc: 1 });
+    // And a stored rounds record comes back into the form with its count.
+    expect(conditionToForm({ name: "Blessed", ends: { kind: "rounds", remaining: 7 } }).rounds).toBe(7);
+  });
+
+  it("leaves out a blank spell and a cleared concentration flag, and a damage type that is not one", () => {
+    const form = { ...conditionToForm(null), name: "Charmed", sourceId: "mage", spell: "  ", concentration: false, ongoingDice: "1d4", ongoingType: "bogus" };
+    const built = buildCondition(form);
+    expect(built.source).toStrictEqual({ id: "mage" });
+    expect(built.ongoing?.type).toBeNull();
+  });
+
   it("leaves out an untyped ongoing type as null and blank dice as no ongoing damage", () => {
     const form = { ...conditionToForm(null), name: "Burning", ongoingDice: "1d4", ongoingType: "" };
     expect(buildCondition(form).ongoing).toEqual({ dice: "1d4", type: null, at: "start" });

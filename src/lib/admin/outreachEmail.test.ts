@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { DISCORD_URL } from "@/lib/marketing";
 import {
   DEFAULT_OUTREACH_TEMPLATE,
@@ -46,12 +47,22 @@ describe("renderOutreach", () => {
     expect(mail.subject).toBe(DEFAULT_OUTREACH_TEMPLATE.subject);
   });
 
-  it("falls back to 'there' without a name", () => {
-    expect(renderOutreach(DEFAULT_OUTREACH_TEMPLATE, { ...user, display_name: null }).body).toContain("Hi there,");
+  it.each([null, "", "   "])("falls back to 'there' for the name %j", (name) => {
+    expect(renderOutreach(DEFAULT_OUTREACH_TEMPLATE, { ...user, display_name: name }).body).toContain("Hi there,");
   });
 
-  it("uses the feedback-first subject", () => {
-    expect(DEFAULT_OUTREACH_TEMPLATE.subject).toBe("How did Dungeon Grimoire work out for you?");
+  it("trims a padded name", () => {
+    expect(renderOutreach(DEFAULT_OUTREACH_TEMPLATE, { ...user, display_name: "  Mira " }).body).toContain("Hi Mira,");
+  });
+
+  it("names the month in UTC, so a signup at the turn of the month is not shifted by the admin's zone", () => {
+    const mail = renderOutreach(DEFAULT_OUTREACH_TEMPLATE, {
+      ...user,
+      created_at: "2026-05-31T23:30:00Z",
+      last_active_at: "2026-10-01T00:30:00Z",
+    });
+    expect(mail.body).toContain("in May 2026");
+    expect(mail.body).toContain("was October 2026");
   });
 
   it("leaves out the what's-new list for an account that did not opt in", () => {
@@ -87,15 +98,9 @@ describe("outreachMailto", () => {
 });
 
 describe("template storage", () => {
-  const store = new Map<string, string>();
-  beforeEach(() => {
-    store.clear();
-    vi.stubGlobal("localStorage", {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => void store.set(k, v),
-      removeItem: (k: string) => void store.delete(k),
-    });
-  });
+  // Through safeLocalStorage, the same door the module reads: a stubbed global
+  // `localStorage` is not seen where there is no window.
+  beforeEach(() => safeLocalStorage().removeItem(OUTREACH_STORAGE_KEY));
 
   it("defaults when nothing is stored", () => {
     expect(loadOutreachTemplate()).toEqual(DEFAULT_OUTREACH_TEMPLATE);
@@ -106,10 +111,12 @@ describe("template storage", () => {
     expect(resetOutreachTemplate()).toEqual(DEFAULT_OUTREACH_TEMPLATE);
     expect(loadOutreachTemplate()).toEqual(DEFAULT_OUTREACH_TEMPLATE);
   });
-  it("falls back on malformed JSON or the wrong shape", () => {
-    localStorage.setItem(OUTREACH_STORAGE_KEY, "{nope");
-    expect(loadOutreachTemplate()).toEqual(DEFAULT_OUTREACH_TEMPLATE);
-    localStorage.setItem(OUTREACH_STORAGE_KEY, JSON.stringify({ subject: 1 }));
+  it.each([
+    ["malformed JSON", "{nope"],
+    ["a non-string subject", JSON.stringify({ subject: 1, body: "B" })],
+    ["a non-string body", JSON.stringify({ subject: "S", body: 1 })],
+  ])("falls back to the default on %s", (_label, raw) => {
+    safeLocalStorage().setItem(OUTREACH_STORAGE_KEY, raw);
     expect(loadOutreachTemplate()).toEqual(DEFAULT_OUTREACH_TEMPLATE);
   });
 });

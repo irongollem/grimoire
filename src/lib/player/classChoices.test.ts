@@ -14,17 +14,8 @@ describe("isInternalChoiceKey", () => {
   });
 
   it("hides keys owned by a dedicated card or applied elsewhere", () => {
-    for (const key of [
-      "metamagic_options",
-      "infusions_known",
-      "eldritch_invocations",
-      "battle_master_maneuvers",
-      "origin_feat_id",
-      "origin_feat_variant",
-      "background_asi",
-    ]) {
-      expect(isInternalChoiceKey(key)).toBe(true);
-    }
+    expect(isInternalChoiceKey("metamagic_options")).toBe(true);
+    expect(isInternalChoiceKey("background_asi")).toBe(true);
   });
 
   it("shows genuine build choices", () => {

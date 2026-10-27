@@ -71,6 +71,26 @@ describe("coerceWeather", () => {
     expect(coerceWeather("polar", { ...base, temperature: "hot" }).temperature).toBe("cool");
     expect(coerceWeather("tropical", { ...base, fog: true }).fog).toBe(false);
     expect(coerceWeather("temperate", { ...base, fog: true }).fog).toBe(true);
+    // Fog needs a still day.
+    expect(coerceWeather("temperate", { ...base, wind: "breeze", fog: true }).fog).toBe(false);
+  });
+});
+
+describe("weatherFromChannels", () => {
+  const still = { warmth: 0.5, wind: 0.2, fog: 0.1 };
+
+  it("makes the tropical summer's rain heavier than any other season's at the same share of its wet band", () => {
+    // Halfway up the wet band: a monsoon downpour in a tropical summer, only rain in its autumn.
+    const summerWet = 0.25 + 0.5 * 0.75; // threshold 1 - 0.75, excess 0.5
+    const autumnWet = 0.5 + 0.5 * 0.5; // threshold 1 - 0.5, excess 0.5
+    expect(weatherFromChannels("tropical", "summer", { ...still, wetness: summerWet }).precipitation).toBe("downpour");
+    expect(weatherFromChannels("tropical", "autumn", { ...still, wetness: autumnWet }).precipitation).toBe("rain");
+  });
+
+  it("lifts dust only in an arid climate: hot, dry and windy", () => {
+    const hotDryGale = { warmth: 0.9, wetness: 0.4, wind: 0.96, fog: 0.1 };
+    expect(weatherFromChannels("arid", "summer", hotDryGale).precipitation).toBe("dust");
+    expect(weatherFromChannels("temperate", "summer", hotDryGale).precipitation).toBe("none");
   });
 });
 
@@ -132,6 +152,19 @@ describe("weatherOn with pins", () => {
     const other = pin({ kind: "reroll", salt: "zzzz" } as Partial<WeatherPin>);
     const sky = (p: WeatherPin) => Array.from({ length: 30 }, (_, n) => at(addDays(adapter, day, n + 1), "temperate", [p]));
     expect(sky(reroll)).not.toEqual(sky(other));
+  });
+
+  it("eases a reroll in over its first day: that day is neither the old sky nor wholly the new one", () => {
+    let likeOld = 0;
+    let likeNew = 0;
+    for (let i = 0; i < 60; i++) {
+      const salt = `salt${i}`;
+      const rolled = at(day, "temperate", [pin({ kind: "reroll", salt } as Partial<WeatherPin>)]);
+      if (JSON.stringify(rolled) === JSON.stringify(at(day, "temperate"))) likeOld++;
+      if (JSON.stringify(rolled) === JSON.stringify(at(day, "temperate", [], `${SEED}:${salt}`))) likeNew++;
+    }
+    expect(likeOld).toBeLessThan(60); // some first days already differ from the old sky
+    expect(likeNew).toBeLessThan(60); // and not every one has jumped to the new
   });
 
   it("is deterministic, and ignores a pin the calendar cannot place", () => {

@@ -41,6 +41,10 @@ describe("ageOn", () => {
     expect(ageOn(ADAPTER, { year: 1400.5, month: null, day: null }, today)).toBeNull();
     expect(ageOn(ADAPTER, { year: 1400, month: 9, day: 1 }, today)).toBeNull();
   });
+  it("is null when today's own month is not in the calendar, or the birthday is not a whole day", () => {
+    expect(ageOn(ADAPTER, { year: 1400, month: 1, day: 1 }, { year: 1448, month: 9, day: 1 })).toBeNull();
+    expect(ageOn(ADAPTER, { year: 1400, month: 1, day: 5.5 }, today)).toBeNull();
+  });
   it("is not thrown by a leap year's extra day", () => {
     // Leap Day sits after month 1, shifting month 2 by one on both sides.
     expect(ageOn(ADAPTER, { year: 1400, month: 2, day: 10 }, { year: 1448, month: 2, day: 10 })).toBe(48);
@@ -63,6 +67,9 @@ describe("displayAge", () => {
     expect(displayAge(ADAPTER, { age: "ancient", born_year: 1500 }, today)).toBe("ancient");
     expect(displayAge(ADAPTER, { age: "  " }, today)).toBeNull();
     expect(displayAge(ADAPTER, {}, today)).toBeNull();
+  });
+  it("shows a newborn as 0, not as the free text", () => {
+    expect(displayAge(ADAPTER, { age: "infant", born_year: 1448, born_month: 1, born_day: 1 }, today)).toBe("0");
   });
   it("ignores a month without a day", () => {
     expect(displayAge(ADAPTER, { born_year: 1400, born_month: 2, born_day: null }, today)).toBe("48");
@@ -98,6 +105,7 @@ describe("a dead row", () => {
   it("shows the death date only for a dead row", () => {
     expect(displayDeath(ADAPTER, { ...dead, died_year: 1430, died_month: 2, died_day: 5 })).toBe("5 M2 1430 TE");
     expect(displayDeath(ADAPTER, { status: "alive", died_year: 1430 })).toBeNull();
+    expect(displayDeath(ADAPTER, dead)).toBeNull();
     expect(deathOf({ died_year: 1430, died_month: 2 })).toEqual({ year: 1430, month: null, day: null });
   });
 });

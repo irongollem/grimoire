@@ -73,11 +73,25 @@ describe("deriveQuestActivityRows", () => {
         transition({ id: "unresolvable", to_quest_id: "gone", created_at: "2026-08-22T00:00:00Z" }),
         transition({ id: "second", created_at: "2026-08-21T00:00:00Z" }),
         transition({ id: "first", created_at: "2026-08-20T00:00:00Z" }),
+        transition({ id: "third", created_at: "2026-08-19T00:00:00Z" }),
       ],
       [quest("q1", "The Sunken Keep")],
       2,
     );
     expect(rows.map((row) => row.transitionId)).toEqual(["second", "first"]);
+  });
+
+  it("shows the eight most recent rows when no limit is given", () => {
+    const transitions = Array.from({ length: 10 }, (_unused, n) =>
+      transition({ id: `t${n}`, created_at: `2026-08-${String(10 + n).padStart(2, "0")}T00:00:00Z` }),
+    );
+    const rows = deriveQuestActivityRows(transitions, [quest("q1", "The Sunken Keep")]);
+    expect(rows.map((row) => row.transitionId)).toEqual(["t9", "t8", "t7", "t6", "t5", "t4", "t3", "t2"]);
+  });
+
+  it("names an untitled quest rather than leaving the title blank", () => {
+    const rows = deriveQuestActivityRows([transition({ id: "t1" })], [quest("q1", "")]);
+    expect(rows[0].questTitle).toBe("Untitled Quest");
   });
 
   it("phrases a quest starting with no from-beat as entering, not a blank 'from'", () => {

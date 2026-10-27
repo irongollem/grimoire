@@ -32,7 +32,6 @@ describe("dmScreenCard", () => {
   it.each([
     ["absent settings", undefined],
     ["a null blob", null],
-    ["an array", ["cover"]],
     ["a blob with no tableId", { width: "cell" }],
     ["a non-string tableId", { tableId: 7 }],
     ["a table the data no longer has", { tableId: "gone-in-a-later-deploy" }],

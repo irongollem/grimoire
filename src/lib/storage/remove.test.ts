@@ -112,11 +112,21 @@ describe("deleteByPublicUrl", () => {
       "https://cdn.example.com/item-images/u1/b.webp",
     );
 
-    // One dual-store delete per bucket.
+    // One dual-store delete per bucket, each with the originals' variants.
     expect(storageRemove).toHaveBeenCalledTimes(2);
+    expect(storageRemove.mock.calls.every(([paths]) => paths.length === 5)).toBe(true);
     expect(invoke).toHaveBeenCalledTimes(2);
     const buckets = invoke.mock.calls.map((c) => c[1].body.bucket).sort();
     expect(buckets).toEqual(["item-images", "npc-portraits"]);
+  });
+});
+
+describe("deleteByPublicUrl with foreign URLs", () => {
+  it("skips a URL in no registered bucket and still deletes ours", async () => {
+    const { deleteByPublicUrl } = await loadRemove();
+    await deleteByPublicUrl("https://images.example.com/external.png", null, "https://cdn.example.com/npc-portraits/u1/a.webp");
+    expect(storageRemove).toHaveBeenCalledTimes(1);
+    expect(storageRemove.mock.calls[0][0]).toContain("u1/a.webp");
   });
 });
 

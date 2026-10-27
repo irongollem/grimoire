@@ -59,6 +59,17 @@ describe("classifyPlainError", () => {
     expect(event?.fingerprint).toEqual(["plain-object-error", "42501", "permission denied for table quests"]);
   });
 
+  it.each([
+    ["no code", { message: "oops" }, "PostgrestError", ""],
+    ["an empty code", { code: "", message: "oops" }, "PostgrestError", ""],
+    ["a non-string code", { code: 42, message: "oops" }, "PostgrestError", ""],
+    ["a string code", { code: "PGRST116", message: "oops" }, "PostgrestError PGRST116", "PGRST116"],
+  ])("titles and groups an object with %s", (_label, original, type, codeInFingerprint) => {
+    const event = classifyPlainError(syntheticEvent(), original, IGNORED);
+    expect(event?.exception?.values?.[0]?.type).toBe(type);
+    expect(event?.fingerprint).toEqual(["plain-object-error", codeInFingerprint, "oops"]);
+  });
+
   it("leaves an event from a real Error untouched", () => {
     const event = syntheticEvent();
     expect(classifyPlainError(event, new Error("NetworkError when attempting to fetch resource"), IGNORED)).toBe(event);

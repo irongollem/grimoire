@@ -6,10 +6,12 @@ const libraryRows = [
   { id: "dire_wolf", image_url: "wolf.webp" },
   { id: "bear", image_url: "bear.webp" },
   { id: "bare", image_url: null },
+  { id: "bare_too", image_url: null },
 ];
 const canonicalRows = [
   { entry_id: "worg", image_url: "wolf.webp" },
   { entry_id: "bear", image_url: "bear.webp" },
+  { entry_id: "unpainted", image_url: null },
 ];
 
 describe("planCanonicalArtWrite", () => {
@@ -24,7 +26,7 @@ describe("planCanonicalArtWrite", () => {
     expect(plan.ids).toEqual(["wolf", "dire_wolf", "worg"]);
   });
 
-  it("plans only the edited id when it has no picture, even if other rows have none either", () => {
+  it("plans only the edited id when it has no picture, even if other library and canonical rows have none either", () => {
     const plan = planCanonicalArtWrite({
       entryId: "bare",
       edit: { image_url: "new.webp" },

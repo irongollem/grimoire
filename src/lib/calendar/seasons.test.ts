@@ -61,6 +61,17 @@ describe("seasonOn", () => {
     expect(seasonStartsInMonth(a, 1495, 6).map((x) => x.season.name)).toEqual(["Good"]);
   });
 
+  it("has no season when none of the starts can be placed, rather than throwing", () => {
+    const a = { ...faerun, seasons: [{ name: "Lost", startsOn: { month: 99, day: 1 } }] };
+    expect(seasonOn(a, 1495, 1, 1, null)).toBeNull();
+  });
+
+  it("ignores a start in a month the calendar lacks, even when it lists last", () => {
+    const a = { ...faerun, seasons: [{ name: "Good", startsOn: { month: 6, day: 1 } }, { name: "Lost", startsOn: { month: 99, day: 1 } }] };
+    // Before Good starts this year, last year's Good is still running.
+    expect(seasonOn(a, 1495, 2, 1, null)!.season.name).toBe("Good");
+  });
+
   it("uses the real February length for a Gregorian start", () => {
     const a = { ...gregorianAdapter, seasons: [{ name: "X", startsOn: { month: 2, day: 29 } }] };
     expect(seasonOn(a, 2023, 2, 28, null)!.dayOfSeason).toBe(1); // clamped to 28 in a common year
@@ -72,6 +83,11 @@ describe("seasonStartsInMonth", () => {
   it("lists starts in the month by day", () => {
     expect(seasonStartsInMonth(faerun, 1495, 3).map((x) => [x.day, x.season.name])).toEqual([[19, "Spring"]]);
     expect(seasonStartsInMonth(faerun, 1495, 2)).toEqual([]);
+  });
+
+  it("lists nothing for a month the calendar lacks", () => {
+    const a = { ...faerun, seasons: [{ name: "Lost", startsOn: { month: 99, day: 1 } }] };
+    expect(seasonStartsInMonth(a, 1495, 99)).toEqual([]);
   });
 
   it("sorts several starts in one month", () => {

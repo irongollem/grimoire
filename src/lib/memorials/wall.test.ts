@@ -38,6 +38,15 @@ describe("splitWall", () => {
   });
 });
 
+describe("splitWall without an account", () => {
+  // A DM-managed character has no owner; a signed-out viewer must not own it.
+  it("never counts an ownerless memorial as mine for a null user", () => {
+    const { mine, beside } = splitWall([memorial({ id: "a", owner_user_id: null })], null);
+    expect(mine).toEqual([]);
+    expect(beside.map((m) => m.id)).toEqual(["a"]);
+  });
+});
+
 describe("candleCounts", () => {
   it("counts only lit candles per memorial", () => {
     const counts = candleCounts([
@@ -71,6 +80,12 @@ describe("pendingKeepPrompts", () => {
   const mine = memorial({ id: "m1", campaign_id: "gone" });
   it("prompts for an owned memorial in a left campaign with no answer", () => {
     expect(pendingKeepPrompts([mine], [mourner({ campaign_id: "gone" })], new Set(["c1"]), "u1")).toEqual([mine]);
+  });
+  it("reads the answer on the memorial's own mourner row, not another's", () => {
+    const answeredElsewhere = mourner({ memorial_id: "other", campaign_id: "gone", kept_at: "x" });
+    expect(
+      pendingKeepPrompts([mine], [answeredElsewhere, mourner({ campaign_id: "gone" })], new Set(), "u1"),
+    ).toEqual([mine]);
   });
   it("skips answered, still-member and not-owned", () => {
     expect(pendingKeepPrompts([mine], [mourner({ kept_at: "x" })], new Set(), "u1")).toEqual([]);

@@ -137,6 +137,20 @@ describe("installPolyfills", () => {
   });
 });
 
+describe("installPolyfills without a CSPRNG", () => {
+  it("does not mint ids when crypto has no getRandomValues, so it never hands out guessable keys", () => {
+    const original = globalThis.crypto;
+    const bare = {} as unknown as Crypto;
+    Object.defineProperty(globalThis, "crypto", { value: bare, configurable: true });
+    try {
+      installPolyfills();
+      expect(bare.randomUUID).toBeUndefined();
+    } finally {
+      Object.defineProperty(globalThis, "crypto", { value: original, configurable: true });
+    }
+  });
+});
+
 /**
  * The unit tests above cover the implementations; this covers the artifact
  * that actually ships. vite.config.ts bundles install.ts to an IIFE and inlines

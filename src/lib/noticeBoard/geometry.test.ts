@@ -34,6 +34,12 @@ describe("boardScale", () => {
     expect(s.overflowY).toBe(false);
   });
 
+  // A viewport measured half a pixel short of the board is still a fit, not a pan.
+  it("does not offer a pan for a sub-pixel overhang", () => {
+    expect(boardScale(799.8, 1000).overflowX).toBe(false);
+    expect(boardScale(799, 1000).overflowX).toBe(true);
+  });
+
   it("fits a portrait tablet by width when the pins stay readable there", () => {
     const s = boardScale(820, 1180);
     expect(s.scale).toBeCloseTo(820 / BOARD_W, 5);
@@ -67,6 +73,8 @@ describe("zoom and pan", () => {
     const pan = zoomAt(390, 300, from, 1, focus);
     // The board point under the focus before: (200 + 100) / 0.5 = 600 units. After: (200 - pan.x) / 1.
     expect((focus.x - pan.x) / 1).toBeCloseTo(600, 5);
+    // Same on the other axis: the board point under the focus is (100 - 0) / 0.5 = 200.
+    expect(focus.y - pan.y).toBeCloseTo(200, 5);
   });
 });
 
@@ -98,10 +106,14 @@ describe("seeded look", () => {
 });
 
 describe("pinSize", () => {
-  it("makes a medium note 300 units wide and a poster three by four", () => {
-    expect(pinSize("note", "md").w).toBe(300);
-    expect(pinSize("note", "sm").w).toBe(220);
-    expect(pinSize("note", "lg").w).toBe(400);
+  it("grows with the chosen size for every style, and a poster stands taller than it is wide", () => {
+    for (const style of ["note", "poster", "letter", "image"] as const) {
+      const { w: sm } = pinSize(style, "sm");
+      const { w: md } = pinSize(style, "md");
+      const { w: lg } = pinSize(style, "lg");
+      expect(sm, style).toBeLessThan(md);
+      expect(md, style).toBeLessThan(lg);
+    }
     const poster = pinSize("poster", "md");
     expect(poster.h / poster.w).toBeCloseTo(4 / 3, 2);
   });
@@ -124,12 +136,20 @@ describe("findFreeSpot", () => {
     expect(dx >= pinSize("note", "md").w || dy >= pinSize("note", "md").h).toBe(true);
   });
 
-  it("finds the one open corner of a crowded board", () => {
-    const crowd = [];
-    for (let x = 0.05; x < 0.9; x += 0.19) for (let y = 0.05; y < 0.8; y += 0.3) crowd.push({ style: "note" as const, size: "md" as const, x, y });
+  it("finds the one open stretch of a crowded board", () => {
+    // Nine large notes tile the left three quarters of the board (x 0 to 1200 of 1600).
+    const crowd = [0, 0.25, 0.5].flatMap((x) =>
+      [0, 0.3375, 0.675].map((y) => ({ style: "note" as const, size: "lg" as const, x, y })),
+    );
     const spot = findFreeSpot(crowd, "note", "sm");
-    expect(spot.x).toBeGreaterThanOrEqual(0);
-    expect(spot.x).toBeLessThanOrEqual(1);
+    expect(spot.x * BOARD_W).toBeGreaterThanOrEqual(1200);
+  });
+
+  it("puts a second pin as far from the first as the board allows when nothing is in the way", () => {
+    const corner = { style: "note" as const, size: "sm" as const, x: 0.05, y: 0.08 };
+    const spot = findFreeSpot([corner], "note", "sm");
+    expect(spot.x).toBeGreaterThan(0.5);
+    expect(spot.y).toBeGreaterThan(0.5);
   });
 });
 

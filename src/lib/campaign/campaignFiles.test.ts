@@ -9,8 +9,6 @@ const removed: { bucket: string; paths: string[] }[] = [];
 let removeError: Error | null = null;
 const invoked: { fn: string; body: unknown }[] = [];
 let invokeError: Error | null = null;
-/** The head-only `count` read on `minis`, which the shared fake does not model. */
-let minisCount: { count: number | null; error: Error | null } = { count: 0, error: null };
 
 vi.mock("@edge-shared/edgeError.ts", () => ({ edgeErrorMessage: async (e: Error) => e.message }));
 vi.mock("@/lib/supabase", () => ({
@@ -29,11 +27,7 @@ vi.mock("@/lib/supabase", () => ({
         },
       }),
     },
-    from: (table: string) => {
-      const query = fake.client.from(table);
-      if (table !== "minis") return query;
-      return { select: (columns: string, options?: { head?: boolean }) => (options?.head ? { eq: async () => minisCount } : query.select(columns)) };
-    },
+    from: (table: string) => fake.client.from(table),
   },
 }));
 
@@ -46,7 +40,6 @@ beforeEach(() => {
   removeError = null;
   invoked.length = 0;
   invokeError = null;
-  minisCount = { count: 0, error: null };
   fake.seed("campaigns", [{ id: "c1", user_id: "u1", group_portrait_url: "https://cdn/group.webp", demo_source: null }]);
 });
 
@@ -153,24 +146,25 @@ describe("deleteImportSourcePaths (#963)", () => {
 
 describe("deleteCampaignMinis (#963)", () => {
   it("asks forge-mini to delete the campaign's minis when it has any", async () => {
-    minisCount = { count: 2, error: null };
+    fake.seed("minis", [{ id: "m1", campaign_id: "c1" }, { id: "m2", campaign_id: "c1" }]);
     await deleteCampaignMinis("c1");
     expect(invoked).toEqual([{ fn: "forge-mini", body: { action: "delete_campaign", campaign_id: "c1" } }]);
   });
 
-  it("does not call the edge function for a campaign with no minis", async () => {
+  it("does not call the edge function for a campaign with no minis, whatever other campaigns hold", async () => {
+    fake.seed("minis", [{ id: "m9", campaign_id: "c2" }]);
     await deleteCampaignMinis("c1");
     expect(invoked).toEqual([]);
   });
 
   it("throws when the count fails, before asking anything", async () => {
-    minisCount = { count: null, error: new Error("boom") };
+    fake.failNext("minis", { message: "boom", code: "XX000" });
     await expect(deleteCampaignMinis("c1")).rejects.toThrow("boom");
     expect(invoked).toEqual([]);
   });
 
   it("throws the edge function's error", async () => {
-    minisCount = { count: 1, error: null };
+    fake.seed("minis", [{ id: "m1", campaign_id: "c1" }]);
     invokeError = new Error("storage_cleanup_failed");
     await expect(deleteCampaignMinis("c1")).rejects.toThrow("storage_cleanup_failed");
   });

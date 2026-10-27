@@ -48,6 +48,8 @@ export interface FakeError {
 export interface FakeResult {
   data: unknown;
   error: FakeError | null;
+  /** Set when the read asked for `{ count: "exact" }`: every matching row, before range or limit. */
+  count?: number;
 }
 
 export type FakeFilterOp = "eq" | "neq" | "in" | "is" | "gt" | "gte" | "lt" | "lte" | "or";
@@ -127,7 +129,9 @@ class FakeQuery implements PromiseLike<FakeResult> {
   private returning = false;
   private readonly predicates: Predicate[] = [];
   private readonly filters: FakeFilter[] = [];
-  private readonly sorts: { column: string; ascending: boolean }[] = [];
+  private readonly sorts: { column: string; ascending: boolean; nullsFirst: boolean }[] = [];
+  private countRows = false;
+  private headOnly = false;
   private limitTo: number | null = null;
   private skip = 0;
   private cardinality: Cardinality = "many";
@@ -137,8 +141,10 @@ class FakeQuery implements PromiseLike<FakeResult> {
     private readonly table: string,
   ) {}
 
-  select(_columns?: string): this {
+  select(_columns?: string, options?: { count?: "exact" | "planned" | "estimated"; head?: boolean }): this {
     if (this.op !== "select") this.returning = true;
+    this.countRows = options?.count !== undefined;
+    this.headOnly = options?.head === true;
     return this;
   }
 
@@ -212,8 +218,10 @@ class FakeQuery implements PromiseLike<FakeResult> {
     return this.filter("or", "", expression, () => true);
   }
 
-  order(column: string, options?: { ascending?: boolean }): this {
-    this.sorts.push({ column, ascending: options?.ascending ?? true });
+  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): this {
+    const ascending = options?.ascending ?? true;
+    // Postgres puts nulls last ascending and first descending unless told otherwise.
+    this.sorts.push({ column, ascending, nullsFirst: options?.nullsFirst ?? !ascending });
     return this;
   }
 
@@ -266,14 +274,12 @@ class FakeQuery implements PromiseLike<FakeResult> {
   private sorted(rows: FakeRow[]): FakeRow[] {
     if (!this.sorts.length) return rows;
     return [...rows].sort((a, b) => {
-      for (const { column, ascending } of this.sorts) {
+      for (const { column, ascending, nullsFirst } of this.sorts) {
         const left = a[column];
         const right = b[column];
-        // Postgres: nulls sort last ascending, first descending.
         if (!present(left) || !present(right)) {
           if (present(left) === present(right)) continue;
-          const nullFirst = !ascending;
-          return present(left) ? (nullFirst ? 1 : -1) : nullFirst ? -1 : 1;
+          return present(left) ? (nullsFirst ? 1 : -1) : nullsFirst ? -1 : 1;
         }
         const order = compare(left, right) ?? 0;
         if (order !== 0) return ascending ? order : -order;
@@ -311,7 +317,9 @@ class FakeQuery implements PromiseLike<FakeResult> {
     if (this.op === "select") {
       const rows = this.sorted(this.matching());
       const end = this.limitTo === null ? undefined : this.skip + this.limitTo;
-      return this.shape(rows.slice(this.skip, end));
+      if (this.headOnly) return { data: null, error: null, count: rows.length };
+      const result = this.shape(rows.slice(this.skip, end));
+      return this.countRows ? { ...result, count: rows.length } : result;
     }
 
     if (this.op === "insert" || this.op === "upsert") return this.write();

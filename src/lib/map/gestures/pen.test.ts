@@ -117,7 +117,8 @@ describe("template drag", () => {
 
   it("rounds the radius to whole cells", () => {
     const started = startTemplateDrag("circle", [0, 0]);
-    const dragged = updateTemplateDrag(started, [2, 2]);
-    expect(dragged.radius).toBe(Math.round(Math.hypot(2, 2)));
+    // 2.24 cells from the centre rounds down to 2, 2.83 up to 3.
+    expect(updateTemplateDrag(started, [2, 1]).radius).toBe(2);
+    expect(updateTemplateDrag(started, [2, 2]).radius).toBe(3);
   });
 });

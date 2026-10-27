@@ -58,6 +58,11 @@ describe("coverMarkup", () => {
     expect(html).toContain("A &amp; B");
     expect(html).toContain("An account &lt;of&gt; the coast");
   });
+  it("sets a subtitle line only when the book has one, and the volume mark only on the tooled cover", () => {
+    expect(coverMarkup(snapshot({ subtitle: null }).book)).not.toContain("pb-cover-sub");
+    expect(coverMarkup(snapshot({ cover_art: "tooled" }).book)).toContain("VOLUME I");
+    expect(coverMarkup(snapshot({ cover_art: "plate", cover_image_url: "https://cdn.example/c.webp" }).book)).not.toContain("VOLUME I");
+  });
   it("tints a walnut book by its hide, with the photographed texture", () => {
     expect(coverMarkup(snapshot({ leather: "walnut" }).book)).toContain('data-grain="natural"');
     expect(coverMarkup(snapshot({ leather: "sea" }).book)).toContain('data-grain="tinted"');
@@ -83,6 +88,25 @@ describe("buildBookMarkup", () => {
     expect(markup).toContain('id="e-s1"');
     expect(markup).toContain('id="almanac"');
     expect(markup).toContain('id="index"');
+  });
+
+  it("leaves out an entry, the almanac or the index that was not drawn", () => {
+    const bare = buildBookMarkup({ model, release, sectionHtml: new Map([["entry:p1", "<article>Hollowmere</article>"]]) });
+    expect(bare).toContain('id="e-p1"');
+    expect(bare).not.toContain('id="e-s1"');
+    expect(bare).not.toContain('id="almanac" data-chapter');
+    expect(bare).not.toContain('id="index"');
+  });
+
+  it("numbers chapters in the contents but not the entries under them", () => {
+    expect(markup).toContain('<li class="pb-toc-chapter"><a href="#chapter-atlas"><span class="pb-toc-num">I</span>');
+    expect(markup).toContain('<li class="pb-toc-entry"><a href="#e-p1"><span class="pb-toc-name">');
+  });
+
+  it("prints a release note only when there is one", () => {
+    expect(markup).toContain("After session 14");
+    const plain = buildBookMarkup({ model, release: { ...release, note: null }, sectionHtml });
+    expect(plain).not.toContain("pb-title-note");
   });
 
   it("leaves the cover to be drawn on its own sheet", () => {

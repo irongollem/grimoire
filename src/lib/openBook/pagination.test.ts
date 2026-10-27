@@ -38,6 +38,18 @@ describe("columns", () => {
     expect(countColumns(500, 0, 0)).toBe(1);
   });
 
+  it("reads a flow a hair over a column boundary as that many pages, and a real extra column as one more", () => {
+    // Two columns are 2 * 440 - 40 = 840 wide. 0.015 of a pitch over is layout noise; 0.03 of a pitch over is a third column.
+    expect(countColumns(840 + 0.015 * 440, 400, 40)).toBe(2);
+    expect(countColumns(840 + 0.03 * 440, 400, 40)).toBe(3);
+  });
+
+  it("puts an element a pixel short of the next column on that next page, and answers page 0 with no width", () => {
+    expect(pageOfOffset(439, 400, 40, 3)).toBe(1);
+    expect(pageOfOffset(438, 400, 40, 3)).toBe(0);
+    expect(pageOfOffset(10, 0, 0, 3)).toBe(0);
+  });
+
   it("finds the page an element sits on", () => {
     expect(pageOfOffset(0, 400, 40, 3)).toBe(0);
     expect(pageOfOffset(445, 400, 40, 3)).toBe(1);
@@ -72,6 +84,13 @@ describe("units", () => {
     expect(unitSlots(9, 4, "single", true).recto).toEqual({ kind: "blank" });
   });
 
+  it("is blank one past the last page on a phone, and treats a negative or fractional unit as a whole one", () => {
+    expect(unitSlots(3, 4, "single", true).recto).toEqual({ kind: "page", k: 3 });
+    expect(unitSlots(4, 4, "single", true).recto).toEqual({ kind: "blank" });
+    expect(unitSlots(-1, 3, "spread", true)).toEqual(unitSlots(0, 3, "spread", true));
+    expect(unitSlots(1.5, 3, "spread", true)).toEqual(unitSlots(1, 3, "spread", true));
+  });
+
   it("finds the unit of a page", () => {
     expect(unitOfPage(0, "spread", true)).toBe(0);
     expect(unitOfPage(1, "spread", true)).toBe(1);
@@ -93,6 +112,8 @@ describe("the unit in a URL", () => {
     expect(parseUnit("end")).toBe(Number.POSITIVE_INFINITY);
     expect(parseUnit(["2", "5"])).toBe(2);
     expect(parseUnit("-1")).toBe(0);
+    expect(parseUnit("9999")).toBe(9999);
+    expect(parseUnit("12345")).toBe(0);
     expect(parseUnit("x")).toBe(0);
     expect(parseUnit(undefined)).toBe(0);
   });
@@ -123,6 +144,8 @@ describe("folios", () => {
     expect(toRoman(9)).toBe("ix");
     expect(toRoman(2024)).toBe("mmxxiv");
     expect(toRoman(0)).toBe("0");
+    expect(toRoman(3999)).toBe("mmmcmxcix");
+    expect(toRoman(4000)).toBe("4000");
   });
 });
 

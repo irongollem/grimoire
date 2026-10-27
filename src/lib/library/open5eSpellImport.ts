@@ -111,8 +111,9 @@ const CASTING_TIME_MAP: Record<string, string> = {
 };
 
 function normalizeCastingTime(spell: Open5eV2Spell) {
-  const lower = spell.casting_time.toLowerCase().trim().replace(/^1 /, "");
-  const castingTime = CASTING_TIME_MAP[lower];
+  // "1 action" reads as "action", but "1 minute" and "1 hour" are keys as written.
+  const lower = spell.casting_time.toLowerCase().trim();
+  const castingTime = CASTING_TIME_MAP[lower] ?? CASTING_TIME_MAP[lower.replace(/^1 /, "")];
   if (castingTime) {
     return {
       casting_time: castingTime,
@@ -140,7 +141,7 @@ function normalizeDuration(spell: Open5eV2Spell) {
   const lower = raw.toLowerCase();
   if (spell.concentration) {
     const withoutConcentration = lower.replace(/^concentration,?\s*(up to\s*)?/, "");
-    const suffix = DURATION_MAP[withoutConcentration] ?? raw;
+    const suffix = DURATION_MAP[withoutConcentration] ?? withoutConcentration;
     return { duration: `Concentration, up to ${suffix.toLowerCase()}`, duration_custom: null };
   }
   const duration = DURATION_MAP[lower];
@@ -157,7 +158,8 @@ function normalizeRange(spell: Open5eV2Spell) {
   }
   const feet = lower.match(/^(\d+)\s*(?:feet|foot|ft\.?)$/);
   if (feet) return { range: `${feet[1]} ft.`, range_custom: null };
-  if (/^\d+\s*miles?$/.test(lower)) return { range: lower.replace("miles", "mile"), range_custom: null };
+  const miles = lower.match(/^(\d+)\s*miles?$/);
+  if (miles) return { range: `${miles[1]} ${miles[1] === "1" ? "mile" : "miles"}`, range_custom: null };
   return { range: "Special", range_custom: raw };
 }
 

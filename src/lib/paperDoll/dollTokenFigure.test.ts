@@ -41,6 +41,17 @@ describe("dollTokenFigure", () => {
     expect(broad.source.w).toBeCloseTo(512);
   });
 
+  it("caps the frame at the cell width and keeps it inside the cell near an edge", () => {
+    const roomy = { ...picture, clip: { x0: -300, x1: 900 } };
+    // 1.6 * 600 = 960 shoulder-widths would overflow; the frame stops at one cell.
+    const broad = dollTokenFigure(roomy, { ...anatomy, shoulders: { x0: 0, x1: 600, y: 230 } });
+    expect(broad.source.w).toBeCloseTo(512);
+    // Centred on 480, a 436.5-wide frame would hang off the right edge, so it is pushed back to end at the cell's edge.
+    const edge = dollTokenFigure(roomy, { ...anatomy, centerX: 480 });
+    expect(edge.source.x).toBeCloseTo(512 + (512 - FRAME.w));
+    expect(edge.source.x + edge.source.w).toBeCloseTo(1024);
+  });
+
   it("clamps the frame to the cell", () => {
     const { source } = dollTokenFigure(
       { ...picture, cell: 0 },

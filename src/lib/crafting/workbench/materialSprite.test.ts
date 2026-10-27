@@ -53,5 +53,7 @@ describe("spriteForItem", () => {
     expect(spriteForItem({ tags: ["mystery"], item_type: "gizmo" })).toEqual({ sprite: "mat-bundle", filter: null });
     expect(spriteForItem(null)).toEqual({ sprite: "mat-bundle", filter: null });
     expect(spriteForItem({ tags: null, item_type: null }).sprite).toBe("mat-bundle");
+    // An inherited object key is not an item type.
+    expect(spriteForItem({ tags: [], item_type: "constructor" })).toEqual({ sprite: "mat-bundle", filter: null });
   });
 });

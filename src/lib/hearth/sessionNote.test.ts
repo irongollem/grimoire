@@ -28,6 +28,11 @@ describe("findSessionNote", () => {
     expect(findSessionNote([older, newer], started)).toBe(newer);
   });
 
+  it("counts a note made at the very moment the session started", () => {
+    const first = entry("Session notes · a", "session", started);
+    expect(findSessionNote([first], started)).toBe(first);
+  });
+
   it("ignores earlier sittings, other categories and hand-made titles", () => {
     expect(
       findSessionNote(

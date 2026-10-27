@@ -4,7 +4,7 @@ import { DRAGONLANCE_CALENDAR } from "@/settings/dragonlance.calendar";
 import { gregorianAdapter } from "@/settings/gregorian.calendar";
 import { calendarDefToAdapter } from "@/settings/types";
 import { listCalendarAdapters } from "@/settings";
-import { buildYearIndex, daysInMonth, ordinalWithinYear } from "./dayMath";
+import { buildYearIndex, daysInMonth } from "./dayMath";
 import { MOON_PHASES, moonAnchorOrdinal, moonsForMonth, moonsOn, moonsOnOrdinal } from "./moons";
 
 const faerun = calendarDefToAdapter("faerun", FAERUN_CALENDAR);
@@ -44,22 +44,27 @@ describe("moonsOn", () => {
     expect(moonsOn(faerun, 1495, null, null, null)).toEqual([]);
   });
 
-  it("gives exactly one full and one new peak day per cycle", () => {
-    const moon = faerun.moons[0]!;
-    const cycles = 3;
-    const span = Math.floor(moon.cycleDays * cycles); // 91 days from a peak day
-    let full = 0;
-    let fresh = 0;
-    // Start at the anchor's year, month 2 (clear of the anchor itself) for 3 whole cycles.
-    const start = ordinalWithinYear(faerun, 1372, 1, 30, null)! + 1;
-    for (let i = 0; i < span; i++) {
-      // Within 1372 (a leap year, 366 days) the span fits well inside the year.
-      const s = moonsOnOrdinal(faerun, 1372, start + i)[0]!;
-      if (s.peak === "full") full++;
-      if (s.peak === "new") fresh++;
+  it("gives an odd whole-day cycle one new moon per cycle, not none", () => {
+    // 29 days: the new moon lands exactly half a day from a whole day on both sides.
+    const odd = { ...faerun, moons: [{ name: "Odd", cycleDays: 29, fullOn: { year: 1495, month: 1, day: 1 } }] };
+    let fulls = 0;
+    let news = 0;
+    for (let day = 1; day <= 29; day++) {
+      const peak = moonsOn(odd, 1495, 1, day, null)[0]!.peak;
+      if (peak === "full") fulls++;
+      if (peak === "new") news++;
     }
-    expect(full).toBe(3);
-    expect(fresh).toBe(3);
+    // One full (the anchor, day 1) and one new (day 15) in the first 29 days.
+    expect([fulls, news]).toEqual([1, 1]);
+  });
+
+  it("names a day by the nearest of the eight phases, so six days past full is the last quarter", () => {
+    const cycle28 = { ...faerun, moons: [{ name: "Q", cycleDays: 28, fullOn: { year: 1495, month: 1, day: 1 } }] };
+    const phaseOn = (day: number) => moonsOn(cycle28, 1495, 1, day, null)[0]!.phase;
+    expect(phaseOn(1)).toBe("full");
+    expect(phaseOn(7)).toBe("last_quarter"); // 6 days past full is 0.71 of the way round, nearer 0.75 than 0.625
+    expect(phaseOn(6)).toBe("waning_gibbous");
+    expect(phaseOn(15)).toBe("new");
   });
 
   it("skips moons with a bad cycle or an unplaceable anchor instead of throwing", () => {

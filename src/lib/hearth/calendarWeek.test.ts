@@ -100,6 +100,30 @@ describe("weekContainingToday", () => {
     expect(w?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([2, 3, 4]);
   });
 
+  it("treats a multi-day event with no end day as a single day", () => {
+    const w = weekContainingToday(TENDAY, { year: 1000, month: 1, day: 1 }, [
+      ev({ harptos_day: 2, is_multi_day: true, end_day: null }),
+    ]);
+    expect(w?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([2]);
+  });
+
+  it("carries a multi-day event across a month boundary and across a year boundary", () => {
+    const month = ev({ harptos_month: 1, harptos_day: 28, is_multi_day: true, end_month: 2, end_day: 3 });
+    const inSecond = weekContainingToday(TENDAY, { year: 1000, month: 2, day: 1 }, [month]);
+    expect(inSecond?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([1, 2, 3]);
+
+    const year = ev({ harptos_year: 999, harptos_month: 2, harptos_day: 29, is_multi_day: true, end_year: 1000, end_month: 1, end_day: 3 });
+    const inNewYear = weekContainingToday(TENDAY, { year: 1000, month: 1, day: 1 }, [year]);
+    expect(inNewYear?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([1, 2, 3]);
+  });
+
+  // A leap-year month is shorter or longer than its table row says.
+  it("takes the month's length from the adapter when it knows the year", () => {
+    const short: CalendarAdapter = { ...TENDAY, daysInMonth: () => 28 };
+    expect(weekContainingToday(short, { year: 1000, month: 1, day: 29 }, [])).toBeNull();
+    expect(weekContainingToday(short, { year: 1000, month: 1, day: 25 }, [])?.days.map((d) => d.day)).toEqual([21, 22, 23, 24, 25, 26, 27, 28]);
+  });
+
   it("is null for a month the adapter lacks", () => {
     expect(weekContainingToday(TENDAY, { year: 1000, month: 9, day: 1 }, [])).toBeNull();
   });

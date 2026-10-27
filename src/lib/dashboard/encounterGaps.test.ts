@@ -72,6 +72,11 @@ describe("deriveEncounterGapRows", () => {
     expect(rows.map((r) => r.gaps)).toEqual([["reward"]]);
   });
 
+  it("counts a currency pool as a reward even with no item", () => {
+    const pool = { id: "pool-1", label: "Hoard", pp: 0, gp: 50, ep: 0, sp: 0, cp: 0 };
+    expect(deriveEncounterGapRows([baseEncounter({ item_ids: [], reward_currency_pools: [pool] })])).toEqual([]);
+  });
+
   it("names every missing piece when several are absent", () => {
     const rows = deriveEncounterGapRows([
       baseEncounter({ location_id: null, item_ids: [], reward_currency_pools: [] }),

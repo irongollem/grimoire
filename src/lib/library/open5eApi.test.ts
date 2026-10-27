@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchAll,
   fetchAllFromDocuments,
+  slugifyKey,
+  stableSrdId,
   fetchOpen5eDocumentRefs,
   fetchSupported5eDocumentKeys,
   formatLicenseKeys,
@@ -176,7 +179,56 @@ describe("LEGACY_DOCUMENT_KEY_ALIASES", () => {
   });
 });
 
+describe("fetchAll", () => {
+  const page = (results: number[], next: string | null) => new Response(JSON.stringify({ count: results.length, next, results }));
+
+  it("follows `next` until the last page and asks for 500 rows at a time", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      urls.push(String(input));
+      return urls.length === 1 ? page([1, 2], "https://api.open5e.com/v2/things/?page=2") : page([3], null);
+    }));
+    expect(await fetchAll<number>("https://api.open5e.com/v2/things/")).toEqual([1, 2, 3]);
+    expect(urls).toEqual([
+      "https://api.open5e.com/v2/things/?limit=500&format=json",
+      "https://api.open5e.com/v2/things/?page=2",
+    ]);
+  });
+
+  it("appends its paging parameters with & when the base url already has a query", async () => {
+    const fetchMock = vi.fn(async () => page([], null));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchAll<number>("https://api.open5e.com/v2/things/?name=x");
+    expect(fetchMock).toHaveBeenCalledWith("https://api.open5e.com/v2/things/?name=x&limit=500&format=json");
+  });
+
+  it("throws on a failed response instead of returning what it has so far", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 503 })));
+    await expect(fetchAll<number>("https://api.open5e.com/v2/things/")).rejects.toThrow(/503/);
+  });
+});
+
+describe("ids", () => {
+  it("keeps the live double-prefixed library id shape", () => {
+    expect(stableSrdId("srd-2024_owlbear")).toBe("srd_srd_2024_owlbear");
+  });
+
+  it("collapses a run of punctuation into one underscore and trims the ends", () => {
+    expect(slugifyKey("  Bag of Holding, (Greater)! ")).toBe("bag_of_holding_greater");
+  });
+});
+
 describe("fetchAllFromDocuments", () => {
+  it("sends several document keys as one encoded comma list", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ count: 0, next: null, results: [] }));
+    }));
+    await fetchAllFromDocuments("https://api.open5e.com/v2/weapons/", ["srd-2014", "srd-2024"]);
+    expect(urls[0]).toContain("document__key__in=srd-2014%2Csrd-2024");
+  });
+
   it("scopes the request via document__key__in and returns records whose document key was requested", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
       expect(String(input)).toContain("document__key__in=srd-2024");

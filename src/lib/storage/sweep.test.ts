@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { planVariantSweep, sweepTargets, targetLabel, type SweepTarget } from "./sweep";
-import { BUCKETS, BUCKET_ENTRIES, VARIANT_WIDTHS, variantPath } from "./buckets";
+import { BUCKETS, BUCKET_ENTRIES } from "./buckets";
 import { bucketWritePolicy } from "@edge-shared/storage-policy.ts";
 
 describe("planVariantSweep", () => {
@@ -26,6 +26,10 @@ describe("planVariantSweep", () => {
       complete: 0,
       worklist: [{ path: "srd/fireball.webp", missing: [200, 300, 400, 600] }],
     });
+  });
+
+  it("does not treat a folder entry in the listing as an original", () => {
+    expect(planVariantSweep(["u1/", "u1/a.webp"]).originals).toBe(1);
   });
 
   it("lists exactly the missing widths for a partial set", () => {
@@ -131,18 +135,5 @@ describe("targetLabel", () => {
   it("renders a shared prefix with a trailing slash", () => {
     const target: SweepTarget = { bucket: "spellImages", prefix: "srd" };
     expect(targetLabel(target, "admin-uuid")).toBe("spell-images · srd/");
-  });
-});
-
-// Sanity check on the VARIANT_WIDTHS/variantPath fixtures used throughout this
-// file, so a change to those primitives fails loudly here instead of via a
-// confusing mismatch in the assertions above.
-describe("fixture sanity", () => {
-  it("VARIANT_WIDTHS is the four FocalImage render widths", () => {
-    expect(VARIANT_WIDTHS).toEqual([200, 300, 400, 600]);
-  });
-
-  it("variantPath appends _w<width> before the extension", () => {
-    expect(variantPath("u1/a.webp", 400)).toBe("u1/a_w400.webp");
   });
 });

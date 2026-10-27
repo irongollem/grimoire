@@ -76,4 +76,28 @@ describe("computeFit", () => {
       clampLines: 0,
     });
   });
+
+  it("counts an entry whose bottom sits exactly one tolerance past the container as fitting", () => {
+    // 51 <= 50 + 1; the boundary itself is inside, 51.1 is out.
+    expect(computeFit([child(0, 51, 10)], 50).visibleCount).toBe(1);
+    expect(computeFit([child(0, 51.1, 10)], 50).visibleCount).toBe(0);
+  });
+
+  it("spends the tolerance on the clamped entry's lines too", () => {
+    // 29.5px remain; with 1px tolerance that is a third 10px line.
+    expect(computeFit([child(0, 80, 10)], 29.5)).toEqual({
+      visibleCount: 0,
+      partialIndex: 0,
+      clampLines: 3,
+    });
+  });
+
+  it("drops an overflowing entry whose line height is unmeasured (0)", () => {
+    // A zero line height must not read as "infinite lines fit".
+    expect(computeFit([child(0, 20), child(22, 60, 0)], 55)).toEqual({
+      visibleCount: 1,
+      partialIndex: -1,
+      clampLines: 0,
+    });
+  });
 });

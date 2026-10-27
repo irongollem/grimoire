@@ -118,6 +118,25 @@ describe("createRealtimeChannel", () => {
     expect(mocked.realtime.channels).toEqual([]);
   });
 
+  it("evicts a channel whose leave request failed outright, so the topic can be joined again", async () => {
+    mocked.removeChannel.mockRejectedValueOnce(new Error("socket gone"));
+    mocked.realtime.channels = [mocked.channel];
+
+    createRealtimeChannel({ topic: "live-sync", bind: (channel) => channel }).stop();
+    createRealtimeChannel({ topic: "live-sync", bind: (channel) => channel });
+
+    await vi.waitFor(() => expect(mocked.channelFactory).toHaveBeenCalledTimes(2));
+    expect(mocked.channel.teardown).toHaveBeenCalledOnce();
+    expect(mocked.realtime.channels).toEqual([]);
+  });
+
+  it("leaves the channel once however often stop is called", () => {
+    const handle = createRealtimeChannel({ topic: "once", bind: (channel) => channel });
+    handle.stop();
+    handle.stop();
+    expect(mocked.removeChannel).toHaveBeenCalledOnce();
+  });
+
   it("joins a different topic without waiting", () => {
     mocked.removeChannel.mockReturnValueOnce(new Promise(() => {}));
 

@@ -24,6 +24,8 @@ describe("dollOutfitFor", () => {
     expect(dollOutfitFor([worn("clothes", "Traveler's Robes")])).toBe("robes");
     expect(dollOutfitFor([worn("clothes", "Vestments of Faith")])).toBe("robes");
     expect(dollOutfitFor([worn("clothes", "Fine Clothes")])).toBe("clothes");
+    // Any robe among several worn clothes makes the doll wear robes.
+    expect(dollOutfitFor([worn("clothes", "Fine Clothes"), worn("clothes", "Robe of Stars")])).toBe("robes");
   });
   it("ignores a body item that is not armour", () => {
     expect(dollOutfitFor([worn("body", "Amulet Case")])).toBe("underclothes");

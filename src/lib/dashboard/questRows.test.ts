@@ -72,9 +72,24 @@ describe("buildQuestRows", () => {
   // Carried over from the In-progress panel this replaces: after a session ends
   // `end_campaign_quest_session` pauses every open chain, so a view that read
   // "has a cursor" as "is being played" would claim the party is mid-scene in
-  // several quests on a Sunday afternoon.
-  it("never marks a merely-open chain as where the party is", () => {
-    const rows = buildQuestRows([chain("q1", "paused"), chain("q2", "paused")], [], noGiver);
-    expect(rows.map((row) => row.stage)).toEqual(["paused", "paused"]);
+  // several quests on a Sunday afternoon. Only "running" is where the party is.
+  it.each(["idle", "paused", "waiting", "ended"] as const)(
+    "never marks a %s chain as where the party is",
+    (status) => {
+      const rows = buildQuestRows([chain("q1", status)], [], noGiver);
+      expect(rows[0]!.stage).toBe("paused");
+    },
+  );
+
+  it("names an untitled chain and shows no secondary line when its beat has no title", () => {
+    const blank = { ...chain("q1", "running", ""), beat_title: "" };
+    expect(buildQuestRows([blank], [], noGiver)[0]).toMatchObject({
+      title: "Untitled Quest",
+      secondary: null,
+    });
+  });
+
+  it("shows no secondary line for a lane quest nobody gave", () => {
+    expect(buildQuestRows([], [quest("q1", "The Unseen")], noGiver)[0]!.secondary).toBeNull();
   });
 });

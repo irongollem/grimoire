@@ -54,27 +54,21 @@ describe("deriveQuestLootRows", () => {
     expect(deriveQuestLootRows(summaries, [quest("q1", "The Sunken Keep")])).toEqual([]);
   });
 
-  it("rows a quest with only undispatched loot, leaving unclaimed at zero", () => {
-    const summaries = { q1: summary(3, 0) };
-    expect(deriveQuestLootRows(summaries, [quest("q1", "The Sunken Keep")])).toEqual([
-      { questId: "q1", questTitle: "The Sunken Keep", undispatchedCount: 3, unclaimedCount: 0 },
-    ]);
-  });
-
-  it("rows a quest with only unclaimed loot, leaving undispatched at zero", () => {
-    const summaries = { q1: summary(0, 2) };
-    expect(deriveQuestLootRows(summaries, [quest("q1", "The Sunken Keep")])).toEqual([
-      { questId: "q1", questTitle: "The Sunken Keep", undispatchedCount: 0, unclaimedCount: 2 },
-    ]);
-  });
-
-  it("rows a quest with both, keeping the two counts distinct rather than summed", () => {
-    const summaries = { q1: summary(1, 4) };
-    const rows = deriveQuestLootRows(summaries, [quest("q1", "The Sunken Keep")]);
-    // One row, two separate counts — never a single merged "5 pending".
+  // The two counts stay distinct (never a merged "5 pending"), and either one alone is enough to row.
+  it.each([
+    [3, 0],
+    [0, 2],
+    [1, 4],
+  ])("rows a quest with %i undispatched and %i unclaimed, keeping the counts apart", (undispatched, unclaimed) => {
+    const rows = deriveQuestLootRows({ q1: summary(undispatched, unclaimed) }, [quest("q1", "The Sunken Keep")]);
     expect(rows).toEqual([
-      { questId: "q1", questTitle: "The Sunken Keep", undispatchedCount: 1, unclaimedCount: 4 },
+      { questId: "q1", questTitle: "The Sunken Keep", undispatchedCount: undispatched, unclaimedCount: unclaimed },
     ]);
+  });
+
+  it("names an untitled quest rather than rendering a blank row", () => {
+    const rows = deriveQuestLootRows({ q1: summary(1, 0) }, [quest("q1", "")]);
+    expect(rows[0].questTitle).toBe("Untitled Quest");
   });
 
   it("drops a summary whose quest id has no matching quest, without crashing", () => {
@@ -100,10 +94,12 @@ describe("deriveQuestLootRows", () => {
       b: summary(1, 3),
       c: summary(1, 3),
     };
+    // "a" has the alphabetically first title but the fewest unclaimed, so it
+    // must still come last; b and c tie on both counts and fall to the title.
     const rows = deriveQuestLootRows(summaries, [
-      quest("a", "Zebra Quest"),
-      quest("b", "Bravo Quest"),
-      quest("c", "Alpha Quest"),
+      quest("a", "Alpha Quest"),
+      quest("b", "Zebra Quest"),
+      quest("c", "Bravo Quest"),
     ]);
     expect(rows.map((row) => row.questId)).toEqual(["c", "b", "a"]);
   });

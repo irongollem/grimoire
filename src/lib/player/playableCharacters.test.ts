@@ -14,6 +14,10 @@ describe("pickHome", () => {
     expect(pickHome([older, newer], "b", ["a"])?.id).toBe("a");
   });
 
+  it("walks the remembered list in order, past blanks and characters no longer theirs", () => {
+    expect(pickHome([older, newer], null, [null, "gone", "a", "b"])?.id).toBe("a");
+  });
+
   it("skips a remembered character that is no longer theirs", () => {
     expect(pickHome([older, newer], "b", ["gone"])?.id).toBe("b");
   });

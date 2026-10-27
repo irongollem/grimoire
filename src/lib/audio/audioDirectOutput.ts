@@ -237,5 +237,11 @@ export function unduck(releaseMs: number): void {
 export function reset(): void {
   chains.forEach(cancelRamp);
   chains.clear();
+  // A reset mid-duck must hand the buses back their own levels: forgetting the
+  // remembered ones alone would leave music held at the ducked level, with no
+  // unduck left that could ever lift it.
+  if (preDuckGains) {
+    for (const bus of DUCKED_BUSES) busVolumes[bus] = preDuckGains[bus] ?? busVolumes[bus];
+  }
   preDuckGains = null;
 }

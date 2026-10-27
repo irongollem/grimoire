@@ -18,6 +18,12 @@ describe("classifyOpenBookError", () => {
       "unknown",
     );
   });
+  it("reads a refusal by its SQLSTATE even when the message names no cause, and a constraint named only in the details", () => {
+    expect(classifyOpenBookError({ code: "42501", message: "permission denied for table open_books" })).toBe("not_authorized");
+    expect(
+      classifyOpenBookError({ code: "23505", message: "duplicate key value", details: "Key (slug)=(x) violates open_books_slug_key" }),
+    ).toBe("slug_taken");
+  });
   it("falls through to unknown", () => {
     expect(classifyOpenBookError(null)).toBe("unknown");
     expect(classifyOpenBookError("boom")).toBe("unknown");

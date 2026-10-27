@@ -30,6 +30,17 @@ describe("pickWhileAway", () => {
     expect(pickWhileAway([row({ revoked_at: "2026-10-12T00:00:00Z" })], "pm", null, [], NOW)?.active).toBe(false);
     expect(pickWhileAway([row({ revoked_at: "2026-10-01T00:00:00Z" })], "pm", null, [], NOW)).toBeNull();
   });
+  it("keeps a hand-over revoked exactly a week ago and drops it a moment later", () => {
+    const week = 7 * 86_400_000;
+    const at = (agoMs: number) => new Date(NOW.getTime() - agoMs).toISOString();
+    expect(pickWhileAway([row({ revoked_at: at(week) })], "pm", null, [], NOW)?.active).toBe(false);
+    expect(pickWhileAway([row({ revoked_at: at(week + 1) })], "pm", null, [], NOW)).toBeNull();
+  });
+  it("dates an early revocation by the revoke, not by the session's later end", () => {
+    const s = session({ ended_at: "2026-10-13T22:00:00Z" });
+    const picked = pickWhileAway([row({ session_id: "s14", revoked_at: "2026-10-11T09:00:00Z" })], "pm", null, [s], NOW);
+    expect(picked?.endedAt).toBe("2026-10-11T09:00:00Z");
+  });
   it("ends with its session", () => {
     const s = session({ ended_at: "2026-10-13T22:00:00Z" });
     const picked = pickWhileAway([row({ session_id: "s14" })], "pm", null, [s], NOW);
@@ -52,6 +63,29 @@ describe("summariseAway", () => {
     expect(s).toMatchObject({ lines: 5, rolls: 3, crits: 1, fumbles: 1, loot: 1 });
     expect(s.notable.map((n) => n.id)).toEqual(["a", "b", "e"]);
     expect(summarySentences(s, "Mira")).toBe("Three rolls, one a natural 20, one a fumble. One drop was put up for Mira.");
+  });
+  it("keeps only the first three notable lines, which arrive newest first, and counts currency drops as loot", () => {
+    const s = summariseAway([
+      line({ id: "1", message: "one" }),
+      line({ id: "2", message: "two" }),
+      line({ id: "3", message: "three" }),
+      line({ id: "4", message: "four" }),
+      line({ id: "5", type: "currency_drop" }),
+    ]);
+    expect(s.notable.map((n) => n.id)).toEqual(["1", "2", "3"]);
+    expect(s.loot).toBe(1);
+  });
+  it("counts a crit or fumble flag only on a roll line", () => {
+    const s = summariseAway([line({ type: "chat", metadata: { isCrit: true, isFumble: true } })]);
+    expect(s).toMatchObject({ rolls: 0, crits: 0, fumbles: 0 });
+  });
+  it.each([
+    [{ rolls: 1, crits: 0, fumbles: 0, loot: 0 }, "One roll."],
+    [{ rolls: 12, crits: 0, fumbles: 0, loot: 0 }, "12 rolls."],
+    [{ rolls: 5, crits: 2, fumbles: 3, loot: 0 }, "Five rolls, two natural 20s, three fumbles."],
+    [{ rolls: 0, crits: 0, fumbles: 0, loot: 2 }, "Two drops were put up for Mira."],
+  ])("phrases %j as %j", (tally, sentence) => {
+    expect(summarySentences({ lines: 0, notable: [], ...tally }, "Mira")).toBe(sentence);
   });
   it("is empty for no lines", () => {
     expect(summarySentences(summariseAway([]), "Mira")).toBe("");

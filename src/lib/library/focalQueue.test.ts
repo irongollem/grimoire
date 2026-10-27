@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFocalQueue,
+  entryLabel,
+  namedEntryId,
   buildNamedFocalQueue,
   filterByStatus,
   type QueueNamedRow,
@@ -52,6 +54,11 @@ describe("buildFocalQueue", () => {
     expect(fromLibrary?.focalPoint).toEqual({ x: 70, y: 10 });
   });
 
+  it("takes the first library row's focal point when several rows show the picture", () => {
+    const [entry] = buildFocalQueue("monster", [art("a", "x.webp")], [lib("A", "x.webp", 70), lib("A2", "x.webp", 90), lib("A3", "x.webp")]);
+    expect(entry?.focalPoint).toEqual({ x: 70, y: 10 });
+  });
+
   it("skips pictures without an art row and rows without a picture", () => {
     const entries = buildFocalQueue("item", [art("sword", null)], [lib("Sword", "orphan.webp"), lib("Blank", null)]);
     expect(entries).toEqual([]);
@@ -64,6 +71,15 @@ describe("buildFocalQueue", () => {
       [lib("Zombie", "z.webp"), lib("Ape", "y.webp"), lib("Mimic", "x.webp")],
     );
     expect(entries.map((e) => e.names[0])).toEqual(["Mimic", "Zombie", "Ape"]);
+  });
+});
+
+describe("entryLabel", () => {
+  it("is the first name, else the first key, else the id", () => {
+    const base = { id: "x.webp", kind: "monster", imageUrl: "x.webp", focalPoint: null, checkedAt: null } as const;
+    expect(entryLabel({ ...base, names: ["Owlbear"], keys: ["srd_owlbear"] })).toBe("Owlbear");
+    expect(entryLabel({ ...base, names: [], keys: ["srd_owlbear"] })).toBe("srd_owlbear");
+    expect(entryLabel({ ...base, names: [], keys: [] })).toBe("x.webp");
   });
 });
 
@@ -134,6 +150,18 @@ describe("buildNamedFocalQueue", () => {
     expect(before[0]?.focalPoint).toEqual({ x: 80, y: 50 });
     const after = buildNamedFocalQueue("background", [row("b", "Sage", "new.webp"), row("a", "Sage", "new.webp")]);
     expect(after[0]?.id).toBe(before[0]?.id);
+  });
+
+  it("ignores a row with a blank name, and treats padded spellings of a name as one", () => {
+    const entries = buildNamedFocalQueue("class", [row("1", "  ", "x.webp"), row("2", " Bard ", "b.webp"), row("3", "bard", "b.webp")]);
+    expect(entries.map((e) => e.id)).toEqual(["name:bard"]);
+    expect(namedEntryId("  BARD ")).toBe("name:bard");
+  });
+
+  it("keeps the focal point recorded against the chosen picture, not another edition's", () => {
+    const [entry] = buildNamedFocalQueue("species", [row("a", "Elf", "one.webp"), row("b", "Elf", "two.webp", null, 25)]);
+    expect(entry?.imageUrl).toBe("one.webp");
+    expect(entry?.focalPoint).toBeNull();
   });
 
   it("sorts unchecked first, then by name", () => {

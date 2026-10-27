@@ -35,6 +35,27 @@ describe("buildCalendarEventConstraints", () => {
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(400);
   });
 
+  it("names at most three domains per deity and ten deities", () => {
+    const lines = buildCalendarEventConstraints({
+      dateLabel: "1 A, 1",
+      eventType: "world",
+      deities: Array.from({ length: 12 }, (_, i) => ({ name: `God${i}`, domains: ["a", "b", "c", "d"] })),
+      pantheons: [],
+      factions: [],
+    });
+    const deities = lines.find((l) => l.startsWith("Deities: "))!.slice("Deities: ".length).split("; ");
+    expect(deities).toHaveLength(10);
+    expect(deities[0]).toBe("God0 (a, b, c)");
+  });
+
+  it("asks for the kind the DM picked, and either when it is neither", () => {
+    const kind = (eventType: string) =>
+      buildCalendarEventConstraints({ dateLabel: "", eventType, deities: [], pantheons: [], factions: [] })[0];
+    expect(kind("festival")).not.toContain("world");
+    expect(kind("world")).not.toContain("festival");
+    expect(kind("campaign")).toMatch(/festival.*world/);
+  });
+
   it("omits empty sections", () => {
     const lines = buildCalendarEventConstraints({
       dateLabel: "",
@@ -52,6 +73,8 @@ describe("formatEventDateLabel", () => {
   it("formats regular and festival dates", () => {
     expect(formatEventDateLabel({ year: 1492, month: 3, day: 3, festivalDay: null, monthName: "Mirtul" })).toBe("3 Mirtul, 1492");
     expect(formatEventDateLabel({ year: 1492, month: null, day: null, festivalDay: "Midwinter", monthName: null })).toBe("Midwinter, 1492");
+    // A month the calendar cannot name leaves the year alone rather than printing "3 null".
+    expect(formatEventDateLabel({ year: 1492, month: 3, day: 3, festivalDay: null, monthName: null })).toBe("1492");
   });
 });
 

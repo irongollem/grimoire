@@ -77,22 +77,16 @@ describe("freesound adapter", () => {
 
   it("surfaces transport errors rather than returning an empty result set", async () => {
     invoke.mockResolvedValue({ data: null, error: new Error("network down") });
-    await expect(freesoundProvider.search({ query: "x", page: 1, filters: DEFAULT_PROVIDER_FILTERS })).rejects.toThrow();
+    await expect(freesoundProvider.search({ query: "x", page: 1, filters: DEFAULT_PROVIDER_FILTERS })).rejects.toThrow("network down");
   });
 
   it("treats an empty body as an error, not as zero results", async () => {
     // Silently showing "no results" for a broken endpoint would send a DM
     // hunting for a better search term when the service is simply down.
     invoke.mockResolvedValue({ data: null, error: null });
-    await expect(freesoundProvider.search({ query: "x", page: 1, filters: DEFAULT_PROVIDER_FILTERS })).rejects.toThrow();
-  });
-
-  it("declares the metadata the browser UI relies on", async () => {
-    expect(freesoundProvider.id).toBe("freesound");
-    expect(freesoundProvider.sourceType).toBe("freesound");
-    expect(freesoundProvider.label.length).toBeGreaterThan(0);
-    expect(freesoundProvider.minQueryLength).toBeGreaterThan(0);
-    expect(freesoundProvider.attributionNote.length).toBeGreaterThan(0);
+    await expect(freesoundProvider.search({ query: "x", page: 1, filters: DEFAULT_PROVIDER_FILTERS })).rejects.toThrow(
+      "Empty response from freesound-search",
+    );
   });
 
   it("forwards duration bounds only when they are set", async () => {

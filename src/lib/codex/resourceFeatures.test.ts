@@ -21,6 +21,30 @@ describe("sanitizeResources", () => {
     expect(sanitizeResources([{ label: "X" }, { label: "x" }])).toHaveLength(1);
   });
 
+  it("keeps a table of exactly 20 cells up to 99 and rejects 21 cells or a cell of 100", () => {
+    const base = { label: "Bolts", scaling: "table" };
+    const cells = (n: number, cell = 1) => Array<number>(n).fill(cell);
+    expect(sanitizeResources([{ ...base, table_values: cells(20, 99) }])).toHaveLength(1);
+    expect(sanitizeResources([{ ...base, table_values: cells(21) }])).toEqual([]);
+    expect(sanitizeResources([{ ...base, table_values: cells(20, 100) }])).toEqual([]);
+    expect(sanitizeResources([{ ...base, table_values: cells(19) }])).toEqual([]);
+  });
+
+  it("keeps a fixed value up to 99 and falls back to 1 beyond it or when it is missing", () => {
+    const fixedOf = (v: unknown) => sanitizeResources([{ label: "X", scaling: "fixed", fixed_value: v }])[0]?.fixed_value;
+    expect(fixedOf(99)).toBe(99);
+    expect(fixedOf(100)).toBe(1);
+    expect(fixedOf(-1)).toBe(1);
+    expect(fixedOf("lots")).toBe(1);
+  });
+
+  it("reads rest as short only for short, and defaults any other word to long", () => {
+    const restOf = (rest: unknown) => sanitizeResources([{ label: "X", rest }])[0]?.rest;
+    expect(restOf("Short")).toBe("short");
+    expect(restOf("long")).toBe("long");
+    expect(restOf("dawn")).toBe("long");
+  });
+
   it("is empty for anything that is not a list", () => {
     expect(sanitizeResources(3)).toEqual([]);
   });
@@ -57,6 +81,28 @@ describe("withResourceFeatures", () => {
     const out = withResourceFeatures([drafted("Ember Charges", 2)], [fixed], ctx);
     expect(out).toHaveLength(1);
     expect(out[0]?.insert.mechanics?.uses).toMatchObject({ key: "ember_charges", amount: { kind: "fixed", value: 3 } });
+  });
+
+  it("does not overwrite uses a drafted feature of the same name already has", () => {
+    const owner = drafted("Ember Charges", 2);
+    owner.insert.mechanics = { uses: { key: "mine", label: "Mine", amount: { kind: "fixed", value: 1 }, recharge: "short", pool: false } };
+    const out = withResourceFeatures([owner], [fixed], ctx);
+    expect(out.map((f) => f.insert.mechanics?.uses?.key)).toEqual(["ember_charges", "mine"]) // the new feature lands at level 1, ahead of the drafted one at 2;
+  });
+
+  it("keeps drafted features in input order when a resource lands on the same level", () => {
+    const out = withResourceFeatures([drafted("A", 5), drafted("B", 5)], [table([0, 0, 0, 0, 1, ...Array(15).fill(1)])], ctx);
+    expect(out.map((f) => f.insert.name)).toEqual(["A", "B", "Bolts"]);
+  });
+
+  it("places a resource on an allowed level equal to its own, and on the last one when it is past them all", () => {
+    const at = (cells: number[], allowed: number[]) => withResourceFeatures([], [table(cells)], { ...ctx, allowedLevels: allowed })[0]?.level;
+    expect(at([0, 0, 0, 0, 0, 1, ...Array(14).fill(1)], [3, 6, 10])).toBe(6);
+    expect(at([...Array(18).fill(0), 1, 1], [3, 7, 10])).toBe(10);
+  });
+
+  it("drops a resource when no level is allowed", () => {
+    expect(withResourceFeatures([], [fixed], { ...ctx, allowedLevels: [] })).toEqual([]);
   });
 
   it("keeps the feature on a level the archetype actually grants", () => {

@@ -129,6 +129,15 @@ describe("zoneIdAt and paintZoneRings", () => {
     expect(zoneIdAt(zones, 2, 5)).toBe("a");
     expect(zoneIdAt(zones, 20, 20)).toBeNull();
   });
+  it("counts the edge of a sphere as inside it", () => {
+    // 20 ft = 4 cells: a point exactly 4 cells from the centre is on the edge.
+    expect(zoneIdAt(zones, 9, 5)).toBe("a");
+  });
+  it("draws no rings when a cell has no size", () => {
+    const ctx = { save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), arc: vi.fn(), stroke: vi.fn(), setLineDash: vi.fn(), strokeStyle: "", lineWidth: 0 };
+    paintZoneRings(ctx, zones, 0, 0, 0);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
   it("strokes one dashed ring per sphere at its radius", () => {
     const ctx = { save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), arc: vi.fn(), stroke: vi.fn(), setLineDash: vi.fn(), strokeStyle: "", lineWidth: 0 };
     paintZoneRings(ctx, zones, 100, 50, 10);

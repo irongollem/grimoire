@@ -24,6 +24,15 @@ describe("rewriteBookHref", () => {
     expect(rewriteBookHref("/w/saltreach", ctx)).toBe("https://app.example/w/saltreach");
   });
 
+  it("reads an address with an encoded id as the id it names", () => {
+    const withSpace = { ...ctx, entryIds: new Set(["a b"]) };
+    expect(rewriteBookHref("/w/saltreach/atlas/a%20b", withSpace)).toBe("#e-a b");
+  });
+
+  it("leaves a link that is not an address at all as it is", () => {
+    expect(rewriteBookHref("http://[", ctx)).toBe("http://[");
+  });
+
   it("leaves other books and other sites alone", () => {
     expect(rewriteBookHref("/w/elsewhere/atlas/abc", ctx)).toBe("/w/elsewhere/atlas/abc");
     expect(rewriteBookHref("https://example.org/page", ctx)).toBe("https://example.org/page");
@@ -37,6 +46,7 @@ describe("prepareSectionHtml", () => {
     const out = prepareSectionHtml(html, ctx);
     expect(out).toContain('href="#e-abc"');
     expect(out).not.toContain("loading=");
+    expect(out).toContain('decoding="sync"');
     expect(out).not.toContain("<button");
     expect(out).toContain("<span></span>");
   });

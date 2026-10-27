@@ -49,6 +49,38 @@ describe("openTableItems", () => {
     expect(out[2]).toMatchObject({ kind: "item", title: "2× Potion of Healing" });
   });
 
+  it("keeps what was whispered to me and what was posted at the very moment the session opened", () => {
+    const vendor = { description: "Rations", item_name: "Hard tack", item_id: null, ...coin, sp: 5, paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null };
+    const out = openTableItems(
+      [
+        msg({ id: "whisper", type: "vendor_offer", recipient_user_id: "me", metadata: vendor }),
+        msg({ id: "atStart", type: "vendor_offer", created_at: SINCE, metadata: vendor }),
+      ],
+      "me",
+      SINCE,
+    );
+    expect(out.map((i) => i.messageId).sort()).toEqual(["atStart", "whisper"]);
+    // A vendor offer is titled by the item when it has one, not the description.
+    expect(out[0].title).toBe("Hard tack");
+  });
+
+  it("titles a single item plainly, drops a drop with none left, and names a labelled coin drop", () => {
+    const item = { item_id: null, item_name: "Potion", item_rarity: null, quantity: 1, claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null };
+    const out = openTableItems(
+      [
+        msg({ id: "one", type: "item_drop", metadata: item }),
+        msg({ id: "none", type: "item_drop", metadata: { ...item, quantity_remaining: 0 } }),
+        msg({ id: "hoard", type: "currency_drop", metadata: { label: "Dragon hoard", ...coin, claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null } }),
+      ],
+      "me",
+      SINCE,
+    );
+    expect(out.map((i) => i.messageId).sort()).toEqual(["hoard", "one"]);
+    expect(out.find((i) => i.messageId === "one")?.title).toBe("Potion");
+    // Zero coins print nothing rather than an empty string.
+    expect(out.find((i) => i.messageId === "hoard")).toMatchObject({ title: "Dragon hoard", detail: null });
+  });
+
   it("drops claimed, emptied, sold, paid, mine, old and whispered-to-others", () => {
     const claimedItem = { item_id: null, item_name: "X", item_rarity: null, quantity: 1, claimed_by_user_id: "u", claimed_by_name: "n", claimed_party_member_id: null };
     const offer = { item_name: "Sword", item_id: null, inventory_item_id: "i", quantity: 1, ...coin, gp: 10, seller_party_member_id: "s", sold_to_user_id: null, sold_to_name: null, sold_to_party_member_id: null };

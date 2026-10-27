@@ -70,8 +70,26 @@ describe("buildPickerRows", () => {
     expect(list.map((r) => r.id).sort()).toEqual(["c1", "c2", "x"]);
   });
 
+  it("puts a place under a missing parent among the roots, by name", () => {
+    const list = buildPickerRows(
+      {
+        ...empty,
+        locations: [
+          { id: "b", parent_id: null, name: "Bravo", player_visible_to: [], is_npcs_shared: false },
+          { id: "a", parent_id: "gone", name: "Alpha", player_visible_to: [], is_npcs_shared: false },
+        ],
+      },
+      [],
+      { includeShared: true },
+      PARTY,
+    );
+    expect(list.map((r) => [r.id, r.depth])).toEqual([["a", 0], ["b", 0]]);
+  });
+
   it("files notes by category and deities with the pantheons", () => {
     const list = rows(true);
+    // A session note needs no second line (it is the Chronicle); any other category is named.
+    expect([byId(list, "no1").detail, byId(list, "no2").detail]).toEqual([null, "lore"]);
     expect(byId(list, "no1").chapter).toBe("chronicle");
     expect(byId(list, "no2").chapter).toBe("lore");
     expect(byId(list, "d1").chapter).toBe("pantheon");
@@ -174,12 +192,26 @@ describe("filters", () => {
     ]);
   });
 
-  it("flattens the tree while filtering, and reports active filters", () => {
+  it("flattens the tree while filtering, but keeps it for a chapter on its own", () => {
     const vault = filterRows(all, { ...NO_FILTER, search: "vault" });
     expect(vault[0]!.depth).toBe(0);
+    expect(filterRows(all, { ...NO_FILTER, chapter: "atlas" }).map((r) => r.depth)).toEqual([0, 0, 1, 1]);
+  });
+
+  it("reports a filter as active for a search, a place, an audience or not-in-book, but not for a chapter or a blank search", () => {
     expect(hasActiveFilters(NO_FILTER)).toBe(false);
     expect(hasActiveFilters({ ...NO_FILTER, chapter: "atlas" })).toBe(false);
+    expect(hasActiveFilters({ ...NO_FILTER, search: "   " })).toBe(false);
     expect(hasActiveFilters({ ...NO_FILTER, search: "x" })).toBe(true);
+    expect(hasActiveFilters({ ...NO_FILTER, placeIds: new Set(["l-coast"]) })).toBe(true);
+    expect(hasActiveFilters({ ...NO_FILTER, audience: "party" })).toBe(true);
+    expect(hasActiveFilters({ ...NO_FILTER, notInBook: true })).toBe(true);
+  });
+
+  it("finds a place's subtree through a parent cycle without looping", () => {
+    const cycle = [{ id: "x", parent_id: "y" }, { id: "y", parent_id: "x" }];
+    expect([...placeSubtreeIds(cycle, "x")].sort()).toEqual(["x", "y"]);
+    expect([...placeSubtreeIds(cycle, "elsewhere")]).toEqual(["elsewhere"]);
   });
 });
 

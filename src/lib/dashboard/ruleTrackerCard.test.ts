@@ -35,9 +35,6 @@ describe("parseRuleTrackerCardSettings", () => {
   it.each([
     ["absent settings", undefined],
     ["a null blob", null],
-    ["an array", ["r-sanity"]],
-    ["garbage (a string)", "r-sanity"],
-    ["garbage (a number)", 42],
     ["a blob with no ruleId", { width: "cell" }],
     ["a non-string ruleId", { ruleId: 7 }],
     // "" is what EntityCombobox's clear control writes; it is not a choice.

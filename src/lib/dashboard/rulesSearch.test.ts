@@ -26,12 +26,12 @@ const GRAPPLING = rule(
 const BLINDED = rule("blinded", "Blinded", "A blinded creature can't see.");
 
 describe("searchLibraryRules", () => {
-  it("returns nothing for an empty query", () => {
-    expect(searchLibraryRules([GRAPPLED, GRAPPLING, BLINDED], "")).toEqual([]);
+  it.each(["", "   "])("returns nothing for the blank query %j", (query) => {
+    expect(searchLibraryRules([GRAPPLED, GRAPPLING, BLINDED], query)).toEqual([]);
   });
 
-  it("returns nothing for a whitespace-only query", () => {
-    expect(searchLibraryRules([GRAPPLED, GRAPPLING, BLINDED], "   ")).toEqual([]);
+  it("ignores spaces around the query", () => {
+    expect(searchLibraryRules([GRAPPLED, BLINDED], "  grapp ")).toEqual([GRAPPLED]);
   });
 
   it("matches a query found in the title", () => {

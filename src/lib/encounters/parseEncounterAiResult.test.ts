@@ -17,22 +17,16 @@ describe("parseEncounterAiResult", () => {
     expect(parseEncounterAiResult(raw)).toEqual(raw);
   });
 
-  it("throws when combatants is missing", () => {
-    expect(() => parseEncounterAiResult({ name: "Ambush", difficulty: "medium" })).toThrow(
-      "AI returned malformed encounter data. Please try again.",
-    );
-  });
-
-  it("throws when combatants is not an array", () => {
-    expect(() =>
-      parseEncounterAiResult({ name: "Ambush", combatants: "not-an-array" }),
-    ).toThrow("AI returned malformed encounter data. Please try again.");
-  });
-
-  it("throws when combatants is an empty array", () => {
-    expect(() => parseEncounterAiResult({ name: "Ambush", combatants: [] })).toThrow(
-      "AI returned malformed encounter data. Please try again.",
-    );
+  it.each([
+    ["combatants missing", { name: "Ambush", difficulty: "medium" }],
+    ["combatants not an array", { name: "Ambush", combatants: "not-an-array" }],
+    ["combatants empty", { name: "Ambush", combatants: [] }],
+    ["every combatant unusable", { name: "Ambush", combatants: [{ count: 2 }, { name: "" }, "not-an-object", null] }],
+    ["a bare string", "just a string"],
+    ["null", null],
+    ["a number", 42],
+  ])("throws the retry message when the payload is %s", (_label, raw) => {
+    expect(() => parseEncounterAiResult(raw)).toThrow("AI returned malformed encounter data. Please try again.");
   });
 
   it("keeps a combatant missing role, coercing role to an empty string", () => {
@@ -59,24 +53,16 @@ describe("parseEncounterAiResult", () => {
     expect(result.combatants).toEqual([{ name: "Goblin", count: 1, role: "" }]);
   });
 
-  it("throws when every combatant is dropped", () => {
-    expect(() =>
-      parseEncounterAiResult({
-        name: "Ambush",
-        combatants: [{ count: 2 }, { name: "" }, "not-an-object"],
-      }),
-    ).toThrow("AI returned malformed encounter data. Please try again.");
-  });
-
-  it("falls back count to 1 when NaN or absent", () => {
+  it("falls back count to 1 when NaN, infinite or absent", () => {
     const result = parseEncounterAiResult({
       name: "Ambush",
       combatants: [
         { name: "Goblin", count: NaN },
         { name: "Kobold" },
+        { name: "Imp", count: Infinity },
       ],
     });
-    expect(result.combatants.map((c) => c.count)).toEqual([1, 1]);
+    expect(result.combatants.map((c) => c.count)).toEqual([1, 1, 1]);
   });
 
   it("falls back difficulty to medium when missing or unrecognized", () => {
@@ -107,17 +93,5 @@ describe("parseEncounterAiResult", () => {
     expect(result.environment).toBe("");
     expect(result.tactics).toBe("");
     expect(result.twist).toBe("");
-  });
-
-  it("throws on non-object input", () => {
-    expect(() => parseEncounterAiResult("just a string")).toThrow(
-      "AI returned malformed encounter data. Please try again.",
-    );
-    expect(() => parseEncounterAiResult(null)).toThrow(
-      "AI returned malformed encounter data. Please try again.",
-    );
-    expect(() => parseEncounterAiResult(42)).toThrow(
-      "AI returned malformed encounter data. Please try again.",
-    );
   });
 });

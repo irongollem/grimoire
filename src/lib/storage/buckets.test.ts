@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BUCKETS, type BucketConfig, type BucketKey } from "./buckets";
+import { BUCKETS, variantPath, type BucketConfig, type BucketKey } from "./buckets";
 import { CDN_BUCKET_IDS } from "@edge-shared/cdn-buckets.ts";
 import { R2_BUCKET_IDS, isR2Bucket } from "@edge-shared/r2/config.ts";
 import { STORAGE_WRITE_POLICY, bucketWritePolicy } from "@edge-shared/storage-policy.ts";
@@ -14,16 +14,6 @@ describe("CDN bucket registry", () => {
   it("agrees with CDN_BUCKET_IDS in both directions", () => {
     const fromRegistry = bucketEntries.filter(([, c]) => c.cdn).map(([, c]) => c.id).sort();
     expect(fromRegistry).toEqual([...CDN_BUCKET_IDS].sort());
-  });
-
-  it("fronts every bucket, including sounds and mini-models", () => {
-    // sounds: shared playback has every client fetch its own copy, so it is the
-    // bucket where origin egress scales worst.
-    expect(BUCKETS.sounds.cdn).toBe(true);
-    // mini-models joined in stage 2 because it moved to R2, and an R2 object is
-    // reachable only through the Worker.
-    expect(BUCKETS.miniModels.cdn).toBe(true);
-    expect(bucketEntries.every(([, c]) => c.cdn)).toBe(true);
   });
 });
 
@@ -79,5 +69,18 @@ describe("server-enforced write policy mirrors the client registry", () => {
     for (const policy of STORAGE_WRITE_POLICY) {
       expect(known.has(policy.id), `${policy.id} is in the write policy but not in BUCKETS`).toBe(true);
     }
+  });
+});
+
+describe("variantPath", () => {
+  // Variants are always .webp, whatever the original was (see the comment on variantPath).
+  it.each([
+    ["u1/a.webp", "u1/a_w400.webp"],
+    ["u1/a.png", "u1/a_w400.webp"],
+    ["u1/a", "u1/a_w400.webp"],
+    // A dot in a folder name is not the file's extension.
+    ["u1.v2/a", "u1.v2/a_w400.webp"],
+  ])("%s -> %s", (original, variant) => {
+    expect(variantPath(original, 400)).toBe(variant);
   });
 });

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   rollLootTable,
-  unresolvedReasonLabel,
   type RolledItemEntry,
   type RolledCurrencyEntry,
   type RolledUnresolvedEntry,
@@ -244,6 +243,13 @@ describe("rollLootTable — currency entries", () => {
   });
 });
 
+describe("rollLootTable — currency coins", () => {
+  it("carries every coin to its own column", () => {
+    const entry = makeLootEntry({ id: "e1", type: "currency", pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
+    expect(rollLootTable(makeLootTable([entry]), new Map())[0]).toMatchObject({ pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
+  });
+});
+
 // ── "random" entries — vault pool pick ────────────────────────────────────────
 
 describe("rollLootTable — random (pool-pick) entries", () => {
@@ -266,9 +272,10 @@ describe("rollLootTable — random (pool-pick) entries", () => {
   it("further narrows the pool by item_type_filter", () => {
     const rarePotion = makeItem({ id: "rare-potion", rarity: "rare", item_type: "potion" });
     const rareScroll = makeItem({ id: "rare-scroll", rarity: "rare", item_type: "scroll" });
+    // The scroll comes first, so an unfiltered pool would pick it at index 0.
     const itemsById = new Map([
-      [rarePotion.id, rarePotion],
       [rareScroll.id, rareScroll],
+      [rarePotion.id, rarePotion],
     ]);
     const entry = makeLootEntry({
       id: "e1",
@@ -331,6 +338,12 @@ describe("rollLootTable — dangling item references", () => {
     expect(u.type).toBe("unresolved");
     expect(u.reason).toBe("item_deleted");
     expect(u.entry_id).toBe("e1");
+    expect(u.wanted).toBe("A removed item");
+  });
+
+  it("names the removed item from the entry's own note when it has one", () => {
+    const entry = makeLootEntry({ id: "e1", type: "item", item_id: "deleted-item", notes: "  Ruby ring  " });
+    expect((rollLootTable(makeLootTable([entry]), new Map())[0] as RolledUnresolvedEntry).wanted).toBe("Ruby ring");
   });
 });
 
@@ -352,15 +365,5 @@ describe("rollLootTable — misc", () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("item");
     expect((result[0] as RolledItemEntry).item_name).toBe("Legacy Sword");
-  });
-});
-
-// ── unresolvedReasonLabel ─────────────────────────────────────────────────────
-
-describe("unresolvedReasonLabel", () => {
-  it("returns a non-empty human string for every reason", () => {
-    for (const reason of ["no_matching_items", "non_positive_quantity", "item_deleted"] as const) {
-      expect(unresolvedReasonLabel(reason)).toBeTruthy();
-    }
   });
 });

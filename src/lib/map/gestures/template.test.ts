@@ -43,6 +43,13 @@ describe("cellsInOctagon", () => {
     expect(cells.has("4,0")).toBe(true);
     expect(cells.has("0,4")).toBe(true);
   });
+
+  it("cuts each corner by about 30% of the radius", () => {
+    // r=10 cuts 3 cells: the flat top runs from x=-7 to x=7.
+    const cells = new Set(cellsInOctagon(0, 0, 10));
+    expect(cells.has("7,-10")).toBe(true);
+    expect(cells.has("8,-10")).toBe(false);
+  });
 });
 
 describe("cellsInHex", () => {
@@ -55,13 +62,25 @@ describe("cellsInHex", () => {
     expect(cells.has("4,4")).toBe(false); // outside narrowed row
     expect(cells.has("2,4")).toBe(true);
     expect(cells.has("3,4")).toBe(false);
+    // An odd row still narrows: dy=1 is half a step off the equator, one cell in.
+    expect(cells.has("3,1")).toBe(true);
+    expect(cells.has("4,1")).toBe(false);
   });
 });
 
 describe("cellsForTemplate", () => {
-  it("dispatches to the shape function", () => {
-    expect(cellsForTemplate(0, 0, 0, "circle")).toEqual(["0,0"]);
-    expect(cellsForTemplate(0, 0, 1, "octagon").length).toBeGreaterThan(0);
-    expect(cellsForTemplate(0, 0, 1, "hex").length).toBeGreaterThan(0);
+  it("dispatches each shape to its own cell set", () => {
+    // Radius 2: the circle keeps cells within 2 (13), the octagon trims only the four far corners of the 5x5 (21),
+    // the hex narrows to 3 cells on every row off the equator (3+3+5+3+3 = 17).
+    expect(cellsForTemplate(0, 0, 2, "circle")).toHaveLength(13);
+    expect(cellsForTemplate(0, 0, 2, "octagon")).toHaveLength(21);
+    expect(cellsForTemplate(0, 0, 2, "hex")).toHaveLength(17);
+  });
+
+  it("a zero or negative radius is just the centre cell, whatever the shape", () => {
+    for (const shape of ["circle", "octagon", "hex"] as const) {
+      expect(cellsForTemplate(3, 4, 0, shape)).toEqual(["3,4"]);
+      expect(cellsForTemplate(3, 4, -2, shape)).toEqual(["3,4"]);
+    }
   });
 });

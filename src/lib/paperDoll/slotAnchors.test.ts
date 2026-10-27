@@ -21,6 +21,17 @@ describe("slotAnchors", () => {
     expect(a.feet.x).toBeCloseTo(50);
   });
 
+  it("follows the head centre for head and neck, the crown axis for body, waist and feet, and insets the ring from the hand's edge", () => {
+    // A head turned off the axis: its centre is 300, the body's axis 256.
+    const turned = slotAnchors({ ...anatomy, head: { x0: 260, y0: 100, x1: 340, y1: 200 } });
+    expect(turned.head.x).toBeCloseTo((300 / 512) * 100);
+    expect(turned.neck.x).toBeCloseTo((300 / 512) * 100);
+    for (const key of ["body", "waist", "feet"] as const) expect(turned[key].x).toBeCloseTo(50);
+    // 12% of the 200-wide shoulders in from the right shoulder (356).
+    expect(turned.ring.x).toBeCloseTo(((356 - 24) / 512) * 100);
+    expect(turned.clothes.x).toBeCloseTo(((156 + 20) / 512) * 100);
+  });
+
   it("orders the slots down the body", () => {
     const a = slotAnchors(anatomy);
     expect(a.head.y).toBeLessThan(a.neck.y);

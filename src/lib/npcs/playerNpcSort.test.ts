@@ -8,6 +8,7 @@ interface Spec {
   revealed_at?: string | null;
   loc?: string;
   rating?: number;
+  disguise?: string;
 }
 
 function make(specs: Spec[]) {
@@ -16,9 +17,9 @@ function make(specs: Spec[]) {
       ({
         id: s.id,
         name: s.name,
-        disguise_name: null,
+        disguise_name: s.disguise ?? null,
         disguise_portrait_url: null,
-        is_revealed: true,
+        is_revealed: s.disguise === undefined,
         revealed_at: s.revealed_at ?? null,
       }) as PlayerNpc,
   );
@@ -107,6 +108,18 @@ describe("sortPlayerNpcs", () => {
       { id: "a", name: "Aria", rating: 2 },
     ]);
     expect(ids(sortPlayerNpcs(npcs, "rating", "desc", ctx))).toEqual(["a", "x"]);
+  });
+
+  it("sorts a disguised NPC by the name the players know, never the true one", () => {
+    const { npcs, ctx } = make([
+      { id: "a", name: "Aria" },
+      { id: "z", name: "Zed the Usurper", disguise: "Brother Bede" },
+      { id: "c", name: "Cade" },
+    ]);
+    // Zed is Brother Bede to the table, so he sorts between Aria and Cade.
+    expect(ids(sortPlayerNpcs(npcs, "name", "asc", ctx))).toEqual(["a", "z", "c"]);
+    expect(ids(sortPlayerNpcs([...npcs].reverse(), "name", "asc", ctx))).toEqual(["a", "z", "c"]);
+    expect(ids(sortPlayerNpcs(npcs, "name", "desc", ctx))).toEqual(["c", "z", "a"]);
   });
 
   it("does not mutate the input", () => {

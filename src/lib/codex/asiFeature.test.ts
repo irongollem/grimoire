@@ -20,6 +20,11 @@ describe("findOfficialAsiFeature", () => {
     expect(findOfficialAsiFeature([homebrew, row({ id: "o", name: "Second Wind" })], "2014")).toBeNull();
   });
 
+  it("matches the name through stray spaces but never a feat of the same name", () => {
+    expect(findOfficialAsiFeature([row({ id: "padded", name: "  ability score improvement " })], "2014")?.id).toBe("padded");
+    expect(findOfficialAsiFeature([row({ id: "sub", kind: "feat" })], "2014")).toBeNull();
+  });
+
   it("accepts a row with no edition for either", () => {
     expect(findOfficialAsiFeature([row({ id: "any", ruleset: null })], "2024")?.id).toBe("any");
   });

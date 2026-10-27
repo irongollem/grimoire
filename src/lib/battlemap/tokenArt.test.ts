@@ -13,12 +13,7 @@ describe("resolveTokenArt", () => {
     expect(resolveTokenArt({ cutout_url: null })).toBeNull();
   });
 
-  it("works structurally on a Monster or an Npc without a cast", () => {
-    // Both rows name the field `cutout_url`; this exercises the shared
-    // reader against each shape rather than a hand-built literal.
-    const monster = { id: "m1", name: "Owlbear", cutout_url: "cdn/owlbear.webp" };
-    const npc = { id: "n1", name: "Bartender", cutout_url: null };
-    expect(resolveTokenArt(monster)?.tokenUrl).toBe("cdn/owlbear.webp");
-    expect(resolveTokenArt(npc)).toBeNull();
+  it("treats an empty url as no cutout, so no token is drawn from a blank src", () => {
+    expect(resolveTokenArt({ cutout_url: "" })).toBeNull();
   });
 });

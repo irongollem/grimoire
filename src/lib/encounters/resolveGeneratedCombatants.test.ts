@@ -67,14 +67,19 @@ describe("resolveGeneratedCombatants", () => {
     expect(result.matched[0]?.def.monster_id).toBe("m-dire-wolf");
   });
 
-  it("does not falsely truncate a name that already ends in a meaningful 's'", () => {
-    const goblinBoss = makeMonster({ id: "m-goblin-boss", name: "Goblin Boss" });
-    const result = resolveGeneratedCombatants(
-      [makeAiCombatant({ name: "Goblin Boss" })],
-      [goblinBoss],
-    );
-    expect(result.unmatched).toEqual([]);
-    expect(result.matched[0]?.def.monster_id).toBe("m-goblin-boss");
+  it("never matches a longer name to a shorter one", () => {
+    const goblin = makeMonster({ id: "m-goblin", name: "Goblin" });
+    const entry = makeAiCombatant({ name: "Goblin Boss" });
+    const result = resolveGeneratedCombatants([entry], [goblin]);
+    expect(result.matched).toEqual([]);
+    expect(result.unmatched).toEqual([entry]);
+  });
+
+  it("strips a single trailing s only, so a name that ends in a double s is not matched to a different creature", () => {
+    // "Ogres" -> "ogre", but "Grass" (two s) must lose just one: it must not collide with the unrelated "Gra".
+    const gra = makeMonster({ id: "m-gra", name: "Gra" });
+    const entry = makeAiCombatant({ name: "Grass" });
+    expect(resolveGeneratedCombatants([entry], [gra]).unmatched).toEqual([entry]);
   });
 
   it("puts an unmatched name in unmatched and emits no matched entry", () => {
@@ -127,31 +132,17 @@ describe("resolveGeneratedCombatants", () => {
     expect(result.matched[0]?.candidates.map((m) => m.id)).toEqual(["m-exact"]);
   });
 
-  it("clamps count below the minimum up to 1", () => {
+  it.each([
+    [0, 1],
+    [1, 1],
+    [20, 20],
+    [21, 20],
+    [99, 20],
+    [NaN, 1],
+  ])("clamps a count of %s to %s", (count, expected) => {
     const goblin = makeMonster({ id: "m-goblin", name: "Goblin" });
-    const result = resolveGeneratedCombatants(
-      [makeAiCombatant({ name: "Goblin", count: 0 })],
-      [goblin],
-    );
-    expect(result.matched[0]?.def.count).toBe(1);
-  });
-
-  it("clamps count above the maximum down to 20", () => {
-    const goblin = makeMonster({ id: "m-goblin", name: "Goblin" });
-    const result = resolveGeneratedCombatants(
-      [makeAiCombatant({ name: "Goblin", count: 99 })],
-      [goblin],
-    );
-    expect(result.matched[0]?.def.count).toBe(20);
-  });
-
-  it("falls back to 1 for a NaN count", () => {
-    const goblin = makeMonster({ id: "m-goblin", name: "Goblin" });
-    const result = resolveGeneratedCombatants(
-      [makeAiCombatant({ name: "Goblin", count: NaN })],
-      [goblin],
-    );
-    expect(result.matched[0]?.def.count).toBe(1);
+    const result = resolveGeneratedCombatants([makeAiCombatant({ name: "Goblin", count })], [goblin]);
+    expect(result.matched[0]?.def.count).toBe(expected);
   });
 
   it("falls back to 1 for a missing count (untrusted AI payload)", () => {
@@ -161,13 +152,11 @@ describe("resolveGeneratedCombatants", () => {
     expect(result.matched[0]?.def.count).toBe(1);
   });
 
-  it("builds custom_name from the role when present", () => {
+  it("trims the role before using it", () => {
     const goblin = makeMonster({ id: "m-goblin", name: "Goblin" });
-    const result = resolveGeneratedCombatants(
-      [makeAiCombatant({ name: "Goblin", role: "Archer" })],
-      [goblin],
-    );
-    expect(result.matched[0]?.def.custom_name).toBe("Goblin (Archer)");
+    const [match] = resolveGeneratedCombatants([makeAiCombatant({ name: "Goblin", role: "  Archer " })], [goblin]).matched;
+    expect(match?.def.custom_name).toBe("Goblin (Archer)");
+    expect(match?.role).toBe("Archer");
   });
 
   it("leaves custom_name null when the role is empty or whitespace", () => {

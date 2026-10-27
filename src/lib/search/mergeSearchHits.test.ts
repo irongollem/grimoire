@@ -47,6 +47,19 @@ describe("mergeSearchGroups", () => {
     expect(out[0]?.items.map((i) => i.id)).toEqual(["k1", "k2", "q0", "q1", "q2", "q3"]);
   });
 
+  it("orders meaning-only groups by their nearest hit, not their furthest, and by the fixed order on a tie", () => {
+    const out = mergeSearchGroups([], [
+      sem("npc", "far", 0.9), sem("location", "mid", 0.5), sem("npc", "near", 0.1),
+      sem("faction", "tie-f", 0.7), sem("quest", "tie-q", 0.7),
+    ]);
+    expect(out.map((g) => g.type)).toEqual(["npc", "location", "faction", "quest"]);
+  });
+
+  it("drops a keyword group that has no rows", () => {
+    const out = mergeSearchGroups([kw("npc", "NPCs", []), kw("note", "Notes", ["n"])], [sem("note", "m", 0.1)]);
+    expect(out.map((g) => g.type)).toEqual(["note"]);
+  });
+
   it("keeps keyword groups in the fixed order ahead of meaning-only groups", () => {
     const out = mergeSearchGroups(
       [kw("note", "Notes", ["n"]), kw("npc", "NPCs", ["a"])],

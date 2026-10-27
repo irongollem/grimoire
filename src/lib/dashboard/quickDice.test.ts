@@ -12,22 +12,13 @@ import {
 
 describe("quickDice", () => {
   describe("QUICK_DICE_BUTTONS", () => {
-    it("offers every standard die, in the standard order", () => {
-      expect(QUICK_DICE_BUTTONS.map((b) => b.sides)).toEqual(ALL_DICE);
-    });
-
-    it("labels each button d<sides>", () => {
+    it("labels a button d<sides> and offers Advantage on the d20 alone", () => {
       expect(QUICK_DICE_BUTTONS.find((b) => b.sides === 8)).toEqual({
         sides: 8,
         label: "d8",
         supportsAdvantage: false,
       });
-    });
-
-    it("offers Advantage/Disadvantage on d20 only — the only die 5e ties it to", () => {
-      for (const button of QUICK_DICE_BUTTONS) {
-        expect(button.supportsAdvantage).toBe(button.sides === 20);
-      }
+      expect(QUICK_DICE_BUTTONS.find((b) => b.sides === 20)?.supportsAdvantage).toBe(true);
     });
   });
 
@@ -68,22 +59,6 @@ describe("quickDice", () => {
       expect(checkQuickExpression("d20")).toEqual({ status: "invalid" });
     });
 
-    it("parses a simple expression", () => {
-      const result = checkQuickExpression("2d6");
-      expect(result.status).toBe("ready");
-      if (result.status === "ready") {
-        expect(result.parsed).toEqual({ terms: [{ count: 2, sides: 6 }], modifier: 0 });
-      }
-    });
-
-    it("parses an expression with a modifier", () => {
-      const result = checkQuickExpression("2d6+3");
-      expect(result.status).toBe("ready");
-      if (result.status === "ready") {
-        expect(result.parsed).toEqual({ terms: [{ count: 2, sides: 6 }], modifier: 3 });
-      }
-    });
-
     it("trims surrounding whitespace before parsing", () => {
       expect(checkQuickExpression("  1d8+2  ")).toEqual({
         status: "ready",
@@ -93,24 +68,6 @@ describe("quickDice", () => {
   });
 
   describe("displayStandardRoll", () => {
-    it("carries the roll straight through for a plain die", () => {
-      const result: RollResult = {
-        total: 15,
-        label: "1d20",
-        modifier: 0,
-        breakdown: [{ val: 15, dropped: false }],
-        isCrit: false,
-        isFumble: false,
-      };
-      expect(displayStandardRoll(result)).toEqual({
-        label: "1d20",
-        total: 15,
-        dice: [{ val: 15, dropped: false }],
-        isCrit: false,
-        isFumble: false,
-      });
-    });
-
     it("keeps the dropped die visible rather than discarding it, for an advantage roll", () => {
       const result: RollResult = {
         total: 17,
@@ -131,16 +88,19 @@ describe("quickDice", () => {
       expect(display.label).toBe("1d20 (Adv)");
     });
 
-    it("passes crit/fumble through unchanged", () => {
-      const nat20: RollResult = {
+    it.each([
+      ["a natural 20", { isCrit: true, isFumble: false }],
+      ["a natural 1", { isCrit: false, isFumble: true }],
+    ])("passes %s through as the crit/fumble flags", (_label, flags) => {
+      const result: RollResult = {
         total: 20,
         label: "1d20",
         modifier: 0,
         breakdown: [{ val: 20, dropped: false }],
-        isCrit: true,
-        isFumble: false,
+        ...flags,
       };
-      expect(displayStandardRoll(nat20).isCrit).toBe(true);
+      const display = displayStandardRoll(result);
+      expect({ isCrit: display.isCrit, isFumble: display.isFumble }).toEqual(flags);
     });
   });
 

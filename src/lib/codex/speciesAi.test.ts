@@ -84,6 +84,43 @@ describe("speciesInsertFromAi", () => {
     expect(speciesInsertFromAi({ name: "X", subraces: [sub(25), sub()] }, ctx).speed).toEqual({ walk: 30 });
   });
 
+  it("caps traits at 10, subraces at 4, languages at 6, tags at 6 and a subrace's traits at 6", () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => `W${i}`);
+    const traits = (n: number) => many(n).map((name) => ({ name, description: "d" }));
+    const s = speciesInsertFromAi(
+      {
+        name: "X",
+        traits: traits(12),
+        languages: many(8),
+        tags: many(8),
+        subraces: many(6).map((name) => ({ name, traits: traits(8) })),
+      },
+      ctx,
+    );
+    expect(s.traits).toHaveLength(10);
+    expect(s.languages).toHaveLength(6);
+    expect(s.tags).toHaveLength(6);
+    expect(s.subraces).toHaveLength(4);
+    expect(s.subraces?.[0].traits).toHaveLength(6);
+  });
+
+  it.each([
+    [9, null],
+    [10, 10],
+    [20, 20],
+    [21, null],
+  ])("keeps a natural armor AC only from 10 to 20 (%i -> %s)", (ac, expected) => {
+    expect(speciesInsertFromAi({ name: "X", natural_armor_ac: ac }, ctx).natural_armor_ac).toBe(expected);
+  });
+
+  it("is a shapeshifter only when the model says true, not a truthy word", () => {
+    expect(speciesInsertFromAi({ name: "X", is_shapeshifter: "true" }, ctx).is_shapeshifter).toBe(false);
+  });
+
+  it("gives a subrace with no description an empty one", () => {
+    expect(speciesInsertFromAi({ name: "X", subraces: [{ name: "Plain" }] }, ctx).subraces?.[0].description).toBe("");
+  });
+
   it("carries provenance and the image", () => {
     const prov = { generatorType: "species_generation", provider: "p", model: "m", generatedAt: "t", edited: false };
     const s = speciesInsertFromAi({ name: "X", ai_provenance: prov }, { ...ctx, imageUrl: "u" });
@@ -104,5 +141,12 @@ describe("sanitizers", () => {
     expect(sanitizeAbilityIncreases({ description: "+1 to two others" })).toEqual({ description: "+1 to two others" });
     expect(sanitizeAbilityIncreases({ dex: 2, wis: 1 })).toEqual({ dex: 2, wis: 1 });
     expect(sanitizeAbilityIncreases({})).toBeNull();
+  });
+  it("keeps a 2014 bonus of +1 or +2 and drops +0 and +3", () => {
+    expect(sanitizeAbilityIncreases({ str: 0, dex: 1, con: 2, int: 3 })).toEqual({ dex: 1, con: 2 });
+  });
+  it("ignores a blank rider and keeps the numeric bonuses as they are", () => {
+    expect(sanitizeAbilityIncreases({ cha: 2, description: "   " })).toEqual({ cha: 2 });
+    expect(sanitizeAbilityIncreases({ cha: 2, description: 5 })).toEqual({ cha: 2 });
   });
 });

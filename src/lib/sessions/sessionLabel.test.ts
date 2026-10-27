@@ -17,6 +17,7 @@ describe("sessionLabel", () => {
   });
   it("keeps session zero", () => {
     expect(sessionLabel({ number: 0, title: null })).toBe("Session 0");
+    expect(sessionLabel({ number: 0, title: "Prologue" })).toBe("Session 0: Prologue");
   });
 });
 
@@ -24,5 +25,6 @@ describe("sessionShortLabel", () => {
   it("is the number or its absence", () => {
     expect(sessionShortLabel({ number: 15 })).toBe("Session 15");
     expect(sessionShortLabel({ number: null })).toBe("No number");
+    expect(sessionShortLabel({ number: 0 })).toBe("Session 0");
   });
 });

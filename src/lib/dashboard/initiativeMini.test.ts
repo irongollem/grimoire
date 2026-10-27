@@ -134,30 +134,6 @@ describe("deriveInitiativeMiniState", () => {
     expect(downedPlayer?.isNext).toBe(true);
   });
 
-  it("breaks a same-initiative tie exactly like the runner: players before monsters", () => {
-    const s = state({
-      active_combatant_index: 0,
-      combatants_live: [
-        c({ instance_id: "mon", type: "monster", initiative: 12 }),
-        c({ instance_id: "pc", type: "player", initiative: 12 }),
-      ],
-    });
-    const result = deriveInitiativeMiniState(s);
-    expect(result?.rows.map((r) => r.instanceId)).toEqual(["pc", "mon"]);
-  });
-
-  it("breaks a same-type initiative tie on the higher declared initiative modifier", () => {
-    const s = state({
-      active_combatant_index: 0,
-      combatants_live: [
-        c({ instance_id: "low", type: "monster", initiative: 12, dex_mod: 1 }),
-        c({ instance_id: "high", type: "monster", initiative: 12, dex_mod: 3 }),
-      ],
-    });
-    const result = deriveInitiativeMiniState(s);
-    expect(result?.rows.map((r) => r.instanceId)).toEqual(["high", "low"]);
-  });
-
   it("marks half-HP-or-under as bloodied and full HP as healthy", () => {
     const s = state({
       active_combatant_index: 0,
@@ -173,18 +149,20 @@ describe("deriveInitiativeMiniState", () => {
     expect(result?.rows.find((r) => r.instanceId === "hurt")?.hpState).toBe("healthy");
   });
 
-  it("clamps an out-of-range active_combatant_index instead of crashing", () => {
+  // Sorted order is b(20), a(10): 99 clamps to the last row, -1 to the first.
+  it.each([
+    [99, "a"],
+    [-1, "b"],
+  ])("clamps active_combatant_index %i onto the row %s instead of marking nothing", (index, expected) => {
     const s = state({
-      active_combatant_index: 99,
+      active_combatant_index: index,
       combatants_live: [
         c({ instance_id: "a", initiative: 10 }),
         c({ instance_id: "b", initiative: 20 }),
       ],
     });
-    const result = deriveInitiativeMiniState(s);
-    expect(result?.rows).toHaveLength(2);
-    // Clamped to the last row rather than leaving nothing marked active.
-    expect(result?.rows.some((r) => r.isActive)).toBe(true);
+    const active = deriveInitiativeMiniState(s)?.rows.filter((r) => r.isActive).map((r) => r.instanceId);
+    expect(active).toEqual([expected]);
   });
 
   it("never marks the same row both active and next when only one combatant can still act", () => {

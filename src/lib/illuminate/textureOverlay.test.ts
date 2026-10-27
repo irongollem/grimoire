@@ -15,8 +15,10 @@ import {
 function makeCtx(): {
   ctx: CanvasRenderingContext2D;
   drawImageCalls: Array<{ alpha: number; compositeOperation: string }>;
+  tiles: Array<[number, number, number, number]>;
 } {
   const drawImageCalls: Array<{ alpha: number; compositeOperation: string }> = [];
+  const tiles: Array<[number, number, number, number]> = [];
   let alpha = 1;
   let compositeOperation = "source-over";
   const ctx = {
@@ -32,11 +34,12 @@ function makeCtx(): {
     set globalCompositeOperation(v: string) {
       compositeOperation = v;
     },
-    drawImage: () => {
+    drawImage: (_image: unknown, x: number, y: number, w: number, h: number) => {
       drawImageCalls.push({ alpha, compositeOperation });
+      tiles.push([x, y, w, h]);
     },
   };
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, drawImageCalls };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, drawImageCalls, tiles };
 }
 
 function image(naturalWidth: number, naturalHeight: number): HTMLImageElement {
@@ -54,15 +57,9 @@ describe("applyTextureOverlay — early exits", () => {
     expect(drawImageCalls).toHaveLength(0);
   });
 
-  it("draws nothing when opacity is 0", () => {
+  it.each([0, -0.5])("draws nothing when opacity is %s", (opacity) => {
     const { ctx, drawImageCalls } = makeCtx();
-    applyTextureOverlay(ctx, 100, 100, overlay({ enabled: true, opacity: 0 }), image(40, 40));
-    expect(drawImageCalls).toHaveLength(0);
-  });
-
-  it("draws nothing when opacity is negative", () => {
-    const { ctx, drawImageCalls } = makeCtx();
-    applyTextureOverlay(ctx, 100, 100, overlay({ enabled: true, opacity: -0.5 }), image(40, 40));
+    applyTextureOverlay(ctx, 100, 100, overlay({ enabled: true, opacity }), image(40, 40));
     expect(drawImageCalls).toHaveLength(0);
   });
 
@@ -80,18 +77,21 @@ describe("applyTextureOverlay — early exits", () => {
 });
 
 describe("applyTextureOverlay — tiling", () => {
-  it("tiles the texture exactly enough times to cover the canvas", () => {
-    const { ctx, drawImageCalls } = makeCtx();
+  it("tiles the texture at its natural size, exactly enough times to cover the canvas", () => {
+    const { ctx, tiles } = makeCtx();
     // canvas 100x50, tile 40x40 (scale 1) -> x steps 0,40,80 (3), y steps 0,40 (2)
     applyTextureOverlay(ctx, 100, 50, overlay({ enabled: true, opacity: 1, scale: 1 }), image(40, 40));
-    expect(drawImageCalls).toHaveLength(6);
+    expect(tiles).toEqual([
+      [0, 0, 40, 40], [40, 0, 40, 40], [80, 0, 40, 40],
+      [0, 40, 40, 40], [40, 40, 40, 40], [80, 40, 40, 40],
+    ]);
   });
 
-  it("uses fewer, larger tiles as scale increases", () => {
-    const { ctx, drawImageCalls } = makeCtx();
-    // tile becomes 80x80 at scale 2 -> a single tile covers the whole 50x50 canvas
-    applyTextureOverlay(ctx, 50, 50, overlay({ enabled: true, opacity: 1, scale: 2 }), image(40, 40));
-    expect(drawImageCalls).toHaveLength(1);
+  it("scales both sides of a non-square tile, so fewer, larger tiles cover the canvas", () => {
+    const { ctx, tiles } = makeCtx();
+    // a 40x30 texture at scale 2 is an 80x60 tile: one tile covers a 50x50 canvas
+    applyTextureOverlay(ctx, 50, 50, overlay({ enabled: true, opacity: 1, scale: 2 }), image(40, 30));
+    expect(tiles).toEqual([[0, 0, 80, 60]]);
   });
 });
 
@@ -127,11 +127,5 @@ describe("applyTextureOverlay — blend state applied while drawing", () => {
 describe("BLEND_MODES / BLEND_MODE_LABELS", () => {
   it("has exactly one label for every blend mode, and vice versa", () => {
     expect(Object.keys(BLEND_MODE_LABELS).sort()).toEqual([...BLEND_MODES].sort());
-  });
-
-  it("gives every blend mode a non-empty human-readable label", () => {
-    for (const mode of BLEND_MODES) {
-      expect(BLEND_MODE_LABELS[mode].length).toBeGreaterThan(0);
-    }
   });
 });

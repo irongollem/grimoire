@@ -234,6 +234,12 @@ describe("a viewer inside magical darkness", () => {
     expect(canSee(scene([zoneA]), [viewer(0)], 6, 5)).toBe(false);
   });
 
+  it("cannot see the dark inside the sphere even with darkvision", () => {
+    // Darkvision does not reach magical darkness; the viewer stands in it and still sees nothing of its own interior.
+    expect(canSee(scene([zoneA]), [viewer(120)], 6, 5)).toBe(false);
+    expect(canSee(scene([zoneA]), [viewer(120)], 12, 5)).toBe(true);
+  });
+
   it("is still blocked by a different sphere on the way", () => {
     const zoneB = { x: 10.5, y: 5.5, radius: 10 };
     expect(canSee(scene([zoneA, zoneB]), [viewer(0)], 14, 5)).toBe(false);

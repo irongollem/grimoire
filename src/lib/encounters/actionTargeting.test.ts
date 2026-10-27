@@ -35,6 +35,8 @@ describe("parseArmorClass", () => {
   it("reads the leading number and tolerates prose", () => {
     expect(parseArmorClass("15")).toBe(15);
     expect(parseArmorClass("15 (natural armor)")).toBe(15);
+    expect(parseArmorClass("9")).toBe(9);
+    expect(parseArmorClass("13 (hide armor), 15 with shield")).toBe(13);
     expect(parseArmorClass("")).toBeNull();
     expect(parseArmorClass("none")).toBeNull();
   });
@@ -116,6 +118,9 @@ describe("effectiveArmorClass", () => {
     const pc = { type: "player", ac: "12" } as RunCombatant;
     expect(effectiveArmorClass(pc, { ac: 17, beastAc: null })).toBe("17");
     expect(effectiveArmorClass(pc, { ac: 17, beastAc: "13" })).toBe("13");
+  });
+  it("never reads the sheet for a combatant that is not a party member", () => {
+    expect(effectiveArmorClass({ type: "monster", ac: "15" } as RunCombatant, { ac: 9, beastAc: "8" })).toBe("15");
   });
   it("falls back to the combatant's own AC, or its Wild Shape overlay", () => {
     expect(effectiveArmorClass({ type: "monster", ac: "15" } as RunCombatant)).toBe("15");

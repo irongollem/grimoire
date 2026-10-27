@@ -10,12 +10,8 @@ describe("gridLinePositions", () => {
     expect(gridLinePositions(0, 100, 25)).toEqual([0, 25, 50, 75, 100]);
   });
 
-  it("includes lines that lie exactly on the start/end edges", () => {
-    expect(gridLinePositions(0, 60, 20)).toEqual([0, 20, 40, 60]);
-  });
-
   it("handles a positive offset by skipping lines before the viewport", () => {
-    // start = 5, spacing = 20 → cells at 5, 25, 45, 65, 85 → only 25,45,65,85 fit in [0,100]
+    // start = 5, spacing = 20 → lines at 5, 25, 45, 65, 85, all inside [0,100]; the next, 105, is out.
     expect(gridLinePositions(5, 100, 20)).toEqual([5, 25, 45, 65, 85]);
   });
 
@@ -47,7 +43,7 @@ describe("cellSizeInDisplay", () => {
 });
 
 describe("gridOriginInDisplay", () => {
-  it("translates origin percentages to canvas-space coordinates", () => {
+  it("translates origin percentages to canvas-space coordinates, y against the image height", () => {
     // Image is 1000x500, scale 1, no pan. Origin at (10%, 20%) → canvas (100, 100).
     expect(
       gridOriginInDisplay({

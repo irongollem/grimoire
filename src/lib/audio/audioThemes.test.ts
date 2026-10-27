@@ -52,9 +52,10 @@ describe("tagsIncludeTheme", () => {
     expect(tagsIncludeTheme(["battlefield"], "battle")).toBe(false);
   });
 
-  it("never matches an empty theme", () => {
+  it("never matches an empty theme, not even a blank tag", () => {
     expect(tagsIncludeTheme(["battle"], "")).toBe(false);
     expect(tagsIncludeTheme(["battle"], "   ")).toBe(false);
+    expect(tagsIncludeTheme(["", "  "], "")).toBe(false);
   });
 });
 
@@ -65,6 +66,11 @@ describe("collectThemes", () => {
       [sound({ id: "s1", tags: ["battle", "tavern"] })],
     );
     expect(themes).toEqual(["silence", "Battle", "boss", "tavern"]);
+  });
+
+  it("lists the labels alphabetically after silence, whatever order the rows came in", () => {
+    const themes = collectThemes([playlist({ id: "p", tags: ["zebra", "Apple"] })], [sound({ id: "s", tags: ["mango"] })]);
+    expect(themes).toEqual(["silence", "Apple", "mango", "zebra"]);
   });
 
   it("drops blank tags", () => {
@@ -153,6 +159,11 @@ describe("resolveAudioTheme", () => {
   it("does not look in the other slot when its own is empty", () => {
     // An ambient "battle" scene exists, but a music request must not grab it.
     expect(resolveAudioTheme("battle", "music", [playlists[2]], [])).toBeNull();
+  });
+
+  it("takes the first candidate when the picker returns something that is not a number", () => {
+    const match = resolveAudioTheme("battle", "music", playlists, sounds, () => NaN);
+    expect(match).toEqual({ kind: "playlist", playlist: playlists[0] });
   });
 
   it("survives a picker that returns out of range", () => {

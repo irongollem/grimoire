@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { manualSections } from "@/lib/rules/manualLoader";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { manualSections, whatsNewPage } from "@/lib/rules/manualLoader";
 import { ANNOUNCEMENTS } from "@/lib/announcements";
 
 const pages = manualSections.flatMap((s) => s.pages);
@@ -24,6 +24,16 @@ describe("manual structure", () => {
     for (const a of ANNOUNCEMENTS) expect(page!.html).toContain(a.title);
   });
 
+  it("lists the announcements newest first, each with its action link", () => {
+    const html = whatsNewPage().html;
+    const byNewest = [...ANNOUNCEMENTS].sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0));
+    const positions = byNewest.map((a) => html.indexOf(`<h2>${a.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")}</h2>`));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    for (const a of ANNOUNCEMENTS.filter((x) => x.action)) expect(html).toContain(`href="${a.action!.to}"`);
+    expect(html.split("<h2>").length - 1).toBe(ANNOUNCEMENTS.length);
+  });
+
   it("gives every page a summary", () => {
     expect(pages.filter((p) => !p.summary).map((p) => p.id)).toEqual([]);
   });
@@ -37,6 +47,12 @@ describe("manual structure", () => {
       .filter((s) => new Set(s.pages.map((p) => p.sectionOrder)).size > 1)
       .map((s) => `${s.title}: ${s.pages.map((p) => `${p.id}=${p.sectionOrder}`).join(", ")}`);
     expect(split).toEqual([]);
+  });
+
+  it("lists sections and the pages within them in ascending position", () => {
+    const ascending = (list: number[]) => list.every((n, i) => i === 0 || list[i - 1]! <= n);
+    expect(ascending(manualSections.map((s) => s.order))).toBe(true);
+    expect(manualSections.filter((s) => !ascending(s.pages.map((p) => p.order))).map((s) => s.title)).toEqual([]);
   });
 
   it("gives no two sections the same position", () => {
@@ -73,5 +89,32 @@ describe("manual cross-references", () => {
         .map(([, id]) => `${p.id} → #${id}`),
     );
     expect(dangling).toEqual([]);
+  });
+});
+
+describe("the What's New page, from a chosen list of announcements", () => {
+  afterEach(() => {
+    vi.doUnmock("@/lib/announcements");
+    vi.resetModules();
+  });
+
+  async function pageFor(announcements: unknown[]) {
+    vi.resetModules();
+    vi.doMock("@/lib/announcements", () => ({ ANNOUNCEMENTS: announcements }));
+    return (await import("@/lib/rules/manualLoader")).whatsNewPage();
+  }
+
+  it("puts the newest notice first and links an action", async () => {
+    const page = await pageFor([
+      { id: "old", title: "Older", body: "Old body", publishedAt: "2026-09-01" },
+      { id: "new", title: "Newer", body: "New body", publishedAt: "2026-10-01", action: { label: "See it", to: "/quests" } },
+    ]);
+    expect(page.html.indexOf("Newer")).toBeLessThan(page.html.indexOf("Older"));
+    expect(page.html).toContain('<a href="/quests">See it');
+    expect(page.html.match(/<a href/g)).toHaveLength(1);
+  });
+
+  it("says so when nothing has been announced", async () => {
+    expect((await pageFor([])).html).toBe("<p>Nothing announced yet.</p>");
   });
 });

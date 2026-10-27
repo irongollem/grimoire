@@ -31,6 +31,11 @@ describe("heldConcentrationSpells", () => {
     expect(heldConcentrationSpells(all, "mage")).toEqual(["Hold Person", "a spell"]);
   });
 
+  it("does not count conditions the source holds itself", () => {
+    const own: AppliedCondition = { name: "Stunned", source: { id: "mage", spell: "Self-inflicted", concentration: true } };
+    expect(heldConcentrationSpells([combatant("mage", "Mage", [own])], "mage")).toEqual([]);
+  });
+
   it("ignores conditions that do not depend on concentration or come from someone else", () => {
     const all = [
       combatant("g1", "Goblin", [

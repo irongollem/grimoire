@@ -12,6 +12,7 @@ import type { SettingCalendarDef } from "@/settings/types";
 import { parseStoredContent } from "@/lib/tiptap/viewerRender";
 import { daysInMonth } from "@/lib/calendar/dayMath";
 import type { BookEntryRef } from "@/lib/openBook/bookModel";
+import { toRoman } from "@/lib/openBook/pagination";
 import type {
   OpenBookCalendarDate,
   OpenBookDeity,
@@ -74,23 +75,9 @@ export function recordFor(snapshot: OpenBookSnapshot, entry: BookEntryRef): Arti
 
 // ── Words ───────────────────────────────────────────────────────────────────
 
-const ROMAN: [number, string][] = [
-  [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"],
-  [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
-];
-
-/** 14 -> "XIV". Anything below 1 or beyond a sane book has no numeral, so it returns the plain number. */
+/** 14 -> "XIV": the folio numerals, set in capitals. Out of range stays the plain number. */
 export function romanNumeral(n: number): string {
-  if (!Number.isInteger(n) || n < 1 || n > 3999) return String(n);
-  let rest = n;
-  let out = "";
-  for (const [value, glyph] of ROMAN) {
-    while (rest >= value) {
-      out += glyph;
-      rest -= value;
-    }
-  }
-  return out;
+  return toRoman(n).toUpperCase();
 }
 
 /** "drowned_town" -> "Drowned town". */

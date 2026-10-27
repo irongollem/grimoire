@@ -28,11 +28,12 @@ describe("campaign rings", () => {
     stopAudio();
   });
 
-  it("ignores a payload with no table", () => {
+  it("ignores a payload whose table is missing or not a string", () => {
     const listener = vi.fn();
     const stop = onCampaignRing(["encounter_state"], listener);
     expect(emitCampaignRing("c1", { table: "encounter_state" })).toEqual({ campaignId: "c1", table: "encounter_state" });
     expect(emitCampaignRing("c1", {})).toBeNull();
+    expect(emitCampaignRing("c1", { table: 42 })).toBeNull();
     expect(listener).toHaveBeenCalledTimes(1);
     stop();
   });

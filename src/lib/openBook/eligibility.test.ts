@@ -69,5 +69,7 @@ describe("npc rule", () => {
   });
   it("is never eligible with an empty party", () => {
     expect(npcEligible(npc({ player_visible_to: ["a"] }), [], new Set(["open"]))).toBe(false);
+    // Not even a place that shares its residents rescues an NPC when there is no party to share with.
+    expect(npcBookBlock(npc({ location_id: "open" }), [], new Set(["open"]))).toBe("party");
   });
 });

@@ -16,6 +16,11 @@ describe("buildBookDocumentHtml", () => {
     expect(html).toContain("<title>The &lt;Saltreach&gt; &amp; &quot;Co&quot;</title>");
   });
 
+  it("titles an untitled book Open Book", () => {
+    const untitled = buildBookDocumentHtml({ title: "", leather: "oxblood", fontsCss: "", pagedStyles: "", coverHtml: "", pagesHtml: "" });
+    expect(untitled).toContain("<title>Open Book</title>");
+  });
+
   it("puts the cover sheet before the pages, on the hide's colour", () => {
     expect(html.indexOf("pb-cover-sheet")).toBeGreaterThan(-1);
     expect(html.indexOf('<section class="pb-cover">')).toBeLessThan(html.indexOf('<div class="pagedjs_pages">'));
@@ -34,6 +39,10 @@ describe("bookPdfFilename", () => {
   });
   it("falls back to a name when the title leaves nothing", () => {
     expect(bookPdfFilename("///", 1)).toBe("Open Book (release 1).pdf");
+  });
+  it("collapses runs of whitespace and drops control characters and leading dots", () => {
+    expect(bookPdfFilename("  The   Salt\u001freach ", 2)).toBe("The Saltreach (release 2).pdf");
+    expect(bookPdfFilename("..hidden", 2)).toBe("hidden (release 2).pdf");
   });
 });
 

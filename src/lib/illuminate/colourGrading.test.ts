@@ -101,14 +101,12 @@ describe("applyColourGrading — saturation", () => {
     expect(readResult()).toEqual([76, 76, 76, 255]);
   });
 
-  it("pushes channels further from luminance at positive saturation", () => {
+  it("doubles each channel's distance from luminance at saturation +1", () => {
+    // luminance of (150,100,100) = 0.299*150 + 0.587*100 + 0.114*100 = 114.95; twice the distance:
+    // r = 114.95 + 2 * 35.05 = 185.05, g = b = 114.95 + 2 * (100 - 114.95) = 85.05.
     const { ctx, readResult } = makeCtx([150, 100, 100, 255]);
     applyColourGrading(ctx, 1, 1, grading({ saturation: 1 }));
-    const [r, g, b, a] = readResult();
-    expect(r).toBeGreaterThan(150);
-    expect(g).toBeLessThan(100);
-    expect(b).toBeLessThan(100);
-    expect(a).toBe(255);
+    expect(readResult()).toEqual([185, 85, 85, 255]);
   });
 });
 
@@ -121,6 +119,27 @@ describe("applyColourGrading — hue", () => {
     expect(g).toBeCloseTo(255, 0);
     expect(b).toBeCloseTo(255, 0);
     expect(a).toBe(255);
+  });
+
+  it.each([
+    ["red", [255, 0, 0], [0, 255, 0]],
+    ["green", [0, 255, 0], [0, 0, 255]],
+    ["blue", [0, 0, 255], [255, 0, 0]],
+  ])("a 120 degree turn takes %s to the next primary round the wheel", (_name, from, to) => {
+    const { ctx, readResult } = makeCtx([...from, 255]);
+    applyColourGrading(ctx, 1, 1, grading({ hue: 120 }));
+    const out = readResult();
+    to.forEach((v, i) => expect(Math.abs(out[i] - v)).toBeLessThanOrEqual(1));
+  });
+
+  it("turns a light, desaturated colour as a whole: a hue turn of 120 swaps the lead channel", () => {
+    // (200,100,100) is lightness 0.59; turning the hue a third of the wheel moves the lead from red to green.
+    const { ctx, readResult } = makeCtx([200, 100, 100, 255]);
+    applyColourGrading(ctx, 1, 1, grading({ hue: 120 }));
+    const [r, g, b] = readResult();
+    expect(Math.abs(r - 100)).toBeLessThanOrEqual(1);
+    expect(Math.abs(g - 200)).toBeLessThanOrEqual(1);
+    expect(Math.abs(b - 100)).toBeLessThanOrEqual(1);
   });
 
   it("wraps a large positive hue back into 0-360 range", () => {
@@ -143,6 +162,16 @@ describe("applyColourGrading — alpha channel", () => {
       grading({ brightness: 0.5, contrast: 0.5, temperature: 0.5, saturation: 0.5, hue: 45 }),
     );
     expect(readResult()[3]).toBe(222);
+  });
+});
+
+describe("applyColourGrading — clamping between stages", () => {
+  it("clamps after brightness, before contrast takes its turn", () => {
+    // 250 + 128 clamps to 255; contrast -0.5 (factor 0.25) then gives (255 - 128) * 0.25 + 128 = 159.75, i.e. 160.
+    // Unclamped it would pull 378 down to 190.
+    const { ctx, readResult } = makeCtx([250, 250, 250, 255]);
+    applyColourGrading(ctx, 1, 1, grading({ brightness: 1, contrast: -0.5 }));
+    expect(readResult()).toEqual([160, 160, 160, 255]);
   });
 });
 
@@ -175,9 +204,4 @@ describe("GRADING_PRESETS", () => {
     }
   });
 
-  it("gives every preset a non-empty label", () => {
-    for (const preset of GRADING_PRESETS) {
-      expect(preset.label.length).toBeGreaterThan(0);
-    }
-  });
 });

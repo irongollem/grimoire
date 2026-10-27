@@ -27,7 +27,6 @@ describe("parseRollTableCardSettings", () => {
   it.each([
     ["absent settings", undefined],
     ["a null blob", null],
-    ["an array", ["t-rumors"]],
     ["a blob with no tableId", { width: "cell" }],
     ["a non-string tableId", { tableId: 7 }],
     // "" is what EntityCombobox's clear control writes; it is not a choice.

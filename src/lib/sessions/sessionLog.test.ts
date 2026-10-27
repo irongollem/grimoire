@@ -46,6 +46,9 @@ describe("sessionDuration", () => {
     expect(sessionDuration({ started_at: "2026-10-04T19:30:00Z", ended_at: "2026-10-04T20:15:00Z" })).toBe("45m");
     expect(sessionDuration({ started_at: "2026-10-04T19:00:00Z", ended_at: "2026-10-04T20:05:00Z" })).toBe("1h 05m");
   });
+  it("is null for an end that comes before the start", () => {
+    expect(sessionDuration({ started_at: "2026-10-04T20:00:00Z", ended_at: "2026-10-04T19:00:00Z" })).toBeNull();
+  });
   it("is null without a closed run", () => {
     expect(sessionDuration({ started_at: null, ended_at: null })).toBeNull();
     expect(sessionDuration({ started_at: "2026-10-04T19:00:00Z", ended_at: null })).toBeNull();
@@ -70,7 +73,22 @@ describe("sessionPlayedLine", () => {
   });
 });
 
+describe("a running session", () => {
+  it("says when it began, without an end", () => {
+    const line = sessionPlayedLine(session({ id: "a", started_at: "2026-09-27T19:30:00" }));
+    expect(line).toBe("Sunday 27 September, from 19:30");
+  });
+  it("is Under way in the meta line, with no duration yet", () => {
+    expect(sessionMeta(session({ id: "a", started_at: "2026-10-04T19:30:00Z" }), { people: 0, encounters: 0 })).toBe("Under way");
+  });
+});
+
 describe("sessionMeta", () => {
+  it("leaves out the people and encounters that are zero", () => {
+    const row = session({ id: "a", started_at: "2026-10-04T19:30:00Z", ended_at: "2026-10-04T23:10:00Z" });
+    expect(sessionMeta(row, { people: 0, encounters: 2 })).toBe("3h 40m · 2 encounters");
+    expect(sessionMeta(row, { people: 2, encounters: 0 })).toBe("3h 40m · 2 people met");
+  });
   it("joins duration, people and encounters", () => {
     const row = session({ id: "a", started_at: "2026-10-04T19:30:00Z", ended_at: "2026-10-04T23:10:00Z" });
     expect(sessionMeta(row, { people: 2, encounters: 1 })).toBe("3h 40m · 2 people met · 1 encounter");
@@ -130,6 +148,9 @@ describe("appendParagraph", () => {
     const before = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "One" }] }] });
     const parsed = JSON.parse(appendParagraph(before, "Two") ?? "") as { content: unknown[] };
     expect(parsed.content).toHaveLength(2);
+  });
+  it("treats a blank string as an empty note", () => {
+    expect(JSON.parse(appendParagraph("  ", "Met the smith") ?? "")).toMatchObject({ type: "doc" });
   });
   it("refuses content that is not a TipTap document", () => {
     expect(appendParagraph("<p>old html</p>", "x")).toBeNull();

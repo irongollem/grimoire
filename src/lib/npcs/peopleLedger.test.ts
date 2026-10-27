@@ -33,6 +33,8 @@ const SESSIONS = new Map(
     session("s15", 15, "Into the Mere", "2026-10-18"),
     session("sx", null, null, "2026-09-20"),
     session("sy", null, "A Side Quest", "2026-09-27"),
+    session("sblank", null, "   ", "2026-09-28"),
+    { id: "sundated", number: 16, title: null, played_on: null, started_at: null, ended_at: null },
   ].map((s) => [s.id, s]),
 );
 
@@ -215,6 +217,33 @@ describe("buildPeopleGroups", () => {
     expect(ids(desc[2]!.people)).toEqual(["d", "e"]);
     const asc = buildPeopleGroups(npcs, "revealed", "asc", ctx);
     expect(asc.map((g) => g.title)).toEqual(["Session 14", "Session 15", "Before the log"]);
+  });
+
+  it("sorts the unplaced and the unlogged NPCs inside their groups", () => {
+    const { npcs, ctx } = make([
+      { id: "k", name: "Kess", rating: 1 },
+      { id: "j", name: "Jory", rating: 5 },
+      { id: "w", name: "Wren", session: "gone", revealed_at: "2026-01-01T10:00:00Z" },
+      { id: "m", name: "Mott", session: "gone", revealed_at: "2026-01-01T11:00:00Z" },
+    ]);
+    const byPlace = buildPeopleGroups(npcs.slice(0, 2), "location", "asc", ctx);
+    expect(ids(byPlace[0]!.people)).toEqual(["j", "k"]);
+    const byReveal = buildPeopleGroups(npcs.slice(2), "revealed", "desc", ctx);
+    expect(ids(byReveal[0]!.people)).toEqual(["m", "w"]);
+  });
+
+  it("puts a session with no date at the old end, whichever way the list runs", () => {
+    const { npcs, ctx } = make([
+      { id: "a", session: "s15", revealed_at: "2026-10-18T10:00:00Z" },
+      { id: "u", session: "sundated", revealed_at: "2026-10-19T10:00:00Z" },
+    ]);
+    expect(buildPeopleGroups(npcs, "revealed", "desc", ctx).map((g) => g.title)).toEqual(["Session 15", "Session 16"]);
+    expect(buildPeopleGroups(npcs, "revealed", "asc", ctx).map((g) => g.title)).toEqual(["Session 16", "Session 15"]);
+  });
+
+  it("treats a blank session title as no title", () => {
+    const { npcs, ctx } = make([{ id: "a", session: "sblank", revealed_at: "2026-09-28T09:00:00Z" }]);
+    expect(buildPeopleGroups(npcs, "revealed", "desc", ctx)[0]).toMatchObject({ title: "Unnumbered session" });
   });
 
   it("keeps two sessions with the same number as separate groups", () => {

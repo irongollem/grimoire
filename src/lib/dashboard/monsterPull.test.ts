@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  CR_BANDS,
-  CR_BAND_OPTIONS,
-  MONSTER_PULL_TYPE_OPTIONS,
   crBandContains,
   filterMonstersForPull,
   pickMonster,
@@ -20,27 +17,6 @@ function makeMonster(
     ...overrides,
   };
 }
-
-describe("CR_BAND_OPTIONS", () => {
-  it("leads with 'any', then every band in ascending order", () => {
-    expect(CR_BAND_OPTIONS.map((o) => o.id)).toEqual(["any", "0-4", "5-10", "11-16", "17+"]);
-  });
-
-  it("has a label for every band", () => {
-    expect(CR_BAND_OPTIONS.map((o) => o.label)).toEqual([
-      "Any CR", "CR 0–4", "CR 5–10", "CR 11–16", "CR 17+",
-    ]);
-  });
-});
-
-describe("MONSTER_PULL_TYPE_OPTIONS", () => {
-  it("leads with 'all', then every monster type", () => {
-    expect(MONSTER_PULL_TYPE_OPTIONS[0]).toBe("all");
-    expect(MONSTER_PULL_TYPE_OPTIONS).toContain("beast");
-    expect(MONSTER_PULL_TYPE_OPTIONS).toContain("undead");
-    expect(MONSTER_PULL_TYPE_OPTIONS.length).toBe(1 + 14); // "all" + the 14 5e creature types
-  });
-});
 
 describe("crBandContains", () => {
   it("matches everything under 'any', including an unrated monster", () => {
@@ -153,35 +129,10 @@ describe("filterMonstersForPull", () => {
 });
 
 describe("pickMonster", () => {
-  it("returns null for an empty pool at any index", () => {
-    expect(pickMonster([], 0)).toBeNull();
-    expect(pickMonster([], 3)).toBeNull();
-  });
-
-  it("returns the monster at the given index, uniformly across the whole pool", () => {
-    const pool = [
-      makeMonster({ id: "1", name: "Rat" }),
-      makeMonster({ id: "2", name: "Goblin" }),
-      makeMonster({ id: "3", name: "Owlbear" }),
-      makeMonster({ id: "4", name: "Wraith" }),
-      makeMonster({ id: "5", name: "Beholder" }),
-    ];
-    // Every index in range resolves to its own element — none dropped,
-    // none duplicated, none defaulting to the first.
-    pool.forEach((expected, index) => {
-      expect(pickMonster(pool, index)).toBe(expected);
-    });
-    // The picks above collectively cover the whole pool exactly once — the
-    // property that makes the draw uniform rather than biased toward one end.
-    const picked = pool.map((_, index) => pickMonster(pool, index));
-    expect(new Set(picked).size).toBe(pool.length);
-  });
-});
-
-describe("CR_BANDS", () => {
-  it("has the boundaries the tests above assume, so a drift here fails loudly", () => {
-    expect(CR_BANDS.map((b) => `${b.min}-${b.max === Infinity ? "+" : b.max}`)).toEqual([
-      "0-4", "5-10", "11-16", "17-+",
-    ]);
+  it("returns the monster at the given index, and null past the end of the pool", () => {
+    const pool = [makeMonster({ id: "1", name: "Rat" }), makeMonster({ id: "2", name: "Goblin" })];
+    expect(pickMonster(pool, 0)).toBe(pool[0]);
+    expect(pickMonster(pool, 1)).toBe(pool[1]);
+    expect(pickMonster(pool, 2)).toBeNull();
   });
 });

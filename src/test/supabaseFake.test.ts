@@ -70,6 +70,21 @@ describe("order, limit, range", () => {
     expect(await ids(db.from("quests").select("*").order("closed_at", { ascending: false }))).toEqual(["q1", "q3", "q2"]);
   });
 
+  it("nullsFirst overrides the default, so a descending sort can keep nulls last", async () => {
+    // Only q2 has a closed_at.
+    expect(await ids(db.from("quests").select("*").order("closed_at", { ascending: false, nullsFirst: false }))).toEqual(["q2", "q1", "q3"]);
+    expect(await ids(db.from("quests").select("*").order("closed_at", { nullsFirst: true }))).toEqual(["q1", "q3", "q2"]);
+  });
+
+  it("an exact count counts every matching row, not the page; head returns no rows", async () => {
+    const page = await db.from("quests").select("*", { count: "exact" }).order("rank").range(0, 0);
+    expect(page.count).toBe(3);
+    expect((page.data as unknown[]).length).toBe(1);
+    const head = await db.from("quests").select("*", { count: "exact", head: true }).eq("user_id", "u1");
+    expect(head.data).toBeNull();
+    expect(head.count).toBe(2); // q1 and q3
+  });
+
   it("range is inclusive at both ends and limit caps the count", async () => {
     expect(await ids(db.from("quests").select("*").order("rank").range(1, 2))).toEqual(["q2", "q3"]);
     expect(await ids(db.from("quests").select("*").order("rank").limit(1))).toEqual(["q1"]);

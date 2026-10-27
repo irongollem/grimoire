@@ -10,6 +10,7 @@ import {
   crumbsOf,
   entryKey,
   estimateSectionPages,
+  hasFrontispiece,
   neighbours,
   resolveSection,
   sectionLocation,
@@ -138,6 +139,21 @@ describe("navigation helpers", () => {
       query: { s: "2" },
     });
     expect(sectionLocation("salt", sections[0])).toEqual({ name: "open-book-contents", params: { slug: "salt" }, query: undefined });
+    // An empty query is no query, so the first spread keeps a clean address.
+    expect(sectionLocation("salt", sections[0], {})).toEqual({ name: "open-book-contents", params: { slug: "salt" } });
+  });
+
+  it("opens a chapter on its title page: its opener, the almanac and the index, never contents or a later entry", () => {
+    const frontispiece = (key: string) => hasFrontispiece(sections, key);
+    expect(frontispiece(CONTENTS_KEY)).toBe(false);
+    expect(frontispiece(entryKey("p1"))).toBe(true);
+    expect(frontispiece(entryKey("p2"))).toBe(false);
+    expect(frontispiece(entryKey("l1"))).toBe(true);
+    // The Chronicle opens on its almanac, so its first session starts straight on its own pages.
+    expect(frontispiece(ALMANAC_KEY)).toBe(true);
+    expect(frontispiece(entryKey("s1"))).toBe(false);
+    expect(frontispiece(INDEX_KEY)).toBe(true);
+    expect(frontispiece("entry:unknown")).toBe(true);
   });
 
   it("picks the tab to pull out", () => {
@@ -157,6 +173,34 @@ describe("estimateSectionPages", () => {
     expect(est.get(CONTENTS_KEY)).toBe(2);
     for (const count of est.values()) expect(count).toBeGreaterThanOrEqual(1);
   });
+
+  it("gives the almanac more pages for more events, the index more for more entries, a pantheon more for more deities", () => {
+    const event = (n: number) => ({
+      id: `e${n}`, title: "Feast", description: null, event_type: null, year: 1, month: 1, day: 1, festival_day: null,
+      is_multi_day: null, end_year: null, end_month: null, end_day: null, color: null,
+    });
+    const pagesOf = (over: Partial<OpenBookSnapshot>, key: string) => {
+      const m = buildBookModel(snapshot(over));
+      return estimateSectionPages(m, sectionsOf(m)).get(key) ?? 0;
+    };
+    expect(pagesOf({ events: Array.from({ length: 100 }, (_, i) => event(i)) }, ALMANAC_KEY)).toBeGreaterThan(pagesOf({}, ALMANAC_KEY));
+    const manyPlaces = Array.from({ length: 200 }, (_, i) => place(`q${i}`, `Place ${i}`));
+    expect(pagesOf({ places: manyPlaces }, INDEX_KEY)).toBeGreaterThan(pagesOf({}, INDEX_KEY));
+    const deity = (i: number) => ({
+      id: `d${i}`, pantheon_id: "pa", name: `God ${i}`, titles: null, alternate_names: null, alignment: null, symbol: null, symbol_image_url: null,
+      portrait_url: null, portrait_focal_point: null, domains: null, portfolio: null, description: null, tags: null,
+    });
+    const pantheon = { id: "pa", name: "Choir", description: null, emblem_url: null, tags: null };
+    const book = { ...snapshot().book, chapters: ["pantheon" as const] };
+    expect(pagesOf({ book, pantheons: [pantheon], deities: Array.from({ length: 40 }, (_, i) => deity(i)) }, entryKey("pa")))
+      .toBeGreaterThan(pagesOf({ book, pantheons: [pantheon], deities: [] }, entryKey("pa")));
+  });
+
+  it("counts a place's player summary toward its length", () => {
+    const withSummary = buildBookModel(snapshot({ places: [{ ...place("p1", "Hollowmere"), player_summary: "x".repeat(9000) }] }));
+    const est = estimateSectionPages(withSummary, sectionsOf(withSummary));
+    expect(est.get(entryKey("p1"))).toBeGreaterThan(1);
+  });
 });
 
 describe("searchBook", () => {
@@ -165,6 +209,29 @@ describe("searchBook", () => {
   it("ranks prefix before word start before contains", () => {
     expect(searchBook(m, "hollow").map((e) => e.id)).toEqual(["p1", "p3"]);
     expect(searchBook(m, "stair").map((e) => e.id)).toEqual(["p2"]);
+  });
+
+  it("ranks a title start, a word start, a mid-word match and a subtitle match in that order, an exact title first of all", () => {
+    const ranked = buildBookModel(snapshot({
+      places: [
+        { ...place("sub", "Chime"), location_type: "bell ringers" },
+        place("mid", "Handbell"),
+        place("word", "Hollow Bell"),
+        place("pre", "Bell Tower"),
+        place("exact", "Bell"),
+      ],
+    }));
+    expect(searchBook(ranked, "bell").map((e) => e.id)).toEqual(["exact", "pre", "word", "mid", "sub"]);
+  });
+
+  it("starts a word after any punctuation, not only a space", () => {
+    const m2 = buildBookModel(snapshot({ places: [place("in", "Upstairs"), place("hy", "Salt-Stair")] }));
+    expect(searchBook(m2, "stair").map((e) => e.id)).toEqual(["hy", "in"]);
+  });
+
+  it("finds an entry by its subtitle alone", () => {
+    const m3 = buildBookModel(snapshot({ places: [{ ...place("t", "Hollowmere"), location_type: "Harbour" }] }));
+    expect(searchBook(m3, "harbour").map((e) => e.id)).toEqual(["t"]);
   });
 
   it("ignores case and accents, and wants every word", () => {
@@ -203,7 +270,10 @@ describe("crumbsOf", () => {
     const secs = sectionsOf(m);
     const target = secs.find((x) => x.key === entryKey("p9"));
     if (!target) throw new Error("fixture");
-    expect(crumbsOf(m, secs, "salt", target).map((c) => c.label)).toEqual(["The Atlas", "Hollowmere", "Toll Stair"]);
+    const crumbs = crumbsOf(m, secs, "salt", target);
+    expect(crumbs.map((c) => c.label)).toEqual(["The Atlas", "Hollowmere", "Toll Stair"]);
+    // The ancestor is a page of the book, so it links; the page you are on does not.
+    expect(crumbs.map((c) => c.to !== null)).toEqual([true, true, false]);
   });
 
   it("is short for contents, index and the almanac", () => {

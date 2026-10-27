@@ -198,6 +198,111 @@ describe("weapon range and category", () => {
   });
 });
 
+describe("item fields the mappers derive", () => {
+  type Weapon = Parameters<typeof mapOpen5eV2Weapon>[0];
+  type Armor = Parameters<typeof mapOpen5eV2Armor>[0];
+  type Magic = Parameters<typeof mapOpen5eV2MagicItem>[0];
+  const weapon = (over: Partial<Weapon> = {}): Weapon => ({
+    key: "srd-2024_battleaxe", name: "Battleaxe", document: srd2024Document, properties: [],
+    damage_type: { name: "Slashing", key: "slashing" }, damage_dice: "1d8",
+    range: 0, long_range: 0, is_simple: false, is_improvised: false, ...over,
+  });
+  const armor = (over: Partial<Armor> = {}): Armor => ({
+    key: "srd-2024_plate", name: "Plate Armor", document: srd2024Document, ac_display: "18", category: "heavy", ...over,
+  });
+  const magic = (over: Partial<Magic> = {}): Magic => ({
+    key: "k", name: "Thing", desc: "text", category: { name: "Wondrous Item", key: "wondrous-item" },
+    rarity: { name: "Rare", key: "rare" }, weapon: null, armor: null, weight: null, cost: null,
+    requires_attunement: false, attunement_detail: null, document: srd2024Document, ...over,
+  });
+
+  it.each([
+    ["Ring", "ring"], ["Rod", "rod"], ["Staff", "staff"], ["Wand", "wand"], ["Potion", "potion"],
+    ["Scroll", "scroll"], ["Weapon", "weapon"], ["Armor", "armor"], ["Wondrous Item", "wondrous_item"],
+  ])("files a magic item of category %s as %s", (category, type) => {
+    expect(mapOpen5eV2MagicItem(magic({ category: { name: category, key: category.toLowerCase() } }), new Map()).item_type).toBe(type);
+  });
+
+  it.each([
+    ["Very Rare", "very_rare"], ["Legendary", "legendary"], ["Uncommon", "uncommon"], ["Artifact", "artifact"],
+    // app convention: a rarity the app does not know reads as common
+    ["Mythic", "common"],
+  ])("maps the rarity %s to %s", (rarity, expected) => {
+    expect(mapOpen5eV2MagicItem(magic({ rarity: { name: rarity, key: rarity } }), new Map()).rarity).toBe(expected);
+  });
+
+  it("keeps heavy armor whose name only starts with the word shield", () => {
+    expect(mapOpen5eV2Armor(armor({ name: "Shieldwall Plate" })).item_type).toBe("armor");
+  });
+
+  it("files armor whose Open5e category is Shield as a shield whatever its name, and an empty AC as none", () => {
+    expect(mapOpen5eV2Armor(armor({ name: "Buckler", category: "Shield" })).item_type).toBe("shield");
+    expect(mapOpen5eV2Armor(armor({ ac_display: "" })).armor_class).toBeNull();
+  });
+
+  it("reads versatile damage from the property detail, and null when the weapon has none", () => {
+    const versatile = { property: { name: "Versatile", type: null }, detail: "1d10" };
+    expect(mapOpen5eV2Weapon(weapon({ properties: [versatile] })).versatile_damage).toBe("1d10");
+    expect(mapOpen5eV2Weapon(weapon()).versatile_damage).toBeNull();
+    const wrapped = magic({
+      category: { name: "Weapon", key: "weapon" },
+      weapon: { key: "srd-2024_battleaxe", name: "Battleaxe", properties: [versatile], damage_type: { name: "Slashing", key: "slashing" }, damage_dice: "1d8", is_simple: false, is_improvised: false },
+    });
+    expect(mapOpen5eV2MagicItem(wrapped, new Map([["srd-2024_battleaxe", weapon()]])).versatile_damage).toBe("1d10");
+  });
+
+  it("drops a property or a mastery the app does not model", () => {
+    const item = mapOpen5eV2Weapon(weapon({
+      properties: [
+        { property: { name: "Light", type: null }, detail: null },
+        { property: { name: "Glowing", type: null }, detail: null },
+        { property: { name: "Bogus", type: "Mastery" }, detail: null },
+      ],
+    }));
+    expect(item.properties).toEqual(["light"]);
+    expect(item.mastery).toBeNull();
+  });
+
+  it("gives a weapon with no range no range text, and the dart and the net a ranged subtype", () => {
+    expect(mapOpen5eV2Weapon(weapon()).weapon_range).toBeNull();
+    expect(mapOpen5eV2Weapon(weapon({ name: "Net", key: "srd-2024_net", is_simple: false })).subtype).toBe("Martial Ranged Weapons");
+  });
+
+  it("has no damage when the weapon names no damage type", () => {
+    expect(mapOpen5eV2Weapon(weapon({ damage_type: null })).damage_rolls).toBeNull();
+    expect(mapOpen5eV2Weapon(weapon()).damage_rolls).toEqual([{ dice: "1d8", type: "slashing" }]);
+  });
+
+  it("takes a mundane weapon's weight from the Player's Handbook, and a magic item's from Open5e", () => {
+    expect(mapOpen5eV2Weapon(weapon()).weight).toBe(4);
+    expect(mapOpen5eV2MagicItem(magic({ weight: "5.5" }), new Map()).weight).toBe(5.5);
+    expect(mapOpen5eV2MagicItem(magic(), new Map()).weight).toBeNull();
+  });
+
+  it("trims attunement text and turns blanks into null, for attunement and cost alike", () => {
+    expect(mapOpen5eV2MagicItem(magic({ attunement_detail: "  by a wizard " }), new Map()).attunement_requirements).toBe("by a wizard");
+    const blank = mapOpen5eV2MagicItem(magic({ attunement_detail: "   ", cost: "" }), new Map());
+    expect(blank.attunement_requirements).toBeNull();
+    expect(blank.cost).toBeNull();
+  });
+
+  it("carries the source identity a re-import matches on, for every kind of item", () => {
+    const identity = { ruleset: "2024", source: "srd-2024", source_document_key: "srd-2024", source_revision: "System Reference Document 5.2" };
+    expect(mapOpen5eV2Weapon(weapon())).toMatchObject({ ...identity, source_record_key: "srd-2024_battleaxe" });
+    expect(mapOpen5eV2Armor(armor({ ac_display: "14 + Dex modifier (max 2)" }))).toMatchObject({
+      ...identity, source_record_key: "srd-2024_plate", armor_class: "14 + Dex modifier (max 2)",
+    });
+    expect(mapOpen5eV2MagicItem(magic({ key: "srd-2024_ring" }), new Map())).toMatchObject({ ...identity, source_record_key: "srd-2024_ring" });
+  });
+
+  it("names the source by its display name, else its name, and slugs the conceptual key", () => {
+    expect(mapOpen5eV2Weapon(weapon()).source_title).toBe("5e 2024 Rules");
+    const noDisplay = weapon({ document: { key: "srd-2024", name: "System Reference Document 5.2" } });
+    expect(mapOpen5eV2Weapon(noDisplay).source_title).toBe("System Reference Document 5.2");
+    expect(mapOpen5eV2MagicItem(magic({ name: "Longbow (+1)" }), new Map()).conceptual_key).toBe("longbow_1");
+  });
+});
+
 describe("source_license from a document-metadata map", () => {
   const battleaxe = {
     key: "srd-2024_battleaxe", name: "Battleaxe", document: srd2024Document,
@@ -211,11 +316,6 @@ describe("source_license from a document-metadata map", () => {
     ]);
     const item = mapOpen5eV2Weapon(battleaxe, documentMetadata);
     expect(item.source_license).toBe("cc-by-40");
-  });
-
-  it("mapOpen5eV2Weapon leaves source_license null when no document-metadata map is passed", () => {
-    const item = mapOpen5eV2Weapon(battleaxe);
-    expect(item.source_license).toBeNull();
   });
 
   it("mapOpen5eV2MagicItem derives source_license from the map for a non-weapon magic item", () => {

@@ -113,4 +113,15 @@ describe("loadTurnstile", () => {
     await expect(loadTurnstile()).resolves.toBe(api);
     expect(scripts).toHaveLength(2);
   });
+
+  it("rejects when the script loads but defines no turnstile global, and may be retried", async () => {
+    vi.resetModules();
+    const fresh = await import("./captcha");
+    const empty = fresh.loadTurnstile();
+    scripts[0].dispatchEvent(new Event("load"));
+    await expect(empty).rejects.toBeInstanceOf(fresh.CaptchaUnavailableError);
+
+    void fresh.loadTurnstile();
+    expect(scripts).toHaveLength(2);
+  });
 });

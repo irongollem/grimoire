@@ -100,9 +100,19 @@ describe("buildDeityLookupGroups", () => {
       deity({ id: "d3", name: "Erathis", pantheon: { id: "p2", name: "The Seldarine" } }),
     ]);
     expect(groups.map((g) => g.pantheonLabel)).toEqual(["The Elven Pantheon", "The Seldarine"]);
+    expect(groups.map((g) => g.pantheonId)).toEqual(["p1", "p2"]);
     expect(groups[0].rows.map((r) => r.name)).toEqual(["Corellon"]);
     // Within a group, deities sort by name — Erathis before Kord.
     expect(groups[1].rows.map((r) => r.name)).toEqual(["Erathis", "Kord"]);
+  });
+
+  // Pantheons are a DM's own entries, so two can share a name; the id is the identity.
+  it("keeps two pantheons that share a name apart", () => {
+    const groups = buildDeityLookupGroups([
+      deity({ id: "d1", name: "Kord", pantheon: { id: "p1", name: "Old Gods" } }),
+      deity({ id: "d2", name: "Erathis", pantheon: { id: "p2", name: "Old Gods" } }),
+    ]);
+    expect(groups.map((g) => g.rows.map((r) => r.name))).toEqual([["Kord"], ["Erathis"]]);
   });
 
   it("sorts an 'Unaffiliated' section last, even alphabetically ahead of a real pantheon", () => {

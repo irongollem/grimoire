@@ -63,6 +63,12 @@ describe("diffSnapshots", () => {
     const s = snapshot({ places: [{ id: "a", name: "Hollowmere" }] });
     expect(diffIsEmpty(diffSnapshots(s, s))).toBe(true);
   });
+
+  it("is not empty when the only change is a revision", () => {
+    const live = snapshot({ places: [{ id: "a", name: "Hollowmere", description: "old" }] });
+    const preview = snapshot({ places: [{ id: "a", name: "Hollowmere", description: "new" }] });
+    expect(diffIsEmpty(diffSnapshots(preview, live))).toBe(false);
+  });
 });
 
 describe("groupBySection", () => {

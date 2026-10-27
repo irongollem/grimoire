@@ -45,6 +45,13 @@ describe("snapCellToAngle", () => {
     expect(snapCellToAngle(0, 0, -4, -3)).toEqual([-4, -4]);
     expect(snapCellToAngle(10, 10, 7, 12)).toEqual([7, 13]);
   });
+
+  it("goes diagonal for any drag steeper than 22.5 and shallower than 67.5 degrees, from either axis", () => {
+    // (7,5) is 35.5 degrees: the projection onto the diagonal is (7+5)/2 = 6, not the longer side.
+    expect(snapCellToAngle(0, 0, 7, 5)).toEqual([6, 6]);
+    // (5,7) is 54.5 degrees, past 45 but short of 67.5, so it is still a diagonal.
+    expect(snapCellToAngle(0, 0, 5, 7)).toEqual([6, 6]);
+  });
 });
 
 describe("squareCorner", () => {

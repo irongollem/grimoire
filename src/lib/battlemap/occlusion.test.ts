@@ -24,10 +24,6 @@ describe("clearLine", () => {
     expect(clearLine(build({ doors: [{ edge: "5,0:W", open: true }] }), 2.5, 0.5, 8.5, 0.5)).toBe(true);
   });
 
-  it("passes a grate, which is in neither list", () => {
-    expect(clearLine(build({}), 2.5, 0.5, 8.5, 0.5)).toBe(true);
-  });
-
   it("stops at a solid cell, but not at the cell it starts in", () => {
     const occ = build({ solid: ["5,0"] });
     expect(clearLine(occ, 2.5, 0.5, 8.5, 0.5)).toBe(false);
@@ -46,6 +42,16 @@ describe("clearLine", () => {
     // The other way along the diagonal; a wall that only touches the corner counts, one away from it does not.
     expect(clearLine(build({ walls: ["2,2:W"] }), 2.5, 2.5, 1.5, 1.5)).toBe(false);
     expect(clearLine(build({ walls: ["2,3:W"] }), 2.5, 2.5, 1.5, 1.5)).toBe(true);
+    // The wall under the far cell's top edge meets the same corner.
+    expect(clearLine(build({ walls: ["2,2:N"] }), 1.5, 1.5, 2.5, 2.5)).toBe(false);
+  });
+
+  it("does not slip diagonally past the corner of a solid block", () => {
+    // From (1,1) to (2,2) through their shared corner; rock on either flank or on the target cell stops the line.
+    for (const solid of ["2,1", "1,2", "2,2"]) {
+      expect(clearLine(build({ solid: [solid] }), 1.5, 1.5, 2.5, 2.5)).toBe(false);
+    }
+    expect(clearLine(build({ solid: ["3,1"] }), 1.5, 1.5, 2.5, 2.5)).toBe(true);
   });
 
   it("blocks a point on the far side of a long wall", () => {

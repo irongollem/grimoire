@@ -133,6 +133,15 @@ describe("sentry facade", () => {
     expect(removeSpy).toHaveBeenCalledWith("unhandledrejection", expect.any(Function));
   });
 
+  it("reports the reason of an unhandled rejection, not the event", async () => {
+    const mod = await load();
+    mod.initErrorTracking(createApp({}), fakeRouter().router);
+    const reason = new Error("rejected");
+    window.dispatchEvent(Object.assign(new Event("unhandledrejection"), { reason }));
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledTimes(1));
+    expect(capture.mock.calls[0]![0]).toBe(reason);
+  });
+
   it("does not wake the SDK for a ResizeObserver notice", async () => {
     const mod = await load();
     mod.initErrorTracking(createApp({}), fakeRouter().router);
@@ -172,6 +181,8 @@ describe("sentry facade", () => {
     await flush();
     await flush();
     expect(capture).not.toHaveBeenCalled();
+    // Vue's own logging takes back over once the stand-in is gone.
+    expect(app.config.errorHandler).toBeUndefined();
     // Later reports are dropped quietly rather than throwing.
     expect(() => mod.reportHandledError(new Error("later"), "t")).not.toThrow();
     expect(() => mod.setErrorTrackingUser("u")).not.toThrow();

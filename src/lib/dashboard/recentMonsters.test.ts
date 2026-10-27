@@ -25,11 +25,6 @@ describe("deriveRecentMonsters", () => {
     expect(deriveRecentMonsters([], [monster("m1", "Owlbear")])).toEqual([]);
   });
 
-  it("returns nothing when there are monsters but no discoveries", () => {
-    const monsters = [monster("m1", "Owlbear"), monster("m2", "Beholder")];
-    expect(deriveRecentMonsters([], monsters)).toEqual([]);
-  });
-
   it("orders discoveries newest-first", () => {
     const monsters = [monster("m1", "Owlbear"), monster("m2", "Beholder"), monster("m3", "Mimic")];
     const discoveries = [

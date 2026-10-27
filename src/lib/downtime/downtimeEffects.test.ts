@@ -3,6 +3,7 @@ import {
   applyCoinEffects,
   applyConditionEffects,
   applyHpEffects,
+  describeEffect,
   hasApplicableMemberEffect,
   isAutoAppliedKind,
 } from "@/lib/downtime/downtimeEffects";
@@ -72,6 +73,7 @@ describe("applyCoinEffects", () => {
 
 describe("applyHpEffects", () => {
   it("applies a ticked heal, clamped to max", () => {
+    expect(applyHpEffects(5, 20, [hp(25)])).toBe(20);
     expect(applyHpEffects(5, 20, [hp(15)])).toBe(20);
   });
 
@@ -123,6 +125,10 @@ describe("applyConditionEffects", () => {
     ).toEqual([{ name: "Exhaustion", level: 6 }]);
   });
 
+  it("stacks Exhaustion whichever way the effect spells it", () => {
+    expect(applyConditionEffects([], [condition("Exhausted")])).toEqual([{ name: "Exhaustion", level: 1 }]);
+  });
+
   it("preserves existing conditions and appends new ones in order", () => {
     expect(
       applyConditionEffects([{ name: "Prone" }], [condition("Poisoned"), condition("Exhaustion")]),
@@ -157,5 +163,21 @@ describe("hasApplicableMemberEffect", () => {
 
   it("is false for an empty list", () => {
     expect(hasApplicableMemberEffect([])).toBe(false);
+  });
+});
+
+describe("describeEffect", () => {
+  it("lists only the coins that move, and says so when none do", () => {
+    expect(describeEffect(gold({ gp: 60, sp: -3 }))).toBe("60 gp, -3 sp");
+    expect(describeEffect(gold())).toBe("no coin");
+  });
+
+  it("signs a heal and leaves an injury's own minus", () => {
+    expect(describeEffect(hp(4))).toBe("+4 HP");
+    expect(describeEffect(hp(-4))).toBe("-4 HP");
+  });
+
+  it("names a condition", () => {
+    expect(describeEffect(condition("Poisoned"))).toBe("Poisoned");
   });
 });

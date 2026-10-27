@@ -5,33 +5,15 @@
  * keyword groups. The reads themselves stay in `useGlobalSearch`.
  */
 import type { CampaignSearchHit } from "@edge-shared/campaignSearch.ts";
-import { placeRoute } from "@/lib/locations/placeRoute";
 import { GROUP_ORDER, mergeSearchGroups, type SearchGroup, type SearchHit } from "@/lib/search/mergeSearchHits";
+import { searchRoute } from "@/lib/search/searchRoute";
 
-/** The kinds of thing a search row can stand for. `kind` on a row is one of these. */
-export const SEARCH_KINDS = [
-  "npc", "party_member", "monster", "note", "spell", "item", "location", "faction", "deity", "quest",
-] as const;
-export type SearchKind = (typeof SEARCH_KINDS)[number];
+export { SEARCH_KINDS, searchRoute, type SearchKind } from "@/lib/search/searchRoute";
+
 
 /** The id of the group "who worships X" answers go in; it is not a kind. */
 export const TIES_GROUP = "ties";
 
-/** Where a row of one kind opens. */
-export function searchRoute(kind: SearchKind, id: string): string {
-  switch (kind) {
-    case "npc": return `/npcs/${id}`;
-    case "party_member": return `/party/${id}`;
-    case "monster": return `/monsters/${id}`;
-    case "note": return `/notes/${id}`;
-    case "spell": return `/spells/${id}`;
-    case "item": return `/vault/${id}`;
-    case "location": return placeRoute(id);
-    case "faction": return `/factions/${id}`;
-    case "deity": return `/deities/${id}`;
-    case "quest": return `/quests/${id}`;
-  }
-}
 
 export type NpcSearchRow = {
   id: string; name: string; disguise_name: string | null; occupation: string | null;

@@ -70,6 +70,43 @@ describe("normalizeRecipeAi", () => {
     expect(m?.modifiers).toHaveLength(2);
   });
 
+  it("rounds and reads numeric strings, clamps a modifier bonus to the table's range, and defaults a junk one", () => {
+    expect(normalizeRecipeAi({ ...goodRaw, dc: 14.6 })?.dc).toBe(15);
+    expect(normalizeRecipeAi({ ...goodRaw, dc: "18" })?.dc).toBe(18);
+    const bonus = (b: unknown) => normalizeRecipeAi({ ...goodRaw, modifiers: [{ description: "Done under moonlight", bonus: b }] })?.modifiers[0].bonus;
+    expect(bonus(40)).toBe(10);
+    expect(bonus(-40)).toBe(-10);
+    expect(bonus("lots")).toBe(2);
+  });
+
+  it("caps tags per ingredient, an ingredient's quantity and the crafting time", () => {
+    const r = normalizeRecipeAi({
+      ...goodRaw,
+      crafting_time: 5000,
+      ingredients: [{ tags: ["a", "b", "c", "d", "e", "f"], quantity: 500 }],
+    });
+    expect(r?.ingredients).toEqual([{ tags: ["a", "b", "c", "d"], quantity: 99 }]);
+    expect(r?.crafting_time).toBe(999);
+    expect(normalizeRecipeAi({ ...goodRaw, output: { ...goodRaw.output, quantity: 500 } })?.output.quantity).toBe(99);
+  });
+
+  it("only a literal true turns on the proficiency and tools requirements", () => {
+    const r = normalizeRecipeAi({ ...goodRaw, requires_proficiency: "yes", requires_tools: undefined });
+    expect(r?.requires_proficiency).toBe(false);
+    expect(r?.requires_tools).toBe(false);
+  });
+
+  it("reads a discipline or unit the model wrote in the wrong case", () => {
+    const r = normalizeRecipeAi({ ...goodRaw, discipline: " Alchemy ", crafting_time_unit: "HOURS" }, "smithing");
+    expect(r?.discipline).toBe("alchemy");
+    expect(r?.crafting_time_unit).toBe("hours");
+  });
+
+  it("drops a modifier with no description however early it comes", () => {
+    const r = normalizeRecipeAi({ ...goodRaw, modifiers: [{ description: "  ", bonus: 1 }, { description: "Done under moonlight", bonus: 2 }] });
+    expect(r?.modifiers).toEqual([{ description: "Done under moonlight", bonus: 2 }]);
+  });
+
   it("drops a modifier that repeats the discipline's workspace bonus (#1091)", () => {
     const r = normalizeRecipeAi({
       ...goodRaw,

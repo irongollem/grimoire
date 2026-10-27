@@ -347,8 +347,9 @@ export type VariantWidth = (typeof VARIANT_WIDTHS)[number];
  */
 export function variantPath(originalPath: string, width: VariantWidth): string {
   // Variants are always .webp regardless of the original's extension (png/jpeg/webp).
+  // Only a dot in the file name is an extension: "a.b/img" has none.
   const lastDot = originalPath.lastIndexOf(".");
-  const stem = lastDot === -1 ? originalPath : originalPath.slice(0, lastDot);
+  const stem = lastDot > originalPath.lastIndexOf("/") ? originalPath.slice(0, lastDot) : originalPath;
   return `${stem}_w${width}.webp`;
 }
 

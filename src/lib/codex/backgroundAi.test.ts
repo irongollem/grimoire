@@ -55,6 +55,16 @@ describe("backgroundInsertFromAi", () => {
     expect(b.languages).toEqual(["Elvish"]);
   });
 
+  it("keeps at most six distinct tags, in lower case", () => {
+    const b = backgroundInsertFromAi({ name: "X", tags: ["A", "a", "b", "c", "d", "e", "f", "g"] }, { ruleset: "2014" });
+    expect(b.tags).toEqual(["a", "b", "c", "d", "e", "f"]);
+  });
+
+  it("lists a tool once even when the model repeats it", () => {
+    const b = backgroundInsertFromAi({ name: "X", tool_proficiencies: ["Thieves' Tools", "thieves' tools"] }, { ruleset: "2014" });
+    expect(b.tool_proficiencies).toEqual(["Thieves' Tools"]);
+  });
+
   it("returns empty collections for junk", () => {
     const b = backgroundInsertFromAi({ name: "X" }, { ruleset: "2024" });
     expect(b.skill_proficiencies).toEqual([]);
@@ -73,5 +83,9 @@ describe("sanitizers", () => {
   });
   it("caps skills at two", () => {
     expect(sanitizeSkills(["arcana", "history", "religion"])).toEqual(["Arcana", "History"]);
+  });
+  it("reads a skill by its key as well as its label, and never lists one twice", () => {
+    expect(sanitizeSkills(["animal_handling"])).toEqual(["Animal Handling"]);
+    expect(sanitizeSkills(["Arcana", "arcana", "history"])).toEqual(["Arcana", "History"]);
   });
 });

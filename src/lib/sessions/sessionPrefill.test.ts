@@ -54,6 +54,13 @@ describe("sortSessionLog / lastPlayedSession", () => {
     expect(lastPlayedSession([older, open, logged])?.id).toBe("b");
     expect(lastPlayedSession([open])).toBeNull();
   });
+  it("counts a finished run as played, so it can be last time", () => {
+    expect(lastPlayedSession([older, open])?.id).toBe("a");
+  });
+  it("places a row by its run before the day logged for it", () => {
+    const both = row({ id: "both", started_at: "2026-10-10T19:00:00Z", played_on: "2026-09-01" });
+    expect(sortSessionLog([logged, both]).map((s) => s.id)).toEqual(["both", "b"]);
+  });
 });
 
 describe("formatSessionDay", () => {
@@ -99,6 +106,15 @@ describe("prefersContinue", () => {
   it("continues after a break at the table", () => {
     expect(prefersContinue(tonight, at("2026-10-06T21:40:00Z"))).toBe(true);
   });
+  it("a break of exactly four hours still continues, a moment more does not", () => {
+    expect(prefersContinue(tonight, at("2026-10-07T01:00:00Z"))).toBe(true);
+    expect(prefersContinue(tonight, at("2026-10-07T01:00:00.001Z"))).toBe(false);
+  });
+  it("a run begun exactly a day ago still continues, a moment more does not", () => {
+    const longDay = { started_at: "2026-10-06T00:00:00Z", ended_at: "2026-10-06T23:30:00Z" };
+    expect(prefersContinue(longDay, at("2026-10-07T00:00:00Z"))).toBe(true);
+    expect(prefersContinue(longDay, at("2026-10-07T00:00:00.001Z"))).toBe(false);
+  });
   it("starts afresh once the break is longer than an evening's", () => {
     expect(prefersContinue(tonight, at("2026-10-07T01:30:00Z"))).toBe(false);
   });
@@ -120,6 +136,7 @@ describe("continueLabel / formatEndedAgo", () => {
   it("names the session it continues", () => {
     expect(continueLabel({ number: 14 })).toBe("Continue session 14");
     expect(continueLabel({ number: null })).toBe("Continue session");
+    expect(continueLabel({ number: 0 })).toBe("Continue session 0");
   });
   const ended = row({ started_at: "2026-10-06T19:00:00Z", ended_at: "2026-10-06T21:00:00Z" });
   const at = (iso: string) => Date.parse(iso);
@@ -127,9 +144,17 @@ describe("continueLabel / formatEndedAgo", () => {
     expect(formatEndedAgo(ended, at("2026-10-06T21:00:30Z"))).toBe("ended just now");
     expect(formatEndedAgo(ended, at("2026-10-06T21:01:00Z"))).toBe("ended 1 minute ago");
     expect(formatEndedAgo(ended, at("2026-10-06T21:20:00Z"))).toBe("ended 20 minutes ago");
+    expect(formatEndedAgo(ended, at("2026-10-06T22:00:00Z"))).toBe("ended 1 hour ago");
+    expect(formatEndedAgo(ended, at("2026-10-06T21:59:00Z"))).toBe("ended 59 minutes ago");
     expect(formatEndedAgo(ended, at("2026-10-06T23:30:00Z"))).toBe("ended 2 hours ago");
+    expect(formatEndedAgo(ended, at("2026-10-07T20:59:00Z"))).toBe("ended 23 hours ago");
+  });
+  it("says nothing for a session that has not ended, or an end that is not a date", () => {
+    expect(formatEndedAgo({ ...ended, ended_at: null })).toBe("");
+    expect(formatEndedAgo({ ...ended, ended_at: "not a date" })).toBe("");
   });
   it("names the day once it was another day", () => {
+    expect(formatEndedAgo(ended, at("2026-10-07T21:00:00Z"))).toBe("played Tuesday 6 October");
     expect(formatEndedAgo(ended, at("2026-10-09T20:00:00Z"))).toBe("played Tuesday 6 October");
   });
 });

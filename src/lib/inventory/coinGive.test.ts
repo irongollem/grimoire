@@ -8,6 +8,9 @@ describe("coinGive", () => {
   it("subtracts what is given", () => {
     expect(coinsLeft(purse, { ...none, gp: 5 })).toEqual({ ...purse, gp: 36 });
   });
+  it("never adds coins back for a negative entry", () => {
+    expect(coinsLeft(purse, { ...none, gp: -5 })).toEqual(purse);
+  });
   it("words what is left, skipping empty coins", () => {
     expect(leavesYouLine(purse, { ...none, gp: 5 })).toBe("Leaves you 36 gp, 12 sp, 30 cp.");
     expect(leavesYouLine({ ...none, gp: 2 }, { ...none, gp: 2 })).toBe("Leaves you with nothing.");
@@ -28,6 +31,7 @@ describe("coinGive", () => {
   });
   it("floors fractions and treats NaN as zero", () => {
     expect(wholeCoins({ ...none, gp: 2.9, sp: Number.NaN })).toEqual({ ...none, gp: 2 });
+    expect(wholeCoins({ pp: 1.5, gp: 2.5, ep: 3.5, sp: 4.5, cp: 5.5 })).toEqual({ pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
     expect(coinText({ ...none, pp: 1 })).toBe("1 pp");
   });
 });

@@ -50,6 +50,25 @@ describe("avalanche", () => {
     expect(find(hazards("mountains", pinned), "avalanche")?.level).toBe("high");
   });
 
+  it("counts two days of snow as loading only when one was a blizzard", () => {
+    const mild = w("mild", "none");
+    // A blizzard and a snowfall, then a thaw: high.
+    const blizzardThaw = run(mild, mild, blizzard, snow, w("cool", "none"));
+    expect(find(hazards("mountains", blizzardThaw), "avalanche")).toMatchObject({ level: "high", reason: "two days of heavy snow, now thawing" });
+    // Two plain snowfalls then a thaw only warn.
+    const snowThaw = run(mild, mild, snow, snow, w("cool", "none"));
+    expect(find(hazards("mountains", snowThaw), "avalanche")?.level).toBe("moderate");
+  });
+
+  it("does not warn of an avalanche for one day of snow", () => {
+    expect(find(hazards("mountains", run(w("mild", "none"), w("mild", "none"), w("mild", "none"), w("mild", "none"), snow)), "avalanche")).toBeUndefined();
+  });
+
+  it("says when the snow is still falling", () => {
+    const found = find(hazards("mountains", run(w("mild", "none"), w("mild", "none"), snow, snow, snow)), "avalanche");
+    expect(found).toMatchObject({ level: "moderate", reason: "three days of heavy snow and still falling" });
+  });
+
   it("goes easy on hills and ignores flat land", () => {
     const loaded = run(blizzard, snow, blizzard, w("cool", "none"));
     expect(find(hazards("hills", loaded), "avalanche")?.level).toBe("moderate");
@@ -69,6 +88,18 @@ describe("flood", () => {
   it("is high for a downpour on melting snow", () => {
     const found = find(hazards("plains", run(w("freezing", "snow"), w("cold", "snow"), w("cool", "none"), w("mild", "downpour")), "temperate"), "flood");
     expect(found).toMatchObject({ level: "high", reason: "downpour on top of melting snow" });
+  });
+
+  it("is not high for a downpour when it is freezing again today, or when the downpour was days ago", () => {
+    const refrozen = run(w("freezing", "snow"), w("cold", "snow"), w("cool", "none"), w("mild", "downpour"), w("freezing", "none"));
+    expect(find(hazards("plains", refrozen, "temperate"), "flood")).toBeUndefined();
+    const longAgo = run(w("freezing", "snow"), w("mild", "downpour"), w("cool", "none"), w("cool", "none"), w("mild", "none"));
+    expect(find(hazards("plains", longAgo, "temperate"), "flood")).toBeUndefined();
+  });
+
+  it("is only moderate for two downpours with dry days between", () => {
+    const found = find(hazards("plains", run(w("mild", "none"), w("mild", "downpour"), w("mild", "none"), w("mild", "downpour"), w("mild", "none")), "temperate"), "flood");
+    expect(found).toMatchObject({ level: "moderate", reason: "two days of heavy rain" });
   });
 
   it("spares mountains, forest and desert, and a dry week", () => {
@@ -92,6 +123,14 @@ describe("wildfire", () => {
     const rained = run(w("hot", "none"), w("hot", "rain"), w("hot", "none"), w("hot", "none"), w("hot", "none", "gale"));
     expect(find(hazards("forest", rained, "temperate"), "wildfire")).toBeUndefined();
     expect(find(hazards("forest", dry(w("mild", "none", "gale")).slice(-5), "temperate"), "wildfire")).toBeUndefined();
+  });
+
+  it("counts a dust storm as a dry day, and needs real heat", () => {
+    const dust = w("hot", "dust", "strong");
+    const parched = run(w("hot", "none"), dust, w("hot", "none"), w("hot", "none"), w("hot", "none"));
+    expect(find(hazards("plains", parched, "arid"), "wildfire")).toBeDefined();
+    const warm = run(w("warm", "none"), w("warm", "none"), w("warm", "none"), w("warm", "none"), w("warm", "none", "gale"));
+    expect(find(hazards("forest", warm, "temperate"), "wildfire")).toBeUndefined();
   });
 
   it("needs fuel: no fire in the desert or on a coast", () => {

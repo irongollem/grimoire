@@ -51,6 +51,33 @@ describe("structuredRolls", () => {
     expect(structuredDamageParts(review)).toEqual([]);
   });
 
+  it("offers nothing for a flagged entry even when its kind still says attack or save", () => {
+    const flagged: ActionStructure = { ...attack, review: "bonus not in prose" };
+    expect(structuredAttackBonus(flagged)).toBeNull();
+    expect(structuredDamageParts(flagged)).toEqual([]);
+    const flaggedSave: ActionStructure = {
+      kind: "save",
+      save: { ability: "dex", dc: 14, fail: [{ dice: "6d6", type: "fire" }], success: "half", conditions: [] },
+      source: "parsed",
+      review: "dc unclear",
+    };
+    expect(structuredSaveLabel(flaggedSave)).toBeNull();
+    expect(structuredDamageParts(flaggedSave)).toEqual([]);
+  });
+
+  it("rolls the failed-save damage only for a save entry, not a rider save on something else", () => {
+    const rider: ActionStructure = {
+      kind: "other",
+      save: { ability: "con", dc: 13, fail: [{ dice: "2d6", type: "poison" }], success: "none", conditions: [] },
+      source: "parsed",
+    };
+    expect(structuredDamageParts(rider)).toEqual([]);
+  });
+
+  it("rolls nothing at all if any part of the damage cannot be read", () => {
+    expect(combineDamageParts([{ dice: "2d6", type: "fire" }, { dice: "lots", type: null }])).toBeNull();
+  });
+
   it("an attack with an empty hit has no damage button", () => {
     const grapple: ActionStructure = { kind: "attack", attack: { delivery: "melee", bonus: 5, hit: [] }, source: "parsed" };
     expect(structuredAttackBonus(grapple)).toBe(5);
@@ -73,5 +100,6 @@ describe("structuredOptionEntries", () => {
     expect(structuredDamageParts(fire.structure)).toEqual([{ dice: "12d6", type: "fire" }]);
     expect(structuredAttackBonus(bite.structure)).toBe(6);
     expect(structuredOptionEntries({ ...entry, review: "x" })).toEqual([]);
+    expect(structuredOptionEntries({ ...entry, source: "manual" }).every((o) => o.structure.source === "manual")).toBe(true);
   });
 });

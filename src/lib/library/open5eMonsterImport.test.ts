@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { mapOpen5eV2Monster } from "@/lib/library/open5eMonsterImport";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetchOpen5eDocuments, fetchOpen5eMonsters, mapOpen5eV2Monster } from "@/lib/library/open5eMonsterImport";
+
+afterEach(() => vi.unstubAllGlobals());
+
+type Raw = Parameters<typeof mapOpen5eV2Monster>[0];
+const map = (overrides: Record<string, unknown> = {}) => mapOpen5eV2Monster(record(overrides) as Raw);
 
 const document2024 = {
   key: "srd-2024",
@@ -67,34 +72,12 @@ describe("mapOpen5eV2Monster — initiative_bonus", () => {
 });
 
 describe("mapOpen5eV2Monster — source_license", () => {
-  it("derives source_license from a document-metadata map keyed by document key", () => {
+  it("derives source_license from the document-metadata map (formatting and absence are owned by licenseForDocumentKey)", () => {
     const documentMetadata = new Map([
       ["srd-2024", { ...document2024, licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }] }],
     ]);
     const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0], documentMetadata);
     expect(monster.source_license).toBe("cc-by-40");
-  });
-
-  it("joins multiple license keys in the stored comma-space format", () => {
-    const documentMetadata = new Map([
-      ["srd-2024", {
-        ...document2024,
-        licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }, { name: "OGL 1.0a", key: "ogl-10a" }],
-      }],
-    ]);
-    const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0], documentMetadata);
-    expect(monster.source_license).toBe("cc-by-40, ogl-10a");
-  });
-
-  it("is null when no document-metadata map is passed at all", () => {
-    const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0]);
-    expect(monster.source_license).toBeNull();
-  });
-
-  it("is null when the map doesn't contain this monster's document key", () => {
-    const documentMetadata = new Map([["some-other-doc", { ...document2024, key: "some-other-doc" }]]);
-    const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0], documentMetadata);
-    expect(monster.source_license).toBeNull();
   });
 });
 
@@ -198,5 +181,156 @@ describe("mapOpen5eV2Monster — legendary action cost", () => {
     expect(legendary.map((e) => e.name)).toEqual(["Detect", "Wing Attack (Costs 2 Actions)"]);
     expect(legendary[1].structured.legendary_cost).toBe(2);
     expect(legendary[0].structured.legendary_cost).toBe(1);
+  });
+});
+
+describe("mapOpen5eV2Monster — the printed stat block", () => {
+  // An Aboleth-shaped record: every field Open5e serves that the mapper reads.
+  const aboleth = {
+    name: "Aboleth (Elder)",
+    type: { name: "Aberration (shapechanger)", key: "aberration" },
+    size: { name: "Large", key: "large" },
+    alignment: "",
+    armor_class: 17,
+    hit_points: 150,
+    hit_dice: "20d10+40",
+    speed: { walk: 10, swim: 40, fly: 30, hover: true, unit: "feet" },
+    ability_scores: { strength: 21, dexterity: 9, constitution: 15, intelligence: 18, wisdom: 15, charisma: 18 },
+    modifiers: { strength: 5, dexterity: -1, constitution: 2, intelligence: 4, wisdom: 2, charisma: 4 },
+    saving_throws: { strength: 5, dexterity: 3, constitution: 6, intelligence: 8, wisdom: 2, charisma: 4 },
+    skill_bonuses: { history: 12, stealth: 0, arcana: -1 },
+    resistances_and_immunities: { damage_resistances_display: "cold", damage_vulnerabilities_display: "", damage_immunities_display: "fire" },
+    darkvision_range: 120, blindsight_range: 30, tremorsense_range: 0, truesight_range: 60,
+    languages: { as_string: "Deep Speech, telepathy 120 ft." },
+    challenge_rating: "10",
+    traits: [
+      { name: "Amphibious (2/Day)", desc: "Breathes air and water." },
+      { name: "Legendary Resistance (3 / Day)", desc: "It succeeds instead." },
+    ],
+    actions: [
+      { name: "Tail", desc: "Melee Weapon Attack: +9 to hit, reach 10 ft., one target. Hit: 12 (2d6 + 5) bludgeoning damage.", action_type: "ACTION" },
+      { name: "Slime", desc: "A creature is diseased.", action_type: "BONUS_ACTION" },
+      { name: "Parry", desc: "Adds 3 to its AC.", action_type: "REACTION" },
+    ],
+  };
+  const block = (over: Record<string, unknown> = {}) => map({ ...aboleth, ...over }).stat_block;
+
+  it("prints the header line the way the book does", () => {
+    const sb = block();
+    expect(sb.hit_points).toBe("150 (20d10+40)");
+    expect(sb.speed).toBe("10 ft., fly 30 ft. (hover), swim 40 ft.");
+    expect(sb.senses).toBe("darkvision 120 ft., blindsight 30 ft., truesight 60 ft.");
+    expect(sb.languages).toBe("Deep Speech, telepathy 120 ft.");
+    expect(sb.challenge_rating).toBe("10");
+    expect([sb.str, sb.dex, sb.con, sb.int, sb.wis, sb.cha]).toEqual([21, 9, 15, 18, 15, 18]);
+  });
+
+  it("lists a saving throw only where it differs from the plain ability modifier, and signs skills", () => {
+    // Str, Wis and Cha equal their modifiers: Open5e lists all six, the book prints the proficient ones.
+    expect(block().saving_throws).toBe("Dex +3, Con +6, Int +8");
+    expect(block().skills).toEqual({ history: "+12", stealth: "+0", arcana: "-1" });
+    expect(block({ saving_throws: { strength: -1 }, modifiers: { strength: 0 } }).saving_throws).toBe("Str -1");
+  });
+
+  it("leaves out everything the creature does not have", () => {
+    const sb = block({
+      saving_throws: { strength: 5 }, skill_bonuses: {}, darkvision_range: 0, blindsight_range: null, truesight_range: undefined,
+      languages: { as_string: "" }, traits: [], actions: [],
+    });
+    expect([sb.saving_throws, sb.skills, sb.senses, sb.languages, sb.special_abilities, sb.actions, sb.bonus_actions, sb.reactions, sb.legendary_actions])
+      .toEqual(Array(9).fill(undefined));
+  });
+
+  it("splits actions by kind and reads the Legendary Resistance count from its own trait", () => {
+    const sb = block();
+    expect(sb.actions?.map((a) => a.name)).toEqual(["Tail"]);
+    expect(sb.bonus_actions?.map((a) => a.name)).toEqual(["Slime"]);
+    expect(sb.reactions?.map((a) => a.name)).toEqual(["Parry"]);
+    expect(sb.special_abilities?.map((a) => a.name)).toEqual(["Amphibious (2/Day)", "Legendary Resistance (3 / Day)"]);
+    expect(sb.legendary_resistance).toBe(3);
+    expect(block({ traits: [{ name: "Legendary Resistance", desc: "x" }] }).legendary_resistance).toBeUndefined();
+  });
+
+  it("falls back to the 5e defaults for what Open5e leaves out", () => {
+    const sb = block({ speed: undefined, speed_all: undefined, hit_dice: "", ability_scores: { strength: 8 }, challenge_rating: undefined });
+    expect(sb.speed).toBe("30 ft.");
+    expect(sb.hit_points).toBe("150");
+    expect([sb.str, sb.dex, sb.con, sb.int, sb.wis, sb.cha]).toEqual([8, 10, 10, 10, 10, 10]);
+    expect(sb.challenge_rating).toBe("0");
+    expect(block({ speed: { walk: 0 } }).speed).toBe("30 ft.");
+  });
+
+  it("prints metric speeds in metres and only hovers a flyer", () => {
+    expect(block({ speed: { walk: 9, climb: 4, unit: "meters" } }).speed).toBe("9 m, climb 4 m");
+    expect(block({ speed: { walk: 30, hover: true } }).speed).toBe("30 ft.");
+  });
+
+  it("files the creature under its base type, size and name", () => {
+    const aberration = map(aboleth);
+    expect(aberration).toMatchObject({
+      monster_type: "aberration", size: "large", alignment: "unaligned", conceptual_key: "aboleth_elder",
+      source_title: "5e 2024 Rules", is_shared: true, open5e_import: true,
+    });
+    expect(map({ type: { name: "Giant of the Storm", key: "x" } }).monster_type).toBe("giant");
+    expect(map({ type: { name: "Swarm of Tiny Beasts", key: "x" } }).monster_type).toBe("monstrosity");
+    expect(map({ document: { ...document2024, display_name: undefined } }).source_title).toBe("System Reference Document 5.2");
+    expect(map({ alignment: "lawful good" }).alignment).toBe("lawful good");
+  });
+
+  it("carries the source identity a re-import matches on", () => {
+    expect(map({ document: { ...document2024, permalink: "https://example.test/srd-2024" } })).toMatchObject({
+      ruleset: "2024",
+      source: "srd-2024",
+      source_document_key: "srd-2024",
+      source_record_key: "srd-2024_ancient-red-dragon",
+      source_revision: "System Reference Document 5.2",
+      source_url: "https://example.test/srd-2024",
+      provenance: {
+        provider: "open5e-v2",
+        document: { key: "srd-2024", publisher: { key: "wizards-of-the-coast" }, gamesystem: { key: "5e-2024" }, permalink: "https://example.test/srd-2024" },
+      },
+    });
+  });
+
+  it("does not add a cost to a name that already prints one, or to an action that is not legendary", () => {
+    const sb = block({
+      actions: [
+        { name: "Wing Attack (Costs 2 Actions)", desc: "x", action_type: "LEGENDARY_ACTION", legendary_action_cost: 2 },
+        { name: "Bite", desc: "y", action_type: "ACTION", legendary_action_cost: 2 },
+      ],
+    });
+    expect(sb.legendary_actions?.map((a) => a.name)).toEqual(["Wing Attack (Costs 2 Actions)"]);
+    expect(sb.actions?.map((a) => a.name)).toEqual(["Bite"]);
+  });
+});
+
+describe("the Open5e fetches", () => {
+  const body = (results: unknown[]) => new Response(JSON.stringify({ count: results.length, next: null, results }));
+
+  it("lists documents by display name, sorted by title", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => body([
+      { key: "tob", name: "Tome of Beasts" },
+      { key: "srd-2024", name: "SRD 5.2", display_name: "5e 2024 Rules" },
+      { key: "a5e", name: "Adventurers" },
+    ])));
+    expect(await fetchOpen5eDocuments()).toEqual([
+      { slug: "srd-2024", title: "5e 2024 Rules" },
+      { slug: "a5e", title: "Adventurers" },
+      { slug: "tob", title: "Tome of Beasts" },
+    ]);
+  });
+
+  it("fetches the supported documents when no source is named, including for an empty list", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes("/documents/")) return body([{ ...document2024, licenses: [{ name: "CC", key: "cc-by-40" }] }]);
+      return body([record()]);
+    }));
+    const rows = await fetchOpen5eMonsters([]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.source_license).toBe("cc-by-40");
+    expect(urls.find((u) => u.includes("/creatures/"))).toContain("document__key__in=srd-2024");
   });
 });

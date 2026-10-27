@@ -1,5 +1,5 @@
 import type { CampaignSearchHit, CampaignSearchKind } from "@edge-shared/campaignSearch.ts";
-import { placeRoute } from "@/lib/locations/placeRoute";
+import { searchRoute } from "@/lib/search/searchRoute";
 
 /** One row in the search dropdown. Keyword hits have no descriptor; semantic
  *  hits carry the server's one-line reason they matched. */
@@ -55,18 +55,11 @@ const KIND_GROUP: Record<CampaignSearchKind, SearchGroupType> = {
 
 /** Library items open in the vault detail too: `ItemDetailView` resolves a
  *  text slug against `library_items` and a uuid against `items`. */
+/** A library row opens on the same page as the campaign's own of its kind. */
 function hitRoute(kind: CampaignSearchKind, id: string): string {
-  switch (kind) {
-    case "npc": return `/npcs/${id}`;
-    case "location": return placeRoute(id);
-    case "faction": return `/factions/${id}`;
-    case "note": return `/notes/${id}`;
-    case "quest": return `/quests/${id}`;
-    case "item":
-    case "library_item": return `/vault/${id}`;
-    case "monster":
-    case "library_monster": return `/monsters/${id}`;
-  }
+  if (kind === "library_item") return searchRoute("item", id);
+  if (kind === "library_monster") return searchRoute("monster", id);
+  return searchRoute(kind, id);
 }
 
 /**

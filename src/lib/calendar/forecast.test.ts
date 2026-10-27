@@ -3,7 +3,7 @@ import { gregorianAdapter } from "@/settings/gregorian.calendar";
 import type { CalendarAdapter } from "@/types/calendar.types";
 import { addDays } from "./dayMath";
 import { weatherForecast } from "./forecast";
-import { weatherOn } from "./weather";
+import { weatherOn, type Weather, type WeatherPin } from "./weather";
 
 const from = { year: 12, month: 3, day: 10 };
 
@@ -16,6 +16,14 @@ describe("weatherForecast", () => {
       expect(d.date).toEqual(addDays(gregorianAdapter, from, i + 1));
       expect(d.weather).toEqual(weatherOn(gregorianAdapter, "temperate", "c1:campaign", d.date.year, d.date.month, d.date.day, null));
     });
+  });
+
+  it("defaults to five days and follows the DM's pins like any other day", () => {
+    expect(weatherForecast(gregorianAdapter, "temperate", "c1:campaign", from)).toHaveLength(5);
+    const storm: Weather = { temperature: "freezing", precipitation: "blizzard", wind: "gale", fog: false };
+    const tomorrow = addDays(gregorianAdapter, from, 1);
+    const pin: WeatherPin = { source: null, ...tomorrow, kind: "set", weather: storm };
+    expect(weatherForecast(gregorianAdapter, "temperate", "c1:campaign", from, 5, [pin])[0]?.weather).toEqual(storm);
   });
 
   it("is empty underground", () => {

@@ -40,6 +40,13 @@ describe("buildIngredientSlots", () => {
     expect(s.candidates.map((c) => c.inv.id)).toEqual(["b", "a"]);
   });
 
+  it("counts a recipe as met when the pack holds exactly what it needs", () => {
+    const req = (quantity: number) => ({ item_id: null, library_item_id: "iron", tags: null, quantity });
+    const rows = [inv("a", { library_item_id: "iron", quantity: 2 })];
+    expect(buildIngredientSlots([req(2)], rows, items)[0].met).toBe(true);
+    expect(buildIngredientSlots([req(3)], rows, items)[0].met).toBe(false);
+  });
+
   it("falls back to the name map, then Unknown item", () => {
     const req = { item_id: "x", library_item_id: null, tags: null, quantity: 1 };
     expect(buildIngredientSlots([req], [], [], new Map([["x", "Mapped"]]))[0].name).toBe("Mapped");
@@ -122,6 +129,13 @@ describe("planConsumption", () => {
     expect(ok.short).toBe(false);
     const bad = planConsumption(buildIngredientSlots([req(2), req(2)], rows, items));
     expect(bad.short).toBe(true);
+  });
+
+  it("never lists an empty stack in the consumption", () => {
+    const rows = [inv("empty", { library_item_id: "iron", quantity: 0 }), inv("one", { library_item_id: "iron", quantity: 1 })];
+    const p = planConsumption(buildIngredientSlots([req(2)], rows, items));
+    expect(p.consumption).toEqual([{ id: "one", qty: 1 }]);
+    expect(p.short).toBe(true);
   });
 
   it("has no primary when nothing is required", () => {

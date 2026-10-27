@@ -36,11 +36,6 @@ describe("normalizeDeityResult", () => {
     expect(r.domains).toEqual(["War", "Death", "Life"]);
   });
 
-  it("keeps every edition's full domain list (a god's domains are its portfolio)", () => {
-    const r = normalizeDeityResult({ domains: ["Forge", "War"] });
-    expect(r.domains).toEqual(["Forge", "War"]);
-  });
-
   it("survives junk input", () => {
     const r = normalizeDeityResult({ name: 4, domains: "War", tags: null, alternate_names: [1, "x"] });
     expect(r.name).toBe("");
@@ -48,6 +43,19 @@ describe("normalizeDeityResult", () => {
     expect(r.tags).toEqual([]);
     expect(r.alternate_names).toEqual(["x"]);
     expect(normalizeDeityResult(null).description).toBe("");
+  });
+
+  it("reads a blank or whitespace-only optional text field as absent", () => {
+    const r = normalizeDeityResult({ titles: "   ", portfolio: "", symbol: "\n" });
+    expect(r.titles).toBeNull();
+    expect(r.portfolio).toBeNull();
+    expect(r.symbol).toBeNull();
+  });
+
+  it("keeps the provenance the generator attached and ignores a non-object one", () => {
+    const provenance = { model: "m" };
+    expect(normalizeDeityResult({ ai_provenance: provenance }).ai_provenance).toBe(provenance);
+    expect(normalizeDeityResult({ ai_provenance: "yes" }).ai_provenance).toBeUndefined();
   });
 
   it("caps tags and alternate names", () => {
@@ -86,6 +94,44 @@ describe("buildDeityConstraints", () => {
     for (const l of lines) expect(l.length).toBeLessThanOrEqual(400);
   });
 
+});
+
+describe("buildDeityConstraints at the 400 character cap", () => {
+  const CAP = 400;
+  // The deities line is "<prefix><entry>; <entry>"; measure the prefix from a one-letter deity.
+  const prefixLength =
+    buildDeityConstraints({ pantheonName: "P", pantheonDeities: [{ name: "A", portfolio: null }] })[1].length - 1;
+  const deityLine = (names: string[]) =>
+    buildDeityConstraints({
+      pantheonName: "P",
+      pantheonDeities: names.map((name) => ({ name, portfolio: null })),
+    })[1];
+
+  it("fits as many deities as stay within the cap, an exact fit included", () => {
+    // Two entries joined by "; " land on exactly CAP characters.
+    const first = "a".repeat(100);
+    const second = "b".repeat(CAP - prefixLength - first.length - 2);
+    expect(deityLine([first, second])).toHaveLength(CAP);
+    // One more character and the second no longer fits, so it is left out whole.
+    expect(deityLine([first, `${second}b`])).toHaveLength(prefixLength + first.length);
+  });
+
+  it("clips a single deity too long to list, rather than dropping the line", () => {
+    const line = deityLine(["z".repeat(CAP * 2)]);
+    expect(line).toHaveLength(CAP);
+    expect(line.endsWith("…")).toBe(true);
+  });
+
+  it("leaves a line of exactly the cap unclipped, and clips one a character over", () => {
+    const exact = "n".repeat(CAP - "Pantheon: ".length);
+    expect(buildDeityConstraints({ pantheonName: exact })[0]).toBe(`Pantheon: ${exact}`);
+    expect(buildDeityConstraints({ pantheonName: `${exact}n` })[0]).toHaveLength(CAP);
+  });
+
+  it("lists a pantheon's deities only when the pantheon is named, and never for an empty one", () => {
+    expect(buildDeityConstraints({ pantheonDeities: [{ name: "Zeus", portfolio: null }] })).toEqual([]);
+    expect(buildDeityConstraints({ pantheonName: "P", pantheonDeities: [] })).toEqual(["Pantheon: P"]);
+  });
 });
 
 describe("deityImageContextParts", () => {

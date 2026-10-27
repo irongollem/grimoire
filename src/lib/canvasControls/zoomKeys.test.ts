@@ -30,6 +30,13 @@ describe("resolveZoomKey", () => {
     expect(resolveZoomKey(ev({ key: "1", code: "Numpad1", shiftKey: true }))).toBe("fit");
   });
 
+  it("reads the physical key when the layout types something else for the digit or the plus", () => {
+    // AZERTY: the digit row types "&" and "à" unshifted, and a German keyboard's "=" key can type "´".
+    expect(resolveZoomKey(ev({ key: "&", code: "Digit1", ctrlKey: true }))).toBe("actual");
+    expect(resolveZoomKey(ev({ key: "à", code: "Digit0", metaKey: true }))).toBe("fit");
+    expect(resolveZoomKey(ev({ key: "´", code: "Equal", ctrlKey: true }))).toBe("in");
+  });
+
   it("plain digits, Alt combos and Ctrl+Shift digits are not zoom shortcuts", () => {
     expect(resolveZoomKey(ev({ key: "1", code: "Digit1" }))).toBeNull();
     expect(resolveZoomKey(ev({ key: "0", code: "Digit0", ctrlKey: true, altKey: true }))).toBeNull();

@@ -91,6 +91,40 @@ describe("encounterDifficulty", () => {
     expect(result.hazardXp).toBe(400);
   });
 
+  it("does not count a combatant on the players' own faction as an ally to subtract", () => {
+    const fight = source({
+      combatants: [
+        combatant({ id: "c1", monster_id: "knight" }),
+        combatant({ id: "c2", monster_id: "knight", faction_id: "players" }),
+      ],
+      party_member_ids: ["a"],
+    });
+    expect(encounterDifficulty(fight, difficultyLookups(rows)).allyAdjustedXp).toBe(0);
+  });
+
+  it("counts a companion by its source stat block's CR, and skips one that no longer exists", () => {
+    const companions = [
+      { id: "k-monster", source_monster_id: "knight", source_npc_id: null },
+      { id: "k-npc", source_monster_id: null, source_npc_id: "villain" },
+      { id: "k-none", source_monster_id: null, source_npc_id: null },
+    ] as unknown as Companion[];
+    const lookups = difficultyLookups({ ...rows, companions });
+    expect(lookups.companionCr("k-monster")).toBe("3");
+    expect(lookups.companionCr("k-npc")).toBe("5");
+    expect(lookups.companionCr("k-none")).toBeNull();
+    expect(lookups.companionCr("gone")).toBeUndefined();
+
+    // A CR 3 knight (700 XP) fighting beside the party, plus a companion row that was deleted: one ally, so no
+    // multiplier. Had the missing one been counted as a second ally the multiplier would be 1.5.
+    const fight = source({ companion_ids: ["k-monster", "gone"], party_member_ids: ["a"] });
+    expect(encounterDifficulty(fight, lookups).allyAdjustedXp).toBe(700);
+  });
+
+  it("counts a party member the party no longer has as level 1", () => {
+    const fight = source({ party_member_ids: ["ghost"] });
+    expect(encounterDifficulty(fight, difficultyLookups(rows)).partyThresholds.easy).toBe(25);
+  });
+
   it("judges an encounter with no party against one level-3 hero", () => {
     const fight = source({ combatants: [combatant({ id: "c1", monster_id: "wolf" })] });
     expect(encounterDifficulty(fight, difficultyLookups(rows)).partyThresholds.easy).toBe(75);

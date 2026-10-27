@@ -42,6 +42,8 @@ describe("canPlayOggVorbis", () => {
   });
 
   it("does not warn when there is no Audio", () => {
+    // A document that would answer "no" if it were asked: the missing Audio is what keeps it quiet.
+    stubCanPlayType("");
     vi.stubGlobal("Audio", undefined);
     expect(canPlayOggVorbis()).toBe(true);
   });

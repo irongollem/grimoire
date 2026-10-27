@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deityHit, mergeAllGroups, npcDetail, npcHit, partyHit, searchRoute, TIES_GROUP } from "@/lib/search/searchRows";
-import type { SearchGroup } from "@/lib/search/mergeSearchHits";
+import { createMemoryHistory, createRouter } from "vue-router";
+import { routes } from "@/router/routes";
+import { SEARCH_KINDS, deityHit, mergeAllGroups, npcDetail, npcHit, partyHit, searchRoute, TIES_GROUP } from "@/lib/search/searchRows";
+import { mergeSearchGroups, type SearchGroup } from "@/lib/search/mergeSearchHits";
+import type { CampaignSearchHit } from "@edge-shared/campaignSearch.ts";
 
 const group = (type: string, ...names: string[]): SearchGroup => ({
   type,
@@ -23,6 +26,31 @@ describe("row shaping", () => {
   it("opens each kind where its list opens it", () => {
     expect(searchRoute("location", "l1")).toBe("/locations?at=l1");
     expect(searchRoute("party_member", "p1")).toBe("/party/p1");
+  });
+});
+
+describe("where a row opens", () => {
+  const router = createRouter({ history: createMemoryHistory(), routes });
+  const opensAPage = (path: string) => router.resolve(path).name !== "not-found";
+
+  it.each(SEARCH_KINDS)("sends a %s row to a page the app has", (kind) => {
+    expect(opensAPage(searchRoute(kind, "abc"))).toBe(true);
+  });
+
+  it("sends every kind of meaning hit to a page the app has", () => {
+    const kinds: CampaignSearchHit["kind"][] = ["npc", "location", "faction", "note", "quest", "item", "library_item", "monster", "library_monster"];
+    const out = mergeSearchGroups([], kinds.map((kind, i) => ({ kind, id: `id-${i}`, name: kind, descriptor: null, distance: i / 10 })));
+    const found = out.flatMap((g) => g.items.map((item) => item.route));
+    expect(found).toHaveLength(kinds.length);
+    expect(found.filter((path) => !opensAPage(path))).toEqual([]);
+  });
+});
+
+describe("row details", () => {
+  it("leaves out the parts a row does not have", () => {
+    expect(partyHit({ id: "p", name: "Brenna", class: "Rogue", level: null }).detail).toBe("Rogue");
+    expect(npcDetail({ occupation: "  ", location: { name: "Inn" } })).toBe("Inn");
+    expect(deityHit({ id: "d", name: "Maera", titles: null, domains: [] }).detail).toBeNull();
   });
 });
 

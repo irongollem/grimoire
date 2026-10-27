@@ -144,6 +144,29 @@ describe("createQueryPersistence", () => {
     unsubscribe();
   });
 
+  it("a record of exactly 7 days is still a hit, one a minute older is a miss", async () => {
+    await seed({ savedAt: NOW - 7 * 24 * HOUR });
+    const { client } = session();
+    const queryFn = vi.fn(() => Promise.resolve("net"));
+    await expect(client.fetchQuery({ queryKey: [...LISTED], queryFn })).resolves.toBe("stored");
+    await settle();
+    await seed({ savedAt: NOW - 7 * 24 * HOUR - 60_000 });
+    client.getQueryCache().clear();
+    await expect(client.fetchQuery({ queryKey: [...LISTED], queryFn })).resolves.toBe("net");
+  });
+
+  it("a static record of exactly 24 hours is still fresh", async () => {
+    await seed({ savedAt: NOW - 24 * HOUR });
+    const { client } = session();
+    const queryFn = vi.fn(() => Promise.resolve("net"));
+    const observer = new QueryObserver(client, { queryKey: [...LISTED], queryFn, staleTime: Infinity });
+    const unsubscribe = observer.subscribe(() => undefined);
+    await vi.waitFor(() => expect(observer.getCurrentResult().data).toBe("stored"));
+    await settle();
+    expect(queryFn).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
   it("a record older than 7 days is a miss", async () => {
     await seed({ savedAt: NOW - 8 * 24 * HOUR });
     const { client } = session();

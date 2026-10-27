@@ -46,16 +46,24 @@ const note: DowntimeSeedNote = {
 };
 
 describe("npcInsertFromSeed", () => {
-  it("carries the seed's character fields", () => {
-    const out = npcInsertFromSeed(npc);
-    expect(out.name).toBe("Sela");
-    expect(out.occupation).toBe("Fence");
-    expect(out.tags).toEqual(["underworld"]);
+  it("carries each of the seed's character fields to its own column", () => {
+    const withArt = { ...npc, portrait_url: "https://cdn/downtime-images/srd/sela.webp", relationship: "hostile" as const };
+    expect(npcInsertFromSeed(withArt)).toMatchObject({
+      name: "Sela",
+      race: "Half-elf",
+      alignment: "Neutral",
+      occupation: "Fence",
+      appearance: "Wiry",
+      personality: "Speaks in prices",
+      backstory: "Moves stolen goods",
+      relationship: "hostile",
+      portrait_url: "https://cdn/downtime-images/srd/sela.webp",
+      tags: ["underworld"],
+    });
   });
 
-  it("hides the contact from players by default", () => {
-    expect(npcInsertFromSeed(npc).player_visible_to).toEqual([]);
-    expect(npcInsertFromSeed(npc).is_revealed).toBe(true);
+  it("mints a living contact hidden from players until the DM shares it", () => {
+    expect(npcInsertFromSeed(npc)).toMatchObject({ status: "alive", is_revealed: true, player_visible_to: [], player_visible_fields: [], stat_block: null });
   });
 
   it("copies tags rather than aliasing the seed array", () => {
@@ -65,15 +73,32 @@ describe("npcInsertFromSeed", () => {
 });
 
 describe("itemInsertFromSeed", () => {
-  it("carries the seed's item fields and defaults the rest to mundane", () => {
-    const out = itemInsertFromSeed(item);
-    expect(out.name).toBe("Well-Forged Blade");
-    expect(out.item_type).toBe("weapon");
-    expect(out.rarity).toBe("common");
-    expect(out.damage_rolls).toBeNull();
-    expect(out.properties).toEqual([]);
-    expect(out.is_arcane_focus).toBe(false);
-    expect(out.curse_description).toBeNull();
+  it("carries each of the seed's item fields to its own column", () => {
+    expect(itemInsertFromSeed({ ...item, requires_attunement: true, image_url: "https://cdn/downtime-images/srd/blade.webp" })).toMatchObject({
+      name: "Well-Forged Blade",
+      item_type: "weapon",
+      subtype: "longsword",
+      rarity: "common",
+      requires_attunement: true,
+      weight: 3,
+      cost: "15 gp",
+      description: "Honest steel.",
+      image_url: "https://cdn/downtime-images/srd/blade.webp",
+      tags: ["crafted"],
+    });
+  });
+
+  it("defaults everything the seed does not supply to mundane", () => {
+    expect(itemInsertFromSeed(item)).toMatchObject({
+      damage_rolls: null,
+      armor_class: null,
+      properties: [],
+      charges: null,
+      spell_ids: [],
+      source: null,
+      is_arcane_focus: false,
+      curse_description: null,
+    });
   });
 
   it("copies tags rather than aliasing the seed array", () => {
@@ -89,15 +114,17 @@ describe("noteInsertFromSeed", () => {
     expect(out.tags).toEqual(["research"]);
   });
 
-  it("converts the Markdown body to a Tiptap JSON document string", () => {
+  it("converts the Markdown body, not the title, to a Tiptap JSON document string", () => {
     const content = noteInsertFromSeed(note).content;
     expect(typeof content).toBe("string");
     const doc = JSON.parse(content!);
     expect(doc.type).toBe("doc");
+    expect(content).toContain("lore");
+    expect(content).not.toContain("A thread worth pulling");
   });
 
-  it("hides the note from players by default", () => {
-    expect(noteInsertFromSeed(note).player_visible_to).toEqual([]);
+  it("mints an unpinned note hidden from players by default", () => {
+    expect(noteInsertFromSeed(note)).toMatchObject({ player_visible_to: [], is_pinned: false });
   });
 });
 

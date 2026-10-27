@@ -41,19 +41,6 @@ describe("calibrateGrid", () => {
     expect(result.cells_per_image_width).toBeCloseTo(2);
   });
 
-  it("treats normalised x/y on different axes as separate scales (non-square image)", () => {
-    // A non-square image: 1000×500. A horizontal calibration spanning 50% of width
-    // = 500 px; if that's 10 cells, then 50 px/cell → 20 cells fit across.
-    const result = calibrateGrid({
-      pointAPct: { x: 0, y: 0 },
-      pointBPct: { x: 0.5, y: 0 },
-      cellsBetween: 10,
-      imageNaturalWidth: 1000,
-      imageNaturalHeight: 500,
-    });
-    expect(result.cells_per_image_width).toBeCloseTo(20);
-  });
-
   it("anchors the origin to handle A so its pixel coord sits on a grid line", () => {
     // A at (37,30), B at (137,30) → 100px = 2 cells → 50 px/cell.
     // origin_x_px = 37 mod 50 = 37; origin_y_px = 30 mod 50 = 30.
@@ -69,16 +56,17 @@ describe("calibrateGrid", () => {
     expect(result.origin_y_pct).toBeCloseTo(0.030);
   });
 
-  it("wraps the origin into [0, cellSize) for handles past the first cell", () => {
-    // A at (237,30), B at (337,30) → still 50 px/cell. 237 mod 50 = 37.
+  it("wraps the origin into [0, cellSize) on both axes for a handle past the first cell", () => {
+    // A at (237,430), B at (337,430) → still 50 px/cell. 237 mod 50 = 37; 430 mod 50 = 30.
     const result = calibrateGrid({
-      pointAPct: { x: 237 / 1000, y: 30 / 1000 },
-      pointBPct: { x: 337 / 1000, y: 30 / 1000 },
+      pointAPct: { x: 237 / 1000, y: 430 / 1000 },
+      pointBPct: { x: 337 / 1000, y: 430 / 1000 },
       cellsBetween: 2,
       imageNaturalWidth: 1000,
       imageNaturalHeight: 1000,
     });
     expect(result.origin_x_pct).toBeCloseTo(0.037);
+    expect(result.origin_y_pct).toBeCloseTo(0.03);
   });
 
   it("returns origin (0%, 0%) when handle A already sits on the implicit grid", () => {

@@ -159,8 +159,8 @@ describe("buildBookModel chapters", () => {
 describe("atlas order and place lookups", () => {
   const snap = snapshot({
     places: [
-      place("a", "Realm"),
       place("b", "Orphan", "gone"),
+      place("a", "Realm"),
       place("a1", "Town", "a"),
       place("a1x", "Inn", "a1"),
       place("a2", "Keep", "a"),
@@ -169,7 +169,7 @@ describe("atlas order and place lookups", () => {
 
   it("orders depth first, siblings in snapshot order, orphans as roots", () => {
     const model = buildBookModel(snap);
-    expect(model.chapters[0].entries.map((e) => e.id)).toEqual(["a", "a1", "a1x", "a2", "b"]);
+    expect(model.chapters[0].entries.map((e) => e.id)).toEqual(["b", "a", "a1", "a1x", "a2"]);
   });
 
   it("answers children and ancestors, root first", () => {
@@ -192,6 +192,34 @@ describe("atlas order and place lookups", () => {
     );
     expect(model.peopleAt("a").map((p) => p.id)).toEqual(["n1"]);
     expect(model.peopleAt("zzz")).toEqual([]);
+  });
+});
+
+describe("entry subtitles", () => {
+  it("shows each kind's own descriptor, and nothing when it has none", () => {
+    const model = buildBookModel(
+      snapshot({
+        book: { ...snapshot().book, chapters: ["atlas", "folk", "factions", "pantheon", "lore", "chronicle"] },
+        places: [place("p1", "Reach", null, { location_type: "region" }), place("p2", "Plain")],
+        folk: [
+          { ...person("n1", "Ann"), occupation: "Smith", race: "Dwarf" },
+          { ...person("n2", "Bo"), race: "Elf" },
+          person("n3", "Cy"),
+        ],
+        factions: [{ ...faction("f1", "Guild"), faction_type: "trade" }, faction("f2", "Band")],
+        pantheons: [pantheon("pa", "Old Gods")],
+        deities: [{ ...deity("d1", "Sun", "pa"), titles: "The Bright" }],
+        lore: [{ ...lore("l1", "Tale"), category: "myth" }, lore("l2", "Rumour")],
+        sessions: [session("s1", 4, null), session("s2", null, null)],
+      }),
+    );
+    const sub = (id: string) => model.byId.get(id)?.subtitle;
+    expect([sub("p1"), sub("p2")]).toEqual(["region", null]);
+    expect([sub("n1"), sub("n2"), sub("n3")]).toEqual(["Smith", "Elf", null]);
+    expect([sub("f1"), sub("f2")]).toEqual(["trade", null]);
+    expect([sub("pa"), sub("d1")]).toEqual([null, "The Bright"]);
+    expect([sub("l1"), sub("l2")]).toEqual(["myth", null]);
+    expect([sub("s1"), sub("s2")]).toEqual(["Session 4", null]);
   });
 });
 
@@ -277,6 +305,19 @@ describe("backlinks", () => {
     expect(model.backlinks("nope")).toEqual([]);
   });
 
+  it("counts only entity mentions with an id, not other nodes that carry one", () => {
+    const doc = JSON.stringify({
+      type: "doc",
+      content: [
+        { type: "image", attrs: { id: "x", src: "/a.png" } },
+        { type: "paragraph", content: [{ type: "entityMention", attrs: { id: "", entityType: "npc" } }] },
+      ],
+    });
+    const model = buildBookModel(snapshot({ lore: [lore("l", "Tale", doc)] }));
+    expect(model.backlinks("x")).toEqual([]);
+    expect(model.backlinks("")).toEqual([]);
+  });
+
   it("counts a name cited only through snapshot.names", () => {
     const model = buildBookModel(snapshot({ lore: [lore("l", "Tale", mentionDoc("pc", "player"))], names: { pc: "Hero" } }));
     expect(model.backlinks("pc").map((e) => e.id)).toEqual(["l"]);
@@ -305,5 +346,10 @@ describe("index", () => {
     );
     expect(model.index.map((g) => g.letter)).toEqual(["A", "B", "#"]);
     expect(model.index[0].entries.map((e) => e.title)).toEqual(["Ábel's Rest", "Anselm", "The Ashen Keep"]);
+  });
+
+  it("sorts inside a letter as if the leading The were not there", () => {
+    const model = buildBookModel(snapshot({ places: [place("1", "Azure Coast"), place("2", "The Alder Wood"), place("3", "Anselm's Ford")] }));
+    expect(model.index[0].entries.map((e) => e.title)).toEqual(["The Alder Wood", "Anselm's Ford", "Azure Coast"]);
   });
 });

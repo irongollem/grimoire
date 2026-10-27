@@ -116,19 +116,6 @@ function treatment(over: Partial<EdgeTreatmentOptions>): EdgeTreatmentOptions {
   return { ...DEFAULT_EDGE_TREATMENT, ...over };
 }
 
-describe("DEFAULT_EDGE_OPTIONS / DEFAULT_EDGE_TREATMENT", () => {
-  it("ships disabled by default", () => {
-    expect(DEFAULT_EDGE_OPTIONS.enabled).toBe(false);
-  });
-
-  it("gives all four sides the same defaults", () => {
-    expect(DEFAULT_EDGE_TREATMENT.top).toEqual(DEFAULT_EDGE_OPTIONS);
-    expect(DEFAULT_EDGE_TREATMENT.right).toEqual(DEFAULT_EDGE_OPTIONS);
-    expect(DEFAULT_EDGE_TREATMENT.bottom).toEqual(DEFAULT_EDGE_OPTIONS);
-    expect(DEFAULT_EDGE_TREATMENT.left).toEqual(DEFAULT_EDGE_OPTIONS);
-  });
-});
-
 describe("applyEdgeTreatmentToCtx — no edges enabled", () => {
   it("never touches the target ctx", () => {
     stubInternalCanvases();
@@ -241,61 +228,103 @@ describe("applyEdgeTreatmentToCtx — multiple enabled edges", () => {
   });
 });
 
-describe("applyEdgeTreatmentToCtx — degenerate pass counts", () => {
-  it("does not throw for passes = 0 (clamped to a single pass internally)", () => {
-    stubInternalCanvases();
+describe("applyEdgeTreatmentToCtx — which side fades", () => {
+  const alphaAt = (mask: FakeContext2D, x: number, y: number): number => mask.buffer[(y * 50 + x) * 4 + 3];
+  const column = (mask: FakeContext2D, x: number) => Array.from({ length: 50 }, (_, y) => alphaAt(mask, x, y));
+  const row = (mask: FakeContext2D, y: number) => Array.from({ length: 50 }, (_, x) => alphaAt(mask, x, y));
+
+  it.each([
+    ["top", (m: FakeContext2D) => row(m, 0), (m: FakeContext2D) => row(m, 49)],
+    ["bottom", (m: FakeContext2D) => row(m, 49), (m: FakeContext2D) => row(m, 0)],
+    ["left", (m: FakeContext2D) => column(m, 0), (m: FakeContext2D) => column(m, 49)],
+    ["right", (m: FakeContext2D) => column(m, 49), (m: FakeContext2D) => column(m, 0)],
+  ] as const)("the %s edge erases its own border and nothing opposite it", (side, own, opposite) => {
+    const created = stubInternalCanvases();
     const { ctx } = makeTargetCtx();
-    expect(() =>
-      applyEdgeTreatmentToCtx(
-        ctx,
-        20,
-        20,
-        treatment({ bottom: edge({ enabled: true, passes: 0, tearDepth: 0.2, fadeWidth: 0.2 }) }),
-      ),
-    ).not.toThrow();
+    applyEdgeTreatmentToCtx(ctx, 50, 50, treatment({ [side]: edge({ enabled: true, tearDepth: 0.4, fadeWidth: 0.2, roughness: 0 }) }));
+    const mask = created[0];
+    expect(own(mask).some((a) => a < 255)).toBe(true);
+    expect(opposite(mask).every((a) => a === 255)).toBe(true);
   });
 
-  it("does not throw for a fractional passes value", () => {
-    stubInternalCanvases();
+  it("only ever lowers alpha, so a second edge cannot restore what the first erased", () => {
+    const created = stubInternalCanvases();
     const { ctx } = makeTargetCtx();
-    expect(() =>
-      applyEdgeTreatmentToCtx(
-        ctx,
-        20,
-        20,
-        treatment({ bottom: edge({ enabled: true, passes: 2.7, tearDepth: 0.2, fadeWidth: 0.2 }) }),
-      ),
-    ).not.toThrow();
+    const gentle = (over: Partial<EdgeOptions>) => edge({ enabled: true, tearDepth: 0.4, fadeWidth: 0.2, roughness: 0, ...over });
+    applyEdgeTreatmentToCtx(ctx, 50, 50, treatment({ bottom: gentle({}) }));
+    const bottomOnly = created[0].buffer.slice();
+    applyEdgeTreatmentToCtx(ctx, 50, 50, treatment({ bottom: gentle({}), right: gentle({}) }));
+    const both = created[1].buffer;
+    for (let i = 3; i < both.length; i += 4) expect(both[i]).toBeLessThanOrEqual(bottomOnly[i]);
+  });
+});
+
+describe("applyEdgeTreatmentToCtx — tear depth and pass count", () => {
+  const alphaAt = (mask: FakeContext2D, x: number, y: number): number => mask.buffer[(y * 50 + x) * 4 + 3];
+
+  it("reaches in from the edge by tearDepth of the short side, up to 32% of it", () => {
+    // tearDepth 0.5 -> 0.5 * 50 * 0.32 = 8 rows in from the bottom (the tear starts near row 42, give or take
+    // the little roughness 0 still has). Rows well below that are gone, rows well above it untouched.
+    const created = stubInternalCanvases();
+    const { ctx } = makeTargetCtx();
+    applyEdgeTreatmentToCtx(ctx, 50, 50, treatment({ bottom: edge({ enabled: true, tearDepth: 0.5, fadeWidth: 0, roughness: 0, passes: 1 }) }));
+    const mask = created[0];
+    for (let x = 0; x < 50; x++) {
+      expect(alphaAt(mask, x, 40)).toBe(255);
+      expect(alphaAt(mask, x, 44)).toBe(0);
+    }
+  });
+
+  it("builds the fade from whole passes: n passes leave alpha in n steps", () => {
+    const created = stubInternalCanvases();
+    const { ctx } = makeTargetCtx();
+    applyEdgeTreatmentToCtx(ctx, 50, 50, treatment({ bottom: edge({ enabled: true, tearDepth: 0.5, fadeWidth: 0.5, roughness: 0, passes: 3 }) }));
+    const levels = new Set<number>();
+    for (let y = 0; y < 50; y++) for (let x = 0; x < 50; x++) levels.add(created[0].buffer[(y * 50 + x) * 4 + 3]);
+    // k of 3 passes cover a pixel: alpha is 0, 1/3, 2/3 or all of 255.
+    expect([...levels].sort((a, b) => a - b)).toEqual([0, 85, 170, 255]);
+  });
+
+  it("counts a fractional pass count to the nearest whole pass, and 0 as one hard pass", () => {
+    const levelsFor = (passes: number): number[] => {
+      const created = stubInternalCanvases();
+      const { ctx } = makeTargetCtx();
+      applyEdgeTreatmentToCtx(ctx, 50, 50, treatment({ bottom: edge({ enabled: true, tearDepth: 0.5, fadeWidth: 0.5, roughness: 0, passes }) }));
+      const levels = new Set<number>();
+      for (let y = 0; y < 50; y++) for (let x = 0; x < 50; x++) levels.add(created[0].buffer[(y * 50 + x) * 4 + 3]);
+      vi.restoreAllMocks();
+      return [...levels].sort((a, b) => a - b);
+    };
+    expect(levelsFor(2.7)).toEqual([0, 85, 170, 255]); // three passes
+    expect(levelsFor(2.2)).toEqual([0, 128, 255]); // two passes
+    expect(levelsFor(0)).toEqual([0, 255]); // one pass: a hard edge
   });
 });
 
 // ── processImage — pipeline order ───────────────────────────────────────────
 //
-// processImage's own docstring claims the order is
-// "colour grading -> DOF blur -> vignette -> edge mask -> PNG blob" but the
-// implementation actually runs grading -> dof -> TEXTURE -> VIGNETTE -> edge
-// -> BRUSH MASK - texture and vignette are swapped relative to the docstring,
-// and the docstring omits the texture and brush-mask steps entirely. This
-// test pins the *real* call order so a future edit that silently reorders
-// the pipeline gets caught, and documents the drift for anyone relying on
-// the comment instead of the code.
+// Grading, DOF blur, texture, vignette, the edge mask, then the brush mask. The
+// parameters are not in that order (vignette is passed before texture), and the
+// texture goes on before the vignette on purpose so the vignette darkens it too.
 describe("processImage — pipeline order", () => {
-  it("invokes the optional stages in the actual implementation order", async () => {
-    stubInternalCanvases();
+  it("runs the stages in pipeline order, with the edge mask after the vignette and before the brush mask", async () => {
+    const created = stubInternalCanvases();
     const calls: string[] = [];
     const image = { naturalWidth: 4, naturalHeight: 4 } as unknown as HTMLImageElement;
+    // The picture's own context is the first one asked for; the edge mask lands on it as one more drawImage.
+    const edgeMasksSoFar = () => created[0].drawImageCalls.length - 1;
 
     const blob = await processImage(
       image,
-      DEFAULT_EDGE_TREATMENT,
+      treatment({ bottom: edge({ enabled: true, tearDepth: 0.2, fadeWidth: 0.2 }) }),
       () => calls.push("grading"),
       () => calls.push("dof"),
-      () => calls.push("vignette"),
-      () => calls.push("texture"),
-      () => calls.push("brushMask"),
+      () => calls.push(`vignette:${edgeMasksSoFar()}`),
+      () => calls.push(`texture:${edgeMasksSoFar()}`),
+      () => calls.push(`brushMask:${edgeMasksSoFar()}`),
     );
 
-    expect(calls).toEqual(["grading", "dof", "texture", "vignette", "brushMask"]);
+    expect(calls).toEqual(["grading", "dof", "texture:0", "vignette:0", "brushMask:1"]);
     expect(blob).toBeInstanceOf(Blob);
   });
 

@@ -65,6 +65,11 @@ describe("roundBrushCells", () => {
     expect(result.has("-1,1")).toBe(false);
   });
 
+  it("includes a cell whose centre is exactly one radius away", () => {
+    // Cursor on the shared edge of cells 0 and 1 (x = 1.0 in cell units): both centres are 0.5 away, the 1-cell radius.
+    expect(roundBrushCells({ pixelX: 50, pixelY: 75, cellPx: 50, originX: 0, originY: 0, brushCells: 1 })).toEqual(new Set(["0,1", "1,1"]));
+  });
+
   it("returns empty set for non-positive cellPx", () => {
     expect(
       roundBrushCells({ pixelX: 0, pixelY: 0, cellPx: 0, originX: 0, originY: 0, brushCells: 3 }),
@@ -92,6 +97,12 @@ describe("cellBrushCells", () => {
     const expected = new Set<string>();
     for (let y = 0; y <= 2; y++) for (let x = 0; x <= 2; x++) expected.add(`${x},${y}`);
     expect(result).toEqual(expected);
+  });
+
+  it("measures from the map origin, not the canvas corner", () => {
+    // Cursor at canvas (275, 155) with the map drawn from (100, 30): (175/50, 125/50) = the centre of cell (3, 2).
+    expect(cellBrushCells({ pixelX: 275, pixelY: 155, cellPx: 50, originX: 100, originY: 30, brushCells: 1 })).toEqual(new Set(["3,2"]));
+    expect(roundBrushCells({ pixelX: 275, pixelY: 155, cellPx: 50, originX: 100, originY: 30, brushCells: 1 })).toEqual(new Set(["3,2"]));
   });
 
   it("clamps even brush sizes to the floor (4 → 3)", () => {
@@ -142,14 +153,22 @@ describe("featherEdges", () => {
     expect(edges.map((e) => e.side).sort()).toEqual(["bottom", "left"]);
   });
 
-  it("never produces an edge for the hidden cell itself", () => {
-    const mask = new Set(["0,0"]);
-    const edges = featherEdges(mask);
-    expect(edges.every((e) => mask.has(`${e.cellX},${e.cellY}`))).toBe(true);
+  it("feathers into the revealed cell, never the hidden neighbour", () => {
+    // The ruling: the feather is on the REVEALED side. One revealed cell has four hidden neighbours, four edges, all on it.
+    const edges = featherEdges(new Set(["0,0"]));
+    expect(edges).toHaveLength(4);
+    expect(edges.every((e) => e.cellX === 0 && e.cellY === 0)).toBe(true);
   });
 });
 
 describe("featherRect", () => {
+  it("puts the bottom and left feathers on their own sides of the cell", () => {
+    const bottom = featherRect({ cellX: 2, cellY: 3, side: "bottom" }, 50, 0, 0);
+    expect(bottom).toEqual({ x: 100, y: 175, w: 50, h: 25, gradient: { x0: 100, y0: 200, x1: 100, y1: 175 } });
+    const left = featherRect({ cellX: 2, cellY: 3, side: "left" }, 50, 0, 0);
+    expect(left).toEqual({ x: 100, y: 150, w: 25, h: 50, gradient: { x0: 100, y0: 150, x1: 125, y1: 150 } });
+  });
+
   it("places the top feather flush with the cell's top edge, fading downward", () => {
     const rect = featherRect({ cellX: 2, cellY: 3, side: "top" }, 50, 0, 0);
     expect(rect).toEqual({
@@ -201,6 +220,20 @@ describe("fogOpacityAt", () => {
     // whose other three borders are all revealed) stays at 0.
     expect(fogOpacityAt(50 + cellPx * FEATHER_FRACTION, 25, mask, cellPx, 0, 0)).toBe(0);
     expect(fogOpacityAt(50 + cellPx * 0.9, 25, mask, cellPx, 0, 0)).toBe(0);
+  });
+
+  it("feathers every side of a revealed cell, a quarter-cell in being half faded", () => {
+    // One revealed cell (5,5) = x,y in [250,300); a quarter of a cell is 12.5px from the edge it is measured from.
+    const mask = new Set(["5,5"]);
+    expect(fogOpacityAt(262.5, 275, mask, cellPx, 0, 0)).toBeCloseTo(0.5, 9); // left
+    expect(fogOpacityAt(287.5, 275, mask, cellPx, 0, 0)).toBeCloseTo(0.5, 9); // right
+    expect(fogOpacityAt(275, 262.5, mask, cellPx, 0, 0)).toBeCloseTo(0.5, 9); // top
+    expect(fogOpacityAt(275, 287.5, mask, cellPx, 0, 0)).toBeCloseTo(0.5, 9); // bottom
+    expect(fogOpacityAt(275, 275, mask, cellPx, 0, 0)).toBe(0); // the middle is clear
+  });
+
+  it("is fully fogged when the cell size is unusable, never revealed", () => {
+    expect(fogOpacityAt(10, 10, new Set(["0,0"]), 0, 0, 0)).toBe(1);
   });
 
   it("draws nothing anywhere inside a cell that is fully surrounded by revealed neighbours", () => {

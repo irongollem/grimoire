@@ -165,6 +165,62 @@ describe("buildRunCombatants", () => {
     expect(plain?.wildshape).toBeUndefined();
   });
 
+  it("walks a party member in with the HP, temp HP, death saves and faction the sheet had", () => {
+    const member = {
+      id: "pm-briar", name: "Briar", current_hp: 7, max_hp: 24, temp_hp: 5, conditions: [{ name: "Prone" }], curses: [],
+      death_save_successes: 2, death_save_failures: 1, dex: 14, con: 12, wis: 10, cha: 8,
+      ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
+      portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+    };
+    const encounter = { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: { "pm-briar": "neutral" }, combatants: [] };
+    const [pc] = buildRunCombatants(sources({ encounter, party: [member] }));
+    expect(pc).toMatchObject({
+      instance_id: "p-pm-briar", type: "player", faction_id: "neutral", initiative: null,
+      hp: 7, max_hp: 24, temp_hp: 5, death_saves: { successes: 2, failures: 1 }, dex_mod: 2,
+    });
+    expect(pc?.conditions).toEqual([{ name: "Prone" }]);
+    // The runner edits its own copy; the query cache's array is not shared with it.
+    expect(pc?.conditions).not.toBe(member.conditions);
+
+    const [fresh] = buildRunCombatants(sources({
+      encounter: { ...encounter, party_member_factions: {} },
+      party: [{ ...member, temp_hp: 0, death_save_successes: 0, death_save_failures: 0 }],
+    }));
+    expect(fresh?.faction_id).toBe("players");
+    expect(fresh?.temp_hp).toBeUndefined();
+  });
+
+  it("sits a companion on the party side unless the encounter says otherwise", () => {
+    const companion = { id: "c-1", name: "Nibbles", current_hp: 5, max_hp: 5, ac: 12, conditions: [], combat_ready: true, portrait_url: null, portrait_focal_point: null };
+    const encounter = { party_member_ids: [], companion_ids: ["c-1"], party_member_factions: {}, combatants: [] };
+    const [plain] = buildRunCombatants(sources({ encounter, companions: [companion] }));
+    expect(plain).toMatchObject({ instance_id: "c-c-1", companion_id: "c-1", faction_id: "players", ac: "12", hp: 5 });
+    const [turned] = buildRunCombatants(sources({ encounter: { ...encounter, party_member_factions: { "c-1": "enemy" } }, companions: [companion] }));
+    expect(turned?.faction_id).toBe("enemy");
+  });
+
+  it("starts a monster hidden, in its own faction, at its planned cell, as wide as its size", () => {
+    const [orc, orc2] = buildRunCombatants(sources({
+      encounter: {
+        party_member_ids: [], companion_ids: [], party_member_factions: {},
+        combatants: [slot({ faction_id: "neutral", count: 2, starting_positions: [{ x: 4, y: 7 }, null] })],
+      },
+      monsters: [monster({ image_url: "https://example.com/owlbear.webp" })],
+    }));
+    expect(orc).toMatchObject({ faction_id: "neutral", reveal_state: "hidden", position: { x: 4, y: 7 }, footprint: 2, portrait_url: "https://example.com/owlbear.webp", initiative: null });
+    expect(orc2?.position).toBeNull();
+  });
+
+  it("falls back to 1 HP for a monster whose hit points do not parse, and to 10 HP and AC 10 for an NPC with no stat block", () => {
+    const [m] = buildRunCombatants(sources({ monsters: [monster({ stat_block: statBlock({ hit_points: "" }) })] }));
+    expect(m).toMatchObject({ hp: 1, max_hp: 1 });
+    const npc = { id: "n-1", name: "Commoner", stat_block: null, portrait_url: null, portrait_focal_point: null, cutout_url: null };
+    const encounter = { party_member_ids: [], companion_ids: [], party_member_factions: {}, combatants: [slot({ id: "def-npc", monster_id: null, npc_id: "n-1", faction_id: "ally", count: 2, custom_name: "Guard" })] };
+    const npcs = buildRunCombatants(sources({ encounter, npcs: [npc], monsters: [] }));
+    expect(npcs.map((c) => c.name)).toEqual(["Guard 1", "Guard 2"]);
+    expect(npcs[0]).toMatchObject({ instance_id: "n-def-npc-0", hp: 10, max_hp: 10, ac: "10", faction_id: "ally", reveal_state: "hidden", footprint: 1 });
+  });
+
   it("snapshots the calculated AC, not a stored number", () => {
     const member = {
       id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, conditions: [], curses: [],

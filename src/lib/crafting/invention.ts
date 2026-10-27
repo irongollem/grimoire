@@ -196,8 +196,10 @@ export function inventionMechanicLine(m: InventionMechanic): string {
       return `Regains ${m.dice} hit points`;
     case "spell":
       return m.level === 0 ? `Casts ${m.name} (cantrip)` : `Casts ${m.name} (${ordinal(m.level)} level)`;
-    case "charges":
-      return m.recharge ? `${m.max} charges, recharge: ${m.recharge}` : `${m.max} charges`;
+    case "charges": {
+      const charges = `${m.max} ${m.max === 1 ? "charge" : "charges"}`;
+      return m.recharge ? `${charges}, recharge: ${m.recharge}` : charges;
+    }
     case "resistance":
       return `Resistance to ${m.damage_type} damage`;
     case "advantage":

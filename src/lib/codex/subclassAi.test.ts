@@ -57,8 +57,19 @@ for (const ruleset of ["2014", "2024"] as const) {
       expect(draft.base).not.toHaveProperty("resources");
     });
 
-    it("drops an implausible hp_per_level", () => {
-      expect(subclassDraftFromAi({ subclass_name: "X", features: [f(3, "A")], hp_per_level: 9 }, ctx).base.hp_per_level).toBeNull();
+    it("keeps an hp_per_level of 1 or 2 and drops 0, 3 or worse", () => {
+      const hpOf = (hp: unknown) => subclassDraftFromAi({ subclass_name: "X", features: [f(3, "A")], hp_per_level: hp }, ctx).base.hp_per_level;
+      expect([hpOf(1), hpOf(2), hpOf("2")]).toEqual([1, 2, 2]);
+      expect([hpOf(0), hpOf(3), hpOf(9), hpOf("lots")]).toEqual([null, null, null, null]);
+    });
+
+    it("caps a name at 80 characters and three features on one level", () => {
+      const draft = subclassDraftFromAi(
+        { subclass_name: "N".repeat(90), features: [1, 2, 3, 4].map((n) => f(3, `F${n}`)) },
+        ctx,
+      );
+      expect(draft.base.subclass_name).toHaveLength(80);
+      expect(draft.features.map((x) => ("insert" in x ? x.insert.name : ""))).toEqual(["F1", "F2", "F3"]);
     });
   });
 }
@@ -79,5 +90,7 @@ describe("subclassFeatureLevels", () => {
     expect(homebrew(3)).toEqual([3, 6, 10, 14]);
     expect(homebrew(1)).toEqual([1, 6, 10, 14]);
     expect(homebrew(6)).toEqual([6, 10, 14]);
+    expect(homebrew(0)).toEqual([1, 6, 10, 14]);
+    expect(homebrew(25)).toEqual([20]);
   });
 });

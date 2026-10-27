@@ -52,8 +52,10 @@ describe("queryStore", () => {
     await store.put(rec("mine-old", { userId: "u", savedAt: 50 }));
     await store.put(rec("before-user", { userId: "a", savedAt: 500 }));
     await store.put(rec("after-user", { userId: "z", savedAt: 500 }));
+    await store.put(rec("mine-at-cutoff", { userId: "u", savedAt: 100 }));
     await store.prune("u", 100);
     expect(await store.get("mine-fresh")).toBeDefined();
+    expect(await store.get("mine-at-cutoff")).toBeDefined();
     expect(await store.get("mine-old")).toBeUndefined();
     expect(await store.get("before-user")).toBeUndefined();
     expect(await store.get("after-user")).toBeUndefined();

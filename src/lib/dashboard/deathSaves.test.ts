@@ -101,10 +101,27 @@ describe("deriveDyingPartyMembers", () => {
 
   it("sorts the dead ahead of the merely dying, then by closeness to death", () => {
     const party = [
+      member({ id: "fresh", current_hp: 0, death_save_failures: 0 }),
       member({ id: "close", current_hp: 0, death_save_failures: 2 }),
       member({ id: "dead", current_hp: 0, death_save_failures: 3 }),
-      member({ id: "fresh", current_hp: 0, death_save_failures: 0 }),
     ];
     expect(deriveDyingPartyMembers(party).map((m) => m.id)).toEqual(["dead", "close", "fresh"]);
+  });
+
+  it("carries the portrait and its focal point, a missing focal point as null", () => {
+    const framed = member({
+      id: "a",
+      current_hp: 0,
+      portrait_url: "https://cdn.example/a.webp",
+      portrait_focal_point: { x: 0.25, y: 0.75 },
+    });
+    // A row read before focal points existed has the field undefined.
+    const unframed = { ...member({ id: "b", current_hp: 0 }), portrait_focal_point: undefined } as unknown as PartyMember;
+    const [a, b] = deriveDyingPartyMembers([framed, unframed]);
+    expect(a).toMatchObject({
+      portraitUrl: "https://cdn.example/a.webp",
+      portraitFocalPoint: { x: 0.25, y: 0.75 },
+    });
+    expect(b.portraitFocalPoint).toBeNull();
   });
 });

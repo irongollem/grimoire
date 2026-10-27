@@ -26,6 +26,8 @@ describe("pickerName", () => {
     expect(pickerName({ number: 13, title: null })).toBe("Session 13");
     expect(pickerName({ number: null, title: " Bells " })).toBe("Bells");
     expect(pickerName({ number: null, title: null })).toBe("Unnumbered session");
+    // Session zero is a real session, not a missing number.
+    expect(pickerName({ number: 0, title: null })).toBe("Session 0");
   });
 });
 
@@ -53,6 +55,15 @@ describe("sessionPickerOptions", () => {
     expect(options.find((o) => o.id === "mid")?.state).toBe("no-note");
   });
 
+  it("calls a session that has started and ended finished, not running", () => {
+    const finished = row("f", "2026-03-01", { started_at: "2026-03-01T18:00:00Z", ended_at: "2026-03-01T22:00:00Z" });
+    expect(sessionPickerOptions([finished], [], null)[0]?.state).toBe("no-note");
+  });
+
+  it("shows no day for an unreadable date", () => {
+    expect(sessionPickerOptions([row("bad", "not-a-date")], [], null)[0]?.day).toBe("");
+  });
+
   it("shows no day for a session with neither a start nor a played date", () => {
     const undated = row("u", "2026-03-01", { played_on: null, created_at: "2026-05-05T10:00:00Z" });
     expect(sessionPickerOptions([undated], [], null)[0]?.day).toBe("");
@@ -70,6 +81,17 @@ describe("previousSessionNote", () => {
   it("orders by the log, not by number", () => {
     const log = [row("a", "2026-01-01", { number: 9 }), row("b", "2026-02-01", { number: 2 })];
     expect(previousSessionNote([dated("na", "a"), dated("nb", "b")], log)?.id).toBe("nb");
+  });
+  it("skips a session that is still running and offers the one before it", () => {
+    const log = [
+      row("done", "2026-01-01", { number: 1, started_at: "2026-01-01T18:00:00Z", ended_at: "2026-01-01T22:00:00Z" }),
+      row("live", "2026-02-01", { number: 2, started_at: "2026-02-01T18:00:00Z" }),
+    ];
+    expect(previousSessionNote([dated("nd", "done"), dated("nl", "live")], log)?.id).toBe("nd");
+  });
+  it("ignores a note of another category even when it carries a session and dates", () => {
+    const other = { ...dated("x", "a"), category: "general" } as Note;
+    expect(previousSessionNote([other], [row("a", "2026-01-01")])).toBeNull();
   });
   it("is null with no dated session note", () => {
     expect(previousSessionNote([], [row("a", "2026-01-01")])).toBeNull();

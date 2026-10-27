@@ -152,6 +152,70 @@ describe("planOfficialClassContent", () => {
     expect(sourceKeyForDocument("tdcs", [{ key: "taldorei", open5e_key: "tdcs", is_redistributable: false }])).toBeNull();
   });
 
+  it("skips a feat of an unknown book too, and lists skipped books sorted", () => {
+    const feat: Open5eV2Feat = { key: "mystery_alert", name: "Alert", desc: "d", prerequisite: "", type: null, benefits: [], document: unknownBook };
+    const other = { ...unknownBook, key: "another", name: "Another" };
+    const result = plan({ feats: [feat], classes: [fighter(other)] });
+    expect(result.features).toEqual([]);
+    expect(result.skippedDocuments).toEqual(["another", "mystery"]);
+  });
+
+  it("reads a non-SRD class's hit die as d6, d8, d10 or d12 and defaults anything else to d8", () => {
+    const hitDie = (hit_dice: string) =>
+      plan({ classes: [fighter(taldorei, { name: "Blood Hunter", key: "tdcs_bh", hit_dice })] }).classes[0]?.insert.hit_die;
+    expect([hitDie("D6"), hitDie("d12"), hitDie("D10")]).toEqual([6, 12, 10]);
+    expect([hitDie("D7"), hitDie("D20"), hitDie("none")]).toEqual([8, 8, 8]);
+  });
+
+  it("skips a class with no hit dice, and a class listed twice is planned once", () => {
+    expect(plan({ classes: [fighter(taldorei, { key: "tdcs_x", hit_dice: null })] }).classes).toEqual([]);
+    const twice = plan({ classes: [fighter(srd2014), fighter(srd2014)] });
+    expect(twice.systemClasses).toHaveLength(1);
+  });
+
+  it("sends a 2024 SRD class to its 2024 system class, and only when that edition has one", () => {
+    const sys = [{ id: "sys-2024", ruleset: "2024" as const, class_name: "fighter" }];
+    expect(plan({ classes: [fighter(srd2024)], systemClasses: sys }).systemClasses).toMatchObject([{ systemClassId: "sys-2024", ruleset: "2024" }]);
+    // The only system Fighter is a 2014 one: a 2024 Fighter must not be wired to it.
+    const wrongEdition = plan({ classes: [fighter(srd2024)] });
+    expect(wrongEdition.systemClasses).toEqual([]);
+    expect(wrongEdition.classes).toHaveLength(1);
+  });
+
+  it("keeps a class's saving throws and refreshes only its chassis columns on a re-import", () => {
+    const [cls] = plan({ classes: [fighter(taldorei, { name: "Blood Hunter", key: "tdcs_bh" })] }).classes;
+    expect(cls?.insert.saving_throws).toEqual(["Strength"]);
+    // The progression is filled in by hand afterwards, so a re-import must leave it out.
+    expect(Object.keys(cls?.update ?? {}).sort()).toEqual([
+      "class_name", "conceptual_key", "hit_die", "provenance", "ruleset", "saving_throws", "source",
+      "source_document_key", "source_license", "source_record_key", "source_revision",
+    ]);
+  });
+
+  it("gives a subclass with no description a null one", () => {
+    const sub: Open5eV2Class = { key: "srd-2024_x", name: "X", desc: "", hit_dice: null, saving_throws: [], subclass_of: { key: "srd-2024_fighter", name: "Fighter" }, document: srd2024, features: [] };
+    expect(plan({ classes: [sub] }).subclasses[0]?.insert.description).toBeNull();
+  });
+
+  it("ignores gained levels that are not whole positive numbers, and a feature gained at none", () => {
+    const messy = fighter(srd2014, {
+      features: [
+        { key: "k_odd", name: "Odd", desc: "d", feature_type: "CLASS_LEVEL_FEATURE", gained_at: [{ level: 0, detail: null }, { level: 2.5, detail: null }, { level: 3, detail: null }] },
+        { key: "k_never", name: "Never", desc: "d", feature_type: "CLASS_LEVEL_FEATURE", gained_at: [] },
+      ],
+    });
+    const result = plan({ classes: [messy] });
+    expect(Object.keys(result.systemClasses[0]?.featureMap ?? {})).toEqual(["3"]);
+    expect(result.features.map(f => f.insert.name)).toEqual(["Odd"]);
+  });
+
+  it("plans a feature listed twice once, under its level once", () => {
+    const wind = { key: "k_wind", name: "Second Wind", desc: "d", feature_type: "CLASS_LEVEL_FEATURE" as const, gained_at: [{ level: 1, detail: null }] };
+    const result = plan({ classes: [fighter(srd2014, { features: [wind, wind] })] });
+    expect(result.features).toHaveLength(1);
+    expect(result.systemClasses[0]?.featureMap["1"]).toHaveLength(1);
+  });
+
   it("builds a subclass whose features sit at every level they are gained", () => {
     const subclass: Open5eV2Class = {
       key: "srd-2024_fighter_champion",
@@ -317,6 +381,18 @@ describe("planOfficialClassContent", () => {
       expect(JSON.parse(row.insert.description!).content[1].type).toBe("bulletList");
     });
 
+    it("plans a feat listed twice once, and leaves no empty bullet for a benefit without text", () => {
+      const withEmpty = { ...feat("srd-2024_alert", null, srd2024), benefits: [{ desc: "One." }, { desc: "" }] };
+      const result = plan({ feats: [withEmpty, withEmpty] });
+      expect(result.features).toHaveLength(1);
+      const list = JSON.parse(result.features[0]!.insert.description!).content[1];
+      expect(list.content).toHaveLength(1);
+    });
+
+    it("maps no category for a 2024 type the book does not list", () => {
+      expect(plan({ feats: [feat("srd-2024_alert", "Something Else", srd2024)] }).features[0]?.insert.feat_category).toBeNull();
+    });
+
     it("gives a 2014 feat no category", () => {
       const result = plan({ feats: [feat("srd-2014_alert", "GENERAL", srd2014)] });
       expect(result.features[0].insert.feat_category).toBeNull();
@@ -366,6 +442,24 @@ describe("planOfficialClassContent", () => {
     expect(result.features.find(f => f.insert.name === "Second Wind")!.existingId).toBe("f-wind");
     expect(result.features.find(f => f.insert.name === "Ability Score Improvement")!.existingId).toBeNull();
     expect(result.notListed).toEqual({ features: 1, subclasses: 1, classes: 0 });
+  });
+
+  it("matches an existing row only on book, record and edition together", () => {
+    const wind = "srd-2014_fighter_second-wind";
+    const result = plan({
+      classes: [fighter(srd2014)],
+      existing: {
+        features: [
+          { id: "other-edition", source_document_key: "srd-2014", source_record_key: wind, ruleset: "2024" },
+          { id: "half-keyed", source_document_key: "srd-2014", source_record_key: null, ruleset: "2014" },
+        ],
+        subclasses: [],
+        classes: [],
+      },
+    });
+    expect(result.features.find(f => f.insert.name === "Second Wind")!.existingId).toBeNull();
+    // Only the row with both keys is an identity the source could list; the half-keyed one is not counted missing.
+    expect(result.notListed.features).toBe(1);
   });
 });
 
@@ -447,9 +541,6 @@ describe("mergeImportedFeature", () => {
     expect(kept).toEqual([]);
   });
 
-  it("owns exactly the eight documented fields", () => {
-    expect([...IMPORT_OWNED_FIELDS]).toHaveLength(8);
-  });
 });
 
 describe("jsonEqual", () => {
@@ -457,6 +548,8 @@ describe("jsonEqual", () => {
     expect(jsonEqual({ a: 1, b: { c: [1, 2] } }, { b: { c: [1, 2] }, a: 1 })).toBe(true);
     expect(jsonEqual([1, 2], [2, 1])).toBe(false);
     expect(jsonEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+    expect(jsonEqual([1, 2], [1, 2, 3])).toBe(false);
+    expect(jsonEqual([], {})).toBe(false);
   });
 });
 

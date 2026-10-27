@@ -11,10 +11,20 @@ function mount<T extends HTMLElement>(html: string): T {
   return document.body.firstElementChild as T;
 }
 
+/** Make an element answer `:focus-visible`, as a control a keyboard user tabbed to does. */
+function keyboardFocused<T extends HTMLElement>(el: T): T {
+  const original = el.matches.bind(el);
+  Object.defineProperty(el, "matches", { value: (sel: string) => (sel === ":focus-visible" ? true : original(sel)) });
+  return el;
+}
+
 describe("isTextEntry", () => {
-  it("is true for inputs and textareas and false for other elements and null", () => {
+  it("is true for inputs, textareas and contenteditable, false for other elements and null", () => {
     expect(isTextEntry(mount("<input>"))).toBe(true);
     expect(isTextEntry(mount("<textarea></textarea>"))).toBe(true);
+    const editable = mount<HTMLElement>("<div></div>");
+    Object.defineProperty(editable, "isContentEditable", { value: true });
+    expect(isTextEntry(editable)).toBe(true);
     expect(isTextEntry(mount("<div></div>"))).toBe(false);
     expect(isTextEntry(null)).toBe(false);
   });
@@ -35,11 +45,19 @@ describe("targetKeepsSpace", () => {
     expect(targetKeepsSpace(mount("<button>Tool</button>"))).toBe(false);
   });
 
-  it("keeps Space for a control a keyboard user tabbed to", () => {
-    const button = mount<HTMLButtonElement>("<button>Tool</button>");
-    const original = button.matches.bind(button);
-    Object.defineProperty(button, "matches", { value: (sel: string) => (sel === ":focus-visible" ? true : original(sel)) });
-    expect(targetKeepsSpace(button)).toBe(true);
+  it.each([
+    ["a button", "<button>Tool</button>"],
+    ["a link", '<a href="/x">Go</a>'],
+    ["a select", "<select><option>a</option></select>"],
+    ["a switch", '<div role="switch"></div>'],
+    ["a checkbox", '<div role="checkbox"></div>'],
+    ["a tab", '<div role="tab"></div>'],
+  ])("keeps Space for %s a keyboard user tabbed to", (_name, html) => {
+    expect(targetKeepsSpace(keyboardFocused(mount(html)))).toBe(true);
+  });
+
+  it("still pans on a keyboard-focused element that is not a control, such as the canvas itself", () => {
+    expect(targetKeepsSpace(keyboardFocused(mount('<div tabindex="0"></div>')))).toBe(false);
   });
 
   it("does not throw where :focus-visible is unknown", () => {

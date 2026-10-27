@@ -105,4 +105,20 @@ describe("createSessionRecovery", () => {
 
     expect(h.hasUsableSession).toHaveBeenCalledTimes(2);
   });
+
+  // Window edges: 30s after the last attempt is still the same burst, one millisecond more is not.
+  it.each([
+    [30_000, 1],
+    [30_001, 0],
+  ])("a pause of %ims after three recoveries signs out %i times", async (pause, signOuts) => {
+    const h = harness({ sessions: [true, true, true, true] });
+    for (let i = 0; i < 3; i++) {
+      h.recover();
+      await h.settle();
+    }
+    h.advance(pause);
+    h.recover();
+    await h.settle();
+    expect(h.signOutAndRedirect).toHaveBeenCalledTimes(signOuts);
+  });
 });

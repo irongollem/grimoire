@@ -124,6 +124,17 @@ describe("groupPerCharacter", () => {
 });
 
 describe("quest steps", () => {
+  it("words an unknown step as a move, and drops a blank beat title", () => {
+    expect(questStepLine("teleport", "The Tower")).toBe("Moved to · The Tower");
+    expect(questStepLine("forward", "   ")).toBe("Advanced");
+  });
+
+  it("keeps one quest's steps in different sessions apart", () => {
+    const step = (id: string, sessionId: string, seq: number) => ({ id, questId: "q1", questTitle: "Into the Mere", beatTitle: null, transitionKind: "forward", createdAt: "2026-10-01T19:00:00Z", seq, sessionId });
+    const entries = groupQuestSteps([step("t1", "s1", 1), step("t2", "s2", 2)]);
+    expect(entries.map((e) => e.sessionId).sort()).toEqual(["s1", "s2"]);
+  });
+
   it("words each step", () => {
     expect(questStepLine("enter", "The Mere")).toBe("Began · The Mere");
     expect(questStepLine("forward", "The Tower")).toBe("Advanced · The Tower");
@@ -164,6 +175,12 @@ describe("suggestSession", () => {
     expect(suggestSession("2026-10-04T19:00:00Z", log)).toEqual({ sessionId: "s12", label: "Session 12?" });
   });
 
+  it("a span holds its first instant and not its last", () => {
+    expect(suggestSession("2026-10-04T18:00:00Z", log)).toEqual({ sessionId: "s12", label: "Session 12?" });
+    // Session 11 ended at 22:00; the moment it ended belongs to the next one, not to it.
+    expect(suggestSession("2026-09-20T22:00:00Z", log)).toEqual({ sessionId: "s12", label: "Session 12 (next)?" });
+  });
+
   it("takes a running session for a moment after it began", () => {
     const running = session({ id: "s13", number: 13, started_at: "2026-10-10T18:00:00Z" });
     expect(suggestSession("2026-10-11T01:00:00Z", [...log, running])?.sessionId).toBe("s13");
@@ -184,6 +201,19 @@ describe("suggestSession", () => {
   it("covers the whole day of a session logged by hand", () => {
     const past = session({ id: "p", number: 3, played_on: "2026-08-15" });
     expect(suggestSession("2026-08-15T12:00:00", [past])?.sessionId).toBe("p");
+  });
+
+  it("a day logged by hand holds the whole of that day, not just its morning", () => {
+    const past = session({ id: "p", number: 3, played_on: "2026-08-15" });
+    const later = session({ id: "q", number: 4, played_on: "2026-08-20" });
+    expect(suggestSession("2026-08-15T23:30:00", [past, later])).toEqual({ sessionId: "p", label: "Session 3?" });
+  });
+
+  it("names session zero, and calls a blank title unnumbered", () => {
+    const zero = session({ id: "z", number: 0, started_at: "2026-10-04T18:00:00Z", ended_at: "2026-10-04T22:00:00Z" });
+    expect(suggestSession("2026-10-04T19:00:00Z", [zero])?.label).toBe("Session 0?");
+    const blank = session({ id: "b", title: "  ", started_at: "2026-10-04T18:00:00Z", ended_at: "2026-10-04T22:00:00Z" });
+    expect(suggestSession("2026-10-04T19:00:00Z", [blank])?.label).toBe("Unnumbered session?");
   });
 
   it("names an unnumbered session by its title", () => {

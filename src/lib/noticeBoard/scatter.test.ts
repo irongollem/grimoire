@@ -69,6 +69,18 @@ describe("scatterBoard", () => {
     }
   });
 
+  // One poster hung at 420, 320 board units: a padded 30-unit margin takes the cell centred at (400, 320).
+  it("clears the cells under a pin and a margin around it, and only those", () => {
+    const pin: PinSlot = { style: "poster", size: "sm", x: 420 / BOARD_W, y: 320 / BOARD_H };
+    const { free, total } = freeCells([pin]);
+    const isFree = (x: number, y: number) => free.some((c) => c.x === x && c.y === y);
+    expect(isFree(400, 320), "inside the margin left of the pin").toBe(false);
+    expect(isFree(480, 360), "under the pin").toBe(false);
+    expect(isFree(480, 800), "well below the pin, same columns").toBe(true);
+    expect(isFree(960, 360), "well right of the pin, same rows").toBe(true);
+    expect(free.length).toBeLessThan(total);
+  });
+
   it("measures free space inside the frame only", () => {
     const { free, total } = freeCells([]);
     expect(free).toHaveLength(total);

@@ -34,6 +34,17 @@ describe("describeStructure", () => {
     expect(describeStructure(s).summary).toBe("-1 to hit · range 80/320 ft · 1");
   });
 
+  it("writes a zero bonus and a zero reach, and a range with no long band", () => {
+    const at = (attack: Partial<NonNullable<ActionStructure["attack"]>>): ActionStructure => ({
+      ...base,
+      kind: "attack",
+      attack: { delivery: "melee", bonus: 0, hit: [], ...attack },
+    });
+    expect(describeStructure(at({})).summary).toBe("+0 to hit");
+    expect(describeStructure(at({ reach: 0 })).summary).toBe("+0 to hit · reach 0 ft");
+    expect(describeStructure(at({ delivery: "ranged", range: { normal: 30 } })).summary).toBe("+0 to hit · range 30 ft");
+  });
+
   it("describes a save with half damage and a condition", () => {
     const s: ActionStructure = {
       ...base,
@@ -151,6 +162,24 @@ describe("describeStructure options", () => {
       "One of: Fire Breath (DC 15 Dex save · 12d6 fire, half on success) · Sleep Breath (DC 15 Con save · Unconscious)",
     );
     expect(d.badges).toEqual(["Recharge 5–6"]);
+  });
+
+  it("rolls nothing for an options entry with no options", () => {
+    expect(describeStructure({ source: "parsed", kind: "options", options: [] })).toEqual({ summary: null, badges: [] });
+  });
+
+  it("reads an option by its kind: an attack option shows its attack, a save option its save", () => {
+    const attack = { delivery: "melee" as const, bonus: 3, hit: [] };
+    const save = { ability: "dex" as const, dc: 11, fail: [], success: "none" as const, conditions: [] };
+    const d = describeStructure({
+      source: "parsed",
+      kind: "options",
+      options: [
+        { name: "Strike", kind: "attack", attack, save },
+        { name: "Burst", kind: "save", attack, save },
+      ],
+    });
+    expect(d.options?.map((o) => o.summary)).toEqual(["+3 to hit · DC 11 Dex save", "DC 11 Dex save"]);
   });
 
   it("describes an attack option and exposes saveLabel", () => {

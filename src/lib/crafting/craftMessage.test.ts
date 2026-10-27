@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { craftChatMessage, outcomeDetail, outcomeLabel, outputDisplayNames, type CraftMessageInput } from "./craftMessage";
+import { craftBonus, craftChatMessage, outcomeDetail, outcomeLabel, outputDisplayNames, rolledLine, type CraftMessageInput } from "./craftMessage";
 
 const base: CraftMessageInput = {
   memberName: "Brann",
@@ -71,5 +71,22 @@ describe("outcome text", () => {
       { item_id: "z", library_item_id: null, quantity: 1 },
     ] as unknown as Parameters<typeof outputDisplayNames>[0];
     expect(outputDisplayNames(outs, (r) => (r === "a" ? "Ale" : undefined))).toEqual(["2× Ale", "item"]);
+  });
+});
+
+describe("the roll's bonus", () => {
+  it("adds proficiency only when held, plus every ticked modifier", () => {
+    // PHB 2014 "Proficiency Bonus": added only to checks the character is proficient in.
+    expect(craftBonus(2, 3, true, [1, -2])).toBe(4);
+    expect(craftBonus(2, 3, false, [1, -2])).toBe(1);
+  });
+
+  it("writes a zero bonus as + 0 and a negative one as - n", () => {
+    expect(rolledLine({ roll: 14, total: 14, hasDisadvantage: false }, 0, 15)).toBe("Rolled 14 + 0 = 14 against DC 15");
+    expect(rolledLine({ roll: 9, total: 6, hasDisadvantage: false }, -3, 12)).toBe("Rolled 9 - 3 = 6 against DC 12");
+  });
+
+  it("shows both dice when rolled with disadvantage, and the one taken", () => {
+    expect(rolledLine({ roll: 4, roll2: 15, total: 6, hasDisadvantage: true }, 2, 12)).toBe("Rolled 15 and 4, took 4 + 2 = 6 against DC 12");
   });
 });

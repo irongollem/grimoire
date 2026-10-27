@@ -120,6 +120,14 @@ describe("climateAt", () => {
     expect(climateAt(places, "world", "warm")).toEqual({ climate: "warm", sourceId: null });
   });
 
+  it("skips a stored climate it does not know and keeps walking up", () => {
+    const stale = new Map([
+      place("realm", null, "cold"),
+      ["bog", { id: "bog", parent_id: "realm", climate: "swamp" as unknown as Climate }] as [string, ClimatePlace],
+    ]);
+    expect(climateAt(stale, "bog", "warm")).toEqual({ climate: "cold", sourceId: "realm" });
+  });
+
   it("survives a cycle", () => {
     expect(climateAt(places, "a", "arid")).toEqual({ climate: "arid", sourceId: null });
   });

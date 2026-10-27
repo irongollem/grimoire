@@ -3,7 +3,6 @@ import {
   downtimeRewardHref,
   pendingRewardLabel,
   isResolvableRewardType,
-  RESOLVABLE_REWARD_TYPES,
 } from "./downtimeReward";
 import { DOWNTIME_REWARD_TYPES } from "@/types/downtime.types";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
@@ -56,9 +55,9 @@ describe("RESOLVABLE_REWARD_TYPES", () => {
     }
   });
 
-  it("is a subset of the reward vocabulary", () => {
-    for (const type of RESOLVABLE_REWARD_TYPES) {
-      expect(DOWNTIME_REWARD_TYPES).toContain(type);
-    }
+  it("leaves spell, quest and faction rewards unresolved, since nothing looks them up", () => {
+    expect(isResolvableRewardType("spell")).toBe(false);
+    expect(isResolvableRewardType("quest")).toBe(false);
+    expect(isResolvableRewardType("faction")).toBe(false);
   });
 });

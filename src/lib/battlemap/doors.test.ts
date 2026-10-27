@@ -56,8 +56,9 @@ describe("toggleDoor", () => {
     ]);
   });
 
-  it("ignores an edge that is not a door", () => {
-    expect(toggleDoor(drawn, [], "0,0:N")).toEqual([]);
+  it("ignores an edge that is not a door, keeping the overrides it has", () => {
+    const start = [{ edge: "5,4:W", open: false }];
+    expect(toggleDoor(drawn, start, "0,0:N")).toEqual(start);
   });
 });
 

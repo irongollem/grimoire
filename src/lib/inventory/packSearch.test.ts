@@ -102,7 +102,7 @@ describe("matching", () => {
   it("is inactive with no query and no chip", () => {
     expect(isSearchActive(none)).toBe(false);
     expect(isSearchActive({ ...none, query: "  " })).toBe(false);
-    expect(isSearchActive({ ...none, magic: true })).toBe(true);
+    for (const chip of ["attuned", "magic", "cursed"] as const) expect(isSearchActive({ ...none, [chip]: true })).toBe(true);
   });
 });
 
@@ -113,6 +113,13 @@ describe("highlightParts", () => {
       { text: "Heal", hit: true },
       { text: "ing", hit: false },
     ]);
+  });
+  it("leaves no empty piece before a hit at the start or after one at the end", () => {
+    expect(highlightParts("Healing", "heal")).toEqual([
+      { text: "Heal", hit: true },
+      { text: "ing", hit: false },
+    ]);
+    expect(highlightParts("Heal", "heal")).toEqual([{ text: "Heal", hit: true }]);
   });
   it("returns the text whole with no query", () => {
     expect(highlightParts("Rope", " ")).toEqual([{ text: "Rope", hit: false }]);
@@ -127,6 +134,10 @@ describe("wherePhrase", () => {
     expect(wherePhrase(row({ location: "belt" }), [])).toBe("belt");
     expect(wherePhrase(row({ location: "stored" }), [])).toBe("stored elsewhere");
     expect(wherePhrase(row({ location: "container", container_id: "bag" }), [bag])).toBe("in the Bag of Holding");
+  });
+  it("does not name a holder that is not a container", () => {
+    const crate = row({ id: "crate", name: "Crate" });
+    expect(wherePhrase(row({ location: "container", container_id: "crate" }), [crate])).toBe("stored elsewhere");
   });
   it("calls a row whose container is gone stored elsewhere", () => {
     expect(wherePhrase(row({ location: "container", container_id: "gone" }), [])).toBe("stored elsewhere");
@@ -160,6 +171,30 @@ describe("runPackSearch", () => {
     expect(r.lines[0].where).toEqual(["the stash"]);
     expect(r.packs).toBe(4);
     expect(answerSentence(r)).toBe("5 things, in 4 packs.");
+  });
+
+  it("lists the stash first, then packs in party order, whatever order the rows came in", () => {
+    const shuffled = [
+      row({ name: "Arrow", carried_by: "mara" }),
+      row({ name: "Arrow", carried_by: "dorn" }),
+      row({ name: "Arrow", carried_by: null }),
+      row({ name: "Arrow", carried_by: "ilse" }),
+    ];
+    const r = runPackSearch(shuffled, members, { ...none, query: "arrow" }, ctx);
+    expect(r.lines[0].where).toEqual(["the stash", "Ilse, backpack", "Dorn, backpack", "Mara, backpack"]);
+  });
+
+  it("orders the answer lines by name, not by who holds them", () => {
+    const mixed = [row({ name: "Zebra pelt", carried_by: null }), row({ name: "Arrow", carried_by: "ilse" })];
+    expect(runPackSearch(mixed, members, { ...none, query: "a" }, ctx).lines.map((l) => l.name)).toEqual(["Arrow", "Zebra pelt"]);
+  });
+
+  it("counts a pack once however many matches it holds, and keeps places in one pack apart", () => {
+    const two = [row({ name: "Arrow", location: "belt" }), row({ name: "Arrow", location: "backpack" })];
+    const r = runPackSearch(two, members, { ...none, query: "arrow" }, ctx);
+    expect(r.packs).toBe(1);
+    expect(r.things).toBe(2);
+    expect(r.lines[0].where).toEqual(["Ilse, belt", "Ilse, backpack"]);
   });
 
   it("merges two stacks in the same place", () => {

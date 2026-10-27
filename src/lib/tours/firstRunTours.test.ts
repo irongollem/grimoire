@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, it, expect, afterEach } from "vitest";
+import type { RouteRecordRaw } from "vue-router";
+import { routes } from "@/router/routes";
 import {
-  TOUR_FLAG_KEY,
   parseTourFlag,
   tourTargetRouteName,
   firstAnchorSelector,
@@ -36,17 +38,64 @@ describe("parseTourFlag", () => {
   });
 });
 
+function routeNames(list: readonly RouteRecordRaw[]): string[] {
+  return list.flatMap((r) => [...(typeof r.name === "string" ? [r.name] : []), ...routeNames(r.children ?? [])]);
+}
+
 describe("tourTargetRouteName", () => {
-  it("maps each tour kind to the route it waits for", () => {
-    expect(tourTargetRouteName("dm")).toBe("dashboard");
-    expect(tourTargetRouteName("player")).toBe("play-home");
+  // The tour waits for this route; a name the router does not have means it never starts.
+  it.each(["dm", "player"] as const)("waits for a route that exists, for the %s tour", (kind) => {
+    expect(routeNames(routes)).toContain(tourTargetRouteName(kind));
   });
 });
 
-describe("firstAnchorSelector", () => {
-  it("returns the first step's selector for each tour", () => {
-    expect(firstAnchorSelector("dm")).toBe('[data-tour="dm-party"]');
-    expect(firstAnchorSelector("player")).toBe('[data-tour="character-pool"]');
+/** Every `data-tour="x"` or `tour="x"` the app's templates put on an element. */
+function anchorsInTemplates(): Set<string> {
+  const found = new Set<string>();
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith(".vue")) {
+        for (const m of readFileSync(path, "utf8").matchAll(/\b(?:data-)?tour="([a-z-]+)"/g)) found.add(m[1]);
+      }
+    }
+  };
+  walk(`${process.cwd()}/src`);
+  return found;
+}
+
+describe("the tours' anchors", () => {
+  // A step whose anchor was renamed away is silently dropped by the visibility filter,
+  // so nothing else fails. Ask each tour for every step with a root that finds everything.
+  const askedFor = (kind: "dm" | "player") => {
+    const everything = document.createElement("div");
+    const anchor = document.createElement("div");
+    makeVisible(anchor);
+    const selectors: string[] = [];
+    everything.querySelector = ((selector: string) => {
+      selectors.push(selector);
+      return anchor;
+    }) as typeof everything.querySelector;
+    return { steps: buildTourSteps(kind, everything), selectors };
+  };
+
+  it.each(["dm", "player"] as const)("keeps the %s tour within the 4 to 6 step budget", (kind) => {
+    const { steps } = askedFor(kind);
+    expect(steps.length).toBeGreaterThanOrEqual(4);
+    expect(steps.length).toBeLessThanOrEqual(6);
+  });
+
+  it.each(["dm", "player"] as const)("opens the %s tour on the anchor it waits for", (kind) => {
+    expect(firstAnchorSelector(kind)).toBe(askedFor(kind).selectors[0]);
+  });
+
+  it.each(["dm", "player"] as const)("points every %s step at an anchor some template still carries", (kind) => {
+    const templates = anchorsInTemplates();
+    for (const selector of askedFor(kind).selectors) {
+      const name = /^\[data-tour="([a-z-]+)"\]$/.exec(selector)?.[1];
+      if (name !== undefined) expect(templates.has(name), `${kind} tour anchor ${name}`).toBe(true);
+    }
   });
 });
 
@@ -68,6 +117,17 @@ describe("isAnchorAvailable", () => {
     document.body.appendChild(el);
     makeVisible(el);
     expect(isAnchorAvailable('[data-tour="real-thing"]')).toBe(true);
+  });
+
+  it.each([
+    ["width", { width: 10, height: 0 }],
+    ["height", { width: 0, height: 10 }],
+  ])("is true when only the %s is non-zero", (_axis, size) => {
+    const el = document.createElement("div");
+    el.setAttribute("data-tour", "thin");
+    document.body.appendChild(el);
+    el.getBoundingClientRect = () => ({ ...size, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    expect(isAnchorAvailable('[data-tour="thin"]')).toBe(true);
   });
 
   it("can be scoped to a root other than document", () => {
@@ -134,25 +194,6 @@ describe("filterAvailableSteps", () => {
 });
 
 describe("buildTourSteps", () => {
-  it("stays within the 4-6 step budget for both tours regardless of what's mounted", () => {
-    // All anchors present and visible — the upper bound.
-    for (const selector of [
-      '[data-tour="dm-party"]', '[data-tour="dm-quests"]', '[data-tour="dm-session"]', '[data-tour="account-menu"]',
-    ]) {
-      const el = document.createElement("div");
-      el.setAttribute("data-tour", selector.replace(/\[data-tour="(.+)"\]/, "$1"));
-      document.body.appendChild(el);
-      makeVisible(el);
-    }
-    const asideNav = document.createElement("nav");
-    document.body.appendChild(document.createElement("aside")).appendChild(asideNav);
-    makeVisible(asideNav);
-
-    const dmSteps = buildTourSteps("dm");
-    expect(dmSteps.length).toBeGreaterThanOrEqual(4);
-    expect(dmSteps.length).toBeLessThanOrEqual(6);
-  });
-
   it("degrades gracefully to zero steps when nothing on the page matches", () => {
     expect(buildTourSteps("dm")).toEqual([]);
     expect(buildTourSteps("player")).toEqual([]);
@@ -166,14 +207,6 @@ describe("buildTourSteps", () => {
     makeVisible(el);
 
     expect(buildTourSteps("player")).toEqual([]);
-    expect(buildTourSteps("player", scope)).toEqual([
-      { element: '[data-tour="character-pool"]', popover: { title: "Your Roster", description: "Every character you've created waits here, ready for a new adventure." } },
-    ]);
-  });
-});
-
-describe("TOUR_FLAG_KEY", () => {
-  it("is the key WelcomeView is expected to write", () => {
-    expect(TOUR_FLAG_KEY).toBe("grimoire:tour-pending");
+    expect(buildTourSteps("player", scope).map((step) => step.element)).toEqual(['[data-tour="character-pool"]']);
   });
 });

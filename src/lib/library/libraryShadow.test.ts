@@ -17,10 +17,16 @@ describe("mergeLibraryWithCustom", () => {
   it("shadows by lowercase name for legacy rows with null identity keys", () => {
     const srd = [row("Longsword", { source: "srd-2014", source_document_key: "srd-2014", source_record_key: "srd-2014_longsword" })];
     // legacy import: source set, identity keys null (pre-20260720000018)
-    const custom = [row("longsword", { source: "SRD" })];
+    const custom = [row("LongSword", { source: "SRD" })];
     const merged = mergeLibraryWithCustom(srd, custom);
     expect(merged).toHaveLength(1);
-    expect(merged[0].name).toBe("longsword");
+    expect(merged[0].name).toBe("LongSword");
+  });
+
+  it("falls back to the name when a custom row has only one of the two identity keys", () => {
+    const srd = [row("Longsword", { source: "srd-2014", source_document_key: "srd-2014", source_record_key: "srd-2014_longsword" })];
+    const custom = [row("Longsword", { source: "SRD", source_document_key: "srd-2014" })];
+    expect(mergeLibraryWithCustom(srd, custom)).toEqual(custom);
   });
 
   it("never shadows a shared row with a homebrew row of the same name", () => {

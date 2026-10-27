@@ -92,49 +92,49 @@ describe("parseInvention", () => {
     expect(() => parseInvention(bad)).toThrow(/Unexpected invention/);
   });
 
-  it("throws on a bad mode and a bad status", () => {
-    expect(() => parseInvention(inventionRow({ mode: "wish" }))).toThrow(/mode/);
-    expect(() => parseInvention(inventionRow({ status: "done" }))).toThrow(/status/);
-  });
+  type Break = (row: Record<string, unknown>) => void;
+  const recipeOf = (row: Record<string, unknown>) => draftOf(row).recipe as Record<string, unknown>;
+  const itemOf = (row: Record<string, unknown>) => draftOf(row).item as Record<string, unknown>;
+  const withMechanic = (mechanic: Record<string, unknown>): Break => (row) => {
+    draftOf(row).mechanics = [mechanic];
+  };
 
-  it("throws when the draft is missing or malformed", () => {
-    expect(() => parseInvention(inventionRow({ draft: null }))).toThrow(/draft/);
+  // Each case is one promise the table makes; breaking it must make the read fail loudly.
+  const broken: [string, Break, RegExp][] = [
+    ["a row with an unknown mode", (r) => { r.mode = "wish"; }, /mode/],
+    ["a row with an unknown status", (r) => { r.status = "done"; }, /status/],
+    ["a row whose bench is not a list", (r) => { r.bench = {}; }, /bench/],
+    ["a row whose provenance is not an object", (r) => { r.ai_provenance = "x"; }, /ai_provenance/],
+    ["a draft that is null", (r) => { r.draft = null; }, /draft/],
+    ["a draft with no ingredients", (r) => { draftOf(r).ingredients = []; }, /ingredients/],
+    ["a draft quantity of 0", (r) => { draftOf(r).quantity = 0; }, /quantity/],
+    ["an unknown rarity ceiling", (r) => { draftOf(r).rarity_ceiling = "godly"; }, /rarity/],
+    ["adjustments that are not a list of text", (r) => { draftOf(r).adjustments = [1]; }, /adjustments/],
+    ["warnings that are not a list of text", (r) => { draftOf(r).warnings = "careful"; }, /warnings/],
+    ["an output with both ref and new", (r) => { itemOf(r).ref = { item_id: "a" }; }, /exactly one/],
+    ["an output with neither ref nor new", (r) => { itemOf(r).new = null; }, /exactly one/],
+    ["a new output without rules text", (r) => { delete (itemOf(r).new as Record<string, unknown>).rules_text; }, /rules_text/],
+    ["an output with an unknown item type", (r) => { itemOf(r).item_type = "gadget"; }, /item type/],
+    ["an ingredient with an unknown rarity", (r) => { (draftOf(r).ingredients as Record<string, unknown>[])[0].rarity = "godly"; }, /rarity/],
+    ["a recipe with an unknown time unit", (r) => { recipeOf(r).crafting_time_unit = "weeks"; }, /unit/],
+    ["a recipe without requires_proficiency", (r) => { delete recipeOf(r).requires_proficiency; }, /requires_proficiency/],
+    ["a recipe without requires_tools", (r) => { delete recipeOf(r).requires_tools; }, /requires_tools/],
+    ["a recipe whose special requirement is a number", (r) => { recipeOf(r).special_requirement = 3; }, /special_requirement/],
+    ["an unknown mechanic kind", withMechanic({ kind: "teleport" }), /unknown kind/],
+    ["an attack bonus with no value", withMechanic({ kind: "attack_bonus" }), /value/],
+    ["extra damage with no damage type", withMechanic({ kind: "extra_damage", dice: "1d4" }), /damage_type/],
+    ["a spell with no level", withMechanic({ kind: "spell", name: "light" }), /level/],
+    ["charges with no maximum", withMechanic({ kind: "charges", recharge: null }), /max/],
+    ["an advantage with no subject", withMechanic({ kind: "advantage" }), /on is not text/],
+    ...["id", "campaign_id", "party_member_id", "user_id", "discipline", "created_at", "updated_at"].map(
+      (key): [string, Break, RegExp] => [`a row without ${key}`, (r) => { delete r[key]; }, new RegExp(key)],
+    ),
+  ];
+
+  it.each(broken)("throws on %s", (_name, breakIt, message) => {
     const row = inventionRow();
-    draftOf(row).ingredients = [];
-    expect(() => parseInvention(row)).toThrow(/ingredients/);
-  });
-
-  it("throws when requires_proficiency is missing", () => {
-    const row = inventionRow();
-    delete (draftOf(row).recipe as Record<string, unknown>).requires_proficiency;
-    expect(() => parseInvention(row)).toThrow(/requires_proficiency/);
-  });
-
-  it("throws when requires_tools or special_requirement is malformed", () => {
-    const a = inventionRow();
-    delete (draftOf(a).recipe as Record<string, unknown>).requires_tools;
-    expect(() => parseInvention(a)).toThrow(/requires_tools/);
-    const b = inventionRow();
-    (draftOf(b).recipe as Record<string, unknown>).special_requirement = 3;
-    expect(() => parseInvention(b)).toThrow(/special_requirement/);
-  });
-
-  it("throws on an unknown mechanic kind", () => {
-    const row = inventionRow();
-    draftOf(row).mechanics = [{ kind: "teleport" }];
-    expect(() => parseInvention(row)).toThrow(/unknown kind/);
-  });
-
-  it("needs exactly one of ref and new on the output", () => {
-    const row = inventionRow();
-    (draftOf(row).item as Record<string, unknown>).ref = { item_id: "a" };
-    expect(() => parseInvention(row)).toThrow(/exactly one/);
-  });
-
-  it("throws on a rarity it does not know", () => {
-    const row = inventionRow();
-    draftOf(row).rarity_ceiling = "godly";
-    expect(() => parseInvention(row)).toThrow(/rarity/);
+    breakIt(row);
+    expect(() => parseInvention(row)).toThrow(message);
   });
 });
 
@@ -152,7 +152,8 @@ describe("inventionMechanicLine", () => {
     [{ kind: "spell", name: "x", level: 2 }, "Casts x (2nd level)"],
     [{ kind: "spell", name: "x", level: 5 }, "Casts x (5th level)"],
     [{ kind: "charges", max: 3, recharge: "at dawn" }, "3 charges, recharge: at dawn"],
-    [{ kind: "charges", max: 1, recharge: null }, "1 charges"],
+    [{ kind: "charges", max: 2, recharge: null }, "2 charges"],
+    [{ kind: "charges", max: 1, recharge: "at dawn" }, "1 charge, recharge: at dawn"],
     [{ kind: "resistance", damage_type: "cold" }, "Resistance to cold damage"],
     [{ kind: "advantage", on: "Perception checks to hear" }, "Advantage on Perception checks to hear"],
   ];
@@ -169,6 +170,7 @@ describe("inventionValueText", () => {
   });
   it("writes nothing as zero copper", () => {
     expect(inventionValueText(0)).toBe("0 CP");
+    expect(inventionValueText(-50)).toBe("0 CP");
   });
 });
 
@@ -217,6 +219,7 @@ describe("inventionTimeText", () => {
     expect(inventionTimeText(1, "hours")).toBe("1 hour");
     expect(inventionTimeText(30, "minutes")).toBe("30 minutes");
     expect(inventionTimeText(1, "minutes")).toBe("1 minute");
+    expect(inventionTimeText(0, "hours")).toBe("0 hours");
   });
 });
 

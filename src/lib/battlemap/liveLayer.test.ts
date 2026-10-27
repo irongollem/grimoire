@@ -154,6 +154,11 @@ describe("boostMask", () => {
     expect(sampleAt(boostMask({ ...walled, walls: [] }, fire), 2.4, 0.5)).toBe(255);
   });
 
+  it("covers the light's whole reach below it as well as to the side", () => {
+    // Two cells of reach from (1.5, 0.5): (1.5, 2.2) is 1.7 cells below, inside the reach.
+    expect(sampleAt(boostMask(walled, fire), 1.5, 2.2)).toBe(255);
+  });
+
   it("follows a door the DM opened", () => {
     const door: MapLive = { ...walled, walls: [], doors: [{ edge: "2,0:W", open: false, leaf: null }] };
     expect(sampleAt(boostMask(door, fire), 2.4, 0.5)).toBe(0);

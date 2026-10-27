@@ -73,7 +73,14 @@ describe("storage", () => {
     expect(readRibbons("salt", memoryStorage({ [key]: "{not json" }))).toEqual([]);
     expect(readRibbons("salt", memoryStorage({ [key]: '{"a":1}' }))).toEqual([]);
     expect(
-      readRibbons("salt", memoryStorage({ [key]: JSON.stringify([r("ok"), { key: 3 }, { key: "x", unit: -1, title: "t" }]) })),
+      readRibbons("salt", memoryStorage({ [key]: JSON.stringify([
+            r("ok"),
+            { key: 3, unit: 0, title: "t" },
+            { key: "x", unit: -1, title: "t" },
+            { key: "", unit: 0, title: "t" },
+            { key: "x", unit: 1.5, title: "t" },
+            { key: "x", unit: 0, title: 7 },
+          ]) })),
     ).toEqual([r("ok")]);
   });
 

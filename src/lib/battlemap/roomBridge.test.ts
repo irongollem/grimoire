@@ -339,6 +339,34 @@ describe("resolveBattleSurface", () => {
     expect(surface?.focusCells.sort()).toEqual(["2,2", "3,2", "2,3"].sort());
   });
 
+  it("picks the traced cells of the room itself, not another room's or a zone's", () => {
+    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
+    const room = makeLocation({ id: "room-2", location_type: "room", parent_id: "site-1" });
+    const site = makeLocation({ id: "site-1", location_type: "dungeon", map_url: "https://example.test/site.webp", grid_calibration: calibration });
+    const regions = [
+      makeRegion({ id: "r1", space_location_id: "room-1", cells: ["0,0"] }),
+      makeRegion({ id: "z", region_role: "zone", zone_kind: "terrain", space_location_id: "room-2", cells: ["9,9"] }),
+      makeRegion({ id: "r2", space_location_id: "room-2", cells: ["4,4", "5,4"] }),
+    ];
+    expect(resolveBattleSurface({ encounterLocation: room, parent: site, regions })?.focusCells).toEqual(["4,4", "5,4"]);
+  });
+
+  it("a location that is not an interior space never borrows its parent's plan", () => {
+    const calibration = makeCalibration();
+    const dungeon = makeLocation({ id: "d-1", location_type: "dungeon", parent_id: "site-1" });
+    const parent = makeLocation({ id: "site-1", location_type: "dungeon", map_url: "https://example.test/site.webp", grid_calibration: calibration });
+    expect(resolveBattleSurface({ encounterLocation: dungeon, parent, regions: [] })).toBeNull();
+  });
+
+  it("a room whose own map is not calibrated yet opens on its site's plan", () => {
+    const calibration = makeCalibration();
+    const room = makeLocation({ id: "room-1", location_type: "room", parent_id: "site-1", map_url: "https://example.test/uncalibrated.webp", grid_calibration: null });
+    const site = makeLocation({ id: "site-1", location_type: "dungeon", map_url: "https://example.test/site.webp", grid_calibration: calibration });
+    const surface = resolveBattleSurface({ encounterLocation: room, parent: site, regions: [] });
+    expect(surface?.mapLocation).toBe(site);
+    expect(surface?.imageUrl).toBe("https://example.test/site.webp");
+  });
+
   it("returns null for a room with no map and no calibrated parent", () => {
     const room = makeLocation({ id: "room-1", location_type: "room", parent_id: "site-1" });
     const site = makeLocation({ id: "site-1", location_type: "dungeon", map_url: null, grid_calibration: null });
@@ -371,10 +399,6 @@ describe("resolveBattleSurface", () => {
     expect(surface?.focusCells.sort()).toEqual(["2,2", "3,2", "2,3"].sort());
   });
 
-  it("returns null for a non-room location with no map of its own", () => {
-    const location = makeLocation({ id: "loc-1", location_type: "dungeon", map_url: null });
-    expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })).toBeNull();
-  });
 });
 
 describe("seedTokenPositions", () => {
@@ -426,11 +450,8 @@ describe("seedTokenPositions", () => {
 });
 
 describe("seedFogMask", () => {
-  it("reveals exactly the focus cells", () => {
+  it("reveals exactly the focus cells, and nothing when there are none", () => {
     expect(seedFogMask(["0,0", "1,0"])).toEqual(new Set(["0,0", "1,0"]));
-  });
-
-  it("is empty when there are no focus cells", () => {
     expect(seedFogMask([])).toEqual(new Set());
   });
 });
@@ -460,7 +481,7 @@ describe("roomsRevealedInCombat", () => {
 
   it("skips zones and unbound regions", () => {
     const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const zone = makeRegion({ region_role: "zone", zone_kind: "terrain", space_location_id: null, cells: ["0,0"] });
+    const zone = makeRegion({ region_role: "zone", zone_kind: "terrain", space_location_id: "room-z", cells: ["0,0"] });
     const unbound = makeRegion({ region_role: "space", space_location_id: null, cells: ["1,1"] });
     const revealed = new Set(["0,0", "1,1"]);
     expect(roomsRevealedInCombat(revealed, [zone, unbound], calibration)).toEqual([]);

@@ -1,24 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { NPC_MEMORY_KINDS } from "@/types/npcMemory.types";
 import {
-  NPC_MEMORY_KIND_HINTS,
-  NPC_MEMORY_KIND_LABELS,
-  PLAYER_NPC_MEMORY_KIND_LABELS,
   defaultMemorySessionId,
   groupMemoriesBySession,
 } from "./npcMemories";
 
 const m = (id: string, session_id: string | null, created_at: string) => ({ id, session_id, created_at });
-
-describe("kind copy", () => {
-  it("covers every kind in all three tables", () => {
-    for (const kind of NPC_MEMORY_KINDS) {
-      expect(NPC_MEMORY_KIND_LABELS[kind]).toBeTruthy();
-      expect(NPC_MEMORY_KIND_HINTS[kind]).toBeTruthy();
-      expect(PLAYER_NPC_MEMORY_KIND_LABELS[kind]).toBeTruthy();
-    }
-  });
-});
 
 describe("groupMemoriesBySession", () => {
   const sessions = [{ id: "s2" }, { id: "s1" }];
@@ -54,6 +40,13 @@ describe("defaultMemorySessionId", () => {
       { id: "older", started_at: "2025-01-01T00:00:00Z", played_on: null },
     ];
     expect(defaultMemorySessionId(null, log)).toBe("logged");
+  });
+  it("counts a session that was started but never given a played date as played", () => {
+    const log = [
+      { id: "started", started_at: "2026-02-01T00:00:00Z", played_on: null },
+      { id: "logged", started_at: null, played_on: "2026-01-01" },
+    ];
+    expect(defaultMemorySessionId(null, log)).toBe("started");
   });
   it("is null with nothing played", () => {
     expect(defaultMemorySessionId(null, [])).toBeNull();

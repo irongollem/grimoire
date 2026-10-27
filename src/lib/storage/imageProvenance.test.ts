@@ -104,6 +104,14 @@ describe("clearImageProvenance", () => {
     expect(eqStem).toHaveBeenCalledWith("stem", "u1/abc");
   });
 
+  it("forgets the cached mark, so a replaced image is no longer badged", async () => {
+    const { registerImageProvenance, clearImageProvenance, loadImageProvenance } = await load();
+    await registerImageProvenance("npcPortraits", "u1/abc.webp", PROV, "u1");
+    await clearImageProvenance("npcPortraits", "u1/abc.webp");
+    await expect(loadImageProvenance({ bucket: "npc-portraits", stem: "u1/abc" })).resolves.toBeNull();
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
   it("throws on a database error", async () => {
     const { clearImageProvenance } = await load();
     eqStem.mockResolvedValue({ data: null, error: new Error("boom") });

@@ -53,6 +53,25 @@ describe("packSlices", () => {
     expect(stashRows(rows)).toHaveLength(1);
   });
 
+  it("treats an equipped row with no slot as 'other', and one in a named slot as not", () => {
+    const loose = row({ location: "equipped", slot: null });
+    const sword = row({ location: "equipped", slot: "main_hand" });
+    expect(packSlices([loose, sword], "m1").otherEquipped).toEqual([loose]);
+  });
+
+  it("lists a stored container with the containers, not among the stored rows", () => {
+    const bag = row({ is_container: true, location: "stored" });
+    const s = packSlices([bag], "m1");
+    expect(s.stored).toEqual([]);
+    expect(s.containers).toEqual([bag]);
+  });
+
+  it("keeps a row that left its container out of that container's contents", () => {
+    const bag = row({ is_container: true });
+    const moved = row({ location: "backpack", container_id: bag.id });
+    expect(packSlices([bag, moved], "m1").itemsIn(bag.id)).toEqual([]);
+  });
+
   it("lands a row whose container is gone in stored", () => {
     const bag = row({ is_container: true });
     const inBag = row({ location: "container", container_id: bag.id });
@@ -73,6 +92,11 @@ describe("packWeights", () => {
     // worn container: its own 1 lb is in `equipped`; in-pack container adds its own 1 lb.
     expect(w.equipped).toBe(1);
     expect(w.total).toBe(2);
+  });
+
+  it("counts a belt container's own weight too", () => {
+    const belted = row({ is_container: true, location: "belt" });
+    expect(packWeights(packSlices([belted], "m1"), oneEach, () => false).total).toBe(1);
   });
 
   it("counts container contents, but 0 for an extradimensional one", () => {
@@ -100,18 +124,25 @@ describe("packWeights", () => {
 
   it("rounds to a tenth", () => {
     const rows = [row({ location: "belt" }), row({ location: "belt" }), row({ location: "belt" })];
-    expect(packWeights(packSlices(rows, "m1"), () => 0.33, () => false).total).toBe(1);
+    const w = packWeights(packSlices(rows, "m1"), () => 0.33, () => false);
+    expect(w.total).toBe(1);
+    expect(w.belt).toBe(1);
   });
 });
 
 describe("burden", () => {
-  it("bands at thirds and agrees with the bar colour", () => {
-    expect(burdenLevel(10)).toBe("unencumbered");
-    expect(burdenLevel(33.33)).toBe("encumbered");
-    expect(burdenLevel(70)).toBe("heavily_encumbered");
-    expect(burdenLevel(100)).toBe("over_encumbered");
-    expect(carryColorClass(10)).toBe("bg-tone-success");
-    expect(carryColorClass(100)).toBe("bg-destructive");
+  // Thirds of capacity: from 33.33 encumbered, from 66.67 heavily, from 100 over.
+  it.each([
+    [0, "unencumbered", "bg-tone-success"],
+    [33.32, "unencumbered", "bg-tone-success"],
+    [33.33, "encumbered", "bg-tone-caution/70"],
+    [66.66, "encumbered", "bg-tone-caution/70"],
+    [66.67, "heavily_encumbered", "bg-tone-caution"],
+    [99.99, "heavily_encumbered", "bg-tone-caution"],
+    [100, "over_encumbered", "bg-destructive"],
+  ] as const)("%s%% reads %s and the bar agrees", (percent, level, colour) => {
+    expect(burdenLevel(percent)).toBe(level);
+    expect(carryColorClass(percent)).toBe(colour);
   });
 });
 
@@ -132,6 +163,12 @@ describe("packSections", () => {
     expect(sections[2].container?.id).toBe("bag");
   });
 
+  it("keeps a worn container out of the Worn run, since it has a section of its own", () => {
+    const worn = row({ id: "pack", name: "Haversack", is_container: true, location: "equipped" });
+    const sections = packSections(packSlices([worn], "m1"));
+    expect(sections.map((s) => s.label)).toEqual(["Haversack"]);
+  });
+
   it("keeps an empty container as a section so it can still be given or removed", () => {
     const sections = packSections(packSlices([bag], "m1"));
     expect(sections.map((s) => s.label)).toEqual(["Bag of Holding"]);
@@ -142,6 +179,6 @@ describe("packSections", () => {
     const sections = packSections(packSlices(stash, null), true);
     expect(sections[0].label).toBeNull();
     expect(sections[0].rows.map((r) => r.name).sort()).toEqual(["Heirloom", "Longsword", "Rope"]);
-    expect(sections[1].label).toBe("Bag of Holding");
+    expect(sections.map((s) => s.label)).toEqual([null, "Bag of Holding"]);
   });
 });

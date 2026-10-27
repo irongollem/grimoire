@@ -47,6 +47,37 @@ describe("customCalendarProblem", () => {
   });
 });
 
+describe("customCalendarProblem: what a DM must fix", () => {
+  const month = (name: string, days: number) => ({ name, days });
+  const base = createDefaultCustomCalendarDef();
+  const moon = { name: "Pale", cycleDays: 28, fullOn: { year: 1, month: 1, day: 1 } };
+
+  it.each([
+    ["a blank calendar name", { name: "  " }, "Calendar name is required."],
+    ["a blank epoch", { epochName: " " }, "Epoch is required (e.g. \"AY\")."],
+    ["no months", { months: [] }, "At least one month is required."],
+    ["a month with no name", { months: [month(" ", 30)] }, "Every month needs a name."],
+    ["a month of no days", { months: [month("A", 0)] }, "Every month needs at least 1 day."],
+    ["a month of half a day", { months: [month("A", 1.5)] }, "Every month needs at least 1 day."],
+    ["a moon with no name", { moons: [{ ...moon, name: " " }] }, "Every moon needs a name."],
+    ["a moon with a cycle of 0 days", { moons: [{ ...moon, cycleDays: 0 }] }, "Every moon needs a cycle longer than 0 days."],
+    ["a season with no name", { seasons: [{ name: "", startsOn: { month: 1, day: 1 } }] }, "Every season needs a name."],
+    ["a season starting on day 0", { seasons: [{ name: "Wet", startsOn: { month: 1, day: 0 } }] }, "The start of Wet is not a day in this calendar."],
+  ] satisfies [string, Partial<SettingCalendarDef>, string][])("refuses %s", (_label, patch, message) => {
+    expect(customCalendarProblem({ ...base, ...patch })).toBe(message);
+  });
+
+  it("accepts a one-day month, a moon cycle that is not a whole number, and a season on a month's last day", () => {
+    const def = {
+      ...base,
+      months: [month("A", 1), month("B", 30)],
+      moons: [{ ...moon, cycleDays: 29.53 }],
+      seasons: [{ name: "Late", startsOn: { month: 2, day: 30 } }],
+    };
+    expect(customCalendarProblem(def)).toBeNull();
+  });
+});
+
 describe("customCalendarProblem: season starts", () => {
   it("refuses two seasons on the same day, which would leave one unreachable", () => {
     const seasons = [
@@ -94,6 +125,12 @@ describe("withoutMonth", () => {
     expect(next.moons![0]!.fullOn).toEqual({ year: 1, month: 2, day: 20 });
     const first = withoutMonth(four(), 0); // remove A: its references go to the new first month
     expect(first.months[0]!.name).toBe("B");
+  });
+
+  it("returns the calendar unchanged for a month index it does not have", () => {
+    const def = four();
+    expect(withoutMonth(def, 4)).toBe(def);
+    expect(withoutMonth(def, -1)).toBe(def);
   });
 
   it("leaves festival anchors alone and is a sound calendar afterwards", () => {

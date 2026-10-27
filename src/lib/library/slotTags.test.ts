@@ -55,6 +55,9 @@ describe("baseGearWeight", () => {
     expect(baseGearWeight("Crossbow, Hand")).toBe(3);
     expect(baseGearWeight("Hand Crossbow")).toBe(3);
     expect(baseGearWeight("Dart")).toBe(0.25);
+    expect(baseGearWeight("Crossbow, Heavy")).toBe(18);
+    expect(baseGearWeight("Crossbow, Light")).toBe(5);
+    expect(baseGearWeight("  Dagger ")).toBe(1);
   });
   it("is null for anything that is not a base weapon or armor", () => {
     expect(baseGearWeight("Longsword +1")).toBeNull();

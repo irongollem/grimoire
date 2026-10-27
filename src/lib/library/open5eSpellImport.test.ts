@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { effectsForCast } from "@/rules/spellEffects";
-import { mapOpen5eV2Spell, planLibrarySpellImport } from "@/lib/library/open5eSpellImport";
+import { fetchOpen5eDocuments, fetchOpen5eSpells, mapOpen5eV2Spell, planLibrarySpellImport } from "@/lib/library/open5eSpellImport";
 import type { ExistingLibrarySpellIdentity, ImportedLibrarySpell } from "@/lib/library/open5eSpellImport";
+
+afterEach(() => vi.unstubAllGlobals());
 
 const document = {
   name: "System Reference Document 5.2",
@@ -174,6 +176,180 @@ describe("mapOpen5eV2Spell", () => {
       record({ document: { ...document, gamesystem: { name: "Advanced 5e", key: "a5e" } } }) as Parameters<typeof mapOpen5eV2Spell>[0],
     );
     expect(spell).toBeNull();
+  });
+});
+
+describe("mapOpen5eV2Spell — normalised fields", () => {
+  type Raw = Parameters<typeof mapOpen5eV2Spell>[0];
+  const map = (overrides: Record<string, unknown> = {}, metadata?: Parameters<typeof mapOpen5eV2Spell>[1]) =>
+    mapOpen5eV2Spell(record(overrides) as Raw, metadata);
+
+  it("falls back to evocation only for a school the game does not have", () => {
+    expect(map({ school: { name: "Necromancy", key: "necromancy" } })?.school).toBe("necromancy");
+    expect(map({ school: " Abjuration " })?.school).toBe("abjuration");
+    expect(map({ school: { name: "Psionics", key: "psionics" } })?.school).toBe("evocation");
+  });
+
+  it.each([
+    ["action", "Action"], ["1 action", "Action"], ["1 bonus action", "Bonus Action"], ["reaction", "Reaction"],
+    // A ritual-length cast keeps its "1": it is part of the listed casting time, not a count of actions.
+    ["1 minute", "1 Minute"], ["1 hour", "1 Hour"],
+    ["10 minutes", "10 Minutes"], ["8 hours", "8 Hours"], ["24 hours", "24 Hours"],
+  ])("reads the casting time %s as %s", (casting_time, expected) => {
+    expect(map({ casting_time })).toMatchObject({ casting_time: expected, casting_time_custom: null });
+  });
+
+  it("keeps a reaction's trigger, and writes an unlisted casting time as Special with its own words", () => {
+    expect(map({ casting_time: "reaction", reaction_condition: "which you take when you are hit" })?.casting_time_custom)
+      .toBe("which you take when you are hit");
+    expect(map({ casting_time: "1 round" })).toMatchObject({ casting_time: "Special", casting_time_custom: "1 round" });
+  });
+
+  it.each([
+    ["instantaneous", "Instantaneous"], ["until dispelled", "Until Dispelled"], ["1 round", "1 Round"],
+    ["1 hour", "1 Hour"], ["7 days", "7 Days"], ["30 days", "30 Days"],
+  ])("reads the duration %s as %s", (duration, expected) => {
+    expect(map({ duration })).toMatchObject({ duration: expected, duration_custom: null });
+  });
+
+  it("writes an unlisted or empty duration as Special with its own words", () => {
+    expect(map({ duration: "3 rounds" })).toMatchObject({ duration: "Special", duration_custom: "3 rounds" });
+    expect(map({ duration: "  " })).toMatchObject({ duration: "Special", duration_custom: "Special" });
+  });
+
+  it("writes a concentration duration as 'Concentration, up to ...' however Open5e spells it", () => {
+    expect(map({ concentration: true, duration: "concentration, up to 1 minute" })?.duration).toBe("Concentration, up to 1 minute");
+    expect(map({ concentration: true, duration: "1 hour" })?.duration).toBe("Concentration, up to 1 hour");
+    expect(map({ concentration: true, duration: "Concentration up to 10 minutes" })?.duration).toBe("Concentration, up to 10 minutes");
+    // An unlisted length is written once, not "Concentration, up to concentration, up to ...".
+    expect(map({ concentration: true, duration: "Concentration, up to 2 hours" })?.duration).toBe("Concentration, up to 2 hours");
+    // A spell that is not concentration keeps its plain duration even when the words appear.
+    expect(map({ concentration: false, duration: "1 minute" })?.duration).toBe("1 Minute");
+  });
+
+  it.each([
+    ["Self", "Self"], ["touch", "Touch"], ["SIGHT", "Sight"], ["Unlimited", "Unlimited"],
+    ["120 feet", "120 ft."], ["30 ft", "30 ft."], ["5 foot", "5 ft."], ["1 mile", "1 mile"], ["5 miles", "5 miles"],
+  ])("reads the range %s as %s", (range_text, expected) => {
+    expect(map({ range_text })).toMatchObject({ range: expected, range_custom: null });
+  });
+
+  it("writes an unlisted range as Special with its own words", () => {
+    expect(map({ range_text: "Self (60-foot cone)" })).toMatchObject({ range: "Special", range_custom: "Self (60-foot cone)" });
+  });
+
+  it("lists the components the spell has, and trims the material", () => {
+    expect(map({ verbal: false, somatic: false, material: true, material_specified: "  a pinch of sulfur " })).toMatchObject({
+      components: ["M"], material: "a pinch of sulfur",
+    });
+    expect(map({ verbal: true, somatic: true, material: false, material_specified: "" })).toMatchObject({ components: ["V", "S"], material: null });
+  });
+
+  it("describes the target and area from what Open5e gives", () => {
+    expect(map({ target_count: 3, target_type: "creatures" })?.target_description).toBe("3 creatures");
+    expect(map({ target_count: null, target_type: "creature" })?.target_description).toBe("creature");
+    expect(map({ target_count: null, target_type: "" })?.target_description).toBeNull();
+    expect(map({ shape_size: 20, shape_size_unit: null })?.aoe_size).toBe("20 feet");
+    expect(map({ shape_size: null })?.aoe_size).toBeNull();
+  });
+
+  it("types an attack as a melee or ranged spell attack, a save, an automatic hit, or none", () => {
+    expect(map({ attack_roll: true, saving_throw_ability: "", desc: "Make a melee spell attack against a creature." })?.attack_type).toBe("melee_spell");
+    expect(map({ attack_roll: true, saving_throw_ability: "", desc: "Make a ranged spell attack." })?.attack_type).toBe("ranged_spell");
+    expect(map({ attack_roll: false, saving_throw_ability: "", desc: "Darts of force strike.", damage_roll: "3d4+3" })?.attack_type).toBe("automatic");
+    expect(map({ attack_roll: false, saving_throw_ability: "", damage_roll: "", desc: "You feel safe." })?.attack_type).toBeNull();
+  });
+
+  it.each([
+    ["A target takes 8d6 fire damage on a failed save, or half as much damage on a successful one.", "half"],
+    ["On a successful save, the creature takes no damage.", "negates"],
+    ["The creature is frightened on a failed save.", "special"],
+  ])("reads the save effect of '%s' as %s", (desc, expected) => {
+    expect(map({ desc })?.save_effect).toBe(expected);
+  });
+
+  it("reads healing from either 'regains' or 'restores', and splits upcast healing from upcast damage", () => {
+    const restore = map({ desc: "A creature you touch restores 70 hit points.", damage_roll: "70", damage_types: [], saving_throw_ability: "" });
+    expect(restore).toMatchObject({ healing_dice: "70", damage_rolls: null });
+    const heal = map({
+      desc: "A creature regains hit points equal to 1d8.", damage_roll: "1d8", damage_types: [], saving_throw_ability: "",
+      higher_level: "The healing increases by 1d8 for each slot level above 1st.",
+    });
+    expect(heal).toMatchObject({ higher_level_healing: "1d8", higher_level_damage: null });
+    // The base healing effect scales with the same dice, not the damage ones.
+    expect(heal?.effects?.find((effect) => effect.kind === "healing")?.scaling).toEqual({ mode: "slot", dice: "1d8" });
+    const damage = map({ higher_level: "The damage increases by 1d6 for each slot level above 3rd." });
+    expect(damage).toMatchObject({ higher_level_damage: { dice_per_level: "1d6", type: null }, higher_level_healing: null });
+  });
+
+  it("keeps a damage type only when the spell deals exactly one", () => {
+    expect(map({ damage_types: ["Fire"] })?.damage_rolls).toEqual([{ dice: "1d6", type: "fire" }]);
+    expect(map({ damage_types: ["Fire"] })?.healing_dice).toBeNull();
+    expect(map({ damage_types: ["fire", "radiant"] })?.damage_rolls).toEqual([{ dice: "1d6", type: "" }]);
+  });
+
+  it("names its source, revision, licence and link from the document", () => {
+    const meta = { slug: "srd-2024", title: "5e 2024 Rules", ruleset: "2024" as const, source_revision: "Rev 5.2.1", license: "cc-by-40" };
+    expect(map({}, meta)).toMatchObject({
+      source: "srd-2024", source_title: "5e 2024 Rules", source_revision: "Rev 5.2.1", source_license: "cc-by-40",
+      source_url: "https://example.test/srd",
+    });
+    const bare = map({ document: { ...document, display_name: undefined, permalink: undefined } });
+    expect(bare).toMatchObject({
+      source_title: "System Reference Document 5.2", source_revision: "System Reference Document 5.2", source_license: null, source_url: null,
+    });
+  });
+
+  it("trims the higher-level text and turns a blank one into null", () => {
+    expect(map({ higher_level: "  More dice.  " })?.higher_levels).toBe("More dice.");
+    expect(map({ higher_level: "  " })?.higher_levels).toBeNull();
+  });
+
+  it("adds Artificer to a spell on the delta list once, not again when it is already tagged", () => {
+    const wizard = [{ name: "Wizard", key: "x" }];
+    expect(map({ name: "Acid Splash", classes: wizard })?.classes).toEqual(["Wizard", "Artificer"]);
+    expect(map({ name: "Acid Splash", classes: [...wizard, { name: "Artificer", key: "y" }] })?.classes).toEqual(["Wizard", "Artificer"]);
+  });
+});
+
+describe("the Open5e spell fetches", () => {
+  const doc = (key: string, gamesystem: string, extra: Record<string, unknown> = {}) => ({
+    key, name: `Doc ${key}`, gamesystem: { key: gamesystem, name: gamesystem }, ...extra,
+  });
+  const docs = [
+    doc("tob", "5e-2014", { display_name: "Tome of Beasts", licenses: [{ key: "ogl-10a", name: "OGL" }, { key: "cc-by-40", name: "CC" }] }),
+    doc("srd-2024", "5e-2024", { display_name: "5e 2024 Rules" }),
+    doc("a5e-ag", "a5e", { display_name: "Adventurer's Guide" }),
+  ];
+  const stub = () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      urls.push(url);
+      const results = url.includes("/documents/") ? docs : [record({ document: docs[1] })];
+      return new Response(JSON.stringify({ count: results.length, next: null, results }));
+    }));
+    return urls;
+  };
+
+  it("lists only 5e documents, sorted by title, with their licences joined", async () => {
+    stub();
+    expect(await fetchOpen5eDocuments()).toEqual([
+      { slug: "srd-2024", title: "5e 2024 Rules", ruleset: "2024", source_revision: "Doc srd-2024", license: null },
+      { slug: "tob", title: "Tome of Beasts", ruleset: "2014", source_revision: "Doc tob", license: "ogl-10a, cc-by-40" },
+    ]);
+  });
+
+  it("fetches the spells of the documents asked for, and none at all when none matches", async () => {
+    const urls = stub();
+    const rows = await fetchOpen5eSpells(["srd-2024"]);
+    expect(rows).toHaveLength(1);
+    const spellsUrl = decodeURIComponent(urls.find((u) => u.includes("/spells/")) ?? "");
+    expect(spellsUrl).toContain("document__key__in=srd-2024");
+    expect(spellsUrl).not.toContain("tob");
+    const before = urls.length;
+    expect(await fetchOpen5eSpells(["nope"])).toEqual([]);
+    expect(urls.slice(before).some((u) => u.includes("/spells/"))).toBe(false);
   });
 });
 

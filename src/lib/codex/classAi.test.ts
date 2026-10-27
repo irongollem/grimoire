@@ -2,14 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   classDraftFromAi,
   classWithFeatureIds,
+  type ClassProgressionLike,
   featureCountsByBand,
   sanitizeKnownTable,
   slotGridFor,
   validateClassProgression,
   type ClassAiResult,
 } from "./classAi";
-import { sanitizeResources } from "./resourceFeatures";
 import type { RulesetKey } from "@/types/ruleset.types";
+import type { HitDie } from "@/levelup/customTypes";
 
 function features(extra: { level: number; name: string }[] = []) {
   return [
@@ -177,6 +178,69 @@ describe("edition shaping", () => {
     expect(classDraftFromAi(ai({ subclass_level: 9 }), { ruleset: "2014", campaignId: null }).base.subclass_level).toBe(3);
   });
 
+  it.each([[0, 3], [1, 1], [3, 3], [4, 3]])("reads a 2014 subclass level of %i as %i", (asked, got) => {
+    expect(classDraftFromAi(ai({ subclass_level: asked }), { ruleset: "2014", campaignId: null }).base.subclass_level).toBe(got);
+  });
+
+  it("names the subclass-grant feature for the edition", () => {
+    const grantName = (ruleset: RulesetKey) => {
+      const draft = classDraftFromAi(ai({ features: features().filter((f) => f.level !== 3) }), { ruleset, campaignId: null });
+      const grant = draft.features.find((f) => f.level === 3);
+      return grant && "insert" in grant ? grant.insert.name : null;
+    };
+    expect(grantName("2024")).toBe("Emberwarden Subclass");
+    expect(grantName("2014")).toBe("Subclass Choice");
+  });
+
+  it("has a pact caster known in 2014 and prepared in 2024 unless the model says otherwise", () => {
+    const type = (ruleset: RulesetKey) => classDraftFromAi(ai({ caster_progression: "pact" }), { ruleset, campaignId: null }).base.caster_type;
+    expect(type("2014")).toBe("known");
+    expect(type("2024")).toBe("prepared");
+  });
+
+  it("falls back to Charisma to prepare spells when no primary ability maps to a casting ability", () => {
+    const draft = classDraftFromAi(ai({ primary_ability: "Strength", caster_progression: "full" }), { ruleset: "2024", campaignId: null });
+    expect(draft.base.prepared_ability).toBe("cha");
+  });
+
+  it("gives full casters their ninth-level slots at level 17", () => {
+    expect(slotGridFor("full", "2024")?.[16]).toEqual([4, 3, 3, 3, 2, 1, 1, 1, 1]);
+  });
+
+  it("keeps two primary abilities and two saving throws of the ones given", () => {
+    const draft = classDraftFromAi(
+      ai({ primary_ability: "Strength, Dexterity and Wisdom", saving_throws: ["str", "dex", "wis"] }),
+      { ruleset: "2024", campaignId: null },
+    );
+    expect(draft.base.primary_ability).toBe("Strength and Dexterity");
+    expect(draft.base.saving_throws).toEqual(["Strength", "Dexterity"]);
+  });
+
+  it("caps feature counts, proficiencies and the known tables", () => {
+    const five = [1, 2, 3, 4, 5].map((n) => ({ level: 5, name: `F${n}`, description: "d" }));
+    const draft = classDraftFromAi(ai({ features: [...features(), ...five] }), { ruleset: "2024", campaignId: null });
+    expect(draft.base.features["5"]).toHaveLength(4);
+    const manyArmor = Array.from({ length: 14 }, (_, i) => `Armor ${i}`);
+    expect(classDraftFromAi(ai({ armor_proficiencies: manyArmor }), { ruleset: "2024", campaignId: null }).base.armor_proficiencies).toHaveLength(12);
+    const spells = classDraftFromAi(
+      ai({ caster_progression: "full", caster_type: "known", spells_known: Array(20).fill(99), cantrips_known: Array(20).fill(99) }),
+      { ruleset: "2024", campaignId: null },
+    );
+    expect(spells.base.spells_known?.[19]).toBe(30);
+    expect(spells.base.cantrips_known?.[19]).toBe(6);
+  });
+
+  it("keeps at most 60 written features", () => {
+    const lots = Array.from({ length: 70 }, (_, i) => ({ level: (i % 20) + 1, name: `F${i}`, description: "d" }));
+    const draft = classDraftFromAi(ai({ features: lots, resources: [] }), { ruleset: "2024", campaignId: null });
+    expect(draft.features.filter((f) => "insert" in f)).toHaveLength(60);
+  });
+
+  it("adds no subclass-grant feature to a class that has no name", () => {
+    const draft = classDraftFromAi(ai({ class_name: "", features: features().filter((f) => f.level !== 3) }), { ruleset: "2024", campaignId: null });
+    expect(draft.features.some((f) => f.level === 3)).toBe(false);
+  });
+
   it("gives 2024 half casters their level 1 slots, as the Paladin and Ranger have", () => {
     expect(slotGridFor("half", "2024")?.[0][0]).toBe(2);
     expect(slotGridFor("half", "2014")?.[0][0]).toBe(0);
@@ -185,12 +249,39 @@ describe("edition shaping", () => {
 
 describe("validateClassProgression", () => {
   const valid = classDraftFromAi(ai(), { ruleset: "2024", campaignId: null }).base;
-  it("flags each structural fault", () => {
-    expect(validateClassProgression({ ...valid, hit_die: 9 as never }).length).toBeGreaterThan(0);
-    expect(validateClassProgression({ ...valid, spell_slots: [[1]] }).length).toBeGreaterThan(0);
-    expect(validateClassProgression({ ...valid, caster_type: "none" }).length).toBeGreaterThan(0);
-    expect(validateClassProgression({ ...valid, cantrips_known: [1, 2] }).length).toBeGreaterThan(0);
-    expect(validateClassProgression({ ...valid, features: { ...valid.features, "21": ["x"] } }).length).toBeGreaterThan(0);
+  const grid = (rows: number, cols: number) => Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+
+  it("accepts the generated class", () => {
+    expect(validateClassProgression(valid)).toEqual([]);
+  });
+
+  it.each<[string, Partial<ClassProgressionLike>, RegExp]>([
+    ["a hit die that is not a d6/d8/d10/d12", { hit_die: 9 as HitDie }, /Hit die 9/],
+    ["one saving throw", { saving_throws: ["Strength"] }, /exactly two/],
+    ["three saving throws", { saving_throws: ["Strength", "Dexterity", "Wisdom"] }, /exactly two/],
+    ["the same saving throw twice", { saving_throws: ["Strength", "Strength"] }, /exactly two/],
+    ["a saving throw that is not an ability", { saving_throws: ["Strength", "Luck"] }, /exactly two/],
+    ["a subclass level of 0", { subclass_level: 0 }, /subclass level must be between/],
+    ["a subclass level of 21", { subclass_level: 21 }, /subclass level must be between/],
+    ["a spell slot table of 19 levels", { spell_slots: grid(19, 9) }, /20 levels of 9/],
+    ["a spell slot row of 8 columns", { spell_slots: grid(20, 8) }, /20 levels of 9/],
+    ["slots on a class marked as a non-caster", { caster_type: "none" }, /disagree/],
+    ["spells known of 2 levels", { spells_known: [1, 2] }, /Spells known/],
+    ["cantrips known of 2 levels", { cantrips_known: [1, 2] }, /Cantrips known/],
+    ["a negative cantrip cell", { cantrips_known: [-1, ...Array<number>(19).fill(1)] }, /Cantrips known/],
+    ["a level 21 feature", { features: { ...valid.features, "21": ["x"] } }, /level "21"/],
+    ["a level 0 feature", { features: { ...valid.features, "0": ["x"] } }, /level "0"/],
+    ["no feature at level 1", { features: { ...valid.features, "1": [] } }, /no level 1 feature/],
+    ["nothing at the subclass level", { features: { ...valid.features, "3": [] } }, /nothing at its subclass level \(3\)/],
+  ])("flags %s", (_what, over, message) => {
+    const problems = validateClassProgression({ ...valid, ...over });
+    expect(problems.filter((p) => message.test(p))).toHaveLength(1);
+  });
+
+  it("allows a subclass level of 1 and of 20 when the class grants something there", () => {
+    const at = (level: number) => ({ ...valid, subclass_level: level, features: { ...valid.features, [String(level)]: ["x"] } });
+    expect(validateClassProgression(at(1))).toEqual([]);
+    expect(validateClassProgression(at(20))).toEqual([]);
   });
 });
 
@@ -199,14 +290,10 @@ describe("helpers", () => {
     expect(sanitizeKnownTable([1, 2], 6)).toBeNull();
     expect(sanitizeKnownTable(Array(20).fill(0), 6)).toBeNull();
     expect(sanitizeKnownTable(Array(20).fill(-1), 6)).toBeNull();
+    expect(sanitizeKnownTable([-1, ...Array(19).fill(5)], 6)).toBeNull();
+    expect(sanitizeKnownTable(Array(21).fill(1), 6)).toBeNull();
     const t = sanitizeKnownTable([3, 2, ...Array(18).fill(9)], 6);
     expect(t?.slice(0, 3)).toEqual([3, 3, 6]);
-  });
-
-  it("sanitizeResources dedupes keys and caps the count", () => {
-    const many = Array.from({ length: 10 }, (_, i) => ({ label: `R${i}`, scaling: "per_level" }));
-    expect(sanitizeResources(many)).toHaveLength(6);
-    expect(sanitizeResources([{ label: "X" }, { label: "x" }])).toHaveLength(1);
   });
 
   it("warns, without blocking, when the official ASI feature is missing", () => {

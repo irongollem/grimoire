@@ -81,6 +81,30 @@ describe("createSceneGeneratorPool", () => {
     expect(engine.setSoundTrim).toHaveBeenCalledWith("drip", 0.9);
   });
 
+  it("plays each firing once from the start, never looping", () => {
+    const { pool, audio, config } = setup();
+    audio.loop = true;
+    audio.currentTime = 5;
+    pool.start(config);
+    vi.advanceTimersByTime(15_000);
+
+    expect(audio.loop).toBe(false);
+    expect(audio.currentTime).toBe(0);
+  });
+
+  it("resuming a layer that is still running replaces its schedule rather than adding a second", () => {
+    const { pool, audio, config } = setup();
+    pool.start(config);
+    vi.advanceTimersByTime(5_000);
+    pool.resume(["drip"]);
+
+    // The original schedule would have fired at 15s; it must be gone, with the new one due at 20s.
+    vi.advanceTimersByTime(10_000);
+    expect(audio.play).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(5_000);
+    expect(audio.play).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps firing on a fresh interval after each one-shot", () => {
     const { pool, audio, config } = setup();
     pool.start(config);

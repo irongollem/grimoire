@@ -26,6 +26,10 @@ describe("sessionTimeRange", () => {
     expect(sessionTimeRange({ proposed_time: "19:30:00", duration_minutes: 210 })).toBe("19:30 to 23:00");
     expect(sessionTimeRange({ proposed_time: "19:30:00", duration_minutes: 0 })).toBe("19:30");
   });
+  it("shows only the start for a negative duration or a time that is not a clock", () => {
+    expect(sessionTimeRange({ proposed_time: "19:30", duration_minutes: -30 })).toBe("19:30");
+    expect(sessionTimeRange({ proposed_time: "late", duration_minutes: 30 })).toBeNull();
+  });
   it("wraps past midnight", () => {
     expect(sessionTimeRange({ proposed_time: "22:00", duration_minutes: 180 })).toBe("22:00 to 01:00");
   });
@@ -52,14 +56,18 @@ describe("rsvp", () => {
     { session_proposal_id: "a", user_id: "u1", available: true },
     { session_proposal_id: "a", user_id: "u2", available: false },
     { session_proposal_id: "b", user_id: "u1", available: true },
+    { session_proposal_id: "b", user_id: "u2", available: true },
   ];
   it("tallies", () => {
     expect(rsvpTally(rows, "a", 4)).toEqual({ yes: 1, answered: 2, total: 4 });
+    expect(rsvpTally(rows, "b", 4)).toEqual({ yes: 2, answered: 2, total: 4 });
     expect(rsvpTally(rows, "z", 4)).toEqual({ yes: 0, answered: 0, total: 4 });
   });
   it("reads my answer, null when unanswered", () => {
     expect(myRsvp(rows, "a", "u2")).toBe(false);
     expect(myRsvp(rows, "a", "u1")).toBe(true);
+    // The same player answered the other session differently.
+    expect(myRsvp(rows, "b", "u2")).toBe(true);
     expect(myRsvp(rows, "a", "u3")).toBeNull();
     expect(myRsvp(rows, "a", undefined)).toBeNull();
   });

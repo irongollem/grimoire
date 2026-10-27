@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { CalendarAdapter } from "@/types/calendar.types";
-import { addDays, daysFromTo, isOnOrBefore, buildYearIndex } from "./dayMath";
+import { addDays, buildYearIndex, daysFromTo, daysInMonth, isOnOrBefore, ordinalWithinYear } from "./dayMath";
 
 /**
  * Three 30-day months with two intercalary days after month 1 and a leap-only
@@ -40,6 +40,31 @@ describe("buildYearIndex", () => {
   });
 });
 
+describe("daysInMonth", () => {
+  it("lets the adapter lengthen a month, and counts a month it lacks as empty", () => {
+    const gregorianish: CalendarAdapter = { ...TEST, daysInMonth: (year, month) => (month === 2 && year % 4 === 0 ? 31 : 30) };
+    expect(daysInMonth(gregorianish, 2000, 2)).toBe(31);
+    expect(daysInMonth(gregorianish, 2001, 2)).toBe(30);
+    expect(buildYearIndex(gregorianish, 2000).totalDays).toBe(94);
+    expect(daysInMonth(TEST, 2001, 99)).toBe(0);
+  });
+});
+
+describe("ordinalWithinYear", () => {
+  it("places a festival after the month it follows, a leap day only in a leap year", () => {
+    expect(ordinalWithinYear(TEST, 2001, null, null, "Founding")).toBe(31);
+    expect(ordinalWithinYear(TEST, 2001, null, null, "Midyear")).toBe(32);
+    expect(ordinalWithinYear(TEST, 2000, null, null, "Leap Day")).toBe(63);
+    expect(ordinalWithinYear(TEST, 2001, null, null, "Leap Day")).toBeUndefined();
+    expect(ordinalWithinYear(TEST, 2001, null, null, "Unknown Fair")).toBeUndefined();
+  });
+  it("has no slot for month 0, a missing day, or neither a date nor a festival", () => {
+    expect(ordinalWithinYear(TEST, 2001, 0, 5, null)).toBeUndefined();
+    expect(ordinalWithinYear(TEST, 2001, 2, null, null)).toBeUndefined();
+    expect(ordinalWithinYear(TEST, 2001, null, null, null)).toBeUndefined();
+  });
+});
+
 describe("daysFromTo", () => {
   it("counts within a month", () => {
     expect(daysFromTo(TEST, { year: 2001, month: 1, day: 1 }, { year: 2001, month: 1, day: 11 })).toBe(11 - 1);
@@ -62,6 +87,12 @@ describe("daysFromTo", () => {
     // 2000 is a leap year here (93 days), so the last day of 2000 to the first
     // of 2001 is one day, and a full lap of 2001 is 92.
     expect(daysFromTo(TEST, { year: 2000, month: 3, day: 30 }, { year: 2001, month: 3, day: 30 })).toBe(92);
+  });
+
+  it("is negative across a year boundary too, by the same real lengths", () => {
+    // 2000/3/30 is the last of its 93 days, so 2001/1/1 is 1 day on from it.
+    expect(daysFromTo(TEST, { year: 2001, month: 1, day: 1 }, { year: 2000, month: 3, day: 30 })).toBe(-1);
+    expect(daysFromTo(TEST, { year: 2002, month: 1, day: 1 }, { year: 2000, month: 3, day: 30 })).toBe(-(1 + 92));
   });
 
   it("is negative when the second date is earlier", () => {
@@ -113,6 +144,11 @@ describe("addDays", () => {
 
   it("rolls into the next year, using this year's real length", () => {
     expect(addDays(TEST, { year: 2001, month: 3, day: 30 }, 1)).toEqual({ year: 2002, month: 1, day: 1 });
+  });
+
+  it("rolls off a festival that closes the year into the next year's first day", () => {
+    const yearsEnd: CalendarAdapter = { ...TEST, intercalaryDays: [{ name: "Year's End", afterMonth: 3, description: "" }] };
+    expect(addDays(yearsEnd, { year: 2001, month: 3, day: 30 }, 1)).toEqual({ year: 2002, month: 1, day: 1 });
   });
 
   it("walks back for a negative offset", () => {

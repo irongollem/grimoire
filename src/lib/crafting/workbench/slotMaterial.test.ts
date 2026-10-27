@@ -45,6 +45,10 @@ describe("slotSprite", () => {
   it("falls back to the slot's tags when nothing is held", () => {
     expect(slotSprite(slot({ tags: ["leather"] }), undefined, []).sprite).toBe("mat-leather");
   });
+  it("draws an item slot's referenced item when nothing is held", () => {
+    const gold = { id: "gold-bar", name: "Gold Bar", tags: ["gold"], item_type: "gear" } as Item;
+    expect(slotSprite(slot({ ref: "gold-bar" }), undefined, [gold]).sprite).toBe("mat-ingot-gold");
+  });
   it("falls back to the neutral bundle when nothing identifies the material", () => {
     expect(slotSprite(slot({}), undefined, []).sprite).toBe("mat-bundle");
   });
@@ -73,6 +77,10 @@ describe("lostMaterials", () => {
       { name: "Iron Ingot", qty: 2, sprite: expect.objectContaining({ sprite: "mat-bundle" }) },
     ]);
     expect(lostMaterials([s], {}, "ruin")[0]).toMatchObject({ name: "Gold Ingot", qty: 2, sprite: { sprite: "mat-ingot-gold" } });
+  });
+  it("adds up the primary's spend across stacks that share a name", () => {
+    const s = slot({ needed: 4, candidates: [cand("a", 3, null, [], "Iron Ingot"), cand("b", 3, null, [], "Iron Ingot")] });
+    expect(lostMaterials([s], {}, "ruin")).toMatchObject([{ name: "Iron Ingot", qty: 4 }]);
   });
   it("loses only slot 0 on a ruin, the other slots are untouched", () => {
     const a = slot({ index: 0, needed: 2, candidates: [cand("a", 5, null, [], "Hide")] });

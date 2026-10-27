@@ -54,6 +54,30 @@ describe("connections of a book entry", () => {
     expect(model.connectionsOf("brenna")).toEqual([]);
   });
 
+  it("drops a tie whose far entry is a different kind of page than the tie says", () => {
+    // "thane" is a faction page, the tie claims it is a person.
+    const model = buildBookModel(snapshot([{ ...ties[0], to_kind: "npc", to_id: "thane" }]));
+    expect(model.connectionsOf("brenna")).toEqual([]);
+    expect(model.connectionsOf("thane")).toEqual([]);
+  });
+
+  it("lists a tie told twice (by a link and by a membership) once", () => {
+    const model = buildBookModel(snapshot([ties[1], { ...ties[1], source: "link" }]));
+    expect(model.connectionsOf("brenna")[0]!.lines).toHaveLength(1);
+  });
+
+  it("orders lines by their word, then by the far page's title", () => {
+    const tie = (from_id: string) => ({ source: "membership", type: "member_of", from_kind: "npc", from_id, to_kind: "faction", to_id: "thane", told: null });
+    const model = buildBookModel(snapshot([tie("ama"), tie("brenna")]));
+    expect(model.connectionsOf("thane")[0]!.lines.map((l) => l.entry.id)).toEqual(["brenna", "ama"]);
+  });
+
+  it("trims what a tie tells and reads a blank telling as none", () => {
+    const model = buildBookModel(snapshot([{ ...ties[0], told: "  Leaves her fish.  " }, { ...ties[1], told: "   " }]));
+    const lines = model.connectionsOf("brenna").flatMap((g) => g.lines);
+    expect(lines.map((l) => l.told).sort()).toEqual(["Leaves her fish.", null]);
+  });
+
   it("treats a release without ties as having none", () => {
     expect(buildBookModel(snapshot()).connectionsOf("brenna")).toEqual([]);
     expect(readTies(snapshot())).toEqual([]);
@@ -61,7 +85,10 @@ describe("connections of a book entry", () => {
 
   it("drops malformed ties and a non-array key without failing", () => {
     expect(readTies(snapshot("nope"))).toEqual([]);
-    const bad = [null, 4, { type: "worships" }, { ...ties[0], from_kind: "item" }, { ...ties[0], to_id: "brenna" }, ties[0]];
+    const bad = [
+      null, 4, { type: "worships" }, { ...ties[0], from_kind: "item" }, { ...ties[0], to_id: "brenna" },
+      { ...ties[0], type: "" }, { ...ties[0], source: 7 }, ties[0],
+    ];
     expect(readTies(snapshot(bad))).toHaveLength(1);
   });
 });

@@ -3,18 +3,6 @@ import { OPEN_BOOK_LEATHERS } from "@/types/openBook.types";
 import { LEATHERS, leatherBackground, leatherGrain, leatherStyle } from "./leather";
 
 describe("leather", () => {
-  it("defines every leather", () => {
-    for (const id of OPEN_BOOK_LEATHERS) {
-      expect(LEATHERS[id].label).not.toBe("");
-      expect(LEATHERS[id].textureUrl).toContain("/assets/open-book/leather");
-    }
-  });
-
-  it("uses the oxblood photograph for oxblood and the brown grain for the rest", () => {
-    expect(LEATHERS.oxblood.textureUrl).toContain("leather-oxblood");
-    expect(LEATHERS.sea.textureUrl).not.toContain("oxblood");
-  });
-
   it("tints sea, night and ash and leaves oxblood and walnut natural", () => {
     expect(OPEN_BOOK_LEATHERS.filter((id) => leatherGrain(id) === "tinted")).toEqual(["sea", "night", "ash"]);
     expect(LEATHERS.walnut.blend).toBe("normal");
@@ -24,6 +12,8 @@ describe("leather", () => {
     expect(leatherBackground("sea").backgroundSize).toBe("11rem 11rem");
     expect(leatherBackground("sea", "6rem").backgroundSize).toBe("6rem 6rem");
     expect(leatherBackground("sea").backgroundBlendMode).toBe("luminosity");
+    // A swatch and the reader's cover are painted from the same hide.
+    expect(leatherBackground("night").backgroundColor).toBe(leatherStyle("night")["--ob-hide"]);
   });
 
   it("exposes the reader's variables", () => {

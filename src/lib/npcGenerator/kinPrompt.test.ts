@@ -36,6 +36,12 @@ describe("onlySpouseOf", () => {
     expect(onlySpouseOf([spouse(id(2), id(1))], key)).toBe(`npc:${id(2)}`);
   });
 
+  it("does not mistake a parent link for a spouse", () => {
+    const key = `npc:${id(1)}` as const;
+    const parent: KinLink = { ...spouse(id(1), id(3)), kind: "parent", parent_role: "mother" };
+    expect(onlySpouseOf([parent, spouse(id(1), id(2))], key)).toBe(`npc:${id(2)}`);
+  });
+
   it("gives nothing for none or several", () => {
     const key = `npc:${id(1)}` as const;
     expect(onlySpouseOf([], key)).toBeNull();
@@ -48,6 +54,7 @@ describe("parseKinQueryKey", () => {
     expect(parseKinQueryKey(`npc:${id(1)}`)).toBe(`npc:${id(1)}`);
     expect(parseKinQueryKey(`pc:${id(1)}`)).toBe(`pc:${id(1)}`);
     expect(parseKinQueryKey("faction:x")).toBeNull();
+    expect(parseKinQueryKey("npc:abc")).toBeNull();
     expect(parseKinQueryKey(undefined)).toBeNull();
   });
 });
