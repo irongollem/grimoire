@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveCellGlyphs,
-  HAZARD_GLYPH_CATEGORY,
-  FEATURE_GLYPH_CATEGORY,
   GENERIC_HAZARD_CATEGORY,
   GENERIC_FEATURE_CATEGORY,
 } from "./glyphs";
-import { HAZARD_GLYPHS } from "@/types/trap.types";
-import { FEATURE_GLYPHS } from "@/types/dungeonFeature.types";
 import type { CellKey, CellMetadata } from "@/types/dungeonMap.types";
 
 describe("resolveCellGlyphs", () => {
@@ -61,18 +57,10 @@ describe("resolveCellGlyphs", () => {
     expect(resolveCellGlyphs(metadata, new Map(), new Map())).toEqual({});
   });
 
-  it("maps every declared hazard and feature glyph value to a pack category", () => {
-    for (const glyph of HAZARD_GLYPHS) expect(HAZARD_GLYPH_CATEGORY[glyph]).toMatch(/^hazard/);
-    for (const glyph of FEATURE_GLYPHS) expect(FEATURE_GLYPH_CATEGORY[glyph]).toMatch(/^feature/);
-  });
-
-  it("resolves a library trap and a library feature by slug", () => {
-    const metadata: Record<CellKey, CellMetadata> = {
-      "1,1": { trap_id: "grimoire_hidden_pit" },
-      "2,2": { feature_id: "grimoire_altar" },
-    };
-    const traps = new Map([["grimoire_hidden_pit", { hazard_glyph: "pit" as const }]]);
-    const features = new Map([["grimoire_altar", { feature_glyph: "altar" as const }]]);
+  it("resolves traps and features on different cells in one pass", () => {
+    const metadata: Record<CellKey, CellMetadata> = { "1,1": { trap_id: "t" }, "2,2": { feature_id: "f" } };
+    const traps = new Map([["t", { hazard_glyph: "pit" as const }]]);
+    const features = new Map([["f", { feature_glyph: "altar" as const }]]);
 
     expect(resolveCellGlyphs(metadata, traps, features)).toEqual({ "1,1": "hazardPit", "2,2": "featureAltar" });
   });

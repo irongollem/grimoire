@@ -13,15 +13,17 @@ describe("validateDollRequest", () => {
     expect(validateDollRequest(body)).toEqual({ ok: false, error: "invalid_body" });
   });
 
-  it("rejects a missing party_member_id", () => {
-    expect(validateDollRequest({})).toEqual({ ok: false, error: "invalid_body" });
+  it("discards any extra field the client sends", () => {
+    expect(validateDollRequest({ party_member_id: "pm1", user_id: "someone-else", prompt: "x" })).toEqual({
+      ok: true,
+      request: { party_member_id: "pm1" },
+    });
   });
 
-  it("rejects an empty party_member_id", () => {
-    expect(validateDollRequest({ party_member_id: "" })).toEqual({ ok: false, error: "invalid_body" });
-  });
-
-  it("rejects a non-string party_member_id", () => {
-    expect(validateDollRequest({ party_member_id: 7 })).toEqual({ ok: false, error: "invalid_body" });
-  });
+  it.each([{}, { party_member_id: "" }, { party_member_id: 7 }, { party_member_id: null }])(
+    "rejects a missing, empty or non-string party_member_id (%j)",
+    (body) => {
+      expect(validateDollRequest(body)).toEqual({ ok: false, error: "invalid_body" });
+    },
+  );
 });

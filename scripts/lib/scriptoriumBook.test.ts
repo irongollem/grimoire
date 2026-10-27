@@ -1,9 +1,12 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   assetImagePath,
   chapterFileNames,
   countNodes,
   countWords,
+  expandHome,
   joinChapters,
   parseArtReference,
   resolveArtSlot,
@@ -39,6 +42,19 @@ describe("chapterFileNames", () => {
   });
 });
 
+describe("chapterFileNames, upper-case extensions", () => {
+  it("keeps a chapter saved as .MD", () => {
+    expect(chapterFileNames(["01-b.MD", "00-a.md"])).toEqual(["00-a.md", "01-b.MD"]);
+  });
+});
+
+describe("expandHome", () => {
+  it("expands a leading ~ to the home folder and leaves other paths alone", () => {
+    expect(expandHome("~/Desktop/book")).toBe(join(homedir(), "/Desktop/book"));
+    expect(expandHome("/srv/book")).toBe("/srv/book");
+  });
+});
+
 describe("parseArtReference", () => {
   it("reads the three forms", () => {
     expect(parseArtReference("campaign-npc: Vellum Brink")).toEqual({ kind: "campaign-npc", name: "Vellum Brink" });
@@ -49,6 +65,7 @@ describe("parseArtReference", () => {
     });
     expect(parseArtReference("Sothery_Map.png")).toEqual({ kind: "file", root: "source", relativePath: "Sothery_Map.png" });
     expect(parseArtReference("illustrations/pets/a.png")).toMatchObject({ root: "source" });
+    expect(parseArtReference("CAMPAIGN-NPC:Vellum Brink")).toEqual({ kind: "campaign-npc", name: "Vellum Brink" });
     expect(parseArtReference("  ")).toBeNull();
     expect(parseArtReference(undefined)).toBeNull();
   });
@@ -80,6 +97,11 @@ describe("resolveArtSlot", () => {
     });
   });
 
+  it("goes on to alt when the existing NPC has no portrait", () => {
+    const l = lookups(["/src/illustrations/b.png"]);
+    expect(resolveArtSlot(slot({ existing: "campaign-npc: Nobody", alt: "illustrations/b.png" }), l)).toMatchObject({ path: "/src/illustrations/b.png" });
+  });
+
   it("returns null when nothing resolves or the slot names nothing", () => {
     expect(resolveArtSlot(slot({ existing: "campaign-npc: Nobody" }), lookups([]))).toBeNull();
     expect(resolveArtSlot(slot({}), lookups([]))).toBeNull();
@@ -95,6 +117,11 @@ describe("countWords / countNodes / assetImagePath", () => {
     ],
   };
   it("counts words across blocks", () => expect(countWords(doc)).toBe(3));
+  it("counts neighbouring blocks as separate words and an empty document as none", () => {
+    const touching = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "one" }] }, { type: "paragraph", content: [{ type: "text", text: "two" }] }] };
+    expect(countWords(touching)).toBe(2);
+    expect(countWords({ type: "doc", content: [{ type: "paragraph" }] })).toBe(0);
+  });
   it("counts nodes by type", () => {
     expect(countNodes(doc, "paragraph")).toBe(2);
     expect(countNodes(doc, "image")).toBe(0);

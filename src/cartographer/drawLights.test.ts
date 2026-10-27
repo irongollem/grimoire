@@ -3,6 +3,7 @@ import { drawMapContent } from "./drawMap";
 import { gatherLightSources, renderLightLayer } from "./drawLights";
 import type { DrawMapInput } from "./drawFrame";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
+import { applyDisc } from "./area";
 import type { DressingCatalog } from "./dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { makeCtx, makeLayerFactory, makeRuntime, type Recorder } from "./testCanvas";
@@ -53,12 +54,9 @@ describe("lights", () => {
     const rec = lightsOf(lit({ objectBrazier: [null, FIRE] }), { layers: braziers(2, 3) });
     expect(rec.radialGradients).toHaveLength(1);
     expect(rec.radialGradients[0]).toMatchObject({ x0: 2.5 * 128, y0: 3.5 * 128, r0: 0, x1: 2.5 * 128, y1: 3.5 * 128, r1: 8 * 128 });
-    expect(rec.radialGradients[0].stops).toEqual([
-      [0, "rgba(255,128,48,0.6)"],
-      [0.125, "rgba(255,128,48,0.33)"],
-      [0.5, "rgba(255,128,48,0.132)"],
-      [1, "rgba(255,128,48,0)"],
-    ]);
+    // the fall-off itself is lights.test.ts's; here only that this light's colour and intensity reach the gradient
+    expect(rec.radialGradients[0].stops[0]).toEqual([0, "rgba(255,128,48,0.6)"]);
+    expect(rec.radialGradients[0].stops.at(-1)).toEqual([1, "rgba(255,128,48,0)"]);
     expect(rec.fillRects).toContainEqual({ x: 2.5 * 128 - 8 * 128, y: 3.5 * 128 - 8 * 128, w: 16 * 128, h: 16 * 128 });
   });
 
@@ -210,6 +208,21 @@ describe("lights behind walls", () => {
     expect(at(1.5, 0.5)).toBe(0);
   });
 
+  it("lays the glow on a brushed cell only where it is brushed", () => {
+    const f = makeLayerFactory();
+    const layers = applyDisc(emptyLayers(), { x: 2.5, y: 2.5, r: 0.3 }, ref, "paint");
+    layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
+    const { input: i } = input(rt(), { layers, lights: true, makeCanvas: f.makeCanvas });
+    drawMapContent(i);
+    const put = f.layers.flatMap((l) => l.rec.putImages);
+    expect(put).toHaveLength(1);
+    // the light sits at (2.5, 2.5); its mask box runs x -6..10, y -6..10
+    const at = (cx: number, cy: number): number => put[0].alpha[Math.floor((cy + 6) * 4) * put[0].width + Math.floor((cx + 6) * 4)];
+    expect(at(2.5, 2.5)).toBe(255);
+    // the cell's corner is inside the cell but outside the brushed disc
+    expect(at(2.1, 2.1)).toBe(0);
+  });
+
   it("still draws the glow, unmasked, when no canvas can be made", () => {
     const { input: i, rec } = input(rt(), { layers: walled(), lights: true });
     drawMapContent(i);
@@ -242,5 +255,29 @@ describe("gatherLightSources", () => {
     layers.object[cellKey(9, 9)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
     expect(gather(layers, { minX: 0, minY: 0, maxX: 3, maxY: 3 })).toHaveLength(1);
     expect(gather(layers, null)).toHaveLength(2);
+  });
+
+  it("includes a source on any of the window's own cells, corners and edges alike, and none just past it", () => {
+    const window = { minX: 2, minY: 2, maxX: 4, maxY: 4 };
+    const at = (x: number, y: number) => {
+      const layers = emptyLayers();
+      layers.object[cellKey(x, y)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
+      return gather(layers, window).length;
+    };
+    for (const [x, y] of [[2, 2], [4, 4], [2, 4], [4, 2], [3, 3]]) expect(at(x, y), `${x},${y}`).toBe(1);
+    for (const [x, y] of [[1, 3], [5, 3], [3, 1], [3, 5]]) expect(at(x, y), `${x},${y}`).toBe(0);
+  });
+
+  it("includes a Dressing light whose centre is on the window's edge, and not one beyond it", () => {
+    const window = { minX: 1, minY: 0, maxX: 3, maxY: 3 };
+    const lantern = { id: "lantern", name: "L", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: FIRE, url: null, sway: null };
+    const catalog: DressingCatalog = new Map([["lantern", lantern]]);
+    const placed = (x: number): number => {
+      const layers = emptyLayers();
+      layers.dressing.a = { prop_id: "lantern", x, y: 0, rotation: 0, z: 0 };
+      return gather(layers, window, catalog).length;
+    };
+    expect(placed(0)).toBe(1); // centre x = 1, the window's first column
+    expect(placed(-1)).toBe(0); // centre x = 0
   });
 });

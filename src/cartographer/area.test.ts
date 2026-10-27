@@ -61,6 +61,27 @@ describe("applyDisc", () => {
     expect(base.area["2,0"]).toBeUndefined();
   });
 
+  it("returns the layers untouched when a repaint changes nothing, and writes when only the variant or turn differs", () => {
+    const painted = applyDisc(emptyLayers(), { x: 0.5, y: 0.5, r: 0.7 }, REF, "paint");
+    expect(applyDisc(painted, { x: 0.5, y: 0.5, r: 0.3 }, REF, "paint")).toBe(painted);
+    for (const other of [{ ...REF, variant: 1 }, { ...REF, rotation: 90 }, { ...REF, pack_version: 2 }]) {
+      expect(applyDisc(painted, { x: 0.5, y: 0.5, r: 0.3 }, other, "paint")).not.toBe(painted);
+    }
+  });
+
+  it("keeps a cell's floor at exactly half coverage and drops it below", () => {
+    // A disc of radius 30 centred 30 cells above cell (0,0) is, across one cell, a straight edge along y = 0.5:
+    // erasing it from plain floor leaves the bottom four of the cell's eight sub-rows, exactly half.
+    const base = emptyLayers();
+    base.floor["0,0"] = { floor: REF };
+    const half = applyDisc(base, { x: 0.5, y: 0.5 - 30, r: 30 }, REF, "erase");
+    expect(coverage(half.area["0,0"].mask)).toBe(FLOOR_COVERAGE);
+    expect(half.floor["0,0"]?.floor).toBeDefined();
+    const less = applyDisc(base, { x: 0.5, y: 0.75 - 30, r: 30 }, REF, "erase");
+    expect(coverage(less.area["0,0"].mask)).toBeLessThan(FLOOR_COVERAGE);
+    expect(less.floor["0,0"]).toBeUndefined();
+  });
+
   it("takes the latest pack on repaint", () => {
     let l = applyDisc(emptyLayers(), { x: 0.5, y: 0.5, r: 0.7 }, REF, "paint");
     l = applyDisc(l, { x: 0.5, y: 0.5, r: 0.2 }, OTHER, "paint");
@@ -166,11 +187,6 @@ describe("areaOutline", () => {
     loops[0].points.forEach(([x], i) => {
       if (!loops[0].stroke[i]) expect(x).toBeLessThanOrEqual(3.01);
     });
-  });
-
-  it("is deterministic", () => {
-    const l = disc(disc(emptyLayers(), 2, 2, 1.5), 3.5, 2, 1.5);
-    expect(areaOutline(l)).toEqual(areaOutline(l));
   });
 
   it("outlines a 40 x 40 region quickly", () => {

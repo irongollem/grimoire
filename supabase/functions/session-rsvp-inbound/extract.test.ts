@@ -82,6 +82,18 @@ describe("extractCalendar", () => {
     expect(extractCalendar("application/json", "{ not json")).toBeNull();
   });
 
+  it("reads a calendar whose END line was cut off in transit", () => {
+    const truncated = REPLY.slice(0, REPLY.indexOf("END:VEVENT"));
+    expect(extractCalendar("text/calendar", truncated)).toContain("PARTSTAT=ACCEPTED");
+    expect(extractCalendar("message/rfc822", `Content-Type: text/calendar\r\n\r\n${truncated}`)).toContain("PARTSTAT=ACCEPTED");
+  });
+
+  it("stops looking after 200 string fields, so a huge body cannot tie up the worker", () => {
+    const filler = Array.from({ length: 200 }, (_, i) => `field ${i}`);
+    expect(extractCalendar("application/json", JSON.stringify([...filler, REPLY]))).toBeNull();
+    expect(extractCalendar("application/json", JSON.stringify([...filler.slice(1), REPLY]))).toContain("PARTSTAT=ACCEPTED");
+  });
+
   it("does not recurse forever into a deeply nested body", () => {
     let nested: unknown = REPLY;
     for (let i = 0; i < 40; i++) nested = { next: nested };
@@ -101,6 +113,8 @@ describe("secretMatches", () => {
     expect(secretMatches("s3cret", "s3cret")).toBe(true);
     expect(secretMatches("s3cret", "s3crEt")).toBe(false);
     expect(secretMatches("s3cret", "s3cre")).toBe(false);
+    // A longer value that merely starts with the secret must not pass.
+    expect(secretMatches("s3cret", "s3cret-and-more")).toBe(false);
     expect(secretMatches("s3cret", null)).toBe(false);
   });
 

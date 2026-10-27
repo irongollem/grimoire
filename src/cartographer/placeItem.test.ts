@@ -15,11 +15,17 @@ describe("samePlaceItem", () => {
     expect(samePlaceItem(null, null)).toBe(true);
     expect(samePlaceItem(null, table)).toBe(false);
   });
+
+  it("tells two different props apart", () => {
+    expect(samePlaceItem(table, { kind: "prop", propId: "lamp" })).toBe(false);
+  });
 });
 
 describe("pushRecent", () => {
   it("puts the newest first, drops its earlier copy and caps the list", () => {
     expect(pushRecent([chestAny, table], table)).toEqual([table, chestAny]);
+    // an equal selection that is not the same object is still the earlier copy
+    expect(pushRecent([chestAny, table], { ...table })).toEqual([table, chestAny]);
     const many = Array.from({ length: 10 }, (_, i): PlaceItem => ({ kind: "prop", propId: `p${i}` }));
     expect(pushRecent(many, chest1, 8)).toHaveLength(8);
     expect(pushRecent(many, chest1, 8)[0]).toEqual(chest1);

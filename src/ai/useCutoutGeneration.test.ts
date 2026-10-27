@@ -111,6 +111,17 @@ describe("useCutoutGeneration", () => {
     expect(mocks.upload).not.toHaveBeenCalled();
   });
 
+  it("fails, without uploading, when the function answers with neither an image nor an error", async () => {
+    mocks.invoke.mockResolvedValue({ data: { image_b64: null }, error: null });
+
+    const { generate, error } = useCutoutGeneration();
+    const url = await generate({ table: "monsters", id: "m1", bucket: "monster-images" });
+
+    expect(url).toBeNull();
+    expect(error.value).toBe("The cutout generator returned no image.");
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
   it("fails when the upload comes back empty", async () => {
     mocks.invoke.mockResolvedValue({ data: { image_b64: IMAGE_B64 }, error: null });
     mocks.upload.mockResolvedValue(null);

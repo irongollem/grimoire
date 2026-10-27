@@ -63,6 +63,11 @@ describe("resolveGeneratedLoot — item entries", () => {
     expect(entry).toMatchObject({ kind: "item", dice: null, fixedQty: 2 });
   });
 
+  it("rejects a dice expression whose best roll is exactly 0 (1d4-4)", () => {
+    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "1d4-4", fixed_qty: 2 })], POOL);
+    expect(entry).toMatchObject({ kind: "item", dice: null, fixedQty: 2 });
+  });
+
   it("rejects an unparseable dice expression rather than persisting it", () => {
     const [entry] = resolveGeneratedLoot([itemEntry({ dice: "a handful", fixed_qty: null })], POOL);
     expect(entry).toMatchObject({ kind: "item", dice: null, fixedQty: 1 });
@@ -91,6 +96,13 @@ describe("resolveGeneratedLoot — currency entries", () => {
       kind: "currency", label: "Belt pouch", dropChance: 100,
       pp: 0, gp: 120, ep: 0, sp: 40, cp: 0, notes: null,
     });
+  });
+
+  it("reads a negative or fractional coin amount as none or the nearest whole coin", () => {
+    const [entry] = resolveGeneratedLoot([{
+      type: "currency", drop_chance: 100, gp: -1, sp: 2.6, cp: -0.4,
+    }], POOL);
+    expect(entry).toMatchObject({ kind: "currency", gp: 0, sp: 3, cp: 0 });
   });
 
   it("treats a blank label as absent", () => {

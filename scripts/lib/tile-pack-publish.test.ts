@@ -20,6 +20,8 @@ describe("slotForPath", () => {
     expect(slotForPath("stairsUp/NE/0.webp")).toHaveProperty("error");
     expect(slotForPath("floor/N/0.webp")).toHaveProperty("error");
     expect(slotForPath("floor/64.webp")).toHaveProperty("error");
+    // One past the variants a directional category allows per side.
+    expect(slotForPath("stairsUp/E/1.webp")).toHaveProperty("error");
   });
 });
 
@@ -139,6 +141,7 @@ describe("pack.json sidecar", () => {
     ["an overlay url outside motion/", { motion: { terrainWater: [{ url: "foam.webp", cells: 4, drift: [0, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
     ["an overlay url with capitals", { motion: { terrainWater: [{ url: "motion/Foam.webp", cells: 4, drift: [0, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
     ["overlay cells past 16", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 17, drift: [0, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
+    ["overlay drift below -5", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [-6, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
     ["overlay drift past 5", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [6, 0], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
     ["an overlay drift of one number", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [1], alpha: 0.5 }] } }, /motion.terrainWater\[0\]/],
     ["overlay alpha above 1", { motion: { terrainWater: [{ url: "motion/a.webp", cells: 4, drift: [0, 0], alpha: 1.5 }] } }, /motion.terrainWater\[0\]/],

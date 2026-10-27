@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ROTATION_DERIVED, rotationFor, rotationsOf, slotId, enumerateSchemaSlots } from "./authoringPlan";
+import { ROTATION_DERIVED, rotationFor } from "./authoringPlan";
 
 /**
  * `rotateTile` itself needs a real canvas and `createImageBitmap`, neither of
  * which the test DOM provides — the same reason `normalizeGeneratedTile`'s own
  * pixel work is untested. What IS testable, and what actually goes wrong, is
  * the table that decides which slot is a turn of which: a wrong entry silently
- * writes a door where a wall belongs.
+ * writes a door where a wall belongs. (That every entry names a schema slot, and
+ * that none derives from a derived slot, is held by authoringPlan.test.ts.)
  */
 describe("rotation table", () => {
   it("turns every vertical edge slot a quarter turn from its horizontal twin", () => {
@@ -23,21 +24,6 @@ describe("rotation table", () => {
       expect(rotationFor(`${run}:E:0`)?.degrees).toBe(90);
       expect(rotationFor(`${run}:S:0`)?.degrees).toBe(180);
       expect(rotationFor(`${run}:W:0`)?.degrees).toBe(270);
-    }
-  });
-
-  it("derives no slot twice and no source from a derived slot", () => {
-    const sources = new Set(Object.values(ROTATION_DERIVED).map((s) => s.from));
-    for (const source of sources) expect(rotationFor(source)).toBeNull();
-    expect(new Set(Object.keys(ROTATION_DERIVED)).size).toBe(Object.keys(ROTATION_DERIVED).length);
-  });
-
-  it("names only slots the schema defines, in both directions", () => {
-    const known = new Set(enumerateSchemaSlots(true).map(slotId));
-    for (const [id, spec] of Object.entries(ROTATION_DERIVED)) {
-      expect(known.has(id), id).toBe(true);
-      expect(known.has(spec.from), spec.from).toBe(true);
-      expect(rotationsOf(spec.from).map((r) => r.id)).toContain(id);
     }
   });
 });

@@ -38,7 +38,8 @@ describe("computePackLots", () => {
   });
 
   it("consumes the oldest pack first across two packs", () => {
-    const rows = [pack("pi_old", 1000, 10), pack("pi_new", 400, 1), spend(1100, 0)];
+    // Listed newest first on purpose: the order is by purchase date, not by row order.
+    const rows = [pack("pi_new", 400, 1), pack("pi_old", 1000, 10), spend(1100, 0)];
     const lots = computePackLots(rows, NOW);
     const byPi = Object.fromEntries(lots.map((l) => [l.paymentIntentId, l]));
     expect(byPi["pi_old"].remaining).toBe(0); // fully consumed first
@@ -46,10 +47,11 @@ describe("computePackLots", () => {
     expect(byPi["pi_new"].eligible).toBe(false);
   });
 
-  it("falls outside the window after 14 days", () => {
-    const [lot] = computePackLots([pack("pi_1", 1000, 20)], NOW);
-    expect(lot.withinWindow).toBe(false);
-    expect(lot.eligible).toBe(false);
+  it("is still refundable on the 14th day and no longer after it", () => {
+    const [onDay14] = computePackLots([pack("pi_1", 1000, 14)], NOW);
+    expect(onDay14).toMatchObject({ withinWindow: true, eligible: true });
+    const [late] = computePackLots([pack("pi_1", 1000, 14.0001)], NOW);
+    expect(late).toMatchObject({ withinWindow: false, eligible: false });
   });
 
   it("excludes pending holds from spend", () => {

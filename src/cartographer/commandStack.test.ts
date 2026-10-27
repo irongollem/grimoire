@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { CommandStack, type Command } from "./commandStack";
+import { CommandStack, CompoundCommand, type Command } from "./commandStack";
 
 // A simple test fixture: a counter that we increment / decrement via commands.
 // We track applies and reverts via side-effect on the counter, which is what
@@ -57,6 +57,15 @@ describe("CommandStack", () => {
     expect(stack.canRedo()).toBe(false);
   });
 
+  it("undo() works again after a redo()", () => {
+    stack.apply(makeIncCommand(counter, 5));
+    stack.undo();
+    stack.redo();
+    expect(stack.canUndo()).toBe(true);
+    stack.undo();
+    expect(counter.value).toBe(0);
+  });
+
   it("a new apply() after undo() clears the redo stack", () => {
     stack.apply(makeIncCommand(counter, 5));
     stack.apply(makeIncCommand(counter, 3));
@@ -94,5 +103,16 @@ describe("CommandStack", () => {
     small.undo();                                     // counter=1 (was the bottom)
     expect(counter.value).toBe(1);
     expect(small.canUndo()).toBe(false);              // +1 was dropped, can't go further back
+  });
+});
+
+describe("CompoundCommand", () => {
+  it("applies its children in order and reverts them in reverse, so one undo walks back one gesture", () => {
+    const log: string[] = [];
+    const step = (name: string): Command => ({ apply: () => log.push(`+${name}`), revert: () => log.push(`-${name}`) });
+    const stack = new CommandStack();
+    stack.apply(new CompoundCommand([step("a"), step("b"), step("c")]));
+    stack.undo();
+    expect(log).toEqual(["+a", "+b", "+c", "-c", "-b", "-a"]);
   });
 });

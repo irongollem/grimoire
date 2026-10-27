@@ -117,6 +117,19 @@ describe("resolveGeneratedComplication — side resolution", () => {
     expect(result.reinforcements[0]).toMatchObject({ factionId: "faction-cultists-001", factionName: "Cultists" });
   });
 
+  it("resolves a faction id in any case, whatever case the encounter stored it in", () => {
+    const factions: FactionDef[] = [
+      { id: "players", name: "Players", color: "#1C2A4A", hostile_to: [] },
+      { id: "Other-1", name: "Others", color: "#3D3D3D", hostile_to: [] },
+      { id: "Crew-7", name: "Salvage Crew", color: "#442266", hostile_to: [] },
+    ];
+    const result = resolveGeneratedComplication(
+      complicationResult({ reinforcements: [reinforcement({ side: "crew-7" })] }),
+      makePools({ factions }),
+    );
+    expect(result.reinforcements[0]).toMatchObject({ factionId: "Crew-7" });
+  });
+
   it("falls back to the enemy faction when the side is unrecognised", () => {
     const result = resolveGeneratedComplication(
       complicationResult({ reinforcements: [reinforcement({ side: "the shadow council" })] }),
@@ -159,6 +172,15 @@ describe("resolveGeneratedComplication — count clamping", () => {
     expect(result.warnings).toContain("Goblin: the AI asked for 20, capped at 8.");
   });
 
+  it("keeps exactly 8 as asked, with no warning (the cap is 'more than 8')", () => {
+    const result = resolveGeneratedComplication(
+      complicationResult({ reinforcements: [reinforcement({ count: 8 })] }),
+      makePools(),
+    );
+    expect(result.reinforcements[0]).toMatchObject({ count: 8 });
+    expect(result.warnings).toEqual([]);
+  });
+
   it.each([undefined, "three" as unknown as number, 0, -5])(
     "treats a count of %p as 1 rather than rejecting the entry",
     (badCount) => {
@@ -180,6 +202,15 @@ describe("resolveGeneratedComplication — reinforcement entry limit", () => {
     expect(result.warnings).toContain(
       "The AI proposed 9 groups of reinforcements; only the first 6 are kept.",
     );
+  });
+});
+
+describe("resolveGeneratedComplication — exactly at the entry limit", () => {
+  it("keeps 6 entries without a warning", () => {
+    const six = Array.from({ length: 6 }, () => reinforcement());
+    const result = resolveGeneratedComplication(complicationResult({ reinforcements: six }), makePools());
+    expect(result.reinforcements).toHaveLength(6);
+    expect(result.warnings).toEqual([]);
   });
 });
 

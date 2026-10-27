@@ -38,6 +38,13 @@ describe("rankSearchHits", () => {
     expect(out[0].kind).toBe("item");
   });
 
+  it("keeps the nearer of two rows of the same name when neither is the DM's own advantage", () => {
+    const libraryOnly = rankSearchHits([hit("library_item", "Lamp", 0.58, "far"), hit("library_item", "lamp", 0.54, "near")]);
+    expect(libraryOnly.map((h) => h.id)).toEqual(["near"]);
+    const ownOnly = rankSearchHits([hit("item", "Lamp", 0.58, "far"), hit("item", "lamp", 0.54, "near")]);
+    expect(ownOnly.map((h) => h.id)).toEqual(["near"]);
+  });
+
   it("dedupes the monster family the same way", () => {
     const out = rankSearchHits([
       hit("library_monster", "Griffon", 0.55),

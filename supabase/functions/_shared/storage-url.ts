@@ -32,10 +32,13 @@ function env(key: string): string | undefined {
 function isPrivateHostLiteral(host: string): boolean {
   const h = host.replace(/^\[|\]$/g, "").toLowerCase(); // strip IPv6 brackets
 
-  // IPv6 loopback / unique-local (fc00::/7 → starts fc or fd).
-  if (h === "::1") return true;
-  if (h.startsWith("fc") || h.startsWith("fd")) return true;
-  if (h.startsWith("fe80")) return true; // link-local IPv6
+  // IPv6 loopback / unique-local (fc00::/7 → starts fc or fd). Only an IPv6
+  // literal has a colon; without that test "fdn.example.com" read as private.
+  if (h.includes(":")) {
+    if (h === "::1") return true;
+    if (h.startsWith("fc") || h.startsWith("fd")) return true;
+    if (h.startsWith("fe80")) return true; // link-local IPv6
+  }
 
   // IPv4 dotted-quad ranges.
   const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);

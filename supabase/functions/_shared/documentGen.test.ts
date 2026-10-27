@@ -156,28 +156,16 @@ describe("callDocument (anthropic) — modelled outcomes", () => {
     });
   });
 
-  it("returns a distinct refused outcome on stop_reason refusal, without a content field", async () => {
-    stubAnthropicStream([messageStart(80), messageDelta("refusal", 0)]);
+  it("returns a distinct refused outcome on stop_reason refusal, dropping any partial text and with no content field", async () => {
+    stubAnthropicStream([messageStart(80), textDelta('{"partial'), messageDelta("refusal", 5)]);
 
     const outcome = await callDocument({ ...BASE_OPTS, parts: [PDF_PART] });
 
     expect(outcome).toEqual({
       ok: false,
       reason: "refused",
-      usage: { input_tokens: 80, output_tokens: 0, model: BASE_OPTS.model, provider: "anthropic" },
+      usage: { input_tokens: 80, output_tokens: 5, model: BASE_OPTS.model, provider: "anthropic" },
     });
-    expect(outcome).not.toHaveProperty("content");
-  });
-
-  it("distinguishes a refusal from a parse-error-shaped partial: refused has no content key at all", async () => {
-    stubAnthropicStream([messageStart(80), textDelta('{"partial'), messageDelta("refusal", 5)]);
-
-    const outcome = await callDocument({ ...BASE_OPTS, parts: [PDF_PART] });
-
-    expect(outcome.ok).toBe(false);
-    if (!outcome.ok) {
-      expect(outcome.reason).toBe("refused");
-    }
     expect(outcome).not.toHaveProperty("content");
   });
 });
@@ -251,9 +239,9 @@ describe("callDocument (openai) — the platform's primary path", () => {
   const OPENAI_OPTS = { ...BASE_OPTS, provider: "openai", model: "gpt-5.6-luna", apiKey: "sk-test" };
 
   function stubOpenAi(body: unknown, status = 200) {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), { status }));
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify(body), { status }));
     vi.stubGlobal("fetch", fetchMock);
-    return { fetchMock, requestBody: () => JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string) };
+    return { fetchMock, requestBody: () => JSON.parse(fetchMock.mock.calls[0][1].body as string) };
   }
 
   const okBody = (text: string) => ({
@@ -286,11 +274,14 @@ describe("callDocument (openai) — the platform's primary path", () => {
     for (const block of blocks) expect(block.detail).toBe("high");
   });
 
-  it("uses low reasoning for Luna document extraction", async () => {
-    const { requestBody } = stubOpenAi(okBody("{}"));
+  it("uses low reasoning for the 5.6 models and sends no reasoning setting to a model that does not take one", async () => {
+    const luna = stubOpenAi(okBody("{}"));
     await callDocument({ ...OPENAI_OPTS, parts: [PDF_PART] });
+    expect(luna.requestBody().reasoning).toEqual({ effort: "low" });
 
-    expect(requestBody().reasoning).toEqual({ effort: "low" });
+    const older = stubOpenAi(okBody("{}"));
+    await callDocument({ ...OPENAI_OPTS, model: "gpt-4.1", parts: [PDF_PART] });
+    expect(older.requestBody()).not.toHaveProperty("reasoning");
   });
 
   it("constrains the response with a json_schema rather than asking for JSON politely", async () => {
@@ -416,5 +407,77 @@ describe("callDocument (anthropic) — missing usage data", () => {
       expect(result.usage.input_tokens).toBe(5000);
       expect(result.usage.output_tokens).toBeNull();
     }
+  });
+});
+
+describe("callDocument (gemini)", () => {
+  const GEMINI_OPTS = { ...BASE_OPTS, provider: "gemini", model: "gemini-2.5-flash", apiKey: "g-test" };
+
+  function stubGemini(body: unknown, status = 200) {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), { status }));
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  const answer = (text: string, finishReason = "STOP") => ({
+    candidates: [{ content: { parts: [{ text }] }, finishReason }],
+    usageMetadata: { promptTokenCount: 900, candidatesTokenCount: 40 },
+  });
+
+  it("returns the text and the usage under the provider name the credit ledger knows (google)", async () => {
+    stubGemini(answer('{"monsters":[]}'));
+    await expect(callDocument({ ...GEMINI_OPTS, parts: [PDF_PART] })).resolves.toEqual({
+      ok: true,
+      content: '{"monsters":[]}',
+      usage: { input_tokens: 900, output_tokens: 40, model: "gemini-2.5-flash", provider: "google" },
+    });
+  });
+
+  it("keeps the extraction, with unknown counts, when the response carries no usage", async () => {
+    stubGemini({ candidates: [{ content: { parts: [{ text: "{}" }] }, finishReason: "STOP" }] });
+    const outcome = await callDocument({ ...GEMINI_OPTS, parts: [PDF_PART] });
+    expect(outcome).toMatchObject({ ok: true, usage: { input_tokens: null, output_tokens: null } });
+  });
+
+  it.each(["SAFETY", "RECITATION", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "OTHER"])(
+    "maps finishReason %s to refused, with no content",
+    async (finishReason) => {
+      stubGemini(answer("half an answer", finishReason));
+      const outcome = await callDocument({ ...GEMINI_OPTS, parts: [PDF_PART] });
+      expect(outcome).toMatchObject({ ok: false, reason: "refused" });
+      expect(outcome).not.toHaveProperty("content");
+    },
+  );
+
+  it("maps a prompt blocked before generation to refused, though there is no candidate to read", async () => {
+    stubGemini({ promptFeedback: { blockReason: "SAFETY" }, usageMetadata: { promptTokenCount: 900 } });
+    await expect(callDocument({ ...GEMINI_OPTS, parts: [PDF_PART] })).resolves.toMatchObject({ ok: false, reason: "refused" });
+  });
+
+  it("maps MAX_TOKENS to truncated and keeps the partial text", async () => {
+    stubGemini(answer('{"monsters":[{"ref":"m1"', "MAX_TOKENS"));
+    await expect(callDocument({ ...GEMINI_OPTS, parts: [PDF_PART] })).resolves.toMatchObject({
+      ok: false, reason: "truncated", content: '{"monsters":[{"ref":"m1"',
+    });
+  });
+
+  it("throws when an unblocked response has no candidates, and on a non-2xx", async () => {
+    stubGemini({ candidates: [] });
+    await expect(callDocument({ ...GEMINI_OPTS, parts: [PDF_PART] })).rejects.toThrow(/no candidates/);
+    stubGemini({ error: { message: "API key not valid" } }, 400);
+    await expect(callDocument({ ...GEMINI_OPTS, parts: [PDF_PART] })).rejects.toThrow("API key not valid");
+  });
+
+  it("sends the files before the instruction, and the schema as the response schema", async () => {
+    const fetchMock = stubGemini(answer("{}"));
+    await callDocument({ ...GEMINI_OPTS, parts: [PDF_PART, IMAGE_PART] });
+    const calls = fetchMock.mock.calls as unknown as [string, RequestInit][];
+    const body = JSON.parse(calls[0][1].body as string);
+    expect(body.contents[0].parts).toEqual([
+      { inline_data: { mime_type: "application/pdf", data: PDF_PART.data } },
+      { inline_data: { mime_type: "image/jpeg", data: IMAGE_PART.data } },
+      { text: BASE_OPTS.instruction },
+    ]);
+    expect(body.generationConfig.responseSchema).toEqual(SCHEMA);
   });
 });

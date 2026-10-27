@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TILE_PACK_SCHEMA, categoryLabel, type PackCategory } from "./packSchema";
+import { REQUIRED_CATEGORIES, TILE_PACK_SCHEMA, categoryDef, categoryLabel, isFlatCategory, type PackCategory } from "./packSchema";
 
 describe("categoryLabel", () => {
   it("splits camelCase into words", () => {
@@ -34,9 +34,25 @@ describe("categoryLabel", () => {
     }
   });
 
-  it("is stable — labelling a label changes nothing", () => {
+});
+
+describe("REQUIRED_CATEGORIES", () => {
+  it("is every category that is not optional, and none that is", () => {
     for (const category of Object.keys(TILE_PACK_SCHEMA.categories) as PackCategory[]) {
-      expect(categoryLabel(categoryLabel(category))).toBe(categoryLabel(category));
+      const def = categoryDef(category);
+      const optional = def.kind === "optional" || (def.kind === "directional" && def.optional === true);
+      expect(REQUIRED_CATEGORIES.includes(category), category).toBe(!optional);
+    }
+  });
+});
+
+describe("isFlatCategory", () => {
+  it("lies on the floor for litter, hazards and features, and stands for everything else", () => {
+    for (const flat of ["rubble", "debris", "hazardPit", "hazardGeneric", "featureAltar", "featureGeneric"] as const) {
+      expect(isFlatCategory(flat), flat).toBe(true);
+    }
+    for (const standing of ["objectChest", "wallSegmentH", "curbH", "stairsUp", "floor", "doorLeaf"] as const) {
+      expect(isFlatCategory(standing), standing).toBe(false);
     }
   });
 });

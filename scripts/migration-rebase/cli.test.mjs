@@ -221,3 +221,107 @@ describe("migration-rebase CLI", () => {
     expect(readdirSync(join(root, "supabase/migrations"))).toContain("20260825005907_stale.sql");
   });
 });
+
+describe("migration-rebase CLI — refusals CI relies on", () => {
+  it("fails a check on a misnamed migration, and refuses to rebase around one", () => {
+    const root = makeRepo({ base: BASE, local: { "add_widgets.sql": "-- no version\n", "20260825005907_stale.sql": "-- stale\n" } });
+    const check = run(root, "--check");
+    expect(check.code).toBe(1);
+    expect(check.out).toMatch(/add_widgets\.sql does not match/);
+    const write = run(root, "--write");
+    expect(write.code).toBe(1);
+    expect(write.out).toMatch(/Refusing to rebase/);
+    expect(readdirSync(join(root, "supabase/migrations"))).toContain("20260825005907_stale.sql");
+  });
+
+  it("fails a check on a misnamed migration alone, even when every version is in order", () => {
+    const root = makeRepo({ base: BASE, local: { "add_widgets.sql": "-- no version\n" } });
+    expect(run(root, "--check").code).toBe(1);
+  });
+
+  it("rebases past a binary file in the repo without trying to read it as text", () => {
+    const root = makeRepo({ base: BASE, local: { "20260825005907_stale.sql": "-- stale\n" }, files: { "assets/blob.bin": "PK\0\0 20260825005907" } });
+    expect(run(root, "--write").code).toBe(0);
+    expect(readFileSync(join(root, "assets/blob.bin"), "utf8")).toContain("20260825005907");
+  });
+
+  it("does not pass a check that found no migrations directory to look in", () => {
+    const root = mkdtempSync(join(tmpdir(), "migration-rebase-"));
+    created.push(root);
+    git(["init", "-q"], root);
+    const { code, out } = run(root, "--check");
+    expect(code).toBe(2);
+    expect(out).toMatch(/No migration directory found/);
+  });
+
+  it("takes a flag followed by another flag as a missing value", () => {
+    const root = makeRepo({ base: BASE, local: {} });
+    const { code, out } = run(root, "--check", "--base", "--write");
+    expect(code).toBe(2);
+    expect(out).toMatch(/--base needs a value/);
+  });
+
+  it("prints usage and fails when no mode is given, and succeeds for --help", () => {
+    const root = makeRepo({ base: BASE, local: {} });
+    expect(run(root).code).toBe(2);
+    const help = run(root, "--help");
+    expect(help.code).toBe(0);
+    expect(help.out).toMatch(/--check/);
+  });
+
+  it("still checks uniqueness and shape, with a warning, when the base ref is missing (a shallow clone)", () => {
+    const root = makeRepo({ base: BASE, local: { "20260826010000_a.sql": "-- a\n", "20260826010000_b.sql": "-- b\n" } });
+    const { code, out } = run(root, "--check", "--base", "refs/remotes/origin/nope");
+    expect(out).toMatch(/is not available/);
+    expect(code).toBe(1);
+    expect(out).toMatch(/claimed by 2 files/);
+  });
+
+  it("declines to mint a timestamp into another version scheme, and says which migrations still need moving", () => {
+    const root = mkdtempSync(join(tmpdir(), "migration-rebase-"));
+    created.push(root);
+    mkdirSync(join(root, "db"), { recursive: true });
+    git(["init", "-q"], root);
+    git(["config", "user.email", "t@t.invalid"], root);
+    git(["config", "user.name", "T"], root);
+    writeFileSync(join(root, "db/V1_3__add_index.sql"), "-- base\n");
+    git(["add", "-A"], root);
+    git(["commit", "-qm", "base"], root);
+    git(["branch", "-qM", "main"], root);
+    git(["update-ref", "refs/remotes/origin/main", "main"], root);
+    writeFileSync(join(root, "db/V1_1__init.sql"), "-- local\n");
+    const args = ["--dir", "db", "--pattern", "^V(?<version>[\\d_]+)__.+\\.sql$"];
+
+    const check = run(root, "--check", ...args);
+    expect(check.code).toBe(1);
+    expect(check.out).toMatch(/V1_1__init\.sql \(1_1\) is at or before the newest on origin\/main \(1_3\)/);
+    expect(check.out).toMatch(/Cannot fix this automatically/);
+
+    const write = run(root, "--write", ...args);
+    expect(write.code).toBe(1);
+    expect(write.out).toMatch(/1 migration\(s\) do sort at or before 1_3/);
+    expect(readdirSync(join(root, "db"))).toContain("V1_1__init.sql");
+  });
+
+  it("reads dir, pattern and base ref from migration-rebase.json when no flags are given", () => {
+    const root = mkdtempSync(join(tmpdir(), "migration-rebase-"));
+    created.push(root);
+    mkdirSync(join(root, "db"), { recursive: true });
+    git(["init", "-q"], root);
+    git(["config", "user.email", "t@t.invalid"], root);
+    git(["config", "user.name", "T"], root);
+    writeFileSync(join(root, "db/5_base.sql"), "-- base\n");
+    writeFileSync(
+      join(root, "migration-rebase.json"),
+      JSON.stringify({ dir: "db", pattern: "^(?<version>\\d+)_.+\\.sql$", baseRef: "trunk" }),
+    );
+    git(["add", "-A"], root);
+    git(["commit", "-qm", "base"], root);
+    git(["branch", "-qM", "trunk"], root);
+    writeFileSync(join(root, "db/2_stale.sql"), "-- stale\n");
+    const { code, out } = run(root, "--check");
+    expect(code).toBe(1);
+    expect(out).toMatch(/2_stale\.sql \(2\) is at or before the newest on trunk \(5\)/);
+  });
+});
+

@@ -142,6 +142,7 @@ describe("padToAspect", () => {
 
   it("degrades to the unscaled cell count rather than dividing by zero on a degenerate width", () => {
     const g = padToAspect(0, 0, 12, 1);
+    expect(Number.isFinite(g.effWidth) && Number.isFinite(g.effHeight)).toBe(true);
     expect(g.cellsPerImageWidth).toBe(12);
     expect(g.originXPct).toBe(0);
     expect(g.originYPct).toBe(0);
@@ -176,6 +177,14 @@ describe("padToStyleAspect", () => {
     const g = padToStyleAspect(500, 3000, 5); // 1:6, twice as extreme as 1:3
     expect(g.effHeight).toBe(3000);
     expect(g.effWidth).toBe(1000); // 3000 / 3
+  });
+});
+
+describe("an empty render", () => {
+  it("is padded to a usable shape rather than to NaN", () => {
+    const g = padToStyleAspect(0, 0, 7);
+    expect(Number.isFinite(g.effWidth) && Number.isFinite(g.effHeight)).toBe(true);
+    expect(chooseStyleImageSize(0, 0)).toEqual({ width: 1920, height: 1920 });
   });
 });
 

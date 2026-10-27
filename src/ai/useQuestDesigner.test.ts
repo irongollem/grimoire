@@ -76,6 +76,17 @@ describe("useQuestDesigner", () => {
     expect(designer.tree.value).toBeNull();
   });
 
+  it("propose(): accepts prose of exactly the limit", async () => {
+    mocks.invoke.mockResolvedValue({ data: turnResponse(), error: null });
+    const designer = useQuestDesigner();
+    designer.prose.value = "x".repeat(QUEST_DESIGN_PROSE_LIMIT);
+
+    await designer.propose();
+
+    expect(mocks.invoke).toHaveBeenCalledTimes(1);
+    expect(designer.error.value).toBe("");
+  });
+
   it("propose(): refuses empty prose without calling the edge function", async () => {
     const designer = useQuestDesigner();
     designer.prose.value = "   ";
@@ -116,6 +127,22 @@ describe("useQuestDesigner", () => {
     expect(designer.previousTree.value).toEqual(tree());
     expect(designer.tree.value).toEqual(secondTree);
     expect(designer.note.value).toBe("Narrowed the antagonist.");
+  });
+
+  it("answer(): sends the prose trimmed on later turns too, and still has a turn on the last one", async () => {
+    mocks.invoke.mockResolvedValueOnce({ data: turnResponse({ turn: 1 }), error: null });
+    const designer = useQuestDesigner();
+    designer.prose.value = "  A bell tolls.  ";
+    await designer.propose();
+    designer.turn.value = QUEST_DESIGN_TURN_BUDGET - 1;
+    mocks.invoke.mockResolvedValueOnce({ data: turnResponse({ turn: QUEST_DESIGN_TURN_BUDGET }), error: null });
+
+    await designer.answer([{ question_key: "q1", question: "Q", answer: "A" }]);
+
+    expect(mocks.invoke).toHaveBeenLastCalledWith("quest-designer-turn", {
+      body: expect.objectContaining({ prose: "A bell tolls.", turn: QUEST_DESIGN_TURN_BUDGET }),
+    });
+    expect(designer.turnsLeft.value).toBe(0);
   });
 
   it("answer(): refuses once the turn budget is exhausted", async () => {

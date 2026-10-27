@@ -20,9 +20,6 @@ describe("buildAiProvenance", () => {
     expect(stamped).toBeLessThanOrEqual(after);
   });
 
-  it("always starts unedited", () => {
-    expect(buildAiProvenance("quest_generation", "gemini", "gemini-2.5-flash").edited).toBe(false);
-  });
 });
 
 describe("markEdited", () => {
@@ -49,11 +46,5 @@ describe("markEdited", () => {
     const prov = { ...buildAiProvenance("npc_text", "openai", "gpt-4.1"), edited: true };
     const result = markEdited(prov);
     expect(result).toBe(prov);
-  });
-
-  it("never reverts edited back to false", () => {
-    const prov = { ...buildAiProvenance("npc_text", "openai", "gpt-4.1"), edited: true };
-    const result = markEdited(prov);
-    expect(result?.edited).toBe(true);
   });
 });

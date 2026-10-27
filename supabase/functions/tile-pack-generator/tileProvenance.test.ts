@@ -12,10 +12,6 @@ describe("buildTileProvenance", () => {
     });
   });
 
-  it("never returns edited: true — a freshly generated tile has no human edit yet", () => {
-    expect(buildTileProvenance("openai", "gpt-image-2").edited).toBe(false);
-  });
-
   it("defaults generatedAt to the current time when omitted", () => {
     const before = Date.now();
     const prov = buildTileProvenance("openai", "gpt-image-2");

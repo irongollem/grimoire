@@ -32,11 +32,24 @@ describe("redactText", () => {
     ["sk-ant-api03-AAAAAAAABBBBBBBBCCCCCCCC", "Anthropic"],
     ["sk-proj-AAAAAAAABBBBBBBBCCCCCCCC", "OpenAI project"],
     ["sk-AAAAAAAABBBBBBBBCCCCCCCCDDDD", "OpenAI classic"],
-    ["sk_live_AAAAAAAABBBBBBBB", "Stripe"],
-    ["sb_secret_AAAAAAAABBBBBBBB", "Supabase"],
+    ["sk_live_AAAAAAAABBBBBBBB", "Stripe secret"],
+    ["rk_test_AAAAAAAABBBBBBBB", "Stripe restricted, test mode"],
+    ["pk_live_AAAAAAAABBBBBBBB", "Stripe publishable"],
+    ["sb_secret_AAAAAAAABBBBBBBB", "Supabase secret"],
+    ["sb_publishable_AAAAAAAABBBBBBBB", "Supabase publishable"],
     ["AIzaAAAAAAAABBBBBBBBCCCCCCCCDDDD", "Google"],
+    ["r8_AAAAAAAABBBBBBBBCCCCCCCC", "Replicate"],
   ])("removes a %s-shaped key (%s)", (key) => {
     expect(redactText(`provider rejected ${key}`)).toBe("provider rejected [key]");
+  });
+
+  it("treats a Basic credential like a Bearer one", () => {
+    expect(redactText("Authorization: Basic dXNlcjpwYXNzd29yZA==")).toBe(`Authorization: Basic ${REDACTED}`);
+  });
+
+  it("keeps a string of exactly 4096 characters whole and truncates one character more", () => {
+    expect(redactText("x".repeat(4096))).toBe("x".repeat(4096));
+    expect(redactText("x".repeat(4097))).toBe(`${"x".repeat(4096)}…[truncated]`);
   });
 
   it("truncates a blob rather than shipping it", () => {
@@ -76,6 +89,12 @@ describe("redactUrl", () => {
   it("leaves the canonical srd/ prefix legible — it names no user", () => {
     expect(redactUrl("https://cdn.dungeongrimoire.com/monster-images/srd/owlbear.webp")).toBe(
       "https://cdn.dungeongrimoire.com/monster-images/srd/owlbear.webp",
+    );
+  });
+
+  it("redacts an email sitting in the path itself", () => {
+    expect(redactUrl("https://app.dungeongrimoire.com/invite/jeffrey@crocode.nl/accept")).toBe(
+      "https://app.dungeongrimoire.com/invite/[email]/accept",
     );
   });
 
@@ -122,7 +141,7 @@ describe("scrubEvent", () => {
 
   it("empties user when there is no id, rather than passing unknown keys through", () => {
     const out = scrubEvent({ user: { geo: { city: "Utrecht" } } });
-    expect(out.user).toEqual({});
+    expect(out.user).toStrictEqual({});
   });
 
   it("redacts an email that appears inside the exception value", () => {
@@ -161,6 +180,24 @@ describe("scrubEvent", () => {
     expect(frame.abs_path).toBe("https://app.dungeongrimoire.com/assets/index-a1b2c3.js?v=1");
     expect(frame.lineno).toBe(42);
     expect(frame).not.toHaveProperty("vars");
+  });
+
+  it("copies filename, abs_path and module verbatim inside stack frames only", () => {
+    // Shaped like an address so redactText would alter it: the exemption is what keeps source maps pairing.
+    const odd = "webpack://pkg@registry.example.com/index.js";
+    const out = scrubEvent({
+      exception: { values: [{ stacktrace: { frames: [{ filename: odd, abs_path: odd, module: odd }] } }] },
+      extra: { filename: odd, module: odd },
+    });
+
+    const frame = out.exception.values[0].stacktrace.frames[0];
+    expect([frame.filename, frame.abs_path, frame.module]).toEqual([odd, odd, odd]);
+    expect(out.extra).toEqual({ filename: "webpack://[email]/index.js", module: "webpack://[email]/index.js" });
+  });
+
+  it("redacts referrer URLs and drops the IP address a request carries", () => {
+    const out = scrubEvent({ request: { referrer: "https://google.com/search?q=my+campaign", ip_address: "82.13.44.1" } });
+    expect(out.request).toEqual({ referrer: `https://google.com/search?${REDACTED}` });
   });
 
   it("rewrites breadcrumb URLs and navigation targets", () => {
@@ -213,6 +250,18 @@ describe("scrubEvent", () => {
 
     expect(() => scrubEvent(deep)).not.toThrow();
     expect(JSON.stringify(scrubEvent(deep))).toContain(REDACTED);
+  });
+
+  it("reads to eight levels deep and redacts anything below", () => {
+    const wrap = (levels: number) => {
+      let value: Record<string, unknown> = { leaf: "a@b.com" };
+      for (let i = 1; i < levels; i++) value = { n: value };
+      return value;
+    };
+    // The leaf string sits at depth `levels`.
+    expect(JSON.stringify(scrubEvent(wrap(8)))).toContain("[email]");
+    expect(JSON.stringify(scrubEvent(wrap(9)))).toContain(REDACTED);
+    expect(JSON.stringify(scrubEvent(wrap(9)))).not.toContain("[email]");
   });
 
   it("caps a long array", () => {

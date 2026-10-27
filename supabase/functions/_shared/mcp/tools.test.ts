@@ -1,7 +1,44 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { applyCampaignFilter, audioRefusal, callTool, listTools, resolveClassDefinition, resolveImageColumn, validateFields } from "./tools.ts";
 import { emptyDefenses, type Defenses, type StatBlockEntry } from "../../../../src/types/statBlock.types.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY, ENTITY_TYPES } from "./registry.ts";
+import { createSupabaseFake, type SupabaseFake } from "../../../../src/test/supabaseFake.ts";
+
+/**
+ * A tool context over the fake: `from` is the fake's, plus the one thing it does
+ * not model: `functions.invoke`. `ids` gives inserts into a table the id the
+ * database would have generated (the fake generates none). `reply` is what the
+ * edge function answers; `invoked` records each call.
+ */
+function mcpCtx(
+  fake: SupabaseFake,
+  opts: {
+    ids?: Record<string, string>;
+    invoked?: { fn: string; body: unknown }[];
+    invokeError?: { message: string };
+    reply?: { data: unknown; error: unknown };
+  } = {},
+): Ctx {
+  const supabase = {
+    from: (table: string) => {
+      const q = fake.client.from(table);
+      const id = opts.ids?.[table];
+      const insert = q.insert.bind(q);
+      return Object.assign(q, {
+        insert: (rows: Record<string, unknown>, options?: unknown) => insert(id ? { id, ...rows } : rows, options),
+        // The fake has no `not`; the one use here is "is not null", which `neq` is under Postgres semantics.
+        not: (column: string) => q.neq(column, null),
+      });
+    },
+    functions: {
+      invoke: (fn: string, init: { body: unknown }) => {
+        opts.invoked?.push({ fn, body: init.body });
+        return Promise.resolve(opts.reply ?? { data: null, error: opts.invokeError ?? null });
+      },
+    },
+  };
+  return { userId: "dm-1", email: undefined, supabase } as unknown as Ctx;
+}
 
 const quest = ENTITY_REGISTRY.quest;
 const npc = ENTITY_REGISTRY.npc;
@@ -90,8 +127,10 @@ describe("validateFields — create", () => {
     // rather than a raw Postgres constraint-violation string.
     expect(validateFields(spell, { name: "Fireball", level: 3 }, { partial: false }).level).toBe(3);
     expect(validateFields(spell, { name: "Light", level: 0 }, { partial: false }).level).toBe(0);
+    expect(validateFields(spell, { name: "Wish", level: 9 }, { partial: false }).level).toBe(9);
     expect(() => validateFields(spell, { name: "x", level: 10 }, { partial: false })).toThrow(/at most 9/);
     expect(() => validateFields(spell, { name: "x", level: -1 }, { partial: false })).toThrow(/at least 0/);
+    expect(validateFields(ENTITY_REGISTRY.party_member, { name: "x", ruleset: "2024", level: 20 }, { partial: false }).level).toBe(20);
     expect(() => validateFields(ENTITY_REGISTRY.party_member, { name: "x", level: 21 }, { partial: false }))
       .toThrow(/at most 20/);
   });
@@ -257,54 +296,55 @@ describe("npc_memory", () => {
 describe("npc_memory — session on create", () => {
   const NPC_ID = "123e4567-e89b-12d3-a456-426614174010";
   const SESSION_ID = "123e4567-e89b-12d3-a456-426614174011";
+  const OTHER_CAMPAIGN = "camp-2";
+  let fake: SupabaseFake;
 
-  /** Records the memory insert; `open` is the running session the lookup finds. */
-  function fakeCtx(open: { id: string } | null) {
-    const inserts: unknown[] = [];
-    const chain = (data: unknown) => {
-      const c: Record<string, unknown> = {};
-      for (const m of ["eq", "not", "is"]) c[m] = () => c;
-      c.maybeSingle = () => Promise.resolve({ data, error: null });
-      // The re-read after the insert.
-      c.single = () => Promise.resolve({ data: { id: "mem-1" }, error: null });
-      return c;
-    };
-    const ctx = {
-      userId: "dm-1",
-      supabase: {
-        from: (table: string) => ({
-          select: () => (table === "npcs" ? chain({ campaign_id: "camp-1" }) : chain(open)),
-          insert: (payload: unknown) => {
-            inserts.push(payload);
-            return { select: () => ({ single: () => Promise.resolve({ data: { id: "mem-1" }, error: null }) }) };
-          },
-        }),
-        functions: { invoke: () => Promise.resolve({ data: null, error: null }) },
-      },
-    };
-    return { ctx: ctx as unknown as Parameters<typeof callTool>[0], inserts };
-  }
-
-  it("files a memory without a session under the running one", async () => {
-    const { ctx, inserts } = fakeCtx({ id: SESSION_ID });
-    await callTool(ctx, "create", { type: "npc_memory", fields: { npc_id: NPC_ID, kind: "event", body: "Paid in full." } });
-    expect(inserts[0]).toMatchObject({ npc_id: NPC_ID, session_id: SESSION_ID, user_id: "dm-1" });
+  beforeEach(() => {
+    fake = createSupabaseFake();
+    fake.seed("npcs", [
+      { id: NPC_ID, campaign_id: "camp-1", name: "Mirela" },
+      { id: "npc-elsewhere", campaign_id: OTHER_CAMPAIGN, name: "Bram" },
+    ]);
   });
 
-  it("leaves it outside any session when none is running", async () => {
-    const { ctx, inserts } = fakeCtx(null);
-    await callTool(ctx, "create", { type: "npc_memory", fields: { npc_id: NPC_ID, kind: "event", body: "Paid in full." } });
-    expect(inserts[0]).not.toHaveProperty("session_id");
+  const create = (fields: Record<string, unknown>) =>
+    callTool(mcpCtx(fake, { ids: { npc_memories: "mem-1" } }), "create", {
+      type: "npc_memory",
+      fields: { npc_id: NPC_ID, kind: "event", body: "Paid in full.", ...fields },
+    });
+  const filed = () => fake.rows("npc_memories")[0];
+
+  it("files a memory without a session under the NPC's campaign's running one, not another campaign's", async () => {
+    fake.seed("campaign_sessions", [
+      { id: SESSION_ID, campaign_id: "camp-1", started_at: "2026-10-01T18:00:00Z", ended_at: null },
+      { id: "elsewhere-running", campaign_id: OTHER_CAMPAIGN, started_at: "2026-10-01T18:00:00Z", ended_at: null },
+    ]);
+    await create({});
+    expect(filed()).toMatchObject({ npc_id: NPC_ID, session_id: SESSION_ID, user_id: "dm-1" });
+  });
+
+  it("does not file under a session that has ended or not begun", async () => {
+    fake.seed("campaign_sessions", [
+      { id: "over", campaign_id: "camp-1", started_at: "2026-09-01T18:00:00Z", ended_at: "2026-09-01T22:00:00Z" },
+      { id: "planned", campaign_id: "camp-1", started_at: null, ended_at: null },
+    ]);
+    await create({});
+    expect(filed()).not.toHaveProperty("session_id");
+  });
+
+  it("leaves it outside any session when none is running in that campaign", async () => {
+    fake.seed("campaign_sessions", [
+      { id: "elsewhere-running", campaign_id: OTHER_CAMPAIGN, started_at: "2026-10-01T18:00:00Z", ended_at: null },
+    ]);
+    await create({});
+    expect(filed()).not.toHaveProperty("session_id");
   });
 
   it("keeps a session the caller named", async () => {
     const named = "123e4567-e89b-12d3-a456-426614174012";
-    const { ctx, inserts } = fakeCtx({ id: SESSION_ID });
-    await callTool(ctx, "create", {
-      type: "npc_memory",
-      fields: { npc_id: NPC_ID, kind: "event", body: "Paid in full.", session_id: named },
-    });
-    expect(inserts[0]).toMatchObject({ session_id: named });
+    fake.seed("campaign_sessions", [{ id: SESSION_ID, campaign_id: "camp-1", started_at: "2026-10-01T18:00:00Z", ended_at: null }]);
+    await create({ session_id: named });
+    expect(filed()).toMatchObject({ session_id: named });
   });
 });
 
@@ -355,64 +395,59 @@ describe("applyCampaignFilter", () => {
 
 describe("create/update — embed-on-write (#838)", () => {
   const ROW_ID = "123e4567-e89b-12d3-a456-426614174000";
+  const OTHER_ID = "223e4567-e89b-12d3-a456-426614174000";
+  let fake: SupabaseFake;
+  let invoked: { fn: string; body: unknown }[];
 
-  /** Minimal PostgREST + functions stand-in: records `functions.invoke` calls
-   *  and answers every write with one row. `embedError` makes the embedding
-   *  call fail, to prove a write still succeeds without it. */
-  function fakeCtx(embedError?: { message: string }) {
-    const invoked: { fn: string; body: unknown }[] = [];
-    const row = { id: ROW_ID, name: "Psi Crystal" };
-    const ctx = {
-      userId: "dm-1",
-      supabase: {
-        from: () => ({
-          insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: row, error: null }) }) }),
-          update: () => ({
-            eq: () => ({ select: () => ({ maybeSingle: () => Promise.resolve({ data: row, error: null }) }) }),
-          }),
-        }),
-        functions: {
-          invoke: (fn: string, opts: { body: unknown }) => {
-            invoked.push({ fn, body: opts.body });
-            return Promise.resolve({ data: null, error: embedError ?? null });
-          },
-        },
-      },
-    };
-    return { ctx: ctx as unknown as Parameters<typeof callTool>[0], invoked, row };
+  /** `embedError` makes the embedding call fail, to prove a write still succeeds without it. */
+  function ctx(embedError?: { message: string }) {
+    return mcpCtx(fake, { ids: { items: ROW_ID, monsters: ROW_ID, quests: ROW_ID }, invoked, invokeError: embedError });
   }
 
-  it("queues a created item for embedding", async () => {
-    const { ctx, invoked } = fakeCtx();
-    await callTool(ctx, "create", { type: "item", fields: { name: "Psi Crystal" } });
+  beforeEach(() => {
+    fake = createSupabaseFake();
+    invoked = [];
+  });
+
+  it("queues a created item for embedding, and stamps it with the caller as owner", async () => {
+    const row = await callTool(ctx(), "create", { type: "item", fields: { name: "Psi Crystal" } });
+    expect(row).toMatchObject({ id: ROW_ID, user_id: "dm-1" });
     expect(invoked).toEqual([
       { fn: "embed-content", body: { mode: "single", entity: "item", id: ROW_ID } },
     ]);
   });
 
   it("routes monsters to their own edge function, which takes monster_id", async () => {
-    const { ctx, invoked } = fakeCtx();
-    await callTool(ctx, "create", { type: "monster", fields: { name: "Owlbear" } });
+    await callTool(ctx(), "create", { type: "monster", fields: { name: "Owlbear" } });
     expect(invoked).toEqual([{ fn: "embed-monsters", body: { mode: "single", monster_id: ROW_ID } }]);
   });
 
-  it("queues an updated row too — an edited item's vector must follow its text", async () => {
-    const { ctx, invoked } = fakeCtx();
-    await callTool(ctx, "update", { type: "item", id: ROW_ID, fields: { description: "It hums." } });
+  it("queues an updated row too, and changes only the row named", async () => {
+    fake.seed("items", [
+      { id: ROW_ID, name: "Psi Crystal", description: "", user_id: "dm-1" },
+      { id: OTHER_ID, name: "Other", description: "", user_id: "dm-1" },
+    ]);
+    await callTool(ctx(), "update", { type: "item", id: ROW_ID, fields: { description: "It hums." } });
+    expect(fake.rows("items").find((r) => r.id === ROW_ID)).toMatchObject({ description: "It hums." });
+    expect(fake.rows("items").find((r) => r.id === OTHER_ID)).toMatchObject({ description: "" });
     expect(invoked).toEqual([
       { fn: "embed-content", body: { mode: "single", entity: "item", id: ROW_ID } },
     ]);
   });
 
+  it("reports an update of a row that is not there, and embeds nothing", async () => {
+    await expect(callTool(ctx(), "update", { type: "item", id: ROW_ID, fields: { description: "x" } })).rejects.toThrow(/No .* found/);
+    expect(invoked).toEqual([]);
+  });
+
   it("makes no call for a type with no corpus", async () => {
-    const { ctx, invoked } = fakeCtx();
-    await callTool(ctx, "create", { type: "quest", fields: { title: "The Bell" } });
+    await callTool(ctx(), "create", { type: "quest", fields: { title: "The Bell" } });
     expect(invoked).toEqual([]);
   });
 
   it("still returns the written row when embedding fails", async () => {
-    const { ctx, row } = fakeCtx({ message: "embedding_provider_unavailable" });
-    await expect(callTool(ctx, "create", { type: "item", fields: { name: "Psi Crystal" } })).resolves.toEqual(row);
+    await expect(callTool(ctx({ message: "embedding_provider_unavailable" }), "create", { type: "item", fields: { name: "Psi Crystal" } }))
+      .resolves.toMatchObject({ id: ROW_ID, name: "Psi Crystal" });
   });
 
   it("declares embedOnWrite for exactly the types that have a corpus", () => {
@@ -474,48 +509,104 @@ describe("new tools are listed", () => {
 });
 
 describe("soundboard", () => {
-  function ctxWith(results: Record<string, { data: unknown; error: { message: string } | null }>) {
-    const from = vi.fn((table: string) => {
-      const chain = { select: () => chain, eq: () => chain, order: () => Promise.resolve(results[table]) };
-      return chain;
-    });
-    return { ctx: { userId: "dm-1", email: undefined, supabase: { from } } as unknown as Ctx, from };
-  }
+  const OTHER_CAMPAIGN = "323e4567-e89b-12d3-a456-426614174000";
+  let fake: SupabaseFake;
+  const ctx = () => ({ userId: "dm-1", email: undefined, supabase: fake.client }) as unknown as Ctx;
 
-  it("returns pages, playlists with their sounds in play order, and sounds", async () => {
-    const { ctx } = ctxWith({
-      soundboard_pages: { data: [{ id: "p1", name: "Tavern", sort_order: 0 }], error: null },
-      soundboard_playlists: {
-        data: [{
-          id: "pl1", name: "Battle", playlist_type: "music",
-          soundboard_playlist_tracks: [{ sound_id: "s2", sort_order: 1 }, { sound_id: "s1", sort_order: 0 }],
-        }],
-        error: null,
+  beforeEach(() => {
+    fake = createSupabaseFake();
+    fake.seed("soundboard_pages", [
+      { id: "p1", campaign_id: CAMPAIGN, name: "Tavern", sort_order: 0 },
+      { id: "p-other", campaign_id: OTHER_CAMPAIGN, name: "Someone else's page", sort_order: 0 },
+    ]);
+    fake.seed("soundboard_playlists", [
+      {
+        id: "pl1", campaign_id: CAMPAIGN, name: "Battle", playlist_type: "music", sort_order: 0,
+        soundboard_playlist_tracks: [{ sound_id: "s2", sort_order: 1 }, { sound_id: "s1", sort_order: 0 }],
       },
-      sounds: { data: [{ id: "s1", name: "Drums" }, { id: "s2", name: "Horns" }], error: null },
-    });
-    const out = await callTool(ctx, "soundboard", { campaign_id: CAMPAIGN });
-    expect(out).toEqual({
+      { id: "pl-other", campaign_id: OTHER_CAMPAIGN, name: "Someone else's playlist", playlist_type: "music", sort_order: 0, soundboard_playlist_tracks: [] },
+    ]);
+    fake.seed("sounds", [
+      { id: "s1", campaign_id: CAMPAIGN, name: "Drums", sort_order: 0 },
+      { id: "s2", campaign_id: CAMPAIGN, name: "Horns", sort_order: 1 },
+      { id: "s-other", campaign_id: OTHER_CAMPAIGN, name: "Someone else's sound", sort_order: 0 },
+    ]);
+  });
+
+  it("returns one campaign's pages, playlists with their sounds in play order, and sounds, and nothing from another campaign", async () => {
+    const out = await callTool(ctx(), "soundboard", { campaign_id: CAMPAIGN });
+    expect(out).toMatchObject({
       campaign_id: CAMPAIGN,
-      pages: [{ id: "p1", name: "Tavern", sort_order: 0 }],
-      playlists: [{ id: "pl1", name: "Battle", playlist_type: "music", track_sound_ids: ["s1", "s2"] }],
+      pages: [{ id: "p1", name: "Tavern" }],
+      playlists: [{ id: "pl1", name: "Battle", track_sound_ids: ["s1", "s2"] }],
       sounds: [{ id: "s1", name: "Drums" }, { id: "s2", name: "Horns" }],
     });
+    expect(JSON.stringify(out)).not.toContain("Someone else");
   });
 
   it("throws a read error rather than reporting an empty board", async () => {
-    const { ctx } = ctxWith({
-      soundboard_pages: { data: [], error: null },
-      soundboard_playlists: { data: null, error: { message: "permission denied" } },
-      sounds: { data: [], error: null },
-    });
-    await expect(callTool(ctx, "soundboard", { campaign_id: CAMPAIGN })).rejects.toThrow("permission denied");
+    fake.failNext("soundboard_playlists", { message: "permission denied" });
+    await expect(callTool(ctx(), "soundboard", { campaign_id: CAMPAIGN })).rejects.toThrow("permission denied");
   });
 
-  it("requires a campaign", async () => {
-    const { ctx, from } = ctxWith({});
-    await expect(callTool(ctx, "soundboard", {})).rejects.toThrow(/campaign_id/);
-    expect(from).not.toHaveBeenCalled();
+  it("requires a campaign, and reads nothing without one", async () => {
+    await expect(callTool(ctx(), "soundboard", {})).rejects.toThrow(/campaign_id/);
+    expect(fake.calls).toHaveLength(0);
+  });
+});
+
+describe("search", () => {
+  /** A query builder that records what each table was asked, and finds nothing. */
+  function searchCtx() {
+    const asked: { table: string; or: string[]; limit: number[]; eq: string[] }[] = [];
+    const supabase = {
+      from: (table: string) => {
+        const rec = { table, or: [] as string[], limit: [] as number[], eq: [] as string[] };
+        asked.push(rec);
+        const q = {
+          select: () => q,
+          or: (filter: string) => (rec.or.push(filter), q),
+          eq: (column: string, value: string) => (rec.eq.push(`${column}=${value}`), q),
+          limit: (n: number) => (rec.limit.push(n), q),
+          overrideTypes: () => Promise.resolve({ data: [], error: null }),
+        };
+        return q;
+      },
+    };
+    return { ctx: { userId: "dm-1", email: undefined, supabase } as unknown as Ctx, asked };
+  }
+
+  it("keeps PostgREST filter syntax in the DM's text from becoming syntax in the filter", async () => {
+    const { ctx, asked } = searchCtx();
+    await callTool(ctx, "search", { query: 'a),user_id.eq.x,(b*%\\":c', types: ["npc"] });
+    const [filter] = asked[0].or;
+    // One ilike per search field, joined by commas and nothing the DM typed.
+    const clauses = filter.split(",");
+    expect(clauses).toHaveLength(ENTITY_REGISTRY.npc.searchFields.length);
+    for (const clause of clauses) expect(clause).toMatch(/^[a-z_]+\.ilike\.\*[^,()*%\\":]+\*$/);
+  });
+
+  it("refuses a query that is only syntax", async () => {
+    const { ctx, asked } = searchCtx();
+    await expect(callTool(ctx, "search", { query: "(),*%" })).rejects.toThrow(/searchable text/);
+    expect(asked).toHaveLength(0);
+  });
+
+  it.each([
+    [1000, 50],
+    [0, 1],
+    [undefined, 8],
+  ])("asks each table for at most the clamped limit (limit %s -> %s)", async (limit, expected) => {
+    const { ctx, asked } = searchCtx();
+    await callTool(ctx, "search", { query: "bell", types: ["npc", "quest"], limit });
+    expect(asked.map((a) => a.limit)).toEqual([[expected], [expected]]);
+  });
+
+  it("narrows to one campaign when asked, and refuses a campaign that is not a UUID", async () => {
+    const { ctx, asked } = searchCtx();
+    await callTool(ctx, "search", { query: "bell", types: ["npc"], campaign_id: CAMPAIGN });
+    expect(asked[0].eq).toEqual([`campaign_id=${CAMPAIGN}`]);
+    await expect(callTool(ctx, "search", { query: "bell", campaign_id: "x,y" })).rejects.toThrow(/valid UUID/);
   });
 });
 
@@ -545,52 +636,55 @@ describe("audioRefusal", () => {
 });
 
 describe("voice_coach", () => {
-  function ctxWith(npc: unknown, invokeResult: { data: unknown; error: unknown }) {
-    const invoke = vi.fn(() => Promise.resolve(invokeResult));
-    const chain = { select: () => chain, eq: () => chain, maybeSingle: () => Promise.resolve({ data: npc, error: null }) };
-    const ctx = { userId: "dm-1", email: undefined, supabase: { from: () => chain, functions: { invoke } } };
-    return { ctx: ctx as unknown as Ctx, invoke };
-  }
+  const OTHER_NPC = "323e4567-e89b-12d3-a456-426614174000";
+  const OTHER_CAMPAIGN = "423e4567-e89b-12d3-a456-426614174000";
+  let fake: SupabaseFake;
+  let calls: { fn: string; body: unknown }[];
 
-  it("asks generate-npc-voice in the NPC's own campaign and returns its lines", async () => {
-    const { ctx, invoke } = ctxWith(
+  beforeEach(() => {
+    fake = createSupabaseFake();
+    calls = [];
+    fake.seed("npcs", [
       { id: NPC_ID, name: "Mirela", campaign_id: CAMPAIGN },
-      { data: { lines: ["Ask the harbourmaster.", "What shipment?"] }, error: null },
-    );
-    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: " Where did it go? " })).resolves.toEqual({
-      npc_id: NPC_ID,
-      lines: ["Ask the harbourmaster.", "What shipment?"],
-    });
-    expect(invoke).toHaveBeenCalledWith("generate-npc-voice", {
-      body: { campaign_id: CAMPAIGN, npc_id: NPC_ID, situation: "Where did it go?" },
-    });
+      { id: OTHER_NPC, name: "Bram", campaign_id: OTHER_CAMPAIGN },
+    ]);
+  });
+
+  const coach = (args: Record<string, unknown>, reply?: { data: unknown; error: unknown }) =>
+    callTool(mcpCtx(fake, { invoked: calls, reply }), "voice_coach", args);
+
+  it("asks generate-npc-voice in the NPC's own campaign, not another NPC's, and returns its lines", async () => {
+    await expect(
+      coach({ npc_id: NPC_ID, situation: " Where did it go? " }, { data: { lines: ["Ask the harbourmaster.", "What shipment?"] }, error: null }),
+    ).resolves.toEqual({ npc_id: NPC_ID, lines: ["Ask the harbourmaster.", "What shipment?"] });
+    expect(calls).toEqual([
+      { fn: "generate-npc-voice", body: { campaign_id: CAMPAIGN, npc_id: NPC_ID, situation: "Where did it go?" } },
+    ]);
   });
 
   it("reports a refusal in words, not as a bare non-2xx", async () => {
-    const { ctx } = ctxWith(
-      { id: NPC_ID, name: "Mirela", campaign_id: CAMPAIGN },
-      {
+    await expect(
+      coach({ npc_id: NPC_ID, situation: "Hi" }, {
         data: null,
         error: {
           message: "Edge Function returned a non-2xx status code",
           context: new Response(JSON.stringify({ error: "insufficient_credits", balance: 0 })),
         },
-      },
-    );
-    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "Hi" })).rejects.toThrow(/Insufficient credits \(0 left\)/);
+      }),
+    ).rejects.toThrow(/Insufficient credits \(0 left\)/);
   });
 
   it("refuses an NPC outside any campaign before spending anything", async () => {
-    const { ctx, invoke } = ctxWith({ id: NPC_ID, name: "Mirela", campaign_id: null }, { data: null, error: null });
-    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "Hi" })).rejects.toThrow(/no campaign/);
-    expect(invoke).not.toHaveBeenCalled();
+    fake.seed("npcs", [{ id: "223e4567-e89b-12d3-a456-426614174099", name: "Hermit", campaign_id: null }]);
+    await expect(coach({ npc_id: "223e4567-e89b-12d3-a456-426614174099", situation: "Hi" })).rejects.toThrow(/no campaign/);
+    expect(calls).toEqual([]);
   });
 
-  it("validates its arguments", async () => {
-    const { ctx } = ctxWith(null, { data: null, error: null });
-    await expect(callTool(ctx, "voice_coach", { npc_id: "nope", situation: "Hi" })).rejects.toThrow(/UUID/);
-    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "  " })).rejects.toThrow(/situation/);
-    await expect(callTool(ctx, "voice_coach", { npc_id: NPC_ID, situation: "Hi" })).rejects.toThrow(/No NPC found/);
+  it("validates its arguments, and spends nothing on an NPC that is not there", async () => {
+    await expect(coach({ npc_id: "nope", situation: "Hi" })).rejects.toThrow(/UUID/);
+    await expect(coach({ npc_id: NPC_ID, situation: "  " })).rejects.toThrow(/situation/);
+    await expect(coach({ npc_id: "523e4567-e89b-12d3-a456-426614174000", situation: "Hi" })).rejects.toThrow(/No NPC found/);
+    expect(calls).toEqual([]);
   });
 });
 
@@ -599,46 +693,26 @@ describe("party_member — ruleset and class", () => {
   const CAMPAIGN_ID = "123e4567-e89b-12d3-a456-426614174002";
   const member = ENTITY_REGISTRY.party_member;
 
-  type Call = { table: string; op: string; payload?: unknown };
+  const MEMBER = MEMBER_ID;
+  let fake: SupabaseFake;
 
-  /** Table-aware stand-in. `classInsertError` fails the character_classes insert. */
-  function fakeCtx(opts: { classInsertError?: { message: string } } = {}) {
-    const calls: Call[] = [];
-    const system = [
-      { id: "sys-fighter-2024", class_name: "Fighter" },
-      { id: "sys-wizard-2024", class_name: "Wizard" },
-    ];
-    const custom = [
+  beforeEach(() => {
+    fake = createSupabaseFake();
+    // 2014 rows come first so a lookup that forgets the edition finds the wrong one.
+    fake.seed("system_classes", [
+      { id: "sys-fighter-2014", class_name: "Fighter", ruleset: "2014" },
+      { id: "sys-fighter-2024", class_name: "Fighter", ruleset: "2024" },
+      { id: "sys-wizard-2024", class_name: "Wizard", ruleset: "2024" },
+    ]);
+    fake.seed("custom_classes", [
       { id: "cus-tinker", class_name: "Tinkerer", ruleset: null, user_id: "dm-1", campaign_id: null },
       { id: "cus-other", class_name: "Hexblade-ish", ruleset: null, user_id: "dm-2", campaign_id: null },
-    ];
-    const ctx = {
-      userId: "dm-1",
-      supabase: {
-        from: (table: string) => ({
-          select: () =>
-            table === "system_classes"
-              ? { eq: () => Promise.resolve({ data: system, error: null }) }
-              : table === "custom_classes"
-              ? Promise.resolve({ data: custom, error: null })
-              : { eq: () => ({ single: () => Promise.resolve({ data: { id: MEMBER_ID, class: "Fighter" }, error: null }) }) },
-          insert: (payload: unknown) => {
-            calls.push({ table, op: "insert", payload });
-            if (table === "character_classes") return Promise.resolve({ error: opts.classInsertError ?? null });
-            return { select: () => ({ single: () => Promise.resolve({ data: { id: MEMBER_ID }, error: null }) }) };
-          },
-          delete: () => ({
-            eq: () => {
-              calls.push({ table, op: "delete" });
-              return Promise.resolve({ error: null });
-            },
-          }),
-        }),
-        functions: { invoke: () => Promise.resolve({ data: null, error: null }) },
-      },
-    };
-    return { ctx: ctx as unknown as Parameters<typeof callTool>[0], calls };
-  }
+    ]);
+  });
+
+  const ctx = () => mcpCtx(fake, { ids: { party_members: MEMBER } });
+  const make = (fields: Record<string, unknown>) => callTool(ctx(), "create", { type: "party_member", fields });
+  const ops = () => fake.calls.filter((c) => c.op !== "select").map((c) => `${c.target}:${c.op}`);
 
   it("requires a ruleset and limits it to the two editions", () => {
     expect(() => validateFields(member, { name: "Ayla" }, { partial: false })).toThrow(/ruleset/);
@@ -659,77 +733,67 @@ describe("party_member — ruleset and class", () => {
     expect(validateFields(member, { notes: "ok" }, { partial: true })).toEqual({ notes: "ok" });
   });
 
-  it("pins an official class and keeps class out of the member insert", async () => {
-    const { ctx, calls } = fakeCtx();
-    await callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024", class: "fighter", level: 3 } });
-    expect(calls[0]).toEqual({ table: "party_members", op: "insert", payload: { name: "Ayla", ruleset: "2024", level: 3, user_id: "dm-1" } });
-    expect(calls[1]).toEqual({
-      table: "character_classes",
-      op: "insert",
-      payload: {
-        party_member_id: MEMBER_ID,
-        class_name: "Fighter",
-        class_definition_id: "sys-fighter-2024",
-        class_definition_kind: "system",
-        levels: 3,
-        is_primary: true,
-        sort_order: 0,
-        hit_dice_used: 0,
-      },
-    });
+  it("pins the official class of the character's own edition and keeps class out of the member insert", async () => {
+    await make({ name: "Ayla", ruleset: "2024", class: "fighter", level: 3 });
+    const [member] = fake.rows("party_members");
+    expect(member).toMatchObject({ id: MEMBER, name: "Ayla", ruleset: "2024", level: 3, user_id: "dm-1" });
+    expect(member).not.toHaveProperty("class");
+    expect(fake.rows("character_classes")).toEqual([{
+      party_member_id: MEMBER,
+      class_name: "Fighter",
+      class_definition_id: "sys-fighter-2024",
+      class_definition_kind: "system",
+      levels: 3,
+      is_primary: true,
+      sort_order: 0,
+      hit_dice_used: 0,
+    }]);
   });
 
   it("refuses a class the caller scoped to another campaign, and prefers the campaign's own", async () => {
-    const { ctx } = fakeCtx();
-    const rows = [
+    fake.seed("custom_classes", [
       { id: "cus-elsewhere", class_name: "Rune Smith", ruleset: null, user_id: "dm-1", campaign_id: "other-campaign" },
       { id: "cus-general", class_name: "Glassblower", ruleset: null, user_id: "dm-1", campaign_id: null },
       { id: "cus-here", class_name: "Glassblower", ruleset: null, user_id: "dm-2", campaign_id: CAMPAIGN_ID },
-    ];
-    const supabase = ctx.supabase as unknown as { from: (t: string) => { select: () => unknown } };
-    const from = supabase.from;
-    supabase.from = (table: string) =>
-      table === "custom_classes"
-        ? { select: () => Promise.resolve({ data: rows, error: null }) }
-        : from(table);
-    await expect(resolveClassDefinition(ctx, "2024", "Rune Smith", CAMPAIGN_ID)).rejects.toThrow(/No 2024 class named/);
-    await expect(resolveClassDefinition(ctx, "2024", "Glassblower", CAMPAIGN_ID)).resolves.toMatchObject({ id: "cus-here" });
-    await expect(resolveClassDefinition(ctx, "2024", "Glassblower", null)).resolves.toMatchObject({ id: "cus-general" });
+    ]);
+    await expect(resolveClassDefinition(ctx(), "2024", "Rune Smith", CAMPAIGN_ID)).rejects.toThrow(/No 2024 class named/);
+    await expect(resolveClassDefinition(ctx(), "2024", "Glassblower", CAMPAIGN_ID)).resolves.toMatchObject({ id: "cus-here" });
+    await expect(resolveClassDefinition(ctx(), "2024", "Glassblower", null)).resolves.toMatchObject({ id: "cus-general" });
   });
 
   it("falls back to the caller's own class, at level 1 when none is given", async () => {
-    const { ctx, calls } = fakeCtx();
-    await callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2014", class: "Tinkerer", campaign_id: CAMPAIGN_ID } });
-    expect(calls[1].payload).toMatchObject({ class_definition_id: "cus-tinker", class_definition_kind: "custom", levels: 1 });
+    await make({ name: "Ayla", ruleset: "2014", class: "Tinkerer", campaign_id: CAMPAIGN_ID });
+    expect(fake.rows("character_classes")[0]).toMatchObject({ class_definition_id: "cus-tinker", class_definition_kind: "custom", levels: 1 });
+  });
+
+  it("does not resolve a custom class tied to the other edition", async () => {
+    fake.seed("custom_classes", [{ id: "cus-2014-only", class_name: "Gunsmith", ruleset: "2014", user_id: "dm-1", campaign_id: null }]);
+    await expect(make({ name: "Ayla", ruleset: "2024", class: "Gunsmith" })).rejects.toThrow(/No 2024 class named "Gunsmith"/);
+    await make({ name: "Ayla", ruleset: "2014", class: "Gunsmith" });
+    expect(fake.rows("character_classes")[0]).toMatchObject({ class_definition_id: "cus-2014-only" });
   });
 
   it("does not resolve another user's class", async () => {
-    const { ctx, calls } = fakeCtx();
-    await expect(
-      callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2014", class: "Hexblade-ish" } }),
-    ).rejects.toThrow(/No 2014 class named "Hexblade-ish"/);
-    expect(calls).toEqual([]);
+    await expect(make({ name: "Ayla", ruleset: "2014", class: "Hexblade-ish" })).rejects.toThrow(/No 2014 class named "Hexblade-ish"/);
+    expect(ops()).toEqual([]);
   });
 
-  it("names the class and the official options when it resolves to nothing, writing nothing", async () => {
-    const { ctx, calls } = fakeCtx();
-    await expect(
-      callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024", class: "Gunslinger" } }),
-    ).rejects.toThrow(/"Gunslinger".*Fighter, Wizard/);
-    expect(calls).toEqual([]);
+  it("names the class and only the character's edition's official options when it resolves to nothing, writing nothing", async () => {
+    const failure = make({ name: "Ayla", ruleset: "2024", class: "Gunslinger" });
+    await expect(failure).rejects.toThrow(/"Gunslinger".*Fighter, Wizard/);
+    await expect(make({ name: "Ayla", ruleset: "2014", class: "Gunslinger" })).rejects.toThrow(/Official 2014 classes: Fighter\./);
+    expect(ops()).toEqual([]);
   });
 
   it("removes the character when its class row cannot be written", async () => {
-    const { ctx, calls } = fakeCtx({ classInsertError: { message: "boom" } });
-    await expect(
-      callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024", class: "Wizard" } }),
-    ).rejects.toThrow("boom");
-    expect(calls.map((c) => `${c.table}:${c.op}`)).toEqual(["party_members:insert", "character_classes:insert", "party_members:delete"]);
+    fake.failNext("character_classes", { message: "boom" });
+    await expect(make({ name: "Ayla", ruleset: "2024", class: "Wizard" })).rejects.toThrow("boom");
+    expect(fake.rows("party_members")).toEqual([]);
+    expect(fake.rows("character_classes")).toEqual([]);
   });
 
   it("creates a classless character when no class is given", async () => {
-    const { ctx, calls } = fakeCtx();
-    await callTool(ctx, "create", { type: "party_member", fields: { name: "Ayla", ruleset: "2024" } });
-    expect(calls.map((c) => c.table)).toEqual(["party_members"]);
+    await make({ name: "Ayla", ruleset: "2024" });
+    expect(ops()).toEqual(["party_members:insert"]);
   });
 });

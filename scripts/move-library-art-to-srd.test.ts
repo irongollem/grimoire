@@ -123,6 +123,15 @@ describe("collectJobs and selectJobs", () => {
     expect(ignored).toBe(1);
   });
 
+  it("lists a repeated old URL and a repeated source once, and keeps the same stem in two buckets as two jobs", () => {
+    const item = { url: `${ORIGIN}/asset-images/${ADMIN}/a.png`, kind: "item" as const, source: "library_art_defaults.image_url" };
+    const { jobs } = collectJobs([item, item, { url: `${ORIGIN}/monster-images/${ADMIN}/a.png`, kind: "monster" as const, source: "library_monster_art_canonical.image_url" }]);
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0].oldUrls).toEqual([item.url]);
+    expect(jobs[0].sources).toEqual(["library_art_defaults.image_url"]);
+    expect(jobs.map((j) => j.targetBucket)).toEqual(["item-images", "monster-images"]);
+  });
+
   it("narrows by --only and --limit, and refuses an --only that names nothing", () => {
     const { jobs } = collectJobs(rows);
     expect(selectJobs(jobs, { only: "m", limit: null })).toHaveLength(1);
@@ -161,6 +170,10 @@ describe("parseCli and assertMayWrite", () => {
   it("reads every option", () => {
     const opts = parseCli(["--write", "--yes-production", "--limit", "3", "--only", "abc", "--out", "p.json", "--library-owner", ADMIN.toUpperCase(), "--cdn-base", "https://cdn.x/"]);
     expect(opts).toMatchObject({ write: true, yesProduction: true, limit: 3, only: "abc", out: "p.json", libraryOwner: ADMIN, cdnBase: "https://cdn.x/" });
+  });
+
+  it("reads a blank --cdn-base as none", () => {
+    expect(parseCli(["--cdn-base", "   "]).cdnBase).toBeNull();
   });
 
   it("refuses a bad limit, a bad owner and an unknown flag", () => {

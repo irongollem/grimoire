@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -449,5 +449,28 @@ describe("focal point guess", () => {
     expect(() => parseFocalAnswer('{"x": "left"}')).toThrow(/numeric/);
     expect(() => parseFocalAnswer("null")).toThrow(/not an object/);
     expect(() => parseFocalAnswer("not json")).toThrow();
+  });
+});
+
+
+describe("refusals that keep paid and production steps apart", () => {
+  it("refuses a dressing picture with the right width and the wrong height", () => {
+    const table = { id: "dressing_long_table", name: "Long table", footprint_w: 2, footprint_h: 1 };
+    expect(() => checkDressingSize(table, { width: 512, height: 300, hasAlpha: true })).toThrow(/expected 512x256.*got 512x300/);
+  });
+
+  it("keeps publish-only flags out of generate and generate-only flags out of publish", () => {
+    expect(() => parseCli(["generate", "--spell", "a", "--out", "d", "--approve-all"])).toThrow(/belong to publish/);
+    expect(() => parseCli(["publish", "--out", "d", "--yes-spend"])).toThrow(/--yes-spend belongs to generate/);
+  });
+
+  it("will not read or write a manifest that is not version 1", () => {
+    const dir = mkdtempSync(join(tmpdir(), "library-art-bad-"));
+    try {
+      writeFileSync(join(dir, "manifest.json"), JSON.stringify({ version: 2, entries: [] }));
+      expect(() => readManifest(dir)).toThrow(/not a version 1 manifest/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

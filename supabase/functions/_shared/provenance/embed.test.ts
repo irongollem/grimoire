@@ -226,10 +226,6 @@ describe("WebP", () => {
     expect(Array.from(chunks[1].data)).toEqual(vp8lPayload(4, 4, false)); // VP8L chunk (odd-length payload) survives the padding of its own data untouched
     expect(readXmpFromWebp(marked)).toBe("a");
   });
-
-  it("throws on garbage bytes (not caught here — embedProvenance is the pass-through boundary)", () => {
-    expect(() => embedXmpInWebp(new Uint8Array([1, 2, 3]), "p")).toThrow();
-  });
 });
 
 describe("PNG", () => {
@@ -278,10 +274,6 @@ describe("PNG", () => {
     expect(chunks.filter((c) => c.type === "iTXt")).toHaveLength(1);
     expect(readXmpFromPng(twice)).toBe("second");
   });
-
-  it("throws on garbage bytes (not caught here — embedProvenance is the pass-through boundary)", () => {
-    expect(() => embedXmpInPng(new Uint8Array([1, 2, 3]), "p")).toThrow();
-  });
 });
 
 describe("JPEG", () => {
@@ -329,9 +321,39 @@ describe("JPEG", () => {
     }
     expect(app1Count).toBe(1);
   });
+});
 
-  it("throws on garbage bytes (not caught here — embedProvenance is the pass-through boundary)", () => {
-    expect(() => embedXmpInJpeg(new Uint8Array([1, 2, 3]), "p")).toThrow();
+describe("the format embedders refuse what they cannot parse", () => {
+  // Not caught here: embedProvenance is the pass-through boundary.
+  it.each([
+    ["WebP", embedXmpInWebp, new Uint8Array([1, 2, 3])],
+    ["PNG", embedXmpInPng, new Uint8Array([1, 2, 3])],
+    ["JPEG", embedXmpInJpeg, new Uint8Array([1, 2, 3])],
+    // A trailing chunk claiming 10 bytes with 2 present: nothing else in a RIFF file would notice.
+    ["a truncated WebP (a chunk declares more than the file holds)", embedXmpInWebp, webpFile([riffChunk("VP8L", vp8lPayload(4, 4, false)), [...ascii("JUNK"), ...u32le(10), 1, 2]])],
+    ["a lossy WebP whose VP8 chunk lacks the key frame start code", embedXmpInWebp, webpFile([riffChunk("VP8 ", [0x10, 0x01, 0x00, 0x00, 0x01, 0x2a, 4, 0, 4, 0])])],
+  ])("%s", (_label, embed, bytes) => {
+    expect(() => embed(bytes, "p")).toThrow();
+  });
+});
+
+describe("JPEG bounds", () => {
+  // An APP1 segment length is 16 bits and includes the 2 length bytes and the
+  // 29-byte "http://ns.adobe.com/xap/1.0/\0" identifier: 65504 bytes of packet is the most it can hold.
+  const MAX_PACKET = 0xffff - 2 - 29;
+
+  it("accepts the largest packet one segment can carry and refuses one byte more, rather than writing a wrapped length", () => {
+    const marked = embedXmpInJpeg(buildMinimalJpeg(), "x".repeat(MAX_PACKET));
+    expect(readXmpFromJpeg(marked)?.length).toBe(MAX_PACKET);
+    expect(() => embedXmpInJpeg(buildMinimalJpeg(), "x".repeat(MAX_PACKET + 1))).toThrow();
+  });
+
+  it("does not read XMP out of the scan data after the start-of-scan marker", () => {
+    const bare = buildMinimalJpeg(false); // SOI, SOS header (marker + length 2), EOI
+    const decoy = embedXmpInJpeg(bare, "decoy").slice(2, -6); // just the APP1 segment
+    // The decoy sits where the scan data would be, with no EOI to stop the reader first.
+    const spliced = new Uint8Array([...bare.slice(0, 6), ...decoy]);
+    expect(readXmpFromJpeg(spliced)).toBeNull();
   });
 });
 

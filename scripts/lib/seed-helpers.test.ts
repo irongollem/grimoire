@@ -176,6 +176,17 @@ describe("fetchAllRows", () => {
     expect(fetchPage).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 
+  it("treats a page of 999 as the last, and a page of exactly 1000 as maybe not", async () => {
+    const page = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `r${i}` }));
+    const short = vi.fn(async () => ({ data: page(999), error: null }));
+    expect(await fetchAllRows(short)).toHaveLength(999);
+    expect(short).toHaveBeenCalledTimes(1);
+
+    const full = vi.fn(async (from: number) => ({ data: from === 0 ? page(1000) : [], error: null }));
+    expect(await fetchAllRows(full)).toHaveLength(1000);
+    expect(full).toHaveBeenCalledTimes(2);
+  });
+
   it("treats a null data page as empty and still stops the loop", async () => {
     const fetchPage = vi.fn(async () => ({ data: null, error: null }));
 

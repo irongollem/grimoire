@@ -36,6 +36,11 @@ describe("sniffImageFormat", () => {
     expect(sniffImageFormat(bytes(0x47, 0x49, 0x46, 0x38, 0x39, 0x61))).toBeNull();
   });
 
+  it("needs the full marker: a lone 0xFF is not a JPEG, and a RIFF whose form type differs in its first letter is not WEBP", () => {
+    expect(sniffImageFormat(bytes(0xff, 0x00, 0xff, 0xe0))).toBeNull();
+    expect(sniffImageFormat(bytes(0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x58, 0x45, 0x42, 0x50))).toBeNull();
+  });
+
   it("returns null for empty bytes", () => {
     expect(sniffImageFormat(new Uint8Array(0))).toBeNull();
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ROTATION_DERIVED, createDraftManifest, createGenerationPlan, enumerateSchemaSlots, rotationFor, rotationsOf, slotId, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
-import { TILE_PACK_SCHEMA } from "./packSchema";
+import { TILE_PACK_SCHEMA, categoryDef, type PackCategory } from "./packSchema";
 
 const bible: PackArtBible = {
   visual_medium: "painterly fantasy game art",
@@ -307,5 +307,75 @@ describe("every category states its viewpoint in the subject line (#902)", () =>
     expect(slotMechanics({ category: "terrainWater", variant: 0 }).alpha).toBe("opaque");
     expect(slotMechanics({ category: "curbPost", variant: 0 }).footprint).toBe("centered-overlay");
     expect(slotMechanics({ category: "wallDecal", variant: 0 }).footprint).toBe("centered-overlay");
+  });
+});
+
+describe("what each slot's tile must do at its edges", () => {
+  const tileable = (category: PackCategory, side?: string) =>
+    slotMechanics({ category, variant: 0, ...(side ? { side } : {}) }).tileable_edges;
+
+  it("runs a horizontal strip east-west and a vertical one north-south, and a ground tile on all four", () => {
+    expect(slotMechanics({ category: "wallSegmentV", variant: 0 })).toMatchObject({ footprint: "centered-vertical-edge", tileable_edges: ["N", "S"] });
+    expect(slotMechanics({ category: "wallSegmentH", variant: 0 }).tileable_edges).toEqual(["E", "W"]);
+    expect(tileable("floor")).toEqual(["N", "E", "S", "W"]);
+    expect(tileable("doorLeaf")).toEqual([]);
+  });
+
+  it("lets a wall joint continue along the arms it joins: the two of an L, all but the missing one of a T, all of a cross", () => {
+    expect(tileable("wallJoint", "CROSS")).toEqual(["N", "E", "S", "W"]);
+    expect(tileable("wallJoint", "L_NE")).toEqual(["N", "E"]);
+    expect(tileable("wallJoint", "L_SW")).toEqual(["S", "W"]);
+    // T_N is the joint with no wall to the north (edges.ts classifyJoint), so it continues east, south and west
+    expect(tileable("wallJoint", "T_N")).toEqual(["E", "S", "W"]);
+    expect(tileable("wallJoint", "T_W")).toEqual(["N", "E", "S"]);
+  });
+
+  it("asks for a transparent background only where the tile is a strip or an overlay", () => {
+    const constraintsOf = (id: string) =>
+      createGenerationPlan({ manifest: manifest(), artBible: bible, selectedSlotIds: [id] }).jobs[0]!.prompt.constraints;
+    expect(constraintsOf("floor:0")).toContain("fully opaque output");
+    expect(constraintsOf("floor:0").join(" ")).not.toContain("transparent");
+    expect(constraintsOf("wallSegmentH:0").join(" ")).toContain("transparent background");
+    expect(constraintsOf("wallSegmentH:0").join(" ")).not.toContain("opaque output");
+  });
+});
+
+describe("what a slot's prompt asks the model to draw", () => {
+  const requestOf = (id: string): string =>
+    createGenerationPlan({ manifest: manifest(), artBible: bible, selectedSlotIds: [id] }).jobs[0]!.prompt.category_request;
+
+  it("runs a wall along the horizontal axis (a vertical one is this tile turned, never drawn itself)", () => {
+    expect(requestOf("wallSegmentH:0")).toMatch(/horizontal axis/);
+  });
+
+  it("asks for stairs that go the way their name says", () => {
+    expect(requestOf("stairsUp:N:0")).toMatch(/ascending/);
+    expect(requestOf("stairsDown:N:0")).toMatch(/descending/);
+  });
+});
+
+describe("enumerateSchemaSlots", () => {
+  it("lists the minimum for a complete pack, or every variant the schema allows, per category", () => {
+    for (const include of [false, true]) {
+      const slots = enumerateSchemaSlots(include);
+      for (const category of Object.keys(TILE_PACK_SCHEMA.categories) as PackCategory[]) {
+        const def = categoryDef(category);
+        const variants = slots.filter((s) => s.category === category).length;
+        if (def.kind === "random") expect(variants, category).toBe(include ? def.max : def.min);
+        else if (def.kind === "optional") expect(variants, category).toBe(include ? def.max : 0);
+        else expect(variants, category).toBe(include || !def.optional ? def.sides.length * (def.variantsPerSide ?? 1) : 0);
+      }
+    }
+  });
+});
+
+describe("upsertManifestSlot", () => {
+  it("replaces a slot it already holds instead of adding a second, and keeps the others in side-then-variant order", () => {
+    const draft = manifest();
+    upsertManifestSlot(draft, { category: "stairsUp", side: "S", variant: 0 }, 10);
+    upsertManifestSlot(draft, { category: "stairsUp", side: "N", variant: 1 }, 10);
+    upsertManifestSlot(draft, { category: "stairsUp", side: "N", variant: 0 }, 10);
+    upsertManifestSlot(draft, { category: "stairsUp", side: "S", variant: 0 }, 99);
+    expect(draft.assets.stairsUp!.map((s) => `${s.side}${s.variant}:${s.byteSize}`)).toEqual(["N0:10", "N1:10", "S0:99"]);
   });
 });

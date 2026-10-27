@@ -60,10 +60,15 @@ describe("isValidStyleImageSize", () => {
     expect(isValidStyleImageSize(3840, 3840)).toBe(false); // exceeds 4K's total even though each edge is legal
   });
 
-  it("rejects the old hard-coded square this endpoint used to always request", () => {
-    // 1024x1024 is itself still a legal size (a multiple of 16, 1:1, within
-    // every bound) — this pins that the *validator* doesn't special-case it
-    // one way or the other; it's neither required nor rejected.
+  it("accepts the exact edges of the pixel budget and the edge cap", () => {
+    expect(isValidStyleImageSize(1024, 640)).toBe(true); // 655,360 exactly
+    expect(isValidStyleImageSize(1024, 624)).toBe(false); // 638,976
+    expect(isValidStyleImageSize(3840, 2160)).toBe(true); // 8,294,400 exactly, and the 3840 edge itself
+    expect(isValidStyleImageSize(3840, 2176)).toBe(false); // 8,355,840
+    expect(isValidStyleImageSize(3312, 1104)).toBe(true); // 3:1 exactly
+  });
+
+  it("does not single out the square this endpoint used to always request", () => {
     expect(isValidStyleImageSize(1024, 1024)).toBe(true);
   });
 

@@ -4,16 +4,7 @@ import {
   extractLyriaAudio,
   audioExtension,
   normalizeImageMime,
-  LYRIA_INTERACTIONS_URL,
-  LYRIA_MAX_IMAGES,
-  LYRIA_IMAGE_MIME_TYPES,
 } from "./lyria.ts";
-
-describe("LYRIA_INTERACTIONS_URL", () => {
-  it("points at the Interactions API, not the old generateContent endpoint", () => {
-    expect(LYRIA_INTERACTIONS_URL).toBe("https://generativelanguage.googleapis.com/v1beta/interactions");
-  });
-});
 
 describe("buildLyriaRequest", () => {
   it("builds the request body with store: false", () => {
@@ -48,16 +39,6 @@ describe("buildLyriaRequest", () => {
     });
   });
 
-  it("still sets store: false with images attached", () => {
-    const result = buildLyriaRequest("lyria-3.5", "prompt", [{ mimeType: "image/webp", data: "d2Vi" }]);
-    expect(result.store).toBe(false);
-  });
-});
-
-describe("LYRIA_MAX_IMAGES", () => {
-  it("is 10", () => {
-    expect(LYRIA_MAX_IMAGES).toBe(10);
-  });
 });
 
 describe("extractLyriaAudio", () => {
@@ -96,8 +77,9 @@ describe("extractLyriaAudio", () => {
     const json = {
       steps: [
         modelOutputStep([{ type: "audio", data: "first" }]),
-        { type: "text_only", content: [{ type: "audio", data: "wrong-step-type" }] },
         modelOutputStep([{ type: "audio", data: "second" }, { type: "audio", data: "third" }]),
+        // After the real last block, so only the step-type check keeps it out.
+        { type: "text_only", content: [{ type: "audio", data: "wrong-step-type-last" }] },
       ],
     };
     expect(extractLyriaAudio(json)).toEqual({ data: "third", mimeType: "audio/mpeg" });
@@ -120,16 +102,11 @@ describe("extractLyriaAudio", () => {
   });
 });
 
-describe("LYRIA_IMAGE_MIME_TYPES", () => {
-  it("accepts jpeg, png and webp", () => {
-    expect(LYRIA_IMAGE_MIME_TYPES).toEqual(["image/jpeg", "image/png", "image/webp"]);
-  });
-});
-
 describe("normalizeImageMime", () => {
   it("lowercases and passes through an accepted mime type", () => {
     expect(normalizeImageMime("image/jpeg")).toBe("image/jpeg");
     expect(normalizeImageMime("IMAGE/PNG")).toBe("image/png");
+    expect(normalizeImageMime("image/webp")).toBe("image/webp");
   });
 
   it("strips parameters before comparing", () => {

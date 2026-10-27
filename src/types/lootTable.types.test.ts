@@ -42,6 +42,28 @@ describe("validateEntries — quantity guards (#487)", () => {
     expect(validateEntries([entry({ type: "item", item_id: "i1", dice: "1d6", fixed_qty: 0 })])).toBeNull();
   });
 
+  it.each([1, 100])("accepts a drop chance of %i, the ends of the range", (chance) => {
+    expect(validateEntries([entry({ drop_chance: chance, type: "currency" })])).toBeNull();
+  });
+
+  it.each([0, 101, Number.NaN, Number.POSITIVE_INFINITY])("rejects a drop chance of %s", (chance) => {
+    expect(validateEntries([entry({ drop_chance: chance, type: "currency" })])).toMatch(/Drop chance/i);
+  });
+
+  it("rejects a dice expression whose best roll is exactly 0", () => {
+    const err = validateEntries([entry({ type: "item", item_id: "i1", dice: "1d4-4" })]);
+    expect(err).toMatch(/never roll a positive quantity/i);
+  });
+
+  it.each([-1, 1.5])("rejects a fixed quantity of %s", (qty) => {
+    const err = validateEntries([entry({ type: "item", item_id: "i1", dice: null, fixed_qty: qty })]);
+    expect(err).toMatch(/non-negative integer/i);
+  });
+
+  it("treats an entry with no type as an item entry", () => {
+    expect(validateEntries([entry({ item_id: "" })])).toMatch(/reference an item/i);
+  });
+
   it("still enforces the pre-existing rules (drop_chance range, item_id, rarity)", () => {
     expect(validateEntries([entry({ drop_chance: 0, type: "item", item_id: "i1" })])).toMatch(/Drop chance/i);
     expect(validateEntries([entry({ type: "item", item_id: "" })])).toMatch(/reference an item/i);

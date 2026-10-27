@@ -126,3 +126,108 @@ describe("pullSourceSpecies (#1034)", () => {
     expect(sql).not.toHaveBeenCalled();
   });
 });
+
+describe("pullCampaignTables against a production that holds other people's rows", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const SOURCE = "12121212-3434-5656-7878-909090909090";
+  const STRANGER = "99999999-3434-5656-7878-909090909090";
+  const remote = new URL("https://example.invalid");
+  type Row = Record<string, unknown>;
+
+  /** Answers `col=eq.v` and `col=in.(a,b)` filters from a row set, as PostgREST would. */
+  function production(data: Record<string, Row[]>, missing: string[] = []) {
+    const asked: { table: string; filter: string }[] = [];
+    const matches = (filter: string) => {
+      const tests = filter.split("&").filter(Boolean).map((f) => {
+        const [column, op] = [f.slice(0, f.indexOf("=")), f.slice(f.indexOf("=") + 1)];
+        if (op.startsWith("eq.")) return (r: Row) => r[column] === op.slice(3);
+        const list = /^in\.\((.*)\)$/.exec(op)?.[1];
+        if (list === undefined) throw new Error(`unmodelled filter ${f}`);
+        const wanted = list.split(",");
+        return (r: Row) => wanted.includes(String(r[column]));
+      });
+      return (r: Row) => tests.every((t) => t(r));
+    };
+    vi.spyOn(stack, "remoteRows").mockImplementation(async (_u, _k, table, filter) => {
+      asked.push({ table, filter });
+      if (missing.includes(table)) throw new stack.MissingRemoteTable(table);
+      return (data[table] ?? []).filter(matches(filter));
+    });
+    vi.spyOn(stack, "remoteCount").mockImplementation(async (_u, _k, table, filter) => {
+      if (missing.includes(table)) throw new stack.MissingRemoteTable(table);
+      return (data[table] ?? []).filter(matches(filter)).length;
+    });
+    return asked;
+  }
+
+  const entry = (table: string, tier: 1 | 2, parent?: [string, string]) => ({
+    table, tier, orderBy: "id", deferColumns: [], parentColumn: parent?.[0] ?? null, parentTable: parent?.[1] ?? null,
+  });
+  const columns = new Map([
+    ["npcs", ["id", "campaign_id", "user_id"]],
+    ["quests", ["id", "campaign_id", "user_id"]],
+    ["quest_notes", ["id", "quest_id", "user_id"]],
+  ]);
+
+  it("never takes a stranger's row, and reports how many it kept out", async () => {
+    production({
+      npcs: [
+        { id: "n1", campaign_id: "c1", user_id: SOURCE },
+        { id: "n2", campaign_id: "c1", user_id: STRANGER },
+        { id: "n3", campaign_id: "c2", user_id: SOURCE },
+      ],
+    });
+    const result = await pullCampaignTables(remote, "k", [entry("npcs", 1)], columns, "c1", SOURCE);
+    expect(result.tables[0].rows.map((r) => r.id)).toEqual(["n1"]);
+    expect(result.keptOut).toEqual({ npcs: 1 });
+  });
+
+  it("reports nothing kept out when every row in the campaign is the source's own", async () => {
+    production({ npcs: [{ id: "n1", campaign_id: "c1", user_id: SOURCE }, { id: "n2", campaign_id: "c1", user_id: SOURCE }] });
+    const result = await pullCampaignTables(remote, "k", [entry("npcs", 1)], columns, "c1", SOURCE);
+    expect(result.tables[0].rows).toHaveLength(2);
+    expect(result.keptOut).toEqual({});
+  });
+
+  it("reads a tier-2 table only for the parents that were kept, and only the source's own rows of it", async () => {
+    const asked = production({
+      quests: [
+        { id: "q1", campaign_id: "c1", user_id: SOURCE },
+        { id: "q2", campaign_id: "c1", user_id: STRANGER },
+      ],
+      quest_notes: [
+        { id: "a", quest_id: "q1", user_id: SOURCE },
+        { id: "b", quest_id: "q1", user_id: STRANGER },
+        { id: "c", quest_id: "q2", user_id: SOURCE },
+      ],
+    });
+    const result = await pullCampaignTables(remote, "k", [entry("quests", 1), entry("quest_notes", 2, ["quest_id", "quests"])], columns, "c1", SOURCE);
+    expect(result.tables[1].rows.map((r) => r.id)).toEqual(["a"]);
+    expect(result.keptOut).toEqual({ quests: 1, quest_notes: 1 });
+    expect(asked.filter((a) => a.table === "quest_notes").map((a) => a.filter)).toEqual([`quest_id=in.(q1)&user_id=eq.${SOURCE}`]);
+  });
+
+  it("splits a long parent list so no request outgrows a URL, and loses no child", async () => {
+    const parents = Array.from({ length: 130 }, (_, i) => ({ id: `q${i}`, campaign_id: "c1", user_id: SOURCE }));
+    const asked = production({ quests: parents, quest_notes: parents.map((p, i) => ({ id: `a${i}`, quest_id: p.id, user_id: SOURCE })) });
+    const result = await pullCampaignTables(remote, "k", [entry("quests", 1), entry("quest_notes", 2, ["quest_id", "quests"])], columns, "c1", SOURCE);
+    expect(result.tables[1].rows).toHaveLength(130);
+    const requests = asked.filter((a) => a.table === "quest_notes");
+    expect(requests).toHaveLength(3);
+    for (const r of requests) expect(/in\.\((.*?)\)/.exec(r.filter)![1].split(",").length).toBeLessThanOrEqual(60);
+  });
+
+  it("treats a table production lacks as empty, so its children ask for nothing", async () => {
+    const asked = production({ quest_notes: [{ id: "a", quest_id: "q1", user_id: SOURCE }] }, ["quests"]);
+    const result = await pullCampaignTables(remote, "k", [entry("quests", 1), entry("quest_notes", 2, ["quest_id", "quests"])], columns, "c1", SOURCE);
+    expect(result.missingInProduction).toEqual(["quests"]);
+    expect(result.tables.map((t) => t.rows.length)).toEqual([0, 0]);
+    expect(asked.some((a) => a.table === "quest_notes")).toBe(false);
+  });
+
+  it("lets any other failure through rather than copy a partial campaign", async () => {
+    vi.spyOn(stack, "remoteRows").mockRejectedValue(new Error("Could not read npcs from production (500)"));
+    await expect(pullCampaignTables(remote, "k", [entry("npcs", 1)], columns, "c1", SOURCE)).rejects.toThrow(/500/);
+  });
+});

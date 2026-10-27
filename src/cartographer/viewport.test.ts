@@ -141,6 +141,21 @@ describe("pinchViewport — two fingers pan and zoom", () => {
     expect(after.y).toBeCloseTo(before.y, 10);
   });
 
+  it("keeps the world point under the midpoint still when the zoom is clamped", () => {
+    const wide = pinchOf({ x: 0, y: 100 }, { x: 10000, y: 100 });
+    const next = pinchViewport(start, from, wide, 1);
+    const before = (start.offset.x + from.mid.x) / start.zoom;
+    const after = (next.offset.x + wide.mid.x) / next.zoom;
+    expect(after).toBeCloseTo(before, 8);
+  });
+
+  it("does not zoom when the fingers started on the same point", () => {
+    const together = pinchOf({ x: 100, y: 100 }, { x: 100, y: 100 });
+    const next = pinchViewport(start, together, pinchOf({ x: 70, y: 100 }, { x: 130, y: 100 }), 1);
+    expect(next.zoom).toBe(1);
+    expect(next.offset).toEqual(start.offset);
+  });
+
   it("clamps to the zoom range", () => {
     const wide = pinchOf({ x: 0, y: 100 }, { x: 10000, y: 100 });
     expect(pinchViewport(start, from, wide, 1).zoom).toBe(MAX_ZOOM);

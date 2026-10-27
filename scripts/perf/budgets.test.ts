@@ -33,6 +33,23 @@ describe("checkBudgets", () => {
     expect(isFailure(report)).toBe(true);
   });
 
+  it("fails a budget that is not a finite number, whatever its type", () => {
+    for (const ceiling of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const broken: Budgets = { journeys: { "dm-cold": { "dm-cold": { apiRequests: ceiling, serialDepth: 5, totalRequests: 41 } } } };
+      const report = checkBudgets(file([ok("dm-cold", "dm-cold", 10_000, 5)]), broken);
+      expect(report.missingSteps).toEqual(["dm-cold dm-cold: no numeric apiRequests budget"]);
+      expect(isFailure(report)).toBe(true);
+    }
+  });
+
+  it("fails a gated metric the run could not measure, instead of passing it", () => {
+    const run = file([ok("dm-cold", "dm-cold", 41, 5)]);
+    run.journeys[0]!.steps[0]!.median.serialDepth = null;
+    const report = checkBudgets(run, budgets);
+    expect(report.missingSteps).toEqual(["dm-cold dm-cold: serialDepth was not measured"]);
+    expect(isFailure(report)).toBe(true);
+  });
+
   it("passes at exactly the budget", () => {
     const report = checkBudgets(file([ok("dm-cold", "dm-cold", 41, 5)]), budgets);
     expect(report.breaches).toEqual([]);
@@ -43,7 +60,11 @@ describe("checkBudgets", () => {
     const report = checkBudgets(file([ok("dm-cold", "dm-cold", 42, 6)]), budgets);
     expect(report.breaches.map((b) => b.metric)).toEqual(["apiRequests", "serialDepth", "totalRequests"]);
     expect(isFailure(report)).toBe(true);
-    expect(formatBudgetReport(report)).toContain("OVER BUDGET");
+    const text = formatBudgetReport(report);
+    expect(text).toContain("OVER BUDGET");
+    expect(text).toContain("budgets: FAILED");
+    // A journey with a single step of its own name is listed once, not "dm-cold dm-cold".
+    expect(text).not.toContain("dm-cold dm-cold");
   });
 
   it("hints to lower the budget on an improvement, without failing", () => {
@@ -68,6 +89,12 @@ describe("checkBudgets", () => {
     expect(report.missingSteps).toEqual(["dm-cold dm-cold"]);
     expect(report.unbudgeted).toContain("dm-cold renamed");
     expect(isFailure(report)).toBe(true);
+  });
+
+  it("does not ask for a budget for a journey that was skipped", () => {
+    const skipped: JourneyResult = { journey: "new-one", status: "skipped", skipReason: "no campaign", steps: [] };
+    const report = checkBudgets(file([ok("dm-cold", "dm-cold", 41, 5), skipped]), budgets);
+    expect(report.unbudgeted).toEqual([]);
   });
 
   it("points out journeys nobody budgeted", () => {

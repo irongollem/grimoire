@@ -55,6 +55,14 @@ describe("completedYears", () => {
     expect(completedYears({ year: 1450, month: 6, day: 15 }, today)).toBe(45);
     expect(completedYears({ year: 1450, month: 5, day: 30 }, today)).toBe(45);
   });
+  it("ignores a lone month: without a day the birthday is unknown, so the year difference stands", () => {
+    expect(completedYears({ year: 1450, month: 12, day: null }, today)).toBe(45);
+    expect(completedYears({ year: 1450, month: null, day: 20 }, today)).toBe(45);
+  });
+  it("a child born this year is 0, not unknown", () => {
+    expect(completedYears({ year: 1495, month: 6, day: 15 }, today)).toBe(0);
+    expect(completedYears({ year: 1495, month: null, day: null }, today)).toBe(0);
+  });
   it("is null before the birth", () => {
     expect(completedYears({ year: 1496, month: null, day: null }, today)).toBeNull();
     expect(completedYears({ year: 1495, month: 7, day: 1 }, today)).toBeNull();
@@ -71,6 +79,9 @@ describe("promptAge", () => {
   });
   it("ignores a lone month", () => {
     expect(promptAge({ age: null, born_year: 1448, born_month: 12, born_day: null }, today)).toBe("47");
+  });
+  it("a row that omits born_day entirely is treated like a null one", () => {
+    expect(promptAge({ age: null, born_year: 1448, born_month: 12 }, today)).toBe("47");
   });
   it("falls back to the text without a birth year or without today", () => {
     expect(promptAge({ age: " elderly " }, today)).toBe("elderly");

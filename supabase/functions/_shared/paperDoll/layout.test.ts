@@ -26,6 +26,13 @@ function sheetRect(buf: Uint8ClampedArray, x0: number, y0: number, x1: number, y
   }
 }
 
+/** Paints a rectangle of the given alpha (inclusive edges, SHEET coordinates). */
+function alphaRect(buf: Uint8ClampedArray, x0: number, y0: number, x1: number, y1: number, alpha: number) {
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) buf[(y * SHEET_WIDTH + x) * 4 + 3] = alpha;
+  }
+}
+
 /** Paints an opaque rectangle (inclusive edges, cell coordinates) into one cell. */
 function rect(buf: Uint8ClampedArray, cell: DollCellIndex, x0: number, y0: number, x1: number, y1: number) {
   sheetRect(buf, cell * CELL_WIDTH + x0, y0, cell * CELL_WIDTH + x1, y1);
@@ -67,18 +74,52 @@ describe("measureAnatomy", () => {
     expect(measureAnatomy(buf).centerX).toBe(256);
   });
 
-  it("has no feetX any more", () => {
-    const buf = blankSheet();
-    paintFigure(buf, 0);
-    expect("feetX" in measureAnatomy(buf)).toBe(false);
-  });
-
   it("throws on a cell with no opaque pixels", () => {
     expect(() => measureAnatomy(blankSheet())).toThrow(/no opaque pixels/);
   });
 });
 
+describe("what counts as figure", () => {
+  it("measures only pixels with alpha above 128: a figure at exactly 128 is not there yet", () => {
+    const faint = blankSheet();
+    alphaRect(faint, 200, 100, 300, 900, 128);
+    expect(() => measureAnatomy(faint)).toThrow(/no opaque pixels/);
+    const solid = blankSheet();
+    alphaRect(solid, 200, 100, 300, 900, 129);
+    expect(measureAnatomy(solid).feetY).toBe(900);
+  });
+});
+
 describe("sheetCuts", () => {
+  it("does not cut through a faint wisp: a column with alpha above 32 is not part of a gap", () => {
+    const buf = blankSheet();
+    sheetRect(buf, 100, 100, 440, 900);
+    alphaRect(buf, 500, 100, 500, 900, 33); // a cast shadow or loose strand, barely visible
+    sheetRect(buf, 560, 100, 900, 900);
+    sheetRect(buf, 1100, 100, 1400, 900);
+    // The gaps are 441..499 and 501..559, 59 wide each; a cut near 500 would slice the wisp.
+    expect(sheetCuts(buf).cuts[0]).not.toBe(501);
+    alphaRect(buf, 500, 100, 500, 900, 32); // at 32 it is empty: one 119-wide gap 441..559, cut in its middle
+    expect(sheetCuts(buf).cuts[0]).toBe(501);
+  });
+
+  it("between two gaps of equal width, cuts in the one nearer the nominal edge, whichever comes first", () => {
+    const nearFirst = blankSheet();
+    sheetRect(nearFirst, 100, 100, 499, 900);
+    sheetRect(nearFirst, 520, 100, 520, 900); // a 1 px sliver: gaps 500..519 and 521..540, both 20 wide
+    sheetRect(nearFirst, 541, 100, 900, 900);
+    sheetRect(nearFirst, 1100, 100, 1400, 900);
+    expect(sheetCuts(nearFirst).cuts[0]).toBe(510);
+
+    const farFirst = blankSheet();
+    sheetRect(farFirst, 100, 100, 460, 900);
+    sheetRect(farFirst, 481, 100, 481, 900); // gaps 461..480 and 482..501, both 20 wide
+    sheetRect(farFirst, 502, 100, 900, 900);
+    sheetRect(farFirst, 1100, 100, 1400, 900);
+    expect(sheetCuts(farFirst).cuts[0]).toBe(492);
+  });
+
+
   it("cuts in the middle of a gap that is away from the nominal edge", () => {
     const buf = blankSheet();
     sheetRect(buf, 100, 100, 470, 900); // left figure ends at 470

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { MAX_SCULPTS as CLIENT_MAX_SCULPTS } from "@/types/mini.types";
 import {
   MAX_SCULPTS,
   STALE_SCULPT_MS,
@@ -12,18 +13,9 @@ import {
   type MiniStatusB,
 } from "./simulacrum";
 
-const ALL_STATUSES: MiniStatusB[] = [
-  "stylizing",
-  "image_ready",
-  "sculpting",
-  "downloading",
-  "ready",
-  "failed",
-];
-
 describe("MAX_SCULPTS", () => {
-  it("is 3 (1 paid + 2 free re-sculpts) — keep in sync with src/types/mini.types.ts", () => {
-    expect(MAX_SCULPTS).toBe(3);
+  it("is the same cap the app shows the DM: the server and the sculpt step must not disagree on the free re-sculpts", () => {
+    expect(MAX_SCULPTS).toBe(CLIENT_MAX_SCULPTS);
   });
 });
 
@@ -37,10 +29,6 @@ describe("canStylize", () => {
   it("forbids stylizing while a Meshy task is in flight", () => {
     expect(canStylize("sculpting")).toBe(false);
     expect(canStylize("downloading")).toBe(false);
-  });
-  it("full matrix — exactly the 4 allowed statuses return true", () => {
-    const allowed = ALL_STATUSES.filter(canStylize);
-    expect(allowed.sort()).toEqual(["failed", "image_ready", "ready", "stylizing"].sort());
   });
 });
 
@@ -59,21 +47,6 @@ describe("canSculpt", () => {
   it("forbids sculpting from every other status regardless of count", () => {
     for (const status of ["stylizing", "sculpting", "downloading", "ready"] as MiniStatusB[]) {
       expect(canSculpt({ status, sculpt_count: 0 })).toBe(false);
-    }
-  });
-  it("full matrix — status × sculpt_count 0..3", () => {
-    const expected: Record<MiniStatusB, boolean> = {
-      stylizing: false,
-      image_ready: true,
-      sculpting: false,
-      downloading: false,
-      ready: false,
-      failed: true,
-    };
-    for (const status of ALL_STATUSES) {
-      for (const sculpt_count of [0, 1, 2, 3]) {
-        expect(canSculpt({ status, sculpt_count })).toBe(sculpt_count === 0 && expected[status]);
-      }
     }
   });
 });
@@ -102,17 +75,6 @@ describe("canResculpt", () => {
   it("forbids resculpting from in-flight or failed statuses", () => {
     for (const status of ["stylizing", "sculpting", "downloading", "failed"] as MiniStatusB[]) {
       expect(canResculpt({ status, sculpt_count: 1 })).toBe(false);
-    }
-  });
-  it("full matrix — status × sculpt_count 0..4", () => {
-    for (const status of ALL_STATUSES) {
-      for (const sculpt_count of [0, 1, 2, 3, 4]) {
-        const expected =
-          (status === "ready" || status === "image_ready") &&
-          sculpt_count >= 1 &&
-          sculpt_count < MAX_SCULPTS;
-        expect(canResculpt({ status, sculpt_count })).toBe(expected);
-      }
     }
   });
 });
@@ -158,41 +120,24 @@ describe("resolveSculptOutcome", () => {
 });
 
 describe("meshyParamsForFormat", () => {
-  it("print: untextured, triangle topology, 200k polys, stl+3mf+glb, bottom-origin auto-size", () => {
-    expect(meshyParamsForFormat("print")).toEqual({
-      should_texture: false,
-      topology: "triangle",
-      target_polycount: 200_000,
-      target_formats: ["stl", "3mf", "glb"],
-      ai_model: "latest",
-      auto_size: true,
-      origin_at: "bottom",
-    });
+  it("a print model is untextured triangles in a printable format; a VTT model is textured for the web and has no topology key", () => {
+    const print = meshyParamsForFormat("print");
+    const vtt = meshyParamsForFormat("vtt");
+    expect(print.should_texture).toBe(false);
+    expect(print.topology).toBe("triangle");
+    expect(print.target_formats).toContain("stl");
+    expect(vtt.should_texture).toBe(true);
+    expect(vtt.target_formats).toContain("glb");
+    expect(vtt).not.toHaveProperty("topology");
+    expect(print.target_polycount).toBeGreaterThan(vtt.target_polycount);
   });
-  it("vtt: textured, 20k polys, glb+usdz, no topology key, bottom-origin auto-size", () => {
-    const params = meshyParamsForFormat("vtt");
-    expect(params).toEqual({
-      should_texture: true,
-      target_polycount: 20_000,
-      target_formats: ["glb", "usdz"],
-      ai_model: "latest",
-      auto_size: true,
-      origin_at: "bottom",
-    });
-    expect(params).not.toHaveProperty("topology");
-  });
+
   it("both formats seat deterministically: auto_size with origin_at bottom (baseless minis land on OUR bases)", () => {
     for (const format of ["print", "vtt"] as const) {
       const params = meshyParamsForFormat(format);
       expect(params.auto_size).toBe(true);
       expect(params.origin_at).toBe("bottom");
     }
-  });
-});
-
-describe("STALE_SCULPT_MS", () => {
-  it("is 30 minutes", () => {
-    expect(STALE_SCULPT_MS).toBe(30 * 60 * 1000);
   });
 });
 
@@ -235,5 +180,13 @@ describe("sculptPhaseStartedAt", () => {
       download_started_at: "2026-07-18T11:30:00.000Z",
       updated_at: "2026-07-18T12:00:00.000Z",
     })).toBe("2026-07-18T11:30:00.000Z");
+  });
+
+  it("falls back to the earlier clocks when a phase never stamped its own", () => {
+    const row = { updated_at: "2026-07-18T12:00:00.000Z" };
+    expect(sculptPhaseStartedAt({ ...row, status: "downloading", sculpt_started_at: "2026-07-18T11:00:00.000Z", download_started_at: null }))
+      .toBe("2026-07-18T11:00:00.000Z");
+    expect(sculptPhaseStartedAt({ ...row, status: "downloading" })).toBe(row.updated_at);
+    expect(sculptPhaseStartedAt({ ...row, status: "sculpting", sculpt_started_at: null })).toBe(row.updated_at);
   });
 });

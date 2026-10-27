@@ -101,6 +101,24 @@ describe("parseSceneEntities", () => {
     expect(result).toEqual([]);
   });
 
+  it("matches @party in any case", () => {
+    const result = resolve("@Party enters the tavern.", { groupPortraitUrl: "https://example.test/party.webp" });
+    expect(result.map((e) => e.label)).toEqual(["Party"]);
+  });
+
+  it("lets a short token match only the start of a name, a longer one anywhere in it", () => {
+    const sources: SceneEntitySources = { npcs: [npc({ name: "Alaric" })] };
+    expect(resolve("@Al nods.", sources).map((e) => e.label)).toEqual(["Alaric"]);
+    // "ri" sits inside Alaric but is too short to match mid-name; "lar" is long enough.
+    expect(resolve("@ri nods.", sources)).toEqual([]);
+    expect(resolve("@lar nods.", sources).map((e) => e.label)).toEqual(["Alaric"]);
+  });
+
+  it("lists an entity once when two different mentions resolve to it", () => {
+    const result = resolve("@Gnarl and @Gna argue.", { npcs: [npc({ name: "Gnarl" })] });
+    expect(result).toHaveLength(1);
+  });
+
   it("ignores an unknown @mention that matches nothing", () => {
     const result = resolve("@Someone_Unknown walks by.", {
       npcs: [npc({ name: "Gnarl" })],
@@ -154,6 +172,18 @@ describe("parseSceneEntities", () => {
     });
     expect(result[0].textDescription).not.toContain("{");
     expect(result[0].textDescription!.length).toBeLessThan(longText.length);
+  });
+
+  it("keeps a description of exactly 500 characters whole and trims a longer one to 500 plus an ellipsis", () => {
+    const appearance = (text: string) =>
+      JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+    const describeWith = (text: string) =>
+      resolve("@Gnarl looms.", {
+        npcs: [npc({ name: "Gnarl" })],
+        npcAppearances: new Map([["npc-1", appearance(text)]]),
+      })[0].textDescription;
+    expect(describeWith("a".repeat(500))).toBe(`Gnarl: ${"a".repeat(500)}`);
+    expect(describeWith("a".repeat(501))).toBe(`Gnarl: ${"a".repeat(500)}…`);
   });
 
   it("resolves an NPC with its name alone until its appearance has loaded (#999)", () => {

@@ -84,6 +84,29 @@ describe("settledTime", () => {
     ).toBe(400);
   });
 
+  it("settles at exactly a 500 ms gap, and keeps going across 499", () => {
+    const after = (gap: number) => settledTime([{ start: 0, end: 400 }, { start: 400 + gap, end: 400 + gap + 50 }], 0);
+    expect(after(499)).toBe(949);
+    expect(after(500)).toBe(400);
+  });
+
+  it("is not pulled back by a short request that ends inside a long one", () => {
+    expect(
+      settledTime(
+        [
+          { start: 0, end: 1000 },
+          { start: 100, end: 200 },
+          { start: 1400, end: 1450 },
+        ],
+        0,
+      ),
+    ).toBe(1450);
+  });
+
+  it("is never negative when the window opened after the last request finished", () => {
+    expect(settledTime([{ start: 0, end: 100 }], 500)).toBe(0);
+  });
+
   it("is measured from the window start and ignores the gap before the first request", () => {
     expect(settledTime([{ start: 2000, end: 2300 }], 1000)).toBe(1300);
   });

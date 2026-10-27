@@ -136,6 +136,8 @@ describe("R2 dual-read", () => {
     expect(res.headers.get("content-type")).toBe("model/stl");
     expect(res.headers.get("etag")).toBe('"abc"');
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=2678400, immutable");
+    expect(res.headers.get("Content-Length")).toBe("5");
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -169,10 +171,12 @@ describe("R2 dual-read", () => {
     expect(env.ASSETS.get.mock.calls[0][0]).toBe("chronicle/u1/a b.webp");
   });
 
-  it("falls back rather than 500ing on an undecodable path", async () => {
+  it("answers 404 to an undecodable path, touching neither R2 nor the origin", async () => {
     const env = { ASSETS: fakeBucket({}) };
     const res = await worker.fetch(get("/chronicle/u1/%E0%A4%A.webp"), env);
     expect(res.status).toBe(404);
+    expect(env.ASSETS.get).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("passes Range through to R2 and answers 206 with Content-Range", async () => {
@@ -297,6 +301,135 @@ describe("edge cache", () => {
     vi.stubGlobal("fetch", fetchMock);
     const env = { ASSETS: fakeBucket({ "chronicle/u1/a.webp": r2Object({ key: "chronicle/u1/a.webp" }) }) };
     const res = await worker.fetch(get("/chronicle/u1/a.webp"), env, fakeCtx());
+    expect(res.status).toBe(200);
+  });
+});
+
+
+/**
+ * An R2 binding that honours the preconditions it is handed, the way the real one does: `onlyIf` is the
+ * request's headers, and a failed precondition returns the object without a body.
+ */
+function preconditionBucket(key, etag = '"abc"', size = 100) {
+  const full = r2Object({ key, body: "x".repeat(size), etag });
+  const get = vi.fn(async (_key, options) => {
+    const h = options?.onlyIf;
+    const none = h?.get("if-none-match");
+    const match = h?.get("if-match");
+    const failed = (none !== null && none !== undefined && none === etag) || (match !== null && match !== undefined && match !== etag);
+    return failed ? { ...full, body: undefined } : full;
+  });
+  return { get, head: vi.fn(async () => full) };
+}
+
+describe("preconditions and ranges against R2", () => {
+  it("answers 304 to a matching If-None-Match and 200 to a stale one, because the request's headers reach R2", async () => {
+    const env = { ASSETS: preconditionBucket("npc-portraits/u1/a.webp") };
+    const matching = await worker.fetch(get("/npc-portraits/u1/a.webp", { headers: { "if-none-match": '"abc"' } }), env);
+    const stale = await worker.fetch(get("/npc-portraits/u1/a.webp", { headers: { "if-none-match": '"old"' } }), env);
+    expect(matching.status).toBe(304);
+    expect(stale.status).toBe(200);
+    expect(await stale.text()).toHaveLength(100);
+  });
+
+  it("answers 412, not 304, when a guarded request's If-Match no longer matches", async () => {
+    const env = { ASSETS: preconditionBucket("npc-portraits/u1/a.webp") };
+    const res = await worker.fetch(get("/npc-portraits/u1/a.webp", { headers: { "if-match": '"old"' } }), env);
+    expect(res.status).toBe(412);
+  });
+
+  it("asks R2 for no range when the request has none", async () => {
+    const env = { ASSETS: preconditionBucket("npc-portraits/u1/a.webp") };
+    await worker.fetch(get("/npc-portraits/u1/a.webp"), env);
+    expect(env.ASSETS.get.mock.calls[0][1].range).toBeUndefined();
+  });
+
+  it("finishes an open-ended range at the end of the object", async () => {
+    const env = {
+      ASSETS: fakeBucket({
+        "sounds/u1/a.ogg": () => r2Object({ key: "sounds/u1/a.ogg", body: "tail", size: 100, contentType: "audio/ogg", range: { offset: 90 } }),
+      }),
+    };
+    const res = await worker.fetch(get("/sounds/u1/a.ogg", { headers: { range: "bytes=90-" } }), env);
+    expect(res.status).toBe(206);
+    expect(res.headers.get("Content-Range")).toBe("bytes 90-99/100");
+    expect(res.headers.get("Content-Length")).toBe("10");
+  });
+
+  it("falls back to the origin when a HEAD misses R2, like a GET does", async () => {
+    const env = { ASSETS: fakeBucket({}) };
+    const res = await worker.fetch(get("/chronicle/u1/a.webp", { method: "HEAD" }), env);
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("lets any browser read a HEAD answer from R2", async () => {
+    const env = { ASSETS: fakeBucket({ "chronicle/u1/a.webp": r2Object({ key: "chronicle/u1/a.webp" }) }) };
+    const res = await worker.fetch(get("/chronicle/u1/a.webp", { method: "HEAD" }), env);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+});
+
+describe("what reaches the origin", () => {
+  it("forwards range, validators and content negotiation, and nothing that identifies the visitor", async () => {
+    await worker.fetch(
+      get("/npc-portraits/u1/a.webp", {
+        headers: {
+          range: "bytes=0-9",
+          "if-none-match": '"abc"',
+          "if-modified-since": "Wed, 05 Aug 2026 00:00:00 GMT",
+          accept: "image/webp",
+          "accept-encoding": "gzip",
+          cookie: "session=secret",
+          authorization: "Bearer secret",
+        },
+      }),
+      {},
+    );
+    const sent = fetchMock.mock.calls[0][1].headers;
+    expect([...sent.keys()].sort()).toEqual(["accept", "accept-encoding", "if-modified-since", "if-none-match", "range"]);
+  });
+
+  it("keeps the query string and the HEAD method, and asks Cloudflare to cache the answer for a month", async () => {
+    await worker.fetch(get("/npc-portraits/u1/a.webp?v=2", { method: "HEAD" }), {});
+    const [target, init] = fetchMock.mock.calls[0];
+    expect(target).toBe(`${ORIGIN_PREFIX}/npc-portraits/u1/a.webp?v=2`);
+    expect(init.method).toBe("HEAD");
+    expect(init.cf).toEqual({ cacheEverything: true, cacheTtl: 2678400 });
+  });
+
+  it.each([404, 304, 206])("does not stamp the immutable month onto an origin %i", async (status) => {
+    // A 404 cached as immutable would hide the object for a month after it is uploaded.
+    fetchMock.mockResolvedValueOnce(new Response(status === 304 ? null : "x", { status }));
+    const res = await worker.fetch(get("/npc-portraits/u1/missing.webp"), {});
+    expect(res.status).toBe(status);
+    expect(res.headers.get("Cache-Control")).not.toBe("public, max-age=2678400, immutable");
+  });
+});
+
+describe("edge cache keys", () => {
+  const env = () => ({ ASSETS: fakeBucket({ "sounds/u1/a.ogg": (options) => r2Object({ key: "sounds/u1/a.ogg", body: "part", size: 100, contentType: "audio/ogg", range: options?.range ? { offset: 0, length: 4 } : null }) }) });
+
+  it("never answers a Range request, or a HEAD, from a cached full body", async () => {
+    edgeCache.store.set("https://cdn.dungeongrimoire.com/sounds/u1/a.ogg", new Response("WHOLE FILE", { status: 200 }));
+    const ranged = await worker.fetch(get("/sounds/u1/a.ogg", { headers: { range: "bytes=0-3" } }), env(), fakeCtx());
+    const head = await worker.fetch(get("/sounds/u1/a.ogg", { method: "HEAD" }), { ASSETS: { ...env().ASSETS, head: vi.fn(async () => r2Object({ key: "sounds/u1/a.ogg", body: "1234" })) } }, fakeCtx());
+    expect(ranged.status).toBe(206);
+    expect(await ranged.text()).toBe("part");
+    expect(head.body).toBeNull();
+  });
+
+  it("does not cache a 304", async () => {
+    const bucket = preconditionBucket("npc-portraits/u1/a.webp");
+    const ctx = fakeCtx();
+    const res = await worker.fetch(get("/npc-portraits/u1/a.webp", { headers: { "if-none-match": '"abc"' } }), { ASSETS: bucket }, ctx);
+    await Promise.all(ctx.pending);
+    expect(res.status).toBe(304);
+    expect(edgeCache.put).not.toHaveBeenCalled();
+  });
+
+  it("serves from R2 without a ctx at all", async () => {
+    const res = await worker.fetch(get("/chronicle/u1/a.webp"), { ASSETS: fakeBucket({ "chronicle/u1/a.webp": r2Object({ key: "chronicle/u1/a.webp" }) }) });
     expect(res.status).toBe(200);
   });
 });

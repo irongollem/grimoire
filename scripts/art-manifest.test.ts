@@ -24,6 +24,11 @@ describe("hashBytes", () => {
   it("is 8 lowercase hex characters", () => {
     expect(hashBytes(Buffer.from("x"))).toMatch(/^[0-9a-f]{8}$/);
   });
+
+  it("is the first 8 hex digits of the SHA-256", () => {
+    // FIPS 180-2 test vector: SHA-256("abc") = ba7816bf 8f01cfea 414140de 5dae2223 ...
+    expect(hashBytes(Buffer.from("abc"))).toBe("ba7816bf");
+  });
 });
 
 describe("scanArtFiles + buildManifest", () => {
@@ -108,6 +113,29 @@ describe("scanArtFiles + buildManifest", () => {
 
     // restore for any later assertions in this suite
     writeFileSync(join(publicAssets, "placeholders", "npc.webp"), "npc bytes");
+  });
+});
+
+describe("what the scan takes and what the key looks like", () => {
+  it("takes an upper-case extension, skips a dot-folder wholesale, and hashes before only the last extension", () => {
+    const root = mkdtempSync(join(tmpdir(), "art-manifest-names-"));
+    try {
+      mkdirSync(join(root, ".git"), { recursive: true });
+      mkdirSync(join(root, "deep", "er"), { recursive: true });
+      writeFileSync(join(root, ".git", "objects.png"), "git object");
+      writeFileSync(join(root, "Banner.PNG"), "banner");
+      writeFileSync(join(root, "deep", "er", "map.v2.webp"), "map");
+      const files = scanArtFiles([{ dir: root, keyPrefix: "/assets" }]);
+      expect(files.map((f) => f.key)).toEqual(["/assets/Banner.PNG", "/assets/deep/er/map.v2.webp"]);
+      const { manifest } = buildManifest(files);
+      expect(manifest["/assets/deep/er/map.v2.webp"]).toBe(`${ART_PREFIX}/assets/deep/er/map.v2.${hashBytes(Buffer.from("map"))}.webp`);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("is quietly empty for a tree that is not there", () => {
+    expect(scanArtFiles([{ dir: join(tmpdir(), "art-manifest-no-such-dir"), keyPrefix: "/assets" }])).toEqual([]);
   });
 });
 

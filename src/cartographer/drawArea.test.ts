@@ -45,6 +45,25 @@ describe("brushed area ground", () => {
     expect(floors.every((d) => d.clips === 1)).toBe(true);
   });
 
+  it("leaves out cells outside the window", () => {
+    const layers = applyDisc(emptyLayers(), { x: 7.5, y: 3.5, r: 1.2 }, ref, "paint");
+    const rec = draw(layers, makeRuntime(PACK, { categoryCounts: { floor: 1 } }), "ground");
+    const xs = rec.drawImages.filter((d) => sourceOf(d).category === "floor").map((d) => d.x / BASE_TILE_SIZE);
+    expect(xs.length).toBeGreaterThan(0);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(7);
+  });
+
+  it("leaves a cell to the water when the pack paints water there", () => {
+    const layers = brushed();
+    const [wet] = Object.keys(layers.area) as (keyof typeof layers.area)[];
+    layers.terrain[wet] = ref;
+    const dry = draw(layers, makeRuntime(PACK, { categoryCounts: { floor: 1 } }), "ground");
+    const wetRt = draw(layers, makeRuntime(PACK, { categoryCounts: { floor: 1, terrainWater: 1 } }), "ground");
+    const floors = (rec: Recorder): number => rec.drawImages.filter((d) => sourceOf(d).category === "floor").length;
+    expect(floors(dry)).toBe(Object.keys(layers.area).length);
+    expect(floors(wetRt)).toBe(Object.keys(layers.area).length - 1);
+  });
+
   it("keeps plain floor cells as unclipped squares", () => {
     const layers = emptyLayers();
     layers.floor[cellKey(1, 1)] = { floor: ref };
@@ -104,6 +123,25 @@ describe("brushed area wall ribbon", () => {
     const rec = draw(brushed(), makeRuntime(PACK, { categoryCounts: { floor: 1 }, palette: { wallSegmentH: [1, 2, 3] } }), "standing");
     expect(rec.strokeStyles).toContain("rgb(1,2,3)");
     expect(rec.calls).toContain("stroke");
+  });
+
+  it("walls the inner loop of a ring too, taking its pack from the covered side", () => {
+    // Painting a disc and rubbing out its middle leaves a hole; the hole's loop runs the other way round.
+    const ring = applyDisc(applyDisc(emptyLayers(), { x: 3.5, y: 3.5, r: 2.6 }, ref, "paint"), { x: 3.5, y: 3.5, r: 1.1 }, ref, "erase");
+    const loops = cachedAreaLoops(ring);
+    expect(loops.length).toBeGreaterThanOrEqual(2);
+    const stroked = loops.reduce((n, loop) => n + loop.stroke.filter(Boolean).length, 0);
+    const rec = draw(ring, makeRuntime(PACK, { categoryCounts: { floor: 1 }, palette: { wallSegmentH: [1, 2, 3] } }), "standing");
+    expect(rec.calls.filter((c) => c === "stroke")).toHaveLength(stroked);
+  });
+
+  it("walls a loop whose line lies along the edge of the window, and none far outside it", () => {
+    const strokes = (cx: number): number =>
+      draw(applyDisc(emptyLayers(), { x: cx, y: 3.5, r: 1.2 }, ref, "paint"), makeRuntime(PACK, { palette: { wallSegmentH: [1, 2, 3] } }), "standing")
+        .calls.filter((c) => c === "stroke").length;
+    // window is cells 0..7; the loop's left edge is the line x = 8, half a band of which reaches back into cell 7
+    expect(strokes(9.5)).toBeGreaterThan(0);
+    expect(strokes(14.5)).toBe(0);
   });
 
   it("is cached per area record and floor identity", () => {

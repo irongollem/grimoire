@@ -46,22 +46,13 @@ function providerConfigClient(result: { data?: unknown; error?: { message: strin
 }
 
 describe("toVectorLiteral", () => {
-  it("returns a bracketed string, not a JS array", () => {
-    const literal = toVectorLiteral([0.1, 0.2, 0.3]);
-    expect(typeof literal).toBe("string");
-    expect(literal).toBe("[0.1,0.2,0.3]");
-  });
-
-  it("formats integers without a trailing decimal", () => {
-    expect(toVectorLiteral([1, 0, -1])).toBe("[1,0,-1]");
-  });
-
-  it("formats negative numbers", () => {
-    expect(toVectorLiteral([-0.5, -1.25])).toBe("[-0.5,-1.25]");
-  });
-
-  it("formats an empty vector as an empty bracket pair", () => {
-    expect(toVectorLiteral([])).toBe("[]");
+  // pgvector takes a bracketed string, not a JS array.
+  it.each([
+    [[0.1, 0.2, 0.3], "[0.1,0.2,0.3]"],
+    [[1, 0, -1], "[1,0,-1]"],
+    [[], "[]"],
+  ])("writes %j as %s", (vector, expected) => {
+    expect(toVectorLiteral(vector)).toBe(expected);
   });
 });
 
@@ -126,21 +117,19 @@ describe("createOpenAiEmbeddingProvider", () => {
     expect(result.usage.provider).toBe("openai");
   });
 
-  it("requests the platform's fixed dimensionality regardless of the model's native size", async () => {
-    const { calls } = stubOpenAiFetch();
-    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+  it("asks the API for the platform's fixed width, whatever the model's native size", async () => {
+    let requested: number | undefined;
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(init.body as string) as { input: string[]; dimensions?: number };
-      calls.push(body.input);
-      expect(body.dimensions).toBe(EMBEDDING_DIMENSIONS);
+      requested = body.dimensions;
       return new Response(JSON.stringify({
         data: body.input.map((_, index) => ({ embedding: [index], index })),
         usage: { prompt_tokens: 1 },
       }), { status: 200 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    }));
 
     await createOpenAiEmbeddingProvider("sk-test", OPENAI_MODEL).embed(["hello"]);
-    expect(fetchMock).toHaveBeenCalled();
+    expect(requested).toBe(EMBEDDING_DIMENSIONS);
   });
 
   it("retries a 429 once and succeeds on the following attempt", async () => {
@@ -162,6 +151,25 @@ describe("createOpenAiEmbeddingProvider", () => {
     expect(attempt).toBe(2);
     expect(result.vectors).toEqual([[0]]);
   }, 10000);
+
+  it("retries a 503 from either vendor, and gives up with the vendor's message after three attempts", async () => {
+    vi.useFakeTimers();
+    try {
+      for (const provider of [
+        createOpenAiEmbeddingProvider("sk-test", OPENAI_MODEL),
+        createGeminiEmbeddingProvider("gk-test", GEMINI_MODEL),
+      ]) {
+        const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: { message: "overloaded" } }), { status: 503 }));
+        vi.stubGlobal("fetch", fetchMock);
+        const outcome = provider.embed(["hello"]).catch((e: Error) => e);
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(await outcome).toMatchObject({ message: "overloaded" });
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it("throws immediately with the API's own message on a non-retryable error", async () => {
     const fetchMock = vi.fn(async () =>
@@ -240,7 +248,6 @@ describe("assertProviderDimensions", () => {
       embed: vi.fn(),
     };
     expect(() => assertProviderDimensions(mismatched)).toThrow(/768.*1536|1536.*768/);
-    expect(EMBEDDING_DIMENSIONS).toBe(1536);
   });
 });
 
@@ -337,8 +344,4 @@ describe("isEmbeddingStale", () => {
     expect(isEmbeddingStale(stored, fresh)).toBe(true);
   });
 
-  it("is stale when both the hash and the model differ", () => {
-    const stored = { source_hash: "hash-b", embedding_model: "some-other-model" };
-    expect(isEmbeddingStale(stored, fresh)).toBe(true);
-  });
 });

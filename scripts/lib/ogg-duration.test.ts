@@ -62,6 +62,28 @@ describe("vorbisSampleRate", () => {
   });
 });
 
+describe("vorbisSampleRate — other first packets", () => {
+  const withIdent = (first: number, name: string, rate = 44100) => {
+    const packet = identPacket(rate);
+    packet[0] = first;
+    packet.set([...name].map((c) => c.charCodeAt(0)), 1);
+    return page(0n, packet);
+  };
+
+  it("is null for a packet that is not the identification header, or not named vorbis", () => {
+    expect(vorbisSampleRate(withIdent(0x03, "vorbis"))).toBeNull(); // the comment header
+    expect(vorbisSampleRate(withIdent(0x01, "theora"))).toBeNull();
+  });
+
+  it("is null for a declared rate of zero, rather than a duration of infinity", () => {
+    expect(vorbisSampleRate(withIdent(0x01, "vorbis", 0))).toBeNull();
+  });
+
+  it("is null for a first page cut off before its header ends", () => {
+    expect(vorbisSampleRate(page(0n, identPacket(44100)).subarray(0, 42))).toBeNull();
+  });
+});
+
 describe("finalGranulePosition", () => {
   it("takes the last page's position, not the first", () => {
     const file = concat(page(0n, identPacket(44100)), page(441000n, new Uint8Array([9])));
@@ -76,6 +98,12 @@ describe("finalGranulePosition", () => {
       page(0xffffffffffffffffn, new Uint8Array([9])),
     );
     expect(finalGranulePosition(file)).toBe(88200n);
+  });
+
+  it("steps back over a page that was cut off mid-header, instead of failing on it", () => {
+    const whole = concat(page(0n, identPacket(44100)), page(441000n, new Uint8Array([9])));
+    const truncated = concat(whole, new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 0]));
+    expect(finalGranulePosition(truncated)).toBe(441000n);
   });
 
   it("is null when there is no page at all", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { parseListResponse, headObject, __testing } from "./client.ts";
+import { parseListResponse, headObject, putObject, getObject, deleteObjects, listObjects, __testing } from "./client.ts";
 import { r2ConfigFrom } from "./config.ts";
 
 const config = r2ConfigFrom((key) =>
@@ -125,6 +125,13 @@ describe("headObject", () => {
     expect((await headObject(config, "app-art/assets/foo.webp"))?.lastModified).toBeNull();
   });
 
+  it("reports an unknown size as null, never 0, and a known one as a number", async () => {
+    stubFetch({ etag: '"abc"' });
+    expect((await headObject(config, "app-art/assets/foo.webp"))?.size).toBeNull();
+    stubFetch({ "content-length": "0" });
+    expect((await headObject(config, "app-art/assets/empty.webp"))?.size).toBe(0);
+  });
+
   it("returns null for a 404", () => {
     stubFetch({}, 404);
     return headObject(config, "app-art/assets/missing.webp").then((result) => {
@@ -149,5 +156,100 @@ describe("bucketUrl", () => {
     const url = __testing.bucketUrl(config, { prefix: "chronicle/u 1/" });
     expect(url.search).toBe("?prefix=chronicle%2Fu%201%2F");
     expect(url.searchParams.get("prefix")).toBe("chronicle/u 1/");
+  });
+});
+
+/**
+ * A small in-memory R2: PUT/GET/HEAD/DELETE by object key and ListObjectsV2
+ * with a prefix filter and two keys per page, so a test asserts what the store
+ * holds rather than which requests were made.
+ */
+function stubStore(initial: Record<string, string> = {}, options: { failDelete?: string } = {}) {
+  const objects = new Map(Object.entries(initial).map(([k, v]) => [k, new TextEncoder().encode(v)]));
+  const PAGE = 2;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: URL | string, init: RequestInit) => {
+      const url = new URL(String(input));
+      const key = decodeURIComponent(url.pathname.replace(/^\/grimoire-assets\/?/, ""));
+      switch (init.method) {
+        case "PUT":
+          objects.set(key, new Uint8Array(init.body as ArrayBuffer));
+          return new Response(null, { status: 200 });
+        case "GET": {
+          if (url.searchParams.get("list-type") === "2") {
+            const prefix = url.searchParams.get("prefix") ?? "";
+            const all = [...objects.keys()].filter((k) => k.startsWith(prefix)).sort();
+            const from = Number(url.searchParams.get("continuation-token") ?? 0);
+            const page = all.slice(from, from + PAGE);
+            const more = from + PAGE < all.length;
+            return new Response(
+              `<ListBucketResult><IsTruncated>${more}</IsTruncated>${more ? `<NextContinuationToken>${from + PAGE}</NextContinuationToken>` : ""}${page.map((k) => `<Contents><Key>${k}</Key></Contents>`).join("")}</ListBucketResult>`,
+            );
+          }
+          const found = objects.get(key);
+          return found ? new Response(found.slice().buffer) : new Response("missing", { status: 404 });
+        }
+        case "DELETE":
+          if (key === options.failDelete) return new Response("boom", { status: 500 });
+          // Real R2 answers 204 for an absent key; a 404 from a proxy or an older bucket must not fail the batch either.
+          return objects.delete(key) ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+        default:
+          return new Response(null, { status: 405 });
+      }
+    }),
+  );
+  return objects;
+}
+
+describe("the object operations, against an in-memory store", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("stores bytes that read back unchanged, and reads a missing key as null rather than an error", async () => {
+    stubStore();
+    await putObject(config, { key: "chronicle/u1/a.webp", body: new TextEncoder().encode("hello"), contentType: "image/webp" });
+    expect(new TextDecoder().decode((await getObject(config, "chronicle/u1/a.webp"))!)).toBe("hello");
+    expect(await getObject(config, "chronicle/u1/none.webp")).toBeNull();
+  });
+
+  it("reports a failed upload instead of pretending it was stored", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("denied", { status: 403 })));
+    await expect(
+      putObject(config, { key: "chronicle/u1/a.webp", body: new Uint8Array([1]), contentType: "image/webp" }),
+    ).rejects.toThrow(/403/);
+  });
+
+  it("deletes the named keys and leaves their neighbours alone", async () => {
+    const store = stubStore({ "chronicle/u1/a.webp": "a", "chronicle/u1/b.webp": "b", "chronicle/u2/a.webp": "other" });
+    await deleteObjects(config, ["chronicle/u1/a.webp", "chronicle/u1/b.webp"]);
+    expect([...store.keys()]).toEqual(["chronicle/u2/a.webp"]);
+  });
+
+  it("treats deleting a key that is already gone as success, so a re-run of a failed cleanup is safe", async () => {
+    stubStore();
+    await expect(deleteObjects(config, ["chronicle/u1/never-existed.webp"])).resolves.toBeUndefined();
+  });
+
+  it("still deletes the rest of a batch when one delete fails, and then reports the failure", async () => {
+    const store = stubStore(
+      { "chronicle/u1/a.webp": "a", "chronicle/u1/b.webp": "b", "chronicle/u1/c.webp": "c" },
+      { failDelete: "chronicle/u1/b.webp" },
+    );
+    await expect(deleteObjects(config, ["chronicle/u1/a.webp", "chronicle/u1/b.webp", "chronicle/u1/c.webp"])).rejects.toThrow(/b\.webp/);
+    expect([...store.keys()]).toEqual(["chronicle/u1/b.webp"]);
+  });
+
+  it("lists every key under a prefix across pages, and none from a sibling prefix", async () => {
+    stubStore({
+      "chronicle/u1/1.webp": "", "chronicle/u1/2.webp": "", "chronicle/u1/3.webp": "", "chronicle/u1/4.webp": "", "chronicle/u1/5.webp": "",
+      "chronicle/u10/1.webp": "", "chronicle/u2/1.webp": "",
+    });
+    const keys = await listObjects(config, "chronicle/u1/");
+    expect(keys).toEqual(["1", "2", "3", "4", "5"].map((n) => `chronicle/u1/${n}.webp`));
+  });
+
+  it("reports a failed listing rather than returning a partial one", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("slow down", { status: 503 })));
+    await expect(listObjects(config, "chronicle/u1/")).rejects.toThrow(/503/);
   });
 });

@@ -198,6 +198,41 @@ describe("planRebase — the other ways a version space breaks", () => {
   });
 });
 
+describe("planRebase — edges of the version space", () => {
+  const plan = (local, base, pattern = PATTERN) => planRebase({ localFilenames: local, baseFilenames: base, pattern, now: NOW });
+
+  it("lists only the versions that are claimed twice", () => {
+    const result = plan(["20260825120000_a.sql", "20260825120000_b.sql", "20260825130000_c.sql"], []);
+    expect(result.duplicates.map((d) => d.version)).toEqual(["20260825120000"]);
+  });
+
+  it("renames past a local migration dated later than the clock, so the order among them holds", () => {
+    // The stale one and a sibling stamped in the future (a skewed machine): neither new version may land on or before it.
+    const result = plan(
+      ["20260825005907_early.sql", "20270101000000_future.sql"],
+      ["20260825073922_poller.sql"],
+    );
+    expect(result.moves.map((m) => m.newVersion)).toEqual(["20270101000001", "20270101000002"]);
+  });
+
+  it("reads the version from the first group of a pattern with no named group", () => {
+    const result = plan(["20260825005907_early.sql"], ["20260825073922_poller.sql"], /^(\d{14})_.+\.sql$/);
+    expect(result.offenders.map((o) => o.version)).toEqual(["20260825005907"]);
+  });
+
+  it("keeps a dotfile out of an extensionless scheme, but still calls a misnamed entry malformed", () => {
+    const result = plan([".DS_Store", "notes", "1_init"], [], /^(?<version>\d+)_.+$/);
+    expect(result.ignored).toEqual([".DS_Store"]);
+    expect(result.malformed).toEqual(["notes"]);
+  });
+
+  it("treats an upper-case extension as a misnamed migration, not a stray", () => {
+    const result = plan(["Add_Widgets.SQL", "add.sql.orig"], []);
+    expect(result.malformed).toEqual(["Add_Widgets.SQL"]);
+    expect(result.ignored).toEqual(["add.sql.orig"]);
+  });
+});
+
 describe("citations", () => {
   it("finds a version cited in prose and in other migrations", () => {
     const text = "Superseded by 20260825073922, see also 20260825073922.";
@@ -211,9 +246,9 @@ describe("citations", () => {
   });
 
   it("rewrites every standalone citation and nothing else", () => {
-    const text = "see 20260825005907 and 120260825005907";
+    const text = "see 120260825005907, then 20260825005907 and (20260825005907).";
     expect(rewriteVersionCitations(text, "20260825005907", "20260825193101")).toBe(
-      "see 20260825193101 and 120260825005907",
+      "see 120260825005907, then 20260825193101 and (20260825193101).",
     );
   });
 });

@@ -103,6 +103,10 @@ describe("compareApiVersions", () => {
     expect(compareApiVersions("2026-07-29.dahlia", "2026-07-29.dahlia")).toBe("identical");
   });
 
+  it("ignores stray whitespace around an identical version", () => {
+    expect(compareApiVersions("2026-07-29.dahlia\n", " 2026-07-29.dahlia")).toBe("identical");
+  });
+
   it("treats different dates in one release as compatible", () => {
     // Stripe guarantees no breaking changes within a release, which is why the
     // live endpoint sitting at 2026-04-22.dahlia against a 2026-07-29.dahlia SDK
@@ -130,6 +134,11 @@ describe("parseApiVersions", () => {
   it("surfaces a half-finished upgrade as more than one version", () => {
     expect(parseApiVersions([`apiVersion: "2026-07-29.dahlia",`, `apiVersion: "2024-06-20",`]))
       .toEqual(["2024-06-20", "2026-07-29.dahlia"]);
+  });
+
+  it("reads a version however it is spaced after the colon", () => {
+    expect(parseApiVersions([`apiVersion:"2026-07-29.dahlia"`, `apiVersion:    "2025-03-31.basil"`]))
+      .toEqual(["2025-03-31.basil", "2026-07-29.dahlia"]);
   });
 
   it("returns nothing when no client pins a version", () => {

@@ -101,3 +101,74 @@ describe("a table production does not have yet", () => {
     await expect(read).rejects.not.toBeInstanceOf(MissingRemoteTable);
   });
 });
+
+describe("the one way production is reached: a paged, read-only GET", () => {
+  const remote = new URL("https://abcd.supabase.co");
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** A PostgREST that serves `total` rows, `limit` at a time, and records every request. */
+  function serve(total: number) {
+    const calls: { url: URL; init: RequestInit }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        const u = new URL(url);
+        calls.push({ url: u, init });
+        const offset = Number(u.searchParams.get("offset"));
+        const limit = Number(u.searchParams.get("limit"));
+        const page = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => ({ id: offset + i }));
+        return new Response(JSON.stringify(page), { status: 200, headers: { "content-range": `0-0/${total}` } });
+      }),
+    );
+    return calls;
+  }
+
+  it("keeps reading while a page comes back full, and stops on the short one", async () => {
+    const calls = serve(2500);
+    const rows = await remoteRows(remote, "k", "npcs", "campaign_id=eq.c1", "id");
+    expect(rows).toHaveLength(2500);
+    expect(rows.map((r) => r.id)).toEqual(Array.from({ length: 2500 }, (_, i) => i));
+    expect(calls.map((c) => c.url.searchParams.get("offset"))).toEqual(["0", "1000", "2000"]);
+  });
+
+  it("asks once more after an exactly full last page, because a full page may not be the last", async () => {
+    const calls = serve(1000);
+    expect(await remoteRows(remote, "k", "npcs", "", "id")).toHaveLength(1000);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("stops after one request when the table has a page less one row", async () => {
+    const calls = serve(999);
+    expect(await remoteRows(remote, "k", "npcs", "", "id")).toHaveLength(999);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("only ever GETs, with the filter and order in the URL and the key as both headers", async () => {
+    const calls = serve(1);
+    await remoteRows(remote, "synthetic-key", "npcs", "campaign_id=eq.c1&user_id=eq.u1", "created_at");
+    await remoteCount(remote, "synthetic-key", "npcs", "campaign_id=eq.c1");
+    for (const { init } of calls) {
+      expect(init.method).toBe("GET");
+      expect(init.body).toBeUndefined();
+      expect(init.headers).toMatchObject({ apikey: "synthetic-key", Authorization: "Bearer synthetic-key" });
+    }
+    expect(calls[0].url.searchParams.get("campaign_id")).toBe("eq.c1");
+    expect(calls[0].url.searchParams.get("user_id")).toBe("eq.u1");
+    expect(calls[0].url.searchParams.get("order")).toBe("created_at");
+  });
+
+  it("counts through the header and transfers at most one row", async () => {
+    const calls: { url: URL; init: RequestInit }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        calls.push({ url: new URL(url), init });
+        return new Response("[]", { status: 200, headers: { "content-range": "0-0/236" } });
+      }),
+    );
+    expect(await remoteCount(remote, "k", "npcs", "campaign_id=eq.c1")).toBe(236);
+    expect(calls[0].url.searchParams.get("limit")).toBe("1");
+    expect(calls[0].url.searchParams.get("campaign_id")).toBe("eq.c1");
+    expect(calls[0].init.headers).toMatchObject({ Prefer: "count=exact" });
+  });
+});

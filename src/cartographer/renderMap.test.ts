@@ -527,3 +527,81 @@ describe("renderMap: darkness veil", () => {
     expect(v.grids[3].alpha).not.toEqual(v.grids[2].alpha);
   });
 });
+
+describe("renderMap: grid and overlays", () => {
+  it("draws a grid line on every cell boundary, the far side of the last cell included", () => {
+    const { scene, rec } = baseScene({ bounds: { minX: 0, minY: 0, maxX: 2, maxY: 1 } });
+    renderMap(scene);
+    // vertical lines run the canvas height, horizontal ones its width
+    const vertical = rec.points.filter(([, y], i, all) => y === 0 && all[i + 1]?.[1] === 600).map(([x]) => x);
+    const horizontal = rec.points.filter(([x], i, all) => x === 0 && all[i + 1]?.[0] === 800).map(([, y]) => y);
+    expect(vertical).toEqual([0, 64, 128, 192]);
+    expect(horizontal).toEqual([0, 64, 128]);
+  });
+
+  it("draws nothing from the packs while none has loaded, even with a fallback to hand", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(0, 0)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    const { scene, rec } = baseScene({ layers, runtimes: new Map(), fallbackRuntime: makeRuntime("stone-dungeon") });
+    renderMap(scene);
+    expect(rec.drawImages).toHaveLength(0);
+  });
+
+  it("marks a cell with a note or an encounter by a dot, and a cell with neither not at all", () => {
+    const dots = (metadata: MapRenderScene["metadata"]): number => {
+      const { scene, rec } = baseScene({ metadata });
+      renderMap(scene);
+      return rec.calls.filter((c) => c === "arc").length;
+    };
+    expect(dots({ [cellKey(1, 1)]: { note_id: "n" } })).toBe(1);
+    expect(dots({ [cellKey(1, 1)]: { encounter_id: "e" } })).toBe(1);
+    expect(dots({ [cellKey(1, 1)]: { note_id: "n", encounter_id: "e" }, [cellKey(2, 2)]: { trap_id: "t" } })).toBe(1);
+  });
+
+  it("outlines the selected cell for the link and annotate tools only", () => {
+    const outlines = (activeTool: MapRenderScene["activeTool"]): number => {
+      const { scene, rec } = baseScene({ activeTool, selectedCell: [2, 2] });
+      renderMap(scene);
+      return rec.calls.filter((c) => c === "strokeRect").length;
+    };
+    const baseline = outlines("floor");
+    expect(outlines("link")).toBe(baseline + 1);
+    expect(outlines("annotate")).toBe(baseline + 1);
+    expect(outlines("wall")).toBe(baseline);
+  });
+
+  describe("hover highlights", () => {
+    const strokes = (over: Partial<MapRenderScene>): { styles: string[]; rects: number } => {
+      const { scene, rec } = baseScene(over);
+      renderMap(scene);
+      return { styles: rec.strokeStyles, rects: rec.calls.filter((c) => c === "strokeRect").length };
+    };
+    const quiet = strokes({}).rects;
+
+    // Erasing is drawn in red: a colour whose red channel clearly leads the other two.
+    const reddish = (css: string): boolean => {
+      const [r, g, b] = (css.match(/[\d.]+/g) ?? []).map(Number);
+      return r! > g! + 80 && r! > b! + 80;
+    };
+
+    it("outlines the hovered cell for the floor and eraser tools, in red for the eraser only", () => {
+      const floor = strokes({ activeTool: "floor", hoverCell: [1, 1] });
+      const eraser = strokes({ activeTool: "eraser", hoverCell: [1, 1] });
+      expect(floor.rects).toBe(quiet + 1);
+      expect(eraser.rects).toBe(quiet + 1);
+      expect(eraser.styles.some(reddish)).toBe(true);
+      expect(floor.styles.some(reddish)).toBe(false);
+    });
+
+    it("outlines no cell for a wall tool, nor for the eraser while it is pointing at an edge", () => {
+      expect(strokes({ activeTool: "wall", hoverCell: [1, 1] }).rects).toBe(quiet);
+      expect(strokes({ activeTool: "eraser", hoverCell: [1, 1], hoveredEdge: { x: 1, y: 1, side: "N" } }).rects).toBe(quiet);
+    });
+
+    it("draws the hovered edge in red when erasing, and not otherwise", () => {
+      const edge = { x: 1, y: 1, side: "N" } as const;
+      expect(strokes({ activeTool: "wall", hoveredEdge: edge }).styles.some(reddish)).toBe(false);
+      expect(strokes({ activeTool: "eraser", hoveredEdge: edge }).styles.some(reddish)).toBe(true);
+    });
+  });
+});

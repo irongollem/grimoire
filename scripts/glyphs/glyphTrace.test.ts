@@ -8,7 +8,9 @@ import {
   inlineGlyph,
   normalizeTrace,
   previewSvg,
+  isGlyphSetName,
   readGlyph,
+  readGlyphs,
   spliceGlyph,
   standaloneSvg,
 } from "./glyphTrace";
@@ -44,6 +46,14 @@ describe("inlineGlyph", () => {
     expect(inner).not.toContain("#000000");
     expect(inner).not.toContain("\n");
     expect(inner).not.toContain("translate(0,300)");
+  });
+});
+
+describe("inlineGlyph fills", () => {
+  it("retints every black fill in the trace, not just the first", async () => {
+    const twoFills = trace(300, 300, "M0 0l100 0 0 100 -100 0z").replace('<path d=', '<path fill="#000000" d=');
+    const inner = await inlineGlyph(normalizeTrace(twoFills, INLINE_PAD));
+    expect(inner).not.toContain("#000000");
   });
 });
 
@@ -84,6 +94,19 @@ describe("glyphModule and spliceGlyph", () => {
     expect(spliceGlyph(mod, "d4", "<g>$&$1</g>")).toContain('  d4: "<g>$&$1</g>",');
   });
 
+  it("refuses to splice into text that has no closing line, rather than report success", () => {
+    expect(() => spliceGlyph("export const X = {", "d6", "<g/>")).toThrow("failed to splice 'd6'");
+  });
+
+  it("reads every entry back in file order, with the markup unescaped", () => {
+    const quoted = '<g fill="currentColor">x</g>';
+    expect(readGlyphs(spliceGlyph(mod, "d8", quoted))).toEqual([
+      ["d4", "<g>four</g>"],
+      ["d6", "<g>six</g>"],
+      ["d8", quoted],
+    ]);
+  });
+
   it("reads back what it wrote, and null for a missing key", () => {
     const quoted = '<g fill="currentColor">x</g>';
     expect(readGlyph(spliceGlyph(mod, "d8", quoted), "d8")).toBe(quoted);
@@ -96,6 +119,14 @@ describe("previewSvg", () => {
     const svg = previewSvg("<g>x</g>");
     expect(svg).toContain('color="#000"');
     expect(svg).toContain('<rect width="100%" height="100%" fill="#fff"/><g>x</g>');
+  });
+});
+
+describe("isGlyphSetName", () => {
+  it("knows the sets and not what every object inherits", () => {
+    expect(isGlyphSetName("dice-d20")).toBe(true);
+    expect(isGlyphSetName("constructor")).toBe(false);
+    expect(isGlyphSetName("toString")).toBe(false);
   });
 });
 

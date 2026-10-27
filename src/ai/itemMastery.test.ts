@@ -9,6 +9,8 @@ describe("normalizeAiItemMastery", () => {
   it("normalizes case", () => {
     expect(normalizeAiItemMastery("Vex", { ruleset: "2024", itemType: "weapon" })).toBe("vex");
     expect(normalizeAiItemMastery("TOPPLE", { ruleset: "2024", itemType: "weapon" })).toBe("topple");
+    // Models pad enum values with spaces.
+    expect(normalizeAiItemMastery(" Vex ", { ruleset: "2024", itemType: "weapon" })).toBe("vex");
   });
 
   it("rejects junk/invalid values", () => {

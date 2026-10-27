@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { markGeneratedImage, markGeneratedImageB64 } from "./mark";
-import { embedProvenance, readXmpFromPng, readXmpFromWebp } from "./embed";
+import { readXmpFromPng, readXmpFromWebp } from "./embed";
 import type { AiProvenance } from "./types";
 
 const PROV: AiProvenance = {
@@ -69,11 +69,6 @@ function buildMinimalWebp(): Uint8Array {
 }
 
 describe("markGeneratedImage", () => {
-  it("delegates to embedProvenance — same output for the same input", () => {
-    const bytes = buildMinimalPng();
-    expect(markGeneratedImage(bytes, "image/png", PROV)).toEqual(embedProvenance(bytes, "image/png", PROV));
-  });
-
   it("produces a recoverable packet on a PNG", () => {
     const marked = markGeneratedImage(buildMinimalPng(), "image/png", PROV);
     const packet = readXmpFromPng(marked);

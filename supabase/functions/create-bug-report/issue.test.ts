@@ -38,6 +38,12 @@ describe("renderIssue", () => {
     expect(body).toContain("ʼʼʼ");
   });
 
+  it("keeps the title to one line of at most 80 characters of the location", () => {
+    const { title } = renderIssue({ ...bug, where: `first\nsecond ${"x".repeat(200)}` }, false, at);
+    expect(title).not.toMatch(/[\r\n]/);
+    expect(title).toBe(`[App Bug Report] first second ${"x".repeat(80 - "first second ".length)}`);
+  });
+
   it("titles a feature request by its summary", () => {
     const { title, body } = renderIssue(
       { kind: "feature", summary: "Dark mode", problem: "Bright" },
@@ -46,6 +52,11 @@ describe("renderIssue", () => {
     );
 
     expect(title).toBe("[Feature Request] Dark mode");
+    expect(body).toContain("*Not specified*");
+  });
+
+  it("treats a whitespace-only location on a feature request as not specified", () => {
+    const { body } = renderIssue({ kind: "feature", summary: "Dark mode", problem: "Bright", where: "   " }, false, at);
     expect(body).toContain("*Not specified*");
   });
 });
@@ -74,6 +85,10 @@ describe("parseReportText", () => {
   it("refuses something that is not an object (a corrupt stored row)", () => {
     expect(parseReportText(null, "bug")).toBeNull();
     expect(parseReportText("text", "bug")).toBeNull();
+  });
+
+  it.each(["where", "action", "expected", "actual"] as const)("refuses a bug that leaves %s blank", (field) => {
+    expect(parseReportText({ ...bug, [field]: "" }, "bug")).toBeNull();
   });
 
   it("lets a feature request leave where out", () => {

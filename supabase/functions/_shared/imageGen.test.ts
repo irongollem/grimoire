@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateImage, isProviderRefusal, ProviderRefusedError, resolveImageProvider, sizeToAspect } from "./imageGen.ts";
+import { isPromptRejected } from "./moderation.ts";
 
 /**
  * The half of the screening loop our own classifier cannot supply: what the
@@ -134,6 +135,45 @@ describe("generateImage — provider verdict recording", () => {
     expect(imageCall?.body).toMatchObject({ moderation: "low", output_format: "webp" });
   });
 
+  it("never reaches the paid renderer when the screen refuses the prompt", async () => {
+    const { admin } = fakeAdmin();
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      calls.push(url);
+      return Promise.resolve({
+        ok: true, status: 200,
+        json: () => Promise.resolve({ results: [{ category_scores: { ...BENIGN_SCORES, "sexual/minors": 0.95 } }] }),
+      });
+    }));
+
+    const error = await generateImage(opts("openai", admin)).catch((e) => e);
+
+    expect(isPromptRejected(error)).toBe(true);
+    expect(calls.some((url) => url.includes("/images/generations"))).toBe(false);
+  });
+
+  it("adds the Gemini style booster only when asked, so a map is not given dramatic lighting", async () => {
+    const { admin } = fakeAdmin();
+    const sentPrompts: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: { body?: unknown }) => {
+      if (url.includes("/moderations")) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ results: [{ category_scores: BENIGN_SCORES }] }) });
+      }
+      const body = JSON.parse(String(init?.body)) as { contents: { parts: { text: string }[] }[] };
+      sentPrompts.push(body.contents[0].parts[0].text);
+      return Promise.resolve({
+        ok: true, status: 200,
+        json: () => Promise.resolve({ candidates: [{ content: { parts: [{ inlineData: { data: "aGk=", mimeType: "image/png" } }] } }] }),
+      });
+    }));
+
+    await generateImage({ ...opts("gemini", admin), boostStyle: true });
+    await generateImage({ ...opts("gemini", admin), boostStyle: false });
+
+    expect(sentPrompts[0]).toMatch(/volumetric lighting/);
+    expect(sentPrompts[1]).toBe("a dwarven cleric");
+  });
+
   it("renders unscreened, and logs nothing, when no screening context is given", async () => {
     const calls = stubFetch(OK_IMAGE);
 
@@ -144,43 +184,18 @@ describe("generateImage — provider verdict recording", () => {
 });
 
 describe("sizeToAspect", () => {
-  it("picks the exact bucket for an already-supported ratio", () => {
-    expect(sizeToAspect("1600x900").aspectRatio).toBe("16:9"); // 1.778
-    expect(sizeToAspect("900x1600").aspectRatio).toBe("9:16");
-    expect(sizeToAspect("1024x1024").aspectRatio).toBe("1:1");
-    expect(sizeToAspect("1200x900").aspectRatio).toBe("4:3");
-    expect(sizeToAspect("900x1200").aspectRatio).toBe("3:4");
+  // The bucket choice itself is geminiAspect.ts's, tested there; this is the
+  // wiring: the size string is read, and the resolution comes from the quality knob.
+  it("reads the aspect off a WxH size, with spaces and any case", () => {
+    expect(sizeToAspect("1600x900").aspectRatio).toBe("16:9");
+    expect(sizeToAspect(" 900 X 1600 ").aspectRatio).toBe("9:16");
   });
 
-  it("picks the nearest bucket for a ratio Gemini has no exact match for", () => {
-    // The AI styler's own map aspect ratios rarely land on one of Gemini's
-    // ten discrete buckets exactly — this is the ordinary case, not an edge
-    // one. 2:1 (2.0) sits almost exactly between 16:9 (1.778) and 21:9
-    // (2.333) in log space, and slightly closer to 16:9.
-    expect(sizeToAspect("2000x1000").aspectRatio).toBe("16:9");
+  it("falls back to a square for a size it cannot read", () => {
+    expect(sizeToAspect("banana").aspectRatio).toBe("1:1");
   });
 
-  it("treats a very wide map as 21:9 rather than clamping to 16:9", () => {
-    expect(sizeToAspect("2560x1000").aspectRatio).toBe("21:9"); // 2.56, closer to 21:9 (2.333) than 16:9 (1.778)
-  });
-
-  it("compares distance in log space, not plain linear difference", () => {
-    // 2.045 sits between 16:9 (1.778) and 21:9 (2.333). Linearly it's
-    // closer to 16:9 (|2.045-1.778|=0.267 vs |2.045-2.333|=0.288), but a
-    // proportional (log-space) comparison puts it closer to 21:9
-    // (ln(2.045/1.778)=0.140 vs ln(2.045/2.333)=0.132) — the metric this
-    // function actually uses, so it picks 21:9. A plain-difference
-    // implementation would get this one wrong.
-    expect(sizeToAspect("2045x1000").aspectRatio).toBe("21:9");
-  });
-
-  it("picks 9:16 for a very tall map, not a nonexistent mirror of 21:9", () => {
-    // 21:9 has no reciprocal entry in Gemini's own list (there's no "9:21"),
-    // so a very tall map still resolves to the nearest real bucket, 9:16.
-    expect(sizeToAspect("1000x2100").aspectRatio).toBe("9:16");
-  });
-
-  it("still reads the resolution from the admin quality knob, unaffected by the aspect change", () => {
+  it("takes the resolution from the admin quality knob, and defaults to 1K for anything else", () => {
     expect(sizeToAspect("1600x900", "2K").imageSize).toBe("2K");
     expect(sizeToAspect("1600x900", "bogus").imageSize).toBe("1K");
     expect(sizeToAspect("1600x900").imageSize).toBe("1K");

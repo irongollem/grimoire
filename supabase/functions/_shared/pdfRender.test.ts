@@ -51,6 +51,16 @@ describe("buildCloudflarePdfRequest", () => {
     expect(req.url).toBe("https://api.cloudflare.com/client/v4/accounts/acc123/browser-run/pdf");
   });
 
+  it("keeps the account id to one path segment, whatever it contains", () => {
+    expect(buildCloudflarePdfRequest("a/../b", "tok", DOC).url).toBe(
+      "https://api.cloudflare.com/client/v4/accounts/a%2F..%2Fb/browser-run/pdf",
+    );
+  });
+
+  it("never puts the token in the body", () => {
+    expect(req.init.body).not.toContain("tok");
+  });
+
   it("sends bearer auth and JSON", () => {
     expect(req.init.method).toBe("POST");
     expect(req.init.headers).toEqual({ Authorization: "Bearer tok", "Content-Type": "application/json" });
@@ -66,8 +76,10 @@ describe("buildCloudflarePdfRequest", () => {
 });
 
 describe("mapCloudflareResponse", () => {
-  it("passes a 2xx through as a pdf", () => {
+  it("passes a 2xx through as a pdf and nothing from 300 up", () => {
     expect(mapCloudflareResponse(200, "")).toEqual({ kind: "pdf" });
+    expect(mapCloudflareResponse(299, "")).toEqual({ kind: "pdf" });
+    expect(mapCloudflareResponse(300, "")).toMatchObject({ kind: "error", status: 502 });
   });
 
   it("maps a plain 429 to the busy message", () => {
@@ -79,8 +91,8 @@ describe("mapCloudflareResponse", () => {
     });
   });
 
-  it("maps the daily browser-time limit to the tomorrow message", () => {
-    const r = mapCloudflareResponse(429, "Browser time limit exceeded for today");
+  it.each(["Browser time limit exceeded for today", "Daily quota reached"])("maps the daily limit (%j) to the tomorrow message", (body) => {
+    const r = mapCloudflareResponse(429, body);
     expect(r).toMatchObject({ kind: "error", status: 429, error: "PDF export has reached today's limit. Please try again tomorrow." });
   });
 

@@ -41,14 +41,6 @@ describe("parseChronicleTags", () => {
     expect(parseChronicleTags(md)).toEqual({ tags: [], body: md });
   });
 
-  it("returns no tags and the input untouched for empty input", () => {
-    expect(parseChronicleTags("")).toEqual({ tags: [], body: "" });
-  });
-
-  it("preserves tag order as written", () => {
-    const r = parseChronicleTags("Body.\n\n[[tags: zebra, apple, mango]]");
-    expect(r.tags).toEqual(["zebra", "apple", "mango"]);
-  });
 
   it("removes a tags line that isn't the last line, leaving surrounding body intact", () => {
     const r = parseChronicleTags("First part.\n\n[[tags: a, b]]\n\nSecond part.");

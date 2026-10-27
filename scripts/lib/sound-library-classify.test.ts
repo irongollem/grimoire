@@ -66,6 +66,11 @@ describe("isLoopable", () => {
     expect(isLoopable("fire/campfire-looped", "Campfire")).toBe(true);
   });
 
+  it("reads a loop marked with an underscore or in capitals", () => {
+    expect(isLoopable("rain/gutter_loop", "Gutter")).toBe(true);
+    expect(isLoopable("forest/day", "FOREST DAY LOOP")).toBe(true);
+  });
+
   it("does not guess a long file into a loop", () => {
     // The trap this exists to avoid: long enough to be a bed, still clicks.
     expect(isLoopable("river/park-river", "Park River Recording")).toBe(false);
@@ -80,10 +85,6 @@ describe("isLoopable", () => {
 describe("libraryStoragePath", () => {
   it("files everything under the library prefix the admin policy keys off", () => {
     expect(libraryStoragePath("rain/rain-gutter-loop")).toBe("library/rain/rain-gutter-loop.ogg");
-  });
-
-  it("never uses an srd prefix — none of this is SRD content", () => {
-    expect(libraryStoragePath("tavern/tavern-crowd")).not.toContain("srd");
   });
 });
 

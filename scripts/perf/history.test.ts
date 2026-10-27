@@ -28,13 +28,23 @@ describe("buildEntry", () => {
 describe("parseHistory", () => {
   it("reports unreadable lines instead of dropping them silently", () => {
     const good = JSON.stringify(buildEntry(results, "a", "d", null));
-    const parsed = parseHistory(`${good}\n{broken\n\n${good}\n`);
+    const parsed = parseHistory(`${good}\n{broken\n   \n${good}\n`);
     expect(parsed.entries).toHaveLength(2);
     expect(parsed.bad).toEqual([2]);
+    // A whitespace-only line is a blank, not a corrupt entry.
   });
 });
 
 describe("summarize", () => {
+  it("shortens the date and the sha, and shows the boot size when the entry recorded one", () => {
+    const entry = buildEntry(results, "abcdef0123456", "2026-10-07T13:45:00Z", { files: 37, raw: 9000, gzip: 2048, brotli: 1 });
+    const text = summarize([entry], 1);
+    const row = text.split("\n")[2];
+    expect(row).toMatch(/^2026-10-07 {2}abcdef0 /);
+    expect(row).toContain("2.0kB");
+    expect(text).not.toContain("T13:45");
+  });
+
   it("shows the last N entries oldest first, n/a where a journey is missing", () => {
     const entries = ["1111111aaa", "2222222bbb", "3333333ccc"].map((sha, i) => buildEntry(results, sha, `2026-10-0${i + 1}T00:00:00Z`, null));
     const text = summarize(entries, 2);

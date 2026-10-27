@@ -58,19 +58,13 @@ describe("resolveKeyAction", () => {
       expect(resolveKeyAction(ev({ key: "0", code: "Digit0", ctrlKey: true, targetIsTextEntry: true }), ctx())).toBeNull();
       expect(resolveKeyAction(ev({ key: "!", code: "Digit1", shiftKey: true, targetIsTextEntry: true }), ctx())).toBeNull();
     });
-
-    it("keeps undo and redo, and plain C still centres", () => {
-      expect(resolveKeyAction(ev({ key: "Z", code: "KeyZ", ctrlKey: true, shiftKey: true }), ctx())).toEqual({ kind: "redo" });
-      expect(resolveKeyAction(ev({ key: "z", code: "KeyZ", ctrlKey: true }), ctx())).toEqual({ kind: "undo" });
-      expect(resolveKeyAction(ev({ key: "c", code: "KeyC" }), ctx())).toEqual({ kind: "center" });
-    });
   });
 
   it("centres on C", () => {
     expect(resolveKeyAction(ev({ key: "C" }), ctx())).toEqual({ kind: "center" });
   });
 
-  it("rotates the item in hand only while the Place tool is active", () => {
+  it("rotates the item in hand only while the Place tool is active, ahead of the Eraser's own e", () => {
     expect(resolveKeyAction(ev({ key: "q" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 270 });
     expect(resolveKeyAction(ev({ key: "e" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 90 });
     expect(resolveKeyAction(ev({ key: "[" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 359 });
@@ -111,19 +105,17 @@ describe("resolveKeyAction", () => {
     });
   });
 
+  it("Escape is a no-op if the Select tool is disabled", () => {
+    const off: KeyContext = { activeTool: "floor", tools: [{ id: "select", disabled: true }, { id: "floor", shortcut: "f" }] };
+    expect(resolveKeyAction(ev({ key: "Escape" }), off)).toBeNull();
+  });
+
   it("Escape is a no-op if the Select tool isn't in this context's palette", () => {
     const noSelect: KeyContext = { activeTool: "floor", tools: [{ id: "floor", shortcut: "f" }] };
     expect(resolveKeyAction(ev({ key: "Escape" }), noSelect)).toBeNull();
   });
 
   describe("Place tool", () => {
-    it("turns the prop on q, e, [ and ], ahead of the Eraser's own e", () => {
-      expect(resolveKeyAction(ev({ key: "q" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 270 });
-      expect(resolveKeyAction(ev({ key: "e" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 90 });
-      expect(resolveKeyAction(ev({ key: "[" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 359 });
-      expect(resolveKeyAction(ev({ key: "]" }), ctx("place"))).toEqual({ kind: "rotatePlace", delta: 1 });
-    });
-
     it("answers to G as well as O", () => {
       expect(resolveKeyAction(ev({ key: "g" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });
       expect(resolveKeyAction(ev({ key: "o" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });

@@ -36,81 +36,35 @@ describe("buildMonsterEmbedText", () => {
     expect(buildMonsterEmbedText(NAME_ONLY)).toBe("Owlbear.");
   });
 
-  it("omits the size/type/CR clause entirely when size is missing (no dangling comma)", () => {
-    const text = buildMonsterEmbedText(makeMonster({ size: null }));
-    expect(text).toBe(
-      "Owlbear. monstrosity, CR 3. forest, ambush predator. Temperate forests. " +
-      "A cross between a giant owl and a bear, ferocious and territorial.",
-    );
+  // The size/type/CR clause: any of the three may be missing, and none of them
+  // may leave a dangling comma, a lone "CR", or a double space.
+  it.each<[string, Partial<EmbeddableMonster>, string]>([
+    ["no size", { size: null }, "Owlbear. monstrosity, CR 3. "],
+    ["no type", { monster_type: null }, "Owlbear. Large, CR 3. "],
+    ["a blank type", { monster_type: "  " }, "Owlbear. Large, CR 3. "],
+    ["no stat block", { stat_block: null }, "Owlbear. Large monstrosity. "],
+    ["a stat block without a CR", { stat_block: {} }, "Owlbear. Large monstrosity. "],
+    ["a blank CR", { stat_block: { challenge_rating: "  " } }, "Owlbear. Large monstrosity. "],
+    ["only a CR", { size: null, monster_type: null }, "Owlbear. CR 3. "],
+    ["none of the three", { size: null, monster_type: null, stat_block: null }, "Owlbear. "],
+  ])("writes the clause with %s", (_label, over, start) => {
+    const text = buildMonsterEmbedText(makeMonster(over));
+    expect(text.startsWith(start)).toBe(true);
+    expect(text).not.toMatch(/CR\s*[.,]|,\s*\.|\s{2,}/);
   });
 
-  it("omits the size/type/CR clause entirely when monster_type is missing", () => {
-    const text = buildMonsterEmbedText(makeMonster({ monster_type: null }));
-    expect(text).toContain("Owlbear. Large, CR 3.");
-  });
-
-  it("never emits a dangling 'CR .' when challenge_rating is missing", () => {
-    const text = buildMonsterEmbedText(makeMonster({ stat_block: null }));
-    expect(text).not.toContain("CR .");
-    expect(text).not.toContain("CR ,");
-    expect(text).toContain("Owlbear. Large monstrosity.");
-  });
-
-  it("never emits a dangling 'CR .' when stat_block is present but challenge_rating is absent", () => {
-    const text = buildMonsterEmbedText(makeMonster({ stat_block: {} }));
-    expect(text).not.toContain("CR .");
-    expect(text).toContain("Owlbear. Large monstrosity.");
-  });
-
-  it("emits a CR-only clause when size and type are both missing but CR is present", () => {
-    const text = buildMonsterEmbedText(makeMonster({ size: null, monster_type: null }));
-    expect(text).toBe(
-      "Owlbear. CR 3. forest, ambush predator. Temperate forests. " +
-      "A cross between a giant owl and a bear, ferocious and territorial.",
-    );
-  });
-
-  it("omits the size/type/CR clause entirely when size, type and CR are all missing", () => {
-    const text = buildMonsterEmbedText(makeMonster({ size: null, monster_type: null, stat_block: null }));
-    expect(text).toBe(
-      "Owlbear. forest, ambush predator. Temperate forests. " +
-      "A cross between a giant owl and a bear, ferocious and territorial.",
-    );
-  });
-
-  it("omits the tags clause entirely when tags is null", () => {
-    const text = buildMonsterEmbedText(makeMonster({ tags: null }));
-    expect(text).toBe(
-      "Owlbear. Large monstrosity, CR 3. Temperate forests. " +
-      "A cross between a giant owl and a bear, ferocious and territorial.",
-    );
-  });
-
-  it("omits the tags clause entirely when tags is an empty array", () => {
-    const text = buildMonsterEmbedText(makeMonster({ tags: [] }));
-    expect(text).not.toContain("  ");
-    expect(text).toBe(
-      "Owlbear. Large monstrosity, CR 3. Temperate forests. " +
-      "A cross between a giant owl and a bear, ferocious and territorial.",
-    );
-  });
-
-  it("preserves tag order as given, never re-sorted", () => {
-    const text = buildMonsterEmbedText(makeMonster({ tags: ["zebra", "ambush predator", "aardvark"] }));
-    expect(text).toContain("zebra, ambush predator, aardvark.");
-  });
-
-  it("omits the habitat clause entirely when habitat is missing", () => {
-    const text = buildMonsterEmbedText(makeMonster({ habitat: null }));
-    expect(text).toBe(
-      "Owlbear. Large monstrosity, CR 3. forest, ambush predator. " +
-      "A cross between a giant owl and a bear, ferocious and territorial.",
-    );
-  });
-
-  it("omits the description entirely when it is missing", () => {
-    const text = buildMonsterEmbedText(makeMonster({ description: null }));
-    expect(text).toBe("Owlbear. Large monstrosity, CR 3. forest, ambush predator. Temperate forests.");
+  it.each<[string, Partial<EmbeddableMonster>, string]>([
+    ["null tags", { tags: null }, "ambush predator"],
+    ["no tags", { tags: [] }, "ambush predator"],
+    ["only blank tags", { tags: ["  ", ""] }, "ambush predator"],
+    ["no habitat", { habitat: null }, "Temperate"],
+    ["a blank habitat", { habitat: "   " }, "Temperate"],
+    ["no description", { description: null }, "cross between"],
+    ["a blank description", { description: "  " }, "cross between"],
+  ])("leaves the field out entirely for %s", (_label, over, gone) => {
+    const text = buildMonsterEmbedText(makeMonster(over));
+    expect(text).not.toContain(gone);
+    expect(text).not.toMatch(/\s{2,}|\.\s*\.|,\s*\./);
   });
 
   it("flattens a Tiptap JSON description to plain text", () => {
@@ -139,6 +93,17 @@ describe("buildMonsterEmbedText", () => {
     expect(longDescription.startsWith(descriptionPart)).toBe(true);
   });
 
+  it("keeps a description of exactly 500 characters whole and drops the last word of one at 501", () => {
+    const filler = "abcd ".repeat(99);
+    const exact = `${filler}abcde`;
+    const over = `${filler}abcdef`;
+    expect([exact.length, over.length]).toEqual([500, 501]);
+    expect(buildMonsterEmbedText(makeMonster({ description: exact })).endsWith(exact)).toBe(true);
+    const cut = buildMonsterEmbedText(makeMonster({ description: over }));
+    expect(cut).not.toContain("abcdef");
+    expect(cut.endsWith("abcd")).toBe(true);
+  });
+
   it("collapses runs of whitespace (newlines, tabs, repeated spaces) so output is stable regardless of source formatting", () => {
     const text = buildMonsterEmbedText(
       makeMonster({
@@ -151,28 +116,10 @@ describe("buildMonsterEmbedText", () => {
     expect(text).toContain("A cross between a giant owl and a bear.");
     expect(text).not.toMatch(/\s{2,}/);
   });
-
-  it("is deterministic — the same input always produces byte-identical output", () => {
-    const monster = makeMonster();
-    expect(buildMonsterEmbedText(monster)).toBe(buildMonsterEmbedText(makeMonster()));
-  });
 });
 
 describe("monsterEmbedHash", () => {
-  it("is stable for identical text", async () => {
-    const text = buildMonsterEmbedText(makeMonster());
-    const [first, second] = await Promise.all([monsterEmbedHash(text), monsterEmbedHash(text)]);
-    expect(first).toBe(second);
-  });
-
-  it("differs for different text", async () => {
-    const a = await monsterEmbedHash(buildMonsterEmbedText(makeMonster()));
-    const b = await monsterEmbedHash(buildMonsterEmbedText(makeMonster({ name: "Displacer Beast" })));
-    expect(a).not.toBe(b);
-  });
-
-  it("returns lowercase hex SHA-256 (64 chars)", async () => {
-    const hash = await monsterEmbedHash("Owlbear.");
-    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+  it("is the lowercase hex SHA-256 of the text (FIPS 180-2 test vector for \"abc\"), so equal text skips a re-embed", async () => {
+    expect(await monsterEmbedHash("abc")).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
   });
 });

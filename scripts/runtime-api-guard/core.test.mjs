@@ -49,6 +49,17 @@ describe("detectApis", () => {
     ]);
   });
 
+  it("does not read a computed key, a private method or a variable as the API it happens to be named after", () => {
+    expect(detect('const at = "x", hasOwn = "y"; rows[at](1); Object[hasOwn](o, k);')).toEqual([]);
+    expect(detect("class A { #at() {} run(rows) { return this.#at(1); } }")).toEqual([]);
+  });
+
+  it("parses the module syntax a bundled chunk is written in", () => {
+    expect(detect('import x from "./x.js"; export const here = import.meta.url; export default Object.hasOwn(x, "k");')).toEqual([
+      "Object.hasOwn",
+    ]);
+  });
+
   it("reports each name once however often it appears", () => {
     expect(detect("a.at(0); b.at(1); c.at(2);")).toEqual(["Array.prototype.at"]);
   });

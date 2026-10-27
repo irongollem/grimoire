@@ -22,10 +22,9 @@ describe("parentConsentRequestEmail", () => {
     expect(content.text).not.toContain("invited to join");
   });
 
-  it("has no parameter that could carry text the requester controls", () => {
-    // A campaign name is chosen by whoever made the campaign, so it would let
-    // anyone mail a phishing line to any address. The signature is the guard.
-    const content = parentConsentRequestEmail({ fromInvite: true, addUrl });
-    expect(content.subject).toBe("A young player asked you to set up a Grimoire account");
+  it("escapes the link in the html, so a hostile request token cannot break out of the href", () => {
+    const content = parentConsentRequestEmail({ fromInvite: false, addUrl: 'https://x.test/a?request="><script>1</script>' });
+    expect(content.html).not.toContain("<script>");
+    expect(content.html).toContain("&quot;&gt;&lt;script&gt;");
   });
 });

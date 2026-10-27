@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseFake } from "@/test/supabaseFake";
 import { replacePendingImageNode, resolveNotePendingImage } from "./notePendingImage";
 
 const doc = (nodes: unknown[]) => ({ type: "doc", content: nodes });
@@ -48,14 +50,16 @@ describe("replacePendingImageNode", () => {
 function stubClient(maybeSingleResults: { data: unknown; error?: unknown }[]) {
   const query = {
     select: vi.fn(() => query),
-    update: vi.fn(() => query),
+    update: vi.fn((_patch: { content: string }) => query),
     eq: vi.fn(() => query),
     maybeSingle: vi.fn(),
   };
   for (const r of maybeSingleResults) {
     query.maybeSingle.mockResolvedValueOnce({ data: r.data, error: r.error ?? null });
   }
-  return { from: vi.fn(() => query), query } as never;
+  // The stub implements the chain this module calls; the client type is far wider.
+  const client = { from: vi.fn(() => query) } as unknown as SupabaseClient;
+  return Object.assign(client, { query });
 }
 
 const noteRow = (jobId: string, updatedAt: string) => ({
@@ -73,7 +77,7 @@ describe("resolveNotePendingImage", () => {
     ]);
     await resolveNotePendingImage(admin, args);
     expect(admin.query.update).toHaveBeenCalledTimes(1);
-    const written = admin.query.update.mock.calls[0][0] as { content: string };
+    const written = admin.query.update.mock.calls[0][0];
     expect(JSON.parse(written.content).content[1]).toEqual({
       type: "image",
       attrs: { src: "https://img/1.webp" },
@@ -105,5 +109,40 @@ describe("resolveNotePendingImage", () => {
     const admin = stubClient([{ data: null }]);
     await resolveNotePendingImage(admin, args);
     expect(admin.query.update).not.toHaveBeenCalled();
+  });
+
+  it("gives up after one failed write instead of retrying a database error", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const admin = stubClient([
+      { data: noteRow("job-1", "t1") },
+      { data: null, error: { message: "permission denied" } },
+    ]);
+    await resolveNotePendingImage(admin, args);
+    expect(admin.query.update).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+});
+
+describe("resolveNotePendingImage: whose note it may rewrite", () => {
+  const fake = createSupabaseFake();
+  // The fake implements the slice of the client this module calls.
+  const client = fake.client as unknown as SupabaseClient;
+  const content = (jobId: string) => JSON.stringify(doc([paragraph, anchor(jobId)]));
+
+  beforeEach(() => fake.reset());
+
+  it("swaps the anchor for the image in the job owner's note", async () => {
+    fake.seed("notes", [{ id: "note-1", user_id: "user-1", content: content("job-1"), updated_at: "t1" }]);
+    await resolveNotePendingImage(client, args);
+    const saved = JSON.parse(String(fake.rows("notes")[0].content));
+    expect(saved.content[1]).toEqual({ type: "image", attrs: { src: "https://img/1.webp" } });
+  });
+
+  it("never rewrites a note that belongs to someone else, even with the right note id and job id", async () => {
+    // A forged completion target must not reach another account's note: the
+    // worker runs with the service role, so the filter is the only guard.
+    fake.seed("notes", [{ id: "note-1", user_id: "someone-else", content: content("job-1"), updated_at: "t1" }]);
+    await resolveNotePendingImage(client, args);
+    expect(fake.rows("notes")[0].content).toBe(content("job-1"));
   });
 });

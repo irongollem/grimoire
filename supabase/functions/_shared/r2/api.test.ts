@@ -64,6 +64,11 @@ describe("parseSignUploadRequest", () => {
     expect(parseSignUploadRequest({ bucket: R2_BUCKET, objects: many }).ok).toBe(false);
   });
 
+  it("takes exactly MAX_UPLOAD_OBJECTS objects: an original plus its variants must fit", () => {
+    const full = Array.from({ length: MAX_UPLOAD_OBJECTS }, (_, i) => object(`${USER}/${i}.ogg`));
+    expect(parseSignUploadRequest({ bucket: R2_BUCKET, objects: full }).ok).toBe(true);
+  });
+
   it("refuses a missing or mistyped field on any object", () => {
     const bad = [
       { contentType: "model/stl", size: 1 },
@@ -127,6 +132,11 @@ describe("parseDeleteRequest", () => {
     expect(parseDeleteRequest({ bucket: R2_BUCKET, paths: [""] }).ok).toBe(false);
     const many = Array.from({ length: MAX_DELETE_PATHS + 1 }, (_, i) => `${USER}/${i}.stl`);
     expect(parseDeleteRequest({ bucket: R2_BUCKET, paths: many }).ok).toBe(false);
+  });
+
+  it("takes exactly MAX_DELETE_PATHS paths", () => {
+    const full = Array.from({ length: MAX_DELETE_PATHS }, (_, i) => `${USER}/${i}.stl`);
+    expect(parseDeleteRequest({ bucket: R2_BUCKET, paths: full }).ok).toBe(true);
   });
 
   it("refuses a bucket that is not R2-backed", () => {
@@ -234,6 +244,12 @@ describe("r2-list parsing and authorization", () => {
     const foreign = parseListRequest({ bucket: "npc-portraits", prefix: "srd" });
     expect(foreign.ok).toBe(true);
     if (foreign.ok) expect(authorizeList(foreign.value, ADMIN).allowed).toBe(false);
+  });
+
+  it("refuses an admin whose user id did not resolve, so a lost uid never opens the shared prefixes", () => {
+    const parsed = parseListRequest({ bucket: R2_BUCKET, prefix: "library" });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(authorizeList(parsed.value, { userId: "", isAdmin: true }).allowed).toBe(false);
   });
 
   it("refuses listing a service-managed bucket", () => {

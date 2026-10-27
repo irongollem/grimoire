@@ -31,6 +31,17 @@ describe("fileIssue", () => {
     expect(JSON.parse(init.body as string)).toEqual({ ...issue, labels });
   });
 
+  it("sends the token as a bearer credential and never in a body", async () => {
+    const fetchMock = stubFetch(new Response(JSON.stringify({ number: 1, html_url: "u" }), { status: 201 }));
+
+    await fileIssue("secret-token", issue, labels);
+
+    for (const [, init] of fetchMock.mock.calls as unknown as [string, RequestInit][]) {
+      expect((init.headers as Record<string, string>).Authorization).toBe("Bearer secret-token");
+      expect(String(init.body)).not.toContain("secret-token");
+    }
+  });
+
   it("discards the label call's body", async () => {
     const label = new Response("{}", { status: 422 });
     stubFetch(new Response(JSON.stringify({ number: 1, html_url: "u" }), { status: 201 }), label);
@@ -71,6 +82,12 @@ describe("fileIssue", () => {
     await expect(fileIssue("token", issue, labels)).resolves.toMatchObject({ ok: false, outcome: "unknown" });
   });
 
+  it("is unknown when a 2xx reply carries no issue number, rather than a success with nothing to link", async () => {
+    stubFetch(new Response(JSON.stringify({ html_url: "https://github.com/x/1" }), { status: 201 }));
+
+    await expect(fileIssue("token", issue, labels)).resolves.toMatchObject({ ok: false, outcome: "unknown" });
+  });
+
   it("is unknown, not a refusal, when a 2xx reply cannot be read", async () => {
     stubFetch(new Response("<html>", { status: 201 }));
 
@@ -79,8 +96,12 @@ describe("fileIssue", () => {
 });
 
 describe("reasonFor", () => {
-  it("names the fix, not just the status", () => {
-    expect(reasonFor(401)).toContain("token");
-    expect(reasonFor(503)).toBe("GitHub was unavailable");
+  it("gives each class of refusal its own wording, so Admin → Reports says what to fix", () => {
+    const reasons = [401, 404, 422, 429, 500, 418].map(reasonFor);
+    expect(new Set(reasons).size).toBe(reasons.length);
+    expect(reasonFor(403)).toBe(reasonFor(401)); // a revoked token and a missing scope are both the token
+    expect(reasonFor(502)).toBe(reasonFor(500));
+    expect(reasonFor(418)).toContain("418"); // an unlisted status falls back to naming it
+    for (const status of [401, 404, 422, 429, 500]) expect(reasonFor(status)).not.toContain(String(status));
   });
 });

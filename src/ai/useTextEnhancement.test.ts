@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref } from "vue";
+import { AI_PROMPT_LIMIT_LONG } from "@edge-shared/ai-prompt.ts";
 import { useEnhanceAvailable, useTextEnhancement } from "./useTextEnhancement";
 
 const campaignMock = {
@@ -83,9 +84,27 @@ describe("useTextEnhancement", () => {
 
   it("refuses a selection longer than the server accepts, before charging", async () => {
     await expect(
-      useTextEnhancement().enhance({ selectedText: "a".repeat(2001), context: "note" }),
+      useTextEnhancement().enhance({ selectedText: "a".repeat(AI_PROMPT_LIMIT_LONG + 1), context: "note" }),
     ).rejects.toThrow("Select at most");
     expect(requireCredits).not.toHaveBeenCalled();
+  });
+
+  it("accepts a selection of exactly the server's limit", async () => {
+    await expect(
+      useTextEnhancement().enhance({ selectedText: "a".repeat(AI_PROMPT_LIMIT_LONG), context: "note" }),
+    ).resolves.toBe("Rewritten.");
+  });
+
+  it("sends only the context line when there is no style hint and the surrounding text is blank", async () => {
+    await useTextEnhancement().enhance({ selectedText: "x", context: "note", styleHint: "", before: "  ", after: "  " });
+    const [request] = generateProseText.mock.calls[0] as [{ constraints: string[] }];
+    expect(request.constraints).toEqual(["Context: note"]);
+  });
+
+  it("sends the trimmed text after the selection", async () => {
+    await useTextEnhancement().enhance({ selectedText: "x", context: "note", after: "  Then dawn broke. " });
+    const [request] = generateProseText.mock.calls[0] as [{ constraints: string[] }];
+    expect(request.constraints).toEqual(["Context: note", "Text after the selection: Then dawn broke."]);
   });
 
   it("refuses to run when the campaign's AI is off", async () => {

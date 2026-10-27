@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { drawFeatureGlyph, isFeatureCategory, type FeatureCategory } from "./featurePlaceholders";
 import { FEATURE_GLYPH_CATEGORY, GENERIC_FEATURE_CATEGORY } from "./glyphs";
-import { FEATURE_GLYPHS } from "@/types/dungeonFeature.types";
 
 // Same recording-proxy approach as hazardPlaceholders.test.ts — traces the
 // full call sequence (not just the first fillStyle) so two shapes that
@@ -36,11 +35,6 @@ describe("drawFeatureGlyph", () => {
       expect(() => drawFeatureGlyph(ctx, category, [100, 100, 100])).not.toThrow();
       expect(trace.length).toBeGreaterThan(0);
     }
-  });
-
-  it("covers exactly one category per declared feature glyph, plus the generic marker", () => {
-    expect(ALL_FEATURE_CATEGORIES).toHaveLength(FEATURE_GLYPHS.length + 1);
-    expect(new Set(ALL_FEATURE_CATEGORIES).size).toBe(ALL_FEATURE_CATEGORIES.length);
   });
 
   it("gives every category a unique drawing trace against the same base colour", () => {

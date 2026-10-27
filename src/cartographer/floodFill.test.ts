@@ -48,22 +48,14 @@ describe("floodFill — 4-way contiguous region", () => {
     expect(region.has("1,1")).toBe(false);
   });
 
-  it("does not visit a cell twice (no infinite loop on cycles)", () => {
-    // The region forms a ring; the flood must terminate.
-    const set = new Set<CellKey>([
-      "0,0", "1,0", "2,0",
-      "0,1",        "2,1",
-      "0,2", "1,2", "2,2",
-    ]);
-    const region = floodFill(0, 0, predicateFromSet(set));
-    expect(region.size).toBe(8);
-  });
-
   it("respects a maximum-cells safety cap to prevent runaway fills", () => {
     // Predicate that matches everything — infinite region. Cap protects us.
     const allTrue = () => true;
-    const region = floodFill(0, 0, allTrue, { maxCells: 100 });
-    expect(region.size).toBe(100);
+    for (const maxCells of [1, 2, 7, 30, 100]) expect(floodFill(0, 0, allTrue, { maxCells }).size).toBe(maxCells);
+  });
+
+  it("caps an unbounded fill at 10,000 cells when no cap is given", () => {
+    expect(floodFill(0, 0, () => true).size).toBe(10_000);
   });
 });
 

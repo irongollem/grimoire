@@ -51,6 +51,45 @@ describe("splitForReseed", () => {
   });
 });
 
+describe("buildSeededSpeciesRow identity", () => {
+  const race = (document: { key: string; name: string; display_name?: string; gamesystem: { name: string; key: string } }) => ({
+    key: "toh_erina",
+    name: "Erina",
+    desc: "Hedgehog folk.",
+    is_subspecies: false,
+    subspecies_of: null,
+    traits: [],
+    document,
+  });
+  const toh = { key: "toh", name: "Tome of Heroes", display_name: "Tome of Heroes (2024)", gamesystem: { name: "5th Edition 2014", key: "5e-2014" } };
+
+  it("files the row under a stable library id, the document it came from, and that book's display title", () => {
+    expect(buildSeededSpeciesRow(race(toh))).toMatchObject({ id: "srd_toh_erina", source: "toh", source_title: "Tome of Heroes (2024)" });
+  });
+
+  it("falls back to the document's name when it has no display name", () => {
+    const { display_name: _display, ...plain } = toh;
+    expect(buildSeededSpeciesRow(race(plain))?.source_title).toBe("Tome of Heroes");
+  });
+
+  it("maps nothing for a document of a system the library does not carry", () => {
+    expect(buildSeededSpeciesRow(race({ ...toh, gamesystem: { name: "Advanced 5th Edition", key: "a5e" } }))).toBeNull();
+  });
+
+  it("keeps the subraces it is given", () => {
+    const row = buildSeededSpeciesRow(race(toh), undefined, [{ name: "Marsh Erina", description: "Wet.", traits: [] }]);
+    expect(row?.subraces).toHaveLength(1);
+  });
+});
+
+describe("splitForReseed, matching an existing row", () => {
+  it("matches on document and record key together, so another book's record of the same key is new", () => {
+    const { fresh, refresh } = splitForReseed([seeded("toh_erina")], [{ source_document_key: "other-book", source_record_key: "toh_erina" }]);
+    expect(fresh).toHaveLength(1);
+    expect(refresh).toEqual([]);
+  });
+});
+
 describe("buildSeededSpeciesRow walk speed", () => {
   it("gives a species with no walking speed anywhere 30 ft", () => {
     const row = buildSeededSpeciesRow({

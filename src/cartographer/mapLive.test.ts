@@ -109,7 +109,7 @@ describe("buildMapLive", () => {
   it("lists swaying objects row-major, then swaying Dressing by z, in image cells", () => {
     const layers = emptyLayers();
     const sway = { amount: 3, speed: 1 };
-    layers.object[cellKey(4, 6)] = { ...ref("p"), category: "objectPillar", variant: 0, rotation: 90 };
+    layers.object[cellKey(1, 6)] = { ...ref("p"), category: "objectPillar", variant: 0, rotation: 90 };
     layers.object[cellKey(2, 5)] = { ...ref("p"), category: "objectPillar", variant: 0 };
     layers.object[cellKey(3, 5)] = { ...ref("p"), category: "objectPillar", variant: 1 }; // still
     layers.dressing.a = { prop_id: "palm", x: 5, y: 5, rotation: 0, z: 1 };
@@ -128,7 +128,7 @@ describe("buildMapLive", () => {
     );
     expect(live.sprites.map((s) => [s.url, s.x, s.y, s.w, s.h, s.rotation])).toEqual([
       ["https://cdn/tree.webp", 1.5, 3.5, 1, 1, 0],
-      ["https://cdn/tree.webp", 3.5, 4.5, 1, 1, 90],
+      ["https://cdn/tree.webp", 0.5, 4.5, 1, 1, 90],
       ["https://cdn/palm.webp", 5, 3.5, 2, 1, 0],
     ]);
     expect(live.sprites[0].sway).toEqual({ ...sway, phase: phaseAt(1.5, 3.5) });

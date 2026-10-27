@@ -123,6 +123,37 @@ describe("service-worker atomic install", () => {
     expect(await stored![1].text()).toBe(INSTALL_SHELL);
   });
 
+  // The install trusts a response only if its status AND its type say it is the file asked for.
+  it.each([
+    ["an index.html served as JSON", "/index.html", (path: string) => (path === "/index.html" ? response(INSTALL_SHELL, "application/json") : null)],
+    ["a chunk that answered 404 with the right type", "/assets/app-123.js", (path: string) => (path.endsWith(".js") ? new Response("export {};", { status: 404, headers: { "content-type": "application/javascript" } }) : null)],
+  ])("rejects the install for %s", async (_name, badPath, bad) => {
+    const fetchMock = vi.fn(async (request: Request) => {
+      const path = new URL(request.url, "https://app.example.test").pathname;
+      const wrong = bad(path);
+      if (wrong) return wrong;
+      if (path.endsWith(".js")) return response("export {};", "application/javascript");
+      if (path.endsWith(".css")) return response("body{}", "text/css");
+      return response(INSTALL_SHELL, "text/html; charset=utf-8");
+    });
+    const { runInstall, put } = loadInstallHandler(fetchMock);
+
+    await expect(runInstall()).rejects.toThrow("precache failed");
+    expect(put.mock.calls.some(([path]) => path === badPath)).toBe(false);
+  });
+
+  it("accepts a chunk served as an ecmascript type", async () => {
+    const fetchMock = vi.fn(async (request: Request) => {
+      const path = new URL(request.url, "https://app.example.test").pathname;
+      if (path.endsWith(".js")) return response("export {};", "text/ecmascript");
+      if (path.endsWith(".css")) return response("body{}", "text/css");
+      return response(INSTALL_SHELL, "text/html; charset=utf-8");
+    });
+    const { runInstall } = loadInstallHandler(fetchMock);
+
+    await expect(runInstall()).resolves.toBeUndefined();
+  });
+
   it("rejects the install rather than cache another build's index.html", async () => {
     const fetchMock = vi.fn(async (request: Request) => {
       const path = new URL(request.url, "https://app.example.test").pathname;
@@ -262,10 +293,10 @@ function loadWorker(options: {
     await lifetime;
   }
 
-  async function runFetch(path: string, mode?: "navigate") {
+  async function runFetch(path: string, mode?: "navigate", method = "GET") {
     const waited: Promise<unknown>[] = [];
     let responded: Promise<Response> | undefined;
-    const request = new Request(new URL(path, ORIGIN));
+    const request = new Request(new URL(path, ORIGIN), { method });
     // The Request constructor refuses mode "navigate"; only a browser makes one.
     if (mode) Object.defineProperty(request, "mode", { value: mode });
     (handlers.get("fetch") as (e: unknown) => void)({
@@ -698,5 +729,54 @@ describe("service-worker CDN art cache", () => {
     expect(art.size).toBe(ART_CACHE_MAX_ENTRIES);
     expect(art.has("/app-art/assets/seed-0.webp")).toBe(false); // oldest — evicted
     expect(art.has("/app-art/assets/new.webp")).toBe(true);
+  });
+});
+
+
+describe("service-worker requests it must leave alone or not keep", () => {
+  /** A 200 response that reports `type` the way a browser's would, which the constructor will not let us set. */
+  function typed(body: string, contentType: string, type: Response["type"], ok = true) {
+    const res = response(body, contentType);
+    Object.defineProperty(res, "type", { value: type });
+    Object.defineProperty(res, "ok", { value: ok });
+    return res;
+  }
+
+  it("never answers or caches a request that is not a GET", async () => {
+    const { runFetch, fetchMock, stores } = loadWorker({});
+
+    const { result } = await runFetch("/assets/plate-DXiZtau7.webp", undefined, "POST");
+
+    expect(result).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(stores.has("grimoire-runtime")).toBe(false);
+  });
+
+  it("does not keep an opaque answer in the runtime cache, though it still hands it to the page", async () => {
+    const fetchMock = vi.fn(async () => typed("x", "image/webp", "opaque"));
+    const { runFetch, stores } = loadWorker({ fetchMock });
+
+    const { result } = await runFetch("/assets/plate-DXiZtau7.webp");
+
+    expect(result!.type).toBe("opaque");
+    expect(stores.get("grimoire-runtime")?.has("/assets/plate-DXiZtau7.webp") ?? false).toBe(false);
+  });
+
+  it("keeps an opaque CDN art answer, which is what an <img> without crossorigin gets", async () => {
+    const fetchMock = vi.fn(async () => typed("x", "image/webp", "opaque", false));
+    const { runFetch, stores } = loadWorker({ assetCdnOrigin: CDN_ORIGIN, fetchMock });
+
+    await runFetch(`${CDN_ORIGIN}/app-art/assets/placeholders/npc.abc12345.webp`);
+
+    expect(stores.get("grimoire-art")?.has("/app-art/assets/placeholders/npc.abc12345.webp")).toBe(true);
+  });
+
+  it("does not keep a failed CDN art answer", async () => {
+    const fetchMock = vi.fn(async () => new Response("gone", { status: 404 }));
+    const { runFetch, stores } = loadWorker({ assetCdnOrigin: CDN_ORIGIN, fetchMock });
+
+    await runFetch(`${CDN_ORIGIN}/app-art/assets/placeholders/missing.abc12345.webp`);
+
+    expect(stores.get("grimoire-art")?.has("/app-art/assets/placeholders/missing.abc12345.webp") ?? false).toBe(false);
   });
 });

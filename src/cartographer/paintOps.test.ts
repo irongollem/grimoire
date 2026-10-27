@@ -275,6 +275,30 @@ describe("removeDoorAtEdge", () => {
   });
 });
 
+describe("eraseWallAtCellEdge on a cell that lacks that wall", () => {
+  const stroke = () => paintOps.createStrokeState();
+
+  it("changes nothing and reports nothing when the cell has floor but no such wall", () => {
+    const ctx = makeCtx();
+    const ref = { pack_id: "pack-a", pack_version: 1, variant: 0 };
+    ctx.layers.floor[cellKey(2, 2)] = { floor: ref };
+    expect(paintOps.eraseWallAtCellEdge(ctx, { x: 2, y: 2, side: "N" }, stroke())).toBe(false);
+    expect(paintOps.eraseWallAtCellEdge(ctx, { x: 2, y: 2, side: "W" }, stroke())).toBe(false);
+    expect(ctx.layers.floor[cellKey(2, 2)]).toEqual({ floor: ref });
+  });
+
+  it("leaves the other wall alone: no north wall to erase beside a west wall, and the reverse", () => {
+    const ctx = makeCtx();
+    const wall = { pack_id: "pack-a", pack_version: 1, variant: 0, type: "wall" as const };
+    ctx.layers.floor[cellKey(2, 2)] = { wallW: wall };
+    ctx.layers.floor[cellKey(5, 5)] = { wallN: wall };
+    expect(paintOps.eraseWallAtCellEdge(ctx, { x: 2, y: 2, side: "N" }, stroke())).toBe(false);
+    expect(paintOps.eraseWallAtCellEdge(ctx, { x: 5, y: 5, side: "W" }, stroke())).toBe(false);
+    expect(ctx.layers.floor[cellKey(2, 2)]).toEqual({ wallW: wall });
+    expect(ctx.layers.floor[cellKey(5, 5)]).toEqual({ wallN: wall });
+  });
+});
+
 describe("eraseWallAtCellEdge", () => {
   it("removes a wall segment", () => {
     const ctx = makeCtx();

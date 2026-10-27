@@ -125,7 +125,10 @@ describe("calendarDefToAdapter", () => {
     expect(calendarDefToAdapter("custom", weeklyDef).weekdayOffset).toBeUndefined();
 
     const offsetDef: SettingCalendarDef = { ...weeklyDef, weekStyle: "weekly-offset" };
-    expect(calendarDefToAdapter("custom", offsetDef).weekdayOffset).toBeTypeOf("function");
+    // 1 Jan 2026 is a Thursday; the grid starts on Monday, so the month starts three columns in.
+    expect(calendarDefToAdapter("custom", offsetDef).weekdayOffset?.(2026, 1)).toBe(3);
+    // 1 Jun 2026 is a Monday, the first column.
+    expect(calendarDefToAdapter("custom", offsetDef).weekdayOffset?.(2026, 6)).toBe(0);
   });
 
   it("formats dates with epoch and festival day", () => {
@@ -138,6 +141,19 @@ describe("calendarDefToAdapter", () => {
     const a = calendarDefToAdapter("custom", tendayDef);
     expect(a.formatDate(1500, 1, 5, null)).toBe("Day 5 of First Tenday, Hammer, 1500 DR");
     expect(a.formatDate(1500, 1, 15, null)).toBe("Day 5 of Second Tenday, Hammer, 1500 DR");
+  });
+
+  it("names the first three tenday rows when the calendar gives no names, and keeps the day within its row", () => {
+    const unnamed = calendarDefToAdapter("custom", { ...tendayDef, weekRowNames: undefined });
+    expect(unnamed.formatDate(1500, 1, 5, null)).toBe("Day 5 of First Tenday, Hammer, 1500 DR");
+    expect(unnamed.formatDate(1500, 1, 15, null)).toBe("Day 5 of Second Tenday, Hammer, 1500 DR");
+    expect(unnamed.formatDate(1500, 1, 30, null)).toBe("Day 10 of Third Tenday, Hammer, 1500 DR");
+  });
+
+  it("falls back to the month number when the date names a month the calendar lacks", () => {
+    expect(calendarDefToAdapter("custom", weeklyDef).formatDate(100, 5, 1, null)).toBe(
+      "Day 1 of Week 1, Month 5, 100 AY",
+    );
   });
 
   it("formats weekly dates with week + dayInWeek", () => {

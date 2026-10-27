@@ -18,6 +18,9 @@ import {
   type DraftLocation,
   type DraftNote,
   type DraftNpc,
+  type FactionHolding,
+  type FactionMember,
+  type FactionRelationRow,
 } from "./scriptoriumDraft";
 
 const npc: DraftNpc = {
@@ -140,6 +143,51 @@ describe("context blocks", () => {
     expect(text).not.toContain("Human");
     expect(text).toContain("Harbourmaster");
   });
+  it("shows a players draft the occupation only when that field is shared, and no alignment", () => {
+    const nameOnly = buildNpcBlock({ ...npc, player_visible_fields: ["name"] }, [], "players");
+    expect(nameOnly).toContain("Mara Voss");
+    expect(nameOnly).not.toContain("Harbourmaster");
+    const f = buildFactionBlock(faction("f1", "Tide Guild", true), [], [], [], "players");
+    expect(f).not.toContain("Neutral");
+    expect(buildFactionBlock(faction("f1", "Tide Guild", true), [], [], [], "dm")).toContain("Neutral");
+  });
+
+  it("gives a DM draft the unshared members, holdings and relations with their notes; a players draft none of them", () => {
+    const hidden: DraftNpc = { ...npc, id: "n2", name: "Hidden Spy", player_visible_to: [] };
+    const unsharedPlace: DraftLocation = { ...loc(true), name: "Smuggler Cove", player_visible_to: [] };
+    const members: FactionMember[] = [{ npc: hidden, role: "Spy", status: null, locationSharesNpcs: false }];
+    const holdings: FactionHolding[] = [{ location: unsharedPlace, word: "controls", notes: "tunnels under the quay" }];
+    const relations: FactionRelationRow[] = [{ target: faction("f2", "Black Ledger", false), word: "hostile to", notes: "owes them money" }];
+    const args = [faction("f1", "Tide Guild", true), members, holdings, relations] as const;
+    const dm = buildFactionBlock(...args, "dm");
+    expect(dm).toContain("Hidden Spy");
+    expect(dm).toContain("controls Smuggler Cove: tunnels under the quay");
+    expect(dm).toContain("hostile to Black Ledger: owes them money");
+    const players = buildFactionBlock(...args, "players");
+    for (const secret of ["Hidden Spy", "Smuggler Cove", "tunnels under the quay", "Black Ledger", "owes them money"]) {
+      expect(players).not.toContain(secret);
+    }
+  });
+
+  it("shows players a shared relation and holding without the DM's private notes on them", () => {
+    const text = buildFactionBlock(
+      faction("f1", "Tide Guild", true),
+      [],
+      [{ location: loc(true), word: "controls", notes: "tunnels under the quay" }],
+      [{ target: faction("f2", "Black Ledger", true), word: "hostile to", notes: "owes them money" }],
+      "players",
+    );
+    expect(text).toContain("- hostile to Black Ledger");
+    expect(text).toContain("- controls Saltgate");
+    expect(text).not.toContain("owes them money");
+    expect(text).not.toContain("tunnels under the quay");
+  });
+
+  it("does not repeat the subject note when it also appears among its siblings", () => {
+    const text = buildSessionBlock(note("a", true), [note("a", true), note("b", true)], "dm");
+    expect(text.match(/content of a/g)).toHaveLength(1);
+  });
+
   it("lists a member shared only through its location, and drops an unshared one", () => {
     const viaLocation: DraftNpc = { ...npc, id: "n3", name: "Via Location", player_visible_to: [] };
     const text = buildFactionBlock(
@@ -166,9 +214,11 @@ describe("context blocks", () => {
     expect(sessionNoteAllowed(note("b", false), "players")).toBe(false);
     expect(sessionNoteAllowed(note("b", false), "dm")).toBe(true);
   });
-  it("caps blocks and the whole context", () => {
+  it("caps blocks and the whole context, cutting only what is over", () => {
     expect(clip("x".repeat(5000)).length).toBeLessThanOrEqual(2001);
+    expect(clip("x".repeat(2000))).toBe("x".repeat(2000));
     expect(assembleContext(["y".repeat(9000), "z".repeat(9000)]).length).toBeLessThanOrEqual(CONTEXT_CHAR_LIMIT + 1);
+    expect(assembleContext(["y".repeat(CONTEXT_CHAR_LIMIT)])).toBe("y".repeat(CONTEXT_CHAR_LIMIT));
   });
   it("flattens Tiptap JSON", () => {
     const json = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }] });
@@ -185,6 +235,17 @@ describe("sanitizeDraftHtml", () => {
     const out = sanitizeDraftHtml("<p>ok</p><script>alert(1)</script><style>p{}</style>");
     expect(out).toBe("<p>ok</p>");
   });
+  it.each(["iframe", "object", "embed", "noscript", "template", "svg", "math"])(
+    "drops <%s> with everything inside it",
+    (tag) => {
+      expect(sanitizeDraftHtml(`<p>ok</p><${tag}>payload</${tag}>`)).toBe("<p>ok</p>");
+    },
+  );
+
+  it("writes a line break once and ignores a stray closing one", () => {
+    expect(sanitizeDraftHtml("<p>a<br>b</br>c</p>")).toBe("<p>a<br>bc</p>");
+  });
+
   it("removes non-whitelisted tags but keeps their text", () => {
     expect(sanitizeDraftHtml('<div><a href="javascript:x">link</a><img src=x onerror=y></div>')).toBe("link");
   });
@@ -204,6 +265,11 @@ describe("parseDraftOutput", () => {
     expect(parseDraftOutput(JSON.stringify({ title: " A Letter ", html: "<p onclick=x>Dear friend</p>" })))
       .toEqual({ title: "A Letter", html: "<p>Dear friend</p>" });
   });
+  it("cuts a title at 120 characters and strips markup from it", () => {
+    const out = parseDraftOutput(JSON.stringify({ title: `<b>${"t".repeat(300)}</b>`, html: "<p>x</p>" }));
+    expect(out?.title).toBe("t".repeat(120));
+  });
+
   it("rejects malformed or empty output", () => {
     expect(parseDraftOutput("nope")).toBeNull();
     expect(parseDraftOutput(JSON.stringify({ title: "T", html: "<script>x</script>" }))).toBeNull();

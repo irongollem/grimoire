@@ -2,10 +2,18 @@ import { describe, expect, it } from "vitest";
 import { buildMapStylePrompt } from "./mapStylePrompt";
 
 describe("buildMapStylePrompt", () => {
-  it("opens with keeping the drawn layout", () => {
+  it("says to keep the drawn layout before it says anything about the style, since the model weighs the start most", () => {
     const prompt = buildMapStylePrompt("playable", "The Workshop", "Four floors.", null);
-    expect(prompt.startsWith("Repaint this top-down map image")).toBe(true);
+    expect(prompt).toMatch(/without changing its layout/);
     expect(prompt).toMatch(/do not add a title/i);
+    expect(prompt.indexOf("without changing its layout")).toBeLessThan(prompt.indexOf("Style:"));
+  });
+
+  it("leaves out a blank name, description or extra details instead of printing an empty clause", () => {
+    const blank = buildMapStylePrompt("playable", "   ", "  ", "  ");
+    expect(blank).not.toContain("The place:");
+    expect(blank).not.toMatch(/\s{2,}/);
+    expect(blank).toBe(buildMapStylePrompt("playable", "", null, undefined));
   });
 
   it("names the place as the subject, not as bare lettering", () => {

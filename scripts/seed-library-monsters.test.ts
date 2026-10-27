@@ -79,6 +79,22 @@ describe("preserveSettledStructures", () => {
     expect(dropped.actions?.[0].structured.source).toBe("parsed");
   });
 
+  it("does not carry a structure over to an entry that was renamed, even with the same prose", () => {
+    const manual = { kind: "other" as const, source: "manual" as const };
+    const renamed = preserveSettledStructures(fresh, { actions: [{ name: "Old Bite", description: BITE, structured: manual }] });
+    expect(renamed.actions?.[0].structured.source).toBe("parsed");
+  });
+
+  it.each(["special_abilities", "actions", "bonus_actions", "reactions", "legendary_actions", "lair_actions"] as const)(
+    "carries a manual structure in %s",
+    (list) => {
+      const manual = { kind: "other" as const, source: "manual" as const };
+      const next = { ...base, [list]: [{ name: "Bite", description: BITE, structured: parsed }] };
+      const result = preserveSettledStructures(next, { [list]: [{ name: "Bite", description: BITE, structured: manual }] });
+      expect(result[list]?.[0].structured).toEqual(manual);
+    },
+  );
+
   it("ignores a stored entry whose description changed, and a stored row of the old prose shape", () => {
     const manual = { kind: "other" as const, source: "manual" as const };
     const changed = preserveSettledStructures(fresh, { actions: [{ name: "Bite", description: "Different.", structured: manual }] });

@@ -13,6 +13,11 @@ describe("functionError", () => {
     expect(await functionErrorPayload(failure("Campaign not found"))).toBeNull();
   });
 
+  it("prefers the server's error code over the client message", async () => {
+    const error = { ...failure(JSON.stringify({ error: "rate_limited" })) };
+    expect(await functionErrorCode(error)).toBe("rate_limited");
+  });
+
   it("falls back to the client message when there is no body", async () => {
     expect(await functionErrorCode({ message: "Failed to fetch" })).toBe("Failed to fetch");
   });

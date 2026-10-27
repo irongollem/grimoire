@@ -24,6 +24,10 @@ describe("chunkRows", () => {
     expect(chunkRows([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
     expect(chunkRows([], 20)).toEqual([]);
   });
+
+  it("refuses a chunk size that would never advance", () => {
+    expect(() => chunkRows([1, 2], 0)).toThrow(/at least 1/);
+  });
 });
 
 describe("upsertEmbeddingsInChunks", () => {

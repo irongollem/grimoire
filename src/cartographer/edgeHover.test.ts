@@ -52,4 +52,8 @@ describe("detectHoveredEdge — pointer-to-edge resolution", () => {
     expect(detectHoveredEdge(64, 40, TILE, 0.25)).toBeNull();
     expect(detectHoveredEdge(64, 40, TILE, 0.4)).toEqual({ x: 0, y: 0, side: "N" });
   });
+
+  it("snaps at exactly the threshold distance", () => {
+    expect(detectHoveredEdge(64, 32, TILE, 0.25)).toEqual({ x: 0, y: 0, side: "N" });
+  });
 });

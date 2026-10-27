@@ -214,15 +214,10 @@ describe("drawMapContent", () => {
     });
   });
 
-  const lCorner = (): ReturnType<typeof emptyLayers> => {
-    const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };
-    return layers;
-  };
 
   it("paints the joint fallback square in the pack palette", () => {
     const rt = makeRuntime(PACK, { placeholders: ["wallJoint"], palette: { wallJoint: [1, 2, 3] } });
-    const { input: i, rec } = input(rt, { layers: lCorner() });
+    const { input: i, rec } = input(rt, { layers: lCornerLayers() });
     drawMapContent(i);
     expect(rec.fillStyles).toContain("rgb(1,2,3)");
     expect(rec.fillStyles).not.toContain("rgb(40,36,32)");
@@ -291,6 +286,11 @@ describe("drawMapContent", () => {
 });
 
 const cats = (rec: Recorder): (string | undefined)[] => rec.drawImages.map((d) => sourceOf(d)?.category);
+const lCornerLayers = (): ReturnType<typeof emptyLayers> => {
+  const layers = emptyLayers();
+  layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };
+  return layers;
+};
 const water = { pack_id: PACK, pack_version: 1, variant: 0 };
 
 describe("variantAt", () => {
@@ -664,3 +664,86 @@ describe("lights", () => {
   });
 });
 
+describe("pieces that sit on the window's border", () => {
+  const wall = { ...ref, type: "wall" as const };
+
+  it("draws a wall along the far edge of the last row and column, since those lines belong to the cells beyond", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(2, 6)] = { wallN: wall };
+    layers.floor[cellKey(6, 2)] = { wallW: wall };
+    const { input: i, rec } = input(makeRuntime(PACK), { layers });
+    drawMapContent(i);
+    expect(cats(rec).sort()).toEqual(["wallSegmentH", "wallSegmentV"]);
+  });
+
+  it("still paints the corner square when the pack behind a wall has not loaded, instead of throwing", () => {
+    const { input: i, rec } = input(null, { layers: lCornerLayers() });
+    expect(() => drawMapContent(i)).not.toThrow();
+    expect(rec.fillRects).toHaveLength(1);
+  });
+
+  it("draws a curb and a post on the window's first column", () => {
+    // water at (-1,1), floor at (0,1): the V curb lies on x = 0, the window's left line; a turn at (0,2) puts a post there too
+    const layers = emptyLayers();
+    for (const [x, y] of [[-1, 1], [0, 1], [-1, 2], [1, 1]]) layers.floor[cellKey(x, y)] = { floor: ref };
+    layers.terrain[cellKey(-1, 1)] = water;
+    const { input: i, rec } = input(makeRuntime(PACK, { variantCount: 4, categoryCounts: { curbV: 1, curbH: 1, curbPost: 1 } }), { layers });
+    drawMapContent(i);
+    expect(cats(rec)).toContain("curbV");
+    expect(cats(rec)).toContain("curbPost");
+  });
+
+  it("draws a flush pack's curbs and posts on the map itself, and leaves them out of its shadows only", () => {
+    const layers = emptyLayers();
+    for (const [x, y] of [[1, 1], [2, 1], [1, 2]]) layers.floor[cellKey(x, y)] = { floor: ref };
+    layers.terrain[cellKey(1, 1)] = water;
+    const flush = makeRuntime(PACK, { categoryCounts: { curbH: 1, curbV: 1, curbPost: 1 }, flush: ["curbH", "curbV", "curbPost"] });
+    const { input: i, rec } = input(flush, { layers });
+    drawMapContent(i);
+    expect(cats(rec)).toEqual(expect.arrayContaining(["curbH", "curbV", "curbPost"]));
+  });
+});
+
+describe("variantAt: where the stored variant gives way to the position", () => {
+  it("uses the position when the pack declares exactly the pieces the period needs, and the stored variant when it has fewer", () => {
+    const exact = makeRuntime(PACK, { continuous: { floor: 2, wallSegmentH: 3 }, categoryCounts: { floor: 4, wallSegmentH: 3 } });
+    expect(variantAt(exact, "floor", 1, 1, 0)).toBe(3);
+    expect(variantAt(exact, "wallSegmentH", 4, 0, 0)).toBe(1);
+    const short = makeRuntime(PACK, { continuous: { floor: 2, wallSegmentH: 3 }, categoryCounts: { floor: 3, wallSegmentH: 2 } });
+    expect(variantAt(short, "floor", 1, 1, 0)).toBe(0);
+    expect(variantAt(short, "wallSegmentH", 4, 0, 0)).toBe(0);
+  });
+
+  it("makes a one-piece texture draw that piece everywhere, whatever variant was stored", () => {
+    const one = makeRuntime(PACK, { continuous: { floor: 1 }, variantCount: 8 });
+    expect(variantAt(one, "floor", 5, 7, 5)).toBe(0);
+  });
+});
+
+describe("wall decals: only where one is set", () => {
+  it("adds nothing to a plain wall, even in a pack that has decal art", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = { wallN: { ...ref, type: "wall" } };
+    const { input: i, rec } = input(makeRuntime(PACK, { categoryCounts: { wallDecal: 2 } }), { layers });
+    drawMapContent(i);
+    expect(cats(rec)).not.toContain("wallDecal");
+  });
+
+  it("adds nothing in a pack with no decal art at all, rather than a placeholder", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = { wallN: { ...ref, type: "wall", decal: 1 } };
+    const { input: i, rec } = input(makeRuntime(PACK), { layers });
+    drawMapContent(i);
+    expect(cats(rec)).not.toContain("wallDecal");
+  });
+});
+
+describe("wall decals", () => {
+  it("draws the first decal, index 0, as well as the others", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = { wallN: { ...ref, type: "wall", decal: 0 } };
+    const { input: i, rec } = input(makeRuntime(PACK, { categoryCounts: { wallDecal: 2 } }), { layers });
+    drawMapContent(i);
+    expect(cats(rec)).toContain("wallDecal");
+  });
+});

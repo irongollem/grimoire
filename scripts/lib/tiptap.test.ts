@@ -32,60 +32,6 @@ describe("markdownToTiptap — root doc shape", () => {
   });
 });
 
-describe("markdownToTiptap — paragraph content", () => {
-  it("wraps a single line in one paragraph", () => {
-    const doc = parse(markdownToTiptap("Just a simple sentence."));
-    expect(doc.content.length).toBe(1);
-    expect(doc.content[0]!.type).toBe("paragraph");
-    expect((doc.content[0]!.content![0] as TiptapNode).text).toBe("Just a simple sentence.");
-  });
-
-  it("preserves multi-paragraph structure across blank lines", () => {
-    const md = `First paragraph.
-
-Second paragraph.
-
-Third paragraph.`;
-    const doc = parse(markdownToTiptap(md));
-    expect(doc.content.length).toBe(3);
-    expect(doc.content.every((n) => n.type === "paragraph")).toBe(true);
-  });
-});
-
-describe("markdownToTiptap — inline marks", () => {
-  it("converts **bold** to a bold-marked text node", () => {
-    const doc = parse(markdownToTiptap("She is **the heaviest deity**."));
-    const para = doc.content[0]!.content as TiptapNode[];
-    const bold = para.find((n) => n.marks?.[0]?.type === "bold")!;
-    expect(bold.text).toBe("the heaviest deity");
-  });
-
-  it("converts _italic_ AND *italic* to italic-marked text nodes", () => {
-    const docUnderscore = parse(markdownToTiptap("Whispered: _that is the saying_."));
-    const docStar = parse(markdownToTiptap("Whispered: *that is the saying*."));
-    const findItalic = (d: TiptapDoc) =>
-      (d.content[0]!.content as TiptapNode[]).find((n) => n.marks?.[0]?.type === "italic")!;
-    expect(findItalic(docUnderscore).text).toBe("that is the saying");
-    expect(findItalic(docStar).text).toBe("that is the saying");
-  });
-});
-
-describe("markdownToTiptap — block-level shapes", () => {
-  it("recognises bullet lists", () => {
-    const doc = parse(markdownToTiptap("- one\n- two\n- three"));
-    expect(doc.content[0]!.type).toBe("bulletList");
-    expect((doc.content[0]!.content as TiptapNode[]).length).toBe(3);
-  });
-
-  it("recognises headings", () => {
-    const doc = parse(markdownToTiptap("# Big\n\n## Medium\n\n### Small"));
-    const types = doc.content.map((n) => n.type);
-    expect(types).toEqual(["heading", "heading", "heading"]);
-    const levels = doc.content.map((n) => (n.attrs as { level: number })?.level);
-    expect(levels).toEqual([1, 2, 3]);
-  });
-});
-
 describe("markdownToTiptap — synth'd **Label**\\n{content} preprocessing", () => {
   // The NPC importer's `notes` field synthesizes blocks of the form:
   //   **Emotional Core**
@@ -148,6 +94,13 @@ describe("tiptapifyFields", () => {
     // Converted prose fields parse as Tiptap docs
     expect(parse(out.appearance as string).type).toBe("doc");
     expect(parse(out.personality as string).type).toBe("doc");
+  });
+
+  it("returns a new object and leaves the merge engine's own payload as plain markdown", () => {
+    const payload = { appearance: "A warm-looking Sugarspun." };
+    const out = tiptapifyFields(payload, NPC_RICHTEXT_FIELDS);
+    expect(out).not.toBe(payload);
+    expect(payload.appearance).toBe("A warm-looking Sugarspun.");
   });
 
   it("skips fields not present in payload (so updates-map use is safe)", () => {

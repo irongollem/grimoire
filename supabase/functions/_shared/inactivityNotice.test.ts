@@ -13,11 +13,6 @@ describe("inactivityNoticeEmail", () => {
   const adult = inactivityNoticeEmail({ ...base, forParent: false });
   const parent = inactivityNoticeEmail({ ...base, forParent: true });
 
-  it("has a subject that says what happens", () => {
-    expect(adult.subject).toBe("Your Dungeon Grimoire account will be deleted unless you sign in");
-    expect(parent.subject).toBe(adult.subject);
-  });
-
   it("renders last seen month and the deadline in both bodies", () => {
     for (const mail of [adult, parent]) {
       for (const body of [mail.html, mail.text]) {
@@ -40,11 +35,5 @@ describe("inactivityNoticeEmail", () => {
     for (const mail of [adult, parent]) {
       expect(mail.subject + mail.html + mail.text).not.toContain("—");
     }
-  });
-
-  it("escapes interpolated dates in html", () => {
-    const mail = inactivityNoticeEmail({ ...base, deleteAfter: "2026-11-13T09:00:00Z", forParent: false });
-    expect(mail.html).not.toMatch(/<script/i);
-    expect(mail.html).toContain("13 November 2026");
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { createImageTo3dTask, getImageTo3dTask, type MeshyTaskParams } from "./mesh3d";
 
 const PRINT_PARAMS: MeshyTaskParams = {
@@ -7,6 +7,8 @@ const PRINT_PARAMS: MeshyTaskParams = {
   target_polycount: 200_000,
   target_formats: ["stl", "3mf", "glb"],
   ai_model: "latest",
+  auto_size: true,
+  origin_at: "bottom",
 };
 
 const VTT_PARAMS: MeshyTaskParams = {
@@ -14,6 +16,8 @@ const VTT_PARAMS: MeshyTaskParams = {
   target_polycount: 20_000,
   target_formats: ["glb", "usdz"],
   ai_model: "latest",
+  auto_size: true,
+  origin_at: "bottom",
 };
 
 // Node has no Deno global, so isMockMode() only ever takes the apiKey==="mock"
@@ -98,12 +102,69 @@ describe("mesh3d mock mode — fixture validity", () => {
     // Triangle count (uint32 at offset 80) is 0 for this minimal fixture.
     expect(bytes.readUInt32LE(80)).toBe(0);
   });
+});
 
-  it("the mock thumbnail is a data: webp URL", async () => {
-    const id = await createImageTo3dTask("mock", "https://example.com/portrait.webp", VTT_PARAMS);
-    const task = await getImageTo3dTask("mock", id);
-    expect(task.thumbnailUrl).toMatch(/^data:image\/webp;base64,/);
-    const base64 = task.thumbnailUrl!.split(",")[1];
-    expect(() => Buffer.from(base64, "base64")).not.toThrow();
+describe("the real Meshy API", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const stub = (body: unknown, status = 200) => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) => new Response(JSON.stringify(body), { status }));
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+
+  it.each([
+    ["wraps the id in { result }", { result: "task-1" }],
+    ["answers with a bare id", "task-1"],
+    ["answers with { id }", { id: "task-1" }],
+  ])("create reads the task id when Meshy %s", async (_label, reply) => {
+    stub(reply);
+    await expect(createImageTo3dTask("sk-meshy", "https://example.com/p.webp", PRINT_PARAMS)).resolves.toBe("task-1");
+  });
+
+  it("create sends the key as a bearer token and the image with the chosen parameters", async () => {
+    const fetchMock = stub({ result: "task-1" });
+    await createImageTo3dTask("sk-meshy", "https://example.com/p.webp", PRINT_PARAMS);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer sk-meshy");
+    expect(JSON.parse(init.body as string)).toMatchObject({ image_url: "https://example.com/p.webp", should_texture: false, target_formats: ["stl", "3mf", "glb"] });
+  });
+
+  it("create refuses a reply with no task id, and surfaces Meshy's own message on failure", async () => {
+    stub({});
+    await expect(createImageTo3dTask("k", "u", PRINT_PARAMS)).rejects.toThrow(/no task id/);
+    stub({ message: "Insufficient credits" }, 402);
+    await expect(createImageTo3dTask("k", "u", PRINT_PARAMS)).rejects.toThrow("Insufficient credits");
+  });
+
+  it("get maps a finished task, and a failed one carries Meshy's error message", async () => {
+    stub({
+      id: "task-1",
+      status: "SUCCEEDED",
+      progress: 100,
+      model_urls: { glb: "https://cdn/m.glb" },
+      thumbnail_url: "https://cdn/t.webp",
+      polycount: 18000,
+    });
+    await expect(getImageTo3dTask("k", "task-1")).resolves.toEqual({
+      id: "task-1",
+      status: "SUCCEEDED",
+      progress: 100,
+      modelUrls: { glb: "https://cdn/m.glb" },
+      thumbnailUrl: "https://cdn/t.webp",
+      polycount: 18000,
+      error: null,
+    });
+    stub({ id: "task-1", status: "FAILED", task_error: { message: "image unusable" } });
+    await expect(getImageTo3dTask("k", "task-1")).resolves.toMatchObject({ status: "FAILED", error: "image unusable" });
+  });
+
+  it("get reads absent progress as 0 and absent polycount as unknown, not as zero polygons", async () => {
+    stub({ id: "task-1", status: "IN_PROGRESS" });
+    await expect(getImageTo3dTask("k", "task-1")).resolves.toMatchObject({ progress: 0, polycount: null, thumbnailUrl: null, modelUrls: {} });
+  });
+
+  it("get throws on a non-2xx answer", async () => {
+    stub({}, 500);
+    await expect(getImageTo3dTask("k", "task-1")).rejects.toThrow("500");
   });
 });

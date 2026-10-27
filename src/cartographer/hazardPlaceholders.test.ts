@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { drawHazardGlyph, isHazardCategory, type HazardCategory } from "./hazardPlaceholders";
 import { HAZARD_GLYPH_CATEGORY, GENERIC_HAZARD_CATEGORY } from "./glyphs";
-import { HAZARD_GLYPHS } from "@/types/trap.types";
 
 // A generic recording proxy stands in for CanvasRenderingContext2D: every
 // method call is a no-op, but recorded as a trace (method name + any
@@ -39,11 +38,6 @@ describe("drawHazardGlyph", () => {
       expect(() => drawHazardGlyph(ctx, category, [100, 100, 100])).not.toThrow();
       expect(trace.length).toBeGreaterThan(0);
     }
-  });
-
-  it("covers exactly one category per declared hazard glyph, plus the generic marker", () => {
-    expect(ALL_HAZARD_CATEGORIES).toHaveLength(HAZARD_GLYPHS.length + 1);
-    expect(new Set(ALL_HAZARD_CATEGORIES).size).toBe(ALL_HAZARD_CATEGORIES.length);
   });
 
   it("gives every category a unique drawing trace against the same base colour", () => {

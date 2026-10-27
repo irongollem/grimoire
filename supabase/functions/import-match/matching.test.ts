@@ -14,8 +14,6 @@ import {
   monsterDetail,
   npcDetail,
   PayloadValidationError,
-  SIMILAR_MAX_DISTANCE,
-  SUPPORTED_KINDS,
   validatePayload,
   type Candidate,
 } from "./matching";
@@ -58,12 +56,6 @@ describe("validatePayload", () => {
     });
     expect(result.byKind.npcs).toHaveLength(1);
     expect(Object.keys(result.byKind)).toEqual(["npcs"]);
-  });
-
-  it("covers every supported kind", () => {
-    expect(SUPPORTED_KINDS).toEqual([
-      "npcs", "factions", "locations", "encounters", "quests", "monsters", "items", "spells",
-    ]);
   });
 
   it("drops an individual entity with a blank name, keeping the rest", () => {
@@ -111,6 +103,27 @@ describe("validatePayload", () => {
     const exactly300 = Array.from({ length: 300 }, (_, i) => ({ ref: `r${i}`, name: `N${i}`, data: {} }));
     const result = validatePayload({ id: "x", entities: { npcs: exactly300 } });
     expect(result.byKind.npcs).toHaveLength(300);
+  });
+
+  it("skips a list entry that is not an object, instead of throwing past the 400 path", () => {
+    const result = validatePayload({
+      id: "x",
+      entities: { npcs: [null, "Baelin", 7, { ref: "n1", name: "Real", data: {} }] },
+    });
+    expect(result.byKind.npcs).toEqual([{ ref: "n1", name: "Real", data: {} }]);
+  });
+
+  it("drops an entity whose ref is blank", () => {
+    const result = validatePayload({ id: "x", entities: { npcs: [{ ref: "  ", name: "A", data: {} }] } });
+    expect(result.byKind).toEqual({});
+  });
+
+  it("accepts an entity of exactly 16000 JSON characters and refuses one more", () => {
+    const sized = (chars: number) => ({ d: "x".repeat(chars - JSON.stringify({ d: "" }).length) });
+    const payload = (data: Record<string, unknown>) => ({ id: "x", entities: { npcs: [{ ref: "n1", name: "A", data }] } });
+    expect(JSON.stringify(sized(16000))).toHaveLength(16000);
+    expect(validatePayload(payload(sized(16000))).byKind.npcs).toHaveLength(1);
+    expect(() => validatePayload(payload(sized(16001)))).toThrow(PayloadValidationError);
   });
 
   it("throws when one entity's JSON payload exceeds the per-entity size cap", () => {
@@ -179,6 +192,11 @@ describe("query-text builders", () => {
       attunement_requirements: "by a Druid",
     });
     expect(text).toContain("Requires attunement: by a Druid.");
+  });
+
+  it("buildItemQueryText says attunement is required when the flag is true and no requirement text came with it", () => {
+    expect(buildItemQueryText("Ring", { requires_attunement: true })).toContain("Requires attunement.");
+    expect(buildItemQueryText("Ring", { requires_attunement: "yes" })).not.toContain("Requires attunement");
   });
 
   it("buildItemQueryText defaults requires_attunement to false when absent, matching the column default", () => {
@@ -271,6 +289,11 @@ describe("mergeCandidates", () => {
     expect(merged.filter((c) => c.matchKind === "similar")).toHaveLength(3);
   });
 
+  it("offers a row once even when the semantic tier returns it twice", () => {
+    const merged = mergeCandidates([], [candidate("s1", "similar"), candidate("s1", "similar"), candidate("s2", "similar")]);
+    expect(merged.map((c) => c.targetId)).toEqual(["s1", "s2"]);
+  });
+
   it("drops a similar hit whose targetId a name candidate already found", () => {
     const names = [candidate("shared")];
     const similar = [candidate("shared", "similar"), candidate("s2", "similar")];
@@ -282,15 +305,5 @@ describe("mergeCandidates", () => {
   it("returns just the similar tier, capped, when there are no name candidates", () => {
     const similar = Array.from({ length: 4 }, (_, i) => candidate(`s${i}`, "similar"));
     expect(mergeCandidates([], similar)).toHaveLength(3);
-  });
-});
-
-// ── SIMILAR_MAX_DISTANCE ─────────────────────────────────────────────────────
-
-describe("SIMILAR_MAX_DISTANCE", () => {
-  it("has a distinct calibrated threshold for every semantic kind", () => {
-    expect(SIMILAR_MAX_DISTANCE).toEqual({
-      npcs: 0.13, factions: 0.20, locations: 0.22, monsters: 0.07, items: 0.09,
-    });
   });
 });

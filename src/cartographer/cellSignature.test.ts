@@ -25,7 +25,10 @@ describe("cellSignature", () => {
   });
 
   it("is stable across runs", () => {
-    expect(cellSignature(["0,0"])).toBe(cellSignature(["0,0"]));
     expect(cellSignature([])).toBe("0:cbf29ce484222325");
+    // FNV-1a 64 of the text "0,0;1,0" (keys joined by ";"), worked out outside the module. The Atlas keeps these
+    // strings, so a different join or hash would read every saved room as changed at the next publish.
+    expect(cellSignature(["1,0", "0,0"])).toBe("2:8ca699748a365247");
+    expect(cellSignature(["0,0"])).toBe("1:4e1fea181d10552b");
   });
 });

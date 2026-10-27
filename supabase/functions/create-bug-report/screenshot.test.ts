@@ -50,6 +50,8 @@ describe("validateScreenshot", () => {
     expect(validateScreenshot("https://example.com/screenshot.png")).toBeNull();
     expect(validateScreenshot("data:image/png,notbase64")).toBeNull();
     expect(validateScreenshot("just a string")).toBeNull();
+    // Anchored at the start: a data URL buried after other text is not one.
+    expect(validateScreenshot("<script>x</script>data:image/png;base64,QQ==")).toBeNull();
   });
 
   it("rejects a payload outside base64's alphabet", () => {

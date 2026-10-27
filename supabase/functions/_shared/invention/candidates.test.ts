@@ -27,6 +27,14 @@ describe("acceptsAsOutput", () => {
     expect(acceptsAsOutput(row({ name: "Odd", requires_attunement: true, rarity: "common" }), "tinkering", "legendary")).toBe(false);
     expect(acceptsAsOutput(row({ name: "Sword +3", rarity: "uncommon", item_type: "gear" }), "tinkering", "legendary")).toBe(false);
   });
+  it("keeps an item exactly at the ceiling, its charge limit and its bonus limit", () => {
+    expect(acceptsAsOutput(row({ name: "Lantern", rarity: "uncommon" }), "tinkering", "uncommon")).toBe(true);
+    // A common item holds at most 3 charges; an uncommon one at most a +1.
+    expect(acceptsAsOutput(row({ name: "Lamp", charges: 3 }), "tinkering", "legendary")).toBe(true);
+    expect(acceptsAsOutput(row({ name: "Lamp", charges: 4 }), "tinkering", "legendary")).toBe(false);
+    expect(acceptsAsOutput(row({ name: "Blade +1", rarity: "uncommon" }), "tinkering", "legendary")).toBe(true);
+    expect(acceptsAsOutput(row({ name: "Blade +2", rarity: "uncommon" }), "tinkering", "legendary")).toBe(false);
+  });
   it("drops a mundane magic-only type", () => {
     expect(acceptsAsOutput(row({ name: "Plain ring", item_type: "wondrous_item", rarity: "mundane" }), "tinkering", "common")).toBe(false);
   });

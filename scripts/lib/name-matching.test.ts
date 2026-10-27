@@ -99,6 +99,20 @@ describe("findPotentialDuplicates — fuzzy (Levenshtein) layer", () => {
     expect(findPotentialDuplicates("Hush", ["holder"])).toEqual([]);
   });
 
+  it("stops at distance 2: a name three edits away is a different name", () => {
+    expect(levenshtein("abcd", "axyz")).toBe(3);
+    expect(findPotentialDuplicates("abcd", ["axyz"])).toEqual([]);
+  });
+
+  it("applies the length floor to the shorter name, even when the longer one is past it", () => {
+    // "sip" -> "sxpy" is two edits and neither contains the other, but "sip" is under the floor.
+    expect(findPotentialDuplicates("Sip", ["sxpy"])).toEqual([]);
+  });
+
+  it("reports nothing for a blank candidate, instead of every name containing the empty string", () => {
+    expect(findPotentialDuplicates("   ", ["madame petrichor", "bract"])).toEqual([]);
+  });
+
   it("respects the minLength floor for fuzzy matching (skips short names)", () => {
     // "Sip" vs "Sup" are both 3-char names with distance 1 — would otherwise
     // false-positive on every other 3-char name. Length floor of 4 filters.

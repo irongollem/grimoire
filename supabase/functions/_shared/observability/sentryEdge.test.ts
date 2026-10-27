@@ -24,6 +24,9 @@ describe("parseDsn", () => {
   it("returns null for a malformed DSN rather than throwing inside an error handler", () => {
     expect(parseDsn("not-a-dsn")).toBeNull();
     expect(parseDsn("https://sentry.io/123")).toBeNull();
+    // Plain http would send the public key and every event in the clear.
+    expect(parseDsn(CONFIG.dsn.replace("https:", "http:"))).toBeNull();
+    expect(parseDsn(`${CONFIG.dsn}/extra`)).toBeNull();
   });
 });
 
@@ -73,6 +76,16 @@ describe("parseStackFrames", () => {
     expect(frames.find((f) => f.function === "theirs")?.in_app).toBe(false);
   });
 
+  it.each([
+    "https://deno.land/std@0.200.0/http/server.ts",
+    "https://esm.sh/stripe@22.4.0/index.js",
+    "https://jsr.io/@std/path/1.0.0/mod.ts",
+    "https://cdn.jsdelivr.net/npm/x/index.js",
+    "file:///app/node_modules/zod/index.js",
+  ])("marks a dependency frame (%s) as out of app", (filename) => {
+    expect(parseStackFrames(`    at dep (${filename}:3:4)`)[0]?.in_app).toBe(false);
+  });
+
   it("ignores the message line and any unparseable noise", () => {
     expect(parseStackFrames("Error: boom\n  <anonymous>\n")).toEqual([]);
   });
@@ -96,6 +109,15 @@ describe("buildEdgeEvent", () => {
     expect(values[0]?.["type"]).toBe("Error");
     expect(values[0]?.["value"]).toBe("boom");
     expect(values[0]?.["mechanism"]).toEqual({ type: "withCors", handled: true });
+  });
+
+  it("sets the timestamp in seconds and carries the error's own stack frames", () => {
+    const error = new Error("boom");
+    error.stack = "Error: boom\n    at save (file:///src/functions/x/index.ts:7:3)";
+    const event = buildEdgeEvent(error, { functionName: "x" }, CONFIG, "id", 1_700_000_000);
+    const values = (event["exception"] as { values: { stacktrace?: { frames: { function: string }[] } }[] }).values;
+    expect(event["timestamp"]).toBe(1_700_000_000);
+    expect(values[0]?.stacktrace?.frames[0]?.function).toBe("save");
   });
 
   it("scrubs PII out of the error message", () => {
@@ -158,6 +180,11 @@ describe("captureEdgeError", () => {
     expect((init.headers as Record<string, string>)["X-Sentry-Auth"]).toContain(
       "sentry_key=c1c40bc0e668b8d9fd6f5a8f7e4722ec",
     );
+
+    // Ingest time is in epoch seconds, not the milliseconds the clock returns.
+    expect(JSON.parse(String(init.body).split("\n")[2]!).timestamp).toBe(1_700_000_000);
+    // A dead ingest endpoint must not hold the isolate open.
+    expect(init.signal).toBeInstanceOf(AbortSignal);
 
     // The query string carried a token; it must not reach the wire.
     expect(init.body).not.toContain("secret");

@@ -46,6 +46,15 @@ describe("authorizePath — owner prefix", () => {
     expect(authorizePath({ bucketId: "npc-portraits", path: "x/a.webp", userId: "", isAdmin: false }).allowed).toBe(false);
   });
 
+  it("refuses an admin with no resolved user id, so a lost uid never leaves srd/ open", () => {
+    expect(authorizePath({ bucketId: "monster-images", path: "srd/x.webp", userId: "", isAdmin: true }).allowed).toBe(false);
+  });
+
+  it("refuses a bare file name even when its leading characters equal the user id", () => {
+    // Without a slash the prefix slice would drop the last character and 'abcd' would read as 'abc/'.
+    expect(authorizePath({ bucketId: "npc-portraits", path: "abcd", userId: "abc", isAdmin: false }).allowed).toBe(false);
+  });
+
   it("refuses an unknown bucket", () => {
     // downtime-images is deliberately outside the registry and bug-reports is
     // retired (20260809000002); tile-packs has a bucket but no code. None of
@@ -124,7 +133,7 @@ describe("authorizePath — path shape", () => {
     [`${USER}//a.webp`, "empty segment"],
     [`${USER}/../${OTHER}/a.webp`, "parent segment"],
     [`${USER}/./a.webp`, "current-dir segment"],
-    [`${USER}\\a.webp`, "backslash"],
+    [`${USER}/a\\b.webp`, "backslash"],
     [`${USER}/a\nb.webp`, "newline"],
     [`${USER}/a\u0000b.webp`, "NUL"],
     [`${USER}/a\u007fb.webp`, "DEL"],

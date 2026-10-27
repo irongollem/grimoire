@@ -13,6 +13,14 @@ describe("parseInventRequest", () => {
     expect(parseInventRequest({ action: "materials", party_member_id: PM, discipline: "tinkering", row_ids: [] }).ok).toBe(false);
     expect(parseInventRequest({ action: "materials", party_member_id: PM, discipline: "tinkering" }).ok).toBe(false);
   });
+  it("allows exactly eight dishes", () => {
+    expect(parseInventRequest({ action: "materials", party_member_id: PM, discipline: "tinkering", row_ids: Array(8).fill(R1) }).ok).toBe(true);
+  });
+  it("refuses a request that names no valid character or invention", () => {
+    expect(parseInventRequest({ action: "materials", party_member_id: "nope", discipline: "tinkering", row_ids: [R1] }).ok).toBe(false);
+    expect(parseInventRequest({ action: "idea", party_member_id: undefined, discipline: "cooking", wish: "a pie" }).ok).toBe(false);
+    expect(parseInventRequest({ action: "revise", invention_id: "nope", note: "cheaper" }).ok).toBe(false);
+  });
   it("refuses more than eight dishes and bad ids", () => {
     expect(parseInventRequest({ action: "materials", party_member_id: PM, discipline: "tinkering", row_ids: Array(9).fill(R1) }).ok).toBe(false);
     expect(parseInventRequest({ action: "materials", party_member_id: PM, discipline: "tinkering", row_ids: ["x"] }).ok).toBe(false);

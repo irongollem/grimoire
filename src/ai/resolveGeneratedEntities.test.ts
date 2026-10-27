@@ -71,6 +71,13 @@ describe("resolveGeneratedEntities", () => {
     ]);
   });
 
+  it("drops a blank name instead of listing an unnamed entity", () => {
+    const pools: EntityPools = { npcs: [{ id: "n-1", name: "" }], locations: [], factions: [] };
+    expect(resolveGeneratedEntities(makeHook({ npcs: ["   ", "", "Elowen"] }), pools)).toEqual([
+      { kind: "npc", name: "Elowen", id: null },
+    ]);
+  });
+
   it("returns every name unmatched when the pools are empty", () => {
     const result = resolveGeneratedEntities(
       makeHook({ npcs: ["Elowen"], locations: ["Thornwatch Keep"], factions: ["The Ashen Circle"] }),

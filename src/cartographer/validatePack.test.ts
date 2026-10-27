@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BASE_TILE_SIZE, TILE_PACK_SCHEMA, type TilePackManifest } from "./packSchema";
-import { validatePack } from "./validatePack";
+import { createDraftManifest, enumerateSchemaSlots, upsertManifestSlot } from "./authoringPlan";
+import { formatMissingForDisplay, validatePack, type MissingSlot } from "./validatePack";
 
 function emptyManifest(): TilePackManifest {
   return {
@@ -73,5 +74,79 @@ describe("duplicate slot identities", () => {
     const result = validatePack(manifest);
     expect(result.warnings).toContain("objectChest/0: duplicate asset slot");
     expect(result.warnings).toContain("objectChest/0: non-WebP asset (objectChest/0.png); pipeline is WebP-only");
+  });
+});
+
+describe("required slots", () => {
+  function completeManifest(): TilePackManifest {
+    const manifest = createDraftManifest({ packId: "full", name: "Full", description: "", packVersion: 1 });
+    for (const slot of enumerateSchemaSlots(false)) upsertManifestSlot(manifest, slot, 100);
+    return manifest;
+  }
+
+  it("calls a pack with every required slot valid, and one short of a slot invalid", () => {
+    const manifest = completeManifest();
+    expect(validatePack(manifest)).toMatchObject({ valid: true, missing: [] });
+    manifest.assets.doorLeaf = [];
+    const result = validatePack(manifest);
+    expect(result.valid).toBe(false);
+    expect(result.missing.map((m) => `${m.category}/${m.variant}`)).toEqual(["doorLeaf/0"]);
+  });
+
+  it("wants variants 0 to min-1 of a random category, however many others are there", () => {
+    const manifest = completeManifest();
+    // floor needs 8 (0..7): drop only the last
+    manifest.assets.floor = manifest.assets.floor!.filter((s) => s.variant !== 7);
+    expect(validatePack(manifest).missing).toEqual([
+      { category: "floor", variant: 7, reason: "random category needs at least 8 variants" },
+    ]);
+  });
+});
+
+describe("variant ceilings", () => {
+  const slots = (n: number, ext = "webp") => Array.from({ length: n }, (_, variant) => ({ variant, url: `x/${variant}.${ext}` }));
+
+  it("warns when a random category holds more variants than the schema allows, and not at the limit", () => {
+    const manifest = emptyManifest();
+    manifest.assets.wallSegmentH = slots(6);
+    expect(validatePack(manifest).warnings).toEqual([]);
+    manifest.assets.wallSegmentH = slots(7);
+    expect(validatePack(manifest).warnings).toContain("wallSegmentH: pack provides 7 variants, schema max is 6");
+  });
+
+  it("warns the same for an optional category, and not at the limit", () => {
+    const manifest = emptyManifest();
+    manifest.assets.curbPost = slots(2);
+    expect(validatePack(manifest).warnings).toEqual([]);
+    manifest.assets.curbPost = slots(3);
+    expect(validatePack(manifest).warnings).toContain("curbPost: pack provides 3 variants, schema max is 2");
+  });
+});
+
+describe("categories the schema does not know", () => {
+  it("lists them as extras and does not fail the pack for them", () => {
+    const manifest = emptyManifest();
+    (manifest.assets as Record<string, unknown>).moat = [{ variant: 0, url: "moat/0.webp" }];
+    const result = validatePack(manifest);
+    expect(result.extras).toEqual(["moat"]);
+    expect(validatePack(emptyManifest()).extras).toEqual([]);
+  });
+});
+
+describe("formatMissingForDisplay", () => {
+  const gaps = (n: number): MissingSlot[] => Array.from({ length: n }, (_, variant) => ({ category: "floor", variant, reason: "r" }));
+
+  it("is empty for nothing missing, and names a side when there is one", () => {
+    expect(formatMissingForDisplay([])).toBe("");
+    expect(formatMissingForDisplay([{ category: "stairsUp", side: "N", variant: 2, reason: "r" }])).toBe("  • stairsUp/N/2");
+  });
+
+  it("shows ten and counts the rest, but does not claim a rest at exactly ten", () => {
+    expect(formatMissingForDisplay(gaps(10)).split("\n")).toHaveLength(10);
+    expect(formatMissingForDisplay(gaps(10))).not.toContain("more");
+    const eleven = formatMissingForDisplay(gaps(11)).split("\n");
+    expect(eleven).toHaveLength(11);
+    expect(eleven[10]).toContain("1 more");
+    expect(eleven[9]).toBe("  • floor/9");
   });
 });

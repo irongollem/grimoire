@@ -28,6 +28,27 @@ describe("multiclass spell source abilities", () => {
     expect(pickSpellcastingStats(stats, "wizard")?.classId).toBe("wizard");
   });
 
+  it("rounds a below-average score's modifier down, and skips a class that casts with no ability", () => {
+    // PHB 2014 "Ability Modifiers": score 9 is -1 (subtract 10, divide by 2, round down).
+    const stats = computeSpellcastingPerClass(
+      { str: 10, dex: 10, con: 10, int: 9, wis: 10, cha: 10, proficiency_bonus: 2 },
+      [classRow("fighter", "Fighter", 3), classRow("wizard", "Wizard", 1)],
+      (entry) => ({ ability: entry.class_name === "Wizard" ? "int" : null, casterType: "none" }),
+    );
+    expect(stats.map((s) => s.classId)).toEqual(["wizard"]);
+    expect(stats[0]).toMatchObject({ attack: 1, dc: 9 });
+  });
+
+  it("has no stats to pick when no class casts, and keeps the first when the source class is unknown", () => {
+    expect(pickSpellcastingStats([], "wizard")).toBeNull();
+    const stats = computeSpellcastingPerClass(
+      { str: 10, dex: 10, con: 10, int: 16, wis: 16, cha: 10, proficiency_bonus: 2 },
+      [classRow("cleric", "Cleric", 2), classRow("wizard", "Wizard", 2)],
+      (entry) => ({ ability: entry.class_name === "Cleric" ? "wis" : "int", casterType: "none" }),
+    );
+    expect(pickSpellcastingStats(stats, "deleted-class")?.classId).toBe("cleric");
+  });
+
   it("uses a pinned custom class ability instead of same-named official rules", () => {
     const custom = {
       ...classRow("custom-bard", "Bard", 3),

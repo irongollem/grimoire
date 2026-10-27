@@ -6,6 +6,7 @@ import {
   parseAbilities,
   parseBlock,
   parseMeta,
+  parseSkills,
   parseStatblockFile,
   splitImmunities,
   stripMarkdown,
@@ -83,7 +84,28 @@ describe("small readers", () => {
   });
 });
 
+describe("small readers, edge cases", () => {
+  it("reads a plural type and a size that is not the first word", () => {
+    // "Swarm of Medium Beasts" style: the size follows another word and the type is a plural.
+    expect(parseMeta("Swarm of Tiny Beasts, Unaligned")).toMatchObject({ size: "tiny", monster_type: "beast" });
+  });
+
+  it("reads a unicode minus in a skill bonus as an ordinary minus", () => {
+    expect(parseSkills("Stealth −1, Perception +3")).toEqual({ stealth: "-1", perception: "+3" });
+  });
+});
+
 describe("parseBlock", () => {
+  it.each([
+    ["text after a list key", "actions: just text", /must be followed by list items/],
+    ["a line before any list", "name: A\n- **X.** y", /unexpected line outside a list/],
+    ["a continuation before the first item", "actions:\nwrapped text", /text before the first item of actions/],
+  ])("rejects %s", (_name, body, message) => {
+    expect(() => parseBlock(body)).toThrow(message);
+  });
+});
+
+describe("parseBlock, items", () => {
   it("joins wrapped list items", () => {
     const parsed = parseBlock(extractBlock(CANDY_ARCHER) ?? "");
     expect(parsed.sections.traits).toEqual([
@@ -163,6 +185,26 @@ describe("parseStatblockFile", () => {
     const r = parseStatblockFile(text);
     expect(r.stat_block.challenge_rating).toBe("1/2");
     expect(r.stat_block.legendary_resistance).toBe(3);
+  });
+
+  it("writes a proficient save of +0 with its sign, and reads a unicode-minus initiative", () => {
+    const text = CANDY_ARCHER.replace("STR 9 -1 -1", "STR 9 -1 +0").replace("initiative: +3 (13)", "initiative: −1 (9)");
+    const r = parseStatblockFile(text);
+    expect(r.stat_block.saving_throws).toBe("Str +0, Dex +5");
+    expect(r.stat_block.initiative_bonus).toBe(-1);
+  });
+
+  it("takes the proficiency bonus from the CR line", () => {
+    const r = parseStatblockFile(CANDY_ARCHER.replace("cr: 2 (XP 450; PB +2)", "cr: 5 (XP 1,800; PB +3)"));
+    expect(r.stat_block.proficiency_bonus).toBe(3);
+  });
+
+  it.each([
+    ["an armor class with no number", "ac: 15", "ac: none", /unreadable ac/],
+    ["hit points with no dice", "hp: 45 (7d8 + 14)", "hp: 45", /unreadable hp/],
+    ["a challenge rating that is not a number", "cr: 2 (XP 450; PB +2)", "cr: unknown", /unreadable cr/],
+  ])("refuses %s", (_name, from, to, message) => {
+    expect(() => parseStatblockFile(CANDY_ARCHER.replace(from, to))).toThrow(message);
   });
 
   it("names what is wrong", () => {

@@ -59,6 +59,15 @@ describe("formatting", () => {
     expect(formatValue(3 * 1024 * 1024, "bytes")).toBe("3.00MB");
     expect(formatValue(1234.6, "ms")).toBe("1235ms");
     expect(formatValue(null, "ms")).toBe("n/a");
+    // The unit changes exactly at 1 kB and 1 MB.
+    expect(formatValue(1023, "bytes")).toBe("1023B");
+    expect(formatValue(1024, "bytes")).toBe("1.0kB");
+    expect(formatValue(1024 * 1024 - 1, "bytes")).toBe("1024.0kB");
+    expect(formatValue(1024 * 1024, "bytes")).toBe("1.00MB");
+  });
+
+  it("refuses to aggregate no runs", () => {
+    expect(() => aggregateRuns("x", [])).toThrow(/no runs/);
   });
 
   it("renders deltas with sign and percentage", () => {
@@ -73,6 +82,7 @@ describe("formatting", () => {
     const table = formatTable([{ journey: "player-cold", status: "skipped", skipReason: "no campaign", steps: [] }, ok("dm-warm", [sample()])]);
     expect(table).toContain("skipped: no campaign");
     expect(table).toContain("dm-warm");
+    expect(table).not.toContain("dm-warm dm-warm");
   });
 });
 
@@ -85,6 +95,20 @@ describe("compareResults", () => {
     expect(row).toMatchObject({ journey: "dm-cold", before: 40, after: 10 });
     expect(unmatched).toEqual(["dm-warm dm-warm: only in the first file"]);
     expect(formatComparison(rows, unmatched)).toContain("-30 (-75%)");
+  });
+
+  it("reports a step only the second file has, and groups each step under one heading", () => {
+    const a = file([ok("dm-cold", [sample()])]);
+    const b = file([ok("dm-cold", [sample()]), ok("dm-warm", [sample()])]);
+    const { rows, unmatched } = compareResults(a, b);
+    expect(unmatched).toEqual(["dm-warm dm-warm: only in the second file"]);
+    const text = formatComparison(compareResults(file([ok("dm-cold", [sample()]), ok("dm-warm", [sample()])]), b).rows, []);
+    const lines = text.split("\n");
+    expect(lines[0]).toBe("dm-cold");
+    expect(lines).not.toContain("dm-cold dm-cold");
+    expect(lines.indexOf("dm-warm")).toBeGreaterThan(0);
+    expect(lines[lines.indexOf("dm-warm") - 1]).toBe("");
+    expect(rows.every((r) => r.journey === "dm-cold")).toBe(true);
   });
 });
 

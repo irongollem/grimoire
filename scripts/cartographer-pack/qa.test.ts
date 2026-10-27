@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
-import { BASE_TILE_SIZE, TILE_PACK_SCHEMA, type TilePackManifest } from "../../src/cartographer/packSchema";
+import { BASE_TILE_SIZE, TILE_PACK_SCHEMA, type AssetSlot, type TilePackManifest } from "../../src/cartographer/packSchema";
 import { seededVariantGrid } from "./qa";
 import { defaultArtBible, importJob, initWorkspace, loadWorkspace, rebuildPlan } from "./workspace";
 import { generateQa, validateAuthoredPack } from "./qa";
@@ -159,6 +159,23 @@ describe("minimum required pack loop", () => {
     expect(withDuplicate.assets.every((asset) => asset.issues.length === 0)).toBe(true);
     expect(withDuplicate.schema.warnings).toContain("floor/0: duplicate asset slot");
     expect(withDuplicate.valid).toBe(false);
+    completed.manifest.assets.floor!.pop();
+
+    // Each remaining term of `valid`, moved alone while every other term holds.
+    const clean = await validateAuthoredPack({ repoRoot, manifest: completed.manifest });
+    expect(clean.valid).toBe(true);
+    const failedJob = await validateAuthoredPack({ repoRoot, manifest: completed.manifest, failedJobs: ["floor:0"] });
+    expect(failedJob.valid).toBe(false);
+    const assetsWithExtra: Record<string, AssetSlot[]> = { ...completed.manifest.assets, bogus: [] };
+    const withExtraCategory = await validateAuthoredPack({ repoRoot, manifest: { ...completed.manifest, assets: assetsWithExtra } });
+    expect(withExtraCategory.schema.extras).toEqual(["bogus"]);
+    expect(withExtraCategory.valid).toBe(false);
+
+    const packRoot = path.join(repoRoot, "public", "cartographer", "candy-palace", "v1");
+    await rm(path.join(packRoot, completed.manifest.assets.floor![0]!.url));
+    const withMissingFile = await validateAuthoredPack({ repoRoot, manifest: completed.manifest });
+    expect(withMissingFile.schema.valid).toBe(true);
+    expect(withMissingFile.valid).toBe(false);
   }, 30_000);
 });
 
@@ -235,3 +252,74 @@ it("pads a non-square overlay source with transparency, not black", async () => 
   expect(alphaAt(64, 107)).toBe(0);
   expect(alphaAt(64, 64)).toBeGreaterThan(200);
 }, 30_000);
+
+
+/** Writes `svg` as a 128x128 image of `format` at `url` in the fixture pack. */
+async function writeImage(repoRoot: string, url: string, body: string, options: { format?: "webp" | "png"; height?: number } = {}): Promise<void> {
+  const file = path.join(repoRoot, "public", "cartographer", "fixture", "v1", url);
+  await mkdir(path.dirname(file), { recursive: true });
+  const height = options.height ?? 128;
+  const image = sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="128" height="${height}">${body}</svg>`));
+  await (options.format === "png" ? image.png() : image.webp({ quality: 100, lossless: true })).toFile(file);
+}
+
+/** A frame `ring` thick around a hole, so the footprint is transparent and only the border can be opaque. */
+const frame = (fill: string, opacity = 1) =>
+  `<path fill-rule="evenodd" fill="${fill}" fill-opacity="${opacity}" d="M0 0H128V128H0Z M16 16V112H112V16Z"/>`;
+
+async function issuesFor(category: "floor" | "solidBlock" | "wallSegmentH" | "doorwayH", url: string, write: (repoRoot: string) => Promise<void>): Promise<string> {
+  const repoRoot = await temporaryRepo();
+  await write(repoRoot);
+  const report = await validateAuthoredPack({ repoRoot, manifest: fixtureManifest({ [category]: [{ variant: 0, url }] }) });
+  return report.assets[0]!.issues.join(" | ");
+}
+
+describe("what a published tile has to be", () => {
+  const SOLID = '<rect width="128" height="128" fill="#4b5563"/>';
+
+  it("fails a tile that is not a WebP", async () => {
+    expect(await issuesFor("floor", "floor/0.webp", (r) => writeImage(r, "floor/0.webp", SOLID, { format: "png" }))).toContain("format is png, expected webp");
+  });
+
+  it("fails a tile that is the wrong height even when it is the right width", async () => {
+    expect(await issuesFor("floor", "floor/0.webp", (r) => writeImage(r, "floor/0.webp", SOLID, { height: 64 }))).toContain("dimensions are 128×64");
+  });
+
+  it("fails an edge tile with no transparent pixels, and passes one with a transparent footprint", async () => {
+    expect(await issuesFor("wallSegmentH", "w/0.webp", (r) => writeImage(r, "w/0.webp", SOLID))).toContain("transparent footprint required");
+    expect(await issuesFor("wallSegmentH", "w/0.webp", (r) => writeImage(r, "w/0.webp", frame("#222")))).toBe("");
+  });
+
+  it("fails a transparent-footprint tile whose border is an opaque light background", async () => {
+    expect(await issuesFor("wallSegmentH", "w/0.webp", (r) => writeImage(r, "w/0.webp", frame("#ffffff")))).toContain("opaque light background reaches the asset boundary");
+  });
+
+  it.each([
+    ["a dark opaque border", frame("#222222")],
+    ["a saturated light border", frame("#ffd2d2")],
+    ["a nearly transparent white border", frame("#ffffff", 0.1)],
+  ])("does not mistake %s for a light background", async (_name, body) => {
+    expect(await issuesFor("wallSegmentH", "w/0.webp", (r) => writeImage(r, "w/0.webp", body))).toBe("");
+  });
+
+  it("fails a doorway whose opening is solid, and passes one that is clear", async () => {
+    const barOnly = '<rect y="40" width="128" height="48" fill="#444"/>';
+    const withOpening = '<path fill-rule="evenodd" fill="#444" d="M0 40H128V88H0Z M44 30H84V98H44Z"/>';
+    expect(await issuesFor("doorwayH", "d/0.webp", (r) => writeImage(r, "d/0.webp", barOnly))).toContain("doorway opening is not transparently clear");
+    expect(await issuesFor("doorwayH", "d/0.webp", (r) => writeImage(r, "d/0.webp", withOpening))).toBe("");
+  });
+
+  it("fails a solid block, as well as a floor, whose opposite edges do not meet", async () => {
+    expect(await issuesFor("solidBlock", "s/0.webp", (r) => writeTile(r, "s/0.webp", true))).toMatch(/will show a seam/);
+  });
+});
+
+describe("seededVariantGrid", () => {
+  it("refuses a field with no variants to draw from", () => {
+    expect(() => seededVariantGrid(2, 2, 0, "x")).toThrow("variantCount must be positive");
+  });
+
+  it("falls back to the only variant there is", () => {
+    expect(seededVariantGrid(2, 2, 1, "x")).toEqual([[0, 0], [0, 0]]);
+  });
+});

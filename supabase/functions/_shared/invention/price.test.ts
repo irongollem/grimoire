@@ -39,5 +39,6 @@ describe("formatCostCp", () => {
     expect(formatCostCp(70)).toBe("7 sp");
     expect(formatCostCp(150000)).toBe("1,500 gp");
     expect(formatCostCp(155)).toBe("155 cp");
+    expect(formatCostCp(0)).toBe("0 cp");
   });
 });

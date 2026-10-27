@@ -34,6 +34,16 @@ describe("objectSway", () => {
     expect(objectSway(obj("rubble"), rt)).toBeNull();
     expect(objectSway(obj("stairsUp"), rt)).toBeNull();
   });
+
+  it("never sways a stair down either", () => {
+    const rt = makeRuntime("p", { sway: { stairsDown: [SWAY] }, assets: { stairsDown: [{ variant: 0, url: "https://cdn/s.webp" }] } });
+    expect(objectSway(obj("stairsDown"), rt)).toBeNull();
+  });
+
+  it("ignores a side-specific slot, which is directional art the live layer cannot sway", () => {
+    const rt = makeRuntime("p", { sway: { objectPillar: [SWAY] }, assets: { objectPillar: [{ variant: 0, side: "N", url: "https://cdn/n.webp" }] } });
+    expect(objectSway(obj("objectPillar", 0), rt)).toBeNull();
+  });
 });
 
 describe("dressingSway", () => {

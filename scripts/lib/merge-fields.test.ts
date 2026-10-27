@@ -4,6 +4,7 @@ import {
   SOURCE_APPEND_SEPARATOR,
   mergeField,
   planForceOverwrite,
+  planHasWrites,
   planRowMerge,
   summarisePlan,
   type FieldSpec,
@@ -63,6 +64,10 @@ describe("mergeField — array", () => {
     }
   });
 
+  it("counts an item that differs only by surrounding whitespace as already there", () => {
+    expect(mergeField(["alive "], [" alive"], ARRAY)).toEqual({ action: "noop" });
+  });
+
   it("handles null existing as empty array", () => {
     const out = mergeField(null, ["a"], ARRAY);
     expect(out).toEqual({ action: "union", newValue: ["a"], addedItems: ["a"] });
@@ -108,6 +113,26 @@ describe("mergeField — prose", () => {
 
   it("returns noop when existing and source are identical", () => {
     expect(mergeField("same prose", "same prose", PROSE)).toEqual({ action: "noop" });
+  });
+
+  // The user's own writing is never replaced; only a stub (under 200 characters) with a source at least twice
+  // its length gets the source appended below it. Both edges of that rule:
+  it.each([
+    ["199 characters is a stub", 199, 398, "append"],
+    ["200 characters is a real note", 200, 2000, "conflict"],
+    ["a source exactly twice as long qualifies", 100, 200, "append"],
+    ["a source one short of twice as long does not", 100, 199, "conflict"],
+  ])("%s", (_name, existingLength, sourceLength, action) => {
+    expect(mergeField("a".repeat(existingLength), "b".repeat(sourceLength), PROSE).action).toBe(action);
+  });
+
+  it("trims the stub's trailing whitespace before the separator", () => {
+    const out = mergeField("my note  \n", big, PROSE);
+    expect(out).toMatchObject({ action: "append", newValue: `my note${SOURCE_APPEND_SEPARATOR}${big}` });
+  });
+
+  it("never appends to a scalar, however short it is", () => {
+    expect(mergeField("stub", big, SCALAR).action).toBe("conflict");
   });
 });
 
@@ -214,6 +239,23 @@ describe("planForceOverwrite — per-record override (Bell-Mother case)", () => 
     expect(plan.unchanged.sort()).toEqual(["a", "b", "c"]);
   });
 
+  it("reads an empty array and a missing value as the same nothing", () => {
+    const specs = { a: ARRAY, b: ARRAY, c: ARRAY };
+    const plan = planForceOverwrite({ a: [], b: [], c: null }, { a: null, b: [], c: [] }, specs);
+    expect(plan.unchanged).toEqual(["a", "b", "c"]);
+    expect(plan.updates).toEqual({});
+  });
+
+  it("replaces an array that differs in length or in a single item", () => {
+    const plan = planForceOverwrite({ a: ["1", "2"], b: ["1", "2"] }, { a: ["1"], b: ["1", "3"] }, { a: ARRAY, b: ARRAY });
+    expect(plan.updates).toEqual({ a: ["1"], b: ["1", "3"] });
+  });
+
+  it("writes null, not undefined, for a field the source does not carry", () => {
+    const plan = planForceOverwrite({ a: "x" }, {}, { a: SCALAR });
+    expect(plan.updates).toStrictEqual({ a: null });
+  });
+
   it("never returns conflicts (the override IS the resolution)", () => {
     const plan = planForceOverwrite(
       { a: "user-A", b: "user-B" },
@@ -247,6 +289,20 @@ describe("summarisePlan", () => {
     expect(s).toContain("filled=[x]");
     expect(s).toContain("unioned=[y]");
     expect(s).not.toContain("conflicts");
+  });
+
+  it("names appended and conflicting fields too", () => {
+    const plan = planRowMerge(
+      { note: "stub", a: "user" },
+      { note: "x".repeat(300), a: "src" },
+      { note: PROSE, a: SCALAR },
+    );
+    expect(summarisePlan(plan)).toBe("appended=[note] conflicts=[a]");
+  });
+
+  it("says whether there is anything to write", () => {
+    expect(planHasWrites(planRowMerge({ a: null }, { a: "x" }, { a: SCALAR }))).toBe(true);
+    expect(planHasWrites(planRowMerge({ a: "user" }, { a: "src" }, { a: SCALAR }))).toBe(false);
   });
 
   it("returns 'no changes' when the plan is empty", () => {

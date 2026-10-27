@@ -39,11 +39,6 @@ describe("buildXmpPacket", () => {
     expect(packet).toContain('grimoire:edited="false"');
   });
 
-  it("reflects edited: true", () => {
-    const packet = buildXmpPacket({ ...PROV, edited: true });
-    expect(packet).toContain('grimoire:edited="true"');
-  });
-
   it("XML-escapes special characters in every interpolated field", () => {
     const packet = buildXmpPacket({
       generatorType: `npc" onmouseover="alert(1)`,
@@ -105,8 +100,22 @@ describe("parseXmpPacket", () => {
     expect(parseXmpPacket(stripped)).toBeNull();
   });
 
-  it("returns null when a grimoire field is missing", () => {
-    expect(parseXmpPacket(buildXmpPacket(PROV).replace(/grimoire:model="[^"]*"/, ""))).toBeNull();
+  it.each(["xmp:CreatorTool", "grimoire:provider", "grimoire:model", "grimoire:generatedAt", "grimoire:edited"])(
+    "returns null when %s is missing, never a half-filled record",
+    (attribute) => {
+      const without = buildXmpPacket(PROV).replace(new RegExp(`${attribute}="[^"]*"`), "");
+      expect(parseXmpPacket(without)).toBeNull();
+    },
+  );
+
+  it("returns null when edited is neither true nor false, or the creator tool is not Grimoire's", () => {
+    expect(parseXmpPacket(buildXmpPacket(PROV).replace('grimoire:edited="false"', 'grimoire:edited="maybe"'))).toBeNull();
+    expect(parseXmpPacket(buildXmpPacket(PROV).replace(/xmp:CreatorTool="[^"]*"/, 'xmp:CreatorTool="Photoshop"'))).toBeNull();
+  });
+
+  it("does not read a field out of the tail of a longer attribute name", () => {
+    const spoofed = buildXmpPacket(PROV).replace('grimoire:model="gpt-image-1"', 'other-grimoire:model="gpt-image-1"');
+    expect(parseXmpPacket(spoofed)).toBeNull();
   });
 
   it("returns null for a foreign XMP packet", () => {

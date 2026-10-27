@@ -121,7 +121,7 @@ describe("etag", () => {
   });
 });
 
-describe("firstImageSrc", () => {
+describe("the PDF link on the public body", () => {
   it("drops a PDF link that is not https", () => {
     for (const [url, expected] of [
       ["javascript:alert(1)", null],
@@ -135,6 +135,9 @@ describe("firstImageSrc", () => {
     expect(buildFull({ ...book, allow_pdf: false }, { ...release, pdf_url: "https://cdn.example/a.pdf" }).release.pdf_url).toBeNull();
   });
 
+});
+
+describe("firstImageSrc", () => {
   it("finds the first https picture in document order, at any depth", () => {
     const doc = JSON.stringify({
       type: "doc",

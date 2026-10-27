@@ -83,6 +83,42 @@ describe("expandStatBlock", () => {
     expect(r.stats.extractedApplied).toBe(0);
   });
 
+  it("treats an extraction made for another entry's name as stale, even when the prose hash matches", () => {
+    const r = expandStatBlock(gaze(), extraction({ name: "Stare" }));
+    expect((r.next as Next).actions[0].structured.source).toBe("parsed");
+    expect(r.stats.extractedStale).toBe(1);
+  });
+
+  it("counts an extraction as applied only when the stored structure is that extraction", () => {
+    // The entry already carries an older extracted structure and the new extraction is stale, so the entry keeps the old one.
+    const old: ActionStructure = { kind: "other", source: "extracted", review: "older read" };
+    const b = { actions: [{ name: "Gaze", description: "Stares.", structured: old }] };
+    const r = expandStatBlock(b, extraction({ description_sha1: sha1("Different prose.") }));
+    expect(r.stats.extractedStale).toBe(1);
+    expect(r.stats.extractedApplied).toBe(0);
+  });
+
+  it("counts each applied extraction once, in its own list", () => {
+    const both = { actions: [{ name: "Gaze", description: "Stares." }], bonus_actions: [{ name: "Gaze", description: "Stares." }] };
+    const extracted = groupExtractions([
+      { id: "r", list: "actions", idx: 0, name: "Gaze", description_sha1: sha1("Stares."), structured: odd },
+      { id: "r", list: "bonus_actions", idx: 0, name: "Gaze", description_sha1: sha1("Stares."), structured: odd },
+    ]).get("r");
+    expect(expandStatBlock(both, extracted).stats.extractedApplied).toBe(2);
+  });
+
+  it("counts a review flag only on entries that carry one", () => {
+    const r = expandStatBlock(block());
+    expect(r.stats.review).toBe(0);
+  });
+
+  it("is not already structured while an entry lacks its structure, or the block lacks defenses", () => {
+    const done = expandStatBlock(block()).next as Record<string, unknown>;
+    expect(expandStatBlock({ ...done, actions: [{ name: "Bite", description: "x" }] }).alreadyStructured).toBe(false);
+    const { defenses: _defenses, ...withoutDefenses } = done;
+    expect(expandStatBlock(withoutDefenses).alreadyStructured).toBe(false);
+  });
+
   it("returns a non-object block untouched", () => {
     expect(expandStatBlock(null).changed).toBe(false);
   });
@@ -111,6 +147,10 @@ describe("contractBlocker (the contract migration's refusal rule)", () => {
     expect(contractBlocker({ defenses: { ...emptyDefs, notes: "damage from spells" }, damage_resistances: "damage from spells" })).toBeNull();
     expect(contractBlocker({ defenses: emptyDefs, actions: [{ name: "Bite", description: "x", structured }] })).toBeNull();
     expect(contractBlocker(null)).toBeNull();
+  });
+
+  it("does not take a blank note as holding the old defense text", () => {
+    expect(contractBlocker({ defenses: { ...emptyDefs, notes: "   " }, damage_resistances: "fire" })).toBe("text-without-defenses");
   });
 
   it("passes every block expandStatBlock produces", () => {

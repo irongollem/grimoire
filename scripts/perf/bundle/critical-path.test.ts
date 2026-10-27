@@ -14,6 +14,10 @@ describe("parseCriticalAssets", () => {
   it("finds the module entry and de-duplicated modulepreloads, ignoring other links", () => {
     expect(parseCriticalAssets(html)).toEqual({ entry: "assets/index-A.js", preloads: ["assets/vue-B.js"] });
   });
+  it("skips a classic script with a src when looking for the module entry", () => {
+    const withLegacy = `<script src="/legacy.js"></script>${html}`;
+    expect(parseCriticalAssets(withLegacy).entry).toBe("assets/index-A.js");
+  });
   it("throws when there is no module entry", () => {
     expect(() => parseCriticalAssets("<html></html>")).toThrow(/entry/);
   });

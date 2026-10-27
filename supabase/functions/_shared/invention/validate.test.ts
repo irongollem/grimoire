@@ -253,3 +253,69 @@ describe("minor effects are rules too", () => {
     expect(d.warnings.length).toBeGreaterThan(0);
   });
 });
+
+describe("limits are inclusive: what the table allows is accepted, one more is not", () => {
+  // Common budget: 3 charges. Weapon: 12 on the dice (1d12 or 2d6). Armor class: 18. Properties: 12.
+  const mat = (over: Record<string, unknown>) => ({ kind: "charges", max: 3, recharge: "dawn", ...over });
+
+  it("holds charges to the rarity's maximum", () => {
+    expect(draft(raw({ mechanics: [mat({})] }, { charges: 3 }), ctx()).item.new?.charges).toBe(3);
+    expect(errors(raw({ mechanics: [mat({ max: 4 })] }, { charges: 4 }), ctx()).join(" ")).toContain("at most 3 charges");
+  });
+
+  it("accepts a 1d12 and a 2d6 weapon and refuses a 2d8", () => {
+    const smith = ctx({ discipline: "smithing" });
+    for (const dice of ["1d12", "2d6"]) {
+      expect(draft(raw({ mechanics: [] }, { item_type: "weapon", damage_dice: dice, damage_type: "slashing" }), smith).item.new?.damage_rolls).toEqual([{ dice, type: "slashing" }]);
+    }
+    expect(errors(raw({ mechanics: [] }, { item_type: "weapon", damage_dice: "2d8", damage_type: "slashing" }), smith).join(" ")).toContain("at most 12");
+  });
+
+  it("accepts armor class 18 and refuses 19", () => {
+    const smith = ctx({ discipline: "smithing" });
+    expect(draft(raw({ mechanics: [] }, { item_type: "armor", armor_class: "18" }), smith).item.new?.armor_class).toBe("18");
+    expect(errors(raw({ mechanics: [] }, { item_type: "armor", armor_class: "19" }), smith).join(" ")).toContain("at most 18");
+  });
+
+  it("accepts a weight of nothing and refuses a negative one", () => {
+    expect(draft(raw({}, { weight: 0 }), ctx()).item.new?.weight).toBe(0);
+    expect(errors(raw({}, { weight: -1 }), ctx()).join(" ")).toContain("weight");
+  });
+
+  it("keeps twelve properties and drops the rest", () => {
+    const props = Array.from({ length: 13 }, (_, i) => `property ${i}`);
+    expect(draft(raw({}, { properties: props }), ctx()).item.new?.properties).toHaveLength(12);
+  });
+
+  it("accepts a bench of eight different materials and refuses nine, and an empty dish count", () => {
+    const rows = (n: number) => Array.from({ length: n }, (_, i) => row("common", "1 gp", 1, `r${i}`));
+    expect(validateInvention(raw(), ctx({ bench: rows(8), valueMultiple: 100 })).kind).toBe("draft");
+    expect(errors(raw(), ctx({ bench: rows(9), valueMultiple: 100 })).join(" ")).toContain("more than 8 different materials");
+    expect(errors(raw(), ctx({ bench: [row("common", "50 gp", 0)] })).join(" ")).toContain("not a usable material");
+  });
+
+  it("merges the same material listed twice up to 20, and limits the total beyond that", () => {
+    const mc = [cand("m1", "Iron Ore", "common", { cost: "1 gp", item_type: "crafting_material" })];
+    const c = ctx({ mode: "idea", bench: [], materialCandidates: mc, valueMultiple: 100 });
+    const twice = (a: number, b: number) =>
+      draft(raw({ ingredients: [{ candidate_id: "m1", quantity: a }, { candidate_id: "m1", quantity: b }] }), c);
+    expect(twice(10, 10).ingredients[0].quantity).toBe(20);
+    expect(twice(10, 10).adjustments.join(" ")).not.toContain("limited to 20");
+    const over = twice(11, 10);
+    expect(over.ingredients[0].quantity).toBe(20);
+    expect(over.adjustments.join(" ")).toContain("Iron Ore limited to 20");
+  });
+
+  it("raises the crafting time only when it is under the floor, not when it is exactly on it", () => {
+    const at = draft(raw({ recipe: { name: "R", description: "d", crafting_time: 5, crafting_time_unit: "days" } }), ctx());
+    expect(at.recipe.crafting_time).toBe(5);
+    expect(at.adjustments.join(" ")).not.toContain("Crafting time raised");
+  });
+
+  it("lowers a single unit's value all the way to the bottom of the band, but no further", () => {
+    // 100 gp of common materials at a half multiple allows exactly 50 gp, the common band's floor.
+    const atFloor = draft(raw({}, { value_cp: 8000 }), ctx({ valueMultiple: 0.5 }));
+    expect(atFloor.item.value_cp).toBe(5000);
+    expect(errors(raw({}, { value_cp: 8000 }), ctx({ valueMultiple: 0.49 })).join(" ")).toContain("not worth enough");
+  });
+});

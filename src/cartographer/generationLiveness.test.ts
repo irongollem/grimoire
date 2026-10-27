@@ -8,6 +8,8 @@ describe("generation liveness", () => {
   it("presumes a generating claim dead only once it outlives any request", () => {
     expect(isStalled({ status: "generating", updated_at: at(STALLED_AFTER_MS + 1) }, NOW)).toBe(true);
     expect(isStalled({ status: "generating", updated_at: at(60_000) }, NOW)).toBe(false);
+    // stalledBefore is the instant *before which* a claim is dead: a claim exactly on it is still alive
+    expect(isStalled({ status: "generating", updated_at: at(STALLED_AFTER_MS) }, NOW)).toBe(false);
   });
 
   it("never calls a job stalled that is not claimed", () => {

@@ -26,6 +26,18 @@ describe("lightMask", () => {
     expect(at(m, 0, 0, 3.5, 5.3)).toBe(255);
     expect(at(m, 0, 0, 7.5, 3.5)).toBe(0);
     expect(at(m, 0, 0, 6.5, 6.5)).toBe(0);
+    // three cells away is past a reach of two, though still in the box
+    expect(at(m, 0, 0, 3.5, 6.5)).toBe(0);
+  });
+
+  it("samples at cell centres: a light in the middle of the box shines the same to both sides", () => {
+    const m = lightMask(EMPTY, 4, 4, 2, 0, 0, 8, 8, ALL);
+    for (let j = 0; j < m.height; j++) {
+      for (let i = 0; i < m.width; i++) {
+        expect(m.alpha[j * m.width + i]).toBe(m.alpha[j * m.width + (m.width - 1 - i)]);
+        expect(m.alpha[j * m.width + i]).toBe(m.alpha[(m.height - 1 - j) * m.width + i]);
+      }
+    }
   });
 
   it("is cut by a wall on its far side", () => {

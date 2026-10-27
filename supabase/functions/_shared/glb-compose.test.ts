@@ -136,6 +136,29 @@ describe("composeGlb", () => {
   });
 });
 
+describe("composeGlb figure placement", () => {
+  it("centres a lopsided, raised figure over the base and stands its bottom on the base's top", async () => {
+    // Spans x 10..12, y 2..5, z 4..6: off-centre on x/z and not sitting at y=0,
+    // which the unit fixture above is, so it cannot tell a placement from none.
+    const figure = new Float32Array([
+      10, 2, 4, 12, 2, 4, 12, 5, 6,
+      10, 2, 4, 12, 5, 6, 10, 5, 6,
+    ]);
+    const figureGlb = await stlToGlb(figure, "#aa5533");
+    const baseGlb = await stlToGlb(parseBinaryStl(generateCylinderStl(12.5, 3.5, 16)), "#8a8a8a");
+    const scale = 2;
+
+    const doc = await new WebIO().registerExtensions(ALL_EXTENSIONS).readBinary(await composeGlb(figureGlb, baseGlb, 28, scale));
+    const wrapper = doc.getRoot().listScenes()[0].listChildren().find((n) => n.getName().startsWith("figure-"))!;
+    const [tx, ty, tz] = wrapper.getTranslation();
+
+    // World position of the figure's own bounds after scale and translation.
+    expect(scale * 2 + ty).toBeCloseTo(3.5, 4); // bottom (y=2) sits on the base top (3.5)
+    expect(scale * ((10 + 12) / 2) + tx).toBeCloseTo(0, 4); // centred on x
+    expect(scale * ((4 + 6) / 2) + tz).toBeCloseTo(0, 4); // centred on z
+  });
+});
+
 describe("figureScaleForGlb", () => {
   it("agrees with figureScaleFor computed from the equivalent STL bounds", async () => {
     // A cylinder's own STL bounds, fed through both paths, must produce the

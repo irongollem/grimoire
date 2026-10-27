@@ -15,6 +15,14 @@ describe("notice board fixture data", () => {
     expect(layoutProblems(FIXTURE_PINS)).toEqual([]);
   });
 
+  it("reports pins that overlap or run off the board, so the check above can fail", () => {
+    const [first] = FIXTURE_PINS;
+    if (first === undefined) throw new Error("fixture has no pins");
+    expect(layoutProblems([first, { ...first, x: first.x + 0.001 }])).toEqual(["pins 0 and 1 overlap"]);
+    expect(layoutProblems([{ ...first, x: 0.99, y: 0.1 }])).toEqual(["pin 0 runs off the board"]);
+    expect(layoutProblems([{ ...first, x: 0.1, y: 0.99 }])).toEqual(["pin 0 runs off the board"]);
+  });
+
   it("uses no em-dashes in any written text", () => {
     const text = [
       ...FIXTURE_PINS.flatMap((p) => [p.headline, p.body, p.reward ?? ""]),

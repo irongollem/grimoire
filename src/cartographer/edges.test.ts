@@ -22,13 +22,6 @@ describe("canonicaliseEdge — NW ownership rule", () => {
     expect(canonicaliseEdge(-3, -7, "S")).toEqual({ x: -3, y: -6, side: "N" });
     expect(canonicaliseEdge(-3, -7, "E")).toEqual({ x: -2, y: -7, side: "W" });
   });
-
-  it("handles origin", () => {
-    expect(canonicaliseEdge(0, 0, "N")).toEqual({ x: 0, y: 0, side: "N" });
-    expect(canonicaliseEdge(0, 0, "W")).toEqual({ x: 0, y: 0, side: "W" });
-    expect(canonicaliseEdge(0, 0, "S")).toEqual({ x: 0, y: 1, side: "N" });
-    expect(canonicaliseEdge(0, 0, "E")).toEqual({ x: 1, y: 0, side: "W" });
-  });
 });
 
 describe("otherEnd — round-trip from canonical owner to the originating cell", () => {

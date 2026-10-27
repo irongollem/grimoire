@@ -53,7 +53,7 @@ describe("pickVariant — seed strings locked (regression guard)", () => {
 
 describe("pickVariant — divide-by-zero guard", () => {
   it("count 0 does not throw and returns 0", () => {
-    expect(pickVariant("m", "floor", 1, 1, 0)).toBe(0);
+    for (let x = 0; x < 20; x++) expect(pickVariant("m", "floor", x, 1, 0)).toBe(0);
   });
 
   it("count 1 always returns 0", () => {

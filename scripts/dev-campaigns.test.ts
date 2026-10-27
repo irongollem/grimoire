@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pullAndCopy } from "./dev-campaigns";
-import { importCampaign } from "./lib/dev-campaign-io";
+import { importCampaign, pullCampaignTables, readExcludedTables, readForeignKeys } from "./lib/dev-campaign-io";
 import { sql } from "./lib/dev-db";
 
 vi.mock("./lib/dev-campaign-io", () => ({
@@ -72,10 +72,96 @@ describe("campaign replacement", () => {
     );
   });
 
+  it("looks for previous copies among the fixture's own plain campaigns of the same name, never the source account's or a demo's", async () => {
+    await copy();
+    const query = String(vi.mocked(sql).mock.calls[0][1]);
+    expect(query).toContain(`user_id = '${OWNER}'`);
+    expect(query).toContain("demo_source is null");
+    expect(query).toContain("demo_template is not true");
+    expect(query).toContain("name = 'Fixture campaign'");
+  });
+
   it("leaves every previous copy intact when import fails", async () => {
     vi.mocked(importCampaign).mockImplementation(() => { throw new Error("import failed"); });
     await expect(copy()).rejects.toThrow("import failed");
     expect(sql).toHaveBeenCalledTimes(1);
     expect(vi.mocked(sql).mock.calls[0][1]).toContain("select id from public.campaigns");
+  });
+});
+
+describe("what the copy carries into the local database", () => {
+  const rows = (table: string, data: Record<string, unknown>[]) => ({
+    table, tier: 1 as const, parentColumn: null, parentTable: null, deferColumns: [], columns: [], rows: data,
+  });
+  const imported = () => {
+    const [, campaignArg, , tablesArg] = vi.mocked(importCampaign).mock.calls[0];
+    return { campaign: campaignArg, tables: tablesArg };
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(importCampaign).mockReturnValue([]);
+    vi.mocked(sql).mockReturnValue("");
+    vi.mocked(pullCampaignTables).mockResolvedValue({ tables: [], keptOut: {}, missingInProduction: [] });
+    vi.mocked(readForeignKeys).mockReturnValue([]);
+    vi.mocked(readExcludedTables).mockReturnValue([]);
+  });
+
+  it("drops the author's API keys, secrets and feed token from the campaign row, and keeps the rest", async () => {
+    const row = {
+      ...campaign,
+      description: "kept",
+      anthropic_api_key: "k1",
+      openai_api_key: "k2",
+      webhook_secret: "s",
+      calendar_feed_token: "t",
+    };
+    await pullAndCopy({ DB_URL: "postgresql://localhost/test" }, new URL("https://example.invalid"), "synthetic-key", SOURCE, OWNER, row, new Set());
+    const written = imported().campaign;
+    expect(Object.keys(written).sort()).toEqual(["description", "id", "name", "user_id"]);
+  });
+
+  it("hands the fixture the rows and nobody else's account: pulled rows move to the fixture, a foreign account is emptied", async () => {
+    const STRANGER = "99999999-0000-4000-8000-000000000000";
+    vi.mocked(pullCampaignTables).mockResolvedValue({
+      tables: [rows("party_members", [
+        { id: "pm1", campaign_id: campaign.id, user_id: SOURCE, owner_user_id: STRANGER },
+        { id: "pm2", campaign_id: campaign.id, user_id: SOURCE, owner_user_id: SOURCE },
+      ])],
+      keptOut: {},
+      missingInProduction: [],
+    });
+    vi.mocked(readForeignKeys).mockReturnValue([
+      { table: "party_members", column: "owner_user_id", refSchema: "auth", refTable: "users", refColumn: "id", nullable: true },
+    ]);
+    await pullAndCopy({ DB_URL: "postgresql://localhost/test" }, new URL("https://example.invalid"), "synthetic-key", SOURCE, OWNER, campaign, new Set());
+    const members = imported().tables[0].rows;
+    expect(members.map((r) => r.owner_user_id)).toEqual([null, OWNER]);
+    expect(members.map((r) => r.user_id)).toEqual([OWNER, OWNER]);
+    expect(JSON.stringify(imported())).not.toContain(STRANGER);
+    expect(JSON.stringify(imported())).not.toContain(SOURCE);
+  });
+
+  it("empties a reference into campaign state the copy leaves out, and prunes a required reference to a row not kept", async () => {
+    vi.mocked(pullCampaignTables).mockResolvedValue({
+      tables: [
+        rows("minis", [{ id: "m1", campaign_id: campaign.id, session_id: "s1" }]),
+        rows("npcs", [{ id: "n1", campaign_id: campaign.id, faction_id: "gone" }, { id: "n2", campaign_id: campaign.id, faction_id: null }]),
+        rows("factions", []),
+      ],
+      keptOut: {},
+      missingInProduction: [],
+    });
+    vi.mocked(readExcludedTables).mockReturnValue(["campaign_sessions"]);
+    vi.mocked(readForeignKeys).mockReturnValue([
+      { table: "minis", column: "session_id", refSchema: "public", refTable: "campaign_sessions", refColumn: "id", nullable: true },
+      { table: "npcs", column: "faction_id", refSchema: "public", refTable: "factions", refColumn: "id", nullable: false },
+    ]);
+    const result = await pullAndCopy({ DB_URL: "postgresql://localhost/test" }, new URL("https://example.invalid"), "synthetic-key", SOURCE, OWNER, campaign, new Set());
+    const [minis, npcs] = imported().tables;
+    expect(minis.rows.map((r) => r.session_id)).toEqual([null]);
+    expect(npcs.rows.map((r) => r.id).length).toBe(1);
+    expect(result.pruned).toEqual({ npcs: 1 });
+    expect(result.detached).toEqual({ "minis.session_id": 1 });
   });
 });

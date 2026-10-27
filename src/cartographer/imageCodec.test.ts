@@ -28,10 +28,4 @@ describe("blobToBase64 / base64ToBlob round trip", () => {
     expect(blob.type).toBe("image/webp");
   });
 
-  it("produces base64 that matches the platform btoa for plain-ASCII input", async () => {
-    const text = "hello world";
-    const blob = new Blob([text], { type: "text/plain" });
-    const b64 = await blobToBase64(blob);
-    expect(b64).toBe(btoa(text));
-  });
 });

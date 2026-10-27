@@ -15,227 +15,120 @@ import {
 
 // ── buildStructureMessage ────────────────────────────────────────────────────
 
+const base = { description: "a tense chase", lengthSeconds: 60, vocals: "instrumental" } as const satisfies MusicRequest;
+
 describe("buildStructureMessage", () => {
-  it("includes description, formatted length and vocals for an instrumental request", () => {
-    const req: MusicRequest = { description: "a tense chase", lengthSeconds: 60, vocals: "instrumental" };
-    const msg = buildStructureMessage(req);
-    expect(msg).toBe("Description: a tense chase\nTarget length: 1:00 (60 seconds)\nVocals: instrumental");
-  });
-
-  it("appends verbatim lyrics when vocals are requested and lyrics are given", () => {
-    const req: MusicRequest = {
-      description: "a heroic ballad",
-      lengthSeconds: 120,
-      vocals: "vocals",
-      lyrics: "[Verse 1]\nRise, brave adventurer",
-    };
-    const msg = buildStructureMessage(req);
-    expect(msg).toBe(
-      "Description: a heroic ballad\nTarget length: 2:00 (120 seconds)\nVocals: vocals\n\nLyrics:\n[Verse 1]\nRise, brave adventurer",
-    );
-  });
-
-  it("drops lyrics when the track is instrumental, even if lyrics were passed", () => {
-    const req: MusicRequest = {
-      description: "a tavern jig",
-      lengthSeconds: 60,
-      vocals: "instrumental",
-      lyrics: "these should not appear",
-    };
-    const msg = buildStructureMessage(req);
-    expect(msg).not.toContain("Lyrics:");
-    expect(msg).not.toContain("these should not appear");
-  });
-
-  it("drops lyrics when they are empty or whitespace-only", () => {
-    const req: MusicRequest = { description: "silence", lengthSeconds: 60, vocals: "vocals", lyrics: "   " };
-    const msg = buildStructureMessage(req);
-    expect(msg).not.toContain("Lyrics:");
-  });
-
-  it("leads with the sound's title when there is one", () => {
-    const req: MusicRequest = { title: "  Rosie's Defense ", description: "a duel", lengthSeconds: 60, vocals: "instrumental" };
-    expect(buildStructureMessage(req)).toBe(
-      "Title: Rosie's Defense\nDescription: a duel\nTarget length: 1:00 (60 seconds)\nVocals: instrumental",
+  it("is laid out the way the system prompt says the model receives it: title, description, length, vocals", () => {
+    expect(buildStructureMessage({ ...base, title: "  Rosie's Defense " })).toBe(
+      "Title: Rosie's Defense\nDescription: a tense chase\nTarget length: 1:00 (60 seconds)\nVocals: instrumental",
     );
   });
 
   it("omits a blank title", () => {
-    const req: MusicRequest = { title: "   ", description: "a duel", lengthSeconds: 60, vocals: "instrumental" };
-    expect(buildStructureMessage(req)).not.toContain("Title:");
+    expect(buildStructureMessage({ ...base, title: "   " })).not.toContain("Title:");
   });
 
-  it("formats a 3-minute length correctly", () => {
-    const req: MusicRequest = { description: "epic finale", lengthSeconds: 180, vocals: "instrumental" };
-    expect(buildStructureMessage(req)).toContain("Target length: 3:00 (180 seconds)");
+  it.each([
+    [60, "1:00 (60 seconds)"],
+    [120, "2:00 (120 seconds)"],
+    [180, "3:00 (180 seconds)"],
+  ] as const)("writes a %i second track as %s", (lengthSeconds, written) => {
+    expect(buildStructureMessage({ ...base, lengthSeconds })).toContain(`Target length: ${written}`);
   });
 
-  it("lists mentions with their description", () => {
-    const req: MusicRequest = {
-      description: "a tense standoff",
-      lengthSeconds: 60,
-      vocals: "instrumental",
-      mentions: [{ label: "Kael", description: "A weary paladin haunted by his order's fall." }],
-    };
-    const msg = buildStructureMessage(req);
-    expect(msg).toContain("Mentioned:\n- Kael: A weary paladin haunted by his order's fall.");
-  });
-
-  it("lists a mention with no description as just the label", () => {
-    const req: MusicRequest = {
-      description: "a tense standoff",
-      lengthSeconds: 60,
-      vocals: "instrumental",
-      mentions: [{ label: "The Sunken Keep", description: null }],
-    };
-    const msg = buildStructureMessage(req);
-    expect(msg).toContain("Mentioned:\n- The Sunken Keep");
-    expect(msg).not.toContain("The Sunken Keep:");
-  });
-
-  it("omits the Mentioned block when there are no mentions", () => {
-    const req: MusicRequest = { description: "a quiet lull", lengthSeconds: 60, vocals: "instrumental", mentions: [] };
-    expect(buildStructureMessage(req)).not.toContain("Mentioned:");
-  });
-
-  it("adds the images-attached line when imageCount is set", () => {
-    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental", imageCount: 3 };
-    expect(buildStructureMessage(req)).toContain("Images attached for Lyria: 3");
-  });
-
-  it("omits the images-attached line when imageCount is zero or absent", () => {
-    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental", imageCount: 0 };
-    expect(buildStructureMessage(req)).not.toContain("Images attached");
-  });
-
-  it("keeps the lyrics block last even with mentions and images present", () => {
-    const req: MusicRequest = {
-      description: "a heroic ballad",
-      lengthSeconds: 120,
+  it("sends lyrics verbatim and last, only for a sung track", () => {
+    const sung = buildStructureMessage({
+      ...base,
       vocals: "vocals",
       lyrics: "[Chorus]\nOnward!",
       mentions: [{ label: "Kael", description: "A weary paladin." }],
       imageCount: 2,
-    };
-    const msg = buildStructureMessage(req);
-    const lines = msg.split("\n");
-    expect(lines.at(-3)).toBe("Lyrics:");
-    expect(lines.at(-2)).toBe("[Chorus]");
-    expect(lines.at(-1)).toBe("Onward!");
-    expect(msg.indexOf("Mentioned:")).toBeLessThan(msg.indexOf("Lyrics:"));
-    expect(msg.indexOf("Images attached")).toBeLessThan(msg.indexOf("Lyrics:"));
+    });
+    expect(sung.endsWith("Lyrics:\n[Chorus]\nOnward!")).toBe(true);
+    expect(sung.indexOf("Mentioned:")).toBeLessThan(sung.indexOf("Lyrics:"));
+    expect(sung.indexOf("Images attached")).toBeLessThan(sung.indexOf("Lyrics:"));
+  });
+
+  it.each(["instrumental", "choir"] as const)("drops lyrics a %s track was given, so the model cannot sing them", (vocals) => {
+    const msg = buildStructureMessage({ ...base, vocals, lyrics: "these should not appear" });
+    expect(msg).not.toContain("Lyrics:");
+    expect(msg).not.toContain("these should not appear");
+  });
+
+  it("drops lyrics that are only whitespace", () => {
+    expect(buildStructureMessage({ ...base, vocals: "vocals", lyrics: "   " })).not.toContain("Lyrics:");
+  });
+
+  it("lists each mention, with its description when it has one", () => {
+    const msg = buildStructureMessage({
+      ...base,
+      mentions: [
+        { label: "Kael", description: "A weary paladin haunted by his order's fall." },
+        { label: "The Sunken Keep", description: null },
+      ],
+    });
+    expect(msg).toContain("Mentioned:\n- Kael: A weary paladin haunted by his order's fall.\n- The Sunken Keep");
+    expect(msg).not.toContain("The Sunken Keep:");
+  });
+
+  it("omits the Mentioned block without mentions", () => {
+    expect(buildStructureMessage({ ...base, mentions: [] })).not.toContain("Mentioned:");
+  });
+
+  it("states how many images reach Lyria, and says nothing for zero or none", () => {
+    expect(buildStructureMessage({ ...base, imageCount: 3 })).toContain("Images attached for Lyria: 3");
+    expect(buildStructureMessage({ ...base, imageCount: 0 })).not.toContain("Images attached");
+    expect(buildStructureMessage(base)).not.toContain("Images attached");
   });
 });
 
 // ── composeFallbackPrompt ────────────────────────────────────────────────────
 
 describe("composeFallbackPrompt", () => {
-  it("builds a minute-based track description with no extra clauses for vocals", () => {
-    const req: MusicRequest = { description: "a tense chase", lengthSeconds: 120, vocals: "vocals" };
-    const prompt = composeFallbackPrompt(req);
-    expect(prompt).toBe("a tense chase. A 2-minute track.");
+  it("is the description plus a length sentence for a sung track", () => {
+    expect(composeFallbackPrompt({ ...base, lengthSeconds: 120, vocals: "vocals" })).toBe("a tense chase. A 2-minute track.");
   });
 
-  it("adds the instrumental clause for instrumental tracks", () => {
-    const req: MusicRequest = { description: "a quiet library", lengthSeconds: 60, vocals: "instrumental" };
-    const prompt = composeFallbackPrompt(req);
-    expect(prompt).toContain("Instrumental only, no vocals.");
+  it("says instrumental tracks are instrumental and choir tracks are wordless", () => {
+    expect(composeFallbackPrompt(base)).toContain("Instrumental only, no vocals.");
+    expect(composeFallbackPrompt({ ...base, vocals: "choir" })).toContain("no lyrics, no solo singer");
   });
 
-  it("appends verbatim lyrics when vocals are requested and lyrics are given", () => {
-    const req: MusicRequest = {
-      description: "a heroic ballad",
-      lengthSeconds: 120,
-      vocals: "vocals",
-      lyrics: "[Chorus]\nOnward!",
-    };
-    const prompt = composeFallbackPrompt(req);
-    expect(prompt).toBe("a heroic ballad. A 2-minute track.\n\nLyrics:\n[Chorus]\nOnward!");
+  it("appends lyrics verbatim and last for a sung track, even with images attached", () => {
+    const prompt = composeFallbackPrompt({ ...base, vocals: "vocals", lyrics: "[Chorus]\nOnward!", imageCount: 1 });
+    expect(prompt.endsWith("\n\nLyrics:\n[Chorus]\nOnward!")).toBe(true);
+    expect(prompt.indexOf("attached images")).toBeLessThan(prompt.indexOf("Lyrics:"));
   });
 
-  it("does not append lyrics for an instrumental track", () => {
-    const req: MusicRequest = {
-      description: "a tavern jig",
-      lengthSeconds: 60,
-      vocals: "instrumental",
-      lyrics: "should not appear",
-    };
-    const prompt = composeFallbackPrompt(req);
-    expect(prompt).not.toContain("should not appear");
+  it.each(["instrumental", "choir"] as const)("leaves lyrics off a %s track", (vocals) => {
+    expect(composeFallbackPrompt({ ...base, vocals, lyrics: "should not appear" })).not.toContain("should not appear");
   });
 
-  it("appends the images sentence when imageCount is set", () => {
-    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental", imageCount: 2 };
-    const prompt = composeFallbackPrompt(req);
-    expect(prompt).toContain("Take the instrumentation, colour and atmosphere from the attached images.");
+  it("points at the attached images only when there are some", () => {
+    expect(composeFallbackPrompt({ ...base, imageCount: 2 })).toContain("from the attached images");
+    expect(composeFallbackPrompt({ ...base, imageCount: 0 })).not.toContain("attached images");
+    expect(composeFallbackPrompt(base)).not.toContain("attached images");
   });
 
-  it("omits the images sentence when imageCount is zero or absent", () => {
-    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental" };
-    expect(composeFallbackPrompt(req)).not.toContain("attached images");
+  it("stays minimal: mentions and the title are not copied in", () => {
+    const prompt = composeFallbackPrompt({ ...base, title: "Rosie's Defense", mentions: [{ label: "Kael", description: "A weary paladin." }] });
+    expect(prompt).not.toContain("Kael");
+    expect(prompt).not.toContain("Rosie");
   });
 
-  it("ignores mentions in the fallback prompt", () => {
-    const req: MusicRequest = {
-      description: "a ruined temple",
-      lengthSeconds: 60,
-      vocals: "instrumental",
-      mentions: [{ label: "Kael", description: "A weary paladin." }],
-    };
-    expect(composeFallbackPrompt(req)).not.toContain("Kael");
-  });
+  // Regression: a description ending in sentence punctuation used to produce a
+  // doubled "..", "!." or "?." before the length sentence (25 Sep 2026).
+  it.each(["a tense conversation.", "charge into battle!", "who goes there?"])(
+    "strips one trailing sentence mark from %j rather than doubling it",
+    (description) => {
+      const prompt = composeFallbackPrompt({ ...base, description });
+      expect(prompt).toContain(`${description.slice(0, -1)}. A 1-minute track.`);
+    },
+  );
 
-  it("keeps lyrics last even when images are attached", () => {
-    const req: MusicRequest = {
-      description: "a heroic ballad",
-      lengthSeconds: 120,
-      vocals: "vocals",
-      lyrics: "[Chorus]\nOnward!",
-      imageCount: 1,
-    };
-    const prompt = composeFallbackPrompt(req);
-    expect(prompt.endsWith("Lyrics:\n[Chorus]\nOnward!")).toBe(true);
-  });
-
-  // Regression: a description ending in sentence punctuation used to produce
-  // a doubled "..", "!." or "?." before " A N-minute track." (#music-structure
-  // server move, 25 Sep 2026).
-  describe("trailing punctuation on the description", () => {
-    it("strips a single trailing period rather than doubling it", () => {
-      const req: MusicRequest = { description: "a tense conversation.", lengthSeconds: 60, vocals: "instrumental" };
-      expect(composeFallbackPrompt(req)).toBe("a tense conversation. A 1-minute track. Instrumental only, no vocals.");
-    });
-
-    it("strips a single trailing exclamation mark", () => {
-      const req: MusicRequest = { description: "charge into battle!", lengthSeconds: 60, vocals: "instrumental" };
-      expect(composeFallbackPrompt(req)).toContain("charge into battle. A 1-minute track.");
-    });
-
-    it("strips a single trailing question mark", () => {
-      const req: MusicRequest = { description: "who goes there?", lengthSeconds: 60, vocals: "instrumental" };
-      expect(composeFallbackPrompt(req)).toContain("who goes there. A 1-minute track.");
-    });
-
-    it("leaves a description with no trailing punctuation unchanged", () => {
-      const req: MusicRequest = { description: "a quiet library", lengthSeconds: 60, vocals: "vocals" };
-      expect(composeFallbackPrompt(req)).toBe("a quiet library. A 1-minute track.");
-    });
-  });
-});
-
-describe("choir", () => {
-  it("adds the wordless-choir clause to the fallback prompt and drops lyrics", () => {
-    const req: MusicRequest = { description: "a siege", lengthSeconds: 120, vocals: "choir", lyrics: "not sung" };
-    expect(composeFallbackPrompt(req)).toBe(
-      "a siege. A 2-minute track. Wordless choir only: sung vowels such as ooh and aah, no lyrics, no solo singer.",
-    );
-  });
-
-  it("passes the choir setting to the structuring model without lyrics", () => {
-    const req: MusicRequest = { description: "a siege", lengthSeconds: 120, vocals: "choir", lyrics: "not sung" };
-    const msg = buildStructureMessage(req);
-    expect(msg).toContain("Vocals: choir");
-    expect(msg).not.toContain("Lyrics:");
+  it("strips only one mark, and none from a description without one", () => {
+    expect(composeFallbackPrompt({ ...base, description: "wait..." })).toContain("wait... A 1-minute track.");
+    expect(composeFallbackPrompt({ ...base, description: "a quiet library" })).toContain("a quiet library. A 1-minute track.");
   });
 });
 

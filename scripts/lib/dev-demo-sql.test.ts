@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildImportSql, collectSlugs, type PulledTable, type ReferenceTable } from "./dev-demo-sql";
+import { buildImportSql, collectSlugs, sharedColumns, type PulledTable, type ReferenceTable } from "./dev-demo-sql";
 
 const TEMPLATE = "11111111-2222-3333-4444-555555555555";
 const AUTHOR = "12121212-3434-5656-7878-909090909090";
@@ -63,6 +63,10 @@ describe("collectSlugs", () => {
       { combatants: [{ monster_id: "srd_goblin", hp: 7 }], granted: { spell_ids: ["srd_srd_bless", "srd_srd_aid"] } },
     ];
     expect(collectSlugs(rows)).toEqual(["srd_goblin", "srd_srd_aid", "srd_srd_bless"]);
+  });
+
+  it("takes a 120-character id and not a 121-character one, which is prose and not a slug", () => {
+    expect(collectSlugs([{ spell_id: "a".repeat(120), item_id: "b".repeat(121) }])).toEqual(["a".repeat(120)]);
   });
 
   it("leaves uuids to the foreign keys and ignores what cannot be an id", () => {
@@ -156,5 +160,23 @@ describe("buildImportSql", () => {
       buildImportSql(campaign, campaignColumns, [{ ...tables[0], table: "npcs; drop table npcs" }], [], "t"),
     ).toThrow(/identifier/);
     expect(() => buildImportSql({ ...campaign, id: "not-a-uuid" }, campaignColumns, [], [], "t")).toThrow(/uuid/);
+  });
+});
+
+describe("sharedColumns", () => {
+  it("refuses a pull that shares no column with the local table, rather than insert nothing", () => {
+    expect(() => sharedColumns("npcs", ["id", "name"], [{ only_remote: 1 }])).toThrow(/share no column/);
+  });
+});
+
+describe("strict and lenient imports", () => {
+  it("keeps the demo template strict and lets a real campaign skip the rows today's rules refuse", () => {
+    const strict = buildImportSql(campaign, campaignColumns, tables, references, "t");
+    const lenient = buildImportSql(campaign, campaignColumns, tables, references, "t", { template: false, lenient: true });
+    // The flag reaches the passes as a boolean literal; the PL/pgSQL itself needs a database to run.
+    expect(strict).toMatch(/or false then/);
+    expect(strict).not.toMatch(/or true then/);
+    expect(lenient).toMatch(/or true then/);
+    expect(lenient).not.toMatch(/or false then/);
   });
 });

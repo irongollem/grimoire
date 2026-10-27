@@ -84,6 +84,15 @@ describe("deriveMachineFields", () => {
     expect(deriveMachineFields(srd2014Document)?.open5e_key).toBeNull();
   });
 
+  it("falls back to the document's name for a title, and to null for a missing link or game system", () => {
+    const plain: Open5eDocumentRef = { key: "plain", name: "Plain Book", publisher: { name: "Someone", key: "someone" }, licenses: [] };
+    expect(deriveMachineFields(plain)).toMatchObject({ title: "Plain Book", product_url: null, gamesystem: null, license_keys: [], is_redistributable: false });
+  });
+
+  it("returns null for a publisher with no name, as for none at all", () => {
+    expect(deriveMachineFields({ key: "x", name: "X", publisher: { name: "", key: "" } })).toBeNull();
+  });
+
   it("returns null when the document has no publisher name — cannot populate the NOT NULL column", () => {
     expect(deriveMachineFields({ key: "no-publisher-doc", name: "No Publisher" })).toBeNull();
   });

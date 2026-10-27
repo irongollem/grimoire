@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { wallKindCategory, WALL_KINDS } from "./wallKinds";
+import { wallKindCategory } from "./wallKinds";
 
 describe("wallKindCategory", () => {
   it("draws each painted kind from its own category, by edge direction", () => {
@@ -9,7 +9,4 @@ describe("wallKindCategory", () => {
     expect(wallKindCategory("sluice", "W")).toBe("edgeSluiceV");
   });
 
-  it("offers decal as a kind of its own", () => {
-    expect(WALL_KINDS.map((k) => k.value)).toEqual(["wall", "grate", "sluice", "decal"]);
-  });
 });

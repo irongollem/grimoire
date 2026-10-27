@@ -71,6 +71,20 @@ describe("anonymizeSeed", () => {
     expect(result.kept).toEqual(["dev@example.com"]);
   });
 
+  it("matches a keep-list entry typed in mixed case against the address as the dump spells it", () => {
+    const result = anonymizeSeed("dev@example.com", ["Dev@Example.COM"]);
+    expect(result.sql).toBe("dev@example.com");
+    expect(result.kept).toEqual(["dev@example.com"]);
+  });
+
+  it.each(["jan.de-vries+dnd@my-site.co.uk", "brien@mail.example.org", "x_y%z@sub.dom-ain.travel"])(
+    "scrambles a real address with dots, a plus tag, a hyphenated or multi-label domain: %s",
+    (address) => {
+      const result = anonymizeSeed(`'${address}'`, []);
+      expect(result.sql).toBe("'user-1@example.invalid'");
+    },
+  );
+
   it("is idempotent — a second run does not renumber the first", () => {
     const sql = `'zoe@gmail.com','amy@gmail.com','dev@example.com'`;
     const once = anonymizeSeed(sql, KEEP);

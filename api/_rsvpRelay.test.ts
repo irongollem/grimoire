@@ -6,7 +6,7 @@ const SUPABASE = "https://proj.supabase.co/";
 
 function upstream(body: string, status = 200) {
   // What the hosted gateway actually returns for an Edge Function's HTML page.
-  return vi.fn(async () => new Response(body, { status, headers: { "Content-Type": "text/plain" } }));
+  return vi.fn(async (_url: string, _init?: RequestInit) => new Response(body, { status, headers: { "Content-Type": "text/plain" } }));
 }
 
 describe("relayRsvp", () => {
@@ -57,6 +57,22 @@ describe("relayRsvp", () => {
     );
     expect(res.status).toBe(404);
     expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+  });
+
+  it("sends a body that names no content type as the form it is", async () => {
+    const fetchImpl = upstream("<h1>Noted</h1>");
+    await relayRsvp(
+      new Request(`https://app.example/api/rsvp?token=${TOKEN}`, { method: "POST", body: new Blob(["answer=no"]) }),
+      SUPABASE,
+      fetchImpl,
+    );
+    expect(fetchImpl.mock.calls[0][1]?.headers).toMatchObject({ "Content-Type": "application/x-www-form-urlencoded" });
+  });
+
+  it("keeps the capability page out of caches, referrers and content sniffing", async () => {
+    const res = await relayRsvp(new Request(`https://app.example/api/rsvp?token=${TOKEN}`), SUPABASE, upstream("<h1>x</h1>"));
+    expect(res.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
   it("refuses other methods without calling upstream", async () => {

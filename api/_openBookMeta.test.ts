@@ -5,6 +5,7 @@ import {
   canonicalPath,
   chooseCard,
   escapeHtml,
+  fetchBookMeta,
   parseBookPath,
   renderBookPage,
   robotsContent,
@@ -95,8 +96,9 @@ describe("escapeHtml", () => {
 
 describe("roman / statsLine", () => {
   it("writes roman numerals", () => {
-    expect([1, 4, 14, 49, 2026].map(roman)).toEqual(["I", "IV", "XIV", "XLIX", "MMXXVI"]);
-    expect(roman(0)).toBe("0");
+    expect([1, 4, 14, 49, 2026, 3999].map(roman)).toEqual(["I", "IV", "XIV", "XLIX", "MMXXVI", "MMMCMXCIX"]);
+    // Outside 1..3999 there is no numeral, so the digits stay.
+    expect([0, 4000].map(roman)).toEqual(["0", "4000"]);
   });
   it("counts what exists", () => {
     expect(statsLine(meta().release.stats)).toBe("64 places · 41 people · 14 sessions");
@@ -123,6 +125,24 @@ describe("chooseCard", () => {
   it("falls back to the book for an unknown session id or another chapter", () => {
     expect(chooseCard({ slug: "s", chapter: "chronicle", entryId: "zzz" }, meta()).kind).toBe("book");
     expect(chooseCard({ slug: "s", chapter: "folk", entryId: "n1" }, meta()).kind).toBe("book");
+  });
+  it("holds a long subtitle to 160 characters and the whole description to 280, ending on an ellipsis", () => {
+    const m = meta();
+    m.snapshot.book.subtitle = `${"word ".repeat(60)}end`;
+    const d = chooseCard({ slug: "s", chapter: null, entryId: null }, m).description;
+    expect(d.length).toBeLessThanOrEqual(280);
+    expect(d.split(". ")[0]).toMatch(/^(word )+word…$/);
+    expect(d.split(". ")[0].length).toBeLessThanOrEqual(160 + 1);
+  });
+  it("keeps a subtitle of exactly 160 characters whole", () => {
+    const m = meta();
+    m.snapshot.book.subtitle = "x".repeat(160);
+    expect(chooseCard({ slug: "s", chapter: null, entryId: null }, m).description.startsWith(`${"x".repeat(160)}.`)).toBe(true);
+  });
+  it("squeezes runs of whitespace in a subtitle", () => {
+    const m = meta();
+    m.snapshot.book.subtitle = "  a\n\n  tale   of salt ";
+    expect(chooseCard({ slug: "s", chapter: null, entryId: null }, m).description).toMatch(/^a tale of salt\./);
   });
   it("copes with a book that has no subtitle", () => {
     const m = meta();
@@ -225,9 +245,40 @@ describe("renderBookPage", () => {
     expect(await (await renderBookPage(req("../x"), "https://p.supabase.co", boom)).text()).toContain('name="robots"');
     expect(boom).toHaveBeenCalledTimes(3); // two index.html reads and one meta call (the bad path never reaches the network)
   });
+  it("answers a HEAD with the headers and no body", async () => {
+    const res = await renderBookPage(new Request(`${origin}/api/open-book-page?path=the-saltreach`, { method: "HEAD" }), "https://p.supabase.co", upstream(meta()));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=300, stale-while-revalidate=600");
+    expect(await res.text()).toBe("");
+  });
   it("answers 503 if index.html itself cannot be had, and 405 for other methods", async () => {
     const dead = vi.fn(async () => new Response("", { status: 500 }));
     expect((await renderBookPage(req("x"), "https://p.supabase.co", dead)).status).toBe(503);
     expect((await renderBookPage(new Request(`${origin}/api/open-book-page`, { method: "POST" }), undefined, dead)).status).toBe(405);
+  });
+});
+
+
+describe("fetchBookMeta", () => {
+  const json = (body: unknown, status = 200) => vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify(body), { status }));
+
+  it("asks the Edge Function for the slug, encoded, and returns a well-formed book", async () => {
+    const fetchImpl = json(meta());
+    expect(await fetchBookMeta("a b", "https://proj.supabase.co//", fetchImpl)).toMatchObject({ slug: "the-saltreach" });
+    expect(fetchImpl.mock.calls[0][0]).toBe("https://proj.supabase.co/functions/v1/open-book/a%20b?part=meta");
+  });
+
+  it.each([
+    ["an error status", json(meta(), 404)],
+    ["a body with no book in it", json({ error: "not_found" })],
+    ["a body with no session index", json({ snapshot: { book: {} } })],
+  ])("is null for %s, so the page falls back to the generic head", async (_name, fetchImpl) => {
+    expect(await fetchBookMeta("x", "https://proj.supabase.co", fetchImpl)).toBeNull();
+  });
+
+  it("is null, without a request, when no Supabase URL is configured", async () => {
+    const fetchImpl = json(meta());
+    expect(await fetchBookMeta("x", undefined, fetchImpl)).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

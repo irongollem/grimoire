@@ -191,6 +191,15 @@ describe("sanitizeSuggestions links", () => {
   });
 });
 
+describe("sanitizeSuggestions notes", () => {
+  it("keeps a note of exactly the limit and cuts one a character over, ending in an ellipsis", () => {
+    const at = sanitize([link("npc", "Tilda Fenn", "ally", { notes: "x".repeat(MAX_NOTES_CHARS) })]);
+    expect(at.suggestions[0].notes).toBe("x".repeat(MAX_NOTES_CHARS));
+    const over = sanitize([link("npc", "Tilda Fenn", "ally", { notes: "x".repeat(MAX_NOTES_CHARS + 1) })]);
+    expect(over.suggestions[0].notes).toBe(`${"x".repeat(MAX_NOTES_CHARS - 1)}…`);
+  });
+});
+
 describe("sanitizeSuggestions memberships", () => {
   const membership = (target_name: string, role: string, extra: Record<string, unknown> = {}) => ({
     kind: "membership", target_name, role, notes: "", ...extra,
@@ -308,6 +317,12 @@ describe("sanitizeSuggestions kin", () => {
   it("does not judge when a birth year is unknown", () => {
     const out = sanitizeSuggestions({ suggestions: [kin("Brenna Ashe", "parent")] }, { ...kinCtx, sourceBornYear: null });
     expect(out.suggestions).toHaveLength(1);
+  });
+
+  it("drops a character the subject is already kin with, as it does for an NPC", () => {
+    const ctx = { ...kinCtx, existingKinPcNames: ["Tamsin"] };
+    expect(sanitizeSuggestions([kin("Tamsin", "sibling", { target_type: "pc" })], ctx).suggestions).toEqual([]);
+    expect(sanitizeSuggestions([kin("Tamsin", "sibling", { target_type: "pc" })], kinCtx).suggestions).toHaveLength(1);
   });
 
   it("keeps kin for a character subject and refuses it for a place", () => {

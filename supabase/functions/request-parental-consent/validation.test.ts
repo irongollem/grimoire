@@ -14,6 +14,13 @@ describe("isValidParentEmail", () => {
     expect(isValidParentEmail(`a${"a".repeat(320)}@example.com`)).toBe(false);
   });
 
+  it("accepts exactly 320 characters (the DB length check) and refuses 321", () => {
+    const at320 = `${"a".repeat(320 - "@example.com".length)}@example.com`;
+    expect(at320).toHaveLength(320);
+    expect(isValidParentEmail(at320)).toBe(true);
+    expect(isValidParentEmail(`a${at320}`)).toBe(false);
+  });
+
   it("refuses a child login address, which can never receive mail", () => {
     expect(isValidParentEmail(`mira@${CHILD_LOGIN_DOMAIN}`)).toBe(false);
   });
@@ -42,6 +49,12 @@ describe("bearerSubject", () => {
     expect(bearerSubject("Bearer sb_publishable_abc123")).toBeNull();
     expect(bearerSubject("Bearer not.a.jwt")).toBeNull();
     expect(bearerSubject(null)).toBeNull();
+    expect(bearerSubject(`Bearer ${jwt({ sub: "u-1" })}.extra`)).toBeNull();
+  });
+
+  it("refuses a token whose sub is empty or not a string, so it cannot pass as a user", () => {
+    expect(bearerSubject(`Bearer ${jwt({ sub: "" })}`)).toBeNull();
+    expect(bearerSubject(`Bearer ${jwt({ sub: 42 })}`)).toBeNull();
   });
 });
 

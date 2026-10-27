@@ -105,6 +105,10 @@ describe("categoriesOverThreshold — the policy, against measured scores", () =
     expect(categoriesOverThreshold({ "sexual/minors": 0.25 })).toEqual(["sexual/minors"]);
   });
 
+  it("refuses a score exactly at the threshold: the table says 'at or above'", () => {
+    expect(categoriesOverThreshold({ "a": 0.5, "b": 0.49 }, { "a": 0.5, "b": 0.5 })).toEqual(["a"]);
+  });
+
   it("treats a category the response omits as unjudged, not as zero", () => {
     // Every threshold category absent: nothing to judge, so nothing blocked —
     // and, crucially, no throw from reading undefined.
@@ -125,6 +129,12 @@ describe("isNearThreshold — the prompt-text privacy rule", () => {
     const threshold = IMAGE_PROMPT_THRESHOLDS["sexual"];
     expect(isNearThreshold({ "sexual": threshold - PROMPT_TEXT_BAND - 0.01 })).toBe(false);
     expect(isNearThreshold({ "sexual": threshold - PROMPT_TEXT_BAND + 0.01 })).toBe(true);
+  });
+
+  it("is true exactly on the band edge", () => {
+    // 1 and 0.25 are exact in binary, so the edge is 0.75 with no rounding.
+    expect(isNearThreshold({ "a": 0.75 }, { "a": 1 }, 0.25)).toBe(true);
+    expect(isNearThreshold({ "a": 0.74 }, { "a": 1 }, 0.25)).toBe(false);
   });
 
   it("leaves the succubus text unstored at 0.778, well under the 0.85 band floor", () => {
@@ -149,6 +159,7 @@ describe("screenImagePrompt", () => {
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.openai.com/v1/moderations");
+    expect(init.headers).toMatchObject({ Authorization: "Bearer sk-test" });
     expect(JSON.parse(init.body as string)).toMatchObject({
       model: "omni-moderation-latest",
       input: "a dwarven cleric",

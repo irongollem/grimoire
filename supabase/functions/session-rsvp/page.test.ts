@@ -26,6 +26,10 @@ describe("parseRequest", () => {
     expect(parseRequest("https://edge.example/?token=../../etc/passwd").token).toBeNull();
   });
 
+  it("reads an answer a mail client upper-cased or padded", () => {
+    expect(parseRequest(`${URL_BASE}&answer=%20YES%20`).answer).toBe("yes");
+  });
+
   it("rejects an answer that is neither yes nor no", () => {
     expect(parseRequest(`${URL_BASE}&answer=maybe`).answer).toBeNull();
   });
@@ -72,6 +76,15 @@ describe("renderPage", () => {
     expect(html).toContain('name="answer" value="no"');
   });
 
+  it("draws the answer the link did not carry as the secondary button", () => {
+    const yes = renderPage("confirm", { token: TOKEN, answer: "yes" }, invite).html;
+    expect(yes).toMatch(/value="no" class="secondary"|class="secondary">Can't make it/);
+    expect(yes).not.toMatch(/value="yes" class="secondary"/);
+    const no = renderPage("confirm", { token: TOKEN, answer: "no" }, invite).html;
+    expect(no).toMatch(/value="yes" class="secondary"/);
+    expect(no).not.toMatch(/value="no" class="secondary"/);
+  });
+
   it("names the session it is about to answer for", () => {
     const { html } = renderPage("confirm", { token: TOKEN, answer: "yes" }, invite);
     expect(html).toContain("Curse of Strahd — Session 12 · Thursday, September 3, 2026 at 19:30");
@@ -113,9 +126,10 @@ describe("renderPage", () => {
     // Mail clients truncate long URLs and people paste the base link; that is
     // not a broken link, it is someone who still has to choose.
     const { html } = renderPage("confirm", { token: TOKEN, answer: null }, invite);
-    expect(html).toContain("Can you make this one?");
     expect(html).toContain('name="answer" value="yes"');
     expect(html).toContain('name="answer" value="no"');
+    // Neither answer is pre-selected: no button is drawn as the secondary one.
+    expect(html).not.toContain('class="secondary"');
   });
 
   it("omits the form action when there is no token to carry", () => {

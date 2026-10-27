@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { R2_BUCKET_IDS, isR2Bucket, r2ObjectKey, r2ConfigFrom, r2Credentials } from "./config.ts";
+import { isR2Bucket, r2ObjectKey, r2ConfigFrom, r2WritesEnabled } from "./config.ts";
 import { __testing } from "./client.ts";
-import { STORAGE_WRITE_POLICY } from "../storage-policy.ts";
 
 const FULL_ENV: Record<string, string> = {
   R2_ACCOUNT_ID: "acct123",
@@ -32,12 +31,6 @@ describe("r2ConfigFrom", () => {
   it("treats a blank or whitespace value as unset", () => {
     expect(r2ConfigFrom(getter({ ...FULL_ENV, R2_BUCKET: "   " }))).toBeNull();
   });
-
-  it("uses region auto and service s3", () => {
-    const creds = r2Credentials(r2ConfigFrom(getter(FULL_ENV))!);
-    expect(creds.region).toBe("auto");
-    expect(creds.service).toBe("s3");
-  });
 });
 
 describe("r2ObjectKey", () => {
@@ -53,26 +46,20 @@ describe("r2ObjectKey", () => {
   });
 });
 
-describe("R2 bucket rollout list", () => {
-  it("only names buckets that exist in the write policy", () => {
-    const known = new Set(STORAGE_WRITE_POLICY.map((p) => p.id));
-    for (const id of R2_BUCKET_IDS) expect(known.has(id)).toBe(true);
+describe("r2WritesEnabled", () => {
+  it("is on only for an R2-backed bucket with an asset CDN origin configured", () => {
+    // An R2 object is reachable only through the CDN Worker: without a hostname
+    // the bytes would land where no URL can reach them.
+    expect(r2WritesEnabled("npc-portraits", "https://cdn.dungeongrimoire.com")).toBe(true);
+    expect(r2WritesEnabled("npc-portraits", undefined)).toBe(false);
+    expect(r2WritesEnabled("npc-portraits", null)).toBe(false);
+    expect(r2WritesEnabled("npc-portraits", "   ")).toBe(false);
   });
 
-  it("recognises listed buckets and nothing else", () => {
-    expect(isR2Bucket("mini-models")).toBe(true);
-    expect(isR2Bucket("npc-portraits")).toBe(true);
-    expect(isR2Bucket("sounds")).toBe(true);
-    // Outside the bucket registry, so no R2 path manages them.
-    expect(isR2Bucket("bug-reports")).toBe(false);
+  it("is off for a bucket the write policy does not manage, CDN or not", () => {
     expect(isR2Bucket("downtime-images")).toBe(false);
-  });
-
-  it("covers every bucket in the write policy", () => {
-    // The two lists moving together is what keeps the store choice uniform: a
-    // bucket with a write policy but no R2 entry would silently keep writing to
-    // Supabase long after everything else moved.
-    expect([...R2_BUCKET_IDS].sort()).toEqual(STORAGE_WRITE_POLICY.map((p) => p.id).sort());
+    expect(r2WritesEnabled("downtime-images", "https://cdn.dungeongrimoire.com")).toBe(false);
+    expect(r2WritesEnabled("bug-reports", "https://cdn.dungeongrimoire.com")).toBe(false);
   });
 });
 

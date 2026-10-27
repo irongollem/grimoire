@@ -83,12 +83,18 @@ describe("isVariantPath", () => {
     expect(isVariantPath("u/abc_w400.webp")).toBe(true);
     expect(isVariantPath("u/abc.webp")).toBe(false);
     expect(isVariantPath("u/new_wizard.webp")).toBe(false);
+    // A variant is the last extension only: a backup of one is not a variant.
+    expect(isVariantPath("u/abc_w400.webp.bak")).toBe(false);
   });
 });
 
 describe("resolveOwner", () => {
   it("prefers the uuid folder over the row owner", () => {
     expect(resolveOwner(`${USER}/a.webp`, OTHER)).toBe(USER);
+  });
+
+  it("lowercases a uuid folder, which is how the registry stores an owner", () => {
+    expect(resolveOwner(`${ADMIN.toUpperCase()}/a.webp`, null)).toBe(ADMIN);
   });
 
   it("falls back to the row owner for a non-uuid folder", () => {
@@ -173,7 +179,18 @@ describe("planEntry", () => {
   });
 
   it("skips a registered row that already equals the packet", () => {
-    expect(planEntry(target, PROV, registered({ ...PROV }))).toMatchObject({ verdict: "skip" });
+    expect(planEntry(target, PROV, registered({ ...PROV }))).toMatchObject({ verdict: "skip", user_id: OTHER, previous: PROV });
+  });
+
+  it.each([
+    ["generation date", { generatedAt: "2026-01-01T00:00:00.000Z" }],
+    ["model", { model: "other-model" }],
+    ["generator type", { generatorType: "monster" as const }],
+  ])("corrects a registered row whose %s differs from the packet, and remembers what it replaced", (_name, over) => {
+    const old = { ...PROV, ...over };
+    const entry = planEntry(target, PROV, registered(old));
+    expect(entry).toMatchObject({ verdict: "correct", previous: old, user_id: OTHER });
+    expect(entry.provenance).toEqual(PROV);
   });
 
   it("corrects a job-derived row, keeping the registered owner", () => {

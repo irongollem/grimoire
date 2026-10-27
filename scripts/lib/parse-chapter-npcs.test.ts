@@ -405,3 +405,81 @@ describe("resolveLocationSpecs", () => {
     expect(specs[0]!.tags).toEqual(["a", "b"]);
   });
 });
+
+
+describe("parseNpc, edges the fixtures above do not reach", () => {
+  const parse = (body: string) => parseNpc("Test Npc", body, 2, null)!;
+
+  it("skips only headings that start with a skip prefix, not ones that mention it", () => {
+    expect(isSkipHeading("The Chapter Keeper")).toBe(false);
+    expect(isSkipHeading("Chapter Keeper")).toBe(true);
+  });
+
+  it("adds the Role block to the notes only when the role runs past the first sentence", () => {
+    expect(parse("**Role:** Keeps the lamp.").notes).not.toContain("**Role**");
+    expect(parse("**Role:** Keeps the lamp. Owes the harbour a favour.").notes).toContain("**Role**\nKeeps the lamp. Owes the harbour a favour.");
+    expect(parse("**Role:** Keeps the lamp. Owes the harbour a favour.").occupation).toBe("Keeps the lamp.");
+  });
+
+  it("caps the occupation at 200 characters", () => {
+    expect(parse(`**Role:** ${"x".repeat(300)}`).occupation).toHaveLength(200);
+  });
+
+  it("tags the chapter and the race, then up to three words of the stage and two of the role", () => {
+    const npc = parseNpc(
+      "Tagged",
+      "**Race:** Goliath\n**Stage:** Late advanced terminal sugar (not this; or this)\n**Role:** Lamp keeper at the harbour, never seen",
+      4,
+      "North Quay",
+    )!;
+    expect(npc.tags).toEqual(["chapter-4", "goliath", "late", "advanced", "terminal", "lamp", "keeper", "north-quay"]);
+  });
+
+  it("reads the role only up to its first full stop, semicolon or comma", () => {
+    expect(parseNpc("A", "**Role:** Lamp. Boatman at the dock", 1, null)!.tags).toEqual(["chapter-1", "lamp"]);
+  });
+
+  it("reads the stage only up to its first bracket, semicolon or full stop", () => {
+    expect(parseNpc("A", "**Stage:** Early; quite late (rare)", 1, null)!.tags).toEqual(["chapter-1", "early"]);
+  });
+
+  it("does not repeat a tag two sources agree on", () => {
+    expect(parseNpc("A", "**Race:** Human\n**Stage:** Human", 1, null)!.tags).toEqual(["chapter-1", "human"]);
+  });
+});
+
+describe("applySidecar and resolveLocationSpecs, edges", () => {
+  const record = (): NpcRecord => ({
+    name: "Brittle", raw_heading: "Brittle", race: "", occupation: "", appearance: "", personality: "", backstory: "", notes: "",
+    status: "alive", relationship: "indifferent", relevance: 3, tags: ["chapter-1"], location_key: null,
+  });
+
+  it("sets a relevance of zero rather than ignoring it", () => {
+    const [r] = [record()];
+    applySidecar([r], { npcs: { Brittle: { relevance: 0 } } });
+    expect(r.relevance).toBe(0);
+  });
+
+  it("keeps an extra tag once, and never writes into the config's own tag list", () => {
+    const tags = ["a", "b"];
+    const [r] = [record()];
+    applySidecar([r], { npcs: { Brittle: { tags } } });
+    r.tags.push("later");
+    expect(tags).toEqual(["a", "b"]);
+
+    const [x] = [record()];
+    applySidecar([x], { npcs: { Brittle: { extra_tags: ["chapter-1", "new", "new"] } } });
+    expect(x.tags).toEqual(["chapter-1", "new"]);
+  });
+
+  it("copies a location's tags so editing a spec cannot edit the config", () => {
+    const config: SidecarConfig = { locations: [{ key: "k", name: "K", tags: ["t"] }] };
+    const [spec] = resolveLocationSpecs(config, null);
+    spec.tags.push("extra");
+    expect(config.locations?.[0]?.tags).toEqual(["t"]);
+  });
+
+  it("defaults a location to type other and to the CLI's parent", () => {
+    expect(resolveLocationSpecs({ locations: [{ key: "k", name: "K" }] }, "Region")).toMatchObject([{ type: "other", parent_name: "Region", description: "", tags: [] }]);
+  });
+});

@@ -246,3 +246,11 @@ describe("species text references (#1034)", () => {
     expect(detached).toEqual({ "party_members.species_id": 1, "campaigns.disabled_species_ids": 1 });
   });
 });
+
+describe("detachMissingSpecies reports only what it changed", () => {
+  it("leaves a column whose references are all kept out of the report", () => {
+    const A = "a0a0a0a0-0000-4000-8000-000000000001";
+    const tables: Record<string, Rows> = { campaigns: [{ disabled_species_ids: [A, "srd_srd_2024_dwarf"] }], party_members: [{ species_id: A }] };
+    expect(detachMissingSpecies(tables, new Set([A]))).toEqual({});
+  });
+});

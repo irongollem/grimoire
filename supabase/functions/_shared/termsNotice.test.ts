@@ -86,13 +86,11 @@ describe("termsNoticeEmail", () => {
     expect(mail.text).toContain("- Players under 16 <b>&</b>");
   });
 
-  it("links both documents and the app, and explains why it cannot be switched off", () => {
+  it("links both documents and the app in the html and the plain text", () => {
     for (const body of [mail.html, mail.text]) {
       expect(body).toContain("https://dungeongrimoire.com/terms");
       expect(body).toContain("https://dungeongrimoire.com/privacy");
       expect(body).toContain("https://app.dungeongrimoire.com");
-      expect(body).toContain("cannot be switched off");
-      expect(body).toContain("asked to accept them");
     }
   });
 

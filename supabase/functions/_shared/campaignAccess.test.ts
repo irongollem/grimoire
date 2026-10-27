@@ -1,64 +1,50 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseFake, type SupabaseFake } from "@/test/supabaseFake";
 import { isCampaignDm } from "./campaignAccess";
 
-/**
- * A stub that answers like the real table: the query only matches a row whose
- * role is the one asked for, so a player's membership row is invisible to an
- * `.eq("role", "dm")` lookup exactly as it is in Postgres.
- */
-function stubMembers(rows: { user_id: string; role: "dm" | "player" }[]) {
-  const from = vi.fn(() => {
-    const filters: Record<string, string> = {};
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn((column: string, value: string) => {
-        filters[column] = value;
-        return query;
-      }),
-      maybeSingle: vi.fn(async () => {
-        const row = rows.find((r) =>
-          r.user_id === filters.user_id && (!filters.role || r.role === filters.role));
-        return { data: row ? { role: row.role } : null, error: null };
-      }),
-    };
-    return query;
-  });
-  return { client: { from } as never, from };
-}
+// The table is seeded with the cases that tell the rule apart, so a read that
+// forgets a filter (campaign, user or role) lets the wrong person in.
+let fake: SupabaseFake;
+const admin = () => fake.client as unknown as SupabaseClient;
 
 const campaign = { id: "c1", user_id: "owner" };
 
+beforeEach(() => {
+  fake = createSupabaseFake();
+  fake.seed("campaign_members", [
+    { campaign_id: "c1", user_id: "co", role: "dm" },
+    { campaign_id: "c1", user_id: "p1", role: "player" },
+    // A DM of a different campaign, who is only a player here.
+    { campaign_id: "c2", user_id: "elsewhere", role: "dm" },
+    { campaign_id: "c1", user_id: "elsewhere", role: "player" },
+  ]);
+});
+
 describe("isCampaignDm", () => {
   it("admits the owner without a lookup", async () => {
-    const { client, from } = stubMembers([]);
-    await expect(isCampaignDm(client, campaign, "owner")).resolves.toBe(true);
-    expect(from).not.toHaveBeenCalled();
+    fake.failNext("campaign_members", { message: "must not be read" });
+    await expect(isCampaignDm(admin(), campaign, "owner")).resolves.toBe(true);
   });
 
-  it("admits a co-DM", async () => {
-    const { client } = stubMembers([{ user_id: "co", role: "dm" }]);
-    await expect(isCampaignDm(client, campaign, "co")).resolves.toBe(true);
+  it("admits a co-DM of this campaign", async () => {
+    await expect(isCampaignDm(admin(), campaign, "co")).resolves.toBe(true);
   });
 
   it("refuses a player member: the case the old 'any member' check let through", async () => {
-    const { client } = stubMembers([{ user_id: "p1", role: "player" }]);
-    await expect(isCampaignDm(client, campaign, "p1")).resolves.toBe(false);
+    await expect(isCampaignDm(admin(), campaign, "p1")).resolves.toBe(false);
+  });
+
+  it("refuses a DM of another campaign who is only a player here", async () => {
+    await expect(isCampaignDm(admin(), campaign, "elsewhere")).resolves.toBe(false);
   });
 
   it("refuses a stranger", async () => {
-    const { client } = stubMembers([{ user_id: "co", role: "dm" }]);
-    await expect(isCampaignDm(client, campaign, "nobody")).resolves.toBe(false);
+    await expect(isCampaignDm(admin(), campaign, "nobody")).resolves.toBe(false);
   });
 
   it("throws on a read error rather than answering no", async () => {
-    const from = vi.fn(() => {
-      const query = {
-        select: vi.fn(() => query),
-        eq: vi.fn(() => query),
-        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: new Error("boom") }),
-      };
-      return query;
-    });
-    await expect(isCampaignDm({ from } as never, campaign, "co")).rejects.toThrow("boom");
+    fake.failNext("campaign_members", { message: "boom" });
+    await expect(isCampaignDm(admin(), campaign, "co")).rejects.toMatchObject({ message: "boom" });
   });
 });

@@ -127,6 +127,12 @@ describe("SigV4 — AWS known-answer vectors", () => {
   });
 });
 
+describe("canonicalQuery", () => {
+  it("orders repeated keys by their encoded value (AWS sorts after encoding)", () => {
+    expect(__testing.canonicalQuery([["tag", "b"], ["tag", "a"], ["Tag", "z"]])).toBe("Tag=z&tag=a&tag=b");
+  });
+});
+
 describe("uriEncode", () => {
   it("leaves only the AWS unreserved set alone", () => {
     expect(uriEncode("aZ0-._~", true)).toBe("aZ0-._~");

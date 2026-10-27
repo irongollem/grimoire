@@ -16,6 +16,9 @@ describe("slugifyName", () => {
   it("trims leading/trailing underscores", () => {
     expect(slugifyName("  D20 Tests!  ")).toBe("d20_tests");
   });
+  it("gives the same concept the same key in both editions", () => {
+    expect(slugifyName("Combat")).toBe(slugifyName(" combat! "));
+  });
   it("handles apostrophes and punctuation", () => {
     expect(slugifyName("The Bonus Doesn't Stack")).toBe("the_bonus_doesn_t_stack");
   });
@@ -91,13 +94,5 @@ describe("buildRuleRow", () => {
     expect(row.source_record_key).toBe("srd_abilities_ability-scores-and-modifiers");
     expect(row.source_license).toBe("cc-by-40, ogl-10a");
     expect(row.provenance).toMatchObject({ source: "open5e", api_version: "v2", endpoint: "rules", index: 1 });
-  });
-
-  it("produces a distinct slug per edition even for same-named rules/rulesets", () => {
-    const row2014 = buildRulesetRow({ key: "srd_combat", name: "Combat", desc: "", document: { key: "srd-2014" } });
-    const row2024 = buildRulesetRow({ key: "srd-2024_combat", name: "Combat", desc: "", document: { key: "srd-2024" } });
-    expect(row2014.slug).not.toBe(row2024.slug);
-    expect(row2014.conceptual_key).toBe(row2024.conceptual_key); // same concept, both editions
-    expect(row2014.ruleset).not.toBe(row2024.ruleset);
   });
 });

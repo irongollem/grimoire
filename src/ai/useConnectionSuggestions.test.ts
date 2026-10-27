@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { resetConnectionSuggestions, useConnectionSuggestions } from "./useConnectionSuggestions";
 import { ref } from "vue";
 import { registerAiGenerator } from "./aiGeneratorRegistry";
+import { LOCAL_MODE_KEY } from "@/lib/localKeyVault";
 
 const invoke = vi.fn();
 vi.mock("@/lib/supabase", () => ({
@@ -32,6 +33,34 @@ describe("useConnectionSuggestions", () => {
     useCampaignStore().activeCampaignId = "c1";
     resetConnectionSuggestions();
     invoke.mockReset();
+    localStorage.clear();
+  });
+
+  it("refuses in local-key mode, naming why, without calling the server", async () => {
+    localStorage.setItem(LOCAL_MODE_KEY, "local");
+    const { useCampaignStore } = await import("@/stores/campaign");
+    useCampaignStore().decryptedAnthropicKey = "sk-ant";
+    const { suggest, forSubject } = useConnectionSuggestions();
+
+    expect(await suggest(A, "")).toBe(false);
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(forSubject(() => A).error.value).toContain("local-key mode");
+  });
+
+  it("clears the previous result while a new run for the same subject is in flight", async () => {
+    invoke.mockResolvedValueOnce(reply);
+    const { suggest, forSubject } = useConnectionSuggestions();
+    await suggest(A, "");
+    expect(forSubject(() => A).suggestions.value).toHaveLength(1);
+
+    let resolve!: (v: typeof reply) => void;
+    invoke.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    const second = suggest(A, "again");
+    expect(forSubject(() => A).suggestions.value).toEqual([]);
+    resolve(reply);
+    await second;
+    expect(forSubject(() => A).suggestions.value).toHaveLength(1);
   });
 
   it("asks the function for the subject's kind and id, with the steer trimmed", async () => {

@@ -66,6 +66,10 @@ describe("mintLibraryPackId", () => {
     expect(mintLibraryPackId("Haunted Manor!")).toBe("haunted-manor");
   });
 
+  it("keeps a name that merely starts with the letters custom", () => {
+    expect(mintLibraryPackId("Customs House")).toBe("customs-house");
+  });
+
   it("rejects a slug that is empty after slugging", () => {
     expect(mintLibraryPackId("   ")).toBeNull();
     expect(mintLibraryPackId("!!!")).toBeNull();

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  DOLL_IMAGE_MODEL,
-  DOLL_SHEET_SIZE,
   armourPrompt,
   burdenPrompt,
   characterGarbPrompt,
@@ -9,121 +7,99 @@ import {
   templateGarbPrompt,
 } from "./prompts.ts";
 
-describe("constants", () => {
-  it("pins the model and sheet size", () => {
-    expect(DOLL_IMAGE_MODEL).toBe("gpt-image-2.5-sunburst");
-    expect(DOLL_SHEET_SIZE).toBe("1536x1024");
+// The wording was tuned against renders, so these tests do not restate it. They
+// hold what the callers rely on: every sheet is cut into the same three cells,
+// each prompt refers only to the images the generator actually attaches, and
+// the text a DM controls (a species' description) is bounded.
+
+const SHEETS: Record<string, string> = {
+  template: templateGarbPrompt("medium"),
+  character: characterGarbPrompt(),
+  species: speciesGarbPrompt({ name: "Gnome", description: null, size: "small" }),
+  armourWithTemplate: armourPrompt({ withTemplate: true }),
+  armourWithout: armourPrompt({ withTemplate: false }),
+  burden: burdenPrompt(),
+};
+
+describe("every sheet prompt", () => {
+  it.each(Object.entries(SHEETS))("%s asks for three cells with an empty margin, so the sheet can be cut between figures", (_name, text) => {
+    expect(text).toContain("three equal vertical cells");
+    expect(text).toContain("margin of at least 40 px");
+  });
+
+  it.each(Object.entries(SHEETS))("%s keeps the head bare, so headgear stays a separate slot on the doll", (_name, text) => {
+    expect(text).toMatch(/bare head/i);
   });
 });
 
-describe("template garb", () => {
-  it("carries the size body", () => {
-    expect(templateGarbPrompt("medium")).toContain("adult human of medium build");
-    expect(templateGarbPrompt("small")).toContain("adult halfling");
+describe("which images each prompt refers to", () => {
+  // The generator attaches exactly these: the numbering in the text must match.
+  it("a text-only template render refers to no image at all", () => {
+    expect(SHEETS.template).not.toMatch(/\bImage \d/);
   });
 
-  it("asks for three outfits with footwear and a bare head", () => {
-    const text = templateGarbPrompt("medium");
-    expect(text).toContain("underclothes");
-    expect(text).toContain("boots");
-    expect(text).toContain("sandals");
-    expect(text).toContain("barefoot");
-    expect(text).toContain("Bare head");
+  it("a character sheet is drawn from two images, the portrait and the template", () => {
+    expect(SHEETS.character).toMatch(/Image 1/);
+    expect(SHEETS.character).toMatch(/Image 2/);
+    expect(SHEETS.character).not.toMatch(/Image 3/);
   });
 
-  it("leaves 60 px of headroom", () => {
-    expect(templateGarbPrompt("medium")).toContain("60 px below the top edge");
-  });
-});
-
-describe("margin rule", () => {
-  it("keeps a 40 px empty margin per cell, in every sheet prompt", () => {
-    const prompts = [
-      templateGarbPrompt("medium"),
-      characterGarbPrompt(),
-      speciesGarbPrompt({ name: "Gnome", description: null, size: "small" }),
-      armourPrompt({ withTemplate: true }),
-      armourPrompt({ withTemplate: false }),
-      burdenPrompt(),
-    ];
-    for (const text of prompts) {
-      expect(text).toContain("margin of at least 40 px");
-      expect(text).toContain("three equal vertical cells");
+  it("a species sheet and a template-less armour sheet are drawn from one image", () => {
+    for (const text of [SHEETS.species, SHEETS.armourWithout, SHEETS.burden]) {
+      expect(text).toMatch(/Image 1/);
+      expect(text).not.toMatch(/Image 2/);
     }
   });
-});
 
-describe("characterGarbPrompt", () => {
-  it("keeps the portrait's likeness, not the template's", () => {
-    const text = characterGarbPrompt();
-    expect(text).toContain("Image 1 is a character portrait");
-    expect(text).toContain("Keep the character's likeness from image 1, not image 2's figure");
-    expect(text).toContain("face, skin, ears, hair, ancestry and build");
+  it("armour with a template takes its outfits from image 2", () => {
+    expect(SHEETS.armourWithTemplate).toMatch(/Image 2/);
   });
 });
 
 describe("speciesGarbPrompt", () => {
-  it("names the species and includes a short description", () => {
-    const text = speciesGarbPrompt({ name: "Tiefling", description: "Horned folk.", size: "medium" });
-    expect(text).toContain("typical adult Tiefling");
-    expect(text).toContain("About the Tiefling: Horned folk.");
+  const species = (over: Partial<Parameters<typeof speciesGarbPrompt>[0]>) =>
+    speciesGarbPrompt({ name: "Tiefling", description: null, size: "medium", ...over });
+
+  it("names the species and carries its description", () => {
+    const text = species({ description: "Horned folk." });
+    expect(text).toContain("adult Tiefling");
+    expect(text).toContain("Horned folk.");
   });
 
-  it("trims whitespace and cuts a long description at 600 characters", () => {
-    const long = speciesGarbPrompt({ name: "Tiefling", description: "  " + "x".repeat(2000) + "  ", size: "medium" });
+  it("trims the description and cuts a long one at exactly 600 characters", () => {
+    const long = species({ description: "  " + "x".repeat(2000) + "  " });
     expect(long).toContain("x".repeat(600) + "...");
     expect(long).not.toContain("x".repeat(601));
-    const short = speciesGarbPrompt({ name: "Tiefling", description: "  Horned.  ", size: "medium" });
-    expect(short).toContain("About the Tiefling: Horned. ");
+    const exact = species({ description: "y".repeat(600) });
+    expect(exact).toContain("y".repeat(600));
+    expect(exact).not.toContain("y".repeat(600) + "...");
   });
 
-  it("works without a description and honours size", () => {
-    const text = speciesGarbPrompt({ name: "Gnome", description: null, size: "small" });
-    expect(text).not.toContain("About the Gnome");
-    expect(text).toContain("adult halfling");
-  });
-});
-
-describe("armourPrompt", () => {
-  it("with a template, wears the template's outfits in the character's colours", () => {
-    const text = armourPrompt({ withTemplate: true });
-    expect(text).toContain("Image 2 is a template of three armour outfits");
-    expect(text).toContain("in the character's own colours");
-    expect(text).toContain("full plate");
+  it("adds no description clause for a blank one", () => {
+    expect(species({ description: "   " })).toBe(species({ description: null }));
   });
 
-  it("without a template, redraws the same figure and mentions no image 2", () => {
-    const text = armourPrompt({ withTemplate: false });
-    expect(text).toContain("Draw the SAME figure");
-    expect(text).not.toContain("Image 2");
-    expect(text).toContain("sabatons");
-  });
-});
-
-describe("burdenPrompt", () => {
-  it("describes the three loads in order", () => {
-    const text = burdenPrompt();
-    const pack = text.indexOf("full travelling pack");
-    const laden = text.indexOf("heavily laden");
-    const stagger = text.indexOf("staggering");
-    expect(pack).toBeGreaterThan(-1);
-    expect(laden).toBeGreaterThan(pack);
-    expect(stagger).toBeGreaterThan(laden);
-  });
-
-  it("keeps the same character and a bare head", () => {
-    const text = burdenPrompt();
-    expect(text).toContain("Draw the SAME character");
-    expect(text).toContain("Bare head");
+  it("draws a small species as a grown halfling-sized adult and a medium one as human-sized", () => {
+    expect(species({ size: "small" })).not.toBe(species({ size: "medium" }));
+    expect(templateGarbPrompt("small")).not.toBe(templateGarbPrompt("medium"));
   });
 });
 
 describe("body features", () => {
-  it("keeps wings, tails, horns and antennae for characters and species alike", () => {
-    for (const prompt of [characterGarbPrompt(), speciesGarbPrompt({ name: "Marrow", description: null, size: "small" })]) {
-      expect(prompt).toContain("wings, a tail, horns or antennae");
-      expect(prompt).toContain("not clothing or props");
-      expect(prompt).toContain("folded close behind the body");
-    }
+  it("character and species sheets keep wings, tails and horns as body, not clothing", () => {
+    for (const text of [SHEETS.character, SHEETS.species]) expect(text).toMatch(/wings/);
+    expect(SHEETS.template).not.toMatch(/wings/);
+  });
+});
+
+describe("burdenPrompt", () => {
+  it("shows the loads from light to crushing, left to right", () => {
+    const text = burdenPrompt();
+    const left = text.indexOf("Left cell");
+    const centre = text.indexOf("Centre cell");
+    const right = text.indexOf("Right cell");
+    expect(left).toBeGreaterThan(-1);
+    expect(centre).toBeGreaterThan(left);
+    expect(right).toBeGreaterThan(centre);
   });
 });

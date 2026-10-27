@@ -47,6 +47,17 @@ describe("dressingCellBounds", () => {
     expect(dressingCellBounds(at("table", 3, 4, 270), catalog)).toEqual({ minX: 3, minY: 4, maxX: 3, maxY: 5 });
     expect(dressingCellBounds(at("table", 3, 4, 180), catalog)).toEqual({ minX: 3, minY: 4, maxX: 4, maxY: 4 });
   });
+  it("covers exactly the footprint's cells on any quarter turn, anywhere, with no float noise spilling a cell", () => {
+    for (const x of [-7, -3, 0, 2, 11]) {
+      for (const y of [-5, -1, 0, 4, 9]) {
+        for (const rotation of [0, 90, 180, 270, 360, -90]) {
+          const quarterTurned = Math.abs(rotation / 90) % 2 === 1;
+          const b = dressingCellBounds(at("bed", x, y, rotation), catalog);
+          expect([b.maxX - b.minX + 1, b.maxY - b.minY + 1], `${x},${y} @${rotation}`).toEqual(quarterTurned ? [3, 2] : [2, 3]);
+        }
+      }
+    }
+  });
   it("is unchanged by a half turn", () => {
     expect(dressingCellBounds(at("table", 3, 4, 180), catalog)).toEqual(dressingCellBounds(at("table", 3, 4), catalog));
   });
@@ -73,6 +84,13 @@ describe("hitTestDressing", () => {
     const layer = { low: at("table", 0, 0, 0, 0), high: at("table", 1, 0, 0, 1) };
     expect(hitTestDressing(layer, catalog, 1.5, 0.5)).toBe("high");
     expect(hitTestDressing(layer, catalog, 0.5, 0.5)).toBe("low");
+  });
+  it("follows a turn that is not a quarter: along the long axis is a hit, the mirrored direction is not", () => {
+    const layer = { a: at("table", 0, 0, 30) };
+    // a 2x1 table turned 30 degrees about its centre (1, 0.5): its long axis points 30 degrees below the x axis
+    const along = (deg: number) => [1 + 0.9 * Math.cos((deg * Math.PI) / 180), 0.5 + 0.9 * Math.sin((deg * Math.PI) / 180)] as const;
+    expect(hitTestDressing(layer, catalog, ...along(30))).toBe("a");
+    expect(hitTestDressing(layer, catalog, ...along(-30))).toBeNull();
   });
   it("returns null off every prop", () => {
     expect(hitTestDressing({ a: at("table", 0, 0) }, catalog, 5, 5)).toBeNull();

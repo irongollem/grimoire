@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  SCALE_FACTORS,
-  FIGURE_HEIGHT_CLAMP_MM,
-  figureScaleFor,
-  composeStl,
-} from "./mesh-compose";
+import { figureScaleFor, composeStl } from "./mesh-compose";
 import { generateCylinderStl, parseBinaryStl, stlBounds, writeBinaryStl, type StlBounds } from "./stl";
 
 // A 2m(x) × 1m(y) × 2m(z) box (two triangles — bounds math doesn't require a
@@ -20,20 +15,9 @@ function boundsOf(height: number): StlBounds {
   return { min: [0, 0, 0], max: [1, height, 1] };
 }
 
-describe("SCALE_FACTORS", () => {
-  it("28mm scale: 16 mm/meter (1.75m human → 28mm)", () => {
-    expect(SCALE_FACTORS[28]).toBe(16);
-  });
-  it("32mm scale: 18.3 mm/meter (1.75m human → ~32mm)", () => {
-    expect(SCALE_FACTORS[32]).toBe(18.3);
-  });
-});
-
-describe("FIGURE_HEIGHT_CLAMP_MM", () => {
-  it("is 12mm..60mm", () => {
-    expect(FIGURE_HEIGHT_CLAMP_MM).toEqual({ min: 12, max: 60 });
-  });
-});
+// App convention: a tabletop miniature's height is clamped to 12 mm..60 mm.
+const MIN_MM = 12;
+const MAX_MM = 60;
 
 describe("figureScaleFor", () => {
   it("a 1.75m figure at 28mm scale lands exactly at 28mm (no clamping)", () => {
@@ -49,13 +33,13 @@ describe("figureScaleFor", () => {
   it("clamps a tiny figure (pixie-scale) up to the 12mm floor", () => {
     // 0.05m * 16 = 0.8mm, well under the 12mm floor.
     const scale = figureScaleFor(boundsOf(0.05), 28);
-    expect(0.05 * scale).toBeCloseTo(FIGURE_HEIGHT_CLAMP_MM.min);
+    expect(0.05 * scale).toBeCloseTo(MIN_MM);
   });
 
   it("clamps a huge figure (dragon-scale) down to the 60mm ceiling", () => {
     // 10m * 16 = 160mm, well over the 60mm ceiling.
     const scale = figureScaleFor(boundsOf(10), 28);
-    expect(10 * scale).toBeCloseTo(FIGURE_HEIGHT_CLAMP_MM.max);
+    expect(10 * scale).toBeCloseTo(MAX_MM);
   });
 
   it("a figure that lands exactly on the clamp boundary is unaffected", () => {
@@ -111,7 +95,7 @@ describe("composeStl", () => {
     const composed = composeStl(figureStl, baseStl, 28);
     const figurePortion = parseBinaryStl(composed).subarray(0, (hugeFigure.length / 9) * 9);
     const bounds = stlBounds(figurePortion);
-    expect(bounds.max[1] - bounds.min[1]).toBeCloseTo(FIGURE_HEIGHT_CLAMP_MM.max, 4);
+    expect(bounds.max[1] - bounds.min[1]).toBeCloseTo(MAX_MM, 4);
     expect(bounds.min[1]).toBeCloseTo(baseHeight, 4);
   });
 });

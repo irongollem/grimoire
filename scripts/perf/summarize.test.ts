@@ -18,6 +18,15 @@ describe("classifyRequest", () => {
     expect(classifyRequest({ url: "http://127.0.0.2:54321/x", method: "GET", resourceType: "Fetch" }, API)).toBe("other");
   });
 
+  it("does not take a longer port on the same host for the API", () => {
+    expect(classifyRequest({ url: "http://127.0.0.1:54321/x", method: "GET", resourceType: "Fetch" }, "http://127.0.0.1:5432")).toBe("other");
+  });
+
+  it("falls back to the resource type for an asset whose url has no extension", () => {
+    expect(classifyRequest({ url: "http://127.0.0.1:4173/assets/chunk", method: "GET", resourceType: "Script" }, API)).toBe("js");
+    expect(classifyRequest({ url: "http://127.0.0.1:4173/assets/theme", method: "GET", resourceType: "Stylesheet" }, API)).toBe("css");
+  });
+
   it("classifies static assets by extension, modulepreload included", () => {
     expect(classifyRequest({ url: "http://127.0.0.1:4173/assets/a-1.js", method: "GET", resourceType: "Other" }, API)).toBe("js");
     expect(classifyRequest({ url: "http://127.0.0.1:4173/assets/a-1.css", method: "GET", resourceType: "Stylesheet" }, API)).toBe("css");
@@ -61,6 +70,16 @@ describe("summarizeRequests", () => {
     expect(summary.apiPaths).toEqual(["GET /rest/v1/a", "GET /rest/v1/b"]);
   });
 
+  it("lists API paths in the order they started, whatever order the recorder delivered them", () => {
+    const summary = summarizeRequests(
+      [req({ url: `${API}/rest/v1/late`, startMs: 300, endMs: 400 }), req({ url: `${API}/rest/v1/early`, startMs: 0, endMs: 100 })],
+      API,
+      0,
+      1000,
+    );
+    expect(summary.apiPaths).toEqual(["GET /rest/v1/early", "GET /rest/v1/late"]);
+  });
+
   it("treats a request still open at the end as finishing then", () => {
     const summary = summarizeRequests([req({ url: `${API}/rest/v1/a`, startMs: 0, endMs: null })], API, 0, 900);
     expect(summary.settledMs).toBe(900);
@@ -79,6 +98,9 @@ describe("totalBlockingTime", () => {
         500,
       ),
     ).toBe(40);
+  });
+  it("counts a task that began exactly at first paint", () => {
+    expect(totalBlockingTime([{ startMs: 500, durationMs: 120 }], 500)).toBe(70);
   });
   it("is null when there was no first paint to measure from", () => {
     expect(totalBlockingTime([{ startMs: 0, durationMs: 400 }], null)).toBeNull();

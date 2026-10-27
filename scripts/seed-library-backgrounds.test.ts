@@ -77,6 +77,19 @@ describe("buildSeededBackgroundRow", () => {
     expect(row?.ruleset).toBe("2014");
   });
 
+  it("keeps what Open5e supplied, and falls back to the book's slug for a missing title", () => {
+    const row = buildSeededBackgroundRow(mapped({ source_title: null }));
+    expect(row).toMatchObject({ name: "Acolyte", skill_proficiencies: ["Insight", "Religion"], feature_name: "Shelter of the Faithful", source_title: "srd-2014" });
+    expect(buildSeededBackgroundRow(mapped({}))?.source_title).toBe("System Reference Document 5.1");
+  });
+
+  it.each([
+    ["no document key", { source_document_key: null }],
+    ["no record key", { source_record_key: null }],
+  ])("refuses a row with %s, since it could not be told apart on a re-run", (_name, over) => {
+    expect(buildSeededBackgroundRow(mapped(over))).toBeNull();
+  });
+
   it("refuses a document with no supported ruleset", () => {
     expect(buildSeededBackgroundRow(mapped({ ruleset: null, provenance: { document: { gamesystem: { key: "pf2e" } } } }))).toBeNull();
   });

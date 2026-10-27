@@ -7,7 +7,6 @@ import {
   buildItemEmbedText,
   buildQuestEmbedText,
   entityEmbedHash,
-  TIE_LIMIT,
   tieNameKey,
   tieSentences,
   type TieLink,
@@ -18,6 +17,34 @@ import {
   type EmbeddableItem,
   type EmbeddableQuest,
 } from "./entityEmbedText";
+
+// ── Shared properties ─────────────────────────────────────────────────────
+//
+// What every builder must hold, whichever field is missing: the output is the
+// text a vector is made from, and its hash decides whether a row is re-embedded,
+// so a stray separator or doubled space is churn, and a dropped field's words
+// must not linger.
+
+/** No double spaces, no clause that is only punctuation, no leading or trailing blank. */
+const STRAY_SEPARATORS = /\s{2}|,\s*\.|\.\s*\.|^\s|\s$|,\s*,/;
+
+const tiptap = (text: string) =>
+  JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+
+/** `alpha alpha ...`: long enough to be cut, with word boundaries everywhere. */
+const words = (word: string, count: number) => Array.from({ length: count }, () => word).join(" ");
+
+/**
+ * A field longer than its limit comes back as the longest whole-word prefix that
+ * fits: never over the limit, never mid-word, and not cut shorter than it must be
+ * (the limit is the contract, so a limit that drifted down would still pass `<=`).
+ */
+function expectCutAtWordBoundary(part: string, source: string, limit: number, word: string) {
+  expect(part.length).toBeLessThanOrEqual(limit);
+  expect(part.length).toBeGreaterThan(limit - word.length - 1);
+  expect(part.split(" ").every((w) => w === word)).toBe(true);
+  expect(source.startsWith(part)).toBe(true);
+}
 
 // ── NPC ───────────────────────────────────────────────────────────────────
 
@@ -35,17 +62,6 @@ function makeNpc(overrides: Partial<EmbeddableNpc> = {}): EmbeddableNpc {
   };
 }
 
-const NPC_NAME_ONLY: EmbeddableNpc = {
-  name: "Baelin Ironforge",
-  race: null,
-  occupation: null,
-  alignment: null,
-  tags: [],
-  appearance: null,
-  personality: null,
-  backstory: null,
-};
-
 describe("buildNpcEmbedText", () => {
   it("builds the complete string for a fully-populated NPC", () => {
     expect(buildNpcEmbedText(makeNpc())).toBe(
@@ -55,106 +71,51 @@ describe("buildNpcEmbedText", () => {
     );
   });
 
-  it("produces exactly the name clause for a name-only NPC — no stray separators or dangling punctuation", () => {
-    expect(buildNpcEmbedText(NPC_NAME_ONLY)).toBe("Baelin Ironforge.");
+  it("is exactly the name when nothing else is known", () => {
+    const bare = makeNpc({ race: null, occupation: null, alignment: null, tags: [], appearance: null, personality: null, backstory: null });
+    expect(buildNpcEmbedText(bare)).toBe("Baelin Ironforge.");
   });
 
-  it("omits the race/occupation/alignment clause entirely when race is missing (no dangling comma)", () => {
-    const text = buildNpcEmbedText(makeNpc({ race: null }));
-    expect(text).toBe(
-      "Baelin Ironforge. blacksmith, Lawful Good. gruff, reliable. " +
-      "Broad-shouldered with soot-stained hands. Short-tempered but fiercely loyal. " +
-      "Fled the mines after the cave-in.",
-    );
+  it.each<[string, NonNullable<Parameters<typeof makeNpc>[0]>, string]>([
+    ["race", { race: null }, "Dwarf"],
+    ["occupation", { occupation: null }, "blacksmith"],
+    ["alignment", { alignment: null }, "Lawful Good"],
+    ["race, occupation and alignment", { race: null, occupation: null, alignment: null }, "Dwarf"],
+    ["tags", { tags: [] }, "gruff"],
+    ["appearance", { appearance: null }, "Broad-shouldered"],
+    ["personality", { personality: null }, "Short-tempered"],
+    ["backstory", { backstory: null }, "Fled the mines"],
+  ])("drops %s cleanly when it is missing", (_label, over, dropped) => {
+    const text = buildNpcEmbedText(makeNpc(over));
+    expect(text).not.toContain(dropped);
+    expect(text).not.toMatch(STRAY_SEPARATORS);
+    expect(text.startsWith("Baelin Ironforge.")).toBe(true);
   });
 
-  it("omits the race/occupation/alignment clause entirely when occupation is missing", () => {
-    const text = buildNpcEmbedText(makeNpc({ occupation: null }));
-    expect(text).toContain("Baelin Ironforge. Dwarf, Lawful Good.");
+  it("keeps what is left of the identity clause in order when one part is missing", () => {
+    expect(buildNpcEmbedText(makeNpc({ race: null }))).toContain("Baelin Ironforge. blacksmith, Lawful Good. gruff");
+    expect(buildNpcEmbedText(makeNpc({ alignment: null }))).toContain("Baelin Ironforge. Dwarf blacksmith. gruff");
   });
 
-  it("never emits a dangling comma when alignment is missing", () => {
-    const text = buildNpcEmbedText(makeNpc({ alignment: null }));
-    expect(text).not.toContain(", .");
-    expect(text).toContain("Baelin Ironforge. Dwarf blacksmith.");
+  it("keeps tags in the order given", () => {
+    expect(buildNpcEmbedText(makeNpc({ tags: ["zebra", "gruff", "aardvark"] }))).toContain("zebra, gruff, aardvark.");
   });
 
-  it("emits an alignment-only clause when race and occupation are both missing", () => {
-    const text = buildNpcEmbedText(makeNpc({ race: null, occupation: null }));
-    expect(text).toBe(
-      "Baelin Ironforge. Lawful Good. gruff, reliable. " +
-      "Broad-shouldered with soot-stained hands. Short-tempered but fiercely loyal. " +
-      "Fled the mines after the cave-in.",
-    );
-  });
-
-  it("omits the race/occupation/alignment clause entirely when all three are missing", () => {
-    const text = buildNpcEmbedText(makeNpc({ race: null, occupation: null, alignment: null }));
-    expect(text).toBe(
-      "Baelin Ironforge. gruff, reliable. " +
-      "Broad-shouldered with soot-stained hands. Short-tempered but fiercely loyal. " +
-      "Fled the mines after the cave-in.",
-    );
-  });
-
-  it("omits the tags clause entirely when tags is an empty array", () => {
-    const text = buildNpcEmbedText(makeNpc({ tags: [] }));
-    expect(text).not.toContain("  ");
-    expect(text).toBe(
-      "Baelin Ironforge. Dwarf blacksmith, Lawful Good. " +
-      "Broad-shouldered with soot-stained hands. Short-tempered but fiercely loyal. " +
-      "Fled the mines after the cave-in.",
-    );
-  });
-
-  it("preserves tag order as given, never re-sorted", () => {
-    const text = buildNpcEmbedText(makeNpc({ tags: ["zebra", "gruff", "aardvark"] }));
-    expect(text).toContain("zebra, gruff, aardvark.");
-  });
-
-  it("omits appearance, personality, and backstory independently when each is missing", () => {
-    expect(buildNpcEmbedText(makeNpc({ appearance: null }))).not.toContain("Broad-shouldered");
-    expect(buildNpcEmbedText(makeNpc({ personality: null }))).not.toContain("Short-tempered");
-    expect(buildNpcEmbedText(makeNpc({ backstory: null }))).not.toContain("Fled the mines");
-  });
-
-  it("never embeds `notes` -- it is not a field on EmbeddableNpc at all", () => {
-    // Type-level guard: EmbeddableNpc has no `notes` key, so there is nothing
-    // a caller could even pass through here. This test exists so the
-    // exclusion is visible in the suite, not just the interface comment.
-    const npc = makeNpc();
-    expect(Object.keys(npc)).not.toContain("notes");
-  });
-
-  it("flattens a Tiptap JSON appearance to plain text", () => {
-    const tiptap = JSON.stringify({
-      type: "doc",
-      content: [{ type: "paragraph", content: [{ type: "text", text: "Soot-stained hands." }] }],
-    });
-    const text = buildNpcEmbedText(makeNpc({ appearance: tiptap }));
+  it("flattens a Tiptap appearance to its words", () => {
+    const text = buildNpcEmbedText(makeNpc({ appearance: tiptap("Soot-stained hands.") }));
     expect(text).toContain("Soot-stained hands.");
     expect(text).not.toContain("{");
   });
 
-  it("truncates a backstory longer than 500 characters at a word boundary, never mid-word", () => {
-    const longBackstory = Array.from({ length: 120 }, () => "alpha").join(" "); // 719 chars
-    const text = buildNpcEmbedText(makeNpc({ backstory: longBackstory }));
-    const backstoryPart = text.split("Short-tempered but fiercely loyal. ")[1]!;
-
-    expect(backstoryPart.length).toBeLessThanOrEqual(500);
-    expect(backstoryPart.split(" ").every((word) => word === "alpha")).toBe(true);
-    expect(longBackstory.startsWith(backstoryPart)).toBe(true);
+  it("cuts a backstory over 500 characters at a word boundary", () => {
+    const long = words("alpha", 120);
+    const text = buildNpcEmbedText(makeNpc({ backstory: long }));
+    expectCutAtWordBoundary(text.split("Short-tempered but fiercely loyal. ")[1], long, 500, "alpha");
   });
 
-  it("collapses runs of whitespace so output is stable regardless of source formatting", () => {
-    const text = buildNpcEmbedText(
-      makeNpc({ race: "Dwarf", occupation: "black\tsmith", personality: "Short\n\ntempered." }),
-    );
+  it("collapses runs of whitespace, whatever field they are in", () => {
+    const text = buildNpcEmbedText(makeNpc({ occupation: "black\tsmith", personality: "Short\n\ntempered." }));
     expect(text).not.toMatch(/\s{2,}/);
-  });
-
-  it("is deterministic — the same input always produces byte-identical output", () => {
-    expect(buildNpcEmbedText(makeNpc())).toBe(buildNpcEmbedText(makeNpc()));
   });
 });
 
@@ -171,14 +132,6 @@ function makeFaction(overrides: Partial<EmbeddableFaction> = {}): EmbeddableFact
   };
 }
 
-const FACTION_NAME_ONLY: EmbeddableFaction = {
-  name: "The Iron Concord",
-  faction_type: null,
-  alignment: null,
-  tags: [],
-  description: null,
-};
-
 describe("buildFactionEmbedText", () => {
   it("builds the complete string for a fully-populated faction", () => {
     expect(buildFactionEmbedText(makeFaction())).toBe(
@@ -187,65 +140,33 @@ describe("buildFactionEmbedText", () => {
     );
   });
 
-  it("produces exactly the name clause for a name-only faction", () => {
-    expect(buildFactionEmbedText(FACTION_NAME_ONLY)).toBe("The Iron Concord.");
+  it("is exactly the name when nothing else is known", () => {
+    expect(buildFactionEmbedText({ name: "The Iron Concord", faction_type: null, alignment: null, tags: [], description: null }))
+      .toBe("The Iron Concord.");
   });
 
-  it("omits the type/alignment clause entirely when faction_type is missing", () => {
-    const text = buildFactionEmbedText(makeFaction({ faction_type: null }));
-    expect(text).toBe(
-      "The Iron Concord. Lawful Neutral. smugglers, docks. " +
-      "A merchant consortium that controls the harbor trade.",
-    );
+  it.each<[string, NonNullable<Parameters<typeof makeFaction>[0]>, string]>([
+    ["type", { faction_type: null }, "Guild"],
+    ["alignment", { alignment: null }, "Lawful Neutral"],
+    ["type and alignment", { faction_type: null, alignment: null }, "Guild"],
+    ["tags", { tags: [] }, "smugglers"],
+    ["description", { description: null }, "merchant consortium"],
+  ])("drops %s cleanly when it is missing", (_label, over, dropped) => {
+    const text = buildFactionEmbedText(makeFaction(over));
+    expect(text).not.toContain(dropped);
+    expect(text).not.toMatch(STRAY_SEPARATORS);
   });
 
-  it("never emits a dangling comma when alignment is missing", () => {
-    const text = buildFactionEmbedText(makeFaction({ alignment: null }));
-    expect(text).not.toContain(", .");
-    expect(text).toContain("The Iron Concord. Guild.");
-  });
-
-  it("omits the type/alignment clause entirely when both are missing", () => {
-    const text = buildFactionEmbedText(makeFaction({ faction_type: null, alignment: null }));
-    expect(text).toBe(
-      "The Iron Concord. smugglers, docks. A merchant consortium that controls the harbor trade.",
-    );
-  });
-
-  it("omits the tags clause entirely when tags is an empty array", () => {
-    const text = buildFactionEmbedText(makeFaction({ tags: [] }));
-    expect(text).toBe(
-      "The Iron Concord. Guild, Lawful Neutral. A merchant consortium that controls the harbor trade.",
-    );
-  });
-
-  it("omits the description entirely when it is missing", () => {
-    const text = buildFactionEmbedText(makeFaction({ description: null }));
-    expect(text).toBe("The Iron Concord. Guild, Lawful Neutral. smugglers, docks.");
-  });
-
-  it("flattens a Tiptap JSON description to plain text", () => {
-    const tiptap = JSON.stringify({
-      type: "doc",
-      content: [{ type: "paragraph", content: [{ type: "text", text: "Controls the harbor trade." }] }],
-    });
-    const text = buildFactionEmbedText(makeFaction({ description: tiptap }));
+  it("flattens a Tiptap description to its words", () => {
+    const text = buildFactionEmbedText(makeFaction({ description: tiptap("Controls the harbor trade.") }));
     expect(text).toContain("Controls the harbor trade.");
     expect(text).not.toContain("{");
   });
 
-  it("truncates a description longer than 500 characters at a word boundary, never mid-word", () => {
-    const longDescription = Array.from({ length: 120 }, () => "alpha").join(" ");
-    const text = buildFactionEmbedText(makeFaction({ description: longDescription }));
-    const descriptionPart = text.split("smugglers, docks. ")[1]!;
-
-    expect(descriptionPart.length).toBeLessThanOrEqual(500);
-    expect(descriptionPart.split(" ").every((word) => word === "alpha")).toBe(true);
-    expect(longDescription.startsWith(descriptionPart)).toBe(true);
-  });
-
-  it("is deterministic — the same input always produces byte-identical output", () => {
-    expect(buildFactionEmbedText(makeFaction())).toBe(buildFactionEmbedText(makeFaction()));
+  it("cuts a description over 500 characters at a word boundary", () => {
+    const long = words("alpha", 120);
+    const text = buildFactionEmbedText(makeFaction({ description: long }));
+    expectCutAtWordBoundary(text.split("smugglers, docks. ")[1], long, 500, "alpha");
   });
 });
 
@@ -262,14 +183,6 @@ function makeLocation(overrides: Partial<EmbeddableLocation> = {}): EmbeddableLo
   };
 }
 
-const LOCATION_MINIMAL: EmbeddableLocation = {
-  name: "The Rusty Anchor",
-  location_type: "tavern",
-  tags: [],
-  player_summary: null,
-  description: null,
-};
-
 describe("buildLocationEmbedText", () => {
   it("builds the complete string for a fully-populated location", () => {
     expect(buildLocationEmbedText(makeLocation())).toBe(
@@ -279,85 +192,39 @@ describe("buildLocationEmbedText", () => {
     );
   });
 
-  it("produces exactly the name and location_type clauses when everything else is absent", () => {
-    expect(buildLocationEmbedText(LOCATION_MINIMAL)).toBe("The Rusty Anchor. tavern.");
+  it("is the name and type when everything else is absent", () => {
+    expect(buildLocationEmbedText(makeLocation({ tags: [], player_summary: null, description: null }))).toBe("The Rusty Anchor. tavern.");
   });
 
-  it("omits the tags clause entirely when tags is an empty array", () => {
-    const text = buildLocationEmbedText(makeLocation({ tags: [] }));
-    expect(text).toBe(
-      "The Rusty Anchor. tavern. A dockside tavern known for cheap ale and quiet corners. " +
-      "Beneath the taproom, a smuggling tunnel connects to the docks.",
-    );
+  it.each<[string, NonNullable<Parameters<typeof makeLocation>[0]>, string]>([
+    ["tags", { tags: [] }, "waterfront"],
+    ["player summary", { player_summary: null }, "dockside tavern"],
+    ["description", { description: null }, "smuggling tunnel"],
+  ])("drops %s cleanly when it is missing", (_label, over, dropped) => {
+    const text = buildLocationEmbedText(makeLocation(over));
+    expect(text).not.toContain(dropped);
+    expect(text).not.toMatch(STRAY_SEPARATORS);
   });
 
-  it("omits the player_summary clause entirely when it is missing", () => {
-    const text = buildLocationEmbedText(makeLocation({ player_summary: null }));
-    expect(text).toBe(
-      "The Rusty Anchor. tavern. waterfront, smugglers. " +
-      "Beneath the taproom, a smuggling tunnel connects to the docks.",
-    );
-  });
-
-  it("omits the description clause entirely when it is missing", () => {
-    const text = buildLocationEmbedText(makeLocation({ description: null }));
-    expect(text).toBe(
-      "The Rusty Anchor. tavern. waterfront, smugglers. A dockside tavern known for cheap ale and quiet corners.",
-    );
-  });
-
-  it("never embeds `notes` -- it is not a field on EmbeddableLocation at all", () => {
-    const location = makeLocation();
-    expect(Object.keys(location)).not.toContain("notes");
-  });
-
-  it("does NOT flatten player_summary as Tiptap JSON — it is stored as plain text", () => {
-    // If a raw '{"type":"doc",...}' string ever ended up in player_summary
-    // (e.g. bad data), it should pass through untouched (module-doc-truncated),
-    // not be silently emptied by a failed Tiptap parse.
-    const rawLookingText = "A place with {curly braces} in the summary.";
-    const text = buildLocationEmbedText(makeLocation({ player_summary: rawLookingText }));
+  it("reads player_summary as plain text, so braces in it are kept and not mistaken for Tiptap", () => {
+    const text = buildLocationEmbedText(makeLocation({ player_summary: "A place with {curly braces} in the summary." }));
     expect(text).toContain("A place with {curly braces} in the summary.");
   });
 
-  it("flattens a Tiptap JSON description to plain text", () => {
-    const tiptap = JSON.stringify({
-      type: "doc",
-      content: [{ type: "paragraph", content: [{ type: "text", text: "A smuggling tunnel." }] }],
-    });
-    const text = buildLocationEmbedText(makeLocation({ description: tiptap }));
+  it("flattens a Tiptap description to its words", () => {
+    const text = buildLocationEmbedText(makeLocation({ description: tiptap("A smuggling tunnel.") }));
     expect(text).toContain("A smuggling tunnel.");
     expect(text).not.toContain("{");
   });
 
-  it("truncates a description longer than 500 characters at a word boundary, never mid-word", () => {
-    const longDescription = Array.from({ length: 120 }, () => "alpha").join(" ");
-    const text = buildLocationEmbedText(makeLocation({ description: longDescription }));
-    const descriptionPart = text.split("A dockside tavern known for cheap ale and quiet corners. ")[1]!;
+  it("cuts a description and a player summary over 500 characters, each at a word boundary", () => {
+    const longDescription = words("alpha", 120);
+    const withLongDescription = buildLocationEmbedText(makeLocation({ description: longDescription }));
+    expectCutAtWordBoundary(withLongDescription.split("quiet corners. ")[1], longDescription, 500, "alpha");
 
-    expect(descriptionPart.length).toBeLessThanOrEqual(500);
-    expect(descriptionPart.split(" ").every((word) => word === "alpha")).toBe(true);
-    expect(longDescription.startsWith(descriptionPart)).toBe(true);
-  });
-
-  it("truncates player_summary longer than 500 characters at a word boundary, never mid-word", () => {
-    const longSummary = Array.from({ length: 120 }, () => "beta").join(" ");
-    const text = buildLocationEmbedText(makeLocation({ player_summary: longSummary, description: null }));
-    const summaryPart = text.split("tavern. waterfront, smugglers. ")[1]!;
-
-    expect(summaryPart.length).toBeLessThanOrEqual(500);
-    expect(summaryPart.split(" ").every((word) => word === "beta")).toBe(true);
-  });
-
-  it("collapses runs of whitespace so output is stable regardless of source formatting", () => {
-    const text = buildLocationEmbedText(
-      makeLocation({ player_summary: "A place\n\nwith   odd\tspacing." }),
-    );
-    expect(text).not.toMatch(/\s{2,}/);
-  });
-
-  it("is deterministic — the same input always produces byte-identical output", () => {
-    expect(buildLocationEmbedText(makeLocation())).toBe(buildLocationEmbedText(makeLocation()));
+    const longSummary = words("beta", 120);
+    const withLongSummary = buildLocationEmbedText(makeLocation({ player_summary: longSummary, description: null }));
+    expectCutAtWordBoundary(withLongSummary.split("waterfront, smugglers. ")[1], longSummary, 500, "beta");
   });
 });
 
@@ -374,14 +241,6 @@ function makeNote(overrides: Partial<EmbeddableNote> = {}): EmbeddableNote {
   };
 }
 
-const NOTE_TITLE_ONLY: EmbeddableNote = {
-  title: "Loose thread: the merchant's ledger",
-  category: "general",
-  session_number: null,
-  tags: [],
-  content: null,
-};
-
 describe("buildNoteEmbedText", () => {
   it("builds the complete string for a fully-populated note", () => {
     expect(buildNoteEmbedText(makeNote())).toBe(
@@ -390,77 +249,34 @@ describe("buildNoteEmbedText", () => {
     );
   });
 
-  it("produces exactly the title and category clauses when everything else is absent", () => {
-    expect(buildNoteEmbedText(NOTE_TITLE_ONLY)).toBe("Loose thread: the merchant's ledger. general.");
+  it("is the title and category when everything else is absent", () => {
+    expect(buildNoteEmbedText({ title: "Loose thread: the merchant's ledger", category: "general", session_number: null, tags: [], content: null }))
+      .toBe("Loose thread: the merchant's ledger. general.");
   });
 
-  it("omits the session-number clause when session_number is null (category-only clause)", () => {
-    const text = buildNoteEmbedText(makeNote({ session_number: null }));
-    expect(text).toContain("The Sunken Vault. session.");
-    expect(text).not.toContain("Session 7");
+  it.each<[string, NonNullable<Parameters<typeof makeNote>[0]>, string]>([
+    ["session number", { session_number: null }, "Session 7"],
+    ["tags", { tags: [] }, "dungeon"],
+    ["content", { content: null }, "vault door"],
+  ])("drops %s cleanly when it is missing", (_label, over, dropped) => {
+    const text = buildNoteEmbedText(makeNote(over));
+    expect(text).not.toContain(dropped);
+    expect(text).not.toMatch(STRAY_SEPARATORS);
   });
 
-  it("includes the session-number clause when session_number is set", () => {
-    const text = buildNoteEmbedText(makeNote({ session_number: 3 }));
-    expect(text).toContain("session, Session 3.");
-  });
-
-  it("never emits a dangling comma when session_number is missing", () => {
-    const text = buildNoteEmbedText(makeNote({ session_number: null }));
-    expect(text).not.toContain(", .");
-  });
-
-  it("omits the tags clause entirely when tags is an empty array", () => {
-    const text = buildNoteEmbedText(makeNote({ tags: [] }));
-    expect(text).toBe(
-      "The Sunken Vault. session, Session 7. " +
-      "The party descended into the flooded ruins and found the vault door ajar.",
-    );
-  });
-
-  it("preserves tag order as given, never re-sorted", () => {
-    const text = buildNoteEmbedText(makeNote({ tags: ["zebra", "gruff", "aardvark"] }));
-    expect(text).toContain("zebra, gruff, aardvark.");
-  });
-
-  it("omits the content clause entirely when it is missing", () => {
-    const text = buildNoteEmbedText(makeNote({ content: null }));
-    expect(text).toBe("The Sunken Vault. session, Session 7. dungeon, vault.");
-  });
-
-  it("flattens a Tiptap JSON content field to plain text", () => {
-    const tiptap = JSON.stringify({
-      type: "doc",
-      content: [{ type: "paragraph", content: [{ type: "text", text: "The vault door was ajar." }] }],
-    });
-    const text = buildNoteEmbedText(makeNote({ content: tiptap }));
+  it("flattens Tiptap content to its words", () => {
+    const text = buildNoteEmbedText(makeNote({ content: tiptap("The vault door was ajar.") }));
     expect(text).toContain("The vault door was ajar.");
     expect(text).not.toContain("{");
   });
 
-  it("truncates content longer than 4000 characters at a word boundary, never mid-word", () => {
-    const longContent = Array.from({ length: 900 }, () => "alpha").join(" "); // 5399 chars
-    const text = buildNoteEmbedText(makeNote({ content: longContent }));
-    const contentPart = text.split("dungeon, vault. ")[1]!;
+  it("keeps up to 4000 characters of content, far more than a 500-character field, and cuts beyond that at a word boundary", () => {
+    const long = words("alpha", 900);
+    const text = buildNoteEmbedText(makeNote({ content: long }));
+    expectCutAtWordBoundary(text.split("dungeon, vault. ")[1], long, 4000, "alpha");
 
-    expect(contentPart.length).toBeLessThanOrEqual(4000);
-    expect(contentPart.split(" ").every((word) => word === "alpha")).toBe(true);
-    expect(longContent.startsWith(contentPart)).toBe(true);
-  });
-
-  it("does NOT truncate content under the 4000-character limit", () => {
-    const shortContent = Array.from({ length: 50 }, () => "alpha").join(" "); // 299 chars
-    const text = buildNoteEmbedText(makeNote({ content: shortContent }));
-    expect(text).toContain(shortContent);
-  });
-
-  it("collapses runs of whitespace so output is stable regardless of source formatting", () => {
-    const text = buildNoteEmbedText(makeNote({ content: "The party\n\nfound   a\tdoor." }));
-    expect(text).not.toMatch(/\s{2,}/);
-  });
-
-  it("is deterministic — the same input always produces byte-identical output", () => {
-    expect(buildNoteEmbedText(makeNote())).toBe(buildNoteEmbedText(makeNote()));
+    const shortEnough = words("alpha", 50);
+    expect(buildNoteEmbedText(makeNote({ content: shortEnough }))).toContain(shortEnough);
   });
 });
 
@@ -489,105 +305,68 @@ describe("buildItemEmbedText", () => {
     );
   });
 
-  it("omits the subtype from the clause without leaving a dangling comma", () => {
-    expect(buildItemEmbedText(makeItem({ subtype: null }))).toContain("Flame Tongue. rare weapon. Requires");
+  it("degrades to the name and the two NOT NULL columns when everything optional is absent", () => {
+    expect(buildItemEmbedText({
+      name: "Rusty Nail", item_type: "gear", rarity: "mundane", subtype: null, requires_attunement: false,
+      attunement_requirements: null, cost: null, tags: [], description: null,
+    })).toBe("Rusty Nail. mundane gear.");
   });
 
-  it("omits the attunement phrase entirely when the item needs no attunement", () => {
-    const text = buildItemEmbedText(makeItem({ requires_attunement: false }));
-    expect(text).not.toContain("attunement");
+  it.each<[string, NonNullable<Parameters<typeof makeItem>[0]>, string]>([
+    ["subtype", { subtype: null }, "longsword"],
+    ["attunement", { requires_attunement: false }, "ttunement"],
+    ["cost", { cost: null }, "5,000 gp"],
+    ["tags", { tags: [] }, "flashy"],
+    ["description", { description: null }, "bonus action"],
+    ["a blank description", { description: "   " }, "bonus action"],
+  ])("drops %s cleanly when it is missing", (_label, over, dropped) => {
+    const text = buildItemEmbedText(makeItem(over));
+    expect(text).not.toContain(dropped);
+    expect(text).not.toMatch(STRAY_SEPARATORS);
   });
 
   // The class words in `attunement_requirements` are the ONLY place a druid
-  // item says "druid" for 16 of the 16 library items attuned by one — see the
-  // field's comment on EmbeddableItem.
+  // item says "druid" for 16 of the 16 library items attuned by one.
   it("carries the attunement requirement text verbatim when it is already a sentence", () => {
-    const text = buildItemEmbedText(makeItem({
-      name: "Staff of the Woodlands",
-      attunement_requirements: "Requires Attunement by a Druid",
-    }));
+    const text = buildItemEmbedText(makeItem({ attunement_requirements: "Requires Attunement by a Druid" }));
     expect(text).toContain("Requires Attunement by a Druid.");
     expect(text).not.toContain("Requires attunement. Requires");
   });
 
   it("turns a bare requirement fragment into a sentence without losing the words", () => {
-    const text = buildItemEmbedText(makeItem({ attunement_requirements: "Druid or Ranger" }));
-    expect(text).toContain("Requires attunement: Druid or Ranger.");
+    expect(buildItemEmbedText(makeItem({ attunement_requirements: "Druid or Ranger" }))).toContain("Requires attunement: Druid or Ranger.");
   });
 
-  it("does not double the full stop when the requirement text already ends in one", () => {
-    const text = buildItemEmbedText(makeItem({
-      attunement_requirements: "the user must be a member of one of the Reghed tribes.",
-    }));
-    expect(text).toContain("Requires attunement: the user must be a member of one of the Reghed tribes.");
+  it("does not double the full stop when the requirement already ends in one", () => {
+    const text = buildItemEmbedText(makeItem({ attunement_requirements: "the user must be a member of one of the Reghed tribes." }));
+    expect(text).toContain("tribes.");
     expect(text).not.toContain("tribes..");
   });
 
   it("keeps the requirement text even when the boolean disagrees with it", () => {
-    const text = buildItemEmbedText(makeItem({
-      requires_attunement: false,
-      attunement_requirements: "Requires Attunement by a Druid",
-    }));
+    const text = buildItemEmbedText(makeItem({ requires_attunement: false, attunement_requirements: "Requires Attunement by a Druid" }));
     expect(text).toContain("Requires Attunement by a Druid.");
   });
 
-  it("degrades to name plus the two NOT NULL columns when everything optional is absent", () => {
-    expect(buildItemEmbedText({
-      name: "Rusty Nail",
-      item_type: "gear",
-      rarity: "mundane",
-      subtype: null,
-      requires_attunement: false,
-      attunement_requirements: null,
-      cost: null,
-      tags: [],
-      description: null,
-    })).toBe("Rusty Nail. mundane gear.");
-  });
-
-  it("truncates a description longer than 500 characters at a word boundary", () => {
-    const longDescription = Array.from({ length: 200 }, () => "alpha").join(" "); // 1199 chars
-    const text = buildItemEmbedText(makeItem({ description: longDescription }));
-    const descriptionPart = text.split("fire, flashy. ")[1]!;
-
-    expect(descriptionPart.length).toBeLessThanOrEqual(500);
-    expect(descriptionPart.split(" ").every((word) => word === "alpha")).toBe(true);
-  });
-
-  it("treats a blank description as absent rather than emitting an empty clause", () => {
-    expect(buildItemEmbedText(makeItem({ description: "   " }))).toBe(
-      "Flame Tongue. rare weapon, longsword. Requires attunement. 5,000 gp. fire, flashy.",
-    );
-  });
-
-  it("collapses runs of whitespace so output is stable regardless of source formatting", () => {
-    const text = buildItemEmbedText(makeItem({ description: "A blade\n\nthat   burns." }));
-    expect(text).not.toMatch(/\s{2,}/);
-  });
-
-  it("is deterministic — the same input always produces byte-identical output", () => {
-    expect(buildItemEmbedText(makeItem())).toBe(buildItemEmbedText(makeItem()));
+  it("cuts a description over 500 characters at a word boundary", () => {
+    const long = words("alpha", 200);
+    const text = buildItemEmbedText(makeItem({ description: long }));
+    expectCutAtWordBoundary(text.split("fire, flashy. ")[1], long, 500, "alpha");
   });
 });
 
 // ── entityEmbedHash ───────────────────────────────────────────────────────
 
 describe("entityEmbedHash", () => {
-  it("is stable for identical text", async () => {
-    const text = buildNpcEmbedText(makeNpc());
-    const [first, second] = await Promise.all([entityEmbedHash(text), entityEmbedHash(text)]);
-    expect(first).toBe(second);
-  });
-
-  it("differs for different text", async () => {
-    const a = await entityEmbedHash(buildNpcEmbedText(makeNpc()));
-    const b = await entityEmbedHash(buildNpcEmbedText(makeNpc({ name: "Someone Else" })));
-    expect(a).not.toBe(b);
-  });
-
-  it("returns lowercase hex SHA-256 (64 chars)", async () => {
-    const hash = await entityEmbedHash("The Rusty Anchor.");
-    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+  it("is the same for the same text and different for different text", async () => {
+    const [a, b, c] = await Promise.all([
+      entityEmbedHash(buildNpcEmbedText(makeNpc())),
+      entityEmbedHash(buildNpcEmbedText(makeNpc())),
+      entityEmbedHash(buildNpcEmbedText(makeNpc({ name: "Someone Else" }))),
+    ]);
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 
@@ -636,19 +415,14 @@ describe("buildQuestEmbedText", () => {
     const beats = Array.from({ length: 200 }, (_, i) => ({
       id: `b${i}`, title: `Beat number ${i} in a long quest`, created_at: `2026-01-01T00:${String(Math.floor(i / 60)).padStart(2, "0")}:${String(i % 60).padStart(2, "0")}Z`,
     }));
-    expect(buildQuestEmbedText(makeQuest({ beats })).length).toBeLessThanOrEqual(1500);
+    const text = buildQuestEmbedText(makeQuest({ beats }));
+    expect(text.length).toBeLessThanOrEqual(1500);
+    // Cut at a word boundary, so a little under; but not far under (a limit that drifted down would still be <= 1500).
+    expect(text.length).toBeGreaterThan(1450);
   });
 
   it("degrades to the title alone", () => {
     expect(buildQuestEmbedText({ title: "Bare", tags: [], summary: null, objectives: [], beats: [] })).toBe("Bare.");
-  });
-
-  it("hashes differently when the text changes, identically when nothing does", async () => {
-    const a = await entityEmbedHash(buildQuestEmbedText(makeQuest()));
-    const b = await entityEmbedHash(buildQuestEmbedText(makeQuest()));
-    const c = await entityEmbedHash(buildQuestEmbedText(makeQuest({ summary: "Different." })));
-    expect(a).toBe(b);
-    expect(a).not.toBe(c);
   });
 });
 
@@ -699,7 +473,8 @@ describe("tieSentences", () => {
       many.set(tieNameKey("npc", `n${i}`), `Person ${String(i).padStart(2, "0")}`);
       links.push({ from_kind: "npc", from_id: "hub", to_kind: "npc", to_id: `n${i}`, type: "friend" });
     }
-    expect(tieSentences("npc", "hub", links, many)).toHaveLength(TIE_LIMIT);
+    // App convention (#1084): at most twelve ties go into one embed text.
+    expect(tieSentences("npc", "hub", links, many)).toHaveLength(12);
   });
 });
 
@@ -728,7 +503,6 @@ describe("tie clauses", () => {
   it("is deterministic in the order ties are given", () => {
     const one = buildNpcEmbedText(makeNpc({ ties: ["b one", "a two"] }));
     const two = buildNpcEmbedText(makeNpc({ ties: ["a two", "b one"] }));
-    expect(entityEmbedHash(one)).toEqual(entityEmbedHash(two));
     expect(one).toBe(two);
   });
 
