@@ -19,6 +19,7 @@ import {
   pdfProgressLabel,
   utf8ByteLength,
   PDF_CHUNK_BUDGET_BYTES,
+  PDF_CHUNK_MAX_PAGES,
 } from "./pdfChunks";
 
 describe("planPdfChunks", () => {
@@ -59,8 +60,22 @@ describe("planPdfChunks", () => {
     expect(planPdfChunks([900], 100, 1000)).toEqual([{ start: 0, end: 1 }]);
   });
 
-  it("defaults to the 40 MB one request render-pdf always accepted", () => {
-    expect(PDF_CHUNK_BUDGET_BYTES).toBe(40 * 1024 * 1024);
+  it("also starts a new chunk once a chunk holds maxPages pages", () => {
+    expect(planPdfChunks([1, 1, 1, 1, 1], 0, 1000, 2)).toEqual([
+      { start: 0, end: 2 },
+      { start: 2, end: 4 },
+      { start: 4, end: 5 },
+    ]);
+  });
+
+  it("fits a chunk of exactly maxPages pages", () => {
+    expect(planPdfChunks([1, 1, 1], 0, 1000, 3)).toEqual([{ start: 0, end: 3 }]);
+  });
+
+  it("defaults to parts Cloudflare was measured to finish, well under what render-pdf accepts", () => {
+    // 27 Oct 2026: 319 pages / 31 MB failed (503, 7010); 160 pages / 13.5 MB and 40 pages / 17.5 MB printed.
+    expect(PDF_CHUNK_BUDGET_BYTES).toBe(16 * 1024 * 1024);
+    expect(PDF_CHUNK_MAX_PAGES).toBe(150);
   });
 });
 

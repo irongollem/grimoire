@@ -24,12 +24,17 @@ import {
 } from "pdf-lib";
 
 /**
- * What one chunk's assembled HTML may weigh: exactly what render-pdf accepted
- * as ONE request before parts existed (PDF_HTML_MAX_BYTES, 40 MB, measured on
- * the html string itself; the JSON envelope is built and escaped client-side
- * and is not counted). Any book that printed whole then still prints whole.
+ * What one chunk's assembled HTML may weigh, and how many pages it may hold.
+ * render-pdf ACCEPTS up to 40 MB (PDF_HTML_MAX_BYTES), but Cloudflare's printer
+ * does not finish everything it accepts: measured on 27 Oct 2026 against the
+ * real Browser Run /pdf endpoint with the 478-page Sothery draft, a 319-page,
+ * 31 MB part failed after 35 s with 503 "Service unavailable" (code 7010),
+ * while 160 pages at 13.5 MB (6 s of browser time) and the book's heaviest 40
+ * pages at 17.5 MB (8 s) printed. The limits leave room under both measured
+ * successes; a part costs one render, so smaller parts only cost requests.
  */
-export const PDF_CHUNK_BUDGET_BYTES = 40 * 1024 * 1024;
+export const PDF_CHUNK_BUDGET_BYTES = 16 * 1024 * 1024;
+export const PDF_CHUNK_MAX_PAGES = 150;
 
 /** UTF-8 byte length of a string without allocating the encoded copy. */
 export function utf8ByteLength(s: string): number {
@@ -72,13 +77,15 @@ export class PdfPageTooLargeError extends Error {
 
 /**
  * Greedy, in order: a chunk takes pages until the next one would push
- * `overheadBytes + sum(pages)` past the budget. A total that exactly equals the
- * budget fits. A page that cannot fit even alone throws, naming it (1-based).
+ * `overheadBytes + sum(pages)` past the budget or the chunk past `maxPages`. A
+ * total that exactly equals a limit fits. A page that cannot fit even alone
+ * throws, naming it (1-based).
  */
 export function planPdfChunks(
   pageBytes: readonly number[],
   overheadBytes: number,
   budget: number = PDF_CHUNK_BUDGET_BYTES,
+  maxPages: number = PDF_CHUNK_MAX_PAGES,
 ): PageRange[] {
   const ranges: PageRange[] = [];
   let start = 0;
@@ -87,7 +94,7 @@ export function planPdfChunks(
     if (overheadBytes + pageBytes[i] > budget) {
       throw new PdfPageTooLargeError(i + 1, overheadBytes + pageBytes[i], budget);
     }
-    if (used + pageBytes[i] > budget) {
+    if (used + pageBytes[i] > budget || i - start >= maxPages) {
       ranges.push({ start, end: i });
       start = i;
       used = overheadBytes;
