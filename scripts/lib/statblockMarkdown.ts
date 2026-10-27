@@ -280,3 +280,28 @@ export function parseStatblockFile(markdown: string, source?: string): MonsterRo
   if (body === null) throw new StatblockParseError("no `::: statblock` block");
   return toMonsterRow(parseBlock(body), source);
 }
+
+/** One row of the bestiary art map: a monster name and where its picture may come from. */
+export interface BestiaryArtRow {
+  name: string;
+  existing: string | undefined;
+  alt: string | undefined;
+}
+
+/**
+ * Reads the `| Monster | Existing | Alt |` table of `data/bestiary-art.md`. The header,
+ * the `|---|` rule and rows without a name are skipped; empty cells are undefined. The
+ * reference forms in the cells are read by `parseArtReference` (lib/scriptoriumBook.ts).
+ */
+export function parseBestiaryArtMap(markdown: string): BestiaryArtRow[] {
+  const rows: BestiaryArtRow[] = [];
+  for (const line of markdown.split(/\r?\n/)) {
+    const text = line.trim();
+    if (!text.startsWith("|")) continue;
+    const cells = text.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+    const [name, existing, alt] = cells;
+    if (!name || /^-+$/.test(name.replace(/[:\s]/g, "")) || name.toLowerCase() === "monster") continue;
+    rows.push({ name, existing: existing || undefined, alt: alt || undefined });
+  }
+  return rows;
+}

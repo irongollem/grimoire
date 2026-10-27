@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   StatblockParseError,
   extractBlock,
+  parseBestiaryArtMap,
   parseAbilities,
   parseBlock,
   parseMeta,
@@ -159,4 +160,27 @@ describe("parseStatblockFile", () => {
     expect(() => parseStatblockFile("no block")).toThrow("no `::: statblock` block");
     expect(() => parseStatblockFile(CANDY_ARCHER.replace("hp: 45 (7d8 + 14)", "hp:"))).toThrow('"hp" is missing');
   });
+});
+
+describe("parseBestiaryArtMap", () => {
+  const table = `# Bestiary art, by monster
+
+Prose.
+
+| Monster | Existing | Alt |
+|---|---|---|
+| The Kettle-Eel | art-955/kind-country/out/creature-the-kettle-eel.png |  |
+| Hollow One | campaign-npc: The Hollow Ones | art-955/kind-country/out/creature-hollow-ones.png |
+| Candy Archer | illustrations/monsters/candy archer.png |  |
+`;
+
+  it("reads name, existing and alt, skipping header and rule", () => {
+    expect(parseBestiaryArtMap(table)).toEqual([
+      { name: "The Kettle-Eel", existing: "art-955/kind-country/out/creature-the-kettle-eel.png", alt: undefined },
+      { name: "Hollow One", existing: "campaign-npc: The Hollow Ones", alt: "art-955/kind-country/out/creature-hollow-ones.png" },
+      { name: "Candy Archer", existing: "illustrations/monsters/candy archer.png", alt: undefined },
+    ]);
+  });
+
+  it("finds nothing in prose without a table", () => expect(parseBestiaryArtMap("no table here")).toEqual([]));
 });

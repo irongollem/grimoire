@@ -18,15 +18,35 @@
  * owner does not own. The default target is the local stack and anything but
  * loopback is refused; production needs both --production and --yes-production.
  * Output never includes a key.
+ *
+ * --art (after the import step, so a new monster gets its picture in the same run):
+ * reads the bestiary art map (--art-map, a `| Monster | Existing | Alt |` table) and
+ * puts each matched monster's picture on its row, because the book embeds the stat
+ * block and draws the monster's own `image_url`. `Existing` then `Alt` are resolved
+ * like the book's art slots (`campaign-npc: <Name>` reuses that NPC's portrait URL;
+ * `art-955/...` is a file under --desktop-dir; anything else is under --source-dir).
+ * A file is resized, marked as AI-generated and stored in `monster-images/<owner>/
+ * <sha256>.webp` (R2 + CDN URL in production, local Storage otherwise), with an
+ * `image_provenance` row. A monster whose `image_url` is already something else is
+ * skipped unless --replace-art. A row whose file is not painted yet is reported as
+ * pending; run again later. The focal point is left alone.
  */
-import { readdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { r2ConfigFrom } from "../supabase/functions/_shared/r2/config.ts";
+import { type PreparedImage, type Storage, localStorage, prepareImage, r2Storage, writeProvenance } from "./lib/bookImages.ts";
+import { assertCampaignOwner, loadNpcPortraits, readAll, request } from "./lib/campaignRest.ts";
+import { pooled } from "./lib/pool.ts";
+import { expandHome, resolveArtSlot } from "./lib/scriptoriumBook.ts";
 import { type Target, resolveTarget } from "./stat-blocks/rows.ts";
-import { DEFAULT_SOURCE, type MonsterRowFields, StatblockParseError, normalizeName, parseStatblockFile } from "./lib/statblockMarkdown.ts";
+import { DEFAULT_SOURCE, type MonsterRowFields, StatblockParseError, normalizeName, parseBestiaryArtMap, parseStatblockFile } from "./lib/statblockMarkdown.ts";
 
 const DEFAULT_DIR = "~/Documents/Claude/Projects/Sothery Book I - manuscript/data/statblocks/";
+const DEFAULT_ART_MAP = "~/Documents/Claude/Projects/Sothery Book I - manuscript/data/bestiary-art.md";
+const DEFAULT_SOURCE_DIR = "~/Documents/Claude/Projects/Late in the Kind Country - stay as long as you like/";
+const DEFAULT_DESKTOP_DIR = "~/Desktop";
+const ART_BUCKET = "monster-images";
 const DEFAULT_CAMPAIGN = "f6220b21-bff2-4419-a8c1-3dd7d6fc371b";
 const DEFAULT_OWNER = "fc8ae595-641f-4127-87ad-03588f3710d1";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -40,45 +60,11 @@ type Outcome =
   | { file: string; name: string; action: "insert" | "update"; id?: string }
   | { file: string; name?: string; action: "skip"; reason: string };
 
-function expandHome(path: string): string {
-  return path.startsWith("~") ? join(homedir(), path.slice(1)) : path;
-}
 
-function headers(target: Target, extra: Record<string, string> = {}): Record<string, string> {
-  return { apikey: target.key, Authorization: `Bearer ${target.key}`, ...extra };
-}
-
-/** Status only: a body could echo row content. */
-async function request(target: Target, method: string, path: string, body?: unknown): Promise<unknown> {
-  const response = await fetch(`${target.origin}/rest/v1/${path}`, {
-    method,
-    headers: headers(target, { "Content-Type": "application/json", Prefer: "return=representation" }),
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    // PostgREST error bodies carry a message, never row data; trim to the message.
-    let message = `${response.status}`;
-    try {
-      const parsed = JSON.parse(detail) as { message?: string };
-      if (parsed.message) message += ` ${parsed.message}`;
-    } catch {
-      // Not JSON: status alone.
-    }
-    throw new Error(`${method} ${path.split("?")[0]} failed (${message}).`);
-  }
-  return response.status === 204 ? null : response.json();
-}
-
-async function assertCampaignOwner(target: Target, campaignId: string, userId: string): Promise<void> {
-  const rows = (await request(target, "GET", `campaigns?id=eq.${campaignId}&select=id,user_id`)) as { id: string; user_id: string }[];
-  if (rows.length === 0) throw new Error(`Campaign ${campaignId} does not exist on ${target.label}.`);
-  if (rows[0].user_id !== userId) throw new Error(`Campaign ${campaignId} is not owned by ${userId} on ${target.label}.`);
-}
 
 async function existingMonsters(target: Target, campaignId: string): Promise<Map<string, ExistingMonster[]>> {
   const byName = new Map<string, ExistingMonster[]>();
-  const rows = (await request(target, "GET", `monsters?campaign_id=eq.${campaignId}&select=id,name&limit=1000`)) as ExistingMonster[];
+  const rows = await readAll<ExistingMonster>(target, `monsters?campaign_id=eq.${campaignId}&select=id,name`);
   for (const row of rows) {
     const key = normalizeName(row.name);
     byName.set(key, [...(byName.get(key) ?? []), row]);
@@ -98,6 +84,130 @@ function updatePayload(row: MonsterRowFields): Record<string, unknown> {
   };
 }
 
+interface MonsterArtRow {
+  id: string | undefined;
+  name: string;
+  image_url: string | null;
+}
+
+interface ArtOptions {
+  mapPath: string;
+  sourceDir: string;
+  desktopDir: string;
+  replace: boolean;
+  dryRun: boolean;
+  production: boolean;
+  campaignId: string;
+  userId: string;
+}
+
+/** The art step: see the header. Returns the number of failed writes. */
+async function applyArt(target: Target, monsters: MonsterArtRow[], opts: ArtOptions): Promise<number> {
+  const map = parseBestiaryArtMap(readFileSync(opts.mapPath, "utf8"));
+  const { portraits } = await loadNpcPortraits(target, opts.campaignId);
+  const lookups = { npcPortraits: portraits, fileExists: existsSync, desktopDir: opts.desktopDir, sourceDir: opts.sourceDir };
+  const byName = new Map<string, MonsterArtRow[]>();
+  for (const m of monsters) byName.set(normalizeName(m.name), [...(byName.get(normalizeName(m.name)) ?? []), m]);
+
+  const storage: Storage = opts.production
+    ? r2Storage(r2ConfigFrom((k) => process.env[k]), process.env.ASSET_CDN_URL?.trim() || null, ART_BUCKET)
+    : localStorage(target, ART_BUCKET);
+  if (opts.production && !opts.dryRun) {
+    if (r2ConfigFrom((k) => process.env[k]) === null) throw new Error("R2 is not configured (R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).");
+    if (!process.env.ASSET_CDN_URL?.trim()) throw new Error("ASSET_CDN_URL is not set.");
+  }
+
+  type Plan = { monster: MonsterArtRow; via: string; url: string | null; image?: PreparedImage };
+  const plans: Plan[] = [];
+  const pending: string[] = [];
+  const noMonster: string[] = [];
+  const keptOwn: string[] = [];
+  const ambiguous: string[] = [];
+  let unchanged = 0;
+
+  const resolved: { monster: MonsterArtRow; resolved: NonNullable<ReturnType<typeof resolveArtSlot>> }[] = [];
+  for (const row of map) {
+    const matches = byName.get(normalizeName(row.name)) ?? [];
+    if (matches.length === 0) {
+      noMonster.push(row.name);
+      continue;
+    }
+    if (matches.length > 1) {
+      ambiguous.push(`${row.name} (${matches.length} monsters share the name)`);
+      continue;
+    }
+    const art = resolveArtSlot({ slug: row.name, size: "full", existing: row.existing, alt: row.alt }, lookups);
+    if (!art) {
+      pending.push(`${row.name} (${row.existing ?? row.alt ?? "no source"})`);
+      continue;
+    }
+    resolved.push({ monster: matches[0], resolved: art });
+  }
+
+  // Prepare each distinct file once (its URL is fixed by its content hash), then decide per monster.
+  const files = [...new Set(resolved.flatMap((r) => (r.resolved.kind === "file" ? [r.resolved.path] : [])))];
+  const prepared = new Map<string, PreparedImage>();
+  await pooled(files, 4, async (file) => {
+    prepared.set(file, await prepareImage(file, opts.userId));
+  });
+  for (const { monster, resolved: art } of resolved) {
+    const image = art.kind === "file" ? prepared.get(art.path) : undefined;
+    const url = art.kind === "url" ? art.url : image ? storage.url(image.path) : null;
+    if (monster.image_url === url) {
+      unchanged++;
+    } else if (monster.image_url && !opts.replace) {
+      keptOwn.push(monster.name);
+    } else {
+      plans.push({ monster, via: art.via, url, image });
+    }
+  }
+
+  let written = 0;
+  let uploaded = 0;
+  let reused = 0;
+  const failures: string[] = [];
+  if (!opts.dryRun) {
+    const done = new Set<string>();
+    await pooled(plans, 4, async (plan) => {
+      try {
+        if (plan.image) {
+          const key = plan.image.path;
+          if (!done.has(key)) {
+            done.add(key);
+            if (await storage.has(key)) reused++;
+            else {
+              await storage.put(key, plan.image.bytes);
+              uploaded++;
+            }
+            await writeProvenance(target, ART_BUCKET, plan.image, opts.userId);
+          }
+        }
+        if (!plan.monster.id) throw new Error("monster row has no id");
+        await request(target, "PATCH", `monsters?id=eq.${plan.monster.id}&campaign_id=eq.${opts.campaignId}`, { image_url: plan.url });
+        written++;
+      } catch (error) {
+        failures.push(`${plan.monster.name}: ${error instanceof Error ? error.message : "failed"}`);
+      }
+    });
+  }
+
+  const section = (title: string, items: string[]) => {
+    if (items.length) console.log(`\n${title} (${items.length}):\n${items.map((i) => `  - ${i}`).join("\n")}`);
+  };
+  console.log(`\nArt map ${map.length} row(s), campaign monsters ${monsters.length}.`);
+  console.log(
+    opts.dryRun
+      ? `Art: would set ${plans.length} (${plans.filter((p) => p.image).length} from files, ${plans.filter((p) => !p.image).length} NPC portraits), unchanged ${unchanged}, pending ${pending.length}. Dry run: nothing written.`
+      : `Art: set ${written} (uploaded ${uploaded} image(s), reused ${reused}), unchanged ${unchanged}, pending ${pending.length}.`,
+  );
+  section("Pending (picture not available yet; run again later)", pending);
+  section("Kept their own art (use --replace-art to overwrite)", keptOwn);
+  section("No monster of this name in the campaign", noMonster);
+  section("Ambiguous names (skipped)", ambiguous);
+  section("Failed", failures);
+  return failures.length;
+}
+
 function printSummary(outcomes: Outcome[], dryRun: boolean): void {
   const count = (action: Outcome["action"]) => outcomes.filter((o) => o.action === action).length;
   for (const o of outcomes) {
@@ -114,6 +224,10 @@ function printSummary(outcomes: Outcome[], dryRun: boolean): void {
   );
 }
 
+async function artRows(target: Target, campaignId: string): Promise<MonsterArtRow[]> {
+  return readAll<MonsterArtRow>(target, `monsters?campaign_id=eq.${campaignId}&select=id,name,image_url`);
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
@@ -121,6 +235,11 @@ async function main(): Promise<void> {
       "campaign-id": { type: "string", default: DEFAULT_CAMPAIGN },
       "user-id": { type: "string", default: DEFAULT_OWNER },
       source: { type: "string", default: DEFAULT_SOURCE },
+      art: { type: "boolean", default: false },
+      "replace-art": { type: "boolean", default: false },
+      "art-map": { type: "string", default: DEFAULT_ART_MAP },
+      "source-dir": { type: "string", default: DEFAULT_SOURCE_DIR },
+      "desktop-dir": { type: "string", default: DEFAULT_DESKTOP_DIR },
       "dry-run": { type: "boolean", default: false },
       production: { type: "boolean", default: false },
       "yes-production": { type: "boolean", default: false },
@@ -133,6 +252,8 @@ async function main(): Promise<void> {
   if (values.production && !dryRun && !values["yes-production"]) {
     throw new Error("Refusing to write to production without --yes-production (use --production --yes-production, or --dry-run).");
   }
+
+  if (values["replace-art"] && !values.art) throw new Error("--replace-art only means something with --art.");
 
   const dir = resolve(expandHome(values.dir));
   const files = readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
@@ -201,6 +322,26 @@ async function main(): Promise<void> {
   }
 
   printSummary(outcomes, dryRun);
+  if (values.art) {
+    let monsters: MonsterArtRow[];
+    if (dryRun) {
+      // Planned inserts do not exist yet; they are planned alongside the rows already there.
+      const planned = outcomes.flatMap((o) => (o.action === "insert" ? [{ id: undefined, name: o.name, image_url: null }] : []));
+      monsters = [...(await artRows(target, campaignId)), ...planned];
+    } else {
+      monsters = await artRows(target, campaignId);
+    }
+    failed += await applyArt(target, monsters, {
+      mapPath: resolve(expandHome(values["art-map"])),
+      sourceDir: resolve(expandHome(values["source-dir"])),
+      desktopDir: resolve(expandHome(values["desktop-dir"])),
+      replace: values["replace-art"],
+      dryRun,
+      production: values.production,
+      campaignId,
+      userId,
+    });
+  }
   if (failed > 0) {
     console.error(`${failed} write(s) failed.`);
     process.exitCode = 1;

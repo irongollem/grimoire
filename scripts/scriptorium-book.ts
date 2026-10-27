@@ -30,22 +30,16 @@
  * The default target is the local stack and anything but loopback is refused; production
  * needs both --production and --yes-production. Output never includes a key.
  */
-import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import sharp from "sharp";
 import { markdownToScriptoriumContent, type ArtSlot } from "../src/lib/scriptorium/markdownImport.ts";
-import { assetCdnUrl } from "../supabase/functions/_shared/cdn-buckets.ts";
-import { r2ConfigFrom, r2ObjectKey, IMMUTABLE_CACHE_CONTROL, type R2Config } from "../supabase/functions/_shared/r2/config.ts";
-import { headObject, putObject } from "../supabase/functions/_shared/r2/client.ts";
-import { markGeneratedImage } from "../supabase/functions/_shared/provenance/mark.ts";
-import type { AiProvenance } from "../supabase/functions/_shared/provenance/types.ts";
-import { imageProvenanceStem } from "../supabase/functions/_shared/provenance/key.ts";
+import { type PreparedImage, localStorage, prepareImage, r2Storage, writeProvenance } from "./lib/bookImages.ts";
+import { assertCampaignOwner, loadNpcPortraits, readAll, request } from "./lib/campaignRest.ts";
 import { pooled } from "./lib/pool.ts";
+import { r2ConfigFrom } from "../supabase/functions/_shared/r2/config.ts";
 import { normalizeName } from "./lib/name-matching.ts";
 import {
-  assetImagePath,
   chapterFileNames,
   countNodes,
   countWords,
@@ -65,31 +59,8 @@ const DEFAULT_TITLE = "Sothery: A Campaign Setting";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const BUCKET = "asset-images";
-const MAX_EDGE = 2400;
-const WEBP_QUALITY = 82;
 /** render-pdf refuses a page over 40 MB; leave room for the text. */
 const IMAGE_BYTES_WARNING = 30 * 1024 * 1024;
-
-const GENERATOR_TYPE = "setting-book-art";
-/** The GPT art pipeline's output folder: the only pictures whose generator is known. */
-const GPT_OUTPUT = "/art-955/kind-country/out/";
-
-/**
- * Every picture in the book is AI-generated, so every one is marked. Only the
- * GPT pipeline's output has a known generator; the author's own illustrations
- * folder was made with tools this script cannot name, so those say "unknown"
- * rather than claim a model they were not made with.
- */
-function provenanceFor(file: string, generatedAt: string): AiProvenance {
-  const gpt = file.includes(GPT_OUTPUT);
-  return {
-    generatorType: GENERATOR_TYPE,
-    provider: gpt ? "openai" : "unknown",
-    model: gpt ? "gpt-image-2" : "unknown",
-    generatedAt,
-    edited: false,
-  };
-}
 
 /** Embed types and the table + name column each is looked up in. */
 const EMBED_TABLES: Record<string, { table: string; column: string }> = {
@@ -101,46 +72,7 @@ const EMBED_TABLES: Record<string, { table: string; column: string }> = {
   quest: { table: "quests", column: "title" },
 };
 
-function headers(target: Target, extra: Record<string, string> = {}): Record<string, string> {
-  return { apikey: target.key, Authorization: `Bearer ${target.key}`, ...extra };
-}
 
-/** Status only: a body could echo row content. */
-async function request(target: Target, method: string, path: string, body?: unknown, extra: Record<string, string> = {}): Promise<unknown> {
-  const response = await fetch(`${target.origin}/rest/v1/${path}`, {
-    method,
-    headers: headers(target, { "Content-Type": "application/json", Prefer: "return=representation", ...extra }),
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!response.ok) {
-    let message = `${response.status}`;
-    try {
-      const parsed = JSON.parse(await response.text()) as { message?: string };
-      if (parsed.message) message += ` ${parsed.message}`;
-    } catch {
-      // Not JSON: status alone.
-    }
-    throw new Error(`${method} ${path.split("?")[0]} failed (${message}).`);
-  }
-  const text = await response.text();
-  return text ? (JSON.parse(text) as unknown) : null;
-}
-
-async function readAll<T>(target: Target, path: string): Promise<T[]> {
-  const rows: T[] = [];
-  const page = 1000;
-  for (let offset = 0; ; offset += page) {
-    const batch = (await request(target, "GET", `${path}&order=id&limit=${page}&offset=${offset}`)) as T[];
-    rows.push(...batch);
-    if (batch.length < page) return rows;
-  }
-}
-
-async function assertCampaignOwner(target: Target, campaignId: string, userId: string): Promise<void> {
-  const rows = (await request(target, "GET", `campaigns?id=eq.${campaignId}&select=id,user_id`)) as { id: string; user_id: string }[];
-  if (rows.length === 0) throw new Error(`Campaign ${campaignId} does not exist on ${target.label}.`);
-  if (rows[0].user_id !== userId) throw new Error(`Campaign ${campaignId} is not owned by ${userId} on ${target.label}.`);
-}
 
 type EmbedIndex = Map<string, Map<string, string[]>>;
 
@@ -156,80 +88,6 @@ async function loadEmbedIndex(target: Target, campaignId: string): Promise<Embed
     index.set(type, byName);
   }
   return index;
-}
-
-/** Portrait URL by normalised name; a name shared by several NPCs with portraits is left out as ambiguous. */
-async function loadNpcPortraits(target: Target, campaignId: string): Promise<{ portraits: Map<string, string>; ambiguous: Set<string> }> {
-  const rows = await readAll<{ name: string; portrait_url: string | null }>(target, `npcs?campaign_id=eq.${campaignId}&select=id,name,portrait_url`);
-  const portraits = new Map<string, string>();
-  const ambiguous = new Set<string>();
-  for (const row of rows) {
-    if (!row.portrait_url) continue;
-    const key = normalizeName(row.name);
-    if (portraits.has(key) && portraits.get(key) !== row.portrait_url) ambiguous.add(key);
-    portraits.set(key, row.portrait_url);
-  }
-  for (const key of ambiguous) portraits.delete(key);
-  return { portraits, ambiguous };
-}
-
-interface PreparedImage {
-  path: string;
-  bytes: Uint8Array;
-  provenance: AiProvenance;
-  sourceBytes: number;
-}
-
-/** Resize, encode as WebP, mark as AI-generated, and key by the hash of the final bytes. */
-async function prepareImage(file: string, userId: string): Promise<PreparedImage> {
-  const prov = provenanceFor(file, statSync(file).mtime.toISOString());
-  const source = readFileSync(file);
-  const webp = await sharp(source)
-    .rotate()
-    .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: WEBP_QUALITY })
-    .toBuffer();
-  const bytes = markGeneratedImage(new Uint8Array(webp), "image/webp", prov);
-  const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 40);
-  return { path: assetImagePath(userId, hash), bytes, provenance: prov, sourceBytes: source.byteLength };
-}
-
-interface Storage {
-  /** Whether the object is already stored; null when it cannot be told (a dry run without R2 credentials). */
-  has: (path: string) => Promise<boolean | null>;
-  put: (path: string, bytes: Uint8Array) => Promise<void>;
-  url: (path: string) => string;
-}
-
-function localStorage(target: Target): Storage {
-  const publicUrl = (path: string) => `${target.origin}/storage/v1/object/public/${BUCKET}/${path}`;
-  return {
-    has: async (path) => (await fetch(publicUrl(path), { method: "HEAD" })).ok,
-    put: async (path, bytes) => {
-      const response = await fetch(`${target.origin}/storage/v1/object/${BUCKET}/${path}`, {
-        method: "POST",
-        headers: headers(target, { "Content-Type": "image/webp", "x-upsert": "true" }),
-        body: Buffer.from(bytes),
-      });
-      if (!response.ok) throw new Error(`Local storage upload of ${path} failed (${response.status}).`);
-    },
-    url: publicUrl,
-  };
-}
-
-function r2Storage(config: R2Config | null, cdnBase: string | null): Storage {
-  return {
-    has: async (path) => (config === null ? null : (await headObject(config, r2ObjectKey(BUCKET, path))) !== null),
-    put: async (path, bytes) => {
-      if (config === null) throw new Error("R2 is not configured (R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).");
-      await putObject(config, { key: r2ObjectKey(BUCKET, path), body: bytes, contentType: "image/webp", cacheControl: IMMUTABLE_CACHE_CONTROL });
-    },
-    url: (path) => {
-      const url = assetCdnUrl(BUCKET, path, cdnBase);
-      if (url === null) throw new Error("ASSET_CDN_URL is not set, so the stored URL cannot be built.");
-      return url;
-    },
-  };
 }
 
 function slotKey(slot: ArtSlot): string {
@@ -273,8 +131,8 @@ async function main(): Promise<void> {
   await assertCampaignOwner(target, campaignId, userId);
 
   const storage = values.production
-    ? r2Storage(r2ConfigFrom((k) => process.env[k]), process.env.ASSET_CDN_URL?.trim() || null)
-    : localStorage(target);
+    ? r2Storage(r2ConfigFrom((k) => process.env[k]), process.env.ASSET_CDN_URL?.trim() || null, BUCKET)
+    : localStorage(target, BUCKET);
   if (values.production && !dryRun) {
     if (r2ConfigFrom((k) => process.env[k]) === null) throw new Error("R2 is not configured (R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).");
     if (!process.env.ASSET_CDN_URL?.trim()) throw new Error("ASSET_CDN_URL is not set.");
@@ -320,13 +178,7 @@ async function main(): Promise<void> {
         await storage.put(image.path, image.bytes);
         uploaded++;
       }
-      await request(
-        target,
-        "POST",
-        "image_provenance?on_conflict=bucket,stem",
-        { bucket: BUCKET, stem: imageProvenanceStem(image.path), user_id: userId, provenance: image.provenance },
-        { Prefer: "resolution=merge-duplicates,return=minimal" },
-      );
+      await writeProvenance(target, BUCKET, image, userId);
     } catch (error) {
       uploadFailures.push(`${file}: ${error instanceof Error ? error.message : "failed"}`);
     }
