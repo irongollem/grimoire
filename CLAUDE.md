@@ -438,6 +438,7 @@ A DM can replace a canonical SRD image with their own — that override lives in
 | A multi-module subsystem, however many callers it has | `src/lib/<name>/`    |
 | Static data tables with no logic                      | `src/data/`          |
 | A lone utility used by three or more features         | `src/lib/` root      |
+| A test-only helper shared across features (the Supabase fake) | `src/test/`  |
 
 Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/campaignLiveSync/`, `lib/canvasControls/` (the Photoshop/Figma wheel, zoom-key and Space rules every design canvas shares), `lib/dice/`, `lib/downtime/`, `lib/illuminate/`, `lib/library/` (Open5e import + shared-content identity), `lib/scriptorium/`, `lib/tiptap/`. Top-level `src/cartographer/` is the tile-pack **authoring** tool and is separate from `lib/battlemap/`, which is the live **encounter runner** — do not merge them.
 
@@ -466,7 +467,7 @@ to the root — which is precisely the 225-file flat bucket this replaced. `useQ
 belongs in `quests/` because it is *about* quests, however many features read it.
 Popularity is not the test here either; it is just a different non-test.
 
-The 28 modules that stay at the root are the ones with genuinely no domain:
+The 29 modules that stay at the root are the ones with genuinely no domain:
 `useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`,
 `useServerInfiniteScroll` (its server-paged sibling: the sentinel under the catalogue lists),
 `useScrollRestore`, `useLazyMount`, `useDetailModal`, `useAnchoredPopover`,
@@ -476,7 +477,7 @@ The 28 modules that stay at the root are the ones with genuinely no domain:
 `useUnsavedGuard`, `useAutosave`, `useCanvasHand` (Space-as-hand and the zoom keys for a design canvas, with `lib/canvasControls/`), `useRecordDraft` (an editor's draft merged against the server copy, #946),
 `usePrefetchOnIntent` (the `v-prefetch` directive: a link's route chunk and first read on hover, #999), the PWA trio (`useAppUpdate`, `usePwaInstall`,
 `usePullToRefresh`) and the image trio (`useImageUpload`, `usePendingImageResolver`,
-`useArtTabs`). Adding a 29th is a claim that the thing has no domain — check that
+`useArtTabs`), and `useRowsByIds` (the shell of the by-ids readers: order-independent key, kept rows while a grown set loads, nothing requested for no ids). Adding a 30th is a claim that the thing has no domain — check that
 claim before you make it. (This list read 19 until 27 Sep 2026 while the folder held
 21: count the folder when you add one, not the list. On 3 Oct 2026 it held 24 against
 this list's 23, because `useAnnouncements` had been left at the root; it is about

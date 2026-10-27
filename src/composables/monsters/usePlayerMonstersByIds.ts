@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
 import { fetchPlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { loadLibraryMonstersByIds, useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { normaliseIds } from "@/composables/useRowsByIds";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
@@ -37,7 +38,7 @@ export function usePlayerMonstersByIds(
   const campaign = useCampaignStore();
   const viewerIsDm = () => appUi.dmPreviewMode || auth.isDM;
 
-  const unique = computed(() => [...new Set(toValue(ids).filter((id): id is string => !!id))].sort());
+  const unique = computed(() => normaliseIds(toValue(ids)));
   const dmIds = computed(() => (viewerIsDm() ? unique.value : []));
   const libraryIds = computed(() => (viewerIsDm() ? [] : unique.value.filter((id) => !isUuid(id))));
   const customIds = computed(() => (viewerIsDm() ? [] : unique.value.filter(isUuid)));

@@ -1,4 +1,4 @@
-import { defineComponent, h, nextTick, ref, type Ref } from "vue";
+import { defineComponent, h, nextTick, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -32,7 +32,6 @@ vi.mock("@/lib/supabase", () => {
 import { useMonstersByIds } from "./useMonstersByIds";
 
 const UUID_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const UUID_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 function run<T>(setup: () => T): T {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -117,16 +116,6 @@ describe("useMonstersByIds", () => {
     expect(own?.eq).toEqual([["user_id", "user-1"]]);
   });
 
-  it("does not refetch when the same ids arrive in another order", async () => {
-    const list: Ref<string[]> = ref([UUID_B, UUID_A]);
-    run(() => useMonstersByIds(list));
-    await settle();
-    const before = mocks.calls.length;
-    list.value = [UUID_A, UUID_B];
-    await settle();
-    expect(mocks.calls.length).toBe(before);
-  });
-
   it("keeps resolved monsters with their art, and isLoading false, while a grown id set loads", async () => {
     const list = ref(["srd_wolf"]);
     const { data, isLoading } = run(() => useMonstersByIds(list, { withArt: true }));
@@ -142,25 +131,6 @@ describe("useMonstersByIds", () => {
     await settle();
     expect([...data.value.keys()].sort()).toEqual(["srd_bear", "srd_wolf"]);
     expect(data.value.get("srd_bear")?.image_url).toBe("bear-art.webp");
-  });
-
-  it("never shows an id that is no longer requested while a placeholder is up", async () => {
-    const list = ref(["srd_wolf", UUID_A]);
-    const { data } = run(() => useMonstersByIds(list));
-    await settle();
-    mocks.gate = new Promise<void>(() => {});
-    list.value = [UUID_A, "srd_bear"];
-    await nextTick();
-    expect([...data.value.keys()]).toEqual([UUID_A]);
-  });
-
-  it("yields an empty map once every id is removed", async () => {
-    const list = ref(["srd_wolf"]);
-    const { data } = run(() => useMonstersByIds(list, { withArt: true }));
-    await settle();
-    list.value = [];
-    await settle();
-    expect(data.value.size).toBe(0);
   });
 
   it("coalesces rows asking in the same tick into one request per table, each getting only its own ids", async () => {

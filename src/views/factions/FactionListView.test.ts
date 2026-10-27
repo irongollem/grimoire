@@ -230,9 +230,8 @@ describe("FactionListView — bulk selection (#885)", () => {
     expect([...call.ids].sort()).toEqual(["f1", "f2"]);
   });
 
-  it("prunes a stale id when the underlying list changes (refetch/filter) before the move (#875)", async () => {
+  it("drops a selected id when the underlying list changes (refetch/filter) (#875)", async () => {
     factionsData.value = [faction({ id: "f1" }), faction({ id: "f2" }), faction({ id: "f3" })];
-    mutateAsync.mockResolvedValue({ moved: 1 });
     const wrapper = mountView();
     await toggleSelecting(wrapper);
 
@@ -245,14 +244,6 @@ describe("FactionListView — bulk selection (#885)", () => {
     factionsData.value = [faction({ id: "f1" }), faction({ id: "f3" })];
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("1 selected");
-
-    const moveBtn = wrapper.findAll("button").find((b) => b.text() === "Move to Neverwinter");
-    await moveBtn!.trigger("click");
-    await flushMicrotasks();
-
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
-    const call = mutateAsync.mock.calls[0]![0] as { table: string; ids: string[]; campaignId: string | null };
-    expect(call.ids).toEqual(["f1"]);
   });
 
   // world_links carries a NOT NULL campaign_id, so a general move can
@@ -298,24 +289,7 @@ describe("FactionListView — copy to campaign (#885)", () => {
     expect(dialog.props("label")).toBe("faction");
   });
 
-  it("prunes a stale id at copy time exactly like move (#875)", async () => {
-    factionsData.value = [faction({ id: "f1" }), faction({ id: "f2" }), faction({ id: "f3" })];
-    const wrapper = mountView();
-    await toggleSelecting(wrapper);
-    const boxes = wrapper.findAll('input[type="checkbox"]');
-    await boxes[0]!.trigger("click"); // f1
-    await boxes[1]!.trigger("click"); // f2
-
-    factionsData.value = [faction({ id: "f1" }), faction({ id: "f3" })];
-    await wrapper.vm.$nextTick();
-
-    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
-    await copyBtn!.trigger("click");
-
-    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("ids")).toEqual(["f1"]);
-  });
-
-  it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
+  it("a copied event closes the dialog and ends selection", async () => {
     factionsData.value = [faction({ id: "f1" })];
     const wrapper = mountView();
     await toggleSelecting(wrapper);
@@ -325,9 +299,8 @@ describe("FactionListView — copy to campaign (#885)", () => {
     await copyBtn!.trigger("click");
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
-    await dialog.vm.$emit("copied", { copied: 3, targetName: "Neverwinter" });
+    await dialog.vm.$emit("copied", { copied: 3, linked: 0, targetName: "Neverwinter" });
 
-    expect(toastSuccess).toHaveBeenCalledWith("Copied 3 factions to Neverwinter.");
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
     expect(wrapper.text()).not.toContain("selected");
   });

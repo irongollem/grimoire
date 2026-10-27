@@ -1,9 +1,13 @@
 import { QueryClient } from "@tanstack/vue-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn(), queryClient: null as unknown }));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const mocks = vi.hoisted(() => ({ queryClient: null as unknown }));
 
-vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn(), rpc: mocks.rpc } }));
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 vi.mock("@tanstack/vue-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/vue-query")>();
   return {
@@ -25,19 +29,19 @@ type Options = {
 const beat = (id: string, x: number, y: number) => ({ id, quest_id: "q1", canvas_x: x, canvas_y: y });
 
 describe("setQuestBeatPositions", () => {
-  beforeEach(() => mocks.rpc.mockReset());
+  beforeEach(() => fake.reset());
 
-  it("sends every position in one RPC", async () => {
-    mocks.rpc.mockResolvedValue({ data: 2, error: null });
+  it("saves every position and reports how many beats the server moved", async () => {
+    // The server answers with the number of positions it was given.
+    fake.onRpc("set_quest_beat_positions", (args) => (args.p_positions as unknown[]).length);
     const positions = [{ id: "a", x: 1, y: 2 }, { id: "b", x: 3, y: 4 }];
     expect(await setQuestBeatPositions("q1", positions)).toBe(2);
-    expect(mocks.rpc).toHaveBeenCalledTimes(1);
-    expect(mocks.rpc).toHaveBeenCalledWith("set_quest_beat_positions", { p_quest_id: "q1", p_positions: positions });
+    expect(fake.calls.filter((c) => c.kind === "rpc")).toHaveLength(1);
   });
 
   it("throws the RPC error", async () => {
-    mocks.rpc.mockResolvedValue({ data: null, error: new Error("Not authorized") });
-    await expect(setQuestBeatPositions("q1", [])).rejects.toThrow("Not authorized");
+    fake.failNext("set_quest_beat_positions", { message: "Not authorized" });
+    await expect(setQuestBeatPositions("q1", [])).rejects.toMatchObject({ message: "Not authorized" });
   });
 });
 

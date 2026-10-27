@@ -1,85 +1,105 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
-import { useWorldWebEditing } from "./useWorldWebEditing";
+import { defineComponent } from "vue";
+import { mount } from "@vue/test-utils";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { tie } from "@/lib/worldWeb/tieFixture";
 import type { TypeChoice } from "@/lib/worldLinks/connections";
 
-const mocks = vi.hoisted(() => ({
-  create: vi.fn(),
-  retype: vi.fn(),
-  remove: vi.fn(),
-  update: vi.fn(),
-  confirm: vi.fn(),
-  success: vi.fn(),
-  error: vi.fn(),
-}));
+const { fake } = await vi.hoisted(async () => {
+  const { createSupabaseFake } = await import("@/test/supabaseFake");
+  return { fake: createSupabaseFake() };
+});
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(), success: vi.fn(), error: vi.fn() }));
 
-vi.mock("@/composables/connections/useConnections", () => ({
-  useCreateConnection: () => ({ mutateAsync: mocks.create, isPending: ref(false) }),
-  useRetypeConnection: () => ({ mutateAsync: mocks.retype, isPending: ref(false) }),
-  useRemoveConnection: () => ({ mutateAsync: mocks.remove, isPending: ref(false) }),
-  useUpdateLink: () => ({ mutateAsync: mocks.update, isPending: ref(false) }),
-}));
+// The real connections layer runs on the fake database; only the shell around it is stubbed.
+vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
+vi.mock("@/lib/queueEmbeddings", () => ({ queueEmbeddingsInBackground: vi.fn() }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ success: mocks.success, error: mocks.error, fromError: (e: unknown, f: string) => (e instanceof Error ? e.message : f) }),
+  useToast: () => ({ success: mocks.success, error: mocks.error, fromError: (e: unknown, f: string) => (typeof e === "object" && e !== null && "message" in e ? String(e.message) : f) }),
 }));
+
+import { useWorldWebEditing } from "./useWorldWebEditing";
+
+function mountEditing(): ReturnType<typeof useWorldWebEditing> {
+  let editing!: ReturnType<typeof useWorldWebEditing>;
+  mount(defineComponent({ setup() { editing = useWorldWebEditing(); return () => null; } }), {
+    global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+  });
+  return editing;
+}
 
 const choice: TypeChoice = { key: "worships", word: "worships", subjectIsFrom: true, family: "faith", common: true, pair: "person_deity" };
 
+// Brenna (an NPC) worships the Drowned Lady (a deity), plus an unrelated link that must never be touched.
+const brennaWorships = { id: "r1", campaign_id: "c1", type: "worships", from_kind: "npc", to_kind: "deity", from_npc_id: "brenna", to_deity_id: "lady", note: "Prays at dusk", told: null };
+const unrelated = { id: "other", campaign_id: "c1", type: "knows", from_kind: "npc", to_kind: "npc", from_npc_id: "harl", to_npc_id: "brenna", note: null, told: null };
+
 describe("useWorldWebEditing", () => {
   beforeEach(() => {
+    fake.reset();
     Object.values(mocks).forEach((m) => m.mockReset());
+    fake.seed("world_links", [brennaWorships, unrelated]);
   });
 
-  it("ties two things through the connections layer and says so", async () => {
-    mocks.create.mockResolvedValue(undefined);
-    const ok = await useWorldWebEditing().connect("npc:brenna", { kind: "deity", id: "lady", name: "The Drowned Lady" }, choice);
+  it("ties two things in the direction the chosen word reads, in this campaign, and says so", async () => {
+    const ok = await mountEditing().connect("npc:harl", { kind: "deity", id: "lady", name: "The Drowned Lady" }, choice);
     expect(ok).toBe(true);
-    expect(mocks.create).toHaveBeenCalledWith({
-      subject: { kind: "npc", id: "brenna" },
-      other: { kind: "deity", id: "lady", name: "The Drowned Lady" },
-      choice,
+    expect(fake.rows("world_links")).toHaveLength(3);
+    expect(fake.rows("world_links")[2]).toMatchObject({
+      campaign_id: "c1",
+      user_id: "dm-1",
+      type: "worships",
+      from_kind: "npc",
+      from_npc_id: "harl",
+      to_kind: "deity",
+      to_deity_id: "lady",
     });
     expect(mocks.success).toHaveBeenCalledWith("Tied together.");
   });
 
-  it("refuses to start a tie from a quest", async () => {
-    const ok = await useWorldWebEditing().connect("quest:q1", { kind: "npc", id: "harl", name: "Harl" }, choice);
+  it("refuses to start a tie from a quest and writes nothing", async () => {
+    const ok = await mountEditing().connect("quest:q1", { kind: "npc", id: "harl", name: "Harl" }, choice);
     expect(ok).toBe(false);
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(fake.calls).toHaveLength(0);
     expect(mocks.error).toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 
   it("reports a failed write instead of swallowing it", async () => {
-    mocks.create.mockRejectedValue(new Error("denied"));
-    const ok = await useWorldWebEditing().connect("npc:brenna", { kind: "deity", id: "lady", name: "L" }, choice);
+    fake.failNext("world_links", { message: "denied" });
+    const ok = await mountEditing().connect("npc:harl", { kind: "deity", id: "lady", name: "L" }, choice);
     expect(ok).toBe(false);
     expect(mocks.error).toHaveBeenCalledWith("denied");
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(fake.rows("world_links")).toHaveLength(2);
   });
 
-  it("retypes a tie read from the subject's side", async () => {
-    mocks.retype.mockResolvedValue(undefined);
-    const t = tie({});
-    await useWorldWebEditing().retypeTie(t, "deity:lady", choice);
-    const arg = mocks.retype.mock.calls[0]?.[0];
-    expect(arg.subject).toEqual({ kind: "deity", id: "lady" });
-    expect(arg.connection).toMatchObject({ row_id: "r1", outward: false, other_kind: "npc", other_id: "brenna" });
+  it("retyping from the other end flips the link so the subject is the one who worships, and touches no other link", async () => {
+    const ok = await mountEditing().retypeTie(tie({}), "deity:lady", choice);
+    expect(ok).toBe(true);
+    const row = fake.rows("world_links").find((r) => r.id === "r1");
+    expect(row).toMatchObject({ type: "worships", from_kind: "deity", from_deity_id: "lady", to_kind: "npc", to_npc_id: "brenna" });
+    // The old ends are cleared, not left beside the new ones.
+    expect(row?.from_npc_id).toBeNull();
+    expect(row?.to_deity_id).toBeNull();
+    expect(row?.note).toBe("Prays at dusk");
+    expect(fake.rows("world_links").find((r) => r.id === "other")).toEqual(unrelated);
   });
 
-  it("removes a tie only after the DM confirms", async () => {
+  it("removes a tie only after the DM confirms, and only that tie", async () => {
     mocks.confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    mocks.remove.mockResolvedValue(undefined);
-    const editing = useWorldWebEditing();
+    const editing = mountEditing();
     expect(await editing.removeTie(tie({}), "npc:brenna")).toBe(false);
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(fake.rows("world_links")).toHaveLength(2);
     expect(await editing.removeTie(tie({}), "npc:brenna")).toBe(true);
-    expect(mocks.remove).toHaveBeenCalledTimes(1);
+    expect(fake.rows("world_links").map((r) => r.id)).toEqual(["other"]);
   });
 
-  it("saves a link's note and the line players are told together", async () => {
-    mocks.update.mockResolvedValue(undefined);
-    await useWorldWebEditing().saveWords(tie({ row_id: "l9" }), { note: "Owes Harl", told: "Every dawn she leaves a coin." });
-    expect(mocks.update).toHaveBeenCalledWith({ id: "l9", note: "Owes Harl", told: "Every dawn she leaves a coin." });
+  it("saves a link's note and the line players are told together, on that link alone", async () => {
+    await mountEditing().saveWords(tie({ row_id: "r1" }), { note: "Owes Harl", told: "Every dawn she leaves a coin." });
+    expect(fake.rows("world_links").find((r) => r.id === "r1")).toMatchObject({ note: "Owes Harl", told: "Every dawn she leaves a coin." });
+    expect(fake.rows("world_links").find((r) => r.id === "other")).toEqual(unrelated);
   });
 });

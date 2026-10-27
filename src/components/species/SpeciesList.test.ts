@@ -253,9 +253,8 @@ describe("SpeciesList — bulk selection (#875)", () => {
     expect([...call.ids].sort()).toEqual([uuid(1), uuid(2)].sort());
   });
 
-  it("prunes a stale id when the underlying list changes (refetch/filter) before the move (#875)", async () => {
+  it("drops a selected id when the underlying list changes (refetch/filter) (#875)", async () => {
     allSpecies.value = [customSpecies(1), customSpecies(2), customSpecies(3)];
-    mutateAsync.mockResolvedValue({ moved: 1 });
     const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
 
@@ -268,14 +267,6 @@ describe("SpeciesList — bulk selection (#875)", () => {
     allSpecies.value = [customSpecies(1), customSpecies(3)];
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("1 selected");
-
-    const moveBtn = wrapper.findAll("button").find((b) => b.text() === "Move to Neverwinter");
-    await moveBtn!.trigger("click");
-    await flushMicrotasks();
-
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
-    const call = mutateAsync.mock.calls[0]![0] as { table: string; ids: string[]; campaignId: string | null };
-    expect(call.ids).toEqual([uuid(1)]);
   });
 
   it("making rows available in all campaigns calls the mutation with a null campaign id", async () => {
@@ -338,24 +329,7 @@ describe("SpeciesList — copy to campaign (#598)", () => {
     expect(dialog.props("labelPlural")).toBe("species");
   });
 
-  it("prunes a stale id at copy time exactly like move (#875)", async () => {
-    allSpecies.value = [customSpecies(1), customSpecies(2), customSpecies(3)];
-    const wrapper = await mountList();
-    await exposed(wrapper).toggleBulkSelectMode();
-    const boxes = wrapper.findAll('input[type="checkbox"]');
-    await boxes[0]!.trigger("click"); // species 1
-    await boxes[1]!.trigger("click"); // species 2
-
-    allSpecies.value = [customSpecies(1), customSpecies(3)];
-    await wrapper.vm.$nextTick();
-
-    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
-    await copyBtn!.trigger("click");
-
-    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("ids")).toEqual([uuid(1)]);
-  });
-
-  it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
+  it("a copied event uses species as its own plural, closes the dialog and ends selection", async () => {
     allSpecies.value = [customSpecies(1)];
     const wrapper = await mountList();
     await exposed(wrapper).toggleBulkSelectMode();
@@ -365,7 +339,7 @@ describe("SpeciesList — copy to campaign (#598)", () => {
     await copyBtn!.trigger("click");
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
-    await dialog.vm.$emit("copied", { copied: 2, targetName: "Neverwinter" });
+    await dialog.vm.$emit("copied", { copied: 2, linked: 0, targetName: "Neverwinter" });
 
     expect(toastSuccess).toHaveBeenCalledWith("Copied 2 species to Neverwinter.");
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);

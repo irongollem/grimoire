@@ -14,7 +14,9 @@ import ItemsView from "./ItemsView.vue";
  * DungeonCraftEntityGrid.test.ts does for the same mechanism) so its actual
  * buttons drive these tests, not a hand-rolled emit.
  */
-const mocks = vi.hoisted(() => ({
+const mocks = await vi.hoisted(async () => {
+  const { reactive } = await import("vue");
+  return reactive({
   selectableIds: ["item-1", "item-2", "item-3"] as string[],
   ready: true,
   sources: [] as { slug: string; title: string | null }[],
@@ -24,7 +26,8 @@ const mocks = vi.hoisted(() => ({
   aiEnabled: false,
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-}));
+  });
+});
 
 vi.mock("@/composables/library/useSourceTitles", () => ({
   useSourceTitles: () => ({
@@ -133,15 +136,21 @@ describe("ItemsView — bulk move-to-campaign (#875)", () => {
     expect(wrapper.text()).not.toContain("selected");
   });
 
-  it("select-all reads the ids ItemList exposes (every filtered row, not the painted window)", async () => {
+  it("select-all reads the ids ItemList exposes (every filtered row, not the painted window), and Clear empties them", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
 
     await findButton(wrapper, "Select all shown")!.trigger("click");
     expect(wrapper.text()).toContain("3 selected");
+
+    await findButton(wrapper, "Clear")!.trigger("click");
+    expect(wrapper.text()).toContain("0 selected");
   });
 
-  it("a move calls the mutation with the items table, the selected ids and the campaign id, then stops selecting", async () => {
+  // The flow's own behaviour (prune at move time, toast wording, failure,
+  // stop) is useMoveToCampaignFlow.test.ts; this is only that the view hands
+  // it the items table and ItemList's selectable ids.
+  it("a move reaches the items table with the selected ids and the campaign id, then stops selecting", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
@@ -153,61 +162,31 @@ describe("ItemsView — bulk move-to-campaign (#875)", () => {
       ids: ["item-1", "item-2", "item-3"],
       campaignId: "campaign-1",
     });
-    expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.stringContaining("Moved 3 items to Icewind Dale"));
-    // Stops selecting after a successful move — the bar is gone.
     expect(wrapper.text()).not.toContain("selected");
   });
 
-  it("moving to \"all campaigns\" (null) reports availability rather than a destination", async () => {
-    const wrapper = mountView();
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
-
-    await findButton(wrapper, "Make available in all campaigns")!.trigger("click");
-
-    expect(mocks.moveScope).toHaveBeenCalledWith({ table: "items", ids: ["item-1", "item-2", "item-3"], campaignId: null });
-    expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.stringContaining("now available in all campaigns"));
-  });
-
-  it("reports the mutation's failure via the toast idiom and stays in selection mode", async () => {
-    mocks.moveScope.mockRejectedValueOnce(new Error("network blip"));
-    const wrapper = mountView();
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
-
-    await findButton(wrapper, "Move to Icewind Dale")!.trigger("click");
-
-    expect(mocks.toastError).toHaveBeenCalledWith("network blip");
-    expect(wrapper.text()).toContain("selected");
-  });
-
-  it("prunes a stale id at move time when the filter narrows between select-all and move (#875)", async () => {
+  it("drops a selected id the moment ItemList stops exposing it (#875)", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
     expect(wrapper.text()).toContain("3 selected");
 
-    // The DM edits the type/rarity/source filter (or a refetch lands): item-2
-    // and item-3 no longer pass. The selection itself is unaware until pruned.
     mocks.selectableIds = ["item-1"];
+    await wrapper.vm.$nextTick();
 
-    await findButton(wrapper, "Move to Icewind Dale")!.trigger("click");
-
-    expect(mocks.moveScope).toHaveBeenCalledWith({
-      table: "items",
-      ids: ["item-1"],
-      campaignId: "campaign-1",
-    });
+    expect(wrapper.text()).toContain("1 selected");
   });
 
-  it("clear empties the selection but the bar stays open", async () => {
+  it("keeps the selection while ItemList's first page is still loading, when its stand-in ids are empty (#875)", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
-    expect(wrapper.text()).toContain("3 selected");
 
-    await findButton(wrapper, "Clear")!.trigger("click");
-    expect(wrapper.text()).toContain("0 selected");
+    mocks.ready = false;
+    mocks.selectableIds = [];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("3 selected");
   });
 });
 
@@ -215,47 +194,25 @@ describe("ItemsView — bulk copy-to-campaign (#598)", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     mocks.selectableIds = ["item-1", "item-2", "item-3"];
+    mocks.ready = true;
     mocks.toastSuccess.mockClear();
     mocks.activeCampaignName = "Icewind Dale";
   });
 
-  it("opens the dialog with the pruned selection and the active campaign as the source scope", async () => {
+  it("opens the dialog on the items table with the selected ids, and its copied event closes it and ends selection", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
-
     await findButton(wrapper, "Copy to campaign…")!.trigger("click");
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
     expect(dialog.props("open")).toBe(true);
     expect(dialog.props("table")).toBe("items");
     expect(dialog.props("ids")).toEqual(["item-1", "item-2", "item-3"]);
-    expect(dialog.props("label")).toBe("item");
-  });
 
-  it("prunes a stale id at copy time exactly like move (#875)", async () => {
-    const wrapper = mountView();
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
+    await dialog.vm.$emit("copied", { copied: 3, linked: 0, targetName: "Neverwinter" });
 
-    mocks.selectableIds = ["item-1"];
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
-
-    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("ids")).toEqual(["item-1"]);
-  });
-
-  it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
-    const wrapper = mountView();
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
-
-    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
-    await dialog.vm.$emit("copied", { copied: 3, targetName: "Neverwinter" });
-
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 3 items to Neverwinter.");
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
-    // stopSelecting() follows a successful copy, same as a successful move.
     expect(wrapper.text()).not.toContain("selected");
   });
 });

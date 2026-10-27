@@ -1,4 +1,4 @@
-import { defineComponent, h, nextTick, ref } from "vue";
+import { defineComponent, h } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -73,12 +73,6 @@ describe("useItemsByIds (#972)", () => {
     expect(data.value.get("srd_rope")?.user_id).toBe("");
   });
 
-  it("sends nothing for an empty list", async () => {
-    run(() => useItemsByIds([]));
-    await flushPromises();
-    expect(mocks.calls).toEqual([]);
-  });
-
   it("chunks at 100 ids", async () => {
     const ids = Array.from({ length: 230 }, (_, i) => `srd_${String(i).padStart(3, "0")}`);
     run(() => useItemsByIds(ids));
@@ -90,57 +84,10 @@ describe("useItemsByIds (#972)", () => {
     expect(sizes).toEqual([100, 100, 30]);
   });
 
-  it("is order independent in its cache key", async () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const mountWith = (ids: string[]) =>
-      mount(defineComponent({ setup() { useItemsByIds(ids); return () => h("div"); } }), {
-        global: { plugins: [[VueQueryPlugin, { queryClient: client }]] },
-      });
-    mountWith(["srd_a", "srd_b"]);
-    await flushPromises();
-    mountWith(["srd_b", "srd_a"]);
-    await flushPromises();
-    expect(mocks.calls).toHaveLength(1);
-  });
-
   it("sends nothing while disabled", async () => {
     run(() => useItemsByIds(["srd_a"], () => ({ enabled: false })));
     await flushPromises();
     expect(mocks.calls).toEqual([]);
-  });
-
-  it("keeps resolved items, and isLoading false, while a grown id set loads", async () => {
-    const list = ref(["srd_a"]);
-    const { data, isLoading } = run(() => useItemsByIds(() => list.value));
-    await flushPromises();
-    let release!: () => void;
-    mocks.gate = new Promise<void>((r) => (release = r));
-    list.value = ["srd_a", "srd_b"];
-    await nextTick();
-    expect(isLoading.value).toBe(false);
-    expect([...data.value.keys()]).toEqual(["srd_a"]);
-    release();
-    await flushPromises();
-    expect([...data.value.keys()].sort()).toEqual(["srd_a", "srd_b"]);
-  });
-
-  it("never shows an id that is no longer requested while a placeholder is up", async () => {
-    const list = ref(["srd_a", "srd_b"]);
-    const { data } = run(() => useItemsByIds(() => list.value));
-    await flushPromises();
-    mocks.gate = new Promise<void>(() => {});
-    list.value = ["srd_b", "srd_c"];
-    await nextTick();
-    expect([...data.value.keys()]).toEqual(["srd_b"]);
-  });
-
-  it("yields an empty map once every id is removed", async () => {
-    const list = ref(["srd_a"]);
-    const { data } = run(() => useItemsByIds(() => list.value));
-    await flushPromises();
-    list.value = [];
-    await flushPromises();
-    expect(data.value.size).toBe(0);
   });
 });
 

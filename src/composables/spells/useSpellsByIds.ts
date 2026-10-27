@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { keepPreviousData, useQuery } from "@tanstack/vue-query";
+import { normaliseIds, useRowsByIds } from "@/composables/useRowsByIds";
 import { supabase } from "@/lib/supabase";
 import type { Spell } from "@/types/spell.types";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -12,11 +12,6 @@ function chunked<T>(items: T[]): T[][] {
   return out;
 }
 
-/** Order-independent, de-duplicated, blanks dropped. */
-function normalise(ids: readonly string[]): string[] {
-  return [...new Set(ids.filter((id) => id.length > 0))].sort();
-}
-
 /**
  * Full spell rows for exactly these ids. Ids are opaque: every id is tried
  * against `library_spells`, and the UUID-shaped ones also against `spells`.
@@ -24,7 +19,7 @@ function normalise(ids: readonly string[]): string[] {
  * not its source is currently enabled. Empty input sends nothing.
  */
 export async function fetchSpellsByIds(ids: readonly string[]): Promise<Map<string, Spell>> {
-  const allIds = normalise(ids);
+  const allIds = normaliseIds(ids);
   return fetchNormalised(allIds, allIds.filter(isUuid));
 }
 
@@ -50,26 +45,10 @@ async function fetchNormalised(libraryIds: string[], customIds: string[]): Promi
 }
 
 export function useSpellsByIds(ids: MaybeRefOrGetter<readonly string[]>) {
-  const key = computed(() => {
-    const all = normalise(toValue(ids));
-    return ["spells", "by-ids", all, all.filter(isUuid)] as const;
+  const all = computed(() => normaliseIds(toValue(ids)));
+  return useRowsByIds<Spell>({
+    keyRoot: ["spells", "by-ids"],
+    idLists: () => [all.value, all.value.filter(isUuid)],
+    fetch: ([libraryIds, customIds]) => fetchNormalised(libraryIds, customIds),
   });
-  const query = useQuery({
-    queryKey: key,
-    queryFn: ({ queryKey: [, , libraryIds, customIds] }) => fetchNormalised(libraryIds, customIds),
-    enabled: () => key.value[2].length > 0,
-    staleTime: Infinity,
-    // Adding one id changes the key; keep the rows already resolved on screen while the new set loads.
-    placeholderData: keepPreviousData,
-  });
-  const data = computed(() => {
-    const rows = query.data.value;
-    const requested = key.value[2];
-    if (!rows || requested.length === 0) return new Map<string, Spell>();
-    // A placeholder is the previous key's rows: show only what is still requested.
-    if (!query.isPlaceholderData.value) return rows;
-    const wanted = new Set(requested);
-    return new Map([...rows].filter(([id]) => wanted.has(id)));
-  });
-  return { data, isLoading: query.isLoading };
 }

@@ -148,9 +148,10 @@ async function fetchInvites(campaignId: string): Promise<CampaignInvite[]> {
 
 async function createInvite(invite: CampaignInviteInsert): Promise<CampaignInvite> {
   const user = getCurrentUser();
+  if (!user) throw new Error("createInvite called without a signed-in user");
   const { data, error } = await supabase
     .from("campaign_invites")
-    .insert({ ...invite, created_by: user!.id })
+    .insert({ ...invite, created_by: user.id })
     .select()
     .single();
   if (error) throw error;
@@ -179,8 +180,11 @@ export function useCreateCampaignInvite() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: (invite: Omit<CampaignInviteInsert, "campaign_id">) =>
-      createInvite({ ...invite, campaign_id: campaign.activeCampaignId! }),
+    mutationFn: (invite: Omit<CampaignInviteInsert, "campaign_id">) => {
+      const campaignId = campaign.activeCampaignId;
+      if (campaignId === null) throw new Error("useCreateCampaignInvite called without a campaign");
+      return createInvite({ ...invite, campaign_id: campaignId });
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [INVITES_KEY] }),
   });
 }

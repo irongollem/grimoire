@@ -102,7 +102,7 @@ duplicated. Extract it and test it once.
 |---|---|---|
 | Pure logic, rules | Both sides of every comparison (`>=` needs the equal case and one below), each branch once, empty input once. Table cases as `it.each`, one or two rows per branch plus the boundaries. | `armorClass.test.ts`, `lootTableRoll.test.ts:191` |
 | Data table (`src/data/`) | Invariants over the whole table: ids unique, every reference resolves, every edition covered. Never a row restated. | `starterRecipes.test.ts` |
-| Composable over Supabase | Visible results against an in-memory table fake that honours `eq`/`in`, not the call chain. Scoping to the caller is a security property ([Client Reads](../../../CLAUDE.md)): put another user's row in the fake and assert it does not come back. | `useItemsByIds.test.ts` |
+| Composable over Supabase | Visible results against `createSupabaseFake()` (`src/test/supabaseFake.ts`; wiring in its header), never a hand-rolled `from().select().eq()` chain. Scoping to the caller is a security property ([Client Reads](../../../CLAUDE.md)): seed another user's row and assert it does not come back. | `useCampaignMembers.test.ts`, `useWorldWebEditing.test.ts` |
 | Composable or store with state | Drive the public API, assert state. Assert the order of side effects only when order *is* the property. | `useCampaigns.dispose.test.ts` (#963) |
 | Component | Mount, act as the user (click, type, confirm, **cancel**), assert what renders or is emitted. Every guard in a handler gets a test: cancel, disabled while pending, trim, clear after submit. This is where most bugs survived. | `BattleMapTokenLayer.test.ts:102`, `NoticeBoardPin.test.ts` |
 | Copy in a component | Only when the text is derived from props or state. | `CampaignLensNotice.test.ts:39` |

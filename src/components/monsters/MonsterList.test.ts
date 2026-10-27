@@ -59,6 +59,7 @@ const PAGE = 48;
 const fetchNextPage = vi.fn();
 const hasNextPage = ref(false);
 const browseError = ref<Error | null>(null);
+const browseReady = ref(true);
 // The server pages and counts; this stand-in answers the same questions from a
 // fixture: one page painted, totals and select-all over the whole result.
 vi.mock("@/composables/monsters/useMonsterBrowse", () => ({
@@ -68,7 +69,7 @@ vi.mock("@/composables/monsters/useMonsterBrowse", () => ({
     scopeTotal: computed(() => monstersData.value.length + 5),
     selectableIds: computed(() => monstersData.value.filter((m) => !m.is_shared).map((m) => m.id)),
     lockedIds: computed(() => []),
-    ready: ref(true),
+    ready: browseReady,
     hasNextPage,
     isFetchingNextPage: ref(false),
     fetchNextPage,
@@ -301,9 +302,8 @@ describe("MonsterList — bulk selection (#875)", () => {
     expect([...call.ids].sort()).toEqual(["m1", "m2"]);
   });
 
-  it("prunes a stale id when the underlying list changes (refetch/filter) before the move (#875)", async () => {
+  it("drops a selected id when the underlying list changes (refetch/filter) (#875)", async () => {
     monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" }), monster({ id: "m3" })];
-    mutateAsync.mockResolvedValue({ moved: 1 });
     const wrapper = mountList();
     await exposed(wrapper).toggleSelectMode();
 
@@ -316,14 +316,21 @@ describe("MonsterList — bulk selection (#875)", () => {
     monstersData.value = [monster({ id: "m1" }), monster({ id: "m3" })];
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("1 selected");
+  });
 
-    const moveBtn = wrapper.findAll("button").find((b) => b.text() === "Move to Neverwinter");
-    await moveBtn!.trigger("click");
-    await flushMicrotasks();
+  it("keeps the selection while the browse is not ready, when the stand-in ids are empty (#875)", async () => {
+    monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" })];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleSelectMode();
+    const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
+    await selectAllBtn!.trigger("click");
+    expect(wrapper.text()).toContain("2 selected");
 
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
-    const call = mutateAsync.mock.calls[0]![0] as { table: string; ids: string[]; campaignId: string | null };
-    expect(call.ids).toEqual(["m1"]);
+    browseReady.value = false;
+    monstersData.value = [];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("2 selected");
   });
 
   it("making rows available in all campaigns calls the mutation with a null campaign id", async () => {
@@ -369,24 +376,7 @@ describe("MonsterList — copy to campaign (#598)", () => {
     expect(dialog.props("label")).toBe("monster");
   });
 
-  it("prunes a stale id at copy time exactly like move (#875)", async () => {
-    monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" }), monster({ id: "m3" })];
-    const wrapper = mountList();
-    await exposed(wrapper).toggleSelectMode();
-    const boxes = wrapper.findAll('input[type="checkbox"]');
-    await boxes[0]!.trigger("click"); // m1
-    await boxes[1]!.trigger("click"); // m2
-
-    monstersData.value = [monster({ id: "m1" }), monster({ id: "m3" })];
-    await wrapper.vm.$nextTick();
-
-    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
-    await copyBtn!.trigger("click");
-
-    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("ids")).toEqual(["m1"]);
-  });
-
-  it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
+  it("a copied event closes the dialog and ends selection", async () => {
     monstersData.value = [monster({ id: "m1" })];
     const wrapper = mountList();
     await exposed(wrapper).toggleSelectMode();
@@ -396,9 +386,8 @@ describe("MonsterList — copy to campaign (#598)", () => {
     await copyBtn!.trigger("click");
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
-    await dialog.vm.$emit("copied", { copied: 3, targetName: "Neverwinter" });
+    await dialog.vm.$emit("copied", { copied: 3, linked: 0, targetName: "Neverwinter" });
 
-    expect(toastSuccess).toHaveBeenCalledWith("Copied 3 monsters to Neverwinter.");
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
     expect(wrapper.text()).not.toContain("selected");
   });

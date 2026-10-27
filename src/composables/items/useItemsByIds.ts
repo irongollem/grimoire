@@ -1,11 +1,13 @@
 import { computed, toValue } from "vue";
 import type { MaybeRefOrGetter } from "vue";
-import { keepPreviousData, useQuery, type QueryClient } from "@tanstack/vue-query";
+import type { QueryClient } from "@tanstack/vue-query";
+import { normaliseIds, useRowsByIds } from "@/composables/useRowsByIds";
 import { supabase } from "@/lib/supabase";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { normalizeLibraryItem } from "@/composables/items/useItems";
 import type { Item } from "@/types/item.types";
 
+const ITEMS_BY_IDS_KEY = ["items", "by-ids"] as const;
 const CHUNK = 100;
 
 function chunks<T>(list: readonly T[]): T[][] {
@@ -26,22 +28,21 @@ async function readInChunks<T>(table: "library_items" | "items", ids: readonly s
 
 /** Splits ids into sorted, deduped library (text) and own (uuid) lists, so the query key ignores order. */
 export function splitItemIds(ids: readonly (string | null)[]): { libraryIds: string[]; customIds: string[] } {
-  const library = new Set<string>();
-  const custom = new Set<string>();
-  for (const id of ids) {
-    if (id === null || id === "") continue;
-    (isUuid(id) ? custom : library).add(id);
-  }
-  return { libraryIds: [...library].sort(), customIds: [...custom].sort() };
+  const unique = normaliseIds(ids);
+  return { libraryIds: unique.filter((id) => !isUuid(id)), customIds: unique.filter(isUuid) };
 }
 
 /** The rows for these ids from `library_items` and `items`; the query function of `useItemsByIds`, also callable directly. */
 export async function fetchItemsByIds(ids: readonly (string | null)[]): Promise<Item[]> {
   const { libraryIds, customIds } = splitItemIds(ids);
-  return fetchSplit(libraryIds, customIds);
+  return fetchSplitRows(libraryIds, customIds);
 }
 
-async function fetchSplit(libraryIds: readonly string[], customIds: readonly string[]): Promise<Item[]> {
+async function fetchSplit(libraryIds: readonly string[], customIds: readonly string[]): Promise<Map<string, Item>> {
+  return new Map((await fetchSplitRows(libraryIds, customIds)).map((item) => [item.id, item]));
+}
+
+async function fetchSplitRows(libraryIds: readonly string[], customIds: readonly string[]): Promise<Item[]> {
   const [library, custom] = await Promise.all([
     libraryIds.length ? readInChunks<Record<string, unknown>>("library_items", libraryIds) : [],
     customIds.length ? readInChunks<Item>("items", customIds) : [],
@@ -66,11 +67,11 @@ export async function resolveItemById(
   if (hit) return hit;
   const { libraryIds, customIds } = splitItemIds([id]);
   const rows = await queryClient.fetchQuery({
-    queryKey: ["items", "by-ids", libraryIds, customIds] as const,
+    queryKey: [...ITEMS_BY_IDS_KEY, libraryIds, customIds] as const,
     queryFn: () => fetchSplit(libraryIds, customIds),
     staleTime: Infinity,
   });
-  return rows.find((item) => item.id === id);
+  return rows.get(id);
 }
 
 /**
@@ -88,26 +89,10 @@ export function useItemsByIds(
   getOptions?: () => { enabled?: boolean },
 ) {
   const split = computed(() => splitItemIds(toValue(ids)));
-
-  const query = useQuery({
-    queryKey: computed(() => ["items", "by-ids", split.value.libraryIds, split.value.customIds] as const),
-    queryFn: ({ queryKey: [, , libraryIds, customIds] }) => fetchSplit(libraryIds, customIds),
-    enabled: () =>
-      getOptions?.().enabled !== false && (split.value.libraryIds.length > 0 || split.value.customIds.length > 0),
-    staleTime: Infinity,
-    // A new id in the set changes the key; keep resolved items while the new set loads.
-    placeholderData: keepPreviousData,
+  return useRowsByIds<Item>({
+    keyRoot: ITEMS_BY_IDS_KEY,
+    idLists: () => [split.value.libraryIds, split.value.customIds],
+    fetch: ([libraryIds, customIds]) => fetchSplit(libraryIds, customIds),
+    enabled: () => getOptions?.().enabled !== false,
   });
-
-  const data = computed(() => {
-    const rows = query.data.value;
-    const { libraryIds, customIds } = split.value;
-    if (!rows || libraryIds.length + customIds.length === 0) return new Map<string, Item>();
-    // A placeholder is the previous key's rows: show only what is still requested.
-    const wanted = new Set([...libraryIds, ...customIds]);
-    return new Map(
-      rows.filter((item) => !query.isPlaceholderData.value || wanted.has(item.id)).map((item) => [item.id, item]),
-    );
-  });
-  return { data, isLoading: query.isLoading };
 }

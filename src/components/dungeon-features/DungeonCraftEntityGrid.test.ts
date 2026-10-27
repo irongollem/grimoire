@@ -105,28 +105,6 @@ describe("DungeonCraftEntityGrid — bulk scope (#875)", () => {
     expect(onCardClick).toHaveBeenCalledTimes(1);
   });
 
-  it("with a `table` prop, the Select button turns on selection mode", async () => {
-    const wrapper = mount(DungeonCraftEntityGrid, {
-      props: baseProps({ table: "roll_tables", ids: ["a", "b"] }),
-      slots: { card: cardSlot(vi.fn()) },
-    });
-
-    expect(wrapper.text()).not.toContain("selected");
-    await findButton(wrapper, "Select")!.trigger("click");
-    expect(wrapper.text()).toContain("0 selected");
-  });
-
-  it("select all shown selects every filtered id, not only what's painted", async () => {
-    const wrapper = mount(DungeonCraftEntityGrid, {
-      props: baseProps({ table: "roll_tables", ids: ["a", "b", "c"] }),
-      slots: { card: cardSlot(vi.fn()) },
-    });
-
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
-    expect(wrapper.text()).toContain("3 selected");
-  });
-
   it("a card toggles selection instead of firing its own click while selecting", async () => {
     const onCardClick = vi.fn();
     const wrapper = mount(DungeonCraftEntityGrid, {
@@ -139,19 +117,6 @@ describe("DungeonCraftEntityGrid — bulk scope (#875)", () => {
 
     expect(onCardClick).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("1 selected");
-  });
-
-  it("a move calls the bulk-scope mutation with the grid's table and the selected ids", async () => {
-    const wrapper = mount(DungeonCraftEntityGrid, {
-      props: baseProps({ table: "roll_tables", ids: ["a", "b"] }),
-      slots: { card: cardSlot(vi.fn()) },
-    });
-
-    await findButton(wrapper, "Select")!.trigger("click");
-    await wrapper.get(".card-a").trigger("click"); // select row "a"
-    await findButton(wrapper, "Make available in all campaigns")!.trigger("click");
-
-    expect(mocks.mutateAsync).toHaveBeenCalledWith({ table: "roll_tables", ids: ["a"], campaignId: null });
   });
 
   it("prunes a stale id when the filtered set shrinks, so a move can never reach a now-hidden row (#875)", async () => {
@@ -172,24 +137,7 @@ describe("DungeonCraftEntityGrid — bulk scope (#875)", () => {
     expect(mocks.mutateAsync).toHaveBeenCalledWith({ table: "roll_tables", ids: ["a"], campaignId: null });
   });
 
-  it("prunes at move time even if the reactive watch somehow missed it, so a stale id never reaches the mutation", async () => {
-    const wrapper = mount(DungeonCraftEntityGrid, {
-      props: baseProps({ table: "roll_tables", ids: ["a", "b"] }),
-      slots: { card: cardSlot(vi.fn()) },
-    });
-
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
-
-    // Row "b" vanishes from the filtered set right as Move is pressed — the
-    // component must prune inside handleMove itself, not rely solely on the watcher.
-    await wrapper.setProps({ ids: ["a"] });
-    await findButton(wrapper, "Move to Curse of Strahd")!.trigger("click");
-
-    expect(mocks.mutateAsync).toHaveBeenCalledWith({ table: "roll_tables", ids: ["a"], campaignId: "camp-1" });
-  });
-
-  it("moving to the active campaign passes its id", async () => {
+  it("a move reaches the bulk-scope mutation with the grid's table, the selected ids and the active campaign id", async () => {
     const wrapper = mount(DungeonCraftEntityGrid, {
       props: baseProps({ table: "roll_tables", ids: ["a", "b"] }),
       slots: { card: cardSlot(vi.fn()) },
@@ -230,20 +178,7 @@ describe("DungeonCraftEntityGrid — copy to campaign (#598)", () => {
     });
   });
 
-  it("prunes a stale id before opening the dialog, same as the move path (#875)", async () => {
-    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
-
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click"); // selects "a" and "b"
-
-    // "b" no longer passes the current filters by the time Copy is pressed.
-    await wrapper.setProps({ ids: ["a"] });
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
-
-    expect(wrapper.findComponent(CopyToCampaignDialogStub).props("ids")).toEqual(["a"]);
-  });
-
-  it("on copied: toasts the count and destination, closes the dialog and clears the selection", async () => {
+  it("on copied: closes the dialog and ends selection", async () => {
     const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
 
     await findButton(wrapper, "Select")!.trigger("click");
@@ -251,22 +186,10 @@ describe("DungeonCraftEntityGrid — copy to campaign (#598)", () => {
     await findButton(wrapper, "Copy to campaign…")!.trigger("click");
 
     const dialog = wrapper.findComponent(CopyToCampaignDialogStub);
-    await dialog.vm.$emit("copied", { copied: 3, targetName: "Icewind Dale" });
+    await dialog.vm.$emit("copied", { copied: 3, linked: 0, targetName: "Icewind Dale" });
 
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 3 roll tables to Icewind Dale.");
     expect(wrapper.findComponent(CopyToCampaignDialogStub).props("open")).toBe(false);
     expect(wrapper.text()).not.toContain("selected");
-  });
-
-  it("singular count toasts the singular noun", async () => {
-    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
-
-    await findButton(wrapper, "Select")!.trigger("click");
-    await wrapper.get(".card-a").trigger("click");
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
-    await wrapper.findComponent(CopyToCampaignDialogStub).vm.$emit("copied", { copied: 1, targetName: "Icewind Dale" });
-
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 1 roll table to Icewind Dale.");
   });
 
   it("no paywall is mounted for a table without the quota trigger (roll_tables)", () => {

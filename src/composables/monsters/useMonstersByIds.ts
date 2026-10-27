@@ -2,6 +2,7 @@ import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue"
 import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
+import { normaliseIds, useRowsByIds } from "@/composables/useRowsByIds";
 import { createIdBatcher } from "@/lib/batchById";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { libraryMonsterRow } from "@/lib/library/libraryMonsterRow";
@@ -69,20 +70,15 @@ export function useMonstersByIds(
   ids: MaybeRefOrGetter<readonly (string | null | undefined)[]>,
   opts?: { withArt?: boolean },
 ): { data: ComputedRef<Map<string, Monster>>; isLoading: ComputedRef<boolean> } {
-  // Sorted and deduped so the cache key does not depend on the order the caller listed them.
   const split = computed(() => {
-    const unique = [...new Set(toValue(ids).filter((id): id is string => !!id))].sort();
+    const unique = normaliseIds(toValue(ids));
     return { libraryIds: unique.filter((id) => !isUuid(id)), customIds: unique.filter(isUuid) };
   });
-  const hasIds = () => split.value.libraryIds.length + split.value.customIds.length > 0;
-
-  const monstersQuery = useQuery({
-    queryKey: computed(() => [...BY_IDS_KEY, split.value.libraryIds, split.value.customIds] as const),
-    queryFn: ({ queryKey: [, , libraryIds, customIds] }) => fetchByIds(libraryIds, customIds),
-    enabled: hasIds,
-    staleTime: Infinity,
-    // A spawn mid-fight changes the key; keep resolved monsters (and `isLoading` false) while the new set loads.
-    placeholderData: keepPreviousData,
+  // A spawn mid-fight changes the key; the shell keeps resolved monsters (and `isLoading` false) while the new set loads.
+  const monstersQuery = useRowsByIds<Monster>({
+    keyRoot: BY_IDS_KEY,
+    idLists: () => [split.value.libraryIds, split.value.customIds],
+    fetch: ([libraryIds, customIds]) => fetchByIds(libraryIds, customIds),
   });
 
   const artQuery = useQuery({
@@ -95,13 +91,7 @@ export function useMonstersByIds(
   });
 
   const data = computed(() => {
-    const stored = monstersQuery.data.value;
-    if (!stored || !hasIds()) return new Map<string, Monster>();
-    // A placeholder is the previous key's rows: show only what is still requested.
-    const wanted = new Set([...split.value.libraryIds, ...split.value.customIds]);
-    const monsters = monstersQuery.isPlaceholderData.value
-      ? new Map([...stored].filter(([id]) => wanted.has(id)))
-      : stored;
+    const monsters = monstersQuery.data.value;
     const art = artQuery.data.value;
     if (!opts?.withArt || !art) return monsters;
     const withArt = withLibraryArtAll(

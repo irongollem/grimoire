@@ -14,15 +14,19 @@ import SpellsView from "./SpellsView.vue";
  * DungeonCraftEntityGrid.test.ts does for the same mechanism) so its actual
  * buttons drive these tests, not a hand-rolled emit.
  */
-const mocks = vi.hoisted(() => ({
+const mocks = await vi.hoisted(async () => {
+  const { reactive } = await import("vue");
+  return reactive({
   selectableIds: ["spell-1", "spell-2", "spell-3"] as string[],
+  selectableReady: true,
   moveScope: vi.fn(async () => ({ moved: 3 })),
   isMovingScope: false,
   activeCampaignName: "Icewind Dale" as string | null,
   aiEnabled: false,
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-}));
+  });
+});
 
 vi.mock("@/composables/library/useSourceTitles", () => ({
   useSourceTitles: () => ({
@@ -50,6 +54,7 @@ vi.mock("@/components/spells/SpellList.vue", () => ({
       // between "Select all shown" and "Move" (#875).
       expose({
         get selectableIds() { return mocks.selectableIds; },
+        get selectableReady() { return mocks.selectableReady; },
       });
       return () => null;
     },
@@ -110,6 +115,7 @@ describe("SpellsView — bulk move-to-campaign (#875)", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     mocks.selectableIds = ["spell-1", "spell-2", "spell-3"];
+    mocks.selectableReady = true;
     mocks.moveScope.mockClear();
     mocks.toastSuccess.mockClear();
     mocks.toastError.mockClear();
@@ -136,7 +142,7 @@ describe("SpellsView — bulk move-to-campaign (#875)", () => {
     expect(wrapper.text()).toContain("3 selected");
   });
 
-  it("a move calls the mutation with the spells table, the selected ids and the campaign id, then stops selecting", async () => {
+  it("a move reaches the spells table with the selected ids and the campaign id, then stops selecting", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
@@ -148,50 +154,31 @@ describe("SpellsView — bulk move-to-campaign (#875)", () => {
       ids: ["spell-1", "spell-2", "spell-3"],
       campaignId: "campaign-1",
     });
-    expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.stringContaining("Moved 3 spells to Icewind Dale"));
     expect(wrapper.text()).not.toContain("selected");
   });
 
-  it("moving to \"all campaigns\" (null) reports availability rather than a destination", async () => {
-    const wrapper = mountView();
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
-
-    await findButton(wrapper, "Make available in all campaigns")!.trigger("click");
-
-    expect(mocks.moveScope).toHaveBeenCalledWith({ table: "spells", ids: ["spell-1", "spell-2", "spell-3"], campaignId: null });
-    expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.stringContaining("now available in all campaigns"));
-  });
-
-  it("prunes a stale id at move time when the filter narrows between select-all and move (#875)", async () => {
+  it("drops a selected id the moment SpellList stops exposing it (#875)", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
     expect(wrapper.text()).toContain("3 selected");
 
-    // The DM edits the level/school/class filter (or a refetch lands):
-    // spell-2 and spell-3 no longer pass. The selection is unaware until pruned.
     mocks.selectableIds = ["spell-1"];
+    await wrapper.vm.$nextTick();
 
-    await findButton(wrapper, "Move to Icewind Dale")!.trigger("click");
-
-    expect(mocks.moveScope).toHaveBeenCalledWith({
-      table: "spells",
-      ids: ["spell-1"],
-      campaignId: "campaign-1",
-    });
+    expect(wrapper.text()).toContain("1 selected");
   });
 
-  it("reports the mutation's failure via the toast idiom and stays in selection mode", async () => {
-    mocks.moveScope.mockRejectedValueOnce(new Error("network blip"));
+  it("keeps the selection while SpellList's first page is still loading, when its placeholder ids are empty (#875)", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
 
-    await findButton(wrapper, "Move to Icewind Dale")!.trigger("click");
+    mocks.selectableReady = false;
+    mocks.selectableIds = [];
+    await wrapper.vm.$nextTick();
 
-    expect(mocks.toastError).toHaveBeenCalledWith("network blip");
-    expect(wrapper.text()).toContain("selected");
+    expect(wrapper.text()).toContain("3 selected");
   });
 });
 
@@ -199,6 +186,7 @@ describe("SpellsView — bulk copy-to-campaign (#598)", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     mocks.selectableIds = ["spell-1", "spell-2", "spell-3"];
+    mocks.selectableReady = true;
     mocks.toastSuccess.mockClear();
     mocks.activeCampaignName = "Icewind Dale";
   });
@@ -220,27 +208,14 @@ describe("SpellsView — bulk copy-to-campaign (#598)", () => {
     expect(dialog.props("table")).toBe("spells");
   });
 
-  it("prunes a stale id at copy-open time when the filter narrowed since select-all (#875 discipline applied to copy)", async () => {
-    const wrapper = mountView();
-    await findButton(wrapper, "Select")!.trigger("click");
-    await findButton(wrapper, "Select all shown")!.trigger("click");
-
-    mocks.selectableIds = ["spell-1"];
-
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
-
-    expect(findDialog(wrapper).props("ids")).toEqual(["spell-1"]);
-  });
-
-  it("toasts the count and destination, closes the dialog and leaves selection mode on copied", async () => {
+  it("closes the dialog and leaves selection mode on copied", async () => {
     const wrapper = mountView();
     await findButton(wrapper, "Select")!.trigger("click");
     await findButton(wrapper, "Select all shown")!.trigger("click");
     await findButton(wrapper, "Copy to campaign…")!.trigger("click");
 
-    await findDialog(wrapper).vm.$emit("copied", { copied: 3, targetName: "Neverwinter" });
+    await findDialog(wrapper).vm.$emit("copied", { copied: 3, linked: 0, targetName: "Neverwinter" });
 
-    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 3 spells to Neverwinter.");
     expect(findDialog(wrapper).props("open")).toBe(false);
     // Selection mode ends, exactly as it does after a move. A copy does leave
     // the originals here and still selectable, so keeping the selection would
