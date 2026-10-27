@@ -16,9 +16,16 @@
  *      could not fetch would fall back to Georgia, the failure the
  *      self-hosted fonts exist to prevent. (A picture the canvas cannot read
  *      keeps its public CDN URL, which the server can fetch.)
- *   3. Assemble one HTML document from the already-laid-out pages and send it
+ *   3. Assemble the HTML document from the already-laid-out pages and send it
  *      to the `render-pdf` edge function, which prints it and answers with the
- *      PDF bytes. No layout happens server-side.
+ *      PDF bytes. No layout happens server-side. The edge function refuses
+ *      HTML over 40 MB, so a big book (480 pages of 300-ppi art is ~61 MB) is
+ *      split into consecutive batches of whole pages (pdfChunks.ts, 32 MB
+ *      budget each, the fonts and CSS repeated in every one), printed one
+ *      request at a time (retrying a busy printer after a wait), and merged
+ *      with pdf-lib. Page numbers, footers and TOC numbers are already in each
+ *      page's DOM, so a split changes none of them. A book that fits is one
+ *      request and no merge (#1115). `progress` says which part is printing.
  *   4. Optionally attach the campaign data to the PDF (campaignBundlePdf.ts),
  *      then download the bytes through an object URL.
  */
@@ -46,6 +53,14 @@ import { inlineSameOriginAssets } from "@/lib/scriptorium/inlineSameOriginAssets
 import { attachBundleToPdf } from "@/lib/scriptorium/campaignBundlePdf";
 import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 import { downloadBlob } from "@/lib/downloadBlob";
+import {
+  chunkPagesHtml,
+  mergePdfs,
+  planPdfChunks,
+  splitPagesHtml,
+  withBusyRetry,
+} from "@/lib/scriptorium/pdfChunks";
+import type { PdfProgress, SplitPages } from "@/lib/scriptorium/pdfChunks";
 
 export interface PdfDocumentOptions {
   bodyHtml: string;
@@ -146,6 +161,17 @@ export function sanitizePdfFilename(title: string, withCampaignData = false): st
   return withCampaignData ? `${base} (with campaign data).pdf` : `${base}.pdf`;
 }
 
+/** One print request; a failure carries the edge function's own message. */
+async function renderPart(html: string): Promise<Blob> {
+  const { data, error: fnError } = await supabase.functions.invoke("render-pdf", { body: { html } });
+  if (fnError) throw new Error(await edgeErrorMessage(fnError));
+  if (!(data instanceof Blob)) throw new Error("The PDF renderer returned an unexpected answer.");
+  return data;
+}
+
+/** Where the pages go in the inlined shell. */
+const PAGES_MARKER = "<!--sc-pages-->";
+
 async function fetchSameOrigin(path: string): Promise<ArrayBuffer> {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path} answered ${res.status}`);
@@ -155,6 +181,8 @@ async function fetchSameOrigin(path: string): Promise<ArrayBuffer> {
 export function useScriptoriumPdf() {
   const isExporting = ref(false);
   const exportError = ref<string | null>(null);
+  /** Which part of a multi-part export is printing; null when idle. */
+  const progress = ref<PdfProgress | null>(null);
 
   /** Resolves true when the file was downloaded, false when it failed (exportError says why). */
   async function exportPdf(opts: PdfExportOptions): Promise<boolean> {
@@ -204,8 +232,19 @@ export function useScriptoriumPdf() {
 
       // 3. Everything the document loads from the app's own origin (fonts,
       //    the page background) travels inside the HTML (see header), then
-      //    the server prints it.
-      const html = await inlineSameOriginAssets(
+      //    the server prints it. The shell (head + styles) is inlined once with
+      //    a marker where the pages go; each page is inlined on its own so its
+      //    byte size is known exactly for the chunk planner.
+      const assetCache = new Map<string, Promise<ArrayBuffer>>();
+      const fetchCached = (path: string) => {
+        let hit = assetCache.get(path);
+        if (!hit) {
+          hit = fetchSameOrigin(path);
+          assetCache.set(path, hit);
+        }
+        return hit;
+      };
+      const shell = await inlineSameOriginAssets(
         buildPdfDocumentHtml({
           title: opts.title,
           theme: opts.theme,
@@ -214,13 +253,51 @@ export function useScriptoriumPdf() {
           themeCss,
           pagedCss,
           pagedStyles,
-          pagesHtml,
+          pagesHtml: PAGES_MARKER,
         }),
-        fetchSameOrigin,
+        fetchCached,
       );
-      const { data, error: fnError } = await supabase.functions.invoke("render-pdf", { body: { html } });
-      if (fnError) throw new Error(await edgeErrorMessage(fnError));
-      if (!(data instanceof Blob)) throw new Error("The PDF renderer returned an unexpected answer.");
+      const [shellHead, shellTail] = shell.split(PAGES_MARKER);
+      const assemble = (pages: string) => shellHead + pages + shellTail;
+
+      const pageEls = Array.from(host.querySelectorAll<HTMLElement>(".pagedjs_page"));
+      const split = splitPagesHtml(
+        pagesHtml,
+        pageEls.map((el) => el.outerHTML),
+      );
+      const inlinedSplit: SplitPages = {
+        prefix: await inlineSameOriginAssets(split.prefix, fetchCached),
+        segments: await Promise.all(split.segments.map((seg) => inlineSameOriginAssets(seg, fetchCached))),
+        suffix: await inlineSameOriginAssets(split.suffix, fetchCached),
+      };
+      const encoder = new TextEncoder();
+      const overhead = encoder.encode(assemble(inlinedSplit.prefix + inlinedSplit.suffix)).length;
+      const ranges = planPdfChunks(
+        inlinedSplit.segments.map((seg) => encoder.encode(seg).length),
+        overhead,
+      );
+
+      // A book that fits is one request with the pages exactly as laid out;
+      // a big one is printed in consecutive parts and stitched below.
+      const htmlParts =
+        ranges.length <= 1
+          ? [assemble(inlinedSplit.prefix + inlinedSplit.segments.join("") + inlinedSplit.suffix)]
+          : ranges.map((range) => assemble(chunkPagesHtml(inlinedSplit, range)));
+
+      const parts: Blob[] = [];
+      for (const [i, html] of htmlParts.entries()) {
+        progress.value = { part: i + 1, total: htmlParts.length };
+        parts.push(await withBusyRetry(() => renderPart(html)));
+      }
+      const data =
+        parts.length === 1
+          ? parts[0]
+          : new Blob(
+              [
+                (await mergePdfs(await Promise.all(parts.map((part) => part.arrayBuffer())))) as Uint8Array<ArrayBuffer>,
+              ],
+              { type: "application/pdf" },
+            );
 
       // 4. Optionally attach the campaign data, then hand the file over.
       if (opts.bundle) {
@@ -238,8 +315,9 @@ export function useScriptoriumPdf() {
       host.remove();
       removePagedStyles(previewer);
       isExporting.value = false;
+      progress.value = null;
     }
   }
 
-  return { isExporting, exportError, exportPdf };
+  return { isExporting, exportError, progress, exportPdf };
 }

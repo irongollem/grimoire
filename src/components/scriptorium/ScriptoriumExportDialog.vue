@@ -79,7 +79,7 @@
         variant="primary"
         size="sm"
         :icon="IconExport"
-        :label="busy ? 'Building…' : 'Export PDF'"
+        :label="busy ? pdfProgressLabel(progress) : 'Export PDF'"
         :loading="busy"
         :disabled="busy || totalSelected === 0 || !bundleName.trim()"
         @click="onExport"
@@ -108,6 +108,7 @@ import { useBundleAuthor, useBundleSelection } from "@/composables/campaign/useB
 import type { BundleInitialSelection } from "@/composables/campaign/useBundleSelection";
 import { useScriptoriumPdf } from "@/composables/scriptorium/useScriptoriumPdf";
 import type { PdfDocumentOptions } from "@/composables/scriptorium/useScriptoriumPdf";
+import { pdfProgressLabel } from "@/lib/scriptorium/pdfChunks";
 
 const { campaignId, documentTitle, preselection, pdfOptions } = defineProps<{
   /** The document's own campaign: the bundle is built from it, whichever campaign is active. */
@@ -126,7 +127,7 @@ const exportAuthor = useBundleAuthor();
 const bundleName = ref(documentTitle);
 const bundleDescription = ref("");
 
-const { isExporting, exportError, exportPdf } = useScriptoriumPdf();
+const { isExporting, exportError, progress, exportPdf } = useScriptoriumPdf();
 const building = ref(false);
 const buildError = ref<string | null>(null);
 const busy = computed(() => building.value || isExporting.value);

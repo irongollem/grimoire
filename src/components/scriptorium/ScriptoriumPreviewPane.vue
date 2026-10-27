@@ -66,7 +66,7 @@
             tooltip="Download as PDF"
             @click="emit('exportPdf')"
           >
-            {{ isGeneratingPdf ? "Building…" : "PDF" }}
+            {{ isGeneratingPdf ? pdfProgressLabel(pdfProgress) : "PDF" }}
           </AppButton>
           <!-- Wrapped: OverflowMenu renders two roots (trigger + teleport), so a class on it would not land. -->
           <div v-if="canEmbedCampaignData" class="border-l border-border">
@@ -125,6 +125,8 @@ import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
 import { preparePagedBody } from "@/lib/scriptorium/pagedPrepare";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import { useFurnitureEditing } from "@/composables/scriptorium/useFurnitureEditing";
+import { pdfProgressLabel } from "@/lib/scriptorium/pdfChunks";
+import type { PdfProgress } from "@/lib/scriptorium/pdfChunks";
 import type {
   ScriptoriumDocType,
   ScriptoriumTheme,
@@ -145,6 +147,7 @@ const {
   inkFriendly,
   isTwoColumn,
   isGeneratingPdf = false,
+  pdfProgress = null,
   canEmbedCampaignData = false,
 } = defineProps<{
   /** Full document HTML — paginated by Paged.js into the book. */
@@ -161,6 +164,8 @@ const {
   inkFriendly: boolean;
   isTwoColumn: boolean;
   isGeneratingPdf?: boolean;
+  /** Which part of a multi-part PDF is printing ("Building part 2 of 4…"). */
+  pdfProgress?: PdfProgress | null;
   /** The document belongs to a campaign, so "PDF with campaign data" is offered. */
   canEmbedCampaignData?: boolean;
 }>();

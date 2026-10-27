@@ -158,6 +158,7 @@
         :ink-friendly="inkFriendly"
         :is-two-column="isTwoColumn"
         :is-generating-pdf="isExporting"
+        :pdf-progress="pdfProgress"
         :can-embed-campaign-data="campaignId !== null"
         :furniture="furniture"
         :selected-furniture-id="selectedFurnitureId"
@@ -657,7 +658,7 @@ async function moveToActiveCampaign() {
   await save();
 }
 
-const { isExporting, exportError, exportPdf: runPdfExport } = useScriptoriumPdf();
+const { isExporting, exportError, progress: pdfProgress, exportPdf: runPdfExport } = useScriptoriumPdf();
 const toast = useToast();
 const showDataExport = ref(false);
 

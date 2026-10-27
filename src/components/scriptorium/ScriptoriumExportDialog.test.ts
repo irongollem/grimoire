@@ -17,8 +17,9 @@ vi.mock("@/composables/scriptorium/useScriptoriumPdf", async () => {
   const { ref } = await import("vue");
   const isExporting = ref(false);
   const exportError = ref<string | null>(null);
+  const progress = ref(null);
   return {
-    useScriptoriumPdf: () => ({ isExporting, exportError, exportPdf: mocks.exportPdf }),
+    useScriptoriumPdf: () => ({ isExporting, exportError, progress, exportPdf: mocks.exportPdf }),
   };
 });
 
