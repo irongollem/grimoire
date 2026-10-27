@@ -32,6 +32,16 @@
   --sc-cover-title-transform: none;
   --sc-cover-title-variant: small-caps;
 
+  /* Lens pair (.sc-lens, #1115): Bright on a warm gilt-cream ground under a gilt
+     rule, Deep on a dusk ground over a dusk-plum rule. Same in both editions. */
+  --sc-lens-bright-bg: #f7eed8;
+  --sc-lens-deep-bg: #ebe7f0;
+  --sc-lens-top-rule: #c9a24a;
+  --sc-lens-bottom-rule: #6a5a86;
+  --sc-lens-split-rule: #c9b99a;
+  --sc-lens-bright-label: #7a5a14;
+  --sc-lens-deep-label: #4a3d66;
+
   /* Read-aloud box (.sc-descriptive): warm pale tan tint, brown side rules
      and corner dots. */
   --sc-readaloud-bg: #f3e8d2;
@@ -66,6 +76,11 @@
    fills drop. See the onednd2024 block above for why this needs its own
    compound selector rather than a shared `.ink-friendly` rule. */
 .theme-phb2014.ink-friendly {
+  --sc-lens-bright-bg: transparent;
+  --sc-lens-deep-bg: transparent;
+  --sc-lens-top-rule: #1a1a1a;
+  --sc-lens-bottom-rule: #1a1a1a;
+  --sc-lens-split-rule: #1a1a1a;
   --sc-readaloud-bg: #ffffff;
   --sc-sidebar-bg: #ffffff;
 }

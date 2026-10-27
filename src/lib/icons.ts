@@ -37,7 +37,7 @@ import {
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
   VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
-  Fence, Type,
+  Fence, Type, SunMoon,
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -236,6 +236,7 @@ export { CloudFog as IconWeatherFog }
 export { Snowflake as IconWeatherBlizzard }
 export { Sun as IconSun }
 export { Moon as IconMoon }
+export { SunMoon as IconLensPair }
 export { Ghost as IconUndead }
 export { PawPrint as IconBeast }
 export { Axe as IconAxe }

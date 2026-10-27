@@ -27,6 +27,24 @@
  *    attribution node. Unknown directive names pass their content through
  *    unwrapped, so partially-converted documents degrade gracefully.
  *
+ *    A directive may carry arguments after its name (`::: lens light`).
+ *
+ *    ::: lens [light] [wide]   a lens pair (#1115). Paragraphs that open with a
+ *                              bold run-in label (`**Bright.**`, `**Deep:**`,
+ *                              `**Bright lens:**`) start that half; text before
+ *                              any label is Bright. `light` sets the light
+ *                              variant, `wide` wraps the pair in a wide block.
+ *    ::: wide                  wraps its blocks in a wide block.
+ *    ::: art                   `key: value` lines (slug, size, lane, existing,
+ *                              alt, caption, brief): the image when the caller's
+ *                              `resolveArt` finds one, else an "Art to come" note.
+ *    ::: statblock / ::: embed `key: value` lines (name, and type for embed): a
+ *                              live entity embed when `resolveEmbed` finds the
+ *                              entity, else a placeholder note.
+ *
+ *    The resolvers are optional callbacks, so this module stays pure: the caller
+ *    looks the art and the entities up and hands the answers in.
+ *
  * The converter is pure and returns fresh objects on every call (the template
  * gallery contract — Tiptap mutates node objects during configuration).
  */
@@ -244,28 +262,31 @@ function tokensToNodes(tokens: Token[]): JSONContent[] {
 
 interface Segment {
   directive: string | null;
+  args: string[];
   source: string;
 }
 
-const DIRECTIVE_OPEN = /^:::\s*([A-Za-z][\w-]*)\s*$/;
+const DIRECTIVE_OPEN = /^:::\s*([A-Za-z][\w-]*)((?:\s+\S+)*)\s*$/;
 const DIRECTIVE_CLOSE = /^:::\s*$/;
 
 /** Split raw markdown into plain segments and `::: name … :::` segments. */
 function splitDirectiveSegments(markdown: string): Segment[] {
   const segments: Segment[] = [];
   let directive: string | null = null;
+  let args: string[] = [];
   let lines: string[] = [];
 
-  const flush = (next: string | null) => {
-    if (lines.length) segments.push({ directive, source: lines.join("\n") });
+  const flush = (next: string | null, nextArgs: string[] = []) => {
+    if (lines.length) segments.push({ directive, args, source: lines.join("\n") });
     directive = next;
+    args = nextArgs;
     lines = [];
   };
 
   for (const line of markdown.split("\n")) {
     if (directive === null) {
       const open = DIRECTIVE_OPEN.exec(line);
-      if (open) flush(open[1].toLowerCase());
+      if (open) flush(open[1].toLowerCase(), open[2].toLowerCase().split(/\s+/).filter(Boolean));
       else lines.push(line);
     } else if (DIRECTIVE_CLOSE.test(line)) {
       flush(null);
@@ -296,7 +317,172 @@ function quoteBlockContent(blocks: JSONContent[]): JSONContent[] {
   return paragraphs;
 }
 
-function wrapDirective(name: string, blocks: JSONContent[]): JSONContent[] {
+// ── Lens pair ───────────────────────────────────────────────────────────────
+
+/** The bold run-in label that opens a lens half: "Bright.", "Deep:", "Bright lens:". */
+const LENS_LABEL = /^(bright|deep)(?:\s+lens)?\s*[.:]$/i;
+
+type LensSide = "bright" | "deep";
+
+/** Which half a paragraph opens, and the paragraph with that label removed. */
+function splitLensLabel(block: JSONContent): { side: LensSide; rest: JSONContent | null } | null {
+  if (block.type !== "paragraph") return null;
+  const [first, ...others] = block.content ?? [];
+  if (first?.type !== "text" || !first.text || !first.marks?.some((m) => m.type === "bold")) return null;
+  const match = LENS_LABEL.exec(first.text.trim());
+  if (!match) return null;
+  const content = [...others];
+  const next = content[0];
+  if (next?.type === "text" && next.text) content[0] = { ...next, text: next.text.replace(/^\s+/, "") };
+  const kept = content.filter((n) => n.type !== "text" || n.text);
+  return { side: match[1].toLowerCase() === "deep" ? "deep" : "bright", rest: kept.length ? { ...block, content: kept } : null };
+}
+
+function lensPairNode(blocks: JSONContent[], args: string[]): JSONContent[] {
+  const halves: Record<LensSide, JSONContent[]> = { bright: [], deep: [] };
+  let side: LensSide = "bright";
+  for (const block of blocks) {
+    const label = splitLensLabel(block);
+    if (label) {
+      side = label.side;
+      if (label.rest) halves[side].push(label.rest);
+    } else {
+      halves[side].push(block);
+    }
+  }
+  const half = (type: string, content: JSONContent[]): JSONContent => ({
+    type,
+    content: content.length ? content : [{ type: "paragraph" }],
+  });
+  const pair: JSONContent = {
+    type: "lensPair",
+    attrs: { variant: args.includes("light") ? "light" : "boxed" },
+    content: [half("lensBright", halves.bright), half("lensDeep", halves.deep)],
+  };
+  return [args.includes("wide") ? { type: "wideBlock", content: [pair] } : pair];
+}
+
+// ── Art, stat block and embed directives (`key: value` bodies) ──────────────
+
+export type ArtSize = "full" | "half" | "column" | "wide" | "opener";
+
+/** One piece of art a chapter asks for, as the `::: art` directive describes it. */
+export interface ArtSlot {
+  /** The slot's stable name, when the directive gives one. */
+  slug?: string;
+  size: ArtSize;
+  lane?: string;
+  /** A file the author says already exists. */
+  existing?: string;
+  alt?: string;
+  caption?: string;
+  brief?: string;
+}
+
+export interface MarkdownImportOptions {
+  /** The image for a slot, or null when there is none yet. */
+  resolveArt?: (slot: ArtSlot) => { src: string } | null;
+  /** The campaign entity a `statblock` / `embed` names, or null when it is not there. */
+  resolveEmbed?: (ref: { type: string; name: string }) => { id: string } | null;
+}
+
+const ART_SIZES: readonly ArtSize[] = ["full", "half", "column", "wide", "opener"];
+const EMBED_TYPES = ["npc", "monster", "spell", "item", "location", "quest"] as const;
+const EMBED_LABELS: Record<(typeof EMBED_TYPES)[number], string> = {
+  npc: "NPC",
+  monster: "Monster",
+  spell: "Spell",
+  item: "Item",
+  location: "Location",
+  quest: "Quest",
+};
+
+/** `key: value` lines; a line with no key continues the previous value. */
+function keyValueLines(source: string): Map<string, string> {
+  const out = new Map<string, string>();
+  let last: string | null = null;
+  for (const raw of source.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const match = /^([A-Za-z][\w-]*)\s*:\s*(.*)$/.exec(line);
+    if (match) {
+      last = match[1].toLowerCase();
+      out.set(last, match[2].trim());
+    } else if (last) {
+      out.set(last, `${out.get(last)} ${line}`.trim());
+    }
+  }
+  return out;
+}
+
+/** The value for `key` when it holds anything. */
+function field(fields: Map<string, string>, key: string): string | undefined {
+  const value = fields.get(key);
+  return value ? value : undefined;
+}
+
+function noteWithLines(lines: string[]): JSONContent {
+  const content: JSONContent[] = lines.flatMap((text, i) => [
+    ...(i > 0 ? [{ type: "hardBreak" }] : []),
+    { type: "text", text },
+  ]);
+  return { type: "noteBlock", content: [{ type: "paragraph", content }] };
+}
+
+function artSlot(fields: Map<string, string>): ArtSlot {
+  const size = field(fields, "size")?.toLowerCase();
+  return {
+    slug: field(fields, "slug"),
+    size: ART_SIZES.find((s) => s === size) ?? "column",
+    lane: field(fields, "lane"),
+    existing: field(fields, "existing"),
+    alt: field(fields, "alt"),
+    caption: field(fields, "caption"),
+    brief: field(fields, "brief"),
+  };
+}
+
+function artNodes(source: string, options: MarkdownImportOptions): JSONContent[] {
+  const slot = artSlot(keyValueLines(source));
+  const found = options.resolveArt?.(slot) ?? null;
+  if (!found) {
+    // A slot that names nothing still says so, rather than printing a bare label.
+    const lines = [`Art to come: ${slot.caption ?? slot.alt ?? slot.slug ?? "an unnamed slot"}`];
+    if (slot.brief) lines.push(`Brief: ${slot.brief}`);
+    else if (slot.existing) lines.push(`Source: ${slot.existing}`);
+    return [noteWithLines(lines)];
+  }
+  // The image's width is a percentage string: renderHTML writes it as the
+  // `width` attribute (valid HTML) and the theme caps images at the column.
+  const wide = slot.size === "wide" || slot.size === "opener";
+  const image: JSONContent = {
+    type: "image",
+    attrs: {
+      src: found.src,
+      alt: slot.alt ?? null,
+      width: slot.size === "half" ? "50%" : "100%",
+      dataAlign: "center",
+    },
+  };
+  const caption: JSONContent[] = slot.caption
+    ? [{ type: "paragraph", content: [{ type: "text", text: slot.caption, marks: [{ type: "italic" }] }] }]
+    : [];
+  return wide ? [{ type: "wideBlock", content: [image, ...caption] }] : [image, ...caption];
+}
+
+function embedNodes(directive: "statblock" | "embed", source: string, options: MarkdownImportOptions): JSONContent[] {
+  const fields = keyValueLines(source);
+  const name = field(fields, "name");
+  if (!name) return [];
+  const declared = field(fields, "type")?.toLowerCase();
+  const type = directive === "statblock" ? "monster" : EMBED_TYPES.find((t) => t === declared);
+  const label = directive === "statblock" ? "Stat block" : type ? EMBED_LABELS[type] : "Embed";
+  const found = type ? (options.resolveEmbed?.({ type, name }) ?? null) : null;
+  if (type && found) return [{ type: "entityEmbed", attrs: { entityType: type, entityId: found.id } }];
+  return [noteWithLines([`${label}: ${name} (not yet in the campaign)`])];
+}
+
+function wrapDirective(name: string, args: string[], blocks: JSONContent[]): JSONContent[] {
   if (!blocks.length) return [];
   switch (name) {
     case "read-aloud":
@@ -310,20 +496,40 @@ function wrapDirective(name: string, blocks: JSONContent[]): JSONContent[] {
       const content = quoteBlockContent(blocks);
       return content.length ? [{ type: "quoteBlock", content }] : [];
     }
+    case "wide":
+      return [{ type: "wideBlock", content: blocks }];
+    case "lens":
+      return lensPairNode(blocks, args);
     default:
       // Unknown directive: pass the content through so nothing is lost.
       return blocks;
   }
 }
 
+function directiveNodes(segment: Segment & { directive: string }, options: MarkdownImportOptions): JSONContent[] {
+  switch (segment.directive) {
+    case "art":
+      return artNodes(segment.source, options);
+    case "statblock":
+    case "embed":
+      return embedNodes(segment.directive, segment.source, options);
+    default:
+      return wrapDirective(segment.directive, segment.args, tokensToNodes(lexer(segment.source)));
+  }
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /** Convert a markdown document into a Tiptap `doc` node for the editor. */
-export function markdownToScriptoriumContent(markdown: string): JSONContent {
-  const content = splitDirectiveSegments(markdown).flatMap((segment) => {
-    const blocks = tokensToNodes(lexer(segment.source));
-    return segment.directive ? wrapDirective(segment.directive, blocks) : blocks;
-  });
+export function markdownToScriptoriumContent(
+  markdown: string,
+  options: MarkdownImportOptions = {},
+): JSONContent {
+  const content = splitDirectiveSegments(markdown).flatMap((segment) =>
+    segment.directive === null
+      ? tokensToNodes(lexer(segment.source))
+      : directiveNodes({ ...segment, directive: segment.directive }, options),
+  );
   return { type: "doc", content: content.length ? content : [{ type: "paragraph" }] };
 }
 

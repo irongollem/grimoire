@@ -492,6 +492,115 @@
   margin: 0.875rem 0;
 }
 
+/* ── Lens pair (#1115) ─────────────────────────────────────────────────────
+   One passage at two levels: Bright (a child's reading) and Deep (an
+   adult's). The markup is the same in the galley, the preview and the PDF:
+   .sc-lens > .sc-lens-half (.sc-lens-label + .sc-lens-body). The sun and moon
+   are masks, not inline SVG, so they take the label colour and survive every
+   serializer. Entity rich text carries the same markup but is styled from the
+   app's tokens in src/assets/lens-pair.css, not from here.
+
+   Boxed (default): a 1px gilt rule above, a 1px dusk-plum rule below, each
+   half on its own ground. Wide (inside .sc-wide): the halves sit side by side
+   with a hairline between them. Light: no grounds, rules or label text, just
+   the glyph leading each paragraph. Ink-friendly: grounds go transparent and
+   rules near-black (tokens, per theme file) and the Deep half gets a dashed
+   separator. An empty half is left out of the rendered page (.phb-page is the
+   preview/PDF page; the galley keeps it, with its placeholder). */
+.sc-theme .sc-lens {
+  margin: var(--sc-box-margin);
+  border-top: 1px solid var(--sc-lens-top-rule);
+  border-bottom: 1px solid var(--sc-lens-bottom-rule);
+  break-inside: avoid;
+}
+.sc-theme .sc-lens-halves {
+  display: contents;
+}
+.sc-theme .sc-lens-half {
+  padding: 0.65rem 0.75rem;
+}
+.sc-theme .sc-lens-bright {
+  background: var(--sc-lens-bright-bg);
+  --sc-lens-label-color: var(--sc-lens-bright-label);
+  --sc-lens-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41'/%3E%3C/svg%3E");
+}
+.sc-theme .sc-lens-deep {
+  background: var(--sc-lens-deep-bg);
+  --sc-lens-label-color: var(--sc-lens-deep-label);
+  --sc-lens-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'/%3E%3C/svg%3E");
+}
+.sc-theme .sc-lens-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  margin: 0 0 0.3rem;
+  font-family: var(--sc-heading-font);
+  font-size: 0.72em;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sc-lens-label-color);
+  user-select: none;
+}
+.sc-theme .sc-lens-label::before {
+  content: "";
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  background-color: currentColor;
+  -webkit-mask: var(--sc-lens-glyph) center / contain no-repeat;
+  mask: var(--sc-lens-glyph) center / contain no-repeat;
+}
+.sc-theme .sc-lens-body p {
+  margin: 0 0 0.5rem;
+  font-style: normal;
+}
+.sc-theme .sc-lens-body > :last-child {
+  margin-bottom: 0;
+}
+
+.sc-theme .sc-wide .sc-lens:not(.sc-lens--light) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+.sc-theme .sc-wide .sc-lens:not(.sc-lens--light) .sc-lens-deep {
+  border-left: 1px solid var(--sc-lens-split-rule);
+}
+
+.sc-theme .sc-lens--light {
+  border: none;
+}
+.sc-theme .sc-lens--light .sc-lens-half {
+  padding: 0;
+  background: none;
+}
+.sc-theme .sc-lens--light .sc-lens-label {
+  float: left;
+  margin: 0.2em 0.4em 0 0;
+}
+.sc-theme .sc-lens--light .sc-lens-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ink-friendly .sc-lens:not(.sc-lens--light) .sc-lens-deep {
+  border-top: 1px dashed var(--sc-lens-bottom-rule);
+}
+.ink-friendly .sc-wide .sc-lens:not(.sc-lens--light) .sc-lens-deep {
+  border-top: none;
+  border-left: 1px dashed var(--sc-lens-bottom-rule);
+}
+
+.phb-page .sc-lens-half:has(> .sc-lens-body > p:only-child:empty),
+.phb-page .sc-lens:not(:has(.sc-lens-body:not(:has(> p:only-child:empty)))) {
+  display: none;
+}
+
 /* ── Callouts: note (sidebar) / descriptive (read-aloud) ──────────────────
    Both boxes share one shape family from the printed books, in both editions
    — only the tint tokens differ per theme (#915 story 6). --sc-box-margin is

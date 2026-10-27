@@ -1,0 +1,113 @@
+/*
+ * Lens pair in entity rich text (#1115): one passage read at two levels. Bright
+ * is a child's reading, Deep an adult's. The DM sees both boxed, with the Deep
+ * label reading "Deep · DM only"; a player is rendered only the Bright half's
+ * content, unwrapped (viewerRender.ts), so none of this styling reaches them.
+ * The book (Scriptorium) styles the same markup from its own --sc-lens-* tokens
+ * in scriptorium/theme-base.css; this file is the app's version, built from the
+ * semantic tones so it follows whichever theme is on.
+ */
+.rte-content .sc-lens {
+  margin-block: 0.75rem;
+  border-top: 1px solid var(--tone-caution);
+  border-bottom: 1px solid var(--tone-arcane);
+  border-radius: 0.25rem;
+}
+
+.rte-content .sc-lens-halves {
+  display: contents;
+}
+
+.rte-content .sc-lens-half {
+  padding: 0.5rem 0.75rem 0.625rem;
+}
+
+.rte-content .sc-lens-bright {
+  background: color-mix(in oklab, var(--tone-caution) 10%, transparent);
+  --lens-label: var(--color-ink-caution);
+  --lens-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41'/%3E%3C/svg%3E");
+}
+
+.rte-content .sc-lens-deep {
+  background: color-mix(in oklab, var(--tone-arcane) 9%, transparent);
+  --lens-label: var(--color-ink-arcane);
+  --lens-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'/%3E%3C/svg%3E");
+}
+
+.rte-content .sc-lens-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-bottom: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lens-label);
+  user-select: none;
+}
+
+.rte-content .sc-lens-label::before {
+  content: "";
+  flex: none;
+  width: 0.8125rem;
+  height: 0.8125rem;
+  background-color: currentColor;
+  -webkit-mask: var(--lens-glyph) center / contain no-repeat;
+  mask: var(--lens-glyph) center / contain no-repeat;
+}
+
+.rte-content .sc-lens-deep .sc-lens-name::after {
+  content: " \00b7  DM only";
+}
+
+.rte-content .sc-lens-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Light: no boxes or label text, just the glyph leading each reading. */
+.rte-content .sc-lens--light {
+  border: none;
+}
+
+.rte-content .sc-lens--light .sc-lens-half {
+  padding: 0;
+  background: none;
+}
+
+.rte-content .sc-lens--light .sc-lens-label {
+  float: left;
+  margin: 0.2em 0.4em 0 0;
+}
+
+.rte-content .sc-lens--light .sc-lens-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Editor chrome (never in renderHTML): the header strip and the empty-half hint. */
+.sc-lens-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  user-select: none;
+}
+
+.sc-lens-half p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}

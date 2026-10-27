@@ -36,6 +36,7 @@ import { CoverPage } from "@/lib/tiptap/coverPage";
 import { BlockId } from "@/lib/tiptap/blockId";
 import { PageBreak } from "@/lib/tiptap/pageBreak";
 import { EntityEmbed } from "@/lib/tiptap/entityEmbed";
+import { LENS_PAIR_EXTENSIONS } from "@/lib/tiptap/lensPair";
 
 /*
  * Tiptap nodes don't have a public-facing generic for `extend()`'s config that
@@ -92,5 +93,6 @@ export function createScriptoriumExtensions() {
     BlockId,
     PageBreak,
     EntityEmbed,
+    ...LENS_PAIR_EXTENSIONS,
   ];
 }

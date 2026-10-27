@@ -52,11 +52,14 @@ const doc = shallowRef<unknown>(parseStoredContent(props.content));
 // ordinary document asks nothing.
 const holdsSecrets = computed(() => secretIdsIn(doc.value).length > 0);
 const disclosedLabels = useSecretDisclosures(() => holdsSecrets.value);
+// The same provider tells a lens pair who is reading (#1115): inside the DM
+// layout both halves show, anywhere else only the Bright half does.
+const audience = disclosedLabels ? "dm" : "player";
 const RenderedDoc = () =>
-  renderStoredDoc(
-    doc.value,
-    disclosedLabels && holdsSecrets.value ? { secretLabels: disclosedLabels.value } : {},
-  );
+  renderStoredDoc(doc.value, {
+    audience,
+    ...(disclosedLabels && holdsSecrets.value ? { secretLabels: disclosedLabels.value } : {}),
+  });
 
 // Chronicle-image anchors resolve here too, not only in the editor: a note
 // saved while its render job was still in flight keeps the anchor in its

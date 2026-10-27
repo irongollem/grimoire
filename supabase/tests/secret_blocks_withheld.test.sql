@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(41);
 
 -- ── The stripper on its own ─────────────────────────────────────────────────
 
@@ -60,6 +60,38 @@ select is(
   private.withhold_secret_blocks('{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"No secrets"}]}]}'),
   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"No secrets"}]}]}',
   'a document without a secret block comes back byte for byte');
+
+-- ── Lens pairs (#1115, 20261027012548): a player gets only the Bright half ──
+
+select is(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Before"}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"A kindly lady"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","content":[{"type":"text","text":"She walked toward the Stain"}]}]}]},{"type":"paragraph","content":[{"type":"text","text":"After"}]}]}')::jsonb,
+  '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Before"}]},{"type":"paragraph","content":[{"type":"text","text":"A kindly lady"}]},{"type":"paragraph","content":[{"type":"text","text":"After"}]}]}'::jsonb,
+  'a lens pair becomes its Bright half, unwrapped and in place, and the Deep half is gone');
+
+select is(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"lensPair","content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"One"}]},{"type":"paragraph","content":[{"type":"text","text":"Two"}]}]},{"type":"lensDeep","content":[{"type":"paragraph"}]}]}]}')::jsonb,
+  '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"One"}]},{"type":"paragraph","content":[{"type":"text","text":"Two"}]}]}'::jsonb,
+  'a Bright half of several blocks keeps their order');
+
+select is(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"columns","content":[{"type":"column","content":[{"type":"lensPair","content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"Bright"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","content":[{"type":"text","text":"Deep"}]}]}]}]}]}]}')::jsonb,
+  '{"type":"doc","content":[{"type":"columns","content":[{"type":"column","content":[{"type":"paragraph","content":[{"type":"text","text":"Bright"}]}]}]}]}'::jsonb,
+  'a lens pair nested inside other blocks is reduced the same way');
+
+select is(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"lensPair","content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"Kept"}]},{"type":"secretBlock","content":[{"type":"paragraph","content":[{"type":"text","text":"DM"}]}]}]},{"type":"lensDeep","content":[{"type":"paragraph"}]}]}]}')::jsonb,
+  '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Kept"}]}]}'::jsonb,
+  'a secret block inside the Bright half is still stripped');
+
+select is(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"lensDeep","content":[{"type":"paragraph","content":[{"type":"text","text":"Stray"}]}]},{"type":"paragraph"}]}')::jsonb,
+  '{"type":"doc","content":[{"type":"paragraph"}]}'::jsonb,
+  'a stray Deep half outside a pair is dropped like a secret block');
+
+select is(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"paragraph","attrs":{"x":{"type":"lensDeep","content":[]}}}]}'),
+  null,
+  'a Deep half outside any content array survives the strip, so the value is withheld whole');
 
 select is(private.withhold_secret_blocks('<p>Legacy HTML</p>'), '<p>Legacy HTML</p>', 'legacy HTML passes through');
 select is(private.withhold_secret_blocks(null), null, 'null stays null');

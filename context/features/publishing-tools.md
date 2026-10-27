@@ -36,6 +36,26 @@ Documents are tagged with a type that drives the colour-coded badge in the list 
 
 **Insert Block picker** (`BlockPickerPanel.vue`) is the modal that inserts any of the above. **Insert Asset panel** (`AssetInsertPanel.vue`) appends a live-linked NPC/monster/spell/location at the end of the document.
 
+### Lens pair (#1115)
+
+A passage read at two levels: **Bright** (a child's reading) and **Deep** (an adult's), set side by side. `src/lib/tiptap/lensPair.ts` holds three nodes: `lensPair` (attr `variant`: `boxed` default, `light`) with content exactly `lensBright lensDeep`, so neither half can be deleted alone. Each half takes `block+`. The labels come from `renderHTML` outside the content hole (`.sc-lens-label`, non-editable), so they are never document text; the sun and moon glyphs are CSS masks. `insertLensPair()` (Mod-Alt-L) refuses inside a pair. Insert it from the block picker (Callouts) or the entity editor's toolbar. The galley's Boxed / Light toggle and "Lens pair" strip are `LensPairView.vue`, editor-only, never in `renderHTML`. An empty half shows a placeholder in the galley (`p.is-empty`).
+
+- **Book styling** is `.sc-lens` in `theme-base.css` from the `--sc-lens-*` tokens in both theme files: gilt rule above, dusk-plum rule below, cream and dusk grounds. Inside `.sc-wide` the halves go side by side with a hairline between. `.sc-lens--light` drops grounds, rules and label text and leads each half with its glyph. `.ink-friendly` zeroes the grounds, makes the rules near-black and dashes the Deep separator. An empty half (or a wholly empty pair) is hidden under `.phb-page` (preview and PDF) with `:has()`; the galley keeps it.
+- **Entity text** uses the same markup styled from the app's tones in `src/assets/lens-pair.css` (Bright amber, Deep arcane; Deep's label reads "Deep · DM only").
+- **Audience:** `renderStoredDoc(content, { audience })` (`viewerRender.ts`) shows a DM both halves and a player only the Bright half's blocks, unwrapped, no box or label. The default is `player`. `RichTextViewer` passes `dm` when the DM layout provides the secret-disclosure context (the same signal `secretBlock` labels use). **The server withholds the Deep half** exactly where it withholds `secretBlock`: `private.strip_secret_nodes` replaces a pair with its Bright half's blocks and drops a stray `lensDeep` (`20261027012548`), so every projection that calls `private.withhold_secret_blocks` (locations, items, puzzles, notes, factions) sends a player Bright only. The client view is presentation, not the protection.
+- **Where the editor offers it:** `RichTextEditor` shows the toolbar button only when `allowSecrets` (a field the server strips) or `allowLensPairs` (a field players never read, such as an NPC's lore in `NpcLoreTab.vue`) is set. A quest beat's summary and reveal text reach players unstripped, so they do not offer it. The node is registered in every editor, so text holding a pair is never lost by opening it elsewhere.
+
+### Markdown import directives
+
+`markdownToScriptoriumContent(markdown, options?)` (`src/lib/scriptorium/markdownImport.ts`) reads `::: name [args]` containers (flat, not nested; an unknown name passes its content through). Besides `read-aloud`, `note` and `quote`:
+
+- `::: lens [light] [wide]`: a paragraph that opens with a bold run-in label (`**Bright.**`, `**Bright:**`, `**Bright lens:**`, any case; same for Deep) starts that half and the label is stripped; text before any label is Bright. `light` sets the variant; `wide` wraps the pair in a `wideBlock`.
+- `::: wide`: wraps its blocks in a `wideBlock`.
+- `::: art`: `key: value` lines (`slug`, `size` = full|half|column|wide|opener, `lane`, `existing`, `alt`, `caption`, `brief`). `options.resolveArt(slot)` returning `{ src }` emits the image (half = `50%`, otherwise `100%`; wide and opener inside a `wideBlock`) and an italic caption paragraph; otherwise a `noteBlock` "Art to come: caption" with "Brief: ..." (or "Source: existing") on a second line. `ArtSlot` is exported.
+- `::: statblock` (`name:`) and `::: embed` (`type:`, `name:`): `options.resolveEmbed({ type, name })` returning `{ id }` emits an `entityEmbed` (statblock is `monster`); otherwise a note "Stat block: name (not yet in the campaign)".
+
+The module does no I/O: the caller looks art and entities up and passes the answers in.
+
 ### Linked entity embeds (#915 story 3)
 
 Two paths put an `entityEmbed` node into a document: **Insert Asset** (`AssetInsertPanel.vue`, NPCs/monsters/spells/locations) and **Send to Scriptorium** on an entity's own detail page (`NpcDetail.vue`, `MonsterDetail.vue`, `SpellDetail.vue`, `ItemDetail.vue`, `QuestOverviewLifecycle.vue`), which creates a whole new document whose content is a single `entityEmbed` node (the entity's formatted body already opens with its name) (`buildEntityEmbedDocumentContent`, `src/lib/scriptorium/entityEmbeds.ts`). Either way the node stores only `{ entityType, entityId }`, never a copy of the entity's fields, so the document always shows CURRENT data and never goes stale when the source entity is edited.

@@ -14,7 +14,7 @@
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { FurnitureKind } from "@/types/scriptorium.types";
-import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconHash, IconInfo, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconRefresh, IconScrollText, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
+import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconHash, IconInfo, IconLensPair, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconRefresh, IconScrollText, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
 import {
   frontCoverTemplate,
   insideCoverTemplate,
@@ -217,6 +217,14 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
       "Boxed highlight for rules reminders and DM tips. 2024 theme: teal-tinted with accent border. Classic theme: parchment with double rule. Shortcut: Mod-Alt-N.",
     icon: IconInfo,
     action: (editor) => editor.chain().focus().toggleNoteBlock().run(),
+  },
+  {
+    group: "Callouts",
+    label: "Lens Pair",
+    description:
+      "One passage at two levels: a Bright reading for a child and a Deep one for an adult, set side by side. Wrap it in a Wide block to run the halves in two columns. An empty half is left out of the printed page. Shortcut: Mod-Alt-L.",
+    icon: IconLensPair,
+    action: (editor) => editor.chain().focus().insertLensPair().run(),
   },
   {
     group: "Callouts",

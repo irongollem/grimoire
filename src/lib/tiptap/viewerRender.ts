@@ -366,6 +366,43 @@ export interface ViewerChipOverrides {
 
 let activeChips: ViewerChipOverrides | undefined;
 
+/**
+ * Who the render in progress is for. A lens pair (#1115) shows both readings to
+ * the DM; a player gets only the Bright half's content, unwrapped, so a Bright
+ * table never learns a Deep reading exists. Unlike `secretBlock` the server does
+ * not strip the Deep half yet, so the default is the safe one: `player`.
+ */
+export type ViewerAudience = "dm" | "player";
+let activeAudience: ViewerAudience = "player";
+
+function lensHalf(node: JsonNode, type: "lensBright" | "lensDeep"): JsonNode | undefined {
+  return node.content.find((child) => child.type === type);
+}
+
+function renderLensHalf(half: JsonNode, label: string): VNode {
+  const kind = half.type === "lensBright" ? "bright" : "deep";
+  return h("div", { "data-type": half.type, class: `sc-lens-half sc-lens-${kind}` }, [
+    h("div", { class: "sc-lens-label" }, [h("span", { class: "sc-lens-name" }, label)]),
+    h("div", { class: "sc-lens-body" }, renderBlocks(half.content)),
+  ]);
+}
+
+function renderLensPair(node: JsonNode): VNodeChild | null {
+  const bright = lensHalf(node, "lensBright");
+  if (activeAudience === "player") return bright ? renderBlocks(bright.content) : null;
+  const light = node.attrs.variant === "light";
+  const deep = lensHalf(node, "lensDeep");
+  return h(
+    "div",
+    {
+      "data-type": "lensPair",
+      "data-variant": light ? "light" : "boxed",
+      class: light ? "sc-lens sc-lens--light" : "sc-lens",
+    },
+    [bright && renderLensHalf(bright, "Bright"), deep && renderLensHalf(deep, "Deep")],
+  );
+}
+
 function secretBlockProps(a: Record<string, unknown>): Record<string, string> {
   const props: Record<string, string> = { "data-type": "secretBlock" };
   const id = text(a.secretId);
@@ -456,6 +493,8 @@ function renderNode(node: JsonNode): VNodeChild | null {
       // player projection), so rendering it is safe; the frame and label that
       // set it apart come from `secret-block.css`.
       return h("div", secretBlockProps(a), renderBlocks(node.content));
+    case "lensPair":
+      return renderLensPair(node);
     case "calendarEventRef": {
       const eventId = text(a.eventId) ?? null;
       const label = text(a.label) ?? "";
@@ -524,15 +563,21 @@ function emptyLine(): VNode {
  */
 export function renderStoredDoc(
   content: unknown,
-  options: { secretLabels?: ReadonlyMap<string, string>; chips?: ViewerChipOverrides } = {},
+  options: {
+    secretLabels?: ReadonlyMap<string, string>;
+    chips?: ViewerChipOverrides;
+    audience?: ViewerAudience;
+  } = {},
 ): VNode {
   activeSecretLabels = options.secretLabels;
   activeChips = options.chips;
+  activeAudience = options.audience ?? "player";
   try {
     return renderStoredDocInner(content);
   } finally {
     activeSecretLabels = undefined;
     activeChips = undefined;
+    activeAudience = "player";
   }
 }
 

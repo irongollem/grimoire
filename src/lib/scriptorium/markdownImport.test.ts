@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { Editor } from "@tiptap/core";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
-import { markdownToScriptoriumContent, markdownTitle } from "./markdownImport";
+import { markdownToScriptoriumContent, markdownTitle, type ArtSlot } from "./markdownImport";
 import { importedMarkdownTemplate } from "@/data/scriptoriumTemplates/importedMarkdown";
 
 let editor: Editor | null = null;
@@ -174,6 +174,219 @@ describe("editor round-trip", () => {
     expect(editor.getHTML()).toContain('data-type="descriptiveBlock"');
     expect(editor.getHTML()).toContain('data-type="noteBlock"');
     expect(editor.getHTML()).toContain('data-type="attribution"');
+  });
+});
+
+const textOf = (node: { text?: string; content?: unknown[] }): string =>
+  node.text ?? (node.content as { text?: string; content?: unknown[] }[] | undefined)?.map(textOf).join("") ?? "";
+
+describe("directive arguments", () => {
+  it("accepts arguments after the directive name", () => {
+    const doc = markdownToScriptoriumContent("::: lens light\nHello\n:::");
+    expect(doc.content![0].type).toBe("lensPair");
+  });
+});
+
+describe("::: lens", () => {
+  const LABELS = ["**Bright.**", "**Bright:**", "**Bright lens:**", "**Bright Lens.**", "**BRIGHT.**"];
+  for (const label of LABELS) {
+    it(`reads ${label} as the Bright label and strips it`, () => {
+      const doc = markdownToScriptoriumContent(`::: lens\n${label} A kind tower.\n\n**Deep.** A tomb.\n:::`);
+      const pair = doc.content![0];
+      expect(pair.type).toBe("lensPair");
+      expect(pair.attrs).toEqual({ variant: "boxed" });
+      expect(pair.content!.map((n) => n.type)).toEqual(["lensBright", "lensDeep"]);
+      expect(textOf(pair.content![0])).toBe("A kind tower.");
+      expect(textOf(pair.content![1])).toBe("A tomb.");
+    });
+  }
+
+  it("accepts the Deep label forms too", () => {
+    for (const label of ["**Deep.**", "**Deep:**", "**Deep lens:**", "**deep Lens.**"]) {
+      const doc = markdownToScriptoriumContent(`::: lens\n**Bright.** b\n\n${label} d\n:::`);
+      expect(textOf(doc.content![0].content![1])).toBe("d");
+    }
+  });
+
+  it("puts text before any label in the Bright half", () => {
+    const doc = markdownToScriptoriumContent("::: lens\nOpening.\n\n**Deep.** Under it.\n:::");
+    const [bright, deep] = doc.content![0].content!;
+    expect(textOf(bright)).toBe("Opening.");
+    expect(textOf(deep)).toBe("Under it.");
+  });
+
+  it("keeps following paragraphs and lists with the half that opened them", () => {
+    const doc = markdownToScriptoriumContent("::: lens\n**Bright.** One.\n\nTwo.\n\n**Deep.** Three.\n\n- four\n:::");
+    const [bright, deep] = doc.content![0].content!;
+    expect(bright.content!.map((n) => n.type)).toEqual(["paragraph", "paragraph"]);
+    expect(deep.content!.map((n) => n.type)).toEqual(["paragraph", "bulletList"]);
+  });
+
+  it("drops a label-only paragraph instead of leaving it empty", () => {
+    const doc = markdownToScriptoriumContent("::: lens\n**Bright.**\n\nBody.\n\n**Deep.** d\n:::");
+    expect(doc.content![0].content![0].content).toHaveLength(1);
+  });
+
+  it("leaves Deep as an empty paragraph when only Bright is written", () => {
+    const doc = markdownToScriptoriumContent("::: lens\n**Bright.** Only this.\n:::");
+    expect(doc.content![0].content![1].content).toEqual([{ type: "paragraph" }]);
+  });
+
+  it("sets the light variant and wraps in a wide block on request", () => {
+    const light = markdownToScriptoriumContent("::: lens light\n**Bright.** a\n:::");
+    expect(light.content![0].attrs).toEqual({ variant: "light" });
+    const wide = markdownToScriptoriumContent("::: lens wide light\n**Bright.** a\n:::");
+    expect(wide.content![0].type).toBe("wideBlock");
+    expect(wide.content![0].content![0].attrs).toEqual({ variant: "light" });
+  });
+
+  it("produces a document the Scriptorium schema accepts", () => {
+    editor = new Editor({
+      element: document.createElement("div"),
+      extensions: createScriptoriumExtensions(),
+      content: markdownToScriptoriumContent("::: lens wide\n**Bright.** a\n\n**Deep.** b\n:::"),
+    });
+    expect(editor.getHTML()).toContain('data-type="lensPair"');
+    expect(editor.getHTML()).toContain('class="sc-wide"');
+  });
+});
+
+describe("::: wide", () => {
+  it("wraps the contained blocks in a wide block", () => {
+    const doc = markdownToScriptoriumContent("::: wide\n## Title\n\nBody.\n:::");
+    expect(doc.content![0].type).toBe("wideBlock");
+    expect(doc.content![0].content!.map((n) => n.type)).toEqual(["heading", "paragraph"]);
+  });
+});
+
+describe("::: art", () => {
+  const SOURCE = [
+    "::: art",
+    "slug: tower-at-dusk",
+    "size: half",
+    "lane: landscape",
+    "alt: A leaning tower",
+    "caption: The tower at dusk",
+    "brief: A leaning tower, low sun",
+    ":::",
+  ].join("\n");
+
+  it("emits the image and an italic caption when the art resolves", () => {
+    let seen: ArtSlot | null = null;
+    const doc = markdownToScriptoriumContent(SOURCE, {
+      resolveArt: (slot) => {
+        seen = slot;
+        return { src: "https://cdn.example/tower.webp" };
+      },
+    });
+    expect(seen).toEqual({
+      slug: "tower-at-dusk",
+      size: "half",
+      lane: "landscape",
+      existing: undefined,
+      alt: "A leaning tower",
+      caption: "The tower at dusk",
+      brief: "A leaning tower, low sun",
+    });
+    expect(types(doc)).toEqual(["image", "paragraph"]);
+    expect(doc.content![0].attrs).toMatchObject({ src: "https://cdn.example/tower.webp", width: "50%", alt: "A leaning tower" });
+    expect(doc.content![1].content![0]).toMatchObject({ text: "The tower at dusk", marks: [{ type: "italic" }] });
+  });
+
+  it("makes a full or column image 100% wide, and a wide or opener one a wide block", () => {
+    const resolve = { resolveArt: () => ({ src: "x.webp" }) };
+    const full = markdownToScriptoriumContent("::: art\nsize: full\n:::", resolve);
+    expect(full.content![0].attrs).toMatchObject({ width: "100%" });
+    for (const size of ["wide", "opener"]) {
+      const doc = markdownToScriptoriumContent(`::: art\nsize: ${size}\ncaption: C\n:::`, resolve);
+      expect(doc.content![0].type).toBe("wideBlock");
+      expect(doc.content![0].content!.map((n) => n.type)).toEqual(["image", "paragraph"]);
+    }
+  });
+
+  it("falls back to a column image for an unknown size", () => {
+    let size: string | null = null;
+    markdownToScriptoriumContent("::: art\nsize: huge\n:::", {
+      resolveArt: (slot) => {
+        size = slot.size;
+        return null;
+      },
+    });
+    expect(size).toBe("column");
+  });
+
+  it("leaves an 'Art to come' note with the brief when nothing resolves", () => {
+    const doc = markdownToScriptoriumContent(SOURCE);
+    expect(doc.content![0].type).toBe("noteBlock");
+    const para = doc.content![0].content![0];
+    expect(para.content!.map((n) => n.type)).toEqual(["text", "hardBreak", "text"]);
+    expect(para.content![0].text).toBe("Art to come: The tower at dusk");
+    expect(para.content![2].text).toBe("Brief: A leaning tower, low sun");
+  });
+
+  it("names the source file when the author said it existed but it did not resolve", () => {
+    const doc = markdownToScriptoriumContent("::: art\ncaption: Map\nexisting: maps/old.png\n:::", {
+      resolveArt: () => null,
+    });
+    expect(doc.content![0].content![0].content![2].text).toBe("Source: maps/old.png");
+  });
+
+  it("is valid for the Scriptorium schema in both outcomes", () => {
+    for (const resolved of [true, false]) {
+      editor = new Editor({
+        element: document.createElement("div"),
+        extensions: createScriptoriumExtensions(),
+        content: markdownToScriptoriumContent(SOURCE, { resolveArt: () => (resolved ? { src: "https://x.test/a.webp" } : null) }),
+      });
+      expect(editor.getHTML()).toContain(resolved ? "<img" : 'data-type="noteBlock"');
+      editor.destroy();
+    }
+    editor = null;
+  });
+});
+
+describe("::: statblock and ::: embed", () => {
+  it("emits a monster entityEmbed when the entity resolves", () => {
+    const refs: { type: string; name: string }[] = [];
+    const doc = markdownToScriptoriumContent("::: statblock\nname: Goblin Boss\n:::", {
+      resolveEmbed: (ref) => {
+        refs.push(ref);
+        return { id: "m-1" };
+      },
+    });
+    expect(refs).toEqual([{ type: "monster", name: "Goblin Boss" }]);
+    expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: "monster", entityId: "m-1" } });
+  });
+
+  it("emits an embed of the named type", () => {
+    const doc = markdownToScriptoriumContent("::: embed\ntype: npc\nname: Bram\n:::", {
+      resolveEmbed: () => ({ id: "n-7" }),
+    });
+    expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: "npc", entityId: "n-7" } });
+  });
+
+  it("leaves a stat block placeholder when the entity is not there", () => {
+    for (const options of [undefined, { resolveEmbed: () => null }]) {
+      const doc = markdownToScriptoriumContent("::: statblock\nname: Goblin Boss\n:::", options);
+      expect(doc.content![0].type).toBe("noteBlock");
+      expect(textOf(doc.content![0])).toBe("Stat block: Goblin Boss (not yet in the campaign)");
+    }
+  });
+
+  it("leaves a placeholder for an embed of an unknown type, without asking the resolver", () => {
+    let asked = false;
+    const doc = markdownToScriptoriumContent("::: embed\ntype: dragon\nname: Vex\n:::", {
+      resolveEmbed: () => {
+        asked = true;
+        return { id: "x" };
+      },
+    });
+    expect(asked).toBe(false);
+    expect(textOf(doc.content![0])).toBe("Embed: Vex (not yet in the campaign)");
+  });
+
+  it("emits nothing for a directive that names no entity", () => {
+    expect(types(markdownToScriptoriumContent("::: statblock\ncr: 3\n:::"))).toEqual(["paragraph"]);
   });
 });
 

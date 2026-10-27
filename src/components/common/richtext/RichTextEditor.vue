@@ -287,6 +287,16 @@
           @click="editor.chain().focus().toggleColumns().run()"
         />
         <AppButton
+          v-if="allowSecrets || allowLensPairs"
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          tooltip="Lens pair: a Bright reading for a child and a Deep one for an adult (players see only Bright)"
+          :icon="IconLensPair"
+          :disabled="editor.isActive('lensPair')"
+          @click="editor.chain().focus().insertLensPair().run()"
+        />
+        <AppButton
           v-if="allowSecrets"
           variant="ghost"
           fill="muted"
@@ -406,7 +416,7 @@ import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/tipta
 import { insertionPos } from "@/lib/tiptap/insertionPos";
 import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
 import TextEnhanceBubble from "@/components/common/ai/TextEnhanceBubble.vue";
-import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconMinus, IconQuote, IconSecret, IconRedo, IconTable, IconUnderline, IconUndo } from '@/lib/icons';
+import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLensPair, IconLink, IconList, IconListOrdered, IconListTodo, IconMinus, IconQuote, IconSecret, IconRedo, IconTable, IconUnderline, IconUndo } from '@/lib/icons';
 import TextAlign from "@tiptap/extension-text-align";
 import { Columns } from "@/lib/tiptap/Columns";
 import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
@@ -419,6 +429,7 @@ import type { IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
 import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 import { SecretBlock } from "@/lib/tiptap/secretBlock";
+import { LENS_PAIR_EXTENSIONS } from "@/lib/tiptap/lensPair";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
 
 const CustomDocument = Node.create({
@@ -445,6 +456,7 @@ const {
   allowUpload,
   allowCalendarEvents,
   allowSecrets,
+  allowLensPairs,
   entityMentionItems,
   stickyToolbar = true,
   toolbar = "full",
@@ -463,6 +475,13 @@ const {
    * regardless, so opening a field that holds a secret elsewhere cannot delete it.
    */
   allowSecrets?: boolean;
+  /**
+   * Offer the lens pair (#1115) on a field players never see. A pair's Deep half
+   * is DM-only, and the server strips it exactly where it strips secret blocks,
+   * so `allowSecrets` fields offer it already; this is for DM-only fields (an
+   * NPC's lore). Never set it on a field a projection hands to players unstripped.
+   */
+  allowLensPairs?: boolean;
   entityMentionItems?: EntityMentionItem[];
   stickyToolbar?: boolean;
   /**
@@ -657,6 +676,7 @@ const editor = useEditor({
     PendingImage,
     AiGenerated,
     SecretBlock.configure({ creatable: allowSecrets === true }),
+    ...LENS_PAIR_EXTENSIONS,
   ],
   editorProps: {
     handlePaste(view, event) {

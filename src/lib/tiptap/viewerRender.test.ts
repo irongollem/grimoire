@@ -34,6 +34,7 @@ import Typography from "@tiptap/extension-typography";
 import { Columns } from "./Columns";
 import { AiGenerated } from "./AiGenerated";
 import { SecretBlock } from "./secretBlock";
+import { LENS_PAIR_EXTENSIONS } from "./lensPair";
 import { DescriptiveBlock } from "./descriptiveBlock";
 import { CalendarEventRef } from "./CalendarEventRef";
 import { createEntityMentionExtension } from "./EntityMention";
@@ -89,6 +90,7 @@ vi.mock("@/components/tiptap/EntityMentionNodeView.vue", () => ({ default: {} })
 vi.mock("@/components/tiptap/CalendarEventRefNodeView.vue", () => ({ default: {} }));
 vi.mock("@/components/tiptap/IllustrationSuggestionNodeView.vue", () => ({ default: {} }));
 vi.mock("@/components/tiptap/PendingImageNodeView.vue", () => ({ default: {} }));
+vi.mock("@/components/scriptorium/LensPairView.vue", () => ({ default: {} }));
 
 // The viewer's extension list as RichTextViewer used to build it.
 function viewerExtensions(): Extensions {
@@ -114,6 +116,7 @@ function viewerExtensions(): Extensions {
     AiGenerated,
     SecretBlock,
     DescriptiveBlock,
+    ...LENS_PAIR_EXTENSIONS,
   ];
 }
 
@@ -198,7 +201,7 @@ function canonicalHtml(html: string, trailingBreaks: boolean): string {
 }
 
 function renderedHtml(doc: unknown): string {
-  const wrapper = mount(defineComponent({ render: () => renderStoredDoc(doc) }));
+  const wrapper = mount(defineComponent({ render: () => renderStoredDoc(doc, { audience: "dm" }) }));
   const html = wrapper.element.innerHTML;
   wrapper.unmount();
   return html;
@@ -338,6 +341,24 @@ const FIXTURES: Record<string, JSONContent> = {
     type: "secretBlock",
     content: [p(t("the vizier is the lich")), { type: "bulletList", content: [{ type: "listItem", content: [p(t("clue"))] }] }],
   }),
+  "lens pair, boxed and light": doc(
+    {
+      type: "lensPair",
+      attrs: { variant: "boxed" },
+      content: [
+        { type: "lensBright", content: [p(t("a kind old tower"))] },
+        { type: "lensDeep", content: [p(t("a sealed tomb")), { type: "bulletList", content: [{ type: "listItem", content: [p(t("clue"))] }] }] },
+      ],
+    },
+    {
+      type: "lensPair",
+      attrs: { variant: "light" },
+      content: [
+        { type: "lensBright", content: [p(t("bright"))] },
+        { type: "lensDeep", content: [p(t("deep"))] },
+      ],
+    },
+  ),
   "table with header row, spans, widths and alignment": doc({
     type: "table",
     content: [
@@ -401,6 +422,41 @@ describe("viewerRender — parity with a real read-only editor's DOM", () => {
       }
     });
   }
+});
+
+describe("viewerRender — lens pair audience", () => {
+  const lens = doc(p(t("before")), {
+    type: "lensPair",
+    attrs: { variant: "boxed" },
+    content: [
+      { type: "lensBright", content: [p(t("a kind old tower")), p(t("second bright"))] },
+      { type: "lensDeep", content: [p(t("a sealed tomb"))] },
+    ],
+  });
+  const render = (audience?: "dm" | "player") =>
+    mount(defineComponent({ render: () => renderStoredDoc(lens, audience ? { audience } : {}) })).html();
+
+  it("shows a DM both halves, labelled", () => {
+    const out = render("dm");
+    expect(out).toContain('data-type="lensBright"');
+    expect(out).toContain('data-type="lensDeep"');
+    expect(out).toContain("a sealed tomb");
+    expect(out).toContain("Deep");
+  });
+
+  it("gives a player only the Bright half's paragraphs, unwrapped and unlabelled", () => {
+    const out = render("player");
+    expect(out).toContain("a kind old tower");
+    expect(out).toContain("second bright");
+    expect(out).not.toContain("a sealed tomb");
+    expect(out).not.toContain("lens");
+    expect(out).not.toContain("Bright");
+    expect(out).not.toContain("Deep");
+  });
+
+  it("treats no audience as a player", () => {
+    expect(render()).not.toContain("a sealed tomb");
+  });
 });
 
 describe("viewerRender — wrapper", () => {
