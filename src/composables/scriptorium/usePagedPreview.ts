@@ -18,6 +18,7 @@ import { Previewer } from "pagedjs";
 import { removePagedStyles } from "@/lib/scriptorium/pagedStyles";
 import type { PagedStylesheet } from "pagedjs";
 import { registerPagedEntryFit } from "@/lib/scriptorium/pagedEntryFit";
+import { registerPagedTableFit } from "@/lib/scriptorium/pagedTableFit";
 
 export interface UsePagedPreviewOptions {
   /** Reactive source: the document body HTML to paginate. */
@@ -79,6 +80,7 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
         return;
       }
       registerPagedEntryFit();
+      registerPagedTableFit();
       previewer = new Previewer();
       const flow = await previewer.preview(html, stylesheets(), el);
       if (token !== renderToken) {

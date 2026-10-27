@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("pagedjs", () => ({ Previewer: class {}, Handler: class {}, registerHandlers: vi.fn() }));
 
 import { buildPdfDocumentHtml, sanitizePdfFilename } from "./useScriptoriumPdf";
+import { PAGE_CONTENT_SELECTOR } from "@/lib/scriptorium/pagedPreviewCss";
 
 const BASE = {
   title: "My Adventure",
@@ -14,7 +15,6 @@ const BASE = {
   pageSize: "A4" as const,
   fontsCss: "@font-face { font-family: Test; }",
   themeCss: ".theme-css {}",
-  pagedCss: ".paged-css {}",
   pagedStyles: ".injected {}",
   pagesHtml: "<div class=\"pagedjs_pages\"></div>",
 };
@@ -24,7 +24,7 @@ describe("buildPdfDocumentHtml", () => {
     const html = buildPdfDocumentHtml(BASE);
     expect(html).toMatch(/^<!doctype html>/);
     expect(html).toContain("<title>My Adventure</title>");
-    const order = [".theme-css {}", ".paged-css {}", ".injected {}"].map((css) => html.indexOf(css));
+    const order = [".theme-css {}", ".injected {}"].map((css) => html.indexOf(css));
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(html).toContain(BASE.pagesHtml);
   });
@@ -59,6 +59,17 @@ describe("buildPdfDocumentHtml", () => {
   it("applies the onednd2024 theme class on the body by default", () => {
     const html = buildPdfDocumentHtml(BASE);
     expect(html).toContain('<body class="sc-theme theme-onednd2024">');
+  });
+
+  it("gives each page's text area back the slack it was fitted without, after every other sheet (#1115)", () => {
+    const html = buildPdfDocumentHtml(BASE);
+    const restore = `${PAGE_CONTENT_SELECTOR} { height: calc(100% - var(--pagedjs-footnotes-height)); }`;
+    expect(html).toContain(restore);
+    expect(html.indexOf(restore)).toBeGreaterThan(html.indexOf(".injected {}"));
+  });
+
+  it("prints a table's header once per piece, not again at a column break (#1115)", () => {
+    expect(buildPdfDocumentHtml(BASE)).toContain("thead { display: table-row-group; }");
   });
 });
 

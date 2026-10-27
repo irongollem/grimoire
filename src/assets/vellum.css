@@ -73,10 +73,14 @@
    many on a form, #1031), Cinzel only at display size. Sizes step up a little
    because both Alegreyas have a smaller x-height than Crimson Pro and Source
    Sans. */
+/* Not inside a Scriptorium book (.sc-theme): its headings are set by the
+   book's own theme, which is all the exported PDF carries. This rule outranked
+   `.sc-theme h3`, so the preview set the book in Alegreya and paginated it so,
+   and the PDF printed Cinzel into those pages (#1115). */
 :root[data-theme^="vellum"] body,
 :root[data-theme^="vellum"] .font-fell,
 :root[data-theme^="vellum"] .font-cinzel,
-:root[data-theme^="vellum"] :is(h2, h3, h4, h5, h6) {
+:root[data-theme^="vellum"] :is(h2, h3, h4, h5, h6):not(.sc-theme *) {
   font-family: var(--vl-serif);
 }
 :root[data-theme^="vellum"] .text-body { font-family: var(--vl-serif); font-size: 0.9375rem; }
@@ -94,7 +98,7 @@
 :root[data-theme^="vellum"] .text-label-lg { font-family: var(--vl-sans); font-size: 0.875rem; font-weight: 500; letter-spacing: 0.01em; }
 :root[data-theme^="vellum"] .text-eyebrow { font-family: var(--vl-sans); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; }
 /* Display stays engraved: listed last so it wins over `.font-cinzel` above. */
-:root[data-theme^="vellum"] :is(h1, .text-title, .text-display) {
+:root[data-theme^="vellum"] :is(h1, .text-title, .text-display):not(.sc-theme *) {
   font-family: "Cinzel", Georgia, serif;
 }
 

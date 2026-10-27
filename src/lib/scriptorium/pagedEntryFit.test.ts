@@ -34,7 +34,7 @@ function entryOnPage(opts: { natural: number; rest: number; zoom?: number; withA
 
 /** A page box whose right edge sits clear of every mocked rect. */
 function page(bottom: number, right = 700) {
-  return { bottom, right };
+  return { top: 0, bottom, right };
 }
 
 /** jsdom's getComputedStyle does not follow an inline margin set later, so
@@ -145,6 +145,57 @@ describe("fitEntryArt", () => {
   it("lets an entry with no art to shrink split when it overflows", () => {
     const { wrapper, entry } = entryOnPage({ natural: 0, rest: 1100, withArt: false });
     fitEntryArt(wrapper, page(1014));
+    expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(true);
+  });
+
+  /**
+   * A column entry whose stat block cell runs `columnHeight` px from the
+   * entry's top, `top` px down the page; set wide, the block flows in two
+   * columns at `wideHeight`. Its embed and source twin are where Paged.js
+   * clones a continuation from.
+   */
+  function columnEntry(opts: { top: number; columnHeight: number; wideHeight: number }) {
+    const wrapper = document.createElement("div");
+    const markup =
+      `<div class="sc-statblock-entry sc-statblock-entry--column" data-ref="e1">` +
+      `<div class="sc-statblock-entry-block"><div class="sc-statblock sc-statblock--column"></div></div>` +
+      `<div class="sc-statblock-entry-aside"></div></div>`;
+    wrapper.innerHTML = markup;
+    const source = document.createElement("div");
+    source.innerHTML = markup;
+    const entry = wrapper.querySelector<HTMLElement>(".sc-statblock-entry")!;
+    const height = () => (entry.classList.contains("sc-statblock-entry--wide") ? opts.wideHeight : opts.columnHeight);
+    Object.defineProperty(entry, "offsetHeight", { get: height });
+    entry.getBoundingClientRect = () =>
+      ({ top: opts.top, bottom: opts.top + height(), height: height(), right: 600 }) as DOMRect;
+    const sourceOf = (el: Element) => source.querySelector(`[data-ref="${el.getAttribute("data-ref")}"]`);
+    return { wrapper, entry, source: source.firstElementChild!, sourceOf };
+  }
+
+  it("sets a column entry that starts its page and overflows wide, in the source too (the Candy Archer, #1115)", () => {
+    // The archer's column ran 1,050px of a 1,014px page; the tail printed off the page.
+    const { wrapper, entry, source, sourceOf } = columnEntry({ top: 0, columnHeight: 1050, wideHeight: 620 });
+    fitEntryArt(wrapper, page(1014), sourceOf);
+    for (const el of [entry, source]) {
+      expect(el.classList.contains("sc-statblock-entry--wide")).toBe(true);
+      expect(el.classList.contains("sc-statblock-entry--column")).toBe(false);
+      expect(el.querySelector(".sc-statblock--wide")).not.toBeNull();
+      expect(el.querySelector(".sc-statblock--column")).toBeNull();
+    }
+    expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(false);
+  });
+
+  it("leaves a column entry lower on its page as it is, to move whole to the next page", () => {
+    const { wrapper, entry } = columnEntry({ top: 400, columnHeight: 900, wideHeight: 500 });
+    fitEntryArt(wrapper, page(1014));
+    expect(entry.classList.contains("sc-statblock-entry--column")).toBe(true);
+    expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(false);
+  });
+
+  it("lets a widened entry that still overflows split", () => {
+    const { wrapper, entry } = columnEntry({ top: 0, columnHeight: 2400, wideHeight: 1300 });
+    fitEntryArt(wrapper, page(1014));
+    expect(entry.classList.contains("sc-statblock-entry--wide")).toBe(true);
     expect(entry.classList.contains(ENTRY_SPLIT_CLASS)).toBe(true);
   });
 });

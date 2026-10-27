@@ -97,9 +97,20 @@
 }
 
 /* ── Typography ──────────────────────────────────────────────────────────── */
+/* The book states its own baseline instead of inheriting the app's. A page is
+   paginated in the app, where Tailwind's preflight sets html { line-height:
+   1.5 } and h1-h6 { margin: 0; font-weight: inherit }, and printed from the
+   exported HTML, which carries only this theme: there the same text took the
+   browser's `normal` line height and bold h4s with 21px margins, so the
+   printer set every page to a different height from the one Paged.js fitted
+   (#1115). 1.5 is the rhythm every book has been paginated at. */
 .sc-theme {
   font-family: var(--sc-body-font);
   color: var(--sc-ink);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  tab-size: 4;
   /* Shared vertical rhythm for the boxed elements (sidebar/read-aloud/stat
      block) — ONE token so any two stacked boxes land the same clear gap
      apart, and a sidebar's bar tips never collide with the box above it. */
@@ -133,6 +144,32 @@
   font-style: italic;
   color: var(--sc-accent);
   margin: 1rem 0 0.35rem;
+}
+/* A heading stays with what follows it at a column break too. The paged
+   stylesheet (pagedPreviewCss.ts) says the same for Paged.js, which takes
+   break-after out of the CSS it is given and applies it only where it breaks
+   a page, so a heading could still end a column alone ("The Days of the
+   Week" over its table, #1115). Here it is the browser's own rule, applied
+   alike in the app that paginates and the PDF that prints. */
+.sc-theme :is(h2, h3, h4, h5, h6) {
+  break-after: avoid;
+}
+/* A fourth-level heading names one thing whose text follows (a creature, a
+   festival): bold in the body face, as the 2024 books set theirs. h5 and h6
+   are the same a step smaller; neither may fall back to the browser's own. */
+.sc-theme :is(h4, h5, h6) {
+  font-family: var(--sc-body-font);
+  font-size: 1em;
+  font-weight: 700;
+  font-style: normal;
+  color: var(--sc-ink);
+  margin: 0.75rem 0 0.2rem;
+}
+.sc-theme :is(h5, h6) {
+  font-size: 0.9375em;
+}
+.sc-theme img {
+  vertical-align: middle;
 }
 .sc-theme p {
   margin: 0 0 0.6rem;
@@ -934,6 +971,20 @@
 .phb-two-col table td,
 .phb-two-col table th {
   padding: 0.3rem 0.5rem;
+}
+/* A table cannot be narrower than its longest words plus its cell padding,
+   and one wider than its column ran across the gutter into the page margin
+   (Sothery's Faiths table, 23px over, #1115). It is set across the page
+   instead, where a book puts one, with the heading that introduces it (left
+   in a column, it sat alone above an empty one); pagedTableFit.ts measures
+   and marks the table.
+   Words are not broken to make it fit: `overflow-wrap: anywhere` squeezed a
+   three-column calendar's "Goldsday" into "Gold / sday", and `hyphens: auto`
+   would wrap differently on a printer without the dictionary, which is how
+   text falls off a page. */
+.phb-two-col > table.sc-table--span,
+.phb-two-col > :is(h2, h3, h4):has(+ table.sc-table--span) {
+  column-span: all;
 }
 
 /* NOTE ON THESE SELECTORS: `.theme-xxx` and `.sc-theme` are always classes on

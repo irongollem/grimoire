@@ -27,6 +27,20 @@ export interface PagedPreviewCssOptions {
 // @page vertical margins (top 56 + bottom 53) — keep in sync with the @page
 // rule below; covers are sized to the resulting content area so they fill their
 // page exactly without overflowing into a fragment.
+/**
+ * How much shorter than the printed page Paged.js lays each page out. The
+ * book is paginated in the user's browser and printed by render-pdf's Chrome
+ * on another machine, which lays every page's text out again. A block that
+ * ends within a pixel of the page bottom and comes out a fraction taller
+ * there falls into the page's off-page column and is not printed (#1115).
+ * The printed page gets this room back, so a page always has a little more
+ * height in print than its text was fitted to.
+ */
+export const PRINT_SLACK_PX = 6;
+
+/** The page's text area, specific enough to override Paged.js's own rule. */
+export const PAGE_CONTENT_SELECTOR = ".pagedjs_page .pagedjs_pagebox > .pagedjs_area > .pagedjs_page_content";
+
 export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   const { pageSize, inkFriendly } = opts;
   const size = PAGE_SIZE_KEYWORD[pageSize];
@@ -112,6 +126,15 @@ hr, .sc-page-break {
 }
 /* Position context for injected .sc-footer (absolute, bottom:0). */
 .pagedjs_pagebox { position: relative; }
+/* See PRINT_SLACK_PX: the page is fitted short here, and the exported
+   document's own last stylesheet (printResetCss, useScriptoriumPdf.ts) gives
+   the room back. Not \`@media print\`: Paged.js applies print rules on screen.
+   Paged.js sets this height with .pagedjs_pagebox > .pagedjs_area >
+   .pagedjs_page_content and its stylesheet can land after this one, so the
+   page's own class is added to win on specificity, not on order. */
+${PAGE_CONTENT_SELECTOR} {
+  height: calc(100% - var(--pagedjs-footnotes-height) - ${PRINT_SLACK_PX}px);
+}
 .pagedjs_pages { display: flex; flex-direction: column; align-items: center; }
 
 /* Only a true chapter title (h1) is allowed to strand its column — h2/h3
@@ -120,8 +143,11 @@ hr, .sc-page-break {
    starting on the next page (#915 story 6). A stat block's section labels
    (h4-equivalent, .sc-statblock-section-title) get the same treatment; an
    h3 directly before a table (a table's own "caption" convention) is covered
-   by the same rule, so it never separates from the table it introduces. */
-h2, h3, .sc-statblock-section-title {
+   by the same rule, so it never separates from the table it introduces. An
+   h4 names one thing and its text follows (a creature in a bestiary, a place
+   in a gazetteer): Sothery's bestiary set "Caramel Crusher" alone at the foot
+   of a column with its description at the head of the next (#1115). */
+h2, h3, h4, .sc-statblock-section-title {
   break-after: avoid;
 }
 /* Boxed content stays in one column/page unless it is genuinely taller than

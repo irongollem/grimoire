@@ -35,11 +35,12 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { Previewer } from "pagedjs";
 import { pagedStyleElements, removePagedStyles } from "@/lib/scriptorium/pagedStyles";
-import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
+import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
 import { preparePagedBody } from "@/lib/scriptorium/pagedPrepare";
 import { registerPagedEntryFit } from "@/lib/scriptorium/pagedEntryFit";
+import { registerPagedTableFit } from "@/lib/scriptorium/pagedTableFit";
 import { compactPrintImages } from "@/lib/scriptorium/printImages";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
@@ -89,7 +90,14 @@ function themeClass(theme: ScriptoriumTheme): string {
 /**
  * Print CSS: each laid-out .pagedjs_page is already a full page-sized box, so
  * the print sheet uses margin:0 and the page's own margins (baked in by
- * Paged.js) provide the gutter. print-color-adjust keeps the parchment.
+ * Paged.js) provide the gutter. print-color-adjust keeps the parchment. The
+ * page's text area gets back the PRINT_SLACK_PX it was fitted without
+ * (pagedPreviewCss.ts); this sheet comes last, so it wins. A table header
+ * prints once per table piece, as it was measured: Paged.js already copies
+ * the header into each page's piece, and Chrome's print layout (not its
+ * screen layout) also repeats it at a column break, which made a name table
+ * split across Sothery's two columns 24px taller than its page allowed and
+ * pushed the next table's last rows off the page (#1115).
  */
 function printResetCss(pageSize: ScriptoriumPageSize): string {
   return `
@@ -99,6 +107,8 @@ html, body { margin: 0; padding: 0; background: #fff; }
 .pagedjs_page { box-shadow: none !important; margin: 0 !important; break-after: page; }
 .pagedjs_page:last-of-type { break-after: auto; }
 * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+${PAGE_CONTENT_SELECTOR} { height: calc(100% - var(--pagedjs-footnotes-height)); }
+thead { display: table-row-group; }
 `;
 }
 
@@ -119,9 +129,15 @@ export interface PdfDocumentAssembly {
   fontsCss: string;
   /** Already-selected theme CSS (theme-onednd2024.css / theme-phb2014.css contents). */
   themeCss: string;
-  /** The per-document paged CSS (buildPagedPreviewCss output). */
-  pagedCss: string;
-  /** Serialised rules Paged.js injected into <head> for this render. */
+  /**
+   * Serialised rules Paged.js injected into <head> for this render: its own
+   * page rules and its processed copy of the per-document paged CSS. That
+   * copy, never buildPagedPreviewCss's text, is what the pages were laid out
+   * under. Paged.js takes `break-after`/`break-before` out of it and applies
+   * them itself, so the raw text would hand Chrome native breaks the
+   * pagination never saw: a heading kept with its table pushed a column 36px
+   * down and Sothery's calendar lost its last paragraph (#1115).
+   */
   pagedStyles: string;
   /** The rendered `.pagedjs_pages` markup. */
   pagesHtml: string;
@@ -139,7 +155,7 @@ export function buildPdfDocumentHtml(opts: PdfDocumentAssembly): string {
     `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
     `<style>${opts.fontsCss}</style>` +
     `<style>${themeBaseCss}</style><style>${opts.themeCss}</style>` +
-    `<style>${opts.pagedCss}</style><style>${opts.pagedStyles}</style>` +
+    `<style>${opts.pagedStyles}</style>` +
     `<style>${printResetCss(opts.pageSize)}</style></head>` +
     `<body class="sc-theme ${cls}">${opts.pagesHtml}</body></html>`
   );
@@ -213,6 +229,7 @@ export function useScriptoriumPdf() {
     const previewer = new Previewer();
     try {
       registerPagedEntryFit();
+      registerPagedTableFit();
       await previewer.preview(content, [{ "scriptorium-paged.css": pagedCss }], host);
       await document.fonts.ready;
       injectPagedFooters(host, {
@@ -252,7 +269,6 @@ export function useScriptoriumPdf() {
           pageSize: opts.pageSize,
           fontsCss: scriptoriumFontsCss,
           themeCss,
-          pagedCss,
           pagedStyles,
           pagesHtml: PAGES_MARKER,
         }),

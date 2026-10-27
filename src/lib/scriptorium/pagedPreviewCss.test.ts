@@ -1,9 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { buildPagedPreviewCss } from "./pagedPreviewCss";
+import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR, PRINT_SLACK_PX } from "./pagedPreviewCss";
 
 const base = { pageSize: "A4" as const, inkFriendly: false };
 
 describe("buildPagedPreviewCss", () => {
+  it("fits each page a little short of the printed page (#1115)", () => {
+    const css = buildPagedPreviewCss(base);
+    // More specific than Paged.js's own .pagedjs_pagebox > .pagedjs_area > .pagedjs_page_content.
+    expect(PAGE_CONTENT_SELECTOR).toBe(".pagedjs_page .pagedjs_pagebox > .pagedjs_area > .pagedjs_page_content");
+    expect(css).toContain(
+      `${PAGE_CONTENT_SELECTOR} {\n  height: calc(100% - var(--pagedjs-footnotes-height) - ${PRINT_SLACK_PX}px);`,
+    );
+    // Paged.js applies @media print rules on screen, so the room cannot come back that way.
+    expect(css).not.toMatch(/@media print\s*\{/);
+  });
+
   it("sets @page size per page size", () => {
     expect(buildPagedPreviewCss(base)).toContain("size: A4;");
     expect(buildPagedPreviewCss({ ...base, pageSize: "Letter" })).toContain("size: letter;");
@@ -63,9 +74,9 @@ describe("buildPagedPreviewCss", () => {
     expect(css).not.toContain("@bottom-center");
   });
 
-  it("keeps h2/h3 and a stat block's section titles with what follows them (#915 story 6)", () => {
+  it("keeps h2/h3/h4 and a stat block's section titles with what follows them (#915 story 6, #1115)", () => {
     const css = buildPagedPreviewCss(base);
-    expect(css).toMatch(/h2,\s*h3,\s*\.sc-statblock-section-title\s*\{[^}]*break-after:\s*avoid/);
+    expect(css).toMatch(/h2,\s*h3,\s*h4,\s*\.sc-statblock-section-title\s*\{[^}]*break-after:\s*avoid/);
   });
 
   it("starts a monster/NPC entry on a fresh page by default, moving the break to a directly-preceding family heading", () => {

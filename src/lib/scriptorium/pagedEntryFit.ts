@@ -21,13 +21,15 @@
  *     has its real size the moment it is measured, not 0 until it arrives.
  *     (beforeParsed is too early: it gets the HTML string, not a tree.)
  *   - layout: before Paged.js looks for overflow on a page, an entry that
- *     does not fit (see entryFits) loses its bottom margin, then gets
- *     the tallest art that lets it end on the page, down to a floor. One that
- *     still does not fit is allowed to split, which moves its tail to the
- *     next page instead of losing it.
+ *     does not fit (see entryFits) loses its bottom margin. A column entry
+ *     that starts its page and still does not fit is set wide (see
+ *     widenColumnEntry). Then the entry gets the tallest art that lets it end
+ *     on the page, down to a floor. One that still does not fit is allowed to
+ *     split, which moves its tail to the next page instead of losing it.
  *   - afterRendered: let go of the preloaded images.
  */
 import { Handler, registerHandlers } from "pagedjs";
+import { sourceIn, type SourceOf } from "@/lib/scriptorium/pagedSource";
 
 const ENTRY_SELECTOR = ".sc-statblock-entry";
 const ART_SELECTOR = "img.sc-entity-art";
@@ -35,6 +37,10 @@ const ART_SELECTOR = "img.sc-entity-art";
 export const ENTRY_ART_FLOOR_PX = 96;
 /** Lets an entry that cannot fit break across pages (pagedPreviewCss.ts). */
 export const ENTRY_SPLIT_CLASS = "sc-statblock-entry--split";
+const COLUMN_ENTRY_CLASS = "sc-statblock-entry--column";
+const WIDE_ENTRY_CLASS = "sc-statblock-entry--wide";
+const COLUMN_BLOCK_CLASS = "sc-statblock--column";
+const WIDE_BLOCK_CLASS = "sc-statblock--wide";
 
 /** How long one picture may take to load before layout goes on without it. */
 export const ENTRY_ART_PRELOAD_TIMEOUT_MS = 8000;
@@ -73,6 +79,7 @@ export async function preloadEntryArt(
 
 /** The page's content box, in client-rect space. */
 export interface PageBox {
+  top: number;
   bottom: number;
   right: number;
 }
@@ -85,9 +92,10 @@ export interface PageBox {
  * `page` is in client-rect space, the same (possibly zoomed) space as the
  * entry's own rect, so the preview's zoom never enters the arithmetic. An
  * entry that does not fit even at the floor, or has no art to shrink, gets
- * ENTRY_SPLIT_CLASS.
+ * ENTRY_SPLIT_CLASS. A column entry is first set wide when it starts its
+ * page, and left alone when it does not (see widenColumnEntry).
  */
-export function fitEntryArt(wrapper: HTMLElement, page: PageBox): void {
+export function fitEntryArt(wrapper: HTMLElement, page: PageBox, sourceOf?: SourceOf): void {
   wrapper.querySelectorAll<HTMLElement>(ENTRY_SELECTOR).forEach((entry) => {
     const fits = () => entryFits(entry, wrapper, page);
     if (fits()) return;
@@ -95,6 +103,13 @@ export function fitEntryArt(wrapper: HTMLElement, page: PageBox): void {
     // splits, so its bottom margin only pushes it off.
     entry.style.marginBottom = "0";
     if (fits()) return;
+    if (entry.classList.contains(COLUMN_ENTRY_CLASS)) {
+      // Lower on a page, the entry moves whole to the next one (it is
+      // break-inside: avoid) and is measured again at its top.
+      if (!startsPage(entry, page)) return;
+      widenColumnEntry(entry, sourceOf);
+      if (fits()) return;
+    }
     const art = entry.querySelector<HTMLImageElement>(ART_SELECTOR);
     const tallest = art ? art.offsetHeight - 1 : 0;
     if (!art || tallest < ENTRY_ART_FLOOR_PX) {
@@ -118,6 +133,39 @@ export function fitEntryArt(wrapper: HTMLElement, page: PageBox): void {
     }
     art.style.maxHeight = `${lo}px`;
   });
+}
+
+/**
+ * Sets a column entry wide, on the page and in the source Paged.js clones a
+ * continuation from. A column entry puts its stat block and its art in the
+ * two cells of a grid, and a grid does not break across pages: when the stat
+ * block is taller than the page, the cell's tail is painted into an off-page
+ * column, the entry's embed after it lands there too, Paged.js breaks before
+ * the whole entry, finds itself where the page began, and gives up with
+ * "Unable to layout item". The tail never prints (the Candy Archer's Bonus
+ * Actions and four other Sothery creatures, #1115). The size was chosen from
+ * the stat block's character count (estimateStatBlockSize), which cannot see
+ * typography; a column entry that starts its page and still overflows has
+ * shown it fits no column, whatever was chosen for it, and a wide stat block
+ * flows in two columns of its own at about half the height.
+ */
+function widenColumnEntry(entry: HTMLElement, sourceOf?: SourceOf): void {
+  const source = sourceOf?.(entry);
+  for (const el of source ? [entry, source] : [entry]) {
+    el.classList.replace(COLUMN_ENTRY_CLASS, WIDE_ENTRY_CLASS);
+    el.querySelectorAll(`.${COLUMN_BLOCK_CLASS}`).forEach((block) => {
+      block.classList.replace(COLUMN_BLOCK_CLASS, WIDE_BLOCK_CLASS);
+    });
+  }
+}
+
+/** Whether nothing stands above the entry on its page but its own top margin
+ *  (an entry spans the page's columns, where that margin is not dropped). */
+function startsPage(entry: HTMLElement, page: PageBox): boolean {
+  const rect = entry.getBoundingClientRect();
+  const scale = entry.offsetHeight ? rect.height / entry.offsetHeight : 1;
+  const margin = parseFloat(getComputedStyle(entry).marginTop) || 0;
+  return rect.top - page.top <= margin * scale + 1;
 }
 
 /**
@@ -158,17 +206,21 @@ class EntryFitHandler extends Handler {
   /** The decoded copies, held so the browser keeps them in its memory cache
    *  while pages are laid out, and let go once the book is done. */
   private preloaded: HTMLImageElement[] = [];
+  /** The parsed book, which Paged.js clones every page's elements from. */
+  private parsed: ParentNode | null = null;
 
   async afterParsed(parsed: ParentNode): Promise<void> {
+    this.parsed = parsed;
     this.preloaded = await preloadEntryArt(parsed);
   }
 
   layout(wrapper: HTMLElement, layout: PagedLayout): void {
-    fitEntryArt(wrapper, layout.bounds);
+    fitEntryArt(wrapper, layout.bounds, sourceIn(this.parsed));
   }
 
   afterRendered(): void {
     this.preloaded.length = 0;
+    this.parsed = null;
   }
 }
 
