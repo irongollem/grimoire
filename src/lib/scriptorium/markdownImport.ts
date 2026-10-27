@@ -52,6 +52,7 @@
 import { lexer } from "marked";
 import type { Token, Tokens } from "marked";
 import type { JSONContent } from "@tiptap/core";
+import type { CoverPageVariant } from "@/lib/tiptap/nodeViewTypes";
 
 // ── Inline tokens → text/hardBreak nodes ────────────────────────────────────
 
@@ -509,10 +510,49 @@ function wrapDirective(name: string, args: string[], blocks: JSONContent[]): JSO
   }
 }
 
+const COVER_VARIANTS: readonly CoverPageVariant[] = ["front", "inside", "part", "back"];
+
+/**
+ * `::: cover front|inside|part|back` with `key: value` lines (`title`,
+ * `subtitle`, `part`, `blurb1`..`blurb3`, `tagline`, `url`, `image`, `alt`,
+ * `scrim`). Every text the node shows is set, empty when the directive leaves
+ * it out, so a template's placeholder ("Document Title") never reaches a
+ * printed book. `image` / `alt` resolve like an art slot's `existing` / `alt`.
+ */
+function coverNodes(source: string, args: string[], options: MarkdownImportOptions): JSONContent[] {
+  const fields = keyValueLines(source);
+  const variant = COVER_VARIANTS.find((v) => v === args[0]?.toLowerCase()) ?? "front";
+  const text = (key: string) => field(fields, key) ?? "";
+  const image = field(fields, "image");
+  const found = image
+    ? (options.resolveArt?.({ slug: `cover-${variant}`, size: "full", existing: image, alt: field(fields, "alt") }) ?? null)
+    : null;
+  return [
+    {
+      type: "coverPage",
+      attrs: {
+        variant,
+        title: text("title"),
+        subtitle: text("subtitle"),
+        partNumber: text("part"),
+        blurb1: text("blurb1"),
+        blurb2: text("blurb2"),
+        blurb3: text("blurb3"),
+        tagline: text("tagline"),
+        productUrl: text("url"),
+        backgroundImage: found ? found.src : "",
+        titleScrim: field(fields, "scrim")?.toLowerCase() !== "false",
+      },
+    },
+  ];
+}
+
 function directiveNodes(segment: Segment & { directive: string }, options: MarkdownImportOptions): JSONContent[] {
   switch (segment.directive) {
     case "art":
       return artNodes(segment.source, options);
+    case "cover":
+      return coverNodes(segment.source, segment.args, options);
     case "statblock":
     case "embed":
       return embedNodes(segment.directive, segment.source, options);

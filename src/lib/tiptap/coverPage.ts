@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 
-export type CoverPageVariant = "front" | "inside" | "part" | "back";
+import type { CoverPageVariant } from "@/lib/tiptap/nodeViewTypes";
+export type { CoverPageVariant };
 
 export interface CoverPageAttrs {
   /** Which of the four cover variants this node represents. */

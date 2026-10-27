@@ -31,3 +31,6 @@ export interface IllustrationSuggestionOptions {
 
 /** The lens pair's look: a boxed pair, or the light form for dense entries (#1115). */
 export type LensVariant = "boxed" | "light";
+
+/** The four cover-page layouts (coverPage.ts); here so node-safe code can name them (#1115). */
+export type CoverPageVariant = "front" | "inside" | "part" | "back";

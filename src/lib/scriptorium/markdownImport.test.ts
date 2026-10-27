@@ -405,3 +405,34 @@ describe("importedMarkdownTemplate", () => {
     expect(importedMarkdownTemplate("prologue.md", "no heading here").name).toBe("prologue");
   });
 });
+
+describe("::: cover", () => {
+  it("builds a front cover with every text set and the picture resolved like an art slot", () => {
+    const md = "::: cover front\ntitle: Sothery\nsubtitle: A Campaign Setting\nimage: art/cover.png\n:::";
+    const doc = markdownToScriptoriumContent(md, { resolveArt: (slot) => (slot.existing === "art/cover.png" ? { src: "https://cdn/x.webp" } : null) });
+    expect(doc.content![0]).toEqual({
+      type: "coverPage",
+      attrs: {
+        variant: "front", title: "Sothery", subtitle: "A Campaign Setting", partNumber: "", blurb1: "", blurb2: "", blurb3: "",
+        tagline: "", productUrl: "", backgroundImage: "https://cdn/x.webp", titleScrim: true,
+      },
+    });
+  });
+
+  it("makes a back cover with blurbs, and never a template placeholder", () => {
+    const doc = markdownToScriptoriumContent("::: cover back\nblurb1: One.\ntagline: Stay.\nscrim: false\n:::");
+    const attrs = doc.content![0].attrs!;
+    expect(attrs.variant).toBe("back");
+    expect(attrs.blurb1).toBe("One.");
+    expect(attrs.productUrl).toBe("");
+    expect(attrs.title).toBe("");
+    expect(attrs.titleScrim).toBe(false);
+  });
+
+  it("falls back to a front cover with no picture when the variant or image is unknown", () => {
+    const attrs = markdownToScriptoriumContent("::: cover sideways\ntitle: T\nimage: missing.png\n:::", { resolveArt: () => null }).content![0].attrs!;
+    expect(attrs.variant).toBe("front");
+    expect(attrs.backgroundImage).toBe("");
+  });
+});
+
