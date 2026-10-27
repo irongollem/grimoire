@@ -125,7 +125,10 @@ canonical art under a user UUID.
 
 **Tests.** Colocated beside the module, never a `__tests__/` directory. Logic
 modules in `src/lib/` and `src/cartographer/` get vitest tests written
-alongside, not after.
+alongside, not after. Judge each new test against `.claude/skills/test-discipline/SKILL.md`:
+a test that matches its "Never write these" table is a finding, and so is a
+guard added in the diff (a confirm cancel, a disabled-while-pending, a boundary
+comparison, a scope filter) with no test that would fail if it were removed.
 
 **Tailwind v4 canonical classes.** `shrink-0` not `flex-shrink-0`, `aspect-3/4`
 not `aspect-[3/4]`.

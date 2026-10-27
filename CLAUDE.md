@@ -209,6 +209,10 @@ Recording *which* model wrote a commit is deliberate and worth keeping — fifte
 
 Existing history stays as it is; a `filter-repo` pass over 1,700 commits would invalidate every hash already cited from a closed issue.
 
+## Tests — each one names the bug it fails on
+
+Writing, reviewing or trimming a test means invoking **`/test-discipline`** first. The 27 Oct 2026 audit (#1116) found the suite wide and shallow: about 16% of tests would let no bug through if deleted, and planted one-line bugs in guard clauses (a cancelled confirm that still deleted, an age check off by a day, a portrait gated on the wrong field) were caught only 56% of the time. A test count is not a measure of safety. A test earns its place by failing on a bug no other test catches, and every guard you add needs a test you have watched go red with the guard removed.
+
 ## Work Tracking
 
 GitHub issues on `irongollem/grimoire` are the single source of truth for open work. When you finish something, close the corresponding issue with `mcp__github__update_issue` (`state: closed`).

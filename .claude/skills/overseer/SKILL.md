@@ -45,7 +45,9 @@ Launch with `model: "sonnet"` (haiku only for pure lookups). Every spec contains
   plus "unrelated dirty files in git status are expected".
 - **Applicable conventions** — the CLAUDE.md/memory rules that bite for this story
   (no `any`, no `?? ""` coercion, Vue 3.5 props, tests colocated, primitives not
-  hand-rolled chrome, rem not px).
+  hand-rolled chrome, rem not px). Any story that writes tests gets the
+  `/test-discipline` rules pasted in: each test names the bug it fails on, and
+  each guard the story adds has a test proven to go red when the guard is removed.
 - **Hard boundaries** — no commits, no pushes, no migrations (report needed SQL
   instead), no GitHub writes, no touching the DB.
 - **Required verification** — which commands must be green before the agent reports,
