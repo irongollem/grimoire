@@ -109,4 +109,43 @@ describe("PartyMilestonesPanel", () => {
     await flushPromises();
     expect(mocks.deleteMilestone).toHaveBeenCalledWith({ id: "m1", campaignId: "c1" });
   });
+
+  it("cancelling the delete confirm keeps the milestone", async () => {
+    mocks.confirmResult = false;
+    mocks.milestones.value = [milestone({ id: "m1" })];
+    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const deleteButton = wrapper.findAll("button").find((b) => b.text() === "");
+    await deleteButton!.trigger("click");
+    await flushPromises();
+    expect(mocks.deleteMilestone).not.toHaveBeenCalled();
+  });
+
+  it("saves the milestone text without the spaces around it", async () => {
+    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    await wrapper.find("input").setValue("   Freed the miners  ");
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add milestone");
+    await addButton!.trigger("click");
+    await flushPromises();
+    expect(mocks.createMilestone).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Freed the miners" }),
+    );
+  });
+
+  it("empties the input once the milestone is added", async () => {
+    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const input = wrapper.find("input");
+    await input.setValue("Freed the miners");
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add milestone");
+    await addButton!.trigger("click");
+    await flushPromises();
+    expect(input.element.value).toBe("");
+  });
+
+  it("disables Add milestone while a milestone is being saved, so it cannot be submitted twice", async () => {
+    mocks.createPending = true;
+    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    await wrapper.find("input").setValue("Freed the miners");
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add milestone");
+    expect(addButton?.attributes("disabled")).toBeDefined();
+  });
 });

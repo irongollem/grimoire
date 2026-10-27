@@ -46,6 +46,11 @@ describe("attacks", () => {
     expect(s.attack?.bonus).toBe(0);
   });
 
+  it("keeps a negative to-hit negative", () => {
+    const s = parse("Nip", "Melee Weapon Attack: -1 to hit, reach 5 ft., one target. Hit: 1 piercing damage.");
+    expect(s.attack?.bonus).toBe(-1);
+  });
+
   it("takes the first damage of a versatile hit, not the two-handed alternative", () => {
     const s = parse(
       "Longsword",

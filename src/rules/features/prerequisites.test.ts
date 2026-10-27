@@ -70,6 +70,10 @@ describe("applyAbilityIncrease", () => {
     const two = applyAbilityIncrease(scores, asi, { primary: "str", secondary: "con" });
     expect([two.str, two.con]).toEqual([11, 11]);
   });
+  it("a feat that does not split raises only the primary, even when given a secondary", () => {
+    const out = applyAbilityIncrease(scores, single, { primary: "str", secondary: "dex" });
+    expect([out.str, out.dex]).toEqual([11, 19]);
+  });
   it("split rejects the same ability twice or a foreign one", () => {
     expect(() => applyAbilityIncrease(scores, asi, { primary: "str", secondary: "str" })).toThrow();
     const some: FeatAbilityIncrease = { ...asi, abilities: ["str", "dex"] };

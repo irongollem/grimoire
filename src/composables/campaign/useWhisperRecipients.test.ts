@@ -7,10 +7,15 @@ import type { CampaignMember } from "@/types/campaign.types";
 const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   members: { value: undefined as unknown },
+  campaign: { activeCampaignId: "c1" as string | null },
 }));
 
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc } }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
+vi.mock("@/stores/campaign", async () => {
+  const { reactive } = await import("vue");
+  mocks.campaign = reactive({ activeCampaignId: "c1" as string | null });
+  return { useCampaignStore: () => mocks.campaign };
+});
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "me" } }) }));
 vi.mock("@/composables/campaign/useCampaignMembers", async () => {
   const { ref } = await import("vue");
@@ -62,6 +67,7 @@ describe("useWhisperTarget", () => {
   beforeEach(() => {
     mocks.rpc.mockReset();
     membersRef().value = undefined;
+    mocks.campaign.activeCampaignId = "c1";
   });
 
   it("does not ask the server until the member list has loaded", async () => {
@@ -106,5 +112,32 @@ describe("useWhisperTarget", () => {
     mocks.rpc.mockResolvedValueOnce({ data: [], error: null });
     membersRef().value = [member("me"), member("u2"), member("u3")];
     await vi.waitFor(() => expect(state.whisperTarget.value).toBe(""));
+  });
+
+  it("keeps the whisper target while another campaign's answer is still loading", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: ["u2"], error: null });
+    membersRef().value = [member("me"), member("u2")];
+    const state = setup();
+    await flushPromises();
+    state.whisperTarget.value = "u2";
+
+    mocks.rpc.mockReturnValueOnce(new Promise(() => {}));
+    mocks.campaign.activeCampaignId = "c2";
+    await flushPromises();
+    // Nothing has answered for c2 yet: the empty interval must not reset the picker.
+    expect(state.whisperTarget.value).toBe("u2");
+  });
+
+  it("offers nobody to whisper while another campaign's answer is loading", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: ["u2"], error: null });
+    membersRef().value = [member("me"), member("u2")];
+    const state = setup();
+    await flushPromises();
+    expect(state.whisperableMembers.value.map((m) => m.user_id)).toEqual(["u2"]);
+
+    mocks.rpc.mockReturnValueOnce(new Promise(() => {}));
+    mocks.campaign.activeCampaignId = "c2";
+    await flushPromises();
+    expect(state.whisperableMembers.value).toEqual([]);
   });
 });

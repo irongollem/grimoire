@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ref } from "vue";
-import { useNewToYou } from "@/composables/player/useNewToYou";
+import { toNewToYouItem, useNewToYou } from "@/composables/player/useNewToYou";
 import type { PlayerNpc } from "@/types/npc.types";
 
 const npc = (id: string, revealedAt: string | null): PlayerNpc =>
@@ -39,5 +39,29 @@ describe("useNewToYou", () => {
 
     expect(entries.value.map((e) => [e.npc.id, e.kind])).toEqual([["fresh", "new"]]);
     expect(ledger.value.map((n) => n.id).sort()).toEqual(["fresh", "old"]);
+  });
+});
+
+describe("toNewToYouItem privacy", () => {
+  const withFields = (fields: string[]): PlayerNpc =>
+    ({
+      ...fresh,
+      portrait_url: "https://img.test/face.webp",
+      portrait_focal_point: { x: 0.2, y: 0.3 },
+      player_visible_fields: fields,
+    }) as unknown as PlayerNpc;
+
+  it("keeps the portrait hidden when only the name is visible", () => {
+    const { person } = toNewToYouItem({ npc: withFields(["name"]), kind: "new" }, null);
+    expect(person.name).toBe("fresh");
+    expect(person.portraitUrl).toBeNull();
+    expect(person.focalPoint).toBeNull();
+  });
+
+  it("keeps the name hidden when only the portrait is visible", () => {
+    const { person } = toNewToYouItem({ npc: withFields(["portrait"]), kind: "new" }, null);
+    expect(person.name).toBeNull();
+    expect(person.portraitUrl).toBe("https://img.test/face.webp");
+    expect(person.focalPoint).toEqual({ x: 0.2, y: 0.3 });
   });
 });

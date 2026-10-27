@@ -73,6 +73,9 @@ describe("saveBonusFromStatBlock", () => {
     expect(saveBonusFromStatBlock({ ...block, saving_throws: "Con +5" }, "dex")).toBe(2);
     expect(saveBonusFromStatBlock(block, "con")).toBe(-1);
   });
+  it("rounds the modifier of an odd score below 10 down, so 9 is -1", () => {
+    expect(saveBonusFromStatBlock({ ...block, con: 9 }, "con")).toBe(-1);
+  });
   it("handles negative listed bonus", () => {
     expect(saveBonusFromStatBlock({ ...block, saving_throws: "Str -1" }, "str")).toBe(-1);
   });

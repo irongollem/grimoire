@@ -28,8 +28,14 @@ describe("isUnderAdultAge", () => {
 
   it("counts someone who turns 16 this month as still under 16", () => {
     // Born Sep 2010: may already be 16, may not. The month is all we ask, so
-    // the answer errs on the side of the parent.
+    // the answer errs on the side of the parent. adultOn is 2026-10-01, so
+    // the answer holds through the last day of September.
     expect(isUnderAdultAge({ month: 9, year: 2010 }, today)).toBe(true);
+    expect(isUnderAdultAge({ month: 9, year: 2010 }, new Date("2026-09-30T23:59:59Z"))).toBe(true);
+  });
+
+  it("counts someone as 16 on the first day of the month after their 16th birthday month", () => {
+    expect(isUnderAdultAge({ month: 9, year: 2010 }, new Date("2026-10-01T00:00:00Z"))).toBe(false);
   });
 
   it("counts someone who turned 16 last month as 16", () => {
@@ -52,13 +58,19 @@ describe("isValidBirthMonth", () => {
     expect(isValidBirthMonth({ month: 9, year: 2026 }, today)).toBe(true);
   });
 
-  it("refuses a future month", () => {
+  it("refuses a later month of this year and any month of next year", () => {
     expect(isValidBirthMonth({ month: 10, year: 2026 }, today)).toBe(false);
+    expect(isValidBirthMonth({ month: 1, year: 2027 }, today)).toBe(false);
   });
 
   it("refuses a month out of range and an implausible year", () => {
     expect(isValidBirthMonth({ month: 13, year: 2000 }, today)).toBe(false);
     expect(isValidBirthMonth({ month: 1, year: 1800 }, today)).toBe(false);
+  });
+
+  it("accepts a birth 120 years back and refuses 121", () => {
+    expect(isValidBirthMonth({ month: 1, year: 2026 - 120 }, today)).toBe(true);
+    expect(isValidBirthMonth({ month: 1, year: 2026 - 121 }, today)).toBe(false);
   });
 });
 
@@ -79,6 +91,11 @@ describe("login names", () => {
     expect(childLoginEmail(" Mira ")).toBe(`mira@${CHILD_LOGIN_DOMAIN}`);
     expect(isChildLoginEmail(`MIRA@${CHILD_LOGIN_DOMAIN.toUpperCase()}`)).toBe(true);
     expect(isChildLoginEmail("parent@example.com")).toBe(false);
+  });
+
+  it("does not take a real address that merely mentions the child domain for a child's", () => {
+    expect(isChildLoginEmail(`@${CHILD_LOGIN_DOMAIN}.evil.example`)).toBe(false);
+    expect(isChildLoginEmail(`mira@${CHILD_LOGIN_DOMAIN}.evil.example`)).toBe(false);
   });
 
   it("reads the sign-in field as an email when it has an @, a login name otherwise", () => {

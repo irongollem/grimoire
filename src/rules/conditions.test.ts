@@ -38,7 +38,6 @@ describe("hasSaveDisadvantage", () => {
   it("2014 (default): Exhaustion 3+ → disadvantage on ALL saves", () => {
     expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 3 }], "wis", "2014")).toBe(true);
     expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 5 }], "dex", "2014")).toBe(true);
-    expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 3 }], "wis", "2014")).toBe(true);
   });
 
   it("2014: Exhaustion below 3 → no save disadvantage", () => {
@@ -95,7 +94,6 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
     for (const level of [1, 3, 6]) {
       const conditions = [{ name: "Exhaustion", level }];
       expect(getExhaustionD20Penalty(conditions, "2014")).toBe(0);
-      expect(getExhaustionD20Penalty(conditions, "2014")).toBe(0);
       expect(getExhaustionSpeedPenaltyFt(conditions, "2014")).toBe(0);
     }
   });
@@ -130,11 +128,6 @@ describe("getConditions / getCondition resolver", () => {
   it("returns all 16 conditions (15 SRD + Hidden) for both editions", () => {
     expect(getConditions("2014")).toHaveLength(16);
     expect(getConditions("2024")).toHaveLength(16);
-  });
-
-  it("defaults to 2014", () => {
-    expect(getConditions("2014")).toEqual(getConditions("2014"));
-    expect(getCondition("Blinded", "2014")).toEqual(getCondition("Blinded", "2014"));
   });
 
   it("2014 text is the SRD 5.1 per-level exhaustion table", () => {

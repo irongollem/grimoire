@@ -63,6 +63,16 @@ describe("useFeatureUses write failure", () => {
   });
 });
 
+describe("useFeatureUses toggles", () => {
+  beforeEach(() => { mocks.fail = false; });
+
+  it("does not charge a toggle's cost when switching it off", async () => {
+    const uses = setup();
+    await uses.setToggle("rage", false, { key: "rage", amount: 1 });
+    expect(uses.remaining("rage")).toBe(3);
+  });
+});
+
 describe("useFeatureUses Wild Shape", () => {
   const calls: unknown[] = [];
   function setupWild(used: number) {
@@ -134,5 +144,18 @@ describe("useFeatureUses Wild Shape", () => {
     const uses = setupWild(0);
     await uses.setToggle("lunar", true, cost);
     expect(calls).toEqual([{ id: "pm-1", update: { class_choices: { lunar_active: true }, wildshapes_used: 1 } }]);
+  });
+
+  it("does not charge a toggle's Wild Shape cost when switching it off", async () => {
+    const uses = setupWild(0);
+    await uses.setToggle("lunar", false, cost);
+    expect(uses.remaining("wild_shape")).toBe(2);
+  });
+
+  it("never restores Wild Shape below none spent", async () => {
+    const uses = setupWild(0);
+    await uses.restore("wild_shape");
+    expect(uses.remaining("wild_shape")).toBe(2);
+    expect(calls).toEqual([{ id: "pm-1", update: { wildshapes_used: 0 } }]);
   });
 });
