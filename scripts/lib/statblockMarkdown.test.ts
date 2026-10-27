@@ -67,6 +67,15 @@ describe("small readers", () => {
     });
     expect(() => parseMeta("Medium Gizmo, Unaligned")).toThrow(StatblockParseError);
   });
+  it("keeps commas inside the parentheses with the tags", () => {
+    expect(parseMeta("Medium Fiend (Demon, Shapechanger), Chaotic Evil")).toEqual({
+      size: "medium",
+      monster_type: "fiend",
+      alignment: "chaotic evil",
+      tags: ["demon", "shapechanger"],
+    });
+    expect(parseMeta("Medium Fiend (Demon, Shapechanger)")).toMatchObject({ alignment: "unaligned", tags: ["demon", "shapechanger"] });
+  });
   it("reads abilities with a unicode minus", () => {
     const a = parseAbilities("STR 9 −1 −1 | DEX 17 +3 +5 | CON 14 +2 +2 | INT 6 -2 -2 | WIS 12 +1 +1 | CHA 5 -3 -3");
     expect(a.str).toEqual({ score: 9, mod: -1, save: -1 });

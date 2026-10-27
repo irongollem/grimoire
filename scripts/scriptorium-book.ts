@@ -138,6 +138,9 @@ async function main(): Promise<void> {
     if (!process.env.ASSET_CDN_URL?.trim()) throw new Error("ASSET_CDN_URL is not set.");
   }
 
+  // A production dry run may have no CDN base; it prints the storage key rather than throwing.
+  const urlFor = (path: string) => (dryRun && values.production && !process.env.ASSET_CDN_URL?.trim() ? `(planned) ${BUCKET}/${path}` : storage.url(path));
+
   const markdown = joinChapters(files.map((f) => readFileSync(join(dir, f), "utf8")));
   const { portraits, ambiguous } = await loadNpcPortraits(target, campaignId);
   const embedIndex = await loadEmbedIndex(target, campaignId);
@@ -198,7 +201,7 @@ async function main(): Promise<void> {
       if (!resolved) return null;
       if (resolved.kind === "url") return { src: resolved.url };
       const image = prepared.get(resolved.path);
-      return image ? { src: storage.url(image.path) } : null;
+      return image ? { src: urlFor(image.path) } : null;
     },
     resolveEmbed: ({ type, name }) => {
       const ids = embedIndex.get(type)?.get(normalizeName(name)) ?? [];

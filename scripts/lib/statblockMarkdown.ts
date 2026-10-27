@@ -128,8 +128,19 @@ export function parseAbilities(text: string): Record<AbilityKey, { score: number
 }
 
 export function parseMeta(text: string): { size: MonsterSize; monster_type: MonsterType; alignment: string; tags: string[] } {
-  const [typeLine, ...alignmentParts] = text.split(",");
-  const alignment = alignmentParts.join(",").trim().toLowerCase();
+  // Split on the first comma outside parentheses: "(Demon, Shapechanger)" is one tag group.
+  let depth = 0;
+  let cut = text.length;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    else if (text[i] === ")") depth = Math.max(0, depth - 1);
+    else if (text[i] === "," && depth === 0) {
+      cut = i;
+      break;
+    }
+  }
+  const typeLine = text.slice(0, cut);
+  const alignment = text.slice(cut + 1).trim().toLowerCase();
   const paren = /\(([^)]*)\)/.exec(typeLine);
   const tags = paren ? paren[1].split(",").map((t) => t.trim().toLowerCase()).filter(Boolean) : [];
   const words = typeLine.replace(/\([^)]*\)/, " ").toLowerCase().split(/\s+/).filter(Boolean);

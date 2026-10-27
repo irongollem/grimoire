@@ -80,7 +80,7 @@ function updatePayload(row: MonsterRowFields): Record<string, unknown> {
     alignment: row.alignment,
     ruleset: row.ruleset,
     source: row.source,
-    ...(row.notes !== null ? { notes: row.notes } : {}),
+    // `notes` is deliberately absent: they are the DM's own and a re-import never overwrites them.
   };
 }
 
@@ -117,6 +117,13 @@ async function applyArt(target: Target, monsters: MonsterArtRow[], opts: ArtOpti
     if (!process.env.ASSET_CDN_URL?.trim()) throw new Error("ASSET_CDN_URL is not set.");
   }
 
+  // A production dry run may have no CDN base; it prints the storage key rather than throwing,
+  // and recognises a monster already on that object by the key its URL ends in.
+  const cdnUnknown = opts.dryRun && opts.production && !process.env.ASSET_CDN_URL?.trim();
+  const urlFor = (path: string) => (cdnUnknown ? `(planned) ${ART_BUCKET}/${path}` : storage.url(path));
+  const alreadyOn = (current: string | null, url: string | null, image: PreparedImage | undefined) =>
+    current === url || (cdnUnknown && !!image && !!current?.endsWith(`/${image.path}`));
+
   type Plan = { monster: MonsterArtRow; via: string; url: string | null; image?: PreparedImage };
   const plans: Plan[] = [];
   const pending: string[] = [];
@@ -152,8 +159,8 @@ async function applyArt(target: Target, monsters: MonsterArtRow[], opts: ArtOpti
   });
   for (const { monster, resolved: art } of resolved) {
     const image = art.kind === "file" ? prepared.get(art.path) : undefined;
-    const url = art.kind === "url" ? art.url : image ? storage.url(image.path) : null;
-    if (monster.image_url === url) {
+    const url = art.kind === "url" ? art.url : image ? urlFor(image.path) : null;
+    if (alreadyOn(monster.image_url, url, image)) {
       unchanged++;
     } else if (monster.image_url && !opts.replace) {
       keptOwn.push(monster.name);
@@ -167,21 +174,27 @@ async function applyArt(target: Target, monsters: MonsterArtRow[], opts: ArtOpti
   let reused = 0;
   const failures: string[] = [];
   if (!opts.dryRun) {
-    const done = new Set<string>();
+    // One upload per object, shared by every monster that uses it: a PATCH waits for it and
+    // fails with it, so no monster points at an object that never landed.
+    const uploads = new Map<string, Promise<void>>();
+    const ensureUploaded = (image: PreparedImage): Promise<void> => {
+      let upload = uploads.get(image.path);
+      if (!upload) {
+        upload = (async () => {
+          if (await storage.has(image.path)) reused++;
+          else {
+            await storage.put(image.path, image.bytes);
+            uploaded++;
+          }
+          await writeProvenance(target, ART_BUCKET, image, opts.userId);
+        })();
+        uploads.set(image.path, upload);
+      }
+      return upload;
+    };
     await pooled(plans, 4, async (plan) => {
       try {
-        if (plan.image) {
-          const key = plan.image.path;
-          if (!done.has(key)) {
-            done.add(key);
-            if (await storage.has(key)) reused++;
-            else {
-              await storage.put(key, plan.image.bytes);
-              uploaded++;
-            }
-            await writeProvenance(target, ART_BUCKET, plan.image, opts.userId);
-          }
-        }
+        if (plan.image) await ensureUploaded(plan.image);
         if (!plan.monster.id) throw new Error("monster row has no id");
         await request(target, "PATCH", `monsters?id=eq.${plan.monster.id}&campaign_id=eq.${opts.campaignId}`, { image_url: plan.url });
         written++;
