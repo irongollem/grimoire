@@ -217,18 +217,20 @@ describe("buildMonsterCombatants", () => {
 });
 
 describe("buildNpcCombatants", () => {
-  it("builds combatants using the 10-hp fallback and no legendary/initiative_bonus fields", () => {
+  it("builds combatants using the 10-hp fallback and no legendary fields", () => {
     const out = buildNpcCombatants(npc({ stat_block: null }), { factionId: "f1", count: 1, started: false });
     expect(out[0].max_hp).toBe(10);
     expect(out[0].npc_id).toBe("n1");
-    expect(out[0].initiative_bonus).toBeUndefined();
+    expect(out[0].initiative_bonus).toBeNull();
     expect(out[0].footprint).toBe(1);
   });
 
-  it("rolls initiative on dex_mod alone (never a 2024 initiative_bonus)", () => {
-    const withBonus = npc({ stat_block: { ...npc().stat_block!, initiative_bonus: 99 } });
+  // 2024 MM "Initiative": a stat block's listed Initiative replaces the Dex modifier, for an NPC as for a monster.
+  it("rolls an NPC's initiative on its listed initiative bonus and keeps it for later rerolls", () => {
+    const withBonus = npc({ stat_block: { ...npc().stat_block!, initiative_bonus: 4 } });
     const out = buildNpcCombatants(withBonus, { factionId: "f1", count: 1, started: true, rollD20: () => 10 });
-    expect(out[0].initiative).toBe(10); // dex 10 → +0 mod, bonus ignored
+    expect(out[0].initiative).toBe(14); // dex 10 gives +0; the listed +4 is what is rolled
+    expect(out[0].initiative_bonus).toBe(4);
   });
 
   it("bakes token_url from the NPC's cutout, leaving it unset when there is none", () => {

@@ -168,13 +168,14 @@ export interface NpcSpawnOptions {
 }
 
 /** Builds the RunCombatant entries for `count` copies of an NPC. Same shape
- *  as `buildMonsterCombatants` minus legendary actions and 2024
- *  `initiative_bonus` support — NPCs have never used either. */
+ *  as `buildMonsterCombatants` minus legendary actions. A 2024 stat block's
+ *  listed Initiative is what the book rolls, for an NPC as for a monster. */
 export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunCombatant[] {
   const sb = npc.stat_block;
   const maxHp = hitPointsToMax(sb?.hit_points, 10);
   const dex = Number(sb?.dex ?? 10);
   const dexMod = Math.floor((dex - 10) / 2);
+  const initiativeBonus = sb?.initiative_bonus ?? null;
   const ac = String(sb?.armor_class ?? 10);
   const spawnKey = `spawn-npc-${npc.id}-${Date.now()}`;
 
@@ -186,7 +187,7 @@ export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunC
       type: "monster",
       name: displayName,
       faction_id: opts.factionId,
-      initiative: opts.started ? rollInitiativeValue({ dex_mod: dexMod, initiative_bonus: null }, opts.rollD20) : null,
+      initiative: opts.started ? rollInitiativeValue({ dex_mod: dexMod, initiative_bonus: initiativeBonus }, opts.rollD20) : null,
       hp: maxHp,
       max_hp: maxHp,
       ac,
@@ -195,6 +196,7 @@ export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunC
       death_saves: { successes: 0, failures: 0 },
       npc_id: npc.id,
       dex_mod: dexMod,
+      initiative_bonus: initiativeBonus,
       reveal_state: "hidden",
       portrait_url: npc.portrait_url ?? null,
       portrait_focal_point: npc.portrait_focal_point ?? null,

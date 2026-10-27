@@ -206,6 +206,7 @@ export function buildRunCombatants({
           npc_id: npc.id,
           def_id: entry.id,
           dex_mod: dexMod,
+          initiative_bonus: sb?.initiative_bonus ?? null,
           reveal_state: "hidden",
           portrait_url: npc.portrait_url ?? null,
           portrait_focal_point: npc.portrait_focal_point ?? null,

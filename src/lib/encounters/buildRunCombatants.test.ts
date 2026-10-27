@@ -224,6 +224,18 @@ describe("buildRunCombatants", () => {
     expect(withoutCutout[0].token_url).toBeUndefined();
   });
 
+  // 2024 MM stat blocks list Initiative; an NPC built from one rolls it like a monster does.
+  it("carries an NPC's listed initiative bonus onto its combatant, and none when the stat block lists none", () => {
+    const npc = { id: "n-1", name: "Veteran", stat_block: statBlock({ initiative_bonus: 5 }), portrait_url: null, portrait_focal_point: null, cutout_url: null };
+    const encounter = {
+      party_member_ids: [], companion_ids: [], party_member_factions: {},
+      combatants: [slot({ id: "def-npc", monster_id: null, npc_id: "n-1" })],
+    };
+    expect(buildRunCombatants(sources({ encounter, npcs: [npc], monsters: [] }))[0].initiative_bonus).toBe(5);
+    const plain = { ...npc, stat_block: statBlock() };
+    expect(buildRunCombatants(sources({ encounter, npcs: [plain], monsters: [] }))[0].initiative_bonus).toBeNull();
+  });
+
   it("benches a companion that is not combat_ready", () => {
     const companion = {
       id: "c-1",
