@@ -1,4 +1,4 @@
-import { inject, onScopeDispose, watchEffect, type ComputedRef, type InjectionKey } from "vue";
+import { computed, inject, onScopeDispose, watchEffect, type ComputedRef, type InjectionKey } from "vue";
 
 /**
  * The DM's disclosure labels, shared by every rich-text viewer on screen. The
@@ -9,6 +9,8 @@ import { inject, onScopeDispose, watchEffect, type ComputedRef, type InjectionKe
  */
 export interface SecretDisclosures {
   labels: ComputedRef<ReadonlyMap<string, string>>;
+  /** Whether the signed-in user is the DM. The layout providing this is no proof: DefaultLayout serves every role. */
+  isDm(): boolean;
   /** Registers interest; call the returned function to release it. */
   want(): () => void;
 }
@@ -30,4 +32,14 @@ export function useSecretDisclosures(active: () => boolean): ComputedRef<Readonl
   watchEffect(sync);
   onScopeDispose(() => release?.());
   return disclosures.labels;
+}
+
+/**
+ * Who a lens pair (#1115) is drawn for: both halves for the DM, the Bright half
+ * for anyone else. Taken from the role the DM layout reads, never from the
+ * provider merely being present, and "player" outside any layout.
+ */
+export function useLensAudience(): ComputedRef<"dm" | "player"> {
+  const disclosures = inject(SECRET_DISCLOSURES_KEY, null);
+  return computed(() => (disclosures?.isDm() ? "dm" : "player"));
 }

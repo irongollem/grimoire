@@ -34,7 +34,7 @@ import Typography from "@tiptap/extension-typography";
 import { Columns } from "./Columns";
 import { AiGenerated } from "./AiGenerated";
 import { SecretBlock } from "./secretBlock";
-import { LENS_PAIR_EXTENSIONS } from "./lensPair";
+import { lensPairExtensions } from "./lensPair";
 import { DescriptiveBlock } from "./descriptiveBlock";
 import { CalendarEventRef } from "./CalendarEventRef";
 import { createEntityMentionExtension } from "./EntityMention";
@@ -116,7 +116,7 @@ function viewerExtensions(): Extensions {
     AiGenerated,
     SecretBlock,
     DescriptiveBlock,
-    ...LENS_PAIR_EXTENSIONS,
+    ...lensPairExtensions({ creatable: true }),
   ];
 }
 

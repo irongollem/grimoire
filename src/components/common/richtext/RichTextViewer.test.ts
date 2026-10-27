@@ -75,10 +75,11 @@ describe("RichTextViewer", () => {
       content: [para("The duke is a lich")],
     });
     /** A DM layout's provider: counts the viewers asking for labels. */
-    const dmLayout = (labels: Map<string, string>) => {
+    const dmLayout = (labels: Map<string, string>, isDm = true) => {
       const state = { wanting: 0 };
       const disclosures: SecretDisclosures = {
         labels: computed(() => labels),
+        isDm: () => isDm,
         want() {
           state.wanting++;
           return () => state.wanting--;
@@ -106,6 +107,27 @@ describe("RichTextViewer", () => {
       const wrapper = mount(RichTextViewer, { props: { content: doc(para("plain")) }, global: { provide: layout.provide } });
       expect(wrapper.find("[data-disclosed]").exists()).toBe(false);
       expect(layout.state.wanting).toBe(0);
+    });
+
+    const lens = {
+      type: "lensPair",
+      attrs: { variant: "boxed" },
+      content: [
+        { type: "lensBright", content: [para("kind words")] },
+        { type: "lensDeep", content: [para("grim truth")] },
+      ],
+    };
+
+    it("shows a lens pair's Deep half to the DM", () => {
+      const wrapper = mount(RichTextViewer, { props: { content: doc(lens) }, global: { provide: dmLayout(new Map()).provide } });
+      expect(wrapper.text()).toContain("grim truth");
+    });
+
+    it("withholds the Deep half from a player under the default layout", () => {
+      const layout = dmLayout(new Map(), false);
+      const wrapper = mount(RichTextViewer, { props: { content: doc(lens) }, global: { provide: layout.provide } });
+      expect(wrapper.text()).toContain("kind words");
+      expect(wrapper.text()).not.toContain("grim truth");
     });
 
     it("labels nothing outside the DM layout", () => {

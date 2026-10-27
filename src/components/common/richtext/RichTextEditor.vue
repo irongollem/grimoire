@@ -429,7 +429,7 @@ import type { IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
 import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 import { SecretBlock } from "@/lib/tiptap/secretBlock";
-import { LENS_PAIR_EXTENSIONS } from "@/lib/tiptap/lensPair";
+import { lensPairExtensions } from "@/lib/tiptap/lensPair";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
 
 const CustomDocument = Node.create({
@@ -676,7 +676,7 @@ const editor = useEditor({
     PendingImage,
     AiGenerated,
     SecretBlock.configure({ creatable: allowSecrets === true }),
-    ...LENS_PAIR_EXTENSIONS,
+    ...lensPairExtensions({ creatable: allowSecrets === true || allowLensPairs === true }),
   ],
   editorProps: {
     handlePaste(view, event) {

@@ -1,13 +1,15 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { Editor, generateHTML, generateJSON } from "@tiptap/core";
+import { Fragment, Slice } from "@tiptap/pm/model";
 import type { JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { LENS_PAIR_EXTENSIONS, BRIGHT_PLACEHOLDER, DEEP_PLACEHOLDER } from "./lensPair";
+import { lensPairExtensions, BRIGHT_PLACEHOLDER, DEEP_PLACEHOLDER } from "./lensPair";
 
 vi.mock("@/components/scriptorium/LensPairView.vue", () => ({ default: {} }));
 
-const EXT = [StarterKit, ...LENS_PAIR_EXTENSIONS];
+const EXT = [StarterKit, ...lensPairExtensions({ creatable: true })];
+const LOCKED = [StarterKit, ...lensPairExtensions({ creatable: false })];
 
 let editors: Editor[] = [];
 afterEach(() => {
@@ -15,10 +17,10 @@ afterEach(() => {
   editors = [];
 });
 
-function makeEditor(content?: JSONContent): Editor {
+function makeEditor(content?: JSONContent, extensions = EXT): Editor {
   const editor = new Editor({
     element: document.createElement("div"),
-    extensions: EXT,
+    extensions,
     content: content ?? { type: "doc", content: [{ type: "paragraph" }] },
   });
   editors.push(editor);
@@ -113,5 +115,52 @@ describe("placeholders", () => {
     expect(dom.querySelector('[data-type="lensDeep"] p.is-empty')).toBeNull();
     editor.commands.setContent(doc(pair([para("filled")], [{ type: "paragraph" }])));
     expect(dom.querySelector('[data-type="lensDeep"] p.is-empty')?.getAttribute("data-placeholder")).toBe(DEEP_PLACEHOLDER);
+  });
+});
+
+describe("an editor that may not create a pair", () => {
+  it("refuses the command, so the shortcut does nothing", () => {
+    const editor = makeEditor(undefined, LOCKED);
+    expect(editor.commands.insertLensPair()).toBe(false);
+    expect(editor.getJSON().content?.some((n) => n.type === "lensPair")).toBe(false);
+  });
+
+  it("still loads a stored pair intact", () => {
+    const stored = doc(pair([para("kind")], [para("grim")]));
+    expect(makeEditor(stored, LOCKED).getJSON()).toEqual(stored);
+  });
+
+  const paste = (editor: Editor, slice: Slice) => {
+    let out = slice;
+    editor.view.someProp("transformPasted", (f) => {
+      out = f(out, editor.view, false);
+    });
+    return out;
+  };
+
+  it("pastes a whole pair as its Bright half alone", () => {
+    const editor = makeEditor(undefined, LOCKED);
+    const node = editor.schema.nodeFromJSON(pair([para("kind")], [para("grim")]));
+    const out = paste(editor, new Slice(Fragment.from(node), 0, 0));
+    const json = out.content.toJSON() as JSONContent[];
+    expect(json).toEqual([para("kind")]);
+  });
+
+  it("pastes text selected inside a Deep half as that text", () => {
+    const editor = makeEditor(undefined, LOCKED);
+    const node = editor.schema.nodeFromJSON(pair([para("kind")], [para("grim")]));
+    // Selecting "grim" inside the Deep half: open through pair, half and paragraph.
+    const deep = node.child(1);
+    const slice = new Slice(Fragment.from(node.copy(Fragment.from(deep))), 3, 3);
+    const json = paste(editor, slice).content.toJSON() as JSONContent[];
+    expect(JSON.stringify(json)).toContain("grim");
+    expect(JSON.stringify(json)).not.toContain("lens");
+  });
+
+  it("leaves a creatable editor's paste alone", () => {
+    const editor = makeEditor();
+    const node = editor.schema.nodeFromJSON(pair([para("kind")], [para("grim")]));
+    const slice = new Slice(Fragment.from(node), 0, 0);
+    expect(paste(editor, slice)).toBe(slice);
   });
 });

@@ -6,7 +6,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(34);
 
 -- A DM shares a Scriptorium handout with players (#970, 20261004105821).
 --
@@ -81,7 +81,10 @@ insert into public.scriptorium_documents (id, user_id, campaign_id, title, conte
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b1', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', null)),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b2', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', jsonb_build_object('fields', jsonb_build_array('occupation')))),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b3', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', jsonb_build_object('off', true)))
-   ))::text);
+   ))::text),
+  -- A setting-book page with a lens pair (#1115): fine as a draft, never a handout.
+  ('97000000-0000-4000-8000-000000000084', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Two readings',
+   '{"type":"doc","content":[{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","content":[{"type":"text","text":"grim"}]}]}]}]}');
 
 -- ── As the DM ──────────────────────────────────────────────────────────────
 
@@ -123,6 +126,28 @@ select lives_ok(
 select is(
   (select player_visible_to from public.scriptorium_documents where id = '97000000-0000-4000-8000-000000000080'),
   array['97000000-0000-4000-8000-000000000030']::uuid[], 'Nessa holds the handout');
+
+-- ── A lens pair never rides on a handout (20261027080700) ──────────────────
+
+select throws_ok(
+  $$ select public.share_handout('97000000-0000-4000-8000-000000000084',
+                                 array['97000000-0000-4000-8000-000000000030']::uuid[]) $$,
+  '23514', 'A handout cannot hold a lens pair: players would read its Deep half. Remove the pair, or put what players may read in an ordinary block.', 'a document holding a lens pair cannot be shared');
+
+select is(
+  (select player_visible_to from public.scriptorium_documents where id = '97000000-0000-4000-8000-000000000084'),
+  '{}'::uuid[], 'and nobody holds it');
+
+select throws_ok(
+  $$ update public.scriptorium_documents
+        set content = (select content from public.scriptorium_documents where id = '97000000-0000-4000-8000-000000000084')
+      where id = '97000000-0000-4000-8000-000000000080' $$,
+  '23514', 'A handout cannot hold a lens pair: players would read its Deep half. Remove the pair, or put what players may read in an ordinary block.', 'a shared handout cannot be saved with a lens pair added');
+
+select lives_ok(
+  $$ update public.scriptorium_documents set title = 'Two readings, revised'
+      where id = '97000000-0000-4000-8000-000000000084' $$,
+  'a private draft holding a lens pair saves as usual');
 
 select is(
   (select row(player_visible_to, player_visible_fields)::text from public.npcs where id = '97000000-0000-4000-8000-000000000020'),

@@ -30,7 +30,7 @@
 import { computed, onUnmounted, ref, shallowRef, watch } from "vue";
 import { parseStoredContent, renderStoredDoc } from "@/lib/tiptap/viewerRender";
 import { secretIdsIn } from "@/lib/tiptap/secretIds";
-import { useSecretDisclosures } from "@/lib/tiptap/secretDisclosures";
+import { useLensAudience, useSecretDisclosures } from "@/lib/tiptap/secretDisclosures";
 import { usePendingImageDocResolver } from "@/composables/usePendingImageResolver";
 
 // Rendered straight from the stored JSON, with no Tiptap editor. This
@@ -52,12 +52,12 @@ const doc = shallowRef<unknown>(parseStoredContent(props.content));
 // ordinary document asks nothing.
 const holdsSecrets = computed(() => secretIdsIn(doc.value).length > 0);
 const disclosedLabels = useSecretDisclosures(() => holdsSecrets.value);
-// The same provider tells a lens pair who is reading (#1115): inside the DM
-// layout both halves show, anywhere else only the Bright half does.
-const audience = disclosedLabels ? "dm" : "player";
+// A lens pair (#1115) shows both halves to the DM and only the Bright half to
+// anyone else, by role: DefaultLayout provides the labels to every role.
+const audience = useLensAudience();
 const RenderedDoc = () =>
   renderStoredDoc(doc.value, {
-    audience,
+    audience: audience.value,
     ...(disclosedLabels && holdsSecrets.value ? { secretLabels: disclosedLabels.value } : {}),
   });
 

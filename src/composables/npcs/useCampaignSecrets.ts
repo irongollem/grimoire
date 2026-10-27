@@ -74,6 +74,7 @@ export function provideSecretDisclosures(isDm: () => boolean): void {
   const { labels } = useDisclosedSecrets(() => isDm() && wanted.value > 0);
   provide(SECRET_DISCLOSURES_KEY, {
     labels,
+    isDm,
     want() {
       wanted.value++;
       let released = false;
