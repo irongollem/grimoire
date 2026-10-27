@@ -478,7 +478,10 @@ function embedNodes(directive: "statblock" | "embed", source: string, options: M
   const type = directive === "statblock" ? "monster" : EMBED_TYPES.find((t) => t === declared);
   const label = directive === "statblock" ? "Stat block" : type ? EMBED_LABELS[type] : "Embed";
   const found = type ? (options.resolveEmbed?.({ type, name }) ?? null) : null;
-  if (type && found) return [{ type: "entityEmbed", attrs: { entityType: type, entityId: found.id } }];
+  // An embed placed from a document's running text flows with it. The node's own
+  // default (a fresh page) suits a single-entity handout, and in a bestiary it
+  // left most of every stat block's page blank (#1115).
+  if (type && found) return [{ type: "entityEmbed", attrs: { entityType: type, entityId: found.id, startsPage: false } }];
   return [noteWithLines([`${label}: ${name} (not yet in the campaign)`])];
 }
 

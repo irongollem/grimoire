@@ -355,14 +355,14 @@ describe("::: statblock and ::: embed", () => {
       },
     });
     expect(refs).toEqual([{ type: "monster", name: "Goblin Boss" }]);
-    expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: "monster", entityId: "m-1" } });
+    expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: "monster", entityId: "m-1", startsPage: false } });
   });
 
   it("emits an embed of the named type", () => {
     const doc = markdownToScriptoriumContent("::: embed\ntype: npc\nname: Bram\n:::", {
       resolveEmbed: () => ({ id: "n-7" }),
     });
-    expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: "npc", entityId: "n-7" } });
+    expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: "npc", entityId: "n-7", startsPage: false } });
   });
 
   it("leaves a stat block placeholder when the entity is not there", () => {
