@@ -20,7 +20,7 @@
  *      to the `render-pdf` edge function, which prints it and answers with the
  *      PDF bytes. No layout happens server-side. The edge function refuses
  *      HTML over 40 MB, so a big book (480 pages of 300-ppi art is ~61 MB) is
- *      split into consecutive batches of whole pages (pdfChunks.ts, 32 MB
+ *      split into consecutive batches of whole pages (pdfChunks.ts, 40 MB
  *      budget each, the fonts and CSS repeated in every one), printed one
  *      request at a time (retrying a busy printer after a wait), and merged
  *      with pdf-lib. Page numbers, footers and TOC numbers are already in each
@@ -58,9 +58,10 @@ import {
   mergePdfs,
   planPdfChunks,
   splitPagesHtml,
+  utf8ByteLength,
   withBusyRetry,
 } from "@/lib/scriptorium/pdfChunks";
-import type { PdfProgress, SplitPages } from "@/lib/scriptorium/pdfChunks";
+import type { PageRange, PdfProgress, SplitPages } from "@/lib/scriptorium/pdfChunks";
 
 export interface PdfDocumentOptions {
   bodyHtml: string;
@@ -228,7 +229,7 @@ export function useScriptoriumPdf() {
 
       // 2. Capture the page-sizing rules Paged.js injected into the main head.
       const pagedStyles = pagedStyleElements(previewer).map(serializeStyle).join("\n");
-      const pagesHtml = host.innerHTML;
+      let pagesHtml = host.innerHTML;
 
       // 3. Everything the document loads from the app's own origin (fonts,
       //    the page background) travels inside the HTML (see header), then
@@ -261,33 +262,40 @@ export function useScriptoriumPdf() {
       const assemble = (pages: string) => shellHead + pages + shellTail;
 
       const pageEls = Array.from(host.querySelectorAll<HTMLElement>(".pagedjs_page"));
-      const split = splitPagesHtml(
+      const split: SplitPages = splitPagesHtml(
         pagesHtml,
         pageEls.map((el) => el.outerHTML),
       );
-      const inlinedSplit: SplitPages = {
-        prefix: await inlineSameOriginAssets(split.prefix, fetchCached),
-        segments: await Promise.all(split.segments.map((seg) => inlineSameOriginAssets(seg, fetchCached))),
-        suffix: await inlineSameOriginAssets(split.suffix, fetchCached),
-      };
-      const encoder = new TextEncoder();
-      const overhead = encoder.encode(assemble(inlinedSplit.prefix + inlinedSplit.suffix)).length;
-      const ranges = planPdfChunks(
-        inlinedSplit.segments.map((seg) => encoder.encode(seg).length),
-        overhead,
-      );
+      // The laid-out DOM and its serialisation are done with: a 60 MB book
+      // otherwise holds them beside the inlined segments (tablets run out).
+      pageEls.length = 0;
+      pagesHtml = "";
+      host.replaceChildren();
+      split.prefix = await inlineSameOriginAssets(split.prefix, fetchCached);
+      split.suffix = await inlineSameOriginAssets(split.suffix, fetchCached);
+      // One page at a time, replacing the original so it can be collected;
+      // utf8ByteLength measures without allocating an encoded copy.
+      const segmentBytes: number[] = [];
+      for (let i = 0; i < split.segments.length; i++) {
+        split.segments[i] = await inlineSameOriginAssets(split.segments[i], fetchCached);
+        segmentBytes.push(utf8ByteLength(split.segments[i]));
+      }
+      const overhead = utf8ByteLength(assemble(split.prefix + split.suffix));
+      const ranges = planPdfChunks(segmentBytes, overhead);
+      // A book with no pages is still one (empty) request.
+      if (ranges.length === 0) ranges.push({ start: 0, end: 0 });
 
       // A book that fits is one request with the pages exactly as laid out;
-      // a big one is printed in consecutive parts and stitched below.
-      const htmlParts =
-        ranges.length <= 1
-          ? [assemble(inlinedSplit.prefix + inlinedSplit.segments.join("") + inlinedSplit.suffix)]
-          : ranges.map((range) => assemble(chunkPagesHtml(inlinedSplit, range)));
-
+      // a big one is printed in consecutive parts and stitched below. Each
+      // part's HTML is built, sent and dropped before the next is built.
+      const renderRange = async (range: PageRange): Promise<Blob> => {
+        const html = assemble(chunkPagesHtml(split, range));
+        return withBusyRetry(() => renderPart(html));
+      };
       const parts: Blob[] = [];
-      for (const [i, html] of htmlParts.entries()) {
-        progress.value = { part: i + 1, total: htmlParts.length };
-        parts.push(await withBusyRetry(() => renderPart(html)));
+      for (const [i, range] of ranges.entries()) {
+        progress.value = { part: i + 1, total: ranges.length };
+        parts.push(await renderRange(range));
       }
       const data =
         parts.length === 1

@@ -1,5 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import { PDFDocument } from "pdf-lib";
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFHexString,
+  PDFName,
+  PDFNumber,
+  PDFRef,
+  PDFString,
+} from "pdf-lib";
 import {
   planPdfChunks,
   PdfPageTooLargeError,
@@ -8,6 +17,7 @@ import {
   withBusyRetry,
   mergePdfs,
   pdfProgressLabel,
+  utf8ByteLength,
   PDF_CHUNK_BUDGET_BYTES,
 } from "./pdfChunks";
 
@@ -49,8 +59,8 @@ describe("planPdfChunks", () => {
     expect(planPdfChunks([900], 100, 1000)).toEqual([{ start: 0, end: 1 }]);
   });
 
-  it("defaults to a 32 MB budget", () => {
-    expect(PDF_CHUNK_BUDGET_BYTES).toBe(32 * 1024 * 1024);
+  it("defaults to the 40 MB one request render-pdf always accepted", () => {
+    expect(PDF_CHUNK_BUDGET_BYTES).toBe(40 * 1024 * 1024);
   });
 });
 
@@ -121,6 +131,143 @@ describe("mergePdfs", () => {
     const doc = await PDFDocument.load(merged);
     expect(doc.getPageCount()).toBe(3);
     expect(doc.getPages().map((pg) => pg.getWidth())).toEqual([100, 110, 120]);
+  });
+});
+
+describe("utf8ByteLength", () => {
+  it.each([
+    ["ascii", "Hello, world"],
+    ["accented", "café Ünïcödé ñ"],
+    ["CJK", "龍の書 ドラゴン"],
+    ["emoji", "a 🐉 b 🧙‍♂️ c"],
+    ["empty", ""],
+    ["lone surrogate", "x\ud83dy"],
+  ])("matches TextEncoder for %s", (_label, text) => {
+    expect(utf8ByteLength(text)).toBe(new TextEncoder().encode(text).length);
+  });
+});
+
+const N = (name: string) => PDFName.of(name);
+
+/** A part with a title, a heading on each page, and a bookmark per heading. */
+async function partWithNav(opts: { title?: string; tag: string; style: "legacy" | "tree"; indirect?: boolean }) {
+  const doc = await PDFDocument.create();
+  if (opts.title) doc.setTitle(opts.title, { showInWindowTitleBar: true });
+  const pages = [doc.addPage([100, 200]), doc.addPage([110, 200])];
+  const ctx = doc.context;
+  // `indirect` stores destinations and titles as references, as many writers do.
+  const dest = (i: number) => {
+    const arr = ctx.obj([pages[i].ref, N("XYZ"), null, null, null]);
+    return opts.indirect ? ctx.register(arr) : arr;
+  };
+  const text = (t: string) => (opts.indirect ? ctx.register(PDFHexString.fromText(t)) : PDFHexString.fromText(t));
+  const names = [`${opts.tag}-a`, `${opts.tag}-b`];
+  if (opts.style === "legacy") {
+    doc.catalog.set(N("Dests"), ctx.obj({ [names[0]]: dest(0), [names[1]]: dest(1) }));
+  } else {
+    const leaf = (key: string, i: number) => ctx.register(ctx.obj({ Names: [PDFString.of(key), dest(i)] }));
+    const root = ctx.obj({ Kids: [leaf(names[0], 0), leaf(names[1], 1)] });
+    doc.catalog.set(N("Names"), ctx.obj({ Dests: root }));
+  }
+  const root = ctx.obj({}) as PDFDict;
+  const rootRef = ctx.register(root);
+  const child = ctx.obj({ Title: text("Child"), Parent: rootRef, Dest: dest(1) });
+  const childRef = ctx.register(child);
+  const top = ctx.obj({
+    Title: text(`Top ${opts.tag}`),
+    Parent: rootRef,
+    Dest: dest(0),
+    First: childRef,
+    Last: childRef,
+    Count: 1,
+  });
+  const topRef = ctx.register(top);
+  child.set(N("Parent"), topRef);
+  root.set(N("Type"), N("Outlines"));
+  root.set(N("First"), topRef);
+  root.set(N("Last"), topRef);
+  root.set(N("Count"), PDFNumber.of(2));
+  doc.catalog.set(N("Outlines"), rootRef);
+  return doc.save();
+}
+
+describe("mergePdfs navigation", () => {
+  async function mergedDoc() {
+    const bytes = await mergePdfs([
+      await partWithNav({ title: "The Book", tag: "p1", style: "legacy" }),
+      await partWithNav({ tag: "p2", style: "tree" }),
+    ]);
+    return PDFDocument.load(bytes);
+  }
+
+  const pageIndexOf = (doc: PDFDocument, ref: unknown) =>
+    doc.getPages().findIndex((p) => ref instanceof PDFRef && p.ref.tag === ref.tag);
+
+  function destPage(doc: PDFDocument, value: unknown): number {
+    const arr = value instanceof PDFDict ? value.lookup(N("D")) : value;
+    return pageIndexOf(doc, (arr as PDFArray).get(0));
+  }
+
+  it("keeps the title, shown in the window title bar", async () => {
+    const doc = await mergedDoc();
+    expect(doc.getTitle()).toBe("The Book");
+    const prefs = doc.catalog.lookup(N("ViewerPreferences"), PDFDict);
+    expect(prefs.get(N("DisplayDocTitle"))?.toString()).toBe("true");
+  });
+
+  it("resolves old-style and name-tree destinations to the right merged page", async () => {
+    const doc = await mergedDoc();
+    const legacy = doc.catalog.lookup(N("Dests"), PDFDict);
+    expect(destPage(doc, legacy.lookup(N("p1-a")))).toBe(0);
+    expect(destPage(doc, legacy.lookup(N("p1-b")))).toBe(1);
+
+    const tree = doc.catalog.lookup(N("Names"), PDFDict).lookup(N("Dests"), PDFDict);
+    const flat = tree.lookup(N("Names"), PDFArray);
+    const byName = new Map<string, unknown>();
+    for (let i = 0; i < flat.size(); i += 2) byName.set((flat.lookup(i) as PDFString).decodeText(), flat.lookup(i + 1));
+    expect([...byName.keys()]).toEqual(["p2-a", "p2-b"]);
+    expect(destPage(doc, byName.get("p2-a"))).toBe(2);
+    expect(destPage(doc, byName.get("p2-b"))).toBe(3);
+  });
+
+  it("joins both parts' bookmarks into one linked tree pointing at the right pages", async () => {
+    const doc = await mergedDoc();
+    const root = doc.catalog.lookup(N("Outlines"), PDFDict);
+    expect(root.lookup(N("Count"), PDFNumber).asNumber()).toBe(4);
+    const first = root.lookup(N("First"), PDFDict);
+    const second = first.lookup(N("Next"), PDFDict);
+    expect(root.lookup(N("Last"))).toBe(second);
+    expect(first.lookup(N("Title"), PDFHexString).decodeText()).toBe("Top p1");
+    expect(second.lookup(N("Title"), PDFHexString).decodeText()).toBe("Top p2");
+    expect(second.lookup(N("Prev"))).toBe(first);
+    expect(first.lookup(N("Parent"))).toBe(root);
+    expect(destPage(doc, first.lookup(N("Dest")))).toBe(0);
+    expect(destPage(doc, second.lookup(N("Dest")))).toBe(2);
+    const child = second.lookup(N("First"), PDFDict);
+    expect(destPage(doc, child.lookup(N("Dest")))).toBe(3);
+    expect(child.lookup(N("Parent"))).toBe(second);
+  });
+});
+
+describe("mergePdfs with indirect destinations", () => {
+  it("resolves a later part's references in that part, not in the merged document", async () => {
+    const doc = await PDFDocument.load(
+      await mergePdfs([
+        await partWithNav({ tag: "p1", style: "legacy" }),
+        await partWithNav({ tag: "p3", style: "legacy", indirect: true }),
+      ]),
+    );
+    const pageOf = (value: unknown) =>
+      doc.getPages().findIndex((p) => {
+        const first = (value as PDFArray).get(0);
+        return first instanceof PDFRef && p.ref.tag === first.tag;
+      });
+    const legacy = doc.catalog.lookup(N("Dests"), PDFDict);
+    expect(pageOf(legacy.lookup(N("p3-a")))).toBe(2);
+    expect(pageOf(legacy.lookup(N("p3-b")))).toBe(3);
+    const second = doc.catalog.lookup(N("Outlines"), PDFDict).lookup(N("Last"), PDFDict);
+    expect(second.lookup(N("Title"), PDFHexString).decodeText()).toBe("Top p3");
+    expect(second.lookup(N("First"), PDFDict).lookup(N("Title"), PDFHexString).decodeText()).toBe("Child");
   });
 });
 
