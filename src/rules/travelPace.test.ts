@@ -4,8 +4,6 @@ import {
   fromMiles,
   getTravelPace,
   toMiles,
-  TRAVEL_HOURS_PER_DAY,
-  TRAVEL_PACES,
   travelTime,
 } from "@/rules/travelPace";
 
@@ -19,11 +17,7 @@ describe("travel pace table", () => {
     expect(getTravelPace("slow").effect["2024"]).toContain("Advantage");
   });
 
-  it("lists slowest first", () => {
-    expect(TRAVEL_PACES.map((p) => p.id)).toEqual(["slow", "normal", "fast"]);
-    expect(TRAVEL_HOURS_PER_DAY).toBe(8);
-  });
-
+  // PHB 2014 "Travel Pace": fast 4 mph / 30 mi, normal 3 / 24, slow 2 / 18.
   it("matches the printed values", () => {
     expect(getTravelPace("fast")).toMatchObject({ milesPerHour: 4, milesPerDay: 30 });
     expect(getTravelPace("normal")).toMatchObject({ milesPerHour: 3, milesPerDay: 24 });

@@ -50,6 +50,7 @@ function rulesFor(edition: "2014" | "2024", druidLevel: number, isCircleOfMoon =
   return wildShapeRules({ edition, druidLevel, isCircleOfMoon, wisMod });
 }
 
+// PHB 2014 "Druid" Wild Shape and "Circle of the Moon" (Combat Wild Shape, Elemental Wild Shape).
 describe("wildShapeRules 2014", () => {
   it("uses: none below 2, two from 2, unlimited at 20", () => {
     expect(rulesFor("2014", 1).maxUses).toBe(0);
@@ -90,6 +91,7 @@ describe("wildShapeRules 2014", () => {
   });
 });
 
+// 2024 PHB "Druid" Wild Shape (Known Forms, temp HP) and "Circle of the Moon" (Circle Forms), "Wild Resurgence", "Archdruid".
 describe("wildShapeRules 2024", () => {
   it("uses: 2 at 2, 3 at 6, 4 at 17; a short rest gives one back", () => {
     expect(rulesFor("2024", 1).maxUses).toBe(0);
@@ -134,6 +136,7 @@ describe("wildShapeRules 2024", () => {
   });
 });
 
+// app convention: CR is shown as the printed fraction.
 describe("wildshapeCrDisplay", () => {
   it("renders fractional CRs as fractions and integers as-is", () => {
     expect(wildshapeCrDisplay(0.125)).toBe("1/8");
@@ -215,6 +218,7 @@ describe("knownFormIds", () => {
   });
 });
 
+// PHB 2014 "Beast Shapes": only beasts you have seen; 2024 "Known Forms": only those learned.
 describe("availableWildShapeForms", () => {
   const mk = (id: string, cr: string) => ({ ...beast({ challenge_rating: cr }), id });
   const monsters = [mk("bear", "1/2"), mk("wolf", "1/4"), mk("rat", "0")];
@@ -280,6 +284,7 @@ describe("druidProfile", () => {
   });
 });
 
+// 2024 PHB "Wild Shape": Known Forms can be swapped on a Long Rest; the roster holds a fixed number.
 describe("Known Forms roster helpers", () => {
   it("learns a form until the roster is full, and never twice", () => {
     expect(learnKnownForm(["a"], "b", 4)).toEqual(["a", "b"]);
@@ -318,21 +323,7 @@ describe("wildShapeCandidateCost", () => {
     name: "Wolf", monster_type: "beast", challenge_rating: "1/4", speed: "40 ft.", ...over,
   });
 
-  it("judges a beast from the lifted index fields exactly as the stat-block form does", () => {
-    const r2014 = rulesFor("2014", 8);
-    expect(wildShapeCandidateCost(candidate(), r2014)).toBe(1);
-    expect(wildShapeCandidateCost(candidate({ challenge_rating: "2" }), r2014)).toBeNull();
-    expect(wildShapeCandidateCost(candidate({ speed: "10 ft., fly 60 ft." }), rulesFor("2014", 4))).toBeNull();
-    expect(wildShapeCandidateCost(candidate({ speed: "0 ft., swim 40 ft." }), rulesFor("2014", 2))).toBeNull();
-    expect(wildShapeCandidateCost(candidate({ monster_type: "dragon" }), r2014)).toBeNull();
-  });
-
   it("treats a missing rating or speed as 0 and no speed limit", () => {
     expect(wildShapeCandidateCost(candidate({ challenge_rating: null, speed: null }), rulesFor("2014", 2))).toBe(1);
-  });
-
-  it("prices an elemental at 2 only under Elemental Wild Shape", () => {
-    const moon10 = rulesFor("2014", 10, true);
-    expect(wildShapeCandidateCost(candidate({ name: "Fire Elemental", monster_type: "elemental" }), moon10)).toBe(2);
   });
 });

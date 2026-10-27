@@ -45,13 +45,9 @@ describe("reading what ends a save's conditions (#1050)", () => {
         firstEnd(saveOf("Constitution Saving Throw: DC 21. Failure: The target has the Poisoned condition. While Poisoned, it takes 21 (6d6) Poison damage at the start of each of its turns, and it repeats the save at the end of each of its turns, ending the effect on itself on a success.")),
       ).toEqual({ kind: "save", at: "end" });
     });
-    it("gives a repeat that names one condition to no other", () => {
-      const prose = "Each creature within 30 feet must succeed on a DC 12 Strength saving throw or be frightened and restrained for 1 minute. The creature can repeat the saving throw at the end of each of its turns, ending the restrained condition on itself on a success.";
-      expect(endsByName(saveOf(prose))).toEqual([
-        ["Frightened", { kind: "rounds", remaining: 10 }],
-        ["Restrained", { kind: "save", at: "end", remaining: 10 }],
-      ]);
-      expect(firstEnd(saveOf(prose.replace("frightened and restrained", "restrained")))).toEqual({ kind: "save", at: "end", remaining: 10 });
+    it("gives a repeat that names its only condition to that condition", () => {
+      const prose = "Each creature within 30 feet must succeed on a DC 12 Strength saving throw or be restrained for 1 minute. The creature can repeat the saving throw at the end of each of its turns, ending the restrained condition on itself on a success.";
+      expect(firstEnd(saveOf(prose))).toEqual({ kind: "save", at: "end", remaining: 10 });
     });
     it("gives a repeat that names one condition to no other, the Alp (#1055)", () => {
       const alp =

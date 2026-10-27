@@ -57,7 +57,8 @@ function wholeDie(die: string): string {
 }
 
 /**
- * An Unarmed Strike's damage: the flat 1 + Strength (at least 1), or a Monk's
+ * An Unarmed Strike's damage: the flat 1 + Strength (never below 0: the book
+ * sets no floor of 1, so a Strength 8 strike deals 0), or a Monk's
  * Martial Arts die plus the better of Strength and Dexterity. The flat case has
  * no dice, so `base` is "0".
  */
@@ -68,5 +69,5 @@ export function unarmedDamageBase(input: { strMod: number; dexMod: number; marti
   if (input.martialArtsDie) {
     return { base: wholeDie(input.martialArtsDie), modifier: Math.max(input.strMod, input.dexMod) };
   }
-  return { base: "0", modifier: Math.max(1, 1 + input.strMod) };
+  return { base: "0", modifier: Math.max(0, 1 + input.strMod) };
 }

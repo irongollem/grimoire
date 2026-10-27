@@ -6,6 +6,7 @@ const rulesAt = (edition: "2014" | "2024", druidLevel: number) =>
   wildShapeRules({ edition, druidLevel, isCircleOfMoon: false, wisMod: 3 });
 
 describe("evergreenWildShapeRegain", () => {
+  // 2024 PHB "Evergreen Wild Shape" (Druid 20): regain one use when initiative is rolled with none left.
   it("regains one use when none are left at level 20 (2024)", () => {
     expect(evergreenWildShapeRegain(rulesAt("2024", 20), 4)).toBe(3);
   });

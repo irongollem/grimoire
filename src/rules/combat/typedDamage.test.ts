@@ -3,6 +3,7 @@ import { emptyDefenses } from "@/types/statBlock.types";
 import { applyDefenses, damageRollsFor } from "./typedDamage.ts";
 
 describe("damageRollsFor", () => {
+  // SRD 5.2 "Critical Hits": roll the damage dice twice, the modifier is added once
   it("doubles dice not modifier on a crit", () => {
     const [r] = damageRollsFor([{ dice: "2d6+3", type: "slashing" }], true);
     expect(r.parsed).toEqual({ terms: [{ count: 4, sides: 6 }], modifier: 3 });
@@ -20,6 +21,7 @@ describe("damageRollsFor", () => {
 });
 
 describe("applyDefenses", () => {
+  // SRD 5.2 "Resistance and Vulnerability": immunity zeroes, resistance halves (round down) before vulnerability doubles; several sources of resistance count once
   const d = emptyDefenses();
   it("no defenses leaves amounts", () => {
     const r = applyDefenses({ parts: [{ amount: 7, type: "fire" }], defenses: d });

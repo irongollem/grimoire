@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { subclassChoiceDue } from "@/levelup/subclassChoice";
 
+// app convention: the question stays open past the subclass level until a subclass is chosen.
 describe("subclassChoiceDue", () => {
   it("asks at the subclass level", () => {
     expect(subclassChoiceDue({ subclass_name: null }, 3, 3)).toBe(true);

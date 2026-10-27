@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { countPreparedAgainstLimit } from "@/rules/preparedSpellCount";
 
 describe("countPreparedAgainstLimit", () => {
+  // 5e: cantrips and always-prepared (granted) spells do not count against the prepared limit.
   it("counts only prepared leveled spells that are not granted", () => {
     expect(
       countPreparedAgainstLimit([

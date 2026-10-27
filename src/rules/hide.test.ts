@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { hideOutcome } from "@/rules/hide";
 
 describe("hideOutcome", () => {
-  it("2024 hides on a total of 15 or more", () => {
+  // 2024 PHB "Hide" (Dexterity (Stealth) check, DC 15)
+  it("2024 hides at exactly 15, not at 14", () => {
     expect(hideOutcome(15, "2024").hidden).toBe(true);
-    expect(hideOutcome(22, "2024").hidden).toBe(true);
+    expect(hideOutcome(14, "2024").hidden).toBe(false);
   });
 
   it("2024 does not hide below DC 15 and says so", () => {

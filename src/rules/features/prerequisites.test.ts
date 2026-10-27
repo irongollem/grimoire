@@ -14,6 +14,7 @@ describe("featPrerequisitesMet", () => {
   it("no prerequisites is always met", () => {
     expect(featPrerequisitesMet(null, base)).toEqual({ met: true, unmet: [] });
   });
+  // 2024 PHB "Grappler" feat: prerequisite Strength or Dexterity 13+
   it("Strength or Dexterity 13", () => {
     const pre = { abilities: { any_of: { str: 13, dex: 13 } } };
     expect(featPrerequisitesMet(pre, base)).toEqual({ met: false, unmet: ["Strength or Dexterity 13"] });
@@ -45,6 +46,8 @@ describe("featPrerequisitesMet", () => {
 });
 
 describe("applyAbilityIncrease", () => {
+  // SRD 5.2 "Ability Score Improvement" feat: +2 to one score or +1 to two, maximum 20; Epic Boons raise the maximum to 30
+
   const scores = { str: 10, dex: 19, con: 10, int: 10, wis: 10, cha: 10 };
   const single: FeatAbilityIncrease = { abilities: ["str", "dex"], amount: 1, split: false, max: 20 };
   const asi: FeatAbilityIncrease = { abilities: ["str", "dex", "con", "int", "wis", "cha"], amount: 2, split: true, max: 20 };

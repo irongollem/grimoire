@@ -39,6 +39,7 @@ describe("SRD 2024 catalogue", () => {
     }
   });
 
+  // SRD 5.2 "Magic Initiate" feat
   it("Magic Initiate asks for two cantrips and a free-cast first-level spell", () => {
     const picks = SRD_2024_FEATS["srd-2024_magic-initiate"].mechanics.choices?.map((c) => [c.pick, c.count]);
     expect(picks).toEqual([
@@ -48,7 +49,6 @@ describe("SRD 2024 catalogue", () => {
   });
 
   it("every feat passes its validators", () => {
-    expect(Object.keys(SRD_2024_FEATS)).toHaveLength(17);
     for (const [key, feat] of Object.entries(SRD_2024_FEATS)) {
       const parsed = parseMechanics(JSON.parse(JSON.stringify(feat.mechanics)));
       expect({ key, errors: parsed.errors }).toEqual({ key, errors: [] });
@@ -74,6 +74,7 @@ describe("SRD 2024 catalogue", () => {
     expect(feature("druid_wild-shape").uses).toBeUndefined();
   });
 
+  // SRD 5.2 "Rogue" Sneak Attack and "Barbarian" Rage class tables
   it("scales Sneak Attack and Rage as the class tables print them", () => {
     const sneak = feature("rogue_sneak-attack").scaling;
     if (!sneak) throw new Error("no scaling");

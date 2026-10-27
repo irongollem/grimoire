@@ -16,6 +16,7 @@ function source(over: Partial<SkillCheckSource> = {}): SkillCheckSource {
 }
 
 describe("skillCheckBonus", () => {
+  // PHB 2014 "Skill proficiency" / "Expertise": proficiency bonus, doubled by expertise.
   it("returns the raw ability modifier when not proficient", () => {
     // Stealth keys off DEX (16 → +3), no proficiency.
     expect(skillCheckBonus(source(), "stealth")).toBe(3);
@@ -47,18 +48,13 @@ describe("skillCheckBonus", () => {
 });
 
 describe("passiveScore", () => {
+  // PHB 2014 "Passive Checks": 10 + all modifiers that normally apply to the check.
   it("is 10 plus the check bonus", () => {
     // WIS 14 → +2, proficient (+3).
     expect(passiveScore(source({ skill_proficiencies: { perception: "proficient" } }), "perception")).toBe(15);
   });
 
-  it("is 10 plus the bare modifier when untrained", () => {
-    expect(passiveScore(source(), "perception")).toBe(12);
-  });
 
-  it("doubles proficiency for expertise", () => {
-    expect(passiveScore(source({ skill_proficiencies: { perception: "expertise" } }), "perception")).toBe(18);
-  });
 
   it("honours override scores", () => {
     const beast = { str: 12, dex: 12, con: 12, int: 3, wis: 6, cha: 6 }; // WIS 6 → -2

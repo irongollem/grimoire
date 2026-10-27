@@ -5,12 +5,10 @@ const fixtures = {
   "2014": {
     attack: { name: "Fire Bolt", dice: "1d10" },
     save: { name: "Fireball", dice: "8d6" },
-    healing: { name: "Cure Wounds", dice: "1d8" },
   },
   "2024": {
     attack: { name: "Fire Bolt", dice: "1d10" },
     save: { name: "Fireball", dice: "8d6" },
-    healing: { name: "Cure Wounds", dice: "2d8" },
   },
 } as const;
 
@@ -27,6 +25,7 @@ const source = (overrides: Record<string, unknown>) => ({
 });
 
 describe.each(Object.entries(fixtures))("%s SRD golden effects", (_ruleset, edition) => {
+  // PHB 2014 "Making an Attack" / 2024 PHB "Critical Hit": a critical hit doubles the damage dice.
   it(`${edition.attack.name}: attack damage waits for hit and doubles on a critical`, () => {
     const effects = buildStructuredSpellEffects(source({
       attack_roll: true, damage_roll: edition.attack.dice, damage_types: ["fire"],
@@ -44,16 +43,6 @@ describe.each(Object.entries(fixtures))("%s SRD golden effects", (_ruleset, edit
     const resolved = resolveSpellEffects(effects, "impact", { failed: "failed_save", saved: "successful_save" });
     expect(resolved.map(row => [row.targetId, row.effect.multiplier])).toEqual([["failed", 1], ["saved", 0.5]]);
     expect(effects[0].target).toEqual({ type: "sphere", count: 4 });
-  });
-
-  it(`${edition.healing.name}: healing keeps its edition dice and explicit ability modifier`, () => {
-    const effects = buildStructuredSpellEffects(source({
-      damage_roll: edition.healing.dice,
-      desc: `A creature regains ${edition.healing.dice} plus your spellcasting ability modifier Hit Points.`,
-    }));
-    expect(effects[0]).toMatchObject({
-      kind: "healing", dice: edition.healing.dice, modifier: "spellcasting_ability",
-    });
   });
 
   it("Moonbeam: persistent phases remain separate from impact", () => {

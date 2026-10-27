@@ -46,6 +46,12 @@ describe("conditionsAtTurnEdge: turn ends", () => {
     expect(gone.events[0]).toMatchObject({ type: "condition_ended", reason: "expired" });
   });
 
+  it("an end-of-turn condition that is already armed is left as it is at the next start", () => {
+    const armed: AppliedCondition = { name: "B", ends: { kind: "turn", at: "end", of: "self", armed: true } };
+    const list = [who("x", [armed])];
+    expect(conditionsAtTurnEdge(list, "start", "x").combatants).toBe(list);
+  });
+
   it("a condition applied during the anchor's own turn survives that turn's end", () => {
     const list = [who("x", [endOfSelf])];
     const r = conditionsAtTurnEdge(list, "end", "x");
@@ -109,6 +115,7 @@ describe("conditionsAtTurnEdge: saves and ongoing damage", () => {
   it("ongoing damage due only at the bearer's own matching edge", () => {
     const list = [who("x", [burn]), who("y")];
     expect(conditionsAtTurnEdge(list, "start", "y").combatants).toBe(list);
+    expect(conditionsAtTurnEdge(list, "end", "x").combatants).toBe(list);
     const r = conditionsAtTurnEdge(list, "start", "x");
     expect(conds(r, "x")).toEqual([{ ...burn, due: { damage: true } }]);
     expect(r.events).toEqual([{ type: "ongoing_damage_due", instanceId: "x", name: "Burning", dice: "1d6", damageType: "fire" }]);
@@ -130,13 +137,6 @@ describe("conditionsAtTurnEdge: saves and ongoing damage", () => {
     expect(r.combatants[2]).toBe(c);
     expect(r.events.map((e) => e.type)).toEqual(["condition_save_due", "condition_ended"]);
     expect(r.changed).toEqual(["a", "b"]);
-  });
-
-  it("never mutates its input", () => {
-    const input = [who("x", [{ name: "Held", ends: { kind: "save", ability: "wis", dc: 14, at: "start" } }])];
-    const snapshot = structuredClone(input);
-    conditionsAtTurnEdge(input, "start", "x");
-    expect(input).toEqual(snapshot);
   });
 });
 

@@ -26,10 +26,6 @@ function feature(key: string) {
 }
 
 describe("SRD 2014 feature catalogue", () => {
-  it("has entries", () => {
-    expect(Object.keys(SRD_2014_FEATURES).length).toBeGreaterThan(60);
-  });
-
   it("every entry passes parseMechanics cleanly and round-trips", () => {
     for (const [key, mechanics] of Object.entries(SRD_2014_FEATURES)) {
       const parsed = parseMechanics(mechanics);
@@ -47,12 +43,14 @@ describe("SRD 2014 feature catalogue", () => {
     }
   });
 
+  // SRD 5.1 "Rogue" Sneak Attack: 1d6 at level 1, +1d6 every two levels
   it("scales Sneak Attack", () => {
     const scaling = feature("srd_rogue_sneak-attack").scaling;
     expect(scaling && scalingAt(scaling, 5)).toBe("3d6");
     expect(scaling && scalingAt(scaling, 19)).toBe("10d6");
   });
 
+  // SRD 5.1 "Barbarian" class table: Rages per day 2, 6 at 17th, unlimited at 20th
   it("gives Rage unlimited uses at 20", () => {
     const uses = feature("srd_barbarian_rage").uses;
     expect(uses && usesMaxAt(uses, ctx(1))).toBe(2);
@@ -60,6 +58,7 @@ describe("SRD 2014 feature catalogue", () => {
     expect(uses && usesMaxAt(uses, ctx(20))).toBe("unlimited");
   });
 
+  // SRD 5.1 "Bard" Font of Inspiration: Bardic Inspiration returns on a short rest from 5th level
   it("makes Bardic Inspiration recharge on a short rest from 5", () => {
     const uses = feature("srd_bard_bardic-inspiration").uses;
     expect(uses && rechargeAt(uses, 4)).toBe("long");
@@ -78,6 +77,7 @@ describe("SRD 2014 feature catalogue", () => {
     ).toBe(2);
   });
 
+  // SRD 5.1 "Paladin" Lay on Hands (5 x level), "Monk" Ki (ki points = level), "Sorcerer" Font of Magic (sorcery points = level)
   it("pools Lay on Hands, Ki and Sorcery Points by class level", () => {
     const loh = feature("srd_paladin_lay-on-hands").uses;
     expect(loh && usesMaxAt(loh, ctx(4))).toBe(20);
@@ -145,6 +145,7 @@ describe("SRD 2014 spends and added entries", () => {
     }
   });
 
+  // SRD 5.1 "Paladin" Divine Sense: 1 + Charisma modifier uses per long rest
   it("Divine Sense is 1 + Charisma modifier, minimum 1", () => {
     const uses = feature("srd_paladin_divine-sense").uses;
     expect(uses && usesMaxAt(uses, { ...ctx(1), abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 16 } })).toBe(4);

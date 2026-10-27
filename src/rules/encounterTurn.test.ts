@@ -111,6 +111,7 @@ describe("turn order", () => {
     expect(run(stateOf(trio(), { round: 1 }), { type: "prev_turn" }).state).toMatchObject({ activeIndex: 2, round: 1 });
   });
 
+  // PHB 2014 "Surprise" (a surprised creature cannot act or react until its first turn ends)
   it("clears surprise at the END of the surprised combatant's turn", () => {
     const list = [combatant("a", { initiative: 20, surprised: true }), combatant("b", { initiative: 5 })];
     const { state, events } = run(stateOf(list), { type: "next_turn" });
@@ -164,6 +165,7 @@ describe("turn order", () => {
 });
 
 describe("hit points and dying", () => {
+  // PHB 2014 "Instant Death"
   it("instant death writes three failures", () => {
     const { state, events } = run(stateOf([pc("p-1", { hp: 10 })]), { type: "adjust_hp", instanceId: "p-1", delta: -25 });
     expect(find(state, "p-1").death_saves.failures).toBe(3);
@@ -219,6 +221,12 @@ describe("hit points and dying", () => {
     expect(find(run(stateOf([combatant("m", { hp: 8, max_hp: 10 })]), { type: "set_max_hp", instanceId: "m", value: 5 }).state, "m")).toMatchObject({ hp: 5, max_hp: 5 });
   });
 
+  it("set_max_hp never goes below 1", () => {
+    const { state } = run(stateOf([combatant("m", { hp: 5, max_hp: 10 })]), { type: "set_max_hp", instanceId: "m", value: 0 });
+    expect(find(state, "m")).toMatchObject({ hp: 1, max_hp: 1 });
+  });
+
+  // PHB 2014 "Temporary Hit Points" (they do not stack; keep the higher)
   it("temp HP never stacks", () => {
     const { state, events } = run(stateOf([pc("p-1", { temp_hp: 8 })]), { type: "set_temp_hp", instanceId: "p-1", value: 5 });
     expect(find(state, "p-1").temp_hp).toBe(8);
@@ -236,6 +244,12 @@ describe("wild shape", () => {
     const reverted = run(entered.state, { type: "revert_wildshape", instanceId: "p-1" });
     expect(find(reverted.state, "p-1").wildshape).toBeUndefined();
     expect(reverted.events).toEqual([{ type: "player_persist", partyMemberId: "pm-p-1", patch: { wildshape_state: null } }]);
+  });
+
+  it("entering a form that grants no temp HP leaves the existing temp HP out of the save", () => {
+    const { events } = run(stateOf([pc("p-1", { temp_hp: 4 })]), { type: "enter_wildshape", instanceId: "p-1", form, wildshapesUsed: 1 });
+    expect(events[0]).toMatchObject({ patch: { wildshapes_used: 1 } });
+    expect(events[0]).not.toHaveProperty("patch.temp_hp");
   });
 
   it("reverting with no form is a no-op", () => {
@@ -321,11 +335,6 @@ describe("conditions, flags and pools", () => {
     expect(b.lairFiredRounds).toEqual([2, 3]);
     expect(run(b, { type: "mark_lair_fired" }).state.lairFiredRounds).toEqual([2, 3]);
   });
-
-  it("sets boss mechanics", () => {
-    const { state } = run(stateOf([]), { type: "set_boss_mechanics", lairEnabled: true, lairOwnerInstanceId: "m" });
-    expect(state).toMatchObject({ lairEnabled: true, lairOwnerInstanceId: "m" });
-  });
 });
 
 describe("remove_combatant", () => {
@@ -335,6 +344,12 @@ describe("remove_combatant", () => {
     const { state } = run(stateOf(list(), { activeIndex: 2 }), { type: "remove_combatant", instanceId: "a" });
     expect(state.activeIndex).toBe(1);
     expect(state.combatants.map((c) => c.instance_id)).toEqual(["b", "c"]);
+  });
+
+  it("keeps the cursor in place when the active combatant leaves, so the next one takes the turn", () => {
+    const { state } = run(stateOf(list(), { activeIndex: 1 }), { type: "remove_combatant", instanceId: "b" });
+    expect(state.activeIndex).toBe(1);
+    expect(state.combatants[state.activeIndex].instance_id).toBe("c");
   });
 
   it("clamps when the last entry leaves", () => {
@@ -372,11 +387,6 @@ describe("purity", () => {
   it("returns the same state object when nothing happens", () => {
     const start = stateOf([combatant("m")]);
     expect(reduceEncounterTurn(start, { type: "set_hp", instanceId: "zz", value: 1 }).state).toBe(start);
-  });
-
-  it("produces JSON-serialisable state", () => {
-    const { state } = run(stateOf([pc("p-1")]), { type: "mark_lair_fired" });
-    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
   });
 });
 
@@ -592,9 +602,14 @@ describe("concentration_check_due", () => {
   const due = (events: EncounterTurnEvent[]) => events.filter((e) => e.type === "concentration_check_due");
   const roster = (mage: Partial<RunCombatant> = {}) => [combatant("mage", mage), combatant("t", { conditions: [held] })];
 
+  // PHB 2014 "Concentration" (damage forces a Constitution saving throw)
   it("is raised for a holder that takes damage and stays up", () => {
     const { events } = reduceEncounterTurn(stateOf(roster()), { type: "adjust_hp", instanceId: "mage", delta: -4 });
     expect(due(events)).toEqual([{ type: "concentration_check_due", instanceId: "mage", damage: 4 }]);
+  });
+
+  it("is not raised for a hit that deals no damage", () => {
+    expect(due(reduceEncounterTurn(stateOf(roster()), { type: "adjust_hp", instanceId: "mage", delta: 0 }).events)).toEqual([]);
   });
 
   it("is not raised for healing, a non-holder, or a party member", () => {

@@ -78,6 +78,19 @@ describe("buildLevelUpPayload", () => {
     });
   });
 
+  it("keeps the slots already spent when the new slot table is written", () => {
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({
+        member: member({ spell_slots: [{ level: 1, total: 3, used: 2 }] } as unknown as Partial<PartyMember>),
+        postLevelupSpellSlots: [{ level: 1, total: 4 }, { level: 2, total: 2 }] as unknown as BuildLevelUpPayloadInput["postLevelupSpellSlots"],
+      }),
+    );
+    expect(memberUpdate.spell_slots).toEqual([
+      { level: 1, total: 4, used: 2 },
+      { level: 2, total: 2, used: 0 },
+    ]);
+  });
+
   it("bumps the existing class entry by one level (classOp update)", () => {
     const { classOp } = buildLevelUpPayload(baseInput());
     expect(classOp).toEqual({ op: "update", id: "cc1", levels: 4 });
@@ -162,6 +175,15 @@ describe("buildLevelUpPayload", () => {
     expect(memberUpdate.con).toBe(16);
     expect(memberUpdate.max_hp).toBe(30); // 20 + 6 hpGain + 4 retro
     expect(memberUpdate.current_hp).toBe(30);
+  });
+
+  // PHB 2014 "Ability Scores and Modifiers": the modifier is (score - 10) / 2 rounded down, so 9 is -1 and 11 is 0.
+  it("rounds a negative Constitution modifier down when a CON increase lifts it", () => {
+    // con 9 (-1) -> 11 (0): +1 mod x total level 4 = +4 on top of the +6 hpGain
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({ member: member({ con: 9 }), picks: increase({ con: 2 }) }),
+    );
+    expect(memberUpdate.max_hp).toBe(30);
   });
 
   it("adds no retro HP for a non-CON ASI", () => {
@@ -306,6 +328,51 @@ describe("buildLevelUpPayload", () => {
     );
     expect(memberUpdate).not.toHaveProperty("languages");
     expect(memberUpdate).not.toHaveProperty("tool_proficiencies");
+  });
+
+  // PHB 2014 "Eldritch Invocations": Armor of Shadows casts Mage Armor at will; Agonizing Blast grants no spell.
+  it("adds the at-will spell an invocation grants, and nothing for one that grants none", () => {
+    const { spellRows } = buildLevelUpPayload(
+      baseInput({
+        picks: { ...noPicks, record: { ...noPicks.record, choices: { eldritch_invocations: { added: ["Armor of Shadows", "Agonizing Blast"], removed: [] } } } },
+      }),
+    );
+    expect(spellRows).toEqual([
+      expect.objectContaining({ spell_id: "srd_srd_mage_armor", source_label: "Invocation: Armor of Shadows", uses_per_day: null, resets_on: null }),
+    ]);
+  });
+
+  it("records the subclass taken at this level in its level_choices entry", () => {
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({
+        needsSubclassChoice: true,
+        subclassInput: "Beast Master",
+        subclassDefinitionId: "bm-def",
+        chosenExistingEntry: { id: "cc1", levels: 2, class_definition_id: "def-existing", subclass_name: null, is_primary: true },
+      }),
+    );
+    expect((memberUpdate.level_choices as Record<number, { subclass?: string }>)[4].subclass).toBe("Beast Master");
+  });
+
+  it("does not add a feature's spell pick that an invocation granted this level", () => {
+    const due = [
+      {
+        featureId: "f1", featureName: "Pact Boon", picks: 1, replaceAllowed: false, existing: [],
+        choice: { key: "extra", label: "Spell", amount: 1, pick: { kind: "spell", lists: ["Warlock"], level: 1, free_cast: false } },
+      },
+    ] as unknown as BuildLevelUpPayloadInput["featureSpells"]["due"];
+    const { spellRows } = buildLevelUpPayload(
+      baseInput({
+        picks: { ...noPicks, record: { ...noPicks.record, choices: { eldritch_invocations: { added: ["Armor of Shadows"], removed: [] } } } },
+        featureSpells: {
+          due,
+          values: { "f1:extra": { picks: ["srd_srd_mage_armor"], replace: null, asi: null, ability: { primary: null, secondary: null } } },
+          isFeat: () => false,
+          classHasSpellcasting: true,
+        },
+      }),
+    );
+    expect(spellRows.filter((r) => r.spell_id === "srd_srd_mage_armor")).toHaveLength(1);
   });
 
   it("turns a feature's spell pick into a row and records it in the entry", () => {

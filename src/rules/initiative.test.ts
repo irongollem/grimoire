@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { memberInitiativeModifier } from "@/rules/initiative";
 
 describe("memberInitiativeModifier", () => {
+  // PHB 2014 "Initiative" (Dexterity check)
   it("is the DEX modifier alone with no bonus", () => {
     expect(memberInitiativeModifier({ dex: 16, initiative_bonus: 0 })).toBe(3);
   });

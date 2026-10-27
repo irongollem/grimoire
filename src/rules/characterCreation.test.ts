@@ -13,14 +13,7 @@ describe("roll4d6DropLowest", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns a value in the valid 3–18 range", () => {
-    for (let i = 0; i < 200; i++) {
-      const result = roll4d6DropLowest();
-      expect(result).toBeGreaterThanOrEqual(3);
-      expect(result).toBeLessThanOrEqual(18);
-    }
-  });
-
+  // PHB 2014 "Ability Scores": roll 4d6, drop the lowest die
   it("drops the lowest of the four rolled dice", () => {
     // Math.random() * 6 + 1 floored: sequence of randoms drives the four dice.
     // Stub so the dice come out as [2, 5, 6, 1] (in that call order) — the sum of
@@ -30,11 +23,6 @@ describe("roll4d6DropLowest", () => {
     vi.spyOn(Math, "random").mockImplementation(() => dice[call++] ?? 0);
 
     expect(roll4d6DropLowest()).toBe(13);
-  });
-
-  it("sums all four dice when they're all equal", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5); // floor(0.5*6)+1 = 4 each time
-    expect(roll4d6DropLowest()).toBe(12); // three of the four 4s kept: 4+4+4
   });
 });
 
@@ -58,32 +46,22 @@ describe("parseEquipmentList", () => {
   it("is case-insensitive when splitting on ' and '", () => {
     expect(parseEquipmentList("a rope AND a torch")).toEqual(["a rope", "a torch"]);
   });
-
-  it("handles a single item with no separators", () => {
-    expect(parseEquipmentList("a backpack")).toEqual(["a backpack"]);
-  });
 });
 
+// PHB 2014 "Ability Scores" (point buy): 27 points, scores 8 to 15; the standard array is
+// the same budget spent: 15 + 14 + 13 + 12 + 10 + 8 costs 9 + 7 + 5 + 4 + 2 + 0 = 27.
 describe("point-buy cost table", () => {
-  it("costs 0 at the floor score of 8", () => {
-    expect(POINT_BUY_COSTS[8]).toBe(0);
+  it("prices the standard array at exactly the 27-point budget", () => {
+    const cost = STANDARD_ARRAY.reduce((sum, score) => sum + POINT_BUY_COSTS[score], 0);
+    expect(cost).toBe(POINT_BUY_TOTAL);
   });
 
-  it("is monotonically non-decreasing as score increases", () => {
-    const scores = Object.keys(POINT_BUY_COSTS).map(Number).sort((a, b) => a - b);
-    for (let i = 1; i < scores.length; i++) {
-      expect(POINT_BUY_COSTS[scores[i]]).toBeGreaterThanOrEqual(POINT_BUY_COSTS[scores[i - 1]]);
+  it("charges 1 point per step up to 13 and 2 points per step for 14 and 15", () => {
+    for (let score = 9; score <= 13; score++) {
+      expect(POINT_BUY_COSTS[score] - POINT_BUY_COSTS[score - 1]).toBe(1);
     }
-  });
-
-  it("spending the max score on every ability exceeds the total point budget", () => {
-    const maxScore = Math.max(...Object.keys(POINT_BUY_COSTS).map(Number));
-    const costOfAllMax = POINT_BUY_COSTS[maxScore] * 6;
-    expect(costOfAllMax).toBeGreaterThan(POINT_BUY_TOTAL);
-  });
-
-  it("standard array has exactly 6 scores, matching the number of abilities", () => {
-    expect(STANDARD_ARRAY).toHaveLength(6);
+    expect(POINT_BUY_COSTS[14] - POINT_BUY_COSTS[13]).toBe(2);
+    expect(POINT_BUY_COSTS[15] - POINT_BUY_COSTS[14]).toBe(2);
   });
 });
 

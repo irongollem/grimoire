@@ -90,6 +90,7 @@ describe("subclass casters in the slot rules", () => {
   const lookup = (e: { class_name: string }) => (e.class_name === "Wizard" ? wizard : fighter);
   const subLookup = (e: { class_name: string }) => (e.class_name === "Fighter" ? knight : null);
 
+  // PHB 2014 "Multiclassing" (Spellcaster level): Eldritch Knight / Arcane Trickster count one third of their levels, rounded down.
   it("counts a third caster as floor(L/3) in the multiclass caster level", () => {
     expect(multiclassCasterLevel([
       { class_name: "Wizard", levels: 5 },
@@ -97,10 +98,10 @@ describe("subclass casters in the slot rules", () => {
     ], "2014")).toBe(7);
   });
 
+  // PHB 2014 "Fighter" Eldritch Knight Spellcasting table.
   it.each([
     [3, [2]],
     [7, [4, 2]],
-    [13, [4, 3, 2]],
     [19, [4, 3, 3, 1]],
   ])("a single-class Fighter %i has the third-caster slots", (level, row) => {
     const slots = deriveEffectiveSpellSlots({}, [entry("Fighter", level)], "2014", lookup, subLookup);

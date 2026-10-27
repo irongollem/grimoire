@@ -4,6 +4,7 @@ import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 const member = { proficiency_bonus: 3, int: 10, wis: 10, cha: 16 };
 const classStats = { attack: 7, dc: 15 };
 
+// PHB 2014 "Spellcasting": attack bonus = proficiency + ability modifier; save DC = 8 + both.
 describe("grantAttackBonus", () => {
   it("derives from casting_ability + proficiency when it is set", () => {
     const grant = { casting_ability: "cha" as const };

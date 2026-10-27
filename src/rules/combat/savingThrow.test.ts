@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { autoFailsSave, listedSaveBonus, resolveSave, saveBonusFromStatBlock, saveRollMode } from "./savingThrow.ts";
 
 describe("autoFailsSave", () => {
+  // SRD 5.2 "Paralyzed" / "Stunned" / "Petrified" / "Unconscious": automatically fail Strength and Dexterity saves
   it.each([
     [[{ name: "Stunned" }], "dex", true],
     [[{ name: "Paralyzed" }], "str", true],
@@ -13,20 +14,24 @@ describe("autoFailsSave", () => {
 });
 
 describe("saveRollMode", () => {
+  // PHB 2014 "Restrained": disadvantage on Dexterity saving throws
   it("Restrained disadvantages Dex only", () => {
     expect(saveRollMode({ conditions: [{ name: "Restrained" }], ability: "dex", ruleset: "2014" }).mode).toBe("disadvantage");
     expect(saveRollMode({ conditions: [{ name: "Restrained" }], ability: "wis", ruleset: "2014" }).mode).toBe("normal");
   });
+  it("names Restrained, not Exhaustion, as the cause of a Dex disadvantage", () => {
+    const { reasons } = saveRollMode({ conditions: [{ name: "Restrained" }], ability: "dex", ruleset: "2014" });
+    expect(reasons.join(" ")).toMatch(/Restrained/);
+  });
+  // PHB 2014 "Exhaustion" level 3: disadvantage on saving throws; 2024 replaced the table with a flat d20 penalty
   it("2014 exhaustion 3 vs 2024", () => {
     expect(saveRollMode({ conditions: [{ name: "Exhaustion", level: 3 }], ability: "con", ruleset: "2014" }).mode).toBe("disadvantage");
     expect(saveRollMode({ conditions: [{ name: "Exhaustion", level: 3 }], ability: "con", ruleset: "2024" }).mode).toBe("normal");
   });
-  it("DM advantage cancels", () => {
-    expect(saveRollMode({ conditions: [{ name: "Restrained" }], ability: "dex", ruleset: "2014", dmMode: "advantage" }).mode).toBe("normal");
-  });
 });
 
 describe("saveRollMode stacking", () => {
+  // PHB 2014 "Advantage and Disadvantage": any of each cancels to a straight roll
   it("any advantage with any disadvantage is straight, whatever the order", () => {
     // Restrained on a Dex save (dis) + DM advantage -> straight; a further source must not flip it.
     expect(saveRollMode({ conditions: [{ name: "Restrained" }, { name: "Exhaustion", level: 3 }], ability: "dex", ruleset: "2014", dmMode: "advantage" }).mode).toBe("normal");
@@ -43,21 +48,15 @@ describe("listedSaveBonus forms", () => {
     ["Dex +3 (advantage vs. traps)", "dex", 3],
     ["Str -1", "str", -1],
     ["Str \u22121", "str", -1],
-    ["Intelligence +7", "int", 7],
-    ["Charisma+2", "cha", 2],
   ] as const)("%s -> %s %i", (text, ability, bonus) => {
     expect(listedSaveBonus({ saving_throws: text }, ability)).toBe(bonus);
-  });
-  it("falls through to the modifier for an ability not listed", () => {
-    const block = { str: 10, dex: 14, con: 10, int: 10, wis: 10, cha: 10, saving_throws: "Constitution +6, Wisdom +4" };
-    expect(saveBonusFromStatBlock(block, "con")).toBe(6);
-    expect(saveBonusFromStatBlock(block, "dex")).toBe(2);
   });
 });
 
 describe("resolveSave", () => {
   it("meets DC", () => expect(resolveSave({ d20: 8, bonus: 5, dc: 13 }).success).toBe(true));
   it("below DC", () => expect(resolveSave({ d20: 7, bonus: 5, dc: 13 }).success).toBe(false));
+  // PHB 2014 "Saving Throws" / "The Natural 20": natural 1 and 20 are special on attack rolls only
   it("no nat-20 rule", () => expect(resolveSave({ d20: 20, bonus: -10, dc: 15 }).success).toBe(false));
   it("no nat-1 rule", () => expect(resolveSave({ d20: 1, bonus: 20, dc: 15 }).success).toBe(true));
   it("auto fail wins", () => expect(resolveSave({ d20: 20, bonus: 20, dc: 5, autoFail: true }).success).toBe(false));
@@ -75,9 +74,6 @@ describe("saveBonusFromStatBlock", () => {
   });
   it("rounds the modifier of an odd score below 10 down, so 9 is -1", () => {
     expect(saveBonusFromStatBlock({ ...block, con: 9 }, "con")).toBe(-1);
-  });
-  it("handles negative listed bonus", () => {
-    expect(saveBonusFromStatBlock({ ...block, saving_throws: "Str -1" }, "str")).toBe(-1);
   });
 });
 

@@ -28,6 +28,13 @@ describe.each(["2014", "2024"] as const)("%s Metamagic eligibility", (ruleset) =
     expect(isMetamagicEligible(option("Quickened Spell"), spell({ casting_time: "Reaction" }), ruleset)).toBe(false);
   });
 
+  // PHB 2014 "Sorcerer: Metamagic" (Transmuted Spell: acid, cold, fire, lightning, poison, thunder)
+  // PHB 2014 "Sorcerer: Metamagic" (Distant Spell: a touch spell becomes 30 feet; Seeking Spell: any spell attack roll)
+  it("Distant accepts a touch spell, and Seeking a melee spell attack", () => {
+    expect(isMetamagicEligible(option("Distant Spell"), spell({ range: "Touch" }), ruleset)).toBe(true);
+    expect(isMetamagicEligible(option("Seeking Spell"), spell({ attack_type: "melee_spell" }), ruleset)).toBe(true);
+  });
+
   it("Transmuted accepts only the six elemental damage types", () => {
     expect(isMetamagicEligible(option("Transmuted Spell"), spell({
       damage_rolls: [{ dice: "2d6", type: "lightning" }],
@@ -55,5 +62,7 @@ describe("edition-specific Metamagic effects", () => {
     expect(metamagicReminders(["Careful Spell", "Heightened Spell", "Subtle Spell"], "2014").join(" ")).not.toContain("no damage");
     expect(metamagicReminders(["Heightened Spell"], "2014").join(" ")).toContain("first save");
     expect(metamagicReminders(["Subtle Spell"], "2014").join(" ")).not.toContain("material components");
+    // Extended Spell only grants the Concentration advantage in 2024
+    expect(metamagicReminders(["Extended Spell"], "2014")).toEqual([]);
   });
 });

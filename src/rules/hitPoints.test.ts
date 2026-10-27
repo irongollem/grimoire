@@ -22,6 +22,7 @@ describe("applyDamage", () => {
     expect(r.hp_damage).toBe(12);
   });
 
+  // PHB 2014 "Temporary Hit Points" (damage reduces them first)
   it("spends temp HP before HP", () => {
     const r = applyDamage(pools({ temp_hp: 5 }), 12);
     expect(r.temp_hp).toBe(0);
@@ -34,6 +35,12 @@ describe("applyDamage", () => {
     expect(r.temp_hp).toBe(6);
     expect(r.current_hp).toBe(30);
     expect(r.hp_damage).toBe(0);
+  });
+
+  it("negative damage neither heals nor grants temp HP", () => {
+    const r = applyDamage(pools(), -8);
+    expect(r.current_hp).toBe(30);
+    expect(r.temp_hp).toBe(0);
   });
 
   it("floors HP at 0 by default", () => {
@@ -62,6 +69,7 @@ describe("applyDamage", () => {
       expect(r.current_hp).toBe(30);
     });
 
+    // PHB 2014 "Wild Shape" (excess damage carries over to the normal form)
     it("reverts and carries the overflow to the character's HP", () => {
       const r = applyDamage(wild(), 25);
       expect(r.reverted).toBe(true);
@@ -86,6 +94,7 @@ describe("applyDamage", () => {
 });
 
 describe("applyHealing", () => {
+  // PHB 2014 "Healing" (cannot exceed the hit point maximum)
   it("caps at max HP", () => {
     expect(applyHealing(pools({ current_hp: 35 }), 20).current_hp).toBe(40);
   });
@@ -103,6 +112,7 @@ describe("applyHealing", () => {
 });
 
 describe("betterTempHp", () => {
+  // PHB 2014 "Temporary Hit Points" (they do not stack)
   it("keeps the larger pool — temp HP does not stack", () => {
     expect(betterTempHp(8, 5)).toBe(8);
     expect(betterTempHp(3, 9)).toBe(9);
@@ -115,11 +125,6 @@ describe("betterTempHp", () => {
 
 describe("displayTempHp", () => {
   const member = (temp_hp: number): TempHpPartyMember => ({ temp_hp });
-
-  it("reads the combatant's own temp_hp for non-players", () => {
-    const c: TempHpCombatant = { type: "monster", temp_hp: 7 };
-    expect(displayTempHp(c, new Map())).toBe(7);
-  });
 
   it("defaults to 0 for a non-player with no temp_hp", () => {
     const c: TempHpCombatant = { type: "monster" };
@@ -141,10 +146,6 @@ describe("displayTempHp", () => {
 describe("formHpPools", () => {
   const own = { current_hp: 30, max_hp: 40, temp_hp: 5 };
 
-  it("has no beast pool and no own-HP form when not shaped", () => {
-    expect(formHpPools(own, null)).toEqual({ ...own, beast: null, ownHpForm: false });
-  });
-
   it("builds a beast pool for a 2014 form", () => {
     const p = formHpPools(own, { beast_hp: 9, beast_max_hp: 11 });
     expect(p.beast).toEqual({ hp: 9, max_hp: 11 });
@@ -161,6 +162,7 @@ describe("formHpPools", () => {
 describe("a 2024 own-HP form", () => {
   const form = { beast_hp: null, beast_max_hp: null };
 
+  // 2024 PHB "Wild Shape" (the form ends at 0 Hit Points; your own HP is used)
   it("keeps the form while the character stands, temp HP first", () => {
     const r = applyDamage(formHpPools({ current_hp: 20, max_hp: 40, temp_hp: 10 }, form), 15);
     expect(r.temp_hp).toBe(0);

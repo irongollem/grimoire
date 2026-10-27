@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { availableSlotsForSpell, canCastWithSlot, deriveEffectiveSpellSlots, reconcileSpellSlotUsage, spellSlotsFromProgression } from "@/rules/spellSlots";
 
 describe("spell slot eligibility", () => {
+  // PHB 2014 "Casting at a Higher Level": a spell can be cast with any slot of its level or higher.
   it("allows a higher-level slot when base-level slots are exhausted", () => {
     const slots = [
       { level: 1, max: 4, used: 4 },
@@ -13,6 +14,7 @@ describe("spell slot eligibility", () => {
     expect(canCastWithSlot(1, slots)).toBe(true);
   });
 
+  // PHB 2014 "Warlock" Pact Magic: all slots are the same level (the table's slot level).
   it("uses the actual Pact Slot level rather than inventing a base-level slot", () => {
     const pactSlots = [{ level: 3, max: 2, used: 0 }];
     expect(availableSlotsForSpell(1, pactSlots)[0]?.level).toBe(3);
@@ -54,6 +56,24 @@ describe("spell slot reconciliation", () => {
       [{ level: 1, max: 2, used: 0 }],
       [{ level: 1, max: 4, used: 3 }],
     )).toEqual([{ level: 1, max: 2, used: 2 }]);
+  });
+
+  it("does not carry a pact slot's usage onto a spellcasting slot of the same level", () => {
+    // Warlock/Wizard multiclass: both pools have level-1 slots, tracked separately.
+    expect(reconcileSpellSlotUsage(
+      [{ level: 1, max: 4, used: 0, pool: "spellcasting" as const }],
+      [{ level: 1, max: 2, used: 2, pool: "pact" as const }],
+    )).toEqual([{ level: 1, max: 4, used: 0, pool: "spellcasting" }]);
+  });
+
+  it("retains a feature slot that the recalculation does not produce", () => {
+    expect(reconcileSpellSlotUsage(
+      [{ level: 1, max: 2, used: 0 }],
+      [{ level: 3, max: 1, used: 1, pool: "feature" as const }],
+    )).toEqual([
+      { level: 1, max: 2, used: 0 },
+      { level: 3, max: 1, used: 1, pool: "feature" },
+    ]);
   });
 
   it("retains created slots while reconciling multiclass maxima", () => {
@@ -128,6 +148,7 @@ describe("deriveEffectiveSpellSlots", () => {
 
 describe("a new level-1 caster", () => {
   const clericTable = [[2, 0, 0, 0, 0, 0, 0, 0, 0], [3, 0, 0, 0, 0, 0, 0, 0, 0], [4, 2, 0, 0, 0, 0, 0, 0, 0]];
+  // PHB 2014 "Cleric" table: level 1 has two 1st-level slots.
   it("gets only the level-1 row of the class table, all unused", () => {
     const slots = deriveEffectiveSpellSlots(
       { spell_slots: null },

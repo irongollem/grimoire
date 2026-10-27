@@ -94,11 +94,6 @@ export function unarmedAttackMod(str: number, proficiencyBonus: number): number 
   return abilityMod(str) + proficiencyBonus;
 }
 
-/** Unarmed strike damage: 1 + STR mod, minimum 1. */
-export function unarmedDamage(str: number): number {
-  return Math.max(1, 1 + abilityMod(str));
-}
-
 /**
  * Improvised weapon attack modifier: better of STR/DEX, with NO proficiency
  * bonus (unlike an equipped custom weapon via `weaponAttackMod(null, …)`,

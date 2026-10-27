@@ -3,6 +3,7 @@ import { usedAfterPipTap } from "@/rules/spellSlotPips";
 
 describe("usedAfterPipTap", () => {
   const slot = { max: 4, used: 1 }; // 3 remaining: pips 1-3 filled
+  // app convention: tapping a pip spends or restores slots up to that pip.
   it("spends a filled pip and the ones to its right", () => {
     expect(usedAfterPipTap(slot, 3)).toBe(2);
     expect(usedAfterPipTap(slot, 1)).toBe(4);

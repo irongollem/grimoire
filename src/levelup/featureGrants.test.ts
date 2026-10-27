@@ -82,6 +82,18 @@ describe("featureSpellRows", () => {
     ]);
   });
 
+  it("adds a spell two features both picked only once", () => {
+    const { rows, spellIds } = featureSpellRows({
+      ...base,
+      due: [spellDue("f", "X", 1, false), spellDue("g", "Y", 1, false)],
+      values: { "f:spell": value(["bless"]), "g:spell": value(["bless"]) },
+      isFeat: () => false,
+      classHasSpellcasting: true,
+    });
+    expect(rows).toHaveLength(1);
+    expect(spellIds).toEqual(["bless"]);
+  });
+
   it("skips spells already held and entries with no value", () => {
     const { rows } = featureSpellRows({
       due: [spellDue("f", "X", 1, false), spellDue("g", "Y", 1, false)],

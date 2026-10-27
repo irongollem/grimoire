@@ -142,7 +142,7 @@ describe("setSpeedMode", () => {
   });
 
   it("removes the mode for an empty, non-numeric, null or negative entry", () => {
-    for (const raw of ["", "abc", null, "-5", -5]) {
+    for (const raw of ["", "abc", null, "-5", -5, "-1", -1]) {
       expect(setSpeedMode({ walk: 30, fly: 40 }, "fly", raw)).toEqual({ walk: 30 });
     }
   });

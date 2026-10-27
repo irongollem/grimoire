@@ -53,11 +53,16 @@ describe("isValidAsiChoice", () => {
     expect(isValidAsiChoice({ mode: "plus1plus1plus1" }, ["intelligence", "wisdom"])).toBe(false);
   });
 
+  it("rejects any choice when the trio has more than three abilities", () => {
+    expect(isValidAsiChoice({ mode: "plus1plus1plus1" }, ["strength", "dexterity", "constitution", "wisdom"])).toBe(false);
+  });
+
   it("rejects a null choice", () => {
     expect(isValidAsiChoice(null, ACOLYTE_TRIO)).toBe(false);
   });
 });
 
+// 2024 PHB background ASI: +2/+1 or +1/+1/+1 across the background's three listed abilities
 describe("abilityBonusesForChoice", () => {
   it("splits +2/+1 across the chosen abilities", () => {
     const choice: BackgroundAsiChoice = { mode: "plus2plus1", primary: "cha", secondary: "wis" };

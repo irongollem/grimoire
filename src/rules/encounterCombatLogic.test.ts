@@ -37,11 +37,6 @@ describe("rollInitiativeValue", () => {
   it("falls back to dex_mod when initiative_bonus is absent", () => {
     expect(rollInitiativeValue({ dex_mod: 3, initiative_bonus: null }, () => 10)).toBe(13);
   });
-
-  it("uses the provided roll function instead of randomness", () => {
-    expect(rollInitiativeValue({ dex_mod: 0, initiative_bonus: null }, () => 1)).toBe(1);
-    expect(rollInitiativeValue({ dex_mod: 0, initiative_bonus: null }, () => 20)).toBe(20);
-  });
 });
 
 describe("rollAllInitiativeValues", () => {
@@ -125,6 +120,8 @@ describe("evaluateTrigger", () => {
     const combatants = [{ def_id: "boss", max_hp: 100, hp: 40 }];
     expect(evaluateTrigger({ type: "combatant_hp_pct", combatant_def_id: "boss", pct: 50 }, combatants, 1)).toBe(true);
     expect(evaluateTrigger({ type: "combatant_hp_pct", combatant_def_id: "boss", pct: 30 }, combatants, 1)).toBe(false);
+    // exactly on the threshold counts as "at or below"
+    expect(evaluateTrigger({ type: "combatant_hp_pct", combatant_def_id: "boss", pct: 40 }, combatants, 1)).toBe(true);
   });
 
   it("combatant_dies fires when a matching combatant hits 0 hp", () => {

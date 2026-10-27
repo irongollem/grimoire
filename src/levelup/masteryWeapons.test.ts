@@ -6,6 +6,7 @@ const club = w("club", "Club", "Simple Melee Weapons", ["light"]);
 const rapier = w("rapier", "Rapier", "Martial Melee Weapons", ["finesse"]);
 const greataxe = w("greataxe", "Greataxe", "Martial Melee Weapons", ["heavy", "two-handed"]);
 
+// 2024 PHB "Weapon Mastery": a class takes mastery only in weapons it is proficient with.
 describe("weaponAllowed", () => {
   it("a Fighter may take any simple or martial weapon", () => {
     const profs = ["Simple weapons", "Martial weapons"];
@@ -16,6 +17,10 @@ describe("weaponAllowed", () => {
     const profs = ["Simple weapons", "Martial weapons that have the Finesse or Light property"];
     expect(weaponAllowed(profs, rapier)).toBe(true);
     expect(weaponAllowed(profs, greataxe)).toBe(false);
+  });
+
+  it("a class trained only in martial weapons is not offered simple ones", () => {
+    expect(weaponAllowed(["Martial weapons"], club)).toBe(false);
   });
 
   it("a class with no weapon proficiencies offers nothing", () => {

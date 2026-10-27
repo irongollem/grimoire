@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCoinText } from "./currency";
+import { fromCP, parseCoinText, toCP } from "./currency";
 
 describe("parseCoinText", () => {
   it("reads simple and mixed prices", () => {
@@ -16,5 +16,22 @@ describe("parseCoinText", () => {
 
   it("still reads an unseparated large number", () => {
     expect(parseCoinText("5001 gp").gp).toBe(5001);
+  });
+});
+
+// PHB 2014 "Coinage": 1 pp = 10 gp = 100 sp = 1,000 cp, and 1 ep = 50 cp
+describe("coin conversion", () => {
+  it("values every denomination in copper", () => {
+    // 1000 + 100 + 50 + 10 + 1
+    expect(toCP(1, 1, 1, 1, 1)).toBe(1161);
+  });
+
+  it("converts copper back to the largest coins, electrum left out", () => {
+    // 1161 cp = 1 pp (1000) + 1 gp (100) + 6 sp (60) + 1 cp
+    expect(fromCP(1161)).toEqual({ pp: 1, gp: 1, ep: 0, sp: 6, cp: 1 });
+  });
+
+  it("reads every denomination out of price text", () => {
+    expect(parseCoinText("2 pp 3 ep 4 silver 5 copper")).toEqual({ pp: 2, gp: 0, ep: 3, sp: 4, cp: 5 });
   });
 });

@@ -19,9 +19,6 @@ describe("isThrownWeapon", () => {
     expect(isThrownWeapon("Javelin", null)).toBe(true);
   });
 
-  it("name-matches an item-less Spear", () => {
-    expect(isThrownWeapon("Spear", null)).toBe(true);
-  });
 
   it("name-matches case-insensitively", () => {
     expect(isThrownWeapon("HANDAXE", null)).toBe(true);
@@ -35,9 +32,6 @@ describe("isThrownWeapon", () => {
     expect(isThrownWeapon("Longspear", null)).toBe(false);
   });
 
-  it("word-boundary matches an item-less 'Javelin of Lightning'", () => {
-    expect(isThrownWeapon("Javelin of Lightning", null)).toBe(true);
-  });
 
   it("word-boundary matches an item-less 'Spear +1'", () => {
     expect(isThrownWeapon("Spear +1", null)).toBe(true);

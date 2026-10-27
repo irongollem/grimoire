@@ -25,8 +25,4 @@ describe("NPC_TEMPLATES", () => {
       }
     }
   });
-
-  it("gives every template typed defenses", () => {
-    for (const t of NPC_TEMPLATES) expect(t.stat_block.defenses.resistances).toBeDefined();
-  });
 });

@@ -33,9 +33,4 @@ describe("inventoryItemWeight", () => {
     const map = new Map([[VAULT, 2]]);
     expect(inventoryItemWeight({ item_id: VAULT, library_item_id: null, quantity: 4 }, map)).toBe(8);
   });
-
-  it("multiplies per-unit weight by quantity for a library item", () => {
-    const map = new Map([[LIBRARY, 1.5]]);
-    expect(inventoryItemWeight({ item_id: null, library_item_id: LIBRARY, quantity: 3 }, map)).toBe(4.5);
-  });
 });

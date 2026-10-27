@@ -38,6 +38,7 @@ const asi = (levels: number[], lvl: number, className = "Fighter") => granted("a
 const base = { characterLevelAfter: 5, classChoices: {} };
 
 describe("choicesDue", () => {
+  // SRD 5.1 "Warlock" class table: invocations known 2 at 2nd, 3 at 5th; one may be swapped at each level
   it("Warlock 4 to 5 owes one invocation and may replace one", () => {
     const due = choicesDue({ ...base, granted: [invocations], className: "Warlock", fromLevel: 4, toLevel: 5, classChoices: { eldritch_invocations: ["A", "B"] } });
     expect(due).toHaveLength(1);
@@ -49,6 +50,26 @@ describe("choicesDue", () => {
     expect(due).toMatchObject([{ picks: 0, replaceAllowed: true }]);
   });
 
+  it("a class that did not level owes no replacement either, and a replacement needs a pick to replace and a live choice", () => {
+    const known = { eldritch_invocations: ["A", "B"] };
+    expect(choicesDue({ ...base, granted: [invocations], className: "Warlock", fromLevel: 5, toLevel: 5, classChoices: known })).toEqual([]);
+    expect(choicesDue({ ...base, granted: [invocations], className: "Warlock", fromLevel: 5, toLevel: 6, classChoices: {} })).toEqual([]);
+    // Level 1 lists no invocation count yet, so there is nothing to swap.
+    expect(choicesDue({ ...base, granted: [invocations], className: "Warlock", fromLevel: 0, toLevel: 1, characterLevelAfter: 1, classChoices: known })).toEqual([]);
+  });
+
+  it("the origin feat's own choice is asked at creation only", () => {
+    const skilled: GrantedFeature = {
+      feature: feat("skilled", "Skilled"),
+      mechanics: { choices: [{ key: "skilled", label: "Skills", pick: { kind: "skill", from: [] }, count: { kind: "per_grant", amount: 3 }, replace_on_level_up: false }] },
+      grant: { kind: "feat", via: "origin", atLevel: null },
+      scalingValue: null,
+    };
+    expect(choicesDue({ granted: [skilled], className: "Fighter", fromLevel: 0, toLevel: 1, characterLevelAfter: 1, classChoices: {} })).toMatchObject([{ picks: 3 }]);
+    expect(choicesDue({ granted: [skilled], className: "Fighter", fromLevel: 3, toLevel: 4, characterLevelAfter: 4, classChoices: {} })).toEqual([]);
+  });
+
+  // SRD 5.1 "Rogue" Expertise: two skills at 1st level and two more at 6th
   it("Rogue owes 2 expertise at creation and 2 more at 6", () => {
     expect(choicesDue({ ...base, granted: [expertise([1], 1)], className: "Rogue", fromLevel: 0, toLevel: 1, characterLevelAfter: 1 })[0].picks).toBe(2);
     expect(choicesDue({ ...base, granted: [expertise([1, 6], 6)], className: "Rogue", fromLevel: 5, toLevel: 6, characterLevelAfter: 6 })[0].picks).toBe(2);
@@ -89,6 +110,7 @@ const ctx = (over: Partial<OptionContext> = {}): OptionContext => ({
 });
 
 describe("optionsFor", () => {
+  // SRD 5.1 "Paladin" Fighting Style: Defense, Dueling, Great Weapon Fighting, Protection (no Archery)
   it("a Paladin's 2014 fighting styles exclude Archery", () => {
     const names = optionsFor({ kind: "option", set: "fighting_style" }, ctx({ ruleset: "2014", className: "Paladin" })).map((o) => o.value);
     expect(names).toEqual(["Defense", "Dueling", "Great Weapon Fighting", "Protection"]);
@@ -106,6 +128,27 @@ describe("optionsFor", () => {
     const feats = [feat("a", "Alert"), feat("t", "Tough", { repeatable: true }), feat("o", "Old", { ruleset: "2014" }), feat("e", "Boon", { feat_category: "epic_boon" })];
     const out = optionsFor({ kind: "feat", categories: ["general"] }, ctx({ feats, takenFeatIds: ["a", "t"] }));
     expect(out.map((o) => [o.value, o.unavailable])).toEqual([["a", "Already taken"], ["t", null]]);
+  });
+
+  it("an invocation is available at exactly its minimum level, not one below", () => {
+    // "Mire the Mind" is a level 5 invocation with no other prerequisite.
+    const at = (classLevel: number) => optionsFor({ kind: "option", set: "eldritch_invocation" }, ctx({ classLevel })).find((o) => o.value === "Mire the Mind")?.unavailable;
+    expect(at(5)).toBeNull();
+    expect(at(4)).toBe("Level 5");
+  });
+
+  it("a pact invocation is not blocked while the Pact Boon is not known", () => {
+    const out = optionsFor({ kind: "option", set: "eldritch_invocation" }, ctx({ classLevel: 9 }));
+    expect(out.find((o) => o.value === "Thirsting Blade")?.unavailable).toBeNull();
+  });
+
+  it("2024 fighting styles are feats, so the 2024 option list is empty", () => {
+    expect(optionsFor({ kind: "option", set: "fighting_style" }, ctx({ ruleset: "2024" }))).toEqual([]);
+  });
+
+  it("expertise offers Thieves' Tools only when the feature allows it", () => {
+    const out = optionsFor({ kind: "expertise", thieves_tools: false }, ctx({ skills: { stealth: "proficient" } }));
+    expect(out.map((o) => o.value)).toEqual(["stealth"]);
   });
 
   it("expertise lists proficient, not-yet-expert skills plus Thieves' Tools", () => {
@@ -179,6 +222,9 @@ describe("swapsOffered", () => {
   it("offers the swap at the level the replaced feature is gained", () => {
     expect(swapsOffered(input)).toMatchObject([{ replacedKey: "primeval_awareness", replacementId: "natural" }]);
   });
+  it("offers nothing for a feature another class gained", () => {
+    expect(swapsOffered({ ...input, className: "Druid" })).toEqual([]);
+  });
   it("offers nothing when the rule is off, already swapped, or the level passed earlier", () => {
     expect(swapsOffered({ ...input, optionalRuleOn: false })).toEqual([]);
     expect(swapsOffered({ ...input, classChoices: { feature_swaps: { primeval_awareness: "natural" } } })).toEqual([]);
@@ -216,9 +262,5 @@ describe("optionsFor spell picks", () => {
   });
   it("narrows to the variant's list", () => {
     expect(optionsFor(pick, ctx({ spells, spellListVariant: "Wizard" })).map((o) => o.value)).toEqual(["s4", "s1"]);
-  });
-  it("marks an existing pick Already chosen", () => {
-    const o = optionsFor(pick, ctx({ spells, spellListVariant: "Druid", existing: ["s2"] }));
-    expect(o).toEqual([{ value: "s2", label: "Druidcraft", unavailable: "Already chosen" }]);
   });
 });

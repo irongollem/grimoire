@@ -22,10 +22,6 @@ describe("weaponAmmoTag", () => {
     expect(weaponAmmoTag(weapon({ name: "Shortbow" }))).toBe("arrow");
   });
 
-  it("classifies a longbow by name as arrow", () => {
-    expect(weaponAmmoTag(weapon({ name: "Longbow" }))).toBe("arrow");
-  });
-
   it("classifies a crossbow as bolt, not arrow", () => {
     expect(weaponAmmoTag(weapon({ name: "Heavy Crossbow" }))).toBe("bolt");
   });
@@ -36,6 +32,16 @@ describe("weaponAmmoTag", () => {
 
   it("classifies a blowgun as needle", () => {
     expect(weaponAmmoTag(weapon({ name: "Blowgun" }))).toBe("needle");
+  });
+
+  // The subtype is read before the name, so a weapon renamed past recognition still feeds the right stack.
+  it.each([
+    ["Crossbow, Hand", "bolt"],
+    ["Sling", "bullet"],
+    ["Blowgun", "needle"],
+    ["Dart", "dart"],
+  ] as const)("reads the %s subtype of an unrecognisable weapon as %s ammunition", (subtype, tag) => {
+    expect(weaponAmmoTag(weapon({ name: "Mystery Weapon", subtype }))).toBe(tag);
   });
 
   it("prefers an explicit ammo tag over the name", () => {
@@ -106,6 +112,10 @@ describe("ammoTagFromName", () => {
 
   it("classifies firearm ammunition as firearm-bullet", () => {
     expect(ammoTagFromName("Firearm Bullets (10)")).toBe("firearm-bullet");
+  });
+
+  it("matches darts", () => {
+    expect(ammoTagFromName("Darts (10)")).toBe("dart");
   });
 
   it("returns null for a non-ammo item", () => {

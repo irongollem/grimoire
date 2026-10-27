@@ -24,6 +24,7 @@ function resolved(effect: FeatureEffect, c: EffectContext) {
 }
 
 describe("resolveEffect", () => {
+  // PHB 2014 "Spell Save DC" convention for class features: 8 + proficiency bonus + ability modifier
   it("works out a save DC from the named ability and reads the dice at the level", () => {
     const e = resolved(thunder, ctx());
     expect(e.save).toEqual({ ability: "con", dc: 16, success: "none" });
@@ -77,6 +78,7 @@ describe("resolveEffect", () => {
     expect(effectDamageRoll(d, false)).toMatchObject({ counts: {}, modifier: 15 });
   });
 
+  // PHB 2014 / 2024 PHB "Critical Hits": dice doubled, modifier once
   it("doubles the dice and not the modifier on a critical hit", () => {
     const strike: FeatureEffect = { kind: "damage", dice: { "1": "2d6" }, add: [{ kind: "ability", ability: "cha" }] };
     const d = resolved(strike, ctx()).damage!;
@@ -100,6 +102,18 @@ describe("describeResolved", () => {
     expect(
       describeResolved(resolved({ kind: "save", save: { ability: "dex", dc_ability: "spell", success: "half" }, dice: { "1": "2d8" }, area: "15-ft cone" }, ctx())),
     ).toBe("DC 15 Dex save, half on success · 2d8 · 15-ft cone");
+  });
+});
+
+describe("describeResolved edge cases", () => {
+  it("writes a negative to-hit bonus with its own sign only", () => {
+    // proficiency 4 + Strength -5 = -1
+    const strike: FeatureEffect = { kind: "attack", attack: { delivery: "melee", ability: "str" } };
+    expect(describeResolved(resolved(strike, ctx({ abilityMods: { str: -5, dex: 0, con: 0, int: 0, wis: 0, cha: 0 } })))).toBe("-1 to hit");
+  });
+
+  it("an effect that adds nothing and has no dice reads as 0, not as an empty string", () => {
+    expect(resolved({ kind: "heal", add: [] }, ctx()).damage).toMatchObject({ base: "0", modifier: 0, label: "0" });
   });
 });
 

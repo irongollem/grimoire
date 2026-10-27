@@ -75,6 +75,8 @@ describe("armorAcFor", () => {
   it("applies full Dex to light armour, penalty included", () => {
     expect(armorAcFor({ base: 11, dex: "full", maxDex: null }, 14)).toBe(13);
     expect(armorAcFor({ base: 11, dex: "full", maxDex: null }, 8)).toBe(10);
+    // PHB 2014 "Ability Scores and Modifiers": 9 is -1 (the modifier rounds down, not toward zero)
+    expect(armorAcFor({ base: 11, dex: "full", maxDex: null }, 9)).toBe(10);
   });
   it("caps Dex for medium armour but keeps the penalty", () => {
     const hp = { base: 15, dex: "capped", maxDex: 2 } as const;
@@ -129,6 +131,7 @@ describe("calculateAc: the base", () => {
     expect(calculateAc(member({ dex: 8 }), [worn(CHAIN_MAIL, "body"), worn(SHIELD, "off_hand")]).total).toBe(18);
   });
 
+  // PHB 2014 "Armor" (light: full Dex; medium: Dex up to +2; heavy: none)
   it("light armour adds full Dex, medium caps it at 2", () => {
     expect(calculateAc(member({ dex: 16 }), [worn(LEATHER, "body")]).total).toBe(14);
     expect(calculateAc(member({ dex: 20 }), [worn(HALF_PLATE, "body")]).total).toBe(17);
@@ -159,6 +162,7 @@ describe("calculateAc: the base", () => {
     expect(r.notes[0]).toMatch(/no armor class listed/);
   });
 
+  // PHB 2014 "Fighter: Fighting Style" (Defense: +1 AC while wearing armor)
   it("Defense fighting style adds 1 only in armour", () => {
     const m = member({ class_choices: { fighting_style: "Defense" } });
     expect(calculateAc(m, [worn(CHAIN_MAIL, "body")]).total).toBe(17);
@@ -167,12 +171,14 @@ describe("calculateAc: the base", () => {
 });
 
 describe("calculateAc: unarmoured calculations", () => {
+  // PHB 2014 "Barbarian: Unarmored Defense" (shields allowed)
   it("Barbarian uses 10 + Dex + Con and keeps a shield", () => {
     const m = member({ class: "Barbarian", dex: 14, con: 16 });
     expect(calculateAc(m, []).total).toBe(15);
     expect(calculateAc(m, [worn(SHIELD, "off_hand")]).total).toBe(17);
   });
 
+  // PHB 2014 "Monk: Unarmored Defense" (no armor, no shield)
   it("Monk uses 10 + Dex + Wis but not with a shield", () => {
     const m = member({ class: "Monk", dex: 16, wis: 16 });
     expect(calculateAc(m, []).total).toBe(16);
@@ -184,6 +190,7 @@ describe("calculateAc: unarmoured calculations", () => {
     expect(calculateAc(member({ class: "Monk" }), [worn(SHIELD, "off_hand")]).total).toBe(12);
   });
 
+  // SRD 5.1 "Mage Armor" (base AC 13 + Dex modifier)
   it("Mage Armor is 13 + Dex", () => {
     expect(calculateAc(member({ ac_formula: "mage_armor", dex: 14 }), []).total).toBe(15);
   });
@@ -310,6 +317,12 @@ describe("describeAc", () => {
 });
 
 describe("previousAc: what the sheet showed before AC was calculated", () => {
+  it("reads the best armour when several are carried as worn", () => {
+    // Chain Mail 16 beats Leather 11 + Dex 2 = 13; the stored 15 is the Mage Armor total it replaces.
+    const m = { ...member({ ac_formula: "mage_armor", dex: 14 }), ac: 15 };
+    expect(previousAc(m, [worn(LEATHER, "body"), worn(CHAIN_MAIL, "body")])).toBe(16);
+  });
+
   it("is the stored number plus a shield in any slot", () => {
     expect(previousAc({ ...member(), ac: 16 }, [worn(SHIELD, "off_hand")])).toBe(18);
     expect(previousAc({ ...member(), ac: 16 }, [worn(SHIELD, "main_hand")])).toBe(18);

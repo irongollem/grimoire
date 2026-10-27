@@ -71,10 +71,14 @@ describe("parseBackgroundSkills", () => {
     });
   });
 
-  it("does not double-count a fixed skill that also appears in the choice region", () => {
-    const result = parseBackgroundSkills(["Survival", "and either History or Performance."]);
-    expect(result.fixed).toEqual(["survival"]);
-    expect(result.choices[0].options).not.toContain("survival");
+  it("does not offer a fixed skill again as a choice option", () => {
+    const result = parseBackgroundSkills(["Insight", "plus your choice of one between Insight or Persuasion."]);
+    expect(result.fixed).toEqual(["insight"]);
+    expect(result.choices[0].options).toEqual(["persuasion"]);
+  });
+
+  it("reads a skill only as a whole word", () => {
+    expect(parseBackgroundSkills(["Insightful", "Survival"]).fixed).toEqual(["survival"]);
   });
 
   it("matches multi-word skills as whole tokens", () => {

@@ -7,6 +7,10 @@ describe("armorTrainingOf", () => {
     expect([...trained].sort()).toEqual(["light", "medium", "shield"]);
   });
 
+  it("Heavy armor trains heavy and nothing else", () => {
+    expect([...armorTrainingOf(["Heavy armor"])]).toEqual(["heavy"]);
+  });
+
   it("'All armor' trains the three armor categories but not shields", () => {
     expect([...armorTrainingOf(["All armor"])].sort()).toEqual(["heavy", "light", "medium"]);
   });

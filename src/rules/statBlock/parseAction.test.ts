@@ -126,6 +126,14 @@ describe("attacks", () => {
     expect(s.save).toMatchObject({ ability: "str", dc: 14, fail: [] });
   });
 
+  it("sends an attack that forces two different saves to review", () => {
+    const s = parse(
+      "Venomous Sting",
+      "Melee Weapon Attack: +6 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage. The target must succeed on a DC 13 Constitution saving throw or be poisoned for 1 minute, and on a DC 15 Wisdom saving throw or be frightened for 1 minute.",
+    );
+    expect(s.review).toBe("unparsed: attack with several saves");
+  });
+
   it("does not mistake an escape DC for a save", () => {
     const s = parse(
       "Grab",

@@ -72,11 +72,23 @@ describe("checkActionAgainstProse", () => {
     expect(checkActionAgainstProse({ name: "Cast a Spell (2)", description: "x" }, { ...plain, legendary_cost: 3 }, []).ok).toBe(false);
   });
 
+  it("rejects a use period, a legendary cost or a recharge end the name does not print", () => {
+    const plain: ActionStructure = { kind: "other", source: "parsed" };
+    const teleport = { name: "Teleport (3/Day)", description: "It teleports." };
+    expect(checkActionAgainstProse(teleport, { ...plain, uses: { count: 3, per: "short_rest" } }, []).ok).toBe(false);
+    expect(checkActionAgainstProse(teleport, { ...plain, legendary_cost: 2 }, []).ok).toBe(false);
+    const breath = { name: "Breath (Recharge 5-6)", description: "It breathes." };
+    expect(checkActionAgainstProse(breath, { ...plain, recharge: { min: 5, max: 6 } }, []).ok).toBe(true);
+    expect(checkActionAgainstProse(breath, { ...plain, recharge: { min: 5, max: 7 } }, []).ok).toBe(false);
+  });
+
   it("requires multiattack steps to name siblings", () => {
     const e = { name: "Multiattack", description: "Two Claw attacks." };
     const m = (action: string): ActionStructure => ({ kind: "multiattack", multiattack: [{ action, count: 2 }], source: "parsed" });
     expect(checkActionAgainstProse(e, m("Claw"), ["Multiattack", "Claw"]).ok).toBe(true);
     expect(checkActionAgainstProse(e, m("Claw"), ["Multiattack", "Bite"]).ok).toBe(false);
+    const none: ActionStructure = { kind: "multiattack", multiattack: [{ action: "Claw", count: 0 }], source: "parsed" };
+    expect(checkActionAgainstProse(e, none, ["Multiattack", "Claw"]).ok).toBe(false);
   });
 
   it("accepts an attack with an empty hit, and still checks its save", () => {

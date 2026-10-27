@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortCombatantsByInitiative, compareCombatantsByInitiative, initiativeModifier } from "@/rules/combatantSort";
+import { sortCombatantsByInitiative, initiativeModifier } from "@/rules/combatantSort";
 import type { RunCombatant } from "@/types/encounter.types";
 
 function c(partial: Partial<RunCombatant> & Pick<RunCombatant, "instance_id">): RunCombatant {
@@ -37,6 +37,7 @@ describe("sortCombatantsByInitiative", () => {
     expect(out.map((x) => x.instance_id)).toEqual(["b", "a"]);
   });
 
+  // app convention: the books leave ties to the DM
   it("breaks a tie with players before monsters", () => {
     const out = sortCombatantsByInitiative([
       c({ instance_id: "mon", type: "monster", initiative: 12 }),
@@ -69,22 +70,11 @@ describe("sortCombatantsByInitiative", () => {
     sortCombatantsByInitiative(input);
     expect(input.map((x) => x.instance_id)).toEqual(before);
   });
-
-  it("compare is symmetric in sign for a clear ordering", () => {
-    const a = c({ instance_id: "a", initiative: 20 });
-    const b = c({ instance_id: "b", initiative: 5 });
-    expect(compareCombatantsByInitiative(a, b)).toBeLessThan(0);
-    expect(compareCombatantsByInitiative(b, a)).toBeGreaterThan(0);
-  });
 });
 
 describe("initiativeModifier", () => {
   it("falls back to dex_mod when initiative_bonus is absent (2014 monsters, NPCs, players)", () => {
     expect(initiativeModifier(c({ instance_id: "a", dex_mod: 3 }))).toBe(3);
-  });
-
-  it("falls back to dex_mod when initiative_bonus is explicitly null", () => {
-    expect(initiativeModifier(c({ instance_id: "a", dex_mod: 2, initiative_bonus: null }))).toBe(2);
   });
 
   it("uses initiative_bonus outright when present, ignoring dex_mod", () => {

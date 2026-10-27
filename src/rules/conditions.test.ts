@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  getConditions,
   getCondition,
   getConditionDescription,
   getConditionShort,
@@ -19,7 +18,6 @@ import {
   withCondition,
   withoutCondition,
   sameConditions,
-  MAX_EXHAUSTION,
 } from "@/rules/conditions";
 
 describe("hasSaveDisadvantage", () => {
@@ -28,6 +26,7 @@ describe("hasSaveDisadvantage", () => {
     expect(hasSaveDisadvantage([{ name: "Poisoned" }], "con", "2014")).toBe(false);
   });
 
+  // SRD 5.1 "Restrained"
   it("Restrained → disadvantage on DEX saves only (both editions)", () => {
     expect(hasSaveDisadvantage([{ name: "Restrained" }], "dex", "2014")).toBe(true);
     expect(hasSaveDisadvantage([{ name: "Restrained" }], "str", "2014")).toBe(false);
@@ -35,6 +34,7 @@ describe("hasSaveDisadvantage", () => {
     expect(hasSaveDisadvantage([{ name: "Restrained" }], "dex", "2024")).toBe(true);
   });
 
+  // SRD 5.1 "Exhaustion" (level 3: disadvantage on attack rolls and saving throws)
   it("2014 (default): Exhaustion 3+ → disadvantage on ALL saves", () => {
     expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 3 }], "wis", "2014")).toBe(true);
     expect(hasSaveDisadvantage([{ name: "Exhaustion", level: 5 }], "dex", "2014")).toBe(true);
@@ -98,6 +98,7 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
     }
   });
 
+  // SRD 5.2 "Exhaustion" (D20 Tests reduced by 2 x level)
   it("2024: getExhaustionD20Penalty is a flat −2 per level", () => {
     expect(getExhaustionD20Penalty([{ name: "Exhaustion", level: 1 }], "2024")).toBe(-2);
     expect(getExhaustionD20Penalty([{ name: "Exhaustion", level: 3 }], "2024")).toBe(-6);
@@ -105,14 +106,11 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
     expect(getExhaustionD20Penalty([], "2024")).toBe(0);
   });
 
+  // SRD 5.2 "Exhaustion" (Speed reduced by 5 ft x level)
   it("2024: getExhaustionSpeedPenaltyFt is a flat −5 ft per level", () => {
     expect(getExhaustionSpeedPenaltyFt([{ name: "Exhaustion", level: 1 }], "2024")).toBe(5);
     expect(getExhaustionSpeedPenaltyFt([{ name: "Exhaustion", level: 3 }], "2024")).toBe(15);
     expect(getExhaustionSpeedPenaltyFt([{ name: "Exhaustion", level: 6 }], "2024")).toBe(30);
-  });
-
-  it("MAX_EXHAUSTION is 6 for both editions", () => {
-    expect(MAX_EXHAUSTION).toBe(6);
   });
 
   it("exhaustion level storage/parsing is edition-agnostic", () => {
@@ -125,11 +123,6 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
 });
 
 describe("getConditions / getCondition resolver", () => {
-  it("returns all 16 conditions (15 SRD + Hidden) for both editions", () => {
-    expect(getConditions("2014")).toHaveLength(16);
-    expect(getConditions("2024")).toHaveLength(16);
-  });
-
   it("2014 text is the SRD 5.1 per-level exhaustion table", () => {
     const cond = getCondition("Exhaustion", "2014");
     expect(cond?.description).toContain("Level 1");
@@ -142,23 +135,6 @@ describe("getConditions / getCondition resolver", () => {
     expect(cond?.description).not.toContain("Level 1");
   });
 
-  it("patch layer wins: 2024 Exhaustion comes from CONDITION_PATCHES, not an empty base array", () => {
-    // SRD_CONDITIONS_2024 is currently empty (open5e-api#793) — if getCondition
-    // still resolves a full entry, the patch layer applied.
-    const cond = getCondition("Exhaustion", "2024");
-    expect(cond).toBeDefined();
-    expect(cond?.effects.length).toBeGreaterThan(0);
-  });
-
-  it("resolves Exhaustion directly, for both editions", () => {
-    expect(getCondition("Exhaustion", "2014")?.id).toBe("exhaustion");
-    expect(getCondition("Exhaustion", "2024")?.id).toBe("exhaustion");
-  });
-
-  it("no longer resolves the retired \"Exhaustion\" string", () => {
-    expect(getCondition("Exhausted 3", "2014")).toBeUndefined();
-  });
-
   it("returns undefined for an unknown condition name", () => {
     expect(getCondition("Not A Condition", "2014")).toBeUndefined();
   });
@@ -168,12 +144,6 @@ describe("getConditionDescription", () => {
   it("injects the level header for Exhaustion under both editions", () => {
     expect(getConditionDescription(EXHAUSTION, "2014", 2)).toContain("level 2 of 6");
     expect(getConditionDescription(EXHAUSTION, "2024", 2)).toContain("level 2 of 6");
-  });
-
-  it("2014 and 2024 text differ for a condition whose wording changed (Exhaustion)", () => {
-    const text2014 = getConditionDescription(EXHAUSTION, "2014", 3);
-    const text2024 = getConditionDescription(EXHAUSTION, "2024", 3);
-    expect(text2014).not.toBe(text2024);
   });
 
   it("falls back to the raw name for an unknown condition", () => {

@@ -72,11 +72,18 @@ describe("parseDefenses", () => {
     expect(d.condition_immunities).toEqual(["Poisoned"]);
   });
 
+  it("lists a condition once however many times it is written", () => {
+    expect(parseDefenses({ condition_immunities: "charmed, charmed" }).condition_immunities).toEqual(["Charmed"]);
+    const d = parseDefenses({ damage_immunities: "poison, poisoned, poisoned", condition_immunities: "poisoned" });
+    expect(d.condition_immunities).toEqual(["Poisoned"]);
+  });
+
   it("decodes &amp;", () => {
     expect(parseDefenses({ damage_resistances: "fire &amp; cold" }).resistances).toEqual([{ types: ["cold", "fire"] }]);
   });
 });
 
+// app convention: defenses print in the 2014 stat-block style.
 describe("formatting", () => {
   it("writes 2014-style text, unconditional groups first", () => {
     expect(

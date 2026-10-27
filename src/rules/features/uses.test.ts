@@ -25,6 +25,7 @@ describe("remainingUses", () => {
 });
 
 describe("payCost", () => {
+  // PHB 2014 "Monk" Ki / Empty Body: a use costs ki points from the pool and cannot go below zero
   it("spends from the pool and keeps the pool's recharge and short-rest regain", () => {
     const after = payCost({}, pools, { key: "channel_divinity", amount: 1 });
     expect(after.channel_divinity).toEqual({ current: 2, max: 3, rest: "long", short_rest_regain: 1 });
@@ -34,6 +35,18 @@ describe("payCost", () => {
     const stored: StoredClassResources = { ki_points: { current: 2, max: 5, rest: "short" } };
     expect(canPay(stored, pools, { key: "ki_points", amount: 4 })).toBe(false);
     expect(() => payCost(stored, pools, { key: "ki_points", amount: 4 })).toThrow("Not enough Ki left");
+  });
+
+  it("pays exactly what is left, one more is refused, and the amount is what leaves the pool", () => {
+    const stored: StoredClassResources = { ki_points: { current: 4, max: 5, rest: "short" } };
+    expect(canPay(stored, pools, { key: "ki_points", amount: 4 })).toBe(true);
+    expect(canPay(stored, pools, { key: "ki_points", amount: 5 })).toBe(false);
+    expect(payCost(stored, pools, { key: "ki_points", amount: 3 }).ki_points.current).toBe(1);
+  });
+
+  it("a pool nothing has been spent from yet is stored on the rest it recharges on", () => {
+    expect(payCost({}, pools, { key: "ki_points", amount: 1 }).ki_points.rest).toBe("short");
+    expect(payCost({}, pools, { key: "channel_divinity", amount: 1 }).channel_divinity.rest).toBe("long");
   });
 
   it("a feature that spends a pool the character lacks is unusable, not free", () => {
@@ -50,6 +63,16 @@ describe("restoreUses", () => {
   it("never goes above the max", () => {
     const stored: StoredClassResources = { ki_points: { current: 4, max: 5, rest: "short" } };
     expect(restoreUses(stored, pools, "ki_points", 3).ki_points.current).toBe(5);
+  });
+});
+
+describe("restoreUses adds back what was asked and only to a pool that holds a count", () => {
+  it("adds the amount to the stored count", () => {
+    expect(restoreUses({ ki_points: { current: 1, max: 5, rest: "short" } }, pools, "ki_points", 2).ki_points.current).toBe(3);
+  });
+  it("leaves the resources alone when nothing is stored for the key", () => {
+    const stored: StoredClassResources = {};
+    expect(restoreUses(stored, pools, "ki_points", 2)).toBe(stored);
   });
 });
 

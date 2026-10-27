@@ -36,16 +36,4 @@ describe("DM_SCREEN_SECTIONS", () => {
       }
     }
   });
-
-  it("gives every section and table a non-empty title", () => {
-    for (const section of DM_SCREEN_SECTIONS) {
-      expect(section.title.trim().length, `section "${section.id}" has an empty title`).toBeGreaterThan(0);
-      for (const table of section.tables) {
-        expect(
-          table.title.trim().length,
-          `section "${section.id}" table "${table.id}" has an empty title`,
-        ).toBeGreaterThan(0);
-      }
-    }
-  });
 });

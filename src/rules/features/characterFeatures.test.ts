@@ -142,11 +142,13 @@ describe("resourcePools", () => {
   const grant = (features: ClassFeature[], classes: GrantedClassInput[], characterLevel: number) =>
     grantedFeatures({ ...base, characterLevel, classes, featuresById: byId(...features) });
 
+  // SRD 5.1 "Fighter" Action Surge: one use, two from 17th level
   it("Fighter 17 has 2 Action Surge uses", () => {
     const g = grant([actionSurge], [klass({ className: "Fighter", levels: 17, classMap: { "2": ["surge"] } })], 17);
     expect(resourcePools(g, ctx({}, 17))[0]).toMatchObject({ key: "action_surge", max: 2 });
   });
 
+  // PHB 2014 "Multiclassing" (Channel Divinity): the feature gained again gives no additional uses
   it("Cleric 6 / Paladin 3 share one Channel Divinity pool at the larger max", () => {
     const g = grant(
       [channelCleric, channelPaladin],
@@ -159,6 +161,32 @@ describe("resourcePools", () => {
     expect(pools[0].sources).toEqual(["Channel Divinity", "Channel Divinity (Paladin)"]);
   });
 
+  // PHB 2014 "Multiclassing" (Channel Divinity): gaining a feature again gives no additional uses, so a shared pool keeps the better of its sources
+  it("a shared pool with an unlimited source is unlimited, whichever feature is listed first", () => {
+    const unlimitedRage = feature("rage_u", "Primal Fury", {
+      uses: { key: "rage", label: "Rage", amount: { kind: "unlimited_from", level: 1, below: { kind: "fixed", value: 1 } }, recharge: "long", pool: false },
+    });
+    const g = grant(
+      [rage, unlimitedRage],
+      [klass({ className: "Barbarian", levels: 3, classMap: { "1": ["rage"] } }), klass({ className: "Fury", levels: 3, classMap: { "1": ["rage_u"] } })],
+      6,
+    );
+    expect(resourcePools(g, ctx({}, 6))[0].max).toBe("unlimited");
+  });
+
+  it("a shared pool regains the larger short-rest amount of its sources", () => {
+    const strongRage = feature("rage_s", "Strong Rage", {
+      uses: { key: "rage", label: "Rage", amount: { kind: "fixed", value: 1 }, recharge: "long", short_rest_regain: 2, pool: false },
+    });
+    const g = grant(
+      [rage, strongRage],
+      [klass({ className: "Barbarian", levels: 3, classMap: { "1": ["rage"] } }), klass({ className: "Fury", levels: 3, classMap: { "1": ["rage_s"] } })],
+      6,
+    );
+    expect(resourcePools(g, ctx({}, 6))[0].shortRestRegain).toBe(2);
+  });
+
+  // SRD 5.1 "Bard" Bardic Inspiration (Charisma modifier uses) and Font of Inspiration (short rest from 5th)
   it("Bard 5 with Cha 16 has 3 Bardic Inspiration, back on a short rest", () => {
     const g = grant([bardic], [klass({ className: "Bard", levels: 5, classMap: { "1": ["bardic"] } })], 5);
     expect(resourcePools(g, ctx({ cha: 16 }))[0]).toMatchObject({ max: 3, recharge: "short" });
@@ -169,6 +197,7 @@ describe("resourcePools", () => {
     expect(resourcePools(g, ctx({ cha: 16 }, 4))[0].recharge).toBe("long");
   });
 
+  // SRD 5.1 "Barbarian" Rage: unlimited rages at 20th level
   it("Barbarian 20 Rage is unlimited and left out of class_resources", () => {
     const g = grant([rage], [klass({ className: "Barbarian", levels: 20, classMap: { "1": ["rage"] } })], 20);
     const pools = resourcePools(g, ctx({}, 20));
@@ -195,6 +224,11 @@ describe("classResourcesFor", () => {
     });
   });
 
+  it("a per-turn pool is restored on a short rest, and a stored negative count reads as empty", () => {
+    const perTurn = [{ key: "f", label: "F", max: 3, recharge: "turn" as const, shortRestRegain: null, pool: false, sources: ["F"] }];
+    expect(classResourcesFor(perTurn, { f: { current: -2, max: 3, rest: "long" } }).f).toEqual({ current: 0, max: 3, rest: "short" });
+  });
+
   it("keeps spent uses", () => {
     expect(classResourcesFor(pools, { ki: { current: 2, max: 4, rest: "short" } }).ki.current).toBe(2);
   });
@@ -204,6 +238,9 @@ describe("classResourcesFor", () => {
     expect(classResourcesChanged(a, classResourcesFor(pools, a))).toBe(false);
     expect(classResourcesChanged(a, { ...a, ki: { ...a.ki, current: 1 } })).toBe(true);
     expect(classResourcesChanged(a, { rage: a.rage })).toBe(true);
+    expect(classResourcesChanged(a, { ...a, extra: { current: 1, max: 1, rest: "long" } })).toBe(true);
+    expect(classResourcesChanged(a, { ...a, ki: { ...a.ki, rest: "long" } })).toBe(true);
+    expect(classResourcesChanged(a, { ...a, rage: { ...a.rage, short_rest_regain: 2 } })).toBe(true);
   });
 });
 

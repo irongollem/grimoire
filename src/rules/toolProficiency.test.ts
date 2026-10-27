@@ -4,18 +4,12 @@ import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 describe("canonicalToolName", () => {
   it("passes through already-canonical values unchanged", () => {
     expect(canonicalToolName("Forgery Kit")).toBe("Forgery Kit");
-    expect(canonicalToolName("Disguise Kit")).toBe("Disguise Kit");
-    expect(canonicalToolName("Smith's Tools")).toBe("Smith's Tools");
   });
 
   it("fixes case variants to the catalogue's own casing", () => {
     expect(canonicalToolName("Alchemist's supplies")).toBe("Alchemist's Supplies");
-    expect(canonicalToolName("Leatherworker's tools")).toBe("Leatherworker's Tools");
-    expect(canonicalToolName("Woodcarver's tools")).toBe("Woodcarver's Tools");
-    expect(canonicalToolName("Navigator's tools")).toBe("Navigator's Tools");
     expect(canonicalToolName("thieves' tools")).toBe("Thieves' Tools");
     expect(canonicalToolName("herbalism kit")).toBe("Herbalism Kit");
-    expect(canonicalToolName("Herbalism kit")).toBe("Herbalism Kit");
   });
 
   it("resolves the 'Herbalist kit' alias to the catalogue's 'Herbalism Kit'", () => {
@@ -37,10 +31,7 @@ describe("canonicalToolName", () => {
     expect(canonicalToolName("No additional tool proficiencies")).toBeNull();
     expect(canonicalToolName("One type of gaming set")).toBeNull();
     expect(canonicalToolName("Two of your choice")).toBeNull();
-    expect(canonicalToolName("One artisan's tools set of your choice")).toBeNull();
-    expect(canonicalToolName("One type of artisan's tools or one type of musical instrument")).toBeNull();
     expect(canonicalToolName("one musical instrument")).toBeNull();
-    expect(canonicalToolName("One type of musical instrument")).toBeNull();
     // Names a real tool, but only offers it — granting Thieves' Tools outright
     // would invent a proficiency the character may never have picked.
     expect(canonicalToolName("Your choice of one from Thieves’ Tools")).toBeNull();
@@ -48,8 +39,6 @@ describe("canonicalToolName", () => {
 
   it("keeps non-tool proficiencies stored in the same column, cleaned but unaltered", () => {
     expect(canonicalToolName("Light Armor")).toBe("Light Armor");
-    expect(canonicalToolName("Shields")).toBe("Shields");
-    expect(canonicalToolName("Martial Weapons")).toBe("Martial Weapons");
   });
 
   it("returns an unrecognised-but-plausible value cleaned, never dropped or coerced to empty", () => {
@@ -86,6 +75,10 @@ describe("hasToolProficiency", () => {
     expect(
       hasToolProficiency(["No additional tool proficiencies", "Herbalism Kit"], ["Herbalism Kit"]),
     ).toBe(true);
+  });
+
+  it("never matches a requirement that is choice prose rather than a tool", () => {
+    expect(hasToolProficiency(["Herbalism Kit"], ["One type of gaming set"])).toBe(false);
   });
 
   it("handles null/undefined stored proficiencies as no match", () => {

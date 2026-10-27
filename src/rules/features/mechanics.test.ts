@@ -166,6 +166,57 @@ describe("parseMechanics", () => {
   });
 });
 
+describe("parseMechanics rejects what the roller could not use", () => {
+  const rider = (dice: unknown, extra: Record<string, unknown> = {}) => ({
+    riders: [{ label: "x", dice, applies_to: "weapon", once_per_turn: false, ...extra }],
+  });
+  const slot = { kind: "slot", base: "2d8", base_level: 1, per_level: "1d8", max_dice: 5 };
+  const choice = (key: string) => ({ key, label: "L", replace_on_level_up: false, pick: { kind: "asi_or_feat" }, count: { kind: "per_grant", amount: 1 } });
+
+  it.each([
+    ["a slot rider above spell level 9", rider({ ...slot, base_level: 10 })],
+    ["a slot rider capped at 0 dice", rider({ ...slot, max_dice: 0 })],
+    ["a rider with a non-boolean once_per_turn", rider({ kind: "scaling" }, { once_per_turn: "yes" })],
+    ["a toggle that ends on nothing known", { toggle: { key: "t", label: "T", ends_on: "never" } }],
+    ["a class_level amount with a multiplier of 0", { uses: { key: "a", label: "A", recharge: "long", pool: true, amount: { kind: "class_level", multiplier: 0 } } }],
+  ])("drops %s", (_what, mechanics) => {
+    const r = parseMechanics(mechanics);
+    expect(r.errors.length).toBeGreaterThan(0);
+    expect(r.mechanics.riders).toBeUndefined();
+    expect(r.mechanics.toggle).toBeUndefined();
+    expect(r.mechanics.uses).toBeUndefined();
+  });
+
+  it("keeps the first of two choices that share a key", () => {
+    const r = parseMechanics({ choices: [choice("a"), choice("a")] });
+    expect(r.mechanics.choices).toHaveLength(1);
+    expect(r.errors[0]).toMatch(/used twice/);
+  });
+
+  it("a spell pick with one blank or repeated class name among valid ones is rejected whole", () => {
+    for (const lists of [["Wizard", "  "], ["Wizard", "Wizard"]]) {
+      const r = parseMechanics({ choices: [{ ...choice("a"), pick: { kind: "spell", lists, level: 0 } }] });
+      expect(r.mechanics.choices, JSON.stringify(lists)).toBeUndefined();
+    }
+  });
+
+  it("grants keep the valid names and report a blank one", () => {
+    const r = parseMechanics({ grants: { tools: ["Hammer", ""] } });
+    expect(r.mechanics.grants).toEqual({ tools: ["Hammer"] });
+    expect(r.errors.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ["an attack with a delivery other than melee or ranged", { kind: "attack", attack: { delivery: "thrown", ability: "dex" } }],
+    ["an attack by an unknown ability", { kind: "attack", attack: { delivery: "melee", ability: "luck" } }],
+    ["a save whose DC reads an unknown ability", { kind: "save", save: { ability: "con", dc_ability: "luck", success: "none" } }],
+  ])("drops an effect with %s", (_what, effect) => {
+    const r = parseMechanics({ effect });
+    expect(r.mechanics.effect).toBeUndefined();
+    expect(r.errors.length).toBeGreaterThan(0);
+  });
+});
+
 describe("parseMechanics uses costs", () => {
   const bad = [
     { key: "Ki", amount: 1 },
@@ -234,6 +285,9 @@ describe("parseFeatPrerequisites", () => {
     expect(parseFeatPrerequisites({})).toBeNull();
     expect(parseFeatPrerequisites("x")).toBeNull();
     expect(parseFeatPrerequisites({ level: 99, armor: "plate" })).toBeNull();
+    expect(parseFeatPrerequisites({ level: 21 })).toBeNull();
+    expect(parseFeatPrerequisites({ spellcasting: "yes" })).toBeNull();
+    expect(parseFeatPrerequisites({ abilities: { any_of: { str: 0, dex: 31 } } })).toBeNull();
   });
   it("keeps valid parts", () => {
     expect(
@@ -256,6 +310,10 @@ describe("parseFeatAbilityIncrease", () => {
     expect(parseFeatAbilityIncrease({ abilities: ["str"], amount: 0, split: false, max: 20 })).toBeNull();
     expect(parseFeatAbilityIncrease({ abilities: ["str"], amount: 2, split: true, max: 20 })).toBeNull();
     expect(parseFeatAbilityIncrease({ abilities: ["str"], amount: 1, split: false, max: 99 })).toBeNull();
+  });
+  it("a split increase needs two distinct abilities and an amount of 2", () => {
+    expect(parseFeatAbilityIncrease({ abilities: ["str", "dex"], amount: 1, split: true, max: 20 })).toBeNull();
+    expect(parseFeatAbilityIncrease({ abilities: ["str", "str"], amount: 2, split: true, max: 20 })).toBeNull();
   });
 });
 

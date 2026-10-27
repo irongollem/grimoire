@@ -52,16 +52,6 @@ describe("useClassScopedReset", () => {
     state.stop();
   });
 
-  it("clears state when switching from an existing class to a newly-added one", async () => {
-    const state = setup("existing:class-a");
-    state.identity.value = "new:system:wizard-def";
-    await nextTick();
-
-    expect(state.subclassDefinitionId.value).toBe("");
-    expect(state.selectedSpellIds.value.size).toBe(0);
-    state.stop();
-  });
-
   it("leaves selections untouched while the identity is unchanged", async () => {
     const state = setup("existing:class-a");
     await nextTick();

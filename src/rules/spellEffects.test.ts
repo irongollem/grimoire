@@ -19,6 +19,7 @@ describe("structured spell effect resolver", () => {
       .toEqual([{ targetId: "failed", effect: effects[0] }]);
   });
 
+  // PHB 2014 "Saving Throws": half damage on a successful save only when the spell says so.
   it("resolves half damage only for a successful save when the text says so", () => {
     const effects = buildStructuredSpellEffects({ ...base, desc: "A target takes 8d6 fire damage, or half damage on a successful save." });
     const resolved = resolveSpellEffects(effects, "impact", { saved: "successful_save" });
@@ -40,10 +41,24 @@ describe("structured spell effect resolver", () => {
     expect(phased[1]).toMatchObject({ phase: "turn_start", dice: "2d6", target: { count: 3 } });
   });
 
+  // PHB 2014 "Attack Rolls" (critical hits): double the damage dice on a crit.
   it("doubles attack damage only for a confirmed critical hit", () => {
     const effects = buildStructuredSpellEffects({ ...base, attack_roll: true, saving_throw_ability: "" });
     expect(resolveSpellEffects(effects, "impact", { target: "critical_hit" })[0].effect.dice).toBe("16d6");
     expect(resolveSpellEffects(effects, "impact", { target: "miss" })).toEqual([]);
+  });
+
+  // PHB 2014 "Cantrips": damage steps up at character levels 5, 11 and 17.
+  // PHB 2014 "Making an Attack": a critical hit doubles damage dice, not healing.
+  it("does not double healing dice on a critical hit", () => {
+    const effects = buildStructuredSpellEffects({ ...base, attack_roll: true, saving_throw_ability: "", desc: "A creature regains Hit Points." });
+    expect(resolveSpellEffects(effects, "impact", { target: "critical_hit" })[0].effect.dice).toBe("8d6");
+  });
+
+  it("only a Careful Spell target is spared: a failed save still takes damage when careful prevents damage", () => {
+    const effects = buildStructuredSpellEffects(base);
+    const resolved = resolveSpellEffects(effects, "impact", { careful: "careful_save", failed: "failed_save" }, { carefulPreventsDamage: true });
+    expect(resolved.map((row) => row.targetId)).toEqual(["failed"]);
   });
 
   it("selects only the highest eligible cantrip variant", () => {

@@ -16,6 +16,7 @@ describe("assembleDamage", () => {
     expect(r.modifier).toBe(3);
   });
 
+  // PHB 2014 / 2024 PHB "Critical Hits": roll all of the attack's damage dice twice; the modifier is added once
   it("doubles the weapon die and the Sneak Attack dice on a critical hit, not the modifier", () => {
     const r = assembleDamage({ base: "1d8", modifier: 3, riders: [{ dice: "3d6" }], critical: true });
     expect(r.counts).toEqual({ 8: 2, 6: 6 });
@@ -27,6 +28,12 @@ describe("assembleDamage", () => {
     const r = assembleDamage({ base: "1d12", modifier: 4, riders: [{ dice: "+2" }], critical: true });
     expect(r.counts).toEqual({ 12: 2 });
     expect(r.modifier).toBe(6);
+  });
+
+  it("a negative ability modifier is subtracted and shown with its sign", () => {
+    const r = assembleDamage({ base: "1d6", modifier: -1, riders: [], critical: false });
+    expect(r.modifier).toBe(-1);
+    expect(r.parts).toEqual(["1d6", "-1"]);
   });
 
   it("keeps a modifier written inside the base expression", () => {
@@ -51,18 +58,14 @@ describe("assembleDamage", () => {
     expect(r.parts).toEqual(["+3"]);
     expect(rollDice({}, 3, "normal").total).toBe(3);
   });
-
-  it("adds Rage to a dice-less unarmed strike", () => {
-    const r = assembleDamage({ base: "0", modifier: 4, riders: [{ dice: "+2" }], critical: true });
-    expect(r.counts).toEqual({});
-    expect(r.modifier).toBe(6);
-  });
 });
 
 describe("unarmedDamageBase", () => {
-  it("is 1 plus Strength with no dice, at least 1", () => {
+  // PHB 2014 and 2024 "Unarmed Strike": 1 + Strength modifier, with no floor of 1; "Martial Arts": the die plus Strength or Dexterity
+  it("is 1 plus Strength with no dice: Strength 8 deals 0, and a lower one never heals", () => {
     expect(unarmedDamageBase({ strMod: 3, dexMod: 0, martialArtsDie: null })).toEqual({ base: "0", modifier: 4 });
-    expect(unarmedDamageBase({ strMod: -2, dexMod: 0, martialArtsDie: null })).toEqual({ base: "0", modifier: 1 });
+    expect(unarmedDamageBase({ strMod: -1, dexMod: 0, martialArtsDie: null })).toEqual({ base: "0", modifier: 0 });
+    expect(unarmedDamageBase({ strMod: -2, dexMod: 0, martialArtsDie: null })).toEqual({ base: "0", modifier: 0 });
   });
 
   it("uses the Martial Arts die with the better of Strength and Dexterity, however the die is written", () => {

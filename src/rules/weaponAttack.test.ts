@@ -8,7 +8,6 @@ import {
   weaponDamageType,
   weaponDamageParsedExpression,
   unarmedAttackMod,
-  unarmedDamage,
   improvisedAttackMod,
   type WeaponLike,
 } from "@/rules/weaponAttack";
@@ -22,6 +21,7 @@ function weapon(overrides: Partial<WeaponLike> = {}): WeaponLike {
 }
 
 describe("abilityMod / signedNum", () => {
+  // PHB 2014 "Ability Scores and Modifiers": subtract 10, divide by 2, round down.
   it("floors (score - 10) / 2", () => {
     expect(abilityMod(8)).toBe(-1);
     expect(abilityMod(10)).toBe(0);
@@ -42,6 +42,7 @@ describe("weaponAbilityMod", () => {
     expect(weaponAbilityMod(w, { str: 16, dex: 10 })).toBe(3); // STR mod
   });
 
+  // PHB 2014 "Finesse": use either STR or DEX for attack and damage.
   it("finesse picks DEX when DEX > STR", () => {
     const w = weapon({ properties: ["finesse"] });
     expect(weaponAbilityMod(w, { str: 10, dex: 18 })).toBe(4); // DEX mod
@@ -52,6 +53,7 @@ describe("weaponAbilityMod", () => {
     expect(weaponAbilityMod(w, { str: 16, dex: 10 })).toBe(3); // STR mod, tie/greater goes to STR
   });
 
+  // PHB 2014 "Ranged Weapon Attacks": ranged attacks use Dexterity.
   it("ammunition weapons always use DEX, even if STR is higher", () => {
     const w = weapon({ properties: ["ammunition"] });
     expect(weaponAbilityMod(w, { str: 18, dex: 10 })).toBe(0); // DEX mod, not STR's +4
@@ -64,6 +66,7 @@ describe("weaponAbilityMod", () => {
 });
 
 describe("weaponAttackMod", () => {
+  // PHB 2014 "Proficiency Bonus": added to attack rolls with weapons you are proficient with.
   it("adds proficiency bonus on top of the ability mod (equipped weapons assumed proficient)", () => {
     const w = weapon({ properties: [] });
     expect(weaponAttackMod(w, { str: 16, dex: 10, proficiencyBonus: 3 })).toBe(6); // +3 STR +3 PB
@@ -160,12 +163,7 @@ describe("unarmed / improvised", () => {
     expect(unarmedAttackMod(8, 2)).toBe(1); // negative STR mod plus PB
   });
 
-  it("unarmedDamage is 1 + STR mod, floored at 1", () => {
-    expect(unarmedDamage(16)).toBe(4);
-    expect(unarmedDamage(8)).toBe(1); // 1 + (-1) = 0, clamped to 1
-    expect(unarmedDamage(10)).toBe(1);
-  });
-
+  // PHB 2014 "Improvised Weapons": no proficiency unless it resembles a weapon.
   it("improvisedAttackMod is the better of STR/DEX with NO proficiency bonus", () => {
     expect(improvisedAttackMod(8, 14)).toBe(2); // DEX mod, no PB added
     expect(improvisedAttackMod(16, 10)).toBe(3); // STR mod, no PB added

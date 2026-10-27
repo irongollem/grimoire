@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { levelUpSpellChoiceCount } from "@/rules/spellPreparationPolicy";
 
 describe("levelUpSpellChoiceCount", () => {
+  // PHB 2014 / 2024 "Wizard": six spells in the spellbook at level 1, two more per level.
   it.each(["2014", "2024"] as const)("requires the %s Wizard spellbook grants", (ruleset) => {
     expect(levelUpSpellChoiceCount("Wizard", ruleset, 1, null)).toBe(6);
     expect(levelUpSpellChoiceCount("Wizard", ruleset, 2, null)).toBe(2);
     expect(levelUpSpellChoiceCount("Wizard", ruleset, 20, null)).toBe(2);
   });
 
+  // PHB 2014 "Bard" Spells Known table.
   it("uses legacy known-spell progression for 2014 classes", () => {
     expect(levelUpSpellChoiceCount("Bard", "2014", 2, [4, 5, 6], "system", "known")).toBe(1);
   });

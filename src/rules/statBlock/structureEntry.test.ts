@@ -14,6 +14,7 @@ describe("structureEntry", () => {
     expect(structureEntry(bite, ctx).kind).toBe("attack");
   });
 
+  // app convention: a DM's hand-made structure is never replaced by the parser.
   it("never overwrites a manual structure, even a wrong one", () => {
     const manual: ActionStructure = { kind: "other", source: "manual" };
     expect(structureEntry({ ...bite, structured: manual }, ctx)).toBe(manual);
@@ -37,6 +38,19 @@ describe("structureEntry", () => {
     const result = structureEntry({ ...bite, structured: stale }, ctx);
     expect(result.source).toBe("parsed");
     expect(result.attack?.bonus).toBe(4);
+  });
+
+  it("keeps the recharge the name prints on an entry sent to review", () => {
+    const blade = {
+      name: "Blade (Recharge 5-6)",
+      description: "Melee Weapon Attack: +9 to hit, reach 5 ft., one target. Hit: 12 (2d6 + 5) slashing damage plus 3 (1d6) lightning or thunder damage (djinni's choice).",
+    };
+    expect(structureEntry(blade, ctx)).toEqual({
+      kind: "other",
+      source: "parsed",
+      recharge: { min: 5, max: 6 },
+      review: "unparsed: damage type is a choice",
+    });
   });
 
   it("passes plain traits through without a review", () => {

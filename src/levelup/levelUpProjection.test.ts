@@ -46,6 +46,11 @@ describe("scalingChanges", () => {
 
 describe("poolChanges", () => {
   const pool = (key: string, max: number | "unlimited"): ResourcePool => ({ key, label: key, max, recharge: "long", shortRestRegain: null, pool: false, sources: [] });
+  it("leaves out a pool whose maximum did not change", () => {
+    expect(poolChanges([pool("rage", 3), pool("ki", 2)], [pool("rage", 3), pool("ki", 3)])).toEqual([
+      { key: "ki", label: "ki", from: 2, to: 3 },
+    ]);
+  });
   it("reports a changed maximum and a new pool", () => {
     expect(poolChanges([pool("rage", 3)], [pool("rage", 4), pool("ki", 2)])).toEqual([
       { key: "rage", label: "rage", from: 3, to: 4 },

@@ -26,6 +26,15 @@ describe("structureStatBlock", () => {
     expect(out.special_abilities?.[0].structured).toEqual({ kind: "other", source: "parsed" });
   });
 
+  it("reads each entry as the list it sits in, so only a legendary action carries a cost", () => {
+    const out = structureStatBlock({
+      ...block,
+      legendary_actions: [{ name: "Detect", description: "The wolf makes a Wisdom (Perception) check." }],
+    });
+    expect(out.legendary_actions?.[0].structured.legendary_cost).toBe(1);
+    expect(out.special_abilities?.[0].structured.legendary_cost).toBeUndefined();
+  });
+
   it("replaces the four defense strings with defenses", () => {
     const out = structureStatBlock(block);
     expect("damage_resistances" in out).toBe(false);

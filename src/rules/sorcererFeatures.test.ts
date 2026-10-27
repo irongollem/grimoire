@@ -7,6 +7,7 @@ import {
 } from "@/rules/sorcererFeatures";
 
 describe("2024 Sorcerer features", () => {
+  // 2024 PHB "Sorcerer" table: Sorcery Points equal Sorcerer level, from level 2.
   it("starts Sorcery Points at level 2 and caps them at level 20", () => {
     expect(sorceryPointMaximum(1)).toBe(0);
     expect(sorceryPointMaximum(2)).toBe(2);
@@ -14,12 +15,14 @@ describe("2024 Sorcerer features", () => {
     expect(sorceryPointMaximum(25)).toBe(20);
   });
 
+  // 2024 PHB "Sorcerous Restoration": regain expended points equal to half Sorcerer level (rounded down), level 5.
   it("restores half the Sorcerer level without exceeding the maximum", () => {
     expect(sorcerousRestorationAmount(4, 0, 4)).toBe(0);
     expect(sorcerousRestorationAmount(5, 0, 5)).toBe(2);
     expect(sorcerousRestorationAmount(9, 7, 9)).toBe(2);
   });
 
+  // 2024 PHB "Innate Sorcery": lasts 1 minute.
   it("expires Innate Sorcery after one minute", () => {
     expect(isInnateSorceryActive({ class_choices: {
       innate_sorcery_active: true,
@@ -31,6 +34,7 @@ describe("2024 Sorcerer features", () => {
     } }, Date.parse("2026-07-20T12:01:00Z"))).toBe(false);
   });
 
+  // 2024 PHB "Sorcery Incarnate": the level 7 feature that temporarily allows two Metamagic options at once.
   it("allows two options only during revised Sorcery Incarnate", () => {
     expect(metamagicLimit("2014", 20, true)).toBe(1);
     expect(metamagicLimit("2024", 6, true)).toBe(1);

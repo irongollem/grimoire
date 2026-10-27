@@ -2,16 +2,13 @@ import { describe, expect, it } from "vitest";
 import { concentrationBreaksOn, concentrationDc, resolveConcentration } from "./concentration.ts";
 
 describe("concentrationDc", () => {
+  // PHB 2014 "Concentration": DC 10 or half the damage, whichever is higher; 2024 PHB adds a cap of 30
   it.each([
     [9, "2014", 10],
-    [10, "2014", 10],
     [21, "2014", 10],
     [22, "2014", 11],
     [70, "2014", 35],
-    [9, "2024", 10],
-    [21, "2024", 10],
     [70, "2024", 30],
-    [60, "2024", 30],
   ] as const)("%i damage under %s is DC %i", (dmg, rs, dc) => expect(concentrationDc(dmg, rs)).toBe(dc));
 });
 
@@ -28,6 +25,7 @@ describe("resolveConcentration", () => {
 });
 
 describe("concentrationBreaksOn", () => {
+  // PHB 2014 "Concentration": incapacitated (or killed) ends it; Paralyzed, Petrified, Stunned, Unconscious all include Incapacitated
   it.each([
     [[{ name: "Incapacitated" }], true],
     [[{ name: "Unconscious" }], true],

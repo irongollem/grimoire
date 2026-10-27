@@ -8,6 +8,7 @@ const base = {
   isInSpellbook: false,
 } as const;
 
+// PHB 2014 "Ritual Casting" / 2024 PHB "Ritual Casting"
 describe("ritual casting policy", () => {
   it("never allows a ritual cast without the Ritual tag", () => {
     expect(canCastAsRitual({ ...base, ritualStyle: "known", hasRitualTag: false })).toBe(false);
@@ -31,12 +32,18 @@ describe("ritual casting policy", () => {
     expect(canCastAsRitual({ ...base, ritualStyle: "spellbook_or_prepared", isReadyToCast: false, isInSpellbook: true })).toBe(true);
   });
 
+  it("lets a spellbook-or-prepared caster ritual-cast a prepared spell that is not in the spellbook", () => {
+    expect(canCastAsRitual({ ...base, ritualStyle: "spellbook_or_prepared", isReadyToCast: true, isInSpellbook: false })).toBe(true);
+    expect(canCastAsRitual({ ...base, ritualStyle: "spellbook_or_prepared", isReadyToCast: false, isInSpellbook: false })).toBe(false);
+  });
+
   it("falls back to the edition default for unlisted classes", () => {
     expect(defaultRitualStyle("2014")).toBe("none");
     expect(defaultRitualStyle("2024")).toBe("prepared");
   });
 });
 
+// app convention: when the app may roll a spell effect for the DM.
 describe("spell effect automation", () => {
   it("waits for attack and save outcomes before rolling damage", () => {
     expect(canAutoRollSpellEffect("ranged_spell", "damage")).toBe(false);

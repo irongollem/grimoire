@@ -25,6 +25,7 @@ describe("dyingStatus", () => {
 });
 
 describe("damageOutcome", () => {
+  // PHB 2014 "Dropping to 0 Hit Points"
   it("drops to 0 HP unconscious with clear saves", () => {
     const r = damageOutcome(pc(10), { amount: 12 });
     expect(r.current_hp).toBe(0);
@@ -33,6 +34,7 @@ describe("damageOutcome", () => {
     expect(r.saves).toEqual(fresh);
   });
 
+  // PHB 2014 "Dropping to 0 Hit Points"
   it("kills outright when the remainder equals the HP maximum", () => {
     const r = damageOutcome(pc(10), { amount: 20 });
     expect(r.outcome).toBe("died");
@@ -42,10 +44,6 @@ describe("damageOutcome", () => {
 
   it("does not kill one short of the threshold", () => {
     expect(damageOutcome(pc(10), { amount: 19 }).outcome).toBe("dropped");
-  });
-
-  it("the 28 HP character who takes 70 dies", () => {
-    expect(damageOutcome(pc(28, 28), { amount: 70 }).outcome).toBe("died");
   });
 
   it("temp HP absorbs first, and soaked damage never kills", () => {
@@ -62,6 +60,7 @@ describe("damageOutcome", () => {
     expect(r.conditions).toEqual([]);
   });
 
+  // PHB 2014 "Dropping to 0 Hit Points"
   it("damage at 0 HP is one failure, two on a critical", () => {
     expect(damageOutcome(pc(0, 10, 0, fresh, [{ name: "Unconscious" }]), { amount: 3 }).saves.failures).toBe(1);
     const crit = damageOutcome(pc(0, 10, 0, { successes: 1, failures: 0 }), { amount: 3, critical: true });
@@ -69,6 +68,7 @@ describe("damageOutcome", () => {
     expect(crit.outcome).toBe("dying-worse");
   });
 
+  // PHB 2014 "Dropping to 0 Hit Points"
   it("the third failure from damage kills", () => {
     const r = damageOutcome(pc(0, 10, 0, { successes: 0, failures: 2 }), { amount: 1 });
     expect(r.outcome).toBe("died");
@@ -87,6 +87,7 @@ describe("damageOutcome", () => {
     expect(r.temp_hp).toBe(1);
   });
 
+  // PHB 2014 "Dropping to 0 Hit Points"
   it("a stable creature that is hurt is dying again", () => {
     const r = damageOutcome(pc(0, 10, 0, { successes: 3, failures: 0 }), { amount: 2 });
     expect(r.outcome).toBe("stabilised-broken");
@@ -159,6 +160,7 @@ describe("reviveOutcome and death save rolls", () => {
     expect(reviveOutcome([{ name: "Unconscious" }, { name: "Prone" }])).toEqual({ current_hp: 1, saves: fresh, conditions: [{ name: "Prone" }] });
   });
 
+  // PHB 2014 "Dropping to 0 Hit Points"
   it("rolls follow the book", () => {
     expect(deathSaveRollOutcome(fresh, [{ name: "Unconscious" }], 20)).toMatchObject({ current_hp: 1, conditions: [] });
     expect(deathSaveRollOutcome(fresh, [], 1).saves.failures).toBe(2);
