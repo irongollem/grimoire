@@ -243,12 +243,17 @@ begin
   end if;
 
   -- Both rows locked in id order, so two gives crossing each other cannot deadlock; the
-  -- source is read again under the lock, so its balance below is the one being changed.
+  -- source is read again under the lock and judged again, as give_inventory_item does,
+  -- since a seat or an owner may have changed in between.
   perform 1 from public.party_members
    where id in (p_from_member_id, p_to_member_id)
    order by id
      for update;
   select * into v_from from public.party_members where id = p_from_member_id;
+  if not found or v_from.campaign_id is null
+     or not private.can_write_pack(v_from.campaign_id, v_from.id) then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
 
   if p_to_member_id = p_from_member_id then
     raise exception 'Give the coins to someone else' using errcode = '22023';

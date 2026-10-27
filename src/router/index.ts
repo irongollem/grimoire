@@ -86,7 +86,9 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
 
     // The /play area belongs to player mode; everything else to DM mode.
     const inPlayerArea = isPlayerArea(to.path);
-    const dmManagingMember = auth.isDM && !!to.query.memberId;
+    // The inventory page reads no memberId: a DM opens a character's pack from its
+    // Inventory tab on /party/:id (#1112), so the param must not let them into it.
+    const dmManagingMember = auth.isDM && !!to.query.memberId && to.name !== "play-inventory";
 
     // Player-mode users are redirected away from DM routes...
     if (auth.isAuthenticated && mode === "player" && !inPlayerArea && !to.meta.playerReadable && !modeless) {

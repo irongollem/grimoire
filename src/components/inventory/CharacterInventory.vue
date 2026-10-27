@@ -203,14 +203,18 @@ const appUi = useAppUiStore();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 // `catalogue` is what the add pickers offer, slim (#972); `allItems` is what a carried row
-// resolves in (#961): the player's projection plus the library ids read by id, so a
-// character keeps its weight and details after an edition or book change.
+// resolves in (#961), so a character keeps its weight and details after an edition or
+// book change. The DM (the character tab on /party/:id) reads exactly the carried ids
+// unmasked: the player projection hides an unidentified item's description and an
+// unrevealed curse from every campaign member, the DM included, which would hide the
+// very reveal toggle this tab exists to offer. A player resolves through that gated
+// projection, with library ids read by id. Same split as `useArmorClass`.
 const { data: catalogue } = usePlayerItemPicker();
-const { data: projection } = usePlayerItemProjection();
-const { items: allItems } = useStoredItemRefs(
-  () => (inventory.value ?? []).map(inventoryItemRef),
-  projection,
-);
+const inventoryRefs = computed(() => (inventory.value ?? []).map(inventoryItemRef));
+const { items: dmItems } = useStoredItemRefs(() => (auth.isDM ? inventoryRefs.value : []));
+const { data: projection } = usePlayerItemProjection(() => ({ enabled: !auth.isDM }));
+const { items: playerItems } = useStoredItemRefs(() => (auth.isDM ? [] : inventoryRefs.value), projection);
+const allItems = computed(() => (auth.isDM ? dmItems.value : playerItems.value));
 const toast = useToast();
 
 const resolvedMemberId = computed(() => memberId);

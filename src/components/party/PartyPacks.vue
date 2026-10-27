@@ -60,6 +60,7 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { IconAdd, IconInventory } from "@/lib/icons";
 import { useBelow } from "@/composables/useBreakpoint";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePartyInventory, useRemoveInventoryItem, useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
@@ -89,6 +90,7 @@ const { party } = defineProps<{ party: PartyMember[] }>();
 
 const ui = usePartyUiStore();
 const { confirm } = useConfirm();
+const toast = useToast();
 const { sendItemDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { data: inventory, isLoading, isError } = usePartyInventory();
@@ -98,7 +100,13 @@ const { mutateAsync: removeItem } = useRemoveInventoryItem();
 const stacked = useBelow("sm");
 const adding = ref(false);
 
-const rows = computed(() => inventory.value ?? []);
+// Only the packs drawn here: the stash and the active party. A fallen or retired
+// character's rows have no column, so counting them would put "someone" in the answer
+// and more packs in it than there are on screen.
+const rows = computed(() => {
+  const shown = new Set(party.map((m) => m.id));
+  return (inventory.value ?? []).filter((r) => r.carried_by === null || shown.has(r.carried_by));
+});
 const { items: resolved } = useStoredItemRefs(() => rows.value.map(inventoryItemRef));
 const itemsById = computed(() => new Map<string, Item>(resolved.value.map((i) => [i.id, i] as const)));
 function itemOf(row: PartyInventoryItem): Item | undefined {
@@ -211,8 +219,15 @@ function receive(rowId: string, toMemberId: string | null) {
 
 async function remove(row: PartyInventoryItem) {
   if (!(await confirm(`Remove "${row.name}"?`))) return;
-  await removeItem(row.id);
+  try {
+    await removeItem(row.id);
+  } catch (e) {
+    toast.error(toast.fromError(e, `Couldn't remove "${row.name}".`));
+  }
 }
+
+/** The update reverts itself on failure; this says so instead of leaving it silent. */
+const onUpdateError = { onError: (e: unknown) => toast.error(toast.fromError(e, "Couldn't change that.")) };
 
 async function count(row: PartyInventoryItem, delta: number) {
   const quantity = row.quantity + delta;
@@ -220,11 +235,11 @@ async function count(row: PartyInventoryItem, delta: number) {
     await remove(row);
     return;
   }
-  updateItem({ id: row.id, update: { quantity } });
+  updateItem({ id: row.id, update: { quantity } }, onUpdateError);
 }
 
 function attune(row: PartyInventoryItem) {
-  updateItem({ id: row.id, update: { is_attuned: !row.is_attuned } });
+  updateItem({ id: row.id, update: { is_attuned: !row.is_attuned } }, onUpdateError);
 }
 
 async function dropToChat(row: PartyInventoryItem) {
@@ -235,6 +250,11 @@ async function dropToChat(row: PartyInventoryItem) {
     reportChatFailure(e, "drop the item to the chat");
     return;
   }
-  await removeItem(row.id);
+  try {
+    await removeItem(row.id);
+  } catch (e) {
+    // The drop is already in the chat: say the row is still here, so it is not claimed twice.
+    toast.error(toast.fromError(e, `"${row.name}" is in the chat but is still in the pack. Remove it by hand.`));
+  }
 }
 </script>

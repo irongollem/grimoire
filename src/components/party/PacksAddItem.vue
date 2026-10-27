@@ -110,6 +110,7 @@ import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroa
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { itemRefColumns } from "@/lib/itemRef";
 import type { ItemIndexEntry } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
@@ -119,6 +120,7 @@ const emit = defineEmits<{ close: [] }>();
 
 const router = useRouter();
 const campaign = useCampaignStore();
+const toast = useToast();
 const { sendItemDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
 const { mutateAsync: addInventoryItem, isPending: adding } = useAddInventoryItem();
@@ -172,20 +174,26 @@ async function submit() {
     return;
   }
   const vaultItem = (catalogItems.value ?? []).find((i) => i.id === draft.selectedItemId);
-  await addInventoryItem({
-    name,
-    quantity: draft.quantity,
-    carried_by: draft.carriedBy || null,
-    notes: draft.notes.trim() || null,
-    is_attuned: draft.isAttuned,
-    ...itemRefColumns(draft.selectedItemId),
-    is_equipped: false,
-    location: "backpack",
-    slot: null,
-    is_container: false,
-    container_id: null,
-    is_identified: !vaultItem || vaultItem.rarity === "mundane",
-  });
+  try {
+    await addInventoryItem({
+      name,
+      quantity: draft.quantity,
+      carried_by: draft.carriedBy || null,
+      notes: draft.notes.trim() || null,
+      is_attuned: draft.isAttuned,
+      ...itemRefColumns(draft.selectedItemId),
+      is_equipped: false,
+      location: "backpack",
+      slot: null,
+      is_container: false,
+      container_id: null,
+      is_identified: !vaultItem || vaultItem.rarity === "mundane",
+    });
+  } catch (e) {
+    // Keep the form as typed so the DM can retry.
+    toast.error(toast.fromError(e, `Couldn't add "${name}".`));
+    return;
+  }
   if (campaign.activeCampaignId)
     void sendCampaignAnnouncement(campaign.activeCampaignId, `🎒 Item added to inventory: "${name}"`);
   emit("close");

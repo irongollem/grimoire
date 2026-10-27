@@ -124,7 +124,7 @@
  * offers: moving, and switching an item between plain item and container.
  * A container's own header uses the same menu with `asContainer`.
  */
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import GiveCountPicker from "@/components/inventory/GiveCountPicker.vue";
@@ -201,6 +201,11 @@ function toggleContainer() {
 
 // Only a stack of plain things asks how many; a container goes whole, contents with it.
 const giving = ref<GiveTarget | null>(null);
+// However the menu shuts (a pick, the trigger, a click outside), it reopens on its list,
+// not on a half-finished "How many to X?" for a give that was walked away from.
+watch(open, (isOpen) => {
+  if (!isOpen) giving.value = null;
+});
 
 function give(target: GiveTarget) {
   if (item.quantity > 1 && !asContainer && !item.is_container) {

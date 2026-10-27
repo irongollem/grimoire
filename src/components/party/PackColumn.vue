@@ -32,13 +32,8 @@
           v-if="section.label !== null"
           class="flex items-center justify-between gap-1 px-3"
         >
-          <p class="truncate text-label text-muted-foreground uppercase tracking-wider">
-            <template v-if="section.container">
-              <template v-for="(part, i) in highlightParts(section.label, query)" :key="i">
-                <mark v-if="part.hit" class="packs-mark">{{ part.text }}</mark>
-                <template v-else>{{ part.text }}</template>
-              </template>
-            </template>
+          <p class="truncate text-label text-muted-foreground uppercase">
+            <PackHighlight v-if="section.container" :text="section.label" :query="query" />
             <template v-else>{{ section.label }}</template>
           </p>
           <PackRowMenu
@@ -77,10 +72,7 @@
               :title="rarityTitle(row)"
             />
             <span class="min-w-0 flex-1 truncate text-body text-foreground" :title="row.name">
-              <template v-for="(part, i) in highlightParts(row.name, query)" :key="i">
-                <mark v-if="part.hit" class="packs-mark">{{ part.text }}</mark>
-                <template v-else>{{ part.text }}</template>
-              </template>
+              <PackHighlight :text="row.name" :query="query" />
             </span>
             <span v-if="row.quantity > 1" class="shrink-0 text-caption text-muted-foreground tabular-nums">×{{ row.quantity }}</span>
             <span v-if="row.is_attuned" class="shrink-0 text-caption text-primary" title="Attuned" aria-label="Attuned">✦</span>
@@ -136,9 +128,9 @@ import { RouterLink } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { IconChevronDown, IconInventory } from "@/lib/icons";
-import { highlightParts } from "@/lib/inventory/packSearch";
 import { RARITY_SURFACE_BG, type ItemRarity } from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import PackHighlight from "./PackHighlight.vue";
 import PackRowMenu, { type PackGiveTarget } from "./PackRowMenu.vue";
 
 export interface PackColumnData {
