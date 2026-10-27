@@ -3,54 +3,50 @@
     class="flex flex-wrap items-end gap-2 border-b border-border bg-muted/10 px-4 py-3"
     @submit.prevent="submit"
   >
-    <div class="relative min-w-40 flex-2">
-      <AppInput
-        ref="nameInput"
-        v-model="draft.name"
+    <div ref="nameField" class="flex min-w-40 flex-2">
+      <AppButton
+        v-if="draft.customName"
+        variant="tinted"
         size="body"
-        placeholder="Search the vault or enter a custom name…"
-        aria-label="Item name"
-        required
-        autocomplete="off"
-        @input="onNameInput"
-        @focus="onNameInput"
-        @keydown.escape="dropdownOpen = false"
-        @keydown.down.prevent="focusOption(0)"
+        :icon="IconClose"
+        tone="neutral"
+        emphasis="strong"
+        :label="`${draft.customName} (custom)`"
+        tooltip="Remove the custom name"
+        @click="clearCustom"
       />
-      <div
-        v-if="dropdownOpen && (catalogItems?.length ?? 0) > 0"
-        data-slip
-        class="absolute left-0 top-full z-20 mt-0.5 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg"
+      <EntityCombobox
+        v-else
+        v-model="draft.selectedItemId"
+        :options="catalogItems ?? []"
+        placeholder="Search the vault or enter a custom name…"
+        @update:model-value="onPick"
       >
-        <AppButton
-          v-for="(item, idx) in options"
-          :key="item.id"
-          :ref="(el) => setOptionRef(idx, el)"
-          variant="menu"
-          size="body"
-          block
-          class="items-baseline"
-          @click="pick(item)"
-          @keydown.down.prevent="focusOption(idx + 1)"
-          @keydown.up.prevent="idx === 0 ? undefined : focusOption(idx - 1)"
-          @keydown.escape="dropdownOpen = false"
-        >
-          <span class="truncate">{{ item.name }}</span>
-          <span class="shrink-0 text-caption-sm capitalize text-muted-foreground">{{ item.rarity }}</span>
-        </AppButton>
-        <div v-if="draft.name.trim()" class="border-t border-border">
+        <template #option="{ opt }">
+          <span class="truncate">{{ opt.name }}</span>
+          <span class="shrink-0 text-caption-sm capitalize text-muted-foreground">{{ opt.rarity }}</span>
+        </template>
+        <template #footer="{ query, close }">
+          <AppButton
+            variant="menu"
+            size="body"
+            block
+            :label="`Use &quot;${query}&quot; as a custom item`"
+            @mousedown.prevent
+            @click="useCustom(query, close)"
+          />
           <AppButton
             variant="menu"
             size="body"
             block
             class="text-primary"
             :icon="IconExternalLink"
-            :label="`Create &quot;${draft.name.trim()}&quot; in Vault`"
-            @click="router.push({ path: '/vault/new', query: { name: draft.name.trim(), redirect: '/party' } })"
+            :label="`Create &quot;${query}&quot; in Vault`"
+            @mousedown.prevent
+            @click="router.push({ path: '/vault/new', query: { name: query, redirect: '/party' } })"
           />
-        </div>
-      </div>
-      <div v-if="dropdownOpen" class="fixed inset-0 z-10" @click="dropdownOpen = false" />
+        </template>
+      </EntityCombobox>
     </div>
     <AppInput
       v-model.number="draft.quantity"
@@ -84,7 +80,7 @@
         variant="tinted"
         size="sm"
         label="Drop in Chat"
-        :disabled="!draft.selectedItemId && !draft.name.trim()"
+        :disabled="!itemName"
         tone="caution"
         emphasis="soft"
         @click="dropToChat"
@@ -96,13 +92,13 @@
 
 <script setup lang="ts">
 /** The Packs section's add form: a vault search or a custom name, and whose pack it goes into. */
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
-import { IconExternalLink } from "@/lib/icons";
+import { IconClose, IconExternalLink } from "@/lib/icons";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useItemsByIds } from "@/composables/items/useItemsByIds";
@@ -112,7 +108,6 @@ import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { itemRefColumns } from "@/lib/itemRef";
-import type { ItemIndexEntry } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 
 const { members } = defineProps<{ members: PartyMember[] }>();
@@ -126,8 +121,9 @@ const { reportChatFailure } = useChatSendFailure();
 const { mutateAsync: addInventoryItem, isPending: adding } = useAddInventoryItem();
 const { data: catalogItems } = useItemIndex();
 
-const nameInput = ref<AppInputHandle | null>(null);
-const draft = reactive({ name: "", quantity: 1, carriedBy: "", notes: "", selectedItemId: "", isAttuned: false });
+const nameField = ref<HTMLElement | null>(null);
+// `customName` is a name that is not in the vault; a pick and a custom name exclude each other.
+const draft = reactive({ customName: "", quantity: 1, carriedBy: "", notes: "", selectedItemId: "", isAttuned: false });
 // The picker lists slim index rows; the one picked is read in full for what the index
 // leaves out (whether it needs attunement).
 const { data: pickedItems } = useItemsByIds(() => [draft.selectedItemId]);
@@ -138,42 +134,34 @@ watch(
   },
 );
 
-const dropdownOpen = ref(false);
-const optionRefs = reactive<Record<number, HTMLButtonElement>>({});
-const options = computed((): ItemIndexEntry[] => {
-  const q = draft.name.trim().toLowerCase();
-  const all = catalogItems.value ?? [];
-  return (q ? all.filter((i) => i.name.toLowerCase().includes(q)) : all).slice(0, 8);
-});
+const picked = computed(() => (catalogItems.value ?? []).find((i) => i.id === draft.selectedItemId));
+const itemName = computed(() => draft.customName || picked.value?.name || "");
 
-onMounted(() => nameInput.value?.focus());
+const focusName = () => void nextTick(() => nameField.value?.querySelector("input")?.focus());
+onMounted(focusName);
 
-function onNameInput() {
-  draft.selectedItemId = "";
-  dropdownOpen.value = true;
-}
-function pick(item: ItemIndexEntry) {
-  draft.name = item.name;
-  draft.selectedItemId = item.id;
+function onPick() {
   draft.isAttuned = false;
-  dropdownOpen.value = false;
 }
-function focusOption(idx: number) {
-  optionRefs[idx]?.focus();
+function useCustom(name: string, close: () => void) {
+  draft.customName = name;
+  draft.selectedItemId = "";
+  draft.isAttuned = false;
+  close();
 }
-// AppButton exposes `$el` (the real <button>) through `ref`; unwrap it for `.focus()`.
-function setOptionRef(idx: number, el: unknown) {
-  if (el && typeof el === "object" && "$el" in el) optionRefs[idx] = (el as { $el: HTMLButtonElement }).$el;
+function clearCustom() {
+  draft.customName = "";
+  focusName();
 }
 
 async function submit() {
-  const name = draft.name.trim();
-  if (!name) return;
-  if (!draft.selectedItemId) {
-    router.push({ path: "/vault/new", query: { name, redirect: "/party" } });
+  const name = itemName.value.trim();
+  if (!name) {
+    // Nothing chosen yet: the combobox is not a native required field.
+    focusName();
     return;
   }
-  const vaultItem = (catalogItems.value ?? []).find((i) => i.id === draft.selectedItemId);
+  const vaultItem = picked.value;
   try {
     await addInventoryItem({
       name,
@@ -181,7 +169,7 @@ async function submit() {
       carried_by: draft.carriedBy || null,
       notes: draft.notes.trim() || null,
       is_attuned: draft.isAttuned,
-      ...itemRefColumns(draft.selectedItemId),
+      ...itemRefColumns(vaultItem?.id),
       is_equipped: false,
       location: "backpack",
       slot: null,
@@ -200,9 +188,9 @@ async function submit() {
 }
 
 async function dropToChat() {
-  const name = draft.name.trim();
+  const name = itemName.value.trim();
   if (!name) return;
-  const rarity = (catalogItems.value ?? []).find((i) => i.id === draft.selectedItemId)?.rarity ?? null;
+  const rarity = picked.value?.rarity ?? null;
   try {
     await sendItemDrop(name, draft.selectedItemId || null, draft.quantity, rarity);
   } catch (e) {

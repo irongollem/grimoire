@@ -39,35 +39,12 @@
     <div v-show="open">
       <!-- Inline add form -->
       <form v-if="showAdd" class="px-4 py-2.5 border-b border-border flex items-center gap-2" @submit.prevent="submit">
-        <div class="relative flex-1 min-w-0">
-          <AppInput
-            ref="addInputRef"
-            v-model="addName"
-            type="text"
-            tone="muted"
-            size="body-xs"
-            placeholder="Search vault…"
-            autocomplete="off"
-            :class="addName && !addSelectedId ? 'border-tone-caution/50' : ''"
-            @input="onInput"
-            @focus="onInput"
-            @keydown.escape="showSuggestions = false"
-          />
-          <div
-            v-if="showSuggestions && suggestions.length"
-            data-slip class="absolute left-0 top-full mt-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
-          >
-            <AppButton
-              v-for="it in suggestions"
-              :key="it.id"
-              variant="menu"
-              size="body"
-              block
-              :label="it.name"
-              @click="selectSuggestion(it)"
-            />
-          </div>
-          <div v-if="showSuggestions" class="fixed inset-0 z-10" @click="showSuggestions = false" />
+        <div ref="addFieldRef" class="flex min-w-0 flex-1">
+          <EntityCombobox v-model="addSelectedId" :options="catalogue" :match-text="catalogueText" placeholder="Search vault…">
+            <template #option="{ opt }">
+              <span class="truncate">{{ opt.name }}</span>
+            </template>
+          </EntityCombobox>
         </div>
         <AppButton type="submit" variant="primary" size="xs" label="Add" :disabled="!addSelectedId" />
         <AppButton variant="ghost" size="inline-xs" label="✕" @click="showAdd = false" />
@@ -112,8 +89,7 @@ import { formatWeightLb, parseWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
 import ItemRowMenu, { type GiveTarget, type MoveTarget } from "./ItemRowMenu.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
-import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { inventoryItemRef, contentItemIds, holderItemIds } from "@/lib/itemRef";
 
 const props = defineProps<{
@@ -275,29 +251,19 @@ function onCrossAdd(event: SortEvent) {
   emit('reorder', localItems.value);
 }
 const showAdd = ref(false);
-const addInputRef = ref<AppInputHandle | null>(null);
-const addName = ref("");
+const addFieldRef = ref<HTMLElement | null>(null);
 const addSelectedId = ref("");
 
-watch(showAdd, (v) => { if (v) void nextTick(() => addInputRef.value?.focus()); });
-const showSuggestions = ref(false);
+// EntityCombobox owns its input, so reach it through the wrapper to put the cursor there.
+watch(showAdd, (v) => { if (v) void nextTick(() => addFieldRef.value?.querySelector("input")?.focus()); });
 
-const suggestions = computed((): ItemIndexEntry[] => {
-  const q = addName.value.trim().toLowerCase();
-  if (!q) return props.catalogue.slice(0, 6);
-  return props.catalogue
-    .filter(it => it.name.toLowerCase().includes(q)
-      || it.subtype?.toLowerCase().includes(q)
-      || it.tags.some(tag => tag.toLowerCase().includes(q)))
-    .slice(0, 6);
-});
-
-function onInput() { addSelectedId.value = ""; showSuggestions.value = true; }
-function selectSuggestion(it: ItemIndexEntry) { addName.value = it.name; addSelectedId.value = it.id; showSuggestions.value = false; }
+// The add box finds an item by its subtype or a tag as well as its name ("potion", "ammunition").
+const catalogueText = (it: ItemIndexEntry) => [it.name, it.subtype ?? "", ...it.tags].join(" ");
 
 function submit() {
-  if (!addSelectedId.value) return;
-  emit('add', addName.value.trim(), addSelectedId.value || null);
-  addName.value = ""; addSelectedId.value = ""; showAdd.value = false;
+  const picked = props.catalogue.find((it) => it.id === addSelectedId.value);
+  if (!picked) return;
+  emit('add', picked.name, picked.id);
+  addSelectedId.value = ""; showAdd.value = false;
 }
 </script>

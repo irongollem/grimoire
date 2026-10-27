@@ -36,7 +36,7 @@
 
     <Teleport to="body">
       <ul
-        v-if="open && filtered.length"
+        v-if="open && (filtered.length || hasFooter)"
         data-slip
         :style="dropdownStyle"
         :class="[
@@ -52,6 +52,12 @@
         >
           <slot name="option" :opt="opt">{{ opt.name }}</slot>
         </li>
+        <!-- Caller actions (e.g. "Create X") ride in the list so they open, flip and
+             close with it; the caller's controls use @mousedown.prevent like options do,
+             so the input's blur timer never closes the list under the click. -->
+        <li v-if="hasFooter" class="border-t border-border first:border-t-0 list-none">
+          <slot name="footer" :query="query.trim()" :close="close" />
+        </li>
       </ul>
       <div
         v-else-if="open && query && !filtered.length"
@@ -66,13 +72,13 @@
 </template>
 
 <script setup lang="ts" generic="T extends { id: string; name: string }">
-import { ref, computed, watch, nextTick, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onUnmounted, useSlots } from "vue";
 import { cn } from "@/lib/utils";
 import { fieldVariants } from "./fieldVariants";
 import { IconChevronDown } from '@/lib/icons';
 
 const selectedId = defineModel<string>({ required: true });
-const { options, placeholder = "Search…", dropdownHeight = "sm", selectedLabel: labelHint = null } = defineProps<{
+const { options, placeholder = "Search…", dropdownHeight = "sm", selectedLabel: labelHint = null, matchText } = defineProps<{
   options: T[];
   placeholder?: string;
   /**
@@ -94,6 +100,12 @@ const { options, placeholder = "Search…", dropdownHeight = "sm", selectedLabel
    * them at a time.
    */
   dropdownHeight?: keyof typeof DROPDOWN_HEIGHTS;
+  /**
+   * What a typed query is matched against, when it is more than the name: the
+   * container add field also finds an item by its subtype or a tag ("potion",
+   * "ammunition"). Lower-cased here; the name alone when omitted.
+   */
+  matchText?: (opt: T) => string;
 }>();
 
 /**
@@ -113,6 +125,11 @@ const emit = defineEmits<{
   open: [];
 }>();
 
+const slots = useSlots();
+// A footer is the caller's actions below the options (#1114). It only shows once
+// something is typed, so an empty query lists the catalogue without a stray row.
+const hasFooter = computed(() => !!slots.footer && query.value.trim().length > 0);
+
 const inputEl = ref<HTMLInputElement | null>(null);
 const query   = ref("");
 const open    = ref(false);
@@ -127,7 +144,8 @@ const shownLabel = computed(() => {
 const filtered = computed(() => {
   const q = query.value.toLowerCase().trim();
   if (!q) return options.slice(0, 50);
-  return options.filter(o => o.name.toLowerCase().includes(q)).slice(0, 50);
+  const text = matchText ?? ((o: T) => o.name);
+  return options.filter(o => text(o).toLowerCase().includes(q)).slice(0, 50);
 });
 
 
