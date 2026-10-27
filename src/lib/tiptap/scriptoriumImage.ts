@@ -1,7 +1,7 @@
 /*
  * Scriptorium-flavoured Tiptap Image extension.
  *
- * Adds: width (px), dataAlign (right/left/center → float / centering style),
+ * Adds: width (px, or a percentage string), dataAlign (right/left/center → float / centering style),
  * layoutMode (inline / wrapLeft / wrapRight / absolute), gutterBleed flag, and
  * absolute-position offsets (posTop/posLeft/posRight/posBottom).
  *
@@ -12,6 +12,15 @@
  */
 
 import Image from "@tiptap/extension-image";
+
+/**
+ * A width as CSS: a bare number is pixels, a percentage stays a percentage (the
+ * markdown importer writes "50%" / "100%"; appending "px" gave `width:50%px`).
+ */
+export function cssWidth(width: unknown): string {
+  const value = String(width).trim();
+  return value.endsWith("%") ? value : `${value}px`;
+}
 
 export const ScriptoriumImage = Image.extend({
   addAttributes() {
@@ -46,7 +55,7 @@ export const ScriptoriumImage = Image.extend({
           if (attrs.dataAlign === "right") parts.push("float:right;margin:0 0 10px 14px");
           else if (attrs.dataAlign === "left") parts.push("float:left;margin:0 14px 10px 0");
           else if (attrs.dataAlign === "center") parts.push("display:block;margin:8px auto");
-          if (attrs.width) parts.push(`width:${attrs.width}px`);
+          if (attrs.width) parts.push(`width:${cssWidth(attrs.width)}`);
           return { style: parts.join(";") };
         },
       },
@@ -91,7 +100,7 @@ export const ScriptoriumImage = Image.extend({
         const v = HTMLAttributes[side];
         if (v) wrapperStyle.push(`${side.replace("data-pos-", "")}:${v}`);
       }
-      if (HTMLAttributes.width) wrapperStyle.push(`width:${HTMLAttributes.width}px`);
+      if (HTMLAttributes.width) wrapperStyle.push(`width:${cssWidth(HTMLAttributes.width)}`);
     }
 
     // In wrap/absolute the wrapper owns layout — strip the float style off the img.
