@@ -7,7 +7,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(32);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('11020000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -74,14 +74,8 @@ create function pg_temp.as_user(p_n int) returns void language sql as $$
 $$;
 
 -- ── The column ────────────────────────────────────────────────────────────
--- is_ruined stays one release as a mirror, for bundles loaded before quality existed.
-insert into public.party_inventory (id, campaign_id, user_id, name, is_ruined)
-values ('11020000-0000-4000-8000-0000000000e9', '11020000-0000-4000-8000-0000000000c1', '11020000-0000-4000-8000-000000000001', 'Old copy', true);
-select is((select quality from public.party_inventory where id = '11020000-0000-4000-8000-0000000000e9'),
-  'ruined', 'an old client copying a ruined row keeps it ruined');
-update public.party_inventory set quality = 'poor' where id = '11020000-0000-4000-8000-0000000000e9';
-select is((select is_ruined from public.party_inventory where id = '11020000-0000-4000-8000-0000000000e9'),
-  false, 'is_ruined is rewritten from quality on every write');
+-- quality replaced is_ruined (#1102); the one-release mirror is gone (#1113).
+select hasnt_column('public', 'party_inventory', 'is_ruined', 'is_ruined is gone: quality is the only answer');
 select is((select quality from public.party_inventory where id = '11020000-0000-4000-8000-0000000000d1'),
   'standard', 'a row that names no quality is standard');
 select throws_ok(
