@@ -166,15 +166,15 @@ the "AI Labels" section of the account page and the player settings page).
 That is safe because the label is not the legal duty: the Art 50(2) duty is
 the machine-readable mark, and the switch touches neither a file's mark nor
 its registry row; it hides the label on that viewer's screen only. (Library
-art recorded by the `--library-is-ai` backfill below has a registry row but
+art recorded by the one-off library backfill below has a registry row but
 no mark in its bytes, since it was made before marking began.) With it off, `AiImageBadge` also skips the registry lookup.
 
 **Canonical library art** was made by Dungeon Grimoire with OpenAI's image
 models, mostly before marking began, so its bytes carry no packet.
-`npm run backfill:image-provenance -- --library-is-ai` is a one-off backfill:
-it records the canonical `srd/` images uploaded before 11 Oct 2026 with no
-packet and no row as `openai` / `gpt-image` (the maintainer's call, 10 Oct
-2026). It is bounded by date on purpose, never a rule that unmarked library
+A one-off backfill (its flag has since been removed from
+`scripts/backfill-image-provenance.ts`, having run) recorded the canonical
+`srd/` images uploaded before 11 Oct 2026 with no packet and no row as
+`openai` / `gpt-image` (the maintainer's call, 10 Oct 2026). It is bounded by date on purpose, never a rule that unmarked library
 art is AI: library art may one day be paid artists' work, and theirs must
 never be labelled AI by default. Promo reuse of Chronicler images is labelled at the
 marketing surface.

@@ -394,8 +394,8 @@ registry were recovered from their embedded packet by a one-off scan, so unlike
 text (§5) the image side does have a backfill, limited to images generated
 since marking began. Architecture: `provenance-architecture.md` §6a.
 Canonical library art, made by Dungeon Grimoire before marking began, has no
-packet to recover and is recorded as OpenAI image output by the same script's
-`--library-is-ai`, a one-off backfill bounded to art uploaded before 11 Oct
+packet to recover and was recorded as OpenAI image output by a one-off
+backfill (since removed from the script) bounded to art uploaded before 11 Oct
 2026, so later (possibly human-made) library art is never labelled AI by
 default. The visible label shows on every surface,
 DM screens included, and each viewer may hide it on their own screen; that

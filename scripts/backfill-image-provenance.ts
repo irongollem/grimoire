@@ -34,7 +34,6 @@
  * Usage:
  *   npm run backfill:image-provenance -- --out report.json
  *   npm run backfill:image-provenance -- --write --yes-production
- *   npm run backfill:image-provenance -- --library-is-ai --write --yes-production
  *
  * `--fail-on-dead` (#952) makes the scan a check: after it, exit with status 1 when
  * any referenced image is unreadable, naming each one's bucket, stem and the
@@ -47,26 +46,6 @@
  * reading a mark and would hide a dead `.png` behind a live `.webp`.
  * `npm run check:images` is this, as a dry run.
  *
- * `--library-is-ai` is a one-off backfill of the canonical `srd/` art that
- * existed on 10 Oct 2026: an image that carries no packet, has no row and was
- * uploaded before `LIBRARY_AI_CUTOFF` is recorded as OpenAI image output
- * (`libraryArtProvenance`). That art was made by Dungeon Grimoire with OpenAI's
- * image models, most of it before marking began, so its bytes cannot say so;
- * the maintainer's call (10 Oct 2026). It is bounded by date, not a rule that
- * unmarked library art is AI, because the hope is to pay artists for library
- * art one day and their work must never be labelled AI by default. An image
- * with no Last-Modified cannot be placed before the cutoff and is left alone,
- * and a row already in the registry is never touched. The CDN Worker in front
- * of R2 sends an etag but no Last-Modified, so when the served file carries
- * none the date comes from a signed HEAD on the same object in R2 (the R2_*
- * variables in .env.local; without them the art stays unmarked and the run
- * says so). An R2 time from before the bulk copy is the copy's stamp, which the
- * rule below already records as an unknown date. The recorded date is the
- * Last-Modified of the original a row points at, and only when it postdates the
- * bulk copy into R2 (`R2_COPY_COMPLETED`); any other answer (a guessed sibling
- * extension, a copy-time stamp) records the art as AI with an unknown date. The
- * dry run reports both counts (`libraryArtDatedByOriginal`, `libraryArtDateUnknown`).
- *
  * `--library-owner <uuid>` names the owner of canonical `srd/` art; by default
  * it is the app admin when exactly one exists. `--limit <n>` scans only the
  * first n images (a quick trial).
@@ -78,8 +57,6 @@ import { parseArgs } from "node:util";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { LOCAL_BUCKETS } from "./dev-buckets.data.ts";
 import { pooled } from "./lib/pool.ts";
-import { headObject, type HeadResult } from "../supabase/functions/_shared/r2/client.ts";
-import { r2ConfigFrom, r2ObjectKey } from "../supabase/functions/_shared/r2/config.ts";
 import { readXmpFromJpeg, readXmpFromPng, readXmpFromWebp } from "../supabase/functions/_shared/provenance/embed.ts";
 import { imageProvenanceStem } from "../supabase/functions/_shared/provenance/key.ts";
 import { sniffImageFormat } from "../supabase/functions/_shared/provenance/sniff.ts";
@@ -280,27 +257,6 @@ export function candidatePaths(target: Pick<Target, "originalPaths" | "stem">): 
   return [...new Set([...target.originalPaths, ...ORIGINAL_EXTENSIONS.map((ext) => `${target.stem}.${ext}`)])];
 }
 
-/**
- * The Last-Modified R2 holds for a target: the first candidate path that exists,
- * which is the same object `fetchOriginal` read (the CDN serves R2, in the same
- * order). A HEAD that fails counts as no date for that path, never a crash.
- */
-export async function r2LastModified(
-  target: Pick<Target, "bucket" | "originalPaths" | "stem">,
-  head: (key: string) => Promise<HeadResult | null>,
-): Promise<string | null> {
-  for (const path of candidatePaths(target)) {
-    let found: HeadResult | null;
-    try {
-      found = await head(r2ObjectKey(target.bucket, path));
-    } catch {
-      continue;
-    }
-    if (found) return found.lastModified;
-  }
-  return null;
-}
-
 /** The URL of an object path next to where the target's first URL was stored. */
 function pathUrl(target: Pick<Target, "urlPrefix">, path: string): string {
   return `${target.urlPrefix}${path.split("/").map(encodeURIComponent).join("/")}`;
@@ -390,28 +346,6 @@ export interface PlanEntry {
   previous: AiProvenance | null;
 }
 
-/**
- * What the `--library-is-ai` default actually records: only the library images
- * it labelled whose verdict is insert or correct, the rows `--write` sends. An
- * image labelled AI but stopped at "no owner" is written nowhere and is already
- * listed under `noOwner`, so counting it here would report a backfill as done
- * that wrote nothing.
- */
-export function libraryArtCounts(
-  entries: readonly PlanEntry[],
-  defaulted: ReadonlySet<string>,
-): { libraryArtRecordedAsAi: number; libraryArtDatedByOriginal: number; libraryArtDateUnknown: number } {
-  const recorded = entries.filter(
-    (e) => (e.verdict === "insert" || e.verdict === "correct") && defaulted.has(`${e.bucket}\u0000${e.stem}`),
-  );
-  const unknown = recorded.filter((e) => e.provenance.generatedAt === UNKNOWN_GENERATED_AT).length;
-  return {
-    libraryArtRecordedAsAi: recorded.length,
-    libraryArtDatedByOriginal: recorded.length - unknown,
-    libraryArtDateUnknown: unknown,
-  };
-}
-
 export interface RegisteredRow {
   bucket: string;
   stem: string;
@@ -459,56 +393,6 @@ export function toRegistryRow(entry: PlanEntry): { bucket: string; stem: string;
   return { bucket: entry.bucket, stem: entry.stem, user_id: entry.user_id, provenance: entry.provenance };
 }
 
-/** True for canonical library art, which only the admin can write. */
-export function isLibraryStem(stem: string): boolean {
-  return stem.startsWith("srd/");
-}
-
-/** `--library-is-ai` covers only canonical art uploaded before this instant (see the header). */
-export const LIBRARY_AI_CUTOFF = new Date("2026-10-11T00:00:00Z");
-
-/**
- * The R2 migration (#577) copied every existing object into R2 in bulk and
- * finished on 7 Aug 2026. The CDN serves R2, so an object older than that
- * answers with the copy's Last-Modified, not its upload. A Last-Modified before
- * this instant therefore dates nothing; one after it is a direct upload.
- */
-export const R2_COPY_COMPLETED = new Date("2026-08-08T00:00:00Z");
-
-/** `generatedAt` for art whose generation date cannot be read. The registry only requires the key; the badge omits the "Generated" line for an empty value. */
-export const UNKNOWN_GENERATED_AT = "";
-
-/**
- * The record `--library-is-ai` gives canonical art with no packet: OpenAI image
- * output. Null when the Last-Modified is missing, unreadable or not before the
- * cutoff: that image is not part of the backfill.
- *
- * The date is the object's Last-Modified (its upload, the nearest thing to a
- * generation date the bytes keep) only when that header dates the original:
- * `datesOriginal` is true when it came from an object a row actually points at
- * (not a guessed sibling extension that may be a later re-upload), and the
- * value is after the bulk copy into R2. Otherwise the art is still recorded as
- * AI (it is, and leaving it unlabelled would be the worse error) but with an
- * unknown generation date rather than a wrong one.
- */
-export function libraryArtProvenance(lastModified: string | null, datesOriginal: boolean): AiProvenance | null {
-  const date = lastModified ? new Date(lastModified) : null;
-  if (!date || isNaN(date.getTime()) || date >= LIBRARY_AI_CUTOFF) return null;
-  const dated = datesOriginal && date >= R2_COPY_COMPLETED;
-  return {
-    generatorType: "library-art",
-    provider: "openai",
-    model: "gpt-image",
-    generatedAt: dated ? date.toISOString() : UNKNOWN_GENERATED_AT,
-    edited: false,
-  };
-}
-
-/** True when `url` is one of the objects a row points at, so its headers describe the original and not a guessed sibling. */
-export function isReferencedOriginal(target: Pick<Target, "originalPaths" | "urlPrefix">, url: string): boolean {
-  return target.originalPaths.some((path) => pathUrl(target, path) === url);
-}
-
 /** Reads the AI packet out of image bytes. Null when the image carries none, or is not a known format. */
 export function readProvenanceFromBytes(bytes: Uint8Array): AiProvenance | null {
   const format = sniffImageFormat(bytes);
@@ -528,7 +412,7 @@ export function isLoopbackUrl(url: string): boolean {
 // I/O shell
 
 export type FetchOutcome =
-  | { kind: "bytes"; bytes: Uint8Array; url: string; lastModified: string | null }
+  | { kind: "bytes"; bytes: Uint8Array; url: string }
   | { kind: "missing" }
   | { kind: "error"; message: string };
 
@@ -541,7 +425,7 @@ export async function fetchBytes(url: string): Promise<FetchOutcome> {
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (response.ok) {
-        return { kind: "bytes", bytes: new Uint8Array(await response.arrayBuffer()), url, lastModified: response.headers.get("last-modified") };
+        return { kind: "bytes", bytes: new Uint8Array(await response.arrayBuffer()), url };
       }
       if (response.status === 404 || response.status === 400) return { kind: "missing" };
       message = `HTTP ${response.status}`;
@@ -647,10 +531,8 @@ async function main(): Promise<void> {
       "library-owner": { type: "string" },
       limit: { type: "string" },
       "fail-on-dead": { type: "boolean", default: false },
-      "library-is-ai": { type: "boolean", default: false },
     },
   });
-  const r2 = r2ConfigFrom((name) => process.env[name]);
   const url = process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
@@ -666,9 +548,6 @@ async function main(): Promise<void> {
 
   const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   let libraryOwner: string | null = null;
-  if (values["library-is-ai"] && r2 === null) {
-    console.log("R2_* variables are not set, so library art read through the CDN (which sends no Last-Modified) cannot be dated and stays unmarked.");
-  }
   const explicitOwner = values["library-owner"];
   if (explicitOwner !== undefined) {
     if (!UUID.test(explicitOwner)) throw new Error("--library-owner must be a uuid.");
@@ -692,7 +571,6 @@ async function main(): Promise<void> {
   const unreadable: Report["unreadable"] = [];
   const noOwner: Report["noOwner"] = [];
   let unmarked = 0;
-  const libraryDefaulted = new Set<string>();
   let done = 0;
   await pooled(targets, CONCURRENCY, async (target) => {
     const outcome = await fetchOriginal(target);
@@ -719,16 +597,7 @@ async function main(): Promise<void> {
       unreadable.push({ bucket: target.bucket, stem: target.stem, reason: "404", sources: target.sources, survivor: "sibling", deadPaths });
     }
     const registered = registry.get(`${target.bucket}\u0000${target.stem}`) ?? null;
-    let found = readProvenanceFromBytes(outcome.bytes);
-    if (!found && values["library-is-ai"] && isLibraryStem(target.stem) && !registered) {
-      // The CDN sends no Last-Modified, so a library image read through it is
-      // dated from R2, which holds the same object.
-      const lastModified = outcome.lastModified ?? (r2 === null ? null : await r2LastModified(target, (key) => headObject(r2, key)));
-      found = libraryArtProvenance(lastModified, isReferencedOriginal(target, outcome.url));
-      if (found) {
-        libraryDefaulted.add(`${target.bucket}\u0000${target.stem}`);
-      }
-    }
+    const found = readProvenanceFromBytes(outcome.bytes);
     if (!found) {
       unmarked++;
       return;
@@ -751,7 +620,6 @@ async function main(): Promise<void> {
     referenceDeadSiblingSurvives: categorizeUnreadable(unreadable).referenceDeadSiblingSurvives.length,
     noOwner: count("no-owner"),
     unmarked,
-    ...libraryArtCounts(entries, libraryDefaulted),
   };
   console.log(JSON.stringify(summary, null, 2));
   if (missingColumns.length > 0) console.log(`Columns not found: ${missingColumns.join(", ")}`);

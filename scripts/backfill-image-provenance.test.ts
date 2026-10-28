@@ -9,13 +9,8 @@ import {
   type Unreadable,
   collectTargets,
   IMAGE_COLUMNS,
-  isLibraryStem,
   isLoopbackUrl,
   isVariantPath,
-  isReferencedOriginal,
-  libraryArtProvenance,
-  R2_COPY_COMPLETED,
-  UNKNOWN_GENERATED_AT,
   parseImageUrl,
   planEntry,
   readProvenanceFromBytes,
@@ -23,8 +18,6 @@ import {
   toRegistryRow,
   type RegisteredRow,
   type Target,
-  libraryArtCounts,
-  r2LastModified,
 } from "./backfill-image-provenance";
 import { embedProvenance } from "../supabase/functions/_shared/provenance/embed.ts";
 import type { AiProvenance } from "../supabase/functions/_shared/provenance/types.ts";
@@ -322,117 +315,5 @@ describe("dead image reporting (#952)", () => {
     expect(deadExitCode(true, [renamed])).toBe(1);
     expect(deadExitCode(true, [])).toBe(0);
     expect(deadExitCode(false, [dead, restorable])).toBe(0);
-  });
-});
-
-describe("--library-is-ai", () => {
-  it("applies to canonical srd/ art only", () => {
-    expect(isLibraryStem("srd/3f2a")).toBe(true);
-    expect(isLibraryStem("0b6f5c1e-1111-4222-8333-944455556666/3f2a")).toBe(false);
-    expect(isLibraryStem("srdx/3f2a")).toBe(false);
-    // A root-level object named srd.webp has the stem "srd" and is not in the folder.
-    expect(isLibraryStem("srd")).toBe(false);
-  });
-
-  it("records OpenAI image output dated by the original's own Last-Modified", () => {
-    expect(libraryArtProvenance("Tue, 25 Aug 2026 10:00:00 GMT", true)).toEqual({
-      generatorType: "library-art",
-      provider: "openai",
-      model: "gpt-image",
-      generatedAt: "2026-08-25T10:00:00.000Z",
-      edited: false,
-    });
-  });
-
-  it("does not date art from an object that is not the referenced original", () => {
-    const record = libraryArtProvenance("Tue, 25 Aug 2026 10:00:00 GMT", false);
-    expect(record?.provider).toBe("openai");
-    expect(record?.generatedAt).toBe(UNKNOWN_GENERATED_AT);
-  });
-
-  it("does not date art from a Last-Modified left by the bulk copy into R2", () => {
-    const copied = new Date(R2_COPY_COMPLETED.getTime() - 1000).toUTCString();
-    expect(libraryArtProvenance(copied, true)?.generatedAt).toBe(UNKNOWN_GENERATED_AT);
-  });
-
-  it("leaves out anything uploaded on or after the cutoff, or with no readable date", () => {
-    for (const trusted of [true, false]) {
-      expect(libraryArtProvenance("Sat, 11 Oct 2026 00:00:00 GMT", trusted)).toBeNull();
-      expect(libraryArtProvenance("Mon, 01 Mar 2027 09:00:00 GMT", trusted)).toBeNull();
-      expect(libraryArtProvenance(null, trusted)).toBeNull();
-      expect(libraryArtProvenance("not a date", trusted)).toBeNull();
-    }
-  });
-
-  it("treats only a URL a row points at as the original", () => {
-    const target: Target = {
-      bucket: "monster-images",
-      stem: "srd/abc",
-      originalPaths: ["srd/abc.webp"],
-      urlPrefix: `${ORIGIN}/monster-images/`,
-      owner: null,
-      sources: [],
-    };
-    expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc.webp`)).toBe(true);
-    expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc.png`)).toBe(false);
-    expect(isReferencedOriginal(target, `${ORIGIN}/monster-images/srd/abc_w400.webp`)).toBe(false);
-  });
-});
-
-describe("libraryArtCounts", () => {
-  const prov = (generatedAt: string): AiProvenance => ({
-    generatorType: "library-art",
-    provider: "openai",
-    model: "gpt-image",
-    generatedAt,
-    edited: false,
-  });
-  const entry = (stem: string, verdict: "insert" | "correct" | "skip" | "no-owner", generatedAt: string) => ({
-    bucket: "monster-images",
-    stem,
-    verdict,
-    provenance: prov(generatedAt),
-    user_id: null,
-    previous: null,
-  });
-
-  it("counts only the defaulted images that --write records", () => {
-    const entries = [
-      entry("srd/a", "insert", "2026-08-01T00:00:00.000Z"),
-      entry("srd/b", "correct", ""),
-      entry("srd/c", "no-owner", "2026-08-01T00:00:00.000Z"),
-      entry("srd/d", "skip", "2026-08-01T00:00:00.000Z"),
-      entry("srd/e", "insert", "2026-08-01T00:00:00.000Z"),
-    ];
-    const defaulted = new Set(["srd/a", "srd/b", "srd/c", "srd/d"].map((stem) => `monster-images\u0000${stem}`));
-    expect(libraryArtCounts(entries, defaulted)).toEqual({
-      libraryArtRecordedAsAi: 2,
-      libraryArtDatedByOriginal: 1,
-      libraryArtDateUnknown: 1,
-    });
-  });
-});
-
-describe("r2LastModified", () => {
-  const target = { bucket: "monster-images", originalPaths: ["srd/abc.webp"], stem: "srd/abc" };
-  const head = (found: Record<string, string | null>) => async (key: string) =>
-    key in found ? { size: 1, etag: null, lastModified: found[key] } : null;
-
-  it("dates the same object the CDN served: the first candidate path R2 holds", async () => {
-    const date = "Sat, 03 Oct 2026 21:52:46 GMT";
-    expect(await r2LastModified(target, head({ "monster-images/srd/abc.webp": date }))).toBe(date);
-  });
-
-  it("falls through to a sibling extension only when the referenced file is absent", async () => {
-    const date = "Mon, 05 Oct 2026 10:00:00 GMT";
-    expect(await r2LastModified(target, head({ "monster-images/srd/abc.png": date }))).toBe(date);
-  });
-
-  it("treats a failing HEAD as no date for that path, and nothing found as null", async () => {
-    const failing = async (key: string) => {
-      if (key.endsWith(".webp")) throw new Error("R2 HEAD failed (500)");
-      return null;
-    };
-    expect(await r2LastModified(target, failing)).toBeNull();
   });
 });
