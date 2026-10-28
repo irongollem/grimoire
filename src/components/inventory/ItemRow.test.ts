@@ -30,8 +30,8 @@ function makeItem(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryIt
   };
 }
 
-function mountRow(item: PartyInventoryItem) {
-  return mount(ItemRow, { props: { item, allContainers: [] } });
+function mountRow(item: PartyInventoryItem, extra: Record<string, unknown> = {}) {
+  return mount(ItemRow, { props: { item, allContainers: [], ...extra } });
 }
 
 describe("ItemRow", () => {
@@ -148,5 +148,68 @@ describe("ItemRow", () => {
 
   it("reads a ruined row as ruined", () => {
     expect(mountRow(makeItem({ quality: "ruined" })).find('[data-quality="ruined"]').exists()).toBe(true);
+  });
+});
+
+describe("ItemRow actions and labels", () => {
+  const buttons = (w: ReturnType<typeof mountRow>) => w.findAllComponents({ name: "AppButton" });
+  const byTip = (w: ReturnType<typeof mountRow>, tip: string) => buttons(w).find((b) => b.props("tooltip") === tip)!;
+
+  it("steps the quantity by one, and cannot step a single item down", async () => {
+    const one = mountRow(makeItem({ quantity: 1 }));
+    const [minus, plus] = buttons(one);
+    expect(minus.props("disabled")).toBe(true);
+    await plus.trigger("click");
+    expect(one.emitted("adjust-qty")).toEqual([[one.props("item"), 1]]);
+    const many = mountRow(makeItem({ quantity: 3 }));
+    expect(buttons(many)[0].props("disabled")).toBe(false);
+    await buttons(many)[0].trigger("click");
+    expect(many.emitted("adjust-qty")).toEqual([[many.props("item"), -1]]);
+  });
+
+  it("splits only a stack of more than one", async () => {
+    const single = mountRow(makeItem({ quantity: 1 }));
+    expect(byTip(single, "Split stack").props("disabled")).toBe(true);
+    const stack = mountRow(makeItem({ quantity: 4 }));
+    expect(byTip(stack, "Split stack").props("disabled")).toBe(false);
+    await byTip(stack, "Split stack").trigger("click");
+    expect(stack.emitted("split-stack")).toHaveLength(1);
+  });
+
+  it("shows the stack's total weight only for a stack, and nothing for a weightless item", () => {
+    const stack = mountRow(makeItem({ quantity: 3 }), { weightPerUnit: 2.5 });
+    expect(stack.text()).toContain("2.5 (7.5) lb.");
+    const single = mountRow(makeItem({ quantity: 1 }), { weightPerUnit: 2 });
+    expect(single.text()).toContain("2 lb.");
+    expect(single.text()).not.toContain("(");
+    expect(mountRow(makeItem(), { weightPerUnit: 0 }).text()).not.toContain("lb.");
+  });
+
+  it("marks an attuned item and opens its detail from the name", async () => {
+    const w = mountRow(makeItem({ is_attuned: true }));
+    expect(w.find('[title="Attuned"]').exists()).toBe(true);
+    expect(mountRow(makeItem()).find('[title="Attuned"]').exists()).toBe(false);
+    await w.find("button").trigger("click");
+    expect(w.emitted("open-detail")).toHaveLength(1);
+  });
+
+  it("names who carries it only when the list asks for carriers", () => {
+    const row = makeItem({ carried_by: "pm1" });
+    const members = [{ id: "pm1", name: "Aria" }];
+    expect(mountRow(row, { showCarrier: true, partyMembers: members }).text()).toContain("Aria");
+    expect(mountRow(row, { partyMembers: members }).text()).not.toContain("Aria");
+  });
+
+  it("offers a sale only on a sellable row", async () => {
+    expect(byTip(mountRow(makeItem()), "List for sale")).toBeUndefined();
+    const w = mountRow(makeItem(), { sellable: true });
+    await byTip(w, "List for sale").trigger("click");
+    expect(w.emitted("sell-item")).toHaveLength(1);
+  });
+
+  it("drops to chat from the inline action", async () => {
+    const w = mountRow(makeItem());
+    await byTip(w, "Drop to chat").trigger("click");
+    expect(w.emitted("drop-to-chat")).toHaveLength(1);
   });
 });

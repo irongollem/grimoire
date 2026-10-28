@@ -54,4 +54,46 @@ describe("QuestGraphOutline", () => {
     expect(rows[2]!.classes()).toContain("pl-3.5");
     expect(rows[2]!.find(".border-border").exists()).toBe(true); // stranded: outlined square
   });
+
+  const edge = (id: string, source: string, target: string, route_kind: "choice" | "parallel") =>
+    ({ id, source_beat_id: source, target_beat_id: target, route_kind }) as never;
+  const reach = (r: string, ids: string[] = [], gaps = 0) => ({ reach: r, currentThreadIds: ids, prepGapCount: gaps }) as never;
+  const main = { id: "main", status: "live" as const, created_at: "2026-09-01T00:00:00Z", label: "Main", opened_by_edge_id: null };
+  const side = { id: "side", status: "live" as const, created_at: "2026-09-02T00:00:00Z", label: "Side", opened_by_edge_id: "e1" };
+
+  it("says 'Played' for a visited beat no thread is recorded on, and 'Party is here' with the gap count for a current beat with no thread", () => {
+    const wrapper = mount(QuestGraphOutline, {
+      props: { beats: [beat("a"), beat("b")], presentations: { a: reach("visited"), b: reach("current", [], 2) } },
+    });
+    const rows = wrapper.findAll("li");
+    expect(rows[0]!.text()).toContain("Played");
+    expect(rows[1]!.text()).toContain("Party is here · 2 prep gaps");
+  });
+
+  it("a transition with no thread does not erase which thread walked the beat", () => {
+    const wrapper = mount(QuestGraphOutline, {
+      props: {
+        beats: [beat("a")],
+        presentations: { a: reach("visited") },
+        threads: [main],
+        transitions: [{ to_beat_id: "a", thread_id: "main" } as never, { to_beat_id: "a", thread_id: null } as never],
+      },
+    });
+    expect(wrapper.text()).toContain("Thread A · visited");
+  });
+
+  it("tells which beat opened a parallel thread, and not for a plain choice", () => {
+    const visited = { a: reach("visited"), b: reach("current", ["side"]) };
+    const props = { beats: [beat("a"), beat("b")], presentations: visited, threads: [main, side], transitions: [{ to_beat_id: "a", thread_id: "main" } as never] };
+    const parallel = mount(QuestGraphOutline, { props: { ...props, edges: [edge("e1", "a", "b", "parallel")] } });
+    expect(parallel.findAll("li")[0]!.text()).toContain("Thread A · visited · opened Thread B");
+    const choice = mount(QuestGraphOutline, { props: { ...props, edges: [edge("e1", "a", "b", "choice")] } });
+    expect(choice.findAll("li")[0]!.text()).not.toContain("opened Thread");
+  });
+
+  it("writes '1 prep gap' in the singular", () => {
+    const wrapper = mount(QuestGraphOutline, { props: { beats: [beat("a")], presentations: { a: reach("current", [], 1) } } });
+    expect(wrapper.text()).toContain("1 prep gap");
+    expect(wrapper.text()).not.toContain("1 prep gaps");
+  });
 });

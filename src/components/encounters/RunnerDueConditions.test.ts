@@ -85,6 +85,45 @@ describe("RunnerDueConditions", () => {
     expect(store.dueConditions).toHaveLength(0);
   });
 
+  it("Failed leaves the condition on the combatant but clears the debt; Passed removes it", async () => {
+    const store = useEncounterRunStore();
+    store.combatants = [combatant("h", "Hero", "player", [held])];
+    const w = mount(RunnerDueConditions);
+    await w.findAll("button").find((b) => b.text() === "Failed")!.trigger("click");
+    expect(store.dueConditions).toHaveLength(0);
+    expect(store.combatants[0]!.conditions.map((c) => c.name)).toEqual(["Paralyzed"]);
+  });
+
+  it.each([
+    [{ total: 17, success: true }, "Goblin rolls 17 against DC 14: saved."],
+    [{ total: 9, success: false }, "Goblin rolls 9 against DC 14: still affected."],
+    [{ total: null, success: false }, "Goblin automatically fails the Paralyzed save."],
+  ])("writes the outcome of a rolled save (%j)", async (out, note) => {
+    const store = useEncounterRunStore();
+    store.combatants = [combatant("g", "Goblin", "monster", [held])];
+    rollConditionSave.mockResolvedValue(out);
+    const w = mount(RunnerDueConditions);
+    await w.findAll("button").find((b) => b.text() === "Roll")!.trigger("click");
+    await flushPromises();
+    expect(w.find("[data-testid=due-note]").text()).toBe(note);
+    expect(store.combatants[0]!.conditions).toHaveLength(out.success ? 0 : 1);
+  });
+
+  it("Skip clears ongoing damage owed without touching hit points", async () => {
+    const store = useEncounterRunStore();
+    const burning: AppliedCondition = {
+      name: "Burning",
+      ongoing: { dice: "1d6", type: "fire", at: "start" },
+      due: { damage: true },
+    };
+    store.combatants = [combatant("g", "Goblin", "monster", [burning])];
+    const w = mount(RunnerDueConditions);
+    expect(w.find("[data-testid=due-damage]").text()).toContain("Burning");
+    await w.findAll("button").find((b) => b.text() === "Skip")!.trigger("click");
+    expect(store.dueConditions).toHaveLength(0);
+    expect(store.combatants[0]!.hp).toBe(10);
+  });
+
   describe("concentration checks", () => {
     const hold: AppliedCondition = { name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true } };
 

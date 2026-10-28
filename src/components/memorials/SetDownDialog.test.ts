@@ -51,7 +51,7 @@ const stubs = {
   AppModal: { props: ["open"], template: "<div v-if='open'><slot /></div>" },
   ModalHeader: { props: ["title", "subtitle"], template: "<header><h2>{{ title }}</h2><p>{{ subtitle }}</p></header>" },
   RichTextEditor: { props: ["modelValue"], template: "<div class='rte' />" },
-  MemorialCard: { props: ["memorial"], template: "<div class='card-stub'>{{ memorial.character_name }}|{{ memorial.kind }}|{{ memorial.game_date }}</div>" },
+  MemorialCard: { props: ["memorial"], template: "<div class='card-stub'>{{ memorial.character_name }}|{{ memorial.kind }}|{{ memorial.game_date }}|{{ (memorial.survived_by || []).join('+') }}</div>" },
 };
 
 type RenderProps = {
@@ -141,5 +141,64 @@ describe("SetDownDialog", () => {
       realDate: "2026-05-04",
       lastBlow: null,
     });
+  });
+
+  describe("sends only what the caller's role may write", () => {
+    const doc = (text: string) =>
+      JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+    const earlierFall = () => [
+      { party_member_id: "pm1", account: doc("Held the gate."), last_blow: "a wasp", last_words: doc("Tell Rosie."), created_at: "2026-05-04" } as CharacterMemorial,
+    ];
+
+    it("keeps a DM who retires someone else's character from writing the owner's farewell", async () => {
+      memorialRows.value = earlierFall();
+      const w = render({ mode: "retired", member: member() });
+      await w.find("[data-testid=confirm]").trigger("click");
+      const sent = setDownMutate.mock.calls[0][0];
+      expect(sent.lastWords).toBeNull();
+      expect(sent.account).not.toBeNull();
+    });
+
+    it("sends no last blow for a retirement, even when an earlier fall left one", async () => {
+      memorialRows.value = earlierFall();
+      const w = render({ mode: "retired", member: member() });
+      await w.find("[data-testid=confirm]").trigger("click");
+      expect(setDownMutate.mock.calls[0][0].lastBlow).toBeNull();
+    });
+
+    it("sends a retiring owner no account or blow of the DM's, even when an earlier fall left them", async () => {
+      authState.isDM = false;
+      authState.user = { id: "player-user" };
+      memorialRows.value = earlierFall();
+      const w = render({ mode: "retired", member: member() });
+      await w.find("[data-testid=confirm]").trigger("click");
+      const sent = setDownMutate.mock.calls[0][0];
+      expect(sent.account).toBeNull();
+      expect(sent.lastBlow).toBeNull();
+      expect(sent.lastWords).not.toBeNull();
+      authState.user = { id: "dm-user" };
+    });
+
+    it("edits no last blow into a retired memorial", async () => {
+      const memorial = {
+        id: "m1", party_member_id: "pm1", kind: "retired", game_date: null, real_date: "2026-05-04",
+        account: null, last_blow: "left over", character_name: "Chicory",
+      } as CharacterMemorial;
+      const w = render({ mode: "edit", memorial });
+      await w.find("[data-testid=confirm]").trigger("click");
+      expect(editMutate.mock.calls[0][0].lastBlow).toBeNull();
+    });
+  });
+
+  it("will not submit without a real-world date", async () => {
+    const w = render({ mode: "fallen", member: member() });
+    await w.find("[data-testid=real-date]").setValue("");
+    await w.find("[data-testid=setdown-form]").trigger("submit");
+    expect(setDownMutate).not.toHaveBeenCalled();
+  });
+
+  it("names the party left behind on the card of a fall, not of a retirement", () => {
+    expect(render({ mode: "fallen", member: member() }).find(".card-stub").text()).toContain("|Fresco+Rosie");
+    expect(render({ mode: "retired", member: member() }).find(".card-stub").text().endsWith("|")).toBe(true);
   });
 });

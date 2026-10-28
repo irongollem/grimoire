@@ -70,4 +70,29 @@ describe("WorkbenchSlot", () => {
     expect(mountUsed("poor").find("[data-quality=poor]").exists()).toBe(true);
     expect(mountUsed("standard").find("[data-quality]").exists()).toBe(false);
   });
+  // A critical failure ruins only the primary ingredient and a success spends everything (app convention, maintainer 24 Oct 2026): both read "Used".
+  it("reads a ruined ingredient as used, not as one still held", () => {
+    const w = mountSlot("ruined");
+    expect(w.text()).toContain("Used 2");
+    expect(w.text()).not.toContain("have");
+  });
+
+  it("draws a short stack as a missing dish, since part of what the recipe needs is not there", () => {
+    const dishState = (state: SlotState) => mountSlot(state).findComponent({ name: "WorkbenchDishButton" }).props("dishProps").state;
+    expect(dishState("short")).toBe("missing");
+    expect(dishState("ready")).toBe("ready");
+  });
+
+  it("names a tag slot after the item that will be spent, with the requirement under it", () => {
+    const used = { inv: { id: "r", name: "Wolf Hide", quantity: 2, quality: "standard" }, item: null, reason: null };
+    const tagSlot = slot({ ref: null, tags: ["leather"], name: 'Any "leather"' });
+    const w = mount(WorkbenchSlot, {
+      props: { slot: tagSlot, total: 1, variant: "row", state: "ready", art: benchArtFor("smithing"), material: { sprite: "mat-ingot-iron", filter: null }, used: used as never },
+    });
+    expect(w.text()).toContain("Wolf Hide");
+    expect(w.text()).toContain('Any "leather"');
+    const named = mountSlot("ready");
+    expect(named.text()).toContain("Iron Ingot");
+    expect(named.text().match(/Iron Ingot/g)).toHaveLength(1);
+  });
 });

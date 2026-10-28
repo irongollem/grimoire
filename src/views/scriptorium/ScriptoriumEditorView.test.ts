@@ -25,8 +25,12 @@ vi.mock("vue-router", async (importOriginal) => ({
 
 const mockDocData = ref<Record<string, unknown> | undefined>(undefined);
 const mockIsLoading = ref(false);
+let askedForId: { value: string } | undefined;
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
-  useScriptoriumDocument: () => ({ data: mockDocData, isLoading: mockIsLoading }),
+  useScriptoriumDocument: (id: { value: string }) => {
+    askedForId = id;
+    return { data: mockDocData, isLoading: mockIsLoading };
+  },
 }));
 
 vi.mock("@/components/scriptorium/ScriptoriumReader.vue", () => ({
@@ -96,5 +100,57 @@ describe("ScriptoriumEditorView", () => {
     mockRouteName = "scriptorium-new";
     const wrapper = mountView();
     expect(wrapper.find('[data-testid="gallery"]').exists()).toBe(true);
+  });
+
+  const template = {
+    id: "one-shot", name: "One-shot adventure", description: "", docType: "adventure",
+    build: () => "BUILT-CONTENT",
+    settings: { theme: "onednd2024", pageSize: "letter", isTwoColumn: true, inkFriendly: false, showPageNumbers: true, footerText: "", pageNumberStart: 1, tags: [] },
+  };
+
+  it("an existing document opens in the editor as itself, with no template seed, under its own title", () => {
+    const wrapper = mountView();
+    const editor = wrapper.getComponent({ name: "ScriptoriumEditor" });
+    expect(editor.props("doc")).toMatchObject({ id: "doc-1" });
+    expect(editor.props("seed")).toBeNull();
+    expect(askedForId?.value).toBe("doc-1");
+    expect(wrapper.findComponent({ name: "PageHeader" }).props("title")).toBe("Test Doc");
+  });
+
+  it("a new document asks for no existing one, shows the gallery even while a document read is pending, and seeds the editor from the template chosen", async () => {
+    mockRouteName = "scriptorium-new";
+    mockIsLoading.value = true;
+    mockDocData.value = undefined;
+    const wrapper = mountView();
+    expect(askedForId?.value).toBe("");
+    expect(wrapper.find('[data-testid="gallery"]').exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "LoadingSpinner" }).exists()).toBe(false);
+
+    // Whatever an earlier read left in the cache, a new document does not edit it.
+    mockDocData.value = { id: "stale", title: "Stale", theme: "onednd2024", doc_type: "custom" };
+    mockIsLoading.value = false;
+    wrapper.getComponent({ name: "TemplateGallery" }).vm.$emit("select", template);
+    await wrapper.vm.$nextTick();
+    const editor = wrapper.getComponent({ name: "ScriptoriumEditor" });
+    expect(editor.props("doc")).toBeNull();
+    expect(editor.props("seed")).toEqual({ docType: "adventure", content: "BUILT-CONTENT", settings: template.settings });
+  });
+
+  it("'Choose a different template' goes back to the gallery and drops the seed", async () => {
+    mockRouteName = "scriptorium-new";
+    const wrapper = mountView();
+    wrapper.getComponent({ name: "TemplateGallery" }).vm.$emit("select", template);
+    await wrapper.vm.$nextTick();
+    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Choose a different template")!.trigger("click");
+    expect(wrapper.find('[data-testid="gallery"]').exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "ScriptoriumEditor" }).exists()).toBe(false);
+  });
+
+  it("an existing document that is still loading shows the spinner rather than an empty editor", () => {
+    mockDocData.value = undefined;
+    mockIsLoading.value = true;
+    const wrapper = mountView();
+    expect(wrapper.findComponent({ name: "LoadingSpinner" }).exists()).toBe(true);
+    expect(wrapper.find('[data-testid="editor"]').exists()).toBe(false);
   });
 });

@@ -40,11 +40,11 @@ function makeRouter(): Router {
   });
 }
 
-async function mountAt(path: string) {
+async function mountAt(path: string, withBook: PublicOpenBook = book) {
   const router = makeRouter();
   await router.push(path);
   const wrapper = mount(BookReader, {
-    props: { book },
+    props: { book: withBook },
     attachTo: document.body,
     global: { plugins: [router, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
   });
@@ -143,6 +143,81 @@ describe("BookReader", () => {
     const { wrapper } = await mountAt("/w/salt/atlas/town");
     expect(wrapper.find("button.ob-lift[data-dir='next']").attributes("aria-label")).toBe("Turn to the next page");
     expect(wrapper.findAll("section.ob-page").every((p) => p.attributes("aria-label"))).toBe(true);
+    wrapper.unmount();
+  });
+});
+
+describe("BookReader, what a visitor is and is not given", () => {
+  it("withholds the PDF when the book does not allow it, even though the release has one", async () => {
+    const { wrapper } = await mountAt("/w/salt/contents", { ...book, allow_pdf: false });
+    expect(wrapper.find("a[href='https://example.test/salt.pdf']").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("offers no PDF link when the release has none", async () => {
+    const { wrapper } = await mountAt("/w/salt/contents", { ...book, release: { ...book.release, pdf_url: null } });
+    expect(wrapper.find("a[href*='.pdf']").exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe("BookReader turning", () => {
+  const key = (init: KeyboardEventInit) => document.dispatchEvent(new KeyboardEvent("keydown", init));
+  const touch = (type: string, x: number, y: number, pointerType = "touch") => {
+    const ev = new Event(type, { bubbles: true });
+    Object.defineProperties(ev, { pointerType: { value: pointerType }, clientX: { value: x }, clientY: { value: y } });
+    return ev;
+  };
+
+  it("ignores an arrow pressed with a modifier, so browser shortcuts keep working", async () => {
+    const { router, wrapper } = await mountAt("/w/salt/contents");
+    for (const mod of [{ altKey: true }, { ctrlKey: true }, { metaKey: true }, { shiftKey: true }]) {
+      key({ key: "ArrowRight", ...mod });
+      await flushPromises();
+    }
+    expect(router.currentRoute.value.fullPath).toBe("/w/salt/contents");
+    wrapper.unmount();
+  });
+
+  it("does not turn the page behind an open search slip", async () => {
+    const { router, wrapper } = await mountAt("/w/salt/contents");
+    await wrapper.findAll("button").find((b) => b.attributes("aria-label") === "Search the book" || b.text().includes("Search"))?.trigger("click");
+    await flushPromises();
+    key({ key: "ArrowRight" });
+    await flushPromises();
+    expect(router.currentRoute.value.fullPath).toBe("/w/salt/contents");
+    wrapper.unmount();
+  });
+
+  it("turns forward on a finger swipe left and back on one right", async () => {
+    const { router, wrapper } = await mountAt("/w/salt/atlas/town");
+    const stage = wrapper.get("main.ob-stage").element;
+    stage.dispatchEvent(touch("pointerdown", 300, 100));
+    stage.dispatchEvent(touch("pointerup", 200, 105));
+    await flushPromises();
+    expect(router.currentRoute.value.fullPath).toBe("/w/salt/atlas/stair");
+    stage.dispatchEvent(touch("pointerdown", 100, 100));
+    stage.dispatchEvent(touch("pointerup", 200, 100));
+    await flushPromises();
+    // Back lands on the last turn of the page before.
+    expect(router.currentRoute.value.path).toBe("/w/salt/atlas/town");
+    wrapper.unmount();
+  });
+
+  it("does not turn on a mouse drag, a short swipe or a mostly vertical one", async () => {
+    const { router, wrapper } = await mountAt("/w/salt/atlas/town");
+    const stage = wrapper.get("main.ob-stage").element;
+    const attempts: [string, number, number, number, number][] = [
+      ["mouse", 300, 100, 150, 100],
+      ["touch", 300, 100, 260, 100],
+      ["touch", 300, 100, 200, 190],
+    ];
+    for (const [type, x0, y0, x1, y1] of attempts) {
+      stage.dispatchEvent(touch("pointerdown", x0, y0, type));
+      stage.dispatchEvent(touch("pointerup", x1, y1, type));
+      await flushPromises();
+    }
+    expect(router.currentRoute.value.fullPath).toBe("/w/salt/atlas/town");
     wrapper.unmount();
   });
 });

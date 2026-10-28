@@ -9,15 +9,18 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   party: [] as Array<Pick<PartyMember, "id" | "name" | "ruleset" | "owner_user_id">>,
   active: { id: "c1", ruleset: "2024", allows_mixed_rulesets: false },
+  upsert: vi.fn(),
+  stored: [] as Array<{ rule_key: string; enabled: boolean; config: Record<string, number> | null }>,
+  defs: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("@/composables/rules/useOptionalRules", () => ({
-  useOptionalRules: () => ({ data: { value: [] } }),
-  useUpsertCampaignRule: () => ({ mutateAsync: vi.fn() }),
-  isRuleEffectivelyEnabled: () => false,
-  resolveRuleConfig: () => ({}),
+  useOptionalRules: () => ({ data: { get value() { return mocks.stored; } } }),
+  useUpsertCampaignRule: () => ({ mutateAsync: mocks.upsert }),
+  isRuleEffectivelyEnabled: (rows: typeof mocks.stored, key: string) => rows.find((r) => r.rule_key === key)?.enabled ?? false,
+  resolveRuleConfig: (rows: typeof mocks.stored, key: string) => rows.find((r) => r.rule_key === key)?.config ?? {},
 }));
-vi.mock("@/rules/optionalRules", () => ({ listOptionalRules: () => [] }));
+vi.mock("@/rules/optionalRules", () => ({ listOptionalRules: () => mocks.defs }));
 vi.mock("@/composables/campaign/useCampaigns", () => ({
   useUpdateCampaign: () => ({ mutateAsync: mocks.updateCampaign }),
 }));
@@ -40,6 +43,10 @@ vi.mock("@/composables/useToast", () => ({
 }));
 
 beforeEach(() => {
+  mocks.upsert.mockReset();
+  mocks.stored = [];
+  mocks.defs = [];
+  mocks.active = { id: "c1", ruleset: "2024", allows_mixed_rulesets: false };
   mocks.updateCampaign.mockReset();
   mocks.toastError.mockClear();
   mocks.party = [
@@ -77,5 +84,75 @@ describe("RulesTab", () => {
     await wrapper.find('[role="radio"]:not([aria-checked="true"])').trigger("click");
     await flushPromises();
     expect(mocks.toastError).toHaveBeenCalledWith("nope");
+  });
+});
+
+describe("RulesTab optional rules", () => {
+  const timer = {
+    key: "turn_timer",
+    name: "Turn timer",
+    summary: "A clock on each turn.",
+    config: [{ key: "seconds", label: "Seconds", type: "number", default: 60, min: 10, max: 120, unit: "seconds" }],
+  };
+
+  beforeEach(() => {
+    mocks.party = [];
+    mocks.defs = [timer];
+    mocks.stored = [{ rule_key: "turn_timer", enabled: true, config: { seconds: 45 } }];
+    mocks.upsert.mockResolvedValue(undefined);
+  });
+
+  it("turning a rule off keeps the DM's tuned numbers", async () => {
+    const wrapper = mount(RulesTab);
+    await wrapper.get('button[aria-label="Disable Turn timer"], [aria-label="Disable Turn timer"]').trigger("click");
+    await flushPromises();
+    expect(mocks.upsert).toHaveBeenCalledWith({ ruleKey: "turn_timer", enabled: false, config: { seconds: 45 } });
+  });
+
+  it("shows a rule's settings only while it is on", () => {
+    expect(mount(RulesTab).find('input[type="number"]').exists()).toBe(true);
+    mocks.stored = [{ rule_key: "turn_timer", enabled: false, config: { seconds: 45 } }];
+    expect(mount(RulesTab).find('input[type="number"]').exists()).toBe(false);
+  });
+
+  it.each([
+    ["500", 120],
+    ["3", 10],
+    ["59.6", 60],
+  ])("saves %s seconds as %i, held inside the rule's limits and rounded", async (typed, saved) => {
+    const wrapper = mount(RulesTab);
+    const input = wrapper.get('input[type="number"]');
+    await input.setValue(typed);
+    await input.trigger("change");
+    await flushPromises();
+    expect(mocks.upsert).toHaveBeenCalledWith({ ruleKey: "turn_timer", enabled: true, config: { seconds: saved } });
+  });
+});
+
+describe("RulesTab edition changes", () => {
+  it("does not save when the edition clicked is the one already in force", async () => {
+    mocks.party = [];
+    const wrapper = mount(RulesTab);
+    await wrapper.get('[role="radio"][aria-checked="true"]').trigger("click");
+    await flushPromises();
+    expect(mocks.updateCampaign).not.toHaveBeenCalled();
+  });
+
+  it("saves the other edition on the active campaign", async () => {
+    mocks.party = [];
+    mocks.updateCampaign.mockResolvedValue({ id: "c1" });
+    const wrapper = mount(RulesTab);
+    await wrapper.get('[role="radio"]:not([aria-checked="true"])').trigger("click");
+    await flushPromises();
+    expect(mocks.updateCampaign).toHaveBeenCalledWith({ id: "c1", update: { ruleset: "2014" } });
+  });
+
+  it("saves the both-editions switch as a flag on the campaign", async () => {
+    mocks.party = [];
+    mocks.updateCampaign.mockResolvedValue({ id: "c1" });
+    const wrapper = mount(RulesTab);
+    await wrapper.get('[aria-label="Allow both editions"]').trigger("click");
+    await flushPromises();
+    expect(mocks.updateCampaign).toHaveBeenCalledWith({ id: "c1", update: { allows_mixed_rulesets: true } });
   });
 });

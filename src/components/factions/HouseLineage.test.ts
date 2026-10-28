@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   byFaction: null as null | Record<string, unknown[]>,
   pcs: [] as unknown[],
   toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("vue-router", async (orig) => ({
@@ -40,7 +41,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useLocationNames: () => computed(() => new Map([["loc-1", "Thornkeep"]])),
 }));
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ success: mocks.toastSuccess, error: vi.fn(), fromError: String }),
+  useToast: () => ({ success: mocks.toastSuccess, error: mocks.toastError, fromError: String }),
 }));
 
 const house = (descent: Faction["descent"] = "either"): Faction =>
@@ -64,6 +65,7 @@ describe("HouseLineage", () => {
     mocks.replace.mockReset();
     mocks.push.mockReset();
     mocks.setLine.mockReset().mockResolvedValue(undefined);
+    mocks.toastError.mockReset();
     mocks.npcs = [npc("aldous", "Active", null, "Head of house"), npc("bren"), npc("brenna", "Active", 1), npc("tomas", "Active", 2)];
     mocks.pcs = [];
     mocks.byFaction = null;
@@ -116,6 +118,7 @@ describe("HouseLineage", () => {
     // Starts from the stored line (brenna, tomas); take brenna out, add bren.
     await card(w, "Brenna")?.trigger("click");
     await card(w, "Bren")?.trigger("click");
+    expect(mocks.push).not.toHaveBeenCalled();
     await w.findAll("button").find((b) => b.text() === "Done")?.trigger("click");
     await flushPromises();
     expect(mocks.setLine).toHaveBeenCalledWith({ factionId: "h1", line: [key("tomas"), key("bren")] });
@@ -142,5 +145,50 @@ describe("HouseLineage", () => {
     await w.findAll("button").find((b) => b.text() === "Done")?.trigger("click");
     await flushPromises();
     expect(mocks.setLine).toHaveBeenCalledWith({ factionId: "h2", line: [key("corin")] });
+  });
+
+  const toggle = (w: ReturnType<typeof mountIt>, label: string) => w.find(`button[aria-label="${label}"]`).trigger("click");
+
+  it("the Show toggles hide the dead, the married-in and the PCs", async () => {
+    const w = mountIt();
+    expect(names(w)).toEqual(expect.arrayContaining(["Aldous", "Hesta", "Brenna"]));
+    await toggle(w, "The dead");
+    expect(names(w)).not.toContain("Aldous");
+    expect(names(w)).not.toContain("Hesta");
+    expect(names(w)).toContain("Bren");
+    await toggle(w, "The dead");
+    await toggle(w, "PCs");
+    expect(names(w)).not.toContain("Brenna");
+    expect(names(w)).toContain("Tomas");
+    await toggle(w, "PCs");
+    await toggle(w, "Married in");
+    expect(names(w)).not.toContain("Hesta");
+    expect(names(w)).toContain("Aldous");
+  });
+
+  it("a person the view is centred on stays whatever the toggles hide", async () => {
+    mocks.route.query = { focus: key("aldous") };
+    const w = mountIt();
+    await toggle(w, "The dead");
+    expect(names(w)).toContain("Aldous");
+    expect(names(w)).not.toContain("Hesta");
+  });
+
+  it("names a party member as head when no NPC holds the title", () => {
+    mocks.npcs = [npc("bren")];
+    mocks.pcs = [{ party_member_id: "pc1", status: "Active", role: "Head of house", succession_rank: null, party_member: { name: "Brenna Thane" } }];
+    expect(mountIt().text()).toContain("head: Brenna Thane");
+  });
+
+  it("a failed save toasts the error and stays in the mode with the draft", async () => {
+    mocks.setLine.mockRejectedValue(new Error("write refused"));
+    const w = mountIt();
+    await w.findAll("button").find((b) => b.text() === "Line of succession")?.trigger("click");
+    await w.findAll("button").find((b) => b.text() === "Done")?.trigger("click");
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith("Error: write refused");
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(w.text()).toContain("Setting the line of succession");
+    expect(w.findAll("button").find((b) => b.text() === "Done")?.attributes("disabled")).toBeUndefined();
   });
 });

@@ -28,6 +28,22 @@ describe("AiGeneratedBadge", () => {
     expect(w.text()).toContain("AI-assisted, edited by the DM");
   });
 
+  it.each([
+    [{ model: "gpt-image-2", provider: "openai" }, "Model: gpt-image-2 (openai)"],
+    [{ model: "gpt-image-2" }, "Model: gpt-image-2\n"],
+    [{ model: "gpt-image-2", edited: true }, "Edited by a human afterward"],
+  ])("explains %j in its tooltip", (provenance, expected) => {
+    const title = mountBadge({ variant: "chip", provenance: { ...provenance, generatedAt: "not a date" } }).find("span").attributes("title")!;
+    expect((title + "\n")).toContain(expected);
+    // An unreadable date is left out rather than printed as "Invalid Date".
+    expect(title).not.toContain("Generated:");
+  });
+
+  it("says a model-less record is not edited unless it was", () => {
+    const plain = mountBadge({ variant: "chip", provenance: { provider: "meshy" } }).find("span").attributes("title");
+    expect(plain).not.toContain("Edited");
+  });
+
   it("renders nothing for a null record", () => {
     expect(mountBadge({ variant: "chip", provenance: null }).find("span").exists()).toBe(false);
   });

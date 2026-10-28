@@ -33,6 +33,13 @@ describe("checkDraft", () => {
     expect(checkDraft(draft, "feature").mechanicsErrors.length).toBeGreaterThan(0);
   });
 
+  it("flags a part the parser would silently leave out, such as an emptied list, rather than saving the draft as parsed", () => {
+    const draft = emptyDraft("all");
+    draft.mechanics = { riders: [] };
+    const check = checkDraft(draft, "feature");
+    expect(check.mechanicsErrors).toEqual([expect.stringContaining("incomplete")]);
+  });
+
   it("checks the feat fields only for a feat", () => {
     const draft = emptyDraft("all");
     draft.feat.prerequisites = {};
@@ -48,7 +55,21 @@ describe("checkDraft", () => {
   });
 });
 
+describe("draftFromFeature scope", () => {
+  it("opens a feature with no campaign as available to all campaigns, and keeps a campaign's own", () => {
+    expect(draftFromFeature(feature({ campaign_id: null })).campaignScope).toBe("all");
+    expect(draftFromFeature(feature({ campaign_id: "camp-1" })).campaignScope).toBe("camp-1");
+  });
+});
+
 describe("contentChanged", () => {
+  it("counts flipping a feat's repeatable flag as authoring", () => {
+    const row = feature({ kind: "feat", repeatable: false });
+    const draft = draftFromFeature(row);
+    draft.feat.repeatable = true;
+    expect(contentChanged(row, contentColumns(draft, checkDraft(draft, "feat"), "feat"))).toBe(true);
+  });
+
   it("counts a mechanics edit as authoring and ignores tags", () => {
     const row = feature();
     const draft = draftFromFeature(row);

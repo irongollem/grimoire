@@ -7,6 +7,7 @@ import AdminReportsTab from "./AdminReportsTab.vue";
 const reports = ref<AdminBugReport[]>([]);
 const mutate = vi.fn();
 const text = ref<BugReportText | null>(null);
+const users = ref<{ user_id: string; display_name: string | null; email: string }[]>([]);
 
 vi.mock("@/composables/admin/useAdminBugReports", () => ({
   useAdminBugReports: () => ({ data: reports, isPending: ref(false), isError: ref(false) }),
@@ -14,7 +15,7 @@ vi.mock("@/composables/admin/useAdminBugReports", () => ({
   useAdminBugReportText: () => ({ data: text, isPending: ref(false), isError: ref(false) }),
   useRefileBugReport: () => ({ mutate, isPending: ref(false), variables: ref(undefined) }),
 }));
-vi.mock("@/composables/admin/useAdminUsers", () => ({ useAdminUsers: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/admin/useAdminUsers", () => ({ useAdminUsers: () => ({ data: users }) }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn(), fromError: (_e: unknown, f: string) => f }),
 }));
@@ -37,7 +38,11 @@ function report(overrides: Partial<AdminBugReport>): AdminBugReport {
 const fileButton = (w: ReturnType<typeof mount>, label: string) =>
   w.findAll("button").find((b) => b.text().includes(label));
 
-beforeEach(() => mutate.mockClear());
+beforeEach(() => {
+  mutate.mockClear();
+  users.value = [];
+  text.value = null;
+});
 
 const refused = { claimed_at: null, error: "GitHub refused the token", uncertain: false };
 
@@ -100,5 +105,42 @@ describe("AdminReportsTab: reports GitHub refused", () => {
 
     expect(wrapper.text()).toContain("#1098");
     expect(fileButton(wrapper, "File")).toBeUndefined();
+  });
+  it("names the reporter by display name, else email, else a placeholder while the user list loads", () => {
+    reports.value = [
+      report({ id: "r1", user_id: "u1" }),
+      report({ id: "r2", user_id: "u2" }),
+      report({ id: "r3", user_id: "u3" }),
+    ];
+    users.value = [
+      { user_id: "u1", display_name: "Mira", email: "mira@example.invalid" },
+      { user_id: "u2", display_name: null, email: "tor@example.invalid" },
+    ];
+    const wrapper = mount(AdminReportsTab);
+    const rows = wrapper.text();
+    expect(rows).toContain("Mira");
+    expect(rows).not.toContain("mira@example.invalid");
+    expect(rows).toContain("tor@example.invalid");
+    expect(rows).toContain("…");
+  });
+
+  it("leaves out the fields a reporter left blank", async () => {
+    reports.value = [report({ has_report_text: true, bug_report_filings: refused })];
+    text.value = { where: "Soundboard", action: "   ", expected: "", actual: "Silence" };
+    const wrapper = mount(AdminReportsTab);
+    await fileButton(wrapper, "Show report")!.trigger("click");
+    expect(wrapper.text()).toContain("What actually happened");
+    expect(wrapper.text()).not.toContain("What they were doing");
+    expect(wrapper.text()).not.toContain("What they expected");
+  });
+  it("opens a screenshot and closes it on the second click, one report at a time", async () => {
+    reports.value = [report({ id: "r1", has_screenshot: true }), report({ id: "r2", has_screenshot: true })];
+    const wrapper = mount(AdminReportsTab);
+    await wrapper.findAll("button").filter((b) => b.text() === "Show screenshot")[0].trigger("click");
+    expect(wrapper.findAll("button").filter((b) => b.text() === "Hide screenshot")).toHaveLength(1);
+    await wrapper.findAll("button").filter((b) => b.text() === "Show screenshot")[0].trigger("click");
+    expect(wrapper.findAll("button").filter((b) => b.text() === "Hide screenshot")).toHaveLength(1);
+    await wrapper.findAll("button").find((b) => b.text() === "Hide screenshot")!.trigger("click");
+    expect(wrapper.findAll("button").filter((b) => b.text() === "Hide screenshot")).toHaveLength(0);
   });
 });

@@ -104,6 +104,28 @@ describe("BattleMapVeil", () => {
     expect(painted.calls[painted.calls.length - 1].rect.w).toBe(400);
   });
 
+  it("covers exactly the image when the grid origin sits inside it, not at its corner", () => {
+    // The image starts at x=20 but cell (0,0) starts at x=70, so one whole cell hangs off to the left of the origin.
+    mount(BattleMapVeil, { props: { ...props, originX: 70 } });
+    expect(painted.calls[0].rect).toEqual({ x: 20, y: 10, w: 300, h: 200 });
+    expect(painted.calls[0].gw).toBe(24);
+  });
+
+  it("lets light through a door the DM opened over its drawn state, and stops it again when shut", async () => {
+    // The torch is in cell (0,0); the door is the left edge of cell (1,0). Sample column 6 is x = 1.6, row 2 is y = 0.6.
+    const closedDoor = { edge: "1,0:W", open: false, leaf: null };
+    const w = mount(BattleMapVeil, { props: { ...props, live: snapshot({ lights: [torch], doors: [closedDoor] }) } });
+    const behind = () => {
+      const { grid, gw } = painted.calls[painted.calls.length - 1];
+      return grid[2 * gw + 6];
+    };
+    expect(behind()).toBe(0);
+    await w.setProps({ doorStates: [{ edge: "1,0:W", open: true }] });
+    expect(behind()).toBeGreaterThan(0);
+    await w.setProps({ doorStates: [{ edge: "1,0:W", open: false }] });
+    expect(behind()).toBe(0);
+  });
+
   describe("magical darkness", () => {
     const zones = [{ x: 3.5, y: 2.5, radius: 10 }];
 
@@ -159,6 +181,26 @@ describe("BattleMapVeil", () => {
       const first = painted.player[0].seen;
       await w.setProps({ viewers: [{ ...viewer, x: 3.5 }] });
       expect(painted.player[painted.player.length - 1].seen).not.toBe(first);
+    });
+
+    it.each(["darkvisionFeet", "blindsightFeet", "truesightFeet", "devilsSightFeet"] as const)(
+      "rebuilds the vision when a viewer's %s changes (a stale veil shows a player too little or too much)",
+      async (field) => {
+        const blind = { ...viewer, darkvisionFeet: 0 };
+        const w = mount(BattleMapVeil, { props: { ...props, viewers: [blind] } });
+        const before = painted.player[painted.player.length - 1].seen;
+        await w.setProps({ viewers: [{ ...blind, [field]: 60 }] });
+        expect(painted.player[painted.player.length - 1].seen).not.toBe(before);
+      },
+    );
+
+    it("rebuilds the light grid when a darkness sphere grows in place", async () => {
+      const w = mount(BattleMapVeil, {
+        props: { ...props, live: snapshot({ darkness: "daylight" }), zones: [{ x: 3.5, y: 2.5, radius: 1 }] },
+      });
+      const before = painted.calls[painted.calls.length - 1].grid;
+      await w.setProps({ zones: [{ x: 3.5, y: 2.5, radius: 10 }] });
+      expect(painted.calls[painted.calls.length - 1].grid).not.toBe(before);
     });
 
     it("starts without the grey pictures: none has loaded", () => {

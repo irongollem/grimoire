@@ -123,3 +123,29 @@ describe("temporary hit points, floors and flat riders", () => {
     expect(groups.flatMap((g) => g.lines).join(" ")).toContain("Aura: CHA modifier (minimum 1)");
   });
 });
+
+describe("wording that depends on the data", () => {
+  it("never says a cantrip is free-cast, even if the flag is left on", () => {
+    const lines = summarizeMechanics({
+      choices: [{ key: "k", label: "Spells", pick: { kind: "spell", lists: ["Wizard"], level: 0, free_cast: true }, count: { kind: "per_grant", amount: 1 }, replace_on_level_up: false }],
+    })[0].lines;
+    expect(lines.join(" ")).not.toContain("without a slot");
+  });
+
+  it("says which rest ends a toggle", () => {
+    const toggle = (ends_on: "short_rest" | "long_rest") =>
+      summarizeMechanics({ toggle: { key: "t", label: "Stance", ends_on } })[0].lines[0];
+    expect(toggle("short_rest")).toContain("ends on a short rest");
+    expect(toggle("long_rest")).toContain("ends on a long rest");
+  });
+
+  it("names the armor a feat trains, a shield on its own", () => {
+    expect(describePrerequisites({ armor: "shield" })).toEqual(["Trained with shields"]);
+    expect(describePrerequisites({ armor: "heavy" })).toEqual(["Trained with heavy armor"]);
+  });
+
+  it("calls a single class level by name and a multiple by its factor", () => {
+    expect(describeAmount({ kind: "class_level", multiplier: 1 })).toBe("Class level");
+    expect(describeAmount({ kind: "class_level", multiplier: 2 })).toBe("2 x class level");
+  });
+});

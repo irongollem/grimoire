@@ -35,10 +35,22 @@ describe("TypeChoiceChips", () => {
     expect(w.emitted("pick")?.[0]?.[0]).toMatchObject({ key: "worships", subjectIsFrom: true });
   });
 
-  it("marks the choice a tie already holds", () => {
-    const w = mountPicker({ current: { key: "worships", subjectIsFrom: true } });
-    const worships = w.findAll("button").find((b) => b.text() === "worships")!;
-    expect(worships.attributes("aria-pressed") ?? worships.attributes("data-state") ?? worships.classes().join(" ")).toBeTruthy();
+  it("marks the choice a tie already holds, in the direction it holds it", () => {
+    const chip = (w: ReturnType<typeof mountPicker>, word: string) => w.findAll("button").find((b) => b.text() === word)!;
+    const marked = mountPicker({ current: { key: "worships", subjectIsFrom: true } });
+    // Marked chips differ from unmarked ones only in how they are drawn, so compare against a chip nothing marks.
+    expect(chip(marked, "worships").classes()).not.toEqual(chip(marked, "serves").classes());
+    expect(chip(marked, "serves").classes()).toEqual(chip(mountPicker(), "serves").classes());
+    // The same key held the other way round is a different choice.
+    const reversed = mountPicker({ current: { key: "worships", subjectIsFrom: false } });
+    expect(chip(reversed, "worships").classes()).toEqual(chip(mountPicker(), "worships").classes());
+  });
+
+  it("disables every chip while a write is in flight", () => {
+    const w = mountPicker({ busy: true });
+    const chips = w.findAll("[data-choice]");
+    expect(chips.length).toBeGreaterThan(0);
+    expect(chips.every((b) => b.attributes("disabled") !== undefined)).toBe(true);
   });
 
   it("shows only the list for a pair with no common types", () => {

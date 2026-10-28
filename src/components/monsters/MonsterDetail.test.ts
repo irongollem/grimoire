@@ -58,10 +58,18 @@ vi.mock("@/composables/library/useSourceTitles", () => ({
     labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
   }),
 }));
-vi.mock("@vueuse/core", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@vueuse/core")>()),
-  useMediaQuery: () => false,
-}));
+const viewport = vi.hoisted(() => ({ mobile: false }));
+vi.mock("@vueuse/core", async (importOriginal) => {
+  const { ref: vueRef } = await import("vue");
+  return {
+    ...(await importOriginal<typeof import("@vueuse/core")>()),
+    useMediaQuery: (query: string) => vueRef(viewport.mobile && query.includes("width < 48rem")),
+  };
+});
+
+const confirmMock = vi.hoisted(() => vi.fn());
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: confirmMock }) }));
+vi.mock("@/composables/notes/useDmNote", () => ({ fetchDmNoteColumn: async () => "the stored note" }));
 
 const routerPush = vi.fn();
 const routerReplace = vi.fn();
@@ -277,5 +285,148 @@ describe("MonsterDetail — saves only what changed (#946)", () => {
     await saveFrom(wrapper);
     expect(updateMonster).not.toHaveBeenCalled();
     expect(routerPush).toHaveBeenCalledWith("/monsters");
+  });
+});
+
+describe("MonsterDetail — create, delete, duplicate, customize", () => {
+  const actionBar = (w: ReturnType<typeof mountDetail>) => w.findComponent({ name: "EntityEditorActionBar" });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  beforeEach(() => {
+    for (const m of [createMonster, updateMonster, deleteMonster, cloneLibraryMonster, routerPush, routerReplace, confirmMock]) m.mockReset();
+    createMonster.mockResolvedValue({ id: "new-monster" });
+  });
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("creates a new monster under the trimmed name with an empty DM note, and lands on it", async () => {
+    const w = mountDetail(null);
+    actionBar(w).vm.$emit("update:title", "  Ash Wraith  ");
+    actionBar(w).vm.$emit("save");
+    await settle();
+    expect(createMonster).toHaveBeenCalledWith(expect.objectContaining({ name: "Ash Wraith", notes: null, campaign_id: "campaign-1" }));
+    expect(routerPush).toHaveBeenCalledWith("/monsters/new-monster");
+  });
+
+  it("creates nothing for a nameless monster", async () => {
+    const w = mountDetail(null);
+    actionBar(w).vm.$emit("update:title", "   ");
+    actionBar(w).vm.$emit("save");
+    await settle();
+    expect(createMonster).not.toHaveBeenCalled();
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it("opens the paywall, not an error, when the plan's monster limit refuses the create", async () => {
+    createMonster.mockRejectedValue({ message: "quota_exceeded" });
+    const w = mountDetail(null);
+    actionBar(w).vm.$emit("update:title", "Ash Wraith");
+    actionBar(w).vm.$emit("save");
+    await settle();
+    expect(w.findAllComponents({ name: "PaywallModal" }).find((p) => p.props("resource") === "monsters")?.props("modelValue")).toBe(true);
+    expect(actionBar(w).props("error")).toBe("");
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it("shows why a save failed and stays on the page", async () => {
+    createMonster.mockRejectedValue(new Error("db is down"));
+    const w = mountDetail(null);
+    actionBar(w).vm.$emit("update:title", "Ash Wraith");
+    actionBar(w).vm.$emit("save");
+    await settle();
+    expect(actionBar(w).props("error")).toBe("db is down");
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it("deletes only after the DM confirms, then goes to the list", async () => {
+    confirmMock.mockResolvedValueOnce(false);
+    const w = mountDetail(monster());
+    actionBar(w).vm.$emit("delete");
+    await settle();
+    expect(deleteMonster).not.toHaveBeenCalled();
+    expect(routerPush).not.toHaveBeenCalled();
+
+    confirmMock.mockResolvedValueOnce(true);
+    actionBar(w).vm.$emit("delete");
+    await settle();
+    expect(confirmMock.mock.calls[1]![0]).toContain("Owlbear");
+    expect(deleteMonster).toHaveBeenCalledTimes(1);
+    expect(routerPush).toHaveBeenCalledWith("/monsters");
+  });
+
+  it("duplicates under '(copy)' with the stored note, and goes to the copy", async () => {
+    const w = mountDetail(monster({ name: "Owlbear" }));
+    await w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Duplicate")!.trigger("click");
+    await settle();
+    expect(createMonster).toHaveBeenCalledWith(expect.objectContaining({ name: "Owlbear (copy)", notes: "the stored note" }));
+    expect(routerPush).toHaveBeenCalledWith("/monsters/new-monster");
+  });
+
+  it("customizes a library monster into the DM's own copy and replaces the page with it", async () => {
+    cloneLibraryMonster.mockResolvedValue({ id: "my-copy" });
+    const w = mountDetail(monster({ is_shared: true }));
+    w.findComponent({ name: "LibraryReadOnlyBanner" }).vm.$emit("action");
+    await settle();
+    expect(cloneLibraryMonster).toHaveBeenCalledTimes(1);
+    expect(routerReplace).toHaveBeenCalledWith("/monsters/my-copy");
+  });
+
+  describe("on a phone", () => {
+    beforeEach(() => {
+      viewport.mobile = true;
+    });
+    afterEach(() => {
+      viewport.mobile = false;
+    });
+
+    it("leaves the editor for the list when a new monster is cancelled, and for the read view when an existing one is", () => {
+      const fresh = mountDetail(null);
+      fresh.findComponent({ name: "MonsterEditMobile" }).vm.$emit("cancel");
+      expect(routerPush).toHaveBeenCalledWith("/monsters");
+      expect(routerReplace).not.toHaveBeenCalled();
+      const existing = mountDetail(monster());
+      existing.findComponent({ name: "MonsterEditMobile" }).vm.$emit("cancel");
+      expect(routerReplace).toHaveBeenCalledWith("/monsters/monster-1");
+    });
+  });
+});
+
+describe("MonsterDetail — AI provenance only follows real content edits (#606)", () => {
+  const actionBar = (w: ReturnType<typeof mountDetail>) => w.findComponent({ name: "EntityEditorActionBar" });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  // Given a description, so the only difference between the saves is what the DM changed;
+  // the no-description case has its own test below.
+  const aiMonster = () => monster({ description: "A hooting horror.", ai_provenance: { generatorType: "monster", provider: "openai", model: "m", generatedAt: "t", edited: false } } as Partial<Monster>);
+
+  beforeEach(() => {
+    updateMonster.mockReset();
+  });
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("marks an AI monster edited when its name changes", async () => {
+    const w = mountDetail(aiMonster());
+    actionBar(w).vm.$emit("update:title", "Dire Owlbear");
+    actionBar(w).vm.$emit("save");
+    await settle();
+    expect(updateMonster.mock.calls[0]![0].update.ai_provenance).toMatchObject({ edited: true });
+  });
+
+  it("leaves it as generated when only the tags changed", async () => {
+    const w = mountDetail(aiMonster());
+    w.findComponent({ name: "TagInput" }).vm.$emit("update:modelValue", ["swamp"]);
+    actionBar(w).vm.$emit("save");
+    await settle();
+    expect(updateMonster.mock.calls[0]![0].update).toEqual({ tags: ["swamp"] });
+  });
+
+  it("leaves it as generated when only the tags changed on a monster with no description", async () => {
+    const w = mountDetail(monster({ description: null, ai_provenance: { generatorType: "monster", provider: "openai", model: "m", generatedAt: "t", edited: false } } as Partial<Monster>));
+    w.findComponent({ name: "TagInput" }).vm.$emit("update:modelValue", ["swamp"]);
+    actionBar(w).vm.$emit("save");
+    await settle();
+    expect(updateMonster.mock.calls[0]![0].update).toEqual({ tags: ["swamp"] });
   });
 });

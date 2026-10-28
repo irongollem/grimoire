@@ -5,6 +5,10 @@ import type { PartyMember } from "@/types/party.types";
 import type { Campaign } from "@/types/campaign.types";
 
 const attach = vi.fn();
+const detach = vi.fn();
+const remove = vi.fn();
+const confirmMock = vi.fn();
+const push = vi.fn();
 const toastError = vi.fn();
 const toastInfo = vi.fn();
 const refetchReviews = vi.fn();
@@ -13,8 +17,8 @@ vi.mock("@/composables/memorials/useMemorials", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/composables/memorials/useMemorials")>()),
   useWallMemorials: () => ({ data: { value: { memorials: [] } } }),
 }));
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: confirmMock }) }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ success: vi.fn(), info: toastInfo, error: toastError, fromError: (e: unknown) => String(e) }),
 }));
@@ -26,9 +30,9 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({}) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({}) }));
 vi.mock("@/composables/party/useCharacterPool", () => ({
   useAttachCharacter: () => ({ mutateAsync: attach, isPending: false }),
-  useDetachCharacter: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDetachCharacter: () => ({ mutateAsync: detach, isPending: false }),
   useCloneCharacter: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useDeletePoolCharacter: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeletePoolCharacter: () => ({ mutateAsync: remove, isPending: false }),
 }));
 
 const character = { id: "pm1", name: "Mira", class: "Wizard", level: 3, ruleset: "2024", portrait_url: null } as unknown as PartyMember;
@@ -134,5 +138,62 @@ describe("CharacterPoolCard editions", () => {
       global: { stubs: { FocalImage: true, RulesetBounceDialog: true } },
     });
     expect(wrapper.get("[data-testid='waiting-marker']").text()).toBe("Waiting for approval");
+  });
+});
+
+describe("CharacterPoolCard menu", () => {
+  beforeEach(() => {
+    detach.mockReset().mockResolvedValue(undefined);
+    remove.mockReset().mockResolvedValue(undefined);
+    confirmMock.mockReset();
+    push.mockReset();
+  });
+
+  const attached = () =>
+    mount(CharacterPoolCard, {
+      props: { character, attachedCampaign: open, availableCampaigns: [], waitingCount: 0 },
+      global: { stubs: { FocalImage: true, RulesetBounceDialog: true } },
+    });
+  const menu = (w: ReturnType<typeof mountCard>) => w.findComponent({ name: "OverflowMenu" });
+  const keys = (w: ReturnType<typeof mountCard>) => (menu(w).props("items") as { key: string }[]).map((i) => i.key);
+
+  it("offers detach and copy on an attached character, and edit, copy and delete on a resting one", () => {
+    expect(keys(attached())).toEqual(["detach", "clone"]);
+    expect(keys(mountCard())).toEqual(["edit", "clone", "delete"]);
+  });
+
+  it("does not detach when the confirmation is cancelled, and detaches the right character when confirmed", async () => {
+    const w = attached();
+    confirmMock.mockResolvedValue(false);
+    menu(w).vm.$emit("select", "detach");
+    await flushPromises();
+    expect(detach).not.toHaveBeenCalled();
+
+    confirmMock.mockResolvedValue(true);
+    menu(w).vm.$emit("select", "detach");
+    await flushPromises();
+    expect(detach).toHaveBeenCalledWith("pm1");
+  });
+
+  it("does not delete when the confirmation is cancelled, and deletes the right character when confirmed", async () => {
+    const w = mountCard();
+    confirmMock.mockResolvedValue(false);
+    menu(w).vm.$emit("select", "delete");
+    await flushPromises();
+    expect(remove).not.toHaveBeenCalled();
+
+    confirmMock.mockResolvedValue(true);
+    menu(w).vm.$emit("select", "delete");
+    await flushPromises();
+    expect(remove).toHaveBeenCalledWith("pm1");
+  });
+
+  it("edit opens the character editor for this character", () => {
+    menu(mountCard()).vm.$emit("select", "edit");
+    expect(push).toHaveBeenCalledWith({ name: "play-character-edit", query: { memberId: "pm1" } });
+  });
+
+  it("shows no waiting marker when nothing is benching an attached character", () => {
+    expect(attached().find("[data-testid='waiting-marker']").exists()).toBe(false);
   });
 });

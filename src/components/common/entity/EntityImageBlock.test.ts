@@ -5,21 +5,23 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 
 /**
  * Covers the cutout-slot transparency warning (#917 story 2) and the
- * "Cut out from picture" button (#917 story 5) — every other EntityImageBlock
- * behaviour (AI generation, the Mini entry point, focal point) is exercised
- * indirectly through its callers (MonsterDetail etc.) and stubbed out here.
+ * "Cut out from picture" button (#917 story 5), the AI picture button and the
+ * Mini entry point. The focal point and upload are the child components' own and
+ * are stubbed out here.
  */
 
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const routerPush = vi.fn();
+vi.mock("vue-router", () => ({ useRouter: () => ({ push: routerPush }) }));
 const campaignMock = { isAiEnabled: false, decryptedOpenAiKey: null as string | null };
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => campaignMock,
 }));
+const imageGenerateMock = vi.fn();
 vi.mock("@/ai/useEntityImageGeneration", () => ({
   useEntityImageGeneration: () => ({
     isGenerating: { value: false },
     error: { value: null },
-    generate: vi.fn(),
+    generate: imageGenerateMock,
   }),
 }));
 const cutoutGenerateMock = vi.fn();
@@ -31,7 +33,8 @@ vi.mock("@/ai/useCutoutGeneration", () => ({
   }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
-vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: () => true }) }));
+const requireCreditsMock = vi.fn(() => true);
+vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: requireCreditsMock }) }));
 vi.mock("@/composables/ai/useCampaignProviders", async () => {
   const { ref } = await import("vue");
   return {
@@ -221,5 +224,85 @@ describe("EntityImageBlock — Mini entry point", () => {
   it("is hidden when the campaign has AI disabled", () => {
     campaignMock.isAiEnabled = false;
     expect(miniButton(mountBlock(miniProps))).toBeUndefined();
+  });
+});
+
+describe("EntityImageBlock — AI picture button", () => {
+  const aiProps = { aiKind: "monster", aiContext: "A hollow-eyed owlbear", aiTargetId: "m1" };
+  const aiButton = (wrapper: ReturnType<typeof mountBlock>) => wrapper.findComponent(AppButton);
+
+  beforeEach(() => {
+    campaignMock.isAiEnabled = true;
+    simulacrumVisible.value = false;
+    imageGenerateMock.mockReset();
+    requireCreditsMock.mockReset().mockReturnValue(true);
+    routerPush.mockReset();
+  });
+
+  it.each([
+    ["no aiKind", { aiContext: "x" }, true],
+    ["a blank context", { aiKind: "monster", aiContext: "   " }, true],
+    ["the block disabled", { ...aiProps, disabled: true }, true],
+    ["AI switched off for the campaign", aiProps, false],
+  ])("offers no button with %s", (_why, props, aiOn) => {
+    campaignMock.isAiEnabled = aiOn;
+    expect(mountBlock(props).findAllComponents(AppButton)).toHaveLength(0);
+  });
+
+  it("generates from the context and sets the new picture centred", async () => {
+    imageGenerateMock.mockResolvedValue("https://cdn.example/owlbear.webp");
+    const wrapper = mountBlock(aiProps);
+    await aiButton(wrapper).vm.$emit("click");
+    await flushPromises();
+
+    expect(imageGenerateMock).toHaveBeenCalledWith({ kind: "monster", context: "A hollow-eyed owlbear", targetId: "m1" });
+    expect(wrapper.emitted("update:modelValue")).toEqual([["https://cdn.example/owlbear.webp"]]);
+    expect(wrapper.emitted("update:focalPoint")).toEqual([[{ x: 50, y: 50 }]]);
+  });
+
+  it("changes nothing when the generation fails", async () => {
+    imageGenerateMock.mockResolvedValue(null);
+    const wrapper = mountBlock(aiProps);
+    await aiButton(wrapper).vm.$emit("click");
+    await flushPromises();
+
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+    expect(wrapper.emitted("update:focalPoint")).toBeUndefined();
+  });
+
+  it("does not spend anything when the DM is out of credits", async () => {
+    requireCreditsMock.mockReturnValue(false);
+    const wrapper = mountBlock(aiProps);
+    await aiButton(wrapper).vm.$emit("click");
+    await flushPromises();
+
+    expect(imageGenerateMock).not.toHaveBeenCalled();
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+  });
+
+  it("sends no target when the entity is not saved yet", async () => {
+    imageGenerateMock.mockResolvedValue(null);
+    const wrapper = mountBlock({ aiKind: "monster", aiContext: "x" });
+    await aiButton(wrapper).vm.$emit("click");
+    await flushPromises();
+
+    expect(imageGenerateMock).toHaveBeenCalledWith({ kind: "monster", context: "x", targetId: null });
+  });
+
+  it("the Mini button opens the forge for this record, only once there is a picture to forge from", async () => {
+    simulacrumVisible.value = true;
+    const miniSource = { table: "npcs" as const, id: "n1" };
+    const without = mountBlock({ miniSource, modelValue: null });
+    expect(without.findAllComponents(AppButton).find((b) => b.props("label") === "Mini")).toBeUndefined();
+
+    const withPicture = mountBlock({ miniSource, modelValue: "https://cdn.test/a.webp" });
+    await withPicture.findAllComponents(AppButton).find((b) => b.props("label") === "Mini")!.vm.$emit("click");
+    expect(routerPush).toHaveBeenCalledWith({ path: "/minis/forge", query: { source: "npcs", id: "n1" } });
+  });
+
+  it("the Mini button is hidden when the Mini feature is not visible to this account", () => {
+    simulacrumVisible.value = false;
+    const wrapper = mountBlock({ miniSource: { table: "npcs", id: "n1" }, modelValue: "https://cdn.test/a.webp" });
+    expect(wrapper.findAllComponents(AppButton)).toHaveLength(0);
   });
 });

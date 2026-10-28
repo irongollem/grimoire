@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import type { QuestBoardSummary } from "@/lib/quests/board";
 import type { PartyMember } from "@/types/party.types";
@@ -184,5 +184,61 @@ describe("QuestBoardCard", () => {
     expect(wrapper.text()).toContain("Converges into");
     expect(wrapper.text()).toContain("The Tithe of Ashmouth");
     expect(wrapper.text()).toContain("links out");
+  });
+
+  it("does not flash 'no beats yet' or Draft beats while the summary is still loading", () => {
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "undiscovered" }) }, global });
+    expect(wrapper.text()).not.toContain("no beats yet");
+    expect(wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Draft beats")).toBeUndefined();
+  });
+
+  it("offers Draft beats only on an undiscovered quest, not on an active one with no beats", () => {
+    const noBeats: QuestBoardSummary = { ...summary, isLive: false, beatSegments: [] };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "active" }), summary: noBeats }, global });
+    expect(wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Draft beats")).toBeUndefined();
+  });
+
+  it("dims a failed quest as well as a completed one", () => {
+    const settled: QuestBoardSummary = { ...summary, isLive: false };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "failed" }), summary: settled }, global });
+    expect(wrapper.get("article").classes()).toContain("opacity-[0.72]");
+    expect(mount(QuestBoardCard, { props: { quest: quest({ status: "active" }), summary: settled }, global }).get("article").classes()).not.toContain("opacity-[0.72]");
+  });
+
+  it("counts unclaimed loot when nothing waits to be dropped", () => {
+    const unclaimed: QuestBoardSummary = { ...summary, undispatchedLootCount: 0, unclaimedLootCount: 2 };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest(), summary: unclaimed }, global });
+    expect(wrapper.text()).toContain("2 unclaimed");
+    expect(wrapper.text()).not.toContain("loot to drop");
+  });
+
+  it("initials the shared players by their first two words", () => {
+    const party = [partyMember("pc-1", "Kestrel Vale the Third"), partyMember("pc-2", "bryn")];
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ player_visible_to: ["pc-1", "pc-2"] }), party }, global });
+    expect(wrapper.get('[title="Kestrel Vale the Third"]').text()).toBe("KV");
+    expect(wrapper.get('[title="bryn"]').text()).toBe("B");
+  });
+
+  it("starts a drag carrying the quest id", async () => {
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest() }, global });
+    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
+    await wrapper.get("article").trigger("dragstart", { dataTransfer });
+    expect(wrapper.emitted("dragstart")).toEqual([["quest-1"]]);
+    expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "quest-1");
+  });
+
+  it("paints each thread's current beat in that thread's own colour", () => {
+    const withThreads: QuestBoardSummary = {
+      ...summary,
+      threads: [
+        { id: "t-a", label: "Main", status: "live", currentBeatTitle: "x", beatSegments: ["here"], created_at: "2026-08-01T00:00:00Z" },
+        { id: "t-b", label: "Vault", status: "live", currentBeatTitle: "y", beatSegments: ["here"], created_at: "2026-08-05T00:00:00Z" },
+      ],
+    };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest(), summary: withThreads }, global });
+    const here = wrapper.findAll("span.h-1");
+    expect(here).toHaveLength(2);
+    expect(here[0]?.classes()).not.toContain("bg-muted");
+    expect(here[0]?.classes().join(" ")).not.toBe(here[1]?.classes().join(" "));
   });
 });

@@ -152,4 +152,37 @@ describe("JoinCampaignView", () => {
       expect(mocks.toastInfo).not.toHaveBeenCalled();
     });
   });
+  it("brings no character along and says nothing about approvals when the player has none to bring", async () => {
+    mocks.join.mockResolvedValue({ status: "joined", campaignId: "c1" });
+    mocks.refetchReviews.mockResolvedValue({ data: [{ status: "pending" }] });
+    mountView();
+    await flushPromises();
+    expect(mocks.join).toHaveBeenCalledWith("tok", undefined);
+    expect(mocks.replace).toHaveBeenCalled();
+    expect(mocks.toastInfo).not.toHaveBeenCalled();
+  });
+
+  it("offers only characters that are not already seated at a table", async () => {
+    pool = [
+      { id: "free", name: "Mira", class: "Wizard", level: 3, ruleset: "2024", campaign_id: null },
+      { id: "seated", name: "Oren", class: "Rogue", level: 2, ruleset: "2024", campaign_id: "other-campaign" },
+    ];
+    const wrapper = mountView();
+    await flushPromises();
+    expect(wrapper.find("input[type='radio'][value='free']").exists()).toBe(true);
+    expect(wrapper.find("input[type='radio'][value='seated']").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Oren");
+  });
+
+  it("shows the invite error, not the edition dialog, when an edition refusal arrives with no character chosen", async () => {
+    mocks.join.mockRejectedValue({
+      code: "RS001",
+      message: "This table plays the 2014 rules and does not take 2024 characters",
+      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014" }),
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    expect(wrapper.findComponent({ name: "RulesetBounceDialog" }).exists()).toBe(false);
+    expect(wrapper.text()).toContain("does not take 2024 characters");
+  });
 });

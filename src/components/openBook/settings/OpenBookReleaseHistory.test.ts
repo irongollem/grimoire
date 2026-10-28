@@ -42,3 +42,36 @@ describe("OpenBookReleaseHistory PDFs", () => {
     expect(w.find('[role="alert"]').text()).toBe("PDF export is not set up on this server yet.");
   });
 });
+
+describe("OpenBookReleaseHistory putting a release back", () => {
+  const releases = [release("r2", 2, null), release("r1", 1, null)];
+
+  it("marks the live release and offers Put back on every other", async () => {
+    const w = mount(OpenBookReleaseHistory, { props: { ...props, releases } });
+    expect(w.text()).toContain("Live");
+    const putBack = w.findAll("button").filter((b) => b.text() === "Put back");
+    expect(putBack).toHaveLength(1);
+    await putBack[0]!.trigger("click");
+    expect(w.emitted("putBack")).toEqual([["r1"]]);
+  });
+
+  it("holds Put back while another change is in flight", () => {
+    const w = mount(OpenBookReleaseHistory, { props: { ...props, releases, busy: true } });
+    expect(w.findAll("button").find((b) => b.text() === "Put back")?.attributes("disabled")).toBeDefined();
+  });
+
+  it("says nothing is live when no release is, and says so when there are none", () => {
+    const none = mount(OpenBookReleaseHistory, { props: { ...props, releases: [], liveId: null } });
+    expect(none.text()).toContain("Nothing released yet.");
+    const unlive = mount(OpenBookReleaseHistory, { props: { ...props, releases, liveId: null } });
+    expect(unlive.text()).not.toContain("Live");
+    expect(unlive.findAll("button").filter((b) => b.text() === "Put back")).toHaveLength(2);
+  });
+
+  it("shows a release's own note, or 'No note'", () => {
+    const noted = { ...release("r3", 3, null), note: "Added the harbour" };
+    const w = mount(OpenBookReleaseHistory, { props: { ...props, releases: [noted, release("r1", 1, null)], liveId: null } });
+    expect(w.text()).toContain("Added the harbour");
+    expect(w.text()).toContain("No note");
+  });
+});

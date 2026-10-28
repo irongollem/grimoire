@@ -115,6 +115,12 @@ describe("displayed messages", () => {
   });
 });
 
+describe("a skill label on something other than a system line", () => {
+  it("still counts as a displayed message", () => {
+    expect(isDisplayedMessage({ type: "roll", metadata: { skill_label: "Stealth" } as M["metadata"] })).toBe(true);
+  });
+});
+
 describe("read marker storage", () => {
   beforeEach(() => localStorage.clear());
   it("round-trips per viewer and campaign", () => {

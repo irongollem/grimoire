@@ -33,4 +33,28 @@ describe("QuestBeatComposer", () => {
     await wrapper.get("form").trigger("submit");
     expect(wrapper.emitted("submit")?.[0]?.[0]).toEqual({ title: "Rumour: the Drowned Vault", kind: "neutral", threadLabel: "The Drowned Vault" });
   });
+
+  it("trims the parallel route's thread label", async () => {
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source", parallel: true } });
+    const inputs = wrapper.findAll("input");
+    await inputs[0]!.setValue("Rumour");
+    await inputs[1]!.setValue("  The Drowned Vault  ");
+    await wrapper.get("form").trigger("submit");
+    expect(wrapper.emitted("submit")?.[0]?.[0]).toMatchObject({ threadLabel: "The Drowned Vault" });
+  });
+
+  it("leaving the form does not cancel a beat that already has a title", async () => {
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" } });
+    await wrapper.get("input").setValue("The bargain");
+    await wrapper.get("form").trigger("focusout");
+    expect(wrapper.emitted("cancel")).toBeUndefined();
+  });
+
+  it("moving focus between the form's own fields does not cancel an untitled beat", async () => {
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" }, attachTo: document.body });
+    (wrapper.get("select").element as HTMLSelectElement).focus();
+    await wrapper.get("form").trigger("focusout");
+    expect(wrapper.emitted("cancel")).toBeUndefined();
+    wrapper.unmount();
+  });
 });

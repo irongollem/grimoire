@@ -113,4 +113,34 @@ describe("WorldWebScreen", () => {
     const w = mountScreen();
     expect(w.text()).toContain("Nothing matches.");
   });
+  describe("on a phone, the buttons under the ring", () => {
+    const withPc = [...ties, tie({ row_id: "9", source: "patron_deity", type: "patron_deity", from_kind: "party_member", from_id: "ilse", from_name: "Ilse Thane" })];
+    const openSheet = (w: ReturnType<typeof mountScreen>) =>
+      w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Open sheet");
+
+    it("send a player to the player portal's list, never to a DM sheet, and offer no Connect…", async () => {
+      phone.value = true;
+      const w = mountScreen({ ties: withPc, readonly: true, homeKey: "party_member:ilse" });
+      await flushPromises();
+      expect(openSheet(w)?.props("to")).toBe("/play/party");
+      expect(w.text()).not.toContain("Connect…");
+    });
+
+    it("offer a DM no Connect… on a node that is not a kind of link, such as a quest", async () => {
+      phone.value = true;
+      const quest = tie({ row_id: "q", source: "quest", type: "quest_giver", from_kind: "quest", from_id: "q1", from_name: "The Ferry Bell", to_kind: "deity", status: "active" });
+      const w = mountScreen({ ties: [quest], focusKey: "quest:q1" });
+      await flushPromises();
+      expect(w.find("svg[aria-label^='Everything tied to The Ferry Bell']").exists()).toBe(true);
+      expect(w.text()).not.toContain("Connect…");
+    });
+
+    it("send a DM to the record's own sheet and offer Connect…", async () => {
+      phone.value = true;
+      const w = mountScreen({ ties: withPc, focusKey: "party_member:ilse" });
+      await flushPromises();
+      expect(openSheet(w)?.props("to")).toBe("/party/ilse");
+      expect(w.text()).toContain("Connect…");
+    });
+  });
 });

@@ -1,6 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, ref } from "vue";
+import EntityEmbedView from "./EntityEmbedView.vue";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import ScriptoriumDocumentView from "./ScriptoriumDocumentView.vue";
 import type { ScriptoriumDocument } from "@/types/scriptorium.types";
 
@@ -8,12 +10,13 @@ function flushEditor(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const mocks = vi.hoisted(() => ({ dmData: vi.fn(), playerEmbed: vi.fn() }));
+const mocks = vi.hoisted(() => ({ dmData: vi.fn(), playerEmbed: vi.fn(), push: vi.fn(), confirm: vi.fn() }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mocks.push }),
 }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/scriptorium/useEntityEmbedData", () => ({ useEntityEmbedData: mocks.dmData }));
 vi.mock("@/composables/scriptorium/usePlayerEntityEmbed", () => ({ usePlayerEntityEmbed: mocks.playerEmbed }));
 
@@ -92,5 +95,92 @@ describe("EntityEmbedView audience", () => {
     await flushEditor();
     expect(mocks.dmData).toHaveBeenCalled();
     expect(mocks.playerEmbed).not.toHaveBeenCalled();
+  });
+});
+
+describe("EntityEmbedView theme", () => {
+  it("formats an embedded entity in the document's own theme, for the DM and for a player", async () => {
+    mocks.dmData.mockReturnValue({ lookup: ref({}), isLoading: ref(false) });
+    mount(ScriptoriumDocumentView, { props: { document: { ...makeDoc("monster"), theme: "phb2014" } } });
+    await flushEditor();
+    expect(mocks.dmData.mock.calls[0][1].theme.value).toBe("phb2014");
+
+    mocks.playerEmbed.mockReturnValue({ html: computed(() => null), isLoading: computed(() => false) });
+    mount(ScriptoriumDocumentView, { props: { document: { ...makeDoc("monster"), theme: "phb2014" }, audience: "player" } });
+    await flushEditor();
+    expect(mocks.playerEmbed.mock.calls[0][3]()).toBe("phb2014");
+  });
+});
+
+describe("EntityEmbedView as the DM edits it", () => {
+  const insertContentAt = vi.fn();
+  const chain = { focus: () => chain, insertContentAt: (...args: unknown[]) => { insertContentAt(...args); return chain; }, run: vi.fn() };
+  const updateAttributes = vi.fn();
+
+  beforeEach(() => {
+    insertContentAt.mockReset();
+    updateAttributes.mockReset();
+    mocks.push.mockReset();
+    mocks.confirm.mockReset().mockResolvedValue(true);
+    mocks.dmData.mockReturnValue({ lookup: ref({ "monster:e1": "<h1>Owlbear</h1>" }), isLoading: ref(false) });
+  });
+
+  // The node-view props are Tiptap's own (a live Editor, a ProseMirror node); the view reads only the few members given here.
+  function mountEmbed(attrs: Record<string, unknown> = {}, getPos: () => number | undefined = () => 7) {
+    return mount(EntityEmbedView, {
+      props: {
+        node: { attrs: { entityType: "monster", entityId: "e1", ...attrs }, nodeSize: 1 },
+        editor: { isEditable: true, chain: () => chain },
+        updateAttributes,
+        getPos,
+      } as never,
+      global: { stubs: { NodeViewWrapper: { template: "<div><slot /></div>" }, EmbedRevealControl: true } },
+    });
+  }
+  const tool = (w: ReturnType<typeof mountEmbed>, tooltip: string) =>
+    w.findAllComponents({ name: "AppButton" }).find((b) => b.props("tooltip")?.startsWith(tooltip))!;
+
+  it("switches the art off, on its next press back on, starting from art shown", async () => {
+    const shown = mountEmbed();
+    await tool(shown, "Hide the portrait").trigger("click");
+    expect(updateAttributes).toHaveBeenLastCalledWith({ showArt: false });
+    const hidden = mountEmbed({ showArt: false });
+    await tool(hidden, "Show the portrait").trigger("click");
+    expect(updateAttributes).toHaveBeenLastCalledWith({ showArt: true });
+  });
+
+  it("starts an entry on a new page unless it was set not to", async () => {
+    const fresh = mountEmbed();
+    await tool(fresh, "Start this entry").trigger("click");
+    expect(updateAttributes).toHaveBeenLastCalledWith({ startsPage: false });
+    const following = mountEmbed({ startsPage: false });
+    await tool(following, "Start this entry").trigger("click");
+    expect(updateAttributes).toHaveBeenLastCalledWith({ startsPage: true });
+  });
+
+  it("opens a monster by its page and a location by its place route", async () => {
+    await tool(mountEmbed(), "Open").trigger("click");
+    expect(mocks.push).toHaveBeenLastCalledWith("/monsters/e1");
+    await tool(mountEmbed({ entityType: "location" }), "Open").trigger("click");
+    expect(mocks.push).toHaveBeenLastCalledWith(placeRoute("e1"));
+  });
+
+  it("keeps the link when the detach is cancelled, and when the block has no position", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    await tool(mountEmbed(), "Detach").trigger("click");
+    await flushEditor();
+    expect(insertContentAt).not.toHaveBeenCalled();
+    mocks.confirm.mockResolvedValue(true);
+    await tool(mountEmbed({}, () => undefined), "Detach").trigger("click");
+    await flushEditor();
+    expect(insertContentAt).not.toHaveBeenCalled();
+  });
+
+  it("detaches into the content it was showing, in the block's place", async () => {
+    await tool(mountEmbed(), "Detach").trigger("click");
+    await flushEditor();
+    expect(insertContentAt).toHaveBeenCalledTimes(1);
+    expect(insertContentAt.mock.calls[0][0]).toEqual({ from: 7, to: 8 });
+    expect(insertContentAt.mock.calls[0][1]).toContain("Owlbear");
   });
 });

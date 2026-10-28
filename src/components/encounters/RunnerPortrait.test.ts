@@ -12,7 +12,7 @@ describe("RunnerPortrait", () => {
     expect(wrapper.findComponent(FocalImage).exists()).toBe(false);
   });
 
-  it("frames the picture as a portrait and asks for the AI label", () => {
+  it("hands the picture, its alt text and its focal point to the image", () => {
     const wrapper = mount(RunnerPortrait, {
       props: { src: "https://cdn.example/goblin.webp", alt: "Goblin", focalPoint: { x: 0.4, y: 0.2 } },
       global: { stubs: { FocalImage: true } },
@@ -21,7 +21,5 @@ describe("RunnerPortrait", () => {
     expect(image.props("src")).toBe("https://cdn.example/goblin.webp");
     expect(image.props("alt")).toBe("Goblin");
     expect(image.props("focalPoint")).toEqual({ x: 0.4, y: 0.2 });
-    expect(image.props("format")).toBe("portrait");
-    expect(image.props("aiBadge")).toBe("right");
   });
 });

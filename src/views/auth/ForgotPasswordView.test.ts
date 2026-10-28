@@ -70,4 +70,12 @@ describe("ForgotPasswordView", () => {
     expect(wrapper.text()).not.toContain(SENT);
     expect(wrapper.text()).toContain("Could not reach the server");
   });
+  it("drops the earlier failure message when the next attempt goes through", async () => {
+    mocks.requestPasswordReset.mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce();
+    const wrapper = await submit();
+    expect(wrapper.text()).toContain("Could not reach the server");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("Could not reach the server");
+  });
 });

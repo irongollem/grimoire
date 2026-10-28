@@ -177,6 +177,34 @@ describe("ModalHeader", () => {
     wrapper.unmount();
   });
 
+  // Two headers in one dialog (a step and a sub-step): the later one names it, and
+  // the earlier one leaving must not strip the name and description from the one left.
+  it("keeps the remaining header's name and description when another header in the dialog goes away", async () => {
+    const showFirst = ref(true);
+    const Host = defineComponent({
+      setup: () => () =>
+        h(AppModal, { open: true }, {
+          default: () => [
+            showFirst.value ? h(ModalHeader, { key: "a", title: "First", subtitle: "First note" }) : null,
+            h(ModalHeader, { key: "b", title: "Second", subtitle: "Second note" }),
+          ],
+        }),
+    });
+    const wrapper = mount(Host, { attachTo: document.body, global: { stubs: { transition: false } } });
+    await nextTick();
+
+    showFirst.value = false;
+    await nextTick();
+    await nextTick();
+
+    const heading = panel()!.querySelector("h2")!;
+    expect(heading.textContent?.trim()).toBe("Second");
+    expect(panel()!.getAttribute("aria-labelledby")).toBe(heading.id);
+    const note = [...panel()!.querySelectorAll("p")].find((p) => p.textContent?.includes("Second note"))!;
+    expect(panel()!.getAttribute("aria-describedby")).toBe(note.id);
+    wrapper.unmount();
+  });
+
   // Outside a modal there is nothing to register with; it must not throw.
   it("works as a plain heading block outside a modal", () => {
     const wrapper = mount(ModalHeader, { props: { title: "Standalone" } });

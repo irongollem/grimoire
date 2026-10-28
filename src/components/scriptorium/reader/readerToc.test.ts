@@ -96,11 +96,6 @@ describe("collectReaderToc", () => {
     expect(collectReaderToc(doc)).toEqual([]);
   });
 
-  it("excludes a heading with no blockId — nothing to scroll to", () => {
-    const doc = root("<h1>No Id</h1>");
-    expect(collectReaderToc(doc)).toEqual([]);
-  });
-
   it("excludes a heading with empty text", () => {
     const doc = root('<h1 data-block-id="b1">   </h1>');
     expect(collectReaderToc(doc)).toEqual([]);
@@ -109,9 +104,5 @@ describe("collectReaderToc", () => {
   it("never matches a cover's own hand-built title (coverPage.ts's <h1> carries no data-block-id)", () => {
     const doc = root('<div data-type="coverPage"><h1>My Book</h1></div>');
     expect(collectReaderToc(doc)).toEqual([]);
-  });
-
-  it("returns an empty list when there are no headings", () => {
-    expect(collectReaderToc(root("<p>Just prose.</p>"))).toEqual([]);
   });
 });

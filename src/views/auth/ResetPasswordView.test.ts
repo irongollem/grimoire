@@ -89,4 +89,26 @@ describe("ResetPasswordView", () => {
     expect(mocks.updateUser).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("The passwords do not match.");
   });
+  it("shows why the update failed, signs nobody out and stays on the page", async () => {
+    mocks.updateUser.mockResolvedValue({ error: new Error("New password should be different from the old one.") });
+
+    const wrapper = await submit();
+
+    expect(wrapper.text()).toContain("New password should be different from the old one.");
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it("clears the mismatch message on the next attempt", async () => {
+    mocks.updateUser.mockResolvedValue({ error: null });
+    mocks.signOut.mockResolvedValue({ error: null });
+    const wrapper = await submit(ENTRY, MISMATCH);
+    expect(wrapper.text()).toContain("The passwords do not match.");
+    await wrapper.find("#password-confirm").setValue(ENTRY);
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("The passwords do not match.");
+    expect(mocks.updateUser).toHaveBeenCalledTimes(1);
+  });
 });

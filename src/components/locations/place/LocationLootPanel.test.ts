@@ -148,5 +148,7 @@ describe("LocationLootPanel", () => {
     expect(wrapper.find('[data-testid="location-loot-form"]').exists()).toBe(false);
     await openForm(wrapper);
     expect(wrapper.find('[data-testid="location-loot-form"]').exists()).toBe(true);
+    // The form stays; the button that opened it goes.
+    expect(wrapper.findAllComponents({ name: "AppButton" }).some((b) => b.props("label") === "Add loot")).toBe(false);
   });
 });

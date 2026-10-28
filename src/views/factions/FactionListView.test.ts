@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { reactive, ref, computed, defineComponent, h } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FactionListView from "./FactionListView.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Faction } from "@/types/faction.types";
@@ -34,13 +34,17 @@ function faction(overrides: Partial<Faction> = {}): Faction {
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const factionsData = ref<Faction[]>([]);
+const populate = vi.hoisted(() => vi.fn());
+const updateFaction = vi.hoisted(() => vi.fn());
+const settingFlag = vi.hoisted(() => ({ has: false }));
+const quotaFlag = vi.hoisted(() => ({ isQuota: (_e: unknown): boolean => false }));
 vi.mock("@/composables/factions/useFactions", () => ({
   useAllFactions: () => ({ data: factionsData, isLoading: ref(false) }),
-  usePopulateFactions: () => ({ isPending: ref(false), mutateAsync: vi.fn() }),
-  useUpdateFaction: () => ({ mutate: vi.fn() }),
+  usePopulateFactions: () => ({ isPending: ref(false), mutateAsync: populate }),
+  useUpdateFaction: () => ({ mutate: updateFaction }),
 }));
 
-vi.mock("@/settings/index", () => ({ getSetting: () => null }));
+vi.mock("@/settings/index", () => ({ getSetting: () => (settingFlag.has ? { id: "faerun" } : null) }));
 
 const ui = {
   factionsSearch: "",
@@ -67,7 +71,7 @@ vi.mock("@/composables/billing/useCreateGate", () => ({
     canCreate: ref(true),
     showPaywall: ref(false),
     handleNew: vi.fn(),
-    gateQuotaError: () => false,
+    gateQuotaError: (e: unknown) => quotaFlag.isQuota(e),
   }),
 }));
 
@@ -340,5 +344,109 @@ describe("FactionListView — AI off", () => {
     aiFlag.on = true;
     expect(generateButton(mountView())).toBeDefined();
     aiFlag.on = false;
+  });
+});
+
+describe("FactionListView — finding factions and populating a setting", () => {
+  beforeEach(() => {
+    ui.factionsSearch = "";
+    ui.factionsFilterType = "";
+    populate.mockReset();
+    updateFaction.mockReset();
+    settingFlag.has = false;
+    quotaFlag.isQuota = () => false;
+    factionsData.value = [
+      faction({ id: "f1", name: "The Iron Circle", faction_type: "Guild", tags: ["smiths"] }),
+      faction({ id: "f2", name: "Ravens of the Vale", faction_type: "Cult", tags: ["spies"] }),
+      faction({ id: "f3", name: "House Thane", faction_type: "House", tags: [] }),
+    ];
+  });
+  afterEach(() => {
+    ui.factionsSearch = "";
+    ui.factionsFilterType = "";
+  });
+  const shown = async () => {
+    const wrapper = mountView();
+    await flushMicrotasks();
+    return wrapper.findAll(".stub-card").length;
+  };
+  const populateButton = (w: ReturnType<typeof mountView>) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label")?.toString().match(/Populate|Added|Already|Error|Populating/));
+
+  it("with no search or type chosen, every faction is listed", async () => {
+    expect(await shown()).toBe(3);
+  });
+
+  it("the type filter keeps only that type", async () => {
+    ui.factionsFilterType = "Cult";
+    expect(await shown()).toBe(1);
+  });
+
+  it.each([
+    ["part of a name, ignoring case", "RAVENS", 1],
+    ["a tag", "smith", 1],
+    ["surrounding spaces", "  thane  ", 1],
+    ["nothing that exists", "dragon", 0],
+  ])("a search for %s", async (_name, query, expected) => {
+    ui.factionsSearch = query;
+    expect(await shown()).toBe(expected);
+  });
+
+  it("the search and the type filter narrow together", async () => {
+    // "the" alone matches two factions; the type then picks one of them.
+    ui.factionsSearch = "the";
+    ui.factionsFilterType = "Cult";
+    expect(await shown()).toBe(1);
+  });
+
+  it("offers Populate Setting only when the campaign's setting has factions to add", () => {
+    expect(populateButton(mountView())).toBeUndefined();
+    settingFlag.has = true;
+    expect(populateButton(mountView())?.props("label")).toBe("Populate Setting");
+  });
+
+  it.each([
+    [2, "Added 2 factions"],
+    [1, "Added 1 faction"],
+    [0, "Already up to date"],
+  ])("populating that adds %i says %j", async (count, label) => {
+    settingFlag.has = true;
+    populate.mockResolvedValue(count);
+    const wrapper = mountView();
+    await populateButton(wrapper)!.trigger("click");
+    await flushMicrotasks();
+    expect(populateButton(wrapper)?.props("label")).toBe(label);
+  });
+
+  it("a failed populate shows its reason, or 'Unknown error' for a rejection that is not an Error, and the next try clears it", async () => {
+    settingFlag.has = true;
+    populate.mockRejectedValueOnce(new Error("Setting unavailable")).mockRejectedValueOnce("nope").mockResolvedValue(0);
+    const wrapper = mountView();
+    await populateButton(wrapper)!.trigger("click");
+    await flushMicrotasks();
+    expect(populateButton(wrapper)?.props("label")).toBe("Error: Setting unavailable");
+    await populateButton(wrapper)!.trigger("click");
+    await flushMicrotasks();
+    expect(populateButton(wrapper)?.props("label")).toBe("Error: Unknown error");
+    await populateButton(wrapper)!.trigger("click");
+    await flushMicrotasks();
+    expect(populateButton(wrapper)?.props("label")).toBe("Already up to date");
+  });
+
+  it("a populate stopped by the free-tier cap shows the paywall's route, not a raw error", async () => {
+    settingFlag.has = true;
+    quotaFlag.isQuota = () => true;
+    populate.mockRejectedValue({ message: "quota_exceeded" });
+    const wrapper = mountView();
+    await populateButton(wrapper)!.trigger("click");
+    await flushMicrotasks();
+    expect(populateButton(wrapper)?.props("label")).toBe("Populate Setting");
+  });
+
+  it("revealing a faction to some players writes exactly that audience on that faction", async () => {
+    factionsData.value = [faction({ id: "f1" })];
+    const wrapper = mountView();
+    await flushMicrotasks();
+    wrapper.findComponent({ name: "AudienceRevealControl" }).vm.$emit("change", ["pc-1", "pc-2"]);
+    expect(updateFaction).toHaveBeenCalledWith({ id: "f1", update: { player_visible_to: ["pc-1", "pc-2"] } });
   });
 });

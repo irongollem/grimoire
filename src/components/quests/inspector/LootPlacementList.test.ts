@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LootPlacementList from "./LootPlacementList.vue";
 import type { LootPlacement } from "@/types/quest.types";
@@ -84,5 +84,62 @@ describe("LootPlacementList", () => {
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Open chat card")!.trigger("click");
     expect(mocks.openChatAt).toHaveBeenCalledWith("message-1");
+  });
+
+  const btn = (w: ReturnType<typeof mount>, label: string) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
+
+  it("Drop all sends every held entry in one call and leaves dispatched and claimed loot out", async () => {
+    mocks.dispatch.mockResolvedValue([]);
+    const wrapper = mount(LootPlacementList, {
+      props: {
+        title: "Beat loot", emptyLabel: "Nothing here.",
+        loot: [
+          loot({ id: "a" }),
+          loot({ id: "b", delivery_state: "chat", dispatch_message_id: "m1" }),
+          loot({ id: "c", delivery_state: "claimed", dispatch_message_id: "m2" }),
+          loot({ id: "d", label: "Silver" }),
+        ],
+      },
+    });
+    await btn(wrapper, "Drop all").trigger("click");
+    expect(mocks.dispatch).toHaveBeenCalledTimes(1);
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["a", "d"], campaignId: "campaign-1" });
+  });
+
+  it("offers Drop all only while something is held", () => {
+    const wrapper = mount(LootPlacementList, {
+      props: { title: "Beat loot", emptyLabel: "Nothing here.", loot: [loot({ delivery_state: "claimed", dispatch_message_id: "m2" })] },
+    });
+    expect(wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Drop all")).toBeUndefined();
+  });
+
+  it("shows a Drop in flight as loading on its own row only, and settles when it finishes", async () => {
+    let finish: (v: unknown[]) => void = () => {};
+    mocks.dispatch.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const wrapper = mount(LootPlacementList, {
+      props: { title: "Beat loot", emptyLabel: "Nothing here.", loot: [loot({ id: "a" }), loot({ id: "b" })] },
+    });
+    const drops = () => wrapper.findAllComponents({ name: "AppButton" }).filter((b) => b.props("label") === "Drop");
+    await drops()[1]!.trigger("click");
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["b"], campaignId: "campaign-1" });
+    expect(drops()[1]!.props("loading")).toBe(true);
+    expect(drops()[0]!.props("loading")).toBe(false);
+    finish([]);
+    await flushPromises();
+    expect(drops()[1]!.props("loading")).toBe(false);
+  });
+
+  it("shows a Remove in flight as loading, settles after a failure, and a retry clears the old error", async () => {
+    mocks.remove.mockRejectedValueOnce("not an Error").mockResolvedValue(undefined);
+    const wrapper = mount(LootPlacementList, {
+      props: { title: "Beat loot", emptyLabel: "Nothing here.", loot: [loot()] },
+    });
+    await btn(wrapper, "Remove").trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not remove loot");
+    expect(btn(wrapper, "Remove").props("loading")).toBe(false);
+    await btn(wrapper, "Remove").trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
   });
 });

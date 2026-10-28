@@ -52,4 +52,13 @@ describe("QuestDesignQuestionCard", () => {
     const killedButton = wrapper.get('button[aria-label="Killed"]');
     expect(killedButton.classes()).not.toContain("border-primary");
   });
+
+  it("picking an option after typing free text clears the text", async () => {
+    const wrapper = mountCard();
+    await wrapper.get("input").setValue("They fought to a draw");
+    await wrapper.get('button[aria-label="Came to terms"]').trigger("click");
+    const emitted = wrapper.emitted("update:selection")!;
+    expect(emitted[emitted.length - 1]).toEqual([{ optionKey: "b", freeText: "" }]);
+    expect((wrapper.get("input").element as HTMLInputElement).value).toBe("");
+  });
 });

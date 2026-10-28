@@ -34,4 +34,17 @@ describe("TraitList", () => {
     expect(wrapper.find(".rt").exists()).toBe(false);
     expect(wrapper.find(".trait").text().replace(/\s+/g, " ")).toBe("Spellcasting. 20");
   });
+
+  it.each(["null", '{"note":"not a document"}', "[1, 2]"])("keeps %s as plain text, since it is JSON but not a stored document", (description) => {
+    const wrapper = render(description);
+    expect(wrapper.find(".rt").exists()).toBe(false);
+    expect(wrapper.find(".trait").text()).toContain(description.split("\n")[0]);
+  });
+
+  it("ignores blank lines and stray spaces around the paragraphs", () => {
+    const wrapper = render("\n  Hits hard.  \n");
+    const trait = wrapper.find(".trait");
+    expect(trait.findAll("p")).toHaveLength(0);
+    expect(trait.find("span:nth-of-type(2)").text()).toBe("Hits hard.");
+  });
 });

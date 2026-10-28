@@ -28,6 +28,8 @@ function partyMember(overrides: Partial<PartyMember> & { id: string }): PartyMem
 }
 
 const mocks = vi.hoisted(() => ({
+  cms: [] as Array<{ party_member_id: string; user_id: string }>,
+  online: new Set<string>(),
   /** Mirrors what `useParty()` (a real TanStack useQuery result) hands back —
    *  undefined data is the disabled/in-flight case this bug was about. */
   partyData: undefined as PartyMember[] | undefined,
@@ -56,8 +58,8 @@ vi.mock("@/composables/party/useArmorClass", () => ({
 }));vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
 }));
-vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/campaign/useCampaignPresence", () => ({ useCampaignPresence: () => ({ isOnline: () => false }) }));
+vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: mocks.cms } }) }));
+vi.mock("@/composables/campaign/useCampaignPresence", () => ({ useCampaignPresence: () => ({ isOnline: (u: string) => mocks.online.has(u) }) }));
 const gates = vi.hoisted(() => ({ isDM: false, trackerEnabled: [] as Array<() => boolean>, rulesEnabled: [] as Array<() => boolean> }));
 vi.mock("@/composables/dashboard/useTrackerState", () => ({
   useTrackerStates: (enabled: () => boolean) => gates.trackerEnabled.push(enabled),
@@ -93,6 +95,8 @@ describe("PartyWidget", () => {
     mocks.partyData = undefined;
     mocks.partyIsError = false;
     mocks.refetch.mockReset();
+    mocks.cms = [];
+    mocks.online = new Set();
   });
 
   it("shows the loading state, not the empty state, while the query has no answer yet (disabled or in-flight)", () => {
@@ -131,5 +135,46 @@ describe("PartyWidget", () => {
     });
     expect(wrapper.text()).not.toContain("No party members yet.");
     expect(wrapper.text()).toContain("Mira");
+  });
+
+  const mountParty = (members: PartyMember[]) => {
+    mocks.partyData = members;
+    return mount(PartyWidget, { global: { stubs: { RouterLink: true, FocalImage: true, DmTrackerButtons: true } } });
+  };
+  const hpSpan = (w: ReturnType<typeof mountParty>, hp: number) => w.findAll("span").find((s) => s.text() === String(hp) && s.classes().includes("font-bold"))!;
+
+  // 5e "bloodied" is half hit points: at exactly half a character is already in the amber tier.
+  it.each([
+    [0, 10, "text-muted-foreground"],
+    [2, 10, "text-destructive"],
+    [1, 4, "text-destructive"], // exactly a quarter
+    [3, 10, "text-ink-caution"],
+    [5, 10, "text-ink-caution"], // exactly half
+    [6, 10, "text-ink-success"],
+  ])("%i of %i HP shows %s", (hp, max, cls) => {
+    const w = mountParty([partyMember({ id: "m", current_hp: hp, max_hp: max })]);
+    expect(hpSpan(w, hp).classes()).toContain(cls);
+  });
+
+  it("the HP bar turns amber at exactly half, like the number", () => {
+    const w = mountParty([partyMember({ id: "m", current_hp: 5, max_hp: 10 })]);
+    expect(w.find(".h-1\\.5 > div").classes()).toContain("bg-tone-caution");
+  });
+
+  it("lists conditions alone, curses alone, and nothing when neither", () => {
+    const cond = mountParty([partyMember({ id: "a", conditions: [{ name: "Poisoned" }] as PartyMember["conditions"], curses: [] })]);
+    expect(cond.text()).toContain("Poisoned");
+    const curse = mountParty([partyMember({ id: "b", conditions: [], curses: ["Ash"] })]);
+    expect(curse.text()).toContain("Cursed: Ash");
+    const none = mountParty([partyMember({ id: "c" })]);
+    expect(none.text()).not.toContain("Cursed");
+  });
+
+  it("marks a member online only when their campaign seat's user is present", () => {
+    mocks.cms = [{ party_member_id: "a", user_id: "u1" }, { party_member_id: "b", user_id: "u2" }];
+    mocks.online = new Set(["u1"]);
+    const w = mountParty([partyMember({ id: "a" }), partyMember({ id: "b" }), partyMember({ id: "c" })]);
+    const dots = w.findAll("span.rounded-full").filter((d) => d.classes().some((c) => c.startsWith("bg-tone-success") || c.startsWith("bg-muted-foreground/30")));
+    expect(dots.map((d) => d.classes().includes("bg-tone-success"))).toEqual([true, false, false]);
   });
 });

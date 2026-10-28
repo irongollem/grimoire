@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { mount } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
 import FactionEditor from "./FactionEditor.vue";
@@ -39,8 +40,11 @@ function faction(overrides: Partial<Faction> = {}): Faction {
 
 const routerPush = vi.fn();
 const routerReplace = vi.fn();
+const routeState = vi.hoisted(() => ({ query: {} as Record<string, string> }));
+const confirmMock = vi.hoisted(() => vi.fn());
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: confirmMock }) }));
 vi.mock("vue-router", () => ({
-  useRoute: () => ({ query: {} }),
+  useRoute: () => routeState,
   useRouter: () => ({ push: routerPush, replace: routerReplace }),
 }));
 
@@ -62,7 +66,7 @@ vi.mock("@/composables/factions/useFactions", () => ({
 // five composables useEntityMentionItems fans out to (party/npcs/monsters/
 // locations/factions), none of which this file otherwise sets up.
 vi.mock("@/composables/notes/useEntityMentionItems", () => ({
-  useEntityMentionItems: () => ({ mentionItems: { value: [] } }),
+  useEntityMentionItems: () => ({ mentionItems: [] }),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -227,5 +231,82 @@ describe("FactionEditor — seat", () => {
     expect(updateFaction).toHaveBeenLastCalledWith(
       expect.objectContaining({ update: expect.objectContaining({ seat_location_id: null }) }),
     );
+  });
+});
+
+describe("FactionEditor — save, delete, cancel", () => {
+  beforeEach(() => {
+    routerPush.mockClear();
+    createFaction.mockReset().mockResolvedValue(undefined);
+    updateFaction.mockReset().mockResolvedValue(undefined);
+    deleteFaction.mockReset().mockResolvedValue(undefined);
+    confirmMock.mockReset();
+    routeState.query = {};
+  });
+  const nameInput = (w: ReturnType<typeof mountEditor>) => ({
+    setValue: (v: string) => w.findComponent({ name: "AppInput" }).setValue(v),
+  });
+
+  it("a new faction is created with its name trimmed and the DM lands on the list", async () => {
+    const w = mountEditor(null, true);
+    await nameInput(w).setValue("  The Silver Hand  ");
+    await findButton(w, "Create")!.trigger("click");
+    await flushPromises();
+    expect(createFaction).toHaveBeenCalledWith(expect.objectContaining({ name: "The Silver Hand" }));
+    expect(updateFaction).not.toHaveBeenCalled();
+    expect(routerPush).toHaveBeenCalledWith("/factions");
+  });
+
+  it("Create stays disabled while the name is blank", async () => {
+    const w = mountEditor(null, true);
+    await nameInput(w).setValue("   ");
+    expect(findButton(w, "Create")!.props("disabled")).toBe(true);
+    await findButton(w, "Create")!.trigger("click");
+    expect(createFaction).not.toHaveBeenCalled();
+  });
+
+  it("an existing faction is updated by id, not created", async () => {
+    const w = mountEditor(faction());
+    await findButton(w, "Save")!.trigger("click");
+    await flushPromises();
+    expect(updateFaction).toHaveBeenCalledWith(expect.objectContaining({ id: "faction-1" }));
+    expect(createFaction).not.toHaveBeenCalled();
+  });
+
+  it("a rejected save by quota opens the paywall and does not leave the editor", async () => {
+    createFaction.mockRejectedValue({ message: "quota_exceeded" });
+    const w = mountEditor(null, true);
+    await nameInput(w).setValue("Ravens");
+    await findButton(w, "Create")!.trigger("click");
+    await flushPromises();
+    expect(w.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(routerPush).not.toHaveBeenCalled();
+    expect(findButton(w, "Create")!.props("disabled")).toBe(false);
+  });
+
+  it("cancelling the delete confirm keeps the faction", async () => {
+    confirmMock.mockResolvedValue(false);
+    const w = mountEditor(faction());
+    await findButton(w, "Delete")!.trigger("click");
+    await flushPromises();
+    expect(deleteFaction).not.toHaveBeenCalled();
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it("confirming the delete removes the faction and returns to the list", async () => {
+    confirmMock.mockResolvedValue(true);
+    const w = mountEditor(faction());
+    await findButton(w, "Delete")!.trigger("click");
+    await flushPromises();
+    expect(confirmMock).toHaveBeenCalledWith(expect.stringContaining("The Iron Circle"));
+    expect(deleteFaction).toHaveBeenCalledWith("faction-1");
+    expect(routerPush).toHaveBeenCalledWith("/factions");
+  });
+
+  it("Cancel drops ?edit but keeps the other query params", async () => {
+    routeState.query = { edit: "true", tab: "members" };
+    const w = mountEditor(faction());
+    await findButton(w, "Cancel")!.trigger("click");
+    expect(routerPush).toHaveBeenCalledWith({ query: { tab: "members" } });
   });
 });

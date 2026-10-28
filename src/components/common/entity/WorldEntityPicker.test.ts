@@ -78,4 +78,26 @@ describe("WorldEntityPicker", () => {
     await wrapper.findAll("button").find((b) => b.text() === "All")?.trigger("click");
     expect(mocks.seenKinds.at(-1)).toEqual(["npc", "faction", "location"]);
   });
+
+  it.each(["h", "   ", " h "])("shows no results for %j: a single letter, even padded with spaces, is not a search", async (typed) => {
+    const wrapper = render();
+    await wrapper.find("input").setValue(typed);
+    expect(wrapper.find("[data-testid=list]").exists()).toBe(false);
+    expect(wrapper.text()).toContain("Type a name");
+  });
+
+  it("only hides the subject itself: another kind of thing with the same id is still offered", async () => {
+    const wrapper = render({ subject: { kind: "faction", id: "n1" } });
+    await wrapper.find("input").setValue("ha");
+    expect(wrapper.findAll("[data-testid=list] button").map((b) => b.text())).toContain("Harl");
+  });
+
+  it("takes an item's own kind over its group's, so a mixed group still offers what can be linked", async () => {
+    mocks.groups = [
+      { type: "quest", label: "Mixed", items: [{ id: "n9", name: "Corva", route: "/npcs/n9", matchedBy: "name", kind: "npc" }] },
+    ];
+    const wrapper = render();
+    await wrapper.find("input").setValue("co");
+    expect(wrapper.findAll("[data-testid=list] button").map((b) => b.text())).toEqual(["Corva"]);
+  });
 });

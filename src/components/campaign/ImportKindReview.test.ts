@@ -60,4 +60,24 @@ describe("ImportKindReview", () => {
     const decisions = wrapper.props("decisions") as Map<string, ImportDecision>;
     expect(decisions.get("npc1")).toEqual({ action: "link", candidate: existing });
   });
+
+  it("tallies the DM's own choices in the header, ignored rows included", async () => {
+    const wrapper = mount(ImportKindReview, {
+      props: {
+        kind: "npcs" as const,
+        entities: [kobold, { ...kobold, ref: "npc2", data: { name: "Bob" } }],
+        label: "NPCs",
+        candidatesByRef: new Map<string, EntityCandidate[]>(),
+        matchesReady: true,
+        decisions: new Map<string, ImportDecision>([
+          ["npc1", { action: "ignore" }],
+          ["npc2", { action: "create" }],
+        ]),
+        edits: new Map<string, Record<string, unknown>>(),
+      },
+    });
+    await nextTick();
+    expect(wrapper.text()).toContain("1 new");
+    expect(wrapper.text()).toContain("1 ignored");
+  });
 });

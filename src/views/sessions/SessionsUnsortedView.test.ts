@@ -143,3 +143,60 @@ describe("SessionsUnsortedView, Follow suggestions", () => {
     expect(mutateAsync).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("SessionsUnsortedView, Move", () => {
+  it("moves one row to the session its own picker holds, leaving the other rows alone", async () => {
+    const w = mountPage();
+    await w.findAll("select")[2].setValue("s15");
+    await w.findAll("button").filter((b) => b.text() === "Move")[2].trigger("click");
+    await flushPromises();
+    expect(moves()).toEqual([{ sessionId: "s15", keys: ["b"] }]);
+  });
+
+  it("moves every ticked row into the bulk session and unticks them", async () => {
+    const w = mountPage();
+    const boxes = w.findAll("input[type=checkbox]");
+    await boxes[0].setValue(true);
+    await boxes[2].setValue(true);
+    await w.findAll("select")[0].setValue("s15");
+    await w.findAll("button").filter((b) => b.text() === "Move")[0].trigger("click");
+    await flushPromises();
+    expect(moves()).toEqual([{ sessionId: "s15", keys: ["a", "c"] }]);
+    expect(w.findAll("input[type=checkbox]").every((b) => !(b.element as HTMLInputElement).checked)).toBe(true);
+  });
+
+  it("keeps the ticks when the bulk move fails, so the DM can try again", async () => {
+    mutateAsync.mockRejectedValue(new Error("offline"));
+    const w = mountPage();
+    const boxes = w.findAll("input[type=checkbox]");
+    await boxes[0].setValue(true);
+    await w.findAll("select")[0].setValue("s15");
+    await w.findAll("button").filter((b) => b.text() === "Move")[0].trigger("click");
+    await flushPromises();
+    expect((w.findAll("input[type=checkbox]")[0].element as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("will not bulk-move until a session is picked", async () => {
+    const w = mountPage();
+    await w.findAll("input[type=checkbox]")[0].setValue(true);
+    const bulk = w.findAll("button").filter((b) => b.text() === "Move")[0];
+    expect(bulk.attributes("disabled")).toBeDefined();
+    await bulk.trigger("click");
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+  it("drops the tick of a row that has left the list, so the bulk move cannot act on it", async () => {
+    const original = entries.value;
+    try {
+      const w = mountPage();
+      await w.findAll("input[type=checkbox]")[0].setValue(true);
+      await w.findAll("select")[0].setValue("s15");
+      const bulk = () => w.findAll("button").filter((b) => b.text() === "Move")[0];
+      expect(bulk().attributes("disabled")).toBeUndefined();
+      entries.value = original.filter((e) => e.key !== "a");
+      await flushPromises();
+      expect(bulk().attributes("disabled")).toBeDefined();
+    } finally {
+      entries.value = original;
+    }
+  });
+});

@@ -134,4 +134,47 @@ describe("QuestRunOutcomeStrip", () => {
     expect(open.find("article").text()).toContain("Ticked by default");
     expect(open.find("article").attributes("aria-disabled")).toBeUndefined();
   });
+
+  describe("filtering many branches", () => {
+    const route = (n: number, title: string, kind: string, gateObjective?: string) => ({
+      ...outgoing[1]!, edge_id: `e${n}`, beat_id: `b${n}`, beat_title: title, beat_kind: kind,
+      gate: gateObjective
+        ? { mode: "all" as const, is_open: true, conditions: [{ objective_id: "o9", objective: gateObjective, statuses: ["complete" as const], current_status: "complete" as const, met: true }] }
+        : null,
+    });
+    const many = [
+      route(1, "Bridge", "explore"), route(2, "Tunnel", "combat"), route(3, "Harbour", "social"),
+      route(4, "Rooftops", "explore"), route(5, "Vault", "explore", "Find the ledger"),
+    ];
+
+    it("offers the filter only past four branches", () => {
+      expect(mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: many.slice(0, 4) } }).find('input[placeholder="Filter branches…"]').exists()).toBe(false);
+      expect(mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: many } }).find('input[placeholder="Filter branches…"]').exists()).toBe(true);
+    });
+
+    it.each([
+      ["a title, ignoring case and surrounding spaces", "  HARBOUR ", ["Harbour"]],
+      ["a beat kind", "combat", ["Tunnel"]],
+      ["the objective its gate waits on", "ledger", ["Vault"]],
+    ])("matches %s", async (_name, query, expected) => {
+      const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: many } });
+      await wrapper.get('input[placeholder="Filter branches…"]').setValue(query);
+      const shown = wrapper.findAll("article").filter((a) => a.findAll("button").some((b) => b.text() === "Choose")).map((a) => a.text());
+      expect(shown).toHaveLength(expected.length);
+      for (const title of expected) expect(shown.some((t) => t.includes(title))).toBe(true);
+    });
+  });
+
+  it("Choose is disabled while the table is paused or when the strip is disabled", () => {
+    const choose = (props: Record<string, unknown>) => mount(QuestRunOutcomeStrip, { props: { outgoing: outgoing.slice(1), status: "running", ...props } })
+      .findAll("button").find((b) => b.text() === "Choose")!;
+    expect(choose({}).attributes("disabled")).toBeUndefined();
+    expect(choose({ status: "paused" }).attributes("disabled")).toBeDefined();
+    expect(choose({ disabled: true }).attributes("disabled")).toBeDefined();
+  });
+
+  it("a closed route states what it still needs once, not twice", () => {
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [{ ...outgoing[1]!, gate: closedGate }] } });
+    expect(wrapper.text().match(/Clear the checkpoint/g)).toHaveLength(1);
+  });
 });

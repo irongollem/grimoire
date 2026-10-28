@@ -26,8 +26,9 @@ vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", () => ({
 vi.mock("@/composables/player/useReadItems", () => ({ useReadItems: () => ({ isNew: () => false }) }));
 import PlayerLocationDetailPanel from "./PlayerLocationDetailPanel.vue";
 import type { Location } from "@/types/location.types";
+import type { PlayerNpc } from "@/types/npc.types";
 
-function panel(over: Record<string, unknown>) {
+function panel(over: Record<string, unknown>, npcs: unknown[] = []) {
   const loc = {
     id: "l1",
     name: "Sugarwell",
@@ -38,7 +39,7 @@ function panel(over: Record<string, unknown>) {
     ...over,
   } as unknown as Location;
   return mount(PlayerLocationDetailPanel, {
-    props: { loc, sharedChildIds: new Set<string>() },
+    props: { loc, sharedChildIds: new Set<string>(), npcs: npcs as PlayerNpc[] },
     global: {
       plugins: [queryPlugin()],
       stubs: {
@@ -95,5 +96,57 @@ describe("PlayerLocationDetailPanel notice board", () => {
     const w = panel({});
     await flushPromises();
     expect(w.find("[data-place-boards]").exists()).toBe(false);
+  });
+});
+
+describe("PlayerLocationDetailPanel what the DM has shared", () => {
+  it("shows the description only when it is shared", async () => {
+    const hidden = panel({ description: "<p>Secret cellar</p>", is_description_shared: false });
+    expect(hidden.findComponent({ name: "RichTextViewer" }).exists()).toBe(false);
+    const shared = panel({ description: "<p>Secret cellar</p>", is_description_shared: true });
+    expect(shared.findComponent({ name: "RichTextViewer" }).exists()).toBe(true);
+  });
+
+  it("lists the people in the area only when shared, and shows ??? for a name the projection withheld", async () => {
+    const people = [
+      { id: "n1", name: null, race: null, occupation: null, disguise_name: null, disguise_portrait_url: null, is_revealed: false },
+      { id: "n2", name: "Mira", race: "Elf", occupation: "Cook", disguise_name: null, disguise_portrait_url: null, is_revealed: true },
+    ];
+    const hidden = panel({ is_npcs_shared: false }, people);
+    expect(hidden.text()).not.toContain("People in the Area");
+    expect(hidden.text()).not.toContain("Mira");
+    const shared = panel({ is_npcs_shared: true }, people);
+    expect(shared.text()).toContain("???");
+    expect(shared.text()).toContain("Mira");
+    expect(shared.text()).toContain("Elf · Cook");
+  });
+
+  it("names a concealed NPC by its cover name", async () => {
+    const people = [
+      { id: "n3", name: "Lord Varrow", race: null, occupation: null, disguise_name: "Old Tom", disguise_portrait_url: "https://cdn.test/c.webp", is_revealed: false },
+    ];
+    const w = panel({ is_npcs_shared: true }, people);
+    expect(w.text()).toContain("Old Tom");
+    expect(w.text()).not.toContain("Lord Varrow");
+  });
+
+  it("shows wares only for a store type whose inventory is shared", async () => {
+    expect(panel({ location_type: "store", is_inventory_shared: true }).findComponent({ name: "PlayerStoreWares" }).exists()).toBe(true);
+    expect(panel({ location_type: "store", is_inventory_shared: false }).findComponent({ name: "PlayerStoreWares" }).exists()).toBe(false);
+    expect(panel({ location_type: "town", is_inventory_shared: true }).findComponent({ name: "PlayerStoreWares" }).exists()).toBe(false);
+  });
+
+  it("draws the map only when shared and not a battle map", async () => {
+    const layer = { map_url: "https://cdn.test/map.webp" };
+    expect(panel({ ...layer, is_map_shared: true }).findComponent({ name: "LocationMap" }).exists()).toBe(true);
+    expect(panel({ ...layer, is_map_shared: false }).findComponent({ name: "LocationMap" }).exists()).toBe(false);
+    expect(panel({ ...layer, is_map_shared: true, is_battle_map: true }).findComponent({ name: "LocationMap" }).exists()).toBe(false);
+  });
+
+  it("hands only pins the DM made visible to the map", async () => {
+    const pin = (id: string, visible: boolean) => ({ id, child_location_id: id, visible_to_players: visible, child_name: id });
+    const w = panel({ map_url: "https://cdn.test/map.webp", is_map_shared: true, map_pins: [pin("a", true), pin("b", false)] });
+    const pins = w.findComponent({ name: "LocationMap" }).props("pins") as { child_location_id: string }[];
+    expect(pins.map((p) => p.child_location_id)).toEqual(["a"]);
   });
 });

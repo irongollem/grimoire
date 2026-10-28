@@ -142,4 +142,24 @@ describe("SegmentedControl", () => {
     expect(buttons.map(b => b.text())).toEqual(["", "", ""]);
     expect(buttons.map(b => b.attributes("aria-label"))).toEqual(["URL", "Upload", "Browse"]);
   });
+
+  it("a disabled group ignores clicks on every option", async () => {
+    const w = mountControl("url", { disabled: true });
+    await w.findAll("button")[1].trigger("click");
+    expect(w.emitted("update:modelValue")).toBeUndefined();
+  });
+
+  it("an icon-only option shows its tooltip on hover when it has one, and its label otherwise", () => {
+    const w = mountWith("a", [{ value: "a", label: "Alpha", tooltip: "Alpha, the first" }, { value: "b", label: "Beta" }] as never, { iconOnly: true });
+    expect(w.findAll("button").map((b) => b.attributes("title"))).toEqual(["Alpha, the first", "Beta"]);
+  });
+
+  it("wrap lets a long set of options flow onto more lines instead of overflowing", () => {
+    expect(mountControl("url", { wrap: true }).classes()).toContain("flex-wrap");
+    expect(mountControl("url").classes()).not.toContain("flex-wrap");
+  });
+
+  it("tells assistive tech when the group runs vertically", () => {
+    expect(mountControl("url", { orientation: "vertical" }).attributes("data-orientation")).toBe("vertical");
+  });
 });

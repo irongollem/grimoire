@@ -72,6 +72,17 @@ describe("MonsterDetailModal read-only library rows", () => {
     expect(wrapper.get('[data-testid="read-only-library-note"]').text()).toContain("Read only");
   });
 
+  it("heads the sheet with the monster's identity, its CR, and the source book it was written in", () => {
+    mocks.monster = monster({ source: "Homebrew Weird Tales" });
+    const wrapper = mount(MonsterDetailModal, {
+      props: { id: "m1" },
+      global: { stubs: { ...stubs, EntityDetailModal: { props: ["title", "subtitle"], template: "<div :data-subtitle='subtitle' :data-title='title'><slot name='actions' /><slot /></div>" } } },
+    });
+    const root = wrapper.element as HTMLElement;
+    expect(root.dataset.subtitle).toContain("CR 3");
+    expect(root.dataset.subtitle).toContain("Homebrew Weird Tales");
+  });
+
   it("keeps Edit on a campaign monster authored by someone else (campaign rows are shared)", () => {
     mocks.monster = monster({ user_id: "owner", campaign_id: "c1" });
     const wrapper = mount(MonsterDetailModal, { props: { id: "m1" }, global: { stubs } });

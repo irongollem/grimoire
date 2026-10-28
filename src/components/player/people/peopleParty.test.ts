@@ -18,6 +18,17 @@ describe("buildPartyEntries", () => {
   });
 });
 
+describe("buildPartyEntries viewer position", () => {
+  it.each(["a", "c"])("lists the viewer first wherever they sort alphabetically (%s)", (viewer) => {
+    const names = buildPartyEntries([member("a", "Ash"), member("b", "Brin"), member("c", "Cael")], [], viewer).map((e) => e.data.name);
+    expect(names[0]).toBe(viewer === "a" ? "Ash" : "Cael");
+  });
+  it("sorts the other members alphabetically", () => {
+    const names = buildPartyEntries([member("c", "Cael"), member("a", "Ash"), member("b", "Brin")], [], null).map((e) => e.data.name);
+    expect(names).toEqual(["Ash", "Brin", "Cael"]);
+  });
+});
+
 describe("formatMetDate", () => {
   const now = new Date("2026-10-06T12:00:00Z");
   it("omits the year within this year", () => {

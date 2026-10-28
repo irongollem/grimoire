@@ -78,8 +78,19 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ isAiEnabled: false, activeCampaignId: ref("campaign-1") }),
 }));
 
+// Read directly on each call, so a test can switch the DM into Play mode.
+let appDmMode: "prep" | "play" = "prep";
 vi.mock("@/stores/ui/app", () => ({
-  useAppUiStore: () => ({ dmMode: "prep" }),
+  useAppUiStore: () => ({
+    get dmMode() {
+      return appDmMode;
+    },
+  }),
+}));
+
+const confirmMock = vi.fn();
+vi.mock("@/composables/useConfirm", () => ({
+  useConfirm: () => ({ confirm: confirmMock, notify: vi.fn() }),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -102,8 +113,9 @@ vi.mock("@/composables/scriptorium/useScriptorium", () => ({
   useCreateScriptoriumDocument: () => ({ mutateAsync: vi.fn() }),
 }));
 
+const sendNarrativeEvent = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({
-  useCampaignMessages: () => ({ sendNarrativeEvent: vi.fn() }),
+  useCampaignMessages: () => ({ sendNarrativeEvent }),
 }));
 
 const createNpc = vi.fn();
@@ -146,6 +158,7 @@ function mountDetail(npcProp: Npc | null, { mobile = false }: { mobile?: boolean
     global: {
       stubs: {
         DmNoteBox: true,
+        PlayerNotesWidget: true,
         NpcEditMobile: true,
         NpcGenerateDialog: true,
         NpcSidebar: true,
@@ -269,5 +282,102 @@ describe("NpcDetail — save sends only what changed (#946)", () => {
     vm.form.name = "Elowen Vance-Hale";
     await vm.save();
     expect(updateNpc.mock.calls[0][0].update).not.toHaveProperty("notes");
+  });
+});
+
+describe("NpcDetail — telling the players about a newly shown NPC", () => {
+  type Vm = { form: { name: string; player_visible_to: string[]; player_visible_fields: string[] }; save: () => Promise<void> };
+  beforeEach(() => {
+    updateNpc.mockReset().mockResolvedValue({});
+    sendNarrativeEvent.mockClear();
+    routerPush.mockClear();
+    appDmMode = "play";
+  });
+
+  async function reveal(base: Npc, tweak: (form: Vm["form"]) => void = () => undefined) {
+    const wrapper = mountDetail(base);
+    const vm = wrapper.vm as unknown as Vm;
+    vm.form.player_visible_to = ["pm-1"];
+    tweak(vm.form);
+    await vm.save();
+  }
+
+  it("announces a disguised NPC under its cover and never the true name", async () => {
+    await reveal(
+      npc({ name: "Lord Vexan", disguise_name: "The Stranger", is_revealed: false, player_visible_fields: ["name"] }),
+    );
+    expect(sendNarrativeEvent).toHaveBeenCalledTimes(1);
+    const text = sendNarrativeEvent.mock.calls[0][0] as string;
+    expect(text).toBe("You encounter The Stranger.");
+    expect(text).not.toContain("Vexan");
+  });
+
+  it("announces under no name when the DM did not share the name field", async () => {
+    await reveal(npc({ name: "Lord Vexan", player_visible_fields: [] }));
+    const text = sendNarrativeEvent.mock.calls[0][0] as string;
+    expect(text).toBe("You encounter someone.");
+    expect(text).not.toContain("Vexan");
+  });
+
+  it("announces under no name when the shared name is only blank space", async () => {
+    await reveal(npc({ player_visible_fields: ["name"] }), (form) => {
+      form.name = "   ";
+    });
+    expect(sendNarrativeEvent.mock.calls[0][0]).toBe("You encounter someone.");
+  });
+
+  it("announces nothing in Prep mode", async () => {
+    appDmMode = "prep";
+    await reveal(npc({ player_visible_fields: ["name"] }));
+    expect(sendNarrativeEvent).not.toHaveBeenCalled();
+  });
+
+  it("announces nothing when the NPC was already visible to a player, only a later player is added", async () => {
+    await reveal(npc({ player_visible_to: ["pm-0"], player_visible_fields: ["name"] }));
+    expect(sendNarrativeEvent).not.toHaveBeenCalled();
+  });
+
+  it("saving with nothing changed writes nothing but still goes back to the list", async () => {
+    const wrapper = mountDetail(npc());
+    await (wrapper.vm as unknown as Vm).save();
+    expect(updateNpc).not.toHaveBeenCalled();
+    expect(routerPush).toHaveBeenCalledWith("/npcs");
+  });
+
+  it("creating an NPC stays on its own page rather than the list", async () => {
+    createNpc.mockReset().mockResolvedValue({ id: "new-1" });
+    const wrapper = mountDetail(null);
+    const vm = wrapper.vm as unknown as Vm;
+    vm.form.name = "Brand New";
+    await vm.save();
+    expect(createNpc).toHaveBeenCalledTimes(1);
+    expect(routerPush).toHaveBeenCalledTimes(1);
+    expect(routerPush).toHaveBeenCalledWith("/npcs/new-1");
+  });
+
+  it("saving an existing NPC goes back to the bare list", async () => {
+    await reveal(npc());
+    expect(routerPush).toHaveBeenCalledWith("/npcs");
+  });
+});
+
+describe("NpcDetail — delete", () => {
+  beforeEach(() => {
+    deleteNpc.mockReset().mockResolvedValue(undefined);
+    confirmMock.mockReset();
+    routerPush.mockClear();
+  });
+
+  it("keeps the NPC when the confirm is cancelled, and deletes then returns to the list when confirmed", async () => {
+    const wrapper = mountDetail(npc());
+    const vm = wrapper.vm as unknown as { confirmDelete: () => Promise<void> };
+    confirmMock.mockResolvedValue(false);
+    await vm.confirmDelete();
+    expect(deleteNpc).not.toHaveBeenCalled();
+    expect(routerPush).not.toHaveBeenCalled();
+    confirmMock.mockResolvedValue(true);
+    await vm.confirmDelete();
+    expect(deleteNpc).toHaveBeenCalledTimes(1);
+    expect(routerPush).toHaveBeenCalledWith("/npcs");
   });
 });

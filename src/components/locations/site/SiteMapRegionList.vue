@@ -190,6 +190,7 @@
           @click="toggleActive(region.id)"
         />
         <AppButton
+          v-if="building"
           variant="ghost"
           tone="danger"
           size="icon-xs"

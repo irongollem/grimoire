@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   createScriptoriumDocument: vi.fn(),
   confirm: vi.fn(),
   push: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
@@ -45,6 +46,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
   useDeleteQuest: () => ({ mutateAsync: mocks.deleteQuest }),
 }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }) }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: (e: unknown) => (e instanceof Error ? e.message : String(e)) }) }));
 
 const quest = {
   id: "quest-1",
@@ -108,6 +110,7 @@ describe("QuestOverviewLifecycle", () => {
     mocks.fetchLocation.mockReset();
     mocks.confirm.mockReset();
     mocks.push.mockReset();
+    mocks.toastError.mockReset();
   });
 
   // The ledger is quest-level by design (#792): a beat only ever declares the
@@ -119,9 +122,6 @@ describe("QuestOverviewLifecycle", () => {
     mocks.objectives = [objective({ id: "obj-1", description: "Find the missing miller" })];
     const wrapper = mountLifecycle();
     expect(wrapper.text()).toContain("Find the missing miller");
-    expect(wrapper.findComponent({ name: "QuestRulesPanel" }).exists()).toBe(true);
-    expect(wrapper.findComponent({ name: "QuestBeatLootPanel" }).exists()).toBe(false);
-    expect(wrapper.findComponent({ name: "QuestBeatAttachmentsPanel" }).exists()).toBe(false);
   });
 
   it("adds an objective to the quest-owned ledger", async () => {
@@ -203,5 +203,107 @@ describe("QuestOverviewLifecycle", () => {
     expect(sidebar.props("subQuests")).toEqual([sub]);
     expect(sidebar.props("sharedNotes")).toHaveLength(1);
     expect(wrapper.findComponent({ name: "EntityCalendarSection" }).props("entityId")).toBe("quest-1");
+  });
+
+  const objectiveInput = (w: ReturnType<typeof mountLifecycle>) => w.get('input[placeholder="Add objective…"]');
+  const appButton = (w: ReturnType<typeof mountLifecycle>, label: string) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
+
+  it("Enter adds the objective trimmed, numbered after those already there, and empties the box; spaces alone add nothing", async () => {
+    mocks.objectives = [objective({ id: "a", sort_order: 0 }), objective({ id: "b", sort_order: 1 })];
+    const wrapper = mountLifecycle();
+    await objectiveInput(wrapper).setValue("   ");
+    await objectiveInput(wrapper).trigger("keydown.enter");
+    expect(mocks.createObjective).not.toHaveBeenCalled();
+    expect(wrapper.get('button[aria-label="Add objective"]').attributes("disabled")).toBeDefined();
+    await objectiveInput(wrapper).setValue("  Warn the village  ");
+    await objectiveInput(wrapper).trigger("keydown.enter");
+    expect(mocks.createObjective).toHaveBeenCalledWith(expect.objectContaining({ description: "Warn the village", sort_order: 2, is_player_visible: false }));
+    expect((objectiveInput(wrapper).element as HTMLInputElement).value).toBe("");
+  });
+
+  it("the reveal control flips what players can see, both ways", async () => {
+    mocks.objectives = [objective({ id: "hid", is_player_visible: false }), objective({ id: "vis", is_player_visible: true })];
+    const wrapper = mountLifecycle();
+    await wrapper.get('[aria-label="Hidden from players: click to reveal"]').trigger("click");
+    await wrapper.get('[aria-label="Visible to players: click to hide"]').trigger("click");
+    expect(mocks.updateObjective.mock.calls).toEqual([
+      [{ id: "hid", questId: "quest-1", update: { is_player_visible: true } }],
+      [{ id: "vis", questId: "quest-1", update: { is_player_visible: false } }],
+    ]);
+  });
+
+  it("a due date is stored year, month and day, and clearing it stores nulls; a refused save is toasted", async () => {
+    mocks.objectives = [objective({ id: "obj-1" })];
+    const wrapper = mountLifecycle();
+    const due = () => wrapper.findComponent({ name: "QuestObjectiveDueDate" });
+    due().vm.$emit("change", { year: 1495, month: 3, day: 12 });
+    await flushPromises();
+    expect(mocks.updateObjective).toHaveBeenLastCalledWith({ id: "obj-1", questId: "quest-1", update: { due_year: 1495, due_month: 3, due_day: 12 } });
+    due().vm.$emit("change", null);
+    await flushPromises();
+    expect(mocks.updateObjective).toHaveBeenLastCalledWith({ id: "obj-1", questId: "quest-1", update: { due_year: null, due_month: null, due_day: null } });
+    mocks.updateObjective.mockRejectedValueOnce(new Error("Not allowed"));
+    due().vm.$emit("change", { year: 1496, month: 1, day: 1 });
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith("Not allowed");
+  });
+
+  it("removing an objective deletes that one from this quest", async () => {
+    mocks.objectives = [objective({ id: "obj-1" }), objective({ id: "obj-2", description: "Second" })];
+    const wrapper = mountLifecycle();
+    await wrapper.findAll('button[aria-label="Remove objective"]')[1]!.trigger("click");
+    expect(mocks.deleteObjective).toHaveBeenCalledWith({ id: "obj-2", questId: "quest-1" });
+  });
+
+  it("asks which quest is being deleted, by title, or by 'this quest' when it has none", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    const wrapper = mountLifecycle();
+    await appButton(wrapper, "Delete quest").trigger("click");
+    expect(mocks.confirm).toHaveBeenLastCalledWith('Delete "The Unseen"?');
+    await wrapper.setProps({ quest: { ...quest, title: "" } as Quest });
+    await appButton(wrapper, "Delete quest").trigger("click");
+    expect(mocks.confirm).toHaveBeenLastCalledWith('Delete "this quest"?');
+    expect(mocks.deleteQuest).not.toHaveBeenCalled();
+  });
+
+  it("a second Delete click while the first is still deleting does nothing, and the button works again afterwards", async () => {
+    mocks.confirm.mockResolvedValue(true);
+    let finish: () => void = () => {};
+    mocks.deleteQuest.mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve; }));
+    const wrapper = mountLifecycle();
+    await appButton(wrapper, "Delete quest").trigger("click");
+    await flushPromises();
+    await appButton(wrapper, "Delete quest").trigger("click");
+    await flushPromises();
+    expect(mocks.deleteQuest).toHaveBeenCalledTimes(1);
+    finish();
+    await flushPromises();
+    mocks.deleteQuest.mockResolvedValue(undefined);
+    await appButton(wrapper, "Delete quest").trigger("click");
+    await flushPromises();
+    expect(mocks.deleteQuest).toHaveBeenCalledTimes(2);
+  });
+
+  it("the Scriptorium copy belongs to the quest's own campaign", async () => {
+    mocks.createScriptoriumDocument.mockResolvedValue({ id: "doc-1" });
+    const wrapper = mountLifecycle();
+    await wrapper.setProps({ quest: { ...quest, campaign_id: "campaign-7" } as Quest });
+    await appButton(wrapper, "Send to Scriptorium").trigger("click");
+    await flushPromises();
+    expect(mocks.createScriptoriumDocument).toHaveBeenCalledWith(expect.objectContaining({ campaign_id: "campaign-7" }));
+  });
+
+  it("a Scriptorium document refused for quota opens the paywall quietly; any other failure is toasted", async () => {
+    const wrapper = mountLifecycle();
+    mocks.createScriptoriumDocument.mockRejectedValueOnce({ message: "quota_exceeded" });
+    await appButton(wrapper, "Send to Scriptorium").trigger("click");
+    await flushPromises();
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(mocks.toastError).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+    mocks.createScriptoriumDocument.mockRejectedValueOnce(new Error("Disk full"));
+    await appButton(wrapper, "Send to Scriptorium").trigger("click");
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith("Disk full");
   });
 });

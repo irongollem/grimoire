@@ -29,7 +29,7 @@ vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ success: mocks.toastSuccess, error: mocks.toastError, fromError: String }),
 }));
 
-const people = [person("a", "Ann", 1400), person("b", "Bo", 1430), person("c", "Cy", 1460)];
+const people = [person("a", "Ann", 1400), person("b", "Bo", 1430), person("c", "Cy", 1460), person("d", "Di", null)];
 const old = (id: string, from: string, to: string): KinLink => ({
   id,
   user_id: "u",
@@ -67,6 +67,7 @@ describe("SortFamilyLinksView", () => {
     mocks.saved.length = 0;
     mocks.failOn = null;
     mocks.toastError.mockReset();
+    mocks.toastSuccess.mockReset();
     setLinks([old("1", "a", "b"), old("2", "b", "c")]);
   });
 
@@ -105,5 +106,31 @@ describe("SortFamilyLinksView", () => {
     expect(mocks.saved.map((s) => s.id)).toEqual(["1", "2"]);
     expect(w.text()).toContain("That would make someone their own ancestor.");
     expect(saveButton(w).text()).toBe("Save 1");
+  });
+
+  it("'Leave the rest' clears the flag on unchosen rows only, and leaves the chosen ones for Save", async () => {
+    const w = mountIt();
+    await buttons(w, "Siblings")[0].trigger("click");
+    await buttons(w, "Leave the rest as relatives")[0].trigger("click");
+    await flushPromises();
+    expect(mocks.saved).toEqual([{ id: "2", patch: { needs_sorting: false } }]);
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("The rest stay as relatives.");
+    expect(saveButton(w).text()).toBe("Save 1");
+  });
+
+  it("accepts the suggested direction of every row that has one", async () => {
+    // Ann was born in 1400 and Bo in 1430, a gap too wide for siblings: the older is the parent.
+    // Di has no birth year and no note, so her link has nothing to suggest and must stay unchosen.
+    setLinks([old("1", "a", "b"), old("2", "b", "d")]);
+    const w = mountIt();
+    const accept = w.findAll("button").find((b) => b.text().startsWith("Accept all"));
+    if (!accept) throw new Error("no suggestion was offered for a 30-year age gap");
+    expect(accept.text()).toContain("Accept all 1 suggestion");
+    await accept.trigger("click");
+    expect(saveButton(w).text()).toBe("Save 1");
+    await saveButton(w).trigger("click");
+    await flushPromises();
+    expect(mocks.saved).toHaveLength(1);
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Sorted 1 family link.");
   });
 });

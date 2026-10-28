@@ -6,14 +6,15 @@ import type { Connection } from "@/types/connections.types";
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   toastError: vi.fn(),
-  headed: { value: false },
 }));
+const headed = ref(false);
+const pending = ref(false);
 
 vi.mock("@/composables/connections/useConnections", () => ({
-  useCreateConnection: () => ({ mutateAsync: mocks.create, isPending: ref(false) }),
+  useCreateConnection: () => ({ mutateAsync: mocks.create, isPending: pending }),
 }));
 vi.mock("@/composables/factions/useFactions", () => ({
-  useFactionHeaded: () => ({ get value() { return mocks.headed.value; } }),
+  useFactionHeaded: () => headed,
 }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: mocks.toastError, success: vi.fn(), fromError: (_e: unknown, f: string) => f }),
@@ -52,7 +53,7 @@ function render(connections: Connection[] = []) {
         WorldEntityPicker: PickerStub,
         AddConnectionKinNote: true,
         AddRelativeDialog: { props: ["initialRelation", "subject"], template: "<div data-testid='relative' :data-relation='initialRelation' />" },
-        AudienceRevealControl: { template: "<span data-testid='who-knows' />" },
+        AudienceRevealControl: { emits: ["change"], template: "<button data-testid='who-knows' @click=\"$emit('change', ['u1'])\" />" },
       },
     },
   });
@@ -64,7 +65,8 @@ const choiceButton = (w: ReturnType<typeof render>, label: string) =>
 beforeEach(() => {
   mocks.create.mockReset();
   mocks.toastError.mockReset();
-  mocks.headed.value = false;
+  headed.value = false;
+  pending.value = false;
 });
 
 describe("AddConnectionDialog", () => {
@@ -117,7 +119,7 @@ describe("AddConnectionDialog", () => {
   });
 
   it("offers a membership its roles, without the head roles when the faction has a head", async () => {
-    mocks.headed.value = true;
+    headed.value = true;
     const w = render();
     await w.get("[data-pick='thane']").trigger("click");
     await choiceButton(w, "member of")!.trigger("click");
@@ -159,5 +161,82 @@ describe("AddConnectionDialog", () => {
     await flushPromises();
     expect(mocks.toastError).toHaveBeenCalled();
     expect(w.emitted("close")).toBeUndefined();
+  });
+
+  it("trims the note and the told line, and leaves a blank one out", async () => {
+    const w = render();
+    await w.get("[data-pick='harl']").trigger("click");
+    await choiceButton(w, "friend of")!.trigger("click");
+    const inputs = w.findAll("input[type='text']");
+    await inputs[0]!.setValue("   ");
+    await inputs[1]!.setValue("  She ferried you.  ");
+    await w.findAll("button").find((b) => b.text() === "Add connection")!.trigger("click");
+    await flushPromises();
+    const call = mocks.create.mock.calls[0]![0];
+    expect(call.note).toBeUndefined();
+    expect(call.told).toBe("She ferried you.");
+  });
+
+  it("writes who knows when the DM chose someone, and nobody otherwise", async () => {
+    const w = render();
+    await w.get("[data-pick='harl']").trigger("click");
+    await choiceButton(w, "friend of")!.trigger("click");
+    await w.get("[data-testid='who-knows']").trigger("click");
+    await w.findAll("button").find((b) => b.text() === "Add connection")!.trigger("click");
+    await flushPromises();
+    expect(mocks.create.mock.calls[0]![0].playerVisibleTo).toEqual(["u1"]);
+  });
+
+  it("forgets the last pick when the dialog opens again", async () => {
+    const w = render();
+    await w.get("[data-pick='harl']").trigger("click");
+    await choiceButton(w, "friend of")!.trigger("click");
+    await w.setProps({ open: false });
+    await w.setProps({ open: true });
+    expect(w.text()).toContain("Pick who or what Brenna Ashe is tied to");
+    expect(w.find("[data-testid='sentence']").exists()).toBe(false);
+  });
+
+  it("clears the chosen type when the DM picks someone else", async () => {
+    const w = render();
+    await w.get("[data-pick='harl']").trigger("click");
+    await choiceButton(w, "friend of")!.trigger("click");
+    await w.get("[data-pick='thane']").trigger("click");
+    expect(w.find("[data-testid='sentence']").exists()).toBe(false);
+    expect(w.findAll("button").find((b) => b.text() === "Add connection")?.attributes("disabled")).toBeDefined();
+  });
+
+  it("keeps Add disabled while a write is in flight", async () => {
+    const w = render();
+    await w.get("[data-pick='harl']").trigger("click");
+    await choiceButton(w, "friend of")!.trigger("click");
+    pending.value = true;
+    await w.vm.$nextTick();
+    expect(w.findAll("button").find((b) => b.text() === "Add connection")?.attributes("disabled")).toBeDefined();
+  });
+
+  it("only counts ties to the same person as already tied", async () => {
+    const w = render([conn({ other_id: "n3", other_name: "Someone else" })]);
+    await w.get("[data-pick='harl']").trigger("click");
+    expect(w.find("[data-testid='already']").exists()).toBe(false);
+  });
+
+  it("falls back to Member when the role chosen is no longer offered", async () => {
+    const w = render();
+    await w.get("[data-pick='thane']").trigger("click");
+    await choiceButton(w, "member of")!.trigger("click");
+    await w.findAll("[aria-label='Role'] button").find((b) => b.text() === "Leader")!.trigger("click");
+    headed.value = true;
+    await w.vm.$nextTick();
+    await w.findAll("button").find((b) => b.text() === "Add connection")!.trigger("click");
+    await flushPromises();
+    expect(mocks.create.mock.calls[0]![0].role).toBe("Member");
+  });
+
+  it("does not say it moves a home that already points at the one picked", async () => {
+    const w = render([conn({ source: "npc_home", other_kind: "location", other_id: "l2", other_name: "Drover's Rest", type: "lives_in" })]);
+    await w.get("[data-pick='home']").trigger("click");
+    await choiceButton(w, "lives in")!.trigger("click");
+    expect(w.find("[data-testid='replaces']").exists()).toBe(false);
   });
 });

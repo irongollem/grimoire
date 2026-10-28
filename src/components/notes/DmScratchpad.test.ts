@@ -7,6 +7,18 @@ import { useAuthStore } from "@/stores/auth";
 import DmScratchpad from "./DmScratchpad.vue";
 
 const touchState = vi.hoisted(() => ({ touches: null as unknown, label: null as unknown }));
+const env = vi.hoisted(() => ({
+  docked: { value: true },
+  keys: [] as Array<{ combo: string; handler: () => void }>,
+  options: [] as Array<{ layer: string; enabled?: { value: boolean } }>,
+}));
+vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => env.docked }));
+vi.mock("@/composables/useHotkeys", () => ({
+  useHotkeys: (bindings: Array<{ combo: string; handler: () => void }>, options: { layer: string; enabled?: { value: boolean } }) => {
+    env.keys.push(...bindings);
+    env.options.push(options);
+  },
+}));
 
 vi.mock("@/composables/notes/useDmNoteTouches", () => ({
   useDmNoteTouches: () => ({ touches: touchState.touches, label: touchState.label, loading: { value: false } }),
@@ -38,7 +50,12 @@ const place = { type: "location", id: "l1", label: "Mill" } as const;
 const mountPanel = () => mount(DmScratchpad, { global: { stubs: { ...stubs, Transition: false } } });
 
 describe("DmScratchpad", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    env.docked.value = true;
+    env.keys.length = 0;
+    env.options.length = 0;
+  });
 
   it("shows the page subject's note with its type label", () => {
     const { store } = setup();
@@ -124,5 +141,59 @@ describe("DmScratchpad", () => {
     const w = mountPanel();
     await w.find("[data-test=close]").trigger("click");
     expect(store.open).toBe(false);
+  });
+
+  it("offers to switch when the page moves to another entity of the same kind", async () => {
+    const { store } = setup();
+    store.register({ ...npc });
+    store.pin();
+    store.register({ type: "npc", id: "n2", label: "Tam" });
+    const w = mountPanel();
+    expect(w.find("[data-test=switch]").text()).toContain("Switch to Tam");
+  });
+
+  it("marks only the touched entity actually on show, not another of the same kind", () => {
+    const { store } = setup();
+    store.register({ ...npc });
+    touchState.label = ref("This session");
+    touchState.touches = ref([
+      { id: "t1", entity_type: "npc", entity_id: "n2", entity_label: "Tam", touched_at: new Date().toISOString() },
+    ]);
+    expect(mountPanel().find("[data-test=touch]").text()).not.toContain("Showing now");
+  });
+
+  it("reserves the right edge of the page while docked, gives it back when closed, and reserves nothing as a phone sheet", async () => {
+    const { store } = setup();
+    const root = document.documentElement;
+    const w = mountPanel();
+    expect(root.dataset.scratchpadDock).toBeDefined();
+    expect(root.style.getPropertyValue("--dock-right")).toBe("23rem");
+    store.open = false;
+    await w.vm.$nextTick();
+    expect(root.dataset.scratchpadDock).toBeUndefined();
+    expect(root.style.getPropertyValue("--dock-right")).toBe("");
+    w.unmount();
+
+    env.docked.value = false;
+    setup();
+    const sheet = mountPanel();
+    expect(root.dataset.scratchpadDock).toBeUndefined();
+    sheet.unmount();
+  });
+
+  it("opens from the hotkey for the DM only, and Escape is live only while the panel is open", async () => {
+    const dm = setup();
+    mountPanel();
+    const open = env.keys.find((k) => k.combo === "mod+;")!;
+    open.handler();
+    expect(dm.store.open).toBe(false);
+    const escape = env.options.find((o) => o.layer === "page")!;
+    expect(escape.enabled!.value).toBe(false);
+
+    const player = setup({ dm: false, open: false });
+    env.keys.length = 0;
+    mountPanel();
+    env.keys.find((k) => k.combo === "mod+;")!.handler();
+    expect(player.store.open).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import SpellSheet from "./SpellSheet.vue";
 import type { Spell } from "@/types/spell.types";
@@ -10,8 +10,9 @@ vi.mock("@/composables/library/useSourceTitles", () => ({
   }),
 }));
 
-vi.mock("@/composables/party/useCharacterSpells", () => ({ useSpellKnowers: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcSpellCasters: () => ({ data: ref([]) }) }));
+const lookups = vi.hoisted(() => ({ knowers: [] as unknown[], casters: [] as unknown[] }));
+vi.mock("@/composables/party/useCharacterSpells", () => ({ useSpellKnowers: () => ({ data: ref(lookups.knowers) }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcSpellCasters: () => ({ data: ref(lookups.casters) }) }));
 
 function spell(overrides: Partial<Spell> = {}): Spell {
   return {
@@ -53,5 +54,38 @@ describe("SpellSheet", () => {
     const withHl = mount(SpellSheet, { props: { spell: spell({ higher_levels: "+1d6 per slot." }) }, global: { stubs } });
     expect(withHl.findAll("section.trait-list")).toHaveLength(2);
     expect(withHl.text()).toContain("At Higher Levels");
+  });
+});
+
+describe("SpellSheet who else is shown", () => {
+  afterEach(() => {
+    lookups.knowers = [];
+    lookups.casters = [];
+  });
+  const full = (compact = false) => mount(SpellSheet, { props: { spell: spell(), compact }, global: { stubs: { FocalImage: true, RouterLink: RouterLinkStub } } });
+
+  it("lists the characters who know the spell and the NPCs who cast it, and not in compact mode", () => {
+    lookups.knowers = [{ party_member_id: "m1", name: "Ilse", is_prepared: true }, { party_member_id: "m2", name: "Bram", is_prepared: false }];
+    lookups.casters = [{ npc_id: "n1", name: "Old Tom" }];
+    const w = full();
+    expect(w.text()).toContain("Known By");
+    expect(w.text()).toContain("Ilse");
+    expect(w.text()).toContain("Old Tom");
+    expect(w.text().match(/· prepared/g)).toHaveLength(1);
+    const compact = full(true);
+    expect(compact.text()).not.toContain("Known By");
+    expect(compact.text()).not.toContain("Ilse");
+    expect(compact.text()).not.toContain("Cast By");
+    expect(compact.text()).not.toContain("Old Tom");
+  });
+
+  it("draws no Known By or Cast By heading when nobody does", () => {
+    expect(full().text()).not.toContain("Known By");
+    expect(full().text()).not.toContain("Cast By");
+  });
+
+  it("shows the component letters in the full sheet but not the compact one", () => {
+    expect(full().text()).toContain("V, S");
+    expect(full(true).text()).not.toContain("V, S");
   });
 });

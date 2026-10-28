@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPromptScreeningPanel from "./AdminPromptScreeningPanel.vue";
+import { useAdminUiStore } from "@/stores/ui/admin";
 import type {
   PromptScreeningCategoryHint,
   PromptScreeningHints,
@@ -315,5 +316,13 @@ describe("AdminPromptScreeningPanel — composition and the surface filter", () 
     const wrapper = mount(AdminPromptScreeningPanel);
     expect(wrapper.text()).toContain("No screenings recorded in the last 30 days.");
     expect(wrapper.text()).toContain("this fills in as soon as one runs");
+  });
+  it("keeps an active surface filter in the picker even when this window has no screenings of it", () => {
+    useAdminUiStore().promptScreeningSurface = "tile_pack";
+    data.value = hints({ total: 5, by_type: [breakdown({ generation_type: "entity_image", screenings: 5 })] });
+    const wrapper = mount(AdminPromptScreeningPanel);
+    const values = wrapper.findAll('select[aria-label="Filter by surface"] option').map((o) => o.attributes("value"));
+    expect(values).toContain("tile_pack");
+    expect(values).toContain("entity_image");
   });
 });

@@ -286,4 +286,56 @@ describe("BookTurn dragging a corner", () => {
     expect(w.findAll(".ob-leaf")).toHaveLength(0);
     w.unmount();
   });
+
+  describe("dragging the back corner", () => {
+    function mountBack(onClick: () => void) {
+      return mount(BookTurn, {
+        attachTo: document.body,
+        props: { target: at("a", 1, 2), mode: "spread" as const, next: null, prev: at("a", 0, 1) },
+        slots: {
+          page: ({ target: t, side }: { target: PageTarget; side: string }) => h("div", { class: "face", "data-side": side, "data-target": `${t.key}:${t.unit}` }),
+          default: () => h("button", { class: "ob-lift", "data-dir": "prev", onClick }),
+        },
+      });
+    }
+
+    it("turns back when the corner is pulled past halfway across the spread", async () => {
+      const onClick = vi.fn();
+      const w = mountBack(onClick);
+      w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 130));
+      window.dispatchEvent(pointer("pointermove", 200));
+      await nextTick();
+      await nextTick();
+      window.dispatchEvent(pointer("pointermove", 700));
+      window.dispatchEvent(pointer("pointerup", 700));
+      expect(onClick).toHaveBeenCalledTimes(1);
+      w.unmount();
+    });
+
+    it("springs back when the corner is let go before halfway", async () => {
+      const onClick = vi.fn();
+      const w = mountBack(onClick);
+      w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 130));
+      window.dispatchEvent(pointer("pointermove", 200));
+      await nextTick();
+      await nextTick();
+      window.dispatchEvent(pointer("pointermove", 300));
+      window.dispatchEvent(pointer("pointerup", 300));
+      run(100);
+      await flushPromises();
+      expect(onClick).not.toHaveBeenCalled();
+      expect(w.findAll(".ob-leaf")).toHaveLength(0);
+      w.unmount();
+    });
+
+    it("treats a nudge under the slop as a plain press, not a drag", async () => {
+      const onClick = vi.fn();
+      const w = mountBack(onClick);
+      w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 130));
+      window.dispatchEvent(pointer("pointermove", 135));
+      await nextTick();
+      expect(w.findAll(".ob-leaf")).toHaveLength(0);
+      w.unmount();
+    });
+  });
 });

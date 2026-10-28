@@ -88,3 +88,43 @@ describe("PlayerNpcCard AI badge", () => {
     expect(w2.text()).toContain("AI");
   });
 });
+
+describe("PlayerNpcCard what the player may see", () => {
+  it("shows ??? and keeps the true name out of the card when the DM has not shared the name", async () => {
+    const w = mountCard(npc({ name: "Mira Voss", player_visible_fields: ["portrait"] }));
+    await flushPromises();
+    expect(w.find("h3").text()).toBe("???");
+    expect(w.html()).not.toContain("Mira Voss");
+  });
+
+  it("withholds race and occupation until they are in player_visible_fields, then shows them", async () => {
+    const hidden = mountCard(npc({ race: "Tiefling", occupation: "Smuggler", player_visible_fields: ["name"] }));
+    expect(hidden.text()).not.toContain("Tiefling");
+    expect(hidden.text()).not.toContain("Smuggler");
+    const shown = mountCard(npc({ race: "Tiefling", occupation: "Smuggler", player_visible_fields: ["name", "race", "occupation"] }));
+    expect(shown.text()).toContain("Tiefling");
+    expect(shown.text()).toContain("Smuggler");
+  });
+
+  it("swaps a withheld portrait for the mystery figure and never puts the real URL in the DOM", async () => {
+    const w = mountCard(npc({ player_visible_fields: ["name"] }));
+    await flushPromises();
+    expect(w.find("img[alt='Identity hidden']").exists()).toBe(true);
+    expect(w.html()).not.toContain("cdn.test/mira.webp");
+  });
+
+  it("shows a concealed NPC under its cover name, never the true one", async () => {
+    const w = mountCard(
+      npc({ name: "Lord Varrow", disguise_name: "Old Tom", disguise_portrait_url: "https://cdn.test/cover.webp", is_revealed: false }),
+    );
+    await flushPromises();
+    expect(w.find("h3").text()).toBe("Old Tom");
+    expect(w.html()).not.toContain("Lord Varrow");
+  });
+
+  it("emits click when the card is clicked", async () => {
+    const w = mountCard(npc({}));
+    await w.trigger("click");
+    expect(w.emitted("click")).toHaveLength(1);
+  });
+});

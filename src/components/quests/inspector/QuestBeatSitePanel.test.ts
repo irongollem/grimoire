@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   regions: [] as unknown[],
   doors: [] as unknown[],
   preparedCounts: { trap: 0, feature: 0, secret_feature: 0, puzzle: 0, encounter: 0, loot: 0 },
+  preparedAsked: [] as string[][],
   locationOptions: [] as unknown[],
 }));
 
@@ -37,7 +38,10 @@ vi.mock("@/composables/locations/useSiteDoors", () => ({
   useSiteDoors: () => ({ data: { value: mocks.doors } }),
 }));
 vi.mock("@/composables/locations/useSitePrepared", () => ({
-  useSitePrepared: () => ({ counts: { value: mocks.preparedCounts } }),
+  useSitePrepared: (ids: { value: string[] }) => {
+    mocks.preparedAsked.push([...ids.value]);
+    return { counts: { value: mocks.preparedCounts } };
+  },
 }));
 
 const beat = (overrides: Partial<QuestBeat> = {}): QuestBeat => ({
@@ -50,6 +54,7 @@ describe("QuestBeatSitePanel", () => {
     mocks.update.mockReset();
     mocks.regions = [];
     mocks.doors = [];
+    mocks.preparedAsked = [];
     mocks.preparedCounts = { trap: 0, feature: 0, secret_feature: 0, puzzle: 0, encounter: 0, loot: 0 };
     mocks.locationOptions = defaultLocations();
   });
@@ -298,5 +303,90 @@ describe("QuestBeatSitePanel", () => {
     expect(siteSection.text()).not.toContain("Site readiness");
     expect(readinessSection.text()).toContain("Floor plan not published yet");
     expect(readinessSection.text()).toContain("Site readiness is a beat gap.");
+  });
+
+  const mountStaged = (stagedAt: string) => mount(QuestBeatSitePanel, {
+    props: { beat: beat({ staged_at_location_id: stagedAt }) },
+    global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+  });
+  const choose = async (w: ReturnType<typeof mountStaged>, id: string) => {
+    await w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Change")!.trigger("click");
+    w.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", id);
+    await flushPromises();
+  };
+
+  it("counts what is prepared only in the rooms the party can walk to from where it opens", () => {
+    mocks.doors = [{ id: "d1", from_location_id: "room-1", to_location_id: null, starts_locked: false, is_one_way: false }];
+    mountStaged("room-1");
+    expect(mocks.preparedAsked.at(-1)).toEqual(["room-1"]);
+    mocks.doors = [{ id: "d1", from_location_id: "room-1", to_location_id: "room-2", starts_locked: false, is_one_way: false }];
+    mountStaged("room-1");
+    expect(mocks.preparedAsked.at(-1)?.sort()).toEqual(["room-1", "room-2"]);
+  });
+
+  it("staged at the site itself, every room counts as reachable", () => {
+    mountStaged("site-1");
+    expect(mocks.preparedAsked.at(-1)?.sort()).toEqual(["room-1", "room-2"]);
+  });
+
+  it("a site's room count ignores children that are not its interior spaces", () => {
+    mocks.locationOptions = [...defaultLocations(), { id: "annex", name: "The annex", location_type: "building", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null }];
+    expect(mountStaged("site-1").text()).toContain("site · 2 rooms");
+  });
+
+  it("saving the pick closes the picker; a refused pick keeps it open with the reason, and a retry clears the reason", async () => {
+    mocks.update.mockRejectedValueOnce("refused").mockResolvedValue(undefined);
+    const wrapper = mountStaged("site-1");
+    await choose(wrapper, "room-2");
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not stage this beat at a site");
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(true);
+    expect(wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Cancel")).toBeDefined();
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "room-2");
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
+    expect(wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Change")!.props("loading")).toBe(false);
+  });
+
+  it("clearing the picker stages nothing", async () => {
+    const wrapper = mountStaged("site-1");
+    await choose(wrapper, "");
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("opening another beat closes the picker and forgets the last failure", async () => {
+    mocks.update.mockRejectedValue(new Error("Nope"));
+    const wrapper = mountStaged("site-1");
+    await choose(wrapper, "room-2");
+    expect(wrapper.get('[role="alert"]').text()).toBe("Nope");
+    await wrapper.setProps({ beat: beat({ id: "beat-2", staged_at_location_id: "site-1" }) });
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
+  });
+
+  it("names where the ambience comes from: the site's own, one a room inherits, or none", () => {
+    expect(mountStaged("site-1").text()).toContain("dungeon-wet, per room where set");
+    expect(mountStaged("site-1").text()).not.toContain("from Cloister");
+    expect(mountStaged("room-1").text()).toContain("dungeon-wet, from Cloister of Small Mercies, per room where set");
+    mocks.locationOptions = defaultLocations().map((loc) => (loc.id === "site-1" ? { ...loc, audio_theme: null } : loc));
+    expect(mountStaged("room-1").text()).toContain("None set, per room where set");
+  });
+
+  it("a floor plan with a map but no calibration is still unpublished", () => {
+    mocks.locationOptions = defaultLocations().map((loc) => (loc.id === "site-1" ? { ...loc, map_url: "https://example.invalid/plan.webp" } : loc));
+    expect(mountStaged("site-1").text()).toContain("Floor plan not published yet");
+  });
+
+  it("the readiness header stays a gap while a traced space is still unbound, even with the plan published and ways out traced", () => {
+    mocks.locationOptions = defaultLocations().map((loc) => (loc.id === "site-1"
+      ? { ...loc, map_url: "https://example.invalid/plan.webp", grid_calibration: { cellSize: 50, originX: 0, originY: 0 } }
+      : loc));
+    mocks.regions = [
+      { id: "region-1", region_role: "space", cells: ["0,0"], space_location_id: "room-1" },
+      { id: "region-2", region_role: "space", cells: ["1,0"], space_location_id: null },
+    ];
+    mocks.doors = [{ from_location_id: "room-1" }];
+    const header = mountStaged("site-1").find('[aria-label="Site readiness"] header');
+    expect(header.find(".text-tone-caution").exists()).toBe(true);
   });
 });

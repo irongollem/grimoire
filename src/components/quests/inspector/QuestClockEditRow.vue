@@ -2,6 +2,7 @@
   <div class="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/40 transition-colors">
     <QuestClockDial :label="clock.label" :segments="clock.segments" :filled="clock.filled" small />
     <AppInput
+      :key="`label-${redraw}`"
       v-model.lazy="label"
       tone="underline"
       size="body"
@@ -12,6 +13,7 @@
     <label class="flex shrink-0 items-center gap-1 text-caption text-muted-foreground">
       <span>Segments</span>
       <AppInput
+        :key="`segments-${redraw}`"
         v-model.lazy.number="segments"
         type="number"
         :min="QUEST_CLOCK_MIN_SEGMENTS"
@@ -64,6 +66,15 @@ const toast = useToast();
 
 const label = ref(clock.label);
 const segments = ref(clock.segments);
+// Restoring a rejected draft to the value it already holds changes nothing Vue
+// can see, so the input would keep showing what was typed; bumping this key
+// redraws the inputs from the stored clock.
+const redraw = ref(0);
+function restoreDraft() {
+  label.value = clock.label;
+  segments.value = clock.segments;
+  redraw.value += 1;
+}
 // A refetch (another device) is the truth; the draft follows it.
 watch(() => clock.label, (value) => { label.value = value; });
 watch(() => clock.segments, (value) => { segments.value = value; });
@@ -75,21 +86,20 @@ async function save(update: QuestClockUpdate) {
     // Refused (a resize at or below the current fill, a check constraint):
     // show why, and put the rejected draft back to what is stored.
     toast.error(toast.fromError(e));
-    label.value = clock.label;
-    segments.value = clock.segments;
+    restoreDraft();
   }
 }
 
 function commitLabel() {
   const next = label.value.trim();
-  if (!next) { label.value = clock.label; return; }
+  if (!next) { restoreDraft(); return; }
   if (next !== clock.label) void save({ label: next });
 }
 
 function commitSegments() {
   const next = Math.round(segments.value);
   if (!Number.isFinite(next) || next < QUEST_CLOCK_MIN_SEGMENTS || next > QUEST_CLOCK_MAX_SEGMENTS) {
-    segments.value = clock.segments;
+    restoreDraft();
     return;
   }
   if (next !== clock.segments) void save({ segments: next });

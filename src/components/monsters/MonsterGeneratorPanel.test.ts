@@ -26,7 +26,8 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock("@/stores/ui/monsters", () => ({ useMonstersUiStore: () => ({ monsterGeneratorOpen: true }) }));
+const uiState = vi.hoisted(() => ({ monsterGeneratorOpen: true }));
+vi.mock("@/stores/ui/monsters", () => ({ useMonstersUiStore: () => uiState }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
@@ -40,11 +41,12 @@ vi.mock("@/composables/ai/useCampaignProviders", () => ({
 vi.mock("@/composables/monsters/useGenerateMonster", () => ({
   useGenerateMonster: () => ({ generateAndCreateMonster: mocks.generateAndCreateMonster }),
 }));
+const completedEntityId = ref<string | null>(null);
 vi.mock("@/ai/useMonsterGeneration", () => ({
   useMonsterGeneration: () => ({
     isGenerating: ref(false),
     error: ref(null),
-    completedEntityId: ref(null),
+    completedEntityId,
     concept: ref(""),
     clearCompleted: vi.fn(),
   }),
@@ -165,5 +167,79 @@ describe("MonsterGeneratorPanel — credit gate (short balance, under quota)", (
 
     expect(mocks.generateAndCreateMonster).not.toHaveBeenCalled();
     expect(useOutOfCredits().needed.value).not.toBeNull();
+  });
+});
+
+describe("MonsterGeneratorPanel — what it asks for and where it lands", () => {
+  beforeEach(() => {
+    mocks.generateAndCreateMonster.mockReset();
+    mocks.push.mockReset();
+    campaignState.isAiEnabled = true;
+    canCreateMonster.value = true;
+    affordableState.value = true;
+    uiState.monsterGeneratorOpen = true;
+  });
+
+  async function generate(wrapper: ReturnType<typeof mountPanel>, concept = "  A colossal spider deity.  ") {
+    await wrapper.get("textarea").setValue(concept);
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
+  it("asks for the trimmed concept and leaves every blank constraint out", async () => {
+    mocks.generateAndCreateMonster.mockResolvedValue({ id: null, error: null });
+    await generate(mountPanel());
+    expect(mocks.generateAndCreateMonster).toHaveBeenCalledWith("A colossal spider deity.", {
+      challenge_rating: undefined,
+      monster_type: undefined,
+      size: undefined,
+      generateImage: true,
+    });
+  });
+
+  it("sends the constraints the DM chose, the rating trimmed", async () => {
+    mocks.generateAndCreateMonster.mockResolvedValue({ id: null, error: null });
+    const wrapper = mountPanel();
+    wrapper.findComponent({ name: "AppInput" }).vm.$emit("update:modelValue", " 1/2 ");
+    const [type, size] = wrapper.findAllComponents({ name: "AppSelect" });
+    type!.vm.$emit("update:modelValue", "aberration");
+    size!.vm.$emit("update:modelValue", "large");
+    await generate(wrapper);
+    expect(mocks.generateAndCreateMonster.mock.calls[0]![1]).toMatchObject({ challenge_rating: "1/2", monster_type: "aberration", size: "large" });
+  });
+
+  it("closes the panel and opens the new monster when it was made from the open panel", async () => {
+    mocks.generateAndCreateMonster.mockResolvedValue({ id: "new-monster", error: null });
+    await generate(mountPanel());
+    expect(uiState.monsterGeneratorOpen).toBe(false);
+    expect(mocks.push).toHaveBeenCalledWith("/monsters/new-monster");
+  });
+
+  it("only records the new monster, and does not navigate, when the DM closed the panel while it was working", async () => {
+    mocks.generateAndCreateMonster.mockImplementation(async () => {
+      uiState.monsterGeneratorOpen = false;
+      return { id: "new-monster", error: null };
+    });
+    completedEntityId.value = null;
+    await generate(mountPanel());
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(completedEntityId.value).toBe("new-monster");
+  });
+
+  it("stays put when the generation produced no monster", async () => {
+    mocks.generateAndCreateMonster.mockResolvedValue({ id: null, error: "model refused" });
+    await generate(mountPanel());
+    expect(uiState.monsterGeneratorOpen).toBe(true);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("opens the paywall when the create half hits the plan limit, and does not navigate", async () => {
+    mocks.generateAndCreateMonster.mockRejectedValueOnce({ message: "quota_exceeded" });
+    const wrapper = mountPanel();
+    await generate(wrapper);
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(uiState.monsterGeneratorOpen).toBe(true);
   });
 });

@@ -4,9 +4,9 @@ import { ref } from "vue";
 import PlayerConnectionsList from "./PlayerConnectionsList.vue";
 import type { Connection } from "@/types/connections.types";
 
-const rows = vi.hoisted(() => ({ list: [] as unknown[] }));
+const rows = vi.hoisted(() => ({ list: [] as unknown[], loading: false, failed: false }));
 vi.mock("@/composables/connections/usePlayerConnections", () => ({
-  usePlayerConnections: () => ({ data: ref(rows.list) }),
+  usePlayerConnections: () => ({ data: ref(rows.list), isLoading: ref(rows.loading), isError: ref(rows.failed) }),
 }));
 
 function row(over: Partial<Connection>): Connection {
@@ -48,5 +48,28 @@ describe("PlayerConnectionsList", () => {
     expect(w.text()).not.toContain("Wren");
     expect(w.text()).toContain("Bram");
     expect(w.text()).not.toMatch(/hidden|more|secret/i);
+  });
+
+  it("shows a skeleton while loading, and an error line when the read failed, but still no count of what it could not show", () => {
+    rows.list = [];
+    rows.loading = true;
+    const loading = mountList();
+    expect(loading.find('[data-testid="player-connections"]').exists()).toBe(true);
+    expect(loading.findComponent({ name: "ListSkeleton" }).exists()).toBe(true);
+    rows.loading = false;
+    rows.failed = true;
+    expect(mountList().text()).toContain("Could not load the connections.");
+    rows.failed = false;
+  });
+
+  it("draws a faction on a token and a party member as a character, other people on a portrait", () => {
+    rows.list = [
+      row({ row_id: "f", other_kind: "faction", other_id: "f1", other_name: "The Guild" }),
+      row({ row_id: "p", other_kind: "party_member", other_id: "pm1", other_name: "Wren" }),
+      row({ row_id: "n", other_kind: "npc", other_id: "n9", other_name: "Bram" }),
+    ];
+    const slips = mountList().findAllComponents({ name: "ConnectionSlip" });
+    const by = Object.fromEntries(slips.map((s) => [s.props("name"), [s.props("imageFormat"), s.props("pc")]]));
+    expect(by).toEqual({ "The Guild": ["token", false], Wren: ["portrait", true], Bram: ["portrait", false] });
   });
 });

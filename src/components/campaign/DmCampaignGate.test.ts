@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   campaigns: undefined as unknown[] | undefined,
   isSuccess: false,
   meta: {} as Record<string, unknown>,
+  canCreate: true,
+  switchMode: vi.fn(),
 }));
 
 vi.mock("@/composables/campaign/useCampaigns", () => ({
@@ -30,16 +32,17 @@ vi.mock("@/composables/campaign/useCampaigns", () => ({
 }));
 
 vi.mock("@/composables/useModeSwitch", () => ({
-  useModeSwitch: () => ({ switchMode: vi.fn() }),
+  useModeSwitch: () => ({ switchMode: mocks.switchMode }),
 }));
 
 vi.mock("@/composables/billing/useQuota", () => ({
-  useQuota: () => ({ canCreate: { value: true } }),
+  useQuota: () => ({ canCreate: { get value() { return mocks.canCreate; } }, quota: { value: null } }),
 }));
 
 vi.mock("@/components/campaign/NewCampaignModal.vue", () => ({
   __esModule: true,
   default: defineComponent({
+    name: "NewCampaignModalMock",
     props: { modelValue: Boolean },
     setup: (props) => () => h("div", { "data-test": "new-campaign-modal", "data-open": String(props.modelValue) }),
   }),
@@ -66,7 +69,7 @@ function render() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return mount(DmCampaignGate, {
     slots: { default: () => h("p", "the page") },
-    global: { plugins: [[VueQueryPlugin, { queryClient }]] },
+    global: { plugins: [[VueQueryPlugin, { queryClient }]], stubs: { DemoCampaignOffer: true, PaywallModal: { name: "PaywallModal", props: ["modelValue"], template: "<div />" } } },
   });
 }
 
@@ -75,6 +78,8 @@ beforeEach(() => {
   mocks.campaigns = undefined;
   mocks.isSuccess = false;
   mocks.meta = {};
+  mocks.canCreate = true;
+  mocks.switchMode.mockReset();
 });
 
 describe("DmCampaignGate", () => {
@@ -128,5 +133,43 @@ describe("DmCampaignGate", () => {
     await flushPromises();
 
     expect(wrapper.text()).toBe("the page");
+  });
+
+  it("opens the paywall, not the new-campaign form, for a free account at its campaign limit", async () => {
+    useAppUiStore().userMode = "dm";
+    mocks.campaigns = [];
+    mocks.isSuccess = true;
+    mocks.canCreate = false;
+    const wrapper = render();
+    await vi.waitFor(() => expect(wrapper.findComponent({ name: "PaywallModal" }).exists()).toBe(true));
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(wrapper.find('[data-test="new-campaign-modal"]').exists()).toBe(false);
+  });
+
+  it("offers the form once: closing it is an answer and is not reopened", async () => {
+    const ui = useAppUiStore();
+    ui.userMode = "dm";
+    mocks.campaigns = [];
+    mocks.isSuccess = true;
+    const wrapper = render();
+    await flushPromises();
+    wrapper.findComponent({ name: "NewCampaignModalMock" }).vm.$emit("update:modelValue", false);
+    await flushPromises();
+    expect(wrapper.find('[data-test="new-campaign-modal"]').attributes("data-open")).toBe("false");
+    ui.userMode = "player";
+    await flushPromises();
+    ui.userMode = "dm";
+    await flushPromises();
+    expect(wrapper.find('[data-test="new-campaign-modal"]').attributes("data-open")).toBe("false");
+  });
+
+  it("sends a player-only account to the player lens", async () => {
+    useAppUiStore().userMode = "dm";
+    mocks.campaigns = [];
+    mocks.isSuccess = true;
+    const wrapper = render();
+    await flushPromises();
+    await wrapper.findAll("button").find((b) => b.text() === "Switch to Player")!.trigger("click");
+    expect(mocks.switchMode).toHaveBeenCalledWith("player");
   });
 });

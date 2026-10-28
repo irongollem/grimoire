@@ -6,6 +6,7 @@ import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/lis
 import { sourceLabel } from "@/lib/library/sourceLabel";
 import DungeonCraftTrapsTab from "./DungeonCraftTrapsTab.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { useTrapsUiStore } from "@/stores/ui/traps";
 import type { Trap } from "@/types/trap.types";
 
@@ -107,13 +108,13 @@ describe("DungeonCraftTrapsTab — filter state (Filter State Pattern)", () => {
   });
 
   it("filters the grid by the store's type filter", async () => {
-    mocks.traps = [trap({ id: "t1", trap_type: "Mechanical" }), trap({ id: "t2", trap_type: "Magical" })];
-    const wrapper = mountTab();
-    const trapsUi = useTrapsUiStore();
-    trapsUi.trapsFilterType = "Magical";
-    await wrapper.vm.$nextTick();
+    mocks.traps = [trap({ id: "t1", name: "Dart Wall", trap_type: "Mechanical" }), trap({ id: "t2", name: "Glyph", trap_type: "Magical" })];
+    const wrapper = mountWithLinks();
+    useTrapsUiStore().trapsFilterType = "Magical";
+    await flushMicrotasks();
 
-    expect(wrapper.text()).not.toContain("Poison Dart Wall");
+    expect(wrapper.text()).not.toContain("Dart Wall");
+    expect(wrapper.text()).toContain("Glyph");
   });
 
   it("survives being torn down and remounted — the filter is not a local ref", async () => {
@@ -193,5 +194,54 @@ describe("DungeonCraftTrapsTab — empty list (#1060)", () => {
     const text = mountTab().text();
     expect(text).not.toContain("book icon");
     expect(text).toContain("Build your first trap");
+  });
+});
+
+function mountWithLinks() {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  return mount(DungeonCraftTrapsTab, {
+    global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
+  });
+}
+
+describe("DungeonCraftTrapsTab — search and subtitle", () => {
+  beforeEach(() => {
+    mocks.traps = [
+      trap({ id: "t1", name: "Dart Wall", trigger_type: "Pressure Plate", tags: ["corridor"] }),
+      trap({ id: "t2", name: "Rolling Stone", trigger_type: "Tripwire", tags: [] }),
+    ];
+  });
+
+  it("searches by name, trigger or tag, ignoring surrounding spaces", async () => {
+    const wrapper = mountWithLinks();
+    const ui = useTrapsUiStore();
+    await flushMicrotasks();
+    for (const [query, shown, hidden] of [
+      ["  dart ", "Dart Wall", "Rolling Stone"],
+      ["TRIPWIRE", "Rolling Stone", "Dart Wall"],
+      [" corridor ", "Dart Wall", "Rolling Stone"],
+    ]) {
+      ui.trapsSearch = query;
+      await flushMicrotasks();
+      expect(wrapper.text()).toContain(shown);
+      expect(wrapper.text()).not.toContain(hidden);
+    }
+  });
+
+  it("in the rows layout the subtitle joins the challenge rating and the trigger, and is empty with neither", async () => {
+    useListLayout("traps", "grid").value = "rows";
+    try {
+      mocks.traps = [
+        trap({ id: "t1", name: "A", cr: "2", trigger_type: "Tripwire" }),
+        trap({ id: "t2", name: "B", cr: null, trigger_type: "Tripwire" }),
+        trap({ id: "t3", name: "C", cr: null, trigger_type: null }),
+      ];
+      const wrapper = mountWithLinks();
+      await flushMicrotasks();
+      expect(wrapper.findAllComponents({ name: "EntityListRow" }).map((r) => r.props("subtitle"))).toEqual(["CR 2 · Tripwire", "Tripwire", null]);
+    } finally {
+      useListLayout("traps", "grid").value = "grid";
+    }
   });
 });

@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import type { Directive } from "vue";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import PlayerCombatTab from "./PlayerCombatTab.vue";
 import type { PartyMember } from "@/types/party.types";
@@ -8,6 +8,7 @@ import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 
 const promptRoll = vi.fn();
+const updateMember = vi.hoisted(() => vi.fn());
 
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendRoll: vi.fn().mockResolvedValue(undefined) }) }));
@@ -18,7 +19,7 @@ vi.mock("@/composables/items/useStoredItemRefs", () => ({ useStoredItemRefs: () 
 vi.mock("@/composables/encounters/useAmmoConsumption", () => ({ useAmmoConsumption: () => ({ consumeAmmo: vi.fn(), consumeWeaponCharge: vi.fn() }) }));
 vi.mock("@/composables/encounters/useThrownWeapon", () => ({ useThrownWeapon: () => ({ throwWeapon: vi.fn() }) }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useRuleset: () => ({ ruleset: ref("2024") }) }));
-vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: vi.fn() }) }));
+vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: updateMember }) }));
 
 // The real directive wires long-press and right-click; a click is all this test needs.
 const rollMode: Directive = {
@@ -36,10 +37,10 @@ function entry(name: string, structured: StatBlockEntry["structured"]): StatBloc
   return { name, description: `${name} prose with +9 to hit and 9d9 damage that must be ignored.`, structured };
 }
 
-function mountBeast(actions: StatBlockEntry[]) {
+function mountBeast(actions: StatBlockEntry[], who: PartyMember = member) {
   const wildshapeMonster = { id: "w1", name: "Wolf", stat_block: { actions } } as unknown as PlayerVisibleMonster;
   return mount(PlayerCombatTab, {
-    props: { member, attackDisadvantage: false, attackPenalty: 0, checkDisadvantage: false, checkPenalty: 0, wildshapeMonster },
+    props: { member: who, attackDisadvantage: false, attackPenalty: 0, checkDisadvantage: false, checkPenalty: 0, wildshapeMonster },
     global: {
       directives: { "roll-mode": rollMode },
       stubs: { PlayerLoadout: true, PlayerCustomAttacks: true, FeatureActionsCard: true, DamageRiderPicker: true, PlayerRollModeControl: true },
@@ -81,5 +82,59 @@ describe("PlayerCombatTab beast actions", () => {
       entry("Odd", { kind: "other", source: "extracted", review: "bonus not in prose" }),
     ]);
     expect(w.findAll("button").filter((b) => b.text().includes("Attack") || b.text().includes("Damage"))).toHaveLength(0);
+  });
+});
+
+describe("PlayerCombatTab hiding", () => {
+  beforeEach(() => {
+    promptRoll.mockReset();
+    updateMember.mockReset();
+    updateMember.mockResolvedValue(undefined);
+  });
+
+  const stealth = (total: number) => ({ total, modifier: 2, label: "Hide", breakdown: [{ val: total - 2, dropped: false }], isCrit: false });
+  const hideButton = (w: ReturnType<typeof mountBeast>) => w.findAllComponents({ name: "AppButton" }).find((c) => c.props("tooltip") === "Take the Hide action")!;
+  const rules2024 = { ...member, ruleset: "2024" } as unknown as PartyMember;
+  const hidden = { ...member, ruleset: "2024", conditions: [{ name: "Hidden" }] } as unknown as PartyMember;
+
+  it("marks the character Hidden on a 15 under the 2024 rules (DC 15)", async () => {
+    // PHB 2024 "Hide": a Dexterity (Stealth) check of DC 15 hides you.
+    promptRoll.mockResolvedValue(stealth(15));
+    const w = mountBeast([], rules2024);
+    await hideButton(w).trigger("click");
+    await flushPromises();
+    expect(updateMember).toHaveBeenCalledWith({ id: "m1", update: { conditions: [{ name: "Hidden" }] } });
+  });
+
+  it("does not mark Hidden on a 14", async () => {
+    promptRoll.mockResolvedValue(stealth(14));
+    await hideButton(mountBeast([], rules2024)).trigger("click");
+    await flushPromises();
+    expect(updateMember).not.toHaveBeenCalled();
+  });
+
+  it("does not mark Hidden when the physical-dice prompt is cancelled", async () => {
+    promptRoll.mockResolvedValue(null);
+    await hideButton(mountBeast([], rules2024)).trigger("click");
+    await flushPromises();
+    expect(updateMember).not.toHaveBeenCalled();
+  });
+
+  it("shows a hidden character as Hidden with no Hide button", () => {
+    const w = mountBeast([], hidden);
+    expect(w.text()).toContain("Hidden");
+    expect(w.findAllComponents({ name: "AppButton" }).filter((c) => c.props("tooltip") === "Take the Hide action")).toHaveLength(0);
+  });
+
+  it("an attack gives away a hidden character's position", async () => {
+    // PHB 2024 "Hide": the condition ends when you make an attack roll.
+    promptRoll.mockResolvedValue({ total: 15, modifier: 4, label: "x", breakdown: [{ val: 11, dropped: false }], isCrit: false });
+    const w = mountBeast(
+      [entry("Bite", { kind: "attack", attack: { delivery: "melee", bonus: 4, hit: [{ dice: "2d6+2", type: "piercing" }] }, source: "parsed" })],
+      hidden,
+    );
+    await w.findAll("button").find((b) => b.text().includes("Attack"))?.trigger("click");
+    await flushPromises();
+    expect(updateMember).toHaveBeenCalledWith({ id: "m1", update: { conditions: [] } });
   });
 });

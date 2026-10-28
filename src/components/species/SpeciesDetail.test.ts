@@ -151,4 +151,48 @@ describe("SpeciesDetail scope default", () => {
     await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
     expect(mocks.update).toHaveBeenCalled();
   });
+
+  describe("what is saved", () => {
+    type Vm = { save: () => Promise<void>; form: Record<string, unknown> };
+    const base = { id: "s1", campaign_id: null, name: "Owlfolk", speed: { walk: 30 } } as unknown as Species;
+    const saved = async (species: Species, edit: (form: Vm["form"]) => void = () => undefined) => {
+      mocks.update.mockClear();
+      const wrapper = mountDetail(species);
+      const vm = wrapper.vm as unknown as Vm;
+      edit(vm.form);
+      await vm.save();
+      return mocks.update.mock.calls[0][0].update;
+    };
+
+    it("opens ability score increases as free text, or as +N ABILITY when they were imported as numbers", () => {
+      const open = (asi: unknown) =>
+        (mountDetail({ ...base, ability_score_increases: asi } as unknown as Species).vm as unknown as Vm).form.asiDescription;
+      expect(open({ description: "Two of your choice" })).toBe("Two of your choice");
+      expect(open({ dex: 2, int: 1 })).toBe("+2 DEX, +1 INT");
+    });
+
+    it("trims the name and the source, and stores blanks as null", async () => {
+      const update = await saved(base, (f) => {
+        f.name = "  Owlfolk  ";
+        f.source = "   ";
+        f.avg_height = " ";
+        f.avg_weight = "";
+        f.image_url = "";
+        f.size = "";
+      });
+      expect(update).toMatchObject({ name: "Owlfolk", source: null, avg_height: null, avg_weight: null, image_url: null, size: null });
+    });
+
+    it("keeps an ability score text it cannot read as a description, and drops a blank one", async () => {
+      expect((await saved(base, (f) => { f.asiDescription = "   "; })).ability_score_increases).toBeNull();
+      expect((await saved(base, (f) => { f.asiDescription = "A knack for owls"; })).ability_score_increases).toEqual({ description: "A knack for owls" });
+    });
+
+    it("leaves the AI mark alone when only tags change, and marks the entry edited when its content does", async () => {
+      const ai = { ...base, ai_provenance: { model: "gpt", edited: false }, tags: [], traits: null, languages: [], subraces: null, granted_spells: [], description: null, size: null, ability_score_increases: null } as unknown as Species;
+      expect((await saved(ai, (f) => { f.tags = ["owls"]; })).ai_provenance).toEqual({ model: "gpt", edited: false });
+      expect((await saved(ai, (f) => { f.name = "Owlkin"; })).ai_provenance).toEqual({ model: "gpt", edited: true });
+      expect((await saved(ai, (f) => { f.languages = ["Elvish"]; })).ai_provenance).toEqual({ model: "gpt", edited: true });
+    });
+  });
 });

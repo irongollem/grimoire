@@ -151,4 +151,55 @@ describe("RoomAmbienceCell", () => {
     expect(wrapper.emitted("save")).toBeUndefined();
     expect(wrapper.text()).toContain("shrine-choral"); // back to the read view
   });
+
+  const inheriting = () =>
+    mount(RoomAmbienceCell, {
+      props: {
+        locationId: "room-1",
+        ownTheme: null,
+        resolved: resolved({ theme: "dungeon-wet", from: { id: "site-1", parent_id: null, audio_theme: "dungeon-wet", name: "Site" }, kind: "inherited" }),
+        themeOptions: [],
+      },
+    });
+
+  it("saves once when Enter is followed by the blur it causes", async () => {
+    const wrapper = inheriting();
+    await wrapper.find("button").trigger("click");
+    const input = wrapper.getComponent(ThemeInput);
+    await input.vm.$emit("update:modelValue", "shrine-choral");
+    await input.trigger("keydown.enter");
+    await input.trigger("focusout");
+    expect(wrapper.emitted("save")).toHaveLength(1);
+  });
+
+  it("writes nothing when the DM presses Enter without changing the theme", async () => {
+    const wrapper = mount(RoomAmbienceCell, {
+      props: {
+        locationId: "room-1",
+        ownTheme: "shrine-choral",
+        resolved: resolved({ theme: "shrine-choral", from: { id: "room-1", parent_id: null, audio_theme: "shrine-choral", name: "Reliquary" }, kind: "own" }),
+        themeOptions: [],
+      },
+    });
+    await wrapper.find("button").trigger("click");
+    await wrapper.getComponent(ThemeInput).trigger("keydown.enter");
+    expect(wrapper.emitted("save")).toBeUndefined();
+  });
+
+  it("throws away a typed theme on Escape and shows the old one when it opens again", async () => {
+    const wrapper = inheriting();
+    await wrapper.find("button").trigger("click");
+    await wrapper.getComponent(ThemeInput).vm.$emit("update:modelValue", "half-typed");
+    await wrapper.getComponent(ThemeInput).trigger("keydown.escape");
+    expect(wrapper.emitted("save")).toBeUndefined();
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.getComponent(ThemeInput).props("modelValue")).toBeNull();
+  });
+
+  it("tells the parent when editing starts, so it can fetch the suggestions", async () => {
+    const wrapper = inheriting();
+    expect(wrapper.emitted("edit-start")).toBeUndefined();
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.emitted("edit-start")).toHaveLength(1);
+  });
 });

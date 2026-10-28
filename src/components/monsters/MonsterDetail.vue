@@ -628,7 +628,9 @@ async function save() {
         form.alignment !== props.monster.alignment ||
         form.habitat !== (props.monster.habitat ?? "") ||
         form.source !== (props.monster.source ?? "") ||
-        !deepEqual(form.description, props.monster.description) ||
+        // The form holds "" for a monster with no description; compare against
+        // the same fill-in, or a tags-only save marks an AI monster edited.
+        !deepEqual(form.description, props.monster.description ?? "") ||
         // `sb` is always fully key-filled (defaultSb() merged in on load and
         // on every template/link apply); imported/cloned library data often isn't,
         // so compare against the same fill-in rather than the raw stored

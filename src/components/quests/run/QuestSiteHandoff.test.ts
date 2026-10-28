@@ -422,6 +422,94 @@ describe("QuestSiteHandoff", () => {
   // below (SiteRunRoomStack, SiteRunWaysOut, LocationStateControls,
   // SiteRoomList) mounts exactly once, never alongside the desktop grid's
   // own copies.
+  describe("what the crawl surface is told", () => {
+    const list = (w: ReturnType<typeof mountHandoff>) => w.findComponent({ name: "SiteRoomList" });
+    const door = (over: Record<string, unknown>) => ({ id: "door-1", from_location_id: "room-1", to_location_id: "room-2", is_one_way: false, starts_locked: false, is_secret: false, ...over });
+
+    it("a door that starts locked keeps the room behind it out of reach until it is unlocked in play", () => {
+      mocks.children = [room({ id: "room-1" }), room({ id: "room-2" })];
+      mocks.currentLocationId = "room-1";
+      mocks.doors = [door({ starts_locked: true })];
+      expect(list(mountHandoff()).props("reachable")).toEqual(new Set(["room-1"]));
+    });
+
+    it("lists only the site's interior spaces as rooms, not the other places inside it", () => {
+      mocks.children = [room({ id: "room-1" }), { id: "annex", name: "The annex", location_type: "building", description: null } as Location];
+      expect(list(mountHandoff()).props("rooms")).toHaveLength(1);
+    });
+
+    it("hides a room from the party's list until one of its secret doors is found; a room with any open way in stays listed", () => {
+      mocks.children = [room({ id: "room-1" }), room({ id: "room-2" }), room({ id: "room-3" })];
+      mocks.doors = [
+        door({ id: "d-secret", from_location_id: "room-1", to_location_id: "room-2", is_secret: true }),
+        door({ id: "d-open", from_location_id: "room-1", to_location_id: "room-3" }),
+        door({ id: "d-secret-2", from_location_id: "room-3", to_location_id: "room-3", is_secret: true }),
+      ];
+      expect(list(mountHandoff()).props("secretUndiscoveredIds")).toEqual(new Set(["room-2"]));
+      mocks.doorStateOf.mockImplementation((id, fact) => (id === "d-secret" && fact === "found" ? { value: true } : undefined));
+      expect(list(mountHandoff()).props("secretUndiscoveredIds")).toEqual(new Set());
+    });
+
+    it("a room with no doors at all is not treated as a secret", () => {
+      mocks.children = [room({ id: "room-1" })];
+      mocks.doors = [];
+      expect(list(mountHandoff()).props("secretUndiscoveredIds")).toEqual(new Set());
+    });
+
+    it("notes a room's zone by its label, falling back to a summary of the zone, only for a zone that overlaps the room", () => {
+      mocks.children = [room({ id: "room-1" })];
+      mocks.currentLocationId = "room-1";
+      mocks.regions = [
+        roomRegion({ cells: ["0,0", "1,0"] }),
+        triggerZone({ id: "zone-far", region_role: "zone", zone_kind: "hazard", cells: ["9,9"], label: "Far away" } as Partial<LocationMapRegion>),
+        triggerZone({ id: "zone-near", region_role: "zone", zone_kind: "hazard", cells: ["1,0"], label: "Slick floor" } as Partial<LocationMapRegion>),
+      ];
+      expect(list(mountHandoff()).props("zoneNotes")).toEqual(new Map([["room-1", "Slick floor"]]));
+      mocks.regions = [roomRegion({ cells: ["0,0"] }), triggerZone({ id: "zone-far", region_role: "zone", zone_kind: "hazard", cells: ["9,9"], label: "Far away" } as Partial<LocationMapRegion>)];
+      expect(list(mountHandoff()).props("zoneNotes")).toEqual(new Map());
+    });
+
+    it("pins only the places that are not rooms onto the site map, and moving the party from it asks to move to that room", async () => {
+      mocks.site = { ...mocks.site, map_url: "https://example.invalid/plan.webp" };
+      mocks.locationsById = { "site-1": mocks.site };
+      mocks.children = [room({ id: "room-1" }), { id: "annex", name: "The annex", location_type: "building", description: null } as Location];
+      const wrapper = mountHandoff();
+      const map = wrapper.findComponent({ name: "LocationMap" });
+      expect((map.props("children") as Location[]).map((c) => c.id)).toEqual(["annex"]);
+      map.vm.$emit("move-party", "room-1");
+      await nextTick();
+      expect(mocks.moveParty).toHaveBeenCalledWith(expect.objectContaining({ roomId: "room-1" }));
+      mocks.moveParty.mockClear();
+      map.vm.$emit("move-party", "not-a-room");
+      await nextTick();
+      expect(mocks.moveParty).not.toHaveBeenCalled();
+    });
+
+    it("turns map sharing off again when it is already on", async () => {
+      mocks.site = { ...mocks.site, is_map_shared: true };
+      mocks.locationsById = { "site-1": mocks.site };
+      const wrapper = mountHandoff();
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text().includes("Hide map from players"))!.trigger("click");
+      expect(mocks.updateLocation).toHaveBeenCalledWith({ id: "site-1", update: { is_map_shared: false } }, expect.anything());
+    });
+
+    it("names the other threads when there are several, and leaves out one that is closed or merged", () => {
+      const ctx = context({
+        threads: [
+          thread({ id: "thread-1", label: "Main", created_at: "2024-01-01", current_beat_id: "beat-0", current_beat_title: "Confront Ser Vallis" }),
+          thread({ id: "thread-2" }),
+          thread({ id: "thread-3", label: "Third", created_at: "2024-01-03", current_beat_title: "The third road" }),
+          thread({ id: "thread-4", label: "Old", created_at: "2024-01-04", status: "closed", current_beat_title: "A closed road" }),
+        ],
+      });
+      const text = mountHandoff({ context: ctx }).text();
+      expect(text).toContain("Other threads are paused, not closed");
+      expect(text).not.toContain("A closed road");
+      const merged = mountHandoff({ context: context({ threads: [thread({ id: "thread-2" }), thread({ id: "thread-4", status: "merged", created_at: "2024-01-04", current_beat_title: "A merged road" })] }) });
+      expect(merged.text()).not.toContain("paused, not closed");
+    });
+  });
+
   describe("below xl (frame 4: the room is the page)", () => {
     // MobileSheet teleports to document.body — same reasoning as
     // QuestThreadBar's own mobile-picker tests: outside the mounted

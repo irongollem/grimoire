@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   preview: vi.fn(),
   share: vi.fn(),
   takeBack: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("@/composables/party/useParty", () => ({
@@ -19,6 +20,7 @@ vi.mock("@/composables/party/useParty", () => ({
     ]),
   }),
 }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ success: mocks.toastSuccess }) }));
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
   previewHandoutShare: (...args: unknown[]) => mocks.preview(...args),
 }));
@@ -70,6 +72,7 @@ describe("HandoutShareDialog", () => {
     mocks.preview.mockReset().mockResolvedValue(result);
     mocks.share.mockReset().mockResolvedValue(result);
     mocks.takeBack.mockReset();
+    mocks.toastSuccess.mockReset();
   });
 
   it("opens on the confirmation when the audience was already chosen, and lists the dry run in plain words", async () => {
@@ -128,5 +131,98 @@ describe("HandoutShareDialog", () => {
     await flushPromises();
     expect(bodyText()).toContain("Nothing would change.");
     expect(button("Reveal")?.hasAttribute("disabled")).toBe(true);
+  });
+  const checked = () =>
+    [...document.body.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].map((c) => c.checked);
+
+  it("Whole party ticks everyone and, once everyone is ticked, clears them again", async () => {
+    mountDialog({ proposed: null });
+    await flushPromises();
+    expect(checked()).toEqual([false, false]);
+    button("Whole party")?.click();
+    await flushPromises();
+    expect(checked()).toEqual([true, true]);
+    button("Clear all")?.click();
+    await flushPromises();
+    expect(checked()).toEqual([false, false]);
+  });
+
+  it("starts the picker on the current recipients, else on the suggested ones, never both", async () => {
+    mountDialog({ proposed: null, initialRecipients: ["p1", "p2"] });
+    await flushPromises();
+    expect(checked()).toEqual([true, true]);
+    document.body.innerHTML = "";
+    mountDialog({ proposed: null, initialRecipients: ["p1"], handout: { ...handout, player_visible_to: ["p2"] } });
+    await flushPromises();
+    expect(checked()).toEqual([false, true]);
+  });
+
+  it("asks the server for no dry run while nobody is picked", async () => {
+    mountDialog({ proposed: [] });
+    await flushPromises();
+    expect(mocks.preview).not.toHaveBeenCalled();
+  });
+
+  it("lets the DM reveal linked content when the audience is unchanged, and calls it Reveal", async () => {
+    mocks.preview.mockResolvedValue({ ...result, added: [], removed: [] });
+    mountDialog({ handout: { ...handout, player_visible_to: ["p1"] } });
+    await flushPromises();
+    expect(bodyText()).not.toContain("Nothing would change.");
+    expect(button("Reveal")?.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("calls the button Share with players when someone loses the handout, even if nobody is added", async () => {
+    mocks.preview.mockResolvedValue({ revealed: [], withheld: [], added: [], removed: ["p2"] });
+    mountDialog({ handout: { ...handout, player_visible_to: ["p1", "p2"] } });
+    await flushPromises();
+    expect(bodyText()).toContain("No longer have it: Tor.");
+    expect(button("Share with players")?.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("keeps the dialog open when taking the handout back fails", async () => {
+    mocks.takeBack.mockResolvedValue(false);
+    const wrapper = mountDialog({ proposed: null, handout: { ...handout, player_visible_to: ["p1"] } });
+    await flushPromises();
+    (document.body.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    await flushPromises();
+    button("Take it back")?.click();
+    await flushPromises();
+    expect(wrapper.emitted("close")).toBeUndefined();
+  });
+
+  it("says how many players were added, singular and plural, and that a share with no new player only updated", async () => {
+    const wrapper = mountDialog();
+    await flushPromises();
+    button("Share with players")?.click();
+    await flushPromises();
+    expect(mocks.toastSuccess).toHaveBeenLastCalledWith("Shared with 1 player.");
+    wrapper.unmount();
+
+    document.body.innerHTML = "";
+    mocks.share.mockResolvedValue({ ...result, added: ["p1", "p2"] });
+    mountDialog({ proposed: ["p1", "p2"] });
+    await flushPromises();
+    button("Share with players")?.click();
+    await flushPromises();
+    expect(mocks.toastSuccess).toHaveBeenLastCalledWith("Shared with 2 players.");
+
+    document.body.innerHTML = "";
+    mocks.share.mockResolvedValue({ ...result, added: [] });
+    mountDialog();
+    await flushPromises();
+    button("Share with players")?.click();
+    await flushPromises();
+    expect(mocks.toastSuccess).toHaveBeenLastCalledWith("Handout updated.");
+  });
+
+  it("shows why a share failed and stays open", async () => {
+    mocks.share.mockRejectedValue(new Error("Handout is locked"));
+    const wrapper = mountDialog();
+    await flushPromises();
+    button("Share with players")?.click();
+    await flushPromises();
+    expect(bodyText()).toContain("Handout is locked");
+    expect(wrapper.emitted("close")).toBeUndefined();
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
 });

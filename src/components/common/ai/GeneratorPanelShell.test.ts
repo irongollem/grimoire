@@ -1,15 +1,27 @@
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Ref } from "vue";
 import GeneratorPanelShell from "./GeneratorPanelShell.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 
-const campaignState = vi.hoisted(() => ({ isAiEnabled: true }));
+const campaignState = vi.hoisted(() => ({ isAiEnabled: true, otherGenerating: null as Ref<boolean> | null }));
+
+// Whether some other generator panel is running; the registry's own list is module state.
+vi.mock("@/ai/aiGeneratorRegistry", async () => {
+  const { ref } = await import("vue");
+  campaignState.otherGenerating = ref(false);
+  return { isAnyAiGenerating: campaignState.otherGenerating };
+});
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
   }),
 }));
+
+function setOtherGenerating(value: boolean) {
+  if (campaignState.otherGenerating) campaignState.otherGenerating.value = value;
+}
 
 function mountShell(props: Record<string, unknown> = {}) {
   return mount(GeneratorPanelShell, {
@@ -36,6 +48,7 @@ const generateButton = (w: ReturnType<typeof mountShell>) =>
 describe("GeneratorPanelShell", () => {
   beforeEach(() => {
     campaignState.isAiEnabled = true;
+    setOtherGenerating(false);
   });
 
   it("renders nothing when closed", () => {
@@ -58,6 +71,19 @@ describe("GeneratorPanelShell", () => {
     expect(btn.attributes("disabled")).toBeUndefined();
     await btn.trigger("click");
     expect(w.emitted("generate")).toHaveLength(1);
+  });
+
+  it("does not treat a concept of only spaces as a concept", () => {
+    expect(generateButton(mountShell({ concept: "    " }))!.attributes("disabled")).toBeDefined();
+  });
+
+  it("keeps Generate off while a save is running", () => {
+    expect(generateButton(mountShell({ concept: "A thing", isSaving: true }))!.attributes("disabled")).toBeDefined();
+  });
+
+  it("keeps Generate off while a different generator is already running, so two never run at once", () => {
+    setOtherGenerating(true);
+    expect(generateButton(mountShell({ concept: "A thing" }))!.attributes("disabled")).toBeDefined();
   });
 
   it("disables Generate when canGenerate is false", () => {

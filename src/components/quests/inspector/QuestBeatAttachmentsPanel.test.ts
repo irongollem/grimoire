@@ -1,28 +1,35 @@
-import { mount, shallowMount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { flushPromises, mount, shallowMount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";
 import type { QuestBeat, QuestBeatAttachmentSummary } from "@/types/quest.types";
 
 const helpers = vi.hoisted(() => ({
-  emptyQuery: () => ({ data: { value: [] } }),
-  mutation: () => ({ mutateAsync: vi.fn() }),
+  data: {
+    npcs: [] as { id: string; name: string }[],
+    playlists: [] as { id: string; name: string; playlist_type: string }[],
+    documents: [] as { id: string; title: string; campaign_id: string | null }[],
+  },
   createAttachment: vi.fn(),
+  deleteAttachment: vi.fn(),
+  setRequired: vi.fn(),
+  createEncounter: vi.fn(),
+  empty: () => ({ data: { value: [] } }),
 }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useCreateQuestBeatAttachment: () => ({ mutateAsync: helpers.createAttachment }),
-  useDeleteQuestBeatAttachment: helpers.mutation,
-  useSetQuestBeatAttachmentRequired: helpers.mutation,
+  useDeleteQuestBeatAttachment: () => ({ mutateAsync: helpers.deleteAttachment }),
+  useSetQuestBeatAttachmentRequired: () => ({ mutateAsync: helpers.setRequired }),
 }));
-vi.mock("@/composables/encounters/useEncounters", () => ({ useCreateEncounter: helpers.mutation, useEncounters: helpers.emptyQuery }));
-vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: helpers.emptyQuery }));
-vi.mock("@/composables/notes/useNotes", () => ({ useNotes: helpers.emptyQuery }));
-vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: helpers.emptyQuery }));
-vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: helpers.emptyQuery }));
-vi.mock("@/composables/monsters/useMonsterIndex", () => ({ useMonsterIndex: helpers.emptyQuery }));
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({ useScriptoriumDocuments: helpers.emptyQuery }));
-vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: helpers.emptyQuery }));
-vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: helpers.emptyQuery }));
+vi.mock("@/composables/encounters/useEncounters", () => ({ useCreateEncounter: () => ({ mutateAsync: helpers.createEncounter }), useEncounters: helpers.empty }));
+vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: helpers.empty }));
+vi.mock("@/composables/notes/useNotes", () => ({ useNotes: helpers.empty }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: helpers.data.npcs } }) }));
+vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: helpers.empty }));
+vi.mock("@/composables/monsters/useMonsterIndex", () => ({ useMonsterIndex: helpers.empty }));
+vi.mock("@/composables/scriptorium/useScriptorium", () => ({ useScriptoriumDocuments: () => ({ data: { value: helpers.data.documents } }) }));
+vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: () => ({ data: { value: helpers.data.playlists } }) }));
+vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: helpers.empty }));
 
 const beat = {
   id: "beat-1",
@@ -32,26 +39,6 @@ const beat = {
 } as QuestBeat;
 
 describe("QuestBeatAttachmentsPanel", () => {
-  it("wraps placement actions below controls in the narrow inspector", () => {
-    const wrapper = shallowMount(QuestBeatAttachmentsPanel, { props: { beat, attachments: [] } });
-    const form = wrapper.get('[data-testid="beat-attachment-form"]');
-
-    expect(form.classes()).toContain("min-w-0");
-    expect(form.classes()).toContain("grid-cols-[minmax(0,9rem)_minmax(0,1fr)]");
-    expect(form.find("div.col-span-2").exists()).toBe(true);
-  });
-
-  it("offers sounds, ambient scenes, and music playlists separately", () => {
-    const wrapper = shallowMount(QuestBeatAttachmentsPanel, {
-      props: { beat, attachments: [] },
-      global: { stubs: { AppSelect: { template: "<select><slot /></select>" } } },
-    });
-
-    expect(wrapper.get('option[value="sound"]').text()).toBe("Sound");
-    expect(wrapper.get('option[value="audio_scene"]').text()).toBe("Audio scene");
-    expect(wrapper.get('option[value="playlist"]').text()).toBe("Playlist");
-  });
-
   function attachment(overrides: Partial<QuestBeatAttachmentSummary> & { id: string }): QuestBeatAttachmentSummary {
     return {
       beat_id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", attachment_type: "npc", ref_id: "npc-1",
@@ -125,5 +112,150 @@ describe("QuestBeatAttachmentsPanel", () => {
       ref_id: "check",
       metadata: { skill: "Insight", dc: 15, contested_by: null, note: null },
     }));
+  });
+
+  const fullMount = (attachments: QuestBeatAttachmentSummary[] = []) =>
+    mount(QuestBeatAttachmentsPanel, {
+      props: { beat, attachments },
+      global: { stubs: { EntityCombobox: true, QuestRunContainedTool: true, RouterLink: { template: "<a><slot /></a>" }, PaywallModal: true } },
+    });
+  const btn = (w: ReturnType<typeof fullMount>, label: string) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
+  const combo = (w: ReturnType<typeof fullMount>) => w.findComponent({ name: "EntityCombobox" });
+
+  beforeEach(() => {
+    helpers.createAttachment.mockReset().mockResolvedValue(undefined);
+    helpers.deleteAttachment.mockReset().mockResolvedValue(undefined);
+    helpers.setRequired.mockReset().mockResolvedValue(undefined);
+    helpers.createEncounter.mockReset().mockResolvedValue({ id: "enc-new" });
+    helpers.data.npcs = [{ id: "npc-1", name: "Ser Vallis" }];
+    helpers.data.playlists = [];
+    helpers.data.documents = [];
+  });
+
+  it("places the chosen NPC, then empties the picker so Place waits for the next choice", async () => {
+    const wrapper = fullMount();
+    await wrapper.get('[aria-label="Attachment type"]').setValue("npc");
+    expect(btn(wrapper, "Place").props("disabled")).toBe(true);
+    combo(wrapper).vm.$emit("update:modelValue", "npc-1");
+    await wrapper.vm.$nextTick();
+    expect(btn(wrapper, "Place").props("disabled")).toBe(false);
+    await btn(wrapper, "Place").trigger("click");
+    await flushPromises();
+    expect(helpers.createAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "npc", ref_id: "npc-1", beat_id: "beat-1" }));
+    expect(btn(wrapper, "Place").props("disabled")).toBe(true);
+  });
+
+  it("a failed placement keeps the choice, shows why, and settles the button; a retry clears the message", async () => {
+    helpers.createAttachment.mockRejectedValueOnce("not an Error").mockResolvedValue(undefined);
+    const wrapper = fullMount();
+    await wrapper.get('[aria-label="Attachment type"]').setValue("npc");
+    combo(wrapper).vm.$emit("update:modelValue", "npc-1");
+    await wrapper.vm.$nextTick();
+    await btn(wrapper, "Place").trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not place this material");
+    expect(btn(wrapper, "Place").props("loading")).toBe(false);
+    expect(btn(wrapper, "Place").props("disabled")).toBe(false);
+    await btn(wrapper, "Place").trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+  });
+
+  it("changing the kind of material drops the pick made for the old kind", async () => {
+    const wrapper = fullMount();
+    await wrapper.get('[aria-label="Attachment type"]').setValue("npc");
+    combo(wrapper).vm.$emit("update:modelValue", "npc-1");
+    await wrapper.vm.$nextTick();
+    await wrapper.get('[aria-label="Attachment type"]').setValue("faction");
+    expect(btn(wrapper, "Place").props("disabled")).toBe(true);
+  });
+
+  it("offers ambient playlists as audio scenes and music playlists as playlists, never the other way round", async () => {
+    helpers.data.playlists = [
+      { id: "p-amb", name: "Cave drip", playlist_type: "ambient" },
+      { id: "p-mus", name: "Tavern tunes", playlist_type: "music" },
+    ];
+    const wrapper = fullMount();
+    await wrapper.get('[aria-label="Attachment type"]').setValue("audio_scene");
+    expect(combo(wrapper).props("options")).toEqual([{ id: "p-amb", name: "Cave drip" }]);
+    await wrapper.get('[aria-label="Attachment type"]').setValue("playlist");
+    expect(combo(wrapper).props("options")).toEqual([{ id: "p-mus", name: "Tavern tunes" }]);
+  });
+
+  it("offers handouts from this campaign and from no campaign, not another campaign's", async () => {
+    helpers.data.documents = [
+      { id: "d-here", title: "Here", campaign_id: "campaign-1" },
+      { id: "d-any", title: "Anywhere", campaign_id: null },
+      { id: "d-other", title: "Elsewhere", campaign_id: "campaign-2" },
+    ];
+    const wrapper = fullMount();
+    await wrapper.get('[aria-label="Attachment type"]').setValue("handout");
+    expect(combo(wrapper).props("options").map((o: { id: string }) => o.id)).toEqual(["d-here", "d-any"]);
+  });
+
+  it("a check needs a DC to be placed, trims its note, and resets the form once placed", async () => {
+    const wrapper = fullMount();
+    await wrapper.get('[aria-label="Attachment type"]').setValue("check");
+    expect(btn(wrapper, "Place").props("disabled")).toBe(true);
+    await wrapper.get('[aria-label="DC"]').setValue(14);
+    await wrapper.get('[aria-label="Note"]').setValue("  Only by torchlight  ");
+    expect(btn(wrapper, "Place").props("disabled")).toBe(false);
+    await btn(wrapper, "Place").trigger("click");
+    await flushPromises();
+    expect(helpers.createAttachment).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({ dc: 14, note: "Only by torchlight" }),
+    }));
+    expect(btn(wrapper, "Place").props("disabled")).toBe(true);
+    expect((wrapper.get('[aria-label="Note"]').element as HTMLInputElement).value).toBe("");
+  });
+
+  it("Remove deletes that placement from this quest, and says so when it cannot", async () => {
+    helpers.deleteAttachment.mockRejectedValueOnce("nope");
+    const wrapper = fullMount([attachment({ id: "a-1" })]);
+    await btn(wrapper, "Remove").trigger("click");
+    await flushPromises();
+    expect(helpers.deleteAttachment).toHaveBeenCalledWith({ id: "a-1", questId: "quest-1" });
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not remove this placement");
+    expect(btn(wrapper, "Remove").props("loading")).toBe(false);
+  });
+
+  it("the Needed / Optional toggle flips the placement's requirement", async () => {
+    const wrapper = fullMount([attachment({ id: "a-1", is_required: true }), attachment({ id: "a-2", is_required: false, label: "Spare" })]);
+    await btn(wrapper, "Needed").trigger("click");
+    await btn(wrapper, "Optional").trigger("click");
+    expect(helpers.setRequired.mock.calls).toEqual([
+      [{ id: "a-1", questId: "quest-1", isRequired: false }],
+      [{ id: "a-2", questId: "quest-1", isRequired: true }],
+    ]);
+  });
+
+  describe("quick encounter", () => {
+    const quick = async () => {
+      const wrapper = fullMount();
+      await wrapper.get('[aria-label="Attachment type"]').setValue("encounter");
+      return wrapper;
+    };
+    it("needs a name, creates the encounter under the trimmed name, places it on this beat and empties the box", async () => {
+      const wrapper = await quick();
+      await wrapper.get("input[placeholder='Quick encounter name…']").setValue("   ");
+      expect(btn(wrapper, "Create & place").props("disabled")).toBe(true);
+      await wrapper.get("input[placeholder='Quick encounter name…']").setValue("  Ambush at the ford  ");
+      await btn(wrapper, "Create & place").trigger("click");
+      await flushPromises();
+      expect(helpers.createEncounter).toHaveBeenCalledWith(expect.objectContaining({ name: "Ambush at the ford" }));
+      expect(helpers.createAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "encounter", ref_id: "enc-new", beat_id: "beat-1" }));
+      expect((wrapper.get("input[placeholder='Quick encounter name…']").element as HTMLInputElement).value).toBe("");
+    });
+
+    it("an encounter refused for quota opens the paywall and places nothing", async () => {
+      helpers.createEncounter.mockRejectedValue({ message: "quota_exceeded" });
+      const wrapper = await quick();
+      await wrapper.get("input[placeholder='Quick encounter name…']").setValue("Ambush");
+      await btn(wrapper, "Create & place").trigger("click");
+      await flushPromises();
+      expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+      expect(helpers.createAttachment).not.toHaveBeenCalled();
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    });
   });
 });

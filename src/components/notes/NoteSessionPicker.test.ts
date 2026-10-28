@@ -93,4 +93,25 @@ describe("NoteSessionPicker", () => {
     expect(onUpdate).toHaveBeenCalledWith("new");
     wrapper.unmount();
   });
+
+  it("keeps the form open and says why when the session cannot be added", async () => {
+    createSession.mockRejectedValue(new Error("That session number is taken"));
+    const { wrapper, onUpdate } = mountPicker();
+    await openList(wrapper);
+    document.body.querySelectorAll("ul li")[2].dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    await flushPromises();
+    await wrapper.findAll("button").find((b) => b.text().includes("Add session"))!.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("That session number is taken");
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Add session"))).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("clears the note's session when the DM empties the picker", () => {
+    const { wrapper, onUpdate } = mountPicker("a");
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "");
+    expect(onUpdate).toHaveBeenCalledWith(null);
+    wrapper.unmount();
+  });
 });

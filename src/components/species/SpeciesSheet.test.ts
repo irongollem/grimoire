@@ -1,9 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
 import { shallowMount } from "@vue/test-utils";
 import SpeciesSheet from "./SpeciesSheet.vue";
 import type { Species } from "@/types/species.types";
 
-vi.mock("vue-router", () => ({ useRoute: () => ({ path: "/species" }), useRouter: () => ({ push: vi.fn() }) }));
+const mocks = vi.hoisted(() => ({ push: vi.fn(), del: vi.fn(), confirm: vi.fn() }));
+vi.mock("vue-router", () => ({ useRoute: () => ({ path: "/species", query: {} }), useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/composables/library/useSourceTitles", async () => {
   const { sourceLabel } = await import("@/lib/library/sourceLabel");
   const titles = new Map<string, string>();
@@ -11,8 +13,8 @@ vi.mock("@/composables/library/useSourceTitles", async () => {
     useSourceTitles: () => ({ labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, titles) }),
   };
 });
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
-vi.mock("@/composables/rules/useSpecies", () => ({ useDeleteSpecies: () => ({ mutate: vi.fn() }) }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
+vi.mock("@/composables/rules/useSpecies", () => ({ useDeleteSpecies: () => ({ mutate: vi.fn(), mutateAsync: mocks.del }) }));
 
 const stubs = { FocalImage: true, RichTextViewer: true, AppButton: true };
 
@@ -53,5 +55,55 @@ describe("SpeciesSheet subrace stats", () => {
     const text = shallowMount(SpeciesSheet, { props: { species: own }, global: { stubs } }).text();
     expect(text).not.toContain("by subrace");
     expect(text).toContain("Walk 30ft");
+  });
+});
+
+describe("SpeciesSheet ownership and content", () => {
+  beforeEach(() => {
+    mocks.push.mockReset();
+    mocks.del.mockReset().mockResolvedValue(undefined);
+    mocks.confirm.mockReset();
+  });
+  const sheet = (sp: Species, props: Record<string, unknown> = {}) =>
+    mount(SpeciesSheet, { props: { species: sp, ...props }, global: { stubs: { FocalImage: true, RichTextViewer: true } } });
+  const press = async (w: ReturnType<typeof sheet>, label: string) => {
+    await w.findAll("button").find((b) => b.text().includes(label))!.trigger("click");
+    await flushPromises();
+  };
+
+  it("offers Edit and Delete on an owned species, and only a read-only note on a shared one", () => {
+    expect(sheet(species({})).text()).toContain("Edit");
+    const shared = sheet(species({}), { isShared: true });
+    expect(shared.text()).toContain("Read only");
+    expect(shared.text()).not.toContain("Delete");
+    expect(shared.text()).not.toContain("Edit");
+  });
+
+  it("keeps the species when the delete confirmation is cancelled, and deletes then returns to the list when confirmed", async () => {
+    const owned = species({});
+    mocks.confirm.mockResolvedValue(false);
+    await press(sheet(owned), "Delete");
+    expect(mocks.del).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+    mocks.confirm.mockResolvedValue(true);
+    await press(sheet(owned), "Delete");
+    expect(mocks.del).toHaveBeenCalledWith(owned);
+    expect(mocks.push).toHaveBeenCalledWith("/species");
+  });
+
+  it("reads ability score increases as free text, or as +N ABILITY from an import", () => {
+    const asi = (v: unknown) => sheet(species({ ability_score_increases: v as Species["ability_score_increases"] })).findAll("p").map((p) => p.text());
+    expect(asi({ description: "Two of your choice" })).toContain("Two of your choice");
+    expect(asi({ dex: 2, int: 1 })).toContain("+2 DEX, +1 INT");
+  });
+
+  it("draws a description only when it has words, not for an empty or blank document", () => {
+    const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+    const has = (d: string | null) => sheet(species({ description: d })).findComponent({ name: "RichTextViewer" }).exists();
+    expect(has(doc("Wings of owl"))).toBe(true);
+    expect(has(doc("   "))).toBe(false);
+    expect(has(null)).toBe(false);
+    expect(has("plain old text")).toBe(true);
+    expect(has("   ")).toBe(false);
   });
 });

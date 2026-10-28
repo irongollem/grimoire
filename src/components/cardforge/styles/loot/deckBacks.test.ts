@@ -8,17 +8,20 @@ import { describe, it, expect } from "vitest";
 import { BUILTIN_DECK_BACKS, DEFAULT_DECK_BACK_ID, deckBackById } from "./deckBacks";
 
 describe("BUILTIN_DECK_BACKS", () => {
-  it("resolves every deck's urls unchanged when the CDN is unset", () => {
+  it("resolves every deck's urls unchanged when the CDN is unset, each named for its own deck", () => {
     for (const deck of BUILTIN_DECK_BACKS) {
-      expect(deck.urls.mtg).toMatch(/^\/assets\/cardforge\/loot-backs\/.+-tc\.webp$/);
-      expect(deck.urls.tarot).toMatch(/^\/assets\/cardforge\/loot-backs\/.+-tarot\.webp$/);
+      expect(deck.urls.mtg, deck.id).toBe(`/assets/cardforge/loot-backs/${deck.id}-tc.webp`);
+      expect(deck.urls.tarot, deck.id).toBe(`/assets/cardforge/loot-backs/${deck.id}-tarot.webp`);
     }
   });
 
-  it("keeps the default deck back resolvable by id", () => {
-    const deck = deckBackById(DEFAULT_DECK_BACK_ID);
-    expect(deck).toBeDefined();
-    expect(deck?.urls.mtg).toBe("/assets/cardforge/loot-backs/arcane-vortex-tc.webp");
-    expect(deck?.urls.tarot).toBe("/assets/cardforge/loot-backs/arcane-vortex-tarot.webp");
+  it("gives every deck its own id, since the id is what a saved choice is keyed on", () => {
+    const ids = BUILTIN_DECK_BACKS.map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("keeps the default deck back resolvable by id, and answers nothing for an id it does not know", () => {
+    expect(deckBackById(DEFAULT_DECK_BACK_ID)?.id).toBe(DEFAULT_DECK_BACK_ID);
+    expect(deckBackById("a-deleted-deck")).toBeUndefined();
   });
 });

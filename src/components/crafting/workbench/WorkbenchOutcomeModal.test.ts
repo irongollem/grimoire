@@ -68,6 +68,8 @@ describe("WorkbenchOutcomeModal", () => {
     expect(document.body.querySelectorAll("li")).toHaveLength(0);
     expect(text()).not.toContain("Lost");
     expect(text()).not.toContain("wreckage");
+    // Only a critical failure takes the primary material; a plain failure leaves everything.
+    expect(text()).not.toContain("Everything else is untouched.");
   });
 
   it("reads one unit as a noun", () => {

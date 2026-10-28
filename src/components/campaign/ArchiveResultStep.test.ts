@@ -88,6 +88,9 @@ describe("ArchiveResultStep", () => {
     expect(wrapper.text()).toContain("2 created, 1 linked");
     expect(wrapper.text()).toContain("1 failed");
     expect(wrapper.text()).not.toContain("Factions");
+    // A kind with nothing linked or ignored does not print a zero for it.
+    expect(wrapper.text()).not.toContain("0 linked");
+    expect(wrapper.text()).not.toContain("0 ignored");
     const links = wrapper.findAll("a").map((a) => a.attributes("href"));
     expect(links).toEqual(expect.arrayContaining(["/npcs", "/locations"]));
     expect(links).not.toContain("/notes");
@@ -149,5 +152,13 @@ describe("ArchiveResultStep", () => {
     for (const box of wrapper.findAll("input[type=checkbox]")) await box.setValue(true);
     expect(wrapper.text()).toContain("Free accounts are limited to 10 pages");
     expect(startButton(wrapper).attributes("disabled")).toBeDefined();
+  });
+
+  it("says when the plan's limit stopped a kind short", () => {
+    const empty = { created: 0, linked: 0, ignored: 0, failed: 0, stoppedAtQuota: false };
+    const stopped = run({ perKind: { npc: { ...empty, created: 2, stoppedAtQuota: true }, location: empty, faction: empty, item: empty, quest: empty, note: empty } });
+    const wrapper = mount(ArchiveResultStep, { props: { run: stopped, pages, displayName: "My vault" }, global: { plugins: [router] } });
+    expect(wrapper.text()).toContain("2 created, plan limit reached");
+    expect(mountResult().text()).not.toContain("plan limit reached");
   });
 });

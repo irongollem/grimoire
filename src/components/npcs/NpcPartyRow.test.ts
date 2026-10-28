@@ -2,6 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 import NpcPartyRow from "./NpcPartyRow.vue";
+import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";
 import type { Npc } from "@/types/npc.types";
 import type { Connection } from "@/types/connections.types";
 import type { PartyMember } from "@/types/party.types";
@@ -165,5 +166,13 @@ describe("NpcPartyRow", () => {
     await flushPromises();
     expect(mocks.update).toHaveBeenCalledWith({ id: "link-1", told: "", playerVisibleTo: ["pm-1"] });
     expect(mocks.remove).not.toHaveBeenCalled();
+  });
+  it("removing the connection from its menu removes that link and closes the editor", async () => {
+    const row = mountRow({ connection: link() });
+    expect(row.find('[data-testid="editor"]').exists()).toBe(true);
+    row.findComponent(OverflowMenu).vm.$emit("select", "remove");
+    await flushPromises();
+    expect(mocks.remove).toHaveBeenCalledWith(expect.objectContaining({ connection: expect.objectContaining({ row_id: "link-1" }) }));
+    expect(row.find('[data-testid="editor"]').exists()).toBe(false);
   });
 });

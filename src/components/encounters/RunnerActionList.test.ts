@@ -216,4 +216,45 @@ describe("RunnerActionList", () => {
     expect(spent.find("[data-testid='use-Tremor-Attack']").attributes("disabled")).toBeDefined();
     expect(spent.text()).toContain("Lair action used this round");
   });
+
+  describe("what a legendary pool allows", () => {
+    const wing = entry("Wing Attack", { ...claw.structured, legendary_cost: 2 });
+    const mountPool = (left: number, e: StatBlockEntry = wing) =>
+      mountSections(combatant({ legendary_actions_remaining: left, legendary_action_cap: 3 } as Partial<RunCombatant>), [
+        { label: "Legendary Actions", list: "legendary_actions", entries: [e] },
+      ]);
+    const wingButton = (w: ReturnType<typeof mountPool>) => w.find("[data-testid='use-Wing Attack-Attack']");
+
+    it("allows an action that costs exactly what is left", () => {
+      expect(wingButton(mountPool(2)).attributes("disabled")).toBeUndefined();
+    });
+
+    it("charges an entry with no stated cost one action", () => {
+      const cheap = entry("Wing Attack", { ...claw.structured });
+      expect(wingButton(mountPool(0, cheap)).attributes("disabled")).toBeDefined();
+      expect(wingButton(mountPool(1, cheap)).attributes("disabled")).toBeUndefined();
+    });
+  });
+
+  it("does not open a spent entry from a multiattack step either", async () => {
+    const spent = combatant({ action_uses: { "actions/Fire Breath": { used: 1 } } } as Partial<RunCombatant>);
+    const chain = entry("Multiattack", { kind: "multiattack", multiattack: [{ action: "Fire Breath", count: 1 }] });
+    const w = mountList(spent, [breath, chain]);
+    await w.find("[data-testid='step-Fire Breath']").trigger("click");
+    expect(w.findComponent({ name: "RunnerResolvePanel" }).exists()).toBe(false);
+  });
+
+  it("offers a spent limited ability only a Restore, not a second Use", () => {
+    const vanish = entry("Invisibility", { recharge: { min: 4, max: 6 } });
+    const w = mountList(combatant({ action_uses: { "actions/Invisibility": { used: 1 } } } as Partial<RunCombatant>), [vanish]);
+    expect(w.find("[data-testid='use-Invisibility']").exists()).toBe(false);
+    expect(w.find("[data-testid='restore-Invisibility']").exists()).toBe(true);
+  });
+
+  it("shows a multiattack step that names a trait as plain text, not a button", () => {
+    const chain = entry("Multiattack", { kind: "multiattack", multiattack: [{ action: "Keen Smell", count: 1 }] });
+    const w = mountList(combatant(), [trait, chain]);
+    expect(w.find("[data-testid='step-Keen Smell']").exists()).toBe(false);
+    expect(w.find("[data-testid='multiattack-steps']").text()).toContain("1× Keen Smell");
+  });
 });

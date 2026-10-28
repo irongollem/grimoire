@@ -6,6 +6,7 @@ import { flushMicrotasks, useVirtualGridViewport } from "@/components/common/lis
 import { sourceLabel } from "@/lib/library/sourceLabel";
 import DungeonCraftPuzzlesTab from "./DungeonCraftPuzzlesTab.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import type { LibraryPuzzle, PuzzleRoom } from "@/types/puzzle.types";
 
@@ -35,7 +36,7 @@ function puzzle(overrides: Partial<PuzzleRoom> = {}): PuzzleRoom {
 
 const mocks = vi.hoisted(() => ({
   puzzles: [] as ReturnType<typeof puzzle>[],
-  library: [] as LibraryPuzzle[],
+  library: [] as LibraryPuzzle[] | undefined,
 }));
 
 // The empty-state copy asks whether the library has books on offer (#1060).
@@ -213,5 +214,87 @@ describe("DungeonCraftPuzzlesTab — checkbox chip placement", () => {
     const wrapper = mountTab();
     await flushMicrotasks();
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
+  });
+});
+
+describe("DungeonCraftPuzzlesTab — what a card says", () => {
+  beforeEach(() => {
+    mocks.puzzles = [];
+    mocks.library = [];
+  });
+  const pz = (n: number, over: Partial<PuzzleRoom>) => puzzle({ id: `00000000-0000-4000-8000-0000000000c${n}`, ...over });
+
+  it("counts hints with the right plural and names the skills the puzzle asks for", async () => {
+    mocks.puzzles = [
+      pz(1, { name: "One", hints: [{ order: 1, text: "a" }] }),
+      pz(2, { name: "Two", hints: [{ order: 1, text: "a" }, { order: 2, text: "b" }], skill_checks: [{ skill: "Arcana", dc: 15 }, { skill: "History", dc: 12 }] }),
+    ];
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("1 hint");
+    expect(wrapper.text()).not.toContain("1 hints");
+    expect(wrapper.text()).toContain("2 hints");
+    expect(wrapper.text()).toContain("Arcana, History");
+  });
+
+  it("shows where an own puzzle is placed, and never for a library puzzle", async () => {
+    mocks.puzzles = [pz(1, { name: "Own" })];
+    mocks.library = [];
+    const own = mountTab();
+    await flushMicrotasks();
+    expect(own.findAllComponents({ name: "PlacedInLine" })).toHaveLength(1);
+    mocks.puzzles = [];
+    mocks.library = [libraryPuzzle()];
+    const lib = mountTab();
+    await flushMicrotasks();
+    expect(lib.findAllComponents({ name: "PlacedInLine" })).toHaveLength(0);
+  });
+
+  it("in the rows layout the subtitle pluralises hints and lists the skills", async () => {
+    useListLayout("puzzles", "grid").value = "rows";
+    try {
+      mocks.puzzles = [
+        pz(1, { name: "One", hints: [{ order: 1, text: "a" }] }),
+        pz(2, { name: "Two", hints: [{ order: 1, text: "a" }, { order: 2, text: "b" }], skill_checks: [{ skill: "Arcana", dc: 15 }] }),
+      ];
+      const wrapper = mountTab();
+      await flushMicrotasks();
+      const subtitles = wrapper.findAllComponents({ name: "EntityListRow" }).map((r) => r.props("subtitle"));
+      expect(subtitles).toEqual(["1 hint", "2 hints · Arcana"]);
+    } finally {
+      useListLayout("puzzles", "grid").value = "grid";
+    }
+  });
+
+  it("filters by difficulty, and by name or tag with surrounding spaces ignored", async () => {
+    mocks.puzzles = [
+      pz(1, { name: "Easy One", difficulty: "Easy" }),
+      pz(2, { name: "Hard One", difficulty: "Hard", tags: ["Mirror"] }),
+    ];
+    const wrapper = mountTab();
+    const ui = usePuzzlesUiStore();
+    ui.puzzlesFilterDifficulty = "Hard";
+    await flushMicrotasks();
+    expect(wrapper.text()).not.toContain("Easy One");
+    expect(wrapper.text()).toContain("Hard One");
+
+    ui.puzzlesFilterDifficulty = "";
+    ui.puzzlesSearch = "  easy ";
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("Easy One");
+    expect(wrapper.text()).not.toContain("Hard One");
+
+    ui.puzzlesSearch = " mirror ";
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("Hard One");
+    expect(wrapper.text()).not.toContain("Easy One");
+  });
+
+  it("waits for both lists rather than showing the DM's own puzzles alone", async () => {
+    mocks.puzzles = [pz(1, { name: "Own" })];
+    mocks.library = undefined;
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    expect(wrapper.text()).not.toContain("Own");
   });
 });

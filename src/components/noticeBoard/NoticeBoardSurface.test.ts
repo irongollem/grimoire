@@ -27,4 +27,10 @@ describe("NoticeBoardSurface", () => {
     expect(style).toContain("--nb-rail-t: calc(var(--u) * 62.7)");
     expect(style).not.toMatch(/\d+px/);
   });
+
+  it("draws the scatter layer only when the board has scatter", () => {
+    expect(mount(NoticeBoardSurface, { props: { surface: "cork" } }).find("[data-scatter]").exists()).toBe(false);
+    const w = mount(NoticeBoardSurface, { props: { surface: "cork", scatter: [{ art: "nail", x: 0.5, y: 0.5, r: 0, tack: null }] } });
+    expect(w.find("[data-scatter]").exists()).toBe(true);
+  });
 });

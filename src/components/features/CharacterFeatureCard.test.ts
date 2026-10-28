@@ -84,4 +84,29 @@ describe("CharacterFeatureCard", () => {
     });
     expect(w.text()).toContain("Magic Initiate (Wizard)");
   });
+  it("says nothing about spending for a feature that spends nothing", () => {
+    const mechanics: FeatureMechanics = { activation: "action" };
+    const w = mountCard({ feature: feature("Second Wind", mechanics), mechanics, grant: classGrant([1]), scalingValue: null }, [kiPool]);
+    expect(w.text()).not.toContain("Spends");
+  });
+
+  it("gives a feat taken at a level its category and level, but a class feature no category", () => {
+    const mechanics: FeatureMechanics = {};
+    const feat = mountCard({
+      feature: { ...feature("Tough", mechanics), kind: "feat", feat_category: "general" } as ClassFeature,
+      mechanics, grant: { kind: "feat", via: "level", atLevel: 4 }, scalingValue: null,
+    });
+    expect(feat.text()).toContain("General");
+    expect(feat.text()).toContain("Level 4");
+    const classFeature = mountCard({
+      feature: { ...feature("Stray", mechanics), feat_category: "general" } as ClassFeature,
+      mechanics, grant: classGrant([3]), scalingValue: null,
+    });
+    expect(classFeature.text()).not.toContain("General");
+    const unplaced = mountCard({
+      feature: { ...feature("Tough", mechanics), kind: "feat", feat_category: "general" } as ClassFeature,
+      mechanics, grant: { kind: "feat", via: "level", atLevel: null }, scalingValue: null,
+    });
+    expect(unplaced.text()).not.toContain("Level");
+  });
 });

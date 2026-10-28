@@ -68,4 +68,34 @@ describe("FactionDetailView tabs", () => {
     expect(w.find('[role="tab"]').exists()).toBe(false);
     expect(w.find("[data-testid=sheet]").exists()).toBe(true);
   });
+
+  it("choosing Lineage keeps the other query params, and going back to Overview drops tab and focus", async () => {
+    mocks.faction = faction("House");
+    mocks.route.query = { view: "x" };
+    const w = mountIt();
+    await w.findAll('[role="tab"]')[1]?.trigger("click");
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { view: "x", tab: "lineage" } });
+
+    mocks.route.query = { view: "x", tab: "lineage", focus: "npc:abc" };
+    const back = mountIt();
+    await back.findAll('[role="tab"]')[0]?.trigger("click");
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { view: "x" } });
+  });
+
+  it("while editing there is no tab bar even for a House", () => {
+    mocks.faction = faction("House");
+    mocks.route.query = { edit: "true" };
+    expect(mountIt().find('[role="tab"]').exists()).toBe(false);
+  });
+
+  it("a new faction shows the editor, no tabs, and does not wait on a faction to load", () => {
+    mocks.route.name = "faction-new";
+    mocks.route.params = {} as typeof mocks.route.params;
+    mocks.faction = faction("House");
+    const w = mountIt();
+    expect(w.find('[role="tab"]').exists()).toBe(false);
+    expect(w.findComponent({ name: "FactionEditor" }).exists()).toBe(true);
+    mocks.route.name = "faction-detail";
+    mocks.route.params = { id: "f1" };
+  });
 });

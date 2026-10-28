@@ -149,4 +149,19 @@ describe("LootTableRollPanel", () => {
     expect(wrapper.find('[data-testid="drop-dialog"]').exists()).toBe(false);
     expect(sendLootChest).not.toHaveBeenCalled();
   });
+
+  it("hands the dialog the entries that resolved to nothing, separately from the ones that rolled", async () => {
+    const wrapper = mountPanel({
+      table: makeTable({
+        entries: [currencyEntry(), { id: "gone", type: "item", item_id: "deleted-item", drop_chance: 100, notes: "Old sword" }],
+      }),
+    });
+    await findButtonByLabel(wrapper, "Drop chest in chat").trigger("click");
+    const dialog = wrapper.findComponent(LootTableDropDialogStub);
+    const unresolved = dialog.props("unresolved") as Array<{ entry_id: string; type: string }>;
+    expect(unresolved.map((u) => u.entry_id)).toEqual(["gone"]);
+    expect(unresolved.every((u) => u.type === "unresolved")).toBe(true);
+    // The chest itself holds only the currency; the missing item is warned about, not dropped.
+    expect(wrapper.get('[data-testid="atom-count"]').text()).toBe("1");
+  });
 });

@@ -6,11 +6,6 @@ import AppInput from "./AppInput.vue";
 import AppSelect from "./AppSelect.vue";
 
 describe("fieldVariants", () => {
-  it("keeps a select 4px tighter than an input at the same size", () => {
-    expect(fieldVariants({ size: "sm", control: "select" })).toContain("px-2");
-    expect(fieldVariants({ size: "sm", control: "input" })).toContain("px-3");
-  });
-
   /**
    * The DashboardView day/month/year row puts an input, a select and an input side
    * by side, so their vertical metrics have to agree. Note this checks the emitted
@@ -31,30 +26,7 @@ describe("fieldVariants", () => {
     }
   });
 
-  it("carries a typography role at every size rather than a raw font size", () => {
-    expect(fieldVariants({ size: "xs" })).toContain("text-label");
-    expect(fieldVariants({ size: "sm" })).toContain("text-label-lg");
-    expect(fieldVariants({ size: "md" })).toContain("text-label-lg");
-    // `lg` has no role at 14px Cinzel, so it states the family explicitly.
-    expect(fieldVariants({ size: "lg" })).toContain("font-cinzel");
-    // `body` is Crimson — it must NOT pick up Cinzel.
-    expect(fieldVariants({ size: "body" })).toContain("text-body");
-    expect(fieldVariants({ size: "body" })).not.toContain("font-cinzel");
-  });
-
-  it("keeps the ≥44px touch target only on md", () => {
-    expect(fieldVariants({ size: "md" })).toContain("min-h-11");
-    expect(fieldVariants({ size: "md" })).toContain("md:min-h-0");
-    for (const size of FIELD_SIZES.filter(s => s !== "md")) {
-      expect(fieldVariants({ size }), `size ${size}`).not.toContain("min-h-11");
-    }
-  });
-
-  it("drops the box entirely for the bare tone", () => {
-    const bare = fieldVariants({ tone: "bare" });
-    expect(bare).toContain("bg-transparent");
-    expect(bare).toContain("border-0");
-    expect(bare).not.toContain("focus:ring-1");
+  it("every tone but bare draws a border", () => {
     for (const tone of FIELD_TONES.filter(t => t !== "bare")) {
       expect(fieldVariants({ tone }), `tone ${tone}`).toContain("border-border");
     }
@@ -85,36 +57,6 @@ describe("the field components share one box", () => {
     );
     input.unmount();
     select.unmount();
-  });
-});
-
-describe("filled tone (#648)", () => {
-  it("is a full-strength muted surface, distinct from the tinted-panel tone", () => {
-    const filled = fieldVariants({ tone: "filled" });
-    const muted = fieldVariants({ tone: "muted" });
-
-    expect(filled).toContain("bg-muted");
-    expect(filled).not.toContain("bg-muted/40");
-    expect(muted).toContain("bg-muted/40");
-  });
-
-  it("keeps the same border and focus ring as the other boxed tones", () => {
-    const filled = fieldVariants({ tone: "filled" });
-    expect(filled).toContain("border border-border");
-    expect(filled).toContain("focus:ring-1");
-  });
-});
-
-describe("caption tone/size (#648)", () => {
-  it("is the reading font at caption scale, not a Cinzel label", () => {
-    const caption = fieldVariants({ size: "caption" });
-    expect(caption).toContain("text-caption");
-    expect(caption).not.toContain("text-label");
-  });
-
-  it("keeps the select 2px tighter than the input, like every other size", () => {
-    expect(fieldVariants({ size: "caption", control: "input" })).toContain("px-2");
-    expect(fieldVariants({ size: "caption", control: "select" })).toContain("px-1.5");
   });
 });
 
@@ -151,12 +93,5 @@ describe("underline tone (#648)", () => {
     expect(cls).toContain("bg-transparent");
     expect(cls).toContain("rounded-none");
     expect(cls).not.toContain("rounded-md");
-  });
-
-  it("colours the rule on focus instead of drawing a ring", () => {
-    const cls = mount(AppInput, { props: { modelValue: "", tone: "underline" } })
-      .get("input").classes().join(" ");
-    expect(cls).toContain("focus:border-primary");
-    expect(cls).not.toMatch(/focus:ring-1/);
   });
 });

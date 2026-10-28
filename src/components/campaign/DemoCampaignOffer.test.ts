@@ -66,25 +66,14 @@ describe("DemoCampaignOffer", () => {
     expect(wrapper.text()).toBe("");
   });
 
-  it("offers the full layout with its explanatory copy", () => {
+  it("explains the demo only in the full layout; compact and menu are a bare action", () => {
     mocks.status = status();
-    const wrapper = mount(DemoCampaignOffer, { props: { layout: "full" } });
-    expect(wrapper.text()).toContain("Late in the Kind Country");
-    expect(wrapper.find("button").text()).toBe("Explore the demo");
-  });
-
-  it("offers the compact layout as a bare label", () => {
-    mocks.status = status();
-    const wrapper = mount(DemoCampaignOffer, { props: { layout: "compact" } });
-    expect(wrapper.text()).not.toContain("Late in the Kind Country");
-    expect(wrapper.find("button").text()).toBe("Load the demo campaign instead");
-  });
-
-  it("offers the menu layout as a switcher row", () => {
-    mocks.status = status();
-    const wrapper = mount(DemoCampaignOffer, { props: { layout: "menu" } });
-    expect(wrapper.text()).not.toContain("Late in the Kind Country");
-    expect(wrapper.find("button").text()).toBe("Load demo campaign");
+    expect(mount(DemoCampaignOffer, { props: { layout: "full" } }).text()).toContain("Late in the Kind Country");
+    for (const layout of ["compact", "menu"] as const) {
+      const wrapper = mount(DemoCampaignOffer, { props: { layout } });
+      expect(wrapper.text()).not.toContain("Late in the Kind Country");
+      expect(wrapper.find("button").exists()).toBe(true);
+    }
   });
 
   it("loads the demo and emits the new campaign on click", async () => {

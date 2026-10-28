@@ -28,10 +28,10 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => reactive({ activeCampaignId }),
 }));
 vi.mock("vue-router", () => ({
-  useRoute: () => ({ query: { edit: "true", tab: "details" } }),
+  useRoute: () => ({ query: mocks.query.value }),
   useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
 }));
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: () => ({ data: ref([]) }) }));
@@ -51,13 +51,16 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   create: vi.fn().mockResolvedValue({ id: "new-location" }),
   update: vi.fn().mockResolvedValue({ id: "existing-location" }),
+  del: vi.fn().mockResolvedValue(undefined),
+  confirm: vi.fn().mockResolvedValue(true),
+  query: { value: { edit: "true", tab: "details" } as Record<string, string> },
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocations: () => ({ data: ref([]) }),
   useAllLocations: () => ({ data: ref([]) }),
   useCreateLocation: () => ({ mutateAsync: mocks.create }),
   useUpdateLocation: () => ({ mutateAsync: mocks.update }),
-  useDeleteLocation: () => ({ mutateAsync: vi.fn() }),
+  useDeleteLocation: () => ({ mutateAsync: mocks.del }),
 }));
 
 const stubs = {
@@ -237,6 +240,149 @@ describe("LocationEditor autosave", () => {
     const wrapper = mountEditor(existing);
     wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("cancel");
     await flushPromises();
+    expect(mocks.push).toHaveBeenCalledWith({ query: { tab: "details" } });
+  });
+});
+
+// Post-mutation navigation: a created place lands on itself in the Atlas, a
+// cancelled new place goes back to where it was opened from, and a delete goes
+// to the parent (or the bare Atlas).
+describe("LocationEditor create, cancel and delete", () => {
+  type Vm = { name: string; audioTheme: string | null; npcOwnerId: string; playerSummary: string; save: () => Promise<void> };
+  beforeEach(() => {
+    canCreate.value = true;
+    activeCampaignId.value = "campaign-1";
+    mocks.create.mockReset().mockResolvedValue({ id: "new-location" });
+    mocks.del.mockClear();
+    mocks.push.mockClear();
+    mocks.confirm.mockReset().mockResolvedValue(true);
+    mocks.query.value = { edit: "true", tab: "details" };
+  });
+
+  it("writes nothing for a nameless new place", async () => {
+    const vm = mountEditor(null).vm as unknown as Vm;
+    vm.name = "   ";
+    await vm.save();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("trims the name, turns blanks into nulls, and lands on the new place", async () => {
+    const vm = mountEditor(null).vm as unknown as Vm;
+    vm.name = "  Tower of the Moon  ";
+    vm.audioTheme = "   ";
+    vm.npcOwnerId = "";
+    vm.playerSummary = "";
+    await vm.save();
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Tower of the Moon", audio_theme: null, npc_owner_id: null, player_summary: null }),
+    );
+    expect(mocks.push).toHaveBeenCalledWith("/locations?at=new-location");
+  });
+
+  it("keeps the ambient theme a DM typed, trimmed", async () => {
+    const vm = mountEditor(null).vm as unknown as Vm;
+    vm.name = "Tower";
+    vm.audioTheme = "  windswept ";
+    await vm.save();
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ audio_theme: "windswept" }));
+  });
+
+  it("shows the failure and stays put when the create fails for another reason", async () => {
+    mocks.create.mockRejectedValueOnce(new Error("db is down"));
+    const wrapper = mountEditor(null);
+    const vm = wrapper.vm as unknown as Vm & { saveError: string };
+    vm.name = "Tower";
+    await vm.save();
+    expect(vm.saveError).toBe("db is down");
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("Cancel on a new place returns to the parent it was opened from, or the bare Atlas", async () => {
+    mocks.query.value = { parent: "site-9" };
+    const withParent = mountEditor(null);
+    withParent.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("cancel");
+    await flushPromises();
+    expect(mocks.push).toHaveBeenLastCalledWith("/locations?at=site-9");
+
+    mocks.query.value = {};
+    const bare = mountEditor(null);
+    bare.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("cancel");
+    await flushPromises();
+    expect(mocks.push).toHaveBeenLastCalledWith("/locations");
+  });
+
+  it("does not delete when the DM declines the confirmation", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    const existing = { id: "loc1", campaign_id: "campaign-1", name: "Keep", parent_id: "p1" } as Location;
+    mountEditor(existing).findComponent({ name: "EntityEditorActionBar" }).vm.$emit("delete");
+    await flushPromises();
+    expect(mocks.del).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("deletes, then goes to the parent place, or to the Atlas for a top-level one", async () => {
+    const child = { id: "loc1", campaign_id: "campaign-1", name: "Keep", parent_id: "p1" } as Location;
+    mountEditor(child).findComponent({ name: "EntityEditorActionBar" }).vm.$emit("delete");
+    await flushPromises();
+    expect(mocks.del).toHaveBeenCalledWith("loc1");
+    expect(mocks.push).toHaveBeenLastCalledWith("/locations?at=p1");
+
+    const top = { id: "loc2", campaign_id: "campaign-1", name: "World", parent_id: null } as Location;
+    mountEditor(top).findComponent({ name: "EntityEditorActionBar" }).vm.$emit("delete");
+    await flushPromises();
+    expect(mocks.push).toHaveBeenLastCalledWith("/locations");
+  });
+
+  it("stays on the place when the delete fails", async () => {
+    mocks.del.mockRejectedValueOnce(new Error("no"));
+    const existing = { id: "loc1", campaign_id: "campaign-1", name: "Keep", parent_id: "p1" } as Location;
+    mountEditor(existing).findComponent({ name: "EntityEditorActionBar" }).vm.$emit("delete");
+    await flushPromises();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("LocationEditor Done with edits that did not save (#958)", () => {
+  const existing = { id: "loc1", campaign_id: "campaign-1", name: "Keep", location_type: "other", tags: [] } as unknown as Location;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    canCreate.value = true;
+    mocks.update.mockReset();
+    mocks.push.mockClear();
+    mocks.confirm.mockReset();
+    mocks.query.value = { edit: "true", tab: "details" };
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function doneAfterFailedEdit() {
+    mocks.update.mockRejectedValue(new Error("offline"));
+    const wrapper = mountEditor(existing);
+    (wrapper.vm as unknown as { tags: string[] }).tags = ["ruin"];
+    wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("cancel");
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+  }
+
+  it("asks before leaving, and stays when the DM says no", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    await doneAfterFailedEdit();
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.stringContaining("The last save failed."), expect.anything());
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("leaves, dropping the edits, when the DM confirms", async () => {
+    mocks.confirm.mockResolvedValue(true);
+    await doneAfterFailedEdit();
+    expect(mocks.push).toHaveBeenCalledWith({ query: { tab: "details" } });
+  });
+
+  it("does not ask when nothing was edited", async () => {
+    const wrapper = mountEditor(existing);
+    wrapper.findComponent({ name: "EntityEditorActionBar" }).vm.$emit("cancel");
+    await flushPromises();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.confirm).not.toHaveBeenCalled();
     expect(mocks.push).toHaveBeenCalledWith({ query: { tab: "details" } });
   });
 });

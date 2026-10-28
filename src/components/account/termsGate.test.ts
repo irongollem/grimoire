@@ -29,6 +29,7 @@ describe("isTermsGateExemptPath", () => {
   it("does not exempt an unrelated path, including one that merely starts with the same letters", () => {
     expect(isTermsGateExemptPath("/dashboard")).toBe(false);
     expect(isTermsGateExemptPath("/accountability")).toBe(false);
+    expect(isTermsGateExemptPath("/billingx")).toBe(false);
   });
 });
 

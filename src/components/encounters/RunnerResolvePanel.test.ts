@@ -2,7 +2,9 @@
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import RunnerAttackFlow from "./RunnerAttackFlow.vue";
 import RunnerAttackOutcome from "./RunnerAttackOutcome.vue";
+import RunnerSaveFlow from "./RunnerSaveFlow.vue";
 import RunnerResolvePanel from "./RunnerResolvePanel.vue";
 import type { AttackOutcome, SaveTargetResult } from "@/composables/encounters/useActionResolution";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -319,5 +321,40 @@ describe("RunnerResolvePanel", () => {
     const call = mocks.res.resolveSaves.mock.calls[0][0] as { entry: StatBlockEntry };
     expect(call.entry.name).toBe("Breath Weapons: Fire");
     expect(call.entry.structured.save?.dc).toBe(13);
+  });
+
+  describe("wiring", () => {
+    const mountWith = (entry: StatBlockEntry, dmMode: "normal" | "advantage" = "advantage", silent = true) =>
+      mount(RunnerResolvePanel, { props: { attacker, entry, dmMode, silent } });
+
+    it("closes from Done", async () => {
+      const w = mountPanel(claw);
+      await w.get("[data-testid=resolve-done]").trigger("click");
+      expect(w.emitted("close")).toHaveLength(1);
+    });
+
+    it("hands the DM's roll mode and the silent flag to the attack flow", () => {
+      const flow = mountWith(claw).getComponent(RunnerAttackFlow);
+      expect(flow.props("dmMode")).toBe("advantage");
+      expect(flow.props("silent")).toBe(true);
+    });
+
+    it("hands the silent flag to the save flow and forwards its first roll", () => {
+      const w = mountWith(scorch);
+      const flow = w.getComponent(RunnerSaveFlow);
+      expect(flow.props("silent")).toBe(true);
+      flow.vm.$emit("first-roll");
+      expect(w.emitted("first-roll")).toHaveLength(1);
+    });
+
+    it("shows the flow for the entry's kind, not for a leftover attack or save block on another kind", () => {
+      const asSave: StatBlockEntry = { ...scorch, structured: { ...scorch.structured, attack: claw.structured.attack } };
+      expect(mountWith(asSave).findComponent(RunnerAttackFlow).exists()).toBe(false);
+      expect(mountWith(asSave).findComponent(RunnerSaveFlow).exists()).toBe(true);
+      const asAttack: StatBlockEntry = { ...claw, structured: { ...claw.structured, save: scorch.structured.save } };
+      expect(mountWith(asAttack).findComponent(RunnerSaveFlow).exists()).toBe(false);
+      const asTrait: StatBlockEntry = { ...claw, structured: { ...claw.structured, kind: "other", save: scorch.structured.save } };
+      expect(mountWith(asTrait).findComponent(RunnerSaveFlow).exists()).toBe(false);
+    });
   });
 });

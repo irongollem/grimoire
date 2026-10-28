@@ -89,7 +89,8 @@ describe("NoticeBoardPin", () => {
       const w = mount(NoticeBoardPin, { props: { face: goat, editable: true }, attachTo: host });
       const hit = w.get("button.nb-hit").element;
       hit.dispatchEvent(ptr("pointerdown", 100, 100));
-      hit.dispatchEvent(ptr("pointerup", 101, 100));
+      hit.dispatchEvent(ptr("pointermove", 102, 101));
+      hit.dispatchEvent(ptr("pointerup", 102, 101));
       await w.get("button.nb-hit").trigger("click");
       expect(w.emitted("move")).toBeUndefined();
       expect(w.emitted("select")).toHaveLength(1);
@@ -136,6 +137,15 @@ describe("NoticeBoardPin", () => {
       expect(w.text()).toContain("Taken by Aria, session 12");
       await w.get("button.nb-stub").trigger("click");
       expect(w.text()).not.toContain("Taken by Aria");
+    });
+
+    it("selects a taken stub for the DM to pin back up, but a player's tap only reveals who took it", async () => {
+      const player = mount(NoticeBoardPin, { props: { face: takenGoat } });
+      await player.get("button.nb-stub").trigger("click");
+      expect(player.emitted("select")).toBeUndefined();
+      const dm = mount(NoticeBoardPin, { props: { face: takenGoat, editable: true } });
+      await dm.get("button.nb-stub").trigger("click");
+      expect(dm.emitted("select")).toHaveLength(1);
     });
 
     it("goes straight to the stub when there is nothing to animate with", async () => {

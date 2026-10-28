@@ -74,6 +74,66 @@ describe("EntityCombobox", () => {
     expect(w.find("ul[data-slip]").exists()).toBe(true);
   });
 
+  describe("choosing", () => {
+    it("picks an option with the mouse, closes the list and clears what was typed", async () => {
+      const w = mountBox({ modelValue: "", options });
+      const input = w.get("input");
+      await input.setValue("bir");
+      await w.findAll("li").find((li) => li.text() === "Birch")!.trigger("mousedown");
+
+      expect(w.emitted("update:modelValue")).toEqual([["b"]]);
+      expect(w.find("ul").exists()).toBe(false);
+      expect((input.element as HTMLInputElement).value).toBe("");
+    });
+
+    it("Enter picks the first match of what was typed, not the first option overall", async () => {
+      const w = mountBox({ modelValue: "", options });
+      await w.get("input").setValue("bir");
+      await w.get("input").trigger("keydown.enter");
+      expect(w.emitted("update:modelValue")).toEqual([["b"]]);
+    });
+
+    it("Enter with nothing matching picks nothing", async () => {
+      const w = mountBox({ modelValue: "", options });
+      await w.get("input").setValue("zzz");
+      await w.get("input").trigger("keydown.enter");
+      expect(w.emitted("update:modelValue")).toBeUndefined();
+    });
+
+    it("the clear button empties the selection, and only shows while something is selected", async () => {
+      const empty = mountBox({ modelValue: "", options });
+      expect(empty.find("button").exists()).toBe(false);
+
+      const w = mountBox({ modelValue: "a", options });
+      await w.get("button").trigger("mousedown");
+      expect(w.emitted("update:modelValue")).toEqual([[""]]);
+    });
+
+    it("Escape closes the list and drops the half-typed query", async () => {
+      const w = mountBox({ modelValue: "", options });
+      await w.get("input").setValue("bir");
+      expect(w.find("ul").exists()).toBe(true);
+      await w.get("input").trigger("keydown.escape");
+      expect(w.find("ul").exists()).toBe(false);
+      expect((w.get("input").element as HTMLInputElement).value).toBe("");
+    });
+
+    it("matches regardless of case and surrounding spaces", async () => {
+      const w = mountBox({ modelValue: "", options });
+      await w.get("input").setValue("  bIR ");
+      expect(w.findAll("li").map((li) => li.text())).toEqual(["Birch"]);
+    });
+
+    it("lists at most 50 options, so a huge catalogue does not flood the page", async () => {
+      const many = Array.from({ length: 80 }, (_, i) => ({ id: `n${i}`, name: `Tree ${i}` }));
+      const w = mountBox({ modelValue: "", options: many });
+      await w.get("input").trigger("focus");
+      expect(w.findAll("li")).toHaveLength(50);
+      await w.get("input").setValue("tree");
+      expect(w.findAll("li")).toHaveLength(50);
+    });
+  });
+
   describe("footer slot", () => {
     function mountWithFooter(withFooter: boolean) {
       return mount(EntityCombobox, {

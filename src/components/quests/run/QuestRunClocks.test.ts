@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   clocks: [] as Array<{ id: string; label: string; segments: number; filled: number }>,
   tick: vi.fn(),
   success: vi.fn(),
+  error: vi.fn(),
 }));
 
 vi.mock("@/composables/quests/useQuestClocks", () => ({
@@ -14,7 +15,7 @@ vi.mock("@/composables/quests/useQuestClocks", () => ({
   useTickQuestClock: () => ({ mutateAsync: mocks.tick, isPending: ref(false) }),
 }));
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ success: mocks.success, error: vi.fn(), fromError: String }),
+  useToast: () => ({ success: mocks.success, error: mocks.error, fromError: String }),
 }));
 
 describe("QuestRunClocks", () => {
@@ -22,6 +23,7 @@ describe("QuestRunClocks", () => {
     mocks.clocks = [{ id: "c1", label: "The ritual", segments: 4, filled: 3 }];
     mocks.tick.mockReset();
     mocks.success.mockReset();
+    mocks.error.mockReset();
   });
 
   it("renders nothing for a quest without clocks", () => {
@@ -46,5 +48,15 @@ describe("QuestRunClocks", () => {
     await flushPromises();
     expect(mocks.tick).toHaveBeenCalledWith({ clockId: "c1", questId: "q1", step: -1 });
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it("a refused tick is toasted and the clock is left as it was", async () => {
+    mocks.tick.mockRejectedValue(new Error("Clock is locked"));
+    const wrapper = mount(QuestRunClocks, { props: { questId: "q1" } });
+    await wrapper.get('button[aria-label="Tick The ritual"]').trigger("click");
+    await flushPromises();
+    expect(mocks.error).toHaveBeenCalledWith("Error: Clock is locked");
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("3 of 4");
   });
 });

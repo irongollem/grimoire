@@ -178,4 +178,28 @@ describe("NoticePinEditor", () => {
     expect(mocks.del).toHaveBeenCalledWith("pin-goat");
     expect(w.emitted("deleted")).toHaveLength(1);
   });
+
+  it.each([
+    ["Put it up", { status: "draft" as const }, { id: "pin-goat", update: { status: "up" } }],
+    ["Pin back up", { status: "taken" as const, taken_by: "m1", taken_at: "2026-10-16T20:00:00Z", taken_session_number: 12 }, "pin-goat"],
+  ])("does not %s when the edit before it failed to save", async (label, over, forbidden) => {
+    mocks.update.mockRejectedValueOnce(new Error("offline"));
+    const w = mountEditor(pinRow(over));
+    await w.get('input[id$="-headline"]').setValue("FOUND: one goat");
+    await find(w, label)?.trigger("click");
+    await flushPromises();
+    expect(mocks.update).not.toHaveBeenCalledWith(forbidden);
+    expect(mocks.backUp).not.toHaveBeenCalled();
+  });
+
+  it("takes in a change made elsewhere, but never over words typed here and not yet saved", async () => {
+    const w = mountEditor(pinRow({ status: "up" }));
+    const headline = () => (w.get('input[id$="-headline"]').element as HTMLInputElement).value;
+    await w.setProps({ pin: pinRow({ status: "up", headline: "Changed by the DM elsewhere", updated_at: "2026-10-16T12:00:00Z" }) });
+    expect(headline()).toBe("Changed by the DM elsewhere");
+
+    await w.get('input[id$="-headline"]').setValue("half-typed");
+    await w.setProps({ pin: pinRow({ status: "up", headline: "A third edit", updated_at: "2026-10-16T13:00:00Z" }) });
+    expect(headline()).toBe("half-typed");
+  });
 });

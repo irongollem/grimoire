@@ -527,6 +527,20 @@ describe("MapWorkbench", () => {
       expect(vm.isDirty()).toBe(true);
     });
 
+    it("does not call a rename to the same name an unsaved change", async () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false },
+        slots: {
+          "bar-start": (slot: { mapName: string; setName: (v: string) => void }) =>
+            h("button", { class: "same-name", onClick: () => slot.setName(slot.mapName) }, slot.mapName),
+        },
+        ...editModeStubs,
+      });
+      const vm = wrapper.vm as unknown as { isDirty: () => boolean };
+      await wrapper.find(".same-name").trigger("click");
+      expect(vm.isDirty()).toBe(false);
+    });
+
     it("shows the host's save state in the bar", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, saveState: "Saving…" }, ...editModeStubs });
       expect(wrapper.find("header").text()).toContain("Saving…");

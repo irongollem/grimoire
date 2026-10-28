@@ -449,3 +449,108 @@ describe("CopyToCampaignDialog — unenabled library sources", () => {
     wrapper.unmount();
   });
 });
+
+// The guards below are the ones a click-through never trips on its own: they
+// only matter when something is slow, repeated or reopened.
+describe("CopyToCampaignDialog — guards in the confirm and reopen flow", () => {
+  function pick(value: string) {
+    const sel = selectEl();
+    sel.value = value;
+    sel.dispatchEvent(new Event("change"));
+  }
+
+  it("keeps Copy disabled while a copy is already running, so a double click cannot copy twice", async () => {
+    const wrapper = openDialog();
+    await flushPromises();
+    expect((copyButton() as HTMLButtonElement).disabled).toBe(false);
+
+    mocks.isPending.value = true;
+    await nextTick();
+
+    expect((copyButton() as HTMLButtonElement).disabled).toBe(true);
+    copyButton()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("keeps Copy disabled while the unenabled-sources check is still running", async () => {
+    mocks.resolveUnenabledSources.mockReturnValue(new Promise(() => {}));
+    const wrapper = openDialog();
+    await flushPromises();
+
+    expect((copyButton() as HTMLButtonElement).disabled).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("clears the previous failure when the DM tries again", async () => {
+    mocks.mutateAsync
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({ copied: 2, linked: 0, dropped: [], needsSources: null });
+    const wrapper = openDialog();
+    await flushPromises();
+
+    copyButton()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+    expect(bodyText()).toContain("network down");
+
+    copyButton()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+    expect(bodyText()).not.toContain("network down");
+    expect(wrapper.emitted("copied")).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("forgets the chosen campaign when the dialog is closed and reopened", async () => {
+    const wrapper = openDialog();
+    await flushPromises();
+    pick("camp-2");
+    await flushPromises();
+    expect(selectEl().value).toBe("camp-2");
+
+    await wrapper.setProps({ open: false });
+    await flushPromises();
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+
+    expect(selectEl().value).toBe("general");
+    wrapper.unmount();
+  });
+
+  it("ignores a source load that lands after the dialog was closed and reopened", async () => {
+    let resolveStale!: (v: unknown) => void;
+    mocks.loadCopySources
+      .mockReturnValueOnce(new Promise((resolve) => { resolveStale = resolve; }))
+      .mockResolvedValueOnce(scopedSources(["i1", "i2"], "camp-1"));
+    const wrapper = openDialog();
+    await nextTick();
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+    expect(optionTexts()).toEqual(["All campaigns (general)", "Icewind Dale"]);
+
+    // The first request finally answers with rows from the OTHER campaign.
+    resolveStale(scopedSources(["i1", "i2"], "camp-2"));
+    await flushPromises();
+
+    expect(optionTexts()).toEqual(["All campaigns (general)", "Icewind Dale"]);
+    wrapper.unmount();
+  });
+
+  it("ignores an unenabled-sources answer for a target the DM has already moved off", async () => {
+    let resolveFirst!: (v: unknown) => void;
+    mocks.resolveUnenabledSources
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockResolvedValue(null);
+    const wrapper = openDialog();
+    await flushPromises();
+
+    pick("camp-2");
+    await flushPromises();
+    resolveFirst({ names: ["Fireball"], sources: ["Tome of Heroes"] });
+    await flushPromises();
+
+    expect(bodyText()).not.toContain("not enabled in the target campaign");
+    wrapper.unmount();
+  });
+});

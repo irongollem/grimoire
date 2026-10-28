@@ -1,11 +1,12 @@
 // The toolbar's darkness tool (story 10 of #1073): its own small group beside the fog tools, with a radius choice
 // that appears only while the tool is active, and the fog brush options hidden for it.
 
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import BattleMapToolbar, { type BattleMapTool } from "./BattleMapToolbar.vue";
 
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const push = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
 
 function mountToolbar(tool: BattleMapTool, hasDoors = true) {
   return mount(BattleMapToolbar, {
@@ -48,6 +49,7 @@ describe("BattleMapToolbar darkness tool", () => {
 
   it("shows the fog brush options for the fog tools and not for darkness", () => {
     expect(mountToolbar("reveal").find('[aria-label="Brush shape"]').exists()).toBe(true);
+    expect(mountToolbar("rehide").find('[aria-label="Brush shape"]').exists()).toBe(true);
     expect(mountToolbar("darkness").find('[aria-label="Brush shape"]').exists()).toBe(false);
   });
 });
@@ -69,5 +71,25 @@ describe("BattleMapToolbar doors tool", () => {
     const button = w.findAll("button").find((b) => /no doors/i.test(`${b.attributes("aria-label")} ${b.attributes("title")}`));
     expect(button).toBeDefined();
     expect(button!.attributes("disabled")).toBeDefined();
+  });
+});
+
+describe("BattleMapToolbar fog resets and the site switch", () => {
+  beforeEach(() => push.mockClear());
+  const button = (w: ReturnType<typeof mountToolbar>, label: string) => w.findAll("button").find((b) => b.text() === label)!;
+
+  it("Hide all asks to hide the map and Reveal all asks to reveal it, never the other way round", async () => {
+    const w = mountToolbar("pan");
+    await button(w, "Hide all").trigger("click");
+    await button(w, "Reveal all").trigger("click");
+    expect(w.emitted("resetFog")).toEqual([["hide"], ["reveal"]]);
+  });
+
+  it("leaves for the site when Site is picked, and stays put on Encounter", async () => {
+    const w = mountToolbar("pan");
+    await button(w, "Encounter").trigger("click");
+    expect(push).not.toHaveBeenCalled();
+    await button(w, "Site").trigger("click");
+    expect(push).toHaveBeenCalledWith("/");
   });
 });

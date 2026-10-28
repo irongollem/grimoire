@@ -88,4 +88,13 @@ describe("EntitySendMenu", () => {
     expect(scriptoriumRow.hasAttribute("disabled")).toBe(true);
     wrapper.unmount();
   });
+
+  it("the trigger closes the panel again when pressed a second time", async () => {
+    const wrapper = open();
+    await wrapper.get("button").trigger("click");
+    expect(panel()).not.toBeNull();
+    await wrapper.get("button").trigger("click");
+    expect(panel()).toBeNull();
+    wrapper.unmount();
+  });
 });

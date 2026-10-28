@@ -166,3 +166,30 @@ describe("non-string model values", () => {
     expect(select.attributes("data-field-tone")).toBe("card");
   });
 });
+
+describe("AppSelect model sync", () => {
+  it("selects the option whose non-string value equals the model, on mount and when the model changes", async () => {
+    const { wrapper, model, select } = mountSelect(8, () => [
+      h("option", { value: 3 }, "3"),
+      h("option", { value: 8 }, "8"),
+      h("option", { value: null }, "none"),
+    ]);
+    expect((select.element as HTMLSelectElement).selectedIndex).toBe(1);
+
+    model.value = null;
+    await nextTick();
+    expect((select.element as HTMLSelectElement).selectedIndex).toBe(2);
+    wrapper.unmount();
+  });
+
+  it("selects the model's option once the options arrive after the first render", async () => {
+    const loaded = ref<number[]>([]);
+    const { wrapper, select } = mountSelect(8, () => loaded.value.map((n) => h("option", { value: n }, String(n))));
+    expect((select.element as HTMLSelectElement).selectedIndex).toBe(-1);
+
+    loaded.value = [3, 8];
+    await nextTick();
+    expect((select.element as HTMLSelectElement).selectedIndex).toBe(1);
+    wrapper.unmount();
+  });
+});

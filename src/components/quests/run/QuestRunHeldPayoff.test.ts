@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunHeldPayoff from "./QuestRunHeldPayoff.vue";
 import type { LootPlacement, QuestHeldPayoff } from "@/types/quest.types";
@@ -75,5 +75,33 @@ describe("QuestRunHeldPayoff", () => {
     expect(wrapper.text()).toContain("Scrim moves to The Roost");
     expect(wrapper.text()).toContain("in 3 days");
     expect(wrapper.text()).toContain("The count ticks 2");
+  });
+
+  const button = (w: ReturnType<typeof mount>, label: string) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
+
+  it("says where a held event was held; a ledger verb ignores its stored delay, a world verb states it", () => {
+    const ledger: QuestHeldPayoff = { ...heldEvent, event_id: "ev-a", action: "complete", target_objective_id: "obj-1", after_days: 5 };
+    const world: QuestHeldPayoff = { ...heldEvent, event_id: "ev-b", action: "grant_knowledge", action_payload: { text: "x" }, after_days: 5, beat_title: null };
+    const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", loot: [], held: [ledger, world] } });
+    const captions = wrapper.findAll("p.text-caption.text-muted-foreground").map((p) => p.text());
+    expect(captions).toContain("held at Confront Ser Vallis");
+    expect(captions.some((c) => c.startsWith("held ·") && c.includes("5 days"))).toBe(true);
+  });
+
+  it("a refused dispatch or fire says why, releases the button, and a retry clears the message", async () => {
+    mocks.dispatch.mockRejectedValueOnce("refused").mockResolvedValue(undefined);
+    mocks.fire.mockRejectedValueOnce("refused").mockResolvedValue(undefined);
+    const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", loot: [currencyLoot], held: [heldEvent] } });
+    await button(wrapper, "Dispatch").trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not drop loot in chat");
+    expect(button(wrapper, "Dispatch").props("loading")).toBe(false);
+    await button(wrapper, "Fire now").trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not fire the held consequence");
+    expect(button(wrapper, "Fire now").props("loading")).toBe(false);
+    await button(wrapper, "Fire now").trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
   });
 });

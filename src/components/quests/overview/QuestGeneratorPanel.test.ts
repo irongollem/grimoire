@@ -1,4 +1,4 @@
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestGeneratorPanel from "./QuestGeneratorPanel.vue";
@@ -13,6 +13,11 @@ const mocks = vi.hoisted(() => ({
   createConsequence: vi.fn(),
   push: vi.fn(),
   generate: vi.fn(),
+  toastInfo: vi.fn(),
+  ui: { questGeneratorOpen: true },
+  party: [] as Array<{ level: number }>,
+  npcs: [] as Array<{ id: string; name: string; occupation: string | null; relationship: string | null }>,
+  places: [] as Array<{ id: string; name: string }>,
 }));
 
 const isAiEnabled = ref(true);
@@ -31,7 +36,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock("@/stores/ui/quests", () => ({ useQuestsUiStore: () => ({ questGeneratorOpen: true }) }));
+vi.mock("@/stores/ui/quests", () => ({ useQuestsUiStore: () => mocks.ui }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() {
@@ -42,9 +47,9 @@ vi.mock("@/stores/campaign", () => ({
   }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: ref(mocks.party) }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref(mocks.npcs) }) }));
+vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: ref(mocks.places) }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useCreateQuest: () => ({ mutateAsync: mocks.createQuest }),
@@ -78,12 +83,14 @@ vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: canCreateQuest, quota: ref(null) }),
 }));
 const hooks = ref<QuestHookResult[]>([hook]);
+const concept = ref("");
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ info: mocks.toastInfo, error: vi.fn(), success: vi.fn() }) }));
 
 vi.mock("@/ai/useQuestGeneration", () => ({
   useQuestGeneration: () => ({
     isGenerating: ref(false),
     error: ref(""),
-    concept: ref(""),
+    concept,
     completedEntityId: ref(null),
     clearCompleted: vi.fn(),
     hooks,
@@ -121,6 +128,11 @@ describe("QuestGeneratorPanel — createFromHook", () => {
     isAiEnabled.value = true;
     canCreateQuest.value = true;
     hooks.value = [hook];
+    mocks.ui.questGeneratorOpen = true;
+    mocks.party = [];
+    mocks.npcs = [];
+    mocks.places = [];
+    mocks.toastInfo.mockReset();
     requireCredits.mockReset().mockReturnValue(true);
   });
 
@@ -237,5 +249,162 @@ describe("QuestGeneratorPanel — credit gate (checked after the quota gate)", (
 
     expect(requireCredits).toHaveBeenCalledTimes(1);
     expect(mocks.generate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("QuestGeneratorPanel — the request and the created quest", () => {
+  beforeEach(() => {
+    mocks.generate.mockReset();
+    mocks.createQuest.mockReset().mockResolvedValue({ id: "quest-new" });
+    mocks.createObjective.mockReset();
+    mocks.createBeat.mockReset();
+    mocks.createBeatEdge.mockReset();
+    mocks.createConsequence.mockReset();
+    mocks.push.mockReset();
+    mocks.toastInfo.mockReset();
+    mocks.ui.questGeneratorOpen = true;
+    mocks.party = [];
+    mocks.npcs = [{ id: "npc-1", name: "Mara", occupation: "Smith", relationship: "ally" }, { id: "npc-2", name: "Odo", occupation: null, relationship: null }];
+    mocks.places = [{ id: "loc-1", name: "Thornkeep" }];
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    hooks.value = [];
+    concept.value = "";
+    requireCredits.mockReset().mockReturnValue(true);
+  });
+  const generate = async (w: ReturnType<typeof mountPanel>) => {
+    await w.get('button[aria-label="Generate Quest Hooks"]').trigger("click");
+    await flushPromises();
+  };
+  const pick = (w: ReturnType<typeof mountPanel>, placeholder: string, id: string) =>
+    w.findAllComponents({ name: "EntityCombobox" }).find((c) => c.attributes("placeholder") === placeholder)!.vm.$emit("update:modelValue", id);
+  const sentPrompt = () => mocks.generate.mock.calls.at(-1)![0] as string;
+
+  it("tells the model the party's level, rounding the average up, and says 1 for a party it does not know", async () => {
+    mocks.party = [{ level: 3 }, { level: 4 }];
+    const w = mountPanel();
+    expect(w.text()).toContain("4 (avg of 2 members)");
+    await generate(w);
+    expect(sentPrompt()).toContain("Party level: 4");
+    mocks.party = [{ level: 5 }];
+    expect(mountPanel().text()).toContain("5 (avg of 1 member)");
+    mocks.party = [];
+    const empty = mountPanel();
+    expect(empty.text()).toContain("PARTY LEVEL");
+    await generate(empty);
+    expect(sentPrompt()).toContain("Party level: 1");
+  });
+
+  it("builds the constraints from the chosen giver and place, and from nothing when none is chosen", async () => {
+    const w = mountPanel();
+    await generate(w);
+    expect(sentPrompt()).not.toContain("Quest Giver");
+    expect(sentPrompt()).not.toContain("constraints");
+
+    pick(w, "Search NPCs…", "npc-1");
+    pick(w, "Search locations…", "loc-1");
+    await w.vm.$nextTick();
+    await generate(w);
+    expect(sentPrompt()).toContain("Quest Giver: Mara (Smith, ally)");
+    expect(sentPrompt()).toContain("Location: Thornkeep");
+
+    pick(w, "Search NPCs…", "npc-2");
+    await w.vm.$nextTick();
+    await generate(w);
+    expect(sentPrompt()).toContain("Quest Giver: Odo");
+    expect(sentPrompt()).not.toContain("Quest Giver: Odo (");
+  });
+
+  it("adds the theme trimmed, and names the request by it, else by the party's level", async () => {
+    mocks.party = [{ level: 3 }];
+    const w = mountPanel();
+    await generate(w);
+    expect(sentPrompt()).not.toContain("Theme");
+    expect(concept.value).toBe("Level 3 quest hooks");
+    await w.get("textarea").setValue("  A cult under the mill  ");
+    await generate(w);
+    expect(sentPrompt()).toContain("Theme: A cult under the mill");
+    expect(concept.value).toBe("A cult under the mill");
+  });
+
+  it("creating a quest from a hook uses the chosen giver and place, then offers View and Build flow", async () => {
+    const w = mountPanel();
+    pick(w, "Search NPCs…", "npc-1");
+    pick(w, "Search locations…", "loc-1");
+    await w.vm.$nextTick();
+    hooks.value = [hook];
+    await w.vm.$nextTick();
+    await w.get('button[aria-label="Create Quest"]').trigger("click");
+    await flushPromises();
+    expect(mocks.createQuest).toHaveBeenCalledWith(expect.objectContaining({ giver_npc_id: "npc-1", location_id: "loc-1" }));
+    expect(w.find('button[aria-label="Create Quest"]').exists()).toBe(false);
+    expect(w.text()).toContain("Created");
+
+    await w.get('button[aria-label="View Quest →"]').trigger("click");
+    expect(mocks.push).toHaveBeenLastCalledWith("/quests/quest-new");
+    expect(mocks.ui.questGeneratorOpen).toBe(false);
+    mocks.ui.questGeneratorOpen = true;
+    await w.get('button[aria-label="Build flow →"]').trigger("click");
+    expect(mocks.push).toHaveBeenLastCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+    expect(mocks.ui.questGeneratorOpen).toBe(false);
+  });
+
+  it("tells the DM when the created quest came back with no story beats", async () => {
+    hooks.value = [hook];
+    const w = mountPanel();
+    await w.get('button[aria-label="Create Quest"]').trigger("click");
+    await flushPromises();
+    expect(mocks.toastInfo).toHaveBeenCalledTimes(1);
+    expect(mocks.toastInfo.mock.calls[0]![0]).toContain("The Silent Bell");
+  });
+
+  it("a quest refused for quota opens the paywall, leaves the hook uncreated and the button usable", async () => {
+    hooks.value = [hook];
+    mocks.createQuest.mockRejectedValue({ message: "quota_exceeded" });
+    const w = mountPanel();
+    await w.get('button[aria-label="Create Quest"]').trigger("click");
+    await flushPromises();
+    expect(w.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(w.get('button[aria-label="Create Quest"]').attributes("disabled")).toBeUndefined();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("only the hook that was created turns into View / Build flow; the others stay creatable", async () => {
+    hooks.value = [hook, { ...hook, title: "The Second Bell" }];
+    const w = mountPanel();
+    await w.findAll('button[aria-label="Create Quest"]')[1]!.trigger("click");
+    await flushPromises();
+    expect(w.findAll('button[aria-label="Create Quest"]')).toHaveLength(1);
+    expect(w.findAll('button[aria-label="View Quest →"]')).toHaveLength(1);
+    await w.get('button[aria-label="Create Quest"]').trigger("click");
+    await flushPromises();
+    expect(w.findAll('button[aria-label="View Quest →"]')).toHaveLength(2);
+  });
+
+  it("a fresh batch of hooks starts with nothing marked as created", async () => {
+    hooks.value = [hook];
+    const w = mountPanel();
+    await w.get('button[aria-label="Create Quest"]').trigger("click");
+    await flushPromises();
+    expect(w.find('button[aria-label="View Quest →"]').exists()).toBe(true);
+    hooks.value = [];
+    await w.vm.$nextTick();
+    await generate(w);
+    hooks.value = [{ ...hook, title: "A New Bell" }];
+    await w.vm.$nextTick();
+    expect(w.find('button[aria-label="Create Quest"]').exists()).toBe(true);
+    expect(w.find('button[aria-label="View Quest →"]').exists()).toBe(false);
+  });
+
+  it("an entity chip opens the sheet and closes the generator, but nothing for an entity the campaign has no record of", async () => {
+    hooks.value = [hook];
+    const w = mountPanel();
+    const chips = w.findComponent({ name: "GeneratedEntityChips" });
+    chips.vm.$emit("navigate", { kind: "npc", name: "Ghost", id: null });
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.ui.questGeneratorOpen).toBe(true);
+    chips.vm.$emit("navigate", { kind: "location", name: "Thornkeep", id: "loc-1" });
+    expect(mocks.push).toHaveBeenCalledWith("/locations/loc-1");
+    expect(mocks.ui.questGeneratorOpen).toBe(false);
   });
 });

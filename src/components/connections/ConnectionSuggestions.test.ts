@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   dismissAll: vi.fn(),
   toastError: vi.fn(),
   aiEnabled: { value: true },
+  canSpend: { value: true },
 }));
 const suggestions = ref<ResolvedSuggestion[]>([]);
 const setAside = ref<{ target_name: string; claim: string; reason: string }[]>([]);
@@ -22,7 +23,7 @@ vi.mock("@/composables/connections/useConnections", () => ({
   useCreateConnection: () => ({ mutateAsync: mocks.create }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
-vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => true }) }));
+vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => mocks.canSpend.value }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: ref(false) }),
 }));
@@ -58,6 +59,7 @@ describe("ConnectionSuggestions", () => {
     Object.values(mocks).forEach((m) => typeof m === "function" && m.mockReset());
     mocks.create.mockResolvedValue(undefined);
     mocks.aiEnabled.value = true;
+    mocks.canSpend.value = true;
     suggestions.value = [];
     setAside.value = [];
     provenance.value = { generatorType: "npc_relationship_suggestion" };
@@ -155,7 +157,9 @@ describe("ConnectionSuggestions", () => {
     expect(mocks.create.mock.calls[0][0]).toMatchObject({
       other: { kind: "npc", id: "n2" },
       choice: { key: "parent_of", home: "kin", subjectIsFrom: false },
+      parentRole: "mother",
     });
+    expect(mocks.create.mock.calls[1][0].parentRole).toBeUndefined();
     expect(mocks.create.mock.calls[1][0]).toMatchObject({
       other: { kind: "party_member", id: "p1" },
       choice: { key: "parent_of", home: "kin", subjectIsFrom: true },
@@ -190,5 +194,47 @@ describe("ConnectionSuggestions", () => {
     const w = mountFor({ kind: "item", id: "i1" } as never, "The Ferry Bell");
     expect(w.text()).toContain('Set aside: "The Ferry Bell is kept at Weir Chapel". Brenna carries it.');
     expect(w.findAll("button").filter((b) => b.text() === "Accept")).toHaveLength(0);
+  });
+
+  it("does not ask the model when the DM cannot afford the run", async () => {
+    mocks.canSpend.value = false;
+    const w = mountFor();
+    await w.findAll("button").find((b) => b.text() === "Suggest")!.trigger("click");
+    await w.findAll("button").find((b) => b.text().includes("Suggest connections"))!.trigger("click");
+    expect(mocks.suggest).not.toHaveBeenCalled();
+  });
+
+  it("closes the steer box and forgets the steer after a run, but keeps both when the run fails", async () => {
+    const w = mountFor();
+    const open = () => w.findAll("button").find((b) => b.text() === "Suggest")!.trigger("click");
+    await open();
+    await w.find("input").setValue("a grudge");
+    mocks.suggest.mockResolvedValueOnce(false);
+    await w.findAll("button").find((b) => b.text().includes("Suggest connections"))!.trigger("click");
+    await flushPromises();
+    expect(w.text()).toContain("Steer the suggestions");
+    expect((w.find("input").element as HTMLInputElement).value).toBe("a grudge");
+
+    mocks.suggest.mockResolvedValueOnce(true);
+    await w.findAll("button").find((b) => b.text().includes("Suggest connections"))!.trigger("click");
+    await flushPromises();
+    expect(w.text()).not.toContain("Steer the suggestions");
+    await open();
+    expect((w.find("input").element as HTMLInputElement).value).toBe("");
+  });
+
+  it("locks Accept and Dismiss while a suggestion is being written", async () => {
+    suggestions.value = [
+      { kind: "link", target_kind: "deity", target_name: "The Drowned Lady", target_id: "d1", type: "worships", subject_is_from: true, notes: "" },
+    ];
+    let finish: () => void = () => undefined;
+    mocks.create.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+    const w = mountFor();
+    await w.findAll("button").find((b) => b.text() === "Accept")!.trigger("click");
+    const locked = () => ["Accept", "Dismiss"].map((l) => w.findAll("button").find((b) => b.text() === l)!.attributes("disabled") !== undefined);
+    expect(locked()).toEqual([true, true]);
+    finish();
+    await flushPromises();
+    expect(locked()).toEqual([false, false]);
   });
 });

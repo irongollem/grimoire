@@ -93,6 +93,17 @@ describe("SourcesPickerPanel", () => {
     expect(mocks.campaignEnable).not.toHaveBeenCalled();
   });
 
+  it("ticks a player's book from the player's own list, not the campaign's, and disabling it targets the player list", async () => {
+    mocks.userRows = [{ source_slug: "toh" }];
+    mocks.campaignRows = [];
+    const w = mountPicker("player");
+    const toh = w.findAll("input[type=checkbox]").find((b) => !(b.element as HTMLInputElement).disabled)!;
+    expect((toh.element as HTMLInputElement).checked).toBe(true);
+    await toh.setValue(false);
+    expect(mocks.userDisable).toHaveBeenCalledWith("toh", expect.anything());
+    expect(mocks.campaignDisable).not.toHaveBeenCalled();
+  });
+
   it("tells the player when a toggle fails", async () => {
     const w = mountPicker("player");
     const toh = w.findAll("input[type=checkbox]").find((b) => !(b.element as HTMLInputElement).disabled)!;
@@ -130,9 +141,9 @@ describe("SourcesPickerPanel", () => {
   });
 
   describe("more-to-explore cue", () => {
-    function mountPopover(cueKey: string) {
+    function mountPopover(cueKey: string, scope: "campaign" | "player" = "campaign") {
       return mount(SourcesPickerPanel, {
-        props: { scope: "campaign", description: "d", emptyMessage: "none", availableSources: SOURCES, isLoading: false, cueKey },
+        props: { scope, description: "d", emptyMessage: "none", availableSources: SOURCES, isLoading: false, cueKey },
         slots: {
           trigger: `<template #trigger="{ toggle, hasCue }"><button data-test="t" :data-cue="hasCue" @click="toggle" /></template>`,
         },
@@ -154,6 +165,18 @@ describe("SourcesPickerPanel", () => {
     it("shows no dot when every listed source is enabled", () => {
       mocks.campaignRows = [{ source_slug: "srd-2014" }, { source_slug: "toh" }];
       expect(mountPopover("spells").find("[data-test=t]").attributes("data-cue")).toBe("false");
+    });
+
+    it("in player scope the always-on SRDs never raise the dot, only the player's own unenabled books do", () => {
+      // toh is enabled for the player; srd-2014 is always on even though it is not in the player's rows.
+      mocks.userRows = [{ source_slug: "toh" }];
+      expect(mountPopover("player-a", "player").find("[data-test=t]").attributes("data-cue")).toBe("false");
+    });
+
+    it("in player scope the campaign's enabled books do not silence the dot", () => {
+      mocks.campaignRows = [{ source_slug: "srd-2014" }, { source_slug: "toh" }];
+      mocks.userRows = [];
+      expect(mountPopover("player-b", "player").find("[data-test=t]").attributes("data-cue")).toBe("true");
     });
 
     it("marks sources seen when the sheet variant mounts", () => {

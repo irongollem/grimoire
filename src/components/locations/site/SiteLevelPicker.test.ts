@@ -45,4 +45,23 @@ describe("SiteLevelPicker", () => {
     await add!.trigger("click");
     expect(wrapper.emitted("add")).toHaveLength(1);
   });
+
+  it("disables adding while a level is being added, in both shapes", () => {
+    const many = mount(SiteLevelPicker, { props: { levels, activeId: "ws", adding: true } });
+    expect((many.get('button[aria-label="Add level 4"]').element as HTMLButtonElement).disabled).toBe(true);
+    const one = mount(SiteLevelPicker, { props: { levels: [levels[0]!], activeId: "ws", adding: true } });
+    expect((one.findAll("button").find((b) => b.text().includes("Add a level"))!.element as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("does not ask to switch to the level that is already open", () => {
+    const wrapper = mount(SiteLevelPicker, { props: { levels, activeId: "f1" } });
+    wrapper.findComponent({ name: "AppSelect" }).vm.$emit("update:modelValue", "f1");
+    expect(wrapper.emitted("select")).toBeUndefined();
+  });
+
+  it("ignores a select that reads back as nothing, rather than navigating to no place", async () => {
+    const wrapper = mount(SiteLevelPicker, { props: { levels, activeId: "f1" } });
+    await wrapper.find("select").setValue("");
+    expect(wrapper.emitted("select")).toBeUndefined();
+  });
 });

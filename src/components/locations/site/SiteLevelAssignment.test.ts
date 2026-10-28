@@ -111,4 +111,18 @@ describe("SiteLevelAssignment", () => {
     expect(place?.attributes("data-state")).toBe("on");
     expect(after?.attributes("data-state")).toBe("off");
   });
+
+  it("follows the place when another editor flags it a level", async () => {
+    const w = mountControl({ is_level: false });
+    await w.setProps({ location: place({ is_level: true }) });
+    const level = w.findAll("button").find((b) => b.text() === "A level");
+    expect(level?.attributes("data-state")).toBe("on");
+  });
+
+  it("writes nothing when the DM presses the option that is already chosen", async () => {
+    const w = mountControl({ is_level: true });
+    w.findComponent({ name: "SegmentedControl" }).vm.$emit("update:modelValue", "level");
+    await flushPromises();
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+  });
 });

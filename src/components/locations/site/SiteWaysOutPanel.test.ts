@@ -113,8 +113,18 @@ describe("SiteWaysOutPanel", () => {
       door({ id: "d1", from_location_id: "nave", to_location_id: "cell" }),
       door({ id: "d2", door_kind: "stair", from_location_id: "nave", to_location_id: "level2" }),
     ];
-    const wrapper = mountPanel();
-    expect(wrapper.text()).toContain("2");
+    expect(mountPanel().get("header").text()).toMatch(/Ways out\s*2$/);
+    doorsRef.value = [door({ id: "d1" })];
+    expect(mountPanel().get("header").text()).toMatch(/Ways out\s*1$/);
+  });
+
+  it("lists the ways out in title order, whatever order they were stored in", () => {
+    doorsRef.value = [
+      door({ id: "d1", from_location_id: "nave", to_location_id: "cell" }),
+      door({ id: "d2", from_location_id: "cell", to_location_id: "nave", from_location: { id: "cell", name: "Abbot's Cell", location_type: "room" }, to_location: { id: "nave", name: "Nave", location_type: "room" } }),
+    ];
+    const titles = mountPanel().findAll(".font-semibold.truncate").map((t) => t.text());
+    expect(titles).toEqual(["Abbot's Cell → Nave", "Nave → Abbot's Cell"]);
   });
 
   describe("verticalOnly", () => {
@@ -214,5 +224,116 @@ describe("SiteWaysOutPanel", () => {
       expect(wrapper.text()).toContain("Nave → leads nowhere yet");
       expect(wrapper.text()).toContain("leads nowhere yet");
     });
+  });
+});
+
+describe("SiteWaysOutPanel — Build edits", () => {
+  const byTooltip = (w: ReturnType<typeof mountPanel>, tooltip: string) =>
+    w.findAllComponents({ name: "AppButton" }).find((b) => b.props("tooltip") === tooltip)!;
+  const fill = async (w: ReturnType<typeof mountPanel>, from = "nave", to = "cell") => {
+    const boxes = w.findAllComponents({ name: "EntityCombobox" });
+    await boxes[0]!.vm.$emit("update:modelValue", from);
+    await boxes[1]!.vm.$emit("update:modelValue", to);
+  };
+
+  beforeEach(() => {
+    mocks.create.mockReset();
+    mocks.update.mockReset();
+    mocks.remove.mockReset();
+    doorsRef.value = [door({ id: "d1", starts_locked: true, lock_note: "brass key", label: "iron grille" })];
+  });
+
+  it("offers no expand or remove in Browse, nor on the vertical rail", () => {
+    for (const props of [{}, { building: true, verticalOnly: true }]) {
+      const w = mountPanel(props);
+      expect(w.findAllComponents({ name: "AppButton" }).some((b) => b.props("tooltip") === "Remove this way out"), JSON.stringify(props)).toBe(false);
+      expect(w.findAllComponents({ name: "AppButton" }).some((b) => b.props("tooltip") === "Edit this way out"), JSON.stringify(props)).toBe(false);
+    }
+  });
+
+  it("removes a way out by its id", async () => {
+    await byTooltip(mountPanel({ building: true }), "Remove this way out").trigger("click");
+    expect(mocks.remove).toHaveBeenCalledWith("d1", expect.anything());
+  });
+
+  it("flips the one-way, locked and secret flags from the edit drawer", async () => {
+    const w = mountPanel({ building: true });
+    await byTooltip(w, "Edit this way out").trigger("click");
+    await byTooltip(w, "Passable only from this side").trigger("click");
+    await byTooltip(w, "Starts locked: brass key").trigger("click");
+    await byTooltip(w, "Secret: hidden until the party finds it").trigger("click");
+    expect(mocks.update.mock.calls.map((c) => c[0])).toEqual([
+      { id: "d1", update: { is_one_way: true } },
+      { id: "d1", update: { starts_locked: false } },
+      { id: "d1", update: { is_secret: true } },
+    ]);
+  });
+
+  it("changes the kind from the drawer", async () => {
+    const w = mountPanel({ building: true });
+    await byTooltip(w, "Edit this way out").trigger("click");
+    await w.findAllComponents({ name: "AppSelect" })[0]!.vm.$emit("update:modelValue", "stair");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "d1", update: { door_kind: "stair" } }, expect.anything());
+  });
+
+  it("trims a label and the lock note, clears a blank note to null, and ignores an unchanged one", async () => {
+    const w = mountPanel({ building: true });
+    await byTooltip(w, "Edit this way out").trigger("click");
+    const [lockNote, label] = w.findAllComponents({ name: "PlacementNoteInput" });
+    label!.vm.$emit("commit", "  portcullis ");
+    label!.vm.$emit("commit", "iron grille");
+    lockNote!.vm.$emit("commit", "   ");
+    lockNote!.vm.$emit("commit", "brass key");
+    expect(mocks.update.mock.calls.map((c) => c[0])).toEqual([
+      { id: "d1", update: { label: "portcullis" } },
+      { id: "d1", update: { lock_note: null } },
+    ]);
+  });
+
+  it("adds the way out with its label trimmed, the lock note only when locked, then empties the form", async () => {
+    mocks.create.mockImplementation((_payload, opts) => opts.onSuccess());
+    const w = mountPanel({ building: true });
+    await fill(w);
+    await w.findComponent({ name: "AppInput" }).vm.$emit("update:modelValue", "  iron grille ");
+    const [oneWay, locked] = w.findAllComponents({ name: "AppCheckbox" });
+    await oneWay!.vm.$emit("update:modelValue", true);
+    await locked!.vm.$emit("update:modelValue", true);
+    const inputs = w.findAllComponents({ name: "AppInput" });
+    await inputs[1]!.vm.$emit("update:modelValue", " the brass key ");
+    await findButton(w, "Add").trigger("click");
+    expect(mocks.create).toHaveBeenCalledWith(
+      { from_location_id: "nave", to_location_id: "cell", label: "iron grille", is_one_way: true, starts_locked: true, lock_note: "the brass key", is_secret: false, door_kind: "door" },
+      expect.anything(),
+    );
+    const boxes = w.findAllComponents({ name: "EntityCombobox" });
+    expect(boxes[0]!.props("modelValue")).toBe("");
+    expect(boxes[1]!.props("modelValue")).toBe("");
+    expect(w.findAllComponents({ name: "AppCheckbox" })[0]!.props("modelValue")).toBe(false);
+  });
+
+  it("drops a lock note that was typed and then unlocked", async () => {
+    const w = mountPanel({ building: true });
+    await fill(w);
+    const locked = w.findAllComponents({ name: "AppCheckbox" })[1]!;
+    await locked.vm.$emit("update:modelValue", true);
+    await w.findAllComponents({ name: "AppInput" })[1]!.vm.$emit("update:modelValue", "the brass key");
+    await locked.vm.$emit("update:modelValue", false);
+    await findButton(w, "Add").trigger("click");
+    expect(mocks.create.mock.calls[0]![0]).toMatchObject({ starts_locked: false, lock_note: null });
+  });
+
+  it("keeps the form filled in when the add fails", async () => {
+    mocks.create.mockImplementation((_payload, opts) => opts.onError(new Error("guard")));
+    const w = mountPanel({ building: true });
+    await fill(w);
+    await findButton(w, "Add").trigger("click");
+    expect(w.findAllComponents({ name: "EntityCombobox" })[0]!.props("modelValue")).toBe("nave");
+  });
+
+  it("cannot pick the from space as the to space", async () => {
+    const w = mountPanel({ building: true });
+    await w.findAllComponents({ name: "EntityCombobox" })[0]!.vm.$emit("update:modelValue", "nave");
+    const toOptions = w.findAllComponents({ name: "EntityCombobox" })[1]!.props("options") as { id: string }[];
+    expect(toOptions.map((o) => o.id)).not.toContain("nave");
   });
 });

@@ -247,3 +247,55 @@ describe("ItemDetailPanel quality (#1102)", () => {
     expect(wrapper.findComponent({ name: "QualityBadge" }).props("quality")).toBe("fine");
   });
 });
+
+describe("ItemDetailPanel unidentified items", () => {
+  const relic = {
+    id: "v7", item_type: "wondrous", rarity: "legendary", tags: [], name: "Sunblade",
+    description: "TRUE: a blade of sunlight.", mundane_description: "A plain hilt.",
+    image_url: "https://img.example.invalid/true.webp", mundane_image_url: "https://img.example.invalid/hilt.webp",
+    charges: 3, curse_description: "TRUE CURSE: it hungers.",
+  };
+  const shown = (w: VueWrapper) => w.findAllComponents({ name: "RichTextViewer" }).map((v) => v.props("content"));
+  const imageSrcs = (w: VueWrapper) => w.findAllComponents({ name: "FocalImage" }).map((i) => i.props("src"));
+
+  it("shows the mundane description and picture, never the true ones, and no charges", () => {
+    const w = mountWith(makeInv({ is_identified: false, current_charges: 3 }), relic);
+    expect(shown(w)).toContain("A plain hilt.");
+    expect(shown(w)).not.toContain("TRUE: a blade of sunlight.");
+    expect(imageSrcs(w)).toContain("https://img.example.invalid/hilt.webp");
+    expect(imageSrcs(w)).not.toContain("https://img.example.invalid/true.webp");
+    expect(labels(w).some((l) => String(l).startsWith("Spend a charge"))).toBe(false);
+    expect(pageText()).not.toContain("Charges");
+  });
+
+  it("shows the true description, picture and charges once identified", () => {
+    const w = mountWith(makeInv({ is_identified: true, current_charges: 3 }), relic);
+    expect(shown(w)).toContain("TRUE: a blade of sunlight.");
+    expect(imageSrcs(w)).toContain("https://img.example.invalid/true.webp");
+    expect(labels(w)).toContain("Spend a charge (3 left)");
+  });
+
+  it("keeps a curse from the player until the DM reveals it, and lets the DM hide it again", async () => {
+    const hidden = mountWith(makeInv({ curse_revealed: false }), relic);
+    expect(shown(hidden)).not.toContain("TRUE CURSE: it hungers.");
+    const revealed = mountWith(makeInv({ curse_revealed: true }), relic);
+    expect(shown(revealed)).toContain("TRUE CURSE: it hungers.");
+
+    const dm = mountWith(makeInv({ id: "inv-3", curse_revealed: true }), relic, { canIdentify: true });
+    const toggle = dm.findAllComponents({ name: "AppButton" }).find((b) => b.classes().length >= 0 && b.props("emphasis") === "outline" && b.props("tone") === "caution" && b.props("size") === "xs");
+    await toggle!.trigger("click");
+    await flushPromises();
+    expect(mocks.updateItem).toHaveBeenCalledWith({ id: "inv-3", update: { curse_revealed: false } });
+  });
+});
+
+describe("ItemDetailPanel notes with nothing in them", () => {
+  it("saves a note that is only an empty paragraph as no note", async () => {
+    const wrapper = mountPanel(makeInv({ id: "inv-8", notes: null }));
+    await findButton(wrapper, "Add a note").trigger("click");
+    editor(wrapper).vm.$emit("update:modelValue", JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }));
+    await findButton(wrapper, "Save").trigger("click");
+    await flushPromises();
+    expect(mocks.updateItem).toHaveBeenCalledWith({ id: "inv-8", update: { notes: null } });
+  });
+});

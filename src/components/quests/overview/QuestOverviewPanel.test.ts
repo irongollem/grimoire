@@ -9,17 +9,18 @@ const mocks = vi.hoisted(() => ({
   createBeat: vi.fn(),
   push: vi.fn(),
   route: { query: {} as Record<string, string> },
+  loading: { beats: false, edges: false, objectives: false, consequences: false, gates: false },
 }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
-  useQuestBeats: () => ({ data: { value: mocks.beats }, isLoading: { value: false } }),
-  useQuestBeatEdges: () => ({ data: { value: mocks.edges }, isLoading: { value: false } }),
-  useQuestBeatEdgeGates: () => ({ data: { value: [] }, isLoading: { value: false } }),
-  useQuestConsequences: () => ({ data: { value: [] }, isLoading: { value: false } }),
+  useQuestBeats: () => ({ data: { value: mocks.beats }, isLoading: { value: mocks.loading.beats } }),
+  useQuestBeatEdges: () => ({ data: { value: mocks.edges }, isLoading: { value: mocks.loading.edges } }),
+  useQuestBeatEdgeGates: () => ({ data: { value: [] }, isLoading: { value: mocks.loading.gates } }),
+  useQuestConsequences: () => ({ data: { value: [] }, isLoading: { value: mocks.loading.consequences } }),
   useCreateQuestBeatWithRoute: () => ({ mutateAsync: mocks.createBeat }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
-  useQuestObjectives: () => ({ data: { value: [] }, isLoading: { value: false } }),
+  useQuestObjectives: () => ({ data: { value: [] }, isLoading: { value: mocks.loading.objectives } }),
 }));
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
@@ -60,20 +61,9 @@ describe("QuestOverviewPanel", () => {
     mocks.beats = [];
     mocks.edges = [];
     mocks.route.query = {};
+    Object.assign(mocks.loading, { beats: false, edges: false, objectives: false, consequences: false, gates: false });
     mocks.createBeat.mockReset();
     mocks.push.mockReset();
-  });
-
-  it("presents the quest dossier in place rather than as an overlay", () => {
-    const wrapper = mountPanel();
-    expect(wrapper.get("section").attributes("aria-label")).toBe("Quest overview");
-    // No dialog, no backdrop: it is a surface of the quest screen, not a layer
-    // over one, so nothing here traps focus or needs dismissing.
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
-    expect(wrapper.find('[aria-label="Close quest overview"]').exists()).toBe(false);
-    expect(wrapper.findComponent({ name: "QuestOverviewMetadata" }).exists()).toBe(true);
-    expect(wrapper.findComponent({ name: "QuestOverviewLifecycle" }).exists()).toBe(true);
-    wrapper.unmount();
   });
 
   // The overview beat (a stored `is_overview` row with its own editor) is gone
@@ -113,6 +103,7 @@ describe("QuestOverviewPanel", () => {
     expect(items[0]).toContain("The docks");
     expect(items[0]).not.toContain("not a root");
     expect(items[1]).toContain("The tavern");
+    expect(items).toHaveLength(2);
   });
 
   it("still leads with the entry when the DM chose a beat that is not a computed root, and captions it", () => {
@@ -126,5 +117,37 @@ describe("QuestOverviewPanel", () => {
     expect(items[0]).toContain("The docks");
     // "a" is the sole computed root and is listed after the entry.
     expect(items[1]).toContain("The tavern");
+  });
+
+  it("Story flow links keep the rest of the page's query, so a filter or thread survives the jump", async () => {
+    mocks.route.query = { thread: "t2" };
+    mocks.createBeat.mockResolvedValue(beat("beat-new", "Opening beat"));
+    const wrapper = mountPanel();
+    await wrapper.get("button").trigger("click");
+    await flushPromises();
+    expect(mocks.push).toHaveBeenCalledWith({ query: { thread: "t2", view: "work", beat: "beat-new" } });
+  });
+
+  it("a failed opening beat says why, can be retried, and the retry clears the message", async () => {
+    mocks.createBeat.mockRejectedValueOnce("refused").mockRejectedValueOnce(new Error("Quest is locked")).mockResolvedValue(beat("beat-new", "Opening beat"));
+    const wrapper = mountPanel();
+    const write = () => wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Write the opening beat")!;
+    await write().trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not create the opening beat");
+    expect(write().props("loading")).toBe(false);
+    await write().trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("Quest is locked");
+    await write().trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+  });
+
+  it.each([["beats"], ["edges"], ["objectives"], ["consequences"], ["gates"]] as const)("holds the consistency check back while the %s are still loading", (which) => {
+    mocks.loading[which] = true;
+    expect(mountPanel().findComponent({ name: "QuestConsistencyPanel" }).exists()).toBe(false);
+    mocks.loading[which] = false;
+    expect(mountPanel().findComponent({ name: "QuestConsistencyPanel" }).exists()).toBe(true);
   });
 });

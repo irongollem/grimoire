@@ -1,12 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  del: vi.fn(),
+  duplicate: vi.fn(),
+  confirm: vi.fn(),
+  features: [] as Array<{ id: string; name: string }>,
+}));
 vi.mock("vue-router", () => ({
   useRoute: () => ({ query: {} }),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mocks.push }),
 }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 const viewer = vi.hoisted(() => ({ user: { id: "u1" } as { id: string } | null, isAppAdmin: false }));
 vi.mock("@/composables/library/useSourceTitles", async () => {
   const { sourceLabel } = await import("@/lib/library/sourceLabel");
@@ -16,11 +25,11 @@ vi.mock("@/composables/library/useSourceTitles", async () => {
   };
 });
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => viewer }));
-vi.mock("@/composables/rules/useFeatures", () => ({ useAllFeatures: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/rules/useFeatures", () => ({ useAllFeatures: () => ({ data: ref(mocks.features) }) }));
 vi.mock("@/composables/rules/useCustomClasses", async (orig) => ({
   ...(await orig<typeof import("@/composables/rules/useCustomClasses")>()),
-  useDeleteCustomClass: () => ({ mutateAsync: vi.fn() }),
-  useDuplicateClass: () => ({ duplicate: vi.fn(), isPending: ref(false) }),
+  useDeleteCustomClass: () => ({ mutateAsync: mocks.del }),
+  useDuplicateClass: () => ({ duplicate: mocks.duplicate, isPending: ref(false) }),
 }));
 
 import CustomClassSheet from "./CustomClassSheet.vue";
@@ -76,5 +85,62 @@ describe("CustomClassSheet", () => {
     const w = mount(CustomClassSheet, { props: { cls: theirs } });
     expect(w.text()).toContain("Read only");
     expect(w.text()).not.toContain("Delete");
+  });
+});
+
+describe("CustomClassSheet actions", () => {
+  beforeEach(() => {
+    mocks.push.mockReset();
+    mocks.del.mockReset().mockResolvedValue(undefined);
+    mocks.duplicate.mockReset();
+    mocks.confirm.mockReset();
+    mocks.features = [];
+  });
+  const homebrew = { ...base, user_id: "u1", campaign_id: null } as unknown as CustomClass;
+  const press = async (w: ReturnType<typeof mount>, label: string) => {
+    await w.findAll("button").find((b) => b.text().includes(label))!.trigger("click");
+    await flushPromises();
+  };
+
+  it("keeps the class and stays put when the delete confirmation is cancelled", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    await press(mount(CustomClassSheet, { props: { cls: homebrew } }), "Delete");
+    expect(mocks.del).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("deletes a confirmed class and goes back to the class list", async () => {
+    mocks.confirm.mockResolvedValue(true);
+    await press(mount(CustomClassSheet, { props: { cls: homebrew } }), "Delete");
+    expect(mocks.del).toHaveBeenCalledWith(homebrew);
+    expect(mocks.push).toHaveBeenCalledWith("/codex/classes");
+  });
+
+  it("duplicating a library class opens the copy for editing", async () => {
+    mocks.duplicate.mockResolvedValue({ id: "copy-9" });
+    const lib = base as unknown as SystemClass;
+    await press(mount(CustomClassSheet, { props: { cls: lib } }), "Duplicate to customise");
+    expect(mocks.duplicate).toHaveBeenCalledWith(lib);
+    expect(mocks.push).toHaveBeenCalledWith("/levelup/classes/copy-9");
+  });
+
+  it("shows the spellcasting card only for a class with a slot table, with its recovery", () => {
+    const none = mount(CustomClassSheet, { props: { cls: homebrew } });
+    expect(none.text()).not.toContain("Spellcasting");
+    const caster = { ...homebrew, spell_slots: { "1": [2] }, caster_type: "prepared", slot_recovery: "short" } as unknown as CustomClass;
+    const w = mount(CustomClassSheet, { props: { cls: caster } });
+    expect(w.text()).toContain("Prepared caster");
+    expect(w.text()).toContain("Short rest recovery");
+    const long = mount(CustomClassSheet, { props: { cls: { ...caster, slot_recovery: "long" } as unknown as CustomClass } });
+    expect(long.text()).toContain("Long rest recovery");
+  });
+
+  it("lists features by name under their levels in order, and falls back to the id for an unknown one", () => {
+    mocks.features = [{ id: "f-rage", name: "Rage" }];
+    const cls = { ...homebrew, features: { "5": ["f-rage"], "1": ["f-mystery"] } } as unknown as CustomClass;
+    const text = mount(CustomClassSheet, { props: { cls } }).text();
+    expect(text).toContain("Rage");
+    expect(text).toContain("f-mystery");
+    expect(text.indexOf("f-mystery")).toBeLessThan(text.indexOf("Rage"));
   });
 });

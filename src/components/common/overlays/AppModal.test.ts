@@ -309,6 +309,64 @@ describe("AppModal", () => {
     wrapper.unmount();
   });
 
+  describe("keeping Tab inside the panel", () => {
+    const tab = (target: Element, shiftKey = false) => {
+      const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    };
+
+    it("Shift+Tab from the panel itself, where focus lands on open, goes to the last control", () => {
+      const wrapper = open({}, "<button>First</button><button>Last</button>");
+      const buttons = [...panel()!.querySelectorAll("button")];
+      panel()!.focus();
+
+      const event = tab(panel()!, true);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(buttons[1]);
+      wrapper.unmount();
+    });
+
+    it("Shift+Tab from the last control moves back normally instead of wrapping", () => {
+      const wrapper = open({}, "<button>First</button><button>Last</button>");
+      const buttons = [...panel()!.querySelectorAll("button")];
+      buttons[1].focus();
+
+      expect(tab(buttons[1], true).defaultPrevented).toBe(false);
+      wrapper.unmount();
+    });
+
+    it("Tab from the first control moves on normally instead of wrapping", () => {
+      const wrapper = open({}, "<button>First</button><button>Last</button>");
+      const buttons = [...panel()!.querySelectorAll("button")];
+      buttons[0].focus();
+
+      expect(tab(buttons[0]).defaultPrevented).toBe(false);
+      wrapper.unmount();
+    });
+
+    it("a disabled button is not a stop, so the last enabled control is where Tab wraps", () => {
+      const wrapper = open({}, "<button>Only</button><button disabled>Off</button>");
+      const only = panel()!.querySelector("button")!;
+      only.focus();
+
+      const event = tab(only);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(only);
+      wrapper.unmount();
+    });
+
+    it("a panel with nothing to focus keeps Tab from leaving it", () => {
+      const wrapper = open({}, "<p>Just words</p>");
+      panel()!.focus();
+
+      expect(tab(panel()!).defaultPrevented).toBe(true);
+      wrapper.unmount();
+    });
+  });
+
   it("announces when the panel has finished leaving, so a route change can wait for it", async () => {
     const wrapper = mount(AppModal, {
       props: { open: true },

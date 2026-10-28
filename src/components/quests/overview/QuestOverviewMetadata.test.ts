@@ -221,4 +221,90 @@ describe("QuestOverviewMetadata", () => {
     expect(mocks.updateQuest).not.toHaveBeenCalled();
     expect(opensAtCombobox(wrapper)!.props("modelValue")).toBe("beat-1");
   });
+
+  const box = (w: ReturnType<typeof mountMetadata>, placeholder: string) =>
+    w.findAllComponents({ name: "EntityCombobox" }).find((c) => c.props("placeholder") === placeholder)!;
+  const reveal = (w: ReturnType<typeof mountMetadata>, ids: string[]) =>
+    w.findComponent({ name: "AudienceRevealControl" }).vm.$emit("change", ids);
+
+  it("a cleared quest giver is saved as no giver, not as an empty id", async () => {
+    mocks.npcs = [{ id: "npc-1", name: "Oarus" }];
+    const wrapper = mountMetadata({ giver_npc_id: "npc-1" });
+    box(wrapper, "Search NPCs…").vm.$emit("update:modelValue", "");
+    await settle();
+    expect(mocks.updateQuest.mock.calls[0]![0].update).toEqual({ giver_npc_id: null });
+  });
+
+  it("a quest cannot be made part of itself", () => {
+    mocks.allQuests = [{ id: "quest-1", title: "The Unseen" }, { id: "quest-2", title: "" }];
+    const wrapper = mountMetadata();
+    expect(box(wrapper, "Search quests…").props("options")).toEqual([{ id: "quest-2", name: "Untitled Quest" }]);
+  });
+
+  it("names a beat without a title in the Opens at choices", () => {
+    mocks.beats = [{ id: "beat-1", title: "" }];
+    const wrapper = mountMetadata({ entry_beat_id: "beat-1" });
+    expect(opensAtCombobox(wrapper)!.props("options")).toEqual([{ id: "beat-1", name: "Untitled beat" }]);
+  });
+
+  it("sharing with the first player announces once, and adding another player later does not announce again", async () => {
+    const wrapper = mountMetadata({ player_visible_to: [] });
+    reveal(wrapper, ["player-1"]);
+    await settle();
+    reveal(wrapper, ["player-1", "player-2"]);
+    await settle();
+    expect(mocks.updateQuest).toHaveBeenCalledTimes(2);
+    expect(mocks.announce).toHaveBeenCalledTimes(1);
+  });
+
+  it("renaming a quest that is shared with no one announces nothing", async () => {
+    const wrapper = mountMetadata({ player_visible_to: [] });
+    await wrapper.find("input").setValue("Renamed");
+    await settle();
+    expect(mocks.updateQuest).toHaveBeenCalledTimes(1);
+    expect(mocks.announce).not.toHaveBeenCalled();
+  });
+
+  it("announces nothing without an active campaign, or when the quest is shared with no one", async () => {
+    mocks.activeCampaignId = null;
+    const noCampaign = mountMetadata({ player_visible_to: [] });
+    reveal(noCampaign, ["player-1"]);
+    await settle();
+    expect(mocks.announce).not.toHaveBeenCalled();
+
+    mocks.activeCampaignId = "campaign-1";
+    mocks.updateQuest.mockClear();
+    const unshared = mountMetadata({ player_visible_to: ["player-1"] });
+    reveal(unshared, []);
+    await settle();
+    expect(mocks.updateQuest).toHaveBeenCalledTimes(1);
+    expect(mocks.announce).not.toHaveBeenCalled();
+  });
+
+  it("the announcement names the quest by its new title, or 'Untitled Quest' when it has none", async () => {
+    const wrapper = mountMetadata({ player_visible_to: [], title: "The Unseen" });
+    await wrapper.find("input").setValue("");
+    reveal(wrapper, ["player-1"]);
+    await settle();
+    expect(mocks.announce).toHaveBeenCalledWith("campaign-1", '📋 Quest shared: "Untitled Quest"', expect.anything());
+  });
+
+  it("opening another quest saves the pending edit to the quest it was made on, at once", async () => {
+    const wrapper = mountMetadata();
+    await wrapper.find("input").setValue("Renamed");
+    await wrapper.setProps({ quest: quest({ id: "quest-2", title: "Another" }) });
+    await flushPromises();
+    expect(mocks.updateQuest).toHaveBeenCalledTimes(1);
+    expect(mocks.updateQuest).toHaveBeenCalledWith({ id: "quest-1", update: { title: "Renamed" } });
+  });
+
+  it("a quest that is already shared when opened is not announced as newly shared", async () => {
+    const wrapper = mountMetadata({ player_visible_to: [] });
+    await wrapper.setProps({ quest: quest({ id: "quest-2", player_visible_to: ["player-1"] }) });
+    await flushPromises();
+    reveal(wrapper, ["player-1", "player-2"]);
+    await settle();
+    expect(mocks.updateQuest).toHaveBeenCalledWith(expect.objectContaining({ id: "quest-2" }));
+    expect(mocks.announce).not.toHaveBeenCalled();
+  });
 });

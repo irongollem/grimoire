@@ -30,7 +30,7 @@ const granted = ref<GrantedFeature[]>([]);
 const spendSlot = vi.fn().mockResolvedValue(undefined);
 const sendRoll = vi.fn().mockResolvedValue(undefined);
 const spend = vi.fn().mockResolvedValue(undefined);
-const payable = vi.fn(() => true);
+const payable = vi.fn((_cost?: unknown) => true);
 const promptRoll = vi.fn();
 
 vi.mock("@/composables/features/useCharacterFeatures", () => ({
@@ -43,7 +43,7 @@ vi.mock("@/composables/features/useCharacterFeatures", () => ({
   }),
 }));
 vi.mock("@/composables/features/useFeatureUses", () => ({
-  useFeatureUses: () => ({ spend, payable: () => payable(), pools }),
+  useFeatureUses: () => ({ spend, payable: (cost: unknown) => payable(cost), pools }),
 }));
 vi.mock("@/composables/features/useSpendFeatureSpellSlot", () => ({ useSpendFeatureSpellSlot: () => ({ mutateAsync: spendSlot }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendRoll }) }));
@@ -138,6 +138,74 @@ describe("DamageRiderPicker", () => {
     expect((w.get('input[type="checkbox"]').element as HTMLInputElement).disabled).toBe(true);
   });
 
+  const rollBtn = (w: ReturnType<typeof mount>) => w.findAll("button").find(b => b.text().startsWith("Roll"))!;
+  const kiBurst = (featureId: string): OfferedRider => ({ featureId, rider: { ...stunning, label: `Ki Burst ${featureId}` }, dice: "1d4", classLevel: 5 });
+
+  it("rolls once however fast the button is pressed", async () => {
+    let finish: (v: unknown) => void = () => undefined;
+    promptRoll.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const w = mount(DamageRiderPicker, { props });
+    const button = rollBtn(w);
+    await button.trigger("click");
+    await button.trigger("click");
+    expect(promptRoll).toHaveBeenCalledTimes(1);
+    finish({ total: 9, modifier: 3, label: "x", breakdown: [], isCrit: false, isFumble: false });
+    await flushPromises();
+    expect(w.emitted("rolled")).toHaveLength(1);
+  });
+
+  it("adds up what two ticked riders take from one pool, and refuses when the pool cannot cover both", async () => {
+    offered.value = [kiBurst("a"), kiBurst("b")];
+    // One ki left: each rider alone is payable, both together are not.
+    payable.mockImplementation((cost: unknown) => (cost as { amount: number }).amount <= 1);
+    const w = mount(DamageRiderPicker, { props });
+    for (const box of w.findAll('input[type="checkbox"]')) await box.setValue(true);
+    await rollBtn(w).trigger("click");
+    await flushPromises();
+    expect(toastError).toHaveBeenCalledWith("Not enough Ki left for those extras.");
+    expect(promptRoll).not.toHaveBeenCalled();
+    expect(spend).not.toHaveBeenCalled();
+  });
+
+  it("spends the summed cost in one go when the pool can cover two riders", async () => {
+    offered.value = [kiBurst("a"), kiBurst("b")];
+    const w = mount(DamageRiderPicker, { props });
+    for (const box of w.findAll('input[type="checkbox"]')) await box.setValue(true);
+    await rollBtn(w).trigger("click");
+    await flushPromises();
+    expect(spend).toHaveBeenCalledTimes(1);
+    expect(spend).toHaveBeenCalledWith({ key: "ki", amount: 2 });
+  });
+
+  it("marks a critical hit in the roll's label", async () => {
+    const w = mount(DamageRiderPicker, { props: { ...props, defaultCritical: true } });
+    await rollBtn(w).trigger("click");
+    await flushPromises();
+    expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ label: "Rapier · Damage (piercing) (Critical)" }));
+    promptRoll.mockClear();
+    const plain = mount(DamageRiderPicker, { props });
+    await rollBtn(plain).trigger("click");
+    await flushPromises();
+    expect(promptRoll.mock.calls[0][0].label).not.toContain("Critical");
+  });
+
+  it("follows a critical hit that is registered after the picker opened", async () => {
+    const w = mount(DamageRiderPicker, { props: { ...props, defaultCritical: false } });
+    await w.setProps({ defaultCritical: true });
+    await rollBtn(w).trigger("click");
+    await flushPromises();
+    expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ counts: { 8: 2 } }));
+  });
+
+  it("keeps a roll out of the chat when asked to be silent", async () => {
+    offered.value = [];
+    const w = mount(DamageRiderPicker, { props: { ...props, attack: { kind: "unarmed" } as const, base: undefined, modifier: undefined, silent: true } });
+    await rollBtn(w).trigger("click");
+    await flushPromises();
+    expect(sendRoll).not.toHaveBeenCalled();
+    expect(w.emitted("rolled")).toHaveLength(1);
+  });
+
   describe("a flat rider", () => {
     const aura: DamageRider = {
       label: "Aura of Loathing", dice: { kind: "flat", add: [{ kind: "ability", ability: "cha" }], min: 1 },
@@ -164,6 +232,18 @@ describe("DamageRiderPicker", () => {
       await flushPromises();
       expect(toastError).not.toHaveBeenCalled();
       expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ counts: { 8: 1 }, modifier: 3 }));
+    });
+
+    it("subtracts a negative modifier instead of writing it as a bonus", async () => {
+      const open: DamageRider = { ...aura, dice: { kind: "flat", add: [{ kind: "ability", ability: "cha" }] } };
+      offered.value = [{ featureId: "pal", rider: open, dice: null, classLevel: 5 }];
+      const w = mount(DamageRiderPicker, { props: { ...props, member: { ...props.member, cha: 6 } } });
+      expect(w.text()).toContain("Aura of Loathing -2");
+      await w.findAll('input[type="checkbox"]')[0].setValue(true);
+      await rollButton(w).trigger("click");
+      await flushPromises();
+      // Rapier +3 and the aura -2.
+      expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ modifier: 1 }));
     });
 
     it("floors the bonus at its minimum", async () => {

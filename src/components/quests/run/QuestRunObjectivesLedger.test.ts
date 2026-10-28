@@ -94,4 +94,22 @@ describe("QuestRunObjectivesLedger", () => {
     expect(wrapper.text()).toContain("due tomorrow");
     expect(wrapper.text().match(/due tomorrow/g)).toHaveLength(1);
   });
+
+  it("shows no deadline on an objective that is failed or not yet raised", () => {
+    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1495, due_month: 1, due_day: 2 };
+    mocks.objectives.value = [
+      { ...base, id: "o1", description: "Lost cause", status: "failed" },
+      { ...base, id: "o2", description: "Not yet", status: "dormant" },
+    ];
+    expect(mountLedger().text()).not.toContain("due");
+  });
+
+  it("names every route an objective gates, comma separated", () => {
+    mocks.objectives.value = [
+      { id: "o1", quest_id: "q1", description: "Name the true collector", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
+    ];
+    const route = (id: string, title: string) => ({ edge_id: id, beat_id: id, beat_title: title, gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "x", statuses: ["complete"], current_status: "pending", met: false }] } });
+    const wrapper = mountLedger({ outgoing: [route("e1", "The finale"), route("e2", "The escape")] as unknown as QuestRuntimeChoice[] });
+    expect(wrapper.text()).toContain("pending · gates The finale, The escape");
+  });
 });

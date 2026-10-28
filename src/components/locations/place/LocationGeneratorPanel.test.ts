@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   createLocation: vi.fn(),
   generate: vi.fn(),
   push: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 // The campaign's AI toggle, mutable per test (#thisspec: "AI for every plan
@@ -39,7 +40,7 @@ vi.mock("@/composables/ai/useImageGenerationLog", () => ({
   useImageGenerationLog: () => ({ logImageGeneration: vi.fn() }),
 }));
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ error: vi.fn(), fromError: (e: unknown) => (e instanceof Error ? e.message : String(e)), info: vi.fn(), success: vi.fn() }),
+  useToast: () => ({ error: mocks.toastError, fromError: (e: unknown) => (e instanceof Error ? e.message : String(e)), info: vi.fn(), success: vi.fn() }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true, balance: ref(10) }),
@@ -149,5 +150,67 @@ describe("LocationGeneratorPanel — quota gate (locations, checked before spend
     await generateButton.trigger("click");
 
     expect(mocks.generate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("LocationGeneratorPanel — generate, create, land on the new place", () => {
+  const result = {
+    name: "Forgeholm",
+    description: "Anvils ring day and night.",
+    player_summary: "",
+    tags: ["dwarven"],
+    notes: "",
+    image_url: null,
+    map_url: null,
+    ai_provenance: null,
+  };
+
+  beforeEach(() => {
+    mocks.createLocation.mockReset().mockResolvedValue({ id: "new-place" });
+    mocks.toastError.mockReset();
+    mocks.generate.mockReset();
+    mocks.push.mockReset();
+    campaignState.isAiEnabled = true;
+    canCreateLocation.value = true;
+  });
+
+  async function run(concept = "  A crumbling dwarven forge district.  ") {
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue(concept);
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+    await Promise.resolve();
+    return wrapper;
+  }
+
+  it("asks for the trimmed concept, creates the place as 'other' with no parent, and goes to it", async () => {
+    mocks.generate.mockResolvedValue(result);
+    await run();
+    expect(mocks.generate.mock.calls[0]![0]).toBe("A crumbling dwarven forge district.");
+    await vi.waitFor(() => expect(mocks.createLocation).toHaveBeenCalled());
+    expect(mocks.createLocation).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Forgeholm", location_type: "other", parent_id: null, player_summary: null, notes: null, tags: ["dwarven"] }),
+    );
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/locations?at=new-place"));
+  });
+
+  it("creates nothing when the generation returns nothing", async () => {
+    mocks.generate.mockResolvedValue(null);
+    await run();
+    await Promise.resolve();
+    expect(mocks.createLocation).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+    // The generation reports its own failure; saving must not pile a second one on top.
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it("stays on the page when the generated place cannot be saved", async () => {
+    mocks.generate.mockResolvedValue(result);
+    mocks.createLocation.mockRejectedValue(new Error("db down"));
+    await run();
+    await vi.waitFor(() => expect(mocks.createLocation).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith("db down");
   });
 });

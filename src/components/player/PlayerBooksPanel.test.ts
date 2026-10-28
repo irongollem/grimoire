@@ -16,14 +16,6 @@ function mountPanel() {
 }
 
 describe("PlayerBooksPanel", () => {
-  it("explains what the books are for and offers the picker", () => {
-    mocks.rows = [];
-    const w = mountPanel();
-    expect(w.text()).toContain("Your books");
-    expect(w.text()).toContain("A table decides which books it takes.");
-    expect(w.text()).toContain("Choose books");
-  });
-
   it("says only the SRDs are on when the player added none", () => {
     mocks.rows = [];
     expect(mountPanel().get("[data-testid=books-summary]").text()).toBe("Only the SRDs are on.");

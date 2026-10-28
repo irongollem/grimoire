@@ -73,6 +73,8 @@ describe("FeatureActionsCard", () => {
   it("shows what is left next to a row that spends", () => {
     const w = mount(FeatureActionsCard, { props: { member } });
     expect(w.text()).toContain("Ki 3/5");
+    // A one-point cost is the norm and goes unremarked; only a dearer one says what it costs.
+    expect(w.text()).not.toContain("Costs");
   });
 
   it("gives a free action no button", () => {
@@ -222,6 +224,53 @@ describe("FeatureActionsCard", () => {
       await flushPromises();
       expect(promptRoll).toHaveBeenLastCalledWith(expect.objectContaining({ counts: { 8: 4 }, isDamage: true }));
       expect(spend).toHaveBeenCalledTimes(1);
+    });
+
+    it("a toggle's attack never spends: the switch-on paid for it", async () => {
+      on.value = true;
+      const bolt: FeatureEffect = { kind: "attack", attack: { delivery: "melee", ability: "str" }, dice: { "1": "1d8" } };
+      const w = mountWith([entry({ featureId: "fury", name: "Fury Strike", effect: bolt, toggleKey: "fury", spends: { key: "ki", amount: 1 } })]);
+      promptRoll.mockResolvedValueOnce(result(15, 0));
+      await w.get('button[aria-label="Fury Strike: attack roll"]').trigger("click");
+      await flushPromises();
+      expect(promptRoll).toHaveBeenCalledTimes(1);
+      expect(spend).not.toHaveBeenCalled();
+    });
+
+    it("doubles the dice for the damage that follows a natural 20 only, not for the next one", async () => {
+      const bolt: FeatureEffect = { kind: "attack", attack: { delivery: "ranged", ability: "spell" }, dice: { "1": "2d8" }, damage_type: "force" };
+      const w = mountWith([entry({ featureId: "fb", name: "Ballista", effect: bolt, className: "Bard" })]);
+      promptRoll.mockResolvedValueOnce(result(27, 7, true));
+      await w.get('button[aria-label="Ballista: attack roll"]').trigger("click");
+      await flushPromises();
+      promptRoll.mockResolvedValue(result(10, 0));
+      await w.get('button[aria-label="Ballista: damage roll"]').trigger("click");
+      await flushPromises();
+      expect(promptRoll).toHaveBeenLastCalledWith(expect.objectContaining({ counts: { 8: 4 } }));
+      await w.get('button[aria-label="Ballista: damage roll"]').trigger("click");
+      await flushPromises();
+      expect(promptRoll).toHaveBeenLastCalledWith(expect.objectContaining({ counts: { 8: 2 } }));
+    });
+
+    it("lets Roll again through after the use was paid, even when the pool has since run dry", async () => {
+      promptRoll.mockResolvedValue(result(7, 0));
+      const w = mountWith([entry({ featureId: "ki", name: "Burst", effect: thunder, spends: { key: "ki", amount: 1 }, className: "Bard" })]);
+      const roll = () => w.get('button[aria-label="Burst: damage roll"]');
+      await roll().trigger("click");
+      await flushPromises();
+      payable.mockReturnValue(false);
+      // Nothing in the mock is reactive, so a prop flip is what makes the card read the pool again.
+      await w.setProps({ readonly: true });
+      await w.setProps({ readonly: false });
+      expect(roll().text()).toBe("Roll again");
+      expect(roll().attributes("disabled")).toBeUndefined();
+      await w.get('button[aria-label="Burst: start a new use"]').trigger("click");
+      expect(roll().attributes("disabled")).toBeDefined();
+    });
+
+    it("says what a multi-point cost is, ahead of what is left", () => {
+      const w = mountWith([entry({ featureId: "ki", name: "Stunning", spends: { key: "ki", amount: 2 } })]);
+      expect(w.text()).toContain("Costs 2. Ki 3/5");
     });
 
     it("rolls a flat heal straight to the chat", async () => {

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   logImage: vi.fn(),
   toastError: vi.fn(),
+  canSpend: vi.fn(),
   ui: { dungeonFeatureGeneratorOpen: true },
 }));
 
@@ -67,7 +68,7 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
   };
 });
 vi.mock("@/composables/ai/useGenerationGate", () => ({
-  useGenerationGate: () => ({ canSpend: () => true, gateQuotaError: () => false, showQuotaPaywall: ref(false) }),
+  useGenerationGate: () => ({ canSpend: mocks.canSpend, gateQuotaError: () => false, showQuotaPaywall: ref(false) }),
 }));
 
 const generated = {
@@ -101,6 +102,7 @@ describe("DungeonFeatureGeneratorPanel", () => {
     mocks.push.mockReset();
     mocks.logImage.mockReset();
     mocks.toastError.mockReset();
+    mocks.canSpend.mockReset().mockReturnValue(true);
     mocks.ui.dungeonFeatureGeneratorOpen = true;
   });
 
@@ -187,5 +189,43 @@ describe("DungeonFeatureGeneratorPanel", () => {
 
     expect(wrapper.text()).not.toContain("could not be saved");
     expect(wrapper.findAll("button").some((b) => b.text().includes("Generate with AI"))).toBe(true);
+  });
+});
+
+describe("DungeonFeatureGeneratorPanel credits and concept", () => {
+  beforeEach(() => {
+    mocks.generate.mockReset().mockResolvedValue(null);
+    mocks.canSpend.mockReset().mockReturnValue(true);
+    mocks.createFeature.mockReset();
+  });
+  const click = async (w: ReturnType<typeof mountPanel>) =>
+    w.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+
+  it("sends the concept without surrounding whitespace", async () => {
+    const w = mountPanel();
+    await w.get("textarea").setValue("  A bookcase.  ");
+    await click(w);
+    expect(mocks.generate.mock.calls[0][0]).toBe("A bookcase.");
+  });
+
+  it("asks for the text cost plus the illustration, and only the text once the illustration is off", async () => {
+    // Mocked prices: 1 credit for the text, 1 for the portrait-size illustration.
+    const w = mountPanel();
+    await w.get("textarea").setValue("A bookcase.");
+    await click(w);
+    expect(mocks.canSpend).toHaveBeenLastCalledWith(2, false);
+
+    w.findComponent({ name: "GeneratorPanelShell" }).vm.$emit("update:generateImage", false);
+    await w.vm.$nextTick();
+    await click(w);
+    expect(mocks.canSpend).toHaveBeenLastCalledWith(1, false);
+  });
+
+  it("does not generate when the table cannot afford it", async () => {
+    mocks.canSpend.mockReturnValue(false);
+    const w = mountPanel();
+    await w.get("textarea").setValue("A bookcase.");
+    await click(w);
+    expect(mocks.generate).not.toHaveBeenCalled();
   });
 });

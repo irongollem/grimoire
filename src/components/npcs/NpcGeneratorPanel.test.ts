@@ -299,3 +299,58 @@ describe("NpcGeneratorPanel: the known associate becomes a connection", () => {
     expect((await quickCreateWith("superior_of")).choice).toMatchObject({ key: "superior_of", subjectIsFrom: true });
   });
 });
+
+describe("NpcGeneratorPanel: the NPC it creates", () => {
+  const result = {
+    name: "Lord Vexan", race: "Human", alignment: "lawful evil", age: "50", occupation: "Chancellor", appearance: "Gaunt.",
+    personality: "", backstory: "", notes: "", status: "alive", relationship: "hostile", tags: [],
+    disguise_name: "The Stranger", disguise_portrait_url: "https://cdn/d.webp", portrait_url: "https://cdn/p.webp",
+    ai_provenance: { generatorType: "npc", provider: "openai", model: "m", generatedAt: "t", edited: false },
+  };
+
+  beforeEach(() => {
+    mocks.createNpc.mockReset().mockResolvedValue({ id: "new-npc" });
+    mocks.generate.mockReset().mockResolvedValue(result);
+    mocks.push.mockReset();
+    campaignState.isAiEnabled = true;
+    canCreateNpc.value = true;
+    affordableState.value = true;
+    fixtures.query = {};
+    fixtures.npcs = [];
+    fixtures.pcs = [];
+  });
+
+  async function run() {
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A scheming chancellor.");
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.createNpc).toHaveBeenCalledTimes(1));
+    return wrapper;
+  }
+
+  it("starts hidden from the players: no audience, no fields shown, true form not revealed, even for a disguised NPC", async () => {
+    await run();
+    expect(mocks.createNpc.mock.calls[0][0]).toMatchObject({
+      is_revealed: false,
+      player_visible_to: [],
+      player_visible_fields: [],
+      disguise_name: "The Stranger",
+      campaign_id: "campaign-1",
+      ai_provenance: expect.objectContaining({ generatorType: "npc" }),
+    });
+  });
+
+  it("opens the new NPC's own page when the panel is open", async () => {
+    await run();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/npcs/new-npc"));
+  });
+
+  it("keeps the DM's own name, trimmed, over the generated one", async () => {
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A scheming chancellor.");
+    await wrapper.get('input[placeholder="Leave blank to auto-generate"]').setValue("  Aldous Pell  ");
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.createNpc).toHaveBeenCalledTimes(1));
+    expect(mocks.createNpc.mock.calls[0][0].name).toBe("Aldous Pell");
+  });
+});

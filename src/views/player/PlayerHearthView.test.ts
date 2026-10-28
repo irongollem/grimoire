@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   isRunning: false,
   partyLoaded: true,
   sessionLoaded: true,
+  sessionFailed: false,
 }));
 
 vi.mock("@/stores/auth", () => ({
@@ -41,7 +42,7 @@ vi.mock("@/composables/campaign/useCampaignSession", () => ({
         ? { isRunning: state.isRunning, startedAt: state.isRunning ? "2026-10-05T19:00:00Z" : null, sessionId: null, number: null, title: null }
         : undefined,
     ),
-    isError: ref(false),
+    isError: ref(state.sessionFailed),
   }),
 }));
 
@@ -99,6 +100,7 @@ describe("PlayerHearthView", () => {
     state.isRunning = false;
     state.partyLoaded = true;
     state.sessionLoaded = true;
+    state.sessionFailed = false;
   });
 
   it("starts the player's own notes read early only outside DM preview", () => {
@@ -123,6 +125,15 @@ describe("PlayerHearthView", () => {
     state.linkedPartyMemberId = "pm-1";
     state.sessionLoaded = false;
     expect(sections(mountView())).toEqual([]);
+  });
+
+  it("falls back to the between-sessions page, not the table, when the session state cannot be read", () => {
+    state.linkedPartyMemberId = "pm-1";
+    state.sessionLoaded = false;
+    state.sessionFailed = true;
+    const names = sections(mountView());
+    expect(names).toContain("HearthNextSession");
+    expect(names).not.toContain("HearthLiveBanner");
   });
 
   it("names the campaign", () => {

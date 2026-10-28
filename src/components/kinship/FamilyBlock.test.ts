@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   updated: [] as { id: string; patch: Record<string, unknown> }[],
   retyped: [] as Record<string, unknown>[],
   confirm: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/composables/kinship/useKinGraph", () => ({
@@ -23,6 +25,9 @@ vi.mock("@/composables/kinship/useKinLinks", () => ({
 }));
 vi.mock("@/composables/connections/useConnections", () => ({
   useRetypeConnection: () => ({ mutateAsync: async (v: Record<string, unknown>) => void mocks.retyped.push(v) }),
+}));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ success: mocks.toastSuccess, error: mocks.toastError, fromError: (_e: unknown, fallback: string) => fallback }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ todayYear: 1495, isAiEnabled: false }) }));
@@ -55,7 +60,7 @@ function mountBlock(props: { person: PersonKey; player?: boolean }) {
     global: {
       stubs: {
         AddRelativeDialog: { template: "<div data-testid='dialog' />" },
-        RouterLink: { template: "<a><slot /></a>" },
+        RouterLink: { props: ["to"], template: "<a :data-to=\"JSON.stringify(to)\"><slot /></a>" },
       },
     },
   });
@@ -74,6 +79,8 @@ beforeEach(() => {
   mocks.updated.length = 0;
   mocks.retyped.length = 0;
   mocks.confirm.mockReset();
+  mocks.toastSuccess.mockReset();
+  mocks.toastError.mockReset();
   document.body.innerHTML = "";
 });
 
@@ -125,16 +132,37 @@ describe("FamilyBlock", () => {
     expect(empty.text()).not.toContain("Open tree");
   });
 
-  it("renders nothing at all for a player with no visible kin, and no editing for one who has some", () => {
-    mocks.player = sourceOf([person("solo", "Solo", null)], []);
-    const empty = mountBlock({ person: k("solo"), player: true });
+  it("renders nothing at all for a player with no visible kin, even when the DM's graph has family", () => {
+    // The DM's source holds Brenna's whole family; the player's source lets nothing through.
+    mocks.player = sourceOf([person("me", "Brenna", 1459)], []);
+    const empty = mountBlock({ person: k("me"), player: true });
     expect(empty.html()).toBe("<!--v-if-->");
+    expect(mountBlock({ person: k("me") }).text()).toContain("Maera");
+  });
 
-    mocks.player = sourceOf(people, edges);
+  it("shows a player only what the player's source lets through, and no editing", () => {
+    mocks.player = sourceOf(people.filter((p) => p.name !== "Old Bren"), edges.filter((e) => e.id !== "1" && e.id !== "3"));
     const w = mountBlock({ person: k("me"), player: true });
-    expect(w.text()).toContain("Parents");
+    expect(w.text()).toContain("Maera");
+    expect(w.text()).not.toContain("Old Bren");
     expect(w.text()).not.toContain("Add relative");
     expect(w.find("button[aria-label^='More actions']").exists()).toBe(false);
+  });
+
+  it("sends the DM to the family tree and a player to the player's tree", () => {
+    expect(mountBlock({ person: k("me") }).get("a[data-to]").attributes("data-to")).toBe(JSON.stringify({ name: "family-tree", params: { key: k("me") } }));
+    expect(mountBlock({ person: k("me"), player: true }).get("a[data-to]").attributes("data-to")).toBe(JSON.stringify({ name: "play-family-tree", params: { key: k("me") } }));
+  });
+
+  it("confirms a removal in words, names the person and says the link is gone", async () => {
+    mocks.confirm.mockResolvedValue(true);
+    const w = mountBlock({ person: k("me") });
+    const row = w.findAll("li").find((r) => r.text().includes("Maera"))!;
+    await row.find("button[aria-label^='More actions']").trigger("click");
+    [...document.body.querySelectorAll("button")].find((b) => b.textContent?.includes("Remove link"))!.click();
+    await flushPromises();
+    expect(mocks.confirm.mock.calls[0]![0]).toContain("Maera");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Link removed.");
   });
 
   describe("changing a relation in place", () => {
@@ -159,6 +187,7 @@ describe("FamilyBlock", () => {
       expect(mocks.updated[0].id).toBe("2");
       expect(mocks.updated[0].patch).toMatchObject({ kind: "spouse", parent_role: null, adoptive: false, from_npc_id: "me", to_npc_id: "mum" });
       expect(mocks.deleted).toEqual([]);
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("Maera is now Brenna’s spouse.");
     });
 
     it("does nothing when the current relation is chosen again", async () => {
@@ -189,6 +218,29 @@ describe("FamilyBlock", () => {
         connection: { source: "kin", row_id: "4", type: "parent_of", outward: true, other_id: "kid" },
         subject: { kind: "npc", id: "me" },
       });
+      expect(mocks.toastSuccess).toHaveBeenCalledWith(expect.stringContaining("Wren is now a bond"));
+    });
+
+    it("moves a character's kin row to a bond with the character as the subject", async () => {
+      const pcPeople = [person("old", "Old Bren", 1428, { dead: true }), { ...person("me", "Brenna", 1459), key: "pc:me" as PersonKey }];
+      mocks.dm = sourceOf(pcPeople, [{ ...edge("1", "old", "me", "parent"), to: "pc:me" as PersonKey }]);
+      const w = mountBlock({ person: "pc:me" as PersonKey });
+      await rowOf(w, "Old Bren").find("[data-testid='kin-word']").trigger("click");
+      document.body.querySelector<HTMLButtonElement>("[data-bond-option]")!.click();
+      await flushPromises();
+      expect(mocks.retyped[0]).toMatchObject({ subject: { kind: "party_member", id: "me" } });
+    });
+
+    it("keeps the link's note when only the kind changes", async () => {
+      mocks.dm = (() => {
+        const src = sourceOf(people, edges);
+        return { ...src, links: { value: src.links.value.map((l) => (l.id === "2" ? { ...l, note: "raised her alone" } : l)) } };
+      })();
+      const w = mountBlock({ person: k("me") });
+      await rowOf(w, "Maera").find("[data-testid='kin-word']").trigger("click");
+      option("spouse").click();
+      await flushPromises();
+      expect(mocks.updated[0]!.patch).toMatchObject({ note: "raised her alone" });
     });
 
     it("walks the list with the arrows and closes on Escape, handing focus back to the word", async () => {

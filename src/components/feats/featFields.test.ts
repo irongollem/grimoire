@@ -23,6 +23,15 @@ describe("validateFeatFields", () => {
     expect(validateFeatFields({ ...none, prerequisites: { level: 99 } }).errors).toHaveLength(1);
   });
 
+  it("tells an out-of-range score apart from a condition with nothing set", () => {
+    const outOfRange = validateFeatFields({ ...none, prerequisites: { level: 4, abilities: { any_of: { str: 99 } } } });
+    expect(outOfRange.errors).toHaveLength(1);
+    expect(outOfRange.errors[0]).toContain("out of range");
+    expect(outOfRange.parsed.prerequisites).toEqual({ level: 4 });
+
+    expect(validateFeatFields({ ...none, prerequisites: {} }).errors[0]).toContain("set a value");
+  });
+
   it("flags a split that has one ability or an amount other than 2", () => {
     const bad = { abilities: ["str" as const], amount: 2, split: true, max: 20 };
     expect(validateFeatFields({ ...none, ability_increase: bad }).errors).toHaveLength(1);

@@ -9,6 +9,11 @@ vi.mock("@/composables/locations/useLocations", () => ({
     { id: "room-1", name: "Room 1", location_type: "room", parent_id: "site-1", depth: 1 },
     { id: "room-2", name: "Room 2", location_type: "room", parent_id: "site-1", depth: 1 },
     { id: "room-3", name: "Room 3", location_type: "room", parent_id: "site-1", depth: 1 },
+    // A sub-site inside the dungeon is not one of its rooms.
+    { id: "annex-1", name: "The annex", location_type: "building", parent_id: "site-1", depth: 1 },
+    // A city is not a site, whatever sits inside it.
+    { id: "city-1", name: "Harbourtown", location_type: "city", parent_id: null, depth: 0 },
+    { id: "room-9", name: "Back room", location_type: "room", parent_id: "city-1", depth: 1 },
     // #886: a `wilds` site whose only interior children are `grounds`, not
     // `room` — regression fixture for the `isInteriorType` predicate fix.
     { id: "site-2", name: "The Thornwood", location_type: "wilds", parent_id: null, depth: 0 },
@@ -22,6 +27,7 @@ const beats = [
   beat,
   { id: "beat-confess", quest_id: "quest-1", title: "Testify before the Guild", kind: "social" },
   { id: "beat-crypt", quest_id: "quest-1", title: "The cloister's sealed crypt", kind: "explore", staged_at_location_id: "site-1" },
+  { id: "beat-town", quest_id: "quest-1", title: "Arrive in Harbourtown", kind: "social", staged_at_location_id: "city-1" },
   { id: "beat-wilds", quest_id: "quest-1", title: "The Thornwood's edge", kind: "explore", staged_at_location_id: "site-2" },
 ] as QuestBeat[];
 const global = { stubs: { RouterLink: RouterLinkStub } };
@@ -87,5 +93,29 @@ describe("QuestBeatRoutesPanel", () => {
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     const editRoute = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Edit route");
     expect(editRoute?.props("to")).toEqual({ path: "/quests/quest-1", query: { view: "work", beat: "beat-fork", edge: "edge-confess" } });
+  });
+
+  const edgeTo = (target: string, route_kind: "choice" | "parallel" = "choice") =>
+    [{ id: `edge-${target}`, quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: target, route_kind, thread_label: null }] as QuestBeatEdge[];
+
+  it("says 'Missing beat' for a route whose target no longer exists", () => {
+    const row = mount(QuestBeatRoutesPanel, { props: { beat, edges: edgeTo("beat-deleted"), beats }, global }).get("li");
+    expect(row.text()).toContain("Missing beat");
+    expect(row.text()).toContain("→ Missing beat · cursor moves, the thread continues");
+    // Once as the route's heading and once in the caption; a kind it cannot know falls back to neutral.
+    expect(row.text().match(/Missing beat/g)).toHaveLength(2);
+    expect(row.text()).toContain("neutral");
+  });
+
+  it("shows a site chip only for a site's own rooms, not for a city or for non-room children", () => {
+    const town = mount(QuestBeatRoutesPanel, { props: { beat, edges: edgeTo("beat-town", "parallel"), beats }, global }).get("li");
+    expect(town.text()).not.toContain("site ·");
+    const crypt = mount(QuestBeatRoutesPanel, { props: { beat, edges: edgeTo("beat-crypt", "parallel"), beats }, global }).get("li");
+    expect(crypt.text()).toContain("site · 3 rooms");
+  });
+
+  it("shows no site chip for a target beat that is not staged anywhere", () => {
+    const row = mount(QuestBeatRoutesPanel, { props: { beat, edges: edgeTo("beat-confess", "parallel"), beats }, global }).get("li");
+    expect(row.text()).not.toContain("site ·");
   });
 });

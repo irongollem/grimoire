@@ -18,7 +18,8 @@ describe("PlayerSpellSlotStrip", () => {
     expect(text).toContain("2 / 3");
     expect(text).toContain("Pact Magic 3rd");
     expect(text).toContain("0 / 2");
-    expect(text.indexOf("1st level")).toBeLessThan(text.indexOf("Pact Magic"));
+    expect(text.indexOf("1st level")).toBeLessThan(text.indexOf("2nd level"));
+    expect(text.indexOf("2nd level")).toBeLessThan(text.indexOf("Pact Magic"));
   });
 
   it("emits the new used count when a pip is tapped", async () => {
@@ -32,5 +33,24 @@ describe("PlayerSpellSlotStrip", () => {
 
   it("renders nothing for a character without slots", () => {
     expect(mount(PlayerSpellSlotStrip, { props: { spellSlots: [] } }).html()).toBe("<!--v-if-->");
+  });
+
+  it("labels the last unspent pip as spend and the first spent one as restore", () => {
+    const wrapper = mount(PlayerSpellSlotStrip, { props: { spellSlots: [{ level: 1, max: 3, used: 1 }] } });
+    expect(wrapper.findAll("button").map((b) => b.attributes("aria-label"))).toEqual([
+      "1st level: spend slot 1",
+      "1st level: spend slot 2",
+      "1st level: restore slot 3",
+    ]);
+  });
+
+  it("locks every pip when disabled", () => {
+    const wrapper = mount(PlayerSpellSlotStrip, { props: { spellSlots: slots, disabled: true } });
+    expect(wrapper.findAll("button").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+  });
+
+  it("omits a level the character has no slots at", () => {
+    const wrapper = mount(PlayerSpellSlotStrip, { props: { spellSlots: [{ level: 1, max: 2, used: 0 }, { level: 2, max: 0, used: 0 }] } });
+    expect(wrapper.text()).not.toContain("2nd level");
   });
 });

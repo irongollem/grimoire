@@ -22,6 +22,9 @@ vi.stubGlobal("IntersectionObserver", IntersectionObserverStub);
 const mocks = vi.hoisted(() => ({
   rows: [] as SpellBrowseRow[],
   filters: [] as Array<Record<string, string>>,
+  add: vi.fn(),
+  remove: vi.fn(),
+  toastError: vi.fn(),
 }));
 vi.mock("@/composables/library/useSourceTitles", () => ({
   useSourceTitles: () => ({
@@ -56,9 +59,9 @@ vi.mock("@/composables/useScrollRestore", () => ({
   useScrollRestore: () => ({ savedCount: undefined, linkCount: vi.fn() }),
 }));
 vi.mock("@/composables/party/useCharacterSpells", () => ({
-  useAddCharacterSpell: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+  useAddCharacterSpell: () => ({ mutateAsync: mocks.add, isPending: ref(false) }),
   useChangePreparedSpell: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
-  useRemoveCharacterSpell: () => ({ mutate: vi.fn(), isPending: ref(false) }),
+  useRemoveCharacterSpell: () => ({ mutate: mocks.remove, isPending: ref(false) }),
 }));
 vi.mock("@/composables/party/useSpellReplacement", () => ({
   useSpellReplacement: () => ({ candidate: ref(null), clear: vi.fn() }),
@@ -67,7 +70,7 @@ vi.mock("@/composables/rules/useRuleset", () => ({
   useRuleset: () => ({ ruleset: ref("2014") }),
 }));
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ error: vi.fn(), success: vi.fn(), info: vi.fn(), fromError: (e: unknown) => String(e) }),
+  useToast: () => ({ error: mocks.toastError, success: vi.fn(), info: vi.fn(), fromError: (e: unknown) => String(e) }),
 }));
 
 function makeSpell(overrides: Partial<SpellBrowseRow> = {}): SpellBrowseRow {
@@ -253,5 +256,73 @@ describe("SpellList cards", () => {
     const wrapper = await mountList();
     expect(wrapper.text()).toContain("3rd");
     expect(wrapper.text()).toContain("Deep Magic");
+  });
+});
+
+describe("SpellList learning a spell", () => {
+  const SPELL = "11111111-1111-4111-8111-111111111111";
+  beforeEach(() => {
+    mocks.add.mockReset().mockResolvedValue(undefined);
+    mocks.remove.mockReset();
+    mocks.toastError.mockReset();
+    mocks.rows = [makeSpell({ id: SPELL, level: 1 })];
+  });
+
+  async function playerList(extra: Record<string, unknown>) {
+    const wrapper = mount(SpellList, {
+      props: {
+        search: "", levelFilter: "", schoolFilter: "", classFilter: "", sourceFilter: "all",
+        playerMemberId: "member-1", sourceClassId: "class-1", ...extra,
+      },
+      global: globalStubs,
+    });
+    await flushPromises();
+    return wrapper;
+  }
+  const overlayButton = (w: Awaited<ReturnType<typeof playerList>>) =>
+    w.findAll("button").find((b) => ["Learn", "Prepare", "Add", "Learned", "Prepared", "Added"].includes(b.text()))!;
+
+  it.each([
+    ["known", "Learn", false],
+    ["prepared", "Prepare", true],
+    ["spellbook", "Add", false],
+  ] as const)("a %s caster's button reads %s and adds the spell with isPrepared=%s", async (casterType, label, isPrepared) => {
+    const w = await playerList({ casterType });
+    expect(overlayButton(w).text()).toBe(label);
+    await overlayButton(w).trigger("click");
+    expect(mocks.add).toHaveBeenCalledWith({ partyMemberId: "member-1", spellId: SPELL, isPrepared, sourceClassId: "class-1" });
+  });
+
+  it("adds nothing when no class is chosen in the browse filter", async () => {
+    const w = await playerList({ casterType: "known", sourceClassId: null });
+    await overlayButton(w).trigger("click");
+    expect(mocks.add).not.toHaveBeenCalled();
+  });
+
+  it("offers no learn button to a non-caster or outside the player portal", async () => {
+    expect((await playerList({ casterType: "none" })).findAll("button").some((b) => b.text() === "Learn")).toBe(false);
+    expect((await mountList()).findAll("button").some((b) => ["Learn", "Prepare", "Add"].includes(b.text()))).toBe(false);
+  });
+
+  it("a prepared caster sees a spell as prepared only when it is prepared, not merely known", async () => {
+    const known = await playerList({ casterType: "prepared", knownSpellIds: [SPELL], preparedSpellIds: [] });
+    expect(overlayButton(known).text()).toBe("Prepare");
+    const prepared = await playerList({ casterType: "prepared", knownSpellIds: [SPELL], preparedSpellIds: [SPELL] });
+    expect(overlayButton(prepared).text()).toBe("Prepared");
+  });
+
+  it("clicking a learned spell removes it from this class", async () => {
+    const w = await playerList({ casterType: "known", knownSpellIds: [SPELL] });
+    expect(overlayButton(w).text()).toBe("Learned");
+    await overlayButton(w).trigger("click");
+    expect(mocks.remove).toHaveBeenCalledWith({ partyMemberId: "member-1", spellId: SPELL, sourceClassId: "class-1" });
+  });
+
+  it("reports a refused add as an error instead of failing silently", async () => {
+    mocks.add.mockRejectedValue(new Error("Cleric spell limit of 10 reached"));
+    const w = await playerList({ casterType: "known" });
+    await overlayButton(w).trigger("click");
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining("limit of 10"));
   });
 });

@@ -4,7 +4,8 @@ import { mount } from "@vue/test-utils";
 import CartographerPlaceCatalog from "./CartographerPlaceCatalog.vue";
 import type { LibraryDressing } from "@/types/dressing.types";
 
-const { enabledRows, allRows, available, slugs, enableMutate } = vi.hoisted(() => ({
+const { enabledRows, allRows, available, slugs, enableMutate, toastError } = vi.hoisted(() => ({
+  toastError: vi.fn(),
   enabledRows: { value: [] as unknown[] },
   allRows: { value: [] as unknown[] },
   available: { value: [] as unknown[] },
@@ -29,7 +30,7 @@ vi.mock("@/composables/library/useSourceTitles", () => ({
   }),
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useContentScope: () => ({ standalone: ref(false) }) }));
-vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: (e: unknown) => String(e) }) }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError, fromError: (e: unknown) => String(e) }) }));
 vi.mock("@/components/common/settings/SourcesPickerPanel.vue", () => ({
   default: { name: "SourcesPickerPanel", template: "<div data-testid=picker />" },
 }));
@@ -69,6 +70,7 @@ beforeEach(() => {
   ];
   slugs.value = ["grimoire-dressing"];
   enableMutate.mockReset();
+  toastError.mockReset();
 });
 
 describe("CartographerPlaceCatalog", () => {
@@ -153,5 +155,37 @@ describe("CartographerPlaceCatalog", () => {
     expect(wrapper.text()).toContain("Recent");
     await wrapper.find("input").setValue("a");
     expect(wrapper.text()).not.toContain("Recent");
+  });
+  it("offers no book to Enable until it is known which ones are already on", () => {
+    slugs.value = null;
+    const wrapper = mountCatalog();
+    expect(wrapper.text()).not.toContain("More books");
+    expect(wrapper.findAll("button").some((b) => b.text() === "Enable")).toBe(false);
+  });
+
+  it("locks every Enable while one book is switching on, and frees them when it settles or fails", async () => {
+    available.value = [
+      { source: "wild-camp", source_title: "Wild Camp", count: 1 },
+      { source: "crypt-set", source_title: "Crypt Set", count: 1 },
+    ];
+    const wrapper = mountCatalog();
+    const enables = () => wrapper.findAll("button").filter((b) => b.text() === "Enable");
+    await enables()[0].trigger("click");
+    expect(enables().every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    const options = enableMutate.mock.calls[0][1] as { onSettled: () => void; onError: (e: unknown) => void };
+    options.onError(new Error("quota"));
+    options.onSettled();
+    await wrapper.vm.$nextTick();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(enables().every((b) => b.attributes("disabled") === undefined)).toBe(true);
+  });
+
+  it("previews a book with up to four of its pictured props, none that have no picture", () => {
+    const pictured = Array.from({ length: 6 }, (_, n) => prop({ id: `c${n}`, name: `Camp ${n}`, source: "wild-camp", image_url: `https://cdn/c${n}.webp` }));
+    const plain = prop({ id: "bare", name: "Bare", source: "wild-camp", image_url: null });
+    allRows.value = [plain, ...pictured];
+    const wrapper = mountCatalog();
+    const previews = wrapper.findAll("img").map((i) => i.attributes("src")).filter((s) => /\/c\d\.webp$/.test(s ?? ""));
+    expect(previews).toHaveLength(4);
   });
 });

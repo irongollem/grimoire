@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import ContainerSection from "./ContainerSection.vue";
+import { VueDraggable } from "vue-draggable-plus";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 
@@ -70,6 +71,50 @@ describe("ContainerSection header", () => {
       ?.click();
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted("use-as-item")).toEqual([[bag]]);
+    wrapper.unmount();
+  });
+});
+
+describe("ContainerSection moving and adding", () => {
+  const bag = () => inv({ id: "bag", name: "Sack", library_item_id: "srd_sack", location: "backpack", container_id: null, is_container: true });
+  const rope = () => inv({ id: "rope", library_item_id: "srd_rope" });
+
+  it("reports a drop from another list as a move into this container", () => {
+    const wrapper = mountSection(bag(), [rope()], 10);
+    const target = wrapper.findComponent(VueDraggable);
+    target.vm.$emit("add", { from: document.createElement("div"), to: document.createElement("div"), newIndex: 0 });
+    expect(wrapper.emitted("move")).toEqual([[rope(), "container", "bag"]]);
+    expect(wrapper.emitted("reorder")).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("reports a reorder only when the drag ended in the same list", () => {
+    const wrapper = mountSection(bag(), [rope()], 10);
+    const target = wrapper.findComponent(VueDraggable);
+    const a = document.createElement("div");
+    target.vm.$emit("end", { from: a, to: document.createElement("div") });
+    expect(wrapper.emitted("reorder")).toBeUndefined();
+    target.vm.$emit("end", { from: a, to: a });
+    expect(wrapper.emitted("reorder")).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("adds the item picked from the catalogue and closes the form", async () => {
+    const wrapper = mount(ContainerSection, {
+      props: {
+        label: "Sack", items: [], allContainers: [bag()], allItems: library,
+        catalogue: [{ id: "srd_rope", name: "Rope", subtype: null, tags: [] }] as never,
+        resolvedMemberId: "m1", location: "container", container: bag(), containerId: "bag", weight: 0,
+      },
+      attachTo: document.body,
+    });
+    await wrapper.findAll("button").find((b) => b.text() === "+ Add")!.trigger("click");
+    expect(wrapper.find("form").exists()).toBe(true);
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "srd_rope");
+    await wrapper.vm.$nextTick();
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("add")).toEqual([["Rope", "srd_rope"]]);
+    expect(wrapper.find("form").exists()).toBe(false);
     wrapper.unmount();
   });
 });

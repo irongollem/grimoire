@@ -1,9 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
-import { ref } from "vue";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 
 // Phone width: the header is the sticky one that slides away.
-vi.mock("@/composables/useBreakpoint", () => ({ useBelow: () => ref(true) }));
+const below = vi.hoisted(() => ({ lg: undefined as undefined | { value: boolean } }));
+vi.mock("@/composables/useBreakpoint", async () => {
+  const { ref } = await import("vue");
+  below.lg = ref(true);
+  return { useBelow: () => below.lg };
+});
 
 import ListPageLayout from "./ListPageLayout.vue";
 
@@ -30,6 +34,10 @@ function mountInScroller() {
 }
 
 describe("ListPageLayout header on a phone", () => {
+  beforeEach(() => {
+    if (below.lg) below.lg.value = true;
+  });
+
   it("slides away scrolling down and comes back scrolling up", async () => {
     const { header, scrollTo } = mountInScroller();
     await scrollTo(400);
@@ -43,6 +51,50 @@ describe("ListPageLayout header on a phone", () => {
     await scrollTo(400);
     await scrollTo(396);
     expect(header.classList.contains("-translate-y-full")).toBe(true);
+  });
+
+  it("a scroll of exactly the threshold counts, one pixel less does not", async () => {
+    const { header, scrollTo } = mountInScroller();
+    await scrollTo(400);
+    await scrollTo(360);
+    expect(header.classList.contains("-translate-y-full")).toBe(false);
+    await scrollTo(367);
+    expect(header.classList.contains("-translate-y-full")).toBe(false);
+    await scrollTo(368);
+    expect(header.classList.contains("-translate-y-full")).toBe(true);
+  });
+
+  it("never hides on a screen wide enough to keep the header in place", async () => {
+    below.lg!.value = false;
+    const { header, scrollTo } = mountInScroller();
+    await scrollTo(400);
+    expect(header.classList.contains("-translate-y-full")).toBe(false);
+  });
+
+  it("comes back when the window is widened while it is hidden", async () => {
+    const { header, scrollTo, wrapper } = mountInScroller();
+    await scrollTo(400);
+    expect(header.classList.contains("-translate-y-full")).toBe(true);
+    below.lg!.value = false;
+    await wrapper.vm.$nextTick();
+    expect(header.classList.contains("-translate-y-full")).toBe(false);
+  });
+
+  it("comes back as soon as something inside it takes focus", async () => {
+    const { wrapper, header, scrollTo } = mountInScroller();
+    await scrollTo(400);
+    expect(header.classList.contains("-translate-y-full")).toBe(true);
+    wrapper.element.querySelector("input")!.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(header.classList.contains("-translate-y-full")).toBe(false);
+  });
+
+  it("stops listening to the scroller when the page goes away", () => {
+    const { wrapper } = mountInScroller();
+    const scroller = wrapper.element.parentElement!.parentElement!;
+    const remove = vi.spyOn(scroller, "removeEventListener");
+    wrapper.unmount();
+    expect(remove.mock.calls.some(([type]) => type === "scroll")).toBe(true);
   });
 
   it("always shows near the top, where it sits in its natural place", async () => {

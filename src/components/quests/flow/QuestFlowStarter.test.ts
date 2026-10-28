@@ -1,5 +1,6 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { reactive } from "vue";
 import QuestFlowStarter from "./QuestFlowStarter.vue";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 
@@ -32,7 +33,9 @@ vi.mock("vue-router", async (importOriginal) => ({
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => mocks.ui }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => mocks.campaign }));
+// Reactive so a test can switch the campaign's AI off while the starter is mounted.
+const campaignState = reactive(mocks.campaign);
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaignState }));
 
 describe("QuestFlowStarter", () => {
   beforeEach(() => {
@@ -40,7 +43,7 @@ describe("QuestFlowStarter", () => {
     mocks.createBeat.mockReset().mockResolvedValue({ id: "beat-new" });
     mocks.push.mockReset();
     mocks.ui.dmMode = "play";
-    mocks.campaign.isAiEnabled = true;
+    campaignState.isAiEnabled = true;
   });
 
   it("creates the quest shell and opens its overview", async () => {
@@ -179,10 +182,89 @@ describe("QuestFlowStarter", () => {
     expect(on.text()).toContain("Paste a page");
     expect(on.text()).toContain("Design it");
 
-    mocks.campaign.isAiEnabled = false;
+    campaignState.isAiEnabled = false;
     const off = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
     expect(off.text()).toContain("Type it");
     expect(off.text()).not.toContain("Paste a page");
     expect(off.text()).not.toContain("Design it");
+  });
+
+  const stubs = { RouterLink: RouterLinkStub, PaywallModal: true };
+  const enter = (w: ReturnType<typeof mount>) => w.findAll("input")[0]!.trigger("keydown.enter");
+
+  it("pressing Enter on a blank title creates nothing", async () => {
+    const wrapper = mount(QuestFlowStarter, { global: { stubs } });
+    await wrapper.findAll("input")[0]!.setValue("   ");
+    await enter(wrapper);
+    await flushPromises();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("a second Enter while the first is still saving does not create a second quest", async () => {
+    let finish: (v: { id: string; campaign_id: string }) => void = () => {};
+    mocks.create.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const wrapper = mount(QuestFlowStarter, { global: { stubs } });
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await enter(wrapper);
+    await enter(wrapper);
+    finish({ id: "quest-new", campaign_id: "camp-1" });
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends no summary at all rather than an empty one", async () => {
+    mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs } });
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await wrapper.findAll("input")[1]!.setValue("   ");
+    await enter(wrapper);
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ summary: null }));
+  });
+
+  it("a quest refused for quota opens the paywall, with no error line and no beat written", async () => {
+    mocks.create.mockRejectedValue({ message: "quota_exceeded" });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs } });
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await enter(wrapper);
+    await flushPromises();
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    expect(mocks.createBeat).not.toHaveBeenCalled();
+  });
+
+  it("after a failure the DM can retry, and the old error goes when the retry starts", async () => {
+    mocks.create.mockRejectedValueOnce(new Error("Quest insert failed")).mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs } });
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await enter(wrapper);
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toContain("Quest insert failed");
+    await enter(wrapper);
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledTimes(2);
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    expect(mocks.push).toHaveBeenCalled();
+  });
+
+  it("refuses loudly when the created quest belongs to no campaign, and writes no beat", async () => {
+    mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: null });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs } });
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await enter(wrapper);
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toContain("outside any campaign");
+    expect(mocks.createBeat).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("switching the campaign's AI off while in Design it mode drops back to Type it", async () => {
+    const wrapper = mount(QuestFlowStarter, { global: { stubs } });
+    await wrapper.get('button[aria-label="Design it"]').trigger("click");
+    expect(wrapper.findComponent({ name: "QuestDesignerPanel" }).exists()).toBe(true);
+    campaignState.isAiEnabled = false;
+    await flushPromises();
+    expect(wrapper.findComponent({ name: "QuestDesignerPanel" }).exists()).toBe(false);
+    expect(wrapper.find('button[aria-label="Create quest"]').exists()).toBe(true);
   });
 });

@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { sourceLabel } from "@/lib/library/sourceLabel";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { reactive, ref, computed, defineComponent, h } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MonsterList from "./MonsterList.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Monster } from "@/types/monster.types";
@@ -49,10 +49,14 @@ vi.mock("@/composables/library/useSourceTitles", () => ({
     labelFor: (s: string | null | undefined, t?: string | null) => sourceLabel(s, t, new Map()),
   }),
 }));
-vi.mock("@vueuse/core", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@vueuse/core")>()),
-  useMediaQuery: () => false,
-}));
+const viewport = vi.hoisted(() => ({ mobile: false }));
+vi.mock("@vueuse/core", async (importOriginal) => {
+  const { ref: vueRef } = await import("vue");
+  return {
+    ...(await importOriginal<typeof import("@vueuse/core")>()),
+    useMediaQuery: (query: string) => vueRef(viewport.mobile && query.includes("width < 48rem")),
+  };
+});
 
 const monstersData = ref<Monster[]>([]);
 const PAGE = 48;
@@ -60,6 +64,7 @@ const fetchNextPage = vi.fn();
 const hasNextPage = ref(false);
 const browseError = ref<Error | null>(null);
 const browseReady = ref(true);
+const lockedData = ref<string[]>([]);
 // The server pages and counts; this stand-in answers the same questions from a
 // fixture: one page painted, totals and select-all over the whole result.
 vi.mock("@/composables/monsters/useMonsterBrowse", () => ({
@@ -68,7 +73,7 @@ vi.mock("@/composables/monsters/useMonsterBrowse", () => ({
     total: computed(() => monstersData.value.length),
     scopeTotal: computed(() => monstersData.value.length + 5),
     selectableIds: computed(() => monstersData.value.filter((m) => !m.is_shared).map((m) => m.id)),
-    lockedIds: computed(() => []),
+    lockedIds: computed(() => lockedData.value),
     ready: browseReady,
     hasNextPage,
     isFetchingNextPage: ref(false),
@@ -88,12 +93,19 @@ vi.mock("@/composables/monsters/useMonsters", () => ({
   fetchResolvedMonster: vi.fn(),
 }));
 
+const discoveries = ref<{ monster_id?: string | null; library_monster_id?: string | null }[]>([]);
 vi.mock("@/composables/encounters/useDiscoveredMonsters", () => ({
-  useCampaignDiscoveries: () => ({ data: ref([]) }),
+  useCampaignDiscoveries: () => ({ data: discoveries }),
 }));
 
+const canCreate = ref(true);
 vi.mock("@/composables/billing/useQuota", () => ({
-  useQuota: () => ({ canCreate: ref(true), quota: ref(null) }),
+  useQuota: () => ({ canCreate, quota: ref(null) }),
+}));
+const routerPush = vi.fn();
+vi.mock("vue-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("vue-router")>()),
+  useRouter: () => ({ push: routerPush }),
 }));
 
 const monstersUi = {
@@ -154,7 +166,7 @@ vi.mock("@/composables/useScrollRestore", () => ({
 useVirtualGridViewport({ viewportPx: 1000000, itemPx: 260 });
 
 const stubs = {
-  MonsterGridCard: { template: '<div class="stub-card" />', props: ["monster", "locked"] },
+  MonsterGridCard: { name: "MonsterGridCard", template: '<div class="stub-card" />', props: ["monster", "locked"] },
   EntityMobileCard: true,
   RouterLink: true,
   // Unrelated to bulk selection; it independently needs a real VueQueryPlugin
@@ -416,3 +428,78 @@ async function flushMicrotasks() {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+describe("MonsterList — empty states and locked rows", () => {
+  beforeEach(() => {
+    monstersData.value = [];
+    lockedData.value = [];
+    canCreate.value = true;
+    routerPush.mockReset();
+    monstersUi.monstersSearch = "";
+    monstersUi.monstersFilterType = "all";
+    monstersUi.monstersFilterSource = "all";
+  });
+
+  it("invites the first custom monster when the custom filter is empty, and goes to the editor", async () => {
+    monstersUi.monstersFilterSource = "custom";
+    const wrapper = mountList();
+    expect(wrapper.text()).toContain("No custom monsters yet");
+    await wrapper.findAll("button").find((b) => b.text() === "Add your first monster")!.trigger("click");
+    expect(routerPush).toHaveBeenCalledWith("/monsters/new");
+  });
+
+  it("opens the paywall instead of the editor at the plan's monster limit", async () => {
+    monstersUi.monstersFilterSource = "custom";
+    canCreate.value = false;
+    const wrapper = mountList();
+    await wrapper.findAll("button").find((b) => b.text() === "Add your first monster")!.trigger("click");
+    expect(routerPush).not.toHaveBeenCalled();
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+  });
+
+  it("says no monsters match, not that there are none, when a search or type filter is on", () => {
+    monstersUi.monstersFilterSource = "custom";
+    monstersUi.monstersSearch = "dragon";
+    expect(mountList().text()).toContain("No monsters match your filters.");
+    monstersUi.monstersSearch = "";
+    monstersUi.monstersFilterType = "beast";
+    expect(mountList().text()).toContain("No monsters match your filters.");
+    expect(mountList().text()).not.toContain("No custom monsters yet");
+  });
+
+  it("hands the card the server's quota lock, for the rows it names only", async () => {
+    monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" })];
+    lockedData.value = ["m2"];
+    const wrapper = mountList();
+    await flushMicrotasks();
+    const locks = wrapper.findAllComponents({ name: "MonsterGridCard" }).map((c) => c.props("locked"));
+    expect(locks).toEqual([false, true]);
+  });
+});
+
+describe("MonsterList on a phone — which cards say they are shared with the players", () => {
+  beforeEach(() => {
+    viewport.mobile = true;
+    monstersData.value = [monster({ id: "own-1" }), monster({ id: "own-2" }), monster({ id: "lib-1", is_shared: true }), monster({ id: "lib-2", is_shared: true })];
+    discoveries.value = [{ monster_id: "own-1", library_monster_id: null }, { monster_id: null, library_monster_id: "lib-1" }];
+  });
+  afterEach(() => {
+    viewport.mobile = false;
+    discoveries.value = [];
+  });
+
+  it("marks a monster discovered under its own id, and a library monster under the library id, and no other", async () => {
+    const wrapper = mount(MonsterList, { global: { stubs: { ...stubs, EntityMobileCard: { name: "EntityMobileCard", props: ["title", "shared"], template: "<div class='mobile-card' />" } } } });
+    await flushMicrotasks();
+    const shared = wrapper.findAllComponents({ name: "EntityMobileCard" }).map((c) => [c.props("title"), c.props("shared")]);
+    expect(shared.length).toBe(4);
+    expect(shared.map(([, s]) => s)).toEqual([true, false, true, false]);
+  });
+
+  it("does not take a library id for an own monster's discovery", async () => {
+    discoveries.value = [{ monster_id: null, library_monster_id: "own-1" }];
+    const wrapper = mount(MonsterList, { global: { stubs: { ...stubs, EntityMobileCard: { name: "EntityMobileCard", props: ["title", "shared"], template: "<div class='mobile-card' />" } } } });
+    await flushMicrotasks();
+    expect(wrapper.findAllComponents({ name: "EntityMobileCard" }).every((c) => c.props("shared") === false)).toBe(true);
+  });
+});

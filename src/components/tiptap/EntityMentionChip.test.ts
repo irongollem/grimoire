@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import EntityMentionChip from "./EntityMentionChip.vue";
@@ -13,8 +13,9 @@ vi.mock("vue-router", () => ({
 vi.mock("@/stores/ui/app", () => ({
   useAppUiStore: () => ({ dmPreviewMode: false }),
 }));
+const openLocation = vi.fn();
 vi.mock("@/stores/ui/player", () => ({
-  usePlayerUiStore: () => ({ openPlayerLocationDialog: vi.fn() }),
+  usePlayerUiStore: () => ({ openPlayerLocationDialog: openLocation }),
 }));
 
 // The chip resolves its own name now (one mention, one lookup) rather than
@@ -90,5 +91,32 @@ describe("EntityMentionChip — /play root counts as the player portal", () => {
     const wrapper = mountChip({ name: "Elminster", entityType: "npc", id: "npc-1" });
     await wrapper.find("button").trigger("click");
     expect(push).toHaveBeenCalledWith("/play/party");
+  });
+});
+
+describe("EntityMentionChip — where each kind of mention leads", () => {
+  beforeEach(() => {
+    push.mockClear();
+    openLocation.mockClear();
+  });
+
+  it("opens a location in the quick-view dialog for a player, without leaving the page", async () => {
+    route.path = "/play/journal";
+    await mountChip({ name: "Cinderfall", entityType: "location", id: "loc-1" }).find("button").trigger("click");
+    expect(openLocation).toHaveBeenCalledWith("loc-1");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("sends a player to the bestiary list for a monster, never to a DM detail page", async () => {
+    route.path = "/play/journal";
+    await mountChip({ name: "Owlbear", entityType: "monster", id: "mon-1" }).find("button").trigger("click");
+    expect(push).toHaveBeenCalledWith("/play/bestiary");
+  });
+
+  it("sends the DM to the record itself, and a location is not a dialog there", async () => {
+    route.path = "/notes/n1";
+    await mountChip({ name: "Cinderfall", entityType: "location", id: "loc-1" }).find("button").trigger("click");
+    expect(push).toHaveBeenCalledWith("/locations/loc-1");
+    expect(openLocation).not.toHaveBeenCalled();
   });
 });

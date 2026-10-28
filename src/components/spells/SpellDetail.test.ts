@@ -143,6 +143,85 @@ describe("SpellDetail scope default", () => {
   });
 });
 
+describe("SpellDetail saved content", () => {
+  type Vm = Record<string, unknown> & { save: () => Promise<void> };
+  const aiSpell = {
+    id: "sp9", campaign_id: null, name: "Owl's Sight", level: 1, school: "divination", casting_time: "1 action",
+    casting_time_custom: null, range: "Self", range_custom: null, duration: "1 hour", duration_custom: null,
+    concentration: false, ritual: false, components: ["V"], material: null, description: "", higher_levels: null,
+    classes: [], tags: [], source: null, image_url: null, image_focal_point: null, attack_type: null, save_attribute: null,
+    save_effect: null, damage_rolls: null, healing_dice: null, target_description: null, aoe_shape: null, aoe_size: null,
+    condition_inflicted: null, ai_provenance: { model: "gpt", edited: false },
+  } as unknown as Spell;
+  const edit = async (spell: Spell | null, change: (vm: Vm) => void) => {
+    mocks.create.mockClear();
+    mocks.update.mockClear();
+    const wrapper = mountDetail(spell);
+    const vm = wrapper.vm as unknown as Vm;
+    change(vm);
+    await vm.save();
+    return { wrapper, created: mocks.create.mock.calls[0]?.[0], updated: mocks.update.mock.calls[0]?.[0]?.update };
+  };
+
+  it("will not save a spell whose name is blank or only spaces", async () => {
+    const { created } = await edit(null, (vm) => { vm.name = "   "; });
+    expect(created).toBeUndefined();
+  });
+
+  it("stores a blank image and source as null on a new spell", async () => {
+    const { created } = await edit(null, (vm) => { vm.name = "Fireball"; vm.source = ""; vm.imageUrl = ""; });
+    expect(created).toMatchObject({ image_url: null, source: null });
+  });
+
+  it("leaves an AI-made spell unmarked when only its tags change", async () => {
+    const { updated } = await edit(aiSpell, (vm) => { vm.tags = ["owls"]; });
+    expect(updated).toEqual({ tags: ["owls"] });
+  });
+
+  it.each([
+    ["level", (vm: Vm) => { vm.level = 2; }],
+    ["source", (vm: Vm) => { vm.source = "Homebrew"; }],
+  ])("marks an AI-made spell edited when its %s changes", async (_what, change) => {
+    const { updated } = await edit(aiSpell, change);
+    expect(updated.ai_provenance).toEqual({ model: "gpt", edited: true });
+  });
+});
+
+describe("SpellDetail level advisor pre-fill", () => {
+  type Vm = Record<string, unknown> & { adv: Record<string, unknown>; advisorOpen: boolean };
+  const open = async (set: (vm: Vm) => void) => {
+    const wrapper = mountDetail(null);
+    const vm = wrapper.vm as unknown as Vm;
+    set(vm);
+    vm.advisorOpen = true;
+    await wrapper.vm.$nextTick();
+    return vm.adv;
+  };
+
+  it("reads the save mechanics back into the advisor's wording", async () => {
+    expect((await open((vm) => { vm.attackType = "save"; vm.saveEffect = "negates"; })).saveType).toBe("save_negates");
+    expect((await open((vm) => { vm.attackType = "save"; vm.saveEffect = "half"; })).saveType).toBe("save_for_half");
+    expect((await open((vm) => { vm.attackType = "ranged_spell"; })).saveType).toBe("attack_roll");
+    expect((await open((vm) => { vm.attackType = "melee_spell"; })).saveType).toBe("attack_roll");
+    expect((await open((vm) => { vm.attackType = "automatic"; })).saveType).toBe("automatic");
+  });
+
+  it("sizes the targeting from the area: under 15 ft small, 15 to 29 medium, 30 and over large", async () => {
+    const mode = async (size: string) => (await open((vm) => { vm.aoeShape = "sphere"; vm.aoeSize = size; })).targetingMode;
+    expect(await mode("10-foot radius")).toBe("aoe_small");
+    expect(await mode("15-foot radius")).toBe("aoe_medium");
+    expect(await mode("29-foot cone")).toBe("aoe_medium");
+    expect(await mode("30-foot radius")).toBe("aoe_large");
+  });
+
+  it("reads healing and damage dice back, healing taking precedence over a leftover damage roll", async () => {
+    const heal = await open((vm) => { vm.healingDice = "2d8"; });
+    expect(heal).toMatchObject({ effectType: "healing", damageDice: "2d8" });
+    const dmg = await open((vm) => { vm.damageRolls = [{ dice: "8d6", type: "fire" }]; });
+    expect(dmg).toMatchObject({ effectType: "damage", damageDice: "8d6 fire" });
+  });
+});
+
 /**
  * Where the editor leaves to, matching the monster precedent: the sheet over the
  * spellbook on desktop (a child route of the list), the plain list on a phone.

@@ -67,4 +67,13 @@ describe("QuestThreadOpenForm", () => {
     const wrapper = mountForm();
     expect(wrapper.get("input[placeholder='What is this thread?']").element.className).not.toContain("min-h-11");
   });
+
+  it.each([
+    ["only a beat", { beatId: "b1", label: "" }],
+    ["only a label", { beatId: "", label: "The sealed crypt" }],
+    ["a beat and a blank label", { beatId: "b1", label: "   " }],
+  ])("keeps Open thread disabled with %s", (_name, props) => {
+    const wrapper = mountForm(props);
+    expect(wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Open thread")!.props("disabled")).toBe(true);
+  });
 });

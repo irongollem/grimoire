@@ -49,7 +49,7 @@ vi.mock("@/composables/encounters/useEncounters", () => ({
 }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: vi.fn() }) }));
 
-const stubs = { RouterLink: { template: "<a><slot /></a>" }, EntityCombobox: true };
+const stubs = { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, EntityCombobox: true };
 
 function mountPanel(building = false) {
   return mount(LocationSortPanel, { props: { locationId: "site-1", building }, global: { stubs } });
@@ -182,5 +182,31 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
     const text = mountPanel(true).text();
     expect(text).toContain("Priest");
     expect(text).not.toContain("Deep Dweller");
+  });
+
+  it("leads with what is still on the parent, each half alphabetical, and links each row to its own page", () => {
+    childrenRef.value = [room("room-a", "Nave of Ash")];
+    npcsRef.value = [
+      { id: "npc-1", name: "Zed (sorted)", location_id: "room-a" },
+      { id: "npc-2", name: "Yara (waiting)", location_id: "site-1" },
+      { id: "npc-3", name: "Abel (waiting)", location_id: "site-1" },
+    ];
+    encountersRef.value = [{ id: "enc-1", name: "Ambush", is_finished: false, location_id: "site-1" }];
+    const links = mountPanel(true).findAll("a");
+    expect(links.map((a) => a.text())).toEqual(["Abel (waiting)", "Ambush", "Yara (waiting)", "Zed (sorted)"]);
+    expect(links.map((a) => a.attributes("href"))).toEqual(["/npcs/npc-3", "/encounters/enc-1", "/npcs/npc-2", "/npcs/npc-1"]);
+  });
+
+  it("marks only a finished encounter as Done", () => {
+    childrenRef.value = [room("room-a", "Nave of Ash")];
+    encountersRef.value = [{ id: "enc-1", name: "Ambush", is_finished: false, location_id: "room-a" }];
+    expect(mountPanel(true).text()).not.toContain("Done");
+  });
+
+  it("writes nothing when the picker lands on the room the row is already in", () => {
+    childrenRef.value = [room("room-a", "Nave of Ash")];
+    npcsRef.value = [{ id: "npc-1", name: "Priest", location_id: "room-a" }];
+    mountPanel(true).findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "room-a");
+    expect(mocks.updateNpc).not.toHaveBeenCalled();
   });
 });

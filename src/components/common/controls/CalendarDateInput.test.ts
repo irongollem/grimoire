@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import CalendarDateInput from "./CalendarDateInput.vue";
+import { useCalendarStore } from "@/stores/calendar";
 
 function mountInput(modelValue: { year: number | null; month: number | null; day: number | null }) {
   setActivePinia(createPinia());
@@ -58,5 +59,45 @@ describe("CalendarDateInput", () => {
     await dated.findAll("input")[1]!.setValue("12");
     emitted = dated.emitted("update:modelValue")!;
     expect(emitted[emitted.length - 1]![0]).toEqual({ year: 1448, month: 2, day: 12 });
+  });
+
+  // Gregorian: February has 28 days, 29 in a leap year (1900 is not one, 2000 is).
+  describe("days that do not fit the month", () => {
+    function mountGregorian(modelValue: { year: number | null; month: number | null; day: number | null }) {
+      setActivePinia(createPinia());
+      useCalendarStore().setCalendar("gregorian");
+      return mount(CalendarDateInput, { props: { modelValue, label: "Birth" } });
+    }
+    const last = (w: ReturnType<typeof mountGregorian>) => {
+      const emitted = w.emitted("update:modelValue")!;
+      return emitted[emitted.length - 1]![0];
+    };
+
+    it.each([
+      [1900, 28],
+      [2000, 29],
+    ])("moving the 31st into February of %i leaves day %i", async (year, expected) => {
+      const w = mountGregorian({ year, month: 1, day: 31 });
+      await w.find("select").setValue("2");
+      expect(last(w)).toEqual({ year, month: 2, day: expected });
+    });
+
+    it("typing a day past the end of the month stops at the last day", async () => {
+      const w = mountGregorian({ year: 1900, month: 2, day: 1 });
+      await w.findAll("input")[1]!.setValue("31");
+      expect(last(w)).toEqual({ year: 1900, month: 2, day: 28 });
+    });
+
+    it("typing a day below one, or nothing, lands on day 1", async () => {
+      const w = mountGregorian({ year: 1900, month: 2, day: 10 });
+      await w.findAll("input")[1]!.setValue("0");
+      expect(last(w)).toEqual({ year: 1900, month: 2, day: 1 });
+    });
+
+    it("drops a fraction typed into the year", async () => {
+      const w = mountGregorian({ year: null, month: null, day: null });
+      await w.findAll("input")[0]!.setValue("1448.7");
+      expect(last(w)).toEqual({ year: 1448, month: null, day: null });
+    });
   });
 });

@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref, computed } from "vue";
 import ItemList from "./ItemList.vue";
+import { useListLayout } from "@/composables/useListLayout";
 import { IconDocument } from "@/lib/icons";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { ItemBrowseFilters } from "@/composables/items/useItemBrowse";
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   selectableIds: [] as string[],
   sources: [] as { slug: string; title: string | null }[],
   loading: false,
+  error: null as Error | null,
   hasNextPage: false,
   fetchNextPage: vi.fn(),
   lastFilters: null as null | (() => unknown),
@@ -47,7 +49,7 @@ vi.mock("@/composables/items/useItemBrowse", () => ({
       sources: computed(() => mocks.sources),
       ready: computed(() => !mocks.loading),
       isLoading: ref(mocks.loading),
-      error: ref(null),
+      error: ref(mocks.error),
       hasNextPage: ref(mocks.hasNextPage),
       isFetchingNextPage: ref(false),
       fetchNextPage: mocks.fetchNextPage,
@@ -172,7 +174,7 @@ describe("ItemList — bulk selection (#875)", () => {
     ];
     const wrapper = await mountList({ selecting: true });
     const [owned, library] = wrapper.findAllComponents(BulkSelectableCard);
-    expect(owned.find('a[href*="edit=true"]').exists()).toBe(false);
+    expect(owned.find('[aria-label="Edit"]').exists()).toBe(false);
     expect(owned.text()).not.toContain("Grimoire Equipment");
     expect(library.text()).toContain("Grimoire Equipment");
     expect(library.text()).not.toContain("Reference");
@@ -268,5 +270,77 @@ describe("ItemList — filters, paging and prefetch (#972)", () => {
     mocks.hasNextPage = true;
     await mountList();
     expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+  });
+});
+
+describe("ItemList — empty and failed reads", () => {
+  beforeEach(() => {
+    mocks.rows = [];
+    mocks.loading = false;
+    mocks.error = null;
+  });
+
+  it("invites a first item when nothing is filtered, and suggests loosening filters when something is", async () => {
+    expect((await mountList()).text()).toContain("Add your first item to the vault.");
+    for (const props of [{ search: "x" }, { typeFilter: "weapon" }, { rarityFilter: "rare" }, { sourceFilter: "srd" }, { scopeFilter: "other_campaign" as const }]) {
+      const wrapper = mount(ItemList, { props: { search: "", typeFilter: "", rarityFilter: "", sourceFilter: "", scopeFilter: "", ...props }, global: globalStubs });
+      await flushPromises();
+      expect(wrapper.text(), JSON.stringify(props)).toContain("Try adjusting your filters.");
+    }
+  });
+
+  it("says the vault could not be read, rather than showing an empty one", async () => {
+    mocks.error = new Error("boom");
+    const wrapper = await mountList();
+    expect(wrapper.text()).toContain("Could not load items");
+    expect(wrapper.text()).not.toContain("No items found");
+  });
+});
+
+describe("ItemList — the one-per-row layout", () => {
+  const layout = useListLayout("items", "grid");
+  // The row layout windows by measured height: let a second pass mount the rows below the first.
+  const settled = async (wrapper: Awaited<ReturnType<typeof mountList>>) => {
+    for (let i = 0; i < 4; i += 1) await flushPromises();
+    return wrapper;
+  };
+  beforeEach(() => {
+    layout.value = "rows";
+    mocks.rows = [
+      makeItem({ id: OWNED, name: "Owned Sword" }),
+      makeItem({ id: "srd_feather", name: "Owlbear Feather", is_shared: true, source_document_key: "grimoire-bundled", source_title: "Grimoire Equipment" }),
+    ];
+    mocks.loading = false;
+    mocks.error = null;
+    mocks.hasNextPage = false;
+    mocks.savedCount = undefined;
+  });
+  afterEach(() => {
+    layout.value = "grid";
+  });
+
+  it("makes only the DM's own rows selectable, as the card layout does", async () => {
+    const wrapper = await mountList({ selecting: true });
+
+    const [owned, library] = wrapper.findAllComponents(BulkSelectableCard);
+    expect(owned.props("selecting")).toBe(true);
+    expect(library.props("selecting")).toBe(false);
+  });
+
+  it("offers Edit on an own row and not on a library row, and hides it while selecting", async () => {
+    const wrapper = await settled(await mountList({ selecting: false }));
+    const [owned, library] = wrapper.findAllComponents(BulkSelectableCard);
+    expect(owned.find('[aria-label="Edit"]').exists()).toBe(true);
+    expect(library.find('[aria-label="Edit"]').exists()).toBe(false);
+    const selecting = await settled(await mountList({ selecting: true }));
+    expect(selecting.find('[aria-label="Edit"]').exists()).toBe(false);
+  });
+
+  it("puts the book first among a row's tags", async () => {
+    mocks.rows = [makeItem({ id: "srd_feather", is_shared: true, tags: ["beast"], source_document_key: "grimoire-bundled", source_title: "Grimoire Equipment" })];
+    const wrapper = await settled(await mountList());
+    const text = wrapper.text();
+    expect(text.indexOf("Grimoire Equipment")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Grimoire Equipment")).toBeLessThan(text.indexOf("beast"));
   });
 });

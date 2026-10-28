@@ -32,8 +32,15 @@ describe("QuestFoldRow", () => {
     expect(wrapper.findComponent(IconClock as never).exists()).toBe(true);
   });
 
-  it("applies the caution tone's border and background", () => {
-    const wrapper = mount(QuestFoldRow, { props: { title: "x", open: false, tone: "caution" } });
-    expect(wrapper.get(".overflow-hidden").classes()).toContain("border-tone-caution/50");
+  it("a second click folds the body away again", async () => {
+    const wrapper = mount(QuestFoldRow, {
+      props: { title: "Session", open: false, "onUpdate:open": (v: boolean) => wrapper.setProps({ open: v }) },
+      slots: { default: () => h("p", "Body content") },
+      attachTo: document.body,
+    });
+    await wrapper.get("[aria-expanded]").trigger("click");
+    await wrapper.get("[aria-expanded]").trigger("click");
+    expect(wrapper.get("[aria-expanded]").attributes("aria-expanded")).toBe("false");
+    expect(wrapper.emitted("update:open")).toEqual([[true], [false]]);
   });
 });

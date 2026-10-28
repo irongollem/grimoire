@@ -35,4 +35,15 @@ describe("SubclassSpellcastingFields", () => {
     const plain = mount(SubclassSpellcastingFields, { props: { modelValue: thirdCasterPreset(), baseClass: "Fighter" } });
     expect(plain.text()).not.toContain("already casts");
   });
+
+  it.each([
+    ["", 0], // a cleared box reads as 0
+    ["-2", 0], // never negative
+    ["2.7", 2], // whole slots only
+  ])("reads %j typed into a slot as %i", async (typed, stored) => {
+    const w = mount(SubclassSpellcastingFields, { props: { modelValue: thirdCasterPreset() } });
+    await w.findAll("tbody tr")[6].findAll("input")[0].setValue(typed);
+    const next = w.emitted("update:modelValue")?.[0][0] as ReturnType<typeof thirdCasterPreset>;
+    expect(next.spell_slots[6][0]).toBe(stored);
+  });
 });

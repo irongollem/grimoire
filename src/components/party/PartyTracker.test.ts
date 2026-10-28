@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
   partyData: undefined as PartyMember[] | undefined,
   partyIsError: false,
   companions: [] as unknown[],
+  classes: [] as unknown[],
+  monsters: new Map<string, { name: string }>(),
+  npcs: [] as unknown[],
   refetch: vi.fn(),
 }));
 
@@ -54,10 +57,10 @@ vi.mock("@/composables/notes/usePlayerJournal", () => ({
 }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useAllSpecies: () => ({ data: { value: [] } }), useSpeciesNames: () => () => null }));
 vi.mock("@/composables/party/useCharacterClasses", () => ({
-  useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
+  useAllCampaignCharacterClasses: () => ({ data: { value: mocks.classes } }),
 }));
-vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: { value: new Map() } }) }));
-vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: { value: mocks.monsters } }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: mocks.npcs } }) }));
 vi.mock("@/composables/rules/useOptionalRules", () => ({ useIsRuleEnabled: () => ({ value: false }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 
@@ -75,6 +78,9 @@ describe("PartyTracker", () => {
     mocks.partyData = undefined;
     mocks.partyIsError = false;
     mocks.companions = [];
+    mocks.classes = [];
+    mocks.monsters = new Map();
+    mocks.npcs = [];
     mocks.refetch.mockReset();
   });
 
@@ -124,5 +130,66 @@ describe("PartyTracker", () => {
     const wrapper = mount(PartyTracker, { global: { stubs: globalStubs } });
     const cards = wrapper.findAllComponents({ name: "CompanionCard" });
     expect(cards.map((c) => c.props("companion").id)).toEqual(["c-orphan"]);
+  });
+
+  const rows = (w: ReturnType<typeof mount>) => w.findAllComponents({ name: "PartyTrackerRow" });
+  const order = (w: ReturnType<typeof mount>) => rows(w).map((r) => r.props("member").id);
+
+  it("orders the party by initiative once everyone has rolled, otherwise by table order", () => {
+    mocks.partyData = [
+      partyMember({ id: "a", sort_order: 0, current_initiative: 8 }),
+      partyMember({ id: "b", sort_order: 1, current_initiative: 17 }),
+      partyMember({ id: "c", sort_order: 2, current_initiative: 12 }),
+    ];
+    expect(order(mount(PartyTracker, { global: { stubs: globalStubs } }))).toEqual(["b", "c", "a"]);
+    mocks.partyData = [
+      partyMember({ id: "a", sort_order: 2, current_initiative: 8 }),
+      partyMember({ id: "b", sort_order: 0, current_initiative: 17 }),
+      partyMember({ id: "c", sort_order: 1, current_initiative: null }),
+    ];
+    expect(order(mount(PartyTracker, { global: { stubs: globalStubs } }))).toEqual(["b", "c", "a"]);
+  });
+
+  it("a character with no class rows is classless at its own level; one class names it; several are joined with total level", () => {
+    mocks.partyData = [
+      partyMember({ id: "none", sort_order: 0, level: 4 }),
+      partyMember({ id: "one", sort_order: 1, level: 1 }),
+      partyMember({ id: "multi", sort_order: 2, level: 1 }),
+    ];
+    mocks.classes = [
+      { party_member_id: "one", class_name: "Wizard", levels: 3, is_primary: true, sort_order: 0 },
+      { party_member_id: "multi", class_name: "Fighter", levels: 2, is_primary: true, sort_order: 0 },
+      { party_member_id: "multi", class_name: "Rogue", levels: 1, is_primary: false, sort_order: 1 },
+    ];
+    const w = mount(PartyTracker, { global: { stubs: globalStubs } });
+    const info = Object.fromEntries(rows(w).map((r) => [r.props("member").id, [r.props("classLabel"), r.props("levelDisplay")]]));
+    expect(info).toEqual({ none: ["", 4], one: ["Wizard", 3], multi: ["Fighter 2 / Rogue 1", 3] });
+  });
+
+  it("links a companion to the monster or NPC it was built from, and to nothing otherwise", () => {
+    mocks.partyData = [partyMember({ id: "m" })];
+    mocks.monsters = new Map([["mon-1", { name: "Wolf" }]]);
+    mocks.npcs = [{ id: "npc-1", name: "Old Tom" }];
+    mocks.companions = [
+      { id: "c1", name: "A", owner_party_member_id: null, source_type: "monster", source_monster_id: "mon-1", source_npc_id: null },
+      { id: "c2", name: "B", owner_party_member_id: null, source_type: "npc", source_monster_id: null, source_npc_id: "npc-1" },
+      { id: "c3", name: "C", owner_party_member_id: null, source_type: "custom", source_monster_id: null, source_npc_id: null },
+    ];
+    const cards = mount(PartyTracker, { global: { stubs: globalStubs } }).findAllComponents({ name: "CompanionCard" });
+    expect(cards.map((c) => [c.props("sourceName"), c.props("sourceLink")])).toEqual([
+      ["Wolf", "/bestiary/mon-1"],
+      ["Old Tom", "/npcs/npc-1"],
+      ["", ""],
+    ]);
+  });
+
+  it("gives each character only their own companions", () => {
+    mocks.partyData = [partyMember({ id: "m1", sort_order: 0 }), partyMember({ id: "m2", sort_order: 1 })];
+    mocks.companions = [
+      { id: "c1", name: "A", owner_party_member_id: "m1", source_monster_id: null },
+      { id: "c2", name: "B", owner_party_member_id: "m2", source_monster_id: null },
+    ];
+    const w = mount(PartyTracker, { global: { stubs: globalStubs } });
+    expect(rows(w).map((r) => (r.props("companions") as { id: string }[]).map((c) => c.id))).toEqual([["c1"], ["c2"]]);
   });
 });

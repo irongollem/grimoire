@@ -59,4 +59,27 @@ describe("pinDraft", () => {
     expect(hasFace(pinToDraft(pin({ headline: null, body: null, image_url: null })))).toBe(false);
     expect(hasFace(pinToDraft(pin({ headline: null, body: "LOST: one goat", image_url: null })))).toBe(true);
   });
+
+  it.each([
+    ["style", { style: "note" as const }],
+    ["image", { image_url: "https://example.invalid/other.webp" }],
+    ["seal", { seal: "black" as const }],
+    ["reward", { reward: "75 gold" }],
+    ["body", { body: "Something else" }],
+    ["quest", { quest_id: "q2" }],
+    ["handout", { handout_id: "h1" }],
+  ])("sees a changed %s as an edit worth saving", (_name, change) => {
+    const a = pinToDraft(pin());
+    expect(draftsEqual(a, { ...a, ...change })).toBe(false);
+  });
+
+  it("keeps the picture for a picture-style notice and drops it from a note", () => {
+    const base = { image_url: "https://example.invalid/x.webp" };
+    expect(draftToUpdate(pinToDraft(pin({ style: "image", ...base }))).image_url).toBe(base.image_url);
+    expect(draftToUpdate(pinToDraft(pin({ style: "note", ...base }))).image_url).toBeNull();
+  });
+
+  it("counts a picture alone as something to show", () => {
+    expect(hasFace(pinToDraft(pin({ headline: null, body: null, image_url: "https://example.invalid/x.webp" })))).toBe(true);
+  });
 });

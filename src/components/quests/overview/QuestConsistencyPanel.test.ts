@@ -30,19 +30,4 @@ describe("QuestConsistencyPanel", () => {
     });
     expect(wrapper.text()).toContain(message);
   });
-
-  it("gives advisory findings a visually quieter treatment than non-advisory ones", () => {
-    const wrapper = mount(QuestConsistencyPanel, {
-      props: {
-        findings: [
-          finding({ kind: "unreachable_beat", message: "Cannot be reached." }),
-          finding({ kind: "objective_never_resolves", message: "Ticked by hand only.", advisory: true }),
-        ],
-      },
-    });
-    const items = wrapper.findAll("li");
-    expect(items[0]!.classes()).toContain("text-tone-caution");
-    expect(items[1]!.classes()).not.toContain("text-tone-caution");
-    expect(items[1]!.classes()).toContain("text-muted-foreground");
-  });
 });

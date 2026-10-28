@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminProvidersTab from "./AdminProvidersTab.vue";
@@ -50,7 +50,7 @@ vi.mock("@/composables/admin/useAdminKeys", () => ({
 vi.mock("@/composables/admin/useAdminProviders", () => ({
   PROVIDER_LABELS: { openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini" },
   useAdminProviders: () => ({
-    query: { isPending: ref(false), isError: ref(false), data: ref([providerRow()]) },
+    query: { isPending: ref(false), isError: ref(false), data: ref([providerRow({ image_model: "gpt-image-2" })]) },
     update: { mutateAsync: mocks.update },
   }),
 }));
@@ -124,5 +124,42 @@ describe("AdminProvidersTab — fast model field", () => {
     expect(mocks.update).toHaveBeenCalledTimes(1);
     const payload = mocks.update.mock.calls[0]![0] as Partial<ProviderConfig>;
     expect(payload.fast_text_model).toBeNull();
+  });
+  it("treats blank fallback boxes (map styler, Chronicler) as unchanged null rather than saving an empty model id", async () => {
+    const wrapper = mount(AdminProvidersTab);
+    // The map styler and the Chronicler share the same fallback placeholder.
+    for (const box of wrapper.findAll('input[placeholder="Falls back to the image model"]')) {
+      await box.setValue("   ");
+      await box.trigger("change");
+    }
+    await wrapper.find('button[aria-label="Save config"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("does not save the same edit twice: once saved, a second click sends nothing", async () => {
+    const wrapper = mount(AdminProvidersTab);
+    const fastInput = wrapper.find('input[placeholder="Falls back to the text model"]');
+    await fastInput.setValue("gpt-5.6-luna-nano");
+    await fastInput.trigger("change");
+    await wrapper.find('button[aria-label="Save config"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('button[aria-label="Save config"]').trigger("click");
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the edit and shows the reason when a save fails", async () => {
+    mocks.update.mockRejectedValueOnce(new Error("Row is locked"));
+    const wrapper = mount(AdminProvidersTab);
+    const fastInput = wrapper.find('input[placeholder="Falls back to the text model"]');
+    await fastInput.setValue("gpt-5.6-luna-nano");
+    await fastInput.trigger("change");
+    await wrapper.find('button[aria-label="Save config"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("Row is locked");
+    await wrapper.find('button[aria-label="Save config"]').trigger("click");
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledTimes(2);
   });
 });

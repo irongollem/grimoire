@@ -9,4 +9,14 @@ describe("hpTextClass", () => {
     expect(hpTextClass(0, 40)).toBe("text-destructive");
     expect(hpTextClass(0, 0)).toBe("text-destructive");
   });
+
+  // app convention: red below a third, amber below two thirds, green from two thirds up.
+  it.each([
+    [32, "text-destructive"],
+    [33, "text-ink-caution"],
+    [65, "text-ink-caution"],
+    [66, "text-elven-green"],
+  ])("%i of 100 HP reads %s", (hp, cls) => {
+    expect(hpTextClass(hp, 100)).toBe(cls);
+  });
 });

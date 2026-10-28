@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   userId: "me",
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  customize: vi.fn(),
 }));
 
 vi.mock("vue-router", () => ({
@@ -48,7 +49,7 @@ vi.mock("@/composables/items/useItems", () => ({
     data: ref({ item: mocks.item, isShared: mocks.isShared }),
     isLoading: ref(false),
   }),
-  useCustomizeLibraryItem: () => ({ customizeLibraryItem: vi.fn() }),
+  useCustomizeLibraryItem: () => ({ customizeLibraryItem: mocks.customize }),
 }));
 
 vi.mock("@/stores/auth", () => ({
@@ -242,5 +243,76 @@ describe("ItemDetailView — a co-DM's view of the owner's personal item (#590)"
     ownersItem("me");
     const wrapper = await mountView();
     expect(wrapper.findComponent({ name: "ItemDetail" }).exists()).toBe(true);
+  });
+});
+
+describe("ItemDetailView — a library item is read only", () => {
+  beforeEach(() => {
+    mocks.route.name = "item-detail";
+    mocks.route.params = { id: "srd-sword" };
+    mocks.route.query = {};
+    mocks.item = { id: "srd-sword", name: "Longsword", item_type: "weapon", rarity: "common", campaign_id: null, user_id: "" };
+    mocks.isShared = true;
+    mocks.replace.mockReset();
+    mocks.toastError.mockReset();
+    mocks.customize.mockReset();
+  });
+
+  const cloneButton = (w: Awaited<ReturnType<typeof mountView>>) => w.findAll("button").find((b) => b.text().includes("Clone to customize"));
+
+  it("never opens the editor for it, even with ?edit=true", async () => {
+    mocks.route.query = { edit: "true" };
+    const wrapper = await mountView();
+    expect(wrapper.findComponent({ name: "ItemDetail" }).exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "ItemSheet" }).exists()).toBe(true);
+    expect(wrapper.findAll("button").some((b) => /Save|Delete/.test(b.text()))).toBe(false);
+  });
+
+  it("clones it to an editable copy and opens that copy in the editor", async () => {
+    mocks.customize.mockResolvedValue({ id: "my-sword" });
+    const wrapper = await mountView();
+    await cloneButton(wrapper)!.trigger("click");
+    await flushPromises();
+    expect(mocks.customize).toHaveBeenCalledTimes(1);
+    expect(mocks.replace).toHaveBeenCalledWith("/vault/my-sword?edit=true");
+  });
+
+  it("says so and stays on the library item when the clone fails", async () => {
+    mocks.customize.mockRejectedValue(new Error("quota"));
+    const wrapper = await mountView();
+    await cloneButton(wrapper)!.trigger("click");
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith("quota");
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("ItemDetailView — view and edit toggle the address, keeping the rest of it", () => {
+  beforeEach(() => {
+    mocks.route.name = "item-detail";
+    mocks.route.params = { id: "item-1" };
+    mocks.item = { id: "item-1", name: "Longsword of Testing", item_type: "weapon", rarity: "uncommon", campaign_id: "c", user_id: "me" };
+    mocks.isShared = false;
+    mocks.userId = "me";
+    mocks.replace.mockReset();
+  });
+
+  it("Edit adds the flag, View drops only the flag", async () => {
+    mocks.route.query = { tab: "notes" };
+    const viewing = await mountView();
+    await viewing.findAll("button").find((b) => b.text().includes("Edit"))!.trigger("click");
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { tab: "notes", edit: "true" } });
+    viewing.unmount();
+
+    mocks.route.query = { tab: "notes", edit: "true" };
+    const editing = await mountView();
+    await editing.findAll("button").find((b) => b.text().includes("View"))!.trigger("click");
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { tab: "notes" } });
+  });
+
+  it("describes the item by type and rarity under its name", async () => {
+    mocks.route.query = {};
+    const wrapper = await mountView();
+    expect(wrapper.text()).toContain("Weapon · Uncommon");
   });
 });

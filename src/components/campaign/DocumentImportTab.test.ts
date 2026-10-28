@@ -85,4 +85,24 @@ describe("DocumentImportTab and a wiki export", () => {
     expect(wrapper.findComponent({ name: "DocumentImportWizard" }).exists()).toBe(true);
     expect(wrapper.findComponent({ name: "ArchiveImportPanel" }).exists()).toBe(false);
   });
+
+  describe("a failed AI import", () => {
+    const failed = (expires_at: string) =>
+      row({ source_kind: "text", status: "failed", error: "The model gave up.", expires_at, extracted: {}, imported_counts: {}, ai_provenance: null });
+    const retry = (w: ReturnType<typeof mount>) => w.findAll("button").find((b) => b.text() === "Retry extraction");
+
+    it("offers Retry while the stored document still exists", () => {
+      mocks.active.value = failed(new Date(Date.now() + 86_400_000).toISOString());
+      const wrapper = mount(DocumentImportTab);
+      expect(wrapper.text()).toContain("The model gave up.");
+      expect(retry(wrapper)).toBeDefined();
+    });
+
+    it("withdraws Retry once the document has expired and been swept, keeping Discard", () => {
+      mocks.active.value = failed(new Date(Date.now() - 86_400_000).toISOString());
+      const wrapper = mount(DocumentImportTab);
+      expect(retry(wrapper)).toBeUndefined();
+      expect(wrapper.findAll("button").some((b) => b.text() === "Discard")).toBe(true);
+    });
+  });
 });

@@ -3,7 +3,7 @@ import { reactive, ref } from "vue";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import FamilyTreeView from "./FamilyTreeView.vue";
-import { key, makeSource } from "@/components/kinship/testGraph";
+import { edge, key, makeSource, person, sourceOf } from "@/components/kinship/testGraph";
 import { useFamilyUiStore } from "@/stores/ui/family";
 
 const mocks = vi.hoisted(() => ({
@@ -112,5 +112,68 @@ describe("FamilyTreeView", () => {
     mocks.route.params = { key: "npc:nobody" };
     const w = mountView();
     expect(w.text()).toContain("This person is not in your book.");
+  });
+
+  it("keeps the centred person on screen whatever the toggles hide", async () => {
+    mocks.route.params = { key: "npc:aldous" };
+    const ui = useFamilyUiStore();
+    ui.familyShowDead = false;
+    const w = mountView();
+    await flushPromises();
+    expect(names(w)).toContain("Aldous");
+    expect(names(w)).not.toContain("Hesta");
+  });
+
+  it("hides a spouse who came into the family when that toggle is off, and only then", async () => {
+    mocks.dm.mockImplementation(() =>
+      sourceOf(
+        [person("mum", "Mum", 1400), person("bren", "Bren", 1428), person("wife", "Wife", 1430)],
+        [edge("1", "mum", "bren", "parent"), edge("2", "bren", "wife", "spouse")],
+      ),
+    );
+    mocks.route.params = { key: "npc:bren" };
+    const w = mountView();
+    expect(names(w)).toContain("Wife");
+    const ui = useFamilyUiStore();
+    ui.familyShowMarriedIn = false;
+    await flushPromises();
+    expect(names(w)).not.toContain("Wife");
+    expect(names(w)).toContain("Mum");
+  });
+
+  it("re-centres a player on the player's tree, not the DM's", async () => {
+    mocks.route.meta = { layout: "player" };
+    const w = mountView();
+    const aldous = w.findAllComponents({ name: "KinCard" }).find((c) => c.text().includes("Aldous"));
+    await aldous?.trigger("click");
+    expect(mocks.replace).toHaveBeenCalledWith({ name: "play-family-tree", params: { key: key("aldous") } });
+  });
+
+  it("does not take someone with parents for a spouse who married in just because their partner has parents too", async () => {
+    mocks.dm.mockImplementation(() =>
+      sourceOf(
+        [person("mum", "Mum", 1400), person("bren", "Bren", 1428), person("wife", "Wife", 1430), person("inlaw", "Inlaw", 1405)],
+        [edge("1", "mum", "bren", "parent"), edge("2", "bren", "wife", "spouse"), edge("3", "inlaw", "wife", "parent")],
+      ),
+    );
+    mocks.route.params = { key: "npc:bren" };
+    const w = mountView();
+    const ui = useFamilyUiStore();
+    ui.familyShowMarriedIn = false;
+    await flushPromises();
+    expect(names(w)).toContain("Wife");
+  });
+
+  it("folds a branch again once the tree is centred on someone else", async () => {
+    const route = reactive(mocks.route);
+    const w = mountView();
+    await w.findAll("button").find((b) => /child/.test(b.text()))!.trigger("click");
+    await flushPromises();
+    expect(names(w)).toContain("Pip");
+    route.params = { key: "npc:tomas" };
+    await flushPromises();
+    route.params = { key: "npc:brenna" };
+    await flushPromises();
+    expect(names(w)).not.toContain("Pip");
   });
 });

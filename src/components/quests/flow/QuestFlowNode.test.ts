@@ -201,4 +201,50 @@ describe("QuestFlowNode", () => {
     expect(wrapper.emitted("select")).toBeUndefined();
     expect(wrapper.emitted("open")).toBeUndefined();
   });
+
+  const present = (over: Record<string, unknown> = {}) => ({
+    prepGapCount: 0, prepGaps: [], handoutCount: 0,
+    loot: { total: 0, undispatched: 0, unclaimed: 0 },
+    isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
+    reach: "ahead", currentThreadIds: [],
+    payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null,
+    ...over,
+  });
+  const nodeOf = (props: Record<string, unknown>) =>
+    mount(QuestFlowNode, { props: { title: "A beat", kind: "social", visibility: "hidden", ...props }, global: { stubs: { Handle: true } } });
+
+  it.each([
+    ["a read-only canvas", { editable: false }],
+    ["a beat that cannot be deleted", { deletable: false }],
+  ])("Delete removes nothing on %s", async (_name, props) => {
+    const wrapper = nodeOf(props);
+    await wrapper.get("button.quest-flow-node__main").trigger("keydown", { key: "Delete" });
+    expect(wrapper.emitted("delete")).toBeUndefined();
+  });
+
+  it("announces 'ready' for a beat with no prep gaps, and 'Untitled beat' for a blank title", () => {
+    const label = nodeOf({ title: "", presentation: present() }).get("button.quest-flow-node__main").attributes("aria-label");
+    expect(label).toBe("Untitled beat, Social, hidden, ready");
+  });
+
+  it("pluralises handouts", () => {
+    expect(nodeOf({ presentation: present({ handoutCount: 2 }) }).text()).toContain("2 handouts");
+  });
+
+  it("marks a cut-off beat with a Cut off chip", () => {
+    const wrapper = nodeOf({ presentation: present({ reach: "stranded" }) });
+    expect(wrapper.get(".is-cutoff").text()).toBe("Cut off");
+    expect(nodeOf({ presentation: present({ reach: "visited", isVisited: true }) }).find(".is-cutoff").exists()).toBe(false);
+  });
+
+  it("colours the current beat's border by the first thread standing on it", () => {
+    const threads = [
+      { id: "main", status: "live" as const, created_at: "2026-09-01T00:00:00Z", label: "The petition" },
+      { id: "vault", status: "live" as const, created_at: "2026-09-03T00:00:00Z", label: "The Drowned Vault" },
+    ];
+    const wrapper = nodeOf({ threads, presentation: present({ reach: "current", isCurrent: true, currentThreadIds: ["vault", "main"] }) });
+    // Thread B (the vault) is first in line here, and B's tone is the info one; A's is primary.
+    expect(wrapper.get("article").classes()).toContain("border-tone-info");
+    expect(wrapper.get("article").classes()).not.toContain("border-primary");
+  });
 });

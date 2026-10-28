@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import ConnectionSlip from "./ConnectionSlip.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 
 const RouterLink = { props: ["to"], template: "<a :href='to'><slot /></a>" };
 function mountSlip(props: Record<string, unknown>, slots: Record<string, string> = {}) {
@@ -57,5 +58,18 @@ describe("ConnectionSlip", () => {
     expect(w.find("span[aria-hidden='true']").classes()).toContain("border-primary");
     expect(w.find("span.line-through").exists()).toBe(true);
     expect(w.attributes("data-dead")).toBe("true");
+  });
+
+  it("takes the initial from the first letter of the trimmed name, and a ? when there is no name", () => {
+    expect(mountSlip({ name: "  maera" }).find("span[aria-hidden='true']").text()).toBe("M");
+    expect(mountSlip({ name: "   " }).find("span[aria-hidden='true']").text()).toBe("?");
+  });
+
+  it("draws a token portrait as a token and any other as a square", () => {
+    const stubs = { RouterLink, FocalImage: true };
+    const token = mount(ConnectionSlip, { props: { name: "Maera", image: "/p.webp", imageFormat: "token" }, global: { stubs } });
+    expect(token.findComponent(FocalImage).props("format")).toBe("token");
+    const portrait = mount(ConnectionSlip, { props: { name: "Maera", image: "/p.webp" }, global: { stubs } });
+    expect(portrait.findComponent(FocalImage).props("format")).toBe("square");
   });
 });

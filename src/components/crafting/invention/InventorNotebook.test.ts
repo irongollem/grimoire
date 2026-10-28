@@ -151,4 +151,49 @@ describe("InventorNotebook", () => {
     expect(button(w, "Send to your DM")).toBeUndefined();
     expect(w.text()).toContain("Only the player can invent");
   });
+  it("empties the wish once a draft came back, and keeps it when the invention failed", async () => {
+    const w = mountIt();
+    const wishBox = () => w.find("textarea").element as HTMLTextAreaElement;
+    mocks.inventFromIdea.mockResolvedValueOnce(null);
+    await w.find("textarea").setValue("a lantern");
+    await button(w, "Invent")?.trigger("click");
+    await flushPromises();
+    expect(wishBox().value).toBe("a lantern");
+    mocks.inventFromIdea.mockResolvedValueOnce({ kind: "invention", invention: { id: "i9" } });
+    await button(w, "Invent")?.trigger("click");
+    await flushPromises();
+    expect(wishBox().value).toBe("");
+  });
+
+  it("revises with a trimmed note, charges first, and closes the note only once the revision came back", async () => {
+    mocks.list.value = [inv("draft")];
+    const w = mountIt();
+    await button(w, "Revise")?.trigger("click");
+    const noteBox = () => w.findAll("textarea").at(-1)!;
+    await noteBox().setValue("  lighter  ");
+
+    mocks.requireCredits.mockReturnValueOnce(false);
+    await button(w, "Revise")?.trigger("click");
+    expect(mocks.revise).not.toHaveBeenCalled();
+
+    mocks.revise.mockResolvedValueOnce(null);
+    await button(w, "Revise")?.trigger("click");
+    await flushPromises();
+    expect(mocks.revise).toHaveBeenCalledWith("i1", "lighter");
+    expect(w.text()).toContain("What should change?");
+
+    mocks.revise.mockResolvedValueOnce(inv("draft"));
+    await button(w, "Revise")?.trigger("click");
+    await flushPromises();
+    expect(w.text()).not.toContain("What should change?");
+  });
+
+  it("closes the revise note when Revise is pressed a second time on the same draft", async () => {
+    mocks.list.value = [inv("draft")];
+    const w = mountIt();
+    await button(w, "Revise")?.trigger("click");
+    expect(w.text()).toContain("What should change?");
+    await button(w, "Cancel revising")?.trigger("click");
+    expect(w.text()).not.toContain("What should change?");
+  });
 });

@@ -22,6 +22,10 @@ const mocks = vi.hoisted(() => ({
   objectives: { value: [] as Array<Record<string, unknown>> },
   consequences: { value: [] as Array<Record<string, unknown>> },
   locations: { value: [] as Array<Record<string, unknown>> },
+  attachments: { value: [] as Array<Record<string, unknown>> },
+  loot: { value: [] as Array<Record<string, unknown>> },
+  confirm: undefined as unknown as (...args: unknown[]) => Promise<boolean>,
+  hotkeys: [] as Array<{ list: { value: Array<{ combo: string; handler: () => void }> }; options: { enabled: { value: boolean } } }>,
   threads: { value: [{ id: "thread-1", status: "live", label: "Main", created_at: "2026-01-01T00:00:00Z" }] as Array<Record<string, unknown>> },
   mutateAsync: vi.fn(),
   updateBeat: vi.fn(),
@@ -38,8 +42,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("vue-router", () => ({ useRoute: () => mocks.route, useRouter: () => ({ replace: mocks.replace }) }));
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn(async () => true) }) }));
-vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: (...args: unknown[]) => mocks.confirm(...args) }) }));
+vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: (list: { value: Array<{ combo: string; handler: () => void }> }, options: { enabled: { value: boolean } }) => { mocks.hotkeys.push({ list, options }); } }));
 vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   useBelow: () => ref(mocks.belowXl),
@@ -65,8 +69,8 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestBeats: () => ({ data: mocks.beats }),
   useQuestBeat: () => ({ data: mocks.bridgeBeat }),
   useQuestBeatEdges: () => ({ data: mocks.edges }),
-  useQuestBeatAttachmentSummaries: () => ({ data: { value: [] } }),
-  useLootPlacements: () => ({ data: { value: [] } }),
+  useQuestBeatAttachmentSummaries: () => ({ data: mocks.attachments }),
+  useLootPlacements: () => ({ data: mocks.loot }),
   useQuestConsequences: () => ({ data: mocks.consequences }),
   useQuestUnlockEntry: () => ({ data: mocks.unlockEntry }),
   useQuestRuntimeJumpTargets: () => ({ data: mocks.targets }),
@@ -77,6 +81,11 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 vi.mock("@/composables/quests/useQuestThreads", () => ({
   useQuestThreads: () => ({ data: mocks.threads }),
 }));
+
+// Reactive, so a test can move the session to another beat while the cockpit is mounted.
+mocks.context = ref<Record<string, unknown> | null>(null);
+const confirmMock = vi.fn(async (..._args: unknown[]) => true);
+mocks.confirm = confirmMock;
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Opening", kind: "social" };
 const runningContext = () => ({
@@ -118,6 +127,10 @@ describe("QuestRunCockpit", () => {
     mocks.objectives.value = [];
     mocks.consequences.value = [];
     mocks.locations.value = [];
+    mocks.attachments.value = [];
+    mocks.loot.value = [];
+    confirmMock.mockReset().mockResolvedValue(true);
+    mocks.hotkeys = [];
     mocks.threads.value = [{ id: "thread-1", status: "live", label: "Main", created_at: "2026-01-01T00:00:00Z" }];
     mocks.route.query = {};
     mocks.activeCampaignId = "c1";
@@ -279,6 +292,14 @@ describe("QuestRunCockpit", () => {
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
+  it("switching thread keeps the rest of the page's query", () => {
+    mocks.context.value = runningContext();
+    mocks.route.query = { view: "run", panel: "notes" };
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    wrapper.findComponent(QuestThreadBar).vm.$emit("switch", "thread-2");
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { view: "run", panel: "notes", thread: "thread-2" } });
+  });
+
   it("opens a beat attachment in the lazy contained surface", async () => {
     mocks.context.value = runningContext();
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
@@ -432,6 +453,179 @@ describe("QuestRunCockpit", () => {
     expect(wrapper.findComponent(QuestRunOpenChains).props("chains")).toEqual([
       expect.objectContaining({ quest_id: "q2", runtime_status: "paused" }),
     ]);
+  });
+
+  describe("what the cockpit hands its parts", () => {
+    const mountRunning = () => {
+      mocks.context.value = runningContext();
+      return shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    };
+    const attachment = (id: string, beatId: string, over: Record<string, unknown> = {}) => ({
+      id, beat_id: beatId, quest_id: "q1", campaign_id: "c1", attachment_type: "npc", ref_id: id, label: id,
+      target_exists: true, prep_gap: false, compact_detail: null, full_editor_to: null,
+      role: "", is_required: true, metadata: {}, sort_order: 0, created_by: "dm", created_at: "now", ...over,
+    });
+    const lootRow = (id: string, delivery_state: string) => ({ id, beat_id: "b1", quest_id: "q1", campaign_id: "c1", delivery_state });
+
+    it("gives the beat card only this beat's placements", () => {
+      mocks.attachments.value = [attachment("mine", "b1"), attachment("theirs", "b2")];
+      const card = mountRunning().findComponent(QuestRunBeatCard);
+      expect((card.props("attachments") as Array<{ id: string }>).map((a) => a.id)).toEqual(["mine"]);
+    });
+
+    it("hands the held payoff panel only loot still waiting to be dropped", () => {
+      mocks.loot.value = [lootRow("held-1", "held"), lootRow("chat-1", "chat"), lootRow("claimed-1", "claimed")];
+      const panel = mountRunning().findAllComponents({ name: "QuestRunHeldPayoff" })[0]!;
+      expect((panel.props("loot") as Array<{ id: string }>).map((l) => l.id)).toEqual(["held-1"]);
+    });
+
+    it("counts what waits on the DM in the folded payoff row, singular and plural, and shows no row when nothing waits", () => {
+      const caption = (w: ReturnType<typeof mountRunning>) => w.findAllComponents({ name: "QuestFoldRow" }).find((r) => r.props("title") === "Held payoff");
+      expect(caption(mountRunning())).toBeUndefined();
+      mocks.loot.value = [lootRow("held-1", "held")];
+      mocks.context.value = { ...runningContext(), held: [{ event_id: "ev-1" }] };
+      expect(caption(shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } }))!.props("caption")).toBe("2 waiting on you: 1 loot, 1 consequence");
+      mocks.context.value = { ...runningContext(), held: [{ event_id: "ev-1" }, { event_id: "ev-2" }] };
+      mocks.loot.value = [];
+      expect(caption(shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } }))!.props("caption")).toBe("2 waiting on you: 2 consequences");
+    });
+
+    it("tells each next route whether its beat is revealed, how many prep gaps it has, and whether the party has been there", () => {
+      mocks.beats.value = [beat, { id: "b2", quest_id: "q1", campaign_id: "c1", title: "Next", kind: "neutral", visibility: "revealed", presentation_hint: "Chase" }];
+      mocks.attachments.value = [attachment("gap-1", "b2", { prep_gap: true }), attachment("gap-2", "b2", { prep_gap: true }), attachment("fine", "b2")];
+      mocks.context.value = { ...runningContext(), path_so_far: [{ to_beat_id: "b2" }] };
+      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      expect(wrapper.findComponent(QuestRunOutcomeStrip).props("outgoing")).toEqual([
+        expect.objectContaining({ edge_id: "e1", visibility: "revealed", presentationHint: "Chase", prepGapCount: 2, isVisited: true }),
+      ]);
+    });
+
+    it("a route to a beat the quest has no row for reads as hidden, unvisited and without gaps", () => {
+      mocks.beats.value = [beat];
+      expect(mountRunning().findComponent(QuestRunOutcomeStrip).props("outgoing")).toEqual([
+        expect.objectContaining({ visibility: "hidden", presentationHint: null, prepGapCount: 0, isVisited: false }),
+      ]);
+    });
+
+    it("jump offers every other beat, most recently visited first, and never the one the party is on", async () => {
+      mocks.targets.value = [
+        { quest_id: "q1", beat_id: "b1", beat_title: "Opening" },
+        { quest_id: "q1", beat_id: "bA", beat_title: "Alpha" },
+        { quest_id: "q1", beat_id: "bB", beat_title: "Bravo" },
+        { quest_id: "q1", beat_id: "bC", beat_title: "Charlie" },
+      ];
+      mocks.context.value = { ...runningContext(), path_so_far: [{ to_beat_id: "bA" }, { to_beat_id: "bB" }] };
+      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("jump");
+      await settleAsync();
+      const targets = wrapper.findComponent({ name: "QuestRunJumpPanel" }).vm.$attrs.targets as Array<{ beat_id: string }>;
+      expect(targets.map((t) => t.beat_id)).toEqual(["bB", "bA", "bC"]);
+    });
+  });
+
+  describe("commands, failures and the session", () => {
+    const mountRunning = () => {
+      mocks.context.value = runningContext();
+      return shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    };
+
+    it("ending the session asks first, and a 'no' ends nothing", async () => {
+      confirmMock.mockResolvedValue(false);
+      const wrapper = mountRunning();
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("end");
+      await flushPromises();
+      expect(mocks.mutateAsync).not.toHaveBeenCalled();
+      confirmMock.mockResolvedValue(true);
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("end");
+      await flushPromises();
+      expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "end", expectedVersion: 4 }));
+    });
+
+    it("a refused command is shown, the position is read again, and the session panel is usable afterwards", async () => {
+      mocks.mutateAsync.mockRejectedValueOnce(new Error("Someone else moved the session"));
+      const wrapper = mountRunning();
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("pause");
+      await flushPromises();
+      expect(wrapper.text()).toContain("Someone else moved the session");
+      expect(mocks.refetch).toHaveBeenCalledTimes(1);
+      expect(wrapper.findComponent(QuestRunSessionPanel).props("disabled")).toBe(false);
+    });
+
+    it("a refused command with no message says the position could not be changed", async () => {
+      mocks.mutateAsync.mockRejectedValueOnce("nope");
+      const wrapper = mountRunning();
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("pause");
+      await flushPromises();
+      expect(wrapper.text()).toContain("The session position could not be changed");
+    });
+
+    it("a jump closes the picker once it lands, and records where it came from and that a way back is kept only when asked", async () => {
+      const wrapper = mountRunning();
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("jump");
+      await settleAsync();
+      wrapper.findComponent({ name: "QuestRunJumpPanel" }).vm.$emit("jump", { quest_id: "q1", beat_id: "b9" }, "A detour", false);
+      await flushPromises();
+      expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+        command: "jump", reason: "A detour", pushReturn: false, provenance: { surface: "quest-run-jump" },
+      }));
+      expect(wrapper.findComponent({ name: "QuestRunJumpPanel" }).exists()).toBe(false);
+    });
+
+    it("the Advance dialog closes when the transition is recorded", async () => {
+      const wrapper = mountRunning();
+      wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("choose", "e1");
+      await settleAsync();
+      wrapper.findComponent({ name: "QuestAdvanceDialog" }).vm.$emit("advanced", runningContext());
+      await nextTick();
+      expect(wrapper.findComponent({ name: "QuestAdvanceDialog" }).exists()).toBe(false);
+    });
+
+    it("moving to another beat closes the contained tool and puts the beat in the address", async () => {
+      mocks.beats.value = [beat, { ...beat, id: "b2", title: "Next" }];
+      const wrapper = mountRunning();
+      wrapper.findComponent(QuestRunBeatCard).vm.$emit("open-attachment", { id: "a1", beat_id: "b1", attachment_type: "npc" });
+      await nextTick();
+      expect((wrapper.vm as unknown as { selectedAttachment: unknown }).selectedAttachment).not.toBeNull();
+      mocks.replace.mockClear();
+      mocks.context.value = { ...runningContext(), current: { ...beat, id: "b2", title: "Next" } };
+      await nextTick();
+      expect((wrapper.vm as unknown as { selectedAttachment: unknown }).selectedAttachment).toBeNull();
+      expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "b2" } });
+    });
+
+    describe("keyboard shortcuts", () => {
+      const keys = (w: ReturnType<typeof mountRunning>) => {
+        const registered = mocks.hotkeys.at(-1)!;
+        return { list: registered.list.value, enabled: () => registered.options.enabled.value, w };
+      };
+      it("are live only while the session is running and nothing else is open", async () => {
+        const wrapper = mountRunning();
+        expect(keys(wrapper).enabled()).toBe(true);
+        wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("choose", "e1");
+        await settleAsync();
+        expect(keys(wrapper).enabled()).toBe(false);
+
+        mocks.context.value = { ...runningContext(), state: { ...runningContext().state, status: "paused" } };
+        await nextTick();
+        const paused = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+        expect(keys(paused).enabled()).toBe(false);
+      });
+
+      it("Alt+Right takes the one open route, and does nothing when two are open", async () => {
+        const wrapper = mountRunning();
+        keys(wrapper).list.find((k) => k.combo === "alt+arrowright")!.handler();
+        await settleAsync();
+        expect(wrapper.findComponent({ name: "QuestAdvanceDialog" }).vm.$attrs[attr("preselectedEdgeId")]).toBe("e1");
+
+        const two = runningContext();
+        two.outgoing = [...two.outgoing, { ...two.outgoing[0]!, edge_id: "e2", beat_id: "b3" }];
+        mocks.context.value = two;
+        const second = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+        keys(second).list.find((k) => k.combo === "alt+arrowright")!.handler();
+        await settleAsync();
+        expect(second.findComponent({ name: "QuestAdvanceDialog" }).exists()).toBe(false);
+      });
+    });
   });
 
   // #872, frame 1: below xl the rail becomes a docked "What happens next" +

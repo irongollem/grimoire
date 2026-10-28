@@ -156,6 +156,28 @@ describe("SpeciesList — campaign scope", () => {
   });
 });
 
+describe("SpeciesList — who may edit", () => {
+  beforeEach(() => {
+    allSpecies.value = [customSpecies(1, { name: "Mine" }), sharedSpecies("srd_elf")];
+  });
+  const editTargets = async (props: Record<string, unknown>) => {
+    const wrapper = await mountList(props);
+    await flushMicrotasks();
+    return wrapper.findAllComponents({ name: "OptionGridCard" }).map((c) => [c.props("title"), c.props("editTo")]);
+  };
+
+  it("offers Edit on a species the DM made, never on a shared library one", async () => {
+    expect(await editTargets({})).toEqual([
+      ["Mine", `/species/${uuid(1)}?edit=true`],
+      ["srd_elf", null],
+    ]);
+  });
+
+  it("offers no Edit at all in a read-only list", async () => {
+    expect((await editTargets({ readonly: true })).map(([, to]) => to)).toEqual([null, null]);
+  });
+});
+
 describe("SpeciesList — bulk selection (#875)", () => {
   beforeEach(() => {
     allSpecies.value = [];

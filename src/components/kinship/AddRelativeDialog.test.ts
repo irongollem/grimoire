@@ -10,12 +10,16 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   failAt: 0,
   toastError: vi.fn(),
+  createNpc: vi.fn(),
+  ai: true,
+  rejectWith: null as unknown,
 }));
 
 vi.mock("@/composables/kinship/useKinGraph", () => ({ useDmKinGraph: () => mocks.dm }));
 vi.mock("@/composables/kinship/useKinLinks", () => ({
   useCreateKinLink: () => ({
     mutateAsync: async (row: Record<string, unknown>) => {
+      if (mocks.rejectWith) throw mocks.rejectWith;
       if (mocks.failAt && mocks.created.length + 1 === mocks.failAt) throw new Error("boom");
       mocks.created.push(row);
       return { id: `new-${mocks.created.length}`, ...row };
@@ -28,12 +32,12 @@ vi.mock("@/composables/kinship/useKinLinks", () => ({
     },
   }),
 }));
-vi.mock("@/composables/npcs/useNpcs", () => ({ useCreateNpc: () => ({ mutateAsync: vi.fn() }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useCreateNpc: () => ({ mutateAsync: mocks.createNpc }) }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ success: vi.fn(), error: mocks.toastError, fromError: String }),
 }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }) }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ todayYear: 1495, isAiEnabled: true }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ todayYear: 1495, get isAiEnabled() { return mocks.ai; } }) }));
 vi.mock("@/composables/kinship/useKinClock", async () => {
   const { computed } = await import("vue");
   const { testClock } = await import("./testGraph");
@@ -58,8 +62,8 @@ const edges = [
   edge("4", "me", "kid", "parent"),
 ];
 
-function mountDialog(subject = k("me")) {
-  return mount(AddRelativeDialog, { props: { subject, open: true }, attachTo: document.body, global: { stubs: { transition: false } } });
+function mountDialog(subject = k("me"), extra: { initialRelation?: "parent" | "child" | "spouse" | "sibling" } = {}) {
+  return mount(AddRelativeDialog, { props: { subject, open: true, ...extra }, attachTo: document.body, global: { stubs: { transition: false } } });
 }
 const body = () => document.body;
 const buttonWith = (text: string) => [...body().querySelectorAll("button")].find((b) => b.textContent?.trim().startsWith(text));
@@ -88,6 +92,9 @@ beforeEach(() => {
   mocks.push.mockReset();
   mocks.failAt = 0;
   mocks.toastError.mockReset();
+  mocks.createNpc.mockReset();
+  mocks.ai = true;
+  mocks.rejectWith = null;
   document.body.innerHTML = "";
 });
 
@@ -227,5 +234,172 @@ describe("AddRelativeDialog", () => {
     expect(mocks.created).toHaveLength(1);
     expect(mocks.created[0]).toMatchObject({ from_npc_id: "me", to_npc_id: "old" });
     expect(w.emitted("added")).toHaveLength(1);
+  });
+
+  it("trims the note before it is stored", async () => {
+    mountDialog();
+    await setRelation("Child of");
+    await pick("old", "Old Bren");
+    const note = body().querySelector<HTMLInputElement>("input[placeholder^='e.g.']")!;
+    note.value = "  born the winter the river froze  ";
+    note.dispatchEvent(new Event("input"));
+    await flushPromises();
+    await save("Add parent");
+    expect(mocks.created[0]).toMatchObject({ note: "born the winter the river froze" });
+  });
+
+  it("carries the adoptive flag onto the second parent's link too", async () => {
+    mountDialog();
+    await setRelation("Parent of");
+    await pick("pip", "Pip");
+    [...body().querySelectorAll("input[type=checkbox]")].at(-1)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+    await save("Add child");
+    expect(mocks.created).toHaveLength(2);
+    expect(mocks.created.map((r) => r.adoptive)).toEqual([true, true]);
+  });
+
+  it("does not offer a second parent when the subject has no single current spouse", async () => {
+    mocks.dm = sourceOf(people, [...edges, edge("5", "me", "pip", "spouse")]);
+    mountDialog();
+    await setRelation("Parent of");
+    await pick("hale", "Hale");
+    await save("Add child");
+    expect(mocks.created).toHaveLength(1);
+  });
+
+  it("never lists the subject as a candidate for their own relative", async () => {
+    mountDialog();
+    const input = body().querySelector<HTMLInputElement>("input[placeholder^='Search']")!;
+    input.value = "Brenna";
+    input.dispatchEvent(new Event("input"));
+    await flushPromises();
+    expect([...body().querySelectorAll("ul[data-slip] button")].map((b) => b.textContent)).toEqual([]);
+  });
+
+  it("starts fresh when it opens again: the relation asked for, nobody chosen, no note", async () => {
+    const w = mountDialog(k("me"), { initialRelation: "sibling" });
+    await setRelation("Spouse of");
+    await pick("hale", "Hale");
+    await w.setProps({ open: false });
+    await w.setProps({ open: true });
+    await flushPromises();
+    expect(buttonWith("Add sibling")).toBeDefined();
+    expect((buttonWith("Add sibling") as HTMLButtonElement).disabled).toBe(true);
+    expect(body().querySelector("input[placeholder^='Search']")).not.toBeNull();
+  });
+
+  it("asks about the dates again when the DM picks someone else", async () => {
+    mocks.dm = sourceOf([...people, person("elda", "Elda", 1400)], edges);
+    mountDialog();
+    await setRelation("Parent of");
+    await pick("old", "Old Bren");
+    buttonWith("Keep it anyway")!.click();
+    await flushPromises();
+    expect(body().querySelector("[data-testid=verdict-dates]")).toBeNull();
+    buttonWith("Change")!.click();
+    await flushPromises();
+    await pick("elda", "Elda");
+    expect(body().querySelector("[data-testid=verdict-dates]")!.textContent).toContain("59 years after");
+  });
+
+  it("names both shared parents of an implied sibling", async () => {
+    mocks.dm = sourceOf(people, [...edges, edge("5", "mum", "hale", "parent"), edge("6", "old", "hale", "parent"), edge("7", "old", "me", "parent")]);
+    mountDialog();
+    await setRelation("Sibling of");
+    await pick("hale", "Hale");
+    expect(body().querySelector("[data-testid=verdict-sibling]")!.textContent).toMatch(/share (Maera and Old Bren|Old Bren and Maera),/);
+  });
+
+  it("says they are already linked when the database refuses a second link for the pair", async () => {
+    mocks.rejectWith = Object.assign(new Error("duplicate"), { code: "23505" });
+    const w = mountDialog();
+    await setRelation("Sibling of");
+    await pick("hale", "Hale");
+    await save("Add sibling");
+    expect(mocks.toastError).toHaveBeenCalledWith("They are already linked.");
+    expect(w.emitted("close")).toBeUndefined();
+  });
+
+  it("creates the typed NPC and links to them", async () => {
+    mocks.createNpc.mockResolvedValue({ id: "zed", name: "Zed" });
+    mountDialog();
+    await setRelation("Sibling of");
+    const input = body().querySelector<HTMLInputElement>("input[placeholder^='Search']")!;
+    input.value = "Zed";
+    input.dispatchEvent(new Event("input"));
+    await flushPromises();
+    buttonWith("+ New NPC")!.click();
+    await flushPromises();
+    expect(mocks.createNpc).toHaveBeenCalledWith(expect.objectContaining({ name: "Zed", is_revealed: false, player_visible_to: [] }));
+    await save("Add sibling");
+    expect(mocks.created[0]).toMatchObject({ kind: "sibling", from_npc_id: "me", to_npc_id: "zed" });
+  });
+
+  it("tells the DM they hit the NPC limit, and picks nobody", async () => {
+    mocks.createNpc.mockRejectedValue({ message: "quota_exceeded" });
+    mountDialog();
+    const input = body().querySelector<HTMLInputElement>("input[placeholder^='Search']")!;
+    input.value = "Zed";
+    input.dispatchEvent(new Event("input"));
+    await flushPromises();
+    buttonWith("+ New NPC")!.click();
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith("You have reached your NPC limit on this plan.");
+    expect((buttonWith("Add child") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("offers no AI draft when the campaign has AI off", async () => {
+    mocks.ai = false;
+    mountDialog();
+    await setRelation("Parent of");
+    const input = body().querySelector<HTMLInputElement>("input[placeholder^='Search']")!;
+    input.value = "Zed";
+    input.dispatchEvent(new Event("input"));
+    await flushPromises();
+    expect(buttonWith("Draft a child with AI")).toBeUndefined();
+  });
+
+  it("does not carry the spouse into a draft of anything but a child", async () => {
+    mountDialog();
+    await setRelation("Sibling of");
+    const input = body().querySelector<HTMLInputElement>("input[placeholder^='Search']")!;
+    input.value = "Zed";
+    input.dispatchEvent(new Event("input"));
+    await flushPromises();
+    buttonWith("Draft a sibling with AI")!.click();
+    await flushPromises();
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/npcs", query: { kin: "sibling", of: "npc:me" } });
+  });
+
+  it("opens again with the second parent ticked", async () => {
+    const w = mountDialog();
+    await setRelation("Parent of");
+    await pick("pip", "Pip");
+    body().querySelector<HTMLInputElement>("input[type=checkbox]")!.click();
+    await flushPromises();
+    await w.setProps({ open: false });
+    await w.setProps({ open: true });
+    await flushPromises();
+    await setRelation("Parent of");
+    await pick("pip", "Pip");
+    await save("Add child");
+    expect(mocks.created).toHaveLength(2);
+  });
+
+  it("opens again with the parent role unset and not adoptive", async () => {
+    const w = mountDialog();
+    await setRelation("Child of");
+    await pick("old", "Old Bren");
+    [...body().querySelectorAll("button")].find((b) => b.textContent?.trim() === "Father")!.click();
+    [...body().querySelectorAll("input[type=checkbox]")].at(-1)!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+    await w.setProps({ open: false });
+    await w.setProps({ open: true });
+    await flushPromises();
+    await setRelation("Child of");
+    await pick("old", "Old Bren");
+    await save("Add parent");
+    expect(mocks.created[0]).toMatchObject({ parent_role: null, adoptive: false });
   });
 });

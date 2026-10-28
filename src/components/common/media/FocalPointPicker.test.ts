@@ -28,6 +28,14 @@ describe("FocalPointPicker", () => {
     expect(wrapper.emitted("update:modelValue")?.[0]).toEqual([{ x: 0, y: 100 }]);
   });
 
+  it("ignores a click before the picture has any size, instead of storing NaN", async () => {
+    const wrapper = mount(FocalPointPicker, { props: { src: "a.webp", modelValue: { x: 40, y: 20 } } });
+    wrapper.get("img").element.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    await wrapper.get(".cursor-crosshair").trigger("click", { clientX: 5, clientY: 5 });
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+  });
+
   it("shows the whole picture at its own shape, not cropped into a fixed box", () => {
     const wrapper = mount(FocalPointPicker, { props: { src: "a.webp", modelValue: null, imageClass: "max-h-[70vh]" } });
     const img = wrapper.get("img");

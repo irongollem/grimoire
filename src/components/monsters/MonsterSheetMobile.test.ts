@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { sourceLabel } from "@/lib/library/sourceLabel";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
@@ -7,7 +7,7 @@ import type { Monster } from "@/types/monster.types";
 
 /** #590: a co-DM reads the owner's personal library monsters but cannot edit them. */
 
-const mocks = vi.hoisted(() => ({ userId: "me" }));
+const mocks = vi.hoisted(() => ({ userId: "me", push: vi.fn(), replace: vi.fn(), clone: vi.fn(), del: vi.fn() }));
 
 vi.mock("@/composables/library/useSourceTitles", () => ({
   useSourceTitles: () => ({
@@ -15,13 +15,14 @@ vi.mock("@/composables/library/useSourceTitles", () => ({
   }),
 }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: mocks.userId } }) }));
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), RouterLink: { template: "<a><slot /></a>" } }));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }), RouterLink: { template: "<a><slot /></a>" } }));
 vi.mock("@/composables/monsters/useMonsters", () => ({
-  useCloneLibraryMonster: () => ({ mutateAsync: vi.fn() }),
-  useDeleteMonster: () => ({ mutateAsync: vi.fn() }),
+  useCloneLibraryMonster: () => ({ mutateAsync: mocks.clone }),
+  useDeleteMonster: () => ({ mutateAsync: mocks.del }),
 }));
 vi.mock("@/composables/monsters/useMonsterDescription", () => ({ useMonsterDescription: () => ref("") }));
-vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref([]) }) }));
+const lairOptions = ref<{ id: string; name: string }[]>([]);
+vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: lairOptions }) }));
 vi.mock("@/composables/monsters/useMonsterVisibility", () => ({ useMonsterVisibility: () => ({ isDiscovered: ref(false) }) }));
 
 function monster(overrides: Partial<Monster>): Monster {
@@ -44,7 +45,7 @@ function monster(overrides: Partial<Monster>): Monster {
 
 const stubs = {
   EntitySheetMobile: {
-    template: "<div><slot name='bottom-bar' /><slot name='menu' :close='() => {}' /><slot /></div>",
+    template: "<div><slot name='after-facts' /><slot name='bottom-bar' /><slot name='menu' :close='() => {}' /><slot /></div>",
   },
   MonsterRevealControl: true,
   DmNoteBox: true,
@@ -82,5 +83,61 @@ describe("MonsterSheetMobile read-only library rows", () => {
     }
     expect(l).toContain("Copy to campaign…");
     expect(wrapper.get('[data-testid="read-only-library-note"]').text()).toContain("Read only");
+  });
+});
+
+describe("MonsterSheetMobile actions", () => {
+  const press = async (wrapper: ReturnType<typeof mount>, label: string) => {
+    await [...wrapper.findAll("button, a")].find((b) => b.text() === label)!.trigger("click");
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  beforeEach(() => {
+    mocks.userId = "me";
+    for (const m of [mocks.push, mocks.replace, mocks.clone, mocks.del]) m.mockReset();
+    lairOptions.value = [];
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("deletes only after the browser's confirm says yes, then returns to the list", async () => {
+    const confirmFn = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.stubGlobal("confirm", confirmFn);
+    const wrapper = mount(MonsterSheetMobile, { props: { monster: monster({ user_id: "me" }) }, global: { stubs } });
+    await press(wrapper, "Delete monster");
+    expect(mocks.del).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+
+    await press(wrapper, "Delete monster");
+    expect(confirmFn.mock.calls[1]![0]).toContain("Owlbear");
+    expect(mocks.del).toHaveBeenCalledTimes(1);
+    expect(mocks.push).toHaveBeenCalledWith("/monsters");
+  });
+
+  it("customizes a library monster into an editable copy and replaces the page with it", async () => {
+    mocks.clone.mockResolvedValue({ id: "copy-1" });
+    const wrapper = mount(MonsterSheetMobile, { props: { monster: monster({ user_id: "me", is_shared: true }) }, global: { stubs } });
+    await press(wrapper, "Customize");
+    expect(mocks.clone).toHaveBeenCalledTimes(1);
+    expect(mocks.replace).toHaveBeenCalledWith("/monsters/copy-1");
+  });
+
+  it("offers Customize on a library monster, and Edit on the DM's own, never both", () => {
+    const library = labels(mount(MonsterSheetMobile, { props: { monster: monster({ user_id: "me", is_shared: true }) }, global: { stubs } }));
+    expect(library).toContain("Customize");
+    expect(library).not.toContain("Delete monster");
+    const own = labels(mount(MonsterSheetMobile, { props: { monster: monster({ user_id: "me", is_shared: false }) }, global: { stubs } }));
+    expect(own).toContain("Edit");
+    expect(own).not.toContain("Customize");
+  });
+
+  it("links the lair only when it is a place in this campaign's tree", () => {
+    lairOptions.value = [{ id: "cave", name: "Stonejaw Cave" }];
+    const found = mount(MonsterSheetMobile, { props: { monster: monster({ lair_location_id: "cave" }) }, global: { stubs } });
+    expect(found.text()).toContain("Lair: Stonejaw Cave");
+    const elsewhere = mount(MonsterSheetMobile, { props: { monster: monster({ lair_location_id: "gone" }) }, global: { stubs } });
+    expect(elsewhere.text()).not.toContain("Lair:");
   });
 });

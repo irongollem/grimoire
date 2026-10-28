@@ -40,4 +40,39 @@ describe("SpellsByLevelGrid", () => {
     await w.find('button[aria-label="Remove Misty Step"]').trigger("click");
     expect(w.emitted("update:modelValue")![0][0]).toEqual({ "5": ["a", "b"] });
   });
+
+  it("draws no level rows for an empty grid, and rows in ascending level order otherwise", () => {
+    expect(mountGrid({}, "class").findAllComponents({ name: "EntityCombobox" })).toHaveLength(0);
+    const w = mountGrid({ "10": [], "2": [], "5": [] }, "class");
+    expect(w.findAll("span.text-primary").map((s) => s.text())).toEqual(["2", "5", "10"]);
+  });
+
+  it("adds a picked spell to its level, keeping the others", () => {
+    const w = mountGrid({ "3": ["a"] }, "class");
+    w.findComponent({ name: "EntityCombobox" }).vm.$emit("update:model-value", "b");
+    expect(w.emitted("update:modelValue")![0][0]).toEqual({ "3": ["a", "b"] });
+  });
+
+  it("ignores a cleared pick and a spell the level already has", () => {
+    const w = mountGrid({ "3": ["a"] }, "class");
+    const combo = w.findComponent({ name: "EntityCombobox" });
+    combo.vm.$emit("update:model-value", "");
+    combo.vm.$emit("update:model-value", "a");
+    expect(w.emitted("update:modelValue")).toBeUndefined();
+  });
+
+  it("offers a level only the spells it does not already hold", () => {
+    const w = mountGrid({ "3": ["a"] }, "class");
+    expect((w.findComponent({ name: "EntityCombobox" }).props("options") as { id: string }[]).map((o) => o.id)).toEqual(["b"]);
+  });
+
+  it("will not add a level that already has a row, nor with none chosen", async () => {
+    const w = mountGrid({ "3": ["a"] }, "class");
+    const add = () => w.findAll("button").find((b) => b.text().includes("Add class level"))!;
+    expect(add().attributes("disabled")).toBeDefined();
+    await w.find("select").setValue("3");
+    expect(add().attributes("disabled")).toBeDefined();
+    await w.find("select").setValue("4");
+    expect(add().attributes("disabled")).toBeUndefined();
+  });
 });

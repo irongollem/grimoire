@@ -43,3 +43,30 @@ describe("ExperimentOutcomeModal inventing", () => {
     expect(document.body.textContent).toContain("Nothing comes to mind: too little.");
   });
 });
+
+describe("ExperimentOutcomeModal results", () => {
+  it("offers a match to attempt now by its recipe, and to keep experimenting instead", () => {
+    const w = open({ result: "match", recipeId: "r-dagger", name: "Dagger" }, { chatNotice: "Posted to the table." });
+    expect(document.body.textContent).toContain("Posted to the table.");
+    button("Attempt it now")?.click();
+    expect(w.emitted("attempt")).toEqual([["r-dagger"]]);
+    button("Keep experimenting")?.click();
+    expect(w.emitted("close")).toHaveLength(1);
+  });
+
+  it("says what is wrong with a near miss, and that a failed hour used nothing up", () => {
+    open({ result: "near", hint: "missing" });
+    expect(document.body.textContent).toContain("Something is missing.");
+    document.body.innerHTML = "";
+    open({ result: "near", hint: "extra" });
+    expect(document.body.textContent).toContain("Something here doesn't belong.");
+    document.body.innerHTML = "";
+    open({ result: "none" });
+    expect(document.body.textContent).toContain("Nothing was used up.");
+  });
+
+  it("holds the ask-what-could-be-made button while that is running", () => {
+    open({ result: "none" }, { canInvent: true, inventing: true });
+    expect(button("Ask what these could make")?.hasAttribute("disabled")).toBe(true);
+  });
+});

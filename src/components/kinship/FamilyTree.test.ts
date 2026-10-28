@@ -132,4 +132,46 @@ describe("FamilyTree", () => {
     window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
     w.unmount();
   });
+
+  it("shows the succession rank, the married-in tag and the centred person from the props", () => {
+    mobile.value = false;
+    const w = mountTree(key("brenna"), { succession: new Map([[key("tomas"), 2]]), marriedIn: new Set([key("odile")]) });
+    const card = (name: string) => w.findAllComponents({ name: "KinCard" }).find((c) => c.text().includes(name))!;
+    expect(card("Tomas").find(".kin-rank").text()).toBe("2");
+    expect(card("Bren").find(".kin-rank").exists()).toBe(false);
+    expect(card("Odile").text()).toContain("married in");
+    expect(card("Brenna").attributes("data-focus")).toBe("true");
+    expect(card("Tomas").attributes("data-focus")).toBeUndefined();
+  });
+
+  it("dims only the people it is told to", () => {
+    mobile.value = false;
+    const w = mountTree(key("brenna"), { dimmed: new Set([key("tomas")]) });
+    const classes = (name: string) => w.findAllComponents({ name: "KinCard" }).find((c) => c.text().includes(name))!.classes();
+    expect(classes("Tomas")).toContain("opacity-40");
+    expect(classes("Brenna")).not.toContain("opacity-40");
+  });
+
+  it("zooms out with the minus button", async () => {
+    mobile.value = false;
+    const w = mountTree();
+    const scale = () => Number(/scale\(([\d.]+)\)/.exec(w.find("[style*='scale']").attributes("style") ?? "")?.[1]);
+    await w.find("[aria-label='Zoom out']").trigger("click");
+    expect(scale()).toBeLessThan(1);
+  });
+
+  it("counts a fold of two as '2 children'", () => {
+    mobile.value = false;
+    setActivePinia(createPinia());
+    const w = mount(FamilyTree, {
+      props: {
+        source: makeSource(),
+        members: new Set([key("bren"), key("brenna")]),
+        folds: new Map([[key("bren"), [key("tomas"), key("corin")]]]),
+        anchor: key("brenna"),
+        focus: key("brenna"),
+      },
+    });
+    expect(w.findAll("button").some((b) => b.text() === "2 children")).toBe(true);
+  });
 });

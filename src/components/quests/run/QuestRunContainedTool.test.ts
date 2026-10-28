@@ -1,4 +1,4 @@
-import { shallowMount } from "@vue/test-utils";
+import { shallowMount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 import type { QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   releaseAudioTheme: vi.fn(),
   triggerForPlaylist: vi.fn<(id: string) => { sourceId: string } | null>(() => null),
   promptRoll: vi.fn(),
+  itemOptions: null as null | (() => { enabled: boolean }),
 }));
 
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [{ id: "pm-1" }, { id: "pm-2" }] } }) }));
@@ -28,10 +29,14 @@ vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { valu
 vi.mock("@/composables/party/useActiveParty", async () => ({
   useActiveParty: (await import("@/composables/party/useParty")).useParty,
 }));
-vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
+const hotkeys = vi.hoisted(() => ({ calls: [] as Array<Array<{ combo: string; handler: () => void }>> }));
+vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: (list: Array<{ combo: string; handler: () => void }>) => { hotkeys.calls.push(list); } }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
-vi.mock("@/composables/items/useItemsByIds", () => ({ useItemsByIds: () => ({ data: { value: new Map() } }) }));
+vi.mock("@/composables/items/useItemsByIds", () => ({ useItemsByIds: (_ids: unknown, options: () => { enabled: boolean }) => {
+  mocks.itemOptions = options;
+  return { data: { value: new Map() } };
+} }));
 vi.mock("@/composables/monsters/useMonsters", () => ({ useResolvedMonster: (id: { value: string }) => {
   mocks.monsterId = id;
   return { data: mocks.monster };
@@ -282,5 +287,49 @@ describe("QuestRunContainedTool", () => {
     expect(control.props("form")).toBe("phone");
     expect(control.props("handout")).toEqual(mocks.handout.value);
     expect(control.props("initialRecipients")).toEqual(["pm-1", "pm-2"]);
+  });
+
+  it("a playlist with no tracks asks for no cue", async () => {
+    mocks.playlists.value = [{ id: "playlist-1", name: "Empty", playlist_type: "music" }];
+    mocks.tracks.value = [];
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("playlist", { ref_id: "playlist-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
+      global,
+    });
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Play playlist")!.trigger("click");
+    expect(mocks.requestAudioCue).not.toHaveBeenCalled();
+  });
+
+  it("Escape closes the contained tool", () => {
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("npc"), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
+      global,
+    });
+    const escape = hotkeys.calls.at(-1)!.find((entry) => entry.combo === "escape")!;
+    escape.handler();
+    expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("only reads items when the attachment is an item", () => {
+    shallowMount(QuestRunContainedTool, { props: { attachment: attachment("npc"), returnTo: "/x", beatTitle: "The ambush" }, global });
+    expect(mocks.itemOptions?.().enabled).toBe(false);
+    shallowMount(QuestRunContainedTool, { props: { attachment: attachment("item"), returnTo: "/x", beatTitle: "The ambush" }, global });
+    expect(mocks.itemOptions?.().enabled).toBe(true);
+  });
+
+  it("the Roll button is free again once the roll has been made, or dismissed", async () => {
+    mocks.promptRoll.mockResolvedValueOnce({ total: 9, label: "Insight check", breakdown: [], modifier: 0, isCrit: false, isFumble: false }).mockResolvedValueOnce(null);
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("check", { ref_id: "check", metadata: { skill: "Insight", dc: 15 } }), returnTo: "/x", beatTitle: "The ambush" },
+      global,
+    });
+    const roll = () => wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Roll")!;
+    await roll().trigger("click");
+    await flushPromises();
+    expect(roll().props("loading")).toBe(false);
+    await roll().trigger("click");
+    await flushPromises();
+    expect(roll().props("loading")).toBe(false);
+    expect(wrapper.text()).toContain("Rolled 9");
   });
 });

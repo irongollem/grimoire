@@ -137,4 +137,23 @@ describe("QuestFeaturedCard", () => {
     expect(resume?.props("to")).toMatchObject({ path: "/quests/quest-a", query: { view: "run", thread: "thread-a" } });
     expect(storyFlow?.props("to")).toMatchObject({ path: "/quests/quest-a", query: { view: "work" } });
   });
+
+  it("counts a repeated prep gap once, with its multiplicity", () => {
+    const wrapper = mount(QuestFeaturedCard, {
+      props: { quest: quest(), summary: summary({ prepGaps: ["No stat block", "No stat block", "No map"] }) },
+      global,
+    });
+    expect(wrapper.text()).toContain("No stat block × 2");
+    expect(wrapper.text()).not.toContain("No map ×");
+  });
+
+  it("resumes without a thread when no thread is primary, and omits the payoff flag and blurb when absent", () => {
+    const wrapper = mount(QuestFeaturedCard, {
+      props: { quest: quest(), summary: summary({ primaryThreadId: null, hasPayoffPrepared: false }) },
+      global,
+    });
+    const resume = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Resume run");
+    expect(resume?.props("to")).toEqual({ path: "/quests/quest-a", query: { view: "run" } });
+    expect(wrapper.text()).not.toContain("Payoff prepared");
+  });
 });

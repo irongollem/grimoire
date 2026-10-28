@@ -131,4 +131,39 @@ describe("QuestKanbanBoard", () => {
     await activeSection.trigger("drop");
     expect(wrapper.emitted("move")).toBeUndefined();
   });
+
+  it("a failed quest dropped on Settled stays failed instead of becoming completed", async () => {
+    const wrapper = mount(QuestKanbanBoard, { props: { quests: [quest("1", "failed")] }, global });
+    wrapper.getComponent(QuestBoardCard).vm.$emit("dragstart", "1");
+    await wrapper.findAll("section")[2]!.trigger("drop");
+    expect(wrapper.emitted("move")).toBeUndefined();
+  });
+
+  it("a quest dropped on Active becomes active", async () => {
+    const wrapper = mount(QuestKanbanBoard, { props: { quests: [quest("1", "undiscovered")] }, global });
+    wrapper.getComponent(QuestBoardCard).vm.$emit("dragstart", "1");
+    await wrapper.findAll("section")[0]!.trigger("drop");
+    expect(wrapper.emitted("move")).toEqual([[{ id: "1", status: "active" }]]);
+  });
+
+  it("a drop ends the drag: dropping again without picking the card up moves nothing", async () => {
+    const wrapper = mount(QuestKanbanBoard, { props: { quests: [quest("1", "undiscovered")] }, global });
+    wrapper.getComponent(QuestBoardCard).vm.$emit("dragstart", "1");
+    await wrapper.findAll("section")[2]!.trigger("drop");
+    await wrapper.findAll("section")[2]!.trigger("drop");
+    expect(wrapper.emitted("move")).toHaveLength(1);
+  });
+
+  it("features only quests whose run is live, not every quest that has a summary", () => {
+    const base = {
+      runtimeStatus: "running" as const, currentBeatTitle: null, beatSegments: [], prepGapCount: 0, undispatchedLootCount: 0,
+      unclaimedLootCount: 0, threads: [], liveThreadCount: 0, primaryThreadId: null, prepGaps: [], hasPayoffPrepared: false,
+      convergesInto: [], unlockedBy: null, entersAt: null, heldPayoffCount: 0, settledCaption: null, objectivesDone: 0, objectivesTotal: 0,
+    };
+    const wrapper = mount(QuestKanbanBoard, {
+      props: { quests: [quest("1", "active")], summaries: { "1": { ...base, isLive: false } } },
+      global,
+    });
+    expect(wrapper.findAllComponents(QuestFeaturedCard)).toHaveLength(0);
+  });
 });

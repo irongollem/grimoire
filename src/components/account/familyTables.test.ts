@@ -31,6 +31,37 @@ const request = (over: Partial<FamilyJoinRequest> = {}): FamilyJoinRequest => ({
 
 beforeEach(() => vi.clearAllMocks());
 
+describe("FamilyRequests in flight and on failure", () => {
+  const approveButton = (w: ReturnType<typeof mount>) => w.findAll("button").find((b) => b.text().includes("Approve"))!;
+  const declineButton = (w: ReturnType<typeof mount>) => w.findAll("button").find((b) => b.text().includes("Decline"))!;
+
+  it("locks both answers while one is being sent, so a parent cannot approve and decline the same request", async () => {
+    let finish!: (decision: string) => void;
+    mocks.decide.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const w = mount(FamilyRequests, { props: { requests: [request()] } });
+    await approveButton(w).trigger("click");
+
+    expect(approveButton(w).attributes("disabled")).toBeDefined();
+    expect(declineButton(w).attributes("disabled")).toBeDefined();
+
+    finish("joined");
+    await flushPromises();
+    expect(approveButton(w).attributes("disabled")).toBeUndefined();
+    expect(declineButton(w).attributes("disabled")).toBeUndefined();
+  });
+
+  it("says so and unlocks the buttons when the answer could not be sent", async () => {
+    mocks.decide.mockRejectedValue(new Error("network down"));
+    const w = mount(FamilyRequests, { props: { requests: [request()] } });
+    await approveButton(w).trigger("click");
+    await flushPromises();
+
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(approveButton(w).attributes("disabled")).toBeUndefined();
+  });
+});
+
 describe("FamilyRequests", () => {
   it("renders nothing without requests", () => {
     expect(mount(FamilyRequests, { props: { requests: [] } }).find("section").exists()).toBe(false);
@@ -134,5 +165,26 @@ describe("FamilyChildTables", () => {
     await flushPromises();
     expect(mocks.remove).toHaveBeenCalledWith({ campaignId: "c1", userId: "k" });
     expect(mocks.success).toHaveBeenCalledWith("Kit was removed from Ashen Vale.");
+  });
+
+  it("removes nobody when the parent backs out of the confirmation", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    const w = mount(FamilyChildTables, { props: { childUserId: "k", campaigns: [table()] } });
+    await w.findAll("[data-testid=table-member]")[1].find("button").trigger("click");
+    await flushPromises();
+
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it("reports a removal that failed instead of announcing it", async () => {
+    mocks.confirm.mockResolvedValue(true);
+    mocks.remove.mockRejectedValue(new Error("not allowed"));
+    const w = mount(FamilyChildTables, { props: { childUserId: "k", campaigns: [table()] } });
+    await w.findAll("[data-testid=table-member]")[1].find("button").trigger("click");
+    await flushPromises();
+
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 });

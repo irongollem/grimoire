@@ -64,4 +64,48 @@ describe("NoticeBoardNewView", () => {
     expect(w.get('[role="alert"]').text()).toBe("quota");
     expect(mocks.push).not.toHaveBeenCalled();
   });
+
+  it("Enter on a blank name creates nothing", async () => {
+    const w = mountView();
+    await w.get("input").setValue("   ");
+    await w.get("input").trigger("keydown.enter");
+    await flushPromises();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("Enter with no active campaign creates nothing", async () => {
+    mocks.campaignId = null;
+    const w = mountView();
+    await w.get("input").setValue("A board");
+    await w.get("input").trigger("keydown.enter");
+    await flushPromises();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("the name is saved trimmed, and a second Enter while the first is saving creates only one", async () => {
+    let finish: (v: { id: string }) => void = () => {};
+    mocks.create.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const w = mountView();
+    await w.get("input").setValue("  The Gilded Board  ");
+    await w.get("input").trigger("keydown.enter");
+    await w.get("input").trigger("keydown.enter");
+    finish({ id: "board-1" });
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ name: "The Gilded Board" }));
+  });
+
+  it("a failed create without a message says so plainly, can be retried, and the retry clears it", async () => {
+    mocks.create.mockRejectedValueOnce("nope");
+    const w = mountView();
+    await w.get("input").setValue("A board");
+    await find(w, "Create")?.trigger("click");
+    await flushPromises();
+    expect(w.get('[role="alert"]').text()).toBe("The board could not be created.");
+    expect(find(w, "Create")?.attributes("disabled")).toBeUndefined();
+    await find(w, "Create")?.trigger("click");
+    await flushPromises();
+    expect(w.find('[role="alert"]').exists()).toBe(false);
+    expect(mocks.push).toHaveBeenCalledTimes(1);
+  });
 });

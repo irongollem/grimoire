@@ -25,7 +25,8 @@ function table(overrides: Partial<RollTable> = {}): RollTable {
 
 const mocks = vi.hoisted(() => ({
   tables: [] as ReturnType<typeof table>[],
-  library: [] as LibraryRollTable[],
+  library: [] as LibraryRollTable[] | undefined,
+  libraryLoading: false,
 }));
 
 // The empty-state copy asks whether the library has books on offer (#1060).
@@ -40,7 +41,7 @@ vi.mock("@/composables/library/useEnabledSources", () => ({
 }));
 vi.mock("@/composables/dungeon-features/useRollTables", () => ({
   useRollTables: () => ({ data: ref(mocks.tables), isLoading: ref(false) }),
-  useLibraryRollTables: () => ({ data: ref(mocks.library), isLoading: ref(false) }),
+  useLibraryRollTables: () => ({ data: ref(mocks.library), isLoading: ref(mocks.libraryLoading) }),
 }));
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
   useBulkCampaignScope: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
@@ -154,5 +155,68 @@ describe("DungeonCraftRollTablesTab — library tables (#1060)", () => {
     const wrapper = mountTab();
     await flushMicrotasks();
     expect(wrapper.text()).not.toContain("Grimoire Dungeon Craft");
+  });
+});
+
+describe("DungeonCraftRollTablesTab — finding a table", () => {
+  const tbl = (n: number, over: Partial<RollTable>) => table({ id: `00000000-0000-4000-8000-0000000000d${n}`, ...over });
+  beforeEach(() => {
+    mocks.library = [];
+    mocks.tables = [
+      tbl(1, { name: "Forest Encounters", dice: "1d20", description: "Wolves and worse", tags: ["wild"], entries: [{}] as RollTable["entries"] }),
+      tbl(2, { name: "Tavern Rumours", dice: "1d6", description: null, tags: [], entries: [{}, {}] as RollTable["entries"] }),
+    ];
+  });
+  const search = async (wrapper: ReturnType<typeof mountTab>, q: string) => {
+    await wrapper.get('input[type="search"]').setValue(q);
+    await flushMicrotasks();
+  };
+
+  it("searches name, description and tags with surrounding spaces ignored", async () => {
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    for (const [q, shown, hidden] of [
+      ["  tavern ", "Tavern Rumours", "Forest Encounters"],
+      ["WOLVES", "Forest Encounters", "Tavern Rumours"],
+      [" wild ", "Forest Encounters", "Tavern Rumours"],
+    ]) {
+      await search(wrapper, q);
+      expect(wrapper.text()).toContain(shown);
+      expect(wrapper.text()).not.toContain(hidden);
+    }
+  });
+
+  it("filters by die", async () => {
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    await wrapper.get("select").setValue("1d6");
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("Tavern Rumours");
+    expect(wrapper.text()).not.toContain("Forest Encounters");
+  });
+
+  it("shows the loading skeleton while only the library list is still loading", async () => {
+    mocks.libraryLoading = true;
+    try {
+      const wrapper = mountTab();
+      await flushMicrotasks();
+      expect(wrapper.findComponent({ name: "ListSkeleton" }).exists()).toBe(true);
+    } finally {
+      mocks.libraryLoading = false;
+    }
+  });
+
+  it("says 1 entry or N entries correctly", async () => {
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("1 entry");
+    expect(wrapper.text()).toContain("2 entries");
+  });
+
+  it("waits for both lists rather than showing the DM's own tables alone", async () => {
+    mocks.library = undefined;
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    expect(wrapper.text()).not.toContain("Forest Encounters");
   });
 });

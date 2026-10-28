@@ -65,7 +65,21 @@ describe("SearchResultList", () => {
     expect(rows[0].find("[data-testid=thumb]").attributes("src")).toBe("floss.webp");
     expect(rows[1].text()).toContain("M");
     expect(rows[1].find("[data-testid=thumb]").exists()).toBe(false);
-    expect(rows[2].find(".font-cinzel").exists()).toBe(false);
+  });
+
+  it("gives a monster row a plate too, and a tie's far end the plate of its own kind, not of the Ties group", () => {
+    const wrapper = render({
+      thumbnails: { m1: { src: "ogre.webp", focalPoint: null }, n2: { src: "brenna.webp", focalPoint: null } },
+      groups: [
+        { type: "monster", label: "Monsters", items: [{ id: "m1", name: "Ogre", route: "/monsters/m1", matchedBy: "name" }] },
+        { type: "ties", label: "Ties", items: [{ id: "n2", name: "Brenna", kind: "npc", route: "/npcs/n2", matchedBy: "name", tie: "kin of Harl" }] },
+        { type: "item", label: "Items", items: [{ id: "i1", name: "Rope", route: "/items/i1", matchedBy: "name" }] },
+      ],
+    });
+    const rows = wrapper.findAll("a");
+    expect(rows[0].find("[data-testid=thumb]").attributes("src")).toBe("ogre.webp");
+    expect(rows[1].find("[data-testid=thumb]").attributes("src")).toBe("brenna.webp");
+    expect(rows[2].text()).toBe("Rope");
   });
 
   it("numbers rows across groups for the keyboard highlight and reports hovers", async () => {
@@ -106,8 +120,6 @@ describe("SearchResultList", () => {
     expect(rows[1].text()).toContain("worships The Drowned Lady");
     expect(rows[1].text()).not.toContain("ignored");
     expect(wrapper.text()).toContain("Ties");
-    // A tie's far end is an NPC, so it wears the NPC plate.
-    expect(rows[1].text()).toContain("B");
   });
 
   it("opens a place to its people in place, filters them, and navigates from there", async () => {

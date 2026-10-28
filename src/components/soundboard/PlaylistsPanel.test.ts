@@ -1,16 +1,17 @@
 import { shallowMount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Sound } from "@/types/sound.types";
+import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
 import PlaylistsPanel from "./PlaylistsPanel.vue";
 
 const canCreate = ref(true);
 const sounds = ref<Sound[]>([]);
+const playlistRows = ref<SoundboardPlaylist[]>([]);
 const deleteSound = vi.fn();
 const spotify = { isPlaying: false, lastPlayedUrl: null as string | null, pause: vi.fn() };
 
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
-  usePlaylists: () => ({ data: ref([]), isPending: ref(false) }),
+  usePlaylists: () => ({ data: playlistRows, isPending: ref(false) }),
   usePlaylistsTracks: () => ({ byPlaylist: ref(new Map()) }),
   useDeletePlaylist: () => ({ mutate: vi.fn() }),
 }));
@@ -22,9 +23,9 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({}) }));
 vi.mock("@/stores/spotify", () => ({ useSpotifyStore: () => spotify }));
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate }) }));
 
-function mountPanel(createPending: boolean) {
+function mountPanel(createPending: boolean, extra: { pageId?: string | null; playlistType?: "music" | "ambient"; filter?: string } = {}) {
   return shallowMount(PlaylistsPanel, {
-    props: { pageId: null, playlistType: "music", createPending },
+    props: { pageId: null, playlistType: "music", createPending, ...extra },
   });
 }
 
@@ -110,5 +111,53 @@ describe("PlaylistsPanel From Spotify", () => {
 
     const shown = wrapper.findAllComponents({ name: "SoundCard" }).map((c) => (c.props("sound") as Sound).id);
     expect(shown).toEqual(["p", "a"]);
+  });
+});
+
+describe("PlaylistsPanel what is listed", () => {
+  const pl = (id: string, over: Partial<SoundboardPlaylist>) =>
+    ({ id, name: id, tags: [], playlist_type: "music", page_id: null, ...over }) as SoundboardPlaylist;
+  const shown = (w: ReturnType<typeof mountPanel>) => w.findAllComponents({ name: "PlaylistCard" }).map((c) => (c.props("playlist") as SoundboardPlaylist).id);
+
+  beforeEach(() => {
+    sounds.value = [];
+    playlistRows.value = [
+      pl("Battle themes", { tags: ["combat"] }),
+      pl("Tavern", { page_id: "ch1" }),
+      pl("Crypt", { page_id: "ch2" }),
+      pl("Rain", { playlist_type: "ambient" }),
+    ];
+  });
+
+  it("lists only this peer's playlists: music here, scenes in the ambient panel", () => {
+    expect(shown(mountPanel(false))).toEqual(["Battle themes", "Tavern", "Crypt"]);
+    expect(shown(mountPanel(false, { playlistType: "ambient" }))).toEqual(["Rain"]);
+  });
+
+  it("on a page shows that page's playlists and the unpaged ones, not another page's", () => {
+    expect(shown(mountPanel(false, { pageId: "ch1" }))).toEqual(["Battle themes", "Tavern"]);
+  });
+
+  it("filters by name or tag, ignoring case and surrounding spaces", () => {
+    expect(shown(mountPanel(false, { filter: "  TAVERN " }))).toEqual(["Tavern"]);
+    expect(shown(mountPanel(false, { filter: "combat" }))).toEqual(["Battle themes"]);
+  });
+
+  it("opens the paywall, not the editor, when the playlist quota is spent", async () => {
+    canCreate.value = false;
+    const w = mountPanel(true);
+    expect(editorOpen(w)).toBe(false);
+    expect(w.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    canCreate.value = true;
+  });
+
+  it("lists a Spotify collection from another page only when no page is chosen", () => {
+    sounds.value = [
+      { id: "mine", source_type: "spotify", page_id: "ch1", file_url: "https://open.spotify.com/playlist/p1" },
+      { id: "other", source_type: "spotify", page_id: "ch2", file_url: "https://open.spotify.com/playlist/p2" },
+    ] as Sound[];
+    const ids = (w: ReturnType<typeof mountPanel>) => w.findAllComponents({ name: "SoundCard" }).map((c) => (c.props("sound") as Sound).id);
+    expect(ids(mountPanel(false, { pageId: "ch1" }))).toEqual(["mine"]);
+    expect(ids(mountPanel(false))).toEqual(["mine", "other"]);
   });
 });

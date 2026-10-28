@@ -1,6 +1,8 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QuestBeat } from "@/types/quest.types";
+import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
+import type { BeatFillContext } from "@/lib/quests/beatFill";
 import QuestBeatFields from "./QuestBeatFields.vue";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn() }));
@@ -14,7 +16,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 // composables useEntityMentionItems fans out to (party/npcs/monsters/
 // locations/factions), none of which this file otherwise sets up.
 vi.mock("@/composables/notes/useEntityMentionItems", () => ({
-  useEntityMentionItems: () => ({ mentionItems: { value: [] } }),
+  useEntityMentionItems: () => ({ mentionItems: [] }),
 }));
 
 const stubs = { RichTextEditor: true, MentionTextarea: true };
@@ -109,5 +111,83 @@ describe("QuestBeatFields", () => {
     const wrapper = mount(QuestBeatFields, { props: { beat: beat() }, global: { stubs } });
     expect(wrapper.find("select").exists()).toBe(false);
     expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
+  });
+
+  it("shows no title warning on an untouched beat that has no title yet", () => {
+    const wrapper = mount(QuestBeatFields, { props: { beat: { ...beat(), title: "" } }, global: { stubs } });
+    expect(wrapper.text()).not.toContain("Give this beat a title before it is saved.");
+  });
+
+  it("opening another beat replaces unsaved typing instead of carrying it over", async () => {
+    const wrapper = mount(QuestBeatFields, { props: { beat: beat() }, global: { stubs } });
+    const title = wrapper.findAll("input")[0]!;
+    await title.setValue("Half-typed");
+    await wrapper.setProps({ beat: { ...beat(), id: "beat-2", title: "A different beat", updated_at: "other-1" } });
+    expect((title.element as HTMLInputElement).value).toBe("A different beat");
+  });
+
+  it("each save carries the version the previous save returned, so a stale window is refused", async () => {
+    const wrapper = mount(QuestBeatFields, { props: { beat: beat() }, global: { stubs } });
+    const title = wrapper.findAll("input")[0]!;
+    await title.setValue("First");
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+    await title.setValue("Second");
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+    expect(mocks.update.mock.calls.map((call) => call[0].expectedUpdatedAt)).toEqual(["version-1", "version-2"]);
+  });
+
+  describe("AI fill", () => {
+    const fillContext = { quest: { title: "Q", summary: null }, beat: { kind: "social", title: "x", dm_content: null }, incoming: [], outgoing: [], objectives: [] } as unknown as BeatFillContext;
+    const filled = { fill: { title: "Filled title", readAloud: "Filled read-aloud", dmContent: "Filled DM lead" }, provenance: null };
+    const mountFill = (over: Partial<QuestBeat> = {}) =>
+      mount(QuestBeatFields, { props: { beat: { ...beat(), ...over }, fillContext }, global: { stubs: { ...stubs, QuestBeatFillBar: true } } });
+    const bar = (w: ReturnType<typeof mountFill>) => w.findComponent({ name: "QuestBeatFillBar" });
+    const lastUpdate = async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+      await flushPromises();
+      return mocks.update.mock.calls.at(-1)![0].update as Partial<QuestBeat>;
+    };
+
+    it.each([["Untitled beat"], ["new beat"], ["   "]])("replaces the placeholder title %j", async (placeholder) => {
+      const wrapper = mountFill({ title: placeholder });
+      bar(wrapper).vm.$emit("filled", { ...filled, overwrite: false });
+      expect((await lastUpdate()).title).toBe("Filled title");
+    });
+
+    it("keeps a title the DM chose", async () => {
+      const wrapper = mountFill({ title: "The bargain" });
+      bar(wrapper).vm.$emit("filled", { ...filled, overwrite: false });
+      expect((await lastUpdate()).title).toBe("The bargain");
+    });
+
+    it("fills empty read-aloud and DM lead, and keeps written ones unless the DM asked to overwrite", async () => {
+      // The placeholder title is filled, so the fill changes the draft and a save follows.
+      const written = { title: "Untitled beat", read_aloud: toTiptapJson("Mine, read aloud"), dm_content: toTiptapJson("Mine, DM lead") };
+      const kept = mountFill(written);
+      bar(kept).vm.$emit("filled", { ...filled, overwrite: false });
+      const keptUpdate = await lastUpdate();
+      expect(keptUpdate.read_aloud).toBe(written.read_aloud);
+      expect(keptUpdate.dm_content).toBe(written.dm_content);
+
+      mocks.update.mockClear();
+      const overwritten = mountFill(written);
+      bar(overwritten).vm.$emit("filled", { ...filled, overwrite: true });
+      const overwrittenUpdate = await lastUpdate();
+      expect(overwrittenUpdate.read_aloud).toBe(toTiptapJson("Filled read-aloud"));
+      expect(overwrittenUpdate.dm_content).toBe(toTiptapJson("Filled DM lead"));
+
+      mocks.update.mockClear();
+      const empty = mountFill({});
+      bar(empty).vm.$emit("filled", { ...filled, overwrite: false });
+      expect((await lastUpdate()).read_aloud).toBe(toTiptapJson("Filled read-aloud"));
+    });
+
+    it("offers the fill when either the DM lead or the read-aloud has text", () => {
+      expect(bar(mountFill({})).props("hasText")).toBe(false);
+      expect(bar(mountFill({ dm_content: toTiptapJson("Something") })).props("hasText")).toBe(true);
+      expect(bar(mountFill({ read_aloud: toTiptapJson("Something") })).props("hasText")).toBe(true);
+    });
   });
 });

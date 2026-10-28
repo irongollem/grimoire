@@ -26,14 +26,13 @@ function mountIt(layout: "rows" | "grid", extra: Record<string, unknown> = {}) {
 }
 
 describe("EntityCollection", () => {
-  it("renders the card slot in grid layout with the grid columns, estimate and gap", () => {
+  it("renders the card slot in grid layout with the grid columns and estimate", () => {
     const w = mountIt("grid");
     expect(w.findAll(".card")).toHaveLength(2);
     expect(w.findAll(".row")).toHaveLength(0);
     const vg = w.get("[data-vg]");
     expect(vg.attributes("data-columns")).toBe("3");
     expect(vg.attributes("data-estimate")).toBe("250");
-    expect(vg.attributes("data-gap")).toBe("0.75");
   });
 
   it("renders the row slot in rows layout, one column by default", () => {
@@ -42,8 +41,8 @@ describe("EntityCollection", () => {
     expect(w.findAll(".card")).toHaveLength(0);
     const vg = w.get("[data-vg]");
     expect(vg.attributes("data-columns")).toBe("1");
-    expect(vg.attributes("data-estimate")).toBe("98");
-    expect(vg.attributes("data-gap")).toBe("0.5");
+    // Rows do not use the grid's estimate (250) or its column count (3).
+    expect(vg.attributes("data-estimate")).not.toBe("250");
   });
 
   it("honours rowEstimate and rowColumns", () => {

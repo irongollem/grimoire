@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   answered: { value: true },
   query: { value: {} as Record<string, string> },
   push: vi.fn(),
+  staged: { value: [] as { quest_id: string }[] },
 }));
 
 const playingOwner = ref<string | null>(null);
@@ -46,7 +47,7 @@ vi.mock("@/composables/locations/useSiteStructure", () => ({
   }),
 }));
 vi.mock("@/composables/quests/useBeatsStagedAt", () => ({
-  useBeatsStagedAt: () => ({ data: { value: [] } }),
+  useBeatsStagedAt: () => ({ data: { get value() { return mocks.staged.value; } } }),
 }));
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
@@ -82,6 +83,7 @@ const stubs = {
   SiteReadinessMeter: true,
   TabBar: true,
   DmNoteBox: true,
+  SiteLevelAssignment: true,
 };
 
 // Every test mounts through this so `afterEach` can always tear it down.
@@ -106,6 +108,7 @@ beforeEach(() => {
   mocks.answered.value = true;
   mocks.query.value = {};
   mocks.push.mockClear();
+  mocks.staged.value = [];
 });
 
 afterEach(() => {
@@ -253,5 +256,156 @@ describe("AtlasPlacePane DM note (#983)", () => {
     expect(box.exists()).toBe(true);
     expect(box.attributes("type")).toBe("location");
     expect(box.attributes("id")).toBe("p1");
+  });
+});
+
+describe("AtlasPlacePane Browse and Build (epic #884)", () => {
+  const site = (over: Partial<Location> & { id: string }) => place({ location_type: "dungeon", ...over });
+  const floor = () => {
+    const parent = site({ id: "up" });
+    return [parent, site({ id: "down", parent_id: "up" })] as const;
+  };
+
+  it("shows the level assignment only in Build, and only under a site", async () => {
+    const [parent, child] = floor();
+    const browse = mountPane(child, [parent, child]);
+    await flushPromises();
+    expect(browse.findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
+    browse.unmount();
+
+    mocks.query.value = { build: "true" };
+    const build = mountPane(child, [parent, child]);
+    await flushPromises();
+    expect(build.findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(true);
+    build.unmount();
+
+    const region = place({ id: "r", location_type: "region" });
+    const inRegion = site({ id: "in", parent_id: "r" });
+    const underRegion = mountPane(inRegion, [region, inRegion]);
+    await flushPromises();
+    expect(underRegion.findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
+  });
+
+  it("enters Build by adding the flag and keeps the rest of the address", async () => {
+    mocks.query.value = { at: "s" };
+    const w = mountPane(site({ id: "s" }));
+    await flushPromises();
+    w.findAllComponents(AppButton).find((b) => b.props("ariaLabel") === "Build")!.vm.$emit("click");
+    expect(mocks.push).toHaveBeenCalledWith({ query: { at: "s", build: "true" } });
+  });
+
+  it("leaves Build by dropping only the flag", async () => {
+    mocks.query.value = { at: "s", build: "true" };
+    const w = mountPane(site({ id: "s" }));
+    await flushPromises();
+    w.findAllComponents(AppButton).find((b) => b.props("ariaLabel") === "Done")!.vm.$emit("click");
+    expect(mocks.push).toHaveBeenCalledWith({ query: { at: "s" } });
+  });
+
+  it("opens Details and Run as flags on the same selection", async () => {
+    mocks.query.value = { at: "s" };
+    const w = mountPane(site({ id: "s" }));
+    await flushPromises();
+    const press = (label: string) => w.findAllComponents(AppButton).find((b) => b.props("ariaLabel") === label)!.vm.$emit("click");
+    press("Details");
+    press("Run");
+    expect(mocks.push).toHaveBeenNthCalledWith(1, { query: { at: "s", edit: "true" } });
+    expect(mocks.push).toHaveBeenNthCalledWith(2, { query: { at: "s", run: "true" } });
+  });
+
+  it("does not ask for the Map when a Build link arrives with the Map already open", async () => {
+    mocks.query.value = { build: "true" };
+    const loc = place({ id: "w", location_type: "region" });
+    wrapper = mount(AtlasPlacePane, {
+      props: { index: buildAtlasIndex([loc]), location: loc, paneMode: "map", todayYear: 1000 },
+      global: { stubs },
+    });
+    await flushPromises();
+    expect(wrapper.emitted("update:paneMode")).toBeUndefined();
+  });
+
+  it("does not push Build again from the Mapped pill when the DM is already building", async () => {
+    mocks.query.value = { build: "true" };
+    const w = mountPane(place({ id: "s", location_type: "dungeon" }));
+    await flushPromises();
+    w.findComponent({ name: "SiteReadinessMeter" }).vm.$emit("open-map");
+    await flushPromises();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("hides a battle map's tab while browsing", async () => {
+    const w = mountPane(place({ id: "w", location_type: "region", map_url: "https://x/m.webp", is_battle_map: true }));
+    await flushPromises();
+    expect(w.findComponent({ name: "TabBar" }).exists()).toBe(false);
+  });
+
+  it("shows the readiness meter on a site's Overview and not on its Map", async () => {
+    const loc = site({ id: "s", map_url: "https://x/m.webp" });
+    const w = mountPane(loc);
+    await flushPromises();
+    expect(w.findComponent({ name: "SiteReadinessMeter" }).exists()).toBe(true);
+    await w.setProps({ paneMode: "map" });
+    expect(w.findComponent({ name: "SiteReadinessMeter" }).exists()).toBe(false);
+    expect(w.findComponent({ name: "AtlasSiteMapMode" }).exists()).toBe(true);
+    expect(w.findComponent({ name: "LocationDetailSections" }).exists()).toBe(false);
+  });
+
+  it("passes Build down to the map workbench", async () => {
+    mocks.query.value = { build: "true" };
+    const w = mountPane(site({ id: "s", map_url: "https://x/m.webp" }));
+    await w.setProps({ paneMode: "map" });
+    expect(w.findComponent({ name: "AtlasSiteMapMode" }).props("building")).toBe(true);
+  });
+});
+
+describe("AtlasPlacePane header facts", () => {
+  it("counts the quests staged here once each, and says nothing at zero", async () => {
+    const quiet = mountPane(place({ id: "p" }));
+    await flushPromises();
+    expect(quiet.text()).not.toContain("staged here");
+    quiet.unmount();
+
+    mocks.staged.value = [{ quest_id: "q1" }];
+    const one = mountPane(place({ id: "p" }));
+    await flushPromises();
+    expect(one.text()).toContain("1 quest staged here");
+    one.unmount();
+
+    mocks.staged.value = [{ quest_id: "q1" }, { quest_id: "q1" }, { quest_id: "q2" }];
+    const two = mountPane(place({ id: "p" }));
+    await flushPromises();
+    expect(two.text()).toContain("2 quests staged here");
+  });
+
+  it("names the era only when the place is out of it", async () => {
+    const inEra = mountPane(place({ id: "p", era_start: 900, era_end: 1100 }));
+    await flushPromises();
+    expect(inEra.text()).not.toContain("900");
+    inEra.unmount();
+
+    const gone = mountPane(place({ id: "p", era_start: 100, era_end: 200 }));
+    await flushPromises();
+    expect(gone.text()).toContain("100–200");
+  });
+
+  it("says how many levels a site stacks, from the site itself and not from a floor", async () => {
+    const top = place({ id: "top", location_type: "dungeon" });
+    const low = place({ id: "low", location_type: "dungeon", parent_id: "top", is_level: true });
+    const onTop = mountPane(top, [top, low]);
+    await flushPromises();
+    expect(onTop.text()).toContain("2 levels");
+    onTop.unmount();
+    const onLow = mountPane(low, [top, low]);
+    await flushPromises();
+    expect(onLow.text()).not.toContain("levels");
+  });
+
+  it("leaves a site's rooms out of the scale groups, since its rooms panel lists them", async () => {
+    const top = place({ id: "top", location_type: "dungeon" });
+    const room = place({ id: "r1", location_type: "room", parent_id: "top" });
+    const sub = place({ id: "s1", location_type: "dungeon", parent_id: "top" });
+    const w = mountPane(top, [top, room, sub]);
+    await flushPromises();
+    expect(w.findAllComponents({ name: "AtlasTreeRow" }).map((r) => r.props("row").loc.id)).toEqual(["s1"]);
   });
 });

@@ -15,4 +15,11 @@ describe("HousePlayerLineage", () => {
     const names = w.findAll(".kin-name").map((n) => n.text());
     expect(names.sort()).toEqual(["Brenna", "Tomas"]);
   });
+
+  it("a House with no stated descent follows the blood through either parent", () => {
+    setActivePinia(createPinia());
+    const w = mount(HousePlayerLineage, { props: { faction: { descent: null }, members: [key("aldous")] } });
+    const names = w.findAll(".kin-name").map((n) => n.text());
+    expect(names).toEqual(expect.arrayContaining(["Aldous", "Bren", "Odile"]));
+  });
 });

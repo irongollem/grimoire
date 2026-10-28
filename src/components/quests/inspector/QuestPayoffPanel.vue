@@ -128,9 +128,10 @@
           <AppButton label="Cancel" size="xs" variant="subtle" @click="closeQuickAdd" />
           <AppButton label="Add" size="xs" :disabled="!canAdd" :loading="adding" @click="submit" />
         </div>
-        <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
       </div>
     </Transition>
+    <!-- Outside the add form: a refused remove reports here too, with the form closed. -->
+    <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
   </section>
 </template>
 
@@ -218,9 +219,13 @@ const deleteLoot = useDeleteLootPlacement();
 
 async function remove(row: PayoffRow) {
   removingId.value = row.id;
+  error.value = "";
   try {
     if (row.source === "consequence") await deleteConsequence.mutateAsync({ id: row.id, questId: beat.quest_id });
     else await deleteLoot.mutateAsync({ id: row.id, campaignId: beat.campaign_id });
+  } catch (caught) {
+    // Neither delete mutation toasts, so without this a refused delete said nothing.
+    error.value = caught instanceof Error ? caught.message : "Could not remove this payoff";
   } finally {
     removingId.value = "";
   }

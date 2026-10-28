@@ -144,4 +144,35 @@ describe("ArchiveReviewStep", () => {
     expect(wrapper.text()).toContain("boom");
     expect(wrapper.emitted("done")).toBeUndefined();
   });
+
+  it("Reset to suggested undoes Ignore all for its own section only", async () => {
+    mocks.candidates = new Map([["npcs", new Map([["Mara.md", [existing]]])]]) as typeof mocks.candidates;
+    const wrapper = mountStep([page("Mara.md", "npc"), page("Diary.md", "note")]);
+    for (const button of wrapper.findAll("button").filter((b) => b.text() === "Ignore all")) await button.trigger("click");
+    const sectionOf = (heading: string) => wrapper.findAll("section").find((s) => s.find("h4").text().startsWith(heading))!;
+    expect(sectionOf("NPCs").text()).toContain("1 ignored");
+    expect(sectionOf("Notes").text()).toContain("1 ignored");
+    await sectionOf("NPCs").findAll("button").find((b) => b.text() === "Reset to suggested")!.trigger("click");
+    expect(sectionOf("NPCs").text()).toContain("1 link");
+    expect(sectionOf("NPCs").text()).not.toContain("ignored");
+    expect(sectionOf("Notes").text()).toContain("1 ignored");
+  });
+
+  it("does not count ignored pages against the plan's room", async () => {
+    mocks.room.value = (kind: string) => (kind === ("npcs" satisfies ImportEntityKind) ? 1 : null);
+    const wrapper = mountStep([page("A.md", "npc"), page("B.md", "npc")]);
+    expect(wrapper.text()).toContain("This would go past your plan's limits");
+    await wrapper.findAll("button").find((b) => b.text() === "Ignore all")!.trigger("click");
+    expect(wrapper.text()).not.toContain("This would go past your plan's limits");
+  });
+
+  it("leaves a page the DM skipped out of what the sweep is given", async () => {
+    mocks.runSweep.mockResolvedValue({ report: { created: [] }, finishError: null });
+    const wrapper = mountStep([page("Mara.md", "npc"), page("Junk.md", "npc")], new Map([["Junk.md", "skip"]]));
+    await importButton(wrapper).trigger("click");
+    await flushPromises();
+    const [, input] = mocks.runSweep.mock.calls[0];
+    expect(input.entries.map((e: { page: ArchivePage }) => e.page.ref)).toEqual(["Mara.md"]);
+    expect(input.allPages.map((p: ArchivePage) => p.ref)).toEqual(["Mara.md", "Junk.md"]);
+  });
 });

@@ -109,4 +109,26 @@ describe("ArchiveSortStep", () => {
     const btn = wrapper.findAll("button").find((b) => b.text().startsWith("Continue"))!;
     expect(btn.attributes("disabled")).toBeDefined();
   });
+
+  it("shows the kind the DM settled on a row, not the original guess", async () => {
+    const wrapper = mountStep(result([page(1, "A", "note")]));
+    const row = () => wrapper.find("select[aria-label='What Page 1 is']");
+    expect((row().element as HTMLSelectElement).value).toBe("note");
+    await wrapper.find("select[aria-label^='Set every page']").setValue("quest");
+    expect((row().element as HTMLSelectElement).value).toBe("quest");
+  });
+
+  it("ignores the 'Set all to...' placeholder: choosing nothing changes nothing", async () => {
+    const wrapper = mountStep(result([page(1, "A", "npc"), page(2, "A", "npc")]));
+    await wrapper.find("select[aria-label^='Set every page']").setValue("");
+    expect(wrapper.text()).toContain("2 NPCs");
+    expect((wrapper.props("kinds") as Map<string, ArchivePageKind>).size).toBe(0);
+  });
+
+  it("lists at most 200 unread files and counts the rest", async () => {
+    const wrapper = mountStep(result([page(1, "A")], 250));
+    await wrapper.findAll("button").find((b) => b.text().includes("250 files not read"))!.trigger("click");
+    expect(wrapper.findAll("ul.max-h-56 li")).toHaveLength(201);
+    expect(wrapper.text()).toContain("and 50 more");
+  });
 });

@@ -307,6 +307,9 @@ describe("QuestBeatDetailView", () => {
     mocks.edges = [
       { id: "e-1", source_beat_id: "beat-1", route_kind: "choice" },
       { id: "e-2", source_beat_id: "beat-1", route_kind: "parallel" },
+      { id: "e-3", source_beat_id: "beat-1", route_kind: "parallel" },
+      // An edge coming in from another beat is not one of this beat's routes.
+      { id: "e-4", source_beat_id: "beat-0", route_kind: "choice" },
     ];
     mocks.consequences = [{ id: "c-1", on_beat_id: "beat-1", on_edge_id: null }];
     mocks.loot = [{ id: "loot-1", beat_id: "beat-1", delivery_state: "held" } as LootPlacement];
@@ -316,7 +319,7 @@ describe("QuestBeatDetailView", () => {
     const wrapper = mountView();
     expect(wrapper.text()).toContain("3 paragraphs");
     expect(wrapper.text()).toContain("1 consequence · 1 loot held");
-    expect(wrapper.text()).toContain("1 choice · 1 parallel");
+    expect(wrapper.text()).toContain("1 choice · 2 parallel");
     expect(wrapper.text()).toContain("NPC");
     expect(wrapper.text()).toContain("The sealed crypt · 0 rooms");
   });

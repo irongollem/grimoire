@@ -437,4 +437,164 @@ describe("QuestRulesPanel", () => {
       expect(wrapper.findAll("ul li")[0]!.text()).toContain('Give a handout: "The smuggler\'s map"');
     });
   });
+
+  describe("what the form lets through", () => {
+    const sel = (w: ReturnType<typeof mountPanel>, label: string) => w.get(`select[aria-label="${label}"]`);
+    const addBtn = (w: ReturnType<typeof mountPanel>) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Add")!;
+    const input = (w: ReturnType<typeof mountPanel>, placeholder: string) => w.get(`input[placeholder^="${placeholder}"]`);
+    const addNow = async (w: ReturnType<typeof mountPanel>) => {
+      await addBtn(w).trigger("click");
+      await flushPromises();
+    };
+
+    it.each([
+      ["objective", "Which objective"],
+      ["location", "Which place"],
+      ["clock", "Which clock"],
+    ])("a '%s' condition needs its subject before Add is offered, whatever the action", async (kind, placeholder) => {
+      const wrapper = mountPanel();
+      await sel(wrapper, "What it does").setValue("send_broadcast");
+      await input(wrapper, "Broadcast message").setValue("Done");
+      expect(addBtn(wrapper).props("disabled")).toBe(false);
+      await sel(wrapper, "Condition").setValue(kind);
+      expect(addBtn(wrapper).props("disabled")).toBe(true);
+      const subject = comboboxes(wrapper).find((c) => c.attributes("placeholder")?.startsWith(placeholder))!;
+      subject.vm.$emit("update:modelValue", kind === "objective" ? "obj-1" : kind === "location" ? "loc-crypt" : "clock-1");
+      await wrapper.vm.$nextTick();
+      expect(addBtn(wrapper).props("disabled")).toBe(false);
+    });
+
+    it.each([
+      ["grant_knowledge", "What do the players learn"],
+      ["award_milestone", "What did the party earn"],
+      ["send_broadcast", "Broadcast message"],
+      ["create_calendar_event", "Event title"],
+    ])("%s needs text that is not only spaces", async (verb, placeholder) => {
+      const wrapper = mountPanel();
+      await sel(wrapper, "What it does").setValue(verb);
+      await input(wrapper, placeholder).setValue("    ");
+      expect(addBtn(wrapper).props("disabled")).toBe(true);
+      await input(wrapper, placeholder).setValue("Something");
+      expect(addBtn(wrapper).props("disabled")).toBe(false);
+    });
+
+    it("owe_favor needs the NPC as well as the favour, and names that NPC", async () => {
+      const wrapper = mountPanel();
+      await sel(wrapper, "What it does").setValue("owe_favor");
+      await input(wrapper, "What do they owe").setValue("A night's shelter");
+      expect(addBtn(wrapper).props("disabled")).toBe(true);
+      comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "npc-1");
+      await wrapper.vm.$nextTick();
+      await addNow(wrapper);
+      expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ action: "owe_favor", target_npc_id: "npc-1", action_payload: { text: "A night's shelter" } }));
+    });
+
+    it("an objective verb waits for its target objective", async () => {
+      const wrapper = mountPanel();
+      expect(addBtn(wrapper).props("disabled")).toBe(true);
+      comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "obj-2");
+      await wrapper.vm.$nextTick();
+      expect(addBtn(wrapper).props("disabled")).toBe(false);
+    });
+
+    it("a target objective that the condition then names is dropped, leaving Add disabled", async () => {
+      const wrapper = mountPanel();
+      comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "obj-1");
+      await wrapper.vm.$nextTick();
+      await sel(wrapper, "Condition").setValue("objective");
+      comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "obj-1");
+      await flushPromises();
+      expect(addBtn(wrapper).props("disabled")).toBe(true);
+    });
+
+    it("stores the text trimmed, and a clean form is back once it is added", async () => {
+      const wrapper = mountPanel();
+      await sel(wrapper, "What it does").setValue("grant_knowledge");
+      await input(wrapper, "What do the players learn").setValue("  The bell is hollow  ");
+      await sel(wrapper, "Condition").setValue("location");
+      comboboxes(wrapper).find((c) => c.attributes("placeholder")?.startsWith("Which place"))!.vm.$emit("update:modelValue", "loc-crypt");
+      await wrapper.vm.$nextTick();
+      await addNow(wrapper);
+      expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ action: "grant_knowledge", action_payload: { text: "The bell is hollow" } }));
+      expect((sel(wrapper, "Condition").element as HTMLSelectElement).value).toBe("settled");
+      expect((input(wrapper, "What do the players learn").element as HTMLInputElement).value).toBe("");
+    });
+
+    it("carries nothing over from a target picked for a different verb", async () => {
+      const wrapper = mountPanel();
+      await sel(wrapper, "What it does").setValue("shift_npc_relationship");
+      comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "npc-1");
+      await wrapper.vm.$nextTick();
+      await sel(wrapper, "What it does").setValue("unlock_quest");
+      comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "quest-sequel");
+      await wrapper.vm.$nextTick();
+      await sel(wrapper, "What it does").setValue("give_handout");
+      comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "doc-map");
+      await wrapper.vm.$nextTick();
+      await sel(wrapper, "What it does").setValue("send_broadcast");
+      await input(wrapper, "Broadcast message").setValue("Done");
+      await addNow(wrapper);
+      expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+        action: "send_broadcast", target_npc_id: null, target_quest_id: null, target_document_id: null, entry_beat_id: null,
+      }));
+    });
+
+    it("offers only other quests that are still undiscovered for an unlock", async () => {
+      const wrapper = mountPanel();
+      await sel(wrapper, "What it does").setValue("unlock_quest");
+      expect((comboboxes(wrapper)[0]!.props("options") as Array<{ id: string }>).map((o) => o.id)).toEqual(["quest-sequel", "quest-empty"]);
+    });
+
+    it("says 'Objective removed' and 'Unknown place' where a rule points at something that no longer exists", () => {
+      mocks.rows = [
+        consequence({ id: "c-1", on_objective_id: "obj-gone", on_objective_status: "complete", action: "complete", target_objective_id: "obj-2" }),
+        consequence({ id: "c-2", on_location_id: "loc-gone", on_location_fact: "cleared", action: "complete", target_objective_id: "obj-2" }),
+      ];
+      const rows = mountPanel().findAll("ul li");
+      expect(rows[0]!.text()).toContain('when "Objective removed" becomes completed');
+      expect(rows[1]!.text()).toContain('when "Unknown place" is cleared');
+    });
+
+    it("shows a rule's delay, and none for an immediate one", () => {
+      mocks.rows = [
+        consequence({ id: "c-1", on_quest_settled: true, action: "send_broadcast", after_days: 0, action_payload: { message: "Now." } }),
+        consequence({ id: "c-2", on_quest_settled: true, action: "send_broadcast", after_days: 4, action_payload: { message: "Later." } }),
+      ];
+      const rows = mountPanel().findAll("ul li");
+      expect(rows[0]!.text()).not.toContain("(+");
+      expect(rows[1]!.text()).toContain("(+4d)");
+    });
+
+    it("a rule that fires when a clock fills is listed and says which clock, or 'a clock' if it cannot", () => {
+      mocks.rows = [
+        consequence({ id: "c-1", on_clock_id: "clock-1", action: "send_broadcast", action_payload: { message: "Tick." } }),
+        consequence({ id: "c-2", on_clock_id: "clock-gone", action: "send_broadcast", action_payload: { message: "Tock." } }),
+      ];
+      const rows = mountPanel().findAll("ul li");
+      expect(rows[0]!.text()).toContain("when The count fills");
+      expect(rows[1]!.text()).toContain("when a clock fills");
+    });
+
+    it("a refused add keeps the form and says why; a refused removal says why; a retry clears the message", async () => {
+      mocks.create.mockRejectedValueOnce("refused").mockResolvedValue(undefined);
+      const wrapper = mountPanel();
+      await sel(wrapper, "What it does").setValue("send_broadcast");
+      await input(wrapper, "Broadcast message").setValue("Done");
+      await addNow(wrapper);
+      expect(wrapper.get('[role="alert"]').text()).toBe("Could not add this consequence");
+      expect(addBtn(wrapper).props("loading")).toBe(false);
+      expect((input(wrapper, "Broadcast message").element as HTMLInputElement).value).toBe("Done");
+      await addNow(wrapper);
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+
+      mocks.rows = [consequence({ id: "c-1", on_quest_settled: true, action: "send_broadcast", action_payload: { message: "Done." } })];
+      mocks.remove.mockRejectedValueOnce("refused");
+      const second = mountPanel();
+      const remove = () => second.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Remove")!;
+      await remove().trigger("click");
+      await flushPromises();
+      expect(second.get('[role="alert"]').text()).toBe("Could not remove this consequence");
+      expect(remove().props("loading")).toBe(false);
+    });
+  });
 });

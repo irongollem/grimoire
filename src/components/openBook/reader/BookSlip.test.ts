@@ -73,4 +73,34 @@ describe("BookSlip", () => {
     expect(w.emitted("close")).toHaveLength(1);
     w.unmount();
   });
+
+  it("opens empty each time, not on the last search", async () => {
+    const w = await mountSlip(false);
+    await w.setProps({ open: true });
+    await nextTick();
+    await w.find("input").setValue("toll");
+    await w.setProps({ open: false });
+    await w.setProps({ open: true });
+    await nextTick();
+    expect((w.find("input").element as HTMLInputElement).value).toBe("");
+    expect(w.findAll("a.ob-slip-hit")).toHaveLength(0);
+    w.unmount();
+  });
+
+  it("treats a search of spaces as no search, so a phone keeps its contents", async () => {
+    const w = await mountSlip(true);
+    await w.find("input").setValue("   ");
+    expect(w.text()).not.toContain("Nothing in this book goes by that name.");
+    expect(w.text()).toContain("Index of names");
+    w.unmount();
+  });
+
+  it("closes from the backdrop but not from a click inside the slip", async () => {
+    const w = await mountSlip(false);
+    await w.find(".ob-slip").trigger("click");
+    expect(w.emitted("close")).toBeUndefined();
+    await w.find(".ob-slip-wrap").trigger("click");
+    expect(w.emitted("close")).toHaveLength(1);
+    w.unmount();
+  });
 });

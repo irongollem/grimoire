@@ -37,7 +37,7 @@ function mountCard(monster: MonsterBrowseRow) {
     props: { monster },
     global: {
       stubs: {
-        EntityGridCard: { template: "<div><slot name='body' /></div>" },
+        EntityGridCard: { template: "<div><slot name='body' /><slot name='actions-start' /></div>" },
         MonsterRevealControl: true,
         AppButton: true,
       },
@@ -60,5 +60,35 @@ describe("MonsterGridCard source badge", () => {
     const w = mountCard(row({ source }));
     expect(w.findComponent(SourceBadge).text()).toBe("");
     expect(w.text()).not.toContain("Grimoire:AI");
+  });
+});
+
+describe("MonsterGridCard facts and actions", () => {
+  const editButton = (w: ReturnType<typeof mountCard>) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("tooltip") === "Edit monster");
+
+  it("offers Edit on a monster the DM owns, and not on a library row, whose reveal control stays", () => {
+    const own = mountCard(row({ is_shared: false }));
+    expect(editButton(own)?.props("to")).toBe("/monsters/m1?edit=true");
+    const shared = mountCard(row({ is_shared: true }));
+    expect(editButton(shared)).toBeUndefined();
+    expect(shared.findComponent({ name: "MonsterRevealControl" }).exists()).toBe(true);
+  });
+
+  it("states AC and hit points, spelling out the average of a bare dice formula, and CR", () => {
+    const w = mountCard(row({ armor_class: 13, hit_points: "7d10+21", challenge_rating: "3" }));
+    expect(w.text()).toContain("AC 13");
+    expect(w.text()).toContain("HP 59 (7d10+21)");
+    expect(w.text()).toContain("CR 3");
+  });
+
+  it("leaves AC out when there is none, and shows a dash for no hit points", () => {
+    const w = mountCard(row({ armor_class: null, hit_points: null }));
+    expect(w.text()).not.toContain("AC");
+    expect(w.text()).toContain("HP —");
+  });
+
+  it("shows at most three tags", () => {
+    const w = mountCard(row({ tags: ["a", "b", "c", "d"] }));
+    expect(w.findAll(".bg-muted").map((t) => t.text())).toEqual(["a", "b", "c"]);
   });
 });

@@ -3,6 +3,7 @@ import {
   COLLAPSE_AT,
   groupConnections,
   homeRoute,
+  isCurrentChoice,
   kinRelationFor,
   membershipEnds,
   offeredRoles,
@@ -102,6 +103,28 @@ describe("homeRoute", () => {
     expect(homeRoute(row, { kind: "faction", id: "f1" })).toBeNull();
   });
 
+  // The record is kept on one end; the other end's sheet opens it, and the owner's own sheet opens nothing.
+  it.each([
+    { source: "keeper", owner: "location", ownerId: "L1", other: "npc", otherId: "n1", path: "/locations?at=L1" },
+    { source: "store", owner: "location", ownerId: "L1", other: "item", otherId: "i1", path: "/locations?at=L1" },
+    { source: "seat", owner: "faction", ownerId: "f1", other: "location", otherId: "L1", path: "/factions/f1" },
+    { source: "npc_home", owner: "npc", ownerId: "n1", other: "location", otherId: "L1", path: "/npcs/n1" },
+    { source: "pc_place", owner: "party_member", ownerId: "p1", other: "location", otherId: "L1", path: "/party/p1" },
+    { source: "patron_deity", owner: "party_member", ownerId: "p1", other: "deity", otherId: "d1", path: "/party/p1" },
+  ] as const)("a $source tie opens its $owner from the other end and nothing from its own", ({ source, owner, ownerId, other, otherId, path }) => {
+    const fromOwner = conn({ source, other_kind: other, other_id: otherId, type: "x" });
+    expect(homeRoute(fromOwner, { kind: owner, id: ownerId })).toBeNull();
+    const fromOther = conn({ source, other_kind: owner, other_id: ownerId, type: "x" });
+    expect(homeRoute(fromOther, { kind: other, id: otherId })).toBe(path);
+  });
+
+  it("opens a pack's owner: the NPC when one end is an NPC, the character otherwise", () => {
+    const npcPack = conn({ source: "inventory", other_kind: "npc", other_id: "n1", type: "x" });
+    expect(homeRoute(npcPack, { kind: "item", id: "i1" })).toBe("/npcs/n1");
+    const pcPack = conn({ source: "inventory", other_kind: "party_member", other_id: "p1", type: "x" });
+    expect(homeRoute(pcPack, { kind: "item", id: "i1" })).toBe("/party/p1");
+  });
+
   it("has no home page for a link", () => {
     expect(homeRoute(conn({}), { kind: "npc", id: "n1" })).toBeNull();
   });
@@ -113,6 +136,19 @@ describe("type choices", () => {
     expect(common.map((c) => c.key)).toContain("friend");
     expect(more.map((c) => c.key)).toContain("chosen_family");
     expect(common.some((c) => !c.common)).toBe(false);
+  });
+
+  it("marks only the direction the sheet reads the tie in as current", () => {
+    const both = typeChoices("npc", "npc").filter((c) => c.key === "creditor_of" && !c.home);
+    expect(both.map((c) => c.word).sort()).toEqual(["creditor of", "owes"]);
+    const row = conn({ type: "creditor_of", outward: false });
+    expect(both.filter((c) => isCurrentChoice(row, c, "owes")).map((c) => c.word)).toEqual(["owes"]);
+  });
+
+  it("does not take a record type for a link of the same key", () => {
+    const kin = typeChoices("npc", "npc").find((c) => c.home === "kin" && c.key === "sibling_of")!;
+    expect(isCurrentChoice(conn({ type: "sibling_of" }), kin, kin.word)).toBe(false);
+    expect(isCurrentChoice(conn({ source: "kin", type: "sibling_of" }), kin, kin.word)).toBe(true);
   });
 
   it("reads the same tie from the other sheet", () => {

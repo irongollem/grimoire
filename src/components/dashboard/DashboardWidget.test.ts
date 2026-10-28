@@ -3,7 +3,12 @@ import { nextTick, ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardWidget from "./DashboardWidget.vue";
 
-const mocks = vi.hoisted(() => ({ overlays: { value: true } }));
+const mocks = vi.hoisted(() => ({ overlays: { value: true }, reveal: vi.fn() }));
+
+vi.mock(import("@/lib/motion"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  revealIfOutOfView: mocks.reveal,
+}));
 
 vi.mock(import("@/composables/useBreakpoint"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -32,6 +37,7 @@ function footerOf(el: HTMLElement): Element | null {
 let wrapper: VueWrapper | null = null;
 
 beforeEach(() => {
+  mocks.reveal.mockClear();
   mocks.overlays = ref(true);
   layout.content = 0;
   layout.room = 0;
@@ -382,5 +388,30 @@ describe("DashboardWidget", () => {
     await w.setProps({ loading: true });
     await nextTick();
     expect(unobserve).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("DashboardWidget keeping the page where the DM is looking", () => {
+  async function open() {
+    layout.content = 600;
+    layout.room = 260;
+    const w = mountWidget();
+    await nextTick();
+    await toggle(w).trigger("click");
+    await nextTick();
+    return w;
+  }
+
+  it("scrolls the card back into view when the DM rolls it up from the card itself", async () => {
+    const w = await open();
+    await w.find("[data-test-row]").trigger("keydown", { key: "Escape" });
+    await nextTick();
+    expect(mocks.reveal).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the page exactly where it is when the card rolls up because of a click elsewhere", async () => {
+    await open();
+    await clickElsewhere();
+    expect(mocks.reveal).not.toHaveBeenCalled();
   });
 });

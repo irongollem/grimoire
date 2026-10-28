@@ -58,4 +58,27 @@ describe("PeopleLedgerRow", () => {
     const wrapper = mountRow({ npc: npc(), rating: 3 });
     expect(wrapper.find('[aria-label="Your rating: 3 of 5"]').text()).toBe("★★★");
   });
+
+  it("keeps a name the DM has not shared out of the row even if the row carries it", () => {
+    const wrapper = mountRow({ npc: npc({ player_visible_fields: ["portrait"] }) });
+    expect(wrapper.text()).not.toContain("Mira Thorne");
+    expect(wrapper.text()).toContain("???");
+    expect(wrapper.find(".people-nameless").exists()).toBe(true);
+  });
+
+  it("swaps a withheld portrait for a question mark and draws no image", () => {
+    const wrapper = mountRow({ npc: npc({ player_visible_fields: ["name"] }) });
+    expect(wrapper.findComponent({ name: "FocalImage" }).exists()).toBe(false);
+    expect(wrapper.find(".people-unknown").exists()).toBe(true);
+  });
+
+  it("draws the plain user glyph, not a question mark, when the portrait is shared but absent", () => {
+    const wrapper = mountRow({ npc: npc({ portrait_url: null }) });
+    expect(wrapper.findComponent({ name: "FocalImage" }).exists()).toBe(false);
+    expect(wrapper.find(".people-unknown").exists()).toBe(false);
+  });
+
+  it("draws no stars for an unrated person", () => {
+    expect(mountRow({ npc: npc(), rating: 0 }).find('[aria-label^="Your rating"]').exists()).toBe(false);
+  });
 });

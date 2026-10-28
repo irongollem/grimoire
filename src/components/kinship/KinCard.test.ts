@@ -19,7 +19,6 @@ describe("KinCard", () => {
     expect(w.text()).toContain("Maera Thane");
     expect(w.text()).toContain("born 1431");
     expect(w.text()).toMatch(/born 1431 · \d+/);
-    expect(w.find("button").exists()).toBe(true);
   });
 
   it("mutes and strikes the dead, with no age", () => {
@@ -36,6 +35,18 @@ describe("KinCard", () => {
     expect(w.attributes("data-focus")).toBe("true");
     expect(w.attributes("aria-current")).toBe("true");
     expect(w.text()).toContain("married in");
+  });
+
+  it("reads the person aloud: name, dead, and the line under it", () => {
+    expect(card({ person: person({ dead: true }) }).attributes("aria-label")).toBe("Maera Thane, dead, born 1431");
+    expect(card({ person: person(), marriedIn: true }).attributes("aria-label")).toMatch(/^Maera Thane, born 1431 · \d+ · married in$/);
+  });
+
+  it("shows the portrait when there is one and the first letter of the name otherwise", () => {
+    expect(card({ person: person({ portraitUrl: "/p.webp" }) }).get("img").attributes("src")).toBe("/p.webp");
+    const plain = card({ person: person({ name: "  maera" }) });
+    expect(plain.find("img").exists()).toBe(false);
+    expect(plain.text()).toContain("M");
   });
 
   it("falls back to the subtitle when no birth year is known", () => {

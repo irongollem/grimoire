@@ -88,11 +88,11 @@ describe("DungeonCraftNoticeBoardsTab", () => {
     expect(w.text()).toContain("Presenting");
   });
 
-  it("explains what a notice board is when there are none", () => {
+  it("shows the empty state only while there are no boards", () => {
     mocks.boards = [];
-    const w = mountTab();
-    expect(w.text()).toContain("No notice boards yet");
-    expect(w.text()).toContain("pin quests as notes, wanted posters and sealed letters");
+    expect(mountTab().text()).toContain("No notice boards yet");
+    mocks.boards = [board()];
+    expect(mountTab().text()).not.toContain("No notice boards yet");
   });
 
   it("keeps its search in the UI store, and Clear resets it", async () => {
@@ -107,10 +107,10 @@ describe("DungeonCraftNoticeBoardsTab", () => {
     expect(ui.noticeBoardsHasActiveFilters).toBe(false);
   });
 
-  it("filters by name", async () => {
+  it("filters by name, ignoring case and surrounding spaces", async () => {
     mocks.boards = [board(), board({ id: "board-2", name: "Frontier Board" })];
     const w = mountTab();
-    useDungeonFeaturesUiStore().noticeBoardsSearch = "frontier";
+    useDungeonFeaturesUiStore().noticeBoardsSearch = "  FRONTIER ";
     await flushMicrotasks();
     expect(w.text()).toContain("Frontier Board");
     expect(w.text()).not.toContain("Pulled Sugar");

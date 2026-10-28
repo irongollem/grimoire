@@ -152,4 +152,23 @@ describe("PartyMemberForm save (#946)", () => {
     await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
     expect(update).not.toHaveBeenCalled();
   });
+
+  it("saves the name without surrounding whitespace", async () => {
+    const base = { ...member("2024"), name: "Mira", proficiency_bonus: 2 } as PartyMember;
+    const wrapper = mountForm(base);
+    const vm = wrapper.vm as unknown as { form: { name: string }; save: () => Promise<void> };
+    vm.form.name = "  Mira the Bold  ";
+    await vm.save();
+    expect(update.mock.calls[0][0].update.name).toBe("Mira the Bold");
+  });
+
+  it("saves a cleared optional text field as null, not an empty string", async () => {
+    const base = { ...member("2024"), name: "Mira", proficiency_bonus: 2, player_name: "Jo", notes: "x" } as PartyMember;
+    const wrapper = mountForm(base);
+    const vm = wrapper.vm as unknown as { form: { player_name: string; notes: string }; save: () => Promise<void> };
+    vm.form.player_name = "";
+    vm.form.notes = "";
+    await vm.save();
+    expect(update.mock.calls[0][0].update).toMatchObject({ player_name: null, notes: null });
+  });
 });

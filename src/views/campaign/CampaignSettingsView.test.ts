@@ -57,6 +57,7 @@ describe("CampaignSettingsView tabs", () => {
     mocks.aiEnabled = true;
     mocks.isOwner = true;
     mocks.query = {};
+    mocks.replace.mockClear();
   });
 
   it("shows the owner every tab, including AI Assistant and Danger Zone", () => {
@@ -106,5 +107,30 @@ describe("CampaignSettingsView tabs", () => {
     expect(labels(mountView())).toContain("Members & Invites (2)");
     mocks.waiting = 0;
     expect(labels(mountView())).toContain("Members & Invites");
+  });
+
+  it("hides Open Book from a co-DM too, and falls back to Details for a deep link to it or to AI Assistant", () => {
+    mocks.isOwner = false;
+    expect(labels(mountView())).not.toContain("Open Book");
+    for (const tab of ["openbook", "ai"]) {
+      mocks.query = { tab };
+      expect(mountView().find('[data-stub="DetailsTab"]').exists()).toBe(true);
+    }
+  });
+
+  it("opens the Danger Zone for the owner on a deep link, and Details for an unknown tab", () => {
+    mocks.query = { tab: "danger" };
+    const owner = mountView();
+    expect(owner.find('[data-stub="DetailsTab"]').exists()).toBe(false);
+    expect(owner.findComponent({ name: "DangerZoneTab" }).exists()).toBe(true);
+    mocks.query = { tab: "nonsense" };
+    expect(mountView().find('[data-stub="DetailsTab"]').exists()).toBe(true);
+  });
+
+  it("choosing a tab switches the route's tab and keeps the other query parameters", async () => {
+    mocks.query = { tab: "details", from: "x" };
+    const w = mountView();
+    await w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Scheduling")!.trigger("click");
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { tab: "scheduling", from: "x" } });
   });
 });

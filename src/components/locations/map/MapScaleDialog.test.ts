@@ -46,4 +46,28 @@ describe("MapScaleDialog", () => {
     expect(button(wrapper, "Saving…")!.attributes("disabled")).toBeDefined();
     expect(button(wrapper, "Clear scale")!.attributes("disabled")).toBeDefined();
   });
+
+  it("refuses to save a zero, a negative or an empty distance", async () => {
+    const wrapper = mountDialog();
+    for (const typed of ["0", "-5", ""]) {
+      await wrapper.find("input[type=number]").setValue(typed);
+      await button(wrapper, "Save Scale")!.trigger("click");
+    }
+    expect(wrapper.emitted("save")).toBeUndefined();
+  });
+
+  it("reports a cancel without saving", async () => {
+    const wrapper = mountDialog({ existing: EXISTING });
+    await button(wrapper, "Cancel")!.trigger("click");
+    expect(wrapper.emitted("cancel")).toHaveLength(1);
+    expect(wrapper.emitted("save")).toBeUndefined();
+  });
+
+  it("starts from the saved scale again each time it opens, dropping what was typed", async () => {
+    const wrapper = mountDialog({ existing: EXISTING });
+    await wrapper.find("input[type=number]").setValue("999");
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true });
+    expect((wrapper.find("input[type=number]").element as HTMLInputElement).value).toBe("40");
+  });
 });

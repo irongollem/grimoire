@@ -34,6 +34,33 @@ describe("EntityDetailModal", () => {
     wrapper.unmount();
   });
 
+  it("shows the subtitle under the title only when it has one", async () => {
+    const withSub = open();
+    await flushPromises();
+    expect(panel()!.textContent).toContain("Gnome · Chief Scientist");
+    withSub.unmount();
+    document.body.innerHTML = "";
+
+    const without = open({ subtitle: undefined });
+    await flushPromises();
+    expect(panel()!.querySelector("header p")).toBeNull();
+    without.unmount();
+  });
+
+  it("fills the available height by default and only shrinks to its content when asked", async () => {
+    const filled = open();
+    await flushPromises();
+    expect(panel()!.className).toContain("h-[min(48rem");
+    expect(panel()!.className).not.toContain("max-h-[min(48rem");
+    filled.unmount();
+    document.body.innerHTML = "";
+
+    const content = open({ height: "content" });
+    await flushPromises();
+    expect(panel()!.className).toContain("max-h-[min(48rem");
+    content.unmount();
+  });
+
   it("names itself by its own heading", async () => {
     const wrapper = open();
     await flushPromises();

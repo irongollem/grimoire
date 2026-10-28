@@ -112,6 +112,7 @@ describe("NoteSessionDatesPanel — prefill from the last session", () => {
     allNotes.value = [PRIOR[0]];
     await nextTick();
     expect(model.value.startYear).toBe(1491);
+    expect(model.value.startMonth).toBe(2);
     expect(model.value.startDay).toBe(9);
   });
 
@@ -145,6 +146,26 @@ describe("NoteSessionDatesPanel — prefill from the last session", () => {
     model.value.startYear = null; // the DM deliberately empties it
     allNotes.value = [...PRIOR];  // a refetch lands
     await nextTick();
+    expect(model.value.startYear).toBeNull();
+  });
+
+  it("falls back to the start month for a field the last session's end date left blank", async () => {
+    const { model } = mountPanel(EMPTY);
+    allNotes.value = [sessionNote({ id: "n3", session_id: "s-new", session_start_year: 1490, session_start_month: 5, session_start_day: 3, session_end_year: 1490 })];
+    await nextTick();
+    expect([model.value.startYear, model.value.startMonth, model.value.startDay]).toEqual([1490, 5, 3]);
+  });
+
+  it("leaves the dates empty, without an error, when no earlier session has a note", async () => {
+    const errors: unknown[] = [];
+    const model = ref<NoteSessionDates>({ ...EMPTY });
+    mount(NoteSessionDatesPanel, {
+      props: { modelValue: model.value, isNewNote: true, linkedCalendarEventId: null },
+      global: { stubs: { VueDatePicker: true }, config: { errorHandler: (e) => void errors.push(e) } },
+    });
+    allNotes.value = [];
+    await nextTick();
+    expect(errors).toEqual([]);
     expect(model.value.startYear).toBeNull();
   });
 });

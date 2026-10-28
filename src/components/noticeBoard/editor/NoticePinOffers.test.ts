@@ -35,11 +35,6 @@ describe("NoticePinOffers", () => {
     return { w, draft };
   };
 
-  it("says what taking the notice does", () => {
-    expect(mountOffers().w.text()).toContain("revealed to the whole party");
-    expect(mountOffers().w.text()).toContain("shared with them");
-  });
-
   it("offers only the board's own campaign's quests and handouts, never account-wide ones a take cannot give", () => {
     const { w } = mountOffers();
     const combos = w.findAllComponents({ name: "EntityCombobox" });
@@ -60,6 +55,16 @@ describe("NoticePinOffers", () => {
     quest.vm.$emit("update:modelValue", "q1");
     expect(draft.quest_id).toBe("q1");
     quest.vm.$emit("update:modelValue", "");
+    expect(draft.quest_id).toBeNull();
+  });
+
+  it("writes the chosen handout into the draft, and null when cleared", () => {
+    const { w, draft } = mountOffers();
+    const handout = w.findAllComponents({ name: "EntityCombobox" })[1];
+    handout.vm.$emit("update:modelValue", "d1");
+    expect(draft.handout_id).toBe("d1");
+    handout.vm.$emit("update:modelValue", "");
+    expect(draft.handout_id).toBeNull();
     expect(draft.quest_id).toBeNull();
   });
 });

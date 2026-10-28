@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FocalImage from "./FocalImage.vue";
+import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 
 // initPlaceholderFocalPoints/getPlaceholderFocalPoint are mocked so the test
 // exercises only the URL-parsing trap in resolvePlaceholder(), not the
@@ -134,5 +135,137 @@ describe("FocalImage AI badge", () => {
     });
     expect(wrapper.get("div").classes()).not.toContain("relative");
     expect(wrapper.get("div").classes()).toContain("absolute");
+  });
+});
+
+describe("FocalImage which file it asks for", () => {
+  const url = "https://cdn.example/npc-portraits/u1/owl.webp";
+  const srcOf = (props: Record<string, unknown>) =>
+    mount(FocalImage, { props: { format: "portrait", src: url, ...props } }).get("img").attributes("src");
+
+  it("asks for the size variant that fits the format, or the one the caller names", () => {
+    expect(srcOf({})).toBe("https://cdn.example/npc-portraits/u1/owl_w400.webp");
+    expect(srcOf({ format: "token" })).toBe("https://cdn.example/npc-portraits/u1/owl_w200.webp");
+    expect(srcOf({ renderWidth: 600 })).toBe("https://cdn.example/npc-portraits/u1/owl_w600.webp");
+  });
+
+  it("prints the original, and never re-wraps a url that is already a variant", () => {
+    expect(srcOf({ print: true })).toBe(url);
+    const variant = "https://cdn.example/npc-portraits/u1/owl_w300.webp";
+    expect(srcOf({ src: variant })).toBe(variant);
+  });
+
+  it("leaves local and relative sources alone", () => {
+    expect(srcOf({ src: "/assets/placeholders/character.webp" })).toBe("/assets/placeholders/character.webp");
+  });
+
+  it("falls back to the original when the variant fails to load", async () => {
+    const wrapper = mount(FocalImage, { props: { format: "portrait", src: url } });
+    await wrapper.get("img").trigger("error");
+    expect(wrapper.get("img").attributes("src")).toBe(url);
+  });
+});
+
+describe("FocalImage lightbox", () => {
+  const url = "https://cdn.example/npc-portraits/u1/owl.webp";
+  let imagesPreloaded = 0;
+  // Holds each preload open until the test lets it finish, so a second click or a src change can land mid-load.
+  let finishPreloads: Array<() => void> = [];
+
+  beforeEach(() => {
+    imagesPreloaded = 0;
+    finishPreloads = [];
+    vi.stubGlobal(
+      "Image",
+      class {
+        src = "";
+        decode() {
+          imagesPreloaded++;
+          return new Promise<void>((resolve) => finishPreloads.push(resolve));
+        }
+      },
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const lightboxSrc = (wrapper: ReturnType<typeof mount>) => wrapper.findComponent(ImageLightbox).props("src");
+
+  it("opens the original picture, not the thumbnail variant, when the image is clicked", async () => {
+    const wrapper = mount(FocalImage, { props: { format: "portrait", src: url, lightbox: true }, global: { stubs: { ImageLightbox: true } } });
+    await wrapper.get("div").trigger("click");
+    finishPreloads.forEach((finish) => finish());
+    await flushPromises();
+    expect(lightboxSrc(wrapper)).toBe(url);
+  });
+
+  it("does nothing on a click unless the lightbox was asked for", async () => {
+    const wrapper = mount(FocalImage, { props: { format: "portrait", src: url } });
+    await wrapper.get("div").trigger("click");
+    await flushPromises();
+    expect(wrapper.findComponent(ImageLightbox).exists()).toBe(false);
+    expect(imagesPreloaded).toBe(0);
+  });
+
+  it("a second click while the picture is still loading does not load it twice", async () => {
+    const wrapper = mount(FocalImage, { props: { format: "portrait", src: url, lightbox: true }, global: { stubs: { ImageLightbox: true } } });
+    await wrapper.get("div").trigger("click");
+    await wrapper.get("div").trigger("click");
+    finishPreloads.forEach((finish) => finish());
+    await flushPromises();
+    expect(imagesPreloaded).toBe(1);
+  });
+
+  it("does not open a picture the image has since moved off", async () => {
+    const wrapper = mount(FocalImage, { props: { format: "portrait", src: url, lightbox: true }, global: { stubs: { ImageLightbox: true } } });
+    await wrapper.get("div").trigger("click");
+    await wrapper.setProps({ src: "https://cdn.example/npc-portraits/u1/other.webp" });
+    finishPreloads.forEach((finish) => finish());
+    await flushPromises();
+    expect(lightboxSrc(wrapper)).toBeNull();
+  });
+});
+
+describe("FocalImage where it crops", () => {
+  /** A frame of the given height holding an image drawn at `shown` x `renderedH`, whose own file is `natural` x `natural`. */
+  async function loaded(layout: { frameH: number; shownW: number; shownH: number; natural: number }, focalPoint: { x: number; y: number }) {
+    const wrapper = mount(FocalImage, {
+      props: { format: "portrait", src: "/local/pic.webp", focalPoint, print: true },
+      attachTo: document.body,
+    });
+    const root = wrapper.find("div").element as HTMLElement;
+    const img = wrapper.find("img").element as HTMLImageElement;
+    Object.defineProperty(root, "offsetHeight", { configurable: true, value: layout.frameH });
+    Object.defineProperty(img, "offsetWidth", { configurable: true, value: layout.shownW });
+    Object.defineProperty(img, "offsetHeight", { configurable: true, value: layout.shownH });
+    Object.defineProperty(img, "naturalWidth", { configurable: true, value: layout.natural });
+    Object.defineProperty(img, "naturalHeight", { configurable: true, value: layout.natural });
+    await flushPromises();
+    await wrapper.find("img").trigger("load");
+    return wrapper;
+  }
+
+  it("a picture that covers the box by height pans vertically to the focal point, and stays centred across", async () => {
+    // 400x400 file in a 200x100 box: scaled to cover = 200x200, so 100px spare vertically, none across.
+    const w = await loaded({ frameH: 0, shownW: 200, shownH: 100, natural: 400 }, { x: 10, y: 100 });
+    expect(w.get("img").attributes("style")).toContain("object-position: 50% 100%");
+    w.unmount();
+  });
+
+  it("a picture that covers the box by width pans across, and stays centred vertically", async () => {
+    // 400x400 file in a 100x200 box: scaled to cover = 200x200, so 100px spare across, none vertically.
+    const w = await loaded({ frameH: 0, shownW: 100, shownH: 200, natural: 400 }, { x: 0, y: 90 });
+    expect(w.get("img").attributes("style")).toContain("object-position: 0% 50%");
+    w.unmount();
+  });
+
+  it("only switches to the clipped layout when the image is more than 2px taller than its frame", async () => {
+    // Image drawn 200 wide from a square file is 200 tall.
+    const justOver = await loaded({ frameH: 198, shownW: 200, shownH: 200, natural: 400 }, { x: 50, y: 50 });
+    expect(justOver.get("img").attributes("style") ?? "").toContain("object-position");
+    justOver.unmount();
+
+    const clearlyOver = await loaded({ frameH: 100, shownW: 200, shownH: 200, natural: 400 }, { x: 50, y: 100 });
+    expect(clearlyOver.get("img").attributes("style")).toContain("translateY(-100px)");
+    clearlyOver.unmount();
   });
 });

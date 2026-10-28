@@ -321,3 +321,106 @@ describe("QuestDesignerPanel — credit gate (checked after the quota gate)", ()
     expect(mocks.answer).not.toHaveBeenCalled();
   });
 });
+
+describe("QuestDesignerPanel — answering, starting over and creating", () => {
+  const question = { key: "q1", about: null, question: "Does the guard survive?", why: "It forks the next beat.", options: [{ key: "a", label: "Yes" }, { key: "b", label: "No" }] };
+  const tree = { title: "The Silent Crypt", summary: "Something stirs.", beats: [], routes: [], objectives: [], tags: [] };
+  const sendButton = (w: ReturnType<typeof mountPanel>) => w.get('button[aria-label="Send answers"]');
+  const noteInput = (w: ReturnType<typeof mountPanel>) => w.get("input[placeholder='A detail, a correction, a new twist…']");
+
+  beforeEach(() => {
+    mocks.answer.mockReset();
+    mocks.reset.mockReset();
+    mocks.createFromHook.mockReset();
+    mocks.push.mockReset();
+    mocks.confirm.mockReset().mockResolvedValue(true);
+    designerState.prose.value = "A dragon cult.";
+    designerState.tree.value = null;
+    designerState.previousTree.value = null;
+    designerState.questions.value = [];
+    designerState.turn.value = 2;
+    designerState.turnsLeft.value = 8;
+    designerState.isGenerating.value = false;
+    designerState.error.value = "";
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    requireCredits.mockReset().mockReturnValue(true);
+  });
+
+  it("a typed note alone is an answer: sent trimmed, as the note, and the box empties", async () => {
+    designerState.questions.value = [question];
+    const wrapper = mountPanel();
+    expect(sendButton(wrapper).attributes("disabled")).toBeDefined();
+    await noteInput(wrapper).setValue("  Make it grim  ");
+    expect(sendButton(wrapper).attributes("disabled")).toBeUndefined();
+    await sendButton(wrapper).trigger("click");
+    expect(mocks.answer).toHaveBeenCalledWith([{ question_key: "note", question: "Anything else to tell it?", answer: "Make it grim" }]);
+    expect((noteInput(wrapper).element as HTMLInputElement).value).toBe("");
+    expect(sendButton(wrapper).attributes("disabled")).toBeDefined();
+  });
+
+  it("blank spaces in the note, or in a card's own words, are not an answer", async () => {
+    designerState.questions.value = [question];
+    const wrapper = mountPanel();
+    await noteInput(wrapper).setValue("    ");
+    expect(sendButton(wrapper).attributes("disabled")).toBeDefined();
+    await noteInput(wrapper).setValue("");
+    await wrapper.get("input[placeholder]:not([placeholder^='A detail'])").setValue("   ");
+    expect(sendButton(wrapper).attributes("disabled")).toBeDefined();
+  });
+
+  it("cannot send while the last turn is still being generated", async () => {
+    designerState.questions.value = [question];
+    designerState.isGenerating.value = true;
+    const wrapper = mountPanel();
+    await wrapper.get('button[aria-label="Yes"]').trigger("click");
+    expect(wrapper.get('button[aria-label="Sending…"]').attributes("disabled")).toBeDefined();
+  });
+
+  it("cannot propose on blank spaces", async () => {
+    designerState.turn.value = 0;
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("     ");
+    expect(wrapper.get('button[aria-label="Propose a tree"]').attributes("disabled")).toBeDefined();
+  });
+
+  it.each([["Edit"], ["Start over"]])("%s keeps everything when the DM cancels the confirm, and resets when they accept", async (label) => {
+    const wrapper = mountPanel();
+    mocks.confirm.mockResolvedValue(false);
+    await wrapper.get(`button[aria-label="${label}"]`).trigger("click");
+    await flushPromises();
+    expect(mocks.reset).not.toHaveBeenCalled();
+    mocks.confirm.mockResolvedValue(true);
+    await wrapper.get(`button[aria-label="${label}"]`).trigger("click");
+    await flushPromises();
+    expect(mocks.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("states what the exchanges have cost so far: one turn's price per exchange", () => {
+    designerState.turn.value = 3;
+    designerState.questions.value = [question];
+    expect(mountPanel().text()).toContain("Exchange 3 of");
+    expect(mountPanel().text()).toContain("3 credits so far");
+  });
+
+  it("a quest refused for quota at the last step opens the paywall and goes nowhere", async () => {
+    designerState.tree.value = tree;
+    mocks.createFromHook.mockRejectedValue({ message: "quota_exceeded" });
+    const wrapper = mountPanel();
+    await wrapper.get('button[aria-label="Create quest"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(wrapper.get('button[aria-label="Create quest"]').attributes("disabled")).toBeUndefined();
+  });
+
+  it("an entity chip opens its sheet, but one the campaign has no record of opens nothing", async () => {
+    designerState.tree.value = tree;
+    const wrapper = mountPanel();
+    const preview = wrapper.findComponent({ name: "QuestDesignTreePreview" });
+    preview.vm.$emit("navigate", { kind: "npc", name: "Ravishin", id: null });
+    expect(mocks.push).not.toHaveBeenCalled();
+    preview.vm.$emit("navigate", { kind: "npc", name: "Ravishin", id: "npc-1" });
+    expect(mocks.push).toHaveBeenCalledWith("/npcs/npc-1");
+  });
+});

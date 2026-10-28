@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bondChoices, buildFamilyGroups, kinAsConnection, kinOptions, kinRetypePatch, lifeMeta, surnameOf } from "@/components/kinship/familyRows";
+import { bondChoices, buildFamilyGroups, kinAsConnection, kinOptions, kinRetypePatch, lifeMeta, retypedSentence, surnameOf } from "@/components/kinship/familyRows";
 import { buildKinGraph } from "@/lib/kinship/graph";
 import { edge, k, person, testClock } from "@/components/kinship/testGraph";
 
@@ -59,6 +59,17 @@ describe("buildFamilyGroups", () => {
     expect(siblings.caption).toBe("from shared parents");
     expect(siblings.rows.every((r) => r.link === null)).toBe(true);
     expect(siblings.rows.find((r) => r.person.isPc)?.meta).toContain("PC");
+  });
+
+  it("gives a spouse no door when they have no family of their own", () => {
+    const solo = buildKinGraph(people, [edge("6", "me", "hub", "spouse")]);
+    expect(buildFamilyGroups(solo, map, k("me"), testClock())[0]!.rows[0]!.door).toBeNull();
+  });
+
+  it("gives a spouse a door when they have a sibling but no parents on record", () => {
+    const withSibling = buildKinGraph([...people, person("hsis", "Hild Ashe", 1458)], [edge("6", "me", "hub", "spouse"), edge("11", "hub", "hsis", "sibling")]);
+    const spouse = buildFamilyGroups(withSibling, new Map([...map, [k("hsis"), person("hsis", "Hild Ashe", 1458)]]), k("me"), testClock())[0]!.rows[0]!;
+    expect(spouse.door).toBe("Ashe");
   });
 
   it("labels a relative with the link note", () => {
@@ -142,9 +153,25 @@ describe("changing a relation in place", () => {
     expect(kinAsConnection(mum.link!, k("me"), mum, "dear")).toMatchObject({ outward: false, note: "dear" });
   });
 
-  it("offers bonds only, never a record home", () => {
+  it("offers bonds only, never a record home, the common ones first", () => {
     const bonds = bondChoices(k("me"), k("mum"));
     expect(bonds.length).toBeGreaterThan(0);
     expect(bonds.every((c) => !c.home)).toBe(true);
+    const firstRare = bonds.findIndex((c) => !c.common);
+    expect(firstRare).toBeGreaterThan(0);
+    expect(bonds.slice(firstRare).some((c) => c.common)).toBe(false);
+  });
+
+  it("says what the row became, in the subject's possessive", () => {
+    const opts = kinOptions(graph, k("me"), rowFor("mum"));
+    expect(retypedSentence("Maera", "Brenna", opts.find((o) => o.id === "spouse")!)).toBe("Maera is now Brenna’s spouse.");
+  });
+
+  it("keeps a chosen parent role and drops one the move leaves behind", () => {
+    const mum = rowFor("mum");
+    const father = kinOptions(graph, k("me"), mum).find((o) => o.id === "parent:father")!;
+    expect(kinRetypePatch(mum.link!, k("me"), mum.key, father, "").parent_role).toBe("father");
+    const spouse = kinOptions(graph, k("me"), mum).find((o) => o.id === "spouse")!;
+    expect(kinRetypePatch(mum.link!, k("me"), mum.key, spouse, "").parent_role).toBeNull();
   });
 });

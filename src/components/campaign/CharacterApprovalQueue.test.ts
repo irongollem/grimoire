@@ -2,6 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import CharacterApprovalQueue from "./CharacterApprovalQueue.vue";
+import CharacterContentItemDialog from "./CharacterContentItemDialog.vue";
 import type { CharacterContentReview } from "@/composables/party/useCharacterContentReviews";
 import { sourceLabel } from "@/lib/library/sourceLabel";
 
@@ -186,5 +187,74 @@ describe("CharacterApprovalQueue", () => {
     expect(mocks.error).toHaveBeenCalledWith("Mothfolk was changed after you opened it. Look again before approving.");
     expect(mocks.invalidate).toHaveBeenCalledWith({ queryKey: ["character-content-reviews", "item"] });
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it("ignores a second decision while the first is still being saved", async () => {
+    state.reviews = [review({ id: "r1" }), review({ id: "r2", label: "Aarakocra" })];
+    let finish: (remaining: number) => void = () => undefined;
+    mocks.mutateAsync.mockReturnValueOnce(new Promise<number>((resolve) => (finish = resolve)));
+    const wrapper = mountQueue();
+    const [first, , second] = wrapper.findAll("button");
+    await first.trigger("click");
+    await first.trigger("click");
+    await second.trigger("click");
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(1);
+    finish(1);
+    await flushPromises();
+    await second.trigger("click");
+    await flushPromises();
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it("names the reach when unblocking for the whole table, and does nothing when declined", async () => {
+    state.reviews = [review({ reason: "blocked", label: "Wizard", kind: "class" })];
+    mocks.confirm.mockResolvedValue(false);
+    const wrapper = mountQueue();
+    await wrapper.findAll("button")[1].trigger("click");
+    await flushPromises();
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      "Wizard is no longer blocked for anyone at this table. Every player may pick it again.",
+      expect.objectContaining({ title: "Unblock Wizard for the table?", confirmLabel: "Unblock" }),
+    );
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("closes the dialog on approval and passes along the version of the content the DM looked at", async () => {
+    state.reviews = [review({ id: "h1", reason: "homebrew", label: "Mothfolk", source_slug: null, source_title: null })];
+    const wrapper = mountQueue();
+    await wrapper.findAll("button").find((b) => b.text() === "View")!.trigger("click");
+    const dialog = wrapper.findComponent(CharacterContentItemDialog);
+    expect(dialog.props("open")).toBe(true);
+    dialog.vm.$emit("approve", "character", "2026-10-01T10:00:00Z");
+    await flushPromises();
+    expect(mocks.mutateAsync).toHaveBeenCalledWith({
+      reviewId: "h1",
+      scope: "character",
+      seenUpdatedAt: "2026-10-01T10:00:00Z",
+    });
+    expect(dialog.props("open")).toBe(false);
+  });
+
+  it("keeps the dialog open when the player changed the content under the DM", async () => {
+    state.reviews = [review({ id: "h1", reason: "homebrew", label: "Mothfolk", source_slug: null, source_title: null })];
+    mocks.mutateAsync.mockRejectedValueOnce({ code: "CR002", message: "changed" });
+    const wrapper = mountQueue();
+    await wrapper.findAll("button").find((b) => b.text() === "View")!.trigger("click");
+    const dialog = wrapper.findComponent(CharacterContentItemDialog);
+    dialog.vm.$emit("approve", "character", "2026-10-01T10:00:00Z");
+    await flushPromises();
+    expect(dialog.props("open")).toBe(true);
+  });
+
+  it("ignores an approval from the dialog while a decision is already being saved", async () => {
+    state.reviews = [review({ id: "h1", reason: "homebrew", label: "Mothfolk", source_slug: null, source_title: null })];
+    mocks.mutateAsync.mockReturnValueOnce(new Promise<number>(() => undefined));
+    const wrapper = mountQueue();
+    await wrapper.findAll("button").find((b) => b.text() === "View")!.trigger("click");
+    const dialog = wrapper.findComponent(CharacterContentItemDialog);
+    dialog.vm.$emit("approve", "character", undefined);
+    dialog.vm.$emit("approve", "character", undefined);
+    await flushPromises();
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(1);
   });
 });

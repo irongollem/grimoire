@@ -1,4 +1,4 @@
-import { DOMWrapper, mount, type VueWrapper } from "@vue/test-utils";
+import { DOMWrapper, flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QuestThreadBar from "./QuestThreadBar.vue";
 
@@ -64,6 +64,103 @@ describe("QuestThreadBar", () => {
       campaignId: "c1", questId: "q1", beatId: "b1", label: "The sealed crypt", reason: undefined,
     });
     expect(wrapper.emitted("switch")).toEqual([["t4"]]);
+  });
+
+  describe("the inline open-a-thread form", () => {
+    // The form is v-show'd, so its visibility is only readable on an attached node.
+    let mounted: VueWrapper | undefined;
+    afterEach(() => mounted?.unmount());
+    const mountBar = () => {
+      mounted = mount(QuestThreadBar, {
+        props: { questId: "q1", campaignId: "c1", threadId: "t1" },
+        global: { stubs: { EntityCombobox: true } },
+        attachTo: document.body,
+      });
+      return mounted;
+    };
+    const formVisible = (w: VueWrapper) => w.findComponent({ name: "QuestThreadOpenForm" }).isVisible();
+    const labelInput = (w: VueWrapper) => w.find("input[placeholder='What is this thread?']");
+    const openForm = async (w: VueWrapper) => {
+      await w.findAll("button").find((button) => button.text() === "Open a thread")!.trigger("click");
+    };
+    const fill = async (w: VueWrapper, label: string) => {
+      w.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "b1");
+      await labelInput(w).setValue(label);
+    };
+    const submitButton = (w: VueWrapper) => w.findAll("button").find((button) => button.text() === "Open thread")!;
+
+    it("sends the label trimmed", async () => {
+      mocks.openThread.mockResolvedValue({ thread: { id: "t4" } });
+      const wrapper = mountBar();
+      await openForm(wrapper);
+      await fill(wrapper, "  The sealed crypt  ");
+      await submitButton(wrapper).trigger("click");
+      expect(mocks.openThread).toHaveBeenCalledWith(expect.objectContaining({ label: "The sealed crypt" }));
+    });
+
+    it("sends the reason when one is given", async () => {
+      mocks.openThread.mockResolvedValue({ thread: { id: "t4" } });
+      const wrapper = mountBar();
+      await openForm(wrapper);
+      await fill(wrapper, "The sealed crypt");
+      await wrapper.find("input[placeholder='Why open it now? (optional)']").setValue("  A lead came up ");
+      await submitButton(wrapper).trigger("click");
+      expect(mocks.openThread).toHaveBeenCalledWith(expect.objectContaining({ reason: "A lead came up" }));
+    });
+
+    it("ignores a submit that arrives without a beat or without a label", async () => {
+      const wrapper = mountBar();
+      await openForm(wrapper);
+      const form = wrapper.findComponent({ name: "QuestThreadOpenForm" });
+      await labelInput(wrapper).setValue("The sealed crypt");
+      form.vm.$emit("submit");
+      await flushPromises();
+      wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "b1");
+      await labelInput(wrapper).setValue("   ");
+      form.vm.$emit("submit");
+      await flushPromises();
+      expect(mocks.openThread).not.toHaveBeenCalled();
+    });
+
+    it("closes and empties the form once the thread is open, so the next one starts blank", async () => {
+      mocks.openThread.mockResolvedValue({ thread: { id: "t4" } });
+      const wrapper = mountBar();
+      await openForm(wrapper);
+      await fill(wrapper, "The sealed crypt");
+      await submitButton(wrapper).trigger("click");
+      await flushPromises();
+      expect(formVisible(wrapper)).toBe(false);
+      await openForm(wrapper);
+      expect((labelInput(wrapper).element as HTMLInputElement).value).toBe("");
+    });
+
+    it("keeps the form open with the error when opening fails, switches nowhere, and drops the error on the next try", async () => {
+      mocks.openThread.mockRejectedValueOnce(new Error("Thread limit reached")).mockResolvedValue({ thread: { id: "t4" } });
+      const wrapper = mountBar();
+      await openForm(wrapper);
+      await fill(wrapper, "The sealed crypt");
+      await submitButton(wrapper).trigger("click");
+      await flushPromises();
+      expect(wrapper.get('[role="alert"]').text()).toContain("Thread limit reached");
+      expect(formVisible(wrapper)).toBe(true);
+      expect(wrapper.emitted("switch")).toBeUndefined();
+
+      await submitButton(wrapper).trigger("click");
+      await flushPromises();
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+      expect(wrapper.emitted("switch")).toEqual([["t4"]]);
+    });
+  });
+
+  it("dims a merged thread like a closed one", () => {
+    mocks.threads.value = [
+      { id: "t1", label: "The petition", status: "live", created_at: "2026-01-01T00:00:00Z" },
+      { id: "t2", label: "The Drowned Vault", status: "merged", created_at: "2026-01-02T00:00:00Z" },
+    ];
+    const wrapper = mount(QuestThreadBar, { props: { questId: "q1", campaignId: "c1", threadId: "t1" } });
+    const merged = wrapper.findAll("button").find((button) => button.text().includes("The Drowned Vault"));
+    expect(merged?.text()).toContain("(merged)");
+    expect(merged?.attributes("disabled")).toBeDefined();
   });
 
   // #872 frame 5: below `sm`, the picker lives behind a trailing counter pill.

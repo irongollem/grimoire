@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   runtimeState: null as QuestRuntimeState | null,
   assertRuntime: vi.fn(),
   activeCampaignId: "campaign-1" as string | null,
+  threads: [{ id: "thread-1", quest_id: "quest-1", status: "live", label: "Main" }] as Array<{ id: string; quest_id: string; status: string; label: string }>,
 }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
@@ -34,7 +35,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: { value: mocks.objectives } }),
 }));
 vi.mock("@/composables/quests/useQuestThreads", () => ({
-  useQuestThreads: () => ({ data: { value: [{ id: "thread-1", quest_id: "quest-1", status: "live", label: "Main" }] } }),
+  useQuestThreads: () => ({ data: { value: mocks.threads } }),
 }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaignId: mocks.activeCampaignId }),
@@ -118,6 +119,7 @@ describe("QuestBackfillPanel", () => {
     mocks.runtimeState = null;
     mocks.activeCampaignId = "campaign-1";
     mocks.assertRuntime.mockReset();
+    mocks.threads = [{ id: "thread-1", quest_id: "quest-1", status: "live", label: "Main" }];
   });
 
   it("shows an empty state when the quest has no beats to backfill", () => {
@@ -276,5 +278,73 @@ describe("QuestBackfillPanel", () => {
     const wrapper = mountPanel();
     await wrapper.find('input[type="checkbox"]').setValue(true);
     expect(findButton(wrapper, "Mark as played")!.props("disabled")).toBe(true);
+  });
+
+  const tick = async (w: ReturnType<typeof mountPanel>) => { await w.find('input[type="checkbox"]').setValue(true); };
+
+  it("records onto the quest's live thread, never a closed or merged one, and offers nothing when none is live", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    mocks.threads = [
+      { id: "thread-old", quest_id: "quest-1", status: "closed", label: "Old" },
+      { id: "thread-merged", quest_id: "quest-1", status: "merged", label: "Folded in" },
+      { id: "thread-live", quest_id: "quest-1", status: "live", label: "Main" },
+    ];
+    mocks.assertRuntime.mockResolvedValue({ asserted: 1, beats: [], cursor_placed: false, current_beat_id: null });
+    const wrapper = mountPanel();
+    await tick(wrapper);
+    await findButton(wrapper, "Mark as played")!.trigger("click");
+    await flushPromises();
+    expect(mocks.assertRuntime).toHaveBeenCalledWith(expect.objectContaining({ threadId: "thread-live" }));
+
+    mocks.threads = [{ id: "thread-old", quest_id: "quest-1", status: "closed", label: "Old" }];
+    const none = mountPanel();
+    await tick(none);
+    expect(findButton(none, "Mark as played")!.props("disabled")).toBe(true);
+  });
+
+  it("names the session as the DM typed it, trimmed, in the confirmation", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    mocks.assertRuntime.mockResolvedValue({ asserted: 1, beats: [], cursor_placed: false, current_beat_id: null });
+    const wrapper = mountPanel();
+    await tick(wrapper);
+    await wrapper.find('input[placeholder="Session 11"]').setValue("  Session 4  ");
+    await findButton(wrapper, "Mark as played")!.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("Recorded 1 beat as played in Session 4.");
+  });
+
+  it("a refused record says why, releases the buttons, keeps the selection, and drops an earlier success message", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    mocks.assertRuntime.mockResolvedValueOnce({ asserted: 1, beats: [], cursor_placed: false, current_beat_id: null }).mockRejectedValueOnce("refused").mockRejectedValueOnce(new Error("Quest is locked")).mockResolvedValue({ asserted: 1, beats: [], cursor_placed: false, current_beat_id: null });
+    const wrapper = mountPanel();
+    await tick(wrapper);
+    await findButton(wrapper, "Mark as played")!.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("Recorded 1 beat as played.");
+
+    await tick(wrapper);
+    await findButton(wrapper, "Mark as played")!.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("Recorded 1 beat");
+    expect(wrapper.get('[role="alert"]').text()).toBe("Could not record this history");
+    expect(findButton(wrapper, "Mark as played")!.props("loading")).toBe(false);
+    expect(wrapper.text()).toContain("1 of 1 selected");
+
+    await findButton(wrapper, "Mark as played")!.trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("Quest is locked");
+
+    await findButton(wrapper, "Mark as played")!.trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+  });
+
+  it("previews a rule about a since-deleted objective as 'Objective removed', and names an untitled last beat", async () => {
+    mocks.beats = [beat("a", "")];
+    mocks.consequences = [consequence({ id: "c1", on_beat_id: "a", action: "complete", target_objective_id: "obj-gone" })];
+    const wrapper = mountPanel();
+    await tick(wrapper);
+    expect(wrapper.text()).toContain('Complete "Objective removed"');
+    expect(findButton(wrapper, "Mark as played and put the party at “Untitled beat”")).toBeDefined();
   });
 });

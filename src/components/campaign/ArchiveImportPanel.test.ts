@@ -4,7 +4,7 @@ import { ref } from "vue";
 import { buildArchiveManifest } from "@/lib/archiveImport/archiveManifest";
 import type { ArchiveDocumentImport } from "@/types/documentImport.types";
 
-const mocks = vi.hoisted(() => ({ abandon: vi.fn(async () => undefined), confirm: vi.fn(async () => true) }));
+const mocks = vi.hoisted(() => ({ abandon: vi.fn(async () => undefined), confirm: vi.fn(async () => true), create: vi.fn() }));
 
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ fromError: (_e: unknown, fallback: string) => fallback, info: vi.fn() }) }));
@@ -12,7 +12,7 @@ vi.mock("@/composables/campaign/useDocumentImport", () => ({
   useAbandonDocumentImport: () => ({ mutateAsync: mocks.abandon, isPending: ref(false) }),
 }));
 vi.mock("@/composables/campaign/useArchiveImport", () => ({
-  useCreateArchiveImport: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+  useCreateArchiveImport: () => ({ mutateAsync: mocks.create, isPending: ref(false) }),
 }));
 // The review step has its own concerns (matches, quota, the sweep); here only what the panel hands it matters.
 vi.mock("@/components/campaign/ArchiveReviewStep.vue", () => ({
@@ -114,5 +114,48 @@ describe("ArchiveImportPanel", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("does not look like the export");
     expect(wrapper.findComponent({ name: "ArchiveReviewStep" }).exists()).toBe(false);
+  });
+
+  describe("leaving the sort step", () => {
+    async function sorted() {
+      const wrapper = mount(ArchiveImportPanel);
+      wrapper.findComponent(ArchiveFilePicker).vm.$emit("picked", [md("Mara.md", "# Mara\n\nAn innkeeper."), md("Dunmere.md", "A town.")]);
+      await flushPromises();
+      return wrapper;
+    }
+    const goOn = (w: Awaited<ReturnType<typeof sorted>>) => w.findAll("button").find((b) => b.text().startsWith("Continue"))!;
+
+    it("will not continue until the DM has ticked that they hold the rights", async () => {
+      const wrapper = await sorted();
+      expect(goOn(wrapper).attributes("disabled")).toBeDefined();
+      await wrapper.find("input[type=checkbox]").setValue(true);
+      expect(goOn(wrapper).attributes("disabled")).toBeUndefined();
+    });
+
+    it("creates the import with the name trimmed and the rights attested, then hands the row to review", async () => {
+      const created = { ...interruptedRow(), id: "new-row" };
+      mocks.create.mockResolvedValue(created);
+      const wrapper = await sorted();
+      await wrapper.find("input[placeholder^='e.g.']").setValue("  My vault  ");
+      await wrapper.find("input[type=checkbox]").setValue(true);
+      await goOn(wrapper).trigger("click");
+      await flushPromises();
+      // Loose markdown files carry no vault marker, so the export is not recognised as any one app.
+      const [payload] = mocks.create.mock.calls[0];
+      expect(payload).toMatchObject({ displayName: "My vault", rightsAttested: true, source: "unknown" });
+      expect(payload.pages.map((p: { ref: string }) => p.ref).sort()).toEqual(["Dunmere.md", "Mara.md"]);
+      expect(wrapper.findComponent({ name: "ArchiveReviewStep" }).props("importRow")).toEqual(created);
+    });
+
+    it("stays on the sort step and says so when the import cannot be created", async () => {
+      mocks.create.mockRejectedValue(new Error("nope"));
+      const wrapper = await sorted();
+      await wrapper.find("input[placeholder^='e.g.']").setValue("My vault");
+      await wrapper.find("input[type=checkbox]").setValue(true);
+      await goOn(wrapper).trigger("click");
+      await flushPromises();
+      expect(wrapper.text()).toContain("Could not start the import.");
+      expect(wrapper.findComponent({ name: "ArchiveReviewStep" }).exists()).toBe(false);
+    });
   });
 });

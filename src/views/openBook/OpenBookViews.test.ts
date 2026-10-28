@@ -102,6 +102,42 @@ describe("the cover", () => {
   });
 });
 
+describe("the cover and a visitor's own ribbons", () => {
+  it("drops a ribbon for a page that is no longer in the book, so it never links to a page that does not exist", async () => {
+    localStorage.setItem(
+      "open-book:ribbons:salt",
+      JSON.stringify([
+        { key: "entry:town", unit: 0, title: "Hollowmere" },
+        { key: "entry:gone", unit: 0, title: "A page cut from the book" },
+      ]),
+    );
+    const w = await mountView(OpenBookCoverView, "/w/salt");
+    expect(w.text()).toContain("Your ribbon: Hollowmere");
+    expect(w.text()).not.toContain("A page cut from the book");
+  });
+
+  it("does not read another book's ribbons", async () => {
+    localStorage.setItem("open-book:ribbons:other", JSON.stringify([{ key: "entry:town", unit: 0, title: "Hollowmere" }]));
+    const w = await mountView(OpenBookCoverView, "/w/salt");
+    expect(w.text()).not.toContain("Your ribbon");
+  });
+
+  it("links a ribbon on a later turn of a page to that turn", async () => {
+    localStorage.setItem("open-book:ribbons:salt", JSON.stringify([{ key: "entry:town", unit: 2, title: "Hollowmere" }]));
+    const w = await mountView(OpenBookCoverView, "/w/salt");
+    expect(w.find(".ob-cover-ribbons a").attributes("href")).toBe("/w/salt/atlas/town?s=2");
+  });
+
+  it("offers a tab only for a chapter that has pages", async () => {
+    state.data = {
+      status: "found",
+      book: { ...book, snapshot: { ...book.snapshot, book: { ...book.snapshot.book, chapters: ["atlas", "folk"] } } },
+    } satisfies PublicOpenBookResult;
+    const w = await mountView(OpenBookCoverView, "/w/salt");
+    expect(w.findAll("a[aria-label^='Open the book at']").map((a) => a.attributes("aria-label"))).toEqual(["Open the book at Atlas"]);
+  });
+});
+
 describe("the reader view", () => {
   it("is a quiet closed book when there is none", async () => {
     state.data = { status: "not_found" } satisfies PublicOpenBookResult;
@@ -129,6 +165,10 @@ describe("the owner's preview", () => {
     reader.unmount();
     const other = await mountView(OpenBookCoverView, "/w/other");
     expect(other.find(".ob-preview-bar").exists()).toBe(false);
+    other.unmount();
+    state.data = { status: "found", book: { ...book, slug: "other" } } satisfies PublicOpenBookResult;
+    const otherReader = await mountView(OpenBookReaderView, "/w/other/contents");
+    expect(otherReader.find(".ob-preview-bar").exists()).toBe(false);
   });
 
   it("ends from the banner", async () => {

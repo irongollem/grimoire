@@ -373,4 +373,92 @@ describe("MapLayersPanel", () => {
       expect(wrapper.findComponent({ name: "AppCheckbox" }).exists()).toBe(true);
     });
   });
+
+  describe("Picture upload", () => {
+    async function choose(wrapper: ReturnType<typeof mountPanel>, file: File) {
+      const input = wrapper.get("input[type=file]");
+      Object.defineProperty(input.element, "files", { value: [file], configurable: true });
+      await input.trigger("change");
+      await flushPromises();
+    }
+    const scan = () => new File(["x"], "scan.webp", { type: "image/webp" });
+
+    it("stores the new picture and deletes the one it replaces", async () => {
+      mocks.upload.mockResolvedValueOnce("https://cdn.example/new.webp");
+      const wrapper = mountPanel({ location: site({ map_url: "https://cdn.example/old.webp" }) });
+      await choose(wrapper, scan());
+      expect(mocks.updatePicture).toHaveBeenCalledWith({ id: "site-1", mapUrl: "https://cdn.example/new.webp" });
+      expect(mocks.remove).toHaveBeenCalledWith("https://cdn.example/old.webp");
+    });
+
+    it("has no old file to delete on a first upload", async () => {
+      mocks.upload.mockResolvedValueOnce("https://cdn.example/new.webp");
+      await choose(mountPanel(), scan());
+      expect(mocks.updatePicture).toHaveBeenCalledTimes(1);
+      expect(mocks.remove).not.toHaveBeenCalled();
+    });
+
+    it("keeps the old picture, and writes nothing, when the upload fails", async () => {
+      mocks.upload.mockResolvedValueOnce(null);
+      await choose(mountPanel({ location: site({ map_url: "https://cdn.example/old.webp" }) }), scan());
+      expect(mocks.updatePicture).not.toHaveBeenCalled();
+      expect(mocks.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Calibration and review wording", () => {
+    it("saves a calibration and closes the dialog", async () => {
+      const wrapper = mountPanel({ location: site({ map_url: "https://cdn.example/x.webp" }) });
+      await findButton(wrapper, "Calibrate").trigger("click");
+      const dialog = wrapper.findComponent({ name: "GridCalibrationDialog" });
+      expect(dialog.props("open")).toBe(true);
+      const calibration = { cells_per_image_width: 30, origin_x_pct: 1, origin_y_pct: 2 };
+      dialog.vm.$emit("save", calibration);
+      await flushPromises();
+      expect(mocks.updateCalibration).toHaveBeenCalledWith({ id: "site-1", calibration });
+      expect(dialog.props("open")).toBe(false);
+    });
+
+    it("reads Review 1 change, singular, for a single change", async () => {
+      const staleness: PublishStaleness = { behind: 1, delta: { changedSpaces: 1, newSpaces: 0, goneSpaces: 0, newWays: 0, goneWays: 0 } };
+      const wrapper = mountPanel({
+        location: site({ source_map_id: "map-1", map_published_rev: 12 }),
+        map: { name: "X", rev: 13 },
+        staleness,
+      });
+      expect(() => findButton(wrapper, "Review 1 change")).not.toThrow();
+    });
+  });
+
+  describe("Blank grid size", () => {
+    async function start(wrapper: ReturnType<typeof mountPanel>, cols: number | null, rows: number | null) {
+      const inputs = wrapper.findAllComponents({ name: "AppInput" });
+      await inputs[0]!.vm.$emit("update:modelValue", cols);
+      await inputs[1]!.vm.$emit("update:modelValue", rows);
+      await findButton(wrapper, "Start a blank grid").trigger("click");
+      await flushPromises();
+    }
+
+    it.each([
+      [0, 10],
+      [12, 0],
+      [401, 10],
+      [12, 401],
+      [2.5, 10],
+      [12, 3.5],
+      [null, 10],
+      [12, null],
+    ])("refuses %s by %s", async (cols, rows) => {
+      await start(mountPanel(), cols, rows);
+      expect(mocks.updateLocation).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [1, 1],
+      [400, 400],
+    ])("accepts the edge %s by %s", async (cols, rows) => {
+      await start(mountPanel(), cols, rows);
+      expect(mocks.updateLocation).toHaveBeenCalledWith({ id: "site-1", update: { plan_size: { cols, rows } } });
+    });
+  });
 });

@@ -22,6 +22,12 @@ describe("isChoiceComplete", () => {
     expect(isChoiceComplete(d, { ...emptyChoiceValue(), picks: ["a"] }, feats, 1)).toBe(true);
   });
 
+  it("a feat entry never asks for more feats than can be taken", () => {
+    const d = due({ kind: "feat", categories: null }, 2);
+    expect(isChoiceComplete(d, { ...emptyChoiceValue(), picks: ["alert"] }, feats, 1)).toBe(true);
+    expect(isChoiceComplete(d, { ...emptyChoiceValue(), picks: ["alert"] }, feats, 2)).toBe(false);
+  });
+
   it("an ASI needs a form, its abilities, and for a feat the feat and its ability", () => {
     const d = due({ kind: "asi_or_feat" });
     const v = (patch: Partial<ChoiceValue>): ChoiceValue => ({ ...initialChoiceValue(d), ...patch });

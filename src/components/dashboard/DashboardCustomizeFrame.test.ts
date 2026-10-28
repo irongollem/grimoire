@@ -394,3 +394,24 @@ describe("customizing — self-hiding widgets", () => {
     expect(wrapper.classes()).toContain("lg:col-span-2");
   });
 });
+
+describe("customizing — height stepper", () => {
+  const mountHeight = (widget: DashboardWidgetDef, height?: 1 | 2 | 3 | 4) =>
+    mount(DashboardCustomizeFrame, {
+      props: { entry: { ...entryFor(widget), height }, widget, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+
+  it("states the entry's own height in the label, and the widget's preferred height when it has none", () => {
+    const tall = { ...QUESTS, heights: [1, 2, 3, 4], defaultHeight: 3 } as DashboardWidgetDef;
+    expect(mountHeight(tall, 1).get('[aria-label^="Shorter"]').attributes("aria-label")).toBe("Shorter, currently 1 of 4");
+    expect(mountHeight(tall).get('[aria-label^="Shorter"]').attributes("aria-label")).toBe("Shorter, currently 3 of 4");
+  });
+
+  it("offers no height stepper to a widget that can only be one height", () => {
+    const fixed = { ...PARTY, heights: [1], defaultHeight: 1 } as DashboardWidgetDef;
+    const wrapper = mountHeight(fixed);
+    expect(wrapper.find('[aria-label^="Shorter"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label^="Taller"]').exists()).toBe(false);
+  });
+});

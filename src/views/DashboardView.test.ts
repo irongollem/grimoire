@@ -1,4 +1,4 @@
-import { nextTick, reactive } from "vue";
+import { nextTick, reactive, type Ref } from "vue";
 import { shallowMount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
@@ -11,6 +11,7 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
+import DashboardWidgetSettingsModal from "@/components/dashboard/DashboardWidgetSettingsModal.vue";
 import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
@@ -24,6 +25,9 @@ const mocks = vi.hoisted(() => ({
   saveLayout: vi.fn(),
   resetLayout: vi.fn(),
   toastInfo: vi.fn(),
+  // Bumped to make the composable hand over a freshly merged layout, as it does
+  // when the saved row is refetched.
+  version: undefined as unknown as Ref<number>,
 }));
 
 vi.mock("vue-router", () => ({
@@ -36,10 +40,14 @@ vi.mock("vue-router", () => ({
 // surface) rather than stubbing it out to nothing, which would let the view
 // ignore the composable entirely without a single test noticing.
 vi.mock("@/composables/dashboard/useDashboardLayout", async () => {
-  const { computed, toValue } = await import("vue");
+  const { computed, ref, toValue } = await import("vue");
+  mocks.version = ref(0);
   return {
     useDashboardLayout: (surface: unknown) => ({
-      widgets: computed(() => mocks.widgetsFor(toValue(surface as never))),
+      widgets: computed(() => {
+        void mocks.version.value;
+        return mocks.widgetsFor(toValue(surface as never)).map((entry) => ({ ...entry }));
+      }),
       newWidgetIds: computed(() => mocks.newWidgetIds),
       // #768: the view binds packing off this, so a mock without it throws
       // before a single assertion runs.
@@ -93,6 +101,7 @@ describe("DashboardView", () => {
     mocks.resetLayout.mockReset();
     mocks.toastInfo.mockReset();
     mocks.newWidgetIds = [];
+    mocks.version.value = 0;
   });
 
   // The composition follows the session, which is what finally makes starting
@@ -288,5 +297,161 @@ describe("DashboardView", () => {
     // the Done button would be pointing at nothing.
     await customizeButton(wrapper).trigger("click");
     expect(wrapper.findComponent(EntityNewDot).props("isNew")).toBe(false);
+  });
+
+  describe("saving what was arranged", () => {
+    function moveFirstWidget(wrapper: ReturnType<typeof mountView>) {
+      wrapper.findAllComponents(DashboardCustomizeFrame)[0]?.vm.$emit("move", "prep-gaps", 1);
+      return nextTick();
+    }
+    const savedKeys = (): string[] => {
+      const saved = mocks.saveLayout.mock.calls.at(-1)?.[0] as DashboardLayoutEntry[] | undefined;
+      return (saved ?? []).map((entry) => entry.key);
+    };
+
+    it("writes a burst of edits once, half a second after the last one", async () => {
+      vi.useFakeTimers();
+      try {
+        const wrapper = mountView();
+        await customizeButton(wrapper).trigger("click");
+        await moveFirstWidget(wrapper);
+        vi.advanceTimersByTime(499);
+        expect(mocks.saveLayout).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(1);
+        expect(mocks.saveLayout).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not lose the last edit when the DM navigates away before the debounce fires", async () => {
+      vi.useFakeTimers();
+      try {
+        const wrapper = mountView();
+        await customizeButton(wrapper).trigger("click");
+        await moveFirstWidget(wrapper);
+        expect(mocks.saveLayout).not.toHaveBeenCalled();
+
+        wrapper.unmount();
+        expect(mocks.saveLayout).toHaveBeenCalledTimes(1);
+        expect(savedKeys().slice(0, 2)).toEqual(["quests", "prep-gaps"]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("saves the packing setting with the arrangement", async () => {
+      const wrapper = mountView();
+      await customizeButton(wrapper).trigger("click");
+      wrapper.findComponent(DashboardShelf).vm.$emit("update:dense", true);
+      await nextTick();
+      await customizeButton(wrapper).trigger("click");
+
+      expect(mocks.saveLayout.mock.calls.at(-1)?.[1]).toBe(true);
+    });
+
+    it("a refetched layout does not overwrite an arrangement the DM is in the middle of", async () => {
+      const wrapper = mountView();
+      await customizeButton(wrapper).trigger("click");
+      await moveFirstWidget(wrapper);
+
+      mocks.version.value++;
+      await nextTick();
+
+      const keys = wrapper.findAllComponents(DashboardCustomizeFrame).map((frame) => frame.props("entry").key);
+      expect(keys.slice(0, 2)).toEqual(["quests", "prep-gaps"]);
+    });
+  });
+
+  describe("reset and the settings dialog", () => {
+    const gridClasses = (wrapper: ReturnType<typeof mountView>) => wrapper.find(".dashboard-grid").classes();
+
+    it("reset turns packing back off, and its undo turns it back on", async () => {
+      const wrapper = mountView();
+      await customizeButton(wrapper).trigger("click");
+      wrapper.findComponent(DashboardShelf).vm.$emit("update:dense", true);
+      await nextTick();
+      expect(gridClasses(wrapper)).toContain("dashboard-grid--dense");
+
+      wrapper.findComponent(DashboardShelf).vm.$emit("reset");
+      await nextTick();
+      expect(gridClasses(wrapper)).not.toContain("dashboard-grid--dense");
+
+      const [, , options] = mocks.toastInfo.mock.calls.at(-1) ?? [];
+      (options as { action: { run: () => void } }).action.run();
+      await nextTick();
+      expect(gridClasses(wrapper)).toContain("dashboard-grid--dense");
+      expect(mocks.saveLayout.mock.calls.at(-1)?.[1]).toBe(true);
+    });
+
+    it("a widget removed while its settings were open does not reopen them when it is added back", async () => {
+      const wrapper = mountView();
+      await customizeButton(wrapper).trigger("click");
+      const frame = wrapper.findAllComponents(DashboardCustomizeFrame)[0]!;
+      frame.vm.$emit("configure", "prep-gaps");
+      await nextTick();
+      expect(wrapper.findComponent(DashboardWidgetSettingsModal).props("entry")?.key).toBe("prep-gaps");
+
+      frame.vm.$emit("remove", "prep-gaps");
+      await nextTick();
+      wrapper.findComponent(DashboardShelf).vm.$emit("add", "prep-gaps");
+      await nextTick();
+
+      expect(wrapper.findAllComponents(DashboardCustomizeFrame).map((f) => f.props("entry").key)).toContain("prep-gaps");
+      expect(wrapper.findComponent(DashboardWidgetSettingsModal).props("entry")).toBeUndefined();
+    });
+  });
+
+  describe("the ring on a widget just added", () => {
+    const ringed = (wrapper: ReturnType<typeof mountView>) =>
+      wrapper
+        .findAllComponents(DashboardCustomizeFrame)
+        .filter((frame) => frame.classes().includes("ring-2"))
+        .map((frame) => frame.props("entry").key);
+
+    it("rings the new card so it can be found, and takes the ring off after a moment", async () => {
+      vi.useFakeTimers();
+      try {
+        const wrapper = mountView();
+        await customizeButton(wrapper).trigger("click");
+        wrapper.findAllComponents(DashboardCustomizeFrame)[0]?.vm.$emit("remove", "prep-gaps");
+        await nextTick();
+        wrapper.findComponent(DashboardShelf).vm.$emit("add", "prep-gaps");
+        await nextTick();
+        expect(ringed(wrapper)).toEqual(["prep-gaps"]);
+
+        vi.advanceTimersByTime(1600);
+        await nextTick();
+        expect(ringed(wrapper)).toEqual([]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("a second add restarts the ring rather than letting the first one's timer cut it short", async () => {
+      vi.useFakeTimers();
+      try {
+        const wrapper = mountView();
+        await customizeButton(wrapper).trigger("click");
+        const frames = () => wrapper.findAllComponents(DashboardCustomizeFrame);
+        frames()[0]?.vm.$emit("remove", "prep-gaps");
+        await nextTick();
+        frames()[0]?.vm.$emit("remove", "quests");
+        await nextTick();
+
+        wrapper.findComponent(DashboardShelf).vm.$emit("add", "prep-gaps");
+        await nextTick();
+        vi.advanceTimersByTime(1000);
+        wrapper.findComponent(DashboardShelf).vm.$emit("add", "quests");
+        await nextTick();
+        vi.advanceTimersByTime(700);
+        await nextTick();
+
+        expect(ringed(wrapper)).toEqual(["quests"]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

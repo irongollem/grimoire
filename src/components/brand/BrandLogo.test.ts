@@ -28,6 +28,12 @@ describe("BrandLogo", () => {
     expect(src()).toBe("/brand/logo-dark.webp");
   });
 
+  it("keeps the viewer's own mode when the route's darkChrome is not exactly true", () => {
+    activeThemeId.value = lightTheme.id;
+    route.meta = { darkChrome: "yes" };
+    expect(src()).toBe("/brand/logo-light.webp");
+  });
+
   it("is the dark lockup on a darkChrome route, whatever the viewer's mode", () => {
     activeThemeId.value = lightTheme.id;
     route.meta = { darkChrome: true };

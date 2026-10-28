@@ -1,4 +1,4 @@
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PuzzleGeneratorPanel from "./PuzzleGeneratorPanel.vue";
@@ -130,5 +130,48 @@ describe("PuzzleGeneratorPanel — quota gate (puzzle_rooms, checked before spen
     await generateButton.trigger("click");
 
     expect(mocks.generate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("PuzzleGeneratorPanel — what a generation creates", () => {
+  beforeEach(() => {
+    mocks.createPuzzle.mockReset();
+    mocks.generate.mockReset();
+    mocks.push.mockReset();
+    campaignState.isAiEnabled = true;
+    quotaState.canCreate = true;
+  });
+
+  const generated = {
+    name: "Flooded Crypt", puzzle_type: "Logic", difficulty: "Hard", description: "d", hints: ["h1"], solution: "s",
+    skill_checks: [], success_outcome: "ok", failure_consequence: "bad", notes: "n", tags: [], image_url: null,
+  };
+
+  async function run(concept: string) {
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue(concept);
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await flushPromises();
+  }
+
+  it("sends the concept without surrounding whitespace", async () => {
+    mocks.generate.mockResolvedValue(null);
+    await run("   A flooded crypt.  ");
+    expect(mocks.generate.mock.calls[0][0]).toBe("A flooded crypt.");
+  });
+
+  it("saves the puzzle private to the active campaign and opens it", async () => {
+    mocks.generate.mockResolvedValue(generated);
+    mocks.createPuzzle.mockResolvedValue({ id: "pz-1" });
+    await run("A flooded crypt.");
+    expect(mocks.createPuzzle.mock.calls[0][0]).toMatchObject({ name: "Flooded Crypt", campaign_id: "campaign-1", is_shared: false });
+    expect(mocks.push).toHaveBeenCalledWith("/puzzles/pz-1");
+  });
+
+  it("creates and navigates nowhere when the generation returned nothing", async () => {
+    mocks.generate.mockResolvedValue(null);
+    await run("A flooded crypt.");
+    expect(mocks.createPuzzle).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 });

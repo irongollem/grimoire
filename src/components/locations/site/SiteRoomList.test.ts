@@ -23,10 +23,11 @@ function room(overrides: Partial<Location> = {}): Location {
 const mocks = vi.hoisted(() => ({
   loot: { value: [] as Array<Record<string, unknown>> },
   moveParty: vi.fn((_request: unknown) => Promise.resolve(true)),
-  updateLocation: vi.fn((_input: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.()),
+  updateLocation: vi.fn((_input: unknown, opts?: { onSuccess?: () => void; onError?: (e: Error) => void }) => opts?.onSuccess?.()),
   aiEnabled: { value: false },
   canSpend: vi.fn(() => true),
   fill: vi.fn(),
+  toastError: vi.fn(),
   allLocations: { value: [] as Array<Record<string, unknown>> },
 }));
 
@@ -57,7 +58,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({ useLootPlacements: () => (
 vi.mock("@/composables/locations/useMoveParty", () => ({
   useMoveParty: () => ({ moveParty: mocks.moveParty, isMoving: { value: false } }),
 }));
-vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: vi.fn() }) }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: vi.fn() }) }));
 
 const stubs = { RouterLink: true, RichTextEditor: true, GenerationCostBadge: true };
 
@@ -79,6 +80,7 @@ describe("SiteRoomList", () => {
     mocks.moveParty.mockClear();
     mocks.updateLocation.mockClear();
     mocks.fill.mockReset();
+    mocks.toastError.mockReset();
     mocks.aiEnabled.value = false;
   });
 
@@ -296,5 +298,70 @@ describe("SiteRoomList", () => {
       await byLabel(wrapper, "Roll it with AI").trigger("click");
       expect(mocks.fill).not.toHaveBeenCalled();
     });
+  });
+
+  describe("filling an unwritten room by hand", () => {
+    const unwritten = () => [room({ id: "room-a", name: "Nave of Ash", description: null })];
+    const open = async (wrapper: ReturnType<typeof mount>) => {
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Fill")!.trigger("click");
+    };
+    const press = (wrapper: ReturnType<typeof mount>, label: string) =>
+      wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text() === label)!.trigger("click");
+
+    it("Cancel closes the editor and writes nothing", async () => {
+      const wrapper = mount(SiteRoomList, { props: baseProps(unwritten()), global: { stubs } });
+      await open(wrapper);
+      wrapper.findComponent({ name: "RichTextEditor" }).vm.$emit("update:modelValue", tiptap("Half a thought"));
+      await press(wrapper, "Cancel");
+      expect(wrapper.findComponent({ name: "RichTextEditor" }).exists()).toBe(false);
+      expect(mocks.updateLocation).not.toHaveBeenCalled();
+      expect(wrapper.emitted("fill")).toBeUndefined();
+    });
+
+    it("saves what was typed, and closes the editor once it landed", async () => {
+      const wrapper = mount(SiteRoomList, { props: baseProps(unwritten()), global: { stubs } });
+      await open(wrapper);
+      wrapper.findComponent({ name: "RichTextEditor" }).vm.$emit("update:modelValue", tiptap("Ash drifts down."));
+      await press(wrapper, "Save");
+      expect(wrapper.findComponent({ name: "RichTextEditor" }).exists()).toBe(false);
+      expect(mocks.updateLocation).toHaveBeenCalledWith({ id: "room-a", update: { description: tiptap("Ash drifts down.") } }, expect.anything());
+    });
+
+    it("keeps the editor open, and says so, when the save fails", async () => {
+      mocks.updateLocation.mockImplementationOnce((_input: unknown, opts?: { onError?: (e: Error) => void }) => opts?.onError?.(new Error("nope")));
+      const wrapper = mount(SiteRoomList, { props: baseProps(unwritten()), global: { stubs } });
+      await open(wrapper);
+      await press(wrapper, "Save");
+      expect(mocks.toastError).toHaveBeenCalled();
+      expect(wrapper.findComponent({ name: "RichTextEditor" }).exists()).toBe(true);
+      expect(wrapper.emitted("fill")).toBeUndefined();
+    });
+
+    it("passes the DM's steer to the roll, and leaves the editor alone when the roll returns nothing", async () => {
+      mocks.aiEnabled.value = true;
+      mocks.fill.mockResolvedValue(null);
+      const wrapper = mount(SiteRoomList, { props: baseProps(unwritten()), global: { stubs } });
+      await open(wrapper);
+      wrapper.findComponent({ name: "AppInput" }).vm.$emit("update:modelValue", "a flooded shrine");
+      await press(wrapper, "Roll it with AI");
+      await flushPromises();
+      expect(mocks.fill).toHaveBeenCalledWith(expect.objectContaining({ steer: "a flooded shrine" }));
+      expect(wrapper.findComponent({ name: "RichTextEditor" }).props("modelValue")).toBeNull();
+    });
+  });
+
+  it("shows the undiscovered-secret badge only while the Run captions are on", () => {
+    const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Abbot's Cell" })];
+    const wrapper = mount(SiteRoomList, {
+      props: baseProps(rooms, { currentRoomId: "room-a", secretUndiscoveredIds: new Set(["room-b"]) }),
+      global: { stubs },
+    });
+    expect(wrapper.find('[title="Reachable only through an undiscovered secret door"]').exists()).toBe(false);
+  });
+
+  it("does not mark loot that has already been handed out", () => {
+    mocks.loot.value = [{ location_id: "room-a", delivery_state: "dropped" }];
+    const wrapper = mount(SiteRoomList, { props: baseProps([room({ id: "room-a" })]), global: { stubs } });
+    expect(wrapper.find('[title="Loot held here"]').exists()).toBe(false);
   });
 });

@@ -104,4 +104,28 @@ describe("WorkbenchLedger", () => {
     const ok: CraftingAttemptResult = { roll: 14, total: 22, diff: 7, outcome: "success", hasDisadvantage: false };
     expect(mountLedger({ result: ok }).text()).not.toContain("Try again");
   });
+  it("writes the roll without proficiency, and warns of disadvantage, when the character lacks both", () => {
+    const w = mountLedger({ hasProficiency: false, hasTools: false });
+    expect(w.text()).toContain("(no proficiency)");
+    expect(w.text()).not.toContain("proficiency 2");
+    expect(w.text()).toContain("you roll with disadvantage");
+    expect(mountLedger().text()).not.toContain("you roll with disadvantage");
+  });
+
+  it("locks a recipe that requires proficiency or tools the character lacks, and only then", () => {
+    const needsProf = { ...recipe, requires_proficiency: true };
+    expect(mountLedger({ recipe: needsProf, hasProficiency: false }).text()).toContain("needs");
+    expect(mountLedger({ recipe: needsProf, hasProficiency: false }).text()).toContain("proficiency.");
+    expect(mountLedger({ recipe: needsProf, hasProficiency: true }).text()).not.toContain("This recipe needs");
+    // A recipe that does not require them is only rolled with disadvantage, never locked.
+    expect(mountLedger({ hasProficiency: false, hasTools: false }).text()).not.toContain("This recipe needs");
+    const needsTools = { ...recipe, requires_tools: true };
+    expect(mountLedger({ recipe: needsTools, hasTools: false }).text()).toContain("in your pack.");
+    expect(mountLedger({ recipe: needsTools, hasTools: true }).text()).not.toContain("This recipe needs");
+  });
+
+  it("says when one stack is shared between two ingredients and runs short", () => {
+    expect(mountLedger({ short: true, canAttempt: false }).text()).toContain("shared between two ingredients and runs short");
+    expect(mountLedger().text()).not.toContain("runs short");
+  });
 });

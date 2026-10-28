@@ -123,4 +123,51 @@ describe("ScriptoriumExportDialog", () => {
     );
     expect(mocks.exportPdf).toHaveBeenCalledWith({ ...pdfOptions, bundle: { name: "bundle" } });
   });
+  it("closes once the PDF was made, and stays open when the export failed", async () => {
+    mocks.exportPdf.mockResolvedValueOnce(false);
+    const wrapper = openDialog({ npcs: ["n1"], scriptorium_documents: ["doc-1"] });
+    await flushPromises();
+    await toDetails();
+    await click("Export PDF");
+    expect(wrapper.emitted("close")).toBeUndefined();
+    await click("Export PDF");
+    expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("says why the campaign data could not be gathered, and exports nothing", async () => {
+    mocks.buildBundle.mockRejectedValueOnce(new Error("Campaign not found"));
+    const wrapper = openDialog({ npcs: ["n1"], scriptorium_documents: ["doc-1"] });
+    await flushPromises();
+    await toDetails();
+    await click("Export PDF");
+    expect(document.body.textContent).toContain("Campaign not found");
+    expect(mocks.exportPdf).not.toHaveBeenCalled();
+    expect(wrapper.emitted("close")).toBeUndefined();
+  });
+
+  it("will not export a bundle whose name is only spaces", async () => {
+    openDialog({ npcs: ["n1"], scriptorium_documents: ["doc-1"] });
+    await flushPromises();
+    await toDetails();
+    const name = document.body.querySelector<HTMLInputElement>("#pdf-bundle-name")!;
+    name.value = "   ";
+    name.dispatchEvent(new Event("input"));
+    await flushPromises();
+    expect(button("Export PDF")!.disabled).toBe(true);
+  });
+  it("trims the bundle name, and drops the earlier build failure when the retry works", async () => {
+    mocks.buildBundle.mockRejectedValueOnce(new Error("Campaign not found"));
+    openDialog({ npcs: ["n1"], scriptorium_documents: ["doc-1"] });
+    await flushPromises();
+    await toDetails();
+    const name = document.body.querySelector<HTMLInputElement>("#pdf-bundle-name")!;
+    name.value = "  The Book, abridged  ";
+    name.dispatchEvent(new Event("input"));
+    await flushPromises();
+    await click("Export PDF");
+    expect(document.body.textContent).toContain("Campaign not found");
+    await click("Export PDF");
+    expect(document.body.textContent).not.toContain("Campaign not found");
+    expect(mocks.buildBundle).toHaveBeenLastCalledWith(expect.objectContaining({ name: "The Book, abridged" }));
+  });
 });

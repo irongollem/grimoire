@@ -80,6 +80,23 @@ describe("useModalStack", () => {
     b.stop();
   });
 
+  it("a modal opened after a lower one closed still goes above every one that is open", () => {
+    const a = modal();
+    const b = modal();
+    const c = modal();
+    a.open.value = true;
+    b.open.value = true;
+    c.open.value = true;
+    a.open.value = false;
+
+    const d = modal();
+    d.open.value = true;
+
+    expect(d.z.value).toBeGreaterThan(c.z.value!);
+    expect(b.z.value).toBeLessThan(c.z.value!);
+    [a, b, c, d].forEach((m) => m.stop());
+  });
+
   it("keeps the survivor above when a modal underneath closes", () => {
     const under = modal();
     const over = modal();

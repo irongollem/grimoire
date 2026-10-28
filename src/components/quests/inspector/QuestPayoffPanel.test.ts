@@ -127,6 +127,14 @@ describe("QuestPayoffPanel", () => {
     expect(mocks.removeConsequence).toHaveBeenCalledWith({ id: "c-1", questId: "quest-1" });
   });
 
+  it("says so when a remove is refused, instead of leaving the row there in silence", async () => {
+    mocks.removeLoot.mockRejectedValue(new Error("permission denied"));
+    const wrapper = mountPanel({ loot: [loot({ id: "loot-1" })] });
+    await wrapper.findAll("button").find((button) => button.text() === "Remove")!.trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toBe("permission denied");
+  });
+
   it("removes a loot row through the loot mutation, keyed by campaign", async () => {
     const wrapper = mountPanel({ loot: [loot({ id: "loot-1" })] });
     await wrapper.findAll("button").find((button) => button.text() === "Remove")!.trigger("click");
@@ -262,23 +270,6 @@ describe("QuestPayoffPanel", () => {
     expect(wrapper.text()).toContain("Nothing this beat gives yet.");
   });
 
-  // #872 frame 6: two columns on a phone, widening to the desktop grid at sm,
-  // with cp spanning the full width of the phone's two-column row.
-  it("lays the Riches coin grid out two-up on a phone, five-up from sm, cp spanning both phone columns", async () => {
-    const wrapper = mountPanel();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Riches")!.trigger("click");
-
-    const grid = wrapper.find("label.uppercase").element.parentElement!;
-    expect(grid.className).toContain("grid-cols-2");
-    expect(grid.className).toContain("sm:grid-cols-5");
-
-    const labels = wrapper.findAll("label.uppercase");
-    expect(labels).toHaveLength(5);
-    const cpLabel = labels.find((label) => label.text().toUpperCase() === "CP")!;
-    expect(cpLabel.classes()).toEqual(expect.arrayContaining(["col-span-2", "sm:col-span-1"]));
-    expect(labels.filter((label) => label !== cpLabel).every((label) => !label.classes().includes("col-span-2"))).toBe(true);
-  });
-
   // #871: the "Enters at" combobox on the Quest quick-add.
   describe("the entry-beat bridge on a quest unlock", () => {
     async function openQuestQuickAdd(wrapper: ReturnType<typeof mountPanel>) {
@@ -359,6 +350,193 @@ describe("QuestPayoffPanel", () => {
         target_document_id: "doc-map",
         action_payload: {},
       }));
+    });
+  });
+
+  describe("authoring a payoff", () => {
+    const open = async (wrapper: ReturnType<typeof mountPanel>, label: string) => {
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!.trigger("click");
+    };
+    const addButton = (w: ReturnType<typeof mountPanel>) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Add")!;
+    const text = (w: ReturnType<typeof mountPanel>, placeholder: string) => w.get(`input[placeholder^="${placeholder}"]`);
+    const combo = (w: ReturnType<typeof mountPanel>, at = 0) => w.findAllComponents({ name: "EntityCombobox" })[at]!;
+    const submit = async (w: ReturnType<typeof mountPanel>) => {
+      await addButton(w).trigger("click");
+      await flushPromises();
+    };
+
+    it("the 'when this fires' choice lists this beat's own routes only", async () => {
+      const elsewhere = { id: "edge-elsewhere", quest_id: "quest-1", source_beat_id: "beat-confess", target_beat_id: "beat-fork", route_kind: "choice" } as QuestBeatEdge;
+      const wrapper = mountPanel({ edges: [...edges, elsewhere] });
+      await open(wrapper, "Knowledge");
+      const options = wrapper.get('select[aria-label="When this fires"]').findAll("option").map((o) => o.text());
+      expect(options).toEqual(["On arriving here", "On taking the route to He confesses the tithe"]);
+    });
+
+    it("a row about an objective that has since been deleted says so", () => {
+      const wrapper = mountPanel({ consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "complete", target_objective_id: "obj-gone" })] });
+      expect(wrapper.get("ul li").text()).toContain('"Objective removed"');
+    });
+
+    it("a row on a route whose beat is gone says 'Missing beat'", () => {
+      const dangling = { id: "edge-dangling", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-deleted", route_kind: "choice" } as QuestBeatEdge;
+      const wrapper = mountPanel({ edges: [dangling] });
+      return open(wrapper, "Knowledge").then(() => {
+        expect(wrapper.get('select[aria-label="When this fires"]').text()).toContain("On taking the route to Missing beat");
+      });
+    });
+
+    it("clicking the open quick-add again closes it, and a different one replaces it with empty fields", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Knowledge");
+      await text(wrapper, "What do the players learn").setValue("The bell is hollow");
+      await open(wrapper, "Knowledge");
+      expect(wrapper.find('input[placeholder^="What do the players learn"]').exists()).toBe(false);
+      await open(wrapper, "Knowledge");
+      expect((text(wrapper, "What do the players learn").element as HTMLInputElement).value).toBe("");
+      await text(wrapper, "What do the players learn").setValue("typed");
+      await open(wrapper, "Milestone");
+      expect(wrapper.find('input[placeholder^="What do the players learn"]').exists()).toBe(false);
+      expect((text(wrapper, "What did the party earn").element as HTMLInputElement).value).toBe("");
+    });
+
+    it("selecting another beat closes the open quick-add", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Knowledge");
+      await wrapper.setProps({ beat: { ...beat, id: "beat-other" } });
+      expect(wrapper.find('input[placeholder^="What do the players learn"]').exists()).toBe(false);
+    });
+
+    it.each([
+      ["Knowledge", "What do the players learn", "   "],
+      ["Milestone", "What did the party earn", "   "],
+    ])("%s needs text that is not just spaces", async (label, placeholder, blank) => {
+      const wrapper = mountPanel();
+      await open(wrapper, label);
+      await text(wrapper, placeholder).setValue(blank);
+      expect(addButton(wrapper).props("disabled")).toBe(true);
+      await text(wrapper, placeholder).setValue("Something");
+      expect(addButton(wrapper).props("disabled")).toBe(false);
+    });
+
+    it("Favour needs both an NPC and the favour itself", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Favour");
+      await text(wrapper, "What do they owe").setValue("A night's shelter");
+      expect(addButton(wrapper).props("disabled")).toBe(true);
+      combo(wrapper).vm.$emit("update:modelValue", "npc-1");
+      await wrapper.vm.$nextTick();
+      expect(addButton(wrapper).props("disabled")).toBe(false);
+      await submit(wrapper);
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "owe_favor", target_npc_id: "npc-1", action_payload: { text: "A night's shelter" },
+      }));
+    });
+
+    it("Knowledge is stored trimmed, fires on arrival by default, and closes the form once added", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Knowledge");
+      await text(wrapper, "What do the players learn").setValue("  The bell is hollow  ");
+      await submit(wrapper);
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "grant_knowledge", on_beat_id: "beat-fork", target_npc_id: null, after_days: 0, entry_beat_id: null, action_payload: { text: "The bell is hollow" },
+      }));
+      expect(wrapper.find('input[placeholder^="What do the players learn"]').exists()).toBe(false);
+    });
+
+    it("carries the 'days later' delay onto the consequence", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Milestone");
+      await text(wrapper, "What did the party earn").setValue("Renown");
+      await wrapper.findAll("input[type=number]")[0]!.setValue(3);
+      await submit(wrapper);
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({ after_days: 3 }));
+    });
+
+    it("an event leaves out an empty description and trims one that is given", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Event");
+      await text(wrapper, "Event title").setValue("  The Harvest Fair  ");
+      await submit(wrapper);
+      expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({
+        action: "create_calendar_event", action_payload: { title: "The Harvest Fair", event_type: "quest" },
+      }));
+      await open(wrapper, "Event");
+      await text(wrapper, "Event title").setValue("Fair");
+      await text(wrapper, "Description").setValue("  Stalls and music  ");
+      await submit(wrapper);
+      expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({
+        action_payload: { title: "Fair", event_type: "quest", description: "Stalls and music" },
+      }));
+    });
+
+    it("Item needs an item and a quantity above zero, rounds the quantity down, and puts the loot after what is already there", async () => {
+      const wrapper = mountPanel({ loot: [loot({ id: "l-a" }), loot({ id: "l-b" })] });
+      await open(wrapper, "Item");
+      combo(wrapper).vm.$emit("update:modelValue", "item-1");
+      await wrapper.vm.$nextTick();
+      await wrapper.get('input[type="number"][min="1"]').setValue(0);
+      expect(addButton(wrapper).props("disabled")).toBe(true);
+      await wrapper.get('input[type="number"][min="1"]').setValue(2.9);
+      expect(addButton(wrapper).props("disabled")).toBe(false);
+      await submit(wrapper);
+      expect(mocks.createLoot).toHaveBeenCalledWith(expect.objectContaining({
+        kind: "item", quantity: 2, sort_order: 2, beat_id: "beat-fork", campaign_id: "campaign-1", payload: {},
+      }));
+    });
+
+    it("Riches needs at least one coin, and is always one entry carrying the purse", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Riches");
+      expect(wrapper.findAll("label.uppercase")).toHaveLength(5);
+      expect(addButton(wrapper).props("disabled")).toBe(true);
+      await wrapper.findAll("label.uppercase").find((l) => l.text().toLowerCase() === "gp")!.get("input").setValue(25);
+      expect(addButton(wrapper).props("disabled")).toBe(false);
+      await submit(wrapper);
+      expect(mocks.createLoot).toHaveBeenCalledWith(expect.objectContaining({
+        kind: "currency", quantity: 1, payload: { pp: 0, gp: 25, ep: 0, sp: 0, cp: 0 },
+      }));
+    });
+
+    it("only undiscovered quests other than this one can be unlocked, and the entry beat is sent for a quest unlock only", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Quest");
+      expect(combo(wrapper).props("options").map((o: { id: string }) => o.id)).toEqual(["quest-sequel", "quest-empty"]);
+      const own = mountPanel({ beat: { ...beat, quest_id: "quest-sequel" } as QuestBeat });
+      await open(own, "Quest");
+      expect(combo(own).props("options").map((o: { id: string }) => o.id)).toEqual(["quest-empty"]);
+      await open(wrapper, "Milestone");
+      await text(wrapper, "What did the party earn").setValue("Renown");
+      await submit(wrapper);
+      expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({ action: "award_milestone", entry_beat_id: null }));
+    });
+
+    it("a failed add keeps the form, shows why, and a removal in flight is released afterwards", async () => {
+      mocks.createConsequence.mockRejectedValueOnce("refused");
+      const wrapper = mountPanel();
+      await open(wrapper, "Milestone");
+      await text(wrapper, "What did the party earn").setValue("Renown");
+      await submit(wrapper);
+      expect(wrapper.get('[role="alert"]').text()).toBe("Could not add this payoff");
+      expect(addButton(wrapper).props("loading")).toBe(false);
+      expect(wrapper.find('input[placeholder^="What did the party earn"]').exists()).toBe(true);
+    });
+
+    it("a finished removal releases the row's Remove button", async () => {
+      mocks.removeConsequence.mockResolvedValue(undefined);
+      const wrapper = mountPanel({ consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "Renown" } })] });
+      const remove = () => wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Remove")!;
+      await remove().trigger("click");
+      await flushPromises();
+      expect(remove().props("loading")).toBe(false);
+    });
+
+    it("a payoff that is not about an NPC names no NPC", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "Knowledge");
+      await text(wrapper, "What do the players learn").setValue("x");
+      await submit(wrapper);
+      expect(mocks.createConsequence.mock.calls.at(-1)![0].target_npc_id).toBeNull();
     });
   });
 });

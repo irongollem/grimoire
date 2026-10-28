@@ -11,7 +11,7 @@ afterEach(() => {
 
 const choices = typeChoices("npc", "npc");
 
-function render(extra: { replaces?: (c: TypeChoice) => string | null; choices?: readonly TypeChoice[] } = {}) {
+function render(extra: { replaces?: (c: TypeChoice) => string | null; choices?: readonly TypeChoice[]; current?: string } = {}) {
   wrapper = mount(ConnectionTypePicker, {
     attachTo: document.body,
     props: {
@@ -20,7 +20,7 @@ function render(extra: { replaces?: (c: TypeChoice) => string | null; choices?: 
       subjectName: "Brenna",
       otherName: "Harl",
       choices: extra.choices ?? choices,
-      isCurrent: (c: TypeChoice) => c.key === "rival",
+      isCurrent: (c: TypeChoice) => c.key === (extra.current ?? "rival"),
       ...(extra.replaces ? { replaces: extra.replaces } : {}),
     },
   });
@@ -97,5 +97,37 @@ describe("ConnectionTypePicker", () => {
     first.focus();
     panel()?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     expect(document.activeElement).toBe(options()[1]);
+  });
+
+  it("keeps the tie's current type listed even when it is not a common one", async () => {
+    const w = render({ current: "chosen_family" });
+    await w.get("[data-testid='type-word']").trigger("click");
+    expect(options().map((o) => o.textContent?.trim())).toContain("chosen family of");
+  });
+
+  it("opens collapsed and unfiltered each time", async () => {
+    const w = render();
+    await w.get("[data-testid='type-word']").trigger("click");
+    document.body.querySelector<HTMLElement>("[data-testid='type-more']")?.click();
+    await w.vm.$nextTick();
+    const filter = document.body.querySelector<HTMLInputElement>("[data-testid='type-filter']")!;
+    filter.value = "chosen";
+    filter.dispatchEvent(new Event("input"));
+    await w.vm.$nextTick();
+    panel()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await w.vm.$nextTick();
+    await w.get("[data-testid='type-word']").trigger("click");
+    expect(document.body.querySelector("[data-testid='type-filter']")).toBeNull();
+    expect(options().map((o) => o.textContent?.trim())).toContain("friend of");
+    expect(options().map((o) => o.textContent?.trim())).not.toContain("chosen family of");
+  });
+
+  it("puts a replacement note only on the record types that hold one value", async () => {
+    const w = render({ choices: typeChoices("npc", "location"), replaces: () => "Replaces Thane's Crossing" });
+    await w.get("[data-testid='type-word']").trigger("click");
+    const withNote = options().filter((o) => o.parentElement?.querySelector("[data-testid='type-note']")?.textContent?.includes("Replaces"));
+    const labels = options().map((o) => o.textContent?.trim());
+    expect(withNote.length).toBeGreaterThan(0);
+    expect(withNote.length).toBeLessThan(labels.length);
   });
 });

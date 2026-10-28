@@ -69,20 +69,27 @@ vi.mock("@/composables/npcs/useNpcs", () => ({
 // The intent directive needs a router and a query client the grid tests do not mount.
 vi.mock("@/composables/usePrefetchOnIntent", () => ({ usePrefetchOnIntent: () => ({}) }));
 
+// The filter tests below set these; the bulk tests leave them empty.
+const linkEnds = ref<{ from_kind: string; from_id: string; to_kind: string; to_id: string }[]>([]);
+const allLocations = ref<{ id: string; name: string }[]>([]);
+const treeOptions = ref<{ id: string; name: string }[]>([]);
+const descendants = new Map<string, Set<string>>();
+const npcQuota = ref<{ unlimited: boolean; current: number; limit: number } | null>(null);
+
 vi.mock("@/composables/connections/useConnections", () => ({
-  useCampaignLinkEnds: () => ({ data: ref([]) }),
+  useCampaignLinkEnds: () => ({ data: linkEnds }),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
-  useAllLocations: () => ({ data: ref([]) }),
+  useAllLocations: () => ({ data: allLocations }),
   useLocationTree: () => ({
-    locationOptions: ref([]),
-    getDescendantIds: (id: string) => new Set([id]),
+    locationOptions: treeOptions,
+    getDescendantIds: (id: string) => descendants.get(id) ?? new Set([id]),
   }),
 }));
 
 vi.mock("@/composables/billing/useQuota", () => ({
-  useQuota: () => ({ canCreate: ref(true), quota: ref(null) }),
+  useQuota: () => ({ canCreate: ref(true), quota: npcQuota }),
 }));
 
 
@@ -139,7 +146,7 @@ vi.mock("@/composables/useScrollRestore", () => ({
 useVirtualGridViewport();
 
 const stubs = {
-  NpcGridCard: { template: '<div class="stub-card" />', props: ["npc", "locationName", "locked"] },
+  NpcGridCard: { template: '<div class="stub-card" :data-id="npc.id" :data-locked="String(!!locked)" />', props: ["npc", "locationName", "locked"] },
   EntityMobileCard: true,
   RouterLink: true,
   // Unrelated to bulk selection; it independently needs a real VueQueryPlugin
@@ -161,8 +168,8 @@ const requiredProps = {
   sortBy: "name" as const,
 };
 
-function mountList() {
-  return mount(NpcList, { props: requiredProps, global: { stubs } });
+function mountList(props: Partial<typeof requiredProps> & Record<string, unknown> = {}) {
+  return mount(NpcList, { props: { ...requiredProps, ...props }, global: { stubs } });
 }
 
 function exposed(wrapper: ReturnType<typeof mountList>): NpcListExposed {
@@ -356,3 +363,91 @@ async function flushMicrotasks() {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+describe("NpcList: what the filters leave", () => {
+  beforeEach(async () => {
+    npcsData.value = [];
+    linkEnds.value = [];
+    allLocations.value = [];
+    treeOptions.value = [];
+    descendants.clear();
+    npcQuota.value = null;
+    await flushMicrotasks();
+  });
+
+  async function shown(props: Record<string, unknown> = {}) {
+    const wrapper = mountList(props);
+    await flushMicrotasks();
+    return wrapper.findAll(".stub-card").map((c) => c.attributes("data-id"));
+  }
+
+  const roster = () => [
+    npc({ id: "a", name: "Aldric", race: "Dwarf", occupation: "Smith", status: "alive", relationship: "friendly", tags: ["forge"], location_id: "town" }),
+    npc({ id: "b", name: "Bryn", race: "Elf", occupation: "Scout", status: "dead", relationship: "hostile", disguise_name: "The Pilgrim" }),
+    npc({ id: "c", name: "Cora", race: "Human", occupation: "Mayor", status: "alive", relationship: "hostile", location_id: "mill" }),
+  ];
+
+  it("sorts by name", async () => {
+    npcsData.value = [roster()[2], roster()[0], roster()[1]];
+    expect(await shown()).toEqual(["a", "b", "c"]);
+  });
+
+  it("searches name, disguise, race, occupation, tag and place, and finds nothing for a stranger", async () => {
+    npcsData.value = roster();
+    allLocations.value = [{ id: "town", name: "Brightwater" }, { id: "mill", name: "Old Mill" }];
+    expect(await shown({ search: "pilgrim" })).toEqual(["b"]);
+    expect(await shown({ search: "dwarf" })).toEqual(["a"]);
+    expect(await shown({ search: "mayor" })).toEqual(["c"]);
+    expect(await shown({ search: "forge" })).toEqual(["a"]);
+    expect(await shown({ search: "old mill" })).toEqual(["c"]);
+    expect(await shown({ search: "  ALDRIC " })).toEqual(["a"]);
+    expect(await shown({ search: "zzz" })).toEqual([]);
+  });
+
+  it("narrows by status and by relationship, each only when set", async () => {
+    npcsData.value = roster();
+    expect(await shown({ statusFilter: "dead" })).toEqual(["b"]);
+    expect(await shown({ relFilter: "hostile" })).toEqual(["b", "c"]);
+    expect(await shown({ statusFilter: "alive", relFilter: "hostile" })).toEqual(["c"]);
+  });
+
+  it("keeps the NPCs in a place and all the places inside it, and never one with no place", async () => {
+    npcsData.value = roster();
+    descendants.set("region", new Set(["region", "town"]));
+    expect(await shown({ locationFilter: "region" })).toEqual(["a"]);
+    expect(await shown({ locationFilter: "mill" })).toEqual(["c"]);
+  });
+
+  it("keeps the NPCs tied to a chosen character, in either direction of the tie", async () => {
+    npcsData.value = roster();
+    linkEnds.value = [
+      { from_kind: "npc", from_id: "a", to_kind: "party_member", to_id: "pc1" },
+      { from_kind: "party_member", from_id: "pc1", to_kind: "npc", to_id: "c" },
+      { from_kind: "npc", from_id: "b", to_kind: "party_member", to_id: "pc2" },
+    ];
+    expect(await shown({ partyMemberFilter: "pc1" })).toEqual(["a", "c"]);
+  });
+
+  it("orders by place when asked, those without a place last, then by name", async () => {
+    npcsData.value = [...roster(), npc({ id: "d", name: "Dax", location_id: "mill" })];
+    treeOptions.value = [{ id: "mill", name: "Old Mill" }, { id: "town", name: "Brightwater" }];
+    expect(await shown({ sortBy: "location" })).toEqual(["c", "d", "a", "b"]);
+  });
+
+  it("locks the newest NPCs over a free plan's limit, and none within it", async () => {
+    npcsData.value = [
+      npc({ id: "old", name: "Old", created_at: "2026-01-01T00:00:00Z" }),
+      npc({ id: "mid", name: "Mid", created_at: "2026-02-01T00:00:00Z" }),
+      npc({ id: "new", name: "New", created_at: "2026-03-01T00:00:00Z" }),
+    ];
+    const lockedIds = async (quota: typeof npcQuota.value) => {
+      npcQuota.value = quota;
+      const wrapper = mountList();
+      await flushMicrotasks();
+      return wrapper.findAll(".stub-card").filter((c) => c.attributes("data-locked") === "true").map((c) => c.attributes("data-id"));
+    };
+    expect(await lockedIds({ unlimited: false, current: 3, limit: 2 })).toEqual(["new"]);
+    expect(await lockedIds({ unlimited: false, current: 3, limit: 3 })).toEqual([]);
+    expect(await lockedIds({ unlimited: true, current: 30, limit: 2 })).toEqual([]);
+  });
+});

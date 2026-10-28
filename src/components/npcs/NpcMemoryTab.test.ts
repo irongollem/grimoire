@@ -47,4 +47,13 @@ describe("NpcMemoryTab", () => {
     });
     expect((input.element as HTMLInputElement).value).toBe("");
   });
+  it("keeps what was typed when the line could not be saved", async () => {
+    mutateAsync.mockRejectedValueOnce(new Error("offline"));
+    const w = mount(NpcMemoryTab, { props: { npc } });
+    const input = w.get('[data-testid="npc-memory-body"]');
+    await input.setValue("Promised to return at dawn");
+    await w.get("form").trigger("submit");
+    await flushPromises();
+    expect((input.element as HTMLInputElement).value).toBe("Promised to return at dawn");
+  });
 });

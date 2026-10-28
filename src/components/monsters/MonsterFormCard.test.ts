@@ -72,6 +72,29 @@ describe("MonsterFormCard", () => {
     expect(shown.text()).toContain("12");
   });
 
+  it("keeps AC and HP back when the stat block is present but the DM has not revealed it", () => {
+    const full = { challenge_rating: "3", armor_class: 12, hit_points: "22" } as unknown as Monster["stat_block"];
+    for (const revealStats of [false, undefined]) {
+      const wrapper = mount(MonsterFormCard, { props: { monster: monster(full), name: "Grell", imageUrl: null, revealStats } });
+      expect(wrapper.text(), String(revealStats)).not.toContain("AC");
+      expect(wrapper.text()).not.toContain("22");
+      // The challenge rating badge shows either way.
+      expect(wrapper.text()).toContain("CR 3");
+    }
+  });
+
+  it("does not crash, or invent stats, when stats are revealed but the stat block did not arrive", () => {
+    const wrapper = mount(MonsterFormCard, { props: { monster: monster(null), name: "Grell", imageUrl: null, revealStats: true } });
+    expect(wrapper.text()).not.toContain("AC");
+    expect(wrapper.text()).toContain(CR_UNKNOWN);
+  });
+
+  it("draws just the name when there is no monster record at all", () => {
+    const wrapper = mount(MonsterFormCard, { props: { monster: null, name: "Grell", imageUrl: null } });
+    expect(wrapper.text()).toContain("Grell");
+    expect(wrapper.text()).not.toContain("CR");
+  });
+
   it("shows the real challenge rating once it has one", () => {
     const wrapper = mount(MonsterFormCard, {
       props: {

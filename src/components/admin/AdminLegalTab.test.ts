@@ -120,4 +120,22 @@ describe("AdminLegalTab", () => {
     status.value = base();
     expect(mount(AdminLegalTab).find('[data-testid="terms-previously-failed"]').exists()).toBe(false);
   });
+  it("shows why a send failed, and clears it when the next send goes through", async () => {
+    mocks.confirm.mockResolvedValue(true);
+    mocks.mutateAsync.mockRejectedValueOnce(new Error("Resend refused the batch")).mockResolvedValueOnce(base());
+    const w = mount(AdminLegalTab);
+    await button(w).trigger("click");
+    await flushPromises();
+    expect(w.get('[role="alert"]').text()).toBe("Resend refused the batch");
+    await button(w).trigger("click");
+    await flushPromises();
+    expect(w.find('[role="alert"]').exists()).toBe(false);
+  });
+
+  it("goes back to the plain button label once a run has emailed everyone", () => {
+    runData.value = base({ pending: 0, sent: 12 });
+    status.value = runData.value;
+    const w = mount(AdminLegalTab);
+    expect(button(w).text()).not.toContain("Send the next");
+  });
 });

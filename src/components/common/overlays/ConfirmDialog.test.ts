@@ -147,4 +147,22 @@ describe("ConfirmDialog", () => {
     expect(leaving.textContent).toContain("Delete the owlbear?");
     wrapper.unmount();
   });
+
+  it("the confirm button is red for a destructive question and the plain call to action otherwise", async () => {
+    const wrapper = mountDialog();
+    const { confirm } = useConfirm();
+
+    const danger = confirm("Delete the owlbear?");
+    await flushPromises();
+    const confirmButton = () => wrapper.findAllComponents({ name: "AppButton" }).at(-1)!;
+    expect(confirmButton().props("tone")).toBe("danger");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await danger;
+
+    void confirm("Publish this?", { danger: false });
+    await flushPromises();
+    expect(confirmButton().props("variant")).toBe("primary");
+    expect(confirmButton().props("tone")).not.toBe("danger");
+    wrapper.unmount();
+  });
 });

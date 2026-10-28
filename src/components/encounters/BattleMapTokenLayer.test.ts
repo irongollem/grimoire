@@ -241,3 +241,114 @@ describe("BattleMapTokenLayer — footprint persistence", () => {
     expect((tok.element as HTMLElement).style.width).toBe("100px");
   });
 });
+
+describe("BattleMapTokenLayer: what a player is shown", () => {
+  it("omits a hidden combatant from the player view and keeps it for the DM", async () => {
+    const props = baseProps();
+    const lurker = { ...props.combatants[0], instance_id: "lurker", reveal_state: "hidden" as const };
+    const combatants = [lurker, props.combatants[2]];
+    const player = mount(BattleMapTokenLayer, { props: { ...props, combatants, hideHidden: true } });
+    expect(player.findAll(".token")).toHaveLength(1);
+    expect(player.find(".token").attributes("title")).toBe("m-2-0");
+    const dm = mount(BattleMapTokenLayer, { props: { ...props, combatants, hideHidden: false } });
+    expect(dm.findAll(".token")).toHaveLength(2);
+  });
+
+  it("shows the DM an unseen combatant by name (the silhouette is player-only)", () => {
+    const props = baseProps();
+    const unseen = { ...props.combatants[0], reveal_state: "unseen" as const };
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: { ...props, combatants: [unseen], silhouetteUnseen: false },
+    });
+    expect(wrapper.find(".token").attributes("title")).toBe("m-1-0");
+  });
+
+  it("tells the canvas to paint the silhouette for a player, and only for the unseen one", async () => {
+    const props = baseProps();
+    const unseen = { ...props.combatants[0], reveal_state: "unseen" as const };
+    const seen = { ...props.combatants[2], reveal_state: "revealed" as const };
+    mount(BattleMapTokenLayer, { props: { ...props, combatants: [unseen, seen], silhouetteUnseen: true } });
+    await nextTick();
+    await nextTick();
+    const stateByName = new Map(
+      drawTokenMock.mock.calls.map(([, entity, opts]) => [entity.name, opts?.revealState]),
+    );
+    expect(stateByName.get("m-1-0")).toBe("unseen");
+    expect(stateByName.get("m-2-0")).toBe("revealed");
+  });
+
+  it("draws a wild-shaped druid as the beast, not as the character's mini or portrait", async () => {
+    const druid: RunCombatant = {
+      ...combatant("druid", "goblin"),
+      type: "player",
+      portrait_url: "druid.png",
+      wildshape: {
+        monster_id: "wolf",
+        beast_name: "Wolf",
+        beast_image_url: "wolf.png",
+        beast_hp: 11,
+        beast_max_hp: 11,
+        beast_ac: "13",
+      },
+    };
+    mount(BattleMapTokenLayer, {
+      props: { ...baseProps(), combatants: [druid], portraitOverrides: new Map([["druid", "mini.png"]]) },
+    });
+    await nextTick();
+    await nextTick();
+    expect(drawTokenMock.mock.calls[0][1].imageUrl).toBe("wolf.png");
+  });
+});
+
+describe("BattleMapTokenLayer: dead monsters and dragging", () => {
+  it("fades a monster at 0 HP but not one at 1 HP", () => {
+    const props = baseProps();
+    const down = { ...props.combatants[0], instance_id: "down", hp: 0 };
+    const up = { ...props.combatants[1], instance_id: "up", hp: 1 };
+    const wrapper = mount(BattleMapTokenLayer, { props: { ...props, combatants: [down, up] } });
+    const [first, second] = wrapper.findAll(".token");
+    expect(first.classes()).toContain("token-dead");
+    expect(second.classes()).not.toContain("token-dead");
+  });
+
+  it("renders no tokens before the map has a scale", () => {
+    const wrapper = mount(BattleMapTokenLayer, { props: { ...baseProps(), cellPx: 0 } });
+    expect(wrapper.findAll(".token")).toHaveLength(0);
+  });
+
+  function pointer(type: string, init: { clientX: number; clientY: number }) {
+    const ev = new MouseEvent(type, { ...init, bubbles: true, cancelable: true });
+    Object.defineProperty(ev, "pointerId", { value: 1 });
+    return ev;
+  }
+
+  async function dragFirstToken(props: Omit<ReturnType<typeof baseProps>, "draggableInstanceIds"> & { draggableInstanceIds: Set<string> | null }) {
+    const onPositionChange = vi.fn();
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: { ...props, combatants: [props.combatants[0]], onPositionChange },
+      attachTo: document.body,
+    });
+    const el = wrapper.find(".token").element as HTMLElement;
+    el.setPointerCapture = vi.fn();
+    el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10 }));
+    window.dispatchEvent(pointer("pointermove", { clientX: 140, clientY: 70 }));
+    window.dispatchEvent(pointer("pointerup", { clientX: 140, clientY: 70 }));
+    await nextTick();
+    wrapper.unmount();
+    return onPositionChange;
+  }
+
+  it("drops a dragged token on the nearest cell and reports it", async () => {
+    // Moved 130px right, 60px down from cell (0,0) at 50px a cell:
+    // 130/50 = 2.6 rounds to column 3, 60/50 = 1.2 rounds to row 1.
+    const spy = await dragFirstToken({ ...baseProps(), draggableInstanceIds: null });
+    expect(spy).toHaveBeenCalledWith("m-1-0", { x: 3, y: 1 });
+  });
+
+  it("lets a player drag only their own token", async () => {
+    const mine = await dragFirstToken({ ...baseProps(), draggableInstanceIds: new Set(["m-1-0"]) });
+    expect(mine).toHaveBeenCalledTimes(1);
+    const theirs = await dragFirstToken({ ...baseProps(), draggableInstanceIds: new Set(["someone-else"]) });
+    expect(theirs).not.toHaveBeenCalled();
+  });
+});

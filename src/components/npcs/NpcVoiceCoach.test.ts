@@ -52,6 +52,7 @@ const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   createMemory: vi.fn(),
   toastError: vi.fn(),
+  requireCredits: vi.fn(() => true),
 }));
 
 const isAiEnabled = ref(true);
@@ -67,6 +68,7 @@ vi.mock("@/stores/campaign", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true }),
 }));
+vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: mocks.requireCredits }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
 }));
@@ -108,6 +110,7 @@ describe("NpcVoiceCoach", () => {
     mocks.clear.mockReset();
     mocks.createMemory.mockReset();
     mocks.toastError.mockReset();
+    mocks.requireCredits.mockReset().mockReturnValue(true);
     coachLines.value = [];
   });
 
@@ -155,5 +158,68 @@ describe("NpcVoiceCoach", () => {
     await flushPromises();
     expect(mocks.toastError).toHaveBeenCalledWith("nope");
     expect(wrapper.find('button[aria-label="Said it"]').exists()).toBe(true);
+  });
+  describe("asking for lines", () => {
+    const situationBox = (w: ReturnType<typeof mountCoach>) => w.get("textarea");
+    const suggestButton = (w: ReturnType<typeof mountCoach>) => w.get('button[aria-label="Suggest lines"]');
+
+    it("asks with the situation trimmed, and only once the DM has described one", async () => {
+      const wrapper = mountCoach();
+      expect(suggestButton(wrapper).attributes("disabled")).toBeDefined();
+      await situationBox(wrapper).setValue("   ");
+      expect(suggestButton(wrapper).attributes("disabled")).toBeDefined();
+      await situationBox(wrapper).setValue("  the party asks about the gate  ");
+      await suggestButton(wrapper).trigger("click");
+      expect(mocks.suggest).toHaveBeenCalledWith(expect.objectContaining({ id: "npc-1" }), "the party asks about the gate");
+    });
+
+    it("does not ask when the DM cannot pay", async () => {
+      mocks.requireCredits.mockReturnValue(false);
+      const wrapper = mountCoach();
+      await situationBox(wrapper).setValue("the gate");
+      await suggestButton(wrapper).trigger("click");
+      expect(mocks.requireCredits).toHaveBeenCalledTimes(1);
+      expect(mocks.suggest).not.toHaveBeenCalled();
+    });
+
+    it("clears the lines and the situation on Ask again", async () => {
+      mocks.clear.mockImplementation(() => { coachLines.value = []; });
+      const wrapper = mountCoach();
+      await situationBox(wrapper).setValue("the gate");
+      coachLines.value = ["Hello."];
+      await wrapper.vm.$nextTick();
+      await wrapper.get('button[aria-label="Ask again"]').trigger("click");
+      expect(mocks.clear).toHaveBeenCalledTimes(1);
+      expect((situationBox(wrapper).element as HTMLTextAreaElement).value).toBe("");
+    });
+  });
+
+  describe("remembering a line", () => {
+    it("marks a line remembered only for the batch it was filed from, and starts afresh when new lines arrive", async () => {
+      coachLines.value = ["First."];
+      let finish: (v: unknown) => void = () => undefined;
+      mocks.createMemory.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+      const wrapper = mountCoach();
+      await wrapper.find('button[aria-label="Said it"]').trigger("click");
+      // The DM asks again while the save is in flight and a new batch lands.
+      coachLines.value = ["Second."];
+      await flushPromises();
+      finish({});
+      await flushPromises();
+      expect(wrapper.find('button[aria-label="Said it"]').exists()).toBe(true);
+      expect(wrapper.find('button[aria-label="Remembered"]').exists()).toBe(false);
+    });
+
+    it("forgets what was remembered when the batch is replaced", async () => {
+      coachLines.value = ["First."];
+      mocks.createMemory.mockResolvedValue({});
+      const wrapper = mountCoach();
+      await wrapper.find('button[aria-label="Said it"]').trigger("click");
+      await flushPromises();
+      expect(wrapper.find('button[aria-label="Remembered"]').exists()).toBe(true);
+      coachLines.value = ["Second."];
+      await flushPromises();
+      expect(wrapper.find('button[aria-label="Remembered"]').exists()).toBe(false);
+    });
   });
 });

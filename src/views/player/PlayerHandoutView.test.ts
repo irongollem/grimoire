@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import PlayerHandoutView from "./PlayerHandoutView.vue";
 import type { ScriptoriumDocument } from "@/types/scriptorium.types";
 
-const mocks = vi.hoisted(() => ({ markRead: vi.fn(), state: { doc: null as unknown, loading: false } }));
+const mocks = vi.hoisted(() => ({ markRead: vi.fn(), state: { doc: null as unknown, loading: false, current: null as { value: unknown } | null } }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
@@ -12,7 +12,11 @@ vi.mock("vue-router", async (importOriginal) => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock("@/composables/scriptorium/usePlayerHandouts", () => ({
-  usePlayerHandout: () => ({ data: ref(mocks.state.doc), isLoading: ref(mocks.state.loading) }),
+  usePlayerHandout: () => {
+    const data = ref(mocks.state.doc);
+    mocks.state.current = data;
+    return { data, isLoading: ref(mocks.state.loading) };
+  },
 }));
 vi.mock("@/composables/player/useReadItems", () => ({ useMarkRead: () => ({ mutate: mocks.markRead }) }));
 
@@ -52,5 +56,14 @@ describe("PlayerHandoutView", () => {
     const w = mountView();
     expect(w.findComponent({ name: "LoadingSpinner" }).exists()).toBe(true);
     expect(w.text()).not.toContain("not available");
+  });
+  it("marks the handout read again when the DM edits it while it is open", async () => {
+    mocks.state.doc = doc;
+    mountView();
+    await flushPromises();
+    expect(mocks.markRead).toHaveBeenCalledTimes(1);
+    mocks.state.current!.value = { ...doc, updated_at: "2026-10-03T09:00:00Z" };
+    await flushPromises();
+    expect(mocks.markRead).toHaveBeenCalledTimes(2);
   });
 });

@@ -107,14 +107,6 @@ describe("SiteMapRoomRules", () => {
     expect(row.text()).toContain("Objective removed");
   });
 
-  it("says so when the campaign has no quests to pick from", () => {
-    // Same-module partial override isn't worth another vi.mock block — assert
-    // the honest fallback exists in the template by checking the populated
-    // case shows the picker instead (regression guard on the v-else branch).
-    const wrapper = mountPanel([]);
-    expect(comboboxes(wrapper).length).toBeGreaterThan(0);
-  });
-
   it("shows an honest message instead of an objective picker until a quest with objectives is chosen", async () => {
     const wrapper = mountPanel([]);
     expect(wrapper.text()).toContain("Choose a quest first.");
@@ -178,5 +170,53 @@ describe("SiteMapRoomRules", () => {
 
     expect(mocks.remove).toHaveBeenCalledWith({ id: "c-1", questId: "quest-1" });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["quest_consequences", "by-locations"] });
+  });
+
+  it("shows a delayed rule's delay, and none for an immediate one", () => {
+    const wrapper = mountPanel([
+      consequence({ id: "c-1", after_days: 3 }),
+      consequence({ id: "c-2", after_days: 0, on_location_fact: "looted" }),
+    ]);
+    const [delayed, immediate] = wrapper.findAll("ul li");
+    expect(delayed!.text()).toContain("(+3d)");
+    expect(immediate!.text()).not.toContain("(+");
+  });
+
+  async function fillRule(wrapper: ReturnType<typeof mountPanel>) {
+    await comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "quest-1");
+    await flushPromises();
+    await comboboxes(wrapper)[1]!.vm.$emit("update:modelValue", "obj-1");
+    await flushPromises();
+  }
+  const clickAdd = (wrapper: ReturnType<typeof mountPanel>) =>
+    wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Add rule")!.trigger("click");
+
+  it("empties the objective after a rule is added, ready for the next, and keeps the quest", async () => {
+    const wrapper = mountPanel([]);
+    await fillRule(wrapper);
+    await clickAdd(wrapper);
+    await flushPromises();
+    expect(comboboxes(wrapper)[0]!.props("modelValue")).toBe("quest-1");
+    expect(comboboxes(wrapper)[1]!.props("modelValue")).toBe("");
+  });
+
+  it("says why a rule could not be added and keeps what the DM chose", async () => {
+    mocks.create.mockRejectedValue(new Error("rule guard refused"));
+    const wrapper = mountPanel([]);
+    await fillRule(wrapper);
+    await clickAdd(wrapper);
+    await flushPromises();
+    expect(wrapper.text()).toContain("rule guard refused");
+    expect(comboboxes(wrapper)[1]!.props("modelValue")).toBe("obj-1");
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("says why a rule could not be removed", async () => {
+    mocks.remove.mockRejectedValue(new Error("cannot remove"));
+    const wrapper = mountPanel([consequence({ id: "c-1" })]);
+    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Remove")!.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("cannot remove");
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled();
   });
 });

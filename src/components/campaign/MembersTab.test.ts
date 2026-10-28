@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   active: { value: [] as unknown[] },
   endHandOver: vi.fn(),
   isDM: { value: true },
+  deleteCharacter: vi.fn(),
+  detach: vi.fn(),
 }));
 
 const member = { id: "m1", user_id: "u1", role: "player", display_name: "Robin", party_member_id: null };
@@ -52,10 +54,10 @@ vi.mock("@/composables/party/useCharacterCaretakers", () => ({
 }));
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: { value: party }, isPending: { value: false } }),
-  useDeletePartyMember: () => ({ isPending: { value: false }, mutateAsync: vi.fn() }),
+  useDeletePartyMember: () => ({ isPending: { value: false }, mutateAsync: mocks.deleteCharacter }),
 }));
 vi.mock("@/composables/party/useCharacterPool", () => ({
-  useDetachCharacter: () => ({ isPending: { value: false }, mutateAsync: vi.fn() }),
+  useDetachCharacter: () => ({ isPending: { value: false }, mutateAsync: mocks.detach }),
 }));
 vi.mock("@/composables/campaign/useCampaignPresence", () => ({
   useCampaignPresence: () => ({ isOnline: () => false }),
@@ -85,6 +87,9 @@ beforeEach(() => {
   mocks.active.value = [];
   mocks.endHandOver.mockReset();
   mocks.isDM.value = true;
+  mocks.deleteCharacter.mockReset();
+  mocks.detach.mockReset();
+  party.splice(2);
 });
 
 function labels(wrapper: ReturnType<typeof mountTab>) {
@@ -161,6 +166,17 @@ describe("MembersTab", () => {
       expect(mocks.setRole).toHaveBeenCalledWith({ id: "m2", role: "player" }, expect.anything());
     });
 
+    it("keeps the chair when handing it back is cancelled", async () => {
+      mocks.isOwner.value = false;
+      mocks.me.value = "u2";
+      mocks.confirm.mockResolvedValue(false);
+      mocks.rows.value = [ownerRow, coDmRow, member];
+      const wrapper = mountTab();
+      await wrapper.findAll("button").find((b) => b.text() === "Hand back the chair")!.trigger("click");
+      await flushPromises();
+      expect(mocks.setRole).not.toHaveBeenCalled();
+    });
+
     it("shows a player no role controls", () => {
       mocks.isOwner.value = false;
       mocks.me.value = "u1";
@@ -210,5 +226,62 @@ describe("MembersTab", () => {
       mocks.isDM.value = false;
       expect(labels(mountTab())).not.toContain("Take back");
     });
+  });
+});
+
+describe("which characters a seat can pick", () => {
+  it("leaves out characters seated with another player but keeps this seat's own", () => {
+    mocks.rows.value = [
+      { ...member, party_member_id: "p2" },
+      { id: "m3", user_id: "u3", role: "player", display_name: "Sam", party_member_id: "p1" },
+    ];
+    const wrapper = mountTab();
+    const [mine, theirs] = wrapper.findAllComponents(EntityComboboxStub);
+    expect(mine.props("options").map((o: { id: string }) => o.id)).toEqual(["p2"]);
+    expect(theirs.props("options").map((o: { id: string }) => o.id)).toEqual(["p1"]);
+  });
+});
+
+describe("characters without a player", () => {
+  const rowOf = (name: string) => party.find((pm) => pm.name === name)!;
+  const orphanNames = (wrapper: ReturnType<typeof mountTab>) =>
+    wrapper.findAll("div.space-y-2.pt-2 p.text-heading-xs").map((p) => p.text());
+
+  it("lists only characters nobody holds: not a DM's pool, not a seated one, not a present player's", () => {
+    party.push(
+      { id: "p3", name: "Pool", class: null, level: null, owner_user_id: null, is_dm_managed: true },
+      { id: "p4", name: "Left", class: null, level: null, owner_user_id: "gone", is_dm_managed: false },
+      { id: "p5", name: "Seated", class: null, level: null, owner_user_id: null, is_dm_managed: false },
+    );
+    mocks.rows.value = [{ ...member, party_member_id: "p5" }];
+    expect(orphanNames(mountTab()).sort()).toEqual(["Left", "Orphan"]);
+  });
+
+  it("deletes an unclaimed character only after the DM confirms", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    const wrapper = mountTab();
+    await wrapper.get('button[aria-label="Remove character"]').trigger("click");
+    await flushPromises();
+    expect(mocks.deleteCharacter).not.toHaveBeenCalled();
+    mocks.confirm.mockResolvedValue(true);
+    await wrapper.get('button[aria-label="Remove character"]').trigger("click");
+    await flushPromises();
+    expect(mocks.deleteCharacter).toHaveBeenCalledWith(rowOf("Orphan"));
+  });
+
+  it("detaches a claimed character to its owner's pool, and never deletes it", async () => {
+    party.push({ id: "p4", name: "Left", class: null, level: null, owner_user_id: "gone", is_dm_managed: false });
+    mocks.rows.value = [member];
+    mocks.confirm.mockResolvedValue(false);
+    const wrapper = mountTab();
+    const detach = wrapper.get("button[aria-label=\"Detach: return to owner's pool\"]");
+    await detach.trigger("click");
+    await flushPromises();
+    expect(mocks.detach).not.toHaveBeenCalled();
+    mocks.confirm.mockResolvedValue(true);
+    await detach.trigger("click");
+    await flushPromises();
+    expect(mocks.detach).toHaveBeenCalledWith("p4");
+    expect(mocks.deleteCharacter).not.toHaveBeenCalled();
   });
 });

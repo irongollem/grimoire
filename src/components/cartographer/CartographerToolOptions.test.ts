@@ -164,3 +164,42 @@ describe("label field", () => {
     expect(wrapper.emitted("update:annotationText")?.[0]).toEqual(["Crypt"]);
   });
 });
+
+describe("link, room and brush options", () => {
+  it("attaches each kind of entity through its own field, each shown with what is already attached", async () => {
+    const wrapper = mountOptions({
+      activeTool: "link", title: "Link", selectedCell: [1, 1],
+      linkedNoteId: "n1", linkedEncounterId: "e1", linkedTrapId: "t1", linkedFeatureId: "f1",
+    });
+    const boxes = wrapper.findAllComponents({ name: "EntityCombobox" });
+    expect(boxes.map((b) => b.props("modelValue"))).toEqual(["n1", "e1", "t1", "f1"]);
+    boxes.forEach((b, i) => b.vm.$emit("update:modelValue", `pick-${i}`));
+    expect(wrapper.emitted("update:linkedNoteId")).toEqual([["pick-0"]]);
+    expect(wrapper.emitted("update:linkedEncounterId")).toEqual([["pick-1"]]);
+    expect(wrapper.emitted("update:linkedTrapId")).toEqual([["pick-2"]]);
+    expect(wrapper.emitted("update:linkedFeatureId")).toEqual([["pick-3"]]);
+  });
+
+  it("asks for a cell before offering links", () => {
+    const wrapper = mountOptions({ activeTool: "link", title: "Link" });
+    expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(0);
+    expect(wrapper.text()).toContain("Click a cell to attach entities.");
+  });
+
+  it("offers each room shape and emits the one picked", async () => {
+    const wrapper = mountOptions({
+      activeTool: "template", title: "Room",
+      templateShapes: [{ id: "circle", label: "Circle", icon: "o" }, { id: "cross", label: "Cross", icon: "+" }],
+    });
+    await button(wrapper, "+Cross").trigger("click");
+    expect(wrapper.emitted("update:activeTemplateShape")).toEqual([["cross"]]);
+  });
+
+  it("sizes the brush as a decimal radius and tells the width in feet", async () => {
+    const wrapper = mountOptions({ activeTool: "brush", title: "Brush", brushRadius: 1.5 });
+    // A radius in cells; a cell is 5 ft, so a radius of 1.5 spans 15 ft.
+    expect(wrapper.text()).toContain("15 ft across");
+    await wrapper.find("input[type=range]").setValue("2.5");
+    expect(wrapper.emitted("update:brushRadius")).toEqual([[2.5]]);
+  });
+});

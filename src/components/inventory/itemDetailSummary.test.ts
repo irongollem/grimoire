@@ -22,6 +22,22 @@ describe("visibleTypeLabel / itemSummaryLine", () => {
   });
 });
 
+describe("what an unidentified item gives away", () => {
+  it("shows a mundane item for what it is, since nothing about it is secret", () => {
+    expect(visibleTypeLabel(item({ item_type: "potion", rarity: "mundane" }), false)).toBe("Potion");
+    expect(itemSummaryLine(item({ item_type: "weapon", rarity: "mundane" }), false)).toBe("Weapon");
+  });
+
+  it("reads an item the player has no record of as an art object only while unidentified", () => {
+    expect(visibleTypeLabel(null, false)).toBe("Art Object");
+    expect(visibleTypeLabel(null, true)).toBeNull();
+  });
+
+  it("never prints the rarity of an unidentified magic item", () => {
+    expect(itemSummaryLine(item({ item_type: "ring", rarity: "legendary" }), false)).not.toMatch(/legendary/i);
+  });
+});
+
 describe("equipSlotOptions", () => {
   it("puts armor on the body and a shield in the off hand", () => {
     expect(equipSlotOptions(item({ item_type: "armor" }), never, never).map((o) => o.slot)).toEqual(["body"]);

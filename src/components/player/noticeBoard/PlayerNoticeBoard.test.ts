@@ -58,6 +58,13 @@ describe("PlayerNoticeBoard take flow", () => {
     await w.get('[data-pin-id="pin-goat"]').trigger("click");
     expect(w.text()).toContain("LOST: one goat");
     expect(w.text()).not.toContain("Take this notice");
+    // The "waits for the table" hint belongs to a takeable notice only; a note that offers nothing has no take to wait on.
+    expect(w.find("[data-take-hint]").exists()).toBe(false);
+  });
+
+  it("drops the waiting hint once the board is presented", async () => {
+    const w = await mountBoard({ presented_at: "2026-10-15T20:00:00Z" });
+    expect(w.find("[data-take-hint]").exists()).toBe(false);
   });
 
   it("takes while presented: toast, quest action and the handout opens", async () => {
@@ -120,6 +127,13 @@ describe("PlayerNoticeBoard others' takes", () => {
     expect(mocks.info.mock.calls[0][0]).toBe("Chicory took the wanted poster for Grell Ashmantle.");
     mocks.info.mock.calls[0][2].action.run();
     expect(mocks.push).toHaveBeenCalledWith({ name: "play-handout", params: { id: "h-grell" } });
+  });
+
+  it("closes the reader when the notice being read is torn down by someone else", async () => {
+    const w = await mountBoard();
+    expect(w.find("[data-reader]").exists()).toBe(true);
+    await w.setProps({ board: board({ pins: [pin({ ...grellPoster, status: "taken", taken_by_name: "Chicory" }), goatNote, ratsStub] }) });
+    expect(w.find("[data-reader]").exists()).toBe(false);
   });
 
   it("does not announce a stub that was already taken when the board opened", async () => {

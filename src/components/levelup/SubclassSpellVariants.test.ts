@@ -78,4 +78,47 @@ describe("SubclassSpellVariants", () => {
     expect(last(w, "update:variants")).toEqual({});
     expect(last(w, "update:expandedVariants")).toEqual({ Water: { "2": ["a"] } });
   });
+
+  const addButton = (w: ReturnType<typeof mountVariants>) => w.findAll("button").find(b => b.text().includes("Add option"))!;
+
+  it("adds an option under its trimmed name and clears the box", async () => {
+    const w = mountVariants({});
+    const box = w.find('input[aria-label="New option name"]');
+    await box.setValue("  Coast  ");
+    await addButton(w).trigger("click");
+    expect(Object.keys(last(w, "update:variants") as object)).toEqual(["Coast"]);
+    expect((box.element as HTMLInputElement).value).toBe("");
+  });
+
+  it("will not add a blank option or one that already exists, even only in the expanded list", async () => {
+    const w = mountVariants({ Arctic: {} }, "T", { Water: {} });
+    const box = w.find('input[aria-label="New option name"]');
+    await box.setValue("   ");
+    expect(addButton(w).attributes("disabled")).toBeDefined();
+    await box.setValue("Arctic");
+    expect(addButton(w).attributes("disabled")).toBeDefined();
+    await box.setValue("Water");
+    expect(addButton(w).attributes("disabled")).toBeDefined();
+    await box.trigger("keydown.enter");
+    expect(w.emitted("update:variants")).toBeUndefined();
+    await box.setValue("Coast");
+    expect(addButton(w).attributes("disabled")).toBeUndefined();
+  });
+
+  it("refuses a blank rename and keeps the real name on screen", async () => {
+    const w = mountVariants({ Arctic: {} });
+    const input = w.find('input[aria-label="Option name"]');
+    await input.setValue("   ");
+    await input.trigger("change");
+    expect(w.emitted("update:variants")).toBeUndefined();
+    expect((w.find('input[aria-label="Option name"]').element as HTMLInputElement).value).toBe("Arctic");
+  });
+
+  it("trims a rename", async () => {
+    const w = mountVariants({ Arctic: {} });
+    const input = w.find('input[aria-label="Option name"]');
+    await input.setValue("  Tundra ");
+    await input.trigger("change");
+    expect(Object.keys(last(w, "update:variants") as object)).toEqual(["Tundra"]);
+  });
 });

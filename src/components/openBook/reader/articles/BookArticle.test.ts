@@ -135,3 +135,48 @@ describe("AlmanacPage and IndexPage", () => {
     expect(w.find(".book-conns").exists()).toBe(false);
   });
 });
+
+describe("BookArticle, what a visitor must never be shown", () => {
+  it("prints none of an NPC's private fields, even if the snapshot carried them", async () => {
+    const withExtras = {
+      ...snapshot,
+      folk: [
+        {
+          ...snapshot.folk[0]!,
+          appearance: "Scar across the left eye.",
+          personality: "Cruel when cornered.",
+          backstory: "Sold the town's secrets.",
+          notes: "DM only: the traitor.",
+          stat_block: { hp: 99 },
+        },
+      ],
+    } as unknown as OpenBookSnapshot;
+    const model = buildBookModel(withExtras);
+    const w = await mountWith(model, BookArticle, { entry: model.byId.get("maren")! });
+    for (const secret of ["Scar across", "Cruel when", "Sold the town", "the traitor", "99"]) expect(w.text(), secret).not.toContain(secret);
+  });
+
+  it("prints no connection to a page that is not in the book, and no link to one", async () => {
+    const model = buildBookModel({
+      ...snapshot,
+      ties: [
+        { source: "link", type: "worships", from_kind: "npc", from_id: "maren", to_kind: "deity", to_id: "orla", told: null },
+        { source: "link", type: "worships", from_kind: "npc", from_id: "maren", to_kind: "deity", to_id: "hidden-god", told: "A god nobody has met." },
+      ],
+    } as OpenBookSnapshot);
+    const w = await mountWith(model, BookArticle, { entry: model.byId.get("maren")! });
+    expect(w.findAll(".book-conn")).toHaveLength(1);
+    expect(w.text()).not.toContain("A god nobody has met.");
+    expect(w.html()).not.toContain("hidden-god");
+  });
+
+  it("prints a tie on both of its ends' pages, each in its own words", async () => {
+    const model = buildBookModel({
+      ...snapshot,
+      ties: [{ source: "link", type: "worships", from_kind: "npc", from_id: "maren", to_kind: "deity", to_id: "orla", told: null }],
+    } as OpenBookSnapshot);
+    const deity = await mountWith(model, BookArticle, { entry: model.byId.get("orla")! });
+    expect(deity.find(".book-conn a[href$='/folk/maren']").exists()).toBe(true);
+    expect(deity.find(".book-conn-word").text()).not.toBe("worships");
+  });
+});

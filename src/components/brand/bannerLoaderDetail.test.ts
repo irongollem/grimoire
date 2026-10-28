@@ -14,6 +14,11 @@ describe("bannerLoaderDetail", () => {
     expect(sway).toBeLessThanOrEqual(0.3);
   });
 
+  it("caps how far a tiny flag sways, and never sways the big one less than the full flag", () => {
+    expect(bannerLoaderDetail(4).sway).toBe(0.3);
+    expect(bannerLoaderDetail(104).sway).toBeGreaterThanOrEqual(0.1);
+  });
+
   it("never cuts finer than the full flag, however large", () => {
     expect(bannerLoaderDetail(400)).toEqual({ strips: MAX_STRIPS, sway: 0.1 });
   });

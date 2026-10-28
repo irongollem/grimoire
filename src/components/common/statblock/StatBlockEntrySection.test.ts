@@ -89,6 +89,73 @@ describe("StatBlockEntrySection", () => {
   });
 });
 
+describe("StatBlockEntrySection adding and removing", () => {
+  const named = (name: string, description: string): StatBlockEntry => ({ ...blank, name, description });
+  const names = (wrapper: ReturnType<typeof mountSection>["wrapper"]) =>
+    wrapper.findAll("input").map((input) => (input.element as HTMLInputElement).value);
+
+  it("+ Add appends one empty entry after the existing ones", async () => {
+    const { wrapper, model } = mountSection([named("Claw", "x")]);
+    await wrapper.findAll("button").find((b) => b.text() === "+ Add Action")?.trigger("click");
+
+    expect(model.value.map((e) => e.name)).toEqual(["Claw", ""]);
+    expect(model.value[1]).toMatchObject({ description: "", structured: { kind: "other", source: "parsed" } });
+    expect(names(wrapper)).toEqual(["Claw", ""]);
+  });
+
+  it("removing the middle entry drops that one and keeps what the others show", async () => {
+    const { wrapper, model } = mountSection([named("Claw", "a"), named("Bite", "b"), named("Tail", "c")]);
+    await wrapper.findAll("button[aria-label='Remove action']")[1].trigger("click");
+
+    expect(model.value.map((e) => e.name)).toEqual(["Claw", "Tail"]);
+    expect(names(wrapper)).toEqual(["Claw", "Tail"]);
+    expect(wrapper.findAll("textarea.rte").map((t) => (t.element as HTMLTextAreaElement).value)).toEqual(["a", "c"]);
+  });
+
+  // Index keys made Tiptap reuse the deleted entry's editor for its neighbour, blanking
+  // the first name and the last description (see the note on `nextKey` in the SFC).
+  it("removing an entry keeps each remaining entry's own editor instead of handing it a neighbour's", async () => {
+    const { wrapper } = mountSection([named("Claw", "a"), named("Bite", "b"), named("Tail", "c")]);
+    const before = wrapper.findAll("textarea.rte").map((t) => t.element);
+    await wrapper.findAll("button[aria-label='Remove action']")[1].trigger("click");
+
+    const after = wrapper.findAll("textarea.rte").map((t) => t.element);
+    expect(after[0]).toBe(before[0]);
+    expect(after[1]).toBe(before[2]);
+  });
+
+  it("removing an entry closes a roll editor that was open on another", async () => {
+    const { wrapper } = mountSection([named("Claw", CLAW), named("Bite", "x")]);
+    await wrapper.findAll("button").find((b) => b.text() === "Edit roll")?.trigger("click");
+    expect(wrapper.find("form").exists()).toBe(true);
+
+    await wrapper.findAll("button[aria-label='Remove action']")[1].trigger("click");
+    expect(wrapper.find("form").exists()).toBe(false);
+  });
+
+  it("typing in the description does not close the roll editor the DM has open", async () => {
+    const { wrapper } = mountSection([named("Claw", CLAW)]);
+    await wrapper.findAll("button").find((b) => b.text() === "Edit roll")?.trigger("click");
+    await wrapper.find("textarea.rte").setValue(`${CLAW} It snarls.`);
+
+    expect(wrapper.find("form").exists()).toBe(true);
+  });
+
+  it("replacing the whole list from outside (applying a template) closes the roll editor", async () => {
+    const { wrapper, model } = mountSection([named("Claw", CLAW)]);
+    await wrapper.findAll("button").find((b) => b.text() === "Edit roll")?.trigger("click");
+
+    const editorBefore = wrapper.find("textarea.rte").element;
+    model.value = [named("Bite", "x")];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("form").exists()).toBe(false);
+    // A replaced list is new entries, so they get fresh editors rather than the old ones reused.
+    expect(wrapper.find("textarea.rte").element).not.toBe(editorBefore);
+    expect(names(wrapper)).toEqual(["Bite"]);
+  });
+});
+
 describe("StatBlockEntrySection options", () => {
   it("lists the choices of an options entry and writes one from the editor", async () => {
     const options: ActionStructure = {

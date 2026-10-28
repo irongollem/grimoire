@@ -92,4 +92,58 @@ describe("InventionApprovalQueue", () => {
     await flushPromises();
     expect(discard).toHaveBeenCalledWith("i1");
   });
+  it("passes on the table notice an approval brings, and says nothing extra when there is none", async () => {
+    data.value = [entry()];
+    approve.mockResolvedValue({ chatNotice: "Nessa's recipe was posted to the table." });
+    const w = mount(InventionApprovalQueue, { global: { stubs } });
+    await button(w, "Approve")?.trigger("click");
+    await flushPromises();
+    expect(toast.info).toHaveBeenCalledWith("Nessa's recipe was posted to the table.");
+    toast.info.mockReset();
+    approve.mockResolvedValue({ chatNotice: null });
+    await button(w, "Approve")?.trigger("click");
+    await flushPromises();
+    expect(toast.info).not.toHaveBeenCalled();
+  });
+
+  it("keeps the note and what was typed when sending it back fails", async () => {
+    data.value = [entry()];
+    returnWithNote.mockRejectedValue({ code: "CX003" });
+    const w = mount(InventionApprovalQueue, { global: { stubs } });
+    await button(w, "Send back with a note")?.trigger("click");
+    await w.get("textarea").setValue("Cheaper, please");
+    await button(w, "Send back")?.trigger("click");
+    await flushPromises();
+    expect(toast.error).toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect((w.get("textarea").element as HTMLTextAreaElement).value).toBe("Cheaper, please");
+  });
+
+  it("closes the note of a draft that is discarded", async () => {
+    data.value = [entry()];
+    confirm.mockResolvedValue(true);
+    discard.mockResolvedValue(undefined);
+    const w = mount(InventionApprovalQueue, { global: { stubs } });
+    await button(w, "Send back with a note")?.trigger("click");
+    expect(w.find("textarea").exists()).toBe(true);
+    await button(w, "Discard")?.trigger("click");
+    await flushPromises();
+    expect(w.find("textarea").exists()).toBe(false);
+    expect(toast.success).toHaveBeenCalledWith("Draft discarded.");
+  });
+
+  it("disables every decision on every draft while one is running", async () => {
+    const second = entry();
+    second.invention = { ...second.invention, id: "i2" };
+    data.value = [entry(), second];
+    let release: (v: { chatNotice: null }) => void = () => undefined;
+    approve.mockReturnValue(new Promise((resolve) => (release = resolve)));
+    const w = mount(InventionApprovalQueue, { global: { stubs } });
+    await w.findAll("button").filter((b) => b.text().includes("Approve"))[0].trigger("click");
+    const approves = w.findAll("button").filter((b) => b.text().includes("Approve"));
+    expect(approves.every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    release({ chatNotice: null });
+    await flushPromises();
+    expect(w.findAll("button").filter((b) => b.text().includes("Approve")).every((b) => b.attributes("disabled") === undefined)).toBe(true);
+  });
 });

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import type { TurnstileOptions } from "@/lib/auth/captcha";
+import { THEMES } from "@/lib/themes";
+import { setTheme } from "@/lib/themeRuntime";
 
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
@@ -216,5 +218,61 @@ describe("CaptchaGate", () => {
 
     await expect(taken).rejects.toBeInstanceOf(CaptchaUnavailableError);
     expect(mocks.remove).toHaveBeenCalledWith("w1");
+  });
+
+  it("draws the widget in the mode of the active theme, so a dark page does not get a white box", async () => {
+    const dark = THEMES.find((t) => t.mode === "dark")!;
+    const light = THEMES.find((t) => t.mode === "light")!;
+
+    setTheme(dark.id);
+    await mountGate();
+    expect(widget.theme).toBe("dark");
+
+    setTheme(light.id);
+    await mountGate();
+    expect(widget.theme).toBe("light");
+  });
+
+  it.each([
+    [280, "compact"],
+    [400, "flexible"],
+  ])("uses the %ipx-wide form's %s widget", async (width, size) => {
+    const form = document.createElement("form");
+    document.body.appendChild(form);
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => width });
+    try {
+      mount(CaptchaGate, { attachTo: form });
+      await flushPromises();
+      expect(widget.size).toBe(size);
+    } finally {
+      // @ts-expect-error removing the sizing installed above
+      delete HTMLElement.prototype.clientWidth;
+      form.remove();
+    }
+  });
+
+  it("renders one widget however many submits wait on it", async () => {
+    const wrapper = await mountGate();
+    const first = wrapper.vm.take();
+    const second = wrapper.vm.take();
+    widget.callback("tok-1");
+    widget.callback("tok-2");
+
+    await expect(Promise.all([first, second])).resolves.toEqual(["tok-1", "tok-2"]);
+    expect(mocks.render).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render a widget for a form that went away while the script was loading", async () => {
+    let finishLoad!: (api: unknown) => void;
+    mocks.load.mockReturnValue(new Promise((resolve) => { finishLoad = resolve; }));
+    const wrapper = mount(CaptchaGate);
+    wrapper.unmount();
+
+    finishLoad({ render: mocks.render, reset: mocks.reset, remove: mocks.remove });
+    await flushPromises();
+
+    expect(mocks.render).not.toHaveBeenCalled();
+    // Leaving the page is not a Turnstile failure, so nothing goes to Sentry.
+    expect(mocks.report).not.toHaveBeenCalled();
   });
 });

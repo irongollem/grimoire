@@ -149,4 +149,47 @@ describe("NpcFavorsSection", () => {
     await flushPromises();
     expect(mocks.deleteFavor).toHaveBeenCalledWith({ id: "f1", npcId: "npc1" });
   });
+  it("keeps the favour when the delete confirm is cancelled", async () => {
+    mocks.confirmResult = false;
+    mocks.favors.value = [favor({ id: "f1", settled_at: "2026-01-05T00:00:00Z" })];
+    const wrapper = mount(NpcFavorsSection, {
+      props: { npcId: "npc1" },
+      global: { stubs: routerStubs },
+    });
+    await wrapper.findAll("button").find((b) => b.text() === "")!.trigger("click");
+    await flushPromises();
+    expect(mocks.deleteFavor).not.toHaveBeenCalled();
+  });
+
+  it("saves a trimmed favour and empties the box, and ignores whitespace alone", async () => {
+    const wrapper = mount(NpcFavorsSection, {
+      props: { npcId: "npc1" },
+      global: { stubs: routerStubs },
+    });
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add favour")!;
+    await wrapper.find("input").setValue("   ");
+    await wrapper.find("input").trigger("keydown.enter");
+    await addButton.trigger("click");
+    expect(mocks.createFavor).not.toHaveBeenCalled();
+
+    await wrapper.find("input").setValue("  Hide the party  ");
+    await addButton.trigger("click");
+    await flushPromises();
+    expect(mocks.createFavor.mock.calls[0][0].text).toBe("Hide the party");
+    expect((wrapper.find("input").element as HTMLInputElement).value).toBe("");
+  });
+  it("shows only the favour being settled as busy, not its neighbours", async () => {
+    mocks.settlePending = true;
+    mocks.favors.value = [favor({ id: "f1", text: "One" }), favor({ id: "f2", text: "Two" })];
+    const wrapper = mount(NpcFavorsSection, {
+      props: { npcId: "npc1" },
+      global: { stubs: routerStubs },
+    });
+    const settle = () => wrapper.findAll("button").filter((b) => b.text() === "Settle");
+    await settle()[0].trigger("click");
+    await flushPromises();
+    const rows = wrapper.findAll("button").filter((b) => b.text() === "Settle");
+    expect(rows[0].attributes("disabled")).toBeDefined();
+    expect(rows[1].attributes("disabled")).toBeUndefined();
+  });
 });

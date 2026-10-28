@@ -83,4 +83,11 @@ describe("NewToYouCard", () => {
     const wrapper = mountCard({ person: { ...person, name: null } });
     expect(wrapper.text()).toContain("???");
   });
+
+  it("never says 'You knew them as' for an unmasked person with no known cover, and shows what they are instead", async () => {
+    const wrapper = mountCard({ kind: "unmasked" });
+    await wrapper.trigger("click");
+    expect(wrapper.text()).not.toContain("You knew them as");
+    expect(wrapper.text()).toContain("Human, apothecary");
+  });
 });

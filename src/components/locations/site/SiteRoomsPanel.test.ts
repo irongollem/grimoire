@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   reorder: vi.fn(),
   toastError: vi.fn(),
+  confirm: vi.fn(),
+  stateOf: vi.fn(),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -40,7 +42,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useReorderLocations: () => ({ mutate: mocks.reorder }),
 }));
 vi.mock("@/composables/locations/useLocationState", () => ({
-  useLocationStateForRooms: () => ({ stateOf: () => undefined }),
+  useLocationStateForRooms: () => ({ stateOf: (id: string, fact: string) => mocks.stateOf(id, fact) }),
 }));
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
   usePlaylists: () => ({ data: ref([]) }),
@@ -49,7 +51,7 @@ vi.mock("@/composables/soundboard/useSounds", () => ({
   useSounds: () => ({ data: ref([]) }),
 }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: (e: unknown) => e }) }));
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
 // SortableJS needs a real DOM drag/drop apparatus this environment doesn't
 // have; the panel only cares that VueDraggable is *mounted* in Build and
@@ -57,7 +59,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn
 // the same way NpcDetail.test.ts does it — mounting the real component would
 // also need useQuota/usePlan/useRouter wired up, when all these tests care
 // about is which resource it opens with.
-const stubs = { VueDraggable: { template: "<div><slot /></div>" }, PaywallModal: true };
+const stubs = { VueDraggable: { name: "VueDraggable", emits: ["end"], template: "<div data-testid='draggable'><slot /></div>" }, PaywallModal: true };
 
 function mountPanel(building = false) {
   return mount(SiteRoomsPanel, { props: { locationId: "site-1", building }, global: { stubs } });
@@ -81,6 +83,13 @@ describe("SiteRoomsPanel — Browse vs Build (#884)", () => {
     expect(wrapper.find(".space-drag-handle").exists()).toBe(false);
     expect(wrapper.findComponent({ name: "RoomAmbienceCell" }).exists()).toBe(false);
     expect(wrapper.findAllComponents({ name: "AppButton" })).toHaveLength(0);
+  });
+
+  it("Browse: leaves the site's own ambience row to Build, even when the site is known", () => {
+    allLocationsRef.value = [{ id: "site-1", name: "Ashmouth", location_type: "dungeon", parent_id: null, audio_theme: "dungeon-wet" } as Location];
+    roomsRef.value = [room({ id: "room-a", name: "Nave of Ash" })];
+    expect(mountPanel(false).findComponent({ name: "RoomAmbienceCell" }).exists()).toBe(false);
+    expect(mountPanel(true).findAllComponents({ name: "RoomAmbienceCell" })).toHaveLength(2);
   });
 
   it("Browse: shows the Build pointer, not the add prompt, when there are no rooms yet", () => {
@@ -203,5 +212,103 @@ describe("SiteRoomsPanel — grounds follow a `wilds` parent (#886)", () => {
       expect.objectContaining({ name: "Ossuary", location_type: "room", parent_id: "site-1" }),
       expect.anything(),
     );
+  });
+});
+
+describe("SiteRoomsPanel — Build edits", () => {
+  const nameInput = (w: ReturnType<typeof mountPanel>) => w.get('input[placeholder="Add a room…"]');
+  const buttonFor = (w: ReturnType<typeof mountPanel>, tooltip: string) =>
+    w.findAllComponents({ name: "AppButton" }).find((b) => b.props("tooltip") === tooltip)!;
+
+  beforeEach(() => {
+    roomsRef.value = [room({ id: "room-a", name: "Nave of Ash" }), room({ id: "room-b", name: "Antechamber" })];
+    allLocationsRef.value = [];
+    for (const m of [mocks.create, mocks.update, mocks.remove, mocks.reorder, mocks.toastError]) m.mockReset();
+    mocks.confirm.mockReset().mockResolvedValue(true);
+    mocks.stateOf.mockReset().mockReturnValue(undefined);
+  });
+
+  it("adds a room under the trimmed name and empties the box once it landed", async () => {
+    mocks.create.mockImplementation((_payload, opts) => opts.onSuccess());
+    const wrapper = mountPanel(true);
+    await nameInput(wrapper).setValue("  Ossuary  ");
+    await nameInput(wrapper).trigger("keydown.enter");
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ name: "Ossuary" }), expect.anything());
+    expect((nameInput(wrapper).element as HTMLInputElement).value).toBe("");
+  });
+
+  it("keeps what the DM typed when the add fails", async () => {
+    mocks.create.mockImplementation((_payload, opts) => opts.onError(new Error("nope")));
+    const wrapper = mountPanel(true);
+    await nameInput(wrapper).setValue("Ossuary");
+    await nameInput(wrapper).trigger("keydown.enter");
+    expect((nameInput(wrapper).element as HTMLInputElement).value).toBe("Ossuary");
+  });
+
+  it("adds nothing for a blank name", async () => {
+    const wrapper = mountPanel(true);
+    await nameInput(wrapper).setValue("   ");
+    await nameInput(wrapper).trigger("keydown.enter");
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("renames a room to the trimmed name on Enter", async () => {
+    const wrapper = mountPanel(true);
+    await buttonFor(wrapper, "Rename room").trigger("click");
+    const input = wrapper.findAllComponents({ name: "AppInput" }).find((i) => i.props("modelValue") === "Nave of Ash")!;
+    input.vm.$emit("update:modelValue", "  Nave of Cinders ");
+    await input.trigger("keydown.enter");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "room-a", update: { name: "Nave of Cinders" } }, expect.anything());
+  });
+
+  it("keeps the old name when the rename is blanked, and when Escape is pressed", async () => {
+    const wrapper = mountPanel(true);
+    await buttonFor(wrapper, "Rename room").trigger("click");
+    let input = wrapper.findAllComponents({ name: "AppInput" }).find((i) => i.props("modelValue") === "Nave of Ash")!;
+    input.vm.$emit("update:modelValue", "   ");
+    await input.trigger("keydown.enter");
+    expect(mocks.update).not.toHaveBeenCalled();
+
+    await buttonFor(wrapper, "Rename room").trigger("click");
+    input = wrapper.findAllComponents({ name: "AppInput" }).find((i) => i.props("modelValue") === "Nave of Ash")!;
+    input.vm.$emit("update:modelValue", "Something else");
+    await input.trigger("keydown.escape");
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("Nave of Ash");
+  });
+
+  it("deletes a room only after the DM confirms", async () => {
+    mocks.confirm.mockResolvedValueOnce(false);
+    const wrapper = mountPanel(true);
+    await buttonFor(wrapper, "Delete room").trigger("click");
+    await Promise.resolve();
+    expect(mocks.remove).not.toHaveBeenCalled();
+
+    await buttonFor(wrapper, "Delete room").trigger("click");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mocks.confirm.mock.calls[1]![0]).toContain("Nave of Ash");
+    expect(mocks.remove).toHaveBeenCalledWith("room-a");
+  });
+
+  it("saves the new order when a drag ends", async () => {
+    const wrapper = mountPanel(true);
+    wrapper.findComponent({ name: "VueDraggable" }).vm.$emit("update:modelValue", [roomsRef.value[1], roomsRef.value[0]]);
+    await wrapper.vm.$nextTick();
+    wrapper.findComponent({ name: "VueDraggable" }).vm.$emit("end");
+    expect(mocks.reorder).toHaveBeenCalledWith(["room-b", "room-a"]);
+  });
+
+  it("writes a room's own ambience, and a clear, to that room", async () => {
+    const wrapper = mountPanel(true);
+    wrapper.findAllComponents({ name: "RoomAmbienceCell" })[0]!.vm.$emit("save", "room-a", "shrine-choral");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "room-a", update: { audio_theme: "shrine-choral" } }, expect.anything());
+  });
+
+  it("marks only the rooms the party has cleared or looted, in Browse too", () => {
+    mocks.stateOf.mockImplementation((id: string, fact: string) => (id === "room-a" && fact === "cleared" ? { value: true } : id === "room-b" && fact === "looted" ? { value: false } : undefined));
+    const wrapper = mountPanel(false);
+    expect(wrapper.findAll('[title="Cleared"]')).toHaveLength(1);
+    expect(wrapper.findAll('[title="Looted"]')).toHaveLength(0);
   });
 });

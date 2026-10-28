@@ -3,6 +3,7 @@ import { mount, RouterLinkStub } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { defineComponent, h, ref } from "vue";
 import ItemsView from "./ItemsView.vue";
+import { useItemsUiStore } from "@/stores/ui/items";
 
 /**
  * ItemList is replaced wholesale with a minimal stand-in that exposes a fixed
@@ -253,5 +254,32 @@ describe("ItemsView — server-driven Source filter (#972)", () => {
     const select = wrapper.find('[aria-label="Source filter"]');
     expect(select.exists()).toBe(true);
     expect(select.text()).toContain("SRD 2024");
+  });
+});
+
+describe("ItemsView — filters live in the store and clear together", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    mocks.sources = [];
+  });
+
+  it("hands the stored filters to the list, and Clear puts every one back", async () => {
+    const ui = useItemsUiStore();
+    ui.vaultSearch = "sword";
+    ui.vaultFilterType = "weapon";
+    ui.vaultFilterRarity = "rare";
+    const wrapper = mountView();
+    const list = wrapper.findComponent({ name: "ItemList" });
+    expect(list.props()).toMatchObject({ search: "sword", typeFilter: "weapon", rarityFilter: "rare" });
+
+    await wrapper.findAll("button").find((b) => b.text() === "Clear filters")!.trigger("click");
+    expect(ui.vaultSearch).toBe("");
+    expect(ui.vaultFilterType).toBe("");
+    expect(ui.vaultFilterRarity).toBe("");
+    expect(ui.vaultHasActiveFilters).toBe(false);
+  });
+
+  it("offers no Clear while nothing is filtered", () => {
+    expect(mountView().findAll("button").some((b) => b.text() === "Clear filters")).toBe(false);
   });
 });

@@ -174,4 +174,52 @@ describe("ChroniclerWriteDialog", () => {
     expect(requireCredits).toHaveBeenCalledTimes(1);
     expect(generate).not.toHaveBeenCalled();
   });
+
+  describe("Write again", () => {
+    const second = (chronicle: string) => generate.mockResolvedValueOnce({ chronicle, ai_provenance: undefined });
+    async function writeAgain(wrapper: VueWrapper) {
+      await click(wrapper, "Edit facts");
+      await click(wrapper, "Write again");
+      await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(wrapper.text()).toContain("Preview"));
+    }
+    const fields = (wrapper: VueWrapper) => wrapper.findAll("input").map((f) => (f.element as HTMLInputElement).value);
+
+    it("replaces the title and session the DM never touched with the new heading", async () => {
+      const wrapper = mount(ChroniclerWriteDialog, { props: { visible: true }, global: { stubs } });
+      await writeChronicle(wrapper);
+      second("# Session 5: The Thaw\n\nMorning.");
+      await writeAgain(wrapper);
+      expect(fields(wrapper).slice(0, 2)).toEqual(["The Thaw", "5"]);
+    });
+
+    it("keeps the title and session number the DM typed over the new generation's", async () => {
+      const wrapper = mount(ChroniclerWriteDialog, { props: { visible: true }, global: { stubs } });
+      await writeChronicle(wrapper);
+      await wrapper.findAll("input")[0].setValue("My own title");
+      await wrapper.findAll("input")[1].setValue("9");
+      second("# Session 5: The Thaw\n\nMorning.");
+      await writeAgain(wrapper);
+      expect(fields(wrapper).slice(0, 2)).toEqual(["My own title", "9"]);
+    });
+
+    it("adds the new suggestion's tags to the DM's edited list instead of replacing it", async () => {
+      const wrapper = mount(ChroniclerWriteDialog, { props: { visible: true }, global: { stubs } });
+      await writeChronicle(wrapper);
+      const chip = wrapper.findAll("span").find((s) => s.text().includes("frostbite"));
+      await chip?.find("button").trigger("click");
+      second("# Session 5: The Thaw\n\nMorning.\n\n[[tags: avalanche]]");
+      await writeAgain(wrapper);
+      await click(wrapper, "Insert into Note");
+      expect(wrapper.emitted("insert")?.[0]?.[0]).toMatchObject({ tags: ["icewind-dale", "avalanche"] });
+    });
+  });
+
+  it("inserts the title trimmed", async () => {
+    const wrapper = mount(ChroniclerWriteDialog, { props: { visible: true }, global: { stubs } });
+    await writeChronicle(wrapper);
+    await wrapper.findAll("input")[0].setValue("   Spaced out   ");
+    await click(wrapper, "Insert into Note");
+    expect(wrapper.emitted("insert")?.[0]?.[0]).toMatchObject({ title: "Spaced out" });
+  });
 });

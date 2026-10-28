@@ -60,4 +60,32 @@ describe("RunnerCombatantList fallen offer", () => {
     mocks.memorials = undefined;
     expect(mount(RunnerCombatantList, { props: { selectedId: null }, global: { stubs } }).find("[data-testid=fallen-offer]").exists()).toBe(false);
   });
+
+  const mountList = () => mount(RunnerCombatantList, { props: { selectedId: null }, global: { stubs } });
+  const offerShown = () => mountList().find("[data-testid=fallen-offer]").exists();
+
+  it("waits for the third failed save", () => {
+    mocks.combatants = [{ ...downed, death_saves: { successes: 1, failures: 2 } }];
+    expect(offerShown()).toBe(false);
+  });
+
+  it("drops the offer when the DM says not yet", async () => {
+    const w = mountList();
+    await w.find("[data-testid=offer-dismiss]").trigger("click");
+    expect(w.find("[data-testid=fallen-offer]").exists()).toBe(false);
+  });
+
+  it("is not stopped by a restored memorial or by another character's memorial", () => {
+    mocks.memorials = [{ party_member_id: "pm1", restored_at: "2026-10-01T00:00:00Z" } as CharacterMemorial];
+    expect(offerShown()).toBe(true);
+    mocks.memorials = [{ party_member_id: "pm2", restored_at: null } as CharacterMemorial];
+    expect(offerShown()).toBe(true);
+  });
+
+  it("offers nothing for a monster, or a player who is not in the party", () => {
+    mocks.combatants = [{ ...downed, type: "monster" } as RunCombatant];
+    expect(offerShown()).toBe(false);
+    mocks.combatants = [{ ...downed, party_member_id: "stranger" }];
+    expect(offerShown()).toBe(false);
+  });
 });

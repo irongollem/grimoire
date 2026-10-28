@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mount, type VueWrapper, config } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import NoticeBoardViewport from "./NoticeBoardViewport.vue";
 import { goat, grell, sealed, takenGoat, focalImageStub } from "./fixtures";
 
@@ -212,3 +212,79 @@ describe("NoticeBoardViewport canvas controls", () => {
   });
 });
 
+
+describe("NoticeBoardViewport touch and wheel", () => {
+  const pe = (type: string, x: number, pointerId = 5) => new PointerEvent(type, { pointerId, clientX: x, clientY: 300, bubbles: true, cancelable: true });
+
+  it("treats a wobble under 6px as a tap, and a real drag as not a tap on the pin it ends over", async () => {
+    size(390, 700);
+    const w = await mountBoard();
+    const root = w.get("[data-viewport]").element;
+    const pin = w.findAll("button.nb-hit")[0];
+    root.dispatchEvent(pe("pointerdown", 300));
+    root.dispatchEvent(pe("pointermove", 296));
+    root.dispatchEvent(pe("pointerup", 296));
+    await w.vm.$nextTick();
+    expect(w.get("[data-viewport]").classes()).not.toContain("is-panning");
+    expect(panStyle(w)).toContain("translate(0px,");
+    await pin.trigger("click");
+    expect(w.emitted("select")).toHaveLength(1);
+
+    root.dispatchEvent(pe("pointerdown", 300));
+    root.dispatchEvent(pe("pointermove", 200));
+    await w.vm.$nextTick();
+    expect(w.get("[data-viewport]").classes()).toContain("is-panning");
+    root.dispatchEvent(pe("pointerup", 200));
+    await w.vm.$nextTick();
+    expect(w.get("[data-viewport]").classes()).not.toContain("is-panning");
+    await pin.trigger("click");
+    expect(w.emitted("select")).toHaveLength(1);
+    await pin.trigger("click");
+    expect(w.emitted("select")).toHaveLength(2);
+    w.unmount();
+  });
+
+  it("does not start a pan from the zoom buttons", async () => {
+    size(390, 700);
+    const w = await mountBoard();
+    const root = w.get("[data-viewport]").element;
+    w.get('[aria-label="Zoom in"]').element.dispatchEvent(pe("pointerdown", 300));
+    root.dispatchEvent(pe("pointermove", 100));
+    root.dispatchEvent(pe("pointerup", 100));
+    await w.vm.$nextTick();
+    expect(panStyle(w)).toContain("translate(0px,");
+    w.unmount();
+  });
+
+  it("leaves the wheel to the page when the whole board is on screen, and pans a board that overflows", async () => {
+    size(1920, 1080);
+    const fitted = await mountBoard();
+    const scrollOn = new WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true });
+    fitted.get("[data-viewport]").element.dispatchEvent(scrollOn);
+    expect(scrollOn.defaultPrevented).toBe(false);
+    fitted.unmount();
+
+    size(390, 700);
+    const phone = await mountBoard();
+    const sideways = new WheelEvent("wheel", { deltaX: 80, bubbles: true, cancelable: true });
+    phone.get("[data-viewport]").element.dispatchEvent(sideways);
+    await phone.vm.$nextTick();
+    expect(sideways.defaultPrevented).toBe(true);
+    expect(panStyle(phone)).toContain("translate(-80px,");
+    phone.unmount();
+  });
+
+  it("pans a pin that takes keyboard focus off the right edge back into view", async () => {
+    size(390, 700);
+    const w = await mountBoard();
+    const root = w.get("[data-viewport]").element as HTMLElement;
+    const pin = w.get("button.nb-hit").element as HTMLElement;
+    vi.spyOn(root, "getBoundingClientRect").mockReturnValue({ left: 0, right: 390, top: 0, bottom: 700 } as DOMRect);
+    vi.spyOn(pin.closest("[data-pin]")!, "getBoundingClientRect").mockReturnValue({ left: 300, right: 450, top: 100, bottom: 200 } as DOMRect);
+    pin.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await w.vm.$nextTick();
+    // The pin hangs 60px past the right edge, so the board moves 60px left.
+    expect(panStyle(w)).toContain("translate(-60px,");
+    w.unmount();
+  });
+});

@@ -168,18 +168,6 @@ describe("QuestFlowCanvas entry beat", () => {
   });
 });
 
-describe("QuestFlowCanvas legend", () => {
-  // Story flow frame: a small legend pinned over the canvas names the three
-  // route strokes the wires themselves draw, so a DM never has to guess what
-  // a dashed grey line means.
-  it("names choice, parallel, and gated/cut off", () => {
-    const wrapper = mountCanvas();
-    expect(wrapper.text()).toContain("choice");
-    expect(wrapper.text()).toContain("parallel");
-    expect(wrapper.text()).toContain("gated / cut off");
-  });
-});
-
 describe("QuestFlowCanvas drag", () => {
   it("reports every node a drag moved, not only the grabbed one", () => {
     const wrapper = mountCanvas();
@@ -247,5 +235,105 @@ describe("QuestFlowCanvas canvas controls", () => {
     mountCanvas().unmount();
     expect(remove).toHaveBeenCalledWith("keydown", expect.any(Function));
     remove.mockRestore();
+  });
+});
+
+describe("QuestFlowCanvas authoring gestures", () => {
+  beforeEach(() => {
+    mocks.project.mockReset().mockReturnValue({ x: 5, y: 6 });
+  });
+  const flowOf = (props: Record<string, unknown> = {}) => {
+    const wrapper = mountCanvas(props);
+    return { wrapper, flow: wrapper.findComponent({ name: "VueFlow" }) };
+  };
+  const commands = (w: ReturnType<typeof mountCanvas>) => (w.emitted("command") ?? []).map((e) => e[0]);
+
+  it("a drawn connection links the two beats, but never a beat to itself", () => {
+    const { wrapper, flow } = flowOf();
+    flow.vm.$emit("connect", { source: "beat-a", target: "beat-a" });
+    flow.vm.$emit("connect", { source: "beat-a", target: "beat-b" });
+    expect(commands(wrapper)).toEqual([{ type: "link", sourceBeatId: "beat-a", targetBeatId: "beat-b" }]);
+  });
+
+  it("a read-only canvas links nothing", () => {
+    const { wrapper, flow } = flowOf({ editable: false });
+    flow.vm.$emit("connect", { source: "beat-a", target: "beat-b" });
+    expect(commands(wrapper)).toEqual([]);
+  });
+
+  it("dropping a drag on empty canvas creates a beat there, linked from where the drag began", () => {
+    const { wrapper, flow } = flowOf();
+    flow.vm.$emit("connect-start", { nodeId: "beat-a" });
+    flow.vm.$emit("connect-end", { clientX: 100, clientY: 200 });
+    expect(mocks.project).toHaveBeenCalledWith({ x: 100, y: 200 });
+    expect(commands(wrapper)).toEqual([{ type: "create", sourceBeatId: "beat-a", x: 5, y: 6 }]);
+  });
+
+  it("a drag that ended on another beat links it and creates nothing", () => {
+    const { wrapper, flow } = flowOf();
+    flow.vm.$emit("connect-start", { nodeId: "beat-a" });
+    flow.vm.$emit("connect", { source: "beat-a", target: "beat-b" });
+    flow.vm.$emit("connect-end", { clientX: 100, clientY: 200 });
+    expect(commands(wrapper)).toEqual([{ type: "link", sourceBeatId: "beat-a", targetBeatId: "beat-b" }]);
+  });
+
+  it("a drag that ended on another beat does not suppress the next drag's create", () => {
+    const { wrapper, flow } = flowOf();
+    flow.vm.$emit("connect-start", { nodeId: "beat-a" });
+    flow.vm.$emit("connect", { source: "beat-a", target: "beat-b" });
+    flow.vm.$emit("connect-end", { clientX: 1, clientY: 2 });
+    flow.vm.$emit("connect-start", { nodeId: "beat-a" });
+    flow.vm.$emit("connect-end", { clientX: 100, clientY: 200 });
+    expect(commands(wrapper).at(-1)).toEqual({ type: "create", sourceBeatId: "beat-a", x: 5, y: 6 });
+  });
+
+  it("an end event with no drag in progress creates nothing, and a finished drag cannot be ended twice", () => {
+    const { wrapper, flow } = flowOf();
+    flow.vm.$emit("connect-end", { clientX: 100, clientY: 200 });
+    flow.vm.$emit("connect-start", { nodeId: "beat-a" });
+    flow.vm.$emit("connect-end", { clientX: 100, clientY: 200 });
+    flow.vm.$emit("connect-end", { clientX: 100, clientY: 200 });
+    expect(commands(wrapper)).toHaveLength(1);
+  });
+
+  it("a read-only canvas creates nothing from a dropped drag", () => {
+    const { wrapper, flow } = flowOf({ editable: false });
+    flow.vm.$emit("connect-start", { nodeId: "beat-a" });
+    flow.vm.$emit("connect-end", { clientX: 100, clientY: 200 });
+    expect(commands(wrapper)).toEqual([]);
+  });
+
+  it("clicking a node selects that beat", () => {
+    const { wrapper, flow } = flowOf();
+    flow.vm.$emit("node-click", { node: { id: "beat-a" } });
+    expect(commands(wrapper)).toEqual([{ type: "select", beatId: "beat-a" }]);
+  });
+
+  it("Add next on a beat creates its follower 320 to the right on the same row", () => {
+    const placed = [{ id: "beat-a", quest_id: "q", title: "A", kind: "social", visibility: "hidden", canvas_x: 40, canvas_y: 90 }] as QuestBeat[];
+    const wrapper = mountCanvas({ beats: placed });
+    wrapper.findComponent(QuestFlowNode).vm.$emit("create-next");
+    expect(commands(wrapper)).toEqual([{ type: "create", sourceBeatId: "beat-a", x: 360, y: 90 }]);
+  });
+
+  it("a node's Delete is dropped on a read-only canvas and forwarded on an editable one", () => {
+    const editable = mountCanvas();
+    editable.findComponent(QuestFlowNode).vm.$emit("delete");
+    expect(commands(editable)).toEqual([{ type: "delete-beat", beatId: "beat-a" }]);
+    const readOnly = mountCanvas({ editable: false });
+    readOnly.findComponent(QuestFlowNode).vm.$emit("delete");
+    expect(commands(readOnly)).toEqual([]);
+  });
+
+  it("leaves the zoom keys to a text field the DM is typing in, even with the pointer over the graph", async () => {
+    const wrapper = mountCanvas();
+    await wrapper.find(".quest-flow-canvas").trigger("pointerenter");
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    const key = new KeyboardEvent("keydown", { key: "=", code: "Equal", ctrlKey: true, cancelable: true, bubbles: true });
+    input.dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(false);
+    input.remove();
+    wrapper.unmount();
   });
 });

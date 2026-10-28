@@ -87,4 +87,12 @@ describe("AppCheckbox", () => {
     expect(document.activeElement).toBe(wrapper.find("input").element);
     wrapper.unmount();
   });
+
+  it("an array model without a value to add leaves the group untouched instead of adding undefined", async () => {
+    const { wrapper, model, input } = mountCheckbox(["a"], { label: "No value" });
+    expect((input.element as HTMLInputElement).checked).toBe(false);
+    await input.setValue(true);
+    expect(model.value).toEqual(["a"]);
+    wrapper.unmount();
+  });
 });

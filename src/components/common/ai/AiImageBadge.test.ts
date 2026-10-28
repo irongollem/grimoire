@@ -12,6 +12,8 @@ vi.mock("@/lib/storage", () => ({
 }));
 
 import AiImageBadge from "./AiImageBadge.vue";
+import { loadImageProvenance } from "@/lib/storage";
+import { useAiLabelPrefs } from "@/composables/ai/useAiLabelPrefs";
 
 function mountBadge(props: Record<string, unknown>, attrs: Record<string, unknown> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -42,6 +44,28 @@ describe("AiImageBadge", () => {
     await w.setProps({ src: "https://cdn.test/late.webp" });
     await flushPromises();
     expect(w.find("span").exists()).toBe(true);
+  });
+
+  it("can sit in the flow instead of over the picture", async () => {
+    mocks.hit = true;
+    const w = mountBadge({ src: "https://cdn.test/inline.webp", inline: true });
+    await flushPromises();
+    expect(w.find("span").exists()).toBe(true);
+    expect(w.find("span").classes()).not.toContain("absolute");
+  });
+
+  it("does not even look the image up while the viewer has AI labels switched off", async () => {
+    mocks.hit = true;
+    vi.mocked(loadImageProvenance).mockClear();
+    useAiLabelPrefs().setShowAiLabels(false);
+    try {
+      const w = mountBadge({ src: "https://cdn.test/off.webp" });
+      await flushPromises();
+      expect(w.find("span").exists()).toBe(false);
+      expect(loadImageProvenance).not.toHaveBeenCalled();
+    } finally {
+      useAiLabelPrefs().setShowAiLabels(true);
+    }
   });
 
   it("renders nothing for a blob URL", async () => {

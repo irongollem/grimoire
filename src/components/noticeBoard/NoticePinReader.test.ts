@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import { mount, config } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { h } from "vue";
 import NoticePinReader from "./NoticePinReader.vue";
 import { goat, grell, sealed, focalImageStub } from "./fixtures";
-import { takeModalOrigin } from "@/lib/modalOrigin";
+import { seededRotation } from "@/lib/noticeBoard/geometry";
+
+const remembered = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/modalOrigin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/modalOrigin")>()),
+  rememberModalOrigin: remembered,
+}));
 
 // FocalImage measures with a ResizeObserver the test DOM lacks.
 config.global.stubs = { ...config.global.stubs, FocalImage: focalImageStub };
@@ -57,14 +63,25 @@ describe("NoticePinReader", () => {
     w.unmount();
   });
 
-  it("records the pin it grows from when it opens", async () => {
+  it("records the pin it grows from only as it opens, not when it closes or when it has no origin", async () => {
+    remembered.mockClear();
     const pin = document.createElement("div");
     pin.getBoundingClientRect = () => ({ top: 10, left: 20, width: 150, height: 120, right: 170, bottom: 130, x: 20, y: 10, toJSON: () => ({}) });
     const w = mountReader({ open: false, origin: pin });
+    expect(remembered).not.toHaveBeenCalled();
     await w.setProps({ open: true });
-    // The modal consumes it as it opens (instantly here, with no animation), so only a flight that never ran leaves it.
-    const left = takeModalOrigin("notice-pin-reader");
-    expect(left === null || left.width === 150).toBe(true);
+    expect(remembered).toHaveBeenCalledTimes(1);
+    expect(remembered.mock.calls[0][1]).toMatchObject({ top: 10, left: 20, width: 150, height: 120 });
+    await w.setProps({ open: false });
+    expect(remembered).toHaveBeenCalledTimes(1);
+    w.unmount();
+  });
+
+  it("names the dialog for the notice and leans the paper half as far as it hung on the board", () => {
+    const w = mountReader({});
+    expect(document.body.querySelector("[data-modal-panel]")!.getAttribute("aria-label")).toBe("Note: LOST: one goat");
+    const tilt = document.body.querySelector<HTMLElement>(".nb-reader-tilt")!;
+    expect(tilt.style.transform).toBe(`rotate(${seededRotation("pin-goat") / 2}deg)`);
     w.unmount();
   });
 

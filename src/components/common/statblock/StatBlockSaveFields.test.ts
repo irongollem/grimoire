@@ -86,4 +86,51 @@ describe("StatBlockSaveFields", () => {
       dc: 12,
     });
   });
+
+  describe("changing what ends a condition", () => {
+    const endsSelect = (w: ReturnType<typeof mountFields>, i = 0) =>
+      w.findAll("select").filter((s) => s.text().includes("Save ends"))[i];
+
+    it("moving a save-ends repeat from the end to the start of the turn keeps its ability, DC and cap", async () => {
+      const save = base([
+        { name: "Paralyzed", ends: { kind: "save", at: "end", ability: "wis", dc: 12, remaining: 10 } },
+      ]);
+      await endsSelect(mountFields(save)).setValue("save-start");
+      expect(save.conditions[0].ends).toEqual({ kind: "save", at: "start", ability: "wis", dc: 12, remaining: 10 });
+    });
+
+    it("'When someone removes it' leaves the condition with no end at all", async () => {
+      const save = base([{ name: "Paralyzed", ends: { kind: "save", at: "end" } }]);
+      await endsSelect(mountFields(save)).setValue("none");
+      expect("ends" in save.conditions[0]).toBe(false);
+    });
+
+    it.each([
+      ["self-end", { kind: "turn", at: "end", of: "self" }],
+      ["self-start", { kind: "turn", at: "start", of: "self" }],
+      ["source-end", { kind: "turn", at: "end", of: "source" }],
+      ["source-start", { kind: "turn", at: "start", of: "source" }],
+    ])("%s ends it on that creature's turn", async (choice, expected) => {
+      const save = base([{ name: "Blinded" }]);
+      await endsSelect(mountFields(save)).setValue(choice);
+      expect(save.conditions[0].ends).toEqual(expected);
+    });
+
+    it("shows a turn-based end as that choice when the row is drawn", () => {
+      const save = base([{ name: "Blinded", ends: { kind: "turn", at: "start", of: "source" } }]);
+      expect((endsSelect(mountFields(save)).element as HTMLSelectElement).value).toBe("source-start");
+    });
+
+    it("a rounds field below one is raised to one", async () => {
+      const save = base([{ name: "Blinded", ends: { kind: "rounds", remaining: 5 } }]);
+      await mountFields(save).find("input[type=number][min='1']").setValue("0");
+      expect(save.conditions[0].ends).toEqual({ kind: "rounds", remaining: 1 });
+    });
+
+    it("a round cap below one is raised to one", async () => {
+      const save = base([{ name: "Paralyzed", ends: { kind: "save", at: "end" } }]);
+      await mountFields(save).find("input[placeholder='No cap']").setValue("0");
+      expect(save.conditions[0].ends).toEqual({ kind: "save", at: "end", remaining: 1 });
+    });
+  });
 });

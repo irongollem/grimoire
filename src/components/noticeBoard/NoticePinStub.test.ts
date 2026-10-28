@@ -32,4 +32,11 @@ describe("NoticePinStub", () => {
     const poster = mount(NoticePinStub, { props: { face: { ...takenGoat, style: "poster" } } });
     expect(poster.attributes("data-scrap")).toMatch(/^poster-scrap-/);
   });
+
+  it("falls back to a flat scrap when the torn-paper art fails to load", async () => {
+    const w = mount(NoticePinStub, { props: { face: takenGoat } });
+    await w.get("img.nb-scrap").trigger("error");
+    expect(w.find("img.nb-scrap").exists()).toBe(false);
+    expect(w.find(".nb-scrap-flat").exists()).toBe(true);
+  });
 });

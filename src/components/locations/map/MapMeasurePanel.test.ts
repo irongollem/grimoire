@@ -127,4 +127,25 @@ describe("MapMeasurePanel", () => {
     await wrapper.findAll("button").find((b) => b.text() === "Add to calendar")!.trigger("click");
     expect(wrapper.findComponent({ name: "EventModal" }).props("prefill")).toMatchObject({ travel_party_member_ids: [] });
   });
+
+  it("names a route that starts or ends on open ground by the end it has", () => {
+    const fromOnly: RoutePoint[] = [POINTS[0], { x: 0.4, y: 0, pin: null }];
+    expect(mountPanel({ points: fromOnly, summary: summarizeRoute(fromOnly, SCALE, SIZE, "normal") }).text()).toContain("From Waterdeep");
+    const toOnly: RoutePoint[] = [{ x: 0, y: 0, pin: null }, POINTS[1]];
+    expect(mountPanel({ points: toOnly, summary: summarizeRoute(toOnly, SCALE, SIZE, "normal") }).text()).toContain("To Daggerford");
+  });
+
+  it("asks the host to change the pace", async () => {
+    const wrapper = mountPanel();
+    const fast = wrapper.findAll("button").find((b) => b.text() === "Fast")!;
+    await fast.trigger("click");
+    expect(wrapper.emitted("update:pace")?.[0]).toEqual(["fast"]);
+  });
+
+  it("measures the day length in the map's own unit", () => {
+    const km: MapScale = { ...SCALE, unit: "km" };
+    const wrapper = mountPanel({ scale: km, summary: summarizeRoute(POINTS, km, SIZE, "normal") });
+    expect(wrapper.text()).toContain("km a day");
+    expect(wrapper.text()).not.toContain("mi a day");
+  });
 });

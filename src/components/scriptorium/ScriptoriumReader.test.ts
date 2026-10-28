@@ -11,7 +11,14 @@ function flushEditor(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const mocks = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn(), embedHtml: { value: null as string | null } }));
+const mocks = vi.hoisted(() => ({
+  back: vi.fn(),
+  push: vi.fn(),
+  embedHtml: { value: null as string | null },
+  dmCampaigns: vi.fn(),
+  activeId: { value: null as string | null },
+  activeName: { value: null as string | null },
+}));
 vi.mock("@/composables/scriptorium/usePlayerEntityEmbed", () => ({
   usePlayerEntityEmbed: () => ({ html: computed(() => mocks.embedHtml.value), isLoading: computed(() => false) }),
 }));
@@ -21,11 +28,17 @@ vi.mock("vue-router", async (importOriginal) => ({
 }));
 
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ activeCampaignId: ref(null), activeCampaign: ref(null) }),
+  useCampaignStore: () => ({
+    activeCampaignId: ref(mocks.activeId.value),
+    activeCampaign: ref(mocks.activeName.value ? { id: mocks.activeId.value, name: mocks.activeName.value } : null),
+  }),
 }));
 
 vi.mock("@/composables/campaign/useCampaigns", () => ({
-  useAllDmCampaigns: () => ({ data: ref([]) }),
+  useAllDmCampaigns: (options: unknown) => {
+    mocks.dmCampaigns(options);
+    return { data: ref([{ id: "camp-other", name: "Curse of Strahd" }]) };
+  },
 }));
 
 function makeDoc(overrides: Partial<ScriptoriumDocument> = {}): ScriptoriumDocument {
@@ -82,6 +95,9 @@ const RICH_CONTENT = JSON.stringify({
 });
 
 beforeEach(() => {
+  mocks.dmCampaigns.mockClear();
+  mocks.activeId.value = null;
+  mocks.activeName.value = null;
   mocks.back.mockClear();
   mocks.push.mockClear();
   // jsdom has no scrollIntoView — stub it so revealInScrollParent's own guard
@@ -191,5 +207,33 @@ describe("ScriptoriumReader", () => {
     await flushEditor();
     await flushEditor();
     expect(shown.findAll("button").some((b) => b.text() === "Owlbear")).toBe(true);
+  });
+  it("goes back through history when there is some", async () => {
+    Object.defineProperty(window.history, "length", { value: 3, configurable: true });
+    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc() } });
+    await wrapper.get('button[aria-label="Back to Scriptorium"]').trigger("click");
+    expect(mocks.back).toHaveBeenCalledTimes(1);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("names where a document lives: this campaign, another of the DM's, or everywhere", () => {
+    mocks.activeId.value = "camp-here";
+    mocks.activeName.value = "The Southern Road";
+    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: "camp-here" }) } }).text()).toContain("The Southern Road");
+    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: "camp-other" }) } }).text()).toContain("Curse of Strahd");
+    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: null }) } }).text()).toContain("General");
+  });
+
+  it("never asks for the DM's campaign list on a player's read", () => {
+    mount(ScriptoriumReader, { props: { document: makeDoc(), audience: "player" } });
+    expect(mocks.dmCampaigns).toHaveBeenCalledWith({ enabled: false });
+    mocks.dmCampaigns.mockClear();
+    mount(ScriptoriumReader, { props: { document: makeDoc() } });
+    expect(mocks.dmCampaigns).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it("wears the document's own theme", () => {
+    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ theme: "phb2014" }) } }).find(".theme-phb2014").exists()).toBe(true);
+    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ theme: "onednd2024" }) } }).find(".theme-phb2014").exists()).toBe(false);
   });
 });

@@ -223,6 +223,151 @@ describe("QuestAdvanceDialog", () => {
   // Design frame `02 Advance`: below `sm` the modal becomes a full-height sheet
   // with a two-step body. Same `planAdvance` + RPC path either way — only the
   // step index is local, presentational UI state.
+  describe("opening, resetting and submitting", () => {
+    const advanceBtn = (w: Awaited<ReturnType<typeof mountDialog>>) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Advance")!;
+    const titleInput = (w: Awaited<ReturnType<typeof mountDialog>>) => w.get("input[placeholder='What just happened?']");
+
+    it("opens on the preselected route, naming it in the header; with nothing preselected the header asks what happened", async () => {
+      const preselected = await mountDialog({ preselectedEdgeId: "edge-1" });
+      expect(advanceBtn(preselected).props("disabled")).toBe(false);
+      expect(preselected.text()).toContain("Testify before the Guild");
+      expect((await mountDialog()).findComponent({ name: "ModalHeader" }).props("title")).toBe("Choose what happened");
+    });
+
+    it("reopening on a phone starts again at step 1", async () => {
+      mocks.isMobile.value = true;
+      const wrapper = await mountDialog({ preselectedEdgeId: "edge-1" });
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Continue")!.trigger("click");
+      expect(wrapper.get('section[aria-label="The route taken: the others become unreachable"]').isVisible()).toBe(false);
+      await wrapper.setProps({ open: false });
+      await wrapper.setProps({ open: true });
+      expect(wrapper.get('section[aria-label="The route taken: the others become unreachable"]').isVisible()).toBe(true);
+    });
+
+    it("says 'this beat' when the session has no current beat to name", async () => {
+      const context = buildContext();
+      context.current = null;
+      mocks.isMobile.value = true;
+      expect((await mountDialog({ context })).text()).toContain("Leaving “this beat”");
+    });
+
+    it("opens straight onto the improvise option when asked to", async () => {
+      const wrapper = await mountDialog({ improvise: true, preselectedEdgeId: "edge-1" });
+      expect((radios(wrapper).at(-1)!.element as HTMLInputElement).checked).toBe(true);
+      expect(advanceBtn(wrapper).props("disabled")).toBe(true);
+    });
+
+    it("reopening starts clean: nothing typed, the improvise defaults back, and a closed parallel route stays unticked", async () => {
+      const context = buildContext();
+      context.outgoing.push({
+        edge_id: "edge-4", quest_id: "quest-1", beat_id: "beat-locked", beat_title: "The locked vault", beat_kind: "explore",
+        gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "the key is found", statuses: ["complete"], current_status: "pending", met: false }] },
+        effects: [], route_kind: "parallel", thread_label: "D", converge_mode: "any", site: null, payoff: [], loot: [],
+      });
+      const wrapper = await mountDialog({ context, improvise: true });
+      await titleInput(wrapper).setValue("A goat is sacrificed");
+      await wrapper.setProps({ open: false });
+      await wrapper.setProps({ open: true, improvise: false, preselectedEdgeId: "edge-1" });
+      await wrapper.vm.$nextTick();
+      await advanceBtn(wrapper).trigger("click");
+      await flush();
+      expect(mocks.command).toHaveBeenCalledWith(expect.objectContaining({ edgeId: "edge-1", spawnEdgeIds: ["edge-3"] }));
+
+      await wrapper.setProps({ open: false });
+      await wrapper.setProps({ open: true, improvise: true, preselectedEdgeId: null });
+      await wrapper.vm.$nextTick();
+      expect((titleInput(wrapper).element as HTMLInputElement).value).toBe("");
+      await titleInput(wrapper).setValue("A new twist");
+      await advanceBtn(wrapper).trigger("click");
+      await flush();
+      expect(mocks.improvise).toHaveBeenCalledWith(expect.objectContaining({ pushReturn: true, keepEdge: false }));
+    });
+
+    it("an improvised beat is sent with its details trimmed and its two choices as set", async () => {
+      const wrapper = await mountDialog({ improvise: true });
+      await titleInput(wrapper).setValue("  They bribe the guard  ");
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Add details")!.trigger("click");
+      await wrapper.get("input[placeholder='One-line DM note']").setValue("  Two gold  ");
+      await wrapper.get("input[placeholder='Player reveal copy']").setValue("  The guard looks away  ");
+      const boxes = wrapper.findAll("input[type=checkbox]");
+      const keep = boxes.find((b) => b.element.parentElement?.textContent?.includes("Keep an")) ?? boxes.at(-1)!;
+      await keep.setValue(true);
+      await advanceBtn(wrapper).trigger("click");
+      await flush();
+      expect(mocks.improvise).toHaveBeenCalledWith(expect.objectContaining({
+        title: "They bribe the guard", dmLead: "Two gold", revealText: "The guard looks away", keepEdge: true, pushReturn: true,
+      }));
+    });
+
+    it("the header carries the improvised title trimmed, and a title of spaces keeps Advance off", async () => {
+      const wrapper = await mountDialog({ improvise: true });
+      const header = () => wrapper.findComponent({ name: "ModalHeader" }).props("title");
+      expect(header()).toBe("Something else happened");
+      await titleInput(wrapper).setValue("   ");
+      expect(header()).toBe("Something else happened");
+      expect(advanceBtn(wrapper).props("disabled")).toBe(true);
+      await titleInput(wrapper).trigger("keyup.enter");
+      await flush();
+      expect(mocks.improvise).not.toHaveBeenCalled();
+      await titleInput(wrapper).setValue("  Goat  ");
+      expect(header()).toBe("Goat");
+    });
+
+    it("pressing Enter twice while the first submit is still going sends it once", async () => {
+      let finish: (v: unknown) => void = () => {};
+      mocks.improvise.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+      const wrapper = await mountDialog({ improvise: true });
+      await titleInput(wrapper).setValue("A goat");
+      await titleInput(wrapper).trigger("keyup.enter");
+      await titleInput(wrapper).trigger("keyup.enter");
+      finish({ context: buildContext(), beat: {} });
+      await flush();
+      expect(mocks.improvise).toHaveBeenCalledTimes(1);
+    });
+
+    it("a failed transition says so plainly, frees Advance, and keeps the dialog open for a retry", async () => {
+      mocks.command.mockRejectedValueOnce("boom").mockResolvedValue(buildContext());
+      const wrapper = await mountDialog({ preselectedEdgeId: "edge-1" });
+      await advanceBtn(wrapper).trigger("click");
+      await flush();
+      expect(wrapper.text()).toContain("The transition could not be recorded");
+      expect(advanceBtn(wrapper).props("loading")).toBe(false);
+      expect(wrapper.emitted("close")).toBeUndefined();
+      await advanceBtn(wrapper).trigger("click");
+      await flush();
+      expect(wrapper.emitted("advanced")).toHaveLength(1);
+    });
+
+    it("loot ticked for one route is not carried over when the DM picks again", async () => {
+      const wrapper = await mountDialog({ preselectedEdgeId: "edge-1" });
+      const lootBox = () => wrapper.get('section[aria-label="Payoff from this route"]').findAll("input[type=checkbox]").at(-1)!;
+      await lootBox().setValue(true);
+      await radios(wrapper).at(-1)!.trigger("change");
+      await radios(wrapper)[0]!.trigger("change");
+      await advanceBtn(wrapper).trigger("click");
+      await flush();
+      expect(mocks.command).toHaveBeenCalledWith(expect.objectContaining({ dispatchLootIds: [] }));
+    });
+
+    it("tells a handout payoff by the document's name, and a parallel site by its spaces (grounds for a wood)", async () => {
+      const context = buildContext();
+      context.outgoing[0]!.payoff = [
+        { consequence_id: "c5", action: "give_handout", target_objective_id: null, target_objective: null, target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: "d1", target_document: "The smuggler's map", target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: {}, after_days: 0, on_edge: true },
+      ];
+      const wrapper = await mountDialog({ context });
+      expect(wrapper.text()).toContain("site · 3 rooms");
+      await radios(wrapper)[0]!.trigger("change");
+      expect(wrapper.text()).toContain("The party receives The smuggler's map");
+
+      const wild = buildContext();
+      wild.outgoing[2]!.site = { location_id: "loc-1", name: "The Thornwood", room_count: 3, location_type: "wilds" };
+      expect((await mountDialog({ context: wild })).text()).toContain("site · 3 grounds");
+      const one = buildContext();
+      one.outgoing[2]!.site = { location_id: "loc-1", name: "The Thornwood", room_count: 1, location_type: "wilds" };
+      expect((await mountDialog({ context: one })).text()).toContain("site · 1 ground");
+    });
+  });
+
   describe("below sm", () => {
     beforeEach(() => {
       mocks.isMobile.value = true;

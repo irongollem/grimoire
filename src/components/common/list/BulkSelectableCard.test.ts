@@ -55,4 +55,28 @@ describe("BulkSelectableCard", () => {
 
     expect(wrapper.emitted("toggle")).toHaveLength(1);
   });
+
+  it("does not let the click flip the native checkbox: the parent's selection is the only state", async () => {
+    const wrapper = mount(BulkSelectableCard, {
+      props: { selected: false, selecting: true },
+      slots: { default: '<button class="inner">Card</button>' },
+      attachTo: document.body,
+    });
+    const box = wrapper.get('input[type="checkbox"]').element as HTMLInputElement;
+    await wrapper.get('input[type="checkbox"]').trigger("click");
+
+    expect(box.checked).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("puts the chip in the corner the card leaves free", () => {
+    const wrapper = mount(BulkSelectableCard, {
+      props: { selected: false, selecting: true, corner: "bottom-right" },
+      slots: { default: "<span>Card</span>" },
+    });
+    const chip = wrapper.get('input[type="checkbox"]').element.closest("div.absolute")!;
+    expect(chip.classList.contains("bottom-2")).toBe(true);
+    expect(chip.classList.contains("right-2")).toBe(true);
+    expect(chip.classList.contains("top-2")).toBe(false);
+  });
 });

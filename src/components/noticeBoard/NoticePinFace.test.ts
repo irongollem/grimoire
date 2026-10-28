@@ -30,6 +30,12 @@ describe("NoticePinFace", () => {
     expect(w.find(".nb-reward").exists()).toBe(false);
   });
 
+  it("leaves a half-written poster's name and charge off the paper rather than printing empty lines", () => {
+    const w = mount(NoticePinFace, { props: { face: face({ ...grell, headline: null, body: null }) } });
+    expect(w.find(".nb-poster-name").exists()).toBe(false);
+    expect(w.find(".nb-poster-body").exists()).toBe(false);
+  });
+
   it("shows a sealed letter's address and seal on the board, and its body only to the reader", () => {
     const onBoard = mount(NoticePinFace, { props: { face: sealed } });
     expect(onBoard.find(".nb-address").text()).toBe("To the brave souls who read this");

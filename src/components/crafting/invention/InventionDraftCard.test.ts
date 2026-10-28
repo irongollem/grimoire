@@ -134,4 +134,9 @@ describe("InventionDraftCard", () => {
     expect(w.find("button").text()).toBe("Approve");
     expect(w.find("textarea").exists()).toBe(true);
   });
+  it("tells only the DM who invented it", () => {
+    const inv = invention();
+    expect(mount(InventionDraftCard, { props: { invention: inv, viewer: "dm", characterName: "Nessa" } }).text()).toContain("Invented by Nessa");
+    expect(mount(InventionDraftCard, { props: { invention: inv, viewer: "player", characterName: "Nessa" } }).text()).not.toContain("Invented by");
+  });
 });

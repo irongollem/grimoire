@@ -158,3 +158,57 @@ describe("SpeciesDetailView — copy to campaign (#598)", () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 });
+
+describe("SpeciesDetailView — clone, cancel, and the library's read-only rows", () => {
+  beforeEach(() => {
+    mocks.route.name = "species-detail";
+    mocks.route.params = { id: "species-1" };
+    mocks.route.query = {};
+    mocks.species = { id: "species-1", name: "Testfolk", size: "small", source: "Weird Tales", campaign_id: "campaign-1" };
+    mocks.isShared = false;
+    mocks.push.mockReset();
+    mocks.replace.mockReset();
+    mocks.cloneLibrary.mockReset();
+  });
+
+  it("never opens the editor on a library species, even with ?edit=true", () => {
+    mocks.isShared = true;
+    mocks.route.query = { edit: "true" };
+    const wrapper = mountView();
+    expect(wrapper.findComponent({ name: "SpeciesDetail" }).exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "SpeciesSheet" }).exists()).toBe(true);
+    expect(findButton(wrapper, "Cancel")).toBeUndefined();
+  });
+
+  it("clones a library species and opens the copy in the editor", async () => {
+    mocks.isShared = true;
+    mocks.cloneLibrary.mockResolvedValue({ id: "my-folk" });
+    const wrapper = mountView();
+    await findButton(wrapper, "Clone to customize")!.trigger("click");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mocks.cloneLibrary).toHaveBeenCalledWith(mocks.species);
+    expect(mocks.replace).toHaveBeenCalledWith("/species/my-folk?edit=true");
+  });
+
+  it("Cancel leaves the editor by dropping only the edit flag", async () => {
+    mocks.route.query = { edit: "true", tab: "traits" };
+    const wrapper = mountView();
+    await findButton(wrapper, "Cancel")!.trigger("click");
+    expect(mocks.push).toHaveBeenCalledWith({ query: { tab: "traits" } });
+  });
+
+  it("heads the page with the species' name, then its size and source", () => {
+    const wrapper = mountView();
+    const header = wrapper.findComponent({ name: "PageHeader" });
+    expect(header.props("title")).toBe("Testfolk");
+    expect(header.props("description")).toBe("Small · Weird Tales");
+  });
+
+  it("titles a new species as such", () => {
+    mocks.route.name = "species-new";
+    mocks.route.params = {} as { id: string };
+    const wrapper = mountView();
+    expect(wrapper.findComponent({ name: "PageHeader" }).props("title")).toBe("New Species");
+  });
+});

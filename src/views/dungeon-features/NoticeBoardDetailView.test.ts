@@ -163,4 +163,44 @@ describe("NoticeBoardDetailView", () => {
     mocks.board = null;
     expect(mountView().text()).toContain("no longer exists");
   });
+
+  it("a poster goes up with no seal; a letter goes up with a red one", async () => {
+    const w = mountView();
+    w.getComponent(NoticePinAdd).vm.$emit("add", "poster");
+    await flushPromises();
+    expect(mocks.createPin.mock.calls.at(-1)![0].seal).toBeNull();
+    w.getComponent(NoticePinAdd).vm.$emit("add", "letter");
+    await flushPromises();
+    expect(mocks.createPin.mock.calls.at(-1)![0].seal).toBe("red");
+  });
+
+  it("holds the Add control off while a notice is being created, and frees it afterwards", async () => {
+    let finish: (v: { id: string }) => void = () => {};
+    mocks.createPin.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const w = mountView();
+    w.getComponent(NoticePinAdd).vm.$emit("add", "poster");
+    await w.vm.$nextTick();
+    expect(w.getComponent(NoticePinAdd).props("disabled")).toBe(true);
+    finish({ id: "pin-new" });
+    await flushPromises();
+    expect(w.getComponent(NoticePinAdd).props("disabled")).toBe(false);
+  });
+
+  it("leaves for the list before the board is deleted, so the page never shows a board that is gone", async () => {
+    const w = mountView();
+    await find(w, "Delete")?.trigger("click");
+    await flushPromises();
+    expect(mocks.push.mock.invocationCallOrder[0]!).toBeLessThan(mocks.removeBoard.mock.invocationCallOrder[0]!);
+    expect(w.text()).not.toContain("Deleting…");
+  });
+
+  it("a delete that fails gives the name field its autosave back", async () => {
+    mocks.removeBoard.mockRejectedValueOnce(new Error("refused"));
+    const w = mount(NoticeBoardDetailView, { global: { stubs, config: { errorHandler: () => undefined } } });
+    await find(w, "Delete")?.trigger("click");
+    await flushPromises();
+    expect(mocks.hold).toHaveBeenCalled();
+    expect(mocks.release).toHaveBeenCalledTimes(1);
+    expect(find(w, "Delete")?.attributes("disabled")).toBeUndefined();
+  });
 });

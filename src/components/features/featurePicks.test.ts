@@ -20,6 +20,10 @@ describe("picksFor", () => {
     ]);
   });
 
+  it("shows no pick for a choice stored as an empty string", () => {
+    expect(picksFor(mechanics, { asi_feat: "", mi_spell: [""] }, names)).toEqual([]);
+  });
+
   it("leaves out a value that has not resolved", () => {
     expect(picksFor(mechanics, { mi_spell: ["unknown_spell"] }, names)).toEqual([]);
   });
@@ -33,7 +37,21 @@ describe("pick ids", () => {
   });
 });
 
+describe("pick ids, kept apart", () => {
+  const OTHER = "99999999-8888-7777-6666-555555555555";
+  it("takes a feature id only from a feature pick and a spell id only from a spell pick", () => {
+    const choices = { mi_spell: [OTHER], asi_feat: [UUID] };
+    expect(pickIdsOf([mechanics], choices)).toEqual([UUID]);
+    expect(spellPickIdsOf([mechanics], choices)).toEqual([OTHER]);
+  });
+});
+
 describe("grantsPick", () => {
+  it("falls back to the stored key for a skill the app has no label for", () => {
+    const m = { grants: { skills: ["homebrew_lore"] } } as unknown as FeatureMechanics;
+    expect(grantsPick(m)?.values).toEqual(["homebrew_lore"]);
+  });
+
   it("lists skills by label, then tools and languages", () => {
     const m = { grants: { skills: ["arcana", "sleight_of_hand"], tools: ["Thieves' Tools"], languages: ["Draconic"] } } as unknown as FeatureMechanics;
     expect(grantsPick(m)).toEqual({ key: "grants", label: "Proficiency", values: ["Arcana", "Sleight of Hand", "Thieves' Tools", "Draconic"] });

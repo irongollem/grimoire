@@ -103,7 +103,7 @@ describe("QuestRunBeatCard", () => {
       props: { anchorQuestId: "quest-1", beat: legacy, attachments: [], threadBadge, placeName: null, siteName: null },
       global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
     });
-    expect(wrapper.text()).toContain("notes");
+    expect(wrapper.findComponent({ name: "QuestFoldRow" }).props("caption")).toBe("notes");
   });
 
   it("renders the DM content plainly, unfolded, at xl and above", () => {
@@ -133,5 +133,17 @@ describe("QuestRunBeatCard", () => {
     });
     await wrapper.findAll("button").find((button) => button.text() === "Enter site")!.trigger("click");
     expect(wrapper.emitted("enter-site")).toHaveLength(1);
+  });
+
+  it("Edit beat opens this beat's own page, handing it the way back to the session", () => {
+    const wrapper = mount(QuestRunBeatCard, {
+      props: { anchorQuestId: "quest-anchor", beat: beat("revealed"), attachments: [], threadBadge, placeName: null, siteName: null },
+      global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
+    });
+    const edit = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Edit beat")!;
+    expect(edit.props("to")).toEqual({
+      path: "/quests/quest-1/beats/beat-1",
+      query: { returnTo: "/quests/quest-anchor?view=run&beat=beat-1" },
+    });
   });
 });

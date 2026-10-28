@@ -66,4 +66,54 @@ describe("WorldWebTieGroups", () => {
     const w = mount(WorldWebTieGroups, { props: { groups: [], subjectKey: "item:bell", subjectName: "The Ferry Bell" } });
     expect(w.text()).toContain("Nothing is tied to this yet.");
   });
+  describe("what each row says under its name", () => {
+    const rowsFor = (rows: ReturnType<typeof tie>[], subject: string) =>
+      mount(WorldWebTieGroups, { props: { groups: groupTies(rows, subject), subjectKey: subject, subjectName: "S" } }).text();
+
+    it("says a plain member's tie without a caption, a role by its word, and a quest by its status", () => {
+      const plain = tie({ row_id: "m", source: "membership", type: "member_of", from_id: "harl", from_name: "Harl", to_kind: "faction", to_id: "toll", to_name: "Toll-men", role: null, status: "Active" });
+      expect(rowsFor([plain], "faction:toll")).not.toMatch(/Member\b(?!s)/);
+      const quest = tie({ row_id: "q", source: "quest", type: "quest_giver", from_kind: "quest", from_id: "q", from_name: "The Ferry Bell", to_kind: "deity", status: "active" });
+      expect(rowsFor([quest], "deity:lady")).toContain("active");
+    });
+
+    it("shows the line players are told on a link, and never the DM's private note", () => {
+      const link = tie({ row_id: "l", told: "Prays at dusk", note: "secretly a cultist" });
+      const text = rowsFor([link], "deity:lady");
+      expect(text).toContain("Prays at dusk");
+      expect(text).not.toContain("secretly a cultist");
+    });
+  });
+
+  describe("the DM's editor", () => {
+    const link = tie({ row_id: "2", from_id: "ama", from_name: "Sister Ama", type: "serves", told: "Keeps the lamp", note: "Owes a debt" });
+    const mountEditor = (subjectKey = "deity:lady") =>
+      mount(WorldWebTieGroups, { props: { groups: groupTies([link], subjectKey), subjectKey, subjectName: "The Drowned Lady", editable: true } });
+    const open = (w: ReturnType<typeof mountEditor>) =>
+      w.findAll("button").find((b) => b.attributes("aria-label") === "Edit how Sister Ama is tied")!.trigger("click");
+
+    it("opens on the words already stored, and Save stays off until one is changed", async () => {
+      const w = mountEditor();
+      await open(w);
+      const told = w.get(`#told-2`).element as HTMLInputElement;
+      const note = w.get(`#note-2`).element as HTMLInputElement;
+      expect([told.value, note.value]).toEqual(["Keeps the lamp", "Owes a debt"]);
+      const save = () => w.findAll("button").find((b) => b.text() === "Save")!;
+      expect(save().attributes("disabled")).toBeDefined();
+      await w.get(`#told-2`).setValue("Keeps the lamp lit");
+      expect(save().attributes("disabled")).toBeUndefined();
+      await save().trigger("click");
+      expect(w.emitted("words")?.[0]).toEqual([expect.objectContaining({ row_id: "2" }), { note: "Owes a debt", told: "Keeps the lamp lit" }]);
+    });
+
+    it("closes an open editor when the list becomes another subject's", async () => {
+      const w = mountEditor();
+      await open(w);
+      expect(w.text()).toContain("Remove this tie");
+      // The same tie is listed from the other end too, so only the subject change can close the editor.
+      await w.setProps({ subjectKey: "npc:ama", groups: groupTies([link], "npc:ama") });
+      expect(w.text()).toContain("The Drowned Lady");
+      expect(w.text()).not.toContain("Remove this tie");
+    });
+  });
 });

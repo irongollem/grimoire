@@ -91,4 +91,34 @@ describe("NoticeBoardControls", () => {
     await find(scattered, "Clear scatter")?.trigger("click");
     expect(mocks.update).toHaveBeenLastCalledWith({ id: "board-1", update: { scatter: [] } });
   });
+
+  it("hides a shown board again", async () => {
+    const shown = mount(NoticeBoardControls, { props: { board: board({ is_revealed: true }), pins: [] } });
+    await find(shown, "Hidden from players")?.trigger("click");
+    expect(mocks.reveal).toHaveBeenCalledWith({ boardId: "board-1", revealed: false });
+  });
+
+  it("shows a rename made elsewhere, but not over words typed here", async () => {
+    const w = mount(NoticeBoardControls, { props: { board: board(), pins: [] } });
+    const field = () => (w.get("input").element as HTMLInputElement).value;
+    await w.setProps({ board: board({ name: "Renamed by another tab" }) });
+    expect(field()).toBe("Renamed by another tab");
+    await w.get("input").setValue("typing here");
+    await w.setProps({ board: board({ name: "Another rename" }) });
+    expect(field()).toBe("typing here");
+  });
+
+  it("does not save a board renamed to nothing, so the list never shows a blank card", async () => {
+    const w = mount(NoticeBoardControls, { props: { board: board(), pins: [] } });
+    await w.get("input").setValue("   ");
+    await (w.vm as unknown as { saveNow: () => Promise<void> }).saveNow();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("saves a rename trimmed", async () => {
+    const w = mount(NoticeBoardControls, { props: { board: board(), pins: [] } });
+    await w.get("input").setValue("  The Gilded Stag  ");
+    await (w.vm as unknown as { saveNow: () => Promise<void> }).saveNow();
+    expect(mocks.update).toHaveBeenCalledWith({ id: "board-1", update: { name: "The Gilded Stag" } });
+  });
 });

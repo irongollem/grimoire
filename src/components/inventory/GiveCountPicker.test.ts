@@ -38,6 +38,13 @@ describe("GiveCountPicker", () => {
     expect(input(w).value).toBe("1");
   });
 
+  it("gives a whole number: 2.9 means 2", async () => {
+    const w = make();
+    await w.find("input").setValue("2.9");
+    await w.find("button.flex-1").trigger("click");
+    expect(w.emitted("confirm")).toEqual([[2]]);
+  });
+
   it("disables the steppers at the ends", async () => {
     const w = make(2);
     expect(w.find('button[aria-label="One more"]').attributes("disabled")).toBeDefined();

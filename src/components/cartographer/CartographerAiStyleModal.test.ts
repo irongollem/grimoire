@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import CartographerAiStyleModal from "./CartographerAiStyleModal.vue";
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +12,8 @@ vi.mock("@/composables/ai/useOutOfCredits", () => ({
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
-const stubs = { AppModal: { template: "<div><slot /></div>" }, EntityCombobox: true, GenerationCostBadge: true };
+const AppModalStub = { props: ["open"], emits: ["close"], template: "<div><slot /></div>" };
+const stubs = { AppModal: AppModalStub, EntityCombobox: true, GenerationCostBadge: true };
 
 function mountModal(props: Partial<InstanceType<typeof CartographerAiStyleModal>["$props"]> = {}) {
   return mount(CartographerAiStyleModal, {
@@ -107,6 +108,44 @@ describe("CartographerAiStyleModal", () => {
       expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(true);
       const button = findButton(wrapper, "Save to Atlas");
       expect(button.props("disabled")).toBe(true);
+    });
+  });
+  describe("the styled result", () => {
+    it("saves to the location picked, and not while a save is running", async () => {
+      const wrapper = mountModal({ showPicker: false, showResult: true, atlasLocationId: "loc-9" });
+      const save = findButton(wrapper, "Save to Atlas");
+      expect(save.props("disabled")).toBe(false);
+      await save.trigger("click");
+      expect(wrapper.emitted("saveToAtlas")).toEqual([["loc-9"]]);
+      const busy = mountModal({ showPicker: false, showResult: true, atlasLocationId: "loc-9", atlasSaving: true });
+      expect(findButton(busy, "Saving…").props("disabled")).toBe(true);
+    });
+
+    it("discards an unsaved render only after the DM agrees, and keeps it otherwise", async () => {
+      const wrapper = mountModal({ showPicker: false, showResult: true, resultUrl: "blob:styled" });
+      const resultModal = wrapper.findAllComponents(AppModalStub).find((m) => m.props("open") === true)!;
+      mocks.confirm.mockResolvedValue(false);
+      resultModal.vm.$emit("close");
+      await vi.waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
+      expect(wrapper.emitted("closeResult")).toBeUndefined();
+      mocks.confirm.mockResolvedValue(true);
+      resultModal.vm.$emit("close");
+      await vi.waitFor(() => expect(wrapper.emitted("closeResult")).toHaveLength(1));
+    });
+  });
+
+  describe("while it renders", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it("counts the time so far, from zero for each render", async () => {
+      const wrapper = mountModal({ generating: true });
+      expect(wrapper.text()).toContain("0:00 so far");
+      await vi.advanceTimersByTimeAsync(65_000);
+      expect(wrapper.text()).toContain("1:05 so far");
+      await wrapper.setProps({ generating: false });
+      await wrapper.setProps({ generating: true });
+      expect(wrapper.text()).toContain("0:00 so far");
     });
   });
 });

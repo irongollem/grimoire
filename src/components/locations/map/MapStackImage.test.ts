@@ -127,4 +127,48 @@ describe("MapStackImage", () => {
     await wrapper.find("img").trigger("error");
     expect(wrapper.emitted("failed")).toHaveLength(1);
   });
+
+  describe("what each visibility toggle hides", () => {
+    const cal = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 };
+    const drawingOverPicture = () => {
+      const drawing = { kind: "drawing" as const, url: "/drawing.webp", calibration: cal };
+      return stackOf({
+        picture: { kind: "picture", url: "/picture.webp", calibration: cal },
+        drawing,
+        primary: drawing,
+        hasAnyLayer: true,
+      });
+    };
+    const style = (wrapper: ReturnType<typeof mount>, src: string) => wrapper.find(`img[src='${src}']`).attributes("style") ?? "";
+
+    it("hides the picture under a drawing without hiding the drawing", () => {
+      const wrapper = mount(MapStackImage, { props: { stack: drawingOverPicture(), visible: { picture: false, drawing: true } } });
+      expect(style(wrapper, "/picture.webp")).toContain("visibility: hidden");
+      expect(style(wrapper, "/drawing.webp")).not.toContain("visibility: hidden");
+    });
+
+    it("hides the drawing without hiding the picture beneath it", () => {
+      const wrapper = mount(MapStackImage, { props: { stack: drawingOverPicture(), visible: { picture: true, drawing: false } } });
+      expect(style(wrapper, "/drawing.webp")).toContain("visibility: hidden");
+      expect(style(wrapper, "/picture.webp")).not.toContain("visibility: hidden");
+    });
+
+    it("forgets the old sizes when the drawing is swapped, so the picture covers the box until the new one loads", async () => {
+      const picture = { kind: "picture" as const, url: "/picture.webp", calibration: { ...cal, cells_per_image_width: 20 } };
+      const wide = { ...drawingOverPicture(), picture };
+      const wrapper = mount(MapStackImage, { props: { stack: wide } });
+      const drawingImg = wrapper.find("img[src='/drawing.webp']");
+      const pictureImg = wrapper.find("img[src='/picture.webp']");
+      setNatural(drawingImg.element, 1000, 1000);
+      await drawingImg.trigger("load");
+      setNatural(pictureImg.element, 1000, 1000);
+      await pictureImg.trigger("load");
+      // Twice the cells across: the picture is laid out twice as wide as the drawing.
+      expect(style(wrapper, "/picture.webp")).toContain("width: 200%");
+
+      const next = { kind: "drawing" as const, url: "/drawing-2.webp", calibration: cal };
+      await wrapper.setProps({ stack: { ...wide, drawing: next, primary: next } });
+      expect(style(wrapper, "/picture.webp")).toContain("width: 100%");
+    });
+  });
 });
