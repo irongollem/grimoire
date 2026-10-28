@@ -213,6 +213,22 @@ function isThisBuildsShell(html) {
 // previous deploy. Still wrong after that, the install rejects (index.html is
 // critical), the previous worker keeps serving its own consistent cache, and
 // swAutoUpdate's update poll tries again in a few minutes.
+/** How old a saved shell may be before a navigation asks the network first (see the fetch handler). */
+const STALE_SHELL_MS = 7 * 24 * 60 * 60 * 1000;
+/** How long that navigation waits on the network before booting the saved shell anyway. */
+const STALE_SHELL_TIMEOUT_MS = 3000;
+
+/** True when the saved shell's Date header (when the install fetched it) is older than STALE_SHELL_MS. */
+function isStaleShell(response) {
+  const saved = Date.parse(response.headers.get("date") ?? "");
+  return !Number.isNaN(saved) && Date.now() - saved > STALE_SHELL_MS;
+}
+
+/** fetch(), or null once `ms` has passed without a response. */
+function fetchWithin(req, ms) {
+  return Promise.race([fetch(req), new Promise((done) => setTimeout(() => done(null), ms))]);
+}
+
 async function fetchShellDocument() {
   for (const url of ["/index.html", `/index.html?sw=${CACHE_NAME}`]) {
     const response = await fetch(new Request(url, { cache: "reload" }));
@@ -396,18 +412,29 @@ self.addEventListener("fetch", (event) => {
   // storage was evicted), and if that fails too the one shell left to try is
   // the same lookup again, in case a cache landed in the meantime: answering
   // `Response.error()` is the browser's "site can't be reached" page.
+  //
+  // A STALE shell is the exception. A device that has not opened the app for
+  // a while boots whatever build it last saved, and that build may no longer
+  // understand the data: on 25 Oct 2026 a player's phone booted a build from
+  // before 5 Oct, read conditions in the shape the 10 Oct records migration had
+  // replaced, and crashed the sheet header (DUNGEON-GRIMOIRE-V). So a shell
+  // saved more than STALE_SHELL_MS ago asks the network first, for at most
+  // STALE_SHELL_TIMEOUT_MS, and falls back to the saved one offline. A shell
+  // whose age cannot be read is treated as fresh, as before.
   if (req.mode === "navigate") {
     event.respondWith(
       (async () => {
         const shell = async () =>
           (await caches.match("/index.html", { cacheName: CACHE_NAME })) ?? (await caches.match("/index.html"));
         const cached = await shell();
-        if (cached) return cached;
+        if (cached && !isStaleShell(cached)) return cached;
         try {
-          return await fetch(req);
+          const fresh = cached ? await fetchWithin(req, STALE_SHELL_TIMEOUT_MS) : await fetch(req);
+          if (!cached || (fresh && fresh.ok)) return fresh;
         } catch {
-          return (await shell()) ?? Response.error();
+          // offline, or the network took too long: the saved shell below
         }
+        return cached ?? (await shell()) ?? Response.error();
       })(),
     );
     return;
