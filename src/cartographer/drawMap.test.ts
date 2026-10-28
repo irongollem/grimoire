@@ -676,10 +676,11 @@ describe("pieces that sit on the window's border", () => {
     expect(cats(rec).sort()).toEqual(["wallSegmentH", "wallSegmentV"]);
   });
 
-  it("still paints the corner square when the pack behind a wall has not loaded, instead of throwing", () => {
+  it("paints no corner square while the pack behind the walls has not loaded, as the walls wait too", () => {
     const { input: i, rec } = input(null, { layers: lCornerLayers() });
     expect(() => drawMapContent(i)).not.toThrow();
-    expect(rec.fillRects).toHaveLength(1);
+    expect(rec.fillRects).toHaveLength(0);
+    expect(rec.drawImages).toHaveLength(0);
   });
 
   it("draws a curb and a post on the window's first column", () => {

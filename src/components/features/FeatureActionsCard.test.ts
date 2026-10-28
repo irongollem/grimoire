@@ -252,6 +252,21 @@ describe("FeatureActionsCard", () => {
       expect(promptRoll).toHaveBeenLastCalledWith(expect.objectContaining({ counts: { 8: 2 } }));
     });
 
+    it("a cancelled attack roll clears the last natural 20: the next damage is not doubled", async () => {
+      const bolt: FeatureEffect = { kind: "attack", attack: { delivery: "ranged", ability: "spell" }, dice: { "1": "2d8" }, damage_type: "force" };
+      const w = mountWith([entry({ featureId: "fb", name: "Ballista", effect: bolt, className: "Bard" })]);
+      promptRoll.mockResolvedValueOnce(result(27, 7, true));
+      await w.get('button[aria-label="Ballista: attack roll"]').trigger("click");
+      await flushPromises();
+      promptRoll.mockResolvedValueOnce(null);
+      await w.get('button[aria-label="Ballista: attack roll"]').trigger("click");
+      await flushPromises();
+      promptRoll.mockResolvedValue(result(10, 0));
+      await w.get('button[aria-label="Ballista: damage roll"]').trigger("click");
+      await flushPromises();
+      expect(promptRoll).toHaveBeenLastCalledWith(expect.objectContaining({ counts: { 8: 2 } }));
+    });
+
     it("lets Roll again through after the use was paid, even when the pool has since run dry", async () => {
       promptRoll.mockResolvedValue(result(7, 0));
       const w = mountWith([entry({ featureId: "ki", name: "Burst", effect: thunder, spends: { key: "ki", amount: 1 }, className: "Bard" })]);

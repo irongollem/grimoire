@@ -47,6 +47,13 @@ describe("planSpineBeats", () => {
     });
   });
 
+  it("trims the DM notes and the read-aloud box the same way as the player copy", () => {
+    const beats = [
+      { key: "a", title: "Bell", kind: "neutral", dm_content: "\n  The bell is cursed.  ", read_aloud: "  You hear a bell.\n" },
+    ] as unknown as QuestSpineBeatResult[];
+    expect(planSpineBeats(beats)[0]).toMatchObject({ dmContentPlain: "The bell is cursed.", readAloudPlain: "You hear a bell." });
+  });
+
   it("leaves the player copy empty when the response has none, or has something that isn't text", () => {
     const beats = [
       { key: "a", title: "No copy", dm_content: "", kind: "neutral" },

@@ -91,6 +91,13 @@ describe("formatNpcMemories", () => {
     expect(lordOut).toContain("The lord's guard saw The Envoy; The Envoy paid.");
   });
 
+  it("masks a short part of the true name too: no piece of the real identity before the reveal", () => {
+    const jo: NpcMemoryIdentity = { name: "Jo Brask", disguise_name: "The Widow", is_revealed: false };
+    const out = formatNpcMemories([memory({ body: "Jo paid the toll; the jolly guard waved." })], jo);
+    expect(out).toContain("The Widow paid the toll; the jolly guard waved.");
+    expect(out).not.toMatch(/\bJo\b/);
+  });
+
   it("does not mask a title or article that only appears in the full name, even capitalised at a sentence start", () => {
     const bold: NpcMemoryIdentity = { name: "Bram the Bold", disguise_name: "Old Tobin", is_revealed: false };
     const out = formatNpcMemories([memory({ body: "The guard saw Bram the Bold. Lord Hale was there." })], bold);

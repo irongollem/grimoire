@@ -395,7 +395,7 @@ watch(
 // ── Bidirectional HP sync between runner and party_members ───────────────────
 // Debounced HP writes out, Realtime ingest (HP / temp HP / player-rolled
 // initiative) in, and the store's persist handler — see useRunnerPartySync.
-const { cancelPendingHpFlush, clearPartyInitiatives, writePartyMember } = useRunnerPartySync(isLive);
+const { clearPartyInitiatives, writePartyMember } = useRunnerPartySync(isLive);
 // 2024 Evergreen Wild Shape: a level 20 druid regains a use on rolling initiative with none left.
 useEvergreenWildShape();
 
@@ -495,8 +495,8 @@ async function handleAbandon() {
 
 async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
-  // Cancel any pending HP debounce — end-combat does its own authoritative write below.
-  cancelPendingHpFlush();
+  // A change still waiting for its debounced write is absorbed by the
+  // authoritative write below (writePartyMember merges it); nothing is dropped.
   // Read before endLive() clears it — leaving asserts explored for whatever
   // the room-anchored fog mask actually revealed (frame 16), never the
   // reverse: un-brushing a cell never un-explores a room.

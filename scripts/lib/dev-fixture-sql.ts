@@ -49,9 +49,12 @@ export function journalDrafts(count: number): JournalDraft[] {
       content,
       category,
       tags: [FIXTURE_TAG],
-      // A spread of the two sharing states, so a list shows both.
+      // A spread of the three states the journal UI can write, so a list shows each: shared with
+      // the party, private but shared with the DM, and private. The two flags are not opposites:
+      // `shared_with_dm` is an opt-in that only exists on a private entry, so it is never set
+      // beside `is_private: false` (the form clears it when the entry goes to the party).
       is_private: i % 4 !== 0,
-      shared_with_dm: i % 4 === 0,
+      shared_with_dm: i % 4 === 1,
     };
   });
 }

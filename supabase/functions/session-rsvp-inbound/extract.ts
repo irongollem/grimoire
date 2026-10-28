@@ -80,8 +80,10 @@ function* strings(value: unknown, depth = 0): Generator<string> {
 export function extractCalendar(contentType: string, rawBody: string): string | null {
   const type = contentType.toLowerCase();
 
+  // The header is a claim, not proof: a body with no calendar in it is not
+  // handed on as one, whatever its content type says.
   if (type.includes("text/calendar")) {
-    return sliceCalendar(rawBody) ?? rawBody;
+    return sliceCalendar(rawBody);
   }
 
   // JSON is checked before the raw scan, and by shape as well as by header: a

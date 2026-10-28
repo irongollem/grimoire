@@ -85,6 +85,8 @@ function row(over: Partial<Row>): Row {
   };
 }
 
+const WOLF: WildshapeState = { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" };
+
 const ring = () => ringListeners.forEach((fire) => fire());
 
 // A runner left mounted would answer the next test's rings and `isLive` toggles.
@@ -149,7 +151,8 @@ describe("useRunnerPartySync re-reads", () => {
 
     ring(); // a player's initiative roll rings; its read starts
     await flushPromises();
-    store.applyCondition("p-1", { name: "Prone" }); // persist starts, not yet committed
+    store.applyCondition("p-1", { name: "Prone" });
+    await vi.advanceTimersByTimeAsync(400); // persist starts, not yet committed
     reads.shift()!([row({})]); // the read returns A without Prone
     await flushPromises();
     expect(store.combatants[0]!.conditions).toEqual([{ name: "Prone" }]);
@@ -168,6 +171,7 @@ describe("useRunnerPartySync re-reads", () => {
     ring();
     await flushPromises();
     store.applyCondition("p-1", { name: "Prone" });
+    await vi.advanceTimersByTimeAsync(400);
     writes.splice(0).forEach((done) => done()); // write settles while the read is out
     await flushPromises();
     reads.shift()!([row({})]); // stale: read before the write settled
@@ -237,9 +241,6 @@ describe("useRunnerPartySync concentration (#1018)", () => {
 });
 
 describe("useRunnerPartySync guards", () => {
-  // The store also persists every player change at once; the debounced HP flush is the update that is only `current_hp`.
-  const debounced = () => updates.filter((u) => Object.keys(u.update).join() === "current_hp");
-
   beforeEach(() => {
     reads.length = 0;
     writes.length = 0;
@@ -262,39 +263,110 @@ describe("useRunnerPartySync guards", () => {
   it("keeps an HP change still waiting for its debounced write when a read returns the old value", async () => {
     const store = await setup(20);
     store.adjustHp("p-1", -10);
-    writes.splice(0).forEach((done) => done()); // the immediate persist has settled; the 400ms flush has not run
-    await flushPromises();
     ring();
     await flushPromises();
     reads.shift()!([row({ current_hp: 20 })]);
     await flushPromises();
     expect(store.combatants[0]!.hp).toBe(10);
+    expect(updates).toEqual([]); // still waiting, and the stale read did not trigger a write either
   });
 
-  it("writes an HP change once, after the debounce, as the member's current_hp", async () => {
+  it("keeps temp HP and a form still waiting for their write when a read returns the old row", async () => {
     const store = await setup(20);
-    store.adjustHp("p-1", -3);
-    store.adjustHp("p-1", -2);
-    await vi.advanceTimersByTimeAsync(399);
-    expect(debounced()).toEqual([]);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(debounced()).toEqual([{ id: "pm-1", update: { current_hp: 15 } }]);
+    store.setTempHp("p-1", 6);
+    store.enterWildshape("p-1", WOLF, 1);
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ temp_hp: 0, wildshape_state: null })]);
+    await flushPromises();
+    expect(store.combatants[0]!.temp_hp).toBe(6);
+    expect(store.combatants[0]!.wildshape).toEqual(WOLF);
   });
 
-  it("writes no HP when the roster is replaced with the same hit points", async () => {
+  it("applies a read again once the pending write has committed", async () => {
     const store = await setup(20);
-    store.combatants = [player(20)];
-    await nextTick();
-    await vi.advanceTimersByTimeAsync(500);
-    expect(debounced()).toEqual([]);
-  });
-
-  it("writes no HP while the fight is not live", async () => {
-    const store = await setup(20);
-    isLive.value = false;
     store.adjustHp("p-1", -10);
+    await vi.advanceTimersByTimeAsync(400);
+    writes.splice(0).forEach((done) => done());
+    await flushPromises();
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ current_hp: 4 })]); // another device healed/hurt afterwards
+    await flushPromises();
+    expect(store.combatants[0]!.hp).toBe(4);
+  });
+
+  it("turns a burst of clicks into one write carrying the final HP, temp HP and form", async () => {
+    // 3 temp HP absorb the first 3 points, the wolf takes the other 2: 11 - 2 = 9.
+    const store = await setup(20);
+    store.combatants[0]!.temp_hp = 3;
+    store.combatants[0]!.wildshape = { ...WOLF };
+    for (let i = 0; i < 5; i++) {
+      store.adjustHp("p-1", -1);
+      await vi.advanceTimersByTimeAsync(300); // each click lands inside the previous window
+    }
+    expect(updates).toEqual([]);
+    await vi.advanceTimersByTimeAsync(100); // 400ms after the last click
+    expect(updates).toEqual([
+      { id: "pm-1", update: { current_hp: 20, temp_hp: 0, wildshape_state: { ...WOLF, beast_hp: 9 } } },
+    ]);
+  });
+
+  it("gives each member its own write when two are clicked in the same window", async () => {
+    const store = await setup(20);
+    store.combatants = [player(20), { ...player(20), instance_id: "p-2", party_member_id: "pm-2", name: "Orrin" }];
+    store.adjustHp("p-1", -4);
+    store.adjustHp("p-2", -7);
+    store.adjustHp("p-1", -1);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(updates.map((u) => [u.id, u.update.current_hp])).toEqual([["pm-1", 15], ["pm-2", 13]]);
+  });
+
+  it("carries different columns changed in one window in the same write", async () => {
+    const store = await setup(20);
+    store.applyCondition("p-1", { name: "Prone" });
+    store.setTempHp("p-1", 5);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(updates).toEqual([{ id: "pm-1", update: { conditions: [{ name: "Prone" }], temp_hp: 5 } }]);
+  });
+
+  it("writes a change made after the last write was sent", async () => {
+    const store = await setup(20);
+    store.adjustHp("p-1", -4);
+    await vi.advanceTimersByTimeAsync(400);
+    store.adjustHp("p-1", -3);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(updates.map((u) => u.update.current_hp)).toEqual([16, 13]);
+  });
+
+  it("does not write HP it read from the database back to it", async () => {
+    const store = await setup(20);
+    ring();
+    await flushPromises();
+    reads.shift()!([row({ current_hp: 12 })]);
+    await flushPromises();
     await vi.advanceTimersByTimeAsync(500);
-    expect(debounced()).toEqual([]);
+    expect(store.combatants[0]!.hp).toBe(12);
+    expect(updates).toEqual([]);
+  });
+
+  it("writes the clicks still waiting when the runner closes", async () => {
+    const store = await setup(20);
+    store.adjustHp("p-1", -6);
+    mounted!.unmount();
+    expect(updates).toEqual([
+      { id: "pm-1", update: { current_hp: 14, temp_hp: 0, wildshape_state: null } },
+    ]);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(updates).toHaveLength(1); // the timer was cleared, not left to write again
+  });
+
+  it("folds the pending change into end-combat's own write instead of dropping or doubling it", async () => {
+    const store = await setup(20);
+    store.setTempHp("p-1", 5); // pending, not yet sent
+    void sync!.writePartyMember("pm-1", { current_hp: 9, conditions: [] }); // end-combat
+    await vi.advanceTimersByTimeAsync(500);
+    expect(updates).toEqual([{ id: "pm-1", update: { temp_hp: 5, current_hp: 9, conditions: [] } }]);
   });
 
   it("drops a read that returns after the runner closed", async () => {

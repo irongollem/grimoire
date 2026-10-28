@@ -15,6 +15,10 @@ const REPLY = [
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 
 describe("extractCalendar", () => {
+  it("refuses a text/calendar body that holds no calendar instead of passing it on as one", () => {
+    expect(extractCalendar("text/calendar; method=REPLY", "Hello, this is not an invite.")).toBeNull();
+  });
+
   it("takes a text/calendar body as-is", () => {
     expect(extractCalendar("text/calendar; method=REPLY", REPLY)).toContain("PARTSTAT=ACCEPTED");
   });

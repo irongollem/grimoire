@@ -21,10 +21,12 @@ describe("journalDrafts", () => {
     expect(JSON.parse(journalDrafts(1)[0].content)).toMatchObject({ type: "doc" });
   });
 
-  it("shows both sharing states", () => {
+  it("shows each sharing state the journal can write, and never shared_with_dm on a party entry", () => {
     const drafts = journalDrafts(8);
-    expect(drafts.some((d) => d.shared_with_dm)).toBe(true);
-    expect(drafts.some((d) => !d.shared_with_dm)).toBe(true);
+    expect(drafts.some((d) => !d.is_private)).toBe(true);
+    expect(drafts.some((d) => d.is_private && d.shared_with_dm)).toBe(true);
+    expect(drafts.some((d) => d.is_private && !d.shared_with_dm)).toBe(true);
+    expect(drafts.some((d) => !d.is_private && d.shared_with_dm)).toBe(false);
   });
 });
 

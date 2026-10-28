@@ -10,14 +10,17 @@ import type { AppliedCondition } from "@/types/condition.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 
+const FLUSH_MS = 400;
+
 /**
  * Bidirectional sync between the encounter-run store and `party_members` rows,
  * mounted by the DM's EncounterRunner:
  *
- * - Outbound: debounced HP writes while live, plus the store's player-combatant
- *   persistence (HP, temp HP, conditions, wildshape, ...) routed through the
- *   party-member mutation so the party query cache is invalidated on every
- *   write. The store stays UI-only.
+ * - Outbound: ONE write path. The store's player-combatant persistence (HP,
+ *   temp HP, conditions, wildshape, ...) is collected per member and written
+ *   once the DM pauses for `FLUSH_MS`, through the party-member mutation so the
+ *   party query cache is invalidated. Clicking HP up ten times is one request
+ *   carrying the final values, not ten. The store stays UI-only.
  * - Inbound: a party_members ring from the campaign doorbell (a ring names the
  *   table, never the row) triggers a re-read that ingests temp HP, player-rolled
  *   initiative (#504), and edits made outside the runner.
@@ -33,17 +36,19 @@ import type { PartyMemberUpdate } from "@/types/party.types";
  * (last HP written, Wild Shape forms, death saves): they guessed which incoming
  * values were ours, where the epoch knows which reads are too old.
  *
- * Returns `cancelPendingHpFlush` so end-combat can drop the debounced write in
- * favour of its own authoritative one, and `writePartyMember`, which is that
- * write tracked by the same rule as every other.
+ * Nothing waiting is ever dropped. A write made by hand (`writePartyMember`,
+ * end-combat's authoritative one) absorbs the member's pending patch, so the
+ * row gets one write carrying both; and unmounting flushes whatever is left.
+ * Returns `clearPartyInitiatives` and `writePartyMember`.
  */
 export function useRunnerPartySync(isLive: Ref<boolean>) {
   const store = useEncounterRunStore();
   const campaign = useCampaignStore();
   const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 
-  const partyHpQueue = new Map<string, number>(); // partyMemberId → pending hp
-  let partyHpTimer: ReturnType<typeof setTimeout> | null = null;
+  // partyMemberId → the merged patch still waiting for its write (last value wins per column).
+  const pending = new Map<string, PartyMemberUpdate>();
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   // One counter ticks whenever a write to any member starts or settles, and
   // `touchedAt` remembers the tick of each member's latest start or settle. A
@@ -73,49 +78,52 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     });
   }
 
-  function cancelPendingHpFlush() {
-    if (partyHpTimer) {
-      clearTimeout(partyHpTimer);
-      partyHpTimer = null;
-    }
-    partyHpQueue.clear();
+  function reportFailure(error: unknown): void {
+    // Surface it to Sentry without an unhandled rejection from a timer.
+    setTimeout(() => { throw error; });
   }
 
-  watch(
-    () => store.combatants
-      .filter((c) => c.type === "player" && c.party_member_id)
-      .map((c) => ({ iid: c.instance_id, hp: c.hp, pmId: c.party_member_id! })),
-    (newVals, oldVals) => {
-      if (!isLive.value || !oldVals) return;
-      for (const nv of newVals) {
-        const ov = oldVals.find((o) => o.iid === nv.iid);
-        if (ov && ov.hp !== nv.hp) partyHpQueue.set(nv.pmId, nv.hp);
-      }
-      if (!partyHpQueue.size) return;
-      if (partyHpTimer) clearTimeout(partyHpTimer);
-      partyHpTimer = setTimeout(async () => {
-        const entries = [...partyHpQueue.entries()];
-        partyHpQueue.clear();
-        // Tracked in this same tick, so there is no gap between the queue
-        // emptying and the writes counting as in flight.
-        await Promise.all(entries.map(([id, current_hp]) =>
-          trackWrite(id, () => updatePartyMember({ id, update: { current_hp } })),
-        ));
-      }, 400);
-    },
-  );
+  /** Write every member's pending patch now, one write per member. */
+  function flushPending(): Promise<unknown[]> {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    const entries = [...pending.entries()];
+    pending.clear();
+    // Tracked in this same tick, so there is no gap between the queue
+    // emptying and the writes counting as in flight.
+    return Promise.all(entries.map(([id, update]) =>
+      trackWrite(id, () => updatePartyMember({ id, update })).catch(reportFailure),
+    ));
+  }
+
+  /** Queue a player change; the write goes out once the DM has paused. */
+  function enqueue(id: string, patch: PartyMemberUpdate): void {
+    pending.set(id, { ...pending.get(id), ...patch });
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = setTimeout(() => { void flushPending(); }, FLUSH_MS);
+  }
 
   let stopRings: (() => void) | null = null;
   let subscribedCampaignId: string | null = null;
 
-  /** A write to a member from anywhere in the runner, tracked like the rest. */
+  /**
+   * A write to a member from anywhere in the runner, tracked like the rest. It
+   * absorbs the member's pending patch (the explicit values win), so the row is
+   * written once and the waiting change is neither lost nor written twice.
+   */
   function writePartyMember(id: string, update: PartyMemberUpdate) {
-    return trackWrite(id, () => updatePartyMember({ id, update }));
+    const merged = { ...pending.get(id), ...update };
+    pending.delete(id);
+    if (!pending.size && flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    return trackWrite(id, () => updatePartyMember({ id, update: merged }));
   }
 
-  store.setPersistHandler((id, update) => {
-    void writePartyMember(id, update);
-  });
+  store.setPersistHandler(enqueue);
 
   // The spell each member was last read concentrating on (null: none). Absent until first read.
   const lastConcentration = new Map<string, string | null>();
@@ -192,8 +200,6 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
       store.setInitiative(combatant.instance_id, row.current_initiative);
     }
 
-    // An HP change still waiting for its debounced write is newer than this read.
-    if (partyHpQueue.has(row.id)) return;
     if (combatant.hp !== row.current_hp) {
       store.ingestHp(combatant.instance_id, row.current_hp);
     }
@@ -218,6 +224,9 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     if (campaignId !== subscribedCampaignId) return false;
     let again = false;
     for (const row of data as PartyMemberSyncRow[]) {
+      // A change still waiting for its write is newer than this read, whatever
+      // column it holds. Its write rings, and that ring reads the row again.
+      if (pending.has(row.id)) continue;
       if (writesInFlight.has(row.id)) {
         deferred.add(row.id);
         continue;
@@ -244,9 +253,7 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
       .filter((c) => c.type === "player" && c.party_member_id)
       .map((c) => c.party_member_id!);
     store.clearPlayerInitiatives();
-    await Promise.all(ids.map((id) =>
-      trackWrite(id, () => updatePartyMember({ id, update: { current_initiative: null } })),
-    ));
+    await Promise.all(ids.map((id) => writePartyMember(id, { current_initiative: null })));
   }
 
   // Rings come in bursts (a round of HP writes), so one read runs at a time and a
@@ -299,10 +306,11 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   onUnmounted(() => {
     store.setPersistHandler(null);
     subscribedCampaignId = null;
-    if (partyHpTimer) clearTimeout(partyHpTimer);
+    // The runner closing must not lose the last clicks.
+    void flushPending();
     stopRings?.();
     stopRings = null;
   });
 
-  return { cancelPendingHpFlush, clearPartyInitiatives, writePartyMember };
+  return { clearPartyInitiatives, writePartyMember };
 }

@@ -107,7 +107,9 @@ function maskTrueName(body: string, identity: NpcMemoryIdentity): string {
 
   const parts = trueName
     .split(/\s+/)
-    .filter((t) => t.length >= 3 && !NAME_PARTICLES.has(t.toLowerCase()) && t !== trueName);
+    // Every part, however short: no piece of the real identity may show until the
+    // reveal (maintainer, 28 Oct 2026). "Jo" is matched only capitalised, like the rest.
+    .filter((t) => !NAME_PARTICLES.has(t.toLowerCase()) && t !== trueName);
   const written = [...new Set(parts.flatMap((t) => [t, t.charAt(0).toUpperCase() + t.slice(1), t.toUpperCase()]))]
     .filter((t) => /^\p{Lu}/u.test(t))
     .sort((x, y) => y.length - x.length);

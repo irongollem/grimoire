@@ -494,7 +494,7 @@ View: `src/views/player/PlayerJournalView.vue`
 
 ### Database Table: `player_journal_entries`
 
-Key columns: `id`, `user_id`, `campaign_id`, `title`, `content` (Tiptap JSON), `category`, `tags`, `is_private` (bool, default true), `ref_type`, `ref_id`, `ref_label`, `created_at`, `updated_at`.
+Key columns: `id`, `user_id`, `campaign_id`, `title`, `content` (Tiptap JSON), `category`, `tags`, `is_private` (bool, default true), `shared_with_dm` (bool, default false), `ref_type`, `ref_id`, `ref_label`, `created_at`, `updated_at`.
 
 ### TypeScript Types — `src/composables/notes/usePlayerJournal.ts`
 
@@ -535,7 +535,7 @@ TanStack Query key: `"player_journal"`.
 | `useDeleteJournalEntry()`    | `UseMutationResult`                    | `mutationFn: (id: string)`                                                                  |
 | `useReorderJournalEntries()` | `UseMutationResult`                    | `mutationFn: (orderedIds: string[])` — writes `sort_order = index` (My Journal manual drag) |
 
-`JOURNAL_CATEGORIES` and `JOURNAL_CATEGORY_LIST` are exported constants for colour/label display. `is_private = true` entries are filtered by RLS; players cannot see other players' private entries.
+`JOURNAL_CATEGORIES` and `JOURNAL_CATEGORY_LIST` are exported constants for colour/label display. `is_private = false` shares an entry with the whole party; `shared_with_dm = true` is a separate opt-in that lets only the campaign DM read a private entry, so it is only ever set beside `is_private = true` (the form clears it when an entry goes to the party). Neither is legacy; RLS reads both. `is_private = true` entries are filtered by RLS; players cannot see other players' private entries.
 
 ---
 

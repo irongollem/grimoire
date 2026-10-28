@@ -291,7 +291,11 @@ async function rollAttack(entry: ActionEntry, override: RollMode | null) {
   if (!effect || effect.toHit === null) return;
   const mode: RollMode = override ?? "normal";
   const result = await promptRoll({ counts: { 20: 1 }, modifier: effect.toHit, label: `${rowName(entry)} · Attack${modeTag(mode)}`, mode });
-  if (!result) return;
+  // A cancelled attack is no attack: the last roll's crit must not double the next damage.
+  if (!result) {
+    crits.value = { ...crits.value, [entryKey(entry)]: false };
+    return;
+  }
   crits.value = { ...crits.value, [entryKey(entry)]: result.isCrit };
   const kept = result.breakdown.find(d => !d.dropped);
   emit("roll", { label: result.label, dice: kept ? kept.val : result.total - result.modifier, modifier: result.modifier, total: result.total });

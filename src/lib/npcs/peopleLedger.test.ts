@@ -105,6 +105,13 @@ describe("classifyPeople", () => {
     ).toEqual(["a"]);
   });
 
+  it("met at the very instant of the unmask still reads as unmasked: discovery comes first", () => {
+    const { npcs } = make([
+      { id: "a", revealed_at: "2026-10-07T00:00:00Z", unmasked_at: "2026-10-07T00:00:00Z" },
+    ]);
+    expect(ids(classifyPeople(npcs, new Map()).unmasked)).toEqual(["a"]);
+  });
+
   it("read exactly at unmasked_at counts as seen", () => {
     const { npcs } = make([
       { id: "a", revealed_at: "2026-09-01T00:00:00Z", unmasked_at: "2026-10-07T00:00:00Z" },

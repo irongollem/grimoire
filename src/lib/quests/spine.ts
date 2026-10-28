@@ -98,8 +98,9 @@ export function planSpineBeats(beats: QuestSpineBeatResult[] | undefined): Spine
       key,
       title,
       kind: normalizeSpineBeatKind(beat.kind),
-      dmContentPlain: typeof beat.dm_content === "string" ? beat.dm_content : "",
-      readAloudPlain: typeof beat.read_aloud === "string" ? beat.read_aloud : "",
+      // Every text field is trimmed alike: model output arrives with stray whitespace in any of them.
+      dmContentPlain: asTrimmedString(beat.dm_content),
+      readAloudPlain: asTrimmedString(beat.read_aloud),
       rumorText: asTrimmedString(beat.rumor_text),
       revealText: asTrimmedString(beat.reveal_text),
     });

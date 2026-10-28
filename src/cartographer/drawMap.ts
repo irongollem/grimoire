@@ -361,18 +361,20 @@ function paintJoints(f: Frame, t: Target): void {
         layers.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
         defaultPackId;
       const jointRt = jointPackId ? runtime(jointPackId) : null;
+      // Like the walls it joins, a joint waits for its pack: a square painted
+      // before the walls are would sit alone at the corner.
+      if (!jointRt) continue;
 
       // Prefer directional tile, fall back to generic (no side), then procedural square.
-      const directional = side && jointRt && jointRt.variantCount("wallJoint", side) > 0
+      const directional = side && jointRt.variantCount("wallJoint", side) > 0
         ? jointRt.getTile("wallJoint", 0, side) : null;
-      const generic = !directional?.source && jointRt
-        ? jointRt.getTile("wallJoint", 0) : null;
+      const generic = !directional?.source ? jointRt.getTile("wallJoint", 0) : null;
       const jointTile = directional ?? generic;
       if (jointTile && !jointTile.isPlaceholder) {
         ctx.drawImage(jointTile.source, cornerX - halfThick, cornerY - halfThick, thickness, thickness);
       } else {
         // Fallback square: use pack palette colour (wallJoint → wallSegmentH → stone default).
-        const pal = jointRt?.manifest.palette;
+        const pal = jointRt.manifest.palette;
         const [r, g, b] = pal?.wallJoint ?? pal?.wallSegmentH ?? [40, 36, 32];
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);

@@ -640,7 +640,8 @@ async function save() {
         ritual.value !== props.spell.ritual ||
         !deepEqual(components.value, props.spell.components) ||
         material.value !== (props.spell.material ?? "") ||
-        !deepEqual(description.value, props.spell.description) ||
+        // Loaded as `?? ""`; compare the same way, so a missing description never decides "edited".
+        !deepEqual(description.value, props.spell.description ?? "") ||
         higherLevels.value !== (props.spell.higher_levels ?? "") ||
         !deepEqual(classes.value, props.spell.classes) ||
         source.value !== (props.spell.source ?? "") ||

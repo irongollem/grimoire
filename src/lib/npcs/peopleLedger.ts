@@ -67,7 +67,9 @@ export function classifyPeople(
     const revealed = npc.revealed_at ? new Date(npc.revealed_at) : null;
     const unmaskedAt = npc.unmasked_at ? new Date(npc.unmasked_at) : null;
 
-    if (unmaskedAt && revealed && revealed < unmaskedAt && !(read && read >= unmaskedAt)) {
+    // Discovery always comes before the reveal (maintainer, 28 Oct 2026): a person
+    // met at the very moment the cover was lifted was still met in disguise.
+    if (unmaskedAt && revealed && revealed <= unmaskedAt && !(read && read >= unmaskedAt)) {
       out.unmasked.push(npc);
     } else if (revealed && revealed > NEW_TO_YOU_SINCE && !read) {
       out.faceDown.push(npc);

@@ -178,6 +178,11 @@ describe("SpellDetail saved content", () => {
     expect(updated).toEqual({ tags: ["owls"] });
   });
 
+  it("leaves it unmarked on a tags-only change even when its stored description is null", async () => {
+    const { updated } = await edit({ ...aiSpell, description: null } as unknown as Spell, (vm) => { vm.tags = ["owls"]; });
+    expect(updated).toEqual({ tags: ["owls"] });
+  });
+
   it.each([
     ["level", (vm: Vm) => { vm.level = 2; }],
     ["source", (vm: Vm) => { vm.source = "Homebrew"; }],

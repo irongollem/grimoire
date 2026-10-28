@@ -156,8 +156,9 @@ function resolveReinforcement(
     };
   }
 
+  // A fractional count rounds down, as 5e rounds unless a rule says otherwise.
   const rawCount = typeof entry.count === "number" && Number.isFinite(entry.count)
-    ? Math.round(entry.count)
+    ? Math.floor(entry.count)
     : 1;
   const count = Math.min(MAX_COUNT_PER_ENTRY, Math.max(1, rawCount));
 

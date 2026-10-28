@@ -172,6 +172,14 @@ describe("resolveGeneratedComplication — count clamping", () => {
     expect(result.warnings).toContain("Goblin: the AI asked for 20, capped at 8.");
   });
 
+  it.each([[2.5, 2], [3.9, 3], [0.5, 1]])("rounds a fractional count of %p down, to %p (never below 1)", (asked, expected) => {
+    const result = resolveGeneratedComplication(
+      complicationResult({ reinforcements: [reinforcement({ count: asked })] }),
+      makePools(),
+    );
+    expect(result.reinforcements[0]).toMatchObject({ count: expected });
+  });
+
   it("keeps exactly 8 as asked, with no warning (the cap is 'more than 8')", () => {
     const result = resolveGeneratedComplication(
       complicationResult({ reinforcements: [reinforcement({ count: 8 })] }),
