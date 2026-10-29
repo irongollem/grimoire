@@ -213,6 +213,8 @@ async function applyArt(target: Target, monsters: MonsterArtRow[], opts: ArtOpti
       ? `Art: would set ${plans.length} (${plans.filter((p) => p.image).length} from files, ${plans.filter((p) => !p.image).length} NPC portraits), unchanged ${unchanged}, pending ${pending.length}. Dry run: nothing written.`
       : `Art: set ${written} (uploaded ${uploaded} image(s), reused ${reused}), unchanged ${unchanged}, pending ${pending.length}.`,
   );
+  // Name what changes, not just how many, so a dry run can be checked before --replace-art overwrites anything.
+  section(opts.dryRun ? "Would set" : "Set", plans.map((p) => `${p.monster.name} (${p.via})`));
   section("Pending (picture not available yet; run again later)", pending);
   section("Kept their own art (use --replace-art to overwrite)", keptOwn);
   section("No monster of this name in the campaign", noMonster);
