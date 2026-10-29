@@ -8,7 +8,6 @@ import {
   inventionValueText,
   outputIsNew,
   inventionRequirementLine,
-  inventionTimeText,
   parseInvention,
   recipeDescriptionText,
 } from "./invention";
@@ -212,16 +211,6 @@ describe("newness helpers", () => {
   });
 });
 
-describe("inventionTimeText", () => {
-  it("agrees the unit with the number", () => {
-    expect(inventionTimeText(1, "days")).toBe("1 day");
-    expect(inventionTimeText(2, "days")).toBe("2 days");
-    expect(inventionTimeText(1, "hours")).toBe("1 hour");
-    expect(inventionTimeText(30, "minutes")).toBe("30 minutes");
-    expect(inventionTimeText(1, "minutes")).toBe("1 minute");
-    expect(inventionTimeText(0, "hours")).toBe("0 hours");
-  });
-});
 
 describe("inventionRequirementLine", () => {
   const base = { dc: 21, crafting_time: 50, crafting_time_unit: "days" as const, requires_proficiency: true, requires_tools: true };

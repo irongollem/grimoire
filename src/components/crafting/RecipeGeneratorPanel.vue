@@ -43,7 +43,7 @@
             <span class="font-semibold">Recipe: {{ pending.recipe.name }}</span>
             <span class="block text-caption text-muted-foreground">
               {{ disciplineLabel(pending.recipe.discipline) }}, DC {{ pending.recipe.dc }},
-              {{ pending.recipe.crafting_time }} {{ pending.recipe.crafting_time_unit }}
+              {{ craftingTimeText(pending.recipe.crafting_time, pending.recipe.crafting_time_unit) }}
             </span>
             <span class="block text-caption text-muted-foreground">
               {{ pending.recipe.ingredients.length }}
@@ -116,6 +116,7 @@ import {
   type RecipeAiResult,
   type RecipeOutputResolution,
 } from "@/lib/crafting/recipeAi";
+import { craftingTimeText } from "@/lib/crafting/craftingTime";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 
 const generatorsUi = useGeneratorUiStore();

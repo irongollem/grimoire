@@ -115,7 +115,7 @@
                 >{{ getDiscipline(recipe.discipline).label }}</span>
               </div>
               <p class="text-caption text-muted-foreground">
-                DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
+                DC {{ recipe.dc }} · {{ craftingTimeText(recipe.crafting_time, recipe.crafting_time_unit) }}
                 <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(inventoryItemRef(o)))).join(', ') }}</span>
               </p>
               <p
@@ -217,6 +217,7 @@ import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { useCraftingUiStore } from "@/stores/ui/crafting";
+import { craftingTimeText } from "@/lib/crafting/craftingTime";
 import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types";
 
 const craftingUi = useCraftingUiStore();

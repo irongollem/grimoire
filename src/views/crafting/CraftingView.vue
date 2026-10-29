@@ -184,6 +184,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
+import { craftingTimeText } from "@/lib/crafting/craftingTime";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/crafting/useCrafting";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
@@ -283,8 +284,7 @@ const layout = useListLayout("recipes", "rows");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 
 function recipeSubtitle(recipe: CraftingRecipe): string {
-  const unit = recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, "");
-  return `DC ${recipe.dc} · ${recipe.crafting_time} ${unit}`;
+  return `DC ${recipe.dc} · ${craftingTimeText(recipe.crafting_time, recipe.crafting_time_unit)}`;
 }
 
 // The discipline only needs naming on the "All" tab; the flags always do.

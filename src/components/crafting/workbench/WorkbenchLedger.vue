@@ -14,7 +14,7 @@
       <dt class="text-muted-foreground">DC</dt>
       <dd class="text-foreground">{{ recipe.dc }}</dd>
       <dt class="text-muted-foreground">Time</dt>
-      <dd class="text-foreground">{{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, "") }}</dd>
+      <dd class="text-foreground">{{ craftingTimeText(recipe.crafting_time, recipe.crafting_time_unit) }}</dd>
       <dt class="text-muted-foreground">Roll</dt>
       <dd class="text-foreground">{{ rollLine }}</dd>
       <dt class="text-muted-foreground">Tools</dt>
@@ -107,6 +107,7 @@ import { craftBonus, outcomeDetail, rolledLine, signed } from "@/lib/crafting/cr
 import type { IngredientSlot } from "@/lib/crafting/ingredients";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { RecipeArt } from "@/lib/crafting/recipeArt";
+import { craftingTimeText } from "@/lib/crafting/craftingTime";
 import type { CraftingAttemptResult, CraftingModifier, CraftingRecipe } from "@/types/crafting.types";
 
 const {

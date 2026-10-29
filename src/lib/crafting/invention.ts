@@ -1,4 +1,5 @@
 import { formatCoinParts, fromCP } from "@/rules/currency";
+import { craftingTimeText } from "./craftingTime";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
 import type {
   CraftingInvention,
@@ -252,10 +253,6 @@ export function outputIsNew(d: { item: InventionOutput }): boolean {
   return d.item.new !== null;
 }
 
-/** "1 day", "5 days": the unit agrees with the number. */
-export function inventionTimeText(time: number, unit: "minutes" | "hours" | "days"): string {
-  return `${time} ${time === 1 ? unit.slice(0, -1) : unit}`;
-}
 
 /** The recipe description without a trailing "Also needs: ..." line, which the card shows on its own. */
 export function recipeDescriptionText(recipe: { description: string; special_requirement: string | null }): string {
@@ -271,6 +268,6 @@ export function inventionRequirementLine(
   const parts = [`DC ${recipe.dc}`];
   if (recipe.requires_proficiency) parts.push(`needs proficiency with ${tool}`);
   else if (recipe.requires_tools) parts.push(tool);
-  parts.push(inventionTimeText(recipe.crafting_time, recipe.crafting_time_unit));
+  parts.push(craftingTimeText(recipe.crafting_time, recipe.crafting_time_unit));
   return parts.join(", ");
 }

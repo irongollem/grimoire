@@ -52,7 +52,7 @@
       <!-- Time -->
       <div class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">TIME</span>
-        <span class="text-body text-foreground">{{ recipe.crafting_time }} {{ recipe.crafting_time_unit }}</span>
+        <span class="text-body text-foreground">{{ craftingTimeText(recipe.crafting_time, recipe.crafting_time_unit) }}</span>
       </div>
 
       <!-- Requirements -->
@@ -146,6 +146,7 @@ import { getDiscipline } from "@/lib/crafting/disciplines";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { resolveRecipeArt } from "@/lib/crafting/recipeArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import { craftingTimeText } from "@/lib/crafting/craftingTime";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
 const props = defineProps<{ recipe: CraftingRecipe }>();
