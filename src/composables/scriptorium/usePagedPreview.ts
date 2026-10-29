@@ -21,8 +21,18 @@ import { registerPagedEntryFit } from "@/lib/scriptorium/pagedEntryFit";
 import { registerPagedTableFit } from "@/lib/scriptorium/pagedTableFit";
 
 export interface UsePagedPreviewOptions {
-  /** Reactive source: the document body HTML to paginate. */
+  /**
+   * The document body HTML to paginate. Read only when a render runs, never to
+   * notice a change: for a whole book it is a pass over megabytes of HTML, and
+   * evaluating it on every keystroke and every embed's data landing froze the
+   * Scriptorium for seconds while a 533-page book loaded (#1115).
+   */
   content: () => string;
+  /**
+   * A cheap reactive signal (a version number, a few settings) that changes
+   * whenever `content` would. Each change schedules a debounced render.
+   */
+  changes: () => unknown;
   /**
    * Reactive list of stylesheets Paged.js consumes — URL strings and/or
    * inline-CSS objects (`{ "paged.css": "@page { … }" }`) for per-document
@@ -38,7 +48,7 @@ export interface UsePagedPreviewOptions {
 }
 
 export function usePagedPreview(opts: UsePagedPreviewOptions) {
-  const { content, stylesheets, container, debounceMs = 600, afterRender } = opts;
+  const { content, changes, stylesheets, container, debounceMs = 600, afterRender } = opts;
 
   const pageCount = ref(0);
   const layoutMs = ref(0);
@@ -115,8 +125,9 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
     }, debounceMs);
   }
 
-  // Re-render whenever content or stylesheets change.
-  watch([content, stylesheets], scheduleRender, { flush: "post" });
+  // Re-render whenever the content's signal or the stylesheets change. The
+  // content itself is built only inside renderNow.
+  watch([changes, stylesheets], scheduleRender, { flush: "post" });
 
   onUnmounted(() => {
     if (timer) clearTimeout(timer);

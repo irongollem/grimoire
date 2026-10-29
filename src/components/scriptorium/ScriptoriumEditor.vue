@@ -148,7 +148,8 @@
 
       <!-- Preview pane -->
       <ScriptoriumPreviewPane
-        :body-html="previewHtml"
+        :body="previewBody"
+        :body-version="previewVersion"
         :footer-text="footerText"
         :show-page-numbers="showPageNumbers"
         :page-number-start="pageNumberStart"
@@ -435,21 +436,21 @@ function deleteFurniture(id: string) {
 }
 
 // Editor
-const rawHtml = ref("");
-// Only populated while the document actually holds an entityEmbed node (see
-// updateDerived below) — collectEntityRefs handles null as "no refs", and this
-// skips a full-document getJSON() serialization on every keystroke for the
-// common case of a document with no linked entities. usePagedPreview's own
-// debounce already keeps the expensive Paged.js layout out of the typing
-// path; this is the same idea one level up, for the synchronous work that
-// runs on every keystroke regardless of that debounce.
+// What a keystroke costs is what the book costs: nothing here may serialise
+// the whole document as HTML. getHTML() on a 533-page book takes ~45 ms, and
+// the preview's own passes over that HTML another ~55 ms, so doing them per
+// keystroke (and per embed whose data landed) froze the page for seconds
+// (#1115). An edit bumps `docVersion`; the HTML is built only when the
+// preview's debounced render or the PDF export asks for it (previewBody).
+// The JSON tree is cheap (~2 ms for the same book) and feeds the linked
+// entities.
+const docVersion = ref(0);
 const rawJson = ref<JSONContent | null>(null);
 const wordCount = ref(0);
 
-function updateDerived(editor: { getHTML: () => string; getJSON: () => JSONContent; getText: () => string }) {
-  const html = editor.getHTML();
-  rawHtml.value = html;
-  rawJson.value = html.includes('data-type="entity-embed"') ? editor.getJSON() : null;
+function updateDerived(editor: { getJSON: () => JSONContent; getText: () => string }) {
+  docVersion.value++;
+  rawJson.value = editor.getJSON();
   const text = editor.getText();
   wordCount.value = text.trim() ? text.trim().split(/\s+/).length : 0;
 }
@@ -528,7 +529,17 @@ function discardEdits() {
 // itself a computed.
 const entityRefs = computed(() => collectEntityRefs(rawJson.value));
 const { lookup: entityEmbedLookup } = useEntityEmbedData(entityRefs, { theme });
-const previewHtml = computed(() => resolveEntityEmbeds(rawHtml.value, entityEmbedLookup.value));
+/** The book as the preview and the PDF lay it out: built on demand, never per keystroke. */
+function previewBody(): string {
+  const ed = editor.value;
+  if (!ed) return "";
+  return resolveEntityEmbeds(ed.getHTML(), entityEmbedLookup.value);
+}
+// Changes whenever previewBody would: an edit, or a linked entity's data landing.
+const previewVersion = ref(0);
+watch([docVersion, entityEmbedLookup], () => {
+  previewVersion.value++;
+});
 
 // Click-to-edit bridge: the preview emits the clicked block's id; locate that
 // node in the doc, put the cursor there, and scroll the galley to it. Block
@@ -665,7 +676,7 @@ const showDataExport = ref(false);
 /** The layout the PDF is built from: the same refs the preview pane reads. */
 function pdfOptions(): PdfDocumentOptions {
   return {
-    bodyHtml: previewHtml.value,
+    bodyHtml: previewBody(),
     title: title.value,
     theme: theme.value,
     pageSize: pageSize.value,

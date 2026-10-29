@@ -141,7 +141,8 @@ import type {
 } from "@/types/scriptorium.types";
 
 const {
-  bodyHtml,
+  body,
+  bodyVersion,
   footerText,
   showPageNumbers = false,
   pageNumberStart = 1,
@@ -156,8 +157,13 @@ const {
   pdfProgress = null,
   canEmbedCampaignData = false,
 } = defineProps<{
-  /** Full document HTML — paginated by Paged.js into the book. */
-  bodyHtml: string;
+  /**
+   * Builds the full document HTML that Paged.js paginates. Called only when a
+   * render runs: for a whole book it is a pass over megabytes (#1115).
+   */
+  body: () => string;
+  /** Changes whenever `body` would return something different. */
+  bodyVersion: number;
   footerText: string;
   showPageNumbers?: boolean;
   pageNumberStart?: number;
@@ -228,7 +234,8 @@ const {
 } = usePagedPreview({
   // The same pre-layout pass the PDF export runs (pagedPrepare.ts), so the
   // live preview and the exported PDF paginate identically.
-  content: () => preparePagedBody(bodyHtml, { showPageNumbers, pageSize, isTwoColumn }),
+  content: () => preparePagedBody(body(), { showPageNumbers, pageSize, isTwoColumn }),
+  changes: () => [bodyVersion, showPageNumbers, pageSize, isTwoColumn],
   stylesheets: () => [
     { "scriptorium-paged.css": buildPagedPreviewCss({ pageSize, inkFriendly }) },
   ],

@@ -38,6 +38,9 @@ function settle(total = 3) {
   mocks.nextResolve?.({ total });
 }
 
+/** How many times the preview built its content: the expensive pass over the whole book. */
+let contentBuilds = 0;
+
 function mountPreview(contentRef: Ref<string>, debounceMs = 600) {
   const container = ref<HTMLElement | null>(document.createElement("div"));
   let api!: ReturnType<typeof usePagedPreview>;
@@ -45,7 +48,11 @@ function mountPreview(contentRef: Ref<string>, debounceMs = 600) {
     defineComponent({
       setup() {
         api = usePagedPreview({
-          content: () => contentRef.value,
+          content: () => {
+            contentBuilds++;
+            return contentRef.value;
+          },
+          changes: () => contentRef.value,
           stylesheets: () => [],
           container,
           debounceMs,
@@ -59,6 +66,7 @@ function mountPreview(contentRef: Ref<string>, debounceMs = 600) {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  contentBuilds = 0;
   mocks.previewCalls = [];
   mocks.styles = [];
   document.head.innerHTML = "";
@@ -85,6 +93,20 @@ describe("usePagedPreview scheduling", () => {
     settle(5);
     await flushPromises();
     expect(api().pageCount.value).toBe(5);
+  });
+
+  it("builds the content once per render, never on each change (#1115: a 533-page book froze on every keystroke)", async () => {
+    const content = ref("<p>a</p>");
+    mountPreview(content);
+    for (const next of ["<p>ab</p>", "<p>abc</p>", "<p>abcd</p>"]) {
+      content.value = next;
+      await nextTick();
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    expect(contentBuilds).toBe(0);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(contentBuilds).toBe(1);
+    expect(mocks.previewCalls).toEqual(["<p>abcd</p>"]);
   });
 
   it("does not call the previewer for empty content", async () => {
@@ -229,7 +251,7 @@ describe("usePagedPreview scheduling", () => {
     const host = mount(
       defineComponent({
         setup() {
-          usePagedPreview({ content: () => content.value, stylesheets: () => [], container, afterRender });
+          usePagedPreview({ content: () => content.value, changes: () => content.value, stylesheets: () => [], container, afterRender });
           return () => h("div");
         },
       }),
