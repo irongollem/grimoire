@@ -1,0 +1,14 @@
+{
+  // The edge functions run on Deno, but their pure modules are unit-tested under
+  // vitest (vitest.config.ts TEST_FILES). vitest strips types, and
+  // tsconfig.app.json covers only the parts of _shared the client imports, so
+  // until this file existed no test under supabase/functions was ever
+  // type-checked (#1116 found eleven errors that way). This checks every one,
+  // and every module they import, with the app's own strictness.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.edge.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["supabase/functions/**/*.test.ts", "supabase/functions/deno-env.vitest.d.ts"]
+}

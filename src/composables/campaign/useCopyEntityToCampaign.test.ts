@@ -79,27 +79,14 @@ describe("useCopyEntityToCampaign", () => {
     expect(flow.copyOpen.value).toBe(false);
   });
 
-  it("onQuotaExceeded closes the dialog and does not toast", () => {
-    const { flow } = makeFlow();
+  it("onQuotaExceeded is wired to the shared dialog: closes it and calls the caller's paywall callback", () => {
+    const onQuotaExceeded = vi.fn();
+    const { flow } = makeFlow({ onQuotaExceeded });
     flow.openCopy();
 
     flow.onQuotaExceeded();
 
     expect(flow.copyOpen.value).toBe(false);
-    expect(toastSuccess).not.toHaveBeenCalled();
-  });
-
-  it("onQuotaExceeded invokes the caller's callback when one is supplied, for surfaces with a paywall", () => {
-    const onQuotaExceeded = vi.fn();
-    const { flow } = makeFlow({ onQuotaExceeded });
-
-    flow.onQuotaExceeded();
-
     expect(onQuotaExceeded).toHaveBeenCalledTimes(1);
-  });
-
-  it("onQuotaExceeded is safe to call with no callback supplied, for surfaces without a paywall", () => {
-    const { flow } = makeFlow();
-    expect(() => flow.onQuotaExceeded()).not.toThrow();
   });
 });

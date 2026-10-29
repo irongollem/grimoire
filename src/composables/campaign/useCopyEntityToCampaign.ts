@@ -1,5 +1,5 @@
-import { computed, ref, type ComputedRef, type Ref } from "vue";
-import { useToast } from "@/composables/useToast";
+import { computed, type ComputedRef, type Ref } from "vue";
+import { useCopyDialog } from "@/composables/campaign/useCopyDialog";
 import { pluralizeCount } from "@/lib/utils";
 
 export interface CopyEntityToCampaignOptions {
@@ -56,9 +56,7 @@ export interface CopyEntityToCampaignFlow {
  */
 export function useCopyEntityToCampaign(options: CopyEntityToCampaignOptions): CopyEntityToCampaignFlow {
   const { entity, noun, onQuotaExceeded: notifyQuotaExceeded } = options;
-  const toast = useToast();
-
-  const copyOpen = ref(false);
+  const { copyOpen, finish, onQuotaExceeded } = useCopyDialog({ onQuotaExceeded: notifyQuotaExceeded });
   const copyIds = computed<string[]>(() => {
     const current = entity();
     return current ? [current.id] : [];
@@ -79,14 +77,8 @@ export function useCopyEntityToCampaign(options: CopyEntityToCampaignOptions): C
     // number does. Omitted at zero, which is every one of the eight original
     // tables, none of which has a join row to carry.
     const withLinks = linked > 0 ? ` with ${pluralizeCount(linked, "link")}` : "";
-    toast.success(`Copied ${label}${withLinks} to ${targetName}.`);
-    copyOpen.value = false;
+    finish(`Copied ${label}${withLinks} to ${targetName}.`);
   }
 
-  function onQuotaExceededHandler(): void {
-    copyOpen.value = false;
-    notifyQuotaExceeded?.();
-  }
-
-  return { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded: onQuotaExceededHandler };
+  return { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded };
 }

@@ -143,7 +143,7 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteSpecies } from "@/composables/rules/useSpecies";
 import type { Species } from "@/types/species.types";
-import { speciesSizeFromSubrace, speedLabels, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
+import { asiToString, speciesSizeFromSubrace, speedLabels, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -184,14 +184,6 @@ const speedPills = computed(() => speedLabels(props.species.speed));
 // gearforged); the parent alone would read blank.
 const sizeFromSubrace = computed(() => speciesSizeFromSubrace(props.species));
 const speedFromSubrace = computed(() => walkSpeedFromSubrace(props.species));
-
-function asiToString(asi: Species["ability_score_increases"]): string {
-  if (!asi) return "";
-  if ("description" in asi && typeof asi.description === "string") return asi.description as string;
-  return Object.entries(asi)
-    .map(([k, v]) => `+${v} ${k.toUpperCase()}`)
-    .join(", ");
-}
 
 const asiText = computed(() => asiToString(props.species.ability_score_increases));
 

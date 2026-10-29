@@ -227,7 +227,7 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { Species, SpeciesSize } from "@/types/species.types";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
-import { DEFAULT_WALK_SPEED, setSpeedMode, speciesHasWalkSpeed, walkSpeedFromSubrace } from "@/rules/speciesStats";
+import { asiToString, DEFAULT_WALK_SPEED, setSpeedMode, speciesHasWalkSpeed, walkSpeedFromSubrace } from "@/rules/speciesStats";
 
 const props = defineProps<{ species?: Species | null }>();
 
@@ -244,16 +244,6 @@ const SPEED_TYPES = ["walk", "fly", "swim", "climb", "burrow"] as const;
 
 const saving = ref(false);
 const saveError = ref("");
-
-function asiToString(asi: Species["ability_score_increases"]): string {
-  if (!asi) return "";
-  // Stored as { description: string } from free-text edits
-  if ("description" in asi && typeof asi.description === "string") return asi.description as string;
-  // Stored as { dex: 2, int: 1, ... } from Open5e import
-  return Object.entries(asi)
-    .map(([k, v]) => `+${v} ${k.toUpperCase()}`)
-    .join(", ");
-}
 
 // Maps 3-letter codes and full names → canonical 3-letter key
 const ASI_ABILITY_MAP: Record<string, string> = {

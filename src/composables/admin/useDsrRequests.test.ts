@@ -50,6 +50,17 @@ describe("daysUntilDue", () => {
     expect(daysUntilDue(received, new Date("2026-09-05T00:00:00Z"))).toBe(-5);
   });
 
+  it("reads a request an hour past its deadline as overdue, never as due today", () => {
+    const received = request({ received_at: "2026-08-01T00:00:00Z" });
+    expect(daysUntilDue(received, new Date("2026-08-31T01:00:00Z"))).toBe(-1);
+  });
+
+  it("counts a part day as gone: half a day after receipt leaves one day fewer, not the full month", () => {
+    const received = request({ received_at: "2026-08-01T00:00:00Z" });
+    expect(daysUntilDue(received, new Date("2026-08-01T12:00:00Z"))).toBe(DSR_DEADLINE_DAYS - 1);
+    expect(daysUntilDue(received, new Date("2026-08-30T23:00:00Z"))).toBe(0);
+  });
+
   it("is exactly 0 on the deadline itself", () => {
     const received = request({ received_at: "2026-08-01T00:00:00Z" });
     expect(daysUntilDue(received, new Date("2026-08-31T00:00:00Z"))).toBe(0);

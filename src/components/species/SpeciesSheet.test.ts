@@ -91,9 +91,8 @@ describe("SpeciesSheet ownership and content", () => {
     expect(mocks.push).toHaveBeenCalledWith("/species");
   });
 
-  it("reads ability score increases as free text, or as +N ABILITY from an import", () => {
+  it("shows ability score increases through asiToString", () => {
     const asi = (v: unknown) => sheet(species({ ability_score_increases: v as Species["ability_score_increases"] })).findAll("p").map((p) => p.text());
-    expect(asi({ description: "Two of your choice" })).toContain("Two of your choice");
     expect(asi({ dex: 2, int: 1 })).toContain("+2 DEX, +1 INT");
   });
 

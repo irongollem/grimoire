@@ -140,13 +140,6 @@ describe("useCraftInventions", () => {
     await vi.waitFor(() => expect(inv.submitError.value).toBe("This draft has already been sent."));
   });
 
-  it("discards the one draft named and leaves the others", async () => {
-    fake.seed("crafting_inventions", [{ id: "i1" }, { id: "i2" }]);
-    const inv = mountWith(qc, useCraftInventions);
-    await inv.discard("i1");
-    expect(fake.rows("crafting_inventions")).toEqual([{ id: "i2" }]);
-  });
-
   it("keeps a failed discard as state and the draft in place", async () => {
     fake.seed("crafting_inventions", [{ id: "i1" }]);
     fake.failNext("crafting_inventions", { message: "not yours" });

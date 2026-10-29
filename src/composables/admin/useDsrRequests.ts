@@ -74,10 +74,15 @@ export const DSR_DEADLINE_DAYS = 30;
  */
 export const DSR_REQUEST_LIMIT = 200;
 
-/** Whole days until the Art. 12(3) deadline; negative once it has passed. */
+/**
+ * Whole days left before the Art. 12(3) deadline; negative once it has passed.
+ * Rounded down, so the count never flatters: the last day reads 0 ("due
+ * today"), and a request even an hour past its deadline reads overdue (-1).
+ * Rounding up read that as 0, due today, on the day the deadline was missed.
+ */
 export function daysUntilDue(request: DsrRequest, now: Date): number {
   const due = new Date(request.received_at).getTime() + DSR_DEADLINE_DAYS * 86_400_000;
-  return Math.ceil((due - now.getTime()) / 86_400_000);
+  return Math.floor((due - now.getTime()) / 86_400_000);
 }
 
 /**

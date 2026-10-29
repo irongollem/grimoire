@@ -164,10 +164,9 @@ describe("SpeciesDetail scope default", () => {
       return mocks.update.mock.calls[0][0].update;
     };
 
-    it("opens ability score increases as free text, or as +N ABILITY when they were imported as numbers", () => {
+    it("opens imported ability score increases through asiToString", () => {
       const open = (asi: unknown) =>
         (mountDetail({ ...base, ability_score_increases: asi } as unknown as Species).vm as unknown as Vm).form.asiDescription;
-      expect(open({ description: "Two of your choice" })).toBe("Two of your choice");
       expect(open({ dex: 2, int: 1 })).toBe("+2 DEX, +1 INT");
     });
 

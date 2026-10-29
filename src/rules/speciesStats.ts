@@ -135,3 +135,16 @@ export function darkvisionFeet(
 function isDarkvisionTrait(trait: SpeciesTrait): boolean {
   return trait.name.toLowerCase().includes("darkvision");
 }
+
+/**
+ * A species' ability score increases as one line: the free text a DM typed
+ * ({ description }), or "+2 DEX, +1 INT" for the { dex: 2, int: 1 } map an
+ * Open5e import stores.
+ */
+export function asiToString(asi: Record<string, number | string> | null): string {
+  if (!asi) return "";
+  if ("description" in asi && typeof asi.description === "string") return asi.description;
+  return Object.entries(asi)
+    .map(([k, v]) => `+${v} ${k.toUpperCase()}`)
+    .join(", ");
+}

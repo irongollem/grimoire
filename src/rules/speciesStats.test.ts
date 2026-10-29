@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  asiToString,
   darkvisionFeet,
   effectiveLanguages,
   effectiveSize,
@@ -205,5 +206,19 @@ describe("darkvisionFeet", () => {
   it("is zero without a darkvision trait", () => {
     expect(darkvisionFeet({ subraces: null, traits: [trait("Lucky", "reroll a 1")] })).toBe(0);
     expect(darkvisionFeet({ subraces: null, traits: null })).toBe(0);
+  });
+});
+
+describe("asiToString", () => {
+  it("reads the free text a DM typed", () => {
+    expect(asiToString({ description: "Two of your choice" })).toBe("Two of your choice");
+  });
+
+  it("writes an imported map as +N ABILITY, in order", () => {
+    expect(asiToString({ dex: 2, int: 1 })).toBe("+2 DEX, +1 INT");
+  });
+
+  it("is an empty string for no increases", () => {
+    expect(asiToString(null)).toBe("");
   });
 });

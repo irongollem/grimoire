@@ -4,6 +4,7 @@ import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { parseInvention } from "@/lib/crafting/invention";
 import { supabase } from "@/lib/supabase";
+import { useDiscardInvention } from "@/composables/crafting/useInventionQueue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { CraftingDiscipline, CraftingInvention } from "@/types/crafting.types";
@@ -104,13 +105,7 @@ export function useCraftInventions() {
     },
     onSuccess: refresh,
   });
-  const discardM = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("crafting_inventions").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: refresh,
-  });
+  const discardM = useDiscardInvention();
 
   const all = [materials, idea, reviseM, submitM, discardM];
   const busy = computed(() => all.some((m) => m.isPending.value));

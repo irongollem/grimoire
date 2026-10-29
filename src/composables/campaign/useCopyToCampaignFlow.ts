@@ -1,5 +1,5 @@
 import { ref, type Ref } from "vue";
-import { useToast } from "@/composables/useToast";
+import { useCopyDialog } from "@/composables/campaign/useCopyDialog";
 import { pluralizeCount } from "@/lib/utils";
 
 export interface CopyToCampaignFlowOptions {
@@ -43,9 +43,7 @@ export interface CopyToCampaignFlow {
  */
 export function useCopyToCampaignFlow(options: CopyToCampaignFlowOptions): CopyToCampaignFlow {
   const { noun, nounPlural, selectableIds, pruneTo, stop, onQuotaExceeded: notifyQuotaExceeded } = options;
-  const toast = useToast();
-
-  const copyOpen = ref(false);
+  const { copyOpen, finish, onQuotaExceeded } = useCopyDialog({ onQuotaExceeded: notifyQuotaExceeded });
   const copyIds = ref<string[]>([]);
 
   /**
@@ -70,8 +68,7 @@ export function useCopyToCampaignFlow(options: CopyToCampaignFlowOptions): CopyT
     // which is the case for all eight original tables, none of which has a
     // join row to carry.
     const withLinks = linked > 0 ? ` and ${pluralizeCount(linked, "link")}` : "";
-    toast.success(`Copied ${pluralizeCount(copied, noun, nounPlural)}${withLinks} to ${targetName}.`);
-    copyOpen.value = false;
+    finish(`Copied ${pluralizeCount(copied, noun, nounPlural)}${withLinks} to ${targetName}.`);
     // Ends selection mode, matching what every `move` handler already does.
     // A copy does not remove the originals from this list, so keeping the
     // selection would be defensible — but the bulk surfaces have to agree on
@@ -79,10 +76,5 @@ export function useCopyToCampaignFlow(options: CopyToCampaignFlowOptions): CopyT
     stop();
   }
 
-  function onQuotaExceededHandler(): void {
-    copyOpen.value = false;
-    notifyQuotaExceeded?.();
-  }
-
-  return { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded: onQuotaExceededHandler };
+  return { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded };
 }

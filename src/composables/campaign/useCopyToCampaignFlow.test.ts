@@ -104,28 +104,16 @@ describe("useCopyToCampaignFlow", () => {
     expect(stop).toHaveBeenCalledTimes(1);
   });
 
-  it("onQuotaExceeded closes the dialog and does not stop selection or toast", () => {
-    const { flow, stop } = makeFlow();
+  it("onQuotaExceeded is wired to the shared dialog: closes it and calls the caller's paywall callback", () => {
+    const onQuotaExceeded = vi.fn();
+    const { flow, stop } = makeFlow({ onQuotaExceeded });
     flow.openCopy();
 
     flow.onQuotaExceeded();
 
     expect(flow.copyOpen.value).toBe(false);
-    expect(stop).not.toHaveBeenCalled();
-    expect(toastSuccess).not.toHaveBeenCalled();
-  });
-
-  it("onQuotaExceeded invokes the caller's callback when one is supplied, for surfaces with a paywall", () => {
-    const onQuotaExceeded = vi.fn();
-    const { flow } = makeFlow({ onQuotaExceeded });
-
-    flow.onQuotaExceeded();
-
     expect(onQuotaExceeded).toHaveBeenCalledTimes(1);
-  });
-
-  it("onQuotaExceeded is safe to call with no callback supplied, for surfaces without a paywall", () => {
-    const { flow } = makeFlow();
-    expect(() => flow.onQuotaExceeded()).not.toThrow();
+    // Nothing was copied, so the DM's selection stays for after an upgrade.
+    expect(stop).not.toHaveBeenCalled();
   });
 });

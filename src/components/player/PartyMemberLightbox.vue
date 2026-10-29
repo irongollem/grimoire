@@ -215,7 +215,7 @@ import type { PartyMember } from "@/types/party.types";
 import { healthVisibilityOf } from "@/lib/healthVisibility";
 import type { HealthVisibility } from "@/types/encounter.types";
 import type { Species } from "@/types/species.types";
-import { effectiveLanguages, effectiveSize, effectiveSpeed } from "@/rules/speciesStats";
+import { asiToString, effectiveLanguages, effectiveSize, effectiveSpeed } from "@/rules/speciesStats";
 
 // The notes widget holds the rich text editor. This lightbox is reachable from the
 // player layout (the encounter panel), so a static import kept the whole editor on
@@ -315,14 +315,6 @@ const speedPills = computed(() => {
     .filter((k) => s[k] !== null && s[k] !== undefined && (s[k] as number) > 0)
     .map((k) => `${labels[k] ?? capitalize(k)} ${s[k]}ft`);
 });
-
-function asiToString(asi: Species["ability_score_increases"]): string {
-  if (!asi) return "";
-  if ("description" in asi && typeof asi.description === "string") return asi.description;
-  return Object.entries(asi)
-    .map(([k, v]) => `+${v} ${k.toUpperCase()}`)
-    .join(", ");
-}
 
 const asiText = computed(() =>
   displaySpecies.value ? asiToString(displaySpecies.value.ability_score_increases) : "",
