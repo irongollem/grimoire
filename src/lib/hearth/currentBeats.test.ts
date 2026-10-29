@@ -24,6 +24,20 @@ function beat(o: Partial<PlayerQuestBeat> & Pick<PlayerQuestBeat, "id" | "quest_
 const q = (id: string, updated_at: string, status = "active") => ({ id, title: `Quest ${id}`, status, updated_at });
 
 describe("currentBeatsByQuest", () => {
+  it("summarises a rich-text beat as its plain words and skips an emptied doc (#1115)", () => {
+    const words = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Cross the bridge"}]}]}';
+    const blank = '{"type":"doc","content":[{"type":"paragraph"}]}';
+    const out = currentBeatsByQuest(
+      [q("a", "2026-01-01"), q("b", "2026-01-02")],
+      [
+        beat({ id: "1", quest_id: "a", is_current: true, player_text: words }),
+        beat({ id: "2", quest_id: "b", is_current: true, player_text: blank }),
+      ],
+    );
+    expect(out.find((x) => x.questId === "a")!.current).toEqual([{ threadLabel: null, text: "Cross the bridge" }]);
+    expect(out.find((x) => x.questId === "b")!.current).toEqual([]);
+  });
+
   it("orders quests by updated_at desc and keeps ones without a current beat", () => {
     const out = currentBeatsByQuest(
       [q("a", "2026-01-01"), q("b", "2026-03-01"), q("done", "2026-05-01", "completed")],

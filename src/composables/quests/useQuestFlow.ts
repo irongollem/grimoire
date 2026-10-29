@@ -7,6 +7,7 @@ import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import { BEATS_KEY, RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY } from "@/lib/campaignLiveSync/registry";
 import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
+import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import type {
@@ -886,6 +887,11 @@ export interface QuestRuntimeImprovInput {
   keepEdge: boolean;
 }
 
+/** The reveal column is Tiptap JSON (#1115); the dialog types plain text. Blank is null. */
+export function improvisedRevealText(text: string): string | null {
+  return text.trim() ? toTiptapJson(text) : null;
+}
+
 export function useQuestRuntimeImprovise() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -898,7 +904,7 @@ export function useQuestRuntimeImprovise() {
         p_title: input.title,
         p_kind: input.kind,
         p_dm_lead: input.dmLead || null,
-        p_reveal_text: input.revealText || null,
+        p_reveal_text: improvisedRevealText(input.revealText),
         p_reason: input.reason,
         p_push_return: input.pushReturn,
         p_keep_edge: input.keepEdge,

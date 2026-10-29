@@ -46,8 +46,8 @@ export interface SpineBeatDraft {
    *  JSON and writes it to `quest_beats.read_aloud`. */
   readAloudPlain: string;
   /** Player-facing copy, trimmed, empty when the response left it out — see
-   *  `QuestSpineBeatResult.rumor_text`. Both columns are plain text, so these
-   *  are written as they stand rather than converted. */
+   *  `QuestSpineBeatResult.rumor_text`. The AI wire stays plain text; the columns
+   *  are Tiptap JSON, so `writeQuestSpine` converts these on the way in. */
   rumorText: string;
   revealText: string;
 }

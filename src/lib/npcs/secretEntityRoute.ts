@@ -8,6 +8,7 @@ export const SECRET_ENTITY_LABELS: Record<SecretEntityType, string> = {
   puzzle: "Puzzle",
   note: "Note",
   faction: "Faction",
+  quest: "Quest",
 };
 
 /** Where the entity holding a [secret] block opens (routes.ts: /vault is the item detail). */
@@ -24,6 +25,8 @@ export function secretEntityRoute(type: SecretEntityType, id: string): string {
       return `/notes/${key}`;
     case "faction":
       return `/factions/${key}`;
+    case "quest":
+      return `/quests/${key}`;
   }
 }
 

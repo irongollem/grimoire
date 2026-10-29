@@ -46,17 +46,32 @@ describe("quest beat draft", () => {
       dm_content: "",
       read_aloud: "",
       how_it_plays: "",
-      rumor_text: "  heard at the dock ",
-      reveal_text: "   ",
+      rumor_text: "",
+      reveal_text: "",
     });
     expect(update).toMatchObject({
       title: "Padded",
       dm_content: null,
       read_aloud: null,
       how_it_plays: null,
-      rumor_text: "heard at the dock",
+      rumor_text: null,
       reveal_text: null,
     });
+  });
+
+  // #1115: the rumour and reveal columns are Tiptap JSON. An emptied editor
+  // leaves a doc holding one blank paragraph, which is not copy.
+  const EMPTY_DOC = '{"type":"doc","content":[{"type":"paragraph"}]}';
+  const WORDS_DOC = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"heard at the dock"}]}]}';
+
+  it("saves an emptied rumour or reveal editor as null, so the prep gap still names it", () => {
+    const update = questBeatDraftToUpdate({ ...questBeatToDraft(beat), rumor_text: EMPTY_DOC, reveal_text: EMPTY_DOC });
+    expect(update.rumor_text).toBeNull();
+    expect(update.reveal_text).toBeNull();
+  });
+
+  it("saves a rumour doc that holds words exactly as the editor produced it", () => {
+    expect(questBeatDraftToUpdate({ ...questBeatToDraft(beat), rumor_text: WORDS_DOC }).rumor_text).toBe(WORDS_DOC);
   });
 
   describe("AI provenance", () => {

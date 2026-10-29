@@ -257,6 +257,7 @@ import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 import QuestRunToolLoadError from "./QuestRunToolLoadError.vue";
 import QuestSiteHandoff from "./QuestSiteHandoff.vue";
+import { firstBeatText } from "@/lib/quests/beatText";
 
 // Sheets, panels and dialogs that are closed when the cockpit opens load on
 // first use rather than riding in the page's chunk. The two sheets hold their
@@ -385,7 +386,7 @@ const pickerVisible = computed(() => showPicker.value || resolvedStart.value.rea
 const startProse = computed(() => {
   const beat = resolvedStartBeat.value;
   if (!beat) return null;
-  return beat.read_aloud || beat.rumor_text || beat.dm_content || null;
+  return firstBeatText(beat.read_aloud, beat.rumor_text, beat.dm_content);
 });
 const startCaption = computed(() => {
   if (resolvedStart.value.reason === "entry") return "Where the story begins";

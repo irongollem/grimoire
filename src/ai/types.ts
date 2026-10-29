@@ -287,10 +287,11 @@ export interface QuestSpineBeatResult {
    */
   read_aloud?: string;
   /**
-   * The two lines a player is shown for this beat, plain text: `rumor_text`
+   * The two lines a player is shown for this beat, plain text on the wire: `rumor_text`
    * while it is rumoured (what the party hears before the scene happens),
    * `reveal_text` once it is revealed (what they know after it has). Written
-   * to the `quest_beats` columns of the same names.
+   * to the `quest_beats` columns of the same names, which hold Tiptap JSON:
+   * `writeQuestSpine` converts them.
    *
    * Unlike `read_aloud`, **every** producer writes both. They are the only
    * thing a player ever sees of a beat: `playerThreads.ts` drops a revealed

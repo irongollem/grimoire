@@ -67,6 +67,21 @@ describe("QuestBeatFields", () => {
   // The save path trims and defaults on the way out. It used to adopt that
   // normalised row back into the live draft, which deleted the space off the end
   // of the word being typed every time an autosave landed mid-sentence.
+  it("offers the DM-only block on the rumour and reveal editors only, and saves an emptied rumour editor as null (#1115)", async () => {
+    const withRumor: QuestBeat = { ...beat(), rumor_text: toTiptapJson("They say the bell rings.") };
+    const wrapper = mount(QuestBeatFields, { props: { beat: withRumor }, global: { stubs } });
+    const editors = wrapper.findAllComponents({ name: "RichTextEditor" });
+    expect(editors.map((e) => e.props("allowSecrets") === true)).toEqual([false, false, false, true, true]);
+
+    editors[3]!.vm.$emit("update:modelValue", '{"type":"doc","content":[{"type":"paragraph"}]}');
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({ rumor_text: null }),
+    }));
+  });
+
   it("leaves the typed text alone when the save normalises it", async () => {
     const wrapper = mount(QuestBeatFields, {
       props: { beat: beat() },

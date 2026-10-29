@@ -15,6 +15,7 @@
  * of doing the fold in SQL rather than twice.
  */
 
+import { hasBeatText } from "./beatText";
 import type { PlayerQuestBeat } from "@/types/quest.types";
 import { threadTone, type ThreadTone } from "./threads";
 
@@ -42,7 +43,7 @@ export interface PlayerQuestThreadColumn {
  */
 function hasSomethingToShow(beat: PlayerQuestBeat): boolean {
   if (beat.visibility === "rumored") return true;
-  return !!beat.player_text || beat.is_current || beat.payoff.length > 0;
+  return hasBeatText(beat.player_text) || beat.is_current || beat.payoff.length > 0;
 }
 
 /**

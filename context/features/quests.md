@@ -426,7 +426,8 @@ whole.
 
 ### `quest_beats`
 
-`title` (non-blank, enforced), `dm_content`, `rumor_text`, `reveal_text`,
+`title` (non-blank, enforced), `dm_content`, `rumor_text`, `reveal_text` (both Tiptap
+JSON since #1115, like `dm_content`; a quest's `summary` stays plain text),
 `visibility` (`hidden` | `rumored` | `revealed`), `kind` (**open text, not an
 enum** — conventionally `combat` / `social` / `explore` / `discovery` / `neutral`,
 plus the tombstone `archived`), `presentation_hint`, `canvas_x/y`,
@@ -1776,8 +1777,9 @@ identity or re-fold anything, since the RPC already did that in SQL.
   eyebrow is its bare label, every other column reads "Also following —
   `<label>`".
 - **One ordered list per column, not two separate blocks.** A rumoured beat
-  renders inline as "_Rumoured:_ `rumor_text`"; a revealed one renders
-  `reveal_text` plain — both in the same `story_order` sequence, which
+  renders as "_Rumoured:_" followed by `rumor_text` through `RichTextViewer`
+  (a rich-text doc, Bright half only); a revealed one renders
+  `reveal_text` the same way — both in the same `story_order` sequence, which
   replaces this doc's older description of a dashed Rumors block sitting
   above a separate Confirmed-journey timeline. `story_order`, not reveal
   time, is still the ordering rule (see the "do not fix" note below).
@@ -1793,9 +1795,12 @@ identity or re-fold anything, since the RPC already did that in SQL.
 Containment is in two places, and the split matters:
 
 - **Server** (`get_player_visible_quest_beats`): only `rumored` and `revealed`
-  beats, exposing `player_text` with **no DM-title fallback**.
-- **Client** (`PlayerQuestStoryThread.vue`): a revealed beat with empty
-  `player_text` is filtered out, so an un-written reveal renders nothing rather
+  beats, exposing `player_text` with **no DM-title fallback**. It runs the
+  doc through `private.withhold_secret_blocks`, so secret blocks and Deep
+  lens halves never leave the server (the Bright half is unwrapped). Beat
+  secrets are listed by `list_campaign_secrets` under entity type `quest`.
+- **Client** (`PlayerQuestStoryThread.vue`): a revealed beat with no words in
+  `player_text` (`hasBeatText`: an emptied editor's blank doc counts as empty) is filtered out, so an un-written reveal renders nothing rather
   than an empty entry. The RPC still returns that row — the drop is presentation,
   not a security boundary, and the boundary above is what stops the DM's title
   leaking.
@@ -2054,7 +2059,8 @@ cannot share until both lines have been typed into every beat by hand. That is
 what a pasted page produced until 2 Oct 2026: no prompt asked for either field
 and `writeQuestSpine` set both to null. `20261002211019` teaches all three
 prompts (`document_import`, `quest`, `quest_designer`) in one migration, the
-importer's wire schema makes both plain strings rather than nullable, and
+importer's wire schema makes both plain strings rather than nullable (the AI wire
+stays plain text; `writeQuestSpine` converts both to Tiptap JSON), and
 `spinePromptCoverage.test.ts` fails if a later prompt rewrite drops them.
 
 Two things about that copy are deliberate. It carries **no DM-only

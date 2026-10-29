@@ -75,6 +75,15 @@ describe("quest beat presentation", () => {
     expect(result.staging.prepGaps).toEqual([{ kind: "connection", label: "Connect this staging beat to the story flow" }]);
   });
 
+  it("counts an emptied reveal editor (a blank-paragraph doc) as no reveal copy (#1115)", () => {
+    const blank = '{"type":"doc","content":[{"type":"paragraph"}]}';
+    const gaps = deriveQuestBeatPrepGaps({ ...beat("a", "revealed"), reveal_text: blank, rumor_text: blank }, [], {});
+    expect(gaps.map((g) => g.kind)).toContain("player_copy");
+    const facts = prepFactsOf({ ...beat("a", "revealed"), reveal_text: blank, rumor_text: blank });
+    expect(facts.has_reveal_text).toBe(false);
+    expect(facts.has_rumor_text).toBe(false);
+  });
+
   it("uses one typed readiness rule for narrative, visibility, attachments and improv", () => {
     const draft = {
       ...beat("draft", "revealed"), dm_content: null, how_it_plays: null, reveal_text: null,

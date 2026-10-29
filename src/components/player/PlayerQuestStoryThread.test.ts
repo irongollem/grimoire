@@ -157,6 +157,15 @@ describe("PlayerQuestStoryThread", () => {
     expect(wrapper.text()).toContain("a rumour is circulating");
   });
 
+  it("renders a rumour's rich text and, for an emptied doc, the fallback rather than a blank entry (#1115)", () => {
+    const doc = (text?: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", ...(text ? { content: [{ type: "text", text }] } : {}) }] });
+    const filled = mount(PlayerQuestStoryThread, { props: { beats: [beat({ visibility: "rumored", player_text: doc("The almoner keeps a second ledger.") })] } });
+    expect(filled.text()).toContain("The almoner keeps a second ledger.");
+    expect(filled.text()).not.toContain("{");
+    const blank = mount(PlayerQuestStoryThread, { props: { beats: [beat({ visibility: "rumored", player_text: doc() })] } });
+    expect(blank.text()).toContain("a rumour is circulating");
+  });
+
   it("uses a labelled section, heading hierarchy, list, and article semantics", () => {
     const wrapper = mount(PlayerQuestStoryThread, { props: { beats: [beat()] } });
     expect(wrapper.get("section[aria-labelledby='quest-story-heading']").attributes("aria-labelledby")).toBe("quest-story-heading");

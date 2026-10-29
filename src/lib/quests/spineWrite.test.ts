@@ -1,3 +1,4 @@
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { describe, expect, it, vi } from "vitest";
 import { writeQuestSpine, type WriteQuestSpineDeps, type WriteQuestSpineInput } from "./spineWrite";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
@@ -259,7 +260,7 @@ describe("writeQuestSpine", () => {
   // The two columns a player is actually shown. They were hard-coded to null
   // here until 2 Oct 2026, so every imported or generated beat arrived with
   // nothing a player could ever see.
-  it("writes each beat's rumor and reveal copy as plain text, and null when the spine has none", async () => {
+  it("writes each beat's rumor and reveal copy as Tiptap JSON, and null when the spine has none", async () => {
     const deps = makeDeps();
     const beats: QuestSpineBeatResult[] = [
       {
@@ -276,10 +277,9 @@ describe("writeQuestSpine", () => {
     await writeQuestSpine(baseInput({ beats }), deps);
 
     const calls = rowsOf(deps.createBeats);
-    expect(calls[0]).toMatchObject({
-      rumor_text: "They say the bell rings by itself.",
-      reveal_text: "The bell rang, and nobody was in the tower.",
-    });
+    expect(JSON.parse(calls[0]!.rumor_text as string).type).toBe("doc");
+    expect(tiptapToPlainText(calls[0]!.rumor_text as string)).toBe("They say the bell rings by itself.");
+    expect(tiptapToPlainText(calls[0]!.reveal_text as string)).toBe("The bell rang, and nobody was in the tower.");
     expect(calls[1]!.rumor_text).toBeNull();
     expect(calls[1]!.reveal_text).toBeNull();
   });

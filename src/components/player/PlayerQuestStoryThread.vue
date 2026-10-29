@@ -28,18 +28,19 @@
               class="min-w-0 rounded-lg border p-3"
               :class="beat.is_current ? [column.tone.border, 'border-2 bg-card'] : 'border-border bg-muted/20'"
             >
-              <p v-if="beat.visibility === 'rumored'" class="font-fell text-body leading-relaxed text-foreground">
+              <div v-if="beat.visibility === 'rumored'" class="font-fell text-body leading-relaxed text-foreground">
                 <em>Rumoured:</em>
-                {{ ' ' }}{{ beat.player_text || "a rumour is circulating, but its details have not been shared yet." }}
-              </p>
-              <p v-else-if="beat.player_text" class="font-fell text-body leading-relaxed text-foreground">
-                {{ beat.player_text }}
-              </p>
+                <RichTextViewer v-if="hasBeatText(beat.player_text)" :content="beat.player_text" />
+                <template v-else>{{ ' ' }}a rumour is circulating, but its details have not been shared yet.</template>
+              </div>
+              <div v-else-if="hasBeatText(beat.player_text)" class="font-fell text-body leading-relaxed text-foreground">
+                <RichTextViewer :content="beat.player_text" />
+              </div>
 
               <div
                 v-if="beat.is_current || beat.payoff.length"
                 class="flex flex-wrap items-center gap-2"
-                :class="(beat.visibility === 'rumored' || beat.player_text) && 'mt-2.5 border-t border-border/60 pt-2'"
+                :class="(beat.visibility === 'rumored' || hasBeatText(beat.player_text)) && 'mt-2.5 border-t border-border/60 pt-2'"
               >
                 <span v-if="beat.is_current" class="flex items-center gap-1.5 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
                   <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full" :class="[column.tone.dot, !reducedMotion && 'animate-pulse']" />
@@ -83,6 +84,8 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { IconLoot, IconNavigate, IconScrollText } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/motion";
 import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
+import { hasBeatText } from "@/lib/quests/beatText";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PlayerQuestBeat } from "@/types/quest.types";
 

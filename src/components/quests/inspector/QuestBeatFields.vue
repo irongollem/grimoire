@@ -44,11 +44,11 @@
     <div class="grid gap-3 md:grid-cols-2">
       <label class="space-y-1 text-caption font-semibold text-foreground">
         Rumor copy
-        <MentionTextarea v-model="draft.rumor_text" :rows="3" placeholder="Exactly what players may see while rumored…" />
+        <RichTextEditor v-model="draft.rumor_text" size="md" allow-secrets placeholder="Shown to players while rumored…" :entity-mention-items="entityMentionItems" />
       </label>
       <label class="space-y-1 text-caption font-semibold text-foreground">
         Reveal copy
-        <MentionTextarea v-model="draft.reveal_text" :rows="3" placeholder="Exactly what players may see once revealed…" />
+        <RichTextEditor v-model="draft.reveal_text" size="md" allow-secrets placeholder="Shown to players once revealed…" :entity-mention-items="entityMentionItems" />
       </label>
     </div>
 
@@ -75,7 +75,6 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import QuestBeatFillBar from "@/components/quests/inspector/QuestBeatFillBar.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
-import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 

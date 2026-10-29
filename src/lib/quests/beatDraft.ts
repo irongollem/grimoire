@@ -1,3 +1,4 @@
+import { hasBeatText } from "./beatText";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import type { QuestBeat, QuestBeatUpdate } from "@/types/quest.types";
 
@@ -52,13 +53,16 @@ export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
  */
 export function questBeatDraftToUpdate(draft: QuestBeatDraft, savedReviewedAt: string | null = null): QuestBeatUpdate {
   const nullable = (value: string) => value || null;
+  // An emptied rich editor leaves a doc with a blank paragraph, which would
+  // read as copy; a beat with no words saves null so the prep gap names it.
+  const richOrNull = (value: string) => (hasBeatText(value) ? value : null);
   return {
     title: draft.title.trim(),
     dm_content: nullable(draft.dm_content),
     read_aloud: nullable(draft.read_aloud),
     how_it_plays: nullable(draft.how_it_plays),
-    rumor_text: nullable(draft.rumor_text.trim()),
-    reveal_text: nullable(draft.reveal_text.trim()),
+    rumor_text: richOrNull(draft.rumor_text),
+    reveal_text: richOrNull(draft.reveal_text),
     improv_reviewed_at: draft.improv_reviewed
       ? savedReviewedAt ?? new Date().toISOString()
       : null,

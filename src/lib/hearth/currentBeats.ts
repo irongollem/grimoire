@@ -1,4 +1,6 @@
+import { hasBeatText } from "@/lib/quests/beatText";
 import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { PlayerQuestBeat } from "@/types/quest.types";
 
 export interface HearthQuestInput {
@@ -39,8 +41,8 @@ export function currentBeatsByQuest(
       const columns = groupPlayerBeatsByThread(beats.filter((b) => b.quest_id === q.id));
       const lines = columns.flatMap((column) =>
         column.beats
-          .filter((b) => b.is_current && b.player_text !== null && b.player_text.trim() !== "")
-          .map((b) => ({ label: column.label, text: b.player_text!.trim() })),
+          .filter((b) => b.is_current && hasBeatText(b.player_text))
+          .map((b) => ({ label: column.label, text: tiptapToPlainText(b.player_text).trim() })),
       );
       const threadCount = new Set(lines.map((l) => l.label)).size;
       return {

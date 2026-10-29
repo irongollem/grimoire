@@ -132,6 +132,11 @@ describe("groupPlayerBeatsByThread", () => {
     expect(columns[0]!.beats.map((b) => b.id)).toEqual(["now", "paid", "rumour"]);
   });
 
+  it("treats a revealed beat whose doc is an emptied editor as wordless (#1115)", () => {
+    const blank = '{"type":"doc","content":[{"type":"paragraph"}]}';
+    expect(groupPlayerBeatsByThread([beat({ player_text: blank })])).toEqual([]);
+  });
+
   it("returns no columns when every revealed beat is wordless and idle", () => {
     expect(groupPlayerBeatsByThread([beat({ player_text: null })])).toEqual([]);
   });

@@ -144,7 +144,7 @@ export from" is the first thing that DM needs to know.
 rule, not an exception to it.** They are the only player-facing prose the
 import writes besides the quest `summary`, so the prompt holds them to both
 halves: the model's own words, never the page's sentences or its boxed text,
-and no DM-only information. Transcribed narrative keeps exactly one home,
+and no DM-only information. The columns hold Tiptap JSON; the extraction wire stays plain text and `writeQuestSpine` converts it (the quest `summary` stays plain text). Transcribed narrative keeps exactly one home,
 `read_aloud`, which no player-facing read returns. They are also the only prose
 fields the wire schema refuses a `null` for (`QUEST_BEAT` in
 `extractionSchema.ts`): a beat without reveal copy shows the players nothing, so

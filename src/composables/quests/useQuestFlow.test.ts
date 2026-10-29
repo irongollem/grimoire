@@ -42,3 +42,12 @@ describe("invalidatePlayerQuestBeatProjections", () => {
     expect(queryClient.getQueryState(authored)?.isInvalidated).toBe(false);
   });
 });
+
+describe("improvisedRevealText (#1115)", () => {
+  it("sends the improvised reveal as a Tiptap doc, and a blank one as null", async () => {
+    const { improvisedRevealText } = await import("./useQuestFlow");
+    const sent = improvisedRevealText("The bridge collapsed.");
+    expect(JSON.parse(sent as string).type).toBe("doc");
+    expect(improvisedRevealText("   ")).toBeNull();
+  });
+});

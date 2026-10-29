@@ -10,6 +10,7 @@ import {
   type QuestConvergeMode,
   type QuestRuntimeState,
 } from "@/types/quest.types";
+import { hasBeatText } from "@/lib/quests/beatText";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";
 import { spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
@@ -81,8 +82,8 @@ export function prepFactsOf(
 ): QuestBeatPrepFacts {
   return {
     has_guidance: !!beat.dm_content || !!beat.how_it_plays,
-    has_rumor_text: !!beat.rumor_text,
-    has_reveal_text: !!beat.reveal_text,
+    has_rumor_text: hasBeatText(beat.rumor_text),
+    has_reveal_text: hasBeatText(beat.reveal_text),
     visibility: beat.visibility,
     is_improvised: beat.is_improvised,
     improv_reviewed_at: beat.improv_reviewed_at,
