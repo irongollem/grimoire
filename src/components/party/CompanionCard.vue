@@ -1,7 +1,7 @@
 <template>
   <div
     class="flex flex-col gap-2 rounded-lg border border-border bg-card/60 px-3 py-2.5 transition-opacity"
-    :class="{ 'opacity-70': !companion.combat_ready }"
+    :class="{ 'opacity-70': fights && !companion.combat_ready }"
   >
     <!-- Header row -->
     <div class="flex items-center gap-2">
@@ -33,7 +33,7 @@
             · <RouterLink :to="sourceLink ?? '#'" class="hover:text-primary transition-colors">{{ sourceName }}</RouterLink>
           </template>
           <!-- Subtle benched indicator — the toggle chip below is the primary control -->
-          <span v-if="!companion.combat_ready" class="text-ink-caution">· Elsewhere</span>
+          <span v-if="fights && !companion.combat_ready" class="text-ink-caution">· Elsewhere</span>
         </p>
       </div>
 
@@ -88,6 +88,7 @@
            looked like before; `chip` draws no border, so the explicit one below keeps
            the button from shifting a pixel as it flips. -->
       <AppButton
+        v-if="fights"
         :variant="companion.combat_ready ? 'tinted' : 'chip'"
         size="xs"
         role="switch"
@@ -216,6 +217,7 @@ import {
 } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 
 const props = defineProps<{
   companion: Companion;
@@ -227,6 +229,9 @@ defineEmits<{
   edit: [companion: Companion];
   delete: [companion: Companion];
 }>();
+
+// A pet has no "with the party / elsewhere" state: it never fights (#1115).
+const fights = computed(() => takesPartInCombat(props.companion));
 
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { ruleset } = useTableRuleset();

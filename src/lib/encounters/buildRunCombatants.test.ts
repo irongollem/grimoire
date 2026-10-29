@@ -191,7 +191,7 @@ describe("buildRunCombatants", () => {
   });
 
   it("sits a companion on the party side unless the encounter says otherwise", () => {
-    const companion = { id: "c-1", name: "Nibbles", current_hp: 5, max_hp: 5, ac: 12, conditions: [], combat_ready: true, portrait_url: null, portrait_focal_point: null };
+    const companion = { id: "c-1", name: "Nibbles", current_hp: 5, max_hp: 5, ac: 12, conditions: [], combat_ready: true, companion_type: "familiar" as const, portrait_url: null, portrait_focal_point: null };
     const encounter = { party_member_ids: [], companion_ids: ["c-1"], party_member_factions: {}, combatants: [] };
     const [plain] = buildRunCombatants(sources({ encounter, companions: [companion] }));
     expect(plain).toMatchObject({ instance_id: "c-c-1", companion_id: "c-1", faction_id: "players", ac: "12", hp: 5 });
@@ -299,6 +299,7 @@ describe("buildRunCombatants", () => {
       current_hp: 5, max_hp: 5, ac: 12,
       conditions: [],
       combat_ready: false,
+      companion_type: "familiar" as const,
       portrait_url: null,
       portrait_focal_point: null,
     };
@@ -309,6 +310,26 @@ describe("buildRunCombatants", () => {
     expect(
       buildRunCombatants(sources({ encounter, companions: [{ ...companion, combat_ready: true }] })),
     ).toHaveLength(1);
+  });
+
+  // #1115: the row says ready (stale, or written before the check existed); a pet
+  // listed on the encounter must still not become a combatant.
+  it("never fields a pet, even one whose row says combat_ready", () => {
+    const base = {
+      name: "Nibbles", current_hp: 5, max_hp: 5, ac: 12, conditions: [], combat_ready: true,
+      portrait_url: null, portrait_focal_point: null,
+    };
+    const encounter = {
+      party_member_ids: [], companion_ids: ["pet-1", "fam-1"], party_member_factions: {}, combatants: [],
+    };
+    const out = buildRunCombatants(sources({
+      encounter,
+      companions: [
+        { ...base, id: "pet-1", companion_type: "pet" as const },
+        { ...base, id: "fam-1", companion_type: "familiar" as const },
+      ],
+    }));
+    expect(out.map((c) => c.companion_id)).toEqual(["fam-1"]);
   });
 });
 

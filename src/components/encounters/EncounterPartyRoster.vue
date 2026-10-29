@@ -76,8 +76,8 @@
         >
           <div class="flex-1 min-w-0">
             <span class="text-heading-sm font-semibold text-foreground">{{ comp.name }}</span>
-            <span class="ml-2 text-caption text-muted-foreground italic capitalize">
-              {{ comp.companion_type.replace('_', ' ') }}
+            <span class="ml-2 text-caption text-muted-foreground italic">
+              {{ COMPANION_TYPE_LABELS[comp.companion_type] }}
             </span>
           </div>
           <span class="text-label text-muted-foreground shrink-0">
@@ -112,6 +112,7 @@ import { useAllCampaignCharacterClasses } from '@/composables/party/useCharacter
 import { formatMulticlassLabel, totalLevel } from '@/types/multiclass.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { PartyMember } from '@/types/party.types';
+import { COMPANION_TYPE_LABELS } from '@/types/companion.types';
 import type { Companion } from '@/types/companion.types';
 import type { FactionDef } from '@/types/encounter.types';
 import LoadingSpinner from '@/components/common/feedback/LoadingSpinner.vue';

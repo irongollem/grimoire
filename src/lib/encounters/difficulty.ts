@@ -8,6 +8,7 @@ import type { NpcListRow } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { TrapEntry } from "@/types/trap.types";
 import { encounterTrapRefs } from "@/lib/dungeon-features/library";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 
 /**
  * One encounter's difficulty, the same way everywhere it is shown.
@@ -133,7 +134,8 @@ export function difficultyLookups(rows: {
     },
     companionCr: (id) => {
       const companion = companions.get(id);
-      if (!companion) return undefined;
+      // A pet ignores combat, so it is no ally to weigh (#1115).
+      if (!companion || !takesPartInCombat(companion)) return undefined;
       if (companion.source_monster_id) return monsterCr(companion.source_monster_id);
       if (companion.source_npc_id) return npcCr(companion.source_npc_id);
       return null;

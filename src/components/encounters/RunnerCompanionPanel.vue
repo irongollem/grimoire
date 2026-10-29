@@ -1,7 +1,7 @@
 <template>
   <div class="detail-scroll">
     <RunnerPortrait :src="portrait.src" :alt="portrait.alt" :focal-point="portrait.focalPoint" />
-    <p class="detail-meta capitalize">{{ companion.companion_type?.replace('_', ' ') }}</p>
+    <p class="detail-meta capitalize">{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</p>
     <div class="detail-divider" />
     <div class="detail-stats">
       <div class="detail-stat"><span>AC</span><strong>{{ combatant.ac }}</strong></div>
@@ -33,7 +33,7 @@ import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
-import type { Companion } from "@/types/companion.types";
+import { COMPANION_TYPE_LABELS, type Companion } from "@/types/companion.types";
 import type { RunCombatant } from "@/types/encounter.types";
 
 const { combatant, companion } = defineProps<{

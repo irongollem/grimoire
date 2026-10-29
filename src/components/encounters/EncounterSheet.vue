@@ -255,6 +255,7 @@ import { useQuestsForEncounter } from "@/composables/quests/useQuests";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useParty } from "@/composables/party/useParty";
 import { useCompanions } from "@/composables/encounters/useCompanions";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -353,7 +354,7 @@ const partyRoster = computed<Roster[]>(() => {
   }
   for (const id of props.encounter.companion_ids ?? []) {
     const comp = (companions.value ?? []).find((c) => c.id === id);
-    if (!comp) continue;
+    if (!comp || !takesPartInCombat(comp)) continue;
     rows.push({
       key: `c-${id}`,
       name: comp.name,

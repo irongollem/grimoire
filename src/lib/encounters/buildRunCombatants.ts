@@ -1,6 +1,7 @@
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import { hitPointsToMax } from "@/lib/dice/dice";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import type { Encounter, RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
@@ -40,7 +41,7 @@ type RunPartyMember = Pick<
 type RunCompanionSource = Pick<
   Companion,
   | "id" | "name" | "current_hp" | "max_hp" | "ac" | "conditions" | "combat_ready"
-  | "portrait_url" | "portrait_focal_point"
+  | "companion_type" | "portrait_url" | "portrait_focal_point"
 >;
 
 type RunMonsterSource = Pick<
@@ -121,6 +122,8 @@ export function buildRunCombatants({
     // Benched ("elsewhere") companions sit out combat entirely until the DM or
     // player flips them back to "with the party" (#569).
     if (comp.combat_ready === false) continue;
+    // A pet never fights, whatever a stale row says (#1115).
+    if (!takesPartInCombat(comp)) continue;
     combatants.push({
       instance_id: `c-${comp.id}`,
       type: "player",

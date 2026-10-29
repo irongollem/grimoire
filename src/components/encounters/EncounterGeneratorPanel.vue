@@ -179,6 +179,7 @@ import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import type { EncounterCombatantAiResult } from "@/ai/types";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 
 type EncounterDifficultyOption = "auto" | "easy" | "medium" | "hard" | "deadly";
 
@@ -335,7 +336,7 @@ async function createEncounterFromResult() {
       // shouldn't join"). They also count as allies in the difficulty
       // calculation — leaving them out would make the generated encounter
       // read as harder than the identical one built by hand.
-      companion_ids: (companions.value ?? []).map((c) => c.id),
+      companion_ids: (companions.value ?? []).filter(takesPartInCombat).map((c) => c.id),
       party_member_factions: {},
       combatants: finalMatches.value.map((m) => m.def),
       factions: [...DEFAULT_FACTIONS],

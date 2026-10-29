@@ -1,7 +1,7 @@
 import type { AppliedCondition } from "@/types/condition.types";
 import type { MonsterStatBlock } from "@/types/monster.types";
 
-export type CompanionType = "familiar" | "animal_companion" | "mount" | "ally" | "sidekick";
+export type CompanionType = "familiar" | "animal_companion" | "mount" | "ally" | "sidekick" | "pet";
 export type CompanionSourceType = "monster" | "npc" | "custom";
 
 export const COMPANION_TYPES: CompanionType[] = [
@@ -10,6 +10,7 @@ export const COMPANION_TYPES: CompanionType[] = [
   "mount",
   "ally",
   "sidekick",
+  "pet",
 ];
 
 export const COMPANION_TYPE_LABELS: Record<CompanionType, string> = {
@@ -18,6 +19,7 @@ export const COMPANION_TYPE_LABELS: Record<CompanionType, string> = {
   mount:            "Mount",
   ally:             "Ally",
   sidekick:         "Sidekick",
+  pet:              "Pet",
 };
 
 export const COMPANION_TYPE_COLORS: Record<CompanionType, string> = {
@@ -26,6 +28,7 @@ export const COMPANION_TYPE_COLORS: Record<CompanionType, string> = {
   mount:            "#b45309",
   ally:             "#2563eb",
   sidekick:         "#db2777",
+  pet:              "#0d9488",
 };
 
 export interface Companion {

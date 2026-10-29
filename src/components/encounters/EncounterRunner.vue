@@ -145,6 +145,7 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 const { confirm } = useConfirm();
 import { ref, computed, watch, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
@@ -444,7 +445,7 @@ watch(
     if (!enc) return;
     for (const compId of enc.companion_ids ?? []) {
       const comp = comps.find((c) => c.id === compId);
-      if (!comp) continue;
+      if (!comp || !takesPartInCombat(comp)) continue;
       const instanceId = `c-${comp.id}`;
       const exists = store.combatants.some((c) => c.instance_id === instanceId);
       if (comp.combat_ready === false) {

@@ -20,7 +20,7 @@ The Party Tracker is your roster of player characters and companions, with the r
 ## Adding characters
 
 1. Click **Add Hero** to create a full party member and open its editor.
-2. Click **Add Companion** to create a lighter-weight entry: pick a **companion type** (Familiar, Animal Companion, Mount, Ally, Sidekick) and give it HP, AC and speed. A companion can optionally link to a source monster or NPC stat block.
+2. Click **Add Companion** to create a lighter-weight entry: pick a **companion type** (Familiar, Animal Companion, Mount, Ally, Sidekick, Pet) and give it HP, AC and speed. A companion can optionally link to a source monster or NPC stat block. A **Pet** is a small, loved creature that lives with a character. It has stats so you can answer what happens to it, but it ignores combat: it never joins an encounter, never counts toward difficulty, and nobody commands it, not even its owner.
 3. A companion nests under its owning hero's card once you assign one; an unowned companion sits in its own "Unassigned Companions" section.
 
 Note: the tracker sorts by rolled initiative once **every** member has one recorded; until then it falls back to the order you've arranged. There's no roll-all-initiative control on this page. Roll initiative from the character sheet or the encounter runner, and it will be reflected here.

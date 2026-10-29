@@ -131,7 +131,7 @@
           <AppInput v-model.number="speed" type="number" min="0" tone="card" size="body" />
         </div>
 
-        <div class="col-span-2 flex flex-col gap-1.5">
+        <div v-if="takesPartInCombat({ companion_type: companionType })" class="col-span-2 flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Status</label>
           <SegmentedControl v-model="statusValue" :options="STATUS_OPTIONS" size="sm" />
         </div>
@@ -277,6 +277,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from "@/lib/utils";
 
 function extractDice(val: string): string {
@@ -554,7 +555,8 @@ function buildPayload(d: CompanionDraft): Omit<CompanionInsert, "campaign_id"> {
     source_monster_id:     d.sourceType === "monster" ? d.selectedMonsterId || null : null,
     source_npc_id:         d.sourceType === "npc" ? d.selectedNpcId || null : null,
     owner_party_member_id: d.ownerMemberId || null,
-    combat_ready:          d.combatReady,
+    // A pet never fights; the database refuses a ready pet (#1115).
+    combat_ready:          takesPartInCombat({ companion_type: d.companionType }) ? d.combatReady : false,
     max_hp:                d.maxHp,
     current_hp:            d.currentHp,
     ac:                    d.ac,

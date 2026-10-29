@@ -18,7 +18,7 @@
       <div class="flex items-center gap-2">
         <h2 class="text-heading font-bold text-foreground">{{ companion?.name }}</h2>
         <span
-          v-if="companion && !companion.combat_ready"
+          v-if="companion && takesPartInCombat(companion) && !companion.combat_ready"
           class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground italic"
         >Elsewhere</span>
       </div>
@@ -42,7 +42,7 @@
           />
         </div>
         <!-- HP steppers — owner only -->
-        <div v-if="isOwner" class="flex items-center gap-1 mt-2">
+        <div v-if="canDrive" class="flex items-center gap-1 mt-2">
           <AppInput
             v-model.number="hpAmount"
             type="number"
@@ -84,7 +84,7 @@
     </div>
 
     <!-- Status toggle — owner only -->
-    <div v-if="isOwner" class="flex items-center gap-2">
+    <div v-if="canDrive" class="flex items-center gap-2">
       <span class="text-label-lg font-semibold text-muted-foreground">Status</span>
       <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
         <AppButton
@@ -105,19 +105,19 @@
     <!-- Conditions -->
     <div v-if="companion?.conditions?.length" class="flex flex-wrap gap-1.5">
       <ExhaustionChip
-        v-if="isOwner && getExhaustionLevel(companion.conditions) > 0"
+        v-if="canDrive && getExhaustionLevel(companion.conditions) > 0"
         :level="getExhaustionLevel(companion.conditions)"
         @update="setExhaustion"
       />
       <span
-        v-for="cond in companion.conditions.filter((c) => isOwner ? !isExhaustion(c) : true)"
+        v-for="cond in companion.conditions.filter((c) => canDrive ? !isExhaustion(c) : true)"
         :key="cond.name"
         class="flex items-center gap-1 text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive"
         :title="describeConditionEnd(cond, () => null) ?? undefined"
       >
         {{ cond.name }}
         <AppButton
-          v-if="isOwner"
+          v-if="canDrive"
           variant="link" tone="danger" size="inline-xs"
           :aria-label="`Remove ${cond.name}`"
           @click="removeCondition(cond.name)"
@@ -126,7 +126,7 @@
     </div>
 
     <!-- Add condition — owner only -->
-    <div v-if="isOwner">
+    <div v-if="canDrive">
       <div v-if="addingCondition" class="flex items-center gap-1">
         <AppSelect
           v-model="newCondition"
@@ -183,6 +183,7 @@ import {
   withCondition,
   withoutCondition,
 } from "@/rules/conditions";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import { describeConditionEnd } from "@/rules/conditionLabels";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
@@ -201,6 +202,11 @@ const emit = defineEmits<{
 const isOwner = computed(() =>
   !!companion && !!viewerMemberId && companion.owner_party_member_id === viewerMemberId,
 );
+
+// Nobody commands a pet and it never fights, so its HP, status and conditions
+// are the DM's to run, not the owner's (#1115). Edit and Delete stay: it is
+// their character's data.
+const canDrive = computed(() => isOwner.value && !!companion && takesPartInCombat(companion));
 
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: deleteCompanionMutation } = useDeleteCompanion();

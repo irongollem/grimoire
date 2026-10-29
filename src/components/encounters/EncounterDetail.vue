@@ -115,7 +115,7 @@
         <EncounterPartyRoster
           :party="party"
           :party-loading="partyLoading"
-          :companions="companions"
+          :companions="fieldableCompanions"
           :party-member-ids="form.party_member_ids"
           :companion-ids="form.companion_ids"
           :party-member-factions="form.party_member_factions"
@@ -295,6 +295,7 @@ import ThemeInput from "@/components/common/controls/ThemeInput.vue";
 import EncounterLinkedQuests from "@/components/encounters/EncounterLinkedQuests.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 
 const showPaywall = ref(false);
 const deleting = ref(false);
@@ -338,6 +339,9 @@ const lairOwnerOptions = computed(() => {
 
 const { data: party, isLoading: partyLoading } = useActiveParty();
 const { data: companions } = useCompanions();
+// A pet is never offered for an encounter: it ignores combat (#1115).
+// Undefined until the companions have loaded, so the auto-select below waits for them.
+const fieldableCompanions = computed(() => companions.value?.filter(takesPartInCombat));
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItemIndex();
 const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
@@ -503,16 +507,21 @@ if (!props.encounter) {
     { immediate: true },
   );
 
-  // Same auto-select for companions — a new encounter starts with the whole
+  // Same auto-select for companions: a new encounter starts with the whole
   // party (companions included) and the DM benches anyone that shouldn't join.
+  // Like the party above it fills once, from loaded data: `once` would spend
+  // itself on the immediate call while the companions were still loading.
+  let companionsFilled = false;
   watch(
-    companions,
+    fieldableCompanions,
     (comps) => {
-      if (comps?.length && !form.companion_ids.length) {
+      if (!comps || companionsFilled) return;
+      companionsFilled = true;
+      if (comps.length && !form.companion_ids.length) {
         form.companion_ids = comps.map((c) => c.id);
       }
     },
-    { immediate: true, once: true },
+    { immediate: true },
   );
 }
 

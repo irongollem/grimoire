@@ -120,6 +120,20 @@ describe("encounterDifficulty", () => {
     expect(encounterDifficulty(fight, lookups).allyAdjustedXp).toBe(700);
   });
 
+  // #1115: a pet backed by a CR 3 monster still ignores combat; counting it would
+  // read the same fight as easier than it is.
+  it("does not count a pet as an ally, but still counts a familiar on the same stat block", () => {
+    const companions = [
+      { id: "pet", companion_type: "pet", source_monster_id: "knight", source_npc_id: null },
+      { id: "fam", companion_type: "familiar", source_monster_id: "knight", source_npc_id: null },
+    ] as unknown as Companion[];
+    const lookups = difficultyLookups({ ...rows, companions });
+    expect(lookups.companionCr("pet")).toBeUndefined();
+    expect(lookups.companionCr("fam")).toBe("3");
+    const withPet = source({ companion_ids: ["pet"], party_member_ids: ["a"] });
+    expect(encounterDifficulty(withPet, lookups).allyAdjustedXp).toBe(0);
+  });
+
   it("counts a party member the party no longer has as level 1", () => {
     const fight = source({ party_member_ids: ["ghost"] });
     expect(encounterDifficulty(fight, difficultyLookups(rows)).partyThresholds.easy).toBe(25);

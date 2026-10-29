@@ -254,6 +254,7 @@ import TurnTimer from "@/components/encounters/TurnTimer.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useToast } from "@/composables/useToast";
+import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { primaryImage } from "@/lib/locations/mapStack";
 
@@ -324,7 +325,10 @@ const toast = useToast();
 const companionOverrides = ref<Record<string, boolean>>({});
 
 const myCompanions = computed(() =>
-  (companions.value ?? []).filter((c) => c.owner_party_member_id === myMemberId.value),
+  // A pet has no switch to flip: it never joins an encounter (#1115).
+  (companions.value ?? []).filter(
+    (c) => c.owner_party_member_id === myMemberId.value && takesPartInCombat(c),
+  ),
 );
 
 function companionCombatReady(companion: Companion): boolean {
