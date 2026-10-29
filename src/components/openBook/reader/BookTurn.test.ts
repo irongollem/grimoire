@@ -210,15 +210,26 @@ describe("BookTurn dragging a corner", () => {
     }
   }
 
+  /**
+   * Vue drops an event no newer than its listener: the dog-ear's click handler ignores a click in the same
+   * millisecond as the mount. A drag's release clicks it programmatically, so under a loaded machine a test that
+   * raced through in one millisecond saw no turn. Every mount waits out the millisecond, as any real press does.
+   */
+  async function settled<T>(w: T): Promise<T> {
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    return w;
+  }
+
   function mountDrag(onClick: () => void) {
-    return mount(BookTurn, {
+    return settled(mount(BookTurn, {
       attachTo: document.body,
       props: { target: at("a", 0, 1), mode: "spread" as const, next: at("a", 1, 2), prev: null },
       slots: {
         page: ({ target: t, side }: { target: PageTarget; side: string }) => h("div", { class: "face", "data-side": side, "data-target": `${t.key}:${t.unit}` }),
         default: () => h("button", { class: "ob-lift", "data-dir": "next", onClick }),
       },
-    });
+    }));
   }
 
   const pointer = (type: string, x: number) => {
@@ -229,7 +240,7 @@ describe("BookTurn dragging a corner", () => {
 
   it("lays the curl under the pointer, then springs back when let go before halfway", async () => {
     const onClick = vi.fn();
-    const w = mountDrag(onClick);
+    const w = await mountDrag(onClick);
     const btn = w.get(".ob-lift").element;
     btn.dispatchEvent(pointer("pointerdown", 880));
     window.dispatchEvent(pointer("pointermove", 860));
@@ -249,7 +260,7 @@ describe("BookTurn dragging a corner", () => {
 
   it("clicks the dog-ear once on a release past halfway and finishes with the reader's target", async () => {
     const onClick = vi.fn();
-    const w = mountDrag(onClick);
+    const w = await mountDrag(onClick);
     w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 880));
     window.dispatchEvent(pointer("pointermove", 850));
     await nextTick();
@@ -273,11 +284,7 @@ describe("BookTurn dragging a corner", () => {
 
   it("leaves a plain press to the dog-ear", async () => {
     const onClick = vi.fn();
-    const w = mountDrag(onClick);
-    // Vue drops an event no newer than its listener (same millisecond as the mount), so let the mount settle
-    // before clicking, as any real click does.
-    await flushPromises();
-    await new Promise((resolve) => setTimeout(resolve, 2));
+    const w = await mountDrag(onClick);
     const btn = w.get(".ob-lift").element;
     btn.dispatchEvent(pointer("pointerdown", 880));
     window.dispatchEvent(pointer("pointerup", 880));
@@ -289,19 +296,19 @@ describe("BookTurn dragging a corner", () => {
 
   describe("dragging the back corner", () => {
     function mountBack(onClick: () => void) {
-      return mount(BookTurn, {
+      return settled(mount(BookTurn, {
         attachTo: document.body,
         props: { target: at("a", 1, 2), mode: "spread" as const, next: null, prev: at("a", 0, 1) },
         slots: {
           page: ({ target: t, side }: { target: PageTarget; side: string }) => h("div", { class: "face", "data-side": side, "data-target": `${t.key}:${t.unit}` }),
           default: () => h("button", { class: "ob-lift", "data-dir": "prev", onClick }),
         },
-      });
+      }));
     }
 
     it("turns back when the corner is pulled past halfway across the spread", async () => {
       const onClick = vi.fn();
-      const w = mountBack(onClick);
+      const w = await mountBack(onClick);
       w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 130));
       window.dispatchEvent(pointer("pointermove", 200));
       await nextTick();
@@ -314,7 +321,7 @@ describe("BookTurn dragging a corner", () => {
 
     it("springs back when the corner is let go before halfway", async () => {
       const onClick = vi.fn();
-      const w = mountBack(onClick);
+      const w = await mountBack(onClick);
       w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 130));
       window.dispatchEvent(pointer("pointermove", 200));
       await nextTick();
@@ -330,7 +337,7 @@ describe("BookTurn dragging a corner", () => {
 
     it("treats a nudge under the slop as a plain press, not a drag", async () => {
       const onClick = vi.fn();
-      const w = mountBack(onClick);
+      const w = await mountBack(onClick);
       w.get(".ob-lift").element.dispatchEvent(pointer("pointerdown", 130));
       window.dispatchEvent(pointer("pointermove", 135));
       await nextTick();
