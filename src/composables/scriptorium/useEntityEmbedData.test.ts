@@ -32,6 +32,8 @@ function makeBuilder(table: string) {
       filters[col] = val;
       return builder;
     },
+    in: (_col: string, ids: string[]) =>
+      Promise.resolve({ data: ids.map((id) => mocks.tables[table]?.[id]).filter(Boolean), error: null }),
     order: () => {
       const rows = mocks.objectivesByQuest[filters.quest_id] ?? [];
       return Promise.resolve({ data: rows, error: null });
@@ -243,6 +245,37 @@ describe("useEntityEmbedData", () => {
     expect(html).toContain("Elder Maren");
     expect(html).toContain("The Sunken Keep");
     expect(html).toContain("Find the amulet");
+  });
+
+  it("resolves a subclass with the features and granted-spell names from its second pass", async () => {
+    mocks.tables.custom_subclasses = {
+      "sub-1": {
+        id: "sub-1",
+        class_name: "Fighter",
+        subclass_name: "Ash Warden",
+        description: "Keepers of the cinder road.",
+        features: { "3": ["feat-1"] },
+        granted_spells: { "3": ["lib_spell_1"] },
+      },
+    };
+    mocks.tables.class_features = {
+      "feat-1": { id: "feat-1", name: "Cinder Step", description: "You move through embers unharmed.", level: 3 },
+    };
+    mocks.tables.library_spells = { lib_spell_1: { id: "lib_spell_1", name: "Burning Hands" } };
+    const { api } = open([{ type: "subclass", id: "sub-1" }]);
+    await flushPromises();
+    const html = api().lookup.value["subclass:sub-1"];
+    expect(html).toContain("Ash Warden");
+    expect(html).toContain("Cinder Step");
+    expect(html).toContain("Burning Hands");
+    expect(api().isLoading.value).toBe(false);
+  });
+
+  it("reads a species with a text id from library_species, not the custom table", async () => {
+    mocks.tables.library_species = { elf: { id: "elf", name: "Elf", size: "Medium", speed: null, languages: ["Common"], traits: [], subraces: [] } };
+    const { api } = open([{ type: "species", id: "elf" }]);
+    await flushPromises();
+    expect(api().lookup.value["species:elf"]).toContain("Elf");
   });
 
   it("leaves the lookup entry undefined when the entity no longer resolves", async () => {

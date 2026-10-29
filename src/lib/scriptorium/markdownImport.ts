@@ -38,7 +38,9 @@
  *    ::: art                   `key: value` lines (slug, size, lane, existing,
  *                              alt, caption, brief): the image when the caller's
  *                              `resolveArt` finds one, else an "Art to come" note.
- *    ::: statblock / ::: embed `key: value` lines (name, and type for embed): a
+ *    ::: statblock / ::: embed `key: value` lines (name, and type for embed: npc,
+ *                              monster, spell, item, location, quest, deity,
+ *                              species, faction or subclass): a
  *                              live entity embed when `resolveEmbed` finds the
  *                              entity, else a placeholder note.
  *
@@ -388,7 +390,7 @@ export interface MarkdownImportOptions {
 }
 
 const ART_SIZES: readonly ArtSize[] = ["full", "half", "column", "wide", "opener"];
-const EMBED_TYPES = ["npc", "monster", "spell", "item", "location", "quest"] as const;
+const EMBED_TYPES = ["npc", "monster", "spell", "item", "location", "quest", "deity", "species", "faction", "subclass"] as const;
 const EMBED_LABELS: Record<(typeof EMBED_TYPES)[number], string> = {
   npc: "NPC",
   monster: "Monster",
@@ -396,6 +398,10 @@ const EMBED_LABELS: Record<(typeof EMBED_TYPES)[number], string> = {
   item: "Item",
   location: "Location",
   quest: "Quest",
+  deity: "Deity",
+  species: "Species",
+  faction: "Faction",
+  subclass: "Subclass",
 };
 
 /** `key: value` lines; a line with no key continues the previous value. */

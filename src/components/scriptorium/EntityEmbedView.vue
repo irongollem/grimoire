@@ -161,7 +161,9 @@ function setSize(next: EntityEmbedSize) {
 // #917 story 4) — both now emit their art via entityArtFiguresHtml(), so both
 // can be hidden per node the same way. Every other embedded entity (spell,
 // item, location, quest) has no art figure to toggle at all.
-const showArtToggle = computed(() => entityType.value === "monster" || entityType.value === "npc");
+// Deities, species and factions print a plain picture, so they get the on/off toggle but not the cutout choice.
+const ART_TYPES: readonly EntityEmbedType[] = ["monster", "npc", "deity", "species", "faction"];
+const showArtToggle = computed(() => ART_TYPES.includes(entityType.value));
 const showArt = computed(() => (props.node.attrs.showArt as boolean | undefined) ?? true);
 function toggleShowArt() {
   props.updateAttributes({ showArt: !showArt.value });
@@ -171,7 +173,9 @@ function toggleShowArt() {
 // extended to NPCs in story 4) — only meaningful while art is shown at all,
 // and only for the entity types entityArt.ts's cutout/picture figures apply
 // to (monster, npc).
-const showArtChoiceToggle = computed(() => showArtToggle.value && showArt.value);
+const showArtChoiceToggle = computed(
+  () => (entityType.value === "monster" || entityType.value === "npc") && showArt.value,
+);
 const art = computed(() => (props.node.attrs.art as EntityArtChoice | undefined) ?? "auto");
 const ART_OPTIONS: SegmentedOption<EntityArtChoice>[] = [
   { value: "auto", label: "Auto", tooltip: "The cutout when there is one, otherwise the picture" },
@@ -215,6 +219,10 @@ const TYPE_LABELS: Record<EntityEmbedType, string> = {
   item: "Item",
   location: "Location",
   quest: "Quest",
+  deity: "Deity",
+  species: "Species",
+  faction: "Faction",
+  subclass: "Subclass",
 };
 const typeLabel = computed(() => TYPE_LABELS[entityType.value]);
 
@@ -302,6 +310,10 @@ const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location">, string> = {
   spell: "/spells",
   item: "/vault",
   quest: "/quests",
+  deity: "/deities",
+  species: "/species",
+  faction: "/factions",
+  subclass: "/levelup/custom",
 };
 
 function openEntity() {

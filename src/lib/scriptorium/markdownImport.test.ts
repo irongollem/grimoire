@@ -432,6 +432,17 @@ describe("::: statblock and ::: embed", () => {
     expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: "npc", entityId: "n-7", startsPage: false } });
   });
 
+  it("emits embeds of the setting-book types, and labels a missing one by its kind", () => {
+    for (const type of ["deity", "species", "faction", "subclass"] as const) {
+      const doc = markdownToScriptoriumContent(`::: embed\ntype: ${type}\nname: Thing\n:::`, {
+        resolveEmbed: () => ({ id: "x-1" }),
+      });
+      expect(doc.content![0]).toEqual({ type: "entityEmbed", attrs: { entityType: type, entityId: "x-1", startsPage: false } });
+    }
+    const missing = markdownToScriptoriumContent("::: embed\ntype: subclass\nname: Oath of Ash\n:::");
+    expect(textOf(missing.content![0])).toBe("Subclass: Oath of Ash (not yet in the campaign)");
+  });
+
   it("leaves a stat block placeholder when the entity is not there", () => {
     for (const options of [undefined, { resolveEmbed: () => null }]) {
       const doc = markdownToScriptoriumContent("::: statblock\nname: Goblin Boss\n:::", options);

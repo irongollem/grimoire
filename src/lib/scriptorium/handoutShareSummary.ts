@@ -35,6 +35,9 @@ export function describeRevealed(entry: HandoutRevealed): SummaryLine {
         name: entry.name,
         detail: entry.description ? "discovered, with its description" : "discovered",
       };
+    case "deity":
+    case "faction":
+      return { name: entry.name, detail: "shared" };
     case "quest":
       return { name: entry.name, detail: entry.starts ? "the quest starts" : "the quest is shown" };
     case "monster":

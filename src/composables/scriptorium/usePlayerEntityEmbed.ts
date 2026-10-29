@@ -14,6 +14,7 @@
  * nothing rather than to whatever happens to share an id.
  */
 import { computed, ref, type ComputedRef } from "vue";
+import { useQueries } from "@tanstack/vue-query";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
@@ -23,8 +24,18 @@ import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { useLibrarySpell } from "@/composables/spells/useSpells";
+import { useAllDeities } from "@/composables/deities/useDeities";
+import { usePlayerVisibleFactions } from "@/composables/factions/useFactions";
+import { useSpecies } from "@/composables/rules/useSpecies";
+import { useCustomSubclass } from "@/composables/rules/useCustomSubclasses";
+import { useFeaturesByIds } from "@/composables/rules/useFeatures";
+import { fetchResolvedSpell, resolvedSpellKey } from "@/composables/spells/useSpells";
 import { isUuid } from "@/lib/library/contentIdentity";
 import {
+  playerDeityHtml,
+  playerFactionHtml,
+  playerSpeciesHtml,
+  playerSubclassHtml,
   playerItemHtml,
   playerLocationHtml,
   playerMonsterHtml,
@@ -116,6 +127,82 @@ function useSpellEmbed(id: string): Source {
   };
 }
 
+/** The deities list is RLS-filtered: a player gets only the rows shared with
+ *  their character, so an id absent from it is simply not there. */
+function useDeityEmbed(id: string): Source {
+  const { data, isLoading } = useAllDeities();
+  return {
+    html: computed(() => {
+      const deity = data.value?.find((d) => d.id === id);
+      return deity ? playerDeityHtml(deity) : null;
+    }),
+    isLoading: computed(() => isLoading.value),
+  };
+}
+
+/** Players cannot select `factions`; the projection holds what they may read,
+ *  with DM secret blocks already stripped. */
+function useFactionEmbed(id: string): Source {
+  const { data, isLoading } = usePlayerVisibleFactions();
+  return {
+    html: computed(() => {
+      const faction = data.value?.find((f) => f.id === id);
+      return faction ? playerFactionHtml(faction) : null;
+    }),
+    isLoading: computed(() => isLoading.value),
+  };
+}
+
+/** Rules text a campaign member can read; a row RLS withholds errors out and
+ *  reads as absent. */
+function useSpeciesEmbed(id: string): Source {
+  const speciesId = ref(id);
+  const { data, isLoading } = useSpecies(speciesId);
+  return {
+    html: computed(() => (data.value ? playerSpeciesHtml(data.value) : null)),
+    isLoading: computed(() => isLoading.value),
+  };
+}
+
+/** A subclass, its features by id, and the names of the spells it grants. A
+ *  spell the player cannot read (a DM's custom row) is left out of the names. */
+function useSubclassEmbed(id: string): Source {
+  const subclassId = ref(id);
+  const { data: subclass, isLoading: subclassLoading } = useCustomSubclass(subclassId);
+  const featureIds = computed(() => (subclass.value ? Object.values(subclass.value.features).flat() : []));
+  const { data: features, isLoading: featuresLoading } = useFeaturesByIds(featureIds);
+  const spellIds = computed(() => (subclass.value ? [...new Set(Object.values(subclass.value.granted_spells).flat())] : []));
+  const spells = useQueries({
+    queries: computed(() =>
+      spellIds.value.map((spellId) => ({
+        queryKey: resolvedSpellKey(spellId),
+        queryFn: () => fetchResolvedSpell(spellId),
+        retry: false,
+      })),
+    ),
+  });
+  return {
+    html: computed(() => {
+      if (!subclass.value) return null;
+      // Never a subclass without its features: wait for them rather than print a stub.
+      const featureRows = featureIds.value.length > 0 ? features.value : [];
+      if (!featureRows) return null;
+      const spellNames: Record<string, string> = {};
+      spellIds.value.forEach((spellId, i) => {
+        const spell = spells.value[i]?.data?.spell;
+        if (spell) spellNames[spellId] = spell.name;
+      });
+      return playerSubclassHtml(subclass.value, featureRows, spellNames);
+    }),
+    isLoading: computed(
+      () =>
+        subclassLoading.value ||
+        (featureIds.value.length > 0 && featuresLoading.value) ||
+        spells.value.some((q) => q.isLoading),
+    ),
+  };
+}
+
 export function usePlayerEntityEmbed(
   type: EntityEmbedType,
   id: string,
@@ -142,6 +229,18 @@ export function usePlayerEntityEmbed(
       break;
     case "spell":
       source = useSpellEmbed(id);
+      break;
+    case "deity":
+      source = useDeityEmbed(id);
+      break;
+    case "faction":
+      source = useFactionEmbed(id);
+      break;
+    case "species":
+      source = useSpeciesEmbed(id);
+      break;
+    case "subclass":
+      source = useSubclassEmbed(id);
       break;
   }
   const inCampaign = computed(() => campaign.activeCampaignId === campaignId);

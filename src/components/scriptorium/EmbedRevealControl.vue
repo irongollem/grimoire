@@ -66,6 +66,10 @@
         The quest starts and its rumour reaches the players.
       </p>
 
+      <p v-else-if="entityType === 'deity' || entityType === 'faction'" class="mt-2 text-caption text-muted-foreground">
+        The players get to see it, as if you had shared it with them.
+      </p>
+
       <div class="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">
         <AppCheckbox
           size="sm"

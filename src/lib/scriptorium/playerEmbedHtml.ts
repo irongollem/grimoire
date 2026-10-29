@@ -21,6 +21,11 @@ import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import type { Item } from "@/types/item.types";
 import type { Quest } from "@/types/quest.types";
+import type { Deity } from "@/types/deity.types";
+import type { Faction } from "@/types/faction.types";
+import type { Species } from "@/types/species.types";
+import type { CustomSubclass } from "@/levelup/customTypes";
+import type { ClassFeature } from "@/types/feature.types";
 import type { Spell } from "@/types/spell.types";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 
@@ -94,4 +99,31 @@ export function playerSpellHtml(spell: Spell): string {
  *  applied there). The DM-only curse text is dropped regardless. */
 export function playerItemHtml(item: Item): string {
   return formatEntityEmbedBodyHtml({ type: "item", item: { ...item, curse_description: null, dm_notes: null }, spells: [] });
+}
+
+/** A deity the player may already read (`player_visible_to` holds their
+ *  character). The deity has no DM-only field, so the ordinary formatter prints
+ *  nothing a player lacks; the row only reaches here if RLS let it through. */
+export function playerDeityHtml(deity: Deity): string {
+  return formatEntityEmbedBodyHtml({ type: "deity", deity });
+}
+
+/** A faction from `get_player_visible_factions`, whose DM-only secret blocks the
+ *  server already stripped from the description. */
+export function playerFactionHtml(faction: Faction): string {
+  return formatEntityEmbedBodyHtml({ type: "faction", faction });
+}
+
+/** Species are rules text the campaign's players can read. */
+export function playerSpeciesHtml(species: Species): string {
+  return formatEntityEmbedBodyHtml({ type: "species", species });
+}
+
+/** A subclass and its features, which a campaign member can read. */
+export function playerSubclassHtml(
+  subclass: CustomSubclass,
+  features: ClassFeature[],
+  spellNames: Record<string, string>,
+): string {
+  return formatEntityEmbedBodyHtml({ type: "subclass", subclass, features, spellNames });
 }

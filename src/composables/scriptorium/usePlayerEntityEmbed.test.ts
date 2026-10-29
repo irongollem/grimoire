@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   storedRefs: vi.fn(),
   quests: vi.fn(),
   spell: vi.fn(),
+  factions: vi.fn(),
+  deities: vi.fn(),
   activeCampaignId: "camp-1",
 }));
 
@@ -22,7 +24,16 @@ vi.mock("@/composables/encounters/useDiscoveredMonsters", () => ({ usePlayerDisc
 vi.mock("@/composables/items/useItems", () => ({ usePlayerItemProjection: mocks.items }));
 vi.mock("@/composables/items/useStoredItemRefs", () => ({ useStoredItemRefs: mocks.storedRefs }));
 vi.mock("@/composables/quests/useQuests", () => ({ usePlayerVisibleQuests: mocks.quests }));
-vi.mock("@/composables/spells/useSpells", () => ({ useLibrarySpell: mocks.spell }));
+vi.mock("@/composables/spells/useSpells", () => ({
+  useLibrarySpell: mocks.spell,
+  fetchResolvedSpell: vi.fn(),
+  resolvedSpellKey: (id: string) => ["resolved-spell", id],
+}));
+vi.mock("@/composables/factions/useFactions", () => ({ usePlayerVisibleFactions: mocks.factions }));
+vi.mock("@/composables/deities/useDeities", () => ({ useAllDeities: mocks.deities }));
+vi.mock("@/composables/rules/useSpecies", () => ({ useSpecies: vi.fn() }));
+vi.mock("@/composables/rules/useCustomSubclasses", () => ({ useCustomSubclass: vi.fn() }));
+vi.mock("@/composables/rules/useFeatures", () => ({ useFeaturesByIds: vi.fn() }));
 
 const NPC_ID = "11111111-1111-1111-1111-111111111111";
 const theme = () => "onednd2024" as const;
@@ -36,6 +47,28 @@ beforeEach(() => {
       { id: "hidden", name: null, portrait_url: null, race: null, occupation: null },
     ]),
     isLoading: ref(false),
+  });
+});
+
+describe("usePlayerEntityEmbed deity and faction", () => {
+  it("a faction missing from the player projection renders nothing, and no deity query starts", () => {
+    mocks.factions.mockReturnValue({
+      data: ref([{ id: "f1", name: "The Gilded Hand", description: null }]),
+      isLoading: ref(false),
+    });
+    expect(usePlayerEntityEmbed("faction", "f1", "camp-1", theme).html.value).toContain("The Gilded Hand");
+    expect(usePlayerEntityEmbed("faction", "secret", "camp-1", theme).html.value).toBeNull();
+    expect(mocks.deities).not.toHaveBeenCalled();
+  });
+
+  it("a deity the RLS-filtered list does not hold renders nothing", () => {
+    mocks.deities.mockReturnValue({
+      data: ref([{ id: "d1", name: "Ilmater", alternate_names: [], domains: [], tags: [], description: null }]),
+      isLoading: ref(false),
+    });
+    expect(usePlayerEntityEmbed("deity", "d1", "camp-1", theme).html.value).toContain("Ilmater");
+    expect(usePlayerEntityEmbed("deity", "d2", "camp-1", theme).html.value).toBeNull();
+    expect(mocks.factions).not.toHaveBeenCalled();
   });
 });
 

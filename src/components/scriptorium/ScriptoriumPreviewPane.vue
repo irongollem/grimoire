@@ -90,11 +90,16 @@
       class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0"
       style="touch-action: pan-x pan-y"
     >
-      <!-- Zoom is neutralised (1) while Paged.js renders: it measures the live
-           DOM against the unscaled @page height, so an active zoom makes
-           overflowing content look like it fits and pagination stops at one
-           page. Display zoom is reapplied once the render settles. -->
-      <div class="paged-scale" :style="{ zoom: isPaging ? 1 : effectiveZoom }">
+      <!-- The display scale is a transform, never CSS `zoom`: `zoom` makes the
+           browser lay the text out again at the scaled size, where a line can
+           break a pixel differently and spill past the page bottom. A transform
+           scales the pages as laid out. The box around it takes the scaled size
+           so the scroll area matches what is drawn. Scale is neutralised (1)
+           while Paged.js renders: it measures the live DOM against the unscaled
+           @page height, so an active scale makes overflowing content look like
+           it fits and pagination stops at one page. -->
+      <div class="paged-scale-box" :style="scaleBoxStyle">
+      <div class="paged-scale" ref="scaleRef" :style="{ transform: `scale(${displayScale})` }">
         <div
           ref="pagedContainerRef"
           class="sc-theme paged-book"
@@ -106,18 +111,19 @@
         <p v-else-if="isPaging" class="phb-hint">repaginating…</p>
         <p v-else class="phb-hint">{{ pageCount }} pages · {{ layoutMs }} ms</p>
       </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";
 import type { OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import { IconExport, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
-import { useScriptoriumZoom } from "@/composables/scriptorium/useScriptoriumZoom";
+import { scaledBoxSize, useScriptoriumZoom } from "@/composables/scriptorium/useScriptoriumZoom";
 import { usePagedPreview } from "@/composables/scriptorium/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
@@ -236,6 +242,27 @@ const {
   },
 });
 
+// Unscaled size of the laid-out book, measured so the box around the scaled
+// element can take the scaled size (a transform does not change layout size).
+const scaleRef = ref<HTMLElement | null>(null);
+const contentSize = ref({ w: 0, h: 0 });
+let scaleObserver: ResizeObserver | null = null;
+onMounted(() => {
+  if (!scaleRef.value) return;
+  scaleObserver = new ResizeObserver(() => {
+    const el = scaleRef.value;
+    if (el) contentSize.value = { w: el.offsetWidth, h: el.offsetHeight };
+  });
+  scaleObserver.observe(scaleRef.value);
+});
+onBeforeUnmount(() => scaleObserver?.disconnect());
+
+const displayScale = computed(() => (isPaging.value ? 1 : effectiveZoom.value));
+const scaleBoxStyle = computed(() => {
+  const { width, height } = scaledBoxSize(contentSize.value, displayScale.value);
+  return { width: `${width}px`, height: `${height}px` };
+});
+
 // Furniture is an overlay on the laid-out pages — adding/moving/editing it
 // re-renders the decorations in place, no re-pagination.
 watch(
@@ -290,10 +317,14 @@ watch(() => pageSize, () => {
   overscroll-behavior: contain;
 }
 
-/* The Paged.js path fills the width; `zoom` scales it and keeps scroll dims. */
+/* Takes the scaled size of the book so the scroll area fits what is drawn. */
+.paged-scale-box {
+  flex-shrink: 0;
+}
+/* The unscaled book, scaled as a picture from its top-left corner. */
 .paged-scale {
-  width: 100%;
-  align-self: stretch;
+  width: max-content;
+  transform-origin: top left;
 }
 
 /* Click-to-edit affordance: hovering a block in the book hints it's editable. */

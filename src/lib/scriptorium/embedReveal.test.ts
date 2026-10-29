@@ -66,6 +66,22 @@ describe("effectiveEmbedReveal", () => {
     expect(embedHasRevealControl("item")).toBe(false);
     expect(embedHasRevealControl("npc")).toBe(true);
   });
+  it("deity and faction share unless turned off, and take the on/off control", () => {
+    for (const entityType of ["deity", "faction"] as const) {
+      expect(effectiveEmbedReveal({ entityType })).toEqual({ type: entityType, share: true });
+      expect(effectiveEmbedReveal({ entityType, reveal: { off: true } })).toEqual({ type: entityType, share: false });
+      expect(describeEmbedReveal({ entityType })).toBe("Shares it");
+      expect(describeEmbedReveal({ entityType, reveal: { off: true } })).toBe("Reveals nothing");
+      expect(embedHasRevealControl(entityType)).toBe(true);
+    }
+  });
+  it("species and subclass reveal nothing and have no control, whatever the stored reveal says", () => {
+    for (const entityType of ["species", "subclass"] as const) {
+      expect(effectiveEmbedReveal({ entityType, reveal: { off: true } })).toEqual({ type: entityType });
+      expect(describeEmbedReveal({ entityType })).toBe("Rules text: players can read it");
+      expect(embedHasRevealControl(entityType)).toBe(false);
+    }
+  });
 });
 
 describe("describeEmbedReveal", () => {

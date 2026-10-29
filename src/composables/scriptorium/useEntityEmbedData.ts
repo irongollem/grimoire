@@ -51,8 +51,13 @@ import type { Spell } from "@/types/spell.types";
 import type { Item } from "@/types/item.types";
 import type { Location } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
+import type { Deity, Pantheon } from "@/types/deity.types";
+import type { Faction } from "@/types/faction.types";
+import type { ClassFeature } from "@/types/feature.types";
+import type { CustomSubclass } from "@/levelup/customTypes";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/monsters/useMonsters";
+import { fetchResolvedSpecies } from "@/composables/rules/useSpecies";
 
 // ── Minimal unscoped row fetchers ────────────────────────────────────────────
 
@@ -94,6 +99,57 @@ async function fetchQuestObjectivesRow(questId: string): Promise<QuestObjective[
     .order("sort_order", { ascending: true });
   if (error) throw error;
   return data as QuestObjective[];
+}
+
+// Each of these four mirrors the single-row read of its sibling composable and
+// shares its query key (useDeity, useFaction, useSpecies, useCustomSubclass).
+
+async function fetchDeityRow(id: string): Promise<Deity> {
+  const { data, error } = await supabase
+    .from("deities")
+    .select("*, pantheon:pantheons(id, name)")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data as Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null };
+}
+
+async function fetchFactionRow(id: string): Promise<Faction> {
+  const { data, error } = await supabase.from("factions").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data as Faction;
+}
+
+async function fetchSubclassRow(id: string): Promise<CustomSubclass> {
+  const { data, error } = await supabase.from("custom_subclasses").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data as CustomSubclass;
+}
+
+/** useFeaturesByIds's read: stored ids, no ruleset filter. */
+async function fetchFeaturesByIds(ids: readonly string[]): Promise<ClassFeature[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("class_features").select("*").in("id", [...ids]);
+  if (error) throw error;
+  return data as ClassFeature[];
+}
+
+/** id -> name for granted spells, which are custom `spells` uuids or `library_spells` text ids. */
+async function fetchSpellNames(ids: readonly string[]): Promise<Record<string, string>> {
+  const customIds = ids.filter((id) => isUuid(id));
+  const libraryIds = ids.filter((id) => !isUuid(id));
+  const read = async (table: "spells" | "library_spells", wanted: string[]) => {
+    if (wanted.length === 0) return [];
+    const { data, error } = await supabase.from(table).select("id,name").in("id", wanted);
+    if (error) throw error;
+    return data as { id: string; name: string }[];
+  };
+  const [custom, library] = await Promise.all([read("spells", customIds), read("library_spells", libraryIds)]);
+  return Object.fromEntries([...custom, ...library].map((row) => [row.id, row.name]));
+}
+
+function levelIds(levels: Record<string, string[]>): string[] {
+  return uniqueIds(Object.values(levels).flat()).sort();
 }
 
 /** Batch-fetch a variable, reactive list of ids under one query-key prefix,
@@ -185,6 +241,32 @@ export function useEntityEmbedData(
     ]);
   const npcs = useRowsById(npcIds, "npcs", fetchNpcRow);
 
+  const deities = useRowsById(idsOfType("deity"), "deities", fetchDeityRow);
+  const factions = useRowsById(idsOfType("faction"), "factions", fetchFactionRow);
+  const species = useRowsById(idsOfType("species"), "species", fetchResolvedSpecies);
+  const subclasses = useRowsById(idsOfType("subclass"), "custom_subclasses", fetchSubclassRow);
+
+  // A subclass's feature rows, one query per subclass under useFeaturesByIds's own key.
+  const subclassList = () => [...subclasses.byId.value.values()];
+  const subclassFeatures = useQueries({
+    queries: () =>
+      subclassList().map((sub) => {
+        const ids = levelIds(sub.features);
+        return {
+          queryKey: ["class_features", "by-ids", ids] as const,
+          queryFn: () => fetchFeaturesByIds(ids),
+          staleTime: Infinity,
+        };
+      }),
+  });
+  // The names of every spell any embedded subclass grants, in one read.
+  const grantedSpellIds = computed(() => uniqueIds(subclassList().flatMap((sub) => levelIds(sub.granted_spells))).sort());
+  const grantedSpellNames = useQuery({
+    queryKey: computed(() => ["scriptorium-spell-names", grantedSpellIds.value] as const),
+    queryFn: ({ queryKey: [, ids] }) => fetchSpellNames(ids),
+    enabled: () => grantedSpellIds.value.length > 0,
+  });
+
   // NPCs and quests both reference a location by name.
   const locationIds = () =>
     uniqueIds([
@@ -251,6 +333,32 @@ export function useEntityEmbedData(
           locationName,
         });
       }
+      case "deity": {
+        const deity = deities.byId.value.get(ref.id);
+        return deity ? formatEntityEmbedBodyHtml({ type: "deity", deity }) : undefined;
+      }
+      case "faction": {
+        const faction = factions.byId.value.get(ref.id);
+        return faction ? formatEntityEmbedBodyHtml({ type: "faction", faction }) : undefined;
+      }
+      case "species": {
+        const row = species.byId.value.get(ref.id);
+        return row ? formatEntityEmbedBodyHtml({ type: "species", species: row }) : undefined;
+      }
+      case "subclass": {
+        const subclass = subclasses.byId.value.get(ref.id);
+        if (!subclass) return undefined;
+        const index = subclassList().findIndex((sub) => sub.id === subclass.id);
+        // Never a subclass without its features or spell table: wait for both.
+        const features = subclassFeatures.value[index]?.data;
+        const spellIds = levelIds(subclass.granted_spells);
+        const names = spellIds.length > 0 ? grantedSpellNames.data.value : {};
+        if (!features || !names) return undefined;
+        const spellNames = Object.fromEntries(
+          spellIds.flatMap((id) => (id in names ? [[id, names[id]]] : [])),
+        );
+        return formatEntityEmbedBodyHtml({ type: "subclass", subclass, features, spellNames });
+      }
     }
   }
 
@@ -271,7 +379,13 @@ export function useEntityEmbedData(
       items.isLoading.value ||
       locations.isLoading.value ||
       quests.isLoading.value ||
-      objectives.isLoading.value,
+      objectives.isLoading.value ||
+      deities.isLoading.value ||
+      factions.isLoading.value ||
+      species.isLoading.value ||
+      subclasses.isLoading.value ||
+      subclassFeatures.value.some((r) => r.isLoading) ||
+      grantedSpellNames.isLoading.value,
   );
 
   return { lookup, isLoading };

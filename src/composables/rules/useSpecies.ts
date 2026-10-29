@@ -187,7 +187,8 @@ export function useSpeciesNames(members: MaybeRefOrGetter<readonly { species_id:
     member.species_id ? (speciesById.value.get(member.species_id)?.name ?? null) : null;
 }
 
-async function fetchResolvedSpecies(id: string): Promise<Species> {
+/** One species by id: a custom uuid from `species`, or a text id from the shared `library_species`. */
+export async function fetchResolvedSpecies(id: string): Promise<Species> {
   if (!isUuid(id)) {
     const { data, error } = await supabase
       .from("library_species")

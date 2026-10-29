@@ -5,7 +5,18 @@
 
 export type EntityType = "player" | "npc" | "monster" | "location" | "party" | "faction";
 
-export type EntityEmbedType = "npc" | "monster" | "spell" | "item" | "location" | "quest";
+/** `subclass` is a `custom_subclasses` row: a setting book's class content is its subclasses (#1115). */
+export type EntityEmbedType =
+  | "npc"
+  | "monster"
+  | "spell"
+  | "item"
+  | "location"
+  | "quest"
+  | "deity"
+  | "species"
+  | "faction"
+  | "subclass";
 
 /**
  * Stat-block size (#915 story 6). "auto" is the default and picks itself from

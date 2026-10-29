@@ -3,25 +3,19 @@
     <ModalHeader title="Insert Asset" closeable @close="$emit('close')" />
 
     <!-- Tabs -->
-    <div class="flex shrink-0 border-b border-border px-4 gap-1 pt-2">
-      <button
+    <div class="flex shrink-0 flex-wrap gap-1 border-b border-border px-4 pb-2 pt-2">
+      <AppButton
         v-for="tab in tabsWithCount"
         :key="tab.key"
-        type="button"
-        class="px-3 py-1.5 text-label-lg font-semibold rounded-t transition-colors"
-        :class="
-          activeTab === tab.key
-            ? 'border-b-2 border-primary text-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        "
+        variant="ghost"
+        size="sm"
+        :icon="tab.icon"
+        :active="activeTab === tab.key"
         @click="activeTab = tab.key"
       >
-        <component :is="tab.icon" class="inline h-3.5 w-3.5 mr-1.5 -mt-0.5" />
         {{ tab.label }}
-        <span v-if="tab.count !== null" class="ml-1 font-fell text-muted-foreground"
-          >({{ tab.count }})</span
-        >
-      </button>
+        <span v-if="tab.count !== null" class="font-fell text-muted-foreground">({{ tab.count }})</span>
+      </AppButton>
     </div>
 
     <!-- Search -->
@@ -77,12 +71,12 @@
               v-if="item.badge"
               class="px-2 py-0.5 rounded text-label font-bold capitalize"
               :style="{
-                backgroundColor: `color-mix(in oklab, ${item.badgeColor} 13%, transparent)`,
-                color: item.badgeColor,
-                border: `1px solid color-mix(in oklab, ${item.badgeColor} 27%, transparent)`,
+                backgroundColor: `color-mix(in oklab, ${item.badge.color} 13%, transparent)`,
+                color: item.badge.color,
+                border: `1px solid color-mix(in oklab, ${item.badge.color} 27%, transparent)`,
               }"
             >
-              {{ item.badge }}
+              {{ item.badge.label }}
             </span>
             <span
               class="text-label text-muted-foreground group-hover:text-primary transition-colors"
@@ -109,12 +103,25 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
-import { IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons';
+import {
+  IconFaction,
+  IconGenerate,
+  IconLocation,
+  IconMonster,
+  IconNavCodex,
+  IconNavPantheon,
+  IconParty,
+  IconSpecies,
+} from "@/lib/icons";
 import type { Editor } from "@tiptap/core";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useAllDeities } from "@/composables/deities/useDeities";
+import { useAllFactions } from "@/composables/factions/useFactions";
+import { useCampaignSpecies } from "@/composables/rules/useSpecies";
+import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 import { SCHOOL_VAR, spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
@@ -149,12 +156,24 @@ const NPC_STATUS_COLORS: Record<string, string> = {
 const props = defineProps<{ show: boolean; editor: Editor | undefined }>();
 const emit = defineEmits<{ close: [] }>();
 
-type TabKey = "npcs" | "monsters" | "spells" | "locations";
+type TabKey =
+  | "npcs"
+  | "monsters"
+  | "spells"
+  | "locations"
+  | "deities"
+  | "species"
+  | "factions"
+  | "subclasses";
 const TABS = [
   { key: "npcs" as TabKey, label: "NPCs", icon: IconParty },
   { key: "monsters" as TabKey, label: "Monsters", icon: IconMonster },
   { key: "spells" as TabKey, label: "Spells", icon: IconGenerate },
   { key: "locations" as TabKey, label: "Locations", icon: IconLocation },
+  { key: "deities" as TabKey, label: "Deities", icon: IconNavPantheon },
+  { key: "species" as TabKey, label: "Species", icon: IconSpecies },
+  { key: "factions" as TabKey, label: "Factions", icon: IconFaction },
+  { key: "subclasses" as TabKey, label: "Subclasses", icon: IconNavCodex },
 ];
 
 const activeTab = ref<TabKey>("npcs");
@@ -171,28 +190,32 @@ const { data: spellIndex, isLoading: spellsLoading } = useSpellIndex();
 const spells = computed(() => spellIndex.value?.filter((s) => !s.is_shared));
 const { data: locations, isPending: locationsLoading } = useAllLocations();
 
-const tabsWithCount = computed(() =>
-  TABS.map((tab) => ({
-    ...tab,
-    count:
-      tab.key === "npcs"
-        ? (npcs.value?.length ?? null)
-        : tab.key === "monsters"
-          ? (monsters.value?.length ?? null)
-          : tab.key === "spells"
-            ? (spells.value?.length ?? null)
-            : (locations.value?.length ?? null),
-  })),
-);
+const { data: deities, isPending: deitiesLoading } = useAllDeities();
+const { data: speciesList, isLoading: speciesLoading } = useCampaignSpecies();
+const { data: factions, isPending: factionsLoading } = useAllFactions();
+const { data: subclasses, isLoading: subclassesLoading } = useCampaignCustomSubclasses();
+
+const tabsWithCount = computed(() => {
+  const counts: Record<TabKey, number | null> = {
+    npcs: npcs.value?.length ?? null,
+    monsters: monsters.value?.length ?? null,
+    spells: spells.value?.length ?? null,
+    locations: locations.value?.length ?? null,
+    deities: deities.value?.length ?? null,
+    species: speciesList.value.length,
+    factions: factions.value?.length ?? null,
+    subclasses: subclasses.value.length,
+  };
+  return TABS.map((tab) => ({ ...tab, count: counts[tab.key] }));
+});
 
 // ── Unified display list ───────────────────────────────────────────────────────
 
 interface ListItem {
   id: string;
   name: string;
-  subtitle: string;
-  badge: string;
-  badgeColor: string;
+  subtitle: string | null;
+  badge: { label: string; color: string } | null;
   type: TabKey;
 }
 
@@ -202,8 +225,7 @@ const allItems = computed<ListItem[]>(() => {
       id: npc.id,
       name: npc.name,
       subtitle: [npc.race, npc.occupation].filter(Boolean).join(" · "),
-      badge: npc.status,
-      badgeColor: NPC_STATUS_COLORS[npc.status] ?? "#6b7280",
+      badge: { label: npc.status, color: NPC_STATUS_COLORS[npc.status] ?? "#6b7280" },
       type: "npcs" as TabKey,
     }));
   }
@@ -212,8 +234,7 @@ const allItems = computed<ListItem[]>(() => {
       id: m.id,
       name: m.name,
       subtitle: `${m.size} ${m.monster_type} · CR ${m.challenge_rating}`,
-      badge: m.monster_type,
-      badgeColor: MONSTER_TYPE_VAR[m.monster_type] ?? "var(--muted-foreground)",
+      badge: { label: m.monster_type, color: MONSTER_TYPE_VAR[m.monster_type] ?? "var(--muted-foreground)" },
       type: "monsters" as TabKey,
     }));
   }
@@ -222,17 +243,51 @@ const allItems = computed<ListItem[]>(() => {
       id: s.id,
       name: s.name,
       subtitle: `${spellLevelLabel(s.level)} ${s.school}${s.concentration ? " · Conc." : ""}`,
-      badge: s.school,
-      badgeColor: SCHOOL_VAR[s.school] ?? "var(--muted-foreground)",
+      badge: { label: s.school, color: SCHOOL_VAR[s.school] ?? "var(--muted-foreground)" },
       type: "spells" as TabKey,
+    }));
+  }
+  if (activeTab.value === "deities") {
+    return (deities.value ?? []).map((d) => ({
+      id: d.id,
+      name: d.name,
+      subtitle: d.pantheon?.name ?? null,
+      badge: null,
+      type: "deities" as TabKey,
+    }));
+  }
+  if (activeTab.value === "species") {
+    return speciesList.value.map((sp) => ({
+      id: sp.id,
+      name: sp.name,
+      subtitle: null,
+      badge: null,
+      type: "species" as TabKey,
+    }));
+  }
+  if (activeTab.value === "factions") {
+    return (factions.value ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+      subtitle: null,
+      badge: null,
+      type: "factions" as TabKey,
+    }));
+  }
+  if (activeTab.value === "subclasses") {
+    return subclasses.value.map((sc) => ({
+      id: sc.id,
+      name: sc.subclass_name,
+      subtitle: sc.class_name,
+      badge: null,
+      type: "subclasses" as TabKey,
     }));
   }
   return (locations.value ?? []).map((l) => ({
     id: l.id,
     name: l.name,
     subtitle: LOCATION_TYPE_LABELS[l.location_type],
-    badge: l.location_type,
-    badgeColor: LOCATION_TYPE_COLORS[l.location_type] ?? "#6b7280",
+    badge: { label: l.location_type, color: LOCATION_TYPE_COLORS[l.location_type] ?? "#6b7280" },
     type: "locations" as TabKey,
   }));
 });
@@ -246,7 +301,11 @@ const isLoading = computed(() => {
   if (activeTab.value === "npcs") return npcsLoading.value;
   if (activeTab.value === "monsters") return monstersLoading.value;
   if (activeTab.value === "spells") return spellsLoading.value;
-  return locationsLoading.value;
+  if (activeTab.value === "locations") return locationsLoading.value;
+  if (activeTab.value === "deities") return deitiesLoading.value;
+  if (activeTab.value === "species") return speciesLoading.value;
+  if (activeTab.value === "factions") return factionsLoading.value;
+  return subclassesLoading.value;
 });
 
 // ── Insert ────────────────────────────────────────────────────────────────────
@@ -259,6 +318,10 @@ const TAB_TO_ENTITY_TYPE: Record<TabKey, EntityEmbedType> = {
   monsters: "monster",
   spells: "spell",
   locations: "location",
+  deities: "deity",
+  species: "species",
+  factions: "faction",
+  subclasses: "subclass",
 };
 
 function insertItem(item: ListItem) {

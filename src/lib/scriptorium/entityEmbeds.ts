@@ -58,6 +58,10 @@ const MISSING_LABEL: Record<EntityEmbedType, string> = {
   item: "This item is no longer available.",
   location: "This location is no longer available.",
   quest: "This quest is no longer available.",
+  deity: "This deity is no longer available.",
+  species: "This species is no longer available.",
+  faction: "This faction is no longer available.",
+  subclass: "This subclass is no longer available.",
 };
 
 /** Visible marker shown in place of an embed whose entity no longer resolves. */

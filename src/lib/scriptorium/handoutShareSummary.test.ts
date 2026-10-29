@@ -55,6 +55,13 @@ describe("describeWithheld", () => {
   });
 });
 
+describe("describeRevealed deity and faction", () => {
+  it("says a deity or faction is shared, with the name the SQL returned", () => {
+    expect(describeRevealed({ type: "deity", id: "d1", name: "Ilmater" })).toEqual({ name: "Ilmater", detail: "shared" });
+    expect(describeRevealed({ type: "faction", id: "f1", name: "The Hand" })).toEqual({ name: "The Hand", detail: "shared" });
+  });
+});
+
 describe("describeRecipients", () => {
   it("lists names naturally", () => {
     expect(describeRecipients(["Mira"], 4)).toBe("Mira");

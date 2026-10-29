@@ -115,7 +115,8 @@ export type HandoutRevealed =
   | { type: "npc"; id: string; name: string; fields: string[]; seen_as: string | null }
   | { type: "location"; id: string; name: string; description: boolean }
   | { type: "quest"; id: string; name: string; starts: boolean }
-  | { type: "monster"; id: string; name: string; stats: boolean };
+  | { type: "monster"; id: string; name: string; stats: boolean }
+  | { type: "deity" | "faction"; id: string; name: string };
 
 export type HandoutWithheldReason = "not_revealed" | "found_only" | "outside_campaign";
 

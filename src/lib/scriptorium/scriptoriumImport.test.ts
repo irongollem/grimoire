@@ -812,3 +812,130 @@ describe("formatQuestForScriptorium", () => {
     expect(full).toContain("<h2>Objectives</h2>");
   });
 });
+
+// ── Codex entries and the lens pair (#1115) ──────────────────────────────────
+
+function render(html: string): HTMLElement {
+  const root = document.createElement("div");
+  root.innerHTML = html;
+  return root;
+}
+
+const doc = (...content: unknown[]) => JSON.stringify({ type: "doc", content });
+const para = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+
+describe("codex entry embeds (#1115)", () => {
+  const subclass = {
+    class_name: "Cleric",
+    subclass_name: "Ember Domain",
+    description: null,
+    features: { "10": ["f10"], "3": ["f3a", "gone", "f3b"] },
+    granted_spells: { "5": ["s1", "unnamed"], "3": ["s2"], "9": ["unnamed"] },
+  } as unknown as Parameters<typeof formatEntityEmbedBodyHtml>[0] extends infer I
+    ? I extends { type: "subclass"; subclass: infer S } ? S : never
+    : never;
+  const feat = (id: string, name: string) => ({ id, name, description: "Text." }) as never;
+  const features = [feat("f10", "Late"), feat("f3a", "First"), feat("f3b", "Second")];
+  const spellNames = { s1: "Fire Bolt", s2: "Burning Hands" };
+
+  it("subclass features sort by numeric level (10 after 3), keep listed order, and skip a missing feature row", () => {
+    const html = formatEntityEmbedBodyHtml({ type: "subclass", subclass, features, spellNames });
+    const heads = [...render(html).querySelectorAll("h4.sc-codex-entry-section")].map((h) => h.textContent);
+    expect(heads).toEqual(["Level 3: First", "Level 3: Second", "Level 10: Late"]);
+  });
+
+  it("subclass spell table lists levels ascending, drops unnamed spells and levels left empty", () => {
+    const html = formatEntityEmbedBodyHtml({ type: "subclass", subclass, features, spellNames });
+    const rows = [...render(html).querySelectorAll("table.sc-codex-entry-spells tbody tr")].map((r) => r.textContent);
+    expect(rows).toEqual(["3Burning Hands", "5Fire Bolt"]);
+  });
+
+  it("subclass with no resolvable spell names prints no spell table", () => {
+    const html = formatEntityEmbedBodyHtml({ type: "subclass", subclass, features, spellNames: {} });
+    expect(html).not.toContain("sc-codex-entry-spells");
+  });
+
+  it("a deity omits empty property lines and never prints null or undefined", () => {
+    const deity = {
+      name: "Vael <the> Pale", titles: null, alternate_names: [], alignment: "Neutral Good",
+      symbol: null, portrait_url: null, domains: ["Life", "Light"], portfolio: "", description: null,
+    } as never;
+    const html = formatEntityEmbedBodyHtml({ type: "deity", deity });
+    const root = render(html);
+    expect(root.querySelector("h3")?.textContent).toBe("Vael <the> Pale");
+    expect(root.querySelector("h1")).toBeNull();
+    expect([...root.querySelectorAll("p")].map((p) => p.textContent)).toEqual(["Alignment Neutral Good", "Domains Life, Light"]);
+    expect(html).not.toMatch(/null|undefined/);
+  });
+
+  it("a faction joins its type and alignment only with what exists", () => {
+    const faction = { name: "The Ash Court", faction_type: "Guild", alignment: null, emblem_url: null, description: null } as never;
+    const type = render(formatEntityEmbedBodyHtml({ type: "faction", faction })).querySelector(".sc-codex-entry-type");
+    expect(type?.textContent).toBe("Guild");
+  });
+
+  it("a species with no traits prints no Traits heading; with traits and a subrace it prints both", () => {
+    const base = {
+      name: "Emberkin", description: null, size: "medium", avg_height: "6 ft", speed: { walk: 30, fly: 20 },
+      ability_score_increases: null, traits: [], languages: ["Common"], subraces: null, image_url: null,
+    };
+    const plain = formatEntityEmbedBodyHtml({ type: "species", species: base as never });
+    expect(plain).not.toContain("Traits");
+    expect(plain).not.toContain("Ability Score Increases");
+    expect(plain).toContain("<strong>Size</strong> Medium (6 ft)");
+    expect(plain).toContain("<strong>Speed</strong> 30 feet, fly 20 feet");
+
+    const full = formatEntityEmbedBodyHtml({
+      type: "species",
+      species: {
+        ...base,
+        ability_score_increases: { str: 2, dex: "1" },
+        traits: [{ name: "Fire Sight", description: "See <warm> things." }],
+        subraces: [{ name: "Ashen", description: "Grey.", traits: [{ name: "Cinder", description: "Burn." }] }],
+      } as never,
+    });
+    const root = render(full);
+    expect(full).toContain("<strong>Ability Score Increases</strong> Str +2, Dex 1");
+    expect([...root.querySelectorAll("h4")].map((h) => h.textContent)).toEqual(["Emberkin Traits", "Ashen"]);
+    expect(root.textContent).toContain("Fire Sight. See <warm> things.");
+    expect(root.textContent).toContain("Cinder. Burn.");
+  });
+});
+
+describe("lens pair in stored rich text (#1115)", () => {
+  it("prints Bright then Deep as two labelled halves, not run together", () => {
+    const description = doc({
+      type: "lensPair",
+      attrs: { variant: "boxed" },
+      content: [
+        { type: "lensBright", content: [para("The door is oak.")] },
+        { type: "lensDeep", content: [para("The door is a mouth.")] },
+      ],
+    });
+    const html = formatEntityEmbedBodyHtml({
+      type: "faction",
+      faction: { name: "F", faction_type: null, alignment: null, emblem_url: null, description } as never,
+    });
+    const pair = render(html).querySelector(".sc-lens");
+    const halves = [...(pair?.querySelectorAll(".sc-lens-half") ?? [])];
+    expect(halves.map((h) => h.querySelector(".sc-lens-name")?.textContent)).toEqual(["Bright", "Deep"]);
+    expect(halves[1].querySelector(".sc-lens-body")?.textContent?.trim()).toBe("The door is a mouth.");
+    expect(pair?.getAttribute("data-variant")).toBe("boxed");
+  });
+
+  it("carries the light variant through to class and attribute", () => {
+    const description = doc({
+      type: "lensPair",
+      attrs: { variant: "light" },
+      content: [
+        { type: "lensBright", content: [para("a")] },
+        { type: "lensDeep", content: [para("b")] },
+      ],
+    });
+    const html = formatEntityEmbedBodyHtml({
+      type: "faction",
+      faction: { name: "F", faction_type: null, alignment: null, emblem_url: null, description } as never,
+    });
+    expect(render(html).querySelector(".sc-lens--light")?.getAttribute("data-variant")).toBe("light");
+  });
+});

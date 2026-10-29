@@ -7,7 +7,7 @@ import type { EntityEmbedSize, EntityEmbedType } from "@/lib/tiptap/nodeViewType
 
 /*
  * EntityEmbed — a Scriptorium block that holds a live reference to a game
- * entity (an NPC, monster, spell, item, location or quest) rather than a
+ * entity (an NPC, monster, spell, item, location, quest, deity, species, faction or subclass) rather than a
  * one-time HTML snapshot (#915 story 3).
  *
  * "Insert Asset" used to paste `format*ForScriptorium(...).content` straight
@@ -36,6 +36,10 @@ export const ENTITY_EMBED_TYPES: readonly EntityEmbedType[] = [
   "item",
   "location",
   "quest",
+  "deity",
+  "species",
+  "faction",
+  "subclass",
 ];
 
 export interface EntityEmbedAttrs {

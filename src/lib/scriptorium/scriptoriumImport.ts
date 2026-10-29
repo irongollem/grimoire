@@ -25,6 +25,11 @@ import { escapeHtml } from "@/lib/escapeHtml";
 import type { Defenses } from "@/types/statBlock.types";
 import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import { entityArtFiguresHtml } from "./entityArt";
+import type { Deity } from "@/types/deity.types";
+import type { Species, SpeciesTrait } from "@/types/species.types";
+import type { Faction } from "@/types/faction.types";
+import type { CustomSubclass } from "@/levelup/customTypes";
+import type { ClassFeature } from "@/types/feature.types";
 
 // ── Output type ───────────────────────────────────────────────────────────────
 
@@ -935,6 +940,10 @@ const itemFormatter: AssetFormatter<{ item: Item; spells: Spell[] }> = {
 
 // ── Location formatter ────────────────────────────────────────────────────────
 
+function lensHalfHtml(type: string, cls: string, label: string, inner: string): string {
+  return `<div data-type="${type}" class="sc-lens-half sc-lens-${cls}"><div class="sc-lens-label" contenteditable="false"><span class="sc-lens-name">${label}</span></div><div class="sc-lens-body">${inner}</div></div>`;
+}
+
 /** Convert Tiptap JSON to basic HTML for Scriptorium rendering. */
 function tiptapJsonToHtml(jsonStr: string | null): string {
   if (!jsonStr) return "";
@@ -960,6 +969,16 @@ function tiptapJsonToHtml(jsonStr: string | null): string {
         case "listItem":    return `<li>${inner}</li>`;
         case "blockquote":  return `<blockquote>${inner}</blockquote>\n`;
         case "hardBreak":   return "<br />";
+        // The DM's lens pair (#1115): one passage read at two levels. Same markup
+        // the nodes' own renderHTML emits (src/lib/tiptap/lensPair.ts), so the
+        // book's lens styles apply. Both halves print; the server strips Deep
+        // from player-facing text before it ever reaches here.
+        case "lensPair": {
+          const light = node.attrs?.variant === "light";
+          return `<div data-type="lensPair" class="${light ? "sc-lens sc-lens--light" : "sc-lens"}" data-variant="${light ? "light" : "boxed"}">${inner}</div>\n`;
+        }
+        case "lensBright":  return lensHalfHtml("lensBright", "bright", "Bright", inner);
+        case "lensDeep":    return lensHalfHtml("lensDeep", "deep", "Deep", inner);
         default:            return inner;
       }
     }
@@ -1115,6 +1134,156 @@ export function formatQuestForScriptorium(
   return questFormatter.format({ quest, objectives, giverName, locationName });
 }
 
+// ── Codex entries: deity, faction, species, subclass (#1115) ─────────────────
+//
+// Set the way a 5e book prints them: name as a small heading (never an h1, see
+// the item formatter), an italic line, property lines, then the text. One
+// `.sc-codex-entry` wrapper per entry; a species entry runs for pages, so the
+// wrapper is deliberately allowed to break.
+
+function codexEntryHtml(
+  type: string,
+  opts: { name: string; picture?: string | null; typeLine?: string | null; lines?: [string, string | null][]; body: string },
+): string {
+  let html = `<div class="sc-codex-entry sc-codex-entry--${type}">\n`;
+  html += entityArtFiguresHtml({ picture: opts.picture ?? null, cutout: null, alt: opts.name });
+  html += `<h3 class="sc-codex-entry-name">${escapeHtml(opts.name)}</h3>\n`;
+  if (opts.typeLine) html += `<p class="sc-codex-entry-type"><em>${escapeHtml(opts.typeLine)}</em></p>\n`;
+  for (const [label, value] of opts.lines ?? []) {
+    if (value?.trim()) html += `<p><strong>${escapeHtml(label)}</strong> ${escapeHtml(value)}</p>\n`;
+  }
+  html += opts.body;
+  html += `</div>\n`;
+  return html;
+}
+
+function sectionHeading(text: string): string {
+  return `<h4 class="sc-codex-entry-section">${escapeHtml(text)}</h4>\n`;
+}
+
+function traitHtml(trait: SpeciesTrait): string {
+  const name = `<strong><em>${escapeHtml(trait.name)}.</em></strong>`;
+  if (trait.description.trimStart().startsWith("{")) {
+    return `<p>${name}</p>\n${richTextOrPlain(trait.description)}`;
+  }
+  return `<p>${name} ${escapeHtml(trait.description)}</p>\n`;
+}
+
+function formatAbilityIncreases(asi: Record<string, number | string> | null): string {
+  if (!asi) return "";
+  return Object.entries(asi)
+    .map(([ability, value]) => {
+      const shown = typeof value === "number" && value > 0 ? `+${value}` : String(value);
+      return `${capitalize(ability)} ${shown}`;
+    })
+    .join(", ");
+}
+
+function formatSpeciesSpeed(speed: Species["speed"]): string {
+  if (!speed) return "";
+  const parts: string[] = [];
+  if (speed.walk) parts.push(`${speed.walk} feet`);
+  for (const mode of ["fly", "swim", "climb", "burrow"] as const) {
+    const v = speed[mode];
+    if (v) parts.push(`${mode} ${v} feet`);
+  }
+  return parts.join(", ");
+}
+
+function byNumericLevel(a: string, b: string): number {
+  return Number(a) - Number(b);
+}
+
+function deityEntryHtml(deity: Deity): string {
+  return codexEntryHtml("deity", {
+    name: deity.name,
+    picture: deity.portrait_url,
+    typeLine: deity.titles,
+    lines: [
+      ["Alignment", deity.alignment],
+      ["Domains", deity.domains.join(", ")],
+      ["Symbol", deity.symbol],
+      ["Portfolio", deity.portfolio],
+      ["Also known as", deity.alternate_names.join(", ")],
+    ],
+    body: richTextOrPlain(deity.description),
+  });
+}
+
+function factionEntryHtml(faction: Faction): string {
+  return codexEntryHtml("faction", {
+    name: faction.name,
+    picture: faction.emblem_url,
+    typeLine: [faction.faction_type, faction.alignment].filter(Boolean).join(" · "),
+    body: richTextOrPlain(faction.description),
+  });
+}
+
+function speciesEntryHtml(species: Species): string {
+  const size = species.size
+    ? `${capitalize(species.size)}${species.avg_height ? ` (${species.avg_height})` : ""}`
+    : "";
+  const asi = formatAbilityIncreases(species.ability_score_increases);
+  let body = richTextOrPlain(species.description);
+  if (species.traits?.length) {
+    body += sectionHeading(`${species.name} Traits`);
+    body += species.traits.map(traitHtml).join("");
+  }
+  for (const sub of species.subraces ?? []) {
+    body += sectionHeading(sub.name);
+    body += richTextOrPlain(sub.description);
+    body += sub.traits.map(traitHtml).join("");
+  }
+  return codexEntryHtml("species", {
+    name: species.name,
+    picture: species.image_url,
+    lines: [
+      ["Size", size],
+      ["Speed", formatSpeciesSpeed(species.speed)],
+      ["Languages", species.languages.join(", ")],
+      ["Ability Score Increases", asi],
+    ],
+    body,
+  });
+}
+
+function subclassEntryHtml(
+  subclass: CustomSubclass,
+  features: ClassFeature[],
+  spellNames: Record<string, string>,
+): string {
+  let body = richTextOrPlain(subclass.description);
+
+  const spellRows = Object.keys(subclass.granted_spells)
+    .sort(byNumericLevel)
+    .map((level) => {
+      const names = subclass.granted_spells[level].map((id) => spellNames[id]).filter(Boolean);
+      return names.length
+        ? `<tr><td>${escapeHtml(level)}</td><td>${escapeHtml(names.join(", "))}</td></tr>`
+        : "";
+    })
+    .filter(Boolean);
+  if (spellRows.length) {
+    body += `<table class="sc-codex-entry-spells"><thead><tr><th>${escapeHtml(subclass.class_name)} Level</th><th>Spells</th></tr></thead><tbody>${spellRows.join("")}</tbody></table>\n`;
+  }
+
+  const byId = new Map(features.map((f) => [f.id, f]));
+  for (const level of Object.keys(subclass.features).sort(byNumericLevel)) {
+    for (const id of subclass.features[level]) {
+      const feature = byId.get(id);
+      if (!feature) continue;
+      body += sectionHeading(`Level ${level}: ${feature.name}`);
+      body += richTextOrPlain(feature.description);
+    }
+  }
+
+  return codexEntryHtml("subclass", {
+    name: subclass.subclass_name,
+    typeLine: `${subclass.class_name} Subclass`,
+    body,
+  });
+}
+
 // ── Entity embed body HTML (#915 story 3) ────────────────────────────────────
 //
 // `entityEmbed` nodes and "Insert Asset" both need just the formatted body
@@ -1136,7 +1305,11 @@ export type EntityEmbedInput =
       objectives: QuestObjective[];
       giverName?: string | null;
       locationName?: string | null;
-    };
+    }
+  | { type: "deity"; deity: Deity }
+  | { type: "species"; species: Species }
+  | { type: "faction"; faction: Faction }
+  | { type: "subclass"; subclass: CustomSubclass; features: ClassFeature[]; spellNames: Record<string, string> };
 
 export function formatEntityEmbedBodyHtml(
   input: EntityEmbedInput,
@@ -1160,5 +1333,13 @@ export function formatEntityEmbedBodyHtml(
         giverName: input.giverName,
         locationName: input.locationName,
       }).content;
+    case "deity":
+      return deityEntryHtml(input.deity);
+    case "species":
+      return speciesEntryHtml(input.species);
+    case "faction":
+      return factionEntryHtml(input.faction);
+    case "subclass":
+      return subclassEntryHtml(input.subclass, input.features, input.spellNames);
   }
 }

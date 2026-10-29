@@ -70,6 +70,10 @@ const EMBED_TABLES: Record<string, { table: string; column: string }> = {
   location: { table: "locations", column: "name" },
   spell: { table: "spells", column: "name" },
   quest: { table: "quests", column: "title" },
+  deity: { table: "deities", column: "name" },
+  species: { table: "species", column: "name" },
+  faction: { table: "factions", column: "name" },
+  subclass: { table: "custom_subclasses", column: "subclass_name" },
 };
 
 

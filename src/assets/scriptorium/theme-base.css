@@ -1368,6 +1368,25 @@
 .sc-theme .sc-item-entry-type {
   margin-bottom: 0.4rem;
 }
+/* A deity, faction, species or subclass embed is a codex entry
+   (scriptoriumImport.ts): the item entry's shape, art floated beside it. It is
+   left out of every break-inside list on purpose, since a species runs for pages. */
+.sc-theme .sc-codex-entry {
+  display: flow-root;
+  margin: 0 0 0.75rem;
+}
+.sc-theme .sc-codex-entry .sc-entity-art {
+  float: right;
+  width: 40%;
+  max-width: 10rem;
+  margin: 0.25rem 0 0.5rem 1rem;
+}
+.sc-theme .sc-codex-entry-name {
+  margin-top: 0;
+}
+.sc-theme .sc-codex-entry-type {
+  margin-bottom: 0.4rem;
+}
 .sc-theme .sc-statblock-entry-lore p:last-child {
   margin-bottom: 0;
 }

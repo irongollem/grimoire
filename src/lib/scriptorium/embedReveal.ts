@@ -35,9 +35,11 @@ export type EffectiveEmbedReveal =
   | { type: "monster"; discover: boolean; stats: boolean }
   | { type: "location"; share: boolean; description: boolean }
   | { type: "quest"; start: boolean }
-  // Items and spells are never revealed by sharing: a player sees an item once
-  // the party holds it, and a spell is rules text, not a secret.
-  | { type: "item" | "spell" };
+  | { type: "deity" | "faction"; share: boolean }
+  // Nothing is revealed by sharing these: a player sees an item once the party
+  // holds it, and spells, species and subclasses are rules text the campaign's
+  // players can already read.
+  | { type: "item" | "spell" | "species" | "subclass" };
 
 const NPC_FIELD_KEYS = NPC_PLAYER_FIELDS.map((f) => f.key) as readonly NpcPlayerFieldKey[];
 
@@ -71,10 +73,18 @@ export function effectiveEmbedReveal(subject: EmbedRevealSubject): EffectiveEmbe
       return { type: "location", share: !off, description: !off && reveal?.description === true };
     case "quest":
       return { type: "quest", start: !off };
+    case "deity":
+      return { type: "deity", share: !off };
+    case "faction":
+      return { type: "faction", share: !off };
     case "item":
       return { type: "item" };
     case "spell":
       return { type: "spell" };
+    case "species":
+      return { type: "species" };
+    case "subclass":
+      return { type: "subclass" };
   }
 }
 
@@ -101,7 +111,14 @@ export function describeEmbedReveal(subject: EmbedRevealSubject): string {
       return effective.description ? "Shares it and its description" : "Shares it";
     case "quest":
       return effective.start ? "Starts the quest" : "Reveals nothing";
+    case "deity":
+    case "faction":
+      return effective.share ? "Shares it" : "Reveals nothing";
     case "item":
+      return "Shown once found";
+    case "species":
+    case "subclass":
+      return "Rules text: players can read it";
     case "spell":
       return "Shown once found";
   }
@@ -109,5 +126,5 @@ export function describeEmbedReveal(subject: EmbedRevealSubject): string {
 
 /** Whether the toolbar offers a reveal control at all for this entity type. */
 export function embedHasRevealControl(type: EntityEmbedType): boolean {
-  return type !== "item" && type !== "spell";
+  return type !== "item" && type !== "spell" && type !== "species" && type !== "subclass";
 }
