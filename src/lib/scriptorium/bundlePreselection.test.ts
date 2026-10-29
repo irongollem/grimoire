@@ -27,7 +27,7 @@ describe("bundlePreselection", () => {
     });
   });
 
-  it("maps species, factions and subclasses, and skips a deity the bundle cannot carry", () => {
+  it("maps deities, species, factions and subclasses to their categories", () => {
     expect(
       bundlePreselection(
         [
@@ -38,7 +38,7 @@ describe("bundlePreselection", () => {
         ],
         null,
       ),
-    ).toEqual({ species: ["sp1"], factions: ["f1"], custom_subclasses: ["sc1"] });
+    ).toEqual({ deities: ["d1"], species: ["sp1"], factions: ["f1"], custom_subclasses: ["sc1"] });
   });
 
   it("deduplicates repeated refs", () => {

@@ -550,6 +550,8 @@ Both are quota'd on the free plan (`plans.quotas`: 5 deities, 3 pantheons),
 which is low enough that the fixture's own seed has to stay under it — see
 `scripts/lib/dev-fixture-content.ts`.
 
+**A World Bundle carries the faith (#1119).** `pantheons` and `deities` are bundle categories, and a campaign's religion travels whole: a bundled character brings the deity it worships (`party_members.deity_id`), and every bundled deity brings its pantheon (`carryDeities`, `useWorldBundle.ts`), the way a character brings its species. On import the faith lands whenever the deities or the characters do, and a deity's pantheon whenever the deity does; ids are remapped and the audience cleared like any campaign row. A character whose deity is not in the file imports with none, never the exporter's row. Links to a deity (worships, serves, opposes) travel when both ends are bundled, and a Scriptorium "PDF with campaign data" preselects the deities a book embeds.
+
 **Content we ship does not count against those caps** (`20260818081308`). Rows
 inserted by a Populate button carry a `setting_source` column naming the setting
 (or `'planar'` for the standard planes), and both `check_quota` and

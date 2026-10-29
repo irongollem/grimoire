@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The row transforms below are pure; buildBundle reads through the fake, which
 // holds rows and honours the filters.
-const { fake } = await vi.hoisted(async () => {
+const { fake, auth } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
-  return { fake: createSupabaseFake() };
+  return { fake: createSupabaseFake(), auth: { user: null as { id: string } | null } };
 });
 vi.mock("@/lib/supabase", () => ({
   supabase: fake.client,
-  getCurrentUser: () => null,
+  getCurrentUser: () => auth.user,
 }));
 
 import {
@@ -18,6 +18,7 @@ import {
   buildIdMap,
   bundleLinkRows,
   bundledLinks,
+  executeImport,
   remapCharacterClassForImport,
   remapCharacterSpellForImport,
   remapCustomClassForImport,
@@ -572,5 +573,66 @@ describe("buildBundle", () => {
     await expect(
       buildBundle({ campaignId: "c1", name: "Mere", description: "", selection: new Map() }),
     ).rejects.toThrow("Failed to read source campaign");
+  });
+});
+
+describe("deities and pantheons in a bundle (#1119)", () => {
+  beforeEach(() => {
+    fake.reset();
+    fake.seed("campaigns", [{ id: "c1", ruleset: "2024", allows_mixed_rulesets: false }]);
+    auth.user = null;
+  });
+
+  const owned = (id: string, over: Record<string, unknown> = {}) => ({
+    id, user_id: "exporter", campaign_id: "c1", created_at: "x", updated_at: "y", name: id, player_visible_to: ["pm-x"], ...over,
+  });
+
+  it("carries the god a bundled character worships, and that god's pantheon, with no audience", async () => {
+    fake.seed("party_members", [owned("pm1", { deity_id: "d1", ruleset: "2024" })]);
+    fake.seed("deities", [owned("d1", { pantheon_id: "p1" }), owned("d2", { pantheon_id: "p2" })]);
+    fake.seed("pantheons", [owned("p1"), owned("p2")]);
+    const bundle = await buildBundle({ campaignId: "c1", name: "Sothery", description: "", selection: new Map([["party_members", ["pm1"]]]) });
+    expect(bundle.deities?.map((d) => d.id)).toEqual(["d1"]);
+    expect(bundle.pantheons?.map((p) => p.id)).toEqual(["p1"]);
+    expect(bundle.deities?.[0].player_visible_to).toEqual([]);
+    // The import dialog offers a category only when the file counts it.
+    expect(bundle._meta.entity_counts).toMatchObject({ deities: 1, pantheons: 1 });
+  });
+
+  it("carries a link between a bundled NPC and a bundled deity", async () => {
+    fake.seed("npcs", [owned("n1")]);
+    fake.seed("deities", [owned("d1", { pantheon_id: null })]);
+    fake.seed("world_links", [
+      { id: "l1", from_kind: "npc", from_npc_id: "n1", to_kind: "deity", to_deity_id: "d1", type: "worships", player_visible_to: [] },
+    ]);
+    const bundle = await buildBundle({
+      campaignId: "c1", name: "Sothery", description: "", selection: new Map([["npcs", ["n1"]], ["deities", ["d1"]]]),
+    });
+    expect(bundle.world_links?.map((l) => l.id)).toEqual(["l1"]);
+  });
+
+  it("importing only the characters still brings their god and its pantheon, and points the character at the imported god", async () => {
+    auth.user = { id: "importer" };
+    fake.seed("campaigns", [{ id: "camp-new", ruleset: "2024" }]);
+    const bundle = emptyBundle({
+      ruleset: "2024",
+      party_members: [{ id: "pm1", name: "Pip", ruleset: "2024", deity_id: "d1" }],
+      deities: [{ id: "d1", name: "The Kettle Witch", pantheon_id: "p1", player_visible_to: [] }],
+      pantheons: [{ id: "p1", name: "The Hearth", player_visible_to: [] }],
+    });
+    await executeImport({ bundle, includeTypes: new Set(["party_members"]), campaignId: "camp-new" });
+
+    const [deity] = fake.rows("deities");
+    const [pantheon] = fake.rows("pantheons");
+    const [member] = fake.rows("party_members");
+    expect(deity).toMatchObject({ name: "The Kettle Witch", campaign_id: "camp-new", user_id: "importer", pantheon_id: pantheon.id });
+    expect(deity.id).not.toBe("d1");
+    expect(pantheon.id).not.toBe("p1");
+    expect(member.deity_id).toBe(deity.id);
+  });
+
+  it("a character whose god did not travel imports with no god, never the exporter's row", () => {
+    const ctx: ImportRemapCtx = { idMap: buildIdMap(emptyBundle()), campaignId: "camp-new", userId: "importer" };
+    expect(remapPartyMemberForImport({ id: "pm1", ruleset: "2024", deity_id: "d-exporters" }, ctx).deity_id).toBeNull();
   });
 });

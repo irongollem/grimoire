@@ -38,6 +38,8 @@ export const BUNDLE_ENTITY_TYPES = [
   { key: "party_members",         label: "Characters",            nameField: "name",         scope: "campaign" },
   { key: "custom_classes",        label: "Custom Classes",        nameField: "class_name",   scope: "campaign" },
   { key: "custom_subclasses",     label: "Custom Subclasses",     nameField: "subclass_name", scope: "campaign" },
+  { key: "pantheons",             label: "Pantheons",             nameField: "name",         scope: "campaign" },
+  { key: "deities",               label: "Deities",               nameField: "name",         scope: "campaign" },
   { key: "calendar_events",       label: "Calendar Events",       nameField: "title",        scope: "campaign" },
   { key: "monsters",              label: "Homebrew Monsters",     nameField: "name",         scope: "library"  },
   { key: "items",                 label: "Items",                 nameField: "name",         scope: "library"  },
@@ -99,6 +101,9 @@ export interface GrimoireBundle {
   character_spells?: Row[];
   custom_classes?: Row[];
   custom_subclasses?: Row[];
+  /** A deity's pantheon travels with it (#1119), so a bundled deity never names a pantheon the file lacks. */
+  pantheons?: Row[];
+  deities?: Row[];
   // User-library
   monsters?: Row[];
   items?: Row[];
@@ -397,6 +402,14 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
       entityCounts.custom_subclasses = subs.length;
     })(),
 
+    selection.has("pantheons") && (async () => {
+      bundle.pantheons = (await fetchByIds("pantheons", selection.get("pantheons")!)).map(stripCampaignRow);
+    })(),
+
+    selection.has("deities") && (async () => {
+      bundle.deities = (await fetchByIds("deities", selection.get("deities")!)).map(stripCampaignRow);
+    })(),
+
     selection.has("calendar_events") && (async () => {
       const ids = selection.get("calendar_events")!;
       const events = await fetchByIds("calendar_events", ids);
@@ -443,6 +456,8 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
 
   ].filter(Boolean));
 
+  await carryDeities(bundle, entityCounts);
+
   // ── World links (#1084) ────────────────────────────────────────────────────
   // Only links with both ends in the bundle travel: the other end would have no row to point at.
   const bundled: Record<LinkKind, Set<string>> = {
@@ -450,7 +465,7 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     party_member: new Set((bundle.party_members ?? []).map((row) => row.id as string)),
     faction: new Set((bundle.factions ?? []).map((row) => row.id as string)),
     location: new Set((bundle.locations ?? []).map((row) => row.id as string)),
-    deity: new Set(),
+    deity: new Set((bundle.deities ?? []).map((row) => row.id as string)),
     item: new Set((bundle.items ?? []).map((row) => row.id as string)),
   };
   const found: Row[] = [];
@@ -553,6 +568,28 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
   };
 }
 
+/**
+ * A campaign's faith travels whole (#1119): the deity a bundled character worships comes along, as a species
+ * does, and so does the pantheon of every bundled deity. A row the exporter cannot read is left out; on import
+ * the character's `deity_id` then resolves to nothing rather than to the exporter's row.
+ */
+async function carryDeities(bundle: Partial<GrimoireBundle>, entityCounts: Record<string, number>): Promise<void> {
+  const missing = (rows: Row[] | undefined, wanted: Iterable<unknown>) => {
+    const have = new Set((rows ?? []).map((r) => r.id as string));
+    return [...new Set([...wanted].filter((id): id is string => typeof id === "string"))].filter((id) => !have.has(id));
+  };
+  const deityIds = missing(bundle.deities, (bundle.party_members ?? []).map((pm) => pm.deity_id));
+  if (deityIds.length) {
+    bundle.deities = [...(bundle.deities ?? []), ...(await fetchByIds("deities", deityIds)).map(stripCampaignRow)];
+  }
+  const pantheonIds = missing(bundle.pantheons, (bundle.deities ?? []).map((d) => d.pantheon_id));
+  if (pantheonIds.length) {
+    bundle.pantheons = [...(bundle.pantheons ?? []), ...(await fetchByIds("pantheons", pantheonIds)).map(stripCampaignRow)];
+  }
+  if (bundle.pantheons) entityCounts.pantheons = bundle.pantheons.length;
+  if (bundle.deities) entityCounts.deities = bundle.deities.length;
+}
+
 async function compress(data: string): Promise<Blob> {
   const stream = new Blob([data]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Response(stream).blob();
@@ -580,6 +617,7 @@ export function buildIdMap(bundle: GrimoireBundle): IdMap {
     bundle.notes, bundle.encounters, bundle.calendar_events,
     bundle.party_members, bundle.character_classes, bundle.character_spells,
     bundle.custom_classes, bundle.custom_subclasses,
+    bundle.pantheons, bundle.deities,
     bundle.monsters, bundle.items, bundle.spells, bundle.species,
     bundle.scriptorium_documents,
   ]);
@@ -662,7 +700,18 @@ export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
     species_id: rCamp(pm.species_id, ctx.idMap),
     disguise_species_id: rCamp(pm.disguise_species_id, ctx.idMap),
     current_location_id: rCamp(pm.current_location_id, ctx.idMap),
+    // The deity a character worships is carried with it, so it resolves to the imported row, or to nothing.
+    deity_id: rCamp(pm.deity_id, ctx.idMap),
   };
+}
+
+/** Pantheons and deities are campaign rows: fresh id, the importer's campaign, an empty audience. */
+export function remapPantheonForImport(row: Row, ctx: ImportRemapCtx): Row {
+  return { ...row, id: freshId(row.id, ctx.idMap), campaign_id: ctx.campaignId, user_id: ctx.userId, player_visible_to: [] };
+}
+
+export function remapDeityForImport(row: Row, ctx: ImportRemapCtx): Row {
+  return { ...remapPantheonForImport(row, ctx), pantheon_id: rCamp(row.pantheon_id, ctx.idMap) };
 }
 
 export function remapCharacterClassForImport(cc: Row, ctx: ImportRemapCtx): Row {
@@ -749,7 +798,7 @@ export interface ImportResult {
   newCampaign: Campaign | null;
 }
 
-async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
+export async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
   const { bundle, includeTypes } = opts;
   const user = getCurrentUser();
   if (!user) throw new Error("Not authenticated");
@@ -847,6 +896,17 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
       "custom_subclasses",
       bundle.custom_subclasses.map((cs) => remapCustomSubclassForImport(cs, ctx)),
     );
+  }
+
+  // Deities before party_members (deity_id FK), pantheons before deities (pantheon_id FK). Like species, the
+  // faith imports whenever characters do, and a deity's pantheon whenever the deity does: the bundle only
+  // carries a pantheon a deity names or the exporter chose, and leaving it behind would cut the deity loose.
+  const deitiesImported = !!bundle.deities?.length && (includeTypes.has("deities") || includeTypes.has("party_members"));
+  if (bundle.pantheons?.length && (includeTypes.has("pantheons") || deitiesImported)) {
+    await batchInsert("pantheons", bundle.pantheons.map((p) => remapPantheonForImport(p, ctx)));
+  }
+  if (deitiesImported) {
+    await batchInsert("deities", bundle.deities!.map((d) => remapDeityForImport(d, ctx)));
   }
 
   if (includeTypes.has("party_members") && bundle.party_members?.length) {
@@ -1036,6 +1096,7 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
   ] as const) {
     if (includeTypes.has(key)) importedKinds.add(kind);
   }
+  if (deitiesImported) importedKinds.add("deity");
   await batchInsert("world_links", bundleLinkRows(bundle, idMap, importedKinds, campaignId, userId));
 
   return { newCampaign };
@@ -1109,7 +1170,7 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   const hasContent = [
     json.npcs, json.locations, json.factions, json.quests,
     json.notes, json.encounters, json.calendar_events, json.party_members,
-    json.custom_classes, json.custom_subclasses,
+    json.custom_classes, json.custom_subclasses, json.pantheons, json.deities,
     json.monsters, json.items, json.spells, json.species, json.scriptorium_documents,
   ].some((arr) => arr && arr.length > 0);
   if (!hasContent) {
@@ -1202,6 +1263,8 @@ export function useImportWorldBundle() {
       queryClient.invalidateQueries({ queryKey: ["party"] });
       queryClient.invalidateQueries({ queryKey: ["custom_classes"] });
       queryClient.invalidateQueries({ queryKey: ["custom_subclasses"] });
+      queryClient.invalidateQueries({ queryKey: ["pantheons"] });
+      queryClient.invalidateQueries({ queryKey: ["deities"] });
       queryClient.invalidateQueries({ queryKey: ["monsters"] });
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["spells"] });
