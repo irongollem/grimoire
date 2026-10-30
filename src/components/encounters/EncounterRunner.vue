@@ -104,7 +104,8 @@
           size="sm"
           :icon="IconExternalLink"
           aria-label="Open battle map in a new window"
-          tooltip="Open battle map in a new window (for a second monitor)"
+          :tooltip="isLive ? 'Open battle map in a new window (for a second monitor)' : 'Go live first. The new window follows the live fight.'"
+          :disabled="!isLive"
           @click="openBattleMapInNewWindow"
         />
         <AppButton
@@ -672,8 +673,11 @@ async function handleEndCombat() {
   @apply flex flex-1 min-h-0 overflow-hidden;
 }
 
+/* The combatant rows lay themselves out by the list's own width, which the
+   stat block panel beside it takes from (RunnerCombatantRow). */
 .runner-body {
   @apply flex-1 overflow-y-auto min-w-0;
+  container: runner-list / inline-size;
 }
 
 .resize-handle {

@@ -65,6 +65,14 @@ describe("RunnerCombatantCard (phone row)", () => {
     expect(w.emitted("open")).toEqual([["m1"]]);
   });
 
+  // The row is a role="button", and a keyboard user presses Space on a button.
+  it("opens the sheet from the keyboard with Space as well as Enter", async () => {
+    const w = mountRow();
+    await w.trigger("keydown", { key: " " });
+    await w.trigger("keydown", { key: "Enter" });
+    expect(w.emitted("open")).toEqual([["m1"], ["m1"]]);
+  });
+
   it("editing initiative in the lobby does not open the sheet", async () => {
     const w = mountRow();
     await w.find(".init-field").trigger("click");

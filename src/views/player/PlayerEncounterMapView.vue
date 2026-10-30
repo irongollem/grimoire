@@ -91,7 +91,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
-import { liveState, updateOwnCombatantPosition } from "@/composables/encounters/useEncounterLive";
+import { liveState, updateCombatantPosition } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
@@ -270,7 +270,7 @@ async function onOwnTokenMoved(instanceId: string, position: { x: number; y: num
   if (!liveState.value) return;
   if (instanceId !== ownInstanceId.value) return;
   try {
-    await updateOwnCombatantPosition(liveState.value.id, instanceId, position);
+    await updateCombatantPosition(liveState.value.id, instanceId, position);
   } catch (e) {
     console.error("Failed to update token position", e);
   }

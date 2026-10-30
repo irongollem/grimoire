@@ -9,6 +9,7 @@
     :data-active="active || undefined"
     @click="emit('open', combatant.instance_id)"
     @keydown.enter.self="emit('open', combatant.instance_id)"
+    @keydown.space.self.prevent="emit('open', combatant.instance_id)"
   >
     <div class="mc-init" @click.stop>
       <RunnerInitiativeField v-if="!store.started" :combatant="combatant" />

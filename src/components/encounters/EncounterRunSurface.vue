@@ -16,10 +16,11 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
 import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
+import { liveRevision, useEncounterLive } from "@/composables/encounters/useEncounterLive";
+import { sameLiveRoster } from "@/lib/encounters/liveRoster";
 import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
-import type { Encounter } from "@/types/encounter.types";
+import type { Encounter, RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { NpcListRow } from "@/types/npc.types";
@@ -41,7 +42,7 @@ const { data: npcs, isFetching: npcsFetching } = useNpcs();
 // byId resolves the ids the encounter stored, library and own alike.
 const { byId: trapsById, isLoading: trapsLoading } = useTrapIndex(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
-const { liveState, liveStateLoaded } = useEncounterLive(id);
+const { liveState, liveStateLoaded } = useEncounterLive(id, { follow: true });
 
 /** Monsters an encounter's events may spawn (an absent `kind` means monster, see SpawnDef). */
 function spawnedMonsterIds(events: Encounter["events"] | undefined): string[] {
@@ -111,7 +112,8 @@ watch(
       // Hydrate only a store that does not hold this run yet. The store is ahead
       // of the live state, whose push is debounced: re-hydrating a live lobby on
       // a party refetch wrote a player's just-ingested roll back to blank, and
-      // the DM saw "Waiting for roll" until a reload.
+      // the DM saw "Waiting for roll" until a reload. A change made elsewhere
+      // reaches a store that holds the run through the watcher below.
       if (store.encounterId === enc.id) return;
       store.hydrateFromLive({
         encounter_id: enc.id,
@@ -138,6 +140,29 @@ watch(
   },
   { immediate: true },
 );
+
+// A change another device made to the live fight (a second runner on the DM's
+// phone, say) arrives as a followed read of the row. Such a read is only ever
+// adopted while this tab has no write of its own pending (useEncounterLive), so
+// the row is not behind this store, and a roster that differs from the store's
+// was changed somewhere else: adopt it. This tab's own pushes come back equal and
+// change nothing.
+watch(liveRevision, () => {
+  const live = liveState.value;
+  if (!live?.is_running || live.encounter_id !== store.encounterId || store.encounterId !== id.value) return;
+  const roster = { round: store.round, activeIndex: store.activeIndex, combatants: store.combatants, eventsFired: store.eventsFired };
+  if (sameLiveRoster(roster, live)) return;
+  store.hydrateFromLive({
+    encounter_id: live.encounter_id,
+    encounter_name: store.encounterName,
+    factions: store.factions,
+    current_round: live.current_round,
+    active_combatant_index: live.active_combatant_index,
+    // A copy, so the store's edits do not reach into the row a map is drawing.
+    combatants_live: JSON.parse(JSON.stringify(live.combatants_live)) as RunCombatant[],
+    events_fired: [...(live.events_fired ?? [])],
+  });
+});
 
 function filterEncounterTraps(enc: Encounter, all: ReadonlyMap<string, TrapEntry>): TrapEntry[] {
   // A trap listed twice (quantity) is one card in the runner.

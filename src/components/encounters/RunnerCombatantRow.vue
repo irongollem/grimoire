@@ -345,6 +345,35 @@ function toggleDetail() {
 
 .conditions-cell { @apply flex items-center flex-wrap gap-1; }
 
+/* A narrow list (the stat block panel open beside it) has no room for a
+   conditions column: the name and the conditions split one column between
+   them and starved the name to a letter or two. The conditions move under the
+   name instead, and the cells either side span both lines. */
+@container runner-list (max-width: 44rem) {
+  .combatant-row {
+    grid-template-columns: 2.5rem 4.75rem minmax(0, 1fr) 10rem 3rem;
+    grid-template-rows: auto auto;
+    row-gap: 0.125rem;
+    padding-block: 0.25rem;
+  }
+  .avatar-cell,
+  .init-cell,
+  .hp-cell,
+  .ac-cell {
+    grid-row: 1 / span 2;
+  }
+  .name-cell {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: end;
+  }
+  .conditions-cell {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: start;
+  }
+}
+
 .hp-quick-panel {
   display: flex;
   align-items: center;

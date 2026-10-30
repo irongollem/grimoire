@@ -42,7 +42,7 @@ vi.mock("@/lib/campaignLiveSync/rings", () => ({
   },
 }));
 
-import { liveState, updateOwnCombatantPosition, useEncounterLive, usePlayerEncounterLive } from "./useEncounterLive";
+import { liveRevision, liveState, updateCombatantPosition, useEncounterLive, usePlayerEncounterLive } from "./useEncounterLive";
 
 const tokenAt = (instance_id: string, position: { x: number; y: number } | null) =>
   ({ instance_id, position }) as Partial<RunCombatant> as RunCombatant;
@@ -253,19 +253,40 @@ describe("pushing state", () => {
     ]);
   });
 
+  // #1120: a second map window writes the map's own state. Riding the roster
+  // push, it wrote its stale copy of the roster over the runner's last change.
   it.each([
-    ["fogMask", "fog_mask", "1,1", null],
-    ["magicalDarkness", "magical_darkness", [{ id: "z1", x: 2.5, y: 3, radius: 15 }], []],
-    ["doorStates", "door_states", [{ edge: "3,2:N", open: true }], []],
-  ])("writes %s only when the caller passes it, so a push without it keeps what is stored", async (key, column, value, empty) => {
-    const { schedulePush } = await live({ [column]: value });
-    schedulePush(base);
+    ["fogMask", "fog_mask", "1,1"],
+    ["magicalDarkness", "magical_darkness", [{ id: "z1", x: 2.5, y: 3, radius: 15 }]],
+    ["doorStates", "door_states", [{ edge: "3,2:N", open: true }]],
+  ])("writes %s on its own, leaving the roster as the runner left it", async (key, column, value) => {
+    const { scheduleMapPush } = await live({ current_round: 5, combatants_live: [tokenAt("g1", null)] });
+    scheduleMapPush({ [key]: value });
     await vi.advanceTimersByTimeAsync(400);
-    expect(fake.rows("encounter_state")[0]![column]).toEqual(value);
+    expect(fake.rows("encounter_state")[0]).toMatchObject({ [column]: value, current_round: 5, combatants_live: [tokenAt("g1", null)] });
+    expect(liveState.value?.[column as "fog_mask"]).toEqual(value);
+  });
 
-    schedulePush({ ...base, [key]: empty });
+  it("keeps every part of the map's state changed within one burst, not just the last", async () => {
+    const { scheduleMapPush } = await live();
+    scheduleMapPush({ fogMask: "1,1" });
+    scheduleMapPush({ doorStates: [{ edge: "3,2:N", open: true }] });
     await vi.advanceTimersByTimeAsync(400);
-    expect(fake.rows("encounter_state")[0]![column]).toEqual(empty);
+    expect(updates()).toHaveLength(1);
+    expect(fake.rows("encounter_state")[0]).toMatchObject({ fog_mask: "1,1", door_states: [{ edge: "3,2:N", open: true }] });
+  });
+
+  // Leaving the runner for the battle map unmounts it, and dropping its pending
+  // push kept the last HP change from the players.
+  it("sends a pending push when the runner unmounts, rather than dropping it", async () => {
+    fake.seed("encounter_state", [stateRow("encounter-1")]);
+    let api!: ReturnType<typeof useEncounterLive>;
+    const wrapper = mount(defineComponent({ setup() { api = useEncounterLive(() => "encounter-1"); return () => null; } }));
+    await vi.advanceTimersByTimeAsync(0);
+    api.schedulePush({ ...base, round: 7 });
+    wrapper.unmount();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fake.rows("encounter_state")[0]!.current_round).toBe(7);
   });
 
   it("writes nothing when no encounter is live", async () => {
@@ -387,9 +408,126 @@ describe("usePlayerEncounterLive", () => {
   });
 });
 
-describe("updateOwnCombatantPosition", () => {
+describe("following the live row", () => {
+  // Followers are shared across the module, so a test that failed before
+  // unmounting would leave the next one listening through its listener.
+  const mounted: { unmount(): void }[] = [];
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    mounted.splice(0).forEach((w) => w.unmount());
+    vi.useRealTimers();
+  });
+
+  const ringRow = () => rings.ring.forEach((fire) => fire({ campaignId: "campaign-1", table: "encounter_state" }));
+  const setRow = async (over: Record<string, unknown>) => {
+    await fake.client.from("encounter_state").update(over).eq("encounter_id", "encounter-1");
+  };
+
+  async function mountLive(follow: boolean, over: Record<string, unknown> = {}) {
+    fake.seed("encounter_state", [stateRow("encounter-1", over)]);
+    let api!: ReturnType<typeof useEncounterLive>;
+    const wrapper = mount(defineComponent({ setup() { api = useEncounterLive(() => "encounter-1", { follow }); return () => null; } }));
+    mounted.push(wrapper);
+    await vi.advanceTimersByTimeAsync(0);
+    return { api, wrapper };
+  }
+
+  // #1120: the map in a second window loaded the row once and froze there.
+  it("re-reads the row when the campaign rings, so a window that follows the fight sees the runner's changes", async () => {
+    await mountLive(true);
+    const before = liveRevision.value;
+    await setRow({ current_round: 4 });
+    ringRow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(liveState.value?.current_round).toBe(4);
+    expect(liveRevision.value).toBe(before + 1);
+  });
+
+  it("does not listen for a page that only needs to stop a fight", async () => {
+    await mountLive(false);
+    expect(rings.ring).toHaveLength(0);
+  });
+
+  it("stops listening once the last follower leaves", async () => {
+    const first = await mountLive(true);
+    const second = mount(defineComponent({ setup() { useEncounterLive(() => "encounter-1", { follow: true }); return () => null; } }));
+    expect(rings.ring).toHaveLength(1);
+    first.wrapper.unmount();
+    mounted.length = 0;
+    expect(rings.ring).toHaveLength(1);
+    second.unmount();
+    expect(rings.ring).toHaveLength(0);
+  });
+
+  // A ring from someone else landing while a brush stroke waits to be written
+  // handed back the row without the stroke, and the fog flashed back.
+  it("holds a read back while this tab has a write pending, then reads once it is written", async () => {
+    const { api } = await mountLive(true);
+    api.scheduleMapPush({ fogMask: "2,2" });
+    await setRow({ current_round: 6 });
+    ringRow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(liveState.value?.current_round).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(400);
+    expect(liveState.value).toMatchObject({ current_round: 6, fog_mask: "2,2" });
+  });
+
+  it("does not even ask for the row while a write is pending", async () => {
+    const { api } = await mountLive(true);
+    const reads = () => fake.calls.filter((c) => c.target === "encounter_state" && c.op === "select").length;
+    const before = reads();
+    api.scheduleMapPush({ fogMask: "2,2" });
+    ringRow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(reads()).toBe(before);
+  });
+
+  it("drops a read that a write overtook in flight, and reads again after it", async () => {
+    const { api } = await mountLive(true);
+    await setRow({ current_round: 6 });
+    ringRow();
+    api.scheduleMapPush({ fogMask: "2,2" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(liveState.value?.current_round).toBe(1);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(liveState.value).toMatchObject({ current_round: 6, fog_mask: "2,2" });
+  });
+
+  // A door opened a minute after a brush stroke re-sent the stroke's mask, over
+  // whatever the other window had brushed since.
+  it("sends each part of the map's state once, not again with the next change", async () => {
+    const { api } = await mountLive(true);
+    api.scheduleMapPush({ fogMask: "1,1" });
+    await vi.advanceTimersByTimeAsync(400);
+    await setRow({ fog_mask: "9,9" });
+    api.scheduleMapPush({ doorStates: [] });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(fake.rows("encounter_state")[0]!.fog_mask).toBe("9,9");
+  });
+
+  it("shows a token where the DM put it at once, and writes it through the position function", async () => {
+    const moves: unknown[] = [];
+    fake.onRpc("update_combatant_position", (args) => { moves.push(args); return null; });
+    const { api } = await mountLive(true, { combatants_live: [tokenAt("g1", { x: 0, y: 0 })] });
+    const moving = api.moveToken("g1", { x: 4, y: 2 });
+    expect(liveState.value?.combatants_live[0]?.position).toEqual({ x: 4, y: 2 });
+    await moving;
+    expect(moves).toEqual([{ p_encounter_state_id: "state-encounter-1", p_instance_id: "g1", p_position: { x: 4, y: 2 } }]);
+  });
+
+  it("puts a refused move back where the row has it, and says so", async () => {
+    const { api } = await mountLive(true, { combatants_live: [tokenAt("g1", { x: 0, y: 0 })] });
+    fake.failNext("update_combatant_position", { code: "P0001", message: "not a member of this campaign" });
+    await expect(api.moveToken("g1", { x: 4, y: 2 })).rejects.toMatchObject({ code: "P0001" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(liveState.value?.combatants_live[0]?.position).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("updateCombatantPosition", () => {
   it("raises the server's refusal to move a token the caller does not own", async () => {
     fake.failNext("update_combatant_position", { code: "42501", message: "not your token" });
-    await expect(updateOwnCombatantPosition("s1", "inst-1", { x: 1, y: 1 })).rejects.toMatchObject({ code: "42501" });
+    await expect(updateCombatantPosition("s1", "inst-1", { x: 1, y: 1 })).rejects.toMatchObject({ code: "42501" });
   });
 });

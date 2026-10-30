@@ -113,14 +113,169 @@ export function useRunningEncounters() {
 export const liveState = ref<EncounterState | null>(null);
 const liveStateLoaded = ref(false);
 let stopPlayerRings: (() => void) | null = null;
-let pushTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ── DM writes ──────────────────────────────────────────────────────────────────
+// Three kinds of write reach the live row, and each owns its own columns:
+//   - the roster (round, turn, combatants, fired events), written only by the
+//     runner, which owns the run;
+//   - token positions, written one combatant at a time by
+//     `update_combatant_position` from any battle map, the DM's and the players';
+//   - the map's own state (fog, magical darkness, doors), written by the DM's
+//     battle map without touching the roster.
+// A second map window follows the run rather than owning it (#1120), so it writes
+// positions and map state only: pushing its copy of the roster would undo the
+// runner's last change.
+
+/** One debounced write: a burst collapses into the last call, and `flush` sends it now. */
+function debounced() {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let run: (() => void) | null = null;
+  function flush() {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    const fn = run;
+    run = null;
+    fn?.();
+  }
+  return {
+    schedule(fn: () => void) {
+      if (timer) clearTimeout(timer);
+      run = fn;
+      timer = setTimeout(flush, 300);
+    },
+    flush,
+    get pending() {
+      return timer !== null;
+    },
+  };
+}
+const rosterPush = debounced();
+const mapPush = debounced();
+let pendingMapPatch: MapPatch = {};
+let writesInFlight = 0;
+let writeGeneration = 0;
+let rereadAfterWrites: (() => void) | null = null;
+
+interface MapPatch {
+  fog_mask?: string | null;
+  magical_darkness?: MagicalDarknessZone[];
+  door_states?: MapLiveDoorState[];
+}
+
+function writesPending(): boolean {
+  return rosterPush.pending || mapPush.pending || writesInFlight > 0;
+}
+
+async function trackWrite<T>(write: () => Promise<T>): Promise<T> {
+  writesInFlight++;
+  writeGeneration++;
+  try {
+    return await write();
+  } finally {
+    writesInFlight--;
+    if (!writesPending() && rereadAfterWrites) {
+      const reread = rereadAfterWrites;
+      rereadAfterWrites = null;
+      reread();
+    }
+  }
+}
+
+// ── Following the live row ─────────────────────────────────────────────────────
+// A window that shows a live fight it does not run (the battle map in a second
+// window, #1120) learns of every change through the campaign doorbell: the row
+// rings, and the window re-reads it. The runner follows too, so a fog mask a
+// second window brushed is the one End combat reads.
+//
+// A read never lands over this tab's own pending write. The tab holds a change
+// the row does not have yet (a brush stroke, a ring of HP), and adopting the
+// older row would flash it back, or hand the runner a roster behind its own. Such
+// a read waits for the writes to settle and is made again; the write's own ring
+// would bring one, but a failed write rings nothing.
+const followers = new Map<string, { refs: number; reread: () => void; stop: () => void }>();
+
+/** Bumped each time a followed read is adopted, so a runner can tell a change made elsewhere from its own. */
+export const liveRevision = ref(0);
+
+function follow(encounterId: string, campaignId: string): () => void {
+  const existing = followers.get(encounterId);
+  if (existing) {
+    existing.refs++;
+    return () => release(encounterId);
+  }
+  let reading = false;
+  let again = false;
+  const readOnce = async () => {
+    if (writesPending()) {
+      rereadAfterWrites = reread;
+      return;
+    }
+    const generation = writeGeneration;
+    const { data, error } = await supabase
+      .from("encounter_state")
+      .select("*")
+      .eq("encounter_id", encounterId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!followers.has(encounterId)) return;
+    if (generation !== writeGeneration || writesPending()) {
+      rereadAfterWrites = reread;
+      return;
+    }
+    liveState.value = (data as EncounterState | null) ?? null;
+    liveRevision.value++;
+  };
+  const reread = async () => {
+    if (reading) { again = true; return; }
+    reading = true;
+    try {
+      do {
+        again = false;
+        await readOnce();
+      } while (again && followers.has(encounterId));
+    } catch (error) {
+      // Reported from a timer: a throw inside a listener does not reliably reach Sentry.
+      setTimeout(() => { throw error; });
+    } finally {
+      reading = false;
+    }
+  };
+  const offRing = onCampaignRing(["encounter_state"], (ring) => {
+    if (ring.campaignId === campaignId) void reread();
+  });
+  const offReconcile = onCampaignReconcile((id) => {
+    if (id === campaignId) void reread();
+  });
+  followers.set(encounterId, {
+    refs: 1,
+    reread: () => void reread(),
+    stop: () => { offRing(); offReconcile(); },
+  });
+  return () => release(encounterId);
+}
+
+function release(encounterId: string) {
+  const entry = followers.get(encounterId);
+  if (!entry) return;
+  entry.refs--;
+  if (entry.refs > 0) return;
+  entry.stop();
+  followers.delete(encounterId);
+}
 
 // ── DM composable ──────────────────────────────────────────────────────────────
 // `string | null` rather than `string`, deliberately: an encounter being
 // created has no id yet, and the previous signature forced the caller to lie
 // about that with `?? ""` — which is how an empty UUID reached PostgREST and
 // came back 400 (#833). Absence is a real state here, so the type says so.
-export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
+//
+// `follow` keeps the live row current from the doorbell (see "Following the live
+// row" above): the runner and the battle map pass it; a page that only needs to
+// stop a fight does not.
+export function useEncounterLive(
+  encounterId: MaybeRefOrGetter<string | null>,
+  options: { follow?: boolean } = {},
+) {
   const campaign = useCampaignStore();
 
   const isLive = computed(() => liveState.value?.encounter_id === toValue(encounterId) && liveState.value?.is_running === true);
@@ -161,11 +316,9 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
       // And every door starts as the map drew it: the DM's open and shut doors belong to the fight (#1073).
       door_states: [],
     };
-    const { data, error } = await supabase
-      .from("encounter_state")
-      .upsert(payload, { onConflict: "encounter_id" })
-      .select()
-      .single();
+    const { data, error } = await trackWrite(async () =>
+      supabase.from("encounter_state").upsert(payload, { onConflict: "encounter_id" }).select().single(),
+    );
     if (error) throw error;
     // Enforce one live encounter per campaign: stop any other running rows so the
     // player's single-live-row view can't flip-flop between two encounters.
@@ -179,29 +332,25 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
     return { startedSession: session.started };
   }
 
-  interface PushableState {
+  interface RosterState {
     round: number;
     activeIndex: number;
     combatants: RunCombatant[];
     eventsFired: string[];
-    fogMask?: string | null;
-    magicalDarkness?: MagicalDarknessZone[];
-    doorStates?: MapLiveDoorState[];
   }
 
-  function schedulePush(state: PushableState) {
-    if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => void pushState(state), 300);
+  /** The runner's roster, debounced. Only the window that owns the run calls this. */
+  function schedulePush(state: RosterState) {
+    rosterPush.schedule(() => void trackWrite(() => pushState(state)));
   }
 
-  async function pushState(state: PushableState) {
+  async function pushState(state: RosterState) {
     if (!liveState.value) return;
-    // Token positions are written straight into DB combatants_live by the map
-    // windows (players + the DM's separate map window) via update_combatant_position;
-    // the main runner store never ingests them, so a full-replace here would revert
-    // every token to its seed position on the next HP/turn/condition push. Read the
-    // live positions and merge them onto the outgoing combatants (DB position wins)
-    // so moves persist across pushes.
+    // Token positions are written straight into DB combatants_live by the battle
+    // maps via update_combatant_position; the runner store never ingests them, so
+    // a full-replace here would revert every token to its seed position on the
+    // next HP/turn/condition push. Read the live positions and merge them onto the
+    // outgoing combatants (DB position wins) so moves persist across pushes.
     const { data: current } = await supabase
       .from("encounter_state")
       .select("combatants_live")
@@ -214,21 +363,67 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
     const mergedCombatants = state.combatants.map((c) =>
       dbPositions.has(c.instance_id) ? { ...c, position: dbPositions.get(c.instance_id) } : c,
     );
-    const patch: Record<string, unknown> = {
+    const patch = {
       current_round: state.round,
       active_combatant_index: state.activeIndex,
       combatants_live: mergedCombatants,
       events_fired: state.eventsFired,
     };
-    if (state.fogMask !== undefined) patch.fog_mask = state.fogMask;
-    if (state.magicalDarkness !== undefined) patch.magical_darkness = state.magicalDarkness;
-    if (state.doorStates !== undefined) patch.door_states = state.doorStates;
     const { error } = await supabase
       .from("encounter_state")
       .update(patch)
       .eq("encounter_id", toValue(encounterId));
     if (error) throw error;
-    liveState.value = { ...liveState.value, ...(patch as Partial<EncounterState>) };
+    if (liveState.value) liveState.value = { ...liveState.value, ...patch };
+  }
+
+  /**
+   * The battle map's own state, debounced: only the columns given are written, and
+   * patches inside one burst merge, so a door opened while the fog push is pending
+   * does not drop the fog.
+   */
+  function scheduleMapPush(patch: { fogMask?: string | null; magicalDarkness?: MagicalDarknessZone[]; doorStates?: MapLiveDoorState[] }) {
+    if (patch.fogMask !== undefined) pendingMapPatch.fog_mask = patch.fogMask;
+    if (patch.magicalDarkness !== undefined) pendingMapPatch.magical_darkness = patch.magicalDarkness;
+    if (patch.doorStates !== undefined) pendingMapPatch.door_states = patch.doorStates;
+    mapPush.schedule(() => {
+      const columns = pendingMapPatch;
+      pendingMapPatch = {};
+      void trackWrite(() => pushMap(columns));
+    });
+  }
+
+  async function pushMap(columns: MapPatch) {
+    if (!liveState.value) return;
+    const { error } = await supabase
+      .from("encounter_state")
+      .update(columns)
+      .eq("encounter_id", toValue(encounterId));
+    if (error) throw error;
+    if (liveState.value) liveState.value = { ...liveState.value, ...columns };
+  }
+
+  /**
+   * Moves one token on the live board: shown at once, then written through the
+   * same atomic function the players use, which lets the campaign's DM move any
+   * combatant. A refused move is re-read away and thrown for the caller to report.
+   */
+  async function moveToken(instanceId: string, position: { x: number; y: number } | null) {
+    const row = liveState.value;
+    if (!row || !isLive.value) return;
+    liveState.value = {
+      ...row,
+      combatants_live: row.combatants_live.map((c) => (c.instance_id === instanceId ? { ...c, position } : c)),
+    };
+    try {
+      await trackWrite(() => updateCombatantPosition(row.id, instanceId, position));
+    } catch (error) {
+      const id = toValue(encounterId);
+      const entry = id ? followers.get(id) : undefined;
+      if (entry) entry.reread();
+      else void loadState();
+      throw error;
+    }
   }
 
   async function endLive() {
@@ -272,15 +467,27 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
 
   // Re-run on id changes so a reused component instance (same-route param
   // change) loads the correct encounter's live state instead of the stale one.
-  watch(() => toValue(encounterId), () => void loadState(), { immediate: true });
+  let unfollow: (() => void) | null = null;
+  watch(
+    [() => toValue(encounterId), () => campaign.activeCampaignId],
+    ([id, campaignId], previous) => {
+      if (!previous || previous[0] !== id) void loadState();
+      unfollow?.();
+      unfollow = options.follow && id && campaignId ? follow(id, campaignId) : null;
+    },
+    { immediate: true },
+  );
 
   onUnmounted(() => {
-    if (pushTimer) clearTimeout(pushTimer);
+    unfollow?.();
+    // Send what is pending rather than drop it. Leaving the runner for the battle
+    // map unmounts it, and a change made just before that never reached the players.
+    rosterPush.flush();
+    mapPush.flush();
   });
 
-  return { isLive, liveState, liveStateLoaded, goLive, schedulePush, endLive };
+  return { isLive, liveState, liveStateLoaded, goLive, schedulePush, scheduleMapPush, moveToken, endLive };
 }
-
 
 // ── Player composable ──────────────────────────────────────────────────────────
 export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string | null>) {
@@ -366,11 +573,11 @@ export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string | nul
 }
 
 /**
- * RLS-safe RPC for players to move their own token on the battle map.
- * The Postgres function `update_combatant_position` validates that the
- * caller's linked party_member_id matches the `instance_id` before writing.
+ * Moves one token on the live board, atomically, through
+ * `update_combatant_position`: a player may move only their own character's
+ * token, the campaign's DM any combatant (#1120).
  */
-export async function updateOwnCombatantPosition(
+export async function updateCombatantPosition(
   encounterStateId: string,
   instanceId: string,
   position: { x: number; y: number } | null,

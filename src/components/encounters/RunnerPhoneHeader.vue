@@ -55,6 +55,7 @@ import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariant
 import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";
 import type { OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import { IconChevronLeft, IconTool } from "@/lib/icons";
+import { manualPageRoute } from "@/lib/nav";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import TurnTimer from "./TurnTimer.vue";
 
@@ -108,7 +109,15 @@ const menuItems = computed<OverflowMenuEntry[]>(() => {
     disabled: !canOpenBattleMap,
     reason: canOpenBattleMap ? undefined : battleMapDisabledReason,
   });
-  if (canOpenBattleMap) items.push({ key: "battle-map-window", label: "Open map in a new window" });
+  // A second window follows the live fight (#1120): before going live it has nothing to show.
+  if (canOpenBattleMap) {
+    items.push({
+      key: "battle-map-window",
+      label: "Open map in a new window",
+      disabled: !isLive,
+      reason: isLive ? undefined : "Go live first. The new window follows the live fight.",
+    });
+  }
   if (!store.started) items.push({ key: "roll-initiative", label: "Roll initiative for everyone left", disabled: store.rollingInitiative });
   items.push({ key: "manual", label: "How the runner works" });
   items.push({ key: "abandon", label: "Abandon run", danger: true });
@@ -117,7 +126,7 @@ const menuItems = computed<OverflowMenuEntry[]>(() => {
 });
 
 function onSelect(key: string) {
-  if (key === "manual") void router.push({ path: "/rules", query: { tab: "manual", page: "encounter-runner" } });
+  if (key === "manual") void router.push(manualPageRoute("encounter-runner"));
   else if (key === "go-live") emit("go-live");
   else if (key === "battle-map") emit("battle-map");
   else if (key === "battle-map-window") emit("battle-map-window");

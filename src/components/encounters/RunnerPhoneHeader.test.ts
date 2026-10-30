@@ -45,6 +45,21 @@ describe("RunnerPhoneHeader", () => {
     document.body.innerHTML = "";
   });
 
+  // #1120: a second window follows the live fight, so before going live it
+  // opened on an empty board with no tokens.
+  it("offers the map in a new window only once the fight is live", async () => {
+    const w = mountHeader({ isLive: false });
+    await openMenu(w);
+    expect(menuButton("Open map in a new window")!.disabled).toBe(true);
+    w.unmount();
+    document.body.innerHTML = "";
+
+    const live = mountHeader({ isLive: true });
+    await openMenu(live);
+    menuButton("Open map in a new window")!.click();
+    expect(live.emitted("battle-map-window")).toHaveLength(1);
+  });
+
   // The old bar put End Combat one thumb-slip from Roll; on a phone it lives behind the menu.
   it("keeps End combat and Abandon out of the bar and last in the menu, behind a confirm-able emit", async () => {
     const w = mountHeader();

@@ -13,7 +13,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(38);
 
 -- ── Fixture ──────────────────────────────────────────────────────────────────
 
@@ -257,6 +257,19 @@ select is(
   (select c -> 'position' from public.encounter_state s, jsonb_array_elements(s.combatants_live) c
     where s.id = '93640000-0000-4000-8000-0000000000f2' and c ->> 'instance_id' = 'p-93640000-0000-4000-8000-0000000000e2'),
   null, 'and nobody else''s token did');
+
+-- The DM moves any token (#1120): the battle map writes every position through
+-- this function. Sam, a DM at their own table, was refused above, so the DM
+-- branch is this table's DM and nobody else.
+set local role authenticated;
+select pg_temp.as_user(1);
+select lives_ok($$ select public.update_combatant_position('93640000-0000-4000-8000-0000000000f2', 'p-93640000-0000-4000-8000-0000000000e2', '{"x":7,"y":2}'::jsonb) $$,
+  'the table''s DM moves a player''s token');
+reset role;
+select is(
+  (select c -> 'position' from public.encounter_state s, jsonb_array_elements(s.combatants_live) c
+    where s.id = '93640000-0000-4000-8000-0000000000f2' and c ->> 'instance_id' = 'p-93640000-0000-4000-8000-0000000000e2'),
+  '{"x":7,"y":2}'::jsonb, 'and it moved');
 
 select * from finish();
 rollback;

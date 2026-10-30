@@ -133,6 +133,16 @@ function markFor(c: RunCombatant) {
   @apply text-center;
 }
 
+/* Matches the rows' narrow layout (RunnerCombatantRow): no conditions column. */
+@container runner-list (max-width: 44rem) {
+  .combatant-header {
+    grid-template-columns: 2.5rem 4.75rem minmax(0, 1fr) 10rem 3rem;
+  }
+  .combatant-header span:nth-child(6) {
+    display: none;
+  }
+}
+
 .empty-runner {
   @apply text-center text-body text-muted-foreground italic py-16;
 }

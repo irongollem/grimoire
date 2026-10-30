@@ -429,3 +429,8 @@ export function sessionTabs(mode: DmMode): NavItem[] {
 export function navItemHiddenByFlag(item: NavItem, simulacrumHidden: boolean): boolean {
   return item.featureFlag === "simulacrum" && simulacrumHidden;
 }
+
+/** The DM Manual open on one page: `ManualHelpLink` and every "How … works" menu entry go through here. */
+export function manualPageRoute(page: string) {
+  return { path: "/rules", query: { tab: "manual", page } };
+}

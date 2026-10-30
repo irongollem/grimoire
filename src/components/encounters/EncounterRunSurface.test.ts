@@ -14,6 +14,7 @@ const data = vi.hoisted(() => ({
   companions: null as unknown,
   partyFetching: null as unknown,
   liveState: null as unknown,
+  liveRevision: null as unknown,
 }));
 
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounter: () => ({ data: data.encounter }) }));
@@ -29,6 +30,9 @@ vi.mock("@/composables/monsters/useMonstersByIds", () => ({
 }));
 vi.mock("@/composables/encounters/useEncounterLive", () => ({
   useEncounterLive: () => ({ liveState: data.liveState, liveStateLoaded: ref(true) }),
+  get liveRevision() {
+    return data.liveRevision;
+  },
 }));
 
 const encounter = {
@@ -56,6 +60,7 @@ describe("EncounterRunSurface: a run that is not live", () => {
     data.companions = ref([]);
     data.partyFetching = ref(false);
     data.liveState = ref(null);
+    data.liveRevision = ref(0);
   });
 
   it("keeps the fight when the party refetches (a damage write rang it back and reset the run to the lobby)", async () => {
@@ -120,6 +125,7 @@ describe("EncounterRunSurface: a live lobby", () => {
     data.party = ref<PartyMember[]>([]);
     data.companions = ref([]);
     data.partyFetching = ref(false);
+    data.liveRevision = ref(0);
     // The saved live state still holds the roll as blank: the DM's push of the
     // ingested roll is debounced, so a refetch can land before it.
     data.liveState = ref({
@@ -142,5 +148,18 @@ describe("EncounterRunSurface: a live lobby", () => {
     await nextTick();
 
     expect(store.combatants[0]?.initiative).toBe(16);
+  });
+
+  // A second runner (the DM's phone beside the laptop) kept its own copy of the
+  // lobby: nothing another device changed reached it until a reload.
+  it("adopts a change another device made, when a followed read brings it", async () => {
+    mount(EncounterRunSurface, { props: { encounterId: "e1" }, global: { stubs } });
+    const store = useEncounterRunStore();
+    const live = data.liveState as { value: { combatants_live: { initiative: number | null }[] } };
+    live.value = { ...live.value, combatants_live: [{ ...live.value.combatants_live[0]!, initiative: 19 }] };
+    (data.liveRevision as { value: number }).value++;
+    await nextTick();
+
+    expect(store.combatants[0]?.initiative).toBe(19);
   });
 });
