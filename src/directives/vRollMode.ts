@@ -44,6 +44,14 @@ interface Listeners {
 const registry = new WeakMap<HTMLElement, Listeners>();
 
 /**
+ * The binding the listeners read. Vue hands `mounted` one binding object and a
+ * fresh one on every `updated`, so listeners that closed over the first would
+ * keep calling the handler from the first render forever: a weapon row mounted
+ * before its item loaded kept rolling as a custom weapon (+4) under a +3 label.
+ */
+const latest = new WeakMap<HTMLElement, RollModeBinding>();
+
+/**
  * A long-press on a trigger is the picker's gesture, so the OS's own long-press
  * (select the text, open the callout) must not run alongside it (#1078).
  */
@@ -56,14 +64,16 @@ function claimLongPress(el: HTMLElement, enabled: boolean) {
 
 export const vRollMode: Directive<HTMLElement, RollModeBinding> = {
   mounted(el, binding: DirectiveBinding<RollModeBinding>) {
+    latest.set(el, binding.value);
     let timer: ReturnType<typeof setTimeout> | null = null;
     let longFired = false;
     let startX = 0;
     let startY = 0;
 
     // Read fresh each event so a reactive `enabled` toggle is honoured.
-    const call = (mode: RollMode | null, ev: Event) => resolveBinding(binding.value).on(mode, ev);
-    const pickerEnabled = () => resolveBinding(binding.value).enabled;
+    const current = () => latest.get(el) ?? binding.value;
+    const call = (mode: RollMode | null, ev: Event) => resolveBinding(current()).on(mode, ev);
+    const pickerEnabled = () => resolveBinding(current()).enabled;
 
     const clearTimer = () => {
       if (timer) {
@@ -128,6 +138,7 @@ export const vRollMode: Directive<HTMLElement, RollModeBinding> = {
   },
 
   updated(el, binding: DirectiveBinding<RollModeBinding>) {
+    latest.set(el, binding.value);
     claimLongPress(el, resolveBinding(binding.value).enabled);
   },
 
@@ -141,5 +152,6 @@ export const vRollMode: Directive<HTMLElement, RollModeBinding> = {
     el.removeEventListener("touchend", l.onTouchEnd);
     el.removeEventListener("touchcancel", l.onTouchEnd);
     registry.delete(el);
+    latest.delete(el);
   },
 };

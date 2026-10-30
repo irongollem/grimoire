@@ -32,6 +32,27 @@ describe("v-roll-mode", () => {
   });
 });
 
+describe("v-roll-mode handler freshness", () => {
+  // Chicory's Mace rolled +4 under a +3 label: the row mounted before its item
+  // loaded, and the click still ran the handler from that first render.
+  it("calls the handler from the latest render, not the one it mounted with", async () => {
+    const who = ref("first");
+    const seen: string[] = [];
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () => {
+          const label = who.value;
+          return withDirectives(h("div", "Attack"), [[vRollMode, () => seen.push(label)]]);
+        },
+      }),
+    );
+    who.value = "second";
+    await nextTick();
+    wrapper.element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(seen).toEqual(["second"]);
+  });
+});
+
 describe("v-roll-mode gestures", () => {
   const calls: Array<RollMode | null> = [];
   function mountRoller(enabled = true) {
