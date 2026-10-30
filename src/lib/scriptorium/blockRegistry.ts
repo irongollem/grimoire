@@ -14,7 +14,7 @@
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { FurnitureKind } from "@/types/scriptorium.types";
-import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconHash, IconInfo, IconLensPair, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconRefresh, IconScrollText, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
+import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconHash, IconInfo, IconLensPair, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconRefresh, IconScrollText, IconSecret, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
 import {
   frontCoverTemplate,
   insideCoverTemplate,
@@ -225,6 +225,14 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
       "One passage at two levels: a Bright reading for a child and a Deep one for an adult, set side by side. Wrap it in a Wide block to run the halves in two columns. An empty half is left out of the printed page. Shortcut: Mod-Alt-L.",
     icon: IconLensPair,
     action: (editor) => editor.chain().focus().insertLensPair().run(),
+  },
+  {
+    group: "Callouts",
+    label: "Only you see this",
+    description:
+      "A passage for you alone: a secret, a twist, a reminder. It is marked in the editor, left out of the preview and the PDF, and never reaches a player. Shortcut: Mod-Alt-S.",
+    icon: IconSecret,
+    action: (editor) => editor.chain().focus().toggleSecretBlock().run(),
   },
   {
     group: "Callouts",

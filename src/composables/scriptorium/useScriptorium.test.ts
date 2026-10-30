@@ -16,7 +16,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   useScriptoriumDocuments,
-  useCreateScriptoriumDocument,
+  useCreateScriptoriumBook,
   useUpdateScriptoriumDocument,
   useDeleteScriptoriumDocument,
   useScriptoriumDocument,
@@ -42,7 +42,7 @@ function withQuery<T>(setupFn: () => T): T {
 
 const baseDoc: ScriptoriumDocInsert = {
   title: "Test Doc",
-  content: null,
+  kind: "book",
   doc_type: "custom",
   campaign_id: null,
   tags: [],
@@ -51,7 +51,6 @@ const baseDoc: ScriptoriumDocInsert = {
   theme: "onednd2024",
   page_size: "A4",
   ink_friendly: false,
-  word_count: 0,
   show_page_numbers: false,
   footer_text: "",
   page_number_start: 1,
@@ -93,18 +92,47 @@ describe("useScriptoriumDocument", () => {
   });
 });
 
-describe("useCreateScriptoriumDocument", () => {
-  it("inserts with the current user's id and returns the created row", async () => {
-    const { mutateAsync } = withQuery(() => useCreateScriptoriumDocument());
-    const created = await mutateAsync(baseDoc);
+describe("useCreateScriptoriumBook", () => {
+  // The fake mints no ids, so the book is given one the way the database would.
+  const book = { ...baseDoc, id: "b1" } as ScriptoriumDocInsert;
+
+  it("inserts the book for the current user with one empty chapter, titled and counted from its content", async () => {
+    const { mutateAsync } = withQuery(() => useCreateScriptoriumBook());
+    const created = await mutateAsync({ book });
     expect(created).toMatchObject({ title: "Test Doc", user_id: "user-1" });
-    expect(fake.rows("scriptorium_documents")).toHaveLength(1);
+    const chapters = fake.rows("scriptorium_chapters");
+    expect(chapters).toHaveLength(1);
+    expect(chapters[0]).toMatchObject({ document_id: "b1", position: 0, title: "", word_count: 0 });
+  });
+
+  it("writes the given chapters in order with title and word count from each body", async () => {
+    const heading = (t: string) => ({ type: "heading", content: [{ type: "text", text: t }] });
+    const { mutateAsync } = withQuery(() => useCreateScriptoriumBook());
+    await mutateAsync({
+      book,
+      chapters: [
+        { content: { type: "doc", content: [heading("One"), { type: "paragraph", content: [{ type: "text", text: "a b" }] }] } },
+        { content: { type: "doc", content: [heading("Two")] } },
+      ],
+    });
+    expect(fake.rows("scriptorium_chapters").map((c) => [c.position, c.title, c.word_count])).toEqual([
+      [0, "One", 3],
+      [1, "Two", 1],
+    ]);
+  });
+
+  it("removes the just-created book when its chapters fail to insert, so no empty orphan is left", async () => {
+    fake.failNext("scriptorium_chapters", { message: "chapters down" });
+    const { mutateAsync } = withQuery(() => useCreateScriptoriumBook());
+    await expect(mutateAsync({ book })).rejects.toMatchObject({ message: "chapters down" });
+    expect(fake.rows("scriptorium_documents")).toEqual([]);
   });
 
   it("propagates a quota-exceeded error from the enforce_quota trigger", async () => {
     fake.failNext("scriptorium_documents", { message: "quota_exceeded" });
-    const { mutateAsync } = withQuery(() => useCreateScriptoriumDocument());
-    await expect(mutateAsync(baseDoc)).rejects.toSatisfy((err: unknown) => isQuotaExceeded(err));
+    const { mutateAsync } = withQuery(() => useCreateScriptoriumBook());
+    await expect(mutateAsync({ book })).rejects.toSatisfy((err: unknown) => isQuotaExceeded(err));
+    expect(fake.rows("scriptorium_chapters")).toEqual([]);
   });
 });
 

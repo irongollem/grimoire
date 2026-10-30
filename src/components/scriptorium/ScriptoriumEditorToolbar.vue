@@ -333,83 +333,6 @@
         @click="editor.chain().focus().redo().run()"
       />
 
-      <div class="w-px h-5 bg-border mx-0.5" />
-
-      <!-- Layout -->
-      <AppButton
-        variant="ghost"
-        size="icon-xs"
-        tooltip="Toggle two-column preview"
-        :active="isTwoColumn"
-        :icon="IconColumns"
-        @click="$emit('update:isTwoColumn', !isTwoColumn)"
-      />
-
-      <!-- Theme -->
-      <div
-        role="radiogroup"
-        aria-label="Preview theme"
-        class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
-      >
-        <AppButton
-          role="radio"
-          :aria-checked="theme === 'onednd2024'"
-          tooltip="OneDnD 2024 theme"
-          variant="ghost"
-          fill="muted"
-          size="toolbar"
-          :active="theme === 'onednd2024'"
-          class="uppercase"
-          label="2024"
-          @click="$emit('update:theme', 'onednd2024')"
-        />
-        <AppButton
-          role="radio"
-          :aria-checked="theme === 'phb2014'"
-          tooltip="Classic PHB (2014) theme"
-          variant="ghost"
-          fill="muted"
-          size="toolbar"
-          :active="theme === 'phb2014'"
-          class="uppercase border-l border-border"
-          label="Classic"
-          @click="$emit('update:theme', 'phb2014')"
-        />
-      </div>
-
-      <div class="w-px h-5 bg-border mx-0.5" />
-
-      <!-- Page size -->
-      <div
-        role="radiogroup"
-        aria-label="Page size"
-        class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
-      >
-        <AppButton
-          v-for="(sz, idx) in (['A4', 'A5', 'Letter'] as const)"
-          :key="sz"
-          role="radio"
-          :aria-checked="pageSize === sz"
-          :tooltip="`Page size: ${sz}`"
-          variant="ghost"
-          fill="muted"
-          size="toolbar"
-          :active="pageSize === sz"
-          :class="['uppercase', idx > 0 ? 'border-l border-border' : '']"
-          :label="sz"
-          @click="$emit('update:pageSize', sz)"
-        />
-      </div>
-
-      <!-- Ink-friendly toggle -->
-      <AppButton
-        variant="ghost"
-        size="xs"
-        tooltip="Ink-friendly export (strips backgrounds & decorations)"
-        :active="inkFriendly"
-        :icon="IconPrint"
-        @click="$emit('update:inkFriendly', !inkFriendly)"
-      />
     </template>
   </div>
 </template>
@@ -429,7 +352,6 @@ import {
   IconAlignRight,
   IconCodeBlock,
   IconCodeInline,
-  IconColumns,
   IconExternalLink,
   IconGridView,
   IconList,
@@ -437,7 +359,6 @@ import {
   IconMinus,
   IconPencilLine,
   IconPin,
-  IconPrint,
   IconQuote,
   IconRect,
   IconRedo,
@@ -445,24 +366,15 @@ import {
   IconUndo,
   IconWrapText,
 } from "@/lib/icons";
-import type { ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 
 const {
   editor,
-  isTwoColumn,
-  theme,
-  pageSize,
-  inkFriendly,
   showBlockPicker = false,
   showCoverInspector = false,
   selectedImageIsSupabase = false,
   hasDoc = false,
 } = defineProps<{
   editor: Editor | undefined;
-  isTwoColumn: boolean;
-  theme: ScriptoriumTheme;
-  pageSize: ScriptoriumPageSize;
-  inkFriendly: boolean;
   showBlockPicker?: boolean;
   showCoverInspector?: boolean;
   selectedImageIsSupabase?: boolean;
@@ -470,10 +382,6 @@ const {
 }>();
 
 const emit = defineEmits<{
-  "update:isTwoColumn": [value: boolean];
-  "update:theme": [value: ScriptoriumTheme];
-  "update:pageSize": [value: ScriptoriumPageSize];
-  "update:inkFriendly": [value: boolean];
   openAssetPanel: [];
   openBlockPicker: [];
   openCoverInspector: [];

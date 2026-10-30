@@ -6,7 +6,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 -- A DM shares a Scriptorium handout with players (#970, 20261004105821).
 --
@@ -61,8 +61,17 @@ insert into public.locations (id, user_id, campaign_id, name, location_type) val
 insert into public.items (id, user_id, name, item_type) values
   ('97000000-0000-4000-8000-000000000070', '97000000-0000-4000-8000-000000000001', 'Tally-stick', 'wondrous');
 
-insert into public.scriptorium_documents (id, user_id, campaign_id, title, content) values
-  ('97000000-0000-4000-8000-000000000080', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Wanted poster',
+insert into public.scriptorium_documents (id, user_id, campaign_id, title) values
+  ('97000000-0000-4000-8000-000000000080', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Wanted poster'),
+  ('97000000-0000-4000-8000-000000000081', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'DM draft'),
+  ('97000000-0000-4000-8000-000000000082', '97000000-0000-4000-8000-000000000001', null, 'Account-wide'),
+  ('97000000-0000-4000-8000-000000000083', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Three sightings'),
+  -- A setting-book page with a lens pair (#1115): a handout too, since players read it through
+  -- get_player_handout, which withholds the Deep half.
+  ('97000000-0000-4000-8000-000000000084', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Two readings');
+
+insert into public.scriptorium_chapters (id, document_id, position, content) values
+  ('97000000-0000-4000-8000-0000000000a0', '97000000-0000-4000-8000-000000000080', 0,
    jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
      jsonb_build_object('type', 'paragraph'),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', false, 'reveal', null)),
@@ -71,20 +80,19 @@ insert into public.scriptorium_documents (id, user_id, campaign_id, title, conte
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'monster', 'entityId', '97000000-0000-4000-8000-000000000050', 'reveal', null)),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'location', 'entityId', '97000000-0000-4000-8000-000000000060', 'reveal', jsonb_build_object('off', true))),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'item', 'entityId', '97000000-0000-4000-8000-000000000070', 'reveal', null))
-   ))::text),
-  ('97000000-0000-4000-8000-000000000081', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'DM draft', '{"type":"doc"}'),
-  ('97000000-0000-4000-8000-000000000082', '97000000-0000-4000-8000-000000000001', null, 'Account-wide', '{"type":"doc"}'),
+   ))),
+  ('97000000-0000-4000-8000-0000000000a1', '97000000-0000-4000-8000-000000000081', 0, '{"type":"doc","content":[]}'),
+  ('97000000-0000-4000-8000-0000000000a2', '97000000-0000-4000-8000-000000000082', 0, '{"type":"doc","content":[]}'),
   -- The same NPC linked three times (each embed node has its own blockId):
   -- automatic, a different field set, and one set not to reveal.
-  ('97000000-0000-4000-8000-000000000083', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Three sightings',
+  ('97000000-0000-4000-8000-0000000000a3', '97000000-0000-4000-8000-000000000083', 0,
    jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b1', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', null)),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b2', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', jsonb_build_object('fields', jsonb_build_array('occupation')))),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('blockId', 'b3', 'entityType', 'npc', 'entityId', '97000000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', jsonb_build_object('off', true)))
-   ))::text),
-  -- A setting-book page with a lens pair (#1115): fine as a draft, never a handout.
-  ('97000000-0000-4000-8000-000000000084', '97000000-0000-4000-8000-000000000001', '97000000-0000-4000-8000-000000000010', 'Two readings',
-   '{"type":"doc","content":[{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","content":[{"type":"text","text":"grim"}]}]}]}]}');
+   ))),
+  ('97000000-0000-4000-8000-0000000000a4', '97000000-0000-4000-8000-000000000084', 0,
+   '{"type":"doc","content":[{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","content":[{"type":"text","text":"grim"}]}]}]}]}'::jsonb);
 
 -- ── As the DM ──────────────────────────────────────────────────────────────
 
@@ -127,22 +135,29 @@ select is(
   (select player_visible_to from public.scriptorium_documents where id = '97000000-0000-4000-8000-000000000080'),
   array['97000000-0000-4000-8000-000000000030']::uuid[], 'Nessa holds the handout');
 
--- ── A lens pair never rides on a handout (20261027080700) ──────────────────
+-- ── A lens pair rides on a handout; players are shown only its Bright half ──
 
-select throws_ok(
+select lives_ok(
   $$ select public.share_handout('97000000-0000-4000-8000-000000000084',
                                  array['97000000-0000-4000-8000-000000000030']::uuid[]) $$,
-  '23514', 'A handout cannot hold a lens pair: players would read its Deep half. Remove the pair, or put what players may read in an ordinary block.', 'a document holding a lens pair cannot be shared');
+  'a book holding a lens pair can be shared (it fails if the old refusal comes back)');
 
-select is(
-  (select player_visible_to from public.scriptorium_documents where id = '97000000-0000-4000-8000-000000000084'),
-  '{}'::uuid[], 'and nobody holds it');
+select set_config('request.jwt.claim.sub', '97000000-0000-4000-8000-000000000002', true);
 
-select throws_ok(
-  $$ update public.scriptorium_documents
-        set content = (select content from public.scriptorium_documents where id = '97000000-0000-4000-8000-000000000084')
-      where id = '97000000-0000-4000-8000-000000000080' $$,
-  '23514', 'A handout cannot hold a lens pair: players would read its Deep half. Remove the pair, or put what players may read in an ordinary block.', 'a shared handout cannot be saved with a lens pair added');
+select ok(
+  (public.get_player_handout('97000000-0000-4000-8000-000000000084') -> 'chapter' -> 'content')::text like '%"kind"%',
+  'the holder reads the lens pair''s Bright half');
+
+select ok(
+  (public.get_player_handout('97000000-0000-4000-8000-000000000084') -> 'chapter' -> 'content')::text not like '%grim%'
+  and (public.get_player_handout('97000000-0000-4000-8000-000000000084') -> 'chapter' -> 'content')::text not like '%lensDeep%',
+  'and never the Deep half: fails if the projection stops stripping lensDeep');
+
+select set_config('request.jwt.claim.sub', '97000000-0000-4000-8000-000000000001', true);
+
+select lives_ok(
+  $$ select public.share_handout('97000000-0000-4000-8000-000000000084', '{}'::uuid[]) $$,
+  'the DM takes the lens-pair book back, so the table below sees only the poster');
 
 select lives_ok(
   $$ update public.scriptorium_documents set title = 'Two readings, revised'
@@ -192,12 +207,12 @@ select throws_ok(
                                  array['97000000-0000-4000-8000-000000000030']::uuid[]) $$,
   '22023', null, 'an account-wide document cannot be shared');
 
-update public.scriptorium_documents
+update public.scriptorium_chapters
    set content = jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object(
        'entityType', 'location', 'entityId', '97000000-0000-4000-8000-000000000060',
-       'showArt', 'sometimes', 'reveal', jsonb_build_object('off', 'maybe', 'description', 'yes')))))::text
- where id = '97000000-0000-4000-8000-000000000081';
+       'showArt', 'sometimes', 'reveal', jsonb_build_object('off', 'maybe', 'description', 'yes')))))
+ where document_id = '97000000-0000-4000-8000-000000000081';
 select lives_ok(
   $$ select public.share_handout('97000000-0000-4000-8000-000000000081',
                                  array['97000000-0000-4000-8000-000000000030']::uuid[], true) $$,

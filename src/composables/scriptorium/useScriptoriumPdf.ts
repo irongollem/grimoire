@@ -6,8 +6,10 @@
  *   1. Lay the book out in the client with Paged.js, in an off-screen host in
  *      the main document (Paged.js needs real layout and injects its page-sizing
  *      rules into document.head via insertRule, so textContent is empty). The
- *      same pre-layout pass, footers and TOC numbering as the live preview run,
- *      so the PDF breaks exactly where the preview does.
+ *      book is laid out chapter by chapter by the same engine as the live
+ *      preview (lib/scriptorium/bookLayout), with the same pre-layout pass,
+ *      blank pages, footers and TOC numbering, so the PDF breaks exactly where
+ *      the preview does. `progress` says which chapter is being laid out.
  *   2. Redraw pictures at print size as data: URLs (printImages.ts) and inline
  *      everything the document loads from the app's own origin (the
  *      self-hosted fonts, the page background) as data: URIs
@@ -33,22 +35,15 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { Previewer } from "pagedjs";
-import { pagedStyleElements, removePagedStyles } from "@/lib/scriptorium/pagedStyles";
 import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR } from "@/lib/scriptorium/pagedPreviewCss";
-import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
-import { fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
-import { preparePagedBody } from "@/lib/scriptorium/pagedPrepare";
-import { registerPagedEntryFit } from "@/lib/scriptorium/pagedEntryFit";
-import { registerPagedTableFit } from "@/lib/scriptorium/pagedTableFit";
+import { createBookLayout } from "@/lib/scriptorium/bookLayout/createBookLayout";
+import type { BookChapterInput } from "@/lib/scriptorium/bookLayout/types";
 import { compactPrintImages } from "@/lib/scriptorium/printImages";
-import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/types/scriptorium.types";
 import scriptoriumFontsCss from "@/assets/scriptorium/fonts.css?inline";
 import themeBaseCss from "@/assets/scriptorium/theme-base.css?inline";
-import themeOnednd2024Css from "@/assets/scriptorium/theme-onednd2024.css?inline";
-import themePhb2014Css from "@/assets/scriptorium/theme-phb2014.css?inline";
+import { scriptoriumThemeClass, scriptoriumThemeCss } from "@/lib/scriptorium/looks";
 import { escapeHtml } from "@/lib/escapeHtml";
 import { inlineSameOriginAssets } from "@/lib/scriptorium/inlineSameOriginAssets";
 import { attachBundleToPdf } from "@/lib/scriptorium/campaignBundlePdf";
@@ -64,8 +59,25 @@ import {
 } from "@/lib/scriptorium/pdfChunks";
 import type { PageRange, PdfProgress, SplitPages } from "@/lib/scriptorium/pdfChunks";
 
+/**
+ * Where an export is: laying out chapter `part` of `total`, then printing part
+ * `part` of `total`. (`part`/`total` keep the shape PdfProgress has, so a
+ * consumer that only counts still works.)
+ */
+export interface PdfExportProgress extends PdfProgress {
+  phase: "layout" | "print";
+}
+
+/** The button/dialog label while a PDF is building. */
+export function pdfExportProgressLabel(progress: PdfExportProgress | null): string {
+  if (!progress) return "Building…";
+  if (progress.phase === "layout") return `Laying out chapter ${progress.part} of ${progress.total}…`;
+  return progress.total > 1 ? `Printing part ${progress.part} of ${progress.total}…` : "Building…";
+}
+
 export interface PdfDocumentOptions {
-  bodyHtml: string;
+  /** The book's chapters, in order; each is laid out on its own (bookLayout). */
+  chapters: BookChapterInput[];
   title: string;
   theme: ScriptoriumTheme;
   pageSize: ScriptoriumPageSize;
@@ -82,10 +94,6 @@ const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
   A5: "A5",
   Letter: "letter",
 };
-
-function themeClass(theme: ScriptoriumTheme): string {
-  return theme === "phb2014" ? "theme-phb2014" : "theme-onednd2024";
-}
 
 /**
  * Print CSS: each laid-out .pagedjs_page is already a full page-sized box, so
@@ -150,7 +158,7 @@ export interface PdfDocumentAssembly {
  * first) so this part is testable without either.
  */
 export function buildPdfDocumentHtml(opts: PdfDocumentAssembly): string {
-  const cls = themeClass(opts.theme);
+  const cls = scriptoriumThemeClass(opts.theme);
   return (
     `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
     `<style>${opts.fontsCss}</style>` +
@@ -199,7 +207,7 @@ export function useScriptoriumPdf() {
   const isExporting = ref(false);
   const exportError = ref<string | null>(null);
   /** Which part of a multi-part export is printing; null when idle. */
-  const progress = ref<PdfProgress | null>(null);
+  const progress = ref<PdfExportProgress | null>(null);
 
   /** Resolves true when the file was downloaded, false when it failed (exportError says why). */
   async function exportPdf(opts: PdfExportOptions): Promise<boolean> {
@@ -207,17 +215,9 @@ export function useScriptoriumPdf() {
     isExporting.value = true;
     exportError.value = null;
 
-    const cls = themeClass(opts.theme);
-    const themeCss = opts.theme === "phb2014" ? themePhb2014Css : themeOnednd2024Css;
+    const cls = scriptoriumThemeClass(opts.theme);
+    const themeCss = scriptoriumThemeCss(opts.theme);
     const pagedCss = buildPagedPreviewCss({ pageSize: opts.pageSize, inkFriendly: opts.inkFriendly });
-    // The same pre-layout pass the live preview runs (pagedPrepare.ts), so
-    // the exported PDF breaks where the screen does.
-    const content = preparePagedBody(opts.bodyHtml, {
-      showPageNumbers: opts.showPageNumbers,
-      pageSize: opts.pageSize,
-      isTwoColumn: opts.isTwoColumn,
-    });
-
     // 1. Off-screen render in the main document.
     const host = document.createElement("div");
     host.className = `sc-theme ${cls}`;
@@ -226,26 +226,42 @@ export function useScriptoriumPdf() {
     host.style.cssText = "position:fixed; left:-99999px; top:0; width:794px;";
     document.body.appendChild(host);
 
-    const previewer = new Previewer();
+    // The same engine as the live preview, so the exported PDF breaks where
+    // the screen does: pre-layout pass, a Paged.js run per chapter, blank
+    // pages, then footers, contents numbers and furniture over all the pages.
+    const book = createBookLayout(host);
     try {
-      registerPagedEntryFit();
-      registerPagedTableFit();
-      await previewer.preview(content, [{ "scriptorium-paged.css": pagedCss }], host);
+      await book.layout(
+        {
+          chapters: opts.chapters,
+          settings: {
+            pageSize: opts.pageSize,
+            isTwoColumn: opts.isTwoColumn,
+            showPageNumbers: opts.showPageNumbers,
+            pageNumberStart: opts.pageNumberStart,
+            footerText: opts.footerText,
+            inkFriendly: opts.inkFriendly,
+            theme: opts.theme,
+          },
+          stylesheets: [{ "scriptorium-paged.css": pagedCss }],
+          furniture: { items: opts.furniture }, // non-interactive, decorations only
+        },
+        {
+          onChapter: ({ done, total }) => {
+            progress.value = { phase: "layout", part: done, total };
+          },
+        },
+      );
       await document.fonts.ready;
-      injectPagedFooters(host, {
-        showPageNumbers: opts.showPageNumbers,
-        footerText: opts.footerText,
-        start: opts.pageNumberStart,
-      });
-      fillPagedTocPages(host, { showPageNumbers: opts.showPageNumbers, start: opts.pageNumberStart });
-      renderFurniture(host, opts.furniture); // non-interactive, decorations only
+      // One wrapper around every page: the print runs are cut from its markup.
+      book.flattenPages();
       // Pictures at 300 ppi of their printed size, opaque ones as JPEG, before
       // the pages are copied: otherwise every WebP goes into the PDF
       // losslessly at full size (printImages.ts).
       await compactPrintImages(host);
 
       // 2. Capture the page-sizing rules Paged.js injected into the main head.
-      const pagedStyles = pagedStyleElements(previewer).map(serializeStyle).join("\n");
+      const pagedStyles = book.styleElements().map(serializeStyle).join("\n");
       let pagesHtml = host.innerHTML;
 
       // 3. Everything the document loads from the app's own origin (fonts,
@@ -310,7 +326,7 @@ export function useScriptoriumPdf() {
       };
       const parts: Blob[] = [];
       for (const [i, range] of ranges.entries()) {
-        progress.value = { part: i + 1, total: ranges.length };
+        progress.value = { phase: "print", part: i + 1, total: ranges.length };
         parts.push(await renderRange(range));
       }
       const data =
@@ -337,7 +353,7 @@ export function useScriptoriumPdf() {
     } finally {
       // Remove the off-screen host + the Paged.js styles it added to the app head.
       host.remove();
-      removePagedStyles(previewer);
+      book.dispose();
       isExporting.value = false;
       progress.value = null;
     }

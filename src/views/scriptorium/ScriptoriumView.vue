@@ -1,5 +1,5 @@
 <template>
-  <ListPageLayout title="Scriptorium" description="Craft spell scrolls, stat blocks, and campaign documents">
+  <ListPageLayout title="Scriptorium" description="Handouts for your players, and books for your table">
     <template #title-suffix>
       <ManualHelpLink page="scriptorium-document-publisher" />
     </template>
@@ -16,11 +16,12 @@
       />
       <ListActionButton
         v-if="canWrite"
-        variant="primary"
-        :icon="IconAdd"
-        label="New Document"
-        @click="handleNew"
+        variant="outline"
+        :icon="IconNavScriptorium"
+        label="New book"
+        @click="handleNewBook"
       />
+      <NewHandoutPicker v-if="canWrite" />
       <ListLayoutToggle v-model="layout" />
     </template>
 
@@ -33,12 +34,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { IconAdd, IconGenerate } from '@/lib/icons';
+import { IconGenerate, IconNavScriptorium } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
+import NewHandoutPicker from "@/components/scriptorium/NewHandoutPicker.vue";
 import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumentList.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
@@ -58,7 +60,8 @@ function handleDraft() {
   useGeneratorUiStore().scriptoriumDraftOpen = true;
 }
 
-function handleNew() {
+// A book starts from the template gallery at /scriptorium/new, which creates it and opens it.
+function handleNewBook() {
   if (!canCreate.value) { showPaywall.value = true; return; }
   router.push("/scriptorium/new");
 }

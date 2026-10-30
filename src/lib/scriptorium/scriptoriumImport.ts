@@ -20,7 +20,7 @@ import type { Location } from "@/types/location.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
-import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
+import type { ScriptoriumDocInsert, ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 import { escapeHtml } from "@/lib/escapeHtml";
 import type { Defenses } from "@/types/statBlock.types";
 import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
@@ -47,6 +47,33 @@ export interface ScriptoriumImportData {
   show_page_numbers: boolean;
   footer_text: string;
   page_number_start: number;
+}
+
+/**
+ * The book row a "Write it up in the Scriptorium" action creates from a
+ * formatter's output: the formatter's layout and filing, without its HTML body
+ * (the body lives in the book's chapter, which the caller supplies) and without
+ * `word_count` (maintained by the database from the chapters).
+ */
+export function bookInsertFromImport(
+  data: ScriptoriumImportData,
+  campaignId: string | null,
+): ScriptoriumDocInsert {
+  return {
+    title: data.title,
+    kind: "book",
+    doc_type: data.doc_type,
+    campaign_id: campaignId,
+    tags: data.tags,
+    is_published: data.is_published,
+    is_two_column: data.is_two_column,
+    theme: data.theme,
+    page_size: data.page_size,
+    ink_friendly: data.ink_friendly,
+    show_page_numbers: data.show_page_numbers,
+    footer_text: data.footer_text,
+    page_number_start: data.page_number_start,
+  };
 }
 
 // ── Formatter interface ───────────────────────────────────────────────────────
@@ -738,7 +765,7 @@ const monsterFormatter: AssetFormatter<Monster> = {
     // Monster Manual entry, whose page-top name is a different, larger
     // treatment than the stat block's own title. Without it, the heading
     // stays in the DOM (so it still enters the table of contents and the
-    // phone reader's contents list — see pagedToc.ts / readerToc.ts) but is
+    // Inspect's note pins, which find blocks by id — see pagedToc.ts) but is
     // visually hidden, leaving the frame's own name as the only visible one.
     const entryHeadingClass = hasLore
       ? "sc-statblock-entry-heading"

@@ -5,6 +5,10 @@
 @import "./scriptorium/theme-base.css";
 @import "./scriptorium/theme-onednd2024.css";
 @import "./scriptorium/theme-phb2014.css";
+@import "./scriptorium/theme-letter.css";
+@import "./scriptorium/theme-notice.css";
+@import "./scriptorium/theme-journal.css";
+@import "./scriptorium/theme-plain.css";
 @import "./scriptorium-editor.css";
 
 

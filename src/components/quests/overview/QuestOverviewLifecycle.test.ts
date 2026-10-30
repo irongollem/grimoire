@@ -34,7 +34,7 @@ vi.mock("@/composables/notes/useEntityNotes", () => ({ useEntityNotes: () => ({ 
 vi.mock("@/composables/npcs/useNpcs", () => ({ useFetchNpc: () => mocks.fetchNpc }));
 vi.mock("@/composables/locations/useLocations", () => ({ useFetchLocation: () => mocks.fetchLocation }));
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
-  useCreateScriptoriumDocument: () => ({ mutateAsync: mocks.createScriptoriumDocument }),
+  useCreateScriptoriumBook: () => ({ mutateAsync: mocks.createScriptoriumDocument }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: ref(mocks.objectives) }),
@@ -290,7 +290,14 @@ describe("QuestOverviewLifecycle", () => {
     await wrapper.setProps({ quest: { ...quest, campaign_id: "campaign-7" } as Quest });
     await appButton(wrapper, "Send to Scriptorium").trigger("click");
     await flushPromises();
-    expect(mocks.createScriptoriumDocument).toHaveBeenCalledWith(expect.objectContaining({ campaign_id: "campaign-7" }));
+    expect(mocks.createScriptoriumDocument).toHaveBeenCalledWith({
+      book: expect.objectContaining({ campaign_id: "campaign-7", kind: "book" }),
+      chapters: [{ content: expect.objectContaining({ type: "doc" }) }],
+    });
+    // The formatter's HTML body and word count are not columns of a book.
+    const [{ book }] = mocks.createScriptoriumDocument.mock.calls[0] as [{ book: object }];
+    expect(book).not.toHaveProperty("content");
+    expect(book).not.toHaveProperty("word_count");
   });
 
   it("a Scriptorium document refused for quota opens the paywall quietly; any other failure is toasted", async () => {

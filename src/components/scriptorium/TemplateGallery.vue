@@ -10,7 +10,8 @@
         :key="t.id"
         type="button"
         class="group flex flex-col text-left rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 hover:shadow-lg transition-all"
-        @click="$emit('select', t)"
+        @click="start(t)"
+        :disabled="isStarting"
       >
         <!-- Faux page preview, tinted by the document-type accent -->
         <div
@@ -52,14 +53,6 @@
         blurb="Bring an existing .md document (chapters, notes, or a Homebrewery brew) into a styled book."
         @click="fileInput?.click()"
       />
-      <!-- Draft a handout, dossier or recap from the campaign's own data (epic #910) -->
-      <TemplateGalleryActionCard
-        v-if="campaign.isAiEnabled"
-        :icon="IconGenerate"
-        title="Draft with AI"
-        blurb="A player handout, faction dossier or session recap, written from your campaign's own NPCs, places and notes."
-        @click="generatorsUi.scriptoriumDraftOpen = true"
-      />
       <input
         ref="fileInput"
         type="file"
@@ -69,27 +62,53 @@
       />
     </div>
 
+    <p v-if="error" class="text-body text-destructive" role="alert">{{ error }}</p>
   </div>
+  <PaywallModal v-model="showPaywall" resource="scriptorium_documents" />
 </template>
 
 <script setup lang="ts">
+/**
+ * "New book" (#1115): picking a template creates the book, chapters and all,
+ * and says so with `created`; the view opens it. Handouts do not come through
+ * here, they start from a paper (NewHandoutPicker).
+ */
 import { ref } from "vue";
 import { SCRIPTORIUM_TEMPLATES, type ScriptoriumTemplate } from "@/data/scriptoriumTemplates";
 import { importedMarkdownTemplate } from "@/data/scriptoriumTemplates/importedMarkdown";
 import { docTypeColor, docTypeLabel } from "@/lib/scriptorium/editorConstants";
 import TemplateGalleryActionCard from "./TemplateGalleryActionCard.vue";
-import { IconGenerate, IconUpload } from "@/lib/icons";
-import { useCampaignStore } from "@/stores/campaign";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import { IconUpload } from "@/lib/icons";
+import { useQuota } from "@/composables/billing/useQuota";
+import { useStartScriptoriumDocument } from "@/composables/scriptorium/useStartScriptoriumDocument";
+import { isQuotaExceeded } from "@/lib/quotaError";
 
-const generatorsUi = useGeneratorUiStore();
 const templates = SCRIPTORIUM_TEMPLATES;
-const campaign = useCampaignStore();
 
-const emit = defineEmits<{ select: [template: ScriptoriumTemplate] }>();
+const emit = defineEmits<{ created: [docId: string] }>();
+
+const { startBook, isStarting } = useStartScriptoriumDocument();
+const { canCreate } = useQuota("scriptorium_documents");
+const showPaywall = ref(false);
+const error = ref("");
 
 const accent = (t: ScriptoriumTemplate) => docTypeColor(t.docType);
 const label = (t: ScriptoriumTemplate) => docTypeLabel(t.docType);
+
+async function start(template: ScriptoriumTemplate) {
+  error.value = "";
+  if (!canCreate.value) {
+    showPaywall.value = true;
+    return;
+  }
+  try {
+    emit("created", await startBook(template));
+  } catch (e) {
+    if (isQuotaExceeded(e)) showPaywall.value = true;
+    else error.value = e instanceof Error ? e.message : "Could not start the book.";
+  }
+}
 
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -98,7 +117,6 @@ async function onFilePicked(event: Event) {
   const file = input.files?.[0];
   input.value = ""; // allow re-picking the same file after going back
   if (!file) return;
-  const markdown = await file.text();
-  emit("select", importedMarkdownTemplate(file.name, markdown));
+  await start(importedMarkdownTemplate(file.name, await file.text()));
 }
 </script>

@@ -1,9 +1,9 @@
 #!/usr/bin/env tsx
 /**
- * Assembles a setting book's markdown chapters into ONE Scriptorium document (epic
- * #1115, story 5), so it can be laid out and exported to PDF in the app. The
+ * Assembles a setting book's markdown files into ONE Scriptorium book, one chapter
+ * per file (epic #1115, story 5), so it can be laid out and exported to PDF in the app. The
  * conversion is `markdownToScriptoriumContent` (src/lib/scriptorium/markdownImport.ts);
- * the pure decisions (chapter joining, where each art slot's picture comes from) live
+ * the pure decisions (which chapters a re-import updates, adds or deletes; where each art's picture comes from) live
  * in `lib/scriptoriumBook.ts`.
  *
  * Usage:
@@ -14,10 +14,12 @@
  *   Options: --dir <chapters folder> --campaign-id <uuid> --user-id <uuid> --title <text>
  *            --desktop-dir <folder holding art-955/...> --source-dir <the book's source folder>
  *
- * Idempotent: the document is found by (user_id, campaign_id, title) and only its
- * `content` and `word_count` are replaced, so layout settings the author changed in
- * the app survive a re-import. A first run inserts the row with the book's layout
- * defaults (onednd2024, two columns, A4, page numbers).
+ * Idempotent: the book is found by (user_id, campaign_id, title) and only its chapters
+ * are written, so layout settings the author changed in the app survive a re-import.
+ * The nth file lands on the book's nth chapter (its id is kept, so review notes pinned
+ * to it survive); extra files add chapters and chapters no file reaches are deleted.
+ * A first run inserts the book with its layout defaults (onednd2024, two columns, A4,
+ * page numbers).
  *
  * Images: each distinct picture is resized to at most 2400px on its long edge,
  * encoded as WebP, marked with the AI provenance packet, and stored under
@@ -33,7 +35,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { markdownToScriptoriumContent, type ArtSlot } from "../src/lib/scriptorium/markdownImport.ts";
+import { chapterTitle, countWords } from "../src/lib/scriptorium/chapterTitle.ts";
+import { markdownToScriptoriumContent, type ArtSlot, type MarkdownImportOptions } from "../src/lib/scriptorium/markdownImport.ts";
 import { type PreparedImage, localStorage, prepareImage, r2Storage, writeProvenance } from "./lib/bookImages.ts";
 import { assertCampaignOwner, loadNpcPortraits, readAll, request } from "./lib/campaignRest.ts";
 import { pooled } from "./lib/pool.ts";
@@ -41,10 +44,11 @@ import { r2ConfigFrom } from "../supabase/functions/_shared/r2/config.ts";
 import { normalizeName } from "./lib/name-matching.ts";
 import {
   chapterFileNames,
+  chapterSources,
   countNodes,
-  countWords,
   expandHome,
-  joinChapters,
+  planChapterSync,
+  type ExistingChapter,
   resolveArtSlot,
   type ResolvedArt,
 } from "./lib/scriptoriumBook.ts";
@@ -145,7 +149,8 @@ async function main(): Promise<void> {
   // A production dry run may have no CDN base; it prints the storage key rather than throwing.
   const urlFor = (path: string) => (dryRun && values.production && !process.env.ASSET_CDN_URL?.trim() ? `(planned) ${BUCKET}/${path}` : storage.url(path));
 
-  const markdown = joinChapters(files.map((f) => readFileSync(join(dir, f), "utf8")));
+  const sources = chapterSources(files.map((f) => readFileSync(join(dir, f), "utf8")));
+  if (sources.length === 0) throw new Error(`Every .md file in ${dir} is empty.`);
   const { portraits, ambiguous } = await loadNpcPortraits(target, campaignId);
   const embedIndex = await loadEmbedIndex(target, campaignId);
 
@@ -153,16 +158,18 @@ async function main(): Promise<void> {
   const resolvedBySlot = new Map<string, ResolvedArt | null>();
   const slotNames = new Map<string, string>();
   const lookups = { npcPortraits: portraits, fileExists: existsSync, desktopDir, sourceDir };
-  markdownToScriptoriumContent(markdown, {
-    resolveArt: (slot) => {
-      const key = slotKey(slot);
-      if (!resolvedBySlot.has(key)) {
-        resolvedBySlot.set(key, resolveArtSlot(slot, lookups));
-        slotNames.set(key, `${slot.slug} (${slot.existing ?? slot.alt ?? "no source"})`);
-      }
-      return null;
-    },
-  });
+  for (const source of sources) {
+    markdownToScriptoriumContent(source, {
+      resolveArt: (slot) => {
+        const key = slotKey(slot);
+        if (!resolvedBySlot.has(key)) {
+          resolvedBySlot.set(key, resolveArtSlot(slot, lookups));
+          slotNames.set(key, `${slot.slug} (${slot.existing ?? slot.alt ?? "no source"})`);
+        }
+        return null;
+      },
+    });
+  }
 
   // Prepare each distinct file once, then store what is not stored yet.
   const distinctFiles = [...new Set([...resolvedBySlot.values()].flatMap((r) => (r?.kind === "file" ? [r.path] : [])))];
@@ -199,7 +206,7 @@ async function main(): Promise<void> {
   const embedsResolved: string[] = [];
   const embedsUnresolved: string[] = [];
   const embedSeen = new Set<string>();
-  const content = markdownToScriptoriumContent(markdown, {
+  const convertOptions: MarkdownImportOptions = {
     resolveArt: (slot) => {
       const resolved = resolvedBySlot.get(slotKey(slot));
       if (!resolved) return null;
@@ -216,10 +223,11 @@ async function main(): Promise<void> {
       }
       return ids.length === 1 ? { id: ids[0] } : null;
     },
-  });
-  const json = JSON.stringify(content);
-  const contentBytes = Buffer.byteLength(json, "utf8");
-  const wordCount = countWords(content);
+  };
+  const contents = sources.map((source) => markdownToScriptoriumContent(source, convertOptions));
+  const contentBytes = Buffer.byteLength(JSON.stringify(contents), "utf8");
+  const wordCount = contents.reduce((n, c) => n + countWords(c), 0);
+  const nodeTotal = (type: string) => contents.reduce((n, c) => n + countNodes(c, type), 0);
 
   // Report.
   const slotsTotal = resolvedBySlot.size;
@@ -228,7 +236,7 @@ async function main(): Promise<void> {
   const imageBytes = [...prepared.values()].reduce((n, i) => n + i.bytes.byteLength, 0);
   const alreadyStored = [...stored.values()].filter((v) => v === true).length;
   const unknownStored = [...stored.values()].filter((v) => v === null).length;
-  console.log(`\nChapters ${files.length}, markdown ${(Buffer.byteLength(markdown) / 1024).toFixed(0)} KB, ${wordCount} words.`);
+  console.log(`\nChapters ${contents.length} (from ${files.length} file(s)), markdown ${(Buffer.byteLength(sources.join("")) / 1024).toFixed(0)} KB, ${wordCount} words.`);
   console.log(`Art slots ${slotsTotal}: resolved ${slotsTotal - unresolvedSlots.length} (${viaNpc} NPC portraits, ${slotsTotal - unresolvedSlots.length - viaNpc} files), unresolved ${unresolvedSlots.length}.`);
   console.log(`Distinct images ${prepared.size}, ${mb(imageBytes)} as WebP (source ${mb([...prepared.values()].reduce((n, i) => n + i.sourceBytes, 0))}); ` +
     (dryRun
@@ -236,42 +244,73 @@ async function main(): Promise<void> {
       : `uploaded ${uploaded}, reused ${reused}.`));
   if (imageBytes > IMAGE_BYTES_WARNING) console.warn(`WARNING: images total ${mb(imageBytes)}, close to the 40 MB render-pdf HTML cap.`);
   console.log(`Embeds resolved ${embedsResolved.length}, unresolved ${embedsUnresolved.length}.`);
-  console.log(`Nodes: image ${countNodes(content, "image")}, lensPair ${countNodes(content, "lensPair")}, noteBlock ${countNodes(content, "noteBlock")}, entityEmbed ${countNodes(content, "entityEmbed")}, pageBreak ${countNodes(content, "pageBreak")}.`);
+  console.log(`Nodes: image ${nodeTotal("image")}, lensPair ${nodeTotal("lensPair")}, noteBlock ${nodeTotal("noteBlock")}, entityEmbed ${nodeTotal("entityEmbed")}, pageBreak ${nodeTotal("pageBreak")}.`);
   console.log(`Content ${(contentBytes / 1024).toFixed(0)} KB (${contentBytes} bytes).`);
   if (unresolvedSlots.length) console.log(`\nUnresolved art (stay placeholders):\n${unresolvedSlots.map((s) => `  - ${s}`).join("\n")}`);
   if (ambiguous.size) console.log(`\nNPC names with several different portraits (skipped): ${[...ambiguous].join(", ")}`);
   if (embedsUnresolved.length) console.log(`\nUnresolved embeds:\n${embedsUnresolved.map((s) => `  - ${s}`).join("\n")}`);
 
-  // The document row.
+  // The book row, then its chapters.
   const found = (await request(
     target,
     "GET",
     `scriptorium_documents?user_id=eq.${userId}&campaign_id=eq.${campaignId}&title=eq.${encodeURIComponent(title)}&select=id`,
   )) as { id: string }[];
   if (found.length > 1) throw new Error(`${found.length} documents titled "${title}" exist in the campaign; refusing to guess which to replace.`);
-  const action = found.length === 1 ? "update" : "insert";
+  const existing = found.length === 1
+    ? ((await request(target, "GET", `scriptorium_chapters?document_id=eq.${found[0].id}&select=id,position`)) as ExistingChapter[])
+    : [];
+  const plan = planChapterSync(existing, contents.length);
   if (dryRun) {
-    console.log(`\nWould ${action} "${title}"${found[0] ? ` (${found[0].id})` : ""}. Dry run: nothing written.`);
+    console.log(
+      `\nWould ${found.length === 1 ? "update" : "insert"} "${title}"${found[0] ? ` (${found[0].id})` : ""}: ` +
+        `${plan.updates.length} chapter(s) rewritten in place, ${plan.inserts.length} added, ${plan.deletes.length} deleted. Dry run: nothing written.`,
+    );
     return;
   }
+
+  let documentId: string;
   if (found.length === 1) {
-    await request(target, "PATCH", `scriptorium_documents?id=eq.${found[0].id}&user_id=eq.${userId}`, { content: json, word_count: wordCount });
-    console.log(`\nUpdated "${title}" (${found[0].id}).`);
+    documentId = found[0].id;
   } else {
     const created = (await request(target, "POST", "scriptorium_documents", {
       user_id: userId,
       campaign_id: campaignId,
       title,
+      kind: "book",
       doc_type: "custom",
-      content: json,
-      word_count: wordCount,
       theme: "onednd2024",
       is_two_column: true,
       page_size: "A4",
       show_page_numbers: true,
     })) as { id: string }[];
-    console.log(`\nInserted "${title}" (${created[0]?.id}).`);
+    documentId = created[0].id;
   }
+
+  // The chapter's text is its own jsonb object; its title and word count are the editor's.
+  const row = (index: number) => ({
+    title: chapterTitle(contents[index]),
+    content: contents[index],
+    word_count: countWords(contents[index]),
+  });
+  for (const update of plan.updates) {
+    await request(target, "PATCH", `scriptorium_chapters?id=eq.${update.id}&document_id=eq.${documentId}`, {
+      position: update.position,
+      ...row(update.index),
+    });
+  }
+  if (plan.inserts.length > 0) {
+    await request(
+      target,
+      "POST",
+      "scriptorium_chapters",
+      plan.inserts.map((insert) => ({ document_id: documentId, position: insert.position, ...row(insert.index) })),
+    );
+  }
+  if (plan.deletes.length > 0) {
+    await request(target, "DELETE", `scriptorium_chapters?document_id=eq.${documentId}&id=in.(${plan.deletes.join(",")})`);
+  }
+  console.log(`\n${found.length === 1 ? "Updated" : "Inserted"} "${title}" (${documentId}): ${plan.updates.length} rewritten, ${plan.inserts.length} added, ${plan.deletes.length} deleted.`);
 }
 
 main().catch((error: unknown) => {

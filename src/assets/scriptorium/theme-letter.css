@@ -1,0 +1,165 @@
+/*
+ * Scriptorium paper: Letter — warm cream laid paper, set in the hand
+ * (Fondamento) in brown ink. Handout paper (one column, A5), approved on the
+ * "Scriptorium Chapters" canvas, frame 09. Variable values plus the paper
+ * surface; structure stays in theme-base.css. Plain CSS, no Tailwind
+ * directives, self-contained so the PDF export can inline it with ?inline.
+ */
+.theme-letter {
+  --sc-heading-font: "Fondamento", "Palatino Linotype", Georgia, serif;
+  --sc-body-font: "Fondamento", "Palatino Linotype", Georgia, serif;
+  --sc-ink: #3b2a1c;
+  --sc-accent: #7a3b1d;
+  --sc-accent-contrast: #f3e6c8;
+  --sc-page-bg: #f3e6c8;
+  --sc-callout-bg: #ecdcb6;
+  --sc-callout-border: #b08a52;
+  --sc-code-bg: #e3d2a8;
+  --sc-col-rule: #d8c59c;
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-ink);
+  --sc-h1-border-b: none;
+  --sc-h1-padding: 0;
+  --sc-h1-margin: 0.5rem 0 1rem;
+  --sc-h2-color: var(--sc-accent);
+  --sc-h2-border: #d8c59c;
+  --sc-decoration-watermark: var(--sc-accent);
+  --sc-decoration-credit: var(--sc-ink);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: var(--sc-accent);
+  --sc-cover-title-transform: none;
+  --sc-cover-title-variant: normal;
+
+  --sc-lens-bright-bg: #f0dfb4;
+  --sc-lens-deep-bg: #e4d8cc;
+  --sc-lens-top-rule: #b08a52;
+  --sc-lens-bottom-rule: #6a5340;
+  --sc-lens-split-rule: #d8c59c;
+  --sc-lens-bright-label: #7a5a14;
+  --sc-lens-deep-label: #4a3a2c;
+
+  --sc-readaloud-bg: #ecdcb6;
+  --sc-readaloud-rule: #8a6a3c;
+  --sc-sidebar-bg: #ecdcb6;
+  --sc-sidebar-bar: #3b2a1c;
+  --sc-sidebar-edge: #d8c59c;
+
+  --sc-statblock-bg: #efe0bd;
+  --sc-statblock-border: #c9b27c;
+  --sc-statblock-accent: #5a2c14;
+  --sc-statblock-type-color: #6a5340;
+  --sc-abil-physical-bg: #ecdcb6;
+  --sc-abil-physical-bg-alt: #e0cd9f;
+  --sc-abil-mental-bg: #e8dcc4;
+  --sc-abil-mental-bg-alt: #dccfb2;
+
+  --sc-table-header-bg: #e0cd9f;
+  --sc-table-header-color: var(--sc-ink);
+  --sc-table-row-1: #f0e2c0;
+  --sc-table-row-2: #e8d8b0;
+  --sc-table-border: #c9b27c;
+
+  /* Laid paper: a pale glow top left, a tea-stain warmth bottom right, and
+     the faint horizontal chain lines of the mould. Pure gradients, so it
+     prints and never costs an image. */
+  --sc-paper-bg:
+    radial-gradient(ellipse at 18% 0%, rgba(255, 252, 240, 0.75), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(176, 132, 66, 0.2), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(120, 88, 40, 0.04) 0 1px, transparent 1px 3px),
+    #f3e6c8;
+}
+
+/* The sheet: every place a page is painted. `.sc-paper-surface` is the
+   read-only reader's scroll area. */
+.theme-letter .phb-page,
+.theme-letter .pagedjs_page,
+.phb-editor.theme-letter .ProseMirror,
+.sc-paper-surface.theme-letter {
+  background: var(--sc-paper-bg);
+  box-shadow:
+    inset 0 0 0 1px #d8c59c,
+    inset 0 0 3rem rgba(150, 108, 48, 0.16);
+  font-size: 1.0625rem;
+  line-height: 1.8;
+}
+.theme-letter .phb-page,
+.theme-letter .pagedjs_page,
+.phb-editor.theme-letter .ProseMirror {
+  box-shadow:
+    inset 0 0 0 1px #d8c59c,
+    inset 0 0 3rem rgba(150, 108, 48, 0.16),
+    0 4px 24px rgba(0, 0, 0, 0.45);
+}
+.theme-letter.ink-friendly .phb-page,
+.theme-letter.ink-friendly .pagedjs_page,
+.phb-editor.theme-letter.ink-friendly .ProseMirror,
+.sc-paper-surface.theme-letter.ink-friendly {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #d8c59c;
+}
+
+.theme-letter h1 {
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 1.25;
+}
+.theme-letter h2 {
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+.theme-letter h3 {
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+.theme-letter strong {
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+/* A letter's lines run on: the quote is set off by a rule, not a tinted box. */
+.theme-letter blockquote {
+  background: transparent;
+  border-left: 2px solid #b08a52;
+  border-radius: 0;
+}
+.theme-letter table tbody tr:nth-child(odd) td {
+  background: var(--sc-table-row-1);
+}
+.theme-letter table tbody tr:nth-child(even) td {
+  background: var(--sc-table-row-2);
+}
+.theme-letter table td,
+.theme-letter table th {
+  border: 1px solid var(--sc-table-border);
+}
+.theme-letter .sc-statblock {
+  background: var(--sc-statblock-bg);
+  border: 1px solid var(--sc-statblock-border);
+  border-radius: 6px;
+}
+.theme-letter .sc-statblock-section-title {
+  font-variant: small-caps;
+  font-size: 0.9375em;
+  letter-spacing: 0.04em;
+}
+
+.theme-letter.ink-friendly {
+  --sc-callout-bg: transparent;
+  --sc-lens-bright-bg: transparent;
+  --sc-lens-deep-bg: transparent;
+  --sc-lens-top-rule: #3b2a1c;
+  --sc-lens-bottom-rule: #3b2a1c;
+  --sc-lens-split-rule: #3b2a1c;
+  --sc-readaloud-bg: #ffffff;
+  --sc-sidebar-bg: #ffffff;
+  --sc-statblock-bg: #ffffff;
+  --sc-statblock-border: #cccccc;
+  --sc-abil-physical-bg: #ffffff;
+  --sc-abil-physical-bg-alt: #f2f2f2;
+  --sc-abil-mental-bg: #ffffff;
+  --sc-abil-mental-bg-alt: #f2f2f2;
+  --sc-table-row-1: #ffffff;
+  --sc-table-row-2: #f2f2f2;
+  --sc-table-header-bg: #e6e6e6;
+}

@@ -45,14 +45,19 @@ insert into public.npcs (id, user_id, campaign_id, name, player_visible_to, play
    'The widow', '{}'::uuid[], '{}'::text[]);
 
 -- Nessa already holds the letter, given by hand; Bram does not.
-insert into public.scriptorium_documents (id, user_id, campaign_id, title, content, player_visible_to) values
+insert into public.scriptorium_documents (id, user_id, campaign_id, title, player_visible_to) values
   ('97100000-0000-4000-8000-000000000080', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'The widow''s letter',
+   array['97100000-0000-4000-8000-000000000030']::uuid[]),
+  ('97100000-0000-4000-8000-000000000081', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000011', 'Another table''s note', '{}'::uuid[]),
+  ('97100000-0000-4000-8000-000000000082', '97100000-0000-4000-8000-000000000004', '97100000-0000-4000-8000-000000000010', 'Co-DM''s private draft', '{}'::uuid[]);
+
+insert into public.scriptorium_chapters (document_id, position, content) values
+  ('97100000-0000-4000-8000-000000000080', 0,
    jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'npc', 'entityId', '97100000-0000-4000-8000-000000000020', 'showArt', true, 'reveal', null))
-   ))::text,
-   array['97100000-0000-4000-8000-000000000030']::uuid[]),
-  ('97100000-0000-4000-8000-000000000081', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000011', 'Another table''s note', '{"type":"doc"}', '{}'::uuid[]),
-  ('97100000-0000-4000-8000-000000000082', '97100000-0000-4000-8000-000000000004', '97100000-0000-4000-8000-000000000010', 'Co-DM''s private draft', '{"type":"doc"}', '{}'::uuid[]);
+   ))),
+  ('97100000-0000-4000-8000-000000000081', 0, '{"type":"doc","content":[]}'),
+  ('97100000-0000-4000-8000-000000000082', 0, '{"type":"doc","content":[]}');
 
 insert into public.quests (id, user_id, campaign_id, title)
 values ('97100000-0000-4000-8000-000000000040', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'The petition');

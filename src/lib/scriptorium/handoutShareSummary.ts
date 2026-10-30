@@ -61,17 +61,46 @@ export function describeWithheld(entry: HandoutWithheld): SummaryLine {
   };
 }
 
-/** "Mira", "Mira and Tor", "Mira, Tor and Ash"; the whole party says so. */
-export function describeRecipients(names: readonly string[], partySize: number): string {
-  if (names.length === 0) return "No one";
-  if (partySize > 0 && names.length === partySize && names.length > 1) return "The whole party";
-  if (names.length === 1) return names[0];
+/** "Mira", "Mira and Tor", "Mira, Tor and Ash". */
+export function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names.join("");
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-/** "1 linked entry is hidden from players" for the pending-reveal banner. */
-export function describePending(count: number): string {
-  return count === 1
-    ? "1 linked entry is hidden from players."
-    : `${count} linked entries are hidden from players.`;
+/**
+ * Who holds a handout, as the end of a sentence: "Pip and Wren", "the whole
+ * party", "no one". A one-person party is named, not "the whole party".
+ */
+export function describeHolders(names: readonly string[], partySize: number): string {
+  if (names.length === 0) return "no one";
+  if (partySize > 0 && names.length === partySize && names.length > 1) return "the whole party";
+  return joinNames(names);
+}
+
+/**
+ * The footer of the Give dialog: what the ticks change for each player, from the
+ * dry run. "Bramble is new; Pip and Wren already have it."
+ */
+export function describeAudienceChange(change: {
+  added: readonly string[];
+  kept: readonly string[];
+  removed: readonly string[];
+}): string {
+  const parts: string[] = [];
+  if (change.added.length) parts.push(`${joinNames(change.added)} ${change.added.length === 1 ? "is" : "are"} new`);
+  if (change.kept.length) parts.push(`${joinNames(change.kept)} already ${change.kept.length === 1 ? "has" : "have"} it`);
+  if (change.removed.length) parts.push(`${joinNames(change.removed)} will no longer have it`);
+  return parts.length ? `${parts.join("; ")}.` : "";
+}
+
+/**
+ * The handout editor's audience line, for linked entries a holder still cannot
+ * see: "The Bell-Mother is linked but hidden from them." Past two names it
+ * counts instead of listing.
+ */
+export function describeHiddenFromHolders(names: readonly string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return `${names[0]} is linked but hidden from them.`;
+  if (names.length === 2) return `${joinNames(names)} are linked but hidden from them.`;
+  return `${names.length} linked entries are hidden from them.`;
 }

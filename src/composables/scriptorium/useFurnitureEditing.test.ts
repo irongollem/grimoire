@@ -9,7 +9,7 @@ function item(overrides: Partial<PageFurnitureItem> = {}): PageFurnitureItem {
   return {
     id: "f1",
     kind: "art",
-    anchor: { type: "page", page: 1 },
+    anchor: { type: "page", chapterId: "c1", page: 1 },
     x: 20,
     y: 20,
     width: 30,

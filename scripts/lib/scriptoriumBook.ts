@@ -1,7 +1,7 @@
 /**
- * The pure parts of `scripts/scriptorium-book.ts` (epic #1115): joining a book's
- * chapters into one markdown source, deciding where a `::: art` slot's picture
- * comes from, and counting words the way the editor does. Nothing here touches
+ * The pure parts of `scripts/scriptorium-book.ts` (epic #1115): which chapters a
+ * re-import updates, adds and deletes, and where a `::: art` slot's picture
+ * comes from. Nothing here touches
  * the network, the disk or an image library; every lookup is injected.
  */
 import { homedir } from "node:os";
@@ -10,15 +10,39 @@ import type { JSONContent } from "@tiptap/core";
 import type { ArtSlot } from "../../src/lib/scriptorium/markdownImport.ts";
 import { normalizeName } from "./name-matching.ts";
 
-/** Chapters are separated by a Homebrewery page directive the converter turns into a page break. */
-export const CHAPTER_SEPARATOR = "\n\n\\page\n\n";
+/** The chapters' markdown in the order given, trimmed, empty ones dropped: each is one chapter of the book. */
+export function chapterSources(chapters: readonly string[]): string[] {
+  return chapters.map((c) => c.trim()).filter((c) => c.length > 0);
+}
 
-/** The chapters in the order given, trimmed, empty ones dropped, one page break between each. */
-export function joinChapters(chapters: readonly string[]): string {
-  return chapters
-    .map((c) => c.trim())
-    .filter((c) => c.length > 0)
-    .join(CHAPTER_SEPARATOR);
+/** What an existing chapter is called for matching: its id and where it sits in the book. */
+export interface ExistingChapter {
+  id: string;
+  position: number;
+}
+
+export interface ChapterPlan {
+  /** Existing chapters that take the new text at the same place, keeping their id. */
+  updates: { id: string; position: number; index: number }[];
+  /** Chapters the book did not have, as indexes into the new text. */
+  inserts: { position: number; index: number }[];
+  /** Ids of chapters the new text no longer reaches. */
+  deletes: string[];
+}
+
+/**
+ * How a re-import lands on a book that already has chapters: the nth existing chapter
+ * (by position) takes the nth new text, so an unchanged chapter keeps its id and the
+ * review notes pinned to it survive; extra texts are inserted; surplus chapters are deleted.
+ */
+export function planChapterSync(existing: readonly ExistingChapter[], count: number): ChapterPlan {
+  const ordered = [...existing].sort((a, b) => a.position - b.position);
+  const kept = Math.min(ordered.length, count);
+  return {
+    updates: ordered.slice(0, kept).map((chapter, index) => ({ id: chapter.id, position: index, index })),
+    inserts: Array.from({ length: count - kept }, (_, n) => ({ position: kept + n, index: kept + n })),
+    deletes: ordered.slice(kept).map((chapter) => chapter.id),
+  };
 }
 
 /** Chapter files in filename order (`00-front-matter.md` ... `11-appendices.md`). */
@@ -82,19 +106,6 @@ export function resolveArtSlot(slot: ArtSlot, lookups: ArtLookups): ResolvedArt 
     if (lookups.fileExists(path)) return { kind: "file", path, via: ref.relativePath };
   }
   return null;
-}
-
-/** The editor's own count: whitespace-separated words of the text, blocks separated by a space. */
-export function countWords(content: JSONContent): number {
-  const parts: string[] = [];
-  const walk = (node: JSONContent): void => {
-    if (typeof node.text === "string") parts.push(node.text);
-    for (const child of node.content ?? []) walk(child);
-    if (node.content && node.type !== "text") parts.push(" ");
-  };
-  walk(content);
-  const text = parts.join("").trim();
-  return text ? text.split(/\s+/).length : 0;
 }
 
 /** Storage path of an asset image: the owner's folder, keyed by content hash so a re-run reuses it. */

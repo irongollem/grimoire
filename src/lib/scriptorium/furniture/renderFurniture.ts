@@ -17,10 +17,22 @@ import { watercolorAsset, watercolorSrc } from "@/data/watercolorAssets";
 
 const FURNITURE_CLASS = "sc-furniture";
 
-/** Resolve a furniture anchor to its physical page element. */
-function resolvePage(pages: HTMLElement[], anchor: FurnitureAnchor): HTMLElement | null {
+/** The data attributes the book layout puts on each page of a chapter. */
+export const CHAPTER_ID_ATTR = "data-chapter-id";
+export const CHAPTER_PAGE_ATTR = "data-chapter-page";
+
+/**
+ * Resolve a furniture anchor to its physical page element. A page anchor names
+ * a page within a chapter (1-based), and a blank page belongs to no chapter's
+ * numbering, so it is never the answer.
+ */
+function resolvePage(
+  pages: HTMLElement[],
+  anchor: FurnitureAnchor,
+  chapterPages: Map<string, HTMLElement>,
+): HTMLElement | null {
   if (anchor.type === "page") {
-    return pages[anchor.page - 1] ?? null;
+    return chapterPages.get(`${anchor.chapterId}\u0000${anchor.page}`) ?? null;
   }
   // block anchor: the page whose content contains the block id. UUIDs are
   // selector-safe, so they can be interpolated directly.
@@ -150,8 +162,15 @@ export function renderFurniture(
   const pages = Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
   if (!pages.length) return;
 
+  const chapterPages = new Map<string, HTMLElement>();
+  for (const p of pages) {
+    const chapterId = p.getAttribute(CHAPTER_ID_ATTR);
+    const n = p.getAttribute(CHAPTER_PAGE_ATTR);
+    if (chapterId !== null && n !== null) chapterPages.set(`${chapterId}\u0000${n}`, p);
+  }
+
   for (const item of items) {
-    const page = resolvePage(pages, item.anchor);
+    const page = resolvePage(pages, item.anchor, chapterPages);
     if (!page) continue;
     const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
     const el = buildElement(item);

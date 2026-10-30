@@ -3,7 +3,7 @@
        attributes (data-entity-type etc. from entityEmbed.ts's renderHTML) to
        this live DOM element the way the static HTML serialization path does
        — only data-block-id is bound explicitly here, because the phone
-       reader's contents list (readerToc.ts, #915 story 6 round 2) needs it
+       click-to-edit and Inspect's notes (#1115, `closest("[data-block-id]")`) need it
        to resolve a monster/NPC entry's own name heading (raw injected HTML
        with no block id of its own) back to a scrollable target. -->
   <NodeViewWrapper

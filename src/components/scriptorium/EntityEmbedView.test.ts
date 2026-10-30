@@ -4,7 +4,8 @@ import { computed, ref } from "vue";
 import EntityEmbedView from "./EntityEmbedView.vue";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import ScriptoriumDocumentView from "./ScriptoriumDocumentView.vue";
-import type { ScriptoriumDocument } from "@/types/scriptorium.types";
+import type { JSONContent } from "@tiptap/core";
+import type { ReadableBook } from "@/types/scriptorium.types";
 
 function flushEditor(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -20,34 +21,29 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 vi.mock("@/composables/scriptorium/useEntityEmbedData", () => ({ useEntityEmbedData: mocks.dmData }));
 vi.mock("@/composables/scriptorium/usePlayerEntityEmbed", () => ({ usePlayerEntityEmbed: mocks.playerEmbed }));
 
-function makeDoc(embedType: string, campaignId: string | null = "camp-1"): ScriptoriumDocument {
+/** The book's head plus the one chapter the view renders, kept together so a case reads as one document. */
+function makeDoc(embedType: string, campaignId: string | null = "camp-1"): ReadableBook & { content: JSONContent } {
   return {
     id: "doc-1",
-    user_id: "user-1",
     title: "Handout",
-    content: JSON.stringify({
+    kind: "handout",
+    content: {
       type: "doc",
       content: [
         { type: "paragraph", content: [{ type: "text", text: "Before" }] },
         { type: "entityEmbed", attrs: { entityType: embedType, entityId: "e1", showArt: true } },
       ],
-    }),
+    },
     doc_type: "custom",
     campaign_id: campaignId,
-    player_visible_to: ["member-1"],
-    tags: [],
-    is_published: false,
-    is_two_column: false,
     theme: "onednd2024",
-    page_size: "A4",
-    ink_friendly: false,
-    word_count: 1,
-    show_page_numbers: false,
-    footer_text: "",
-    page_number_start: 1,
-    created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
   };
+}
+
+/** Mounts the read-only view on that document's own chapter. */
+function mountView(document: ReturnType<typeof makeDoc>, extra: { audience?: "dm" | "player" } = {}) {
+  return mount(ScriptoriumDocumentView, { props: { document, content: document.content, ...extra } });
 }
 
 beforeEach(() => {
@@ -59,7 +55,7 @@ beforeEach(() => {
 describe("EntityEmbedView audience", () => {
   it("never constructs useEntityEmbedData for a player", async () => {
     mocks.playerEmbed.mockReturnValue({ html: computed(() => null), isLoading: computed(() => false) });
-    mount(ScriptoriumDocumentView, { props: { document: makeDoc("npc"), audience: "player" } });
+    mountView(makeDoc("npc"), { audience: "player" });
     await flushEditor();
     expect(mocks.dmData).not.toHaveBeenCalled();
     expect(mocks.playerEmbed).toHaveBeenCalledWith("npc", "e1", "camp-1", expect.any(Function));
@@ -67,7 +63,7 @@ describe("EntityEmbedView audience", () => {
 
   it("renders nothing, not even a missing marker, for an embed the player cannot see", async () => {
     mocks.playerEmbed.mockReturnValue({ html: computed(() => null), isLoading: computed(() => false) });
-    const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeDoc("npc"), audience: "player" } });
+    const wrapper = mountView(makeDoc("npc"), { audience: "player" });
     await flushEditor();
     expect(wrapper.text()).toContain("Before");
     expect(wrapper.find(".sc-entity-embed").exists()).toBe(true);
@@ -82,7 +78,7 @@ describe("EntityEmbedView audience", () => {
       html: computed(() => "<h1>Mira</h1>\n<p><em>Elf</em></p>\n"),
       isLoading: computed(() => false),
     });
-    const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeDoc("npc"), audience: "player" } });
+    const wrapper = mountView(makeDoc("npc"), { audience: "player" });
     await flushEditor();
     const body = wrapper.find(".sc-entity-embed-body");
     expect(body.text()).toContain("Mira");
@@ -91,7 +87,7 @@ describe("EntityEmbedView audience", () => {
   });
 
   it("still resolves through useEntityEmbedData for the DM", async () => {
-    mount(ScriptoriumDocumentView, { props: { document: makeDoc("npc") } });
+    mountView(makeDoc("npc"));
     await flushEditor();
     expect(mocks.dmData).toHaveBeenCalled();
     expect(mocks.playerEmbed).not.toHaveBeenCalled();
@@ -101,12 +97,12 @@ describe("EntityEmbedView audience", () => {
 describe("EntityEmbedView theme", () => {
   it("formats an embedded entity in the document's own theme, for the DM and for a player", async () => {
     mocks.dmData.mockReturnValue({ lookup: ref({}), isLoading: ref(false) });
-    mount(ScriptoriumDocumentView, { props: { document: { ...makeDoc("monster"), theme: "phb2014" } } });
+    mountView({ ...makeDoc("monster"), theme: "phb2014" });
     await flushEditor();
     expect(mocks.dmData.mock.calls[0][1].theme.value).toBe("phb2014");
 
     mocks.playerEmbed.mockReturnValue({ html: computed(() => null), isLoading: computed(() => false) });
-    mount(ScriptoriumDocumentView, { props: { document: { ...makeDoc("monster"), theme: "phb2014" }, audience: "player" } });
+    mountView({ ...makeDoc("monster"), theme: "phb2014" }, { audience: "player" });
     await flushEditor();
     expect(mocks.playerEmbed.mock.calls[0][3]()).toBe("phb2014");
   });

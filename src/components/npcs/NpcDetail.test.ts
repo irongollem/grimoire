@@ -110,7 +110,7 @@ vi.mock("@/composables/monsters/useMonstersByIds", () => ({
 }));
 
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
-  useCreateScriptoriumDocument: () => ({ mutateAsync: vi.fn() }),
+  useCreateScriptoriumBook: () => ({ mutateAsync: vi.fn() }),
 }));
 
 const sendNarrativeEvent = vi.fn().mockResolvedValue(undefined);

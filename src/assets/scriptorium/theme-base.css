@@ -1244,7 +1244,7 @@
    frame's own name is the only visible name (#915 story 6 round 2, item 2 —
    "the creature's name prints twice"). The heading stays in the DOM rather
    than being removed, so it still enters the table of contents (pagedToc.ts)
-   and the phone reader's own contents list (readerToc.ts) exactly like a
+   and Inspect's notes and click-to-edit find it by its block id, exactly like a
    Monster Manual entry, just visually hidden here. */
 .sc-theme .sc-statblock-entry-heading--no-lore {
   position: absolute;

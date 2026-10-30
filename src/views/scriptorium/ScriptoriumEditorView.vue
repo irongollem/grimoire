@@ -1,10 +1,10 @@
 <template>
   <!--
-    Scriptorium on a phone is a reader, not the desktop galley shrunk down
-    (#915 story 7): below md, /scriptorium/:id shows ScriptoriumReader and
-    /scriptorium/new explains that writing needs more room. Both routes carry
-    `fullscreenMobile` (see routes.ts) so this owns the whole phone screen —
-    no app top bar or bottom nav to double up against.
+    Scriptorium on a phone is a reader, not the desktop editor shrunk down
+    (#915 story 7): below md, /scriptorium/:id shows ScriptoriumReader, one
+    chapter at a time, and /scriptorium/new explains that writing needs more
+    room. Both routes carry `fullscreenMobile` (see routes.ts) so this owns the
+    whole phone screen.
   -->
   <template v-if="isMobile">
     <div v-if="isNew" class="flex h-full flex-col items-center justify-center px-4 py-16">
@@ -19,10 +19,17 @@
       </EmptyState>
     </div>
 
-    <ScriptoriumReader v-else-if="doc" :document="doc">
+    <ScriptoriumReader
+      v-else-if="doc"
+      :book="doc"
+      :chapters="readerChapters"
+      :chapter="readerChapter"
+      :loading="chapterLoading"
+      @select-chapter="readerChapterId = $event"
+    >
       <!-- A DM mid-session hands a handout out from their phone (#970). -->
       <template #actions>
-        <HandoutShareControl :handout="doc" form="phone" />
+        <HandoutShareControl :handout="doc" />
       </template>
     </ScriptoriumReader>
 
@@ -41,73 +48,75 @@
     </div>
   </template>
 
-  <PageHeader
-    v-else
-    :title="doc?.title || (isNew ? (chosen ? chosen.name : 'New Document') : 'Edit Document')"
-    :description="isNew && !chosen ? 'Choose a starting point' : 'Write with the quill of a master scribe'"
-  >
-    <div v-if="isLoading" class="flex justify-center py-16">
-      <LoadingSpinner />
-    </div>
-
-    <!-- New document: pick a template first, then edit seeded from it. -->
-    <TemplateGallery v-else-if="isNew && !chosen" @select="chosen = $event" />
-
-    <template v-else>
-      <AppButton
-        v-if="isNew"
-        variant="link"
-        size="sm"
-        class="mb-3"
-        :icon="IconChevronLeft"
-        icon-size="sm"
-        label="Choose a different template"
-        @click="chosen = null"
-      />
-      <ScriptoriumEditor
-        :key="isNew ? (chosen?.id ?? 'new') : id || 'new'"
-        :doc="isNew ? null : (doc ?? null)"
-        :seed="seed"
-      />
-    </template>
+  <!-- New: pick a starting point; the gallery makes the book and says which one. -->
+  <PageHeader v-else-if="isNew" title="New Document" description="Choose a starting point">
+    <TemplateGallery @created="onCreated" />
   </PageHeader>
+
+  <div v-else-if="isLoading" class="flex justify-center py-16">
+    <LoadingSpinner />
+  </div>
+
+  <ScriptoriumBookEditor v-else-if="doc" :key="doc.id" :doc="doc" />
+
+  <div v-else class="flex h-full flex-col items-center justify-center px-4 py-16">
+    <EmptyState
+      title="This document could not be found"
+      description="It may have been deleted, or you may not have access to it."
+    >
+      <template #icon><IconWarning class="h-16 w-16" /></template>
+      <template #action>
+        <AppButton variant="primary" size="lg" label="Back to Scriptorium" to="/scriptorium" />
+      </template>
+    </EmptyState>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { useRoute } from "vue-router";
+import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useBelow } from "@/composables/useBreakpoint";
 import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
+import { useBookChapterList, useScriptoriumChapter } from "@/composables/scriptorium/useScriptoriumChapters";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
-import ScriptoriumEditor from "@/components/scriptorium/ScriptoriumEditor.vue";
+import ScriptoriumBookEditor from "@/components/scriptorium/ScriptoriumBookEditor.vue";
 import ScriptoriumReader from "@/components/scriptorium/ScriptoriumReader.vue";
 import TemplateGallery from "@/components/scriptorium/TemplateGallery.vue";
-import { IconChevronLeft, IconMonitor, IconWarning } from "@/lib/icons";
-import type { ScriptoriumTemplate } from "@/data/scriptoriumTemplates";
+import { IconMonitor, IconWarning } from "@/lib/icons";
 
 const route = useRoute();
+const router = useRouter();
 const isMobile = useBelow("md");
 const isNew = computed(() => route.name === "scriptorium-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
 const { data: doc, isLoading: docLoading } = useScriptoriumDocument(id);
-
 const isLoading = computed(() => !isNew.value && docLoading.value);
 
-// Chosen gallery template (new documents only).
-const chosen = ref<ScriptoriumTemplate | null>(null);
+/** A new book exists as soon as the gallery makes it: open it. */
+function onCreated(docId: string) {
+  void router.push(`/scriptorium/${docId}`);
+}
 
-const seed = computed(() =>
-  isNew.value && chosen.value
-    ? {
-        docType: chosen.value.docType,
-        content: chosen.value.build(),
-        settings: chosen.value.settings,
-      }
+// The phone reader: the chapter list, and one chapter's body at a time.
+const { data: chapterList } = useBookChapterList(id);
+const readerChapters = computed(() => (chapterList.value ?? []).map(({ id: chapterId, title }) => ({ id: chapterId, title })));
+const readerChapterId = ref("");
+watch(
+  readerChapters,
+  (list) => {
+    if (list.length > 0 && !list.some((c) => c.id === readerChapterId.value)) readerChapterId.value = list[0].id;
+  },
+  { immediate: true },
+);
+const { data: openChapter, isLoading: chapterLoading } = useScriptoriumChapter(readerChapterId);
+const readerChapter = computed(() =>
+  openChapter.value && openChapter.value.id === readerChapterId.value
+    ? { id: openChapter.value.id, title: openChapter.value.title, content: openChapter.value.content }
     : null,
 );
 </script>

@@ -15,6 +15,8 @@ import {
 import { legacyTiesToLinks, remapLinkEnds } from "@/lib/campaign/worldLinkTransfer";
 import { restoreSessions } from "@/lib/campaign/backupSessions";
 import { remapMentionIds as rMention } from "@/lib/campaign/mentionRemap";
+import { remapBooksForImport } from "@/lib/scriptorium/bookTransfer";
+import type { JSONContent } from "@tiptap/core";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
 import { downloadBlob } from "@/lib/downloadBlob";
 
@@ -93,6 +95,8 @@ export interface GrimoireBackup {
   /** The campaign's own Scriptorium documents (#915). Absent from a backup
    *  taken before documents could belong to a campaign. */
   scriptorium_documents?: Row[];
+  /** Those documents' chapters (#1115). Absent from a backup taken before books had chapters, whose documents carry `content`. */
+  scriptorium_chapters?: Row[];
   /** What an NPC and the party have told each other (#1019). Absent from a
    *  backup taken before the ledger existed. */
   npc_memories?: Row[];
@@ -303,6 +307,13 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     ),
   ]);
 
+  // A book's chapters hang off the book, not the campaign.
+  const scriptoriumChapters = await qByIds(
+    "scriptorium_chapters",
+    "document_id",
+    scriptoriumDocuments.map((doc) => doc.id as string),
+  );
+
   // Strip sensitive fields from campaign row
   const campaignExport = { ...campaignRow };
   for (const field of CAMPAIGN_STRIP_FIELDS) delete campaignExport[field];
@@ -380,6 +391,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     chronicler_images: chroniclerImages,
     entity_notes: entityNotes,
     scriptorium_documents: scriptoriumDocuments,
+    scriptorium_chapters: scriptoriumChapters,
     npc_memories: npcMemories,
     kin_links: kinLinks,
     _meta: { entity_counts: entityCounts, app_version: "1.0.0" },
@@ -445,6 +457,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.session_availability,
     backup.chronicler_images,
     backup.scriptorium_documents ?? [],
+    backup.scriptorium_chapters ?? [],
     backup.npc_memories ?? [],
     backup.kin_links ?? [],
     backup.world_links ?? [],
@@ -599,20 +612,25 @@ export async function executeImport(
       })),
     );
 
-    // 4. Scriptorium documents, before the NPCs whose handout they may be
+    // 4. Scriptorium books and their chapters, before the NPCs whose handout they may be
+    const books = remapBooksForImport({
+      documents: backup.scriptorium_documents ?? [],
+      chapters: backup.scriptorium_chapters,
+      idMap,
+      mapContent: (content) => JSON.parse(rMention(JSON.stringify(content), idMap) as string) as JSONContent,
+    });
     await batchInsert(
       "scriptorium_documents",
-      (backup.scriptorium_documents ?? []).map((doc) => ({
+      books.documents.map((doc) => ({
         ...doc,
-        id: r(doc.id, idMap),
         campaign_id: newCampaignId,
         user_id: userId,
         // Party-member ids, remapped like notes and NPCs; the restored
         // campaign has its party, so the audience carries over.
         player_visible_to: rArr(doc.player_visible_to, idMap),
-        content: rMention(doc.content, idMap),
       })),
     );
+    await batchInsert("scriptorium_chapters", books.chapters);
 
     // 4b. NPCs (may reference locations and documents)
     await batchInsert(

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { expandTocPlaceholder, fillPagedTocPages, renderTocHtml, tocColumnCount } from "./pagedToc";
+import { expandTocPlaceholder, fillPagedTocPages, headingsOfHtml, renderTocHtml, tocColumnCount } from "./pagedToc";
 
 /** Build a container of fake Paged.js pages from per-page inner HTML. */
 function makeContainer(pageHtml: string[]): HTMLElement {
@@ -208,5 +208,27 @@ describe("fillPagedTocPages", () => {
     fillPagedTocPages(c, { showPageNumbers: false, start: 1 });
     expect(c.querySelector(".sc-toc-page")).toBeNull();
     expect(c.querySelector(".sc-toc")?.textContent).toContain("Chapter");
+  });
+});
+
+describe("a contents page for a book of chapters", () => {
+  it("lists the headings it is handed rather than only those of the chapter it sits in", () => {
+    const out = expandTocPlaceholder('<nav data-type="toc"></nav><h1>First</h1>', {
+      showPageNumbers: true,
+      headings: [
+        { level: 1, text: "First" },
+        { level: 1, text: "Second chapter" },
+      ],
+    });
+    expect(out).toContain("Second chapter");
+  });
+
+  it("collects headings from a chapter with the contents page's own exclusions", () => {
+    expect(
+      headingsOfHtml('<div class="sc-cover"><h1>Cover</h1></div><h1>Real</h1><h3>Too fine</h3><h2>Sub</h2>'),
+    ).toEqual([
+      { level: 1, text: "Real" },
+      { level: 2, text: "Sub" },
+    ]);
   });
 });

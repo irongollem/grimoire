@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   monster: { value: undefined as { monster: Record<string, unknown>; isShared: boolean } | undefined },
   note: { value: undefined as Record<string, unknown> | undefined },
   handout: { value: undefined as Record<string, unknown> | undefined },
+  handoutChapters: { value: [{ id: "ch-1" }] as Array<{ id: string }> },
+  handoutChapter: { value: undefined as Record<string, unknown> | undefined },
+  chapterRequested: { value: "" },
   soundEnabled: null as (() => boolean) | null,
   playlistEnabled: null as (() => boolean) | null,
   monsterId: { value: "" },
@@ -49,6 +52,13 @@ vi.mock("@/composables/scriptorium/useScriptorium", () => ({ useScriptoriumDocum
   mocks.handoutId = id;
   return { data: mocks.handout, isLoading: { value: false } };
 } }));
+vi.mock("@/composables/scriptorium/useScriptoriumChapters", () => ({
+  useBookChapterList: () => ({ data: mocks.handoutChapters }),
+  useScriptoriumChapter: (id: { value: string }) => {
+    mocks.chapterRequested = id;
+    return { data: mocks.handoutChapter, isLoading: { value: false } };
+  },
+}));
 vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: (enabled: () => boolean) => {
   mocks.soundEnabled = enabled;
   return { data: mocks.sounds };
@@ -91,6 +101,8 @@ describe("QuestRunContainedTool", () => {
     mocks.npc.value = null;
     mocks.note.value = undefined;
     mocks.handout.value = undefined;
+    mocks.handoutChapters.value = [{ id: "ch-1" }];
+    mocks.handoutChapter.value = undefined;
     mocks.playlists.value = [];
     mocks.tracks.value = [];
     mocks.requestAudioCue.mockReset();
@@ -265,26 +277,32 @@ describe("QuestRunContainedTool", () => {
     expect(wrapper.text()).toContain("Marked passed");
   });
 
-  it("renders an attached Scriptorium handout body", () => {
-    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body", player_visible_to: [] };
+  it("renders the first chapter of an attached Scriptorium handout, and says when a book has more", () => {
+    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, player_visible_to: [] };
+    mocks.handoutChapter.value = { id: "ch-1", content: { type: "doc", content: [] } };
+    mocks.handoutChapters.value = [{ id: "ch-1" }, { id: "ch-2" }];
     const wrapper = shallowMount(QuestRunContainedTool, {
       props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
-    expect(wrapper.findComponent({ name: "ScriptoriumDocumentView" }).props("document")).toEqual(mocks.handout.value);
+    const view = wrapper.findComponent({ name: "ScriptoriumDocumentView" });
+    expect(view.props("document")).toEqual(mocks.handout.value);
+    expect(view.props("content")).toEqual({ type: "doc", content: [] });
+    // Only the first chapter body is requested: an attached book must not load whole.
+    expect(mocks.chapterRequested.value).toBe("ch-1");
+    expect(wrapper.text()).toContain("Chapter 1 of 2");
     expect(wrapper.text()).toContain("handout · 42 words · draft");
     expect(mocks.handoutId.value).toBe("handout-1");
     expect(mocks.noteId.value).toBe("");
   });
 
   it("offers Give to players through the shared share control, starting on the whole party", () => {
-    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body", player_visible_to: [] };
+    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, player_visible_to: [] };
     const wrapper = shallowMount(QuestRunContainedTool, {
       props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
     const control = wrapper.findComponent({ name: "HandoutShareControl" });
-    expect(control.props("form")).toBe("phone");
     expect(control.props("handout")).toEqual(mocks.handout.value);
     expect(control.props("initialRecipients")).toEqual(["pm-1", "pm-2"]);
   });

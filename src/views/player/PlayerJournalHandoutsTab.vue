@@ -24,7 +24,7 @@
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-baseline gap-2">
               <p class="text-heading-xs font-semibold text-foreground truncate">{{ h.title }}</p>
-              <span class="text-label shrink-0" :style="{ color: docTypeColor(h.doc_type) }">{{ docTypeLabel(h.doc_type) }}</span>
+              <span class="text-label shrink-0" :style="{ color: docTypeColor(h.doc_type) }">{{ handoutLabel(h) }}</span>
             </div>
             <div class="mt-1.5 flex flex-wrap items-center gap-3">
               <span class="text-label text-muted-foreground/60">{{ formatDate(h.updated_at) }}</span>
@@ -50,7 +50,9 @@ import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { RouterLink } from "vue-router";
 import { IconChevronRight, IconScrollText } from "@/lib/icons";
 import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
-import { docTypeColor, docTypeLabel } from "@/lib/scriptorium/editorConstants";
+import { docTypeColor } from "@/lib/scriptorium/editorConstants";
+import { scriptoriumLook } from "@/lib/scriptorium/looks";
+import { KIND_LABELS } from "@/lib/scriptorium/documentCardMeta";
 import type { PlayerHandoutSummary } from "@/composables/scriptorium/usePlayerHandouts";
 
 defineProps<{
@@ -65,5 +67,8 @@ defineProps<{
 // padding (py-3) + 20 title (text-heading-xs) + 6 (mt-1.5) + 11 date line
 // (text-label) = 65. Rows are re-measured as they mount.
 const CARD_ROW_PX = 65;
+// To a player a handout is the paper it is written on (Letter, Notice…); a book is a book.
+const handoutLabel = (h: PlayerHandoutSummary) =>
+  h.kind === "handout" ? scriptoriumLook(h.theme).label : KIND_LABELS[h.kind];
 const handoutKey = (h: PlayerHandoutSummary) => h.id;
 </script>

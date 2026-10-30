@@ -24,7 +24,6 @@ import {
   remapCustomClassForImport,
   remapCustomSubclassForImport,
   remapPartyMemberForImport,
-  remapScriptoriumDocumentForImport,
   remapSpeciesForImport,
   remapSpellForImport,
   stripPartyMemberRow,
@@ -217,49 +216,103 @@ describe("remapCharacterClassForImport", () => {
   });
 });
 
-describe("remapScriptoriumDocumentForImport", () => {
-  it("assigns a fresh id and the importer's user_id; passes current JSON content through", () => {
-    const idMap = new Map([["doc-1", "doc-fresh"]]);
-    const json = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
-    const result = remapScriptoriumDocumentForImport(
-      { id: "doc-1", title: "Session 1 Recap", content: json, page_furniture: [] },
-      idMap,
-      "dm-importer",
-    );
-    expect(result.id).toBe("doc-fresh");
-    expect(result.user_id).toBe("dm-importer");
-    expect(result.title).toBe("Session 1 Recap");
-    expect(JSON.parse(result.content as string)).toEqual(JSON.parse(json));
+describe("scriptorium books in a bundle", () => {
+  const doc = (over: Record<string, unknown> = {}) => ({
+    id: "doc-1", title: "Session 1 Recap", kind: "book", word_count: 9, player_visible_to: ["pm-source"], page_furniture: [], ...over,
+  });
+  const chapter = (id: string, over: Record<string, unknown> = {}) => ({
+    id, document_id: "doc-1", position: 0, title: "", word_count: 0,
+    content: { type: "doc", content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "One" }] }] },
+    ...over,
+  });
+  const picture = (chapterId: string) => ({
+    id: "fx-1", kind: "watermark", anchor: { type: "page", chapterId, page: 2 }, x: 0, y: 0, width: 30, z: "under", props: {},
   });
 
-  it("always imports with an empty audience: the exporter's party does not exist here", () => {
-    const result = remapScriptoriumDocumentForImport(
-      { id: "doc-4", content: null, player_visible_to: ["pm-source"] },
-      new Map(),
-      "dm-importer",
+  async function importBooks(bundle: GrimoireBundle) {
+    auth.user = { id: "importer" };
+    fake.reset();
+    fake.seed("campaigns", [{ id: "camp-new", ruleset: "2014" }]);
+    await executeImport({ bundle, includeTypes: new Set(["scriptorium_documents"]), campaignId: "camp-new" });
+    return { books: fake.rows("scriptorium_documents"), chapters: fake.rows("scriptorium_chapters") };
+  }
+
+  it("gives the chapters the new book's id, not the exporter's", async () => {
+    const { books, chapters } = await importBooks(
+      emptyBundle({ scriptorium_documents: [doc()], scriptorium_chapters: [chapter("ch-1"), chapter("ch-2", { position: 1 })] }),
     );
-    expect(result.player_visible_to).toEqual([]);
+    expect(books).toHaveLength(1);
+    expect(books[0].id).not.toBe("doc-1");
+    expect(chapters.map((c) => c.document_id)).toEqual([books[0].id, books[0].id]);
+    expect(chapters.map((c) => c.position)).toEqual([0, 1]);
+    expect(chapters.every((c) => c.id !== "ch-1" && c.id !== "ch-2")).toBe(true);
   });
 
-  it("normalizes a bundle exported long ago that still holds raw HTML content", () => {
-    const result = remapScriptoriumDocumentForImport(
-      { id: "doc-2", title: "Old Adventure", content: "<h1>Old Adventure</h1><p>Body.</p>" },
-      new Map(),
-      "dm-importer",
+  it("a page-anchored picture follows its chapter to the new id", async () => {
+    const { books, chapters } = await importBooks(
+      emptyBundle({
+        scriptorium_documents: [doc({ page_furniture: [picture("ch-2")] })],
+        scriptorium_chapters: [chapter("ch-1"), chapter("ch-2", { position: 1 })],
+      }),
     );
-    const parsed = JSON.parse(result.content as string) as { type: string; content: { type: string }[] };
-    expect(parsed.type).toBe("doc");
-    expect(parsed.content.map((n) => n.type)).toEqual(["heading", "paragraph"]);
+    const anchor = (books[0].page_furniture as { anchor: { chapterId: string } }[])[0].anchor;
+    expect(anchor.chapterId).toBe(chapters[1].id);
   });
 
-  it("mints a fresh uuid when the id isn't in idMap", () => {
-    const result = remapScriptoriumDocumentForImport(
-      { id: "doc-3", content: null },
-      new Map(),
-      "dm-importer",
+  it("drops a picture pinned to a chapter the file does not carry, rather than aiming it at another account's chapter", async () => {
+    const { books } = await importBooks(
+      emptyBundle({ scriptorium_documents: [doc({ page_furniture: [picture("ch-elsewhere")] })], scriptorium_chapters: [chapter("ch-1")] }),
     );
-    expect(result.id).not.toBe("doc-3");
-    expect(typeof result.id).toBe("string");
+    expect(books[0].page_furniture).toEqual([]);
+  });
+
+  it("imports with an empty audience, the owner set to the importer, and no word_count of its own", async () => {
+    const { books } = await importBooks(emptyBundle({ scriptorium_documents: [doc()], scriptorium_chapters: [chapter("ch-1")] }));
+    expect(books[0].player_visible_to).toEqual([]);
+    expect(books[0].user_id).toBe("importer");
+    expect(books[0]).not.toHaveProperty("word_count");
+  });
+
+  it("an old bundle with document content imports as one chapter", async () => {
+    const { books, chapters } = await importBooks(
+      emptyBundle({
+        scriptorium_documents: [
+          doc({ id: "old-1", content: "<h1>Old Adventure</h1><p>Body of it.</p>" }),
+          doc({ id: "old-2", content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }) }),
+          doc({ id: "old-3", content: null }),
+        ],
+      }),
+    );
+    expect(books).toHaveLength(3);
+    expect(books.every((b) => !("content" in b))).toBe(true);
+    expect(chapters).toHaveLength(3);
+    const first = chapters.find((c) => c.document_id === books[0].id)!;
+    expect(first.title).toBe("Old Adventure");
+    expect(first.position).toBe(0);
+    expect((first.content as { content: { type: string }[] }).content.map((n) => n.type)).toEqual(["heading", "paragraph"]);
+    expect(first.word_count).toBe(5);
+  });
+
+  it("ignores chapters whose book is not in the file", async () => {
+    const { chapters } = await importBooks(
+      emptyBundle({ scriptorium_documents: [doc()], scriptorium_chapters: [chapter("ch-1"), chapter("ch-x", { document_id: "doc-gone" })] }),
+    );
+    expect(chapters).toHaveLength(1);
+  });
+
+  it("exports a book with its chapters, minus their timestamps", async () => {
+    fake.reset();
+    fake.seed("campaigns", [{ id: "c1", ruleset: "2024", allows_mixed_rulesets: false }]);
+    fake.seed("scriptorium_documents", [{ ...doc(), user_id: "exporter", campaign_id: "c1", created_at: "x", updated_at: "y" }]);
+    fake.seed("scriptorium_chapters", [
+      { ...chapter("ch-1"), created_at: "x", updated_at: "y" },
+      { ...chapter("ch-z", { document_id: "doc-other" }) },
+    ]);
+    const bundle = await buildBundle({
+      campaignId: "c1", name: "Mere", description: "", selection: new Map([["scriptorium_documents", ["doc-1"]]]),
+    });
+    expect(bundle.scriptorium_chapters?.map((c) => c.id)).toEqual(["ch-1"]);
+    expect(bundle.scriptorium_chapters?.[0]).not.toHaveProperty("created_at");
   });
 });
 

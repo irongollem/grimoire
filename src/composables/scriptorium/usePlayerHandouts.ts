@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import type { ReadableScriptoriumDocument, ScriptoriumDocument } from "@/types/scriptorium.types";
+import type { PlayerHandout, ScriptoriumDocument } from "@/types/scriptorium.types";
 import { PLAYER_HANDOUTS_KEY } from "@/lib/campaignLiveSync/registry";
 
 /**
@@ -19,11 +19,11 @@ import { PLAYER_HANDOUTS_KEY } from "@/lib/campaignLiveSync/registry";
 // campaign and the recipient themselves, so a stale link to a withdrawn handout
 // resolves to "absent" and the list never depends on the policy to narrow it.
 
-const LIST_COLUMNS = "id, title, doc_type, campaign_id, updated_at, created_at";
+const LIST_COLUMNS = "id, title, doc_type, campaign_id, kind, theme, updated_at, created_at";
 
 export type PlayerHandoutSummary = Pick<
   ScriptoriumDocument,
-  "id" | "title" | "doc_type" | "campaign_id" | "updated_at" | "created_at"
+  "id" | "title" | "doc_type" | "campaign_id" | "kind" | "theme" | "updated_at" | "created_at"
 >;
 
 export async function fetchHandouts(campaignId: string, partyMemberId: string): Promise<PlayerHandoutSummary[]> {
@@ -37,24 +37,25 @@ export async function fetchHandouts(campaignId: string, partyMemberId: string): 
   return data as PlayerHandoutSummary[];
 }
 
-/** Exactly what the reader renders (ReadableScriptoriumDocument): never the
- *  DM's tags, AI provenance or owner id, which ride on the same row. */
-const HANDOUT_COLUMNS = "id, title, content, doc_type, campaign_id, theme, updated_at";
+/** Not authorized: Postgres insufficient_privilege, which `get_player_handout` raises for a non-holder. */
+const NOT_AUTHORIZED = "42501";
 
-export async function fetchHandout(
-  id: string,
-  campaignId: string,
-  partyMemberId: string,
-): Promise<ReadableScriptoriumDocument | null> {
-  const { data, error } = await supabase
-    .from("scriptorium_documents")
-    .select(HANDOUT_COLUMNS)
-    .eq("id", id)
-    .eq("campaign_id", campaignId)
-    .contains("player_visible_to", [partyMemberId])
-    .maybeSingle();
-  if (error) throw error;
-  return data as ReadableScriptoriumDocument | null;
+/**
+ * One handout and one of its chapters, read through `get_player_handout`: the
+ * server strips DM-only blocks and Deep halves, so the body never reaches a
+ * player's browser (chapters cannot be selected by players at all). Null when
+ * the handout is withdrawn or was never theirs, as before.
+ */
+export async function fetchHandout(id: string, chapterId: string | null): Promise<PlayerHandout | null> {
+  const { data, error } = await supabase.rpc("get_player_handout", {
+    p_document_id: id,
+    ...(chapterId ? { p_chapter_id: chapterId } : {}),
+  });
+  if (error) {
+    if (error.code === NOT_AUTHORIZED) return null;
+    throw error;
+  }
+  return data as unknown as PlayerHandout;
 }
 
 /** The handouts shared with the signed-in player in the active campaign. */
@@ -74,19 +75,17 @@ export function usePlayerHandouts() {
   });
 }
 
-/** One full handout, or null when it is withdrawn or was never theirs. */
-export function usePlayerHandout(id: MaybeRefOrGetter<string>) {
+/** One handout with one chapter (the first when `chapterId` is empty), or null when withdrawn. */
+export function usePlayerHandout(
+  id: MaybeRefOrGetter<string>,
+  chapterId: MaybeRefOrGetter<string | null | undefined> = null,
+) {
   const campaign = useCampaignStore();
   const auth = useAuthStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  const partyMemberId = computed(() => auth.linkedPartyMemberId);
 
   return useQuery({
-    queryKey: computed(() => [PLAYER_HANDOUTS_KEY, "one", toValue(id), campaignId.value, partyMemberId.value] as const),
-    queryFn: ({ queryKey: [, , docId, cid, pid] }) => {
-      if (!cid || !pid) throw new Error("usePlayerHandout fetched without a campaign and party member; enabled guarantees both");
-      return fetchHandout(docId, cid, pid);
-    },
-    enabled: () => !!campaignId.value && !!partyMemberId.value,
+    queryKey: () => [PLAYER_HANDOUTS_KEY, "one", toValue(id), toValue(chapterId) ?? "first"] as const,
+    queryFn: () => fetchHandout(toValue(id), toValue(chapterId) ?? null),
+    enabled: () => !!campaign.activeCampaignId && !!auth.linkedPartyMemberId,
   });
 }

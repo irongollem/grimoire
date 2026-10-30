@@ -106,7 +106,7 @@ vi.mock("@/composables/library/useLibraryMonsterArt", () => ({
 }));
 
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
-  useCreateScriptoriumDocument: () => ({ mutateAsync: vi.fn() }),
+  useCreateScriptoriumBook: () => ({ mutateAsync: vi.fn() }),
 }));
 
 const toastSuccess = vi.fn();

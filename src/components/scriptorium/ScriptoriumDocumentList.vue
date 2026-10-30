@@ -6,6 +6,7 @@
       :has-active-filters="scriptoriumUi.scriptoriumHasActiveFilters"
       @clear="scriptoriumUi.resetScriptoriumFilters()"
     >
+      <SegmentedControl v-model="kindFilter" :options="KIND_OPTIONS" size="sm" aria-label="Show" />
       <ListSearchInput v-model="scriptoriumUi.scriptoriumSearch" placeholder="Search documents…" />
       <!--
         Ten doc types is past what a segmented group can hold: joined segments
@@ -30,13 +31,10 @@
       v-else-if="!filtered.length && !scriptoriumUi.scriptoriumHasActiveFilters"
       title="The scriptorium awaits"
       :description="canWrite
-        ? 'Craft monsters, spells, items, and adventure documents with the look of the official books.'
-        : 'Craft monsters, spells, items, and adventure documents with the look of the official books. Writing needs a tablet or desktop screen.'"
+        ? 'Make a handout for your players, a letter, a notice or a page from a journal, or a book of chapters for your table. Start with New handout or New book above.'
+        : 'Make handouts and books with the look of the official ones. Writing needs a tablet or desktop screen.'"
     >
       <template #icon><IconNavScriptorium class="h-16 w-16" /></template>
-      <template #action>
-        <AppButton v-if="canWrite" variant="primary" size="lg" label="Create your first document" @click="handleNew" />
-      </template>
     </EmptyState>
 
     <p
@@ -58,7 +56,7 @@
         <EntityListRow
           :to="`/scriptorium/${doc.id}`"
           :title="doc.title"
-          :subtitle="docSubtitle(doc)"
+          :subtitle="documentMeta(doc, partyNames)"
           :fallback-icon="IconNavScriptorium"
           :tags="docRowTags(doc)"
           :max-tags="5"
@@ -95,32 +93,19 @@
           </RouterLink>
         </div>
 
-        <!-- Type colour bar -->
-        <div
-          class="h-1 w-full shrink-0"
-          :class="DOC_TYPE_BG[doc.doc_type]"
-        />
+        <div class="p-4 flex flex-col gap-1.5 flex-1">
+          <span
+            class="text-eyebrow"
+            :class="doc.kind === 'handout' ? 'text-ink-caution' : 'text-primary'"
+          >
+            {{ KIND_LABELS[doc.kind] }}
+          </span>
+          <h3 class="text-heading-xs font-bold text-foreground leading-tight line-clamp-2">
+            {{ doc.title }}
+          </h3>
+          <p class="text-caption text-muted-foreground">{{ documentMeta(doc, partyNames) }}</p>
 
-        <div class="p-4 flex flex-col gap-2 flex-1">
-          <!-- Header row -->
-          <div class="flex items-start justify-between gap-2">
-            <h3
-              class="text-heading-xs font-bold text-foreground leading-tight line-clamp-2 flex-1"
-            >
-              {{ doc.title }}
-            </h3>
-            <span
-              class="shrink-0 px-1.5 py-0.5 rounded text-eyebrow font-bold"
-              :style="{
-                backgroundColor: `color-mix(in oklab, ${DOC_TYPE_VAR[doc.doc_type]} 13%, transparent)`,
-                color: DOC_TYPE_VAR[doc.doc_type],
-              }"
-            >
-              {{ DOC_TYPES[doc.doc_type].label }}
-            </span>
-          </div>
-
-          <!-- Scope hint — only for a document scoped to a campaign other than
+          <!-- Scope hint: only for a document scoped to a campaign other than
                the active one, where "whose is this" is not otherwise visible. -->
           <p
             v-if="otherCampaignName(doc)"
@@ -129,49 +114,9 @@
             {{ otherCampaignName(doc) }}
           </p>
 
-          <!-- Tags -->
-          <div v-if="doc.tags.length" class="flex flex-wrap gap-1">
-            <span
-              v-for="tag in doc.tags.slice(0, 3)"
-              :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-            >
-              {{ tag }}
-            </span>
-            <span
-              v-if="doc.tags.length > 3"
-              class="text-caption-sm text-muted-foreground italic self-center"
-            >
-              +{{ doc.tags.length - 3 }}
-            </span>
-          </div>
-
-          <!-- Footer -->
-          <div class="flex items-center justify-between mt-auto pt-1">
-            <span class="text-caption text-muted-foreground italic">
-              {{ doc.word_count }} words
-            </span>
-            <span class="text-caption text-muted-foreground">
-              {{ formatDate(doc.updated_at) }}
-            </span>
-          </div>
-
-          <!-- Status badges -->
-          <div v-if="doc.is_published || doc.player_visible_to.length" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <div v-if="doc.is_published" class="flex items-center gap-1">
-              <IconFaction class="h-3 w-3 text-ink-success" />
-              <span
-                class="text-label text-ink-success font-semibold"
-                >Published</span
-              >
-            </div>
-            <div v-if="doc.player_visible_to.length" class="flex items-center gap-1">
-              <IconShare class="h-3 w-3 text-ink-success" />
-              <span class="text-label text-ink-success font-semibold"
-                >Shared · {{ doc.player_visible_to.length }}</span
-              >
-            </div>
-          </div>
+          <p class="mt-auto pt-1 text-caption text-muted-foreground">
+            {{ formatDate(doc.updated_at) }}
+          </p>
         </div>
 
         <button
@@ -193,17 +138,14 @@
       {{ filtered.length }} of {{ docs?.length ?? 0 }} documents
     </p>
   </div>
-
-  <PaywallModal v-model="showPaywall" resource="scriptorium_documents" />
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import { useRouter } from "vue-router";
-import { IconDelete, IconFaction, IconLock, IconNavScriptorium, IconShare } from '@/lib/icons';
+import { IconDelete, IconLock, IconNavScriptorium } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import {
   useScriptoriumDocuments,
@@ -221,14 +163,14 @@ import { useBreakpointColumns } from "@/composables/useGridColumns";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
-import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useAbove } from "@/composables/useBreakpoint";
-import type { ScriptoriumDocType, ScriptoriumDocumentSummary } from "@/types/scriptorium.types";
-import { DOC_TYPES, DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
+import type { ScriptoriumDocType, ScriptoriumDocumentSummary, ScriptoriumKind } from "@/types/scriptorium.types";
+import { DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
+import { documentMeta, KIND_LABELS } from "@/lib/scriptorium/documentCardMeta";
+import { useParty } from "@/composables/party/useParty";
 import { documentScopeOf, isDocumentUsableIn } from "@/lib/scriptorium/documentScope";
-
-const router = useRouter();
 
 // Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` this grid used to carry.
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
@@ -236,60 +178,18 @@ const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const layout = useListLayout("scriptorium", "grid");
 const docKey = (doc: ScriptoriumDocumentSummary) => doc.id;
 
-// Row height before a row is measured (px), for a card with a two-line title and
-// tags but no status badges, in the Vellum default: 1px border x2 + 4 type bar +
-// p-4 (32) + header (35, two lines of leading-tight 14px) + tags row (15) +
-// footer (4 pt-1 + 17.3 caption) + two gap-2 (16) = 125. Published or shared
-// cards add 20 (12px badge row + gap), so those rows are under-estimated.
-const DOC_ROW_PX = 125;
-const { canCreate, quota: docQuota } = useQuota("scriptorium_documents");
-const showPaywall = ref(false);
-// Writing needs a larger screen (#915 story 7) — the phone list is a reader.
+// Row height before a row is measured (px): 1px border x2 + p-4 (32) + kind
+// eyebrow (16) + two title lines (35) + meta line (17) + date (4 pt-1 + 17) +
+// four gap-1.5 (24) = 147; rows are re-measured as they mount.
+const DOC_ROW_PX = 147;
+const { quota: docQuota } = useQuota("scriptorium_documents");
+// Writing needs a larger screen (#915 story 7): the phone list is a reader.
 const canWrite = useAbove("md");
-
-function handleNew() {
-  if (!canCreate.value) { showPaywall.value = true; return; }
-  router.push("/scriptorium/new");
-}
 
 // Derived from DOC_TYPES so the filter cannot fall behind the create dropdown:
 // a hand-kept copy here once omitted Subclass, Species and Quest, leaving those
 // documents creatable but impossible to filter to.
 const TYPE_OPTIONS = [{ value: "all", label: "All" }, ...DOC_TYPE_OPTIONS] as const;
-
-const DOC_TYPE_BG: Record<ScriptoriumDocType, string> = {
-  custom:        "bg-doctype-custom",
-  spell:         "bg-doctype-spell",
-  monster:       "bg-doctype-monster",
-  item:          "bg-doctype-item",
-  class:         "bg-doctype-class",
-  subclass:      "bg-doctype-subclass",
-  race:          "bg-doctype-race",
-  background:    "bg-doctype-background",
-  adventure:     "bg-doctype-adventure",
-  "npc-sheet":   "bg-doctype-npc-sheet",
-  location:      "bg-doctype-location",
-  quest:         "bg-doctype-quest",
-};
-
-
-/** The same ramp as `var()` values, for borders, gradients and canvas — places
- *  a utility class cannot reach. Tint with `color-mix`, never by appending a
- *  hex alpha: that only ever worked on a hex literal. */
-const DOC_TYPE_VAR: Record<ScriptoriumDocType, string> = {
-  custom:        "var(--doctype-custom)",
-  spell:         "var(--doctype-spell)",
-  monster:       "var(--doctype-monster)",
-  item:          "var(--doctype-item)",
-  class:         "var(--doctype-class)",
-  subclass:      "var(--doctype-subclass)",
-  race:          "var(--doctype-race)",
-  background:    "var(--doctype-background)",
-  adventure:     "var(--doctype-adventure)",
-  "npc-sheet":   "var(--doctype-npc-sheet)",
-  location:      "var(--doctype-location)",
-  quest:         "var(--doctype-quest)",
-};
 
 // Filter State Pattern — search + type survive opening a document and coming back.
 const scriptoriumUi = useScriptoriumUiStore();
@@ -299,10 +199,23 @@ const typeFilter = computed({
   get: () => scriptoriumUi.scriptoriumFilterType as string,
   set: (v) => { scriptoriumUi.scriptoriumFilterType = v as ScriptoriumDocType | "all"; },
 });
+const KIND_OPTIONS: SegmentedOption<ScriptoriumKind | "all">[] = [
+  { value: "all", label: "All" },
+  { value: "handout", label: "Handouts" },
+  { value: "book", label: "Books" },
+];
+const kindFilter = computed({
+  get: () => scriptoriumUi.scriptoriumFilterKind,
+  set: (v) => { scriptoriumUi.scriptoriumFilterKind = v; },
+});
 const scopeFilter = computed({
   get: () => scriptoriumUi.scriptoriumFilterScope,
   set: (v) => { scriptoriumUi.scriptoriumFilterScope = v; },
 });
+
+// Who holds a handout is read off the active party; a holder from another campaign is counted, not named.
+const { data: partyData } = useParty();
+const partyNames = computed(() => new Map((partyData.value ?? []).map((m) => [m.id, m.name])));
 
 const { data: docs, isLoading } = useScriptoriumDocuments();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
@@ -334,15 +247,10 @@ const lockedDocIds = computed((): Set<string> => {
   return new Set(sorted.slice(-overCount).map((d) => d.id));
 });
 
-// Row text: the card's footer line, and its badges as tags.
-function docSubtitle(doc: ScriptoriumDocumentSummary): string {
-  return `${doc.word_count} words, ${formatDate(doc.updated_at)}`;
-}
-
+// Row text: the card's own line, and its badges as tags.
 function docRowTags(doc: ScriptoriumDocumentSummary): string[] {
-  const tags: string[] = [DOC_TYPES[doc.doc_type].label];
+  const tags: string[] = [KIND_LABELS[doc.kind]];
   if (doc.is_published) tags.push("Published");
-  if (doc.player_visible_to.length) tags.push(`Shared · ${doc.player_visible_to.length}`);
   const other = otherCampaignName(doc);
   if (other) tags.push(other);
   return [...tags, ...doc.tags];
@@ -366,6 +274,8 @@ const filtered = computed(() => {
         d.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
+  if (scriptoriumUi.scriptoriumFilterKind !== "all")
+    list = list.filter((d) => d.kind === scriptoriumUi.scriptoriumFilterKind);
   if (scriptoriumUi.scriptoriumFilterType !== "all")
     list = list.filter((d) => d.doc_type === scriptoriumUi.scriptoriumFilterType);
   return list;

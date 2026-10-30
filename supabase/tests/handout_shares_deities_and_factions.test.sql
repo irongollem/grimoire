@@ -36,19 +36,23 @@ insert into public.factions (id, user_id, campaign_id, name) values
 insert into public.species (id, user_id, campaign_id, name) values
   ('97100000-0000-4000-8000-000000000050', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'Sippet');
 
-insert into public.scriptorium_documents (id, user_id, campaign_id, title, content) values
-  ('97100000-0000-4000-8000-000000000080', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'Who keeps the roads',
+insert into public.scriptorium_documents (id, user_id, campaign_id, title) values
+  ('97100000-0000-4000-8000-000000000080', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'Who keeps the roads'),
+  -- The faction alone, automatic: the positive control for the "off" above.
+  ('97100000-0000-4000-8000-000000000081', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'The Cabal''s March');
+
+insert into public.scriptorium_chapters (document_id, position, content) values
+  ('97100000-0000-4000-8000-000000000080', 0,
    jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'deity', 'entityId', '97100000-0000-4000-8000-000000000020', 'reveal', null)),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'faction', 'entityId', '97100000-0000-4000-8000-000000000040', 'reveal', jsonb_build_object('off', true))),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'faction', 'entityId', '97100000-0000-4000-8000-000000000041', 'reveal', null)),
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'species', 'entityId', '97100000-0000-4000-8000-000000000050', 'reveal', null))
-   ))::text),
-  -- The faction alone, automatic: the positive control for the "off" above.
-  ('97100000-0000-4000-8000-000000000081', '97100000-0000-4000-8000-000000000001', '97100000-0000-4000-8000-000000000010', 'The Cabal''s March',
+   ))),
+  ('97100000-0000-4000-8000-000000000081', 0,
    jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
      jsonb_build_object('type', 'entityEmbed', 'attrs', jsonb_build_object('entityType', 'faction', 'entityId', '97100000-0000-4000-8000-000000000040', 'reveal', null))
-   ))::text);
+   )));
 
 -- ── As the DM ──────────────────────────────────────────────────────────────
 

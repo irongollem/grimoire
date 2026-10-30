@@ -273,9 +273,9 @@ import { SPELL_SCHOOLS, spellLevelLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
 import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
-import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
-import { formatSpellForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
-import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
+import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
+import { bookInsertFromImport, formatSpellForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentJson } from "@/lib/scriptorium/entityEmbeds";
 import {
   adviseLevelRange,
   REFERENCE_SPELLS,
@@ -749,7 +749,7 @@ function onAiGenerated(result: SpellAiGenerated) {
 }
 
 // ── Send to Scriptorium ───────────────────────────────────────────────────────
-const { mutateAsync: createDoc } = useCreateScriptoriumDocument();
+const { mutateAsync: createDoc } = useCreateScriptoriumBook();
 const isSendingToScriptorium = ref(false);
 const showScriptoriumPaywall = ref(false);
 const toast = useToast();
@@ -762,9 +762,8 @@ async function sendToScriptorium() {
     // Live link, not a one-time snapshot (#915 story 3). The generated
     // document travels with the spell's own campaign scope (#915 story 1).
     const doc = await createDoc({
-      ...data,
-      content: buildEntityEmbedDocumentContent("spell", props.spell.id),
-      campaign_id: props.spell.campaign_id,
+      book: bookInsertFromImport(data, props.spell.campaign_id),
+      chapters: [{ content: buildEntityEmbedDocumentJson("spell", props.spell.id) }],
     });
     router.push(`/scriptorium/${doc.id}`);
   } catch (e: unknown) {

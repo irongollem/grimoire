@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   previewCalls: [] as string[],
   styles: [] as HTMLElement[],
   nextResolve: null as ((v: { total: number }) => void) | null,
+  previewTargets: [] as HTMLElement[],
   nextReject: null as ((e: Error) => void) | null,
 }));
 
@@ -17,7 +18,7 @@ vi.mock("pagedjs", () => ({
   registerHandlers: vi.fn(),
   Previewer: class {
     polisher = { inserted: [] as HTMLElement[] };
-    preview(html: string) {
+    preview(html: string, _sheets: unknown, renderTo: HTMLElement) {
       mocks.previewCalls.push(html);
       // Each layout run leaves a <style> in the head, as the real polisher does.
       const style = document.createElement("style");
@@ -25,14 +26,32 @@ vi.mock("pagedjs", () => ({
       this.polisher.inserted.push(style);
       mocks.styles.push(style);
       return new Promise((resolve, reject) => {
-        mocks.nextResolve = resolve;
+        // Settling lays `total` pages into the container, as Paged.js does.
+        mocks.nextResolve = (v: { total: number }) => {
+          const area = document.createElement("div");
+          area.className = "pagedjs_pages";
+          area.innerHTML = '<div class="pagedjs_page"><div class="pagedjs_pagebox"></div></div>'.repeat(v.total);
+          renderTo.appendChild(area);
+          resolve(v);
+        };
         mocks.nextReject = reject;
       });
     }
   },
 }));
 
-import { usePagedPreview } from "./usePagedPreview";
+import { useBookPreview } from "./useBookPreview";
+import type { BookLayoutSettings } from "@/lib/scriptorium/bookLayout/types";
+
+const SETTINGS: BookLayoutSettings = {
+  pageSize: "A4",
+  isTwoColumn: false,
+  showPageNumbers: true,
+  pageNumberStart: 1,
+  footerText: "",
+  inkFriendly: false,
+  theme: "onednd2024",
+};
 
 function settle(total = 3) {
   mocks.nextResolve?.({ total });
@@ -43,16 +62,17 @@ let contentBuilds = 0;
 
 function mountPreview(contentRef: Ref<string>, debounceMs = 600) {
   const container = ref<HTMLElement | null>(document.createElement("div"));
-  let api!: ReturnType<typeof usePagedPreview>;
+  let api!: ReturnType<typeof useBookPreview>;
   const wrapper = mount(
     defineComponent({
       setup() {
-        api = usePagedPreview({
-          content: () => {
+        api = useBookPreview({
+          chapters: () => {
             contentBuilds++;
-            return contentRef.value;
+            return [{ id: "c1", html: contentRef.value }];
           },
           changes: () => contentRef.value,
+          settings: () => SETTINGS,
           stylesheets: () => [],
           container,
           debounceMs,
@@ -77,7 +97,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("usePagedPreview scheduling", () => {
+describe("useBookPreview scheduling", () => {
   it("debounces: rapid content changes within the window trigger only one render", async () => {
     const content = ref("<p>a</p>");
     const { api } = mountPreview(content);
@@ -89,7 +109,8 @@ describe("usePagedPreview scheduling", () => {
     await vi.advanceTimersByTimeAsync(300);
     expect(mocks.previewCalls).toHaveLength(0); // still within the 600ms window
     await vi.advanceTimersByTimeAsync(300);
-    expect(mocks.previewCalls).toEqual(["<p>abc</p>"]);
+    expect(mocks.previewCalls).toHaveLength(1);
+    expect(mocks.previewCalls[0]).toContain("<p>abc</p>");
     settle(5);
     await flushPromises();
     expect(api().pageCount.value).toBe(5);
@@ -106,7 +127,8 @@ describe("usePagedPreview scheduling", () => {
     expect(contentBuilds).toBe(0);
     await vi.advanceTimersByTimeAsync(600);
     expect(contentBuilds).toBe(1);
-    expect(mocks.previewCalls).toEqual(["<p>abcd</p>"]);
+    expect(mocks.previewCalls).toHaveLength(1);
+    expect(mocks.previewCalls[0]).toContain("<p>abcd</p>");
   });
 
   it("does not call the previewer for empty content", async () => {
@@ -117,7 +139,7 @@ describe("usePagedPreview scheduling", () => {
   });
 
   it("coalesces a change that arrives while a render is in flight", async () => {
-    // usePagedPreview only schedules on a CHANGE to content — there is no
+    // useBookPreview only schedules on a CHANGE to content — there is no
     // immediate initial render — so start empty and set real content after
     // mount, matching how ScriptoriumPreviewPane's bodyHtml prop actually
     // transitions from "" to real HTML once the editor first loads.
@@ -126,7 +148,8 @@ describe("usePagedPreview scheduling", () => {
     content.value = "<p>a</p>";
     await nextTick();
     await vi.advanceTimersByTimeAsync(600);
-    expect(mocks.previewCalls).toEqual(["<p>a</p>"]);
+    expect(mocks.previewCalls).toHaveLength(1);
+    expect(mocks.previewCalls[0]).toContain("<p>a</p>");
 
     // Change content again while the first render is still pending.
     content.value = "<p>b</p>";
@@ -137,7 +160,7 @@ describe("usePagedPreview scheduling", () => {
     settle(2); // first render settles; the coalesced pending render now runs
     await flushPromises();
     expect(mocks.previewCalls).toHaveLength(2);
-    expect(mocks.previewCalls[1]).toBe("<p>b</p>");
+    expect(mocks.previewCalls[1]).toContain("<p>b</p>");
   });
 
   it("surfaces a rejected render as a readable error", async () => {
@@ -251,7 +274,7 @@ describe("usePagedPreview scheduling", () => {
     const host = mount(
       defineComponent({
         setup() {
-          usePagedPreview({ content: () => content.value, changes: () => content.value, stylesheets: () => [], container, afterRender });
+          useBookPreview({ chapters: () => [{ id: "c1", html: content.value }], changes: () => content.value, settings: () => SETTINGS, stylesheets: () => [], container, afterRender });
           return () => h("div");
         },
       }),
@@ -262,7 +285,93 @@ describe("usePagedPreview scheduling", () => {
     expect(afterRender).not.toHaveBeenCalled();
     settle();
     await flushPromises();
-    expect(afterRender).toHaveBeenCalledWith(container.value);
+    expect(afterRender).toHaveBeenCalledWith(container.value, expect.objectContaining({ pageCount: 3 }));
     host.unmount();
+  });
+});
+
+describe("useBookPreview chapters", () => {
+  function mountBook(chaptersRef: Ref<{ id: string; html: string }[]>, settingsRef: Ref<BookLayoutSettings>) {
+    const container = ref<HTMLElement | null>(document.createElement("div"));
+    mount(
+      defineComponent({
+        setup() {
+          useBookPreview({
+            chapters: () => chaptersRef.value,
+            changes: () => chaptersRef.value,
+            settings: () => settingsRef.value,
+            stylesheets: () => [],
+            container,
+          });
+          return () => h("div");
+        },
+      }),
+    );
+  }
+
+  /** Lets the chapter now being laid out finish, and the next one start. */
+  async function finishRun() {
+    settle(2);
+    await flushPromises();
+  }
+
+  it("lays out again only the chapter that changed", async () => {
+    const chapters = ref([
+      { id: "a", html: "<p>a</p>" },
+      { id: "b", html: "<p>b</p>" },
+    ]);
+    mountBook(chapters, ref(SETTINGS));
+    chapters.value = [...chapters.value];
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600);
+    await finishRun(); // a
+    await finishRun(); // b
+    expect(mocks.previewCalls).toHaveLength(2);
+
+    chapters.value = [chapters.value[0], { id: "b", html: "<p>b edited</p>" }];
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600);
+    await finishRun();
+    expect(mocks.previewCalls).toHaveLength(3);
+    expect(mocks.previewCalls[2]).toContain("b edited");
+  });
+
+  it("renders again when a setting changes, even though no chapter did", async () => {
+    const chapters = ref([{ id: "a", html: "<p>a</p>" }]);
+    const settings = ref(SETTINGS);
+    mountBook(chapters, settings);
+    chapters.value = [...chapters.value];
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600);
+    await finishRun();
+    expect(mocks.previewCalls).toHaveLength(1);
+
+    settings.value = { ...SETTINGS, pageSize: "A5" };
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600);
+    expect(mocks.previewCalls).toHaveLength(2);
+  });
+
+  it("calls a render off between chapters when a newer change arrives, instead of laying out the rest of a stale book", async () => {
+    const chapters = ref([
+      { id: "a", html: "<p>a</p>" },
+      { id: "b", html: "<p>b</p>" },
+      { id: "c", html: "<p>c</p>" },
+    ]);
+    mountBook(chapters, ref(SETTINGS));
+    chapters.value = [...chapters.value];
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600); // a is laying out
+    chapters.value = [chapters.value[0], chapters.value[1], { id: "c", html: "<p>c2</p>" }];
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600); // coalesced: flagged while a is in flight
+    await finishRun(); // a settles; the stale render stops before b
+    // The stale render stopped after a (cached now); the new one carries on with b.
+    expect(mocks.previewCalls).toHaveLength(2);
+    expect(mocks.previewCalls[1]).toContain("<p>b</p>");
+    await finishRun();
+    // ...and lays c out with its new text, never the stale text.
+    expect(mocks.previewCalls).toHaveLength(3);
+    expect(mocks.previewCalls[2]).toContain("<p>c2</p>");
   });
 });

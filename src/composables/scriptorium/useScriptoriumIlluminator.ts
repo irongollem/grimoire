@@ -3,7 +3,8 @@
  *
  * "Edit in Illuminator" sends the currently-selected image's URL as a query
  * param to /illuminate; Illuminator does its work and returns to the doc with
- * `?updatedSrc=&oldSrc=` query params. This composable:
+ * `?chapter=&updatedSrc=&oldSrc=` query params (#1115: a book is chapters, and the
+ * chapter holding the image is the one that must open on the way back). This composable:
  *   - Exposes `selectedImageIsSupabase` (gates the toolbar button)
  *   - Exposes `editInIlluminator()` (push to /illuminate with the right params)
  *   - Watches the editor for the return trip and rewrites the matching image
@@ -22,6 +23,7 @@ import { isBucketUrl } from "@/lib/storage";
 export function useScriptoriumIlluminator(
   editor: Ref<Editor | undefined>,
   docId: Ref<string | undefined>,
+  chapterId: Ref<string>,
 ) {
   const route = useRoute();
   const router = useRouter();
@@ -36,9 +38,12 @@ export function useScriptoriumIlluminator(
     if (!editor.value || !docId.value) return;
     const src = editor.value.getAttributes("image").src as string | undefined;
     if (!isBucketUrl("assetImages", src)) return;
+    // The chapter goes along and comes back: the editor opens the chapter named
+    // in `?chapter=`, which is the only one whose editor can patch the image.
     const params = new URLSearchParams({
       src,
       returnTo: docId.value,
+      returnChapter: chapterId.value,
       oldSrc: src,
     });
     void router.push(`/illuminate?${params.toString()}`);
@@ -69,7 +74,8 @@ export function useScriptoriumIlluminator(
           .updateAttributes("image", { src: updatedSrc })
           .run();
       }
-      void router.replace({ query: {} });
+      const chapter = typeof route.query.chapter === "string" ? route.query.chapter : null;
+      void router.replace({ query: chapter ? { chapter } : {} });
     },
     { immediate: true },
   );

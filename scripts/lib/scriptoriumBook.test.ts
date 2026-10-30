@@ -5,9 +5,9 @@ import {
   assetImagePath,
   chapterFileNames,
   countNodes,
-  countWords,
   expandHome,
-  joinChapters,
+  chapterSources,
+  planChapterSync,
   parseArtReference,
   resolveArtSlot,
   type ArtLookups,
@@ -25,9 +25,39 @@ function lookups(files: string[], portraits: Record<string, string> = {}): ArtLo
   };
 }
 
-describe("joinChapters", () => {
-  it("puts one page break between chapters and drops empty ones", () => {
-    expect(joinChapters(["# A\n", "", "# B"])).toBe("# A\n\n\\page\n\n# B");
+describe("chapterSources", () => {
+  it("keeps one source per chapter, trimmed, and drops empty ones", () => {
+    expect(chapterSources(["# A\n", "  ", "# B"])).toEqual(["# A", "# B"]);
+  });
+});
+
+describe("planChapterSync", () => {
+  const ch = (id: string, position: number) => ({ id, position });
+
+  it("a re-import keeps the id of an unchanged chapter so its notes survive", () => {
+    const plan = planChapterSync([ch("b", 1), ch("a", 0)], 2);
+    expect(plan.updates).toEqual([
+      { id: "a", position: 0, index: 0 },
+      { id: "b", position: 1, index: 1 },
+    ]);
+    expect(plan.inserts).toEqual([]);
+    expect(plan.deletes).toEqual([]);
+  });
+
+  it("a surplus chapter is deleted on re-import", () => {
+    const plan = planChapterSync([ch("a", 0), ch("b", 1), ch("c", 2)], 1);
+    expect(plan.updates.map((u) => u.id)).toEqual(["a"]);
+    expect(plan.deletes).toEqual(["b", "c"]);
+  });
+
+  it("chapters the book did not have are inserted after the existing ones", () => {
+    const plan = planChapterSync([ch("a", 0)], 3);
+    expect(plan.updates.map((u) => u.id)).toEqual(["a"]);
+    expect(plan.inserts).toEqual([{ position: 1, index: 1 }, { position: 2, index: 2 }]);
+  });
+
+  it("closes gaps in the existing positions", () => {
+    expect(planChapterSync([ch("a", 0), ch("b", 5)], 2).updates.map((u) => u.position)).toEqual([0, 1]);
   });
 });
 
@@ -108,7 +138,7 @@ describe("resolveArtSlot", () => {
   });
 });
 
-describe("countWords / countNodes / assetImagePath", () => {
+describe("countNodes / assetImagePath", () => {
   const doc = {
     type: "doc",
     content: [
@@ -116,12 +146,6 @@ describe("countWords / countNodes / assetImagePath", () => {
       { type: "noteBlock", content: [{ type: "paragraph", content: [{ type: "text", text: "three" }] }] },
     ],
   };
-  it("counts words across blocks", () => expect(countWords(doc)).toBe(3));
-  it("counts neighbouring blocks as separate words and an empty document as none", () => {
-    const touching = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "one" }] }, { type: "paragraph", content: [{ type: "text", text: "two" }] }] };
-    expect(countWords(touching)).toBe(2);
-    expect(countWords({ type: "doc", content: [{ type: "paragraph" }] })).toBe(0);
-  });
   it("counts nodes by type", () => {
     expect(countNodes(doc, "paragraph")).toBe(2);
     expect(countNodes(doc, "image")).toBe(0);

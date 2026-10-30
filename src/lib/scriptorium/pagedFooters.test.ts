@@ -36,13 +36,13 @@ describe("injectPagedFooters", () => {
     expect(c.querySelectorAll(".sc-footer")).toHaveLength(0);
   });
 
-  it("suppresses footer on cover pages and does not advance", () => {
+  it("prints no footer on the cover, which still counts as page 1", () => {
     const c = makeContainer([
       '<div data-type="coverPage" data-variant="front"></div>',
       "<p>a</p>",
     ]);
     injectPagedFooters(c, { showPageNumbers: true, footerText: "", start: 1 });
-    expect(footerTexts(c)).toEqual([null, "1"]);
+    expect(footerTexts(c)).toEqual([null, "2"]);
   });
 
   it("honours skip and reset markers", () => {
@@ -74,5 +74,25 @@ describe("injectPagedFooters", () => {
     const footers = c.querySelectorAll(".sc-footer");
     expect(footers[0].classList.contains("sc-footer--recto")).toBe(true);
     expect(footers[1].classList.contains("sc-footer--verso")).toBe(true);
+  });
+});
+
+describe("injectPagedFooters with blank pages", () => {
+  it("puts no footer on a blank page, keeps counting through it, and keeps recto/verso by physical page", () => {
+    const c = document.createElement("div");
+    c.innerHTML =
+      '<div class="pagedjs_page"><div class="pagedjs_pagebox">a</div></div>' +
+      '<div class="pagedjs_page" data-blank-page=""><div class="pagedjs_pagebox"></div></div>' +
+      '<div class="pagedjs_page"><div class="pagedjs_pagebox">b</div></div>';
+    injectPagedFooters(c, { showPageNumbers: true, footerText: "T", start: 1 });
+    expect(footerTexts(c)).toEqual(["1", null, "3"]);
+    const feet = Array.from(c.querySelectorAll(".sc-footer"));
+    expect(feet.map((f) => f.classList.contains("sc-footer--recto"))).toEqual([true, true]);
+  });
+
+  it("uses labels it is handed instead of working them out again", () => {
+    const c = makeContainer(["a", "b"]);
+    injectPagedFooters(c, { showPageNumbers: true, footerText: "", start: 1, labels: ["7", null] });
+    expect(footerTexts(c)).toEqual(["7", null]);
   });
 });

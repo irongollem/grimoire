@@ -146,12 +146,12 @@ import {
   useQuests,
   useUpdateObjective,
 } from "@/composables/quests/useQuests";
-import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
+import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
 import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import { objectiveDueDate } from "@/lib/quests/deadlines";
 import type { CalendarDate } from "@/lib/calendar/dayMath";
-import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
-import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
+import { bookInsertFromImport, formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentJson } from "@/lib/scriptorium/entityEmbeds";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import QuestObjectiveStatusMark from "../inspector/QuestObjectiveStatusMark.vue";
 import QuestSidebarPanels from "../flow/QuestSidebarPanels.vue";
@@ -182,7 +182,7 @@ const { mutateAsync: assertObjectiveStatus } = useAssertQuestObjectiveStatus();
 const { mutateAsync: updateObjective } = useUpdateObjective();
 const { mutateAsync: deleteObjective } = useDeleteObjective();
 const { mutateAsync: deleteQuest } = useDeleteQuest();
-const { mutateAsync: createScriptoriumDocument } = useCreateScriptoriumDocument();
+const { mutateAsync: createScriptoriumDocument } = useCreateScriptoriumBook();
 const toast = useToast();
 const showScriptoriumPaywall = ref(false);
 const deleting = ref(false);
@@ -273,9 +273,8 @@ async function sendToScriptorium() {
     // Live link, not a one-time snapshot (#915 story 3). The generated
     // document travels with the quest's own campaign scope (#915 story 1).
     const document = await createScriptoriumDocument({
-      ...importData,
-      content: buildEntityEmbedDocumentContent("quest", props.quest.id),
-      campaign_id: props.quest.campaign_id,
+      book: bookInsertFromImport(importData, props.quest.campaign_id),
+      chapters: [{ content: buildEntityEmbedDocumentJson("quest", props.quest.id) }],
     });
     await router.push(`/scriptorium/${document.id}`);
   } catch (e: unknown) {

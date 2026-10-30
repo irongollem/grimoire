@@ -243,9 +243,9 @@ import { useLocationTree } from '@/composables/locations/useLocations'
 import { useCreateMonster } from '@/composables/monsters/useMonsters'
 import { useMonsterIndex } from '@/composables/monsters/useMonsterIndex'
 import { useMonstersByIds } from '@/composables/monsters/useMonstersByIds'
-import { useCreateScriptoriumDocument } from '@/composables/scriptorium/useScriptorium'
-import { formatNpcForScriptorium } from '@/lib/scriptorium/scriptoriumImport'
-import { buildEntityEmbedDocumentContent } from '@/lib/scriptorium/entityEmbeds'
+import { useCreateScriptoriumBook } from '@/composables/scriptorium/useScriptorium'
+import { bookInsertFromImport, formatNpcForScriptorium } from '@/lib/scriptorium/scriptoriumImport'
+import { buildEntityEmbedDocumentJson } from '@/lib/scriptorium/entityEmbeds'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import ConnectionsSection from '@/components/connections/ConnectionsSection.vue'
 import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
@@ -310,7 +310,7 @@ const appUi = useAppUiStore()
 const { sendNarrativeEvent } = useCampaignMessages()
 const { reportChatFailure } = useChatSendFailure()
 const isPromoting = ref(false)
-const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument()
+const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumBook()
 const campaign = useCampaignStore()
 const isSaving = computed(() => isCreating.value || isUpdating.value)
 const isSendingToScriptorium = ref(false)
@@ -368,9 +368,8 @@ async function sendToScriptorium() {
     // updates the book. The generated document travels with the NPC's own
     // campaign scope (#915 story 1).
     const doc = await createScriptoriumDoc({
-      ...importData,
-      content: buildEntityEmbedDocumentContent('npc', props.npc.id),
-      campaign_id: props.npc.campaign_id,
+      book: bookInsertFromImport(importData, props.npc.campaign_id),
+      chapters: [{ content: buildEntityEmbedDocumentJson('npc', props.npc.id) }],
     })
     await updateNpc({ id: props.npc.id, update: { scriptorium_doc_id: doc.id } })
     router.push(`/scriptorium/${doc.id}`)

@@ -1,0 +1,177 @@
+/*
+ * Scriptorium paper: Notice — a posted bill on grey-tan stock: a big spaced
+ * capital heading (Cinzel), centred body in a print face (Alegreya), meant to
+ * be read at a glance. Handout paper (one column, A5), "Scriptorium Chapters"
+ * canvas, frame 10. Plain CSS, self-contained for ?inline.
+ */
+.theme-notice {
+  --sc-heading-font: "Cinzel", Georgia, serif;
+  --sc-body-font: "Alegreya", Georgia, "Times New Roman", serif;
+  --sc-ink: #241d14;
+  --sc-accent: #7d1c1c;
+  --sc-accent-contrast: #ece2cc;
+  --sc-page-bg: #ece2cc;
+  --sc-callout-bg: #e0d3b6;
+  --sc-callout-border: #7d1c1c;
+  --sc-code-bg: #d9cba8;
+  --sc-col-rule: #c9b994;
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-ink);
+  --sc-h1-border-b: 3px double #241d14;
+  --sc-h1-padding: 0 0 0.6rem;
+  --sc-h1-margin: 0.5rem 0 1.25rem;
+  --sc-h2-color: var(--sc-ink);
+  --sc-h2-border: #c9b994;
+  --sc-decoration-watermark: var(--sc-accent);
+  --sc-decoration-credit: var(--sc-ink);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: var(--sc-accent);
+  --sc-cover-title-transform: uppercase;
+  --sc-cover-title-variant: normal;
+
+  --sc-lens-bright-bg: #e6d8b4;
+  --sc-lens-deep-bg: #dcd6dc;
+  --sc-lens-top-rule: #8c7c58;
+  --sc-lens-bottom-rule: #5a4a66;
+  --sc-lens-split-rule: #c9b994;
+  --sc-lens-bright-label: #6a4a10;
+  --sc-lens-deep-label: #4a3d66;
+
+  --sc-readaloud-bg: #e0d3b6;
+  --sc-readaloud-rule: #5a4a30;
+  --sc-sidebar-bg: #e0d3b6;
+  --sc-sidebar-bar: #241d14;
+  --sc-sidebar-edge: #c9b994;
+
+  --sc-statblock-bg: #e6dcc2;
+  --sc-statblock-border: #bfae82;
+  --sc-statblock-accent: #5c1a0b;
+  --sc-statblock-type-color: #5b5548;
+  --sc-abil-physical-bg: #e0d3b6;
+  --sc-abil-physical-bg-alt: #d3c4a2;
+  --sc-abil-mental-bg: #dedad2;
+  --sc-abil-mental-bg-alt: #d0cbc0;
+
+  --sc-table-header-bg: #d3c4a2;
+  --sc-table-header-color: var(--sc-ink);
+  --sc-table-row-1: #efe6d0;
+  --sc-table-row-2: #e3d8bc;
+  --sc-table-border: #bfae82;
+
+  /* Cheap stock: a mottled grey-tan with a little grain, the occasional
+     foxed patch. */
+  --sc-paper-bg:
+    radial-gradient(ellipse at 80% 8%, rgba(255, 255, 255, 0.35), transparent 50%),
+    radial-gradient(ellipse at 10% 95%, rgba(120, 100, 60, 0.18), transparent 55%),
+    repeating-linear-gradient(90deg, rgba(60, 50, 30, 0.025) 0 1px, transparent 1px 4px),
+    #ece2cc;
+}
+
+.theme-notice .phb-page,
+.theme-notice .pagedjs_page,
+.phb-editor.theme-notice .ProseMirror,
+.sc-paper-surface.theme-notice {
+  background: var(--sc-paper-bg);
+  font-size: 1.125rem;
+  line-height: 1.55;
+  text-align: center;
+  /* A printer's border, set in from the edge. */
+  outline: 1px solid #8c7c58;
+  outline-offset: -0.75rem;
+}
+.theme-notice .phb-page,
+.theme-notice .pagedjs_page,
+.phb-editor.theme-notice .ProseMirror {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+.theme-notice.ink-friendly .phb-page,
+.theme-notice.ink-friendly .pagedjs_page,
+.phb-editor.theme-notice.ink-friendly .ProseMirror,
+.sc-paper-surface.theme-notice.ink-friendly {
+  background: #fff;
+}
+
+.theme-notice h1 {
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.theme-notice h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  border-bottom: 1px solid var(--sc-h2-border);
+}
+.theme-notice h3 {
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: var(--sc-accent);
+}
+.theme-notice :is(h4, h5, h6),
+.theme-notice p {
+  text-align: center;
+}
+.theme-notice ul,
+.theme-notice ol {
+  padding-left: 0;
+  list-style-position: inside;
+  text-align: center;
+}
+.theme-notice blockquote {
+  background: transparent;
+  border-left: none;
+  border-top: 1px solid #8c7c58;
+  border-bottom: 1px solid #8c7c58;
+  border-radius: 0;
+  text-align: center;
+}
+.theme-notice table tbody tr:nth-child(odd) td {
+  background: var(--sc-table-row-1);
+}
+.theme-notice table tbody tr:nth-child(even) td {
+  background: var(--sc-table-row-2);
+}
+.theme-notice table td,
+.theme-notice table th {
+  border: 1px solid var(--sc-table-border);
+}
+.theme-notice .sc-statblock {
+  background: var(--sc-statblock-bg);
+  border: 1px solid var(--sc-statblock-border);
+  border-radius: 6px;
+  text-align: left;
+}
+.theme-notice .sc-statblock p {
+  text-align: left;
+}
+.theme-notice .sc-statblock-section-title {
+  font-variant: small-caps;
+  font-size: 0.9375em;
+  letter-spacing: 0.04em;
+}
+
+.theme-notice.ink-friendly {
+  --sc-callout-bg: transparent;
+  --sc-lens-bright-bg: transparent;
+  --sc-lens-deep-bg: transparent;
+  --sc-lens-top-rule: #241d14;
+  --sc-lens-bottom-rule: #241d14;
+  --sc-lens-split-rule: #241d14;
+  --sc-readaloud-bg: #ffffff;
+  --sc-sidebar-bg: #ffffff;
+  --sc-statblock-bg: #ffffff;
+  --sc-statblock-border: #cccccc;
+  --sc-abil-physical-bg: #ffffff;
+  --sc-abil-physical-bg-alt: #f2f2f2;
+  --sc-abil-mental-bg: #ffffff;
+  --sc-abil-mental-bg-alt: #f2f2f2;
+  --sc-table-row-1: #ffffff;
+  --sc-table-row-2: #f2f2f2;
+  --sc-table-header-bg: #e6e6e6;
+}

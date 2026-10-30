@@ -130,11 +130,13 @@ import { useNotes } from "@/composables/notes/useNotes";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import { sessionOf } from "@/lib/notes/noteSessions";
-import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
+import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
 import { useScriptoriumDraft } from "@/ai/useScriptoriumDraft";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { htmlToScriptoriumJson } from "@/lib/scriptorium/documentContent";
+import { handoutDefaults } from "@/lib/scriptorium/looks";
+import type { ScriptoriumDocInsert } from "@/types/scriptorium.types";
 import type { DraftAudience, DraftKind, DraftSubjectType } from "@edge-shared/scriptoriumDraft.ts";
 
 const { open } = defineProps<{ open: boolean }>();
@@ -143,9 +145,11 @@ const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
 const campaign = useCampaignStore();
 const { isGenerating, error: genError, generate } = useScriptoriumDraft();
-const { mutateAsync: createDocument } = useCreateScriptoriumDocument();
+const { mutateAsync: createBook } = useCreateScriptoriumBook();
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("scriptorium_documents");
-type Draft = NonNullable<Awaited<ReturnType<typeof generate>>>;
+// It remembers the kind it was drafted as: a handout is one sheet of paper, the
+// other kinds are books, and the picker may move on before a retry.
+type Draft = NonNullable<Awaited<ReturnType<typeof generate>>> & { kind: DraftKind };
 // A paid draft whose save failed is kept so the retry costs nothing.
 const retained = useRetainedGeneration<Draft>();
 
@@ -236,11 +240,6 @@ function close() {
   emit("close");
 }
 
-function wordCountOf(html: string): number {
-  const text = html.replace(/<[^>]*>/g, " ").trim();
-  return text ? text.split(/\s+/).length : 0;
-}
-
 async function generateAndCreate() {
   if (!subjectId.value) return;
   createError.value = "";
@@ -253,7 +252,7 @@ async function generateAndCreate() {
     prompt: steer.value,
   });
   if (!draft) return;
-  await save(draft);
+  await save({ ...draft, kind: kind.value });
 }
 
 async function saveRetained() {
@@ -266,25 +265,35 @@ async function save(draft: Draft) {
   // it again without generating (and paying) twice.
   const created = await retained.run(draft, async (d) => {
     try {
-      const { content, furniture } = htmlToScriptoriumJson(d.html);
-      return await createDocument({
+      // A model's draft carries no page furniture (the draft prompt asks for
+      // headings and prose), so only the body is kept; the anchor id is moot.
+      const { content } = htmlToScriptoriumJson(d.html, "");
+      const filing: Pick<
+        ScriptoriumDocInsert,
+        "title" | "doc_type" | "campaign_id" | "tags" | "is_published" | "page_number_start" | "ink_friendly" | "ai_provenance"
+      > = {
         title: d.title,
-        content: JSON.stringify(content),
         doc_type: "custom",
         campaign_id: campaign.activeCampaignId,
         tags: [],
         is_published: false,
-        is_two_column: false,
-        theme: "onednd2024",
-        page_size: "A4",
-        ink_friendly: false,
-        word_count: wordCountOf(d.html),
-        show_page_numbers: false,
-        footer_text: "",
         page_number_start: 1,
-        page_furniture: furniture,
+        ink_friendly: false,
         ai_provenance: d.ai_provenance,
-      });
+      };
+      const book: ScriptoriumDocInsert =
+        d.kind === "handout"
+          ? { ...filing, kind: "handout", theme: "plain", ...handoutDefaults("plain") }
+          : {
+              ...filing,
+              kind: "book",
+              theme: "onednd2024",
+              page_size: "A4",
+              is_two_column: false,
+              show_page_numbers: false,
+              footer_text: "",
+            };
+      return await createBook({ book, chapters: [{ content }] });
     } catch (e) {
       if (!gateQuotaError(e)) createError.value = e instanceof Error ? e.message : "The draft could not be saved.";
       return null;

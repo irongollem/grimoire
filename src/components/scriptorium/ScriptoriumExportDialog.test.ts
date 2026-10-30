@@ -2,7 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ScriptoriumExportDialog from "./ScriptoriumExportDialog.vue";
-import type { PdfDocumentOptions } from "@/composables/scriptorium/useScriptoriumPdf";
+
 
 const mocks = vi.hoisted(() => ({
   exportPdf: vi.fn(),
@@ -13,15 +13,9 @@ const mocks = vi.hoisted(() => ({
   } as Record<string, { id: string; label: string }[]>,
 }));
 
-vi.mock("@/composables/scriptorium/useScriptoriumPdf", async () => {
-  const { ref } = await import("vue");
-  const isExporting = ref(false);
-  const exportError = ref<string | null>(null);
-  const progress = ref(null);
-  return {
-    useScriptoriumPdf: () => ({ isExporting, exportError, progress, exportPdf: mocks.exportPdf }),
-  };
-});
+vi.mock("@/composables/scriptorium/useScriptoriumPdf", () => ({
+  pdfExportProgressLabel: () => "Laying out chapter 6 of 15…",
+}));
 
 vi.mock("@/composables/campaign/useWorldBundle", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/composables/campaign/useWorldBundle")>();
@@ -38,22 +32,18 @@ vi.mock("@/composables/campaign/useWorldBundle", async (importOriginal) => {
 
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ publicName: "Jeff" }) }));
 
-const pdfOptions: PdfDocumentOptions = {
-  bodyHtml: "<p>hi</p>",
-  title: "The Book",
-  theme: "phb2014",
-  pageSize: "Letter",
-  inkFriendly: false,
-  isTwoColumn: false,
-  showPageNumbers: true,
-  footerText: "",
-  pageNumberStart: 1,
-  furniture: [],
-};
-
-function openDialog(preselection: Record<string, string[]>) {
+function openDialog(preselection: Record<string, string[]>, extra: Record<string, unknown> = {}) {
   return mount(ScriptoriumExportDialog, {
-    props: { campaignId: "camp-1", documentTitle: "The Book", preselection, pdfOptions },
+    props: {
+      kind: "book",
+      campaignId: "camp-1",
+      documentTitle: "The Book",
+      chapterCount: 15,
+      pageCount: 542,
+      preselection,
+      run: mocks.exportPdf,
+      ...extra,
+    },
     attachTo: document.body,
     global: { stubs: { transition: false } },
   });
@@ -72,6 +62,10 @@ async function click(label: string) {
 
 /** Walk categories then every pick step to the details step. */
 async function toDetails() {
+  const attach = [...document.body.querySelectorAll<HTMLInputElement>("input[type=checkbox]")][0]!;
+  attach.click();
+  await flushPromises();
+  await click("Choose the data");
   await click("Continue");
   for (let i = 0; i < 10 && !document.body.textContent?.includes("Bundle Details"); i++) {
     const next = button("Continue to Details") ?? button("Next");
@@ -87,9 +81,43 @@ beforeEach(() => {
 });
 
 describe("ScriptoriumExportDialog", () => {
+  it("says what will be exported: every chapter, in order, as one PDF with its page count", async () => {
+    openDialog({});
+    await flushPromises();
+    expect(document.body.querySelector("[data-testid=export-summary]")!.textContent).toBe(
+      "All 15 chapters, in order, as one PDF of 542 pages.",
+    );
+  });
+
+  it("exports without the campaign data when the box is left alone", async () => {
+    const wrapper = openDialog({ npcs: ["n1"] });
+    await flushPromises();
+    await click("Export");
+    expect(mocks.exportPdf).toHaveBeenCalledWith();
+    expect(mocks.buildBundle).not.toHaveBeenCalled();
+    expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("offers no campaign data for a book that belongs to no campaign", async () => {
+    openDialog({}, { campaignId: null });
+    await flushPromises();
+    expect(document.body.querySelectorAll("input[type=checkbox]")).toHaveLength(0);
+  });
+
+  it("is a Print dialog for a handout", async () => {
+    openDialog({}, { kind: "handout", chapterCount: 1, pageCount: 1 });
+    await flushPromises();
+    expect(button("Print")).toBeDefined();
+    expect(document.body.textContent).toContain("This handout, as a PDF of 1 page.");
+  });
+
   it("starts with the preselected categories ticked", async () => {
     openDialog({ npcs: ["n1"], scriptorium_documents: ["doc-1"] });
     await flushPromises();
+    const attach = [...document.body.querySelectorAll<HTMLInputElement>("input[type=checkbox]")][0]!;
+    attach.click();
+    await flushPromises();
+    await click("Choose the data");
     const checked = [...document.body.querySelectorAll<HTMLInputElement>("input[type=checkbox]")]
       .filter((c) => c.checked).length;
     expect(checked).toBe(2);
@@ -121,7 +149,7 @@ describe("ScriptoriumExportDialog", () => {
     expect(mocks.buildBundle).toHaveBeenCalledWith(
       expect.objectContaining({ campaignId: "camp-1", name: "The Book", author: "Jeff" }),
     );
-    expect(mocks.exportPdf).toHaveBeenCalledWith({ ...pdfOptions, bundle: { name: "bundle" } });
+    expect(mocks.exportPdf).toHaveBeenCalledWith({ name: "bundle" });
   });
   it("closes once the PDF was made, and stays open when the export failed", async () => {
     mocks.exportPdf.mockResolvedValueOnce(false);

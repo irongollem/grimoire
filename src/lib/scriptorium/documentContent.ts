@@ -1,32 +1,21 @@
 /*
- * Scriptorium content: parsing stored rows, and normalizing content that
- * arrives from outside this app's own save path (#915 story 2).
+ * Scriptorium content: a valid empty chapter body, and normalizing content
+ * that arrives from outside this app's own save path (#915 story 2).
  *
- * Two entry points, two trust levels:
+ * A chapter's body is a Tiptap document object (`scriptorium_chapters.content`,
+ * #1115), so reading stored content needs no parsing and the old string
+ * `parseStoredContent` is gone with the column it served.
  *
- *  - `parseStoredContent` reads `scriptorium_documents.content` as saved by
- *    THIS app. Every write path has stored current-version Tiptap JSON since
- *    #915 story 3 (linked entity embeds), so this does exactly one thing —
- *    `JSON.parse`, and throw a typed `UnreadableDocumentError` if the result
- *    isn't a Tiptap document. No migration, no HTML fallback: those belong at
- *    the import boundary below, not on every read of a document that is
- *    already correct. The two rows in production that predate story 3 (raw
- *    HTML) are converted once, via `htmlToScriptoriumJson`, not read around
- *    forever.
+ * `normalizeImportedDocument` is the import boundary: World Bundle import
+ * (`useWorldBundle.ts`) is the one place content can arrive from outside this
+ * app's own editor. A bundle exported long ago can still carry a raw HTML
+ * string, a JSON string or a pre-v3 JSON shape. It folds what the old
+ * lazy-migrate-on-open passes did (`<hr>`/`horizontalRule` becomes `pageBreak`;
+ * decoration nodes and absolute images are lifted into `page_furniture`) into
+ * ONE conversion at the edge. Lifted furniture anchors to page 1 of the chapter
+ * the content becomes, so the caller passes that chapter's id.
  *
- *  - `normalizeImportedDocument` is the import boundary: World Bundle import
- *    (`useWorldBundle.ts`) is the one remaining place content can arrive from
- *    outside this app's own editor — a bundle exported long ago can still
- *    carry a raw HTML `content` string or a pre-v3 JSON shape. It folds what
- *    the old lazy-migrate-on-open passes did (`migrations/v1ToV2.ts`:
- *    `<hr>`/`horizontalRule` → `pageBreak`; `migrations/v2ToV3.ts`: decoration
- *    nodes and absolute images lifted into `page_furniture`) into ONE
- *    conversion, run once at the edge, rather than lazily on every open.
- *    Those two migration modules and their tests are folded in here; there is
- *    no separate `migrations/` path any more.
- *
- * `htmlToScriptoriumJson` is exported standalone (pure, no I/O) so the two
- * production rows that still hold raw HTML can be converted directly.
+ * `htmlToScriptoriumJson` is exported standalone (pure, no I/O).
  */
 
 import { generateJSON, type JSONContent } from "@tiptap/core";
@@ -38,37 +27,6 @@ import type { PageFurnitureItem, FurnitureAnchor } from "@/types/scriptorium.typ
 /** A valid, empty Tiptap document. */
 export function emptyDoc(): JSONContent {
   return { type: "doc", content: [] };
-}
-
-/**
- * Thrown by `parseStoredContent` when a row's `content` cannot be read as a
- * current-version Tiptap document. The UI shows this as a visible "This
- * document could not be read" state — never a silent HTML fallback.
- */
-export class UnreadableDocumentError extends Error {
-  constructor(cause?: unknown) {
-    super("This document could not be read.");
-    this.name = "UnreadableDocumentError";
-    if (cause !== undefined) this.cause = cause;
-  }
-}
-
-/**
- * Parse `scriptorium_documents.content` for STORED content only — see the
- * module doc above for why this never migrates or falls back to HTML.
- */
-export function parseStoredContent(content: string | null): JSONContent {
-  if (!content) return emptyDoc();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch (cause) {
-    throw new UnreadableDocumentError(cause);
-  }
-  if (!parsed || typeof parsed !== "object" || (parsed as JSONContent).type !== "doc") {
-    throw new UnreadableDocumentError();
-  }
-  return parsed as JSONContent;
 }
 
 // ── Import-boundary normalization ───────────────────────────────────────────
@@ -136,7 +94,7 @@ export interface NormalizedContent {
  * a new doc; the input is not mutated. Non-doc / empty input passes through
  * unchanged with no furniture.
  */
-function normalizeJsonDoc(doc: JSONContent): NormalizedContent {
+function normalizeJsonDoc(doc: JSONContent, chapterId: string): NormalizedContent {
   if (!doc || doc.type !== "doc" || !Array.isArray(doc.content)) {
     return { content: doc, furniture: [] };
   }
@@ -149,7 +107,7 @@ function normalizeJsonDoc(doc: JSONContent): NormalizedContent {
     if (isLegacyDecorationNode(node)) {
       const anchor: FurnitureAnchor = lastBlockId
         ? { type: "block", blockId: lastBlockId }
-        : { type: "page", page: 1 };
+        : { type: "page", chapterId, page: 1 };
       furniture.push(legacyDecorationToFurniture(node, anchor));
       continue; // drop from content
     }
@@ -184,10 +142,10 @@ function normalizeJsonDoc(doc: JSONContent): NormalizedContent {
  * directly, so `normalizeJsonDoc` lifts them the same way it would for JSON
  * input, after the HTML has already gone through Tiptap's own parser.
  */
-export function htmlToScriptoriumJson(html: string): NormalizedContent {
+export function htmlToScriptoriumJson(html: string, chapterId: string): NormalizedContent {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const furniture: PageFurnitureItem[] = [];
-  const anchor: FurnitureAnchor = { type: "page", page: 1 };
+  const anchor: FurnitureAnchor = { type: "page", chapterId, page: 1 };
 
   doc.body
     .querySelectorAll(
@@ -234,46 +192,48 @@ export function htmlToScriptoriumJson(html: string): NormalizedContent {
     });
 
   const json = generateJSON(doc.body.innerHTML, createScriptoriumExtensions()) as JSONContent;
-  const lifted = normalizeJsonDoc(json);
+  const lifted = normalizeJsonDoc(json, chapterId);
   return { content: lifted.content, furniture: [...furniture, ...lifted.furniture] };
 }
 
 /**
- * Normalize one imported `scriptorium_documents` row — the World Bundle
- * import boundary, and the one-time production HTML conversion — to
- * current-version `{ content, page_furniture }`. `JSON.parse` succeeding on a
- * `type: "doc"` object is what tells a pre-v3 JSON shape apart from raw HTML.
- * Existing `page_furniture` on the row (already current-version, if the
- * source was ever saved post-#456) is preserved and merged with anything this
- * pass lifts.
+ * Normalize one imported chapter body to current-version `{ content,
+ * page_furniture }`. `content` may be a Tiptap object, a JSON string of one, a
+ * raw HTML string (a bundle exported before JSON bodies) or absent; an absent
+ * or blank body becomes an empty document. Existing `page_furniture` on the row
+ * is preserved and merged with anything this pass lifts.
  */
-export function normalizeImportedDocument(row: {
-  content?: unknown;
-  page_furniture?: unknown;
-}): { content: string | null; page_furniture: PageFurnitureItem[] } {
+export function normalizeImportedDocument(
+  row: { content?: unknown; page_furniture?: unknown },
+  chapterId: string,
+): { content: JSONContent; page_furniture: PageFurnitureItem[] } {
   const raw = row.content;
   const existingFurniture = parsePageFurniture(row.page_furniture);
 
+  if (isTiptapDoc(raw)) {
+    const normalized = normalizeJsonDoc(raw, chapterId);
+    return { content: normalized.content, page_furniture: [...existingFurniture, ...normalized.furniture] };
+  }
   if (typeof raw !== "string" || !raw.trim()) {
-    return { content: typeof raw === "string" ? raw : null, page_furniture: existingFurniture };
+    return { content: emptyDoc(), page_furniture: existingFurniture };
   }
 
   let parsedJson: unknown;
-  let isCurrentShapeJson = false;
   try {
     parsedJson = JSON.parse(raw);
-    isCurrentShapeJson =
-      !!parsedJson && typeof parsedJson === "object" && (parsedJson as JSONContent).type === "doc";
   } catch {
-    isCurrentShapeJson = false;
+    parsedJson = null;
   }
-
-  const normalized = isCurrentShapeJson
-    ? normalizeJsonDoc(parsedJson as JSONContent)
-    : htmlToScriptoriumJson(raw);
+  const normalized = isTiptapDoc(parsedJson)
+    ? normalizeJsonDoc(parsedJson, chapterId)
+    : htmlToScriptoriumJson(raw, chapterId);
 
   return {
-    content: JSON.stringify(normalized.content),
+    content: normalized.content,
     page_furniture: [...existingFurniture, ...normalized.furniture],
   };
+}
+
+function isTiptapDoc(value: unknown): value is JSONContent {
+  return !!value && typeof value === "object" && (value as JSONContent).type === "doc";
 }

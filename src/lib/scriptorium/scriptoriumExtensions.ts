@@ -37,6 +37,7 @@ import { BlockId } from "@/lib/tiptap/blockId";
 import { PageBreak } from "@/lib/tiptap/pageBreak";
 import { EntityEmbed } from "@/lib/tiptap/entityEmbed";
 import { lensPairExtensions } from "@/lib/tiptap/lensPair";
+import { SecretBlock } from "@/lib/tiptap/secretBlock";
 
 /*
  * Tiptap nodes don't have a public-facing generic for `extend()`'s config that
@@ -94,5 +95,8 @@ export function createScriptoriumExtensions() {
     PageBreak,
     EntityEmbed,
     ...lensPairExtensions({ creatable: true }),
+    // "Only you see this" (#1115): a DM-only passage. It never prints and never
+    // reaches a player; layoutContent.ts takes it out before anything is laid out.
+    SecretBlock.configure({ creatable: true }),
   ];
 }

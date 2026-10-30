@@ -13,7 +13,7 @@ vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({ get linkedPartyMemberId() { return session.linkedPartyMemberId; } }),
 }));
 
-import { createApp, defineComponent, h } from "vue";
+import { createApp, defineComponent, h, ref } from "vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { flushPromises } from "@vue/test-utils";
 import { fetchHandout, fetchHandouts, usePlayerHandout, usePlayerHandouts } from "./usePlayerHandouts";
@@ -68,31 +68,32 @@ describe("fetchHandouts", () => {
 });
 
 describe("fetchHandout", () => {
-  it("reads one handout the character holds, without the DM's columns", async () => {
-    const row = await fetchHandout("mine-new", "c1", "pm1");
-    expect(row?.id).toBe("mine-new");
-    const columns = (fake.calls[0]?.columns ?? "").split(/,\s*/);
-    expect(columns).toContain("content");
-    for (const hidden of DM_ONLY) expect(columns).not.toContain(hidden);
+  const handout = { id: "mine-new", title: "T", chapters: [{ id: "c1", position: 0, title: "One" }], chapter: { id: "c1", title: "One", content: { type: "doc" } } };
+
+  it("reads through the get_player_handout RPC, never the chapters table, naming the chapter when asked", async () => {
+    fake.onRpc("get_player_handout", () => handout);
+    expect((await fetchHandout("mine-new", "c1"))?.chapter?.id).toBe("c1");
+    await fetchHandout("mine-new", null);
+    const rpcs = fake.calls.filter((c) => c.kind === "rpc");
+    expect(rpcs[0].payload).toEqual({ p_document_id: "mine-new", p_chapter_id: "c1" });
+    expect(rpcs[1].payload).toEqual({ p_document_id: "mine-new" });
+    expect(fake.calls.some((c) => c.kind === "table" && c.target === "scriptorium_chapters")).toBe(false);
   });
 
-  it.each([
-    ["another character's handout", "theirs", "c1"],
-    ["an unshared (withdrawn) handout", "unshared", "c1"],
-    ["a handout of another campaign", "other-campaign", "c1"],
-    ["an id asked for under the wrong campaign", "mine-new", "c2"],
-  ])("returns null for %s", async (_label, id, campaignId) => {
-    expect(await fetchHandout(id, campaignId, "pm1")).toBeNull();
+  it("returns null when the server refuses a withdrawn handout", async () => {
+    fake.failNext("get_player_handout", { message: "Not authorized", code: "42501" });
+    expect(await fetchHandout("mine-new", null)).toBeNull();
   });
 
-  it("throws a real error", async () => {
-    fake.failNext("scriptorium_documents", { message: "nope" });
-    await expect(fetchHandout("mine-new", "c1", "pm1")).rejects.toMatchObject({ message: "nope" });
+  it("throws any other failure instead of reporting the handout withdrawn", async () => {
+    fake.failNext("get_player_handout", { message: "nope", code: "XX000" });
+    await expect(fetchHandout("mine-new", null)).rejects.toMatchObject({ message: "nope" });
   });
 });
 
 describe("the player's handout hooks", () => {
   it("read for a seated character, and read nothing for a DM without a seat", async () => {
+    fake.onRpc("get_player_handout", (args) => ({ id: args.p_document_id, chapters: [], chapter: null }));
     const seated = mountWith(() => ({ list: usePlayerHandouts(), one: usePlayerHandout("mine-new") }));
     await flushPromises();
     expect(seated.list.data.value?.map((d) => d.id)).toEqual(["mine-new", "shared-both", "mine-old"]);
@@ -105,5 +106,16 @@ describe("the player's handout hooks", () => {
     expect(fake.calls).toEqual([]);
     expect(dm.list.error.value).toBeNull();
     expect(dm.one.error.value).toBeNull();
+  });
+
+  it("keeps each chapter of a handout in its own cache entry under the live-sync root", async () => {
+    fake.onRpc("get_player_handout", (args) => ({ id: "mine-new", chapters: [], chapter: { id: args.p_chapter_id ?? "first" } }));
+    const chapter = ref<string | null>(null);
+    const one = mountWith(() => usePlayerHandout("mine-new", chapter));
+    await flushPromises();
+    expect(one.data.value?.chapter?.id).toBe("first");
+    chapter.value = "c2";
+    await flushPromises();
+    expect(one.data.value?.chapter?.id).toBe("c2");
   });
 });

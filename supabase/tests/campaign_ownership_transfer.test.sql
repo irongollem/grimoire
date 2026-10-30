@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(82);
+select plan(83);
 
 select has_function(
   'public',
@@ -537,6 +537,9 @@ values ('73300000-0000-4000-8000-000000000111', '73300000-0000-4000-8000-0000000
 
 insert into public.scriptorium_documents (id, user_id, title, doc_type)
 values ('73300000-0000-4000-8000-000000000112', '73300000-0000-4000-8000-000000000101', 'Quest handout', 'handout');
+insert into public.scriptorium_chapters (document_id, position, content)
+values ('73300000-0000-4000-8000-000000000112', 0,
+  '{"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Meet at the old mill."}]}]}');
 
 insert into public.quests (id, user_id, campaign_id, title)
 values ('73300000-0000-4000-8000-000000000113', '73300000-0000-4000-8000-000000000101', '73300000-0000-4000-8000-000000000110', 'Quest with a beat item and handout');
@@ -613,6 +616,15 @@ select is(
     where id = '73300000-0000-4000-8000-000000000112' and user_id = '73300000-0000-4000-8000-000000000101'),
   1,
   'the handout original is untouched and still owned by the outgoing DM'
+);
+-- #1115: a document's text is its chapters; the copy once arrived as a book with none.
+select is(
+  (select c.content #>> '{content,0,content,0,text}'
+     from public.scriptorium_chapters c
+     join public.scriptorium_documents d on d.id = c.document_id
+    where d.user_id = '73300000-0000-4000-8000-000000000102' and d.title = 'Quest handout'),
+  'Meet at the old mill.',
+  'the handout clone carries its chapter text to the new owner'
 );
 select is(
   (select ref_id from public.quest_beat_attachments where id = '73300000-0000-4000-8000-000000000115'),

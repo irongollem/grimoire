@@ -1,0 +1,198 @@
+/*
+ * Scriptorium paper: Journal page — ruled notebook paper, hand-written
+ * (Fondamento) in blue-black ink. Handout paper (one column, A5),
+ * "Scriptorium Chapters" canvas, frame 11. The rules are a gradient on the
+ * line pitch, so text sits on them: every body line is exactly one pitch
+ * (1.75rem = 28px, and the paged @page top margin is two of them). Plain CSS,
+ * self-contained for ?inline.
+ */
+.theme-journal {
+  --sc-pitch: 1.75rem;
+  --sc-heading-font: "Fondamento", "Palatino Linotype", Georgia, serif;
+  --sc-body-font: "Fondamento", "Palatino Linotype", Georgia, serif;
+  --sc-ink: #2b3a4a;
+  --sc-accent: #355a7a;
+  --sc-accent-contrast: #fbf7ec;
+  --sc-page-bg: #fbf7ec;
+  --sc-callout-bg: transparent;
+  --sc-callout-border: #8aa0b4;
+  --sc-code-bg: #e8edf0;
+  --sc-col-rule: #d8e0e6;
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-ink);
+  --sc-h1-border-b: none;
+  --sc-h1-padding: 0;
+  --sc-h1-margin: 0;
+  --sc-h2-color: var(--sc-ink);
+  --sc-h2-border: #8aa0b4;
+  --sc-decoration-watermark: var(--sc-accent);
+  --sc-decoration-credit: var(--sc-ink);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: var(--sc-accent);
+  --sc-cover-title-transform: none;
+  --sc-cover-title-variant: normal;
+
+  --sc-lens-bright-bg: #f6efd6;
+  --sc-lens-deep-bg: #e4e8f0;
+  --sc-lens-top-rule: #b8a35a;
+  --sc-lens-bottom-rule: #5a6a86;
+  --sc-lens-split-rule: #d8e0e6;
+  --sc-lens-bright-label: #6a5a14;
+  --sc-lens-deep-label: #3a4a66;
+
+  --sc-readaloud-bg: #eef3f6;
+  --sc-readaloud-rule: #6a8aa3;
+  --sc-sidebar-bg: #eef3f6;
+  --sc-sidebar-bar: #2b3a4a;
+  --sc-sidebar-edge: #d8e0e6;
+
+  --sc-statblock-bg: #f1f4f5;
+  --sc-statblock-border: #c3cfd8;
+  --sc-statblock-accent: #2b3a4a;
+  --sc-statblock-type-color: #5b6670;
+  --sc-abil-physical-bg: #eef0ec;
+  --sc-abil-physical-bg-alt: #e1e5de;
+  --sc-abil-mental-bg: #e8edf2;
+  --sc-abil-mental-bg-alt: #dae1ea;
+
+  --sc-table-header-bg: #dce6ed;
+  --sc-table-header-color: var(--sc-ink);
+  --sc-table-row-1: #f6f4ec;
+  --sc-table-row-2: #eceff0;
+  --sc-table-border: #c3cfd8;
+
+  /* Notebook paper: faint blue-grey rules, the last pixel of every pitch. */
+  --sc-paper-bg:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--sc-pitch) - 1px),
+      #d8e0e6 calc(var(--sc-pitch) - 1px),
+      #d8e0e6 var(--sc-pitch)
+    ),
+    #fbf7ec;
+}
+
+.theme-journal .phb-page,
+.theme-journal .pagedjs_page,
+.phb-editor.theme-journal .ProseMirror,
+.sc-paper-surface.theme-journal {
+  background: var(--sc-paper-bg);
+  font-size: 1rem;
+  line-height: var(--sc-pitch);
+}
+.phb-editor.theme-journal .ProseMirror {
+  padding-block: calc(var(--sc-pitch) * 2);
+}
+.sc-paper-surface.theme-journal {
+  padding-block: var(--sc-pitch);
+}
+.theme-journal .phb-page,
+.theme-journal .pagedjs_page,
+.phb-editor.theme-journal .ProseMirror {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+.theme-journal.ink-friendly .phb-page,
+.theme-journal.ink-friendly .pagedjs_page,
+.phb-editor.theme-journal.ink-friendly .ProseMirror,
+.sc-paper-surface.theme-journal.ink-friendly {
+  background: #fff;
+}
+
+/* Lines are written, not typeset: no gap between paragraphs, a first-line
+   indent on the next one, so nothing slips off the rules. */
+.theme-journal p {
+  margin: 0;
+}
+.theme-journal p + p {
+  text-indent: 1.5em;
+}
+.theme-journal ul,
+.theme-journal ol {
+  margin: 0;
+}
+.theme-journal li {
+  margin: 0;
+}
+.theme-journal h1 {
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: calc(var(--sc-pitch) * 2);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+.theme-journal h2 {
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: var(--sc-pitch);
+  border-bottom: none;
+  padding-bottom: 0;
+  margin: var(--sc-pitch) 0 0;
+}
+.theme-journal h3 {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: var(--sc-pitch);
+  margin: var(--sc-pitch) 0 0;
+}
+.theme-journal :is(h4, h5, h6) {
+  font-weight: 400;
+  margin: 0;
+  line-height: var(--sc-pitch);
+}
+.theme-journal strong {
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.theme-journal blockquote {
+  background: transparent;
+  border-left: 2px solid #8aa0b4;
+  border-radius: 0;
+  padding: 0 0 0 1rem;
+  margin: 0;
+}
+.theme-journal blockquote p + p {
+  text-indent: 0;
+}
+.theme-journal table tbody tr:nth-child(odd) td {
+  background: var(--sc-table-row-1);
+}
+.theme-journal table tbody tr:nth-child(even) td {
+  background: var(--sc-table-row-2);
+}
+.theme-journal table td,
+.theme-journal table th {
+  border: 1px solid var(--sc-table-border);
+}
+.theme-journal .sc-statblock {
+  background: var(--sc-statblock-bg);
+  border: 1px solid var(--sc-statblock-border);
+  border-radius: 6px;
+}
+.theme-journal .sc-statblock-section-title {
+  font-variant: small-caps;
+  font-size: 0.9375em;
+  letter-spacing: 0.04em;
+}
+
+.theme-journal.ink-friendly {
+  --sc-lens-bright-bg: transparent;
+  --sc-lens-deep-bg: transparent;
+  --sc-lens-top-rule: #2b3a4a;
+  --sc-lens-bottom-rule: #2b3a4a;
+  --sc-lens-split-rule: #2b3a4a;
+  --sc-readaloud-bg: #ffffff;
+  --sc-sidebar-bg: #ffffff;
+  --sc-statblock-bg: #ffffff;
+  --sc-statblock-border: #cccccc;
+  --sc-abil-physical-bg: #ffffff;
+  --sc-abil-physical-bg-alt: #f2f2f2;
+  --sc-abil-mental-bg: #ffffff;
+  --sc-abil-mental-bg-alt: #f2f2f2;
+  --sc-table-row-1: #ffffff;
+  --sc-table-row-2: #f2f2f2;
+  --sc-table-header-bg: #e6e6e6;
+}

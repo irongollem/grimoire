@@ -188,6 +188,7 @@ const clipboardSupported =
 const route     = useRoute();
 const router    = useRouter();
 const returnDocId = typeof route.query.returnTo === "string" ? route.query.returnTo : null;
+const returnChapterId = typeof route.query.returnChapter === "string" ? route.query.returnChapter : null;
 const returnOldSrc = typeof route.query.oldSrc === "string" ? decodeURIComponent(route.query.oldSrc) : null;
 
 function isValidAssetImageUrl(url: string): boolean {
@@ -565,6 +566,7 @@ async function saveToScriptorium() {
     });
     if (!url) throw new Error("Upload failed");
     const params = new URLSearchParams({ updatedSrc: url });
+    if (returnChapterId) params.set("chapter", returnChapterId);
     if (returnOldSrc) params.set("oldSrc", returnOldSrc);
     await router.push(`/scriptorium/${returnDocId}?${params.toString()}`);
   } catch {

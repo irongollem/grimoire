@@ -195,7 +195,7 @@ describe("executeImport scriptorium document audience", () => {
       party_members: [member],
       notes: [{ id: "note-1", player_visible_to: ["pm-1", "pm-gone"] }],
       scriptorium_documents: [
-        { id: "doc-1", title: "Handout", content: null, player_visible_to: ["pm-1", "pm-gone"] },
+        { id: "doc-1", title: "Handout", player_visible_to: ["pm-1", "pm-gone"] },
       ],
     });
     await executeImport(backup, "Restored");
@@ -206,6 +206,88 @@ describe("executeImport scriptorium document audience", () => {
     expect((doc.player_visible_to as string[])[0]).toBe(pm.id);
     // An id the backup cannot map is handled the same way as on notes.
     expect(doc.player_visible_to).toEqual(note.player_visible_to);
+  });
+});
+
+describe("executeImport scriptorium chapters", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+    fake.reset();
+  });
+
+  const mention = (id: string) => ({ type: "paragraph", content: [{ type: "entityMention", attrs: { entityType: "npc", id } }] });
+  const bodyWith = (...blocks: unknown[]) => ({ type: "doc", content: blocks });
+
+  it("restores the chapters under the restored book's new id, books before chapters", async () => {
+    const backup = backupWith({
+      scriptorium_documents: [{ id: "doc-1", title: "Handbook", kind: "book", player_visible_to: [] }],
+      scriptorium_chapters: [
+        { id: "ch-1", document_id: "doc-1", position: 0, title: "", word_count: 0, content: bodyWith({ type: "paragraph" }) },
+        { id: "ch-2", document_id: "doc-1", position: 1, title: "", word_count: 0, content: bodyWith({ type: "paragraph" }) },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const tables = inserted.map((i) => i.table);
+    expect(tables.indexOf("scriptorium_documents")).toBeLessThan(tables.indexOf("scriptorium_chapters"));
+    const book = inserted.find((i) => i.table === "scriptorium_documents")!.rows[0];
+    const chapters = inserted.find((i) => i.table === "scriptorium_chapters")!.rows;
+    expect(book.id).not.toBe("doc-1");
+    expect(chapters.map((c) => c.document_id)).toEqual([book.id, book.id]);
+    expect(chapters.map((c) => c.id)).not.toContain("ch-1");
+  });
+
+  it("points a restored chapter's mention at the restored NPC, not the old campaign's", async () => {
+    const backup = backupWith({
+      npcs: [{ id: "npc-1", name: "Mira" }],
+      scriptorium_documents: [{ id: "doc-1", title: "Handout", player_visible_to: [] }],
+      scriptorium_chapters: [
+        { id: "ch-1", document_id: "doc-1", position: 0, title: "", word_count: 0, content: bodyWith(mention("npc-1")) },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const npc = inserted.find((i) => i.table === "npcs")!.rows[0];
+    const chapter = inserted.find((i) => i.table === "scriptorium_chapters")!.rows[0];
+    const node = (chapter.content as { content: { content: { attrs: { id: string } }[] }[] }).content[0].content[0];
+    expect(node.attrs.id).toBe(npc.id);
+    expect(npc.id).not.toBe("npc-1");
+  });
+
+  it("a page-anchored picture follows its chapter to the new id", async () => {
+    const backup = backupWith({
+      scriptorium_documents: [
+        {
+          id: "doc-1", title: "Handbook", player_visible_to: [],
+          page_furniture: [{ id: "fx", kind: "watermark", anchor: { type: "page", chapterId: "ch-2", page: 1 }, x: 0, y: 0, width: 30, z: "under", props: {} }],
+        },
+      ],
+      scriptorium_chapters: [
+        { id: "ch-1", document_id: "doc-1", position: 0, title: "", word_count: 0, content: bodyWith({ type: "paragraph" }) },
+        { id: "ch-2", document_id: "doc-1", position: 1, title: "", word_count: 0, content: bodyWith({ type: "paragraph" }) },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const book = inserted.find((i) => i.table === "scriptorium_documents")!.rows[0];
+    const chapters = inserted.find((i) => i.table === "scriptorium_chapters")!.rows;
+    const anchor = (book.page_furniture as { anchor: { chapterId: string } }[])[0].anchor;
+    expect(anchor.chapterId).toBe(chapters[1].id);
+  });
+
+  it("an old backup with document content restores as one chapter each, mentions remapped", async () => {
+    const backup = backupWith({
+      npcs: [{ id: "npc-1", name: "Mira" }],
+      scriptorium_documents: [
+        { id: "doc-old", title: "Old", player_visible_to: [], content: JSON.stringify(bodyWith(mention("npc-1"))) },
+      ],
+    });
+    await executeImport(backup, "Restored");
+    const npc = inserted.find((i) => i.table === "npcs")!.rows[0];
+    const book = inserted.find((i) => i.table === "scriptorium_documents")!.rows[0];
+    const chapters = inserted.find((i) => i.table === "scriptorium_chapters")!.rows;
+    expect(book).not.toHaveProperty("content");
+    expect(chapters).toHaveLength(1);
+    expect(chapters[0].document_id).toBe(book.id);
+    const node = (chapters[0].content as { content: { content: { attrs: { id: string } }[] }[] }).content[0].content[0];
+    expect(node.attrs.id).toBe(npc.id);
   });
 });
 
@@ -523,6 +605,20 @@ describe("exporting a campaign", () => {
     const backup = await exportBackup("c1");
     expect(backup.campaign).toEqual({ id: "c1", name: "The Mere" });
     expect(downloads[0].name).toBe("the-mere.grimoire-backup");
+  });
+
+  it("carries the campaign's books with their chapters, and no other campaign's chapters", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "The Mere")]);
+    fake.seed("scriptorium_documents", [
+      { id: "doc-1", campaign_id: "c1", title: "Mine" },
+      { id: "doc-2", campaign_id: "c2", title: "Theirs" },
+    ]);
+    fake.seed("scriptorium_chapters", [
+      { id: "ch-1", document_id: "doc-1", position: 0 },
+      { id: "ch-2", document_id: "doc-2", position: 0 },
+    ]);
+    const backup = await exportBackup("c1");
+    expect(backup.scriptorium_chapters?.map((c) => c.id)).toEqual(["ch-1"]);
   });
 
   it("names the file after the campaign without stray dashes", async () => {

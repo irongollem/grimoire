@@ -21,6 +21,12 @@ let mockRouteName = "scriptorium-editor";
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRoute: () => ({ name: mockRouteName, params: { id: "doc-1" } }),
+  useRouter: () => ({ push: mockPush }),
+}));
+const mockPush = vi.fn();
+vi.mock("@/composables/scriptorium/useScriptoriumChapters", () => ({
+  useBookChapterList: () => ({ data: ref([{ id: "c1", title: "One" }]) }),
+  useScriptoriumChapter: () => ({ data: ref(undefined), isLoading: ref(false) }),
 }));
 
 const mockDocData = ref<Record<string, unknown> | undefined>(undefined);
@@ -34,10 +40,10 @@ vi.mock("@/composables/scriptorium/useScriptorium", () => ({
 }));
 
 vi.mock("@/components/scriptorium/ScriptoriumReader.vue", () => ({
-  default: { name: "ScriptoriumReader", props: ["document"], template: '<div data-testid="reader">reader</div>' },
+  default: { name: "ScriptoriumReader", props: ["book", "chapters", "chapter"], template: '<div data-testid="reader">reader</div>' },
 }));
-vi.mock("@/components/scriptorium/ScriptoriumEditor.vue", () => ({
-  default: { name: "ScriptoriumEditor", props: ["doc", "seed"], template: '<div data-testid="editor">editor</div>' },
+vi.mock("@/components/scriptorium/ScriptoriumBookEditor.vue", () => ({
+  default: { name: "ScriptoriumBookEditor", props: ["doc"], template: '<div data-testid="editor">editor</div>' },
 }));
 vi.mock("@/components/scriptorium/TemplateGallery.vue", () => ({
   default: { name: "TemplateGallery", template: '<div data-testid="gallery">gallery</div>' },
@@ -102,48 +108,27 @@ describe("ScriptoriumEditorView", () => {
     expect(wrapper.find('[data-testid="gallery"]').exists()).toBe(true);
   });
 
-  const template = {
-    id: "one-shot", name: "One-shot adventure", description: "", docType: "adventure",
-    build: () => "BUILT-CONTENT",
-    settings: { theme: "onednd2024", pageSize: "letter", isTwoColumn: true, inkFriendly: false, showPageNumbers: true, footerText: "", pageNumberStart: 1, tags: [] },
-  };
-
-  it("an existing document opens in the editor as itself, with no template seed, under its own title", () => {
+  it("an existing document opens in the book editor as itself", () => {
     const wrapper = mountView();
-    const editor = wrapper.getComponent({ name: "ScriptoriumEditor" });
+    const editor = wrapper.getComponent({ name: "ScriptoriumBookEditor" });
     expect(editor.props("doc")).toMatchObject({ id: "doc-1" });
-    expect(editor.props("seed")).toBeNull();
     expect(askedForId?.value).toBe("doc-1");
-    expect(wrapper.findComponent({ name: "PageHeader" }).props("title")).toBe("Test Doc");
   });
 
-  it("a new document asks for no existing one, shows the gallery even while a document read is pending, and seeds the editor from the template chosen", async () => {
+  it("a new document asks for no existing one and shows only the gallery, even with a stale read in the cache", () => {
     mockRouteName = "scriptorium-new";
-    mockIsLoading.value = true;
-    mockDocData.value = undefined;
+    mockDocData.value = { id: "stale", title: "Stale", theme: "onednd2024", doc_type: "custom" };
     const wrapper = mountView();
     expect(askedForId?.value).toBe("");
     expect(wrapper.find('[data-testid="gallery"]').exists()).toBe(true);
-    expect(wrapper.findComponent({ name: "LoadingSpinner" }).exists()).toBe(false);
-
-    // Whatever an earlier read left in the cache, a new document does not edit it.
-    mockDocData.value = { id: "stale", title: "Stale", theme: "onednd2024", doc_type: "custom" };
-    mockIsLoading.value = false;
-    wrapper.getComponent({ name: "TemplateGallery" }).vm.$emit("select", template);
-    await wrapper.vm.$nextTick();
-    const editor = wrapper.getComponent({ name: "ScriptoriumEditor" });
-    expect(editor.props("doc")).toBeNull();
-    expect(editor.props("seed")).toEqual({ docType: "adventure", content: "BUILT-CONTENT", settings: template.settings });
+    expect(wrapper.find('[data-testid="editor"]').exists()).toBe(false);
   });
 
-  it("'Choose a different template' goes back to the gallery and drops the seed", async () => {
+  it("opens the book the gallery made", () => {
     mockRouteName = "scriptorium-new";
     const wrapper = mountView();
-    wrapper.getComponent({ name: "TemplateGallery" }).vm.$emit("select", template);
-    await wrapper.vm.$nextTick();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Choose a different template")!.trigger("click");
-    expect(wrapper.find('[data-testid="gallery"]').exists()).toBe(true);
-    expect(wrapper.findComponent({ name: "ScriptoriumEditor" }).exists()).toBe(false);
+    wrapper.getComponent({ name: "TemplateGallery" }).vm.$emit("created", "new-book");
+    expect(mockPush).toHaveBeenCalledWith("/scriptorium/new-book");
   });
 
   it("an existing document that is still loading shows the spinner rather than an empty editor", () => {

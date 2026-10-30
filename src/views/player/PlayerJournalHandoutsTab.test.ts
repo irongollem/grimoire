@@ -12,6 +12,8 @@ function handout(overrides: Partial<PlayerHandoutSummary> = {}): PlayerHandoutSu
     id: "h1",
     title: "A Letter from the Baron",
     doc_type: "adventure",
+    kind: "handout",
+    theme: "letter",
     campaign_id: "c1",
     created_at: "2026-10-01T00:00:00Z",
     updated_at: "2026-10-02T00:00:00Z",
@@ -35,13 +37,17 @@ async function mountTab(props: { isLoading?: boolean; handouts: PlayerHandoutSum
 }
 
 describe("PlayerJournalHandoutsTab", () => {
-  it("lists each handout with title, type label and updated date", async () => {
-    const w = await mountTab({ handouts: [handout(), handout({ id: "h2", title: "Map Fragment", doc_type: "location" })] });
+  it("lists each handout with title, the paper it is written on and updated date, and a book as a book", async () => {
+    const w = await mountTab({
+      handouts: [handout(), handout({ id: "h2", title: "Map Fragment", theme: "journal" }), handout({ id: "h3", title: "Sothery", kind: "book", theme: "onednd2024" })],
+    });
     expect(w.text()).toContain("A Letter from the Baron");
-    expect(w.text()).toContain("Adventure");
+    expect(w.text()).toContain("Letter");
     expect(w.text()).toContain("on 2026-10-02");
     expect(w.text()).toContain("Map Fragment");
-    expect(w.text()).toContain("Location");
+    expect(w.text()).toContain("Journal page");
+    expect(w.text()).toContain("Book");
+    expect(w.text()).not.toContain("Adventure");
   });
 
   it("links each card to the reader route", async () => {

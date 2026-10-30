@@ -56,7 +56,7 @@ const KINDS: FurnitureKind[] = ["watercolor", "watermark", "artistCredit", "art"
 function isValidAnchor(a: unknown): a is FurnitureAnchor {
   if (!a || typeof a !== "object") return false;
   const o = a as Record<string, unknown>;
-  if (o.type === "page") return typeof o.page === "number";
+  if (o.type === "page") return typeof o.chapterId === "string" && typeof o.page === "number";
   if (o.type === "block") return typeof o.blockId === "string";
   return false;
 }

@@ -2,7 +2,8 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { computed, ref } from "vue";
 import ScriptoriumReader from "./ScriptoriumReader.vue";
-import type { ScriptoriumDocument } from "@/types/scriptorium.types";
+import type { JSONContent } from "@tiptap/core";
+import type { ReadableBook } from "@/types/scriptorium.types";
 
 /** Tiptap's core Editor fires "create" (and <EditorContent>'s first DOM
  *  render) from a `window.setTimeout(…, 0)` inside mount() — see
@@ -41,40 +42,37 @@ vi.mock("@/composables/campaign/useCampaigns", () => ({
   },
 }));
 
-function makeDoc(overrides: Partial<ScriptoriumDocument> = {}): ScriptoriumDocument {
+function makeBook(overrides: Partial<ReadableBook> = {}): ReadableBook {
   return {
     id: "doc-1",
-    user_id: "user-1",
     title: "The Sunken Temple",
-    content: null,
+    kind: "book",
     doc_type: "adventure",
     campaign_id: null,
-    player_visible_to: [],
-    tags: [],
-    is_published: false,
-    is_two_column: false,
     theme: "onednd2024",
-    page_size: "A4",
-    ink_friendly: false,
-    word_count: 1,
-    show_page_numbers: false,
-    footer_text: "",
-    page_number_start: 1,
-    created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
 }
 
-/** One of each shape the reader has to adapt: a cover, an (empty) TOC
- *  placeholder, a heading, a read-aloud box, an image and a table. */
-const RICH_CONTENT = JSON.stringify({
+const para = (t: string): JSONContent => ({ type: "paragraph", content: [{ type: "text", text: t }] });
+const chapterOf = (id: string, title: string, body = `${title} body`) => ({
+  id,
+  title,
+  content: { type: "doc", content: [para(body)] } as JSONContent,
+});
+const CHAPTERS = [
+  { id: "c1", title: "Welcome" },
+  { id: "c2", title: "Peoples" },
+  { id: "c3", title: "" },
+];
+
+/** One of each shape the reader has to adapt: a cover, a heading, a read-aloud box, an image and a table. */
+const RICH_CONTENT: JSONContent = {
   type: "doc",
   content: [
     { type: "coverPage", attrs: { variant: "front", title: "The Sunken Temple", subtitle: "A one-shot" } },
-    { type: "tocBlock" },
     { type: "heading", attrs: { level: 1, blockId: "h1" }, content: [{ type: "text", text: "Chapter One" }] },
-    { type: "heading", attrs: { level: 2, blockId: "h2" }, content: [{ type: "text", text: "The Flooded Nave" }] },
     {
       type: "descriptiveBlock",
       content: [{ type: "paragraph", content: [{ type: "text", text: "The air is damp and cold." }] }],
@@ -92,7 +90,7 @@ const RICH_CONTENT = JSON.stringify({
       ],
     },
   ],
-});
+};
 
 beforeEach(() => {
   mocks.dmCampaigns.mockClear();
@@ -105,75 +103,94 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
+function mountReader(props: Record<string, unknown> = {}, slots?: Record<string, string>) {
+  return mount(ScriptoriumReader, {
+    props: { book: makeBook(), chapters: [CHAPTERS[0]], chapter: chapterOf("c1", "Welcome"), ...props },
+    slots,
+  });
+}
+
 describe("ScriptoriumReader", () => {
   it("shows a compact header with the title, doc type and scope", () => {
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc() } });
+    const wrapper = mountReader();
     expect(wrapper.text()).toContain("The Sunken Temple");
     expect(wrapper.text()).toContain("Adventure");
     expect(wrapper.text()).toContain("General");
   });
 
   it("goes back through history when there is one, else to the Scriptorium list", async () => {
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc() } });
+    const wrapper = mountReader();
     Object.defineProperty(window.history, "length", { value: 1, configurable: true });
     await wrapper.get('button[aria-label="Back to Scriptorium"]').trigger("click");
     expect(mocks.push).toHaveBeenCalledWith("/scriptorium");
   });
 
   it("passes layout=\"reader\" through to ScriptoriumDocumentView", () => {
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc() } });
-    expect(wrapper.findComponent({ name: "ScriptoriumDocumentView" }).props("layout")).toBe("reader");
+    expect(mountReader().findComponent({ name: "ScriptoriumDocumentView" }).props("layout")).toBe("reader");
   });
 
-  it("renders a cover, a read-aloud box, a table and an image, and a tappable TOC that scrolls to a heading", async () => {
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ content: RICH_CONTENT }) } });
+  it("with one chapter shows its page at once, with no contents list", async () => {
+    const wrapper = mountReader({ chapter: chapterOf("c1", "Welcome", "Dear friends") });
     await flushEditor();
+    expect(wrapper.text()).toContain("Dear friends");
+    expect(wrapper.find('nav[aria-label="Chapters"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Contents");
+  });
 
+  it("with one chapter asks the parent for it, so a handout needs no special case", () => {
+    const wrapper = mountReader({ chapter: null });
+    expect(wrapper.emitted("selectChapter")).toEqual([["c1"]]);
+  });
+
+  it("opens a book on its chapters, with an unnamed chapter called Untitled", () => {
+    const wrapper = mountReader({ chapters: CHAPTERS, chapter: chapterOf("c1", "Welcome") });
+    const rows = wrapper.findAll('nav[aria-label="Chapters"] button').map((b) => b.text());
+    expect(rows).toEqual(["Welcome", "Peoples", "Untitled chapter"]);
+    expect(wrapper.emitted("selectChapter")).toBeUndefined();
+    expect(wrapper.text()).not.toContain("Welcome body");
+  });
+
+  it("tapping a chapter asks for it and reads it once it has arrived, with the next chapter at the foot", async () => {
+    const wrapper = mountReader({ chapters: CHAPTERS, chapter: null });
+    await wrapper.findAll('nav[aria-label="Chapters"] button')[1].trigger("click");
+    expect(wrapper.emitted("selectChapter")).toEqual([["c2"]]);
+    // The parent is still fetching: nothing of the previous chapter is shown as this one.
+    await wrapper.setProps({ chapter: chapterOf("c1", "Welcome", "Stale text"), loading: true });
+    expect(wrapper.text()).not.toContain("Stale text");
+    await wrapper.setProps({ chapter: chapterOf("c2", "Peoples", "Peoples text"), loading: false });
+    await flushEditor();
+    expect(wrapper.text()).toContain("Peoples text");
+    const footer = wrapper.get("footer").findAll("button").map((b) => b.text());
+    expect(footer).toEqual(["← Welcome", "Untitled chapter →"]);
+  });
+
+  it("the next chapter button asks for the next chapter, and Contents returns to the list", async () => {
+    const wrapper = mountReader({ chapters: CHAPTERS, chapter: chapterOf("c1", "Welcome") });
+    await wrapper.findAll('nav[aria-label="Chapters"] button')[0].trigger("click");
+    await flushEditor();
+    await wrapper.get("footer").findAll("button").find((b) => b.text().includes("Peoples"))!.trigger("click");
+    expect(wrapper.emitted("selectChapter")?.at(-1)).toEqual(["c2"]);
+    await wrapper.findAll("button").find((b) => b.text() === "Contents")!.trigger("click");
+    expect(wrapper.find('nav[aria-label="Chapters"]').exists()).toBe(true);
+  });
+
+  it("renders a cover, a read-aloud box, a table and an image", async () => {
+    const wrapper = mountReader({ chapter: { id: "c1", title: "Chapter One", content: RICH_CONTENT } });
+    await flushEditor();
     expect(wrapper.find('div[data-type="coverPage"]').exists()).toBe(true);
     expect(wrapper.find(".sc-descriptive").exists()).toBe(true);
     expect(wrapper.find(".tableWrapper table").exists()).toBe(true);
     expect(wrapper.find("img[data-layout-mode]").exists()).toBe(true);
-
-    // The tappable TOC list is built independently of the (empty) tocBlock
-    // placeholder node — see reader/readerToc.ts.
-    expect(wrapper.text()).toContain("Contents");
-    const entry = wrapper.findAll("button").find((b) => b.text() === "Chapter One");
-    expect(entry).toBeTruthy();
-    await entry!.trigger("click");
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
-  it("shows no contents list for a handout with a single heading", async () => {
-    const content = JSON.stringify({
-      type: "doc",
-      content: [
-        { type: "heading", attrs: { level: 1, blockId: "h1" }, content: [{ type: "text", text: "WANTED" }] },
-        { type: "paragraph", content: [{ type: "text", text: "A reward of 200 gp." }] },
-      ],
-    });
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ content }) } });
-    await flushEditor();
-    expect(wrapper.text()).not.toContain("Contents");
-  });
-
-  it("names the document a Handout, not by its doc type, for a player", () => {
-    const wrapper = mount(ScriptoriumReader, {
-      props: { document: makeDoc({ campaign_id: "camp-1", player_visible_to: ["member-1"] }), audience: "player" },
-    });
+  it("names the document by what it is, not by its doc type, for a player", () => {
+    const wrapper = mountReader({ book: makeBook({ kind: "handout", campaign_id: "camp-1" }), audience: "player" });
     expect(wrapper.find("header").text()).toContain("Handout");
-  });
-
-  it("shows the unreadable-content state, with no TOC, for invalid content", () => {
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ content: "not json" }) } });
-    expect(wrapper.text()).toContain("This document could not be read");
-    expect(wrapper.text()).not.toContain("Contents");
+    expect(wrapper.find("header").text()).not.toContain("Adventure");
   });
 
   it("falls back to backTo, and renders the actions slot in the header", async () => {
-    const wrapper = mount(ScriptoriumReader, {
-      props: { document: makeDoc(), backTo: "/play/journal" },
-      slots: { actions: '<button data-test="give">Give to players</button>' },
-    });
+    const wrapper = mountReader({ backTo: "/play/journal" }, { actions: '<button data-test="give">Give to players</button>' });
     expect(wrapper.find("header [data-test='give']").exists()).toBe(true);
     Object.defineProperty(window.history, "length", { value: 1, configurable: true });
     await wrapper.get('button[aria-label="Back to Scriptorium"]').trigger("click");
@@ -181,36 +198,13 @@ describe("ScriptoriumReader", () => {
   });
 
   it("passes the audience through to ScriptoriumDocumentView", () => {
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: "camp-1", player_visible_to: ["member-1"] }), audience: "player" } });
+    const wrapper = mountReader({ book: makeBook({ campaign_id: "camp-1" }), audience: "player" });
     expect(wrapper.findComponent({ name: "ScriptoriumDocumentView" }).props("audience")).toBe("player");
   });
 
-  it("lists no contents entry for an embed a player cannot see, and one for an embed they can", async () => {
-    const content = JSON.stringify({
-      type: "doc",
-      content: [
-        { type: "heading", attrs: { level: 1, blockId: "h1" }, content: [{ type: "text", text: "Chapter One" }] },
-        { type: "heading", attrs: { level: 1, blockId: "h2" }, content: [{ type: "text", text: "Chapter Two" }] },
-        { type: "entityEmbed", attrs: { entityType: "monster", entityId: "srd_owlbear", blockId: "e1" } },
-      ],
-    });
-    const props = { document: makeDoc({ content, campaign_id: "camp-1", player_visible_to: ["member-1"] }), audience: "player" as const };
-
-    mocks.embedHtml.value = null;
-    const hidden = mount(ScriptoriumReader, { props });
-    await flushEditor();
-    expect(hidden.findAll("button").some((b) => b.text() === "Chapter One")).toBe(true);
-    expect(hidden.findAll("button").some((b) => b.text() === "Owlbear")).toBe(false);
-
-    mocks.embedHtml.value = '<div class="sc-statblock-entry"><h2 class="sc-statblock-entry-heading">Owlbear</h2></div>';
-    const shown = mount(ScriptoriumReader, { props });
-    await flushEditor();
-    await flushEditor();
-    expect(shown.findAll("button").some((b) => b.text() === "Owlbear")).toBe(true);
-  });
   it("goes back through history when there is some", async () => {
     Object.defineProperty(window.history, "length", { value: 3, configurable: true });
-    const wrapper = mount(ScriptoriumReader, { props: { document: makeDoc() } });
+    const wrapper = mountReader();
     await wrapper.get('button[aria-label="Back to Scriptorium"]').trigger("click");
     expect(mocks.back).toHaveBeenCalledTimes(1);
     expect(mocks.push).not.toHaveBeenCalled();
@@ -219,21 +213,22 @@ describe("ScriptoriumReader", () => {
   it("names where a document lives: this campaign, another of the DM's, or everywhere", () => {
     mocks.activeId.value = "camp-here";
     mocks.activeName.value = "The Southern Road";
-    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: "camp-here" }) } }).text()).toContain("The Southern Road");
-    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: "camp-other" }) } }).text()).toContain("Curse of Strahd");
-    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ campaign_id: null }) } }).text()).toContain("General");
+    expect(mountReader({ book: makeBook({ campaign_id: "camp-here" }) }).text()).toContain("The Southern Road");
+    expect(mountReader({ book: makeBook({ campaign_id: "camp-other" }) }).text()).toContain("Curse of Strahd");
+    expect(mountReader({ book: makeBook({ campaign_id: null }) }).text()).toContain("General");
   });
 
   it("never asks for the DM's campaign list on a player's read", () => {
-    mount(ScriptoriumReader, { props: { document: makeDoc(), audience: "player" } });
+    mountReader({ audience: "player" });
     expect(mocks.dmCampaigns).toHaveBeenCalledWith({ enabled: false });
     mocks.dmCampaigns.mockClear();
-    mount(ScriptoriumReader, { props: { document: makeDoc() } });
+    mountReader();
     expect(mocks.dmCampaigns).toHaveBeenCalledWith({ enabled: true });
   });
 
-  it("wears the document's own theme", () => {
-    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ theme: "phb2014" }) } }).find(".theme-phb2014").exists()).toBe(true);
-    expect(mount(ScriptoriumReader, { props: { document: makeDoc({ theme: "onednd2024" }) } }).find(".theme-phb2014").exists()).toBe(false);
+  it("wears the document's own look, a paper included", () => {
+    expect(mountReader({ book: makeBook({ theme: "phb2014" }) }).find(".theme-phb2014").exists()).toBe(true);
+    expect(mountReader({ book: makeBook({ theme: "onednd2024" }) }).find(".theme-phb2014").exists()).toBe(false);
+    expect(mountReader({ book: makeBook({ kind: "handout", theme: "notice" }) }).find(".theme-notice").exists()).toBe(true);
   });
 });

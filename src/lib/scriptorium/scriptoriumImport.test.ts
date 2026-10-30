@@ -2,6 +2,7 @@
 import { emptyDefenses, type Defenses } from "@/types/statBlock.types";
 import { describe, it, expect } from "vitest";
 import {
+  bookInsertFromImport,
   formatNpcForScriptorium,
   formatMonsterForScriptorium,
   formatEntityEmbedBodyHtml,
@@ -937,5 +938,15 @@ describe("lens pair in stored rich text (#1115)", () => {
       faction: { name: "F", faction_type: null, alignment: null, emblem_url: null, description } as never,
     });
     expect(render(html).querySelector(".sc-lens--light")?.getAttribute("data-variant")).toBe("light");
+  });
+});
+
+describe("bookInsertFromImport", () => {
+  it("is a book in the given campaign that carries neither the HTML body nor a word count of its own", () => {
+    const data = formatNpcForScriptorium(npc(), null);
+    const book = bookInsertFromImport(data, "camp-1");
+    expect(book).toMatchObject({ kind: "book", campaign_id: "camp-1", title: data.title, theme: data.theme });
+    expect(book).not.toHaveProperty("content");
+    expect(book).not.toHaveProperty("word_count");
   });
 });

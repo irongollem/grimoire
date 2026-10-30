@@ -371,9 +371,9 @@ import { useSpellIndex } from "@/composables/spells/useSpellIndex";
 import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
-import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
-import { formatItemForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
-import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
+import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
+import { bookInsertFromImport, formatItemForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentJson } from "@/lib/scriptorium/entityEmbeds";
 import WeightInput from "@/components/common/controls/WeightInput.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
@@ -769,7 +769,7 @@ async function cloneItem() {
 }
 
 // ── Scriptorium ───────────────────────────────────────────────────────────────
-const { mutateAsync: createDoc } = useCreateScriptoriumDocument();
+const { mutateAsync: createDoc } = useCreateScriptoriumBook();
 const isSendingToScriptorium = ref(false);
 const showScriptoriumPaywall = ref(false);
 
@@ -781,9 +781,8 @@ async function sendToScriptorium() {
     // Live link, not a one-time snapshot (#915 story 3). The generated
     // document travels with the item's own campaign scope (#915 story 1).
     const doc = await createDoc({
-      ...data,
-      content: buildEntityEmbedDocumentContent("item", props.item.id),
-      campaign_id: props.item.campaign_id,
+      book: bookInsertFromImport(data, props.item.campaign_id),
+      chapters: [{ content: buildEntityEmbedDocumentJson("item", props.item.id) }],
     });
     router.push(`/scriptorium/${doc.id}`);
   } catch (e: unknown) {

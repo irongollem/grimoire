@@ -1,15 +1,6 @@
 <template>
   <EmptyState
-    v-if="contentError"
-    title="This document could not be read"
-    description="Its saved content isn't valid Scriptorium content."
-  >
-    <template #icon>
-      <IconWarning class="h-16 w-16" />
-    </template>
-  </EmptyState>
-  <EmptyState
-    v-else-if="missingCampaign"
+    v-if="missingCampaign"
     title="This handout is not available"
     description="It is not attached to a campaign."
   >
@@ -49,21 +40,26 @@
  * components).
  *
  * Presentational only — no pagination, no furniture, no editing UI. The
- * parent passes the whole document; this never fetches one itself.
+ * parent passes the book's head and ONE chapter's Tiptap JSON (a book is
+ * chapters, #1115); this never fetches anything itself.
  */
-import { computed, onUnmounted, provide, ref, watch } from "vue";
+import { computed, onUnmounted, provide, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
-import { parseStoredContent, emptyDoc } from "@/lib/scriptorium/documentContent";
-import type { ReadableScriptoriumDocument, ScriptoriumTheme } from "@/types/scriptorium.types";
+import type { JSONContent } from "@tiptap/core";
+import type { ReadableBook, ScriptoriumTheme } from "@/types/scriptorium.types";
 import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/lib/scriptorium/audience";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
+import { scriptoriumThemeClass } from "@/lib/scriptorium/looks";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
-const { document: doc, layout = "page", audience = "dm" } = defineProps<{
-  document: ReadableScriptoriumDocument;
+const { document: doc, content, layout = "page", audience = "dm" } = defineProps<{
+  /** The book's head: its look and its campaign. */
+  document: Pick<ReadableBook, "theme" | "campaign_id">;
+  /** The chapter to show, as the JSON object chapters are stored as. */
+  content: JSONContent;
   /** "reader" adds the `sc-document-view--reader` modifier class for the
    *  phone reading view (#915 story 7). Default "page" keeps today's
    *  page-shaped rendering (quest handouts, the desktop galley preview). */
@@ -74,39 +70,28 @@ const { document: doc, layout = "page", audience = "dm" } = defineProps<{
   audience?: "dm" | "player";
 }>();
 
-/** Stored content is current-version Tiptap JSON only (see documentContent.ts)
- *  — no HTML fallback. An unreadable row surfaces `contentError` instead. */
-const contentError = ref<Error | null>(null);
-function parseContent(content: string | null) {
-  try {
-    return parseStoredContent(content);
-  } catch (e: unknown) {
-    contentError.value = e instanceof Error ? e : new Error(String(e));
-    return emptyDoc();
-  }
-}
-
 const editor = useEditor({
-  content: parseContent(doc.content),
+  content,
   editable: false,
   extensions: createScriptoriumExtensions(),
 });
 
 watch(
-  () => doc.content,
-  (content) => {
-    contentError.value = null;
-    editor.value?.commands.setContent(parseContent(content));
+  () => content,
+  (next) => {
+    editor.value?.commands.setContent(next);
   },
 );
 
+// A paper (letter, notice, journal, plain) has no stat-block edition of its own, so its embeds are
+// formatted in the 2024 one, the same as a 2024 book; only the 2014 book asks for the older table.
 const theme = computed<ScriptoriumTheme>(() => (doc.theme === "phb2014" ? "phb2014" : "onednd2024"));
 // Read by entityEmbed node views (EntityEmbedView.vue) so a monster/NPC's
 // stat block formats itself in THIS document's theme rather than a hardcoded
 // default — the phone reader and quest handouts mount this view read-only,
 // so getting this wrong wasn't merely a galley cosmetic gap (#917 story 2).
 provide(SCRIPTORIUM_THEME_KEY, theme);
-const themeClass = computed(() => (theme.value === "phb2014" ? "theme-phb2014" : "theme-onednd2024"));
+const themeClass = computed(() => [scriptoriumThemeClass(doc.theme), "sc-paper-surface"]);
 
 // A shared handout always has a campaign (the player projections are keyed on
 // it), so a player document without one is not renderable rather than being

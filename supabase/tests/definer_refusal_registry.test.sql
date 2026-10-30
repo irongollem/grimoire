@@ -84,6 +84,7 @@ insert into definer_registry (name, kind, reason) values
   ('get_family_campaigns', 'self', 'the caller''s own children''s tables and the requests waiting on the caller'),
   ('get_image_provenance', 'refuses', null),
   ('get_loot_placements', 'refuses', null),
+  ('get_player_handout', 'refuses', null),
   ('get_player_connections', 'refuses', null),
   ('get_player_encounter_state', 'refuses', null),
   ('get_player_npc_memories', 'refuses', null),

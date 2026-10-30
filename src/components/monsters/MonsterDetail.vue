@@ -306,9 +306,9 @@ import {
 } from "@/composables/monsters/useMonsters";
 import { useUpsertLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt";
 import { useArtTabs, type ArtTab } from "@/composables/useArtTabs";
-import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
-import { formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
-import { buildEntityEmbedDocumentContent } from "@/lib/scriptorium/entityEmbeds";
+import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
+import { bookInsertFromImport, formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { buildEntityEmbedDocumentJson } from "@/lib/scriptorium/entityEmbeds";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type {
   Monster,
@@ -522,7 +522,7 @@ const { mutateAsync: create } = useCreateMonster();
 const { mutateAsync: update } = useUpdateMonster();
 const { mutateAsync: del } = useDeleteMonster();
 const { mutateAsync: clone } = useCloneLibraryMonster();
-const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument();
+const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumBook();
 const toast = useToast();
 const saving = ref(false);
 const showPaywall = ref(false);
@@ -580,9 +580,8 @@ async function sendToScriptorium() {
     // with the monster's own campaign scope (#915 story 1); a shared/library
     // monster's null campaign_id makes it account-wide.
     const doc = await createScriptoriumDoc({
-      ...importData,
-      content: buildEntityEmbedDocumentContent("monster", props.monster.id),
-      campaign_id: props.monster.campaign_id,
+      book: bookInsertFromImport(importData, props.monster.campaign_id),
+      chapters: [{ content: buildEntityEmbedDocumentJson("monster", props.monster.id) }],
     });
     router.push(`/scriptorium/${doc.id}`);
   } catch (e: unknown) {

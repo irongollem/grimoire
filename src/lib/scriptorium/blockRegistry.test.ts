@@ -83,6 +83,7 @@ describe("BLOCK_REGISTRY", () => {
     ["Descriptive (Read-Aloud)", "descriptiveBlock", undefined],
     ["Pull Quote", "quoteBlock", undefined],
     ["Lens Pair", "lensPair", undefined],
+    ["Only you see this", "secretBlock", undefined],
     ["Skip Page Number", "skipCounting", undefined],
     ["Reset Page Counter", "resetCounting", undefined],
     ["Monster Stat Block", "noteBlock", undefined],

@@ -4,12 +4,15 @@ import { renderFurniture } from "./renderFurniture";
 import { createFurnitureItem } from "./model";
 import { WATERCOLOR_ASSETS } from "@/data/watercolorAssets";
 
-/** Build N fake Paged.js pages; page `blockPage` (1-based) contains `blockId`. */
+/**
+ * Build N fake Paged.js pages of chapter "c1" (as the book layout marks them);
+ * page `blockPage` (1-based) contains `blockId`.
+ */
 function makeContainer(n: number, blockId?: string, blockPage = 1): HTMLElement {
   const c = document.createElement("div");
   c.innerHTML = Array.from({ length: n }, (_, i) => {
     const block = blockId && i + 1 === blockPage ? `<p data-block-id="${blockId}">x</p>` : "<p>x</p>";
-    return `<div class="pagedjs_page"><div class="pagedjs_pagebox"><div class="pagedjs_area">${block}</div></div></div>`;
+    return `<div class="pagedjs_page" data-chapter-id="c1" data-chapter-page="${i + 1}"><div class="pagedjs_pagebox"><div class="pagedjs_area">${block}</div></div></div>`;
   }).join("");
   return c;
 }
@@ -21,11 +24,32 @@ function box(c: HTMLElement, page: number): HTMLElement {
 describe("renderFurniture", () => {
   it("places a page-anchored item on the right page", () => {
     const c = makeContainer(3);
-    const item = createFurnitureItem("watercolor", { type: "page", page: 2 });
+    const item = createFurnitureItem("watercolor", { type: "page", chapterId: "c1", page: 2 });
     renderFurniture(c, [item]);
     expect(box(c, 1).querySelector(".sc-furniture")).toBeNull();
     expect(box(c, 2).querySelector(".sc-furniture--watercolor")).toBeTruthy();
     expect(box(c, 3).querySelector(".sc-furniture")).toBeNull();
+  });
+
+  it("reads a page anchor as a page within its chapter, not a position in the book", () => {
+    // Chapter b's page 1 is the fourth physical page, after a blank: never the first of the book.
+    const c = document.createElement("div");
+    const page = (attrs: string) =>
+      `<div class="pagedjs_page" ${attrs}><div class="pagedjs_pagebox"></div></div>`;
+    c.innerHTML =
+      page('data-chapter-id="a" data-chapter-page="1"') +
+      page('data-chapter-id="a" data-chapter-page="2"') +
+      page('data-chapter-id="a" data-blank-page=""') +
+      page('data-chapter-id="b" data-chapter-page="1"');
+    renderFurniture(c, [createFurnitureItem("art", { type: "page", chapterId: "b", page: 1 })]);
+    const boxes = Array.from(c.querySelectorAll(".pagedjs_pagebox"));
+    expect(boxes.map((b) => b.querySelector(".sc-furniture") !== null)).toEqual([false, false, false, true]);
+  });
+
+  it("draws nothing for a chapter that is not in the book", () => {
+    const c = makeContainer(2);
+    renderFurniture(c, [createFurnitureItem("art", { type: "page", chapterId: "gone", page: 1 })]);
+    expect(c.querySelectorAll(".sc-furniture")).toHaveLength(0);
   });
 
   it("places a block-anchored item on the page containing the block", () => {
@@ -38,7 +62,7 @@ describe("renderFurniture", () => {
   it("skips items whose anchor can't be resolved", () => {
     const c = makeContainer(2);
     renderFurniture(c, [
-      createFurnitureItem("watercolor", { type: "page", page: 9 }),
+      createFurnitureItem("watercolor", { type: "page", chapterId: "c1", page: 9 }),
       createFurnitureItem("art", { type: "block", blockId: "missing" }),
     ]);
     expect(c.querySelectorAll(".sc-furniture")).toHaveLength(0);
@@ -46,7 +70,7 @@ describe("renderFurniture", () => {
 
   it("paints the watercolor as a tinted mask positioned by percentage", () => {
     const c = makeContainer(1);
-    const item = createFurnitureItem("watercolor", { type: "page", page: 1 }, {
+    const item = createFurnitureItem("watercolor", { type: "page", chapterId: "c1", page: 1 }, {
       x: 12, y: 34, width: 40, props: { variant: 5, opacity: 50, color: "#7d1c1c" },
     });
     renderFurniture(c, [item]);
@@ -64,14 +88,14 @@ describe("renderFurniture", () => {
 
   it("renders a page-spanning watermark with its text", () => {
     const c = makeContainer(1);
-    renderFurniture(c, [createFurnitureItem("watermark", { type: "page", page: 1 }, { props: { text: "PLAYTEST" } })]);
+    renderFurniture(c, [createFurnitureItem("watermark", { type: "page", chapterId: "c1", page: 1 }, { props: { text: "PLAYTEST" } })]);
     const wm = box(c, 1).querySelector(".sc-furniture--watermark")!;
     expect(wm.textContent).toBe("PLAYTEST");
   });
 
   it("renders an artist credit in the chosen corner", () => {
     const c = makeContainer(1);
-    renderFurniture(c, [createFurnitureItem("artistCredit", { type: "page", page: 1 }, { props: { artistName: "Jane", position: "top-left" } })]);
+    renderFurniture(c, [createFurnitureItem("artistCredit", { type: "page", chapterId: "c1", page: 1 }, { props: { artistName: "Jane", position: "top-left" } })]);
     const cr = box(c, 1).querySelector<HTMLElement>(".sc-furniture--artistCredit")!;
     expect(cr.textContent).toBe("Jane");
     expect(cr.style.top).toBe("0.5rem");
@@ -80,8 +104,8 @@ describe("renderFurniture", () => {
 
   it('layers "under" before body content and "over" after', () => {
     const c = makeContainer(1);
-    const under = createFurnitureItem("watercolor", { type: "page", page: 1 }, { z: "under" });
-    const over = createFurnitureItem("art", { type: "page", page: 1 }, { z: "over" });
+    const under = createFurnitureItem("watercolor", { type: "page", chapterId: "c1", page: 1 }, { z: "under" });
+    const over = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { z: "over" });
     renderFurniture(c, [under, over]);
     const children = Array.from(box(c, 1).children);
     const underIdx = children.findIndex((e) => e.classList.contains("sc-furniture--watercolor"));
@@ -93,7 +117,7 @@ describe("renderFurniture", () => {
 
   it("an artist credit with no position sits bottom-right", () => {
     const c = makeContainer(1);
-    renderFurniture(c, [createFurnitureItem("artistCredit", { type: "page", page: 1 }, { props: { artistName: "Jane" } })]);
+    renderFurniture(c, [createFurnitureItem("artistCredit", { type: "page", chapterId: "c1", page: 1 }, { props: { artistName: "Jane" } })]);
     const cr = box(c, 1).querySelector<HTMLElement>(".sc-furniture--artistCredit")!;
     expect(cr.style.bottom).toBe("0.5rem");
     expect(cr.style.right).toBe("0.75rem");
@@ -102,8 +126,8 @@ describe("renderFurniture", () => {
   describe("interactive (the editor preview)", () => {
     it("lets clicks reach the item, stacks it above the page content, and outlines only the selected one", () => {
       const c = makeContainer(1);
-      const under = createFurnitureItem("watercolor", { type: "page", page: 1 }, { z: "under" });
-      const over = createFurnitureItem("art", { type: "page", page: 1 }, { z: "over" });
+      const under = createFurnitureItem("watercolor", { type: "page", chapterId: "c1", page: 1 }, { z: "under" });
+      const over = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { z: "over" });
       renderFurniture(c, [under, over], { interactive: true, selectedId: over.id });
       const underEl = box(c, 1).querySelector<HTMLElement>(".sc-furniture--watercolor")!;
       const overEl = box(c, 1).querySelector<HTMLElement>(".sc-furniture--art")!;
@@ -119,7 +143,7 @@ describe("renderFurniture", () => {
 
     it("a watermark is grabbed by its text, not by the page-wide wrapper", () => {
       const c = makeContainer(1);
-      renderFurniture(c, [createFurnitureItem("watermark", { type: "page", page: 1 })], { interactive: true });
+      renderFurniture(c, [createFurnitureItem("watermark", { type: "page", chapterId: "c1", page: 1 })], { interactive: true });
       const wrap = box(c, 1).querySelector<HTMLElement>(".sc-furniture--watermark")!;
       expect(wrap.style.pointerEvents).toBe("none");
       expect(wrap.querySelector<HTMLElement>("span")!.style.pointerEvents).toBe("auto");
@@ -127,14 +151,14 @@ describe("renderFurniture", () => {
 
     it("the printed render never takes pointer events", () => {
       const c = makeContainer(1);
-      renderFurniture(c, [createFurnitureItem("art", { type: "page", page: 1 })]);
+      renderFurniture(c, [createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 })]);
       expect(box(c, 1).querySelector<HTMLElement>(".sc-furniture--art")!.style.pointerEvents).toBe("none");
     });
   });
 
   it("is idempotent — re-render replaces, does not stack", () => {
     const c = makeContainer(1);
-    const item = createFurnitureItem("watermark", { type: "page", page: 1 });
+    const item = createFurnitureItem("watermark", { type: "page", chapterId: "c1", page: 1 });
     renderFurniture(c, [item]);
     renderFurniture(c, [item]);
     expect(c.querySelectorAll(".sc-furniture")).toHaveLength(1);
@@ -142,6 +166,6 @@ describe("renderFurniture", () => {
 
   it("no-ops when there are no pages", () => {
     const c = document.createElement("div");
-    expect(() => renderFurniture(c, [createFurnitureItem("art", { type: "page", page: 1 })])).not.toThrow();
+    expect(() => renderFurniture(c, [createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 })])).not.toThrow();
   });
 });

@@ -56,7 +56,7 @@ vi.mock("@/composables/library/useLibrarySpellArt", () => ({
   useUpsertLibrarySpellArt: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock("@/composables/scriptorium/useScriptorium", () => ({
-  useCreateScriptoriumDocument: () => ({ mutateAsync: vi.fn() }),
+  useCreateScriptoriumBook: () => ({ mutateAsync: vi.fn() }),
 }));
 
 const mocks = vi.hoisted(() => ({

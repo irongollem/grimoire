@@ -1,6 +1,8 @@
 import { computed, type Ref } from "vue";
+import type { JSONContent } from "@tiptap/core";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { chapterTitle, countWords } from "@/lib/scriptorium/chapterTitle";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocumentSummary,
@@ -14,7 +16,7 @@ const QUERY_KEY = "scriptorium";
 /** Columns the list view renders — see ScriptoriumDocumentSummary. Selecting
  *  `*` here shipped every document's full Tiptap body just to draw its card. */
 const SUMMARY_COLUMNS =
-  "id, title, doc_type, campaign_id, tags, is_published, player_visible_to, word_count, created_at, updated_at";
+  "id, title, doc_type, campaign_id, kind, theme, tags, is_published, player_visible_to, word_count, created_at, updated_at, scriptorium_chapters(count)";
 
 /** The caller's own id, for scoping reads to their own documents. Since #970 a
  *  player may also SELECT a handout shared with them, so RLS alone would mix
@@ -47,15 +49,41 @@ async function fetchDocument(id: string): Promise<ScriptoriumDocument> {
   return data as ScriptoriumDocument;
 }
 
-async function createDocument(doc: ScriptoriumDocInsert): Promise<ScriptoriumDocument> {
-  const user = getCurrentUser();
+/** What a new book opens with: one empty chapter, so the editor is never bodiless. */
+function emptyChapterContent(): JSONContent {
+  return { type: "doc", content: [{ type: "paragraph" }] };
+}
+
+/** Inserts the book, then its chapters; if the chapters fail the book is removed
+ *  again so a failed create leaves no empty orphan in the list. */
+async function createBook(input: {
+  book: ScriptoriumDocInsert;
+  chapters?: { content: JSONContent }[];
+}): Promise<ScriptoriumDocument> {
   const { data, error } = await supabase
     .from("scriptorium_documents")
-    .insert({ ...doc, user_id: user!.id })
+    .insert({ ...input.book, user_id: ownerId() })
     .select()
     .single();
   if (error) throw error;
-  return data as ScriptoriumDocument;
+  const created = data as ScriptoriumDocument;
+
+  const sources = input.chapters?.length ? input.chapters : [{ content: emptyChapterContent() }];
+  const { error: chapterError } = await supabase.from("scriptorium_chapters").insert(
+    sources.map((chapter, position) => ({
+      document_id: created.id,
+      position,
+      title: chapterTitle(chapter.content),
+      content: chapter.content,
+      word_count: countWords(chapter.content),
+    })),
+  );
+  if (chapterError) {
+    // The chapter failure is the cause worth reporting; a failed cleanup is not allowed to hide it.
+    await supabase.from("scriptorium_documents").delete().eq("id", created.id);
+    throw chapterError;
+  }
+  return created;
 }
 
 async function updateDocument(
@@ -89,10 +117,10 @@ export function useScriptoriumDocument(id: Ref<string>) {
   });
 }
 
-export function useCreateScriptoriumDocument() {
+export function useCreateScriptoriumBook() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createDocument,
+    mutationFn: createBook,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

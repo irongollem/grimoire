@@ -1,6 +1,6 @@
 <template>
   <div class="flex h-full min-h-0 flex-col bg-background">
-    <!-- Compact phone header — back, title, doc type + where it lives. Mirrors
+    <!-- Compact phone header — back, title, what it is + where it lives. Mirrors
          QuestPhoneTopBar's shape (copied, not re-derived: see goBack below). -->
     <header
       class="sticky top-0 z-10 flex min-h-13 items-center gap-2 border-b border-border bg-card px-2 py-2"
@@ -17,80 +17,126 @@
       />
       <div class="min-w-0 flex-1">
         <p class="truncate font-cinzel text-body font-bold leading-tight text-foreground">
-          {{ doc.title }}
+          {{ book.title }}
         </p>
         <p class="truncate font-fell text-caption text-muted-foreground">
-          {{ docTypeLabel }} · {{ scopeLabel }}
+          {{ kindLabel }} · {{ scopeLabel }}
         </p>
       </div>
       <slot name="actions" />
     </header>
 
-    <!-- The book, as one flowing column — sc-theme + the theme class give it
-         the same palette/typography as the desktop galley; ScriptoriumReader's
-         own scoped styles below undo everything that assumes a physical page. -->
-    <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass">
-      <!-- A contents list earns its place only with somewhere to jump to: a
-           one-heading handout (a wanted poster, a letter) reads better without. -->
-      <div v-if="tocEntries.length > 1" class="mb-4 rounded-lg border border-border bg-card p-3">
-        <p class="sc-toc-heading">Contents</p>
-        <ul class="reader-toc flex flex-col">
-          <li v-for="entry in tocEntries" :key="entry.blockId">
-            <AppButton
-              variant="menu"
-              size="md"
-              block
-              :class="TOC_LEVEL_CLASS[entry.level]"
-              @click="scrollToHeading(entry.blockId)"
-            >
-              <span class="min-w-0 flex-1 truncate">{{ entry.text }}</span>
-            </AppButton>
-          </li>
-        </ul>
+    <!-- A book opens on its chapters (frame 07). A single chapter, a handout's
+         own page, opens directly: a one-line list would be a step for nothing. -->
+    <nav v-if="showContents" aria-label="Chapters" class="min-h-0 flex-1 overflow-y-auto">
+      <p class="px-5 pt-3 pb-1 text-caption text-muted-foreground">{{ chapters.length }} chapters</p>
+      <ul>
+        <li v-for="entry in chapters" :key="entry.id" class="border-b border-border/60">
+          <AppButton variant="menu" size="md" block class="min-h-13 px-5 text-body" @click="open(entry.id)">
+            <span class="min-w-0 flex-1 truncate">{{ chapterName(entry.title) }}</span>
+          </AppButton>
+        </li>
+      </ul>
+    </nav>
+
+    <template v-else>
+      <div v-if="multiple" class="flex items-center gap-2 border-b border-border px-3 py-2">
+        <AppButton
+          variant="subtle"
+          size="md"
+          class="min-h-11"
+          :icon="IconChevronLeft"
+          label="Contents"
+          @click="openId = null"
+        />
+        <p class="min-w-0 flex-1 truncate text-right text-caption text-muted-foreground">{{ shownTitle }}</p>
       </div>
 
-      <ScriptoriumDocumentView :document="doc" layout="reader" :audience="audience" />
-    </div>
+      <!-- The chapter, as one flowing column — sc-theme + the theme class give it
+           the same palette/typography as the desktop galley; ScriptoriumReader's
+           own scoped styles below undo everything that assumes a physical page. -->
+      <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass">
+        <LoadingSpinner v-if="loading || !shown" />
+        <ScriptoriumDocumentView v-else :document="book" :content="shown.content" layout="reader" :audience="audience" />
+      </div>
+
+      <footer v-if="multiple && shownIndex >= 0" class="flex justify-between gap-2 border-t border-border px-3 py-2">
+        <AppButton
+          v-if="previous"
+          variant="subtle"
+          size="md"
+          class="min-h-11 min-w-0"
+          :label="`← ${chapterName(previous.title)}`"
+          @click="open(previous.id)"
+        />
+        <span v-else />
+        <AppButton
+          v-if="next"
+          variant="subtle"
+          size="md"
+          class="min-h-11 min-w-0"
+          :label="`${chapterName(next.title)} →`"
+          @click="open(next.id)"
+        />
+      </footer>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 /*
  * Scriptorium on a phone is a reader (#915 story 7) — an e-book column, not
- * the desktop galley shrunk down. Wraps ScriptoriumDocumentView (the same
- * read-only renderer the quest-runner handout uses) rather than building a
- * second one; every phone-only adjustment (cover-as-card, full-width images,
- * scrollable tables, hiding the pagination furniture) lives in this
- * component's own scoped styles below, never in the shared theme CSS.
+ * the desktop galley shrunk down. A book is chapters (#1115): it opens on its
+ * chapter list and each chapter reads on its own, with the previous and next
+ * chapter at the foot; a single-chapter document (every handout) opens straight
+ * on its page. Wraps ScriptoriumDocumentView (the same read-only renderer the
+ * quest-runner handout uses) rather than building a second one; every
+ * phone-only adjustment (cover-as-card, full-width images, scrollable tables,
+ * hiding the pagination furniture) lives in this component's own scoped
+ * styles below, never in the shared theme CSS.
+ *
+ * The parent owns the data: it passes the chapter list and the chapter to show,
+ * and loads whichever one `selectChapter` asks for. With one chapter the reader
+ * asks for it itself, once, so a parent never special-cases a handout.
  */
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
+import type { JSONContent } from "@tiptap/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import { IconChevronLeft } from "@/lib/icons";
 import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
-import { collectReaderToc, type ReaderTocEntry } from "./reader/readerToc";
 import { documentScopeOf } from "@/lib/scriptorium/documentScope";
 import { DOC_TYPES } from "@/lib/scriptorium/editorConstants";
+import { KIND_LABELS } from "@/lib/scriptorium/documentCardMeta";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
-import { revealInScrollParent } from "@/lib/motion";
-import type { ReadableScriptoriumDocument } from "@/types/scriptorium.types";
+import type { ReadableBook } from "@/types/scriptorium.types";
+import { scriptoriumThemeClass } from "@/lib/scriptorium/looks";
 
-// Renamed from the prop's own name to avoid shadowing the global `document`.
 const {
-  document: doc,
+  book,
+  chapters,
+  chapter,
+  loading = false,
   audience = "dm",
   backTo = "/scriptorium",
 } = defineProps<{
-  document: ReadableScriptoriumDocument;
+  book: ReadableBook;
+  chapters: { id: string; title: string }[];
+  /** The chapter to show once one is chosen (the only one, for a handout); null while it loads. */
+  chapter: { id: string; title: string; content: JSONContent } | null;
+  loading?: boolean;
   /** Passed through to the renderer; "player" shows only what the handout
    *  itself reveals of each embedded entity (#970). */
   audience?: "dm" | "player";
   /** Where Back goes when there is no history to return to. */
   backTo?: string;
 }>();
+
+const emit = defineEmits<{ selectChapter: [id: string] }>();
 
 const router = useRouter();
 
@@ -101,10 +147,10 @@ function goBack() {
   else void router.push(backTo);
 }
 
-const themeClass = computed(() => (doc.theme === "phb2014" ? "theme-phb2014" : "theme-onednd2024"));
+const themeClass = computed(() => [scriptoriumThemeClass(book.theme), "sc-paper-surface"]);
 // The doc type is the DM's own filing ("Custom", "Adventure Module"); to a
-// player the document is simply something the DM handed them.
-const docTypeLabel = computed(() => (audience === "player" ? "Handout" : DOC_TYPES[doc.doc_type].label));
+// player the document is simply a handout or a book the DM gave them.
+const kindLabel = computed(() => (audience === "player" ? KIND_LABELS[book.kind] : DOC_TYPES[book.doc_type].label));
 
 const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
 // Only a DM's document can sit in a campaign other than the active one; a
@@ -113,58 +159,51 @@ const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
 const { data: allDmCampaigns } = useAllDmCampaigns({ enabled: audience !== "player" });
 
 const scopeLabel = computed(() => {
-  const scope = documentScopeOf(doc, activeCampaignId.value);
+  const scope = documentScopeOf(book, activeCampaignId.value);
   if (scope === "general") return "General";
   if (scope === "campaign") return activeCampaign.value?.name ?? "This campaign";
-  return allDmCampaigns.value?.find((c) => c.id === doc.campaign_id)?.name ?? "Other campaign";
+  return allDmCampaigns.value?.find((c) => c.id === book.campaign_id)?.name ?? "Other campaign";
 });
 
-// Reading-text roles, largest first: the label roles are 10-12px chrome type
-// and put a chapter's sections below its subsections in size.
-const TOC_LEVEL_CLASS: Record<number, string> = {
-  1: "text-body font-semibold",
-  2: "pl-4 text-body",
-  3: "pl-7 text-caption italic",
-};
+const multiple = computed(() => chapters.length > 1);
+// The chapter being read; null is the contents list (only a book has one).
+const openId = ref<string | null>(null);
+const showContents = computed(() => multiple.value && openId.value === null);
+
+// A one-chapter document has nothing to choose: ask for its page.
+watch(
+  () => chapters,
+  (list) => {
+    if (list.length === 1) emit("selectChapter", list[0].id);
+  },
+  { immediate: true },
+);
+
+function open(id: string) {
+  openId.value = id;
+  emit("selectChapter", id);
+}
+
+const shownId = computed(() => (multiple.value ? openId.value : chapters.length ? chapters[0].id : null));
+// Held back until the parent has loaded the chapter that was asked for.
+const shown = computed(() => (chapter && chapter.id === shownId.value ? chapter : null));
+const shownIndex = computed(() => chapters.findIndex((c) => c.id === shownId.value));
+const previous = computed(() => (shownIndex.value > 0 ? chapters[shownIndex.value - 1] : null));
+const next = computed(() =>
+  shownIndex.value >= 0 && shownIndex.value < chapters.length - 1 ? chapters[shownIndex.value + 1] : null,
+);
+const shownTitle = computed(() => shownIndex.value >= 0 ? chapterName(chapters[shownIndex.value].title) : "");
+
+// A chapter is named by its first heading; one without a heading yet has no name.
+function chapterName(title: string): string {
+  return title || "Untitled chapter";
+}
 
 const scrollRef = ref<HTMLElement | null>(null);
-
-// Populated from the live rendered DOM, not the stored JSON — see
-// reader/readerToc.ts for why that's the correct source here. A "not read
-// yet" document renders no headings at all (ScriptoriumDocumentView shows
-// its own EmptyState instead), so this naturally stays empty for that case
-// with no separate error handling needed.
-const tocEntries = ref<ReaderTocEntry[]>([]);
-function refreshToc() {
-  // Read from the rendered DOM, so an embed a player may not see (it renders
-  // nothing) or one still resolving (no heading yet) is never offered.
-  if (scrollRef.value) tocEntries.value = collectReaderToc(scrollRef.value);
-}
-
-// ScriptoriumDocumentView's Tiptap editor renders its first content — and
-// BlockId assigns any missing heading id via a transaction it dispatches
-// from its own onCreate — asynchronously, after this component has already
-// mounted. Nothing is exposed to await that from outside, so this watches
-// the DOM directly rather than guessing a timeout.
-let tocObserver: MutationObserver | null = null;
-onMounted(() => {
-  refreshToc();
-  if (scrollRef.value) {
-    tocObserver = new MutationObserver(refreshToc);
-    tocObserver.observe(scrollRef.value, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-block-id"],
-    });
-  }
+// Prev and next land at the top of the new chapter, not wherever the last one ended.
+watch(shownId, () => {
+  if (scrollRef.value) scrollRef.value.scrollTop = 0;
 });
-onUnmounted(() => tocObserver?.disconnect());
-
-function scrollToHeading(blockId: string) {
-  const el = scrollRef.value?.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`);
-  if (el) revealInScrollParent(el);
-}
 </script>
 
 <style scoped>
@@ -174,18 +213,6 @@ function scrollToHeading(blockId: string) {
  * story is editing them concurrently — so every phone-reading adjustment
  * lives here instead, reached through :deep() rather than a global class.
  */
-
-/* The contents list is app chrome inside the book's .sc-theme scroll area, so
-   the book's own list rules (bullets, hanging indent, item margins; theme-base
-   .css) reached it and put a bullet beside every entry. */
-.reader-toc {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.reader-toc li {
-  margin: 0;
-}
 
 /* A paginated book turns these into real page/column breaks; a flowing
    reader has no pages to turn. A page break becomes a quiet section rule

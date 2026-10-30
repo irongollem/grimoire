@@ -77,3 +77,23 @@
   font-display: swap;
   src: url("/fonts/scriptorium/alegreya-700-italic.ttf") format("truetype");
 }
+
+/* Fondamento: the hand of the Letter and Journal papers (theme-letter.css,
+   theme-journal.css). The app already loads it through @fontsource for the
+   Vellum ink; the PDF export carries only this file, so the faces are
+   registered here too, as TrueType for the same Type3 reason as above.
+   Licence: public/fonts/scriptorium/fondamento-OFL.txt. */
+@font-face {
+  font-family: "Fondamento";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/fondamento-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Fondamento";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/fondamento-400-italic.ttf") format("truetype");
+}

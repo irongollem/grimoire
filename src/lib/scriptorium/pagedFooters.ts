@@ -12,12 +12,18 @@
  * `v-if="label !== null"` rule. Footer text therefore rides with the number.
  */
 
-import { flagsFromHtml, computePageLabels } from "./pageNumbering";
+import { flagsFromPage, computePageLabels } from "./pageNumbering";
 
 export interface PagedFooterOptions {
   showPageNumbers: boolean;
   footerText: string;
   start: number;
+  /**
+   * Labels already worked out for these pages (the book layout computes them
+   * once for footers and the contents page alike). Without it they are derived
+   * from the pages.
+   */
+  labels?: (string | null)[];
 }
 
 /**
@@ -26,15 +32,17 @@ export interface PagedFooterOptions {
  */
 export function injectPagedFooters(container: HTMLElement, opts: PagedFooterOptions): void {
   const pages = Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
-  const labels = computePageLabels(
-    pages.map((p) => flagsFromHtml(p.innerHTML)),
-    { showPageNumbers: opts.showPageNumbers, start: opts.start },
-  );
+  const labels =
+    opts.labels ??
+    computePageLabels(pages.map(flagsFromPage), {
+      showPageNumbers: opts.showPageNumbers,
+      start: opts.start,
+    });
 
   pages.forEach((page, i) => {
     page.querySelector(".sc-footer")?.remove();
     const label = labels[i];
-    if (label === null) return; // covers, skips, numbers-off → no footer
+    if (label === null) return; // covers, skips, blank pages, numbers-off → no footer
 
     const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
     const footer = document.createElement("div");

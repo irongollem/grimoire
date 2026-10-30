@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  describePending,
-  describeRecipients,
+  describeAudienceChange,
+  describeHiddenFromHolders,
+  describeHolders,
   describeRevealed,
   describeWithheld,
 } from "./handoutShareSummary";
@@ -62,33 +63,64 @@ describe("describeRevealed deity and faction", () => {
   });
 });
 
-describe("describeRecipients", () => {
+describe("describeHolders", () => {
   it("lists names naturally", () => {
-    expect(describeRecipients(["Mira"], 4)).toBe("Mira");
-    expect(describeRecipients(["Mira", "Tor"], 4)).toBe("Mira and Tor");
-    expect(describeRecipients(["Mira", "Tor", "Ash"], 4)).toBe("Mira, Tor and Ash");
+    expect(describeHolders(["Mira"], 4)).toBe("Mira");
+    expect(describeHolders(["Mira", "Tor"], 4)).toBe("Mira and Tor");
+    expect(describeHolders(["Mira", "Tor", "Ash"], 4)).toBe("Mira, Tor and Ash");
   });
 
   it("says the whole party when everyone is in", () => {
-    expect(describeRecipients(["Mira", "Tor"], 2)).toBe("The whole party");
+    expect(describeHolders(["Mira", "Tor"], 2)).toBe("the whole party");
   });
 
   it("a one-person party is named, not 'the whole party'", () => {
-    expect(describeRecipients(["Mira"], 1)).toBe("Mira");
+    expect(describeHolders(["Mira"], 1)).toBe("Mira");
   });
 
   it("with an unknown party size, two names are just listed", () => {
-    expect(describeRecipients(["Mira", "Tor"], 0)).toBe("Mira and Tor");
+    expect(describeHolders(["Mira", "Tor"], 0)).toBe("Mira and Tor");
   });
 
   it("says no one for an empty list", () => {
-    expect(describeRecipients([], 3)).toBe("No one");
+    expect(describeHolders([], 3)).toBe("no one");
   });
 });
 
-describe("describePending", () => {
+describe("describeAudienceChange", () => {
+  it("says who is new and who already has it", () => {
+    expect(describeAudienceChange({ added: ["Bramble"], kept: ["Pip", "Wren"], removed: [] })).toBe(
+      "Bramble is new; Pip and Wren already have it.",
+    );
+  });
+
   it("agrees in number", () => {
-    expect(describePending(1)).toBe("1 linked entry is hidden from players.");
-    expect(describePending(3)).toBe("3 linked entries are hidden from players.");
+    expect(describeAudienceChange({ added: ["Pip", "Wren"], kept: ["Bramble"], removed: [] })).toBe(
+      "Pip and Wren are new; Bramble already has it.",
+    );
+  });
+
+  it("names who loses it", () => {
+    expect(describeAudienceChange({ added: [], kept: ["Pip"], removed: ["Tolly"] })).toBe(
+      "Pip already has it; Tolly will no longer have it.",
+    );
+  });
+
+  it("is empty when nothing is ticked", () => {
+    expect(describeAudienceChange({ added: [], kept: [], removed: [] })).toBe("");
+  });
+});
+
+describe("describeHiddenFromHolders", () => {
+  it("names one or two entries and counts past that", () => {
+    expect(describeHiddenFromHolders(["The Bell-Mother"])).toBe("The Bell-Mother is linked but hidden from them.");
+    expect(describeHiddenFromHolders(["Ser Vallis", "The Bounty"])).toBe(
+      "Ser Vallis and The Bounty are linked but hidden from them.",
+    );
+    expect(describeHiddenFromHolders(["A", "B", "C"])).toBe("3 linked entries are hidden from them.");
+  });
+
+  it("says nothing when nothing is hidden", () => {
+    expect(describeHiddenFromHolders([])).toBe("");
   });
 });

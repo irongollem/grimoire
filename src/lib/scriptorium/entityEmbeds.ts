@@ -229,8 +229,3 @@ export function buildEntityEmbedDocumentJson(entityType: EntityEmbedType, entity
     ],
   };
 }
-
-/** Stringified form: what `scriptorium_documents.content` actually stores. */
-export function buildEntityEmbedDocumentContent(entityType: EntityEmbedType, entityId: string): string {
-  return JSON.stringify(buildEntityEmbedDocumentJson(entityType, entityId));
-}

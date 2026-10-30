@@ -9,22 +9,22 @@ import type { HandoutShareResult, ScriptoriumDocument } from "@/types/scriptoriu
 /** What the share flow needs to know about a document. */
 export type ShareableHandout = Pick<
   ScriptoriumDocument,
-  "id" | "title" | "campaign_id" | "player_visible_to" | "updated_at"
+  "id" | "title" | "campaign_id" | "player_visible_to" | "updated_at" | "theme"
 >;
 
 /** PostgREST errors are plain objects with a message, not `Error` instances. */
-export function shareErrorMessage(e: unknown): string {
+export function shareErrorMessage(e: unknown, fallback = "Could not update who has this handout."): string {
   if (e instanceof Error && e.message) return e.message;
   if (typeof e === "object" && e !== null && "message" in e && typeof e.message === "string") {
     return e.message;
   }
-  return "Could not update who has this handout.";
+  return fallback;
 }
 
 /**
- * The two writes of the handout flow, shared by the desktop control, the phone
- * button and the pending-reveal banner so there is one place that shares and
- * one that takes a handout back (#970).
+ * The two writes of the handout flow, shared by the Give dialog and the cockpit's
+ * button so there is one place that shares and one that takes a handout back
+ * (#970).
  */
 export function useHandoutSharing() {
   const { mutateAsync, isPending } = useShareHandout();
@@ -87,6 +87,7 @@ export function usePendingHandoutReveals(doc: Ref<ShareableHandout | null | unde
     },
     enabled: () => !!doc.value && !!doc.value.campaign_id && recipients.value.length > 0,
   });
-  const pending = computed(() => query.data.value?.revealed.length ?? 0);
-  return { pending };
+  // Names, not a count: the audience line says which linked entry is still hidden.
+  const hiddenNames = computed(() => (query.data.value ? query.data.value.revealed.map((entry) => entry.name) : []));
+  return { hiddenNames };
 }

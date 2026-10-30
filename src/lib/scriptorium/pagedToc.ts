@@ -20,12 +20,20 @@
  */
 
 import type { ScriptoriumPageSize } from "@/types/scriptorium.types";
-import { flagsFromHtml, computePageLabels } from "./pageNumbering";
+import { flagsFromPage, computePageLabels } from "./pageNumbering";
 import { escapeHtml } from "@/lib/escapeHtml";
 
 export interface PagedTocOptions {
   showPageNumbers: boolean;
   start: number;
+  /** Labels already worked out for the laid-out pages (see PagedFooterOptions.labels). */
+  labels?: (string | null)[];
+}
+
+/** A heading of the book, as the contents page lists it. */
+export interface BookHeading {
+  level: number;
+  text: string;
 }
 
 interface TocItem {
@@ -82,8 +90,8 @@ export function tocColumnCount(pageSize: ScriptoriumPageSize, entryCount: number
 }
 
 /** Content headings (level + text) under `root`, in document order. */
-function collectHeadings(root: ParentNode): { level: number; text: string }[] {
-  const out: { level: number; text: string }[] = [];
+function collectHeadings(root: ParentNode): BookHeading[] {
+  const out: BookHeading[] = [];
   root.querySelectorAll<HTMLElement>(HEADING_SEL).forEach((h) => {
     if (!isContentHeading(h)) return;
     const text = h.textContent?.trim() ?? "";
@@ -91,6 +99,17 @@ function collectHeadings(root: ParentNode): { level: number; text: string }[] {
     out.push({ level: Number(h.tagName[1]), text });
   });
   return out;
+}
+
+/**
+ * The contents-page headings of one chapter's HTML. A book's contents page
+ * lists every chapter's, so the engine collects them from each chapter with
+ * this and hands the whole list to the chapter that holds the contents page.
+ */
+export function headingsOfHtml(html: string): BookHeading[] {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return collectHeadings(tmp);
 }
 
 export function renderTocHtml(items: TocItem[], pageSize: ScriptoriumPageSize = "A4"): string {
@@ -121,14 +140,22 @@ export function renderTocHtml(items: TocItem[], pageSize: ScriptoriumPageSize = 
  */
 export function expandTocPlaceholder(
   html: string,
-  opts: { showPageNumbers: boolean; pageSize?: ScriptoriumPageSize },
+  opts: {
+    showPageNumbers: boolean;
+    pageSize?: ScriptoriumPageSize;
+    /**
+     * The headings of the whole book, when the HTML is only one chapter of it.
+     * Without it the contents page lists the headings of the HTML it sits in.
+     */
+    headings?: BookHeading[];
+  },
 ): string {
   if (!html.includes('data-type="toc"')) return html;
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
   const placeholder = tmp.querySelector('nav[data-type="toc"]');
   if (!placeholder) return html;
-  const items: TocItem[] = collectHeadings(tmp).map((h) => ({
+  const items: TocItem[] = (opts.headings ?? collectHeadings(tmp)).map((h) => ({
     level: h.level,
     text: h.text,
     page: opts.showPageNumbers ? "" : null,
@@ -148,10 +175,8 @@ export function fillPagedTocPages(container: HTMLElement, opts: PagedTocOptions)
   if (!toc) return;
 
   const pages = Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
-  const labels = computePageLabels(
-    pages.map((p) => flagsFromHtml(p.innerHTML)),
-    { showPageNumbers: true, start: opts.start },
-  );
+  const labels =
+    opts.labels ?? computePageLabels(pages.map(flagsFromPage), { showPageNumbers: true, start: opts.start });
 
   const headingLabels: string[] = [];
   pages.forEach((page, i) => {

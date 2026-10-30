@@ -15,8 +15,8 @@ describe("createFurnitureItem", () => {
   });
 
   it("gives each item a unique id", () => {
-    const a = createFurnitureItem("art", { type: "page", page: 1 });
-    const b = createFurnitureItem("art", { type: "page", page: 1 });
+    const a = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
+    const b = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
     expect(a.id).not.toBe(b.id);
   });
 });
@@ -25,7 +25,7 @@ describe("parsePageFurniture", () => {
   const valid = {
     id: "x",
     kind: "watercolor",
-    anchor: { type: "page", page: 2 },
+    anchor: { type: "page", chapterId: "c1", page: 2 },
     x: 5, y: 6, width: 30, z: "under",
     props: { variant: 3 },
   };
@@ -50,6 +50,7 @@ describe("parsePageFurniture", () => {
       { ...valid, kind: "bogus" },
       { ...valid, id: 5 },
       { ...valid, anchor: { type: "page" } },
+      { ...valid, anchor: { type: "page", page: 1 } }, // no chapter to count the page in
       { ...valid, anchor: { type: "block", blockId: "b" } },
     ]);
     expect(items).toHaveLength(2); // valid + valid-block-anchor
@@ -65,7 +66,7 @@ describe("parsePageFurniture", () => {
   });
 
   it("fills missing numeric/z fields with safe defaults", () => {
-    const [item] = parsePageFurniture([{ id: "y", kind: "art", anchor: { type: "page", page: 1 } }]);
+    const [item] = parsePageFurniture([{ id: "y", kind: "art", anchor: { type: "page", chapterId: "c1", page: 1 } }]);
     expect(item.x).toBe(0);
     expect(item.z).toBe("under");
     expect(item.props).toEqual({});

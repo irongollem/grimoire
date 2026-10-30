@@ -1,0 +1,149 @@
+/*
+ * Scriptorium paper: Plain page — the 2024 book look in one column, for a
+ * handout that should read like a page torn from a sourcebook. Variable
+ * values only; it keeps the book parchment (theme-base.css paints it), so it
+ * has no surface rules of its own. Self-contained like every theme file.
+ */
+.theme-plain {
+  --sc-heading-font: "Cinzel", Georgia, serif;
+  --sc-body-font: "Alegreya", Georgia, "Times New Roman", serif;
+  --sc-ink: #1a1a1a;
+  --sc-accent: #7d1c1c;
+  --sc-accent-contrast: #f9f6ef;
+  --sc-page-bg: #f9f6ef;
+  --sc-callout-bg: #f5ece8;
+  --sc-callout-border: var(--sc-accent);
+  --sc-code-bg: #e4ddd0;
+  --sc-col-rule: #c9b99a;
+  /* Chapter title (h1): a large near-black title with a thin warm gold rule
+     under it — NOT a filled banner. The filled dark-red plate this used to
+     paint behind the text was the original bug (#915 story 6): it also
+     showed up behind a cover's own <h1> title (see the .sc-cover reset in
+     theme-base.css) and, on the inside cover, exactly matched the text's own
+     colour — an invisible "empty" title. */
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-ink);
+  --sc-h1-border-b: 2px solid #c9a24a;
+  --sc-h1-padding: 0 0 0.4rem;
+  --sc-h1-margin: 1.5rem 0 1rem;
+  /* Section heading (h2): same family as h1 — near-black with the same thin
+     gold rule, never the old accent-red text. */
+  --sc-h2-color: var(--sc-ink);
+  --sc-h2-border: #c9a24a;
+  --sc-decoration-watermark: var(--sc-accent);
+  --sc-decoration-credit: var(--sc-ink);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: color-mix(in srgb, var(--sc-accent) 80%, var(--sc-ink));
+
+  /* Front/inside cover title treatment: tall, condensed-reading uppercase
+     caps (coverPage.ts reads these, staying theme-agnostic itself). */
+  --sc-cover-title-transform: uppercase;
+  --sc-cover-title-variant: normal;
+
+  /* Lens pair (.sc-lens, #1115): Bright on a warm gilt-cream ground under a gilt
+     rule, Deep on a dusk ground over a dusk-plum rule. Same in both editions. */
+  --sc-lens-bright-bg: #f7eed8;
+  --sc-lens-deep-bg: #ebe7f0;
+  --sc-lens-top-rule: #c9a24a;
+  --sc-lens-bottom-rule: #6a5a86;
+  --sc-lens-split-rule: #c9b99a;
+  --sc-lens-bright-label: #7a5a14;
+  --sc-lens-deep-label: #4a3d66;
+
+  /* Read-aloud box (.sc-descriptive): pale teal tint, mid-teal side rules
+     and corner dots. */
+  --sc-readaloud-bg: #ebf5f5;
+  --sc-readaloud-rule: #3e8aa3;
+
+  /* Sidebar box (.sc-note): pale pink tint, near-black top/bottom bars, a
+     light-grey hairline down the sides. */
+  --sc-sidebar-bg: #f7e1e5;
+  --sc-sidebar-bar: #201c1c;
+  --sc-sidebar-edge: #d6d6d6;
+
+  /* Linked entity stat block (scriptoriumImport.ts): a framed box distinct
+     from the page (not the general --sc-accent, which is a brighter red than
+     the D&D Beyond 2024 stat-block's own red-brown) with a light tan border.
+     The ability-score panels use flat, muted tints — never a saturated red
+     fill, which read as an error state rather than a design (#915 story 6):
+     physical (STR/DEX/CON) a warm beige, mental (INT/WIS/CHA) a cool
+     slate-lavender, each with its Mod/Save columns one shade deeper than its
+     name/score columns. */
+  --sc-statblock-bg: #f4f2ee;
+  --sc-statblock-border: #d9cfb8;
+  --sc-statblock-accent: #5c1a0b;
+  --sc-statblock-type-color: #5b5b60;
+  --sc-abil-physical-bg: #f1e6d3;
+  --sc-abil-physical-bg-alt: #e3d3b8;
+  --sc-abil-mental-bg: #e6e6ec;
+  --sc-abil-mental-bg-alt: #d9d7e2;
+
+  /* Generic authored tables: alternating pale blue-grey tints, thin light
+     borders, a header row shaded with the darker tint. */
+  --sc-table-header-bg: #dce6ed;
+  --sc-table-header-color: var(--sc-ink);
+  --sc-table-row-1: #f1f5f8;
+  --sc-table-row-2: #dce6ed;
+  --sc-table-border: #ccd3d9;
+}
+
+/* ink-friendly: drop every box/table tint and cover-adjacent background to
+   white/near-white, keeping every box's structural rules, bars and dots (see
+   each rule's own comment in theme-base.css for why those stay). A compound
+   selector wins over the plain `.theme-plain` rule above on specificity
+   regardless of the two files' import order. */
+.theme-plain.ink-friendly {
+  --sc-lens-bright-bg: transparent;
+  --sc-lens-deep-bg: transparent;
+  --sc-lens-top-rule: #1a1a1a;
+  --sc-lens-bottom-rule: #1a1a1a;
+  --sc-lens-split-rule: #1a1a1a;
+  --sc-readaloud-bg: #ffffff;
+  --sc-sidebar-bg: #ffffff;
+  --sc-statblock-bg: #ffffff;
+  --sc-statblock-border: #cccccc;
+  --sc-abil-physical-bg: #ffffff;
+  --sc-abil-physical-bg-alt: #f2f2f2;
+  --sc-abil-mental-bg: #ffffff;
+  --sc-abil-mental-bg-alt: #f2f2f2;
+  --sc-table-row-1: #ffffff;
+  --sc-table-row-2: #f2f2f2;
+  --sc-table-header-bg: #e6e6e6;
+}
+
+/* theme-base.css scopes the 2024 table and stat-block structure to
+   `.theme-onednd2024` by name, so a look that wants the same book needs the
+   same rules under its own class. */
+.theme-plain table tbody tr:nth-child(odd) td {
+  background: var(--sc-table-row-1);
+}
+.theme-plain table tbody tr:nth-child(even) td {
+  background: var(--sc-table-row-2);
+}
+.theme-plain table td,
+.theme-plain table th {
+  border: 1px solid var(--sc-table-border);
+}
+.theme-plain .sc-statblock {
+  background: var(--sc-statblock-bg);
+  border: 1px solid var(--sc-statblock-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+.theme-plain .sc-statblock-section-title {
+  font-variant: small-caps;
+  font-size: 0.9375em;
+  letter-spacing: 0.04em;
+}
+
+/* The reader has no .phb-page to carry the parchment, so the read-only
+   surface paints the book's page itself: dark ink on a dark app theme would
+   otherwise vanish. */
+.sc-paper-surface.theme-plain {
+  background:
+    url("/assets/scriptorium/page-background.webp") center / cover repeat-y,
+    var(--sc-page-bg);
+}
+.sc-paper-surface.theme-plain.ink-friendly {
+  background: #fff;
+}

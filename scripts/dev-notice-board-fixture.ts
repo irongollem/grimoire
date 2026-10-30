@@ -131,11 +131,13 @@ function insertHandout(dbUrl: string, t: Target, title: string, paragraphs: read
     dbUrl,
     `with ins as (
        insert into public.scriptorium_documents
-         (user_id, campaign_id, title, content, doc_type, tags, word_count)
+         (user_id, campaign_id, title, kind, theme, page_size, doc_type, tags)
        values (${quote(t.ownerId)}, ${quote(t.campaignId)}, ${quote(title)},
-               ${quote(JSON.stringify(tiptapDoc(paragraphs)))}, 'custom',
-               array[${quote(FIXTURE_TAG)}], ${words})
-       returning id)
+               'handout', 'plain', 'A5', 'custom', array[${quote(FIXTURE_TAG)}])
+       returning id),
+     chapter as (
+       insert into public.scriptorium_chapters (document_id, position, title, content, word_count)
+       select id, 0, '', ${quote(JSON.stringify(tiptapDoc(paragraphs)))}::jsonb, ${words} from ins)
      select id from ins`,
   );
 }

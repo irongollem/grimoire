@@ -113,7 +113,9 @@ insert into live_sync_exempt (name, reason) values
   ('monster_embeddings',        'derived search index, deny-all, read only by definer search'),
   ('note_embeddings',           'derived search index, deny-all, read only by definer search'),
   ('npc_embeddings',            'derived search index, deny-all, read only by definer search'),
-  ('quest_embeddings',          'derived search index, deny-all, read only by definer search');
+  ('quest_embeddings',          'derived search index, deny-all, read only by definer search'),
+  ('scriptorium_chapters',      'rings through its book: every chapter write updates scriptorium_documents (private.touch_book_from_chapters), whose own trigger rings when the book is shared, so a private draft rings nothing'),
+  ('scriptorium_notes',         'the author''s own review notes on a book; no other member reads them');
 
 -- Subscribed on a channel of its own with exact-row handlers, so it rings only
 -- for what that channel cannot carry: a delete (#1026).

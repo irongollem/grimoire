@@ -8,7 +8,6 @@ import {
   collectEntityRefs,
   resolveEntityEmbeds,
   buildEntityEmbedDocumentJson,
-  buildEntityEmbedDocumentContent,
   applyEmbedNodeOptions,
   embedNodeOptionsFromElement,
 } from "./entityEmbeds";
@@ -322,7 +321,7 @@ describe("applyEmbedNodeOptions", () => {
   });
 });
 
-describe("buildEntityEmbedDocumentJson / buildEntityEmbedDocumentContent", () => {
+describe("buildEntityEmbedDocumentJson", () => {
   it("builds a document holding just the live embed (the entity's body carries its own name)", () => {
     expect(buildEntityEmbedDocumentJson("npc", "npc-1")).toEqual({
       type: "doc",
@@ -336,10 +335,5 @@ describe("buildEntityEmbedDocumentJson / buildEntityEmbedDocumentContent", () =>
     expect(buildEntityEmbedDocumentJson("monster", "m-1").content?.[0]?.attrs?.startsPage).toBe(true);
     expect(buildEntityEmbedDocumentJson("npc", "n-1").content?.[0]?.attrs?.startsPage).toBe(false);
     expect(buildEntityEmbedDocumentJson("quest", "q-1").content?.[0]?.attrs?.startsPage).toBe(false);
-  });
-
-  it("stringifies to the same shape", () => {
-    const content = buildEntityEmbedDocumentContent("monster", "srd_owlbear");
-    expect(JSON.parse(content)).toEqual(buildEntityEmbedDocumentJson("monster", "srd_owlbear"));
   });
 });

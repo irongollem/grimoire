@@ -1,5 +1,5 @@
 import { stripRetiredQuestColumns } from "@/lib/quests/retiredQuestColumns";
-import { normalizeImportedDocument } from "@/lib/scriptorium/documentContent";
+import { CHAPTER_EXPORT_STRIP, remapBooksForImport } from "@/lib/scriptorium/bookTransfer";
 import { ref } from "vue";
 import type { Ref } from "vue";
 import { computed } from "vue";
@@ -110,6 +110,8 @@ export interface GrimoireBundle {
   spells?: Row[];
   species?: Row[];
   scriptorium_documents?: Row[];
+  /** The books' chapters (#1115). Absent from a bundle written before books had chapters, whose documents carry `content` instead. */
+  scriptorium_chapters?: Row[];
   _meta: {
     entity_counts: Record<string, number>;
     app_version: string;
@@ -452,6 +454,12 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
       const docs = await fetchByIds("scriptorium_documents", ids);
       bundle.scriptorium_documents = docs.map(stripLibraryRow).map(clearDocumentAudience);
       entityCounts.scriptorium_documents = docs.length;
+      bundle.scriptorium_chapters = (await qByIds("scriptorium_chapters", "document_id", ids))
+        .map((chapter) => {
+          const copy = { ...chapter };
+          for (const column of CHAPTER_EXPORT_STRIP) delete copy[column];
+          return copy;
+        });
     })(),
 
   ].filter(Boolean));
@@ -619,7 +627,7 @@ export function buildIdMap(bundle: GrimoireBundle): IdMap {
     bundle.custom_classes, bundle.custom_subclasses,
     bundle.pantheons, bundle.deities,
     bundle.monsters, bundle.items, bundle.spells, bundle.species,
-    bundle.scriptorium_documents,
+    bundle.scriptorium_documents, bundle.scriptorium_chapters,
   ]);
 }
 
@@ -759,20 +767,31 @@ export function remapCustomSubclassForImport(cs: Row, ctx: ImportRemapCtx): Row 
 }
 
 /**
- * scriptorium_documents is a library-scope row (no campaign_id rewrite — see
- * LIBRARY_STRIP above), but its `content`/`page_furniture` need the same
- * normalization the two other content boundaries get (documentContent.ts):
- * a bundle exported long ago can still carry a raw HTML `content` string or a
- * pre-v3 JSON shape, and storage must never hold either.
+ * Books are library-scope rows (no campaign_id rewrite, see LIBRARY_STRIP
+ * above), and each travels with its chapters. Every row gets a new id, a
+ * page-anchored picture follows its chapter to the new id, and the audience is
+ * cleared: the exporter's party does not exist here. A document from a file
+ * written before chapters existed still carries `content` and becomes one
+ * chapter (bookTransfer.ts).
  */
-export function remapScriptoriumDocumentForImport(doc: Row, idMap: IdMap, userId: string): Row {
+export function remapScriptoriumBooksForImport(
+  bundle: Pick<GrimoireBundle, "scriptorium_documents" | "scriptorium_chapters">,
+  idMap: IdMap,
+  userId: string,
+): { documents: Row[]; chapters: Row[] } {
+  const { documents, chapters } = remapBooksForImport({
+    documents: bundle.scriptorium_documents ?? [],
+    chapters: bundle.scriptorium_chapters,
+    idMap,
+  });
   return {
-    ...doc,
-    ...normalizeImportedDocument(doc),
-    id: idMap.get(doc.id as string) ?? crypto.randomUUID(),
-    user_id: userId,
-    // Cleared again here for bundles exported before the export did it.
-    player_visible_to: [],
+    documents: documents.map((doc) => ({
+      ...doc,
+      user_id: userId,
+      // Cleared again here for bundles exported before the export did it.
+      player_visible_to: [],
+    })),
+    chapters,
   };
 }
 
@@ -1079,10 +1098,9 @@ export async function executeImport(opts: ImportBundleOptions): Promise<ImportRe
   }
 
   if (includeTypes.has("scriptorium_documents") && bundle.scriptorium_documents?.length) {
-    await batchInsert(
-      "scriptorium_documents",
-      bundle.scriptorium_documents.map((doc) => remapScriptoriumDocumentForImport(doc, idMap, userId)),
-    );
+    const books = remapScriptoriumBooksForImport(bundle, idMap, userId);
+    await batchInsert("scriptorium_documents", books.documents);
+    await batchInsert("scriptorium_chapters", books.chapters);
   }
 
   // World links (#1084) go last: their ends are the NPCs, characters, factions, places and items above.
