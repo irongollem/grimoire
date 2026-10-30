@@ -78,6 +78,8 @@
     </div>
 
     <!-- Detail panel -->
+    <!-- Teleported out of the scrolling <main>, or a swipe on a phone scrolls the page behind it. -->
+    <Teleport to="body">
     <Transition name="fade">
       <div
         v-if="selected"
@@ -117,11 +119,11 @@
 
           <TabBar v-if="houseEntry" v-model="detailTab" :tabs="DETAIL_TABS" class="px-4" />
 
-          <div v-if="houseEntry && detailTab === 'lineage'" class="p-4 overflow-y-auto">
+          <div v-if="houseEntry && detailTab === 'lineage'" class="p-4 overflow-y-auto overscroll-contain">
             <HousePlayerLineage :faction="selected" :members="houseEntry.members" />
           </div>
 
-          <div v-else class="p-4 overflow-y-auto space-y-4">
+          <div v-else class="p-4 overflow-y-auto overscroll-contain space-y-4">
             <!-- Description -->
             <div v-if="selected.description">
               <p class="text-label-lg font-semibold text-muted-foreground mb-2">ABOUT</p>
@@ -179,6 +181,7 @@
         </div>
       </div>
     </Transition>
+    </Teleport>
   </div>
 </template>
 

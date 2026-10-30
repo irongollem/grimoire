@@ -1,67 +1,50 @@
 <template>
-  <Transition name="fade">
-    <div
-      v-if="slot"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      @click.self="emit('close')"
-    >
-      <div class="bg-card border border-border rounded-xl shadow-xl p-5 w-80 max-h-[80vh] overflow-y-auto space-y-3">
-        <p class="text-heading-sm font-semibold text-foreground capitalize">
-          {{ slotLabel }} Slot
-        </p>
+  <!-- On AppModal rather than a fixed overlay drawn in place: drawn in place it
+       sat inside the player layout's scrolling <main>, so on a phone a swipe
+       over the list scrolled the page behind it instead of the list. -->
+  <AppModal :open="!!slot" size="sm" align="sheet" @close="emit('close')">
+    <ModalHeader :title="`${slotLabel} Slot`" closeable @close="emit('close')" />
 
-        <!-- Currently equipped in this slot -->
-        <div
-          v-if="slotItem"
-          class="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 flex items-center justify-between gap-2"
-        >
-          <span class="text-body text-foreground flex-1 min-w-0 truncate">{{ slotItem.name }}</span>
-          <button
-            class="shrink-0 text-label text-destructive hover:opacity-70"
-            @click="emit('unequip')"
-          >
-            Remove
-          </button>
-        </div>
-        <p v-else class="text-caption text-muted-foreground italic">
-          Nothing equipped here.
-        </p>
+    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 pb-5">
+      <!-- Currently equipped in this slot -->
+      <div
+        v-if="slotItem"
+        class="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 flex items-center justify-between gap-2"
+      >
+        <span class="text-body text-foreground flex-1 min-w-0 truncate">{{ slotItem.name }}</span>
+        <AppButton variant="link" tone="danger" size="inline" class="shrink-0" label="Remove" @click="emit('unequip')" />
+      </div>
+      <p v-else class="text-caption text-muted-foreground italic">
+        Nothing equipped here.
+      </p>
 
-        <!-- Items that can go in this slot (owned, not equipped elsewhere) -->
-        <div v-if="candidates.length">
-          <p class="text-eyebrow text-muted-foreground mb-1.5">
-            Equip from inventory
-          </p>
-          <AppButton
-            v-for="item in candidates"
-            :key="item.id"
-            variant="menu"
-            size="body"
-            block
-            :label="item.name"
-            @click="emit('equip', item)"
-          />
-        </div>
-        <p v-else class="text-caption text-muted-foreground italic">
-          No items available to equip here.
+      <!-- Items that can go in this slot (owned, not equipped elsewhere) -->
+      <div v-if="candidates.length">
+        <p class="text-eyebrow text-muted-foreground mb-1.5">
+          Equip from inventory
         </p>
-
         <AppButton
-          variant="ghost"
-          size="inline"
+          v-for="item in candidates"
+          :key="item.id"
+          variant="menu"
+          size="body"
           block
-          class="mt-1"
-          label="Close"
-          @click="emit('close')"
+          :label="item.name"
+          @click="emit('equip', item)"
         />
       </div>
+      <p v-else class="text-caption text-muted-foreground italic">
+        No items available to equip here.
+      </p>
     </div>
-  </Transition>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";
 
 const { slot, slotItem, candidates } = defineProps<{
@@ -94,13 +77,3 @@ const SLOT_LABELS: Record<InventorySlot, string> = {
 const slotLabel = computed(() => (slot ? SLOT_LABELS[slot] : ""));
 </script>
 
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

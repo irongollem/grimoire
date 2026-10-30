@@ -52,6 +52,8 @@ const stubs = {
   PageHeader: true,
   PlayerNotesWidget: true,
   PlayerConnectionsList: true,
+  // The detail overlay teleports to <body>; render it in place so the wrapper can read it.
+  teleport: true,
 };
 
 describe("PlayerFactionsView", () => {
