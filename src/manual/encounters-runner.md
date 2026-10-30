@@ -68,16 +68,20 @@ A player's row exposes their actual weapons and features as roll buttons: melee,
 
 The spawn panel at the bottom of the combatant list adds monsters or NPCs during the fight. Pick the **Monster** or **NPC** tab, search for the creature, set a faction and count, and click **+ Add**. If combat has already started, Grimoire rolls initiative for the new arrival automatically, and primes a legendary action pool if it has one.
 
-## Events sidebar
+## Events and traps
 
-If the encounter has scripted events, they're listed with a **Fired**/**Pending** badge. Manual and repeatable events always show a fire button (▶): click it to trigger the event. Auto-triggered events fire on their own as combat state changes; the sidebar shows when they went off.
+If the encounter has scripted events or linked traps, they sit in one slim strip above the initiative list; a fight with neither shows no strip at all, so the list keeps the whole width. On a phone the same strip is in **Combat tools**.
+
+- **Events**: each one waiting to go off is a chip with a ▶ and its trigger ("Round 3", "On death", "Manual"). Click it to fire it now, whatever its trigger. Auto-triggered events also fire on their own as combat state changes. Once a fire-once event has gone off its chip turns into a plain ✓ and its name; a repeatable event keeps its ▶.
+- **Traps**: a chip per trap with its save DC and damage. Click it to open the trap's detail beside the list; click it again to close it.
+- **Hazards in play**: a hazard an event left behind is written out in full under the chips for the rest of the fight.
 
 ## AI complications and reinforcements
 
-Two buttons, **Complication** and **Reinforce**, sit in the Events panel header, for the two things that go wrong mid-fight:
+The **Twist** menu in the top bar (on a phone, the **⋯** menu) holds two generators, **Complication** and **Reinforcements**, for the two things that go wrong mid-fight:
 
 - **Complication**: the fight has gone flat and needs a turn, not more hit points: a collapsing exit, a hostage, a rival faction arriving with its own agenda.
-- **Reinforce**: the fight is ending too fast, and you want to put some pressure back.
+- **Reinforcements**: the fight is ending too fast, and you want to put some pressure back.
 
 Both draw on your own material: your bestiary, your NPCs, your factions and locations, plus what's actually happening in the fight right now (the round, who's still standing, how hurt they are).
 
@@ -92,7 +96,7 @@ A few honest limits:
 
 - Creature names Grimoire can't match to your bestiary are shown struck through and left out entirely: nothing half-real ends up on your tracker.
 - Counts are capped; if the AI asks for twenty guards you'll get fewer, and the preview says so.
-- A hazard is described, not applied: it posts to chat and joins an **⚠ IN PLAY** list under the events, but which creatures it actually restrains is your call with the condition picker.
+- A hazard is described, not applied: it posts to chat and stays written out under the events strip, but which creatures it actually restrains is your call with the condition picker.
 - **Show to players when fired** is checked by default and controls whether the text reaches the player view as a narrative beat.
 - Building the proposal means reading your bestiary and cast, so it needs platform credits or a cloud API key: it's unavailable if your campaign's AI key is set to **Store keys locally on this device only** (**Campaign Settings → AI Assistant**).
 

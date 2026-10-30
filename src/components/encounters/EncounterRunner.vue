@@ -10,10 +10,12 @@
       :battle-map-disabled-reason="battleMapDisabledReason"
       :turn-timer-seconds="turnTimerSeconds"
       :turn-reset-key="turnResetKey"
+      :can-generate="campaign.isAiEnabled"
       @tools="toolsOpen = true"
       @go-live="handleGoLive"
       @battle-map="router.push(`/encounters/${encounterId}/run/map`)"
       @battle-map-window="openBattleMapInNewWindow"
+      @generate="openGenerator"
       @roll-initiative="handleRollInitiative"
       @abandon="handleAbandon"
       @end-combat="handleEndCombat"
@@ -108,6 +110,7 @@
           :disabled="!isLive"
           @click="openBattleMapInNewWindow"
         />
+        <RunnerGenerateMenu v-if="campaign.isAiEnabled" @generate="openGenerator" />
         <AppButton
           variant="outline"
           size="sm"
@@ -176,6 +179,13 @@
         <!-- Surprise strip, then lair + legendary actions -->
         <RunnerSurprisePanel />
         <RunnerBossMechanics />
+        <!-- Events, hazards in play and traps: a strip, and only when the fight has any -->
+        <div class="px-3 py-1.5 empty:hidden">
+          <RunnerDmTools
+            v-model:selected-trap-id="selectedTrapId"
+            @update:selected-trap-id="(id) => { if (id) selectedId = null; }"
+          />
+        </div>
         <RunnerCombatantList
           :selected-id="selectedId"
           @select="selectedId = $event"
@@ -207,13 +217,9 @@
           />
         </div>
       </template>
-
-      <!-- Events + traps + spawn sidebar -->
-      <RunnerDmTools
-        v-model:selected-trap-id="selectedTrapId"
-        @update:selected-trap-id="(id) => { selectedTrapId = id; if (id) selectedId = null; }"
-      />
     </div>
+
+    <ComplicationGeneratorDialog v-if="campaign.isAiEnabled" v-model="generatorOpen" :mode="generatorMode" />
   </div>
 </template>
 
@@ -252,6 +258,9 @@ import RunnerDueConditions from "./RunnerDueConditions.vue";
 import { withoutDue } from "@/lib/encounters/conditionSources";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
+import RunnerGenerateMenu from "./RunnerGenerateMenu.vue";
+import ComplicationGeneratorDialog from "./ComplicationGeneratorDialog.vue";
+import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
 import RunnerSurprisePanel from "./RunnerSurprisePanel.vue";
 import RunnerPhoneHeader from "./RunnerPhoneHeader.vue";
@@ -305,6 +314,16 @@ function openActiveCombatant() {
   if (!active) return;
   selectedTrapId.value = null;
   selectedId.value = active.instance_id;
+}
+
+// The AI complication / reinforcement generator, opened from the top bar's menu
+// or the phone's overflow menu. Hidden, not disabled, when the campaign's AI is off.
+const generatorOpen = ref(false);
+const generatorMode = ref<ComplicationMode>("complication");
+
+function openGenerator(mode: ComplicationMode) {
+  generatorMode.value = mode;
+  generatorOpen.value = true;
 }
 
 const detailWidth = ref(320);

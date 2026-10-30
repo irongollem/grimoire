@@ -1,140 +1,140 @@
 <template>
-  <!-- Events panel: always mounted while a run is on screen (RunnerDmTools only
-       renders inside an active EncounterRunner) — the generator buttons need to
-       be reachable before any event exists, which is the common mid-fight case. -->
-  <div class="events-panel" :class="{ 'is-stack': layout === 'stack' }">
-    <div class="events-header">
-      <span class="events-title">EVENTS</span>
-      <div v-if="isAiEnabled" class="events-actions">
-        <button
-          type="button"
-          class="gen-btn"
-          title="Generate a mid-fight complication"
-          @click="openGenerator('complication')"
-        >
-          <IconWarning class="h-3 w-3" />
-          Complication
-        </button>
-        <button
-          type="button"
-          class="gen-btn"
-          title="Generate reinforcements"
-          @click="openGenerator('reinforcements')"
-        >
-          <IconMonster class="h-3 w-3" />
-          Reinforce
-        </button>
+  <!-- Nothing at all when the fight has no events or traps: most fights
+       have none, and the initiative list is what the DM needs the room for. -->
+  <section
+    v-if="hasContent"
+    class="runner-dm-tools"
+    :class="layout === 'stack' ? 'flex flex-col gap-3' : 'flex flex-col gap-1'"
+    aria-label="Events and traps"
+  >
+    <div v-if="store.events.length || store.traps.length" :class="layout === 'stack' ? 'flex flex-col gap-3' : 'flex flex-wrap items-center gap-x-4 gap-y-1'">
+      <div v-if="store.events.length" class="flex flex-wrap items-center gap-1.5" data-testid="runner-events">
+        <span :class="groupLabel">Events</span>
+        <template v-for="event in store.events" :key="event.id">
+          <AppButton
+            v-if="canFire(event)"
+            :variant="isFired(event) ? 'subtle' : 'tinted'"
+            tone="caution"
+            :size="chipSize"
+            :icon="IconPlay"
+            :aria-label="`Fire ${event.name}`"
+            :tooltip="fireTooltip(event)"
+            data-testid="runner-event-fire"
+            @click="store.fireEvent(event.id)"
+          >
+            <span class="truncate">{{ event.name }}</span>
+            <span class="shrink-0 font-normal opacity-70">{{ triggerLabel(event.trigger) }}</span>
+          </AppButton>
+          <span
+            v-else
+            class="inline-flex items-center gap-1 text-muted-foreground"
+            :class="layout === 'stack' ? 'text-label' : 'text-caption'"
+            :title="`${event.name} has fired`"
+          >
+            <IconCheck class="h-3 w-3 text-ink-success" aria-hidden="true" />
+            {{ event.name }}
+          </span>
+        </template>
       </div>
-    </div>
-    <div v-if="store.events.length" class="events-list">
-      <div
-        v-for="event in store.events"
-        :key="event.id"
-        class="event-row"
-        :class="store.eventsFired.includes(event.id) ? 'event-fired' : 'event-pending'"
-      >
-        <div class="event-info">
-          <span class="event-name">{{ event.name }}</span>
-          <span class="event-trigger">{{ triggerLabel(event.trigger) }}</span>
-        </div>
-        <div class="event-badges">
-          <span v-if="store.eventsFired.includes(event.id)" class="badge-fired">Fired</span>
-          <span v-else class="badge-pending">Pending</span>
-        </div>
-        <button
-          v-if="!store.eventsFired.includes(event.id) || !event.fire_once"
-          class="fire-btn"
-          :title="event.trigger.type === 'manual' ? 'Fire this event' : 'Force fire'"
-          @click="store.fireEvent(event.id)"
-        >▶</button>
-      </div>
-    </div>
-    <p v-else class="events-empty">No events yet.</p>
 
-    <!-- Standing hazards from fired environment_effect actions (#604) — derived,
-         see store.activeEnvironmentEffects. -->
-    <div v-if="store.activeEnvironmentEffects.length" class="hazards-panel">
-      <div class="hazards-header">
-        <span class="hazards-title">⚠ IN PLAY</span>
-      </div>
-      <div class="hazards-list">
-        <div
-          v-for="(effect, i) in store.activeEnvironmentEffects"
-          :key="i"
-          class="hazard-row"
-        >
-          <span class="hazard-label">{{ effect.label }}</span>
-          <span class="hazard-desc">{{ effect.description }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Traps column (only shown when encounter has traps) -->
-  <div v-if="store.traps.length" class="side-column" :class="{ 'is-stack': layout === 'stack' }">
-    <div class="traps-panel">
-      <div class="traps-header">
-        <span class="traps-title">⚠ TRAPS</span>
-      </div>
-      <div class="traps-list">
-        <div
+      <div v-if="store.traps.length" class="flex flex-wrap items-center gap-1.5" data-testid="runner-traps">
+        <span :class="groupLabel">Traps</span>
+        <AppButton
           v-for="trap in store.traps"
           :key="trap.id"
-          class="trap-row"
-          :class="{ 'trap-selected': selectedTrapId === trap.id }"
-          :style="{ '--trap-color': trapTypeColor(trap.trap_type) }"
+          variant="subtle"
+          surface="card"
+          :size="chipSize"
+          :active="selectedTrapId === trap.id"
+          :aria-label="trap.name"
+          :tooltip="trapTooltip(trap)"
           @click="toggleTrapDetail(trap.id)"
         >
-          <div class="trap-info">
-            <span class="trap-name">{{ trap.name }}</span>
-            <span class="trap-type" :style="{ color: trapTypeColor(trap.trap_type) }">{{ trap.trap_type }}</span>
-            <span v-if="trap.trigger_type" class="trap-trigger">{{ trap.trigger_type }}</span>
-          </div>
-          <div class="trap-badges">
-            <span v-if="trap.save_dc" class="trap-badge">DC {{ trap.save_dc }}</span>
-            <span v-if="trap.damage_entries?.length" class="trap-badge">{{ trap.damage_entries.map(e => e.dice).join('+') }}</span>
-          </div>
-        </div>
+          <span class="h-2 w-2 shrink-0 rounded-full" :style="{ background: trapTypeColor(trap.trap_type) }" aria-hidden="true" />
+          <span class="truncate">{{ trap.name }}</span>
+          <span v-if="trap.save_dc" class="shrink-0 font-normal opacity-70">DC {{ trap.save_dc }}</span>
+          <span v-if="trap.damage_entries?.length" class="shrink-0 font-normal opacity-70">{{ trap.damage_entries.map((e) => e.dice).join('+') }}</span>
+        </AppButton>
       </div>
     </div>
-  </div>
 
-  <ComplicationGeneratorDialog v-if="isAiEnabled" v-model="generatorOpen" :mode="generatorMode" />
+    <!-- Standing hazards from fired environment_effect actions (#604): derived,
+         see store.activeEnvironmentEffects. Written out in full, because they stay
+         true for the rest of the fight and the DM has to keep applying them. -->
+    <ul v-if="store.activeEnvironmentEffects.length" class="flex flex-col gap-0.5" data-testid="runner-hazards">
+      <li
+        v-for="(effect, i) in store.activeEnvironmentEffects"
+        :key="i"
+        class="flex items-baseline gap-1.5"
+        :class="layout === 'stack' ? 'text-label' : 'text-caption'"
+      >
+        <IconWarning class="h-3 w-3 shrink-0 self-center text-ink-caution" aria-hidden="true" />
+        <span class="font-semibold text-ink-caution">{{ effect.label }}</span>
+        <span class="text-muted-foreground">{{ effect.description }}</span>
+      </li>
+    </ul>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+/**
+ * The fight's scripted events, the hazards they left in play, and its traps, as
+ * one strip of chips. It used to be two 200px columns down the right edge of the
+ * runner, always drawn because the AI generator buttons lived in the first one,
+ * which cost every fight the width its initiative rows needed for something most
+ * fights never use (30 Oct 2026). The generators now sit in the top bar
+ * (RunnerGenerateMenu) and the phone's overflow menu, so this draws only what the
+ * encounter actually has.
+ *
+ * "strip" sits above the initiative list on a desktop; "stack" is the phone's
+ * combat-tools sheet, where each group takes its own line at thumb size.
+ */
+import { computed } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useCampaignStore } from "@/stores/campaign";
 import { TRAP_TYPE_VAR } from "@/types/trap.types";
-import { IconMonster, IconWarning } from "@/lib/icons";
-import ComplicationGeneratorDialog from "./ComplicationGeneratorDialog.vue";
-import type { ComplicationMode } from "@/ai/useComplicationGeneration";
+import type { EncounterEvent, EventTrigger } from "@/types/encounter.types";
+import type { TrapEntry } from "@/types/trap.types";
+import { IconCheck, IconPlay, IconWarning } from "@/lib/icons";
 
-// "sidebar" is the desktop pair of fixed-width columns; "stack" is the phone's
-// combat-tools sheet, where the panels take the sheet's width one under another.
-const { layout = "sidebar" } = defineProps<{ layout?: "sidebar" | "stack" }>();
+const { layout = "strip" } = defineProps<{ layout?: "strip" | "stack" }>();
 
 const selectedTrapId = defineModel<string | null>("selectedTrapId", { required: true });
 
 const store = useEncounterRunStore();
-const campaignStore = useCampaignStore();
-// Complication / Reinforce run the campaign's AI: hidden, not disabled, when it is off.
-const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
-const generatorOpen = ref(false);
-const generatorMode = ref<ComplicationMode>("complication");
+// A hazard in play comes from a fired event, so events cover it.
+const hasContent = computed(() => store.events.length > 0 || store.traps.length > 0);
 
-function openGenerator(mode: ComplicationMode) {
-  generatorMode.value = mode;
-  generatorOpen.value = true;
+const chipSize = computed(() => (layout === "stack" ? "md" : "xs"));
+// On the phone each group's name heads its own line of chips.
+const groupLabel = computed(() => (layout === "stack" ? "w-full text-eyebrow text-muted-foreground" : "text-eyebrow text-muted-foreground"));
+
+function isFired(event: EncounterEvent): boolean {
+  return store.eventsFired.includes(event.id);
 }
 
-function triggerLabel(trigger: import("@/types/encounter.types").EventTrigger): string {
-  if (trigger.type === "round_start") return `Round ${trigger.round} start`;
+/** A once-only event that has gone off is done; anything else can still be fired by hand. */
+function canFire(event: EncounterEvent): boolean {
+  return !isFired(event) || !event.fire_once;
+}
+
+function fireTooltip(event: EncounterEvent): string {
+  if (isFired(event)) return `Fired. Fire ${event.name} again`;
+  if (event.trigger.type === "manual") return `Fire ${event.name}`;
+  return `Fire ${event.name} now. It fires itself on: ${triggerLabel(event.trigger)}`;
+}
+
+function triggerLabel(trigger: EventTrigger): string {
+  if (trigger.type === "round_start") return `Round ${trigger.round}`;
   if (trigger.type === "combatant_hp_pct") return `HP ≤ ${trigger.pct}%`;
   if (trigger.type === "combatant_dies") return "On death";
   return "Manual";
+}
+
+function trapTooltip(trap: TrapEntry): string {
+  const kind = [trap.trap_type, trap.trigger_type].filter(Boolean).join(", ");
+  return kind ? `${trap.name}: ${kind}. Open its detail` : `${trap.name}. Open its detail`;
 }
 
 function trapTypeColor(trapType: string): string {
@@ -145,296 +145,3 @@ function toggleTrapDetail(id: string) {
   selectedTrapId.value = selectedTrapId.value === id ? null : id;
 }
 </script>
-
-<style scoped>
-@reference "@/assets/main.css";
-
-/* ── Events panel ─────────────────────────────────────────────────────────── */
-
-.events-panel {
-  width: 12.5rem;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid theme(colors.border / 100%);
-  overflow: hidden;
-}
-.events-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid theme(colors.border / 100%);
-  background: theme(colors.muted / 20%);
-}
-.events-title {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: theme(colors.muted-foreground / 100%);
-  letter-spacing: 0.1em;
-}
-.events-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-.gen-btn {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.5625rem;
-  font-weight: 600;
-  padding: 0.1875rem 0.25rem;
-  border-radius: 0.1875rem;
-  border: 1px solid theme(colors.border / 100%);
-  background: transparent;
-  color: theme(colors.muted-foreground / 100%);
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.gen-btn:hover {
-  border-color: theme(colors.primary / 50%);
-  color: theme(colors.primary / 100%);
-}
-.events-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.events-empty {
-  padding: 0.75rem;
-  font-family: var(--font-fell, serif);
-  font-size: 0.625rem;
-  color: theme(colors.muted-foreground / 70%);
-  font-style: italic;
-}
-.event-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid theme(colors.border / 60%);
-}
-.event-row:last-child { border-bottom: none; }
-.event-fired { opacity: 0.5; }
-.event-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.0625rem;
-}
-.event-name {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: theme(colors.foreground / 100%);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.event-trigger {
-  font-family: var(--font-fell, serif);
-  font-size: 0.625rem;
-  color: theme(colors.muted-foreground / 100%);
-}
-.event-badges { display: flex; }
-.badge-fired {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.5625rem;
-  padding: 0.0625rem 0.25rem;
-  border-radius: 0.1875rem;
-  background: rgba(22, 163, 74, 0.15);
-  color: #16a34a;
-}
-.badge-pending {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.5625rem;
-  padding: 0.0625rem 0.25rem;
-  border-radius: 0.1875rem;
-  background: rgba(202, 138, 4, 0.15);
-  color: #ca8a04;
-}
-.fire-btn {
-  font-size: 0.625rem;
-  padding: 0.125rem 0.3125rem;
-  border-radius: 0.1875rem;
-  border: 1px solid theme(colors.border / 100%);
-  background: transparent;
-  color: theme(colors.muted-foreground / 100%);
-  cursor: pointer;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-.fire-btn:hover {
-  border-color: theme(colors.primary / 50%);
-  color: theme(colors.primary / 100%);
-}
-
-/* ── Standing hazards ("IN PLAY") ─────────────────────────────────────────── */
-
-.hazards-panel {
-  flex-shrink: 0;
-  max-height: 8rem;
-  overflow-y: auto;
-  border-top: 1px solid theme(colors.border / 100%);
-}
-.hazards-header {
-  padding: 0.375rem 0.75rem;
-  background: rgba(202, 138, 4, 0.08);
-}
-.hazards-title {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.5625rem;
-  font-weight: 700;
-  color: #ca8a04;
-  letter-spacing: 0.1em;
-}
-.hazards-list {
-  display: flex;
-  flex-direction: column;
-}
-.hazard-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.0625rem;
-  padding: 0.375rem 0.75rem;
-  border-bottom: 1px solid theme(colors.border / 60%);
-}
-.hazard-row:last-child { border-bottom: none; }
-.hazard-label {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: theme(colors.foreground / 100%);
-}
-.hazard-desc {
-  font-family: var(--font-fell, serif);
-  font-size: 0.625rem;
-  color: theme(colors.muted-foreground / 100%);
-}
-
-/* ── Traps panel ──────────────────────────────────────────────────────────── */
-
-.traps-panel {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex: 1;
-  min-height: 0;
-}
-.traps-header {
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid theme(colors.border / 100%);
-  background: theme(colors.muted / 20%);
-}
-.traps-title {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: theme(colors.muted-foreground / 100%);
-  letter-spacing: 0.1em;
-}
-.traps-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.trap-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid theme(colors.border / 60%);
-  border-left: 3px solid var(--trap-color, #3D3D3D);
-  cursor: pointer;
-  transition: background 0.1s;
-}
-.trap-row:hover { background: theme(colors.muted / 20%); }
-.trap-row.trap-selected { background: theme(colors.muted / 40%); }
-.trap-row:last-child { border-bottom: none; }
-.trap-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.0625rem;
-}
-.trap-name {
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: theme(colors.foreground / 100%);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.trap-type {
-  font-family: var(--font-fell, serif);
-  font-size: 0.625rem;
-  font-weight: 500;
-}
-.trap-trigger {
-  font-family: var(--font-fell, serif);
-  font-size: 0.5625rem;
-  color: theme(colors.muted-foreground / 100%);
-}
-.trap-badges {
-  display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.5625rem;
-}
-.trap-badge {
-  padding: 0.0625rem 0.25rem;
-  border-radius: 0.1875rem;
-  background: theme(colors.muted / 30%);
-  color: theme(colors.muted-foreground / 100%);
-  white-space: nowrap;
-}
-
-/* ── Shared right sidebar column (traps + spawn) ──────────────────────────── */
-
-.side-column {
-  width: 12.5rem;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid theme(colors.border / 100%);
-  overflow: hidden;
-}
-
-
-/* Stacked in the phone's tools sheet: full width, the sheet scrolls, and the
-   controls are sized for a thumb. */
-.events-panel.is-stack,
-.side-column.is-stack {
-  width: auto;
-  border-left: none;
-  overflow: visible;
-}
-.side-column.is-stack { border-top: 1px solid theme(colors.border / 100%); }
-.is-stack .events-list,
-.is-stack .traps-list,
-.is-stack .traps-panel { overflow: visible; }
-.is-stack .hazards-panel { max-height: none; }
-.is-stack .events-actions { gap: 0.5rem; }
-.is-stack .gen-btn { padding: 0.5rem; font-size: 0.75rem; }
-.is-stack .fire-btn { padding: 0.5rem 0.875rem; font-size: 0.875rem; }
-.is-stack .event-name,
-.is-stack .trap-name,
-.is-stack .hazard-label { font-size: 0.8125rem; }
-.is-stack .event-trigger,
-.is-stack .hazard-desc,
-.is-stack .trap-type { font-size: 0.75rem; }
-.is-stack .trap-row,
-.is-stack .event-row { padding-block: 0.75rem; }
-</style>

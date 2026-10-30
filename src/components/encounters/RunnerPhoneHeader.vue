@@ -58,6 +58,7 @@ import { IconChevronLeft, IconTool } from "@/lib/icons";
 import { manualPageRoute } from "@/lib/nav";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import TurnTimer from "./TurnTimer.vue";
+import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 
 const {
   encounterId,
@@ -68,6 +69,7 @@ const {
   battleMapDisabledReason,
   turnTimerSeconds,
   turnResetKey,
+  canGenerate,
 } = defineProps<{
   encounterId: string;
   isLive: boolean;
@@ -78,6 +80,8 @@ const {
   battleMapDisabledReason: string;
   turnTimerSeconds: number | null;
   turnResetKey: string | number;
+  /** The campaign's AI is on, so the complication and reinforcement generators are offered. */
+  canGenerate: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -86,6 +90,7 @@ const emit = defineEmits<{
   "battle-map": [];
   "battle-map-window": [];
   "roll-initiative": [];
+  generate: [mode: ComplicationMode];
   abandon: [];
   "end-combat": [];
 }>();
@@ -119,6 +124,10 @@ const menuItems = computed<OverflowMenuEntry[]>(() => {
     });
   }
   if (!store.started) items.push({ key: "roll-initiative", label: "Roll initiative for everyone left", disabled: store.rollingInitiative });
+  if (canGenerate) {
+    items.push({ key: "generate-complication", label: "Generate a complication" });
+    items.push({ key: "generate-reinforcements", label: "Generate reinforcements" });
+  }
   items.push({ key: "manual", label: "How the runner works" });
   items.push({ key: "abandon", label: "Abandon run", danger: true });
   items.push({ key: "end-combat", label: "End combat", danger: true });
@@ -131,6 +140,8 @@ function onSelect(key: string) {
   else if (key === "battle-map") emit("battle-map");
   else if (key === "battle-map-window") emit("battle-map-window");
   else if (key === "roll-initiative") emit("roll-initiative");
+  else if (key === "generate-complication") emit("generate", "complication");
+  else if (key === "generate-reinforcements") emit("generate", "reinforcements");
   else if (key === "abandon") emit("abandon");
   else if (key === "end-combat") emit("end-combat");
 }

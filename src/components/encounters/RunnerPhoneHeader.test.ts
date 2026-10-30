@@ -23,6 +23,7 @@ const baseProps = {
   battleMapDisabledReason: "No map yet",
   turnTimerSeconds: null,
   turnResetKey: "k",
+  canGenerate: false,
 };
 const stubs = { RouterLink: { template: "<a><slot /></a>" }, TurnTimer: true };
 
@@ -104,6 +105,23 @@ describe("RunnerPhoneHeader", () => {
     const after = mountHeader();
     await openMenu(after);
     expect(menuButton("Roll initiative")).toBeUndefined();
+  });
+
+  // The generators left the tools sheet for this menu (30 Oct 2026); they run the
+  // campaign's AI, so with it off they are not offered at all.
+  it("offers the AI generators only when the campaign's AI is on, each asking for its own mode", async () => {
+    const off = mountHeader({ canGenerate: false });
+    await openMenu(off);
+    expect(menuButton("Generate")).toBeUndefined();
+    off.unmount();
+    document.body.innerHTML = "";
+
+    const on = mountHeader({ canGenerate: true });
+    await openMenu(on);
+    menuButton("Generate reinforcements")!.click();
+    await openMenu(on);
+    menuButton("Generate a complication")!.click();
+    expect(on.emitted("generate")).toEqual([["reinforcements"], ["complication"]]);
   });
 
   it("opens the manual page from the menu", async () => {

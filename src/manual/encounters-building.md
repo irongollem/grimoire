@@ -85,7 +85,7 @@ Use **Add loot item…** or **Add currency pool** to add either.
 
 ### Traps & Hazards
 
-Use **Add trap or hazard…** to link entries from your Dungeon Craft trap list. Each linked trap shows its quantity and can be removed; clicking a trap's name opens a preview of its trigger, save DC, and damage. Linked traps also count toward the Difficulty Analysis below and appear in the runner's DM Tools sidebar during the fight.
+Use **Add trap or hazard…** to link entries from your Dungeon Craft trap list. Each linked trap shows its quantity and can be removed; clicking a trap's name opens a preview of its trigger, save DC, and damage. Linked traps also count toward the Difficulty Analysis below and appear as chips above the runner's initiative list during the fight.
 
 ### Battlefield Setup
 

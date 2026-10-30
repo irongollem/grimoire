@@ -206,7 +206,7 @@ Mid-fight, a DM can ask for one of two things without leaving the runner: a **co
 
 **Store support for what the event carries.** `spawnFromDef()` now branches on `SpawnDef.kind`: absent (every pre-#604 event) means monster, `"npc"` calls `addNpc()` instead. `executeEvent()` handles the new `environment_effect` action by posting its label + description to the pending-broadcast queue, the same path `broadcast_message` uses. `activeEnvironmentEffects` is a computed derived from `eventsFired` ∩ each fired event's `environment_effect` actions — no new persisted field, so there is nothing extra to add to live-sync: the hazard list falls out of state (`events`, `eventsFired`) that already syncs.
 
-**DM-facing surface.** `RunnerDmTools.vue`'s EVENTS panel carries two header buttons — **Complication** and **Reinforce** — which open `ComplicationGeneratorDialog.vue` in the matching mode. The panel now always renders while a run is active (it used to be hidden until an event existed, which would have put the buttons out of reach in exactly the common mid-fight case: an encounter with no pre-scripted events). The dialog is a preview-then-confirm gate, and that gate is the feature's whole safety story: it shows the narration, every resolved reinforcement with its side, the hazard, every `warnings[]` line, and the unmatched names struck through — and only on **Add to Events** does anything reach the encounter. Regenerate and Discard cost nothing but a credit.
+**DM-facing surface.** The **Twist** menu in the runner's top bar (`RunnerGenerateMenu.vue`) and two entries in the phone header's overflow menu open `ComplicationGeneratorDialog.vue` in the matching mode; `EncounterRunner` owns the dialog for both. They used to be two buttons heading the EVENTS column, which then had to render for every fight so the buttons stayed reachable in the common case of an encounter with no scripted events; that cost every fight a 200px column (30 Oct 2026), so the generators moved to where a run's other actions live and the events strip draws only what the encounter has. The dialog is a preview-then-confirm gate, and that gate is the feature's whole safety story: it shows the narration, every resolved reinforcement with its side, the hazard, every `warnings[]` line, and the unmatched names struck through — and only on **Add to Events** does anything reach the encounter. Regenerate and Discard cost nothing but a credit.
 
 ### Boss Mechanics
 
@@ -476,19 +476,14 @@ For each combatant type the panel shows:
 
 **Runner → chat write path**: everything the runner posts goes through `useCampaignMessages` — the pending-broadcast flush in `EncounterRunner` uses `sendSystemMessages` (array form, so a burst is one insert), lair/legendary announcements in `RunnerBossMechanics` and the spell-save call in `RunnerEntityDetail` use `sendSystemMessage`, and the flat-damage roll uses `sendRoll`. Never hand-build a `campaign_messages` insert here: the composable owns the row shape and the optimistic local push, so the DM sees their own runner message immediately rather than waiting for the realtime echo (#722).
 
-**Events sidebar (`RunnerDmTools.vue`):**
+**Events, hazards and traps strip (`RunnerDmTools.vue`):**
 
-A 200px-wide panel on the right edge of the runner. Appears only when the encounter has events defined.
+One strip of chips above the initiative list on a desktop (`layout="strip"`), and the same component in the phone's Combat tools sheet (`layout="stack"`, one line per group at thumb size). It renders nothing when the encounter has no events and no traps, so most fights give the list the whole width. It replaced two fixed 200px columns (EVENTS, TRAPS) down the runner's right edge (30 Oct 2026, the maintainer: "the event block ALWAYS takes a full column in the combat tracker but rarely ever gets invoked").
 
-- Lists all events with name, trigger description, Fired/Pending badge
-- Manual events and multi-fire events always show a ▶ fire button
-- Auto-triggered events are greyed out after firing (if fire_once); they still show the button so the DM can force re-fire
+- Each event is a chip: a ▶ chip with its trigger ("Round 3", "HP ≤ 50%", "On death", "Manual") while it can still fire, for manual and auto-triggered events alike (the button force-fires an auto trigger). A fire-once event that has fired becomes a plain ✓ and its name; a repeatable one keeps its ▶ in a quieter style
 - `checkEvents()` is called after every HP change and turn advancement; auto-triggers are evaluated against current state
-- Firing an `environment_effect` action (#604) posts its label + description to the same pending-broadcast queue a `broadcast_message` action uses (`store.executeEvent`), and the hazard then stands in the **⚠ IN PLAY** list under the events — rendered from `store.activeEnvironmentEffects`, the computed over fired events' `environment_effect` actions, so it survives a reload without a field of its own. The two generator buttons live in this panel's header — see Mid-fight Complication / Reinforcement Generator above
-
-**Traps sidebar:**
-
-Below the events panel (or standalone if no events). Lists traps associated with the encounter with their type colour stripe, DC badge, and damage dice badge. Clicking a trap opens its detail in the entity panel (the same slot used by combatants).
+- Firing an `environment_effect` action (#604) posts its label + description to the same pending-broadcast queue a `broadcast_message` action uses (`store.executeEvent`), and the hazard is then written out in full under the chips: rendered from `store.activeEnvironmentEffects`, the computed over fired events' `environment_effect` actions, so it survives a reload without a field of its own. A hazard only exists through a fired event, which is why the strip's visibility checks events and traps and not hazards
+- Each trap is a chip with a type-colour dot, its save DC and damage dice; clicking it opens its detail in the entity panel (the same slot used by combatants), clicking again closes it
 
 **Spawn panel (`RunnerSpawnPanel.vue`):**
 
