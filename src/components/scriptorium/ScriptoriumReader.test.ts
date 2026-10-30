@@ -183,6 +183,19 @@ describe("ScriptoriumReader", () => {
     expect(wrapper.find("img[data-layout-mode]").exists()).toBe(true);
   });
 
+  it("returns to the contents when the chapter being read is deleted, instead of going blank", async () => {
+    const wrapper = mountReader({ chapters: CHAPTERS, chapter: null });
+    await wrapper.findAll('nav[aria-label="Chapters"] button')[1].trigger("click");
+    await wrapper.setProps({ chapter: chapterOf("c2", "Peoples", "Peoples text") });
+    await flushEditor();
+    expect(wrapper.text()).toContain("Peoples text");
+
+    // The DM deletes the chapter; the next read no longer lists it or returns it.
+    await wrapper.setProps({ chapters: [CHAPTERS[0], CHAPTERS[2]], chapter: null });
+    const rows = wrapper.findAll('nav[aria-label="Chapters"] button').map((b) => b.text());
+    expect(rows).toEqual(["Welcome", "Untitled chapter"]);
+  });
+
   it("names the document by what it is, not by its doc type, for a player", () => {
     const wrapper = mountReader({ book: makeBook({ kind: "handout", campaign_id: "camp-1" }), audience: "player" });
     expect(wrapper.find("header").text()).toContain("Handout");

@@ -170,10 +170,13 @@ const multiple = computed(() => chapters.length > 1);
 const openId = ref<string | null>(null);
 const showContents = computed(() => multiple.value && openId.value === null);
 
-// A one-chapter document has nothing to choose: ask for its page.
+// A one-chapter document has nothing to choose: ask for its page. And a chapter
+// the DM deleted or merged while it was open sends the reader back to the
+// contents, rather than waiting on a chapter that will never arrive.
 watch(
   () => chapters,
   (list) => {
+    if (openId.value !== null && !list.some((c) => c.id === openId.value)) openId.value = null;
     if (list.length === 1) emit("selectChapter", list[0].id);
   },
   { immediate: true },

@@ -135,10 +135,12 @@ describe("useSaveChapter", () => {
 });
 
 describe("useDeleteChapter", () => {
-  it("refuses to delete the only chapter of a book", async () => {
+  // The rule itself is the database's (keep_one_chapter, pinned in scriptorium_chapters.test.sql);
+  // what the client owes is passing the refusal on, so the rail can say why nothing happened.
+  it("passes the database's refusal to empty a book on to the caller", async () => {
+    fake.failNext("scriptorium_chapters", { message: "A book needs at least one chapter.", code: "23514" });
     const { api } = mountWith(() => useDeleteChapter());
     await expect(api.mutateAsync({ id: "other", documentId: "book-2" })).rejects.toThrow(/at least one chapter/);
-    expect(fake.rows("scriptorium_chapters").map((c) => c.id)).toContain("other");
   });
 
   it("deletes the named chapter of a book with several and leaves the rest", async () => {
@@ -151,29 +153,29 @@ describe("useDeleteChapter", () => {
 describe("useReorderChapters", () => {
   const listKey = ["scriptorium", "book-1", "chapters"];
 
-  it("writes new positions and shows the new order at once", async () => {
+  // One write per moved chapter meant one book touch and one player ring each, and a
+  // half-applied order when a write in the middle failed.
+  it("sends the whole order in one call and shows it at once", async () => {
+    const sent: unknown[] = [];
+    let shownWhileSaving: string[] | undefined;
+    fake.onRpc("reorder_scriptorium_chapters", (args) => {
+      sent.push(args);
+      shownWhileSaving = client.getQueryData<ScriptoriumChapterSummary[]>(listKey)?.map((c) => c.id);
+      return null;
+    });
     const { api, client } = mountWith(() => ({ list: useBookChapterList("book-1"), reorder: useReorderChapters() }));
     await flushPromises();
-    await api.reorder.mutateAsync({ documentId: "book-1", orderedIds: ["b-two", "b-one"] });
-    expect(fake.rows("scriptorium_chapters").filter((c) => c.document_id === "book-1").map((c) => [c.id, c.position]).sort())
-      .toEqual([["b-one", 1], ["b-two", 0]]);
-    expect(fake.rows("scriptorium_chapters").find((c) => c.id === "other")?.position).toBe(0);
-    expect(client.getQueryData<ScriptoriumChapterSummary[]>(listKey)?.[0].id).toBe("b-two");
-  });
-
-  it("does not write rows whose position is already right", async () => {
-    const { api } = mountWith(() => ({ list: useBookChapterList("book-1"), reorder: useReorderChapters() }));
-    await flushPromises();
     fake.calls.length = 0;
-    await api.reorder.mutateAsync({ documentId: "book-1", orderedIds: ["b-one", "b-two"] });
+    await api.reorder.mutateAsync({ documentId: "book-1", orderedIds: ["b-two", "b-one"] });
+    expect(sent).toEqual([{ p_document_id: "book-1", p_chapter_ids: ["b-two", "b-one"] }]);
     expect(fake.calls.filter((c) => c.op === "update")).toEqual([]);
+    expect(shownWhileSaving).toEqual(["b-two", "b-one"]);
   });
 
   it("puts the old order back when the write fails", async () => {
     const { api, client } = mountWith(() => ({ list: useBookChapterList("book-1"), reorder: useReorderChapters() }));
     await flushPromises();
-    // The first call is the diff read; fail the first update after it.
-    fake.failNext("scriptorium_chapters", { message: "boom" }, { after: 1 });
+    fake.failNext("reorder_scriptorium_chapters", { message: "boom" });
     // After the failure the settle-time refetch must not repair the cache for us: stop it.
     const settled = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
     await expect(api.reorder.mutateAsync({ documentId: "book-1", orderedIds: ["b-two", "b-one"] })).rejects.toMatchObject({ message: "boom" });

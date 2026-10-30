@@ -182,13 +182,10 @@ export function useDeleteChapter() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, documentId }: { id: string; documentId: string }): Promise<void> => {
-      const { data, error: listError } = await supabase
-        .from("scriptorium_chapters")
-        .select("id")
-        .eq("document_id", documentId);
-      if (listError) throw listError;
-      const siblings = data as { id: string }[];
-      if (siblings.length <= 1) throw new Error("A book needs at least one chapter.");
+      // A book keeps at least one chapter. The database refuses the delete that would empty
+      // it (private.keep_one_chapter, 20261030072503) with "A book needs at least one
+      // chapter.", which is what the rail shows. A read-then-delete here could not hold that:
+      // two tabs deleting different chapters of a two-chapter book both read "two".
       const { error } = await supabase
         .from("scriptorium_chapters")
         .delete()
@@ -216,22 +213,15 @@ export function useReorderChapters() {
       documentId: string;
       orderedIds: string[];
     }): Promise<void> => {
-      // Diff against the server, not the cache: onMutate has already rewritten the cache.
-      const { data, error: readError } = await supabase
-        .from("scriptorium_chapters")
-        .select("id, position")
-        .eq("document_id", documentId);
-      if (readError) throw readError;
-      const stored = data as { id: string; position: number }[];
-      for (const [position, id] of orderedIds.entries()) {
-        if (stored.find((row) => row.id === id)?.position === position) continue;
-        const { error } = await supabase
-          .from("scriptorium_chapters")
-          .update({ position })
-          .eq("id", id)
-          .eq("document_id", documentId);
-        if (error) throw error;
-      }
+      // One statement for the whole order (reorder_scriptorium_chapters): one touch of the book
+      // and one ring to the players holding it, however many chapters moved, and never half an
+      // order. An order that no longer names every chapter (one was added or deleted elsewhere)
+      // is refused, and the settle-time refetch brings the real list back.
+      const { error } = await supabase.rpc("reorder_scriptorium_chapters", {
+        p_document_id: documentId,
+        p_chapter_ids: orderedIds,
+      });
+      if (error) throw error;
     },
     onMutate: async ({ documentId, orderedIds }) => {
       await queryClient.cancelQueries({ queryKey: listKey(documentId) });

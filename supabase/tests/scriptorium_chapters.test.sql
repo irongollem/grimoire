@@ -2,7 +2,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(61);
 
 -- A Scriptorium document is a book of chapters (#1115 story 13, 20261029222021).
 --
@@ -42,12 +42,14 @@ insert into public.npcs (id, user_id, campaign_id, name) values
 -- 80: the shared two-chapter book the holder reads. 81: a draft nobody was given.
 -- 82: an account-wide book. 83: another shared book (a foreign chapter id comes from here).
 -- 84: a book whose only entity embed is in its SECOND chapter.
+-- 85: a book whose only entity embeds sit in a DM-only secret block and a lens pair's Deep half.
 insert into public.scriptorium_documents (id, user_id, campaign_id, title, player_visible_to) values
   ('98300000-0000-4000-8000-000000000080', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'The Almanac', array['98300000-0000-4000-8000-000000000030']::uuid[]),
   ('98300000-0000-4000-8000-000000000081', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'Draft', '{}'::uuid[]),
   ('98300000-0000-4000-8000-000000000082', '98300000-0000-4000-8000-000000000001', null, 'Account-wide', '{}'::uuid[]),
   ('98300000-0000-4000-8000-000000000083', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'Other handout', array['98300000-0000-4000-8000-000000000030']::uuid[]),
-  ('98300000-0000-4000-8000-000000000084', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'Two chapters', '{}'::uuid[]);
+  ('98300000-0000-4000-8000-000000000084', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'Two chapters', '{}'::uuid[]),
+  ('98300000-0000-4000-8000-000000000085', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'Hidden embeds', '{}'::uuid[]);
 
 -- The Almanac's second chapter is inserted FIRST, so creation order and position disagree.
 insert into public.scriptorium_chapters (id, document_id, position, title, word_count, content) values
@@ -64,7 +66,9 @@ insert into public.scriptorium_chapters (id, document_id, position, title, word_
   ('98300000-0000-4000-8000-0000000000a6', '98300000-0000-4000-8000-000000000084', 1, 'Plain', 1,
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"nothing linked here"}]}]}'),
   ('98300000-0000-4000-8000-0000000000a7', '98300000-0000-4000-8000-000000000084', 2, 'Linked', 1,
-   '{"type":"doc","content":[{"type":"entityEmbed","attrs":{"entityType":"npc","entityId":"98300000-0000-4000-8000-000000000020","showArt":false,"reveal":null}}]}');
+   '{"type":"doc","content":[{"type":"entityEmbed","attrs":{"entityType":"npc","entityId":"98300000-0000-4000-8000-000000000020","showArt":false,"reveal":null}}]}'),
+  ('98300000-0000-4000-8000-0000000000a8', '98300000-0000-4000-8000-000000000085', 0, 'Hidden', 1,
+   '{"type":"doc","content":[{"type":"secretBlock","content":[{"type":"entityEmbed","attrs":{"entityType":"npc","entityId":"98300000-0000-4000-8000-000000000020","showArt":false,"reveal":null}}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"entityEmbed","attrs":{"entityType":"npc","entityId":"98300000-0000-4000-8000-000000000020","showArt":false,"reveal":null}}]}]}]}');
 
 -- ── The holder: reads through get_player_handout, never from the table ──────
 
@@ -302,6 +306,38 @@ select is(
   '["98300000-0000-4000-8000-000000000020"]'::jsonb,
   'a dry run reports an NPC embedded only in the book''s second chapter (fails if the reveal reads one chapter)');
 
+select is(
+  (select jsonb_path_query_array(
+     public.share_handout('98300000-0000-4000-8000-000000000085', array['98300000-0000-4000-8000-000000000030']::uuid[], true),
+     '$.revealed[*].id')),
+  '[]'::jsonb,
+  'an NPC embedded only in a secret block or a Deep half is revealed to nobody (fails if book_body stops stripping)');
+
+-- ── Reordering is one call, by an editor, naming every chapter ──────────────
+
+select lives_ok(
+  $$ select public.reorder_scriptorium_chapters('98300000-0000-4000-8000-000000000084',
+       array['98300000-0000-4000-8000-0000000000a7', '98300000-0000-4000-8000-0000000000a6']::uuid[]) $$,
+  'the author reorders a book''s chapters in one call');
+
+select is(
+  (select array_agg(c.title order by c.position) from public.scriptorium_chapters c
+    where c.document_id = '98300000-0000-4000-8000-000000000084'),
+  array['Linked', 'Plain'],
+  'and the chapters take the order given');
+
+select throws_ok(
+  $$ select public.reorder_scriptorium_chapters('98300000-0000-4000-8000-000000000084',
+       array['98300000-0000-4000-8000-0000000000a7']::uuid[]) $$,
+  '22023', null, 'an order that leaves out a chapter is refused as stale, not applied in part');
+
+select set_config('request.jwt.claim.sub', '98300000-0000-4000-8000-000000000005', true);
+
+select throws_ok(
+  $$ select public.reorder_scriptorium_chapters('98300000-0000-4000-8000-000000000084',
+       array['98300000-0000-4000-8000-0000000000a6', '98300000-0000-4000-8000-0000000000a7']::uuid[]) $$,
+  '42501', null, 'an outsider cannot reorder someone else''s book (fails if the editor check goes)');
+
 -- ── Bookkeeping, as the table owner ─────────────────────────────────────────
 
 reset role;
@@ -310,9 +346,9 @@ select is(private.book_body('98300000-0000-4000-8000-000000000080') -> 'content'
   'book_body starts with the chapter at the lower position, though it was inserted second');
 
 select is(
-  (select jsonb_path_query_array(private.book_body('98300000-0000-4000-8000-000000000080'), '$.content[*].type')),
-  '["paragraph", "secretBlock", "lensPair", "paragraph"]'::jsonb,
-  'and joins the blocks of both chapters in order (fails if chapters are joined by creation or unsorted)');
+  (select jsonb_path_query_array(private.book_body('98300000-0000-4000-8000-000000000080'), 'strict $.**.text')),
+  '["one", "kind", "two"]'::jsonb,
+  'and joins both chapters in order, as players read them: no secret block, no Deep half (fails if chapters are joined unsorted)');
 
 select is(
   (select word_count from public.scriptorium_documents where id = '98300000-0000-4000-8000-000000000080'),
@@ -328,10 +364,10 @@ select is(
   (select word_count from public.scriptorium_documents where id = '98300000-0000-4000-8000-000000000080'),
   20, 'and deleting one takes its words out');
 
-delete from public.scriptorium_chapters where document_id = '98300000-0000-4000-8000-000000000080';
-select is(
-  (select word_count from public.scriptorium_documents where id = '98300000-0000-4000-8000-000000000080'),
-  0, 'a book with no chapters has no words (the delete path sums to zero, not null)');
+select throws_ok(
+  $$ delete from public.scriptorium_chapters where document_id = '98300000-0000-4000-8000-000000000080' $$,
+  '23514', 'A book needs at least one chapter.',
+  'a book''s last chapter cannot be deleted (fails if keep_one_chapter goes; the client check alone lets two tabs empty a book)');
 
 -- updated_at is now() and constant in a transaction, so set the book's back before the write.
 alter table public.scriptorium_documents disable trigger scriptorium_updated_at;
@@ -342,6 +378,7 @@ select ok(
   (select updated_at > '2000-01-02' from public.scriptorium_documents where id = '98300000-0000-4000-8000-000000000081'),
   'a chapter write bumps its book''s updated_at (fails if the touch trigger stops updating the book)');
 
+insert into public.scriptorium_chapters (document_id, position) values ('98300000-0000-4000-8000-000000000081', 1);
 insert into public.scriptorium_notes (user_id, document_id, chapter_id, body)
 values ('98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000081',
         '98300000-0000-4000-8000-0000000000a3', 'goes with the chapter');
