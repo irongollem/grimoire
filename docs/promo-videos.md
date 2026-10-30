@@ -87,6 +87,12 @@ halfway. Use it to undo what a take leaves behind that would show on the next
 screen or in the real app: an open session (there is one open session per
 campaign, and the app asks about sessions older than six hours) and the chat
 lines a take posted. It must not assume the take got as far as its last shot.
+
+`Episode.prepare({ offstage })` runs once after setup and before the first
+shot, unfilmed, for a state only a browser can make: a fight already under way
+when the Reel opens exists only after someone has clicked through the lobby, so
+the combat episodes let the offstage DM go live, set initiatives and start
+combat there.
 Like `setup`, it writes to the local stack's demo campaign only.
 
 ## Devices and the camera

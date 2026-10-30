@@ -86,6 +86,7 @@ async function offstage(account: Account): Promise<Offstage> {
 
 const recorded: RecordedShot[] = [];
 try {
+  await episode.prepare?.({ offstage });
   for (const shot of episode.shots) {
     const device = shot.device ?? episode.device ?? "phone";
     const stage = await stageFor(device);

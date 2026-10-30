@@ -124,6 +124,12 @@ export interface Episode {
   device?: Device;
   /** Puts the local stack into the state the first shot expects. Runs before every recording, so it must be idempotent. */
   setup?(): Promise<void> | void;
+  /**
+   * Runs once before the first shot is opened, after `setup`, with the offstage actor available: for a scene that
+   * only exists once a person has clicked through it in a browser (a fight already under way when the Reel opens).
+   * Not filmed.
+   */
+  prepare?(actors: { offstage(account: Account): Promise<Offstage> }): Promise<void>;
   /** Undoes what the take left behind (an open session, chat lines). Runs once after the last shot, filmed or failed, so it must not assume the take got that far. */
   teardown?(): Promise<void> | void;
   /** Seed for Math.random in the filmed page, so dice land the same on every take. */
