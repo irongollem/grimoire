@@ -66,7 +66,7 @@ export const sessionDm: Episode = {
     {
       id: "sounds",
       caption: "Soundboard becomes your pads",
-      narration: "And the soundboard turns into performance pads, with the scene that is playing on top and artwork on the pads you fire most.",
+      narration: "And the soundboard turns into performance pads: the scene that is playing on top, big artwork, and nothing to edit by accident.",
       startAt: "/soundboard",
       async run({ page, hold, scroll, settled }) {
         await page.getByText("Ambient sounds & music for your sessions").first().waitFor();
