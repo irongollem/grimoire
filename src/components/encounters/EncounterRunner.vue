@@ -26,89 +26,104 @@
       </RouterLink>
 
       <div class="round-controls">
-        <button @click="store.prevTurn()" :disabled="store.round === 0" class="prev-btn">‹</button>
+        <AppButton
+          variant="outline"
+          size="sm"
+          :icon="IconChevronLeft"
+          aria-label="Previous turn"
+          :disabled="store.round === 0"
+          @click="store.prevTurn()"
+        />
         <span class="round-label">{{ store.round === 0 ? 'Pre-Combat' : 'Round ' + store.round }}</span>
         <TurnTimer
           v-if="turnTimerSeconds !== null && store.round > 0"
           :seconds="turnTimerSeconds"
           :reset-key="turnResetKey"
         />
-        <button @click="store.nextTurn()" :disabled="store.round === 0" class="next-btn">Next Turn ›</button>
+        <AppButton
+          variant="primary"
+          size="sm"
+          label="Next Turn"
+          :icon-right="IconChevronRight"
+          :disabled="store.round === 0"
+          @click="store.nextTurn()"
+        />
       </div>
 
       <div class="top-right">
         <span class="encounter-name">{{ store.encounterName }}</span>
         <ManualHelpLink page="encounter-runner" />
-        <button
+        <AppButton
           v-if="!store.started"
+          variant="primary"
+          size="sm"
+          :icon="IconDiceRoll"
+          label="Roll Initiative"
+          tooltip="Roll initiative for everyone who hasn't rolled yet"
           :disabled="store.rollingInitiative"
           @click="handleRollInitiative"
-          class="roll-btn"
-          title="Roll initiative for everyone who hasn't rolled yet"
-        >
-          <IconDiceRoll class="h-3.5 w-3.5" />
-          <span class="btn-label">Roll Initiative</span>
-        </button>
-        <button
+        />
+        <AppButton
           v-if="store.round === 0"
+          variant="live"
+          size="sm"
+          :icon="IconEncounter"
+          label="Start Combat"
           :disabled="store.rollingInitiative"
           @click="handleStartCombat"
-          class="start-combat-btn"
-          data-variant="live"
-          title="Start Combat"
-        >
-          <IconEncounter class="h-3.5 w-3.5" />
-          <span class="btn-label">Start Combat</span>
-        </button>
-        <button
+        />
+        <!-- While live this button stops it, so its name says so: "● Live"
+             alone named the state and hid the action. `go-live-btn` and
+             `live-active` carry no style: scripts/promo waits on them. -->
+        <AppButton
           v-if="campaign.activeCampaignId"
           class="go-live-btn"
-          :class="isLive ? 'live-active' : ''"
+          :class="{ 'live-active': isLive }"
+          :variant="isLive ? 'tinted' : 'outline'"
+          tone="success"
+          size="sm"
+          :icon="IconLive"
+          :label="goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live'"
+          :aria-label="isLive ? 'Live. Stop sharing with players' : undefined"
+          :tooltip="isLive ? 'Live. Click to stop sharing with players' : appUi.sessionRunning ? 'Go Live' : 'Go Live (also starts the session)'"
           :disabled="goingLive"
-          :title="isLive ? 'Live' : appUi.sessionRunning ? 'Go Live' : 'Go Live (also starts the session)'"
           @click="handleGoLive"
-        >
-          <IconLive class="h-3.5 w-3.5" />
-          <span class="btn-label">{{ goingLive ? 'Starting…' : isLive ? '● Live' : 'Go Live' }}</span>
-        </button>
-        <RouterLink
+        />
+        <AppButton
+          variant="outline"
+          size="sm"
+          :icon="IconMap"
+          label="Battle Map"
+          :to="canOpenBattleMap ? `/encounters/${encounterId}/run/map` : undefined"
+          :tooltip="canOpenBattleMap ? 'Open battle map' : battleMapDisabledReason"
+          :disabled="!canOpenBattleMap"
+        />
+        <AppButton
           v-if="canOpenBattleMap"
-          :to="`/encounters/${encounterId}/run/map`"
-          class="map-btn"
-          title="Open battle map"
-        >
-          <IconMap class="h-3.5 w-3.5" />
-          <span class="btn-label">Battle Map</span>
-        </RouterLink>
-        <button
-          v-else
-          class="map-btn"
-          disabled
-          :title="battleMapDisabledReason"
-        >
-          <IconMap class="h-3.5 w-3.5" />
-          <span class="btn-label">Battle Map</span>
-        </button>
-        <button
-          v-if="canOpenBattleMap"
-          class="map-btn-secondary"
-          title="Open battle map in a new window (for a second monitor)"
+          variant="outline"
+          size="sm"
+          :icon="IconExternalLink"
+          aria-label="Open battle map in a new window"
+          tooltip="Open battle map in a new window (for a second monitor)"
           @click="openBattleMapInNewWindow"
-        >
-          ↗
-        </button>
-        <button
+        />
+        <AppButton
+          variant="outline"
+          size="sm"
+          :icon="IconDungeon"
+          label="Abandon"
+          tooltip="Abandon: end run without syncing HP or discovering monsters"
           @click="handleAbandon"
-          class="abandon-btn"
-          title="Abandon: end run without syncing HP or discovering monsters"
-        >
-          <IconDungeon class="h-3.5 w-3.5" />
-          <span class="btn-label">Abandon</span>
-        </button>
-        <button @click="handleEndCombat" class="end-btn" title="End Combat">
-          <IconFlag class="h-3.5 w-3.5" />
-          <span class="btn-label">End Combat</span>
-        </button>
+        />
+        <AppButton
+          variant="tinted"
+          tone="danger"
+          emphasis="outline"
+          size="sm"
+          :icon="IconFlag"
+          label="End Combat"
+          @click="handleEndCombat"
+        />
       </div>
     </div>
 
@@ -207,7 +222,8 @@ import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 const { confirm } = useConfirm();
 import { ref, computed, watch, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
+import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconDungeon, IconEncounter, IconExternalLink, IconFlag, IconLive, IconMap } from '@/lib/icons';
+import AppButton from '@/components/common/controls/AppButton.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
@@ -640,14 +656,6 @@ async function handleEndCombat() {
   @apply flex items-center gap-1 ml-auto;
 }
 
-.prev-btn {
-  @apply px-3 py-1.5 rounded-md border border-border text-foreground text-label-lg font-semibold hover:bg-muted transition-colors disabled:opacity-40;
-}
-
-.next-btn {
-  @apply px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 disabled:opacity-40;
-}
-
 .round-label {
   @apply text-heading-sm font-bold text-foreground px-2;
 }
@@ -658,46 +666,6 @@ async function handleEndCombat() {
 
 .encounter-name {
   @apply text-heading-sm font-bold text-foreground hidden sm:block;
-}
-
-/*
- * On small screens (<sm) action buttons collapse to icon-only to stop the top
- * bar overflowing the viewport. The title="" attribute on each button keeps
- * hover/long-press context intact.
- */
-.btn-label {
-  @apply hidden sm:inline;
-}
-
-.roll-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity;
-}
-
-.abandon-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:bg-muted transition-colors;
-}
-
-.map-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-muted-foreground;
-}
-
-.map-btn-secondary {
-  @apply inline-flex items-center justify-center px-2 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:border-primary hover:text-primary transition-colors;
-}
-
-.end-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 text-destructive text-label-lg font-semibold hover:bg-destructive/10 transition-colors;
-}
-
-.start-combat-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-tone-success text-on-success text-label-lg font-semibold hover:opacity-90 transition-opacity;
-}
-
-.go-live-btn {
-  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-muted-foreground text-label-lg font-semibold hover:border-primary hover:text-primary transition-colors disabled:opacity-50;
-}
-.live-active {
-  @apply border-tone-success/50 text-ink-success bg-tone-success/10 hover:border-tone-success hover:text-ink-success;
 }
 
 .runner-body-wrap {

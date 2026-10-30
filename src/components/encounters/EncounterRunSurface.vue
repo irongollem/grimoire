@@ -108,7 +108,11 @@ watch(
     const mons = [...monsterRows.values()];
     const live = liveState.value;
     if (live?.encounter_id === enc.id && live?.is_running) {
-      if (store.encounterId === enc.id && store.started) return;
+      // Hydrate only a store that does not hold this run yet. The store is ahead
+      // of the live state, whose push is debounced: re-hydrating a live lobby on
+      // a party refetch wrote a player's just-ingested roll back to blank, and
+      // the DM saw "Waiting for roll" until a reload.
+      if (store.encounterId === enc.id) return;
       store.hydrateFromLive({
         encounter_id: enc.id,
         encounter_name: enc.name,

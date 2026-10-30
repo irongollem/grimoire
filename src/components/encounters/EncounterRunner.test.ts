@@ -90,14 +90,14 @@ describe("EncounterRunner", () => {
   it("desktop: Start combat is offered in the lobby when the DM is not live", () => {
     isMobile.value = false;
     const w = mountRunner();
-    expect(w.find(".start-combat-btn").exists()).toBe(true);
+    expect(w.findAll("button").some((b) => b.text().includes("Start Combat"))).toBe(true);
   });
 
   it("desktop: Start combat is gone once combat has begun", () => {
     isMobile.value = false;
     useEncounterRunStore().round = 1;
     const w = mountRunner();
-    expect(w.find(".start-combat-btn").exists()).toBe(false);
+    expect(w.findAll("button").some((b) => b.text().includes("Start Combat"))).toBe(false);
   });
 
   it("phone: Start combat is in the turn bar when not live, and the desktop top bar is not drawn", () => {

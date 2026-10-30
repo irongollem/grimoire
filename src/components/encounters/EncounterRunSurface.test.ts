@@ -13,6 +13,7 @@ const data = vi.hoisted(() => ({
   party: null as unknown,
   companions: null as unknown,
   partyFetching: null as unknown,
+  liveState: null as unknown,
 }));
 
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounter: () => ({ data: data.encounter }) }));
@@ -27,7 +28,7 @@ vi.mock("@/composables/monsters/useMonstersByIds", () => ({
   useMonstersByIds: () => ({ data: ref(new Map()), isLoading: ref(false) }),
 }));
 vi.mock("@/composables/encounters/useEncounterLive", () => ({
-  useEncounterLive: () => ({ liveState: ref(null), liveStateLoaded: ref(true) }),
+  useEncounterLive: () => ({ liveState: data.liveState, liveStateLoaded: ref(true) }),
 }));
 
 const encounter = {
@@ -54,6 +55,7 @@ describe("EncounterRunSurface: a run that is not live", () => {
     data.party = ref<PartyMember[]>([]);
     data.companions = ref([]);
     data.partyFetching = ref(false);
+    data.liveState = ref(null);
   });
 
   it("keeps the fight when the party refetches (a damage write rang it back and reset the run to the lobby)", async () => {
@@ -108,5 +110,37 @@ describe("EncounterRunSurface: a run that is not live", () => {
     fetching.value = false;
     await nextTick();
     expect(store.combatants.find((c) => c.party_member_id === "pm1")?.hp).toBe(30);
+  });
+});
+
+describe("EncounterRunSurface: a live lobby", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    data.encounter = ref(encounter);
+    data.party = ref<PartyMember[]>([]);
+    data.companions = ref([]);
+    data.partyFetching = ref(false);
+    // The saved live state still holds the roll as blank: the DM's push of the
+    // ingested roll is debounced, so a refetch can land before it.
+    data.liveState = ref({
+      encounter_id: "e1",
+      is_running: true,
+      current_round: 0,
+      active_combatant_index: 0,
+      events_fired: [],
+      combatants_live: [{ instance_id: "p1", name: "Chicory", type: "player", party_member_id: "pm1", initiative: null, hp: 45, max_hp: 45, conditions: [], curses: [], death_saves: { successes: 0, failures: 0 } }],
+    });
+  });
+
+  it("keeps a player's roll when the party refetches (the stale live state overwrote it, and the DM saw 'Waiting for roll')", async () => {
+    mount(EncounterRunSurface, { props: { encounterId: "e1" }, global: { stubs } });
+    const store = useEncounterRunStore();
+    expect(store.combatants[0]?.instance_id).toBe("p1");
+
+    store.setInitiative("p1", 16);
+    (data.party as { value: PartyMember[] }).value = [];
+    await nextTick();
+
+    expect(store.combatants[0]?.initiative).toBe(16);
   });
 });
