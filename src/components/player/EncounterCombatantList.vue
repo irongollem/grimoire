@@ -19,7 +19,7 @@
           <div class="flex-1 min-w-0 self-center">
             <div class="flex items-center gap-2 overflow-hidden">
               <span class="combatant-name text-heading-xs font-semibold text-muted-foreground italic truncate">???</span>
-              <span class="pc-npc-badge shrink-0 text-eyebrow px-1.5 py-0.5 rounded font-bold bg-muted text-muted-foreground">NPC</span>
+              <span class="pc-npc-badge shrink-0 text-eyebrow px-1.5 py-0.5 rounded font-bold bg-muted text-muted-foreground">Unknown</span>
             </div>
           </div>
         </div>
@@ -59,7 +59,7 @@
               <span
                 class="pc-npc-badge shrink-0 text-label px-1.5 py-0.5 rounded font-bold"
                 :class="combatant.type === 'player' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
-              >{{ combatant.type === "player" ? "PC" : "NPC" }}</span>
+              >{{ combatantKindLabel(combatant) }}</span>
               <span
                 v-for="cond in combatant.conditions"
                 :key="cond.name"
@@ -108,6 +108,7 @@ import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
 import { describeConditionEnd, type NameOf } from "@/rules/conditionLabels";
+import { combatantKindLabel } from "@/lib/encounters/combatantKind";
 
 const {
   visibleCombatants,
