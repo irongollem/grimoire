@@ -92,21 +92,33 @@ export function useRules(enabled: () => boolean = () => true) {
   });
 }
 
-/** Player-facing: returns player-visible rules from the campaign DM (via RLS). */
+/**
+ * Player-facing: the active campaign's player-visible rules.
+ *
+ * Scoped to the campaign in the query, not left to RLS: the policy lets a
+ * player read the visible rules of every campaign they play in, so without the
+ * filter a player in two campaigns saw the other campaign's house rules on
+ * this one's character sheet and rules tab.
+ */
 export function usePlayerVisibleRules() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   const { ruleset } = useTableRuleset();
   return useQuery({
-    queryKey: computed(() => [CUSTOM_KEY, "player-visible", ruleset.value] as const),
-    queryFn: async ({ queryKey: [, , rs] }): Promise<Rule[]> => {
+    queryKey: computed(() => [CUSTOM_KEY, "player-visible", campaignId.value, ruleset.value] as const),
+    queryFn: async ({ queryKey: [, , cid, rs] }): Promise<Rule[]> => {
+      if (cid === null) throw new Error("usePlayerVisibleRules fetched without a campaign");
       const { data, error } = await supabase
         .from("rules")
         .select("*")
+        .eq("campaign_id", cid)
         .eq("is_player_visible", true)
         .or(`ruleset.is.null,ruleset.eq.${rs}`)
         .order("title", { ascending: true });
       if (error) throw error;
       return data as Rule[];
     },
+    enabled: () => !!campaignId.value,
     staleTime: 1000 * 60 * 5,
   });
 }
