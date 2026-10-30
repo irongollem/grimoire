@@ -47,20 +47,20 @@ describe("buildQuestRows", () => {
 
   it("orders by how urgent the stage is, then by title", () => {
     const rows = buildQuestRows(
-      [chain("q1", "running", "Running one"), chain("q2", "paused", "Paused one")],
+      [chain("q1", "running", "Running one"), chain("q2", "waiting", "Waiting one")],
       [quest("q3", "Bravo"), quest("q4", "Alpha")],
       noGiver,
     );
-    expect(rows.map((row) => row.stage)).toEqual(["here", "paused", "active", "active"]);
+    expect(rows.map((row) => row.stage)).toEqual(["here", "here", "active", "active"]);
     expect(rows[2]!.title).toBe("Alpha");
   });
 
   // A quest can hold a cursor while sitting in neither lane — completed and
   // revisited, say. The chain carries its own title, so it still gets a row.
   it("keeps a chain whose quest is in no lane", () => {
-    const rows = buildQuestRows([chain("q9", "paused", "A callback")], [], noGiver);
+    const rows = buildQuestRows([chain("q9", "waiting", "A callback")], [], noGiver);
     expect(rows).toEqual([
-      { id: "q9", title: "A callback", secondary: "02. Main Keep", stage: "paused", runLink: true },
+      { id: "q9", title: "A callback", secondary: "02. Main Keep", stage: "here", runLink: true },
     ]);
   });
 
@@ -69,17 +69,12 @@ describe("buildQuestRows", () => {
     expect(rows[0]!.title).toBe("Untitled Quest");
   });
 
-  // Carried over from the In-progress panel this replaces: after a session ends
-  // `end_campaign_quest_session` pauses every open chain, so a view that read
-  // "has a cursor" as "is being played" would claim the party is mid-scene in
-  // several quests on a Sunday afternoon. Only "running" is where the party is.
-  it.each(["idle", "paused", "waiting", "ended"] as const)(
-    "never marks a %s chain as where the party is",
-    (status) => {
-      const rows = buildQuestRows([chain("q1", status)], [], noGiver);
-      expect(rows[0]!.stage).toBe("paused");
-    },
-  );
+  // A session ending no longer pauses anything, so a chain parked at a
+  // converge beat is as much "where the party left off" as a running one.
+  it("marks a waiting chain as here, since ending a session leaves threads as they are", () => {
+    const rows = buildQuestRows([chain("q1", "waiting")], [], noGiver);
+    expect(rows[0]!.stage).toBe("here");
+  });
 
   it("names an untitled chain and shows no secondary line when its beat has no title", () => {
     const blank = { ...chain("q1", "running", ""), beat_title: "" };

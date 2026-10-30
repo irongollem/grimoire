@@ -7,7 +7,7 @@ import QuestFoldRow from "./QuestFoldRow.vue";
 describe("QuestFoldRow", () => {
   it("shows the title and caption, and toggles the body open on click", async () => {
     const wrapper = mount(QuestFoldRow, {
-      props: { title: "Session", caption: "Previous · Jump · Pause · End", open: false, "onUpdate:open": (v: boolean) => wrapper.setProps({ open: v }) },
+      props: { title: "Session", caption: "Previous · Jump · End", open: false, "onUpdate:open": (v: boolean) => wrapper.setProps({ open: v }) },
       slots: { default: () => h("p", "Body content") },
       // isVisible() reads getComputedStyle, which jsdom only resolves correctly
       // for a node attached to the document — required to assert the drawer's
@@ -15,7 +15,7 @@ describe("QuestFoldRow", () => {
       attachTo: document.body,
     });
     expect(wrapper.text()).toContain("Session");
-    expect(wrapper.text()).toContain("Previous · Jump · Pause · End");
+    expect(wrapper.text()).toContain("Previous · Jump · End");
     expect(wrapper.get("[aria-expanded]").attributes("aria-expanded")).toBe("false");
     expect(wrapper.get("p").isVisible()).toBe(false);
 

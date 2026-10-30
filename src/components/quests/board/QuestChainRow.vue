@@ -12,10 +12,6 @@
       <span class="block truncate text-heading-xs font-semibold text-foreground">{{ chain.quest_title }}</span>
       <span class="block truncate text-caption text-muted-foreground">{{ chain.beat_title }}</span>
     </span>
-    <span
-      v-if="chain.runtime_status === 'paused'"
-      class="mt-0.5 shrink-0 text-label uppercase text-muted-foreground"
-    >Paused</span>
   </RouterLink>
 </template>
 
@@ -32,10 +28,8 @@ import type { CampaignLiveQuest } from "@/types/quest.types";
  * never in what a chain looks like — so the row is a component and the
  * difference is the parent's business.
  *
- * Running and paused are always distinguished. A paused chain still holds its
- * place but is not where the table is, and after a session ends every chain is
- * paused — so treating "has a cursor" as "is being played" would make the
- * between-sessions view claim the party is in six places at once.
+ * Running and waiting are distinguished by the icon tint: a chain parked at a
+ * converge beat holds its place but is not being walked right now.
  */
 defineProps<{ chain: CampaignLiveQuest }>();
 </script>

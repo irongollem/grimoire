@@ -220,6 +220,22 @@ describe("QuestAdvanceDialog", () => {
     expect(wrapper.emitted("close")).toBeUndefined();
   });
 
+  // Bug: PostgREST errors are plain objects, not Error instances, so the dialog
+  // swallowed the sentence the server raised ("Advance requires a running beat
+  // and authored edge") and always showed the generic fallback.
+  it("shows the sentence the server raised when the rejection is a PostgREST plain object", async () => {
+    mocks.command.mockRejectedValueOnce({ message: "Advance requires a running beat and authored edge", code: "P0001", details: null, hint: null });
+    const wrapper = await mountDialog();
+    await radios(wrapper)[0]!.trigger("change");
+    const advance = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Advance")!;
+    await advance.trigger("click");
+    await flush();
+
+    expect(wrapper.text()).toContain("Advance requires a running beat and authored edge");
+    expect(wrapper.text()).not.toContain("The transition could not be recorded");
+    expect(wrapper.emitted("close")).toBeUndefined();
+  });
+
   // Design frame `02 Advance`: below `sm` the modal becomes a full-height sheet
   // with a two-step body. Same `planAdvance` + RPC path either way — only the
   // step index is local, presentational UI state.
@@ -326,7 +342,7 @@ describe("QuestAdvanceDialog", () => {
     });
 
     it("a failed transition says so plainly, frees Advance, and keeps the dialog open for a retry", async () => {
-      mocks.command.mockRejectedValueOnce("boom").mockResolvedValue(buildContext());
+      mocks.command.mockRejectedValueOnce({ message: "permission denied for table x", code: "42501" }).mockResolvedValue(buildContext());
       const wrapper = await mountDialog({ preselectedEdgeId: "edge-1" });
       await advanceBtn(wrapper).trigger("click");
       await flush();

@@ -60,12 +60,12 @@ describe("QuestRunOutcomeStrip", () => {
   // The Advance dialog (story G) owns improvising now — including its own
   // form — so this strip only has to announce the intent and let the disabled
   // state track the same "running" gate every other action here uses.
-  it("emits an intent to open the Advance dialog's improvise option, disabled while paused", async () => {
+  it("emits an intent to open the Advance dialog's improvise option, disabled while not running", async () => {
     const running = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing } });
     await running.findAll("button").find((button) => button.text() === "Something else…")!.trigger("click");
     expect(running.emitted("something-else")).toHaveLength(1);
 
-    const paused = mount(QuestRunOutcomeStrip, { props: { status: "paused", outgoing } });
+    const paused = mount(QuestRunOutcomeStrip, { props: { status: "waiting", outgoing } });
     const pausedButton = paused.findAll("button").find((button) => button.text() === "Something else…");
     expect(pausedButton?.attributes("disabled")).toBeDefined();
   });
@@ -165,11 +165,11 @@ describe("QuestRunOutcomeStrip", () => {
     });
   });
 
-  it("Choose is disabled while the table is paused or when the strip is disabled", () => {
+  it("Choose is disabled while the thread is not running or when the strip is disabled", () => {
     const choose = (props: Record<string, unknown>) => mount(QuestRunOutcomeStrip, { props: { outgoing: outgoing.slice(1), status: "running", ...props } })
       .findAll("button").find((b) => b.text() === "Choose")!;
     expect(choose({}).attributes("disabled")).toBeUndefined();
-    expect(choose({ status: "paused" }).attributes("disabled")).toBeDefined();
+    expect(choose({ status: "waiting" }).attributes("disabled")).toBeDefined();
     expect(choose({ disabled: true }).attributes("disabled")).toBeDefined();
   });
 

@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(81);
+select plan(80);
 
 -- Fixture inserts below run as postgres between scenarios (reset role), so
 -- none of them should be quota-checked against a stale sub left by whichever
@@ -533,7 +533,7 @@ select throws_ok($$
   select public.transition_quest_runtime(
     '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000021',
     (select id from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000021' and label = 'Second'),
-    'pause', 0
+    'end', 0
   )
 $$, '23514', null, 'a merged thread cannot be commanded at all');
 
@@ -547,7 +547,7 @@ select throws_ok($$
   select public.transition_quest_runtime(
     '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000020',
     (select id from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000020' and label = 'Main'),
-    'pause', 2
+    'end', 2
   )
 $$, 'Not authorized', 'a member cannot move a thread');
 
@@ -607,13 +607,6 @@ select public.transition_quest_runtime(
 select is(
   (select status || ':' || coalesce(closed_at::text, 'open') from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000021' and label = 'Main'),
   'live:open', 'restarting a closed thread reopens it — never closed and running at once'
-);
-
--- ── A member cannot end the table's session ─────────────────────────────────
-select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000002', true);
-select throws_ok(
-  $$ select public.end_campaign_quest_session('85200000-0000-4000-8000-000000000010') $$,
-  'Not authorized', 'a member cannot end every running thread of the campaign'
 );
 
 -- ── ensure_quest_main_thread: the invariant repairs itself ──────────────────

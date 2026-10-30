@@ -105,7 +105,6 @@ async function confirmStart(options: StartSessionOptions) {
   if (await startSession(options)) now.value = Date.now();
 }
 
-// Says what it did, because ending a session reaches further than the control
-// it was clicked from — combat stops and open chains pause.
+// Ending closes the session row and nothing else: combat and quests carry on.
 const onEnd = endSession;
 </script>

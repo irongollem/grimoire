@@ -167,7 +167,7 @@ select is(
 -- 4. The happy path on a never-played quest: beats assert in order, each
 --    chains from the one before, a raise consequence on a dormant objective
 --    fires, the cursor lands on the last beat, and the new runtime row is
---    born paused — never running.
+--    born running, so Advance works straight after.
 -- ════════════════════════════════════════════════════════════════════════════
 
 reset role;
@@ -225,8 +225,8 @@ select is(
 
 select is(
   (select status from public.quest_runtime_state where campaign_id = '79600000-0000-4000-8000-000000000010' and quest_id = '79600000-0000-4000-8000-0000000e0001'),
-  'paused',
-  'a quest with no prior runtime row is born paused, never running — fixing a record is not sitting down to play'
+  'running',
+  'a quest with no prior runtime row is born running: Advance refuses any other status, so a recorded cursor must be one the DM can move on from'
 );
 select is(
   (select current_beat_id from public.quest_runtime_state where campaign_id = '79600000-0000-4000-8000-000000000010' and quest_id = '79600000-0000-4000-8000-0000000e0001'),

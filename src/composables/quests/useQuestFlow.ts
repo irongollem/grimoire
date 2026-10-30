@@ -781,13 +781,6 @@ export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search
   });
 }
 
-// `useEndCampaignQuestSession` lived here and never had a caller. Ending the
-// table is a session boundary, not a quest one, and `end_campaign_session`
-// (#758) calls `end_campaign_quest_session` inside its own transaction — so a
-// client-side wrapper would either sit dead or double-log every pause. The
-// cache invalidation it did lives on in QUEST_RUNTIME_QUERY_KEYS above, which
-// `useCampaignSession.end()` uses.
-
 export function useQuestRuntimeCommand() {
   const queryClient = useQueryClient();
   return useMutation({

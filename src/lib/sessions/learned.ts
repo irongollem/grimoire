@@ -143,8 +143,6 @@ const STEP_VERBS: Readonly<Record<string, string>> = {
   jump: "Jumped to",
   return: "Returned to",
   improv: "Improvised",
-  pause: "Paused at",
-  resume: "Resumed at",
   end: "Ended at",
 };
 

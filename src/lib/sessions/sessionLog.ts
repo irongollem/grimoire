@@ -1,5 +1,5 @@
 import { sortSessionLog } from "@/lib/sessions/sessionPrefill";
-import type { CampaignSession, CampaignSessionEnded } from "@/types/session.types";
+import type { CampaignSession } from "@/types/session.types";
 
 /**
  * What the Sessions log, the session page and the dashboard widget say about a
@@ -137,14 +137,6 @@ export function appendParagraph(content: string | null, text: string): string | 
   } catch {
     return null;
   }
-}
-
-/** What ending a session did beyond closing it, since it reaches further than the control clicked. */
-export function sessionEndedMessage(closed: CampaignSessionEnded): string {
-  const parts: string[] = [];
-  if (closed.encounters_ended) parts.push(`${countOf(closed.encounters_ended, "encounter", "encounters")} stopped`);
-  if (closed.chains_paused) parts.push(`${countOf(closed.chains_paused, "quest", "quests")} paused`);
-  return parts.length ? `Session ended: ${parts.join(", ")}.` : "Session ended.";
 }
 
 /** Two or more log rows wearing one number: most often one evening logged twice. */

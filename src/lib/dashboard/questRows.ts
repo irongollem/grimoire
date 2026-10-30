@@ -3,12 +3,11 @@ import type { CampaignLiveQuest, Quest } from "@/types/quest.types";
 /**
  * Where a quest sits in its life, most urgent first.
  *
- * `here` and `paused` both mean the quest holds a runtime cursor. Keeping them
- * apart matters because `end_campaign_quest_session` pauses every open chain
- * when the table closes, so treating "has a cursor" as "is being played" would
- * claim the party is standing in six scenes on a Sunday afternoon.
+ * `here` means the quest holds a runtime cursor (a running or waiting thread).
+ * Ending a session leaves every thread where it stands, so a cursor is exactly
+ * where the party left the story and there is no separate paused stage.
  */
-export type QuestStage = "here" | "paused" | "active";
+export type QuestStage = "here" | "active";
 
 export interface DashboardQuestRowModel {
   id: string;
@@ -21,7 +20,7 @@ export interface DashboardQuestRowModel {
   runLink: boolean;
 }
 
-const RANK: Record<QuestStage, number> = { here: 0, paused: 1, active: 2 };
+const RANK: Record<QuestStage, number> = { here: 0, active: 1 };
 
 /**
  * One row per quest, merged across every reading of the data.
@@ -66,7 +65,7 @@ export function buildQuestRows(
       id: chain.quest_id,
       title: chain.quest_title || "Untitled Quest",
       secondary: chain.beat_title || null,
-      stage: chain.runtime_status === "running" ? "here" : "paused",
+      stage: "here",
       runLink: true,
     });
   }

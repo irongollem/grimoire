@@ -140,15 +140,11 @@ const threadCursor = (overrides: Partial<QuestThreadCursor> = {}): QuestThreadCu
   id: "t1", campaign_id: "c1", quest_id: "q1", label: "Main", status: "live",
   opened_by_edge_id: null, parent_thread_id: null, merged_into_thread_id: null,
   created_by: null, created_at: "2026-01-01T00:00:00Z", closed_at: null, updated_at: "2026-01-01T00:00:00Z",
-  current_beat_id: "beat-1", current_beat_title: "Confront Ser Vallis", runtime_status: "paused", version: 1,
+  current_beat_id: "beat-1", current_beat_title: "Confront Ser Vallis", runtime_status: "waiting", version: 1,
   ...overrides,
 });
 
 describe("describeThreadCursor", () => {
-  it("names the beat a paused thread is parked at", () => {
-    expect(describeThreadCursor(threadCursor())).toBe("paused at Confront Ser Vallis");
-  });
-
   it("names the beat a running thread is standing on", () => {
     expect(describeThreadCursor(threadCursor({ runtime_status: "running" }))).toBe("running at Confront Ser Vallis");
   });

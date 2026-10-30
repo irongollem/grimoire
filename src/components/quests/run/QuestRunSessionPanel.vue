@@ -4,8 +4,6 @@
     <div class="flex flex-wrap gap-2">
       <AppButton label="Previous" size="sm" variant="subtle" :disabled="navigationDisabled || !hasPrevious" @click="emit('previous')" />
       <AppButton label="Jump…" size="sm" variant="subtle" :disabled="navigationDisabled" @click="emit('jump')" />
-      <AppButton v-if="status === 'running'" label="Pause" size="sm" variant="subtle" :disabled="disabled" @click="emit('pause')" />
-      <AppButton v-else-if="status === 'paused'" label="Resume" size="sm" variant="primary" :disabled="disabled" @click="emit('resume')" />
       <AppButton label="End session" size="sm" variant="link" tone="danger" :disabled="disabled" @click="emit('end')" />
     </div>
     <p class="text-caption text-muted-foreground">Shortcuts: Alt+← previous · Alt+→ next when exactly one route is open · J jump</p>
@@ -14,7 +12,7 @@
 
 <script setup lang="ts">
 /**
- * The cockpit's session-wide commands — Previous, Jump, Pause/Resume, End —
+ * The cockpit's session-wide commands — Previous, Jump, End —
  * kept apart from the "What happens next" cards, which are outcomes of the
  * current beat rather than the table. Formerly `QuestRunControls`, a bar
  * docked at the foot of the whole cockpit; it is a card in the left column
@@ -34,8 +32,6 @@ const navigationDisabled = computed(() => props.disabled || props.status !== "ru
 const emit = defineEmits<{
   previous: [];
   jump: [];
-  pause: [];
-  resume: [];
   end: [];
 }>();
 </script>

@@ -289,6 +289,7 @@ import { pluralizeCount } from "@/lib/utils";
 import { delayPhrase, describeQuestConsequenceAction, isLedgerConsequenceAction, relationshipShiftIsGain } from "@/lib/quests/consequences";
 import { useQuestRuntimeCommand, useQuestRuntimeImprovise } from "@/composables/quests/useQuestFlow";
 import { useBelow } from "@/composables/useBreakpoint";
+import { useToast } from "@/composables/useToast";
 import { drawerTransition } from "@/lib/motion";
 import {
   IconAnnounce,
@@ -542,6 +543,7 @@ function cancel() {
 }
 
 const runtimeCommand = useQuestRuntimeCommand();
+const toast = useToast();
 const runtimeImprovise = useQuestRuntimeImprovise();
 
 async function submit() {
@@ -574,7 +576,7 @@ async function submit() {
   } catch (caught) {
     submitError.value = isVersionConflictError(caught)
       ? "The session moved on another device. Reopen to advance."
-      : caught instanceof Error ? caught.message : "The transition could not be recorded";
+      : toast.fromError(caught, "The transition could not be recorded");
   } finally {
     submitting.value = false;
   }

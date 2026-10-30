@@ -39,13 +39,12 @@ import type { DashboardQuestRowModel } from "@/lib/dashboard/questRows";
 defineProps<{ row: DashboardQuestRowModel }>();
 
 /**
- * The lifecycle, encoded once. `here` and `paused` both mean the quest holds a
- * runtime cursor — the difference is whether the table is standing in it, which
- * matters because after a session ends every open chain is paused.
+ * The lifecycle, encoded once. `here` means the quest holds a runtime cursor
+ * (a session ending leaves it there); `active` is a quest in the active lane
+ * with no cursor.
  */
 const STAGES = {
   here:   { dot: "bg-primary",      badge: "Party is here", badgeClass: "text-primary" },
-  paused: { dot: "bg-muted-foreground", badge: "Paused",    badgeClass: "text-muted-foreground" },
   active: { dot: "bg-tone-success", badge: "",              badgeClass: "" },
 } as const;
 </script>

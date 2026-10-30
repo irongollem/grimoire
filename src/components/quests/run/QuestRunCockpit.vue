@@ -21,9 +21,6 @@
     </div>
 
     <template v-else-if="currentBeat && context?.state">
-      <div v-if="context.state.status === 'paused'" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
-        Session paused. Prep remains available; resume when the table is ready.
-      </div>
       <!-- The three concerns, side by side: the current beat (concern 2), and
            a rail carrying the objectives ledger and story so far, ending in
            the outcome strip (concern 3) — docked to the bottom of this
@@ -76,7 +73,7 @@
           <!-- Below xl the rail does not mount, so the clocks ride in the main column. -->
           <QuestRunClocks v-if="belowXl && !showSiteHandoff" :quest-id="anchorQuestId" />
           <QuestRunSessionPanel class="hidden xl:block" v-bind="sessionPanelProps" v-on="sessionPanelListeners" />
-          <QuestFoldRow v-model:open="sessionOpen" class="xl:hidden" title="Session" caption="Previous · Jump · Pause · End" :icon="IconClock">
+          <QuestFoldRow v-model:open="sessionOpen" class="xl:hidden" title="Session" caption="Previous · Jump · End" :icon="IconClock">
             <QuestRunSessionPanel v-bind="sessionPanelProps" headless v-on="sessionPanelListeners" />
           </QuestFoldRow>
           <!-- Dock (frame 1), absent under the site handoff. No Prep badge — objectives + chains is noise, not a count. -->
@@ -543,7 +540,7 @@ const sessionPanelProps = computed(() => ({
 }));
 const sessionPanelListeners = {
   previous: () => command("previous"), jump: () => { jumpOpen.value = !jumpOpen.value; },
-  pause: () => command("pause"), resume: () => command("resume"), end: () => endSession(),
+  end: () => endSession(),
 };
 const outcomeStripProps = computed(() => ({
   status: context.value!.state!.status, outgoing: branchChoices.value, disabled: transitioning.value,

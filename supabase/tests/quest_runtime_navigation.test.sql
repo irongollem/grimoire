@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(66);
+select plan(65);
 
 select has_function(
   'public', 'transition_quest_runtime',
@@ -10,7 +10,7 @@ select has_function(
 );
 select has_function('public', 'get_quest_runtime_context', array['uuid', 'uuid', 'uuid'], 'runtime selectors have one server-authorized projection per thread');
 select has_function('public', 'get_campaign_live_quests', array['uuid'], 'the open chains are a set, not a single row');
-select has_function('public', 'end_campaign_quest_session', array['uuid'], 'closing the table is its own command');
+select hasnt_function('public', 'end_campaign_quest_session', array['uuid'], 'nothing closes every thread at once: a thread keeps its cursor between sessions');
 select has_function('public', 'search_quest_runtime_jump_targets', array['uuid', 'uuid', 'text', 'integer'], 'jump picker is scoped to the chain it moves');
 select has_column('public', 'quest_runtime_state', 'quest_id', 'the cursor belongs to a quest');
 select col_is_pk('public', 'quest_runtime_state', array['campaign_id', 'quest_id', 'thread_id'], 'one cursor per thread, not per quest');
@@ -111,7 +111,7 @@ select is((select jsonb_array_length(visit_stack) from public.quest_runtime_stat
   where quest_id = '66800000-0000-4000-8000-000000000020'), 2, 'a new path truncates abandoned forward visit state');
 
 select throws_ok(
-  $$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'pause', 5) $$,
+  $$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'end', 5) $$,
   '40001', 'Quest runtime changed; expected version 5, current version 6',
   'a stale co-DM command fails instead of overwriting the winner');
 
@@ -182,12 +182,16 @@ select throws_ok(
   'P0001', 'Target beat is not eligible in this quest',
   'improv cannot mislabel a normal authored beat');
 
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'pause', 3) -> 'state' ->> 'status', 'paused', 'pause is an explicit history-producing command');
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'resume', 4) -> 'state' ->> 'status', 'running', 'resume is explicit and retains the current beat');
+-- A thread cannot be paused (20261030230228): one paused at session end
+-- refused Advance at the next session until the DM found Resume.
+select throws_ok($$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'pause', 3) $$,
+  'P0001', 'Unknown quest runtime command: pause', 'there is no pause command');
+select throws_ok($$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'resume', 3) $$,
+  'P0001', 'Unknown quest runtime command: resume', 'there is no resume command');
 
 -- ── Ending one chain, and ending the night ───────────────────────────────────
 
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'end', 5) -> 'state' ->> 'status', 'ended', 'end closes one chain explicitly');
+select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'end', 3) -> 'state' ->> 'status', 'ended', 'end closes one chain explicitly');
 select is((select current_beat_id from public.quest_runtime_state
   where quest_id = '66800000-0000-4000-8000-000000000021'), null::uuid, 'ending a chain clears its own cursor');
 -- Bug 2: the campaign-wide `end` nulled the single cursor, so closing the side
@@ -196,12 +200,16 @@ select is((select current_beat_id from public.quest_runtime_state
   where quest_id = '66800000-0000-4000-8000-000000000020'), '66800000-0000-4000-8000-000000000032'::uuid,
   'ending one chain never discards another chain''s position');
 
-select is(public.end_campaign_quest_session('66800000-0000-4000-8000-000000000010'), 1, 'closing the table pauses every chain still running');
 select is((select status from public.quest_runtime_state
-  where quest_id = '66800000-0000-4000-8000-000000000020'), 'paused', 'the running chain is paused rather than cleared');
+  where quest_id = '66800000-0000-4000-8000-000000000020'), 'running', 'the other chain is still running, so it can advance');
+reset role;
+select throws_ok($$ update public.quest_runtime_state set status = 'paused'
+  where quest_id = '66800000-0000-4000-8000-000000000020' $$,
+  '23514', null, 'paused is not a status a thread can hold');
+set local role authenticated;
 select is((select current_beat_id from public.quest_runtime_state
   where quest_id = '66800000-0000-4000-8000-000000000020'), '66800000-0000-4000-8000-000000000032'::uuid,
-  'pausing for the night keeps every position for next week');
+  'every other position is kept for next week');
 
 select throws_ok(
   $$ update public.quest_beat_transitions set reason = 'forged' where runtime_version = 1 $$,
@@ -341,9 +349,6 @@ select throws_ok(
 select throws_ok(
   $$ select public.get_campaign_live_quests('66800000-0000-4000-8000-000000000010') $$,
   'P0001', 'Not authorized', 'an outsider cannot enumerate the open chains');
-select throws_ok(
-  $$ select public.end_campaign_quest_session('66800000-0000-4000-8000-000000000010') $$,
-  'P0001', 'Not authorized', 'an outsider cannot close the table');
 
 select * from finish();
 rollback;

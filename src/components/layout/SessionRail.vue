@@ -59,9 +59,8 @@ const audioCount = computed(
   () => soundboard.activeAudioCount + (spotify.isConnected && spotify.isPlaying ? 1 : 0),
 );
 
-/** Chains the party is actually walking. A paused chain is a prep concern, not
- *  a thing happening at the table, so it belongs on the prep dashboard rather
- *  than in the chrome. */
+/** Chains the party is actually walking. A chain parked at a converge beat
+ *  (`waiting`) is the story's pause, not the table's, so it stays off the rail. */
 const runningChains = computed(
   () => (liveQuests.value ?? []).filter((q) => q.runtime_status === "running").length,
 );
@@ -81,7 +80,8 @@ interface Row {
  */
 const rows = computed<Row[]>(() => {
   // Nothing nests under a session that isn't running — except a running
-  // encounter, which can outlive one on rows that predate `session_id`.
+  // encounter. Ending a session does not stop a fight: it stays live until the
+  // DM presses End combat, so next session it is still on the rail.
   if (!isRunning.value && !anyRunning.value) return [];
   const out: Row[] = [];
   if (anyRunning.value && firstRunning.value) {

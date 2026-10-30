@@ -271,9 +271,9 @@ Two wrong answers were tried before the right one, and both are worth not repeat
 - **Stacking** them as three sections of one card only moved the duplicate next to its twin.
 - **Grouping** by stage under headings looks right until quests are properly built out — at which point every active quest holds a cursor, so _Party is here_ and _Active_ list the same quests under two headings, and the heading repeats what the row's own badge says.
 
-So `lib/dashboard/questRows.ts` merges every reading into **one row per quest**, sorted `here → paused → active` (the `rumor` stage went with the quest-level Rumor lane in #874 — a rumour is a beat's visibility now, not a place a quest can be), and the widget renders a flat list. A cursor always wins over the lane: where the party is standing is the strongest thing you can say about a quest, and it carries the beat, which beats the giver at a glance. `DashboardQuestRow` never changes shape between stages, so only the dot and the trailing label differ.
+So `lib/dashboard/questRows.ts` merges every reading into **one row per quest**, sorted `here → active` (the `rumor` stage went with the quest-level Rumor lane in #874 — a rumour is a beat's visibility now, not a place a quest can be), and the widget renders a flat list. A cursor always wins over the lane: where the party is standing is the strongest thing you can say about a quest, and it carries the beat, which beats the giver at a glance. `DashboardQuestRow` never changes shape between stages, so only the dot and the trailing label differ.
 
-Guarantee held in `questRows.test.ts`: `end_campaign_quest_session` pauses every open chain when a session ends, so "has a cursor" must never render as "the party is here".
+Held in `questRows.test.ts`: ending a session no longer pauses anything (`20261030230228`), so any chain with a cursor (running or waiting) is "here".
 
 `SessionWidget` is in-world time and place (Game Day via `useSetCampaignToday`; Current Location via `useSetCampaignLocation`; DM-only "Sync to party →" via `useSyncPartyLocation`). It is **not** the live session of [#758](https://github.com/irongollem/grimoire/issues/758) — game-world time advances whether or not the table is sitting.
 

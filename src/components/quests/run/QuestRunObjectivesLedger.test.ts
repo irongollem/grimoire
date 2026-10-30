@@ -77,7 +77,7 @@ describe("QuestRunObjectivesLedger", () => {
     const wrapper = mountLedger({
       threads: [
         { id: "t1", campaign_id: "c1", quest_id: "q1", label: "A", status: "live", opened_by_edge_id: null, parent_thread_id: null, merged_into_thread_id: null, created_by: null, created_at: "2026-01-01T00:00:00Z", closed_at: null, updated_at: "now", current_beat_id: "beat-a", current_beat_title: "A", runtime_status: "running", version: 1 },
-        { id: "t2", campaign_id: "c1", quest_id: "q1", label: "B", status: "live", opened_by_edge_id: null, parent_thread_id: null, merged_into_thread_id: null, created_by: null, created_at: "2026-01-02T00:00:00Z", closed_at: null, updated_at: "now", current_beat_id: "beat-b", current_beat_title: "B", runtime_status: "paused", version: 1 },
+        { id: "t2", campaign_id: "c1", quest_id: "q1", label: "B", status: "live", opened_by_edge_id: null, parent_thread_id: null, merged_into_thread_id: null, created_by: null, created_at: "2026-01-02T00:00:00Z", closed_at: null, updated_at: "now", current_beat_id: "beat-b", current_beat_title: "B", runtime_status: "waiting", version: 1 },
       ] as QuestThreadCursor[],
     });
     expect(wrapper.text()).toContain("pending · Thread B");

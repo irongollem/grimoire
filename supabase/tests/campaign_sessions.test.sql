@@ -153,9 +153,12 @@ select throws_ok(
 -- ── Ending ───────────────────────────────────────────────────────────────────
 
 select set_config('request.jwt.claim.sub', '98500000-0000-4000-8000-000000000001', true);
-select set_config('grimoire.end', (public.end_campaign_session('98500000-0000-4000-8000-000000000010'))::text, true);
-select is((current_setting('grimoire.end')::jsonb ->> 'encounters_ended')::integer, 1, 'ending stops the combat');
-select is((current_setting('grimoire.end')::jsonb ->> 'chains_paused')::integer, 1, 'ending pauses the open chain');
+select public.end_campaign_session('98500000-0000-4000-8000-000000000010');
+-- Ending stops nothing (20261030230228): the fight and the thread carry over.
+select is((select is_running from public.encounter_state where encounter_id = '98500000-0000-4000-8000-000000000040'),
+  true, 'ending a session leaves the fight live, so the next session carries on from the same round');
+select is((select status from public.quest_runtime_state where quest_id = '98500000-0000-4000-8000-000000000020'),
+  'running', 'ending a session leaves the quest thread running, so Advance works next session');
 select isnt((select ended_at from public.campaign_sessions where id = current_setting('grimoire.s15')::uuid),
   null, 'the session records when it ended');
 

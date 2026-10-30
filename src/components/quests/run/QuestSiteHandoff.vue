@@ -45,7 +45,7 @@
         <!-- Frame 4: the dock carries this same verb below xl, so the header's
              own copy hides there rather than duplicating a control that is
              now one tap away at any scroll position. -->
-        <AppButton variant="primary" size="sm" class="hidden xl:inline-flex" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
+        <AppButton variant="primary" size="sm" class="hidden xl:inline-flex" :icon="IconCheck" label="Advance beat" :disabled="!canAdvance" @click="emit('advance')" />
       </div>
     </header>
 
@@ -54,7 +54,7 @@
          on its own — this only surfaces the same button the header already
          carries. -->
     <TriggerBeatPrompt
-      v-if="showTriggerPrompt"
+      v-if="showTriggerPrompt && canAdvance"
       :beat="{ title: beat.title }"
       @advance="emit('advance')"
       @dismiss="dismissTriggerPrompt"
@@ -258,7 +258,7 @@
 
       <DockBar hide-from="xl">
         <AppButton variant="subtle" size="md" class="min-h-12 flex-1" :label="roomsDockLabel" @click="roomsSheetOpen = true" />
-        <AppButton variant="primary" size="md" class="min-h-12 flex-1" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
+        <AppButton variant="primary" size="md" class="min-h-12 flex-1" :icon="IconCheck" label="Advance beat" :disabled="!canAdvance" @click="emit('advance')" />
       </DockBar>
 
       <MobileSheet v-model:open="roomsSheetOpen" show-until="xl" :title="siteSpaceHeading">
@@ -280,7 +280,7 @@
         <template #footer>
           <div class="flex gap-2">
             <AppButton variant="subtle" size="md" class="min-h-11 flex-1" label="Leave site" @click="emit('leave')" />
-            <AppButton variant="primary" size="md" class="min-h-11 flex-1" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
+            <AppButton variant="primary" size="md" class="min-h-11 flex-1" :icon="IconCheck" label="Advance beat" :disabled="!canAdvance" @click="emit('advance')" />
           </div>
         </template>
       </MobileSheet>
@@ -389,13 +389,16 @@ const mapExpandOpen = ref(false);
 
 // ── Quest + thread chrome ────────────────────────────────────────────────
 const { data: quest } = useQuest(computed(() => questId));
+// The server refuses `advance` unless the thread is running (a thread parked
+// at a converge beat is `waiting`), so no Advance control is offered otherwise.
+const canAdvance = computed(() => context.state?.status === "running");
 const currentBadge = computed(() => threadBadge(context.threads, threadId));
 const kindLabel = computed(() => QUEST_BEAT_KIND_LABELS[beat.kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? beat.kind);
 
 const otherThreads = computed(() => threadBadges(context.threads).filter((b) => b.thread.id !== threadId && b.thread.status === "live"));
 const otherThreadsHeading = computed(() => otherThreads.value.length === 1
-  ? `Thread ${otherThreads.value[0]!.letter} is paused, not closed`
-  : "Other threads are paused, not closed");
+  ? `Thread ${otherThreads.value[0]!.letter} is still open`
+  : "Other threads are still open");
 
 // ── The site and its rooms, exactly as SiteRunSurface reads them ───────────
 // A beat can now be staged directly at a room, not only a site itself (#868

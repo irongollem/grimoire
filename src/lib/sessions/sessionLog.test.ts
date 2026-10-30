@@ -4,7 +4,6 @@ import {
   logSummaryParts,
   quickNoteTarget,
   sessionDuration,
-  sessionEndedMessage,
   sessionMeta,
   sessionPlayedLine,
   sessionRecap,
@@ -155,13 +154,6 @@ describe("appendParagraph", () => {
   it("refuses content that is not a TipTap document", () => {
     expect(appendParagraph("<p>old html</p>", "x")).toBeNull();
     expect(appendParagraph('{"foo":1}', "x")).toBeNull();
-  });
-});
-
-describe("sessionEndedMessage", () => {
-  it("names what ending the session stopped", () => {
-    expect(sessionEndedMessage({ encounters_ended: 1, chains_paused: 2 })).toBe("Session ended: 1 encounter stopped, 2 quests paused.");
-    expect(sessionEndedMessage({ encounters_ended: 0, chains_paused: 0 })).toBe("Session ended.");
   });
 });
 

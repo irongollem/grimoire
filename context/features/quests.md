@@ -647,10 +647,10 @@ thread**, because a quest now holds as many live cursors as the story has
 open at once — there is no thread-less cursor left. Holds `current_beat_id`,
 `visit_stack` (undo semantics — moving forward from a rewound position
 truncates), `visit_index`, `return_stack`, `status`
-(`idle`/`running`/`paused`/`waiting`/`ended` — `waiting` added by #850 for a
-thread parked at a converge-all beat, distinct from `paused`: the story
-stopped it, not the DM, and it resumes on its own when the last sibling
-arrives) and `version` for optimistic concurrency.
+(`idle`/`running`/`waiting`/`ended` — `waiting` added by #850 for a
+thread parked at a converge-all beat: the story stopped it, and it resumes on
+its own when the last sibling arrives. There is no paused status: ending a
+session leaves every thread as it is, see `20261030230228`) and `version` for optimistic concurrency.
 
 The cursor tracks **narrative position in a chain, not where the party is
 standing** — its own migration header says so. Clients have no insert/update/delete
@@ -659,7 +659,7 @@ grant; it moves only through the RPCs.
 ### `quest_beat_transitions` — append-only
 
 `transition_kind`: `enter`, `forward`, `previous`, `jump`, `return`, `improv`,
-`pause`, `resume`, `end`, and `assert` (#794 — the DM saying "this already
+`end`, and `assert` (#794 — the DM saying "this already
 happened" via `assert_quest_objective_status`, with no cursor movement: a
 quest and no beat, the one shape that kind of row is allowed). `thread_id`
 (#850) names which thread walked — nullable, because an `assert` row and a
@@ -1432,7 +1432,7 @@ show first. Below the header:
   held three beats ago is still the DM's to dispatch today). **When the
   current beat is staged at a site with rooms, this column becomes
   `QuestSiteHandoff` instead** — see below.
-- **`QuestRunSessionPanel`** — Previous, Jump, Pause/Resume, End: the
+- **`QuestRunSessionPanel`** — Previous, Jump, End: the
   session-wide commands, kept apart from "what happens next," which are
   outcomes of the current beat rather than of the table. Replaces
   `QuestRunControls`, which was a bar docked to the foot of the whole cockpit;
@@ -1681,7 +1681,7 @@ list caption, the party's ordinal position, which rooms hold loot) live in
 in `src/lib/locations/roomStack.ts` and is documented in world-building.md's
 "The site runner".
 
-Other threads the quest holds are still listed as "paused, not closed" with a
+Other threads the quest holds are still listed as "still open" with a
 Switch button, unchanged from #850. Three exits, all emits the cockpit owns:
 "Show map to players" (toggles `is_map_shared`), "Leave site" (dismisses the
 handoff for this visit; nothing here writes `quest_runtime_state`), "Advance
@@ -1833,7 +1833,7 @@ There is no thread-less read path left anywhere in this list.
 `transition_quest_runtime(campaign, quest, thread, command, expected_version,
 target_beat_id?, edge_id?, reason?, push_return?, provenance?,
 spawn_edge_ids?, hold_consequence_ids?, dispatch_loot_ids?)` — commands
-`start`, `advance`, `previous`, `jump`, `return`, `improv`, `pause`, `resume`,
+`start`, `advance`, `previous`, `jump`, `return`, `improv`,
 `end`, same as before #850, now against one named thread. `advance` walks a
 `choice` route on that thread; `p_spawn_edge_ids` walks each named `parallel`
 route by **spawning a thread** in the same transaction — its own cursor,
@@ -1899,9 +1899,7 @@ many threads that thread's quest currently has open).
 only: ticks a clock from the cockpit; see `quest_clocks`).
 
 `improvise_quest_runtime`, `search_quest_runtime_jump_targets`,
-`end_campaign_quest_session` (pauses every running **thread** at its beat;
-a `waiting` thread — parked for a merge — is left waiting, since the story
-parked it, not the DM closing the table), `archive_quest_beat(beat_id,
+`archive_quest_beat(beat_id,
 p_replacements)` — `p_replacements` is `[{thread_id, beat_id | null}]`: every
 thread whose cursor stands on the beat being archived must be named (a null
 `beat_id` ends that thread instead of moving it), or the call raises `23514`
@@ -1998,10 +1996,10 @@ Semantics not to re-litigate (from #755):
   un-rewindable.
 - **A command names exactly one thread of one chain.** Reaching another quest
   is navigation to its own Run URL, not a runtime write.
-- **Ending is per thread.** `end_campaign_quest_session` pauses every running
-  thread at its beat rather than clearing it (a `waiting` thread is left
-  waiting — the story parked it, not the DM), and is called by
-  `end_campaign_session`.
+- **Ending a session leaves threads alone.** `end_campaign_quest_session` was
+  dropped (`20261030230228`), along with the `paused` status and the `pause` and
+  `resume` commands: a thread holding a cursor is `running` (or `waiting`), and
+  stays so across sessions. `assert_quest_runtime` creates a `running` thread.
 - **Nesting is a sort hint.** A parent's cursor never aggregates its children's.
 
 `promote_quest_on_cursor_arrival` ratchets `quests.status` `undiscovered →

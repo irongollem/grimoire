@@ -278,7 +278,7 @@ describe("deriveQuestBoardSummaries", () => {
   it("reads the top-level fields off the first running thread, and lists every thread on its own", () => {
     const summaries = deriveQuestBoardSummaries(payload({
       beats: [boardBeat("beat-a", "quest-a", { title: "Arrival" }), boardBeat("beat-b", "quest-a", { title: "Side chamber" })],
-      runtime: [cursor("quest-a", "side", "beat-b", "paused"), cursor("quest-a", "main", "beat-a")],
+      runtime: [cursor("quest-a", "side", "beat-b", "waiting"), cursor("quest-a", "main", "beat-a")],
       threads: [
         thread("main", "quest-a"),
         thread("side", "quest-a", { label: "The lost heir", created_at: "2026-08-05T00:00:00Z" }),

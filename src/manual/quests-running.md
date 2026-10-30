@@ -4,7 +4,7 @@ section: Quests
 section_order: 3
 order: 2
 summary: "The Run cockpit: starting a session, advancing the story, managing threads, and handling payoff and sites live at the table."
-keywords: run, cockpit, advance, thread, jump, pause, resume, held payoff, dispatch, session, improvise, site handoff, hotkeys
+keywords: run, cockpit, advance, thread, jump, held payoff, dispatch, session, improvise, site handoff, hotkeys
 ---
 
 The **Run** tab (one of a quest's three tabs, alongside Overview and Story Flow, or just open a quest while a session is live, since Run is the default landing then) is where you actually play a quest at the table. It walks one thread of the story flow at a time, showing the current beat, what can happen next, and everything you need to react to what the table does.
@@ -13,7 +13,7 @@ The **Run** tab (one of a quest's three tabs, alongside Overview and Story Flow,
 
 | Term | What it means |
 | --- | --- |
-| Session status | idle → running → paused → (waiting, for a parked thread) → ended. |
+| Session status | idle → running → (waiting, for a parked thread) → ended. |
 | Thread bar | The row of pills across the top, one per thread the quest holds, for switching which one the cockpit is showing. |
 | Advance | Recording what happens next: the route taken, any parallel routes that open alongside it, and which payoff fires now versus later. |
 | Held payoff | A consequence or piece of loot that's already fired but is still waiting for you to hand it over or announce it. |
@@ -46,7 +46,7 @@ The **thread bar** shows one pill per thread: live and waiting ones are clickabl
 
 ## Session controls
 
-The **Session** card carries the table-wide commands, independent of what the current beat offers: **Previous** (undo, truncating anything abandoned by moving forward again), **Jump…** (search for and jump straight to any beat, with a required reason: the deliberate override that ignores gates), **Pause** / **Resume**, and **End session** (pauses every running thread; a thread parked waiting for a converge stays waiting). Keyboard shortcuts: **Alt+←** previous, **Alt+→** advances when exactly one route is open, **J** opens Jump.
+The **Session** card carries the table-wide commands, independent of what the current beat offers: **Previous** (undo, truncating anything abandoned by moving forward again), **Jump…** (search for and jump straight to any beat, with a required reason: the deliberate override that ignores gates), and **End session** (closes the session in your log; every thread stays where it is). Keyboard shortcuts: **Alt+←** previous, **Alt+→** advances when exactly one route is open, **J** opens Jump.
 
 ## Clocks
 

@@ -3,7 +3,7 @@ import { computed, nextTick, ref } from "vue";
 import type { Ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QuestSiteHandoff from "./QuestSiteHandoff.vue";
-import type { QuestBeat, QuestRuntimeContext, QuestThreadCursor } from "@/types/quest.types";
+import type { QuestBeat, QuestRuntimeContext, QuestRuntimeState, QuestThreadCursor } from "@/types/quest.types";
 import type { Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -135,7 +135,7 @@ function context(overrides: Partial<QuestRuntimeContext> = {}): QuestRuntimeCont
   });
   const threadB = thread();
   return {
-    state: null, current: null, previous: null, outgoing: [], return_target: null, path_so_far: [],
+    state: { status: "running" } as QuestRuntimeState, current: null, previous: null, outgoing: [], return_target: null, path_so_far: [],
     thread: threadB,
     threads: [threadA, threadB],
     held: [],
@@ -308,7 +308,7 @@ describe("QuestSiteHandoff", () => {
   it("lists the other live threads, not the current one, with a Switch link carrying the thread id", () => {
     const wrapper = mountHandoff();
     const text = wrapper.text();
-    expect(text).toContain("Thread A is paused, not closed");
+    expect(text).toContain("Thread A is still open");
     expect(text).toContain("Confront Ser Vallis is still the cursor on Thread A");
     expect(text).not.toContain("cursor on Thread B");
     // Rendered as a RouterLink once `to` is set, which swallows its default
@@ -319,7 +319,7 @@ describe("QuestSiteHandoff", () => {
 
   it("does not show the other-threads panel once no other thread is live", () => {
     const wrapper = mountHandoff({ context: context({ threads: [thread()] }) });
-    expect(wrapper.text()).not.toContain("paused, not closed");
+    expect(wrapper.text()).not.toContain("still open");
   });
 
   it("passes the rooms and door-reachability graph through to the shared SiteRoomList, with run captions on", () => {
@@ -382,6 +382,23 @@ describe("QuestSiteHandoff", () => {
     mocks.currentLocationId = "room-1";
     mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "some-other-beat" }, cells: ["0,0"] })];
     const wrapper = mountHandoff();
+    expect(wrapper.text()).not.toContain("is staged on this floor. Advance?");
+  });
+
+  // Bug: the maintainer pressed Advance on a thread that was not running and
+  // got "The transition could not be recorded", because the server refuses
+  // `advance` unless the thread is running. The control must not be offered.
+  it.each(["waiting", "idle", "ended"] as const)("offers no Advance control while the thread is %s", async (status) => {
+    mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "beat-1" }, cells: ["0,0"] })];
+    mocks.currentLocationId = "room-1";
+    mocks.children = [room({ id: "room-1" })];
+    const base = context();
+    const wrapper = mountHandoff({ context: { ...base, state: { status } as QuestRuntimeState } });
+    const advance = wrapper.findAllComponents({ name: "AppButton" }).filter((b) => b.text().includes("Advance beat"));
+    expect(advance.length).toBeGreaterThan(0);
+    for (const button of advance) expect(button.props("disabled")).toBe(true);
+    await advance[0]!.trigger("click");
+    expect(wrapper.emitted("advance")).toBeUndefined();
     expect(wrapper.text()).not.toContain("is staged on this floor. Advance?");
   });
 
@@ -503,10 +520,10 @@ describe("QuestSiteHandoff", () => {
         ],
       });
       const text = mountHandoff({ context: ctx }).text();
-      expect(text).toContain("Other threads are paused, not closed");
+      expect(text).toContain("Other threads are still open");
       expect(text).not.toContain("A closed road");
       const merged = mountHandoff({ context: context({ threads: [thread({ id: "thread-2" }), thread({ id: "thread-4", status: "merged", created_at: "2024-01-04", current_beat_title: "A merged road" })] }) });
-      expect(merged.text()).not.toContain("paused, not closed");
+      expect(merged.text()).not.toContain("still open");
     });
   });
 

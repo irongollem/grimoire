@@ -126,7 +126,7 @@ export function rankQuestJumpTargets(
 // ── The cockpit's thread bar and "Also open" rail (#853, story F) ──────────
 
 /**
- * "paused at Confront Ser Vallis" — a sibling thread's own line in "Also
+ * "running at Confront Ser Vallis" — a sibling thread's own line in "Also
  * open". Distinct from `describeBeatRecordState` (`backfill.ts`), which
  * describes a *beat's* place in one thread's record; this describes a whole
  * *thread's* standing, for a rail that lists several threads side by side.
@@ -135,7 +135,6 @@ export function describeThreadCursor(thread: QuestThreadCursor): string {
   const beat = thread.current_beat_title;
   switch (thread.runtime_status) {
     case "running": return beat ? `running at ${beat}` : "running";
-    case "paused": return beat ? `paused at ${beat}` : "paused";
     case "waiting": return beat ? `waiting to converge at ${beat}` : "waiting to converge";
     case "ended": return "ended";
     case "idle":

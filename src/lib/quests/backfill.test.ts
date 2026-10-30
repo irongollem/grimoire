@@ -115,11 +115,11 @@ describe("deriveBeatRecordStates", () => {
     expect(states.a.kind).toBe("unplayed");
   });
 
-  it("ignores transitions with a null to_beat_id (pause/resume/end)", () => {
+  it("ignores transitions with a null to_beat_id (end)", () => {
     const states = deriveBeatRecordStates({
       questId: "quest-1",
       beatIds: ["a"],
-      transitions: [transition({ to_beat_id: null, transition_kind: "pause", created_at: "2026-01-01T00:00:00Z" })],
+      transitions: [transition({ to_beat_id: null, transition_kind: "end", created_at: "2026-01-01T00:00:00Z" })],
       currentBeatId: null,
     });
     expect(states.a.kind).toBe("unplayed");
@@ -131,7 +131,7 @@ describe("describeBeatRecordState", () => {
 
   it("labels here as 'the party is here' when the runtime is not running", () => {
     const state: BeatRecordState = { kind: "here", at: null, note: null };
-    expect(describeBeatRecordState(state, "paused", formatDate)).toBe("The party is here");
+    expect(describeBeatRecordState(state, "waiting", formatDate)).toBe("The party is here");
     expect(describeBeatRecordState(state, null, formatDate)).toBe("The party is here");
   });
 

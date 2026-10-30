@@ -227,15 +227,13 @@ describe("QuestRunCockpit", () => {
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", targetBeatId: "b2" }));
   });
 
-  it("routes previous, pause, resume and jump through versioned commands, from the session panel", async () => {
+  it("routes previous and jump through versioned commands, from the session panel", async () => {
     mocks.context.value = runningContext();
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     const session = wrapper.findComponent(QuestRunSessionPanel);
     session.vm.$emit("previous");
-    session.vm.$emit("pause");
     await wrapper.vm.$nextTick();
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "previous", expectedVersion: 4 }));
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "pause" }));
     await flushPromises();
 
     session.vm.$emit("jump");
@@ -243,11 +241,6 @@ describe("QuestRunCockpit", () => {
     wrapper.findComponent({ name: "QuestRunJumpPanel" }).vm.$emit("jump", { quest_id: "q1", beat_id: "b9" }, "A detour", true);
     await wrapper.vm.$nextTick();
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "jump", questId: "q1", targetBeatId: "b9", pushReturn: true }));
-
-    mocks.context.value = { ...runningContext(), state: { ...runningContext().state, status: "paused" } };
-    const paused = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-    paused.findComponent(QuestRunSessionPanel).vm.$emit("resume");
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "resume" }));
   });
 
   // The Advance dialog (story G) is "the only place a thread is created" in
@@ -407,8 +400,8 @@ describe("QuestRunCockpit", () => {
     mocks.threads.value = [];
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     expect(wrapper.findComponent(QuestThreadBar).props("threadId")).toBe("thread-1");
-    await wrapper.findComponent(QuestRunSessionPanel).vm.$emit("pause");
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "pause", threadId: "thread-1" }));
+    await wrapper.findComponent(QuestRunSessionPanel).vm.$emit("previous");
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "previous", threadId: "thread-1" }));
   });
 
   it("reveals the current beat without moving the runtime cursor", async () => {
@@ -447,11 +440,11 @@ describe("QuestRunCockpit", () => {
     mocks.context.value = runningContext();
     mocks.liveQuests.value = [
       { quest_id: "q1", quest_title: "This chain", beat_title: "Opening", runtime_status: "running" },
-      { quest_id: "q2", quest_title: "Murder mystery", beat_title: "Who is the killer", runtime_status: "paused" },
+      { quest_id: "q2", quest_title: "Murder mystery", beat_title: "Who is the killer", runtime_status: "waiting" },
     ];
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     expect(wrapper.findComponent(QuestRunOpenChains).props("chains")).toEqual([
-      expect.objectContaining({ quest_id: "q2", runtime_status: "paused" }),
+      expect.objectContaining({ quest_id: "q2", runtime_status: "waiting" }),
     ]);
   });
 
@@ -544,7 +537,7 @@ describe("QuestRunCockpit", () => {
     it("a refused command is shown, the position is read again, and the session panel is usable afterwards", async () => {
       mocks.mutateAsync.mockRejectedValueOnce(new Error("Someone else moved the session"));
       const wrapper = mountRunning();
-      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("pause");
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("previous");
       await flushPromises();
       expect(wrapper.text()).toContain("Someone else moved the session");
       expect(mocks.refetch).toHaveBeenCalledTimes(1);
@@ -554,7 +547,7 @@ describe("QuestRunCockpit", () => {
     it("a refused command with no message says the position could not be changed", async () => {
       mocks.mutateAsync.mockRejectedValueOnce("nope");
       const wrapper = mountRunning();
-      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("pause");
+      wrapper.findComponent(QuestRunSessionPanel).vm.$emit("previous");
       await flushPromises();
       expect(wrapper.text()).toContain("The session position could not be changed");
     });
@@ -605,7 +598,7 @@ describe("QuestRunCockpit", () => {
         await settleAsync();
         expect(keys(wrapper).enabled()).toBe(false);
 
-        mocks.context.value = { ...runningContext(), state: { ...runningContext().state, status: "paused" } };
+        mocks.context.value = { ...runningContext(), state: { ...runningContext().state, status: "waiting" } };
         await nextTick();
         const paused = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
         expect(keys(paused).enabled()).toBe(false);

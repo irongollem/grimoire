@@ -43,9 +43,3 @@ export interface PlayerSessionLabel {
   started_at: string | null;
   ended_at: string | null;
 }
-
-/** What `end_campaign_session` closed on the way out, for the confirmation copy. */
-export interface CampaignSessionEnded {
-  encounters_ended: number;
-  chains_paused: number;
-}

@@ -3,10 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
-import { QUEST_RUNTIME_QUERY_KEYS } from "@/lib/campaignLiveSync/registry";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
-import type { CampaignSession, CampaignSessionEnded, PlayerSessionState } from "@/types/session.types";
+import type { CampaignSession, PlayerSessionState } from "@/types/session.types";
 
 /**
  * The campaign's live session: started, running, ended.
@@ -149,25 +148,17 @@ export function useCampaignSession() {
     }
   }
 
-  async function end(): Promise<CampaignSessionEnded> {
+  async function end(): Promise<void> {
     const campaignId = campaign.activeCampaignId;
-    if (!campaignId || pending.value) return { encounters_ended: 0, chains_paused: 0 };
+    if (!campaignId || pending.value) return;
     pending.value = true;
     try {
-      const { data, error } = await supabase.rpc("end_campaign_session", {
+      const { error } = await supabase.rpc("end_campaign_session", {
         p_campaign_id: campaignId,
       });
       if (error) throw error;
       await fetchSession(campaignId);
       void queryClient.invalidateQueries({ queryKey: ["campaign-sessions"] });
-      // The RPC paused every open chain inside its own transaction, so every
-      // runtime view the client is holding is now stale. Live sync will say so
-      // too, but this device should not wait on the round trip to learn what it
-      // just did.
-      for (const key of QUEST_RUNTIME_QUERY_KEYS) {
-        void queryClient.invalidateQueries({ queryKey: [key] });
-      }
-      return (data as CampaignSessionEnded | null) ?? { encounters_ended: 0, chains_paused: 0 };
     } finally {
       pending.value = false;
     }

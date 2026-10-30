@@ -146,7 +146,7 @@ describe("QuestBackfillPanel", () => {
       transition({ to_beat_id: "a", transition_kind: "forward", created_at: "2026-01-01T00:00:00Z" }),
       transition({ to_beat_id: "b", transition_kind: "assert", reason: "Session 4", created_at: "2026-01-02T00:00:00Z" }),
     ];
-    mocks.runtimeState = runtimeState({ current_beat_id: "b", status: "paused" });
+    mocks.runtimeState = runtimeState({ current_beat_id: "b", status: "waiting" });
     const wrapper = mountPanel();
     const items = wrapper.findAll("li").map((li) => li.text());
 

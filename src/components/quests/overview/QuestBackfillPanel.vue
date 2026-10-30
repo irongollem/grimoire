@@ -113,12 +113,10 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
  * the cockpit (`QuestRun*.vue`) on purpose — this is prep, not play, and it
  * must never share the cockpit's surface or its "start a session" affordances.
  *
- * Nothing here can make the quest look live: it never touches `ui.dmMode`,
- * never navigates with `?view=run`, and `assert_quest_runtime` itself is
- * documented to leave `status` exactly as it found it (idle stays idle, paused
- * stays paused) — only `transition_quest_runtime` can start a session. See
- * `src/lib/quests/board.ts`'s `isLive` and `SessionRail.vue`, both keyed
- * strictly on `status === "running"`, which this RPC never sets.
+ * It never touches `ui.dmMode` and never navigates with `?view=run`.
+ * `assert_quest_runtime` leaves `status` as it found it, except that it
+ * creates a `running` thread for a quest with no cursor yet, so a quest
+ * asserted "already happened" holds a cursor like any other open chain.
  *
  * Every row shows its own state before anything is ticked — "the party is
  * here", "played · 3d ago", "recorded · Session 4", "not played" — derived in

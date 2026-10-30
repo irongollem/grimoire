@@ -52,12 +52,9 @@ The four things the start dialog lists for you:
 
 1. Click the **✕** at the right of the **Session live** pill (its tooltip reads **End session**).
 
-Ending closes what the session contains:
+Ending a session closes it in your log and nothing else: quest threads stay where the party left them, and a fight in progress stays live, so next session you open it and carry on from the same round.
 
-- Any running encounter stops.
-- Every open quest chain **pauses at its current beat**: nothing is lost. Next session you pick each one up exactly where the party left it, and the paused chains are listed on your dashboard in the meantime.
-
-A toast confirms what happened, e.g. "Session ended: 1 encounter stopped, 2 quests paused." The session stays in your log. The toast has an **Undo** button: if you ended it by mistake, click it and the same session carries on.
+A toast says "Session ended." The session stays in your log. The toast has an **Undo** button: if you ended it by mistake, click it and the same session carries on.
 
 ### Ending it matters
 
@@ -71,7 +68,7 @@ An evening sometimes ends before the table does: a mis-tap on **End**, the wrong
 
 When the last session you ran has ended, the **Start session** dialog offers a choice at the top: **Continue session 14** or **Start session 15**. Continue reopens that session with its number, title and clock. Anything you shared with the players during the break is filed under it too. Its length in the log runs from when it first started to when it last ended, break included.
 
-Grimoire picks **Continue** for you when the session ended in the last four hours and started within the last day, which is what a break looks like. Otherwise it picks **Start**, and you can switch either way. Only the most recent session can be continued, and not while another one is running. Encounters that ending stopped and quest chains it paused stay that way; pick them up as you would at the start of any session.
+Grimoire picks **Continue** for you when the session ended in the last four hours and started within the last day, which is what a break looks like. Otherwise it picks **Start**, and you can switch either way. Only the most recent session can be continued, and not while another one is running. Quests and any fight in progress are exactly as you left them.
 
 If an interrupted evening already became two sessions, merge them from the log (below).
 
@@ -105,7 +102,7 @@ The **Sessions** widget replaces the old Last session widget. It shows your next
 Below the session control, a small indented list shows everything currently running inside the session, ranked by urgency:
 
 - **Combat · round N**: a live encounter, linking to its run screen.
-- **N quest(s) in play**: chains the party is actively walking (a paused chain doesn't count; that's a prep concern and belongs on the dashboard instead).
+- **N quest(s) in play**: chains the party is actively walking (a chain parked at a converge beat doesn't count).
 - **N sound(s) playing**: audio from the soundboard or Spotify.
 - **Writing a draft**: an AI generation in progress.
 
@@ -127,7 +124,7 @@ Below the session control, a small indented list shows everything currently runn
 
 ## Related
 
-- [Dashboard](#dashboard): paused quest chains, the Next Session countdown and the Sessions widget live here between sessions.
+- [Dashboard](#dashboard): open quest chains, the Next Session countdown and the Sessions widget live here between sessions.
 - [Campaign Notes](#campaign-notes): a session's notes, and how a note is linked to its session.
 - [Soundboard](#soundboard): Arrange vs Perform, and what changes when a session starts.
 - [Running a Quest at the Table](#running-a-quest-at-the-table): the run cockpit sessions open quests onto.

@@ -274,13 +274,13 @@ describe("starting and ending a session", () => {
     expect(live.session.value?.id).toBe("s17");
   });
 
-  it("ending reports what the server closed and re-reads the log, so the session is no longer running", async () => {
+  it("ending closes the session row and re-reads the log, so the session is no longer running", async () => {
     const live = mountSession();
     await readSession(row({ id: "s15" }));
     expect(useAppUiStore().sessionRunning).toBe(true);
     openRow = null;
-    answerRpcs({ end_campaign_session: { encounters_ended: 2, chains_paused: 1 } });
-    expect(await live.end()).toEqual({ encounters_ended: 2, chains_paused: 1 });
+    answerRpcs({ end_campaign_session: null });
+    await live.end();
     expect(useAppUiStore().sessionRunning).toBe(false);
   });
 

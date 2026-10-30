@@ -47,11 +47,9 @@ export const RUNTIME_KEY = "quest_runtime_state";
 export const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 export const TRANSITIONS_KEY = "quest_beat_transitions";
 
-/** Every cache a runtime move invalidates. Ending a *session* moves the cursors
- *  too — `end_campaign_session` pauses every open chain server-side, so the
- *  client has to be told its runtime views are stale. The quest board is one of
- *  them: it summarises every cursor, so a move made on another device (the
- *  doorbell) or by ending a session must refresh it too. */
+/** Every cache a runtime move invalidates. The quest board is one of them: it
+ *  summarises every cursor, so a move made on another device (the doorbell)
+ *  must refresh it too. */
 export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY, QUEST_BOARD_KEY] as const;
 
 // The tables whose own name is the signal, with the query root each refreshes.

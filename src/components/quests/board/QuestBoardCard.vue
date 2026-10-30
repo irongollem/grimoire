@@ -27,15 +27,6 @@
         <IconParty class="h-3 w-3" aria-hidden="true" />
         Party is here
       </span>
-      <!-- A suspended chain still holds its place; it just is not where the
-           table is right now. -->
-      <span
-        v-else-if="summary?.runtimeStatus === 'paused'"
-        class="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-label font-semibold uppercase text-muted-foreground"
-      >
-        <IconParty class="h-3 w-3" aria-hidden="true" />
-        Paused here
-      </span>
     </div>
 
     <p

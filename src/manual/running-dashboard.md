@@ -61,7 +61,7 @@ Everything else lives on the shelf: add it from **Add a widget…** if you want 
 | Widget | What it shows |
 | --- | --- |
 | Needs prep | Quests and encounters not ready to run, plus undelivered loot |
-| Quests | One row per active/paused/in-play quest, merged from every stage |
+| Quests | One row per active and in-play quest, merged from every stage |
 | Next session | Countdown to your table's next agreed session date |
 | Unidentified | Party items still awaiting identification |
 | Party | HP, AC, conditions and passive scores for the roster, with online presence dots |

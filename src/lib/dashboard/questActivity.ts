@@ -40,8 +40,6 @@ const TRANSITION_VERBS: Record<Exclude<QuestTransitionKind, "assert">, string> =
   jump: "Jumped",
   return: "Returned",
   improv: "Improvised",
-  pause: "Paused",
-  resume: "Resumed",
   end: "Ended",
 };
 

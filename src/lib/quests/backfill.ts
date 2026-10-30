@@ -37,7 +37,7 @@ const TABLE_TRANSITION_KINDS: ReadonlySet<QuestTransitionKind> = new Set([
  *
  * Transitions are scanned rather than trusted to arrive pre-sorted — order is
  * whatever the caller's query returned — and only rows landing on THIS quest
- * with a real `to_beat_id` count: `pause`/`resume`/`end` transitions carry no
+ * with a real `to_beat_id` count: `end` transitions carry no
  * `to_beat_id`, and another quest's rows are noise here even if a beat id
  * happened to collide (it can't, but the filter costs nothing and documents
  * the assumption).
@@ -79,7 +79,7 @@ export function deriveBeatRecordStates(input: {
     } else if (TABLE_TRANSITION_KINDS.has(newest.transition_kind)) {
       states[beatId] = { kind: "played", at: newest.created_at, note: newest.reason };
     } else {
-      // A pause/resume/end row would have no to_beat_id and is filtered out
+      // An end row would have no to_beat_id and is filtered out
       // above, so this is unreachable with real data — kept as a safe default
       // rather than an assertion, since a new transition_kind arriving later
       // should degrade gracefully instead of mis-labelling a beat as played.

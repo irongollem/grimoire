@@ -48,7 +48,7 @@ export interface QuestBoardThreadSummary {
 
 export interface QuestBoardSummary {
   /** The party is in this chain right now. Several quests can be live at once —
-   * a paused chain still holds its cursor but is not where the table is.
+   * a waiting chain still holds its cursor but is not where the table is.
    * Reads as the first live thread's status (#853) — see `threads` for the rest. */
   isLive: boolean;
   runtimeStatus: QuestRuntimeStatus | null;
@@ -60,7 +60,7 @@ export interface QuestBoardSummary {
   /** Every thread this quest currently holds (#853). Empty for a quest with
    *  no runtime row at all — the pre-threads, never-started case. */
   threads: QuestBoardThreadSummary[];
-  /** How many of `threads` are actually running, not merely paused or waiting. */
+  /** How many of `threads` are actually running, not merely waiting. */
   liveThreadCount: number;
   /** The id in `threads` that `runtimeStatus`/`currentBeatTitle`/`beatSegments`
    *  above are actually read from — the first running thread, else the first
@@ -103,7 +103,7 @@ export interface QuestBoardSummary {
   /** Set only once a quest has an `end` transition on record. "Session N"
    *  when the transition's own reason names one (the shorthand DMs actually
    *  type — never invented from a date), then whether every thread the quest
-   *  ever opened closed or merged, or one was left running/paused/waiting. */
+   *  ever opened closed or merged, or one was left running/waiting. */
   settledCaption: string | null;
   /** How many of this quest's `quest_objectives` rows are `status: "complete"`
    *  (frame `07 Log`'s featured-card statblock, story I). */

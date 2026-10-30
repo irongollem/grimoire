@@ -674,7 +674,7 @@ export interface QuestRouteEffect {
 }
 
 /**
- * One thread's status (#853). `live`: has a running/paused cursor. `waiting`:
+ * One thread's status (#853). `live`: has a running cursor. `waiting`:
  * parked at a converge-all beat until every incoming route has been walked.
  * `merged`: folded into another thread at such a beat. `closed`: ended by the
  * DM or by the quest.
@@ -727,12 +727,12 @@ export interface QuestRuntimeState {
   updated_at: string;
 }
 
-/** `waiting`: parked at a converge-all beat. Not `paused` — the DM did not
- *  stop it, the story did, and it resumes on its own when the last thread
- *  arrives (#853). */
-export type QuestRuntimeStatus = "idle" | "running" | "paused" | "waiting" | "ended";
-export type QuestRuntimeCommand = "start" | "advance" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
-export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end" | "assert";
+/** `waiting`: parked at a converge-all beat. The story stopped it, not the DM,
+ *  and it resumes on its own when the last thread arrives (#853). There is no
+ *  paused state: ending a session leaves every thread where it stands. */
+export type QuestRuntimeStatus = "idle" | "running" | "waiting" | "ended";
+export type QuestRuntimeCommand = "start" | "advance" | "previous" | "jump" | "return" | "improv" | "end";
+export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "end" | "assert";
 
 /** A place in one chain. The quest is the cursor row's own key, so an entry
  * carries only the beat — a quest_id inside it could only ever disagree. */
@@ -826,7 +826,7 @@ export interface QuestRuntimeJumpTarget {
   is_improvised: boolean;
 }
 
-/** A chain the party currently has open. Running first, then paused. Now one
+/** A chain the party currently has open. Running first, then waiting. Now one
  *  row per thread (#853) — `sibling_count` says how many other threads this
  *  quest currently holds, so a list of chains can say "and 2 more" without a
  *  second query. */
