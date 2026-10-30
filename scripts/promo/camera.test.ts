@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canvasFor, GLIDE, MAX_ZOOM, MIN_PADDING, planCamera, viewAt, viewFor, zoompanExpressions, type Rect } from "./camera";
+import { canvasFor, homeView, GLIDE, MAX_ZOOM, MIN_PADDING, planCamera, viewAt, viewFor, zoompanExpressions, type Rect } from "./camera";
 
 const WINDOW = { width: 1000, height: 1440 };
 const DESKTOP = { width: 2880, height: 1800 };
@@ -143,5 +143,50 @@ describe("zoompanExpressions", () => {
   it("the camera rests on the last view after the last glide", () => {
     const zoomed = viewFor({ x: 1500, y: 300, width: 700, height: 300 }, canvas);
     expect(x.endsWith(`${Math.round(zoomed.x * 1e4) / 1e4}))`)).toBe(true);
+  });
+});
+
+describe("homeView, the resting view of a wide screen", () => {
+  const sidebar = 480;
+  const home = homeView(canvas, DESKTOP, sidebar);
+
+  it("the resting desktop view is readable: it fills the window's height instead of shrinking the screen to a strip", () => {
+    expect(home.height).toBe(DESKTOP.height);
+    expect(home.y).toBe(canvas.screenY);
+    // The whole-canvas view shows the screen at 2880 px wide in a 1000 px window; this one shows 1250 px of it.
+    expect(canvas.width / home.width).toBeGreaterThan(2);
+    expect(home.width / home.height).toBeCloseTo(1000 / 1440, 3);
+  });
+  it("it shows no paper: the view lies wholly on the screen", () => {
+    expect(home.y).toBeGreaterThanOrEqual(canvas.screenY);
+    expect(home.y + home.height).toBeLessThanOrEqual(canvas.screenY + DESKTOP.height);
+    expect(inside(home)).toBe(true);
+  });
+  it("it starts beside the sidebar, so the page's own heading is the first thing in frame", () => {
+    expect(home.x).toBe(canvas.screenX + sidebar);
+  });
+  it("it is clamped inside the screen when the sidebar inset would push it off the right edge", () => {
+    const far = homeView(canvas, DESKTOP, 2500);
+    expect(far.x + far.width).toBeLessThanOrEqual(canvas.width);
+  });
+  it("a phone or tablet, already the window's shape, rests on the whole canvas", () => {
+    const tablet = { width: 1640, height: 2360 };
+    const c = canvasFor(tablet, { width: 900, height: 1295 });
+    expect(homeView(c, tablet)).toEqual(viewFor(null, c));
+  });
+  it("focus(null) glides back to the resting view and overview() to the true whole screen", () => {
+    const target = { x: 1500, y: 300, width: 700, height: 300 };
+    const plan = planCamera([{ t: 2, rect: target }, { t: 5, rect: null }, { t: 9, rect: null, overview: true }], canvas, home);
+    expect(viewAt(plan, canvas, 0, home)).toEqual(home);
+    expect(viewAt(plan, canvas, 5 + GLIDE + 1, home)).toEqual(home);
+    expect(viewAt(plan, canvas, 9 + GLIDE + 1, home)).toEqual(viewFor(null, canvas));
+  });
+  it("a page with no sidebar (the player portal in preview) can rest on the screen's left edge instead", () => {
+    const plan = planCamera([{ t: 1, rect: null, homeInset: 0 }], canvas, home, (inset) => homeView(canvas, DESKTOP, inset));
+    expect(viewAt(plan, canvas, 1 + GLIDE + 1, home).x).toBe(canvas.screenX);
+  });
+  it("a zoom on a target near the top of the screen shows no paper above the screen", () => {
+    const view = viewFor({ x: 600, y: 20, width: 600, height: 200 }, canvas);
+    expect(view.y).toBeGreaterThanOrEqual(canvas.screenY);
   });
 });

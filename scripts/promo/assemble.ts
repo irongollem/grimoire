@@ -5,7 +5,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { canvasFor, planCamera, zoompanExpressions } from "./camera";
+import { canvasFor, homeView, planCamera, zoompanExpressions } from "./camera";
 import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards } from "./compose/cards";
 import { audibleEnd, durationOf, ffmpeg, hasAudio, leadingSilence, loudnessOf, STEREO_48K } from "./compose/ffmpeg";
 import { DEVICES } from "./devices";
@@ -73,7 +73,10 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work:
   }
   // Camera: the screen goes onto its backdrop, zoompan crops a window out of that, and the window goes on the page.
   const canvas = canvasOf(shot);
-  const { z, x: zx, y: zy } = zoompanExpressions(planCamera(shot.camera ?? [], canvas), canvas);
+  if (!shot.size) throw new Error(`Shot ${shot.id} has no recorded size: re-film it.`);
+  const size = shot.size;
+  const home = homeView(canvas, size, spec.sidebar * spec.scale);
+  const { z, x: zx, y: zy } = zoompanExpressions(planCamera(shot.camera ?? [], canvas, home, (inset) => homeView(canvas, size, inset)), canvas, home);
   const window =
     `[4:v]format=yuv420p[bd];[1:v]fps=30,${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuv420p[c];` +
     `[bd][c]overlay=${canvas.screenX}:${canvas.screenY}[cv];` +

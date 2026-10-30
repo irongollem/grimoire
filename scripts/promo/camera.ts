@@ -71,11 +71,36 @@ export function viewFor(target: Rect | null, canvas: Canvas, padding?: number): 
   const height = width / aspect;
   const cx = target.x + canvas.screenX + target.width / 2;
   const cy = target.y + canvas.screenY + target.height / 2;
+  // Where the screen lies on the canvas; a view that fits inside it never shows paper (a target near the screen's top does not pull the paper above it into frame).
+  const [x0, x1] = width <= canvas.width - 2 * canvas.screenX ? [canvas.screenX, canvas.width - canvas.screenX] : [0, canvas.width];
+  const [y0, y1] = height <= canvas.height - 2 * canvas.screenY ? [canvas.screenY, canvas.height - canvas.screenY] : [0, canvas.height];
   return {
-    x: Math.min(canvas.width - width, Math.max(0, cx - width / 2)),
-    y: Math.min(canvas.height - height, Math.max(0, cy - height / 2)),
+    x: Math.min(x1 - width, Math.max(x0, cx - width / 2)),
+    y: Math.min(y1 - height, Math.max(y0, cy - height / 2)),
     width,
     height,
+  };
+}
+
+/**
+ * The view the camera rests on when nothing is being pointed at. A screen that
+ * fills the window's shape (a phone, a tablet) rests on the whole canvas. A
+ * wide screen (a laptop) would shrink to a strip with paper above and below,
+ * unreadable on a phone, so it rests on a "fill" view instead: the window's
+ * full height over the screen's full height, as wide as the window's shape
+ * makes it, starting `leftInset` device pixels in (the sidebar's width) so the
+ * page's own column and its heading are what the viewer sees first.
+ */
+export function homeView(canvas: Canvas, screen: Size, leftInset = 0): Rect {
+  const full: Rect = { x: 0, y: 0, width: canvas.width, height: canvas.height };
+  if (canvas.height - screen.height <= 2) return full;
+  const aspect = canvas.width / canvas.height;
+  const width = Math.min(canvas.width, screen.height * aspect);
+  return {
+    x: Math.min(canvas.width - width, Math.max(0, canvas.screenX + leftInset)),
+    y: canvas.screenY,
+    width,
+    height: screen.height,
   };
 }
 
@@ -88,15 +113,20 @@ export interface Glide {
 }
 
 /** Turns keyframes into glides. Each starts from wherever the camera is when it begins, so a cut-short glide never jumps. */
-export function planCamera(keyframes: CameraKeyframe[], canvas: Canvas): Glide[] {
+export function planCamera(
+  keyframes: CameraKeyframe[],
+  canvas: Canvas,
+  home: Rect = viewFor(null, canvas),
+  homeWithInset?: (inset: number) => Rect,
+): Glide[] {
   const sorted = [...keyframes].sort((a, b) => a.t - b.t);
   const glides: Glide[] = [];
-  let resting = viewFor(null, canvas);
+  let resting = home;
   sorted.forEach((k, i) => {
     const t0 = k.t;
     const next = sorted[i + 1]?.t;
     const t1 = next === undefined ? t0 + GLIDE : Math.min(t0 + GLIDE, next);
-    const glide: Glide = { t0, t1, from: resting, to: viewFor(k.rect, canvas, k.padding) };
+    const glide: Glide = { t0, t1, from: resting, to: k.overview ? viewFor(null, canvas) : k.rect === null ? (k.homeInset !== undefined && homeWithInset ? homeWithInset(k.homeInset) : home) : viewFor(k.rect, canvas, k.padding) };
     glides.push(glide);
     resting = lerpRect(glide.from, glide.to, smoothstep((t1 - t0) / GLIDE));
   });
@@ -113,8 +143,8 @@ function lerpRect(a: Rect, b: Rect, u: number): Rect {
 }
 
 /** Where the camera looks at time `t`: still between glides, easing during one. */
-export function viewAt(glides: Glide[], canvas: Canvas, t: number): Rect {
-  let resting = viewFor(null, canvas);
+export function viewAt(glides: Glide[], canvas: Canvas, t: number, home: Rect = viewFor(null, canvas)): Rect {
+  let resting = home;
   for (const g of glides) {
     if (t < g.t0) return g.from;
     const eased = lerpRect(g.from, g.to, smoothstep((t - g.t0) / GLIDE));
@@ -147,9 +177,9 @@ function expression(glides: Glide[], rest: string, pick: (r: Rect) => number): s
  * The `z`, `x` and `y` options for ffmpeg's zoompan over the canvas, evaluated on the input time `it`.
  * Zoom is the canvas width over the view's width, so a view that is the whole canvas is zoom 1.
  */
-export function zoompanExpressions(glides: Glide[], canvas: Canvas): { z: string; x: string; y: string } {
+export function zoompanExpressions(glides: Glide[], canvas: Canvas, home: Rect = viewFor(null, canvas)): { z: string; x: string; y: string } {
   const last = glides[glides.length - 1];
-  const rest = last ? lerpRect(last.from, last.to, smoothstep((last.t1 - last.t0) / GLIDE)) : viewFor(null, canvas);
+  const rest = last ? lerpRect(last.from, last.to, smoothstep((last.t1 - last.t0) / GLIDE)) : home;
   return {
     z: `${canvas.width}/(${expression(glides, num(rest.width), (r) => r.width)})`,
     x: expression(glides, num(rest.x), (r) => r.x),

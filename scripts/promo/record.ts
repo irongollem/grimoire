@@ -116,6 +116,7 @@ try {
 } finally {
   for (const browser of [...browsers.values(), ...(quiet ? [quiet] : [])]) await browser.close();
   await server?.close();
+  await episode.teardown?.();
 }
 
 const manifest: EpisodeManifest = {

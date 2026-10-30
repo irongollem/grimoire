@@ -78,6 +78,17 @@ play muted), a narration line, and a `run` that drives the page with the
 helpers in `ShotContext` (`tap`, `type`, `scroll`, `scrollTo`, `hold`). Keep
 an episode under about 45 seconds and open on the payoff.
 
+## Setup and teardown
+
+`Episode.setup` puts the scene back before every recording, so it must be
+idempotent. `Episode.teardown` is its mirror: `record.ts` calls it once after
+the last shot, in a `finally`, so it runs whether the take finished or failed
+halfway. Use it to undo what a take leaves behind that would show on the next
+screen or in the real app: an open session (there is one open session per
+campaign, and the app asks about sessions older than six hours) and the chat
+lines a take posted. It must not assume the take got as far as its last shot.
+Like `setup`, it writes to the local stack's demo campaign only.
+
 ## Devices and the camera
 
 `Episode.device` is `"phone"` (default), `"tablet"` or `"desktop"`, and a

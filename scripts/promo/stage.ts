@@ -97,9 +97,15 @@ async function settledPage(browser: Browser, opts: StageOptions) {
   async function open(path: string): Promise<void> {
     await page.goto(`${opts.base}${path}`);
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+    await untilNoSkeleton(page);
     await page.waitForTimeout(800);
   }
   return { context, page, open };
+}
+
+/** Waits until no grey loading placeholder is left on the page, so a shot never opens on skeletons. */
+async function untilNoSkeleton(page: Page): Promise<void> {
+  await page.waitForFunction('!document.querySelector(".skeleton-block")', undefined, { timeout: 15_000 }).catch(() => undefined);
 }
 
 /** The other person at the table: a desktop page that is never filmed. */
@@ -213,7 +219,7 @@ async function filmShot(
     open,
     async focus(target, opts) {
       if (target === null) {
-        camera.push({ t: performance.now() / 1000 - start, rect: null });
+        camera.push({ t: performance.now() / 1000 - start, rect: null, ...(opts?.leftInset === undefined ? {} : { homeInset: opts.leftInset * scale }) });
         return;
       }
       await target.waitFor({ timeout: 15_000 });
@@ -234,6 +240,13 @@ async function filmShot(
         rect: { x: x0 * scale, y: y0 * scale, width: (x1 - x0) * scale, height: (y1 - y0) * scale },
         ...(opts?.padding === undefined ? {} : { padding: opts.padding * scale }),
       });
+    },
+    async settled() {
+      await untilNoSkeleton(page);
+      await page.waitForTimeout(400);
+    },
+    async overview() {
+      camera.push({ t: performance.now() / 1000 - start, rect: null, overview: true });
     },
     offstage,
   };

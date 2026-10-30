@@ -37,6 +37,10 @@ export interface ScreenRect {
 export interface CameraKeyframe {
   t: number;
   rect: ScreenRect | null;
+  /** With `rect: null`: the true whole screen (paper above and below on a laptop) instead of the resting view. */
+  overview?: boolean;
+  /** With `rect: null`: where the resting view starts, in device pixels from the screen's left edge, for a page with no sidebar (the player portal in preview). Defaults to the device's sidebar. */
+  homeInset?: number;
   /** Breathing room around the rect in device pixels. */
   padding?: number;
 }
@@ -80,7 +84,16 @@ export interface ShotContext {
    * `null` glides back to the whole screen. Frames the target where it is now,
    * so scroll first. A shot that never calls it shows the whole screen.
    */
-  focus(target: ReturnType<Page["locator"]> | null, opts?: { padding?: number }): Promise<void>;
+  focus(target: ReturnType<Page["locator"]> | null, opts?: { padding?: number; leftInset?: number }): Promise<void>;
+  /**
+   * The true whole screen, for a deliberate beat of "here is all of it". On a
+   * laptop that is a strip with paper above and below, hard to read on a phone:
+   * use it once an episode at most. `focus(null)` is the resting view, which
+   * fills the window.
+   */
+  overview(): Promise<void>;
+  /** Waits until the page has real content (no grey loading placeholders): call it after a tap that navigates, before the camera moves or the moment the narration is about starts. */
+  settled(): Promise<void>;
   /** The other person at the table, acting live: see `Offstage`. */
   offstage(account: Account): Promise<Offstage>;
 }
@@ -111,6 +124,8 @@ export interface Episode {
   device?: Device;
   /** Puts the local stack into the state the first shot expects. Runs before every recording, so it must be idempotent. */
   setup?(): Promise<void> | void;
+  /** Undoes what the take left behind (an open session, chat lines). Runs once after the last shot, filmed or failed, so it must not assume the take got that far. */
+  teardown?(): Promise<void> | void;
   /** Seed for Math.random in the filmed page, so dice land the same on every take. */
   seed?: number;
   shots: Shot[];
