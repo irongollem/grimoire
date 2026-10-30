@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     encounterId: "e1" as string | null,
     factions: [{ id: "enemy", name: "Enemies" }],
     availableMonsters: [] as Monster[],
-    availableNpcs: [],
+    availableNpcs: [] as Array<{ id: string; name: string; stat_block: object | null }>,
     addMonster: vi.fn(),
     addNpc: vi.fn(),
   },
@@ -76,5 +76,13 @@ describe("RunnerSpawnPanel", () => {
     await pickAndAdd();
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalled());
     expect(mocks.store.addMonster).not.toHaveBeenCalled();
+  });
+
+  it("offers an NPC with no stat block, so the DM can still put them in the fight", async () => {
+    mocks.store.availableNpcs = [{ id: "n1", name: "Innkeeper", stat_block: null }];
+    const w = mount(RunnerSpawnPanel, { global: { stubs: { EntityCombobox } } });
+    await w.findAll("button").find((b) => b.text() === "NPC")!.trigger("click");
+    const options = w.findAllComponents({ name: "EntityCombobox" })[0].props("options") as { id: string }[];
+    expect(options.map((o) => o.id)).toEqual(["n1"]);
   });
 });

@@ -198,7 +198,7 @@
 <script setup lang="ts">
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { ref, computed, defineAsyncComponent } from "vue";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { IconClose, IconShield } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
@@ -224,7 +224,8 @@ const PlayerNotesWidget = defineAsyncComponent(() => import("@/components/player
 
 const props = defineProps<{ member: PartyMember | null }>();
 // A wild-shaped member wears the beast's face, as on their sheet.
-const portrait = computed(() => (props.member ? formPortrait(props.member, props.member.wildshape_state) : null));
+const portraitOf = useFormPortraits(() => [props.member?.wildshape_state]);
+const portrait = computed(() => (props.member ? portraitOf(props.member, props.member.wildshape_state) : null));
 defineEmits<{ close: [] }>();
 
 // One character shown: everything below reads its build rules in the character's own edition.

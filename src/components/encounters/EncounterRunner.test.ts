@@ -57,6 +57,11 @@ vi.mock("@/composables/encounters/useEvergreenWildShape", () => ({ useEvergreenW
 import EncounterRunner from "./EncounterRunner.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 
+const beastArt = vi.hoisted(() => ({ byId: new Map<string, { image_url: string | null }>() }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({
+  useMonstersByIds: () => ({ data: { value: beastArt.byId } }),
+}));
+
 function combatant(id: string): RunCombatant {
   return {
     instance_id: id, type: "monster", name: `Name ${id}`, faction_id: "f", initiative: 10, hp: 10, max_hp: 10, ac: "12",

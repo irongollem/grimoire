@@ -122,7 +122,8 @@ import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
+import { placeholderKind } from "@/lib/wildshapePortrait";
 import type { RevealState, RunCombatant } from "@/types/encounter.types";
 
 const open = defineModel<boolean>("open", { required: true });
@@ -149,7 +150,8 @@ const {
   handleCycleReveal,
 } = useRunnerCombatant(() => combatant);
 
-const portrait = computed(() => formPortrait(combatant, wildshape.value));
+const portraitOf = useFormPortraits(() => [wildshape.value]);
+const portrait = computed(() => portraitOf(combatant, wildshape.value));
 const placeholder = computed(() => placeholderUrl(placeholderKind(combatant, portrait.value)));
 
 // Surprise is decided at the top of the fight: the lobby and round 1.

@@ -112,11 +112,9 @@ async function spawnMonster(id: string, factionId: string, count: number) {
   store.addMonster(monster.id, factionId, count);
 }
 
-const npcOptions = computed(() =>
-  (store.availableNpcs ?? [])
-    .filter((n) => !!n.stat_block)
-    .map((n) => ({ id: n.id, name: n.name })),
-);
+// Every NPC, stat block or not: one without joins on stand-in HP and AC, and
+// takes the real numbers when the DM writes them (see `combatStats`).
+const npcOptions = computed(() => store.availableNpcs.map((n) => ({ id: n.id, name: n.name })));
 
 function handleAdd() {
   if (!entityId.value) return;

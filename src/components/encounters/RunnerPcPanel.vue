@@ -124,7 +124,7 @@ import { useArmorClass } from "@/composables/party/useArmorClass";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { wildshapeStateFor } from "@/rules/wildshape";
 import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { useToast } from "@/composables/useToast";
 import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
@@ -142,7 +142,8 @@ const { combatant, member, monsters, chatSilent = false } = defineProps<{
 // One feature graph for the panel: the action card and every rider picker read it.
 const features = useCharacterFeatures(toRef(() => member));
 
-const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
+const portraitOf = useFormPortraits(() => [combatant.wildshape]);
+const portrait = computed(() => portraitOf(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];

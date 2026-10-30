@@ -22,6 +22,7 @@ import {
   evaluateTrigger,
   buildMonsterCombatants,
   buildNpcCombatants,
+  adoptStatBlock,
 } from "@/rules/encounterCombatLogic";
 
 /** Persists a player-combatant change to party_members and invalidates the
@@ -436,6 +437,20 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants.value.push(...buildNpcCombatants(npc, { factionId, count, customName, started: started.value }));
   }
 
+  /** Gives every combatant that joined on stand-in numbers the real ones, once
+   *  its monster or NPC has a stat block (written mid-fight). The runner calls
+   *  this whenever it re-reads the monsters or NPCs on the field. */
+  function adoptStatBlocks() {
+    combatants.value.forEach((c, i) => {
+      if (!c.placeholder_stats) return;
+      const source = c.monster_id
+        ? availableMonsters.value.find((m) => m.id === c.monster_id)
+        : availableNpcs.value.find((n) => n.id === c.npc_id);
+      const adopted = adoptStatBlock(c, source?.stat_block);
+      if (adopted) combatants.value[i] = adopted;
+    });
+  }
+
   /** Mid-combat event spawns intentionally don't seed a legendary-action pool
    *  (unlike `addMonster`) — matches prior behavior, see buildMonsterCombatants. */
   function spawnFromDef(spawn: SpawnDef) {
@@ -713,6 +728,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     revertWildshape,
     addMonster,
     addNpc,
+    adoptStatBlocks,
     removeCombatant,
     addCompanionCombatant,
     fireEvent,

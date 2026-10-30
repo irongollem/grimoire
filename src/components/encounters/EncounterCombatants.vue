@@ -337,7 +337,8 @@ const npcSearch = ref("");
 
 const filteredNpcs = computed(() => {
   const q = npcSearch.value.toLowerCase().trim();
-  const all = props.npcs.filter((n) => n.stat_block);
+  // Every NPC, stat block or not: see `combatStats` for how one without runs.
+  const all = props.npcs;
   if (!q) return all.slice(0, 10);
   return all.filter((n) => n.name.toLowerCase().includes(q)).slice(0, 10);
 });

@@ -5,6 +5,11 @@ import { ref } from "vue";
 import RunnerCombatantSheet from "./RunnerCombatantSheet.vue";
 import type { RunCombatant } from "@/types/encounter.types";
 
+const beastArt = vi.hoisted(() => ({ byId: new Map<string, { image_url: string | null }>() }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({
+  useMonstersByIds: () => ({ data: { value: beastArt.byId } }),
+}));
+
 const mocks = vi.hoisted(() => ({
   store: { started: false, round: 0, toggleSurprised: vi.fn() },
   quickDamage: vi.fn(),

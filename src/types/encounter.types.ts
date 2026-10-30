@@ -220,6 +220,10 @@ export interface RunCombatant {
   // monster declares one. Present (non-null) means "use this instead of dex_mod"
   // for the initiative roll modifier — see combatantSort.initiativeModifier().
   initiative_bonus?: number | null;
+  // Set when the monster or NPC had no hit points to read when it joined (an NPC
+  // with no stat block): its HP and AC are stand-ins, replaced by the real ones
+  // once the DM writes the stat block (`adoptStatBlock` in rules/encounterCombatLogic).
+  placeholder_stats?: true;
   portrait_url?: string | null;
   portrait_focal_point?: { x: number; y: number } | null;
   // Battle-map token art — baked from the source monster/NPC's cutout_url at

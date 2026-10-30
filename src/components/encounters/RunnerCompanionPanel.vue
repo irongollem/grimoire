@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { COMPANION_TYPE_LABELS, type Companion } from "@/types/companion.types";
@@ -41,7 +41,8 @@ const { combatant, companion } = defineProps<{
   companion: Companion;
 }>();
 
-const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
+const portraitOf = useFormPortraits(() => [combatant.wildshape]);
+const portrait = computed(() => portraitOf(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];

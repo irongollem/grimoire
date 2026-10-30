@@ -81,7 +81,6 @@
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useActiveParty } from "@/composables/party/useActiveParty";
-import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useTrackerStates } from "@/composables/dashboard/useTrackerState";
 import { useRules } from "@/composables/rules/useRules";
 import { useArmorClass } from "@/composables/party/useArmorClass";
@@ -100,7 +99,7 @@ import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import type { PartyMember } from "@/types/party.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 
 
 /** The numbers that change during play — HP, conditions, inspiration — plus
@@ -124,14 +123,9 @@ useRules(() => auth.isDM);
  *  beast's picture as it reads now (art tables merged), not only the copy the
  *  form took when it was assumed, which is null for a library beast whose
  *  picture lives in the art tables. */
-const { data: shapedBeasts } = useMonstersByIds(
-  () => (party.value ?? []).map((m) => m.wildshape_state?.monster_id),
-  { withArt: true },
-);
+const formPortraitOf = useFormPortraits(() => (party.value ?? []).map((m) => m.wildshape_state));
 function portraitProps(member: PartyMember) {
-  const form = member.wildshape_state;
-  const live = form ? shapedBeasts.value.get(form.monster_id)?.image_url : null;
-  const { src, focalPoint, alt, shaped } = formPortrait(member, form, live);
+  const { src, focalPoint, alt, shaped } = formPortraitOf(member, member.wildshape_state);
   return { src, focalPoint, alt, placeholder: placeholderUrl(shaped ? "monster" : "character") };
 }
 // `isLoading` (isPending && isFetching) reports false while disabled or between

@@ -85,7 +85,8 @@ import { useRunnerConditions } from "@/composables/encounters/useRunnerCondition
 import { conditionSummary, hpFraction, hpTone } from "@/lib/encounters/combatantRowSummary";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
+import { placeholderKind } from "@/lib/wildshapePortrait";
 
 // Phone row: one line per combatant; everything you can do to it lives in
 // RunnerCombatantSheet. The init field and the reveal button act in place and
@@ -115,7 +116,8 @@ const dead = computed(() => combatant.type === "monster" && combatant.hp === 0);
 const tied = computed(() => store.tiedInstanceIds.has(combatant.instance_id));
 const reactionSpent = computed(() => store.started && combatant.reactionUsed === true);
 
-const portrait = computed(() => formPortrait(combatant, wildshape.value));
+const portraitOf = useFormPortraits(() => [wildshape.value]);
+const portrait = computed(() => portraitOf(combatant, wildshape.value));
 const placeholder = computed(() => placeholderUrl(placeholderKind(combatant, portrait.value)));
 
 const fraction = computed(() => hpFraction(displayHp.value, displayMaxHp.value));

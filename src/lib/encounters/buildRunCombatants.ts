@@ -1,6 +1,6 @@
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
-import { hitPointsToMax } from "@/lib/dice/dice";
+import { combatStats } from "@/rules/encounterCombatLogic";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import type { Encounter, RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
@@ -147,11 +147,7 @@ export function buildRunCombatants({
     if (entry.monster_id) {
       const monster = monsters.find((m) => m.id === entry.monster_id);
       if (!monster) continue;
-      const sb = monster.stat_block;
-      const maxHp = hitPointsToMax(sb?.hit_points, 1);
-      const dex = Number(sb?.dex ?? 10);
-      const dexMod = Math.floor((dex - 10) / 2);
-      const ac = String(sb?.armor_class ?? 10);
+      const stats = combatStats(monster.stat_block, 1);
       for (let i = 0; i < entry.count; i++) {
         const displayName =
           entry.count > 1
@@ -163,16 +159,12 @@ export function buildRunCombatants({
           name: displayName,
           faction_id: entry.faction_id,
           initiative: null,
-          hp: maxHp,
-          max_hp: maxHp,
-          ac,
+          ...stats,
           conditions: [],
           curses: [],
           death_saves: { successes: 0, failures: 0 },
           monster_id: monster.id,
           def_id: entry.id,
-          dex_mod: dexMod,
-          initiative_bonus: sb?.initiative_bonus ?? null,
           reveal_state: "hidden",
           portrait_url: monster.image_url ?? null,
           portrait_focal_point: monster.portrait_focal_point ?? null,
@@ -184,11 +176,7 @@ export function buildRunCombatants({
     } else if (entry.npc_id) {
       const npc = npcs.find((n) => n.id === entry.npc_id);
       if (!npc) continue;
-      const sb = npc.stat_block;
-      const maxHp = hitPointsToMax(sb?.hit_points, 10);
-      const dex = Number(sb?.dex ?? 10);
-      const dexMod = Math.floor((dex - 10) / 2);
-      const ac = String(sb?.armor_class ?? 10);
+      const stats = combatStats(npc.stat_block, 10);
       for (let i = 0; i < entry.count; i++) {
         const displayName =
           entry.count > 1
@@ -200,16 +188,12 @@ export function buildRunCombatants({
           name: displayName,
           faction_id: entry.faction_id,
           initiative: null,
-          hp: maxHp,
-          max_hp: maxHp,
-          ac,
+          ...stats,
           conditions: [],
           curses: [],
           death_saves: { successes: 0, failures: 0 },
           npc_id: npc.id,
           def_id: entry.id,
-          dex_mod: dexMod,
-          initiative_bonus: sb?.initiative_bonus ?? null,
           reveal_state: "hidden",
           portrait_url: npc.portrait_url ?? null,
           portrait_focal_point: npc.portrait_focal_point ?? null,

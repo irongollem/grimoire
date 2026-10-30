@@ -28,8 +28,14 @@ export interface FormPortrait {
  * page and the battle map never switched at all, while the sheet and the
  * runner did: the same druid wore two faces depending on where you looked.
  */
+export interface PortraitSubject {
+  name: string;
+  portrait_url?: string | null;
+  portrait_focal_point?: FocalPoint | null;
+}
+
 export function formPortrait(
-  subject: { name: string; portrait_url?: string | null; portrait_focal_point?: FocalPoint | null },
+  subject: PortraitSubject,
   form: WildshapeState | null | undefined,
   /** The beast's picture as it reads now, art tables merged, when the caller
    *  has the beast to hand. Preferred over `beast_image_url`, which is a copy

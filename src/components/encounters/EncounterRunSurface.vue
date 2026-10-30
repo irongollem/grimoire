@@ -86,6 +86,16 @@ watch(fieldMonsterMap, (map) => {
     if (at < 0) store.availableMonsters.push(monster);
     else if (store.availableMonsters[at] !== monster) store.availableMonsters.splice(at, 1, monster);
   }
+  store.adoptStatBlocks();
+});
+
+// The campaign's NPCs, kept current for a run this surface holds: a stat block
+// written for an NPC mid-fight reaches the runner's sheet, its spawn picker and
+// its combatant's HP and AC. (Only the init watcher below used to set them, once.)
+watch(npcs, (list) => {
+  if (!list || store.encounterId !== id.value) return;
+  store.availableNpcs = list;
+  store.adoptStatBlocks();
 });
 
 const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !trapsLoading.value && acReady.value);
@@ -128,6 +138,8 @@ watch(
       });
       store.availableMonsters = mons;
       store.availableNpcs = npcList;
+      // A stat block written while no runner was open.
+      store.adoptStatBlocks();
       const lairOwnerInstanceId = enc.lair_enabled && enc.lair_owner_def_id
         ? live.combatants_live.find((combatant) => combatant.def_id === enc.lair_owner_def_id)?.instance_id ?? null
         : null;

@@ -27,14 +27,15 @@ import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 
 const { combatant } = defineProps<{ combatant: RunCombatant | null }>();
 defineEmits<{ close: [] }>();
 
 // A wildshaped combatant wears the beast's face — enlarge that, so the picture
 // matches the row the player tapped.
-const portrait = computed(() => (combatant ? formPortrait(combatant, combatant.wildshape) : null));
+const portraitOf = useFormPortraits(() => [combatant?.wildshape]);
+const portrait = computed(() => (combatant ? portraitOf(combatant, combatant.wildshape) : null));
 
 const placeholder = computed(() =>
   combatant?.npc_id ? placeholderUrl("npc") : placeholderUrl("monster"),

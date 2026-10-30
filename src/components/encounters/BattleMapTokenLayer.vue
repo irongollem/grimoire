@@ -26,6 +26,7 @@ import { dollFigureKey } from "@/lib/paperDoll/dollTokenFigure";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { cellToPixel, snapPixelToCell } from "@/lib/battlemap/tokenSnap";
 import { DEFAULT_FACTIONS, type RunCombatant, type FactionColor } from "@/types/encounter.types";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import type { Monster } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
 
@@ -159,10 +160,12 @@ function getFactionColor(factionId: string): string {
  *  druid shows the beast or, for a beast without art, no picture at all. */
 function resolveTokenImage(
   c: RunCombatant,
+  /** The beast's picture as it reads now (see `useFormPortraits`); only used while shaped. */
+  beastImageUrl: string | null,
   portraitOverride: string | undefined,
   figure: TokenFigure | undefined,
 ): { imageUrl: string | null; imageFit: "cover" | "contain"; figure: TokenFigure | null } {
-  if (c.wildshape) return { imageUrl: c.wildshape.beast_image_url, imageFit: "cover", figure: null };
+  if (c.wildshape) return { imageUrl: beastImageUrl, imageFit: "cover", figure: null };
   if (portraitOverride) return { imageUrl: portraitOverride, imageFit: "cover", figure: null };
   if (figure) return { imageUrl: null, imageFit: "contain", figure };
   if (c.token_url) return { imageUrl: c.token_url, imageFit: "contain", figure: null };
@@ -197,6 +200,8 @@ function isDraggable(instanceId: string): boolean {
   return draggableInstanceIds.has(instanceId);
 }
 
+const formPortraitOf = useFormPortraits(() => combatants.map((c) => c.wildshape));
+
 const renderedTokens = computed<RenderedToken[]>(() => {
   if (cellPx <= 0) return [];
   let originIndex = 0;
@@ -219,6 +224,7 @@ const renderedTokens = computed<RenderedToken[]>(() => {
     const dragMatch = override && override.instanceId === c.instance_id ? override : null;
     const { imageUrl, imageFit, figure } = resolveTokenImage(
       c,
+      c.wildshape ? formPortraitOf(c, c.wildshape).src : null,
       portraitOverrides?.get(c.instance_id),
       figures?.get(c.instance_id),
     );

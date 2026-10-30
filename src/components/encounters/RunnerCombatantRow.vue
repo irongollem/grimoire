@@ -159,7 +159,8 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
+import { placeholderKind } from "@/lib/wildshapePortrait";
 import { computed } from "vue";
 
 const { combatant, selectedId } = defineProps<{
@@ -194,7 +195,8 @@ const {
   handleCycleReveal,
 } = useRunnerCombatant(() => combatant);
 
-const portrait = computed(() => formPortrait(combatant, wildshape.value));
+const portraitOf = useFormPortraits(() => [wildshape.value]);
+const portrait = computed(() => portraitOf(combatant, wildshape.value));
 
 function toggleDetail() {
   emit("select", selectedId === combatant.instance_id ? null : combatant.instance_id);

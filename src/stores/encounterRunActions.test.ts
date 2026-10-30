@@ -85,3 +85,29 @@ describe("runner limited abilities", () => {
     expect(store.lastRechargeEvents).toEqual([]);
   });
 });
+
+describe("stat blocks written mid-fight", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  const sb = (hp: string, ac: number) => ({
+    armor_class: ac, hit_points: hp, speed: "30 ft.", str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
+    challenge_rating: "1", defenses: { resistances: [], immunities: [], vulnerabilities: [], condition_immunities: [] },
+  });
+
+  it("a stat-less NPC and a blank monster each take their own source's numbers", () => {
+    const store = useEncounterRunStore();
+    store.availableNpcs = [{ id: "n1", name: "Guard", stat_block: null }] as unknown as typeof store.availableNpcs;
+    store.availableMonsters = [{ id: "m1", name: "Thing", size: "medium", stat_block: sb("", 10) }] as unknown as typeof store.availableMonsters;
+    store.addNpc("n1", "enemy", 1);
+    store.addMonster("m1", "enemy", 1);
+
+    store.availableNpcs = [{ id: "n1", name: "Guard", stat_block: sb("2d8", 16) }] as unknown as typeof store.availableNpcs;
+    store.availableMonsters = [{ id: "m1", name: "Thing", size: "medium", stat_block: sb("4d10", 13) }] as unknown as typeof store.availableMonsters;
+    store.adoptStatBlocks();
+
+    const guard = store.combatants.find((c) => c.npc_id === "n1");
+    const thing = store.combatants.find((c) => c.monster_id === "m1");
+    expect([guard?.max_hp, guard?.ac]).toEqual([9, "16"]); // 2d8 averages 9
+    expect([thing?.max_hp, thing?.ac]).toEqual([22, "13"]); // 4d10 averages 22
+  });
+});

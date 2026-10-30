@@ -80,7 +80,8 @@ import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariant
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconEncounter } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
+import { placeholderKind } from "@/lib/wildshapePortrait";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 
 const emit = defineEmits<{
@@ -95,7 +96,8 @@ const store = useEncounterRunStore();
 
 const active = computed(() => store.activeCombatant);
 const someoneUnrolled = computed(() => store.combatants.some((c) => c.initiative === null));
-const portrait = computed(() => (active.value ? formPortrait(active.value, active.value.wildshape) : null));
+const portraitOf = useFormPortraits(() => [active.value?.wildshape]);
+const portrait = computed(() => (active.value ? portraitOf(active.value, active.value.wildshape) : null));
 const placeholder = computed(() =>
   placeholderUrl(active.value && portrait.value ? placeholderKind(active.value, portrait.value) : "monster"),
 );

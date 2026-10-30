@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import type { RunCombatant } from "@/types/encounter.types";
 import RunnerTurnBar from "./RunnerTurnBar.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+
+const beastArt = vi.hoisted(() => ({ byId: new Map<string, { image_url: string | null }>() }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({
+  useMonstersByIds: () => ({ data: { value: beastArt.byId } }),
+}));
 
 function combatant(id: string, initiative: number | null): RunCombatant {
   return {

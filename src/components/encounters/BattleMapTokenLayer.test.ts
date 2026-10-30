@@ -11,6 +11,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 
+const beastArt = vi.hoisted(() => ({ byId: new Map<string, { image_url: string | null }>() }));
+vi.mock("@/composables/monsters/useMonstersByIds", () => ({
+  useMonstersByIds: () => ({ data: { value: beastArt.byId } }),
+}));
 vi.mock("@/lib/tokenRenderer", () => ({
   drawToken: vi.fn(() => Promise.resolve()),
 }));
@@ -297,6 +301,20 @@ describe("BattleMapTokenLayer: what a player is shown", () => {
     await nextTick();
     await nextTick();
     expect(drawTokenMock.mock.calls[0][1].imageUrl).toBe("wolf.png");
+  });
+
+  it("draws the beast's live art when the form copied none (library beast, maintainer report)", async () => {
+    beastArt.byId = new Map([["wolf", { image_url: "live-wolf.png" }]]);
+    const druid: RunCombatant = {
+      ...combatant("druid", "goblin"),
+      type: "player",
+      wildshape: { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" },
+    };
+    mount(BattleMapTokenLayer, { props: { ...baseProps(), combatants: [druid] } });
+    await nextTick();
+    await nextTick();
+    beastArt.byId = new Map();
+    expect(drawTokenMock.mock.calls[0][1].imageUrl).toBe("live-wolf.png");
   });
 });
 

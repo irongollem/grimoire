@@ -106,7 +106,8 @@ import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
 import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
+import { placeholderKind } from "@/lib/wildshapePortrait";
 import { describeConditionEnd, type NameOf } from "@/rules/conditionLabels";
 import { combatantKindLabel } from "@/lib/encounters/combatantKind";
 
@@ -137,9 +138,12 @@ function isActive(combatant: RunCombatant): boolean {
 
 // A player's form is read from their party row, which their own sheet writes
 // directly; everyone else's from the live state.
+function formOf(c: RunCombatant) {
+  return c.type === "player" ? partyMap.get(c.party_member_id ?? "")?.wildshape_state : c.wildshape;
+}
+const formPortraitOf = useFormPortraits(() => visibleCombatants.map(formOf));
 function portraitOf(c: RunCombatant) {
-  const form = c.type === "player" ? partyMap.get(c.party_member_id ?? "")?.wildshape_state : c.wildshape;
-  return formPortrait(c, form);
+  return formPortraitOf(c, formOf(c));
 }
 
 // HP helpers

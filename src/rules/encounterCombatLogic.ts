@@ -12,7 +12,7 @@ import { hitPointsToMax } from "@/lib/dice/dice";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
 
 type InitiativeInputs = Pick<RunCombatant, "dex_mod" | "initiative_bonus">;
@@ -99,6 +99,58 @@ export function evaluateTrigger(
   return false;
 }
 
+// ── Combat numbers from a stat block ────────────────────────────────────────
+
+type CombatStats = Pick<RunCombatant, "hp" | "max_hp" | "ac" | "dex_mod" | "initiative_bonus" | "placeholder_stats">;
+
+/**
+ * The numbers a monster's or NPC's stat block gives its combatant, for every
+ * builder (the encounter roster and a mid-fight spawn alike).
+ *
+ * A source with no hit points to read (an NPC written without a stat block, a
+ * monster whose HP was left blank) still joins the fight, on `fallbackHp` and
+ * AC 10, and is marked `placeholder_stats` so the run takes the real numbers
+ * once the DM writes them (`adoptStatBlock`).
+ */
+export function combatStats(sb: MonsterStatBlock | null | undefined, fallbackHp: number): CombatStats {
+  const readHp = hitPointsToMax(sb?.hit_points, 0);
+  const maxHp = readHp > 0 ? readHp : fallbackHp;
+  return {
+    hp: maxHp,
+    max_hp: maxHp,
+    ac: String(sb?.armor_class ?? 10),
+    dex_mod: Math.floor((Number(sb?.dex ?? 10) - 10) / 2),
+    initiative_bonus: sb?.initiative_bonus ?? null,
+    ...(readHp > 0 ? {} : { placeholder_stats: true }),
+  };
+}
+
+/**
+ * A combatant that joined on stand-in numbers, given the stat block its monster
+ * or NPC has now. Null when there is nothing to adopt: the combatant has its
+ * real numbers already, or the stat block still has no hit points.
+ *
+ * Damage taken so far carries over (a stand-in at 7 of 10 is 3 down on the real
+ * maximum too), and a combatant already down stays down. Initiative is never
+ * touched: it was rolled, and re-rolling would reorder the fight.
+ */
+export function adoptStatBlock(c: RunCombatant, sb: MonsterStatBlock | null | undefined): RunCombatant | null {
+  if (!c.placeholder_stats) return null;
+  const stats = combatStats(sb, c.max_hp);
+  if (stats.placeholder_stats) return null;
+  const next: RunCombatant = {
+    ...c,
+    ...stats,
+    hp: c.hp <= 0 ? 0 : Math.max(1, stats.max_hp - (c.max_hp - c.hp)),
+  };
+  delete next.placeholder_stats;
+  if (c.monster_id && c.legendary_action_cap === undefined && sb?.legendary_actions?.length) {
+    next.legendary_action_cap = 3;
+    next.legendary_actions_remaining = 3;
+  }
+  return next;
+}
+
 // ── Spawned-combatant construction ──────────────────────────────────────────
 
 export interface MonsterSpawnOptions {
@@ -119,11 +171,7 @@ export interface MonsterSpawnOptions {
  *  behavior); the caller pushes the result onto `combatants`. */
 export function buildMonsterCombatants(monster: Monster, opts: MonsterSpawnOptions): RunCombatant[] {
   const sb = monster.stat_block;
-  const maxHp = hitPointsToMax(sb?.hit_points, 1);
-  const dex = Number(sb?.dex ?? 10);
-  const dexMod = Math.floor((dex - 10) / 2);
-  const initiativeBonus = sb?.initiative_bonus ?? null;
-  const ac = String(sb?.armor_class ?? 10);
+  const stats = combatStats(sb, 1);
   const spawnKey = `spawn-${monster.id}-${Date.now()}`;
   const legendaryCap = opts.includeLegendaryActions && sb?.legendary_actions?.length ? 3 : undefined;
 
@@ -135,16 +183,12 @@ export function buildMonsterCombatants(monster: Monster, opts: MonsterSpawnOptio
       type: "monster",
       name: displayName,
       faction_id: opts.factionId,
-      initiative: opts.started ? rollInitiativeValue({ dex_mod: dexMod, initiative_bonus: initiativeBonus }, opts.rollD20) : null,
-      hp: maxHp,
-      max_hp: maxHp,
-      ac,
+      initiative: opts.started ? rollInitiativeValue(stats, opts.rollD20) : null,
+      ...stats,
       conditions: [],
       curses: [],
       death_saves: { successes: 0, failures: 0 },
       monster_id: monster.id,
-      dex_mod: dexMod,
-      initiative_bonus: initiativeBonus,
       reveal_state: "hidden",
       portrait_url: monster.image_url ?? null,
       portrait_focal_point: monster.portrait_focal_point ?? null,
@@ -171,12 +215,7 @@ export interface NpcSpawnOptions {
  *  as `buildMonsterCombatants` minus legendary actions. A 2024 stat block's
  *  listed Initiative is what the book rolls, for an NPC as for a monster. */
 export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunCombatant[] {
-  const sb = npc.stat_block;
-  const maxHp = hitPointsToMax(sb?.hit_points, 10);
-  const dex = Number(sb?.dex ?? 10);
-  const dexMod = Math.floor((dex - 10) / 2);
-  const initiativeBonus = sb?.initiative_bonus ?? null;
-  const ac = String(sb?.armor_class ?? 10);
+  const stats = combatStats(npc.stat_block, 10);
   const spawnKey = `spawn-npc-${npc.id}-${Date.now()}`;
 
   const out: RunCombatant[] = [];
@@ -187,16 +226,12 @@ export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunC
       type: "monster",
       name: displayName,
       faction_id: opts.factionId,
-      initiative: opts.started ? rollInitiativeValue({ dex_mod: dexMod, initiative_bonus: initiativeBonus }, opts.rollD20) : null,
-      hp: maxHp,
-      max_hp: maxHp,
-      ac,
+      initiative: opts.started ? rollInitiativeValue(stats, opts.rollD20) : null,
+      ...stats,
       conditions: [],
       curses: [],
       death_saves: { successes: 0, failures: 0 },
       npc_id: npc.id,
-      dex_mod: dexMod,
-      initiative_bonus: initiativeBonus,
       reveal_state: "hidden",
       portrait_url: npc.portrait_url ?? null,
       portrait_focal_point: npc.portrait_focal_point ?? null,

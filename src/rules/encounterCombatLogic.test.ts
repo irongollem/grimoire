@@ -7,6 +7,8 @@ import {
   evaluateTrigger,
   buildMonsterCombatants,
   buildNpcCombatants,
+  combatStats,
+  adoptStatBlock,
 } from "@/rules/encounterCombatLogic";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
@@ -242,5 +244,63 @@ describe("buildNpcCombatants", () => {
 
     const withoutCutout = buildNpcCombatants(npc(), { factionId: "f1", count: 1, started: false });
     expect(withoutCutout[0].token_url).toBeUndefined();
+  });
+});
+
+// app convention: a monster or NPC with no hit points to read joins on stand-ins
+// and takes its real numbers once the DM writes them mid-fight.
+describe("combatStats", () => {
+  it.each([
+    ["no stat block", null],
+    ["a blank hit points line", { ...npc().stat_block!, hit_points: "" }],
+  ])("marks the numbers as stand-ins for %s", (_label, sb) => {
+    expect(combatStats(sb, 10)).toMatchObject({ max_hp: 10, hp: 10, ac: "10", placeholder_stats: true });
+  });
+
+  it("reads a stat block with hit points as the real numbers", () => {
+    const stats = combatStats(npc().stat_block, 10);
+    expect(stats.max_hp).toBe(18); // 4d8 averages 18
+    expect(stats.placeholder_stats).toBeUndefined();
+  });
+});
+
+describe("adoptStatBlock", () => {
+  const written = { ...npc().stat_block!, armor_class: 16, hit_points: "6d8", dex: 14 }; // 6d8 averages 27
+
+  it("gives a stand-in combatant the stat block's numbers and drops the mark", () => {
+    const next = adoptStatBlock(c({ instance_id: "a", npc_id: "n1", hp: 10, max_hp: 10, placeholder_stats: true }), written);
+    expect(next).toMatchObject({ max_hp: 27, hp: 27, ac: "16", dex_mod: 2 });
+    expect(next?.placeholder_stats).toBeUndefined();
+  });
+
+  it("leaves a combatant that joined on real numbers alone", () => {
+    expect(adoptStatBlock(c({ instance_id: "a", npc_id: "n1", hp: 5, max_hp: 7 }), written)).toBeNull();
+  });
+
+  it("waits while the stat block still has no hit points", () => {
+    const blank = { ...written, hit_points: "" };
+    expect(adoptStatBlock(c({ instance_id: "a", placeholder_stats: true }), blank)).toBeNull();
+  });
+
+  it("carries the damage taken on the stand-ins over to the real maximum", () => {
+    // 7 of 10 is 3 down; 3 down on 27 is 24.
+    const next = adoptStatBlock(c({ instance_id: "a", hp: 7, max_hp: 10, placeholder_stats: true }), written);
+    expect(next?.hp).toBe(24);
+  });
+
+  it("keeps a combatant that is already down at 0", () => {
+    const next = adoptStatBlock(c({ instance_id: "a", hp: 0, max_hp: 10, placeholder_stats: true }), written);
+    expect(next?.hp).toBe(0);
+  });
+
+  it("never touches a rolled initiative", () => {
+    const next = adoptStatBlock(c({ instance_id: "a", initiative: 4, placeholder_stats: true }), written);
+    expect(next?.initiative).toBe(4);
+  });
+
+  it("primes a legendary pool for a monster whose new stat block has legendary actions", () => {
+    const legendary = { ...written, legendary_actions: [{ name: "Bite", description: "", structured: { kind: "other" as const, source: "manual" as const } }] };
+    const next = adoptStatBlock(c({ instance_id: "a", monster_id: "m1", placeholder_stats: true }), legendary);
+    expect(next?.legendary_action_cap).toBe(3);
   });
 });

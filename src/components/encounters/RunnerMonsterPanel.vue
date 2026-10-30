@@ -1,9 +1,9 @@
 <template>
   <div class="detail-scroll">
     <RunnerPortrait
-      :src="combatant.wildshape?.beast_image_url ?? combatant.portrait_url"
-      :alt="combatant.name"
-      :focal-point="combatant.wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
+      :src="portrait.src"
+      :alt="portrait.alt"
+      :focal-point="portrait.focalPoint"
     />
     <p class="detail-meta">
       {{ monster.size }} {{ monster.monster_type
@@ -80,11 +80,15 @@ import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/
 import RunnerLegendaryActions from "@/components/encounters/RunnerLegendaryActions.vue";
 import type { Monster } from "@/types/monster.types";
 import type { RunCombatant } from "@/types/encounter.types";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 
 const { combatant, monster } = defineProps<{
   combatant: RunCombatant;
   monster: Monster;
 }>();
+
+const portraitOf = useFormPortraits(() => [combatant.wildshape]);
+const portrait = computed(() => portraitOf(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];

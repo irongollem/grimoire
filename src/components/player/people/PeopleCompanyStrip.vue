@@ -42,7 +42,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import type { PartyEntry } from "@/components/player/people/peopleParty";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -71,12 +71,14 @@ function hpBar(current: number, max: number) {
   return { pct: Math.max(0, Math.min(100, ratio * 100)), color };
 }
 
+const portraitOf = useFormPortraits(() => entries.map((e) => (e.kind === "member" ? e.data.wildshape_state : null)));
+
 const tiles = computed(() =>
   entries.map((entry) => {
     const hp = showHp(entry) ? hpBar(entry.data.current_hp, entry.data.max_hp) : null;
     if (entry.kind === "member") {
       const member = entry.data;
-      const portrait = formPortrait(member, member.wildshape_state);
+      const portrait = portraitOf(member, member.wildshape_state);
       return {
         key: `m-${member.id}`,
         name: member.name,

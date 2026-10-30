@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
@@ -58,7 +58,8 @@ const { combatant, npc } = defineProps<{
   npc: NpcListRow;
 }>();
 
-const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
+const portraitOf = useFormPortraits(() => [combatant.wildshape]);
+const portrait = computed(() => portraitOf(combatant, combatant.wildshape));
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];

@@ -258,7 +258,7 @@ import {
 import type { PartyMember } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { walkingSpeed } from "@/lib/movement";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
@@ -282,7 +282,8 @@ const props = defineProps<{
   /** DEX in effect: the Wild Shape form's while shaped. Defaults to the character's own. */
   effectiveDex?: number;
 }>();
-const portrait = computed(() => formPortrait(props.member, props.wildshape));
+const portraitOf = useFormPortraits(() => [props.wildshape]);
+const portrait = computed(() => portraitOf(props.member, props.wildshape));
 const emit = defineEmits<{ (e: "level-up"): void }>();
 
 const { data: allSpecies } = useAllSpecies();
