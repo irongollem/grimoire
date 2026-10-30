@@ -22,6 +22,41 @@ export interface SoundCue {
   gain?: number;
 }
 
+/** The screen a shot is filmed on. A phone is 390x693 CSS px at 3x, a tablet 820x1180 at 2x, a desktop 1440x900 at 2x. */
+export type Device = "phone" | "tablet" | "desktop";
+
+/** A part of the screen in device pixels, relative to the screen's top-left corner. */
+export interface ScreenRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Where the camera looks from `t` seconds into a shot's clip; `rect: null` is the whole screen. */
+export interface CameraKeyframe {
+  t: number;
+  rect: ScreenRect | null;
+  /** Breathing room around the rect in device pixels. */
+  padding?: number;
+}
+
+/**
+ * A second person acting while a shot is filmed, on a desktop viewport that is
+ * never filmed (no screencast, no camera, no sound cues). It is signed in as
+ * the other fixture account, in the same demo campaign with that account's
+ * lens, and lives in its own browser context. Opened the first time a shot asks
+ * for it and kept for the rest of the episode, so its realtime connection
+ * stays up between shots.
+ */
+export interface Offstage {
+  page: Page;
+  /** Navigates the offstage page within the app and waits for it to settle. */
+  open(path: string): Promise<void>;
+  /** The app's base URL, for `page.goto` with a full address. */
+  base: string;
+}
+
 /** What a shot's `run` gets to work with. */
 export interface ShotContext {
   page: Page;
@@ -39,6 +74,15 @@ export interface ShotContext {
   cue(src: string, gain?: number): void;
   /** Navigates within the app and waits for it to settle (not filmed until it has). */
   open(path: string): Promise<void>;
+  /**
+   * Points the camera at part of the screen, from now on: the Reel glides to
+   * frame `target` (padding in CSS pixels, default 8% of the target), and
+   * `null` glides back to the whole screen. Frames the target where it is now,
+   * so scroll first. A shot that never calls it shows the whole screen.
+   */
+  focus(target: ReturnType<Page["locator"]> | null, opts?: { padding?: number }): Promise<void>;
+  /** The other person at the table, acting live: see `Offstage`. */
+  offstage(account: Account): Promise<Offstage>;
 }
 
 export interface Shot {
@@ -50,6 +94,8 @@ export interface Shot {
   narration: string;
   /** The app path to be on, settled, before filming starts. Omit to continue from the previous shot. */
   startAt?: string;
+  /** Overrides the episode's device for this shot (a Reel may cut from a laptop to a phone). A shot on another device than the one before needs a `startAt`. */
+  device?: Device;
   run(ctx: ShotContext): Promise<void>;
 }
 
@@ -61,6 +107,8 @@ export interface Episode {
   /** The episode that shows the other side of the same feature (DM or player). */
   pairedWith?: string;
   account: Account;
+  /** The screen the episode is filmed on; phone when omitted. */
+  device?: Device;
   /** Puts the local stack into the state the first shot expects. Runs before every recording, so it must be idempotent. */
   setup?(): Promise<void> | void;
   /** Seed for Math.random in the filmed page, so dice land the same on every take. */
@@ -73,8 +121,14 @@ export interface RecordedShot {
   id: string;
   caption: string;
   narration: string;
-  /** Relative to the episode folder: a 1080x1920, 30 fps, silent H.264 clip. */
+  /** Relative to the episode folder: a silent 30 fps H.264 clip at the device's native pixel size. */
   file: string;
+  /** The screen it was filmed on; phone when absent (older manifests). */
+  device?: Device;
+  /** The clip's size in device pixels. */
+  size?: { width: number; height: number };
+  /** Camera moves, in clip time. Absent means the whole screen throughout. */
+  camera?: CameraKeyframe[];
   /** Seconds. */
   duration: number;
   cues: SoundCue[];

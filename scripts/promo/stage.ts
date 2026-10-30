@@ -1,48 +1,63 @@
 /**
- * The browser a promo episode is filmed in: a phone-sized, signed-in page on
- * the local stack, and a camera that records it at full resolution.
+ * The browser a promo episode is filmed in: a signed-in page on the local
+ * stack at phone, tablet or desktop size, and a camera that records it at full
+ * resolution.
  *
  * Why a visible Chrome window and not headless: a headless page sends
  * screencast frames only now and then (6 frames in 2.5 s when tried), and at
  * CSS pixels whatever the emulated pixel ratio. A headed window launched with
  * `--force-device-scale-factor=3` sends every frame (60 fps while anything
  * moves) at 1170x2079. The window opens off to the side; it can be ignored.
+ * That flag is per browser, so the recorder launches one browser per device
+ * scale in use (3 for a phone, 2 for a tablet or desktop).
  *
  * Why the screencast and not Playwright's own video: that needs a separate
  * ffmpeg download and encodes VP8 at about 1 Mbit/s, which shows on a phone.
+ *
+ * A clip keeps the screen's native pixel size (the assembler frames it), so a
+ * desktop shot can be zoomed into without going soft.
  */
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium, devices, type Browser, type BrowserContext, type CDPSession, type Page } from "playwright";
+import { chromium, devices, type Browser, type BrowserContext, type BrowserContextOptions, type CDPSession, type Page } from "playwright";
 import { LOCAL_DEV_PASSWORD } from "../lib/dev-stack.ts";
 import { FIXTURE_EMAIL, PLAYER_EMAIL } from "../lib/dev-campaign-io.ts";
 import { publicAssetUrl } from "./assets.ts";
-import type { Account, ShotContext, SoundCue } from "./types.ts";
+import { DEVICES } from "./devices.ts";
+import type { Account, CameraKeyframe, Device, Offstage, ShotContext, SoundCue } from "./types.ts";
 
-/** CSS viewport: an iPhone's width at exactly 9:16, so a frame fills a Reel. */
-const VIEWPORT = { width: 390, height: 693 };
-const SCALE = 3;
-/** The clip size every shot is encoded at. */
-export const CLIP = { width: 1080, height: 1920, fps: 30 };
+export const FPS = 30;
 
 const EMAIL: Record<Account, string> = { dm: FIXTURE_EMAIL, player: PLAYER_EMAIL };
 /** The code the filmed page runs first: campaign, seeded dice, tap marks, sound reports. */
 const PAGE_SETUP = join(dirname(fileURLToPath(import.meta.url)), "page-setup.js");
 
-export async function launch(): Promise<Browser> {
+/** A visible Chrome window; `scale` is the device pixel ratio every page in it renders at. */
+export async function launch(scale: number): Promise<Browser> {
   return chromium.launch({
     channel: "chrome",
     headless: false,
-    args: ["--window-position=2400,0", `--force-device-scale-factor=${SCALE}`, "--hide-scrollbars", "--autoplay-policy=no-user-gesture-required"],
+    args: ["--window-position=2400,0", `--force-device-scale-factor=${scale}`, "--hide-scrollbars", "--autoplay-policy=no-user-gesture-required"],
   });
+}
+
+/** A browser nobody watches, for the offstage actor: it films nothing, so it needs no frames. */
+export async function launchOffstage(): Promise<Browser> {
+  return chromium.launch({ channel: "chrome", headless: true, args: ["--autoplay-policy=no-user-gesture-required"] });
+}
+
+function contextOptions(device: Device): BrowserContextOptions {
+  const spec = DEVICES[device];
+  const base = device === "phone" ? devices["iPhone 14"] : device === "tablet" ? devices["iPad Pro 11"] : devices["Desktop Chrome"];
+  return { ...base, viewport: spec.viewport, deviceScaleFactor: spec.scale, hasTouch: spec.touch, isMobile: spec.mobile };
 }
 
 type StoredSession = Awaited<ReturnType<BrowserContext["storageState"]>>;
 
-async function signIn(browser: Browser, base: string, account: Account): Promise<StoredSession> {
-  const context = await browser.newContext({ ...devices["iPhone 14"], viewport: VIEWPORT });
+async function signIn(browser: Browser, base: string, account: Account, device: Device): Promise<StoredSession> {
+  const context = await browser.newContext(contextOptions(device));
   try {
     const page = await context.newPage();
     await page.goto(`${base}/login`);
@@ -57,64 +72,85 @@ async function signIn(browser: Browser, base: string, account: Account): Promise
   }
 }
 
-export interface Stage {
-  page: Page;
-  context: BrowserContext;
-  /** Navigates and waits for the page to go quiet. */
-  open(path: string): Promise<void>;
-  /** Films `run` and writes it to `out` as a 1080x1920 clip; returns its length and the cues logged during it. */
-  film(out: string, run: (ctx: ShotContext) => Promise<void>): Promise<{ duration: number; cues: SoundCue[] }>;
+function assertLocal(base: string): void {
+  const { hostname } = new URL(base);
+  if (!["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)) {
+    throw new Error(`Refusing to film ${base}: promo episodes are shot against the local stack only.`);
+  }
 }
 
-export async function openStage(
-  browser: Browser,
-  opts: { base: string; account: Account; campaignId: string; seed: number; scratch: string },
-): Promise<Stage> {
-  const { hostname } = new URL(opts.base);
-  if (!["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)) {
-    throw new Error(`Refusing to film ${opts.base}: promo episodes are shot against the local stack only.`);
-  }
-  const storageState = await signIn(browser, opts.base, opts.account);
-  const context = await browser.newContext({
-    ...devices["iPhone 14"],
-    viewport: VIEWPORT,
-    deviceScaleFactor: SCALE,
-    colorScheme: "light",
-    reducedMotion: "no-preference",
-    storageState,
-  });
+interface StageOptions {
+  base: string;
+  account: Account;
+  device: Device;
+  campaignId: string;
+  seed: number;
+}
+
+async function settledPage(browser: Browser, opts: StageOptions) {
+  assertLocal(opts.base);
+  const storageState = await signIn(browser, opts.base, opts.account, opts.device);
+  const context = await browser.newContext({ ...contextOptions(opts.device), colorScheme: "light", reducedMotion: "no-preference", storageState });
   const args = JSON.stringify({ mode: opts.account, campaignId: opts.campaignId, seed: opts.seed });
   await context.addInitScript({ content: `window.__promoArgs = ${args};\n${readFileSync(PAGE_SETUP, "utf8")}` });
   const page = await context.newPage();
-  const cdp = await context.newCDPSession(page);
-  // The shot being filmed, if any, collects the sounds the page reports.
-  let listener: ((src: string, gain: number) => void) | null = null;
-  await page.exposeFunction("__promoSound", (src: string, gain: number) => listener?.(src, gain));
-
   async function open(path: string): Promise<void> {
     await page.goto(`${opts.base}${path}`);
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
     await page.waitForTimeout(800);
   }
+  return { context, page, open };
+}
+
+/** The other person at the table: a desktop page that is never filmed. */
+export async function openOffstage(browser: Browser, opts: Omit<StageOptions, "device">): Promise<Offstage> {
+  const { page, open } = await settledPage(browser, { ...opts, device: "desktop" });
+  return { page, open, base: opts.base };
+}
+
+export interface Stage {
+  page: Page;
+  device: Device;
+  /** Navigates and waits for the page to go quiet. */
+  open(path: string): Promise<void>;
+  /** Films `run` and writes it to `out` at the screen's native pixel size; returns its length, size, camera moves and the cues logged during it. */
+  film(
+    out: string,
+    run: (ctx: ShotContext) => Promise<void>,
+  ): Promise<{ duration: number; size: { width: number; height: number }; camera: CameraKeyframe[]; cues: SoundCue[] }>;
+}
+
+export async function openStage(
+  browser: Browser,
+  opts: StageOptions & { scratch: string; offstage: (account: Account) => Promise<Offstage> },
+): Promise<Stage> {
+  const { page, context, open } = await settledPage(browser, opts);
+  const cdp = await context.newCDPSession(page);
+  // The shot being filmed, if any, collects the sounds the page reports.
+  let listener: ((src: string, gain: number) => void) | null = null;
+  await page.exposeFunction("__promoSound", (src: string, gain: number) => listener?.(src, gain));
 
   async function film(out: string, run: (ctx: ShotContext) => Promise<void>) {
-    return filmShot(page, cdp, opts.scratch, out, run, open, (fn) => {
+    return filmShot(page, cdp, opts.device, opts.scratch, out, run, open, opts.offstage, (fn) => {
       listener = fn;
     });
   }
 
-  return { page, context, open, film };
+  return { page, device: opts.device, open, film };
 }
 
 async function filmShot(
   page: Page,
   cdp: CDPSession,
+  device: Device,
   scratch: string,
   out: string,
   run: (ctx: ShotContext) => Promise<void>,
   open: (path: string) => Promise<void>,
+  offstage: (account: Account) => Promise<Offstage>,
   listen: (fn: ((src: string, gain: number) => void) | null) => void,
-): Promise<{ duration: number; cues: SoundCue[] }> {
+) {
+  const { viewport, scale, touch } = DEVICES[device];
   const dir = join(scratch, "frames");
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -129,15 +165,16 @@ async function filmShot(
   cdp.on("Page.screencastFrame", onFrame);
   const start = performance.now() / 1000;
   const cues: SoundCue[] = [];
+  const camera: CameraKeyframe[] = [];
   listen((src, gain) => {
     if (src) cues.push({ t: performance.now() / 1000 - start, src: publicAssetUrl(src), gain });
   });
-  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92, maxWidth: VIEWPORT.width * SCALE, maxHeight: VIEWPORT.height * SCALE });
+  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92, maxWidth: viewport.width * scale, maxHeight: viewport.height * scale });
 
   // Episodes destructure these helpers, so none of them may lean on `this`.
   async function scroll(dy: number, ms = 700): Promise<void> {
     const steps = Math.max(1, Math.round(ms / 16));
-    await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 2);
+    await page.mouse.move(viewport.width / 2, viewport.height / 2);
     for (let i = 0; i < steps; i++) {
       await page.mouse.wheel(0, dy / steps);
       await page.waitForTimeout(16);
@@ -150,11 +187,14 @@ async function filmShot(
     async tap(target, holdMs = 600) {
       await target.scrollIntoViewIfNeeded();
       await page.waitForTimeout(250);
-      await target.tap();
+      // A phone is touched; a desktop is clicked. Either way the page draws the ring.
+      if (touch) await target.tap();
+      else await target.click();
       await page.waitForTimeout(holdMs);
     },
     async type(target, text) {
-      await target.tap();
+      if (touch) await target.tap();
+      else await target.click();
       await target.pressSequentially(text, { delay: 70 });
     },
     scroll,
@@ -171,6 +211,31 @@ async function filmShot(
       cues.push({ t: performance.now() / 1000 - start, src, ...(gain === undefined ? {} : { gain }) });
     },
     open,
+    async focus(target, opts) {
+      if (target === null) {
+        camera.push({ t: performance.now() / 1000 - start, rect: null });
+        return;
+      }
+      await target.waitFor({ timeout: 15_000 });
+      let box = await target.boundingBox();
+      await target.scrollIntoViewIfNeeded();
+      const after = await target.boundingBox();
+      if (box && after && box.y !== after.y) await page.waitForTimeout(400);
+      box = (await target.boundingBox()) ?? box;
+      if (!box) throw new Error("focus: the target is not on the page.");
+      // Only what is on the screen can be framed.
+      const x0 = Math.max(0, box.x);
+      const y0 = Math.max(0, box.y);
+      const x1 = Math.min(viewport.width, box.x + box.width);
+      const y1 = Math.min(viewport.height, box.y + box.height);
+      if (x1 <= x0 || y1 <= y0) throw new Error("focus: the target is outside the screen.");
+      camera.push({
+        t: performance.now() / 1000 - start,
+        rect: { x: x0 * scale, y: y0 * scale, width: (x1 - x0) * scale, height: (y1 - y0) * scale },
+        ...(opts?.padding === undefined ? {} : { padding: opts.padding * scale }),
+      });
+    },
+    offstage,
   };
 
   try {
@@ -199,12 +264,20 @@ async function filmShot(
   }
   lines.push(`file '${String(frames.length - 1).padStart(5, "0")}.jpg'`);
   writeFileSync(join(dir, "list.txt"), lines.join("\n"));
+  // `-t` because the concat demuxer shows its closing repeat of the last frame for as long as the one before it
+  // (a screen that stood still for 2 s came out at 4 s), which the recorded length must not include.
+  // Native size, cropped by at most a pixel to even dimensions (H.264 4:2:0 needs them).
   execFileSync("ffmpeg", [
     "-v", "error", "-y",
     "-f", "concat", "-safe", "0", "-i", join(dir, "list.txt"),
-    "-vf", `fps=${CLIP.fps},scale=${CLIP.width}:${CLIP.height}:flags=lanczos,setsar=1,format=yuv420p`,
+    "-t", (end - start).toFixed(4),
+    "-vf", `fps=${FPS},crop=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,format=yuv420p`,
     "-c:v", "libx264", "-crf", "16", "-preset", "slow", "-an",
     out,
   ]);
-  return { duration: end - start, cues };
+  const [width, height] = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", out], { encoding: "utf8" })
+    .trim()
+    .split("x")
+    .map(Number);
+  return { duration: end - start, size: { width, height }, camera, cues };
 }

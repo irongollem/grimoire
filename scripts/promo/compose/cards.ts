@@ -3,10 +3,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
+import { DEVICES } from "../devices.ts";
+import type { Device } from "../types.ts";
 
 export const BACKGROUND = "#f2ece0"; // vellum --background
 export const INK = "#2b2019"; // vellum --foreground
-export const SCREEN = { x: 150, y: 430, w: 780, h: 1387, radius: 44 } as const;
 export const CAPTION_BAND = { y: 230, h: 180 } as const;
 
 const FONTS = resolve("node_modules/@fontsource");
@@ -60,25 +61,48 @@ export async function renderCards(workDir: string, cards: Card[]): Promise<void>
   }
 }
 
-const sq = SCREEN;
-const screenBox = `position:absolute;left:${sq.x}px;top:${sq.y}px;width:${sq.w}px;height:${sq.h}px;border-radius:${sq.radius}px;`;
+/** The Reel's page behind a shot: a framed device gets its screen box and shadow, a desktop is bare paper (its shadow is in the camera's backdrop). */
+export const baseCard = (file: string, device: Device): Card => {
+  const { window: w, framed } = DEVICES[device];
+  return {
+    file,
+    width: 1080,
+    height: 1920,
+    transparent: false,
+    body: framed ? `<div class="s"></div>` : "",
+    css: framed
+      ? `.s{position:absolute;left:${w.x}px;top:${w.y}px;width:${w.w}px;height:${w.h}px;border-radius:${w.radius}px;background:#000;box-shadow:0 28px 70px rgba(43,32,25,.38),0 6px 18px rgba(43,32,25,.22)}`
+      : "",
+  };
+};
 
-export const baseCard = (file: string): Card => ({
+/** The rounded corners of a framed device's screen. */
+export const maskCard = (file: string, device: Device): Card => {
+  const { window: w } = DEVICES[device];
+  return {
+    file,
+    width: w.w,
+    height: w.h,
+    transparent: true,
+    body: `<div class="m"></div>`,
+    css: `.m{width:${w.w}px;height:${w.h}px;border-radius:${w.radius}px;background:#fff}`,
+  };
+};
+
+/**
+ * What the camera looks at, in device pixels: a framed device on black, or a
+ * desktop screen on paper with a soft shadow, so it reads as a laptop screen
+ * floating on the page. A tight shot sees little of the shadow, a wide one all of it.
+ */
+export const backdropCard = (file: string, device: Device, canvas: { width: number; height: number; screenX: number; screenY: number }, screen: { width: number; height: number }): Card => ({
   file,
-  width: 1080,
-  height: 1920,
+  width: canvas.width,
+  height: canvas.height,
   transparent: false,
-  body: `<div class="s"></div>`,
-  css: `.s{${screenBox}background:#000;box-shadow:0 28px 70px rgba(43,32,25,.38),0 6px 18px rgba(43,32,25,.22)}`,
-});
-
-export const maskCard = (file: string): Card => ({
-  file,
-  width: sq.w,
-  height: sq.h,
-  transparent: true,
-  body: `<div class="m"></div>`,
-  css: `.m{width:${sq.w}px;height:${sq.h}px;border-radius:${sq.radius}px;background:#fff}`,
+  body: DEVICES[device].framed ? "" : `<div class="s"></div>`,
+  css: DEVICES[device].framed
+    ? `html,body{background:#000!important}`
+    : `.s{position:absolute;left:${canvas.screenX}px;top:${canvas.screenY}px;width:${screen.width}px;height:${screen.height}px;background:#000;box-shadow:0 90px 220px rgba(43,32,25,.38),0 20px 60px rgba(43,32,25,.22)}`,
 });
 
 export const captionCard = (file: string, text: string): Card => ({

@@ -5,11 +5,13 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { baseCard, captionCard, introCard, maskCard, outroCard, renderCards, SCREEN } from "./compose/cards";
+import { canvasFor, planCamera, zoompanExpressions } from "./camera";
+import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards } from "./compose/cards";
 import { audibleEnd, durationOf, ffmpeg, hasAudio, leadingSilence, loudnessOf, STEREO_48K } from "./compose/ffmpeg";
+import { DEVICES } from "./devices";
 import { gainExpression, planTheme } from "./theme";
 import { planTimeline, VO_LEAD, type PlannedShot, type ShotInput } from "./timeline";
-import type { EpisodeManifest } from "./types";
+import type { Device, EpisodeManifest, RecordedShot } from "./types";
 
 const INTERMEDIATE = ["-c:v", "libx264", "-crf", "14", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", "30", "-g", "30", "-an"];
 const WAV = ["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2"];
@@ -38,20 +40,54 @@ function findFirst(dir: string, stem: string, exts: string[]): string | null {
 
 const silence = (seconds: number) => ["-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=48000:cl=stereo"];
 
+/** The camera's canvas for a recorded shot: its screen on paper in the window's shape. */
+function canvasOf(shot: RecordedShot) {
+  const { window: w } = DEVICES[shot.device ?? "phone"];
+  if (!shot.size) throw new Error(`Shot ${shot.id} has camera moves but no recorded size: re-film it.`);
+  return canvasFor(shot.size, { width: w.w, height: w.h });
+}
+
 /** The silent screen-in-frame video for one shot. */
-function renderShotVideo(p: PlannedShot, clip: string, work: string, out: string): void {
-  const { x, y, w, h } = SCREEN;
+function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work: string, out: string): void {
+  const device: Device = shot.device ?? "phone";
+  const spec = DEVICES[device];
+  const { x, y, w, h } = spec.window;
   const L = p.length;
+  // A frozen last frame holds the screen, and with it wherever the camera ended.
   const hold = p.freeze > 0 ? `tpad=stop_mode=clone:stop_duration=${p.freeze},` : "";
+  const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(L), "-i", file];
+  const camera = (shot.camera?.length ?? 0) > 0 || !spec.framed;
+  if (!camera) {
+    ffmpeg([
+      ...loop(join(work, `base-${device}.png`)),
+      "-i", clip,
+      ...loop(join(work, `mask-${device}.png`)),
+      ...loop(join(work, `caption-${p.id}.png`)),
+      "-filter_complex",
+      `[1:v]fps=30,scale=${w}:${h},${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuva420p[c];` +
+        `[2:v]format=gray[m];[c][m]alphamerge[s];` +
+        `[0:v][s]overlay=${x}:${y}:format=auto[a];[a][3:v]overlay=0:230:format=auto,format=yuv420p[v]`,
+      "-map", "[v]", "-t", String(L), ...INTERMEDIATE, out,
+    ]);
+    return;
+  }
+  // Camera: the screen goes onto its backdrop, zoompan crops a window out of that, and the window goes on the page.
+  const canvas = canvasOf(shot);
+  const { z, x: zx, y: zy } = zoompanExpressions(planCamera(shot.camera ?? [], canvas), canvas);
+  const window =
+    `[4:v]format=yuv420p[bd];[1:v]fps=30,${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuv420p[c];` +
+    `[bd][c]overlay=${canvas.screenX}:${canvas.screenY}[cv];` +
+    `[cv]zoompan=z='${z}':x='${zx}':y='${zy}':d=1:s=${w}x${h}:fps=30[zp]`;
+  const place = spec.framed
+    ? `[zp]format=yuva420p[zv];[2:v]format=gray[m];[zv][m]alphamerge[s];[0:v][s]overlay=${x}:${y}:format=auto[a]`
+    : `[0:v][zp]overlay=${x}:${y}[a]`;
   ffmpeg([
-    "-loop", "1", "-framerate", "30", "-t", String(L), "-i", join(work, "base.png"),
+    ...loop(join(work, `base-${device}.png`)),
     "-i", clip,
-    "-loop", "1", "-framerate", "30", "-t", String(L), "-i", join(work, "mask.png"),
-    "-loop", "1", "-framerate", "30", "-t", String(L), "-i", join(work, `caption-${p.id}.png`),
-    "-filter_complex",
-    `[1:v]fps=30,scale=${w}:${h},${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuva420p[c];` +
-      `[2:v]format=gray[m];[c][m]alphamerge[s];` +
-      `[0:v][s]overlay=${x}:${y}:format=auto[a];[a][3:v]overlay=0:230:format=auto,format=yuv420p[v]`,
+    ...loop(spec.framed ? join(work, `mask-${device}.png`) : join(work, `base-${device}.png`)),
+    ...loop(join(work, `caption-${p.id}.png`)),
+    ...loop(join(work, `backdrop-${p.id}.png`)),
+    "-filter_complex", `${window};${place};[a][3:v]overlay=0:230:format=auto,format=yuv420p[v]`,
     "-map", "[v]", "-t", String(L), ...INTERMEDIATE, out,
   ]);
 }
@@ -127,9 +163,13 @@ async function main() {
   const themeFile = brand ? findFirst(brandDir, "theme", ["mp3", "wav", "m4a"]) : null;
 
   // Static art, once per run.
+  const devicesUsed = [...new Set(manifest.shots.map((s): Device => s.device ?? "phone"))];
   await renderCards(work, [
-    baseCard(join(work, "base.png")),
-    maskCard(join(work, "mask.png")),
+    ...devicesUsed.map((d) => baseCard(join(work, `base-${d}.png`), d)),
+    ...devicesUsed.filter((d) => DEVICES[d].framed).map((d) => maskCard(join(work, `mask-${d}.png`), d)),
+    ...manifest.shots
+      .filter((s) => (s.camera?.length ?? 0) > 0 || !DEVICES[s.device ?? "phone"].framed)
+      .map((s) => backdropCard(join(work, `backdrop-${s.id}.png`), s.device ?? "phone", canvasOf(s), s.size ?? { width: 0, height: 0 })),
     ...manifest.shots.map((s) => captionCard(join(work, `caption-${s.id}.png`), s.caption)),
     ...(brand ? [introCard(join(work, "intro.png"), manifest.title), outroCard(join(work, "outro.png"))] : []),
   ]);
@@ -155,7 +195,7 @@ async function main() {
     const vo = join(work, `vo-${i}.wav`);
     const fx = join(work, `fx-${i}.wav`);
     console.log(`shot ${p.id}: start ${p.start.toFixed(2)}s, length ${p.length.toFixed(2)}s${p.voStart === null ? " (no VO)" : ""}, ${p.cues.length} cue(s)`);
-    renderShotVideo(p, join(dir, manifest.shots[i].file), work, v);
+    renderShotVideo(p, manifest.shots[i], join(dir, manifest.shots[i].file), work, v);
     renderVoWav(p, voFiles[i], vo);
     renderFxWav(p, fx);
     videos.push(v); voWavs.push(vo); fxWavs.push(fx);

@@ -12,8 +12,10 @@ import { parseArgs } from "node:util";
 import { EPISODES } from "./episodes/index.ts";
 import { demoCampaignId } from "./setup/demo.ts";
 import { startPromoServer } from "./server.ts";
-import { launch, openStage } from "./stage.ts";
-import type { EpisodeManifest, RecordedShot } from "./types.ts";
+import { DEVICES } from "./devices.ts";
+import { launch, launchOffstage, openOffstage, openStage, type Stage } from "./stage.ts";
+import type { Account, Device, EpisodeManifest, Offstage, RecordedShot } from "./types.ts";
+import type { Browser } from "playwright";
 
 /** Words a narrator says per second at an easy pace; sizes the target length in the script. */
 const WORDS_PER_SECOND = 2.5;
@@ -48,26 +50,71 @@ const campaignId = demoCampaignId();
 const external = process.env.PROMO_BASE_URL;
 const server = external === undefined ? await startPromoServer() : null;
 const base = server?.base ?? external ?? "";
-const browser = await launch();
+const seed = episode.seed ?? 1;
+const filmedAs = episode.account;
+
+// A headed Chrome renders at one device scale per browser, so a browser is launched
+// for each scale the episode uses, and a signed-in stage for each device, on first need.
+const browsers = new Map<number, Browser>();
+const stages = new Map<Device, Stage>();
+const offstages = new Map<Account, Offstage>();
+let quiet: Browser | null = null;
+
+async function stageFor(device: Device): Promise<Stage> {
+  const have = stages.get(device);
+  if (have) return have;
+  const scale = DEVICES[device].scale;
+  let browser = browsers.get(scale);
+  if (!browser) {
+    browser = await launch(scale);
+    browsers.set(scale, browser);
+  }
+  const stage = await openStage(browser, { base, account: filmedAs, device, campaignId, seed, scratch: join(dir, ".scratch"), offstage });
+  stages.set(device, stage);
+  return stage;
+}
+
+/** The other person at the table, signed in as the other account; opened by the first shot that asks. */
+async function offstage(account: Account): Promise<Offstage> {
+  const have = offstages.get(account);
+  if (have) return have;
+  quiet ??= await launchOffstage();
+  const actor = await openOffstage(quiet, { base, account, campaignId, seed });
+  offstages.set(account, actor);
+  return actor;
+}
+
 const recorded: RecordedShot[] = [];
 try {
-  const stage = await openStage(browser, { base, account: episode.account, campaignId, seed: episode.seed ?? 1, scratch: join(dir, ".scratch") });
   for (const shot of episode.shots) {
+    const device = shot.device ?? episode.device ?? "phone";
+    const stage = await stageFor(device);
     // A shot continues from the state the previous one left, so every shot
     // before the chosen one still runs; only the filming is skipped.
     if (shot.startAt) await stage.open(shot.startAt);
+    else if (stage.page.url() === "about:blank") throw new Error(`Shot "${shot.id}" is the first on the ${device} and needs a startAt.`);
     const out = join(dir, "shots", `${shot.id}.mp4`);
     const keep = values.shot && values.shot !== shot.id ? previous?.shots.find((s) => s.id === shot.id) : undefined;
-    console.log(`${keep ? "running" : "filming"} ${shot.id}`);
-    const { duration, cues } = await stage.film(keep ? join(dir, ".scratch", "discard.mp4") : out, shot.run);
+    console.log(`${keep ? "running" : "filming"} ${shot.id} (${device})`);
+    const { duration, size, camera, cues } = await stage.film(keep ? join(dir, ".scratch", "discard.mp4") : out, shot.run);
     recorded.push(
       keep
         ? { ...keep, caption: shot.caption, narration: shot.narration }
-        : { id: shot.id, caption: shot.caption, narration: shot.narration, file: `shots/${shot.id}.mp4`, duration, cues },
+        : {
+            id: shot.id,
+            caption: shot.caption,
+            narration: shot.narration,
+            file: `shots/${shot.id}.mp4`,
+            device,
+            size,
+            ...(camera.length > 0 ? { camera } : {}),
+            duration,
+            cues,
+          },
     );
   }
 } finally {
-  await browser.close();
+  for (const browser of [...browsers.values(), ...(quiet ? [quiet] : [])]) await browser.close();
   await server?.close();
 }
 
