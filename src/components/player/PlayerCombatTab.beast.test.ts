@@ -43,7 +43,7 @@ function mountBeast(actions: StatBlockEntry[], who: PartyMember = member) {
     props: { member: who, attackDisadvantage: false, attackPenalty: 0, checkDisadvantage: false, checkPenalty: 0, wildshapeMonster },
     global: {
       directives: { "roll-mode": rollMode },
-      stubs: { PlayerLoadout: true, PlayerCustomAttacks: true, FeatureActionsCard: true, DamageRiderPicker: true, PlayerRollModeControl: true },
+      stubs: { PlayerLoadout: true, PlayerCustomAttacks: true, FeatureActionsCard: true, DamageRiderPicker: true, UnarmedDamageLabel: true, PlayerRollModeControl: true },
     },
   });
 }

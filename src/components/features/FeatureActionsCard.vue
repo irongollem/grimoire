@@ -116,6 +116,7 @@ import type { RollMode } from "@/lib/dice/roller";
 import { abilityMod } from "@/rules/armorClass";
 import type { ActionEntry } from "@/rules/features/characterFeatures";
 import { poolLabel } from "@/rules/features/characterFeatures";
+import { unpayableReason } from "@/rules/features/uses";
 import { describeResolved, effectDamageRoll, resolveEffect, type EffectResolution, type ResolvedEffect } from "@/rules/features/effect";
 import type { Activation, EffectKind, UsesCost } from "@/rules/features/mechanics.types";
 import type { PartyMember } from "@/types/party.types";
@@ -222,7 +223,7 @@ function rollBlocked(entry: ActionEntry, freeAfterRoll = false): boolean {
 /** Why the row cannot be used, or null when it can. */
 function reasonFor(entry: ActionEntry): string | null {
   if (!entry.spends || uses.payable(entry.spends)) return null;
-  return `No ${labelOf(entry.spends.key)} left`;
+  return unpayableReason(uses.remaining(entry.spends.key), labelOf(entry.spends.key));
 }
 
 function entryKey(entry: ActionEntry): string {

@@ -49,9 +49,10 @@
     </div>
 
     <SessionQuickLine v-if="target" :session="target" />
-  </DashboardWidget>
 
-  <SessionStartDialog v-model:open="startOpen" :pending="pending" @confirm="confirmStart" />
+    <!-- Inside the widget so the template has one root: the grid's `lg:row-span-2` class lands on the card. -->
+    <SessionStartDialog v-model:open="startOpen" :pending="pending" @confirm="confirmStart" />
+  </DashboardWidget>
 </template>
 
 <script setup lang="ts">

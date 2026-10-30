@@ -13,6 +13,12 @@ describe("LIBRARY_TABLES", () => {
     }
   });
 
+  it("mirrors the official class maps, or a character's class features name rows the local library lacks", () => {
+    expect(LIBRARY_TABLES.find((t) => t.table === "system_classes")).toMatchObject({ key: "id", prune: false });
+    const names = LIBRARY_TABLES.map((t) => t.table);
+    expect(names.indexOf("system_classes")).toBeLessThan(names.indexOf("class_features"));
+  });
+
   it("never mirrors per-account art overrides or the staging queue", () => {
     const names = LIBRARY_TABLES.map((t) => t.table);
     expect(names).not.toContain("library_monster_art");

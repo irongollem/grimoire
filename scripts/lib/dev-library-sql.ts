@@ -54,6 +54,10 @@ export const LIBRARY_TABLES = [
   // names its subclass by id, so without these a demo character cannot load.
   { table: "custom_classes", key: "id", prune: false, filter: "user_id=is.null" },
   { table: "custom_subclasses", key: "id", prune: false, filter: "user_id=is.null" },
+  // The official classes' feature maps. `db:pull` leaves this table out (it is built by migrations), so a local
+  // copy keeps the ids the seed migration minted while `class_features` above carries production's re-minted
+  // ones: every map entry then names a feature that does not exist, and a level 6 cleric has no Channel Divinity pool.
+  { table: "system_classes", key: "id", prune: false },
   {
     table: "class_features",
     key: "id",

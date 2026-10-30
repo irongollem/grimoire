@@ -29,6 +29,17 @@ export function canPay(stored: StoredClassResources, pools: readonly ResourcePoo
   return left === "unlimited" || left >= cost.amount;
 }
 
+/**
+ * Why a cost that cannot be paid cannot be, in the words the sheet shows (call it only once `canPay` said no).
+ * A pool the character does not hold is "not available", never "none left":
+ * "left" says a pool exists and is spent, and a missing pool (a feature map that
+ * names no Channel Divinity, say) is a different fault the player must not read
+ * as having used it up.
+ */
+export function unpayableReason(left: Remaining, label: string): string {
+  return left === null ? `${label} not available` : `No ${label} left`;
+}
+
 /** The stored resources after paying `cost`. Throws when it cannot be paid, so a caller cannot spend into the negative. */
 export function payCost(stored: StoredClassResources, pools: readonly ResourcePool[], cost: UsesCost): StoredClassResources {
   if (!canPay(stored, pools, cost)) {

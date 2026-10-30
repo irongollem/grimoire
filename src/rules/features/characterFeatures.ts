@@ -213,6 +213,12 @@ function levelOf(granted: GrantedFeature, characterLevel: number): number {
   return granted.grant.kind === "feat" ? characterLevel : granted.grant.classLevel;
 }
 
+/** The Monk's Martial Arts die ("d6", "1d8") among a character's granted features, or null. */
+export function martialArtsDieOf(granted: readonly GrantedFeature[]): string | null {
+  const g = granted.find((f) => f.mechanics.scaling?.label === "Martial Arts Die");
+  return g ? g.scalingValue : null;
+}
+
 export interface ResourcePool {
   key: string;
   label: string;
@@ -229,7 +235,7 @@ export interface ResourcePool {
  * (a cost no feature of theirs provides) reads as words, never as a raw key.
  */
 export function poolLabel(pools: readonly ResourcePool[], key: string): string {
-  return pools.find((p) => p.key === key)?.label ?? key.replace(/_/g, " ");
+  return pools.find((p) => p.key === key)?.label ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export interface PoolContext {

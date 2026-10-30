@@ -6,6 +6,7 @@
   <div class="sticky top-0 z-20 mb-0 h-0">
     <div
       v-if="visible"
+      ref="strip"
       class="absolute inset-x-0 top-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-b-lg border-x border-b border-border bg-card px-3 py-1.5 shadow-md"
       role="group"
       aria-label="Hit points"
@@ -21,18 +22,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useTemplateRef, watch } from "vue";
+import { useElementSize } from "@vueuse/core";
 import { hpTextClass } from "@/components/player/hpDisplay";
 import PlayerHpControls from "@/components/player/PlayerHpControls.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
 
-const { member, wildshape } = defineProps<{
+const { member, wildshape, visible } = defineProps<{
   member: PartyMember;
   wildshape?: WildshapeState;
   /** Whether the header's own hit point row is out of sight. */
   visible: boolean;
 }>();
+
+/**
+ * How tall the strip is while shown (0 when not), so the sheet's tab row can stick
+ * just beneath it instead of sliding under it half covered.
+ */
+const stripHeight = defineModel<number>("height", { default: 0 });
+const strip = useTemplateRef<HTMLElement>("strip");
+const { height: measured } = useElementSize(strip, undefined, { box: "border-box" });
+watch([measured, () => visible], () => { stripHeight.value = visible ? measured.value : 0; }, { immediate: true });
 
 const displayHp = computed(() => wildshape?.beast_hp ?? member.current_hp);
 const displayMaxHp = computed(() => wildshape?.beast_max_hp ?? member.max_hp);

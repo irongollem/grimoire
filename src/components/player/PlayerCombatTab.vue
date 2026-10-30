@@ -270,6 +270,7 @@
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
               <span class="text-label-lg text-foreground">Damage</span>
+              <UnarmedDamageLabel :member="member" class="text-label-lg text-foreground" />
               <span class="text-label-lg text-muted-foreground">bludgeoning</span>
             </AppButton>
           </div>
@@ -352,6 +353,7 @@ import type { DisadvantageTarget } from "@/rules/rollModeNotes";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import PlayerCustomAttacks from "@/components/player/PlayerCustomAttacks.vue";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
+import UnarmedDamageLabel from "@/components/player/UnarmedDamageLabel.vue";
 import DamageRiderPicker from "@/components/features/DamageRiderPicker.vue";
 import type { AttackShape } from "@/rules/features/resolve";
 import { isRangedWeaponItem } from "@/rules/ammunition";

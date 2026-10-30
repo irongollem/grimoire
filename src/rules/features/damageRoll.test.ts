@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleDamage, unarmedDamageBase } from "./damageRoll";
+import { assembleDamage, unarmedDamageBase, unarmedDamageText } from "./damageRoll";
 import { rollDice } from "@/lib/dice/dice";
 
 describe("assembleDamage", () => {
@@ -71,5 +71,14 @@ describe("unarmedDamageBase", () => {
   it("uses the Martial Arts die with the better of Strength and Dexterity, however the die is written", () => {
     expect(unarmedDamageBase({ strMod: 0, dexMod: 3, martialArtsDie: "d6" })).toEqual({ base: "1d6", modifier: 3 });
     expect(unarmedDamageBase({ strMod: 2, dexMod: 1, martialArtsDie: "1d8" })).toEqual({ base: "1d8", modifier: 2 });
+  });
+});
+
+describe("unarmedDamageText", () => {
+  it("shows the number an Unarmed Strike deals (the button once read only 'bludgeoning')", () => {
+    expect(unarmedDamageText(unarmedDamageBase({ strMod: 2, dexMod: 0, martialArtsDie: null }))).toBe("3");
+    expect(unarmedDamageText(unarmedDamageBase({ strMod: -1, dexMod: 0, martialArtsDie: null }))).toBe("0");
+    expect(unarmedDamageText(unarmedDamageBase({ strMod: 0, dexMod: 3, martialArtsDie: "d6" }))).toBe("1d6 + 3");
+    expect(unarmedDamageText({ base: "1d6", modifier: -1 })).toBe("1d6 − 1");
   });
 });

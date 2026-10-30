@@ -71,3 +71,10 @@ export function unarmedDamageBase(input: { strMod: number; dexMod: number; marti
   }
   return { base: "0", modifier: Math.max(0, 1 + input.strMod) };
 }
+
+/** What an Unarmed Strike's damage reads as on a button: "3" for the flat 1 + Strength, "1d6 + 3" with a Martial Arts die. */
+export function unarmedDamageText(damage: { base: string; modifier: number }): string {
+  if (damage.base === "0") return String(damage.modifier);
+  if (damage.modifier === 0) return damage.base;
+  return `${damage.base} ${damage.modifier > 0 ? "+" : "−"} ${Math.abs(damage.modifier)}`;
+}

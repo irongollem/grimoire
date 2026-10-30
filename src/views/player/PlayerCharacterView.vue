@@ -5,6 +5,7 @@
       v-if="member"
       :member="member"
       :wildshape="activeWildshape ?? undefined"
+      v-model:height="hpStripHeight"
       :visible="hpRowOutOfSight"
     />
     <!-- No character linked -->
@@ -72,9 +73,14 @@
       />
 
       <!-- ── Tabs + Export Sheet ──────────────────────────── -->
-      <div class="flex items-center gap-3 flex-wrap">
-        <!-- On a phone the tabs span the page like the cards around them, and
-             the two actions share the row beneath. -->
+      <!-- The tab row sticks to the top of the sheet's scroller, beneath the hit point strip while that is
+           showing, so scrolling never leaves the tabs half under it. It is its own block (a sticky box
+           stays inside its parent, and a row shared with the actions would end with them). -->
+      <div
+        class="sticky z-10 w-fit max-w-full rounded-md bg-card max-sm:w-full"
+        :style="{ top: `${hpStripHeight}px` }"
+      >
+        <!-- On a phone the tabs span the page like the cards around them. -->
         <SegmentedControl
           v-model="activeTab"
           :options="tabOptions"
@@ -83,16 +89,16 @@
           :block="isPhone"
           class="rounded-md border border-border/50 bg-muted/40 p-1"
         />
-        <div v-if="!hidePlayerActions && !isMindingThis && member" class="flex items-center gap-2 max-sm:w-full sm:ml-auto">
-          <AppButton v-if="!appUi.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" class="max-sm:flex-1" label="My Characters" />
-          <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" class="max-sm:flex-1" label="Export Sheet" />
-          <OverflowMenu
-            v-if="ownerMenuItems.length"
-            :label="`More actions for ${member.name}`"
-            :items="ownerMenuItems"
-            @select="onOwnerMenu"
-          />
-        </div>
+      </div>
+      <div v-if="!hidePlayerActions && !isMindingThis && member" class="flex items-center gap-2 sm:justify-end">
+        <AppButton v-if="!appUi.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" class="max-sm:flex-1" label="My Characters" />
+        <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" class="max-sm:flex-1" label="Export Sheet" />
+        <OverflowMenu
+          v-if="ownerMenuItems.length"
+          :label="`More actions for ${member.name}`"
+          :items="ownerMenuItems"
+          @select="onOwnerMenu"
+        />
       </div>
 
       <!-- Skills -->
@@ -372,6 +378,8 @@ const tabOptions = computed(() => visibleTabs.value.map((t) => ({ value: t.id, l
 // scrolled off the top, the strip takes over so damage never needs a scroll back.
 const sheetCard = ref<HTMLElement | null>(null);
 const hpRowOutOfSight = ref(false);
+/** The strip's height while shown; the tab row sticks this far below the scroller's top. */
+const hpStripHeight = ref(0);
 let hpRowObserver: IntersectionObserver | null = null;
 
 watch(sheetCard, (card) => {

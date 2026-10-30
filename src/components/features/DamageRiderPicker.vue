@@ -54,7 +54,7 @@ import { abilityMod } from "@/rules/weaponAttack";
 import { slotPool, spellSlotKey } from "@/rules/spellSlots";
 import type { SpellSlotEntry } from "@/types/party.types";
 import type { OfferedRider } from "@/rules/features/characterFeatures";
-import { poolLabel } from "@/rules/features/characterFeatures";
+import { martialArtsDieOf, poolLabel } from "@/rules/features/characterFeatures";
 import { assembleDamage, unarmedDamageBase } from "@/rules/features/damageRoll";
 import { riderFlatValue, type AddContext, type AttackShape } from "@/rules/features/resolve";
 import type { PartyMember } from "@/types/party.types";
@@ -125,16 +125,12 @@ const offered = computed(() => features.riders(attack, chosenSlot.value?.level))
 const slotRiderPicked = computed(() => chosen.value.some(isSlotRider));
 
 // ── What the weapon itself rolls ─────────────────────────────────────────────
-const martialArtsDie = computed(() => {
-  const g = features.granted.value.find(f => f.mechanics.scaling?.label === "Martial Arts Die");
-  return g ? g.scalingValue : null;
-});
 const weaponDamage = computed(() => {
   if (attack.kind === "unarmed") {
     return unarmedDamageBase({
       strMod: abilityMod(member.str),
       dexMod: abilityMod(member.dex),
-      martialArtsDie: martialArtsDie.value,
+      martialArtsDie: martialArtsDieOf(features.granted.value),
     });
   }
   return { base: base ?? "1d4", modifier: modifier ?? 0 };

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClassFeature } from "@/types/feature.types";
 import type { FeatureEffect, FeatureMechanics } from "./mechanics.types";
 import {
+  poolLabel,
   actionsByActivation,
   activeToggles,
   classResourcesChanged,
@@ -326,5 +327,11 @@ describe("riders and toggles", () => {
     const offered = damageRidersFor(g, bow, new Set(["rage"]));
     expect(offered.map((r) => r.rider.label)).toEqual(["Sneak Attack"]);
     expect(offered[0].dice).toBe("3d6");
+  });
+});
+
+describe("poolLabel", () => {
+  it("names a pool the character lacks in capitalised words, never the raw key (it printed 'channel divinity not available')", () => {
+    expect(poolLabel([], "channel_divinity")).toBe("Channel Divinity");
   });
 });

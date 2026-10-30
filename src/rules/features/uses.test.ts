@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResourcePool, StoredClassResources } from "./characterFeatures";
-import { canPay, payCost, remainingUses, restoreUses, withToggle } from "./uses";
+import { canPay, payCost, unpayableReason, remainingUses, restoreUses, withToggle } from "./uses";
 
 const ki: ResourcePool = {
   key: "ki_points", label: "Ki", max: 5, recharge: "short", shortRestRegain: null, pool: true, sources: ["Ki"],
@@ -79,5 +79,15 @@ describe("restoreUses adds back what was asked and only to a pool that holds a c
 describe("withToggle", () => {
   it("stores a toggle as <key>_active", () => {
     expect(withToggle({ fighting_style: "Defense" }, "rage", true)).toEqual({ fighting_style: "Defense", rage_active: true });
+  });
+});
+
+describe("unpayableReason", () => {
+  it("says 'not available' for a pool the character lacks, never 'none left' (a level 6 cleric with no Channel Divinity pool)", () => {
+    expect(unpayableReason(remainingUses({}, [ki], "channel_divinity"), "Channel Divinity")).toBe("Channel Divinity not available");
+  });
+  it("says 'none left' when the pool exists and is spent", () => {
+    const spent: StoredClassResources = { channel_divinity: { current: 0, max: 3, rest: "short" } };
+    expect(unpayableReason(remainingUses(spent, pools, "channel_divinity"), "Channel Divinity")).toBe("No Channel Divinity left");
   });
 });
