@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
+import type { CharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import { useFeatureUses } from "@/composables/features/useFeatureUses";
 import { useToast } from "@/composables/useToast";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -140,15 +140,18 @@ import type { PartyMember } from "@/types/party.types";
  * sheet also starts a new use. A toggle entry (Rage-like, with an effect) paid
  * when it was switched on: its rolls never spend, and are disabled while off.
  */
-const { member, readonly = false } = defineProps<{
+const { member, features, readonly = false } = defineProps<{
   member: PartyMember;
+  /** The member's resolved features, owned by the parent so the graph is built once. */
+  features: CharacterFeatures;
   readonly?: boolean;
 }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
 const toast = useToast();
 const memberRef = toRef(() => member);
-const { actions, pools: featurePools, spellcasting } = useCharacterFeatures(memberRef);
+const featurePools = features.pools;
+const { actions, spellcasting } = features;
 const { promptRoll } = usePromptedRoll();
 const { sendRoll } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();

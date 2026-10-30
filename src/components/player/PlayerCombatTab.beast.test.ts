@@ -3,6 +3,8 @@ import type { Directive } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import PlayerCombatTab from "./PlayerCombatTab.vue";
+import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
+import UnarmedDamageLabel from "./UnarmedDamageLabel.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
@@ -10,6 +12,11 @@ import type { StatBlockEntry } from "@/types/statBlock.types";
 const promptRoll = vi.fn();
 const updateMember = vi.hoisted(() => vi.fn());
 
+const sharedFeatures = vi.hoisted(() => ({
+  granted: { value: [{ mechanics: { scaling: { label: "Martial Arts Die" } }, scalingValue: "d8" }] },
+}));
+const useCharacterFeatures = vi.hoisted(() => vi.fn(() => sharedFeatures));
+vi.mock("@/composables/features/useCharacterFeatures", () => ({ useCharacterFeatures }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendRoll: vi.fn().mockResolvedValue(undefined) }) }));
 vi.mock("@/composables/campaign/chatSendErrors", () => ({ useChatSendFailure: () => ({ reportChatFailure: vi.fn() }) }));
@@ -136,5 +143,21 @@ describe("PlayerCombatTab hiding", () => {
     await w.findAll("button").find((b) => b.text().includes("Attack"))?.trigger("click");
     await flushPromises();
     expect(updateMember).toHaveBeenCalledWith({ id: "m1", update: { conditions: [] } });
+  });
+});
+
+describe("PlayerCombatTab features", () => {
+  it("builds the character's feature graph once and hands it to the children, which no longer build their own", () => {
+    useCharacterFeatures.mockClear();
+    const w = mount(PlayerCombatTab, {
+      props: { member, attackDisadvantage: false, attackPenalty: 0, checkDisadvantage: false, checkPenalty: 0 },
+      global: {
+        directives: { "roll-mode": rollMode },
+        stubs: { PlayerLoadout: true, PlayerCustomAttacks: true, FeatureActionsCard: true, DamageRiderPicker: true, UnarmedDamageLabel: true, PlayerRollModeControl: true },
+      },
+    });
+    expect(useCharacterFeatures).toHaveBeenCalledTimes(1);
+    expect(w.findComponent(FeatureActionsCard).props("features")).toBe(sharedFeatures);
+    expect(w.findComponent(UnarmedDamageLabel).props("martialArtsDie")).toBe("d8");
   });
 });

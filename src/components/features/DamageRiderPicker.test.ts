@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
+import type { CharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import DamageRiderPicker from "@/components/features/DamageRiderPicker.vue";
 import type { GrantedFeature, OfferedRider, ResourcePool } from "@/rules/features/characterFeatures";
 import { riderDice } from "@/rules/features/resolve";
@@ -33,15 +34,14 @@ const spend = vi.fn().mockResolvedValue(undefined);
 const payable = vi.fn((_cost?: unknown) => true);
 const promptRoll = vi.fn();
 
-vi.mock("@/composables/features/useCharacterFeatures", () => ({
+// The picker takes the member's features as a prop (the parent builds them once).
+const features = {
   // Like the real one: a slot rider's dice follow the slot level asked for.
-  useCharacterFeatures: () => ({
-    riders: (_attack: unknown, slotLevel?: number) =>
-      offered.value.map(o => ({ ...o, dice: o.rider.dice.kind === "slot" ? riderDice(o.rider, { scalingValue: null, slotLevel }) : o.dice })),
-    pools,
-    granted,
-  }),
-}));
+  riders: (_attack: unknown, slotLevel?: number) =>
+    offered.value.map(o => ({ ...o, dice: o.rider.dice.kind === "slot" ? riderDice(o.rider, { scalingValue: null, slotLevel }) : o.dice })),
+  pools,
+  granted,
+} as unknown as CharacterFeatures;
 vi.mock("@/composables/features/useFeatureUses", () => ({
   useFeatureUses: () => ({ spend, payable: (cost: unknown) => payable(cost), pools }),
 }));
@@ -55,6 +55,7 @@ vi.mock("@/composables/useToast", () => ({
 }));
 
 const props = {
+  features,
   member: {
     id: "pm", str: 16, dex: 14,
     spell_slots: [

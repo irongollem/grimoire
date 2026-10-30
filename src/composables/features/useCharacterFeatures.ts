@@ -124,3 +124,10 @@ export function useCharacterFeatures(member: Ref<PartyMember>) {
 
   return { granted, pools, actions, spellcasting, activeToggles, riders, isPending, complete, error };
 }
+
+/**
+ * One resolved graph per character: the surface that shows a member calls
+ * `useCharacterFeatures` once and hands the result to its children, so the
+ * five queries and the feature resolution are not built again per child.
+ */
+export type CharacterFeatures = ReturnType<typeof useCharacterFeatures>;

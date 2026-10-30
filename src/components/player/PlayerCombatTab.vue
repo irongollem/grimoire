@@ -136,7 +136,7 @@
       <PlayerLoadout :member-id="member.id" />
 
       <!-- Feature actions: Rage, Cunning Action, Second Wind… (#976) -->
-      <FeatureActionsCard :member="member" @roll="emit('roll', $event)" />
+      <FeatureActionsCard :member="member" :features="features" @roll="emit('roll', $event)" />
 
       <!-- Equipped weapon list -->
       <div v-if="equippedWeapons.length" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
@@ -218,6 +218,7 @@
             v-if="damageOpenFor === inv.id"
             class="mt-2"
             :member="member"
+            :features="features"
             :attack="attackShapeFor(item)"
             :base="weaponBaseDice(item)"
             :modifier="weaponAbilityMod(item)"
@@ -270,7 +271,7 @@
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-ink-caution transition-colors" />
               <span class="text-label-lg text-foreground">Damage</span>
-              <UnarmedDamageLabel :member="member" class="text-label-lg text-foreground" />
+              <UnarmedDamageLabel :member="member" :martial-arts-die="martialArtsDie" class="text-label-lg text-foreground" />
               <span class="text-label-lg text-muted-foreground">bludgeoning</span>
             </AppButton>
           </div>
@@ -278,6 +279,7 @@
             v-if="damageOpenFor === 'unarmed'"
             class="mt-2"
             :member="member"
+            :features="features"
             :attack="{ kind: 'unarmed' }"
             label="Unarmed Strike · Damage (bludgeoning)"
             :default-critical="lastAttackCrit.unarmed === true"
@@ -324,7 +326,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, toRef, watch } from "vue";
+import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
+import { martialArtsDieOf } from "@/rules/features/characterFeatures";
 import { IconHide, IconLightning, IconReveal, IconSend, IconSword } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { rollParsed } from "@/lib/dice/roller";
@@ -389,6 +393,11 @@ const props = defineProps<{
   wildshapeMonster?: PlayerVisibleMonster;
 }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
+
+// One feature graph for the whole tab: the action card, the rider pickers and the
+// unarmed label read it instead of each building their own.
+const features = useCharacterFeatures(toRef(() => props.member));
+const martialArtsDie = computed(() => martialArtsDieOf(features.granted.value));
 
 const { data: inventory } = usePartyInventory();
 const { data: projection } = usePlayerItemProjection();

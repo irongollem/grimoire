@@ -44,11 +44,12 @@
 
     <!-- Feature actions. The campaign DM may write the character (party_members_player_update), so the buttons stay on. -->
     <div class="detail-divider" />
-    <FeatureActionsCard :member="member" />
+    <FeatureActionsCard :member="member" :features="features" />
 
     <!-- Attacks (melee + ranged + ammo) -->
     <RunnerPcAttacks
       :member="member"
+      :features="features"
       :prof-bonus="profBonus"
       :ability-mod="abilityMod"
       :sender-name="combatant.name"
@@ -98,7 +99,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, toRef } from "vue";
+import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
@@ -136,6 +138,9 @@ const { combatant, member, monsters, chatSilent = false } = defineProps<{
   /** The runner's "don't post to chat" mode, for damage rolled from the rider panel. */
   chatSilent?: boolean;
 }>();
+
+// One feature graph for the panel: the action card and every rider picker read it.
+const features = useCharacterFeatures(toRef(() => member));
 
 const portrait = computed(() => formPortrait(combatant, combatant.wildshape));
 

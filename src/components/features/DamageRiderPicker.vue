@@ -42,7 +42,7 @@ import { computed, ref, toRef, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
+import type { CharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import { useFeatureUses } from "@/composables/features/useFeatureUses";
 import { useSpendFeatureSpellSlot } from "@/composables/features/useSpendFeatureSpellSlot";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -72,8 +72,10 @@ import type { PartyMember } from "@/types/party.types";
  * An Unarmed Strike passes no `base`/`modifier`: the picker works them out from
  * the character (1 + Strength, or a Monk's Martial Arts die).
  */
-const { member, attack, base, modifier, label, defaultCritical = false, senderName, silent = false } = defineProps<{
+const { member, features, attack, base, modifier, label, defaultCritical = false, senderName, silent = false } = defineProps<{
   member: PartyMember;
+  /** The member's resolved features, owned by the parent so the graph is built once. */
+  features: CharacterFeatures;
   attack: AttackShape;
   /** The weapon's own dice ("1d8"). Omit for an Unarmed Strike. */
   base?: string;
@@ -95,7 +97,6 @@ const emit = defineEmits<{
 const toast = useToast();
 const { promptRoll } = usePromptedRoll();
 const memberRef = toRef(() => member);
-const features = useCharacterFeatures(memberRef);
 const uses = useFeatureUses(memberRef, features.pools);
 const pools = uses.pools;
 

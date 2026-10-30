@@ -159,10 +159,13 @@ import { parseExpression } from "@/lib/dice/dice";
 import type { RollResult } from "@/lib/dice/dice";
 import { isRangedWeaponItem } from "@/rules/ammunition";
 import type { AttackShape } from "@/rules/features/resolve";
+import type { CharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import DamageRiderPicker from "@/components/features/DamageRiderPicker.vue";
 
-const { member, profBonus, abilityMod, senderName, silent = false } = defineProps<{
+const { member, features, profBonus, abilityMod, senderName, silent = false } = defineProps<{
   member: PartyMember;
+  /** The member's resolved features, shared with every rider picker. */
+  features: CharacterFeatures;
   profBonus: number;
   abilityMod: (score: number) => number;
   /** Who the rolled damage is posted as in the chat. */
@@ -253,6 +256,7 @@ interface PickerAttack {
 function pickerProps(atk: PickerAttack) {
   return {
     member,
+    features,
     attack: atk.shape as AttackShape,
     base: atk.shape?.kind === "unarmed" ? undefined : (atk.baseDice ?? "1d4"),
     modifier: atk.shape?.kind === "unarmed" ? undefined : atk.modifier,

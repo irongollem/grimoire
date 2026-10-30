@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { vRollMode } from "@/directives/vRollMode";
+import type { CharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
 import type { ActionEntry, ResourcePool } from "@/rules/features/characterFeatures";
 import type { FeatureEffect } from "@/rules/features/mechanics.types";
@@ -34,9 +35,8 @@ const payable = vi.fn((_cost?: unknown) => true);
 const on = ref(false);
 const left = ref(3);
 
-vi.mock("@/composables/features/useCharacterFeatures", () => ({
-  useCharacterFeatures: () => ({ actions, pools, spellcasting }),
-}));
+// The card takes the member's features as a prop (the parent builds them once).
+const features = { actions, pools, spellcasting } as unknown as CharacterFeatures;
 const promptRoll = vi.fn();
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll }) }));
 const sendRoll = vi.fn().mockResolvedValue(undefined);
@@ -64,59 +64,59 @@ describe("FeatureActionsCard", () => {
   });
 
   it("groups by activation, skips empty groups and names sub-actions after their feature", () => {
-    const w = mount(FeatureActionsCard, { props: { member } });
+    const w = mount(FeatureActionsCard, { props: { member, features } });
     const labels = w.findAll("section").map(s => s.attributes("aria-label"));
     expect(labels).toEqual(["Action", "Bonus Action"]);
     expect(w.text()).toContain("Cunning Action: Disengage");
   });
 
   it("shows what is left next to a row that spends", () => {
-    const w = mount(FeatureActionsCard, { props: { member } });
+    const w = mount(FeatureActionsCard, { props: { member, features } });
     expect(w.text()).toContain("Ki 3/5");
     // A one-point cost is the norm and goes unremarked; only a dearer one says what it costs.
     expect(w.text()).not.toContain("Costs");
   });
 
   it("gives a free action no button", () => {
-    const w = mount(FeatureActionsCard, { props: { member } });
+    const w = mount(FeatureActionsCard, { props: { member, features } });
     const row = w.findAll("li").find(li => li.text().includes("Disengage"))!;
     expect(row.find("button").exists()).toBe(false);
   });
 
   it("spends on Use", async () => {
-    const w = mount(FeatureActionsCard, { props: { member } });
+    const w = mount(FeatureActionsCard, { props: { member, features } });
     await w.get('button[aria-label="Use Flurry"]').trigger("click");
     expect(spend).toHaveBeenCalledWith({ key: "ki", amount: 1 });
   });
 
   it("disables Use and says why when it cannot be paid", () => {
     payable.mockReturnValue(false);
-    const w = mount(FeatureActionsCard, { props: { member } });
+    const w = mount(FeatureActionsCard, { props: { member, features } });
     expect(w.get('button[aria-label="Use Flurry"]').attributes("disabled")).toBeDefined();
     expect(w.text()).toContain("No Ki left");
   });
 
   it("reports a spend that throws", async () => {
     spend.mockRejectedValueOnce(new Error("boom"));
-    const w = mount(FeatureActionsCard, { props: { member } });
+    const w = mount(FeatureActionsCard, { props: { member, features } });
     await w.get('button[aria-label="Use Flurry"]').trigger("click");
     await Promise.resolve();
     expect(toastError).toHaveBeenCalled();
   });
 
   it("switches a toggle on paying its cost, and off for free", async () => {
-    const w = mount(FeatureActionsCard, { props: { member } });
+    const w = mount(FeatureActionsCard, { props: { member, features } });
     await w.get('button[aria-label="Rage: off"]').trigger("click");
     expect(setToggle).toHaveBeenCalledWith("rage", true, { key: "rage", amount: 1 });
     on.value = true;
-    const w2 = mount(FeatureActionsCard, { props: { member } });
+    const w2 = mount(FeatureActionsCard, { props: { member, features } });
     await w2.get('button[aria-label="Rage: on"]').trigger("click");
     expect(setToggle).toHaveBeenLastCalledWith("rage", false, null);
   });
 
   it("offers no buttons when readonly, but still shows a toggle's state", () => {
     on.value = true;
-    const w = mount(FeatureActionsCard, { props: { member, readonly: true } });
+    const w = mount(FeatureActionsCard, { props: { member, features, readonly: true } });
     expect(w.findAll("button")).toHaveLength(0);
     expect(w.text()).toContain("On");
   });
@@ -138,7 +138,7 @@ describe("FeatureActionsCard", () => {
     });
     const mountWith = (entries: ActionEntry[], readonly = false) => {
       actions.value = { ...actions.value, action: entries };
-      return mount(FeatureActionsCard, { props: { member, readonly }, global: { directives: { "roll-mode": vRollMode } } });
+      return mount(FeatureActionsCard, { props: { member, features, readonly }, global: { directives: { "roll-mode": vRollMode } } });
     };
 
     beforeEach(() => {
@@ -327,7 +327,7 @@ describe("FeatureActionsCard", () => {
       const weak = { ...member, cha: 8 } as PartyMember;
       const flat: FeatureEffect = { kind: "heal", add: [{ kind: "ability", ability: "cha" }], min: 1 };
       actions.value = { ...actions.value, action: [entry({ name: "Mend", effect: flat, className: "Bard" })] };
-      const w = mount(FeatureActionsCard, { props: { member: weak } });
+      const w = mount(FeatureActionsCard, { props: { member: weak, features } });
       expect(w.text()).toContain("Heals 1 (minimum 1)");
       await w.get('button[aria-label="Mend: healing roll"]').trigger("click");
       await flushPromises();
@@ -339,7 +339,7 @@ describe("FeatureActionsCard", () => {
       const temp: FeatureEffect = { kind: "temp_hp", dice: { "1": "1d4" }, add: [{ kind: "ability", ability: "int" }], min: 3 };
       actions.value = { ...actions.value, action: [entry({ name: "Ward", effect: temp, className: "Bard" })] };
       promptRoll.mockResolvedValue(result(5, 3));
-      const w = mount(FeatureActionsCard, { props: { member: weak } });
+      const w = mount(FeatureActionsCard, { props: { member: weak, features } });
       await w.get('button[aria-label="Ward: temporary hit points roll"]').trigger("click");
       await flushPromises();
       expect(promptRoll).toHaveBeenCalledWith(expect.objectContaining({ counts: { 4: 1 }, modifier: 3 }));
