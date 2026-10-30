@@ -91,3 +91,6 @@ graphify-out/
 .doll-out/
 perf-results/
 library-art-report.json
+
+# Promo videos (scripts/promo): recorded clips, voice-over takes and brand assets
+promo-out/
