@@ -37,7 +37,7 @@
           <div class="portrait-inner" :class="isActive(combatant) ? 'portrait-active' : ''">
             <FocalImage
               :src="portraitOf(combatant).src"
-              :placeholder="portraitOf(combatant).shaped ? placeholderUrl('monster') : combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
+              :placeholder="placeholderUrl(placeholderKind(combatant, portraitOf(combatant)))"
               :alt="portraitOf(combatant).alt"
               :focal-point="portraitOf(combatant).focalPoint"
               format="square"
@@ -106,7 +106,7 @@ import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
 import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
 import { describeConditionEnd, type NameOf } from "@/rules/conditionLabels";
 
 const {

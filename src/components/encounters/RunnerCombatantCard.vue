@@ -84,7 +84,7 @@ import { useRunnerConditions } from "@/composables/encounters/useRunnerCondition
 import { conditionSummary, hpFraction, hpTone } from "@/lib/encounters/combatantRowSummary";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
 
 // Phone row: one line per combatant; everything you can do to it lives in
 // RunnerCombatantSheet. The init field and the reveal button act in place and
@@ -115,11 +115,7 @@ const tied = computed(() => store.tiedInstanceIds.has(combatant.instance_id));
 const reactionSpent = computed(() => store.started && combatant.reactionUsed === true);
 
 const portrait = computed(() => formPortrait(combatant, wildshape.value));
-const placeholder = computed(() => {
-  if (portrait.value.shaped) return placeholderUrl("monster");
-  if (combatant.type === "player") return placeholderUrl("character");
-  return combatant.npc_id ? placeholderUrl("npc") : placeholderUrl("monster");
-});
+const placeholder = computed(() => placeholderUrl(placeholderKind(combatant, portrait.value)));
 
 const fraction = computed(() => hpFraction(displayHp.value, displayMaxHp.value));
 const tone = computed(() => hpTone(displayHp.value, displayMaxHp.value));
@@ -142,9 +138,13 @@ const detailText = computed(() =>
 const showDetail = computed(() => detailText.value !== "" || reactionSpent.value || store.round === 0);
 
 // Flash whenever the shown HP moves, whoever moved it: the sheet, a player's own
-// sheet arriving over the live sync, or a stepper elsewhere.
+// sheet arriving over the live sync, or a stepper elsewhere. Not when the
+// combatant changes form: going into or out of wild shape swaps which HP pool is
+// shown (30/30 to a 13 HP wolf), and nobody was hurt or healed.
 const flash = ref<{ delta: number; id: number } | undefined>(undefined);
-watch(displayHp, (now, before) => {
+const inBeastForm = computed(() => !!wildshape.value);
+watch([displayHp, inBeastForm], ([now, shaped], [before, wasShaped]) => {
+  if (shaped !== wasShaped) return;
   if (now !== before) flash.value = { delta: now - before, id: Date.now() };
 });
 </script>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formPortrait } from "./wildshapePortrait";
+import { formPortrait, placeholderKind } from "./wildshapePortrait";
 import type { WildshapeState } from "@/types/encounter.types";
 
 const druid = { name: "Briar", portrait_url: "https://cdn.test/briar.webp", portrait_focal_point: { x: 0.4, y: 0.2 } };
@@ -43,5 +43,16 @@ describe("formPortrait", () => {
 
   it("never lets a live picture replace the character's own portrait", () => {
     expect(formPortrait(druid, null, "https://cdn.test/wolf-art.webp").src).toBe(druid.portrait_url);
+  });
+});
+
+describe("placeholderKind", () => {
+  it.each([
+    ["a beast form, even a party member's", { type: "player" }, true, "monster"],
+    ["a party member", { type: "player" }, false, "character"],
+    ["an NPC", { type: "monster", npc_id: "n1" }, false, "npc"],
+    ["a monster", { type: "monster", npc_id: null }, false, "monster"],
+  ])("stands in for %s with the right figure", (_label, combatant, shaped, kind) => {
+    expect(placeholderKind(combatant, { shaped })).toBe(kind);
   });
 });

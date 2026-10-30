@@ -61,6 +61,17 @@ function sweepChatSql(campaign: string, since: string): string {
              and (message like '⚔️ The session%' or created_at >= ${since}::timestamptz);`;
 }
 
+/**
+ * When the last take that did not tear down began: the start of the session it
+ * opened on camera (the scene writes sessions 1 and 2; a take starts the 3rd).
+ * Read before setup deletes the sessions. Null when every take tore down, and
+ * then only the session announcements are swept: a fixed cutoff date here once
+ * deleted every chat line a developer had posted in the local demo since it.
+ */
+function leftoverTakeStartSql(campaign: string): string {
+  return `(select min(started_at) from public.campaign_sessions where campaign_id = ${campaign} and number > 2)`;
+}
+
 /** The NPC the player episode reveals on camera goes back to hidden, with its reveal rows. */
 function hideRevealedNpcSql(campaign: string): string {
   return `update public.npcs set player_visible_to = '{}', player_visible_fields = '{}'
@@ -79,6 +90,7 @@ export function setupSession(): void {
     localDb(),
     `begin;
      update public.party_members set current_hp = max_hp, temp_hp = 0 where id = ${quote(playerCharacter(campaignId).id)};
+     ${sweepChatSql(c, leftoverTakeStartSql(c))}
      delete from public.campaign_sessions where campaign_id = ${c};
      insert into public.campaign_sessions (campaign_id, user_id, number, title, played_on, started_at, ended_at)
      values (${c}, ${owner}, 1, 'The Pulled Sugar Inn', current_date - 21,
@@ -87,7 +99,6 @@ export function setupSession(): void {
              (current_date - 14)::timestamptz + interval '18 hours', (current_date - 14)::timestamptz + interval '22 hours 30 minutes');
      ${layoutSql(owner, c, "prep", PREP)}
      ${layoutSql(owner, c, "session", LIVE)}
-     ${sweepChatSql(c, "'2026-10-29'")}
      ${hideRevealedNpcSql(c)}
      commit;`,
   );

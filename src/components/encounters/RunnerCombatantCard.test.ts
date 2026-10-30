@@ -13,13 +13,14 @@ const mocks = vi.hoisted(() => ({
     tiedInstanceIds: new Set<string>(),
   },
   displayHp: undefined as unknown as { value: number },
+  wildshape: undefined as unknown as { value: unknown },
   cycleReveal: vi.fn(),
 }));
 
 vi.mock("@/stores/encounterRun", () => ({ useEncounterRunStore: () => mocks.store }));
 vi.mock("@/composables/encounters/useRunnerCombatant", () => ({
   useRunnerCombatant: () => ({
-    wildshape: ref(undefined),
+    wildshape: mocks.wildshape,
     displayHp: mocks.displayHp,
     displayMaxHp: ref(20),
     displayTempHp: ref(0),
@@ -54,6 +55,7 @@ describe("RunnerCombatantCard (phone row)", () => {
     mocks.store.activeCombatant = null;
     mocks.store.tiedInstanceIds = new Set();
     mocks.displayHp = ref(10);
+    mocks.wildshape = ref(undefined);
     mocks.cycleReveal.mockReset();
   });
 
@@ -101,6 +103,19 @@ describe("RunnerCombatantCard (phone row)", () => {
     await w.vm.$nextTick();
     expect(w.get(".damage-flash").text()).toBe("-6");
     expect(w.get(".damage-flash").classes()).toContain("is-damage");
+  });
+
+  it("does not flash when a druid wild-shapes and the shown HP swaps to the beast's pool (it flashed -17)", async () => {
+    mocks.displayHp = ref(30);
+    const w = mountRow({ ...goblin, type: "player" } as RunCombatant);
+    mocks.wildshape.value = { beast_name: "Wolf", beast_hp: 13, beast_max_hp: 13 };
+    mocks.displayHp.value = 13;
+    await w.vm.$nextTick();
+    expect(w.find(".damage-flash").exists()).toBe(false);
+
+    mocks.displayHp.value = 8;
+    await w.vm.$nextTick();
+    expect(w.get(".damage-flash").text()).toBe("-5");
   });
 
   it("summarises conditions on the second line and dims the used reaction", () => {

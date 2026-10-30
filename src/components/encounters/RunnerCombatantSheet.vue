@@ -122,7 +122,7 @@ import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
 import type { RevealState, RunCombatant } from "@/types/encounter.types";
 
 const open = defineModel<boolean>("open", { required: true });
@@ -150,11 +150,7 @@ const {
 } = useRunnerCombatant(() => combatant);
 
 const portrait = computed(() => formPortrait(combatant, wildshape.value));
-const placeholder = computed(() => {
-  if (portrait.value.shaped) return placeholderUrl("monster");
-  if (combatant.type === "player") return placeholderUrl("character");
-  return combatant.npc_id ? placeholderUrl("npc") : placeholderUrl("monster");
-});
+const placeholder = computed(() => placeholderUrl(placeholderKind(combatant, portrait.value)));
 
 // Surprise is decided at the top of the fight: the lobby and round 1.
 const canSetSurprise = computed(() => !store.started || store.round === 1);

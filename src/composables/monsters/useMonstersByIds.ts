@@ -56,6 +56,13 @@ async function fetchByIds(libraryIds: readonly string[], customIds: readonly str
   return new Map([...libraryRows, ...customRows]);
 }
 
+/** The same read as `useMonstersByIds` without art, for a caller that must not
+ *  depend on staying mounted (a spawn picked in a sheet the DM may close at once). */
+export async function loadMonstersByIds(ids: readonly string[]): Promise<Map<string, Monster>> {
+  const unique = normaliseIds(ids);
+  return fetchByIds(unique.filter((id) => !isUuid(id)), unique.filter(isUuid));
+}
+
 /** Resolves STORED monster ids (encounter combatants, companions, wild shape
  *  forms, quest attachments) to full monsters.
  *

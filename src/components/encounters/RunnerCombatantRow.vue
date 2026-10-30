@@ -18,7 +18,7 @@
         >
           <FocalImage
             :src="portrait.src"
-            :placeholder="portrait.shaped ? placeholderUrl('monster') : combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
+            :placeholder="placeholderUrl(placeholderKind(combatant, portrait))"
             :alt="portrait.alt"
             :focal-point="portrait.focalPoint"
             format="square"
@@ -159,7 +159,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
 import { computed } from "vue";
 
 const { combatant, selectedId } = defineProps<{

@@ -35,9 +35,9 @@
         @click="emit('prev')"
       />
       <AppButton
-        variant="ghost"
-        size="md"
-        class="h-auto min-w-0 flex-1 justify-start px-1 py-1 text-left"
+        variant="menu"
+        size="well"
+        class="min-w-0 flex-1"
         aria-label="Open the active combatant"
         @click="emit('open-active')"
       >
@@ -80,7 +80,7 @@ import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariant
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconEncounter } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { formPortrait } from "@/lib/wildshapePortrait";
+import { formPortrait, placeholderKind } from "@/lib/wildshapePortrait";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 
 const emit = defineEmits<{
@@ -96,10 +96,7 @@ const store = useEncounterRunStore();
 const active = computed(() => store.activeCombatant);
 const someoneUnrolled = computed(() => store.combatants.some((c) => c.initiative === null));
 const portrait = computed(() => (active.value ? formPortrait(active.value, active.value.wildshape) : null));
-const placeholder = computed(() => {
-  const c = active.value;
-  if (!c || portrait.value?.shaped) return placeholderUrl("monster");
-  if (c.type === "player") return placeholderUrl("character");
-  return c.npc_id ? placeholderUrl("npc") : placeholderUrl("monster");
-});
+const placeholder = computed(() =>
+  placeholderUrl(active.value && portrait.value ? placeholderKind(active.value, portrait.value) : "monster"),
+);
 </script>

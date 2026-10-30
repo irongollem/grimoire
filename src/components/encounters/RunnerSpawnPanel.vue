@@ -56,15 +56,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
-import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { loadMonstersByIds } from "@/composables/monsters/useMonstersByIds";
+import { useToast } from "@/composables/useToast";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 
 const store = useEncounterRunStore();
+const toast = useToast();
 
 const showForm = ref(true);
 const tab = ref<"monster" | "npc">("monster");
@@ -83,22 +85,32 @@ const monsterOptions = computed(() =>
   (monsterIndex.value ?? []).map((m) => ({ id: m.id, name: m.name })),
 );
 
-const pendingSpawn = ref<{ id: string; factionId: string; count: number } | null>(null);
-const { data: spawnRows, isLoading: spawnLoading } = useMonstersByIds(
-  () => [pendingSpawn.value?.id],
-  { withArt: true },
-);
-watch([spawnRows, spawnLoading, pendingSpawn], ([rows, loading, pending]) => {
-  if (!pending) return;
-  const monster = rows.get(pending.id);
+// A plain async load rather than a watcher on a query: on a phone this panel
+// lives in a sheet that unmounts when it closes, and a watcher would go with it,
+// silently dropping a spawn the DM picked and swiped away from. The store is
+// global, so the add lands whether or not the panel is still on screen. Art is
+// merged in afterwards by the run surface, which reads every monster on the field.
+async function spawnMonster(id: string, factionId: string, count: number) {
+  const runFor = store.encounterId;
+  let monster = store.availableMonsters.find((m) => m.id === id);
   if (!monster) {
-    if (!loading) pendingSpawn.value = null;
-    return;
+    try {
+      monster = (await loadMonstersByIds([id])).get(id);
+    } catch (error) {
+      toast.error(toast.fromError(error, "Couldn't load that monster."));
+      return;
+    }
+    if (!monster) {
+      toast.error("That monster could not be found.");
+      return;
+    }
+    // The fight ended while the row was loading: nothing to add it to.
+    if (store.encounterId !== runFor) return;
+    const loaded = monster;
+    if (!store.availableMonsters.some((m) => m.id === loaded.id)) store.availableMonsters.push(loaded);
   }
-  pendingSpawn.value = null;
-  if (!store.availableMonsters.some((m) => m.id === monster.id)) store.availableMonsters.push(monster);
-  store.addMonster(monster.id, pending.factionId, pending.count);
-});
+  store.addMonster(monster.id, factionId, count);
+}
 
 const npcOptions = computed(() =>
   (store.availableNpcs ?? [])
@@ -109,7 +121,7 @@ const npcOptions = computed(() =>
 function handleAdd() {
   if (!entityId.value) return;
   if (tab.value === "monster") {
-    pendingSpawn.value = { id: entityId.value, factionId: factionId.value, count: count.value };
+    void spawnMonster(entityId.value, factionId.value, count.value);
   } else {
     store.addNpc(entityId.value, factionId.value, count.value);
   }

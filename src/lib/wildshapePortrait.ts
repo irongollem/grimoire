@@ -40,3 +40,18 @@ export function formPortrait(
   if (form) return { src: beastImageUrl ?? form.beast_image_url, focalPoint: null, alt: form.beast_name, shaped: true };
   return { src: subject.portrait_url ?? null, focalPoint: subject.portrait_focal_point ?? null, alt: subject.name, shaped: false };
 }
+
+/**
+ * Which placeholder stands in when a combatant has no picture: a beast form is
+ * always a monster (see `shaped`), a party member a character, an NPC an NPC,
+ * anything else a monster. One rule for every surface that draws a combatant,
+ * so a new kind of combatant is taught it once. Pass the result to `placeholderUrl`.
+ */
+export function placeholderKind(
+  combatant: { type: string; npc_id?: string | null },
+  portrait: Pick<FormPortrait, "shaped">,
+): "monster" | "character" | "npc" {
+  if (portrait.shaped) return "monster";
+  if (combatant.type === "player") return "character";
+  return combatant.npc_id ? "npc" : "monster";
+}

@@ -114,9 +114,16 @@ try {
     );
   }
 } finally {
-  for (const browser of [...browsers.values(), ...(quiet ? [quiet] : [])]) await browser.close();
-  await server?.close();
-  await episode.teardown?.();
+  // Teardown puts the local app back as it was (an open session left behind
+  // makes the next take hit "session already open"), so nothing before it may
+  // skip it: a browser that already died rejects its close. It runs after the
+  // pages are shut, so none of them writes again behind the sweep.
+  try {
+    for (const browser of [...browsers.values(), ...(quiet ? [quiet] : [])]) await browser.close().catch(() => undefined);
+    await server?.close();
+  } finally {
+    await episode.teardown?.();
+  }
 }
 
 const manifest: EpisodeManifest = {
