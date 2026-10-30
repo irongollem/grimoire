@@ -273,8 +273,12 @@ const maxResultRandom = computed(() => {
   return max || 20;
 });
 
+// Two digits fit the count box. 99 covers the biggest pools at the table: a
+// critical Meteor Swarm is 80d6.
+const MAX_DICE_PER_SIZE = 99;
+
 function toggleDie(sides: DieSize) { counts[sides] = counts[sides] > 0 ? 0 : 1; }
-function increment(sides: DieSize) { counts[sides] = Math.min(counts[sides] + 1, 9); }
+function increment(sides: DieSize) { counts[sides] = Math.min(counts[sides] + 1, MAX_DICE_PER_SIZE); }
 function decrement(sides: DieSize) { counts[sides] = Math.max(counts[sides] - 1, 0); }
 
 const { promptRoll } = usePromptedRoll();
@@ -344,7 +348,7 @@ function clearAll() {
   touch-action: manipulation;
 }
 .count-val {
-  @apply text-label-lg font-bold text-foreground w-4 text-center;
+  @apply text-label-lg font-bold text-foreground w-4 text-center tabular-nums;
 }
 
 .modifier-row {
