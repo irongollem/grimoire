@@ -132,7 +132,7 @@ export function combatantWrap(page: Page, name: string) {
 
 /** The DM presses Next Turn in their own browser. */
 export async function nextTurn(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Next Turn ›" }).click();
+  await page.getByRole("button", { name: "Next Turn", exact: true }).click();
   await page.waitForTimeout(900);
 }
 

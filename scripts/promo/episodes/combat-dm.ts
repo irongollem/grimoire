@@ -123,7 +123,7 @@ export const combatDm: Episode = {
         await tap(page.locator(".detail-close").first(), 600);
         await focus(await listColumn(page), { padding: 0 });
         await hold(1200);
-        await tap(page.getByRole("button", { name: "Next Turn ›" }), 600);
+        await tap(page.getByRole("button", { name: "Next Turn", exact: true }), 600);
         await page.locator(".combatant-row.is-active", { hasText: "Fresco" }).waitFor({ timeout: 5_000 });
         await hold(3000);
       },
