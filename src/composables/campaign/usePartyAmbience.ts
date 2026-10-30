@@ -1,6 +1,6 @@
 import { computed, ref, watch, onScopeDispose } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAppUiStore } from "@/stores/ui/app";
+import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { requestAudioTheme, releaseAudioTheme, type AudioThemeRequest } from "@/lib/audio/audioTriggers";
 import { buildAtlasIndex } from "@/lib/locations/tree";
@@ -91,13 +91,13 @@ export function resolvePartyAmbience(
  */
 export function usePartyAmbience(): void {
   const campaign = useCampaignStore();
-  const appUi = useAppUiStore();
+  const { session, loaded, isRunning } = useCampaignSession();
 
   // Deferred until a session is actually running, the same way the generator
   // panels in DefaultLayout defer their own fetch: most Tuesdays never need
   // this list, and once it is fetched it is the same cached list the Atlas
   // and every location editor already share (shared query key).
-  const { data: locations } = useAllLocations(() => appUi.sessionRunning);
+  const { data: locations } = useAllLocations(() => isRunning.value);
 
   // Rebuilt from the same list `buildAtlasIndex` already knows how to index —
   // reused rather than a second parent-chasing lookup, per `lib/locations/tree.ts`.
@@ -114,11 +114,41 @@ export function usePartyAmbience(): void {
   // right sourceId even after `locations`/`partyLocation` have moved on.
   const active = ref<AudioThemeRequest | null>(null);
 
+  // A page load is not an event at the table. Reloading mid-session (or a
+  // tablet waking a killed tab) used to look exactly like the session
+  // starting, because the session row and the location list both arrive a
+  // moment after mount: the room's scene started over from its first track
+  // and the soundboard widget popped open over whatever the DM was running.
+  // So the session this page found already open when it loaded is
+  // "inherited", and the scene it implies is adopted without a request.
+  // Only what changes after that reaches the bus: a session started or
+  // continued, the party moving, the session ending. `undefined` means the
+  // campaign's session has not been read yet.
+  let arrivedIn: string | null | undefined;
+  let settled = false;
+
   watch(
-    [() => appUi.sessionRunning, partyLocation, locationsById],
+    [loaded, () => session.value?.id ?? null, partyLocation, locationsById, () => locations.value !== undefined],
     () => {
-      const next = resolvePartyAmbience(appUi.sessionRunning, partyLocation.value, locationsById.value);
+      if (!loaded.value) {
+        // A campaign switch: the next read is a fresh arrival.
+        arrivedIn = undefined;
+        settled = false;
+      } else if (arrivedIn === undefined) {
+        arrivedIn = session.value?.id ?? null;
+      }
+      const next = resolvePartyAmbience(isRunning.value, partyLocation.value, locationsById.value);
       const previous = active.value;
+      if (!settled && loaded.value) {
+        if (isRunning.value && session.value?.id === arrivedIn) {
+          // Still learning where the party stands; decide once the list is in.
+          if (locations.value === undefined) return;
+          settled = true;
+          active.value = next;
+          return;
+        }
+        settled = true;
+      }
       if (previous?.sourceId === next?.sourceId) {
         active.value = next;
         return;
@@ -126,7 +156,8 @@ export function usePartyAmbience(): void {
       // Request first, release second, as `useAmbiencePlayback` does too:
       // the new scene takes the slot before the old one lets go, so moving
       // between two themed rooms crosses over instead of cutting to silence
-      // and back on.
+      // and back on. Releasing an adopted scene nobody requested is harmless:
+      // the bus only honours a release from the slot's current owner.
       if (next) requestAudioTheme(next);
       if (previous) releaseAudioTheme(previous.sourceId);
       active.value = next;

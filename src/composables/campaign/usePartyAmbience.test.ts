@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { effectScope, reactive, ref } from "vue";
+import { computed, effectScope, reactive, ref } from "vue";
 import type { AudioTriggerEvent } from "@/lib/audio/audioTriggers";
 import type { Location } from "@/types/location.types";
 
@@ -10,11 +10,21 @@ import type { Location } from "@/types/location.types";
  * location must never compete with wherever the party actually stands.
  */
 
-const sessionRunning = ref(false);
+const session = ref<{ id: string } | null>(null);
+const loaded = ref(true);
 const activeCampaign = ref<{ current_location_id: string | null } | null>(null);
-const locations = ref<Location[]>([]);
+const locations = ref<Location[] | undefined>([]);
 
-vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => reactive({ sessionRunning }) }));
+/** Open (or close) the campaign's session, as the session row's arrival does. */
+const sessionRunning = {
+  set value(running: boolean) {
+    session.value = running ? { id: "s1" } : null;
+  },
+};
+
+vi.mock("@/composables/campaign/useCampaignSession", () => ({
+  useCampaignSession: () => ({ session, loaded, isRunning: computed(() => session.value !== null) }),
+}));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => reactive({ activeCampaign }) }));
 let locationsEnabled: (() => boolean) | undefined;
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -62,7 +72,8 @@ async function mount() {
 
 beforeEach(async () => {
   vi.resetModules();
-  sessionRunning.value = false;
+  session.value = null;
+  loaded.value = true;
   activeCampaign.value = null;
   locations.value = [];
   const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
@@ -137,6 +148,48 @@ describe("resolvePartyAmbience", () => {
 });
 
 describe("usePartyAmbience", () => {
+  // A reload mid-session used to read as the session starting: the scene
+  // restarted from its first track and the soundboard widget popped open.
+  it("does not restart the party's ambience when the page reloads into a running session", async () => {
+    activeCampaign.value = { current_location_id: "l1" };
+    loaded.value = false;
+    locations.value = undefined;
+    const { events } = await mount();
+
+    // The arrival order of a real reload: the open session row, then the list.
+    session.value = { id: "s1" };
+    loaded.value = true;
+    await flush();
+    locations.value = [
+      place({ id: "l1", name: "The Yawning Portal", audio_theme: "tavern" }),
+      place({ id: "l2", name: "Undermountain", audio_theme: "dungeon" }),
+    ];
+    await flush();
+    expect(events).toEqual([]);
+
+    // It still follows the party from there.
+    activeCampaign.value = { current_location_id: "l2" };
+    await flush();
+    expect(events).toEqual([
+      { type: "request", request: expect.objectContaining({ sourceId: "party:l2", theme: "dungeon" }) },
+      { type: "release", sourceId: "party:l1" },
+    ]);
+  });
+
+  it("starts the ambience for a session opened after the page loaded", async () => {
+    locations.value = [place({ id: "l1", name: "The Yawning Portal", audio_theme: "tavern" })];
+    activeCampaign.value = { current_location_id: "l1" };
+    const { events } = await mount();
+
+    // A session started (or continued) on any device, after this page arrived.
+    session.value = { id: "s2" };
+    await flush();
+
+    expect(events).toEqual([
+      { type: "request", request: expect.objectContaining({ sourceId: "party:l1", theme: "tavern" }) },
+    ]);
+  });
+
   it("never requests while no session is running", async () => {
     locations.value = [place({ id: "l1", name: "The Yawning Portal", audio_theme: "tavern" })];
     activeCampaign.value = { current_location_id: "l1" };
