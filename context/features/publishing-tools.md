@@ -298,7 +298,7 @@ Card Forge: `useCardPortraitPainter` (`src/composables/cardforge/`) wraps four p
 
 ## The Mint (VTT Token Creator)
 
-Route: `/mint`
+Route: `/tokens` (titled "The Mint")
 
 Two-tab tool for creating circular VTT tokens and printable prop coins.
 
