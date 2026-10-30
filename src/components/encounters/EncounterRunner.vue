@@ -1,7 +1,26 @@
 <template>
   <div class="runner-root">
+    <RunnerPhoneHeader
+      v-if="isMobile"
+      :encounter-id="encounterId"
+      :is-live="isLive"
+      :going-live="goingLive"
+      :can-go-live="!!campaign.activeCampaignId"
+      :can-open-battle-map="canOpenBattleMap"
+      :battle-map-disabled-reason="battleMapDisabledReason"
+      :turn-timer-seconds="turnTimerSeconds"
+      :turn-reset-key="turnResetKey"
+      @tools="toolsOpen = true"
+      @go-live="handleGoLive"
+      @battle-map="router.push(`/encounters/${encounterId}/run/map`)"
+      @battle-map-window="openBattleMapInNewWindow"
+      @roll-initiative="handleRollInitiative"
+      @abandon="handleAbandon"
+      @end-combat="handleEndCombat"
+    />
+
     <!-- Top bar -->
-    <div class="runner-topbar">
+    <div v-else class="runner-topbar">
       <RouterLink :to="`/encounters/${encounterId}`" class="back-link">
         ← Back to Builder
       </RouterLink>
@@ -31,7 +50,7 @@
           <span class="btn-label">Roll Initiative</span>
         </button>
         <button
-          v-if="isLive && store.round === 0"
+          v-if="store.round === 0"
           :disabled="store.rollingInitiative"
           @click="handleStartCombat"
           class="start-combat-btn"
@@ -96,11 +115,50 @@
     <!-- Rolls the turn hooks left to the DM, and conditions that just ended -->
     <RunnerDueConditions />
 
+    <!-- Phone: one column, the list owns the screen. Surprise, events, traps,
+         spawn and the DM note live in the tools sheet; the stat block is a
+         full-screen layer; the turn bar sits above the bottom nav. -->
+    <template v-if="isMobile">
+      <div class="min-h-0 flex-1 overflow-y-auto">
+        <div class="px-3 pt-2 empty:hidden"><RunnerBossMechanics /></div>
+        <RunnerCombatantList :selected-id="selectedId" @select="selectedId = $event" />
+      </div>
+      <RunnerTurnBar
+        @roll-initiative="handleRollInitiative"
+        @start-combat="handleStartCombat"
+        @prev="store.prevTurn()"
+        @next="store.nextTurn()"
+        @open-active="openActiveCombatant"
+      />
+      <RunnerToolsSheet
+        v-model:open="toolsOpen"
+        :encounter-id="encounterId"
+        v-model:selected-trap-id="selectedTrapId"
+        @update:selected-trap-id="(id) => { if (id) selectedId = null; }"
+      />
+      <Teleport to="body">
+        <div
+          v-if="selectedId !== null || selectedTrapId !== null"
+          class="fixed inset-0 z-50 flex flex-col bg-card pt-safe pb-safe"
+        >
+          <RunnerEntityDetail
+            class="min-h-0 flex-1"
+            :selected-id="selectedId"
+            :selected-trap-id="selectedTrapId"
+            :monsters="store.availableMonsters"
+            :party-members="partyMembers ?? []"
+            @close="selectedId = null; selectedTrapId = null"
+          />
+        </div>
+      </Teleport>
+    </template>
+
     <!-- Body: list + optional detail panel -->
-    <div class="runner-body-wrap">
+    <div v-else class="runner-body-wrap">
       <!-- Initiative list -->
       <div class="runner-body">
-        <!-- Boss mechanics panel (lair actions + legendary actions + surprise) -->
+        <!-- Surprise strip, then lair + legendary actions -->
+        <RunnerSurprisePanel />
         <RunnerBossMechanics />
         <RunnerCombatantList
           :selected-id="selectedId"
@@ -178,6 +236,11 @@ import { withoutDue } from "@/lib/encounters/conditionSources";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
+import RunnerSurprisePanel from "./RunnerSurprisePanel.vue";
+import RunnerPhoneHeader from "./RunnerPhoneHeader.vue";
+import RunnerTurnBar from "./RunnerTurnBar.vue";
+import RunnerToolsSheet from "./RunnerToolsSheet.vue";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import RunnerSpawnPanel from "./RunnerSpawnPanel.vue";
 import TurnTimer from "./TurnTimer.vue";
@@ -214,6 +277,18 @@ const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
 const selectedId = ref<string | null>(null);
 const selectedTrapId = ref<string | null>(null);
+
+// Phone shell (below md): its own header, turn bar and tools sheet.
+const isMobile = useIsMobile();
+const toolsOpen = ref(false);
+
+/** The turn bar's centre: open the active combatant's stat block and actions. */
+function openActiveCombatant() {
+  const active = store.activeCombatant;
+  if (!active) return;
+  selectedTrapId.value = null;
+  selectedId.value = active.instance_id;
+}
 
 const detailWidth = ref(320);
 
@@ -629,20 +704,6 @@ async function handleEndCombat() {
   @apply flex flex-1 min-h-0 overflow-hidden;
 }
 
-/* A phone has no room for side columns: the list, then the events and traps,
-   scroll as one column. The stat block still overlays it (RunnerEntityDetail). */
-@media (max-width: 639px) {
-  .runner-body-wrap {
-    position: relative;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  .runner-body {
-    flex: none;
-    overflow: visible;
-  }
-}
-
 .runner-body {
   @apply flex-1 overflow-y-auto min-w-0;
 }
@@ -675,14 +736,5 @@ async function handleEndCombat() {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-}
-
-@media (max-width: 639px) {
-  .resize-handle {
-    display: none;
-  }
-  .panel-shell {
-    width: auto !important;
-  }
 }
 </style>

@@ -419,16 +419,6 @@ function renderTraitDesc(desc: string): string {
   @apply w-full bg-card flex flex-col overflow-hidden;
 }
 
-@media (max-width: 639px) {
-  .detail-panel {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    z-index: 10;
-    border-left: none;
-  }
-}
-
 .detail-header {
   @apply flex items-center justify-between px-3 py-2 border-b border-border shrink-0;
 }

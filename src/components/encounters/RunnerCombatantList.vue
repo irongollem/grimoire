@@ -23,7 +23,7 @@
   <!-- Mobile: stacked card per combatant -->
   <template v-else>
     <template v-for="combatant in store.sortedCombatants" :key="combatant.instance_id">
-      <RunnerCombatantCard :combatant="combatant" :selected-id="selectedId" @select="emit('select', $event)" />
+      <RunnerCombatantCard :combatant="combatant" :data-row-id="combatant.instance_id" @open="openSheet" />
       <RunnerFallenOffer
         v-if="offered(combatant)"
         :combatant="combatant"
@@ -37,11 +37,18 @@
     No combatants. Go back to the builder to add monsters and party members.
   </p>
 
+  <RunnerCombatantSheet
+    v-if="isMobile && sheetCombatant"
+    v-model:open="sheetOpen"
+    :combatant="sheetCombatant"
+    @open-detail="emit('select', $event)"
+  />
+
   <SetDownDialog :open="marking !== null" mode="fallen" :member="marking" @close="marking = null" />
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 import { useParty } from "@/composables/party/useParty";
 import SetDownDialog from "@/components/memorials/SetDownDialog.vue";
@@ -52,6 +59,8 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import RunnerCombatantRow from "@/components/encounters/RunnerCombatantRow.vue";
 import RunnerCombatantCard from "@/components/encounters/RunnerCombatantCard.vue";
+import RunnerCombatantSheet from "@/components/encounters/RunnerCombatantSheet.vue";
+import { prefersReducedMotion } from "@/lib/motion";
 
 defineProps<{ selectedId: string | null }>();
 const emit = defineEmits<{ select: [id: string | null] }>();
@@ -64,6 +73,30 @@ const { data: memorials } = useCampaignMemorials();
 /** "Not yet" lasts for this run: the offer is not remembered anywhere else. */
 const dismissed = reactive(new Set<string>());
 const marking = ref<PartyMember | null>(null);
+
+// Phone: the sheet follows the combatant by id and reads it live, so it closes
+// itself if the combatant leaves the fight.
+const sheetId = ref<string | null>(null);
+const sheetCombatant = computed(() =>
+  sheetId.value ? (store.sortedCombatants.find((c) => c.instance_id === sheetId.value) ?? null) : null,
+);
+// Closing keeps the id so the sheet can play its leave transition.
+const sheetOpen = ref(false);
+function openSheet(id: string) {
+  sheetId.value = id;
+  sheetOpen.value = true;
+}
+
+// The turn moves down the list; keep the active row on screen.
+watch(
+  () => store.activeCombatant?.instance_id,
+  async (id) => {
+    if (!isMobile.value || !store.started || !id) return;
+    await nextTick();
+    const row = document.querySelector(`[data-row-id="${CSS.escape(id)}"]`);
+    row?.scrollIntoView?.({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  },
+);
 
 function memberOf(c: RunCombatant): PartyMember | null {
   const id = c.party_member_id;

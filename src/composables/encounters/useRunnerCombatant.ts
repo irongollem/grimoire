@@ -1,4 +1,4 @@
-import { ref, computed, toValue, type MaybeRefOrGetter } from "vue";
+import { ref, computed, onScopeDispose, toValue, watch, type MaybeRefOrGetter } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useParty } from "@/composables/party/useParty";
 import { useActiveParty } from "@/composables/party/useActiveParty";
@@ -83,10 +83,11 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     return store.factions.find((f) => f.id === combatant.value.faction_id)?.color ?? "#3D3D3D";
   }
 
-  function revealBtnClass(state: RevealState | undefined): string {
-    if (state === "revealed") return "reveal-revealed";
-    if (state === "unseen") return "reveal-unseen";
-    return "reveal-hidden";
+  /** The reveal chip's colour: grey hidden, amber unseen, green revealed. */
+  function revealTone(state: RevealState | undefined): "neutral" | "caution" | "success" {
+    if (state === "revealed") return "success";
+    if (state === "unseen") return "caution";
+    return "neutral";
   }
 
   function revealBtnTitle(state: RevealState | undefined): string {
@@ -109,27 +110,48 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
 
   // ── HP management ─────────────────────────────────────────────────────────
 
+  // A run of +/- taps lands as one write. The taps belong to the combatant they
+  // were made on: one sheet serves every combatant on a phone, so the target is
+  // captured with the first tap and a switch to another combatant settles the
+  // run first, rather than applying it to whoever is shown when the timer fires.
   let pendingDelta = 0;
+  let pendingId: string | undefined;
   let pendingTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function handleAdjustHp(delta: number) {
-    pendingDelta += delta;
+  function settlePending() {
     if (pendingTimer) clearTimeout(pendingTimer);
-    pendingTimer = setTimeout(() => {
-      if (pendingDelta !== 0) {
-        store.adjustHp(combatant.value.instance_id, pendingDelta);
-        showFlash(pendingDelta);
-      }
-      pendingDelta = 0;
-      pendingTimer = undefined;
-    }, 500);
+    if (pendingId !== undefined && pendingDelta !== 0) {
+      store.adjustHp(pendingId, pendingDelta);
+      if (pendingId === combatant.value.instance_id) showFlash(pendingDelta);
+    }
+    pendingDelta = 0;
+    pendingId = undefined;
+    pendingTimer = undefined;
   }
 
-  function handleSetHp(newHp: number) {
+  function handleAdjustHp(delta: number) {
+    const id = combatant.value.instance_id;
+    if (pendingId !== undefined && pendingId !== id) settlePending();
+    pendingId = id;
+    pendingDelta += delta;
+    if (pendingTimer) clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(settlePending, 500);
+  }
+
+  onScopeDispose(() => {
+    if (pendingTimer) settlePending();
+  });
+
+  /** The HP field commits on blur. A field left blank means "never mind", not 0 HP. */
+  function handleSetHp(raw: string | number) {
+    if (raw === "") return;
+    const newHp = Number(raw);
+    if (!Number.isFinite(newHp) || newHp < 0) return;
     if (pendingTimer) {
       clearTimeout(pendingTimer);
       pendingTimer = undefined;
       pendingDelta = 0;
+      pendingId = undefined;
     }
     const delta = newHp - displayHp.value;
     store.setHp(combatant.value.instance_id, newHp);
@@ -149,6 +171,13 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
    *  failed death saves instead of one (2014 and 2024 alike), so the toggle only
    *  exists where it can matter, a party member who is already down. */
   const quickCritical = ref(false);
+
+  // An amount typed for one combatant is not meant for the next one opened.
+  watch(() => combatant.value.instance_id, () => {
+    if (pendingTimer) settlePending();
+    quickAmount.value = null;
+    quickCritical.value = false;
+  });
   const canCrit = computed(() => {
     const c = combatant.value;
     return c.type === "player" && !!c.party_member_id && c.hp <= 0;
@@ -226,7 +255,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     displayAc,
     combatantInitials,
     factionColor,
-    revealBtnClass,
+    revealTone,
     revealBtnTitle,
     flashInfo,
     clearFlash,

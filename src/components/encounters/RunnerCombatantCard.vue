@@ -1,163 +1,98 @@
 <template>
   <div
-    class="mc-card"
-    :class="{
-      'is-active': store.started && combatant.instance_id === store.activeCombatant?.instance_id,
-      'is-dead': combatant.type === 'monster' && combatant.hp === 0,
-      'is-selected': combatant.instance_id === selectedId,
-    }"
+    class="mc-row"
+    :class="{ 'is-active': active, 'is-dead': dead }"
     :style="{ '--faction-color': factionColor() }"
-    @click="toggleDetail"
+    role="button"
+    tabindex="0"
+    :aria-label="`${combatant.name}, open`"
+    :data-active="active || undefined"
+    @click="emit('open', combatant.instance_id)"
+    @keydown.enter.self="emit('open', combatant.instance_id)"
   >
-    <!-- Row 1: avatar + name + type badge -->
-    <div class="mc-head">
-      <div class="mc-avatar" @click.stop="toggleDetail">
-        <div
-          class="avatar-inner"
-          :class="store.started && combatant.instance_id === store.activeCombatant?.instance_id ? 'avatar-active' : ''"
-        >
-          <FocalImage
-            :src="portrait.src"
-            :placeholder="portrait.shaped ? placeholderUrl('monster') : combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
-            :alt="portrait.alt"
-            :focal-point="portrait.focalPoint"
-            format="square"
-          />
-          <button
-            v-if="combatant.type === 'monster'"
-            type="button"
-            class="reveal-btn"
-            :class="revealBtnClass(combatant.reveal_state)"
-            :title="revealBtnTitle(combatant.reveal_state)"
-            @click.stop="handleCycleReveal"
-          >
-            <IconHide v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
-            <IconReveal v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
-            <IconReveal v-else class="h-2.5 w-2.5" />
-          </button>
-        </div>
-      </div>
-      <div class="mc-identity">
-        <span class="combatant-name">{{ combatant.name }}</span>
-        <div class="mc-badges">
-          <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
-          <RunnerRollStatus :combatant="combatant" />
-          <span v-if="wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ wildshape.beast_name }}</span>
-          <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
-          <AppButton
-            v-if="combatant.surprised"
-            variant="tinted"
-            tone="caution"
-            size="xs"
-            class="ml-1"
-            label="✦ Surprised ×"
-            tooltip="Surprised, tap to remove"
-            @click.stop="store.toggleSurprised(combatant.instance_id)"
-          />
-          <button
-            v-else-if="!store.started || store.round === 1"
-            type="button"
-            class="surprised-set-btn"
-            title="Mark as surprised"
-            @click.stop="store.toggleSurprised(combatant.instance_id)"
-          >✦?</button>
-        </div>
-      </div>
+    <div class="mc-init" @click.stop>
+      <RunnerInitiativeField v-if="!store.started" :combatant="combatant" />
+      <span v-else class="mc-init-num" data-testid="row-init">
+        {{ combatant.initiative ?? "—" }}
+        <span v-if="tied" class="mc-tie" title="Tied. Higher Dexterity goes first.">tie</span>
+      </span>
     </div>
 
-    <!-- Row 2: stats (init input + HP / max + AC) -->
-    <div class="mc-stats" @click.stop>
-      <div class="mc-stat-init">
-        <span class="mc-stat-label">INIT</span>
-        <RunnerInitiativeField :combatant="combatant" />
+    <div class="mc-portrait">
+      <div class="mc-portrait-img" :class="{ 'is-active': active }">
+        <FocalImage
+          :src="portrait.src"
+          :placeholder="placeholder"
+          :alt="portrait.alt"
+          :focal-point="portrait.focalPoint"
+          format="square"
+        />
       </div>
-      <div class="mc-stat-hp">
-        <span class="mc-stat-label">HP</span>
-        <span class="mc-stat-value">{{ displayHp }}<span class="mc-stat-sep">/</span>{{ displayMaxHp }}</span>
-        <span v-if="displayTempHp" class="mc-stat-temp">+{{ displayTempHp }} tmp</span>
-      </div>
-      <div class="mc-stat-ac">
-        <span class="mc-stat-label">AC</span>
-        <span class="mc-stat-value">{{ displayAc }}</span>
-      </div>
+      <AppButton
+          v-if="combatant.type === 'monster'"
+          variant="tinted"
+          :tone="revealTone(combatant.reveal_state)"
+          :emphasis="combatant.reveal_state === 'hidden' || !combatant.reveal_state ? 'strong' : 'solid'"
+          size="icon-xs"
+          class="reveal-btn rounded-full"
+          :icon="combatant.reveal_state === 'hidden' || !combatant.reveal_state ? IconHide : IconReveal"
+          :tooltip="revealBtnTitle(combatant.reveal_state)"
+          :aria-label="revealBtnTitle(combatant.reveal_state)"
+          @click.stop="handleCycleReveal"
+        />
     </div>
 
-    <!-- Row 3: HP adjust controls -->
-    <div class="mc-hp-controls" @click.stop>
-      <button class="hp-btn hp-btn-lg" @click="handleAdjustHp(-1)">−</button>
-      <AppInput
-        v-model.lazy="hpFieldModel"
-        type="number"
-        min="0"
-        :max="displayMaxHp"
-        tone="filled"
-        size="lg"
-        align="center"
-        :block="false"
-        class="w-16 h-8 font-bold"
-      />
-      <button class="hp-btn hp-btn-lg" @click="handleAdjustHp(1)">+</button>
-      <span
-        v-if="flashInfo"
-        :key="flashInfo.id"
-        class="damage-flash"
-        :class="flashInfo.delta < 0 ? 'is-damage' : 'is-heal'"
-        @animationend="clearFlash"
-      >{{ flashInfo.delta > 0 ? '+' : '' }}{{ flashInfo.delta }}</span>
+    <div class="mc-identity">
+      <span class="combatant-name">{{ combatant.name }}</span>
+      <p v-if="showDetail" class="mc-detail" data-testid="row-detail">
+        <RunnerRollStatus :combatant="combatant" />
+        <span v-if="detailText">{{ detailText }}</span>
+        <span v-if="reactionSpent" class="mc-reaction" title="Reaction used">⚡</span>
+      </p>
     </div>
 
-    <!-- Row 4: quick Dmg/Heal/Temp (visible when card is selected) -->
-    <div
-      v-if="combatant.instance_id === selectedId"
-      class="mc-quick"
-      @click.stop
-    >
-      <AppInput
-        v-model.number="quickAmount"
-        type="number"
-        min="0"
-        size="xs"
-        align="center"
-        :block="false"
-        class="w-14 font-bold"
-        placeholder="amt"
-        @keydown.enter="quickDamage"
-      />
-      <AppButton variant="tinted" tone="danger" emphasis="outline" size="xs" label="Dmg" @click="quickDamage" />
-      <AppCheckbox v-if="canCrit" v-model="quickCritical" size="sm" label="Critical hit" label-role="caption" />
-      <AppButton variant="tinted" tone="success" emphasis="outline" size="xs" label="Heal" @click="quickHeal" />
-      <AppButton variant="tinted" tone="info" emphasis="outline" size="xs" label="+Temp" @click="quickTemp" />
-    </div>
-
-    <!-- Row 5: conditions -->
-    <div class="mc-conditions" @click.stop>
-      <RunnerConditionBadges :combatant="combatant" />
+    <div class="mc-hp">
+      <span class="mc-hp-line">
+        <span class="mc-hp-num" data-testid="row-hp">{{ displayHp }}/{{ displayMaxHp }}</span>
+        <span v-if="displayTempHp" class="mc-temp">+{{ displayTempHp }}</span>
+        <span
+          v-if="flash"
+          :key="flash.id"
+          class="damage-flash"
+          :class="flash.delta < 0 ? 'is-damage' : 'is-heal'"
+          @animationend="flash = undefined"
+        >{{ flash.delta > 0 ? "+" : "" }}{{ flash.delta }}</span>
+      </span>
+      <span class="mc-bar" aria-hidden="true">
+        <span class="mc-bar-fill" :class="`is-${tone}`" :style="{ width: `${fraction * 100}%` }" />
+      </span>
+      <span class="mc-ac">AC {{ displayAc }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { IconHide, IconReveal } from '@/lib/icons';
+import { computed, ref, watch } from "vue";
+import { IconHide, IconReveal } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
-import RunnerConditionBadges from "@/components/encounters/RunnerConditionBadges.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import RunnerRollStatus from "@/components/encounters/RunnerRollStatus.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
+import { useRunnerConditions } from "@/composables/encounters/useRunnerConditions";
+import { conditionSummary, hpFraction, hpTone } from "@/lib/encounters/combatantRowSummary";
 import type { RunCombatant } from "@/types/encounter.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { formPortrait } from "@/lib/wildshapePortrait";
 
-const { combatant, selectedId } = defineProps<{
-  combatant: RunCombatant;
-  selectedId: string | null;
-}>();
+// Phone row: one line per combatant; everything you can do to it lives in
+// RunnerCombatantSheet. The init field and the reveal button act in place and
+// stop the click so they do not open the sheet. (No comment in the template:
+// it would make a second root and drop the list's data-row-id.)
+const { combatant } = defineProps<{ combatant: RunCombatant }>();
 
-const emit = defineEmits<{ select: [id: string | null] }>();
+const emit = defineEmits<{ open: [id: string] }>();
 
 const store = useEncounterRunStore();
 
@@ -168,64 +103,55 @@ const {
   displayTempHp,
   displayAc,
   factionColor,
-  revealBtnClass,
+  revealTone,
   revealBtnTitle,
-  flashInfo,
-  clearFlash,
-  handleAdjustHp,
-  handleSetHp,
-  quickAmount,
-  quickCritical,
-  canCrit,
-  quickDamage,
-  quickHeal,
-  quickTemp,
   handleCycleReveal,
 } = useRunnerCombatant(() => combatant);
+const { displayConditions, pcConcentration } = useRunnerConditions(() => combatant);
+
+const active = computed(() => store.started && combatant.instance_id === store.activeCombatant?.instance_id);
+const dead = computed(() => combatant.type === "monster" && combatant.hp === 0);
+const tied = computed(() => store.tiedInstanceIds.has(combatant.instance_id));
+const reactionSpent = computed(() => store.started && combatant.reactionUsed === true);
 
 const portrait = computed(() => formPortrait(combatant, wildshape.value));
+const placeholder = computed(() => {
+  if (portrait.value.shaped) return placeholderUrl("monster");
+  if (combatant.type === "player") return placeholderUrl("character");
+  return combatant.npc_id ? placeholderUrl("npc") : placeholderUrl("monster");
+});
 
-function toggleDetail() {
-  emit("select", selectedId === combatant.instance_id ? null : combatant.instance_id);
-}
+const fraction = computed(() => hpFraction(displayHp.value, displayMaxHp.value));
+const tone = computed(() => hpTone(displayHp.value, displayMaxHp.value));
 
-// AppInput's `.lazy` modifier commits the raw string on change (blur/Enter),
-// same as the hand-rolled `:value` + `@change` this replaces — the setter
-// mirrors the original `Number((e.target as HTMLInputElement).value)` parse.
-const hpFieldModel = computed<string | number>({
-  get: () => displayHp.value,
-  set: (raw) => handleSetHp(Number(raw)),
+const concentration = computed(() => pcConcentration.value ?? combatant.concentration?.spellName ?? null);
+
+/** The second line: surprise, wild shape, death, conditions, concentration. */
+const detailText = computed(() =>
+  [
+    combatant.surprised ? "✦ Surprised" : "",
+    wildshape.value ? `🐺 ${wildshape.value.beast_name}` : "",
+    dead.value ? "☠" : "",
+    conditionSummary(displayConditions.value),
+    concentration.value ? `✦ ${concentration.value}` : "",
+  ]
+    .filter((part) => part !== "")
+    .join(" · "),
+);
+// The lobby's roll status renders its own text, so the line needs its box even when ours is empty.
+const showDetail = computed(() => detailText.value !== "" || reactionSpent.value || store.round === 0);
+
+// Flash whenever the shown HP moves, whoever moved it: the sheet, a player's own
+// sheet arriving over the live sync, or a stepper elsewhere.
+const flash = ref<{ delta: number; id: number } | undefined>(undefined);
+watch(displayHp, (now, before) => {
+  if (now !== before) flash.value = { delta: now - before, id: Date.now() };
 });
 </script>
 
 <style scoped>
 @reference "@/assets/main.css";
 
-/* ── Shared avatar styles ───────────────────────────────────────────────── */
-.avatar-inner {
-  position: relative;
-  width: 2.5rem;
-  height: 2.5rem;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.avatar-active {
-  box-shadow: inset 0 0 0 2px #C9A84C;
-}
-
-.avatar-initials {
-  @apply w-full h-full flex items-center justify-center text-label-lg font-bold;
-}
-
-.reveal-btn {
-  @apply absolute bottom-0 right-0 flex items-center justify-center w-4 h-4 rounded-tl text-2xs transition-colors;
-}
-.reveal-hidden   { @apply bg-muted/80 text-muted-foreground hover:bg-tone-caution/80 hover:text-on-caution; }
-.reveal-unseen   { @apply bg-tone-caution/80 text-on-caution hover:bg-tone-success/80 hover:text-on-success; }
-.reveal-revealed { @apply bg-tone-success/80 text-on-success hover:bg-muted/80 hover:text-muted-foreground; }
-
-/* ── Shared badge + chip styles ─────────────────────────────────────────── */
 .combatant-name {
   @apply text-heading-sm font-semibold text-foreground;
   overflow: hidden;
@@ -233,65 +159,21 @@ const hpFieldModel = computed<string | number>({
   white-space: nowrap;
 }
 
-.type-badge {
-  @apply text-eyebrow font-bold px-1.5 py-0.5 rounded uppercase;
-}
-.type-badge.player  { @apply bg-primary/20 text-primary; }
-.type-badge.monster { @apply bg-muted text-muted-foreground; }
-
-.dead-badge { @apply text-destructive text-xs; }
-
-.wildshape-row-badge {
-  @apply text-caption-sm text-ink-caution italic ml-1;
-}
-
-.surprised-set-btn {
-  @apply text-label text-muted-foreground/50 px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-ink-caution hover:border-tone-caution/40 transition-colors;
-}
-
-
-/* ── Shared HP styles ───────────────────────────────────────────────────── */
-.hp-btn {
-  @apply w-6 h-6 rounded bg-muted border border-border text-heading-sm font-bold flex items-center justify-center hover:bg-card transition-colors;
-}
-
-@keyframes damage-flash {
-  0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
-  70%  { opacity: 1; transform: translateX(-50%) translateY(-0.25rem); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-0.625rem); }
-}
-
-.damage-flash {
-  position: absolute;
-  top: -0.1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-cinzel);
-  font-size: 0.9rem;
-  font-weight: 800;
-  pointer-events: none;
-  animation: damage-flash 10s ease-in forwards;
-  z-index: 10;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-}
-.damage-flash.is-damage { @apply text-destructive; }
-.damage-flash.is-heal   { @apply text-ink-success; }
-
-/* ── Mobile card layout ─────────────────────────────────────────────────── */
-.mc-card {
-  display: flex;
-  flex-direction: column;
+.mc-row {
+  display: grid;
+  grid-template-columns: minmax(2rem, auto) 2.5rem minmax(0, 1fr) 4.75rem;
+  align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.375rem 0.75rem 0.375rem 0.875rem;
   border-bottom: 1px solid theme(colors.border / 50%);
   position: relative;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
-.mc-card::before {
-  content: '';
+.mc-row::before {
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -301,88 +183,60 @@ const hpFieldModel = computed<string | number>({
   background-color: var(--faction-color);
 }
 
-.mc-card.is-active  { @apply bg-primary/10 ring-1 ring-primary/20 ring-inset; }
-.mc-card.is-dead    { @apply opacity-40; }
-.mc-card.is-selected { @apply bg-muted/40; }
+.mc-row.is-active { @apply bg-primary/10; }
+.mc-row.is-active::before { width: 0.375rem; @apply bg-primary; }
+.mc-row.is-dead { @apply opacity-40; }
 
-.mc-head {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  min-width: 0;
-}
+.mc-init { @apply flex items-center justify-center; }
+.mc-init-num { @apply text-heading-sm font-bold text-foreground text-center; }
+.mc-tie { @apply block text-caption-sm font-normal text-ink-caution; }
 
-.mc-avatar {
-  width: 2.5rem;
-  height: 2.5rem;
-  flex-shrink: 0;
+.mc-portrait { position: relative; width: 2.5rem; height: 2.5rem; }
+.mc-portrait-img { width: 100%; height: 100%; overflow: hidden; display: flex; }
+.mc-portrait-img.is-active { box-shadow: 0 0 0 2px theme(colors.primary / 100%); }
+
+/* 1.5rem so a thumb can land on it; it hangs off the portrait's corner. */
+.reveal-btn { @apply absolute; right: -0.5rem; bottom: -0.5rem; }
+
+.mc-identity { display: flex; flex-direction: column; min-width: 0; }
+.mc-detail {
+  @apply text-caption text-muted-foreground;
   overflow: hidden;
-  display: flex;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc-reaction { @apply ml-1 opacity-40; }
+
+.mc-hp { display: flex; flex-direction: column; align-items: flex-end; gap: 0.125rem; }
+.mc-hp-line { position: relative; display: inline-flex; align-items: baseline; gap: 0.25rem; }
+.mc-hp-num { @apply text-heading-sm font-bold text-foreground; }
+.mc-temp { @apply text-caption font-bold text-ink-info; }
+.mc-bar { @apply block w-full overflow-hidden rounded-full bg-muted; height: 0.25rem; }
+.mc-bar-fill { @apply block h-full rounded-full; }
+.mc-bar-fill.is-success { @apply bg-tone-success; }
+.mc-bar-fill.is-caution { @apply bg-tone-caution; }
+.mc-bar-fill.is-danger  { @apply bg-destructive; }
+.mc-ac { @apply text-caption text-muted-foreground; }
+
+@keyframes damage-flash {
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  70%  { opacity: 1; transform: translateX(-50%) translateY(-0.25rem); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-0.625rem); }
 }
 
-.mc-identity {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  flex: 1;
-  min-width: 0;
+.damage-flash {
+  position: absolute;
+  top: -0.25rem;
+  left: 50%;
+  font-family: var(--font-cinzel);
+  font-size: 1rem;
+  font-weight: 800;
+  pointer-events: none;
+  animation: damage-flash 2.5s ease-in forwards;
+  z-index: 10;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
 }
-
-.mc-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  align-items: center;
-}
-
-.mc-stats {
-  display: flex;
-  align-items: center;
-  /* The INIT group grew a roll button — wrap rather than overflow on the
-     narrowest phones. */
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding-left: 3.125rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.75rem;
-}
-
-.mc-stat-init,
-.mc-stat-hp,
-.mc-stat-ac {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.mc-stat-label { @apply text-label text-muted-foreground; }
-.mc-stat-value { @apply text-heading-sm font-bold text-foreground; }
-.mc-stat-sep   { @apply text-muted-foreground font-normal mx-0.5; }
-.mc-stat-temp  { @apply text-label font-bold text-ink-info; }
-
-.mc-hp-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-left: 3.125rem;
-  position: relative;
-}
-
-.hp-btn-lg  { @apply w-8 h-8 text-base; }
-
-.mc-quick {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding-left: 3.125rem;
-  padding-top: 0.25rem;
-  border-top: 1px solid theme(colors.border / 30%);
-}
-
-.mc-conditions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  padding-left: 3.125rem;
-}
+.damage-flash.is-damage { @apply text-destructive; }
+.damage-flash.is-heal   { @apply text-ink-success; }
 </style>

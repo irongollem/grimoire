@@ -912,7 +912,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/encounters/:id/run",
     name: "encounter-run",
     component: () => import("@/views/encounters/EncounterRunView.vue"),
-    meta: { requiresAuth: true, title: "Combat Tracker" },
+    meta: { requiresAuth: true, title: "Combat" },
   },
   {
     path: "/encounters/:id/run/map",

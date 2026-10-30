@@ -2,7 +2,7 @@
   <!-- Events panel: always mounted while a run is on screen (RunnerDmTools only
        renders inside an active EncounterRunner) — the generator buttons need to
        be reachable before any event exists, which is the common mid-fight case. -->
-  <div class="events-panel">
+  <div class="events-panel" :class="{ 'is-stack': layout === 'stack' }">
     <div class="events-header">
       <span class="events-title">EVENTS</span>
       <div v-if="isAiEnabled" class="events-actions">
@@ -71,7 +71,7 @@
   </div>
 
   <!-- Traps column (only shown when encounter has traps) -->
-  <div v-if="store.traps.length" class="side-column">
+  <div v-if="store.traps.length" class="side-column" :class="{ 'is-stack': layout === 'stack' }">
     <div class="traps-panel">
       <div class="traps-header">
         <span class="traps-title">⚠ TRAPS</span>
@@ -110,6 +110,10 @@ import { TRAP_TYPE_VAR } from "@/types/trap.types";
 import { IconMonster, IconWarning } from "@/lib/icons";
 import ComplicationGeneratorDialog from "./ComplicationGeneratorDialog.vue";
 import type { ComplicationMode } from "@/ai/useComplicationGeneration";
+
+// "sidebar" is the desktop pair of fixed-width columns; "stack" is the phone's
+// combat-tools sheet, where the panels take the sheet's width one under another.
+const { layout = "sidebar" } = defineProps<{ layout?: "sidebar" | "stack" }>();
 
 const selectedTrapId = defineModel<string | null>("selectedTrapId", { required: true });
 
@@ -409,13 +413,28 @@ function toggleTrapDetail(id: string) {
 }
 
 
-/* Below the list on a phone, full width (EncounterRunner stacks the body). */
-@media (max-width: 639px) {
-  .events-panel,
-  .side-column {
-    width: auto;
-    border-left: none;
-    border-top: 1px solid theme(colors.border / 100%);
-  }
+/* Stacked in the phone's tools sheet: full width, the sheet scrolls, and the
+   controls are sized for a thumb. */
+.events-panel.is-stack,
+.side-column.is-stack {
+  width: auto;
+  border-left: none;
+  overflow: visible;
 }
+.side-column.is-stack { border-top: 1px solid theme(colors.border / 100%); }
+.is-stack .events-list,
+.is-stack .traps-list,
+.is-stack .traps-panel { overflow: visible; }
+.is-stack .hazards-panel { max-height: none; }
+.is-stack .events-actions { gap: 0.5rem; }
+.is-stack .gen-btn { padding: 0.5rem; font-size: 0.75rem; }
+.is-stack .fire-btn { padding: 0.5rem 0.875rem; font-size: 0.875rem; }
+.is-stack .event-name,
+.is-stack .trap-name,
+.is-stack .hazard-label { font-size: 0.8125rem; }
+.is-stack .event-trigger,
+.is-stack .hazard-desc,
+.is-stack .trap-type { font-size: 0.75rem; }
+.is-stack .trap-row,
+.is-stack .event-row { padding-block: 0.75rem; }
 </style>

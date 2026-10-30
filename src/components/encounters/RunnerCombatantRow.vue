@@ -23,18 +23,18 @@
             :focal-point="portrait.focalPoint"
             format="square"
           />
-          <button
+          <AppButton
             v-if="combatant.type === 'monster'"
-            type="button"
+            variant="tinted"
+            :tone="revealTone(combatant.reveal_state)"
+            :emphasis="combatant.reveal_state === 'hidden' || !combatant.reveal_state ? 'strong' : 'solid'"
+            size="icon-2xs"
             class="reveal-btn"
-            :class="revealBtnClass(combatant.reveal_state)"
-            :title="revealBtnTitle(combatant.reveal_state)"
+            :icon="combatant.reveal_state === 'hidden' || !combatant.reveal_state ? IconHide : IconReveal"
+            :tooltip="revealBtnTitle(combatant.reveal_state)"
+            :aria-label="revealBtnTitle(combatant.reveal_state)"
             @click.stop="handleCycleReveal"
-          >
-            <IconHide v-if="combatant.reveal_state === 'hidden'" class="h-2.5 w-2.5" />
-            <IconReveal v-else-if="combatant.reveal_state === 'unseen'" class="h-2.5 w-2.5" />
-            <IconReveal v-else class="h-2.5 w-2.5" />
-          </button>
+          />
         </div>
       </div>
 
@@ -83,7 +83,7 @@
           class="w-12 font-bold"
           min="0"
           :max="displayMaxHp"
-          @update:model-value="(v) => handleSetHp(Number(v))"
+          @update:model-value="(v) => handleSetHp(v)"
         />
         <span class="hp-max">/</span>
         <AppInput
@@ -178,7 +178,7 @@ const {
   displayTempHp,
   displayAc,
   factionColor,
-  revealBtnClass,
+  revealTone,
   revealBtnTitle,
   flashInfo,
   clearFlash,
@@ -214,19 +214,14 @@ function toggleDetail() {
 }
 
 .avatar-active {
-  box-shadow: inset 0 0 0 2px #C9A84C;
+  box-shadow: inset 0 0 0 2px theme(colors.primary / 100%);
 }
 
 .avatar-initials {
   @apply w-full h-full flex items-center justify-center text-label-lg font-bold;
 }
 
-.reveal-btn {
-  @apply absolute bottom-0 right-0 flex items-center justify-center w-4 h-4 rounded-tl text-2xs transition-colors;
-}
-.reveal-hidden  { @apply bg-muted/80 text-muted-foreground hover:bg-tone-caution/80 hover:text-on-caution; }
-.reveal-unseen  { @apply bg-tone-caution/80 text-on-caution hover:bg-tone-success/80 hover:text-on-success; }
-.reveal-revealed { @apply bg-tone-success/80 text-on-success hover:bg-muted/80 hover:text-muted-foreground; }
+.reveal-btn { @apply absolute bottom-0 right-0 rounded-none rounded-tl; }
 
 /* ── Shared badge + chip styles ─────────────────────────────────────────── */
 .combatant-name {

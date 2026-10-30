@@ -31,13 +31,13 @@ const props = defineProps<{ encounterId: string }>();
 const id = computed(() => props.encounterId);
 const { data: encounter } = useEncounter(id);
 
-const { data: party } = useActiveParty();
-const { data: companions } = useCompanions();
+const { data: party, isFetching: partyFetching } = useActiveParty();
+const { data: companions, isFetching: companionsFetching } = useCompanions();
 // A player's AC is snapshotted into the run (and so into combatants_live) when
 // the store is built, so that waits for the gear: before it loads, everyone is
 // 10 + Dex.
 const { acFor, isReady: acReady } = useArmorClass();
-const { data: npcs } = useNpcs();
+const { data: npcs, isFetching: npcsFetching } = useNpcs();
 // byId resolves the ids the encounter stored, library and own alike.
 const { byId: trapsById, isLoading: trapsLoading } = useTrapIndex(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
@@ -89,10 +89,22 @@ watch(fieldMonsterMap, (map) => {
 
 const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !trapsLoading.value && acReady.value);
 
+// A run that is not live exists only in the store, so the store decides whether it
+// is built. Rebuilding it on every refetch threw the fight away: the HP write a
+// damage button makes rings the party back, and the fresh party row reset the run
+// to the lobby with every initiative blank. The store outlives this component, so
+// a remount (the battle map and back, a quest tool reopening) keeps the run too;
+// only End combat and Abandon clear it. Because it is built once, it waits for the
+// party, companion and NPC reads to settle: a cached row shown while its refetch is
+// in flight would otherwise seed the fight with stale HP and conditions, which End
+// combat then writes back. A live run is the one the live state holds, and is
+// hydrated from it as before.
+const readsSettled = computed(() => !partyFetching.value && !companionsFetching.value && !npcsFetching.value);
+
 watch(
-  [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, liveState, liveStateLoaded, acReady],
-  ([enc, monsterRows, loadingMonsters, par, _comps, npcList, traps, trapsPending]) => {
-    if (!enc || loadingMonsters || !par || !npcList || trapsPending || !liveStateLoaded.value || !acReady.value) return;
+  [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, liveState, liveStateLoaded, acReady, readsSettled],
+  ([enc, monsterRows, loadingMonsters, par, comps, npcList, traps, trapsPending]) => {
+    if (!enc || loadingMonsters || !par || !comps || !npcList || trapsPending || !liveStateLoaded.value || !acReady.value) return;
     const mons = [...monsterRows.values()];
     const live = liveState.value;
     if (live?.encounter_id === enc.id && live?.is_running) {
@@ -116,6 +128,8 @@ watch(
       store.setBossMechanics({ lairEnabled: enc.lair_enabled, lairOwnerInstanceId });
       return;
     }
+    if (store.encounterId === enc.id) return;
+    if (!readsSettled.value) return;
     initStore(enc, mons, par, npcList, filterEncounterTraps(enc, traps));
   },
   { immediate: true },

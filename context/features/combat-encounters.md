@@ -311,10 +311,12 @@ The runner is a full-screen layout at `/encounters/:id/run`. It loads from the P
 - `RunnerDmTools.vue` — events + traps sidebar
 - `RunnerBossMechanics.vue` — surprise panel, lair actions, legendary actions
 - `RunnerSpawnPanel.vue` — mid-encounter spawn form
+- `RunnerSurprisePanel.vue` — the pre-combat Surprise strip (above the list on desktop, in the tools sheet on a phone)
+- Phone only: `RunnerPhoneHeader.vue`, `RunnerTurnBar.vue`, `RunnerToolsSheet.vue`, `RunnerCombatantSheet.vue` (see "The runner on a phone" below)
 
 ### Initialisation and State Persistence
 
-When the DM navigates to the run view, `EncounterRunView.vue` checks the `encounter_states` table for an existing live state. If one is found (`is_running = true`), the store is **hydrated** from it — surviving page refreshes and navigate-away-and-back. If not, the store is initialised fresh from the encounter definition.
+When the DM navigates to the run view, `EncounterRunView.vue` checks the `encounter_states` table for an existing live state. If one is found (`is_running = true`), the store is **hydrated** from it — surviving page refreshes and navigate-away-and-back. If not, the store is initialised fresh from the encounter definition, **once per visit** (`EncounterRunSurface`). A run that is not live exists only in the store, so rebuilding it on a refetch threw the fight away: a damage button's HP write rings the party back, and the fresh party row used to reset the run to the lobby with every initiative blank (found 30 Oct 2026, when Start Combat stopped requiring Go Live). The build also waits for companions, so they are never left out of the roster.
 
 Party member HP, conditions, death saves, and curses are seeded from `party_members` at init. Monster HP is initialised from the stat block's `hit_points` field (integer part only). Companions selected on the encounter are seeded from `companions` the same way (`c-{compId}` instance ids), except any with `combat_ready === false` are skipped entirely (#569) — benching a companion in the party tracker or player portal keeps it out of the initial roster without touching the encounter's stored `companion_ids`.
 
@@ -342,7 +344,7 @@ Stat-block entries roll from their structure, never their prose. `RunnerActionLi
 - Roll Initiative button (pre-combat only) — rolls `d20 + initiativeModifier(combatant)` for every combatant that **doesn't have an initiative yet**; a value already in the list (a player's own roll, a monster the DM typed by hand) is never overwritten, whatever its type. `initiativeModifier()` (`src/rules/combatantSort.ts`) uses the stat block's 2024 `initiative_bonus` when it declares one, for a monster or an NPC alike (an NPC built from a 2024 monster used to drop it, #1116), and the plain DEX modifier otherwise (2014 stat blocks, players). The d20 itself goes through `usePromptedRoll`, so a DM on **physical** dice mode gets one manual-entry prompt per combatant (labelled with its name) instead of an auto-roll — the runner registers that roller on the store via `setInitiativeRoller()`; the store falls back to `Math.random()` when none is registered. Rolls are silent (not posted to chat) — the order reaches players through the live encounter state, and posting each monster's roll would leak hidden combatants. Cancelling a prompt stops the run and leaves the remaining combatants blank, so pressing the button again picks up where it left off. Mid-combat spawns keep their automatic roll rather than interrupting the turn with a modal
 - Per-combatant roll button (pre-combat only) — a die button next to every initiative input in the combatant list (`RunnerInitiativeField.vue`, shared by the desktop row and the mobile card), calling `store.rollInitiative(instanceId)`. Unlike the top-bar button this is an explicit request, so it **does** replace an existing value (it re-rolls a single monster whose roll you don't like). It disappears once combat starts — the order is locked and a stray re-roll would shuffle the turn everyone is standing in; the initiative input stays editable for a manual correction. `store.rollingInitiative` is the shared busy flag: while a manual-entry prompt is open (a single global slot) the top-bar and every per-combatant button disable together
 - Lobby roll status (`RunnerRollStatus`): shows the DM which players have rolled ("Rolled 15") and who is "Waiting for roll". Rolling does not mark the encounter started, so the lobby stays a lobby until combat begins. Ties are marked (higher Dexterity first) so the DM can settle them
-- Start Combat button (only when the encounter is live; disabled in pre-combat mode). With players still unrolled it asks once, naming them, then rolls the blanks and starts, never overwriting a roll
+- Start Combat button, whenever the encounter is in the lobby (round 0), live or not. Until 30 Oct 2026 it showed only while live, so a DM who ran a fight at the table without going live had no way to start it. With players still unrolled it asks once, naming them, then rolls the blanks and starts, never overwriting a roll
 - Dice Roller widget
 - Go Live / Live badge (only when a campaign is active)
 - Abandon — ends the live state without syncing player HP/conditions (roster-NPC death/reveal already happened live during combat)
@@ -350,7 +352,7 @@ Stat-block entries roll from their structure, never their prose. `RunnerActionLi
 
 **Initiative order (combatant list):**
 
-Desktop layout is a grid table (INIT / NAME / HP / AC / CONDITIONS). Mobile uses a stacked card per combatant with separate rows for identity, stats, and HP controls.
+Desktop layout is a grid table (INIT / NAME / HP / AC / CONDITIONS). Phones get one compact row per combatant; see "The runner on a phone".
 
 Per combatant row:
 
@@ -438,7 +440,19 @@ Appears above the combatant list when relevant.
 
 **Stat block detail panel (`RunnerEntityDetail.vue`):**
 
-Opens to the right when a combatant row is clicked. Width is user-resizable by dragging the left border (mouse and touch, 200–700px). On mobile it overlays the list.
+Opens to the right when a combatant row is clicked. Width is user-resizable by dragging the left border (mouse and touch, 200–700px). On a phone it is a full-screen layer over everything, bottom nav included.
+
+### The runner on a phone
+
+Below `md` (`useIsMobile`) the runner is its own layout, because the desktop one stacked on a 390px screen showed about one and a half combatants: a header, a toolbar of six unlabelled icons, the Surprise strip and a pinned Events panel each took a slice, and every card was four rows tall. The phone layout gives the screen to the initiative order.
+
+- **Header** (`RunnerPhoneHeader`): back, the encounter name with "Pre-combat" or "Round N", the turn timer and a Live marker; a Tools button whose badge counts unfired events plus traps; and an overflow menu with Go live / Stop live, the battle map, the manual, and Abandon and End combat last, behind a rule, so neither can be hit by accident.
+- **Rows** (`RunnerCombatantCard`): one line each. Initiative (the editable field with its die in the lobby, a plain number once started), portrait with the reveal toggle, the name with one summary line (roll status, surprised, wild shape, conditions, concentration, a spent reaction), and HP with a bar and AC. The row flashes whenever its HP changes, whoever changed it. The active row scrolls into view as the turn moves.
+- **Combatant sheet** (`RunnerCombatantSheet`): tapping a row opens everything you can do to that creature: HP steppers and max HP, an amount with Damage / Heal / +Temp (the sheet closes once one applies), conditions, initiative, surprise (lobby and round 1) and, for monsters, reveal. "Stat block & actions" opens the full-screen stat block.
+- **Turn bar** (`RunnerTurnBar`), pinned above the bottom nav: Roll initiative and Start combat in the lobby; Previous, the active combatant (tap to open their stat block and actions) and Next in combat.
+- **Tools sheet** (`RunnerToolsSheet`): Surprise, events and hazards, traps, spawn and the encounter's DM note, which the desktop shows in columns. `RunnerDmTools` takes `layout="stack"` for it.
+
+Lair and legendary actions stay above the list on a phone: they are what the current turn needs.
 
 For each combatant type the panel shows:
 
