@@ -11,12 +11,15 @@
 // for a no-op. None of them set a dirty flag themselves — the caller does
 // `if (changed) dirty.value = true;` at the call site.
 
-import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType, type WallEdge } from "@/types/dungeonMap.types";
+import { cellKey, type AreaCell, type CellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType, type WallEdge } from "@/types/dungeonMap.types";
 import { nextDressingZ } from "@/cartographer/dressing";
 import type { StampCategory } from "@/cartographer/stampCategories";
 import { canonicaliseEdge, type CanonicalEdge, type CellEdge } from "@/cartographer/edges";
 import { latticeKey } from "@/lib/battlemap/walls";
-import { isLatticeKey, latticeWall } from "@/cartographer/wallGraph";
+import { isLatticeKey, latticeWall, wallSegment } from "@/cartographer/wallGraph";
+import { cachedAreaLoops } from "@/cartographer/area";
+import { floodFill } from "@/cartographer/floodFill";
+import { segmentsIntersect, type Point } from "@/lib/battlemap/walls";
 
 export interface PaintContext {
   layers: DungeonMapLayers;
@@ -55,13 +58,16 @@ export function edgeDirection(side: "N" | "E" | "S" | "W"): "H" | "V" {
 
 // ── Floor cell ──────────────────────────────────────────────────────────────
 
-// Plain floor is a whole square, so painting it over a brushed cell drops the
-// cell's coverage mask: otherwise the tile stays clipped to the old curve.
+// Painting over floor re-skins it: the cell keeps its shape and only its pack changes. A brushed cell keeps its
+// coverage mask, so a curve stays a curve (and a sliver under half covered, which has no floor entry, stays a sliver);
+// a plain cell stays a whole square. Dropping the mask here once turned every repainted cell of a rounded wall into a
+// hard square that stuck out past the outline.
 export function paintCell(ctx: PaintContext, x: number, y: number, variant: number): boolean {
   const k = cellKey(x, y);
   const existing = ctx.layers.floor[k];
-  const hadArea = dropArea(ctx, k);
-  if (existing?.floor?.pack_id === ctx.packId && existing?.floor?.variant === variant) return hadArea;
+  const brushed = ctx.layers.area[k];
+  if (brushed) return reskinBrushedCell(ctx, k, brushed, variant);
+  if (existing?.floor?.pack_id === ctx.packId && existing?.floor?.variant === variant) return false;
   ctx.layers.floor[k] = {
     ...existing,
     floor: {
@@ -70,6 +76,17 @@ export function paintCell(ctx: PaintContext, x: number, y: number, variant: numb
       variant,
     },
   };
+  return true;
+}
+
+function reskinBrushedCell(ctx: PaintContext, k: CellKey, brushed: AreaCell, variant: number): boolean {
+  const pack = { pack_id: ctx.packId, pack_version: ctx.packVersion, variant };
+  const floor = ctx.layers.floor[k];
+  const areaSame = brushed.pack_id === pack.pack_id && brushed.variant === pack.variant;
+  const floorSame = !floor?.floor || (floor.floor.pack_id === pack.pack_id && floor.floor.variant === pack.variant);
+  if (areaSame && floorSame) return false;
+  ctx.layers.area = { ...ctx.layers.area, [k]: { ...pack, mask: brushed.mask } };
+  if (floor?.floor) ctx.layers.floor[k] = { ...floor, floor: pack };
   return true;
 }
 
@@ -406,4 +423,48 @@ export function removeWallById(ctx: PaintContext, id: string): boolean {
   delete next[id];
   ctx.layers.walls = next;
   return true;
+}
+
+// ── Fill bucket ───────────────────────────────────────────────────────────────
+
+type Barrier = readonly [Point, Point];
+
+const centre = (x: number, y: number): Point => [x + 0.5, y + 0.5];
+
+/**
+ * The cells the Fill tool reaches from (cx, cy). It stops at every wall and door, lattice or angled, and at the
+ * outline of the brushed area (the smoothed curve, not the lattice staircase around it). A cell the outline only
+ * clips (a brushed sliver whose centre is outside the curve) is still part of the room it hugs, so brushed cells
+ * beside the region join it unless a wall stands between; without them a rim of the old tile would be left behind.
+ */
+export function fillRegion(layers: DungeonMapLayers, cx: number, cy: number, maxCells: number): Set<CellKey> {
+  const walls: Barrier[] = Object.entries(layers.walls).map(([id, wall]) => {
+    const s = wallSegment(id, wall);
+    return [s.a, s.b];
+  });
+  const outline: Barrier[] = [];
+  for (const loop of cachedAreaLoops(layers)) {
+    const n = loop.points.length;
+    for (let i = 0; i < n; i++) outline.push([loop.points[i], loop.points[(i + 1) % n]]);
+  }
+  const crosses = (barriers: readonly Barrier[], fx: number, fy: number, tx: number, ty: number): boolean => {
+    const from = centre(fx, fy);
+    const to = centre(tx, ty);
+    return barriers.some(([a, b]) => segmentsIntersect(from, to, a, b));
+  };
+  const region = floodFill(cx, cy, (x, y) => !layers.solidBlock[cellKey(x, y)], {
+    maxCells,
+    canStep: (fx, fy, tx, ty) => !crosses(walls, fx, fy, tx, ty) && !crosses(outline, fx, fy, tx, ty),
+  });
+  const queue = [...region];
+  for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
+    const [x, y] = key.split(",").map(Number);
+    for (const [nx, ny] of [[x, y - 1], [x + 1, y], [x, y + 1], [x - 1, y]]) {
+      const nk = cellKey(nx, ny);
+      if (region.has(nk) || !layers.area[nk] || layers.solidBlock[nk] || crosses(walls, x, y, nx, ny)) continue;
+      region.add(nk);
+      queue.push(nk);
+    }
+  }
+  return region;
 }

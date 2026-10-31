@@ -595,12 +595,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   // ── One-shot actions ────────────────────────────────────────────────────
 
-  // Fill bucket: flood-fill from (cx, cy) through all non-solidBlock cells,
-  // planting floor. Bounded by a 2 000-cell safety cap.
+  // Fill bucket: flood-fill from (cx, cy) up to the walls and the brushed outline,
+  // planting floor (existing floor is re-skinned, keeping its shape). Bounded by a 2 000-cell safety cap.
   function applyFill(cx: number, cy: number): void {
     if (!packRuntime.value) return;
-    const region = floodFill(cx, cy, (x, y) => !layers.value.solidBlock[cellKey(x, y)], { maxCells: 2000 });
-    for (const key of region) {
+    for (const key of paintOps.fillRegion(layers.value, cx, cy, 2000)) {
       const [xs, ys] = key.split(",");
       paintCell(Number(xs), Number(ys));
     }

@@ -36,14 +36,40 @@ describe("paintCell / eraseCell", () => {
     expect(paintOps.paintCell(ctx, 1, 2, 4)).toBe(true);
   });
 
-  it("paints a brushed cell back to a whole square, dropping its mask", () => {
-    const ctx = makeCtx();
-    const floor = { pack_id: "pack-a", pack_version: 1, variant: 3 };
-    ctx.layers.floor[cellKey(1, 2)] = { floor };
-    ctx.layers.area[cellKey(1, 2)] = { ...floor, mask: "00000000ffffffff" };
-    expect(paintOps.paintCell(ctx, 1, 2, 3)).toBe(true);
-    expect(ctx.layers.area[cellKey(1, 2)]).toBeUndefined();
-    expect(ctx.layers.floor[cellKey(1, 2)]?.floor).toEqual(floor);
+  // Maintainer report: repainting a rounded room with a second tile set came out as hard squares past the curve.
+  it("repainting a brushed cell with another pack keeps its mask and only changes the pack", () => {
+    const ctx = makeCtx("ice");
+    const stone = { pack_id: "stone", pack_version: 1, variant: 3 };
+    ctx.layers.floor[cellKey(1, 2)] = { floor: stone };
+    ctx.layers.area[cellKey(1, 2)] = { ...stone, mask: "00000000ffffffff" };
+    expect(paintOps.paintCell(ctx, 1, 2, 5)).toBe(true);
+    expect(ctx.layers.area[cellKey(1, 2)]).toEqual({ pack_id: "ice", pack_version: 1, variant: 5, mask: "00000000ffffffff" });
+    expect(ctx.layers.floor[cellKey(1, 2)]?.floor).toEqual({ pack_id: "ice", pack_version: 1, variant: 5 });
+  });
+
+  it("repainting a sliver under half covered re-skins it without giving it a floor tile", () => {
+    const ctx = makeCtx("ice");
+    const stone = { pack_id: "stone", pack_version: 1, variant: 0 };
+    ctx.layers.area[cellKey(4, 4)] = { ...stone, mask: "000000000000000f" };
+    expect(paintOps.paintCell(ctx, 4, 4, 0)).toBe(true);
+    expect(ctx.layers.area[cellKey(4, 4)]?.pack_id).toBe("ice");
+    expect(ctx.layers.floor[cellKey(4, 4)]).toBeUndefined();
+  });
+
+  it("repainting a brushed cell with the same pack and variant changes nothing", () => {
+    const ctx = makeCtx("stone");
+    const stone = { pack_id: "stone", pack_version: 1, variant: 3 };
+    ctx.layers.floor[cellKey(1, 2)] = { floor: stone };
+    ctx.layers.area[cellKey(1, 2)] = { ...stone, mask: "00000000ffffffff" };
+    expect(paintOps.paintCell(ctx, 1, 2, 3)).toBe(false);
+  });
+
+  it("repainting a plain cell with another pack leaves it a plain cell", () => {
+    const ctx = makeCtx("ice");
+    ctx.layers.floor[cellKey(0, 0)] = { floor: { pack_id: "stone", pack_version: 1, variant: 0 } };
+    paintOps.paintCell(ctx, 0, 0, 0);
+    expect(ctx.layers.area).toEqual({});
+    expect(ctx.layers.floor[cellKey(0, 0)]?.floor?.pack_id).toBe("ice");
   });
 
   it("erases a brushed cell, with or without floor", () => {
@@ -539,5 +565,60 @@ describe("angled walls", () => {
     expect(paintOps.removeWallById(ctx, "w1")).toBe(true);
     expect(ctx.layers.walls).toEqual({});
     expect(paintOps.removeWallById(ctx, "w1")).toBe(false);
+  });
+});
+
+describe("fillRegion", () => {
+  const wall = { pack_id: "a", pack_version: 1, type: "wall", variant: 0 } as const;
+
+  it("stops at a lattice wall instead of flooding to the other side", () => {
+    const ctx = makeCtx();
+    // A wall down the line between column 1 and 2 over rows -3..3, boxing the left part in with the cap as the only other limit.
+    for (let y = -3; y <= 3; y++) putWall(ctx.layers, 2, y, "W", wall);
+    for (let y = -3; y <= 3; y++) putWall(ctx.layers, -3, y, "W", wall);
+    for (let x = -3; x < 2; x++) { putWall(ctx.layers, x, -3, "N", wall); putWall(ctx.layers, x, 4, "N", wall); }
+    const region = paintOps.fillRegion(ctx.layers, 0, 0, 2000);
+    expect(region.has(cellKey(1, 0))).toBe(true);
+    expect(region.has(cellKey(2, 0))).toBe(false);
+    expect(region.size).toBe(5 * 7);
+  });
+
+  it("stops at an angled wall", () => {
+    const ctx = makeCtx();
+    ctx.layers.walls["angled-1"] = { pack_id: "a", pack_version: 1, type: "wall", variant: 0, a: [0.2, -50], b: [0.2, 50] };
+    const region = paintOps.fillRegion(ctx.layers, 0, 0, 300);
+    expect(region.has(cellKey(-1, 0))).toBe(false);
+    expect(region.has(cellKey(1, 0))).toBe(true);
+  });
+
+  it("stops at the brushed outline and still takes the rim cells the curve clips", () => {
+    const ctx = makeCtx();
+    const ref = { pack_id: "a", pack_version: 1, variant: 0 };
+    // A 5x5 brushed block, the corner cell only a quarter covered (its centre is outside the curve).
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) ctx.layers.area[cellKey(x, y)] = { ...ref, mask: "full" };
+    ctx.layers.area[cellKey(0, 0)] = { ...ref, mask: "000000000f0f0f0f" };
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) if (!(x === 0 && y === 0)) ctx.layers.floor[cellKey(x, y)] = { floor: ref };
+    const region = paintOps.fillRegion(ctx.layers, 2, 2, 2000);
+    expect(region.has(cellKey(5, 2))).toBe(false);
+    expect(region.has(cellKey(-1, -1))).toBe(false);
+    expect(region.has(cellKey(0, 0))).toBe(true);
+    expect(region.size).toBe(25);
+  });
+
+  it("crosses from plain floor into a brushed area where the outline is not a wall", () => {
+    const ctx = makeCtx();
+    const ref = { pack_id: "a", pack_version: 1, variant: 0 };
+    for (let x = 0; x < 6; x++) for (let y = 0; y < 3; y++) ctx.layers.floor[cellKey(x, y)] = { floor: ref };
+    for (let x = 3; x < 6; x++) for (let y = 0; y < 3; y++) ctx.layers.area[cellKey(x, y)] = { ...ref, mask: "full" };
+    const region = paintOps.fillRegion(ctx.layers, 0, 0, 2000);
+    expect(region.has(cellKey(4, 1))).toBe(true);
+  });
+
+  it("an unwalled plain-floor edge is not an outline wall, so the fill goes on past it as before", () => {
+    const ctx = makeCtx();
+    const ref = { pack_id: "a", pack_version: 1, variant: 0 };
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 3; y++) ctx.layers.floor[cellKey(x, y)] = { floor: ref };
+    for (let x = 2; x < 5; x++) for (let y = 0; y < 3; y++) ctx.layers.area[cellKey(x, y)] = { ...ref, mask: "full" };
+    expect(paintOps.fillRegion(ctx.layers, 0, 1, 40).has(cellKey(-1, 1))).toBe(true);
   });
 });
