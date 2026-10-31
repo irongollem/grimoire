@@ -103,6 +103,11 @@ describe("showcase map: every feature the Map Table plays is present", () => {
       expect(layers.floor[k as keyof typeof layers.floor], k).toBeUndefined();
   });
 
+  it("bounds the nave by the chamfer itself, so the floor clipped to it has no staircase to poke past", () => {
+    const nave = structure.spaces.find((sp) => sp.name === "Flooded Nave");
+    expect(nave?.outline).toEqual([[13, 8], [21, 8], [24, 11], [24, 18], [13, 18]]);
+  });
+
   it("is deterministic, so a re-run replaces the map with the same map", () => {
     expect(buildShowcaseLayers()).toEqual(layers);
   });

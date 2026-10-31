@@ -172,7 +172,9 @@ export function buildShowcaseLayers(): DungeonMapLayers {
   floorRect(layers, courtyard, FOREST);
   for (const r of [hall, vault, nave, crypt, cistern, vestibule])
     floorRect(layers, r, STONE);
-  // The nave's north-east corner is cut off by an angled wall: nothing to stand on beyond or under it.
+  // The nave's north-east corner is cut off by an angled wall (the line y = x - 13). A square whose middle is not
+  // inside the line has no floor of its own, as the editor would leave it; the floor is drawn clipped to the wall, so
+  // the half of such a square under the wall still shows floor, borrowed from the room next to it.
   removeFloor(layers, ["21,8", "22,8", "23,8", "22,9", "23,9", "23,10"]);
 
   // The round chapel: a brushed disc. A cell covered at least half also gets ordinary floor (`applyDisc` does it).

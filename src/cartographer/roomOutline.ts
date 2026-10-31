@@ -29,7 +29,13 @@ export interface FoundFace {
 /** How far a stroked curve may stop short of the walls and floor edges it meets and still be joined to them (cells). */
 const JOIN = 0.6;
 
-type Seg = { a: [number, number]; b: [number, number]; kind: "lattice" | "edge" | "angled" | "curve" };
+type Seg = {
+  a: [number, number];
+  b: [number, number];
+  kind: "lattice" | "edge" | "angled" | "curve";
+  /** A floor edge's outward direction (towards the void it faces). */
+  out?: [number, number];
+};
 
 function isOpenFloor(layers: DungeonMapLayers, x: number, y: number): boolean {
   const k = cellKey(x, y);
@@ -69,7 +75,7 @@ function collectSegments(layers: DungeonMapLayers): { segs: Seg[]; runEnds: Pt[]
       if (seen.has(key)) continue;
       seen.add(key);
       const a: [number, number] = [o.x, o.y];
-      segs.push({ a, b: o.side === "N" ? [o.x + 1, o.y] : [o.x, o.y + 1], kind: "edge" });
+      segs.push({ a, b: o.side === "N" ? [o.x + 1, o.y] : [o.x, o.y + 1], kind: "edge", out: [dx, dy] });
     }
   }
 
@@ -110,6 +116,34 @@ function holdsFloor(layers: DungeonMapLayers, points: readonly [number, number][
     }
   }
   return false;
+}
+
+/** Whether the segment runs through the inside of the square, not just along its edge or past its corner. */
+const EPS = 1e-6;
+
+export function crossesSquare(a: readonly number[], b: readonly number[], x: number, y: number): boolean {
+  // Liang-Barsky on the open square; the clipped length must be more than a point.
+  let t0 = 0;
+  let t1 = 1;
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const edges: [number, number][] = [
+    [-dx, a[0] - x],
+    [dx, x + 1 - a[0]],
+    [-dy, a[1] - y],
+    [dy, y + 1 - a[1]],
+  ];
+  for (const [p, q] of edges) {
+    if (Math.abs(p) < EPS) {
+      if (q <= EPS) return false;
+      continue;
+    }
+    const r = q / p;
+    if (p < 0) t0 = Math.max(t0, r);
+    else t1 = Math.min(t1, r);
+    if (t0 >= t1 - EPS) return false;
+  }
+  return t1 - t0 > EPS;
 }
 
 const bucketOf = (x: number, y: number): string => `${Math.floor(x)},${Math.floor(y)}`;
@@ -183,7 +217,7 @@ function weld(segs: Seg[], runEnds: readonly Pt[]): Seg[] {
     const points = [s.a as Pt, ...cuts[i], s.b as Pt].sort((p, q) => along(p) - along(q));
     for (let k = 0; k + 1 < points.length; k++) {
       if (samePt(points[k], points[k + 1])) continue;
-      out.push({ a: [clean(points[k][0]), clean(points[k][1])], b: [clean(points[k + 1][0]), clean(points[k + 1][1])], kind: s.kind });
+      out.push({ a: [clean(points[k][0]), clean(points[k][1])], b: [clean(points[k + 1][0]), clean(points[k + 1][1])], kind: s.kind, ...(s.out ? { out: s.out } : {}) });
     }
   });
   // A curve that runs along a wall for a stretch lies on the same two points as the wall: one line, the wall's.
@@ -278,9 +312,36 @@ export function simplifyLoop(points: readonly GridPoint[]): GridPoint[] {
  * The rooms of a drawing: one per face of the wall graph that holds open floor. A square belongs to the smallest face
  * around its middle, so a closet walled inside a hall is its own room and the hall keeps the rest.
  */
+/** How far (cells) to step off a piece to say which side of a wall it is on. */
+const STEP = 0.01;
+
+/**
+ * A plain floor edge is a boundary only when no wall beyond it closes that void together with the room: the faces of
+ * the walls alone are found first, and an edge whose far side lies inside a wall face that holds its near side is
+ * dropped, so a pocket of void a wall closes off (the corner a diagonal cuts off a stepped floor) is part of the room.
+ * A room open on that side, with no wall beyond, keeps closing along its floor edge.
+ */
+function enclosedVoidsJoinRooms(pieces: Seg[]): Seg[] {
+  const rest = pieces.filter((s) => s.kind !== "edge");
+  if (rest.length === pieces.length || rest.length === 0) return pieces;
+  const walls: Record<string, WallEdge> = {};
+  rest.forEach((s, i) => {
+    walls[`w${i}`] = { type: "wall", pack_id: "", pack_version: 0, variant: 0, a: s.a, b: s.b };
+  });
+  const rings = detectRooms(buildGraph(walls)).map((f) => f.polygon);
+  return pieces.filter((s) => {
+    if (s.kind !== "edge" || !s.out) return true;
+    const mx = (s.a[0] + s.b[0]) / 2;
+    const my = (s.a[1] + s.b[1]) / 2;
+    const near: Pt = [mx - s.out[0] * STEP, my - s.out[1] * STEP];
+    const far: Pt = [mx + s.out[0] * STEP, my + s.out[1] * STEP];
+    return !rings.some((ring) => pointInRing(near[0], near[1], ring) && pointInRing(far[0], far[1], ring));
+  });
+}
+
 export function findFaces(layers: DungeonMapLayers): FoundFace[] {
   const { segs, runEnds } = collectSegments(layers);
-  const pieces = weld(segs, runEnds);
+  const pieces = enclosedVoidsJoinRooms(weld(segs, runEnds));
   const walls: Record<string, WallEdge> = {};
   pieces.forEach((s, i) => {
     walls[`f${i}`] = { type: "wall", pack_id: "", pack_version: 0, variant: 0, a: s.a, b: s.b };

@@ -25,6 +25,7 @@ import { classifyJoint } from "@/cartographer/edges";
 import { paintAngledWalls } from "@/cartographer/drawAngledWalls";
 import { edgeSegOf, isDrawn, ownedWall } from "@/cartographer/wallGraph";
 import { paintAreaGround, paintAreaWalls } from "@/cartographer/drawArea";
+import { cachedClippedGround, paintClippedGround } from "@/cartographer/clipFloor";
 import { paintLights, renderLightLayer } from "@/cartographer/drawLights";
 import { frameOf, type DrawMapInput, type Frame, type MakeCanvas, type ShadowLayer, type Target } from "@/cartographer/drawFrame";
 import {
@@ -219,6 +220,7 @@ function drawEdgeSeg(
 function paintGround(f: Frame, t: Target): void {
   const { tilePx, bounds, layers, runtime } = f;
   const { ctx } = t;
+  const clipped = cachedClippedGround(layers).handled;
   for (let y = bounds.minY; y <= bounds.maxY; y++) {
     for (let x = bounds.minX; x <= bounds.maxX; x++) {
       const key = cellKey(x, y);
@@ -236,6 +238,8 @@ function paintGround(f: Frame, t: Target): void {
       }
       // A brushed cell is clipped to its curve with the others, in `paintAreaGround` below.
       if (layers.area[key]) continue;
+      // A square an angled wall cuts is laid clipped to the room, in `paintClippedGround` below.
+      if (clipped.has(key)) continue;
       const cell = layers.floor[key];
       if (!cell?.floor) continue;
       const r = runtime(cell.floor.pack_id);
@@ -244,6 +248,7 @@ function paintGround(f: Frame, t: Target): void {
       ctx.drawImage(tile.source, sx, sy, tilePx, tilePx);
     }
   }
+  paintClippedGround(f, t, variantAt);
   paintAreaGround(f, t, variantAt);
 }
 

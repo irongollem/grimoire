@@ -185,3 +185,43 @@ describe("simplifyLoop on a smoothed curve", () => {
     for (const [x, y] of out) expect(Math.hypot(x - 5, y - 5)).toBeCloseTo(4, 6);
   });
 });
+
+describe("a floor edge that faces a void a wall closes off", () => {
+  // A 4x4 room whose corner square (3,0) has no floor, closed by a wall from (2,0) to (4,1) that meets the lattice
+  // walls at both ends. The outline must follow that wall, not the floor edge under it.
+  function chamfer(angledEnd: [number, number]): DungeonMapLayers {
+    const l = emptyLayers();
+    room(l, 0, 0, 4, 4);
+    delete l.floor[cellKey(3, 0)];
+    for (const x of [0, 1]) wall(l, x, 0, "N");
+    for (let x = 0; x < 4; x++) wall(l, x, 4 - 1, "S");
+    for (let y = 0; y < 4; y++) wall(l, 0, y, "W");
+    for (let y = 1; y < 4; y++) wall(l, 3, y, "E");
+    angled(l, "chamfer", [2, 0], angledEnd);
+    return l;
+  }
+
+  it("a void pocket between the floor and a wall that closes it belongs to the room, so the sliver under the wall is not cut off", () => {
+    const [face] = findFaces(chamfer([4, 1]));
+    expect(face.outline).toContainEqual([4, 1]);
+    expect(face.outline).not.toContainEqual([3, 1]);
+  });
+
+  it("an open floor edge with no wall beyond still closes the room", () => {
+    const [face] = findFaces(chamfer([3.5, 0.75]));
+    expect(face.outline).toContainEqual([3, 1]);
+  });
+
+  it("a void pocket between stepped floor and a diagonal wall belongs to the room", () => {
+    // Floor steps down along the line y = x (squares whose middle is below it); a wall runs the line itself.
+    const l = emptyLayers();
+    for (let y = 1; y < 4; y++) for (let x = 0; x < y; x++) l.floor[cellKey(x, y)] = { floor: PACK };
+    for (let y = 0; y < 4; y++) wall(l, 0, y, "W");
+    for (let x = 0; x < 4; x++) wall(l, x, 3, "S");
+    angled(l, "diagonal", [0, 0], [4, 4]);
+    const [face] = findFaces(l);
+    // The outline is the wall's triangle, not the staircase of floor edges under it.
+    expect(face.outline).toHaveLength(3);
+    expect(face.outline).toContainEqual([4, 4]);
+  });
+});

@@ -133,6 +133,8 @@ Project-wide policy. The pack loader **rejects any non-`.webp` asset**. Exports 
 - Wall-as-cell exclusively — silently steals 25–40% of grid area to walls, doesn't VTT-round-trip cleanly.
 - Edge-walls only — forces all walls to be thin; loses the dungeoneering aesthetic of thick masonry.
 
+**Floor is drawn clipped to the wall line (#1125, frame 17).** Squares stay the data, but a room bounded by an angled wall (a chamfer, a node dragged off the grid) is laid by `clipFloor.ts`: every square its outline touches is tiled and clipped to the outline, so the floor meets the wall along its line. A square whose middle is outside but part inside borrows the tile of the room's nearest floor. A floor edge next to a square an angled wall cuts through is not a bound when that wall is held at both ends (`roomOutline.ts`). Rooms whose outline runs along square edges, and brushed areas (`drawArea.ts`), are drawn as before. The editor, the bake and the live snapshot share this through `drawMapContent`; the traced rooms are cached per `layers.walls`.
+
 Doors live on edges (replacing the wall segment on that edge), exactly as in reality. Crossing a door = crossing an edge, not entering a cell. Grates and sluices (#1065) are edge segments too: they cut the space flood fill like walls and are not ways, so a canal passing through a grate does not join two rooms.
 
 ### Infinite canvas with crop-on-export

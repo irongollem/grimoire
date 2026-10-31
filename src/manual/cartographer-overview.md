@@ -96,6 +96,7 @@ The quickest way to move or turn a prop is the **Select** tool (`V`): click a pr
 Click any wall with **Select** and its whole run is picked: every wall joined to it, with a round handle on each corner (a **node**) and the slip at the top left counting them ("Wall run · 4 bones · 4 nodes · 1 door").
 
 - **Drag a node** and every wall meeting there follows. Drop it on another wall and it snaps on and joins it; a loop that closes fills with floor, and squares left outside lose theirs.
+- The floor follows the wall: where a wall runs at an angle, the floor is cut to its line, so no corner of a square pokes out past it and none is left bare under it.
 - **Double-click a wall** to put a node there, or drag the middle of a wall to do the same and bend it as you go.
 - **Delete** on a node joins its two walls into one. Delete on a wall takes that wall away.
 - **Shift**-drag a wall to slide it sideways; **Shift** while dragging a node holds it to 45 degrees. **Alt** skips the grid. **Esc** lets go of a drag, and one gesture is one step in Undo.
