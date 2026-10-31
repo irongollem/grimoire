@@ -17,13 +17,6 @@
 
     <div class="space-y-2 px-3">
       <CampaignScopeField :model-value="campaignId" @update:model-value="emit('update:campaignId', $event)" />
-      <AppCheckbox
-        v-if="referenceAvailable"
-        :model-value="showReference"
-        label="Show picture underneath"
-        size="sm"
-        @update:model-value="emit('update:showReference', $event)"
-      />
     </div>
 
     <div class="space-y-1">
@@ -67,7 +60,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
 import { IconClipboard, IconDelete, IconDownload, IconImage, IconSplitCell, IconWand, type AppIcon } from "@/lib/icons";
@@ -79,8 +71,6 @@ const { menuActions } = defineProps<{
   campaignId: string | null;
   spaceCount: number;
   spacesOpen: boolean;
-  referenceAvailable: boolean;
-  showReference: boolean;
   /** Which host actions to offer; the host lists only the ones it handles. */
   menuActions: readonly MapMenuAction[];
   /** Changes waiting to be published to the site; a chip when above zero. */
@@ -90,7 +80,6 @@ const { menuActions } = defineProps<{
 const emit = defineEmits<{
   "update:darkness": [level: DarknessLevel];
   "update:campaignId": [id: string | null];
-  "update:showReference": [show: boolean];
   toggleSpaces: [];
   menuAction: [id: MapMenuAction];
   /** The menu has done its job (an action was taken): the bar closes it. */

@@ -152,6 +152,7 @@ import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFl
 import { useHotkeys } from "@/composables/useHotkeys";
 import { IconChevronLeft, IconEncounter, IconMonitor } from "@/lib/icons";
 import {
+  entranceBattleCells,
   roomBattleCells,
   roomBeingEntered,
   roomCellIndex,
@@ -226,6 +227,8 @@ const { tokens, place, seatAt } = useExploreParty({
   roomCells,
   roomOrder: roomIds,
   partyRoomId: currentRoomId,
+  // An Entrance zone is where the party walks in (#1125): an unplaced party is seated there first.
+  entranceCells: computed(() => (surface.value ? entranceBattleCells(regions.value, surface.value.calibration) : [])),
   frame,
   sizeOf,
 });

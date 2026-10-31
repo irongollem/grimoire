@@ -35,6 +35,7 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     selectedCell: null,
     previewCells: new Set(),
     dressing: new Map(),
+    gridAlpha: 0.06,
     ...overrides,
   };
   return { scene, rec };
@@ -49,6 +50,23 @@ describe("renderMap — empty map", () => {
     expect(rec.fillRects[0]).toEqual({ x: 0, y: 0, w: 800, h: 600 });
     expect(rec.calls).toContain("stroke"); // grid overlay
     expect(rec.drawImages).toHaveLength(0);
+  });
+});
+
+describe("renderMap: the Grid switch", () => {
+  it("draws no grid lines at all when the grid is switched off", () => {
+    const { scene, rec } = baseScene({ gridAlpha: null });
+    renderMap(scene);
+    expect(rec.calls).not.toContain("stroke");
+  });
+
+  it("strokes the grid at the strength it is given, so Bold is stronger than Faint", () => {
+    const faint = baseScene({ gridAlpha: 0.06 });
+    renderMap(faint.scene);
+    const bold = baseScene({ gridAlpha: 0.36 });
+    renderMap(bold.scene);
+    expect(faint.rec.strokeStyles[0]).toBe("rgba(255, 255, 255, 0.06)");
+    expect(bold.rec.strokeStyles[0]).toBe("rgba(255, 255, 255, 0.36)");
   });
 });
 

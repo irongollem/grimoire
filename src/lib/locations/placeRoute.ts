@@ -1,3 +1,5 @@
+import type { EditorLayer } from "@/cartographer/keymap";
+
 /**
  * Where a place opens: the Atlas, with that place selected.
  *
@@ -21,9 +23,9 @@ export function exploreRoute(id: string): string {
   return `/locations/${encodeURIComponent(id)}/explore`;
 }
 
-/** The layers the full-screen map editor can open on. `drawing`, `plan` and
- *  `picture` belong to a site, `picture` and `pins` to any other place. */
-export type MapEditorLayer = "drawing" | "plan" | "picture" | "pins";
+/** The tabs the full-screen map editor can open on, as the address spells them (`?layer=`): the Base image,
+ *  the Drawing and Zoning belong to a site, the Base image and `pins` to any other place. */
+export type MapEditorLayer = "base" | "drawing" | "zoning" | "pins";
 
 export function placeRoute(id: string, mode?: PlaceMode): string {
   if (mode === "map") return mapEditorRoute(id);
@@ -39,12 +41,20 @@ export function mapEditorRoute(id: string, layer?: MapEditorLayer): string {
   return layer ? `${path}?layer=${layer}` : path;
 }
 
-const SITE_LAYERS: readonly MapEditorLayer[] = ["drawing", "plan", "picture"];
-const PLACE_LAYERS: readonly MapEditorLayer[] = ["picture", "pins"];
+const SITE_LAYERS: readonly MapEditorLayer[] = ["drawing", "zoning", "base"];
+const PLACE_LAYERS: readonly MapEditorLayer[] = ["base", "pins"];
+
+/** The workbench's own name for an address layer (it keeps its code names: picture, drawing, plan). `pins` is
+ *  not a workbench tab. */
+export function editorLayerOf(layer: MapEditorLayer): EditorLayer | undefined {
+  if (layer === "base") return "picture";
+  if (layer === "zoning") return "plan";
+  return layer === "drawing" ? "drawing" : undefined;
+}
 
 /** The layer the editor opens on: `?layer=` when this kind of place has it,
- *  otherwise the first (a site's Drawing, any other place's Picture). A site
- *  has no Pins layer and a town has no Drawing or Plan, so a stray value
+ *  otherwise the first (a site's Drawing, any other place's Base image). A site
+ *  has no Pins layer and a town has no Drawing or Zoning, so a stray value
  *  falls back rather than opening an editor with nothing under it. */
 export function startLayer(raw: unknown, isSite: boolean): MapEditorLayer {
   const allowed = isSite ? SITE_LAYERS : PLACE_LAYERS;

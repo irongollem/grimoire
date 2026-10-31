@@ -107,7 +107,7 @@ const router = useRouter();
 
 /** The map editor is where the scale is set (`PlaceMapPinsEditor`). */
 function openEditor() {
-  void router.push(mapEditorRoute(locationId, "picture"));
+  void router.push(mapEditorRoute(locationId, "base"));
 }
 
 /** "Waterdeep to Daggerford", when the route's ends are places. */

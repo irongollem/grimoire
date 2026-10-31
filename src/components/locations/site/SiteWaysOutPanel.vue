@@ -52,7 +52,7 @@
           <template v-if="row.isUnplaced && !editable">
             <span class="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">not on the map</span>
             <RouterLink
-              :to="mapEditorRoute(siteId, 'plan')"
+              :to="mapEditorRoute(siteId, 'zoning')"
               class="ml-1.5 text-caption font-semibold text-primary hover:underline"
             >Place it</RouterLink>
           </template>

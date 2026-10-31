@@ -32,7 +32,7 @@
 
     <!-- The tile sets, like Photoshop's two colour swatches at the foot of its toolbar: they are
          not tools, they are what the tools paint with. The active set sits on top, the second
-         set underneath; Shift+X (or the arrows) trades them. Absent on layers that paint no tiles. -->
+         set underneath; X trades them. Absent on layers that paint no tiles. -->
     <template v-if="tileSet">
       <span
         class="mx-0.5 w-px shrink-0 self-stretch bg-border lg:mx-0 lg:my-1 lg:h-px lg:w-auto lg:self-auto"
@@ -93,17 +93,18 @@
             </template>
           </CartographerPopover>
         </div>
-        <!-- Inside the group's top-right corner, the one spot neither square covers. -->
+        <!-- Inside the group's top-right corner, the one spot neither square covers: the swap, labelled with
+             its key the way every tool is. -->
         <div v-if="tileSet.secondPackId !== null" class="absolute right-0 top-0 h-4 w-4">
           <AppButton
             variant="ghost"
             size="icon-xs"
             class="h-full w-full min-w-0 p-0"
-            :icon="IconRepeat"
             aria-label="Swap tile sets"
-            tooltip="Swap the two tile sets (Shift+X)"
+            tooltip="Swap the two tile sets (X)"
             @click="emit('swapTileSets')"
           />
+          <KeyCap corner class="pointer-events-none">X</KeyCap>
         </div>
       </div>
     </template>
@@ -117,7 +118,6 @@ import KeyCap from "@/components/common/controls/KeyCap.vue";
 import CartographerPackSwatch from "@/components/cartographer/CartographerPackSwatch.vue";
 import CartographerPopover from "@/components/cartographer/CartographerPopover.vue";
 import CartographerTileSetList, { type TileSetChoice } from "@/components/cartographer/CartographerTileSetList.vue";
-import { IconRepeat } from "@/lib/icons";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 
 export interface RailTool {

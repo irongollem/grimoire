@@ -54,7 +54,7 @@ import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import { IconEdit, IconGrid, IconMap, IconUpload } from "@/lib/icons";
-import { mapEditorRoute } from "@/lib/locations/placeRoute";
+import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
 import type { Location } from "@/types/location.types";
 
 /** A blank grid's starting size (#1125, frame 04): big enough to lay out a
@@ -77,7 +77,7 @@ const dragging = ref(false);
 const busy = ref(false);
 
 /** Runs one start action, then opens the editor on the layer it set up. */
-async function startThen(layer: "drawing" | "plan" | "picture", setup?: () => Promise<void>): Promise<void> {
+async function startThen(layer: MapEditorLayer, setup?: () => Promise<void>): Promise<void> {
   if (busy.value) return;
   busy.value = true;
   try {
@@ -98,7 +98,7 @@ function onDraw(): Promise<void> {
 }
 
 function onBlankGrid(): Promise<void> {
-  return startThen("plan", async () => {
+  return startThen("zoning", async () => {
     await updateLocation({ id: location.id, update: { plan_size: BLANK_GRID } });
   });
 }

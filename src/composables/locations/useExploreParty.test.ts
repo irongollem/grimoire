@@ -22,7 +22,7 @@ function campaignWith(explore: ExploreParty | null): Campaign {
 function setup(
   stored: ExploreParty | null = null,
   sizeOf?: (id: string) => "large" | null,
-  site: { roomCells?: ReadonlyMap<string, CellKey[]>; roomOrder?: string[]; frame?: { across: number; down: number } | null } = {},
+  site: { roomCells?: ReadonlyMap<string, CellKey[]>; roomOrder?: string[]; frame?: { across: number; down: number } | null; entranceCells?: CellKey[] } = {},
 ) {
   const store = useCampaignStore();
   store.activeCampaignId = "c1";
@@ -35,6 +35,7 @@ function setup(
       roomCells: () => site.roomCells ?? ROOMS,
       roomOrder: site.roomOrder ?? ["hall"],
       partyRoomId: () => null,
+      ...(site.entranceCells ? { entranceCells: () => site.entranceCells! } : {}),
       frame: () => site.frame ?? null,
       ...(sizeOf ? { sizeOf } : {}),
     }),
@@ -164,5 +165,32 @@ describe("useExploreParty on a site with no rooms", () => {
     expect(b).toEqual({ x: 9, y: 9 });
     vi.advanceTimersByTime(500);
     expect(h.write).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useExploreParty at an Entrance zone", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.useFakeTimers();
+    h.write.mockClear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  // #1125: "Explore seats the party there": the entrance wins over the room and the centre.
+  it("walks an unplaced party in at the entrance, not the room or the centre", () => {
+    const { api } = setup(null, undefined, { entranceCells: ["8,8", "9,8"], frame: { across: 40, down: 30 } });
+    expect(api.tokens.value.map((t) => t.position)).toEqual([{ x: 8, y: 8 }, { x: 9, y: 8 }]);
+  });
+
+  it("seats whoever the entrance has no room for in the rooms rather than leaving them off the map", () => {
+    const { api } = setup(null, undefined, { entranceCells: ["8,8"], frame: { across: 40, down: 30 } });
+    const [a, b] = api.tokens.value.map((t) => t.position);
+    expect(a).toEqual({ x: 8, y: 8 });
+    expect(b).toEqual({ x: 0, y: 0 });
+  });
+
+  it("keeps a placed character where they stand when an entrance is drawn later", () => {
+    const { api } = setup({ site_id: "s1", positions: { a: { x: 2, y: 2 }, b: { x: 3, y: 2 } } }, undefined, { entranceCells: ["8,8", "9,8"] });
+    expect(api.tokens.value.map((t) => t.position)).toEqual([{ x: 2, y: 2 }, { x: 3, y: 2 }]);
   });
 });

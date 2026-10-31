@@ -66,8 +66,8 @@ describe("PlaceMapEditorView", () => {
   });
 
   it("opens a site on the layer in ?layer=", () => {
-    mocks.query = { layer: "plan" };
-    expect(mountView().findComponent({ name: "SiteMapEditor" }).props("startLayer")).toBe("plan");
+    mocks.query = { layer: "zoning" };
+    expect(mountView().findComponent({ name: "SiteMapEditor" }).props("startLayer")).toBe("zoning");
   });
 
   it("opens a site on its Drawing when no layer is asked for, or one a site lacks", () => {

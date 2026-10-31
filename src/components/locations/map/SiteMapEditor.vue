@@ -154,7 +154,7 @@ import { downloadBlob } from "@/lib/downloadBlob";
 import { exportDrawingAsVtt } from "@/lib/mapImport/exportDrawing";
 import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
-import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
+import { editorLayerOf, mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
 import { playReadiness, type ReadyFixAction } from "@/lib/locations/playReadiness";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { childrenOf, type AtlasIndex } from "@/lib/locations/tree";
@@ -218,16 +218,16 @@ const saveState = computed(() => (autosave.saving.value ? "Saving…" : autosave
 onBeforeUnmount(() => { void autosave.flush(); });
 onBeforeRouteLeave(async () => { await autosave.flush(); });
 
-// ── Picture layer ───────────────────────────────────────────────────────────
-// Every write the Picture palette asks for. The workbench only draws it.
+// ── Base image tab ───────────────────────────────────────────────────────────
+// Every write the Base image tab asks for. The workbench only draws it.
 const picture = usePlacePicture(() => location);
 
 /** The layer named in the address, or none: the workbench then opens where the site's map needs work (a picture with
- *  no grid opens on the Picture), which the route's own default of the Drawing cannot know. */
+ *  no grid opens on the Base image), which the route's own default of the Drawing cannot know. */
 const route = useRoute();
 const requestedLayer = computed(() => {
   if (route.query.layer === undefined) return undefined;
-  return startLayer === "drawing" || startLayer === "plan" || startLayer === "picture" ? startLayer : undefined;
+  return editorLayerOf(startLayer);
 });
 
 // ── Ready for the table (frame 08) ──────────────────────────────────────────

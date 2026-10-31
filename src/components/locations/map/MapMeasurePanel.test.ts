@@ -73,7 +73,7 @@ describe("MapMeasurePanel", () => {
     const wrapper = mountPanel({ scale: null, summary: null });
     expect(wrapper.text()).toContain("no scale");
     await wrapper.findAll("button").find((b) => b.text() === "Edit map")!.trigger("click");
-    expect(mocks.push).toHaveBeenCalledWith("/locations/place-1/map?layer=picture");
+    expect(mocks.push).toHaveBeenCalledWith("/locations/place-1/map?layer=base");
   });
 
   it("prompts for the first tap on an empty route", () => {

@@ -297,7 +297,7 @@ async function add(): Promise<void> {
     const { placeId: placed } = await addMap(input);
     store.clear();
     // A created thing opens (like a new Scriptorium book): the editor saves itself, so there is no list to confirm on.
-    await router.push(mapEditorRoute(placed, "picture"));
+    await router.push(mapEditorRoute(placed, "base"));
   } catch (e) {
     toast.error(toast.fromError(e));
   } finally {

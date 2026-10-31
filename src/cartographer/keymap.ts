@@ -8,6 +8,12 @@
 import type { Tool } from "@/cartographer/tools";
 import { resolveZoomKey, type ZoomTarget } from "@/lib/canvasControls/zoomKeys";
 
+/** The editor's three tabs under their code names: Base image, Drawing, Zoning. */
+export type EditorLayer = "picture" | "drawing" | "plan";
+
+/** 1, 2 and 3 pick the tabs in the order the bar draws them. */
+const LAYER_KEYS: Record<string, EditorLayer> = { "1": "picture", "2": "drawing", "3": "plan" };
+
 export type KeyAction =
   | { kind: "undo" }
   | { kind: "redo" }
@@ -30,8 +36,12 @@ export type KeyAction =
   | { kind: "clearSelection" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
-  /** Shift+X: the active and second tile sets trade places, as Photoshop's X trades its two colours. */
+  /** X: the active and second tile sets trade places, as Photoshop's X trades its two colours. */
   | { kind: "swapTileSets" }
+  /** 1, 2, 3: switch to the Base image, Drawing or Zoning tab (only where the map has tabs). */
+  | { kind: "selectLayer"; layer: EditorLayer }
+  /** G: show or hide the square grid on every tab. */
+  | { kind: "toggleGrid" }
   | { kind: "selectTool"; tool: Tool };
 
 export interface KeyEventLike {
@@ -48,7 +58,9 @@ export interface KeyEventLike {
 
 export interface KeyContext {
   activeTool: Tool;
-  tools: ReadonlyArray<{ id: Tool; shortcut?: string; /** Further keys that pick the same tool (Place answers to G as well as O). */ aliases?: readonly string[]; disabled?: boolean }>;
+  tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
+  /** The map has the Base image / Drawing / Zoning tabs (a site's map); 1, 2 and 3 do nothing without them. */
+  hasLayerTabs?: boolean;
   /** Place has something armed (an object or a prop); Escape then puts it down before it leaves the tool. */
   placeArmed?: boolean;
   /** Angled wall has points down that are not yet a wall; Enter ends the run, Escape abandons it. */
@@ -93,8 +105,11 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   const key = ev.key.toLowerCase();
   if (key === "c") return { kind: "center" };
 
-  // Before the shortcut lookup: X alone is the Wrap tool, and `key` is "x" with Shift held too.
-  if (ev.shiftKey && key === "x") return { kind: "swapTileSets" };
+  // Photoshop's swap. Shift+X means nothing (it used to be the swap while X was Wrap).
+  if (key === "x") return ev.shiftKey ? null : { kind: "swapTileSets" };
+  if (key === "g") return { kind: "toggleGrid" };
+  // Shift+1 is the zoom-to-fit chord, resolved above; with Shift the digit is not a tab key.
+  if (ctx.hasLayerTabs && !ev.shiftKey && key in LAYER_KEYS) return { kind: "selectLayer", layer: LAYER_KEYS[key] };
 
   // Escape always means "back to Select" — none of the free letters
   // read naturally for it, and unlike every other tool it needs a way back
@@ -131,7 +146,7 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
     if (DRESSING_DELETE_KEYS.has(key)) return { kind: "deleteDressing" };
   }
 
-  const tool = ctx.tools.find((t) => t.shortcut === key || t.aliases?.includes(key));
+  const tool = ctx.tools.find((t) => t.shortcut === key);
   if (tool && !tool.disabled) return { kind: "selectTool", tool: tool.id };
 
   return null;

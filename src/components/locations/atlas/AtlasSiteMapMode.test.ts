@@ -60,8 +60,8 @@ beforeEach(() => mocks.push.mockClear());
 describe("AtlasSiteMapMode", () => {
   it.each([
     ["a site drawn with the Cartographer opens on its Drawing", { map_layer_url: "https://x/d.png", map_url: "https://x/p.png" }, "drawing"],
-    ["a site with only a scan opens on its Picture", { map_url: "https://x/p.png" }, "picture"],
-    ["a site with only a blank grid opens on its Plan", { plan_size: { cols: 30, rows: 20 } }, "plan"],
+    ["a site with only a scan opens on its Base image", { map_url: "https://x/p.png" }, "base"],
+    ["a site with only a blank grid opens on its Zoning", { plan_size: { cols: 30, rows: 20 } }, "zoning"],
   ])("Edit map: %s", async (_name, over, layer) => {
     const w = mountMode(place({ id: "s", ...over }));
     await flushPromises();
@@ -73,7 +73,7 @@ describe("AtlasSiteMapMode", () => {
     const w = mountMode(place({ id: "t", location_type: "city", map_url: "https://x/p.png" }));
     await flushPromises();
     editMap(w)!.vm.$emit("click");
-    expect(mocks.push).toHaveBeenCalledWith("/locations/t/map?layer=picture");
+    expect(mocks.push).toHaveBeenCalledWith("/locations/t/map?layer=base");
   });
 
   it("opens a room's card on a region click instead of diving into it, and dives from the card", async () => {

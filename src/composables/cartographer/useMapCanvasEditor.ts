@@ -18,7 +18,7 @@ import type { AppInputHandle } from "@/components/common/controls/fieldVariants"
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { StampCategory } from "@/cartographer/stampCategories";
 import { boundsOfCells, pinchOf, pinchViewport, type Pinch, type CanvasViewport, type CellBounds } from "@/cartographer/viewport";
-import { clampBrushRadius, resolveKeyAction } from "@/cartographer/keymap";
+import { clampBrushRadius, resolveKeyAction, type EditorLayer } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
 import { wallKindCategory, type WallKind } from "@/cartographer/wallKinds";
@@ -127,13 +127,19 @@ export interface MapCanvasEditorOptions {
    *  above) or the Plan (`planTools`, built from this composable's own
    *  `plan`) — see `handleActiveLayerPointerDown` below for the split. */
   plan?: ReturnType<typeof usePlanPalette>;
-  activeLayer?: Ref<"drawing" | "plan" | "picture">;
+  activeLayer?: Ref<EditorLayer>;
+  /** The map has the Base image / Drawing / Zoning tabs, so 1, 2 and 3 switch them. */
+  hasLayerTabs?: boolean;
+  /** Opacity of the square grid, or null while it is switched off. */
+  gridAlpha: Ref<number | null>;
+  /** G: show or hide the grid. */
+  toggleGrid: () => void;
   /** Whether Space and the zoom keys are this canvas's to take. The editor listens on the
    *  window, and the workbench also sits inside whole pages (the Atlas) whose other
    *  controls need Space and the browser's own zoom, so the host answers true only while
    *  the pointer is over the map or focus is inside it. Omitted: always. */
   keysActive?: () => boolean;
-  /** Shift+X: trade the active and second tile sets. */
+  /** X: trade the active and second tile sets. */
   swapTileSets?: () => void;
 }
 
@@ -141,12 +147,15 @@ export interface MapCanvasEditorOptions {
 // to "snap" to wall placement. 0.25 = within the outer 25% of the cell.
 const EDGE_HOVER_THRESHOLD = 0.25;
 
+/** The editor's background colour at partial strength: laid over the layers below the active tab to dim them. */
+const LAYERS_BELOW_SCRIM = "rgba(20, 18, 16, 0.4)";
+
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape,
     brushRadius, rectWalls, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
-    plan, activeLayer, keysActive, swapTileSets,
+    plan, activeLayer, hasLayerTabs, gridAlpha, toggleGrid, keysActive, swapTileSets,
   } = opts;
 
   /** Every edit funnels through here instead of writing `dirty.value = true`
@@ -799,6 +808,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       selectedCell: selectedCell.value,
       previewCells: previewCells.value,
       referenceImage: getReferenceImage(tilePx, viewportOffset.value),
+      gridAlpha: gridAlpha.value,
       ...structureTools.renderStructureScene(),
       ...dressingTool.renderScene(),
       editorMarks: {
@@ -818,6 +828,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // ghost), not just while the Plan layer is the active one — a DM traces
     // against the Drawing underneath, so both must be visible together.
     if (planTools) {
+      // Zoning sits over the Drawing: the layers below it show dimmed, so the traced rooms are what the eye finds.
+      if (isPlanLayerActive()) {
+        ctx.fillStyle = LAYERS_BELOW_SCRIM;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
       const viewport: TileViewport = { tilePx, viewportOffset: viewportOffset.value };
       const scene = planTools.renderScene();
       drawPlanSpaces(ctx, viewport, scene.regions, scene.activeRegionId, scene.cellsOverride);
@@ -853,7 +868,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     [
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
-      dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, ...extraRenderDeps, ...planRenderDeps,
+      dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, gridAlpha, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
@@ -1453,6 +1468,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       {
         activeTool: activeTool.value,
         tools,
+        hasLayerTabs,
         placeArmed: placeItem.value !== null,
         angledRunOpen: angledTool.run.value.length > 0,
         selectionDeletable:
@@ -1493,6 +1509,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         brushRadius.value = clampBrushRadius(brushRadius.value + action.delta);
         break;
       case "swapTileSets": swapTileSets?.(); break;
+      case "selectLayer": if (activeLayer) activeLayer.value = action.layer; break;
+      case "toggleGrid": toggleGrid(); break;
       case "selectTool": activeTool.value = action.tool; break;
     }
     ev.preventDefault();

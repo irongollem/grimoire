@@ -11,7 +11,7 @@ function bar(over: Record<string, unknown> = {}) {
   return mount(CartographerBar, {
     props: {
       darkness: "daylight", campaignId: null, spaceCount: 3, spacesOpen: false,
-      canUndo: true, canRedo: true, referenceAvailable: false, showReference: false,
+      canUndo: true, canRedo: true,
       menuActions: [] as MapMenuAction[], showReady: false,
       ...over,
     },
@@ -29,9 +29,9 @@ const menuButton = (text: string) => menuButtons().find((b) => b.textContent?.in
 describe("the bar", () => {
   it("shows Ready only when the host has a finish to offer, and reports the click", async () => {
     const without = bar();
-    expect(without.findAll("button").some((b) => b.text() === "Ready")).toBe(false);
+    expect(without.findAll("button").some((b) => b.text() === "Ready to play")).toBe(false);
     const w = bar({ showReady: true });
-    await w.findAll("button").find((b) => b.text() === "Ready")?.trigger("click");
+    await w.findAll("button").find((b) => b.text() === "Ready to play")?.trigger("click");
     expect(w.emitted("ready")).toHaveLength(1);
   });
 
@@ -91,13 +91,10 @@ describe("the Map menu", () => {
     expect(row?.textContent?.replace("Review changes to the site", "").trim()).toBe("");
   });
 
-  it("offers the picture-underneath toggle only when the site has a Picture", async () => {
-    const without = bar();
-    await openMenu(without);
+  it("no longer offers 'Show picture underneath': the tabs decide what shows", async () => {
+    const w = bar();
+    await openMenu(w);
     expect(document.body.textContent).not.toContain("Show picture underneath");
-    const withPic = bar({ referenceAvailable: true });
-    await openMenu(withPic);
-    expect(document.body.textContent).toContain("Show picture underneath");
   });
 
   it("no longer keeps the tile set in the Map menu: the rail's swatch is its one place", async () => {

@@ -11,14 +11,11 @@
       :can-undo="canUndo"
       :can-redo="canRedo"
       :save-state="saveState"
-      :reference-available="!!referencePicture"
-      :show-reference="showPictureReference"
       :menu-actions="menuActions"
       :review-count="reviewCount"
       :show-ready="showReady"
       @update:darkness="setDarkness"
       @update:campaign-id="campaignId = $event"
-      @update:show-reference="showPictureReference = $event"
       @toggle-spaces="toggleSpaces"
       @menu-action="emit('menu-action', $event)"
       @ready="emit('ready')"
@@ -26,16 +23,19 @@
       @redo="redoEdit"
     >
       <template #start><slot name="bar-start" :map-name="name" :set-name="setName" /></template>
-      <!-- Drawing / Plan — only with a site: standalone /cartographer/:id has no Plan to
+      <!-- Base image / Drawing / Zoning — only with a site: standalone /cartographer/:id has nothing to
            switch to, so it never renders there and `activeLayer` stays "drawing" forever.
            It lives here, not in the host, because the layer is workbench state. -->
       <template v-if="site" #layer>
-        <SegmentedControl
-          :model-value="activeLayer"
-          :options="LAYER_OPTIONS"
-          size="xs"
-          class="shrink-0"
-          @update:model-value="activeLayer = $event"
+        <CartographerLayerTabs v-model="activeLayer" />
+      </template>
+      <template #grid>
+        <CartographerGridControl
+          v-model:shown="gridShown"
+          v-model:strength="gridStrength"
+          :square-text="gridSquareText"
+          :can-line-up="!!referencePicture"
+          @line-up="lineUpBaseImage"
         />
       </template>
       <template #end><slot name="bar-end" /></template>
@@ -86,6 +86,19 @@
           :url="referencePicture.url"
           :natural="pictureNatural"
           :hint="lineUpHint"
+        />
+
+        <!-- The base image is shown on a guessed grid until the DM lines one up: say so, and go there. -->
+        <AppButton
+          v-if="!viewMode && gridNotLinedUp"
+          data-slip
+          variant="tinted"
+          tone="caution"
+          size="sm"
+          class="absolute right-2 top-2"
+          label="Grid not lined up"
+          tooltip="The base image is drawn on a guessed grid. Line it up so rooms and walls sit on its squares."
+          @click="lineUpBaseImage"
         />
 
         <!-- Status bar -->
@@ -300,8 +313,8 @@
 //               given, the site's Picture layer renders as a toggleable
 //               ghost reference beneath the canvas (positioned via its own
 //               `grid_calibration` against this component's viewport), AND
-//               a layer selector appears (#884 S7b) switching between the
-//               Drawing (every tool above) and the Plan — a DM tracing
+//               the Base image / Drawing / Zoning tabs appear (#884 S7b, Map Table frame 18) switching between the
+//               Drawing (every tool above) and Zoning (the Plan) — a DM tracing
 //               `location_map_regions`/`location_doors` for this site
 //               directly on this same canvas, in the same tile-cell space
 //               the Drawing already paints (see `buildReferenceImage`'s own
@@ -312,8 +325,8 @@
 // ── Slots ────────────────────────────────────────────────────────────────
 // `bar-start` (scoped: `mapName`, `setName`) and `bar-end` fill the two ends of the bar: the
 // standalone host puts a way back and the map's name in the first and Delete/Cancel/Save in the
-// second, Atlas Build its level picker in the first. The workbench itself puts the Drawing/Plan
-// switch after `bar-start`, because the layer is its own state.
+// second, Atlas Build its level picker in the first. The workbench itself puts the tabs and the Grid
+// control after `bar-start`, because the layer is its own state.
 //
 // ── Emits ────────────────────────────────────────────────────────────────
 // `update:dirty` — fires whenever the unsaved-edit flag changes. The host
@@ -381,10 +394,11 @@ import type { AppInputHandle } from "@/components/common/controls/fieldVariants"
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { storeToRefs } from "pinia";
 import { useCartographerUiStore } from "@/stores/ui/cartographer";
 import CartographerBar from "@/components/cartographer/CartographerBar.vue";
+import CartographerGridControl from "@/components/cartographer/CartographerGridControl.vue";
+import CartographerLayerTabs from "@/components/cartographer/CartographerLayerTabs.vue";
 import CartographerDrawer from "@/components/cartographer/CartographerDrawer.vue";
 import CartographerPlaceCatalog from "@/components/cartographer/CartographerPlaceCatalog.vue";
 import CartographerToolRail, { type RailFamily } from "@/components/cartographer/CartographerToolRail.vue";
@@ -411,6 +425,8 @@ import { loadLibraryPack, useLibraryTilePacks } from "@/composables/cartographer
 import { useCampaignStore } from "@/stores/campaign";
 import type { MapMenuAction, PlaceItem, Tool } from "@/cartographer/tools";
 import { placeItemLabel, pushRecent } from "@/cartographer/placeItem";
+import type { EditorLayer } from "@/cartographer/keymap";
+import { boundsOfCells } from "@/cartographer/viewport";
 import {
   emptyLayers,
   withLayerDefaults,
@@ -431,7 +447,7 @@ import { wallAt } from "@/cartographer/wallGraph";
 import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
 import type { GridCalibration, LocationType } from "@/types/location.types";
-import { useCanvasFraming, useReferencePicture, useWorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
+import { squareReadout, useCanvasFraming, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
 
 const {
   map, viewMode, site, spaces, saveState, menuActions = [], reviewCount, showReady = false, startLayer,
@@ -441,7 +457,7 @@ const {
   viewMode: boolean;
   /** The layer to open on, when the host was sent for one ("Place it" asks for the Plan). Absent: the Plan
    *  when the site already has a map to trace over, else the Drawing. */
-  startLayer?: "drawing" | "plan" | "picture";
+  startLayer?: EditorLayer;
   /** What an unnamed map is called: a site's drawing takes the site's name. */
   defaultName?: string;
   /** The squares an empty map opens zoomed to show (Start a map's size); the grid itself is endless. */
@@ -604,8 +620,6 @@ interface ToolDef {
   icon: Component;
   /** Single keyboard key that activates this tool (lowercase, plain key — no modifiers). */
   shortcut?: string;
-  /** Further keys that pick the tool (Place answers to G, the key Dressing used). */
-  aliases?: readonly string[];
   disabled?: boolean;
 }
 // The default tool on open: a DM's first tap must never paint. Select sits first in its
@@ -627,9 +641,9 @@ const TOOLS: ToolDef[] = [
   { id: "solid",    label: "Rock",          icon: IconCube,         shortcut: "s" },
   { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w" },
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
-  { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "x" },
+  { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "j" },
   { id: "angledWall", label: "Angled wall",  icon: IconAngledWall, shortcut: "n" },
-  { id: "place",    label: "Place",         icon: IconObjectStamp,  shortcut: "o", aliases: ["g"] },
+  { id: "place",    label: "Place",         icon: IconObjectStamp,  shortcut: "o" },
   { id: "light",    label: "Light",         icon: IconLight,       shortcut: "u" },
   { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t" },
   { id: "link",     label: "Link",          icon: IconEntityLink,   shortcut: "k" },
@@ -672,9 +686,9 @@ const RAIL_FAMILIES: RailFamily[] = TOOL_FAMILIES.map((f) => ({
   tools: f.tools.map(toolDef),
   dividerBefore: f.dividerBefore,
 }));
-// The second tile set, one Shift+X from the active one (kept per map in the cartographer UI
+// The second tile set, one X from the active one (kept per map in the cartographer UI
 // store); until one is chosen it is the first other set on offer.
-const { secondPackByMap } = storeToRefs(useCartographerUiStore());
+const { secondPackByMap, gridShown, gridStrength, gridAlpha } = storeToRefs(useCartographerUiStore());
 const secondPackId = computed<string | null>(() => {
   const stored = secondPackByMap.value[map?.id || "new"];
   const offered = selectablePacks.value.filter((p) => p.pack_id !== currentPackId.value);
@@ -684,6 +698,8 @@ function setSecondPack(id: string): void {
   secondPackByMap.value = { ...secondPackByMap.value, [map?.id || "new"]: id };
 }
 function swapTileSets(): void {
+  // Only the Drawing paints tiles; the rail shows no swatches on the other tabs, so X has nothing to swap there.
+  if (activeLayer.value !== "drawing") return;
   const second = secondPackId.value;
   if (second === null) return;
   setSecondPack(currentPackId.value);
@@ -1008,17 +1024,13 @@ const plan = usePlanPalette(siteId);
 // opens on Plan to trace it (#878 S2); one whose only map is a picture without a grid opens on the Picture, where the
 // grid gets lined up. The standalone route passes no `site` and lands on the Drawing.
 const needsGrid = !!site && !!stack.value.picture && !stack.value.picture.calibration && !stack.value.drawing;
-const activeLayer = ref<"drawing" | "plan" | "picture">(
+const activeLayer = ref<EditorLayer>(
   startLayer ?? (needsGrid ? "picture" : site && hasAnyMapLayer(site) ? "plan" : "drawing"),
 );
-const { showPictureReference, referenceImageEl, buildReferenceImage } = useReferencePicture(referencePicture, activeLayer);
-// "Drawing" and "Plan" are the site workbench's own words (#884) and mean nothing to
-// someone opening Build for the first time, so each says what it is for in its tooltip.
-const LAYER_OPTIONS: SegmentedOption<"picture" | "drawing" | "plan">[] = [
-  { value: "picture", label: "Picture", tooltip: "The scan or render under everything: add it, line its grid up, remove it." },
-  { value: "drawing", label: "Drawing", tooltip: "The map itself: paint floors, walls, doors and objects on the grid." },
-  { value: "plan", label: "Plan", tooltip: "The rooms: outline each space and link it to its place, so the map knows which room is which." },
-];
+const { showPictureReference, referenceImageEl, buildReferenceImage, gridNotLinedUp } = useReferencePicture(referencePicture, activeLayer);
+function toggleGrid(): void {
+  gridShown.value = !gridShown.value;
+}
 
 // ── The right drawer: one panel at a time over the canvas's edge. Plan opens on its own
 // lists (they are how a traced shape is bound to a room); Place opens its catalogue with its tool,
@@ -1065,7 +1077,7 @@ const {
   selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
-  plan, activeLayer, keysActive, swapTileSets,
+  plan, activeLayer, hasLayerTabs: !!site, gridAlpha, toggleGrid, keysActive, swapTileSets,
 });
 
 // Picture layer (canvas frame 07): lining the grid up and fitting the view.
@@ -1075,6 +1087,23 @@ const { liningUp, draftCalibration, boxMode, pictureNatural, pictureStage, lineU
     picture: referencePicture, imageEl: referenceImageEl, activeLayer, fitCanvasTo,
     onLined: (calibration) => emit("update:pictureCalibration", calibration),
   });
+// Drawing and Zoning open fitted to the whole map the first time each is entered (frame 18).
+useFitMapOnFirstEntry({
+  activeLayer, picture: referencePicture, pictureNatural, fitCanvasTo, mapId: () => map?.id,
+  paintedBounds: () => boundsOfCells([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]),
+});
+
+/** The Grid options' size read-out, once the base image has a grid of its own to read it from. */
+const gridSquareText = computed(() => {
+  const cal = referencePicture.value?.calibration;
+  const natural = pictureNatural.value;
+  return cal && natural ? squareReadout(cal, natural) : null;
+});
+/** Straight to the line-up on the Base image tab (the Grid options' button, the chip, and the Ready check's fix). */
+function lineUpBaseImage(): void {
+  activeLayer.value = "picture";
+  startLineUp();
+}
 
 /** What the Light slip shows: the selected light when one is picked, else what the next one will be. */
 const shownLight = computed<TileLight>(() => {
@@ -1203,7 +1232,7 @@ defineExpose({
   markSaved,
   /** The ready check's fixes (#1125 frame 08): each lands the DM where the fix is made. */
   setDarkness,
-  startLineUp: () => { activeLayer.value = "picture"; startLineUp(); },
+  startLineUp: lineUpBaseImage,
   armDoorPlacement: (doorId: string) => { activeLayer.value = "plan"; plan.armDoorPlacement(doorId); },
   showSpaces: () => { activeLayer.value = "plan"; drawer.value = "plan"; },
 });

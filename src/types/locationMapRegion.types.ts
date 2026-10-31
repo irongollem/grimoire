@@ -48,7 +48,7 @@ export type RegionRole = (typeof REGION_ROLES)[number];
 
 /** A short, closed list for the same reason `hazard_glyph` is one: the
  *  renderer must be able to draw any value, whatever pack is loaded. */
-export const ZONE_KINDS = ["terrain", "hazard", "light", "trigger", "marker"] as const;
+export const ZONE_KINDS = ["terrain", "hazard", "light", "trigger", "marker", "entrance"] as const;
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 export const ZONE_KIND_LABELS: Record<ZoneKind, string> = {
@@ -57,6 +57,8 @@ export const ZONE_KIND_LABELS: Record<ZoneKind, string> = {
   light: "Light",
   trigger: "Trigger",
   marker: "Marker",
+  // #1125: where the party walks in when the DM explores the site; it draws like a marker.
+  entrance: "Entrance",
 };
 
 export const REGION_PROVENANCES = ["dm", "floodfill", "annotation"] as const;

@@ -96,11 +96,16 @@ describe("the tile-set swatch at the foot", () => {
     expect(w.emitted("update:currentPackId")).toBeUndefined();
   });
 
-  it("the swap arrows ask for a swap, and are not offered when there is no second set", async () => {
+  it("the swap asks for a swap, and is not offered when there is no second set", async () => {
     const w = withSet();
     await w.find('[aria-label="Swap tile sets"]').trigger("click");
     expect(w.emitted("swapTileSets")).toHaveLength(1);
     expect(withSet({ secondPackId: null }).find('[aria-label="Swap tile sets"]').exists()).toBe(false);
+  });
+
+  it("the swatches show their key, X, in the corner like every tool does", () => {
+    const swapCorner = (w: ReturnType<typeof withSet>) => w.find('[aria-label="Swap tile sets"]').element.parentElement?.querySelector("kbd")?.textContent;
+    expect(swapCorner(withSet())).toBe("X");
   });
 
   it("is absent on a layer that paints no tiles (no tileSet given)", () => {

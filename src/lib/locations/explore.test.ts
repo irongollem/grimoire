@@ -7,6 +7,7 @@ import type { CellKey } from "@/types/dungeonMap.types";
 import {
   afterFightRoute,
   cellsCentre,
+  entranceBattleCells,
   exploreToken,
   exploreTokens,
   memberSize,
@@ -19,6 +20,7 @@ import {
   seatFromExploring,
   seatInFormation,
   seedPartyAtCentre,
+  seedPartyAtEntrance,
   seedPartyPositions,
 } from "./explore";
 
@@ -204,5 +206,40 @@ describe("seating on a frame with no room to stand in", () => {
 
   it("starts the formation at the square it was given", () => {
     expect(seatInFormation([member("a")], { x: 7, y: 9 }).a).toEqual({ x: 7, y: 9 });
+  });
+});
+
+describe("the Entrance zone", () => {
+  const zone = (kind: "entrance" | "marker", cells: CellKey[]) => ({ region_role: "zone", zone_kind: kind, cells }) as LocationMapRegion;
+
+  // Region cells are in the Cartographer's space; tokens stand in image cells, offset by the calibration origin (10, 20).
+  it("reads an entrance zone's squares in battle cells and ignores other zone kinds and rooms", () => {
+    const cells = entranceBattleCells([zone("entrance", ["10,20", "11,20"]), zone("marker", ["30,30"]), hall], calibration);
+    expect(cells.sort()).toEqual(["0,0", "1,0"]);
+  });
+
+  it("counts a square two entrance zones share once", () => {
+    expect(entranceBattleCells([zone("entrance", ["10,20"]), zone("entrance", ["10,20", "11,20"])], calibration)).toHaveLength(2);
+  });
+
+  it("finds no entrance cells on a site without one", () => {
+    expect(entranceBattleCells([hall], calibration)).toEqual([]);
+  });
+
+  it("stands the party on the entrance squares", () => {
+    const seated = seedPartyAtEntrance([member("a"), member("b")], ["4,4", "5,4", "4,5", "5,5"]);
+    expect(Object.values(seated).every((p) => p.x >= 4 && p.x <= 5 && p.y >= 4 && p.y <= 5)).toBe(true);
+    expect(new Set(Object.values(seated).map((p) => `${p.x},${p.y}`)).size).toBe(2);
+  });
+
+  // PHB 2024 "Creature Size": Large covers 2 by 2, so it does not fit a doorway one square wide.
+  it("leaves a Large character out of an entrance one square wide, and seats the rest", () => {
+    const seated = seedPartyAtEntrance([member("big"), member("a")], ["4,4", "4,5", "4,6"], (id) => (id === "big" ? "large" : null));
+    expect(seated.big).toBeUndefined();
+    expect(seated.a).toEqual({ x: 4, y: 4 });
+  });
+
+  it("seats nobody for an empty entrance", () => {
+    expect(seedPartyAtEntrance([member("a")], [])).toEqual({});
   });
 });

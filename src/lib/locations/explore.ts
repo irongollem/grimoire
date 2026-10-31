@@ -96,6 +96,33 @@ export function roomBattleCells(regions: readonly LocationMapRegion[], calibrati
   return byRoom;
 }
 
+/** The squares of the site's Entrance zones in battle cells, de-duplicated: where the party walks in (#1125). Empty when the site has none. */
+export function entranceBattleCells(regions: readonly LocationMapRegion[], calibration: GridCalibration): CellKey[] {
+  const cells = new Set<CellKey>();
+  for (const region of regions) {
+    if (region.region_role !== "zone" || region.zone_kind !== "entrance") continue;
+    for (const cell of region.cells) cells.add(regionCellToBattleCell(cell, calibration));
+  }
+  return [...cells];
+}
+
+/**
+ * First entry to a site that has an Entrance zone: the party walks in there, packed row by row and sized by footprint
+ * like a fight seats them. A character the zone has no room for is left out, so the caller can seat them elsewhere.
+ */
+export function seedPartyAtEntrance(
+  members: readonly TokenMember[],
+  entranceCells: readonly CellKey[],
+  sizeOf: (memberId: string) => MonsterSize | null = () => null,
+): Record<string, ExploreCell> {
+  const tokens = members.map((m) => exploreToken(m, null, sizeOf(m.id)));
+  const positions: Record<string, ExploreCell> = {};
+  for (const c of seedTokenPositions(tokens, [...entranceCells])) {
+    if (c.party_member_id !== undefined && c.position) positions[c.party_member_id] = c.position;
+  }
+  return positions;
+}
+
 /** The room a token's middle stands in, or null in a corridor, outside, or on an untraced stretch. */
 export function roomUnder(position: ExploreCell, footprint: number, index: ReadonlyMap<CellKey, string>): string | null {
   const mid = footprint / 2;

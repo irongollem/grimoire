@@ -23,7 +23,7 @@ Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (wo
 
 The canvas is infinite: there's no fixed map size, so there's no "how big should this be?" decision to make up front.
 
-While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the light, the Spaces drawer, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). At its foot sit two overlapping squares, like Photoshop's two colours: the top one is the tile set you paint with, the one behind it is a second set. **Shift+X**, or the small arrows beside them, swaps the two (X alone is still Wrap walls). Each map remembers its own second set. The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
+While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the light, the Spaces drawer, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). At its foot sit two overlapping squares, like Photoshop's two colours: the top one is the tile set you paint with, the one behind it is a second set. **X**, or a click on the small X in the corner of the pair, swaps the two, the way Photoshop's X swaps its colours. Each map remembers its own second set. The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
 
 | Action | Input |
 | --- | --- |
@@ -46,11 +46,11 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed (the door swings on its hinge); right-click removes it, leaving the wall. |
 | Water | `H` | Paints water (or whatever the pack's liquid is) over the floor; a cell with no floor gets one. Hold **Alt** to erase the water and keep the floor. |
 | Rock | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
-| Place | `O` or `G` | Puts down objects from the tile set (chests, statues, braziers, stairs up and down, rubble, debris) and props from the library (tables, beds, coffins). Pick from the pictures in the Place panel. See Place below. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
+| Place | `O` | Puts down objects from the tile set (chests, statues, braziers, stairs up and down, rubble, debris) and props from the library (tables, beds, coffins). Pick from the pictures in the Place panel. See Place below. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
 | Rectangle | `R` | Drag to fill a rectangle of floor. Hold **Shift** to also wrap walls around the perimeter: the fastest way to make a room. |
 | Line | `L` | Drag to draw a straight run of floor. |
 | Fill | `F` | Flood-fills a contiguous floor region. |
-| Wrap | `X` | One shot: walls every edge of the selected floor region that faces empty space. |
+| Wrap | `J` | One shot: walls every edge of the selected floor region that faces empty space. |
 | Label | `T` | Labels a cell with a short text note: also what names a Space (see below). |
 | Room | `M` | Click a centre, drag to size. Three shapes: Circle, Octagon, Hex, fills floor and auto-wraps walls around the perimeter. |
 | Space | `P` | Click a floor region to select the room Grimoire has detected there: doesn't paint anything, drives the Spaces drawer below. |
@@ -82,7 +82,7 @@ Grimoire draws shadows for you, from a light at the top left: walls, rock, statu
 
 ## Place
 
-Place puts things on the map from one panel of pictures. Press `O` (or `G`) and the Place panel opens on the right. At the top is a search box that looks through everything below it by name, label and tag. Under it, newest first, are the last things you picked.
+Place puts things on the map from one panel of pictures. Press `O` and the Place panel opens on the right. At the top is a search box that looks through everything below it by name, label and tag. Under it, newest first, are the last things you picked.
 
 **The tile set's own objects** come first. Kinds with a single picture are one captioned tile each. A kind with several (chests, say) has its own row: an **Any** tile, which mixes the variants by position the way the stamp always did, and then one picture per variant, so you can choose the exact chest you want. Hover a picture for its name.
 
@@ -104,7 +104,7 @@ Nothing here writes to your Atlas until you publish. A **Re-detect** button just
 
 ## Layers
 
-Every map paints in this order: **Floor** (base terrain, with water drawn in place of the floor where you painted it) → **Solid Blocks** (full-cell thick walls) → **Walls** (edge segments, including doors, grates and sluices) → **Objects** (furniture/decoration) → **Annotations** (text labels). There is no separate zone-painting layer inside the Cartographer any more: hazard/terrain zones are drawn on a site's **Plan** once it's published; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
+Every map paints in this order: **Floor** (base terrain, with water drawn in place of the floor where you painted it) → **Solid Blocks** (full-cell thick walls) → **Walls** (edge segments, including doors, grates and sluices) → **Objects** (furniture/decoration) → **Annotations** (text labels). There is no separate zone-painting layer inside the Cartographer any more: hazard/terrain zones are drawn on a site's **Zoning** tab once it's published; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
 
 ## Saving and leaving
 
@@ -112,7 +112,9 @@ A saved map opens straight in the editor; there is no separate view mode, and no
 
 ## Editing inside an Atlas site
 
-The same editor also opens full screen from a site's **Edit map** button in the Atlas, where it works on that site's own drawing and shows a **Drawing / Plan** layer switch: Drawing is this Cartographer canvas, Plan is the Atlas's own room/door/zone layer traced on top of it. That workflow, and how publishing reconciles the two, is covered in [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon); this page and [Cartographer: Export & AI Style](#cartographer-export-ai-style) describe the standalone editor instead.
+The same editor also opens full screen from a site's **Edit map** button in the Atlas, where it works on that site's own drawing and shows three tabs, **Base image / Drawing / Zoning** (keys `1`, `2`, `3`): Base image is the scan or render under everything, Drawing is this Cartographer canvas, and Zoning is the Atlas's own room/door/zone layer traced on top of it. Only the active tab's tools show in the rail, and the tabs below it show dimmed underneath. A base image whose grid is not lined up yet still shows, on a guessed grid, with a **Grid not lined up** chip that takes you to the line-up.
+
+The **Grid** button in the bar (key `G`) shows or hides the square grid on every tab. Its caret opens the grid options: how strong the lines are (Faint, Clear or Bold), how big a square is on the base image, and **Line up with the base image**. Your choice is remembered on this device. Zoning and Drawing open fitted to the whole map the first time you enter them. That workflow, and how publishing reconciles the two, is covered in [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon); this page and [Cartographer: Export & AI Style](#cartographer-export-ai-style) describe the standalone editor instead.
 
 ## What your players see
 

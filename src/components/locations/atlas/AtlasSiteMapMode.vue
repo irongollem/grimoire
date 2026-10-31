@@ -214,9 +214,9 @@ watch(() => location.id, measure.stop);
 //    place's map is mostly made of. ───────────────────────────────────────────
 const router = useRouter();
 const editorLayer = computed<MapEditorLayer>(() => {
-  if (!isSite.value) return "picture";
+  if (!isSite.value) return "base";
   if (mapStack.value.drawing) return "drawing";
-  return mapStack.value.picture ? "picture" : "plan";
+  return mapStack.value.picture ? "base" : "zoning";
 });
 function editMap(): void {
   void router.push(mapEditorRoute(location.id, editorLayer.value));

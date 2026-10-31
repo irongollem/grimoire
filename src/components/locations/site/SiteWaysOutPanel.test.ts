@@ -226,7 +226,7 @@ describe("SiteWaysOutPanel", () => {
       expect(wrapper.text()).toContain("not on the map");
       const link = wrapper.findComponent(RouterLinkStub);
       expect(link.text()).toBe("Place it");
-      expect(link.props("to")).toBe("/locations/site-1/map?layer=plan");
+      expect(link.props("to")).toBe("/locations/site-1/map?layer=zoning");
     });
 
     it("read-only, does not flag a placed way out as off the map", () => {

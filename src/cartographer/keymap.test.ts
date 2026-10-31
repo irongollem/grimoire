@@ -12,7 +12,7 @@ const ctx = (activeTool = "floor"): KeyContext => ({
     { id: "select" },
     { id: "floor", shortcut: "f" },
     { id: "wall", shortcut: "w" },
-    { id: "place", shortcut: "o", aliases: ["g"] },
+    { id: "place", shortcut: "o" },
     { id: "eraser", shortcut: "e" },
     { id: "brush", shortcut: "v", disabled: true },
   ],
@@ -128,9 +128,9 @@ describe("resolveKeyAction", () => {
   });
 
   describe("Place tool", () => {
-    it("answers to G as well as O", () => {
-      expect(resolveKeyAction(ev({ key: "g" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });
+    it("is picked by O, and G no longer picks it because G is the grid", () => {
       expect(resolveKeyAction(ev({ key: "o" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });
+      expect(resolveKeyAction(ev({ key: "g" }), ctx("floor"))).toEqual({ kind: "toggleGrid" });
     });
 
     it("leaves e to the Eraser on every other tool", () => {
@@ -201,15 +201,53 @@ describe("angled wall and selection keys", () => {
   });
 
   describe("swapping the two tile sets (#1125, like Photoshop's X)", () => {
-    const withWrap: KeyContext = { ...ctx(), tools: [...ctx().tools, { id: "wrap", shortcut: "x" }] };
+    const withWrap: KeyContext = { ...ctx(), tools: [...ctx().tools, { id: "wrap", shortcut: "j" }] };
 
-    it("X alone still picks Wrap and Shift+X swaps the sets instead", () => {
-      expect(resolveKeyAction(ev({ key: "x", code: "KeyX" }), withWrap)).toEqual({ kind: "selectTool", tool: "wrap" });
-      expect(resolveKeyAction(ev({ key: "X", code: "KeyX", shiftKey: true }), withWrap)).toEqual({ kind: "swapTileSets" });
+    it("X swaps the sets and J picks Wrap, which used to live on X", () => {
+      expect(resolveKeyAction(ev({ key: "x", code: "KeyX" }), withWrap)).toEqual({ kind: "swapTileSets" });
+      expect(resolveKeyAction(ev({ key: "j", code: "KeyJ" }), withWrap)).toEqual({ kind: "selectTool", tool: "wrap" });
     });
 
-    it("ignores Shift+X while typing in a field", () => {
-      expect(resolveKeyAction(ev({ key: "X", code: "KeyX", shiftKey: true, targetIsTextEntry: true }), withWrap)).toBeNull();
+    it("Shift+X no longer swaps", () => {
+      expect(resolveKeyAction(ev({ key: "X", code: "KeyX", shiftKey: true }), withWrap)).toBeNull();
+    });
+
+    it("ignores X while typing in a field", () => {
+      expect(resolveKeyAction(ev({ key: "x", code: "KeyX", targetIsTextEntry: true }), withWrap)).toBeNull();
+    });
+  });
+
+  describe("tab keys and the grid key (Map Table frame 18)", () => {
+    const tabbed: KeyContext = { ...ctx(), hasLayerTabs: true };
+
+    it("1, 2 and 3 pick Base image, Drawing and Zoning where the map has tabs", () => {
+      expect(resolveKeyAction(ev({ key: "1", code: "Digit1" }), tabbed)).toEqual({ kind: "selectLayer", layer: "picture" });
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2" }), tabbed)).toEqual({ kind: "selectLayer", layer: "drawing" });
+      expect(resolveKeyAction(ev({ key: "3", code: "Digit3" }), tabbed)).toEqual({ kind: "selectLayer", layer: "plan" });
+    });
+
+    it("do nothing on a map with no tabs (the standalone Cartographer)", () => {
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2" }), ctx())).toBeNull();
+    });
+
+    it("do nothing while typing a number in a field, or with Ctrl, Meta or Alt held", () => {
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2", targetIsTextEntry: true }), tabbed)).toBeNull();
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2", altKey: true }), tabbed)).toBeNull();
+      expect(resolveKeyAction(ev({ key: "3", code: "Digit3", metaKey: true }), tabbed)).toBeNull();
+    });
+
+    it("a digit with Shift held is not a tab key, whatever the layout types for it", () => {
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2", shiftKey: true }), tabbed)).toBeNull();
+    });
+
+    it("Shift+1 stays zoom-to-fit and is not the Base image tab", () => {
+      expect(resolveKeyAction(ev({ key: "!", code: "Digit1", shiftKey: true }), tabbed)).toEqual({ kind: "zoom", to: "fit" });
+    });
+
+    it("G toggles the grid on any map, and not while typing or with a modifier", () => {
+      expect(resolveKeyAction(ev({ key: "g", code: "KeyG" }), ctx())).toEqual({ kind: "toggleGrid" });
+      expect(resolveKeyAction(ev({ key: "g", code: "KeyG", targetIsTextEntry: true }), ctx())).toBeNull();
+      expect(resolveKeyAction(ev({ key: "g", code: "KeyG", ctrlKey: true }), ctx())).toBeNull();
     });
   });
 });

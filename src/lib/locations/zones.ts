@@ -26,6 +26,8 @@ export const ZONE_KIND_FILL: Record<ZoneKind, { fill: string; stroke: string }> 
   light: { fill: "rgba(139, 92, 246, 0.30)", stroke: "rgba(167, 139, 250, 0.9)" },
   trigger: { fill: "rgba(244, 63, 94, 0.30)", stroke: "rgba(244, 63, 94, 0.9)" },
   marker: { fill: "rgba(120, 113, 108, 0.30)", stroke: "rgba(168, 162, 158, 0.85)" },
+  // An entrance is a marker the app reads (#1125): the same wash, so it does not shout on the plan.
+  entrance: { fill: "rgba(120, 113, 108, 0.30)", stroke: "rgba(168, 162, 158, 0.85)" },
 };
 
 /** Terrain's `movement_cost` picker — 1x is worth spelling out explicitly
@@ -83,6 +85,8 @@ export function zoneSummary(region: Pick<LocationMapRegion, "zone_kind" | "zone_
       return payload.encounter_id || payload.beat_id ? "prompts a beat" : ZONE_KIND_LABELS.trigger;
     case "marker":
       return ZONE_KIND_LABELS.marker;
+    case "entrance":
+      return "where the party walks in";
   }
 }
 

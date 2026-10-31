@@ -65,7 +65,7 @@ describe("PlaceMapEmpty", () => {
     press(w, "Blank grid");
     await flushPromises();
     expect(mocks.update).toHaveBeenCalledWith({ id: "ash", update: { plan_size: { cols: 30, rows: 20 } } });
-    expect(mocks.push).toHaveBeenCalledWith("/locations/ash/map?layer=plan");
+    expect(mocks.push).toHaveBeenCalledWith("/locations/ash/map?layer=zoning");
     expect(mocks.update.mock.invocationCallOrder[0]).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!);
   });
 

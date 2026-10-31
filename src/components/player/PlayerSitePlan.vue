@@ -229,6 +229,7 @@ const ZONE_STYLES: Record<ZoneKind, { fill: string; stroke: string }> = {
   light: { fill: "rgba(139,92,246,.30)", stroke: "rgba(167,139,250,.9)" },
   trigger: { fill: "rgba(244,63,94,.30)", stroke: "rgba(244,63,94,.9)" },
   marker: { fill: "rgba(120,113,108,.30)", stroke: "rgba(168,162,158,.85)" },
+  entrance: { fill: "rgba(120,113,108,.30)", stroke: "rgba(168,162,158,.85)" },
 };
 
 /** Every cell any explored space carries, across all its traced shapes. */

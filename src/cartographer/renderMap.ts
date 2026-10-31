@@ -84,6 +84,8 @@ export interface MapRenderScene {
    * standalone `/cartographer/:id` route, which passes no site.
    */
   referenceImage?: MapRenderReferenceImage | null;
+  /** Opacity of the white square grid, or null to leave it off (the editor's Grid switch). */
+  gridAlpha: number | null;
   /** Dressing props by id (epic #1062), with whatever art has loaded so far. */
   dressing: DressingCatalog;
   /** A prop being placed or dragged, drawn translucent above the map. */
@@ -341,6 +343,7 @@ export function renderMap(scene: MapRenderScene): void {
     derivedSpaces,
     selectedSpaceKey,
     referenceImage,
+    gridAlpha,
     dressing,
     dressingGhost,
     selectedDressingId,
@@ -385,8 +388,8 @@ export function renderMap(scene: MapRenderScene): void {
     showHiddenWalls: true,
     makeCanvas: scene.makeCanvas ?? offscreenMakeCanvas(),
     afterGround: () => {
-      // Grid overlay
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      if (gridAlpha === null) return;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${gridAlpha})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let x = minX; x <= maxX + 1; x++) {

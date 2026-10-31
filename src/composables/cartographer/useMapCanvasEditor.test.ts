@@ -122,11 +122,12 @@ beforeEach(() => {
 
 // ── Fakes ────────────────────────────────────────────────────────────────
 
-function fakeCanvas(): HTMLCanvasElement {
+function fakeCanvas(fillRect: () => void = () => {}): HTMLCanvasElement {
+  const ctx = { fillRect } as unknown as CanvasRenderingContext2D;
   const el = {
     width: 0,
     height: 0,
-    getContext: () => ({}) as unknown as CanvasRenderingContext2D,
+    getContext: () => ctx,
     getBoundingClientRect: () =>
       ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0 }) as DOMRect,
     setPointerCapture: vi.fn(),
@@ -246,6 +247,8 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
     mapKey: computed(() => "map-test"),
     getReferenceImage,
     extraRenderDeps: [],
+    gridAlpha: ref<number | null>(0.06),
+    toggleGrid: () => {},
     ...over,
   };
 
@@ -1044,6 +1047,18 @@ describe("Plan layer", () => {
     expect(editor.canUndo.value).toBe(false);
   });
 
+  it("dims the layers below while Zoning is the active tab, and stops when Drawing is active again", async () => {
+    const fillRect = vi.fn();
+    const activeLayer = ref<"drawing" | "plan">("drawing");
+    makeHarness({ plan: fakePlan(), activeLayer, canvasEl: ref<HTMLCanvasElement | null>(fakeCanvas(fillRect)) });
+    activeLayer.value = "plan";
+    await nextTick();
+    expect(fillRect).toHaveBeenCalledTimes(1);
+    activeLayer.value = "drawing"; // renders again, with no scrim
+    await nextTick();
+    expect(fillRect).toHaveBeenCalledTimes(1);
+  });
+
   it("does not abandon anything while staying on the Plan layer, or with no site at all", async () => {
     makeHarness(); // no `plan`/`activeLayer` — the standalone-route shape
     await nextTick();
@@ -1407,6 +1422,8 @@ describe("altHeld", () => {
           mapKey: computed(() => "map-test"),
           getReferenceImage: () => null,
           extraRenderDeps: [],
+          gridAlpha: ref<number | null>(0.06),
+          toggleGrid: () => {},
           keysActive,
           ...over,
         });
@@ -1448,6 +1465,28 @@ describe("altHeld", () => {
     expect(editor.altHeld.value).toBe(true);
     window.dispatchEvent(new Event("blur"));
     expect(editor.altHeld.value).toBe(false);
+  });
+
+  it("1, 2 and 3 switch the Base image, Drawing and Zoning tabs, and do nothing while typing a number", () => {
+    const activeLayer = ref<"drawing" | "plan" | "picture">("drawing");
+    mountForLifecycle("floor", ref(1.5), undefined, { activeLayer, hasLayerTabs: true });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "3", code: "Digit3" }));
+    expect(activeLayer.value).toBe("plan");
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "1", code: "Digit1" }));
+    expect(activeLayer.value).toBe("picture");
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "2", code: "Digit2", bubbles: true }));
+    input.remove();
+    expect(activeLayer.value).toBe("picture");
+  });
+
+  it("G asks the host to show or hide the grid", () => {
+    const toggleGrid = vi.fn();
+    mountForLifecycle("floor", ref(1.5), undefined, { toggleGrid });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", code: "KeyG" }));
+    expect(toggleGrid).toHaveBeenCalledTimes(1);
   });
 
   it("Space turns a left drag into a pan with the armed tool, and releasing it ends that", () => {
@@ -2025,6 +2064,8 @@ function mountWithKeys(tool: Tool, over: Partial<MapCanvasEditorOptions> = {}): 
         mapKey: computed(() => "map-test"),
         getReferenceImage: () => null,
         extraRenderDeps: [],
+        gridAlpha: ref<number | null>(0.06),
+        toggleGrid: () => {},
         ...over,
       });
       return () => h("div");

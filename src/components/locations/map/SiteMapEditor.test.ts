@@ -164,9 +164,9 @@ function place(over: Partial<Location> & { id: string }): Location {
 // AppButton renders a real RouterLink for `to`, which needs a router to resolve it.
 const linkRouter = createRouter({ history: createMemoryHistory(), routes: [{ path: "/:rest(.*)*", component: { template: "<div />" } }] });
 
-function mountEditor(loc: Location, all: Location[] = [loc]) {
+function mountEditor(loc: Location, all: Location[] = [loc], startLayer: "base" | "drawing" | "zoning" = "drawing") {
   return mount(SiteMapEditor, {
-    props: { location: loc, index: buildAtlasIndex(all), backTo: "/locations?at=ash", startLayer: "drawing" },
+    props: { location: loc, index: buildAtlasIndex(all), backTo: "/locations?at=ash", startLayer },
     global: {
       plugins: [linkRouter],
       stubs: {
@@ -319,6 +319,14 @@ describe("SiteMapEditor", () => {
 
     it("lets the workbench choose the layer when the address names none, so a picture with no grid opens on the Picture", () => {
       expect(mountEditor(place({ id: "ash" })).findComponent(WorkbenchStub).props("startLayer")).toBeUndefined();
+    });
+
+    it("hands the workbench its own name for the tab the address names (?layer=zoning is the Plan)", async () => {
+      await linkRouter.push("/locations/ash/map?layer=zoning");
+      expect(mountEditor(place({ id: "ash" }), undefined, "zoning").findComponent(WorkbenchStub).props("startLayer")).toBe("plan");
+      await linkRouter.push("/locations/ash/map?layer=base");
+      expect(mountEditor(place({ id: "ash" }), undefined, "base").findComponent(WorkbenchStub).props("startLayer")).toBe("picture");
+      await linkRouter.push("/locations/ash/map");
     });
 
     it("names a new drawing after the site", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { exploreRoute, mapEditorRoute, placeRoute, startLayer } from "./placeRoute";
+import { editorLayerOf, exploreRoute, mapEditorRoute, placeRoute, startLayer } from "./placeRoute";
 
 describe("placeRoute", () => {
   it("opens the place selected in the Atlas", () => {
@@ -35,31 +35,47 @@ describe("exploreRoute", () => {
 describe("mapEditorRoute", () => {
   it("opens the place's editor, on a layer when one is asked for", () => {
     expect(mapEditorRoute("abc")).toBe("/locations/abc/map");
-    expect(mapEditorRoute("abc", "plan")).toBe("/locations/abc/map?layer=plan");
+    expect(mapEditorRoute("abc", "zoning")).toBe("/locations/abc/map?layer=zoning");
   });
 
   it("escapes an id so it cannot add path segments", () => {
-    expect(mapEditorRoute("a/b?layer=picture")).toBe("/locations/a%2Fb%3Flayer%3Dpicture/map");
+    expect(mapEditorRoute("a/b?layer=base")).toBe("/locations/a%2Fb%3Flayer%3Dbase/map");
   });
 });
 
 describe("startLayer", () => {
-  // #1125 frame 04: a town's editor has only Picture and Pins; a site's has Drawing, Plan and Picture.
+  // #1125 frame 04 and Map Table frame 18: a town's editor has only the Base image and Pins; a site's has the
+  // Base image, Drawing and Zoning.
   it("keeps a layer the kind of place has", () => {
-    expect(startLayer("plan", true)).toBe("plan");
-    expect(startLayer("picture", true)).toBe("picture");
+    expect(startLayer("zoning", true)).toBe("zoning");
+    expect(startLayer("base", true)).toBe("base");
     expect(startLayer("pins", false)).toBe("pins");
   });
 
   it("falls back to the first layer for one the kind of place lacks", () => {
     expect(startLayer("pins", true)).toBe("drawing");
-    expect(startLayer("plan", false)).toBe("picture");
-    expect(startLayer("drawing", false)).toBe("picture");
+    expect(startLayer("zoning", false)).toBe("base");
+    expect(startLayer("drawing", false)).toBe("base");
+  });
+
+  it("no longer understands the old names, so an old link falls back instead of opening the wrong tab", () => {
+    expect(startLayer("plan", true)).toBe("drawing");
+    expect(startLayer("picture", true)).toBe("drawing");
+    expect(startLayer("picture", false)).toBe("base");
   });
 
   it("falls back for a missing, repeated or unknown value", () => {
     expect(startLayer(undefined, true)).toBe("drawing");
-    expect(startLayer(["plan", "picture"], true)).toBe("drawing");
-    expect(startLayer("nonsense", false)).toBe("picture");
+    expect(startLayer(["zoning", "base"], true)).toBe("drawing");
+    expect(startLayer("nonsense", false)).toBe("base");
+  });
+});
+
+describe("editorLayerOf", () => {
+  it("names the workbench's tab for an address layer, and none for Pins", () => {
+    expect(editorLayerOf("base")).toBe("picture");
+    expect(editorLayerOf("drawing")).toBe("drawing");
+    expect(editorLayerOf("zoning")).toBe("plan");
+    expect(editorLayerOf("pins")).toBeUndefined();
   });
 });

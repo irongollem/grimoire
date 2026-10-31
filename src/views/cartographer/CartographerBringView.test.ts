@@ -126,7 +126,7 @@ describe("CartographerBringView", () => {
       expect(input.name).toBe("ambush");
       expect(input.target).toEqual({ kind: "new" });
       expect(input.calibration.cells_per_image_width).toBe(30);
-      expect(m.push).toHaveBeenCalledWith("/locations/placeX/map?layer=picture");
+      expect(m.push).toHaveBeenCalledWith("/locations/placeX/map?layer=base");
       expect(useMapImportStore().file).toBeNull();
     });
 
