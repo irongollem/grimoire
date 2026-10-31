@@ -1,5 +1,5 @@
 <template>
-  <CartographerOptionsSlip :title="liningUp ? 'Line up the grid' : 'Picture'">
+  <CartographerOptionsSlip :title="liningUp ? 'Line up the grid' : 'Base image'">
     <template v-if="liningUp && natural && draft">
       <PictureGridFields v-model="draft" v-model:box-mode="boxMode" :natural="natural" class="basis-full" />
       <div class="flex basis-full items-center gap-1.5">
@@ -12,7 +12,7 @@
         Line up the grid to trace and draw over it.
       </p>
       <p v-else-if="!hasPicture" class="basis-full text-caption text-muted-foreground">
-        A scan, a screenshot or a render. Add one and it sits under the Drawing and the Plan.
+        A scan, a screenshot or a render. Add one and it sits under the drawing and the zones.
       </p>
       <MapPictureControls
         class="basis-full"

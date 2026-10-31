@@ -102,7 +102,7 @@ On a phone the map opens zoomed on the token whose turn it is, with a header tha
 > "Still no VTT" is deliberate: nothing here moves a token on its own, reveals a second area because you revealed the first, or refuses a move. This is prompts, counting and coordinate translation, not a rules engine: every mechanical consequence stays a DM call.
 
 - A room borrowing its site's plan doesn't need its own **Battle map** toggle switched on: any place with a calibrated grid can be played.
-- A map with a moving Picture (GIF, WebM, MP4) plays on your own screens, from the file kept on this device. Players see the still picture, and so does any other device that doesn't have the file.
+- A map with a moving base image (GIF, WebM, MP4) plays on your own screens, from the file kept on this device. Players see the still picture, and so does any other device that doesn't have the file.
 
 ## Related
 

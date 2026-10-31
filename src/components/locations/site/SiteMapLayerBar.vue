@@ -111,7 +111,7 @@ const { toggleSiteMapLayer } = locationsUi;
  *  carry an icon rather than a swatch, because they are not a colour painted
  *  over the plan — they are the picture underneath it. */
 const imagePills = computed(() => [
-  { key: "picture" as const, label: "Picture", icon: IconImage, present: !!layers?.picture },
+  { key: "picture" as const, label: "Base image", icon: IconImage, present: !!layers?.picture },
   { key: "drawing" as const, label: "Drawing", icon: IconBrush, present: !!layers?.drawing },
 ]);
 const hasImageLayer = computed(() => imagePills.value.some((p) => p.present));

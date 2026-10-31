@@ -581,7 +581,7 @@ The encounter subscription stays active even when the player navigates away from
 
 ### Battle map on a phone (#1125 decision 14, frame 14)
 
-`/play/encounter/map` (`PlayerEncounterMapView.vue`) is playable on a phone, not only on tablet and up. The "View battle map" button on `PlayerEncounterPanel` shows whenever the encounter's location has a calibrated primary image (Drawing or Picture); `is_battle_map` no longer gates it, and the view no longer bounces a phone back to the panel.
+`/play/encounter/map` (`PlayerEncounterMapView.vue`) is playable on a phone, not only on tablet and up. The "View battle map" button on `PlayerEncounterPanel` shows whenever the encounter's location has a calibrated primary image (Drawing or base image); `is_battle_map` no longer gates it, and the view no longer bounces a phone back to the panel.
 
 - **Header** (`PlayerMapTurnHeader`): "Your turn" with "Round N · X ft to move" (speed minus `movement_used`), or "<Name>'s turn" with "You're after the <creature>" (`actsBefore`, only a revealed creature is named), the player's own HP in gilt, and a **Follow** chip when the map is following someone else.
 - **Following**: on a phone the map zooms once to 56px squares and keeps the active token (the player's own, on their turn) centred (`panToCentre`) until Follow is switched off. Tablet and up keep the plain top bar and free pan.

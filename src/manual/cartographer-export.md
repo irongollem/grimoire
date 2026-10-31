@@ -54,16 +54,16 @@ Click **↓ PNG** to export the map as a full-resolution PNG rendered right in y
 
 All styled images include a small `dungeongrimoire.com` watermark. Closing the result without saving or downloading loses it for good: nothing here is auto-recovered.
 
-The grid it sets automatically is a first guess: the AI can shrink or grow it a little in its own render, so check that it lines up and use **Line up the grid** on the map editor's Picture layer to fine-tune it if it's drifted, the same action you'd use on any scanned picture.
+The grid it sets automatically is a first guess: the AI can shrink or grow it a little in its own render, so check that it lines up and use **Line up the grid** on the map editor's Base image tab to fine-tune it if it's drifted, the same action you'd use on any scanned picture.
 
 ### Styling a site's own Drawing
 
 A site's map editor (**Edit map** on its Map tab; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon)) has its own **Style it with AI** entry in its Map menu. It works the same way, with two differences:
 
-- There's no location picker: the target is always the site you're already in, so the result button reads **Save to Picture**.
-- Saving asks first, plainly: the styled render replaces the site's Picture, and its Drawing (the Cartographer map you were just editing) is set aside rather than deleted. It stays in your Cartographer, ready to reopen, so you can draw fixes on top of the new Picture and style again, as many times as you like.
+- There's no location picker: the target is always the site you're already in, so the result button reads **Use as the base image**.
+- Saving asks first, plainly: the styled render replaces the site's base image, and its Drawing (the Cartographer map you were just editing) is set aside rather than deleted. It stays in your Cartographer, ready to reopen, so you can draw fixes on top of the new base image and style again, as many times as you like.
 
-Each pass sets the Picture's grid automatically too, so tracing and doors keep working right away. Check it and line the grid up again if needed, same as above.
+Each pass sets the base image's grid automatically too, so tracing and doors keep working right away. Check it and line the grid up again if needed, same as above.
 
 ### Style presets
 

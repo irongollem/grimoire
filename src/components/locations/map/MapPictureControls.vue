@@ -1,6 +1,6 @@
 <template>
-  <!-- The Picture's own controls (canvas frame 07): shared by the workbench's Picture palette and the town editor,
-       so a Picture is edited the same way wherever it lives. They only report what the DM chose; the host writes. -->
+  <!-- The Base image's own controls (canvas frame 07): shared by the workbench's Base image tab and the town editor,
+       so a base image is edited the same way wherever it lives. They only report what the DM chose; the host writes. -->
   <div class="flex flex-col gap-2">
     <div class="flex flex-wrap items-center gap-1.5">
       <input
@@ -67,7 +67,7 @@ const PICTURE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/webm,vid
 
 defineProps<{
   hasPicture: boolean;
-  /** The Picture is a moving map kept on this device. */
+  /** The base image is a moving map kept on this device. */
   moving: boolean;
   battleMap: boolean;
   busy: boolean;

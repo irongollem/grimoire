@@ -1,6 +1,6 @@
 <template>
   <!-- The full-screen editor of a place that is not a site (#1125, frame 04):
-       Picture and Pins, nothing else. Both write as they are changed, so the
+       Base image and Pins, nothing else. Both write as they are changed, so the
        bar has no Save; it just says so. -->
   <div class="flex h-dvh flex-col bg-background">
     <header class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-card px-3 py-2">
@@ -22,7 +22,7 @@
     <main class="min-h-0 flex-1 overflow-y-auto px-3 py-4">
       <div class="mx-auto flex max-w-3xl flex-col gap-3">
         <div v-if="layer === 'picture'" class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <!-- The picture, fitted. Lining the grid up lays the amber grid over it, as in the site editor's Picture layer. -->
+          <!-- The picture, fitted. Lining the grid up lays the amber grid over it, as in the site editor's Base image tab. -->
           <div class="relative h-[60vh] min-h-64 overflow-hidden rounded-md border border-border bg-muted/30">
             <MapGridLineUp
               v-if="liningUp && natural && draft && location.map_url"
@@ -40,8 +40,8 @@
             </p>
           </div>
 
-          <aside class="flex flex-col gap-3 rounded-md border border-border bg-card p-3" aria-label="Picture">
-            <h2 class="text-label-lg font-semibold text-foreground">{{ liningUp ? "Line up the grid" : "Picture" }}</h2>
+          <aside class="flex flex-col gap-3 rounded-md border border-border bg-card p-3" aria-label="Base image">
+            <h2 class="text-label-lg font-semibold text-foreground">{{ liningUp ? "Line up the grid" : "Base image" }}</h2>
             <template v-if="liningUp && natural && draft">
               <PictureGridFields v-model="draft" v-model:box-mode="boxMode" :natural="natural" />
               <div class="flex items-center gap-1.5">
@@ -70,7 +70,7 @@
             @select="onSelect"
           />
           <p v-else class="rounded-md border border-dashed border-border px-4 py-8 text-center text-body text-muted-foreground">
-            Pins sit on a picture. Add the Picture first, then come back to place them.
+            Pins sit on a map image. Add the base image first, then come back to place them.
           </p>
         </template>
       </div>
@@ -107,7 +107,7 @@ const { location, startLayer } = defineProps<{
 const router = useRouter();
 
 const LAYER_OPTIONS = [
-  { value: "picture", label: "Picture", icon: IconImage },
+  { value: "picture", label: "Base image", icon: IconImage },
   { value: "pins", label: "Pins", icon: IconPin },
 ] as const;
 

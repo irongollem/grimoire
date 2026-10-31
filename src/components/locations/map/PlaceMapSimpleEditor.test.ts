@@ -67,7 +67,7 @@ describe("PlaceMapSimpleEditor", () => {
   it("asks for a Picture first when there is nothing to pin onto", () => {
     const w = mountEditor("pins", town());
     expect(w.findComponent({ name: "PlaceMapPinsEditor" }).exists()).toBe(false);
-    expect(w.text()).toContain("Add the Picture first");
+    expect(w.text()).toContain("Add the base image first");
   });
 
   it("switches layer from the bar", async () => {

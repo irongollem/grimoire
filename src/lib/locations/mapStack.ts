@@ -63,9 +63,9 @@ export interface MapStackLayerInfo {
  *  for why Tokens and Fog belong here even though `buildMapStack` never
  *  computes them. */
 export const MAP_STACK_LAYERS: readonly MapStackLayerInfo[] = [
-  { key: "picture", label: "Picture", authored: true },
+  { key: "picture", label: "Base image", authored: true },
   { key: "drawing", label: "Drawing", authored: true },
-  { key: "plan", label: "Plan", authored: true },
+  { key: "plan", label: "Zoning", authored: true },
   { key: "tokens", label: "Tokens", authored: false },
   { key: "fog", label: "Fog", authored: false },
 ];
