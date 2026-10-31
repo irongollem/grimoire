@@ -92,11 +92,6 @@ export function assertDemoKey(label: string, jwt: string): void {
 }
 
 /**
- * The one way a dev script reaches production: a paged GET against PostgREST.
- * There is deliberately no general-purpose client here, so there is no method
- * to get wrong.
- */
-/**
  * Production has no such table. The table list comes from the LOCAL schema, which
  * is routinely ahead of production (another session's unmerged migration, a
  * feature not yet released), so a pull treats this as "empty in production"
@@ -115,6 +110,11 @@ async function failedRead(response: Response, table: string, verb: string): Prom
   return new Error(`Could not ${verb} ${table} from production (${response.status}): ${body}`);
 }
 
+/**
+ * The one way a dev script reaches production: a paged GET against PostgREST.
+ * There is deliberately no general-purpose client here, so there is no method
+ * to get wrong.
+ */
 export async function remoteRows(
   remote: URL,
   key: string,
