@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, ref } from "vue";
-import { MAX_POINTS } from "@/lib/tableChannel/messages";
+import { MAX_POINTS } from "@/lib/table/messages";
 import { DRAW_THROTTLE_MS, usePlayTableTools, type TableMarkSender } from "./usePlayTableTools";
 import type { PlayTool } from "./playTypes";
 

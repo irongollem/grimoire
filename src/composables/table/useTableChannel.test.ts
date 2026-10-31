@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope } from "vue";
 import type { createRealtimeChannel } from "@/lib/campaignLiveSync/realtimeChannel";
-import { MAX_POINTS, type TableSender } from "@/lib/tableChannel/messages";
+import { MAX_POINTS, type TableSender } from "@/lib/table/messages";
 import { MEASURE_THROTTLE_MS, MEASURE_TTL_MS, PING_MS, useTableChannel } from "./useTableChannel";
 
 const ME: TableSender = { id: "u1", name: "Ayla", color: "#ff0000" };

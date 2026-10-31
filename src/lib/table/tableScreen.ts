@@ -2,6 +2,10 @@
 // live row, so the rules `get_player_encounter_state` applies on the server are applied again here, on the client:
 // hidden monsters are left out, unseen ones become "???", monster hit points are never drawn, and a creature that has
 // walked out of revealed space leaves the map. Pure functions; the screen only draws what they return.
+// Parity: the server side is `get_player_encounter_state` (latest in 20261031135706_every_creature_takes_its_size.sql),
+// pinned by supabase/tests/player_encounter_state.test.sql. Change one, change the other and the matching tests.
+// One deliberate difference: the server still sends a revealed monster's real hit points (the player portal draws
+// them); the table is a shared screen that never draws them, so it keeps only "down or not".
 
 import { revealedCombatants, type FogCellKey } from "@/lib/battlemap/fogMask";
 import { cellKey, type CellKey } from "@/types/dungeonMap.types";
@@ -25,8 +29,15 @@ function asTheTableSees(c: RunCombatant, npcs: ReadonlyMap<string, DisguisableNp
   // Hit points are never drawn on the table; only "down or not" survives, because a dead token is drawn dead.
   const base: RunCombatant = { ...c, hp: c.hp > 0 ? 1 : 0, max_hp: 1, temp_hp: 0, ac: "", curses: [], conditions: [] };
   if (state === "unseen") {
+    // Server: an unseen monster is always hp 1/1 (it never reads as fallen), no death saves, dex_mod 0.
     return {
       ...base,
+      hp: 1,
+      death_saves: { successes: 0, failures: 0 },
+      dex_mod: 0,
+      initiative_bonus: undefined,
+      party_member_id: undefined,
+      companion_id: undefined,
       name: UNSEEN_NAME,
       portrait_url: null,
       portrait_focal_point: null,

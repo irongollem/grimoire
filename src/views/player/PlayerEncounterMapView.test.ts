@@ -21,7 +21,7 @@ vi.mock("@/composables/encounters/useEncounterLive", async () => {
   live.value = ref(null);
   return { liveState: live.value, updateCombatantPosition: move };
 });
-vi.mock("@/composables/encounters/useTableChannel", async () => {
+vi.mock("@/composables/table/useTableChannel", async () => {
   const { ref } = await import("vue");
   table.pings = ref<unknown[]>([]);
   return { useTableChannel: () => ({ pings: table.pings, measures: ref([]), drawings: ref([]), sendPing: table.sendPing }) };

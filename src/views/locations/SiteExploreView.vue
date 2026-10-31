@@ -56,6 +56,8 @@
         :selected-id="selectedId"
         :group-ids="groupIds"
         @move="onMove"
+        @seat="seatAt"
+        @frame="frame = $event"
         @select="onSelect"
         @update:group-ids="groupIds = $event"
       >
@@ -155,6 +157,7 @@ import {
   roomCellIndex,
   seedPartyPositions,
   type ExploreCell,
+  type ExploreFrame,
   type RoomExploreState,
 } from "@/lib/locations/explore";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
@@ -216,12 +219,14 @@ const { data: party } = useActiveParty();
 const roomCells = computed(() => (surface.value ? roomBattleCells(regions.value, surface.value.calibration) : null));
 const roomIndex = computed(() => (surface.value ? roomCellIndex(regions.value, surface.value.calibration) : new Map()));
 const sizeOf = usePartyTokenSizes(party);
-const { tokens, place } = useExploreParty({
+const frame = ref<ExploreFrame | null>(null);
+const { tokens, place, seatAt } = useExploreParty({
   siteId,
   members: () => (surface.value ? party.value : undefined),
   roomCells,
   roomOrder: roomIds,
   partyRoomId: currentRoomId,
+  frame,
   sizeOf,
 });
 

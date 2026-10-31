@@ -45,9 +45,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { TableDrawing, TableMeasure, TablePing } from "@/composables/encounters/useTableChannel";
+import type { TableDrawing, TableMeasure, TablePing } from "@/composables/table/useTableChannel";
 import { measureFeet } from "@/lib/battlemap/measure";
-import type { Point } from "@/lib/tableChannel/messages";
+import type { Point } from "@/lib/table/messages";
 
 /**
  * Everything the table has drawn on the map, in the map's own cells (#1125 decision 12): pings that ripple and say who,

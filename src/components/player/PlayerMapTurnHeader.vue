@@ -52,16 +52,16 @@ const emit = defineEmits<{ "toggle-follow": [] }>();
   align-items: center;
   gap: 0.625rem;
   padding: 0.5rem 0.75rem;
-  background: rgb(0 0 0 / 0.55);
-  border-bottom: 1px solid rgb(255 255 255 / 0.08);
-  color: #ece6d6;
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  border-bottom: 1px solid var(--border);
+  color: var(--card-foreground);
 }
 .back {
   display: grid;
   place-items: center;
   width: 2.25rem;
   height: 2.25rem;
-  color: rgb(255 255 255 / 0.7);
+  color: var(--muted-foreground);
 }
 .portrait {
   flex: none;
@@ -69,11 +69,11 @@ const emit = defineEmits<{ "toggle-follow": [] }>();
   height: 2.5rem;
   border-radius: 9999px;
   overflow: hidden;
-  background: #1d1a24;
-  border: 2px solid rgb(255 255 255 / 0.2);
+  background: var(--muted);
+  border: 2px solid var(--border);
 }
 .portrait-ring {
-  border-color: #8c2f2b;
+  border-color: var(--live);
 }
 .portrait-img {
   width: 100%;
@@ -92,7 +92,7 @@ const emit = defineEmits<{ "toggle-follow": [] }>();
 }
 .subtitle {
   font-size: 0.8125rem;
-  color: rgb(255 255 255 / 0.6);
+  color: var(--muted-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -107,6 +107,6 @@ const emit = defineEmits<{ "toggle-follow": [] }>();
   font-weight: 700;
   font-size: 0.9375rem;
   font-variant-numeric: tabular-nums;
-  color: #c9a227;
+  color: var(--primary);
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <ol class="ribbon" data-testid="table-ribbon" aria-label="Initiative order">
+  <ol v-if="order.length" class="ribbon" data-testid="table-ribbon" aria-label="Initiative order">
     <li
       v-for="c in order"
       :key="c.instance_id"
@@ -28,7 +28,7 @@ const { order, factions, activeInstanceId = null } = defineProps<{
 
 function ringOf(c: RunCombatant): string {
   const list = factions.length ? factions : DEFAULT_FACTIONS;
-  return list.find((f) => f.id === c.faction_id)?.color ?? "#3b82f6";
+  return list.find((f) => f.id === c.faction_id)?.color ?? "var(--tone-info)";
 }
 </script>
 
@@ -44,7 +44,7 @@ function ringOf(c: RunCombatant): string {
   overflow: hidden;
   border-radius: 9999px;
   background: rgb(10 8 6 / 0.62);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(0.375rem);
   border: 1px solid rgb(255 255 255 / 0.12);
 }
 .entry {
@@ -82,7 +82,7 @@ function ringOf(c: RunCombatant): string {
 .current .face {
   width: 4.5rem;
   height: 4.5rem;
-  box-shadow: 0 0 0 4px #9a2434, 0 0 1.5rem rgb(154 36 52 / 0.6);
+  box-shadow: 0 0 0 4px var(--live), 0 0 1.5rem color-mix(in oklab, var(--live) 60%, transparent);
 }
 .current .name {
   max-width: 8rem;

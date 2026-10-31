@@ -5,7 +5,7 @@
         <!-- The map dims behind the sheet; a click on it is Back to the map. -->
         <div class="ready-dim absolute inset-0 bg-black/55" @click="close" />
 
-        <aside data-slip class="ready-panel relative flex h-full w-full max-w-140 flex-col border-l border-border bg-card shadow-lg">
+        <aside ref="panelRef" tabindex="-1" data-slip class="ready-panel relative flex h-full w-full max-w-140 flex-col border-l border-border bg-card shadow-lg focus:outline-none" @keydown.tab="onTab">
           <header class="flex shrink-0 items-start gap-3 border-b border-border px-5 pt-4 pb-3">
             <div class="min-w-0 flex-1">
               <p class="truncate text-eyebrow font-semibold text-muted-foreground">{{ mapName }}</p>
@@ -102,11 +102,12 @@
  * each to the workbench); Light is changed inline, and the play choice leaves
  * through the router.
  */
-import { computed, ref, watch, type Component } from "vue";
+import { computed, nextTick, ref, watch, type Component } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import { trapTab } from "@/components/common/overlays/focusTrap";
 import { useModalStack } from "@/components/common/overlays/modalStack";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useStartFight } from "@/composables/encounters/useStartFight";
@@ -154,6 +155,27 @@ const NEW_ENCOUNTER = "new";
 const router = useRouter();
 const { startFightAt, starting } = useStartFight();
 const zIndex = useModalStack(() => open.value);
+
+// Teleported to body, so Tab is kept inside by hand, focus moves in on open and goes back to what opened it on close.
+const panelRef = ref<HTMLElement | null>(null);
+let focusOnClose: HTMLElement | null = null;
+function onTab(event: KeyboardEvent): void {
+  trapTab(event, panelRef.value);
+}
+watch(
+  open,
+  async (isOpen) => {
+    if (isOpen) {
+      focusOnClose = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      await nextTick();
+      panelRef.value?.focus();
+    } else {
+      focusOnClose?.focus();
+      focusOnClose = null;
+    }
+  },
+  { immediate: true },
+);
 useHotkeys(
   () => [{ combo: "escape", description: "Close the ready check", hidden: true, allowInTextEntry: true, handler: close }],
   { enabled: open, layer: "overlay" },

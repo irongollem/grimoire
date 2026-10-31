@@ -19,7 +19,7 @@ vi.mock("@/composables/encounters/useMapCanvas", () => ({
 }));
 vi.mock("@/composables/encounters/useCombatantMinis", () => ({ useCombatantMinis: () => ref(new Map()) }));
 vi.mock("@/composables/encounters/useCombatantDollFigures", () => ({ useCombatantDollFigures: () => ref(new Map()) }));
-vi.mock("@/composables/encounters/useTableChannel", () => ({
+vi.mock("@/composables/table/useTableChannel", () => ({
   useTableChannel: () => ({ pings: h.pings, measures: ref([]), drawings: ref([]), connected: ref(true) }),
 }));
 // A reduced-motion screen jumps instead of gliding, which is what lets the test read the pan straight away.

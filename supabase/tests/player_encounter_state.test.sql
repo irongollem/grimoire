@@ -1,4 +1,5 @@
 begin;
+-- The Table screen re-applies these rules on the client: src/lib/table/tableScreen.ts (and its test). Change one, change both.
 -- Rings are sent at commit (20261009233206); read them per statement.
 set constraints all immediate;
 

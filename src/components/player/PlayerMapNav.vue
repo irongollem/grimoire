@@ -25,8 +25,8 @@ import { IconMap, IconScrollText } from "@/lib/icons";
 .map-nav {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  background: rgb(0 0 0 / 0.65);
-  border-top: 1px solid rgb(255 255 255 / 0.08);
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .item {
@@ -37,9 +37,9 @@ import { IconMap, IconScrollText } from "@/lib/icons";
   gap: 0.125rem;
   min-height: 3.25rem;
   font-size: 0.75rem;
-  color: rgb(255 255 255 / 0.65);
+  color: var(--muted-foreground);
 }
 .is-here {
-  color: #c9a227;
+  color: var(--primary);
 }
 </style>

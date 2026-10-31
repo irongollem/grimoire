@@ -43,10 +43,10 @@ const emit = defineEmits<{ cancel: []; move: [] }>();
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.875rem 1rem;
-  background: #16131c;
-  color: #ece6d6;
-  border-top: 1px solid rgb(255 255 255 / 0.1);
-  --feet-ink: #c9a227;
+  background: var(--card);
+  color: var(--card-foreground);
+  border-top: 1px solid var(--border);
+  --feet-ink: var(--primary);
 }
 .is-bottom {
   padding-bottom: calc(0.875rem + env(safe-area-inset-bottom));
@@ -57,15 +57,15 @@ const emit = defineEmits<{ cancel: []; move: [] }>();
   bottom: 1rem;
   transform: translateX(-50%);
   width: min(22rem, calc(100% - 2rem));
-  border: 1px solid rgb(255 255 255 / 0.15);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
   box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.5);
 }
 .state-dash {
-  --feet-ink: var(--color-tone-caution, #d97706);
+  --feet-ink: var(--color-tone-caution);
 }
 .state-beyond {
-  --feet-ink: var(--color-tone-danger, #dc2626);
+  --feet-ink: var(--color-tone-danger);
 }
 .head {
   display: flex;
@@ -93,6 +93,6 @@ const emit = defineEmits<{ cancel: []; move: [] }>();
 .hint {
   text-align: center;
   font-size: 0.8125rem;
-  color: rgb(255 255 255 / 0.55);
+  color: var(--muted-foreground);
 }
 </style>

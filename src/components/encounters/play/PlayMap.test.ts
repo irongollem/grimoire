@@ -44,7 +44,7 @@ vi.mock("./usePlayMapState", async () => {
     }),
   };
 });
-vi.mock("@/composables/encounters/useTableChannel", async () => {
+vi.mock("@/composables/table/useTableChannel", async () => {
   const { ref: r } = await import("vue");
   return {
     useTableChannel: () => ({

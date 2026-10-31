@@ -91,7 +91,7 @@ import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue
 import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import { useCombatantMinis } from "@/composables/encounters/useCombatantMinis";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
-import { useTableChannel } from "@/composables/encounters/useTableChannel";
+import { useTableChannel } from "@/composables/table/useTableChannel";
 import { cellSizeInDisplay, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { DarknessZone } from "@/lib/battlemap/illumination";
@@ -262,7 +262,9 @@ watch(
   width: 100%;
   height: 100dvh;
   overflow: hidden;
-  background: #060504;
+  /* The one dark colour the screen needs behind the map, drawn from the theme rather than a hex. */
+  --table-night: color-mix(in oklab, black 94%, var(--primary));
+  background: var(--table-night);
   color: #fff;
 }
 .table-host {

@@ -12,6 +12,7 @@ function creature(over: Partial<RunCombatant> & Pick<RunCombatant, "instance_id"
 const hero = (over: Partial<RunCombatant> = {}) => creature({ instance_id: "p-1", name: "Tamsin", type: "player", faction_id: "players", ...over });
 
 // The rules below are what get_player_encounter_state applies for a player (#1125 decision 15: "in the players' eyes").
+// Each case mirrors one in supabase/tests/player_encounter_state.test.sql; keep the two in step.
 describe("tableVisible", () => {
   it("shows a revealed monster with no hit points, only whether it still stands", () => {
     const [ogre] = tableVisible([creature({ instance_id: "m1", name: "Ogre", hp: 12, max_hp: 59 })], []);
@@ -41,6 +42,32 @@ describe("tableVisible", () => {
       [],
     );
     expect([shadow.name, shadow.portrait_url, shadow.token_url, shadow.monster_id]).toEqual([UNSEEN_NAME, null, null, undefined]);
+  });
+
+  // Mirrors pgTAP "unseen combatant identity is opaque": the server builds an unseen monster at hp 1/1, whatever it
+  // has left, so a downed one cannot be told from a standing one.
+  it("shows an unseen monster at 1/1 hit points even when it is down, with its saves and bonus gone", () => {
+    const [shadow] = tableVisible(
+      [creature({ instance_id: "m1", name: "Ash-wight", reveal_state: "unseen", hp: 0, dex_mod: 5, death_saves: { successes: 1, failures: 2 }, party_member_id: "pm", companion_id: "c" })],
+      [],
+    );
+    expect([shadow.hp, shadow.max_hp, shadow.dex_mod, shadow.death_saves, shadow.party_member_id, shadow.companion_id]).toEqual([1, 1, 0, { successes: 0, failures: 0 }, undefined, undefined]);
+  });
+
+  // Mirrors pgTAP "hidden combatants are absent from the projection".
+  it("keeps the players and the unseen in a mixed list while the hidden vanish", () => {
+    const shown = tableVisible(
+      [creature({ instance_id: "h", name: "Dragon", reveal_state: "hidden" }), creature({ instance_id: "u", name: "Assassin", reveal_state: "unseen" }), hero()],
+      [],
+    );
+    expect(shown.map((c) => c.name)).toEqual([UNSEEN_NAME, "Tamsin"]);
+  });
+
+  // Mirrors pgTAP "concealed NPCs use their cover name / portrait": each disguise part swaps only when it exists.
+  it("swaps only the disguise parts that exist: a name-only disguise keeps the true face", () => {
+    const npc: DisguisableNpc = { id: "n1", disguise_name: "Old Tom", disguise_portrait_url: null, disguise_portrait_focal_point: null, is_revealed: false };
+    const [seen] = tableVisible([creature({ instance_id: "m1", name: "Vex", npc_id: "n1", portrait_url: "https://x/vex.webp", token_url: "https://x/t.webp" })], [npc]);
+    expect([seen.name, seen.portrait_url, seen.token_url]).toEqual(["Old Tom", "https://x/vex.webp", "https://x/t.webp"]);
   });
 
   it("never touches a player's own hit points", () => {

@@ -19,7 +19,11 @@ function campaignWith(explore: ExploreParty | null): Campaign {
   return { id: "c1", explore_party: explore } as Campaign;
 }
 
-function setup(stored: ExploreParty | null = null, sizeOf?: (id: string) => "large" | null) {
+function setup(
+  stored: ExploreParty | null = null,
+  sizeOf?: (id: string) => "large" | null,
+  site: { roomCells?: ReadonlyMap<string, CellKey[]>; roomOrder?: string[]; frame?: { across: number; down: number } | null } = {},
+) {
   const store = useCampaignStore();
   store.activeCampaignId = "c1";
   store.activeCampaign = campaignWith(stored);
@@ -28,9 +32,10 @@ function setup(stored: ExploreParty | null = null, sizeOf?: (id: string) => "lar
     useExploreParty({
       siteId: "s1",
       members: () => [member("a"), member("b")],
-      roomCells: () => ROOMS,
-      roomOrder: ["hall"],
+      roomCells: () => site.roomCells ?? ROOMS,
+      roomOrder: site.roomOrder ?? ["hall"],
       partyRoomId: () => null,
+      frame: () => site.frame ?? null,
       ...(sizeOf ? { sizeOf } : {}),
     }),
   )!;
@@ -117,3 +122,47 @@ describe("useExploreParty", () => {
   });
 });
 
+describe("useExploreParty on a site with no rooms", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.useFakeTimers();
+    h.write.mockClear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const NO_ROOMS = { roomCells: new Map<string, CellKey[]>(), roomOrder: [] };
+
+  // The Hollow Clearing bug: no traced room meant no square for anyone and explore_party stayed null.
+  it("seats the party in the middle of the picture and writes explore_party once", () => {
+    const { api } = setup(null, undefined, { ...NO_ROOMS, frame: { across: 40, down: 30 } });
+    const squares = api.tokens.value.map((t) => t.position);
+    expect(squares.every((p) => !!p && Math.abs(p.x - 20) <= 2 && Math.abs(p.y - 15) <= 2)).toBe(true);
+    vi.advanceTimersByTime(500);
+    expect(h.write).toHaveBeenCalledTimes(1);
+    expect(Object.keys(h.write.mock.calls[0][0].explore.positions).sort()).toEqual(["a", "b"]);
+  });
+
+  it("waits, with nobody on the map, until the picture's size is known", async () => {
+    const { api } = setup(null, undefined, { ...NO_ROOMS, frame: null });
+    await nextTick();
+    vi.advanceTimersByTime(500);
+    expect(api.tokens.value.every((t) => t.position === undefined)).toBe(true);
+    expect(h.write).not.toHaveBeenCalled();
+  });
+
+  it("seats the party at the middle when the entrance room has no squares on this frame", () => {
+    const { api } = setup(null, undefined, { roomCells: new Map([["hall", []]]), roomOrder: ["hall"], frame: { across: 40, down: 30 } });
+    expect(api.tokens.value.every((t) => t.position !== undefined)).toBe(true);
+  });
+
+  // A click on a bare square with unplaced characters picked used to do nothing at all.
+  it("seatAt stands only the unplaced characters at the clicked square, leaving a placed one where it is", () => {
+    const { api } = setup({ site_id: "s1", positions: { a: { x: 2, y: 2 } } }, undefined, { ...NO_ROOMS, frame: null });
+    api.seatAt(["a", "b"], { x: 9, y: 9 });
+    const [a, b] = api.tokens.value.map((t) => t.position);
+    expect(a).toEqual({ x: 2, y: 2 });
+    expect(b).toEqual({ x: 9, y: 9 });
+    vi.advanceTimersByTime(500);
+    expect(h.write).toHaveBeenCalledTimes(1);
+  });
+});

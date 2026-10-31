@@ -137,6 +137,51 @@ export function seedPartyPositions(
   return positions;
 }
 
+/** The picture's size in image cells: how many squares across and down the calibrated frame holds. */
+export type ExploreFrame = { across: number; down: number };
+
+/**
+ * Packs these characters into a block of squares whose top-left is `topLeft`, row by row, sized by footprint so a
+ * Large one gets its four squares. The block is a little roomier than the party needs, so nobody is left out.
+ */
+export function seatInFormation(
+  members: readonly TokenMember[],
+  topLeft: ExploreCell,
+  sizeOf: (memberId: string) => MonsterSize | null = () => null,
+): Record<string, ExploreCell> {
+  if (members.length === 0) return {};
+  const tokens = members.map((m) => exploreToken(m, null, sizeOf(m.id)));
+  const feet = tokens.map((t) => t.footprint ?? 1);
+  const area = feet.reduce((sum, f) => sum + Math.max(f, 1) ** 2, 0);
+  const side = Math.ceil(Math.sqrt(area)) + Math.ceil(Math.max(...feet));
+  const x0 = Math.floor(topLeft.x);
+  const y0 = Math.floor(topLeft.y);
+  const block: CellKey[] = [];
+  for (let dy = 0; dy < side; dy++) for (let dx = 0; dx < side; dx++) block.push(cellKey(x0 + dx, y0 + dy));
+  const positions: Record<string, ExploreCell> = {};
+  for (const c of seedTokenPositions(tokens, block)) {
+    if (c.party_member_id !== undefined && c.position) positions[c.party_member_id] = c.position;
+  }
+  return positions;
+}
+
+/**
+ * First entry to a site with no room to seat them in (nothing traced, or the entrance has no squares on this frame):
+ * the party stands in formation around the middle of the picture.
+ */
+export function seedPartyAtCentre(
+  members: readonly TokenMember[],
+  frame: ExploreFrame,
+  sizeOf: (memberId: string) => MonsterSize | null = () => null,
+): Record<string, ExploreCell> {
+  const probe = seatInFormation(members, { x: 0, y: 0 }, sizeOf);
+  const spanX = Math.max(0, ...Object.values(probe).map((p) => p.x + 1));
+  const spanY = Math.max(0, ...Object.values(probe).map((p) => p.y + 1));
+  const x = Math.max(0, Math.floor(frame.across / 2 - spanX / 2));
+  const y = Math.max(0, Math.floor(frame.down / 2 - spanY / 2));
+  return seatInFormation(members, { x, y }, sizeOf);
+}
+
 /**
  * A fight starting on this site stands each character where they were exploring: those with no square yet take their
  * explored one, when it lies on the map. Anyone left without one is seated by the room, as before.

@@ -92,7 +92,7 @@
       :attack-icon="IconSpellAttack"
       :damage-label="actionDiceLabel(atk.damage)"
       description="Custom attack."
-      @attack="emit('roll-attack', atk.attack_bonus ?? 0, atk.name)"
+      @attack="rollCustomAttack(atk)"
       @damage="emit('roll-damage', atk.damage, atk.name)"
     >
       <template v-if="atk.damage_type" #note>
@@ -176,6 +176,12 @@ const {
 const { throwWeapon } = useThrownWeapon();
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+
+// A custom attack with no to-hit bonus (auto-hit or save-based) has nothing to roll: never roll it as +0.
+function rollCustomAttack(atk: { name: string; attack_bonus?: number | null }) {
+  if (atk.attack_bonus == null) return;
+  emit("roll-attack", atk.attack_bonus, atk.name);
+}
 
 // ── Hidden clearing ───────────────────────────────────────────────────────────
 // Attacking gives away your position (5e RAW) — mirrors PlayerCombatTab's

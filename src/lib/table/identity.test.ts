@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseTableMessage } from "@/lib/tableChannel/messages";
-import { senderColor } from "./tableIdentity";
+import { parseTableMessage } from "@/lib/table/messages";
+import { senderColor } from "./identity";
 
 describe("senderColor", () => {
   it("gives the same member the same colour every time, so their strokes match on every screen", () => {

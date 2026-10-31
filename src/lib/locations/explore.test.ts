@@ -17,6 +17,8 @@ import {
   roomCellIndex,
   roomUnder,
   seatFromExploring,
+  seatInFormation,
+  seedPartyAtCentre,
   seedPartyPositions,
 } from "./explore";
 
@@ -173,5 +175,34 @@ describe("character sizes on the exploring map", () => {
   it("leaves everyone off the map when the saved squares are for another site", () => {
     const tokens = exploreTokens([member("a")], { site_id: "other", positions: { a: { x: 3, y: 4 } } }, "s1");
     expect(tokens[0].position).toBeUndefined();
+  });
+});
+
+describe("seating on a frame with no room to stand in", () => {
+  // app convention: the middle of a 30 by 20 picture is square (15, 10); three Medium characters pack into a block around it.
+  it("stands the party in formation around the middle of the picture", () => {
+    const seated = seedPartyAtCentre([member("a"), member("b"), member("c")], { across: 30, down: 20 });
+    const squares = Object.values(seated);
+    expect(squares).toHaveLength(3);
+    for (const p of squares) {
+      expect(Math.abs(p.x - 15)).toBeLessThanOrEqual(2);
+      expect(Math.abs(p.y - 10)).toBeLessThanOrEqual(2);
+    }
+    expect(new Set(squares.map((p) => `${p.x},${p.y}`)).size).toBe(3);
+  });
+
+  // PHB 2024 "Creature Size": a Large creature takes 2 by 2 squares, so the formation leaves it four.
+  it("gives a Large character a clear 2 by 2 and still seats everyone else", () => {
+    const seated = seatInFormation([member("a"), member("b"), member("c")], { x: 5, y: 5 }, (id) => (id === "a" ? "large" : null));
+    expect(Object.keys(seated)).toHaveLength(3);
+    const a = seated.a;
+    for (const other of [seated.b, seated.c]) {
+      const overlaps = other.x >= a.x && other.x < a.x + 2 && other.y >= a.y && other.y < a.y + 2;
+      expect(overlaps).toBe(false);
+    }
+  });
+
+  it("starts the formation at the square it was given", () => {
+    expect(seatInFormation([member("a")], { x: 7, y: 9 }).a).toEqual({ x: 7, y: 9 });
   });
 });

@@ -2,7 +2,16 @@ import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } 
 import { useSetExploreParty } from "@/composables/campaign/useCampaigns";
 import { useToast } from "@/composables/useToast";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
-import { exploreTokens, memberSize, positionsOnSite, seedPartyPositions, type ExploreCell } from "@/lib/locations/explore";
+import {
+  exploreTokens,
+  memberSize,
+  positionsOnSite,
+  seatInFormation,
+  seedPartyAtCentre,
+  seedPartyPositions,
+  type ExploreCell,
+  type ExploreFrame,
+} from "@/lib/locations/explore";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { MonsterSize } from "@/types/monster.types";
@@ -42,6 +51,8 @@ export function useExploreParty(input: {
   roomCells: MaybeRefOrGetter<ReadonlyMap<string, CellKey[]> | null>;
   roomOrder: MaybeRefOrGetter<readonly string[]>;
   partyRoomId: MaybeRefOrGetter<string | null>;
+  /** The picture's size in image cells, once it is known: where the party stands when the site has no room to seat them in. */
+  frame?: MaybeRefOrGetter<ExploreFrame | null>;
   /** A character's size, so a Large one covers four squares; Medium for any it does not know. */
   sizeOf?: (memberId: string) => MonsterSize | null;
 }) {
@@ -88,15 +99,29 @@ export function useExploreParty(input: {
   // Anyone with no square yet is seated in the entrance room. A character who joins later is seated the same way,
   // and may share a square with someone already there: the DM drags them clear.
   watch(
-    () => [members.value, toValue(input.roomCells)] as const,
+    () => [members.value, toValue(input.roomCells), input.frame ? toValue(input.frame) : null] as const,
     ([list, cells]) => {
       if (!list || !cells) return;
       const missing = list.filter((m) => !Object.hasOwn(positions.value, m.id));
       const seated = seedPartyPositions(missing, cells, toValue(input.roomOrder), toValue(input.partyRoomId));
       if (Object.keys(seated).length > 0) place(seated);
+      // No room to stand in (nothing traced, or none on this frame): the middle of the picture, once its size is known.
+      const unseated = missing.filter((m) => !Object.hasOwn(seated, m.id));
+      const frame = input.frame ? toValue(input.frame) : null;
+      if (unseated.length > 0 && frame) {
+        const centred = seedPartyAtCentre(unseated, frame, input.sizeOf);
+        if (Object.keys(centred).length > 0) place(centred);
+      }
     },
     { immediate: true },
   );
+
+  /** Stands these characters in formation at a clicked square: the ones with no square yet, wherever the click lands. */
+  function seatAt(memberIds: readonly string[], at: ExploreCell) {
+    const unplaced = (members.value ?? []).filter((m) => memberIds.includes(m.id) && !Object.hasOwn(positions.value, m.id));
+    const seated = seatInFormation(unplaced, at, input.sizeOf);
+    if (Object.keys(seated).length > 0) place(seated);
+  }
 
   /** The party as tokens; a character with no square yet has none and is left off the map. */
   const tokens = computed<RunCombatant[]>(() => {
@@ -104,5 +129,5 @@ export function useExploreParty(input: {
     return exploreTokens(members.value ?? [], { site_id: siteId, positions: positions.value }, siteId, input.sizeOf);
   });
 
-  return { positions, tokens, place, flush };
+  return { positions, tokens, place, seatAt, flush };
 }

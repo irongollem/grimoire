@@ -48,7 +48,7 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :combatants="tokens"
+        :combatants="placed"
         :factions="DEFAULT_FACTIONS"
         :selected-instance-ids="selection"
         :on-position-change="moves.commitMove"
@@ -117,18 +117,18 @@ import PlayMovePath from "@/components/encounters/play/PlayMovePath.vue";
 import PlayTableMarks from "@/components/encounters/play/PlayTableMarks.vue";
 import PlayToolbelt from "@/components/encounters/play/PlayToolbelt.vue";
 import { usePlayTableTools } from "@/components/encounters/play/usePlayTableTools";
-import { useTableChannel } from "@/composables/encounters/useTableChannel";
+import { useTableChannel } from "@/composables/table/useTableChannel";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { senderColor } from "@/lib/battlemap/tableIdentity";
+import { senderColor } from "@/lib/table/identity";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { isClick } from "@/components/encounters/play/playPointer";
 import { usePlayTokenMoves, type MoveMapState, type MoveTurnBook } from "@/components/encounters/play/usePlayTokenMoves";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
-import type { ExploreCell } from "@/lib/locations/explore";
-import { DEFAULT_PLAY_VIEW, PLAY_TOOL_KEYS, type PlayTool, type PlayViewState } from "@/components/encounters/play/playTypes";
+import type { ExploreCell, ExploreFrame } from "@/lib/locations/explore";
+import { DEFAULT_PLAY_VIEW, PLAY_TOOL_KEYS, type ExploreTool, type PlayTool, type PlayViewState } from "@/components/encounters/play/playTypes";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { DEFAULT_FACTIONS, type RunCombatant } from "@/types/encounter.types";
 import type { CellKey } from "@/types/dungeonMap.types";
@@ -167,6 +167,10 @@ const emit = defineEmits<{
   move: [positions: Record<string, ExploreCell>];
   select: [instanceId: string | null];
   "update:groupIds": [instanceIds: string[]];
+  /** Characters with no square yet, picked when a square was clicked: seat them there in formation. */
+  seat: [memberIds: string[], at: ExploreCell];
+  /** The picture's size in image cells, once it has loaded. */
+  frame: [frame: ExploreFrame];
 }>();
 
 const {
@@ -246,7 +250,7 @@ const noTurns: MoveTurnBook = {
 };
 
 const tool = ref<PlayTool>("move");
-const EXPLORE_TOOLS: readonly PlayTool[] = ["move", "measure", "ping", "draw"];
+const EXPLORE_TOOLS: readonly ExploreTool[] = ["move", "measure", "ping", "draw"];
 
 const auth = useAuthStore();
 const campaignStore = useCampaignStore();
@@ -281,6 +285,24 @@ const moves = usePlayTokenMoves({
   selectGroup: (ids) => emit("update:groupIds", ids),
 });
 const { selection, preview } = moves;
+
+// The picture's size in squares, for seating a party on a site with no room to stand in.
+watch(
+  [imageReady, imageNaturalW, imageNaturalH],
+  ([ready, w, h]) => {
+    if (ready && w > 0 && h > 0) emit("frame", { across: surface.calibration.cells_per_image_width, down: (surface.calibration.cells_per_image_width * h) / w });
+  },
+  { immediate: true },
+);
+
+// A click on a square seats whoever of the selection has no square yet; the placed ones move as usual.
+function clickSquare(at: { x: number; y: number } | null) {
+  if (at && tool.value === "move") {
+    const ids = tokens.flatMap((t) => (!t.position && t.party_member_id !== undefined && selection.value.has(t.instance_id) ? [t.party_member_id] : []));
+    if (ids.length > 0) emit("seat", ids, { x: Math.floor(at.x), y: Math.floor(at.y) });
+  }
+  moves.clickSquare(at);
+}
 
 // ── Pointer: pan, click a square, Shift-drag a box ───────────────────────────
 const press = ref<{ x: number; y: number; kind: "pan" | "box" } | null>(null);
@@ -341,7 +363,7 @@ function onPointerUp(e: PointerEvent) {
   }
   endPan(e);
   // A press on a square that never moved is a move there; a pan that travelled is only a pan.
-  if (pressed?.kind === "pan" && isClick(pressed, { x: e.clientX, y: e.clientY })) moves.clickSquare(imageCellAt(e.clientX, e.clientY));
+  if (pressed?.kind === "pan" && isClick(pressed, { x: e.clientX, y: e.clientY })) clickSquare(imageCellAt(e.clientX, e.clientY));
 }
 
 function onPointerLeave(e: PointerEvent) {

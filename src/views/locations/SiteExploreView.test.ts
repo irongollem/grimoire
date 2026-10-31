@@ -17,6 +17,7 @@ const h = await vi.hoisted(async () => {
     tokens: vueRef<unknown[]>([]),
     moveParty: vi.fn(() => Promise.resolve(true)),
     place: vi.fn(),
+    seatAt: vi.fn(),
     push: vi.fn(),
     startFightAt: vi.fn(),
     open: vi.fn(),
@@ -46,7 +47,7 @@ vi.mock("@/composables/locations/useLocationState", () => ({
 }));
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useMoveParty", () => ({ useMoveParty: () => ({ moveParty: h.moveParty }) }));
-vi.mock("@/composables/locations/useExploreParty", () => ({ useExploreParty: () => ({ tokens: h.tokens, place: h.place }), usePartyTokenSizes: () => () => null }));
+vi.mock("@/composables/locations/useExploreParty", () => ({ useExploreParty: () => ({ tokens: h.tokens, place: h.place, seatAt: h.seatAt }), usePartyTokenSizes: () => () => null }));
 vi.mock("@/composables/encounters/useStartFight", () => ({ useStartFight: () => ({ startFightAt: h.startFightAt, starting: ref(false) }) }));
 vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/quests/useBeatsStagedAt", () => ({ useBeatsStagedAt: () => ({ data: ref([]) }) }));
@@ -68,7 +69,7 @@ const REGIONS = [region("hall", ["10,20", "11,20", "12,20"]), region("crypt", ["
 const MapStub = defineComponent({
   name: "ExploreMap",
   props: ["tokens", "shadedCells", "enteringCells"],
-  emits: ["move", "select", "update:groupIds"],
+  emits: ["move", "select", "update:groupIds", "seat", "frame"],
   template: "<div data-testid='map'><slot /></div>",
 });
 const PlanStub = defineComponent({ name: "LocationMap", emits: ["move-party"], template: "<div data-testid='plan' />" });
@@ -157,6 +158,13 @@ describe("SiteExploreView", () => {
     await flushPromises();
     w.findComponent({ name: "ExploreMap" }).vm.$emit("move", { a: { x: 2, y: 0 } });
     expect(h.place).toHaveBeenCalledWith({ a: { x: 2, y: 0 } });
+  });
+
+  it("hands a click on a square with unplaced characters to the party's seating", async () => {
+    const w = mountView();
+    await flushPromises();
+    w.findComponent({ name: "ExploreMap" }).vm.$emit("seat", ["a", "b"], { x: 3, y: 2 });
+    expect(h.seatAt).toHaveBeenCalledWith(["a", "b"], { x: 3, y: 2 });
   });
 
   // A site whose grid is not lined up has no squares to walk: the plan moves the party room to room, as the old runner did.

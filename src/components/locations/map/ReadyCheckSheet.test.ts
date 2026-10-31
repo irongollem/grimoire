@@ -110,4 +110,51 @@ describe("ReadyCheckSheet", () => {
     mountSheet();
     expect(body().textContent).toContain("The party starts in The Crypt.");
   });
+
+  // Teleported to body, a sheet that leaves focus behind lets a screen-reader or keyboard user wander the page it covers.
+  describe("focus", () => {
+    const panel = () => body().querySelector<HTMLElement>(".ready-panel")!;
+
+    it("takes focus into the sheet when it opens", async () => {
+      mountSheet();
+      await flushPromises();
+      expect(document.activeElement).toBe(panel());
+    });
+
+    it("hands focus back to what opened it when it closes", async () => {
+      const opener = document.createElement("button");
+      document.body.append(opener);
+      opener.focus();
+      mountSheet({ open: false });
+      await wrapper.setProps({ open: true });
+      await flushPromises();
+      expect(document.activeElement).toBe(panel());
+      await wrapper.setProps({ open: false });
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+
+    it("wraps Tab from the last control back to the first instead of leaving the sheet", async () => {
+      // jsdom has no layout, so every element reads as hidden to the trap; make them all rendered.
+      const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetParent");
+      Object.defineProperty(HTMLElement.prototype, "offsetParent", { configurable: true, get: () => document.body });
+      mountSheet();
+      await flushPromises();
+      const items = [...panel().querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")];
+      items[items.length - 1].focus();
+      const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      items[items.length - 1].dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(items[0]);
+      if (original) Object.defineProperty(HTMLElement.prototype, "offsetParent", original);
+    });
+
+    it("closes on Escape", async () => {
+      mountSheet();
+      await flushPromises();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await flushPromises();
+      expect(wrapper.emitted("update:open")).toEqual([[false]]);
+    });
+  });
 });

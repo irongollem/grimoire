@@ -34,7 +34,7 @@ vi.mock("@/composables/encounters/useMapCanvas", () => ({
 }));
 
 const table = vi.hoisted(() => ({ sendPing: vi.fn(), startMeasure: vi.fn() }));
-vi.mock("@/composables/encounters/useTableChannel", async () => {
+vi.mock("@/composables/table/useTableChannel", async () => {
   const { ref } = await import("vue");
   return {
     useTableChannel: () => ({
@@ -68,11 +68,15 @@ function hero(id: string, x: number, y: number): RunCombatant {
   return exploreToken({ id, name: id, current_hp: 5, max_hp: 5, portrait_url: null, portrait_focal_point: null }, { x, y });
 }
 
-function mountMap(groupIds: string[], selectedId: string) {
+function unplaced(id: string): RunCombatant {
+  return exploreToken({ id, name: id, current_hp: 5, max_hp: 5, portrait_url: null, portrait_focal_point: null }, null);
+}
+
+function mountMap(groupIds: string[], selectedId: string, tokens: RunCombatant[] = [hero("a", 2, 2), hero("b", 3, 2), hero("c", 2, 3)]) {
   return mount(ExploreMap, {
     props: {
       surface,
-      tokens: [hero("a", 2, 2), hero("b", 3, 2), hero("c", 2, 3)],
+      tokens,
       rooms: [],
       shadedCells: [],
       enteringCells: [],
@@ -124,5 +128,40 @@ describe("ExploreMap", () => {
     host.element.dispatchEvent(e);
     expect(table.sendPing).toHaveBeenCalledWith(3.5, 2.1);
     expect(w.emitted("move")).toBeUndefined();
+  });
+
+  // The Hollow Clearing bug: unplaced tokens went to the token layer, which stacks them in a strip along row 0.
+  it("never hands an unplaced character to the token layer", () => {
+    const w = mountMap([], "p-a", [hero("a", 2, 2), unplaced("b")]);
+    const shown = (w.findComponent({ name: "BattleMapTokenLayer" }).props("combatants") as RunCombatant[]).map((t) => t.instance_id);
+    expect(shown).toEqual(["p-a"]);
+  });
+
+  function clickAt(w: ReturnType<typeof mountMap>, clientX: number, clientY: number) {
+    const host = w.find("[data-testid=explore-map-host]");
+    (host.element as HTMLElement).setPointerCapture = vi.fn();
+    for (const type of ["pointerdown", "pointerup"]) {
+      const e = new MouseEvent(type, { clientX, clientY, bubbles: true });
+      Object.defineProperty(e, "pointerId", { value: 1 });
+      host.element.dispatchEvent(e);
+    }
+  }
+
+  it("seats the selected characters who have no square at the clicked square", () => {
+    const w = mountMap(["p-a", "p-b"], "p-a", [unplaced("a"), unplaced("b")]);
+    clickAt(w, 35, 21); // 10px a cell: square (3, 2)
+    expect(w.emitted("seat")).toEqual([[["a", "b"], { x: 3, y: 2 }]]);
+  });
+
+  it("does not seat a character who is not selected", () => {
+    const w = mountMap([], "p-a", [unplaced("a"), unplaced("b")]);
+    clickAt(w, 35, 21);
+    expect((w.emitted("seat") as [string[], unknown][])[0][0]).toEqual(["a"]);
+  });
+
+  it("tells the screen how many squares the picture holds", () => {
+    const w = mountMap([], "p-a");
+    // 30 cells across a 300 by 300 picture: 30 down.
+    expect(w.emitted("frame")?.[0]).toEqual([{ across: 30, down: 30 }]);
   });
 });

@@ -15,7 +15,7 @@ import {
   type Point,
   type TableMessage,
   type TableSender,
-} from "@/lib/tableChannel/messages";
+} from "@/lib/table/messages";
 
 export const PING_MS = 2500;
 /** A measure line nobody has updated for this long is gone, so a dropped client cannot leave one forever. */

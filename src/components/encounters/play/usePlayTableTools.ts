@@ -1,7 +1,7 @@
 import { computed, onScopeDispose, ref, toValue, type MaybeRefOrGetter, type Ref } from "vue";
-import type { useTableChannel } from "@/composables/encounters/useTableChannel";
+import type { useTableChannel } from "@/composables/table/useTableChannel";
 import { snapToSquareMiddle, type MeasurePoint } from "@/lib/battlemap/measure";
-import { MAX_POINTS, type Point } from "@/lib/tableChannel/messages";
+import { MAX_POINTS, type Point } from "@/lib/table/messages";
 import { isClick } from "./playPointer";
 import type { PlayTool } from "./playTypes";
 

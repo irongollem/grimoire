@@ -149,9 +149,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onScopeDispose, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
-import { liveState, updateCombatantPosition } from "@/composables/encounters/useEncounterLive";
+import { liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
@@ -159,29 +159,21 @@ import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDo
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
-import { AMBIENT, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
-import { sameDoorStates } from "@/lib/battlemap/doors";
 import { currentMapLive } from "@/lib/battlemap/liveLayer";
 import { pictureUnderDrawing } from "@/lib/battlemap/roomBridge";
-import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
-import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
-import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
-import { useParty } from "@/composables/party/useParty";
+import { seenCombatants } from "@/lib/battlemap/vision";
+import { usePlayerMapFollow } from "@/composables/player/usePlayerMapFollow";
+import { usePlayerMapPointer } from "@/composables/player/usePlayerMapPointer";
+import { usePlayerMapMove } from "@/composables/player/usePlayerMapMove";
+import { usePlayerMapSight } from "@/composables/player/usePlayerMapSight";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { useToast } from "@/composables/useToast";
-import PlayMovePath, { type PathLine } from "@/components/encounters/play/PlayMovePath.vue";
+import PlayMovePath from "@/components/encounters/play/PlayMovePath.vue";
 import PlayTableMarks from "@/components/encounters/play/PlayTableMarks.vue";
-import { useTableChannel } from "@/composables/encounters/useTableChannel";
-import { senderColor } from "@/lib/battlemap/tableIdentity";
-import { combatantSpeed } from "@/components/encounters/play/playSpeed";
+import { useTableChannel } from "@/composables/table/useTableChannel";
+import { senderColor } from "@/lib/table/identity";
 import PlayerMapTurnHeader from "@/components/player/PlayerMapTurnHeader.vue";
 import PlayerMapMoveSheet from "@/components/player/PlayerMapMoveSheet.vue";
 import PlayerMapNav from "@/components/player/PlayerMapNav.vue";
-import { actsBefore, moveTo, ownMove, panToCentre, pointerToCell, type OwnMove } from "@/components/player/playerMapMove";
-import type { Cell } from "@/lib/battlemap/movement";
-import { useSpeciesByIds } from "@/composables/rules/useSpecies";
-import { characterSenses } from "@/rules/characterSenses";
 import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -196,7 +188,6 @@ import {
 // Phones get the map too (#1125 decision 14): a header that says whose turn it is, tap-then-square moves with a
 // confirm sheet, and a bottom nav.
 const isPhone = useIsMobile();
-const toast = useToast();
 
 // The battle location and the token ring colours come from the player-safe projection: players cannot read the
 // encounter row itself.
@@ -268,52 +259,7 @@ const liveCombatants = computed<RunCombatant[] | null>(() => {
   // In the dark a token you cannot see is not drawn either (#1073 story 5); fog above still applies.
   return sight.value ? seenCombatants(revealed, sight.value.scene, sight.value.viewers, ownInstanceId.value) : revealed;
 });
-// Sight (#1073 story 5): a player sees the lit map through their own token, by the rules. Senses are the better of the
-// species' darkvision and the character's own senses field (`characterSenses`).
-const { data: party } = useParty();
-const ownMember = computed(() =>
-  auth.linkedPartyMemberId ? (party.value?.find((m) => m.id === auth.linkedPartyMemberId) ?? null) : null,
-);
-const { data: speciesById } = useSpeciesByIds(() => [ownMember.value?.species_id]);
-const ownSenses = computed(() => {
-  const member = ownMember.value;
-  const species = member?.species_id ? speciesById.value.get(member.species_id) : undefined;
-  return characterSenses({ species, subrace: member?.subrace, senses: member?.senses });
-});
-// Spheres of magical darkness the DM placed (story 10), from the player-safe projection of the live row.
-const zones = computed<readonly DarknessZone[]>(() => (liveState.value ? liveState.value.magical_darkness : NO_ZONES));
-// Doors the DM opened or shut this fight, from the same projection. A re-read hands a fresh array of equal content;
-// the previous one is kept so the occluders memoised on its identity are not rebuilt.
-const doorStates = computed<readonly MapLiveDoorState[]>((prev) => {
-  const next = liveState.value ? liveState.value.door_states : NO_DOOR_STATES;
-  return prev && sameDoorStates(prev, next) ? prev : next;
-});
-// Only a dark or dim map, or one with a sphere of magical darkness, has sight to apply: in plain daylight everything is
-// seen, so there is no scene and no viewers.
-// Viewers are the own token's centre; a player with no token on the map sees only what is lit.
-const sight = computed<{ scene: LitScene; viewers: Viewer[] } | null>(() => {
-  if (!live.value || (live.value.darkness === "daylight" && zones.value.length === 0)) return null;
-  const scene: LitScene = {
-    ambient: AMBIENT[live.value.darkness],
-    sources: live.value.lights,
-    occluders: occludersOf(live.value, doorStates.value),
-    zones: zones.value,
-  };
-  const own = liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value);
-  if (!own?.position) return { scene, viewers: [] };
-  const half = combatantFootprint(own) / 2;
-  const { darkvision, blindsight, truesight, devilsSight } = ownSenses.value;
-  const viewer: Viewer = {
-    x: own.position.x + half,
-    y: own.position.y + half,
-    darkvisionFeet: darkvision,
-    blindsightFeet: blindsight,
-    truesightFeet: truesight,
-    devilsSightFeet: devilsSight,
-  };
-  return { scene, viewers: [viewer] };
-});
-const viewers = computed<Viewer[] | null>(() => (sight.value ? sight.value.viewers : null));
+const { zones, doorStates, sight, viewers } = usePlayerMapSight(live, ownInstanceId);
 const dollFigures = useCombatantDollFigures(() => liveCombatants.value ?? []);
 const activeInstanceId = computed(() => {
   const list = liveState.value?.combatants_live;
@@ -331,137 +277,19 @@ const draggableSet = computed(() =>
   ownInstanceId.value ? new Set([ownInstanceId.value]) : new Set<string>(),
 );
 
-async function onOwnTokenMoved(instanceId: string, position: { x: number; y: number }) {
-  if (!liveState.value) return;
-  if (instanceId !== ownInstanceId.value) return;
-  try {
-    await updateCombatantPosition(liveState.value.id, instanceId, position);
-  } catch (e) {
-    toast.error(toast.fromError(e, "Couldn't move your token."));
-  }
-}
-
-// ── Turn, header and following ──────────────────────────────────────────────
-const ownCombatant = computed(() => liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value) ?? null);
-const isMyTurn = computed(() => ownInstanceId.value !== null && activeInstanceId.value === ownInstanceId.value);
-const activeCombatant = computed(() => liveState.value?.combatants_live?.find((c) => c.instance_id === activeInstanceId.value) ?? null);
-const ownSpeed = computed(() => (ownCombatant.value ? combatantSpeed(ownCombatant.value, { monsters: [], npcs: [], members: party.value ?? [] }) : null));
-const ownUsedFeet = computed(() => (isMyTurn.value ? (ownCombatant.value?.movement_used ?? 0) : 0));
-
-const turnTitle = computed(() => {
-  if (isMyTurn.value) return "Your turn";
-  return activeCombatant.value && (activeCombatant.value.reveal_state ?? "revealed") === "revealed"
-    ? `${activeCombatant.value.name}'s turn`
-    : "Waiting for your turn";
-});
-const turnSubtitle = computed(() => {
-  const round = liveState.value ? `Round ${liveState.value.current_round}` : null;
-  if (isMyTurn.value) {
-    if (ownSpeed.value === null) return round;
-    return `${round} · ${Math.max(0, ownSpeed.value - ownUsedFeet.value)} ft to move`;
-  }
-  const list = liveState.value?.combatants_live;
-  const before = list && ownInstanceId.value ? actsBefore(sortCombatantsByInitiative(list), ownInstanceId.value) : null;
-  return before ? `You're after the ${before}` : round;
-});
-const turnPortraitUrl = computed(() => ownCombatant.value?.portrait_url ?? null);
-const ownHp = computed(() => (ownCombatant.value ? { current: ownCombatant.value.hp, max: ownCombatant.value.max_hp } : null));
+const {
+  ownCombatant, isMyTurn, activeCombatant, turnTitle, turnSubtitle, turnPortraitUrl, ownHp,
+  picked, pickedSet, target, moving, pending, pathLines,
+  onOwnTokenMoved, onOwnTokenTapped, onOwnTokenDragPreview, cancelMove, confirmMove,
+} = usePlayerMapMove(ownInstanceId, activeInstanceId);
 
 // Following: the map sits on whoever is up (you, on your turn) until the player turns it off in the header.
 const follow = ref(true);
-
-// ── Moving: tap your token, then a square ───────────────────────────────────
-const picked = ref(false);
-const pickedSet = computed<ReadonlySet<string> | null>(() => (picked.value && ownInstanceId.value ? new Set([ownInstanceId.value]) : null));
-const target = ref<Cell | null>(null);
-const dragTo = ref<Cell | null>(null);
-const moving = ref(false);
-
-const ownFootprint = computed(() => (ownCombatant.value ? combatantFootprint(ownCombatant.value) : 1));
-
-function movePlan(to: Cell | null, tapped: boolean): OwnMove | null {
-  const from = ownCombatant.value?.position;
-  if (!to || !from || !ownInstanceId.value) return null;
-  const common = { instanceId: ownInstanceId.value, from, footprint: ownFootprint.value, speed: ownSpeed.value, usedFeet: ownUsedFeet.value };
-  return tapped ? ownMove({ ...common, pointer: to }) : moveTo({ ...common, to });
-}
-// `target` is the pointer's place in cells, so the snap happens here, the same rounding a drag uses.
-const pending = computed(() => movePlan(target.value, true));
-const dragging = computed(() => movePlan(dragTo.value, false));
-const pathLines = computed<PathLine[]>(() => {
-  const m = pending.value ?? dragging.value;
-  return m ? [m.line] : [];
-});
-
-function onOwnTokenTapped(instanceId: string) {
-  if (instanceId !== ownInstanceId.value) return;
-  picked.value = true;
-}
-function onOwnTokenDragPreview(instanceId: string, to: Cell | null) {
-  dragTo.value = instanceId === ownInstanceId.value ? to : null;
-}
-
-function cancelMove() {
-  target.value = null;
-  picked.value = false;
-}
-
-async function confirmMove() {
-  const m = pending.value;
-  if (!m || !ownInstanceId.value) return;
-  moving.value = true;
-  try {
-    await onOwnTokenMoved(ownInstanceId.value, m.plan.to);
-  } finally {
-    moving.value = false;
-    cancelMove();
-  }
-}
-
-// A tap is a press that neither travelled nor shared the screen with a second finger; anything else is a pan or pinch.
-const TAP_SLOP_PX = 8;
-/** Holding a finger still this long pings the spot for the whole table (#1125 decision 12). */
-const LONG_PRESS_PING_MS = 500;
-let tapStart: { x: number; y: number } | null = null;
-let longPress: ReturnType<typeof setTimeout> | undefined;
 
 // The table's marks: players hear them all and send pings only.
 const table = useTableChannel(() => campaignStore.activeCampaign?.id ?? null, {
   identity: () => (auth.user ? { id: auth.user.id, name: auth.publicName ?? "A player", color: senderColor(auth.user.id) } : null),
 });
-onScopeDispose(() => clearTimeout(longPress));
-
-function onHostDown(e: PointerEvent) {
-  tapStart = e.isPrimary ? { x: e.clientX, y: e.clientY } : null;
-  clearTimeout(longPress);
-  if (tapStart && canvasHost.value && cellPx.value > 0) {
-    const at = pointerToCell(e, canvasHost.value.getBoundingClientRect(), gridOrigin.value, cellPx.value);
-    longPress = setTimeout(() => {
-      // It is a ping, not a tap: the lift that follows must not pick a square to move to.
-      tapStart = null;
-      table.sendPing(at.x, at.y);
-    }, LONG_PRESS_PING_MS);
-  }
-  startPan(e);
-}
-function onHostMove(e: PointerEvent) {
-  if (tapStart && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) > TAP_SLOP_PX) clearTimeout(longPress);
-  continuePan(e);
-}
-function onHostUp(e: PointerEvent) {
-  clearTimeout(longPress);
-  const start = tapStart;
-  tapStart = null;
-  endPan(e);
-  if (!start || !picked.value || !canvasHost.value || cellPx.value <= 0) return;
-  if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > TAP_SLOP_PX) return;
-  target.value = pointerToCell(e, canvasHost.value.getBoundingClientRect(), gridOrigin.value, cellPx.value);
-}
-function onHostCancel(e: PointerEvent) {
-  clearTimeout(longPress);
-  tapStart = null;
-  endPan(e);
-}
 
 const {
   canvasHost,
@@ -525,34 +353,12 @@ const gridStrokeOpacity = computed(
   () => image.value?.calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 
-// Phone: zoom to a playable size once, then keep the token of whoever is up in the middle (you, on your turn).
-// Each move of that token pans again; a player's own pan stays until the next move or turn.
-const PHONE_CELL_PX = 56;
 const followTarget = computed(() => (isMyTurn.value ? ownCombatant.value : activeCombatant.value));
-let zoomed = false;
-watch(
-  () => [isPhone.value, follow.value, imageReady.value, cellPx.value > 0, hostW.value > 0, followTarget.value?.instance_id, followTarget.value?.position?.x, followTarget.value?.position?.y],
-  () => {
-    const t = followTarget.value;
-    if (!isPhone.value || !follow.value || !imageReady.value || cellPx.value <= 0 || !t?.position) return;
-    if (!zoomed) {
-      scale.value = scale.value * (PHONE_CELL_PX / cellPx.value);
-      zoomed = true;
-    }
-    const pan = panToCentre({
-      hostW: hostW.value,
-      hostH: hostH.value,
-      origin: gridOrigin.value,
-      cellPx: cellPx.value,
-      pan: { x: panX.value, y: panY.value },
-      at: t.position,
-      footprint: combatantFootprint(t),
-    });
-    panX.value = pan.x;
-    panY.value = pan.y;
-  },
-  { immediate: true },
-);
+usePlayerMapFollow({ isPhone, follow, imageReady, cellPx, hostW, hostH, gridOrigin, scale, panX, panY, followTarget });
+// A tap picks a square, a held press pings, anything that travels pans (see usePlayerMapPointer).
+const { onHostDown, onHostMove, onHostUp, onHostCancel } = usePlayerMapPointer({
+  canvasHost, cellPx, gridOrigin, picked, target, sendPing: table.sendPing, pan: { startPan, continuePan, endPan },
+});
 </script>
 
 <style scoped>
