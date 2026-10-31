@@ -20,7 +20,7 @@
     </label>
     <div class="flex items-center justify-between gap-3">
       <span class="text-label-lg font-semibold text-foreground">Squares down</span>
-      <span class="text-body-sm text-muted-foreground">{{ down }} <span class="text-caption">from the picture's shape</span></span>
+      <span class="text-body text-muted-foreground">{{ down }} <span class="text-caption">from the picture's shape</span></span>
     </div>
 
     <div v-if="squareFeet !== undefined" class="flex items-center justify-between gap-3">
@@ -49,7 +49,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { IconGrid } from "@/lib/icons";
-import { squaresDown, withSquaresAcross, type ImageSize, type SquareFeet } from "@/lib/mapBring/pictureGrid";
+import { squaresDown, squaresText, withSquaresAcross, type ImageSize, type SquareFeet } from "@/lib/mapImport/pictureGrid";
 import type { GridCalibration } from "@/types/location.types";
 
 const { natural } = defineProps<{ natural: ImageSize }>();
@@ -73,5 +73,5 @@ const across = computed<number | null>({
     calibration.value = withSquaresAcross(calibration.value, natural, value);
   },
 });
-const down = computed(() => Number(squaresDown(calibration.value, natural).toFixed(1)));
+const down = computed(() => squaresText(squaresDown(calibration.value, natural)));
 </script>

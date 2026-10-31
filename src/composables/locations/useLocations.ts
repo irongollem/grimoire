@@ -586,13 +586,13 @@ export function useUpdateLocationDrawing() {
 /**
  * Update a location's Picture layer — `map_url`, and optionally the
  * `grid_calibration` that goes with it. A DM upload/scan passes no
- * calibration (they calibrate by hand afterward); the standalone
+ * calibration (they line the grid up by hand afterward, in `MapGridLineUp`); the standalone
  * Cartographer page's AI styler (epic #884) does, derived from its own
  * fitted input geometry (`src/cartographer/aiStyleInput.ts`'s
  * `styledPictureCalibration`) since the arbitrary location it saves to may
  * have no `source_map_id` relationship to reconcile. Omitting `calibration`
  * leaves the column untouched (a bare `{ map_url }` update) — every other
- * caller, including the plain upload flow in `MapLayersPanel.vue`; never
+ * caller, including the plain upload flow in `usePlacePicture`; never
  * carries `source_map_id`, which describes the Drawing.
  */
 export function useUpdateLocationPicture() {
@@ -632,9 +632,9 @@ export function useUpdateLocationPicture() {
  * safe to write because the edge function requests exactly the size that
  * geometry was fitted to (`supabase/functions/style-map/index.ts`) — but
  * the model itself can still shrink or grow the grid a little in its own
- * render. The Layers panel's Calibrate action stays available and opens
- * seeded from whatever this wrote (`GridCalibrationDialog`'s `existing`
- * prop), exactly as it does for any other Picture.
+ * render. The Picture layer's "Line up the grid on the map" (`MapGridLineUp`)
+ * stays available and opens seeded from whatever this wrote, exactly as it
+ * does for any other Picture.
  */
 export function useSaveStyledSitePicture() {
   const queryClient = useQueryClient();
@@ -651,19 +651,6 @@ export function useSaveStyledSitePicture() {
         source_map_id: null,
         map_published_rev: null,
       }),
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
-    },
-  });
-}
-
-/** Set or clear the VTT grid calibration on a location. */
-export function useUpdateLocationGridCalibration() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, calibration }: { id: string; calibration: GridCalibration | null }) =>
-      updateLocation(id, { grid_calibration: calibration }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

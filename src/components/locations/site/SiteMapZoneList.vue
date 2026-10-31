@@ -17,7 +17,7 @@
         :icon="IconAdd"
         label="Draw"
         :disabled="!canTrace"
-        :tooltip="canTrace ? undefined : 'Calibrate the grid before tracing'"
+        :tooltip="canTrace ? undefined : 'Line up the grid before tracing'"
         @click="addZone"
       />
     </div>
@@ -59,7 +59,7 @@
             label="Trace"
             :active="activeRegionId === zone.id"
             :disabled="!canTrace"
-            :tooltip="canTrace ? undefined : 'Calibrate the grid before tracing'"
+            :tooltip="canTrace ? undefined : 'Line up the grid before tracing'"
             @click="toggleActive(zone.id)"
           />
           <AppButton

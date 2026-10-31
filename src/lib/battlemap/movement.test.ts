@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   OPEN_GROUND,
-  footprintCells,
   groupMove,
-  isSqueezing,
   moveLabel,
   planMove,
   snapAnchor,
-  speedState,
   stepStates,
-  stepsBetween,
   type MoveTerrain,
 } from "./movement";
 import type { WallSegment } from "./walls";
 
 const wall = (id: string, a: [number, number], b: [number, number]): WallSegment => ({ id, a, b });
+const open = (from: { x: number; y: number }, to: { x: number; y: number }) =>
+  planMove({ from, to, footprint: 1, terrain: OPEN_GROUND }).steps.map((s) => s.to);
+const squeezes = (at: { x: number; y: number }, footprint: number, walls: WallSegment[]) =>
+  planMove({ from: { x: at.x - 1, y: at.y }, to: at, footprint, terrain: { difficult: new Set(), walls } }).steps[0].squeezing;
 const terrain = (difficult: string[], walls: WallSegment[] = []): MoveTerrain => ({ difficult: new Set(difficult), walls });
 
 describe("a move costs 5 ft a square", () => {
@@ -31,7 +31,7 @@ describe("a move costs 5 ft a square", () => {
   });
 
   it("goes diagonally first, then straight, and ends on the target", () => {
-    const cells = stepsBetween({ x: 0, y: 0 }, { x: 3, y: 1 });
+    const cells = open({ x: 0, y: 0 }, { x: 3, y: 1 });
     expect(cells).toEqual([
       { x: 1, y: 1 },
       { x: 2, y: 1 },
@@ -40,7 +40,7 @@ describe("a move costs 5 ft a square", () => {
   });
 
   it("walks backwards as well as forwards", () => {
-    expect(stepsBetween({ x: 2, y: 2 }, { x: 0, y: 1 })).toEqual([
+    expect(open({ x: 2, y: 2 }, { x: 0, y: 1 })).toEqual([
       { x: 1, y: 1 },
       { x: 0, y: 1 },
     ]);
@@ -86,20 +86,20 @@ describe("squeezing", () => {
   const across = [wall("w", [3, 0], [3, 2])];
 
   it("a Large token whose box is cut by a wall a Medium one would clear is squeezing", () => {
-    expect(isSqueezing({ x: 2, y: 0 }, 2, across)).toBe(true);
+    expect(squeezes({ x: 2, y: 0 }, 2, across)).toBe(true);
   });
 
   it("a wall along the edge of the box is not squeezing", () => {
-    expect(isSqueezing({ x: 3, y: 0 }, 2, across)).toBe(false);
+    expect(squeezes({ x: 3, y: 0 }, 2, across)).toBe(false);
   });
 
   it("a Medium token never squeezes: there is no smaller box on the grid", () => {
-    expect(isSqueezing({ x: 2, y: 0 }, 1, [wall("w", [2.5, 0], [2.5, 2])])).toBe(false);
+    expect(squeezes({ x: 2, y: 0 }, 1, [wall("w", [2.5, 0], [2.5, 2])])).toBe(false);
   });
 
   it("a box crossed by walls in every corner has no smaller box that fits, so it is not a squeeze", () => {
     const cage = [wall("a", [2, 0], [4, 2]), wall("b", [4, 0], [2, 2])];
-    expect(isSqueezing({ x: 2, y: 0 }, 2, cage)).toBe(false);
+    expect(squeezes({ x: 2, y: 0 }, 2, cage)).toBe(false);
   });
 
   it("a squeezed step costs 10 ft and the plan says so", () => {
@@ -117,10 +117,13 @@ describe("squeezing", () => {
 describe("speed", () => {
   // PHB "Dash": extra movement equal to speed, so up to twice the speed.
   it("within the speed, then a Dash up to twice it, then beyond", () => {
-    expect(speedState(30, 30)).toBe("within");
-    expect(speedState(35, 30)).toBe("dash");
-    expect(speedState(60, 30)).toBe("dash");
-    expect(speedState(65, 30)).toBe("beyond");
+    // One 5 ft square at a time, so the totals land on 30, 35, 60 and 65 against a speed of 30.
+    const plan = planMove({ from: { x: 0, y: 0 }, to: { x: 13, y: 0 }, footprint: 1, terrain: OPEN_GROUND });
+    const states = stepStates(plan, 0, 30);
+    expect(states[5]).toBe("within");
+    expect(states[6]).toBe("dash");
+    expect(states[11]).toBe("dash");
+    expect(states[12]).toBe("beyond");
   });
 
   it("feet already moved this turn count against the speed", () => {
@@ -198,8 +201,18 @@ describe("where the token sits", () => {
     expect(snapAnchor({ x: 3.6, y: 2.2 }, 0.5)).toEqual({ x: 3.5, y: 2 });
   });
 
-  it("a Huge creature covers nine squares and a Tiny one a single square", () => {
-    expect(footprintCells({ x: 2, y: 3 }, 3)).toHaveLength(9);
-    expect(footprintCells({ x: 2.5, y: 3 }, 0.5)).toEqual(["2,3"]);
+  // PHB 2024 "Creature Size": a Huge creature covers 3x3 squares; a Tiny one shares a single square.
+  it("a Huge creature is slowed by difficult ground in any of its nine squares", () => {
+    const corner = planMove({ from: { x: 0, y: 3 }, to: { x: 1, y: 3 }, footprint: 3, terrain: terrain(["3,5"]) });
+    expect(corner.difficult).toBe(true);
+    const outside = planMove({ from: { x: 0, y: 3 }, to: { x: 1, y: 3 }, footprint: 3, terrain: terrain(["4,5"]) });
+    expect(outside.difficult).toBe(false);
+  });
+
+  it("a Tiny creature is slowed by the one square it stands in, not its neighbours", () => {
+    const here = planMove({ from: { x: 1, y: 3 }, to: { x: 2.5, y: 3 }, footprint: 0.5, terrain: terrain(["2,3"]) });
+    expect(here.difficult).toBe(true);
+    const next = planMove({ from: { x: 1, y: 3 }, to: { x: 2.5, y: 3 }, footprint: 0.5, terrain: terrain(["3,3"]) });
+    expect(next.difficult).toBe(false);
   });
 });

@@ -64,14 +64,14 @@
       <!-- What the app needs to know -->
       <aside class="flex flex-col gap-5 lg:overflow-y-auto lg:pr-1" aria-label="About this map">
         <section class="flex flex-col gap-1">
-          <h2 class="text-label-lg font-semibold uppercase tracking-wide text-muted-foreground">The file</h2>
+          <h2 class="text-eyebrow font-semibold text-muted-foreground">The file</h2>
           <p class="break-words text-body font-semibold text-foreground">{{ file.name }}</p>
           <p class="text-caption text-muted-foreground">{{ fileLine }}</p>
           <p v-if="isMoving" class="text-caption text-muted-foreground">Plays on this device's screens. Players see the still.</p>
         </section>
 
         <section class="flex flex-col gap-3">
-          <h2 class="text-label-lg font-semibold uppercase tracking-wide text-muted-foreground">The grid</h2>
+          <h2 class="text-eyebrow font-semibold text-muted-foreground">The grid</h2>
           <p v-if="isVtt && vtt" class="text-body text-foreground">
             {{ Number((natural ? natural.width / vtt.map.pixelsPerGrid : vtt.map.cols).toFixed(1)) }} squares across, read from the file.
             Nothing to line up.
@@ -86,7 +86,7 @@
         </section>
 
         <section class="flex flex-col gap-2">
-          <h2 class="text-label-lg font-semibold uppercase tracking-wide text-muted-foreground">Where it lives</h2>
+          <h2 class="text-eyebrow font-semibold text-muted-foreground">Where it lives</h2>
           <label class="flex items-start gap-2" :class="lockedTarget ? 'opacity-60' : 'cursor-pointer'">
             <input v-model="where" type="radio" value="new" class="mt-1 accent-primary" :disabled="lockedTarget" />
             <span class="flex flex-col">
@@ -103,7 +103,7 @@
           </label>
           <div v-if="where === 'existing'" class="pl-6">
             <p v-if="lockedTarget" class="text-body text-foreground">{{ pickedName }}</p>
-            <EntityCombobox v-else v-model="placeId" :options="placeOptions" placeholder="Search the Atlas…" />
+            <EntityCombobox v-else v-model="pickedId" :options="placeOptions" placeholder="Search the Atlas…" />
             <p v-if="vttBlockedByDrawing" class="mt-1 text-caption text-ink-caution">
               This place already has a drawing, and a Universal VTT file brings its own. Pick another place or a new battlefield.
             </p>
@@ -134,16 +134,16 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import { IconChevronLeft, IconPause, IconPlay } from "@/lib/icons";
 import { mapEditorRoute, placeRoute } from "@/lib/locations/placeRoute";
-import { describeFile, isUniversalVttName, nameFromFile } from "@/lib/mapBring/bringFile";
+import { describeFile, isUniversalVttName, nameFromFile } from "@/lib/mapImport/bringFile";
 import {
   calibrationFor,
   fiveFootCalibration,
   initialGrid,
-  squaresDown,
+  gridSizeText,
   type GridSource,
   type ImageSize,
   type SquareFeet,
-} from "@/lib/mapBring/pictureGrid";
+} from "@/lib/mapImport/pictureGrid";
 import { detectMotion, type MapMotion } from "@/lib/mapImport/motionDetect";
 import { isUvttError, parseUniversalVtt, type UniversalVttMap } from "@/lib/mapImport/universalVtt";
 import { useMapImportStore } from "@/stores/mapImport";
@@ -169,7 +169,7 @@ const previewUrl = ref<string | null>(null);
 const natural = ref<ImageSize | null>(null);
 const calibration = ref<GridCalibration | null>(null);
 const gridSource = ref<GridSource>("default");
-const squareFeet = ref<SquareFeet | undefined>(5);
+const squareFeet = ref<SquareFeet>(5);
 const boxMode = ref(false);
 const vtt = ref<{ map: UniversalVttMap } | null>(null);
 const vttError = ref<string | null>(null);
@@ -244,17 +244,21 @@ const hint = computed(() => {
   const cal = calibration.value;
   const size = natural.value;
   if (!cal || !size) return "";
-  const across = Number(cal.cells_per_image_width.toFixed(1));
-  const down = Number(squaresDown(cal, size).toFixed(1));
-  if (isVtt) return `${across} × ${down} squares, read from the file.`;
+  const grid = gridSizeText(cal, size);
+  if (isVtt) return `${grid}, read from the file.`;
   const origin = gridSource.value === "name" ? "read from the file name" : "a starting guess";
-  return `${across} × ${down} squares, ${origin}. Drag the grid to line it up; arrow keys nudge it a pixel.`;
+  return `${grid}, ${origin}. Drag the grid to line it up; arrow keys nudge it a pixel.`;
 });
 
 // ── Where it lives ──────────────────────────────────────────────────────────
 const lockedTarget = store.targetPlaceId !== null;
 const where = ref<"new" | "existing">(lockedTarget ? "existing" : "new");
-const placeId = ref(store.targetPlaceId ?? "");
+const placeId = ref<string | null>(store.targetPlaceId);
+// EntityCombobox speaks in strings; an empty one is "nothing picked".
+const pickedId = computed<string>({
+  get: () => placeId.value ?? "",
+  set: (id) => { placeId.value = id === "" ? null : id; },
+});
 const { data: locations } = useAllLocations();
 const placeOptions = computed(() => (locations.value ?? []).map((l) => ({ id: l.id, name: l.name })));
 const pickedPlace = computed(() => (locations.value ?? []).find((l) => l.id === placeId.value));
@@ -268,34 +272,31 @@ const adding = ref(false);
 
 const canAdd = computed(() => {
   if (adding.value || !natural.value || !calibration.value || !name.value.trim() || vttError.value) return false;
-  if (where.value === "existing" && !placeId.value) return false;
+  if (where.value === "existing" && placeId.value === null) return false;
   return !vttBlockedByDrawing.value;
 });
 
 async function add(): Promise<void> {
   const size = natural.value;
   const cal = calibration.value;
-  if (!file || !size || !cal) return;
-  const first = publishedPacks.value[0];
-  if (vtt.value && !first) {
-    toast.error("No tile set is published yet, and a Universal VTT drawing needs one to hold its walls.");
-    return;
-  }
+  const target = where.value === "existing" ? placeId.value : null;
+  if (!file || !size || !cal || (where.value === "existing" && target === null)) return;
   const input: BringInput = {
     file,
     name: name.value.trim(),
     // The battle map counts 5 ft cells: a map drawn in 10 ft squares is written with twice the squares across.
-    calibration: fiveFootCalibration(cal, size, squareFeet.value ?? 5),
-    target: where.value === "new" ? { kind: "new" } : { kind: "existing", id: placeId.value },
-    posterAt: stillAt.value ?? 0,
-    ...(vtt.value && first
-      ? { vtt: { map: vtt.value.map, natural: size, pack: { pack_id: first.pack_id, pack_version: first.pack_version, variant: 0 } } }
-      : {}),
+    calibration: fiveFootCalibration(cal, size, squareFeet.value),
+    target: target === null ? { kind: "new" } : { kind: "existing", id: target },
+    // No still chosen yet: the first frame, which storePicture defaults to.
+    ...(stillAt.value === null ? {} : { posterAt: stillAt.value }),
+    // The imported walls are invisible and need no art; the first published set only opens as the Drawing's default.
+    ...(vtt.value ? { vtt: { map: vtt.value.map, natural: size, defaultPackId: publishedPacks.value[0]?.pack_id ?? null } } : {}),
   };
   adding.value = true;
   try {
     const { placeId: placed } = await addMap(input);
     store.clear();
+    // A created thing opens (like a new Scriptorium book): the editor saves itself, so there is no list to confirm on.
     await router.push(mapEditorRoute(placed, "picture"));
   } catch (e) {
     toast.error(toast.fromError(e));

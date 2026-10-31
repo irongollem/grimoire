@@ -61,7 +61,7 @@ import {
   gridLines,
   shiftGrid,
   type ImageSize,
-} from "@/lib/mapBring/pictureGrid";
+} from "@/lib/mapImport/pictureGrid";
 import type { GridCalibration } from "@/types/location.types";
 
 const { natural, boxMode = false, locked = false, hint } = defineProps<{

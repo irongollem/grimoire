@@ -9,6 +9,8 @@ import {
   initialGrid,
   shiftGrid,
   squaresDown,
+  squaresText,
+  gridSizeText,
   withSquaresAcross,
 } from "./pictureGrid";
 
@@ -35,6 +37,22 @@ describe("initialGrid", () => {
 describe("squaresDown", () => {
   it("follows the picture's shape: 3000 x 2000 at 30 across is 20 down", () => {
     expect(squaresDown({ cells_per_image_width: 30 }, pic)).toBe(20);
+  });
+});
+
+describe("squaresText", () => {
+  it("a fractional count reads as a rounded 'about' number, so nobody is shown 20.7 squares", () => {
+    expect(squaresText(20.7)).toBe("about 21");
+  });
+  it("a whole count (or one off by float dust) stays plain", () => {
+    expect(squaresText(20)).toBe("20");
+    expect(squaresText(19.99999)).toBe("20");
+  });
+});
+
+describe("gridSizeText", () => {
+  it("states the hint without a decimal tail on the squares down", () => {
+    expect(gridSizeText({ cells_per_image_width: 30 }, { width: 1500, height: 1035 })).toBe("30 × about 21 squares");
   });
 });
 

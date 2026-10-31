@@ -262,7 +262,7 @@ async function onGenerateClick() {
   if (!requireCredits(credits, byok)) return;
   if (fixedTargetLabel) {
     const ok = await confirm(
-      "The styled map replaces this site's picture. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Calibrate fixes it.",
+      "The styled map replaces this site's picture. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Line up the grid on the Picture layer fixes it.",
       { title: "Style with AI", confirmLabel: "Generate" },
     );
     if (!ok) return;

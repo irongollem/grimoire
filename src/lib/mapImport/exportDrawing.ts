@@ -3,7 +3,7 @@ import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
 import { downloadBlob } from "@/lib/downloadBlob";
-import { drawingToUvttInput } from "@/lib/mapBring/exportVtt";
+import { drawingToUvttInput } from "@/lib/mapImport/exportVtt";
 import { writeUniversalVtt } from "@/lib/mapImport/universalVtt";
 import { paintedCellCount, type CellKey, type DungeonMap } from "@/types/dungeonMap.types";
 

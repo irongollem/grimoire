@@ -163,8 +163,8 @@ export interface PublishStaleness {
 
 /**
  * Null when there is nothing to compare (no source map, or the last publish
- * already carries the map's current rev) — the fresh state `MapLayersPanel`'s
- * Drawing row renders instead of the stale variant.
+ * already carries the map's current rev) — the fresh state the Drawing layer
+ * renders instead of the stale variant.
  */
 export function publishStaleness(
   location: { map_published_rev: number | null },

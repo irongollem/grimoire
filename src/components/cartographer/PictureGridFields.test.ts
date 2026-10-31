@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import PictureGridFields from "./PictureGridFields.vue";
-import { calibrationFor } from "@/lib/mapBring/pictureGrid";
+import { calibrationFor } from "@/lib/mapImport/pictureGrid";
 import type { GridCalibration } from "@/types/location.types";
 
 const natural = { width: 3000, height: 2000 };

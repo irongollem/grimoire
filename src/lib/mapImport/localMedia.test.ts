@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   deleteLocalMap,
   getLocalMap,
-  hasLocalMap,
   localMediaSupported,
   requestPersistence,
   resetPersistenceAskedForTests,
@@ -67,12 +66,12 @@ describe("localMedia", () => {
     expect(back?.name).toBe("tavern.gif");
     expect(back?.type).toBe("image/gif");
     expect(await back?.text()).toBe("GIF89a-bytes");
-    expect(await hasLocalMap("loc-1")).toBe(true);
+    expect(await getLocalMap("loc-1")).not.toBeNull();
   });
 
   it("reports a location with nothing saved as absent, not as an error", async () => {
     expect(await getLocalMap("never")).toBeNull();
-    expect(await hasLocalMap("never")).toBe(false);
+    expect(await getLocalMap("never")).toBeNull();
   });
 
   it("replaces an earlier copy when the DM brings a new map", async () => {
@@ -86,7 +85,7 @@ describe("localMedia", () => {
   it("deletes the map and its sidecar, and deleting twice is fine", async () => {
     await saveLocalMap("loc-1", gif());
     await deleteLocalMap("loc-1");
-    expect(await hasLocalMap("loc-1")).toBe(false);
+    expect(await getLocalMap("loc-1")).toBeNull();
     expect(root.dirs.get("map-media")?.files.size).toBe(0);
     await expect(deleteLocalMap("loc-1")).resolves.toBeUndefined();
   });
@@ -109,7 +108,7 @@ describe("localMedia", () => {
     expect(localMediaSupported()).toBe(false);
     expect(await saveLocalMap("loc-1", gif())).toBe(false);
     expect(await getLocalMap("loc-1")).toBeNull();
-    expect(await hasLocalMap("loc-1")).toBe(false);
+    expect(await getLocalMap("loc-1")).toBeNull();
     await expect(deleteLocalMap("loc-1")).resolves.toBeUndefined();
     expect(await requestPersistence()).toBe(false);
   });

@@ -117,21 +117,21 @@ describe("resolveBattleMapGate", () => {
     const room = makeLocation({ location_type: "room", map_url: null });
     const gate = resolveBattleMapGate({ hasLocationId: true, location: room, surface: null });
     expect(gate.canOpen).toBe(false);
-    expect(gate.reason).toBe("This room has no map of its own, and its site isn't calibrated either");
+    expect(gate.reason).toBe("This room has no map of its own, and its site's map has no grid either");
   });
 
   it("says 'needs calibrating' — not 'no map of its own' — for a room that HAS a map but no calibration", () => {
     const room = makeLocation({ location_type: "room", map_url: "room-map.png", grid_calibration: null });
     const gate = resolveBattleMapGate({ hasLocationId: true, location: room, surface: null });
     expect(gate.canOpen).toBe(false);
-    expect(gate.reason).toBe("This room's map needs calibrating first");
+    expect(gate.reason).toBe("This room's map needs its grid lined up first");
   });
 
   it("says 'needs calibrating' for a room whose own map is a Drawing, not a Picture (#884)", () => {
     const room = makeLocation({ location_type: "room", map_url: null, map_layer_url: "drawing.webp" });
     const gate = resolveBattleMapGate({ hasLocationId: true, location: room, surface: null });
     expect(gate.canOpen).toBe(false);
-    expect(gate.reason).toBe("This room's map needs calibrating first");
+    expect(gate.reason).toBe("This room's map needs its grid lined up first");
   });
 
   it("says 'no map' for a plain (non-room) location with no map", () => {
@@ -145,7 +145,7 @@ describe("resolveBattleMapGate", () => {
     const loc = makeLocation({ location_type: "dungeon", map_url: "map.png", grid_calibration: null });
     const gate = resolveBattleMapGate({ hasLocationId: true, location: loc, surface: null });
     expect(gate.canOpen).toBe(false);
-    expect(gate.reason).toBe("Calibrate the location's map first");
+    expect(gate.reason).toBe("Line up the grid on this place's map first");
   });
 
   it("blocks a resolved, non-room surface that isn't flagged as a battle map", () => {
@@ -190,7 +190,7 @@ describe("resolveBattleMapGate", () => {
     const grounds = makeLocation({ location_type: "grounds", map_url: null });
     const gate = resolveBattleMapGate({ hasLocationId: true, location: grounds, surface: null });
     expect(gate.canOpen).toBe(false);
-    expect(gate.reason).toBe("This room has no map of its own, and its site isn't calibrated either");
+    expect(gate.reason).toBe("This room has no map of its own, and its site's map has no grid either");
   });
 });
 

@@ -34,7 +34,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import CartographerOptionsSlip from "@/components/cartographer/CartographerOptionsSlip.vue";
 import PictureGridFields from "@/components/cartographer/PictureGridFields.vue";
 import MapPictureControls from "@/components/locations/map/MapPictureControls.vue";
-import type { ImageSize } from "@/lib/mapBring/pictureGrid";
+import type { ImageSize } from "@/lib/mapImport/pictureGrid";
 import type { GridCalibration } from "@/types/location.types";
 
 defineProps<{

@@ -238,14 +238,14 @@ describe("CartographerBringView", () => {
       expect(w.findComponent({ name: "MapGridLineUp" }).props("locked")).toBe(false);
     });
 
-    it("sends the parsed map with a tile set to hold its walls", async () => {
+    it("sends the parsed map with the first published tile set as the Drawing's default", async () => {
       const w = await mountBring(vttFile(uvtt({ resolution: { map_origin: { x: 0, y: 0 }, map_size: { x: 30, y: 20 }, pixels_per_grid: 150 } })));
       await measured(w);
       await press(w, "Add map").trigger("click");
       await flushPromises();
       const input = m.addMap.mock.calls[0]![0];
       expect(input.vtt.map.walls).toHaveLength(1);
-      expect(input.vtt.pack).toEqual({ pack_id: "dungeon", pack_version: 3, variant: 0 });
+      expect(input.vtt.defaultPackId).toBe("dungeon");
       // The grid it carries is the one the DM sees laid on the picture.
       expect(input.calibration.cells_per_image_width).toBe(20);
     });
@@ -261,14 +261,14 @@ describe("CartographerBringView", () => {
       expect(w.text()).toContain("This is not a Universal VTT file.");
     });
 
-    it("will not add without a published tile set, which its walls are named in", async () => {
+    it("adds without any published tile set: its walls are invisible and need no art (#1125)", async () => {
       state.packs = [];
       const w = await mountBring(vttFile(uvtt()));
       await measured(w);
       await press(w, "Add map").trigger("click");
       await flushPromises();
-      expect(m.addMap).not.toHaveBeenCalled();
-      expect(m.error).toHaveBeenCalledTimes(1);
+      expect(m.addMap.mock.calls[0]![0].vtt.defaultPackId).toBeNull();
+      expect(m.error).not.toHaveBeenCalled();
     });
 
     it("will not replace a drawing the place already has", async () => {

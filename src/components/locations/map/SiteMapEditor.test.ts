@@ -75,7 +75,7 @@ vi.mock("@/composables/locations/usePlacePicture", () => ({
     setBattleMap: mocks.setBattleMap,
   }),
 }));
-vi.mock("@/lib/mapBring/exportDrawing", () => ({ exportDrawingAsVtt: mocks.exportVtt }));
+vi.mock("@/lib/mapImport/exportDrawing", () => ({ exportDrawingAsVtt: mocks.exportVtt }));
 vi.mock("@/composables/locations/useOpenSiteDrawing", () => ({ useOpenSiteDrawing: () => ({ openDrawing: vi.fn() }) }));
 vi.mock("@/composables/cartographer/useMapPublish", () => ({
   useMapPublish: () => ({

@@ -41,6 +41,20 @@ export function squaresDown(cal: Pick<GridCalibration, "cells_per_image_width">,
   return (natural.height * cal.cells_per_image_width) / natural.width;
 }
 
+/**
+ * A count of squares for reading aloud: whole when it is whole, "about 21" when a picture's shape leaves a
+ * fraction (a 30 across grid on a 1500 x 1035 picture is 20.7 down, which nobody can count).
+ */
+export function squaresText(count: number): string {
+  const whole = Math.round(count);
+  return Math.abs(count - whole) < 0.05 ? String(whole) : `about ${whole}`;
+}
+
+/** "30 × about 21 squares": the grid's size as the line-up hint states it. */
+export function gridSizeText(cal: Pick<GridCalibration, "cells_per_image_width">, natural: ImageSize): string {
+  return `${Number(cal.cells_per_image_width.toFixed(1))} × ${squaresText(squaresDown(cal, natural))} squares`;
+}
+
 /** The grid slid by (dx, dy) picture pixels, wrapping at one square: a grid repeats, so there is no "off the edge". */
 export function shiftGrid(cal: GridCalibration, natural: ImageSize, dx: number, dy: number): GridCalibration {
   const cellPx = natural.width / cal.cells_per_image_width;

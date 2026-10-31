@@ -500,8 +500,8 @@ export function useMapPublish(opts: {
       // said "published rev N" before the rooms, ways and placements behind
       // it existed — so a failure partway through (a quota trigger on the
       // third room, an RLS denial, a dropped connection) left a site that
-      // read as fully published, which also hid the Layers panel's "Review
-      // changes" button, since that renders only while there is staleness to
+      // read as fully published, which also hid the map menu's "Review
+      // changes" entry, since that renders only while there is staleness to
       // report. The DM was left with a half-applied plan and no way back to
       // it from Build. Last write, after everything it claims. Found by the
       // #884 review pass.

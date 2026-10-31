@@ -26,7 +26,7 @@ const nav = vi.hoisted(() => ({
   query: {} as Record<string, string>,
   exportVtt: vi.fn(),
 }));
-vi.mock("@/lib/mapBring/exportDrawing", () => ({ exportDrawingAsVtt: (...a: unknown[]) => nav.exportVtt(...a) }));
+vi.mock("@/lib/mapImport/exportDrawing", () => ({ exportDrawingAsVtt: (...a: unknown[]) => nav.exportVtt(...a) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: nav.confirm }) }));
 vi.mock("@/composables/cartographer/useDungeonMaps", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/composables/cartographer/useDungeonMaps")>()),

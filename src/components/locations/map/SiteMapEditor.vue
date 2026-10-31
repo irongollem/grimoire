@@ -134,7 +134,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { IconChevronLeft } from "@/lib/icons";
 import { downloadBlob } from "@/lib/downloadBlob";
-import { exportDrawingAsVtt } from "@/lib/mapBring/exportDrawing";
+import { exportDrawingAsVtt } from "@/lib/mapImport/exportDrawing";
 import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";

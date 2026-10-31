@@ -266,7 +266,8 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/player/PlayerEncounterMapView.vue"),
     // fillsMain: the map draws its own frame edge to edge, so the player layout
     // gives it the whole content area instead of a padded column of no height.
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map", fillsMain: true },
+    // fullscreenMobile: on a phone the view draws its own turn header and Map / My sheet / Roll nav (#1125).
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map", fillsMain: true, fullscreenMobile: true },
   },
   {
     // What the player's character knows of the world's ties, focus-first (#1084).

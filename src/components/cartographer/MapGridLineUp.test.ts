@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import MapGridLineUp from "./MapGridLineUp.vue";
-import { calibrationFor } from "@/lib/mapBring/pictureGrid";
+import { calibrationFor } from "@/lib/mapImport/pictureGrid";
 import type { GridCalibration } from "@/types/location.types";
 
 // A 3000 x 2000 picture in a 1500 x 1000 frame: one screen pixel is two picture pixels, no letterbox.

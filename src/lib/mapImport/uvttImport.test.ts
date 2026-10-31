@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { UniversalVttMap } from "@/lib/mapImport/universalVtt";
 import { darknessFromAmbient, lightFromUvtt, uvttToDrawing } from "./uvttImport";
 
-const pack = { pack_id: "p", pack_version: 1, variant: 0 };
 
 const file: UniversalVttMap = {
   image: new Blob(),
@@ -19,7 +18,7 @@ const file: UniversalVttMap = {
 };
 
 describe("uvttToDrawing", () => {
-  const drawing = uvttToDrawing(file, { width: 3000, height: 2000 }, pack);
+  const drawing = uvttToDrawing(file, { width: 3000, height: 2000 });
 
   it("reads the grid from the file: 3000 px at 100 px a square is 30 across, nothing to line up", () => {
     expect(drawing.calibration.cells_per_image_width).toBe(30);
@@ -30,6 +29,10 @@ describe("uvttToDrawing", () => {
     const walls = Object.values(drawing.layers.walls).filter((w) => w.type === "wall");
     expect(walls).toHaveLength(1);
     expect(walls[0]).toMatchObject({ a: [1, 1], b: [4.5, 1.25], visible: false });
+  });
+
+  it("names no tile set on its walls, so a campaign with none published can still import (#1125)", () => {
+    expect(Object.values(drawing.layers.walls).every((w) => w.pack_id === "")).toBe(true);
   });
 
   it("keeps doors in the state the file had them, undrawn", () => {

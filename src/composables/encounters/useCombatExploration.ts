@@ -40,13 +40,13 @@ export function resolveBattleMapGate(params: {
       return {
         canOpen: false,
         reason: hasAnyMapLayer(location)
-          ? "This room's map needs calibrating first"
-          : "This room has no map of its own, and its site isn't calibrated either",
+          ? "This room's map needs its grid lined up first"
+          : "This room has no map of its own, and its site's map has no grid either",
       };
     }
     return {
       canOpen: false,
-      reason: hasAnyMapLayer(location) ? "Calibrate the location's map first" : "The linked location has no map",
+      reason: hasAnyMapLayer(location) ? "Line up the grid on this place's map first" : "The linked location has no map",
     };
   }
 

@@ -82,22 +82,14 @@
           @contextmenu.prevent
         ></canvas>
 
-        <!-- The Picture layer (canvas frame 07). An uncalibrated picture has no grid to draw it on, so it is shown
-             fitted to the canvas; lining the grid up puts the amber grid over it. A calibrated one is drawn on the
-             canvas itself, in the grid it was lined up to. -->
-        <div v-if="pictureStage && referencePicture" class="absolute inset-x-0 top-0 bottom-8 bg-card">
-          <MapGridLineUp
-            v-if="liningUp && pictureNatural && draftCalibration"
-            v-model="draftCalibration"
-            :natural="pictureNatural"
-            :box-mode="boxMode"
-            :hint="lineUpHint"
-            @box-done="boxMode = false"
-          >
-            <img :src="referencePicture.url" alt="" draggable="false" class="absolute inset-0 size-full object-contain" />
-          </MapGridLineUp>
-          <img v-else :src="referencePicture.url" alt="The picture under this map" draggable="false" class="size-full object-contain" />
-        </div>
+        <WorkbenchPictureStage
+          v-if="pictureStage && referencePicture"
+          v-model:draft="draftCalibration"
+          v-model:box-mode="boxMode"
+          :url="referencePicture.url"
+          :natural="pictureNatural"
+          :hint="lineUpHint"
+        />
 
         <!-- Status bar -->
         <div
@@ -194,13 +186,9 @@
             v-else-if="activeLayer === 'picture'"
             v-model:draft="draftCalibration"
             v-model:box-mode="boxMode"
-            :has-picture="!!referencePicture"
-            :calibrated="!!referencePicture?.calibration"
-            :moving="stack.motion !== null"
-            :battle-map="site?.is_battle_map ?? false"
-            :busy="pictureBusy"
-            :lining-up="liningUp"
-            :natural="pictureNatural"
+            :has-picture="!!referencePicture" :calibrated="!!referencePicture?.calibration"
+            :moving="stack.motion !== null" :battle-map="site?.is_battle_map ?? false"
+            :busy="pictureBusy" :lining-up="liningUp" :natural="pictureNatural"
             @upload="emit('picture-upload', $event)"
             @remove="emit('picture-remove')"
             @line-up="startLineUp"
@@ -222,7 +210,7 @@
 
         <!-- View options (Reference) keep the top right in view mode; while editing they
              are in the bar's settings. The host's own controls moved into the bar. -->
-        <div v-if="viewMode && referencePicture" class="absolute top-2 right-2 px-2 py-1 rounded-md bg-card/95 border border-border">
+        <div v-if="viewMode && referencePicture" data-slip class="absolute top-2 right-2 px-2 py-1 rounded-md bg-card/95 border border-border">
           <AppCheckbox v-model="showPictureReference" label="Reference" size="sm" />
         </div>
 
@@ -401,7 +389,7 @@ import CartographerPlaceCatalog from "@/components/cartographer/CartographerPlac
 import CartographerToolRail, { type RailFamily } from "@/components/cartographer/CartographerToolRail.vue";
 import CartographerPlanOptions from "@/components/cartographer/CartographerPlanOptions.vue";
 import CartographerPictureOptions from "@/components/cartographer/CartographerPictureOptions.vue";
-import MapGridLineUp from "@/components/cartographer/MapGridLineUp.vue";
+import WorkbenchPictureStage from "@/components/cartographer/WorkbenchPictureStage.vue";
 import CartographerToolOptions from "@/components/cartographer/CartographerToolOptions.vue";
 import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
 import SiteMapRegionList from "@/components/locations/site/SiteMapRegionList.vue";
@@ -437,15 +425,12 @@ import { STAMP_CATEGORIES } from "@/cartographer/stampCategories";
 import type { WallKind } from "@/cartographer/wallKinds";
 import type { TileLight } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
-import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { wallAt } from "@/cartographer/wallGraph";
 import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
 import type { GridCalibration, LocationType } from "@/types/location.types";
-import { fitViewport } from "@/cartographer/viewport";
-import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
-import { DEFAULT_SQUARES_ACROSS, calibrationFor, squaresDown } from "@/lib/mapBring/pictureGrid";
+import { useCanvasFraming, useReferencePicture, useWorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
 
 const {
   map, viewMode, site, spaces, saveState, menuActions = [], reviewCount, showReady = false, startLayer,
@@ -985,82 +970,22 @@ const changedRegionsCaution = computed(() => {
   return `${delta.total} region${delta.total === 1 ? "" : "s"} changed since last publish`;
 });
 
-// ── Reference layer (#884 S6) — the embedded case's site Picture ──────────
 const stack = computed(() => buildMapStack(site ?? null));
 const referencePicture = computed(() => stack.value.picture);
-const showPictureReference = ref(true);
-const referenceImageEl = ref<HTMLImageElement | null>(null);
-watch(
-  () => referencePicture.value?.url ?? null,
-  (url) => {
-    referenceImageEl.value = null;
-    if (!url) return;
-    const img = new Image();
-    img.onload = () => { referenceImageEl.value = img; };
-    img.src = url;
-  },
-  { immediate: true },
-);
 
-/** Where the site's Picture draws on THIS frame's canvas, in device pixels —
- *  cell (origin_cell_x, origin_cell_y)'s corner lines up with this frame's
- *  own cell of the same coordinates, same cell space a Drawing publish
- *  already shares with its Picture (see `lib/locations/mapStack.ts`). */
-function buildReferenceImage(tilePx: number, viewportOffset: { x: number; y: number }): MapRenderReferenceImage | null {
-  // The Picture layer is about the picture, so the "show picture underneath" switch does not apply there.
-  if (!showPictureReference.value && activeLayer.value !== "picture") return null;
-  const picture = referencePicture.value;
-  const img = referenceImageEl.value;
-  if (!picture || !img || !picture.calibration) return null;
-  const cal = picture.calibration;
-  if (cal.cells_per_image_width <= 0 || img.naturalWidth <= 0) return null;
-  const cellPx = img.naturalWidth / cal.cells_per_image_width;
-  if (cellPx <= 0) return null;
-  const scale = tilePx / cellPx;
-  const originCellX = cal.origin_cell_x ?? 0;
-  const originCellY = cal.origin_cell_y ?? 0;
-  const originPxX = cal.origin_x_pct * img.naturalWidth;
-  const originPxY = cal.origin_y_pct * img.naturalHeight;
-  const cellOriginX = originCellX * tilePx - viewportOffset.x;
-  const cellOriginY = originCellY * tilePx - viewportOffset.y;
-  return {
-    source: img,
-    x: cellOriginX - originPxX * scale,
-    y: cellOriginY - originPxY * scale,
-    width: img.naturalWidth * scale,
-    height: img.naturalHeight * scale,
-    opacity: activeLayer.value === "picture" ? 1 : 0.45,
-  };
-}
-
-// ── Plan layer (#884 S7b) — the site's own `location_map_regions`/
-// `location_doors`, traced directly on this canvas once a `site` is given.
-// Built unconditionally (like `usePublishedSites` above): every query inside
-// `usePlanPalette` is `enabled`-guarded on a real site id, so this is inert
-// — no request, no mutation possible — on the standalone route, which has
-// no `site` at all and so never shows the layer selector that would let a
-// DM reach `activeLayer.value = "plan"` in the first place.
+// ── Plan layer (#884 S7b) — the site's own `location_map_regions`/`location_doors`, traced on this canvas ──
+// Built unconditionally: every query in `usePlanPalette` is `enabled`-guarded on a real site id, so on the
+// standalone route (no `site`, no layer selector) it is inert: no request, no mutation possible.
 const siteId = computed(() => site?.id ?? null);
 const plan = usePlanPalette(siteId);
-// Initial layer (#878 S2): a DM opening Build on a site that already has a
-// Drawing or a Picture came here to trace it, so land on Plan directly — the
-// old unconditional "drawing" default was the whole reason the Plan's own
-// Pen/Shape tracing tools went unfound (issue #878, item 3). A site with
-// nothing drawn yet has no image to trace *over*, so Drawing is still the
-// honest first step there. `hasAnyMapLayer` (mapStack.ts) is deliberately the
-// one reader of "does this place have a map" — this must not grow its own
-// `!!map_url` test. Read ONCE at setup, not watched: once the DM picks a
-// layer by hand, that choice stands for the rest of the session (see
-// LAYER_OPTIONS's SegmentedControl above, which is the only other writer of
-// this ref). The standalone `/cartographer/:id` route passes no `site` at
-// all, so `site &&` short-circuits it to "drawing" unconditionally, same as
-// before.
-// A site whose only map is a picture nobody has lined a grid up with has nothing to trace over yet: the canvas would
-// be empty, so it opens on the Picture, where the grid gets lined up.
+// Initial layer, read once at setup (a hand-picked layer stands for the session). A site with a Drawing or Picture
+// opens on Plan to trace it (#878 S2); one whose only map is a picture without a grid opens on the Picture, where the
+// grid gets lined up. The standalone route passes no `site` and lands on the Drawing.
 const needsGrid = !!site && !!stack.value.picture && !stack.value.picture.calibration && !stack.value.drawing;
 const activeLayer = ref<"drawing" | "plan" | "picture">(
   startLayer ?? (needsGrid ? "picture" : site && hasAnyMapLayer(site) ? "plan" : "drawing"),
 );
+const { showPictureReference, referenceImageEl, buildReferenceImage } = useReferencePicture(referencePicture, activeLayer);
 // "Drawing" and "Plan" are the site workbench's own words (#884) and mean nothing to
 // someone opening Build for the first time, so each says what it is for in its tooltip.
 const LAYER_OPTIONS: SegmentedOption<"picture" | "drawing" | "plan">[] = [
@@ -1068,49 +993,6 @@ const LAYER_OPTIONS: SegmentedOption<"picture" | "drawing" | "plan">[] = [
   { value: "drawing", label: "Drawing", tooltip: "The map itself: paint floors, walls, doors and objects on the grid." },
   { value: "plan", label: "Plan", tooltip: "The rooms: outline each space and link it to its place, so the map knows which room is which." },
 ];
-
-// ── Picture layer: lining the grid up (canvas frame 07) ──────────────────
-const liningUp = ref(false);
-const draftCalibration = ref<GridCalibration | null>(null);
-const boxMode = ref(false);
-const pictureNatural = computed(() => {
-  const img = referenceImageEl.value;
-  return img && img.naturalWidth > 0 ? { width: img.naturalWidth, height: img.naturalHeight } : null;
-});
-/** The fitted picture is on screen instead of the canvas: before it has a grid, and while lining one up. */
-const pictureStage = computed(() => activeLayer.value === "picture" && (liningUp.value || !referencePicture.value?.calibration));
-const lineUpHint = computed(() => {
-  const cal = draftCalibration.value;
-  const natural = pictureNatural.value;
-  if (!cal || !natural) return "";
-  const across = Number(cal.cells_per_image_width.toFixed(1));
-  const down = Number(squaresDown(cal, natural).toFixed(1));
-  return `${across} × ${down} squares. Drag the grid to line it up; arrow keys nudge it a pixel.`;
-});
-
-function startLineUp(): void {
-  const natural = pictureNatural.value;
-  const picture = referencePicture.value;
-  if (!natural || !picture) return;
-  draftCalibration.value = picture.calibration ? { ...picture.calibration } : calibrationFor(natural, DEFAULT_SQUARES_ACROSS);
-  boxMode.value = false;
-  liningUp.value = true;
-}
-function cancelLineUp(): void {
-  liningUp.value = false;
-  draftCalibration.value = null;
-  boxMode.value = false;
-}
-function finishLineUp(): void {
-  const draft = draftCalibration.value;
-  if (draft) emit("update:pictureCalibration", draft);
-  cancelLineUp();
-}
-watch(activeLayer, (layer) => {
-  if (layer !== "picture") cancelLineUp();
-});
-// A new picture is a new frame for any grid being lined up.
-watch(() => referencePicture.value?.url, () => cancelLineUp());
 
 // ── The right drawer: one panel at a time over the canvas's edge. Plan opens on its own
 // lists (they are how a traced shape is bound to a room); Place opens its catalogue with its tool,
@@ -1159,32 +1041,13 @@ const {
   plan, activeLayer, keysActive,
 });
 
-// The Picture layer opens on the whole picture, wherever the Drawing had the view: a picture lined up to a grid
-// sits at cell (origin_cell) and 30-odd squares across, which the Drawing's own view may not be near.
-function fitPictureView(): void {
-  const canvas = canvasEl.value;
-  const cal = referencePicture.value?.calibration;
-  const natural = pictureNatural.value;
-  if (!canvas || !cal || !natural || canvas.clientWidth === 0) return;
-  const across = cal.cells_per_image_width;
-  const down = squaresDown(cal, natural);
-  const left = (cal.origin_cell_x ?? 0) - cal.origin_x_pct * across;
-  const top = (cal.origin_cell_y ?? 0) - cal.origin_y_pct * across;
-  const next = fitViewport(
-    { minX: Math.floor(left), minY: Math.floor(top), maxX: Math.ceil(left + across) - 1, maxY: Math.ceil(top + down) - 1 },
-    { width: canvas.clientWidth, height: canvas.clientHeight },
-    window.devicePixelRatio || 1,
-    BASE_TILE_SIZE,
-    0,
-  );
-  zoom.value = next.zoom;
-  viewportOffset.value = next.offset;
-}
-watch(
-  [activeLayer, () => referencePicture.value?.calibration, pictureNatural],
-  () => { if (activeLayer.value === "picture") fitPictureView(); },
-  { flush: "post" },
-);
+// Picture layer (canvas frame 07): lining the grid up and fitting the view.
+const fitCanvasTo = useCanvasFraming(canvasEl, zoom, viewportOffset);
+const { liningUp, draftCalibration, boxMode, pictureNatural, pictureStage, lineUpHint, startLineUp, cancelLineUp, finishLineUp } =
+  useWorkbenchPicture({
+    picture: referencePicture, imageEl: referenceImageEl, activeLayer, fitCanvasTo,
+    onLined: (calibration) => emit("update:pictureCalibration", calibration),
+  });
 
 /** What the Light slip shows: the selected light when one is picked, else what the next one will be. */
 const shownLight = computed<TileLight>(() => {
@@ -1248,23 +1111,9 @@ watch(publishedPacks, () => { void ensurePackLoaded(); });
 watch(campaignPacks, () => { void ensurePackLoaded(); });
 onMounted(() => {
   void ensurePackLoaded();
-  openOnFrame();
+  // A new map opens showing the size it was started with, not an arbitrary 100% on the origin.
+  if (frame && cellsPainted.value === 0) fitCanvasTo({ minX: 0, minY: 0, maxX: frame.cols - 1, maxY: frame.rows - 1 }, 1);
 });
-
-/** A new map opens showing the size it was started with, not an arbitrary 100% on the origin. */
-function openOnFrame(): void {
-  const canvas = canvasEl.value;
-  if (!frame || !canvas || cellsPainted.value > 0 || canvas.clientWidth === 0) return;
-  const next = fitViewport(
-    { minX: 0, minY: 0, maxX: frame.cols - 1, maxY: frame.rows - 1 },
-    { width: canvas.clientWidth, height: canvas.clientHeight },
-    window.devicePixelRatio || 1,
-    BASE_TILE_SIZE,
-    1,
-  );
-  zoom.value = next.zoom;
-  viewportOffset.value = next.offset;
-}
 
 // ── Map load ───────────────────────────────────────────────────────────────
 

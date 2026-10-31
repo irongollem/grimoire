@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { BRING_ACCEPT } from "@/lib/mapBring/bringFile";
+import { BRING_ACCEPT } from "@/lib/mapImport/bringFile";
 import { useMapImportStore } from "@/stores/mapImport";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";

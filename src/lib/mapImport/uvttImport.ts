@@ -10,6 +10,14 @@ import { MAP_LIVE_VERSION, type MapLive } from "@/types/mapLive.types";
 import type { GridCalibration } from "@/types/location.types";
 import type { UniversalVttMap, UvttLight } from "@/lib/mapImport/universalVtt";
 
+/**
+ * What an imported wall names as its tile set: none. A `WallEdge` is a pack tile, but these walls are never drawn
+ * (`visible: false`) and every reader of an edge's pack is null-safe (`runtime(id)?.`, `?? null`), so a campaign with
+ * no published tile set can still bring a Universal VTT map. Deciding it here, rather than making the pack fields
+ * optional on every edge, keeps the type honest for the drawn walls the DM adds later in the editor.
+ */
+const NO_TILE_SET: PackRef = { pack_id: "", pack_version: 0, variant: 0 };
+
 /** Walls of the file are real to sight and light but the picture already shows them, so they are not drawn. */
 const INVISIBLE = false;
 
@@ -53,9 +61,8 @@ export interface UvttDrawing {
 
 /**
  * @param natural  the picture's size in pixels (the file carries the image, not its decoded size).
- * @param pack     a tile set to name on the Drawing's walls; a `WallEdge` is a pack tile, and these draw nothing.
  */
-export function uvttToDrawing(map: UniversalVttMap, natural: { width: number; height: number }, pack: PackRef): UvttDrawing {
+export function uvttToDrawing(map: UniversalVttMap, natural: { width: number; height: number }): UvttDrawing {
   const layers = emptyLayers();
   const live: MapLive = {
     version: MAP_LIVE_VERSION,
@@ -69,7 +76,7 @@ export function uvttToDrawing(map: UniversalVttMap, natural: { width: number; he
   };
 
   const edge = (type: WallEdge["type"], a: [number, number], b: [number, number]): WallEdge => ({
-    ...pack,
+    ...NO_TILE_SET,
     type,
     a,
     b,

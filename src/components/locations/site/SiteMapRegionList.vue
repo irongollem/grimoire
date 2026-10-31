@@ -106,7 +106,7 @@
               label="Trace"
               :active="activeRegionId === boundRegionBySpace.get(space.id)!.id"
               :disabled="!canTrace"
-              :tooltip="canTrace ? undefined : 'Calibrate the grid before tracing'"
+              :tooltip="canTrace ? undefined : 'Line up the grid before tracing'"
               @click="toggleActive(boundRegionBySpace.get(space.id)!.id)"
             />
             <AppButton
@@ -175,7 +175,7 @@
           label="Trace"
           :active="activeRegionId === region.id"
           :disabled="!canTrace"
-          :tooltip="canTrace ? undefined : 'Calibrate the grid before tracing'"
+          :tooltip="canTrace ? undefined : 'Line up the grid before tracing'"
           @click="toggleActive(region.id)"
         />
         <AppButton

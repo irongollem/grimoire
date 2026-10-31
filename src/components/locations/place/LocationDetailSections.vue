@@ -303,8 +303,8 @@ const isInteriorSpace = computed(() => isInteriorType(location.location_type));
 // ── Site structure (#868, S6) — spaces for the Ways out panel. `null` when
 //    this isn't a site keeps every query inside `useSiteStructure` disabled
 //    rather than fetching for a room or a continent. The published-drawing
-//    staleness this composable also derives now surfaces through the Layers
-//    panel (#884, S5) instead of a strip here — see `MapLayersPanel`. ───
+//    staleness this composable also derives now surfaces in the map
+//    editor's Drawing layer (#884, #1125) instead of a strip here. ───
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
 const { spaces: siteSpaces } = useSiteStructure(siteStructureLocation);
 

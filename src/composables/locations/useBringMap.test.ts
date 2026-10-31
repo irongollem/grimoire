@@ -9,7 +9,7 @@ const m = vi.hoisted(() => ({
   createMap: vi.fn(),
 }));
 
-vi.mock("@/lib/mapBring/storePicture", () => ({ storePicture: (...a: unknown[]) => m.store(...a) }));
+vi.mock("@/lib/mapImport/storePicture", () => ({ storePicture: (...a: unknown[]) => m.store(...a) }));
 vi.mock("@/lib/mapImport/localMedia", () => ({ deleteLocalMap: (...a: unknown[]) => m.deleteLocal(...a) }));
 vi.mock("@/composables/useImageUpload", () => ({ useImageUpload: () => ({ upload: vi.fn(), remove: vi.fn() }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "camp1" }) }));
@@ -23,7 +23,6 @@ import { useBringMap } from "./useBringMap";
 
 const cal = { cells_per_image_width: 30, origin_x_pct: 0, origin_y_pct: 0 };
 const file = new File(["x"], "ambush.webp", { type: "image/webp" });
-const pack = { pack_id: "p", pack_version: 2, variant: 0 };
 
 const vttMap: UniversalVttMap = {
   image: new Blob(["png"], { type: "image/png" }),
@@ -78,7 +77,7 @@ describe("useBringMap", () => {
   });
 
   describe("a Universal VTT file", () => {
-    const vtt = { map: vttMap, natural: { width: 3000, height: 2000 }, pack };
+    const vtt = { map: vttMap, natural: { width: 3000, height: 2000 }, defaultPackId: null };
     const bring = () => useBringMap().addMap({ file, name: "Keep", calibration: { ...cal, cells_per_image_width: 12 }, target: { kind: "new" }, posterAt: 0, vtt });
 
     it("uses the file's own picture, not the file", async () => {
@@ -105,6 +104,11 @@ describe("useBringMap", () => {
       expect(update.map_live.walls).toHaveLength(1);
       expect(update.map_live.doors).toHaveLength(1);
       expect(update.map_live.lights).toHaveLength(1);
+    });
+
+    it("brings a map when no tile set is published: the Drawing simply opens without one (#1125)", async () => {
+      await bring();
+      expect(m.createMap.mock.calls[0]![0].default_pack_id).toBeNull();
     });
 
     it("takes the grid from the file, whatever the DM's own was", async () => {

@@ -99,8 +99,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, toRef } from "vue";
-import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
+import { computed } from "vue";
+import { useRunnerPcAttacks } from "@/composables/encounters/useRunnerPcAttacks";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
@@ -140,7 +140,7 @@ const { combatant, member, monsters, chatSilent = false } = defineProps<{
 }>();
 
 // One feature graph for the panel: the action card and every rider picker read it.
-const features = useCharacterFeatures(toRef(() => member));
+const { features, profBonus, abilityMod } = useRunnerPcAttacks(() => member);
 
 const portraitOf = useFormPortraits(() => [combatant.wildshape]);
 const portrait = computed(() => portraitOf(combatant, combatant.wildshape));
@@ -187,21 +187,6 @@ const casterType = computed(() => primaryCasting.value ? primaryCasting.value.ca
 
 // ── Proficiency bonus ─────────────────────────────────────────────────────────
 
-const profBonus = computed(() => {
-  if (member.proficiency_bonus) return member.proficiency_bonus;
-  const l = member.level;
-  if (l >= 17) return 6;
-  if (l >= 13) return 5;
-  if (l >= 9)  return 4;
-  if (l >= 5)  return 3;
-  return 2;
-});
-
-// ── Ability helpers ───────────────────────────────────────────────────────────
-
-function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
 
 const ABILITY_KEYS = [
   { key: "str" as const, label: "STR" },

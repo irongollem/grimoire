@@ -1,13 +1,12 @@
 import { useCreateDungeonMap } from "@/composables/cartographer/useDungeonMaps";
 import { useCreateLocation, useUpdateLocation } from "@/composables/locations/useLocations";
 import { useImageUpload } from "@/composables/useImageUpload";
-import { storePicture } from "@/lib/mapBring/storePicture";
-import { uvttToDrawing } from "@/lib/mapBring/uvttImport";
+import { storePicture } from "@/lib/mapImport/storePicture";
+import { uvttToDrawing } from "@/lib/mapImport/uvttImport";
 import { deleteLocalMap } from "@/lib/mapImport/localMedia";
 import { MAP_STILL_MAX_PX } from "@/lib/mapImport/mapStill";
 import type { UniversalVttMap } from "@/lib/mapImport/universalVtt";
 import { useCampaignStore } from "@/stores/campaign";
-import type { PackRef } from "@/types/dungeonMap.types";
 import type { GridCalibration, LocationUpdate } from "@/types/location.types";
 
 export type BringTarget = { kind: "new" } | { kind: "existing"; id: string };
@@ -19,10 +18,10 @@ export interface BringInput {
   /** The grid for the battle map's 5 ft cells (a VTT file's own grid when `vtt` is given). */
   calibration: GridCalibration;
   target: BringTarget;
-  /** The second of a video to take the still from. */
-  posterAt: number;
-  /** A parsed Universal VTT file, with the picture's decoded size and a tile set to name its walls with. */
-  vtt?: { map: UniversalVttMap; natural: { width: number; height: number }; pack: PackRef };
+  /** The second of a video to take the still from; absent, the first frame. */
+  posterAt?: number;
+  /** A parsed Universal VTT file, with the picture's decoded size and the tile set the Drawing opens with (none if no set is published). */
+  vtt?: { map: UniversalVttMap; natural: { width: number; height: number }; defaultPackId: string | null };
 }
 
 /**
@@ -84,12 +83,12 @@ export function useBringMap() {
     };
 
     if (input.vtt) {
-      const drawing = uvttToDrawing(input.vtt.map, input.vtt.natural, input.vtt.pack);
+      const drawing = uvttToDrawing(input.vtt.map, input.vtt.natural);
       const created = await createDungeonMap.mutateAsync({
         name: input.name,
         layers: drawing.layers,
         darkness: drawing.darkness,
-        default_pack_id: input.vtt.pack.pack_id,
+        default_pack_id: input.vtt.defaultPackId,
         campaign_id: campaign.activeCampaignId,
       });
       update.grid_calibration = drawing.calibration;

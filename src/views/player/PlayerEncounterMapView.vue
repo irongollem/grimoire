@@ -1,7 +1,17 @@
 <template>
   <div class="map-root">
-    <!-- Top bar -->
-    <div class="map-topbar">
+    <!-- Phone: the turn header (#1125 frame 14). Tablet and up keep the plain top bar. -->
+    <PlayerMapTurnHeader
+      v-if="isPhone"
+      :mine="isMyTurn"
+      :title="turnTitle"
+      :subtitle="turnSubtitle"
+      :portrait-url="turnPortraitUrl"
+      :hp="ownHp"
+      :following="follow"
+      @toggle-follow="follow = !follow"
+    />
+    <div v-else class="map-topbar">
       <RouterLink to="/play/encounter" class="back-link">← Back</RouterLink>
       <!-- Not the encounter's name: a DM's title can name the twist, and players read only the projection. -->
       <span class="encounter-name">Battle map</span>
@@ -15,11 +25,11 @@
       ref="canvasHost"
       class="map-canvas-host"
       @wheel.prevent="onWheel"
-      @pointerdown="startPan"
+      @pointerdown="onHostDown"
       @pointermove="continuePan"
-      @pointerup="endPan"
-      @pointercancel="endPan"
-      @pointerleave="endPan"
+      @pointerup="onHostUp"
+      @pointercancel="onHostCancel"
+      @pointerleave="onHostCancel"
     >
       <div v-if="loadingState" class="empty-state">{{ loadingState }}</div>
 
@@ -57,9 +67,23 @@
         :factions="factionColors"
         :active-instance-id="activeInstanceId"
         :draggable-instance-ids="draggableSet"
+        :selected-instance-ids="pickedSet"
         :hide-hidden="true"
         :silhouette-unseen="true"
         :on-position-change="onOwnTokenMoved"
+        :on-select="onOwnTokenTapped"
+        :on-drag-preview="onOwnTokenDragPreview"
+      />
+
+      <!-- The path and the ghost square a tap or a drag would make; it only draws. -->
+      <PlayMovePath
+        v-if="location && imageReady && cellPx > 0 && pathLines.length > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :lines="pathLines"
       />
 
       <!-- Fog layer (always opaque on the player side) -->
@@ -80,13 +104,39 @@
         class="hidden-loader"
         @load="onImageLoad"
       />
+
+      <!-- Tablet and up: the confirm is a slip over the map. -->
+      <PlayerMapMoveSheet
+        v-if="pending && !isPhone"
+        inline
+        @pointerdown.stop
+        :feet-text="pending.feetText"
+        :label="pending.label"
+        :state="pending.state"
+        :busy="moving"
+        @cancel="cancelMove"
+        @move="confirmMove"
+      />
     </div>
+
+    <template v-if="isPhone">
+      <PlayerMapMoveSheet
+        v-if="pending"
+        :feet-text="pending.feetText"
+        :label="pending.label"
+        :state="pending.state"
+        :busy="moving"
+        @cancel="cancelMove"
+        @move="confirmMove"
+      />
+      <p v-else-if="isMyTurn && ownCombatant?.position" class="tap-hint">Tap your token, then a square. Drag works too.</p>
+      <PlayerMapNav />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { computed, ref, watch } from "vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { liveState, updateCombatantPosition } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -105,6 +155,15 @@ import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
 import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
 import { useParty } from "@/composables/party/useParty";
+import { useIsMobile } from "@/composables/useBreakpoint";
+import { useToast } from "@/composables/useToast";
+import PlayMovePath, { type PathLine } from "@/components/encounters/play/PlayMovePath.vue";
+import { combatantSpeed } from "@/components/encounters/play/playSpeed";
+import PlayerMapTurnHeader from "@/components/player/PlayerMapTurnHeader.vue";
+import PlayerMapMoveSheet from "@/components/player/PlayerMapMoveSheet.vue";
+import PlayerMapNav from "@/components/player/PlayerMapNav.vue";
+import { actsBefore, moveTo, ownMove, panToCentre, pointerToCell, type OwnMove } from "@/components/player/playerMapMove";
+import type { Cell } from "@/lib/battlemap/movement";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { characterSenses } from "@/rules/characterSenses";
 import { primaryImage } from "@/lib/locations/mapStack";
@@ -118,20 +177,10 @@ import {
   gridOriginInDisplay,
 } from "@/lib/battlemap/battleMapGeometry";
 
-const router = useRouter();
-
-const MOBILE_BREAKPOINT_PX = 768;
-
-function isMobile(): boolean {
-  return typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT_PX;
-}
-
-onMounted(() => {
-  // Phones don't see the battle map — bounce back to the stats panel.
-  if (isMobile()) {
-    router.replace("/play/encounter");
-  }
-});
+// Phones get the map too (#1125 decision 14): a header that says whose turn it is, tap-then-square moves with a
+// confirm sheet, and a bottom nav.
+const isPhone = useIsMobile();
+const toast = useToast();
 
 // The battle location and the token ring colours come from the player-safe projection: players cannot read the
 // encounter row itself.
@@ -272,8 +321,105 @@ async function onOwnTokenMoved(instanceId: string, position: { x: number; y: num
   try {
     await updateCombatantPosition(liveState.value.id, instanceId, position);
   } catch (e) {
-    console.error("Failed to update token position", e);
+    toast.error(toast.fromError(e, "Couldn't move your token."));
   }
+}
+
+// ── Turn, header and following ──────────────────────────────────────────────
+const ownCombatant = computed(() => liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value) ?? null);
+const isMyTurn = computed(() => ownInstanceId.value !== null && activeInstanceId.value === ownInstanceId.value);
+const activeCombatant = computed(() => liveState.value?.combatants_live?.find((c) => c.instance_id === activeInstanceId.value) ?? null);
+const ownSpeed = computed(() => (ownCombatant.value ? combatantSpeed(ownCombatant.value, { monsters: [], npcs: [], members: party.value ?? [] }) : null));
+const ownUsedFeet = computed(() => (isMyTurn.value ? (ownCombatant.value?.movement_used ?? 0) : 0));
+
+const turnTitle = computed(() => {
+  if (isMyTurn.value) return "Your turn";
+  return activeCombatant.value && (activeCombatant.value.reveal_state ?? "revealed") === "revealed"
+    ? `${activeCombatant.value.name}'s turn`
+    : "Waiting for your turn";
+});
+const turnSubtitle = computed(() => {
+  const round = liveState.value ? `Round ${liveState.value.current_round}` : null;
+  if (isMyTurn.value) {
+    if (ownSpeed.value === null) return round;
+    return `${round} · ${Math.max(0, ownSpeed.value - ownUsedFeet.value)} ft to move`;
+  }
+  const list = liveState.value?.combatants_live;
+  const before = list && ownInstanceId.value ? actsBefore(sortCombatantsByInitiative(list), ownInstanceId.value) : null;
+  return before ? `You're after the ${before}` : round;
+});
+const turnPortraitUrl = computed(() => ownCombatant.value?.portrait_url ?? null);
+const ownHp = computed(() => (ownCombatant.value ? { current: ownCombatant.value.hp, max: ownCombatant.value.max_hp } : null));
+
+// Following: the map sits on whoever is up (you, on your turn) until the player turns it off in the header.
+const follow = ref(true);
+
+// ── Moving: tap your token, then a square ───────────────────────────────────
+const picked = ref(false);
+const pickedSet = computed<ReadonlySet<string> | null>(() => (picked.value && ownInstanceId.value ? new Set([ownInstanceId.value]) : null));
+const target = ref<Cell | null>(null);
+const dragTo = ref<Cell | null>(null);
+const moving = ref(false);
+
+const ownFootprint = computed(() => (ownCombatant.value ? combatantFootprint(ownCombatant.value) : 1));
+
+function movePlan(to: Cell | null, tapped: boolean): OwnMove | null {
+  const from = ownCombatant.value?.position;
+  if (!to || !from || !ownInstanceId.value) return null;
+  const common = { instanceId: ownInstanceId.value, from, footprint: ownFootprint.value, speed: ownSpeed.value, usedFeet: ownUsedFeet.value };
+  return tapped ? ownMove({ ...common, pointer: to }) : moveTo({ ...common, to });
+}
+// `target` is the pointer's place in cells, so the snap happens here, the same rounding a drag uses.
+const pending = computed(() => movePlan(target.value, true));
+const dragging = computed(() => movePlan(dragTo.value, false));
+const pathLines = computed<PathLine[]>(() => {
+  const m = pending.value ?? dragging.value;
+  return m ? [m.line] : [];
+});
+
+function onOwnTokenTapped(instanceId: string) {
+  if (instanceId !== ownInstanceId.value) return;
+  picked.value = true;
+}
+function onOwnTokenDragPreview(instanceId: string, to: Cell | null) {
+  dragTo.value = instanceId === ownInstanceId.value ? to : null;
+}
+
+function cancelMove() {
+  target.value = null;
+  picked.value = false;
+}
+
+async function confirmMove() {
+  const m = pending.value;
+  if (!m || !ownInstanceId.value) return;
+  moving.value = true;
+  try {
+    await onOwnTokenMoved(ownInstanceId.value, m.plan.to);
+  } finally {
+    moving.value = false;
+    cancelMove();
+  }
+}
+
+// A tap is a press that neither travelled nor shared the screen with a second finger; anything else is a pan or pinch.
+const TAP_SLOP_PX = 8;
+let tapStart: { x: number; y: number } | null = null;
+function onHostDown(e: PointerEvent) {
+  tapStart = e.isPrimary ? { x: e.clientX, y: e.clientY } : null;
+  startPan(e);
+}
+function onHostUp(e: PointerEvent) {
+  const start = tapStart;
+  tapStart = null;
+  endPan(e);
+  if (!start || !picked.value || !canvasHost.value || cellPx.value <= 0) return;
+  if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > TAP_SLOP_PX) return;
+  target.value = pointerToCell(e, canvasHost.value.getBoundingClientRect(), gridOrigin.value, cellPx.value);
+}
+function onHostCancel(e: PointerEvent) {
+  tapStart = null;
+  endPan(e);
 }
 
 const {
@@ -300,7 +446,6 @@ const loadingState = computed(() => {
   if (!liveState.value.location_id) return "This encounter has no battle map.";
   if (!location.value) return "Loading location…";
   if (!image.value) return "The battle map has no image yet.";
-  if (!location.value.is_battle_map) return "This isn't a battle map.";
   if (!image.value.calibration) return "The DM hasn't calibrated this map yet.";
   return null;
 });
@@ -337,6 +482,35 @@ const gridHorizontals = computed(() =>
 );
 const gridStrokeOpacity = computed(
   () => image.value?.calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
+);
+
+// Phone: zoom to a playable size once, then keep the token of whoever is up in the middle (you, on your turn).
+// Each move of that token pans again; a player's own pan stays until the next move or turn.
+const PHONE_CELL_PX = 56;
+const followTarget = computed(() => (isMyTurn.value ? ownCombatant.value : activeCombatant.value));
+let zoomed = false;
+watch(
+  () => [isPhone.value, follow.value, imageReady.value, cellPx.value > 0, hostW.value > 0, followTarget.value?.instance_id, followTarget.value?.position?.x, followTarget.value?.position?.y],
+  () => {
+    const t = followTarget.value;
+    if (!isPhone.value || !follow.value || !imageReady.value || cellPx.value <= 0 || !t?.position) return;
+    if (!zoomed) {
+      scale.value = scale.value * (PHONE_CELL_PX / cellPx.value);
+      zoomed = true;
+    }
+    const pan = panToCentre({
+      hostW: hostW.value,
+      hostH: hostH.value,
+      origin: gridOrigin.value,
+      cellPx: cellPx.value,
+      pan: { x: panX.value, y: panY.value },
+      at: t.position,
+      footprint: combatantFootprint(t),
+    });
+    panX.value = pan.x;
+    panY.value = pan.y;
+  },
+  { immediate: true },
 );
 </script>
 
@@ -432,6 +606,14 @@ const gridStrokeOpacity = computed(
   color: rgba(255, 255, 255, 0.55);
   padding: 2rem;
   line-height: 1.6;
+}
+
+.tap-hint {
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: rgb(255 255 255 / 0.55);
+  background: rgb(0 0 0 / 0.4);
 }
 
 .hidden-loader {

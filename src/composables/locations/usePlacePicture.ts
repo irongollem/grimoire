@@ -3,7 +3,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useToast } from "@/composables/useToast";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
-import { storePicture } from "@/lib/mapBring/storePicture";
+import { storePicture } from "@/lib/mapImport/storePicture";
 import { deleteLocalMap } from "@/lib/mapImport/localMedia";
 import { MAP_STILL_MAX_PX } from "@/lib/mapImport/mapStill";
 import type { GridCalibration, Location } from "@/types/location.types";

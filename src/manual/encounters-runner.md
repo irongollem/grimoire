@@ -142,7 +142,7 @@ Players who are subscribed to the campaign see a live encounter panel in their o
 
 ## Tips
 
-> The battle map link in the top bar is disabled with an explanation until the encounter's location has a usable map: see [Encounter Map](#encounter-map-battle-map-fog-of-war) for exactly what that requires.
+> From tablet width up the runner and the map are one Play screen: the map sits in the middle, the initiative list on the left and the turn card on the right. Without a usable map the middle says what is missing; see [Encounter Map](#encounter-map-battle-map-fog-of-war) for exactly what that requires, how tokens move, and the turn card.
 
 - Rolls the runner makes for you (initiative, attacks, complications) are never posted individually to chat when they'd leak a hidden combatant's presence: the order and outcome reach players through the live state instead.
 - A companion benched from the party tracker or the player's own portal drops out of the roster automatically while the fight is still in its lobby; once combat starts, the roster locks.

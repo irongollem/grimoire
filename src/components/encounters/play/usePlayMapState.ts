@@ -232,11 +232,11 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
       // while its site's plan is also uncalibrated, and that needs "calibrate", not "no map".
       if (isInteriorType(own.location_type)) {
         return hasAnyMapLayer(own)
-          ? "This room's map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale."
-          : "This room has no map of its own, and its site isn't calibrated either. Trace and publish a plan for the site first.";
+          ? "This room's map has no grid yet. Open the room's Edit map and line up the grid on its Picture."
+          : "This room has no map of its own, and its site's map has no grid either. Line up the site's grid in Edit map first.";
       }
       return hasAnyMapLayer(own)
-        ? "This map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale."
+        ? "This map has no grid yet. Open the place's Edit map and line up the grid on its Picture."
         : "The linked location has no map. Upload or bake a map for this location first.";
     }
     // A room rides its site's publish, already a legal battle map; only a plain map needs the flag.

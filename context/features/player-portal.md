@@ -579,6 +579,17 @@ The `PlayerEncounterPanel` component (always subscribed in the layout via `usePl
 
 The encounter subscription stays active even when the player navigates away from the encounter view, keeping the live state in sync across the whole session.
 
+### Battle map on a phone (#1125 decision 14, frame 14)
+
+`/play/encounter/map` (`PlayerEncounterMapView.vue`) is playable on a phone, not only on tablet and up. The "View battle map" button on `PlayerEncounterPanel` shows whenever the encounter's location has a calibrated primary image (Drawing or Picture); `is_battle_map` no longer gates it, and the view no longer bounces a phone back to the panel.
+
+- **Header** (`PlayerMapTurnHeader`): "Your turn" with "Round N · X ft to move" (speed minus `movement_used`), or "<Name>'s turn" with "You're after the <creature>" (`actsBefore`, only a revealed creature is named), the player's own HP in gilt, and a **Follow** chip when the map is following someone else.
+- **Following**: on a phone the map zooms once to 56px squares and keeps the active token (the player's own, on their turn) centred (`panToCentre`) until Follow is switched off. Tablet and up keep the plain top bar and free pan.
+- **Moving**: drag the own token as before, or tap it (the ring appears) and then tap a square. `ownMove` snaps the tap by the token's middle (same rounding as a drag), prices it with `planMove` on open ground and colours it with `speedState` against the sheet's speed plus feet already moved this turn. The confirm is `PlayerMapMoveSheet`: a bottom sheet on a phone, an inline slip over the map on tablet and up. **Move** calls `updateCombatantPosition`; **Cancel** leaves the token. Players have no terrain or wall data, so the counter prices every square at 5 ft; it warns and never refuses (the RPC alone enforces "own token only").
+- **Bottom nav** (`PlayerMapNav`): Map, My sheet (`/play/character/sheet`) and Roll (the shared `DiceRoller`).
+- The player layout still draws its own bottom bar on this route until `routes.ts` marks it `fullscreenMobile`.
+- Pings (the "Hold anywhere to ping" hint) arrive in a later story.
+
 ## Key Capabilities / USPs
 
 1. **True real-time collaboration** — All player data (HP, inventory, conditions, encounter state) is synchronised via Supabase Realtime. DM changes appear instantly on player devices. No refresh needed.

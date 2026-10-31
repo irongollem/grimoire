@@ -145,7 +145,7 @@ import { IconChevronLeft, IconDrawLine, IconMap, IconNavCartographer, IconPencil
 import { mapEditorRoute } from "@/lib/locations/placeRoute";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { isSiteType } from "@/lib/locations/tiers";
-import { BRING_ACCEPT } from "@/lib/mapBring/bringFile";
+import { BRING_ACCEPT } from "@/lib/mapImport/bringFile";
 import { useCampaignStore } from "@/stores/campaign";
 import { useMapImportStore } from "@/stores/mapImport";
 import { useAppUiStore } from "@/stores/ui/app";

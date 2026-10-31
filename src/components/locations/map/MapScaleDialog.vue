@@ -66,7 +66,7 @@
  * DM marks two places and types the distance; a route measured later is turned
  * into miles or kilometres from that one pair. The map picks its own unit.
  *
- * The two-handle picker is shared with `GridCalibrationDialog`. This dialog
+ * The two-handle picker is shared with `MapGridLineUp`. This dialog
  * only owns the distance, the unit and the Clear action; saving is the
  * caller's, so it can show a failure and keep the dialog open.
  */

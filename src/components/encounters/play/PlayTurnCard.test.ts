@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
+import type { PartyMember } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
 import PlayTurnCard from "./PlayTurnCard.vue";
 
@@ -19,7 +20,7 @@ const ogre = {
   stat_block: { speed: "30 ft.", actions: [{ name: "Greatclub" }], bonus_actions: [] },
 } as unknown as Monster;
 
-function setup(extra: Partial<RunCombatant> = {}) {
+function setup(extra: Partial<RunCombatant> = {}, partyMembers: PartyMember[] = []) {
   const store = useEncounterRunStore();
   store.factions = [
     { id: "players", name: "Players", color: "#123", hostile_to: ["enemy"] },
@@ -34,7 +35,7 @@ function setup(extra: Partial<RunCombatant> = {}) {
   store.started = true;
   store.round = 1;
   store.activeIndex = 0;
-  const w = mount(PlayTurnCard, { global: { stubs: { RunnerActionList: { props: ["sections"], template: "<div data-testid='actions'>{{ sections.map(s => s.label).join() }}</div>" } } } });
+  const w = mount(PlayTurnCard, { props: { partyMembers }, global: { stubs: { PlayPcAttacks: { props: ["member", "senderName"], template: "<div data-testid='pc-attacks'>{{ member.id }} {{ senderName }}</div>" }, RunnerActionList: { props: ["sections"], template: "<div data-testid='actions'>{{ sections.map(s => s.label).join() }}</div>" } } } });
   return { store, w };
 }
 
@@ -56,8 +57,9 @@ describe("PlayTurnCard", () => {
 
   it("with no speed on the board it still counts the feet, and draws no bar", () => {
     const { w } = setup({ movement_used: 10, monster_id: undefined });
-    expect(w.get("[data-testid=turn-card-moving]").text()).toBe("Moved 10 ft");
+    expect(w.get("[data-testid=turn-card-moving]").text()).toBe("Moved 10 ft · Speed unknown");
     expect(w.text()).not.toContain("Gilt: moved");
+    expect(w.find("[role=img]").exists()).toBe(false);
   });
 
   it("Back to start is for a token that has moved, and asks the map to take the moves back", async () => {
@@ -94,6 +96,13 @@ describe("PlayTurnCard", () => {
     await chip("Action").trigger("click");
     await chip("Bonus action").trigger("click");
     expect(store.combatants[0]).toMatchObject({ action_used: false, bonus_used: false });
+  });
+
+  it("lists a character's attacks on the card, under their own name, not a pointer to the sheet", async () => {
+    const pm = { id: "pm", class: "Barbarian", level: 5, speed: 30 } as PartyMember;
+    const { w } = setup({ type: "player", party_member_id: "pm", monster_id: undefined }, [pm]);
+    expect(w.get("[data-testid=pc-attacks]").text()).toBe("pm Ogre");
+    expect(w.text()).not.toContain("on the full sheet");
   });
 
   it("lists a monster's actions to roll, and sends a character to the full sheet for theirs", () => {

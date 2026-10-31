@@ -89,7 +89,7 @@ import MapPictureControls from "@/components/locations/map/MapPictureControls.vu
 import PlaceMapPinsEditor from "@/components/locations/map/PlaceMapPinsEditor.vue";
 import { IconChevronLeft, IconImage, IconPin } from "@/lib/icons";
 import { usePlacePicture } from "@/composables/locations/usePlacePicture";
-import { DEFAULT_SQUARES_ACROSS, calibrationFor, type ImageSize } from "@/lib/mapBring/pictureGrid";
+import { DEFAULT_SQUARES_ACROSS, calibrationFor, type ImageSize } from "@/lib/mapImport/pictureGrid";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { placeRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
 import type { GridCalibration, Location, LocationSummary } from "@/types/location.types";

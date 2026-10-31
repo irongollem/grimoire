@@ -21,9 +21,9 @@
       </div>
       <p class="mt-1 text-body text-foreground" data-testid="turn-card-moving">
         <template v-if="speed !== null">Moving {{ used }} of {{ speed }} ft</template>
-        <template v-else>Moved {{ used }} ft</template>
+        <template v-else>Moved {{ used }} ft · Speed unknown</template>
       </p>
-      <template v-if="speed !== null">
+      <template v-if="speed !== null && bar">
         <!-- Two speeds long: gilt is what has been moved, the plain half is the speed, the dashed half a Dash. -->
         <div class="relative mt-2 h-2.5 overflow-hidden rounded-full border border-border bg-secondary" role="img" :aria-label="`Moved ${used} of ${speed} feet`">
           <span class="dash-half absolute inset-y-0 right-0" :style="{ left: bar.dashFrom * 100 + '%' }"></span>
@@ -54,6 +54,7 @@
       </div>
 
       <RunnerActionList v-if="sections.length > 0" :combatant="c" :sections="sections" class="mt-2" />
+      <PlayPcAttacks v-else-if="member" :key="member.id" class="mt-2" :member="member" :sender-name="c.name" />
       <p v-else-if="c.type === 'player'" class="mt-2 text-caption text-muted-foreground">Their attacks and spells are on the full sheet.</p>
 
       <label class="mt-3 flex items-center gap-2 text-caption text-muted-foreground">
@@ -94,6 +95,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { MONSTER_SIZES } from "@/types/monster.types";
 import type { RollMode } from "@/lib/dice/dice";
 import type { PartyMember } from "@/types/party.types";
+import PlayPcAttacks from "./PlayPcAttacks.vue";
 import PlayPortrait from "./PlayPortrait.vue";
 import { adjacentFoes, movementUsedOf } from "./playRoster";
 import { combatantSpeed, moveBarShares } from "./playSpeed";
@@ -129,7 +131,8 @@ const ownSizeLabel = computed(() => {
 const sizeOverride = computed(() => (c.value?.size_override ? c.value.size_override : ""));
 const speed = computed(() => (c.value ? combatantSpeed(c.value, { monsters: store.availableMonsters, npcs: store.availableNpcs, members: partyMembers }) : null));
 const used = computed(() => movementUsedOf(c.value ?? undefined));
-const bar = computed(() => moveBarShares(used.value, speed.value ?? 0));
+// No known speed means no bar: a bar against 0 would read as full.
+const bar = computed(() => (speed.value === null ? null : moveBarShares(used.value, speed.value)));
 const canUndo = computed(() => {
   const history = c.value ? store.moveHistory[c.value.instance_id] : undefined;
   return history !== undefined && history.length > 0;

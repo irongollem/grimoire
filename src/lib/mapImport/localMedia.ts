@@ -84,18 +84,6 @@ export async function getLocalMap(key: string): Promise<File | null> {
   }
 }
 
-export async function hasLocalMap(key: string): Promise<boolean> {
-  if (!SAFE_KEY.test(key)) return false;
-  try {
-    const dir = await mediaDir(false);
-    if (!dir) return false;
-    await dir.getFileHandle(key);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function deleteLocalMap(key: string): Promise<void> {
   if (!SAFE_KEY.test(key)) return;
   try {

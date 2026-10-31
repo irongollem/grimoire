@@ -117,7 +117,7 @@ import { bakeMapAsPng } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import type { MapMenuAction } from "@/cartographer/tools";
 import { downloadBlob } from "@/lib/downloadBlob";
-import { exportDrawingAsVtt } from "@/lib/mapBring/exportDrawing";
+import { exportDrawingAsVtt } from "@/lib/mapImport/exportDrawing";
 import { useToast } from "@/composables/useToast";
 
 const route = useRoute();

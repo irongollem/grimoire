@@ -11,7 +11,7 @@ const m = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("@/lib/mapBring/storePicture", () => ({ storePicture: (...a: unknown[]) => m.store(...a) }));
+vi.mock("@/lib/mapImport/storePicture", () => ({ storePicture: (...a: unknown[]) => m.store(...a) }));
 vi.mock("@/lib/mapImport/localMedia", () => ({ deleteLocalMap: (...a: unknown[]) => m.deleteLocal(...a) }));
 vi.mock("@/composables/useImageUpload", () => ({ useImageUpload: () => ({ upload: m.upload, remove: m.removeFile }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useUpdateLocation: () => ({ mutateAsync: m.update }) }));

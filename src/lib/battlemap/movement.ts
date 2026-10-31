@@ -17,7 +17,7 @@ export interface Cell {
 }
 
 /** A grid square is 5 ft (PHB 2024 "Creature Size"). */
-export const FEET_PER_SQUARE = 5;
+const FEET_PER_SQUARE = 5;
 
 /** What the ground and walls under a move are. */
 export interface MoveTerrain {
@@ -44,7 +44,7 @@ export function snapAnchor(pointer: Cell, footprint: number): Cell {
 const keyOf = (x: number, y: number) => `${x},${y}`;
 
 /** The whole cells a token with this anchor covers. A Tiny token covers the one cell it stands in. */
-export function footprintCells(at: Cell, footprint: number): string[] {
+function footprintCells(at: Cell, footprint: number): string[] {
   const x0 = Math.floor(at.x + EPS);
   const y0 = Math.floor(at.y + EPS);
   const span = footprint < 1 ? 1 : Math.ceil(footprint - EPS);
@@ -61,7 +61,7 @@ function stride(delta: number): number {
 }
 
 /** The squares from `from` to `to`, `from` excluded: diagonal first while both axes have distance left, then straight. */
-export function stepsBetween(from: Cell, to: Cell): Cell[] {
+function stepsBetween(from: Cell, to: Cell): Cell[] {
   const out: Cell[] = [];
   let at = from;
   // A bound, so a corrupt coordinate cannot spin the UI.
@@ -102,7 +102,7 @@ function boxHitsWall(at: Cell, size: number, walls: readonly WallSegment[]): boo
  * the gap is big enough for a creature one size smaller (PHB "Squeezing into a Smaller Space") and the creature is
  * wedged in it. Medium and smaller have no smaller box on the grid, so they never squeeze.
  */
-export function isSqueezing(at: Cell, footprint: number, walls: readonly WallSegment[]): boolean {
+function isSqueezing(at: Cell, footprint: number, walls: readonly WallSegment[]): boolean {
   if (footprint < 2 || walls.length === 0 || !boxHitsWall(at, footprint, walls)) return false;
   const smaller = footprint - 1;
   const far = footprint - smaller;

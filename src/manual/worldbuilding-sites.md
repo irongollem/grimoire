@@ -26,17 +26,26 @@ A **site** is any [Atlas](#atlas-locations) location with a floor plan: a Buildi
 
 Set its **Type** to Building, Dungeon, Store, Tavern, Inn or Wilds in the location editor. The site apparatus (the Explore button, the Rooms panel, the map editor with its Plan) appears automatically once the type qualifies.
 
-## Building the map: the Layers panel
+## Building the map: Picture, Drawing and Plan
 
-Open the **Map** tab of a site and press **Edit map**. A site with no map yet shows a card instead, with **Draw one**, **Bring a map** and **Blank grid**; each opens the same editor. In the editor, the **Picture** button in the top bar opens the **Layers** panel: one row per layer of the stack, bottom-up:
+Open the **Map** tab of a site and press **Edit map**. A site with no map yet shows a card instead, with **Draw one**, **Bring a map** and **Blank grid**; each opens the same full-screen editor. A selector in the editor switches between the map's three layers, bottom-up:
 
-1. **Picture**: upload a scan or photo. Once uploaded, **Calibrate** (or **Re-calibrate**) sets the grid so cells line up with the image; until it's calibrated, rooms can't be traced onto it. **Replace** swaps the image; **Remove** clears both the picture and its calibration.
-2. **Drawing**: **Open** an existing Cartographer drawing, **Style with AI** to re-render it (see below), or **Start drawing** to create one named after this site. The drawing is the editor's own canvas: see [Cartographer: Overview](#cartographer-overview) for the painting tools themselves. The Drawing autosaves; there's no Save button, and the top bar says **Saved** once it has.
-3. **Plan**: once a Picture or Drawing exists, tracing happens directly on the canvas; if neither does, **Start a blank grid** (pick columns × rows) gives you a plan with no image underneath it at all.
+1. **Picture**: a scan, screenshot or render. **Upload** (or **Replace**) adds it, and **Line up the grid** lays an amber grid over it: drag the grid to move it, use the arrow keys to nudge it a pixel, type how many squares fit across (the squares down follow from the picture's shape), or draw a box over one square and let the rest follow. Press **Done** to keep it or **Cancel** to drop it. Until the grid is lined up, rooms can't be traced onto the picture. **Remove** clears the picture and its grid. The same layer has a **This is a battle map, not a region** box: it no longer decides whether the map can be played, it only keeps a battle map out of the Atlas's geography zoom.
+2. **Drawing**: the editor's own canvas, with the painting tools described in [Cartographer: Overview](#cartographer-overview). The Drawing autosaves; there's no Save button, and the top bar says **Saved** once it has. The Map menu has **Style it with AI…** (see below) and **Export for another VTT**.
+3. **Plan**: once a Picture or Drawing exists, tracing happens directly on the canvas; if neither does, **Blank grid** (pick columns × rows) gives you a plan with no image underneath it at all.
+
+### Bringing a map you already have
+
+**Bring a map** (on the card above, on **New map** in the Cartographer, or by dropping a file onto a place's Map tab) takes PNG, JPEG and WebP pictures, GIF, WebM and MP4 moving maps, and Universal VTT files (`.dd2vtt`, `.uvtt`, `.df2vtt`). It shows the picture with the grid laid on it, so you can line it up, and asks where it lives: a new place, or one you already have.
+
+- A grid size in the file name (`crypt_30x20.png`) is read for you.
+- **A moving map** plays on the device you added it on. The file is kept in that browser rather than uploaded, and everyone else (players, your other devices) sees a still of it. On another device the map says it doesn't have the file and lets you pick it.
+- **A Universal VTT file** brings its picture, its grid, and its walls, doors and lights. The walls are invisible (the picture already shows them) but block sight and light at the table, so the battle map has sight and light from the start. It works without a tile set, and it can't be added to a place that already has a Drawing.
+- **Export for another VTT** (in the Map menu) goes the other way, writing your Drawing out as a `.dd2vtt` for Foundry, Roll20 and Owlbear.
 
 ### Styling the Drawing with AI
 
-**Style with AI** on the Drawing row re-renders your tile map in an artistic style, the same generator described in [Cartographer: Export & AI Style](#cartographer-export-ai-style), with the save target fixed to this site: there's no location to pick. Generating asks first, plainly, since saving has a real effect on your map stack: the styled render replaces this site's **Picture**, and the **Drawing** you were editing is set aside rather than deleted. It survives in your Cartographer, so you can reopen it (or start a fresh one), draw fixes on top of the new Picture, and style again. That's the loop: style, correct, style again, as many times as the map needs.
+**Style it with AI…** in the Map menu re-renders your tile map in an artistic style, the same generator described in [Cartographer: Export & AI Style](#cartographer-export-ai-style), with the save target fixed to this site: there's no location to pick. Generating asks first, plainly, since saving has a real effect on your map stack: the styled render replaces this site's **Picture**, and the **Drawing** you were editing is set aside rather than deleted. It survives in your Cartographer, so you can reopen it (or start a fresh one), draw fixes on top of the new Picture, and style again. That's the loop: style, correct, style again, as many times as the map needs.
 
 Each pass also sets the Picture's grid to match automatically, so the fresh Drawing you start next lines up with it right away. It's a first guess, not a guarantee, so check that the grid still looks right and use **Calibrate** if the AI drifted it a little.
 
@@ -55,7 +64,7 @@ Three ways to trace a room's shape once you're in the tool: drag-to-paint cells 
 
 ### Publishing a drawing
 
-**Publish to Atlas** (opened via the Layers panel's **Review** link, or from the Cartographer editor itself) reconciles your drawing with the site rather than overwriting it: rooms are matched by their traced shape, ways out by the edge they sit on, and prepared items by cell: nothing you've hand-edited on the Atlas side is silently discarded. The review shows exactly what will be added, matched or left alone before you confirm.
+**Publish to Atlas** (opened via the Map menu's **Review** entry, or from the Cartographer editor itself) reconciles your drawing with the site rather than overwriting it: rooms are matched by their traced shape, ways out by the edge they sit on, and prepared items by cell: nothing you've hand-edited on the Atlas side is silently discarded. The review shows exactly what will be added, matched or left alone before you confirm.
 
 ## Rooms (or Grounds)
 
@@ -128,15 +137,15 @@ A quest beat can be staged at a site, or at one specific room inside it (see [Ru
 
 Players never see your raw map or plan. What they get is composed fresh from what the party has actually explored: explored rooms in full, glimpsed rooms (sharing a known, non-secret door with an explored one) as a bare outline with no name or contents, and ways out only where at least one end has been explored: a locked door still draws as a plain door, with no lock note. Unexplored geometry, secret doors, hazard details, room notes and trap DCs are never sent to the client at all, not merely hidden by the UI.
 
-The Layers panel has its own **Preview as players** toggle so you can check exactly what a specific shared party member would see before a session, without changing any data.
+The site editor has its own **Preview as players** toggle so you can check exactly what a specific shared party member would see before a session, without changing any data.
 
 ## Tips
 
-> Calibrate the Picture before you try to trace anything on it: an uncalibrated image shows the map but refuses tracing, because there's no grid to trace onto yet.
+> Line up the grid on the Picture before you try to trace anything on it: an image without a grid shows the map but refuses tracing, because there's no grid to trace onto yet.
 
 - A door with a region on only one side draws dashed: "leads nowhere yet." It resolves itself the moment you trace the far room; there's nothing to fix by hand.
 - The readiness meter on the Atlas pane (Mapped / Calibrated / Traced / Bound / Ways out) is a pre-session gap check, not a requirement: a site is fully runnable via its room list alone, traced or not.
-- Removing a site's Picture also clears its calibration; a Drawing carries its own independent calibration, so it isn't affected.
+- Removing a site's Picture also clears its grid; a Drawing carries its own independent grid, so it isn't affected.
 - Cleared/Looted facts belong to the room, not to any one quest: a party returning on a different quest chain four sessions later still finds a looted vault looted.
 
 ## Related
