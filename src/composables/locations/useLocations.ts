@@ -276,8 +276,10 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
 
 /** The flat Atlas read; shared by `useAllLocations` and the navigation prefetch. */
 export function allLocationsQuery(campaignId: string | null) {
+  const campaign = useCampaignStore();
   // The owner comes from the active campaign row (#590: a co-DM reads the owner's library places) and is part of the key.
-  const ownerId = useCampaignStore().activeCampaign?.user_id ?? null;
+  // Another campaign's owner is not known here, so it reads only the caller's own global places besides its own rows.
+  const ownerId = campaignId === campaign.activeCampaignId ? (campaign.activeCampaign?.user_id ?? null) : null;
   return {
     queryKey: [QUERY_KEY, campaignId, "all", ownerId] as const,
     queryFn: () => {
@@ -294,9 +296,11 @@ export function allLocationsQuery(campaignId: string | null) {
  *  `enabled` lets permanently-mounted callers (the generator panels, which live
  *  in DefaultLayout on every DM page) defer the fetch until their panel is open.
  *  Query keys are shared, so the Atlas itself still fetches once. */
-export function useAllLocations(enabled?: () => boolean) {
+export function useAllLocations(enabled?: () => boolean, forCampaign?: MaybeRefOrGetter<string | null>) {
   const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
+  // `forCampaign` reads another campaign's Atlas (a place opened by link from outside the active one) without switching it.
+  // `null`/absent falls back to the active campaign.
+  const campaignId = computed(() => toValue(forCampaign) ?? campaign.activeCampaignId);
   const options = computed(() => allLocationsQuery(campaignId.value));
   return useQuery({
     queryKey: computed(() => options.value.queryKey),

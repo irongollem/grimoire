@@ -73,7 +73,12 @@ useLocationsUiStore().locationsPaneMode = "map";
 const backTo = computed(() => placeRoute(placeId.value));
 
 const { data: location, isPending } = useLocation(placeId);
-const { data: allLocationsData, isPending: allPending } = useAllLocations();
+// The place's own campaign, not the active one: a site opened by link from another of the DM's campaigns
+// would otherwise find none of its child spaces. A global place (no campaign) reads the active campaign.
+const { data: allLocationsData, isPending: allPending } = useAllLocations(
+  () => !placeId.value || !isPending.value,
+  () => location.value?.campaign_id ?? null,
+);
 const allLocations = computed(() => allLocationsData.value ?? []);
 const index = computed(() => buildAtlasIndex(allLocations.value));
 

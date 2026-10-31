@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   query: {} as Record<string, string>,
   location: null as unknown,
   pending: false,
+  allArgs: [] as unknown[],
 }));
 
 vi.mock("vue-router", () => ({
@@ -19,7 +20,10 @@ vi.mock("vue-router", () => ({
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocation: () => ({ data: ref(mocks.location), isPending: ref(mocks.pending) }),
-  useAllLocations: () => ({ data: ref([]), isPending: ref(false) }),
+  useAllLocations: (...args: unknown[]) => {
+    mocks.allArgs = args;
+    return { data: ref([]), isPending: ref(false) };
+  },
 }));
 
 const place = (over: Partial<Location>) => ({ id: "ash", name: "Ashmouth", location_type: "dungeon", ...over }) as Location;
@@ -44,6 +48,14 @@ describe("PlaceMapEditorView", () => {
     const w = mountView();
     expect(w.findComponent({ name: "SiteMapEditor" }).props("backTo")).toBe("/locations?at=ash");
     expect(useLocationsUiStore().locationsPaneMode).toBe("map");
+  });
+
+  // Bug: a site opened from outside the active campaign listed no spaces.
+  it("reads the Atlas of the place's own campaign", () => {
+    mocks.location = place({ campaign_id: "camp-b" });
+    mountView();
+    const [, forCampaign] = mocks.allArgs as [unknown, () => string | null];
+    expect(forCampaign()).toBe("camp-b");
   });
 
   it("takes the whole screen while open and gives it back when left", () => {

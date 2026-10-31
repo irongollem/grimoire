@@ -160,6 +160,8 @@ import { bindableSpaces } from "@/lib/locations/tiers";
 import { childrenOf, type AtlasIndex } from "@/lib/locations/tree";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import type { Location, LocationSummary } from "@/types/location.types";
 
 /** `CartographerAiStyleModal`'s `locationOptions` prop is unused whenever
@@ -178,7 +180,18 @@ const router = useRouter();
 const toast = useToast();
 const { confirm } = useConfirm();
 const campaignStore = useCampaignStore();
-const campaignAiEnabled = computed(() => campaignStore.isAiEnabled);
+// AI follows the place's own campaign: a site opened from another of the DM's campaigns must not take the active
+// campaign's switch. That campaign is read only when it differs; the child-account fence applies either way (#919).
+const otherCampaignId = computed(() =>
+  location.campaign_id && location.campaign_id !== campaignStore.activeCampaignId ? location.campaign_id : null,
+);
+const { data: otherCampaign } = useCampaignById(() => otherCampaignId.value);
+const authStore = useAuthStore();
+const campaignAiEnabled = computed(() =>
+  otherCampaignId.value === null
+    ? campaignStore.isAiEnabled
+    : otherCampaign.value?.ai_enabled === true && !authStore.isChildAccount,
+);
 
 const siteSpaces = computed(() => bindableSpaces(childrenOf(index, location.id)));
 const mapStack = computed(() => buildMapStack(location));

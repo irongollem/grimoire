@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => {
   updateLocation: vi.fn(),
   publishOpen: { value: false },
   aiEnabled: { value: false },
+  /** The place's own campaign, read when it is not the active one ("c"). */
+  otherCampaign: ref<{ ai_enabled: boolean } | null>(null),
+  campaignByIdCalls: [] as (string | null)[],
   showStylePicker: { value: false },
   setPicture: vi.fn(),
   removePicture: vi.fn(),
@@ -40,7 +43,14 @@ vi.mock("vue-router", async (importOriginal) => ({
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ info: vi.fn(), error: vi.fn(), fromError: String }) }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get isAiEnabled() { return mocks.aiEnabled.value; } }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c", get isAiEnabled() { return mocks.aiEnabled.value; } }) }));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isChildAccount: false }) }));
+vi.mock("@/composables/campaign/useCampaigns", () => ({
+  useCampaignById: (id: () => string | null) => {
+    mocks.campaignByIdCalls.push(id());
+    return { data: mocks.otherCampaign };
+  },
+}));
 vi.mock("@/composables/cartographer/useDungeonMaps", () => ({
   useDeleteDungeonMap: () => ({ mutateAsync: mocks.deleteMap }),
 }));
@@ -181,6 +191,8 @@ beforeEach(() => {
   mocks.canvas.current = null;
   mocks.sourceMap.value = null;
   mocks.aiEnabled.value = false;
+  mocks.otherCampaign.value = null;
+  mocks.campaignByIdCalls.length = 0;
   mocks.showStylePicker.value = false;
 });
 
@@ -218,6 +230,15 @@ describe("SiteMapEditor", () => {
   it("offers Style with AI only when the campaign has AI on", () => {
     mocks.aiEnabled.value = true;
     expect(menuOf(mountEditor(place({ id: "ash", source_map_id: "m1" })))).toContain("style");
+  });
+
+  it("takes AI from the place's own campaign when it is not the active one", () => {
+    // The active campaign has AI on; the place's campaign has it off. Style must follow the place.
+    mocks.aiEnabled.value = true;
+    mocks.otherCampaign.value = { ai_enabled: false };
+    const w = mountEditor(place({ id: "ash", source_map_id: "m1", campaign_id: "other" }));
+    expect(mocks.campaignByIdCalls).toContain("other");
+    expect(menuOf(w)).not.toContain("style");
   });
 
   it("saves the drawing before opening the publish review (it reads the saved row's rev)", async () => {
