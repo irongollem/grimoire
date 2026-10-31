@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
+import type { Monster } from "@/types/monster.types";
+import type { Companion } from "@/types/companion.types";
 
 function monster(id: string, initiative: number): RunCombatant {
   return {
@@ -109,5 +111,46 @@ describe("stat blocks written mid-fight", () => {
     const thing = store.combatants.find((c) => c.monster_id === "m1");
     expect([guard?.max_hp, guard?.ac]).toEqual([9, "16"]); // 2d8 averages 9
     expect([thing?.max_hp, thing?.ac]).toEqual([22, "13"]); // 4d10 averages 22
+  });
+});
+
+describe("runner sizes (#1125 decision 13)", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  it("setSizeOverride resizes a combatant and null puts it back", () => {
+    const store = useEncounterRunStore();
+    store.combatants = [{ ...monster("a", 10), size: "medium" }];
+    store.setSizeOverride("a", "huge");
+    expect(store.combatants[0].size_override).toBe("huge");
+    store.setSizeOverride("a", null);
+    expect(store.combatants[0].size_override).toBeNull();
+  });
+
+  it("enterWildshape gives the form the beast's size from the monster the runner holds when the caller left it out", () => {
+    const store = useEncounterRunStore();
+    store.combatants = [{ ...monster("p", 10), type: "player", party_member_id: "pm" }];
+    store.availableMonsters = [{ id: "bear", size: "large" } as Monster];
+    store.enterWildshape("p", { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11" }, 1);
+    expect(store.combatants[0].wildshape?.beast_size).toBe("large");
+  });
+
+  it("enterWildshape keeps a size the caller already set", () => {
+    const store = useEncounterRunStore();
+    store.combatants = [{ ...monster("p", 10), type: "player", party_member_id: "pm" }];
+    store.availableMonsters = [{ id: "bear", size: "large" } as Monster];
+    store.enterWildshape("p", { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "huge" }, 1);
+    expect(store.combatants[0].wildshape?.beast_size).toBe("huge");
+  });
+
+  it("a companion that joins mid-lobby takes its size", () => {
+    const store = useEncounterRunStore();
+    const horse: Companion = {
+      id: "c1", user_id: "u", campaign_id: "camp", name: "Warhorse", companion_type: "mount", source_type: "custom",
+      source_monster_id: null, source_npc_id: null, owner_party_member_id: null, max_hp: 19, current_hp: 19, ac: 11,
+      speed: 60, conditions: [], combat_ready: true, sort_order: 0, portrait_url: null, stat_block: null, size: "large",
+      created_at: "", updated_at: "",
+    };
+    store.addCompanionCombatant(horse, "players");
+    expect(store.combatants[0]).toMatchObject({ size: "large", footprint: 2 });
   });
 });

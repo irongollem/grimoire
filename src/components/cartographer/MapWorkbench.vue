@@ -19,11 +19,16 @@
       :save-state="saveState"
       :reference-available="!!referencePicture"
       :show-reference="showPictureReference"
+      :menu-actions="menuActions"
+      :review-count="reviewCount"
+      :show-ready="showReady"
       @update:current-pack-id="currentPackId = $event"
       @update:darkness="setDarkness"
       @update:campaign-id="campaignId = $event"
       @update:show-reference="showPictureReference = $event"
       @toggle-spaces="toggleSpaces"
+      @menu-action="emit('menu-action', $event)"
+      @ready="emit('ready')"
       @undo="undoEdit"
       @redo="redoEdit"
     >
@@ -46,7 +51,7 @@
     <div :class="viewMode ? 'contents' : 'flex min-h-0 flex-1 flex-col-reverse gap-2 lg:flex-row'">
       <CartographerToolRail
         v-if="!viewMode"
-        :groups="activeLayer === 'drawing' ? RAIL_GROUPS : PLAN_RAIL_GROUPS"
+        :families="activeLayer === 'drawing' ? RAIL_FAMILIES : PLAN_RAIL_FAMILIES"
         :active-tool="activeLayer === 'drawing' ? activeTool : plan.planTool.value"
         @update:active-tool="onRailTool"
       />
@@ -113,7 +118,9 @@
           <CartographerToolOptions
             v-if="activeLayer === 'drawing'"
             ref="toolOptionsRef"
-            :title="canvasToolLabel"
+            :title="slipTitle"
+            :caption="slipCaption"
+            :family-tools="activeFamily?.tools"
             :active-tool="activeTool"
             :place-item="placeItem"
             :place-label="placeItemInfo.label"
@@ -146,6 +153,7 @@
             :template-shapes="TEMPLATE_SHAPES"
             :brush-radius="brushRadius"
             :rect-walls="rectWalls"
+            @update:active-tool="activeTool = $event"
             @update:place-rotation="placeRotation = $event"
             @rotate-selected="rotateSelectedDressing"
             @delete-selected="deleteSelectedDressing"
@@ -167,7 +175,7 @@
             v-model:template-shape="plan.templateShape.value"
             v-model:zone-kind="plan.zoneKind.value"
             v-model:zone-label="plan.zoneLabel.value"
-            :title="canvasToolLabel"
+            :title="planToolLabel"
             :plan-tool="plan.planTool.value"
             @start-new="plan.planTool.value === 'zone' ? plan.startNewZone() : plan.startNewSpace()"
           />
@@ -350,7 +358,7 @@ import SegmentedControl, { type SegmentedOption } from "@/components/common/cont
 import CartographerBar from "@/components/cartographer/CartographerBar.vue";
 import CartographerDrawer from "@/components/cartographer/CartographerDrawer.vue";
 import CartographerPlaceCatalog from "@/components/cartographer/CartographerPlaceCatalog.vue";
-import CartographerToolRail, { type RailGroup } from "@/components/cartographer/CartographerToolRail.vue";
+import CartographerToolRail, { type RailFamily } from "@/components/cartographer/CartographerToolRail.vue";
 import CartographerPlanOptions from "@/components/cartographer/CartographerPlanOptions.vue";
 import CartographerToolOptions from "@/components/cartographer/CartographerToolOptions.vue";
 import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
@@ -369,7 +377,7 @@ import { useAllLibraryDressing, useDressingCatalog } from "@/composables/cartogr
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { loadLibraryPack, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
-import type { PlaceItem, Tool } from "@/cartographer/tools";
+import type { MapMenuAction, PlaceItem, Tool } from "@/cartographer/tools";
 import { placeItemLabel, pushRecent } from "@/cartographer/placeItem";
 import {
   emptyLayers,
@@ -390,7 +398,7 @@ import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
 
-const { map, viewMode, site, spaces, saveState } = defineProps<{
+const { map, viewMode, site, spaces, saveState, menuActions = [], reviewCount, showReady = false } = defineProps<{
   map: DungeonMap | null;
   viewMode: boolean;
   /** The host's save state, shown in the bar: "Saving…", "Unsaved changes". Absent says nothing. */
@@ -402,9 +410,21 @@ const { map, viewMode, site, spaces, saveState } = defineProps<{
    *  this (it built `site` from the same location), so it travels as its
    *  own prop rather than a second query in here. */
   spaces?: BindableSpace[];
+  /** The host's own entries in the bar's Map menu (style, review, download, export, delete);
+   *  only these are drawn. A later story wires each host. */
+  menuActions?: readonly MapMenuAction[];
+  /** Site changes waiting for review: the chip on that menu row. */
+  reviewCount?: number;
+  /** Whether the bar shows its primary "Ready" button. */
+  showReady?: boolean;
 }>();
 
-const emit = defineEmits<{ "update:dirty": [boolean]; "update:editRevision": [number] }>();
+const emit = defineEmits<{
+  "update:dirty": [boolean];
+  "update:editRevision": [number];
+  "menu-action": [id: MapMenuAction];
+  ready: [];
+}>();
 
 // Shared, admin-authored tile packs (#889) — replaces the old hardcoded
 // BUNDLED_PACKS array entirely. `publishedPacks` is already `sort_order`-
@@ -527,8 +547,6 @@ function onMouseDown(ev: MouseEvent): void {
 }
 
 // Tools
-/** The rail's clusters, top to bottom: Look, Floor, Walls, Things, Notes, Eraser. */
-type RailGroupId = "look" | "floor" | "walls" | "things" | "notes" | "eraser";
 interface ToolDef {
   id: Tool;
   label: string;
@@ -538,46 +556,72 @@ interface ToolDef {
   /** Further keys that pick the tool (Place answers to G, the key Dressing used). */
   aliases?: readonly string[];
   disabled?: boolean;
-  group: RailGroupId;
 }
-// The default tool on open: a DM's first tap must never paint. Select sits first in the
-// Look group with Pan: both are "look, don't paint" tools that share the same
-// drag-to-pan behaviour. Ids are the stored, keyed names; only the labels were reworded
+// The default tool on open: a DM's first tap must never paint. Select sits first in its
+// family with Pan: both are "look, don't paint" tools that share the same drag-to-pan
+// behaviour. Ids are the stored, keyed names; only the labels were reworded
 // (the maintainer's pass of 17 Oct 2026: "Floor brush" and "Brush" were two brushes).
 const activeTool = ref<Tool>("select");
 const TOOLS: ToolDef[] = [
   // Letters follow Photoshop and Figma: V select, B brush, H hand. Escape still returns to Select.
-  { id: "select",   label: "Select",        icon: IconSelect,       shortcut: "v", group: "look" },
-  { id: "pan",      label: "Pan",           icon: IconHand,         shortcut: "h", group: "look" },
-  { id: "brush",    label: "Brush",         icon: IconCave,         shortcut: "b", group: "floor" },
-  { id: "floor",    label: "Tiles",         icon: IconBrush,        shortcut: "i", group: "floor" },
-  { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r", group: "floor" },
-  { id: "line",     label: "Line",          icon: IconDrawLine,     shortcut: "l", group: "floor" },
-  { id: "template", label: "Room",          icon: IconRoomTemplate, shortcut: "m", group: "floor" },
-  { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f", group: "floor" },
-  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "a", group: "floor" },
-  { id: "solid",    label: "Rock",          icon: IconCube,         shortcut: "s", group: "floor" },
-  { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w", group: "walls" },
-  { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d", group: "walls" },
-  { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "x", group: "walls" },
-  { id: "place",    label: "Place",         icon: IconObjectStamp,  shortcut: "o", aliases: ["g"], group: "things" },
-  { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t", group: "notes" },
-  { id: "link",     label: "Link",          icon: IconEntityLink,   shortcut: "k", group: "notes" },
+  { id: "select",   label: "Select",        icon: IconSelect,       shortcut: "v" },
+  { id: "pan",      label: "Pan",           icon: IconHand,         shortcut: "h" },
+  { id: "brush",    label: "Brush",         icon: IconCave,         shortcut: "b" },
+  { id: "floor",    label: "One tile",      icon: IconBrush,        shortcut: "i" },
+  { id: "rect",     label: "Rectangle",     icon: IconRect,         shortcut: "r" },
+  { id: "line",     label: "Line",          icon: IconDrawLine,     shortcut: "l" },
+  { id: "template", label: "Room",          icon: IconRoomTemplate, shortcut: "m" },
+  { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f" },
+  { id: "terrain",  label: "Water",         icon: IconWater,        shortcut: "a" },
+  { id: "solid",    label: "Rock",          icon: IconCube,         shortcut: "s" },
+  { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w" },
+  { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
+  { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "x" },
+  { id: "place",    label: "Place",         icon: IconObjectStamp,  shortcut: "o", aliases: ["g"] },
+  { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t" },
+  { id: "link",     label: "Link",          icon: IconEntityLink,   shortcut: "k" },
   // "s" is already Rock's key, so Space takes "p" instead of the frame's literal key (#868).
-  { id: "space",    label: "Space",         icon: IconSplitCell,    shortcut: "p", group: "notes" },
-  { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e", group: "eraser" },
+  { id: "space",    label: "Space",         icon: IconSplitCell,    shortcut: "p" },
+  { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e" },
 ];
-const RAIL_GROUP_LABEL: Record<RailGroupId, string> = {
-  look: "Look", floor: "Floor", walls: "Walls", things: "Things", notes: "Notes", eraser: "Eraser",
-};
-// Grouped by the order of RAIL_GROUP_LABEL, so a tool never lands in a cluster the rail does not draw.
-const RAIL_GROUPS: RailGroup[] = (Object.keys(RAIL_GROUP_LABEL) as RailGroupId[]).map((id) => ({
-  id,
-  label: RAIL_GROUP_LABEL[id],
-  tools: TOOLS.filter((t) => t.group === id),
-}));
 
-// The Plan layer's tools get the same rail.
+// The rail's seven families (#1125 decision 3, canvas frame 07), the one place a tool is
+// filed: the rail, the slip's grid and the family a key press lands in all read this.
+// Adding a tool to a family is one id in its `tools` (plus its row in TOOLS above). The
+// first tool is the family's default and gives the rail button its key.
+interface ToolFamilyDef {
+  id: string;
+  label: string;
+  icon: Component;
+  /** What the slip says under the family's name; Draw's names the tile set. */
+  caption: (packName: string) => string;
+  tools: readonly Tool[];
+  dividerBefore?: boolean;
+}
+const TOOL_FAMILIES: readonly ToolFamilyDef[] = [
+  { id: "select", label: "Select",  icon: IconSelect,      caption: () => "look, don't paint",           tools: ["select", "pan"] },
+  { id: "draw",   label: "Draw",    icon: IconBrush,       caption: (pack) => `floor, in ${pack}`,       tools: ["brush", "rect", "template", "line", "fill", "floor"] },
+  { id: "walls",  label: "Walls",   icon: IconWall,        caption: () => "edges between cells",         tools: ["wall", "door", "wrap"] },
+  { id: "things", label: "Things",  icon: IconObjectStamp, caption: () => "objects and props",           tools: ["place"] },
+  { id: "terrain", label: "Terrain", icon: IconWater,      caption: () => "water and rock",              tools: ["terrain", "solid"] },
+  { id: "notes",  label: "Notes",   icon: IconAnnotate,    caption: () => "labels, links and spaces",    tools: ["annotate", "link", "space"] },
+  { id: "erase",  label: "Erase",   icon: IconEraser,      caption: () => "floor, walls and objects",    tools: ["eraser"], dividerBefore: true },
+];
+function toolDef(id: Tool): ToolDef {
+  const found = TOOLS.find((t) => t.id === id);
+  if (!found) throw new Error(`Tool "${id}" is filed in a family but has no TOOLS row`);
+  return found;
+}
+const RAIL_FAMILIES: RailFamily[] = TOOL_FAMILIES.map((f) => ({
+  id: f.id,
+  label: f.label,
+  icon: f.icon,
+  tools: f.tools.map(toolDef),
+  dividerBefore: f.dividerBefore,
+}));
+const activeFamily = computed(() => RAIL_FAMILIES.find((f) => f.tools.some((t) => t.id === activeTool.value)));
+
+// The Plan layer's tools get the same rail, each a family of one.
 const PLAN_TOOL_ICONS: Record<PlanTool, AppIcon> = {
   space: IconSplitCell,
   zone: IconHighlight,
@@ -585,9 +629,13 @@ const PLAN_TOOL_ICONS: Record<PlanTool, AppIcon> = {
   claim: IconFill,
   erase: IconEraser,
 };
-const PLAN_RAIL_GROUPS: RailGroup[] = [
-  { id: "plan", label: "Plan", tools: PLAN_TOOLS.map((t) => ({ id: t.id, label: t.label, icon: PLAN_TOOL_ICONS[t.id] })) },
-];
+const PLAN_RAIL_FAMILIES: RailFamily[] = PLAN_TOOLS.map((t) => ({
+  id: t.id,
+  label: t.label,
+  icon: PLAN_TOOL_ICONS[t.id],
+  tools: [{ id: t.id, label: t.label, icon: PLAN_TOOL_ICONS[t.id] }],
+  dividerBefore: t.id === "erase",
+}));
 function onRailTool(id: string): void {
   if (activeLayer.value === "drawing") activeTool.value = id as Tool;
   else plan.planTool.value = id as PlanTool;
@@ -832,7 +880,6 @@ const selectedDressingInfo = computed(() => {
 
 // A brushed cell under half covered has an area entry but no floor, so count both.
 const cellsPainted = computed(() => new Set([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]).size);
-const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.value)?.label ?? activeTool.value);
 
 // Tools Alt inverts into an erase mirror — see useMapCanvasEditor.ts's
 // toolPointerDown/Move/Up. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space
@@ -841,14 +888,18 @@ const INVERTIBLE_TOOLS = new Set<Tool>([
   "floor", "terrain", "brush", "solid", "wall", "place", "door", "rect", "line", "template",
 ]);
 
-/** The options slip's title: the Drawing tool (with " · erase" appended while
- *  Alt is held over a tool that has an inverse), or on the Plan the tool
- *  and, for a Space or Zone, how it is being traced ("Space · Pen"). */
-const canvasToolLabel = computed(() => {
-  if (activeLayer.value === "drawing") {
-    const label = activeToolLabel.value;
-    return altHeld.value && INVERTIBLE_TOOLS.has(activeTool.value) ? `${label} · erase` : label;
-  }
+/** The Drawing slip's title: the active tool's family, and under it what the family is
+ *  for, or that the tool in hand is erasing while Alt is held over one with an inverse. */
+const slipTitle = computed(() => activeFamily.value?.label ?? "");
+const slipCaption = computed(() => {
+  if (altHeld.value && INVERTIBLE_TOOLS.has(activeTool.value)) return "erasing while Alt is held";
+  const family = TOOL_FAMILIES.find((f) => f.id === activeFamily.value?.id);
+  return family?.caption(packLabel.value);
+});
+
+/** The Plan slip's title: the tool and, for a Space or Zone, how it is being traced
+ *  ("Space · Pen"). */
+const planToolLabel = computed(() => {
   const tool = plan.planTool.value;
   const toolLabel = PLAN_TOOLS.find((t) => t.id === tool)?.label ?? tool;
   if (tool !== "space" && tool !== "zone") return toolLabel;

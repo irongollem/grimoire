@@ -1,9 +1,11 @@
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { findSubrace } from "@/rules/speciesStats";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
 import { combatStats } from "@/rules/encounterCombatLogic";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import type { Encounter, RunCombatant } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import type { Monster, MonsterSize } from "@/types/monster.types";
+import type { Species } from "@/types/species.types";
 import type { Npc } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
@@ -33,7 +35,7 @@ type RunPartyMember = Pick<
   PartyMember,
   | "id" | "name" | "current_hp" | "max_hp" | "temp_hp" | "conditions" | "curses"
   | "death_save_successes" | "death_save_failures" | "dex" | "portrait_url" | "portrait_focal_point"
-  | "wildshape_state"
+  | "wildshape_state" | "species_id" | "subrace"
   // What the AC calculation reads (`@/rules/armorClass`).
   | "ruleset" | "class" | "subclass" | "con" | "wis" | "cha" | "ac_formula" | "class_choices"
 >;
@@ -41,7 +43,7 @@ type RunPartyMember = Pick<
 type RunCompanionSource = Pick<
   Companion,
   | "id" | "name" | "current_hp" | "max_hp" | "ac" | "conditions" | "combat_ready"
-  | "companion_type" | "portrait_url" | "portrait_focal_point"
+  | "companion_type" | "portrait_url" | "portrait_focal_point" | "size"
 >;
 
 type RunMonsterSource = Pick<
@@ -51,7 +53,7 @@ type RunMonsterSource = Pick<
 
 type RunNpcSource = Pick<
   Npc,
-  "id" | "name" | "stat_block" | "portrait_url" | "portrait_focal_point" | "cutout_url"
+  "id" | "name" | "stat_block" | "portrait_url" | "portrait_focal_point" | "cutout_url" | "size"
 >;
 
 export interface RunCombatantSources {
@@ -64,8 +66,18 @@ export interface RunCombatantSources {
   /** Custom + library monsters, unscoped. */
   monsters: RunMonsterSource[];
   npcs: RunNpcSource[];
+  /** The species the party's characters have, for their size. A hero with none, or of one with no size, is Medium. */
+  species: Pick<Species, "id" | "size" | "subraces">[];
   /** A hero's calculated AC (`useArmorClass().acFor`), snapshotted into the combatant. */
   acFor: (member: RunPartyMember) => number;
+}
+
+/** A character's size: their subrace's if it sets one, else the species', else Medium (app convention). */
+function characterSize(member: Pick<PartyMember, "species_id" | "subrace">, species: RunCombatantSources["species"]): MonsterSize {
+  const found = member.species_id ? species.find((sp) => sp.id === member.species_id) : undefined;
+  // Same rule as `effectiveSize`: a subrace's size replaces its species'.
+  const size = found ? (findSubrace(found, member.subrace)?.size ?? found.size) : null;
+  return size ?? "medium";
 }
 
 export function buildRunCombatants({
@@ -74,6 +86,7 @@ export function buildRunCombatants({
   companions,
   monsters,
   npcs,
+  species,
   acFor,
 }: RunCombatantSources): RunCombatant[] {
   const combatants: RunCombatant[] = [];
@@ -81,6 +94,7 @@ export function buildRunCombatants({
   for (const memberId of encounter.party_member_ids) {
     const member = party.find((m) => m.id === memberId);
     if (!member) continue;
+    const memberSize = characterSize(member, species);
     combatants.push({
       instance_id: `p-${member.id}`,
       type: "player",
@@ -113,6 +127,8 @@ export function buildRunCombatants({
       // HP, and the write after it persisted wildshape_state: null, so the form
       // vanished from their sheet as well.
       wildshape: member.wildshape_state ? { ...member.wildshape_state } : undefined,
+      size: memberSize,
+      footprint: sizeToFootprint(memberSize),
     });
   }
 
@@ -140,6 +156,8 @@ export function buildRunCombatants({
       portrait_url: comp.portrait_url ?? null,
       portrait_focal_point: comp.portrait_focal_point ?? null,
       companion_id: comp.id,
+      size: comp.size,
+      footprint: sizeToFootprint(comp.size),
     });
   }
 
@@ -170,6 +188,7 @@ export function buildRunCombatants({
           portrait_focal_point: monster.portrait_focal_point ?? null,
           token_url: resolveTokenArt(monster)?.tokenUrl,
           position: entry.starting_positions?.[i] ?? null,
+          size: monster.size,
           footprint: sizeToFootprint(monster.size),
         });
       }
@@ -199,7 +218,8 @@ export function buildRunCombatants({
           portrait_focal_point: npc.portrait_focal_point ?? null,
           token_url: resolveTokenArt(npc)?.tokenUrl,
           position: entry.starting_positions?.[i] ?? null,
-          footprint: 1,
+          size: npc.size,
+          footprint: sizeToFootprint(npc.size),
         });
       }
     }

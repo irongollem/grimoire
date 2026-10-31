@@ -156,9 +156,9 @@ describe("brushed area light and sight", () => {
     const layers = brushed();
     const plain = collectOcclusion(emptyLayers(), 0, 0).walls;
     expect(plain).toHaveLength(0);
-    const walls = collectOcclusion(layers, 0, 0).walls;
+    const walls = collectOcclusion(layers, 0, 0).walls.map((w) => w.id);
     expect(walls.length).toBeGreaterThan(0);
-    const shifted = collectOcclusion(layers, 2, 1).walls;
+    const shifted = collectOcclusion(layers, 2, 1).walls.map((w) => w.id);
     expect(shifted).toHaveLength(walls.length);
     expect(walls).toContain("3,2:N");
     expect(shifted).toContain("1,1:N");

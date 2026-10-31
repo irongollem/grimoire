@@ -3,7 +3,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -223,25 +223,32 @@ select is(
 -- Doors the DM opens or shuts during the fight reach players the same way, and the overrides' shape is held.
 reset role;
 update public.encounter_state
-set door_states = '[{"edge":"3,4:N","open":true}]'::jsonb
+set door_states = '[{"id":"3,4:N","open":true}]'::jsonb
 where id = '57000000-0000-4000-8000-000000000040';
 select throws_ok(
-  $$update public.encounter_state set door_states = '[{"edge":"3,4:S","open":true}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
+  $$update public.encounter_state set door_states = '[{"id":"3,4:S","open":true}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
   '23514',
   null,
-  'a door override names an N or W edge'
+  'a door override names an N or W edge, or an angled door by uuid'
 );
 select throws_ok(
-  $$update public.encounter_state set door_states = '[{"edge":"3,4:N","open":"yes"}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
+  $$update public.encounter_state set door_states = '[{"id":"3,4:N","open":"yes"}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
   '23514',
   null,
   'a door override is open or shut, nothing else'
 );
+select lives_ok(
+  $$update public.encounter_state set door_states = '[{"id":"3,4:N","open":true},{"id":"0b6f8a2e-1c3d-4e5f-8a7b-9c0d1e2f3a4b","open":false}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
+  'an angled door is named by its uuid'
+);
+update public.encounter_state
+set door_states = '[{"id":"3,4:N","open":true}]'::jsonb
+where id = '57000000-0000-4000-8000-000000000040';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '57000000-0000-4000-8000-000000000002', true);
 select is(
   (select door_states from public.get_player_encounter_state('57000000-0000-4000-8000-000000000010')),
-  '[{"edge":"3,4:N","open":true}]'::jsonb,
+  '[{"id":"3,4:N","open":true}]'::jsonb,
   'players see which doors the DM has opened'
 );
 

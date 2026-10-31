@@ -13,6 +13,7 @@
 
 import { FEET_PER_CELL } from "@/cartographer/packSchema";
 import { inZone, lightLevelAt, NO_ZONES, segmentTouchesZone, type DarknessZone, type LitSource } from "@/lib/battlemap/illumination";
+import { combatantFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import { clearLine, nudgedOrigins, type Occluders } from "@/lib/battlemap/occlusion";
 
 /** A creature that sees for a player: centre in image cells and the range of each sense in feet (0 for none). */
@@ -206,10 +207,9 @@ export function canSee(scene: LitScene, viewers: readonly Viewer[], cellX: numbe
   return sightThrough(scene.occluders, scene.zones, level, lookFrom(viewers), x, y).seen > SEEN_THRESHOLD;
 }
 
-interface Placed {
+interface Placed extends SizedToken {
   instance_id: string;
   position?: { x: number; y: number } | null;
-  footprint?: number;
 }
 
 /**
@@ -224,10 +224,15 @@ export function seenCombatants<T extends Placed>(
 ): T[] {
   return list.filter((c) => {
     if (c.instance_id === ownId || !c.position) return true;
-    const size = Math.max(1, Math.round(c.footprint ?? 1));
-    for (let dx = 0; dx < size; dx++) {
-      for (let dy = 0; dy < size; dy++) {
-        if (canSee(scene, viewers, c.position.x + dx, c.position.y + dy)) return true;
+    // Every cell the token's box touches; a Tiny one on a half cell touches only its own square.
+    const size = combatantFootprint(c);
+    const firstX = Math.floor(c.position.x);
+    const firstY = Math.floor(c.position.y);
+    const endX = Math.ceil(c.position.x + size);
+    const endY = Math.ceil(c.position.y + size);
+    for (let x = firstX; x < endX; x++) {
+      for (let y = firstY; y < endY; y++) {
+        if (canSee(scene, viewers, x, y)) return true;
       }
     }
     return false;

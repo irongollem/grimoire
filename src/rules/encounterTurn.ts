@@ -1,4 +1,5 @@
 import type { ActionUse, RunCombatant, WildshapeState } from "@/types/encounter.types";
+import type { MonsterSize } from "@/types/monster.types";
 import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
@@ -74,6 +75,8 @@ export type EncounterTurnCommand =
   | { type: "end_concentration"; instanceId: string; spell?: string }
   | { type: "enter_wildshape"; instanceId: string; form: WildshapeState; wildshapesUsed: number; tempHp?: number }
   | { type: "revert_wildshape"; instanceId: string }
+  /** The DM's Enlarge/Reduce (or any resize) for this fight; null puts the creature back to its own size. */
+  | { type: "set_size_override"; instanceId: string; size: MonsterSize | null }
   | { type: "toggle_surprised"; instanceId: string }
   | { type: "toggle_reaction"; instanceId: string }
   /** caps: instance_id -> legendary action cap. Missing entries get no pool. */
@@ -659,6 +662,10 @@ export function reduceEncounterTurn(
       if (!found?.wildshape) return done(state);
       return done(editCombatant(state, command.instanceId, (c) => revertForm(c, events)));
     }
+    case "set_size_override":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.size_override = command.size;
+      }));
     case "toggle_surprised":
       return done(editCombatant(state, command.instanceId, (c) => {
         c.surprised = !c.surprised;

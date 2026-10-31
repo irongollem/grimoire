@@ -174,7 +174,7 @@ import {
   type FogCellKey,
 } from "@/lib/battlemap/fogMask";
 import { zoneIdAt } from "@/lib/battlemap/darkness";
-import { doorEdgeAt, effectiveDoors, sameDoorStates, toggleDoor } from "@/lib/battlemap/doors";
+import { doorAt, effectiveDoors, sameDoorStates, toggleDoor } from "@/lib/battlemap/doors";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { MagicalDarknessZone, RunCombatant } from "@/types/encounter.types";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
@@ -366,14 +366,14 @@ function pushDoors() {
   scheduleMapPush({ doorStates: doorStates.value });
 }
 
-// A click on a door's edge flips it; a click anywhere else does nothing. Fractional image cells, as for the darkness.
+// A click on a door flips it; a click anywhere else does nothing. Fractional image cells, as for the darkness.
 function toggleDoorAt(clientX: number, clientY: number) {
   const drawn = surface.value?.live?.doors;
   const at = imageCellAt(clientX, clientY);
   if (!drawn || !at) return;
-  const edge = doorEdgeAt(effectiveDoors(drawn, doorStates.value), at.x, at.y);
-  if (edge === null) return;
-  doorStates.value = toggleDoor(drawn, doorStates.value, edge);
+  const id = doorAt(effectiveDoors(drawn, doorStates.value), at.x, at.y);
+  if (id === null) return;
+  doorStates.value = toggleDoor(drawn, doorStates.value, id);
   pushDoors();
 }
 
@@ -403,9 +403,7 @@ function seedRoomIfNeeded() {
   const row = liveState.value;
   if (!s || s.focusCells.length === 0 || !row) return;
 
-  const seeded = seedTokenPositions(row.combatants_live, s.focusCells, {
-    footprintOf: (c) => c.footprint ?? 1,
-  });
+  const seeded = seedTokenPositions(row.combatants_live, s.focusCells);
   seeded.forEach((c, i) => {
     if (c.position && !row.combatants_live[i]?.position) moveToken(c.instance_id, c.position).catch(reportMoveFailure);
   });

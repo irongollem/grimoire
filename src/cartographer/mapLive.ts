@@ -5,7 +5,7 @@
 // their leaf art and hinge too, so the battle map can draw each at the state the DM sets in play.
 
 import type { DungeonMap, CellKey, FloorCell } from "@/types/dungeonMap.types";
-import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveDoorState, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
+import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveWall, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
 import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
@@ -13,6 +13,7 @@ import { gatherLightSources } from "@/cartographer/drawLights";
 import { doorLeafArt } from "@/cartographer/doorLeaf";
 import { collectOcclusion, toImageCell } from "@/cartographer/mapOcclusion";
 import { cellKey } from "@/types/dungeonMap.types";
+import type { WallSegment } from "@/lib/battlemap/walls";
 
 function groupByPack(
   cells: Record<CellKey, { pack_id: string }>,
@@ -68,17 +69,20 @@ export function buildMapLive(
     }),
   );
 
-  const { doors: doorStates, ...occlusion } = collectOcclusion(map.layers, originCellX, originCellY);
+  const { walls, doors: doorSegments, solid } = collectOcclusion(map.layers, originCellX, originCellY);
   return {
     version: MAP_LIVE_VERSION,
     darkness: map.darkness,
     groups,
     lights,
     sprites: gatherSprites(map, runtimes, dressing, originCellX, originCellY),
-    ...occlusion,
-    doors: gatherDoors(map, doorStates, runtimes, originCellX, originCellY),
+    walls: walls.map(toMapLiveWall),
+    doors: gatherDoors(map, doorSegments, runtimes, originCellX, originCellY),
+    solid,
   };
 }
+
+const toMapLiveWall = ({ id, a, b }: WallSegment): MapLiveWall => ({ id, a: [a[0], a[1]], b: [b[0], b[1]] });
 
 /**
  * Each door's state with its leaf art, matched to its seg by edge key (the same keys `collectOcclusion` writes). The
@@ -87,7 +91,7 @@ export function buildMapLive(
  */
 function gatherDoors(
   map: DungeonMap,
-  states: MapLiveDoorState[],
+  doors: (WallSegment & { open: boolean })[],
   runtimes: Map<string, TilePackRuntime>,
   originCellX: number,
   originCellY: number,
@@ -99,7 +103,7 @@ function gatherDoors(
       if (seg) leaves.set(`${at}:${side}`, doorLeafArt(seg, runtimes.get(seg.pack_id) ?? null));
     }
   }
-  return states.map((state) => ({ ...state, leaf: leaves.get(state.edge) ?? null }));
+  return doors.map((door) => ({ ...toMapLiveWall(door), open: door.open, leaf: leaves.get(door.id) ?? null }));
 }
 
 /**

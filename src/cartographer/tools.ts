@@ -45,3 +45,9 @@ export type Tool =
 export type PlaceItem =
   | { kind: "object"; category: import("@/cartographer/stampCategories").StampCategory; variant: number | "any" }
   | { kind: "prop"; propId: string };
+
+/**
+ * What the map editor's Map menu can ask its host to do (#1125, canvas frame 07). The host
+ * lists the ones it handles; the workbench draws only those, and reports the pick.
+ */
+export type MapMenuAction = "style" | "review" | "download" | "export-vtt" | "delete";

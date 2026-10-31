@@ -23,7 +23,7 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { drawToken, type TokenEntity, type TokenFigure } from "@/lib/tokenRenderer";
 import { dollFigureKey } from "@/lib/paperDoll/dollTokenFigure";
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
 import { cellToPixel, snapPixelToCell } from "@/lib/battlemap/tokenSnap";
 import { DEFAULT_FACTIONS, type RunCombatant, type FactionColor } from "@/types/encounter.types";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";
@@ -140,13 +140,11 @@ const factionColorById = computed(() => {
 });
 
 function getFootprint(combatant: RunCombatant): number {
-  // Prefer the footprint baked at spawn time (lives on combatants_live, so
-  // travels to players who don't have access to the monsters table). Fall
-  // back to a fresh lookup for cases where the live state predates the bake
-  // or the prop array carries hand-built combatants (e.g. builder preview).
-  if (combatant.footprint && combatant.footprint > 0) return combatant.footprint;
-  if (!combatant.monster_id) return 1;
-  return sizeToFootprint(monstersById.value.get(combatant.monster_id)?.size);
+  // The token's size right now (override, beast form, or baked at spawn, so it
+  // reaches players who can't read the monsters table). A hand-built combatant
+  // that carries none falls back to a fresh lookup of its monster.
+  const size = combatant.size ?? (combatant.monster_id ? monstersById.value.get(combatant.monster_id)?.size : undefined);
+  return combatantFootprint({ ...combatant, size });
 }
 
 function getFactionColor(factionId: string): string {
@@ -218,7 +216,8 @@ const renderedTokens = computed<RenderedToken[]>(() => {
     } else {
       cellX = originIndex;
       cellY = 0;
-      originIndex += 1;
+      // A big creature leaves room for its whole width, so the next unplaced token doesn't sit on it.
+      originIndex += Math.ceil(footprint);
     }
     const anchor = cellToPixel({ cellX, cellY, cellPx, originX, originY });
     const dragMatch = override && override.instanceId === c.instance_id ? override : null;

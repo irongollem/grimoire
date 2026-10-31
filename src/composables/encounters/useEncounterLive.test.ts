@@ -144,7 +144,7 @@ describe("goLive", () => {
         is_running: false,
         fog_mask: "1,1;1,2",
         magical_darkness: [{ id: "z1", x: 1, y: 1, radius: 15 }],
-        door_states: [{ edge: "3,2:N", open: true }],
+        door_states: [{ id: "3,2:N", open: true }],
         events_fired: ["old"],
       }),
     ]);
@@ -258,7 +258,7 @@ describe("pushing state", () => {
   it.each([
     ["fogMask", "fog_mask", "1,1"],
     ["magicalDarkness", "magical_darkness", [{ id: "z1", x: 2.5, y: 3, radius: 15 }]],
-    ["doorStates", "door_states", [{ edge: "3,2:N", open: true }]],
+    ["doorStates", "door_states", [{ id: "3,2:N", open: true }]],
   ])("writes %s on its own, leaving the roster as the runner left it", async (key, column, value) => {
     const { scheduleMapPush } = await live({ current_round: 5, combatants_live: [tokenAt("g1", null)] });
     scheduleMapPush({ [key]: value });
@@ -270,10 +270,10 @@ describe("pushing state", () => {
   it("keeps every part of the map's state changed within one burst, not just the last", async () => {
     const { scheduleMapPush } = await live();
     scheduleMapPush({ fogMask: "1,1" });
-    scheduleMapPush({ doorStates: [{ edge: "3,2:N", open: true }] });
+    scheduleMapPush({ doorStates: [{ id: "3,2:N", open: true }] });
     await vi.advanceTimersByTimeAsync(400);
     expect(updates()).toHaveLength(1);
-    expect(fake.rows("encounter_state")[0]).toMatchObject({ fog_mask: "1,1", door_states: [{ edge: "3,2:N", open: true }] });
+    expect(fake.rows("encounter_state")[0]).toMatchObject({ fog_mask: "1,1", door_states: [{ id: "3,2:N", open: true }] });
   });
 
   // Leaving the runner for the battle map unmounts it, and dropping its pending

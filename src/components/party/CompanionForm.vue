@@ -131,6 +131,13 @@
           <AppInput v-model.number="speed" type="number" min="0" tone="card" size="body" />
         </div>
 
+        <div class="flex flex-col gap-1.5">
+          <label class="text-label-lg font-semibold text-muted-foreground">Size</label>
+          <AppSelect v-model="size" size="body" class="capitalize">
+            <option v-for="s in MONSTER_SIZES" :key="s" :value="s">{{ s }}</option>
+          </AppSelect>
+        </div>
+
         <div v-if="takesPartInCombat({ companion_type: companionType })" class="col-span-2 flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Status</label>
           <SegmentedControl v-model="statusValue" :options="STATUS_OPTIONS" size="sm" />
@@ -261,7 +268,7 @@ import {
 import { cloneDraftValue, useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import type { Companion, CompanionInsert, CompanionType, CompanionSourceType } from "@/types/companion.types";
-import type { Monster, MonsterStatBlock } from "@/types/monster.types";
+import { MONSTER_SIZES, type Monster, type MonsterSize, type MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { AppliedCondition } from "@/types/condition.types";
@@ -334,12 +341,12 @@ const viewerIsDm = !useAppUiStore().dmPreviewMode && auth.isDM;
 const dmNpcsQuery     = viewerIsDm ? useNpcs() : null;
 const sharedNpcsQuery = viewerIsDm ? null : useSharedNpcs();
 
-interface NpcOption { id: string; name: string; portrait_url: string | null; portrait_focal_point?: { x: number; y: number } | null; stat_block: StatBlock | null }
+interface NpcOption { id: string; name: string; portrait_url: string | null; portrait_focal_point?: { x: number; y: number } | null; stat_block: StatBlock | null; size?: MonsterSize }
 
 const npcOptions = computed<NpcOption[]>(() => {
   if (viewerIsDm) {
     return (dmNpcsQuery?.data.value ?? []).map((n) => ({
-      id: n.id, name: n.name, portrait_url: n.portrait_url, portrait_focal_point: n.portrait_focal_point, stat_block: n.stat_block,
+      id: n.id, name: n.name, portrait_url: n.portrait_url, portrait_focal_point: n.portrait_focal_point, stat_block: n.stat_block, size: n.size,
     }));
   }
   return (sharedNpcsQuery?.data.value ?? []).map((n) => ({
@@ -372,6 +379,7 @@ interface CompanionDraft {
   currentHp: number;
   ac: number;
   speed: number;
+  size: MonsterSize;
   portraitUrl: string | null;
   focalPoint: { x: number; y: number } | null;
   // Not on this form, but the payload carries them, so the draft must too.
@@ -407,6 +415,7 @@ function toCompanionDraft(c: Companion | null): CompanionDraft {
     currentHp: c?.current_hp ?? 1,
     ac: c?.ac ?? 10,
     speed: c?.speed ?? 30,
+    size: c?.size ?? "medium",
     portraitUrl: c?.portrait_url ?? null,
     focalPoint: c?.portrait_focal_point ? { ...c.portrait_focal_point } : null,
     conditions: [...(c?.conditions ?? [])],
@@ -458,6 +467,7 @@ const maxHp             = field("maxHp");
 const currentHp         = field("currentHp");
 const ac                = field("ac");
 const speed             = field("speed");
+const size              = field("size");
 const portraitUrl       = field("portraitUrl");
 const focalPoint        = field("focalPoint");
 const hasStatBlock      = field("hasStatBlock");
@@ -471,7 +481,7 @@ const conflictLabels = computed(() => {
   const labels: Partial<Record<keyof CompanionDraft, string>> = {
     sourceType: "Source", selectedMonsterId: "Monster", selectedNpcId: "NPC", name: "Name",
     companionType: "Type", ownerMemberId: "Owner", combatReady: "Status", maxHp: "Max HP",
-    currentHp: "Current HP", ac: "AC", speed: "Speed (ft)", portraitUrl: "Portrait",
+    currentHp: "Current HP", ac: "AC", speed: "Speed (ft)", size: "Size", portraitUrl: "Portrait",
     focalPoint: "Portrait", hasStatBlock: "Stat block", sb: "Stat block",
   };
   return [...new Set(conflicts.value.map((k) => labels[k]).filter((l): l is string => !!l))];
@@ -561,6 +571,7 @@ function buildPayload(d: CompanionDraft): Omit<CompanionInsert, "campaign_id"> {
     current_hp:            d.currentHp,
     ac:                    d.ac,
     speed:                 d.speed,
+    size:                  d.size,
     conditions:            d.conditions,
     sort_order:            d.sortOrder,
     portrait_url:          d.portraitUrl,
@@ -590,6 +601,7 @@ async function onMonsterSelected() {
   currentHp.value = maxHp.value;
   ac.value        = m.stat_block.armor_class;
   speed.value     = parseSpeedNum(m.stat_block.speed);
+  size.value      = m.size;
   applyStatBlockFromMonster(m.stat_block);
   // Auto-fill portrait from monster image if none set yet
   if (!portraitUrl.value && m.image_url) portraitUrl.value = m.image_url;
@@ -599,6 +611,7 @@ function onNpcSelected() {
   const n = npcOptions.value.find((x) => x.id === selectedNpcId.value);
   if (!n) return;
   name.value = n.name;
+  if (n.size) size.value = n.size;
   if (n.stat_block) {
     maxHp.value     = parseHpNum(n.stat_block.hit_points);
     currentHp.value = maxHp.value;

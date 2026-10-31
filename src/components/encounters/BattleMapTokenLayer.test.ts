@@ -246,6 +246,33 @@ describe("BattleMapTokenLayer — footprint persistence", () => {
   });
 });
 
+describe("BattleMapTokenLayer: sizes beyond the monster table (#1125)", () => {
+  const widthOf = (c: RunCombatant) => {
+    const wrapper = mount(BattleMapTokenLayer, { props: { ...baseProps(), combatants: [c], monsters: [] } });
+    return (wrapper.find(".token").element as HTMLElement).style.width;
+  };
+  const npc = (over: Partial<RunCombatant>): RunCombatant => ({ ...combatant("n-1-0", "mammoth"), monster_id: undefined, npc_id: "mammoth", ...over });
+
+  // PHB 2024 "Creature Size": Huge is a 15 ft space, three squares on a side.
+  it("a Huge NPC covers nine squares: three cells across", () => {
+    expect(widthOf(npc({ size: "huge" }))).toBe("150px");
+  });
+
+  it("a Tiny token is drawn half a cell across", () => {
+    expect(widthOf(npc({ size: "tiny" }))).toBe("25px");
+  });
+
+  it("a wild-shaped druid is drawn as the Large beast", () => {
+    const druid = npc({ size: "medium", footprint: 1, wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "large" } });
+    expect(widthOf(druid)).toBe("100px");
+  });
+
+  it("an override beats the beast form", () => {
+    const druid = npc({ size: "medium", footprint: 1, size_override: "huge", wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "large" } });
+    expect(widthOf(druid)).toBe("150px");
+  });
+});
+
 describe("BattleMapTokenLayer: what a player is shown", () => {
   it("omits a hidden combatant from the player view and keeps it for the DM", async () => {
     const props = baseProps();

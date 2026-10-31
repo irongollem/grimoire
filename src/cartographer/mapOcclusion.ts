@@ -4,7 +4,7 @@
 
 import { areaBlockingEdges } from "@/cartographer/area";
 import type { CellKey, DungeonMapLayers, FloorCell } from "@/types/dungeonMap.types";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
+import { latticeKey, latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 
 export function toImageCell(key: CellKey, originCellX: number, originCellY: number): string {
   const [xs, ys] = key.split(",");
@@ -20,23 +20,24 @@ export function collectOcclusion(
   layers: DungeonMapLayers,
   originCellX: number,
   originCellY: number,
-): { walls: string[]; doors: MapLiveDoorState[]; solid: string[] } {
-  const walls: string[] = [];
-  const doors: MapLiveDoorState[] = [];
+): { walls: WallSegment[]; doors: (WallSegment & { open: boolean })[]; solid: string[] } {
+  const walls: WallSegment[] = [];
+  const doors: (WallSegment & { open: boolean })[] = [];
   for (const [key, cell] of Object.entries(layers.floor) as [CellKey, FloorCell][]) {
-    const at = toImageCell(key, originCellX, originCellY);
+    const [xs, ys] = toImageCell(key, originCellX, originCellY).split(",");
     for (const [side, seg] of [["N", cell.wallN], ["W", cell.wallW]] as const) {
       if (!seg) continue;
-      const edge = `${at}:${side}`;
-      if (seg.type === "wall" || seg.type === "sluice") walls.push(edge);
-      else if (seg.type === "doorClosed") doors.push({ edge, open: false });
-      else if (seg.type === "doorOpen") doors.push({ edge, open: true });
+      // The id is the image-cell edge key: what `door_states` and `location_doors.edge_key` already name a door by.
+      const wall = latticeSegment(latticeKey(Number(xs), Number(ys), side));
+      if (seg.type === "wall" || seg.type === "sluice") walls.push(wall);
+      else if (seg.type === "doorClosed") doors.push({ ...wall, open: false });
+      else if (seg.type === "doorOpen") doors.push({ ...wall, open: true });
     }
   }
   // A brushed area's edge is a wall to light and sight wherever it meets non-floor, curved or not.
   for (const edge of areaBlockingEdges(layers)) {
     const [cell, side] = edge.split(":");
-    walls.push(`${toImageCell(cell as CellKey, originCellX, originCellY)}:${side}`);
+    walls.push(latticeSegment(`${toImageCell(cell as CellKey, originCellX, originCellY)}:${side}`));
   }
   const solid = Object.keys(layers.solidBlock).map((key) => toImageCell(key as CellKey, originCellX, originCellY));
   return { walls, doors, solid };

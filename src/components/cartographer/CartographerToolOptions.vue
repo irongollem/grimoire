@@ -1,5 +1,12 @@
 <template>
-  <CartographerOptionsSlip :title="title">
+  <CartographerOptionsSlip
+    :title="title"
+    :caption="caption"
+    :tools="familyTools"
+    :active-tool="activeTool"
+    hints
+    @update:active-tool="emit('update:activeTool', $event as Tool)"
+  >
     <!-- Select: a read-only summary of the selected cell, compact until opened. -->
     <template v-if="activeTool === 'select'">
       <template v-if="selectedCell">
@@ -226,6 +233,7 @@ import { BRUSH_RADIUS_MAX, BRUSH_RADIUS_MIN, BRUSH_RADIUS_STEP } from "@/cartogr
 import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
+import type { RailTool } from "@/components/cartographer/CartographerToolRail.vue";
 import PlaceItemThumb from "@/components/cartographer/PlaceItemThumb.vue";
 import { IconDelete, IconLibrary } from "@/lib/icons";
 
@@ -248,8 +256,12 @@ interface SelectedCellEdge {
 }
 
 const props = defineProps<{
-  /** The tool's name, with " erase" appended while Alt inverts it. */
+  /** The tool family's name ("Draw"). */
   title: string;
+  /** What the family is for, or "erasing" while Alt inverts the armed tool. */
+  caption?: string;
+  /** The family's tools, for the slip's grid; it draws none for a family of one. */
+  familyTools?: RailTool[];
   activeTool: Tool;
   /** What Place holds, or null for nothing; with its name and, for a prop, its picture and footprint. */
   placeItem: PlaceItem | null;
@@ -291,6 +303,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  "update:activeTool": [tool: Tool];
   "update:placeRotation": [deg: number];
   rotateSelected: [deg: number];
   deleteSelected: [];

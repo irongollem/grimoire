@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { illuminationGrid } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
 import { canSee, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
+import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 
 const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 });
 const sensed = (senses: Partial<Viewer>, x = 5.5, y = 5.5): Viewer => ({ ...viewer(0, x, y), ...senses });
@@ -46,7 +47,7 @@ describe("blindsight and truesight", () => {
   });
 
   it("blindsight does not reach round a wall", () => {
-    const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
+    const wall = occluders({ walls: [latticeSegment("6,5:W")], doors: [], solid: [] });
     const scene = { ambient: 0, sources: [], occluders: wall, zones: [] };
     expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 7, 5)).toBe(false);
     expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 4, 5)).toBe(true);
@@ -130,10 +131,31 @@ describe("seenCombatants", () => {
     const kept = seenCombatants(list, darkScene, [viewer(0)], "p-1").map((c) => c.instance_id);
     expect(kept).toEqual(["p-1", "m-unplaced"]);
   });
+
+  // PHB 2024 "Creature Size": a Huge creature's space is 15 ft, three squares on a side.
+  it("sees a Huge token by its far square, though its anchor square is out of sight", () => {
+    // Darkvision 40 ft is 8 cells from (5.5, 5.5). Anchor cell -4 (centre -3.5) is 9 cells off; cell -2 (centre -1.5) is 7.
+    const along = (axis: "x" | "y", size: "huge" | "small") => [{ instance_id: `m-${size}`, position: axis === "x" ? { x: -4, y: 5 } : { x: 5, y: -4 }, size }];
+    for (const axis of ["x", "y"] as const) {
+      expect(seenCombatants(along(axis, "huge"), darkScene, [viewer(40)], null).map((c) => c.instance_id)).toEqual(["m-huge"]);
+      expect(seenCombatants(along(axis, "small"), darkScene, [viewer(40)], null)).toEqual([]);
+    }
+  });
+
+  it("an Enlarge override makes a distant token reach into sight", () => {
+    const grown = [{ instance_id: "m", position: { x: -4, y: 5 }, size: "medium" as const, size_override: "huge" as const }];
+    expect(seenCombatants(grown, darkScene, [viewer(40)], null)).toHaveLength(1);
+  });
+
+  it("a Tiny token on a half cell touches only its own square", () => {
+    // Cell -5 (centre -4.5) is 10 cells from the viewer: out of 40 ft darkvision. A Tiny token adds no square beside it.
+    const tiny = [{ instance_id: "m-tiny", position: { x: -4.5, y: 5 }, size: "tiny" as const }];
+    expect(seenCombatants(tiny, darkScene, [viewer(40)], null)).toEqual([]);
+  });
 });
 
 describe("sight against walls", () => {
-  const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
+  const wall = occluders({ walls: [latticeSegment("6,5:W")], doors: [], solid: [] });
   const lamp = { x: 8.5, y: 5.5, bright: 60, dim: 0 };
   const scene = { ambient: 0, sources: [lamp], occluders: wall, zones: [] };
 
@@ -166,8 +188,8 @@ describe("sight against walls", () => {
   });
 
   it("times a 60x60 vision grid", () => {
-    const walls: string[] = [];
-    for (let i = 0; i < 60; i += 5) for (let j = 0; j < 60; j += 3) walls.push(`${i},${j}:W`, `${j},${i}:N`);
+    const walls: WallSegment[] = [];
+    for (let i = 0; i < 60; i += 5) for (let j = 0; j < 60; j += 3) walls.push(latticeSegment(`${i},${j}:W`), latticeSegment(`${j},${i}:N`));
     const occ = occluders({ walls, doors: [], solid: [] });
     const illumination = new Float32Array(240 * 240).fill(1);
     const t0 = performance.now();
@@ -204,7 +226,7 @@ describe("sight and magical darkness", () => {
 
   it("is perceived by blindsight within range, but not round a wall", () => {
     expect(canSee(daylit, [sensed({ blindsightFeet: 30 })], 10, 5)).toBe(true);
-    const wall = occluders({ walls: ["8,5:W"], doors: [], solid: [] });
+    const wall = occluders({ walls: [latticeSegment("8,5:W")], doors: [], solid: [] });
     expect(canSee({ ...daylit, occluders: wall }, [sensed({ blindsightFeet: 30 })], 10, 5)).toBe(false);
   });
 

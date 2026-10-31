@@ -1,7 +1,8 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef, WildshapeState } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import type { Monster, MonsterSize } from "@/types/monster.types";
+import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { NpcListRow } from "@/types/npc.types";
 import type { TrapEntry } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
@@ -288,7 +289,15 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   function enterWildshape(instanceId: string, form: WildshapeState, wildshapesUsed: number, tempHp = 0) {
-    dispatch({ type: "enter_wildshape", instanceId, form, wildshapesUsed, tempHp });
+    // The token takes the beast's size. A caller that did not carry it in the form
+    // gets it from the beast's monster row when the runner holds that.
+    const beastSize = form.beast_size ?? availableMonsters.value.find((m) => m.id === form.monster_id)?.size;
+    dispatch({ type: "enter_wildshape", instanceId, form: beastSize ? { ...form, beast_size: beastSize } : form, wildshapesUsed, tempHp });
+  }
+
+  /** The DM's Enlarge/Reduce for this fight; null puts the creature back to its own size. */
+  function setSizeOverride(instanceId: string, size: MonsterSize | null) {
+    dispatch({ type: "set_size_override", instanceId, size });
   }
 
   function revertWildshape(instanceId: string) {
@@ -509,6 +518,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       portrait_url: comp.portrait_url ?? null,
       portrait_focal_point: comp.portrait_focal_point ?? null,
       companion_id: comp.id,
+      size: comp.size,
+      footprint: sizeToFootprint(comp.size),
     });
   }
 
@@ -725,6 +736,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setRevealState,
     cycleRevealState,
     enterWildshape,
+    setSizeOverride,
     revertWildshape,
     addMonster,
     addNpc,

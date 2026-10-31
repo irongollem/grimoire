@@ -3,6 +3,7 @@ import { lightMask, MASK_SAMPLES_PER_CELL } from "./lightMask";
 import { decodeMask } from "./area";
 import { occluders } from "@/lib/battlemap/occlusion";
 import type { OccluderInput } from "@/lib/battlemap/occlusion";
+import { latticeSegment } from "@/lib/battlemap/walls";
 
 const ALL = (): boolean => true;
 const S = MASK_SAMPLES_PER_CELL;
@@ -42,7 +43,7 @@ describe("lightMask", () => {
 
   it("is cut by a wall on its far side", () => {
     // A wall down the x = 4 gridline.
-    const occ = occluders({ walls: ["4,0:W", "4,1:W", "4,2:W", "4,3:W", "4,4:W", "4,5:W", "4,6:W"], doors: [], solid: [] });
+    const occ = occluders({ walls: ["4,0:W", "4,1:W", "4,2:W", "4,3:W", "4,4:W", "4,5:W", "4,6:W"].map(latticeSegment), doors: [], solid: [] });
     const m = lightMask(occ, 3.5, 3.5, 3, 0, 0, 8, 8, ALL);
     expect(at(m, 0, 0, 2.5, 3.5)).toBe(255);
     expect(at(m, 0, 0, 5.5, 3.5)).toBe(0);
@@ -50,8 +51,8 @@ describe("lightMask", () => {
 
   it("lets a wedge through an open door but not a closed one", () => {
     const wall = (door: boolean): OccluderInput => ({
-      walls: ["4,0:W", "4,1:W", "4,2:W", "4,4:W", "4,5:W", "4,6:W"],
-      doors: [{ edge: "4,3:W", open: door }],
+      walls: ["4,0:W", "4,1:W", "4,2:W", "4,4:W", "4,5:W", "4,6:W"].map(latticeSegment),
+      doors: [{ ...latticeSegment("4,3:W"), open: door }],
       solid: [],
     });
     const open = lightMask(occluders(wall(true)), 3.5, 3.5, 3, 0, 0, 8, 8, ALL);
@@ -64,7 +65,7 @@ describe("lightMask", () => {
   it("lights the faces of a wall it sits on, and nothing behind a second wall", () => {
     // The light is on the x = 4 gridline (a wall fitting's edge); another wall stands at x = 6.
     const col = (x: number) => [0, 1, 2, 3, 4, 5, 6].map((y) => `${x},${y}:W`);
-    const m = lightMask(occluders({ walls: [...col(4), ...col(6)], doors: [], solid: [] }), 4, 3.5, 3, 0, 0, 8, 8, ALL);
+    const m = lightMask(occluders({ walls: [...col(4), ...col(6)].map(latticeSegment), doors: [], solid: [] }), 4, 3.5, 3, 0, 0, 8, 8, ALL);
     expect(at(m, 0, 0, 3.5, 3.5)).toBe(255);
     expect(at(m, 0, 0, 4.5, 3.5)).toBe(255);
     expect(at(m, 0, 0, 6.5, 3.5)).toBe(0);

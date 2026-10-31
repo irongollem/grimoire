@@ -34,7 +34,7 @@ beforeEach(() => {
 });
 
 const snapshot = (over: Partial<MapLive> = {}): MapLive => ({
-  version: 2,
+  version: 3,
   darkness: "dark",
   groups: [],
   lights: [],
@@ -113,16 +113,16 @@ describe("BattleMapVeil", () => {
 
   it("lets light through a door the DM opened over its drawn state, and stops it again when shut", async () => {
     // The torch is in cell (0,0); the door is the left edge of cell (1,0). Sample column 6 is x = 1.6, row 2 is y = 0.6.
-    const closedDoor = { edge: "1,0:W", open: false, leaf: null };
+    const closedDoor = { id: "1,0:W", a: [1, 0] as [number, number], b: [1, 1] as [number, number], open: false, leaf: null };
     const w = mount(BattleMapVeil, { props: { ...props, live: snapshot({ lights: [torch], doors: [closedDoor] }) } });
     const behind = () => {
       const { grid, gw } = painted.calls[painted.calls.length - 1];
       return grid[2 * gw + 6];
     };
     expect(behind()).toBe(0);
-    await w.setProps({ doorStates: [{ edge: "1,0:W", open: true }] });
+    await w.setProps({ doorStates: [{ id: "1,0:W", open: true }] });
     expect(behind()).toBeGreaterThan(0);
-    await w.setProps({ doorStates: [{ edge: "1,0:W", open: false }] });
+    await w.setProps({ doorStates: [{ id: "1,0:W", open: false }] });
     expect(behind()).toBe(0);
   });
 

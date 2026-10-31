@@ -22,8 +22,9 @@
 // picture already shows the water. The top layer then draws ONE still frame (sprites at rest, leaves) and redraws it
 // when the doors, the pan, the size or the snapshot change, because its standing image has already dropped them.
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { paintDoorLeaf, edgeAxis, edgeTileOrigin } from "@/cartographer/doorLeaf";
+import { paintDoorLeaf, edgeTileOrigin } from "@/cartographer/doorLeaf";
 import { effectiveDoors } from "@/lib/battlemap/doors";
+import { segmentAxis } from "@/lib/battlemap/walls";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
 import { boostMask, type BoostMask, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
 import { lightReachCells, lightStops } from "@/cartographer/lights";
@@ -155,10 +156,15 @@ function paintLeaf(ctx: CanvasRenderingContext2D, door: LeafDoor) {
   if (readyFor !== live) return;
   const img = imageFor(door.leaf.url);
   if (!img) return;
-  const [cell, side] = door.edge.split(":");
-  const [xs, ys] = cell.split(",");
-  const axis = edgeAxis(side === "N" ? "N" : "W");
-  const tile = edgeTileOrigin(axis, originX + Number(xs) * cellPx, originY + Number(ys) * cellPx, cellPx);
+  // The leaf art is drawn for a doorway on a grid line; an angled door has none yet.
+  const axis = segmentAxis(door.a, door.b);
+  if (!axis) return;
+  const tile = edgeTileOrigin(
+    axis,
+    originX + Math.min(door.a[0], door.b[0]) * cellPx,
+    originY + Math.min(door.a[1], door.b[1]) * cellPx,
+    cellPx,
+  );
   if (tile.x + cellPx * 2 < 0 || tile.y + cellPx * 2 < 0 || tile.x - cellPx > hostW || tile.y - cellPx > hostH) return;
   paintDoorLeaf(ctx, img, axis, tile.x, tile.y, cellPx, door.leaf, door.open);
 }

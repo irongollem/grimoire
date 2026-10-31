@@ -233,7 +233,7 @@ describe("resolveBattleSurface", () => {
 
   describe("live snapshot (#1073)", () => {
     const live: MapLive = {
-      version: 2, darkness: "daylight",
+      version: 3, darkness: "daylight",
       groups: [{ kind: "water", cells: ["1,1"], overlays: [] }],
       lights: [],
       sprites: [],
@@ -440,6 +440,31 @@ describe("seedTokenPositions", () => {
     // The 2x2 token claims (0,0)-(1,1); the next token must land outside that block.
     expect(result[0].position).toEqual({ x: 0, y: 0 });
     expect(result[1].position).toEqual({ x: 2, y: 0 });
+  });
+
+  // PHB 2024 "Creature Size": a Tiny creature's space is 2½ ft, so four fit in one 5 ft square (#1125 decision 13).
+  it("puts four Tiny tokens in one square and the fifth in the next", () => {
+    const combatants = [1, 2, 3, 4, 5].map((n) => makeCombatant({ instance_id: `p-${n}`, size: "tiny" }));
+    const result = seedTokenPositions(combatants, ["0,0", "1,0"]);
+    expect(result.slice(0, 4).map((c) => c.position)).toEqual([
+      { x: 0, y: 0 }, { x: 0.5, y: 0 }, { x: 0, y: 0.5 }, { x: 0.5, y: 0.5 },
+    ]);
+    expect(result[4].position).toEqual({ x: 1, y: 0 });
+  });
+
+  it("does not seat a Medium token in a square a Tiny one already stands in", () => {
+    const combatants = [makeCombatant({ instance_id: "p-tiny", size: "tiny" }), makeCombatant({ instance_id: "p-med" })];
+    const result = seedTokenPositions(combatants, ["0,0", "1,0"]);
+    expect(result[1].position).toEqual({ x: 1, y: 0 });
+  });
+
+  it("seats a Huge token on nine squares by default, reading its size", () => {
+    const cells: `${number},${number}`[] = [];
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) cells.push(`${x},${y}`);
+    const result = seedTokenPositions([makeCombatant({ size: "huge" }), makeCombatant({ instance_id: "p-2" })], cells);
+    expect(result[0].position).toEqual({ x: 0, y: 0 });
+    // All nine squares are the Huge token's, so the second has nowhere to go.
+    expect(result[1].position).toBeUndefined();
   });
 
   it("leaves a combatant unplaced when the room has no room for its footprint", () => {

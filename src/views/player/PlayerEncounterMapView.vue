@@ -103,6 +103,7 @@ import { AMBIENT, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illuminati
 import { sameDoorStates } from "@/lib/battlemap/doors";
 import { currentMapLive } from "@/lib/battlemap/liveLayer";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
+import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
 import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
 import { useParty } from "@/composables/party/useParty";
@@ -236,7 +237,7 @@ const sight = computed<{ scene: LitScene; viewers: Viewer[] } | null>(() => {
   };
   const own = liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value);
   if (!own?.position) return { scene, viewers: [] };
-  const half = (own.footprint ?? 1) / 2;
+  const half = combatantFootprint(own) / 2;
   const { darkvision, blindsight, truesight, devilsSight } = ownSenses.value;
   const viewer: Viewer = {
     x: own.position.x + half,

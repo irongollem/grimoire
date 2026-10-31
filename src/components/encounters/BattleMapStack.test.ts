@@ -20,9 +20,9 @@ const LiveLayerStub = defineComponent({
 });
 
 const sprite = { url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } };
-const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 2, darkness: "daylight", groups: [], lights: [], sprites, walls: [], doors: [], solid: [] });
+const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 3, darkness: "daylight", groups: [], lights: [], sprites, walls: [], doors: [], solid: [] });
 
-function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null; zones?: { x: number; y: number; radius: number }[]; doorStates?: { edge: string; open: boolean }[] } = {}) {
+function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null; zones?: { x: number; y: number; radius: number }[]; doorStates?: { id: string; open: boolean }[] } = {}) {
   return mount(BattleMapStack, {
     props: {
       hostW: 400,
@@ -84,8 +84,8 @@ describe("BattleMapStack standing image", () => {
 
   it("swaps for a map with door leaves and no sprites, and hands the layer the door states", async () => {
     const leaf = { url: "https://cdn/door.webp", hingeX: 0, hingeY: 0.5, openDegrees: 90 };
-    const doorLive: MapLive = { ...live([]), doors: [{ edge: "2,2:N", open: false, leaf }] };
-    const doorStates = [{ edge: "2,2:N", open: true }];
+    const doorLive: MapLive = { ...live([]), doors: [{ id: "2,2:N", a: [2, 2], b: [3, 2], open: false, leaf }] };
+    const doorStates = [{ id: "2,2:N", open: true }];
     const w = mountStack({ live: doorLive, doorStates });
     expect(topLayer(w)!.props("doorStates")).toEqual(doorStates);
     topLayer(w)!.vm.$emit("ready");
@@ -94,7 +94,7 @@ describe("BattleMapStack standing image", () => {
   });
 
   it("keeps a leafless door baked in: no top layer for a door whose leaf has no url", () => {
-    const doorLive: MapLive = { ...live([]), doors: [{ edge: "2,2:N", open: false, leaf: null }] };
+    const doorLive: MapLive = { ...live([]), doors: [{ id: "2,2:N", a: [2, 2], b: [3, 2], open: false, leaf: null }] };
     expect(topLayer(mountStack({ live: doorLive }))).toBeUndefined();
   });
 

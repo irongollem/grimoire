@@ -73,7 +73,7 @@ describe("buildMapLive", () => {
       4,
     );
     expect(live.lights).toEqual([{ x: 2.5, y: 1.5, color: "#ff8030", bright: 20, dim: 20, intensity: 0.6, phase: phaseAt(2.5, 1.5) }]);
-    expect(live.version).toBe(2);
+    expect(live.version).toBe(3);
   });
 
   it("carries a light's flicker or pulse, and only when set", () => {
@@ -154,11 +154,11 @@ describe("buildMapLive", () => {
       0,
       0,
     );
-    expect(live.version).toBe(2);
+    expect(live.version).toBe(3);
     expect(live.doors).toEqual([
-      { edge: "1,1:N", open: false, leaf: { url: "https://cdn/leaf-0.webp", ...hinge } },
-      { edge: "1,1:W", open: true, leaf: null },
-      { edge: "2,1:N", open: false, leaf: null },
+      { id: "1,1:N", a: [1, 1], b: [2, 1], open: false, leaf: { url: "https://cdn/leaf-0.webp", ...hinge } },
+      { id: "1,1:W", a: [1, 1], b: [1, 2], open: true, leaf: null },
+      { id: "2,1:N", a: [2, 1], b: [3, 1], open: false, leaf: null },
     ]);
   });
 
@@ -175,10 +175,11 @@ describe("buildMapLive", () => {
     layers.floor[cellKey(5, 4)] = { wallN: seg("sluice") };
     layers.solidBlock[cellKey(9, 9)] = ref("rock");
     const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 2);
-    expect(live.walls.sort()).toEqual(["2,2:N", "4,2:N"]);
+    expect(live.walls.map((w) => w.id).sort()).toEqual(["2,2:N", "4,2:N"]);
+    expect(live.walls.find((w) => w.id === "2,2:N")).toEqual({ id: "2,2:N", a: [2, 2], b: [3, 2] });
     expect(live.doors).toEqual([
-      { edge: "2,2:W", open: false, leaf: null },
-      { edge: "3,2:N", open: true, leaf: null },
+      { id: "2,2:W", a: [2, 2], b: [2, 3], open: false, leaf: null },
+      { id: "3,2:N", a: [3, 2], b: [4, 2], open: true, leaf: null },
     ]);
     expect(live.solid).toEqual(["8,7"]);
   });

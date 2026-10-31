@@ -16,6 +16,7 @@
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
 import { currentMapLive } from "@/lib/battlemap/liveLayer";
 import type { MapLive } from "@/types/mapLive.types";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -153,49 +154,61 @@ export function resolveBattleSurface(params: {
 
 /**
  * Places every unpositioned player-type combatant (party members and
- * companions alike — "party tokens", frame 13) on a free cell inside
- * `focusCells`, row-major, footprint-aware, never overlapping. A combatant
- * that already has a position is left untouched, which is what makes this
- * safe to call every time the battle map mounts while live rather than only
- * once: re-seeding after the DM has dragged tokens around is a no-op for
- * them. Returns a new array — the caller (Pinia store state) owns identity.
+ * companions alike — "party tokens", frame 13) on a free spot inside
+ * `focusCells`, row-major, footprint-aware, never overlapping. A Tiny token
+ * takes a quarter of a square (#1125 decision 13), so four share a square
+ * before the next square is used. A combatant that already has a position is
+ * left untouched, which is what makes this safe to call every time the battle
+ * map mounts while live rather than only once: re-seeding after the DM has
+ * dragged tokens around is a no-op for them. Returns a new array — the caller
+ * (Pinia store state) owns identity. `footprintOf` defaults to the token's
+ * current size (`combatantFootprint`).
  */
 export function seedTokenPositions(
   combatants: RunCombatant[],
   focusCells: CellKey[],
-  opts: { footprintOf: (c: RunCombatant) => number },
+  opts: { footprintOf?: (c: RunCombatant) => number } = {},
 ): RunCombatant[] {
   if (focusCells.length === 0) return combatants;
+  const footprintOf = opts.footprintOf ?? combatantFootprint;
 
   const cells = focusCells.map((k) => parseCellKey(k)).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
   const available = new Set<CellKey>(focusCells);
-  const occupied = new Set<CellKey>();
+  // Occupancy is tracked in half cells so a Tiny token can claim a quarter square.
+  const occupied = new Set<string>();
+
+  /** Half-cell units a box starting at (x, y) with `size` cells per side covers. */
+  function units(x: number, y: number, size: number): [number, number][] {
+    const out: [number, number][] = [];
+    const span = Math.round(size * 2);
+    for (let dy = 0; dy < span; dy++) {
+      for (let dx = 0; dx < span; dx++) out.push([Math.round(x * 2) + dx, Math.round(y * 2) + dy]);
+    }
+    return out;
+  }
 
   function fits(x: number, y: number, size: number): boolean {
-    for (let dy = 0; dy < size; dy++) {
-      for (let dx = 0; dx < size; dx++) {
-        const key = cellKey(x + dx, y + dy);
-        if (!available.has(key) || occupied.has(key)) return false;
-      }
-    }
-    return true;
+    return units(x, y, size).every(([ux, uy]) =>
+      available.has(cellKey(Math.floor(ux / 2), Math.floor(uy / 2))) && !occupied.has(`${ux},${uy}`));
   }
 
   function claim(x: number, y: number, size: number): void {
-    for (let dy = 0; dy < size; dy++) {
-      for (let dx = 0; dx < size; dx++) {
-        occupied.add(cellKey(x + dx, y + dy));
-      }
-    }
+    for (const [ux, uy] of units(x, y, size)) occupied.add(`${ux},${uy}`);
   }
 
   return combatants.map((c) => {
     if (c.type !== "player" || c.position) return c;
-    const size = Math.max(1, opts.footprintOf(c));
-    const spot = cells.find(([x, y]) => fits(x, y, size));
-    if (!spot) return c; // room too small to fit this one — leave unplaced
-    claim(spot[0], spot[1], size);
-    return { ...c, position: { x: spot[0], y: spot[1] } };
+    const size = footprintOf(c);
+    // Whole squares for anything a square or larger; the four quarters of a square, in reading order, for a Tiny one.
+    const offsets: [number, number][] = size < 1 ? [[0, 0], [0.5, 0], [0, 0.5], [0.5, 0.5]] : [[0, 0]];
+    for (const [x, y] of cells) {
+      for (const [ox, oy] of offsets) {
+        if (!fits(x + ox, y + oy, size)) continue;
+        claim(x + ox, y + oy, size);
+        return { ...c, position: { x: x + ox, y: y + oy } };
+      }
+    }
+    return c; // room too small to fit this one — leave unplaced
   });
 }
 

@@ -276,9 +276,11 @@ describe("MapWorkbench", () => {
     expect(tool(wrapper, "Claim")).toBe(false);
   });
 
-  it("offers the Water terrain tool in the Drawing palette", () => {
+  it("offers the Water terrain tool in the Drawing palette, in the Terrain family's slip", async () => {
     const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
-    expect(tool(wrapper, "Water")).toBe(true);
+    expect(tool(wrapper, "Terrain")).toBe(true);
+    await wrapper.find('nav[aria-label="Map tools"] [aria-label="Terrain"]').trigger("click");
+    expect(wrapper.find("[data-slip]").text()).toContain("Water");
   });
 
   it("shows the layer selector with a site, in edit mode, and can switch layers by hand", async () => {
@@ -286,7 +288,7 @@ describe("MapWorkbench", () => {
     expect(wrapper.text()).toContain("Drawing");
     expect(wrapper.text()).toContain("Plan");
     // A site with nothing drawn yet opens on the Drawing's own tool palette…
-    expect(tool(wrapper, "Tiles")).toBe(true);
+    expect(tool(wrapper, "Draw")).toBe(true);
 
     const planButton = wrapper.findAll("button").find((b) => b.text() === "Plan");
     await planButton?.trigger("click");
@@ -300,7 +302,7 @@ describe("MapWorkbench", () => {
   describe("initial layer default (#878 S2)", () => {
     it("opens on Drawing without a site at all (the standalone /cartographer route)", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
-      expect(tool(wrapper, "Tiles")).toBe(true);
+      expect(tool(wrapper, "Draw")).toBe(true);
       expect(tool(wrapper, "Claim")).toBe(false);
     });
 
@@ -309,7 +311,7 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false, site: siteWithNoImagery },
         ...editModeStubs,
       });
-      expect(tool(wrapper, "Tiles")).toBe(true);
+      expect(tool(wrapper, "Draw")).toBe(true);
       expect(tool(wrapper, "Claim")).toBe(false);
     });
 
@@ -319,8 +321,8 @@ describe("MapWorkbench", () => {
         ...editModeStubs,
       });
       expect(tool(wrapper, "Claim")).toBe(true);
-      // "Eraser" only ever appears on the Drawing's own rail; the Plan's is "Erase".
-      expect(tool(wrapper, "Eraser")).toBe(false);
+      // "Draw" only ever appears on the Drawing's own rail.
+      expect(tool(wrapper, "Draw")).toBe(false);
     });
 
     it("opens on Plan for a site whose imagery is a Drawing (no Picture)", () => {
@@ -329,7 +331,7 @@ describe("MapWorkbench", () => {
         ...editModeStubs,
       });
       expect(tool(wrapper, "Claim")).toBe(true);
-      expect(tool(wrapper, "Eraser")).toBe(false);
+      expect(tool(wrapper, "Draw")).toBe(false);
     });
 
     it("keeps the DM's own layer choice — a later prop update does not force it back", async () => {
@@ -342,12 +344,12 @@ describe("MapWorkbench", () => {
 
       const drawingButton = wrapper.findAll("button").find((b) => b.text() === "Drawing");
       await drawingButton?.trigger("click");
-      expect(tool(wrapper, "Tiles")).toBe(true);
+      expect(tool(wrapper, "Draw")).toBe(true);
 
       // …a prop change that would re-run any watcher must not force Plan
       // back — the default is read once at setup, never re-applied.
       await wrapper.setProps({ map: { ...baseMap, name: "Renamed" } });
-      expect(tool(wrapper, "Tiles")).toBe(true);
+      expect(tool(wrapper, "Draw")).toBe(true);
       expect(tool(wrapper, "Claim")).toBe(false);
     });
   });
@@ -456,36 +458,62 @@ describe("MapWorkbench", () => {
     expect(vm.isDirty()).toBe(false);
   });
   describe("the slim bar, rail and slip (17 Oct 2026)", () => {
-    it("names the tools the new way, in the clusters Look, Floor, Walls, Things, Notes, Eraser", () => {
+    it("draws seven families in the order of canvas frame 07, with Erase after the rule", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
       const names = wrapper.findAll('nav[aria-label="Map tools"] button').map((b) => b.attributes("aria-label"));
-      expect(names).toEqual([
-        "Select", "Pan",
-        "Brush", "Tiles", "Rectangle", "Line", "Room", "Fill", "Water", "Rock",
-        "Wall", "Door", "Wrap",
-        "Place",
-        "Label", "Link", "Space",
-        "Eraser",
-      ]);
-      for (const retired of ["Floor brush", "Solid block", "Annotate", "Link entity", "Room template", "Wrap walls"]) {
-        expect(names).not.toContain(retired);
-      }
+      expect(names).toEqual(["Select", "Draw", "Walls", "Things", "Terrain", "Notes", "Erase"]);
     });
 
-    it("titles the options slip with the active tool and follows the rail", async () => {
+    it("files every tool in one family, with the keys it always had (#1125 decision 3)", async () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const nav = wrapper.find('nav[aria-label="Map tools"]');
+      const slipTools: Record<string, string[]> = {};
+      for (const family of ["Select", "Draw", "Walls", "Terrain", "Notes"]) {
+        await nav.find(`[aria-label="${family}"]`).trigger("click");
+        slipTools[family] = wrapper.findAll(`[data-slip] [aria-label="${family} tools"] button`).map((b) => b.text());
+      }
+      expect(slipTools).toEqual({
+        Select: ["SelectV", "PanH"],
+        Draw: ["BrushB", "RectangleR", "RoomM", "LineL", "FillF", "One tileI"],
+        Walls: ["WallW", "DoorD", "WrapX"],
+        Terrain: ["WaterA", "RockS"],
+        Notes: ["LabelT", "LinkK", "SpaceP"],
+      });
+    });
+
+    it("titles the slip with the family and follows a tool picked in its grid", async () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
       const slip = () => wrapper.find("[data-slip]");
       expect(slip().text()).toContain("Select");
-      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Rock"]').trigger("click");
-      expect(slip().text()).toContain("Rock");
+      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Terrain"]').trigger("click");
+      expect(slip().text()).toContain("Terrain");
+      const rock = wrapper.findAll('[data-slip] [aria-label="Terrain tools"] button').find((b) => b.text().startsWith("Rock"));
+      await rock?.trigger("click");
       expect(slip().text()).toContain("Paint thick, full-cell rock");
+      // The rail still says Terrain: Rock is a tool inside it, not a family of its own.
+      expect(wrapper.find('nav[aria-label="Map tools"] [aria-label="Terrain"]').attributes("aria-pressed")).toBe("true");
     });
 
-    it("opens the Spaces drawer from the bar and closes it from the drawer's own button", async () => {
+    it("selects a tool's family when its key is pressed (R lands in Draw)", async () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const area = wrapper.find("canvas").element.parentElement as HTMLElement;
+      area.dispatchEvent(new Event("pointerenter"));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "r", code: "KeyR" }));
+      await flushPromises();
+      expect(wrapper.find('nav[aria-label="Map tools"] [aria-label="Draw"]').attributes("aria-pressed")).toBe("true");
+      expect(wrapper.find("[data-slip]").text()).toContain("Drag a rectangle of floor");
+    });
+
+    it("opens the Spaces drawer from the Map menu and closes it from the drawer's own button", async () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false },
+        global: { stubs: { ...editModeStubs.global.stubs, CampaignScopeField: true } },
+      });
       expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(false);
-      const toggle = wrapper.findAll("header button").find((b) => b.text().startsWith("Spaces"));
-      await toggle?.trigger("click");
+      await wrapper.findAll("header button").find((b) => b.text() === "Map")?.trigger("click");
+      const spaces = [...document.body.querySelectorAll("[role=dialog] button")].find((b) => b.textContent?.includes("Spaces on this map"));
+      (spaces as HTMLElement).click();
+      await flushPromises();
       expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(true);
       await wrapper.find("[aria-label='Close Spaces on this map']").trigger("click");
       expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(false);
@@ -496,9 +524,9 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false },
         global: { stubs: { ...editModeStubs.global.stubs, CartographerPlaceCatalog: true } },
       });
-      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Place"]').trigger("click");
+      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Things"]').trigger("click");
       expect(wrapper.find("section[aria-label='Place']").exists()).toBe(true);
-      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Tiles"]').trigger("click");
+      await wrapper.find('nav[aria-label="Map tools"] [aria-label="Draw"]').trigger("click");
       expect(wrapper.find("section[aria-label='Place']").exists()).toBe(false);
     });
 
@@ -558,9 +586,11 @@ describe("MapWorkbench", () => {
       resetEdits: () => void;
     };
     expect(vm.getDarkness()).toBe("dim");
-    const dark = wrapper.findAll("button").find((b) => b.text() === "Dark");
+    await wrapper.findAll("header button").find((b) => b.text() === "Map")?.trigger("click");
+    const dark = [...document.body.querySelectorAll("[role=dialog] button")].find((b) => b.textContent === "Dark");
     expect(dark).toBeDefined();
-    await dark?.trigger("click");
+    (dark as HTMLElement).click();
+    await flushPromises();
     expect(vm.getDarkness()).toBe("dark");
     expect(vm.isDirty()).toBe(true);
     vm.resetEdits();

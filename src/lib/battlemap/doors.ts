@@ -2,39 +2,36 @@
 // per door. The override list lives on the fight (`encounter_state.door_states`), a door it does not name keeps its
 // drawn state, and it holds only doors that differ, so "everything as drawn" is the empty list. Pure and DOM-free.
 
+import type { Point } from "@/lib/battlemap/walls";
 import type { MapLiveDoor, MapLiveDoorState } from "@/types/mapLive.types";
 
 /** The doors at the state they have in play: the drawn doors with the DM's overrides laid over them. */
 export function effectiveDoors(drawn: readonly MapLiveDoor[], overrides: readonly MapLiveDoorState[]): MapLiveDoor[] {
   if (overrides.length === 0) return [...drawn];
-  const byEdge = new Map(overrides.map((o) => [o.edge, o.open]));
+  const byId = new Map(overrides.map((o) => [o.id, o.open]));
   return drawn.map((d) => {
-    const open = byEdge.get(d.edge);
+    const open = byId.get(d.id);
     return open === undefined ? d : { ...d, open };
   });
 }
 
-/** Where an edge's midpoint sits, in image cells: an N edge is the top of its cell, a W edge its left. */
-function edgeMidpoint(edge: string): [number, number] | null {
-  const [cell, side] = edge.split(":");
-  const [xs, ys] = cell.split(",");
-  const x = Number(xs);
-  const y = Number(ys);
-  if (side === "N") return [x + 0.5, y];
-  if (side === "W") return [x, y + 0.5];
-  return null;
+/** How far a point is from a segment, in cells. */
+function distanceToSegment(x: number, y: number, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const lenSq = dx * dx + dy * dy;
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / lenSq));
+  return Math.hypot(a[0] + t * dx - x, a[1] + t * dy - y);
 }
 
-/** The door whose edge midpoint is nearest the point (fractional image cells) and within `reach` cells, else null. */
-export function doorEdgeAt(doors: readonly MapLiveDoorState[], x: number, y: number, reach = 0.4): string | null {
+/** The id of the door whose segment is nearest the point (fractional image cells) and within `reach` cells, else null. */
+export function doorAt(doors: readonly MapLiveDoor[], x: number, y: number, reach = 0.4): string | null {
   let best: string | null = null;
   let bestDist = reach;
   for (const door of doors) {
-    const mid = edgeMidpoint(door.edge);
-    if (!mid) continue;
-    const dist = Math.hypot(mid[0] - x, mid[1] - y);
+    const dist = distanceToSegment(x, y, door.a, door.b);
     if (dist <= bestDist) {
-      best = door.edge;
+      best = door.id;
       bestDist = dist;
     }
   }
@@ -48,14 +45,14 @@ export function doorEdgeAt(doors: readonly MapLiveDoorState[], x: number, y: num
 export function toggleDoor(
   drawn: readonly MapLiveDoor[],
   overrides: readonly MapLiveDoorState[],
-  edge: string,
+  id: string,
 ): MapLiveDoorState[] {
-  const door = effectiveDoors(drawn, overrides).find((d) => d.edge === edge);
+  const door = effectiveDoors(drawn, overrides).find((d) => d.id === id);
   if (!door) return [...overrides];
   const next = !door.open;
-  const original = drawn.find((d) => d.edge === edge);
-  const rest = overrides.filter((o) => o.edge !== edge);
-  return original && original.open === next ? rest : [...rest, { edge, open: next }];
+  const original = drawn.find((d) => d.id === id);
+  const rest = overrides.filter((o) => o.id !== id);
+  return original && original.open === next ? rest : [...rest, { id, open: next }];
 }
 
 /**
@@ -63,5 +60,5 @@ export function toggleDoor(
  * content; views keep the previous one so the occluders and light grids memoised on its identity are not rebuilt.
  */
 export function sameDoorStates(a: readonly MapLiveDoorState[], b: readonly MapLiveDoorState[]): boolean {
-  return a.length === b.length && a.every((s, i) => s.edge === b[i].edge && s.open === b[i].open);
+  return a.length === b.length && a.every((s, i) => s.id === b[i].id && s.open === b[i].open);
 }

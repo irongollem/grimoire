@@ -208,6 +208,7 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           portrait_focal_point: monster.portrait_focal_point ?? null,
           token_url: resolveTokenArt(monster)?.tokenUrl,
           position: def.starting_positions?.[i] ?? null,
+          size: monster.size,
           footprint: sizeToFootprint(monster.size),
         });
       }
@@ -238,7 +239,8 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           portrait_focal_point: npc.portrait_focal_point ?? null,
           token_url: resolveTokenArt(npc)?.tokenUrl,
           position: def.starting_positions?.[i] ?? null,
-          footprint: 1,
+          size: npc.size,
+          footprint: sizeToFootprint(npc.size),
         });
       }
     }

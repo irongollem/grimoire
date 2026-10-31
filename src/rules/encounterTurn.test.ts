@@ -234,6 +234,21 @@ describe("hit points and dying", () => {
   });
 });
 
+describe("size override (Enlarge/Reduce)", () => {
+  it("sets and clears a creature's size for the fight without touching its own", () => {
+    const grown = run(stateOf([pc("p-1", { size: "medium" })]), { type: "set_size_override", instanceId: "p-1", size: "large" });
+    expect(find(grown.state, "p-1")).toMatchObject({ size: "medium", size_override: "large" });
+    expect(grown.events).toEqual([]);
+    const cleared = run(grown.state, { type: "set_size_override", instanceId: "p-1", size: null });
+    expect(find(cleared.state, "p-1").size_override).toBeNull();
+  });
+
+  it("is a no-op for a combatant that is not in the fight", () => {
+    const state = stateOf([pc("p-1")]);
+    expect(run(state, { type: "set_size_override", instanceId: "ghost", size: "huge" }).state.combatants).toEqual(state.combatants);
+  });
+});
+
 describe("wild shape", () => {
   const form: WildshapeState = { monster_id: "bear", beast_name: "Bear", beast_image_url: null, beast_hp: 20, beast_max_hp: 20, beast_ac: "11" };
 
@@ -244,6 +259,13 @@ describe("wild shape", () => {
     const reverted = run(entered.state, { type: "revert_wildshape", instanceId: "p-1" });
     expect(find(reverted.state, "p-1").wildshape).toBeUndefined();
     expect(reverted.events).toEqual([{ type: "player_persist", partyMemberId: "pm-p-1", patch: { wildshape_state: null } }]);
+  });
+
+  it("a beast form's size reaches the combatant and the saved sheet", () => {
+    const large: WildshapeState = { ...form, beast_size: "large" };
+    const { state, events } = run(stateOf([pc("p-1")]), { type: "enter_wildshape", instanceId: "p-1", form: large, wildshapesUsed: 1 });
+    expect(find(state, "p-1").wildshape?.beast_size).toBe("large");
+    expect(events[0]).toMatchObject({ patch: { wildshape_state: { beast_size: "large" } } });
   });
 
   it("entering a form that grants no temp HP leaves the existing temp HP out of the save", () => {

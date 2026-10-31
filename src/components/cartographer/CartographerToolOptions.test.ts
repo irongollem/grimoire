@@ -203,3 +203,23 @@ describe("link, room and brush options", () => {
     expect(wrapper.emitted("update:brushRadius")).toEqual([[2.5]]);
   });
 });
+
+describe("the family grid", () => {
+  const TOOLS = [
+    { id: "brush", label: "Brush", icon: {}, shortcut: "b" },
+    { id: "rect", label: "Rectangle", icon: {}, shortcut: "r" },
+  ];
+
+  it("lists the family's tools with their keys and reports a pick", async () => {
+    const wrapper = mountOptions({ title: "Draw", activeTool: "brush", familyTools: TOOLS });
+    const grid = wrapper.find('[aria-label="Draw tools"]');
+    expect(grid.text()).toContain("B");
+    await grid.findAll("button")[1]!.trigger("click");
+    expect(wrapper.emitted("update:activeTool")?.[0]).toEqual(["rect"]);
+  });
+
+  it("draws no grid for a family of one tool", () => {
+    const wrapper = mountOptions({ title: "Things", activeTool: "place", familyTools: [TOOLS[0]] });
+    expect(wrapper.find('[aria-label="Things tools"]').exists()).toBe(false);
+  });
+});

@@ -49,6 +49,7 @@ function npc(over: Partial<Npc> = {}): Npc {
     name: "Elminster",
     race: "Human",
     alignment: null,
+    size: "medium",
     age: null,
     born_year: null,
     born_month: null,
