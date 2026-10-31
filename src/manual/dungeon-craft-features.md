@@ -26,6 +26,9 @@ keywords: feature, secret door, hidden passage, treasure chest, dungeon, discove
 - **Hidden Cache**: a stash of items concealed in a mundane location (loose floorboard, hollowed book).
 - **Concealed Alcove**: a recess hidden behind a false wall or furniture.
 - **Moving Wall**: a section of wall that slides, rotates, or descends.
+- **Door**: an ordinary door, with no secret to find. Give it object stats to say how hard it is to break.
+- **Lock**: a lock on a door, chest or gate, with a DC to pick it.
+- **Object**: something the party can attack or force that is not a door or lock, such as a cart, a barrel or a statue.
 - **Other**: any other secret worth noting.
 
 ## Trigger types
@@ -43,12 +46,26 @@ Click **New Feature** and fill in:
 - **Perception DC**: passive Perception (or active Perception check) DC to notice the feature.
 - **Investigation DC**: Investigation check DC to identify how it works.
 - **Arcana DC**: if the feature has a magical element, the Arcana DC to recognise it.
+- **Object stats**: for something the party can attack, force or pick; see **Object stats** below.
 - **Contents / What's Inside**: rich text describing what's revealed once the feature is found or opened.
 - **Description**: environmental context: how it blends in, what it looks like to a careful observer.
 - **Tags**, **Image**.
 - **Scope**: **General: all campaigns** or a specific campaign; new features default to your active campaign.
 
 Your private notes on a feature live in the **DM notes** box on its page, saved as you type; see [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
+
+## Object stats
+
+Any feature can carry object stats, following the Dungeon Master's Guide rules for objects. Leave **Material** on **Not an object** and the card stays out of the way.
+
+- **Material**: what it is made of, from cloth up to adamantine. Choosing one fills in the book's **AC** for that material, unless you already typed an AC of your own.
+- **Size**: Tiny, Small, Medium or Large. The book's hit points for that size show under **Hit points**, one figure for a fragile object and one for a resilient one. Pick whichever fits, or type your own.
+- **AC** and **Hit points**: what the party has to beat to destroy it.
+- **Damage threshold**: damage below this number does nothing to it.
+- **Break DC (Strength)**: the Strength check needed to force it open or break it.
+- **Pick lock DC (thieves' tools)**: the check needed to pick its lock.
+
+Every object is immune to poison and psychic damage; the feature's page says so, and you never need to enter it. Anything bigger than Large is several sections of Large or smaller, each with its own hit points, so make one feature per section or note it in the description.
 
 ## Generating a feature with AI
 
@@ -62,7 +79,7 @@ Generating costs credits, shown on the panel before you start, and needs AI to b
 
 A feature's own page has a **Placed In** panel showing every room it's dropped into across your Atlas sites, with an editable note and a picker to add a new placement: the same feature template (e.g. a stock "false-bottomed chest") can sit in several rooms. See [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon) for the room-side view.
 
-If a feature is a **Secret Door**, **Hidden Passage**, or **Moving Wall**, a door you draw on a site's Plan can cite it directly: the door then reads this feature's own DCs and trigger instead of you having to enter them twice. That's set up from the Atlas/Cartographer side; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
+If a feature is a **Secret Door**, **Hidden Passage**, **Moving Wall**, **Door** or **Lock**, a door you draw on a site's Plan can cite it directly: the door then reads this feature's own DCs, trigger and object stats instead of you having to enter them twice. That's set up from the Atlas/Cartographer side; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
 
 ## Usage during play
 
@@ -77,7 +94,7 @@ Dungeon Features have no player-facing view of their own: players never see a fe
 
 ## Ready-made features from the library
 
-Dungeon Craft has a library of ready-made traps, features, puzzles and roll tables: classic dungeon secrets, trap-triggered features, magical wards, and more. It is off until you turn it on: click the **book icon** in the Dungeon Craft header and enable the books you want for this campaign. Their entries then appear in the lists and pickers beside your own.
+Dungeon Craft has a library of ready-made traps, features, puzzles and roll tables: classic dungeon secrets, trap-triggered features, magical wards, and the everyday things a party breaks or picks (doors, locks, a portcullis, chests, a cart, barrels and crates) with their object stats filled in. It is off until you turn it on: click the **book icon** in the Dungeon Craft header and enable the books you want for this campaign. Their entries then appear in the lists and pickers beside your own.
 
 A library trap or feature is read-only and can be placed as it is. Click **Customize** to make your own copy you can edit for your setting. A library puzzle or roll table is copied into your campaign with **Use in campaign**.
 

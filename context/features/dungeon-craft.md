@@ -79,13 +79,26 @@ What it does mean is that in a co-DM campaign this whole mechanism behaves as **
 
 ### What they are
 
-Dungeon Features model static environmental elements that players may discover — secret doors, hidden passages, treasure chests, hidden caches, concealed alcoves, and moving walls.
+Dungeon Features model static environmental elements that players may discover or deal with: secret doors, hidden passages, treasure chests, hidden caches, concealed alcoves and moving walls, and ordinary doors, locks and objects with the book's object stats.
 
 ### Feature types
 
-`Secret Door`, `Hidden Passage`, `Treasure Chest`, `Hidden Cache`, `Concealed Alcove`, `Moving Wall`, `Other`
+`Secret Door`, `Hidden Passage`, `Treasure Chest`, `Hidden Cache`, `Concealed Alcove`, `Moving Wall`, `Door`, `Lock`, `Object`, `Other`
 
-Each type renders with a distinct colour badge on the card thumbnail.
+Each type renders with a distinct colour badge on the card thumbnail. `feature_type` has no check constraint; `DUNGEON_FEATURE_TYPES` is the list.
+
+### Object stats (a door, a lock, a cart)
+
+Until 30 Oct 2026 every type was a concealment and a feature only said how it is *found*. A DM who generated a cart got "Other" with nowhere to put the numbers the table needs. Migration `20261030214202` gave both `dungeon_features` and `library_dungeon_features` the Dungeon Master's Guide object block, all nullable (a hidden passage is not an object):
+
+- `object_material` (cloth, crystal, wood, stone, iron, mithral, adamantine) and `object_size` (tiny to large) are what the book's AC and hit points follow. `src/rules/objects.ts` holds the table, the same in both editions. Bigger than Large is several sections, not a size.
+- `object_ac` and `object_hp` are stored, not derived, so a reinforced door can be sturdier than the book's row. The editor fills AC from the material only while AC is empty; the AI parser does the same when the model names a material and no AC.
+- `damage_threshold`, `break_dc` (Strength check to force or break) and `lock_dc` (pick with thieves' tools).
+- Immunity to poison and psychic damage is a rule every object has (`OBJECT_DAMAGE_IMMUNITIES`), shown on the sheet, never a column.
+
+The library holds the ordinary objects too (migration `20261030231807`): six doors (wooden, iron-bound, iron, stone, barred, a portcullis), two locks, an iron strongbox, a cart, a barrel, a crate and a chandelier, and the three plain chests already there gained their stats. Their AC and hit points are the book's, and `dungeon_craft_library.test.sql` fails if a library row's AC is not its material's or its hit points are not one of its size's two; the break and lock DCs are an app convention on the DMG's typical-DC ladder. Their pictures come through the library art queue like the rest.
+
+A door on a site plan may cite a `Door` or `Lock` feature as well as the three connection types, and `DoorFeatureCard` prints its object line. `preparedMarks`' secret set stays the three concealments: an ordinary door is not a secret. `dungeon_craft_library.test.sql` fails if the library table misses a content column of the owned one, because Customize copies by spreading every column.
 
 ### How DMs use them
 
@@ -139,7 +152,7 @@ This is the same column documented from the Atlas / door-editing side in world-b
 
 **Grounding:** one `generate-entity-text` call with `generator: "feature"`, carrying the campaign setting prompt and the table's ruleset. The system prompt row is `feature` in `ai_system_prompts`. There is no retrieval step; the feature stands alone, so the setting text is all the grounding it needs.
 
-**Validation:** `normalizeDungeonFeature` in `src/lib/dungeon-features/featureAi.ts` launders the model's JSON. An unknown feature type falls back to "Other", an unknown trigger or glyph becomes null, the three DCs are clamped to 5-30 (null stays null, since a DC of "does not apply" is meaningful), tags are lowercased, de-duplicated and capped at eight. No usable name is a failed generation, not a blank row.
+**Validation:** `normalizeDungeonFeature` in `src/lib/dungeon-features/featureAi.ts` launders the model's JSON. An unknown feature type falls back to "Other", an unknown trigger, glyph, material or size becomes null (the parser reads the book's other names for a material, so "steel" is iron), the five DCs are clamped to 5-30 (null stays null, since a DC of "does not apply" is meaningful), object AC, HP and threshold are clamped to what the table accepts with anything below 1 read as unset, a named material with no AC takes the book's AC, tags are lowercased, de-duplicated and capped at eight. No usable name is a failed generation, not a blank row.
 
 **Writes:** the panel creates the `dungeon_features` row directly (`useCreateDungeonFeature`), scoped to the active campaign (the editor's Scope control can widen it later). Prose fields (description, contents, notes) go through `toTiptapJson`. `ai_provenance` is stored on the row as the server returned it, and the editor flips `edited` through `markEdited()` the first time the DM saves over it. The illustration is a second step (`generateImage` with purpose `dungeon_feature`, text-only, so the likeness gate does not apply), logged to the Gallery via `logImageGeneration` with `targetColumn: "image_url"`. Image failure is non-fatal: the feature still lands without art. Ledger reason `feature_generation` (credit row "Dungeon Feature Generation", 1 credit); the image charges separately as an image. After create the panel navigates to `/dungeon-features/:id`.
 
@@ -517,12 +530,15 @@ A board can hang at a place (`<EntityPlacements kind="notice_board" />`, "Hangs 
 | ---------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                 | string                      | Required                                                                                                                            |
 | `campaign_id`          | uuid\|null                  | NULL = every campaign, set = only that campaign; never backfilled (#800)                                                            |
-| `feature_type`         | DungeonFeatureType          | Secret Door / Hidden Passage / Treasure Chest / Hidden Cache / Concealed Alcove / Moving Wall / Other                               |
+| `feature_type`         | DungeonFeatureType          | Secret Door / Hidden Passage / Treasure Chest / Hidden Cache / Concealed Alcove / Moving Wall / Door / Lock / Object / Other        |
 | `perception_dc`        | number\|null                |                                                                                                                                     |
 | `investigation_dc`     | number\|null                |                                                                                                                                     |
 | `arcana_dc`            | number\|null                |                                                                                                                                     |
 | `trigger_type`         | DungeonFeatureTrigger\|null | Lever / Pressure Plate / Bookshelf / Candlestick / Keyword / Puzzle / Key / Button/Knob / Magic Sensor / Combination / None / Other |
 | `trigger_description`  | string\|null                |                                                                                                                                     |
+| `object_material`, `object_size` | text\|null       | DMG object material and size; see "Object stats"                                                                                    |
+| `object_ac`, `object_hp`, `damage_threshold` | number\|null | Object AC 1-30, hit points, optional threshold                                                                             |
+| `break_dc`, `lock_dc`  | number\|null                | Strength DC to force or break; DC to pick the lock with thieves' tools                                                              |
 | `contents_description` | Tiptap JSON\|null           | Rich text                                                                                                                           |
 | `description`          | Tiptap JSON\|null           | Rich text (flavour)                                                                                                                 |
 | `image_url`            | string\|null                |                                                                                                                                     |
