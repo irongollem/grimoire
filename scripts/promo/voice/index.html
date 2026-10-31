@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grimoire voice-over</title>
+<title>Grimoire recorder</title>
 <style>
   @font-face { font-family: "Alegreya Sans"; font-weight: 400; src: url(/font/alegreya-sans-400.woff2) format("woff2"); }
   @font-face { font-family: "Alegreya Sans"; font-weight: 700; src: url(/font/alegreya-sans-700.woff2) format("woff2"); }
@@ -62,11 +62,36 @@
   .episode .progress { color: var(--muted); }
   .episode.done .progress { color: var(--green); }
   .empty { color: var(--muted); }
+  .tabs { max-width: 960px; margin: 0 auto 10px; display: flex; gap: 22px; }
+  .tabs a { color: var(--muted); text-decoration: none; font-weight: 700; padding-bottom: 4px; border-bottom: 2px solid transparent; }
+  .tabs a:hover { color: var(--ink); }
+  .tabs a[aria-current="page"] { color: var(--gold); border-bottom-color: var(--gold); }
+  .tab-body { display: grid; gap: 18px; }
+  .recorder { background: var(--card); border: 1px solid var(--gold); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
+  .recorder label { display: grid; gap: 4px; color: var(--muted); font-size: 15px; max-width: 360px; }
+  .recorder input { font: 400 24px "Fondamento", serif; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 2px 0; }
+  .recorder input:focus { outline: none; border-bottom-color: var(--gold); }
+  .big { font: 400 44px "Fondamento", serif; min-height: 64px; }
+  .big.recording { color: var(--red); }
+  .hint { color: var(--muted); font-size: 15px; margin: 0; }
+  code { font: 14px ui-monospace, monospace; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+  .saved-head { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  .saved-head h2 { font: 400 24px "Fondamento", serif; margin: 0; flex: 1 1 auto; }
+  .group { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px; display: grid; gap: 6px; }
+  .group h3 { margin: 0; font-size: 19px; }
+  .take { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .take .file { flex: 1 1 200px; }
+  .take .dur { color: var(--muted); font-size: 15px; min-width: 56px; }
+  button.quiet { border-color: var(--line); color: var(--muted); padding: 4px 12px; }
   @media (max-width: 640px) { .shot { grid-template-columns: 1fr; } .narration { font-size: 24px; } }
 </style>
 </head>
 <body>
 <header>
+  <nav class="tabs" aria-label="Recorder">
+    <a id="tab-voice" href="/">Voice-over</a>
+    <a id="tab-sounds" href="/?tab=sounds">Sounds</a>
+  </nav>
   <div class="bar">
     <h1 id="title">Voice-over<small id="subtitle"></small></h1>
     <select id="episode" aria-label="Episode"></select>
@@ -77,15 +102,35 @@
 </header>
 <main>
   <div id="notice" class="notice" hidden></div>
-  <div class="keys" id="keys"><kbd>Space</kbd> record / stop &nbsp; <kbd>Enter</kbd> keep &nbsp; <kbd>R</kbd> retake &nbsp; <kbd>Esc</kbd> cancel &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next shot</div>
-  <div id="shots"></div>
-  <footer id="footer">
-    <button id="assemble" class="primary">Assemble the Reel</button>
-    <div id="assemble-status"></div>
-    <pre id="assemble-log" hidden></pre>
-    <video id="reel" class="reel" controls playsinline hidden></video>
-  </footer>
+  <div id="voice" class="tab-body" hidden>
+    <div class="keys" id="keys"><kbd>Space</kbd> record / stop &nbsp; <kbd>Enter</kbd> keep &nbsp; <kbd>R</kbd> retake &nbsp; <kbd>Esc</kbd> cancel &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next shot</div>
+    <div id="shots"></div>
+    <footer id="footer">
+      <button id="assemble" class="primary">Assemble the Reel</button>
+      <div id="assemble-status"></div>
+      <pre id="assemble-log" hidden></pre>
+      <video id="reel" class="reel" controls playsinline hidden></video>
+    </footer>
+  </div>
+  <div id="sounds" class="tab-body" hidden>
+    <section class="recorder">
+      <label for="sound-name">Sound
+        <input id="sound-name" autocomplete="off" spellcheck="false" placeholder="dice-roll">
+      </label>
+      <div class="big" id="sound-state" aria-live="polite">Ready</div>
+      <div class="actions" id="sound-actions"></div>
+      <p class="hint" id="sound-hint"></p>
+    </section>
+    <div class="keys"><kbd>Space</kbd> record / stop &nbsp; <kbd>Enter</kbd> keep &nbsp; <kbd>R</kbd> retake &nbsp; <kbd>Esc</kbd> discard &nbsp; Enter in the name box starts recording</div>
+    <div class="saved-head">
+      <h2>Saved</h2>
+      <button id="reveal" class="quiet" type="button">Show in Finder</button>
+    </div>
+    <div id="sound-list" class="tab-body"></div>
+  </div>
 </main>
+<script src="/shared.js"></script>
 <script src="/voice.js"></script>
+<script src="/sounds.js"></script>
 </body>
 </html>

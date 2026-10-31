@@ -1,19 +1,9 @@
-// The recorder page. Plain browser JS: the scripts' tsconfig has no DOM types.
+// The Voice-over tab. Plain browser JS: the scripts' tsconfig has no DOM types.
 (() => {
+  const { $, el, secs, sleep, notice, tab, createMic } = window.Promo;
+  if (tab !== "voice") return;
+  $("voice").hidden = false;
   const WORDS_PER_SECOND = 2.5;
-  const MIC_KEY = "promo-voice-mic";
-  const $ = (id) => document.getElementById(id);
-
-  const el = (tag, props = {}, ...kids) => {
-    const node = Object.assign(document.createElement(tag), props);
-    for (const k of kids) node.append(k);
-    return node;
-  };
-  const secs = (n) => (n === null || n === undefined ? "?" : `${n.toFixed(1)} s`);
-  const store = {
-    get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-    set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private window */ } },
-  };
 
   // The episode being worked on is the page address's ?episode=; every request names it.
   const EP = new URLSearchParams(location.search).get("episode");
@@ -24,103 +14,10 @@
   let current = 0;
 
   // One recorder for the whole page: phase is idle | counting | recording | review.
-  const rec = { phase: "idle", index: -1, chunks: [], timer: null, cancelled: false, source: null };
+  const rec = { phase: "idle", index: -1, chunks: [], timer: null, run: 0, source: null };
 
-  // ---------- microphone ----------
-  let ctx = null;
-  let stream = null;
-  let node = null;
-  let peak = 0;
-  let clipUntil = 0;
-
-  const WORKLET = `
-    class Tap extends AudioWorkletProcessor {
-      constructor() { super(); this.on = false; this.peak = 0; this.n = 0; this.port.onmessage = (e) => { this.on = e.data; }; }
-      process(inputs) {
-        const ch = inputs[0] && inputs[0][0];
-        if (!ch) return true;
-        for (let i = 0; i < ch.length; i++) { const a = Math.abs(ch[i]); if (a > this.peak) this.peak = a; }
-        if (this.on) this.port.postMessage({ pcm: ch.slice() });
-        if (++this.n % 8 === 0) { this.port.postMessage({ peak: this.peak }); this.peak = 0; }
-        return true;
-      }
-    }
-    registerProcessor("tap", Tap);`;
-
-  function notice(text) {
-    const n = $("notice");
-    n.hidden = !text;
-    n.textContent = text || "";
-  }
-
-  async function listMics() {
-    const sel = $("mic");
-    const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "audioinput");
-    const want = store.get(MIC_KEY);
-    const active = stream && stream.getAudioTracks()[0] && stream.getAudioTracks()[0].getSettings().deviceId;
-    sel.replaceChildren(...devices.map((d, i) => el("option", { value: d.deviceId, textContent: d.label || `Microphone ${i + 1}` })));
-    const pick = [active, want].find((id) => id && devices.some((d) => d.deviceId === id));
-    if (pick) sel.value = pick;
-  }
-
-  async function openMic(deviceId) {
-    if (rec.phase === "recording" || rec.phase === "counting") cancelTake();
-    if (stream) for (const t of stream.getTracks()) t.stop();
-    if (node) node.disconnect();
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: deviceId ? { exact: deviceId } : undefined,
-          channelCount: 1,
-          sampleRate: 48000,
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
-    } catch (e) {
-      stream = null;
-      notice(`The microphone could not be opened (${e && e.name ? e.name : e}). Allow it in the browser, or pick another input.`);
-      await listMics().catch(() => undefined);
-      return;
-    }
-    notice("");
-    if (!ctx) {
-      ctx = new AudioContext({ sampleRate: 48000, latencyHint: "interactive" });
-      const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
-      await ctx.audioWorklet.addModule(url);
-      URL.revokeObjectURL(url);
-    }
-    if (ctx.state === "suspended") await ctx.resume().catch(() => undefined);
-    node = new AudioWorkletNode(ctx, "tap", { numberOfInputs: 1, numberOfOutputs: 0 });
-    node.port.onmessage = (e) => {
-      if (e.data.peak !== undefined) {
-        peak = Math.max(peak, e.data.peak);
-        if (e.data.peak >= 0.98) clipUntil = performance.now() + 1500;
-      } else if (e.data.pcm && rec.phase === "recording") {
-        rec.chunks.push(e.data.pcm);
-      }
-    };
-    ctx.createMediaStreamSource(stream).connect(node);
-    const id = stream.getAudioTracks()[0].getSettings().deviceId;
-    if (id) store.set(MIC_KEY, id);
-    await listMics();
-  }
-
-  // ---------- level meter ----------
-  function drawMeter() {
-    const db = peak > 0 ? 20 * Math.log10(peak) : -90;
-    peak *= 0.85; // fall back between blocks
-    const clipping = performance.now() < clipUntil;
-    const meter = $("meter");
-    const label = $("meter-label");
-    $("meter-fill").style.width = `${Math.max(0, Math.min(100, ((db + 60) / 60) * 100))}%`;
-    meter.classList.toggle("clip", clipping);
-    meter.classList.toggle("hot", !clipping && db > -12);
-    label.classList.toggle("clip", clipping);
-    label.textContent = !stream ? "No microphone" : clipping ? "Too loud, turn the gain down" : db < -70 ? "No signal" : `${Math.round(db)} dB`;
-    requestAnimationFrame(drawMeter);
-  }
+  // Opened once an episode is on the page; the picker records nothing.
+  let mic = null;
 
   // ---------- cards ----------
   function targetSeconds(shot) {
@@ -175,7 +72,7 @@
         buttons.push(button("Keep (Enter)", keepTake, "primary"), button("Play again", playReview), button("Retake (R)", () => startTake(i)));
       } else {
         const b = button(take ? "Record again (Space)" : "Record (Space)", () => { select(i); startTake(i); }, take ? "" : "primary");
-        b.disabled = !free || !stream;
+        b.disabled = !free || !mic.ready;
         buttons.push(b);
         if (take) {
           const p = button("Play take with clip", () => playSaved(i));
@@ -195,22 +92,22 @@
   }
 
   // ---------- recording ----------
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
   function stopMedia() {
     if (rec.source) { try { rec.source.stop(); } catch { /* already stopped */ } rec.source = null; }
     for (const c of cards) { c.video.pause(); }
   }
 
   async function startTake(i) {
-    if (!stream || !ctx) return;
-    if (rec.phase === "review" || rec.phase === "recording") { rec.chunks = []; }
+    if (!mic || !mic.ready) return;
+    if (rec.phase === "recording") mic.end();
+    rec.chunks = [];
     stopMedia();
-    if (ctx.state === "suspended") await ctx.resume();
+    await mic.wake();
     current = i;
     rec.index = i;
     rec.phase = "counting";
-    rec.cancelled = false;
+    // A countdown that was cancelled and restarted inside one step must not carry on beside the new one.
+    const run = ++rec.run;
     rec.chunks = [];
     const card = cards[i];
     card.root.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -219,22 +116,20 @@
       card.count.textContent = String(n);
       render();
       await sleep(750);
-      if (rec.cancelled) return;
+      if (rec.run !== run) return;
     }
     card.video.currentTime = 0;
-    rec.chunks = [];
     rec.phase = "recording";
-    node.port.postMessage(true);
+    mic.begin();
     card.video.play().catch(() => undefined);
     render();
   }
 
   function stopTake() {
     if (rec.phase !== "recording") return;
-    node.port.postMessage(false);
+    rec.chunks = mic.end();
     stopMedia();
-    const total = rec.chunks.reduce((n, c) => n + c.length, 0);
-    rec.seconds = total / ctx.sampleRate;
+    rec.seconds = mic.seconds(rec.chunks);
     rec.phase = "review";
     render();
     playReview();
@@ -242,8 +137,8 @@
 
   function cancelTake() {
     if (rec.phase === "idle") return;
-    rec.cancelled = true;
-    if (node) node.port.postMessage(false);
+    rec.run++;
+    if (mic) mic.end();
     stopMedia();
     rec.phase = "idle";
     rec.index = -1;
@@ -255,19 +150,10 @@
   function playReview() {
     if (rec.phase !== "review" || !rec.chunks.length) return;
     stopMedia();
-    const total = rec.chunks.reduce((n, c) => n + c.length, 0);
-    const buf = ctx.createBuffer(1, total, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    let at = 0;
-    for (const c of rec.chunks) { data.set(c, at); at += c.length; }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.connect(ctx.destination);
     const card = cards[rec.index];
     card.video.currentTime = 0;
     card.video.play().catch(() => undefined);
-    src.start();
-    rec.source = src;
+    rec.source = mic.play(rec.chunks);
   }
 
   function playSaved(i) {
@@ -280,26 +166,13 @@
     rec.source = { stop: () => audio.pause() };
   }
 
-  function toInt16() {
-    const total = rec.chunks.reduce((n, c) => n + c.length, 0);
-    const out = new Int16Array(total);
-    let at = 0;
-    for (const c of rec.chunks) {
-      for (let i = 0; i < c.length; i++) {
-        const s = Math.max(-1, Math.min(1, c[i]));
-        out[at++] = s < 0 ? s * 32768 : s * 32767;
-      }
-    }
-    return out;
-  }
-
   async function keepTake() {
     if (rec.phase !== "review") return;
     const card = cards[rec.index];
-    const pcm = toInt16();
+    const pcm = mic.toInt16(rec.chunks);
     stopMedia();
     card.state.textContent = "Saving...";
-    const res = await fetch(withEp(`/api/take/${encodeURIComponent(card.shot.id)}?rate=${ctx.sampleRate}`), {
+    const res = await fetch(withEp(`/api/take/${encodeURIComponent(card.shot.id)}?rate=${mic.rate}`), {
       method: "PUT",
       headers: { "content-type": "application/octet-stream" },
       body: pcm.buffer,
@@ -437,12 +310,12 @@
     holder.style.gap = "18px";
     episode.shots.forEach((s, i) => { const c = buildCard(s, i); cards.push(c); holder.append(c.root); });
     $("assemble").addEventListener("click", assemble);
-    $("mic").addEventListener("change", (e) => openMic(e.target.value));
-    navigator.mediaDevices.addEventListener("devicechange", () => listMics().catch(() => undefined));
+    mic = createMic({
+      beforeSwitch: () => { if (rec.phase === "recording" || rec.phase === "counting") cancelTake(); },
+      onChange: render,
+    });
     render();
-    requestAnimationFrame(drawMeter);
-    await openMic(store.get(MIC_KEY));
-    render();
+    await mic.start();
   }
   init().catch((e) => notice(`Could not start: ${e}`));
 })();

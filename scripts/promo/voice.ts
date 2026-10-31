@@ -10,7 +10,9 @@
  * Serves a page on 127.0.0.1 where the maintainer reads each shot's narration
  * with the clip playing, keeps or retakes it, and cuts the Reel. Takes land as
  * `promo-out/<id>/vo/<shot id>.wav`, trimmed, exactly where assemble.ts looks.
- * See docs/promo-videos.md. The page (voice/index.html, voice/voice.js) is plain
+ * Its Sounds tab (`?tab=sounds`) records sound effects instead, as numbered
+ * takes in `promo-out/sounds/` (sounds.ts). See docs/promo-videos.md. The page
+ * (voice/index.html, voice/shared.js, voice/voice.js, voice/sounds.js) is plain
  * browser JS because the scripts' tsconfig has no DOM types.
  */
 import { execFile, spawn } from "node:child_process";
@@ -18,6 +20,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, rmS
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { nextTakeFile, SOUND_FILE, soundSlug } from "./sounds";
 import { encodeWav, trimSilence } from "./wav";
 import type { EpisodeManifest } from "./types";
 
@@ -35,6 +38,11 @@ const FONTS: Record<string, string> = {
 };
 
 const EPISODE_ID = /^[a-z0-9][a-z0-9-]*$/i;
+const PAGE_FILES: Record<string, string> = {
+  "/shared.js": "voice/shared.js",
+  "/voice.js": "voice/voice.js",
+  "/sounds.js": "voice/sounds.js",
+};
 
 function parseArgs(argv: string[]): { id: string | null; root: string } {
   let root = "promo-out";
@@ -48,6 +56,8 @@ function parseArgs(argv: string[]): { id: string | null; root: string } {
 }
 
 const { id: START_EPISODE, root: ROOT } = parseArgs(process.argv.slice(2));
+/** Sound effects sit beside the episodes; with no manifest the folder is never listed as one. */
+const SOUNDS = join(ROOT, "sounds");
 
 /** Every recorded episode: a folder under the root holding a manifest. */
 function episodeIds(): string[] {
@@ -144,17 +154,47 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
   });
 }
 
-async function saveTake(ep: Episode, shotId: string, rate: number, body: Buffer): Promise<{ duration: number; raw: number }> {
+/** The page sends raw 16-bit little-endian mono PCM. */
+function pcm(body: Buffer): Int16Array {
   const even = body.length - (body.length % 2);
   // Copy to an aligned buffer: a Buffer slice may sit at an odd byte offset.
   const samples = new Int16Array(even / 2);
   for (let i = 0; i < samples.length; i++) samples[i] = body.readInt16LE(i * 2);
+  return samples;
+}
+
+function sampleRate(url: URL): number | null {
+  const rate = Number(url.searchParams.get("rate"));
+  return Number.isInteger(rate) && rate >= 8000 && rate <= 192000 ? rate : null;
+}
+
+async function saveTake(ep: Episode, shotId: string, rate: number, body: Buffer): Promise<{ duration: number; raw: number }> {
+  const samples = pcm(body);
   const trimmed = trimSilence(samples, rate);
   mkdirSync(ep.vo, { recursive: true });
   writeFileSync(join(ep.vo, `${shotId}.wav`), encodeWav(trimmed, rate));
   // The assembler prefers wav, but never leave an older take of another kind around.
   for (const ext of TAKE_EXTENSIONS) if (ext !== "wav") rmSync(join(ep.vo, `${shotId}.${ext}`), { force: true });
   return { duration: trimmed.length / rate, raw: samples.length / rate };
+}
+
+/** Every saved sound take. Requests are matched against this list, so a path is never built from request input. */
+function soundFiles(): string[] {
+  if (!existsSync(SOUNDS)) return [];
+  return readdirSync(SOUNDS).filter((f) => SOUND_FILE.test(f)).sort();
+}
+
+/**
+ * A sound effect keeps a longer tail than a voice take: a die's last rattle
+ * fades well below where a voice's last word ends, so the silence threshold is
+ * lower and the room left after it longer.
+ */
+function saveSound(slug: string, rate: number, body: Buffer): { file: string; duration: number } {
+  const trimmed = trimSilence(pcm(body), rate, { thresholdDb: -55, padMs: 300 });
+  mkdirSync(SOUNDS, { recursive: true });
+  const file = nextTakeFile(slug, soundFiles());
+  writeFileSync(join(SOUNDS, file), encodeWav(trimmed, rate));
+  return { file, duration: trimmed.length / rate };
 }
 
 let assembling = false;
@@ -177,7 +217,8 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   const method = req.method ?? "GET";
 
   if (method === "GET" && path === "/") return sendFile(req, res, join(HERE, "voice/index.html"), "text/html; charset=utf-8");
-  if (method === "GET" && path === "/voice.js") return sendFile(req, res, join(HERE, "voice/voice.js"), "text/javascript; charset=utf-8");
+  const page = method === "GET" && Object.hasOwn(PAGE_FILES, path) ? PAGE_FILES[path] : undefined;
+  if (page) return sendFile(req, res, join(HERE, page), "text/javascript; charset=utf-8");
   if (method === "GET" && path === "/favicon.ico") {
     res.writeHead(204);
     res.end();
@@ -208,6 +249,45 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     return json(res, 200, list);
   }
 
+  // ---- the Sounds tab ----
+  if (method === "GET" && path === "/api/sounds") {
+    const list = await Promise.all(
+      soundFiles().map(async (file) => ({
+        file,
+        name: SOUND_FILE.exec(file)?.[1],
+        duration: await probeDuration(join(SOUNDS, file)),
+      })),
+    );
+    return json(res, 200, { folder: SOUNDS, sounds: list });
+  }
+
+  if (method === "PUT" && path === "/api/sounds") {
+    const slug = soundSlug(url.searchParams.get("name") ?? "");
+    if (!slug) return json(res, 400, { error: "a sound needs a name with a letter or digit in it" });
+    const rate = sampleRate(url);
+    if (rate === null) return json(res, 400, { error: "bad sample rate" });
+    const body = await readBody(req);
+    if (body.length < 2) return json(res, 400, { error: "empty take" });
+    return json(res, 200, saveSound(slug, rate, body));
+  }
+
+  const sound = /^\/(sound|api\/sounds)\/([^/]+)$/.exec(path);
+  if (sound && (method === "GET" || method === "DELETE")) {
+    const file = soundFiles().find((f) => f === decodeURIComponent(sound[2]));
+    if (!file) return json(res, 404, { error: "unknown sound" });
+    if (method === "GET" && sound[1] === "sound") return sendFile(req, res, join(SOUNDS, file), MIME.wav);
+    if (method === "DELETE" && sound[1] === "api/sounds") {
+      rmSync(join(SOUNDS, file), { force: true });
+      return json(res, 200, { deleted: file });
+    }
+  }
+
+  if (method === "POST" && path === "/api/sounds/reveal") {
+    mkdirSync(SOUNDS, { recursive: true });
+    execFile("open", [SOUNDS], () => undefined);
+    return json(res, 200, { folder: SOUNDS });
+  }
+
   // Everything below works on one episode, named by ?episode=.
   const ep = episodeFor(url);
   if (!ep) return json(res, 404, { error: "unknown episode" });
@@ -236,8 +316,8 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   if (method === "PUT" && put) {
     const shot = findShot(ep, decodeURIComponent(put[1]));
     if (!shot) return json(res, 400, { error: "unknown shot" });
-    const rate = Number(url.searchParams.get("rate"));
-    if (!Number.isInteger(rate) || rate < 8000 || rate > 192000) return json(res, 400, { error: "bad sample rate" });
+    const rate = sampleRate(url);
+    if (rate === null) return json(res, 400, { error: "bad sample rate" });
     const body = await readBody(req);
     if (body.length < 2) return json(res, 400, { error: "empty take" });
     return json(res, 200, await saveTake(ep, shot.id, rate, body));
