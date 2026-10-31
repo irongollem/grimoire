@@ -26,6 +26,8 @@ export type KeyAction =
   | { kind: "abandonAngledWall" }
   /** Select, Angled wall or Light: removes the selected angled wall or placed light (a no-op when none is). */
   | { kind: "deleteSelected" }
+  /** Select: puts down whatever is picked (prop, light, wall or cell). */
+  | { kind: "clearSelection" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
   | { kind: "selectTool"; tool: Tool };
@@ -51,6 +53,10 @@ export interface KeyContext {
   angledRunOpen?: boolean;
   /** An angled wall or a placed light is selected, so Delete has something to remove. */
   selectionDeletable?: boolean;
+  /** Select has a placed prop picked, so Q/E and [ ] turn it (#1125). */
+  selectedPropInSelect?: boolean;
+  /** Anything at all is picked, so Escape puts it down before it means "back to Select". */
+  selectionPresent?: boolean;
 }
 
 // Delete and Backspace are the same key on the two keyboard families.
@@ -94,6 +100,7 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   if (key === "escape") {
     if (ctx.activeTool === "place" && ctx.placeArmed) return { kind: "disarmPlace" };
     if (ctx.activeTool === "angledWall" && ctx.angledRunOpen) return { kind: "abandonAngledWall" };
+    if (ctx.activeTool === "select" && ctx.selectionPresent) return { kind: "clearSelection" };
     const select = ctx.tools.find((t) => t.id === "select");
     return select && !select.disabled ? { kind: "selectTool", tool: select.id } : null;
   }
@@ -111,6 +118,9 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   // Q/E turn what Place holds, checked before the shortcut lookup so `e` turns it
   // instead of picking the Eraser. The editor decides whether that is the selected
   // prop or the armed item's rotation.
+  if (ctx.activeTool === "select" && ctx.selectedPropInSelect && key in STAMP_ROTATIONS) {
+    return { kind: "rotatePlace", delta: STAMP_ROTATIONS[key] };
+  }
   if (ctx.activeTool === "place") {
     if (key in STAMP_ROTATIONS) return { kind: "rotatePlace", delta: STAMP_ROTATIONS[key] };
     if (DRESSING_DELETE_KEYS.has(key)) return { kind: "deleteDressing" };

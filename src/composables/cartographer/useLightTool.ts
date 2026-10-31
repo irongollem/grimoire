@@ -43,23 +43,30 @@ export function useLightTool(opts: LightToolOptions) {
     hover.value = snapPoint(frac, free);
   }
 
-  /** A press: on a light it picks it up, elsewhere it places a new one. Always consumed. */
-  function onPointerDown(frac: CellPoint, free: boolean): void {
+  /**
+   * Picks up the light under the pointer: selects it and starts a drag. False, changing nothing, when none is there.
+   * The Select tool uses it too (#1125), so a light is reachable without switching to the Light tool.
+   */
+  function grabAt(frac: CellPoint): boolean {
     onPointerUp();
     const hit = nearestLight(layers.value.lights, frac);
-    if (hit) {
-      const light = layers.value.lights[hit];
-      selectedId.value = hit;
-      press = {
-        id: hit,
-        before: snapshotStr(),
-        moved: false,
-        placed: false,
-        offset: [light.x - frac[0], light.y - frac[1]],
-        origin: [light.x, light.y],
-      };
-      return;
-    }
+    if (!hit) return false;
+    const light = layers.value.lights[hit];
+    selectedId.value = hit;
+    press = {
+      id: hit,
+      before: snapshotStr(),
+      moved: false,
+      placed: false,
+      offset: [light.x - frac[0], light.y - frac[1]],
+      origin: [light.x, light.y],
+    };
+    return true;
+  }
+
+  /** A press: on a light it picks it up, elsewhere it places a new one. Always consumed. */
+  function onPointerDown(frac: CellPoint, free: boolean): void {
+    if (grabAt(frac)) return;
     const point = snapPoint(frac, free);
     const id = crypto.randomUUID();
     const before = snapshotStr();
@@ -137,5 +144,5 @@ export function useLightTool(opts: LightToolOptions) {
     if (selectedId.value && !layers.value.lights[selectedId.value]) selectedId.value = null;
   }
 
-  return { selectedId, hover, track, onPointerDown, onPointerMove, onPointerUp, isHolding, cancelGesture, deleteSelected, updateSelected, dropStaleSelection };
+  return { selectedId, hover, track, grabAt, onPointerDown, onPointerMove, onPointerUp, isHolding, cancelGesture, deleteSelected, updateSelected, dropStaleSelection };
 }

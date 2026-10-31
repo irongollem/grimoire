@@ -20,7 +20,7 @@ function mountOptions(over: Record<string, unknown> = {}) {
       linkedNoteId: "", linkedEncounterId: "", linkedTrapId: "", linkedFeatureId: "",
       noteOptions: [], encounterOptions: [], trapOptions: [], featureOptions: [],
       activeTemplateShape: "circle", templateShapes: [], brushRadius: 1.5, rectWalls: true,
-      light: { color: "#ffb347", bright: 20, dim: 20 }, lightSelected: false,
+      light: { color: "#ffb347", bright: 20, dim: 20 }, lightSelected: false, selectedAngledKind: null,
       ...over,
     },
     global: { stubs: { EntityCombobox: true } },
@@ -282,5 +282,36 @@ describe("light options (#1125 story 5)", () => {
     const picked = mountOptions({ ...lightProps, lightSelected: true });
     await button(picked, "Delete").trigger("click");
     expect(picked.emitted("deleteLight")).toHaveLength(1);
+  });
+});
+
+describe("Select shows what it picked", () => {
+  const select = { title: "Select", activeTool: "select" };
+
+  it("a picked light shows the light's colour, reach and Delete, not a cell summary", async () => {
+    const wrapper = mountOptions({ ...select, lightSelected: true, selectedCell: [1, 1] });
+    expect(wrapper.text()).toContain("Bright ft");
+    expect(wrapper.text()).not.toContain("Cell 1, 1");
+    await button(wrapper, "Delete").trigger("click");
+    expect(wrapper.emitted("deleteLight")).toHaveLength(1);
+  });
+
+  it("a picked prop shows its name and Delete, and no Catalogue button", async () => {
+    const wrapper = mountOptions({ ...select, catalogueOpen: false, selectedPlaced: { name: "Campfire", rotation: 0 } });
+    expect(wrapper.text()).toContain("Campfire");
+    expect(wrapper.findAll("button").some((b) => b.text() === "Catalogue")).toBe(false);
+    await button(wrapper, "Delete").trigger("click");
+    expect(wrapper.emitted("deleteSelected")).toHaveLength(1);
+  });
+
+  it("a picked angled wall shows its kind and Delete", async () => {
+    const wrapper = mountOptions({ ...select, selectedAngledKind: "grate" });
+    expect(wrapper.text()).toContain("Grate");
+    await button(wrapper, "Delete").trigger("click");
+    expect(wrapper.emitted("deleteAngledWall")).toHaveLength(1);
+  });
+
+  it("with nothing picked it shows the cell summary", () => {
+    expect(mountOptions({ ...select, selectedCell: [1, 1] }).text()).toContain("Cell 1, 1");
   });
 });

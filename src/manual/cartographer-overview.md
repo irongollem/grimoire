@@ -90,7 +90,7 @@ Place puts things on the map from one panel of pictures. Press `O` (or `G`) and 
 
 Pick a picture and click the map to place it; for an object, drag to paint a run of them. A prop shows a faint copy that follows your cursor, and after the click it stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The **Rotate** buttons in the slip at the top left of the map do the same, and with nothing selected those keys turn the next thing you place.
 
-To move a prop, put what you are holding down first (`Esc`), then drag the prop on the map. Right-click, or hold **Alt** and click, takes away the prop under the cursor, or the object if there is no prop, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
+The quickest way to move or turn a prop is the **Select** tool (`V`): click a prop, a light or an angled wall and it is picked, with its own options at the top left (turn and Delete for a prop, colour and reach for a light, the kind for a wall); drag a prop or a light to move it. Click empty floor to pick the cell instead, and `Esc` puts down whatever is picked. Select reaches a prop even while you hold something in Place. You can also put what you are holding down first (`Esc`), then drag the prop with Place. Right-click, or hold **Alt** and click, takes away the prop under the cursor, or the object if there is no prop, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
 
 ## Rooms are detected automatically
 

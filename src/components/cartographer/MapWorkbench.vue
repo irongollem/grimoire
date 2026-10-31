@@ -164,6 +164,8 @@
             :rect-walls="rectWalls"
             :light="shownLight"
             :light-selected="selectedLightId !== null"
+            :selected-angled-kind="selectedAngledWallKind"
+            @delete-angled-wall="deleteSelectedAngledWall"
             @update:light="onLightEdit"
             @delete-light="deleteSelectedLight"
             @update:active-tool="activeTool = $event"
@@ -1031,6 +1033,7 @@ const {
   zoom, viewportOffset, hoverCell, altHeld, spaceHeld, isPanning, canUndo, canRedo, undoEdit, redoEdit, centerMap,
   onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel, structureTools,
   rotateSelectedDressing, deleteSelectedDressing, selectedLightId, updateSelectedLight, deleteSelectedLight,
+  selectedAngledWallKind, deleteSelectedAngledWall,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,

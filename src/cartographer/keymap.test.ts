@@ -105,6 +105,18 @@ describe("resolveKeyAction", () => {
     });
   });
 
+  it("under Select, Escape puts down a pick first; with nothing picked it is the ordinary Escape", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("select"), selectionPresent: true })).toEqual({ kind: "clearSelection" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("select"), selectionPresent: false })).toEqual({ kind: "selectTool", tool: "select" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("wall"), selectionPresent: true })).toEqual({ kind: "selectTool", tool: "select" });
+  });
+
+  it("Q, E and the bracket keys turn a prop picked under Select, and keep their meaning when none is picked", () => {
+    expect(resolveKeyAction(ev({ key: "e" }), { ...ctx("select"), selectedPropInSelect: true })).toEqual({ kind: "rotatePlace", delta: 90 });
+    expect(resolveKeyAction(ev({ key: "]" }), { ...ctx("select"), selectedPropInSelect: true })).toEqual({ kind: "rotatePlace", delta: 1 });
+    expect(resolveKeyAction(ev({ key: "e" }), ctx("select"))).toEqual({ kind: "selectTool", tool: "eraser" });
+  });
+
   it("Escape is a no-op if the Select tool is disabled", () => {
     const off: KeyContext = { activeTool: "floor", tools: [{ id: "select", disabled: true }, { id: "floor", shortcut: "f" }] };
     expect(resolveKeyAction(ev({ key: "Escape" }), off)).toBeNull();

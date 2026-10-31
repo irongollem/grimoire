@@ -7,8 +7,9 @@
     hints
     @update:active-tool="emit('update:activeTool', $event as Tool)"
   >
-    <!-- Select: a read-only summary of the selected cell, compact until opened. -->
-    <template v-if="activeTool === 'select'">
+    <!-- Select: what it picked shows that thing's own controls (the Light and Place branches below); a cell, a
+         read-only summary, compact until opened. -->
+    <template v-if="activeTool === 'select' && !selectedPicked">
       <template v-if="selectedCell">
         <span class="text-caption text-muted-foreground">
           Cell {{ selectedCell[0] }}, {{ selectedCell[1] }}: {{ cellSummary }}
@@ -83,6 +84,19 @@
       <span v-else class="text-caption-sm text-muted-foreground">Shift+click runs a straight wall from the last one.</span>
     </template>
 
+    <!-- Select picked an angled wall: its kind, and the way to take it away. -->
+    <template v-else-if="activeTool === 'select' && selectedAngledKind">
+      <span class="text-caption text-foreground">{{ edgeKindLabel(selectedAngledKind, undefined) }} (angled)</span>
+      <AppButton
+        variant="destructive"
+        size="xs"
+        :icon="IconDelete"
+        label="Delete"
+        tooltip="Delete the selected wall (Delete)"
+        @click="emit('deleteAngledWall')"
+      />
+    </template>
+
     <!-- Angled wall: the kind it draws, and how a run is driven. -->
     <template v-else-if="activeTool === 'angledWall'">
       <SegmentedControl
@@ -97,7 +111,7 @@
     </template>
 
     <!-- Light: colour and reach of the next one, or of the one picked. -->
-    <template v-else-if="activeTool === 'light'">
+    <template v-else-if="activeTool === 'light' || (activeTool === 'select' && lightSelected)">
       <ColorInput
         :model-value="light.color"
         label="Colour"
@@ -147,7 +161,7 @@
     </template>
 
     <!-- Place: what is armed, how it is turned, and the way back to the catalogue. -->
-    <template v-else-if="activeTool === 'place'">
+    <template v-else-if="activeTool === 'place' || (activeTool === 'select' && selectedPlaced)">
       <template v-if="selectedPlaced">
         <span class="text-caption text-foreground">{{ selectedPlaced.name }}</span>
         <RotationControl :model-value="selectedPlaced.rotation" @update:model-value="emit('rotateSelected', $event)" />
@@ -179,7 +193,7 @@
         </span>
       </template>
       <AppButton
-        v-if="!catalogueOpen"
+        v-if="activeTool === 'place' && !catalogueOpen"
         variant="ghost"
         fill="muted"
         size="xs"
@@ -368,10 +382,13 @@ const props = defineProps<{
   light: TileLight;
   /** A placed light is picked, so the edits are to it and Delete takes it away. */
   lightSelected: boolean;
+  /** Select picked an angled wall: its kind (null when none). */
+  selectedAngledKind: SelectedCellEdge["kind"] | null;
 }>();
 
 const emit = defineEmits<{
   "update:activeTool": [tool: Tool];
+  deleteAngledWall: [];
   "update:placeRotation": [deg: number];
   rotateSelected: [deg: number];
   deleteSelected: [];
@@ -405,6 +422,9 @@ function setReach(field: "bright" | "dim", raw: string | number): void {
   if (feet === 0 && other === 0) return;
   emit("update:light", { [field]: feet });
 }
+
+/** Select picked a prop, a light or an angled wall, so the slip shows that instead of a cell. */
+const selectedPicked = computed(() => props.selectedPlaced !== null || props.lightSelected || props.selectedAngledKind !== null);
 
 /** Tools with nothing to set: what a click does, in a line. */
 const HINTS: Record<Tool, string> = {

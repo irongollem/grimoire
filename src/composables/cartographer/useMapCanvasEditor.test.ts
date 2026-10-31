@@ -2255,10 +2255,158 @@ describe("Light tool", () => {
     const { editor, layers, activeTool } = mountWithKeys("light");
     layers.value.lights.torch = { x: 2.5, y: 2.5, light: { color: "#ffb347", bright: 20, dim: 20 } };
     clickCell(editor, px(2) + 64, px(2) + 64);
-    activeTool.value = "select";
+    activeTool.value = "wall";
     return nextTick().then(() => {
       key("Delete");
       expect(Object.keys(layers.value.lights)).toEqual(["torch"]);
     });
+  });
+});
+
+// ── Select picks anything placed on the map (#1125 follow-up) ───────────
+// A campfire clipping a wall could not be clicked with Select, only with Place and nothing armed.
+describe("Select picks what is placed", () => {
+  const LIGHT = { color: "#ffb347", bright: 20, dim: 20 };
+  const CAMP = { prop_id: "table", x: 2, y: 1, rotation: 0, z: 0 };
+
+  function selectEditor() {
+    const selectedDressingId = ref<string | null>(null);
+    const selectedCell = ref<[number, number] | null>(null);
+    const placeItem = ref<PlaceItem | null>(null);
+    const h = mountWithKeys("select", { dressing: ref(DRESSING_CATALOG), selectedDressingId, selectedCell, placeItem });
+    return { ...h, selectedDressingId, selectedCell, placeItem };
+  }
+  const onProp = (n = 20): [number, number] => [px(2) + n, px(1) + n];
+
+  it("a click on a prop selects it, and a drag moves it as one undo step", () => {
+    const { editor, layers, selectedDressingId } = selectEditor();
+    layers.value.dressing.camp = { ...CAMP };
+    const [x, y] = onProp();
+    editor.onPointerDown(down(x, y));
+    editor.onPointerMove(move(x + px(3), y + px(2)));
+    editor.onPointerUp(up(x + px(3), y + px(2)));
+    expect(selectedDressingId.value).toBe("camp");
+    expect(layers.value.dressing.camp).toMatchObject({ x: 5, y: 3 });
+    editor.undoEdit();
+    expect(layers.value.dressing.camp).toMatchObject({ x: 2, y: 1 });
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("with an item armed in Place, a Select click on a prop grabs it and stamps nothing new", () => {
+    const { editor, layers, activeTool, placeItem } = selectEditor();
+    layers.value.dressing.camp = { ...CAMP };
+    placeItem.value = { kind: "prop", propId: "table" };
+    activeTool.value = "select";
+    clickCell(editor, ...onProp());
+    expect(Object.keys(layers.value.dressing)).toEqual(["camp"]);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("a click on empty floor selects the cell and puts the prop down", () => {
+    const { editor, layers, selectedDressingId, selectedCell } = selectEditor();
+    layers.value.dressing.camp = { ...CAMP };
+    clickCell(editor, ...onProp());
+    clickCell(editor, px(8) + 10, px(8) + 10);
+    expect(selectedDressingId.value).toBeNull();
+    expect(selectedCell.value).toEqual([8, 8]);
+  });
+
+  it("Select picks a light and a drag moves it as one undo step", () => {
+    const { editor, layers } = selectEditor();
+    layers.value.lights.torch = { x: 2.5, y: 2.5, light: { ...LIGHT } };
+    editor.onPointerDown(down(px(2) + 64, px(2) + 64));
+    editor.onPointerMove(move(px(5) + 64, px(4) + 64));
+    editor.onPointerUp(up(px(5) + 64, px(4) + 64));
+    expect(editor.selectedLightId.value).toBe("torch");
+    expect(layers.value.lights.torch).toMatchObject({ x: 5.5, y: 4.5 });
+    editor.undoEdit();
+    expect(layers.value.lights.torch).toMatchObject({ x: 2.5, y: 2.5 });
+  });
+
+  it("a light picked in the Light tool stays picked on switching to Select, so the slip can edit it", async () => {
+    const { editor, layers, activeTool } = selectEditor();
+    layers.value.lights.torch = { x: 2.5, y: 2.5, light: { ...LIGHT } };
+    activeTool.value = "light";
+    await nextTick(); // the tool watcher only sees a change that survives to a flush
+    clickCell(editor, px(2) + 64, px(2) + 64);
+    activeTool.value = "select";
+    await nextTick();
+    expect(editor.selectedLightId.value).toBe("torch");
+  });
+
+  it("a prop picked with Select is put down on leaving for another tool, so it does not come back later", async () => {
+    const { editor, layers, activeTool, selectedDressingId } = selectEditor();
+    layers.value.dressing.camp = { ...CAMP };
+    clickCell(editor, ...onProp());
+    activeTool.value = "wall";
+    await nextTick();
+    expect(selectedDressingId.value).toBeNull();
+  });
+
+  it("Delete under Select removes a selected prop as one undo step", () => {
+    const { editor, layers } = selectEditor();
+    layers.value.dressing.camp = { ...CAMP };
+    clickCell(editor, ...onProp());
+    key("Delete");
+    expect(layers.value.dressing).toEqual({});
+    editor.undoEdit();
+    expect(Object.keys(layers.value.dressing)).toEqual(["camp"]);
+  });
+
+  it("Delete under Select removes a selected light as one undo step", () => {
+    const { editor, layers } = selectEditor();
+    layers.value.lights.torch = { x: 2.5, y: 2.5, light: { ...LIGHT } };
+    clickCell(editor, px(2) + 64, px(2) + 64);
+    key("Delete");
+    expect(layers.value.lights).toEqual({});
+    editor.undoEdit();
+    expect(Object.keys(layers.value.lights)).toEqual(["torch"]);
+  });
+
+  it("picking one thing puts the others down: wall, then prop, then light, then the cell", () => {
+    const { editor, layers, selectedDressingId, selectedCell } = selectEditor();
+    layers.value.walls.slant = { pack_id: "p", pack_version: 1, variant: 0, type: "wall", a: [8, 8], b: [12, 12] };
+    layers.value.dressing.camp = { ...CAMP };
+    layers.value.lights.torch = { x: 6.5, y: 6.5, light: { ...LIGHT } };
+    clickCell(editor, px(10), px(10));
+    expect(editor.angledTool.selectedId.value).toBe("slant");
+    clickCell(editor, ...onProp());
+    expect(selectedDressingId.value).toBe("camp");
+    expect(editor.angledTool.selectedId.value).toBeNull();
+    clickCell(editor, px(6) + 64, px(6) + 64);
+    expect(editor.selectedLightId.value).toBe("torch");
+    expect(selectedDressingId.value).toBeNull();
+    clickCell(editor, px(20), px(20));
+    expect(editor.selectedLightId.value).toBeNull();
+    expect(selectedCell.value).toEqual([20, 20]);
+  });
+
+  it("picking an angled wall reports its kind for the slip and drops the cell", () => {
+    const { editor, layers, selectedCell } = selectEditor();
+    layers.value.walls.slant = { pack_id: "p", pack_version: 1, variant: 0, type: "grate", a: [0, 0], b: [4, 4] };
+    clickCell(editor, px(9), px(9));
+    expect(selectedCell.value).toEqual([9, 9]);
+    clickCell(editor, px(2) + 20, px(2) - 10);
+    expect(editor.selectedAngledWallKind.value).toBe("grate");
+    expect(selectedCell.value).toBeNull();
+  });
+
+  it("Q and E turn a prop picked with Select, one undo step each", () => {
+    const { editor, layers } = selectEditor();
+    layers.value.dressing.camp = { ...CAMP };
+    clickCell(editor, ...onProp());
+    key("e");
+    expect(layers.value.dressing.camp.rotation).toBe(90);
+    editor.undoEdit();
+    expect(layers.value.dressing.camp.rotation).toBe(0);
+  });
+
+  it("Escape puts down what Select picked and stays in Select", () => {
+    const { editor, layers, activeTool, selectedDressingId } = selectEditor();
+    layers.value.dressing.camp = { ...CAMP };
+    clickCell(editor, ...onProp());
+    key("Escape");
+    expect(selectedDressingId.value).toBeNull();
+    expect(activeTool.value).toBe("select");
   });
 });

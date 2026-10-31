@@ -58,3 +58,16 @@ describe("dropStaleSelection", () => {
     expect(tool.selectedId.value).toBeNull();
   });
 });
+
+describe("grabAt (the Select tool's way in)", () => {
+  it("picks the light under the point without placing one, and says false over empty floor", () => {
+    const { layers, tool, pushCommand } = setup();
+    layers.value.lights.torch = { x: 2.5, y: 2.5, light: { color: "#ffb347", bright: 20, dim: 20 } };
+    expect(tool.grabAt([9, 9])).toBe(false);
+    expect(Object.keys(layers.value.lights)).toEqual(["torch"]);
+    expect(tool.grabAt([2.6, 2.5])).toBe(true);
+    tool.onPointerUp();
+    expect(tool.selectedId.value).toBe("torch");
+    expect(pushCommand).not.toHaveBeenCalled();
+  });
+});
