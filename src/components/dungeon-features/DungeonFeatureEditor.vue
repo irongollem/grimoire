@@ -1,29 +1,37 @@
 <template>
   <div>
-    <!-- Action bar -->
+    <!-- Action bar: an existing feature saves itself, so Save gives way to the status line. -->
     <div class="flex flex-wrap items-center justify-end gap-2 mb-4">
       <AppButton
         v-if="!isNew"
         variant="destructive"
         size="md"
-        label="Delete"
+        :label="deleting ? 'Deleting…' : 'Delete'"
         :icon="IconDelete"
+        :disabled="deleting"
         @click="deleteFeature"
       />
       <AppButton
         v-if="!isNew"
         variant="subtle"
         size="md"
-        label="Cancel"
-        @click="onCancel"
+        label="Done"
+        @click="onDone"
+      />
+      <AutosaveStatus
+        v-if="autosave"
+        :status="autosave.status.value"
+        :error="autosave.saveError.value"
+        paused-label="Autosave paused until the feature has a name"
       />
       <AppButton
+        v-else
         variant="primary"
         size="md"
         :icon="IconSave"
         :disabled="saving || !form.name.trim()"
-        :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
-        @click="save"
+        :label="saving ? 'Saving…' : 'Create'"
+        @click="create"
       />
     </div>
 
@@ -105,7 +113,7 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Material</label>
-              <AppSelect v-model="form.object_material" size="body" weight="normal" block>
+              <AppSelect :model-value="form.object_material" size="body" weight="normal" block @update:model-value="onMaterialChange">
                 <option :value="null">Not an object</option>
                 <option v-for="m in OBJECT_MATERIALS" :key="m" :value="m">{{ OBJECT_MATERIAL_LABELS[m] }}</option>
               </AppSelect>
@@ -192,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { IconDelete, IconSave } from '@/lib/icons';
@@ -201,6 +209,7 @@ import {
   useUpdateDungeonFeature,
   useDeleteDungeonFeature,
 } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useAutosave } from "@/composables/useAutosave";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import {
@@ -215,12 +224,12 @@ import {
   OBJECT_MATERIAL_LABELS,
   OBJECT_SIZES,
   OBJECT_SIZE_LABELS,
-  objectArmorClass,
   objectHitPoints,
 } from "@/rules/objects";
 import type { ObjectMaterial, ObjectSize } from "@/rules/objects";
+import { withObjectMaterial } from "@/lib/dungeon-features/objectStats";
 import { markEdited } from "@/ai/provenance";
-import type { AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
@@ -228,7 +237,14 @@ import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 
+/**
+ * The Dungeon Craft feature editor. An existing feature saves itself as it is
+ * edited and Done leaves for the sheet; a new one has no row to save into yet, so
+ * it gets one explicit Create and then goes to the list (CLAUDE.md, Post-Mutation
+ * Navigation).
+ */
 const props = defineProps<{ feature: DungeonFeature | null; isNew: boolean }>();
 
 const route  = useRoute();
@@ -240,14 +256,14 @@ const createMut = useCreateDungeonFeature();
 const updateMut = useUpdateDungeonFeature();
 const deleteMut = useDeleteDungeonFeature();
 const saving = ref(false);
+const deleting = ref(false);
 
 const blankForm = () => ({
   name: "",
   feature_type: "Secret Door" as (typeof DUNGEON_FEATURE_TYPES)[number],
   feature_glyph: null as FeatureGlyph | null,
   // New features default to the active campaign; existing ones keep whatever
-  // scope they already have (#800) — this only matters for the pre-load
-  // (isNew) case, since the watch below overwrites it from `f.campaign_id`.
+  // scope they already have (#800).
   campaign_id: (activeCampaignId.value ?? null) as string | null,
   description: null as string | null,
   perception_dc: null as number | null,
@@ -266,93 +282,104 @@ const blankForm = () => ({
   image_url: null as string | null,
   image_focal_point: null as { x: number; y: number } | null,
   tags: [] as string[],
-  ai_provenance: null as AiProvenance | null,
 });
+type FeatureForm = ReturnType<typeof blankForm>;
 
-const form = ref(blankForm());
+function featureToForm(f: DungeonFeature): FeatureForm {
+  return {
+    name: f.name,
+    feature_type: f.feature_type,
+    feature_glyph: f.feature_glyph,
+    campaign_id: f.campaign_id,
+    description: f.description
+      ? typeof f.description === "string" ? f.description : JSON.stringify(f.description)
+      : null,
+    perception_dc: f.perception_dc,
+    investigation_dc: f.investigation_dc,
+    arcana_dc: f.arcana_dc,
+    object_material: f.object_material,
+    object_size: f.object_size,
+    object_ac: f.object_ac,
+    object_hp: f.object_hp,
+    damage_threshold: f.damage_threshold,
+    break_dc: f.break_dc,
+    lock_dc: f.lock_dc,
+    trigger_type: f.trigger_type,
+    trigger_description: f.trigger_description,
+    contents_description: f.contents_description
+      ? typeof f.contents_description === "string" ? f.contents_description : JSON.stringify(f.contents_description)
+      : null,
+    image_url: f.image_url,
+    image_focal_point: f.image_focal_point,
+    tags: [...(f.tags ?? [])],
+  };
+}
 
-watch(
-  () => props.feature,
-  (f) => {
-    if (f)
-      Object.assign(form.value, {
-        name: f.name,
-        feature_type: f.feature_type,
-        feature_glyph: f.feature_glyph,
-        campaign_id: f.campaign_id,
-        description: f.description
-          ? typeof f.description === "string" ? f.description : JSON.stringify(f.description)
-          : null,
-        perception_dc: f.perception_dc,
-        investigation_dc: f.investigation_dc,
-        arcana_dc: f.arcana_dc,
-        object_material: f.object_material,
-        object_size: f.object_size,
-        object_ac: f.object_ac,
-        object_hp: f.object_hp,
-        damage_threshold: f.damage_threshold,
-        break_dc: f.break_dc,
-        lock_dc: f.lock_dc,
-        trigger_type: f.trigger_type,
-        trigger_description: f.trigger_description,
-        contents_description: f.contents_description
-          ? typeof f.contents_description === "string" ? f.contents_description : JSON.stringify(f.contents_description)
-          : null,
-        image_url: f.image_url,
-        image_focal_point: f.image_focal_point,
-        tags: [...(f.tags ?? [])],
-        ai_provenance: f.ai_provenance ?? null,
-      });
-  },
-  { immediate: true },
-);
+const form = reactive<FeatureForm>(props.feature ? featureToForm(props.feature) : blankForm());
 
-// Choosing a material fills in the book's AC, but never replaces one the DM typed.
-watch(
-  () => form.value.object_material,
-  (material) => {
-    if (material && form.value.object_ac === null) form.value.object_ac = objectArmorClass(material);
-  },
-);
+/**
+ * Picking a material, and only picking one: a watcher on the field also fired
+ * when a saved feature loaded into the form, refilling an AC the DM had cleared
+ * and marking an untouched AI feature as edited.
+ */
+function onMaterialChange(next: ObjectMaterial | null) {
+  Object.assign(form, withObjectMaterial(form, next));
+}
 
 const bookHitPoints = computed(() => {
-  const size = form.value.object_size;
+  const size = form.object_size;
   if (!size) return null;
   return { fragile: objectHitPoints(size, "fragile"), resilient: objectHitPoints(size, "resilient") };
 });
 
-async function save() {
-  if (!form.value.name.trim()) return;
+// Material edit detection (#606): the image, glyph, tags and scope do not count.
+const MATERIAL_FIELDS = [
+  "name", "feature_type", "description", "contents_description", "trigger_type", "trigger_description",
+  "perception_dc", "investigation_dc", "arcana_dc",
+  "object_material", "object_size", "object_ac", "object_hp", "damage_threshold", "break_dc", "lock_dc",
+] as const satisfies readonly (keyof FeatureForm)[];
+
+async function saveExisting(snapshot: FeatureForm) {
+  const f = props.feature;
+  if (!f) return;
+  // Compared with the server copy, so a save that changes only tags or art leaves
+  // an AI-generated feature unedited.
+  const saved = featureToForm(f);
+  const edited = MATERIAL_FIELDS.some((field) => !deepEqual(snapshot[field], saved[field]));
+  await updateMut.mutateAsync({
+    id: f.id,
+    update: { ...snapshot, ai_provenance: edited ? markEdited(f.ai_provenance) : f.ai_provenance },
+  });
+}
+
+const autosave = props.feature
+  ? useAutosave({
+      draft: form,
+      initial: () => featureToForm(props.feature!),
+      equal: deepEqual,
+      save: saveExisting,
+      canSave: () => !!form.name.trim(),
+      errorMessage: "Failed to save",
+    })
+  : null;
+
+// The saved row coming back is our own echo unless the DM has moved on since;
+// only a quiet form is re-hydrated, so typing is never overwritten.
+watch(
+  () => props.feature,
+  (row) => {
+    if (!row || !autosave || autosave.dirty.value || autosave.saving.value) return;
+    const next = featureToForm(row);
+    if (!deepEqual(next, form)) autosave.reset(next);
+  },
+);
+
+/** Creating: the explicit first save, then the list. */
+async function create() {
+  if (!props.isNew || !form.name.trim() || saving.value) return;
   saving.value = true;
   try {
-    // Material edit detection (#606): the image, tags and scope do not count.
-    const f = props.feature;
-    const text = (v: string | null) => v ?? "";
-    if (f && (
-      form.value.name.trim() !== f.name ||
-      form.value.feature_type !== f.feature_type ||
-      text(form.value.description) !== text(f.description) ||
-      text(form.value.contents_description) !== text(f.contents_description) ||
-      form.value.trigger_type !== f.trigger_type ||
-      text(form.value.trigger_description) !== text(f.trigger_description) ||
-      form.value.perception_dc !== f.perception_dc ||
-      form.value.investigation_dc !== f.investigation_dc ||
-      form.value.arcana_dc !== f.arcana_dc ||
-      form.value.object_material !== f.object_material ||
-      form.value.object_size !== f.object_size ||
-      form.value.object_ac !== f.object_ac ||
-      form.value.object_hp !== f.object_hp ||
-      form.value.damage_threshold !== f.damage_threshold ||
-      form.value.break_dc !== f.break_dc ||
-      form.value.lock_dc !== f.lock_dc
-    )) {
-      form.value.ai_provenance = markEdited(form.value.ai_provenance);
-    }
-    if (props.isNew) {
-      await createMut.mutateAsync({ ...form.value, notes: null });
-    } else {
-      await updateMut.mutateAsync({ id: props.feature!.id, update: { ...form.value } });
-    }
+    await createMut.mutateAsync({ ...form, ai_provenance: null, notes: null });
     router.push("/dungeon-craft");
   } finally {
     saving.value = false;
@@ -360,17 +387,45 @@ async function save() {
 }
 
 async function deleteFeature() {
-  const ok = await confirm(`Delete "${form.value.name}"? This cannot be undone.`, {
+  if (!props.feature || deleting.value) return;
+  const ok = await confirm(`Delete "${form.name}"? This cannot be undone.`, {
     title: "Delete Feature",
     confirmLabel: "Delete",
     danger: true,
   });
   if (!ok) return;
-  await deleteMut.mutateAsync(props.feature!);
-  router.push("/dungeon-craft");
+  deleting.value = true;
+  // Nothing pending may land on a row being deleted.
+  await autosave?.hold();
+  try {
+    await deleteMut.mutateAsync(props.feature);
+    router.push("/dungeon-craft");
+  } catch (e) {
+    autosave?.release();
+    throw e;
+  } finally {
+    deleting.value = false;
+  }
 }
 
-function onCancel() {
+/** Done: back to the sheet once every edit has been written. */
+async function onDone() {
+  if (autosave) {
+    await autosave.saveNow();
+    // Still dirty means nothing was written: a blank name pauses autosave, or the
+    // write failed. Leaving silently would drop those edits.
+    if (autosave.dirty.value) {
+      const reason = autosave.status.value === "paused"
+        ? "A feature needs a name before its edits can be saved."
+        : "The last save failed.";
+      const leave = await confirm(`${reason} Leave anyway and lose your unsaved edits?`, {
+        title: "Unsaved edits",
+        confirmLabel: "Leave",
+      });
+      if (!leave) return;
+      autosave.reset();
+    }
+  }
   const q = { ...route.query };
   delete q.edit;
   router.push({ query: q });

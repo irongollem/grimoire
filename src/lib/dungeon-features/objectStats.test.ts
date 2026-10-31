@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { objectStatLine } from "./objectStats";
+import { objectStatLine, withObjectMaterial } from "./objectStats";
 
 const none = { object_ac: null, object_hp: null, damage_threshold: null, break_dc: null, lock_dc: null };
 
@@ -36,5 +36,33 @@ describe("objectStatLine", () => {
 
   it("keeps a stat when only that one is set", () => {
     expect(objectStatLine({ ...none, lock_dc: 10 })).toBe("Pick lock DC 10");
+  });
+});
+
+describe("withObjectMaterial", () => {
+  const blank = {
+    object_material: null, object_size: null, object_ac: null, object_hp: null,
+    damage_threshold: null, break_dc: null, lock_dc: null,
+  };
+
+  it("fills the book AC for the first material picked (DMG: wood 15)", () => {
+    expect(withObjectMaterial(blank, "wood").object_ac).toBe(15);
+  });
+
+  // Bug: the AC filled only when empty, so Wood then Iron saved AC 15 instead of 19.
+  it("moves the AC with the material while it is still the book's AC", () => {
+    const wood = withObjectMaterial(blank, "wood");
+    expect(withObjectMaterial(wood, "iron").object_ac).toBe(19);
+  });
+
+  it("keeps an AC the DM typed when the material changes", () => {
+    const typed = { ...withObjectMaterial(blank, "wood"), object_ac: 17 };
+    expect(withObjectMaterial(typed, "iron").object_ac).toBe(17);
+  });
+
+  // Bug: "Not an object" kept every stat, so the sheet still drew the Object block and its immunities.
+  it("clears every object stat for Not an object", () => {
+    const door = { ...withObjectMaterial(blank, "wood"), object_size: "medium" as const, object_hp: 18, damage_threshold: 5, break_dc: 15, lock_dc: 15 };
+    expect(withObjectMaterial(door, null)).toEqual(blank);
   });
 });

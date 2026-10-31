@@ -92,7 +92,7 @@ Each type renders with a distinct colour badge on the card thumbnail. `feature_t
 Until 30 Oct 2026 every type was a concealment and a feature only said how it is *found*. A DM who generated a cart got "Other" with nowhere to put the numbers the table needs. Migration `20261030214202` gave both `dungeon_features` and `library_dungeon_features` the Dungeon Master's Guide object block, all nullable (a hidden passage is not an object):
 
 - `object_material` (cloth, crystal, wood, stone, iron, mithral, adamantine) and `object_size` (tiny to large) are what the book's AC and hit points follow. `src/rules/objects.ts` holds the table, the same in both editions. Bigger than Large is several sections, not a size.
-- `object_ac` and `object_hp` are stored, not derived, so a reinforced door can be sturdier than the book's row. The editor fills AC from the material only while AC is empty; the AI parser does the same when the model names a material and no AC.
+- `object_ac` and `object_hp` are stored, not derived, so a reinforced door can be sturdier than the book's row. Picking a material in the editor (`withObjectMaterial`, `src/lib/dungeon-features/objectStats.ts`) sets the AC to that material's while the AC is empty or still the previous material's book value, and keeps an AC the DM typed; "Not an object" clears every object stat, since any one left behind still draws the Object block. It runs on the pick only, never when a saved feature loads. The AI parser fills a missing AC from a named material too.
 - `damage_threshold`, `break_dc` (Strength check to force or break) and `lock_dc` (pick with thieves' tools).
 - Immunity to poison and psychic damage is a rule every object has (`OBJECT_DAMAGE_IMMUNITIES`), shown on the sheet, never a column.
 
@@ -105,7 +105,7 @@ A door on a site plan may cite a `Door` or `Lock` feature as well as the three c
 - Browse the list at `/dungeon-craft` (Features tab), filtered by type and/or keyword.
 - Tap any card to open the detail view (`/dungeon-features/:id`), which shows a read-only **sheet** by default; click Edit to switch to the editor.
 - New features are created at `/dungeon-features/new`.
-- After save or delete the DM is returned to `/dungeon-craft` (Features tab).
+- Editing an existing feature saves itself (`useAutosave` + `AutosaveStatus`), so there is no Save: Done flushes and returns to the sheet. Create is the one explicit save and returns to `/dungeon-craft` (Features tab), as does delete.
 
 ### Trigger / Mechanism
 

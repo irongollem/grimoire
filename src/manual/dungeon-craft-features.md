@@ -58,7 +58,7 @@ Your private notes on a feature live in the **DM notes** box on its page, saved 
 
 Any feature can carry object stats, following the Dungeon Master's Guide rules for objects. Leave **Material** on **Not an object** and the card stays out of the way.
 
-- **Material**: what it is made of, from cloth up to adamantine. Choosing one fills in the book's **AC** for that material, unless you already typed an AC of your own.
+- **Material**: what it is made of, from cloth up to adamantine. Choosing one fills in the book's **AC** for that material, and changing it moves the AC along, unless you typed an AC of your own. Switching back to **Not an object** clears all the object stats.
 - **Size**: Tiny, Small, Medium or Large. The book's hit points for that size show under **Hit points**, one figure for a fragile object and one for a resilient one. Pick whichever fits, or type your own.
 - **AC** and **Hit points**: what the party has to beat to destroy it.
 - **Damage threshold**: damage below this number does nothing to it.
