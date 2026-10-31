@@ -9,7 +9,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(22);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('10600000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -148,6 +148,35 @@ select is(
   (select library_dungeon_feature_id from public.get_player_visible_puzzles('10600000-0000-4000-8000-000000000010')
     where id = '10600000-0000-4000-8000-000000000081'),
   null, 'the projection withholds the library feature anchor');
+
+-- ── the library feature mirrors the owned one, column for column ─────────────
+-- Customize copies a library row into dungeon_features by spreading every content column
+-- (src/lib/dungeon-features/libraryCopy.ts), so a column the owned table gains and the
+-- library lacks is a stat no library feature can carry (20261030214202 added seven to both).
+select is_empty($$
+  select column_name, data_type from information_schema.columns
+   where table_schema = 'public' and table_name = 'dungeon_features'
+     and column_name not in ('id', 'user_id', 'campaign_id', 'ai_provenance', 'created_at', 'updated_at')
+  except
+  select column_name, data_type from information_schema.columns
+   where table_schema = 'public' and table_name = 'library_dungeon_features'
+$$, 'library_dungeon_features has every content column of dungeon_features, with the same type');
+
+-- ── every library object follows the book ───────────────────────────────────
+-- DMG "Objects" (2014 and 2024 alike): Object Armor Class by material, Object Hit Points
+-- by size, fragile or resilient. A library entry is the book's object, so a seed that
+-- typos an AC or gives hit points off the table fails here (20261030231807). A material
+-- without a size, or the reverse, is a half-entered object.
+select is_empty($$
+  select f.id from public.library_dungeon_features f
+    left join (values ('cloth', 11), ('crystal', 13), ('wood', 15), ('stone', 17), ('iron', 19), ('mithral', 21), ('adamantine', 23))
+           as ac(material, value) on ac.material = f.object_material
+    left join (values ('tiny', 2, 5), ('small', 3, 10), ('medium', 4, 18), ('large', 5, 27))
+           as hp(size, fragile, resilient) on hp.size = f.object_size
+   where (f.object_material is null) <> (f.object_size is null)
+      or (f.object_material is not null and (f.object_ac is distinct from ac.value
+          or f.object_hp not in (hp.fragile, hp.resilient) or f.object_hp is null))
+$$, 'every library object has the DMG AC for its material and DMG hit points for its size');
 
 select * from finish();
 rollback;

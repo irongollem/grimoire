@@ -10,6 +10,7 @@
       Feature · {{ feature.feature_type }}{{ feature.trigger_type ? ` · trigger: ${feature.trigger_type}` : "" }}
     </p>
     <p v-if="dcLine" class="text-caption text-muted-foreground">{{ dcLine }}</p>
+    <p v-if="statLine" class="text-caption text-muted-foreground">{{ statLine }}</p>
     <p v-if="feature.trigger_description" class="text-caption text-muted-foreground">Opens by: {{ feature.trigger_description }}</p>
     <div v-if="$slots.actions" class="flex flex-wrap justify-end gap-2 pt-0.5">
       <slot name="actions" />
@@ -34,6 +35,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useDungeonFeature, useLibraryDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
 import { isLibraryId } from "@/lib/dungeon-features/library";
+import { objectStatLine } from "@/lib/dungeon-features/objectStats";
 
 const { featureId } = defineProps<{ featureId: string }>();
 
@@ -56,4 +58,6 @@ const dcLine = computed(() => {
   if (feature.value.arcana_dc !== null) parts.push(`Arcana DC ${feature.value.arcana_dc}`);
   return parts.join(" · ");
 });
+
+const statLine = computed(() => (feature.value ? objectStatLine(feature.value) : null));
 </script>

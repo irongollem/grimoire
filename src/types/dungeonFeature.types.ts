@@ -1,4 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
+import type { ObjectMaterial, ObjectSize } from "@/rules/objects";
 
 export const DUNGEON_FEATURE_TYPES = [
   "Secret Door",
@@ -7,6 +8,9 @@ export const DUNGEON_FEATURE_TYPES = [
   "Hidden Cache",
   "Concealed Alcove",
   "Moving Wall",
+  "Door",
+  "Lock",
+  "Object",
   "Other",
 ] as const;
 export type DungeonFeatureType = (typeof DUNGEON_FEATURE_TYPES)[number];
@@ -18,6 +22,9 @@ export const DUNGEON_FEATURE_TYPE_BG: Record<DungeonFeatureType, string> = {
   "Hidden Cache":      "bg-feature-hidden-cache",
   "Concealed Alcove":  "bg-feature-concealed-alcove",
   "Moving Wall":       "bg-feature-moving-wall",
+  Door:                "bg-feature-door",
+  Lock:                "bg-feature-lock",
+  Object:              "bg-feature-object",
   Other:               "bg-feature-other",
 };
 
@@ -88,6 +95,20 @@ export interface DungeonFeature {
   /** How this feature draws on a site map (#804). Null = renderer falls back
    *  to a generic feature marker — never an empty cell. */
   feature_glyph: FeatureGlyph | null;
+  /** The DMG object block (migration 20261030214202): set when the feature is
+   *  a physical thing the party can attack, force or pick (a door, a lock, a
+   *  cart). All null for a feature that is not a breakable object. Material
+   *  and size are what the book's AC and hit points follow (`src/rules/objects.ts`);
+   *  AC and HP are stored so a DM can set a sturdier door's numbers by hand. */
+  object_material: ObjectMaterial | null;
+  object_size: ObjectSize | null;
+  object_ac: number | null;
+  object_hp: number | null;
+  damage_threshold: number | null;
+  /** Strength check DC to force it open or break it. */
+  break_dc: number | null;
+  /** DC to pick its lock with thieves' tools. */
+  lock_dc: number | null;
   /** What's inside / what happens when opened */
   contents_description: string | null;
   image_url: string | null;

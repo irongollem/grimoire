@@ -4,9 +4,14 @@ import type { CampaignMessage, ItemDropMetadata } from "@/types/chat.types";
 
 /** Past the deadline by this much, so the server's own clock has certainly passed it. */
 const GRACE_MS = 250;
-/** Client clock ahead of the server: the roll is still open when we ask. Ask again. */
+/**
+ * Client clock ahead of the server: the roll is still open when we ask. Ask again,
+ * backing off to a ceiling, for as long as the roll stays open. A fixed number of
+ * attempts left a tab whose clock ran more than ~10s fast giving up for good, with
+ * the drop stuck on "rolling" and Grab refused.
+ */
 const RETRY_MS = 2000;
-const MAX_ATTEMPTS = 5;
+const MAX_RETRY_MS = 30_000;
 
 /**
  * Resolves Need or Greed rolls at their deadline.
@@ -20,7 +25,7 @@ export function useLootRollClock(
   resolve: (messageId: string) => Promise<ItemDropMetadata>,
 ) {
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Ids already scheduled, including ones mid-call or out of attempts, so a later message change never re-arms them. */
+  /** Ids already scheduled, including ones mid-call, so a later message change never re-arms them. */
   const handled = new Set<string>();
 
   function clear(id: string) {
@@ -39,9 +44,9 @@ export function useLootRollClock(
     timers.delete(id);
     try {
       const meta = await resolve(id);
-      if (handled.has(id) && meta.roll && meta.roll.resolved_at === null && attempt < MAX_ATTEMPTS) {
+      if (handled.has(id) && meta.roll && meta.roll.resolved_at === null) {
         // The watcher cannot see a patch that left the roll open, so retry here.
-        schedule(id, RETRY_MS, attempt + 1);
+        schedule(id, Math.min(MAX_RETRY_MS, RETRY_MS * 2 ** (attempt - 1)), attempt + 1);
       }
     } catch (e) {
       reportHandledError(e, "loot-roll-resolve", { messageId: id });

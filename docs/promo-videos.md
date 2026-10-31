@@ -24,6 +24,14 @@ suppression and auto gain off (they ruin a condenser mic), trims the silence
 "Assemble the Reel" runs `promo:assemble` and plays the result.
 `promo:assemble -- <id>` on its own builds a draft with whatever takes exist.
 
+The page's **Sounds** tab (`/?tab=sounds`) records sound effects, such as a
+dice roll, with the same microphone and keys. Name the sound and every kept
+take becomes its own file, `promo-out/sounds/<name>-01.wav`, `-02.wav` and on,
+numbered past the highest take of that name (`sounds.ts`) so deleting one never
+lets the next overwrite another. A sound is trimmed more gently than a voice
+(down to -55 dB with 0.3 s of room) so a die's last rattle survives, and the
+last quarter second is cut, where the stop key's own click lands.
+
 The recorder starts its own app server on :5181 (`server.ts`) that does not
 watch files: other sessions edit this checkout, and on the shared :5173 every
 save reloaded the page mid-take. `PROMO_BASE_URL=<url>` films a server you run

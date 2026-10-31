@@ -172,6 +172,9 @@
   --color-feature-hidden-cache: var(--feature-hidden-cache);
   --color-feature-concealed-alcove: var(--feature-concealed-alcove);
   --color-feature-moving-wall: var(--feature-moving-wall);
+  --color-feature-door: var(--feature-door);
+  --color-feature-lock: var(--feature-lock);
+  --color-feature-object: var(--feature-object);
   --color-feature-other: var(--feature-other);
   --color-school-abjuration: var(--school-abjuration);
   --color-school-conjuration: var(--school-conjuration);
@@ -395,6 +398,9 @@
   --feature-hidden-cache: #16a34a;
   --feature-concealed-alcove: #0891b2;
   --feature-moving-wall: #6b7280;
+  --feature-door: #92400e;
+  --feature-lock: #475569;
+  --feature-object: #4d7c0f;
   --feature-other: #9ca3af;
 
   /* SCHOOL_BG */

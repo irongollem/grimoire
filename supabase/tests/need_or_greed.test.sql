@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(39);
+select plan(40);
 
 -- Need or Greed (20261030230842): a DM's chat drop opens a roll when the rule is on;
 -- seated characters choose once; the server rolls, resolves and delivers.
@@ -54,6 +54,21 @@ select is((select (metadata->'roll'->>'closes_at')::timestamptz from public.camp
   date_trunc('milliseconds', now() + interval '45 seconds'), 'the deadline comes from the server clock');
 select is((select jsonb_array_length(metadata->'roll'->'entries') from public.campaign_messages where id = 'a7700000-0000-4000-8000-000000000101'),
   0, 'a roll the client wrote, with a forged winning entry, is replaced by an empty one');
+
+-- Bug: the window was cast to integer before it was clamped, so a huge stored
+-- number raised "integer out of range" and failed every drop the DM posted.
+reset role;
+update public.campaign_rules set config = '{"seconds": 1e12}'
+where campaign_id = 'a7700000-0000-4000-8000-000000000010' and rule_key = 'need_or_greed';
+set local role authenticated;
+insert into public.campaign_messages (id, campaign_id, user_id, sender_name, message, type, metadata)
+select 'a7700000-0000-4000-8000-000000000190', 'a7700000-0000-4000-8000-000000000010', 'a7700000-0000-4000-8000-000000000001', 'DM', 'dropped Ruby', 'item_drop', meta from drop_meta;
+select is((select (metadata->'roll'->>'seconds')::int from public.campaign_messages where id = 'a7700000-0000-4000-8000-000000000190'),
+  300, 'an oversized window is clamped to five minutes, not an error');
+reset role;
+update public.campaign_rules set config = '{"seconds": 45}'
+where campaign_id = 'a7700000-0000-4000-8000-000000000010' and rule_key = 'need_or_greed';
+set local role authenticated;
 
 insert into public.campaign_messages (id, campaign_id, user_id, sender_name, message, type, metadata)
 select 'a7700000-0000-4000-8000-000000000102', 'a7700000-0000-4000-8000-000000000010', 'a7700000-0000-4000-8000-000000000001', 'DM', 'dropped Javelin', 'item_drop', meta || '{"thrown":true}' from drop_meta;

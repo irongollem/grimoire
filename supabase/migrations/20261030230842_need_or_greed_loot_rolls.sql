@@ -152,10 +152,12 @@ begin
     return new;
   end if;
 
-  select least(300, greatest(10, coalesce(
+  -- Clamped as numeric before the integer cast: a huge stored number would
+  -- otherwise raise "integer out of range" here and fail every drop the DM posts.
+  select coalesce(
            case when jsonb_typeof(cr.config->'seconds') = 'number'
-                then round((cr.config->>'seconds')::numeric)::integer end,
-           30)))
+                then round(least(300, greatest(10, (cr.config->>'seconds')::numeric)))::integer end,
+           30)
     into v_seconds
   from public.campaign_rules cr
   where cr.campaign_id = new.campaign_id and cr.rule_key = 'need_or_greed' and cr.enabled;

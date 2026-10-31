@@ -57,6 +57,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice/dice";
+import { castDamageRolls } from "@/rules/spellDamageScaling";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";
 import type { CharacterSpellEntry } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
@@ -103,14 +104,13 @@ function poolLabel(slot: SpellSlotEntry): string {
 function scaledDiceLabel(castLevel: number): string {
   if (!entry) return "";
   const extra = castLevel - entry.spell.level;
-  if (extra === 0) {
-    if (entry.spell.damage_rolls?.length) return entry.spell.damage_rolls[0].dice;
-    if (entry.spell.healing_dice) return entry.spell.healing_dice;
-    return "";
+  // Every damage part, scaled the way the cast rolls it: a two-part spell (Ice Storm)
+  // grows only the part its upcast names, so the label must show both.
+  if (entry.spell.damage_rolls?.length && (extra === 0 || entry.spell.higher_level_damage)) {
+    // The picker only upcasts levelled spells, so the caster level (a cantrip's step) plays no part.
+    return castDamageRolls(entry.spell, castLevel, 1).map((roll) => roll.dice).join(" + ");
   }
-  if (entry.spell.higher_level_damage && entry.spell.damage_rolls?.length) {
-    return scaleExpression(entry.spell.damage_rolls[0].dice, extra, entry.spell.higher_level_damage.dice_per_level);
-  }
+  if (extra === 0) return entry.spell.healing_dice ? entry.spell.healing_dice : "";
   if (entry.spell.higher_level_healing && entry.spell.healing_dice) {
     return scaleExpression(entry.spell.healing_dice, extra, entry.spell.higher_level_healing);
   }

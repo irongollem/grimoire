@@ -54,6 +54,9 @@
             <span v-if="feature.perception_dc" class="text-label text-muted-foreground">
               Perc {{ feature.perception_dc }}
             </span>
+            <span v-if="feature.object_ac !== null" class="text-label text-muted-foreground">
+              AC {{ feature.object_ac }}
+            </span>
           </div>
           <PlacedInLine :rooms="placedInRows(feature.id)" />
         </div>
@@ -115,7 +118,9 @@ const { placedInRows } = usePlacedInRooms("dungeon_feature", featureIds);
 
 const featureKey = (feature: DungeonFeatureEntry) => feature.id;
 function featureSubtitle(feature: DungeonFeatureEntry): string | null {
-  const parts = [feature.trigger_type, feature.perception_dc ? `Perc ${feature.perception_dc}` : null];
+  const parts = [feature.trigger_type, feature.perception_dc ? `Perc ${feature.perception_dc}` : null,
+    feature.object_ac !== null ? `AC ${feature.object_ac}` : null,
+  ];
   return parts.filter((p): p is string => !!p).join(" · ") || null;
 }
 

@@ -79,4 +79,51 @@ describe("normalizeDungeonFeature", () => {
   it("throws without a name", () => {
     expect(() => normalizeDungeonFeature({ feature_type: "Secret Door" })).toThrow();
   });
+  describe("object stats", () => {
+    // The report that started this: a generated cart came back as "Other" with
+    // no AC or hit points to run it with.
+    it("keeps a cart as an Object with its stats instead of falling back to Other", () => {
+      const r = normalizeDungeonFeature({
+        name: "Ore Cart", feature_type: "Object", object_material: "wood", object_size: "large",
+        object_ac: 15, object_hp: 27, break_dc: 18,
+      });
+      expect(r).toMatchObject({
+        feature_type: "Object", object_material: "wood", object_size: "large",
+        object_ac: 15, object_hp: 27, break_dc: 18, lock_dc: null, damage_threshold: null,
+      });
+    });
+
+    // DMG "Objects", Object Armor Class: "Iron, steel 19", "Crystal, glass, ice 13".
+    it.each([
+      ["steel", "iron", 19],
+      ["Glass", "crystal", 13],
+    ])("reads %s as the book's %s row and takes its AC when the model gave none", (named, row, ac) => {
+      const r = normalizeDungeonFeature({ name: "X", object_material: named });
+      expect(r.object_material).toBe(row);
+      expect(r.object_ac).toBe(ac);
+    });
+
+    it("keeps an AC the model set over the material's book value", () => {
+      // A reinforced oak door: wood is 15 by the book, the model asked for 17.
+      expect(normalizeDungeonFeature({ name: "X", object_material: "wood", object_ac: 17 }).object_ac).toBe(17);
+    });
+
+    it("leaves every object field null for a feature that is not an object", () => {
+      const r = normalizeDungeonFeature({ name: "Whispering Alcove", feature_type: "Concealed Alcove" });
+      expect([r.object_material, r.object_size, r.object_ac, r.object_hp, r.damage_threshold, r.break_dc, r.lock_dc])
+        .toEqual([null, null, null, null, null, null, null]);
+    });
+
+    it("clamps object numbers into what the table accepts and reads zero hit points as unset", () => {
+      const r = normalizeDungeonFeature({
+        name: "X", object_ac: 45, object_hp: 0, damage_threshold: 80, lock_dc: 2, object_size: "huge",
+      });
+      expect(r.object_ac).toBe(30);
+      expect(r.object_hp).toBeNull();
+      expect(r.damage_threshold).toBe(50);
+      expect(r.lock_dc).toBe(5);
+      // Bigger than Large is several sections, not a size of its own.
+      expect(r.object_size).toBeNull();
+    });
+  });
 });

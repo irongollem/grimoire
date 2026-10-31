@@ -52,8 +52,7 @@ import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { PartyMember } from "@/types/party.types";
 import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import { signedNum } from "@/lib/utils";
-import { scaleExpression } from "@/lib/dice/dice";
-import { cantripDiceMultiplier } from "@/types/spell.types";
+import { castDamageRolls } from "@/rules/spellDamageScaling";
 import { availableSlotsForSpell, slotPool } from "@/rules/spellSlots";
 import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 import { useCastCharacterSpell } from "@/composables/party/useParty";
@@ -101,17 +100,7 @@ function openEffectResolution(entry: CharacterSpellEntry, castLevel = lastCastLe
 function spellForLastCast(entry: CharacterSpellEntry): Spell {
   const spell = entry.spell;
   const castLevel = lastCastLevels.value[entry.id] ?? spell.level;
-  const extraLevels = Math.max(0, castLevel - spell.level);
-  const cantripMultiplier = spell.level === 0 ? cantripDiceMultiplier(props.member.level) : 1;
-  const damageRolls = (spell.damage_rolls ?? []).map((roll) => ({
-    ...roll,
-    dice: extraLevels > 0 && spell.higher_level_damage
-      ? scaleExpression(roll.dice, extraLevels, spell.higher_level_damage.dice_per_level)
-      : cantripMultiplier > 1
-        ? scaleExpression(roll.dice, cantripMultiplier - 1, roll.dice)
-        : roll.dice,
-  }));
-  return { ...spell, damage_rolls: damageRolls, higher_level_damage: null };
+  return { ...spell, damage_rolls: castDamageRolls(spell, castLevel, props.member.level), higher_level_damage: null };
 }
 
 function castSlot(entry: CharacterSpellEntry) {

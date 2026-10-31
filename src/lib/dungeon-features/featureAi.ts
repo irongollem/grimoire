@@ -9,6 +9,8 @@ import type {
   FeatureGlyph,
 } from "@/types/dungeonFeature.types";
 import type { AiProvenance } from "@/ai/provenance";
+import { OBJECT_MATERIALS, OBJECT_SIZES, objectArmorClass } from "@/rules/objects";
+import type { ObjectMaterial, ObjectSize } from "@/rules/objects";
 
 /** Raw model output for the `feature` generator. Untrusted: every field may be
  *  missing or the wrong shape, so it is typed `unknown` and normalised below. */
@@ -26,6 +28,13 @@ export interface DungeonFeatureAiResult {
   investigation_dc: number | null;
   arcana_dc: number | null;
   feature_glyph: FeatureGlyph | null;
+  object_material: ObjectMaterial | null;
+  object_size: ObjectSize | null;
+  object_ac: number | null;
+  object_hp: number | null;
+  damage_threshold: number | null;
+  break_dc: number | null;
+  lock_dc: number | null;
   contents_description: string | null;
   notes: string | null;
   tags: string[];
@@ -54,6 +63,33 @@ function dc(value: unknown): number | null {
   return Math.min(DC_MAX, Math.max(DC_MIN, Math.round(n)));
 }
 
+/** A whole number clamped into [min, max]; null for junk or anything below 1,
+ *  which for AC, hit points and a threshold means "not set", never zero. */
+function bounded(value: unknown, min: number, max: number): number | null {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (typeof n !== "number" || !Number.isFinite(n)) return null;
+  const whole = Math.round(n);
+  if (whole < 1) return null;
+  return Math.min(max, Math.max(min, whole));
+}
+
+// The book names a material row by several things ("Iron, steel"); the model
+// may name any of them. DMG "Objects", Object Armor Class table.
+const MATERIAL_ALIASES: Record<string, ObjectMaterial> = {
+  paper: "cloth",
+  rope: "cloth",
+  glass: "crystal",
+  ice: "crystal",
+  bone: "wood",
+  steel: "iron",
+};
+
+function material(value: unknown): ObjectMaterial | null {
+  const direct = oneOf(OBJECT_MATERIALS, value);
+  if (direct || typeof value !== "string") return direct;
+  return MATERIAL_ALIASES[value.trim().toLowerCase()] ?? null;
+}
+
 function tags(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
@@ -66,12 +102,14 @@ function tags(value: unknown): string[] {
 }
 
 /** Validate the model's JSON into a safe result: unknown enums fall back
- *  (type to "Other", trigger and glyph to null), DCs are clamped to 5-30,
- *  tags are filtered. Throws when there is no usable name. */
+ *  (type to "Other", trigger, glyph, material and size to null), DCs are
+ *  clamped to 5-30, object numbers to what the table accepts (a missing AC is
+ *  taken from the material), tags are filtered. Throws when there is no usable name. */
 export function normalizeDungeonFeature(raw: DungeonFeatureAiRaw): DungeonFeatureAiResult {
   const name = text(raw.name);
   if (!name) throw new Error("The generated feature had no name.");
   const provenance = raw.ai_provenance;
+  const objectMaterial = material(raw.object_material);
   return {
     name,
     feature_type: oneOf(DUNGEON_FEATURE_TYPES, raw.feature_type) ?? "Other",
@@ -82,6 +120,14 @@ export function normalizeDungeonFeature(raw: DungeonFeatureAiRaw): DungeonFeatur
     investigation_dc: dc(raw.investigation_dc),
     arcana_dc: dc(raw.arcana_dc),
     feature_glyph: oneOf(FEATURE_GLYPHS, raw.feature_glyph),
+    object_material: objectMaterial,
+    object_size: oneOf(OBJECT_SIZES, raw.object_size),
+    // A material the model named but no AC: the book's AC for it is not a guess.
+    object_ac: bounded(raw.object_ac, 1, 30) ?? (objectMaterial ? objectArmorClass(objectMaterial) : null),
+    object_hp: bounded(raw.object_hp, 1, 9999),
+    damage_threshold: bounded(raw.damage_threshold, 1, 50),
+    break_dc: dc(raw.break_dc),
+    lock_dc: dc(raw.lock_dc),
     contents_description: text(raw.contents_description),
     notes: text(raw.notes),
     tags: tags(raw.tags),
