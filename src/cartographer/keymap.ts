@@ -151,3 +151,19 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
 
   return null;
 }
+
+/**
+ * Z, D, F and E on the Zoning tab pick Zoning's tools (#1125 frame 19). The Drawing's own shortcuts use some of
+ * the same letters (D door, F fill, E eraser), so which set is live depends on the tab: this answers only for
+ * Zoning and says nothing anywhere else, where `resolveKeyAction` keeps its meaning.
+ */
+export function resolveZoningKey<T extends string>(
+  ev: KeyEventLike,
+  layer: EditorLayer,
+  tools: ReadonlyArray<{ id: T; shortcut: string }>,
+): T | null {
+  if (layer !== "plan" || ev.targetIsTextEntry) return null;
+  if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey) return null;
+  const key = ev.key.toLowerCase();
+  return tools.find((t) => t.shortcut === key)?.id ?? null;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampBrushRadius, resolveKeyAction, type KeyEventLike, type KeyContext } from "./keymap";
+import { clampBrushRadius, resolveKeyAction, resolveZoningKey, type KeyEventLike, type KeyContext } from "./keymap";
 
 const ev = (over: Partial<KeyEventLike>): KeyEventLike => ({
   key: "a", code: "KeyA", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
@@ -249,5 +249,38 @@ describe("angled wall and selection keys", () => {
       expect(resolveKeyAction(ev({ key: "g", code: "KeyG", targetIsTextEntry: true }), ctx())).toBeNull();
       expect(resolveKeyAction(ev({ key: "g", code: "KeyG", ctrlKey: true }), ctx())).toBeNull();
     });
+  });
+});
+
+// #1125 frame 19: Zoning has its own tools on Z, D, F and E.
+describe("resolveZoningKey", () => {
+  const zoning = [
+    { id: "zone", shortcut: "z" },
+    { id: "door", shortcut: "d" },
+    { id: "fill", shortcut: "f" },
+    { id: "erase", shortcut: "e" },
+  ] as const;
+
+  it("Z, D, F and E pick the Zone, Door, Fill and Erase tools on the Zoning tab", () => {
+    for (const [key, tool] of [["z", "zone"], ["d", "door"], ["f", "fill"], ["e", "erase"]] as const) {
+      expect(resolveZoningKey(ev({ key }), "plan", zoning)).toBe(tool);
+    }
+  });
+
+  it("answers nothing on the Drawing or Base image tabs, where D, F and E are the Drawing's own keys", () => {
+    expect(resolveZoningKey(ev({ key: "d" }), "drawing", zoning)).toBeNull();
+    expect(resolveZoningKey(ev({ key: "e" }), "picture", zoning)).toBeNull();
+  });
+
+  it("leaves typing in a field, Ctrl+Z undo and other chords alone", () => {
+    expect(resolveZoningKey(ev({ key: "f", targetIsTextEntry: true }), "plan", zoning)).toBeNull();
+    expect(resolveZoningKey(ev({ key: "z", ctrlKey: true }), "plan", zoning)).toBeNull();
+    expect(resolveZoningKey(ev({ key: "z", metaKey: true }), "plan", zoning)).toBeNull();
+    expect(resolveZoningKey(ev({ key: "d", altKey: true }), "plan", zoning)).toBeNull();
+    expect(resolveZoningKey(ev({ key: "D", shiftKey: true }), "plan", zoning)).toBeNull();
+  });
+
+  it("ignores a letter that is no Zoning tool", () => {
+    expect(resolveZoningKey(ev({ key: "b" }), "plan", zoning)).toBeNull();
   });
 });

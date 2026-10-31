@@ -10,7 +10,7 @@ enableAutoUnmount(afterEach);
 function bar(over: Record<string, unknown> = {}) {
   return mount(CartographerBar, {
     props: {
-      darkness: "daylight", campaignId: null, spaceCount: 3, spacesOpen: false,
+      darkness: "daylight", campaignId: null,
       canUndo: true, canRedo: true,
       menuActions: [] as MapMenuAction[], showReady: false,
       ...over,
@@ -54,11 +54,11 @@ describe("the bar", () => {
 });
 
 describe("the Map menu", () => {
-  it("keeps the Spaces list reachable and reports the toggle", async () => {
+  // #1125 frame 19: Zoning's list is the only rooms list, so the Drawing has no second "Spaces on this map".
+  it("has no Spaces list of its own: the rooms live in Zoning", async () => {
     const w = bar();
     await openMenu(w);
-    menuButton("Spaces on this map")?.click();
-    expect(w.emitted("toggleSpaces")).toHaveLength(1);
+    expect(menuButton("Spaces on this map")).toBeUndefined();
   });
 
   it("offers only the host actions it was given, with a rule only between groups that exist", async () => {

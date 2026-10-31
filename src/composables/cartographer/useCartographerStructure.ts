@@ -2,16 +2,12 @@
 //
 // `structure.ts` derives a `DerivedStructure` from a `DungeonMap` — pure and
 // framework-free. This composable is the seam between that pure model and
-// the editor: it holds the reactive derivation, the rail panel's read
-// model (`spaceRows`, `selectedSpaceInspector`), and the one mutation
+// the editor: it holds the reactive derivation, the Space tool's read
+// model (`spaceRows`), and the one mutation
 // (`renameSpace`) that writes back into `layers`/`metadata`. Everything that
 // doesn't need a Vue ref lives in a plain exported function below so it can
 // be tested without mounting anything — see `useCartographerStructure.test.ts`.
 //
-// Link resolution (`useEncounters`/`useTraps`/`useDungeonFeatures`/`useNotes`)
-// happens in here rather than being threaded down from the view: the editor
-// already calls three of these four for glyph resolution, and TanStack Query
-// dedupes the identical query key, so this costs a cache hit, not a request.
 
 import { computed, ref, type Ref } from "vue";
 import {
@@ -22,11 +18,7 @@ import {
   type DungeonMapLayers,
 } from "@/types/dungeonMap.types";
 import { deriveStructure, spaceContaining, structureDelta } from "@/cartographer/structure";
-import type { DerivedLink, DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
-import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
-import { useNotes } from "@/composables/notes/useNotes";
+import type { DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
 
 // ── Pure helpers (no Vue) ───────────────────────────────────────────────────
 
@@ -90,62 +82,6 @@ export function applySpaceName(layers: DungeonMapLayers, space: DerivedSpace, na
   return true;
 }
 
-const WAY_KIND_LABEL: Record<"door" | "arch", [singular: string, plural: string]> = {
-  door: ["door", "doors"],
-  arch: ["arch", "arches"],
-};
-
-/** "1 door → Reliquary · 1 arch → Nave" — grouped by (kind, destination) so
- *  two doors to the same room read as one entry with a count. */
-export function buildWaysSummary(space: DerivedSpace, structure: DerivedStructure): string {
-  const byName = new Map<string, { kind: "door" | "arch"; count: number; name: string }>();
-  const spacesByKey = new Map(structure.spaces.map((s, i) => [s.key, s.name ?? `Region ${i + 1}`]));
-  for (const way of structure.ways) {
-    const otherKey = way.fromKey === space.key ? way.toKey : way.toKey === space.key ? way.fromKey : null;
-    if (otherKey === null) continue;
-    const otherName = spacesByKey.get(otherKey) ?? "an unmapped region";
-    const groupKey = `${way.kind}:${otherName}`;
-    const existing = byName.get(groupKey);
-    if (existing) existing.count++;
-    else byName.set(groupKey, { kind: way.kind, count: 1, name: otherName });
-  }
-  if (byName.size === 0) return "No ways out yet.";
-  return [...byName.values()]
-    .map(({ kind, count, name }) => {
-      const [singular, plural] = WAY_KIND_LABEL[kind];
-      return `${count} ${count === 1 ? singular : plural} → ${name}`;
-    })
-    .join(" · ");
-}
-
-export interface LinkResolvers {
-  encounters: Map<string, string>;
-  traps: Map<string, string>;
-  features: Map<string, string>;
-  notes: Map<string, string>;
-}
-
-/** "Encounter 'Thing in the Cistern'" per linked cell in the space, falling
- *  back to "Encounter linked" when the id no longer resolves (scoped away,
- *  deleted) — the link still publishes, so it still deserves a row. */
-export function buildLinkedSummary(links: readonly DerivedLink[], spaceKey: string, resolvers: LinkResolvers): string[] {
-  const rows: string[] = [];
-  for (const link of links) {
-    if (link.spaceKey !== spaceKey) continue;
-    const m = link.metadata;
-    if (m.encounter_id) rows.push(labelFor("Encounter", m.encounter_id, resolvers.encounters));
-    if (m.trap_id) rows.push(labelFor("Trap", m.trap_id, resolvers.traps));
-    if (m.feature_id) rows.push(labelFor("Feature", m.feature_id, resolvers.features));
-    if (m.note_id) rows.push(labelFor("Note", m.note_id, resolvers.notes));
-  }
-  return rows;
-}
-
-function labelFor(kind: string, id: string, names: Map<string, string>): string {
-  const name = names.get(id);
-  return name ? `${kind} '${name}'` : `${kind} linked`;
-}
-
 // ── The composable ──────────────────────────────────────────────────────────
 
 export function useCartographerStructure(
@@ -160,45 +96,8 @@ export function useCartographerStructure(
   );
   const spaceRows = computed(() => buildSpaceRows(structure.value, selectedSpaceKey.value));
 
-  // Link-name resolution — same composables + scope option the view already
-  // uses for glyphs (`includeAllScopes`: a link must keep resolving even
-  // after its target is scoped out of the active campaign).
-  const { data: encountersData } = useEncounters();
-  const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
-  const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
-  const { data: notesData } = useNotes();
-  const linkResolvers = computed<LinkResolvers>(() => ({
-    encounters: new Map((encountersData.value ?? []).map((e) => [e.id, e.name])),
-    traps: new Map([...trapsById.value].map(([id, t]) => [id, t.name])),
-    features: new Map([...featuresById.value].map(([id, f]) => [id, f.name])),
-    notes: new Map((notesData.value ?? []).map((n) => [n.id, n.title])),
-  }));
-
-  const selectedSpaceInspector = computed(() => {
-    const space = selectedSpace.value;
-    if (!space) return null;
-    const sourceCell = findNameSourceCell(space, layers.value.annotation);
-    return {
-      key: space.key,
-      name: space.name,
-      hasName: space.name !== null,
-      sourceCell,
-      cellCount: space.cells.length,
-      waysSummary: buildWaysSummary(space, structure.value),
-      linked: buildLinkedSummary(structure.value.links, space.key, linkResolvers.value),
-    };
-  });
-
   function selectSpaceAt(x: number, y: number): void {
     selectedSpaceKey.value = spaceContaining(cellKey(x, y), structure.value.spaces)?.key ?? null;
-  }
-
-  /** The frame's "Re-detect from floor layer" button. The derivation is
-   *  already live off `layers`/`metadata` — there is nothing stale to
-   *  recompute — so this exists for the affordance the frame asks for and to
-   *  clear a selection that no longer points at anything useful. */
-  function redetect(): void {
-    selectedSpaceKey.value = null;
   }
 
   function renameSpace(name: string): boolean {
@@ -226,9 +125,7 @@ export function useCartographerStructure(
     selectedSpaceKey,
     selectedSpace,
     spaceRows,
-    selectedSpaceInspector,
     selectSpaceAt,
-    redetect,
     renameSpace,
     changedSinceLastPublish,
   };

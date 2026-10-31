@@ -53,12 +53,14 @@ The Drawing row shows a **Review N changes** link once your Cartographer drawing
 
 ### The Cartographer, full screen
 
-Edit map opens the Cartographer editor over the whole screen, with a **Drawing / Plan** layer switcher and a structure tool group (Space, Zone, Door, Claim) alongside the ordinary paint tools. Use it to:
+Edit map opens the Cartographer editor over the whole screen, with three tabs: **Base image** (1), **Drawing** (2) and **Zoning** (3). Zoning is where the map learns which areas are rooms, and its tools are on the left, each with its key:
 
-- **Space**: click a floor region to select the room it belongs to.
-- **Claim**: flood-fill a region of the Drawing's floor and turn it straight into a traced space, so you don't re-trace by hand what you just painted.
-- **Door**: snap to a cell edge to place a door; its endpoints are worked out automatically from the regions on either side.
-- **Zone**: paint a hazard/terrain/light/trigger/marker overlay that isn't a room (see "Zones" below).
+- **Zone** (Z): outline an area and say what kind it is. A **Room** is a place in the Atlas; **Terrain**, **Hazard**, **Light**, **Trigger**, **Entrance** (where the party walks in when you explore the site) and **Marker** only mark the floor.
+- **Door** (D): snap to a cell edge to place a door; its endpoints are worked out automatically from the rooms on either side.
+- **Fill** (F): pour a zone of the chosen kind over a painted floor region of the Drawing, up to its walls, so you don't re-trace by hand what you just painted.
+- **Erase** (E): drag across cells to take them out of any zone.
+
+Most rooms are already there. The moment Zoning opens, every room the Drawing's walls make is in the list, marked **found**, and a header reads "N rooms found from the walls". Name a room, bind it to a place, or reshape it and it is yours from then on; **Find again** redraws only the rooms you never touched. A map with a base image but no drawing has nothing to find, so draw its rooms with the Zone tool.
 
 Three ways to trace a room's shape once you're in the tool: drag-to-paint cells directly, the **pen** (click a genuine polygon outline, useful for angled walls: snap to intersections, hold the modifier key for half-cells), or a **template** (circle, octagon, hex) that drops a ready-made ring you can keep editing with the pen. See [Cartographer: Overview](#cartographer-overview) for the full tool reference and [Cartographer: Export & AI Style](#cartographer-export-ai-style) for styled/AI renders you can use as a site's Picture.
 
@@ -107,7 +109,7 @@ A site with more than one floor (a tower, a house with a cellar, a dungeon that 
 
 ## Zones
 
-A **zone** is a shape on the plan that isn't a room: a hazard, terrain note, lighting effect, trigger, or a plain marker. Paint one with the Zone tool in the editor; give it a kind and, for a trigger zone, the beat it should prompt when the party stands on it (advancing still needs a DM click: nothing fires automatically). Zones are DM ink by default; mark one **visible to players** to have it show, clipped to what the party has actually explored.
+The **Zones on this map** list in Zoning is the one list of everything you can outline: rooms first (found from the walls, or bound to a place), then every other kind, each with its kind and a short state such as "found", "found · renamed", "bound" or "terrain · difficult". An unnamed room reads "Room 3" with a **Name it** button. Draw a zone with the Zone tool after choosing its kind; for a trigger zone, pick the beat it should prompt when the party stands on it (advancing still needs a DM click: nothing fires automatically). Zones other than rooms are DM ink by default; mark one **Shown** to have it show to players, clipped to what the party has actually explored.
 
 ## Progress
 

@@ -19,20 +19,6 @@
       <CampaignScopeField :model-value="campaignId" @update:model-value="emit('update:campaignId', $event)" />
     </div>
 
-    <div class="space-y-1">
-      <AppButton
-        variant="menu"
-        size="caption"
-        block
-        :active="spacesOpen"
-        :icon="IconSplitCell"
-        @click="emit('toggleSpaces'); emit('done')"
-      >
-        <span class="flex-1">Spaces on this map</span>
-        <span class="text-muted-foreground tabular-nums">{{ spaceCount }}</span>
-      </AppButton>
-    </div>
-
     <template v-for="(group, index) in hostGroups" :key="index">
       <hr class="border-border" />
       <div class="space-y-1">
@@ -62,15 +48,13 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
-import { IconClipboard, IconDelete, IconDownload, IconImage, IconSplitCell, IconWand, type AppIcon } from "@/lib/icons";
+import { IconClipboard, IconDelete, IconDownload, IconImage, IconWand, type AppIcon } from "@/lib/icons";
 import type { MapMenuAction } from "@/cartographer/tools";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 
 const { menuActions } = defineProps<{
   darkness: DarknessLevel;
   campaignId: string | null;
-  spaceCount: number;
-  spacesOpen: boolean;
   /** Which host actions to offer; the host lists only the ones it handles. */
   menuActions: readonly MapMenuAction[];
   /** Changes waiting to be published to the site; a chip when above zero. */
@@ -80,7 +64,6 @@ const { menuActions } = defineProps<{
 const emit = defineEmits<{
   "update:darkness": [level: DarknessLevel];
   "update:campaignId": [id: string | null];
-  toggleSpaces: [];
   menuAction: [id: MapMenuAction];
   /** The menu has done its job (an action was taken): the bar closes it. */
   done: [];

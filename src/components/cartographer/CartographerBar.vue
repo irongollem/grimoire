@@ -47,7 +47,7 @@
           aria-haspopup="dialog"
           :aria-expanded="open"
           label="Map"
-          tooltip="Light, spaces and the rest of the map's settings"
+          tooltip="Light and the rest of the map's settings"
           @click="toggle"
         />
       </template>
@@ -55,13 +55,10 @@
         <CartographerMapMenu
           :darkness="darkness"
           :campaign-id="campaignId"
-          :space-count="spaceCount"
-          :spaces-open="spacesOpen"
           :menu-actions="menuActions"
           :review-count="reviewCount"
           @update:darkness="emit('update:darkness', $event)"
           @update:campaign-id="emit('update:campaignId', $event)"
-          @toggle-spaces="emit('toggleSpaces')"
           @menu-action="emit('menuAction', $event)"
           @done="close"
         />
@@ -86,8 +83,6 @@ import type { DarknessLevel } from "@/types/dungeonMap.types";
 const { saveState } = defineProps<{
   darkness: DarknessLevel;
   campaignId: string | null;
-  spaceCount: number;
-  spacesOpen: boolean;
   canUndo: boolean;
   canRedo: boolean;
   /** The host's save state ("Saving…", "Unsaved changes", "Saved"); absent says nothing. */
@@ -103,7 +98,6 @@ const { saveState } = defineProps<{
 const emit = defineEmits<{
   "update:darkness": [level: DarknessLevel];
   "update:campaignId": [id: string | null];
-  toggleSpaces: [];
   menuAction: [id: MapMenuAction];
   undo: [];
   redo: [];

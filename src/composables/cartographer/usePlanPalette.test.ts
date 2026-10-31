@@ -7,12 +7,14 @@
 //   invalidation has actually landed, used to both read the same stale
 //   `before` off `regions.value` — so undoing the second silently reverted
 //   the first too.
-// - Finding 5: `claimFloorRegion` always inserted a new region, so claiming
+// - Finding 5: `fillFloorRegion` always inserted a new region, so claiming
 //   the same floor twice (or floor already traced as a Space) made two
 //   overlapping rows.
 import { computed, nextTick, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eraseFromRegions, usePlanPalette } from "./usePlanPalette";
+import type { DerivedSpace } from "@/cartographer/structure.types";
+import type { CellKey } from "@/types/dungeonMap.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
 interface MutationCall {
@@ -56,7 +58,8 @@ vi.mock("@/composables/locations/useLocationDoors", () => ({
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: async () => confirmAnswer.value }) }));
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: ref([]) }) }));
+const { childLocations } = vi.hoisted(() => ({ childLocations: { value: [] as { id: string; name: string }[] } }));
+vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: childLocations }) }));
 
 function makeRegion(overrides: Partial<LocationMapRegion> = {}): LocationMapRegion {
   return {
@@ -137,12 +140,12 @@ describe("usePlanPalette", () => {
     });
   });
 
-  describe("claimFloorRegion — no overlapping duplicates (finding 5)", () => {
+  describe("fillFloorRegion: no overlapping duplicates (finding 5)", () => {
     it("selects an existing space that already covers the claimed floor instead of duplicating it", async () => {
       regionsData.value = [makeRegion({ id: "existing", region_role: "space", cells: ["0,0", "0,1"] })];
       const plan = usePlanPalette(computed(() => "site-1"));
 
-      await plan.claimFloorRegion(["0,0", "0,1"]);
+      await plan.fillFloorRegion(["0,0", "0,1"]);
 
       expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
       expect(plan.activeRegionId.value).toBe("existing");
@@ -152,20 +155,21 @@ describe("usePlanPalette", () => {
       regionsData.value = [makeRegion({ id: "existing", region_role: "space", cells: ["0,0", "0,1", "0,2"] })];
       const plan = usePlanPalette(computed(() => "site-1"));
 
-      await plan.claimFloorRegion(["0,0", "0,1", "0,2", "0,3"]); // the flood fill found one more cell than the hand trace
+      await plan.fillFloorRegion(["0,0", "0,1", "0,2", "0,3"]); // the flood fill found one more cell than the hand trace
 
       expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
       expect(plan.activeRegionId.value).toBe("existing");
     });
 
-    it("still creates a genuinely new region when nothing covers it", async () => {
+    it("still creates a genuinely new region when nothing covers it, as the walls' own room so Find again may redraw it", async () => {
       regionsData.value = [makeRegion({ id: "existing", region_role: "space", cells: ["5,5"] })];
       createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "new-region", cells: ["0,0", "0,1"], region_role: "space" });
       const plan = usePlanPalette(computed(() => "site-1"));
 
-      await plan.claimFloorRegion(["0,0", "0,1"]);
+      await plan.fillFloorRegion(["0,0", "0,1"]);
 
       expect(createRegionStub.mutateAsync).toHaveBeenCalledOnce();
+      expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ region_role: "space", derived_from: "floodfill" }));
     });
 
     it("ignores a zone that happens to cover the same cells — only an existing space counts", async () => {
@@ -173,7 +177,7 @@ describe("usePlanPalette", () => {
       createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "new-region", cells: ["0,0", "0,1"], region_role: "space" });
       const plan = usePlanPalette(computed(() => "site-1"));
 
-      await plan.claimFloorRegion(["0,0", "0,1"]);
+      await plan.fillFloorRegion(["0,0", "0,1"]);
 
       expect(createRegionStub.mutateAsync).toHaveBeenCalledOnce();
     });
@@ -268,25 +272,25 @@ describe("usePlanPalette pen rings, conversions and doors", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.zoneKind.value = "hazard";
     plan.zoneLabel.value = "  Spore bloom ";
-    await plan.startNewZone();
-    expect(createRegionStub.mutateAsync).toHaveBeenLastCalledWith({ site_location_id: "site-1", region_role: "zone", zone_kind: "hazard", label: "Spore bloom" });
+    await plan.startNew();
+    expect(createRegionStub.mutateAsync).toHaveBeenLastCalledWith({ site_location_id: "site-1", region_role: "zone", zone_kind: "hazard", zone_payload: {}, label: "Spore bloom" });
     expect(plan.activeRegionId.value).toBe("z1");
     createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "z2" });
     plan.zoneLabel.value = "   ";
-    await plan.startNewZone();
+    await plan.startNew();
     expect(createRegionStub.mutateAsync).toHaveBeenLastCalledWith(expect.objectContaining({ label: null }));
   });
 
   it("claims nothing for an empty floor selection", async () => {
     const plan = usePlanPalette(computed(() => "site-1"));
-    await plan.claimFloorRegion([]);
+    await plan.fillFloorRegion([]);
     expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
   });
 
   it("creates nothing without a site", async () => {
     const plan = usePlanPalette(computed(() => null));
-    expect(await plan.startNewSpace()).toBeNull();
-    await plan.claimFloorRegion(["0,0"]);
+    expect(await plan.startNew()).toBeNull();
+    await plan.fillFloorRegion(["0,0"]);
     expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
   });
 });
@@ -320,7 +324,7 @@ describe("usePlanPalette armDoorPlacement", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.armDoorPlacement("door-1");
     await nextTick();
-    plan.planTool.value = "space";
+    plan.planTool.value = "zone";
     await nextTick();
     plan.placeDoorAt("2,3:N", "crypt", "gallery");
     expect(updateDoorStub.mutate).not.toHaveBeenCalled();
@@ -332,5 +336,109 @@ describe("eraseFromRegions", () => {
   it("leaves out regions the stroke never reached", () => {
     const regions = [makeRegion({ id: "a", cells: ["0,0"] }), makeRegion({ id: "b", cells: ["5,5", "6,6"] })];
     expect([...eraseFromRegions(regions, new Set(["6,6"]))]).toEqual([["b", ["5,5"]]]);
+  });
+});
+
+// #1125 frames 18-19: the walls' rooms are in the list before they are rows.
+describe("usePlanPalette found rooms", () => {
+  const space = (key: string, cell: CellKey, name: string | null = null): DerivedSpace => ({
+    key, cells: [cell, "9,9"], signature: `sig-${key}`, name, nameSource: name ? "annotation" : null,
+  });
+
+  beforeEach(() => {
+    regionsData.value = [];
+    childLocations.value = [];
+    for (const stub of [updateRegionStub, createRegionStub]) {
+      stub.calls.length = 0;
+      stub.mutateAsync.mockClear();
+      stub.mutateAsync.mockImplementation(async (vars: unknown) => vars);
+    }
+  });
+
+  it("a found room is in the list the moment the drawing has it, without anything being written", () => {
+    const plan = usePlanPalette(computed(() => "site-1"), () => [space("s:0,0", "0,0", "Nave")]);
+    expect(plan.zoning.value.map((e) => e.kind)).toEqual(["found"]);
+    expect(plan.foundCount.value).toBe(1);
+    expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("a found room has no row, so it reaches the canvas as a room with an id that is not a row's", () => {
+    const plan = usePlanPalette(computed(() => "site-1"), () => [space("s:0,0", "0,0")]);
+    expect(plan.foundRegions.value).toHaveLength(1);
+    expect(plan.foundRegions.value[0]!.id).toBe("found:s:0,0");
+    expect(plan.foundRegions.value[0]!.region_role).toBe("space");
+  });
+
+  it("renaming a found room writes a row stamped dm, so Find again leaves it alone", async () => {
+    const found = space("s:0,0", "0,0");
+    const plan = usePlanPalette(computed(() => "site-1"), () => [found]);
+    await plan.renameEntry(plan.zoning.value[0]!, "Reliquary");
+    expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ derived_from: "dm", label: "Reliquary", cell_signature: "sig-s:0,0", region_role: "space" }),
+    );
+  });
+
+  it("renaming an existing found row puts derived_from dm in the same update", async () => {
+    const found = space("s:0,0", "0,0");
+    regionsData.value = [makeRegion({ id: "row", derived_from: "floodfill", cell_signature: "sig-s:0,0", cells: found.cells })];
+    const plan = usePlanPalette(computed(() => "site-1"), () => [found]);
+    await plan.renameEntry(plan.zoning.value[0]!, "Reliquary");
+    expect(updateRegionStub.mutateAsync).toHaveBeenCalledWith({ id: "row", update: { label: "Reliquary", derived_from: "dm" } });
+  });
+
+  it("binding a found room to a place stamps it dm as well", async () => {
+    const plan = usePlanPalette(computed(() => "site-1"), () => [space("s:0,0", "0,0")]);
+    await plan.bindEntry(plan.zoning.value[0]!, "loc-1");
+    expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ derived_from: "dm", space_location_id: "loc-1" }));
+  });
+
+  it("Find again sends only the rooms the DM never touched", async () => {
+    const moved = space("s:0,0", "0,0");
+    const touched = space("s:5,0", "5,0");
+    regionsData.value = [
+      makeRegion({ id: "untouched", derived_from: "floodfill", cell_signature: "stale", cells: ["0,0"] }),
+      makeRegion({ id: "mine", derived_from: "dm", cell_signature: "stale", cells: ["5,0"], label: "Mine" }),
+    ];
+    const plan = usePlanPalette(computed(() => "site-1"), () => [moved, touched]);
+    const sent = await plan.findAgainNow();
+    expect(sent).toBe(1);
+    expect(updateRegionStub.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(updateRegionStub.mutateAsync).toHaveBeenCalledWith({ id: "untouched", update: { cells: moved.cells, cell_signature: "sig-s:0,0" } });
+  });
+
+  it("clicking a found room on the map writes it as the walls' room and makes it the one being traced", async () => {
+    createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "new-row" });
+    const plan = usePlanPalette(computed(() => "site-1"), () => [space("s:0,0", "0,0")]);
+    await plan.selectRegion("found:s:0,0");
+    expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ derived_from: "floodfill" }));
+    expect(plan.activeRegionId.value).toBe("new-row");
+  });
+
+  it("selecting a real row just selects it, writing nothing", async () => {
+    const plan = usePlanPalette(computed(() => "site-1"), () => []);
+    await plan.selectRegion("row-1");
+    expect(plan.activeRegionId.value).toBe("row-1");
+    expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("the Room kind makes a space and any other kind makes a zone of that kind", async () => {
+    createRegionStub.mutateAsync.mockResolvedValue({ id: "n" });
+    const plan = usePlanPalette(computed(() => "site-1"));
+    await plan.startNew();
+    expect(createRegionStub.mutateAsync).toHaveBeenLastCalledWith(expect.objectContaining({ region_role: "space" }));
+    plan.zoneKind.value = "entrance";
+    await plan.startNew();
+    expect(createRegionStub.mutateAsync).toHaveBeenLastCalledWith(expect.objectContaining({ region_role: "zone", zone_kind: "entrance" }));
+  });
+
+  it("filling with a zone kind pours a zone even over a room, and is the DM's ink", async () => {
+    regionsData.value = [makeRegion({ id: "room", cells: ["0,0", "0,1"] })];
+    createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "z" });
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.zoneKind.value = "hazard";
+    await plan.fillFloorRegion(["0,0", "0,1"]);
+    expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ region_role: "zone", zone_kind: "hazard", derived_from: "dm", cells: ["0,0", "0,1"] }),
+    );
   });
 });

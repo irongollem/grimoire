@@ -56,6 +56,10 @@ import {
 import { useSiteDoors, type SiteDoorWithSpaces } from "@/composables/locations/useSiteDoors";
 import { TEMPLATE_SHAPES, TEMPLATE_SHAPE_LABELS, useTemplateShape } from "@/composables/locations/useRegionPen";
 import { usePlanUndoStack } from "@/composables/cartographer/usePlanUndoStack";
+import type { DerivedSpace } from "@/cartographer/structure.types";
+import { findAgain, materializeFound, zoningList, type ZoningEntry } from "@/lib/locations/foundRooms";
+import { foundRegionOf, foundSpaceKey } from "@/lib/locations/zoningRows";
+import { emptyZoneInsert } from "@/lib/locations/zones";
 import { cellsInsideRing } from "@/lib/locations/polygon";
 import type { TraceTool } from "@/lib/locations/polygon";
 import type { CellKey } from "@/types/dungeonMap.types";
@@ -66,11 +70,17 @@ import {
   type GridPoint,
   type LocationMapRegion,
   type LocationMapRegionInsert,
-  type RegionRole,
   type ZoneKind,
 } from "@/types/locationMapRegion.types";
 
-export type PlanTool = "space" | "zone" | "door" | "claim" | "erase";
+/** Zoning's four tools (#1125 frame 19). The old Space tool is the Zone tool with the Room kind. */
+export type PlanTool = "zone" | "door" | "fill" | "erase";
+
+/** What a zone is. Room is a place in the Atlas (`region_role: 'space'`); every other kind only marks the floor
+ *  (`region_role: 'zone'` + `zone_kind`). One list for the chips, the Zone tool and the rows. */
+export type ZoningKind = "room" | ZoneKind;
+export const ZONING_KINDS: readonly ZoningKind[] = ["room", ...ZONE_KINDS];
+export const ZONING_KIND_LABELS: Record<ZoningKind, string> = { room: "Room", ...ZONE_KIND_LABELS };
 
 /** How a Space or Zone is traced. One list, read by the Plan palette's own
  *  switch and by the canvas's active-tool pill (MapWorkbench.vue). */
@@ -80,12 +90,12 @@ export const TRACE_TOOL_OPTIONS: readonly { value: TraceTool; label: string }[] 
   { value: "template", label: "Shape" },
 ];
 
-export const PLAN_TOOLS: readonly { id: PlanTool; label: string }[] = [
-  { id: "space", label: "Space" },
-  { id: "zone", label: "Zone" },
-  { id: "door", label: "Door" },
-  { id: "claim", label: "Claim" },
-  { id: "erase", label: "Erase" },
+/** Each tool's key, the letters the Drawing's rail also uses for its own tools (the tab decides which set is live). */
+export const PLAN_TOOLS: readonly { id: PlanTool; label: string; shortcut: string }[] = [
+  { id: "zone", label: "Zone", shortcut: "z" },
+  { id: "door", label: "Door", shortcut: "d" },
+  { id: "fill", label: "Fill", shortcut: "f" },
+  { id: "erase", label: "Erase", shortcut: "e" },
 ];
 
 /**
@@ -114,7 +124,11 @@ export interface PlanEntityHandle {
   id: string;
 }
 
-export function usePlanPalette(siteId: ComputedRef<string | null>) {
+/**
+ * @param derived the rooms the Drawing's walls make right now; they are in the Zoning list from the moment it opens
+ *   (#1125 frame 19), written as rows only when the DM acts on one.
+ */
+export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () => readonly DerivedSpace[] = () => []) {
   const { error: toastError, fromError } = useToast();
   const { confirm } = useConfirm();
 
@@ -132,7 +146,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   const ways = computed<SiteDoorWithSpaces[]>(() => waysData.value ?? []);
 
   // ── Tool state ─────────────────────────────────────────────────────────
-  const planTool = ref<PlanTool>("space");
+  const planTool = ref<PlanTool>("zone");
   const traceTool = ref<TraceTool>("paint");
   /** A listed door waiting for its edge (see `armDoorPlacement`). */
   const placingDoorId = ref<string | null>(null);
@@ -141,7 +155,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   // covers a DM being in the Cartographer instead of the Atlas, not just
   // between the Atlas's own siblings.
   const templateShape = useTemplateShape();
-  const zoneKind = ref<ZoneKind>("terrain");
+  const zoneKind = ref<ZoningKind>("room");
   const zoneLabel = ref("");
 
   const activeRegionId = ref<string | null>(null);
@@ -203,30 +217,29 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     }
   }
 
-  /** Starts a fresh, empty region of the given role and makes it active —
-   *  the Plan's equivalent of `SiteMapRegionList`'s "+ New space" button.
-   *  Deliberately the ONLY way to start one: nothing here auto-creates on
-   *  tool selection or on a bare click with nothing active (either would
-   *  create a DB row the instant a DM opens Build with the Plan's default
-   *  tool already "Space", or would make a plain click ambiguous between
-   *  "start a shape" and "select the existing unbound one under the
-   *  cursor" — see `usePlanCanvasTools.ts`'s `onPointerDown`, whose bare
-   *  click always means the latter). The palette's own "New" button is
-   *  `startNewSpace`/`startNewZone`'s only caller. */
-  async function startNew(role: RegionRole): Promise<LocationMapRegion | null> {
+  /** Starts a fresh, empty zone of the chosen kind and makes it active. Deliberately the ONLY way to start one:
+   *  nothing here auto-creates on tool selection or on a bare click with nothing active (either would create a
+   *  DB row the instant a DM opens Zoning, or make a plain click ambiguous between "start a shape" and "select
+   *  the existing unbound one under the cursor": see `usePlanCanvasTools.ts`'s `onPointerDown`, whose bare click
+   *  always means the latter). The slip's "New zone" button is its only caller. */
+  async function startNew(): Promise<LocationMapRegion | null> {
     if (!siteId.value) return null;
-    const insert: LocationMapRegionInsert =
-      role === "zone"
-        ? { site_location_id: siteId.value, region_role: "zone", zone_kind: zoneKind.value, label: zoneLabel.value.trim() || null }
-        : { site_location_id: siteId.value, region_role: "space" };
-    const result = await createRegionTracked(insert);
+    const result = await createRegionTracked(newInsert(siteId.value, []));
     if (!result) return null;
     activeRegionId.value = result.handle.id;
     return result.region;
   }
 
-  const startNewSpace = () => startNew("space");
-  const startNewZone = () => startNew("zone");
+  /** The row the chosen kind makes: a Room is a space (named later, bound later); anything else is a zone. */
+  function newInsert(site: string, cells: CellKey[]): LocationMapRegionInsert {
+    const label = zoneLabel.value.trim() || null;
+    const kind = zoneKind.value;
+    const base: LocationMapRegionInsert =
+      kind === "room"
+        ? { site_location_id: site, region_role: "space", label }
+        : { ...emptyZoneInsert(site, kind), label };
+    return cells.length > 0 ? { ...base, cells } : base;
+  }
 
   /** Fire-and-forget cell-set commit for the brush/paint trace tool —
    *  `useRegionPointer`'s `commitCells` contract. Captures the region's
@@ -353,37 +366,97 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     }
   }
 
-  /** An existing space region that already covers some of `cells` — claiming
-   *  the same floor twice (or floor already traced as a Space by hand) must
-   *  select it rather than insert a second, overlapping row (#884 review
-   *  finding 5). Any overlap counts as "already covered": a repeat claim's
-   *  flood fill returns the identical connected component, and a hand-traced
-   *  space over the same floor need not match cell-for-cell to be the same
-   *  room. */
+  /** An existing space region that already covers some of `cells`: filling the same floor twice (or floor already
+   *  traced as a room by hand) must select it rather than insert a second, overlapping row (#884 review finding 5).
+   *  Any overlap counts as "already covered": a repeat fill returns the identical connected component, and a
+   *  hand-traced room over the same floor need not match cell-for-cell to be the same room. */
   function findCoveringSpace(cells: readonly CellKey[]): LocationMapRegion | null {
     const claimed = new Set(cells);
     return regions.value.find((r) => r.region_role === "space" && r.cells.some((c) => claimed.has(c))) ?? null;
   }
 
-  /** The Claim tool (#884): a floodfilled floor region off the Drawing,
-   *  written straight to a brand-new unbound space region — "the DM stops
-   *  re-tracing by hand what they just drew." `derived_from: 'floodfill'` is
-   *  the provenance this exact shape exists for — not DM ink, algorithmically
-   *  read off the painted floor, same as Publish's own detection. */
-  async function claimFloorRegion(cells: CellKey[]): Promise<void> {
+  /** The Fill tool: pours the chosen kind over a floored region of the Drawing, up to its walls, "so the DM stops
+   *  re-tracing by hand what they just drew." A Room is the walls' own room (`derived_from: 'floodfill'`, the
+   *  provenance this exact shape exists for); any other kind is the DM's ink. Zones may overlap a room, so only a
+   *  Room is held to the no-duplicates rule. */
+  async function fillFloorRegion(cells: CellKey[]): Promise<void> {
     if (!siteId.value || cells.length === 0) return;
-    const covering = findCoveringSpace(cells);
-    if (covering) {
-      activeRegionId.value = covering.id;
+    if (zoneKind.value === "room") {
+      const covering = findCoveringSpace(cells);
+      if (covering) {
+        activeRegionId.value = covering.id;
+        return;
+      }
+      await createRegionTracked({ ...newInsert(siteId.value, cells), derived_from: "floodfill" });
       return;
     }
-    const insert: LocationMapRegionInsert = {
-      site_location_id: siteId.value,
-      region_role: "space",
-      cells,
-      derived_from: "floodfill",
-    };
-    await createRegionTracked(insert);
+    await createRegionTracked({ ...newInsert(siteId.value, cells), derived_from: "dm" });
+  }
+
+  // ── Found rooms: the walls' rooms, in the list before they are rows (#1125 frame 19) ──────────────────
+
+  const spaceNames = computed(() => new Map((childLocations.value ?? []).map((l) => [l.id, l.name])));
+  /** Every line of the Zoning list: rooms (found, then bound), then the other zones. */
+  const zoning = computed<ZoningEntry[]>(() => zoningList(derived(), regions.value, spaceNames.value));
+  /** Found rooms with no row, dressed as rooms so the canvas draws them and a click can pick one. */
+  const foundRegions = computed<LocationMapRegion[]>(() => {
+    const site = siteId.value;
+    if (!site) return [];
+    return zoning.value.flatMap((e) => (e.kind === "found" ? [foundRegionOf(e.space, site)] : []));
+  });
+  const foundCount = computed(() => derived().length);
+
+  type RowEdit = Pick<LocationMapRegionInsert, "label" | "space_location_id" | "cells" | "vertices">;
+
+  /** The DM changes a room: a found one with no row becomes one stamped `dm`; an existing row gets `derived_from:
+   *  'dm'` in the SAME update (`dmEdit`), because without it Find again would redraw a room they touched. */
+  async function editEntry(entry: ZoningEntry, edit: RowEdit): Promise<LocationMapRegion | null> {
+    if (!siteId.value) return null;
+    try {
+      if (entry.kind === "found") return await createRegion.mutateAsync(materializeFound(entry.space, siteId.value, edit));
+      return await updateRegion.mutateAsync({ id: entry.region.id, update: dmEdit(edit) });
+    } catch (err) {
+      toastError(fromError(err));
+      return null;
+    }
+  }
+
+  const renameEntry = (entry: ZoningEntry, label: string | null) => editEntry(entry, { label });
+  const bindEntry = (entry: ZoningEntry, spaceId: string | null) => editEntry(entry, { space_location_id: spaceId });
+
+  /** Writes a found room as a row the walls still own (untouched, so Find again may redraw it), to trace into. */
+  async function materializeEntry(entry: ZoningEntry & { kind: "found" }): Promise<LocationMapRegion | null> {
+    if (!siteId.value) return null;
+    try {
+      return await createRegion.mutateAsync(materializeFound(entry.space, siteId.value));
+    } catch (err) {
+      toastError(fromError(err));
+      return null;
+    }
+  }
+
+  /** Makes a region the one being traced. A found room's canvas id has no row yet: write it first, then select. */
+  async function selectRegion(id: string | null): Promise<void> {
+    const key = id === null ? null : foundSpaceKey(id);
+    if (key === null) {
+      activeRegionId.value = id;
+      return;
+    }
+    const entry = zoning.value.find((e) => e.kind === "found" && e.space.key === key);
+    if (!entry || entry.kind !== "found") return;
+    const created = await materializeEntry(entry);
+    if (created) activeRegionId.value = created.id;
+  }
+
+  /** Find again: redraw only the rooms the DM never touched, from the walls as they are now. */
+  async function findAgainNow(): Promise<number> {
+    const updates = findAgain(derived(), regions.value, spaceNames.value);
+    try {
+      await Promise.all(updates.map((u) => updateRegion.mutateAsync(u)));
+    } catch (err) {
+      toastError(fromError(err));
+    }
+    return updates.length;
   }
 
   // ── Door mutations ────────────────────────────────────────────────────
@@ -513,14 +586,21 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     activeRegion,
     undo,
     isBusy,
-    startNewSpace,
-    startNewZone,
+    startNew,
+    zoning,
+    foundRegions,
+    foundCount,
+    spaceNames,
+    renameEntry,
+    bindEntry,
+    selectRegion,
+    findAgainNow,
     commitCells,
     eraseCells,
     commitRing,
     commitTemplate,
     confirmConvert,
-    claimFloorRegion,
+    fillFloorRegion,
     existingDoorAtEdge,
     placingDoorId,
     armDoorPlacement,

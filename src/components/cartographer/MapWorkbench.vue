@@ -6,8 +6,6 @@
       v-if="!viewMode"
       :darkness="darkness"
       :campaign-id="campaignId"
-      :space-count="activeLayer === 'plan' ? plan.regions.value.length : structure.spaceRows.value.length"
-      :spaces-open="drawer === spacesDrawerId"
       :can-undo="canUndo"
       :can-redo="canRedo"
       :save-state="saveState"
@@ -16,7 +14,6 @@
       :show-ready="showReady"
       @update:darkness="setDarkness"
       @update:campaign-id="campaignId = $event"
-      @toggle-spaces="toggleSpaces"
       @menu-action="emit('menu-action', $event)"
       @ready="emit('ready')"
       @undo="undoEdit"
@@ -216,7 +213,9 @@
             v-model:zone-label="plan.zoneLabel.value"
             :title="planToolLabel"
             :plan-tool="plan.planTool.value"
-            @start-new="plan.planTool.value === 'zone' ? plan.startNewZone() : plan.startNewSpace()"
+            :list-open="drawer === 'zoning'"
+            @start-new="plan.startNew()"
+            @toggle-list="drawer = drawer === 'zoning' ? null : 'zoning'"
           />
         </template>
 
@@ -226,28 +225,23 @@
           <AppCheckbox v-model="showPictureReference" label="Reference" size="sm" />
         </div>
 
-        <!-- One drawer at a time, over the canvas's right edge: the Spaces on this map, the
-             Dressing props, or the Plan's own Spaces and Zones panels (#884 S11). The Plan
-             rail decides which GESTURE a click means; binding a traced shape to a room,
-             naming it, and deleting it stay panel actions, which is what these give it. -->
+        <!-- One drawer at a time, over the canvas's right edge: the Dressing props, or Zoning's one list
+             (Map Table frame 19). The Zoning rail decides which GESTURE a click means; naming a room,
+             binding it to a place, reshaping and deleting stay list actions, which is what this gives it. -->
         <CartographerDrawer v-if="!viewMode" :open="drawer !== null" :title="drawerTitle" @close="drawer = null">
-          <div v-if="drawer === 'plan' && site" class="flex flex-col gap-3">
-            <SiteMapRegionList
-              :location-id="site.id"
+          <div v-if="drawer === 'zoning' && site" class="flex flex-col gap-3">
+            <ZoningList
+              :entries="plan.zoning.value"
               :spaces="spaces ?? []"
-              :regions="plan.regions.value"
               :active-region-id="plan.activeRegionId.value"
-              :can-trace="true"
-              :door-tool-armed="plan.planTool.value === 'door'"
-              @update:active-region-id="(id) => setPlanActiveRegion(id, 'space')"
-              @update:door-tool-armed="(armed) => (plan.planTool.value = armed ? 'door' : 'space')"
-            />
-            <SiteMapZoneList
-              :location-id="site.id"
-              :regions="plan.regions.value"
-              :active-region-id="plan.activeRegionId.value"
-              :can-trace="true"
-              @update:active-region-id="(id) => setPlanActiveRegion(id, 'zone')"
+              :found-count="plan.foundCount.value"
+              :has-drawing="cellsPainted > 0"
+              @find-again="plan.findAgainNow()"
+              @pick-zone-tool="plan.planTool.value = 'zone'"
+              @rename="(entry, label) => plan.renameEntry(entry, label)"
+              @bind="(entry, spaceId) => plan.bindEntry(entry, spaceId)"
+              @reshape="reshapeEntry"
+              @removed="(id) => { if (plan.activeRegionId.value === id) plan.activeRegionId.value = null; }"
             />
             <SiteWaysOutPanel :site-id="site.id" :spaces="spaces ?? []" :editable="true" />
           </div>
@@ -258,16 +252,6 @@
             :set-name="packLabel"
             :recent="recentPlaced"
             @pick="pickPlaceItem"
-          />
-          <CartographerStructurePanel
-            v-else-if="drawer === 'spaces'"
-            :space-rows="structure.spaceRows.value"
-            :selected-space-inspector="structure.selectedSpaceInspector.value"
-            :published-sites="publishedSites ?? []"
-            :map-rev="map?.rev ?? 0"
-            @select-space="(key) => (structure.selectedSpaceKey.value = key)"
-            @rename-space="structureTools.onRenameSpace"
-            @redetect="structure.redetect"
           />
         </CartographerDrawer>
 
@@ -382,8 +366,8 @@ import {
   IconAnnotate,
   IconEntityLink,
   IconRoomTemplate,
-  IconCave,
   IconSplitCell,
+  IconCave,
   IconHighlight,
   IconAngledWall,
   IconLight,
@@ -406,13 +390,12 @@ import CartographerPlanOptions from "@/components/cartographer/CartographerPlanO
 import CartographerPictureOptions from "@/components/cartographer/CartographerPictureOptions.vue";
 import WorkbenchPictureStage from "@/components/cartographer/WorkbenchPictureStage.vue";
 import CartographerToolOptions from "@/components/cartographer/CartographerToolOptions.vue";
-import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
-import SiteMapRegionList from "@/components/locations/site/SiteMapRegionList.vue";
-import SiteMapZoneList from "@/components/locations/site/SiteMapZoneList.vue";
+import ZoningList from "@/components/locations/site/ZoningList.vue";
 import SiteWaysOutPanel from "@/components/locations/site/SiteWaysOutPanel.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
 import { usePlanPalette, PLAN_TOOLS, TRACE_TOOL_OPTIONS, type PlanTool } from "@/composables/cartographer/usePlanPalette";
+import { useZoningKeys } from "@/composables/cartographer/useZoningKeys";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 
 import { useNotes } from "@/composables/notes/useNotes";
@@ -445,7 +428,9 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { wallAt } from "@/cartographer/wallGraph";
 import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
-import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
+import type { BindableSpace } from "@/types/locationMapRegion.types";
+import type { ZoningEntry } from "@/lib/locations/foundRooms";
+import { entryId } from "@/lib/locations/zoningRows";
 import type { GridCalibration, LocationType } from "@/types/location.types";
 import { squareReadout, useCanvasFraming, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
 
@@ -716,19 +701,18 @@ const tileSetForRail = computed(() => ({
 }));
 const activeFamily = computed(() => RAIL_FAMILIES.find((f) => f.tools.some((t) => t.id === activeTool.value)));
 
-// The Plan layer's tools get the same rail, each a family of one.
+// Zoning's tools get the same rail, each a family of one with its key in the corner.
 const PLAN_TOOL_ICONS: Record<PlanTool, AppIcon> = {
-  space: IconSplitCell,
   zone: IconHighlight,
   door: IconDoor,
-  claim: IconFill,
+  fill: IconFill,
   erase: IconEraser,
 };
 const PLAN_RAIL_FAMILIES: RailFamily[] = PLAN_TOOLS.map((t) => ({
   id: t.id,
   label: t.label,
   icon: PLAN_TOOL_ICONS[t.id],
-  tools: [{ id: t.id, label: t.label, icon: PLAN_TOOL_ICONS[t.id] }],
+  tools: [{ id: t.id, label: t.label, icon: PLAN_TOOL_ICONS[t.id], shortcut: t.shortcut }],
   dividerBefore: t.id === "erase",
 }));
 function onRailTool(id: string): void {
@@ -993,12 +977,11 @@ const slipCaption = computed(() => {
   return family?.caption;
 });
 
-/** The Plan slip's title: the tool and, for a Space or Zone, how it is being traced
- *  ("Space · Pen"). */
+/** The Zoning slip's title: the tool and, for the Zone tool, how it is being traced ("Zone · Pen"). */
 const planToolLabel = computed(() => {
   const tool = plan.planTool.value;
   const toolLabel = PLAN_TOOLS.find((t) => t.id === tool)?.label ?? tool;
-  if (tool !== "space" && tool !== "zone") return toolLabel;
+  if (tool !== "zone") return toolLabel;
   const trace = TRACE_TOOL_OPTIONS.find((o) => o.value === plan.traceTool.value)?.label;
   return trace ? `${toolLabel} · ${trace}` : toolLabel;
 });
@@ -1019,7 +1002,7 @@ const referencePicture = computed(() => stack.value.picture);
 // Built unconditionally: every query in `usePlanPalette` is `enabled`-guarded on a real site id, so on the
 // standalone route (no `site`, no layer selector) it is inert: no request, no mutation possible.
 const siteId = computed(() => site?.id ?? null);
-const plan = usePlanPalette(siteId);
+const plan = usePlanPalette(siteId, () => structure.structure.value.spaces);
 // Initial layer, read once at setup (a hand-picked layer stands for the session). A site with a Drawing or Picture
 // opens on Plan to trace it (#878 S2); one whose only map is a picture without a grid opens on the Picture, where the
 // grid gets lined up. The standalone route passes no `site` and lands on the Drawing.
@@ -1032,19 +1015,15 @@ function toggleGrid(): void {
   gridShown.value = !gridShown.value;
 }
 
-// ── The right drawer: one panel at a time over the canvas's edge. Plan opens on its own
-// lists (they are how a traced shape is bound to a room); Place opens its catalogue with its tool,
-// because the props are picked there; Spaces is the DM's to open.
-type DrawerId = "spaces" | "place" | "plan";
-const drawer = ref<DrawerId | null>(activeLayer.value === "plan" ? "plan" : null);
-const spacesDrawerId = computed<DrawerId>(() => (activeLayer.value === "plan" ? "plan" : "spaces"));
-const DRAWER_TITLE: Record<DrawerId, string> = { spaces: "Spaces on this map", place: "Place", plan: "Spaces and zones" };
+// ── The right drawer: one panel at a time over the canvas's edge. Zoning opens on its one list
+// (it is how a room is named and bound); Place opens its catalogue with its tool, because the props are
+// picked there. A closed list comes back from the Zoning slip.
+type DrawerId = "place" | "zoning";
+const drawer = ref<DrawerId | null>(activeLayer.value === "plan" ? "zoning" : null);
+const DRAWER_TITLE: Record<DrawerId, string> = { place: "Place", zoning: "Zones on this map" };
 const drawerTitle = computed(() => (drawer.value ? DRAWER_TITLE[drawer.value] : ""));
-function toggleSpaces(): void {
-  drawer.value = drawer.value === spacesDrawerId.value ? null : spacesDrawerId.value;
-}
 watch(activeLayer, (layer) => {
-  drawer.value = layer === "plan" ? "plan" : null;
+  drawer.value = layer === "plan" ? "zoning" : null;
 });
 watch(activeTool, (tool) => {
   if (activeLayer.value !== "drawing") return;
@@ -1052,22 +1031,20 @@ watch(activeTool, (tool) => {
   else if (drawer.value === "place") drawer.value = null;
 });
 
-/** The Plan's own Spaces/Zones panels (#884 S11) set `activeRegionId` via
- *  their "Trace" buttons the same way the Atlas's region list always has —
- *  this also swaps the Plan's own tool to match, so the canvas is actually
- *  armed to paint into whichever role the DM just picked (a bare
- *  `activeRegionId` write does nothing while `planTool` still points at
- *  Door or Claim, per `usePlanCanvasTools.ts`'s `isTraceTool()`). */
-function setPlanActiveRegion(id: string | null, role: RegionRole): void {
-  plan.activeRegionId.value = id;
-  if (id) plan.planTool.value = role;
+/** "Reshape" in the list: makes the room or zone the one being traced and arms the Zone tool, so the next drag
+ *  on the map redraws it (a bare `activeRegionId` write does nothing while the tool is Door or Fill, per
+ *  `usePlanCanvasTools.ts`'s `isTraceTool()`). A found room is written first; tapping again lets go of it. */
+async function reshapeEntry(entry: ZoningEntry): Promise<void> {
+  const id = entryId(entry);
+  plan.planTool.value = "zone";
+  await plan.selectRegion(plan.activeRegionId.value === id ? null : id);
 }
 
 // ── Canvas engine (#884 S6) — viewport, pointer/paint dispatch, undo/redo,
 // variant picking, the render loop. See useMapCanvasEditor.ts.
 const {
   zoom, viewportOffset, hoverCell, altHeld, spaceHeld, isPanning, canUndo, canRedo, undoEdit, redoEdit, centerMap,
-  onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel, structureTools,
+  onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel,
   rotateSelectedDressing, deleteSelectedDressing, selectedLightId, updateSelectedLight, deleteSelectedLight,
   selectedAngledWallKind, deleteSelectedAngledWall,
 } = useMapCanvasEditor({
@@ -1234,6 +1211,14 @@ defineExpose({
   setDarkness,
   startLineUp: lineUpBaseImage,
   armDoorPlacement: (doorId: string) => { activeLayer.value = "plan"; plan.armDoorPlacement(doorId); },
-  showSpaces: () => { activeLayer.value = "plan"; drawer.value = "plan"; },
+  showSpaces: () => { activeLayer.value = "plan"; drawer.value = "zoning"; },
+});
+
+// Z, D, F, E pick Zoning's tools while its tab is up (the editor's own keys only know the Drawing's).
+useZoningKeys({
+  layer: () => activeLayer.value,
+  enabled: () => !viewMode && !!site,
+  tools: PLAN_TOOLS,
+  pick: (tool) => { plan.planTool.value = tool; },
 });
 </script>

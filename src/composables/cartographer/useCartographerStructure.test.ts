@@ -1,18 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ref } from "vue";
 import { emptyLayers, type CellKey, type DungeonMap } from "@/types/dungeonMap.types";
-import type { DerivedLink, DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
-vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounters: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/dungeon-features/useTraps", () => ({ useTrapIndex: () => ({ byId: ref(new Map()) }) }));
-vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({ useDungeonFeatureIndex: () => ({ byId: ref(new Map()) }) }));
-vi.mock("@/composables/notes/useNotes", () => ({ useNotes: () => ({ data: ref([]) }) }));
+import type { DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
 
 import {
   useCartographerStructure,
   applySpaceName,
-  buildLinkedSummary,
   buildSpaceRows,
-  buildWaysSummary,
   findNameSourceCell,
 } from "./useCartographerStructure";
 
@@ -93,61 +87,6 @@ describe("findNameSourceCell / applySpaceName", () => {
   });
 });
 
-describe("buildWaysSummary", () => {
-  it("groups ways by kind and destination, pluralising the count", () => {
-    const cistern = space({ key: "s:cistern" });
-    const reliquary = space({ key: "s:reliquary", name: "Reliquary" });
-    const nave = space({ key: "s:nave", name: "Nave" });
-    const st = structure({
-      spaces: [cistern, reliquary, nave],
-      ways: [
-        { edgeKey: "1,1:N" as never, kind: "door", fromKey: "s:cistern", toKey: "s:reliquary" },
-        { edgeKey: "2,2:N" as never, kind: "door", fromKey: "s:cistern", toKey: "s:reliquary" },
-        { edgeKey: "3,3:W" as never, kind: "arch", fromKey: "s:nave", toKey: "s:cistern" },
-      ],
-    });
-    expect(buildWaysSummary(cistern, st)).toBe("2 doors → Reliquary · 1 arch → Nave");
-  });
-
-  it("names a destination that is not a mapped region", () => {
-    const cistern = space({ key: "s:cistern" });
-    const st = structure({
-      spaces: [cistern],
-      ways: [{ edgeKey: "1,1:N" as never, kind: "door", fromKey: "s:cistern", toKey: "s:elsewhere" }],
-    });
-    expect(buildWaysSummary(cistern, st)).toBe("1 door → an unmapped region");
-  });
-
-  it("reports no ways out when the space has none", () => {
-    const cistern = space({ key: "s:cistern" });
-    expect(buildWaysSummary(cistern, structure({ spaces: [cistern] }))).toBe("No ways out yet.");
-  });
-});
-
-describe("buildLinkedSummary", () => {
-  const resolvers = {
-    encounters: new Map([["e1", "Thing in the Cistern"]]),
-    traps: new Map<string, string>(),
-    features: new Map<string, string>(),
-    notes: new Map<string, string>(),
-  };
-
-  it("resolves a linked entity to its name", () => {
-    const links: DerivedLink[] = [{ cellKey: "1,1" as CellKey, spaceKey: "s:cistern", metadata: { encounter_id: "e1" } }];
-    expect(buildLinkedSummary(links, "s:cistern", resolvers)).toEqual(["Encounter 'Thing in the Cistern'"]);
-  });
-
-  it("falls back to a bare label when the id no longer resolves", () => {
-    const links: DerivedLink[] = [{ cellKey: "1,1" as CellKey, spaceKey: "s:cistern", metadata: { trap_id: "gone" } }];
-    expect(buildLinkedSummary(links, "s:cistern", resolvers)).toEqual(["Trap linked"]);
-  });
-
-  it("ignores links belonging to a different space", () => {
-    const links: DerivedLink[] = [{ cellKey: "1,1" as CellKey, spaceKey: "s:nave", metadata: { encounter_id: "e1" } }];
-    expect(buildLinkedSummary(links, "s:cistern", resolvers)).toEqual([]);
-  });
-});
-
 describe("useCartographerStructure", () => {
   const STONE = { pack_id: "base", pack_version: 1, variant: 0 };
 
@@ -167,13 +106,6 @@ describe("useCartographerStructure", () => {
     expect(s.selectedSpace.value?.cells).toContain("0,0");
     s.selectSpaceAt(3, 3);
     expect(s.selectedSpace.value).toBeNull();
-  });
-
-  it("re-detecting drops the selection", () => {
-    const s = useCartographerStructure(ref(twoRooms()), ref({}), ref(null));
-    s.selectSpaceAt(0, 0);
-    s.redetect();
-    expect(s.selectedSpaceKey.value).toBeNull();
   });
 
   it("renames the selected space through its annotation, and renames nothing with none selected", () => {

@@ -1599,7 +1599,7 @@ caption reads "not yet inside — opens at `<room>`" until the party actually
 moves there; nothing here moves them on its own.
 
 **A trigger zone can prompt this beat's own advance, and never fires it.**
-`SiteMapZoneList.vue` lets a `trigger`-kind zone name a `beat_id` (#868 S12).
+`ZoneDetailsEditor.vue` (opened from a Zoning list row) lets a `trigger`-kind zone name a `beat_id` (#868 S12).
 When the party's current room falls inside a trigger zone naming _this_ beat
 — compared by id, not "any beat in the quest," since `advance` has no target
 parameter and can only ever advance the beat already staged here — the
@@ -1631,8 +1631,8 @@ decisions, and `QuestRulesPanel.vue` for where a DM authors "when a place…".
 the mechanism but left it reachable only from `QuestRulesPanel.vue`, where the
 DM re-finds the room in a campaign-wide combobox — the complaint that
 opened #878: "I can't hang quest outcomes/beats etc. to these zones where needed."
-`SiteMapRegionList.vue` (the Spaces panel on a site's floor plan, Build mode
-only) now carries a "Rules" toggle on every **bound space** row, opening
+`ZoningList.vue` (Zoning's one list of rooms and zones on a site's floor plan, Build mode
+only) now carries a "Rules" toggle on every **bound room** row, opening
 `SiteMapRoomRules.vue` — list the room's existing rules, add a new one: pick a
 quest, pick which fact (`explored`/`cleared`/`looted`), pick the ledger verb,
 pick the objective. Both components read `useQuestConsequencesByLocations`
@@ -1648,7 +1648,7 @@ zone, on purpose.** `quest_consequences.on_location_id` is a real FK to
 `guard_location_map_region_space` raises if a zone-role region is given a
 `space_location_id` ("a zone binds to nothing," migration `20260908215640`) —
 so a zone has no identity for a rule to watch at all, not merely one this
-surface declined to wire up. `SiteMapZoneList.vue`'s own quest hook (a
+surface declined to wire up. `ZoneDetailsEditor.vue`'s own quest hook (a
 `trigger`-kind zone naming a `beat_id`, #868 S12) is a different mechanism
 entirely — it prompts a beat's advance when the party's token enters the
 zone, not a durable place-fact — and this story left it untouched.

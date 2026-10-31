@@ -152,14 +152,14 @@ export type LocationMapRegionUpdate = Partial<
  *  site with its own floor plan. `LocationMap.vue` builds this list from its
  *  `rooms` and `children` props (a room plus whichever children satisfy
  *  `isSiteType`, `src/lib/locations/tiers.ts`) and hands it to
- *  `SiteMapRegionList.vue`, which never needs more than an id to bind and a
+ *  `ZoningList.vue`, which never needs more than an id to bind and a
  *  name to display. */
 export interface BindableSpace {
   id: string;
   name: string;
   /** Present whenever the caller's own child list already carries it — every
    *  `bindableSpaces()` caller's does, since that function is generic over
-   *  `{ location_type: LocationType }` — so `SiteMapRegionList.vue` can read
+   *  `{ location_type: LocationType }` — so `ZoningList.vue` can read
    *  "Nested site · click to descend" (#868, frame 03) for a bound site
    *  without this shared type needing every consumer's full shape. */
   location_type?: LocationType;

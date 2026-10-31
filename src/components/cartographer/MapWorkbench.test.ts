@@ -152,6 +152,11 @@ vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ 
 vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: ref([]) }) }));
 
 /** Whether the rail offers a tool by this name (its buttons carry it as the accessible name). */
+/** A layer tab by its name; the key beside the word is part of the button's text. */
+function layerTab(wrapper: ReturnType<typeof mount>, name: string) {
+  return wrapper.findAll('[aria-label="Map layer"] button').find((b) => b.find("span").text() === name);
+}
+
 function tool(wrapper: ReturnType<typeof mount>, label: string): boolean {
   return wrapper.find(`nav[aria-label="Map tools"] [aria-label="${label}"]`).exists();
 }
@@ -259,16 +264,13 @@ describe("MapWorkbench", () => {
   // Edit mode additionally mounts the drawer's panels (real Pinia/TanStack deps, same
   // reason the file's own docblock gives for staying in view mode everywhere else), stubbed
   // out here since these tests are only about the rail and the bar.
-  // SiteMapRegionList/SiteMapZoneList (#884 S11, the Plan's own Spaces/Zones
-  // panels) are stubbed for the same reason: they reach for a domain UI store
-  // (Pinia) and `useQuests`/`useQuestBeat`/`useQuestBeats` (TanStack Query),
+  // ZoningList (the one list of Zoning) is stubbed for the same reason: it reaches for
+  // `useQuests`/`useQuestBeat`/`useQuestBeats` (TanStack Query) and the quest rules query,
   // neither of which this prop-surface smoke test installs.
   const editModeStubs = {
     global: {
       stubs: {
-        CartographerStructurePanel: true,
-        SiteMapRegionList: true,
-        SiteMapZoneList: true,
+        ZoningList: true,
         SiteWaysOutPanel: true,
       },
     },
@@ -277,7 +279,7 @@ describe("MapWorkbench", () => {
   it("shows no layer selector or Plan palette without a site, even in edit mode", () => {
     const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
     expect(wrapper.text()).not.toContain("Drawing");
-    expect(tool(wrapper, "Claim")).toBe(false);
+    expect(tool(wrapper, "Zone")).toBe(false);
   });
 
   it("offers the Water terrain tool in the Drawing palette, in the Terrain family's slip", async () => {
@@ -294,19 +296,18 @@ describe("MapWorkbench", () => {
     // A site with nothing drawn yet opens on the Drawing's own tool palette…
     expect(tool(wrapper, "Draw")).toBe(true);
 
-    const planButton = wrapper.findAll("button").find((b) => b.text() === "Zoning");
+    const planButton = layerTab(wrapper, "Zoning");
     await planButton?.trigger("click");
     // …and switches to the Plan's four tools once selected by hand.
-    expect(tool(wrapper, "Claim")).toBe(true);
+    expect(tool(wrapper, "Zone")).toBe(true);
   });
 
-  it("shows the Plan drawer's Spaces, Zones and Ways out, all of them editable (#1125 story 5)", () => {
+  it("shows Zoning's one list and the Ways out, both editable (#1125 frame 19)", () => {
     const wrapper = mount(MapWorkbench, {
       props: { map: baseMap, viewMode: false, site: siteWithPicture },
       ...editModeStubs,
     });
-    expect(wrapper.findComponent({ name: "SiteMapRegionList" }).exists()).toBe(true);
-    expect(wrapper.findComponent({ name: "SiteMapZoneList" }).exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "ZoningList" }).exists()).toBe(true);
     const ways = wrapper.findComponent({ name: "SiteWaysOutPanel" });
     expect(ways.props("editable")).toBe(true);
     expect(ways.props("siteId")).toBe(siteWithPicture.id);
@@ -319,7 +320,7 @@ describe("MapWorkbench", () => {
     it("opens on Drawing without a site at all (the standalone /cartographer route)", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
       expect(tool(wrapper, "Draw")).toBe(true);
-      expect(tool(wrapper, "Claim")).toBe(false);
+      expect(tool(wrapper, "Zone")).toBe(false);
     });
 
     it("opens on Drawing for a site with no map imagery yet", () => {
@@ -328,7 +329,7 @@ describe("MapWorkbench", () => {
         ...editModeStubs,
       });
       expect(tool(wrapper, "Draw")).toBe(true);
-      expect(tool(wrapper, "Claim")).toBe(false);
+      expect(tool(wrapper, "Zone")).toBe(false);
     });
 
     it("opens on Plan for a site whose imagery is a Picture", () => {
@@ -336,7 +337,7 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false, site: siteWithPicture },
         ...editModeStubs,
       });
-      expect(tool(wrapper, "Claim")).toBe(true);
+      expect(tool(wrapper, "Zone")).toBe(true);
       // "Draw" only ever appears on the Drawing's own rail.
       expect(tool(wrapper, "Draw")).toBe(false);
     });
@@ -346,7 +347,7 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false, site: siteWithDrawing },
         ...editModeStubs,
       });
-      expect(tool(wrapper, "Claim")).toBe(true);
+      expect(tool(wrapper, "Zone")).toBe(true);
       expect(tool(wrapper, "Draw")).toBe(false);
     });
 
@@ -355,7 +356,7 @@ describe("MapWorkbench", () => {
         props: { map: baseMap, viewMode: false, site: siteWithNoImagery, startLayer: "plan" },
         ...editModeStubs,
       });
-      expect(tool(plan, "Claim")).toBe(true);
+      expect(tool(plan, "Zone")).toBe(true);
       const drawing = mount(MapWorkbench, {
         props: { map: baseMap, viewMode: false, site: siteWithPicture, startLayer: "drawing" },
         ...editModeStubs,
@@ -369,9 +370,9 @@ describe("MapWorkbench", () => {
         ...editModeStubs,
       });
       // Starts on Plan (site has a Picture)…
-      expect(tool(wrapper, "Claim")).toBe(true);
+      expect(tool(wrapper, "Zone")).toBe(true);
 
-      const drawingButton = wrapper.findAll("button").find((b) => b.text() === "Drawing");
+      const drawingButton = layerTab(wrapper, "Drawing");
       await drawingButton?.trigger("click");
       expect(tool(wrapper, "Draw")).toBe(true);
 
@@ -379,7 +380,7 @@ describe("MapWorkbench", () => {
       // back — the default is read once at setup, never re-applied.
       await wrapper.setProps({ map: { ...baseMap, name: "Renamed" } });
       expect(tool(wrapper, "Draw")).toBe(true);
-      expect(tool(wrapper, "Claim")).toBe(false);
+      expect(tool(wrapper, "Zone")).toBe(false);
     });
   });
 
@@ -414,7 +415,7 @@ describe("MapWorkbench", () => {
 
     it("offers Base image, Drawing and Zoning, in that order", async () => {
       const wrapper = await mountPicture(uncalibrated);
-      const labels = wrapper.findAll("button").map((b) => b.text()).filter((t) => ["Base image", "Drawing", "Zoning"].includes(t));
+      const labels = wrapper.findAll('[aria-label="Map layer"] button').map((b) => b.find("span").text());
       expect(labels).toEqual(["Base image", "Drawing", "Zoning"]);
     });
 
@@ -426,7 +427,7 @@ describe("MapWorkbench", () => {
 
     it("still opens on the Plan for a picture that has its grid (nothing to line up)", async () => {
       const wrapper = await mountPicture({ ...siteWithPicture, is_battle_map: false });
-      expect(tool(wrapper, "Claim")).toBe(true);
+      expect(tool(wrapper, "Zone")).toBe(true);
     });
 
     it("lines the grid up on the picture and hands the host the result only when Done is pressed", async () => {
@@ -630,7 +631,7 @@ describe("MapWorkbench", () => {
       const w = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
       await flushPromises();
       expect(w.findComponent(CartographerToolRail).props("tileSet")).toBeDefined();
-      await w.findAll("button").find((b) => b.text() === "Zoning")?.trigger("click");
+      await layerTab(w, "Zoning")?.trigger("click");
       expect(w.findComponent(CartographerToolRail).props("tileSet")).toBeUndefined();
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "x", code: "KeyX" }));
       await flushPromises();
@@ -699,19 +700,62 @@ describe("MapWorkbench", () => {
       expect(wrapper.find("[data-slip]").text()).toContain("Drag a rectangle of floor");
     });
 
-    it("opens the Spaces drawer from the Map menu and closes it from the drawer's own button", async () => {
+    // The Drawing's separate "Spaces on this map" drawer is gone: Zoning's list is the one rooms list.
+    it("has no Spaces drawer on the Drawing, and the Map menu no longer offers one", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false },
+        props: { map: baseMap, viewMode: false, site: siteWithNoImagery },
         global: { stubs: { ...editModeStubs.global.stubs, CampaignScopeField: true } },
       });
-      expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(false);
       await wrapper.findAll("header button").find((b) => b.text() === "Map")?.trigger("click");
-      const spaces = [...document.body.querySelectorAll("[role=dialog] button")].find((b) => b.textContent?.includes("Spaces on this map"));
-      (spaces as HTMLElement).click();
       await flushPromises();
-      expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(true);
-      await wrapper.find("[aria-label='Close Spaces on this map']").trigger("click");
-      expect(wrapper.find("section[aria-label='Spaces on this map']").exists()).toBe(false);
+      expect([...document.body.querySelectorAll("[role=dialog] button")].some((b) => b.textContent?.includes("Spaces on this map"))).toBe(false);
+      expect(wrapper.find("section[aria-label='Zones on this map']").exists()).toBe(false);
+    });
+
+    it("opens Zoning's list with the tab, closes it from the drawer, and brings it back from the slip", async () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        global: { stubs: { ...editModeStubs.global.stubs, CampaignScopeField: true } },
+      });
+      expect(wrapper.find("section[aria-label='Zones on this map']").exists()).toBe(true);
+      await wrapper.find("[aria-label='Close Zones on this map']").trigger("click");
+      expect(wrapper.find("section[aria-label='Zones on this map']").exists()).toBe(false);
+      await wrapper.findAll("button").find((b) => b.text() === "Show zones list")?.trigger("click");
+      expect(wrapper.find("section[aria-label='Zones on this map']").exists()).toBe(true);
+    });
+
+    // D, F and E are Drawing shortcuts as well (door, fill, eraser), so the tab decides who answers.
+    it("Z, D, F and E pick Zoning's tools on the Zoning tab only", async () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        global: { stubs: { ...editModeStubs.global.stubs, CampaignScopeField: true } },
+        attachTo: document.body,
+      });
+      const pressed = (label: string) => wrapper.find(`nav[aria-label="Map tools"] [aria-label="${label}"]`).attributes("aria-pressed");
+      expect(pressed("Zone")).toBe("true");
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", code: "KeyF", cancelable: true }));
+      await flushPromises();
+      expect(pressed("Fill")).toBe("true");
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "e", code: "KeyE", cancelable: true }));
+      await flushPromises();
+      expect(pressed("Erase")).toBe("true");
+
+      // Back on the Drawing: Zoning's keys did not pick the Drawing's tools behind the DM's back…
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "2", code: "Digit2", cancelable: true }));
+      await flushPromises();
+      expect(tool(wrapper, "Zone")).toBe(false);
+      expect(wrapper.find('nav[aria-label="Map tools"] [aria-label="Select"]').attributes("aria-pressed")).toBe("true");
+      // …and the same letter is the Drawing's own again (E is its eraser).
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "e", code: "KeyE", cancelable: true }));
+      await flushPromises();
+      expect(wrapper.find('nav[aria-label="Map tools"] [aria-label="Erase"]').attributes("aria-pressed")).toBe("true");
+      wrapper.unmount();
+    });
+
+    it("shows each tab's key beside its name", () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
+      const keys = wrapper.findAll('[aria-label="Map layer"] button').map((b) => b.findAll("span").map((span) => span.text()));
+      expect(keys).toEqual([["Base image", "1"], ["Drawing", "2"], ["Zoning", "3"]]);
     });
 
     it("opens the Place catalogue with its tool and puts it away with the next one", async () => {
@@ -804,7 +848,7 @@ describe("MapWorkbench", () => {
       const w = siteMount();
       key("3", "Digit3");
       await flushPromises();
-      expect(tool(w, "Claim")).toBe(true);
+      expect(tool(w, "Zone")).toBe(true);
       key("2", "Digit2");
       await flushPromises();
       expect(tool(w, "Draw")).toBe(true);
