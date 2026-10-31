@@ -62,7 +62,7 @@ describe("useLootRollClock", () => {
     scope.stop();
   });
 
-  it("retries every 2s while the server still says open, and stops after 5 attempts", async () => {
+  it("retries while the server still says open, backing off from 2s", async () => {
     const resolve = vi.fn().mockResolvedValue(stillOpen());
     const scope = effectScope();
     scope.run(() => useLootRollClock(ref([drop("a", {})]), resolve));
@@ -70,8 +70,24 @@ describe("useLootRollClock", () => {
     expect(resolve).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(2000);
     expect(resolve).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(resolve).toHaveBeenCalledTimes(5);
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(resolve).toHaveBeenCalledTimes(3);
+    scope.stop();
+  });
+
+  // Bug: after 5 early calls the tab gave up for good, so a clock >10s fast left the drop "rolling".
+  it("keeps asking until the server resolves the roll, however late that is", async () => {
+    const resolve = vi.fn().mockResolvedValue(stillOpen());
+    const scope = effectScope();
+    scope.run(() => useLootRollClock(ref([drop("a", {})]), resolve));
+    await vi.advanceTimersByTimeAsync(30_300 + 120_000);
+    const calls = resolve.mock.calls.length;
+    expect(calls).toBeGreaterThan(5);
+    resolve.mockResolvedValue(resolved());
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(resolve).toHaveBeenCalledTimes(calls + 1);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(resolve).toHaveBeenCalledTimes(calls + 1);
     scope.stop();
   });
 
