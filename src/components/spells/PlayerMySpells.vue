@@ -356,7 +356,6 @@ import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
 import { signedNum } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { ConcentrationState, SpellSlotEntry } from "@/types/party.types";
 import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
@@ -368,7 +367,7 @@ import PlayerSpellSlotStrip from "@/components/spells/PlayerSpellSlotStrip.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 import { countPreparedAgainstLimit } from "@/rules/preparedSpellCount";
-import { slotScaledDamageDice } from "@/rules/spellDamageScaling";
+import { castDamageRolls } from "@/rules/spellDamageScaling";
 import { availableSlotsForSpell, canCastWithSlot, slotPool, type SpellSlotPool } from "@/rules/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -692,11 +691,8 @@ function confirmCast(slot: SpellSlotEntry) {
 
 async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number, damageTypeOverride?: string | null) {
   const spell = entry.spell;
-  const extraLevels = Math.max(0, castLevel - spell.level);
-  const cantripMult = spell.level === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
-  for (const dmg of spell.damage_rolls ?? []) {
-    let diceSrc = slotScaledDamageDice(dmg, extraLevels, spell.higher_level_damage);
-    if (cantripMult > 1) diceSrc = scaleExpression(dmg.dice, cantripMult - 1, dmg.dice);
+  for (const dmg of castDamageRolls(spell, castLevel, props.memberLevel ?? 1)) {
+    const diceSrc = dmg.dice;
     const parsed = parseExpression(diceSrc);
     if (!parsed) {
       toast.error(`Cannot roll unsupported damage expression: ${diceSrc}`);

@@ -69,6 +69,13 @@ describe("groupSpellRolls damage types and instances", () => {
     expect(groups.map((g) => g.dice)).toEqual(["2d6", "4d6", "2d6"]);
   });
 
+  // Bug: only effects with `instances` split, so two hits from one plain attack spell shared one damage roll.
+  it("gives each hit of a plain spell attack its own roll", () => {
+    const attack: StructuredSpellEffect = { ...base, outcome: "hit", dice: "1d10" };
+    const groups = groupSpellRolls([{ targetId: "1", effect: attack }, { targetId: "2", effect: attack }]);
+    expect(groups).toHaveLength(2);
+  });
+
   it("lets automatic darts share one roll (PHB 2014 Magic Missile: they strike simultaneously)", () => {
     const dart = { ...ray, outcome: "automatic" as const, dice: "1d4" };
     const groups = groupSpellRolls([1, 2, 3].map((n) => ({ targetId: String(n), effect: dart })));
