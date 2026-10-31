@@ -1174,5 +1174,10 @@ defineExpose({
   getEditRevision: () => editRevision.value,
   resetEdits,
   markSaved,
+  /** The ready check's fixes (#1125 frame 08): each lands the DM where the fix is made. */
+  setDarkness,
+  startLineUp: () => { activeLayer.value = "picture"; startLineUp(); },
+  armDoorPlacement: (doorId: string) => { activeLayer.value = "plan"; plan.armDoorPlacement(doorId); },
+  showSpaces: () => { activeLayer.value = "plan"; drawer.value = "plan"; },
 });
 </script>

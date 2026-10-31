@@ -3,7 +3,7 @@ title: "Sites: Maps, Rooms & Running a Dungeon"
 section: World Building
 section_order: 2
 order: 1
-summary: Build a floor plan out of layered maps, rooms and doors, then run the dungeon at the table with fog, reachability and a room-by-room stack.
+summary: Build a floor plan out of layered maps, rooms and doors, then explore the dungeon at the table on the Play screen, with fog, reachability and a room-by-room card.
 keywords: site, dungeon, room, map, cartographer, edit map, explore, run, fog, door, plan, drawing, picture, layers, readiness, level, floor, storey, stair, basement, tower
 ---
 
@@ -15,7 +15,7 @@ A **site** is any [Atlas](#atlas-locations) location with a floor plan: a Buildi
 | --- | --- |
 | Overview / Map | The two tabs of every place. The Overview lists the rooms (add, reorder and set ambience right there), the ways out and the prepared material; the Map tab shows the map. There is no separate editing state. |
 | Edit map | The gilt button at the top-right of the Map tab. It opens the full-screen map editor and comes back to the Map tab when you press the back link. |
-| Explore | A separate layout, opened with the **Explore** button, for running the dungeon at the table: the room list, the map and a room-by-room stack, side by side. |
+| Explore | The **Explore** button opens the Play screen for the site: the party's tokens walk the map, with the rooms listed on the left and the room ahead on the right. The same screen runs a fight when one starts. |
 | The map stack | A site's map is up to three independent layers: **Picture** (a scan, photo, or AI-styled render), **Drawing** (a Cartographer map, shown as a transparent bake so the Picture shows through where nothing's painted), and **Plan** (the rooms, doors and zones traced on top). Any layer can be empty. |
 | Room / Grounds | An ordinary child of a site, typed Room (or, on a Wilds site, Grounds). Listed and ordered in the Rooms panel, and optionally traced as a shape on the map. |
 | Way out | A named, directional door between two rooms (or a room and a nested site): not the same mechanism as a plain location's "Related Locations." |
@@ -79,7 +79,7 @@ Rows show **Cleared**/**Looted** markers read-only whenever those facts have bee
 
 ### Filling an unwritten room
 
-A room with no description shows **Unwritten** and a **Fill** button, in the site runner and the quest handoff as well as here. Fill opens an editor in place: write the room yourself, or, when AI is on for the campaign, type an optional steer ("a flooded shrine", "a guard post") and click **Roll it with AI**. The AI reads the site, the level the room is on, the rooms it connects to and the ways out you have recorded, and writes a short passage to read aloud (shown as a quote), a paragraph about the room for you, and a few things worth noting. It never invents exits you have not drawn, and secret doors stay out of the read-aloud.
+A room with no description shows **Unwritten** and a **Fill** button, in the quest handoff as well as here. Fill opens an editor in place: write the room yourself, or, when AI is on for the campaign, type an optional steer ("a flooded shrine", "a guard post") and click **Roll it with AI**. The AI reads the site, the level the room is on, the rooms it connects to and the ways out you have recorded, and writes a short passage to read aloud (shown as a quote), a paragraph about the room for you, and a few things worth noting. It never invents exits you have not drawn, and secret doors stay out of the read-aloud.
 
 The result lands in the editor, not in the room: change anything you like, then click **Save**. Rolling costs credits, shown next to the button.
 
@@ -117,21 +117,21 @@ Every location, room, site, or anything above it, carries three toggles: **Explo
 
 Any location with a campaign, most often a room, can hold prepared loot in its **Loot** section: an **Item** from your Vault, a pile of **Currency**, or a **Chest** rolled from a loot table (roll once, hold the result, drop it to chat later; **re-roll** if you don't like it). Dropping loot to chat automatically marks the room **Looted**.
 
-## Running the site at the table
+## Exploring the site at the table
 
-Click **Run** on a site in the Atlas (or on a beat staged there, see below) to open the run surface:
+Click **Explore** on a site in the Atlas (or on a beat staged there, see below) to open the Play screen, which fills the window. **‹ Atlas** in the top bar brings you back to the site's Map tab. A gilt **Exploring** chip says what you are doing, and **Start a fight** is always one click away.
 
-- **Rooms**: a plain click-to-move list, captioned "Reachable," "Not reachable from here," "Secret door: undiscovered," or "Party here · `<zone>` active" as appropriate. This works even before anything is traced.
-- **The map**, in run mode: click a room to move the party into it. A **Fog** checkbox shades unexplored rooms on the plan itself: rooms the party has explored are lit, ones reachable from an explored door are hinted at as a shape with no detail, and everything else stays fully hidden.
-- **The current room's stack**: read-aloud (the room's own description), then prompts for anything prepared there (traps, roll tables, encounters, undiscovered secret ways out), in that order.
-- **Ways out of the room**: **Move**, **Unlock**, **Reveal** per door, right from the run surface.
-- **Progress** on the current room.
+- **The map.** The party's tokens stand on the site's map, and unexplored rooms are shaded for you (your players do not see them). Click a square and everyone moves together, keeping their order. Click one token to send it alone; press Esc, or **Move everyone** on the left, to bring the party back. The tokens remember where they stood, so a fight that starts here begins with everyone in place.
+- **Stepping into a room.** When the lead token steps into a room the party has not seen, a note appears at the top: *The party steps into the Pillared hall.* **Reveal the room** moves the party there, lifts the fog and records the room as Explored; **Not yet** lets you keep walking. A room the party has already explored needs no asking.
+- **The party and the rooms** (left). Each character with a thin hit point bar, then every room as explored, entering or hidden. Click a room to move the party into it, even before anything is traced.
+- **The room ahead** (right). The read-aloud text, then prompts for anything prepared there (traps, roll tables, undiscovered secret ways out), the room's Explored, Cleared and Looted pills, **Waiting here** with any fight staged in the room and a **Fight here** button, and the **ways out** (Move, Unlock, Reveal per door). A fight starts on this same screen: initiative slides in on the left and the room card becomes the turn card, and the top bar's **‹ site name** brings you back here.
+- **A site whose map has no grid yet** shows its plan instead: click a room to move the party into it. Line the grid up in Edit map and the party can walk it square by square.
 
-Moving the party is a single write to the campaign's current location; arriving somewhere for the first time is recorded as Explored automatically. Nothing else here fires on its own: unlocking, revealing and looting are all deliberate clicks, never automatic consequences of movement.
+Moving the party into a room is a single write to the campaign's current location; arriving somewhere for the first time is recorded as Explored automatically. Nothing else here fires on its own: unlocking, revealing and looting are all deliberate clicks, never automatic consequences of movement.
 
 ### Quests staged at a site
 
-A quest beat can be staged at a site, or at one specific room inside it (see [Running a Quest at the Table](#running-a-quest-at-the-table)). When one is, the run surface shows a beat card with a **Resolve beat**/**Back to the beat** link into the quest's run cockpit: the room stack you're looking at is the same read-aloud-and-payoff idiom the cockpit itself uses, because a room is, in effect, a zoomed-in beat. A room's **Cleared** fact can also satisfy a quest objective directly, authored from [Quest Story Flow](#quest-story-flow-beats-routes-objectives) or from the room's own Spaces panel in Build.
+A quest beat can be staged at a site, or at one specific room inside it (see [Running a Quest at the Table](#running-a-quest-at-the-table)). When one is, the room card shows a beat card with a **Resolve beat**/**Back to the beat** link into the quest's run cockpit: the room stack you're looking at is the same read-aloud-and-payoff idiom the cockpit itself uses, because a room is, in effect, a zoomed-in beat. A room's **Cleared** fact can also satisfy a quest objective directly, authored from [Quest Story Flow](#quest-story-flow-beats-routes-objectives) or from the room's own Spaces panel in Build.
 
 ## What your players see
 

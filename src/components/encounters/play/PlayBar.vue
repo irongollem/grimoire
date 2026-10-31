@@ -1,6 +1,16 @@
 <template>
   <header class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-card px-4 py-2">
-    <AppButton variant="ghost" size="sm" :icon="IconChevronLeft" label="Encounters" to="/encounters" />
+    <!-- A fight started from exploring a site goes back to that site (frame 09), else to the encounters list. -->
+    <AppButton
+      v-if="site"
+      variant="ghost"
+      size="sm"
+      :icon="IconChevronLeft"
+      :label="site.name"
+      :to="exploreRoute(site.id)"
+      data-testid="play-back-to-site"
+    />
+    <AppButton v-else variant="ghost" size="sm" :icon="IconChevronLeft" label="Encounters" to="/encounters" />
     <h1 class="max-w-[16rem] truncate text-heading-sm font-bold text-foreground">{{ store.encounterName }}</h1>
 
     <span
@@ -112,6 +122,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconEncounter, IconFlag, IconLive, IconMonitor, IconTool } from "@/lib/icons";
+import { useEncounterSite } from "@/composables/locations/useEncounterSite";
+import { exploreRoute } from "@/lib/locations/placeRoute";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAppUiStore } from "@/stores/ui/app";
 import type { ComplicationMode } from "@/ai/useComplicationGeneration";
@@ -123,7 +135,8 @@ import type { PlayViewState } from "./playTypes";
  * The Play screen's bar (#1125 frame 10): where we are, the turn controls, and the few things a
  * DM reaches for mid-fight. Everything else is in the View menu, the Tools sheet or the overflow.
  */
-const { isLive, goingLive, canGoLive, canGenerate, turnTimerSeconds, turnResetKey } = defineProps<{
+const { encounterId, isLive, goingLive, canGoLive, canGenerate, turnTimerSeconds, turnResetKey } = defineProps<{
+  encounterId: string;
   isLive: boolean;
   goingLive: boolean;
   /** A campaign is active, so there is a table to go live to. */
@@ -148,6 +161,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useEncounterRunStore();
+const site = useEncounterSite(() => encounterId);
 const appUi = useAppUiStore();
 
 /** Events not yet fired plus traps: what the DM may still need from the Tools sheet. */

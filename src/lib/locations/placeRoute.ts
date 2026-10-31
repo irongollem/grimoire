@@ -6,15 +6,20 @@
  * depending on who wrote them. The full page is gone (25 Sep 2026). Every link
  * to a place is built here, so there is one answer to "where does this go".
  *
- * `mode` opens the place in one of the Atlas pane's working states: the
- * Details form (`edit`), the site runner (`run`), or its Map tab (`map`).
- * There is no Build mode any more (#1125): a place's map is a tab, and editing
- * it is the full-screen editor at `/locations/:id/map` (`mapEditorRoute` can
- * also pick the layer it opens on). A string rather than a route object because several
- * callers hand it to places that take a plain href (search results, chat,
- * prepared marks).
+ * `mode` opens the place in one of its working states: the Details form
+ * (`edit`, in the Atlas pane), exploring a site (`explore`, the full-screen
+ * Play screen at `/locations/:id/explore`, #1125 decision 9), or its map
+ * (`map`, the full-screen editor at `/locations/:id/map`; `mapEditorRoute` can
+ * also pick the layer it opens on). There is no Build mode and no run layout
+ * any more. A string rather than a route object because several callers hand
+ * it to places that take a plain href (search results, chat, prepared marks).
  */
-export type PlaceMode = "edit" | "map" | "run";
+export type PlaceMode = "edit" | "map" | "explore";
+
+/** The Play screen for a site: the party walking its map (#1125 decision 9). */
+export function exploreRoute(id: string): string {
+  return `/locations/${encodeURIComponent(id)}/explore`;
+}
 
 /** The layers the full-screen map editor can open on. `drawing`, `plan` and
  *  `picture` belong to a site, `picture` and `pins` to any other place. */
@@ -22,6 +27,7 @@ export type MapEditorLayer = "drawing" | "plan" | "picture" | "pins";
 
 export function placeRoute(id: string, mode?: PlaceMode): string {
   if (mode === "map") return mapEditorRoute(id);
+  if (mode === "explore") return exploreRoute(id);
   const at = `/locations?at=${encodeURIComponent(id)}`;
   return mode ? `${at}&${mode}=true` : at;
 }

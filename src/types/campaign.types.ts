@@ -9,6 +9,14 @@ export interface CampaignOptionalRules {
   ignore_multiclass_prereqs?: boolean;
 }
 
+/** Where the party stands on one site's grid while exploring it, in the site map's image cells (the cell space a fight's
+ *  tokens use, so a fight started there seats everyone where they stood). `campaigns.explore_party`; one site at a time. */
+export interface ExploreParty {
+  site_id: string;
+  /** party_members.id -> top-left corner of the character's square. */
+  positions: Record<string, { x: number; y: number }>;
+}
+
 export interface Campaign {
   id: string;
   user_id: string;
@@ -53,6 +61,8 @@ export interface Campaign {
   spotify_client_id: string | null;
   ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
+  /** Where each character stands on a site's grid while the party explores it (#1125 decision 9). Null until a site is explored. */
+  explore_party: ExploreParty | null;
   /** The weather's climate wherever no Atlas place names one (#1086). */
   climate: Climate;
   /** The DM's overrides of the generated weather, for every climate source (#1086). */
@@ -98,6 +108,7 @@ export type CampaignInsert = Omit<
   | "current_month"
   | "current_day"
   | "current_location_id"
+  | "explore_party"
   | "climate"
   | "weather_pins"
   | "custom_calendar"
@@ -128,6 +139,7 @@ export type CampaignInsert = Omit<
   current_month?: number;
   current_day?: number;
   current_location_id?: string | null;
+  explore_party?: ExploreParty | null;
   climate?: Climate;
   weather_pins?: WeatherPin[];
   custom_calendar?: SettingCalendarDef | null;

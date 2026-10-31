@@ -10,7 +10,7 @@
 // - Finding 5: `claimFloorRegion` always inserted a new region, so claiming
 //   the same floor twice (or floor already traced as a Space) made two
 //   overlapping rows.
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eraseFromRegions, usePlanPalette } from "./usePlanPalette";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -288,6 +288,43 @@ describe("usePlanPalette pen rings, conversions and doors", () => {
     expect(await plan.startNewSpace()).toBeNull();
     await plan.claimFloorRegion(["0,0"]);
     expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
+  });
+});
+
+// #1125 frame 08: "Place it" puts a door that is only in the list onto the map.
+describe("usePlanPalette armDoorPlacement", () => {
+  beforeEach(() => {
+    for (const stub of [createDoorStub, updateDoorStub]) {
+      stub.calls.length = 0;
+      stub.mutate.mockClear();
+    }
+  });
+
+  it("the next edge takes the listed door rather than making a second one", () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.armDoorPlacement("door-1");
+    plan.placeDoorAt("2,3:N", "crypt", "gallery");
+    expect(updateDoorStub.calls.map((c) => c.vars)).toEqual([{ id: "door-1", update: { edge_key: "2,3:N" } }]);
+    expect(createDoorStub.mutate).not.toHaveBeenCalled();
+  });
+
+  it("only the first edge takes it: the one after is a new door", () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.armDoorPlacement("door-1");
+    plan.placeDoorAt("2,3:N", "crypt", "gallery");
+    plan.placeDoorAt("5,5:W", "crypt", null);
+    expect(createDoorStub.mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("choosing another tool lets the door go", async () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.armDoorPlacement("door-1");
+    await nextTick();
+    plan.planTool.value = "space";
+    await nextTick();
+    plan.placeDoorAt("2,3:N", "crypt", "gallery");
+    expect(updateDoorStub.mutate).not.toHaveBeenCalled();
+    expect(createDoorStub.mutate).toHaveBeenCalledTimes(1);
   });
 });
 

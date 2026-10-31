@@ -347,7 +347,7 @@ export function chooseStyleImageSize(effWidth: number, effHeight: number): { wid
  * `chooseStyleImageSize` rounds each edge down to a multiple of 16 on its
  * own, so the final aspect can differ from the padded one by up to about 1%.
  * `GridCalibration` has a single cell size, so that sliver shows up as rows
- * drifting slightly toward the bottom edge; the Layers panel's Calibrate is
+ * drifting slightly toward the bottom edge; the Picture layer's Line up the grid is
  * the fix, as it is for the model's own drift. See `useMapExport.ts`'s
  * header for the rest of the calibration argument.
  */

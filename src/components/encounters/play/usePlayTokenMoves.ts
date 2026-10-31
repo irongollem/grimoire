@@ -18,6 +18,18 @@ import { footprintOf, movementUsedOf } from "./playRoster";
 import { combatantSpeed } from "./playSpeed";
 import type { PlayTool } from "./playTypes";
 
+/** What token moves read of the map's state: a fight's (`usePlayMapState`) or an exploring party's. */
+export type MoveMapState = Pick<
+  ReturnType<typeof usePlayMapState>,
+  "placed" | "monsters" | "activeInstanceId" | "moveTerrain" | "moveCombatant"
+>;
+
+/** What token moves read of the turn book. Exploring has no turns, so it hands in an empty one and nothing is charged. */
+export type MoveTurnBook = Pick<
+  ReturnType<typeof useEncounterRunStore>,
+  "availableMonsters" | "availableNpcs" | "started" | "combatants" | "recordMove" | "undoMove"
+>;
+
 export interface MovePreview {
   lines: PathLine[];
   text: string;
@@ -32,8 +44,8 @@ export interface MovePreview {
  * nothing here refuses a move, it only prices it.
  */
 export function usePlayTokenMoves(input: {
-  state: ReturnType<typeof usePlayMapState>;
-  store: ReturnType<typeof useEncounterRunStore>;
+  state: MoveMapState;
+  store: MoveTurnBook;
   selectedId: MaybeRefOrGetter<string | null>;
   groupIds: MaybeRefOrGetter<readonly string[]>;
   partyMembers: MaybeRefOrGetter<readonly Pick<PartyMember, "id" | "speed">[]>;

@@ -236,6 +236,8 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
+import { useEncounterSite } from "@/composables/locations/useEncounterSite";
+import { afterFightRoute } from "@/lib/locations/explore";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 const { confirm } = useConfirm();
 import { ref, computed, watch, onUnmounted } from "vue";
@@ -291,6 +293,7 @@ const store = useEncounterRunStore();
 const router = useRouter();
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
+const fightSite = useEncounterSite(encounterId);
 const campaign = useCampaignStore();
 const appUi = useAppUiStore();
 const toast = useToast();
@@ -640,7 +643,8 @@ async function handleEndCombat() {
   await markRoomsExploredFromFogMask(fogMaskAtEnd);
 
   store.reset();
-  router.push(`/encounters/${encounterId.value}`);
+  // A fight anchored in a site goes back to exploring it; any other back to its encounter (#1125).
+  router.push(afterFightRoute(encounterId.value, fightSite.value));
 }
 </script>
 

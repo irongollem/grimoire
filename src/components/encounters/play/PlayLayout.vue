@@ -1,101 +1,100 @@
 <template>
-  <div class="relative flex h-full min-h-0 flex-col" data-testid="play-layout">
-    <PlayBar
-      v-model:view="view"
-      :is-live="isLive"
-      :going-live="goingLive"
-      :can-go-live="canGoLive"
-      :can-generate="canGenerate"
-      :turn-timer-seconds="turnTimerSeconds"
-      :turn-reset-key="turnResetKey"
-      @roll-initiative="emit('roll-initiative')"
-      @start-combat="emit('start-combat')"
-      @go-live="emit('go-live')"
-      @table-screen="emit('table-screen')"
-      @reset-view="map?.resetView()"
-      @tools="toolsOpen = true"
-      @generate="emit('generate', $event)"
-      @abandon="emit('abandon')"
-      @end-fight="emit('end-fight')"
-    />
+  <PlayShell left-label="Initiative" right-label="Detail">
+    <template #bar>
+      <PlayBar
+        v-model:view="view"
+        :encounter-id="encounterId"
+        :is-live="isLive"
+        :going-live="goingLive"
+        :can-go-live="canGoLive"
+        :can-generate="canGenerate"
+        :turn-timer-seconds="turnTimerSeconds"
+        :turn-reset-key="turnResetKey"
+        @roll-initiative="emit('roll-initiative')"
+        @start-combat="emit('start-combat')"
+        @go-live="emit('go-live')"
+        @table-screen="emit('table-screen')"
+        @reset-view="map?.resetView()"
+        @tools="toolsOpen = true"
+        @generate="emit('generate', $event)"
+        @abandon="emit('abandon')"
+        @end-fight="emit('end-fight')"
+      />
 
-    <RunnerDueConditions />
+      <RunnerDueConditions />
+    </template>
 
-    <div class="relative flex min-h-0 flex-1">
-      <!-- Initiative, and whoever the map has no square for. -->
-      <aside class="flex w-64 shrink-0 flex-col border-r border-border bg-card" aria-label="Initiative">
-        <h2 class="px-3 pt-3 text-eyebrow uppercase text-muted-foreground">Initiative</h2>
-        <PlayInitiativeList :selected-id="shownId" @select="onSelect" />
-        <PlayUnplacedTray :combatants="unplaced" :factions="store.factions" :armed-id="placingId" @arm="placingId = $event" />
-      </aside>
+    <!-- Initiative, and whoever the map has no square for. -->
+    <template #left>
+      <h2 class="px-3 pt-3 text-eyebrow uppercase text-muted-foreground">Initiative</h2>
+      <PlayInitiativeList :selected-id="shownId" @select="onSelect" />
+      <PlayUnplacedTray :combatants="unplaced" :factions="store.factions" :armed-id="placingId" @arm="placingId = $event" />
+    </template>
 
-      <main class="min-w-0 flex-1">
-        <PlayMap
-          ref="map"
-          :encounter-id="encounterId"
-          :view="view"
-          :placing-id="placingId"
+    <template #map>
+      <PlayMap
+        ref="map"
+        :encounter-id="encounterId"
+        :view="view"
+        :placing-id="placingId"
+        :selected-id="shownId"
+        :group-ids="groupIds"
+        :party-members="partyMembers"
+        @select="onMapSelect"
+        @update:group-ids="groupIds = $event"
+        @unplaced="unplaced = $event"
+        @placed="placingId = null"
+        @cancel-placing="placingId = null"
+      />
+    </template>
+
+    <!-- The selected combatant's detail; whose turn it is when nobody was picked. -->
+    <template #right>
+      <PlayTurnCard
+        v-if="showTurnCard"
+        :party-members="partyMembers"
+        @back-to-start="map?.backToStart()"
+        @open-sheet="fullSheet = true"
+      />
+      <template v-else-if="shownId !== null || selectedTrapId !== null">
+        <!-- Looking at someone else's sheet, or the turn card's full sheet: one tap back to the turn. -->
+        <AppButton
+          v-if="canReturnToTurn"
+          class="m-2 self-start"
+          variant="link"
+          size="inline"
+          :icon="IconChevronLeft"
+          :label="`Back to ${store.activeCombatant?.name}'s turn`"
+          data-testid="back-to-turn"
+          @click="backToTurn"
+        />
+        <RunnerEntityDetail
           :selected-id="shownId"
-          :group-ids="groupIds"
+          :selected-trap-id="selectedTrapId"
+          :monsters="store.availableMonsters"
           :party-members="partyMembers"
-          @select="onMapSelect"
-          @update:group-ids="groupIds = $event"
-          @unplaced="unplaced = $event"
-          @placed="placingId = null"
-          @cancel-placing="placingId = null"
+          @close="onCloseDetail"
         />
-      </main>
+      </template>
+      <p v-else class="p-4 text-body text-muted-foreground">Pick someone in the initiative column to see their sheet.</p>
+    </template>
 
-      <!-- The selected combatant's detail; whose turn it is when nobody was picked. -->
-      <ResizeHandle @mousedown="startMouse" @touchstart="startTouch" />
-      <aside class="flex min-h-0 shrink-0 flex-col overflow-hidden bg-card" :style="{ width: detailWidth + 'px' }" aria-label="Detail">
-        <PlayTurnCard
-          v-if="showTurnCard"
-          :party-members="partyMembers"
-          @back-to-start="map?.backToStart()"
-          @open-sheet="fullSheet = true"
-        />
-        <template v-else-if="shownId !== null || selectedTrapId !== null">
-          <!-- Looking at someone else's sheet, or the turn card's full sheet: one tap back to the turn. -->
-          <AppButton
-            v-if="canReturnToTurn"
-            class="m-2 self-start"
-            variant="link"
-            size="inline"
-            :icon="IconChevronLeft"
-            :label="`Back to ${store.activeCombatant?.name}'s turn`"
-            data-testid="back-to-turn"
-            @click="backToTurn"
-          />
-          <RunnerEntityDetail
-            :selected-id="shownId"
-            :selected-trap-id="selectedTrapId"
-            :monsters="store.availableMonsters"
-            :party-members="partyMembers"
-            @close="onCloseDetail"
-          />
-        </template>
-        <p v-else class="p-4 text-body text-muted-foreground">Pick someone in the initiative column to see their sheet.</p>
-      </aside>
-
+    <template #overlay>
       <PlayToolsSheet
         v-model:open="toolsOpen"
         :encounter-id="encounterId"
         :selected-trap-id="selectedTrapId"
         @update:selected-trap-id="onPickTrap"
       />
-    </div>
-  </div>
+    </template>
+  </PlayShell>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconChevronLeft } from "@/lib/icons";
-import { useAppUiStore } from "@/stores/ui/app";
-import ResizeHandle from "@/components/common/layout/ResizeHandle.vue";
-import { useDetailResize } from "@/composables/encounters/useDetailResize";
 import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
@@ -104,6 +103,7 @@ import RunnerEntityDetail from "../RunnerEntityDetail.vue";
 import PlayBar from "./PlayBar.vue";
 import PlayInitiativeList from "./PlayInitiativeList.vue";
 import PlayMap from "./PlayMap.vue";
+import PlayShell from "./PlayShell.vue";
 import PlayToolsSheet from "./PlayToolsSheet.vue";
 import PlayTurnCard from "./PlayTurnCard.vue";
 import PlayUnplacedTray from "./PlayUnplacedTray.vue";
@@ -144,17 +144,6 @@ const view = ref<PlayViewState>({ ...DEFAULT_PLAY_VIEW });
 const unplaced = ref<RunCombatant[]>([]);
 const placingId = ref<string | null>(null);
 const map = ref<InstanceType<typeof PlayMap> | null>(null);
-const { detailWidth, startMouse, startTouch } = useDetailResize(320);
-
-// The Play screen is the whole window: the app's sidebar and top bar give way (as for Edit map), and the bar's
-// "Encounters" is the way out. Only this layout; the classic runner and the phone keep the shell.
-const appUi = useAppUiStore();
-onMounted(() => {
-  appUi.editorFocus = true;
-});
-onBeforeUnmount(() => {
-  appUi.editorFocus = false;
-});
 
 // Nobody picked: the sheet is whose turn it is, and follows the turn. A trap in view replaces it.
 const shownId = computed(() => {

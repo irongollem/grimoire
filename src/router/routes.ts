@@ -710,6 +710,14 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/cartographer/CartographerEditorView.vue"),
     meta: { requiresAuth: true, title: "Edit Map", fullscreenMobile: true },
   },
+  // Exploring a site: the Play screen with the party walking its map (#1125 decision 9). It replaced the Atlas
+  // pane's Run layout, so `?run=true` no longer means anything.
+  {
+    path: "/locations/:id/explore",
+    name: "site-explore",
+    component: () => import("@/views/locations/SiteExploreView.vue"),
+    meta: { requiresAuth: true, title: "Exploring" },
+  },
 
   // Loot table detail
   {

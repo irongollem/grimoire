@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => {
   setCalibration: vi.fn(),
   setBattleMap: vi.fn(),
   exportVtt: vi.fn(),
+  startLineUp: vi.fn(),
+  armDoorPlacement: vi.fn(),
+  showSpaces: vi.fn(),
   };
 });
 
@@ -61,6 +64,15 @@ vi.mock("@/composables/locations/useSiteDrawingEditor", () => ({
     onDirtyChange: vi.fn(),
     onEditRevision: vi.fn(),
     flush: mocks.flush,
+  }),
+}));
+vi.mock("@/composables/locations/useLocationMapRegions", () => ({ useLocationMapRegions: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/locations/useSiteDoors", () => ({
+  useSiteDoors: () => ({
+    data: ref([
+      { id: "d1", edge_key: "1,1:N", from_location_id: "a", to_location_id: "b", from_location: { name: "Crypt" }, to_location: { name: "Gallery" } },
+      { id: "d2", edge_key: null, from_location_id: "a", to_location_id: "b", from_location: { name: "Crypt" }, to_location: { name: "Vault" } },
+    ]),
   }),
 }));
 vi.mock("@/composables/locations/useAddSiteLevel", () => ({
@@ -113,8 +125,8 @@ vi.mock("@/composables/cartographer/useMapExport", () => ({
 
 const WorkbenchStub = defineComponent({
   name: "MapWorkbench",
-  props: ["map", "site", "menuActions", "saveState", "startLayer", "defaultName"],
-  emits: ["menu-action", "picture-upload", "picture-remove", "update:pictureCalibration", "update:isBattleMap"],
+  props: ["map", "site", "menuActions", "saveState", "startLayer", "defaultName", "showReady"],
+  emits: ["ready", "menu-action", "picture-upload", "picture-remove", "update:pictureCalibration", "update:isBattleMap"],
   setup(_p, { slots, expose }) {
     // The host reads the canvas through its template ref, which is this stub.
     const api = () => mocks.canvas.current as Record<string, (...a: unknown[]) => unknown>;
@@ -124,7 +136,12 @@ const WorkbenchStub = defineComponent({
       getRuntimes: () => api().getRuntimes(),
       loadDressingCatalog: () => api().loadDressingCatalog(),
       getCellGlyphs: () => api().getCellGlyphs(),
-      getName: () => api().getName(),
+      getName: () => (mocks.canvas.current ? api().getName() : ""),
+      getDarkness: () => "dim",
+      setDarkness: vi.fn(),
+      startLineUp: mocks.startLineUp,
+      armDoorPlacement: mocks.armDoorPlacement,
+      showSpaces: mocks.showSpaces,
     });
     return () => h("div", [slots["bar-start"]?.({ mapName: "", setName: () => {} }), slots["bar-end"]?.()]);
   },
@@ -147,6 +164,7 @@ function mountEditor(loc: Location, all: Location[] = [loc]) {
         CartographerPublishModal: true,
         CartographerAiStyleModal: true,
         PaywallModal: true,
+        ReadyCheckSheet: true,
         SiteLevelPicker: true,
       },
     },
@@ -168,6 +186,30 @@ beforeEach(() => {
 
 // #1125 frame 07: the site's full-screen editor and its Map menu.
 describe("SiteMapEditor", () => {
+  // Frame 08: the Ready button opens the sheet, and its fixes act on the workbench.
+  it("shows Ready and opens the ready check when it is pressed", async () => {
+    const w = mountEditor(place({ id: "ash" }));
+    const sheet = () => w.findComponent({ name: "ReadyCheckSheet" });
+    expect(w.findComponent(WorkbenchStub).props("showReady")).toBe(true);
+    expect(sheet().props("open")).toBe(false);
+    w.findComponent(WorkbenchStub).vm.$emit("ready");
+    await flushPromises();
+    expect(sheet().props("open")).toBe(true);
+  });
+
+  it("a door in the list but not on the map is offered Place it, and the fix arms exactly that door", async () => {
+    const w = mountEditor(place({ id: "ash" }));
+    const sheet = w.findComponent({ name: "ReadyCheckSheet" });
+    const rows = sheet.props("rows") as { id: string; fixes: { action: unknown }[] }[];
+    expect(rows.find((r) => r.id === "doors")!.fixes.map((f) => f.action)).toEqual([{ kind: "place-door", doorId: "d2" }]);
+    sheet.vm.$emit("fix", { kind: "place-door", doorId: "d2" });
+    sheet.vm.$emit("fix", { kind: "line-up" });
+    sheet.vm.$emit("fix", { kind: "link" });
+    expect(mocks.armDoorPlacement).toHaveBeenCalledWith("d2");
+    expect(mocks.startLineUp).toHaveBeenCalledTimes(1);
+    expect(mocks.showSpaces).toHaveBeenCalledTimes(1);
+  });
+
   it("offers a Map menu only once a Drawing is saved: every entry works on that row", () => {
     expect(menuOf(mountEditor(place({ id: "ash" })))).toEqual([]);
     expect(menuOf(mountEditor(place({ id: "ash", source_map_id: "m1" })))).toEqual(["review", "download", "export-vtt", "delete"]);

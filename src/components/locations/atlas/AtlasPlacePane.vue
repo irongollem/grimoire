@@ -104,7 +104,7 @@
             "Dungeon · tithe · flooded · [quest icon] 2 quests staged here"
             (#868, frame 02) — a beat staged at this place OR any of its
             rooms, so a DM scanning the Atlas sees a quest is waiting here
-            before opening the runner. Silent at zero: most places never
+            before exploring it. Silent at zero: most places never
             carry a staged beat, and an always-on "0 quests" would be noise
             on every other row.
           -->
@@ -156,9 +156,8 @@
           class="max-sm:flex-1"
           @click="previewing ? stopPreview() : startPreview()"
         />
-        <!-- The site runner (#791, epic #780), labelled Explore (#1125) — one
-             surface to run a dungeon at the table, entered in place rather
-             than by leaving the Atlas. Only a site has anything to explore. -->
+        <!-- Exploring (#1125 decision 9): the Play screen, with the party walking
+             this site's map. Only a site has anything to explore. -->
         <AppButton
           v-if="isSite"
           variant="outline"
@@ -170,7 +169,7 @@
           tooltip="Explore this site at the table"
           collapse-label-on-mobile
           class="max-sm:flex-1"
-          @click="openRun"
+          @click="openExplore"
         />
         <AppButton
           variant="outline"
@@ -357,6 +356,7 @@ import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { exploreRoute } from "@/lib/locations/placeRoute";
 import { visibleTags } from "@/lib/locations/tags";
 import { groupByTier, isInteriorType, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier, TierGroup } from "@/lib/locations/tiers";
@@ -460,7 +460,7 @@ const router = useRouter();
 const isBelowSm = useBelow("sm");
 const actionSize = computed(() => (isBelowSm.value ? "md" : "sm"));
 
-/** Details — a route flag on the current Atlas selection (like `run` below),
+/** Details — a route flag on the current Atlas selection (like `edit` itself),
  *  rather than a trip to a separate page: the
  *  pane renders the same body a full page would, so leaving it changed
  *  nothing but which page the DM was dropped on. */
@@ -468,9 +468,10 @@ function openEdit(): void {
   void router.push({ query: { ...route.query, edit: "true" } });
 }
 
-/** The site runner (#791, epic #780) — same convention. */
-function openRun(): void {
-  void router.push({ query: { ...route.query, run: "true" } });
+/** Exploring a site is the full-screen Play screen (#1125 decision 9), a route of its own. */
+function openExplore(): void {
+  if (!location) return;
+  void router.push(exploreRoute(location.id));
 }
 
 /** The readiness meter's Mapped pill (#884, S5) opens the Map tab: a map to

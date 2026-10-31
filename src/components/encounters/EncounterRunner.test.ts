@@ -20,6 +20,8 @@ vi.mock("vue-router", async (importOriginal) => ({
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ info: vi.fn(), error: vi.fn(), fromError: vi.fn() }) }));
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounter: () => ({ data: ref(null) }) }));
+// The Play bar names the site a fight is in (its back link); no site here, so no location reads.
+vi.mock("@/composables/locations/useEncounterSite", () => ({ useEncounterSite: () => ref(null) }));
 vi.mock("@/composables/encounters/useCombatExploration", () => ({
   useCombatExploration: () => ({
     canOpenBattleMap,

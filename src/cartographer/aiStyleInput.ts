@@ -74,8 +74,8 @@ export function liveDrawingCalibration(map: DungeonMap, dressing: DressingCatalo
  * save still registers on the right cells (see `MapWorkbench.vue`'s
  * reference-ghost layer, keyed on exactly these three calibration fields).
  * This is a first guess, not a guarantee: the model can still shrink or grow
- * the grid a little in its own render, which is exactly what the Layers
- * panel's Calibrate action stays available to correct.
+ * the grid a little in its own render, which is exactly what the Picture
+ * layer's Line up the grid stays available to correct.
  */
 export function styledPictureCalibration(map: DungeonMap, dressing: DressingCatalog, geometry: AspectPadGeometry): GridCalibration {
   const { origin_cell_x, origin_cell_y } = liveDrawingCalibration(map, dressing, STYLE_INPUT_PADDING_CELLS);
@@ -103,7 +103,7 @@ async function loadBitmap(url: string): Promise<ImageBitmap> {
 }
 
 /**
- * Builds the AI styler's input for a site in Build. With a calibrated
+ * Builds the AI styler's input for a site's map. With a calibrated
  * Picture, composites it beneath a transparent live bake of the Drawing, at
  * the place `placePicture` puts it — exactly the pair `MapStackImage.vue`
  * shows the DM — then fits the composite to the resolved provider's accepted

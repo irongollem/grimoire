@@ -6,7 +6,7 @@
 // `useSiteStructure` already gathers; nothing here writes anything.
 //
 // This module also holds `structureFromSite` and `publishStaleness`, which
-// back the Layers panel's Drawing row (#884, S5): reconstructing a
+// back the Drawing's publish-staleness read (#884, S5): reconstructing a
 // `DerivedStructure` from the Atlas's OWN regions/doors so it can be diffed
 // against the live Cartographer drawing with the same `structureDelta` the
 // publish review uses.

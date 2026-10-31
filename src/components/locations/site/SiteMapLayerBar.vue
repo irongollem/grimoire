@@ -12,7 +12,7 @@
 
     <!--
       The two image layers first, then a hairline, then the overlays painted
-      on top of them. Same bottom-up order as the Layers panel: a DM who has
+      on top of them. Same bottom-up order as the map editor's layers: a DM who has
       just chosen Picture and Drawing there finds them in the same sequence
       here. Each renders only when the site actually has that layer — a
       toggle for a layer that does not exist is a control with nothing behind

@@ -37,7 +37,7 @@
 // a rapid second edit reads the first edit's result as its `before`, not
 // whatever the lagging query still shows.
 
-import { computed, ref, type ComputedRef } from "vue";
+import { computed, ref, watch, type ComputedRef } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useLocations } from "@/composables/locations/useLocations";
@@ -134,6 +134,8 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   // ── Tool state ─────────────────────────────────────────────────────────
   const planTool = ref<PlanTool>("space");
   const traceTool = ref<TraceTool>("paint");
+  /** A listed door waiting for its edge (see `armDoorPlacement`). */
+  const placingDoorId = ref<string | null>(null);
   // Shared singleton with the Atlas's own template picker (`useRegionPen.ts`)
   // — deliberate: "only one tracing session can be live at a time" already
   // covers a DM being in the Cartographer instead of the Atlas, not just
@@ -393,6 +395,12 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   /** Places a new door on `edgeKey` with the given (already-resolved)
    *  endpoints. */
   function placeDoorAt(edgeKey: SourceEdgeKey, fromLocationId: string, toLocationId: string | null): void {
+    const arrivingId = placingDoorId.value;
+    if (arrivingId) {
+      placingDoorId.value = null;
+      putListedDoorOnEdge(arrivingId, edgeKey);
+      return;
+    }
     const insert = {
       from_location_id: fromLocationId,
       to_location_id: toLocationId,
@@ -411,6 +419,33 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
       },
       onError: (err) => toastError(fromError(err)),
     });
+  }
+
+  /** "Place it" from the ready check (#1125 frame 08): the next edge clicked with the door tool takes this listed door
+   *  (it keeps its two ends) instead of making a new one. Leaving the door tool lets go of it. */
+  function armDoorPlacement(doorId: string): void {
+    placingDoorId.value = doorId;
+    planTool.value = "door";
+  }
+  watch(planTool, (tool) => {
+    if (tool !== "door") placingDoorId.value = null;
+  });
+
+  function putListedDoorOnEdge(doorId: string, edgeKey: SourceEdgeKey): void {
+    const handle: PlanEntityHandle = { id: doorId };
+    updateDoor.mutate(
+      { id: doorId, update: { edge_key: edgeKey } },
+      {
+        onSuccess: () => {
+          undo.push({
+            label: "place door",
+            undo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: { edge_key: null } }); },
+            redo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: { edge_key: edgeKey } }); },
+          });
+        },
+        onError: (err) => toastError(fromError(err)),
+      },
+    );
   }
 
   /** A click on a placed door cycles the only two kinds a 2D plan edge
@@ -487,6 +522,8 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     confirmConvert,
     claimFloorRegion,
     existingDoorAtEdge,
+    placingDoorId,
+    armDoorPlacement,
     placeDoorAt,
     cycleDoorKind,
     removeDoor,

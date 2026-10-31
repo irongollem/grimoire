@@ -15,7 +15,7 @@
 
     <template #default="{ close }">
       <AppButton
-        v-for="entry in ENTRIES"
+        v-for="entry in entries"
         :key="entry.key"
         variant="menu"
         size="md"
@@ -46,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import MenuPopover from "@/components/common/overlays/MenuPopover.vue";
 import { IconCheck, IconChevronDown, IconLayers, IconReset } from "@/lib/icons";
@@ -53,6 +54,11 @@ import type { PlayViewState } from "./playTypes";
 
 /** The toggles that sat on the old battle map toolbar, behind one button (#1125 frame 10). */
 const view = defineModel<PlayViewState>({ required: true });
+/** Exploring has no fog brush, turn or players' window to toggle: it offers only the toggles that mean something there, and may rename one. */
+const { only = null, labels = {} } = defineProps<{
+  only?: readonly (keyof PlayViewState)[] | null;
+  labels?: Partial<Record<keyof PlayViewState, string>>;
+}>();
 const emit = defineEmits<{ "reset-view": [] }>();
 
 const ENTRIES: { key: keyof PlayViewState; label: string }[] = [
@@ -64,6 +70,10 @@ const ENTRIES: { key: keyof PlayViewState; label: string }[] = [
   { key: "followTurn", label: "Follow the turn" },
   { key: "showLegend", label: "Legend" },
 ];
+
+const entries = computed(() =>
+  ENTRIES.filter((e) => only === null || only.includes(e.key)).map((e) => ({ key: e.key, label: labels[e.key] ?? e.label })),
+);
 
 function onReset(close: (refocus: boolean) => void) {
   close(true);

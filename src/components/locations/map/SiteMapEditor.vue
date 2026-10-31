@@ -13,11 +13,13 @@
       :menu-actions="menuActions"
       :review-count="siteStaleness?.behind"
       :start-layer="requestedLayer"
+      :show-ready="true"
       :default-name="location.name"
       :picture-busy="picture.busy.value"
       @update:dirty="autosave.onDirtyChange"
       @update:edit-revision="autosave.onEditRevision"
       @menu-action="onMenuAction"
+      @ready="openReady"
       @picture-upload="picture.setPicture"
       @picture-remove="picture.removePicture"
       @update:picture-calibration="picture.setCalibration"
@@ -56,6 +58,18 @@
     </MapWorkbench>
 
     <PaywallModal v-model="showLevelPaywall" resource="locations" />
+
+    <ReadyCheckSheet
+      v-model:open="readyOpen"
+      v-model:darkness="readyDarkness"
+      :rows="readyRows"
+      :map-name="readyMapName"
+      :site-id="location.id"
+      :site-name="location.name"
+      :room-ids="siteSpaces.map((s) => s.id)"
+      :first-room-name="siteSpaces[0]?.name ?? null"
+      @fix="onReadyFix"
+    />
 
     <CartographerPublishModal
       v-model="mapPublish.open.value"
@@ -117,6 +131,7 @@ import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
+import ReadyCheckSheet from "@/components/locations/map/ReadyCheckSheet.vue";
 import SiteLevelPicker from "@/components/locations/site/SiteLevelPicker.vue";
 import { bakeMapAsPng } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
@@ -124,6 +139,8 @@ import type { MapMenuAction } from "@/cartographer/tools";
 import { useDeleteDungeonMap } from "@/composables/cartographer/useDungeonMaps";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
+import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
+import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { usePlacePicture } from "@/composables/locations/usePlacePicture";
@@ -138,8 +155,10 @@ import { exportDrawingAsVtt } from "@/lib/mapImport/exportDrawing";
 import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
+import { playReadiness, type ReadyFixAction } from "@/lib/locations/playReadiness";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { childrenOf, type AtlasIndex } from "@/lib/locations/tree";
+import type { DarknessLevel } from "@/types/dungeonMap.types";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Location, LocationSummary } from "@/types/location.types";
 
@@ -197,6 +216,50 @@ const requestedLayer = computed(() => {
   if (route.query.layer === undefined) return undefined;
   return startLayer === "drawing" || startLayer === "plan" || startLayer === "picture" ? startLayer : undefined;
 });
+
+// ── Ready for the table (frame 08) ──────────────────────────────────────────
+const readyOpen = ref(false);
+const readyMapName = ref(location.name);
+function openReady(): void {
+  readyMapName.value = workbenchRef.value?.getName() || location.name;
+  readyOpen.value = true;
+}
+const { data: planRegions } = useLocationMapRegions(location.id);
+const { data: planDoors } = useSiteDoors(computed(() => siteSpaces.value.map((s) => s.id)));
+const readyDarkness = computed<DarknessLevel>({
+  get: () => workbenchRef.value?.getDarkness() ?? "daylight",
+  set: (level) => workbenchRef.value?.setDarkness(level),
+});
+const readyRows = computed(() => {
+  const regions = planRegions.value ?? [];
+  const doors = planDoors.value ?? [];
+  return playReadiness({
+    location,
+    siteType: location.location_type,
+    spaces: siteSpaces.value,
+    regions,
+    doors: doors.map((d) => ({
+      id: d.id,
+      edge_key: d.edge_key,
+      from_location_id: d.from_location_id,
+      to_location_id: d.to_location_id,
+      from_name: d.from_location?.name ?? null,
+      to_name: d.to_location?.name ?? null,
+    })),
+    live: location.map_live,
+    darkness: readyDarkness.value,
+    hasDrawing: location.source_map_id !== null,
+  });
+});
+
+/** Each fix lands the DM where it is made, in the editor. */
+function onReadyFix(action: ReadyFixAction): void {
+  const wb = workbenchRef.value;
+  if (!wb) return;
+  if (action.kind === "line-up") wb.startLineUp();
+  else if (action.kind === "place-door") wb.armDoorPlacement(action.doorId);
+  else if (action.kind === "link") wb.showSpaces();
+}
 
 // ── Levels ──────────────────────────────────────────────────────────────────
 const levelsInfo = computed(() => levelsOf(index, location));

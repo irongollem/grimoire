@@ -4,6 +4,8 @@ import { useEncounterLive, liveState } from "@/composables/encounters/useEncount
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useCampaignStore } from "@/stores/campaign";
+import { seatFromExploring } from "@/lib/locations/explore";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { seedFogMask, seedTokenPositions } from "@/lib/battlemap/roomBridge";
@@ -38,6 +40,7 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
   const room = useEncounterRoom(encounterId);
   const { encounter, location: encounterLocation, mapLocation: location, surface, focusRoom, terrainZones } = room;
   const store = useEncounterRunStore();
+  const campaign = useCampaignStore();
   const toast = useToast();
   const { isLive, liveStateLoaded, scheduleMapPush, moveToken } = useEncounterLive(encounterId.value, { follow: true });
 
@@ -185,14 +188,17 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
   function seedRoomIfNeeded() {
     const s = surface.value;
     const row = liveState.value;
-    if (!s || s.focusCells.length === 0 || !row) return;
+    if (!s || !row) return;
 
-    const seeded = seedTokenPositions(row.combatants_live, s.focusCells);
+    // A fight started while exploring this site stands everyone where they were (#1125 decision 9); whoever has no
+    // explored square, or the room has to seat, falls through to the room's cells below.
+    const walked = seatFromExploring(row.combatants_live, campaign.activeCampaign?.explore_party ?? null, s.mapLocation.id, s.calibration.cells_per_image_width);
+    const seeded = seedTokenPositions(walked, s.focusCells);
     seeded.forEach((c, i) => {
       if (c.position && !row.combatants_live[i]?.position) moveToken(c.instance_id, c.position).catch(reportMoveFailure);
     });
 
-    if (shouldSeedFog(row.fog_mask)) {
+    if (s.focusCells.length > 0 && shouldSeedFog(row.fog_mask)) {
       fogMask.value = seedFogMask(s.focusCells);
       // Marked seeded locally at once: the push is debounced, and a surface recompute landing in that
       // window would read `null` again and seed a second time over whatever the DM had brushed.

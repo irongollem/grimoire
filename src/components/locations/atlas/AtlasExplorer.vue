@@ -161,11 +161,13 @@
         @click="clearSelection"
       />
       <!--
-        A place has one DM screen now. Editing and running are states of
-        this same pane rather than trips to a separate page — `editing` and
-        `running` read straight off the Atlas route's own query. Keyed by the
-        place's id so switching which place is being edited or run remounts instead of
-        reusing stale local state, same as the old per-route pages did.
+        A place has one DM screen now. Editing is a state of this same pane
+        rather than a trip to a separate page — `editing` reads straight off
+        the Atlas route's own query. Keyed by the place's id so switching which
+        place is being edited remounts instead of reusing stale local state,
+        same as the old per-route pages did. Exploring a site is the Play
+        screen at `/locations/:id/explore` (#1125 decision 9), not a state of
+        this pane.
       -->
       <div v-if="selectedLoading" role="status" class="flex flex-1 flex-col gap-4">
         <span class="sr-only">Loading…</span>
@@ -185,11 +187,6 @@
              replaces the pane, so the box follows it here (#983). -->
         <DmNoteBox type="location" :id="selected.id" :label="selected.name" />
       </div>
-      <SiteRunSurface
-        v-else-if="running && selected"
-        :key="selected.id"
-        :location="selected"
-      />
       <AtlasPlacePane
         v-else
         :index="index"
@@ -216,7 +213,6 @@ import AtlasPlacePane from "@/components/locations/atlas/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/atlas/AtlasTree.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import LocationEditor from "@/components/locations/place/LocationEditor.vue";
-import SiteRunSurface from "@/components/locations/run/SiteRunSurface.vue";
 import { useAtlasTreeFold } from "@/composables/locations/useAtlasTreeFold";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import {
@@ -292,7 +288,7 @@ const allLocations = computed(() => locations.value ?? []);
 const index = computed(() => buildAtlasIndex(allLocations.value));
 
 const selectedId = computed(() => locationsUi.locationsSelectedId);
-// The tree list is slim (#972); the pane, the editor and the run surface show
+// The tree list is slim (#972); the pane and the editor show
 // a place in full, so the selected place is read by id. The slim row only
 // decides *whether* a place is selected, never what the pane renders.
 const {
@@ -303,29 +299,26 @@ const {
 const selected = computed(() => selectedRow.value ?? null);
 const selectedLoading = computed(() => !!selectedId.value && selectedPending.value);
 
-// `edit`/`run` are route flags on the selected place (the map has its own
-// full-screen route since #1125, not a flag). `run` additionally requires a
-// site-tier place — a stray `?run=true` on anything else falls through to
-// the plain pane rather than erroring, same as the old page's own guard.
+// `edit` is a route flag on the selected place (the map and exploring a site
+// have full-screen routes of their own since #1125, not flags).
 const editing = computed(() => route.query.edit === "true");
 // Decided from the slim row (it carries `location_type`), not the full one, so
 // switching to a place that is not cached yet does not flip the layout while it
-// loads: the tree would unfold, then fold again and remount the runner. The
-// full row is still what the pane, editor and runner render. The full row's
+// loads: the tree would unfold, then fold again and remount the pane. The
+// full row is still what the pane and editor render. The full row's
 // type covers a place the slim list has not caught up with yet.
 const selectedType = computed(
   () => (selectedId.value ? index.value.byId.get(selectedId.value)?.location_type : undefined)
     ?? selected.value?.location_type,
 );
 const selectedIsSite = computed(() => !!selectedType.value && isSiteType(selectedType.value));
-const running = computed(() => route.query.run === "true" && selectedIsSite.value);
 
-// The site runner and a site's Map tab both want the pane's full width, so the
-// tree folds for as long as either is on screen. Derived, never stored: see
-// `useAtlasTreeFold` for why this must not touch the DM's own fold.
+// A site's Map tab wants the pane's full width, so the tree folds for as long
+// as it is on screen. Derived, never stored: see `useAtlasTreeFold` for why
+// this must not touch the DM's own fold.
 const paneWantsWidth = computed(() => {
   if (!selectedId.value || editing.value) return false;
-  return running.value || (locationsUi.locationsPaneMode === "map" && selectedIsSite.value);
+  return locationsUi.locationsPaneMode === "map" && selectedIsSite.value;
 });
 const { treeFolded, resultsOpen, foldTree, unfoldTree, closeResults } =
   useAtlasTreeFold(paneWantsWidth);
@@ -387,9 +380,9 @@ function clearSelection() {
   // next time the Atlas is opened — an exit the user cannot take.
   locationsUi.locationsLastSelectedId = null;
   // Every per-place mode flag goes with the place it was opened for — left
-  // in place, `edit`/`run` would attach themselves to whatever the
-  // DM selects next, editing or running a place they never asked to.
-  const { at: _discarded, edit: _e, run: _r, ...rest } = route.query;
+  // in place, `edit` would attach themselves to whatever the
+  // DM selects next, editing a place they never asked to.
+  const { at: _discarded, edit: _e, ...rest } = route.query;
   router.push({ query: rest });
 }
 

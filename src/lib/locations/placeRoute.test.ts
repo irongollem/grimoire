@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapEditorRoute, placeRoute, startLayer } from "./placeRoute";
+import { exploreRoute, mapEditorRoute, placeRoute, startLayer } from "./placeRoute";
 
 describe("placeRoute", () => {
   it("opens the place selected in the Atlas", () => {
@@ -12,12 +12,23 @@ describe("placeRoute", () => {
 
   it("opens it in a working state when asked", () => {
     expect(placeRoute("abc", "edit")).toBe("/locations?at=abc&edit=true");
-    expect(placeRoute("abc", "run")).toBe("/locations?at=abc&run=true");
+  });
+
+  // #1125 decision 9: the site's run layout retired; exploring is the Play screen at a path of its own, so a stale
+  // `?run=true` link cannot mean anything and nothing builds one.
+  it("sends 'explore' to the Play screen for the site, not to a flag on the Atlas", () => {
+    expect(placeRoute("abc", "explore")).toBe("/locations/abc/explore");
   });
 
   // #1125 decision 1: Build is retired; the map is a path of its own, not a flag on the Atlas.
   it("sends 'map' to the full-screen editor, not to a flag on the Atlas", () => {
     expect(placeRoute("abc", "map")).toBe("/locations/abc/map");
+  });
+});
+
+describe("exploreRoute", () => {
+  it("escapes an id so it cannot add path segments", () => {
+    expect(exploreRoute("a/b?x=1")).toBe("/locations/a%2Fb%3Fx%3D1/explore");
   });
 });
 

@@ -215,7 +215,8 @@ describe("AtlasPlacePane header buttons (#1125)", () => {
     expect(battle.findComponent({ name: "TabBar" }).exists()).toBe(true);
   });
 
-  it("opens Details and Explore as flags on the same selection", async () => {
+  // #1125 decision 9: Details is a flag on the Atlas selection; Explore is the Play screen, a route, not `?run=true`.
+  it("opens Details as a flag on the selection and Explore as the site's own Play screen", async () => {
     mocks.query.value = { at: "s" };
     const w = mountPane(place({ id: "s", location_type: "dungeon" }));
     await flushPromises();
@@ -223,7 +224,7 @@ describe("AtlasPlacePane header buttons (#1125)", () => {
     press("Details");
     press("Explore");
     expect(mocks.push).toHaveBeenNthCalledWith(1, { query: { at: "s", edit: "true" } });
-    expect(mocks.push).toHaveBeenNthCalledWith(2, { query: { at: "s", run: "true" } });
+    expect(mocks.push).toHaveBeenNthCalledWith(2, "/locations/s/explore");
   });
 });
 

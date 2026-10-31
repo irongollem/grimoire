@@ -38,6 +38,8 @@ vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fr
 
 import { usePlayMapState } from "./usePlayMapState";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useCampaignStore } from "@/stores/campaign";
+import type { Campaign, ExploreParty } from "@/types/campaign.types";
 
 function combatant(id: string, position?: { x: number; y: number }): RunCombatant {
   return {
@@ -159,5 +161,37 @@ describe("usePlayMapState", () => {
     const s = setup();
     s.toggleDoorAt(3.5, 2.1);
     expect(s.moveTerrain.value.walls).toEqual([]);
+  });
+  // #1125 decision 9: a fight started while exploring the site stands everyone where they were.
+  describe("a fight started from exploring", () => {
+    function hero(memberId: string): RunCombatant {
+      return { ...combatant(`p-${memberId}`), type: "player", party_member_id: memberId };
+    }
+    function fightFrom(explore: ExploreParty | null) {
+      useCampaignStore().activeCampaign = { id: "c1", explore_party: explore } as Campaign;
+      h.isLive.value = true;
+      h.liveState.value = { combatants_live: [hero("pm1"), hero("pm2")], fog_mask: "", current_round: 0, active_combatant_index: 0 };
+      h.surface.value = {
+        ...(h.surface.value as object),
+        focusRoomId: "r1", focusCells: ["0,0", "1,0", "2,0"],
+      };
+      setup();
+    }
+
+    it("seats a character on the square they stood on, and seats the rest by the room", () => {
+      fightFrom({ site_id: "l1", positions: { pm1: { x: 6, y: 4 } } });
+      expect(h.moveToken).toHaveBeenCalledWith("p-pm1", { x: 6, y: 4 });
+      expect(h.moveToken).toHaveBeenCalledWith("p-pm2", { x: 0, y: 0 });
+    });
+
+    it("ignores squares walked on another site", () => {
+      fightFrom({ site_id: "another-site", positions: { pm1: { x: 6, y: 4 } } });
+      expect(h.moveToken).toHaveBeenCalledWith("p-pm1", { x: 0, y: 0 });
+    });
+
+    it("does not seat a character past the right edge of the picture", () => {
+      fightFrom({ site_id: "l1", positions: { pm1: { x: 10, y: 4 } } });
+      expect(h.moveToken).not.toHaveBeenCalledWith("p-pm1", { x: 10, y: 4 });
+    });
   });
 });
