@@ -4,12 +4,6 @@
          height the host gives it. View: the canvas alone, as the page always showed it. -->
     <CartographerBar
       v-if="!viewMode"
-      :packs="selectablePacks"
-      :current-pack-id="currentPackId"
-      :loaded-pack-ids="loadedPackIds"
-      :pack-runtime="packRuntime"
-      :pack-name="packLabel"
-      :validation-missing="packRuntime?.validation.missing.length ?? 0"
       :darkness="darkness"
       :campaign-id="campaignId"
       :space-count="activeLayer === 'plan' ? plan.regions.value.length : structure.spaceRows.value.length"
@@ -22,7 +16,6 @@
       :menu-actions="menuActions"
       :review-count="reviewCount"
       :show-ready="showReady"
-      @update:current-pack-id="currentPackId = $event"
       @update:darkness="setDarkness"
       @update:campaign-id="campaignId = $event"
       @update:show-reference="showPictureReference = $event"
@@ -53,7 +46,11 @@
         v-if="!viewMode && activeLayer !== 'picture'"
         :families="activeLayer === 'drawing' ? RAIL_FAMILIES : PLAN_RAIL_FAMILIES"
         :active-tool="activeLayer === 'drawing' ? activeTool : plan.planTool.value"
+        :tile-set="activeLayer === 'drawing' ? tileSetForRail : undefined"
         @update:active-tool="onRailTool"
+        @update:current-pack-id="currentPackId = $event"
+        @update:second-pack-id="setSecondPack"
+        @swap-tile-sets="swapTileSets"
       />
 
       <!-- Canvas. Pinned to the frame's edges rather than `h-full`: the frame's height
@@ -385,6 +382,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import { storeToRefs } from "pinia";
+import { useCartographerUiStore } from "@/stores/ui/cartographer";
 import CartographerBar from "@/components/cartographer/CartographerBar.vue";
 import CartographerDrawer from "@/components/cartographer/CartographerDrawer.vue";
 import CartographerPlaceCatalog from "@/components/cartographer/CartographerPlaceCatalog.vue";
@@ -531,7 +530,6 @@ watch(firstPublishedPackId, (id) => {
 const packLoadError = ref<string | null>(null);
 const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
 const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value) ?? null);
-const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 // True while the canvas has nothing to paint with yet: either the library
 // query is still in flight, or a pack id is known but its runtime hasn't
 // loaded. Once the query has answered and there simply is no pack (the
@@ -648,19 +646,19 @@ interface ToolFamilyDef {
   id: string;
   label: string;
   icon: Component;
-  /** What the slip says under the family's name; Draw's names the tile set. */
-  caption: (packName: string) => string;
+  /** What the slip says under the family's name; the tile set is never named here (it is the rail's swatch). */
+  caption?: string;
   tools: readonly Tool[];
   dividerBefore?: boolean;
 }
 const TOOL_FAMILIES: readonly ToolFamilyDef[] = [
-  { id: "select", label: "Select",  icon: IconSelect,      caption: () => "look, don't paint",           tools: ["select", "pan"] },
-  { id: "draw",   label: "Draw",    icon: IconBrush,       caption: (pack) => `floor, in ${pack}`,       tools: ["brush", "rect", "template", "line", "fill", "floor"] },
-  { id: "walls",  label: "Walls",   icon: IconWall,        caption: () => "edges between cells, and at any angle",         tools: ["wall", "door", "wrap", "angledWall"] },
-  { id: "things", label: "Things",  icon: IconObjectStamp, caption: () => "objects, props and lights",           tools: ["place", "light"] },
-  { id: "terrain", label: "Terrain", icon: IconWater,      caption: () => "water and rock",              tools: ["terrain", "solid"] },
-  { id: "notes",  label: "Notes",   icon: IconAnnotate,    caption: () => "labels, links and spaces",    tools: ["annotate", "link", "space"] },
-  { id: "erase",  label: "Erase",   icon: IconEraser,      caption: () => "floor, walls and objects",    tools: ["eraser"], dividerBefore: true },
+  { id: "select", label: "Select",  icon: IconSelect,      caption: "look, don't paint",           tools: ["select", "pan"] },
+  { id: "draw",   label: "Draw",    icon: IconBrush,       caption: "floor",       tools: ["brush", "rect", "template", "line", "fill", "floor"] },
+  { id: "walls",  label: "Walls",   icon: IconWall,        caption: "walls",         tools: ["wall", "door", "wrap", "angledWall"] },
+  { id: "things", label: "Things",  icon: IconObjectStamp, caption: "objects, props and lights",           tools: ["place", "light"] },
+  { id: "terrain", label: "Terrain", icon: IconWater,                                           tools: ["terrain", "solid"] },
+  { id: "notes",  label: "Notes",   icon: IconAnnotate,    caption: "labels, links and spaces",    tools: ["annotate", "link", "space"] },
+  { id: "erase",  label: "Erase",   icon: IconEraser,      caption: "floor, walls and objects",    tools: ["eraser"], dividerBefore: true },
 ];
 function toolDef(id: Tool): ToolDef {
   const found = TOOLS.find((t) => t.id === id);
@@ -673,6 +671,32 @@ const RAIL_FAMILIES: RailFamily[] = TOOL_FAMILIES.map((f) => ({
   icon: f.icon,
   tools: f.tools.map(toolDef),
   dividerBefore: f.dividerBefore,
+}));
+// The second tile set, one Shift+X from the active one (kept per map in the cartographer UI
+// store); until one is chosen it is the first other set on offer.
+const { secondPackByMap } = storeToRefs(useCartographerUiStore());
+const secondPackId = computed<string | null>(() => {
+  const stored = secondPackByMap.value[map?.id || "new"];
+  const offered = selectablePacks.value.filter((p) => p.pack_id !== currentPackId.value);
+  return offered.find((p) => p.pack_id === stored)?.pack_id ?? offered[0]?.pack_id ?? null;
+});
+function setSecondPack(id: string): void {
+  secondPackByMap.value = { ...secondPackByMap.value, [map?.id || "new"]: id };
+}
+function swapTileSets(): void {
+  const second = secondPackId.value;
+  if (second === null) return;
+  setSecondPack(currentPackId.value);
+  currentPackId.value = second;
+}
+
+/** What the rail's tile-set squares show; only the Drawing layer paints tiles. */
+const tileSetForRail = computed(() => ({
+  packs: selectablePacks.value,
+  currentPackId: currentPackId.value,
+  secondPackId: secondPackId.value,
+  runtimes: loadedRuntimes.value,
+  validationMissing: packRuntime.value?.validation.missing.length ?? 0,
 }));
 const activeFamily = computed(() => RAIL_FAMILIES.find((f) => f.tools.some((t) => t.id === activeTool.value)));
 
@@ -950,7 +974,7 @@ const slipTitle = computed(() => activeFamily.value?.label ?? "");
 const slipCaption = computed(() => {
   if (altHeld.value && INVERTIBLE_TOOLS.has(activeTool.value)) return "erasing while Alt is held";
   const family = TOOL_FAMILIES.find((f) => f.id === activeFamily.value?.id);
-  return family?.caption(packLabel.value);
+  return family?.caption;
 });
 
 /** The Plan slip's title: the tool and, for a Space or Zone, how it is being traced
@@ -1041,7 +1065,7 @@ const {
   selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
-  plan, activeLayer, keysActive,
+  plan, activeLayer, keysActive, swapTileSets,
 });
 
 // Picture layer (canvas frame 07): lining the grid up and fitting the view.

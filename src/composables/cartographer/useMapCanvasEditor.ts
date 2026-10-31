@@ -133,6 +133,8 @@ export interface MapCanvasEditorOptions {
    *  controls need Space and the browser's own zoom, so the host answers true only while
    *  the pointer is over the map or focus is inside it. Omitted: always. */
   keysActive?: () => boolean;
+  /** Shift+X: trade the active and second tile sets. */
+  swapTileSets?: () => void;
 }
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -144,7 +146,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape,
     brushRadius, rectWalls, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
-    plan, activeLayer, keysActive,
+    plan, activeLayer, keysActive, swapTileSets,
   } = opts;
 
   /** Every edit funnels through here instead of writing `dirty.value = true`
@@ -1491,6 +1493,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "resizeBrush":
         brushRadius.value = clampBrushRadius(brushRadius.value + action.delta);
         break;
+      case "swapTileSets": swapTileSets?.(); break;
       case "selectTool": activeTool.value = action.tool; break;
     }
     ev.preventDefault();

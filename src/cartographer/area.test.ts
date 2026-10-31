@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { putWall } from "./testWalls";
-import { applyDisc, applyDiscs, areaBlockingEdges, areaOutline, coverage, decodeMask, encodeMask, FLOOR_COVERAGE } from "./area";
+import { applyDisc, applyDiscs, areaOutline, areaWallSegments, coverage, decodeMask, encodeMask, FLOOR_COVERAGE } from "./area";
 import { emptyLayers, type DungeonMapLayers, type PackRef } from "@/types/dungeonMap.types";
 
 const REF: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
@@ -204,24 +204,30 @@ describe("areaOutline", () => {
   });
 });
 
-describe("areaBlockingEdges", () => {
-  it("lists NW-owned edges between floor and non-floor where an area is involved", () => {
-    const l = applyDisc(emptyLayers(), { x: 0.5, y: 0.5, r: 0.7 }, REF, "paint");
-    expect(areaBlockingEdges(l)).toEqual(["0,0:N", "0,0:W", "0,1:N", "1,0:W"]);
+describe("areaWallSegments", () => {
+  it("runs along the stroked outline, the curve the wall art is drawn on, not the lattice staircase (#1125)", () => {
+    const l = applyDisc(emptyLayers(), { x: 5, y: 5, r: 3 }, REF, "paint");
+    const { loops } = areaOutline(l);
+    const segs = areaWallSegments(loops);
+    expect(segs.length).toBeGreaterThan(40);
+    // Every segment endpoint is a point of the drawn outline, and every point of a wholly stroked loop is used.
+    const drawn = new Set(loops.flatMap((lp) => lp.points.map((p) => `${p[0]},${p[1]}`)));
+    for (const s of segs) {
+      expect(drawn.has(`${s.a[0]},${s.a[1]}`)).toBe(true);
+      expect(drawn.has(`${s.b[0]},${s.b[1]}`)).toBe(true);
+    }
+    // A disc of radius 3 is round: its walls sit about 3 cells from the centre, not on whole cell edges.
+    for (const s of segs) expect(Math.hypot(s.a[0] - 5, s.a[1] - 5)).toBeGreaterThan(2.7);
+    expect(segs.some((s) => !Number.isInteger(s.a[0]) && !Number.isInteger(s.a[1]))).toBe(true);
   });
 
-  it("ignores the drawn map's own plain floor edges", () => {
-    const l = emptyLayers();
-    l.floor["0,0"] = { floor: REF };
-    expect(areaBlockingEdges(l)).toEqual([]);
+  it("leaves unstroked stretches out: the drawn map's own walls are not the area's", () => {
+    const loops = [{ points: [[0, 0], [1, 0], [1, 1], [0, 1]] as [number, number][], stroke: [true, false, true, false] }];
+    expect(areaWallSegments(loops).map((s) => s.id)).toEqual(["area:0:0", "area:0:2"]);
   });
 
-  it("includes the edge between plain floor and a neighbouring area cell, once", () => {
-    const l = emptyLayers();
-    l.floor["0,0"] = { floor: REF };
-    l.area["1,0"] = { ...REF, mask: "full" };
-    l.floor["1,0"] = { floor: REF };
-    expect(areaBlockingEdges(l)).not.toContain("1,0:W");
-    expect(areaBlockingEdges(l)).toContain("1,0:N");
+  it("shifts every point by the origin, for a snapshot's image cells", () => {
+    const loops = [{ points: [[4, 5], [6, 5], [6, 7]] as [number, number][], stroke: [true, true, true] }];
+    expect(areaWallSegments(loops, 2, 3)[0]).toEqual({ id: "area:0:0", a: [2, 2], b: [4, 2] });
   });
 });

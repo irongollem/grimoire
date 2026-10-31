@@ -1,42 +1,9 @@
 <template>
   <!-- The Map menu's body (canvas frame 07): what belongs to the map itself rather than to
-       the tool in hand, so the bar stays at nine controls. The tile-set list is a second
-       page of the same menu rather than a second popover. Mounted fresh on every open, so
-       it always opens on the first page. -->
-  <div v-if="page === 'packs'" class="space-y-1">
-    <AppButton variant="menu" size="caption" block :icon="IconChevronLeft" label="Tile set" @click="page = 'menu'" />
-    <AppButton
-      v-for="p in packs"
-      :key="p.pack_id"
-      variant="menu"
-      size="caption"
-      block
-      :active="currentPackId === p.pack_id"
-      @click="emit('update:currentPackId', p.pack_id); page = 'menu'"
-    >
-      <span class="flex-1 truncate">{{ p.name }}</span>
-      <span
-        v-if="loadedPackIds.has(p.pack_id)"
-        class="text-label shrink-0"
-        :class="currentPackId === p.pack_id ? 'text-muted-foreground' : 'text-muted-foreground/50'"
-      >v{{ p.pack_version }}</span>
-      <BannerLoader v-else class="h-3" />
-    </AppButton>
-    <p v-if="validationMissing > 0" class="text-caption-sm text-ink-caution mt-2">
-      {{ validationMissing }} slot(s) missing. Using placeholders.
-    </p>
-    <p class="text-caption-sm text-muted-foreground italic mt-2">
-      Switching sets changes future strokes only. Existing cells keep their stored set.
-    </p>
-  </div>
-
-  <div v-else class="space-y-3">
+       the tool in hand, so the bar stays at nine controls. The tile set is not here: it lives
+       at the foot of the tool rail, like a colour swatch. -->
+  <div class="space-y-3">
     <div class="space-y-1">
-      <AppButton variant="menu" size="caption" block :icon-right="IconChevronRight" @click="page = 'packs'">
-        <CartographerPackSwatch :runtime="packRuntime" />
-        <span class="flex-1">Tile set</span>
-        <span class="max-w-32 truncate text-muted-foreground">{{ packName }}</span>
-      </AppButton>
       <div class="flex items-center justify-between gap-2 px-3 py-1">
         <span class="text-caption">Light</span>
         <SegmentedControl
@@ -98,31 +65,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import BannerLoader from "@/components/brand/BannerLoader.vue";
+import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
-import CartographerPackSwatch from "@/components/cartographer/CartographerPackSwatch.vue";
-import { IconChevronLeft, IconChevronRight, IconClipboard, IconDelete, IconDownload, IconImage, IconSplitCell, IconWand, type AppIcon } from "@/lib/icons";
-import type { TilePackRuntime } from "@/cartographer/packLoader";
+import { IconClipboard, IconDelete, IconDownload, IconImage, IconSplitCell, IconWand, type AppIcon } from "@/lib/icons";
 import type { MapMenuAction } from "@/cartographer/tools";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 
-interface MenuPack {
-  pack_id: string;
-  pack_version: number;
-  name: string;
-}
-
 const { menuActions } = defineProps<{
-  packs: readonly MenuPack[];
-  currentPackId: string;
-  loadedPackIds: Set<string>;
-  packRuntime: TilePackRuntime | null;
-  packName: string;
-  validationMissing: number;
   darkness: DarknessLevel;
   campaignId: string | null;
   spaceCount: number;
@@ -136,7 +88,6 @@ const { menuActions } = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update:currentPackId": [id: string];
   "update:darkness": [level: DarknessLevel];
   "update:campaignId": [id: string | null];
   "update:showReference": [show: boolean];
@@ -145,8 +96,6 @@ const emit = defineEmits<{
   /** The menu has done its job (an action was taken): the bar closes it. */
   done: [];
 }>();
-
-const page = ref<"menu" | "packs">("menu");
 
 // The rules' three levels of light, short enough for a menu row; the tooltip says the rest.
 const DARKNESS_OPTIONS: SegmentedOption<DarknessLevel>[] = [

@@ -29,6 +29,84 @@
         <KeyCap v-if="familyKey(family)" corner>{{ familyKey(family) }}</KeyCap>
       </AppButton>
     </template>
+
+    <!-- The tile sets, like Photoshop's two colour swatches at the foot of its toolbar: they are
+         not tools, they are what the tools paint with. The active set sits on top, the second
+         set underneath; Shift+X (or the arrows) trades them. Absent on layers that paint no tiles. -->
+    <template v-if="tileSet">
+      <span
+        class="mx-0.5 w-px shrink-0 self-stretch bg-border lg:mx-0 lg:my-1 lg:h-px lg:w-auto lg:self-auto"
+        aria-hidden="true"
+      ></span>
+      <div class="relative my-auto h-11 w-11 shrink-0 lg:mx-auto lg:my-1">
+        <div v-if="tileSet.secondPackId !== null" class="absolute bottom-0 right-0 z-0">
+          <CartographerPopover label="Second tile set" width-class="w-56" along-rail>
+            <template #trigger="{ open, toggle }">
+              <AppButton
+                variant="ghost"
+                size="icon-sm"
+                class="h-7 w-7 min-w-0 rounded-md p-0"
+                :active="open"
+                aria-haspopup="dialog"
+                :aria-expanded="open"
+                aria-label="Second tile set"
+                @click="toggle"
+              >
+                <CartographerPackSwatch :runtime="tileSet.runtimes.get(tileSet.secondPackId) ?? null" size="lg" />
+              </AppButton>
+            </template>
+            <template #default="{ close }">
+              <CartographerTileSetList
+                :packs="tileSet.packs"
+                :current-pack-id="tileSet.secondPackId"
+                :runtimes="tileSet.runtimes"
+                :validation-missing="0"
+                @select="emit('update:secondPackId', $event); close()"
+              />
+            </template>
+          </CartographerPopover>
+        </div>
+        <div class="absolute left-0 top-0 z-10">
+          <CartographerPopover label="Tile set" width-class="w-56" along-rail>
+            <template #trigger="{ open, toggle }">
+              <AppButton
+                variant="ghost"
+                size="icon-sm"
+                class="h-7 w-7 min-w-0 rounded-md bg-card p-0 ring-2 ring-primary"
+                :active="open"
+                aria-haspopup="dialog"
+                :aria-expanded="open"
+                aria-label="Tile set"
+                @click="toggle"
+              >
+                <CartographerPackSwatch :runtime="tileSet.runtimes.get(tileSet.currentPackId) ?? null" size="lg" />
+              </AppButton>
+            </template>
+            <template #default="{ close }">
+              <CartographerTileSetList
+                :packs="tileSet.packs"
+                :current-pack-id="tileSet.currentPackId"
+                :runtimes="tileSet.runtimes"
+                :validation-missing="tileSet.validationMissing"
+                @select="emit('update:currentPackId', $event); close()"
+              />
+            </template>
+          </CartographerPopover>
+        </div>
+        <!-- Inside the group's top-right corner, the one spot neither square covers. -->
+        <div v-if="tileSet.secondPackId !== null" class="absolute right-0 top-0 h-4 w-4">
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="h-full w-full min-w-0 p-0"
+            :icon="IconRepeat"
+            aria-label="Swap tile sets"
+            tooltip="Swap the two tile sets (Shift+X)"
+            @click="emit('swapTileSets')"
+          />
+        </div>
+      </div>
+    </template>
   </nav>
 </template>
 
@@ -36,6 +114,11 @@
 import { reactive, watch, type Component } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
+import CartographerPackSwatch from "@/components/cartographer/CartographerPackSwatch.vue";
+import CartographerPopover from "@/components/cartographer/CartographerPopover.vue";
+import CartographerTileSetList, { type TileSetChoice } from "@/components/cartographer/CartographerTileSetList.vue";
+import { IconRepeat } from "@/lib/icons";
+import type { TilePackRuntime } from "@/cartographer/packLoader";
 
 export interface RailTool {
   id: string;
@@ -56,14 +139,29 @@ export interface RailFamily {
   dividerBefore?: boolean;
 }
 
-const { families, activeTool } = defineProps<{
+export interface RailTileSet {
+  packs: readonly TileSetChoice[];
+  currentPackId: string;
+  /** The set one swap away; null when only one is on offer. */
+  secondPackId: string | null;
+  runtimes: ReadonlyMap<string, TilePackRuntime>;
+  validationMissing: number;
+}
+
+const { families, activeTool, tileSet } = defineProps<{
   families: RailFamily[];
   activeTool: string;
+  /** The tile set swatch at the foot; left out on layers that paint no tiles. */
+  tileSet?: RailTileSet;
 }>();
 
 const emit = defineEmits<{
   "update:activeTool": [tool: string];
+  "update:currentPackId": [id: string];
+  "update:secondPackId": [id: string];
+  swapTileSets: [];
 }>();
+
 
 // The tool last armed in each family. A key press or a slip button changes `activeTool`
 // from outside, so this follows the prop rather than the clicks it saw itself.

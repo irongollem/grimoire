@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { emptyLayers } from "@/types/dungeonMap.types";
 import { collectOcclusion, occlusionSegment } from "./mapOcclusion";
+import { applyDisc } from "./area";
 import { putWall } from "./testWalls";
 import { clearLine, occluders } from "@/lib/battlemap/occlusion";
 
@@ -47,5 +48,25 @@ describe("collectOcclusion reads layers.walls (#1125 story 5)", () => {
 
   it("names a lattice wall by the shifted edge key through occlusionSegment", () => {
     expect(occlusionSegment("5,7:W", { ...REF, type: "wall", a: [5, 7], b: [5, 8] }, 1, 1).id).toBe("4,6:W");
+  });
+});
+
+describe("a round brushed room stops light at its drawn curve (#1125)", () => {
+  const room = applyDisc(emptyLayers(), { x: 5, y: 5, r: 3 }, REF, "paint");
+  const occ = occluders(collectOcclusion(room, 0, 0));
+  const lit = (angle: number, r: number): boolean => clearLine(occ, 5, 5, 5 + Math.cos(angle) * r, 5 + Math.sin(angle) * r);
+
+  it("lights nothing just beyond the curve, at any angle, including between lattice corners", () => {
+    for (let k = 0; k < 48; k++) expect(lit((k / 48) * Math.PI * 2, 3.25)).toBe(false);
+  });
+
+  it("does not block early: a point just inside the curve stays lit", () => {
+    for (let k = 0; k < 48; k++) expect(lit((k / 48) * Math.PI * 2, 2.6)).toBe(true);
+  });
+
+  it("adds no lattice edges for the area: its blockers are the curve", () => {
+    const { walls } = collectOcclusion(room, 0, 0);
+    expect(walls.length).toBeGreaterThan(40);
+    expect(walls.every((w) => w.id.startsWith("area:"))).toBe(true);
   });
 });

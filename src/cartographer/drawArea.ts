@@ -8,38 +8,11 @@
 
 import { WALL_BAND_RATIO, type PackCategory } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
-import { areaOutline, type AreaOutline, type OutlineLoop } from "@/cartographer/area";
+import { cachedAreaLoops, type CachedLoop } from "@/cartographer/area";
 import type { Frame, Target } from "@/cartographer/drawFrame";
 import { cellKey, parseCellKey, type AreaCell, type CellKey } from "@/types/dungeonMap.types";
 
 export type VariantAt = (r: TilePackRuntime, category: PackCategory, x: number, y: number, stored: number) => number;
-
-interface CachedLoop extends OutlineLoop {
-  /** Bounding box in cell units, so loops far off screen are skipped. */
-  box: { minX: number; minY: number; maxX: number; maxY: number };
-}
-
-interface CachedOutline {
-  floor: object;
-  loops: CachedLoop[];
-}
-
-// The outline is a flood of marching squares over the whole area; the editor redraws on every pointer move, so it is
-// kept per `layers.area` object. `floor` is part of the key because plain floor counts as covered in the trace.
-const outlines = new WeakMap<object, CachedOutline>();
-
-export function cachedAreaLoops(layers: Frame["layers"]): CachedLoop[] {
-  const hit = outlines.get(layers.area);
-  if (hit && hit.floor === layers.floor) return hit.loops;
-  const outline: AreaOutline = areaOutline(layers);
-  const loops = outline.loops.map((loop): CachedLoop => {
-    const xs = loop.points.map((p) => p[0]);
-    const ys = loop.points.map((p) => p[1]);
-    return { ...loop, box: { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) } };
-  });
-  outlines.set(layers.area, { floor: layers.floor, loops });
-  return loops;
-}
 
 function loopVisible(loop: CachedLoop, b: Frame["bounds"]): boolean {
   // The wall band reaches half a band past the line, well inside one cell.

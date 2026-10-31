@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { drawMapContent } from "./drawMap";
-import { applyDisc } from "./area";
+import { applyDisc, cachedAreaLoops } from "./area";
 import { collectOcclusion } from "./mapOcclusion";
-import { cachedAreaLoops } from "./drawArea";
 import type { DrawMapInput } from "./drawFrame";
 import { emptyLayers, cellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
 import { makeCtx, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
@@ -160,7 +159,9 @@ describe("brushed area light and sight", () => {
     expect(walls.length).toBeGreaterThan(0);
     const shifted = collectOcclusion(layers, 2, 1).walls.map((w) => w.id);
     expect(shifted).toHaveLength(walls.length);
-    expect(walls).toContain("3,2:N");
-    expect(shifted).toContain("1,1:N");
+    const at = (ox: number, oy: number) => collectOcclusion(layers, ox, oy).walls[0];
+    // Same segment, every end point moved by the origin (a snapshot's image cells).
+    expect(at(2, 1).a).toEqual([at(0, 0).a[0] - 2, at(0, 0).a[1] - 1]);
+    expect(shifted).toEqual(walls);
   });
 });

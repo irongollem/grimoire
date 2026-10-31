@@ -46,18 +46,12 @@
           aria-haspopup="dialog"
           :aria-expanded="open"
           label="Map"
-          tooltip="Tile set, light, spaces and the rest of the map's settings"
+          tooltip="Light, spaces and the rest of the map's settings"
           @click="toggle"
         />
       </template>
       <template #default="{ close }">
         <CartographerMapMenu
-          :packs="packs"
-          :current-pack-id="currentPackId"
-          :loaded-pack-ids="loadedPackIds"
-          :pack-runtime="packRuntime"
-          :pack-name="packName"
-          :validation-missing="validationMissing"
           :darkness="darkness"
           :campaign-id="campaignId"
           :space-count="spaceCount"
@@ -66,7 +60,6 @@
           :show-reference="showReference"
           :menu-actions="menuActions"
           :review-count="reviewCount"
-          @update:current-pack-id="emit('update:currentPackId', $event)"
           @update:darkness="emit('update:darkness', $event)"
           @update:campaign-id="emit('update:campaignId', $event)"
           @update:show-reference="emit('update:showReference', $event)"
@@ -89,24 +82,10 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import CartographerMapMenu from "@/components/cartographer/CartographerMapMenu.vue";
 import CartographerPopover from "@/components/cartographer/CartographerPopover.vue";
 import { IconCheck, IconChevronDown, IconRedo, IconUndo } from "@/lib/icons";
-import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { MapMenuAction } from "@/cartographer/tools";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 
-interface BarPack {
-  pack_id: string;
-  pack_version: number;
-  name: string;
-}
-
 const { saveState } = defineProps<{
-  packs: readonly BarPack[];
-  currentPackId: string;
-  loadedPackIds: Set<string>;
-  packRuntime: TilePackRuntime | null;
-  /** What the bar calls the current set; never the raw id while it is unresolved. */
-  packName: string;
-  validationMissing: number;
   darkness: DarknessLevel;
   campaignId: string | null;
   spaceCount: number;
@@ -127,7 +106,6 @@ const { saveState } = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update:currentPackId": [id: string];
   "update:darkness": [level: DarknessLevel];
   "update:campaignId": [id: string | null];
   "update:showReference": [show: boolean];

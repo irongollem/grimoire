@@ -10,14 +10,12 @@ enableAutoUnmount(afterEach);
 function bar(over: Record<string, unknown> = {}) {
   return mount(CartographerBar, {
     props: {
-      packs: [{ pack_id: "flagstone", pack_version: 1, name: "Flagstone" }, { pack_id: "icy", pack_version: 2, name: "Icy Cave" }],
-      currentPackId: "flagstone", loadedPackIds: new Set(["flagstone", "icy"]), packRuntime: null, packName: "Flagstone",
-      validationMissing: 0, darkness: "daylight", campaignId: null, spaceCount: 3, spacesOpen: false,
+      darkness: "daylight", campaignId: null, spaceCount: 3, spacesOpen: false,
       canUndo: true, canRedo: true, referenceAvailable: false, showReference: false,
       menuActions: [] as MapMenuAction[], showReady: false,
       ...over,
     },
-    global: { stubs: { CampaignScopeField: true, CartographerPackSwatch: true } },
+    global: { stubs: { CampaignScopeField: true } },
   });
 }
 
@@ -102,15 +100,10 @@ describe("the Map menu", () => {
     expect(document.body.textContent).toContain("Show picture underneath");
   });
 
-  it("changes the tile set from its own page and goes back to the menu", async () => {
+  it("no longer keeps the tile set in the Map menu: the rail's swatch is its one place", async () => {
     const w = bar();
     await openMenu(w);
-    menuButton("Tile set")?.click();
-    await flushPromises();
-    menuButton("Icy Cave")?.click();
-    await flushPromises();
-    expect(w.emitted("update:currentPackId")?.[0]).toEqual(["icy"]);
-    expect(menuButton("Spaces on this map")).toBeDefined();
+    expect(menuButton("Tile set")).toBeUndefined();
   });
 
   it("changes the light level from the menu", async () => {

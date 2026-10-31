@@ -30,6 +30,8 @@ export type KeyAction =
   | { kind: "clearSelection" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
+  /** Shift+X: the active and second tile sets trade places, as Photoshop's X trades its two colours. */
+  | { kind: "swapTileSets" }
   | { kind: "selectTool"; tool: Tool };
 
 export interface KeyEventLike {
@@ -90,6 +92,9 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
 
   const key = ev.key.toLowerCase();
   if (key === "c") return { kind: "center" };
+
+  // Before the shortcut lookup: X alone is the Wrap tool, and `key` is "x" with Shift held too.
+  if (ev.shiftKey && key === "x") return { kind: "swapTileSets" };
 
   // Escape always means "back to Select" — none of the free letters
   // read naturally for it, and unlike every other tool it needs a way back

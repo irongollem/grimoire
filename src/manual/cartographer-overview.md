@@ -14,7 +14,7 @@ Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (wo
 ## Getting started
 
 1. From the map list, click **New Map**.
-2. Pick a tile set from the **tile set menu** in the bar along the top: only sets with complete art appear here; which ones that is can change as Grimoire's built-in packs get illustrated, or as you upload/generate your own (see [Cartographer: Tile Packs](#cartographer-tile-packs)). Incomplete slots draw as flat procedural placeholders rather than blocking you.
+2. Pick a tile set from the two small squares at the foot of the tool rail (click one to open the sets as a grid of pictures; hover a picture for its name): only sets with complete art appear here; which ones that is can change as Grimoire's built-in packs get illustrated, or as you upload/generate your own (see [Cartographer: Tile Packs](#cartographer-tile-packs)). Incomplete slots draw as flat procedural placeholders rather than blocking you.
 3. Select the **Tiles** tool in the rail on the left and paint your rooms by clicking and dragging.
 4. Add walls with the **Wall** tool, and doors with the **Door** tool.
 5. That's it: the map saves itself a moment after each change, and the bar says **Saved**.
@@ -23,7 +23,7 @@ Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (wo
 
 The canvas is infinite: there's no fixed map size, so there's no "how big should this be?" decision to make up front.
 
-While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the tile set, the light, the Spaces drawer, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
+While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the light, the Spaces drawer, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). At its foot sit two overlapping squares, like Photoshop's two colours: the top one is the tile set you paint with, the one behind it is a second set. **Shift+X**, or the small arrows beside them, swaps the two (X alone is still Wrap walls). Each map remembers its own second set. The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
 
 | Action | Input |
 | --- | --- |

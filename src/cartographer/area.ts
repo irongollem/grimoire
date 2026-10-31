@@ -8,6 +8,7 @@
 
 import type { AreaCell, CellKey, DungeonMapLayers, FloorCell, PackRef } from "@/types/dungeonMap.types";
 import { cellKey, parseCellKey } from "@/types/dungeonMap.types";
+import type { WallSegment } from "@/lib/battlemap/walls";
 
 export const AREA_RES = 8;
 export const FLOOR_COVERAGE = 0.5;
@@ -388,26 +389,50 @@ function chaikin(pts: [number, number][], flags: boolean[]): { pts: [number, num
   return { pts: outP, flags: outF };
 }
 
+export interface CachedLoop extends OutlineLoop {
+  /** Bounding box in cell units, so loops far off screen are skipped. */
+  box: { minX: number; minY: number; maxX: number; maxY: number };
+}
+
+interface CachedOutline {
+  floor: object;
+  loops: CachedLoop[];
+}
+
+// The outline is a flood of marching squares (it lives here, beside the geometry, so sight and light can use it
+// without importing the canvas drawing code) over the whole area; the editor redraws on every pointer move, so it is
+// kept per `layers.area` object. `floor` is part of the key because plain floor counts as covered in the trace.
+const outlines = new WeakMap<object, CachedOutline>();
+
+export function cachedAreaLoops(layers: DungeonMapLayers): CachedLoop[] {
+  const hit = outlines.get(layers.area);
+  if (hit && hit.floor === layers.floor) return hit.loops;
+  const outline = areaOutline(layers);
+  const loops = outline.loops.map((loop): CachedLoop => {
+    const xs = loop.points.map((p) => p[0]);
+    const ys = loop.points.map((p) => p[1]);
+    return { ...loop, box: { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) } };
+  });
+  outlines.set(layers.area, { floor: layers.floor, loops });
+  return loops;
+}
+
 /**
- * Edges (NW-owned keys, like `edges.ts`) between a floor cell and a non-floor
- * cell where either side has an area entry: what light and sight cannot cross.
+ * What light and sight cannot cross at a brushed area: the stroked stretches of the same smoothed outline the wall art
+ * is drawn on (`drawArea.ts`), one segment per outline step (an eighth of a cell or less), so the light stops at the
+ * curve the player sees rather than at the lattice staircase around it. Ids are `area:<loop>:<step>`; they are not
+ * doors, so nothing refers to them. Unstroked stretches (against plain floor) are the drawn map's own walls.
  */
-export function areaBlockingEdges(layers: DungeonMapLayers): string[] {
-  const out = new Set<string>();
-  const solid = (x: number, y: number): boolean => hasFloor(layers, cellKey(x, y));
-  const touched = (x: number, y: number): boolean => layers.area[cellKey(x, y)] !== undefined;
-  for (const key of Object.keys(layers.floor) as CellKey[]) {
-    if (!hasFloor(layers, key)) continue;
-    const [x, y] = parseCellKey(key);
-    const sides: [number, number, string][] = [
-      [x, y - 1, `${x},${y}:N`],
-      [x - 1, y, `${x},${y}:W`],
-      [x, y + 1, `${x},${y + 1}:N`],
-      [x + 1, y, `${x + 1},${y}:W`],
-    ];
-    for (const [nx, ny, edge] of sides) {
-      if (!solid(nx, ny) && (touched(x, y) || touched(nx, ny))) out.add(edge);
+export function areaWallSegments(loops: readonly OutlineLoop[], originCellX = 0, originCellY = 0): WallSegment[] {
+  const out: WallSegment[] = [];
+  loops.forEach((loop, l) => {
+    const n = loop.points.length;
+    for (let i = 0; i < n; i++) {
+      if (!loop.stroke[i]) continue;
+      const a = loop.points[i];
+      const b = loop.points[(i + 1) % n];
+      out.push({ id: `area:${l}:${i}`, a: [a[0] - originCellX, a[1] - originCellY], b: [b[0] - originCellX, b[1] - originCellY] });
     }
-  }
-  return [...out].sort();
+  });
+  return out;
 }

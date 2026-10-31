@@ -16,9 +16,11 @@
 // Supabase.
 import { mount, flushPromises, enableAutoUnmount } from "@vue/test-utils";
 import { computed, h, ref, shallowRef } from "vue";
+import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapWorkbench from "./MapWorkbench.vue";
 import CartographerBar from "./CartographerBar.vue";
+import CartographerToolRail from "./CartographerToolRail.vue";
 import { emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MapStackSource } from "@/lib/locations/mapStack";
 import type { LibraryTilePack } from "@/cartographer/userPack.types";
@@ -111,6 +113,7 @@ function libraryPack(overrides: Partial<LibraryTilePack> & { pack_id: string; na
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   mockLibraryRows.value = [];
   mockLibraryLoading.value = false;
   mockLoadLibraryPack.mockClear();
@@ -485,8 +488,8 @@ describe("MapWorkbench", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
       await flushPromises();
 
-      const bundledPacks = wrapper.findComponent(CartographerBar).props("packs");
-      expect(bundledPacks.map((p) => p.pack_id)).toEqual(["sunny-meadow"]);
+      const bundledPacks = wrapper.findComponent(CartographerToolRail).props("tileSet")?.packs;
+      expect(bundledPacks?.map((p) => p.pack_id)).toEqual(["sunny-meadow"]);
     });
 
     it("shows a real empty state when nothing is published, never a fallback constant", async () => {
@@ -521,8 +524,8 @@ describe("MapWorkbench", () => {
 
       // Still listed even though its own runtime load rejects below — the
       // picker's contents come from the table, never from load success.
-      const bundledPacks = wrapper.findComponent(CartographerBar).props("packs");
-      expect(bundledPacks.map((p) => p.pack_id)).toEqual(["stone-dungeon", "no-assets"]);
+      const bundledPacks = wrapper.findComponent(CartographerToolRail).props("tileSet")?.packs;
+      expect(bundledPacks?.map((p) => p.pack_id)).toEqual(["stone-dungeon", "no-assets"]);
 
       const vm = wrapper.vm as unknown as { getRuntimes: () => Map<string, unknown> };
       expect(vm.getRuntimes().has("stone-dungeon")).toBe(true);
@@ -542,7 +545,7 @@ describe("MapWorkbench", () => {
       const vm = wrapper.vm as unknown as { getCurrentPackId: () => string };
       expect(vm.getCurrentPackId()).toBe("stone-dungeon");
 
-      wrapper.findComponent(CartographerBar).vm.$emit("update:currentPackId", "icy-cave");
+      wrapper.findComponent(CartographerToolRail).vm.$emit("update:currentPackId", "icy-cave");
       await flushPromises();
       expect(vm.getCurrentPackId()).toBe("icy-cave");
 
@@ -577,11 +580,48 @@ describe("MapWorkbench", () => {
     expect(vm.getLayers()).toEqual(emptyLayers());
     expect(vm.isDirty()).toBe(false);
   });
+  describe("the two tile sets (#1125)", () => {
+    async function twoSets() {
+      mockLibraryRows.value = [
+        libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 0 }),
+        libraryPack({ pack_id: "icy-cave", name: "Icy Cave", sort_order: 1 }),
+      ];
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      await flushPromises();
+      return wrapper;
+    }
+    const activeSet = (w: Awaited<ReturnType<typeof twoSets>>) => (w.vm as unknown as { getCurrentPackId: () => string }).getCurrentPackId();
+    const secondSet = (w: Awaited<ReturnType<typeof twoSets>>) => w.findComponent(CartographerToolRail).props("tileSet")?.secondPackId;
+
+    it("Shift+X swaps the active and second sets, so later strokes paint with the new active one", async () => {
+      const w = await twoSets();
+      expect([activeSet(w), secondSet(w)]).toEqual(["stone-dungeon", "icy-cave"]);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "X", code: "KeyX", shiftKey: true }));
+      await flushPromises();
+      expect([activeSet(w), secondSet(w)]).toEqual(["icy-cave", "stone-dungeon"]);
+    });
+
+    it("choosing the second set from its flyout leaves the active one alone", async () => {
+      const w = await twoSets();
+      w.findComponent(CartographerToolRail).vm.$emit("update:secondPackId", "stone-dungeon");
+      await flushPromises();
+      expect(activeSet(w)).toBe("stone-dungeon");
+    });
+
+    it("hides the swatches on the Plan layer, which paints no tiles", async () => {
+      const w = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
+      await flushPromises();
+      expect(w.findComponent(CartographerToolRail).props("tileSet")).toBeDefined();
+      await w.findAll("button").find((b) => b.text() === "Plan")?.trigger("click");
+      expect(w.findComponent(CartographerToolRail).props("tileSet")).toBeUndefined();
+    });
+  });
+
   describe("the slim bar, rail and slip (17 Oct 2026)", () => {
     it("draws seven families in the order of canvas frame 07, with Erase after the rule", () => {
       const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
       const names = wrapper.findAll('nav[aria-label="Map tools"] button').map((b) => b.attributes("aria-label"));
-      expect(names).toEqual(["Select", "Draw", "Walls", "Things", "Terrain", "Notes", "Erase"]);
+      expect(names.slice(0, 7)).toEqual(["Select", "Draw", "Walls", "Things", "Terrain", "Notes", "Erase"]);
     });
 
     it("files every tool in one family, with the keys it always had (#1125 decision 3)", async () => {

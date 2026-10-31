@@ -199,5 +199,17 @@ describe("angled wall and selection keys", () => {
   it("Delete in Place still removes the selected prop, not the wall selection", () => {
     expect(resolveKeyAction(ev({ key: "Delete" }), withCtx("place", { selectionDeletable: true }))).toEqual({ kind: "deleteDressing" });
   });
-});
 
+  describe("swapping the two tile sets (#1125, like Photoshop's X)", () => {
+    const withWrap: KeyContext = { ...ctx(), tools: [...ctx().tools, { id: "wrap", shortcut: "x" }] };
+
+    it("X alone still picks Wrap and Shift+X swaps the sets instead", () => {
+      expect(resolveKeyAction(ev({ key: "x", code: "KeyX" }), withWrap)).toEqual({ kind: "selectTool", tool: "wrap" });
+      expect(resolveKeyAction(ev({ key: "X", code: "KeyX", shiftKey: true }), withWrap)).toEqual({ kind: "swapTileSets" });
+    });
+
+    it("ignores Shift+X while typing in a field", () => {
+      expect(resolveKeyAction(ev({ key: "X", code: "KeyX", shiftKey: true, targetIsTextEntry: true }), withWrap)).toBeNull();
+    });
+  });
+});

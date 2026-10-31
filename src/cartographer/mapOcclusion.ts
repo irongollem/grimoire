@@ -2,7 +2,7 @@
 // illumination preview and the glow baked into the picture (map cells, origin 0). In its own module so drawMap can use
 // it without importing mapLive, which imports drawMap.
 
-import { areaBlockingEdges } from "@/cartographer/area";
+import { areaWallSegments, cachedAreaLoops } from "@/cartographer/area";
 import type { CellKey, DungeonMapLayers, WallEdge } from "@/types/dungeonMap.types";
 import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 import { isLatticeKey } from "@/cartographer/wallGraph";
@@ -46,11 +46,8 @@ export function collectOcclusion(
     else if (wall.type === "doorClosed") doors.push({ ...segment, open: false });
     else if (wall.type === "doorOpen") doors.push({ ...segment, open: true });
   }
-  // A brushed area's edge is a wall to light and sight wherever it meets non-floor, curved or not.
-  for (const edge of areaBlockingEdges(layers)) {
-    const [cell, side] = edge.split(":");
-    walls.push(latticeSegment(`${toImageCell(cell as CellKey, originCellX, originCellY)}:${side}`));
-  }
+  // A brushed area's wall is the contour its art is drawn on, curved or not (one function for both, so they cannot drift).
+  walls.push(...areaWallSegments(cachedAreaLoops(layers), originCellX, originCellY));
   const solid = Object.keys(layers.solidBlock).map((key) => toImageCell(key as CellKey, originCellX, originCellY));
   return { walls, doors, solid };
 }
