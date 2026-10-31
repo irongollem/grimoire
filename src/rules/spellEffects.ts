@@ -1,5 +1,6 @@
-import type { SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
+import type { SpellEffectInstances, SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice/dice";
+import type { DamagePart } from "@/lib/library/spellTextMechanics";
 
 export interface SpellEffectSource {
   attack_roll: boolean;
@@ -10,6 +11,8 @@ export interface SpellEffectSource {
   target_count: number | null;
   desc: string;
   casting_options: Array<Record<string, unknown>>;
+  /** Two damage parts the text names in one sentence (Ice Storm); each becomes its own effect. */
+  damage_parts?: DamagePart[] | null;
 }
 
 function outcomeFor(source: SpellEffectSource): SpellOutcome {
@@ -18,9 +21,22 @@ function outcomeFor(source: SpellEffectSource): SpellOutcome {
   return "automatic";
 }
 
-function isHealing(source: SpellEffectSource): boolean {
-  return /(?:regains?|restore)[^.]*hit points/i.test(source.desc);
+/** True when the text restores hit points. "Can't regain hit points" (Chill Touch) is a denial, not healing. */
+export function describesHealing(desc: string): boolean {
+  const withoutDenials = desc.replace(/\b(?:can['\u2019]?t|cannot|can not)\s+regain\b/gi, " ");
+  return /(?:regains?|restore)[^.]*hit points/i.test(withoutDenials);
 }
+
+function isHealing(source: SpellEffectSource): boolean {
+  return describesHealing(source.desc);
+}
+
+/**
+ * Open5e's per-slot-level table, ritual and default entries restate the base cast
+ * (the base effect plus slot scaling already produces them); keeping them as
+ * effects made a cast roll every row of the table at once.
+ */
+const NON_EFFECT_OPTION = /^(?:default|ritual|slot_level_\d+)$/i;
 
 function optionPhase(type: string): StructuredSpellEffect["phase"] {
   if (/start.*turn/i.test(type)) return "turn_start";
@@ -32,31 +48,39 @@ function optionPhase(type: string): StructuredSpellEffect["phase"] {
 /** Convert provider mechanics into our versioned, outcome-gated effect model. */
 export function buildStructuredSpellEffects(source: SpellEffectSource): StructuredSpellEffect[] {
   const healing = isHealing(source);
-  const base: StructuredSpellEffect[] = source.damage_roll ? [{
-    id: "base",
+  const modifier = /(?:plus|\+)\s+(?:your\s+)?spellcasting ability modifier/i.test(source.desc)
+    ? "spellcasting_ability" as const
+    : null;
+  const halves = Boolean(source.saving_throw_ability) && /half (?:as much )?damage|half the damage|half damage/i.test(source.desc);
+  const twoParts = !healing && source.damage_parts?.length === 2 ? source.damage_parts : null;
+  const make = (id: string, dice: string, damageType: string | null): StructuredSpellEffect => ({
+    id,
     phase: "impact",
     outcome: outcomeFor(source),
     target: { type: source.target_type, count: source.target_count },
     kind: healing ? "healing" : "damage",
-    dice: source.damage_roll,
+    dice,
     multiplier: 1,
-    damageType: healing ? null : (source.damage_types.length === 1 ? source.damage_types[0].toLowerCase() : null),
+    damageType,
     condition: null,
     description: null,
     scaling: null,
-    modifier: /(?:plus|\+)\s+(?:your\s+)?spellcasting ability modifier/i.test(source.desc)
-      ? "spellcasting_ability"
-      : null,
-  }] : [];
-  if (source.saving_throw_ability && /half (?:as much )?damage|half the damage|half damage/i.test(source.desc) && base[0]) {
-    base.push({ ...base[0], id: "base-save-half", outcome: "successful_save", multiplier: 0.5 });
-  }
+    modifier,
+  });
+  const half = (effect: StructuredSpellEffect): StructuredSpellEffect[] =>
+    halves ? [{ ...effect, id: `${effect.id}-save-half`, outcome: "successful_save", multiplier: 0.5 }] : [];
+  const singleType = healing ? null : (source.damage_types.length === 1 ? source.damage_types[0].toLowerCase() : null);
+  const withHalf = (effect: StructuredSpellEffect): StructuredSpellEffect[] => [effect, ...half(effect)];
+  const base: StructuredSpellEffect[] = twoParts
+    ? twoParts.flatMap((p, index) => withHalf(make(index === 0 ? "base" : "base-2", p.dice, p.type)))
+    : source.damage_roll ? withHalf(make("base", source.damage_roll, singleType)) : [];
 
   const variants = source.casting_options.flatMap((option, index): StructuredSpellEffect[] => {
     const dice = typeof option.damage_roll === "string" ? option.damage_roll : null;
     const description = typeof option.desc === "string" ? option.desc : null;
     if (!dice && !description) return [];
     const type = typeof option.type === "string" ? option.type : "option";
+    if (NON_EFFECT_OPTION.test(type)) return [];
     const level = type.match(/player_level_(\d+)/i);
     return [{
       id: `option-${index}`,
@@ -73,7 +97,7 @@ export function buildStructuredSpellEffects(source: SpellEffectSource): Structur
       condition: null,
       description,
       scaling: level && dice ? { mode: "character_level", interval: Number(level[1]), dice } : null,
-      modifier: /(?:plus|\+)\s+(?:your\s+)?spellcasting ability modifier/i.test(description ?? "")
+      modifier: description !== null && /(?:plus|\+)\s+(?:your\s+)?spellcasting ability modifier/i.test(description)
         ? "spellcasting_ability"
         : null,
     }];
@@ -107,6 +131,20 @@ export function resolveSpellEffects(
   return resolved;
 }
 
+/** How many rays, darts or beams this cast makes: the slot adds per level above, the character level picks a step. */
+function instancesForCast(
+  instances: SpellEffectInstances,
+  spellLevel: number,
+  castLevel: number,
+  characterLevel: number,
+): SpellEffectInstances {
+  const reached = (instances.byCharacterLevel ?? [])
+    .filter((step) => step.level <= characterLevel)
+    .sort((a, b) => b.level - a.level)[0];
+  const upcast = (instances.perSlotAbove ?? 0) * Math.max(0, castLevel - spellLevel);
+  return { noun: instances.noun, count: (reached?.count ?? instances.count) + upcast };
+}
+
 /** Select level-specific variants and apply slot scaling without combining alternatives. */
 export function effectsForCast(
   effects: StructuredSpellEffect[],
@@ -125,6 +163,7 @@ export function effectsForCast(
     .filter((effect) => effect.scaling?.mode !== "character_level")
     .filter((effect) => !(selectedVariant && effect.id === "base"))
     .concat(selectedVariant ? [{ ...selectedVariant, scaling: null }] : [])
+    .map((effect) => (effect.instances ? { ...effect, instances: instancesForCast(effect.instances, spellLevel, castLevel, characterLevel) } : effect))
     .map((effect) => {
       if (!effect.dice || effect.scaling?.mode !== "slot") return effect;
       const increments = Math.max(0, castLevel - spellLevel);

@@ -18,7 +18,7 @@ import { IMMUTABLE_CACHE_CONTROL, type R2Config, r2ObjectKey } from "../../supab
 import { markGeneratedImage } from "../../supabase/functions/_shared/provenance/mark.ts";
 import { imageProvenanceStem } from "../../supabase/functions/_shared/provenance/key.ts";
 import type { AiProvenance } from "../../supabase/functions/_shared/provenance/types.ts";
-import type { Target } from "../stat-blocks/rows.ts";
+import { type ServiceTarget as Target, serviceHeaders as authHeaders } from "./dev-stack.ts";
 import { assetImagePath } from "./scriptoriumBook.ts";
 
 export const MAX_EDGE = 2400;
@@ -70,10 +70,6 @@ export interface Storage {
   has: (path: string) => Promise<boolean | null>;
   put: (path: string, bytes: Uint8Array) => Promise<void>;
   url: (path: string) => string;
-}
-
-function authHeaders(target: Target, extra: Record<string, string> = {}): Record<string, string> {
-  return { apikey: target.key, Authorization: `Bearer ${target.key}`, ...extra };
 }
 
 export function localStorage(target: Target, bucket: string): Storage {

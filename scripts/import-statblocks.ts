@@ -39,7 +39,7 @@ import { type PreparedImage, type Storage, localStorage, prepareImage, r2Storage
 import { assertCampaignOwner, loadNpcPortraits, readAll, request } from "./lib/campaignRest.ts";
 import { pooled } from "./lib/pool.ts";
 import { expandHome, resolveArtSlot } from "./lib/scriptoriumBook.ts";
-import { type Target, resolveTarget } from "./stat-blocks/rows.ts";
+import { type ServiceTarget, resolveServiceTarget } from "./lib/dev-stack.ts";
 import { DEFAULT_SOURCE, type MonsterRowFields, StatblockParseError, normalizeName, parseBestiaryArtMap, parseStatblockFile } from "./lib/statblockMarkdown.ts";
 
 const DEFAULT_DIR = "~/Documents/Claude/Projects/Sothery Book I - manuscript/data/statblocks/";
@@ -62,7 +62,7 @@ type Outcome =
 
 
 
-async function existingMonsters(target: Target, campaignId: string): Promise<Map<string, ExistingMonster[]>> {
+async function existingMonsters(target: ServiceTarget, campaignId: string): Promise<Map<string, ExistingMonster[]>> {
   const byName = new Map<string, ExistingMonster[]>();
   const rows = await readAll<ExistingMonster>(target, `monsters?campaign_id=eq.${campaignId}&select=id,name`);
   for (const row of rows) {
@@ -102,7 +102,7 @@ interface ArtOptions {
 }
 
 /** The art step: see the header. Returns the number of failed writes. */
-async function applyArt(target: Target, monsters: MonsterArtRow[], opts: ArtOptions): Promise<number> {
+async function applyArt(target: ServiceTarget, monsters: MonsterArtRow[], opts: ArtOptions): Promise<number> {
   const map = parseBestiaryArtMap(readFileSync(opts.mapPath, "utf8"));
   const { portraits } = await loadNpcPortraits(target, opts.campaignId);
   const lookups = { npcPortraits: portraits, fileExists: existsSync, desktopDir: opts.desktopDir, sourceDir: opts.sourceDir };
@@ -239,7 +239,7 @@ function printSummary(outcomes: Outcome[], dryRun: boolean): void {
   );
 }
 
-async function artRows(target: Target, campaignId: string): Promise<MonsterArtRow[]> {
+async function artRows(target: ServiceTarget, campaignId: string): Promise<MonsterArtRow[]> {
   return readAll<MonsterArtRow>(target, `monsters?campaign_id=eq.${campaignId}&select=id,name,image_url`);
 }
 
@@ -274,8 +274,8 @@ async function main(): Promise<void> {
   const files = readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
   if (files.length === 0) throw new Error(`No .md files in ${dir}.`);
 
-  // resolveTarget refuses anything but loopback unless --production is given.
-  const target = resolveTarget(values.production);
+  // resolveServiceTarget refuses anything but loopback unless --production is given.
+  const target = resolveServiceTarget(values.production);
   console.log(`${dryRun ? "Planning for" : "Writing to"} ${target.label}, campaign ${campaignId}, ${files.length} file(s) in ${dir}.`);
   await assertCampaignOwner(target, campaignId, userId);
   const existing = await existingMonsters(target, campaignId);

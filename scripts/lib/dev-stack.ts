@@ -175,3 +175,27 @@ export async function remoteCount(remote: URL, key: string, table: string, filte
   if (!response.ok) throw await failedRead(response, table, "count");
   return parseContentRange(response.headers.get("content-range"));
 }
+
+/** A Supabase API reached with the service-role key: the local stack, or production when asked. */
+export interface ServiceTarget {
+  origin: string;
+  key: string;
+  label: string;
+}
+
+/** Local unless `production`; the local side refuses anything but loopback and a hosted key. */
+export function resolveServiceTarget(production: boolean): ServiceTarget {
+  if (production) {
+    const url = assertRemoteUrl(process.env.VITE_SUPABASE_URL);
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set. Run through the npm script, which loads .env.local.");
+    return { origin: url.origin, key, label: "production" };
+  }
+  const stack = readLocalStack();
+  assertDemoKey("SERVICE_ROLE_KEY", stack.SERVICE_ROLE_KEY);
+  return { origin: new URL(stack.API_URL).origin, key: stack.SERVICE_ROLE_KEY, label: "local" };
+}
+
+export function serviceHeaders(target: ServiceTarget, extra: Record<string, string> = {}): Record<string, string> {
+  return { apikey: target.key, Authorization: `Bearer ${target.key}`, ...extra };
+}

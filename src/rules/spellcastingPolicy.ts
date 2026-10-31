@@ -32,6 +32,11 @@ export function canCastAsRitual(input: {
   }
 }
 
+/** Toast shown on cast when a spell's mechanics are not set up for auto-rolling. */
+export const ROLL_BY_HAND_NOTICE = "Grimoire can't roll this spell for you yet. Roll its dice by hand from the description.";
+/** Tooltip on the "Roll by hand" badge. */
+export const ROLL_BY_HAND_HINT = "This spell's dice are not set up for auto-rolling; read the spell text and roll them yourself";
+
 /**
  * Effects that depend on an attack or saving throw must wait for that outcome.
  * Healing and explicitly automatic damage can be rolled with the cast; all

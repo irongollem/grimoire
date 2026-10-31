@@ -282,10 +282,35 @@ describe("mapOpen5eV2Spell — normalised fields", () => {
     expect(damage).toMatchObject({ higher_level_damage: { dice_per_level: "1d6", type: null }, higher_level_healing: null });
   });
 
+  // Chill Touch: "can't regain hit points" read as healing and dropped the damage roll.
+  it("keeps damage for a spell that only forbids regaining hit points", () => {
+    const chill = map({
+      desc: "Make a ranged spell attack. On a hit, the target takes 1d10 Necrotic damage and it can't regain hit points until the start of your next turn.",
+      attack_roll: true, saving_throw_ability: "", damage_roll: "1d10", damage_types: ["necrotic"],
+    });
+    expect(chill).toMatchObject({ healing_dice: null, damage_rolls: [{ dice: "1d10", type: "necrotic" }], attack_type: "ranged_spell" });
+  });
+
+  // Production Fireball: the per-level table must not add effects next to the slot scaling.
+  it("leaves a slot-level table out of the effects, so an upcast scales the base once", () => {
+    const fireball = map({
+      level: 3,
+      desc: "Each creature makes a Dexterity saving throw, taking 8d6 fire damage on a failed save, or half as much damage on a successful one.",
+      damage_roll: "8d6", damage_types: ["fire"],
+      higher_level: "The damage increases by 1d6 for each slot level above 3rd.",
+      casting_options: [{ type: "slot_level_4", damage_roll: "9d6" }, { type: "slot_level_5", damage_roll: "10d6" }],
+    });
+    expect(fireball?.effects?.map((effect) => effect.id)).toEqual(["base", "base-save-half"]);
+    expect(effectsForCast(fireball?.effects ?? [], 3, 5, 9).map((effect) => effect.dice)).toEqual(["10d6", "10d6"]);
+    expect(fireball?.casting_options).toHaveLength(2);
+  });
+
   it("keeps a damage type only when the spell deals exactly one", () => {
     expect(map({ damage_types: ["Fire"] })?.damage_rolls).toEqual([{ dice: "1d6", type: "fire" }]);
     expect(map({ damage_types: ["Fire"] })?.healing_dice).toBeNull();
-    expect(map({ damage_types: ["fire", "radiant"] })?.damage_rolls).toEqual([{ dice: "1d6", type: "" }]);
+    // Open5e lists two types and the text names none: no type is invented.
+    const twoTypes = { damage_types: ["fire", "radiant"], desc: "Each creature must succeed on a Dexterity saving throw or take 1d6 damage of a type you choose." };
+    expect(map(twoTypes)?.damage_rolls).toEqual([{ dice: "1d6", type: "" }]);
   });
 
   it("names its source, revision, licence and link from the document", () => {
@@ -309,6 +334,232 @@ describe("mapOpen5eV2Spell — normalised fields", () => {
     const wizard = [{ name: "Wizard", key: "x" }];
     expect(map({ name: "Acid Splash", classes: wizard })?.classes).toEqual(["Wizard", "Artificer"]);
     expect(map({ name: "Acid Splash", classes: [...wizard, { name: "Artificer", key: "y" }] })?.classes).toEqual(["Wizard", "Artificer"]);
+  });
+});
+
+describe("mapOpen5eV2Spell: the roll the text proves", () => {
+  const map = (overrides: Record<string, unknown>) => mapOpen5eV2Spell(record(overrides) as Parameters<typeof mapOpen5eV2Spell>[0]);
+  const noRoll = { damage_roll: "", damage_types: [], casting_options: [], saving_throw_ability: "", attack_roll: false, shape_type: null, shape_size: null };
+
+  // SRD 5.1 Cure Wounds: Open5e leaves damage_roll empty.
+  it("reads the healing roll from the text when Open5e gave none", () => {
+    const cure = map({
+      ...noRoll, level: 1, name: "Cure Wounds",
+      desc: "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+      higher_level: "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d8 for each slot level above 1st.",
+    });
+    expect(cure).toMatchObject({ healing_dice: "1d8", damage_rolls: null, higher_level_healing: "1d8", attack_type: null });
+    expect(cure?.effects?.find((effect) => effect.id === "base")).toMatchObject({ kind: "healing", dice: "1d8", modifier: "spellcasting_ability", scaling: { mode: "slot", dice: "1d8" } });
+  });
+
+  // SRD 5.1 Sacred Flame: no top-level roll, but the per-level options exist.
+  it("reads a cantrip's damage from the text and keeps the options it was given", () => {
+    const flame = map({
+      ...noRoll, name: "Sacred Flame", saving_throw_ability: "dexterity",
+      desc: "The target must succeed on a dexterity saving throw or take 1d8 radiant damage. The target gains no benefit from cover for this saving throw.",
+      casting_options: [{ type: "default" }, { type: "player_level_5", damage_roll: "2d8" }],
+    });
+    expect(flame).toMatchObject({ damage_rolls: [{ dice: "1d8", type: "radiant" }], healing_dice: null });
+    expect(flame?.effects?.map((effect) => [effect.id, effect.dice, effect.damageType])).toEqual([
+      ["base", "1d8", "radiant"], ["option-1", "2d8", "radiant"],
+    ]);
+  });
+
+  // Deep Magic Glacial Cascade: Open5e flags a Constitution save but gives no damage roll.
+  it("derives a save-for-half roll from the book's plain sentence and keeps the half effect", () => {
+    const cascade = map({
+      ...noRoll, level: 8, name: "Glacial Cascade", saving_throw_ability: "constitution",
+      desc: "Creatures other than you in the sphere take 10d8 cold damage, or half as much damage with a successful Constitution saving throw.",
+    });
+    expect(cascade).toMatchObject({ attack_type: "save", save_attribute: "CON", save_effect: "half", damage_rolls: [{ dice: "10d8", type: "cold" }] });
+    expect(cascade?.effects?.map((effect) => effect.id)).toEqual(["base", "base-save-half"]);
+  });
+
+  // Bug: the sentence's save and Open5e's flag disagree; the roll is then not proven for this spell.
+  it("derives no roll when the damage sentence names a different save than Open5e's", () => {
+    const mismatch = map({
+      ...noRoll, level: 8, saving_throw_ability: "dexterity",
+      desc: "Creatures in the sphere take 10d8 cold damage, or half as much damage with a successful Constitution saving throw.",
+    });
+    expect(mismatch?.damage_rolls).toBeNull();
+  });
+
+  // Deep Magic Cloying Darkness: "If it hits" with an attack flag.
+  it("derives an attack roll from 'If it hits, the target takes ...'", () => {
+    const darkness = map({
+      ...noRoll, level: 1, attack_roll: true, name: "Cloying Darkness",
+      desc: "Make a ranged spell attack. If it hits, the target takes 2d8 necrotic damage and must make a Constitution saving throw.",
+    });
+    expect(darkness).toMatchObject({ attack_type: "ranged_spell", damage_rolls: [{ dice: "2d8", type: "necrotic" }] });
+  });
+
+  // Deep Magic Ectoplasm: damage when a turn ends is not a cast-time roll.
+  it("derives no roll for damage dealt when a creature ends its turn", () => {
+    const ecto = map({
+      ...noRoll, level: 2, saving_throw_ability: "wisdom",
+      desc: "Any creature that ends its turn within 5 feet of the manifestation takes 2d6 psychic damage, or half the damage with a successful Wisdom saving throw.",
+    });
+    expect(ecto?.damage_rolls).toBeNull();
+  });
+
+  it("does not derive a roll when two sentences could be the damage", () => {
+    const two = map({
+      ...noRoll, saving_throw_ability: "wisdom",
+      desc: "On a failed save, the creature takes 3d8 radiant damage (if you are good) or 4d8 necrotic damage (if you are evil).",
+    });
+    expect(two?.damage_rolls).toBeNull();
+  });
+
+  // Open5e lists several types for a spell whose sentence names one.
+  it("takes the damage type from the sentence when Open5e's list is empty or several", () => {
+    const desc = "Each creature makes a Constitution saving throw. On a failed save, a creature takes 2d8 thunder damage. On a successful save, the creature takes half as much damage.";
+    expect(map({ desc, damage_roll: "2d8", damage_types: [], saving_throw_ability: "constitution" })?.damage_rolls).toEqual([{ dice: "2d8", type: "thunder" }]);
+    expect(map({ desc, damage_roll: "2d8", damage_types: ["thunder", "force"], saving_throw_ability: "constitution" })?.damage_rolls).toEqual([{ dice: "2d8", type: "thunder" }]);
+  });
+
+  // SRD 5.2 Bless: Open5e fills 1d4, an attack roll and a target, but the d4 is added to a later roll.
+  it("stores no roll and no attack for a die the text only adds to a later roll", () => {
+    const bless = map({
+      ...noRoll, name: "Bless", level: 1, attack_roll: true, damage_roll: "1d4",
+      desc: "Whenever a target makes an attack roll or a saving throw before the spell ends, the target adds 1d4 to the attack roll or save.",
+      casting_options: [{ type: "slot_level_2", target_count: 2 }],
+    });
+    expect(bless).toMatchObject({ damage_rolls: null, healing_dice: null, effects: [], attack_type: null });
+  });
+
+  it("keeps a real spell attack that has a damage roll", () => {
+    const bolt = map({
+      ...noRoll, attack_roll: true, damage_roll: "1d10", damage_types: ["fire"],
+      desc: "Make a ranged spell attack against the target. On a hit, the target takes 1d10 fire damage.",
+    });
+    expect(bolt).toMatchObject({ attack_type: "ranged_spell", damage_rolls: [{ dice: "1d10", type: "fire" }] });
+  });
+
+  // SRD 5.1 Ice Storm: Open5e keeps only the first part.
+  describe("two parts in one sentence (Ice Storm)", () => {
+    const ice = map({
+      key: "srd_ice-storm", name: "Ice Storm", level: 4, saving_throw_ability: "dexterity", damage_roll: "2d8", damage_types: ["bludgeoning"],
+      desc: "Each creature in the cylinder must make a dexterity saving throw. A creature takes 2d8 bludgeoning damage and 4d6 cold damage on a failed save, or half as much damage on a successful one.",
+      higher_level: "When you cast this spell using a spell slot of 5th level or higher, the bludgeoning damage increases by 1d8 for each slot level above 4th.",
+      casting_options: [{ type: "slot_level_5", damage_roll: "3d8" }],
+    });
+
+    it("stores one roll and one effect pair per part", () => {
+      expect(ice?.damage_rolls).toEqual([{ dice: "2d8", type: "bludgeoning" }, { dice: "4d6", type: "cold" }]);
+      expect(ice?.effects?.map((effect) => [effect.id, effect.dice, effect.damageType, effect.multiplier])).toEqual([
+        ["base", "2d8", "bludgeoning", 1], ["base-save-half", "2d8", "bludgeoning", 0.5],
+        ["base-2", "4d6", "cold", 1], ["base-2-save-half", "4d6", "cold", 0.5],
+      ]);
+    });
+
+    // Bug: slot scaling went to every part, so a 6th level cast rolled 6d6 cold.
+    it("scales only the part the upcast names", () => {
+      expect(ice?.higher_level_damage).toEqual({ dice_per_level: "1d8", type: "bludgeoning" });
+      expect(effectsForCast(ice?.effects ?? [], 4, 6, 9).map((effect) => [effect.id, effect.dice])).toEqual([
+        ["base", "4d8"], ["base-save-half", "4d8"], ["base-2", "4d6"], ["base-2-save-half", "4d6"],
+      ]);
+    });
+
+    it("scales no part when the upcast names both", () => {
+      const choice = map({
+        key: "srd_ice-storm", name: "Ice Storm", level: 4, saving_throw_ability: "dexterity", damage_roll: "2d8", damage_types: ["bludgeoning"],
+        desc: "A creature takes 2d8 bludgeoning damage and 4d6 cold damage on a failed save, or half as much damage on a successful one.",
+        higher_level: "the bludgeoning damage or the cold damage (your choice) increases by 1d8 for each slot level above 4th.",
+        casting_options: [],
+      });
+      expect(choice?.higher_level_damage?.type).toBeNull();
+      expect(choice?.effects?.every((effect) => effect.scaling === null)).toBe(true);
+    });
+  });
+
+  describe("several rays, darts or beams", () => {
+    const rays = {
+      key: "srd-2024_scorching-ray", name: "Scorching Ray", level: 2, attack_roll: true, damage_roll: "2d6", damage_types: ["fire"], saving_throw_ability: "",
+      desc: "You hurl three fiery rays. You can hurl them at one target within range or at several. Make a ranged spell attack for each ray. On a hit, the target takes 2d6 Fire damage.",
+      higher_level: "You create one additional ray for each spell slot level above 2.",
+      casting_options: [{ type: "slot_level_3", damage_roll: null, target_count: 4 }],
+    };
+
+    it("stores the count on the base effect and no dice scaling", () => {
+      const ray = map(rays);
+      expect(ray?.effects).toHaveLength(1);
+      expect(ray?.effects?.[0]).toMatchObject({ id: "base", outcome: "hit", scaling: null, instances: { noun: "ray", count: 3, perSlotAbove: 1 } });
+      expect(ray?.higher_level_damage).toBeNull();
+    });
+
+    // SRD 5.1 Magic Missile: Open5e carries no roll, no attack and no save, so the dart sentence gives the damage.
+    it("derives a dart's damage from its own sentence when Open5e has none", () => {
+      const missile = map({
+        ...noRoll, key: "srd_magic-missile", name: "Magic Missile", level: 1,
+        desc: "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
+        higher_level: "When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st.",
+      });
+      expect(missile).toMatchObject({ attack_type: "automatic", damage_rolls: [{ dice: "1d4+1", type: "force" }] });
+      expect(missile?.effects?.[0]).toMatchObject({ outcome: "automatic", damageType: "force", instances: { noun: "dart", count: 3, perSlotAbove: 1 } });
+    });
+
+    // SRD 5.2 Eldritch Blast: the beams grow with character level, the dice do not.
+    it("keeps one effect for a cantrip whose beams grow", () => {
+      const blast = map({
+        ...noRoll, key: "srd-2024_eldritch-blast", name: "Eldritch Blast", level: 0, attack_roll: true, damage_roll: "1d10", damage_types: ["force"],
+        desc: "You hurl a beam of crackling energy. Make a ranged spell attack against one creature or object in range. On a hit, the target takes 1d10 Force damage.",
+        higher_level: "The spell creates two beams at level 5, three beams at level 11, and four beams at level 17. You can direct the beams at the same target or at different ones. Make a separate attack roll for each beam.",
+        casting_options: [{ type: "player_level_5", damage_roll: null, target_count: 2 }],
+      });
+      expect(blast?.effects).toHaveLength(1);
+      expect(blast?.effects?.[0].instances?.byCharacterLevel).toEqual([{ level: 5, count: 2 }, { level: 11, count: 3 }, { level: 17, count: 4 }]);
+      // Resolved for a cast, never for the stored row: character level 11 makes three beams of 1d10.
+      const cast = effectsForCast(blast?.effects ?? [], 0, 0, 11);
+      expect(cast[0]).toMatchObject({ dice: "1d10", instances: { noun: "beam", count: 3 } });
+    });
+
+    // Bug: a spell with a different count wording stayed in the instance path with a wrong count.
+    it("stores no instances when the sentences do not match a template", () => {
+      expect(map({ ...rays, desc: rays.desc.replace("Make a ranged spell attack for each ray. ", "") })?.effects?.[0].instances).toBeUndefined();
+    });
+  });
+
+  describe("a damage type chosen at cast", () => {
+    // SRD 5.1 Spirit Guardians: Open5e names radiant only.
+    const guardians = map({
+      key: "srd_spirit-guardians", name: "Spirit Guardians", level: 3, saving_throw_ability: "wisdom", damage_roll: "3d8", damage_types: ["radiant"], attack_roll: false,
+      desc: "When the creature enters the area for the first time on a turn or starts its turn there, it must make a wisdom saving throw. On a failed save, the creature takes 3d8 radiant damage (if you are good or neutral) or 3d8 necrotic damage (if you are evil). On a successful save, the creature takes half as much damage.",
+      higher_level: "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d8 for each slot level above 3rd.",
+      casting_options: [],
+    });
+
+    it("stores an untyped roll and the choices on both effects, still scaling by slot", () => {
+      expect(guardians?.damage_rolls).toEqual([{ dice: "3d8", type: "" }]);
+      expect(guardians?.effects?.map((e) => [e.id, e.damageType, e.damageTypeChoices, e.scaling?.dice])).toEqual([
+        ["base", null, ["radiant", "necrotic"], "1d8"], ["base-save-half", null, ["radiant", "necrotic"], "1d8"],
+      ]);
+    });
+
+    // Bug: the dice Open5e gave and the text's disagree; the text's choice is not forced on the row.
+    it("leaves a spell alone when Open5e's roll is not the text's", () => {
+      const other = map({ ...record({ saving_throw_ability: "wisdom", damage_roll: "4d8", damage_types: ["radiant"], desc: "On a failed save, the creature takes 3d8 radiant damage (if you are good or neutral) or 3d8 necrotic damage (if you are evil). On a successful save, the creature takes half as much damage." }) });
+      expect(other?.effects?.some((e) => e.damageTypeChoices)).toBe(false);
+    });
+  });
+
+  describe("extra damage on a hit (Hex)", () => {
+    // SRD 5.2 Hex: Open5e marks an attack roll and a roll, but nothing is rolled at cast.
+    const hexRecord = {
+      key: "srd-2024_hex", name: "Hex", level: 1, attack_roll: true, damage_roll: "1d6", damage_types: ["necrotic"], saving_throw_ability: "",
+      desc: "You place a curse on a creature that you can see within range. Until the spell ends, you deal an extra 1d6 Necrotic damage to the target whenever you hit it with an attack roll.",
+      higher_level: "Your Concentration can last longer with a spell slot of level 2 (up to 4 hours), 3–4 (up to 8 hours), or 5+ (24 hours).",
+      casting_options: [{ type: "slot_level_2" }],
+    };
+
+    it("stores the roll with no effects and no attack, so nothing rolls at cast", () => {
+      const hex = map(hexRecord);
+      expect(hex).toMatchObject({ attack_type: null, effects: [], damage_rolls: [{ dice: "1d6", type: "necrotic" }], higher_level_damage: null });
+    });
+
+    // Bug (guard: only a text with one hit-tied extra clause is a rider): a spell attack with a damage roll lost its attack.
+    it("keeps a real spell attack as an attack", () => {
+      expect(map({ ...hexRecord, desc: "Make a ranged spell attack against the target. On a hit, the target takes 1d6 necrotic damage." })?.attack_type).toBe("ranged_spell");
+    });
   });
 });
 

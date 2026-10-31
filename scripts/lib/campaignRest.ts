@@ -2,16 +2,12 @@
  * PostgREST access for the scripts that write a book's content into one
  * campaign (`import-statblocks.ts`, `scriptorium-book.ts`; epic #1115). The
  * target (local stack or production, and its service key) comes from
- * `resolveTarget` in `stat-blocks/rows.ts`; everything here only talks to it.
+ * `resolveServiceTarget` in `lib/dev-stack.ts`; everything here only talks to it.
  * Errors carry the status and PostgREST's message, never a response body,
  * which could echo row content.
  */
-import type { Target } from "../stat-blocks/rows.ts";
+import { type ServiceTarget as Target, serviceHeaders as headers } from "./dev-stack.ts";
 import { normalizeName } from "./name-matching.ts";
-
-function headers(target: Target, extra: Record<string, string> = {}): Record<string, string> {
-  return { apikey: target.key, Authorization: `Bearer ${target.key}`, ...extra };
-}
 
 export async function request(
   target: Target,

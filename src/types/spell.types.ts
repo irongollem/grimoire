@@ -142,6 +142,27 @@ export interface StructuredSpellEffect {
   scaling: { mode: "slot" | "character_level"; interval?: number; dice: string } | null;
   /** An explicit numeric bonus or the caster's spellcasting ability modifier. */
   modifier?: number | "spellcasting_ability" | null;
+  /**
+   * Several rays, darts or beams from one cast (Scorching Ray, Magic Missile,
+   * Eldritch Blast), each aimed on its own. Stored with its scaling;
+   * `effectsForCast` resolves it to the count for this cast and drops the scaling.
+   * An attack instance (outcome "hit") rolls its own damage; automatic instances
+   * strike together and share one roll (PHB "Damage Rolls").
+   */
+  instances?: SpellEffectInstances | null;
+  /** The caster picks the damage type at cast (Chromatic Orb, Spirit Guardians); `damageType` is null then. */
+  damageTypeChoices?: string[] | null;
+}
+
+export interface SpellEffectInstances {
+  /** What one instance is called in the text: "ray", "dart", "beam". */
+  noun: string;
+  /** Instances at the spell's own level and the caster's first character level. */
+  count: number;
+  /** Extra instances per slot level above the spell's level (Magic Missile: 1). */
+  perSlotAbove?: number;
+  /** From this character level on, this many instances (Eldritch Blast: 5 → 2, 11 → 3, 17 → 4). */
+  byCharacterLevel?: Array<{ level: number; count: number }>;
 }
 
 /** One row of `browse_spells`: just what a spell card paints. `is_shared` is a

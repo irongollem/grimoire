@@ -27,7 +27,7 @@
         class="trait-roll-btn trait-dmg-btn"
         @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : emit('roll-spell', spellForLastCast(entry))"
       >🎲 {{ entry.spell.effects?.length ? "Resolve" : entry.spell.damage_rolls[0].dice }}</button>
-      <span v-if="entry.spell.mechanics_reviewed === false" class="text-2xs text-ink-caution">Manual</span>
+      <span v-if="entry.spell.mechanics_reviewed === false" class="text-2xs text-ink-caution" :title="ROLL_BY_HAND_HINT">Roll by hand</span>
       <button
         v-if="entry.spell.attack_type === 'save' && saveDcFor(entry)"
         type="button"
@@ -61,6 +61,7 @@ import { useConcentration } from "@/composables/party/useConcentration";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useToast } from "@/composables/useToast";
+import { ROLL_BY_HAND_HINT, ROLL_BY_HAND_NOTICE } from "@/rules/spellcastingPolicy";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 
 const props = defineProps<{
@@ -167,7 +168,7 @@ async function cast(entry: CharacterSpellEntry) {
     if (entry.spell.mechanics_reviewed !== false && entry.spell.effects?.length) {
       openEffectResolution(entry, resolvedCastLevel);
     } else if (entry.spell.mechanics_reviewed === false) {
-      toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
+      toast.info(ROLL_BY_HAND_NOTICE);
     }
   } catch (error) {
     toast.error(toast.fromError(error));

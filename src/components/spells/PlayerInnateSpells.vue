@@ -101,7 +101,7 @@
               :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateHealing(entry)"
             />
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution" :title="ROLL_BY_HAND_HINT">Roll by hand</span>
 
             <!-- Use tracking: pips or "At will" -->
             <template v-if="entry.uses_per_day !== null">
@@ -186,7 +186,7 @@ import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { ConcentrationState } from "@/types/party.types";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
-import { canAutoRollSpellEffect } from "@/rules/spellcastingPolicy";
+import { canAutoRollSpellEffect, ROLL_BY_HAND_HINT, ROLL_BY_HAND_NOTICE } from "@/rules/spellcastingPolicy";
 import { useToast } from "@/composables/useToast";
 import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 
@@ -354,7 +354,7 @@ async function castSpell(entry: CharacterSpellEntry) {
     if (spell.mechanics_reviewed !== false && spell.effects?.length) {
       openEffectResolution(entry);
     } else if (spell.mechanics_reviewed === false) {
-      toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
+      toast.info(ROLL_BY_HAND_NOTICE);
     }
 
     if (!spell.effects?.length && spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {

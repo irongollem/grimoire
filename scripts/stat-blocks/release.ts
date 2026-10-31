@@ -32,15 +32,14 @@ import {
   type BlockerCount,
   TABLES,
   type Table,
-  type Target,
   convertStragglers,
   countBlockers,
   loadExtractions,
   print,
   processTable,
   readRows,
-  resolveTarget,
 } from "./rows.ts";
+import { type ServiceTarget, resolveServiceTarget } from "../lib/dev-stack.ts";
 
 function banner(text: string): void {
   const line = "=".repeat(Math.max(text.length, 40));
@@ -59,7 +58,7 @@ async function confirm(question: string, phrase: string): Promise<boolean> {
   }
 }
 
-async function blockersEverywhere(target: Target): Promise<Map<Table, BlockerCount>> {
+async function blockersEverywhere(target: ServiceTarget): Promise<Map<Table, BlockerCount>> {
   const counts = new Map<Table, BlockerCount>();
   for (const table of TABLES) counts.set(table, await countBlockers(target, table));
   return counts;
@@ -80,7 +79,7 @@ function printBlockers(counts: Map<Table, BlockerCount>): { blocked: number; leg
   return { blocked, legacy, notStripped };
 }
 
-async function beforeMerge(target: Target): Promise<number> {
+async function beforeMerge(target: ServiceTarget): Promise<number> {
   banner(`Step 1 of the #1017 release: ${new URL(target.origin).host}`);
   console.log("Reading production. Nothing is written in this part.");
   const extractions = loadExtractions();
@@ -141,7 +140,7 @@ Next:
 }
 
 /** Legendary entries whose name carries a cost above 1, in the SRD rows. */
-async function srdLegendaryCosts(target: Target): Promise<number> {
+async function srdLegendaryCosts(target: ServiceTarget): Promise<number> {
   const rows = await readRows(target, "library_monsters");
   let costly = 0;
   for (const row of rows) {
@@ -159,7 +158,7 @@ function runSeed(args: string[]): boolean {
   return result.status === 0;
 }
 
-async function afterMerge(target: Target): Promise<number> {
+async function afterMerge(target: ServiceTarget): Promise<number> {
   banner(`After the #1017 merge: ${new URL(target.origin).host}`);
   console.log("Checking the contract migration ran:");
   const state = printBlockers(await blockersEverywhere(target));
@@ -223,7 +222,7 @@ async function main(): Promise<void> {
   if (stage !== "before-merge" && stage !== "after-merge") {
     throw new Error('Say which stage: npm run stat-blocks:release -- before-merge   (or: -- after-merge)');
   }
-  const target = resolveTarget(true);
+  const target = resolveServiceTarget(true);
   process.exitCode = stage === "before-merge" ? await beforeMerge(target) : await afterMerge(target);
 }
 

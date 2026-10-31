@@ -247,7 +247,7 @@
               :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellHealing(entry, lastCastLevel(entry))"
             />
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution" title="This spell's dice are not set up for auto-rolling; read the spell text and roll them yourself">Roll by hand</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/10 px-1.5 py-0.5 text-label text-ink-caution" :title="ROLL_BY_HAND_HINT">Roll by hand</span>
 
             <AppSelect
               v-if="eligibleMetamagic(entry).length"
@@ -368,10 +368,11 @@ import PlayerSpellSlotStrip from "@/components/spells/PlayerSpellSlotStrip.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 import { countPreparedAgainstLimit } from "@/rules/preparedSpellCount";
+import { slotScaledDamageDice } from "@/rules/spellDamageScaling";
 import { availableSlotsForSpell, canCastWithSlot, slotPool, type SpellSlotPool } from "@/rules/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/rules/useRuleset";
-import { canAutoRollSpellEffect, canCastAsRitual } from "@/rules/spellcastingPolicy";
+import { canAutoRollSpellEffect, canCastAsRitual, ROLL_BY_HAND_HINT, ROLL_BY_HAND_NOTICE } from "@/rules/spellcastingPolicy";
 import { useRitualStyles } from "@/composables/rules/useRitualPolicies";
 import { useMetamagicOptions } from "@/composables/party/useMetamagic";
 import type { MetamagicOption } from "@/rules/metamagic";
@@ -694,9 +695,7 @@ async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number, da
   const extraLevels = Math.max(0, castLevel - spell.level);
   const cantripMult = spell.level === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
   for (const dmg of spell.damage_rolls ?? []) {
-    let diceSrc = (extraLevels > 0 && spell.higher_level_damage)
-      ? scaleExpression(dmg.dice, extraLevels, spell.higher_level_damage.dice_per_level)
-      : dmg.dice;
+    let diceSrc = slotScaledDamageDice(dmg, extraLevels, spell.higher_level_damage);
     if (cantripMult > 1) diceSrc = scaleExpression(dmg.dice, cantripMult - 1, dmg.dice);
     const parsed = parseExpression(diceSrc);
     if (!parsed) {
@@ -805,7 +804,7 @@ async function castSpell(
     if (spell.mechanics_reviewed !== false && spell.effects?.length) {
       openEffectResolution(entry, castLevel, metamagicNames);
     } else if (spell.mechanics_reviewed === false) {
-      toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
+      toast.info(ROLL_BY_HAND_NOTICE);
     }
 
     if (!spell.effects?.length && spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {

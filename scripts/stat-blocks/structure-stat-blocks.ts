@@ -16,7 +16,8 @@
  * Only the `stat_block` column is ever written, one row per request, by primary key.
  */
 import { parseArgs } from "node:util";
-import { TABLES, isTable, loadExtractions, print, processTable, resolveTarget } from "./rows.ts";
+import { TABLES, isTable, loadExtractions, print, processTable } from "./rows.ts";
+import { resolveServiceTarget } from "../lib/dev-stack.ts";
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
@@ -40,7 +41,7 @@ async function main(): Promise<void> {
     }),
   );
 
-  const target = resolveTarget(values.production);
+  const target = resolveServiceTarget(values.production);
   console.log(`${write ? "Writing to" : "Checking"} ${target.label} (${[...tables].join(", ")}).`);
   const extractions = loadExtractions();
 

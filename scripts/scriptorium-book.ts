@@ -52,7 +52,7 @@ import {
   resolveArtSlot,
   type ResolvedArt,
 } from "./lib/scriptoriumBook.ts";
-import { type Target, resolveTarget } from "./stat-blocks/rows.ts";
+import { type ServiceTarget, resolveServiceTarget } from "./lib/dev-stack.ts";
 
 const DEFAULT_DIR = "~/Documents/Claude/Projects/Sothery Book I - manuscript/chapters/";
 const DEFAULT_SOURCE_DIR = "~/Documents/Claude/Projects/Late in the Kind Country - stay as long as you like/";
@@ -84,7 +84,7 @@ const EMBED_TABLES: Record<string, { table: string; column: string }> = {
 
 type EmbedIndex = Map<string, Map<string, string[]>>;
 
-async function loadEmbedIndex(target: Target, campaignId: string): Promise<EmbedIndex> {
+async function loadEmbedIndex(target: ServiceTarget, campaignId: string): Promise<EmbedIndex> {
   const index: EmbedIndex = new Map();
   for (const [type, { table, column }] of Object.entries(EMBED_TABLES)) {
     const rows = await readAll<Record<string, string>>(target, `${table}?campaign_id=eq.${campaignId}&select=id,${column}`);
@@ -133,8 +133,8 @@ async function main(): Promise<void> {
   const files = chapterFileNames(readdirSync(dir));
   if (files.length === 0) throw new Error(`No .md files in ${dir}.`);
 
-  // resolveTarget refuses anything but loopback unless --production is given.
-  const target = resolveTarget(values.production);
+  // resolveServiceTarget refuses anything but loopback unless --production is given.
+  const target = resolveServiceTarget(values.production);
   console.log(`${dryRun ? "Planning for" : "Writing to"} ${target.label}, campaign ${campaignId}, ${files.length} chapter(s) in ${dir}.`);
   await assertCampaignOwner(target, campaignId, userId);
 

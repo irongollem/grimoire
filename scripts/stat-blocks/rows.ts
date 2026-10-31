@@ -6,7 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
-import { assertDemoKey, assertRemoteUrl, readLocalStack } from "../lib/dev-stack.ts";
+import { type ServiceTarget, serviceHeaders as headers } from "../lib/dev-stack.ts";
 import { type ExpandStats, type ExtractedAction, contractBlocker, expandStatBlock, groupExtractions } from "./structureRows.ts";
 
 export const TABLES = ["library_monsters", "monsters", "npcs", "companions", "hall_of_heroes"] as const;
@@ -17,12 +17,6 @@ const PAGE = 1000;
 const WRITE_CONCURRENCY = 8;
 const RETRIES = 3;
 
-export interface Target {
-  origin: string;
-  key: string;
-  label: string;
-}
-
 export interface Row {
   id: string;
   stat_block: unknown;
@@ -32,24 +26,7 @@ export function isTable(value: string): value is Table {
   return (TABLES as readonly string[]).includes(value);
 }
 
-function headers(target: Target, extra: Record<string, string> = {}): Record<string, string> {
-  return { apikey: target.key, Authorization: `Bearer ${target.key}`, ...extra };
-}
-
-export function resolveTarget(production: boolean): Target {
-  if (production) {
-    const url = assertRemoteUrl(process.env.VITE_SUPABASE_URL);
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set. Run through the npm script, which loads .env.local.");
-    return { origin: url.origin, key, label: "production" };
-  }
-  // readLocalStack refuses anything but loopback; the demo-key check refuses a hosted key behind a local-looking URL.
-  const stack = readLocalStack();
-  assertDemoKey("SERVICE_ROLE_KEY", stack.SERVICE_ROLE_KEY);
-  return { origin: new URL(stack.API_URL).origin, key: stack.SERVICE_ROLE_KEY, label: "local" };
-}
-
-export async function readRows(target: Target, table: Table): Promise<Row[]> {
+export async function readRows(target: ServiceTarget, table: Table): Promise<Row[]> {
   const rows: Row[] = [];
   for (let offset = 0; ; offset += PAGE) {
     const url = `${target.origin}/rest/v1/${table}?select=id,stat_block&order=id&limit=${PAGE}&offset=${offset}`;
@@ -65,7 +42,7 @@ export async function readRows(target: Target, table: Table): Promise<Row[]> {
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Updates one row by primary key, retrying transient failures. Returns false on a lasting failure. */
-export async function writeRow(target: Target, table: Table, id: string, statBlock: unknown): Promise<boolean> {
+export async function writeRow(target: ServiceTarget, table: Table, id: string, statBlock: unknown): Promise<boolean> {
   const url = `${target.origin}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`;
   for (let attempt = 0; attempt < RETRIES; attempt++) {
     try {
@@ -99,7 +76,7 @@ export interface Tally extends ExpandStats {
 }
 
 export async function processTable(
-  target: Target,
+  target: ServiceTarget,
   table: Table,
   write: boolean,
   extractions: Map<string, Map<string, ExtractedAction>>,
@@ -172,7 +149,7 @@ export interface BlockerCount {
 const LEGACY_KEYS = ["damage_resistances", "damage_immunities", "damage_vulnerabilities", "condition_immunities"];
 
 /** How many rows of a table the contract migration would refuse right now (`contractBlocker`). */
-export async function countBlockers(target: Target, table: Table): Promise<BlockerCount> {
+export async function countBlockers(target: ServiceTarget, table: Table): Promise<BlockerCount> {
   const rows = await readRows(target, table);
   const count: BlockerCount = { total: rows.length, unstructured: 0, textWithoutDefenses: 0, withLegacyStrings: 0, passingWithLegacyStrings: 0 };
   for (const row of rows) {
@@ -195,7 +172,7 @@ export async function countBlockers(target: Target, table: Table): Promise<Block
  * rule flags are touched.
  */
 export async function convertStragglers(
-  target: Target,
+  target: ServiceTarget,
   table: Table,
   extractions: Map<string, Map<string, ExtractedAction>>,
 ): Promise<{ found: number; written: number; failed: number }> {

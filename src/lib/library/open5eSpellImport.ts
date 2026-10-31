@@ -5,7 +5,13 @@ import { SRD_2014_CLASS_SPELL_LISTS } from "@/data/srd2014ClassSpellLists";
 import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { buildStructuredSpellEffects } from "@/rules/spellEffects";
+import { buildStructuredSpellEffects, describesHealing } from "@/rules/spellEffects";
+import type { DamagePart } from "@/lib/library/spellTextMechanics";
+import {
+  matchAttackDamage, matchChoiceAttackDamage, matchChoiceSaveDamage, matchHealing, matchInstances, matchRider, matchSaveDamage,
+  normDice, rollIsNotDamageOrHealing, upcastNamedTypes,
+} from "@/lib/library/spellTextMechanics";
+import type { InstanceRead } from "@/lib/library/spellTextMechanics";
 
 type SupportedRuleset = RulesetKey;
 
@@ -182,7 +188,7 @@ function normalizeClasses(spell: Open5eV2Spell): string[] {
   return classes;
 }
 
-const UPCAST_DICE_RE = /(\d+d\d+)\s+(?:for|per)\s+each\s+(?:spell\s+)?slot\s+level\s+above/i;
+export const UPCAST_DICE_RE = /(\d+d\d+)\s+(?:for|per)\s+each\s+(?:spell\s+)?slot\s+level\s+above/i;
 
 function parseHigherLevelDamage(prose: string | null): HigherLevelDamage | null {
   if (!prose || /heal/i.test(prose)) return null;
@@ -195,15 +201,18 @@ function parseHigherLevelHealing(prose: string | null): string | null {
   return prose.match(UPCAST_DICE_RE)?.[1] ?? null;
 }
 
-function inferAttackType(spell: Open5eV2Spell): string | null {
-  if (spell.attack_roll) return /melee spell attack/i.test(spell.desc) ? "melee_spell" : "ranged_spell";
+function inferAttackType(spell: Open5eV2Spell, rollKept: boolean, rider: boolean): string | null {
+  // A rider is rolled when a weapon hits, so nothing is rolled at cast.
+  if (rider) return null;
+  // Bless carries attack_roll for its d4; without a damage roll and a "spell attack" in the text there is no attack.
+  if (spell.attack_roll && (rollKept || /spell attack/i.test(spell.desc))) return /melee spell attack/i.test(spell.desc) ? "melee_spell" : "ranged_spell";
   if (spell.saving_throw_ability) return "save";
-  if (spell.damage_roll && !isHealingSpell(spell)) return "automatic";
+  if (rollKept && !isHealingSpell(spell)) return "automatic";
   return null;
 }
 
 function isHealingSpell(spell: Open5eV2Spell): boolean {
-  return /(?:regains?|restore)[^.]*hit points/i.test(spell.desc);
+  return describesHealing(spell.desc);
 }
 
 function inferSaveEffect(spell: Open5eV2Spell): string | null {
@@ -211,6 +220,57 @@ function inferSaveEffect(spell: Open5eV2Spell): string | null {
   if (/half (?:as much )?damage|half the damage|half damage/i.test(spell.desc)) return "half";
   if (/on a successful save[^.]*no damage|takes no damage on a successful save/i.test(spell.desc)) return "negates";
   return "special";
+}
+
+/** What the text proves about the cast-time roll, beside what Open5e filled in. */
+interface ReadRoll {
+  dice: string;
+  /** One part, or two when the text names both in one sentence. */
+  parts: DamagePart[];
+  /** Open5e's roll was a die the text uses for something else (Bless, Guidance). */
+  dropped: boolean;
+  /** The caster picks the damage type at cast: the types the text lists, and the part carries none. */
+  choices?: string[];
+  /** Extra damage rolled when a weapon hits (Hex), not at cast: no effects, no cast-time attack. */
+  rider?: boolean;
+}
+
+const instanceRead = (spell: Open5eV2Spell): InstanceRead | null => matchInstances(spell.desc, spell.higher_level, spell.level);
+
+function readRoll(spell: Open5eV2Spell): ReadRoll {
+  const none: ReadRoll = { dice: "", parts: [], dropped: false };
+  if (isHealingSpell(spell)) {
+    if (spell.damage_roll && rollIsNotDamageOrHealing(spell.desc, spell.damage_roll)) return { ...none, dropped: true };
+    return { ...none, dice: spell.damage_roll || matchHealing(spell.desc) || "" };
+  }
+  const rider = matchRider(spell.desc);
+  if (rider) return { dice: rider.dice, parts: [rider], dropped: false, rider: true };
+  const choice = spell.saving_throw_ability && !spell.attack_roll ? matchChoiceSaveDamage(spell.desc)
+    : spell.attack_roll ? matchChoiceAttackDamage(spell.desc) : null;
+  // The text is the authority on the dice; Open5e's own roll must agree or the spell is left to the checker's rejection.
+  if (choice && (!spell.damage_roll || normDice(spell.damage_roll) === choice.dice)) {
+    return { dice: choice.dice, parts: [{ dice: choice.dice, type: "" }], dropped: false, choices: choice.choices };
+  }
+  const saveText = spell.saving_throw_ability && !spell.attack_roll ? matchSaveDamage(spell.desc) : null;
+  // A sentence that names a different save ability than Open5e's is not read as this spell's roll.
+  const save = saveText && (!saveText.ability || saveText.ability === spell.saving_throw_ability.toLowerCase()) ? saveText : null;
+  const attack = spell.attack_roll ? matchAttackDamage(spell.desc) : null;
+  const dart = instanceRead(spell)?.damage;
+  const read = save?.parts ?? attack ?? (dart ? [dart] : null);
+  // Two parts in one sentence: the text is the authority over Open5e's single roll.
+  if (read && read.length === 2) return { dice: read[0].dice, parts: read, dropped: false };
+  if (spell.damage_roll && rollIsNotDamageOrHealing(spell.desc, spell.damage_roll)) return { ...none, dropped: true };
+  const one = read?.[0];
+  if (!spell.damage_roll) return one ? { dice: one.dice, parts: [one], dropped: false } : none;
+  const type = spell.damage_types.length === 1 ? spell.damage_types[0].toLowerCase() : one && normDice(one.dice) === normDice(spell.damage_roll) ? one.type : "";
+  return { dice: spell.damage_roll, parts: [{ dice: spell.damage_roll, type }], dropped: false };
+}
+
+/** "the bludgeoning damage increases by 1d8 ...": the one type an upcast names, else null. */
+function upcastPartType(prose: string | null, parts: DamagePart[]): string | null {
+  if (!prose || parts.length < 2) return null;
+  const named = upcastNamedTypes(prose).filter((type) => parts.some((p) => p.type === type));
+  return named.length === 1 ? named[0] : null;
 }
 
 export function mapOpen5eV2Spell(
@@ -222,15 +282,33 @@ export function mapOpen5eV2Spell(
   const { casting_time, casting_time_custom } = normalizeCastingTime(spell);
   const { duration, duration_custom } = normalizeDuration(spell);
   const { range, range_custom } = normalizeRange(spell);
-  const damageType = spell.damage_types.length === 1 ? spell.damage_types[0].toLowerCase() : "";
   const healing = isHealingSpell(spell);
+  const roll = readRoll(spell);
+  const twoParts = roll.parts.length === 2;
   const higherLevelDamage = parseHigherLevelDamage(spell.higher_level);
+  if (higherLevelDamage && twoParts) higherLevelDamage.type = upcastPartType(spell.higher_level, roll.parts);
   const higherLevelHealing = parseHigherLevelHealing(spell.higher_level);
-  const effects = buildStructuredSpellEffects(spell).map((effect) => {
+  const instances = instanceRead(spell)?.instances ?? null;
+  const effectSource = {
+    ...spell,
+    damage_roll: roll.dice,
+    damage_types: roll.parts.length === 1 && roll.parts[0].type ? [roll.parts[0].type] : [],
+    damage_parts: twoParts ? roll.parts : null,
+    casting_options: roll.dropped ? [] : spell.casting_options,
+  };
+  const effects = (roll.rider ? [] : buildStructuredSpellEffects(effectSource)).map((built) => {
     // A save-for-half branch is a copy of the base effect with a different
     // outcome/multiplier. It must scale with the same slot-level dice or a
     // successful save would incorrectly use the spell's base-level damage.
-    if (effect.id !== "base" && effect.id !== "base-save-half") return effect;
+    const part = built.id.match(/^base(-2)?(?:-save-half)?$/);
+    if (!part) return built;
+    const effect = {
+      ...built,
+      ...(roll.choices ? { damageTypeChoices: roll.choices } : {}),
+      ...(instances ? { instances } : {}),
+    };
+    // With two parts only the one the upcast names scales.
+    if (twoParts && effect.damageType !== higherLevelDamage?.type) return effect;
     const dice = effect.kind === "healing" ? higherLevelHealing : higherLevelDamage?.dice_per_level;
     return dice ? { ...effect, scaling: { mode: "slot" as const, dice } } : effect;
   });
@@ -267,11 +345,11 @@ export function mapOpen5eV2Spell(
     duration_custom,
     concentration: spell.concentration,
     ritual: spell.ritual,
-    attack_type: inferAttackType(spell),
+    attack_type: inferAttackType(spell, roll.dice !== "", Boolean(roll.rider)),
     save_attribute: spell.saving_throw_ability ? spell.saving_throw_ability.slice(0, 3).toUpperCase() : null,
     save_effect: inferSaveEffect(spell),
-    damage_rolls: spell.damage_roll && !healing ? [{ dice: spell.damage_roll, type: damageType }] : null,
-    healing_dice: healing ? spell.damage_roll || null : null,
+    damage_rolls: roll.dice && !healing ? roll.parts : null,
+    healing_dice: healing ? roll.dice || null : null,
     target_description: [spell.target_count, spell.target_type].filter((value) => value !== null && value !== "").join(" ") || null,
     aoe_shape: spell.shape_type?.toLowerCase() || null,
     aoe_size: spell.shape_size === null ? null : `${spell.shape_size} ${spell.shape_size_unit ?? "feet"}`,
