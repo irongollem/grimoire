@@ -6,11 +6,14 @@ import { FEET_PER_CELL, type TileLight } from "@/cartographer/packSchema";
 import type { Ctx2D } from "@/cartographer/dressing";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
 import type { CellPoint } from "@/cartographer/wallPick";
+import { paintWallNodes, type WallNodeMarks } from "@/cartographer/drawWallNodes";
 
 export interface EditorMarks {
   /** The Angled wall run in progress and the snapped point the next click would add. */
   wallRun?: { points: CellPoint[]; hover: CellPoint | null } | null;
   selectedWallId?: string | null;
+  /** The wall run Select picked (#1125 frame 17): its bones, its draggable nodes and where a drag would land. */
+  wallNodes?: WallNodeMarks | null;
   /** The Light tool is active: every placed light is marked with its reach. */
   showLights?: boolean;
   selectedLightId?: string | null;
@@ -69,6 +72,8 @@ export function paintEditorMarks(
     ctx.stroke();
     ctx.restore();
   }
+
+  if (marks.wallNodes) paintWallNodes(ctx, marks.wallNodes, tilePx, viewportOffset);
 
   const run = marks.wallRun;
   if (run && run.points.length > 0) {

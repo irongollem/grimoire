@@ -52,6 +52,19 @@ function piecesOf(run: Run): Piece[] {
   return out;
 }
 
+/** Joins neighbouring pieces that carry the same fields, so a wall made of two halves is laid as one stretch. */
+function coalesce(pieces: Piece[]): Piece[] {
+  const out: Piece[] = [];
+  for (const piece of [...pieces].sort((p, q) => p.t0 - q.t0)) {
+    const last = out[out.length - 1];
+    if (last && sameFields(last.wall, piece.wall) && Math.abs(last.t1 - piece.t0) < 1e-9) {
+      last.t1 = piece.t1;
+      last.keys.push(...piece.keys);
+    } else out.push({ ...piece, keys: [...piece.keys] });
+  }
+  return out;
+}
+
 const isUuid = (key: string): boolean => !key.includes(":");
 const onGrid = (p: Pt): boolean => p[0] === Math.round(p[0]) && p[1] === Math.round(p[1]);
 
@@ -266,7 +279,8 @@ export function removeNode(walls: WallMap, node: string, opts: EditOptions = {})
     }
   }
   const laid: WallMap = {};
-  const refused = lay(laid, merged, a, b, used, newKey);
+  // Two halves with the same fields are one wall again: laid as halves they would stay angled off the grid.
+  const refused = lay(laid, coalesce(merged), a, b, used, newKey);
   if (refused) return { ok: false, reason: refused };
   Object.assign(next, laid);
   const refusal = planarize(next, new Set(Object.keys(laid)), newKey);

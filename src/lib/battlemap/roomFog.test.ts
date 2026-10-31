@@ -23,3 +23,19 @@ describe("roomCellsAt", () => {
     expect(roomCellsAt([region("z", ["10,10"], "zone")], calibration, { x: 0.5, y: 0.5 })).toBeNull();
   });
 });
+
+describe("roomCellsAt along an outline", () => {
+  const curved = (vertices: [number, number][]) => ({ ...region("c", ["10,10", "11,10"]), vertices }) as unknown as LocationMapRegion;
+  // A triangle (10,10)-(12,10)-(10,12) in the Cartographer's cells: the room's wall is the slanted line.
+
+  it("a point inside the outline reveals the room even on a square that is not one of its cells", () => {
+    const room = curved([[10, 10], [12, 10], [10, 12]]);
+    const hit = roomCellsAt([room], calibration, { x: 0.3, y: 1.4 });
+    expect([...(hit ?? [])].sort()).toEqual(["0,0", "1,0"]);
+  });
+
+  it("a point past the curve is on no room, though the room's square reaches there", () => {
+    const room = curved([[10, 10], [12, 10], [10, 12]]);
+    expect(roomCellsAt([room], calibration, { x: 1.9, y: 0.9 })).toBeNull();
+  });
+});

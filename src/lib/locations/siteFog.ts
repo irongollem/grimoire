@@ -53,12 +53,13 @@ export function buildDmFogPlan(
         name: room.name,
         cells: region.cells,
         label: region.label,
+        vertices: region.vertices,
         sort_order: region.sort_order,
         is_cleared: isCleared(room.id),
         is_looted: isLooted(room.id),
       });
     } else {
-      glimpsed.push({ cells: region.cells });
+      glimpsed.push({ cells: region.cells, vertices: region.vertices });
     }
   }
 

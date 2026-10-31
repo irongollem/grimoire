@@ -13,7 +13,7 @@
 
 import type { DerivedSpace } from "@/cartographer/structure.types";
 import { matchSpace } from "@/lib/locations/publish";
-import type { LocationMapRegion, LocationMapRegionInsert, LocationMapRegionUpdate } from "@/types/locationMapRegion.types";
+import type { GridPoint, LocationMapRegion, LocationMapRegionInsert, LocationMapRegionUpdate } from "@/types/locationMapRegion.types";
 
 /** One line of the Zoning list. */
 export type ZoningEntry =
@@ -21,6 +21,11 @@ export type ZoningEntry =
   | { kind: "region"; region: LocationMapRegion; space: DerivedSpace | null; found: boolean; changed: boolean }
   /** A derived room with no row yet: shown as found, written only when the DM touches it. */
   | { kind: "found"; space: DerivedSpace };
+
+/** Whether a row already holds this outline: a row from before outlines (null) is behind, so Find again brings it up. */
+function sameOutline(held: readonly GridPoint[] | null, outline: readonly GridPoint[]): boolean {
+  return held !== null && held.length === outline.length && held.every((p, i) => p[0] === outline[i][0] && p[1] === outline[i][1]);
+}
 
 const STAND_IN = "unbound:";
 
@@ -79,7 +84,7 @@ export function zoningList(
   const entry = (region: LocationMapRegion): ZoningEntry => {
     const space = spaceOf.get(region.id) ?? null;
     const found = space !== null && region.derived_from === "floodfill";
-    return { kind: "region", region, space, found, changed: found && region.cell_signature !== space.signature };
+    return { kind: "region", region, space, found, changed: found && (region.cell_signature !== space.signature || !sameOutline(region.vertices, space.outline)) };
   };
 
   const rooms = regions.filter((r) => r.region_role === "space").map(entry);
@@ -107,13 +112,15 @@ export function materializeFound(
     derived_from: edit ? "dm" : "floodfill",
     cell_signature: space.signature,
     cells: space.cells,
+    // A reshape that writes squares without an outline of its own leaves the walls' outline stale, so it drops it.
+    vertices: edit && edit.cells !== undefined && edit.vertices === undefined ? null : space.outline,
     label: space.name,
     ...edit,
   };
 }
 
 /**
- * Find again: bring every room the DM never touched (`floodfill`) to the cells its derived room has now. A `dm` row
+ * Find again: bring every room the DM never touched (`floodfill`) to the cells and outline its derived room has now. A `dm` row
  * is never in the result. Rooms that no longer match anything are left alone (nothing is deleted, as in publish).
  *
  * Against `planPublish` for the same inputs: publish also redraws `annotation` rows and only reconciles bound ones;
@@ -128,8 +135,8 @@ export function findAgain(
   const updates: { id: string; update: LocationMapRegionUpdate }[] = [];
   for (const space of derived) {
     const region = pairs.get(space.key);
-    if (!region || region.derived_from !== "floodfill" || region.cell_signature === space.signature) continue;
-    updates.push({ id: region.id, update: { cells: space.cells, cell_signature: space.signature } });
+    if (!region || region.derived_from !== "floodfill" || (region.cell_signature === space.signature && sameOutline(region.vertices, space.outline))) continue;
+    updates.push({ id: region.id, update: { cells: space.cells, cell_signature: space.signature, vertices: space.outline } });
   }
   return updates;
 }

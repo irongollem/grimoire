@@ -172,6 +172,29 @@ describe("usePlanPalette", () => {
       expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ region_role: "space", derived_from: "floodfill" }));
     });
 
+    // Pouring a zone up to the walls must give it the walls' own line, or a round chapel is filled as a staircase.
+    it("gives the poured room the outline of the found room that holds exactly those squares", async () => {
+      createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "new-region" });
+      const chapel: DerivedSpace = { key: "s:0,0", cells: ["0,0", "0,1"], signature: "sig", outline: [[0, 0], [1, 0], [1, 2]], name: null, nameSource: null };
+      const plan = usePlanPalette(computed(() => "site-1"), () => [chapel]);
+      await plan.fillFloorRegion(["0,1", "0,0"]);
+      expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ vertices: chapel.outline }));
+    });
+
+    it("leaves the outline off when no found room has exactly those squares", async () => {
+      createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "new-region" });
+      const chapel: DerivedSpace = { key: "s:0,0", cells: ["0,0", "0,1", "0,2"], signature: "sig", outline: [[0, 0], [1, 0], [1, 2]], name: null, nameSource: null };
+      const plan = usePlanPalette(computed(() => "site-1"), () => [chapel]);
+      await plan.fillFloorRegion(["0,0", "0,1"]);
+      expect(createRegionStub.mutateAsync.mock.calls[0]![0]).not.toHaveProperty("vertices");
+      // ...and the other way: a poured area bigger than the room is not that room either.
+      createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "new-region-2" });
+      const small: DerivedSpace = { ...chapel, cells: ["0,0", "0,1"] };
+      const plan2 = usePlanPalette(computed(() => "site-1"), () => [small]);
+      await plan2.fillFloorRegion(["0,0", "0,1", "0,2"]);
+      expect(createRegionStub.mutateAsync.mock.calls[1]![0]).not.toHaveProperty("vertices");
+    });
+
     it("ignores a zone that happens to cover the same cells — only an existing space counts", async () => {
       regionsData.value = [makeRegion({ id: "zone-1", region_role: "zone", cells: ["0,0", "0,1"] })];
       createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "new-region", cells: ["0,0", "0,1"], region_role: "space" });
@@ -342,7 +365,7 @@ describe("eraseFromRegions", () => {
 // #1125 frames 18-19: the walls' rooms are in the list before they are rows.
 describe("usePlanPalette found rooms", () => {
   const space = (key: string, cell: CellKey, name: string | null = null): DerivedSpace => ({
-    key, cells: [cell, "9,9"], signature: `sig-${key}`, name, nameSource: name ? "annotation" : null,
+    key, cells: [cell, "9,9"], signature: `sig-${key}`, outline: [[0, 0], [1, 0], [1, 1]], name, nameSource: name ? "annotation" : null,
   });
 
   beforeEach(() => {
@@ -403,7 +426,7 @@ describe("usePlanPalette found rooms", () => {
     const sent = await plan.findAgainNow();
     expect(sent).toBe(1);
     expect(updateRegionStub.mutateAsync).toHaveBeenCalledTimes(1);
-    expect(updateRegionStub.mutateAsync).toHaveBeenCalledWith({ id: "untouched", update: { cells: moved.cells, cell_signature: "sig-s:0,0" } });
+    expect(updateRegionStub.mutateAsync).toHaveBeenCalledWith({ id: "untouched", update: { cells: moved.cells, cell_signature: "sig-s:0,0", vertices: moved.outline } });
   });
 
   it("clicking a found room on the map writes it as the walls' room and makes it the one being traced", async () => {

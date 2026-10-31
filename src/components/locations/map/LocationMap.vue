@@ -50,7 +50,7 @@
               :ways="siteDoors ?? []"
               :nested-site-ids="nestedSiteIds"
               :show-fog="showFog"
-              :fog-glimpsed-cells="fogGlimpsedCells"
+              :fog-glimpsed="fogGlimpsed"
               @move-party="emit('move-party', $event)"
               @descend="emit('descend', $event)"
               @hover-region="emit('hover-region', $event)"
@@ -219,7 +219,7 @@ import { useLocationsUiStore } from "@/stores/ui/locations";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { GridCalibration, LocationType, MapPin as MapPinType } from "@/types/location.types";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
-import type { CellKey } from "@/types/dungeonMap.types";
+import type { PlayerSitePlanGlimpse } from "@/composables/locations/usePlayerVisibleSiteState";
 
 const pins = defineModel<MapPinType[]>("pins", { required: true });
 
@@ -239,7 +239,7 @@ const {
   reachableRoomIds = null,
   showLayerBar = true,
   showFog = false,
-  fogGlimpsedCells = [],
+  fogGlimpsed = [],
   measuring = false,
   routePoints = [],
 } = defineProps<{
@@ -297,10 +297,10 @@ const {
    *  (the sheet, the run surface) is unaffected. */
   showLayerBar?: boolean;
   /** The DM's own site-fog hint (#884 S11) — the explore screen's fog
-   *  and its `buildDmFogPlan(...).glimpsed` cells, forwarded straight to
+   *  and its `buildDmFogPlan(...).glimpsed` footprints, forwarded straight to
    *  `MapRegionsLayer`. Off/empty for every other caller. */
   showFog?: boolean;
-  fogGlimpsedCells?: readonly (readonly CellKey[])[];
+  fogGlimpsed?: readonly PlayerSitePlanGlimpse[];
   /** The Atlas Measure tool is on (#932): a tap on the map is a waypoint, not
    *  a pin click. The route itself is the caller's state, drawn from
    *  `routePoints`. */

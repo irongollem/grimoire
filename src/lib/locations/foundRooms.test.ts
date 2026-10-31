@@ -5,7 +5,7 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import { findAgain, materializeFound, zoningList } from "./foundRooms";
 
 function space(key: string, cells: CellKey[], name: string | null = null): DerivedSpace {
-  return { key, cells, signature: `sig:${cells.join(";")}`, name, nameSource: name ? "annotation" : null };
+  return { key, cells, signature: `sig:${cells.join(";")}`, outline: [[0, 0], [4, 0], [4, 4]], name, nameSource: name ? "annotation" : null };
 }
 
 function row(id: string, over: Partial<LocationMapRegion>): LocationMapRegion {
@@ -51,8 +51,13 @@ describe("zoningList", () => {
     expect(zoningList([hall], [unbound], NAMES).filter((e) => e.kind === "found")).toHaveLength(0);
   });
 
+  it("says a found row whose outline is out of date has changed, as its squares moving would", () => {
+    const a = row("a", { cells: hall.cells, cell_signature: hall.signature, vertices: null });
+    expect(zoningList([hall], [a], NAMES)[0]).toMatchObject({ found: true, changed: true });
+  });
+
   it("marks a floodfill row found, and a dm row not found, when both match a derived room", () => {
-    const a = row("a", { cells: hall.cells, cell_signature: hall.signature, derived_from: "floodfill" });
+    const a = row("a", { cells: hall.cells, cell_signature: hall.signature, vertices: hall.outline, derived_from: "floodfill" });
     const b = row("b", { cells: crypt.cells, cell_signature: crypt.signature, derived_from: "dm", space_location_id: "crypt" });
     const [ea, eb] = zoningList([hall, crypt], [a, b], NAMES);
     expect(ea).toMatchObject({ found: true, changed: false });
@@ -95,6 +100,16 @@ describe("materializeFound", () => {
     });
   });
 
+  it("carries the walls' outline into the row so the room is drawn along its lines", () => {
+    expect(materializeFound(crypt, "site").vertices).toEqual(crypt.outline);
+  });
+
+  // A reshape by squares leaves the walls' outline describing a room that is no longer there.
+  it("drops the outline when the DM's edit rewrites the squares without one", () => {
+    expect(materializeFound(crypt, "site", { cells: ["5,0"] }).vertices).toBeNull();
+    expect(materializeFound(crypt, "site", { cells: ["5,0"], vertices: [[5, 0], [6, 0], [6, 1]] }).vertices).toEqual([[5, 0], [6, 0], [6, 1]]);
+  });
+
   // Renaming a found room is the DM touching it: it must read dm so Find again and Publish leave it.
   it("stamps the row dm when the DM's edit comes with it", () => {
     const insert = materializeFound(crypt, "site", { label: "Crypt of Ash" });
@@ -105,7 +120,7 @@ describe("materializeFound", () => {
 describe("findAgain", () => {
   it("hands a found row whose walls moved its new cells and signature", () => {
     const stale = row("r1", { cells: ["0,0", "1,0", "0,1"], cell_signature: "old" });
-    expect(findAgain([hall], [stale], NAMES)).toEqual([{ id: "r1", update: { cells: hall.cells, cell_signature: hall.signature } }]);
+    expect(findAgain([hall], [stale], NAMES)).toEqual([{ id: "r1", update: { cells: hall.cells, cell_signature: hall.signature, vertices: hall.outline } }]);
   });
 
   // The maintainer's rule: Find again redraws only the rooms you never touched.
@@ -115,8 +130,21 @@ describe("findAgain", () => {
   });
 
   it("leaves a found row alone when its walls have not moved", () => {
-    const same = row("r1", { cells: hall.cells, cell_signature: hall.signature });
+    const same = row("r1", { cells: hall.cells, cell_signature: hall.signature, vertices: hall.outline });
     expect(findAgain([hall], [same], NAMES)).toEqual([]);
+  });
+
+  // Rows found before outlines existed hold squares only; their cells have not moved, but the curve has to arrive.
+  it("hands a found row with no outline its outline even though its squares are the same", () => {
+    const before = row("r1", { cells: hall.cells, cell_signature: hall.signature, vertices: null });
+    expect(findAgain([hall], [before], NAMES)).toEqual([
+      { id: "r1", update: { cells: hall.cells, cell_signature: hall.signature, vertices: hall.outline } },
+    ]);
+  });
+
+  it("brings a found row's outline along when the same squares are bounded by a different line", () => {
+    const moved = row("r1", { cells: hall.cells, cell_signature: hall.signature, vertices: [[0, 0], [4, 0], [4, 3]] });
+    expect(findAgain([hall], [moved], NAMES)).toHaveLength(1);
   });
 
   it("leaves a floodfill row whose room is gone alone instead of deleting it", () => {

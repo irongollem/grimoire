@@ -4,7 +4,7 @@
 // own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use). Doors carry
 // their leaf art and hinge too, so the battle map can draw each at the state the DM sets in play.
 
-import type { DungeonMap, CellKey } from "@/types/dungeonMap.types";
+import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveWall, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
@@ -15,6 +15,9 @@ import { collectOcclusion, occlusionSegment, toImageCell } from "@/cartographer/
 import { edgeSegOf, isLatticeKey } from "@/cartographer/wallGraph";
 import { cellKey } from "@/types/dungeonMap.types";
 import type { WallSegment } from "@/lib/battlemap/walls";
+
+/** All a snapshot reads of a map: the editor builds one from its live layers, with no saved row behind them. */
+export type MapLiveSource = Pick<DungeonMap, "layers" | "darkness">;
 
 function groupByPack(
   cells: Record<CellKey, { pack_id: string }>,
@@ -38,7 +41,7 @@ function groupByPack(
  * calibration stores.
  */
 export function buildMapLive(
-  map: DungeonMap,
+  map: MapLiveSource,
   runtimes: Map<string, TilePackRuntime>,
   dressing: DressingCatalog,
   originCellX: number,
@@ -91,7 +94,7 @@ const toMapLiveWall = ({ id, a, b }: WallSegment): MapLiveWall => ({ id, a: [a[0
  * `omitLive` plus these leaves shows every door exactly once.
  */
 function gatherDoors(
-  map: DungeonMap,
+  map: Pick<DungeonMap, "layers">,
   doors: (WallSegment & { open: boolean })[],
   runtimes: Map<string, TilePackRuntime>,
   originCellX: number,
@@ -112,7 +115,7 @@ function gatherDoors(
  * Standing objects in row-major order (the order the bake paints them), then Dressing by z.
  */
 function gatherSprites(
-  map: DungeonMap,
+  map: Pick<DungeonMap, "layers">,
   runtimes: Map<string, TilePackRuntime>,
   dressing: DressingCatalog,
   originCellX: number,

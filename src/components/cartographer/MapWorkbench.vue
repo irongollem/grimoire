@@ -62,19 +62,50 @@
         @pointerenter="pointerOverMap = true"
         @pointerleave="pointerOverMap = false"
       >
+        <!-- While motion plays the map is ground, live water, what stands, live firelight and sway, in that order,
+             as on the battle map. Paused, it is the one canvas it always was. -->
         <canvas
-          ref="canvasEl"
-          class="absolute inset-0 block h-full w-full touch-none"
-          :class="canvasCursor"
-          @pointerdown="onPointerDown"
-          @mousedown="onMouseDown"
-          @pointermove="onPointerMove"
-          @pointerup="onPointerUp"
-          @pointerleave="onPointerLeave"
-          @dblclick="onDoubleClick"
-          @wheel.prevent="onWheel"
-          @contextmenu.prevent
+          v-if="motionOn"
+          ref="groundCanvasEl"
+          class="pointer-events-none absolute inset-0 block h-full w-full"
+          aria-hidden="true"
         ></canvas>
+        <CartographerMotionLayer
+          :layers="layers"
+          :revision="editRevision"
+          :darkness="darkness"
+          :runtimes="loadedRuntimes"
+          :dressing="dressingCatalog"
+          :tile-px="BASE_TILE_SIZE * zoom * canvasBox.dpr"
+          :viewport-offset="viewportOffset"
+          :dpr="canvasBox.dpr"
+          :width="canvasBox.w"
+          :height="canvasBox.h"
+          :playing="motionOn"
+          :busy="gestureBusy"
+        >
+          <canvas
+            ref="canvasEl"
+            class="absolute inset-0 block h-full w-full touch-none"
+            :class="canvasCursor"
+            @pointerdown="onPointerDown"
+            @mousedown="onMouseDown"
+            @pointermove="onPointerMove"
+            @pointerup="onPointerUp"
+            @pointerleave="onPointerLeave"
+            @dblclick="onDoubleClick"
+            @wheel.prevent="onWheel"
+            @contextmenu.prevent
+          ></canvas>
+        </CartographerMotionLayer>
+        <CartographerMotionButton
+          v-if="hasMotion"
+          class="absolute bottom-9 right-2 z-10"
+          :available="hasMotion"
+          :playing="motionRunning"
+          :reduced="osReducedMotion"
+          @toggle="motionPlaying = !motionPlaying"
+        />
 
         <WorkbenchPictureStage
           v-if="pictureStage && referencePicture"
@@ -171,8 +202,9 @@
             :rect-walls="rectWalls"
             :light="shownLight"
             :light-selected="selectedLightId !== null"
-            :selected-angled-kind="selectedAngledWallKind"
-            @delete-angled-wall="deleteSelectedAngledWall"
+            :wall-run="selectedWallRun"
+            :wall-refusal="wallRefusal"
+            @delete-wall-run="deleteSelectedWall"
             @update:light="onLightEdit"
             @delete-light="deleteSelectedLight"
             @update:active-tool="activeTool = $event"
@@ -366,7 +398,6 @@ import {
   IconAnnotate,
   IconEntityLink,
   IconRoomTemplate,
-  IconSplitCell,
   IconCave,
   IconHighlight,
   IconAngledWall,
@@ -379,6 +410,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import { storeToRefs } from "pinia";
+import { usePreferredReducedMotion } from "@vueuse/core";
 import { useCartographerUiStore } from "@/stores/ui/cartographer";
 import CartographerBar from "@/components/cartographer/CartographerBar.vue";
 import CartographerGridControl from "@/components/cartographer/CartographerGridControl.vue";
@@ -389,13 +421,14 @@ import CartographerToolRail, { type RailFamily } from "@/components/cartographer
 import CartographerPlanOptions from "@/components/cartographer/CartographerPlanOptions.vue";
 import CartographerPictureOptions from "@/components/cartographer/CartographerPictureOptions.vue";
 import WorkbenchPictureStage from "@/components/cartographer/WorkbenchPictureStage.vue";
+import CartographerMotionLayer from "@/components/cartographer/CartographerMotionLayer.vue";
+import CartographerMotionButton from "@/components/cartographer/CartographerMotionButton.vue";
 import CartographerToolOptions from "@/components/cartographer/CartographerToolOptions.vue";
 import ZoningList from "@/components/locations/site/ZoningList.vue";
 import SiteWaysOutPanel from "@/components/locations/site/SiteWaysOutPanel.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
 import { usePlanPalette, PLAN_TOOLS, TRACE_TOOL_OPTIONS, type PlanTool } from "@/composables/cartographer/usePlanPalette";
-import { useZoningKeys } from "@/composables/cartographer/useZoningKeys";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 
 import { useNotes } from "@/composables/notes/useNotes";
@@ -410,6 +443,8 @@ import type { MapMenuAction, PlaceItem, Tool } from "@/cartographer/tools";
 import { placeItemLabel, pushRecent } from "@/cartographer/placeItem";
 import type { EditorLayer } from "@/cartographer/keymap";
 import { boundsOfCells } from "@/cartographer/viewport";
+import { mapHasMotion } from "@/cartographer/motion";
+import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
 import {
   emptyLayers,
   withLayerDefaults,
@@ -632,8 +667,6 @@ const TOOLS: ToolDef[] = [
   { id: "light",    label: "Light",         icon: IconLight,       shortcut: "u" },
   { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t" },
   { id: "link",     label: "Link",          icon: IconEntityLink,   shortcut: "k" },
-  // "s" is already Rock's key, so Space takes "p" instead of the frame's literal key (#868).
-  { id: "space",    label: "Space",         icon: IconSplitCell,    shortcut: "p" },
   { id: "eraser",   label: "Eraser",        icon: IconEraser,       shortcut: "e" },
 ];
 
@@ -656,7 +689,7 @@ const TOOL_FAMILIES: readonly ToolFamilyDef[] = [
   { id: "walls",  label: "Walls",   icon: IconWall,        caption: "walls",         tools: ["wall", "door", "wrap", "angledWall"] },
   { id: "things", label: "Things",  icon: IconObjectStamp, caption: "objects, props and lights",           tools: ["place", "light"] },
   { id: "terrain", label: "Terrain", icon: IconWater,                                           tools: ["terrain", "solid"] },
-  { id: "notes",  label: "Notes",   icon: IconAnnotate,    caption: "labels, links and spaces",    tools: ["annotate", "link", "space"] },
+  { id: "notes",  label: "Notes",   icon: IconAnnotate,    caption: "labels and links",    tools: ["annotate", "link"] },
   { id: "erase",  label: "Erase",   icon: IconEraser,      caption: "floor, walls and objects",    tools: ["eraser"], dividerBefore: true },
 ];
 function toolDef(id: Tool): ToolDef {
@@ -673,7 +706,17 @@ const RAIL_FAMILIES: RailFamily[] = TOOL_FAMILIES.map((f) => ({
 }));
 // The second tile set, one X from the active one (kept per map in the cartographer UI
 // store); until one is chosen it is the first other set on offer.
-const { secondPackByMap, gridShown, gridStrength, gridAlpha } = storeToRefs(useCartographerUiStore());
+const { secondPackByMap, gridShown, gridStrength, gridAlpha, motionPlaying, motionRunning } = storeToRefs(useCartographerUiStore());
+// The Motion button (#1125 frames 16-17): the map's own water, sway and firelight, played while it is edited.
+const groundCanvasEl = ref<HTMLCanvasElement | null>(null);
+const reducedMotionPreference = usePreferredReducedMotion();
+const osReducedMotion = computed(() => reducedMotionPreference.value === "reduce");
+const hasMotion = computed(() => {
+  void editRevision.value; // the layers change in place; the counter says when
+  return mapHasMotion(layers.value, loadedRuntimes.value, dressingCatalog.value);
+});
+// Only the Drawing and Zoning show the map (the Base image tab is a picture to line up).
+const motionOn = computed(() => motionRunning.value && hasMotion.value && activeLayer.value !== "picture");
 const secondPackId = computed<string | null>(() => {
   const stored = secondPackByMap.value[map?.id || "new"];
   const offered = selectablePacks.value.filter((p) => p.pack_id !== currentPackId.value);
@@ -1046,15 +1089,16 @@ const {
   zoom, viewportOffset, hoverCell, altHeld, spaceHeld, isPanning, canUndo, canRedo, undoEdit, redoEdit, centerMap,
   onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel,
   rotateSelectedDressing, deleteSelectedDressing, selectedLightId, updateSelectedLight, deleteSelectedLight,
-  selectedAngledWallKind, deleteSelectedAngledWall,
+  selectedWallRun, wallRefusal, deleteSelectedWall, canvasBox, gestureBusy,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
   placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape, brushRadius, rectWalls,
-  selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
+  selectedCell, toolOptionsRef, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
   plan, activeLayer, hasLayerTabs: !!site, gridAlpha, toggleGrid, keysActive, swapTileSets,
+  groundCanvasEl, motionPlaying: () => motionOn.value,
 });
 
 // Picture layer (canvas frame 07): lining the grid up and fitting the view.
@@ -1212,13 +1256,5 @@ defineExpose({
   startLineUp: lineUpBaseImage,
   armDoorPlacement: (doorId: string) => { activeLayer.value = "plan"; plan.armDoorPlacement(doorId); },
   showSpaces: () => { activeLayer.value = "plan"; drawer.value = "zoning"; },
-});
-
-// Z, D, F, E pick Zoning's tools while its tab is up (the editor's own keys only know the Drawing's).
-useZoningKeys({
-  layer: () => activeLayer.value,
-  enabled: () => !viewMode && !!site,
-  tools: PLAN_TOOLS,
-  pick: (tool) => { plan.planTool.value = tool; },
 });
 </script>

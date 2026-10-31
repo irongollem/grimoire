@@ -117,6 +117,7 @@ function spaceRegionRow(
     site_location_id: siteId,
     space_location_id: roomId,
     cells: space.cells,
+    vertices: space.outline,
     cell_signature: space.signature,
     region_role: "space",
     derived_from: space.nameSource === "annotation" ? "annotation" : "floodfill",
@@ -422,12 +423,12 @@ export function useMapPublish(opts: {
           spaceKeyToLocationId.set(change.space.key, change.region.space_location_id!);
           regionUpdates.push({
             id: change.region.id,
-            update: { cells: change.space.cells, cell_signature: change.space.signature },
+            update: { cells: change.space.cells, vertices: change.space.outline, cell_signature: change.space.signature },
           });
         } else if (change.kind === "skip" || change.kind === "held") {
           spaceKeyToLocationId.set(change.space.key, change.region.space_location_id!);
         } else if (change.kind === "orphan") {
-          regionUpdates.push({ id: change.region.id, update: { cells: [], cell_signature: null } });
+          regionUpdates.push({ id: change.region.id, update: { cells: [], vertices: null, cell_signature: null } });
         }
       }
 

@@ -2,9 +2,7 @@
 // undo/redo, deterministic variant picking, and the render loop.
 //
 // Pulled out of MapWorkbench.vue (epic #884 S6) to keep that component under
-// its line cap (CLAUDE.md "Component Granularity") — same reason
-// useCartographerStructureTools was pulled out of the pre-extraction
-// CartographerEditorView.vue for #868. MapWorkbench still owns tool
+// its line cap (CLAUDE.md "Component Granularity"). MapWorkbench still owns tool
 // *selection* state (`activeTool`, the `TOOLS` palette, per-tool inspector
 // fields like `placeRotation`/`brushRadius`) and hands them in here as refs;
 // this composable owns what happens on the canvas once a tool is active.
@@ -13,7 +11,7 @@
 // refs the caller owns — nothing here is a copy, so watching those refs
 // elsewhere (structure derivation, dirty tracking) keeps working unchanged.
 
-import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { StampCategory } from "@/cartographer/stampCategories";
@@ -24,7 +22,8 @@ import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
 import { wallKindCategory, type WallKind } from "@/cartographer/wallKinds";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DressingCatalog } from "@/cartographer/dressing";
-import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
+import { renderMap, type MapRenderReferenceImage, type MapRenderScene } from "@/cartographer/renderMap";
+import type { WallNodeMarks } from "@/cartographer/drawWallNodes";
 import { pickVariant } from "@/cartographer/tileVariants";
 import * as paintOps from "@/cartographer/paintOps";
 import type { PaintedWallKind } from "@/cartographer/paintOps";
@@ -38,13 +37,13 @@ import { applyDiscs, type Disc } from "@/cartographer/area";
 import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
 import { cellsInLine } from "@/lib/map/gestures/line";
 import { constrainShapeEnd, isCellPainter, useStraightStrokes, type CellPainter } from "@/composables/cartographer/useStraightStrokes";
-import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
-import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
+import { applyWallCommit, useWallNodeEdit } from "@/composables/cartographer/useWallNodeEdit";
 import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
 import { useLightTool } from "@/composables/cartographer/useLightTool";
 import { wallAt } from "@/cartographer/wallGraph";
 import type { TileLight } from "@/cartographer/packSchema";
+import { PLAN_TOOLS } from "@/composables/cartographer/usePlanPalette";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
 import { isTextEntry } from "@/lib/canvasControls/keyTargets";
 import { useCanvasNavigation } from "@/composables/cartographer/useCanvasNavigation";
@@ -105,11 +104,6 @@ export interface MapCanvasEditorOptions {
   rectWalls: Ref<boolean>;
   selectedCell: Ref<[number, number] | null>;
   toolOptionsRef: Ref<{ annotationInputEl: AppInputHandle | null } | null>;
-  /** The derived-structure composable (spaces/ways/zones/links) — this
-   *  module builds the Structure tools' pointer dispatch around it itself,
-   *  since that dispatch needs the same `snapshotStr`/`pushCommand` pair
-   *  every other one-shot tool here uses for its undo command. */
-  structure: ReturnType<typeof useCartographerStructure>;
   /** Deterministic-variant seed string — "new" for an unsaved map, else the map id. */
   mapKey: ComputedRef<string>;
   /** The site reference layer (#884 S6), positioned by the caller against
@@ -141,6 +135,13 @@ export interface MapCanvasEditorOptions {
   keysActive?: () => boolean;
   /** X: trade the active and second tile sets. */
   swapTileSets?: () => void;
+  /**
+   * The ground half of the map while motion plays (#1125 frames 16-17): a canvas under this one that holds the
+   * background and the ground, so the live water can lie between it and what stands. Null or absent: one canvas.
+   */
+  groundCanvasEl?: Ref<HTMLCanvasElement | null>;
+  /** Motion is playing over the map, so both canvases leave out what the live layer draws itself. */
+  motionPlaying?: () => boolean;
 }
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -154,8 +155,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape,
-    brushRadius, rectWalls, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
-    plan, activeLayer, hasLayerTabs, gridAlpha, toggleGrid, keysActive, swapTileSets,
+    brushRadius, rectWalls, selectedCell, toolOptionsRef, mapKey, getReferenceImage, extraRenderDeps,
+    plan, activeLayer, hasLayerTabs, gridAlpha, toggleGrid, keysActive, swapTileSets, groundCanvasEl, motionPlaying,
   } = opts;
 
   /** Every edit funnels through here instead of writing `dirty.value = true`
@@ -169,6 +170,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Viewport state
   const zoom = ref(1);
   const viewportOffset = ref({ x: 0, y: 0 }); // world-pixels at top-left of viewport
+  /** The canvas's CSS size and the device pixel ratio it was last drawn at: the motion layers share its box. */
+  const canvasBox = ref({ w: 0, h: 0, dpr: 1 });
   const hoverCell = ref<[number, number] | null>(null);
   const hoveredEdge = ref<CellEdge | null>(null);
 
@@ -243,23 +246,6 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     canRedo.value = cmdStack.canRedo();
   }
 
-  // The Space tool's pointer dispatch — built here, not passed in, so it
-  // shares this composable's own `dirty` ref for its rename mutation.
-  // Hands the Structure tools (Space rename) a `dirty` ref whose setter also
-  // bumps `editRevision` — that file isn't ours to edit directly, but its one
-  // `dirty.value = true` write needs the same bump every other edit gets, or
-  // a rename made while a save is in flight would go unscheduled exactly
-  // like the `dirty.value = true` call sites `markDirty()` replaces above.
-  const dirtyWithRevision = customRef<boolean>((track, trigger) => ({
-    get() { track(); return dirty.value; },
-    set(v) {
-      dirty.value = v;
-      if (v) editRevision.value++;
-      trigger();
-    },
-  }));
-  const structureTools = useCartographerStructureTools(structure, { activeTool, dirty: dirtyWithRevision });
-
   // The armed prop as the Dressing gestures see it; putting it down empties the whole item.
   const armedProp = computed<string | null>({
     get: () => (placeItem.value?.kind === "prop" ? placeItem.value.propId : null),
@@ -289,30 +275,54 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     snapshotStr, pushCommand, markDirty,
   });
   const lightTool = useLightTool({ layers, draft: lightDraft, snapshotStr, pushCommand, markDirty });
+
+  // Wall nodes (#1125 frame 17): Select picks a wall's whole run, and its nodes and bones are then dragged, split and
+  // removed by this controller. Each gesture is one undo step, floor included.
+  const wallNodes = useWallNodeEdit({
+    layers: () => layers.value,
+    commit: (change) => {
+      const before = snapshotStr();
+      layers.value = applyWallCommit(layers.value, change);
+      markDirty();
+      pushCommand(before, snapshotStr());
+    },
+    pack: () => ({ packId: currentPackId.value, packVersion: activePackVersion(), variant: 0 }),
+    // 0.3 cells, the reach a wall pick always had, and never under ten screen pixels when zoomed far out.
+    hitTolerance: () => Math.max(0.3, 10 / (BASE_TILE_SIZE * zoom.value)),
+  });
+  /** A gesture is under way (a drag, a held stroke), so the motion snapshot rebuilds on an interval, not per edit. */
+  const gestureBusy = ref(false);
+  const syncBusy = (): void => {
+    gestureBusy.value = isPainting.value || dressingTool.isHolding() || lightTool.isHolding() || wallNodes.dragging.value;
+  };
+  /** The layers as drawn: the wall drag's preview stands in for the stored walls until it is released. */
+  const shownLayers = computed<DungeonMapLayers>(() =>
+    wallNodes.preview.value ? { ...layers.value, walls: wallNodes.preview.value } : layers.value,
+  );
   // Undo and redo can take away what is selected; leaving a tool puts its unfinished work down.
   watch(layers, () => { angledTool.dropStaleSelection(); lightTool.dropStaleSelection(); }, { deep: true });
   watch(activeTool, (tool, previous) => {
     if (previous === "angledWall" && tool !== "angledWall") angledTool.abandon();
-    if (tool !== "angledWall" && tool !== "select") angledTool.selectedId.value = null;
+    if (tool !== "angledWall") angledTool.selectedId.value = null;
     if (tool !== "light" && tool !== "select") lightTool.selectedId.value = null;
+    if (tool !== "select") wallNodes.clearSelection();
   });
 
   /** Select picks one thing at a time: picking a prop, a light or a wall puts the others down. */
-  function clearPicks(except: "prop" | "light" | "angled" | null): void {
+  function clearPicks(except: "prop" | "light" | "wall" | null): void {
     if (except !== "prop") selectedDressingId.value = null;
     if (except !== "light") lightTool.selectedId.value = null;
-    if (except !== "angled") angledTool.selectedId.value = null;
+    if (except !== "wall") wallNodes.clearSelection();
     selectedCell.value = null;
   }
-  /** The kind of the angled wall Select picked, for the slip. */
-  const selectedAngledWallKind = computed(() => {
-    const id = angledTool.selectedId.value;
-    const wall = id ? layers.value.walls[id] : undefined;
-    return wall ? wall.type : null;
+  /** The picked wall run for the slip: "Wall run · 4 bones · 4 nodes · 1 door". Null when no run is picked. */
+  const selectedWallRun = computed(() => {
+    const { bones, nodeCount, doors } = wallNodes.selection.value;
+    return bones > 0 ? { bones, nodes: nodeCount, doors } : null;
   });
 
   /** Fractional cell coordinates under a pointer event, for hit-testing props. */
-  function fractionalCellAt(ev: PointerEvent): [number, number] {
+  function fractionalCellAt(ev: MouseEvent): [number, number] {
     const world = pointerToWorld(getLocalPointer(ev));
     const tilePx = tilePixelSize();
     return [world.x / tilePx, world.y / tilePx];
@@ -746,6 +756,12 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       canvas.width = targetW;
       canvas.height = targetH;
     }
+    const ground = groundCanvasEl?.value;
+    if (ground && (ground.width !== targetW || ground.height !== targetH)) {
+      ground.width = targetW;
+      ground.height = targetH;
+    }
+    if (canvasBox.value.w !== w || canvasBox.value.h !== h || canvasBox.value.dpr !== dpr) canvasBox.value = { w, h, dpr };
   }
 
   function viewportToCell(px: number, py: number): [number, number] {
@@ -780,17 +796,23 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const tilePx = tileCSS * dpr;
     const bounds = visibleCellBounds();
 
-    renderMap({
-      ctx,
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
+    // While motion plays the map is two canvases with the live water between them, as on the battle map: the ground
+    // canvas holds the background and the ground, this one what stands, the veil and the editing aids. Both leave out
+    // what the live layer draws itself (a swaying prop, a door leaf).
+    const ground = motionPlaying?.() ? groundCanvasEl?.value ?? null : null;
+    const groundCtx = ground?.getContext("2d") ?? null;
+
+    const scene = (target: CanvasRenderingContext2D, size: HTMLCanvasElement, pass: "ground" | "standing" | undefined): MapRenderScene => ({
+      ctx: target,
+      canvasWidth: size.width,
+      canvasHeight: size.height,
       tilePx,
       // Edits mutate `layers` in place, so its identity alone cannot tell the
       // shadow cache that walls moved; the edit counter can (#1065).
       layersRevision: editRevision.value,
       viewportOffset: viewportOffset.value,
       bounds,
-      layers: layers.value,
+      layers: shownLayers.value,
       metadata: metadata.value,
       glyphs: cellGlyphs.value,
       runtimes: loadedRuntimes.value,
@@ -809,18 +831,23 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       previewCells: previewCells.value,
       referenceImage: getReferenceImage(tilePx, viewportOffset.value),
       gridAlpha: gridAlpha.value,
-      ...structureTools.renderStructureScene(),
       ...dressingTool.renderScene(),
       editorMarks: {
         wallRun: activeTool.value === "angledWall" ? { points: angledTool.run.value, hover: angledTool.hover.value } : null,
         selectedWallId: angledTool.selectedId.value,
+        wallNodes: activeTool.value === "select" && wallNodes.selection.value.bones > 0 ? wallNodeMarks() : null,
         showLights: activeTool.value === "light" || activeTool.value === "select",
         selectedLightId: lightTool.selectedId.value,
         lightGhost: activeTool.value === "light" && lightTool.hover.value
           ? { point: lightTool.hover.value, light: lightDraft.value }
           : null,
       },
+      omitLive: ground !== null,
+      pass,
     });
+
+    if (ground && groundCtx) renderMap(scene(groundCtx, ground, "ground"));
+    renderMap(scene(ctx, canvas, ground ? "standing" : undefined));
 
     // ── Plan overlay (#884 S7b) — drawn over the Drawing, on the same
     // canvas, in the same tile-pixel space `renderMap` just used. Always
@@ -832,20 +859,38 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       if (isPlanLayerActive()) {
         ctx.fillStyle = LAYERS_BELOW_SCRIM;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (groundCtx && ground) {
+          groundCtx.fillStyle = LAYERS_BELOW_SCRIM;
+          groundCtx.fillRect(0, 0, ground.width, ground.height);
+        }
       }
       const viewport: TileViewport = { tilePx, viewportOffset: viewportOffset.value };
-      const scene = planTools.renderScene();
-      drawPlanSpaces(ctx, viewport, scene.regions, scene.activeRegionId, scene.cellsOverride);
-      drawPlanWays(ctx, viewport, scene.ways);
-      drawPlanZones(ctx, viewport, scene.regions, scene.activeRegionId, scene.cellsOverride);
+      const planScene = planTools.renderScene();
+      drawPlanSpaces(ctx, viewport, planScene.regions, planScene.activeRegionId, planScene.cellsOverride);
+      drawPlanWays(ctx, viewport, planScene.ways);
+      drawPlanZones(ctx, viewport, planScene.regions, planScene.activeRegionId, planScene.cellsOverride);
       if (isPlanLayerActive()) {
         drawPlanTracingOverlay(
-          ctx, viewport, scene.tracingRing, scene.tracingClosed, scene.tracingHoverPoint,
-          scene.templateDraft, scene.templateRingPreview,
+          ctx, viewport, planScene.tracingRing, planScene.tracingClosed, planScene.tracingHoverPoint,
+          planScene.templateDraft, planScene.templateRingPreview,
         );
-        if (scene.hoveredDoorEdge) drawPlanDoorHover(ctx, viewport, scene.hoveredDoorEdge);
+        if (planScene.hoveredDoorEdge) drawPlanDoorHover(ctx, viewport, planScene.hoveredDoorEdge);
       }
     }
+  }
+
+  /** The picked wall run as the canvas draws it: bones and nodes of the run, the landing point of a drag. */
+  function wallNodeMarks(): WallNodeMarks {
+    const { runs, nodes } = wallNodes.selection.value;
+    const focus = wallNodes.focus.value;
+    return {
+      bones: runs.map((r) => ({ id: r.id, a: r.a, b: r.b })),
+      nodes: nodes.map((n) => ({ id: n.id, x: n.x, y: n.y })),
+      focusBone: focus?.kind === "bone" ? focus.runId : null,
+      hoverNode: wallNodes.hoverNode.value,
+      draggedNode: wallNodes.draggedNode.value,
+      snap: wallNodes.snap.value,
+    };
   }
 
   let rafId = 0;
@@ -868,7 +913,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     [
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
-      dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, gridAlpha, ...extraRenderDeps, ...planRenderDeps,
+      dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, gridAlpha,
+      shownLayers, wallNodes.selection, wallNodes.focus, wallNodes.hoverNode, wallNodes.snap, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
@@ -883,15 +929,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       // commit through those stale listeners. Abandon it, the same way
       // Escape already abandons an unsaved pen draft.
       if (prev === "plan" && next !== "plan") planTools?.abandonGesture();
+      if (next !== "drawing") wallNodes.clearSelection();
     });
   }
+  // Motion starting or stopping swaps one canvas for two (or back): draw again, once the ground canvas is mounted.
+  watch(() => [!!motionPlaying?.(), groundCanvasEl?.value], () => scheduleRender(), { flush: "post" });
   // viewMode is a getter over a prop, not a ref — watched separately so the
   // list above can stay a plain array of refs.
   watch(viewMode, () => scheduleRender());
 
   // ── Pointer interaction ─────────────────────────────────────────────────
 
-  function getLocalPointer(ev: PointerEvent): { x: number; y: number } {
+  function getLocalPointer(ev: MouseEvent): { x: number; y: number } {
     const rect = canvasEl.value!.getBoundingClientRect();
     return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
   }
@@ -902,6 +951,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   }
 
   function toolPointerDown(ev: PointerEvent): void {
+    toolPointerDownNow(ev);
+    syncBusy();
+  }
+
+  function toolPointerDownNow(ev: PointerEvent): void {
     const local = getLocalPointer(ev);
     lastPointer = local;
 
@@ -975,12 +1029,6 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
-    // Structure tools (#868): Space click-to-select, Zone right-click erase.
-    if (structureTools.handleStructurePointerDown(cx, cy, ev.button)) {
-      if (ev.button === 2) ev.preventDefault();
-      return;
-    }
-
     // Link / annotate: LMB selects cell; RMB falls through to pan.
     if ((activeTool.value === "link" || activeTool.value === "annotate") && ev.button !== 2) {
       selectedCell.value = [cx, cy];
@@ -1042,6 +1090,20 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         clearPicks("light");
         canvasEl.value?.setPointerCapture(ev.pointerId);
         return;
+      }
+      // A picked wall run: a press on one of its nodes or bones drags it; a press anywhere else picks the run there,
+      // or puts the run down and falls through to the cell. With no run picked a press may still be the start of a pan,
+      // so a wall is picked on release, like a cell.
+      if (ev.button === 0 && wallNodes.selection.value.bones > 0) {
+        wallNodes.pointerDown(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
+        if (wallNodes.dragging.value) {
+          canvasEl.value?.setPointerCapture(ev.pointerId);
+          return;
+        }
+        if (wallNodes.selection.value.bones > 0) {
+          clearPicks("wall");
+          return;
+        }
       }
       // Anything else is a click on a wall or a cell (resolved on release), or the start of a pan.
       selectedDressingId.value = null;
@@ -1132,6 +1194,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     dressingTool.onPointerMove([cx, cy]);
     if (activeTool.value === "angledWall") angledTool.track(fractionalCellAt(ev), ev.altKey);
     if (activeTool.value === "light" || lightTool.isHolding()) lightTool.onPointerMove(fractionalCellAt(ev), ev.altKey);
+    if (activeTool.value === "select" && !viewMode() && !isPanning.value && !isPlanLayerActive()) {
+      wallNodes.pointerMove(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
+      if (wallNodes.dragging.value) {
+        lastPointer = local;
+        return;
+      }
+    }
 
     // Select tool: the press hasn't committed to click-or-drag yet.
     // Once it travels past the slop it's a drag, so hand off to the ordinary
@@ -1214,6 +1283,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   }
 
   function toolPointerUp(ev: PointerEvent): void {
+    toolPointerUpNow(ev);
+    syncBusy();
+  }
+
+  function toolPointerUpNow(ev: PointerEvent): void {
     // Also bound to `@pointerleave` (MapWorkbench's template) — clears the
     // Plan's hover state (door edge highlight, pen cursor tracking) either way.
     planTools?.onPointerLeave();
@@ -1223,6 +1297,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
     if (lightTool.isHolding()) {
       lightTool.onPointerUp();
+      canvasEl.value?.releasePointerCapture(ev.pointerId);
+    }
+    if (wallNodes.dragging.value) {
+      wallNodes.pointerUp();
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
     if (isPanning.value) {
@@ -1274,9 +1352,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       // not a drag. Select the cell under the release point.
       const local = getLocalPointer(ev);
       const [cx, cy] = viewportToCell(local.x, local.y);
-      // A click near an angled wall picks it (so Delete can take it away); otherwise it picks the cell.
-      if (angledTool.pickAt(fractionalCellAt(ev))) {
-        clearPicks("angled");
+      // A click on a wall picks its whole run, nodes and all (so Delete can take it away); otherwise it picks the cell.
+      if (wallNodes.select(fractionalCellAt(ev))) {
+        clearPicks("wall");
       } else {
         selectedCell.value = [cx, cy];
       }
@@ -1353,6 +1431,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
     dressingTool.cancelGesture();
     lightTool.cancelGesture();
+    if (wallNodes.dragging.value) wallNodes.cancel();
+    syncBusy();
     isPanning.value = false;
     pendingSelectStart = null;
     lastPointer = null;
@@ -1439,6 +1519,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function onDoubleClick(ev: MouseEvent): void {
     if (isPlanLayerActive()) planTools!.onDoubleClick(ev);
     else if (activeTool.value === "angledWall") angledTool.finish();
+    // Double-click a picked wall: a node there (#1125 frame 17).
+    else if (activeTool.value === "select" && !viewMode() && wallNodes.selection.value.bones > 0) {
+      wallNodes.doubleClick(fractionalCellAt(ev));
+    }
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
@@ -1469,16 +1553,20 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         activeTool: activeTool.value,
         tools,
         hasLayerTabs,
+        layer: activeLayer?.value,
+        zoningTools: planTools && !viewMode() ? PLAN_TOOLS : undefined,
         placeArmed: placeItem.value !== null,
         angledRunOpen: angledTool.run.value.length > 0,
         selectionDeletable:
-          angledTool.selectedId.value !== null
+          wallNodes.selection.value.bones > 0
+          || angledTool.selectedId.value !== null
           || lightTool.selectedId.value !== null
           || (activeTool.value === "select" && selectedDressingId.value !== null),
         selectedPropInSelect: activeTool.value === "select" && selectedDressingId.value !== null,
         selectionPresent:
           selectedDressingId.value !== null
           || lightTool.selectedId.value !== null
+          || wallNodes.selection.value.bones > 0
           || angledTool.selectedId.value !== null
           || selectedCell.value !== null,
       },
@@ -1495,12 +1583,24 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         navigation.zoomTo(action.to);
         break;
       case "rotatePlace": dressingTool.turn(action.delta); break;
-      case "clearSelection": clearPicks(null); break;
+      case "clearSelection":
+        // Esc lets go of a drag first, and only then of what is picked.
+        if (wallNodes.dragging.value) {
+          wallNodes.cancel();
+          syncBusy();
+        } else clearPicks(null);
+        break;
+      case "selectZoningTool": {
+        const tool = PLAN_TOOLS.find((t) => t.id === action.tool);
+        if (tool && plan) plan.planTool.value = tool.id;
+        break;
+      }
       case "deleteDressing": dressingTool.deleteSelected(); break;
       case "disarmPlace": placeItem.value = null; break;
       case "finishAngledWall": angledTool.finish(); break;
       case "abandonAngledWall": angledTool.abandon(); break;
       case "deleteSelected":
+        if (activeTool.value === "select" && wallNodes.deleteSelection()) break;
         if (angledTool.deleteSelected()) break;
         if (activeTool.value === "select" && selectedDressingId.value !== null) dressingTool.deleteSelected();
         else lightTool.deleteSelected();
@@ -1585,10 +1685,16 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     },
     onDoubleClick,
     onWheel: navigation.onWheel,
-    structureTools,
-    /** The kind of the angled wall Select picked (null when none), for the slip. */
-    selectedAngledWallKind,
-    deleteSelectedAngledWall: () => angledTool.deleteSelected(),
+    /** The picked wall run's counts for the slip (null when none), and what Delete does to it. */
+    selectedWallRun,
+    wallRefusal: wallNodes.refusal,
+    deleteSelectedWall: () => { wallNodes.deleteSelection(); },
+    /** The canvas's CSS size and pixel ratio, for the motion layers that share its box. */
+    canvasBox,
+    /** Edits arrive faster than a snapshot should be rebuilt: true while a drag or a held stroke is under way. */
+    gestureBusy,
+    /** The wall node controller, for tests. */
+    wallNodes,
     /** The Light tool's selected light (null when none), and the edits the slip makes to it. */
     selectedLightId: lightTool.selectedId,
     updateSelectedLight: lightTool.updateSelected,

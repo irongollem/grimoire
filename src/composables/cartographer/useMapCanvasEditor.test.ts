@@ -33,7 +33,6 @@ import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { pickVariant } from "@/cartographer/tileVariants";
-import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 
 vi.mock("@/cartographer/renderMap", async (importOriginal) => {
@@ -78,7 +77,7 @@ function fakePlan(): ReturnType<typeof usePlanPalette> {
   const stub = {
     regions: ref([]),
     ways: ref([]),
-    planTool: ref("space"),
+    planTool: ref("zone"),
     traceTool: ref("paint"),
     templateShape: ref("circle"),
     zoneKind: ref("terrain"),
@@ -157,23 +156,6 @@ function fakeRuntime(overrides: Partial<Record<PackCategory, number>> = {}): Til
   };
 }
 
-/** A narrow stand-in for useCartographerStructure's return value — only the
- *  members useCartographerStructureTools actually touches (structure,
- *  selectedSpaceKey, spaceRows, selectSpaceAt, renameSpace), same approach as
- *  useCartographerStructureTools.test.ts's own fakeStructure(). Cast through
- *  the module's own return type via `unknown` rather than `any` so the fake
- *  stays structurally honest about what it's standing in for. */
-function fakeStructure(): ReturnType<typeof useCartographerStructure> {
-  const stub = {
-    structure: ref({ spaces: [], ways: [], stairs: [], links: [] }),
-    selectedSpaceKey: ref<string | null>(null),
-    spaceRows: ref([]),
-    selectSpaceAt: vi.fn(),
-    renameSpace: vi.fn(() => false),
-  };
-  return stub as unknown as ReturnType<typeof useCartographerStructure>;
-}
-
 // A two-by-one table, so a hit can land on its second cell.
 const DRESSING_CATALOG: DressingCatalog = new Map([
   ["table", { id: "table", name: "Table", footprint_w: 2, footprint_h: 1, image: null, flat: false, light: null, url: null, sway: null }],
@@ -243,7 +225,6 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
     rectWalls: ref(true),
     selectedCell: ref(null),
     toolOptionsRef: ref(null),
-    structure: fakeStructure(),
     mapKey: computed(() => "map-test"),
     getReferenceImage,
     extraRenderDeps: [],
@@ -1418,8 +1399,7 @@ describe("altHeld", () => {
           rectWalls: ref(true),
           selectedCell: ref(null),
           toolOptionsRef: ref(null),
-          structure: fakeStructure(),
-          mapKey: computed(() => "map-test"),
+                mapKey: computed(() => "map-test"),
           getReferenceImage: () => null,
           extraRenderDeps: [],
           gridAlpha: ref<number | null>(0.06),
@@ -2060,8 +2040,7 @@ function mountWithKeys(tool: Tool, over: Partial<MapCanvasEditorOptions> = {}): 
         rectWalls: ref(true),
         selectedCell: ref(null),
         toolOptionsRef: ref(null),
-        structure: fakeStructure(),
-        mapKey: computed(() => "map-test"),
+            mapKey: computed(() => "map-test"),
         getReferenceImage: () => null,
         extraRenderDeps: [],
         gridAlpha: ref<number | null>(0.06),
@@ -2410,10 +2389,10 @@ describe("Select picks what is placed", () => {
     layers.value.dressing.camp = { ...CAMP };
     layers.value.lights.torch = { x: 6.5, y: 6.5, light: { ...LIGHT } };
     clickCell(editor, px(10), px(10));
-    expect(editor.angledTool.selectedId.value).toBe("slant");
+    expect(editor.selectedWallRun.value).toEqual({ bones: 1, nodes: 2, doors: 0 });
     clickCell(editor, ...onProp());
     expect(selectedDressingId.value).toBe("camp");
-    expect(editor.angledTool.selectedId.value).toBeNull();
+    expect(editor.selectedWallRun.value).toBeNull();
     clickCell(editor, px(6) + 64, px(6) + 64);
     expect(editor.selectedLightId.value).toBe("torch");
     expect(selectedDressingId.value).toBeNull();
@@ -2422,13 +2401,13 @@ describe("Select picks what is placed", () => {
     expect(selectedCell.value).toEqual([20, 20]);
   });
 
-  it("picking an angled wall reports its kind for the slip and drops the cell", () => {
+  it("picking a wall reports its run for the slip and drops the cell", () => {
     const { editor, layers, selectedCell } = selectEditor();
     layers.value.walls.slant = { pack_id: "p", pack_version: 1, variant: 0, type: "grate", a: [0, 0], b: [4, 4] };
     clickCell(editor, px(9), px(9));
     expect(selectedCell.value).toEqual([9, 9]);
     clickCell(editor, px(2) + 20, px(2) - 10);
-    expect(editor.selectedAngledWallKind.value).toBe("grate");
+    expect(editor.selectedWallRun.value).toEqual({ bones: 1, nodes: 2, doors: 0 });
     expect(selectedCell.value).toBeNull();
   });
 
@@ -2449,5 +2428,173 @@ describe("Select picks what is placed", () => {
     key("Escape");
     expect(selectedDressingId.value).toBeNull();
     expect(activeTool.value).toBe("select");
+  });
+});
+
+// ── Wall nodes, Zoning keys and motion (Map Table frames 16-19) ──────────
+
+describe("Select on a wall run (#1125 frame 17)", () => {
+  const PACK_REF = { pack_id: "pack-1", pack_version: 3, variant: 0 };
+  /** A four-square room, walls on its outline and floor inside. */
+  function room(layers: Ref<DungeonMapLayers>): void {
+    for (let i = 0; i < 4; i++) {
+      for (const [key, a, b] of [
+        [`${i},0:N`, [i, 0], [i + 1, 0]],
+        [`${i},4:N`, [i, 4], [i + 1, 4]],
+        [`0,${i}:W`, [0, i], [0, i + 1]],
+        [`4,${i}:W`, [4, i], [4, i + 1]],
+      ] as const) {
+        layers.value.walls[key] = { ...PACK_REF, type: "wall", a: [...a], b: [...b] };
+      }
+      for (let j = 0; j < 4; j++) layers.value.floor[`${i},${j}` as CellKey] = { floor: PACK_REF };
+    }
+  }
+  // An object, not a string: a wall taken out and laid back sits last in its record, and that is the same map.
+  const snapshot = (layers: Ref<DungeonMapLayers>): unknown => JSON.parse(JSON.stringify({ walls: layers.value.walls, floor: layers.value.floor }));
+  const dbl = (x: number, y: number): MouseEvent => new MouseEvent("dblclick", { clientX: x, clientY: y });
+
+  it("a click on one wall picks the whole room outline, and the slip counts its bones, nodes and doors", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    layers.value.walls["1,0:N"] = { ...PACK_REF, type: "doorClosed", a: [1, 0], b: [2, 0] };
+    clickCell(editor, px(2) + 64, px(4)); // the middle of the bottom wall
+    // Four sides, four corners, and the one door sitting in the top side.
+    expect(editor.selectedWallRun.value).toEqual({ bones: 4, nodes: 4, doors: 1 });
+  });
+
+  it("dragging a corner is one undo step, and undo puts the walls and the floor back", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    const before = snapshot(layers);
+    clickCell(editor, px(2) + 64, px(4));
+    editor.onPointerDown(down(px(4), px(4)));
+    editor.onPointerMove(move(px(5), px(4)));
+    editor.onPointerMove(move(px(6), px(4)));
+    editor.onPointerUp(up(px(6), px(4)));
+    expect(layers.value.walls["5,4:N"]).toBeDefined(); // the bottom side now ends two squares further out
+    expect(snapshot(layers)).not.toEqual(before);
+    expect(editor.canUndo.value).toBe(true);
+    editor.undoEdit();
+    expect(snapshot(layers)).toEqual(before);
+    expect(editor.canUndo.value).toBe(false); // exactly one step
+  });
+
+  it("Esc lets go of a drag and leaves the walls alone", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    const before = snapshot(layers);
+    clickCell(editor, px(2) + 64, px(4));
+    editor.onPointerDown(down(px(4), px(4)));
+    editor.onPointerMove(move(px(6), px(4)));
+    key("Escape");
+    editor.onPointerUp(up(px(6), px(4)));
+    expect(snapshot(layers)).toEqual(before);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("double-click adds a node and Delete on it joins the two bones back into one wall", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    const before = snapshot(layers);
+    clickCell(editor, px(2) + 64, px(4));
+    editor.onDoubleClick(dbl(px(2) + 64, px(4))); // half a cell along the bottom side
+    expect(snapshot(layers)).not.toEqual(before);
+    key("Delete");
+    expect(snapshot(layers)).toEqual(before); // lattice walls again, not two angled halves
+  });
+
+  it("Delete with a bone in focus takes that whole wall away and Esc then puts the run down", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    clickCell(editor, px(2) + 64, px(4));
+    key("Delete");
+    expect(Object.keys(layers.value.walls).some((k) => k.endsWith(",4:N"))).toBe(false);
+    expect(Object.keys(layers.value.walls)).toHaveLength(12);
+    key("Escape");
+    expect(editor.selectedWallRun.value).toBeNull();
+  });
+
+  it("leaving Select puts the run down", () => {
+    const { editor, layers, activeTool } = mountWithKeys("select");
+    room(layers);
+    clickCell(editor, px(2) + 64, px(4));
+    activeTool.value = "wall";
+    return nextTick().then(() => expect(editor.selectedWallRun.value).toBeNull());
+  });
+});
+
+describe("one key path (Zoning keys through resolveKeyAction)", () => {
+  const harness = (layer: "drawing" | "plan") => {
+    const plan = fakePlan();
+    const activeLayer = ref<"picture" | "drawing" | "plan">(layer);
+    const mounted = mountWithKeys("select", {
+      plan, activeLayer, hasLayerTabs: true,
+      tools: [{ id: "select" }, { id: "door", shortcut: "d" }],
+    });
+    return { ...mounted, plan };
+  };
+
+  it("Z on the Drawing tab does nothing", () => {
+    const { plan, activeTool } = harness("drawing");
+    key("z");
+    expect(plan.planTool.value).toBe("zone");
+    expect(activeTool.value).toBe("select");
+  });
+
+  it("Z, D, F, E on Zoning pick Zoning's tool and not the Drawing's Door", () => {
+    const { plan, activeTool } = harness("plan");
+    key("d");
+    expect(plan.planTool.value).toBe("door");
+    expect(activeTool.value).toBe("select"); // the Drawing's D would have made this "door"
+    key("e");
+    expect(plan.planTool.value).toBe("erase");
+    key("z");
+    expect(plan.planTool.value).toBe("zone");
+    key("f");
+    expect(plan.planTool.value).toBe("fill");
+  });
+
+  it("D on the Drawing tab still picks the Door tool and leaves Zoning's alone", () => {
+    const { plan, activeTool } = harness("drawing");
+    key("d");
+    expect(activeTool.value).toBe("door");
+    expect(plan.planTool.value).toBe("zone");
+  });
+});
+
+describe("motion over the map (#1125 frames 16-17)", () => {
+  function twoCanvases(playing: boolean) {
+    mockedRenderMap.mockClear();
+    const groundCanvasEl = ref<HTMLCanvasElement | null>(fakeCanvas());
+    const motion = ref(playing);
+    const mounted = mountWithKeys("select", { groundCanvasEl, motionPlaying: () => motion.value });
+    return { ...mounted, motion, groundCanvasEl };
+  }
+
+  it("while motion plays the ground and the standing half are two renders, ground first, both leaving out the live things", async () => {
+    const { editor } = twoCanvases(true);
+    editor.centerMap();
+    await nextTick();
+    const calls = mockedRenderMap.mock.calls.map(([scene]) => ({ pass: scene.pass, omitLive: scene.omitLive }));
+    const last = calls.slice(-2);
+    expect(last).toEqual([{ pass: "ground", omitLive: true }, { pass: "standing", omitLive: true }]);
+  });
+
+  it("paused, the map is one render of everything, as before, and the live things are drawn by the still map", async () => {
+    const { editor } = twoCanvases(false);
+    editor.centerMap();
+    await nextTick();
+    const scene = mockedRenderMap.mock.calls.at(-1)![0];
+    expect(scene.pass).toBeUndefined();
+    expect(scene.omitLive).toBe(false);
+  });
+
+  it("a gesture in progress marks the editor busy and the release clears it, for the snapshot's throttle", () => {
+    const { editor, layers } = mountWithKeys("floor");
+    layers.value = emptyLayers();
+    editor.onPointerDown(down(10, 10));
+    expect(editor.gestureBusy.value).toBe(true);
+    editor.onPointerUp(up(10, 10));
+    expect(editor.gestureBusy.value).toBe(false);
   });
 });

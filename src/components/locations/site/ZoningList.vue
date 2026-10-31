@@ -68,7 +68,7 @@
                 @commit="(value) => emit('rename', entry, value.trim() === '' ? null : value.trim())"
               />
               <p class="flex items-center gap-1 truncate text-caption-sm text-muted-foreground">
-                <IconPen v-if="entry.kind === 'region' && entry.region.vertices" class="h-3 w-3 shrink-0" aria-hidden="true" />
+                <IconPen v-if="entry.kind === 'region' && entry.region.vertices && entry.region.derived_from !== 'floodfill'" class="h-3 w-3 shrink-0" aria-hidden="true" />
                 {{ zoningState(entry) }}
               </p>
             </div>

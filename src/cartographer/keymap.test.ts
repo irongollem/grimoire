@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampBrushRadius, resolveKeyAction, resolveZoningKey, type KeyEventLike, type KeyContext } from "./keymap";
+import { clampBrushRadius, resolveKeyAction, type KeyEventLike, type KeyContext } from "./keymap";
 
 const ev = (over: Partial<KeyEventLike>): KeyEventLike => ({
   key: "a", code: "KeyA", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,
@@ -252,35 +252,46 @@ describe("angled wall and selection keys", () => {
   });
 });
 
-// #1125 frame 19: Zoning has its own tools on Z, D, F and E.
-describe("resolveZoningKey", () => {
-  const zoning = [
+// #1125 frame 19: Zoning has its own tools on Z, D, F and E, answered by the one key path.
+describe("Zoning keys through resolveKeyAction", () => {
+  const zoningTools = [
     { id: "zone", shortcut: "z" },
     { id: "door", shortcut: "d" },
     { id: "fill", shortcut: "f" },
     { id: "erase", shortcut: "e" },
-  ] as const;
+  ];
+  const on = (layer: KeyContext["layer"], activeTool = "select"): KeyContext => ({ ...ctx(activeTool), layer, zoningTools });
 
   it("Z, D, F and E pick the Zone, Door, Fill and Erase tools on the Zoning tab", () => {
     for (const [key, tool] of [["z", "zone"], ["d", "door"], ["f", "fill"], ["e", "erase"]] as const) {
-      expect(resolveZoningKey(ev({ key }), "plan", zoning)).toBe(tool);
+      expect(resolveKeyAction(ev({ key }), on("plan"))).toEqual({ kind: "selectZoningTool", tool });
     }
   });
 
-  it("answers nothing on the Drawing or Base image tabs, where D, F and E are the Drawing's own keys", () => {
-    expect(resolveZoningKey(ev({ key: "d" }), "drawing", zoning)).toBeNull();
-    expect(resolveZoningKey(ev({ key: "e" }), "picture", zoning)).toBeNull();
+  it("Z on the Drawing tab does nothing, and F there is still the Floor tool", () => {
+    expect(resolveKeyAction(ev({ key: "z" }), on("drawing"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "f" }), on("drawing"))).toEqual({ kind: "selectTool", tool: "floor" });
+  });
+
+  it("E on Zoning is Erase, not the Drawing's Eraser and not a turn of a prop picked on the Drawing", () => {
+    const picked: KeyContext = { ...on("plan", "select"), selectedPropInSelect: true };
+    expect(resolveKeyAction(ev({ key: "e" }), picked)).toEqual({ kind: "selectZoningTool", tool: "erase" });
+  });
+
+  it("the Drawing's own letters pick nothing on Zoning or the Base image tab", () => {
+    expect(resolveKeyAction(ev({ key: "w" }), on("plan"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "w" }), on("picture"))).toBeNull();
+  });
+
+  it("Delete on Zoning does not take away something picked on the Drawing", () => {
+    const stale: KeyContext = { ...on("plan", "select"), selectionDeletable: true };
+    expect(resolveKeyAction(ev({ key: "Delete" }), stale)).toBeNull();
   });
 
   it("leaves typing in a field, Ctrl+Z undo and other chords alone", () => {
-    expect(resolveZoningKey(ev({ key: "f", targetIsTextEntry: true }), "plan", zoning)).toBeNull();
-    expect(resolveZoningKey(ev({ key: "z", ctrlKey: true }), "plan", zoning)).toBeNull();
-    expect(resolveZoningKey(ev({ key: "z", metaKey: true }), "plan", zoning)).toBeNull();
-    expect(resolveZoningKey(ev({ key: "d", altKey: true }), "plan", zoning)).toBeNull();
-    expect(resolveZoningKey(ev({ key: "D", shiftKey: true }), "plan", zoning)).toBeNull();
-  });
-
-  it("ignores a letter that is no Zoning tool", () => {
-    expect(resolveZoningKey(ev({ key: "b" }), "plan", zoning)).toBeNull();
+    expect(resolveKeyAction(ev({ key: "f", targetIsTextEntry: true }), on("plan"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "z", ctrlKey: true }), on("plan"))).toEqual({ kind: "undo" });
+    expect(resolveKeyAction(ev({ key: "d", altKey: true }), on("plan"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "D", shiftKey: true }), on("plan"))).toBeNull();
   });
 });

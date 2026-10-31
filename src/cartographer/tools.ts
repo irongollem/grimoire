@@ -33,12 +33,7 @@ export type Tool =
   | "annotate"
   | "link"
   | "template"
-  | "brush"
-  // Structure group (#868) — doesn't paint pixels, it claims/annotates what
-  // the drawing MEANS: "space" selects the derived room under the cursor.
-  // Zoning was retired (#884 S11) — a zone is now a Plan region authored
-  // once in the Plan palette, never derived from the Drawing.
-  | "space";
+  | "brush";
 
 /**
  * What the Place tool puts down. An object is a set's own stamp (a chest, a barrel), either

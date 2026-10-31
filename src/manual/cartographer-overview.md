@@ -23,7 +23,7 @@ Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (wo
 
 The canvas is infinite: there's no fixed map size, so there's no "how big should this be?" decision to make up front.
 
-While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the light, the Spaces drawer, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). At its foot sit two overlapping squares, like Photoshop's two colours: the top one is the tile set you paint with, the one behind it is a second set. **X**, or a click on the small X in the corner of the pair, swaps the two, the way Photoshop's X swaps its colours. Each map remembers its own second set. The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
+While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the light, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). At its foot sit two overlapping squares, like Photoshop's two colours: the top one is the tile set you paint with, the one behind it is a second set. **X**, or a click on the small X in the corner of the pair, swaps the two, the way Photoshop's X swaps its colours. Each map remembers its own second set. The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
 
 | Action | Input |
 | --- | --- |
@@ -51,13 +51,12 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 | Line | `L` | Drag to draw a straight run of floor. |
 | Fill | `F` | Flood-fills a contiguous floor region. |
 | Wrap | `J` | One shot: walls every edge of the selected floor region that faces empty space. |
-| Label | `T` | Labels a cell with a short text note: also what names a Space (see below). |
+| Label | `T` | Labels a cell with a short text note: also what names a room Grimoire finds (see below). |
 | Room | `M` | Click a centre, drag to size. Three shapes: Circle, Octagon, Hex, fills floor and auto-wraps walls around the perimeter. |
-| Space | `P` | Click a floor region to select the room Grimoire has detected there: doesn't paint anything, drives the Spaces drawer below. |
 | Link | `K` | Click a cell, then pick a trap, feature, encounter, or note to attach to it from the options at the top left. |
 | Pan | (drag, badge **RMB**) | Middle-mouse or right-click drag pans from any tool. |
 
-The rail groups the tools: **Look** (Select, Pan), **Floor** (Brush, Tiles, Rectangle, Line, Room, Fill, Water, Rock), **Walls** (Wall, Door, Wrap), **Things** (Place), **Notes** (Label, Link, Space) and the Eraser. Space and Link claim or annotate what the drawing *means* rather than adding pixels.
+The rail groups the tools: **Look** (Select, Pan), **Floor** (Brush, Tiles, Rectangle, Line, Room, Fill, Water, Rock), **Walls** (Wall, Door, Wrap), **Things** (Place), **Notes** (Label, Link) and the Eraser. Label and Link annotate what the drawing *means* rather than adding pixels.
 
 ## Walls, grates and decals
 
@@ -90,17 +89,27 @@ Place puts things on the map from one panel of pictures. Press `O` and the Place
 
 Pick a picture and click the map to place it; for an object, drag to paint a run of them. A prop shows a faint copy that follows your cursor, and after the click it stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The **Rotate** buttons in the slip at the top left of the map do the same, and with nothing selected those keys turn the next thing you place.
 
-The quickest way to move or turn a prop is the **Select** tool (`V`): click a prop, a light or an angled wall and it is picked, with its own options at the top left (turn and Delete for a prop, colour and reach for a light, the kind for a wall); drag a prop or a light to move it. Click empty floor to pick the cell instead, and `Esc` puts down whatever is picked. Select reaches a prop even while you hold something in Place. You can also put what you are holding down first (`Esc`), then drag the prop with Place. Right-click, or hold **Alt** and click, takes away the prop under the cursor, or the object if there is no prop, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
+The quickest way to move or turn a prop is the **Select** tool (`V`): click a prop, a light or a wall and it is picked, with its own options at the top left (turn and Delete for a prop, colour and reach for a light, the run's bones, nodes and doors for a wall); drag a prop or a light to move it. Click empty floor to pick the cell instead, and `Esc` puts down whatever is picked. Select reaches a prop even while you hold something in Place. You can also put what you are holding down first (`Esc`), then drag the prop with Place. Right-click, or hold **Alt** and click, takes away the prop under the cursor, or the object if there is no prop, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
 
-## Rooms are detected automatically
+## Reshaping walls
 
-You don't declare rooms: Grimoire finds them. As you paint, the **Spaces** drawer (the Spaces button in the top bar) lists every enclosed floor region ("space") it detects by flood-filling the floor layer, cut wherever a wall, closed door, or open door/arch sits. Click **Space** and then a room on the canvas (or a row in the drawer) to select it and see:
+Click any wall with **Select** and its whole run is picked: every wall joined to it, with a round handle on each corner (a **node**) and the slip at the top left counting them ("Wall run · 4 bones · 4 nodes · 1 door").
 
-- Its detected name (taken from the first **Label** on any of its cells; name a room by writing its name with the Label tool), with a field to rename it.
-- **Ways out**: the doors/arches Grimoire found connecting it to its neighbours.
-- Anything you've linked into it with the Link tool.
+- **Drag a node** and every wall meeting there follows. Drop it on another wall and it snaps on and joins it; a loop that closes fills with floor, and squares left outside lose theirs.
+- **Double-click a wall** to put a node there, or drag the middle of a wall to do the same and bend it as you go.
+- **Delete** on a node joins its two walls into one. Delete on a wall takes that wall away.
+- **Shift**-drag a wall to slide it sideways; **Shift** while dragging a node holds it to 45 degrees. **Alt** skips the grid. **Esc** lets go of a drag, and one gesture is one step in Undo.
+- Off the grid, tile walls become lines in the tile set's wall colour; back on the grid they are tiles again.
 
-Nothing here writes to your Atlas until you publish. A **Re-detect** button just clears your current selection: detection itself is always live, recomputed on every stroke. Grimoire also tracks how many regions have changed since your last publish and shows it as a caution in the status bar once you've published at least once.
+## Rooms are found on the Zoning tab
+
+You don't declare rooms: Grimoire finds them from your walls. On a site's **Zoning** tab (`3`) the list shows every enclosed floor region it detects, cut wherever a wall, closed door, or open door/arch sits. Pick **Zone** (`Z`) and click a room to name it, bind it to a place in your Atlas, or trace a zone over it. `D` places a door, `F` fills a region and `E` erases; on the Drawing tab those letters are the Drawing's own tools.
+
+Nothing here writes to your Atlas until you publish. Grimoire also tracks how many regions have changed since your last publish and shows it as a caution in the status bar once you've published at least once.
+
+## Motion
+
+Flowing water, swaying trees and firelight play on every map that has them, the editor included, exactly as the battle map shows them. The **Motion** button in the map's corner pauses them while you edit and plays them again; this device remembers the choice. If your device asks for reduced motion, they stay still.
 
 ## Layers
 

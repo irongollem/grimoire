@@ -6,7 +6,7 @@ import type { ZoningEntry } from "@/lib/locations/foundRooms";
 import { entryId, foundRegionOf, foundSpaceKey, roomTitle, zoningState } from "@/lib/locations/zoningRows";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
-const space: DerivedSpace = { key: "s:0,0", cells: ["0,0"], signature: "sig", name: null, nameSource: null };
+const space: DerivedSpace = { key: "s:0,0", cells: ["0,0"], signature: "sig", outline: [[0, 0], [1, 0], [1, 1]], name: null, nameSource: null };
 
 function region(over: Partial<LocationMapRegion> = {}): LocationMapRegion {
   return {

@@ -89,7 +89,7 @@
           :party-room-id="currentRoomId"
           :reachable-room-ids="reachable"
           show-fog
-          :fog-glimpsed-cells="fogGlimpsedCells"
+          :fog-glimpsed="fogGlimpsed"
           @move-party="goToRoom"
         />
         <p class="mt-3 text-caption text-muted-foreground">
@@ -339,7 +339,7 @@ const dmFogPlan = computed(() =>
     (id) => stateOf(id, "looted")?.value === true,
   ),
 );
-const fogGlimpsedCells = computed(() => dmFogPlan.value.glimpsed.map((g) => g.cells));
+const fogGlimpsed = computed(() => dmFogPlan.value.glimpsed);
 
 // ── The room card ───────────────────────────────────────────────────────────
 const cardRoom = computed(() => enteringRoom.value ?? currentRoom.value);

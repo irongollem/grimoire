@@ -141,6 +141,8 @@ export function structureFromSite(
     key: `s:${r.id}`,
     cells: r.cells,
     signature: r.cell_signature ?? cellSignature(r.cells),
+    // The delta compares cells and signatures only; a row without an outline has nothing to say here.
+    outline: r.vertices === null ? [] : r.vertices,
     name: r.label,
     nameSource: null,
   }));

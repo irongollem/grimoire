@@ -449,8 +449,8 @@ select is(
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(
      ((public.get_player_visible_site_state('86800000-0000-4000-8000-000000000400'))->'glimpsed'->0)) k),
-  array['cells'],
-  'a glimpsed footprint carries only cells -- no id, no name'
+  array['cells', 'vertices'],
+  'a glimpsed footprint carries only its shape (cells and outline) -- no id, no name'
 );
 
 select is(

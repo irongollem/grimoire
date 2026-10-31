@@ -659,7 +659,8 @@ describe("MapWorkbench", () => {
         Draw: ["BrushB", "RectangleR", "RoomM", "LineL", "FillF", "One tileI"],
         Walls: ["WallW", "DoorD", "WrapJ", "Angled wallN"],
         Terrain: ["WaterA", "RockS"],
-        Notes: ["LabelT", "LinkK", "SpaceP"],
+        // Rooms are picked and named on the Zoning tab, so the Drawing has no Space tool (and P picks nothing).
+        Notes: ["LabelT", "LinkK"],
       });
     });
 

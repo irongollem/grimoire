@@ -229,65 +229,6 @@ describe("renderMap — runtime fallback rule", () => {
   });
 });
 
-describe("renderMap — derived-space outlines (#868)", () => {
-  it("draws nothing when derivedSpaces is absent", () => {
-    const { scene, rec } = baseScene();
-    renderMap(scene);
-
-    expect(rec.texts).toHaveLength(0);
-  });
-
-  it("outlines a space and labels it with its proposed name", () => {
-    const { scene, rec } = baseScene({
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0), cellKey(1, 0)], displayName: "Cistern", nameSource: null }],
-      selectedSpaceKey: null,
-    });
-    renderMap(scene);
-
-    expect(rec.strokeStyles).toContain("rgba(255,255,255,0.35)");
-    expect(rec.texts).toContain("Cistern");
-  });
-
-  it("highlights the selected space in a different colour", () => {
-    const { scene, rec } = baseScene({
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0)], displayName: "Cistern", nameSource: null }],
-      selectedSpaceKey: "s:0,0",
-    });
-    renderMap(scene);
-
-    expect(rec.strokeStyles).toContain("rgba(96,165,250,0.9)");
-    expect(rec.strokeStyles).not.toContain("rgba(255,255,255,0.35)");
-  });
-
-  it("does not draw the centroid label when the name came from an annotation — the annotation layer already draws it", () => {
-    const layers = emptyLayers();
-    layers.annotation[cellKey(0, 0)] = { text: "Cistern" };
-    const { scene, rec } = baseScene({
-      layers,
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0), cellKey(1, 0)], displayName: "Cistern", nameSource: "annotation" }],
-      selectedSpaceKey: null,
-    });
-    renderMap(scene);
-
-    // The outline still draws (stroke). Each fillText call draws a drop
-    // shadow plus the lit text, so the annotation layer alone accounts for
-    // two "Cistern" calls — what this asserts is that the centroid label
-    // contributes none on top of that (it would otherwise add two more).
-    expect(rec.strokeStyles).toContain("rgba(255,255,255,0.35)");
-    expect(rec.texts.filter((t) => t === "Cistern")).toHaveLength(2);
-  });
-
-  it("still draws the centroid label for an unnamed region", () => {
-    const { scene, rec } = baseScene({
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0)], displayName: "Region 1", nameSource: null }],
-      selectedSpaceKey: null,
-    });
-    renderMap(scene);
-
-    expect(rec.texts).toContain("Region 1");
-  });
-});
-
 describe("renderMap: Dressing layer (#1062)", () => {
   const art = (name: string): CanvasImageSource => ({ name }) as unknown as CanvasImageSource;
   const catalog: DressingCatalog = new Map([
@@ -623,5 +564,61 @@ describe("renderMap: grid and overlays", () => {
       expect(strokes({ activeTool: "wall", hoveredEdge: edge }).styles.some(reddish)).toBe(false);
       expect(strokes({ activeTool: "eraser", hoveredEdge: edge }).styles.some(reddish)).toBe(true);
     });
+  });
+});
+
+// #1125 frames 16-17: while motion plays the editor draws two canvases with the live water between them.
+describe("renderMap: the two passes under playing motion", () => {
+  const ref = { pack_id: "p", pack_version: 1, variant: 0 };
+  const SWAY = { amount: 4, speed: 1 };
+  const twoPassScene = (over: Partial<MapRenderScene> = {}): { scene: MapRenderScene; rec: Recorder } => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = { floor: ref };
+    layers.object[cellKey(2, 2)] = { ...ref, category: "objectPillar", variant: 0 };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+    const runtime = makeRuntime("p", {
+      sway: { objectPillar: [SWAY] },
+      assets: { objectPillar: [{ variant: 0, url: "https://cdn/tree.webp" }] },
+    });
+    return baseScene({ layers, runtimes: new Map([["p", runtime]]), currentPackId: "p", ...over });
+  };
+  const categories = (rec: Recorder): (string | undefined)[] => rec.drawImages.map((d) => sourceOf(d).category);
+
+  it("the ground canvas holds the floor and none of what stands, so the live water can lie between them", () => {
+    const { scene, rec } = twoPassScene({ pass: "ground", previewCells: new Set([cellKey(1, 1)]) });
+    renderMap(scene);
+    // The editing aids (a drag preview here) belong to the standing canvas above.
+    expect(rec.fillRects).toEqual([{ x: 0, y: 0, w: 800, h: 600 }]);
+    expect(categories(rec)).toContain("floor");
+    expect(categories(rec).filter((c) => c !== "floor")).toEqual([]);
+    expect(rec.fillStyles[0]).toBe("rgb(20, 18, 16)");
+  });
+
+  it("the standing canvas holds the walls and the standing objects and no floor, and does not paint a background over the ground", () => {
+    const { scene, rec } = twoPassScene({ pass: "standing" });
+    renderMap(scene);
+    expect(categories(rec)).not.toContain("floor");
+    expect(categories(rec).some((c) => c?.startsWith("wall"))).toBe(true);
+    expect(categories(rec)).toContain("objectPillar");
+    expect(rec.fillRects.some((r) => r.w === 800 && r.h === 600)).toBe(false);
+    expect(rec.calls).toContain("clearRect"); // transparent, so the ground canvas shows through
+  });
+
+  it("omitLive leaves a swaying prop to the live layer so it is never drawn twice", () => {
+    const still = twoPassScene({ pass: "standing", omitLive: true });
+    renderMap(still.scene);
+    expect(categories(still.rec)).not.toContain("objectPillar");
+    const plain = twoPassScene({ pass: "standing" });
+    renderMap(plain.scene);
+    expect(categories(plain.rec)).toContain("objectPillar");
+  });
+
+  it("without a pass the whole map is one canvas, as before", () => {
+    const { scene, rec } = twoPassScene();
+    renderMap(scene);
+    const c = categories(rec);
+    expect(c).toContain("floor");
+    expect(c).toContain("objectPillar");
+    expect(c.indexOf("floor")).toBeLessThan(c.indexOf("objectPillar"));
   });
 });

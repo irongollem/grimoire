@@ -381,16 +381,26 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
    *  Room is held to the no-duplicates rule. */
   async function fillFloorRegion(cells: CellKey[]): Promise<void> {
     if (!siteId.value || cells.length === 0) return;
+    // The poured zone gets the walls' own outline, so a round chapel is filled along its curve.
+    const outline = outlineOfCells(cells);
+    const insert = { ...newInsert(siteId.value, cells), ...(outline ? { vertices: outline } : {}) };
     if (zoneKind.value === "room") {
       const covering = findCoveringSpace(cells);
       if (covering) {
         activeRegionId.value = covering.id;
         return;
       }
-      await createRegionTracked({ ...newInsert(siteId.value, cells), derived_from: "floodfill" });
+      await createRegionTracked({ ...insert, derived_from: "floodfill" });
       return;
     }
-    await createRegionTracked({ ...newInsert(siteId.value, cells), derived_from: "dm" });
+    await createRegionTracked({ ...insert, derived_from: "dm" });
+  }
+
+  /** The outline of the found room that holds exactly these squares, if the walls make one. */
+  function outlineOfCells(cells: readonly CellKey[]): GridPoint[] | null {
+    const want = new Set(cells);
+    const room = derived().find((s) => s.cells.length === want.size && s.cells.every((c) => want.has(c)));
+    return room ? room.outline : null;
   }
 
   // ── Found rooms: the walls' rooms, in the list before they are rows (#1125 frame 19) ──────────────────

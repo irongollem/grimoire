@@ -44,6 +44,7 @@ import {
   type RenderGeometry,
   type RoomFacts,
 } from "@/lib/locations/planCanvas";
+import type { PlayerSitePlanGlimpse } from "@/composables/locations/usePlayerVisibleSiteState";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridCalibration } from "@/types/location.types";
@@ -66,7 +67,7 @@ const {
   showWays = true,
   nestedSiteIds = new Set<string>(),
   showFog = false,
-  fogGlimpsedCells = [],
+  fogGlimpsed = [],
 } = defineProps<{
   regions: LocationMapRegion[];
   calibration: GridCalibration | null;
@@ -122,7 +123,7 @@ const {
    *  `siteFog.ts`'s `buildDmFogPlan` (its `.glimpsed`). Off by default —
    *  only the explore screen turns it on. */
   showFog?: boolean;
-  fogGlimpsedCells?: readonly (readonly CellKey[])[];
+  fogGlimpsed?: readonly PlayerSitePlanGlimpse[];
 }>();
 
 const emit = defineEmits<{
@@ -237,11 +238,11 @@ function renderOverlay(): void {
   // Zones paint above spaces — a room is a floor to stand on, a zone is an
   // overlay ON that floor (water, ash, darkness) — and always dashed, so a
   // zone reads as an area effect rather than a second, competing room shape.
-  if (showZones) drawZonesPass(ctx, geometry, regions, null, dpr, undefined);
+  if (showZones) drawZonesPass(ctx, geometry, regions, null, dpr, pointToCanvas, undefined);
 
   // The DM's own site-fog hint (#884 S11) — drawn last, over everything
   // else, so it reads as a shade over the plan rather than under it.
-  if (showFog && fogGlimpsedCells.length > 0) drawFogPass(ctx, geometry, fogGlimpsedCells);
+  if (showFog && fogGlimpsed.length > 0) drawFogPass(ctx, geometry, fogGlimpsed, pointToCanvas);
 }
 
 watch(
@@ -260,7 +261,7 @@ watch(
     () => ways,
     () => showWays,
     () => showFog,
-    () => fogGlimpsedCells,
+    () => fogGlimpsed,
   ],
   () => renderOverlay(),
   { flush: "post", immediate: true },

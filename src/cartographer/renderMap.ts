@@ -19,7 +19,6 @@ import { collectOcclusion } from "@/cartographer/mapOcclusion";
 import { paintEditorMarks, type EditorMarks } from "@/cartographer/drawEditorMarks";
 import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
-import { boundaryEdges } from "@/cartographer/floodFill";
 import type { Tool } from "@/cartographer/tools";
 import {
   drawDressing,
@@ -68,14 +67,6 @@ export interface MapRenderScene {
   selectedCell: [number, number] | null;
   previewCells: Set<CellKey>;
   /**
-   * Derived spaces to outline with their proposed name (#868) — the Space
-   * tool's "here's what claiming a region gets you" preview. Only ever set
-   * while that tool is active; every other tool leaves this undefined and
-   * draws no outlines, same convention as `hoveredEdge`/`previewCells`.
-   */
-  derivedSpaces?: { key: string; cells: CellKey[]; displayName: string; nameSource: "annotation" | null }[];
-  selectedSpaceKey?: string | null;
-  /**
    * A site's Picture layer, shown as a ghost reference beneath everything
    * else (epic #884 S6 — MapWorkbench embedded in the Atlas). Positioning is
    * computed by the caller from the site's `grid_calibration` against this
@@ -102,6 +93,18 @@ export interface MapRenderScene {
    * a stale one.
    */
   layersRevision?: number;
+  /**
+   * Leave out what the live layer draws itself (swaying props, door leaves); see `omitLive` on `DrawMapInput`. Set
+   * while the editor plays motion over the map, so a prop is never drawn twice.
+   */
+  omitLive?: boolean;
+  /**
+   * Which half of the map to draw (#1125 frames 16-17). The battle map puts its live water between the ground and
+   * what stands, so while motion plays the editor draws two canvases the same way: `ground` is the background, the
+   * base image and the ground, nothing else; `standing` is transparent and holds what stands on the ground, the
+   * darkness veil and every editing aid. Absent draws the whole map on one canvas, as the editor always did.
+   */
+  pass?: "ground" | "standing";
   /** Canvas factory for the shadow layers; defaults to OffscreenCanvas where it exists. Tests pass a fake. */
   makeCanvas?: MakeCanvas;
 }
@@ -340,8 +343,6 @@ export function renderMap(scene: MapRenderScene): void {
     brushPreview,
     selectedCell,
     previewCells,
-    derivedSpaces,
-    selectedSpaceKey,
     referenceImage,
     gridAlpha,
     dressing,
@@ -353,12 +354,18 @@ export function renderMap(scene: MapRenderScene): void {
   const { minX, minY, maxX, maxY } = bounds;
 
   ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = "rgb(20, 18, 16)";
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  const pass = scene.pass;
+  if (pass === "standing") {
+    // The ground canvas under this one holds the background and the base image.
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  } else {
+    ctx.fillStyle = "rgb(20, 18, 16)";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  }
 
   // Reference layer (#884 S6) — drawn right after the background fill so
   // every painted layer sits above it, ghost-faint underneath the drawing.
-  if (referenceImage) {
+  if (referenceImage && pass !== "standing") {
     ctx.save();
     ctx.globalAlpha = referenceImage.opacity;
     ctx.drawImage(referenceImage.source, referenceImage.x, referenceImage.y, referenceImage.width, referenceImage.height);
@@ -384,6 +391,8 @@ export function renderMap(scene: MapRenderScene): void {
     glyphPackId: currentPackId,
     dressing,
     lights: true,
+    pass,
+    omitLive: scene.omitLive,
     // The editor shows the walls that are hidden in the bake, dashed, so the DM can find and edit them.
     showHiddenWalls: true,
     makeCanvas: scene.makeCanvas ?? offscreenMakeCanvas(),
@@ -404,61 +413,18 @@ export function renderMap(scene: MapRenderScene): void {
       }
       ctx.stroke();
     },
-    afterDressing: () => {
-      // Derived-space outlines (#868) — the Space tool's "here's the region
-      // you'd claim" preview. Traces the space's true perimeter (not per-cell
-      // boxes) via `boundaryEdges`, same helper Wrap Walls uses to find the
-      // edges facing void.
-      if (derivedSpaces && derivedSpaces.length > 0) {
-        for (const space of derivedSpaces) {
-          const isSelected = space.key === selectedSpaceKey;
-          ctx.strokeStyle = isSelected ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.35)";
-          ctx.lineWidth = isSelected ? 2.5 : 1.5;
-          ctx.setLineDash([tilePx * 0.15, tilePx * 0.1]);
-          ctx.beginPath();
-          for (const { x, y, side } of boundaryEdges(new Set(space.cells))) {
-            const baseX = x * tilePx - viewportOffset.x;
-            const baseY = y * tilePx - viewportOffset.y;
-            switch (side) {
-              case "N": ctx.moveTo(baseX, baseY);           ctx.lineTo(baseX + tilePx, baseY); break;
-              case "S": ctx.moveTo(baseX, baseY + tilePx);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-              case "W": ctx.moveTo(baseX, baseY);            ctx.lineTo(baseX, baseY + tilePx); break;
-              case "E": ctx.moveTo(baseX + tilePx, baseY);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-            }
-          }
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // An annotation-sourced name is already drawn by the annotation layer
-          // below, at the cell it was typed into — drawing it again at the
-          // space's centroid would show the same name twice on screen. Only a
-          // space with no annotation of its own (still "Region N") needs this
-          // layer to say its name at all.
-          if (space.nameSource !== "annotation") {
-            const cx = space.cells.reduce((sum, c) => sum + Number(c.split(",")[0]), 0) / space.cells.length;
-            const cy = space.cells.reduce((sum, c) => sum + Number(c.split(",")[1]), 0) / space.cells.length;
-            const labelX = (cx + 0.5) * tilePx - viewportOffset.x;
-            const labelY = (cy + 0.5) * tilePx - viewportOffset.y;
-            const fontSize = Math.max(10, Math.round(tilePx * 0.18));
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = "rgba(0,0,0,0.6)";
-            ctx.fillText(space.displayName, labelX + 1, labelY + 1);
-            ctx.fillStyle = isSelected ? "rgba(191,219,254,0.95)" : "rgba(255,255,255,0.75)";
-            ctx.fillText(space.displayName, labelX, labelY);
-          }
-        }
-      }
-    },
   };
   // Shadows come from the cache; a null layer (no OffscreenCanvas) draws none.
+  // The standing pass draws neither (they lie on the ground), so it builds neither.
+  const standingOnly = pass === "standing";
   drawMapContent({
     ...content,
     shadows: true,
-    shadowLayer: cachedLayer("shadow", scene, content, renderShadowLayer),
-    lightLayer: content.lights ? cachedLayer("light", scene, content, (c) => renderLightLayer({ ...c, lightMasks: lightMasksFor(scene) })) : null,
+    shadowLayer: standingOnly ? null : cachedLayer("shadow", scene, content, renderShadowLayer),
+    lightLayer: content.lights && !standingOnly ? cachedLayer("light", scene, content, (c) => renderLightLayer({ ...c, lightMasks: lightMasksFor(scene) })) : null,
   });
+  // The ground canvas is the background, the base image and the ground; the veil and the aids belong to the one above.
+  if (pass === "ground") return;
 
   // The DM's darkness veil, carved by the map's lights, over the drawing but under the editing aids (labels, link
   // dots, selection), so what the DM is working on stays readable. The same function paints it on the battle map.

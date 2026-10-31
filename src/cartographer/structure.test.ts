@@ -365,7 +365,7 @@ describe("deriveStructure", () => {
 
 function fakeSpace(cells: CellKey[]): DerivedSpace {
   const canon = canonicalCells(cells);
-  return { key: `s:${canon[0]}`, cells: canon, signature: cellSignature(canon), name: null, nameSource: null };
+  return { key: `s:${canon[0]}`, cells: canon, signature: cellSignature(canon), outline: [[0, 0], [1, 0], [1, 1]], name: null, nameSource: null };
 }
 
 function fakeStructure(spaces: DerivedSpace[], ways: DerivedWay[] = []): DerivedStructure {

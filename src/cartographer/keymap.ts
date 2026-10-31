@@ -42,6 +42,8 @@ export type KeyAction =
   | { kind: "selectLayer"; layer: EditorLayer }
   /** G: show or hide the square grid on every tab. */
   | { kind: "toggleGrid" }
+  /** Z, D, F, E on the Zoning tab: the id of the Zoning tool whose key it is. */
+  | { kind: "selectZoningTool"; tool: string }
   | { kind: "selectTool"; tool: Tool };
 
 export interface KeyEventLike {
@@ -61,6 +63,13 @@ export interface KeyContext {
   tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
   /** The map has the Base image / Drawing / Zoning tabs (a site's map); 1, 2 and 3 do nothing without them. */
   hasLayerTabs?: boolean;
+  /**
+   * The tab that is up. Only the Drawing owns the tool letters, and on Zoning the same letters (D door, F fill, E
+   * eraser on the Drawing) mean Zoning's tools; absent means a map without tabs, which is the Drawing.
+   */
+  layer?: EditorLayer;
+  /** Zoning's tools and their keys (#1125 frame 19). Answered only while `layer` is "plan". */
+  zoningTools?: ReadonlyArray<{ id: string; shortcut: string }>;
   /** Place has something armed (an object or a prop); Escape then puts it down before it leaves the tool. */
   placeArmed?: boolean;
   /** Angled wall has points down that are not yet a wall; Enter ends the run, Escape abandons it. */
@@ -111,6 +120,14 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   // Shift+1 is the zoom-to-fit chord, resolved above; with Shift the digit is not a tab key.
   if (ctx.hasLayerTabs && !ev.shiftKey && key in LAYER_KEYS) return { kind: "selectLayer", layer: LAYER_KEYS[key] };
 
+  // Z, D, F and E on Zoning. Checked before anything Drawing-shaped, because three of the letters are Drawing
+  // shortcuts too, and the Drawing's tools must not be picked behind the DM's back while another tab is up.
+  if (ctx.layer === "plan" && !ev.shiftKey) {
+    const zoning = ctx.zoningTools?.find((t) => t.shortcut === key);
+    if (zoning) return { kind: "selectZoningTool", tool: zoning.id };
+  }
+  const onDrawing = ctx.layer === undefined || ctx.layer === "drawing";
+
   // Escape always means "back to Select" — none of the free letters
   // read naturally for it, and unlike every other tool it needs a way back
   // that works no matter which tool is currently active. Goes through the
@@ -124,6 +141,9 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
     const select = ctx.tools.find((t) => t.id === "select");
     return select && !select.disabled ? { kind: "selectTool", tool: select.id } : null;
   }
+
+  // Everything below is the Drawing's own: its tools, its picks, its brush.
+  if (!onDrawing) return null;
 
   if (ctx.activeTool === "angledWall" && key === "enter" && ctx.angledRunOpen) return { kind: "finishAngledWall" };
 
@@ -150,20 +170,4 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   if (tool && !tool.disabled) return { kind: "selectTool", tool: tool.id };
 
   return null;
-}
-
-/**
- * Z, D, F and E on the Zoning tab pick Zoning's tools (#1125 frame 19). The Drawing's own shortcuts use some of
- * the same letters (D door, F fill, E eraser), so which set is live depends on the tab: this answers only for
- * Zoning and says nothing anywhere else, where `resolveKeyAction` keeps its meaning.
- */
-export function resolveZoningKey<T extends string>(
-  ev: KeyEventLike,
-  layer: EditorLayer,
-  tools: ReadonlyArray<{ id: T; shortcut: string }>,
-): T | null {
-  if (layer !== "plan" || ev.targetIsTextEntry) return null;
-  if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey) return null;
-  const key = ev.key.toLowerCase();
-  return tools.find((t) => t.shortcut === key)?.id ?? null;
 }

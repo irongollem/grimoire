@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAppUiStore } from "@/stores/ui/app";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
-import type { ZoneKind } from "@/types/locationMapRegion.types";
+import type { GridPoint, ZoneKind } from "@/types/locationMapRegion.types";
 
 const QUERY_KEY = "player-visible-site-state";
 
@@ -24,12 +24,15 @@ export interface PlayerSitePlanSpace {
   sort_order: number | null;
   is_cleared: boolean;
   is_looted: boolean;
+  /** The room's outline when the walls gave it one; absent for rows traced by cells alone. */
+  vertices?: GridPoint[] | null;
 }
 
 /** A footprint the party has not stood in but knows exists — "a room, that
  *  way." No id, no name, no contents: there is nothing else honest to send. */
 export interface PlayerSitePlanGlimpse {
   cells: CellKey[];
+  vertices?: GridPoint[] | null;
 }
 
 /** A door the party has stood beside. `from_space_id`/`to_space_id` are sent

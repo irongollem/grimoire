@@ -20,7 +20,7 @@ function mountOptions(over: Record<string, unknown> = {}) {
       linkedNoteId: "", linkedEncounterId: "", linkedTrapId: "", linkedFeatureId: "",
       noteOptions: [], encounterOptions: [], trapOptions: [], featureOptions: [],
       activeTemplateShape: "circle", templateShapes: [], brushRadius: 1.5, rectWalls: true,
-      light: { color: "#ffb347", bright: 20, dim: 20 }, lightSelected: false, selectedAngledKind: null,
+      light: { color: "#ffb347", bright: 20, dim: 20 }, lightSelected: false, wallRun: null, wallRefusal: null,
       ...over,
     },
     global: { stubs: { EntityCombobox: true } },
@@ -304,11 +304,11 @@ describe("Select shows what it picked", () => {
     expect(wrapper.emitted("deleteSelected")).toHaveLength(1);
   });
 
-  it("a picked angled wall shows its kind and Delete", async () => {
-    const wrapper = mountOptions({ ...select, selectedAngledKind: "grate" });
-    expect(wrapper.text()).toContain("Grate");
+  it("a picked wall run shows its counts and Delete", async () => {
+    const wrapper = mountOptions({ ...select, wallRun: { bones: 4, nodes: 4, doors: 1 } });
+    expect(wrapper.text()).toContain("Wall run · 4 bones · 4 nodes · 1 door");
     await button(wrapper, "Delete").trigger("click");
-    expect(wrapper.emitted("deleteAngledWall")).toHaveLength(1);
+    expect(wrapper.emitted("deleteWallRun")).toHaveLength(1);
   });
 
   it("with nothing picked it shows the cell summary", () => {

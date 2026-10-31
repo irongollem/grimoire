@@ -4,22 +4,19 @@
 // `DerivedStructure` this module computes, so "what does this drawing mean"
 // has exactly one answer.
 //
-// The flood fill here is deliberately NOT `floodFill.ts`'s: that helper's
-// predicate is per-cell, so it cannot express "this edge is blocked". A
-// space is defined by both cell membership (a floor tile, not a solid
-// block) AND edge membership (no wall/door segment between neighbours) —
-// per the overseer decision on #868, EVERY edge segment cuts the fill,
-// doors included, so a door can sit "between two derived regions" at all.
-// An open arch (`doorOpen`) still cuts the fill; it becomes a `kind: "arch"`
-// way out rather than a `kind: "door"` one, but the two rooms it joins stay
-// two regions, exactly like a closed door would.
+// A space is a face of the wall graph (`roomOutline.ts`), not a flood of squares:
+// per the overseer decision on #868 EVERY wall cuts, doors included, so a door
+// can sit "between two derived regions" at all. An open arch (`doorOpen`) still
+// cuts; it becomes a `kind: "arch"` way out rather than a `kind: "door"` one,
+// but the two rooms it joins stay two regions, exactly like a closed door would.
+// The squares of a room are the ones whose middle falls inside its outline.
 
 import type { CellKey, CellMetadata, DungeonMap, DungeonMapLayers } from "@/types/dungeonMap.types";
 import { cellKey, parseCellKey } from "@/types/dungeonMap.types";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import { canonicalCells, cellSignature } from "./cellSignature";
-import type { Side } from "./edges";
-import { angledWalls, latticeWalls, wallAt, wallCutsEdge } from "./wallGraph";
+import { findFaces } from "./roomOutline";
+import { latticeWalls } from "./wallGraph";
 import type { DerivedLink, DerivedSpace, DerivedStair, DerivedStructure, DerivedWay } from "./structure.types";
 
 // ── Spaces ───────────────────────────────────────────────────────────────
@@ -28,32 +25,6 @@ function isOpenFloor(layers: DungeonMapLayers, x: number, y: number): boolean {
   const k = cellKey(x, y);
   if (layers.solidBlock[k]) return false;
   return layers.floor[k]?.floor !== undefined;
-}
-
-type AngledEnds = readonly [readonly [number, number], readonly [number, number]];
-
-/** Whether a wall of any type (doors included) separates (x,y) from its neighbour on `side`: a lattice wall on
- *  that edge, or an angled one cutting across it. */
-function wallBetween(
-  layers: DungeonMapLayers,
-  angled: readonly AngledEnds[],
-  x: number,
-  y: number,
-  side: Side,
-): boolean {
-  if (wallAt(layers, x, y, side) !== undefined) return true;
-  const [p, q] = sharedEdge(x, y, side);
-  return angled.some(([a, b]) => wallCutsEdge(a, b, p, q));
-}
-
-/** The two grid points of the edge of cell (x,y) at `side`. */
-function sharedEdge(x: number, y: number, side: Side): [readonly [number, number], readonly [number, number]] {
-  switch (side) {
-    case "N": return [[x, y], [x + 1, y]];
-    case "S": return [[x, y + 1], [x + 1, y + 1]];
-    case "W": return [[x, y], [x, y + 1]];
-    case "E": return [[x + 1, y], [x + 1, y + 1]];
-  }
 }
 
 function nameFromAnnotation(
@@ -69,61 +40,28 @@ function nameFromAnnotation(
   return { name: null, nameSource: null };
 }
 
-const NEIGHBOURS: readonly [dx: number, dy: number, side: Side][] = [
-  [0, -1, "N"],
-  [1, 0, "E"],
-  [0, 1, "S"],
-  [-1, 0, "W"],
-];
-
+/**
+ * The rooms of a drawing: the faces of its wall graph that hold open floor (`roomOutline.ts`), each with the outline
+ * that bounds it and the squares whose middle falls inside. Every wall of any type cuts, doors and arches included,
+ * so a door can sit between two derived rooms.
+ */
 export function deriveSpaces(layers: DungeonMapLayers): DerivedSpace[] {
-  const visited = new Set<CellKey>();
-  const spaces: DerivedSpace[] = [];
-  const angled: AngledEnds[] = angledWalls(layers).map(([, wall]) => [wall.a, wall.b]);
-
-  // Canonical order of candidate starts makes the whole derivation
-  // deterministic regardless of the object's own key insertion order (jsonb
-  // does not promise to preserve it) — see `structure.types.ts` on that.
-  const candidates = canonicalCells(
-    (Object.keys(layers.floor) as CellKey[]).filter((k) => {
-      const [x, y] = parseCellKey(k);
-      return isOpenFloor(layers, x, y);
-    }),
-  );
-
-  for (const start of candidates) {
-    if (visited.has(start)) continue;
-
-    const region = new Set<CellKey>([start]);
-    visited.add(start);
-    const queue: CellKey[] = [start];
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const [x, y] = parseCellKey(current);
-      for (const [dx, dy, side] of NEIGHBOURS) {
-        const nx = x + dx;
-        const ny = y + dy;
-        const nk = cellKey(nx, ny);
-        if (visited.has(nk)) continue;
-        if (!isOpenFloor(layers, nx, ny)) continue;
-        if (wallBetween(layers, angled, x, y, side)) continue;
-        visited.add(nk);
-        region.add(nk);
-        queue.push(nk);
-      }
-    }
-
-    const cells = canonicalCells(region);
-    spaces.push({
-      key: `s:${cells[0]}`,
-      cells,
-      signature: cellSignature(cells),
-      ...nameFromAnnotation(layers.annotation, cells),
+  return findFaces(layers)
+    .map((face) => {
+      const cells = canonicalCells(face.cells);
+      return {
+        key: `s:${cells[0]}`,
+        cells,
+        signature: cellSignature(cells),
+        outline: face.outline,
+        ...nameFromAnnotation(layers.annotation, cells),
+      };
+    })
+    .sort((p, q) => {
+      const [px, py] = parseCellKey(p.cells[0]);
+      const [qx, qy] = parseCellKey(q.cells[0]);
+      return py - qy || px - qx;
     });
-  }
-
-  return spaces;
 }
 
 export function spaceContaining(cell: CellKey, spaces: readonly DerivedSpace[]): DerivedSpace | null {

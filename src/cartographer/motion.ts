@@ -9,8 +9,8 @@ import { gatherLightSources } from "@/cartographer/drawLights";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
 
-/** How long the layers must sit still before the editor rebuilds its motion snapshot. */
-export const MOTION_REBUILD_IDLE_MS = 250;
+/** How often the motion snapshot is rebuilt while a drag is still under way (`createSnapshotScheduler`). */
+export const MOTION_REBUILD_INTERVAL_MS = 250;
 
 function packsWithOverlays(
   cells: Record<string, { pack_id: string }>,

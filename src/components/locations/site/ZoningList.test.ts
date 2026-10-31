@@ -32,7 +32,7 @@ const stubs = {
   ZoneDetailsEditor: true,
 };
 
-const walls = (key: string, name: string | null = null): DerivedSpace => ({ key, cells: ["0,0"], signature: `sig-${key}`, name, nameSource: null });
+const walls = (key: string, name: string | null = null): DerivedSpace => ({ key, cells: ["0,0"], signature: `sig-${key}`, outline: [[0, 0], [1, 0], [1, 1]], name, nameSource: null });
 
 function region(over: Partial<LocationMapRegion> = {}): LocationMapRegion {
   return {

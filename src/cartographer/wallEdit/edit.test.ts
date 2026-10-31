@@ -151,6 +151,19 @@ describe("moveBone", () => {
   });
 });
 
+describe("a bone moved back onto the grid", () => {
+  it("becomes a lattice wall again, with tile keys, after being slid off it", () => {
+    const walls = rect(0, 0, 4, 4);
+    const run = "0,4>4,4"; // the bottom side
+    const off = ok(moveBone(walls, run, [0, 0.5], opts()));
+    expect(Object.keys(off).some(isUuidKey)).toBe(true); // half a square down is off the grid: lines
+    const g = buildGraph(off);
+    const slid = g.runs.find((r) => r.segments.some((s) => s.wall.a[1] === 4.5))!;
+    const back = ok(moveBone(off, slid.id, [0, -0.5], opts()));
+    expect(back).toEqual(walls);
+  });
+});
+
 describe("deleteBone", () => {
   it("removes the whole bone, doors included, and nothing else", () => {
     const walls = rect(0, 0, 4, 3);
@@ -214,6 +227,15 @@ describe("removeNode", () => {
     const bent = ok(moveNode(ok(split), split.node!, [2, 2], opts()));
     const straight = ok(removeNode(bent, "2,2", opts()));
     expect(straight).toEqual(walls);
+  });
+
+  it("removing a node added at half a square gives the lattice wall back, not two angled halves", () => {
+    // Frame 17: "Off the grid, tile walls become lines ... back on the grid, tiles again." The halves ended at 2.5.
+    const walls: WallMap = {};
+    lattice(walls, 0, 0, 4, 0);
+    const split = splitAt(walls, "0,0>4,0", [2.5, 0], opts());
+    expect(Object.keys(ok(split)).some(isUuidKey)).toBe(true); // the premise: the halves did go off the grid
+    expect(ok(removeNode(ok(split), split.node!, opts()))).toEqual(walls);
   });
 
   it("a door on either bone keeps its fraction of the combined length", () => {

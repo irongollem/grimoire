@@ -84,18 +84,13 @@
       <span v-else class="text-caption-sm text-muted-foreground">Shift+click runs a straight wall from the last one.</span>
     </template>
 
-    <!-- Select picked an angled wall: its kind, and the way to take it away. -->
-    <template v-else-if="activeTool === 'select' && selectedAngledKind">
-      <span class="text-caption text-foreground">{{ edgeKindLabel(selectedAngledKind, undefined) }} (angled)</span>
-      <AppButton
-        variant="destructive"
-        size="xs"
-        :icon="IconDelete"
-        label="Delete"
-        tooltip="Delete the selected wall (Delete)"
-        @click="emit('deleteAngledWall')"
-      />
-    </template>
+    <!-- Select picked a wall: its whole run, with the nodes to drag. -->
+    <CartographerWallRunSlip
+      v-else-if="activeTool === 'select' && wallRun"
+      :run="wallRun"
+      :refusal-reason="wallRefusal"
+      @delete="emit('deleteWallRun')"
+    />
 
     <!-- Angled wall: the kind it draws, and how a run is driven. -->
     <template v-else-if="activeTool === 'angledWall'">
@@ -312,6 +307,8 @@ import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { RailTool } from "@/components/cartographer/CartographerToolRail.vue";
+import CartographerWallRunSlip from "@/components/cartographer/CartographerWallRunSlip.vue";
+import type { EditRefusal } from "@/cartographer/wallEdit/edit";
 import PlaceItemThumb from "@/components/cartographer/PlaceItemThumb.vue";
 import { IconDelete, IconLibrary } from "@/lib/icons";
 
@@ -382,13 +379,15 @@ const props = defineProps<{
   light: TileLight;
   /** A placed light is picked, so the edits are to it and Delete takes it away. */
   lightSelected: boolean;
-  /** Select picked an angled wall: its kind (null when none). */
-  selectedAngledKind: SelectedCellEdge["kind"] | null;
+  /** Select picked a wall run: how many bones, nodes and doors it holds (null when none). */
+  wallRun: { bones: number; nodes: number; doors: number } | null;
+  /** Why the last wall edit was refused, if it was. */
+  wallRefusal: EditRefusal | null;
 }>();
 
 const emit = defineEmits<{
   "update:activeTool": [tool: Tool];
-  deleteAngledWall: [];
+  deleteWallRun: [];
   "update:placeRotation": [deg: number];
   rotateSelected: [deg: number];
   deleteSelected: [];
@@ -423,8 +422,8 @@ function setReach(field: "bright" | "dim", raw: string | number): void {
   emit("update:light", { [field]: feet });
 }
 
-/** Select picked a prop, a light or an angled wall, so the slip shows that instead of a cell. */
-const selectedPicked = computed(() => props.selectedPlaced !== null || props.lightSelected || props.selectedAngledKind !== null);
+/** Select picked a prop, a light or a wall run, so the slip shows that instead of a cell. */
+const selectedPicked = computed(() => props.selectedPlaced !== null || props.lightSelected || props.wallRun !== null);
 
 /** Tools with nothing to set: what a click does, in a line. */
 const HINTS: Record<Tool, string> = {
@@ -445,7 +444,6 @@ const HINTS: Record<Tool, string> = {
   wrap: "Click a floor region to wall every edge that faces empty space.",
   annotate: "",
   link: "",
-  space: "Click a floor region to claim it. Its name, ways out and links show in the Spaces drawer.",
   template: "",
   brush: "",
 };

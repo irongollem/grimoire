@@ -27,6 +27,13 @@
         <stop offset="0" :stop-color="fogColor" :stop-opacity="baseAlpha" />
         <stop offset="1" :stop-color="fogColor" stop-opacity="0" />
       </linearGradient>
+      <!-- The explored floor as one shape: a room's outline where it has one, its squares where it does not. What
+           is drawn over the floor (texture, grid, zones) is cut to it, so a curved wall is not poked through by
+           the squares along it. -->
+      <clipPath id="plan-floor">
+        <path v-for="(d, i) in floorRingPaths" :key="`clip-ring-${i}`" :d="d" />
+        <rect v-for="(r, i) in floorRects" :key="`clip-rect-${i}`" :x="r.x" :y="r.y" :width="r.w" :height="r.h" />
+      </clipPath>
     </defs>
 
     <rect
@@ -40,7 +47,9 @@
 
     <!-- Floor: only explored cells get one at all — a glimpsed footprint has
          nothing under it, which is the whole point of frame 16. -->
+    <path v-for="(d, i) in floorRingPaths" :key="`floor-ring-${i}`" :d="d" fill="#3b332a" />
     <rect v-for="(r, i) in floorRects" :key="`floor-${i}`" :x="r.x" :y="r.y" :width="r.w" :height="r.h" fill="#3b332a" />
+    <g clip-path="url(#plan-floor)">
     <rect
       v-for="(r, i) in textureRects"
       :key="`texture-${i}`"
@@ -53,7 +62,7 @@
       opacity="0.5"
     />
     <rect
-      v-for="(r, i) in floorRects"
+      v-for="(r, i) in exploredRects"
       :key="`grid-${i}`"
       :x="r.x"
       :y="r.y"
@@ -63,10 +72,11 @@
       stroke="rgba(255,255,255,.10)"
       :stroke-width="GRID_WIDTH"
     />
+    </g>
 
     <!-- Zones: DM-visible cells only, already clipped to explored ground by
          the RPC — nothing here needs a second clip. -->
-    <g v-for="(zone, zi) in zoneLayers" :key="`zone-${zi}`">
+    <g v-for="(zone, zi) in zoneLayers" :key="`zone-${zi}`" clip-path="url(#plan-floor)">
       <rect
         v-for="(r, ri) in zone.rects"
         :key="`zone-${zi}-${ri}`"
@@ -81,6 +91,7 @@
 
     <!-- Glimpsed footprints: outline only, no floor, no name — "a room, that way." -->
     <g v-for="(g, gi) in glimpsedLayers" :key="`glimpse-${gi}`">
+      <path v-if="g.ringPath" :d="g.ringPath" fill="rgba(255,255,255,.02)" />
       <rect
         v-for="(r, ri) in g.rects"
         :key="`glimpse-fill-${gi}-${ri}`"
@@ -94,6 +105,7 @@
     </g>
 
     <path :d="exploredOutline" fill="none" stroke="#8a7a63" :stroke-width="EXPLORED_OUTLINE_WIDTH" stroke-linecap="square" />
+    <path v-for="(d, i) in floorRingPaths" :key="`outline-ring-${i}`" :d="d" fill="none" stroke="#8a7a63" :stroke-width="EXPLORED_OUTLINE_WIDTH" stroke-linejoin="round" />
 
     <!-- The feather itself: a thin gradient darkening on the REVEALED side
          of every explored cell's border with an unrevealed neighbour,
@@ -191,6 +203,7 @@ import { featherEdges, featherRect } from "@/lib/battlemap/fogMask";
 import { cellsRects, centroid, edgeSegment, outlinePath, planViewBox, textureCells as pickTextureCells } from "@/lib/locations/planSvg";
 import type { PlayerSitePlan } from "@/composables/locations/usePlayerVisibleSiteState";
 import type { CellKey } from "@/types/dungeonMap.types";
+import { ringPathD, usableRing } from "@/lib/locations/regionShape";
 import type { ZoneKind } from "@/types/locationMapRegion.types";
 
 const { plan, opaque = true } = defineProps<{
@@ -246,23 +259,34 @@ const viewBox = computed(
 );
 const viewBoxAttr = computed(() => `${viewBox.value.minX} ${viewBox.value.minY} ${viewBox.value.width} ${viewBox.value.height}`);
 
-const floorRects = computed(() => cellsRects(exploredCells.value));
+/** Rooms the walls gave an outline to are drawn along it; the rest by their squares. */
+const outlinedSpaces = computed(() => plan.spaces.filter((s) => usableRing(s.vertices) !== null));
+const squareSpaceCells = computed<CellKey[]>(() => plan.spaces.filter((s) => usableRing(s.vertices) === null).flatMap((s) => s.cells));
+const floorRingPaths = computed(() => outlinedSpaces.value.map((s) => ringPathD(usableRing(s.vertices)!)));
+
+const floorRects = computed(() => cellsRects(squareSpaceCells.value));
+const exploredRects = computed(() => cellsRects(exploredCells.value));
 const textureRects = computed(() => cellsRects(pickTextureCells(exploredCells.value)));
-const exploredOutline = computed(() => outlinePath(exploredCells.value));
+const exploredOutline = computed(() => outlinePath(squareSpaceCells.value));
 
 /** One feather rect (unit-cell space: `cellPx: 1, origin: 0,0`, matching
  *  every other geometry helper in this file) per explored cell's border
  *  with a cell outside `exploredCells` — glimpsed or fully unrevealed alike,
  *  since `featherEdges` only ever asks "is the neighbour in this set." */
 const exploredCellSet = computed(() => new Set(exploredCells.value));
+// A room with an outline has no square edge to soften; its curve stays a hard line.
+const outlinedCells = computed(() => new Set(outlinedSpaces.value.flatMap((s) => s.cells)));
 const featherRects = computed(() =>
-  featherEdges(exploredCellSet.value).map((edge) => ({ ...featherRect(edge, 1, 0, 0), side: edge.side })),
+  featherEdges(exploredCellSet.value)
+    .filter((edge) => !outlinedCells.value.has(`${edge.cellX},${edge.cellY}`))
+    .map((edge) => ({ ...featherRect(edge, 1, 0, 0), side: edge.side })),
 );
 
 const glimpsedLayers = computed(() =>
   plan.glimpsed.map((g) => ({
-    rects: cellsRects(g.cells),
-    outline: outlinePath(g.cells),
+    ringPath: usableRing(g.vertices) ? ringPathD(usableRing(g.vertices)!) : null,
+    rects: usableRing(g.vertices) ? [] : cellsRects(g.cells),
+    outline: usableRing(g.vertices) ? ringPathD(usableRing(g.vertices)!) : outlinePath(g.cells),
   })),
 );
 
