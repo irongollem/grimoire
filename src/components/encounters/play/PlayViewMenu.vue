@@ -62,6 +62,7 @@ const ENTRIES: { key: keyof PlayViewState; label: string }[] = [
   { key: "showTokens", label: "Tokens" },
   { key: "showFog", label: "Fog" },
   { key: "followTurn", label: "Follow the turn" },
+  { key: "showLegend", label: "Legend" },
 ];
 
 function onReset(close: (refocus: boolean) => void) {

@@ -171,6 +171,7 @@ function location(over: Partial<Location> = {}): Location {
     map_layer_stand_live_url: null,
     map_layer_calibration: null,
     map_live: null,
+    map_motion: null,
     map_scale: null,
     plan_size: null,
     era_start: null,

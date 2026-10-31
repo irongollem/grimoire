@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePointerAction } from "./playPointer";
+import { isClick, resolvePointerAction } from "./playPointer";
 import type { PlayTool } from "./playTypes";
 
 const base = { imageReady: true, canEdit: true, tool: "move" as PlayTool, onDoor: false, placing: false };
@@ -27,5 +27,29 @@ describe("resolvePointerAction", () => {
 
   it("does nothing until the map picture has loaded", () => {
     expect(resolvePointerAction({ ...base, imageReady: false, onDoor: true })).toBe("none");
+  });
+});
+
+describe("Shift on the Move tool", () => {
+  // #1125 frame 11: Shift and drag a box on empty map selects the party.
+  it("draws a selection box instead of panning", () => {
+    expect(resolvePointerAction({ ...base, shift: true })).toBe("box-select");
+  });
+
+  it("leaves the fog brush and the darkness sphere alone, and a door still opens", () => {
+    expect(resolvePointerAction({ ...base, tool: "fog", shift: true })).toBe("brush");
+    expect(resolvePointerAction({ ...base, tool: "darkness", shift: true })).toBe("darkness");
+    expect(resolvePointerAction({ ...base, shift: true, onDoor: true })).toBe("toggle-door");
+  });
+
+  it("is nothing to a follower", () => {
+    expect(resolvePointerAction({ ...base, canEdit: false, shift: true })).toBe("pan");
+  });
+});
+
+describe("a click", () => {
+  it("is a press that stayed put, not a pan or a drag", () => {
+    expect(isClick({ x: 10, y: 10 }, { x: 12, y: 11 })).toBe(true);
+    expect(isClick({ x: 10, y: 10 }, { x: 40, y: 10 })).toBe(false);
   });
 });

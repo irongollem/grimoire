@@ -103,23 +103,24 @@ describe("BattleMapTokenLayer — render-key memoization", () => {
   // its canvas, but the wrapper's native `title` used to carry the real name,
   // so a player hovering the mystery token read "Ash-wight" in a browser
   // tooltip. Found by the #884 review pass.
-  it("withholds a silhouetted combatant's name from its tooltip", async () => {
+  it("withholds a silhouetted combatant's name from the label it wears", async () => {
     const props = baseProps();
     const hidden = { ...props.combatants[0], reveal_state: "unseen" as const };
     const wrapper = mount(BattleMapTokenLayer, {
       props: { ...props, combatants: [hidden], silhouetteUnseen: true },
     });
     await nextTick();
-    expect(wrapper.find(".token").attributes("title")).toBeUndefined();
+    expect(wrapper.find(".token-name").exists()).toBe(false);
+    expect(wrapper.find(".token").attributes("aria-label")).toBeUndefined();
   });
 
-  it("still names a revealed combatant in its tooltip", async () => {
+  it("still names a revealed combatant on its label", async () => {
     const props = baseProps();
     const wrapper = mount(BattleMapTokenLayer, {
       props: { ...props, combatants: [props.combatants[0]], silhouetteUnseen: true },
     });
     await nextTick();
-    expect(wrapper.find(".token").attributes("title")).toBe(props.combatants[0].name);
+    expect(wrapper.find(".token-name").text()).toBe(props.combatants[0].name);
   });
 
   it("draws each token exactly once on initial mount", async () => {
@@ -280,7 +281,7 @@ describe("BattleMapTokenLayer: what a player is shown", () => {
     const combatants = [lurker, props.combatants[2]];
     const player = mount(BattleMapTokenLayer, { props: { ...props, combatants, hideHidden: true } });
     expect(player.findAll(".token")).toHaveLength(1);
-    expect(player.find(".token").attributes("title")).toBe("m-2-0");
+    expect(player.find(".token-name").text()).toBe("m-2-0");
     const dm = mount(BattleMapTokenLayer, { props: { ...props, combatants, hideHidden: false } });
     expect(dm.findAll(".token")).toHaveLength(2);
   });
@@ -291,7 +292,7 @@ describe("BattleMapTokenLayer: what a player is shown", () => {
     const wrapper = mount(BattleMapTokenLayer, {
       props: { ...props, combatants: [unseen], silhouetteUnseen: false },
     });
-    expect(wrapper.find(".token").attributes("title")).toBe("m-1-0");
+    expect(wrapper.find(".token-name").text()).toBe("m-1-0");
   });
 
   it("tells the canvas to paint the silhouette for a player, and only for the unseen one", async () => {
@@ -395,5 +396,94 @@ describe("BattleMapTokenLayer: dead monsters and dragging", () => {
     expect(mine).toHaveBeenCalledTimes(1);
     const theirs = await dragFirstToken({ ...baseProps(), draggableInstanceIds: new Set(["someone-else"]) });
     expect(theirs).not.toHaveBeenCalled();
+  });
+});
+
+describe("BattleMapTokenLayer: selecting and previewing a move (#1125)", () => {
+  function pointer(type: string, init: { clientX: number; clientY: number; shiftKey?: boolean }) {
+    const ev = new MouseEvent(type, { ...init, bubbles: true, cancelable: true });
+    Object.defineProperty(ev, "pointerId", { value: 1 });
+    return ev;
+  }
+
+  function mountOne(extra: Record<string, unknown> = {}) {
+    const props = baseProps();
+    const spies = { onPositionChange: vi.fn(), onSelect: vi.fn(), onDragPreview: vi.fn() };
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: { ...props, combatants: [props.combatants[0]], ...spies, ...extra },
+      attachTo: document.body,
+    });
+    const el = wrapper.find(".token").element as HTMLElement;
+    el.setPointerCapture = vi.fn();
+    return { wrapper, el, ...spies };
+  }
+
+  it("a click that does not travel selects the token and moves nothing", () => {
+    const { wrapper, el, onSelect, onPositionChange } = mountOne();
+    el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10 }));
+    window.dispatchEvent(pointer("pointerup", { clientX: 11, clientY: 10 }));
+    expect(onSelect).toHaveBeenCalledWith("m-1-0", false);
+    expect(onPositionChange).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("Shift-clicking a token asks to add it to the selection instead of replacing it", () => {
+    const { wrapper, el, onSelect } = mountOne({ selectedInstanceIds: new Set(["other"]) });
+    el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10, shiftKey: true }));
+    window.dispatchEvent(pointer("pointerup", { clientX: 10, clientY: 10 }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("m-1-0", true);
+    wrapper.unmount();
+  });
+
+  it("picking up a token outside the selection selects it, but one already in the selection is dragged as it stands", () => {
+    const outside = mountOne();
+    outside.el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10 }));
+    expect(outside.onSelect).toHaveBeenCalledWith("m-1-0", false);
+    window.dispatchEvent(pointer("pointerup", { clientX: 140, clientY: 70 }));
+    outside.wrapper.unmount();
+
+    const inside = mountOne({ selectedInstanceIds: new Set(["m-1-0", "friend"]) });
+    inside.el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10 }));
+    expect(inside.onSelect).not.toHaveBeenCalled();
+    window.dispatchEvent(pointer("pointerup", { clientX: 140, clientY: 70 }));
+    inside.wrapper.unmount();
+  });
+
+  it("reports the square a drag would land on as it moves, then clears it when the token is dropped", () => {
+    const { wrapper, el, onDragPreview } = mountOne();
+    el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10 }));
+    window.dispatchEvent(pointer("pointermove", { clientX: 140, clientY: 70 }));
+    expect(onDragPreview).toHaveBeenLastCalledWith("m-1-0", { x: 3, y: 1 });
+    window.dispatchEvent(pointer("pointermove", { clientX: 142, clientY: 71 }));
+    expect(onDragPreview).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(pointer("pointerup", { clientX: 142, clientY: 71 }));
+    expect(onDragPreview).toHaveBeenLastCalledWith("m-1-0", null);
+    wrapper.unmount();
+  });
+
+  it("a wobble of a pixel or two while pressing is not a drag, so no preview is drawn", () => {
+    const { wrapper, el, onDragPreview } = mountOne();
+    el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10 }));
+    window.dispatchEvent(pointer("pointermove", { clientX: 12, clientY: 11 }));
+    expect(onDragPreview).not.toHaveBeenCalled();
+    window.dispatchEvent(pointer("pointerup", { clientX: 12, clientY: 11 }));
+    wrapper.unmount();
+  });
+
+  it("a token that cannot be dragged (a follower window) selects nothing", () => {
+    const { wrapper, el, onSelect } = mountOne({ draggableInstanceIds: new Set<string>() });
+    el.dispatchEvent(pointer("pointerdown", { clientX: 10, clientY: 10 }));
+    window.dispatchEvent(pointer("pointerup", { clientX: 10, clientY: 10 }));
+    expect(onSelect).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("rings the selected tokens and no others", () => {
+    const props = baseProps();
+    const wrapper = mount(BattleMapTokenLayer, { props: { ...props, selectedInstanceIds: new Set([props.combatants[1].instance_id]) } });
+    const tokens = wrapper.findAll(".token");
+    expect(tokens[0].classes()).not.toContain("token-selected");
+    expect(tokens[1].classes()).toContain("token-selected");
   });
 });

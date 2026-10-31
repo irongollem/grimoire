@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   scheduleMapPush: vi.fn(),
   moveToken: vi.fn(() => Promise.resolve()),
   surface: { value: null as unknown },
+  zones: { value: [] as { region: unknown; battleCells: string[] }[] },
 }));
 
 vi.mock("@/composables/encounters/useEncounterRoom", () => ({
@@ -20,7 +21,7 @@ vi.mock("@/composables/encounters/useEncounterRoom", () => ({
     mapLocation: ref({ id: "l1" }),
     surface: h.surface,
     focusRoom: ref(null),
-    terrainZones: ref([]),
+    terrainZones: h.zones,
   }),
 }));
 vi.mock("@/composables/encounters/useEncounterLive", () => ({
@@ -57,6 +58,7 @@ describe("usePlayMapState", () => {
     vi.clearAllMocks();
     h.isLive.value = false;
     h.liveState.value = null;
+    h.zones.value = [];
     h.surface.value = {
       focusRoomId: null, focusCells: [], mapLocation: { id: "l1", is_battle_map: true },
       calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
@@ -138,5 +140,24 @@ describe("usePlayMapState", () => {
     store.combatants = [combatant("a", { x: 1, y: 1 })];
     expect(setup("follower").placed.value).toEqual([]);
     expect(setup("dm").placed.value).toHaveLength(1);
+  });
+
+  // #1125 decision 11: the move counter prices difficult ground and squeezes from what the map itself draws.
+  it("prices a move by the difficult zones on the map and the walls and closed doors a big token can wedge in", () => {
+    h.zones.value = [{ region: {}, battleCells: ["2,2", "3,2"] }];
+    h.surface.value = {
+      ...(h.surface.value as object),
+      live: { walls: [{ id: "w", a: [1, 1], b: [1, 3] }], doors: [door], solid: [] },
+    };
+    const terrain = setup().moveTerrain.value;
+    expect([...terrain.difficult].sort()).toEqual(["2,2", "3,2"]);
+    expect(terrain.walls.map((w) => w.id).sort()).toEqual(["3,2:N", "w"]);
+  });
+
+  it("an open door no longer wedges anyone", () => {
+    h.surface.value = { ...(h.surface.value as object), live: { walls: [], doors: [door], solid: [] } };
+    const s = setup();
+    s.toggleDoorAt(3.5, 2.1);
+    expect(s.moveTerrain.value.walls).toEqual([]);
   });
 });

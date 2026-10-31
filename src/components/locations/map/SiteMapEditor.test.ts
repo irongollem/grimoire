@@ -6,7 +6,14 @@ import SiteMapEditor from "./SiteMapEditor.vue";
 import { buildAtlasIndex } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
 
-const mocks = vi.hoisted(() => ({
+const mocks = vi.hoisted(() => {
+  // eslint-disable-next-line no-restricted-imports -- vi.hoisted runs before the file's imports
+  const { ref } = require("vue") as typeof import("vue");
+  return {
+  workbench: ref<unknown>(null),
+  /** What the canvas answers when the host reads it through the stub. */
+  canvas: { current: null as unknown },
+  sourceMap: ref<unknown>(null),
   push: vi.fn(),
   flush: vi.fn(),
   confirm: vi.fn(),
@@ -15,7 +22,13 @@ const mocks = vi.hoisted(() => ({
   publishOpen: { value: false },
   aiEnabled: { value: false },
   showStylePicker: { value: false },
-}));
+  setPicture: vi.fn(),
+  removePicture: vi.fn(),
+  setCalibration: vi.fn(),
+  setBattleMap: vi.fn(),
+  exportVtt: vi.fn(),
+  };
+});
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
@@ -35,13 +48,13 @@ vi.mock("@/composables/locations/useSiteStructure", () => ({
   useSiteStructure: () => ({}),
   useSiteMapExtras: () => ({
     staleness: computed(() => null),
-    sourceMap: { data: ref(null) },
+    sourceMap: { data: mocks.sourceMap },
     layerCounts: computed(() => ({ spaces: 0, ways: 0, zones: 0 })),
   }),
 }));
 vi.mock("@/composables/locations/useSiteDrawingEditor", () => ({
   useSiteDrawingEditor: () => ({
-    workbenchRef: ref(null),
+    workbenchRef: mocks.workbench,
     dirty: ref(false),
     saving: ref(false),
     createdMapId: ref(null),
@@ -53,6 +66,16 @@ vi.mock("@/composables/locations/useSiteDrawingEditor", () => ({
 vi.mock("@/composables/locations/useAddSiteLevel", () => ({
   useAddSiteLevel: () => ({ addLevel: vi.fn(), isAdding: ref(false) }),
 }));
+vi.mock("@/composables/locations/usePlacePicture", () => ({
+  usePlacePicture: () => ({
+    busy: ref(false),
+    setPicture: mocks.setPicture,
+    removePicture: mocks.removePicture,
+    setCalibration: mocks.setCalibration,
+    setBattleMap: mocks.setBattleMap,
+  }),
+}));
+vi.mock("@/lib/mapBring/exportDrawing", () => ({ exportDrawingAsVtt: mocks.exportVtt }));
 vi.mock("@/composables/locations/useOpenSiteDrawing", () => ({ useOpenSiteDrawing: () => ({ openDrawing: vi.fn() }) }));
 vi.mock("@/composables/cartographer/useMapPublish", () => ({
   useMapPublish: () => ({
@@ -90,9 +113,19 @@ vi.mock("@/composables/cartographer/useMapExport", () => ({
 
 const WorkbenchStub = defineComponent({
   name: "MapWorkbench",
-  props: ["map", "site", "menuActions", "saveState"],
-  emits: ["menu-action"],
-  setup(_p, { slots }) {
+  props: ["map", "site", "menuActions", "saveState", "startLayer", "defaultName"],
+  emits: ["menu-action", "picture-upload", "picture-remove", "update:pictureCalibration", "update:isBattleMap"],
+  setup(_p, { slots, expose }) {
+    // The host reads the canvas through its template ref, which is this stub.
+    const api = () => mocks.canvas.current as Record<string, (...a: unknown[]) => unknown>;
+    expose({
+      getLayers: () => api().getLayers(),
+      getMetadata: () => api().getMetadata(),
+      getRuntimes: () => api().getRuntimes(),
+      loadDressingCatalog: () => api().loadDressingCatalog(),
+      getCellGlyphs: () => api().getCellGlyphs(),
+      getName: () => api().getName(),
+    });
     return () => h("div", [slots["bar-start"]?.({ mapName: "", setName: () => {} }), slots["bar-end"]?.()]);
   },
 });
@@ -111,7 +144,6 @@ function mountEditor(loc: Location, all: Location[] = [loc]) {
       plugins: [linkRouter],
       stubs: {
         MapWorkbench: WorkbenchStub,
-        MapLayersPanel: true,
         CartographerPublishModal: true,
         CartographerAiStyleModal: true,
         PaywallModal: true,
@@ -123,11 +155,13 @@ function mountEditor(loc: Location, all: Location[] = [loc]) {
 const menuOf = (w: ReturnType<typeof mountEditor>) => w.findComponent(WorkbenchStub).props("menuActions") as string[];
 
 beforeEach(() => {
-  for (const m of [mocks.push, mocks.flush, mocks.confirm, mocks.deleteMap, mocks.updateLocation]) m.mockReset();
+  for (const m of [mocks.push, mocks.flush, mocks.confirm, mocks.deleteMap, mocks.updateLocation, mocks.setPicture, mocks.removePicture, mocks.setCalibration, mocks.setBattleMap, mocks.exportVtt]) m.mockReset();
   mocks.flush.mockResolvedValue(undefined);
   mocks.deleteMap.mockResolvedValue(undefined);
   mocks.updateLocation.mockResolvedValue({});
   mocks.publishOpen.value = false;
+  mocks.canvas.current = null;
+  mocks.sourceMap.value = null;
   mocks.aiEnabled.value = false;
   mocks.showStylePicker.value = false;
 });
@@ -136,7 +170,7 @@ beforeEach(() => {
 describe("SiteMapEditor", () => {
   it("offers a Map menu only once a Drawing is saved: every entry works on that row", () => {
     expect(menuOf(mountEditor(place({ id: "ash" })))).toEqual([]);
-    expect(menuOf(mountEditor(place({ id: "ash", source_map_id: "m1" })))).toEqual(["review", "download", "delete"]);
+    expect(menuOf(mountEditor(place({ id: "ash", source_map_id: "m1" })))).toEqual(["review", "download", "export-vtt", "delete"]);
   });
 
   it("offers Style with AI only when the campaign has AI on", () => {
@@ -202,5 +236,52 @@ describe("SiteMapEditor", () => {
     const back = w.findAllComponents({ name: "AppButton" }).find((b) => b.props("to"))!;
     expect(back.props("to")).toBe("/locations?at=ash");
     expect(back.props("label")).toBe("Ashmouth");
+  });
+
+  // #1125 frame 07: the Picture layer's writes belong to the host, which owns the place.
+  describe("the Picture layer", () => {
+    it("writes what the workbench's Picture palette asks for, and nothing else", () => {
+      const w = mountEditor(place({ id: "ash" }));
+      const wb = w.findComponent(WorkbenchStub);
+      const file = new File(["x"], "m.png");
+      wb.vm.$emit("picture-upload", file);
+      wb.vm.$emit("picture-remove");
+      wb.vm.$emit("update:pictureCalibration", { cells_per_image_width: 30, origin_x_pct: 0, origin_y_pct: 0 });
+      wb.vm.$emit("update:isBattleMap", true);
+      expect(mocks.setPicture).toHaveBeenCalledWith(file);
+      expect(mocks.removePicture).toHaveBeenCalledTimes(1);
+      expect(mocks.setCalibration).toHaveBeenCalledWith({ cells_per_image_width: 30, origin_x_pct: 0, origin_y_pct: 0 });
+      expect(mocks.setBattleMap).toHaveBeenCalledWith(true);
+    });
+
+    it("lets the workbench choose the layer when the address names none, so a picture with no grid opens on the Picture", () => {
+      expect(mountEditor(place({ id: "ash" })).findComponent(WorkbenchStub).props("startLayer")).toBeUndefined();
+    });
+
+    it("names a new drawing after the site", () => {
+      expect(mountEditor(place({ id: "ash", name: "Karkholok" })).findComponent(WorkbenchStub).props("defaultName")).toBe("Karkholok");
+    });
+  });
+
+  it("exports the Drawing for another VTT under the map's name, with the canvas's live edits laid over the saved row, after saving", async () => {
+    const runtimes = new Map();
+    mocks.sourceMap.value = { id: "m1", name: "Ashmouth", layers: {}, metadata: {} };
+    mocks.canvas.current = {
+      getLayers: () => ({ live: true }),
+      getMetadata: () => ({}),
+      getRuntimes: () => runtimes,
+      loadDressingCatalog: async () => new Map(),
+      getCellGlyphs: () => ({}),
+      getName: () => "Ash cellar",
+    };
+    const w = mountEditor(place({ id: "ash", name: "Ashmouth", source_map_id: "m1" }));
+    w.findComponent(WorkbenchStub).vm.$emit("menu-action", "export-vtt");
+    await flushPromises();
+    expect(mocks.exportVtt).toHaveBeenCalledTimes(1);
+    const [map, rt, , , fileName] = mocks.exportVtt.mock.calls[0]!;
+    expect(map.layers).toEqual({ live: true });
+    expect(rt).toBe(runtimes);
+    expect(fileName).toBe("Ash cellar");
+    expect(mocks.flush.mock.invocationCallOrder[0]).toBeLessThan(mocks.exportVtt.mock.invocationCallOrder[0]!);
   });
 });

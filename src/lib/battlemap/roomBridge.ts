@@ -14,13 +14,13 @@
 // only computes.
 
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
-import type { GridCalibration, Location } from "@/types/location.types";
+import type { GridCalibration, Location, MapMotion } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
 import { currentMapLive } from "@/lib/battlemap/liveLayer";
 import type { MapLive } from "@/types/mapLive.types";
 import type { RunCombatant } from "@/types/encounter.types";
-import { primaryImage } from "@/lib/locations/mapStack";
+import { buildMapStack, type MapStackSource } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
 
 function originOf(calibration: GridCalibration): { x: number; y: number } {
@@ -46,7 +46,7 @@ export function battleCellToRegionCell(cell: CellKey, calibration: GridCalibrati
 
 /** What a battle map draws, as `BattleMapStack` takes it: the DM's `BattleSurface` is one, and the player's view
  *  builds one from its own projection. */
-export type BattleMapLayers = Pick<BattleSurface, "imageUrl" | "standUrl" | "standLiveUrl" | "live">;
+export type BattleMapLayers = Pick<BattleSurface, "imageUrl" | "standUrl" | "standLiveUrl" | "live" | "picture" | "motion">;
 
 export interface BattleSurface {
   /** The location whose map stack (`lib/locations/mapStack.ts`) the battle
@@ -69,9 +69,18 @@ export interface BattleSurface {
   /** The map image the battle view actually draws — the site's Drawing when
    *  it has one, else its Picture (#884: `primaryImage`'s url). */
   imageUrl: string;
-  /** The live-layer snapshot (#1073), only when `imageUrl` IS the site's Drawing: the snapshot is in the Drawing's
-   *  image cells, so over a hand-calibrated Picture it would not line up. Null otherwise. */
+  /** The live-layer snapshot (#1073): walls, doors and lights in the image cells of `imageUrl`. It applies when the
+   *  Drawing is what is drawn, and also when the place has no Drawing at all and still carries a snapshot (an import
+   *  writes walls, doors and lights straight into a Picture's cells, #1125). Null when there is none. */
   live: MapLive | null;
+  /** The site's Picture drawn UNDER its Drawing (#1125 decision 8), so a fight shows the scan through the transparent
+   *  bake. Set only when there is a Drawing and both layers are calibrated: the battle map measures the image, then
+   *  places it with `placeCalibrated(drawingCalibration, calibration, ...)`, because the Picture's natural size is
+   *  not known here. Null otherwise (a Picture with no Drawing is `imageUrl` itself). */
+  picture: { url: string; calibration: GridCalibration; drawingCalibration: GridCalibration } | null;
+  /** The Picture moves (#1125 decision 6): the file lives on the DM's device under `key` (the map location's id),
+   *  `still` is `map_url`. Null for a still Picture, and always null on a player's surface. */
+  motion: { key: string; kind: MapMotion["kind"]; still: string; fileName: string; bytes: number } | null;
   /** The Drawing's standing half (#1073), drawn over the grid. Set only when `imageUrl` IS the site's Drawing, for
    *  the same reason as `live`: a hand-calibrated Picture has no standing layer. Null for a drawing published
    *  before the split. */
@@ -81,8 +90,24 @@ export interface BattleSurface {
   standLiveUrl: string | null;
 }
 
-function liveFor(loc: Location, imageUrl: string): MapLive | null {
-  return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? currentMapLive(loc.map_live) : null;
+// The surface is the Drawing, or (no Drawing) the Picture; either way the snapshot is in its cells.
+function liveFor(loc: Location): MapLive | null {
+  return currentMapLive(loc.map_live);
+}
+
+/** The Picture under the Drawing, for a surface that builds its own layers (the player's map). */
+export function pictureUnderDrawing(loc: MapStackSource | null | undefined): BattleSurface["picture"] {
+  const { picture, drawing } = buildMapStack(loc);
+  return picture && drawing && picture.calibration && drawing.calibration
+    ? { url: picture.url, calibration: picture.calibration, drawingCalibration: drawing.calibration }
+    : null;
+}
+
+function motionFor(loc: Location): BattleSurface["motion"] {
+  const { picture, motion } = buildMapStack(loc);
+  return picture && motion
+    ? { key: motion.key, kind: motion.motion.kind, still: picture.url, fileName: motion.motion.file_name, bytes: motion.motion.bytes }
+    : null;
 }
 
 function standFor(loc: Location, imageUrl: string): string | null {
@@ -112,7 +137,7 @@ export function resolveBattleSurface(params: {
   // exactly as before a room could be a battle-map anchor — including a room
   // that happens to carry a scanned map of its own rather than living on its
   // site's plan.
-  const ownImage = primaryImage(encounterLocation);
+  const ownImage = buildMapStack(encounterLocation).primary;
   if (ownImage?.calibration) {
     return {
       mapLocation: encounterLocation,
@@ -120,7 +145,9 @@ export function resolveBattleSurface(params: {
       focusCells: [],
       calibration: ownImage.calibration,
       imageUrl: ownImage.url,
-      live: liveFor(encounterLocation, ownImage.url),
+      live: liveFor(encounterLocation),
+      picture: pictureUnderDrawing(encounterLocation),
+      motion: motionFor(encounterLocation),
       standUrl: standFor(encounterLocation, ownImage.url),
       standLiveUrl: standLiveFor(encounterLocation, ownImage.url),
     };
@@ -131,7 +158,7 @@ export function resolveBattleSurface(params: {
   // `isInteriorType` is the single reader of that distinction; this must not
   // go back to comparing `location_type` inline.
   if (isInteriorType(encounterLocation.location_type) && parent) {
-    const parentImage = primaryImage(parent);
+    const parentImage = buildMapStack(parent).primary;
     if (parentImage?.calibration) {
       const calibration = parentImage.calibration;
       const region = regions.find(
@@ -144,7 +171,9 @@ export function resolveBattleSurface(params: {
         focusCells,
         calibration,
         imageUrl: parentImage.url,
-        live: liveFor(parent, parentImage.url),
+        live: liveFor(parent),
+        picture: pictureUnderDrawing(parent),
+        motion: motionFor(parent),
         standUrl: standFor(parent, parentImage.url),
         standLiveUrl: standLiveFor(parent, parentImage.url),
       };

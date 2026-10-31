@@ -127,7 +127,7 @@ export interface MapCanvasEditorOptions {
    *  above) or the Plan (`planTools`, built from this composable's own
    *  `plan`) — see `handleActiveLayerPointerDown` below for the split. */
   plan?: ReturnType<typeof usePlanPalette>;
-  activeLayer?: Ref<"drawing" | "plan">;
+  activeLayer?: Ref<"drawing" | "plan" | "picture">;
   /** Whether Space and the zoom keys are this canvas's to take. The editor listens on the
    *  window, and the workbench also sits inside whole pages (the Atlas) whose other
    *  controls need Space and the browser's own zoom, so the host answers true only while
@@ -883,6 +883,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
     // Middle button, or left with Space held: pans with any tool on either layer.
     if (navigation.isForcedPan(ev)) {
+      startPan(ev);
+      return;
+    }
+
+    // The Picture layer (#1125) has no tools on the canvas: the picture is placed from its palette, so a press
+    // can only mean "move the view".
+    if (activeLayer?.value === "picture") {
       startPan(ev);
       return;
     }

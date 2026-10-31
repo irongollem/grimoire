@@ -260,6 +260,11 @@ export interface RunCombatant {
   legendary_actions_remaining?: number;
   // Reaction — one per round; reset at the start of each new round.
   reactionUsed?: boolean;
+  // The turn's own tallies (#1125 decision 10), all cleared when this combatant's turn starts: the feet moved,
+  // and whether the action and the bonus action are spent. The Play turn card reads and marks them.
+  movement_used?: number;
+  action_used?: boolean;
+  bonus_used?: boolean;
   // VTT battle map — anchor cell (top-left of footprint) on the encounter's
   // location map. Null/undefined = unplaced; the runner stages unplaced
   // combatants near the map origin so the DM can drag them in.

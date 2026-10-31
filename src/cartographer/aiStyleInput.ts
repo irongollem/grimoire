@@ -21,8 +21,8 @@ import type { AspectPadGeometry, StyleImageProvider } from "./bake";
 import { BASE_TILE_SIZE } from "./packSchema";
 import type { PackCategory } from "./packSchema";
 import type { TilePackRuntime } from "./packLoader";
-import { placePicture } from "@/lib/locations/mapStack";
-import type { MapImageLayer, MapStack } from "@/lib/locations/mapStack";
+import { placeCalibrated } from "@/lib/locations/mapStack";
+import type { MapImageLayer } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import type { DressingCatalog } from "./dressing";
@@ -134,19 +134,9 @@ export async function bakeAiStyleInput(
   ]);
   const drawingBitmap = await createImageBitmap(drawingBlob);
 
-  // `placePicture` only reads `.drawing` and `.picture` off the stack — the
-  // rest of this shape is never consulted, so it's filled with inert values.
-  const stackForPlacement: MapStack = {
-    picture,
-    drawing: { kind: "drawing", url: "", calibration: liveDrawingCalibration(map, dressing, STYLE_INPUT_PADDING_CELLS) },
-    standing: null,
-    primary: null,
-    frameCalibration: null,
-    blank: null,
-    hasAnyLayer: true,
-  };
-  const rect = placePicture(
-    stackForPlacement,
+  const rect = placeCalibrated(
+    liveDrawingCalibration(map, dressing, STYLE_INPUT_PADDING_CELLS),
+    picture.calibration,
     { w: frameW, h: frameH },
     { w: pictureBitmap.width, h: pictureBitmap.height },
   );

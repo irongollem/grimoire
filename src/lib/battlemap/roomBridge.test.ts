@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   battleCellToRegionCell,
+  pictureUnderDrawing,
   regionCellToBattleCell,
   resolveBattleSurface,
   roomsRevealedInCombat,
@@ -54,6 +55,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     map_layer_stand_url: null,
     map_layer_stand_live_url: null,
     map_layer_calibration: null,
+    map_motion: null,
     map_live: null,
     map_scale: null,
     plan_size: null,
@@ -151,6 +153,8 @@ describe("resolveBattleSurface", () => {
       calibration,
       imageUrl: "https://example.test/map.webp",
       live: null,
+      picture: null,
+      motion: null,
       standUrl: null,
       standLiveUrl: null,
     });
@@ -269,7 +273,7 @@ describe("resolveBattleSurface", () => {
       expect(surface?.live).toBe(live);
     });
 
-    it("is null when the surface is a Picture, even if a snapshot exists", () => {
+    it("carries a Picture-only place's snapshot: an import writes walls and lights into the Picture's own cells (#1125)", () => {
       const location = makeLocation({
         location_type: "dungeon",
         climate: null,
@@ -278,6 +282,17 @@ describe("resolveBattleSurface", () => {
         grid_calibration: makeCalibration(),
         map_live: live,
       });
+      expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })?.live).toBe(live);
+    });
+
+    it("is null for a Picture with no snapshot", () => {
+      const location = makeLocation({
+        location_type: "dungeon",
+        climate: null,
+        terrain: null,
+        map_url: "https://example.test/picture.webp",
+        grid_calibration: makeCalibration(),
+    });
       expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })?.live).toBeNull();
     });
   });
@@ -516,5 +531,64 @@ describe("roomsRevealedInCombat", () => {
     const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
     const region = makeRegion({ space_location_id: "room-1", cells: [] });
     expect(roomsRevealedInCombat(new Set(), [region], calibration)).toEqual([]);
+  });
+});
+
+describe("the Picture under the Drawing and a moving Picture (#1125 decisions 6 and 8)", () => {
+  const picture = "https://example.test/picture.webp";
+  const drawing = "https://example.test/drawing.webp";
+  const both = (over: Partial<Location> = {}) =>
+    makeLocation({
+      id: "site-1",
+      location_type: "dungeon",
+      climate: null,
+      terrain: null,
+      map_url: picture,
+      grid_calibration: makeCalibration({ cells_per_image_width: 10 }),
+      map_layer_url: drawing,
+      map_layer_calibration: makeCalibration({ cells_per_image_width: 16 }),
+      ...over,
+    });
+  const resolve = (loc: Location) => resolveBattleSurface({ encounterLocation: loc, parent: null, regions: [] });
+
+  it("carries the Picture and both calibrations when a calibrated Picture sits under a calibrated Drawing", () => {
+    const surface = resolve(both());
+    expect(surface?.imageUrl).toBe(drawing);
+    expect(surface?.picture).toEqual({
+      url: picture,
+      calibration: makeCalibration({ cells_per_image_width: 10 }),
+      drawingCalibration: makeCalibration({ cells_per_image_width: 16 }),
+    });
+  });
+
+  it("has no Picture layer for a Picture-only place (the Picture is the ground itself)", () => {
+    expect(resolve(both({ map_layer_url: null, map_layer_calibration: null }))?.picture).toBeNull();
+  });
+
+  it("has no Picture layer when the Picture is not calibrated: there is nothing to place it by", () => {
+    expect(resolve(both({ grid_calibration: null }))?.picture).toBeNull();
+  });
+
+  it("has no Picture layer when the Drawing is not calibrated", () => {
+    expect(pictureUnderDrawing(both({ map_layer_calibration: null }))).toBeNull();
+  });
+
+  it("names the moving file's key (the map location's id), kind and still", () => {
+    const motion = { kind: "video" as const, file_name: "river.mp4", mime: "video/mp4", bytes: 4, width: 8, height: 8 };
+    expect(resolve(both({ map_motion: motion }))?.motion).toEqual({
+      key: "site-1",
+      kind: "video",
+      still: picture,
+      fileName: "river.mp4",
+      bytes: 4,
+    });
+    expect(resolve(both())?.motion).toBeNull();
+  });
+
+  it("keys a room's moving map by its site, whose plan the fight is drawn on", () => {
+    const room = makeLocation({ id: "room-1", parent_id: "site-1" });
+    const site = both({ map_motion: { kind: "animated", file_name: "a.gif", mime: "image/gif", bytes: 1, width: 1, height: 1 } });
+    const surface = resolveBattleSurface({ encounterLocation: room, parent: site, regions: [] });
+    expect(surface?.motion?.key).toBe("site-1");
   });
 });

@@ -9,7 +9,7 @@
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
-      @pointerleave="onPointerUp"
+      @pointerleave="onPointerLeave"
       @dragover.prevent
       @drop.prevent="onDrop"
     >
@@ -71,8 +71,27 @@
         :draggable-instance-ids="canEdit ? null : READ_ONLY"
         :portrait-overrides="portraitOverrides"
         :figures="dollFigures"
-        :on-position-change="state.moveCombatant"
+        :selected-instance-ids="selection"
+        :on-position-change="moves.commitMove"
+        :on-select="moves.onTokenSelect"
+        :on-drag-preview="moves.onDragPreview"
       />
+
+      <!-- The path a move would take, while a token is dragged or a square is hovered (frames 10 and 11). -->
+      <PlayMovePath
+        v-if="preview && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :lines="preview.lines"
+        :label-text="preview.text"
+        :label-state="preview.state"
+        :label-at="preview.labelAt"
+      />
+
+      <div v-if="boxStyle" class="select-box" :style="boxStyle" data-testid="play-select-box" aria-hidden="true"></div>
 
       <!-- "As player" is the whole player view: fogged-out combatants dropped, hidden ones omitted,
            unseen ones a silhouette (found by the #884 review pass), and the fog opaque. -->
@@ -90,7 +109,8 @@
       <img v-if="surface?.imageUrl && !imageReady" :src="surface.imageUrl" class="hidden-loader" @load="onImageLoad" />
     </div>
 
-    <BattleMapLegend :zones="state.terrainZones.value" />
+    <!-- In the corner, not under the toolbelt: nothing else floats there. Shown from the View menu. -->
+    <BattleMapLegend v-if="view.showLegend" :zones="state.terrainZones.value" class="absolute left-3 top-3 max-w-[30rem] overflow-hidden rounded-md" />
 
     <p
       v-if="hint"
@@ -120,6 +140,7 @@ import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useCombatantMinis } from "@/composables/encounters/useCombatantMinis";
 import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import { useHotkeys } from "@/composables/useHotkeys";
+import { isMacPlatform } from "@/lib/hotkeys";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
@@ -130,8 +151,10 @@ import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib
 import { cellBrushCells, revealedCombatants, roundBrushCells, type FogCellKey } from "@/lib/battlemap/fogMask";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import PlayToolbelt from "./PlayToolbelt.vue";
+import PlayMovePath from "./PlayMovePath.vue";
 import { usePlayMapState } from "./usePlayMapState";
-import { resolvePointerAction } from "./playPointer";
+import { usePlayTokenMoves } from "./usePlayTokenMoves";
+import { isClick, resolvePointerAction } from "./playPointer";
 import { cellOnMap, dropCell } from "./playRoster";
 import {
   DEFAULT_PLAY_VIEW,
@@ -146,6 +169,7 @@ import {
   type PlayViewState,
 } from "./playTypes";
 import type { RunCombatant } from "@/types/encounter.types";
+import type { PartyMember } from "@/types/party.types";
 
 /**
  * The battle map of the Play screen (#1125 decision 9) and of the Table screen window: the stack,
@@ -157,12 +181,21 @@ const {
   mode = "dm",
   view = DEFAULT_PLAY_VIEW,
   placingId = null,
+  selectedId = null,
+  groupIds = [],
+  partyMembers = [],
 } = defineProps<{
   encounterId: string;
   mode?: PlayMapMode;
   view?: PlayViewState;
   /** A portrait armed in the unplaced tray: the next press on the map seats it. */
   placingId?: string | null;
+  /** The token the DM is moving: whose turn it is until they pick another. */
+  selectedId?: string | null;
+  /** Several tokens selected to move together (Shift); empty when only `selectedId` is. */
+  groupIds?: string[];
+  /** Read for each character's speed. */
+  partyMembers?: readonly Pick<PartyMember, "id" | "speed">[];
 }>();
 
 const emit = defineEmits<{
@@ -170,6 +203,9 @@ const emit = defineEmits<{
   unplaced: [combatants: RunCombatant[]];
   placed: [instanceId: string];
   "cancel-placing": [];
+  /** The DM picked a token on the map (null: Esc cleared the selection and the sheet follows the turn again). */
+  select: [instanceId: string | null];
+  "update:groupIds": [instanceIds: string[]];
 }>();
 
 const store = useEncounterRunStore();
@@ -253,12 +289,47 @@ const shape = ref<BrushShape>("round");
 const size = ref<BrushSize>(3);
 const radius = ref<DarknessRadius>(15);
 
+const moves = usePlayTokenMoves({
+  state,
+  store,
+  selectedId: () => selectedId,
+  groupIds: () => groupIds,
+  partyMembers: () => partyMembers,
+  canEdit,
+  tool,
+  placing: () => placingId !== null,
+  select: (id) => emit("select", id),
+  selectGroup: (ids) => emit("update:groupIds", ids),
+});
+const { selection, preview } = moves;
+
+// Esc backs out one level at a time: an armed portrait, else the selection.
+function onEscape() {
+  if (placingId !== null) {
+    emit("cancel-placing");
+    return;
+  }
+  moves.clearSelection();
+}
+
+const ARROWS = { arrowup: [0, -1], arrowdown: [0, 1], arrowleft: [-1, 0], arrowright: [1, 0] } as const;
+
 useHotkeys(
   () => [
     { combo: PLAY_TOOL_KEYS.move, description: "Move tool", handler: () => (tool.value = "move") },
     { combo: PLAY_TOOL_KEYS.fog, description: "Fog tool", handler: () => (tool.value = "fog") },
     { combo: PLAY_TOOL_KEYS.darkness, description: "Darkness tool", handler: () => (tool.value = "darkness") },
-    { combo: "escape", description: "Stop placing", hidden: true, handler: () => emit("cancel-placing") },
+    { combo: "escape", description: "Clear the selection", hidden: true, handler: onEscape },
+    { combo: "mod+z", description: "Take back the last move", handler: (e) => { e.preventDefault(); moves.undoMove("last"); } },
+    ...Object.entries(ARROWS).map(([combo, [dx, dy]]) => ({
+      combo,
+      description: "Step the selected token one square",
+      hidden: true,
+      handler: (e: KeyboardEvent) => {
+        e.preventDefault();
+        moves.stepSelected(dx, dy);
+      },
+    })),
   ],
   { enabled: () => canEdit.value },
 );
@@ -282,6 +353,9 @@ function brushedCells(clientX: number, clientY: number): Set<FogCellKey> {
 // A draggable token takes its own press (BattleMapTokenLayer stops it), so this only sees presses on
 // the bare map. A stroke that starts here is a brush stroke for as long as the pointer is down.
 const brushing = ref(false);
+/** Where a pan or a box began: a release that never left it is a click on a square. */
+const press = ref<{ x: number; y: number; kind: "pan" | "box" } | null>(null);
+const boxEnd = ref<{ x: number; y: number } | null>(null);
 
 function onPointerDown(e: PointerEvent) {
   const at = imageCellAt(e.clientX, e.clientY);
@@ -291,10 +365,19 @@ function onPointerDown(e: PointerEvent) {
     tool: tool.value,
     onDoor: at !== null && state.doorIdAt(at.x, at.y) !== null,
     placing: placingId !== null,
+    shift: e.shiftKey,
   });
+  moves.hover.value = null;
   if (action === "none") return;
   if (action === "pan") {
+    press.value = { x: e.clientX, y: e.clientY, kind: "pan" };
     startPan(e);
+    return;
+  }
+  if (action === "box-select") {
+    press.value = { x: e.clientX, y: e.clientY, kind: "box" };
+    boxEnd.value = { x: e.clientX, y: e.clientY };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     return;
   }
   if (action === "brush") {
@@ -314,13 +397,56 @@ function onPointerMove(e: PointerEvent) {
     state.paintFog(brushedCells(e.clientX, e.clientY), fogKind.value);
     return;
   }
+  if (press.value?.kind === "box") {
+    boxEnd.value = { x: e.clientX, y: e.clientY };
+    return;
+  }
+  if (e.buttons === 0) {
+    moves.hover.value = canEdit.value ? imageCellAt(e.clientX, e.clientY) : null;
+    return;
+  }
+  moves.hover.value = null;
   continuePan(e);
 }
 
 function onPointerUp(e: PointerEvent) {
+  const pressed = press.value;
+  press.value = null;
+  boxEnd.value = null;
+  brushing.value = false;
+  if (pressed?.kind === "box") {
+    const down = pressed;
+    if (isClick(down, { x: e.clientX, y: e.clientY })) moves.addWaypoint(imageCellAt(e.clientX, e.clientY));
+    else moves.selectBox(imageCellAt(down.x, down.y), imageCellAt(e.clientX, e.clientY));
+    return;
+  }
+  endPan(e);
+  // A press on a square that never moved is a move there (a pan that travelled is only a pan).
+  if (pressed?.kind === "pan" && isClick(pressed, { x: e.clientX, y: e.clientY })) moves.clickSquare(imageCellAt(e.clientX, e.clientY));
+}
+
+function onPointerLeave(e: PointerEvent) {
+  moves.hover.value = null;
+  press.value = null;
+  boxEnd.value = null;
   brushing.value = false;
   endPan(e);
 }
+
+// The Shift-drag selection box, in host pixels.
+const boxStyle = computed(() => {
+  const start = press.value;
+  const end = boxEnd.value;
+  const host = canvasHost.value;
+  if (start?.kind !== "box" || !end || !host || isClick(start, end)) return null;
+  const rect = host.getBoundingClientRect();
+  return {
+    left: `${Math.min(start.x, end.x) - rect.left}px`,
+    top: `${Math.min(start.y, end.y) - rect.top}px`,
+    width: `${Math.abs(end.x - start.x)}px`,
+    height: `${Math.abs(end.y - start.y)}px`,
+  };
+});
 
 // ── Placing a combatant that has no square ────────────────────────────────
 
@@ -347,7 +473,9 @@ const hint = computed(() => {
   if (!canEdit.value) return "";
   const armed = placingId ? state.combatants.value.find((c) => c.instance_id === placingId) : null;
   if (armed) return `Click a square to place ${armed.name}. Esc to cancel.`;
-  return state.unplaced.value.length > 0 ? "Drag a portrait onto the map to place it." : "";
+  if (state.unplaced.value.length > 0) return "Drag a portrait onto the map to place it.";
+  const undoKey = isMacPlatform() ? "Cmd Z" : "Ctrl Z";
+  return `Click a square to move there, or drag. Arrow keys step one square. ${undoKey} takes it back until the turn ends.`;
 });
 
 // ── Follow the turn ───────────────────────────────────────────────────────
@@ -364,12 +492,19 @@ watch(
   },
 );
 
-defineExpose({ resetView });
+defineExpose({ resetView, backToStart: () => moves.undoMove("all") });
 </script>
 
 <style scoped>
 .play-map-ground {
   background: color-mix(in oklab, var(--color-background), black 45%);
+}
+
+.select-box {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary), transparent 88%);
 }
 
 .hidden-loader {

@@ -21,7 +21,47 @@
 
     <main class="min-h-0 flex-1 overflow-y-auto px-3 py-4">
       <div class="mx-auto flex max-w-3xl flex-col gap-3">
-        <MapLayersPanel v-if="layer === 'picture'" :location="location" />
+        <div v-if="layer === 'picture'" class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <!-- The picture, fitted. Lining the grid up lays the amber grid over it, as in the site editor's Picture layer. -->
+          <div class="relative h-[60vh] min-h-64 overflow-hidden rounded-md border border-border bg-muted/30">
+            <MapGridLineUp
+              v-if="liningUp && natural && draft && location.map_url"
+              v-model="draft"
+              :natural="natural"
+              :box-mode="boxMode"
+              :hint="`${Number(draft.cells_per_image_width.toFixed(1))} squares across. Drag the grid to line it up; arrow keys nudge it a pixel.`"
+              @box-done="boxMode = false"
+            >
+              <img :src="location.map_url" alt="" draggable="false" class="absolute inset-0 size-full object-contain" />
+            </MapGridLineUp>
+            <img v-else-if="location.map_url" :src="location.map_url" :alt="`Map of ${location.name}`" class="size-full object-contain" />
+            <p v-else class="flex size-full items-center justify-center px-4 text-center text-body text-muted-foreground">
+              No picture yet. Upload a scan, a screenshot or a render, then pin what is on it.
+            </p>
+          </div>
+
+          <aside class="flex flex-col gap-3 rounded-md border border-border bg-card p-3" aria-label="Picture">
+            <h2 class="text-label-lg font-semibold text-foreground">{{ liningUp ? "Line up the grid" : "Picture" }}</h2>
+            <template v-if="liningUp && natural && draft">
+              <PictureGridFields v-model="draft" v-model:box-mode="boxMode" :natural="natural" />
+              <div class="flex items-center gap-1.5">
+                <AppButton variant="primary" size="sm" label="Done" @click="finishLineUp" />
+                <AppButton variant="ghost" fill="muted" size="sm" label="Cancel" @click="cancelLineUp" />
+              </div>
+            </template>
+            <MapPictureControls
+              v-else
+              :has-picture="!!location.map_url"
+              :moving="picture.motion !== null"
+              :battle-map="location.is_battle_map"
+              :busy="pictureWrites.busy.value"
+              @upload="pictureWrites.setPicture"
+              @remove="pictureWrites.removePicture"
+              @line-up="startLineUp"
+              @update:battle-map="pictureWrites.setBattleMap"
+            />
+          </aside>
+        </div>
         <template v-else>
           <PlaceMapPinsEditor
             v-if="hasMap"
@@ -39,16 +79,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import MapLayersPanel from "@/components/locations/map/MapLayersPanel.vue";
+import MapGridLineUp from "@/components/cartographer/MapGridLineUp.vue";
+import PictureGridFields from "@/components/cartographer/PictureGridFields.vue";
+import MapPictureControls from "@/components/locations/map/MapPictureControls.vue";
 import PlaceMapPinsEditor from "@/components/locations/map/PlaceMapPinsEditor.vue";
 import { IconChevronLeft, IconImage, IconPin } from "@/lib/icons";
+import { usePlacePicture } from "@/composables/locations/usePlacePicture";
+import { DEFAULT_SQUARES_ACROSS, calibrationFor, type ImageSize } from "@/lib/mapBring/pictureGrid";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { placeRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
-import type { Location, LocationSummary } from "@/types/location.types";
+import type { GridCalibration, Location, LocationSummary } from "@/types/location.types";
 
 const { location, startLayer } = defineProps<{
   location: Location;
@@ -69,7 +113,44 @@ const LAYER_OPTIONS = [
 
 const layer = ref<"picture" | "pins">(startLayer === "pins" ? "pins" : "picture");
 
-const hasMap = computed(() => buildMapStack(location).hasAnyLayer);
+const picture = computed(() => buildMapStack(location));
+const hasMap = computed(() => picture.value.hasAnyLayer);
+
+// ── The Picture: its writes, and lining its grid up ─────────────────────────
+const pictureWrites = usePlacePicture(() => location);
+const natural = ref<ImageSize | null>(null);
+const liningUp = ref(false);
+const draft = ref<GridCalibration | null>(null);
+const boxMode = ref(false);
+
+watch(
+  () => location.map_url,
+  (url) => {
+    natural.value = null;
+    cancelLineUp();
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => { natural.value = { width: img.naturalWidth, height: img.naturalHeight }; };
+    img.src = url;
+  },
+  { immediate: true },
+);
+
+function startLineUp(): void {
+  if (!natural.value) return;
+  draft.value = location.grid_calibration ? { ...location.grid_calibration } : calibrationFor(natural.value, DEFAULT_SQUARES_ACROSS);
+  boxMode.value = false;
+  liningUp.value = true;
+}
+function cancelLineUp(): void {
+  liningUp.value = false;
+  draft.value = null;
+  boxMode.value = false;
+}
+function finishLineUp(): void {
+  if (draft.value) void pictureWrites.setCalibration(draft.value);
+  cancelLineUp();
+}
 
 function onSelect(id: string): void {
   void router.push(placeRoute(id));

@@ -28,7 +28,7 @@
         v-else-if="location && image && imageReady"
         :host-w="hostW"
         :host-h="hostH"
-        :layers="{ imageUrl: image.url, standUrl, standLiveUrl, live }"
+        :layers="{ imageUrl: image.url, standUrl, standLiveUrl, live, picture, motion: null }"
         :pan-x="panX"
         :pan-y="panY"
         :image-w="imageNaturalW * scale"
@@ -99,6 +99,7 @@ import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
 import { AMBIENT, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { sameDoorStates } from "@/lib/battlemap/doors";
 import { currentMapLive } from "@/lib/battlemap/liveLayer";
+import { pictureUnderDrawing } from "@/lib/battlemap/roomBridge";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
 import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
@@ -144,10 +145,11 @@ const { data: location } = usePlayerVisibleLocation(locationIdRef);
 // has one, else its Picture (#884: never `location.map_url` directly, or a
 // Drawing-only battle map would render nothing).
 const image = computed(() => primaryImage(location.value));
-// The snapshot is in the Drawing's image cells, so it only applies when the Drawing is what is on screen.
-const live = computed(() =>
-  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? currentMapLive(location.value.map_live) : null,
-);
+// The snapshot is in the cells of whatever is on screen: the Drawing, or a Picture with no Drawing (same rule as
+// `resolveBattleSurface`, which the DM's map uses).
+const live = computed(() => (location.value ? currentMapLive(location.value.map_live) : null));
+// The Picture under the Drawing (#1125 decision 8), when both are calibrated. Players never get a moving Picture.
+const picture = computed(() => pictureUnderDrawing(location.value));
 
 // The standing half rides with the Drawing the same way; a hand-calibrated Picture has none.
 const standUrl = computed(() =>

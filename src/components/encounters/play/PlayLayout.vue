@@ -24,7 +24,7 @@
     <div class="relative flex min-h-0 flex-1">
       <!-- Initiative, and whoever the map has no square for. -->
       <aside class="flex w-64 shrink-0 flex-col border-r border-border bg-card" aria-label="Initiative">
-        <h2 class="px-3 pt-3 text-eyebrow uppercase tracking-wide text-muted-foreground">Initiative</h2>
+        <h2 class="px-3 pt-3 text-eyebrow uppercase text-muted-foreground">Initiative</h2>
         <PlayInitiativeList :selected-id="shownId" @select="onSelect" />
         <PlayUnplacedTray :combatants="unplaced" :factions="store.factions" :armed-id="placingId" @arm="placingId = $event" />
       </aside>
@@ -35,6 +35,11 @@
           :encounter-id="encounterId"
           :view="view"
           :placing-id="placingId"
+          :selected-id="shownId"
+          :group-ids="groupIds"
+          :party-members="partyMembers"
+          @select="onMapSelect"
+          @update:group-ids="groupIds = $event"
           @unplaced="unplaced = $event"
           @placed="placingId = null"
           @cancel-placing="placingId = null"
@@ -44,14 +49,32 @@
       <!-- The selected combatant's detail; whose turn it is when nobody was picked. -->
       <ResizeHandle @mousedown="startMouse" @touchstart="startTouch" />
       <aside class="flex min-h-0 shrink-0 flex-col overflow-hidden bg-card" :style="{ width: detailWidth + 'px' }" aria-label="Detail">
-        <RunnerEntityDetail
-          v-if="shownId !== null || selectedTrapId !== null"
-          :selected-id="shownId"
-          :selected-trap-id="selectedTrapId"
-          :monsters="store.availableMonsters"
+        <PlayTurnCard
+          v-if="showTurnCard"
           :party-members="partyMembers"
-          @close="onCloseDetail"
+          @back-to-start="map?.backToStart()"
+          @open-sheet="fullSheet = true"
         />
+        <template v-else-if="shownId !== null || selectedTrapId !== null">
+          <!-- Looking at someone else's sheet, or the turn card's full sheet: one tap back to the turn. -->
+          <AppButton
+            v-if="canReturnToTurn"
+            class="m-2 self-start"
+            variant="link"
+            size="inline"
+            :icon="IconChevronLeft"
+            :label="`Back to ${store.activeCombatant?.name}'s turn`"
+            data-testid="back-to-turn"
+            @click="backToTurn"
+          />
+          <RunnerEntityDetail
+            :selected-id="shownId"
+            :selected-trap-id="selectedTrapId"
+            :monsters="store.availableMonsters"
+            :party-members="partyMembers"
+            @close="onCloseDetail"
+          />
+        </template>
         <p v-else class="p-4 text-body text-muted-foreground">Pick someone in the initiative column to see their sheet.</p>
       </aside>
 
@@ -66,8 +89,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconChevronLeft } from "@/lib/icons";
+import { useAppUiStore } from "@/stores/ui/app";
 import ResizeHandle from "@/components/common/layout/ResizeHandle.vue";
 import { useDetailResize } from "@/composables/encounters/useDetailResize";
 import type { ComplicationMode } from "@/ai/useComplicationGeneration";
@@ -79,6 +105,7 @@ import PlayBar from "./PlayBar.vue";
 import PlayInitiativeList from "./PlayInitiativeList.vue";
 import PlayMap from "./PlayMap.vue";
 import PlayToolsSheet from "./PlayToolsSheet.vue";
+import PlayTurnCard from "./PlayTurnCard.vue";
 import PlayUnplacedTray from "./PlayUnplacedTray.vue";
 import { DEFAULT_PLAY_VIEW, type PlayViewState } from "./playTypes";
 
@@ -119,22 +146,61 @@ const placingId = ref<string | null>(null);
 const map = ref<InstanceType<typeof PlayMap> | null>(null);
 const { detailWidth, startMouse, startTouch } = useDetailResize(320);
 
+// The Play screen is the whole window: the app's sidebar and top bar give way (as for Edit map), and the bar's
+// "Encounters" is the way out. Only this layout; the classic runner and the phone keep the shell.
+const appUi = useAppUiStore();
+onMounted(() => {
+  appUi.editorFocus = true;
+});
+onBeforeUnmount(() => {
+  appUi.editorFocus = false;
+});
+
 // Nobody picked: the sheet is whose turn it is, and follows the turn. A trap in view replaces it.
 const shownId = computed(() => {
   if (selectedTrapId.value !== null) return null;
   return selectedId.value ?? store.activeCombatant?.instance_id ?? null;
 });
 
-// A pick lasts until the turn moves on; then the sheet follows the turn again.
+// Tokens picked together on the map (Shift); the primary one is `selectedId`.
+const groupIds = ref<string[]>([]);
+// Looking at the turn-taker's full sheet instead of their card.
+const fullSheet = ref(false);
+
+// A pick lasts until the turn moves on; then the selection follows the turn again.
 watch(
   () => store.activeCombatant?.instance_id,
   () => {
     selectedId.value = null;
+    groupIds.value = [];
+    fullSheet.value = false;
   },
 );
 
+// Whose turn it is gets the turn card, whatever the sheet would otherwise show; anyone else gets their sheet.
+const showTurnCard = computed(
+  () => store.started && !fullSheet.value && selectedTrapId.value === null && shownId.value !== null && shownId.value === store.activeCombatant?.instance_id,
+);
+const canReturnToTurn = computed(
+  () => store.started && store.activeCombatant !== null && selectedTrapId.value === null && (fullSheet.value || shownId.value !== store.activeCombatant.instance_id),
+);
+
+function backToTurn() {
+  fullSheet.value = false;
+  selectedId.value = null;
+  groupIds.value = [];
+}
+
 function onSelect(id: string) {
   selectedTrapId.value = null;
+  fullSheet.value = false;
+  selectedId.value = id;
+  groupIds.value = [];
+}
+
+function onMapSelect(id: string | null) {
+  selectedTrapId.value = null;
+  fullSheet.value = false;
   selectedId.value = id;
 }
 
@@ -146,5 +212,6 @@ function onPickTrap(id: string | null) {
 function onCloseDetail() {
   selectedId.value = null;
   selectedTrapId.value = null;
+  fullSheet.value = false;
 }
 </script>

@@ -333,6 +333,43 @@ describe("conditions, flags and pools", () => {
     expect(find(moved.state, "m").conditions[1]).toMatchObject({ ends: { armed: false } });
   });
 
+  // #1125 decision 10/11: the turn card's tallies belong to one turn only.
+  it("a new turn starts with full speed, action and bonus action", () => {
+    const list = [
+      combatant("a", { initiative: 20 }),
+      combatant("b", { initiative: 5, movement_used: 25, action_used: true, bonus_used: true }),
+    ];
+    const { state } = run(stateOf(list), { type: "next_turn" });
+    expect(find(state, "b")).toMatchObject({ movement_used: 0, action_used: false, bonus_used: false });
+  });
+
+  it("the turn's tallies of someone whose turn is not starting are left alone", () => {
+    const list = [combatant("a", { initiative: 20, movement_used: 15, action_used: true }), combatant("b", { initiative: 5 })];
+    const { state } = run(stateOf(list), { type: "next_turn" });
+    expect(find(state, "a")).toMatchObject({ movement_used: 15, action_used: true });
+  });
+
+  it("moves add up over a turn, and an undo takes exactly its own feet back", () => {
+    const s = stateOf([combatant("m")]);
+    const one = run(s, { type: "record_move", instanceId: "m", feet: 20 }).state;
+    const two = run(one, { type: "record_move", instanceId: "m", feet: 10 }).state;
+    expect(find(two, "m").movement_used).toBe(30);
+    expect(find(run(two, { type: "undo_move", instanceId: "m", feet: 10 }).state, "m").movement_used).toBe(20);
+  });
+
+  it("an undo never leaves less than nothing moved", () => {
+    const s = stateOf([combatant("m", { movement_used: 5 })]);
+    expect(find(run(s, { type: "undo_move", instanceId: "m", feet: 20 }).state, "m").movement_used).toBe(0);
+  });
+
+  it("marks and clears the action and the bonus action on their own", () => {
+    const s = stateOf([combatant("m")]);
+    const used = run(run(s, { type: "set_action_used", instanceId: "m", used: true }).state, { type: "set_bonus_used", instanceId: "m", used: true }).state;
+    expect(find(used, "m")).toMatchObject({ action_used: true, bonus_used: true });
+    const cleared = run(used, { type: "set_action_used", instanceId: "m", used: false }).state;
+    expect(find(cleared, "m")).toMatchObject({ action_used: false, bonus_used: true });
+  });
+
   it("toggles surprise and reaction", () => {
     const s = stateOf([combatant("m")]);
     expect(find(run(s, { type: "toggle_surprised", instanceId: "m" }).state, "m").surprised).toBe(true);

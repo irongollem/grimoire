@@ -4,11 +4,14 @@
       v-for="tok in renderedTokens"
       :key="tok.combatant.instance_id"
       class="token"
-      :class="{ 'token-dead': tok.dead, 'token-draggable': tok.draggable }"
+      :class="{ 'token-dead': tok.dead, 'token-draggable': tok.draggable, 'token-selected': tok.selected }"
       :style="tokenStyle(tok)"
-      :title="tok.silhouette ? undefined : tok.combatant.name"
+      :aria-label="tok.silhouette ? undefined : tok.combatant.name"
       @pointerdown="tok.draggable ? onTokenPointerDown(tok.combatant.instance_id, $event) : undefined"
     >
+      <!-- The name rides the token: a native title tooltip stayed where the token had been after a drag.
+           A silhouetted token has none, or hovering it would hand a player the name the canvas hides. -->
+      <span v-if="!tok.silhouette" class="token-name">{{ tok.combatant.name }}</span>
       <canvas
         :ref="(el) => registerCanvas(tok.combatant.instance_id, el as HTMLCanvasElement | null)"
         :width="canvasPx(tok.footprint)"
@@ -45,7 +48,10 @@ const {
   silhouetteUnseen = false,
   portraitOverrides = null,
   figures = null,
+  selectedInstanceIds = null,
   onPositionChange,
+  onSelect,
+  onDragPreview,
 } = defineProps<{
   hostW: number;
   hostH: number;
@@ -75,7 +81,13 @@ const {
   /** When true, combatants with reveal_state="unseen" render the "???"
    *  silhouette (player view). DM view leaves this false. */
   silhouetteUnseen?: boolean;
+  /** Tokens drawn with the selection ring (the Play screen's selection, shared with its initiative list). */
+  selectedInstanceIds?: ReadonlySet<string> | null;
   onPositionChange?: (instanceId: string, position: { x: number; y: number }) => void;
+  /** A press-and-release on a token that did not move it. `additive` is Shift: add to or drop from the selection. */
+  onSelect?: (instanceId: string, additive: boolean) => void;
+  /** The square a dragged token would land on, whenever it changes while dragging; null when the drag ends. */
+  onDragPreview?: (instanceId: string, position: { x: number; y: number } | null) => void;
 }>();
 
 // Token canvases render at a fixed pixel resolution per footprint cell.
@@ -86,9 +98,15 @@ function canvasPx(footprint: number): number {
   return TOKEN_CANVAS_PX_PER_CELL * footprint;
 }
 
+/** A press that travels less than this many pixels is a click, not a drag. */
+const CLICK_SLOP_PX = 4;
+
 interface DraggingToken {
   instanceId: string;
   pointerId: number;
+  shift: boolean;
+  /** The last square reported to `onDragPreview`, so a pointer move inside one square reports nothing. */
+  previewKey: string;
   startPxX: number;
   startPxY: number;
   startClientX: number;
@@ -122,6 +140,7 @@ interface RenderedToken {
   imageFit: "cover" | "contain";
   /** The character's own doll, when it has one: wins over imageUrl. */
   figure: TokenFigure | null;
+  selected: boolean;
 }
 
 // O(1) lookup maps. Without these, every renderedTokens recompute (60×/s
@@ -236,6 +255,7 @@ const renderedTokens = computed<RenderedToken[]>(() => {
       active: c.instance_id === activeInstanceId,
       dead: c.hp <= 0 && c.type === "monster",
       draggable: isDraggable(c.instance_id),
+      selected: selectedInstanceIds?.has(c.instance_id) ?? false,
       silhouette: silhouetteUnseen && (c.reveal_state ?? "revealed") === "unseen",
       imageUrl,
       imageFit,
@@ -329,9 +349,14 @@ function onTokenPointerDown(instanceId: string, e: PointerEvent) {
   e.preventDefault();
   const tok = renderedTokens.value.find((t) => t.combatant.instance_id === instanceId);
   if (!tok) return;
+  // Picking a token up selects it, unless it is already part of the selection (a group is dragged as one) or Shift
+  // is held (that edits the selection on release, once it is known not to be a drag).
+  if (!e.shiftKey && !tok.selected) onSelect?.(instanceId, false);
   dragging.value = {
     instanceId,
     pointerId: e.pointerId,
+    shift: e.shiftKey,
+    previewKey: "",
     startPxX: tok.pxX,
     startPxY: tok.pxY,
     startClientX: e.clientX,
@@ -353,6 +378,26 @@ function onWindowPointerMove(e: PointerEvent) {
     x: drag.startPxX + dx,
     y: drag.startPxY + dy,
   };
+  if (!onDragPreview || Math.hypot(dx, dy) < CLICK_SLOP_PX) return;
+  const tok = renderedTokens.value.find((t) => t.combatant.instance_id === drag.instanceId);
+  if (!tok) return;
+  const at = snappedCell(tok);
+  const key = `${at.x},${at.y}`;
+  if (key === drag.previewKey) return;
+  drag.previewKey = key;
+  onDragPreview(drag.instanceId, at);
+}
+
+/** The cell a token's current (dragged) pixel position would snap to. */
+function snappedCell(tok: RenderedToken): { x: number; y: number } {
+  return snapPixelToCell({
+    pixelX: tok.pxX + (tok.footprint * cellPx) / 2,
+    pixelY: tok.pxY + (tok.footprint * cellPx) / 2,
+    cellPx,
+    originX,
+    originY,
+    footprint: tok.footprint,
+  });
 }
 
 function onWindowPointerUp(e: PointerEvent) {
@@ -363,21 +408,14 @@ function onWindowPointerUp(e: PointerEvent) {
     cleanupDrag();
     return;
   }
-  const dropCenterX = tok.pxX + (tok.footprint * cellPx) / 2;
-  const dropCenterY = tok.pxY + (tok.footprint * cellPx) / 2;
-  const snapped = snapPixelToCell({
-    pixelX: dropCenterX,
-    pixelY: dropCenterY,
-    cellPx,
-    originX,
-    originY,
-    footprint: tok.footprint,
-  });
-  onPositionChange?.(drag.instanceId, snapped);
+  const travelled = Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY);
+  if (travelled < CLICK_SLOP_PX) onSelect?.(drag.instanceId, drag.shift);
+  else onPositionChange?.(drag.instanceId, snappedCell(tok));
   cleanupDrag();
 }
 
 function cleanupDrag() {
+  if (dragging.value) onDragPreview?.(dragging.value.instanceId, null);
   dragging.value = null;
   dragOverridePx.value = null;
   window.removeEventListener("pointermove", onWindowPointerMove);
@@ -414,6 +452,37 @@ function tokenStyle(tok: RenderedToken): Record<string, string> {
 
 .token-draggable {
   cursor: grab;
+}
+
+.token-selected {
+  border-radius: 9999px;
+  box-shadow: 0 0 0 0.1875rem var(--color-primary);
+}
+
+/* The name rides under the token, so it moves with it; shown on hover and for the selected token. */
+.token-name {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 1;
+  max-width: 10rem;
+  transform: translate(-50%, 0.25rem);
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, var(--color-card), transparent 8%);
+  color: var(--color-foreground);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.token:hover .token-name,
+.token-selected .token-name {
+  opacity: 1;
 }
 
 .token-draggable:active {

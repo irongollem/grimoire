@@ -1051,6 +1051,29 @@ describe("Plan layer", () => {
   });
 });
 
+// ── Picture layer (#1125, canvas frame 07) ─────────────────────────────────
+describe("Picture layer", () => {
+  it("a press pans the view and paints nothing: the picture is placed from its palette, not with the floor tool", async () => {
+    const activeLayer = ref<"drawing" | "plan" | "picture">("picture");
+    const { editor, layers } = makeHarness({ plan: fakePlan(), activeLayer });
+    await nextTick();
+    editor.onPointerDown(down(10, 10));
+    expect(editor.isPanning.value).toBe(true);
+    editor.onPointerUp(up(10, 10));
+    expect(Object.keys(layers.value.floor)).toHaveLength(0);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("paints again once the Drawing is the layer", async () => {
+    const activeLayer = ref<"drawing" | "plan" | "picture">("picture");
+    const { editor, layers } = makeHarness({ plan: fakePlan(), activeLayer });
+    activeLayer.value = "drawing";
+    await nextTick();
+    clickCell(editor, 10, 10);
+    expect(Object.keys(layers.value.floor)).toHaveLength(1);
+  });
+});
+
 // ── Touch: two fingers pan and pinch, one finger paints ─────────────────
 
 describe("touch", () => {

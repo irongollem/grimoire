@@ -12,10 +12,16 @@
       :save-state="saveState"
       :menu-actions="menuActions"
       :review-count="siteStaleness?.behind"
-      :start-layer="startLayer === 'drawing' || startLayer === 'plan' ? startLayer : undefined"
+      :start-layer="requestedLayer"
+      :default-name="location.name"
+      :picture-busy="picture.busy.value"
       @update:dirty="autosave.onDirtyChange"
       @update:edit-revision="autosave.onEditRevision"
       @menu-action="onMenuAction"
+      @picture-upload="picture.setPicture"
+      @picture-remove="picture.removePicture"
+      @update:picture-calibration="picture.setCalibration"
+      @update:is-battle-map="picture.setBattleMap"
     >
       <template #bar-start="{ mapName, setName }">
         <AppButton
@@ -47,40 +53,7 @@
           @add="onAddLevel"
         />
       </template>
-      <!-- Until the workbench has a Picture layer of its own, the Picture
-           (upload, calibrate, remove, battle map, player preview) is this
-           host-side drawer. -->
-      <template #bar-end>
-        <AppButton
-          variant="outline"
-          size="sm"
-          class="shrink-0"
-          :icon="IconImage"
-          label="Picture"
-          :active="pictureOpen"
-          @click="pictureOpen = !pictureOpen"
-        />
-      </template>
     </MapWorkbench>
-
-    <aside
-      v-if="pictureOpen"
-      data-slip
-      class="absolute right-4 top-16 z-40 max-h-[calc(100dvh-6rem)] w-[min(28rem,calc(100vw-2rem))] overflow-y-auto rounded-md bg-card p-1 shadow-lg"
-      aria-label="Picture"
-    >
-      <MapLayersPanel
-        site
-        :location="location"
-        :map="siteSourceMap"
-        :staleness="siteStaleness"
-        :counts="siteLayerCounts"
-        :styling="styleGenerating"
-        @open-drawing="onOpenDrawing"
-        @review-changes="openPublish"
-        @style-with-ai="openStyle"
-      />
-    </aside>
 
     <PaywallModal v-model="showLevelPaywall" resource="locations" />
 
@@ -137,14 +110,13 @@
  * publish / style / download / delete.
  */
 import { computed, onBeforeUnmount, ref } from "vue";
-import { onBeforeRouteLeave, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
-import MapLayersPanel from "@/components/locations/map/MapLayersPanel.vue";
 import SiteLevelPicker from "@/components/locations/site/SiteLevelPicker.vue";
 import { bakeMapAsPng } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
@@ -154,14 +126,15 @@ import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
-import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
+import { usePlacePicture } from "@/composables/locations/usePlacePicture";
 import { useSeededMap } from "@/composables/locations/useSeededMap";
 import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
 import { useSiteMapExtras, useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { IconChevronLeft, IconImage } from "@/lib/icons";
+import { IconChevronLeft } from "@/lib/icons";
 import { downloadBlob } from "@/lib/downloadBlob";
+import { exportDrawingAsVtt } from "@/lib/mapBring/exportDrawing";
 import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
@@ -194,11 +167,7 @@ const mapStack = computed(() => buildMapStack(location));
 // ── The Drawing and its autosave ────────────────────────────────────────────
 const locationRef = computed(() => location);
 const structure = useSiteStructure(locationRef);
-const {
-  staleness: siteStaleness,
-  sourceMap: siteSourceMapQuery,
-  layerCounts: siteLayerCounts,
-} = useSiteMapExtras(locationRef, structure);
+const { staleness: siteStaleness, sourceMap: siteSourceMapQuery } = useSiteMapExtras(locationRef, structure);
 const siteSourceMap = computed(() => siteSourceMapQuery.data.value);
 
 const autosave = useSiteDrawingEditor(locationRef, siteSourceMap);
@@ -217,13 +186,17 @@ const saveState = computed(() => (autosave.saving.value ? "Saving…" : autosave
 onBeforeUnmount(() => { void autosave.flush(); });
 onBeforeRouteLeave(async () => { await autosave.flush(); });
 
-// ── Picture drawer ──────────────────────────────────────────────────────────
-const pictureOpen = ref(startLayer === "picture");
+// ── Picture layer ───────────────────────────────────────────────────────────
+// Every write the Picture palette asks for. The workbench only draws it.
+const picture = usePlacePicture(() => location);
 
-const { openDrawing } = useOpenSiteDrawing();
-function onOpenDrawing(): void {
-  void openDrawing(location);
-}
+/** The layer named in the address, or none: the workbench then opens where the site's map needs work (a picture with
+ *  no grid opens on the Picture), which the route's own default of the Drawing cannot know. */
+const route = useRoute();
+const requestedLayer = computed(() => {
+  if (route.query.layer === undefined) return undefined;
+  return startLayer === "drawing" || startLayer === "plan" || startLayer === "picture" ? startLayer : undefined;
+});
 
 // ── Levels ──────────────────────────────────────────────────────────────────
 const levelsInfo = computed(() => levelsOf(index, location));
@@ -323,6 +296,21 @@ async function downloadPng(): Promise<void> {
   }
 }
 
+async function exportVtt(): Promise<void> {
+  await autosave.flush();
+  const map = liveMap();
+  const wb = workbenchRef.value;
+  if (!map || !wb) {
+    toast.info("Draw something first, then export it.");
+    return;
+  }
+  try {
+    await exportDrawingAsVtt(map, wb.getRuntimes(), await wb.loadDressingCatalog(), wb.getCellGlyphs(), wb.getName() || location.name);
+  } catch (e) {
+    toast.error(toast.fromError(e));
+  }
+}
+
 const { mutateAsync: updateLocation } = useUpdateLocation();
 const deleteMap = useDeleteDungeonMap();
 
@@ -358,7 +346,7 @@ async function deleteDrawing(): Promise<void> {
 // works on that row.
 const menuActions = computed<MapMenuAction[]>(() =>
   location.source_map_id
-    ? [...(campaignAiEnabled.value ? (["style"] as const) : []), "review", "download", "delete"]
+    ? [...(campaignAiEnabled.value ? (["style"] as const) : []), "review", "download", "export-vtt", "delete"]
     : [],
 );
 
@@ -366,6 +354,7 @@ function onMenuAction(action: MapMenuAction): void {
   if (action === "style") void openStyle();
   else if (action === "review") void openPublish();
   else if (action === "download") void downloadPng();
+  else if (action === "export-vtt") void exportVtt();
   else if (action === "delete") void deleteDrawing();
 }
 </script>

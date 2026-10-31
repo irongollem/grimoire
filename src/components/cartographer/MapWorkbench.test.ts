@@ -382,6 +382,100 @@ describe("MapWorkbench", () => {
 
   // #889 S6 — the picker used to be a hardcoded BUNDLED_PACKS array; it now
   // reads the `library_tile_packs` table via `useLibraryTilePacks`.
+  // #1125 canvas frame 07: the Picture is a layer of its own, and an uncalibrated one is fitted, not black.
+  describe("the Picture layer (#1125)", () => {
+    const uncalibrated: MapStackSource & { id: string; is_battle_map: boolean } = {
+      ...siteWithPicture,
+      id: "karkholok",
+      grid_calibration: null,
+      is_battle_map: false,
+    };
+
+    /** An image that decodes at once to a 3000 x 2000 picture, which jsdom never does. */
+    class DecodedImage {
+      naturalWidth = 3000;
+      naturalHeight = 2000;
+      onload: (() => void) | null = null;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    }
+    beforeEach(() => { vi.stubGlobal("Image", DecodedImage); });
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    const mountPicture = async (site: MapStackSource & { id: string; is_battle_map?: boolean }, extra: object = {}) => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site, ...extra }, ...editModeStubs });
+      await flushPromises();
+      return wrapper;
+    };
+    const press = (wrapper: ReturnType<typeof mount>, label: string) =>
+      wrapper.findAll("button").find((b) => b.text() === label)!.trigger("click");
+
+    it("offers Picture, Drawing and Plan, in that order", async () => {
+      const wrapper = await mountPicture(uncalibrated);
+      const labels = wrapper.findAll("button").map((b) => b.text()).filter((t) => ["Picture", "Drawing", "Plan"].includes(t));
+      expect(labels).toEqual(["Picture", "Drawing", "Plan"]);
+    });
+
+    it("opens a site whose only map is a picture with no grid on the Picture, not on a black canvas", async () => {
+      const wrapper = await mountPicture(uncalibrated);
+      expect(wrapper.find("[data-slip]").text()).toContain("Line up the grid to trace and draw over it.");
+      expect(wrapper.find('img[alt="The picture under this map"]').exists()).toBe(true);
+    });
+
+    it("still opens on the Plan for a picture that has its grid (nothing to line up)", async () => {
+      const wrapper = await mountPicture({ ...siteWithPicture, is_battle_map: false });
+      expect(tool(wrapper, "Claim")).toBe(true);
+    });
+
+    it("lines the grid up on the picture and hands the host the result only when Done is pressed", async () => {
+      const wrapper = await mountPicture(uncalibrated);
+      await press(wrapper, "Line up the grid");
+      expect(wrapper.findComponent({ name: "MapGridLineUp" }).exists()).toBe(true);
+      expect(wrapper.emitted("update:pictureCalibration")).toBeUndefined();
+
+      await press(wrapper, "Done");
+      const [written] = wrapper.emitted("update:pictureCalibration")![0] as [{ cells_per_image_width: number }];
+      expect(written.cells_per_image_width).toBe(30);
+      expect(wrapper.findComponent({ name: "MapGridLineUp" }).exists()).toBe(false);
+    });
+
+    it("throws the grid away on Cancel", async () => {
+      const wrapper = await mountPicture(uncalibrated);
+      await press(wrapper, "Line up the grid");
+      await press(wrapper, "Cancel");
+      expect(wrapper.emitted("update:pictureCalibration")).toBeUndefined();
+    });
+
+    it("keeps the origin cell a publish wrote when the grid is lined up again", async () => {
+      const styled = { ...siteWithPicture, is_battle_map: false, grid_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 4, origin_cell_y: 7 } };
+      const wrapper = await mountPicture(styled, { startLayer: "picture" });
+      await press(wrapper, "Line up the grid");
+      // Changing the count rebuilds the grid; the origin cell is not part of what the DM is lining up.
+      const across = wrapper.find('input[aria-label="Squares across"]');
+      await across.setValue("20");
+      await across.trigger("change");
+      await press(wrapper, "Done");
+      expect(wrapper.emitted("update:pictureCalibration")![0][0]).toMatchObject({ cells_per_image_width: 20, origin_cell_x: 4, origin_cell_y: 7 });
+    });
+
+    it("hands the host the upload, the removal and the battle-map flag; it writes none of them itself", async () => {
+      const wrapper = await mountPicture({ ...uncalibrated, is_battle_map: true });
+      await press(wrapper, "Remove");
+      expect(wrapper.emitted("picture-remove")).toHaveLength(1);
+      const file = new File(["x"], "m.png", { type: "image/png" });
+      const input = wrapper.find('input[type="file"]');
+      Object.defineProperty(input.element, "files", { value: [file] });
+      await input.trigger("change");
+      expect(wrapper.emitted("picture-upload")![0]).toEqual([file]);
+      await wrapper.find('input[type="checkbox"]').setValue(false);
+      expect(wrapper.emitted("update:isBattleMap")![0]).toEqual([false]);
+    });
+
+    it("names an unnamed drawing after the site, not 'Untitled Map'", async () => {
+      const wrapper = await mountPicture(siteWithNoImagery, { map: null, defaultName: "Karkholok" });
+      expect((wrapper.vm as unknown as { getName(): string }).getName()).toBe("Karkholok");
+    });
+  });
+
   describe("tile-pack picker reads the library table (#889 S6)", () => {
     it("offers published library packs instead of a hardcoded list, and excludes drafts", async () => {
       mockLibraryRows.value = [

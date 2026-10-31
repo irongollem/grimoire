@@ -16,6 +16,8 @@ import {
 } from "@/lib/battlemap/fogMask";
 import { zoneIdAt } from "@/lib/battlemap/darkness";
 import { doorAt, effectiveDoors, sameDoorStates, toggleDoor } from "@/lib/battlemap/doors";
+import { occludersOf } from "@/lib/battlemap/occlusion";
+import type { MoveTerrain } from "@/lib/battlemap/movement";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
@@ -208,6 +210,15 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     { immediate: true },
   );
 
+  /** What a move crosses: the difficult zones the map draws, and the walls and closed doors a big token can wedge in. */
+  const moveTerrain = computed<MoveTerrain>(() => {
+    const live = surface.value?.live;
+    return {
+      difficult: new Set(terrainZones.value.flatMap((z) => z.battleCells)),
+      walls: live ? occludersOf(live, doorStates.value).segments : [],
+    };
+  });
+
   /** Why there is no map to draw yet, or null when there is one. */
   const loadingState = computed(() => {
     if (!encounter.value) return "Loading encounter…";
@@ -243,6 +254,7 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     location,
     focusRoom,
     terrainZones,
+    moveTerrain,
     isLive,
     following,
     combatants,

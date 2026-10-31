@@ -26,7 +26,7 @@
 // themselves are inputs a surface supplies (from `location_state_events` or
 // a live encounter), never something this module fetches.
 
-import type { GridCalibration, Location } from "@/types/location.types";
+import type { GridCalibration, Location, MapMotion } from "@/types/location.types";
 
 /** Pixel size of one cell in a blank grid's plan — there is no image to
  *  derive a size from, so this is simply the constant every blank-grid
@@ -36,7 +36,11 @@ export const BLANK_CELL_PX = 64;
 export type MapStackSource = Pick<
   Location,
   "map_url" | "grid_calibration" | "map_layer_url" | "map_layer_stand_url" | "map_layer_calibration" | "plan_size"
->;
+> & {
+  /** Optional: a player projection has neither, and a moving Picture needs both (the id is the file's key). */
+  id?: string;
+  map_motion?: MapMotion | null;
+};
 
 export type MapLayerKind = "picture" | "drawing";
 
@@ -98,6 +102,9 @@ export interface MapStack {
   /** picture || drawing || blank. Does NOT consider `is_battle_map` —
    *  callers AND that themselves, as they did before this module existed. */
   hasAnyLayer: boolean;
+  /** The Picture moves (#1125 decision 6): its file lives on the DM's device under `key`, `map_url` is the still.
+   *  Null for a still Picture, and always null on the player side. */
+  motion: { key: string; motion: MapMotion } | null;
 }
 
 const EMPTY_STACK: MapStack = {
@@ -108,6 +115,7 @@ const EMPTY_STACK: MapStack = {
   frameCalibration: null,
   blank: null,
   hasAnyLayer: false,
+  motion: null,
 };
 
 /** A blank grid has no image to calibrate against, so its frame calibration
@@ -157,6 +165,8 @@ export function buildMapStack(loc: MapStackSource | null | undefined): MapStack 
     frameCalibration: frameCal,
     blank,
     hasAnyLayer: !!picture || !!drawing || !!blank,
+    // The file is keyed by the place id; a source without an id (a player projection) cannot have one.
+    motion: picture && loc.map_motion && loc.id ? { key: loc.id, motion: loc.map_motion } : null,
   };
 }
 
@@ -200,8 +210,17 @@ export function placePicture(
   const drawing = stack.drawing;
   const picture = stack.picture;
   if (!drawing || !picture || !drawing.calibration || !picture.calibration) return null;
-  const P = drawing.calibration;
-  const S = picture.calibration;
+  return placeCalibrated(drawing.calibration, picture.calibration, primaryNatural, pictureNatural);
+}
+
+/** `placePicture` for a caller that holds the two calibrations rather than a whole stack (the battle map). Only the
+ *  aspect ratios of the two natural sizes matter, so a drawn size in screen px works as well as the natural one. */
+export function placeCalibrated(
+  P: GridCalibration,
+  S: GridCalibration,
+  primaryNatural: { w: number; h: number },
+  pictureNatural: { w: number; h: number },
+): PlacedRect | null {
   if (P.cells_per_image_width <= 0 || S.cells_per_image_width <= 0) return null;
   if (primaryNatural.w <= 0 || primaryNatural.h <= 0 || pictureNatural.w <= 0 || pictureNatural.h <= 0) {
     return null;

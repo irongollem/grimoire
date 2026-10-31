@@ -19,6 +19,8 @@ export interface PlayViewState {
   asPlayer: boolean;
   /** Pan the map to whoever's turn it is when the turn changes. */
   followTurn: boolean;
+  /** The key to the map's colours and zones, in the map's corner. */
+  showLegend: boolean;
 }
 
 export const DEFAULT_PLAY_VIEW: PlayViewState = {
@@ -29,6 +31,7 @@ export const DEFAULT_PLAY_VIEW: PlayViewState = {
   showGrid: true,
   asPlayer: false,
   followTurn: false,
+  showLegend: false,
 };
 
 /** The key that arms each tool; PlayMap binds them and PlayToolbelt prints them. */

@@ -11,6 +11,7 @@
       :view-mode="false"
       :save-state="saveState"
       :menu-actions="menuActions"
+      :frame="frame"
       @update:dirty="autosave.onDirtyChange"
       @update:edit-revision="autosave.onEditRevision"
       @menu-action="onMenuAction"
@@ -116,9 +117,12 @@ import { bakeMapAsPng } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import type { MapMenuAction } from "@/cartographer/tools";
 import { downloadBlob } from "@/lib/downloadBlob";
+import { exportDrawingAsVtt } from "@/lib/mapBring/exportDrawing";
+import { useToast } from "@/composables/useToast";
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const mapId = computed(() => {
   const p = route.params.id;
@@ -127,7 +131,6 @@ const mapId = computed(() => {
 // The AI Style control is hidden, not disabled, while the campaign owner has AI off.
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
-const isNew = computed(() => !mapId.value);
 
 // Editing takes the screen: the shell hides its sidebar and bars while this is
 // mounted, and gives them back the moment the map is left.
@@ -135,15 +138,21 @@ const appUi = useAppUiStore();
 appUi.editorFocus = true;
 onBeforeUnmount(() => { appUi.editorFocus = false; });
 
+// "Start a map" passes the size the DM asked for (`?size=30x20`) as the view an empty map opens on.
+const frame = computed(() => {
+  const m = typeof route.query.size === "string" ? /^(\d{1,3})x(\d{1,3})$/.exec(route.query.size) : null;
+  return m ? { cols: Number(m[1]), rows: Number(m[2]) } : undefined;
+});
+
 const { data: map } = useDungeonMap(mapId);
 const deleteMutation = useDeleteDungeonMap();
 const { confirm } = useConfirm();
 
 const deleting = ref(false);
 
-// The first edit of `/cartographer/new` creates the row, then the address
-// becomes the map's own. The workbench already holds those edits, so the new
-// id must not be loaded back into it (`useSeededMap`).
+// "Start a map" creates the row before this opens, so an edit only ever updates it. Should its row vanish under the
+// editor (deleted elsewhere), the next save makes a fresh one and the address follows it; the workbench already holds
+// those edits, so the new id must not be loaded back into it (`useSeededMap`).
 const autosave = useDrawingAutosave({
   target: computed(() => ({ mapId: mapId.value || null, fallbackName: "Untitled Map" })),
   tags: () => map.value?.tags ?? [],
@@ -219,11 +228,10 @@ const mapPublish = useMapPublish({
   structure: () => workbenchRef.value?.getStructure() ?? { spaces: [], ways: [], stairs: [], links: [] },
 });
 
-// The bar's own save state. A new map says nothing until its first edit.
 const saveState = computed(() => {
   if (autosave.saving.value) return "Saving…";
   if (autosave.dirty.value) return "Unsaved changes";
-  return isNew.value ? "" : "Saved";
+  return "Saved";
 });
 
 // ── The Map menu ──────────────────────────────────────────────────────────
@@ -232,7 +240,8 @@ const menuActions = computed<MapMenuAction[]>(() => [
   ...(isAiEnabled.value ? (["style"] as const) : []),
   "review",
   "download",
-  ...(isNew.value ? [] : (["delete"] as const)),
+  "export-vtt",
+  "delete",
 ]);
 
 async function onMenuAction(action: MapMenuAction): Promise<void> {
@@ -245,6 +254,8 @@ async function onMenuAction(action: MapMenuAction): Promise<void> {
     mapPublish.open.value = true;
   } else if (action === "download") {
     await onDownloadPng();
+  } else if (action === "export-vtt") {
+    await onExportVtt();
   } else if (action === "delete") {
     await onDelete();
   }
@@ -263,8 +274,27 @@ async function onDownloadPng(): Promise<void> {
   }
 }
 
+async function onExportVtt(): Promise<void> {
+  if (!map.value) {
+    toast.info("Draw something first, then export it.");
+    return;
+  }
+  const wb = requireWorkbench();
+  try {
+    await exportDrawingAsVtt(
+      { ...map.value, layers: wb.getLayers(), metadata: wb.getMetadata() },
+      wb.getRuntimes(),
+      await wb.loadDressingCatalog(),
+      wb.getCellGlyphs(),
+      wb.getName() || "map",
+    );
+  } catch (e) {
+    toast.error(toast.fromError(e));
+  }
+}
+
 async function onDelete(): Promise<void> {
-  if (deleting.value || isNew.value || !mapId.value) return;
+  if (deleting.value || !mapId.value) return;
   const currentName = workbenchRef.value?.getName() ?? "";
   const ok = await confirm(`Delete "${currentName || "this map"}"? This cannot be undone.`);
   if (!ok) return;
@@ -287,8 +317,8 @@ onBeforeUnmount(() => { void autosave.flush(); });
 
 useUnsavedGuard({
   isDirty: () => (autosave.dirty.value || autosave.saving.value) && !deleting.value,
-  // The first save of a new map swaps `/cartographer/new` for the map's own
-  // address on this same component: nothing is discarded, so no prompt.
+  // A save that has to make the row again swaps the address for the map's own on this same component: nothing is
+  // discarded, so no prompt.
   survives: (to) => to.name === route.name || to.name === "cartographer-editor",
   ask: () =>
     confirm("Unsaved changes will be lost. Leave anyway?", {

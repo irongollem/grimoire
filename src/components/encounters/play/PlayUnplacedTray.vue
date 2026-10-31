@@ -1,6 +1,6 @@
 <template>
   <section v-if="combatants.length > 0" class="border-t border-border p-2" aria-labelledby="play-unplaced-title">
-    <h3 id="play-unplaced-title" class="px-1 pb-1 text-eyebrow uppercase tracking-wide text-muted-foreground">
+    <h3 id="play-unplaced-title" class="px-1 pb-1 text-eyebrow uppercase text-muted-foreground">
       Not on the map yet
     </h3>
     <ul class="flex flex-col gap-0.5">

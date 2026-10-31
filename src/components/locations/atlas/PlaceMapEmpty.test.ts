@@ -1,5 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
+import { useMapImportStore } from "@/stores/mapImport";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import PlaceMapEmpty from "./PlaceMapEmpty.vue";
 
@@ -24,6 +26,7 @@ const press = (w: ReturnType<typeof mountCard>, label: string) =>
   w.findAllComponents(AppButton).find((b) => b.props("label") === label)!.vm.$emit("click");
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   for (const m of Object.values(mocks)) m.mockReset();
   mocks.openDrawing.mockResolvedValue(undefined);
   mocks.update.mockResolvedValue({});
@@ -44,11 +47,15 @@ describe("PlaceMapEmpty", () => {
     expect(mocks.openDrawing.mock.invocationCallOrder[0]).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!);
   });
 
-  it("Bring a map opens the editor on the Picture without writing anything", async () => {
+  it("Bring a map takes a file and goes to Bring with this place as where it lives, writing nothing yet", async () => {
     const w = mountCard(true);
-    press(w, "Bring a map");
-    await flushPromises();
-    expect(mocks.push).toHaveBeenCalledWith("/locations/ash/map?layer=picture");
+    const file = new File(["x"], "ashmouth_30x20.webp", { type: "image/webp" });
+    const input = w.get('input[type="file"]');
+    Object.defineProperty(input.element, "files", { value: [file] });
+    await input.trigger("change");
+    expect(mocks.push).toHaveBeenCalledWith("/cartographer/bring");
+    expect(useMapImportStore().file).toBe(file);
+    expect(useMapImportStore().targetPlaceId).toBe("ash");
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.openDrawing).not.toHaveBeenCalled();
   });
@@ -71,17 +78,25 @@ describe("PlaceMapEmpty", () => {
     expect(mocks.toastError).toHaveBeenCalledTimes(1);
   });
 
-  it("a dropped file routes to the Picture layer", async () => {
-    const w = mountCard(true);
-    await w.get("section").trigger("drop");
-    await flushPromises();
-    expect(mocks.push).toHaveBeenCalledWith("/locations/ash/map?layer=picture");
+  it("a dropped file goes to Bring with the place locked as its home, instead of being lost", async () => {
+    const w = mountCard(false);
+    const file = new File(["x"], "daggerford.png", { type: "image/png" });
+    await w.get("section").trigger("drop", { dataTransfer: { files: [file] } });
+    expect(mocks.push).toHaveBeenCalledWith("/cartographer/bring");
+    expect(useMapImportStore().file).toBe(file);
+    expect(useMapImportStore().targetPlaceId).toBe("ash");
   });
 
-  // A town's editor has only Picture and Pins: nothing to draw, no plan to lay out.
-  it("offers a place that is not a site Bring a map alone", () => {
-    const labels = mountCard(false).findAllComponents(AppButton).map((b) => b.props("label"));
-    expect(labels).toEqual(["Bring a map"]);
+  it("choosing nothing in the file dialog does nothing", async () => {
+    const w = mountCard(true);
+    await w.get('input[type="file"]').trigger("change");
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("a drop with no file in it does nothing", async () => {
+    const w = mountCard(true);
+    await w.get("section").trigger("drop", { dataTransfer: { files: [] } });
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("says a battle map is why the Atlas shows nothing", () => {

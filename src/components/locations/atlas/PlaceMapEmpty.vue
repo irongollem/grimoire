@@ -26,18 +26,28 @@
 
     <div class="flex flex-wrap items-center justify-center gap-2">
       <AppButton v-if="isSite" variant="primary" :icon="IconEdit" label="Draw one" :disabled="busy" @click="onDraw" />
-      <AppButton :variant="isSite ? 'outline' : 'primary'" :icon="IconUpload" label="Bring a map" :disabled="busy" @click="onBring" />
+      <AppButton :variant="isSite ? 'outline' : 'primary'" :icon="IconUpload" label="Bring a map" :disabled="busy" @click="fileInput?.click()" />
       <AppButton v-if="isSite" variant="outline" :icon="IconGrid" label="Blank grid" :disabled="busy" @click="onBlankGrid" />
     </div>
 
+    <input
+      ref="fileInput"
+      type="file"
+      :accept="BRING_ACCEPT"
+      class="sr-only"
+      aria-label="Choose a map file"
+      @change="onFileChosen"
+    />
     <p class="text-caption text-muted-foreground">
-      Or drop a file here. Each opens the full-screen editor and comes back to this tab.
+      Or drop a file here: a picture, a moving map or a Universal VTT file.
     </p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { BRING_ACCEPT } from "@/lib/mapBring/bringFile";
+import { useMapImportStore } from "@/stores/mapImport";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
@@ -60,6 +70,9 @@ const { location, isSite } = defineProps<{
 
 const router = useRouter();
 const toast = useToast();
+const mapImport = useMapImportStore();
+const fileInput = ref<HTMLInputElement | null>(null);
+
 const dragging = ref(false);
 const busy = ref(false);
 
@@ -84,20 +97,28 @@ function onDraw(): Promise<void> {
   return startThen("drawing", () => openDrawing(location));
 }
 
-function onBring(): Promise<void> {
-  return startThen("picture");
-}
-
 function onBlankGrid(): Promise<void> {
   return startThen("plan", async () => {
     await updateLocation({ id: location.id, update: { plan_size: BLANK_GRID } });
   });
 }
 
-// A dropped file only routes to the Picture layer for now: handing the file
-// itself to the editor's uploader is a later story's job.
-function onDrop(): void {
+/** Hands the file to "Bring a map" with this place as where it lives: dropped on a place, it is that place's map. */
+function bring(file: File): void {
+  mapImport.hold(file, location.id);
+  void router.push("/cartographer/bring");
+}
+
+function onFileChosen(ev: Event): void {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (file) bring(file);
+}
+
+function onDrop(ev: DragEvent): void {
   dragging.value = false;
-  void onBring();
+  const file = ev.dataTransfer?.files[0];
+  if (file) bring(file);
 }
 </script>

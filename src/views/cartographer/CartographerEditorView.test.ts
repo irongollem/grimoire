@@ -23,7 +23,10 @@ const nav = vi.hoisted(() => ({
   update: vi.fn(),
   create: vi.fn(),
   nameInEditor: "Henge",
+  query: {} as Record<string, string>,
+  exportVtt: vi.fn(),
 }));
+vi.mock("@/lib/mapBring/exportDrawing", () => ({ exportDrawingAsVtt: (...a: unknown[]) => nav.exportVtt(...a) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: nav.confirm }) }));
 vi.mock("@/composables/cartographer/useDungeonMaps", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/composables/cartographer/useDungeonMaps")>()),
@@ -32,7 +35,7 @@ vi.mock("@/composables/cartographer/useDungeonMaps", async (importOriginal) => (
   useCreateDungeonMap: () => ({ mutateAsync: nav.create, isPending: { value: false } }),
 }));
 vi.mock("vue-router", () => ({
-  useRoute: () => ({ params: nav.params, query: {}, name: "cartographer-editor" }),
+  useRoute: () => ({ params: nav.params, query: nav.query, name: "cartographer-editor" }),
   useRouter: () => ({ push: nav.push, replace: nav.replace }),
   onBeforeRouteLeave: vi.fn(),
   onBeforeRouteUpdate: vi.fn(),
@@ -45,7 +48,7 @@ const map = { id: "m1", name: "Henge", rev: 3, campaign_id: null, layers: emptyL
 /** The workbench as a stand-in: it mounts a tick after the view's setup, as the real one does. */
 const MapWorkbenchStub = defineComponent({
   name: "MapWorkbench",
-  props: ["map", "viewMode", "saveState", "menuActions"],
+  props: ["map", "viewMode", "saveState", "menuActions", "frame"],
   emits: ["update:dirty", "update:editRevision", "menu-action"],
   setup(_props, { expose }) {
     const revision = 0;
@@ -99,6 +102,8 @@ describe("CartographerEditorView", () => {
     nav.update.mockResolvedValue({ id: "m1" });
     nav.create.mockResolvedValue({ id: "m9" });
     nav.nameInEditor = "Henge";
+    nav.query = {};
+    nav.exportVtt.mockReset();
   });
   afterEach(() => vi.useRealTimers());
 
@@ -132,7 +137,7 @@ describe("CartographerEditorView", () => {
     expect(nav.update).not.toHaveBeenCalled();
   });
 
-  it("creates a new map on its first edit, then moves the address to the new map instead of updating", async () => {
+  it("moves the address to a fresh row when the one it was editing is gone, instead of failing the save", async () => {
     const { workbench } = await mountEditor({ id: "", cached: false });
     workbench.vm.$emit("update:editRevision", 1);
     await vi.advanceTimersByTimeAsync(1600);
@@ -141,10 +146,34 @@ describe("CartographerEditorView", () => {
     expect(nav.replace).toHaveBeenCalledWith({ path: "/cartographer/m9" });
   });
 
+  describe("the size from Start a map", () => {
+    it("opens an empty map on the squares it was started with", async () => {
+      nav.query = { size: "30x20" };
+      expect((await mountEditor()).workbench.props("frame")).toEqual({ cols: 30, rows: 20 });
+    });
+
+    it("opens on the default view when there is no size, or one that is not a size", async () => {
+      expect((await mountEditor()).workbench.props("frame")).toBeUndefined();
+      nav.query = { size: "wide" };
+      expect((await mountEditor()).workbench.props("frame")).toBeUndefined();
+    });
+  });
+
   describe("the Map menu", () => {
-    it("offers Delete for a saved map, not for a new one", async () => {
-      expect((await mountEditor()).workbench.props("menuActions")).toContain("delete");
-      expect((await mountEditor({ id: "", cached: false })).workbench.props("menuActions")).not.toContain("delete");
+    it("exports the map for another VTT under its name, with the canvas's layers over the saved row", async () => {
+      const { workbench } = await mountEditor();
+      workbench.vm.$emit("menu-action", "export-vtt");
+      await flushPromises();
+      expect(nav.exportVtt).toHaveBeenCalledTimes(1);
+      const [exported, , , , fileName] = nav.exportVtt.mock.calls[0]!;
+      expect(exported.id).toBe("m1");
+      expect(fileName).toBe("Henge");
+    });
+
+    it("offers Delete, and Export for another VTT beside Download", async () => {
+      const actions = (await mountEditor()).workbench.props("menuActions");
+      expect(actions).toContain("delete");
+      expect(actions).toContain("export-vtt");
     });
 
     it("keeps the map when the DM backs out of the delete confirmation", async () => {

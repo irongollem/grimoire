@@ -684,11 +684,18 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/cartographer/CartographerListView.vue"),
     meta: { requiresAuth: true, title: "Cartographer" },
   },
+  // Start a map and Bring a map (#1125, frames 05 and 06) take the whole screen like the editor does.
   {
     path: "/cartographer/new",
     name: "cartographer-new",
-    component: () => import("@/views/cartographer/CartographerEditorView.vue"),
-    meta: { requiresAuth: true, title: "New Map" },
+    component: () => import("@/views/cartographer/CartographerStartView.vue"),
+    meta: { requiresAuth: true, title: "New Map", fullscreenMobile: true },
+  },
+  {
+    path: "/cartographer/bring",
+    name: "cartographer-bring",
+    component: () => import("@/views/cartographer/CartographerBringView.vue"),
+    meta: { requiresAuth: true, title: "Bring a Map", fullscreenMobile: true },
   },
   {
     path: "/cartographer/packs",
@@ -700,7 +707,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/cartographer/:id",
     name: "cartographer-editor",
     component: () => import("@/views/cartographer/CartographerEditorView.vue"),
-    meta: { requiresAuth: true, title: "Edit Map" },
+    meta: { requiresAuth: true, title: "Edit Map", fullscreenMobile: true },
   },
 
   // Loot table detail
