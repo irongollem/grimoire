@@ -1,17 +1,24 @@
 <template>
   <section
     v-if="rows.length"
-    class="mb-3 overflow-hidden rounded-lg border border-border bg-card"
+    class="@container mb-3 overflow-hidden rounded-lg border border-border bg-card"
     aria-label="Spell slots"
   >
-    <div class="grid divide-y divide-border md:grid-cols-2 md:divide-y-0">
+    <!--
+      Laid out by its own width, not the viewport's: the Hearth puts it in a third
+      of a tablet screen and the Spells page across a whole one. A row needs about
+      21rem on one line (label, four pips, count), so below that the pips drop to a
+      line of their own under the label and count, and two columns need twice that.
+    -->
+    <div class="grid divide-y divide-border @2xl:grid-cols-2 @2xl:divide-y-0">
       <div
         v-for="row in rows"
         :key="row.key"
-        class="flex min-h-11 items-center gap-2 px-3 md:border-b md:border-border md:odd:border-r"
+        class="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 px-3 pt-2 @min-[21rem]:flex @min-[21rem]:pt-0 @2xl:border-b @2xl:border-border @2xl:odd:border-r"
       >
-        <span class="w-28 shrink-0 text-label-lg font-bold text-foreground">{{ row.label }}</span>
-        <div class="flex items-center">
+        <span class="shrink-0 text-label-lg font-bold text-foreground @min-[21rem]:w-28">{{ row.label }}</span>
+        <!-- On its own line the first ring lines up with the label, not its hit area. -->
+        <div class="col-span-2 row-start-2 -ml-2.5 flex flex-wrap items-center @min-[21rem]:ml-0">
           <!--
             Stays native: the visible pip is 1rem, but the tap target has to be
             2.75rem, which no AppButton size gives a ring this small. The hit area is
