@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { putWall } from "./testWalls";
 import { curbEdges, curbPosts, drawMapContent, renderShadowLayer, variantAt } from "./drawMap";
 import type { DrawMapInput } from "./drawFrame";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
@@ -64,7 +65,9 @@ describe("drawMapContent", () => {
 
   it("draws layers in order and runs the hooks in their slots", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };
+    layers.floor[cellKey(1, 1)] = { floor: ref };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+    putWall(layers, 1, 1, "W", { ...ref, type: "wall" });
     layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "chest", variant: 0 } as never;
     layers.dressing.a = { prop_id: "table", x: 3, y: 3, rotation: 0, z: 0 };
     const catalog: DressingCatalog = new Map([
@@ -95,7 +98,9 @@ describe("drawMapContent", () => {
   describe("passes", () => {
     const passLayers = (): ReturnType<typeof emptyLayers> => {
       const layers = emptyLayers();
-      layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };
+      layers.floor[cellKey(1, 1)] = { floor: ref };
+      putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+      putWall(layers, 1, 1, "W", { ...ref, type: "wall" });
       layers.solidBlock[cellKey(3, 3)] = { pack_id: PACK, pack_version: 1, variant: 0 } as never;
       layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "chest", variant: 0 } as never;
       return layers;
@@ -189,7 +194,7 @@ describe("drawMapContent", () => {
   describe("omitLive and door leaves", () => {
     const door = (variant: number) => {
       const layers = emptyLayers();
-      layers.floor[cellKey(1, 1)] = { wallN: { ...ref, variant, type: "doorClosed" } };
+      putWall(layers, 1, 1, "N", { ...ref, variant, type: "doorClosed" });
       return layers;
     };
     const rt = () => makeRuntime(PACK, { assets: { doorLeaf: [{ variant: 0, url: "https://cdn/leaf-0.webp" }] } });
@@ -226,7 +231,9 @@ describe("drawMapContent", () => {
   it("draws joints that straddle the window border", () => {
     const layers = emptyLayers();
     // wall cell sits one cell outside the window; its joint is on the border
-    layers.floor[cellKey(6, 6)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };
+    layers.floor[cellKey(6, 6)] = { floor: ref };
+    putWall(layers, 6, 6, "N", { ...ref, type: "wall" });
+    putWall(layers, 6, 6, "W", { ...ref, type: "wall" });
     const { input: i, rec } = input(makeRuntime(PACK, { placeholders: ["wallJoint"] }), { layers });
     drawMapContent(i);
     expect(rec.fillRects).toHaveLength(1);
@@ -234,14 +241,14 @@ describe("drawMapContent", () => {
 
   describe("doors (schema 4)", () => {
     const cats = (rec: Recorder): (string | undefined)[] => rec.drawImages.map((d) => sourceOf(d)?.category);
-    const edgeLayers = (side: "wallN" | "wallW", type: "doorClosed" | "doorOpen" | "grate"): ReturnType<typeof emptyLayers> => {
+    const edgeLayers = (side: "N" | "W", type: "doorClosed" | "doorOpen" | "grate"): ReturnType<typeof emptyLayers> => {
       const layers = emptyLayers();
-      layers.floor[cellKey(1, 1)] = { [side]: { ...ref, type } };
+      putWall(layers, 1, 1, side, { ...ref, type });
       return layers;
     };
 
     it("draws a closed N door as the doorway, then an unrotated leaf", () => {
-      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("wallN", "doorClosed") });
+      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("N", "doorClosed") });
       drawMapContent(i);
       expect(cats(rec)).toEqual(["doorwayH", "doorLeaf"]);
       expect(rec.rotates).toEqual([]);
@@ -251,7 +258,7 @@ describe("drawMapContent", () => {
 
     it("swings an open N leaf by openDegrees about the hinge", () => {
       const rt = makeRuntime(PACK, { doorLeaf: { hingeX: 0.5, hingeY: 0.25, openDegrees: 60 } });
-      const { input: i, rec } = input(rt, { layers: edgeLayers("wallN", "doorOpen") });
+      const { input: i, rec } = input(rt, { layers: edgeLayers("N", "doorOpen") });
       drawMapContent(i);
       expect(cats(rec)).toEqual(["doorwayH", "doorLeaf"]);
       expect(rec.rotates).toEqual([Math.PI / 3]);
@@ -261,14 +268,14 @@ describe("drawMapContent", () => {
     });
 
     it("falls back to the schema's default hinge and swing", () => {
-      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("wallN", "doorOpen") });
+      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("N", "doorOpen") });
       drawMapContent(i);
       expect(rec.rotates).toEqual([(80 * Math.PI) / 180]);
       expect(rec.translates[1]).toEqual([32, 64]);
     });
 
     it("draws a W door as the H construction turned 90 degrees", () => {
-      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("wallW", "doorOpen") });
+      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("W", "doorOpen") });
       drawMapContent(i);
       expect(cats(rec)).toEqual(["doorwayV", "doorLeaf"]);
       expect(rec.drawImages[0]).toMatchObject({ x: 64, y: 128 });
@@ -277,7 +284,7 @@ describe("drawMapContent", () => {
     });
 
     it("draws a grate edge as edgeGrateH where a wall would draw", () => {
-      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("wallN", "grate") });
+      const { input: i, rec } = input(makeRuntime(PACK), { layers: edgeLayers("N", "grate") });
       drawMapContent(i);
       expect(cats(rec)).toEqual(["edgeGrateH"]);
       expect(rec.drawImages[0]).toMatchObject({ x: 128, y: 64 });
@@ -288,7 +295,9 @@ describe("drawMapContent", () => {
 const cats = (rec: Recorder): (string | undefined)[] => rec.drawImages.map((d) => sourceOf(d)?.category);
 const lCornerLayers = (): ReturnType<typeof emptyLayers> => {
   const layers = emptyLayers();
-  layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" }, wallW: { ...ref, type: "wall" } };
+  layers.floor[cellKey(1, 1)] = { floor: ref };
+  putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+  putWall(layers, 1, 1, "W", { ...ref, type: "wall" });
   return layers;
 };
 const water = { pack_id: PACK, pack_version: 1, variant: 0 };
@@ -325,7 +334,8 @@ describe("variantAt", () => {
 
   it("is used for floor and walls when drawing", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(3, 1)] = { floor: { ...ref, variant: 7 }, wallN: { ...ref, type: "wall", variant: 7 } };
+    layers.floor[cellKey(3, 1)] = { floor: { ...ref, variant: 7 } };
+    putWall(layers, 3, 1, "N", { ...ref, type: "wall", variant: 7 });
     const { input: i, rec } = input(rt2d, { layers });
     drawMapContent(i);
     const floor = rec.drawImages.find((d) => sourceOf(d).category === "floor");
@@ -384,11 +394,21 @@ describe("curbEdges and curbPosts", () => {
   it("gives none where the edge already carries a seg, nor between terrain cells, nor to void", () => {
     const layers = emptyLayers();
     layers.floor[cellKey(1, 1)] = floorCell;
-    layers.floor[cellKey(2, 1)] = { floor: ref, wallW: { ...ref, type: "wall" } };
+    layers.floor[cellKey(2, 1)] = { floor: ref };
+    putWall(layers, 2, 1, "W", { ...ref, type: "wall" });
     layers.floor[cellKey(3, 1)] = floorCell;
     layers.terrain[cellKey(1, 1)] = water;
     layers.terrain[cellKey(0, 1)] = water; // next to void on the far side, next to terrain here
     expect(curbEdges(layers)).toEqual([]);
+  });
+
+  it("gives a curb to an edge whose wall is hidden, since nothing is drawn there to stand in for it", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = floorCell;
+    layers.floor[cellKey(2, 1)] = floorCell;
+    layers.terrain[cellKey(1, 1)] = water;
+    putWall(layers, 2, 1, "W", { ...ref, type: "wall" }, false);
+    expect(curbEdges(layers)).toHaveLength(1);
   });
 
   it("records which side the water is on, so a curb can face it", () => {
@@ -400,7 +420,8 @@ describe("curbEdges and curbPosts", () => {
 
   it("puts a post where a curb meets a wall", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" } };
+    layers.floor[cellKey(1, 1)] = { floor: ref };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
     layers.floor[cellKey(2, 1)] = floorCell;
     layers.terrain[cellKey(1, 1)] = water;
     // the V curb on x=2 runs (2,1)-(2,2); the wall on y=1 ends at the point (2,1)
@@ -479,7 +500,8 @@ describe("curbs on the map", () => {
 describe("decals and stairs", () => {
   it("draws a wall's decal over it, turned on a V wall", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { wallN: { ...ref, type: "wall", decal: 2 }, wallW: { ...ref, type: "wall", decal: 1 } };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall", decal: 2 });
+    putWall(layers, 1, 1, "W", { ...ref, type: "wall", decal: 1 });
     const { input: i, rec } = input(makeRuntime(PACK, { categoryCounts: { wallDecal: 3 } }), { layers });
     drawMapContent(i);
     const c = cats(rec);
@@ -540,7 +562,8 @@ describe("decals and stairs", () => {
 describe("shadows", () => {
   const shadowLayers = (): ReturnType<typeof emptyLayers> => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" } };
+    layers.floor[cellKey(1, 1)] = { floor: ref };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
     layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "objectChest", variant: 0 };
     layers.object[cellKey(3, 2)] = { pack_id: PACK, pack_version: 1, category: "rubble", variant: 0 };
     layers.object[cellKey(4, 2)] = { pack_id: PACK, pack_version: 1, category: "stairsUp", variant: 0 };
@@ -650,7 +673,8 @@ describe("lights", () => {
   it("lays light over the shadows and flat things, under standing things and walls", () => {
     const f = makeLayerFactory();
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: ref, wallN: { ...ref, type: "wall" } };
+    layers.floor[cellKey(1, 1)] = { floor: ref };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
     layers.object[cellKey(3, 2)] = { pack_id: PACK, pack_version: 1, category: "rubble", variant: 0 };
     layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
     const { input: i, rec } = input(lit({ objectBrazier: [null, FIRE] }), { layers, shadows: true, lights: true, makeCanvas: f.makeCanvas });
@@ -669,8 +693,8 @@ describe("pieces that sit on the window's border", () => {
 
   it("draws a wall along the far edge of the last row and column, since those lines belong to the cells beyond", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(2, 6)] = { wallN: wall };
-    layers.floor[cellKey(6, 2)] = { wallW: wall };
+    putWall(layers, 2, 6, "N", wall);
+    putWall(layers, 6, 2, "W", wall);
     const { input: i, rec } = input(makeRuntime(PACK), { layers });
     drawMapContent(i);
     expect(cats(rec).sort()).toEqual(["wallSegmentH", "wallSegmentV"]);
@@ -724,7 +748,7 @@ describe("variantAt: where the stored variant gives way to the position", () => 
 describe("wall decals: only where one is set", () => {
   it("adds nothing to a plain wall, even in a pack that has decal art", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { wallN: { ...ref, type: "wall" } };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
     const { input: i, rec } = input(makeRuntime(PACK, { categoryCounts: { wallDecal: 2 } }), { layers });
     drawMapContent(i);
     expect(cats(rec)).not.toContain("wallDecal");
@@ -732,7 +756,7 @@ describe("wall decals: only where one is set", () => {
 
   it("adds nothing in a pack with no decal art at all, rather than a placeholder", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { wallN: { ...ref, type: "wall", decal: 1 } };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall", decal: 1 });
     const { input: i, rec } = input(makeRuntime(PACK), { layers });
     drawMapContent(i);
     expect(cats(rec)).not.toContain("wallDecal");
@@ -742,9 +766,122 @@ describe("wall decals: only where one is set", () => {
 describe("wall decals", () => {
   it("draws the first decal, index 0, as well as the others", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { wallN: { ...ref, type: "wall", decal: 0 } };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall", decal: 0 });
     const { input: i, rec } = input(makeRuntime(PACK, { categoryCounts: { wallDecal: 2 } }), { layers });
     drawMapContent(i);
     expect(cats(rec)).toContain("wallDecal");
+  });
+});
+
+// #1125 story 5: walls are segments. A wall on a grid line draws as pack edge art; an angled one is a stroked line.
+describe("angled and hidden walls", () => {
+  const cats = (rec: Recorder): (string | undefined)[] => rec.drawImages.map((d) => sourceOf(d)?.category);
+
+  it("draws a wall marked invisible in no bake: no edge art and no joint", () => {
+    const layers = emptyLayers();
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" }, false);
+    putWall(layers, 1, 1, "W", { ...ref, type: "wall" }, false);
+    const { input: i, rec } = input(makeRuntime(PACK, { placeholders: ["wallJoint"] }), { layers });
+    drawMapContent(i);
+    expect(cats(rec)).toEqual([]);
+    expect(rec.fillRects).toHaveLength(0);
+  });
+
+  it("draws an invisible wall dashed in the editor, where the DM can see and edit it", () => {
+    const layers = emptyLayers();
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" }, false);
+    const { input: i, rec } = input(makeRuntime(PACK), { layers, showHiddenWalls: true });
+    drawMapContent(i);
+    expect(cats(rec)).toEqual([]);
+    expect(rec.calls).toContain("setLineDash");
+    expect(rec.points).toEqual([[128, 128], [256, 128]]);
+  });
+
+  it("draws nothing for hidden walls when none are hidden, even in the editor", () => {
+    const layers = emptyLayers();
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+    const { input: i, rec } = input(makeRuntime(PACK), { layers, showHiddenWalls: true });
+    drawMapContent(i);
+    expect(rec.calls).not.toContain("setLineDash");
+  });
+
+  it("strokes an angled wall as a line between its end points, in the pack's wall tone", () => {
+    const layers = emptyLayers();
+    layers.walls.slant = { ...ref, type: "wall", a: [1, 1], b: [3, 2] };
+    const rt = makeRuntime(PACK, { palette: { wallSegmentH: [7, 8, 9] } });
+    const { input: i, rec } = input(rt, { layers });
+    drawMapContent(i);
+    expect(rec.points).toEqual([[128, 128], [384, 256]]);
+    expect(rec.strokeStyles).toContain("rgb(7,8,9)");
+    expect(cats(rec)).toEqual([]); // no edge tile: art is one tile per grid edge
+  });
+
+  it("falls back to stone ink for an angled wall whose pack declares no palette", () => {
+    const layers = emptyLayers();
+    layers.walls.slant = { ...ref, type: "wall", a: [1, 1], b: [3, 2] };
+    const { input: i, rec } = input(makeRuntime(PACK), { layers });
+    drawMapContent(i);
+    expect(rec.strokeStyles).toContain("rgb(40,36,32)");
+  });
+
+  it("draws an angled door as two posts and a leaf turned to the wall's angle", () => {
+    const layers = emptyLayers();
+    layers.walls.door = { ...ref, type: "doorClosed", a: [1, 1], b: [2, 2] };
+    const { input: i, rec } = input(makeRuntime(PACK), { layers });
+    drawMapContent(i);
+    expect(rec.rotates[0]).toBeCloseTo(Math.PI / 4);
+    expect(rec.fillRects).toHaveLength(1);
+    expect(rec.fillRects[0].w).toBeCloseTo(Math.SQRT2 * 128);
+  });
+
+  it("swings an open angled door a quarter turn off the wall's line", () => {
+    const layers = emptyLayers();
+    layers.walls.door = { ...ref, type: "doorOpen", a: [1, 1], b: [3, 1] };
+    const { input: i, rec } = input(makeRuntime(PACK), { layers });
+    drawMapContent(i);
+    expect(rec.rotates[0]).toBeCloseTo(Math.PI / 2);
+  });
+
+  it("skips an angled wall that lies far outside the draw window", () => {
+    const layers = emptyLayers();
+    layers.walls.far = { ...ref, type: "wall", a: [40, 40], b: [42, 41] };
+    const { input: i, rec } = input(makeRuntime(PACK), { layers });
+    drawMapContent(i);
+    expect(rec.points).toEqual([]);
+  });
+
+  // The corner at grid point (1,1) has four arms: west and east along the row, north and south down the column.
+  it.each([
+    ["west", 0, 1, "N"],
+    ["east", 1, 1, "N"],
+    ["north", 1, 0, "W"],
+    ["south", 1, 1, "W"],
+  ] as const)("gives no corner when the %s arm is hidden and the only other arm is on the other axis", (_arm, hx, hy, hSide) => {
+    const layers = emptyLayers();
+    putWall(layers, hx, hy, hSide, { ...ref, type: "wall" }, false);
+    // One visible arm across the other axis, so a drawn arm would make an L.
+    if (hSide === "N") putWall(layers, 1, 1, "W", { ...ref, type: "wall" });
+    else putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+    const { input: i, rec } = input(makeRuntime(PACK, { placeholders: ["wallJoint"] }), { layers });
+    drawMapContent(i);
+    expect(rec.fillRects).toHaveLength(0);
+  });
+
+  it("draws an angled wall marked invisible in no bake", () => {
+    const layers = emptyLayers();
+    layers.walls.ghost = { ...ref, type: "wall", a: [1, 1], b: [3, 2], visible: false };
+    const { input: i, rec } = input(makeRuntime(PACK), { layers });
+    drawMapContent(i);
+    expect(rec.points).toEqual([]);
+  });
+
+  it("keeps hidden walls out of the shadows, even when the editor shows them", () => {
+    const layers = emptyLayers();
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" }, false);
+    layers.walls.ghost = { ...ref, type: "wall", a: [1, 1], b: [3, 2], visible: false };
+    const f = makeLayerFactory();
+    const { input: i } = input(makeRuntime(PACK), { layers, shadows: true, showHiddenWalls: true, makeCanvas: f.makeCanvas });
+    renderShadowLayer(i);
+    for (const layer of f.layers) expect(layer.rec.calls).not.toContain("setLineDash");
   });
 });

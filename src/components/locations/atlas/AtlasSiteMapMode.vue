@@ -1,240 +1,132 @@
 <template>
   <div class="flex flex-col gap-3">
-    <!-- The Layers panel (#884, S5) — what this place's map is made of.
-         Build-only: every action here edits the stack, and Browse has
-         nothing here to edit. On a site its Drawing row says everything
-         `SiteMapSourceStrip` used to (name, rev, staleness) — that strip is
-         retired app-wide, so this is the only surface reporting it. Any other
-         place (#958) gets the Picture row alone: that is where its first map
-         comes from. -->
-    <MapLayersPanel
-      v-if="building"
-      :site="isSite"
-      :location="location"
-      :map="siteSourceMap"
-      :staleness="siteStaleness"
-      :counts="siteLayerCounts"
-      :styling="styleGenerating"
-      @open-drawing="onOpenDrawing"
-      @review-changes="onReviewChanges"
-      @style-with-ai="onStyleWithAi"
-    />
-
-    <!-- Build mode (#884 S11): the workbench IS the Build map area — the
-         Cartographer, embedded, with its Plan palette tracing this site's
-         spaces/zones/doors directly, on the site's own Drawing or a blank
-         grid alike (`map` is null until one exists; the Plan needs no
-         image under it at all — see MapWorkbench's own docblock). Folds the
-         levels column so the workbench gets the pane's full width (the
-         levels ride on the canvas as `SiteLevelPicker` instead),
-         same as Map mode already folds the Atlas tree. -->
-    <!-- Tall enough to be worth building on: the workbench fills this box. -->
-    <div v-if="building && isSite" class="relative min-w-0 h-[max(32rem,calc(100dvh-10rem))]">
-      <!-- Keyed by place: the workbench reads its map once, so moving to
-           another site while in Build (a level switch, a pin, the tree) kept
-           the previous site's drawing on the canvas, and the first stroke
-           would have autosaved it as the new site's map. -->
-      <MapWorkbench
-        :key="location.id"
-        ref="drawingWorkbenchRef"
-        :map="siteSourceMap ?? null"
-        :view-mode="false"
-        :site="location"
-        :spaces="siteSpaces"
-        :save-state="buildSaveState"
-        @update:dirty="drawingEditor.onDirtyChange"
-        @update:edit-revision="drawingEditor.onEditRevision"
-      >
-        <!-- Build folds the levels column away, so the levels ride in the workbench's bar
-             instead: without this a DM drawing one floor could not see or reach the others. -->
-        <template #bar-start>
-          <SiteLevelPicker
-            v-if="isSite"
-            :levels="buildLevels"
-            :active-id="location.id"
-            :adding="isAddingLevel"
-            @select="onBuildLevelSelect"
-            @add="onBuildAddLevel"
-          />
-        </template>
-      </MapWorkbench>
+    <!-- A place's map as it is read (#1125, frames 03 and 04). Changing the
+         map is the gilt Edit map button, which leaves for the full-screen
+         editor and comes back to this tab. -->
+    <!-- "<site> › Level N · <name> [chip]" (#868, frame 06) — the stairs
+         chip travels with the level it counts, in the same trail row, rather
+         than as a standalone line the map otherwise has to make room for. -->
+    <div v-if="showLevelsRail" class="flex items-center gap-1.5 text-caption text-muted-foreground">
+      <span class="truncate">{{ levelsContainer?.name }}</span>
+      <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/50" />
+      <span class="truncate font-semibold text-foreground">Level {{ currentLevelOrdinal }} · {{ location.name }}</span>
+      <span class="ml-1 flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">
+        <IconStairs class="h-3 w-3 shrink-0" aria-hidden="true" />
+        {{ verticalWaysCount }} stair{{ verticalWaysCount === 1 ? "" : "s" }} down
+      </span>
     </div>
 
-    <!-- Build on a place that is not a site (#958): no workbench, since it has
-         no plan to trace. Its pins are edited in place, live, once there is a
-         map to put them on; until then the Layers panel above is the whole
-         story, same as a mapless site. -->
-    <template v-else-if="building">
-      <PlaceMapPinsEditor
-        v-if="mapStack.hasAnyLayer"
+    <div class="flex items-start gap-3">
+      <!-- "A level is a sibling site" (#868, frame 06) — assigned by the
+           DM (`is_level`, migration `20260928195128`), read off this
+           site's own children, or its parent's when this place IS one of
+           them. -->
+      <SiteLevelsColumn
+        v-if="showLevelsRail"
         :location="location"
-        :locations="allLocations"
-        @select="emit('select', $event)"
+        :index="index"
+        :children="children"
+        @select="onLevelSelect"
       />
-    </template>
 
-    <template v-else>
-      <!-- "<site> › Level N · <name> [chip]" (#868, frame 06) — the stairs
-           chip travels with the level it counts, in the same trail row, rather
-           than as a standalone line the map otherwise has to make room for. -->
-      <div v-if="showLevelsRail" class="flex items-center gap-1.5 text-caption text-muted-foreground">
-        <span class="truncate">{{ levelsContainer?.name }}</span>
-        <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/50" />
-        <span class="truncate font-semibold text-foreground">Level {{ currentLevelOrdinal }} · {{ location.name }}</span>
-        <span class="ml-1 flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">
-          <IconStairs class="h-3 w-3 shrink-0" aria-hidden="true" />
-          {{ verticalWaysCount }} stair{{ verticalWaysCount === 1 ? "" : "s" }} down
-        </span>
-      </div>
-
-      <div class="flex items-start gap-3">
-        <!-- "A level is a sibling site" (#868, frame 06) — assigned by the
-             DM (`is_level`, migration `20260928195128`), read off this
-             site's own children, or its parent's when this place IS one of
-             them. -->
-        <SiteLevelsColumn
-          v-if="showLevelsRail"
-          :location="location"
-          :index="index"
+      <!-- The parent mounts this component once `hasMap` holds, so a layer
+           exists here; the guard stays because `LocationMap` needs a real
+           stack to draw. -->
+      <div v-if="mapStack.hasAnyLayer" class="relative min-w-0 flex-1">
+        <LocationMap
+          ref="mapRef"
+          :stack="mapStack"
+          :pins="location.map_pins"
           :children="children"
-          @select="onLevelSelect"
-        />
-
-        <!-- Browse only (Build took the branches above). The parent mounts
-             this component in Browse once `hasMap` holds, so a layer exists
-             here; the guard stays because `LocationMap` needs a real stack
-             to draw. -->
-        <div v-if="mapStack.hasAnyLayer" class="relative min-w-0 flex-1">
-          <LocationMap
-            ref="mapRef"
-            :stack="mapStack"
-            :pins="location.map_pins"
-            :children="children"
-            mode="view"
-            show-hidden-pins
-            compact
-            :offer-peek="false"
-            :location-id="location.id"
-            :show-regions="isSite"
-            :regions="siteRegions"
-            :spaces="siteSpaces"
-            :show-layer-bar="false"
-            :measuring="measure.measuring.value"
-            :route-points="measure.points.value"
-            @measure-point="measure.addPoint"
-            @pin-click="descendTo"
-            @pin-go="descendTo"
-            @pin-watch="descendTo"
-            @descend="onDescendRegion"
-          >
-            <!--
-              Up one level, in the map's own idiom. Rendered through this
-              slot rather than as a sibling of `LocationMap` — a sibling
-              positions against the whole component's box, which since
-              #868's layer bar/tracing banner started rendering above the
-              frame is no longer the same box as the map itself.
-            -->
-            <template #frame-overlay>
-              <AppButton
-                v-if="ascendTarget && !zoomPlan"
-                variant="subtle"
-                size="xs"
-                class="absolute top-2 left-2 z-30 max-w-56 bg-background/85 backdrop-blur-sm"
-                :icon="IconChevronUp"
-                :label="`Up to ${ascendTarget.name}`"
-                @click="ascend"
-              />
+          mode="view"
+          show-hidden-pins
+          compact
+          :offer-peek="false"
+          :show-regions="isSite"
+          :regions="siteRegions"
+          :spaces="siteSpaces"
+          :show-layer-bar="false"
+          :measuring="measure.measuring.value"
+          :route-points="measure.points.value"
+          @measure-point="measure.addPoint"
+          @pin-click="descendTo"
+          @pin-go="descendTo"
+          @pin-watch="descendTo"
+          @descend="onRegionClick"
+        >
+          <!--
+            Up one level, in the map's own idiom. Rendered through this
+            slot rather than as a sibling of `LocationMap` — a sibling
+            positions against the whole component's box, which since
+            #868's layer bar/tracing banner started rendering above the
+            frame is no longer the same box as the map itself.
+          -->
+          <template #frame-overlay>
+            <AppButton
+              v-if="ascendTarget && !zoomPlan"
+              variant="subtle"
+              size="xs"
+              class="absolute top-2 left-2 z-30 max-w-56 bg-background/85 backdrop-blur-sm"
+              :icon="IconChevronUp"
+              :label="`Up to ${ascendTarget.name}`"
+              @click="ascend"
+            />
+            <div v-if="!zoomPlan" class="absolute top-2 right-2 z-30 flex items-center gap-1.5">
               <!-- Measure (#932): places with pins only. A site is measured in
                    feet on its own grid, not miles on a scaled map. -->
               <AppButton
-                v-if="!isSite && !zoomPlan"
+                v-if="!isSite"
                 variant="subtle"
                 size="xs"
-                class="absolute top-2 right-2 z-30 bg-background/85 backdrop-blur-sm"
+                class="bg-background/85 backdrop-blur-sm"
                 :icon="IconRuler"
                 :active="measure.measuring.value"
                 label="Measure"
                 @click="measure.toggle()"
               />
-            </template>
+              <!-- The one way into changing the map (#1125, frames 03 and 04). -->
+              <AppButton variant="primary" size="xs" :icon="IconEdit" label="Edit map" @click="editMap" />
+            </div>
+          </template>
 
-            <template #aside>
-              <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" />
-            </template>
-          </LocationMap>
+          <template #aside>
+            <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" />
+          </template>
+        </LocationMap>
 
-          <MapMeasurePanel
-            v-if="measure.measuring.value && !isSite"
-            v-model:pace="measure.paceId.value"
-            class="mt-3"
-            :scale="measureScale"
-            :points="measure.points.value"
-            :summary="measure.summary.value"
-            @undo="measure.undo()"
-            @clear="measure.clear()"
-            @close="measure.stop()"
-          />
+        <!-- Clicking a room opens its card; the dive into the room is the
+             card's own button (#1125, frame 03). -->
+        <SiteRoomCard
+          v-if="openRoom"
+          :key="openRoom.id"
+          class="mt-3"
+          :room="openRoom"
+          @open="onOpenRoom"
+          @close="openRoomId = null"
+        />
 
-          <AtlasMapZoom
-            v-if="zoomPlan"
-            :plan="zoomPlan"
-            :settling="zoomSettling"
-            compact
-            @done="finishDescent"
-          />
-        </div>
+        <MapMeasurePanel
+          v-if="measure.measuring.value && !isSite"
+          v-model:pace="measure.paceId.value"
+          :location-id="location.id"
+          class="mt-3"
+          :scale="measureScale"
+          :points="measure.points.value"
+          :summary="measure.summary.value"
+          @undo="measure.undo()"
+          @clear="measure.clear()"
+          @close="measure.stop()"
+        />
+
+        <AtlasMapZoom
+          v-if="zoomPlan"
+          :plan="zoomPlan"
+          :settling="zoomSettling"
+          compact
+          @done="finishDescent"
+        />
       </div>
-    </template>
-
-    <PaywallModal v-model="showLevelPaywall" resource="locations" />
-
-    <!-- The embedded workbench's own Publish (#884 S11) — "Review N changes"
-         on the Layers panel above opens this in place, replacing the old
-         `/cartographer/:id?publishTo=` round trip. Mounted unconditionally
-         (like the Plan/drawing composables it reads), gated purely by
-         `:model-value`, so it never tears down mid-flow. -->
-    <CartographerPublishModal
-      v-if="isSite"
-      v-model="mapPublish.open.value"
-      v-model:target-site-id="mapPublish.targetSiteId.value"
-      :site-context="mapPublish.siteContext.value"
-      :stair-targets="mapPublish.stairTargets.value"
-      :review="mapPublish.review.value"
-      @pick-stair-target="(cellKey, id) => (mapPublish.stairTargets.value = { ...mapPublish.stairTargets.value, [cellKey]: id })"
-      @publish="mapPublish.publish()"
-    />
-
-    <!-- Style with AI (#884 decision 1) — the Layers panel's Drawing row
-         opens this in place, target fixed to this site: no `EntityCombobox`,
-         see `useMapExport`'s `site` option. -->
-    <CartographerAiStyleModal
-      v-if="isSite"
-      v-model:atlasLocationId="styleAtlasLocationId"
-      :show-picker="showStylePicker && campaignAiEnabled"
-      :show-result="showStyleResult"
-      :presets="CARTOGRAPHER_STYLE_PRESETS"
-      :selected-preset-id="selectedPresetId"
-      :prompt-suffix="stylePromptSuffix"
-      :generating="styleGenerating"
-      :error="styleError"
-      :result-url="styleResultUrl"
-      :location-options="NO_LOCATION_OPTIONS"
-      :fixed-target-label="styleFixedTargetLabel"
-      :atlas-target-has-map="styleAtlasTargetHasMap"
-      :atlas-error="styleAtlasError"
-      :atlas-saving="styleAtlasSaving"
-      :credits="styleCost"
-      :byok="styleByok"
-      @close-picker="showStylePicker = false"
-      @close-result="showStyleResult = false"
-      @generate="onGenerateStyle"
-      @retry="onRetryStyle"
-      @back-to-picker="showStyleResult = false; showStylePicker = true"
-      @download-styled="onDownloadStyled"
-      @save-to-atlas="onSaveStyledToAtlas"
-      @update:selected-preset-id="selectedPresetId = $event"
-      @update:prompt-suffix="stylePromptSuffix = $event"
-    />
+    </div>
   </div>
 </template>
 
@@ -243,7 +135,7 @@
  * The Atlas pane's map mode (#868, S6) — split out of `AtlasPlacePane.vue`
  * once that file's template pushed past the 300-line soft max. Everything
  * here is specific to *looking at a place's drawing*: the trail line naming
- * the level being viewed, the staleness strip, the map itself with its
+ * the level being viewed, the map itself with its
  * up-one-level overlay and Ways-out aside, and the zoom transition between
  * two maps. The levels sidebar itself (rail, vertical ways-out, reuse panel)
  * moved to `SiteLevelsColumn` (#868, S5b) so a second caller could mount the
@@ -253,7 +145,8 @@
  * trail line above needs them too, and they're cheap synchronous
  * derivations off the `index` this component already has. `AtlasPlacePane`
  * keeps identity, the Contents/Map toggle row, and Contents mode — the
- * parts that render whether or not this place has a map at all.
+ * parts that render whether or not this place has a map at all. Editing the
+ * map is not here: its Edit map button leaves for `PlaceMapEditorView` (#1125).
  *
  * Two distinct outward events rather than one: `select` is an ordinary
  * jump (a sibling level in the rail, or landing after an ascend/pin
@@ -264,58 +157,35 @@
  * is real at the point each event is emitted, and cheap to keep honest.
  */
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
-import { onBeforeRouteLeave } from "vue-router";
+import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AtlasMapZoom from "@/components/locations/atlas/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/site/SiteLevelsColumn.vue";
-import MapLayersPanel from "@/components/locations/map/MapLayersPanel.vue";
 import MapMeasurePanel from "@/components/locations/map/MapMeasurePanel.vue";
-import PlaceMapPinsEditor from "@/components/locations/map/PlaceMapPinsEditor.vue";
+import SiteRoomCard from "@/components/locations/site/SiteRoomCard.vue";
 import SiteWaysOutPanel from "@/components/locations/site/SiteWaysOutPanel.vue";
-import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
-import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
-import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
-import SiteLevelPicker from "@/components/locations/site/SiteLevelPicker.vue";
-import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
-import { useAddSiteLevel } from "@/composables/locations/useAddSiteLevel";
-import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
-import { useCampaignStore } from "@/stores/campaign";
-import { useMapExport } from "@/composables/cartographer/useMapExport";
-import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { useLocation } from "@/composables/locations/useLocations";
 import { useMapMeasure } from "@/composables/locations/useMapMeasure";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
-import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
-import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
-import { useSiteMapExtras, useSiteStructure } from "@/composables/locations/useSiteStructure";
-import { IconChevronRight, IconChevronUp, IconRuler, IconStairs } from "@/lib/icons";
+import { useSiteStructure } from "@/composables/locations/useSiteStructure";
+import { IconChevronRight, IconChevronUp, IconEdit, IconRuler, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { parseMapScale } from "@/lib/locations/mapScale";
 import { buildMapStack } from "@/lib/locations/mapStack";
+import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
 import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import type { AtlasIndex } from "@/lib/locations/tree";
 import type { Location, LocationSummary } from "@/types/location.types";
 
-/** `CartographerAiStyleModal`'s `locationOptions` prop is unused whenever
- *  `fixedTargetLabel` is set (as it always is here) — a stable module-scope
- *  constant rather than `[]` inline in the template, which would recreate
- *  the array every render for a prop nothing reads. */
-const NO_LOCATION_OPTIONS: { id: string; name: string }[] = [];
-
-const campaignStore = useCampaignStore();
-const campaignAiEnabled = computed(() => campaignStore.isAiEnabled);
-
-const { location, index, children, building = false } = defineProps<{
-  /** Only ever mounted once the caller has confirmed `hasMap` or Build — never null. */
+const { location, index, children } = defineProps<{
+  /** Only ever mounted once the caller has confirmed `hasMap` — never null. */
   location: Location;
   index: AtlasIndex;
   children: LocationSummary[];
-  /** Build mode (#884): the plan edits in place instead of only reading. */
-  building?: boolean;
 }>();
 
 const emit = defineEmits<{ select: [id: string]; descend: [id: string] }>();
@@ -339,13 +209,18 @@ const measure = useMapMeasure({
   },
 });
 watch(() => location.id, measure.stop);
-watch(() => building, (isBuilding) => {
-  if (isBuilding) measure.stop();
-});
 
-/** Every place, for the pins editor's candidate walk (`getPinnableDescendants`
- *  reaches below direct children through vague containers). */
-const allLocations = computed(() => [...index.byId.values()]);
+// ── Edit map (#1125) — the full-screen editor, which opens on the layer this
+//    place's map is mostly made of. ───────────────────────────────────────────
+const router = useRouter();
+const editorLayer = computed<MapEditorLayer>(() => {
+  if (!isSite.value) return "picture";
+  if (mapStack.value.drawing) return "drawing";
+  return mapStack.value.picture ? "picture" : "plan";
+});
+function editMap(): void {
+  void router.push(mapEditorRoute(location.id, editorLayer.value));
+}
 
 // ── Site regions (#807) — gated to site-tier places the same way the parent
 //    gates `useSiteStructure` below, so a plain map (a region/world drawing)
@@ -358,128 +233,24 @@ const siteSpaces = computed(() => bindableSpaces(children));
 // ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
 const mapStack = computed(() => buildMapStack(location));
 
-// ── Staleness / door graph / layer counts (#868, S6; #884, S5) — one
-//    composable so the Layers panel's Drawing/Plan rows, the vertical-ways
-//    count and the readiness meter the parent renders above this component
-//    all agree. ────────────────────────────────────────────────────────────
+// ── Door graph (#868, S6) — the vertical-ways count in the trail line. ─────────
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
 const siteStructure = useSiteStructure(siteStructureLocation);
 const { doors: siteStructureDoors } = siteStructure;
-const {
-  staleness: siteStaleness,
-  sourceMap: siteSourceMapQuery,
-  layerCounts: siteLayerCounts,
-} = useSiteMapExtras(siteStructureLocation, siteStructure);
-const siteSourceMap = computed(() => siteSourceMapQuery.data.value);
 
-// The Layers panel's Drawing row (#884, S5) — open the existing drawing, or
-// create one named after this site and open that. See `useOpenSiteDrawing`
-// for why this no longer navigates at all (#884 S11).
-const { openDrawing } = useOpenSiteDrawing();
-function onOpenDrawing() {
-  void openDrawing(location);
+// ── The room card (#1125, frame 03): a region click opens the card of the room
+//    or nested site it is bound to; "Open the room" there is the descent. ──────
+const openRoomId = ref<string | null>(null);
+const openRoom = computed(() => siteSpaces.value.find((s) => s.id === openRoomId.value) ?? null);
+watch(() => location.id, () => { openRoomId.value = null; });
+
+function onRegionClick(spaceId: string): void {
+  openRoomId.value = spaceId;
 }
 
-// ── Build mode (#884 S11): the workbench IS the map area ─────────────────
-// `useSiteDrawingEditor` owns the Drawing's autosave/create-on-first-edit —
-// see its own docblock for why it takes `siteSourceMap` rather than
-// querying `location.source_map_id` a second time.
-const locationForDrawing = computed(() => location);
-const drawingEditor = useSiteDrawingEditor(locationForDrawing, siteSourceMap);
-const drawingWorkbenchRef = drawingEditor.workbenchRef;
-// Build saves itself, so the bar says where that stands rather than offering a button.
-const buildSaveState = computed(() => (drawingEditor.saving.value ? "Saving…" : drawingEditor.dirty.value ? "Unsaved changes" : "Saved"));
-
-// ── Style with AI (#884 decision 1) — restyle the Drawing and have the
-// render bubble down to this site's own Picture. `site` is what makes this
-// instance Atlas Build's own entry point rather than the standalone
-// Cartographer page's free-pick one — see `useMapExport`'s header doc and
-// `useSaveStyledSitePicture` for what saving here actually does to the
-// stack. Reads off `drawingWorkbenchRef` the same soft, null-safe way
-// `mapPublish` below does: this can't `requireWorkbench()` and throw on a
-// missing ref, since every getter here is live even while the workbench is
-// unmounted (Browsing, not Building).
-const {
-  showStylePicker,
-  showStyleResult,
-  selectedPresetId,
-  stylePromptSuffix,
-  styleGenerating,
-  styleResultUrl,
-  styleError,
-  styleAtlasLocationId,
-  styleAtlasError,
-  styleAtlasSaving,
-  styleAtlasTargetHasMap,
-  styleFixedTargetLabel,
-  styleByok,
-  styleCost,
-  onGenerateStyle,
-  onRetryStyle,
-  onDownloadStyled,
-  onSaveStyledToAtlas,
-} = useMapExport({
-  buildMap: () => {
-    const wb = drawingWorkbenchRef.value;
-    return wb && siteSourceMap.value
-      ? { ...siteSourceMap.value, layers: wb.getLayers(), metadata: wb.getMetadata() }
-      : null;
-  },
-  runtimes: () => drawingWorkbenchRef.value?.getRuntimes() ?? new Map(),
-  loadDressing: () => drawingWorkbenchRef.value?.loadDressingCatalog() ?? Promise.resolve(new Map()),
-  mapName: () => drawingWorkbenchRef.value?.getName() ?? location.name,
-  glyphs: () => drawingWorkbenchRef.value?.getCellGlyphs() ?? {},
-  site: () => ({ id: location.id, name: location.name, picture: mapStack.value.picture }),
-});
-
-function onStyleWithAi(): void {
-  if (!campaignAiEnabled.value) return;
-  showStylePicker.value = true;
-}
-
-// #884 review finding 1: a debounced autosave that's still pending when the
-// DM navigates away used to be dropped outright — nothing ever flushed it.
-// `onBeforeUnmount` covers this component unmounting outright — leaving Map
-// mode, or a mapless place losing its `building` prop entirely (the "Done"
-// case is its own watch below, since that alone doesn't unmount this
-// component or leave the route); `onBeforeRouteLeave` covers leaving the
-// Atlas route before that unmount runs, so the pending save is awaited —
-// and, per `flush()`'s own docblock, toasted on failure — before the
-// navigation completes.
-onBeforeUnmount(() => { void drawingEditor.flush(); });
-onBeforeRouteLeave(async () => { await drawingEditor.flush(); });
-// "Done" (`building` → false) unmounts `MapWorkbench` via its own `v-if`
-// without unmounting this component or leaving the route — neither hook
-// above fires, so a pending save would otherwise be dropped the same way.
-watch(
-  () => building,
-  (curr, prev) => { if (prev && !curr) void drawingEditor.flush(); },
-);
-
-/** The embedded workbench's own Publish (#884 S11) — reads the Drawing's
- *  live-edited layers/metadata straight off `drawingWorkbenchRef`. Unlike
- *  `CartographerEditorView.vue`'s own `requireWorkbench()`, this can't throw
- *  on a missing ref as a "should never happen" bug: `useMapPublish`'s own
- *  computeds (`mapId`, `bakedDims`, `plan`) read these getters continuously,
- *  not just while the modal is open, and the workbench is genuinely unmounted
- *  whenever the DM is Browsing rather than Building — so every getter here
- *  degrades to the same "nothing to publish" empty value instead. */
-const mapPublish = useMapPublish({
-  map: () => {
-    const wb = drawingWorkbenchRef.value;
-    return wb && siteSourceMap.value
-      ? { ...siteSourceMap.value, layers: wb.getLayers(), metadata: wb.getMetadata() }
-      : null;
-  },
-  runtimes: () => drawingWorkbenchRef.value?.getRuntimes() ?? new Map(),
-  dressing: () => drawingWorkbenchRef.value?.getDressingCatalog() ?? new Map(),
-  loadDressing: () => drawingWorkbenchRef.value?.loadDressingCatalog() ?? Promise.resolve(new Map()),
-  glyphs: () => drawingWorkbenchRef.value?.getCellGlyphs() ?? {},
-  structure: () => drawingWorkbenchRef.value?.getStructure() ?? { spaces: [], ways: [], stairs: [], links: [] },
-});
-function onReviewChanges(): void {
-  mapPublish.targetSiteId.value = location.id;
-  mapPublish.open.value = true;
+function onOpenRoom(spaceId: string): void {
+  openRoomId.value = null;
+  onDescendRegion(spaceId);
 }
 
 // ── Moving between maps ───────────────────────────────────────────────────────
@@ -629,29 +400,6 @@ const currentLevelOrdinal = computed(() =>
 /** "2 stairs down" trail chip — every vertical way out this site itself has,
  *  from the same door graph the Ways out panel already reads. */
 const verticalWaysCount = computed(() => verticalWays(siteStructureDoors.value).length);
-
-/** Build's levels: the site's own list, or just this site while it has none,
- *  so the picker can offer the first one. */
-const buildLevels = computed<LocationSummary[]>(() => (showLevelsRail.value ? levelSites.value : [location]));
-
-const { addLevel, isAdding: isAddingLevel } = useAddSiteLevel();
-const showLevelPaywall = ref(false);
-
-/** Adds the next level under the site these levels belong to, after saving
- *  the drawing, and opens it in Build. */
-async function onBuildAddLevel(): Promise<void> {
-  await drawingEditor.flush();
-  const outcome = await addLevel(levelsContainer.value ?? location, buildLevels.value.length + 1);
-  if (outcome === "quota") showLevelPaywall.value = true;
-}
-
-/** Build's level switch: saves the drawing first, then selects plainly (the
- *  descent zoom needs Browse's map, which Build does not mount). Build stays
- *  on, since selecting keeps the rest of the route's query. */
-async function onBuildLevelSelect(id: string): Promise<void> {
-  await drawingEditor.flush();
-  emit("select", id);
-}
 
 function onLevelSelect(id: string) {
   if (id === location.id) return; // already here — the rail's own active row

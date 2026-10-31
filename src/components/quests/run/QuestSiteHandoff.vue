@@ -106,7 +106,6 @@
           :children="pinnableChildren"
           mode="view"
           :show-hidden-pins="true"
-          :location-id="site.id"
           show-regions
           :regions="regions"
           :spaces="siteSpaces"
@@ -185,7 +184,6 @@
               :children="pinnableChildren"
               mode="view"
               :show-hidden-pins="true"
-              :location-id="site.id"
               show-regions
               :regions="regions"
               :spaces="siteSpaces"
@@ -293,7 +291,6 @@
             :children="pinnableChildren"
             mode="view"
             :show-hidden-pins="true"
-            :location-id="site.id"
             show-regions
             :regions="regions"
             :spaces="siteSpaces"

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { putWall } from "./testWalls";
 import * as lightMaskModule from "./lightMask";
 import { renderMap, type MapRenderScene } from "./renderMap";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
@@ -355,7 +356,8 @@ describe("renderMap: Dressing layer (#1062)", () => {
 describe("renderMap — shadow cache", () => {
   const stoneLayers = (): ReturnType<typeof emptyLayers> => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 }, wallN: { pack_id: "stone-dungeon", pack_version: 1, variant: 0, type: "wall" } };
+    layers.floor[cellKey(1, 1)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    putWall(layers, 1, 1, "N", { pack_id: "stone-dungeon", pack_version: 1, variant: 0, type: "wall" });
     return layers;
   };
 

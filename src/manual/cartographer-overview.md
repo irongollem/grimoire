@@ -3,7 +3,7 @@ title: Cartographer: Overview
 section: Cartographer
 section_order: 10
 order: 0
-summary: Draw dungeon maps with tile packs, publish them to Atlas sites, and reuse the same editor inside a site's Build mode.
+summary: Draw dungeon maps with tile packs, publish them to Atlas sites, and reuse the same editor full screen from a site's Edit map button.
 keywords: cartographer, dungeon map, tile map, floor, wall, door, water, grate, sluice, decal, stairs, shadow, object, annotation, publish, atlas, map editor, space, structure
 ---
 
@@ -17,13 +17,13 @@ Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (wo
 2. Pick a tile set from the **tile set menu** in the bar along the top: only sets with complete art appear here; which ones that is can change as Grimoire's built-in packs get illustrated, or as you upload/generate your own (see [Cartographer: Tile Packs](#cartographer-tile-packs)). Incomplete slots draw as flat procedural placeholders rather than blocking you.
 3. Select the **Tiles** tool in the rail on the left and paint your rooms by clicking and dragging.
 4. Add walls with the **Wall** tool, and doors with the **Door** tool.
-5. Click **Save**.
+5. That's it: the map saves itself a moment after each change, and the bar says **Saved**.
 
 ## The canvas
 
 The canvas is infinite: there's no fixed map size, so there's no "how big should this be?" decision to make up front.
 
-While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the tile set, the light, the Spaces drawer, the map's settings, undo and redo, and Delete, Cancel and Save. The tools are an icon rail down the left edge (hover for the name and key). The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
+While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the tile set, the light, the Spaces drawer, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
 
 | Action | Input |
 | --- | --- |
@@ -106,13 +106,13 @@ Nothing here writes to your Atlas until you publish. A **Re-detect** button just
 
 Every map paints in this order: **Floor** (base terrain, with water drawn in place of the floor where you painted it) → **Solid Blocks** (full-cell thick walls) → **Walls** (edge segments, including doors, grates and sluices) → **Objects** (furniture/decoration) → **Annotations** (text labels). There is no separate zone-painting layer inside the Cartographer any more: hazard/terrain zones are drawn on a site's **Plan** once it's published; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
 
-## View mode and edit mode
+## Saving and leaving
 
-Saved maps open in **view mode**, a clean, read-only view. Click **Edit** to switch to edit mode; click **Done** to return to the map list. In edit mode, **Cancel** discards unsaved changes and restores the last save; **Delete** (existing maps only) removes the map entirely and returns you to the list.
+A saved map opens straight in the editor; there is no separate view mode, and no Save, Cancel or Done. The map saves itself a moment after you stop drawing, and the back link in the bar returns you to the map list (a pending save finishes first). A new map is created by its first change. **Delete** in the **Map** menu (existing maps only) removes the map entirely and returns you to the list.
 
 ## Editing inside an Atlas site
 
-The same editor also runs embedded inside a site's **Build** mode in the Atlas, where it works on that site's own drawing and shows a **Drawing / Plan** layer switch: Drawing is this Cartographer canvas, Plan is the Atlas's own room/door/zone layer traced on top of it. That workflow, and how publishing reconciles the two, is covered in [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon); this page and [Cartographer: Export & AI Style](#cartographer-export-ai-style) describe the standalone editor instead.
+The same editor also opens full screen from a site's **Edit map** button in the Atlas, where it works on that site's own drawing and shows a **Drawing / Plan** layer switch: Drawing is this Cartographer canvas, Plan is the Atlas's own room/door/zone layer traced on top of it. That workflow, and how publishing reconciles the two, is covered in [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon); this page and [Cartographer: Export & AI Style](#cartographer-export-ai-style) describe the standalone editor instead.
 
 ## What your players see
 

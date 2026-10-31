@@ -35,6 +35,8 @@ const ALLOWED: Record<string, string> = {
   "src/components/common/feedback/RouteSkeleton.vue": "stands in for the page while a route loads",
   "src/components/scriptorium/ScriptoriumReader.vue": "the reader fills the whole page pane",
   "src/components/scriptorium/ScriptoriumBookEditor.vue": "the book editor replaces the app shell (editorFocus): it is the page",
+  "src/views/locations/PlaceMapEditorView.vue": "Edit map replaces the app shell (editorFocus, #1125): its loading and missing states are the page",
+  "src/components/locations/map/PlaceMapSimpleEditor.vue": "a town's Edit map replaces the app shell (editorFocus, #1125): it is the page",
   "src/components/scriptorium/ScriptoriumPreviewPane.vue": "Inspect is a fixed inset-0 full-screen page over everything",
   "src/components/locations/atlas/AtlasMapZoom.vue": "opaque absolute inset-0 layer that replaces the map pane",
   "src/components/common/controls/fieldVariants.ts": "tone.default is the field-on-a-page recipe; Vellum overrides it",

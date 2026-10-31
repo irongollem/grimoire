@@ -22,6 +22,8 @@ import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type Object
 import { dressingSway, objectSway } from "@/cartographer/sway";
 import { doorLeafArt, edgeTileOrigin, paintDoorLeaf } from "@/cartographer/doorLeaf";
 import { classifyJoint } from "@/cartographer/edges";
+import { paintAngledWalls } from "@/cartographer/drawAngledWalls";
+import { edgeSegOf, isDrawn, ownedWall } from "@/cartographer/wallGraph";
 import { paintAreaGround, paintAreaWalls } from "@/cartographer/drawArea";
 import { paintLights, renderLightLayer } from "@/cartographer/drawLights";
 import { frameOf, type DrawMapInput, type Frame, type MakeCanvas, type ShadowLayer, type Target } from "@/cartographer/drawFrame";
@@ -111,7 +113,7 @@ export interface CurbEdge {
  */
 export function curbEdges(layers: DungeonMapLayers): CurbEdge[] {
   const out: CurbEdge[] = [];
-  const hasSeg = (x: number, y: number, side: "wallN" | "wallW"): boolean => !!layers.floor[cellKey(x, y)]?.[side];
+  const hasSeg = (x: number, y: number, side: "N" | "W"): boolean => isDrawn(ownedWall(layers, x, y, side));
   for (const key of Object.keys(layers.terrain) as CellKey[]) {
     const terrain = layers.terrain[key];
     if (!terrain) continue;
@@ -119,10 +121,10 @@ export function curbEdges(layers: DungeonMapLayers): CurbEdge[] {
     const { pack_id: packId } = terrain;
     const bank = (nx: number, ny: number): boolean =>
       !layers.terrain[cellKey(nx, ny)] && !!layers.floor[cellKey(nx, ny)]?.floor;
-    if (bank(x, y - 1) && !hasSeg(x, y, "wallN")) out.push({ x, y, axis: "H", packId, waterSide: "S" });
-    if (bank(x, y + 1) && !hasSeg(x, y + 1, "wallN")) out.push({ x, y: y + 1, axis: "H", packId, waterSide: "N" });
-    if (bank(x - 1, y) && !hasSeg(x, y, "wallW")) out.push({ x, y, axis: "V", packId, waterSide: "E" });
-    if (bank(x + 1, y) && !hasSeg(x + 1, y, "wallW")) out.push({ x: x + 1, y, axis: "V", packId, waterSide: "W" });
+    if (bank(x, y - 1) && !hasSeg(x, y, "N")) out.push({ x, y, axis: "H", packId, waterSide: "S" });
+    if (bank(x, y + 1) && !hasSeg(x, y + 1, "N")) out.push({ x, y: y + 1, axis: "H", packId, waterSide: "N" });
+    if (bank(x - 1, y) && !hasSeg(x, y, "W")) out.push({ x, y, axis: "V", packId, waterSide: "E" });
+    if (bank(x + 1, y) && !hasSeg(x + 1, y, "W")) out.push({ x: x + 1, y, axis: "V", packId, waterSide: "W" });
   }
   return out;
 }
@@ -154,10 +156,10 @@ export function curbPosts(layers: DungeonMapLayers): CurbPost[] {
     const horizontal = h.has(`${x - 1},${y}`) || h.has(`${x},${y}`);
     const vertical = v.has(`${x},${y - 1}`) || v.has(`${x},${y}`);
     const wall =
-      !!layers.floor[cellKey(x - 1, y)]?.wallN ||
-      !!layers.floor[cellKey(x, y)]?.wallN ||
-      !!layers.floor[cellKey(x, y - 1)]?.wallW ||
-      !!layers.floor[cellKey(x, y)]?.wallW;
+      isDrawn(ownedWall(layers, x - 1, y, "N")) ||
+      isDrawn(ownedWall(layers, x, y, "N")) ||
+      isDrawn(ownedWall(layers, x, y - 1, "W")) ||
+      isDrawn(ownedWall(layers, x, y, "W"));
     if (wall || (horizontal && vertical)) out.push({ x, y, packId });
   }
   return out;
@@ -309,25 +311,28 @@ function paintSolid(f: Frame, t: Target): void {
 // they sit on. The wall tile is 128×128 with the painted strip in the
 // CENTER (vertically for H, horizontally for V). We shift the tile by
 // half a tile so the strip lands ON the gridline, straddling both
-// adjacent cells equally. NW ownership: cell stores wallN/wallW.
+// adjacent cells equally. NW ownership: the edge key names the owner cell.
+// Walked row by row, not in storage order: jsonb keeps no key order, and
+// overlapping tiles must stack the same way every time.
 function paintEdges(f: Frame, t: Target): void {
   const { tilePx, bounds, layers, runtime } = f;
   for (let y = bounds.minY; y <= bounds.maxY + 1; y++) {
     for (let x = bounds.minX; x <= bounds.maxX + 1; x++) {
-      const cell = layers.floor[cellKey(x, y)];
-      if (!cell) continue;
       const drawX = x * tilePx - t.ox;
       const drawY = y * tilePx - t.oy;
-      if (cell.wallN) {
-        const r = runtime(cell.wallN.pack_id);
-        if (r) drawEdgeSeg(t.ctx, r, cell.wallN, "H", x, y, drawX, drawY, tilePx, f.omitLive);
+      const north = ownedWall(layers, x, y, "N");
+      if (isDrawn(north)) {
+        const r = runtime(north.pack_id);
+        if (r) drawEdgeSeg(t.ctx, r, edgeSegOf(north), "H", x, y, drawX, drawY, tilePx, f.omitLive);
       }
-      if (cell.wallW) {
-        const r = runtime(cell.wallW.pack_id);
-        if (r) drawEdgeSeg(t.ctx, r, cell.wallW, "V", x, y, drawX, drawY, tilePx, f.omitLive);
+      const west = ownedWall(layers, x, y, "W");
+      if (isDrawn(west)) {
+        const r = runtime(west.pack_id);
+        if (r) drawEdgeSeg(t.ctx, r, edgeSegOf(west), "V", x, y, drawX, drawY, tilePx, f.omitLive);
       }
     }
   }
+  paintAngledWalls(f, t);
 }
 
 // Corner joints — fill / tile the gap at every grid intersection where H and
@@ -344,10 +349,14 @@ function paintJoints(f: Frame, t: Target): void {
   const halfThick = thickness / 2;
   for (let jy = bounds.minY - 1; jy <= bounds.maxY + 1; jy++) {
     for (let jx = bounds.minX - 1; jx <= bounds.maxX + 1; jx++) {
-      const wH = !!layers.floor[cellKey(jx - 1, jy)]?.wallN;
-      const eH = !!layers.floor[cellKey(jx, jy)]?.wallN;
-      const nV = !!layers.floor[cellKey(jx, jy - 1)]?.wallW;
-      const sV = !!layers.floor[cellKey(jx, jy)]?.wallW;
+      const wHWall = ownedWall(layers, jx - 1, jy, "N");
+      const eHWall = ownedWall(layers, jx, jy, "N");
+      const nVWall = ownedWall(layers, jx, jy - 1, "W");
+      const sVWall = ownedWall(layers, jx, jy, "W");
+      const wH = isDrawn(wHWall);
+      const eH = isDrawn(eHWall);
+      const nV = isDrawn(nVWall);
+      const sV = isDrawn(sVWall);
       if (!(wH || eH) || !(nV || sV)) continue;
       const cornerX = jx * tilePx - t.ox;
       const cornerY = jy * tilePx - t.oy;
@@ -355,10 +364,10 @@ function paintJoints(f: Frame, t: Target): void {
       // Check all four adjacent walls for pack ownership — avoids falling back to
       // the default pack and having corners change style when the active pack switches.
       const jointPackId =
-        layers.floor[cellKey(jx, jy)]?.wallN?.pack_id ??
-        layers.floor[cellKey(jx - 1, jy)]?.wallN?.pack_id ??
-        layers.floor[cellKey(jx, jy)]?.wallW?.pack_id ??
-        layers.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
+        (isDrawn(eHWall) ? eHWall.pack_id : undefined) ??
+        (isDrawn(wHWall) ? wHWall.pack_id : undefined) ??
+        (isDrawn(sVWall) ? sVWall.pack_id : undefined) ??
+        (isDrawn(nVWall) ? nVWall.pack_id : undefined) ??
         defaultPackId;
       const jointRt = jointPackId ? runtime(jointPackId) : null;
       // Like the walls it joins, a joint waits for its pack: a square painted
@@ -584,7 +593,7 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   if (!out) return null;
   // The shadow keeps what the live layer draws (a swaying prop, a door leaf): it draws them moving or at the
   // DM's door state, their shadow stays on the floor.
-  const f: Frame = { ...frameOf(input, wide), omitLive: false };
+  const f: Frame = { ...frameOf(input, wide), omitLive: false, showHiddenWalls: false };
 
   const silhouette = (paint: (t: Target) => void): CanvasImageSource | null => {
     const made = makeCanvas(width, height);

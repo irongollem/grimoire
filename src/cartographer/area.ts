@@ -178,13 +178,11 @@ function samePack(a: PackRef, b: PackRef): boolean {
   return a.pack_id === b.pack_id && a.pack_version === b.pack_version && a.variant === b.variant && a.rotation === b.rotation;
 }
 
-/** Drops a cell's floor tile but keeps its walls; the cell object goes when nothing is left. */
+/** Drops a cell's floor tile; the cell goes with it, since walls no longer hang on cells. */
 function removeFloor(floor: Record<CellKey, FloorCell>, key: CellKey): void {
   const cell = floor[key];
   if (!cell || cell.floor === undefined) return;
-  const { floor: _floor, ...rest } = cell;
-  if (rest.wallN || rest.wallW) floor[key] = rest;
-  else delete floor[key];
+  delete floor[key];
 }
 
 export interface OutlineLoop {

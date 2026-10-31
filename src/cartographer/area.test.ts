@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { putWall } from "./testWalls";
 import { applyDisc, applyDiscs, areaBlockingEdges, areaOutline, coverage, decodeMask, encodeMask, FLOOR_COVERAGE } from "./area";
 import { emptyLayers, type DungeonMapLayers, type PackRef } from "@/types/dungeonMap.types";
 
@@ -91,10 +92,11 @@ describe("applyDisc", () => {
 
   it("erasing empties a mask and removes the entry and floor, keeping walls", () => {
     let l = applyDisc(emptyLayers(), { x: 0.5, y: 0.5, r: 0.7 }, REF, "paint");
-    l.floor["0,0"] = { ...l.floor["0,0"], wallN: { ...REF, type: "wall" } };
+    putWall(l, 0, 0, "N", { ...REF, type: "wall" });
     l = applyDisc(l, { x: 0.5, y: 0.5, r: 1 }, REF, "erase");
     expect(l.area["0,0"]).toBeUndefined();
-    expect(l.floor["0,0"]).toEqual({ wallN: { ...REF, type: "wall" } });
+    expect(l.floor["0,0"]).toBeUndefined();
+    expect(l.walls["0,0:N"]).toMatchObject({ type: "wall" });
     const clean = applyDisc(applyDisc(emptyLayers(), { x: 0.5, y: 0.5, r: 0.7 }, REF, "paint"), { x: 0.5, y: 0.5, r: 1 }, REF, "erase");
     expect(clean.floor["0,0"]).toBeUndefined();
   });
@@ -113,10 +115,12 @@ describe("applyDisc", () => {
 
   it("erasing plain floor the disc wholly covers removes it, keeping walls", () => {
     const base = emptyLayers();
-    base.floor["0,0"] = { floor: REF, wallN: { ...REF, type: "wall" } };
+    base.floor["0,0"] = { floor: REF };
+    putWall(base, 0, 0, "N", { ...REF, type: "wall" });
     base.floor["1,0"] = { floor: REF };
     const out = applyDisc(base, { x: 1, y: 0.5, r: 1.5 }, REF, "erase");
-    expect(out.floor["0,0"]).toEqual({ wallN: { ...REF, type: "wall" } });
+    expect(out.floor["0,0"]).toBeUndefined();
+    expect(out.walls["0,0:N"]).toMatchObject({ type: "wall" });
     expect(out.floor["1,0"]).toBeUndefined();
     expect(out.area["0,0"]).toBeUndefined();
     expect(out.area["1,0"]).toBeUndefined();

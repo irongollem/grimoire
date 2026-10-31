@@ -20,8 +20,8 @@
 <script setup lang="ts">
 /**
  * Whether this place is a floor of its parent site, assigned by the DM
- * rather than inferred (migration `20260928195128`). Only mounted in Build,
- * and only for a site-tier place whose parent is also site-tier — the two
+ * rather than inferred (migration `20260928195128`). Lives in the Details
+ * form (#1125), and only for a site-tier place whose parent is also site-tier — the two
  * ends `guard_location_room_parent` allows the flag on at all.
  *
  * A store, tavern or inn is not automatically excluded here: a department

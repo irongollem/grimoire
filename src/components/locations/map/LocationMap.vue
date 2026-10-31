@@ -119,28 +119,14 @@
         />
       </div>
 
-      <!-- The Spaces/Zones column reads in Browse (#884: editing them is
-           Build-only now, and Build no longer mounts this component at all —
-           see `MapWorkbench`'s own embedded copy of these two lists). Run
-           mode renders its own click-to-move room list instead
+      <!-- The side column holds the Prepared-here panel. The Spaces and Zones
+           lists live only in the full-screen editor (#1125); the Map tab reads
+           the map. Run mode renders its own click-to-move room list instead
            (`SiteRunSurface`), which needs no side column. -->
       <div
         v-if="showRegions && hasRegionContent && !runMode"
         class="flex w-full flex-col gap-3 lg:w-85 lg:shrink-0"
       >
-        <SiteMapRegionList
-          :location-id="locationId!"
-          :spaces="spaces"
-          :regions="regions"
-          :active-region-id="null"
-          :can-trace="false"
-        />
-        <SiteMapZoneList
-          :location-id="locationId!"
-          :regions="regions"
-          :active-region-id="null"
-          :can-trace="false"
-        />
         <!-- Frame 10 "Prepared here · Nave of Ash" — a Prepared mark's own
              room, opened beside the plan instead of navigating away. Reuses
              `LocationPlacements` wholesale: its rows already link to the
@@ -220,8 +206,6 @@ import MapPinsLayer from "@/components/locations/map/MapPinsLayer.vue";
 import MapRegionsLayer from "@/components/locations/map/MapRegionsLayer.vue";
 import SiteMapLayerBar from "@/components/locations/site/SiteMapLayerBar.vue";
 import SiteMapLegend from "@/components/locations/site/SiteMapLegend.vue";
-import SiteMapRegionList from "@/components/locations/site/SiteMapRegionList.vue";
-import SiteMapZoneList from "@/components/locations/site/SiteMapZoneList.vue";
 import MapPreparedLayer from "@/components/locations/map/MapPreparedLayer.vue";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
@@ -247,7 +231,6 @@ const {
   offerPeek = true,
   compact,
   sharedChildIds,
-  locationId = null,
   showRegions = false,
   regions = [],
   spaces = [],
@@ -287,9 +270,6 @@ const {
   /** Offer the peek (Watch) action on a pin. Default true; off where
    *  travelling is already cheap (the Atlas explorer's own zoom). */
   offerPeek?: boolean;
-  /** The location this map belongs to. Required whenever `showRegions` is
-   *  true — it feeds `SiteMapRegionList`'s region-create calls. */
-  locationId?: string | null;
   /** Whether this place has a floor plan (site tier — building, dungeon,
    *  store, tavern, inn, #810) and should render the regions layer and the
    *  room-shapes list alongside pins. */

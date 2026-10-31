@@ -23,13 +23,17 @@ const sprite = { url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation:
 const live = (sprites: MapLive["sprites"]): MapLive => ({ version: 3, darkness: "daylight", groups: [], lights: [], sprites, walls: [], doors: [], solid: [] });
 
 function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null; viewers?: Viewer[] | null; zones?: { x: number; y: number; radius: number }[]; doorStates?: { id: string; open: boolean }[] } = {}) {
+  const { live: liveOver, standLiveUrl, ...rest } = over;
   return mount(BattleMapStack, {
     props: {
       hostW: 400,
       hostH: 300,
-      imageUrl: "ground.webp",
-      standUrl: "stand.webp",
-      standLiveUrl: "stand-live.webp",
+      layers: {
+        imageUrl: "ground.webp",
+        standUrl: "stand.webp",
+        standLiveUrl: standLiveUrl === undefined ? "stand-live.webp" : standLiveUrl,
+        live: liveOver === undefined ? live([sprite]) : liveOver,
+      },
       panX: 0,
       panY: 0,
       imageW: 400,
@@ -41,8 +45,7 @@ function mountStack(over: { live?: MapLive | null; standLiveUrl?: string | null;
       cellPx: 50,
       originX: 0,
       originY: 0,
-      live: live([sprite]),
-      ...over,
+      ...rest,
     },
     global: { stubs: { BattleMapLiveLayer: LiveLayerStub } },
   });
@@ -69,7 +72,7 @@ describe("BattleMapStack standing image", () => {
     const w = mountStack();
     topLayer(w)!.vm.$emit("ready");
     await nextTick();
-    await w.setProps({ live: live([{ ...sprite, url: "https://cdn/other.webp" }]) });
+    await w.setProps({ layers: { ...w.props("layers"), live: live([{ ...sprite, url: "https://cdn/other.webp" }]) } });
     expect(standHref(w)).toBe("stand.webp");
   });
 

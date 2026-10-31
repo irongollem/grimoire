@@ -41,15 +41,14 @@
 
 <script setup lang="ts">
 /**
- * Which level of a site the Build canvas is showing, floating on the canvas,
+ * Which level of a site the full-screen map editor is showing, in its bar,
  * and the way to add the next one.
  *
- * Browse lists a site's levels in the rail beside its map (`SiteLevelsRail`),
- * but Build folds that column away to give the workbench the pane's width, so
- * a DM drawing one floor had no way to see the others or move to them. This
- * is the same list (`levelsOf`, numbered the same way) in the one place Build
- * always shows. It is also the only place a FIRST level can be added: the
- * Browse rail appears only once a site has one. A native select for the
+ * The Map tab lists a site's levels in the rail beside its map
+ * (`SiteLevelsColumn`), but the editor has no such column, so a DM drawing
+ * one floor would have no way to see the others or move to them. This is the
+ * same list (`levelsOf`, numbered the same way). It is also the only place a
+ * FIRST level can be added: the rail appears only once a site has one. A native select for the
  * list: a site has a handful of levels and nothing to search, and on a phone
  * it opens the OS picker.
  */

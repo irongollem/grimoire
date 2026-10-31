@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { putWall } from "./testWalls";
 import { buildMapLive } from "./mapLive";
 import { cellKey, emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MotionOverlay } from "@/types/mapLive.types";
@@ -140,8 +141,9 @@ describe("buildMapLive", () => {
 
   it("gives each door the leaf art its pack can serve, and null where the bake must keep the leaf", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { wallN: { ...ref("lib"), type: "doorClosed" }, wallW: { ...ref("mine"), type: "doorOpen" } };
-    layers.floor[cellKey(2, 1)] = { wallN: { ...ref("lib"), variant: 1, type: "doorClosed" } };
+    putWall(layers, 1, 1, "N", { ...ref("lib"), type: "doorClosed" });
+    putWall(layers, 1, 1, "W", { ...ref("mine"), type: "doorOpen" });
+    putWall(layers, 2, 1, "N", { ...ref("lib"), variant: 1, type: "doorClosed" });
     const assets = { doorLeaf: [{ variant: 0, url: "https://cdn/leaf-0.webp" }] };
     const hinge = { hingeX: 0.5, hingeY: 0.25, openDegrees: 60 };
     const live = buildMapLive(
@@ -170,9 +172,11 @@ describe("buildMapLive", () => {
   it("lists what blocks light and sight in image cells: walls, sluices, doors by drawn state, solid rock, no grates", () => {
     const layers = emptyLayers();
     const seg = (type: "wall" | "doorClosed" | "doorOpen" | "grate" | "sluice") => ({ ...ref("p"), type });
-    layers.floor[cellKey(3, 4)] = { wallN: seg("wall"), wallW: seg("doorClosed") };
-    layers.floor[cellKey(4, 4)] = { wallN: seg("doorOpen"), wallW: seg("grate") };
-    layers.floor[cellKey(5, 4)] = { wallN: seg("sluice") };
+    putWall(layers, 3, 4, "N", seg("wall"));
+    putWall(layers, 3, 4, "W", seg("doorClosed"));
+    putWall(layers, 4, 4, "N", seg("doorOpen"));
+    putWall(layers, 4, 4, "W", seg("grate"));
+    putWall(layers, 5, 4, "N", seg("sluice"));
     layers.solidBlock[cellKey(9, 9)] = ref("rock");
     const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 2);
     expect(live.walls.map((w) => w.id).sort()).toEqual(["2,2:N", "4,2:N"]);
@@ -182,5 +186,29 @@ describe("buildMapLive", () => {
       { id: "3,2:N", a: [3, 2], b: [4, 2], open: true, leaf: null },
     ]);
     expect(live.solid).toEqual(["8,7"]);
+  });
+
+  // #1125 story 5: the Drawing's walls and placed lights reach the live battle map as they are stored.
+  it("carries an angled wall as a segment under its own id", () => {
+    const layers = emptyLayers();
+    layers.walls.slant = { ...ref("p"), type: "wall", a: [4, 5], b: [6, 8] };
+    const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 2);
+    expect(live.walls).toEqual([{ id: "slant", a: [3, 3], b: [5, 6] }]);
+  });
+
+  it("carries an angled door without a leaf, since the live layer cannot turn a leaf to its line", () => {
+    const layers = emptyLayers();
+    layers.walls.door = { ...ref("lib"), type: "doorClosed", a: [1, 1], b: [3, 2] };
+    const assets = { doorLeaf: [{ variant: 0, url: "https://cdn/leaf-0.webp" }] };
+    const live = buildMapLive(mapWith(layers), runtimes([["lib", makeRuntime("lib", { assets })]]), NO_DRESSING, 0, 0);
+    expect(live.doors).toEqual([{ id: "door", a: [1, 1], b: [3, 2], open: false, leaf: null }]);
+  });
+
+  it("carries a light the DM placed, in image cells, with its reach and flicker", () => {
+    const layers = emptyLayers();
+    layers.lights.torch = { x: 5.5, y: 4, light: { color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 } };
+    const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 2, 1);
+    expect(live.lights).toHaveLength(1);
+    expect(live.lights[0]).toMatchObject({ x: 3.5, y: 3, color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 });
   });
 });

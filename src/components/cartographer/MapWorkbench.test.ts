@@ -266,6 +266,7 @@ describe("MapWorkbench", () => {
         CartographerStructurePanel: true,
         SiteMapRegionList: true,
         SiteMapZoneList: true,
+        SiteWaysOutPanel: true,
       },
     },
   };
@@ -294,6 +295,18 @@ describe("MapWorkbench", () => {
     await planButton?.trigger("click");
     // …and switches to the Plan's four tools once selected by hand.
     expect(tool(wrapper, "Claim")).toBe(true);
+  });
+
+  it("shows the Plan drawer's Spaces, Zones and Ways out, all of them editable (#1125 story 5)", () => {
+    const wrapper = mount(MapWorkbench, {
+      props: { map: baseMap, viewMode: false, site: siteWithPicture },
+      ...editModeStubs,
+    });
+    expect(wrapper.findComponent({ name: "SiteMapRegionList" }).exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "SiteMapZoneList" }).exists()).toBe(true);
+    const ways = wrapper.findComponent({ name: "SiteWaysOutPanel" });
+    expect(ways.props("editable")).toBe(true);
+    expect(ways.props("siteId")).toBe(siteWithPicture.id);
   });
 
   // #878 S2 — the DM who traced rooms could never find Pen/Shape because
@@ -332,6 +345,19 @@ describe("MapWorkbench", () => {
       });
       expect(tool(wrapper, "Claim")).toBe(true);
       expect(tool(wrapper, "Draw")).toBe(false);
+    });
+
+    it("opens on the layer the host was sent for, over the default (a \"Place it\" link asks for the Plan)", () => {
+      const plan = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithNoImagery, startLayer: "plan" },
+        ...editModeStubs,
+      });
+      expect(tool(plan, "Claim")).toBe(true);
+      const drawing = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithPicture, startLayer: "drawing" },
+        ...editModeStubs,
+      });
+      expect(tool(drawing, "Draw")).toBe(true);
     });
 
     it("keeps the DM's own layer choice — a later prop update does not force it back", async () => {
@@ -475,10 +501,24 @@ describe("MapWorkbench", () => {
       expect(slipTools).toEqual({
         Select: ["SelectV", "PanH"],
         Draw: ["BrushB", "RectangleR", "RoomM", "LineL", "FillF", "One tileI"],
-        Walls: ["WallW", "DoorD", "WrapX"],
+        Walls: ["WallW", "DoorD", "WrapX", "Angled wallN"],
         Terrain: ["WaterA", "RockS"],
         Notes: ["LabelT", "LinkK", "SpaceP"],
       });
+    });
+
+    it("files Light beside Place in Things, and U picks it with its own options in the slip (#1125 story 5)", async () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const area = wrapper.find("canvas").element.parentElement as HTMLElement;
+      area.dispatchEvent(new Event("pointerenter"));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "u", code: "KeyU" }));
+      await flushPromises();
+      const tools = wrapper.findAll('[data-slip] [aria-label="Things tools"] button').map((b) => b.text());
+      expect(tools).toEqual(["PlaceO", "LightU"]);
+      const slip = wrapper.find("[data-slip]").text();
+      expect(slip).toContain("Bright ft");
+      expect(slip).toContain("Dim ft");
+      expect(slip).toContain("Flicker");
     });
 
     it("titles the slip with the family and follows a tool picked in its grid", async () => {

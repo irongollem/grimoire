@@ -1,6 +1,6 @@
 // Cartographer map data — see context/features/cartographer.md
 
-import type { PackCategory } from "@/cartographer/packSchema";
+import type { PackCategory, TileLight } from "@/cartographer/packSchema";
 
 export type CellKey = `${number},${number}`;
 
@@ -25,8 +25,25 @@ export interface EdgeSeg extends PackRef {
 
 export interface FloorCell {
   floor?: PackRef;
-  wallN?: EdgeSeg;
-  wallW?: EdgeSeg;
+}
+
+/**
+ * One wall, door or fitting of the Drawing as a segment between two points in cell units (epic #1125 decision 5).
+ * A wall on a grid line is keyed by its edge key (`latticeKey`: `"x,y:N"` is the top of cell (x,y), `"x,y:W"` its
+ * left), an angled wall by a uuid. `a` and `b` are always stored so a reader never needs the key to know the line.
+ */
+export interface WallEdge extends EdgeSeg {
+  a: [number, number];
+  b: [number, number];
+  /** `false` blocks sight and light but is not drawn (an imported wall over a picture that already shows it). */
+  visible?: boolean;
+}
+
+/** A light the DM placed (epic #1125 story 5), at a point in cell units. */
+export interface PlacedLight {
+  x: number;
+  y: number;
+  light: TileLight;
 }
 
 export type SolidCell = PackRef;
@@ -97,6 +114,10 @@ export interface DungeonMapLayers {
   dressing: Record<string, DressingPlacement>;
   /** Brushed areas, a coverage mask per cell (see `AreaCell`). */
   area: Record<CellKey, AreaCell>;
+  /** Walls, doors and fittings as segments: lattice edges by edge key, angled walls by uuid (see `WallEdge`). */
+  walls: Record<string, WallEdge>;
+  /** Lights placed by hand, keyed by a uuid. */
+  lights: Record<string, PlacedLight>;
 }
 
 /**
@@ -131,7 +152,7 @@ export type DungeonMapInsert = Omit<DungeonMap, "id" | "user_id" | "created_at" 
 export type DungeonMapUpdate = Partial<DungeonMapInsert>;
 
 export function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {} };
+  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {}, walls: {}, lights: {} };
 }
 
 /**

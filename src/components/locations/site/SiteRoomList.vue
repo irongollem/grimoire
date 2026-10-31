@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-1.5">
     <p v-if="!rooms.length" class="text-caption italic text-muted-foreground">
-      No rooms yet. <RouterLink :to="placeRoute(siteId, 'build')" class="underline hover:text-primary">Add some in Build</RouterLink>.
+      No rooms yet. <RouterLink :to="placeRoute(siteId)" class="underline hover:text-primary">Add some on the site's Overview</RouterLink>.
     </p>
 
     <div

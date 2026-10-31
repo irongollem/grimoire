@@ -23,9 +23,13 @@ export type Tool =
   | "line"
   | "fill"
   | "wrap"
+  // A wall run at any angle (#1125 story 5): click points, Enter or a double-click ends it.
+  | "angledWall"
   // Place (#1073 story 11): the set's objects (chest, barrel, stairs, rubble) and the
   // Dressing books' props (tables, beds, coffins at any angle) from one picture catalogue.
   | "place"
+  // A light the DM sets down by hand (#1125 story 5), beside the ones sets and props carry.
+  | "light"
   | "annotate"
   | "link"
   | "template"

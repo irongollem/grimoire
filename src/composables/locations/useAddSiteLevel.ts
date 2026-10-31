@@ -1,24 +1,25 @@
 import { ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { useCreateLocation } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
+import { mapEditorRoute } from "@/lib/locations/placeRoute";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { Location } from "@/types/location.types";
 
 /**
- * Adds the next level to a site and opens it in Build, ready to draw.
+ * Adds the next level to a site and opens it in the full-screen map editor
+ * (#1125), ready to draw.
  *
  * A level is a place its DM has flagged `is_level` (migration
  * `20260928195128`, `levelsOf`) — so this creates a new place of the site's
  * own type, filed under it, with that flag already set, in the site's
  * campaign rather than whichever one is active (a global site's `null`
- * survives). Shared by the Browse rail's "Draw level N" and the Build
- * canvas's level picker, which is the only way to add the FIRST level: the
- * Browse rail only appears once a site has one.
+ * survives). Shared by the Map tab rail's "Draw level N" and the editor's
+ * level picker, which is the only way to add the FIRST level: the
+ * rail only appears once a site has one.
  */
 export function useAddSiteLevel() {
   const router = useRouter();
-  const route = useRoute();
   const toast = useToast();
   const createLocation = useCreateLocation();
   const isAdding = ref(false);
@@ -58,7 +59,7 @@ export function useAddSiteLevel() {
         audio_theme: null,
         is_level: true,
       });
-      await router.push({ query: { ...route.query, at: level.id, build: "true" } });
+      await router.push(mapEditorRoute(level.id, "drawing"));
       return "added";
     } catch (e) {
       if (isQuotaExceeded(e)) return "quota";

@@ -3,16 +3,15 @@
        table: every `location_map_regions` row with `region_role === "zone"`.
        A zone never binds to a location; that absence is what makes it a
        zone rather than an unfinished space (`SiteMapRegionList` owns those).
-       Only mounted in browse mode — see the call site in `LocationMap.vue`. -->
+       Mounted in the editor's Plan drawer (`MapWorkbench`). -->
   <div class="flex flex-col gap-1.5">
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-label-lg font-semibold text-muted-foreground">Zones on this plan</span>
       <span class="rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground">{{ zones.length }}</span>
-      <AppSelect v-if="building" v-model="newZoneKind" size="xs" tone="card" class="ml-auto">
+      <AppSelect v-model="newZoneKind" size="xs" tone="card" class="ml-auto">
         <option v-for="kind in ZONE_KINDS" :key="kind" :value="kind">{{ ZONE_KIND_LABELS[kind] }}</option>
       </AppSelect>
       <AppButton
-        v-if="building"
         variant="ghost"
         size="inline-xs"
         :icon="IconAdd"
@@ -71,7 +70,6 @@
             @click="expandedId = expandedId === zone.id ? null : zone.id"
           />
           <AppButton
-            v-if="building"
             variant="ghost"
             tone="danger"
             size="icon-xs"
@@ -174,9 +172,8 @@
 <script setup lang="ts">
 /**
  * The zone-CRUD half of the site map apparatus (#868, frame 07 "Zones") —
- * `SiteMapRegionList`'s sibling, mounted beside it. As of #884 S11, mounted
- * twice: read-only by `LocationMap.vue` in Browse (`building` false), and
- * with full CRUD by `MapWorkbench`'s embedded Plan branch in Build — see
+ * `SiteMapRegionList`'s sibling, mounted beside it. Always editable since #1125, and
+ * mounted only by `MapWorkbench`'s Plan drawer — see
  * `SiteMapRegionList`'s own docblock for why the tracing gesture itself
  * lives entirely in the workbench now, not here.
  *
@@ -206,7 +203,7 @@ import { emptyZoneInsert, isPlayerVisible, LIGHT_LEVELS, TERRAIN_MOVEMENT_COSTS,
 import { ZONE_KIND_LABELS, ZONE_KINDS } from "@/types/locationMapRegion.types";
 import type { LocationMapRegion, ZoneKind, ZonePayload } from "@/types/locationMapRegion.types";
 
-const { locationId, regions, activeRegionId, canTrace, building = false } = defineProps<{
+const { locationId, regions, activeRegionId, canTrace } = defineProps<{
   /** The site these zones belong to — `createRegion` needs it as
    *  `site_location_id`, same as `SiteMapRegionList`. */
   locationId: string;
@@ -215,8 +212,6 @@ const { locationId, regions, activeRegionId, canTrace, building = false } = defi
   /** Whether the map has a grid to trace onto at all — see
    *  `SiteMapRegionList`'s prop of the same name. */
   canTrace: boolean;
-  /** Build mode (#884) — see `SiteMapRegionList`'s prop of the same name. */
-  building?: boolean;
 }>();
 
 const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();

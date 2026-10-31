@@ -915,10 +915,11 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Combat" },
   },
   {
-    path: "/encounters/:id/run/map",
-    name: "encounter-run-map",
-    component: () => import("@/views/encounters/EncounterMapView.vue"),
-    meta: { requiresAuth: true, title: "Battle Map" },
+    // The Table screen (#1125): the map a DM opens in a second window, for a TV on the table.
+    path: "/encounters/:id/table",
+    name: "encounter-table",
+    component: () => import("@/views/encounters/EncounterTableView.vue"),
+    meta: { requiresAuth: true, title: "Table screen" },
   },
 
   // Quests
@@ -1012,6 +1013,14 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/locations/:id",
     redirect: (to) => ({ path: "/locations", query: { ...to.query, at: to.params.id } }),
+  },
+  // A place's map is a tab in the Atlas; changing it is this full-screen
+  // editor, like the Scriptorium's (#1125). `?layer=` picks where it opens.
+  {
+    path: "/locations/:id/map",
+    name: "place-map-editor",
+    component: () => import("@/views/locations/PlaceMapEditorView.vue"),
+    meta: { requiresAuth: true, title: "Edit Map", fullscreenMobile: true },
   },
 
   // Deities (Pantheon)

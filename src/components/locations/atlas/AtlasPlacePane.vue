@@ -118,27 +118,20 @@
         </div>
       </div>
       <!--
-        Build, not Open. The pane now renders the same body as the detail
-        page, so a link to that page would lead somewhere the reader already
-        is; the only thing left up there that this surface cannot do is
-        change the place. Every place has Build (#958) and Details
-        (name/description/type — the Edit form); Run is a site's alone.
-        Build owns the map: on a site the workbench (#884), on any other
-        place the Picture and its pins.
+        No Build and no Open: the pane renders the same body as the detail
+        page did, and the map has its own tab (#1125). What is left up here
+        is Reveal, ambience, Explore (a site's alone) and Details (the Edit
+        form: name, description, type, and which floor this is).
       -->
       <!--
         Below sm this is its own full-width row of 44px thumb targets
         (`size="md"`), stretched so Reveal — whose size its own primitive owns
         — grows to the same height as the rest. Above sm it is the compact row
-        beside the name it always was. Build is outline while browsing and
-        turns primary as "Done" while building: the loud button is the way
-        out of a mode, not the way into one, because a phone landing in Build
-        by accident and having to edit a map it only wanted to read is the
-        complaint this answers (4 Oct 2026).
+        beside the name it always was.
       -->
       <div class="flex w-full shrink-0 items-stretch gap-2 sm:w-auto sm:items-center sm:gap-1.5">
         <!--
-          Reveal sits beside Build/Details because revealing is not editing: it
+          Reveal sits beside Details because revealing is not editing: it
           is the thing a DM does mid-session, and it should never cost a trip
           through the full edit form.
         -->
@@ -147,7 +140,7 @@
           This place's ambience, on request; it keeps playing after the DM
           selects another place or leaves the Atlas entirely (see
           useAmbiencePlayback). Icon-only: the pane is as wide as the tree
-          leaves it, and with Reveal, Build, Run and Details beside it a
+          leaves it, and with Reveal, Explore and Details beside it a
           labelled button squeezed the place's own name to three letters.
           The tooltip names the scene, and `active` shows it is playing.
         -->
@@ -163,18 +156,18 @@
           class="max-sm:flex-1"
           @click="previewing ? stopPreview() : startPreview()"
         />
-        <!-- The site runner (#791, epic #780) — one surface to run a
-             dungeon at the table, entered in place rather than by leaving
-             the Atlas. Only a site has anything to run. -->
+        <!-- The site runner (#791, epic #780), labelled Explore (#1125) — one
+             surface to run a dungeon at the table, entered in place rather
+             than by leaving the Atlas. Only a site has anything to explore. -->
         <AppButton
           v-if="isSite"
           variant="outline"
           :size="actionSize"
           :icon="IconPlay"
           icon-size="md"
-          label="Run"
-          aria-label="Run"
-          tooltip="Run"
+          label="Explore"
+          aria-label="Explore"
+          tooltip="Explore this site at the table"
           collapse-label-on-mobile
           class="max-sm:flex-1"
           @click="openRun"
@@ -191,86 +184,26 @@
           class="max-sm:flex-1"
           @click="openEdit"
         />
-        <!--
-          Build is a state of this pane, not a trip to another page: the
-          Atlas IS the place's workbench (#884, decision 2), and sending the
-          DM away to build would reintroduce exactly the round trip this
-          epic removes. `Done` drops the flag and leaves them where they are.
-          Last, and the one action that keeps its word on a phone: it is the
-          only one that changes what every control below it does.
-        -->
-        <AppButton
-          :variant="building ? 'primary' : 'outline'"
-          :size="actionSize"
-          :icon="building ? IconCheck : IconTool"
-          icon-size="md"
-          :label="building ? 'Done' : 'Build'"
-          :aria-label="building ? 'Done' : 'Build'"
-          :tooltip="building ? 'Leave Build' : 'Build: edit the map and its rooms'"
-          class="max-sm:flex-[1.6]"
-          @click="toggleBuild"
-        />
       </div>
     </div>
-
-    <!-- Whether this place is one of its parent's floors, assigned by the DM
-         rather than inferred (#884, migration `20260928195128`) — a
-         structural control, so Build only. Offered whenever both ends of the
-         relationship are site-tier, which is everything `is_level` can hold. -->
-    <SiteLevelAssignment
-      v-if="building && parentSite"
-      :location="location"
-      :parent-name="parentSite.name"
-      class="mt-2"
-    />
 
     <div class="py-3">
       <AtlasScaleRail :current-type="location.location_type" :occupied="occupied" />
     </div>
 
     <!--
-      Deliberately not `block`: stretched across the pane a two-option toggle
-      shouts louder than the content it switches, and the map is a view of this
-      place, not the point of the page.
+      Overview and Map are two views of every place (#1125), so the tabs are
+      always here. Deliberately not `block`: stretched across the pane a
+      two-option toggle shouts louder than the content it switches.
 
-      Readiness (Contents mode) and the layer bar (Map mode) share this same
-      row — "beside the scale rail on the Contents/Map row" (#868, frame 02) —
-      rather than getting a row of their own. The row itself renders whenever
-      either half of it would: a site with no map yet still needs to show
-      "not mapped", even though the toggle it would otherwise share the row
-      with has nothing to switch between yet.
+      Readiness (Overview) and the layer bar (Map) share the row where there
+      is room for both (xl, "beside the scale rail on the Contents/Map row",
+      #868 frame 02); narrower, they take their own line under the tabs. On a
+      phone the readiness meter is not shown at all (4 Oct 2026, "it's so busy
+      with things there"): its pills are a prep checklist for a desk.
     -->
-    <!--
-      The meter and the layer bar sit beside the tabs only where there is
-      room for both (xl, "beside the scale rail on the Contents/Map row", #868
-      frame 02). Narrower, they take their own line under the tabs: laid over
-      a full-width tab bar, five pills wrapped onto it and buried Overview and
-      Map underneath them on every phone (4 Oct 2026).
-    -->
-    <!--
-      On a phone the readiness meter is not shown at all (4 Oct 2026, the
-      maintainer: "it's so busy with things there"). Its five pills are a
-      prep checklist, and readiness is fixed in Build, at a desk; on a phone
-      the Map tab is already the way to the map the Mapped pill used to be.
-      A site with neither map nor Build then has nothing left in this row, so
-      the row itself hides with it.
-    -->
-    <div
-      v-if="hasMap || isSite || building"
-      class="relative mb-3 flex flex-col gap-2"
-      :class="{ 'max-sm:hidden': !(hasMap || building) }"
-    >
-      <!--
-        Reachable while building even with no layer yet (#884, S5; every
-        place since #958) — Build on a mapless place is exactly when the DM
-        needs Map mode, to see the Layers panel that starts the first one, and
-        on a battle map (which Browse hides) to unflag it. Browsing a mapless
-        place has nothing to switch to, so the toggle stays hidden there.
-      -->
-      <!-- Real tabs, not a small segmented toggle: Overview and Map are two
-           views of the place, and the toggle was easy to miss entirely. -->
+    <div class="relative mb-3 flex flex-col gap-2">
       <TabBar
-        v-if="hasMap || building"
         :tabs="MODE_TABS"
         :model-value="paneMode"
         wrapper-class="w-full"
@@ -279,7 +212,7 @@
       <SiteReadinessMeter
         v-if="isSite && paneMode === 'places'"
         :readiness="siteReadiness"
-        :class="['max-sm:hidden', hasMap || building ? 'xl:absolute xl:right-0 xl:top-1.5' : '']"
+        class="max-sm:hidden xl:absolute xl:right-0 xl:top-1.5"
         @open-map="onOpenMap"
       />
       <AtlasSiteLayerBar
@@ -294,27 +227,37 @@
       <!--
         `relative` so the zoom overlay AtlasSiteMapMode renders can sit
         exactly on the map frame the reader is already looking at, instead of
-        being measured into place.
-
-        `building` alone (no `hasMap`) reaches this on any place (#958): a
-        mapless world or a battle map is exactly what Build's Layers panel is
-        for. Browsing one still never lands here, since `hasMap` gates it.
+        being measured into place. A place with no map gets the empty card
+        (#1125, frame 04) in the same spot.
       -->
-      <AtlasSiteMapMode
-        :building="building"
-        v-if="(hasMap || building) && paneMode === 'map'"
-        :location="location"
-        :index="index"
-        :children="children"
-        @select="$emit('select', $event)"
-        @descend="$emit('select', $event)"
-      />
+      <template v-if="paneMode === 'map'">
+        <AtlasSiteMapMode
+          v-if="hasMap"
+          :location="location"
+          :index="index"
+          :children="children"
+          @select="$emit('select', $event)"
+          @descend="$emit('select', $event)"
+        />
+        <PlaceMapEmpty v-else :location="location" :is-site="isSite" />
+      </template>
 
       <template v-else>
+        <!-- A glance at the map, and the way to its tab (#1125, frame 02). -->
+        <section
+          v-if="hasMap && mapThumb"
+          class="mb-4 flex items-center gap-3 rounded-md border border-border bg-card p-2"
+          aria-label="Map"
+        >
+          <img :src="mapThumb" :alt="`Map of ${location.name}`" class="h-16 w-24 shrink-0 rounded object-cover" />
+          <p class="min-w-0 flex-1 text-caption text-muted-foreground">{{ location.name }} has a map.</p>
+          <AppButton variant="outline" size="sm" :icon="IconMap" label="Open the map tab" @click="$emit('update:paneMode', 'map')" />
+        </section>
+
         <!-- What the place is first (description, people, notes), then what is
              inside it: the child list used to come first and push the
              interesting content below the fold. -->
-        <LocationDetailSections ref="sectionsRef" :location="location" :building="building" />
+        <LocationDetailSections ref="sectionsRef" :location="location" />
 
         <!--
           Children grouped by scale rather than laid out as equal cards. This is
@@ -366,7 +309,7 @@
       </template>
 
       <!--
-        One box for Browse, Build and both pane modes: it sits after the
+        One box for both pane modes: it sits after the
         mode switch so it stays mounted while the DM flips between them. The
         edit form is the one state that replaces this pane, so AtlasExplorer
         mounts the same box under it (#983).
@@ -379,18 +322,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useTemplateRef, watch } from "vue";
+import { computed, useTemplateRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import AtlasScaleRail from "@/components/locations/atlas/AtlasScaleRail.vue";
 import AtlasSiteMapMode from "@/components/locations/atlas/AtlasSiteMapMode.vue";
+import PlaceMapEmpty from "@/components/locations/atlas/PlaceMapEmpty.vue";
 import AtlasTreeRow from "@/components/locations/atlas/AtlasTreeRow.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import LocationDetailSections from "@/components/locations/place/LocationDetailSections.vue";
 import LocationRevealControl from "@/components/locations/place/LocationRevealControl.vue";
-import SiteLevelAssignment from "@/components/locations/site/SiteLevelAssignment.vue";
 import AtlasSiteLayerBar from "@/components/locations/atlas/AtlasSiteLayerBar.vue";
 import SiteReadinessMeter from "@/components/locations/site/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
@@ -398,7 +341,6 @@ import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useAmbiencePlayback } from "@/composables/locations/useAmbiencePlayback";
 import { useBelow } from "@/composables/useBreakpoint";
 import {
-  IconCheck,
   IconChevronRight,
   IconClock,
   IconEdit,
@@ -409,7 +351,6 @@ import {
   IconPlay,
   IconQuest,
   IconStop,
-  IconTool,
 } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
@@ -452,15 +393,6 @@ const trail = computed(() => (location ? ancestorPath(index, location.id) : []))
 const children = computed(() => (location ? childrenOf(index, location.id) : []));
 
 const isSite = computed(() => !!location && isSiteType(location.location_type));
-
-/** The site-tier parent, when there is one — the only shape `is_level` can
- *  ever hold (`guard_location_room_parent`), so it also gates the assignment
- *  control below. */
-const parentSite = computed<LocationSummary | null>(() => {
-  if (!location?.parent_id) return null;
-  const parent = index.byId.get(location.parent_id);
-  return parent && isSiteType(parent.location_type) ? parent : null;
-});
 
 /** "Ashmouth Undercroft · three levels" (#868, frame 06) — the site itself is
  *  level 1, so a stack of N child sites reads as N + 1 levels; null (no
@@ -516,44 +448,20 @@ function stopPreview(): void {
 // Which image layers this place actually has, for the Show bar's Picture and
 // Drawing pills (#884). `buildMapStack` is the one reader of the stack's
 // columns; this is that answer narrowed to two booleans.
-const siteImageLayers = computed(() => {
-  const stack = buildMapStack(location);
-  return { picture: !!stack.picture, drawing: !!stack.drawing };
-});
+const mapStack = computed(() => buildMapStack(location));
+const siteImageLayers = computed(() => ({ picture: !!mapStack.value.picture, drawing: !!mapStack.value.drawing }));
+/** The Overview's thumbnail: the drawing or the picture. A blank grid has no
+ *  image to show, so it gets no thumbnail. */
+const mapThumb = computed(() => mapStack.value.primary?.url ?? null);
 
-// Build is a route flag like `at` is (#884) — so Back leaves Build the way it
-// leaves a place, a deep link opens a place ready to work on, and a reload
-// keeps the DM where they were. True on any place (#958): a site's Build is
-// the workbench, any other place's is its Picture and pins.
 const route = useRoute();
 const router = useRouter();
 // 44px thumb targets on a phone, the compact row beside the name above sm.
 const isBelowSm = useBelow("sm");
 const actionSize = computed(() => (isBelowSm.value ? "md" : "sm"));
-const building = computed(() => route.query.build === "true");
 
-function toggleBuild(): void {
-  if (building.value) {
-    const { build: _leaving, ...rest } = route.query;
-    void router.push({ query: rest });
-    return;
-  }
-  void router.push({ query: { ...route.query, build: "true" } });
-}
-
-// Build's affordances live on the map (rooms, doors, regions, the picture,
-// pins), so Build always shows the map: pressed here, or arrived at by a link or a
-// refresh with `build=true` already in the address.
-watch(
-  building,
-  (isBuilding) => {
-    if (isBuilding && paneMode !== "map") emit("update:paneMode", "map");
-  },
-  { immediate: true },
-);
-
-/** Details — a route flag on the current Atlas selection, same
- *  convention as `build` above, rather than a trip to a separate page: the
+/** Details — a route flag on the current Atlas selection (like `run` below),
+ *  rather than a trip to a separate page: the
  *  pane renders the same body a full page would, so leaving it changed
  *  nothing but which page the DM was dropped on. */
 function openEdit(): void {
@@ -565,15 +473,9 @@ function openRun(): void {
   void router.push({ query: { ...route.query, run: "true" } });
 }
 
-/** The readiness meter's Mapped pill (#884, S5) — always lands on the Map.
- *  A site that has a map opens it to read, in Browse: the pill is the
- *  likeliest way a DM finds the map on a phone, and dropping them into Build
- *  for it made viewing a map cost leaving an editor (4 Oct 2026). Only a site
- *  with nothing to look at yet enters Build, where the Layers panel starts
- *  one. Never leaves Build if the DM was already in it: only `toggleBuild`'s
- *  own button should ever turn Build off. */
+/** The readiness meter's Mapped pill (#884, S5) opens the Map tab: a map to
+ *  read, or the empty card that starts one (#1125). */
 function onOpenMap(): void {
-  if (!building.value && !hasMap.value) void router.push({ query: { ...route.query, build: "true" } });
   emit("update:paneMode", "map");
 }
 

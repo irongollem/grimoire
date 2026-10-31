@@ -16,6 +16,7 @@ import { paintLitVeil } from "@/lib/battlemap/darkness";
 import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
 import { occluders } from "@/lib/battlemap/occlusion";
 import { collectOcclusion } from "@/cartographer/mapOcclusion";
+import { paintEditorMarks, type EditorMarks } from "@/cartographer/drawEditorMarks";
 import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
 import { boundaryEdges } from "@/cartographer/floodFill";
@@ -89,6 +90,8 @@ export interface MapRenderScene {
   dressingGhost?: { placement: DressingPlacement; alpha: number } | null;
   /** The selected placement, outlined. */
   selectedDressingId?: string | null;
+  /** The Angled wall run, the selected wall and the placed lights, drawn over the map (#1125 story 5). */
+  editorMarks?: EditorMarks;
   /**
    * Bumps on every edit of `layers` (the editor's `editRevision`). The editor
    * paints INTO the same `layers` object, so its identity cannot tell the
@@ -341,6 +344,7 @@ export function renderMap(scene: MapRenderScene): void {
     dressing,
     dressingGhost,
     selectedDressingId,
+    editorMarks,
     darkness,
   } = scene;
   const { minX, minY, maxX, maxY } = bounds;
@@ -377,6 +381,8 @@ export function renderMap(scene: MapRenderScene): void {
     glyphPackId: currentPackId,
     dressing,
     lights: true,
+    // The editor shows the walls that are hidden in the bake, dashed, so the DM can find and edit them.
+    showHiddenWalls: true,
     makeCanvas: scene.makeCanvas ?? offscreenMakeCanvas(),
     afterGround: () => {
       // Grid overlay
@@ -543,6 +549,8 @@ export function renderMap(scene: MapRenderScene): void {
       "rgba(80,180,255,0.9)",
     );
   }
+
+  if (editorMarks && !viewMode) paintEditorMarks(ctx, layers, editorMarks, tilePx, viewportOffset);
 
   // Origin marker
   const ox = 0 - viewportOffset.x;

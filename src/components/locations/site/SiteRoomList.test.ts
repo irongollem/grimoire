@@ -84,11 +84,11 @@ describe("SiteRoomList", () => {
     mocks.aiEnabled.value = false;
   });
 
-  it("sends the DM to Build when there are no rooms yet", () => {
+  it("sends the DM to the site's Overview, where rooms are added, when there are none yet", () => {
     const wrapper = mount(SiteRoomList, { props: baseProps([]), global: { stubs: { ...stubs, RouterLink: RouterLinkStub } } });
     expect(wrapper.text()).toContain("No rooms yet");
     const link = wrapper.findComponent(RouterLinkStub);
-    expect(link.props("to")).toBe("/locations?at=site-1&build=true");
+    expect(link.props("to")).toBe("/locations?at=site-1");
   });
 
   it("numbers rooms in the order given, with a caption from the room's own description", () => {

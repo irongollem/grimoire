@@ -11,10 +11,12 @@
 // for a no-op. None of them set a dirty flag themselves — the caller does
 // `if (changed) dirty.value = true;` at the call site.
 
-import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType } from "@/types/dungeonMap.types";
+import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType, type WallEdge } from "@/types/dungeonMap.types";
 import { nextDressingZ } from "@/cartographer/dressing";
 import type { StampCategory } from "@/cartographer/stampCategories";
-import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
+import { canonicaliseEdge, type CanonicalEdge, type CellEdge } from "@/cartographer/edges";
+import { latticeKey } from "@/lib/battlemap/walls";
+import { isLatticeKey, latticeWall } from "@/cartographer/wallGraph";
 
 export interface PaintContext {
   layers: DungeonMapLayers;
@@ -80,7 +82,14 @@ export function eraseCell(ctx: PaintContext, x: number, y: number): boolean {
   const hadFloor = Boolean(ctx.layers.floor[k]);
   const hadTerrain = Boolean(ctx.layers.terrain[k]);
   const hadArea = dropArea(ctx, k);
-  if (!hadFloor && !hadTerrain) return hadArea;
+  // The walls on the cell's own north and west edges go with it, as they did when they were stored on the cell.
+  const ownedWalls = [latticeKey(x, y, "N"), latticeKey(x, y, "W")].filter((wallKey) => ctx.layers.walls[wallKey]);
+  if (!hadFloor && !hadTerrain && ownedWalls.length === 0) return hadArea;
+  if (ownedWalls.length > 0) {
+    const nextWalls = { ...ctx.layers.walls };
+    for (const wallKey of ownedWalls) delete nextWalls[wallKey];
+    ctx.layers.walls = nextWalls;
+  }
   if (hadFloor) {
     const next = { ...ctx.layers.floor };
     delete next[k];
@@ -237,6 +246,12 @@ export function removeDressing(layers: DungeonMapLayers, id: string): boolean {
 /** The edge kinds the wall tool paints. A decal is not one: it dresses an existing wall. */
 export type PaintedWallKind = Extract<EdgeSegType, "wall" | "grate" | "sluice">;
 
+/** The lattice wall on a canonical edge, keyed as `layers.walls` keys it. */
+function latticeEntry(ctx: PaintContext, canon: CanonicalEdge): { key: string; existing: WallEdge | undefined } {
+  const key = latticeKey(canon.x, canon.y, canon.side);
+  return { key, existing: ctx.layers.walls[key] };
+}
+
 export function paintWallAtCellEdge(
   ctx: PaintContext,
   edge: CellEdge,
@@ -256,24 +271,18 @@ export function paintWallAtCellEdge(
   const strokeKey = `${canon.x},${canon.y},${canon.side}`;
   if (stroke.painted.has(strokeKey)) return false;
 
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = ctx.layers.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  const { key, existing } = latticeEntry(ctx, canon);
   if (existing && !mayOverwriteEdge(existing, kind, ctx.packId)) {
     stroke.painted.add(strokeKey);
     return false;
   }
 
-  const seg: EdgeSeg = {
+  ctx.layers.walls[key] = latticeWall(canon.x, canon.y, canon.side, {
     pack_id: ctx.packId,
     pack_version: ctx.packVersion,
     type: kind,
     variant,
-  };
-
-  ctx.layers.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
+  });
 
   stroke.painted.add(strokeKey);
   return true;
@@ -293,17 +302,10 @@ function mayOverwriteEdge(existing: EdgeSeg, kind: PaintedWallKind, packId: stri
  * dresses a plain wall, so any other edge is a no-op.
  */
 export function setDecalAtEdge(ctx: PaintContext, edge: CellEdge, decal: number | undefined): boolean {
-  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = ctx.layers.floor[ownerKey];
-  if (!ownerCell) return false;
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  const { key, existing } = latticeEntry(ctx, canonicaliseEdge(edge.x, edge.y, edge.side));
   if (!existing || existing.type !== "wall" || existing.decal === decal) return false;
   const { decal: _previous, ...rest } = existing;
-  const seg: EdgeSeg = decal === undefined ? rest : { ...rest, decal };
-  ctx.layers.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
+  ctx.layers.walls[key] = decal === undefined ? rest : { ...rest, decal };
   return true;
 }
 
@@ -311,19 +313,14 @@ export function setDecalAtEdge(ctx: PaintContext, edge: CellEdge, decal: number 
 // rectangle perimeter, and shift+click — operations that aren't "strokes".
 export function setWallEdgeIfEmpty(ctx: PaintContext, edge: CellEdge, variant: number): boolean {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = ctx.layers.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  const { key, existing } = latticeEntry(ctx, canon);
   if (existing) return false; // preserve existing walls/doors
-  const seg: EdgeSeg = {
+  ctx.layers.walls[key] = latticeWall(canon.x, canon.y, canon.side, {
     pack_id: ctx.packId,
     pack_version: ctx.packVersion,
     type: "wall",
     variant,
-  };
-  ctx.layers.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
+  });
   return true;
 }
 
@@ -338,9 +335,7 @@ export function paintDoorAtEdge(ctx: PaintContext, edge: CellEdge, stroke: Strok
   const strokeKey = `${canon.x},${canon.y},${canon.side}`;
   if (stroke.painted.has(strokeKey)) return false;
 
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = ctx.layers.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  const { key, existing } = latticeEntry(ctx, canon);
 
   let newType: EdgeSegType;
   let variant: number;
@@ -355,10 +350,12 @@ export function paintDoorAtEdge(ctx: PaintContext, edge: CellEdge, stroke: Strok
     variant = newDoorVariant;
   }
 
-  const seg: EdgeSeg = { pack_id: ctx.packId, pack_version: ctx.packVersion, type: newType, variant };
-  ctx.layers.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
+  ctx.layers.walls[key] = latticeWall(canon.x, canon.y, canon.side, {
+    pack_id: ctx.packId,
+    pack_version: ctx.packVersion,
+    type: newType,
+    variant,
+  });
   stroke.painted.add(strokeKey);
   return true;
 }
@@ -366,20 +363,14 @@ export function paintDoorAtEdge(ctx: PaintContext, edge: CellEdge, stroke: Strok
 // Right-click on door edge: revert to plain wall (preserves the edge, removes door).
 export function removeDoorAtEdge(ctx: PaintContext, edge: CellEdge, wallVariant: number): boolean {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = ctx.layers.floor[ownerKey];
-  if (!ownerCell) return false;
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
+  const { key, existing } = latticeEntry(ctx, canon);
   if (!existing || existing.type === "wall") return false;
-  const seg: EdgeSeg = {
+  ctx.layers.walls[key] = latticeWall(canon.x, canon.y, canon.side, {
     pack_id: ctx.packId,
     pack_version: ctx.packVersion,
     type: "wall",
     variant: wallVariant,
-  };
-  ctx.layers.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
+  });
   return true;
 }
 
@@ -390,22 +381,29 @@ export function eraseWallAtCellEdge(ctx: PaintContext, edge: CellEdge, stroke: S
     else if (stroke.direction !== dir) return false;
   }
 
-  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = ctx.layers.floor[ownerKey];
-  if (!ownerCell) return false;
-  if (canon.side === "N" && !ownerCell.wallN) return false;
-  if (canon.side === "W" && !ownerCell.wallW) return false;
-  const next = { ...ownerCell };
-  if (canon.side === "N") delete next.wallN;
-  else delete next.wallW;
-  // If the cell is now empty (no floor, no walls), drop it from the map.
-  if (!next.floor && !next.wallN && !next.wallW) {
-    const newFloor = { ...ctx.layers.floor };
-    delete newFloor[ownerKey];
-    ctx.layers.floor = newFloor;
-  } else {
-    ctx.layers.floor[ownerKey] = next;
-  }
+  const { key, existing } = latticeEntry(ctx, canonicaliseEdge(edge.x, edge.y, edge.side));
+  if (!existing) return false;
+  const next = { ...ctx.layers.walls };
+  delete next[key];
+  ctx.layers.walls = next;
+  return true;
+}
+
+/** Toggles an angled wall between wall and door (the Door tool on a wall that is not on a grid line). */
+export function toggleAngledDoor(ctx: PaintContext, id: string, doorVariant: number): boolean {
+  const existing = ctx.layers.walls[id];
+  if (!existing || isLatticeKey(id)) return false;
+  const type: EdgeSegType = existing.type === "doorClosed" || existing.type === "doorOpen" ? "wall" : "doorClosed";
+  const variant = type === "doorClosed" ? doorVariant : existing.variant;
+  ctx.layers.walls[id] = { ...existing, type, variant };
+  return true;
+}
+
+/** Removes a wall by id, lattice or angled. */
+export function removeWallById(ctx: PaintContext, id: string): boolean {
+  if (!ctx.layers.walls[id]) return false;
+  const next = { ...ctx.layers.walls };
+  delete next[id];
+  ctx.layers.walls = next;
   return true;
 }

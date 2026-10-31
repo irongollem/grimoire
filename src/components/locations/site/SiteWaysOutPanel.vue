@@ -24,7 +24,7 @@
           <span v-if="row.isVertical" class="shrink-0 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">{{ DOOR_KIND_LABELS[row.door.door_kind] }}</span>
           <span v-if="row.isOneSided" class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ ONE_SIDED_DOOR_LABEL }}</span>
 
-          <template v-if="!verticalOnly && building">
+          <template v-if="!verticalOnly && editable">
             <AppButton
               variant="ghost"
               size="icon-xs"
@@ -45,11 +45,20 @@
           </template>
         </div>
         <p class="pl-6 text-caption text-muted-foreground">
-          <template v-if="row.isUnplaced">Not placed on the plan yet: {{ row.subtitle.toLowerCase() }}</template>
+          <template v-if="row.isUnplaced && editable">Not placed on the plan yet: {{ row.subtitle.toLowerCase() }}</template>
           <template v-else>{{ row.subtitle }}</template>
+          <!-- Read-only, an unplaced way out says so and points at the one
+               place it can be fixed: the editor's Plan (#1125, frame 02). -->
+          <template v-if="row.isUnplaced && !editable">
+            <span class="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">not on the map</span>
+            <RouterLink
+              :to="mapEditorRoute(siteId, 'plan')"
+              class="ml-1.5 text-caption font-semibold text-primary hover:underline"
+            >Place it</RouterLink>
+          </template>
         </p>
 
-        <Transition v-if="!verticalOnly && building" v-bind="drawerTransition()">
+        <Transition v-if="!verticalOnly && editable" v-bind="drawerTransition()">
           <div v-if="expandedIds.has(row.door.id)" class="flex flex-col gap-2 border-t border-border pt-2">
             <div class="flex flex-wrap items-center gap-4">
               <AppButton
@@ -126,11 +135,11 @@
       </div>
     </div>
     <p v-else class="text-caption italic text-muted-foreground">
-      {{ verticalOnly ? "No ways up or down yet." : building ? "No ways out yet. Add one below." : "No ways out yet. Build the site to add them." }}
+      {{ verticalOnly ? "No ways up or down yet." : editable ? "No ways out yet. Add one below." : "No ways out yet. Draw them in the map editor." }}
     </p>
 
-    <!-- Inline add — Build only. -->
-    <div v-if="!verticalOnly && building" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
+    <!-- Inline add: the editor's Plan drawer only. -->
+    <div v-if="!verticalOnly && editable" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
       <div class="grid grid-cols-2 gap-2">
         <EntityCombobox v-model="newFromId" :options="spaces" placeholder="From…" />
         <EntityCombobox v-model="newToId" :options="toOptions" placeholder="To…" />
@@ -202,6 +211,7 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import PlacementNoteInput from "@/components/locations/place/PlacementNoteInput.vue";
 import DoorFeatureCard from "@/components/locations/place/DoorFeatureCard.vue";
 import { drawerTransition } from "@/lib/motion";
+import { mapEditorRoute } from "@/lib/locations/placeRoute";
 import { IconChevronDown, IconChevronUp, IconClose, IconDoor, IconHide, IconLock } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
@@ -225,11 +235,9 @@ export interface WaysOutSpace {
   location_type: LocationType;
 }
 
-// `siteId` is part of the contract (S6 mounts this on a levels rail and will
-// key/route off it) but nothing in this story's rendering needs it — every
-// door this panel reads is already scoped by `spaces`, which is exhaustive
-// for the site it was fetched from.
-const { spaces, verticalOnly = false, hideHeader = false, building = false } = defineProps<{
+// Doors are scoped by `spaces`, exhaustive for the site; `siteId` only builds
+// the "Place it" link into this site's editor.
+const { siteId, spaces, verticalOnly = false, hideHeader = false, editable = false } = defineProps<{
   siteId: string;
   spaces: WaysOutSpace[];
   /** Renders the frame-06 "Vertical ways out" variant: filtered, read-only,
@@ -238,10 +246,11 @@ const { spaces, verticalOnly = false, hideHeader = false, building = false } = d
   /** Suppresses the icon+title+count header — for a caller (`LocationDetailSections`)
    *  that already renders its own "Ways out" section heading above this. */
   hideHeader?: boolean;
-  /** Build mode (#884) — gates the add form, expand-to-edit, and remove.
-   *  The row's own badges (secret/locked/kind) already read as facts, so
-   *  Browse keeps showing them unconditionally. */
-  building?: boolean;
+  /** Which surface this is mounted on (#1125), not a mode: the editor's Plan
+   *  drawer passes true and gets the add form, expand-to-edit and remove; the
+   *  Overview and the map's aside read the same list without them. The row's
+   *  own badges (secret/locked/kind) read as facts on both. */
+  editable?: boolean;
 }>();
 
 const toast = useToast();
@@ -327,10 +336,10 @@ function startChangingFeature(doorId: string) {
   changingFeatureIds.value = new Set([...changingFeatureIds.value, doorId]);
 }
 
-// Only the Build-only edit drawer offers features to pick from.
+// Only the editable edit drawer offers features to pick from.
 // The index offers Grimoire's library features beside the DM's own; the same
 // Secret Door / Hidden Passage / Moving Wall filter applies to both.
-const { data: allFeatures } = useDungeonFeatureIndex(() => ({ enabled: building }));
+const { data: allFeatures } = useDungeonFeatureIndex(() => ({ enabled: editable }));
 const connectionFeatures = computed(() =>
   (allFeatures.value ?? []).filter((f) => CONNECTION_FEATURE_TYPES.has(f.feature_type)),
 );

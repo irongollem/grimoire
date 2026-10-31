@@ -4,14 +4,15 @@
 // own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use). Doors carry
 // their leaf art and hinge too, so the battle map can draw each at the state the DM sets in play.
 
-import type { DungeonMap, CellKey, FloorCell } from "@/types/dungeonMap.types";
+import type { DungeonMap, CellKey } from "@/types/dungeonMap.types";
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveWall, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
 import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
 import { gatherLightSources } from "@/cartographer/drawLights";
 import { doorLeafArt } from "@/cartographer/doorLeaf";
-import { collectOcclusion, toImageCell } from "@/cartographer/mapOcclusion";
+import { collectOcclusion, occlusionSegment, toImageCell } from "@/cartographer/mapOcclusion";
+import { edgeSegOf, isLatticeKey } from "@/cartographer/wallGraph";
 import { cellKey } from "@/types/dungeonMap.types";
 import type { WallSegment } from "@/lib/battlemap/walls";
 
@@ -97,11 +98,10 @@ function gatherDoors(
   originCellY: number,
 ): MapLiveDoor[] {
   const leaves = new Map<string, MapLiveDoorLeaf | null>();
-  for (const [key, cell] of Object.entries(map.layers.floor) as [CellKey, FloorCell][]) {
-    const at = toImageCell(key, originCellX, originCellY);
-    for (const [side, seg] of [["N", cell.wallN], ["W", cell.wallW]] as const) {
-      if (seg) leaves.set(`${at}:${side}`, doorLeafArt(seg, runtimes.get(seg.pack_id) ?? null));
-    }
+  for (const [key, wall] of Object.entries(map.layers.walls)) {
+    // An angled door has no leaf the live layer can turn to its line, so the bake keeps drawing it.
+    if (!isLatticeKey(key)) continue;
+    leaves.set(occlusionSegment(key, wall, originCellX, originCellY).id, doorLeafArt(edgeSegOf(wall), runtimes.get(wall.pack_id) ?? null));
   }
   return doors.map((door) => ({ ...toMapLiveWall(door), open: door.open, leaf: leaves.get(door.id) ?? null }));
 }

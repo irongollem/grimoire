@@ -31,7 +31,6 @@
            the region-scoped switcher below. Mutually exclusive with tracing
            is enforced by `LocationMap.vue`, which owns both booleans. -->
       <AppButton
-        v-if="building"
         variant="ghost"
         size="inline-xs"
         class="ml-auto"
@@ -42,7 +41,6 @@
         @click="emit('update:doorToolArmed', !doorToolArmed)"
       />
       <AppButton
-        v-if="building"
         variant="ghost"
         size="inline-xs"
         :icon="IconAdd"
@@ -95,7 +93,6 @@
                  to nothing and so has no identity for a quest rule to watch
                  (see `SiteMapRoomRules.vue`'s own docblock). -->
             <AppButton
-              v-if="building"
               variant="ghost"
               size="inline-xs"
               :label="rulesForSpace(space.id).length ? `Rules (${rulesForSpace(space.id).length})` : 'Rules'"
@@ -104,7 +101,6 @@
               @click="expandedRulesSpaceId = expandedRulesSpaceId === space.id ? null : space.id"
             />
             <AppButton
-              v-if="building"
               variant="ghost"
               size="inline-xs"
               label="Trace"
@@ -114,14 +110,12 @@
               @click="toggleActive(boundRegionBySpace.get(space.id)!.id)"
             />
             <AppButton
-              v-if="building"
               variant="ghost"
               size="inline-xs"
               label="Unbind"
               @click="unbind(boundRegionBySpace.get(space.id)!)"
             />
             <AppButton
-              v-if="building"
               variant="ghost"
               tone="danger"
               size="icon-xs"
@@ -130,12 +124,11 @@
               @click="removeRegion(boundRegionBySpace.get(space.id)!)"
             />
           </template>
-          <AppButton v-else-if="building" variant="ghost" size="inline-xs" label="Add region" @click="addRegionForSpace(space)" />
-          <span v-else class="shrink-0 text-caption text-muted-foreground italic">Not traced</span>
+          <AppButton v-else variant="ghost" size="inline-xs" label="Add region" @click="addRegionForSpace(space)" />
         </div>
 
         <SiteMapRoomRules
-          v-if="building && boundRegionBySpace.get(space.id) && expandedRulesSpaceId === space.id"
+          v-if="boundRegionBySpace.get(space.id) && expandedRulesSpaceId === space.id"
           :location-id="space.id"
           :rules="rulesForSpace(space.id)"
         />
@@ -156,7 +149,6 @@
         class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
       >
         <AppInput
-          v-if="building"
           :model-value="region.label ?? ''"
           :model-modifiers="{ lazy: true }"
           type="text"
@@ -166,9 +158,7 @@
           class="min-w-0 flex-1"
           @update:model-value="commitLabel(region, $event as string)"
         />
-        <span v-else class="min-w-0 flex-1 truncate text-caption text-muted-foreground">{{ region.label || "Untitled shape" }}</span>
         <EntityCombobox
-          v-if="building"
           :model-value="''"
           :options="unclaimedSpaces"
           placeholder="Bind to space…"
@@ -180,7 +170,6 @@
           {{ regionProvenanceText(region) }}
         </span>
         <AppButton
-          v-if="building"
           variant="ghost"
           size="inline-xs"
           label="Trace"
@@ -190,7 +179,6 @@
           @click="toggleActive(region.id)"
         />
         <AppButton
-          v-if="building"
           variant="ghost"
           tone="danger"
           size="icon-xs"
@@ -208,11 +196,9 @@
  * The region-CRUD half of the site map apparatus — split out of
  * `SiteMapView.vue` (#805 slice 2) once that file's canvas/calibration/
  * drag-to-paint rewrite pushed it past the 600-line soft max. Mounted twice
- * as of #884 S11: read-only by `LocationMap.vue` in Browse (`building`
- * false, `activeRegionId` always null there — nothing sets it), and with
- * full CRUD by `MapWorkbench`'s embedded Plan branch in Build, where
- * `activeRegionId`/`building` are the workbench's own `usePlanPalette`
- * state — the canvas that actually paints cells into whichever region is
+ * as of #884 S11 and always editable since #1125: it is only mounted by
+ * `MapWorkbench`'s Plan drawer, where `activeRegionId` is the workbench's own
+ * `usePlanPalette` state — the canvas that actually paints cells into whichever region is
  * active is `MapWorkbench`'s, not this component's.
  *
  * `activeRegionId` is lifted to the caller either way, so it travels as a
@@ -239,7 +225,7 @@ import { useToast } from "@/composables/useToast";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { QuestConsequence } from "@/types/quest.types";
 
-const { locationId, spaces, regions, activeRegionId, canTrace, building = false, doorToolArmed = false } = defineProps<{
+const { locationId, spaces, regions, activeRegionId, canTrace, doorToolArmed = false } = defineProps<{
   /** The site these regions belong to — `createRegion` needs it as
    *  `site_location_id`. */
   locationId: string;
@@ -253,10 +239,6 @@ const { locationId, spaces, regions, activeRegionId, canTrace, building = false,
    *  set) — the caller disables "Trace" rather than opening a tracing UI
    *  with nothing calibrated to paint on. */
   canTrace: boolean;
-  /** Build mode (#884): the rows, names and counts read in Browse too — a DM
-   *  looking at a plan wants to see which spaces are traced and click one.
-   *  Only the affordances that *change* the plan are Build-only. */
-  building?: boolean;
   /** Whether the door tool (#884) is currently armed — `LocationMap.vue`
    *  owns the actual boolean (mutual exclusion with `activeRegionId` lives
    *  there); this panel only shows and toggles it. */
@@ -305,7 +287,7 @@ const nestedSiteIndexBySpace = computed(() => {
 // plural-lookup composables (see its own docblock). Held to `[]` outside
 // Build so a DM merely browsing a site never fires this query at all; the
 // button and panel that read it are Build-only regardless.
-const spaceIds = computed(() => (building ? spaces.map((s) => s.id) : []));
+const spaceIds = computed(() => spaces.map((s) => s.id));
 const { data: roomRules } = useQuestConsequencesByLocations(spaceIds);
 const rulesBySpace = computed(() => {
   const map = new Map<string, QuestConsequence[]>();

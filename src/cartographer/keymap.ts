@@ -20,6 +20,12 @@ export type KeyAction =
   | { kind: "deleteDressing" }
   /** Place tool: puts the armed item down without leaving the tool. */
   | { kind: "disarmPlace" }
+  /** Angled wall: Enter ends the run in progress, keeping the segments drawn so far. */
+  | { kind: "finishAngledWall" }
+  /** Angled wall: Escape throws the unfinished run away and stays in the tool. */
+  | { kind: "abandonAngledWall" }
+  /** Select, Angled wall or Light: removes the selected angled wall or placed light (a no-op when none is). */
+  | { kind: "deleteSelected" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
   | { kind: "selectTool"; tool: Tool };
@@ -41,10 +47,16 @@ export interface KeyContext {
   tools: ReadonlyArray<{ id: Tool; shortcut?: string; /** Further keys that pick the same tool (Place answers to G as well as O). */ aliases?: readonly string[]; disabled?: boolean }>;
   /** Place has something armed (an object or a prop); Escape then puts it down before it leaves the tool. */
   placeArmed?: boolean;
+  /** Angled wall has points down that are not yet a wall; Enter ends the run, Escape abandons it. */
+  angledRunOpen?: boolean;
+  /** An angled wall or a placed light is selected, so Delete has something to remove. */
+  selectionDeletable?: boolean;
 }
 
 // Delete and Backspace are the same key on the two keyboard families.
 const DRESSING_DELETE_KEYS = new Set(["delete", "backspace"]);
+/** The tools in which a selected angled wall or placed light can be taken away with Delete. */
+const SELECTION_TOOLS = new Set<Tool>(["select", "angledWall", "light"]);
 
 export const BRUSH_RADIUS_MIN = 0.5;
 export const BRUSH_RADIUS_MAX = 6;
@@ -81,8 +93,15 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   // context ever disables the tool instead of assuming it's always there.
   if (key === "escape") {
     if (ctx.activeTool === "place" && ctx.placeArmed) return { kind: "disarmPlace" };
+    if (ctx.activeTool === "angledWall" && ctx.angledRunOpen) return { kind: "abandonAngledWall" };
     const select = ctx.tools.find((t) => t.id === "select");
     return select && !select.disabled ? { kind: "selectTool", tool: select.id } : null;
+  }
+
+  if (ctx.activeTool === "angledWall" && key === "enter" && ctx.angledRunOpen) return { kind: "finishAngledWall" };
+
+  if (ctx.selectionDeletable && DRESSING_DELETE_KEYS.has(key) && SELECTION_TOOLS.has(ctx.activeTool)) {
+    return { kind: "deleteSelected" };
   }
 
   if (ctx.activeTool === "brush" && (key === "[" || key === "]")) {

@@ -7,6 +7,7 @@ import type { RunCombatant } from "@/types/encounter.types";
 
 // The runner wires a dozen data composables; none of them is under test here.
 const isMobile = ref(false);
+const canOpenBattleMap = ref(false);
 vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/composables/useBreakpoint")>()),
   useIsMobile: () => isMobile,
@@ -21,7 +22,7 @@ vi.mock("@/composables/useToast", () => ({ useToast: () => ({ info: vi.fn(), err
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounter: () => ({ data: ref(null) }) }));
 vi.mock("@/composables/encounters/useCombatExploration", () => ({
   useCombatExploration: () => ({
-    canOpenBattleMap: ref(true),
+    canOpenBattleMap,
     battleMapDisabledReason: ref(""),
     markRoomsExploredFromFogMask: vi.fn(),
   }),
@@ -74,7 +75,7 @@ const stubs = {
   ManualHelpLink: true, TurnTimer: true, FocalImage: true,
   RunnerDueConditions: true, RunnerBossMechanics: true, RunnerSurprisePanel: true,
   RunnerCombatantList: true, RunnerSpawnPanel: true, RunnerDmTools: true,
-  RunnerToolsSheet: true, DmNoteBox: true,
+  RunnerToolsSheet: true, DmNoteBox: true, PlayMap: true, PlayPhoneMap: true,
   RunnerEntityDetail: { template: "<div data-testid='detail' />" },
 };
 
@@ -89,6 +90,7 @@ describe("EncounterRunner", () => {
     const store = useEncounterRunStore();
     store.combatants = [combatant("a"), combatant("b")];
     store.round = 0;
+    canOpenBattleMap.value = false;
   });
 
   // A DM who is not live (or has no campaign, so no Go Live) could never begin combat.
@@ -121,5 +123,89 @@ describe("EncounterRunner", () => {
     await w.find("[aria-label='Open the active combatant']").trigger("click");
     expect(document.body.querySelector("[data-testid=detail]")).not.toBeNull();
     expect(document.body.querySelector(".fixed.inset-0")).not.toBeNull();
+  });
+
+  describe("with a battle map (the Play screen)", () => {
+    beforeEach(() => {
+      isMobile.value = false;
+      canOpenBattleMap.value = true;
+    });
+
+    // #1125 decision 9: one screen from tablet up, so the old top bar and list body are gone.
+    it("draws the Play screen instead of the classic top bar and list", () => {
+      const w = mountRunner();
+      expect(w.find("[data-testid=play-layout]").exists()).toBe(true);
+      expect(w.find(".runner-topbar").exists()).toBe(false);
+      expect(w.find(".runner-body-wrap").exists()).toBe(false);
+    });
+
+    it("names the round once combat runs, and offers Roll and Start only before it", () => {
+      const pre = mountRunner();
+      expect(pre.find("[data-testid=play-round-chip]").exists()).toBe(false);
+      expect(pre.findAll("button").some((b) => b.text().includes("Start Combat"))).toBe(true);
+      pre.unmount();
+
+      const store = useEncounterRunStore();
+      store.started = true;
+      store.round = 3;
+      const running = mountRunner();
+      expect(running.find("[data-testid=play-round-chip]").text()).toBe("Fighting · Round 3");
+      expect(running.findAll("button").some((b) => b.text().includes("Start Combat"))).toBe(false);
+    });
+
+    it("Next turn passes the turn to the next combatant in initiative order", async () => {
+      const store = useEncounterRunStore();
+      store.combatants = [{ ...combatant("a"), initiative: 15 }, { ...combatant("b"), initiative: 5 }];
+      store.started = true;
+      store.round = 1;
+      store.activeIndex = 0;
+      const w = mountRunner();
+      await w.findAll("button").find((b) => b.text().includes("Next turn"))!.trigger("click");
+      expect(store.activeCombatant?.instance_id).toBe("b");
+    });
+
+    it("Next turn is not offered as a live control before combat starts", () => {
+      const w = mountRunner();
+      const next = w.findAll("button").find((b) => b.text().includes("Next turn"))!;
+      expect(next.attributes("disabled")).toBeDefined();
+    });
+
+    it("the initiative column lists everyone, sorted, and the one whose turn it is wears the bookmark edge", () => {
+      const store = useEncounterRunStore();
+      store.combatants = [{ ...combatant("a"), initiative: 5 }, { ...combatant("b"), initiative: 15 }];
+      store.started = true;
+      store.round = 1;
+      store.activeIndex = 0;
+      const w = mountRunner();
+      const rows = w.findAll("[aria-label='Initiative order'] li");
+      expect(rows.map((r) => r.text())).toEqual([expect.stringContaining("Name b"), expect.stringContaining("Name a")]);
+      expect(rows[0].find("[data-turn=true]").exists()).toBe(true);
+      expect(rows[1].find("[data-turn=true]").exists()).toBe(false);
+    });
+  });
+
+  // In the lobby activeIndex still points at the first row, but nobody's turn has begun.
+  it("marks nobody's turn before combat has started", () => {
+    const store = useEncounterRunStore();
+    store.combatants = [{ ...combatant("a"), initiative: 5 }];
+    canOpenBattleMap.value = true;
+    isMobile.value = false;
+    const w = mountRunner();
+    expect(w.find("[data-turn=true]").exists()).toBe(false);
+  });
+
+  it("phone with a battle map: a List | Map switch sits under the header and Map swaps the list for the map", async () => {
+    isMobile.value = true;
+    canOpenBattleMap.value = true;
+    const w = mountRunner();
+    expect(w.findComponent({ name: "PlayPhoneMap" }).exists()).toBe(false);
+    await w.findAll("button").find((b) => b.text() === "Map")!.trigger("click");
+    expect(w.findComponent({ name: "PlayPhoneMap" }).exists()).toBe(true);
+  });
+
+  it("phone without a battle map has no switch", () => {
+    isMobile.value = true;
+    const w = mountRunner();
+    expect(w.findAll("button").some((b) => b.text() === "Map")).toBe(false);
   });
 });

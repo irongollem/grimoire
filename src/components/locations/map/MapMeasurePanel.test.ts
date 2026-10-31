@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("vue-router", () => ({
-  useRoute: () => ({ query: { at: "place-1" } }),
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(mocks.party) }) }));
@@ -52,6 +51,7 @@ const EventModalStub = {
 function mountPanel(props: Partial<InstanceType<typeof MapMeasurePanel>["$props"]> = {}) {
   return mount(MapMeasurePanel, {
     props: {
+      locationId: "place-1",
       pace: "normal",
       scale: SCALE,
       points: POINTS,
@@ -68,11 +68,12 @@ beforeEach(() => {
 });
 
 describe("MapMeasurePanel", () => {
-  it("says a scale is needed, and opens Build to set one", async () => {
+  // #1125: Build is retired; the scale is set in the full-screen editor on this place's Picture.
+  it("says a scale is needed, and opens this place's map editor to set one", async () => {
     const wrapper = mountPanel({ scale: null, summary: null });
     expect(wrapper.text()).toContain("no scale");
-    await wrapper.findAll("button").find((b) => b.text() === "Open Build")!.trigger("click");
-    expect(mocks.push).toHaveBeenCalledWith({ query: { at: "place-1", build: "true" } });
+    await wrapper.findAll("button").find((b) => b.text() === "Edit map")!.trigger("click");
+    expect(mocks.push).toHaveBeenCalledWith("/locations/place-1/map?layer=picture");
   });
 
   it("prompts for the first tap on an empty route", () => {

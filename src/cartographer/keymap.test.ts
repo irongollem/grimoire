@@ -150,3 +150,42 @@ describe("resolveKeyAction", () => {
     });
   });
 });
+
+// #1125 story 5: the Angled wall run and the selected wall or light have keys of their own.
+describe("angled wall and selection keys", () => {
+  const withCtx = (activeTool: string, extra: Partial<KeyContext>): KeyContext => ({ ...ctx(activeTool), ...extra });
+
+  it("Enter ends an angled run that is open, and does nothing with no run", () => {
+    expect(resolveKeyAction(ev({ key: "Enter" }), withCtx("angledWall", { angledRunOpen: true }))).toEqual({ kind: "finishAngledWall" });
+    expect(resolveKeyAction(ev({ key: "Enter" }), withCtx("angledWall", { angledRunOpen: false }))).toBeNull();
+  });
+
+  it("Enter means nothing in another tool, even with a run left open", () => {
+    expect(resolveKeyAction(ev({ key: "Enter" }), withCtx("wall", { angledRunOpen: true }))).toBeNull();
+  });
+
+  it("Escape drops an open angled run and stays in the tool; with no run it goes back to Select", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("angledWall", { angledRunOpen: true }))).toEqual({ kind: "abandonAngledWall" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("angledWall", { angledRunOpen: false }))).toEqual({ kind: "selectTool", tool: "select" });
+  });
+
+  it("Escape in another tool goes back to Select even if a run was left open", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("wall", { angledRunOpen: true }))).toEqual({ kind: "selectTool", tool: "select" });
+  });
+
+  it.each(["select", "angledWall", "light"])("Delete and Backspace remove the selection in %s", (tool) => {
+    for (const key of ["Delete", "Backspace"]) {
+      expect(resolveKeyAction(ev({ key }), withCtx(tool, { selectionDeletable: true }))).toEqual({ kind: "deleteSelected" });
+    }
+  });
+
+  it("Delete does nothing with nothing selected, or in a tool that has no selection", () => {
+    expect(resolveKeyAction(ev({ key: "Delete" }), withCtx("select", { selectionDeletable: false }))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "Delete" }), withCtx("floor", { selectionDeletable: true }))).toBeNull();
+  });
+
+  it("Delete in Place still removes the selected prop, not the wall selection", () => {
+    expect(resolveKeyAction(ev({ key: "Delete" }), withCtx("place", { selectionDeletable: true }))).toEqual({ kind: "deleteDressing" });
+  });
+});
+

@@ -20,6 +20,7 @@ function mountOptions(over: Record<string, unknown> = {}) {
       linkedNoteId: "", linkedEncounterId: "", linkedTrapId: "", linkedFeatureId: "",
       noteOptions: [], encounterOptions: [], trapOptions: [], featureOptions: [],
       activeTemplateShape: "circle", templateShapes: [], brushRadius: 1.5, rectWalls: true,
+      light: { color: "#ffb347", bright: 20, dim: 20 }, lightSelected: false,
       ...over,
     },
     global: { stubs: { EntityCombobox: true } },
@@ -221,5 +222,65 @@ describe("the family grid", () => {
   it("draws no grid for a family of one tool", () => {
     const wrapper = mountOptions({ title: "Things", activeTool: "place", familyTools: [TOOLS[0]] });
     expect(wrapper.find('[aria-label="Things tools"]').exists()).toBe(false);
+  });
+});
+
+describe("angled wall options (#1125 story 5)", () => {
+  it("offers the kinds an angled wall can be, without Decal, and says how a run ends", async () => {
+    const wrapper = mountOptions({ title: "Walls", activeTool: "angledWall" });
+    for (const label of ["Wall", "Grate", "Sluice"]) expect(button(wrapper, label).exists()).toBe(true);
+    expect(wrapper.findAll("button").some((b) => b.text() === "Decal")).toBe(false);
+    expect(wrapper.text()).toContain("Enter or a double-click ends the run");
+    await button(wrapper, "Grate").trigger("click");
+    expect(wrapper.emitted("update:activeWallKind")?.[0]).toEqual(["grate"]);
+  });
+});
+
+describe("light options (#1125 story 5)", () => {
+  const lightProps = { title: "Things", activeTool: "light" };
+  const field = (wrapper: ReturnType<typeof mountOptions>, label: string) =>
+    wrapper.find(`input[aria-label="${label}"]`);
+
+  it("shows the colour and reach of what the next light will be", () => {
+    const wrapper = mountOptions(lightProps);
+    expect((field(wrapper, "Light colour").element as HTMLInputElement).value).toBe("#ffb347");
+    expect((field(wrapper, "Bright light, in feet").element as HTMLInputElement).value).toBe("20");
+    expect((field(wrapper, "Dim light, in feet").element as HTMLInputElement).value).toBe("20");
+  });
+
+  it("emits a colour change as a patch", async () => {
+    const wrapper = mountOptions(lightProps);
+    await field(wrapper, "Light colour").setValue("#00ff00");
+    expect(wrapper.emitted("update:light")?.[0]).toEqual([{ color: "#00ff00" }]);
+  });
+
+  it("holds a reach to the rules' 60 feet", async () => {
+    const wrapper = mountOptions(lightProps);
+    await field(wrapper, "Bright light, in feet").setValue("200");
+    await field(wrapper, "Bright light, in feet").trigger("change");
+    expect(wrapper.emitted("update:light")?.[0]).toEqual([{ bright: 60 }]);
+  });
+
+  it("refuses to take both radii to zero, which would be a light that lights nothing", async () => {
+    const wrapper = mountOptions({ ...lightProps, light: { color: "#ffb347", bright: 0, dim: 20 } });
+    await field(wrapper, "Dim light, in feet").setValue("0");
+    await field(wrapper, "Dim light, in feet").trigger("change");
+    expect(wrapper.emitted("update:light")).toBeUndefined();
+  });
+
+  it("turns Flicker on with an amount and off by clearing it", async () => {
+    const wrapper = mountOptions(lightProps);
+    await wrapper.find("input[type=checkbox]").setValue(true);
+    expect(wrapper.emitted("update:light")?.[0]).toEqual([{ flicker: 0.25 }]);
+    const flickering = mountOptions({ ...lightProps, light: { color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 } });
+    await flickering.find("input[type=checkbox]").setValue(false);
+    expect(flickering.emitted("update:light")?.[0]).toEqual([{ flicker: undefined }]);
+  });
+
+  it("offers Delete only while a placed light is picked", async () => {
+    expect(mountOptions(lightProps).findAll("button").some((b) => b.text() === "Delete")).toBe(false);
+    const picked = mountOptions({ ...lightProps, lightSelected: true });
+    await button(picked, "Delete").trigger("click");
+    expect(picked.emitted("deleteLight")).toHaveLength(1);
   });
 });

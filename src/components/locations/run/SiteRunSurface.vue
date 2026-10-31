@@ -54,7 +54,6 @@
           :children="pinnableChildren"
           mode="view"
           :show-hidden-pins="true"
-          :location-id="location.id"
           show-regions
           :regions="regions"
           :spaces="siteSpaces"

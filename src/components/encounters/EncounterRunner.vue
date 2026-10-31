@@ -7,21 +7,43 @@
       :going-live="goingLive"
       :can-go-live="!!campaign.activeCampaignId"
       :can-open-battle-map="canOpenBattleMap"
-      :battle-map-disabled-reason="battleMapDisabledReason"
       :turn-timer-seconds="turnTimerSeconds"
       :turn-reset-key="turnResetKey"
       :can-generate="campaign.isAiEnabled"
       @tools="toolsOpen = true"
       @go-live="handleGoLive"
-      @battle-map="router.push(`/encounters/${encounterId}/run/map`)"
-      @battle-map-window="openBattleMapInNewWindow"
+      @table-screen="openTableScreen"
       @generate="openGenerator"
       @roll-initiative="handleRollInitiative"
       @abandon="handleAbandon"
       @end-combat="handleEndCombat"
     />
 
-    <!-- Top bar -->
+    <!-- Tablet and up, with a battle map: one Play screen, initiative + map + sheet (#1125). -->
+    <PlayLayout
+      v-else-if="canOpenBattleMap"
+      class="flex-1"
+      v-model:selected-id="selectedId"
+      v-model:selected-trap-id="selectedTrapId"
+      v-model:tools-open="toolsOpen"
+      :encounter-id="encounterId"
+      :is-live="isLive"
+      :going-live="goingLive"
+      :can-go-live="!!campaign.activeCampaignId"
+      :can-generate="campaign.isAiEnabled"
+      :turn-timer-seconds="turnTimerSeconds"
+      :turn-reset-key="turnResetKey"
+      :party-members="partyMembers ?? []"
+      @roll-initiative="handleRollInitiative"
+      @start-combat="handleStartCombat"
+      @go-live="handleGoLive"
+      @table-screen="openTableScreen"
+      @generate="openGenerator"
+      @abandon="handleAbandon"
+      @end-fight="handleEndCombat"
+    />
+
+    <!-- No battle map: the classic runner, a top bar over the list and a sheet. -->
     <div v-else class="runner-topbar">
       <RouterLink :to="`/encounters/${encounterId}`" class="back-link">
         ← Back to Builder
@@ -91,24 +113,14 @@
           :disabled="goingLive"
           @click="handleGoLive"
         />
+        <!-- Why there is no map to fight on: the Play screen needs a calibrated battle map. -->
         <AppButton
           variant="outline"
           size="sm"
           :icon="IconMap"
           label="Battle Map"
-          :to="canOpenBattleMap ? `/encounters/${encounterId}/run/map` : undefined"
-          :tooltip="canOpenBattleMap ? 'Open battle map' : battleMapDisabledReason"
-          :disabled="!canOpenBattleMap"
-        />
-        <AppButton
-          v-if="canOpenBattleMap"
-          variant="outline"
-          size="sm"
-          :icon="IconExternalLink"
-          aria-label="Open battle map in a new window"
-          :tooltip="isLive ? 'Open battle map in a new window (for a second monitor)' : 'Go live first. The new window follows the live fight.'"
-          :disabled="!isLive"
-          @click="openBattleMapInNewWindow"
+          :tooltip="battleMapDisabledReason"
+          disabled
         />
         <RunnerGenerateMenu v-if="campaign.isAiEnabled" @generate="openGenerator" />
         <AppButton
@@ -132,13 +144,17 @@
     </div>
 
     <!-- Rolls the turn hooks left to the DM, and conditions that just ended -->
-    <RunnerDueConditions />
+    <RunnerDueConditions v-if="isMobile || !canOpenBattleMap" />
 
     <!-- Phone: one column, the list owns the screen. Surprise, events, traps,
          spawn and the DM note live in the tools sheet; the stat block is a
          full-screen layer; the turn bar sits above the bottom nav. -->
     <template v-if="isMobile">
-      <div class="min-h-0 flex-1 overflow-y-auto">
+      <div v-if="canOpenBattleMap" class="shrink-0 border-b border-border bg-card px-3 py-1.5">
+        <SegmentedControl v-model="phoneTab" :options="PHONE_TABS" variant="outline" size="sm" block />
+      </div>
+      <PlayPhoneMap v-if="canOpenBattleMap && phoneTab === 'map'" :encounter-id="encounterId" />
+      <div v-else class="min-h-0 flex-1 overflow-y-auto">
         <div class="px-3 pt-2 empty:hidden"><RunnerBossMechanics /></div>
         <RunnerCombatantList :selected-id="selectedId" @select="selectedId = $event" />
       </div>
@@ -173,7 +189,7 @@
     </template>
 
     <!-- Body: list + optional detail panel -->
-    <div v-else class="runner-body-wrap">
+    <div v-else-if="!canOpenBattleMap" class="runner-body-wrap">
       <!-- Initiative list -->
       <div class="runner-body">
         <!-- Surprise strip, then lair + legendary actions -->
@@ -201,12 +217,7 @@
 
       <!-- Stat block detail panel with draggable left border -->
       <template v-if="selectedId !== null || selectedTrapId !== null">
-        <div
-          class="resize-handle"
-          title="Drag to resize"
-          @mousedown.prevent="startDetailResize($event)"
-          @touchstart.prevent="startDetailResizeTouch($event)"
-        />
+        <ResizeHandle @mousedown="startMouse" @touchstart="startTouch" />
         <div class="panel-shell" :style="{ width: detailWidth + 'px' }">
           <RunnerEntityDetail
             :selected-id="selectedId"
@@ -229,7 +240,7 @@ import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 const { confirm } = useConfirm();
 import { ref, computed, watch, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconDungeon, IconEncounter, IconExternalLink, IconFlag, IconLive, IconMap } from '@/lib/icons';
+import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
@@ -264,6 +275,11 @@ import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
 import RunnerSurprisePanel from "./RunnerSurprisePanel.vue";
 import RunnerPhoneHeader from "./RunnerPhoneHeader.vue";
+import PlayLayout from "./play/PlayLayout.vue";
+import PlayPhoneMap from "./play/PlayPhoneMap.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import ResizeHandle from "@/components/common/layout/ResizeHandle.vue";
+import { useDetailResize } from "@/composables/encounters/useDetailResize";
 import RunnerTurnBar from "./RunnerTurnBar.vue";
 import RunnerToolsSheet from "./RunnerToolsSheet.vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
@@ -288,14 +304,14 @@ const { reportChatFailure } = useChatSendFailure();
 const { data: partyMembers } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
-// Shared with EncounterMapView (via useEncounterRoom internally) — the two
-// views must never disagree about which map an encounter opens on, which
-// cells are its focus room, or when the battle map is legal to open.
+// Shared with the Play map (via useEncounterRoom internally): the two must never disagree
+// about which map an encounter opens on, which cells are its focus room, or when it is legal.
 const { canOpenBattleMap, battleMapDisabledReason, markRoomsExploredFromFogMask } =
   useCombatExploration(encounterId);
 
-function openBattleMapInNewWindow() {
-  window.open(`/encounters/${encounterId.value}/run/map`, "_blank", "noopener,noreferrer");
+/** The table screen is a second window that follows the live fight (for a second monitor). */
+function openTableScreen() {
+  window.open(`/encounters/${encounterId.value}/table`, "_blank", "noopener,noreferrer");
 }
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: updateNpc } = useUpdateNpc();
@@ -307,6 +323,13 @@ const selectedTrapId = ref<string | null>(null);
 // Phone shell (below md): its own header, turn bar and tools sheet.
 const isMobile = useIsMobile();
 const toolsOpen = ref(false);
+// Phone with a battle map: the list, or the same map as the Play screen.
+type PhoneTab = "list" | "map";
+const phoneTab = ref<PhoneTab>("list");
+const PHONE_TABS: { value: PhoneTab; label: string }[] = [
+  { value: "list", label: "List" },
+  { value: "map", label: "Map" },
+];
 
 /** The turn bar's centre: open the active combatant's stat block and actions. */
 function openActiveCombatant() {
@@ -326,43 +349,7 @@ function openGenerator(mode: ComplicationMode) {
   generatorOpen.value = true;
 }
 
-const detailWidth = ref(320);
-
-function startDetailResize(e: MouseEvent) {
-  const startX = e.clientX;
-  const startWidth = detailWidth.value;
-  document.body.style.cursor = "col-resize";
-  document.body.style.userSelect = "none";
-
-  function onMove(ev: MouseEvent) {
-    detailWidth.value = Math.max(200, Math.min(700, startWidth + (startX - ev.clientX)));
-  }
-  function onUp() {
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
-  }
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
-}
-
-function startDetailResizeTouch(e: TouchEvent) {
-  const startX = e.touches[0].clientX;
-  const startWidth = detailWidth.value;
-  document.body.style.userSelect = "none";
-
-  function onMove(ev: TouchEvent) {
-    detailWidth.value = Math.max(200, Math.min(700, startWidth + (startX - ev.touches[0].clientX)));
-  }
-  function onEnd() {
-    document.body.style.userSelect = "";
-    document.removeEventListener("touchmove", onMove);
-    document.removeEventListener("touchend", onEnd);
-  }
-  document.addEventListener("touchmove", onMove, { passive: false });
-  document.addEventListener("touchend", onEnd);
-}
+const { detailWidth, startMouse, startTouch } = useDetailResize(320);
 
 // ── Initiative rolling ───────────────────────────────────────────────────────
 // The store owns the "who still needs a value" logic; the actual d20 goes
@@ -697,28 +684,6 @@ async function handleEndCombat() {
 .runner-body {
   @apply flex-1 overflow-y-auto min-w-0;
   container: runner-list / inline-size;
-}
-
-.resize-handle {
-  position: relative;
-  width: 0.3125rem;
-  flex-shrink: 0;
-  cursor: col-resize;
-  background: theme(colors.border / 100%);
-  transition: background 0.15s;
-  z-index: 1;
-}
-
-/* Expand the touch/click surface to 44px without affecting layout */
-.resize-handle::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  margin-inline: -1.25rem;
-}
-
-.resize-handle:hover {
-  background: theme(colors.primary / 50%);
 }
 
 .panel-shell {

@@ -91,6 +91,16 @@
           @create-child="createChild"
         />
 
+        <!-- Whether this place is one of its parent's floors: a fact about the
+             place, so it sits in Details with the rest (#1125; it was Build's
+             before). Offered when both ends are site-tier, which is every
+             pair `is_level` can hold. -->
+        <SiteLevelAssignment
+          v-if="props.location && levelParent"
+          :location="props.location"
+          :parent-name="levelParent.name"
+        />
+
         <div class="flex items-start gap-2">
           <span
             class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1 pt-1.5"
@@ -288,6 +298,7 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ThemeInput from "@/components/common/controls/ThemeInput.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
 import LocationHierarchyPanel from "@/components/locations/atlas/LocationHierarchyPanel.vue";
+import SiteLevelAssignment from "@/components/locations/site/SiteLevelAssignment.vue";
 import LocationResidents from "@/components/locations/place/LocationResidents.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -315,6 +326,7 @@ import {
 import type { Location, LocationSummary, LocationType } from "@/types/location.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { isSiteType } from "@/lib/locations/tiers";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 
 const props = defineProps<{
@@ -365,6 +377,16 @@ const isNew = computed(() => !props.location);
 
 // ── All locations (for parent picker + hierarchy panel) ───────────────────────
 const { data: allLocations } = useAllLocations();
+
+/** The site-tier parent, when this place is itself site-tier: the only shape
+ *  `is_level` can hold (`guard_location_room_parent`). Read off the saved
+ *  parent, since the flag is written straight to the row. */
+const levelParent = computed<LocationSummary | null>(() => {
+  const loc = props.location;
+  if (!loc?.parent_id || !isSiteType(loc.location_type)) return null;
+  const parent = (allLocations.value ?? []).find((l) => l.id === loc.parent_id);
+  return parent && isSiteType(parent.location_type) ? parent : null;
+});
 
 // ── Draft: every field this form owns (#958) ──────────────────────────────────
 // What Details owns is the record: name, type, art, hierarchy, tags, era,

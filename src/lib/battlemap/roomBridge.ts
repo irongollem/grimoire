@@ -44,6 +44,10 @@ export function battleCellToRegionCell(cell: CellKey, calibration: GridCalibrati
 
 // ── Which map an encounter opens on ─────────────────────────────────────────
 
+/** What a battle map draws, as `BattleMapStack` takes it: the DM's `BattleSurface` is one, and the player's view
+ *  builds one from its own projection. */
+export type BattleMapLayers = Pick<BattleSurface, "imageUrl" | "standUrl" | "standLiveUrl" | "live">;
+
 export interface BattleSurface {
   /** The location whose map stack (`lib/locations/mapStack.ts`) the battle
    *  map draws — `imageUrl` + `calibration` below are already resolved from

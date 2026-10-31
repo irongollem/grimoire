@@ -83,6 +83,69 @@
       <span v-else class="text-caption-sm text-muted-foreground">Shift+click runs a straight wall from the last one.</span>
     </template>
 
+    <!-- Angled wall: the kind it draws, and how a run is driven. -->
+    <template v-else-if="activeTool === 'angledWall'">
+      <SegmentedControl
+        :model-value="activeWallKind"
+        :options="ANGLED_WALL_KINDS"
+        size="xs"
+        @update:model-value="$emit('update:activeWallKind', $event)"
+      />
+      <span class="text-caption-sm text-muted-foreground">
+        Click to start, click to add points. Enter or a double-click ends the run, Esc drops it. Alt places a point freely.
+      </span>
+    </template>
+
+    <!-- Light: colour and reach of the next one, or of the one picked. -->
+    <template v-else-if="activeTool === 'light'">
+      <ColorInput
+        :model-value="light.color"
+        label="Colour"
+        aria-label="Light colour"
+        @update:model-value="emit('update:light', { color: $event })"
+      />
+      <label class="flex items-center gap-1.5">
+        <span class="text-label text-muted-foreground">Bright ft</span>
+        <AppInput
+          :model-value="light.bright"
+          :model-modifiers="{ number: true, lazy: true }"
+          type="number"
+          size="body-xs"
+          class="w-16"
+          aria-label="Bright light, in feet"
+          @update:model-value="setReach('bright', $event)"
+        />
+      </label>
+      <label class="flex items-center gap-1.5">
+        <span class="text-label text-muted-foreground">Dim ft</span>
+        <AppInput
+          :model-value="light.dim"
+          :model-modifiers="{ number: true, lazy: true }"
+          type="number"
+          size="body-xs"
+          class="w-16"
+          aria-label="Dim light, in feet"
+          @update:model-value="setReach('dim', $event)"
+        />
+      </label>
+      <AppCheckbox
+        :model-value="light.flicker !== undefined"
+        label="Flicker"
+        size="sm"
+        @update:model-value="emit('update:light', { flicker: $event ? FLICKER_AMOUNT : undefined })"
+      />
+      <AppButton
+        v-if="lightSelected"
+        variant="destructive"
+        size="xs"
+        :icon="IconDelete"
+        label="Delete"
+        tooltip="Delete the selected light (Delete)"
+        @click="emit('deleteLight')"
+      />
+      <span v-else class="text-caption-sm text-muted-foreground">Click the map to place. Click a light to move it. Alt places freely.</span>
+    </template>
+
     <!-- Place: what is armed, how it is turned, and the way back to the catalogue. -->
     <template v-else-if="activeTool === 'place'">
       <template v-if="selectedPlaced">
@@ -221,13 +284,14 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import ColorInput from "@/components/common/controls/ColorInput.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import CartographerOptionsSlip from "@/components/cartographer/CartographerOptionsSlip.vue";
 import RotationControl from "@/components/cartographer/RotationControl.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { EdgeSegType } from "@/types/dungeonMap.types";
-import type { PackCategory, TilePackManifest } from "@/cartographer/packSchema";
+import { MAX_LIGHT_FEET, type PackCategory, type TileLight, type TilePackManifest } from "@/cartographer/packSchema";
 import { decalLabel, stampLabel } from "@/cartographer/stampCategories";
 import { BRUSH_RADIUS_MAX, BRUSH_RADIUS_MIN, BRUSH_RADIUS_STEP } from "@/cartographer/keymap";
 import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
@@ -300,6 +364,10 @@ const props = defineProps<{
   brushRadius: number;
   /** Rectangle: also wrap the perimeter in walls. */
   rectWalls: boolean;
+  /** The Light tool's colour and reach: the picked light's, or what the next one will be. */
+  light: TileLight;
+  /** A placed light is picked, so the edits are to it and Delete takes it away. */
+  lightSelected: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -318,9 +386,25 @@ const emit = defineEmits<{
   "update:activeTemplateShape": [shape: string];
   "update:brushRadius": [radius: number];
   "update:rectWalls": [on: boolean];
+  "update:light": [patch: Partial<TileLight>];
+  deleteLight: [];
 }>();
 
 const detailsOpen = ref(false);
+
+/** An angled wall is a stroked line, so it has no decal kind. */
+const ANGLED_WALL_KINDS = WALL_KINDS.filter((k) => k.value !== "decal");
+/** How much brighter a flickering light gets above its steady level: a fire's, per `TileLight.flicker`. */
+const FLICKER_AMOUNT = 0.25;
+
+/** Bright or dim feet, held to the rules' range and never both zero (a light with no reach is nothing). */
+function setReach(field: "bright" | "dim", raw: string | number): void {
+  const feet = Math.min(MAX_LIGHT_FEET, Math.max(0, Math.round(Number(raw))));
+  if (!Number.isFinite(feet)) return;
+  const other = field === "bright" ? props.light.dim : props.light.bright;
+  if (feet === 0 && other === 0) return;
+  emit("update:light", { [field]: feet });
+}
 
 /** Tools with nothing to set: what a click does, in a line. */
 const HINTS: Record<Tool, string> = {
@@ -330,6 +414,8 @@ const HINTS: Record<Tool, string> = {
   terrain: "Paint water over the floor; a cell with no floor gets one. Shift+click draws a straight line from the last cell. Alt erases the water and keeps the floor.",
   eraser: "Drag to take out floor, walls and objects.",
   wall: "",
+  angledWall: "",
+  light: "",
   door: "Click a wall edge to add a door; click a door to open or close it. Right-click removes it.",
   solid: "Paint thick, full-cell rock. Shift+click draws a straight line from the last cell. Alt erases.",
   place: "",

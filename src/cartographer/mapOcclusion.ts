@@ -3,12 +3,29 @@
 // it without importing mapLive, which imports drawMap.
 
 import { areaBlockingEdges } from "@/cartographer/area";
-import type { CellKey, DungeonMapLayers, FloorCell } from "@/types/dungeonMap.types";
-import { latticeKey, latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
+import type { CellKey, DungeonMapLayers, WallEdge } from "@/types/dungeonMap.types";
+import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
+import { isLatticeKey } from "@/cartographer/wallGraph";
 
 export function toImageCell(key: CellKey, originCellX: number, originCellY: number): string {
   const [xs, ys] = key.split(",");
   return `${Number(xs) - originCellX},${Number(ys) - originCellY}`;
+}
+
+/**
+ * One wall as the segment sight and light test, shifted by the origin. A lattice wall's id is its image-cell edge key,
+ * which is what `door_states` and `location_doors.edge_key` already name a door by; an angled wall keeps its uuid.
+ */
+export function occlusionSegment(key: string, wall: WallEdge, originCellX: number, originCellY: number): WallSegment {
+  if (isLatticeKey(key)) {
+    const [cell, side] = key.split(":");
+    return latticeSegment(`${toImageCell(cell as CellKey, originCellX, originCellY)}:${side}`);
+  }
+  return {
+    id: key,
+    a: [wall.a[0] - originCellX, wall.a[1] - originCellY],
+    b: [wall.b[0] - originCellX, wall.b[1] - originCellY],
+  };
 }
 
 /**
@@ -23,16 +40,11 @@ export function collectOcclusion(
 ): { walls: WallSegment[]; doors: (WallSegment & { open: boolean })[]; solid: string[] } {
   const walls: WallSegment[] = [];
   const doors: (WallSegment & { open: boolean })[] = [];
-  for (const [key, cell] of Object.entries(layers.floor) as [CellKey, FloorCell][]) {
-    const [xs, ys] = toImageCell(key, originCellX, originCellY).split(",");
-    for (const [side, seg] of [["N", cell.wallN], ["W", cell.wallW]] as const) {
-      if (!seg) continue;
-      // The id is the image-cell edge key: what `door_states` and `location_doors.edge_key` already name a door by.
-      const wall = latticeSegment(latticeKey(Number(xs), Number(ys), side));
-      if (seg.type === "wall" || seg.type === "sluice") walls.push(wall);
-      else if (seg.type === "doorClosed") doors.push({ ...wall, open: false });
-      else if (seg.type === "doorOpen") doors.push({ ...wall, open: true });
-    }
+  for (const [key, wall] of Object.entries(layers.walls)) {
+    const segment = occlusionSegment(key, wall, originCellX, originCellY);
+    if (wall.type === "wall" || wall.type === "sluice") walls.push(segment);
+    else if (wall.type === "doorClosed") doors.push({ ...segment, open: false });
+    else if (wall.type === "doorOpen") doors.push({ ...segment, open: true });
   }
   // A brushed area's edge is a wall to light and sight wherever it meets non-floor, curved or not.
   for (const edge of areaBlockingEdges(layers)) {

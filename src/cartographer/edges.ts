@@ -4,13 +4,13 @@
 // so we don't store the same wall twice. We pick the canonical owner using
 // the NW rule:
 //
-//   - Cell (x, y) owns its NORTH edge (between (x, y-1) and (x, y)) → wallN.
-//   - Cell (x, y) owns its WEST  edge (between (x-1, y) and (x, y)) → wallW.
+//   - Cell (x, y) owns its NORTH edge (between (x, y-1) and (x, y)) → `walls["x,y:N"]`.
+//   - Cell (x, y) owns its WEST  edge (between (x-1, y) and (x, y)) → `walls["x,y:W"]`.
 //   - The SOUTH edge of (x, y) is owned by (x, y+1) as its N.
 //   - The EAST  edge of (x, y) is owned by (x+1, y) as its W.
 //
 // Writers always canonicalise before storing; readers look up either the
-// cell's own wallN/wallW or the appropriate neighbour's wallN/wallW.
+// cell's own N/W key or the appropriate neighbour's (`wallAt` in wallGraph.ts).
 
 export type Side = "N" | "E" | "S" | "W";
 export type CanonicalSide = "N" | "W";

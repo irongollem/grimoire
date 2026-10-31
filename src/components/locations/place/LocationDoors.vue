@@ -12,7 +12,7 @@
           <component :is="DOOR_KIND_ICONS[view.door.door_kind]" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </template>
         <template #actions>
-          <template v-if="building">
+          <template v-if="editable">
             <AppSelect
               :model-value="view.door.door_kind"
               size="xs"
@@ -79,7 +79,7 @@
             />
           </template>
         </template>
-        <template v-if="building">
+        <template v-if="editable">
           <PlacementNoteInput
             v-if="view.door.starts_locked"
             :model-value="view.door.lock_note"
@@ -96,11 +96,11 @@
       </PlacementRow>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">
-      {{ building ? "No ways out yet. Add one below." : "No ways out yet. Build the site to add them." }}
+      {{ editable ? "No ways out yet. Add one below." : "No ways out yet. Draw them in the map editor." }}
     </p>
 
-    <!-- Inline add — Build only. -->
-    <div v-if="building" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
+    <!-- Inline add: only on a surface that mounts this editable. -->
+    <div v-if="editable" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2">
       <EntityCombobox v-model="newRoomId" :options="siblingSpaces" placeholder="Pick a room or nested site…" />
       <AppSelect v-model="newKind" size="xs" aria-label="Way-out kind">
         <option v-for="kind in DOOR_KINDS" :key="kind" :value="kind">{{ DOOR_KIND_LABELS[kind] }}</option>
@@ -189,13 +189,13 @@ import type { LocationDoorWithRooms } from "@/composables/locations/useLocationD
 import { DOOR_KINDS, DOOR_KIND_LABELS } from "@/types/locationDoor.types";
 import type { DoorKind, LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
 
-const { roomId, parentId, building = false } = defineProps<{
+const { roomId, parentId, editable = false } = defineProps<{
   roomId: string;
   parentId: string | null;
-  /** Build mode (#884) — gates the add form and every edit affordance
-   *  (toggles, note editing, remove). Browse shows the same three facts as
-   *  read-only badges instead. */
-  building?: boolean;
+  /** Which surface this is mounted on (#1125), not a mode: gates the add form
+   *  and every edit affordance (toggles, note editing, remove). Read-only, it
+   *  shows the same three facts as badges instead. */
+  editable?: boolean;
 }>();
 
 const roomIdRef = computed(() => roomId);

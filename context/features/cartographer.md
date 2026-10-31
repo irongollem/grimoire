@@ -121,7 +121,7 @@ Project-wide policy. The pack loader **rejects any non-`.webp` asset**. Exports 
 
 ### Wall model: edge-based walls + optional cell-based solid blocks
 
-**Chosen:** walls are stored on **cell edges**, not in cells. A floor cell carries optional `wallN` / `wallW` properties; south and east edges are owned by the cell to the north / west (canonical "NW ownership" rule eliminates duplicates). A separate **`solidBlock`** layer lets the DM place full-cell thick walls (5 ft of dressed stone, sand-filled battlement, mountain rock) when wall thickness is itself part of the dungeon's mass.
+**Chosen:** walls are stored on **cell edges**, not in cells. Walls live in one segment graph, `layers.walls` (#1125 decision 5): a wall on a grid line is keyed by its lattice edge key, `"x,y:N"` for the top of cell (x,y) and `"x,y:W"` for its left, so a lattice edge is stored once; an angled wall is keyed by a uuid and carries its own endpoints `a` and `b`. A segment with `visible: false` blocks sight and light but is not drawn (an imported wall over a picture that already shows it). Placed lights are `layers.lights`, keyed by uuid (migration 20261031142002). A separate **`solidBlock`** layer lets the DM place full-cell thick walls (5 ft of dressed stone, sand-filled battlement, mountain rock) when wall thickness is itself part of the dungeon's mass.
 
 **Why both?**
 
@@ -421,13 +421,21 @@ export interface EdgeSeg extends PackRef {
   decal?: number; // a `wallDecal` variant; on type 'wall' only (#1065)
 }
 
-// Floor layer: a cell carries an optional floor tile + optional N/W edge walls.
-// A cell may have walls without a floor (e.g. exterior side of a room boundary).
+// Floor layer: a cell carries a floor tile. Walls are not stored on cells any more.
 export interface FloorCell {
   floor?: PackRef; // the floor tile under foot
-  wallN?: EdgeSeg; // segment on this cell's north edge
-  wallW?: EdgeSeg; // segment on this cell's west edge
 }
+
+// A wall, door, grate or sluice as a segment in `layers.walls`. Lattice edges are keyed "x,y:N" / "x,y:W"
+// (the top / left of cell x,y); angled walls by uuid. `a` and `b` are always stored. #1125 decision 5.
+export interface WallEdge extends EdgeSeg {
+  a: [number, number];
+  b: [number, number];
+  visible?: boolean; // false: blocks sight and light, is not drawn
+}
+
+// A light the DM placed, at a point in cell units; `layers.lights`, keyed by uuid.
+export interface PlacedLight { x: number; y: number; light: TileLight }
 
 // SolidBlock layer: full-cell thick walls (sand-filled battlement, mountain rock).
 // One entry = one cell of solid mass. Coexists with edge walls — DM picks the tool.
@@ -511,8 +519,7 @@ Whether a token can move from cell A to cell B is **derived** at query time, nev
 function blocksMovement(map: DungeonMap, from: CellKey, to: CellKey): boolean {
   // Adjacent cells. Check if a wall/closed-door sits on the edge between them.
   const edge = edgeBetween(from, to); // returns the canonical owner + which side
-  const ownerCell = map.layers.floor[edge.owner];
-  const seg = edge.axis === "horizontal" ? ownerCell?.wallN : ownerCell?.wallW;
+  const seg = map.layers.walls[latticeKey(edge)]; // plus any angled wall crossing the step
   if (seg && seg.type !== "doorOpen") return true;
 
   // Solid blocks block movement into the cell at all.
@@ -527,9 +534,9 @@ function blocksMovement(map: DungeonMap, from: CellKey, to: CellKey): boolean {
 
 To avoid storing the same wall twice:
 
-- A cell owns its **north** and **west** edges (stored as `wallN` / `wallW`).
-- The south edge of cell `(x, y)` = the north edge of cell `(x, y+1)` → stored on `(x, y+1).wallN`.
-- The east edge of cell `(x, y)` = the west edge of cell `(x+1, y)` → stored on `(x+1, y).wallW`.
+- A lattice edge is keyed by the cell that owns its **north** or **west** side: `"x,y:N"` and `"x,y:W"` in `layers.walls`.
+- The south edge of cell `(x, y)` = the north edge of cell `(x, y+1)` → key `"x,(y+1):N"`.
+- The east edge of cell `(x, y)` = the west edge of cell `(x+1, y)` → key `"(x+1),y:W"`.
 
 The editor exposes "all four edges" as if they were equal; under the hood, write operations resolve to the canonical owner. Read operations follow the same lookup.
 
@@ -567,24 +574,26 @@ Cover: `supabase/tests/dungeon_maps_campaign_scope.test.sql`, which is also the 
 
 ## Editor UX (`src/components/cartographer/MapWorkbench.vue` + `CartographerEditorView.vue`)
 
-**The editor is a component, not a route (epic [#884](https://github.com/irongollem/grimoire/issues/884), wave 2).** It was a ~1,490-line view, which meant the only way to draw was to leave wherever you were and come back ("moving back and forth is unnecessary extra steps"). It now splits three ways: `MapWorkbench.vue` is the embeddable editor (bar, rail, canvas, options slip, drawer, pack loading, the site-reference ghost) and reads no route at all; `useMapCanvasEditor.ts` is its interaction and render engine (viewport, pointer, undo/redo, every per-tool paint operation, the render loop): one cohesive canvas engine, deliberately not split further; and `CartographerEditorView.vue` is a thin host holding the route, the `dungeon_maps` row, Save/Cancel/Delete, the Publish modal and the AI-style flow. Behaviour at `/cartographer/:id` is unchanged.
+**The editor is a component, not a route (epic [#884](https://github.com/irongollem/grimoire/issues/884), wave 2).** It was a ~1,490-line view, which meant the only way to draw was to leave wherever you were and come back ("moving back and forth is unnecessary extra steps"). It now splits three ways: `MapWorkbench.vue` is the embeddable editor (bar, rail, canvas, options slip, drawer, pack loading, the site-reference ghost) and reads no route at all; `useMapCanvasEditor.ts` is its interaction and render engine (viewport, pointer, undo/redo, every per-tool paint operation, the render loop): one cohesive canvas engine, deliberately not split further; and `CartographerEditorView.vue` is a thin host holding the route, the `dungeon_maps` row, the autosave, Delete, the Publish modal and the AI-style flow. Since #1125 it has no view mode and no Save, Cancel, Edit or Done: `/cartographer/:id` and `/cartographer/new` are always the full-screen editor, saving as they go (`useDrawingAutosave`; the first edit of a new map creates the row and `router.replace`s to its id), with style, publish, PNG and delete in the workbench's Map menu. Leaving flushes a pending save; `useUnsavedGuard` speaks only if that save failed.
 
-The host pulls state through `defineExpose` getters rather than two-way binding, and the workbench emits only `update:dirty`: painting mutates `layers`/`metadata` on nearly every pointer move, so a continuous emit surface would deep-clone per frame. The host takes a snapshot at the moments it needs one — Save, Cancel, Publish, AI Style, the PNG bake — the same "closures called on demand" shape `useMapExport`/`useMapPublish` already use.
+The host pulls state through `defineExpose` getters rather than two-way binding, and the workbench emits only `update:dirty`: painting mutates `layers`/`metadata` on nearly every pointer move, so a continuous emit surface would deep-clone per frame. The host takes a snapshot at the moments it needs one, the autosave, Publish, AI Style, the PNG bake, the same "closures called on demand" shape `useMapExport`/`useMapPublish` already use.
 
-An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) draws that site's **Picture** as a toggleable reference ghost beneath the canvas, in the cell space the two already share through `grid_calibration` — which is how "paint extra rooms onto a book map" works without any data conversion. `/cartographer/:id` passes no `site`. Mounting the workbench inside the Atlas's Build mode is a later story.
+An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) draws that site's **Picture** as a toggleable reference ghost beneath the canvas, in the cell space the two already share through `grid_calibration`, which is how "paint extra rooms onto a book map" works without any data conversion. `/cartographer/:id` passes no `site`.
 
-**The tool runs in the Atlas too, and the Plan is one of its layers (epic #884, wave 4).** With a `site` prop the workbench shows a **Drawing / Plan** layer selector, and the Atlas's Build mode mounts it as the map area — so a DM shapes a site where they are standing instead of leaving for `/cartographer` and coming back. `?publishTo=` is gone with that round trip; the Layers panel's Review opens the publish plan in place.
+**The tool runs for a site too, and the Plan is one of its layers (epic #884, wave 4; full screen since #1125).** With a `site` prop the workbench shows a **Drawing / Plan** layer selector, and the site's full-screen map editor (`SiteMapEditor`, route `/locations/:id/map`, #1125) mounts it, so a DM shapes a site from its Map tab without going through `/cartographer`. (#884 first mounted it inside the Atlas's Build mode; Build is retired.) `?publishTo=` is gone with that round trip; the Layers panel's Review opens the publish plan in place.
 
 - **The Plan rail and options** (`CartographerPlanOptions.vue`, the rail built in `MapWorkbench.vue`, `usePlanPalette.ts`, `usePlanCanvasTools.ts`) writes `location_map_regions` and `location_doors` through the Atlas's own composables: **Space** and **Zone** trace with brush / pen / template, **Door** snaps to a cell edge and derives its endpoints from the regions either side, and **Claim** flood-fills a region of the _Drawing's_ floor and makes it a traced space: the one gesture that pays for both layers living in one tool, because it stops the DM re-tracing by hand what they just drew.
-- **Build opens on the layer the DM came to use (issue #878, item 3).** A site whose stack already has a Drawing or a Picture (`hasAnyMapLayer`, `mapStack.ts`) starts `MapWorkbench` on Plan; a site with nothing drawn yet starts on Drawing, since there's no image to trace over. Read once at setup, not watched — once the DM switches layers by hand, that choice stands for the rest of the session. The standalone `/cartographer/:id` route (no `site` prop) always starts on Drawing. Before this, Build opened on Drawing unconditionally, which was half of why a DM who traced rooms could not find Pen or Shape at all (the other half was the switcher itself — next bullet).
+- **The editor opens on the layer the DM came to use (issue #878, item 3).** A site whose stack already has a Drawing or a Picture (`hasAnyMapLayer`, `mapStack.ts`) starts `MapWorkbench` on Plan; a site with nothing drawn yet starts on Drawing, since there's no image to trace over. Read once at setup, not watched, once the DM switches layers by hand, that choice stands for the rest of the session. The standalone `/cartographer/:id` route (no `site` prop) always starts on Drawing. Before this, the site editor opened on Drawing unconditionally, which was half of why a DM who traced rooms could not find Pen or Shape at all (the other half was the switcher itself, next bullet).
 - **The "Trace with" switcher (Brush/Pen/Shape) is reachable at every width.** It used to be `hidden lg:block`: Pen and the Circle/Octagon/Hex template shapes were real and working, but below Tailwind's `lg` breakpoint (1024px) there was no control to reach them at all. The Door/Claim hint text is in the options slip at every width too, and the plan tools are the rail's icons (with tooltips and accessible names) at every width.
 - **A site with no drawing is fully editable**: the Plan is drawn on the tile grid, not on the Drawing's pixels, so `map: null` traces exactly as well. A scan or a blank grid is a first-class site.
-- **The Drawing autosaves** (`useSiteDrawingEditor.ts`) 1.5s after an edit, creating the `dungeon_maps` row and linking `source_map_id` on the first stroke. There is no Save button inside Build, because Build has no Save anywhere.
+- **The Drawing autosaves** (`useSiteDrawingEditor.ts`) 1.5s after an edit, creating the `dungeon_maps` row and linking `source_map_id` on the first stroke. There is no Save button in the site editor, and since #1125 none on `/cartographer/:id` either; the bar says "Saving…", "Unsaved changes" or "Saved".
 - **Undo covers both layers** (`usePlanUndoStack.ts`): Drawing edits through the existing command stack, Plan edits as a session stack of inverse mutations, Ctrl+Z routed by the active layer. A tool where undo works on one layer and silently not the other is a trap, and that is the real cost of merging the two.
 - **Binding stays a panel action.** The tool draws shapes; naming one "the Reliquary" happens in `SiteMapRegionList`, which also makes a room from an unbound shape in one click.
 - **The Picture is not a paintable layer** — it is a reference ghost with a visibility toggle. You do not paint a photograph, and its upload/replace/calibrate actions already live in the Layers panel a row above; a second copy inside the tool is what the extraction rule exists to prevent. This narrows the epic's decision-3 table on purpose.
 - **The Cartographer's own zone layer is retired.** A zone is a Plan region with `region_role: 'zone'`, authored once. Gone with it: the Zone tool, `ZoneCell`/`layers.zone`, `deriveZones`, the zone rows of the publish plan and its render pass. Production carried one drawing and zero zone paint when this shipped, so nothing needed migrating.
 - **One gesture set** (`src/lib/map/gestures/`, decision 6): brush (the Atlas's direction-locked stroke), rectangle, line, fill, pen, template, round brush, eraser: each pure and tested, each with one implementation. Two paint systems for the same motions is what merging them fixed. Two deliberate exceptions are documented in the modules: the Cartographer's template fill is not routed through the Atlas's ring path (their painted cells differ by ~10% for a circle, and behaviour had to stay identical), and the stamp and eraser tools keep their own continuous paint because a stamp's rotation can change mid-stroke and the eraser mixes cell and edge targets.
+
+**`/cartographer/new` creates its row on the first edit and stays on the map (#1125).** The standalone editor has no Save button and no list redirect: the first edit creates the `dungeon_maps` row, then `router.replace` swaps `/cartographer/new` for `/cartographer/:id` and the DM keeps drawing. This is the sanctioned case of "an autosaving editor has no save to navigate after" (CLAUDE.md, Post-Mutation Navigation), where the status line is the success feedback. Do not "fix" it into a redirect to the list.
 
 ### Layout: the map is the table, the tools sit on its edge (17 Oct 2026)
 
@@ -593,7 +602,7 @@ The maintainer's words: "When building a map, you want to maximise the amount of
 ```text
 +--------------------------------------------------------------+
 | bar (3rem): back, name | Drawing/Plan | tile set | light |     |
-|   Spaces | settings | undo redo        save state, Delete Cancel Save |
+|   Spaces | settings | undo redo        save state, Map menu, Ready |
 +----+---------------------------------------------------------+
 | r  |  [options slip: tool name + its options]    [drawer]    |
 | a  |                                             Spaces /    |
@@ -604,8 +613,8 @@ The maintainer's words: "When building a map, you want to maximise the amount of
 +--------------------------------------------------------------+
 ```
 
-- **Focus while building.** Editing at `/cartographer/:id?edit=true` and `/cartographer/new` has no page header: `CartographerEditorView` sets `useAppUiStore().editorFocus` while it is editing (and clears it on unmount), `DefaultLayout` reads it and hides `AppSidebar`, `AppTopBar` and `DmBottomNav`, and the workbench fills `h-dvh`. View mode keeps the page header and the 60vh canvas. Atlas Build keeps the app chrome (the Atlas is the page there) and gives the workbench a `max(32rem, 100dvh - 10rem)` box.
-- **The bar** (`CartographerBar.vue`, 3rem). Host slots `bar-start` (scoped: `mapName`, `setName`) and `bar-end`; the workbench puts the **Drawing / Plan** switch after `bar-start` itself, because the layer is its state. Between them, what the workbench owns: the **tile set** (the set's name with a swatch of its floor, `CartographerPackSwatch.vue`; the menu lists the sets, with the "N slot(s) missing" note and "future strokes only" inside it), **Light** (Day / Dim / Dark), **Spaces N** (toggles the drawer), **settings** (a popover with the campaign scope, and the Reference toggle when a site's Picture can go underneath), undo and redo, and the host's `saveState` text. The standalone host fills `bar-start` with a back link and the map's name as a line field, `bar-end` with Delete / Cancel / Save; Atlas Build fills `bar-start` with its level picker and shows "Saving…", "Unsaved changes" or "Saved" (it autosaves, so no Save button, and its Done stays in the place pane). A rename marks the map dirty.
+- **Focus while building.** Every editor route takes the screen (#1125): `/cartographer/:id`, `/cartographer/new` and `/locations/:id/map` set `useAppUiStore().editorFocus` while mounted (and clear it on unmount), `DefaultLayout` reads it and hides `AppSidebar`, `AppTopBar` and `DmBottomNav`, and the workbench fills `h-dvh`. There is no view mode with a page header and a 60vh canvas any more, and nothing embeds the workbench in the Atlas.
+- **The bar** (`CartographerBar.vue`, 3rem). Host slots `bar-start` (scoped: `mapName`, `setName`) and `bar-end`; the workbench puts the **Drawing / Plan** switch after `bar-start` itself, because the layer is its state. Between them, what the workbench owns: the **tile set** (the set's name with a swatch of its floor, `CartographerPackSwatch.vue`; the menu lists the sets, with the "N slot(s) missing" note and "future strokes only" inside it), **Light** (Day / Dim / Dark), **Spaces N** (toggles the drawer), **settings** (a popover with the campaign scope, and the Reference toggle when a site's Picture can go underneath), undo and redo, and the host's `saveState` text. The standalone host fills `bar-start` with a back link and the map's name as a line field; the site editor fills `bar-start` with a `‹ <Place name>` back link (to the place's Map tab), the drawing's name and its level picker, and `bar-end` with a Picture drawer toggle. Both pass `menuActions` and show "Saving…", "Unsaved changes" or "Saved" (they autosave). A rename marks the map dirty.
 - **The rail** (`CartographerToolRail.vue`) sits **beside** the canvas, not over it: 3rem is a small price for a map no tool ever covers, and it keeps the status bar clear. Icon-only `AppButton`s with an accessible name and a tooltip "Name (key)", the active tool marked, clusters separated by a rule. Below `lg` it lies down as a toolbar along the bottom and the slip spans the top. The Plan layer gets the same rail.
 - **The options slip** (`CartographerToolOptions.vue`, `CartographerPlanOptions.vue`, framed by `CartographerOptionsSlip.vue`, a `data-slip`) at the canvas's top left: the active tool's name (" · erase" while Alt is held over a tool that has an inverse; on the Plan, "Space · Pen") and its options inline: brush size, wall kind and decals, room shape, object category and rotation, the Label text, the Link pickers, Select's one-line cell summary (expandable), and for every other tool a one-line hint. It replaced the inspector and the tool pill; there is no inspector any more.
 - **The drawer** (`CartographerDrawer.vue`): one `data-slip` panel, 18rem wide, over the canvas's right edge, never shrinking the canvas; opens through `railTransition` in `src/lib/motion.ts` (still for reduced motion). Contents: **Spaces on this map** (`CartographerStructurePanel`), **Place** (the picture catalogue; opens with the Place tool, goes with it), and on the Plan the region and zone lists, which open with the layer. Below `lg` it is a `MobileSheet`.
@@ -1184,7 +1193,7 @@ A credit-gated "✦ AI Style" button in the view-mode export bar. The DM bakes a
    - Optional freeform suffix textarea (max 300 chars)
 3. **Generate** → spinner inline in modal while edge function runs.
 4. **Result preview** modal with four actions:
-   - **Save to Atlas** — inline location combobox + upload to `locationImages` bucket. This is deliberately still the old, simpler shape (bake → upload → overwrite `map_url`, `source_map_id` untouched) and was **not** folded into #868's Publish to Atlas review: a styled image is a picture with nothing behind it to reconcile — no derived structure, no rooms/doors/placements — so there is no plan to show. See `useMapExport.ts`'s header comment. Atlas Build's own entry point (below) replaces the combobox with a fixed target and a different, atomic save — the free-pick flow here is otherwise unchanged.
+   - **Save to Atlas**: inline location combobox + upload to `locationImages` bucket. This is deliberately still the old, simpler shape (bake → upload → overwrite `map_url`, `source_map_id` untouched) and was **not** folded into #868's Publish to Atlas review: a styled image is a picture with nothing behind it to reconcile, no derived structure, no rooms/doors/placements, so there is no plan to show. See `useMapExport.ts`'s header comment. The site map editor's own entry point (below) replaces the combobox with a fixed target and a different, atomic save; the free-pick flow here is otherwise unchanged.
    - **↓ Download** — client-side WebP download
    - **Retry** — re-runs with same settings
    - **Back** — returns to Style Picker
@@ -1200,9 +1209,9 @@ stray click beside the panel used to do that silently. The rule is general (see
 `src/components/common/overlays/appModalPaidBackdrop.test.ts`, which fails if any modal
 that prices, shows or runs a generation ships without the prop.
 
-#### Atlas Build's second entry point (site map workbench)
+#### The site map editor's second entry point (site map workbench)
 
-The Layers panel's Drawing row (`MapLayersPanel.vue`, `AtlasSiteMapMode.vue`) offers **Style with AI** whenever a site has a Drawing — the same `CartographerAiStyleModal`, opened with the save target fixed to the site being edited rather than picked. Two things differ from the standalone flow above, both driven by an optional `site` option on `useMapExport`:
+The Layers panel's Drawing row (`MapLayersPanel.vue`, in the site editor's Picture drawer, `SiteMapEditor.vue`) and the Map menu's Style entry offer **Style with AI** whenever a site has a Drawing, the same `CartographerAiStyleModal`, opened with the save target fixed to the site being edited rather than picked. Two things differ from the standalone flow above, both driven by an optional `site` option on `useMapExport`:
 
 - **Input.** Both entry points fit their render to the campaign's resolved provider before sending — `fitStyleInputCanvas` (`src/cartographer/bake.ts`), given a `provider: "openai" | "gemini"` the client resolves the way `style-map` will (`useCampaignProviders().imageProvider`, which runs the server's own `chooseImageProvider` from `_shared/providerChoice.ts`: the DM's Quick/Detailed pick, moved to their own key and then to an offered provider when the admin has switched the pick off). Until provider_config loads it is null, the price is null too (the modal's `requireCredits` refuses it), and `onGenerateStyle` will not bake: an input fitted to a guessed provider is one `style-map` would answer with a 400. **"openai"** is flexible: the styler renders on its own model setting, `provider_config.map_style_model` (Admin → Providers → Map styler model; `gpt-image-2.5-sunburst` in production, because flare treated the input as a loose sketch; empty falls back to `image_model`), and every `gpt-image-2.5-*` model accepts any size that's a multiple of 16 per edge, an aspect ratio between 1:3 and 3:1, and a total of 655,360–8,294,400 px — `padToStyleAspect` pads into that window and `chooseStyleImageSize` spends the full 2560×1440 pixel budget at the map's own clamped aspect (sites are increasingly played fullscreen on a TV built into the table, so resolution is worth spending in full; cost stays flat via the credit charge regardless). **"gemini"** accepts only ten fixed aspect ratios instead (`@edge-shared/geminiAspect.ts`'s `GEMINI_ASPECT_RATIOS`), so its input pads to the _exact_ nearest one (`nearestGeminiAspect`) rather than clamping into a range, then is still sized by the same pixel budget. The client always treats a plain `"openai"` campaign as flexible since it can't see which model the admin actually configured; `style-map` re-validates by the resolved _model_ (only `gpt-image-2.5-*` accepts a flexible size), so an admin who points plain "openai" at an older model gets a clear 400 before any charge rather than a mismatched request reaching the provider. In Build, `bakeAiStyleInput` (`src/cartographer/aiStyleInput.ts`) composites what the DM actually sees before fitting: the site's Picture underneath, placed by `placePicture` at the position `MapStackImage.vue` already draws it, with a _transparent_ live bake of the Drawing (`bakeMap` with `transparent: true`) on top. The Plan and the runtime-only layers (tokens, fog) never go into this image. Falls back to `bakeMapForAI`'s plain Drawing-only bake (also fitted) when there is no Picture yet, or it has no calibration to place it by. `liveDrawingCalibration()` computes the calibration the Drawing's _current_ bake would carry if published right now, so the Picture is placed correctly mid-edit and its `origin_cell_x/y` survive into the fitted calibration below. `style-map/index.ts` derives the size it requests from the uploaded image's own PNG header (`_shared/imageSize.ts`'s `readPngDimensions`), never a client field, and re-validates before the rate limit and credit reservation: `isValidGeminiAspectRatio` for Gemini, a `gpt-image-2.5-*` model check (`_shared/openaiImageModel.ts`'s `isFlexibleOpenAiModel`) followed by `isValidStyleImageSize` for OpenAI. Gemini's actual output resolution stays the admin's `imageSize` quality knob regardless of what was sent.
 - **Cost and BYOK.** `styleCost` and `styleByok` used to assume OpenAI unconditionally (`mapImageMultiplierFor("openai")`, `!!decryptedOpenAiKey`) — wrong the moment a campaign's `image_provider` was actually Gemini, whose multiplier is 0.5 in production: the DM would see OpenAI's price and a BYOK campaign with only a Gemini key would show as not-BYOK. Both now read the same `imageProviderKey` the sizing above resolves.
@@ -1235,7 +1244,7 @@ The Layers panel's Drawing row (`MapLayersPanel.vue`, `AtlasSiteMapMode.vue`) of
 
 - `src/cartographer/stylePresets.ts` — `StylePreset` interface + `CARTOGRAPHER_STYLE_PRESETS` array + `WATERMARK_SUFFIX`
 - `src/cartographer/bake.ts` — `fitStyleInputCanvas()`/`bakeMapForAI()` take a `provider: "openai" | "gemini"` (default `"openai"`) that picks which pad function applies, returning `{ blob, geometry, size }`; `padToAspect()` (general), `padToStyleAspect()` (clamped to OpenAI's 1:3..3:1) and `chooseStyleImageSize()` (the 2560×1440 budget, rounded down to multiples of 16) are the independently-tested pure pieces both this file and `aiStyleInput.ts` build on
-- `src/cartographer/aiStyleInput.ts` — `liveDrawingCalibration()` (the Drawing's would-be publish calibration, pure), `bakeAiStyleInput()` (Atlas Build's Picture+Drawing composite, fitted, or the plain fallback), `styledPictureCalibration()` (pure: fitting geometry + `liveDrawingCalibration`'s cell coordinates → a `GridCalibration`)
+- `src/cartographer/aiStyleInput.ts`: `liveDrawingCalibration()` (the Drawing's would-be publish calibration, pure), `bakeAiStyleInput()` (the site editor's Picture+Drawing composite, fitted, or the plain fallback), `styledPictureCalibration()` (pure: fitting geometry + `liveDrawingCalibration`'s cell coordinates → a `GridCalibration`)
 - `supabase/functions/_shared/imageSize.ts` — `readPngDimensions()` (reads width/height straight out of a PNG's IHDR chunk) and `isValidStyleImageSize()` (flexible OpenAI's multiple-of-16/aspect/edge/total-pixel rules), both pure and tested
 - `supabase/functions/_shared/geminiAspect.ts` — `GEMINI_ASPECT_RATIOS`, `nearestGeminiAspect()` and `isValidGeminiAspectRatio()`, genuinely shared (not duplicated) between the edge function and the client via the `@edge-shared` alias — the same pattern `provenance/mark.ts` already uses across that boundary — so both sides agree on Gemini's buckets by construction rather than by a mirror test
 - `supabase/functions/_shared/openaiImageModel.ts` — `isFlexibleOpenAiModel()` (a `gpt-image-2.5-*` prefix check), server-only: the client always sends a flexible-fitted image for "openai" regardless, since it can't see which model the admin has actually configured
@@ -1249,15 +1258,15 @@ The Layers panel's Drawing row (`MapLayersPanel.vue`, `AtlasSiteMapMode.vue`) of
 - `src/components/cartographer/CartographerAiStyleModal.vue` — `fixedTargetLabel` prop: replaces the combobox, changes the Save button's label/guard, and gates Generate behind the plain-language confirm above
 - `src/composables/locations/useLocations.ts` — `useSaveStyledSitePicture()` (the atomic flatten mutation, now taking a `calibration`) and `useUpdateLocationPicture()` (now takes an optional `calibration`, omitted by every caller except this flow)
 - `src/manual/cartographer-overview.md` — DM guide: tools, layers, view/edit mode
-- `src/manual/cartographer-export.md`, `src/manual/worldbuilding-sites.md` — DM-facing coverage of the Build entry point, the Drawing being set aside, the draw-fixes-and-style-again loop, and the check-and-Calibrate step
+- `src/manual/cartographer-export.md`, `src/manual/worldbuilding-sites.md`, DM-facing coverage of the site editor's entry point, the Drawing being set aside, the draw-fixes-and-style-again loop, and the check-and-Calibrate step
 
 #### Implementation notes
 
 - Logic lives in `src/composables/cartographer/useMapExport.ts` (extracted from the view 29 Aug 2026, pre-dating #868). #868 narrowed its scope rather than removing it: the composable's header now notes it "no longer bakes a plain WebP for a location's `map_url`" for the main drawing — that path moved to `useMapPublish.ts` — and only the AI-styled result still saves the old direct way, per the M8 bullet above. The composable's own header now also carries the fixed-target/composite-input/sizing write-up in full, since that's where a reader modifying this flow will already be standing.
-- Input: PNG from `bakeMapForAI()` (fitted to the resolved provider/model's shape) on the standalone page; `bakeAiStyleInput()`'s Picture+Drawing composite (same fitting) in Atlas Build. Both return `{ blob, geometry, size }` — `size` is what was actually requested, used only to log a drift warning against the returned image, never to recompute the calibration.
+- Input: PNG from `bakeMapForAI()` (fitted to the resolved provider/model's shape) on the standalone page; `bakeAiStyleInput()`'s Picture+Drawing composite (same fitting) in the site map editor. Both return `{ blob, geometry, size }`, `size` is what was actually requested, used only to log a drift warning against the returned image, never to recompute the calibration.
 - Output: image blob from the resolved provider — object URL for preview, uploadable to `locationImages` bucket. A `grid_calibration` derived from the geometry above travels with it into whichever save mutation runs.
 - Credit type: `map_style_generation` — defaults to 1 credit if no admin entry exists, and stays flat regardless of the render's actual pixel size.
-- No new DB columns needed — Atlas Build's flatten, and the standalone save's calibration write, both use columns that already exist.
+- No new DB columns needed, the site editor's flatten, and the standalone save's calibration write, both use columns that already exist.
 - Gemini's `sizeToAspect` (`supabase/functions/_shared/imageGen.ts`) picks the nearest of the ten aspect ratios Gemini's image models actually support (`1:1, 3:2, 2:3, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9`, verified against Google's Gemini API docs), by log-space distance — a map's own aspect can land anywhere in that range, not just at a fixed square.
 
 ### M9 — Structure & Publish to Atlas (#868) ✅ shipped
@@ -1394,11 +1403,11 @@ The shared style guide:
 - **Baked maps** live as WebP images in Storage, referenced by `locations.map_url`. Published from Cartographer via **Publish to Atlas** (#868), which reconciles the site's rooms/doors/placements against the drawing's derived structure in the same action, never just overwrites the picture.
 - **Tile packs** are versioned, schema-validated, WebP-only. Starter pack bundled; others from Storage.
 - **Cells** carry per-cell pack references so a single map can mix themes cleanly (per-brush theme switching).
-- **Walls** are **edge-based** by default (stored as `wallN` / `wallW` on floor cells, NW ownership). The `solidBlock` layer carries **cell-based** thick walls for masonry mass.
+- **Walls** are **edge-based** by default (stored in `layers.walls`: lattice edges as `"x,y:N"` / `"x,y:W"` with NW ownership, angled walls by uuid). The `solidBlock` layer carries **cell-based** thick walls for masonry mass.
 - **Doors** are edge state: they replace a wall segment on an edge, drawn as a doorway tile plus a leaf swung on its hinge (closed 0°, open `openDegrees`). Grates and sluices are edge state too.
 - **Terrain** (`layers.terrain`) is drawn instead of the floor in its cell; curbs appear on its banks by themselves; shadows are drawn at render time by `drawMap.ts`, which the editor and the bake share.
 - **No bitmask auto-tiler in M1** — wall segments are straight and abut at intersections; optional `wallJoint` corner art layers in M2 if packs provide it.
-- **Movement / sight blocking** is derived per-edge from `wallN` / `wallW` / `solidBlock` — never stored.
+- **Movement / sight blocking** is derived per-segment from `layers.walls` / `solidBlock`, never stored.
 - **Infinite canvas** with crop-on-export and 3-cell black padding.
 - **Entity links** per cell preserve data for a future in-app VTT.
 - **Two entry points**: Dungeon Craft tab and Publishing Tools nav group (same view).
@@ -1475,7 +1484,7 @@ The migration file is in place but **not yet applied to the remote Supabase proj
 - [x] Undo/redo — CommandStack (100-step cap); Ctrl+Z / Ctrl+Shift+Z; undo/redo buttons in status bar. Each stroke or one-shot action is one undo unit.
 - [x] Corner joints — programmatic filled-square fallback at H+V intersections; routes to `wallJoint` pack art when available (classifyJoint: L_NE/SE/SW/NW, T_N/E/S/W, CROSS).
 - [x] SolidBlock rendering — full-cell tile above floor, below edge walls.
-- [x] Door rendering: wallN/wallW type-aware: a `doorwayH/V` tile plus a `doorLeaf` (closed, or swung open on its hinge).
+- [x] Door rendering: type-aware on `layers.walls` segments: a `doorwayH/V` tile plus a `doorLeaf` (closed, or swung open on its hinge).
 - [x] Zoom 5%–400%; center map (C); undo/redo indicators in status bar.
 
 ### New files added in M2

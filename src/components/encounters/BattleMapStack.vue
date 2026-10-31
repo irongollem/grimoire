@@ -101,16 +101,16 @@ import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
+import type { BattleMapLayers } from "@/lib/battlemap/roomBridge";
 import type { Viewer } from "@/lib/battlemap/vision";
 import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
 
-const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, viewers = null, zones = NO_ZONES, doorStates = NO_DOOR_STATES } = defineProps<{
+const { layers, panX, panY, imageW, imageH, viewers = null, zones = NO_ZONES, doorStates = NO_DOOR_STATES } = defineProps<{
   hostW: number;
   hostH: number;
-  imageUrl: string;
-  standUrl: string | null;
-  /** The standing image without the swaying props, or null when nothing sways. */
-  standLiveUrl: string | null;
+  /** What the map is made of: the ground image, the standing half, the live snapshot (#1125: one object, so a new
+   *  layer reaches every battle map without each mount learning a prop). The DM's `BattleSurface` is one. */
+  layers: BattleMapLayers;
   panX: number;
   panY: number;
   /** The image's drawn size on screen, in px. */
@@ -123,7 +123,6 @@ const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, view
   cellPx: number;
   originX: number;
   originY: number;
-  live: MapLive | null;
   /** The player's sight: set, the veil shows what these viewers see; null, the DM's translucent veil. */
   viewers?: Viewer[] | null;
   /** Magical darkness: counts as a dark map for mounting the veil, even on a daylight one. */
@@ -132,16 +131,24 @@ const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, view
   doorStates?: readonly MapLiveDoorState[];
 }>();
 
+const imageUrl = computed(() => layers.imageUrl);
+const standUrl = computed(() => layers.standUrl);
+const standLiveUrl = computed(() => layers.standLiveUrl);
+const live = computed(() => layers.live);
+
 const topDraws = computed(
-  () => live !== null && standLiveUrl !== null && (live.sprites.length > 0 || live.doors.some((d) => d.leaf !== null)),
+  () => {
+    const snapshot = live.value;
+    return snapshot !== null && standLiveUrl.value !== null && (snapshot.sprites.length > 0 || snapshot.doors.some((d) => d.leaf !== null));
+  },
 );
 // Ready is remembered per snapshot: a new one has sprites of its own to load before its standing image can drop them.
 // A shallow ref, because it is compared by identity: `ref` would wrap the snapshot in a reactive proxy that never
 // equals the raw object the prop carries, and the stack would never swap.
 const readyLive = shallowRef<MapLive | null>(null);
 // The ground picture's box, so the ground layer keeps a light's flicker to its painted part.
-const groundBox = computed(() => ({ url: imageUrl, x: panX, y: panY, w: imageW, h: imageH }));
-const shownStandUrl = computed(() => (topDraws.value && readyLive.value === live ? standLiveUrl : standUrl));
+const groundBox = computed(() => ({ url: imageUrl.value, x: panX, y: panY, w: imageW, h: imageH }));
+const shownStandUrl = computed(() => (topDraws.value && readyLive.value === live.value ? standLiveUrl.value : standUrl.value));
 </script>
 
 <style scoped>

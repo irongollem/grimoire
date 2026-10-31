@@ -153,6 +153,10 @@
             :template-shapes="TEMPLATE_SHAPES"
             :brush-radius="brushRadius"
             :rect-walls="rectWalls"
+            :light="shownLight"
+            :light-selected="selectedLightId !== null"
+            @update:light="onLightEdit"
+            @delete-light="deleteSelectedLight"
             @update:active-tool="activeTool = $event"
             @update:place-rotation="placeRotation = $event"
             @rotate-selected="rotateSelectedDressing"
@@ -199,7 +203,6 @@
               :regions="plan.regions.value"
               :active-region-id="plan.activeRegionId.value"
               :can-trace="true"
-              :building="true"
               :door-tool-armed="plan.planTool.value === 'door'"
               @update:active-region-id="(id) => setPlanActiveRegion(id, 'space')"
               @update:door-tool-armed="(armed) => (plan.planTool.value = armed ? 'door' : 'space')"
@@ -209,9 +212,9 @@
               :regions="plan.regions.value"
               :active-region-id="plan.activeRegionId.value"
               :can-trace="true"
-              :building="true"
               @update:active-region-id="(id) => setPlanActiveRegion(id, 'zone')"
             />
+            <SiteWaysOutPanel :site-id="site.id" :spaces="spaces ?? []" :editable="true" />
           </div>
           <CartographerPlaceCatalog
             v-else-if="drawer === 'place'"
@@ -347,6 +350,8 @@ import {
   IconCave,
   IconSplitCell,
   IconHighlight,
+  IconAngledWall,
+  IconLight,
   type AppIcon,
 } from "@/lib/icons";
 
@@ -364,6 +369,7 @@ import CartographerToolOptions from "@/components/cartographer/CartographerToolO
 import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
 import SiteMapRegionList from "@/components/locations/site/SiteMapRegionList.vue";
 import SiteMapZoneList from "@/components/locations/site/SiteMapZoneList.vue";
+import SiteWaysOutPanel from "@/components/locations/site/SiteWaysOutPanel.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
 import { usePlanPalette, PLAN_TOOLS, TRACE_TOOL_OPTIONS, type PlanTool } from "@/composables/cartographer/usePlanPalette";
@@ -392,15 +398,21 @@ import {
 } from "@/types/dungeonMap.types";
 import { STAMP_CATEGORIES } from "@/cartographer/stampCategories";
 import type { WallKind } from "@/cartographer/wallKinds";
+import type { TileLight } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
+import { wallAt } from "@/cartographer/wallGraph";
 import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
+import type { LocationType } from "@/types/location.types";
 
-const { map, viewMode, site, spaces, saveState, menuActions = [], reviewCount, showReady = false } = defineProps<{
+const { map, viewMode, site, spaces, saveState, menuActions = [], reviewCount, showReady = false, startLayer } = defineProps<{
   map: DungeonMap | null;
   viewMode: boolean;
+  /** The layer to open on, when the host was sent for one ("Place it" asks for the Plan). Absent: the Plan
+   *  when the site already has a map to trace over, else the Drawing. */
+  startLayer?: "drawing" | "plan";
   /** The host's save state, shown in the bar: "Saving…", "Unsaved changes". Absent says nothing. */
   saveState?: string;
   site?: MapStackSource & { id: string };
@@ -409,7 +421,7 @@ const { map, viewMode, site, spaces, saveState, menuActions = [], reviewCount, s
    *  (#884 S11) to offer a "Bind to space…" picker. The host already has
    *  this (it built `site` from the same location), so it travels as its
    *  own prop rather than a second query in here. */
-  spaces?: BindableSpace[];
+  spaces?: (BindableSpace & { location_type: LocationType })[];
   /** The host's own entries in the bar's Map menu (style, review, download, export, delete);
    *  only these are drawn. A later story wires each host. */
   menuActions?: readonly MapMenuAction[];
@@ -577,7 +589,9 @@ const TOOLS: ToolDef[] = [
   { id: "wall",     label: "Wall",          icon: IconWall,         shortcut: "w" },
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
   { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "x" },
+  { id: "angledWall", label: "Angled wall",  icon: IconAngledWall, shortcut: "n" },
   { id: "place",    label: "Place",         icon: IconObjectStamp,  shortcut: "o", aliases: ["g"] },
+  { id: "light",    label: "Light",         icon: IconLight,       shortcut: "u" },
   { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t" },
   { id: "link",     label: "Link",          icon: IconEntityLink,   shortcut: "k" },
   // "s" is already Rock's key, so Space takes "p" instead of the frame's literal key (#868).
@@ -601,8 +615,8 @@ interface ToolFamilyDef {
 const TOOL_FAMILIES: readonly ToolFamilyDef[] = [
   { id: "select", label: "Select",  icon: IconSelect,      caption: () => "look, don't paint",           tools: ["select", "pan"] },
   { id: "draw",   label: "Draw",    icon: IconBrush,       caption: (pack) => `floor, in ${pack}`,       tools: ["brush", "rect", "template", "line", "fill", "floor"] },
-  { id: "walls",  label: "Walls",   icon: IconWall,        caption: () => "edges between cells",         tools: ["wall", "door", "wrap"] },
-  { id: "things", label: "Things",  icon: IconObjectStamp, caption: () => "objects and props",           tools: ["place"] },
+  { id: "walls",  label: "Walls",   icon: IconWall,        caption: () => "edges between cells, and at any angle",         tools: ["wall", "door", "wrap", "angledWall"] },
+  { id: "things", label: "Things",  icon: IconObjectStamp, caption: () => "objects, props and lights",           tools: ["place", "light"] },
   { id: "terrain", label: "Terrain", icon: IconWater,      caption: () => "water and rock",              tools: ["terrain", "solid"] },
   { id: "notes",  label: "Notes",   icon: IconAnnotate,    caption: () => "labels, links and spaces",    tools: ["annotate", "link", "space"] },
   { id: "erase",  label: "Erase",   icon: IconEraser,      caption: () => "floor, walls and objects",    tools: ["eraser"], dividerBefore: true },
@@ -657,6 +671,10 @@ function pickPlaceItem(item: PlaceItem): void {
 // `wallDecal` variant the Decal kind sets on an existing wall.
 const activeWallKind = ref<WallKind>("wall");
 const activeWallDecal = ref(0);
+
+// Light tool state (#1125 story 5): what the next light placed is made of. A torch's reach by the rules
+// (20 ft bright and 20 ft dim); the slip edits it, and edits the selected light instead when one is picked.
+const lightDraft = ref<TileLight>({ color: "#ffb347", bright: 20, dim: 20 });
 
 // The placed prop that is selected (epic #1062).
 const selectedDressingId = ref<string | null>(null);
@@ -806,10 +824,7 @@ const annotationText = computed({
 // "NW ownership" rule (context/features/cartographer.md, "Edge ownership
 // rule") — a cell only ever stores its own N/W.
 function edgeSegAt(x: number, y: number, side: "N" | "E" | "S" | "W") {
-  if (side === "N") return layers.value.floor[cellKey(x, y)]?.wallN;
-  if (side === "W") return layers.value.floor[cellKey(x, y)]?.wallW;
-  if (side === "S") return layers.value.floor[cellKey(x, y + 1)]?.wallN;
-  return layers.value.floor[cellKey(x + 1, y)]?.wallW;
+  return wallAt(layers.value, x, y, side);
 }
 
 const selectedCellFloor = computed(() => {
@@ -985,7 +1000,7 @@ const plan = usePlanPalette(siteId);
 // this ref). The standalone `/cartographer/:id` route passes no `site` at
 // all, so `site &&` short-circuits it to "drawing" unconditionally, same as
 // before.
-const activeLayer = ref<"drawing" | "plan">(site && hasAnyMapLayer(site) ? "plan" : "drawing");
+const activeLayer = ref<"drawing" | "plan">(startLayer ?? (site && hasAnyMapLayer(site) ? "plan" : "drawing"));
 // "Drawing" and "Plan" are the site workbench's own words (#884) and mean nothing to
 // someone opening Build for the first time, so each says what it is for in its tooltip.
 const LAYER_OPTIONS: SegmentedOption<"drawing" | "plan">[] = [
@@ -1029,16 +1044,28 @@ function setPlanActiveRegion(id: string | null, role: RegionRole): void {
 const {
   zoom, hoverCell, altHeld, spaceHeld, isPanning, canUndo, canRedo, undoEdit, redoEdit, centerMap,
   onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel, structureTools,
-  rotateSelectedDressing, deleteSelectedDressing,
+  rotateSelectedDressing, deleteSelectedDressing, selectedLightId, updateSelectedLight, deleteSelectedLight,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
-  placeRotation, activeWallKind, activeWallDecal, activeTemplateShape, brushRadius, rectWalls,
+  placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape, brushRadius, rectWalls,
   selectedCell, toolOptionsRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
   plan, activeLayer, keysActive,
 });
+
+/** What the Light slip shows: the selected light when one is picked, else what the next one will be. */
+const shownLight = computed<TileLight>(() => {
+  const id = selectedLightId.value;
+  const placed = id ? layers.value.lights[id] : undefined;
+  return placed ? placed.light : lightDraft.value;
+});
+function onLightEdit(patch: Partial<TileLight>): void {
+  // A change to a picked light is that light's own undo step; the draft follows so the next one matches.
+  updateSelectedLight(patch);
+  lightDraft.value = { ...lightDraft.value, ...patch };
+}
 
 // The hand shows while Space is held or the Pan tool is armed on the Drawing, and closes
 // into a fist for the drag itself. View mode has no tools, so it keeps the plain arrow.

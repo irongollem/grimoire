@@ -41,6 +41,10 @@ import { constrainShapeEnd, isCellPainter, useStraightStrokes, type CellPainter 
 import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
 import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useDressingTool } from "@/composables/cartographer/useDressingTool";
+import { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
+import { useLightTool } from "@/composables/cartographer/useLightTool";
+import { wallAt } from "@/cartographer/wallGraph";
+import type { TileLight } from "@/cartographer/packSchema";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
 import { isTextEntry } from "@/lib/canvasControls/keyTargets";
 import { useCanvasNavigation } from "@/composables/cartographer/useCanvasNavigation";
@@ -92,6 +96,8 @@ export interface MapCanvasEditorOptions {
   /** What the wall tool paints (or, for "decal", sets on an existing wall) and the decal variant it sets. */
   activeWallKind: Ref<WallKind>;
   activeWallDecal: Ref<number>;
+  /** What the Light tool puts down next: colour, reach and flicker, edited in the slip. */
+  lightDraft: Ref<TileLight>;
   activeTemplateShape: Ref<TemplateShape>;
   /** Round brush radius in cells (fractional); `[` / `]` change it, the tool options show it. */
   brushRadius: Ref<number>;
@@ -136,7 +142,7 @@ const EDGE_HOVER_THRESHOLD = 0.25;
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
-    dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, activeTemplateShape,
+    dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape,
     brushRadius, rectWalls, selectedCell, toolOptionsRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer, keysActive,
   } = opts;
@@ -263,6 +269,21 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     selectedId: selectedDressingId,
     isActive: () => !viewMode() && !isPlanLayerActive(),
     snapshotStr, pushCommand, markDirty,
+  });
+
+  // The Angled wall and Light tools (#1125 story 5); this module only routes to them.
+  const angledTool = useAngledWallTool({
+    layers, wallKind: activeWallKind,
+    pack: () => ({ packId: currentPackId.value, packVersion: activePackVersion() }),
+    snapshotStr, pushCommand, markDirty,
+  });
+  const lightTool = useLightTool({ layers, draft: lightDraft, snapshotStr, pushCommand, markDirty });
+  // Undo and redo can take away what is selected; leaving a tool puts its unfinished work down.
+  watch(layers, () => { angledTool.dropStaleSelection(); lightTool.dropStaleSelection(); }, { deep: true });
+  watch(activeTool, (tool, previous) => {
+    if (previous === "angledWall" && tool !== "angledWall") angledTool.abandon();
+    if (tool !== "angledWall" && tool !== "select") angledTool.selectedId.value = null;
+    if (tool !== "light") lightTool.selectedId.value = null;
   });
 
   /** Fractional cell coordinates under a pointer event, for hit-testing props. */
@@ -765,6 +786,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       referenceImage: getReferenceImage(tilePx, viewportOffset.value),
       ...structureTools.renderStructureScene(),
       ...dressingTool.renderScene(),
+      editorMarks: {
+        wallRun: activeTool.value === "angledWall" ? { points: angledTool.run.value, hover: angledTool.hover.value } : null,
+        selectedWallId: angledTool.selectedId.value,
+        showLights: activeTool.value === "light",
+        selectedLightId: lightTool.selectedId.value,
+        lightGhost: activeTool.value === "light" && lightTool.hover.value
+          ? { point: lightTool.hover.value, light: lightDraft.value }
+          : null,
+      },
     });
 
     // ── Plan overlay (#884 S7b) — drawn over the Drawing, on the same
@@ -808,7 +838,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     [
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
-      dressingTool.hover, placeItem, placeRotation, selectedDressingId, ...extraRenderDeps, ...planRenderDeps,
+      dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
@@ -892,6 +922,19 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       })) {
       if (ev.button === 2) ev.preventDefault();
       if (dressingTool.isHolding()) canvasEl.value?.setPointerCapture(ev.pointerId);
+      return;
+    }
+
+    // Angled wall: each left click adds a point to the run (right button still pans).
+    if (activeTool.value === "angledWall" && ev.button === 0) {
+      angledTool.click(fractionalCellAt(ev), ev.altKey);
+      return;
+    }
+
+    // Light: a click puts one down, or picks one up to move it.
+    if (activeTool.value === "light" && ev.button === 0) {
+      lightTool.onPointerDown(fractionalCellAt(ev), ev.altKey);
+      canvasEl.value?.setPointerCapture(ev.pointerId);
       return;
     }
 
@@ -1007,9 +1050,25 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       else eraseCell(cx, cy);
     } else if (activeTool.value === "wall" && hoveredEdge.value) {
       wallStrokeAt(hoveredEdge.value, ev.altKey);
-    } else if (activeTool.value === "door" && hoveredEdge.value) {
-      if (ev.altKey) removeDoorAtEdge(hoveredEdge.value); else paintDoorAtEdge(hoveredEdge.value);
+    } else if (activeTool.value === "door") {
+      doorPress(ev, cx, cy);
     }
+  }
+
+  /**
+   * The Door tool's press. A click on an angled wall (and not on a wall of the grid under it) turns that wall into a
+   * door and back; anywhere else it acts on the grid edge under the pointer, as it always did.
+   */
+  function doorPress(ev: PointerEvent, cx: number, cy: number): void {
+    const edge = hoveredEdge.value;
+    const angled = angledTool.wallNear(fractionalCellAt(ev));
+    const gridWall = edge ? wallAt(layers.value, edge.x, edge.y, edge.side) : undefined;
+    if (angled && !gridWall) {
+      if (angledTool.toggleDoor(angled, pickDoorVariant(cx, cy, "doorwayH"))) markDirty();
+      return;
+    }
+    if (!edge) return;
+    if (ev.altKey) removeDoorAtEdge(edge); else paintDoorAtEdge(edge);
   }
 
   function toolPointerMove(ev: PointerEvent): void {
@@ -1019,6 +1078,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     hoverPoint.value = activeTool.value === "brush" ? fractionalCellAt(ev) : null;
     dressingTool.setHover([cx, cy]);
     dressingTool.onPointerMove([cx, cy]);
+    if (activeTool.value === "angledWall") angledTool.track(fractionalCellAt(ev), ev.altKey);
+    if (activeTool.value === "light") lightTool.onPointerMove(fractionalCellAt(ev), ev.altKey);
 
     // Select tool: the press hasn't committed to click-or-drag yet.
     // Once it travels past the slop it's a drag, so hand off to the ordinary
@@ -1108,6 +1169,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       dressingTool.onPointerUp();
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
+    if (lightTool.isHolding()) {
+      lightTool.onPointerUp();
+      canvasEl.value?.releasePointerCapture(ev.pointerId);
+    }
     if (isPanning.value) {
       isPanning.value = false;
       canvasEl.value?.releasePointerCapture(ev.pointerId);
@@ -1158,6 +1223,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       const local = getLocalPointer(ev);
       const [cx, cy] = viewportToCell(local.x, local.y);
       selectedCell.value = [cx, cy];
+      // A click near an angled wall picks it as well, so Delete can take it away.
+      angledTool.pickAt(fractionalCellAt(ev));
       pendingSelectStart = null;
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
@@ -1230,6 +1297,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       isPainting.value = false;
     }
     dressingTool.cancelGesture();
+    lightTool.cancelGesture();
     isPanning.value = false;
     pendingSelectStart = null;
     lastPointer = null;
@@ -1315,6 +1383,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
    *  the standalone route, where `planTools` is null). */
   function onDoubleClick(ev: MouseEvent): void {
     if (isPlanLayerActive()) planTools!.onDoubleClick(ev);
+    else if (activeTool.value === "angledWall") angledTool.finish();
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
@@ -1341,7 +1410,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         shiftKey: ev.shiftKey,
         targetIsTextEntry,
       },
-      { activeTool: activeTool.value, tools, placeArmed: placeItem.value !== null },
+      {
+        activeTool: activeTool.value,
+        tools,
+        placeArmed: placeItem.value !== null,
+        angledRunOpen: angledTool.run.value.length > 0,
+        selectionDeletable: angledTool.selectedId.value !== null || lightTool.selectedId.value !== null,
+      },
     );
     if (!action) return;
 
@@ -1357,6 +1432,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "rotatePlace": dressingTool.turn(action.delta); break;
       case "deleteDressing": dressingTool.deleteSelected(); break;
       case "disarmPlace": placeItem.value = null; break;
+      case "finishAngledWall": angledTool.finish(); break;
+      case "abandonAngledWall": angledTool.abandon(); break;
+      case "deleteSelected":
+        if (!angledTool.deleteSelected()) lightTool.deleteSelected();
+        break;
       case "resizeBrush":
         brushRadius.value = clampBrushRadius(brushRadius.value + action.delta);
         break;
@@ -1435,6 +1515,12 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     onDoubleClick,
     onWheel: navigation.onWheel,
     structureTools,
+    /** The Light tool's selected light (null when none), and the edits the slip makes to it. */
+    selectedLightId: lightTool.selectedId,
+    updateSelectedLight: lightTool.updateSelected,
+    deleteSelectedLight: lightTool.deleteSelected,
+    /** The Angled wall tool's state, for tests and the status line. */
+    angledTool,
     /** Turns the selected Dressing prop (one undo step) and the brush with it. */
     rotateSelectedDressing: dressingTool.rotateSelected,
     /** Removes the selected Dressing prop (one undo step). */

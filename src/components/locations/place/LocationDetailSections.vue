@@ -80,7 +80,7 @@
          interior space, per the comment above. -->
     <section v-if="isInteriorSpace" class="flex flex-col gap-2">
       <h2 class="text-heading-sm font-bold text-foreground">Ways out</h2>
-      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="building" />
+      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" />
     </section>
 
     <!-- Ways out, lifted to the site (#868, S6) — a site sees its whole door
@@ -89,7 +89,7 @@
          one-room view; this is the other end of the same graph. -->
     <section v-if="isSite" class="flex flex-col gap-2">
       <h2 class="text-heading-sm font-bold text-foreground">Ways out</h2>
-      <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" hide-header :building="building" />
+      <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" hide-header />
     </section>
 
     <!-- Store inventory — self-contained editable component. Useful enough
@@ -108,7 +108,7 @@
          wilds site's grounds) are never rendered in two places at once. -->
     <section v-if="isSite" class="flex flex-col gap-2">
       <h2 class="text-heading-sm font-bold text-foreground">{{ siteSpacesHeading }}</h2>
-      <SiteRoomsPanel :location-id="location.id" :building="building" />
+      <SiteRoomsPanel :location-id="location.id" />
     </section>
 
     <!-- Prepared Here — traps, dungeon features, roll tables and loot
@@ -117,7 +117,7 @@
          corridor, unlike Store/Rooms above which apply to a subset of types. -->
     <section class="flex flex-col gap-2">
       <h2 class="text-heading-sm font-bold text-foreground">Prepared Here</h2>
-      <LocationPlacements :location-id="location.id" :building="building" />
+      <LocationPlacements :location-id="location.id" />
     </section>
 
     <!-- Sort Into Rooms (#879) — the re-homing backlog: NPCs and encounters
@@ -125,7 +125,7 @@
          level too coarse. Self-hiding (no children, nothing to sort into) and
          self-titled, unlike the panels above, because its whole visibility
          condition is data its own query already needs to fetch. -->
-    <LocationSortPanel :location-id="location.id" :building="building" />
+    <LocationSortPanel :location-id="location.id" />
 
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
     <section v-if="locationNpcs?.length" class="flex flex-col gap-2">
@@ -246,13 +246,8 @@ import { placeRoute } from "@/lib/locations/placeRoute";
 import { LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location, LocationSummary } from "@/types/location.types";
 
-const { location, building = false } = defineProps<{
+const { location } = defineProps<{
   location: Location;
-  /** Build mode (#884; any place since #958). Threaded to the four
-   *  structural sections (Ways out, Rooms, Prepared Here); the play
-   *  sections (Progress, Loot, Store) never take it — they stay live in
-   *  Browse the same as they always have. */
-  building?: boolean;
 }>();
 
 const NPC_PREVIEW = 3;

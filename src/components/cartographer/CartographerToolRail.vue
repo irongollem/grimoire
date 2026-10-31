@@ -14,24 +14,19 @@
         aria-hidden="true"
       ></span>
       <AppButton
-        variant="ghost"
-        fill="muted"
-        size="xs"
-        class="relative h-12 min-w-14 shrink-0 flex-col justify-center gap-0.5 border px-1 lg:w-full lg:min-w-0"
-        :class="isActive(family) ? 'border-primary/70 bg-primary/15 text-foreground' : 'border-transparent'"
+        variant="tool"
+        size="tile"
+        icon-size="lg"
+        class="shrink-0 lg:w-full lg:min-w-0"
+        :icon="family.icon"
         :active="isActive(family)"
         :aria-pressed="isActive(family)"
         :aria-label="family.label"
         :tooltip="familyTitle(family)"
         @click="pick(family)"
       >
-        <component :is="family.icon" class="size-5" aria-hidden="true" />
-        <span class="text-caption-sm leading-none">{{ family.label }}</span>
-        <kbd
-          v-if="familyKey(family)"
-          class="absolute right-1 top-0.5 font-mono text-caption-sm leading-none text-muted-foreground"
-          aria-hidden="true"
-        >{{ familyKey(family) }}</kbd>
+        <span class="leading-none">{{ family.label }}</span>
+        <KeyCap v-if="familyKey(family)" corner>{{ familyKey(family) }}</KeyCap>
       </AppButton>
     </template>
   </nav>
@@ -40,6 +35,7 @@
 <script setup lang="ts">
 import { reactive, watch, type Component } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import KeyCap from "@/components/common/controls/KeyCap.vue";
 
 export interface RailTool {
   id: string;

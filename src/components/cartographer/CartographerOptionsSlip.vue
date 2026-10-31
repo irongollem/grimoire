@@ -15,18 +15,16 @@
       <AppButton
         v-for="t in tools"
         :key="t.id"
-        variant="ghost"
-        fill="muted"
+        variant="tool"
         size="xs"
-        class="justify-between gap-1 border px-1.5"
-        :class="activeTool === t.id ? 'border-primary/70 bg-primary/15 text-foreground' : 'border-border/60'"
+        class="justify-between gap-1 px-1.5"
         :active="activeTool === t.id"
         :aria-pressed="activeTool === t.id"
         :disabled="t.disabled"
         @click="$emit('update:activeTool', t.id)"
       >
         <span class="truncate">{{ t.label }}</span>
-        <kbd v-if="t.shortcut" class="font-mono text-caption-sm text-muted-foreground">{{ t.shortcut.toUpperCase() }}</kbd>
+        <KeyCap v-if="t.shortcut">{{ t.shortcut.toUpperCase() }}</KeyCap>
       </AppButton>
     </div>
 
@@ -35,17 +33,18 @@
     </div>
 
     <p v-if="hints" class="flex flex-wrap items-center gap-x-1.5 border-t border-border/60 pt-1.5 text-caption-sm text-muted-foreground">
-      <span><kbd :class="KEY_CAP">Alt</kbd> erases</span>
+      <span><KeyCap>Alt</KeyCap> erases</span>
       <span aria-hidden="true">·</span>
-      <span><kbd :class="KEY_CAP">Shift</kbd> straight</span>
+      <span><KeyCap>Shift</KeyCap> straight</span>
       <span aria-hidden="true">·</span>
-      <span><kbd :class="KEY_CAP">Space</kbd> pans</span>
+      <span><KeyCap>Space</KeyCap> pans</span>
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
+import KeyCap from "@/components/common/controls/KeyCap.vue";
 import type { RailTool } from "@/components/cartographer/CartographerToolRail.vue";
 
 defineProps<{
@@ -61,6 +60,4 @@ defineProps<{
 }>();
 
 defineEmits<{ "update:activeTool": [tool: string] }>();
-
-const KEY_CAP = "rounded border border-border bg-secondary/40 px-1 font-mono text-caption-sm text-foreground";
 </script>

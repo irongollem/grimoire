@@ -59,8 +59,8 @@ export function resolveBattleMapGate(params: {
 /**
  * Battle-map gating and end-of-combat room exploration for the DM's runner
  * (epic #868). Shares `useEncounterRoom`'s resolution of which surface an
- * encounter opens on — the same one `EncounterMapView` renders — so the
- * runner's gate and the map view's render can never disagree.
+ * encounter opens on — the same one the Play map renders — so the
+ * runner's gate and the map's render can never disagree.
  */
 export function useCombatExploration(encounterId: MaybeRefOrGetter<string>) {
   const { encounter, location, surface, regions } = useEncounterRoom(encounterId);

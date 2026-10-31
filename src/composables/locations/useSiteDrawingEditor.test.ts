@@ -180,6 +180,23 @@ describe("useSiteDrawingEditor", () => {
     expect(updateLocationStub.mutateAsync).toHaveBeenCalledWith({ id: "loc-2", update: { source_map_id: "new-map" } });
   });
 
+  // #1125: the editor outlives the link write. A save that comes before the location row shows its new
+  // source_map_id must update the map it just made, not make a second one.
+  it("updates the map it created, rather than creating another, while the location has not caught up", async () => {
+    const newLocation = computed(() => ({ id: "loc-2", name: "Fresh Site", source_map_id: null }));
+    const editor = useSiteDrawingEditor(newLocation, drawingMap);
+    editor.workbenchRef.value = makeFakeWorkbench() as unknown as SiteDrawingWorkbenchRef;
+
+    editor.onEditRevision();
+    await editor.save();
+    editor.onEditRevision();
+    await editor.save();
+
+    expect(createMapStub.mutateAsync).toHaveBeenCalledOnce();
+    expect(updateMapStub.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ id: "new-map" }));
+    expect(editor.createdMapId.value).toBe("new-map");
+  });
+
   it("save with nothing unsaved writes nothing", async () => {
     const editor = useSiteDrawingEditor(location, drawingMap);
     editor.workbenchRef.value = makeFakeWorkbench() as unknown as SiteDrawingWorkbenchRef;

@@ -163,9 +163,8 @@
       <!--
         A place has one DM screen now. Editing and running are states of
         this same pane rather than trips to a separate page — `editing` and
-        `running` read straight off the Atlas route's own query, the way
-        `build` already does inside `AtlasPlacePane`. Keyed by the place's id
-        so switching which place is being edited or run remounts instead of
+        `running` read straight off the Atlas route's own query. Keyed by the
+        place's id so switching which place is being edited or run remounts instead of
         reusing stale local state, same as the old per-route pages did.
       -->
       <div v-if="selectedLoading" role="status" class="flex flex-1 flex-col gap-4">
@@ -182,7 +181,7 @@
       />
       <div v-else-if="editing && selected" :key="selected.id" class="flex flex-col gap-6">
         <LocationEditor :location="selected" />
-        <!-- The pane mounts this box for Browse and Build; the edit form
+        <!-- The pane mounts this box; the edit form
              replaces the pane, so the box follows it here (#983). -->
         <DmNoteBox type="location" :id="selected.id" :label="selected.name" />
       </div>
@@ -304,8 +303,8 @@ const {
 const selected = computed(() => selectedRow.value ?? null);
 const selectedLoading = computed(() => !!selectedId.value && selectedPending.value);
 
-// `edit`/`run` are route flags on the selected place, the same convention
-// `build` already uses inside `AtlasPlacePane`. `run` additionally requires a
+// `edit`/`run` are route flags on the selected place (the map has its own
+// full-screen route since #1125, not a flag). `run` additionally requires a
 // site-tier place — a stray `?run=true` on anything else falls through to
 // the plain pane rather than erroring, same as the old page's own guard.
 const editing = computed(() => route.query.edit === "true");
@@ -388,9 +387,9 @@ function clearSelection() {
   // next time the Atlas is opened — an exit the user cannot take.
   locationsUi.locationsLastSelectedId = null;
   // Every per-place mode flag goes with the place it was opened for — left
-  // in place, `edit`/`run`/`build` would attach themselves to whatever the
+  // in place, `edit`/`run` would attach themselves to whatever the
   // DM selects next, editing or running a place they never asked to.
-  const { at: _discarded, edit: _e, run: _r, build: _b, ...rest } = route.query;
+  const { at: _discarded, edit: _e, run: _r, ...rest } = route.query;
   router.push({ query: rest });
 }
 

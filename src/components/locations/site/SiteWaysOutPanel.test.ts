@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SiteWaysOutPanel from "./SiteWaysOutPanel.vue";
@@ -63,6 +63,7 @@ const SPACES = [
 function mountPanel(props: Partial<InstanceType<typeof SiteWaysOutPanel>["$props"]> = {}) {
   return mount(SiteWaysOutPanel, {
     props: { siteId: "site-1", spaces: SPACES, ...props },
+    global: { stubs: { RouterLink: RouterLinkStub } },
   });
 }
 
@@ -155,7 +156,7 @@ describe("SiteWaysOutPanel", () => {
 
   describe("inline add", () => {
     it("creates a door from the picked spaces, kind, and flags", async () => {
-      const wrapper = mountPanel({ building: true });
+      const wrapper = mountPanel({ editable: true });
 
       const comboboxes = wrapper.findAllComponents({ name: "EntityCombobox" });
       expect(comboboxes).toHaveLength(2); // from, to — no row is expanded to add a third
@@ -183,7 +184,7 @@ describe("SiteWaysOutPanel", () => {
     });
 
     it("does not create a door when from and to are the same space", async () => {
-      const wrapper = mountPanel({ building: true });
+      const wrapper = mountPanel({ editable: true });
       const comboboxes = wrapper.findAllComponents({ name: "EntityCombobox" });
       await comboboxes[0]!.vm.$emit("update:modelValue", "nave");
       await comboboxes[1]!.vm.$emit("update:modelValue", "nave");
@@ -192,8 +193,8 @@ describe("SiteWaysOutPanel", () => {
     });
   });
 
-  describe("Browse vs Build (#884)", () => {
-    it("hides the add form and every edit affordance in Browse", () => {
+  describe("read-only vs editable surface (#1125)", () => {
+    it("hides the add form and every edit affordance on a read-only surface", () => {
       doorsRef.value = [door({ id: "d1", starts_locked: true, is_secret: true })];
       const wrapper = mountPanel();
 
@@ -204,18 +205,35 @@ describe("SiteWaysOutPanel", () => {
       expect(wrapper.text()).toContain("locked");
     });
 
-    it("shows the add form once building", () => {
-      const wrapper = mountPanel({ building: true });
+    it("shows the add form on the editable surface", () => {
+      const wrapper = mountPanel({ editable: true });
       expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(2);
     });
   });
 
   describe("unplaced and one-sided doors (#884)", () => {
-    it("never offers a 'Place it' action — placing a door is the Plan's own Door tool now (#884 S11)", () => {
+    it("on the editable surface offers no Place it: placing a door is the Plan's own Door tool (#884 S11)", () => {
       doorsRef.value = [door({ id: "d1", edge_key: null })];
-      const wrapper = mountPanel({ building: true });
-      expect(wrapper.findAllComponents({ name: "AppButton" }).some((b) => b.props("label") === "Place it")).toBe(false);
+      const wrapper = mountPanel({ editable: true });
+      expect(wrapper.findAllComponents(RouterLinkStub)).toHaveLength(0);
       expect(wrapper.text()).toContain("Not placed");
+    });
+
+    // #1125 frame 02: the Overview's read-only list says so, and points at the editor's Plan.
+    it("read-only, says an unplaced way out is not on the map and links Place it to this site's Plan", () => {
+      doorsRef.value = [door({ id: "d1", edge_key: null })];
+      const wrapper = mountPanel({ siteId: "site-1" });
+      expect(wrapper.text()).toContain("not on the map");
+      const link = wrapper.findComponent(RouterLinkStub);
+      expect(link.text()).toBe("Place it");
+      expect(link.props("to")).toBe("/locations/site-1/map?layer=plan");
+    });
+
+    it("read-only, does not flag a placed way out as off the map", () => {
+      doorsRef.value = [door({ id: "d1", edge_key: "0,0:N" })];
+      const wrapper = mountPanel();
+      expect(wrapper.text()).not.toContain("not on the map");
+      expect(wrapper.findAllComponents(RouterLinkStub)).toHaveLength(0);
     });
 
     it("titles a one-sided door with 'leads nowhere yet' instead of the far room's name, and chips it", () => {
@@ -227,7 +245,7 @@ describe("SiteWaysOutPanel", () => {
   });
 });
 
-describe("SiteWaysOutPanel — Build edits", () => {
+describe("SiteWaysOutPanel — editable surface", () => {
   const byTooltip = (w: ReturnType<typeof mountPanel>, tooltip: string) =>
     w.findAllComponents({ name: "AppButton" }).find((b) => b.props("tooltip") === tooltip)!;
   const fill = async (w: ReturnType<typeof mountPanel>, from = "nave", to = "cell") => {
@@ -243,8 +261,8 @@ describe("SiteWaysOutPanel — Build edits", () => {
     doorsRef.value = [door({ id: "d1", starts_locked: true, lock_note: "brass key", label: "iron grille" })];
   });
 
-  it("offers no expand or remove in Browse, nor on the vertical rail", () => {
-    for (const props of [{}, { building: true, verticalOnly: true }]) {
+  it("offers no expand or remove read-only, nor on the vertical rail", () => {
+    for (const props of [{}, { editable: true, verticalOnly: true }]) {
       const w = mountPanel(props);
       expect(w.findAllComponents({ name: "AppButton" }).some((b) => b.props("tooltip") === "Remove this way out"), JSON.stringify(props)).toBe(false);
       expect(w.findAllComponents({ name: "AppButton" }).some((b) => b.props("tooltip") === "Edit this way out"), JSON.stringify(props)).toBe(false);
@@ -252,12 +270,12 @@ describe("SiteWaysOutPanel — Build edits", () => {
   });
 
   it("removes a way out by its id", async () => {
-    await byTooltip(mountPanel({ building: true }), "Remove this way out").trigger("click");
+    await byTooltip(mountPanel({ editable: true }), "Remove this way out").trigger("click");
     expect(mocks.remove).toHaveBeenCalledWith("d1", expect.anything());
   });
 
   it("flips the one-way, locked and secret flags from the edit drawer", async () => {
-    const w = mountPanel({ building: true });
+    const w = mountPanel({ editable: true });
     await byTooltip(w, "Edit this way out").trigger("click");
     await byTooltip(w, "Passable only from this side").trigger("click");
     await byTooltip(w, "Starts locked: brass key").trigger("click");
@@ -270,14 +288,14 @@ describe("SiteWaysOutPanel — Build edits", () => {
   });
 
   it("changes the kind from the drawer", async () => {
-    const w = mountPanel({ building: true });
+    const w = mountPanel({ editable: true });
     await byTooltip(w, "Edit this way out").trigger("click");
     await w.findAllComponents({ name: "AppSelect" })[0]!.vm.$emit("update:modelValue", "stair");
     expect(mocks.update).toHaveBeenCalledWith({ id: "d1", update: { door_kind: "stair" } }, expect.anything());
   });
 
   it("trims a label and the lock note, clears a blank note to null, and ignores an unchanged one", async () => {
-    const w = mountPanel({ building: true });
+    const w = mountPanel({ editable: true });
     await byTooltip(w, "Edit this way out").trigger("click");
     const [lockNote, label] = w.findAllComponents({ name: "PlacementNoteInput" });
     label!.vm.$emit("commit", "  portcullis ");
@@ -292,7 +310,7 @@ describe("SiteWaysOutPanel — Build edits", () => {
 
   it("adds the way out with its label trimmed, the lock note only when locked, then empties the form", async () => {
     mocks.create.mockImplementation((_payload, opts) => opts.onSuccess());
-    const w = mountPanel({ building: true });
+    const w = mountPanel({ editable: true });
     await fill(w);
     await w.findComponent({ name: "AppInput" }).vm.$emit("update:modelValue", "  iron grille ");
     const [oneWay, locked] = w.findAllComponents({ name: "AppCheckbox" });
@@ -312,7 +330,7 @@ describe("SiteWaysOutPanel — Build edits", () => {
   });
 
   it("drops a lock note that was typed and then unlocked", async () => {
-    const w = mountPanel({ building: true });
+    const w = mountPanel({ editable: true });
     await fill(w);
     const locked = w.findAllComponents({ name: "AppCheckbox" })[1]!;
     await locked.vm.$emit("update:modelValue", true);
@@ -324,14 +342,14 @@ describe("SiteWaysOutPanel — Build edits", () => {
 
   it("keeps the form filled in when the add fails", async () => {
     mocks.create.mockImplementation((_payload, opts) => opts.onError(new Error("guard")));
-    const w = mountPanel({ building: true });
+    const w = mountPanel({ editable: true });
     await fill(w);
     await findButton(w, "Add").trigger("click");
     expect(w.findAllComponents({ name: "EntityCombobox" })[0]!.props("modelValue")).toBe("nave");
   });
 
   it("cannot pick the from space as the to space", async () => {
-    const w = mountPanel({ building: true });
+    const w = mountPanel({ editable: true });
     await w.findAllComponents({ name: "EntityCombobox" })[0]!.vm.$emit("update:modelValue", "nave");
     const toOptions = w.findAllComponents({ name: "EntityCombobox" })[1]!.props("options") as { id: string }[];
     expect(toOptions.map((o) => o.id)).not.toContain("nave");
