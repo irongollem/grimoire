@@ -95,6 +95,55 @@
         </div>
       </div>
 
+      <!-- Object -->
+      <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div class="px-3 py-2 border-b border-border bg-muted/20">
+          <span class="text-label-lg font-semibold text-muted-foreground">Object</span>
+        </div>
+        <div class="p-4 flex flex-col gap-3">
+          <p class="text-caption text-muted-foreground">For something the party can attack, force or pick: a door, a lock, a cart.</p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Material</label>
+              <AppSelect v-model="form.object_material" size="body" weight="normal" block>
+                <option :value="null">Not an object</option>
+                <option v-for="m in OBJECT_MATERIALS" :key="m" :value="m">{{ OBJECT_MATERIAL_LABELS[m] }}</option>
+              </AppSelect>
+            </div>
+            <div>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Size</label>
+              <AppSelect v-model="form.object_size" size="body" weight="normal" block>
+                <option :value="null">—</option>
+                <option v-for="z in OBJECT_SIZES" :key="z" :value="z">{{ OBJECT_SIZE_LABELS[z] }}</option>
+              </AppSelect>
+            </div>
+            <div>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">AC</label>
+              <AppInput v-model.number="form.object_ac" type="number" min="1" max="30" placeholder="—" size="body" />
+            </div>
+            <div>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Hit points</label>
+              <AppInput v-model.number="form.object_hp" type="number" min="1" max="9999" placeholder="—" size="body" />
+              <p v-if="bookHitPoints" class="mt-1 text-caption text-muted-foreground">
+                Book: {{ bookHitPoints.fragile }} fragile, {{ bookHitPoints.resilient }} resilient
+              </p>
+            </div>
+            <div>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Damage threshold</label>
+              <AppInput v-model.number="form.damage_threshold" type="number" min="1" max="50" placeholder="—" size="body" />
+            </div>
+            <div>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Break DC (Strength)</label>
+              <AppInput v-model.number="form.break_dc" type="number" min="1" max="30" placeholder="—" size="body" />
+            </div>
+            <div>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Pick lock DC (thieves' tools)</label>
+              <AppInput v-model.number="form.lock_dc" type="number" min="1" max="30" placeholder="—" size="body" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Trigger / Mechanism -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
@@ -143,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { IconDelete, IconSave } from '@/lib/icons';
@@ -161,6 +210,15 @@ import {
   FEATURE_GLYPH_LABELS,
 } from "@/types/dungeonFeature.types";
 import type { DungeonFeature, DungeonFeatureTrigger, FeatureGlyph } from "@/types/dungeonFeature.types";
+import {
+  OBJECT_MATERIALS,
+  OBJECT_MATERIAL_LABELS,
+  OBJECT_SIZES,
+  OBJECT_SIZE_LABELS,
+  objectArmorClass,
+  objectHitPoints,
+} from "@/rules/objects";
+import type { ObjectMaterial, ObjectSize } from "@/rules/objects";
 import { markEdited } from "@/ai/provenance";
 import type { AiProvenance } from "@/ai/provenance";
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
@@ -195,6 +253,13 @@ const blankForm = () => ({
   perception_dc: null as number | null,
   investigation_dc: null as number | null,
   arcana_dc: null as number | null,
+  object_material: null as ObjectMaterial | null,
+  object_size: null as ObjectSize | null,
+  object_ac: null as number | null,
+  object_hp: null as number | null,
+  damage_threshold: null as number | null,
+  break_dc: null as number | null,
+  lock_dc: null as number | null,
   trigger_type: null as DungeonFeatureTrigger | null,
   trigger_description: null as string | null,
   contents_description: null as string | null,
@@ -221,6 +286,13 @@ watch(
         perception_dc: f.perception_dc,
         investigation_dc: f.investigation_dc,
         arcana_dc: f.arcana_dc,
+        object_material: f.object_material,
+        object_size: f.object_size,
+        object_ac: f.object_ac,
+        object_hp: f.object_hp,
+        damage_threshold: f.damage_threshold,
+        break_dc: f.break_dc,
+        lock_dc: f.lock_dc,
         trigger_type: f.trigger_type,
         trigger_description: f.trigger_description,
         contents_description: f.contents_description
@@ -234,6 +306,20 @@ watch(
   },
   { immediate: true },
 );
+
+// Choosing a material fills in the book's AC, but never replaces one the DM typed.
+watch(
+  () => form.value.object_material,
+  (material) => {
+    if (material && form.value.object_ac === null) form.value.object_ac = objectArmorClass(material);
+  },
+);
+
+const bookHitPoints = computed(() => {
+  const size = form.value.object_size;
+  if (!size) return null;
+  return { fragile: objectHitPoints(size, "fragile"), resilient: objectHitPoints(size, "resilient") };
+});
 
 async function save() {
   if (!form.value.name.trim()) return;
@@ -251,7 +337,14 @@ async function save() {
       text(form.value.trigger_description) !== text(f.trigger_description) ||
       form.value.perception_dc !== f.perception_dc ||
       form.value.investigation_dc !== f.investigation_dc ||
-      form.value.arcana_dc !== f.arcana_dc
+      form.value.arcana_dc !== f.arcana_dc ||
+      form.value.object_material !== f.object_material ||
+      form.value.object_size !== f.object_size ||
+      form.value.object_ac !== f.object_ac ||
+      form.value.object_hp !== f.object_hp ||
+      form.value.damage_threshold !== f.damage_threshold ||
+      form.value.break_dc !== f.break_dc ||
+      form.value.lock_dc !== f.lock_dc
     )) {
       form.value.ai_provenance = markEdited(form.value.ai_provenance);
     }

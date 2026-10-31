@@ -320,6 +320,8 @@ const CONNECTION_FEATURE_TYPES: ReadonlySet<DungeonFeatureType> = new Set([
   "Secret Door",
   "Hidden Passage",
   "Moving Wall",
+  "Door",
+  "Lock",
 ]);
 const showAllFeatures = ref(false);
 const changingFeatureIds = ref(new Set<string>());
@@ -329,7 +331,7 @@ function startChangingFeature(doorId: string) {
 
 // Only the Build-only edit drawer offers features to pick from.
 // The index offers Grimoire's library features beside the DM's own; the same
-// Secret Door / Hidden Passage / Moving Wall filter applies to both.
+// Secret Door / Hidden Passage / Moving Wall / Door / Lock filter applies to both.
 const { data: allFeatures } = useDungeonFeatureIndex(() => ({ enabled: building }));
 const connectionFeatures = computed(() =>
   (allFeatures.value ?? []).filter((f) => CONNECTION_FEATURE_TYPES.has(f.feature_type)),

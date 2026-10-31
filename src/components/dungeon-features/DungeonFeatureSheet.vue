@@ -78,6 +78,40 @@
       </div>
     </div>
 
+    <!-- Object stats -->
+    <div v-if="hasObjectStats" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-3 py-2 border-b border-border bg-muted/20">
+        <span class="text-label-lg font-semibold text-muted-foreground">Object</span>
+      </div>
+      <div class="p-4 flex flex-col gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+          <div v-if="feature.object_ac !== null">
+            <span class="text-eyebrow font-semibold text-muted-foreground">AC</span>
+            <p class="text-title font-bold text-foreground">{{ feature.object_ac }}</p>
+            <p v-if="feature.object_material" class="text-caption text-muted-foreground">{{ OBJECT_MATERIAL_LABELS[feature.object_material] }}</p>
+          </div>
+          <div v-if="feature.object_hp !== null">
+            <span class="text-eyebrow font-semibold text-muted-foreground">Hit points</span>
+            <p class="text-title font-bold text-foreground">{{ feature.object_hp }}</p>
+            <p v-if="feature.object_size" class="text-caption text-muted-foreground">{{ OBJECT_SIZE_LABELS[feature.object_size] }}</p>
+          </div>
+          <div v-if="feature.damage_threshold !== null">
+            <span class="text-eyebrow font-semibold text-muted-foreground">Damage threshold</span>
+            <p class="text-title font-bold text-foreground">{{ feature.damage_threshold }}</p>
+          </div>
+          <div v-if="feature.break_dc !== null">
+            <span class="text-eyebrow font-semibold text-muted-foreground">Break DC</span>
+            <p class="text-title font-bold text-foreground">{{ feature.break_dc }}</p>
+          </div>
+          <div v-if="feature.lock_dc !== null">
+            <span class="text-eyebrow font-semibold text-muted-foreground">Pick lock DC</span>
+            <p class="text-title font-bold text-foreground">{{ feature.lock_dc }}</p>
+          </div>
+        </div>
+        <p class="text-caption text-muted-foreground">Immune to {{ immunityText }} damage.</p>
+      </div>
+    </div>
+
     <!-- Trigger -->
     <div
       v-if="feature.trigger_type || feature.trigger_description"
@@ -146,6 +180,7 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useCloneLibraryDungeonFeature, useDeleteDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
 import { isLibraryFeature } from "@/lib/dungeon-features/library";
+import { OBJECT_DAMAGE_IMMUNITIES, OBJECT_MATERIAL_LABELS, OBJECT_SIZE_LABELS } from "@/rules/objects";
 import type { DungeonFeatureEntry } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
@@ -188,6 +223,16 @@ function hasContent(field: string | null | undefined): boolean {
     return String(field).trim().length > 0;
   }
 }
+
+const hasObjectStats = computed(() => {
+  const f = props.feature;
+  return (
+    f.object_material !== null || f.object_size !== null || f.object_ac !== null || f.object_hp !== null ||
+    f.damage_threshold !== null || f.break_dc !== null || f.lock_dc !== null
+  );
+});
+// "poison and psychic": built from the rule's own list, not retyped here.
+const immunityText = OBJECT_DAMAGE_IMMUNITIES.join(" and ");
 
 const hasContents    = computed(() => hasContent(props.feature.contents_description));
 const hasDescription = computed(() => hasContent(props.feature.description));
