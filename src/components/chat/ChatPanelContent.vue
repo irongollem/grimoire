@@ -90,6 +90,8 @@
             @toggle-details="toggleDetails"
             @claim="$emit('claim', $event)"
             @grab="$emit('grab', $event)"
+            @loot-roll-choose="$emit('loot-roll-choose', $event)"
+            @loot-roll-end="$emit('loot-roll-end', $event)"
             @claim-to-npc="onClaimToNpc(msg.id, $event.npcId)"
           />
 
@@ -368,6 +370,7 @@ import type {
   RollMetadata,
   LootChestMetadata,
   EntityLinkMetadata,
+  LootRollChoice,
 } from "@/types/chat.types";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
@@ -408,6 +411,8 @@ const emit = defineEmits<{
   "delete-all": [];
   claim: [payload: { messageId: string; intoStash: boolean }];
   grab: [payload: { messageId: string; qty: number; intoStash: boolean }];
+  "loot-roll-choose": [payload: { messageId: string; choice: LootRollChoice }];
+  "loot-roll-end": [payload: { messageId: string }];
   "claim-currency": [payload: { messageId: string }];
   "claim-to-npc": [payload: { messageId: string; npcId: string; npcName: string }];
   "pay-vendor-offer": [payload: { messageId: string }];

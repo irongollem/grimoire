@@ -30,6 +30,8 @@
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @grab="handleGrab"
+        @loot-roll-choose="handleLootRollChoose"
+        @loot-roll-end="handleLootRollEnd"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
         @claim-loot-chest="handleClaimLootChest"
@@ -91,6 +93,8 @@
         @delete-all="handleDeleteAll"
         @claim="handleClaim"
         @grab="handleGrab"
+        @loot-roll-choose="handleLootRollChoose"
+        @loot-roll-end="handleLootRollEnd"
         @claim-currency="handleClaimCurrency"
         @claim-to-npc="handleClaimToNpc"
         @claim-loot-chest="handleClaimLootChest"
@@ -125,8 +129,9 @@ import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import ChatPanelContent from "./ChatPanelContent.vue";
+import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
-import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
+import type { ItemDropMetadata, LootRollChoice, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/rules/currency";
 import { itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
@@ -201,7 +206,7 @@ onUnmounted(() => {
 const appUi = useAppUiStore();
 const auth = useAuthStore();
 const campaign = useCampaignStore();
-const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const toast = useToast();
 const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
@@ -352,6 +357,38 @@ async function handleGrab({ messageId, qty, intoStash }: { messageId: string; qt
   }
   void queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
   void queryClient.invalidateQueries({ queryKey: ["items"] });
+}
+
+// Every open client nudges the server at a roll's deadline; the RPC is idempotent.
+useLootRollClock(messages, async (messageId) => {
+  const meta = await resolveLootRoll(messageId);
+  refreshAfterRoll(meta);
+  return meta;
+});
+
+/** A roll that settled with winners moved items into inventories. */
+function refreshAfterRoll(meta: ItemDropMetadata) {
+  if (meta.roll?.outcome !== 'won') return;
+  void queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
+  void queryClient.invalidateQueries({ queryKey: ["items"] });
+}
+
+async function handleLootRollChoose({ messageId, choice }: { messageId: string; choice: LootRollChoice }) {
+  const partyMemberId = auth.linkedPartyMemberId;
+  if (!partyMemberId) return;
+  try {
+    refreshAfterRoll(await chooseLootRoll(messageId, partyMemberId, choice));
+  } catch (e) {
+    reportChatFailure(e, "enter that roll, it may have closed");
+  }
+}
+
+async function handleLootRollEnd({ messageId }: { messageId: string }) {
+  try {
+    refreshAfterRoll(await resolveLootRoll(messageId));
+  } catch (e) {
+    reportChatFailure(e, "end the roll");
+  }
 }
 
 async function handleClaimCurrency({ messageId }: { messageId: string }) {

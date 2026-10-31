@@ -10,7 +10,7 @@ import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useSpeaker } from "@/composables/party/useSpeaker";
 import type { Speaker } from "@/lib/player/speaker";
 import type { ItemQuality } from "@/types/inventory.types";
-import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata, SpeakerMetadata } from "@/types/chat.types";
+import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, LootRollChoice, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata, SpeakerMetadata } from "@/types/chat.types";
 import { formatCoinParts } from "@/rules/currency";
 import type { RollResult } from "@/lib/dice/dice";
 
@@ -535,6 +535,8 @@ export function useCampaignMessages() {
     description?: string | null;
     isContainer?: boolean;
     quality?: ItemQuality;
+    /** A thrown weapon: the server never opens a Need or Greed roll for it. */
+    thrown?: boolean;
   }
 
   /**
@@ -545,7 +547,7 @@ export function useCampaignMessages() {
    * every other write path does.
    */
   async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, opts: ItemDropOptions = {}) {
-    const { senderName, imageUrl, description, isContainer, quality } = opts;
+    const { senderName, imageUrl, description, isContainer, quality, thrown } = opts;
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const speaker = senderName === undefined ? currentSpeaker() : speakerForName(senderName);
@@ -553,6 +555,7 @@ export function useCampaignMessages() {
       ...itemRefColumns(itemId), item_name: itemName, item_rarity: rarity, quantity,
       is_container: isContainer ?? false,
       ...(quality ? { quality } : {}),
+      ...(thrown ? { thrown: true } : {}),
       quantity_remaining: quantity,
       claims: [],
       image_url: imageUrl ?? null,
@@ -664,6 +667,32 @@ export function useCampaignMessages() {
     if (error) throw error;
     const idx = messages.value.findIndex(m => m.id === messageId);
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as ItemDropMetadata };
+  }
+
+  // ── Need or Greed ────────────────────────────────────────────────────────
+  // Both RPCs return the message's full new metadata; patch it in like a claim.
+  function patchDropMetadata(messageId: string, data: unknown): ItemDropMetadata {
+    const metadata = data as ItemDropMetadata;
+    const idx = messages.value.findIndex(m => m.id === messageId);
+    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata };
+    return metadata;
+  }
+
+  async function chooseLootRoll(messageId: string, partyMemberId: string, choice: LootRollChoice): Promise<ItemDropMetadata> {
+    const { data, error } = await supabase.rpc("choose_loot_roll", {
+      p_message_id: messageId,
+      p_party_member_id: partyMemberId,
+      p_choice: choice,
+    });
+    if (error) throw error;
+    return patchDropMetadata(messageId, data);
+  }
+
+  /** Idempotent. Before the deadline it is a no-op for players; the DM ends the roll early. */
+  async function resolveLootRoll(messageId: string): Promise<ItemDropMetadata> {
+    const { data, error } = await supabase.rpc("resolve_loot_roll", { p_message_id: messageId });
+    if (error) throw error;
+    return patchDropMetadata(messageId, data);
   }
 
   // ── Stacked item grab (issue #126) ───────────────────────────────────────
@@ -815,5 +844,5 @@ export function useCampaignMessages() {
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
-  return { messages: visibleMessages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

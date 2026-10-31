@@ -33,6 +33,30 @@ export interface ItemDropClaim {
   at: string; // ISO timestamp
 }
 
+export type LootRollChoice = "need" | "greed" | "pass";
+
+/** One character's pick in a Need or Greed roll. `roll` is null for a pass. */
+export interface LootRollEntry {
+  party_member_id: string;
+  user_id: string;
+  name: string;
+  choice: LootRollChoice;
+  roll: number | null;
+  at: string; // ISO timestamp
+}
+
+/**
+ * The Need or Greed window on a drop. Stamped by a BEFORE INSERT trigger when the
+ * campaign rule is on; the client never writes it.
+ */
+export interface LootRoll {
+  seconds: number;
+  closes_at: string; // ISO, server-stamped
+  entries: LootRollEntry[];
+  resolved_at: string | null;
+  outcome: "won" | "unclaimed" | null; // null while open
+}
+
 export interface ItemDropMetadata {
   item_id: string | null;
   /**
@@ -66,6 +90,10 @@ export interface ItemDropMetadata {
   npc_id?: string | null; // present when claimed into a specific NPC's inventory
   /** Set when the item was dropped for a character its sender is minding (#1059). */
   for_party_member_id?: string;
+  /** Absent = not a rolled drop (rule off, a player's drop, or an old message). */
+  roll?: LootRoll;
+  /** Set by the thrown-weapon path; tells the server never to roll it. */
+  thrown?: boolean;
 }
 
 export interface CurrencyDropMetadata {

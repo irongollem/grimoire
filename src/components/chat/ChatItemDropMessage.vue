@@ -74,6 +74,17 @@
       </AppButton>
       <ChatItemDropDetails v-if="expanded && itemRef" :item-id="itemRef" />
 
+      <ChatLootRollPanel
+        v-if="meta.roll"
+        :message-id="messageId"
+        :roll="meta.roll"
+        :claims="meta.claims"
+        :is-d-m="isDM"
+        :linked-party-member-id="linkedPartyMemberId"
+        @choose="emit('loot-roll-choose', $event)"
+        @end="emit('loot-roll-end', $event)"
+      />
+
       <!-- ── Stacked drop: remaining count + grab buttons ───────── -->
       <template v-if="meta.claims !== undefined">
         <!-- All claimed -->
@@ -97,7 +108,7 @@
           >
             Grabbed by {{ grabbedSummary }}
           </div>
-          <div class="flex flex-wrap gap-1.5 mt-1.5">
+          <div v-if="!rollOpen" class="flex flex-wrap gap-1.5 mt-1.5">
             <template v-if="linkedPartyMemberId">
               <AppButton
                 v-if="meta.quantity! > 1"
@@ -146,7 +157,7 @@
             v-if="!meta.claimed_party_member_id && !meta.npc_id"
           >(party stash)</span>
         </div>
-        <div v-else class="flex flex-wrap gap-1.5 mt-2">
+        <div v-else-if="!rollOpen" class="flex flex-wrap gap-1.5 mt-2">
           <template v-if="linkedPartyMemberId">
             <AppButton
               variant="tinted"
@@ -184,11 +195,12 @@
 import { computed } from 'vue';
 import { IconChevronDown, IconLoot } from '@/lib/icons';
 import ChatItemDropDetails from '@/components/chat/ChatItemDropDetails.vue';
+import ChatLootRollPanel from '@/components/chat/ChatLootRollPanel.vue';
 import QualityBadge from '@/components/inventory/QualityBadge.vue';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import EntityCombobox from '@/components/common/controls/EntityCombobox.vue';
 import { inventoryItemRef } from '@/lib/itemRef';
-import type { ItemDropMetadata } from '@/types/chat.types';
+import type { ItemDropMetadata, LootRollChoice } from '@/types/chat.types';
 
 const {
   messageId,
@@ -215,6 +227,9 @@ const {
 /** The catalogue entry behind the drop: a vault uuid or a shared library id. */
 const itemRef = computed(() => inventoryItemRef({ item_id: meta.item_id, library_item_id: meta.library_item_id ?? null }));
 
+/** A Need or Greed window is open: grabbing and claiming wait for it. */
+const rollOpen = computed(() => meta.roll !== undefined && meta.roll.resolved_at === null);
+
 /** Names of grabbers (with per-person totals) while a stack is partially claimed. */
 const grabbedSummary = computed(() => {
   const claims = meta.claims;
@@ -235,6 +250,8 @@ const emit = defineEmits<{
   claim: [payload: { messageId: string; intoStash: boolean }];
   grab: [payload: { messageId: string; qty: number; intoStash: boolean }];
   'claim-to-npc': [payload: { messageId: string; npcId: string; npcName: string }];
+  'loot-roll-choose': [payload: { messageId: string; choice: LootRollChoice }];
+  'loot-roll-end': [payload: { messageId: string }];
 }>();
 
 function onClaimToNpc(npcId: string) {

@@ -35,6 +35,24 @@ registerOptionalRule({
   ],
 });
 
+// ── Need or Greed ─────────────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "need_or_greed",
+  name: "Need or Greed",
+  summary:
+    "Every item the DM drops in chat opens a short roll window: each character picks Need, Greed or Pass, and the highest roll takes it.",
+  description:
+    "Settles who gets a drop without a scramble for the Grab button.\n\n" +
+    "When the DM drops an item in chat, including quest and encounter loot, a roll window opens for the number of seconds set in **Campaign Settings → Rules**. Each seated character picks **Need**, **Greed** or **Pass** once. Need and Greed roll a d100 on the spot, and everyone sees the rolls straight away.\n\n" +
+    "When time runs out, or once every character has picked, **Need beats Greed and the highest roll wins**, with ties settled at random. A stack is shared among the winners in rank order. If everyone passes, the item stays free to grab as usual. The DM can end a roll early.\n\n" +
+    "Items a player drops themselves and thrown weapons are never rolled.",
+  dmOnly: false,
+  defaultEnabled: false,
+  config: [
+    { key: "seconds", label: "Seconds to roll", type: "number", default: 30, min: 10, max: 300, unit: "seconds" },
+  ],
+});
+
 // ── Random Initiative ─────────────────────────────────────────────────────────
 registerOptionalRule({
   key: "random_initiative",

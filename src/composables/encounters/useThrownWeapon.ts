@@ -41,6 +41,7 @@ export function useThrownWeapon() {
           description: item?.description ?? null,
           isContainer: false,
           quality: inv.quality,
+          thrown: true,
         },
       );
     } catch (e) {
