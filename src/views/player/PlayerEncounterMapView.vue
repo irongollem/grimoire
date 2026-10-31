@@ -26,7 +26,7 @@
       class="map-canvas-host"
       @wheel.prevent="onWheel"
       @pointerdown="onHostDown"
-      @pointermove="continuePan"
+      @pointermove="onHostMove"
       @pointerup="onHostUp"
       @pointercancel="onHostCancel"
       @pointerleave="onHostCancel"
@@ -86,6 +86,19 @@
         :lines="pathLines"
       />
 
+      <!-- What the table has pinged, measured and drawn (#1125 decision 12): players see it all and send only pings. -->
+      <PlayTableMarks
+        v-if="location && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :pings="table.pings.value"
+        :measures="table.measures.value"
+        :drawings="table.drawings.value"
+      />
+
       <!-- Fog layer (always opaque on the player side) -->
       <BattleMapFogLayer
         v-if="location && imageReady && cellPx > 0"
@@ -136,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onScopeDispose, ref, watch } from "vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { liveState, updateCombatantPosition } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -158,6 +171,9 @@ import { useParty } from "@/composables/party/useParty";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useToast } from "@/composables/useToast";
 import PlayMovePath, { type PathLine } from "@/components/encounters/play/PlayMovePath.vue";
+import PlayTableMarks from "@/components/encounters/play/PlayTableMarks.vue";
+import { useTableChannel } from "@/composables/encounters/useTableChannel";
+import { senderColor } from "@/lib/battlemap/tableIdentity";
 import { combatantSpeed } from "@/components/encounters/play/playSpeed";
 import PlayerMapTurnHeader from "@/components/player/PlayerMapTurnHeader.vue";
 import PlayerMapMoveSheet from "@/components/player/PlayerMapMoveSheet.vue";
@@ -404,12 +420,36 @@ async function confirmMove() {
 
 // A tap is a press that neither travelled nor shared the screen with a second finger; anything else is a pan or pinch.
 const TAP_SLOP_PX = 8;
+/** Holding a finger still this long pings the spot for the whole table (#1125 decision 12). */
+const LONG_PRESS_PING_MS = 500;
 let tapStart: { x: number; y: number } | null = null;
+let longPress: ReturnType<typeof setTimeout> | undefined;
+
+// The table's marks: players hear them all and send pings only.
+const table = useTableChannel(() => campaignStore.activeCampaign?.id ?? null, {
+  identity: () => (auth.user ? { id: auth.user.id, name: auth.publicName ?? "A player", color: senderColor(auth.user.id) } : null),
+});
+onScopeDispose(() => clearTimeout(longPress));
+
 function onHostDown(e: PointerEvent) {
   tapStart = e.isPrimary ? { x: e.clientX, y: e.clientY } : null;
+  clearTimeout(longPress);
+  if (tapStart && canvasHost.value && cellPx.value > 0) {
+    const at = pointerToCell(e, canvasHost.value.getBoundingClientRect(), gridOrigin.value, cellPx.value);
+    longPress = setTimeout(() => {
+      // It is a ping, not a tap: the lift that follows must not pick a square to move to.
+      tapStart = null;
+      table.sendPing(at.x, at.y);
+    }, LONG_PRESS_PING_MS);
+  }
   startPan(e);
 }
+function onHostMove(e: PointerEvent) {
+  if (tapStart && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) > TAP_SLOP_PX) clearTimeout(longPress);
+  continuePan(e);
+}
 function onHostUp(e: PointerEvent) {
+  clearTimeout(longPress);
   const start = tapStart;
   tapStart = null;
   endPan(e);
@@ -418,6 +458,7 @@ function onHostUp(e: PointerEvent) {
   target.value = pointerToCell(e, canvasHost.value.getBoundingClientRect(), gridOrigin.value, cellPx.value);
 }
 function onHostCancel(e: PointerEvent) {
+  clearTimeout(longPress);
   tapStart = null;
   endPan(e);
 }

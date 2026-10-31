@@ -42,6 +42,7 @@
         :party-members="partyMembers"
         @select="onMapSelect"
         @update:group-ids="groupIds = $event"
+        @update:view="view = $event"
         @unplaced="unplaced = $event"
         @placed="placingId = null"
         @cancel-placing="placingId = null"

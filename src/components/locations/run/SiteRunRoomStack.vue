@@ -108,7 +108,7 @@ const { siteId, room, regions, doors, doorState, loot, campaignId, compact = fal
   /** The whole site's regions — space + zone — same set `LocationMap.vue`
    *  already holds for `MapRegionsLayer`. */
   regions: LocationMapRegion[];
-  /** The whole site's doors, from `useSiteDoors` — `SiteRunSurface` already
+  /** The whole site's doors, from `useSiteDoors` — `QuestSiteHandoff` already
    *  fetches this once for the map and `SiteRunWaysOut`. */
   doors: SiteDoorWithSpaces[];
   doorState: (doorId: string, fact: DoorStateFact) => LocationState | undefined;

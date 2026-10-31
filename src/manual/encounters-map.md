@@ -4,7 +4,7 @@ section: Encounters & Bestiary
 section_order: 5
 order: 5
 summary: The map on the Play screen: tokens and their sizes, moving by the book, the turn card, fog of war, and how it borrows a site's own Atlas plan.
-keywords: encounter, map, battle map, play, fog of war, fog, brush, reveal, hide, token, size, move, movement, turn card, room, site, cartographer, difficult terrain, legend
+keywords: measure, area of effect, ping, draw, damage all, encounter, map, battle map, play, fog of war, fog, brush, reveal, hide, token, size, move, movement, turn card, room, site, cartographer, difficult terrain, legend
 ---
 
 The map is part of the Play screen, the one screen that runs a fight. From tablet width up it is full screen: the initiative list (and any unplaced combatants) on the left, the map in the middle with its toolbelt along the bottom, and the turn card or a character sheet on the right. Open it from an encounter with **Run Encounter** (`/encounters/:id/run`). Once you are live, **Open the table screen in a new window** opens the same map in the players' eyes on a second monitor (`/encounters/:id/table`). On a phone the runner has a **List | Map** switch instead.
@@ -28,7 +28,7 @@ The Play screen draws a map only once Grimoire can resolve one, and it works out
 
 ## The toolbar and menus
 
-- **Toolbelt** (along the bottom of the map): **Move**, **Fog** and **Darkness**. Fog shows its brush (**Reveal** or **Hide**), shape (round or square) and size (`1`, `3` or `5` cells), plus **Reveal all** and **Hide all**. Darkness shows its radius. Doors flip when you click them under any tool.
+- **Toolbelt** (along the bottom of the map): **Move** (V), **Measure** (M), **Area** (T), **Fog** (F), **Darkness** (K), **Ping** (P) and **Draw** (D); see Table tools below. Fog is **Room**, **Brush** or **Hide**, with the brush's shape (round or square) and size (`1`, `3` or `5` cells), **Reveal all**, **Hide all** and **As players see it**. Darkness shows its radius. Doors flip when you click them, and tokens move when you drag them, under any tool.
 - **View** menu (in the bar): **As players see it**, **Grid**, **Zones**, **Tokens**, **Fog**, **Follow the turn** and **Legend**, and **Reset view**. The legend is hidden until you turn it on here.
 - **Tools** button (in the bar): opens a sheet with surprise, lair and legendary mechanics, events, traps, spawning and your note, so the map keeps the screen.
 - Zoom and pan work as on any map: wheel to zoom, drag empty ground with the Move tool to pan.
@@ -61,11 +61,23 @@ The counts follow the book:
 
 On someone's turn the right-hand card reads top to bottom: **1 Move** (how far, as a bar two speeds long, or "Speed unknown" when no speed is on the board), **2 Act** (tap Action, Bonus action and Reaction as they are spent; who the token is next to; the attacks to roll, characters' included, with the same rolls as the full sheet; and the Size menu) and **3 Next turn**. It always shows whose turn it is; select anyone else and their sheet opens in its place. **Open the full sheet** is one click away.
 
+## Table tools
+
+Everything you do with these shows on your players' screens too.
+
+- **Measure** (M): drag from anywhere, or click to keep the line and click again to bend it round a pillar. Click the square it already ends at, or press Esc, to let it go. It reads the length by the book, 5 ft a square with diagonals included. While it is there the players see the line.
+- **Area** (T): pick **Sphere**, **Cone**, **Line** or **Cube** and a size in feet. A sphere or cube follows the pointer and a click sets it down. A cone or line starts from the selected token and points where you aim; with nobody selected, click once to set where it starts. The squares it covers are tinted, and the creatures inside are ringed and selected for you, so the slip reads, for example, "20 ft · 3 inside". Type an amount and press **Damage all 3** to take it off everyone selected; click tokens first if you want to add someone or leave someone out. You still roll their saves your own way. A square counts as covered when the area covers at least half of it.
+- **Fog** (F): **Room** reveals a whole traced room with one click, **Brush** and **Hide** paint as before. Rooms you reveal this way are offered as explored when the fight ends. **As players see it** shows the map the way your players see it.
+- **Ping** (P): click or hold anywhere. Everyone sees a gilt ripple with "your name pinged". On a phone a player pings by holding a finger on the map for half a second.
+- **Draw** (D): draw freehand in your own colour. Strokes fade when the turn ends unless **Pin drawings** is on; **Clear drawings** wipes them all.
+
+The map you use while exploring a site has Move, Measure, Ping and Draw; fog there is by room.
+
 ## Fog of war
 
 Going live seeds the fog to reveal the room the party starts in, so they're never staring at a blank map wondering where they are. From there:
 
-1. Pick **Reveal brush** or **Re-hide brush**, a shape, and a size.
+1. Pick **Brush** (reveal) or **Hide** (re-hide), a shape, and a size. Or pick **Room** and click a traced room to reveal all of it.
 2. Paint over the map. Every stroke pushes to players in real time.
 3. Use **Reveal all** or **Hide all** for a clean sweep instead of painting by hand.
 

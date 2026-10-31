@@ -1,6 +1,7 @@
 <template>
   <div class="flex flex-col gap-2" data-testid="turn-card-pc-attacks">
     <RunnerPcAttacks
+      compact
       :member="member"
       :features="features"
       :prof-bonus="profBonus"
@@ -23,7 +24,7 @@ import type { CheckMode } from "@/components/encounters/RunnerRollModeToggle.vue
 import type { PartyMember } from "@/types/party.types";
 
 /**
- * A character's attacks on the Play turn card (#1125 frame 10). It is the full sheet's own attack list, fed through
+ * A character's attacks on the Play turn card (#1125 frame 10), one line each with a Roll. It is the full sheet's own attack list, fed through
  * the same two composables, so a roll from here is the roll from the sheet: same prompt, same chat post.
  * The card has no roll toggles, so it rolls plain and public.
  */

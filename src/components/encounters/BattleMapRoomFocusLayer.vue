@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { cellOutline } from "@/lib/battlemap/cellOutline";
 
 const { hostW, hostH, cellPx, originX, originY, focusCells, zones = [] } = defineProps<{
   hostW: number;
@@ -85,40 +86,14 @@ interface Edge {
   y2: number;
 }
 
-/** The boundary edges of a set of grid cells, in pixel space — an edge is
- *  drawn wherever a cell's neighbour on that side is NOT in the set, so the
- *  result traces the shape's actual perimeter rather than its bounding box. */
+/** The boundary edges of a set of grid cells in pixel space: the perimeter of the shape, not its bounding box. */
 function boundaryEdges(cells: string[]): Edge[] {
-  const set = new Set(cells);
-  const edges: Edge[] = [];
-  const toPx = (cx: number, cy: number): [number, number] => [
-    originX + cx * cellPx,
-    originY + cy * cellPx,
-  ];
-  for (const key of cells) {
-    const [x, y] = parseCell(key);
-    if (!set.has(`${x},${y - 1}`)) {
-      const [x1, y1] = toPx(x, y);
-      const [x2] = toPx(x + 1, y);
-      edges.push({ x1, y1, x2, y2: y1 });
-    }
-    if (!set.has(`${x},${y + 1}`)) {
-      const [x1, y1] = toPx(x, y + 1);
-      const [x2] = toPx(x + 1, y + 1);
-      edges.push({ x1, y1, x2, y2: y1 });
-    }
-    if (!set.has(`${x - 1},${y}`)) {
-      const [x1, y1] = toPx(x, y);
-      const [, y2] = toPx(x, y + 1);
-      edges.push({ x1, y1, x2: x1, y2 });
-    }
-    if (!set.has(`${x + 1},${y}`)) {
-      const [x1, y1] = toPx(x + 1, y);
-      const [, y2] = toPx(x + 1, y + 1);
-      edges.push({ x1, y1, x2: x1, y2 });
-    }
-  }
-  return edges;
+  return cellOutline(cells).map((e) => ({
+    x1: originX + e.x1 * cellPx,
+    y1: originY + e.y1 * cellPx,
+    x2: originX + e.x2 * cellPx,
+    y2: originY + e.y2 * cellPx,
+  }));
 }
 
 const roomOutlineEdges = computed(() => boundaryEdges(focusCells));

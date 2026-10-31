@@ -6,9 +6,10 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 import {
   afterFightRoute,
-  cellOutline,
   cellsCentre,
   exploreToken,
+  exploreTokens,
+  memberSize,
   partyTokenId,
   positionsOnSite,
   roomBattleCells,
@@ -132,17 +133,45 @@ describe("afterFightRoute", () => {
   });
 });
 
-describe("cellOutline and cellsCentre", () => {
-  it("outlines an L-shape by its perimeter, not its bounding box", () => {
-    const edges = cellOutline(["0,0", "1,0", "0,1"]);
-    // The L has 8 unit sides; a bounding box of 2x2 would have 8 too, but the missing corner square leaves a notch.
-    expect(edges).toHaveLength(8);
-    expect(edges).toContainEqual({ x1: 1, y1: 1, x2: 2, y2: 1 });
-    expect(edges).not.toContainEqual({ x1: 2, y1: 2, x2: 2, y2: 1 });
-  });
-
+describe("cellsCentre", () => {
   it("puts a room's name at the middle of its cells", () => {
     expect(cellsCentre(["0,0", "1,0"])).toEqual({ x: 1, y: 0.5 });
     expect(cellsCentre([])).toBeNull();
+  });
+});
+
+describe("character sizes on the exploring map", () => {
+  const species = (size: "tiny" | "small" | "medium" | "large" | null, subraces: { name: string; size?: "tiny" | "small" | "medium" | "large" }[] | null = null) => ({
+    size, speed: null, languages: null, subraces: subraces as never,
+  });
+
+  // PHB 2024 "Creature Size": a Large creature takes a 10-foot space, so 2 by 2 squares (#1125 decision 13).
+  it("gives a Large character a 2 by 2 token and a Small one a single square", () => {
+    expect(exploreToken(member("a"), null, "large").footprint).toBe(2);
+    expect(exploreToken(member("a"), null, "small").footprint).toBe(1);
+  });
+
+  it("draws a character with no known size as Medium", () => {
+    const t = exploreToken(member("a"), null);
+    expect([t.size, t.footprint]).toEqual(["medium", 1]);
+  });
+
+  it("takes the size from the subrace when it replaces the species'", () => {
+    expect(memberSize(species("medium", [{ name: "Stout", size: "small" }]), "Stout")).toBe("small");
+    expect(memberSize(species("medium", [{ name: "Stout", size: "small" }]), null)).toBe("medium");
+  });
+
+  it("knows no size while the species has not loaded", () => {
+    expect(memberSize(undefined, null)).toBeNull();
+  });
+
+  it("stands each character on their own square and sizes each by the resolver", () => {
+    const tokens = exploreTokens([member("a"), member("b")], { site_id: "s1", positions: { a: { x: 3, y: 4 } } }, "s1", (id) => (id === "b" ? "large" : null));
+    expect(tokens.map((t) => [t.position, t.footprint])).toEqual([[{ x: 3, y: 4 }, 1], [undefined, 2]]);
+  });
+
+  it("leaves everyone off the map when the saved squares are for another site", () => {
+    const tokens = exploreTokens([member("a")], { site_id: "other", positions: { a: { x: 3, y: 4 } } }, "s1");
+    expect(tokens[0].position).toBeUndefined();
   });
 });

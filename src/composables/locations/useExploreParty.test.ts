@@ -19,7 +19,7 @@ function campaignWith(explore: ExploreParty | null): Campaign {
   return { id: "c1", explore_party: explore } as Campaign;
 }
 
-function setup(stored: ExploreParty | null = null) {
+function setup(stored: ExploreParty | null = null, sizeOf?: (id: string) => "large" | null) {
   const store = useCampaignStore();
   store.activeCampaignId = "c1";
   store.activeCampaign = campaignWith(stored);
@@ -31,10 +31,21 @@ function setup(stored: ExploreParty | null = null) {
       roomCells: () => ROOMS,
       roomOrder: ["hall"],
       partyRoomId: () => null,
+      ...(sizeOf ? { sizeOf } : {}),
     }),
   )!;
   return { api, scope, store };
 }
+
+describe("useExploreParty sizes", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  // Decision 13: every creature takes its size, a party member included.
+  it("draws a Large character's token two squares wide", () => {
+    const { api } = setup({ site_id: "s1", positions: { a: { x: 0, y: 0 }, b: { x: 1, y: 0 } } }, (id) => (id === "b" ? "large" : null));
+    expect(api.tokens.value.map((t) => t.footprint)).toEqual([1, 2]);
+  });
+});
 
 describe("useExploreParty", () => {
   beforeEach(() => {

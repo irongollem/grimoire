@@ -1,10 +1,10 @@
 import type { PlayTool } from "./playTypes";
 
-export type PointerAction = "none" | "toggle-door" | "place" | "darkness" | "brush" | "box-select" | "pan";
+export type PointerAction = "none" | "toggle-door" | "place" | "darkness" | "brush" | "measure" | "area" | "ping" | "draw" | "box-select" | "pan";
 
 /**
  * What a pointer-down on the map (not on a token: a draggable token takes its own press) does.
- * A door toggles whatever tool is armed (#1125 frame 10), then an armed portrait from the
+ * A door toggles whatever tool is armed (#1125 frame 10), and a token takes its own press under every tool (it never gets here), then an armed portrait from the
  * unplaced tray lands, then the tool does its thing. Shift on the Move tool draws a selection box
  * (frame 11, "the party together"). A follower window has no tools, only the view.
  */
@@ -24,6 +24,7 @@ export function resolvePointerAction(input: {
   if (placing) return "place";
   if (tool === "darkness") return "darkness";
   if (tool === "fog") return "brush";
+  if (tool === "measure" || tool === "area" || tool === "ping" || tool === "draw") return tool;
   return shift ? "box-select" : "pan";
 }
 

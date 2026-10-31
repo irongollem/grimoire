@@ -718,6 +718,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/locations/SiteExploreView.vue"),
     meta: { requiresAuth: true, title: "Exploring" },
   },
+  // The same site on the Table screen: the party and the rooms they have explored, for a screen the table looks at.
+  {
+    path: "/locations/:id/table",
+    name: "site-table",
+    component: () => import("@/views/locations/SiteTableView.vue"),
+    meta: { requiresAuth: true, title: "Table screen" },
+  },
 
   // Loot table detail
   {

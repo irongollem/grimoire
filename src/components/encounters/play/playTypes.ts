@@ -1,7 +1,9 @@
-/** The three tools of the Play toolbelt (#1125 frame 10). Doors toggle under every one of them. */
-export type PlayTool = "move" | "fog" | "darkness";
-/** What the fog brush does with the cells it covers. */
-export type FogBrushKind = "reveal" | "hide";
+/** The seven tools of the Play toolbelt (#1125 frame 11). Doors toggle and tokens move under every one of them. */
+export type PlayTool = "move" | "measure" | "area" | "fog" | "darkness" | "ping" | "draw";
+/** The tools the explore screen's map has: no Area, Fog or Darkness, because fog is by room when exploring. */
+export type ExploreTool = Extract<PlayTool, "move" | "measure" | "ping" | "draw">;
+/** What a fog click does: reveal the whole traced room under it, brush cells revealed, or brush them hidden again. */
+export type FogBrushKind = "room" | "reveal" | "hide";
 export type BrushShape = "round" | "cell";
 export type BrushSize = 1 | 3 | 5;
 /** Radii of a sphere of magical darkness in feet; 15 is the darkness spell. */
@@ -35,7 +37,18 @@ export const DEFAULT_PLAY_VIEW: PlayViewState = {
 };
 
 /** The key that arms each tool; PlayMap binds them and PlayToolbelt prints them. */
-export const PLAY_TOOL_KEYS: Record<PlayTool, string> = { move: "v", fog: "f", darkness: "k" };
+export const PLAY_TOOL_KEYS: Record<PlayTool, string> = {
+  move: "v",
+  measure: "m",
+  area: "t",
+  fog: "f",
+  darkness: "k",
+  ping: "p",
+  draw: "d",
+};
+
+/** Sphere, Cone, Line, Cube: the Area tool's shapes, as the book lists them. */
+export type { AreaShape } from "@/lib/battlemap/areaTemplates";
 
 /** dataTransfer type a tray portrait carries (the combatant's instance id) onto the map. */
 export const PLAY_DRAG_TYPE = "application/x-grimoire-combatant";

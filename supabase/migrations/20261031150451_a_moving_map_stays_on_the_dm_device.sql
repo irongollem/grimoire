@@ -17,6 +17,11 @@ alter table public.locations add column map_motion jsonb null
       and jsonb_typeof(map_motion -> 'bytes') = 'number'
       and jsonb_typeof(map_motion -> 'width') = 'number'
       and jsonb_typeof(map_motion -> 'height') = 'number'
+      and char_length(map_motion ->> 'file_name') between 1 and 255
+      and char_length(map_motion ->> 'mime') between 1 and 100
+      and (map_motion ->> 'bytes')::numeric >= 0
+      and (map_motion ->> 'width')::numeric > 0
+      and (map_motion ->> 'height')::numeric > 0
     )
   );
 

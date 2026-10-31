@@ -10,6 +10,10 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { PartyMember } from "@/types/party.types";
 import { exploreRoute } from "@/lib/locations/placeRoute";
 import { regionCellToBattleCell, seedTokenPositions } from "@/lib/battlemap/roomBridge";
+import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import type { MonsterSize } from "@/types/monster.types";
+import type { SpeciesSize } from "@/types/species.types";
+import { effectiveSize, type SpeciesStatsSource } from "@/rules/speciesStats";
 
 export type ExploreCell = { x: number; y: number };
 
@@ -23,8 +27,8 @@ export function partyTokenId(memberId: string): string {
 
 type TokenMember = Pick<PartyMember, "id" | "name" | "current_hp" | "max_hp" | "portrait_url" | "portrait_focal_point">;
 
-/** A character as a token on the exploring map: a Medium player combatant. Nothing here fights, so the numbers are only what the token and the party column read. */
-export function exploreToken(member: TokenMember, position: ExploreCell | null): RunCombatant {
+/** A character as a token on the exploring map. Nothing here fights, so the numbers are only what the token and the party column read. A character with no known size is Medium (app convention). */
+export function exploreToken(member: TokenMember, position: ExploreCell | null, size: MonsterSize | null = null): RunCombatant {
   return {
     instance_id: partyTokenId(member.id),
     type: "player",
@@ -41,10 +45,26 @@ export function exploreToken(member: TokenMember, position: ExploreCell | null):
     party_member_id: member.id,
     portrait_url: member.portrait_url,
     portrait_focal_point: member.portrait_focal_point,
-    size: "medium",
-    footprint: 1,
+    size: size ?? "medium",
+    footprint: sizeToFootprint(size),
     ...(position ? { position } : {}),
   };
+}
+
+/** A character's size by the book: the species' (or the subrace's, which replaces it). Null while the species is unknown. */
+export function memberSize(species: SpeciesStatsSource | undefined, subrace: string | null): SpeciesSize | null {
+  return species ? effectiveSize(species, subrace) : null;
+}
+
+/** The party as tokens on a site: each character stands on their explored square, or has none yet and is left off the map. */
+export function exploreTokens(
+  members: readonly TokenMember[],
+  explore: ExploreParty | null,
+  siteId: string,
+  sizeOf: (memberId: string) => MonsterSize | null = () => null,
+): RunCombatant[] {
+  const standing = positionsOnSite(explore, siteId);
+  return members.map((m) => exploreToken(m, Object.hasOwn(standing, m.id) ? standing[m.id] : null, sizeOf(m.id)));
 }
 
 /** Where the party stands on this site, or an empty record when `explore_party` is for another site (one site at a time). */
@@ -142,27 +162,6 @@ export type FightSite = { id: string; name: string };
 /** Where leaving a fight lands: back in the site it was fought in, else the encounter's builder as always. */
 export function afterFightRoute(encounterId: string, site: FightSite | null): string {
   return site ? exploreRoute(site.id) : `/encounters/${encounterId}`;
-}
-
-export interface CellEdge {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
-
-/** The perimeter of a set of cells, as edges in cell units: a side is drawn where the neighbour on that side is not in the set, so an L-shaped room outlines as an L. */
-export function cellOutline(cells: readonly CellKey[]): CellEdge[] {
-  const set = new Set<string>(cells);
-  const edges: CellEdge[] = [];
-  for (const key of cells) {
-    const [x, y] = key.split(",").map(Number);
-    if (!set.has(cellKey(x, y - 1))) edges.push({ x1: x, y1: y, x2: x + 1, y2: y });
-    if (!set.has(cellKey(x, y + 1))) edges.push({ x1: x, y1: y + 1, x2: x + 1, y2: y + 1 });
-    if (!set.has(cellKey(x - 1, y))) edges.push({ x1: x, y1: y, x2: x, y2: y + 1 });
-    if (!set.has(cellKey(x + 1, y))) edges.push({ x1: x + 1, y1: y, x2: x + 1, y2: y + 1 });
-  }
-  return edges;
 }
 
 /** The middle of a set of cells, in cell units: where a room's name sits. Null for no cells. */

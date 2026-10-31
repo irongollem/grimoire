@@ -3,7 +3,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(26);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -236,6 +236,12 @@ select throws_ok(
   '23514',
   null,
   'a door override is open or shut, nothing else'
+);
+select throws_ok(
+  $$update public.encounter_state set door_states = '[{"id":"3,4:N"}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,
+  '23514',
+  null,
+  'a door override without open or shut is refused'
 );
 select lives_ok(
   $$update public.encounter_state set door_states = '[{"id":"3,4:N","open":true},{"id":"0b6f8a2e-1c3d-4e5f-8a7b-9c0d1e2f3a4b","open":false}]'::jsonb where id = '57000000-0000-4000-8000-000000000040'$$,

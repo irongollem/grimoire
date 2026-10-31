@@ -1548,8 +1548,8 @@ zero pixels wide at any ordinary laptop width: the map was mounted and
 invisible, with its calibration chip hanging over the room list. So two rules:
 the handoff gets the full width, and its column count is a **container query**
 on its own width (`@6xl`, 72rem, for the third column; below that Ways out and
-Progress drop beneath the plan). `SiteRunSurface` follows the same rule inside
-the Atlas pane. Do not put a viewport breakpoint back on either grid. "Advance
+Progress drop beneath the plan). The explore screen (`SiteExploreView`) follows the same rule inside
+its own panels. Do not put a viewport breakpoint back on either grid. "Advance
 beat" in the handoff's header opens the same Advance dialog the rail's outcome
 strip does, so nothing is unreachable while the rail is away. "Leave site"
 keeps the room cursor, and **Enter site** on `QuestRunBeatCard` is the way
@@ -1567,8 +1567,8 @@ drift.
   click-to-move, the unwritten/Fill affordance, a loot chip), now mounted with
   `run-captions` on — the same frame-08 reachability captions ("Reachable",
   "Not reachable from here", "Secret door — undiscovered", "Party here ·
-  `<zone>` active") `SiteRunSurface` shows, computed identically in both
-  callers rather than the plain description snippet the handoff used to fall
+  `<zone>` active"), derived with the same helpers the explore screen's room
+  card uses, rather than the plain description snippet the handoff used to fall
   back to.
 - **The floor plan** (`LocationMap`, run-mode) is unchanged in mechanism, and
   now sits above the room's own stack rather than beside a room-detail column.
@@ -1668,11 +1668,13 @@ regardless of which surface authored it, via the shared
 `describeQuestConsequenceAction` — a world-action rule created on
 `QuestRulesPanel.vue` shows there too, just not addable from the room.
 
-**One room surface, two callers.** `SiteRoomList.vue` (`src/components/locations/site/`), `SiteRunWaysOut.vue`
-and `SiteRunRoomStack.vue` (`src/components/locations/run/`) are now shared
-verbatim between `QuestSiteHandoff` and `SiteRunSurface`'s Atlas Run action —
-before #868, only the room list itself was shared (#850 story H); the room
-card and its ways-out were each hand-rolled per caller. There is now exactly
+**One room surface, two callers.** `SiteRunWaysOut.vue` and `SiteRunRoomStack.vue`
+(`src/components/locations/run/`) are shared between `QuestSiteHandoff` and the
+explore screen's room card (`SiteExploreView`, `/locations/:id/explore`); the
+handoff alone mounts `SiteRoomList.vue` (`src/components/locations/site/`), as
+the explore screen's left column is the party panel. Before #868 only the room
+list was shared (#850 story H); the room card and its ways-out were each
+hand-rolled per caller. There is now exactly
 one implementation of "what does the DM see when the party is in this room,"
 so the cockpit's crawl and the Atlas's crawl can never quietly disagree again.
 Pure derivations shared by both callers (which rooms are unwritten, a room's

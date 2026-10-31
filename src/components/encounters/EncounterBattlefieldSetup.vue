@@ -136,7 +136,7 @@ const emit = defineEmits<{
   "update:combatants": [combatants: CombatantDef[]];
 }>();
 
-// Resolved the same way the runner and EncounterMapView resolve it: a room
+// Resolved the same way the Play screen resolves it: a room
 // with no map of its own places tokens on its site's published plan instead
 // of staying disabled, because that plan — not the room's own (absent)
 // map_url — is what combat actually draws (epic #868, frame 13).

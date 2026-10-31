@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import { exploreToken } from "@/lib/locations/explore";
@@ -31,6 +32,18 @@ vi.mock("@/composables/encounters/useMapCanvas", () => ({
     resetView: vi.fn(),
   }),
 }));
+
+const table = vi.hoisted(() => ({ sendPing: vi.fn(), startMeasure: vi.fn() }));
+vi.mock("@/composables/encounters/useTableChannel", async () => {
+  const { ref } = await import("vue");
+  return {
+    useTableChannel: () => ({
+      pings: ref([]), measures: ref([]), drawings: ref([]), connected: ref(false), sendPing: table.sendPing, startMeasure: table.startMeasure,
+      updateMeasure: vi.fn(), endMeasure: vi.fn(), draw: vi.fn(), clearDrawing: vi.fn(), clearAll: vi.fn(), clearUnpinned: vi.fn(),
+    }),
+  };
+});
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm-1" }, publicName: "Mira" }) }));
 
 import ExploreMap from "./ExploreMap.vue";
 
@@ -70,6 +83,11 @@ function mountMap(groupIds: string[], selectedId: string) {
   });
 }
 
+beforeEach(() => {
+  setActivePinia(createPinia());
+  vi.clearAllMocks();
+});
+
 describe("ExploreMap", () => {
   // #1125 decision 9: "they move together and keep their order".
   it("moves everyone selected by the lead's own offset, so the formation keeps its shape", () => {
@@ -85,5 +103,26 @@ describe("ExploreMap", () => {
     dragToken("p-b", { x: 9, y: 9 });
     const moves = w.emitted("move") as Record<string, { x: number; y: number }>[][];
     expect(Object.assign({}, ...moves.map((m) => m[0]))).toEqual({ b: { x: 9, y: 9 } });
+  });
+
+  // #1125 frame 11: fog is by room when exploring, so the belt is the walking subset.
+  it("offers Move, Measure, Ping and Draw, and no Area, Fog or Darkness", () => {
+    const w = mountMap([], "p-a");
+    const bar = w.find("[role=toolbar]");
+    expect(["Move", "Measure", "Ping", "Draw"].every((t) => bar.find(`[aria-label='${t}']`).exists())).toBe(true);
+    expect(["Area", "Fog", "Darkness"].some((t) => bar.find(`[aria-label='${t}']`).exists())).toBe(false);
+  });
+
+  it("Ping sends the pressed point to the table instead of moving the party", async () => {
+    const w = mountMap([], "p-a");
+    await w.find("[aria-label='Ping']").trigger("click");
+    const host = w.find("[data-testid=explore-map-host]");
+    (host.element as HTMLElement).setPointerCapture = vi.fn();
+    // 800px across 30 cells at scale 1 of a 300px image: 10px a cell.
+    const e = new MouseEvent("pointerdown", { clientX: 35, clientY: 21, bubbles: true });
+    Object.defineProperty(e, "pointerId", { value: 1 });
+    host.element.dispatchEvent(e);
+    expect(table.sendPing).toHaveBeenCalledWith(3.5, 2.1);
+    expect(w.emitted("move")).toBeUndefined();
   });
 });

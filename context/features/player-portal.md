@@ -590,6 +590,10 @@ The encounter subscription stays active even when the player navigates away from
 - The player layout still draws its own bottom bar on this route until `routes.ts` marks it `fullscreenMobile`.
 - Pings (the "Hold anywhere to ping" hint) arrive in a later story.
 
+### The Table screen shows what a player would see (#1125 decision 15, frame 13)
+
+The DM opens `/encounters/:id/table` (or `/locations/:id/table` while exploring) in a second window for a screen built into the table. It is a DM-account window, so it holds the whole live row, and `lib/table/tableScreen.ts` applies on the client the rules `get_player_encounter_state` applies on the server: a hidden monster (or one the DM never revealed) is left out, an unseen one is `???` with no face, a concealed NPC wears its disguise name and portrait, a monster's hit points are never drawn (only whether it still stands), and a creature standing in an unrevealed square leaves the map. The fog is opaque, the initiative ribbon and the banner ("Round 3", "Brakka's turn") use only the creatures the table may know, and an active creature the table may not know is neither named nor followed. Darkness is seen through the party's tokens with no senses assumed, so a dark map shows only what is lit around them.
+
 ## Key Capabilities / USPs
 
 1. **True real-time collaboration** — All player data (HP, inventory, conditions, encounter state) is synchronised via Supabase Realtime. DM changes appear instantly on player devices. No refresh needed.

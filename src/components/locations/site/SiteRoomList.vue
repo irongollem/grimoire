@@ -84,8 +84,7 @@
 <script setup lang="ts">
 /**
  * The site's rooms, numbered in `compareSiblings` order — the one room list
- * shared by `SiteRunSurface` (the Atlas Run action) and `QuestSiteHandoff`
- * (#850 story H). Previously each surface grew its own copy of this exact
+ * used by `QuestSiteHandoff` (#850 story H). Previously each surface grew its own copy of this exact
  * click-to-move logic; this is the single version both now mount, so it can
  * never drift into two answers for "can the party reach this room" again.
  *
@@ -146,7 +145,7 @@ const {
    * Opt-in to frame 08's reachability-driven captions ("Reachable", "Not
    * reachable from here", "Secret door — undiscovered", "Party here · <zone>
    * active") in place of the plain description snippet. Off by default;
-   * both `SiteRunSurface` and `QuestSiteHandoff` turn it on (#868, S11/S12).
+   * `QuestSiteHandoff` turns it on (#868, S11/S12).
    */
   runCaptions?: boolean;
   /** Rooms reachable only through a secret door the party hasn't found yet.

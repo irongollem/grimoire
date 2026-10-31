@@ -115,6 +115,7 @@
   <!-- Only a DM's surface has a moving map (a player's projection never carries one), so this is a DM-only chip. -->
   <div
     v-if="motion && media.missing.value"
+    data-slip
     class="absolute right-2 top-2 z-20 flex max-w-xs flex-col gap-1 rounded-md border border-border bg-card px-2 py-1.5 text-label text-foreground"
     data-testid="map-motion-missing"
     @pointerdown.stop
@@ -126,6 +127,7 @@
   </div>
   <div
     v-else-if="motion && media.mismatch.value"
+    data-slip
     class="absolute right-2 top-2 z-20 max-w-xs rounded-md border border-border bg-card px-2 py-1.5 text-label text-foreground"
     data-testid="map-motion-mismatch"
     @pointerdown.stop

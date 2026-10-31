@@ -91,6 +91,33 @@
         :label-at="preview.labelAt"
       />
 
+      <!-- The area being placed, over the ground and under the tokens' rings. -->
+      <PlayAreaLayer
+        v-if="area.shown.value && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :template="area.shown.value"
+        :cells="area.covered.value"
+        :placed="area.placed.value !== null"
+        :label="areaReadout"
+      />
+
+      <!-- Pings, measure lines and drawings from the whole table, ours included (#1125 decision 12). -->
+      <PlayTableMarks
+        v-if="imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :pings="table.pings.value"
+        :measures="table.measures.value"
+        :drawings="table.drawings.value"
+      />
+
       <div v-if="boxStyle" class="select-box" :style="boxStyle" data-testid="play-select-box" aria-hidden="true"></div>
 
       <!-- "As player" is the whole player view: fogged-out combatants dropped, hidden ones omitted,
@@ -127,9 +154,18 @@
       v-model:shape="shape"
       v-model:size="size"
       v-model:radius="radius"
+      v-model:area-shape="areaShape"
+      v-model:area-feet="areaFeet"
+      v-model:draw-pinned="drawPinned"
+      :as-player="view.asPlayer"
+      :area-readout="areaReadout"
+      :selected-count="selection.size"
       class="absolute bottom-3 left-1/2 -translate-x-1/2"
       @reveal-all="state.revealAll(imageNaturalW, imageNaturalH)"
       @hide-all="state.hideAll()"
+      @toggle-as-player="emit('update:view', { ...view, asPlayer: !view.asPlayer })"
+      @damage-all="onDamageAll"
+      @clear-drawings="table.clearAll()"
     />
   </div>
 </template>
@@ -140,6 +176,10 @@ import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useCombatantMinis } from "@/composables/encounters/useCombatantMinis";
 import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import { useHotkeys } from "@/composables/useHotkeys";
+import { useTableChannel } from "@/composables/encounters/useTableChannel";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import { senderColor } from "@/lib/battlemap/tableIdentity";
 import { isMacPlatform } from "@/lib/hotkeys";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
@@ -152,6 +192,12 @@ import { cellBrushCells, revealedCombatants, roundBrushCells, type FogCellKey } 
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import PlayToolbelt from "./PlayToolbelt.vue";
 import PlayMovePath from "./PlayMovePath.vue";
+import PlayAreaLayer from "./PlayAreaLayer.vue";
+import PlayTableMarks from "./PlayTableMarks.vue";
+import { useAreaTool } from "./useAreaTool";
+import { usePlayTableTools } from "./usePlayTableTools";
+import { damageAll } from "./playArea";
+import { footprintOf } from "./playRoster";
 import { usePlayMapState } from "./usePlayMapState";
 import { usePlayTokenMoves } from "./usePlayTokenMoves";
 import { isClick, resolvePointerAction } from "./playPointer";
@@ -160,6 +206,7 @@ import {
   DEFAULT_PLAY_VIEW,
   PLAY_DRAG_TYPE,
   PLAY_TOOL_KEYS,
+  type AreaShape,
   type BrushShape,
   type BrushSize,
   type DarknessRadius,
@@ -206,6 +253,8 @@ const emit = defineEmits<{
   /** The DM picked a token on the map (null: Esc cleared the selection and the sheet follows the turn again). */
   select: [instanceId: string | null];
   "update:groupIds": [instanceIds: string[]];
+  /** Fog's "As players see it" flips the View menu's switch. */
+  "update:view": [view: PlayViewState];
 }>();
 
 const store = useEncounterRunStore();
@@ -286,6 +335,8 @@ function imageCellAt(clientX: number, clientY: number): { x: number; y: number }
 const tool = ref<PlayTool>("move");
 const fogKind = ref<FogBrushKind>("reveal");
 const shape = ref<BrushShape>("round");
+/** What a brush stroke does; Room is a click, not a stroke, and never reaches the brush. */
+const brushKind = computed(() => (fogKind.value === "hide" ? "hide" : "reveal"));
 const size = ref<BrushSize>(3);
 const radius = ref<DarknessRadius>(15);
 
@@ -303,8 +354,65 @@ const moves = usePlayTokenMoves({
 });
 const { selection, preview } = moves;
 
+// ── The table's marks: pings, measure lines, drawings (#1125 decision 12) ──
+// Every window of the fight, the follower's included, hears the channel; only the DM's tools send.
+const auth = useAuthStore();
+const campaignStore = useCampaignStore();
+const identity = computed(() =>
+  auth.user ? { id: auth.user.id, name: auth.publicName ?? "The DM", color: senderColor(auth.user.id) } : null,
+);
+const table = useTableChannel(() => campaignStore.activeCampaign?.id ?? null, { identity });
+const drawPinned = ref(false);
+const tableTools = usePlayTableTools({
+  channel: table,
+  tool,
+  color: () => identity.value?.color ?? senderColor(""),
+  pinned: drawPinned,
+});
+// A turn change is every screen's cue to wipe what was sketched in it, pinned strokes aside.
+watch(
+  () => state.activeInstanceId.value,
+  () => table.clearUnpinned(),
+);
+
+// ── Area of effect ──
+const areaShape = ref<AreaShape>("sphere");
+const areaFeet = ref(20);
+const areaCreatures = computed(() =>
+  state.placed.value.flatMap((c) => (c.position ? [{ id: c.instance_id, position: c.position, footprint: footprintOf(c, state.monsters.value) }] : [])),
+);
+const area = useAreaTool({
+  shape: areaShape,
+  feet: areaFeet,
+  token: () => {
+    const one = selectedId;
+    const c = one ? areaCreatures.value.find((a) => a.id === one) : undefined;
+    return c ? { position: c.position, footprint: c.footprint } : null;
+  },
+  creatures: () => areaCreatures.value,
+  // The creatures inside become the selection, so they are ringed and Damage all hits them.
+  pick: (ids) => {
+    emit("update:groupIds", ids.length > 1 ? ids : []);
+    emit("select", ids.length > 0 ? ids[0] : null);
+  },
+});
+const areaReadout = computed(() => (area.shown.value ? `${area.shown.value.feet} ft · ${area.inside.value.length} inside` : null));
+
+function onDamageAll(amount: number) {
+  damageAll(selection.value, amount, (id, delta) => store.adjustHp(id, delta));
+}
+
+// Setting down another shape, or leaving the tool, leaves no stale template or half-measured line behind.
+watch([areaShape, areaFeet, tool], () => area.clear());
+watch(tool, () => tableTools.cancel());
+
 // Esc backs out one level at a time: an armed portrait, else the selection.
 function onEscape() {
+  if (tableTools.live.value || area.shown.value) {
+    tableTools.cancel();
+    area.clear();
+    return;
+  }
   if (placingId !== null) {
     emit("cancel-placing");
     return;
@@ -317,8 +425,12 @@ const ARROWS = { arrowup: [0, -1], arrowdown: [0, 1], arrowleft: [-1, 0], arrowr
 useHotkeys(
   () => [
     { combo: PLAY_TOOL_KEYS.move, description: "Move tool", handler: () => (tool.value = "move") },
+    { combo: PLAY_TOOL_KEYS.measure, description: "Measure tool", handler: () => (tool.value = "measure") },
+    { combo: PLAY_TOOL_KEYS.area, description: "Area tool", handler: () => (tool.value = "area") },
     { combo: PLAY_TOOL_KEYS.fog, description: "Fog tool", handler: () => (tool.value = "fog") },
     { combo: PLAY_TOOL_KEYS.darkness, description: "Darkness tool", handler: () => (tool.value = "darkness") },
+    { combo: PLAY_TOOL_KEYS.ping, description: "Ping tool", handler: () => (tool.value = "ping") },
+    { combo: PLAY_TOOL_KEYS.draw, description: "Draw tool", handler: () => (tool.value = "draw") },
     { combo: "escape", description: "Clear the selection", hidden: true, handler: onEscape },
     { combo: "mod+z", description: "Take back the last move", handler: (e) => { e.preventDefault(); moves.undoMove("last"); } },
     ...Object.entries(ARROWS).map(([combo, [dx, dy]]) => ({
@@ -381,20 +493,43 @@ function onPointerDown(e: PointerEvent) {
     return;
   }
   if (action === "brush") {
+    // Room reveals the traced room under the click and is done; Brush and Hide paint for as long as the pointer is down.
+    if (fogKind.value === "room") {
+      if (at) state.revealRoomAt(at.x, at.y);
+      return;
+    }
     brushing.value = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    state.paintFog(brushedCells(e.clientX, e.clientY), fogKind.value);
+    state.paintFog(brushedCells(e.clientX, e.clientY), brushKind.value);
     return;
   }
   if (!at) return;
+  if (action === "measure" || action === "ping" || action === "draw") {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    tableTools.down(at, { x: e.clientX, y: e.clientY });
+    return;
+  }
+  if (action === "area") {
+    area.click(at);
+    return;
+  }
   if (action === "toggle-door") state.toggleDoorAt(at.x, at.y);
   else if (action === "darkness") state.toggleDarknessAt(at.x, at.y, radius.value);
   else if (placingId !== null) placeAt(placingId, at);
 }
 
 function onPointerMove(e: PointerEvent) {
+  if (tableTools.live.value) {
+    const at = imageCellAt(e.clientX, e.clientY);
+    if (at) tableTools.move(at);
+    return;
+  }
+  if (tool.value === "area" && canEdit.value && e.buttons === 0) {
+    area.hover(imageCellAt(e.clientX, e.clientY));
+    return;
+  }
   if (brushing.value) {
-    state.paintFog(brushedCells(e.clientX, e.clientY), fogKind.value);
+    state.paintFog(brushedCells(e.clientX, e.clientY), brushKind.value);
     return;
   }
   if (press.value?.kind === "box") {
@@ -410,6 +545,12 @@ function onPointerMove(e: PointerEvent) {
 }
 
 function onPointerUp(e: PointerEvent) {
+  if (tableTools.live.value) {
+    const at = imageCellAt(e.clientX, e.clientY);
+    if (at) tableTools.up(at, { x: e.clientX, y: e.clientY });
+    else tableTools.cancel();
+    return;
+  }
   const pressed = press.value;
   press.value = null;
   boxEnd.value = null;
@@ -426,6 +567,8 @@ function onPointerUp(e: PointerEvent) {
 }
 
 function onPointerLeave(e: PointerEvent) {
+  tableTools.release();
+  area.hover(null);
   moves.hover.value = null;
   press.value = null;
   boxEnd.value = null;

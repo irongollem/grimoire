@@ -325,11 +325,10 @@
  *
  * The current room's own stack — read-aloud, prompt rows, payoff — is
  * `SiteRunRoomStack`, and its ways out are `SiteRunWaysOut`: the same two
- * pieces `SiteRunSurface` mounts for the Atlas Run action (#868, S11), so a
- * DM running a crawl from the cockpit and one running it from the Atlas see
+ * pieces the explore screen (`SiteExploreView`, `/locations/:id/explore`) mounts in its room card, so a
+ * DM running a crawl from the cockpit and one exploring from the Atlas see
  * the identical room surface rather than two components that can drift.
- * `SiteRoomList` itself is shared verbatim with `SiteRunSurface` too, now with
- * `runCaptions` on (frame 08's reachability-driven captions).
+ * `SiteRoomList` is used here with `runCaptions` on (frame 08's reachability-driven captions).
  */
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
@@ -397,7 +396,7 @@ const otherThreadsHeading = computed(() => otherThreads.value.length === 1
   ? `Thread ${otherThreads.value[0]!.letter} is still open`
   : "Other threads are still open");
 
-// ── The site and its rooms, exactly as SiteRunSurface reads them ───────────
+// ── The site and its rooms, as the explore screen (SiteExploreView) reads them ───────────
 // A beat can now be staged directly at a room, not only a site itself (#868
 // S12) — "Opens at" (`QuestBeatSitePanel`'s row) is that room, and this crawl
 // still runs at the room's PARENT site: fetching this component's rooms/map/
@@ -454,7 +453,7 @@ const switchingCaption = computed(() => roomOrdinalValue.value === null
   : `Switching back leaves this site at ${siteSpaceNoun.value.singular} ${roomOrdinalValue.value}`);
 
 // ── Doors, and the unlock facts that widen reachability past `starts_locked`
-//    (#868) — the same graph `SiteRunSurface` walks for the Atlas Run action. ─
+//    (#868) — the same graph the explore screen (`SiteExploreView`) walks. ─
 const doorsQuery = useSiteDoors(roomIds);
 const doors = computed(() => doorsQuery.data.value ?? []);
 const { stateOf: doorStateOf } = useDoorStateForSite(siteId);
@@ -472,8 +471,8 @@ const siteHasMap = computed(() => hasAnyMapLayer(site.value));
 
 // ── Frame 08's room-list subtitles: a room whose only known doors are all
 //    secret and undiscovered gets its own caption rather than a plain
-//    "Reachable" — the same derivation `SiteRunSurface` uses for its own
-//    `runCaptions` mount of `SiteRoomList`. ──────────────────────────────
+//    "Reachable" — the same reachability derivation the explore screen
+//    (`SiteExploreView`) makes from `siteReachability`. ──────────────────────────────
 const secretUndiscoveredIds = computed(() => {
   const bySpace = new Map<string, typeof doors.value>();
   for (const door of doors.value) {
@@ -497,7 +496,7 @@ const secretUndiscoveredIds = computed(() => {
 });
 
 // The current room's own active zone, named for the "Party here · <zone>
-// active" caption — same intersection `SiteRunSurface` computes.
+// active" caption — same intersection the explore screen (`SiteExploreView`) computes.
 const zoneNotes = computed(() => {
   const map = new Map<string, string>();
   const roomId = currentRoomId.value;

@@ -73,7 +73,7 @@ const {
   imageNaturalWidth: number;
   imageNaturalHeight: number;
   /** Browse: select/navigate (the sheet, the Atlas pane). Run:
-   *  click-to-move-party (`SiteRunSurface`). Tracing/editing both moved to
+   *  click-to-move-party (`QuestSiteHandoff`). Tracing/editing both moved to
    *  `MapWorkbench` (#884 S11) — neither mode here ever edits. */
   mode: "browse" | "run";
   /** The room the party currently occupies. Only meaningful in run mode. */
@@ -118,9 +118,9 @@ const {
   nestedSiteIds?: ReadonlySet<string>;
   /** The DM's own site-fog hint (#884 S11) — drawn over the plan rather
    *  than beside it as a second `PlayerSitePlan`. Each entry is one
-   *  unexplored space's own traced cells; `SiteRunSurface` builds this off
+   *  unexplored space's own traced cells; `SiteExploreView` builds this off
    *  `siteFog.ts`'s `buildDmFogPlan` (its `.glimpsed`). Off by default —
-   *  only the run surface's Fog toggle turns it on. */
+   *  only the explore screen turns it on. */
   showFog?: boolean;
   fogGlimpsedCells?: readonly (readonly CellKey[])[];
 }>();

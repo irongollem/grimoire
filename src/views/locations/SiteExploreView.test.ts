@@ -18,6 +18,8 @@ const h = await vi.hoisted(async () => {
     moveParty: vi.fn(() => Promise.resolve(true)),
     place: vi.fn(),
     push: vi.fn(),
+    startFightAt: vi.fn(),
+    open: vi.fn(),
   };
 });
 
@@ -44,7 +46,8 @@ vi.mock("@/composables/locations/useLocationState", () => ({
 }));
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useMoveParty", () => ({ useMoveParty: () => ({ moveParty: h.moveParty }) }));
-vi.mock("@/composables/locations/useExploreParty", () => ({ useExploreParty: () => ({ tokens: h.tokens, place: h.place }) }));
+vi.mock("@/composables/locations/useExploreParty", () => ({ useExploreParty: () => ({ tokens: h.tokens, place: h.place }), usePartyTokenSizes: () => () => null }));
+vi.mock("@/composables/encounters/useStartFight", () => ({ useStartFight: () => ({ startFightAt: h.startFightAt, starting: ref(false) }) }));
 vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/quests/useBeatsStagedAt", () => ({ useBeatsStagedAt: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
@@ -166,5 +169,30 @@ describe("SiteExploreView", () => {
     w.findComponent({ name: "LocationMap" }).vm.$emit("move-party", "crypt");
     await flushPromises();
     expect(h.moveParty).toHaveBeenCalledWith(expect.objectContaining({ roomId: "crypt" }));
+  });
+
+  // Frame 13: the bar's Table screen opens the second window on the site's own table route.
+  it("opens the table screen in a new window", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const w = mountView();
+    await flushPromises();
+    await w.get("[data-testid='explore-table-screen']").trigger("click");
+    expect(open).toHaveBeenCalledWith("/locations/s1/table", "_blank", "noopener,noreferrer");
+    open.mockRestore();
+  });
+
+  // A fight starts where the party is: their room when they are in one, else the site itself.
+  it("starts a fight in the room the party is in", async () => {
+    const w = mountView("crypt");
+    await flushPromises();
+    await w.get("[data-testid='explore-start-fight']").trigger("click");
+    expect(h.startFightAt).toHaveBeenCalledWith("crypt", "Crypt fight");
+  });
+
+  it("starts a fight at the site when the party is in no room", async () => {
+    const w = mountView(null);
+    await flushPromises();
+    await w.get("[data-testid='explore-start-fight']").trigger("click");
+    expect(h.startFightAt).toHaveBeenCalledWith("s1", "The Barrow fight");
   });
 });

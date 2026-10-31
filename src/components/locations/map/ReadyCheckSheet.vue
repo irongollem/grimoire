@@ -108,14 +108,13 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { useModalStack } from "@/components/common/overlays/modalStack";
-import { useCreateEncounter, useEncounters } from "@/composables/encounters/useEncounters";
+import { useEncounters } from "@/composables/encounters/useEncounters";
+import { useStartFight } from "@/composables/encounters/useStartFight";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { useToast } from "@/composables/useToast";
 import { IconCheck, IconClose, IconEncounter, IconMap, IconMinus, IconReveal, IconWarning } from "@/lib/icons";
 import type { ReadyFixAction, ReadyRow, ReadyStatus } from "@/lib/locations/playReadiness";
 import { pluralizeCount } from "@/lib/utils";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
-import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 
 const open = defineModel<boolean>("open", { required: true });
 const darkness = defineModel<DarknessLevel>("darkness", { required: true });
@@ -153,8 +152,7 @@ const PLAY_OPTIONS: { id: PlayChoice; label: string; icon: Component }[] = [
 const NEW_ENCOUNTER = "new";
 
 const router = useRouter();
-const createEncounter = useCreateEncounter();
-const toast = useToast();
+const { startFightAt, starting } = useStartFight();
 const zIndex = useModalStack(() => open.value);
 useHotkeys(
   () => [{ combo: "escape", description: "Close the ready check", hidden: true, allowInTextEntry: true, handler: close }],
@@ -163,7 +161,6 @@ useHotkeys(
 
 const choice = ref<PlayChoice>("fight");
 const lightOpen = ref(false);
-const starting = ref(false);
 watch(open, (isOpen) => {
   if (!isOpen) lightOpen.value = false;
 });
@@ -211,20 +208,7 @@ async function start(): Promise<void> {
   if (choice.value === "explore") return void router.push(`/locations/${siteId}/explore`);
   if (choice.value === "show") return void router.push(`/locations/${siteId}/table`);
   if (chosenEncounter.value) return void router.push(`/encounters/${chosenEncounter.value.id}/run`);
-  starting.value = true;
-  try {
-    const created = await createEncounter.mutateAsync({
-      name: `${siteName} fight`, description: null, party_member_ids: [], companion_ids: [],
-      party_member_factions: {}, combatants: [], factions: DEFAULT_FACTIONS, item_ids: [], trap_ids: [],
-      reward_currency_pools: [], location_id: siteId, is_finished: false, events: [],
-      lair_enabled: false, lair_owner_def_id: null,
-    });
-    await router.push(`/encounters/${created.id}/run`);
-  } catch (e) {
-    toast.error(toast.fromError(e));
-  } finally {
-    starting.value = false;
-  }
+  await startFightAt(siteId, `${siteName} fight`);
 }
 </script>
 

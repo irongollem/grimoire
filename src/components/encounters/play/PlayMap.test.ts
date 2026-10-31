@@ -10,6 +10,11 @@ const s = vi.hoisted(() => ({
   paintFog: vi.fn(),
   toggleDoorAt: vi.fn(),
   toggleDarknessAt: vi.fn(),
+  revealRoomAt: vi.fn(),
+  sendPing: vi.fn(),
+  startMeasure: vi.fn(),
+  clearUnpinned: vi.fn(),
+  clearAll: vi.fn(),
   moveCombatant: vi.fn(),
   active: null as { value: string | null } | null,
   second: true,
@@ -34,11 +39,21 @@ vi.mock("./usePlayMapState", async () => {
       combatants: r([combatant, buddy]), round: r(1), placed: r([combatant, buddy]), unplaced: r([]), activeInstanceId: active,
       moveTerrain: r({ difficult: new Set<string>(), walls: [] }),
       factions: r([]), monsters: r([]), moveCombatant: s.moveCombatant, fogMask: r(new Set()), paintFog: s.paintFog,
-      revealAll: vi.fn(), hideAll: vi.fn(), darknessZones: r([]), toggleDarknessAt: s.toggleDarknessAt, doorStates: r([]),
+      revealAll: vi.fn(), hideAll: vi.fn(), revealRoomAt: s.revealRoomAt, darknessZones: r([]), toggleDarknessAt: s.toggleDarknessAt, doorStates: r([]),
       doorIdAt: () => s.doorAt, toggleDoorAt: s.toggleDoorAt, loadingState: r(null),
     }),
   };
 });
+vi.mock("@/composables/encounters/useTableChannel", async () => {
+  const { ref: r } = await import("vue");
+  return {
+    useTableChannel: () => ({
+      pings: r([]), measures: r([]), drawings: r([]), connected: r(false), sendPing: s.sendPing, startMeasure: s.startMeasure,
+      updateMeasure: vi.fn(), endMeasure: vi.fn(), draw: vi.fn(), clearDrawing: vi.fn(), clearAll: s.clearAll, clearUnpinned: s.clearUnpinned,
+    }),
+  };
+});
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm-1" }, publicName: "Mira" }) }));
 vi.mock("@/composables/encounters/useMapCanvas", async () => {
   const { ref: r } = await import("vue");
   return {
@@ -98,7 +113,7 @@ describe("PlayMap", () => {
   });
 
   // #1125 decision 9: tokens only dragged with Pan before, so moving one meant leaving the fog tool.
-  it.each(["Move", "Fog", "Darkness"])("tokens stay draggable with the %s tool armed", async (label) => {
+  it.each(["Move", "Measure", "Area", "Fog", "Darkness", "Ping", "Draw"])("tokens stay draggable with the %s tool armed", async (label) => {
     const w = mountMap();
     await armTool(w, label);
     expect(w.findComponent(TokenLayer).props("draggableInstanceIds")).toBeNull();
@@ -386,3 +401,116 @@ describe("PlayMap", () => {
     expect(store.combatants[0].movement_used).toBe(5);
   });
 });
+
+describe("PlayMap table tools (#1125 frame 11)", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    document.body.innerHTML = "";
+    s.doorAt = null;
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    while (mounted.length) mounted.pop()?.unmount();
+  });
+
+  it("the toolbelt has the seven tools, each with its key", () => {
+    const w = mountMap();
+    const bar = w.find("[role=toolbar]");
+    expect(["Move", "Measure", "Area", "Fog", "Darkness", "Ping", "Draw"].every((t) => bar.find(`[aria-label='${t}']`).exists())).toBe(true);
+    for (const key of ["V", "M", "T", "F", "K", "P", "D"]) expect(bar.text()).toContain(key);
+  });
+
+  it("Ping sends the pressed point, in image cells, to the table", async () => {
+    const w = mountMap();
+    await armTool(w, "Ping");
+    await press(w, 35, 21);
+    expect(s.sendPing).toHaveBeenCalledWith(3.5, 2.1);
+  });
+
+  it("Measure starts a line on the middle of the pressed square", async () => {
+    const w = mountMap();
+    await armTool(w, "Measure");
+    await press(w, 35, 21);
+    expect(s.startMeasure.mock.calls[0][1]).toEqual([[3.5, 2.5]]);
+  });
+
+  it("Ping does not fire from a follower window", async () => {
+    const w = mountMap({ mode: "follower" });
+    await press(w, 35, 21);
+    expect(s.sendPing).not.toHaveBeenCalled();
+  });
+
+  it("a press on a door opens it under Ping and sends no ping", async () => {
+    s.doorAt = "3,2:N";
+    const w = mountMap();
+    await armTool(w, "Ping");
+    await press(w, 35, 21);
+    expect(s.toggleDoorAt).toHaveBeenCalled();
+    expect(s.sendPing).not.toHaveBeenCalled();
+  });
+
+  it("Fog's Room reveals the room under the click in one go and paints no brush", async () => {
+    const w = mountMap();
+    await armTool(w, "Fog");
+    await w.findAll("button").find((b) => b.text() === "Room")?.trigger("click");
+    await press(w, 35, 21);
+    expect(s.revealRoomAt).toHaveBeenCalledWith(3.5, 2.1);
+    expect(s.paintFog).not.toHaveBeenCalled();
+  });
+
+  // The pinned ones stay; the cue to wipe the rest is every screen seeing the same turn change.
+  it("wipes the unpinned drawings when the turn changes, and not before", async () => {
+    mountMap();
+    expect(s.clearUnpinned).not.toHaveBeenCalled();
+    if (s.active) s.active.value = "b";
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(s.clearUnpinned).toHaveBeenCalledTimes(1);
+  });
+
+  it("Clear drawings wipes every drawing, pinned too", async () => {
+    const w = mountMap();
+    await armTool(w, "Draw");
+    await w.findAll("button").find((b) => b.text() === "Clear drawings")?.trigger("click");
+    expect(s.clearAll).toHaveBeenCalledTimes(1);
+  });
+
+  describe("Area", () => {
+    // Both tokens sit at 1,1 and 2,1; a 20 ft sphere set on 1.5,1.5 snaps to the corner between them and covers both.
+    it("picks the creatures inside a placed sphere, and Damage all hits exactly the selected ones", async () => {
+      const store = useEncounterRunStore();
+      const adjust = vi.spyOn(store, "adjustHp");
+      const w = mountMap();
+      await armTool(w, "Area");
+      await press(w, 15, 15);
+      expect(w.emitted("update:groupIds")).toEqual([[["a", "b"]]]);
+      // The parent turns the pick into the selection; only "a" is in it after the DM drops "b" with a click.
+      await w.setProps({ groupIds: [], selectedId: "a" });
+      const amount = w.find("[aria-label='Damage amount']");
+      await amount.setValue("6");
+      const damage = w.findAll("button").find((b) => b.text().startsWith("Damage all"));
+      expect(damage?.text()).toBe("Damage all 1");
+      await damage?.trigger("click");
+      expect(adjust.mock.calls).toEqual([["a", -6]]);
+    });
+
+    it("Damage all is off until there is a selection and an amount", async () => {
+      const w = mountMap();
+      await armTool(w, "Area");
+      const damage = () => w.findAll("button").find((b) => b.text().startsWith("Damage all"));
+      expect(damage()?.attributes("disabled")).toBeDefined();
+      await w.setProps({ selectedId: "a" });
+      expect(damage()?.attributes("disabled")).toBeDefined();
+      await w.find("[aria-label='Damage amount']").setValue("3");
+      expect(damage()?.attributes("disabled")).toBeUndefined();
+    });
+
+    it("reads the length and the count of the area it is showing", async () => {
+      const w = mountMap();
+      await armTool(w, "Area");
+      await press(w, 15, 15);
+      expect(w.find("[data-testid=area-readout]").text()).toBe("20 ft · 2 inside");
+    });
+  });
+});
+

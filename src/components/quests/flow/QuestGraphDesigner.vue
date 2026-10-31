@@ -304,7 +304,7 @@ const { readinessBySite } = useSiteBeatGaps(stagedSiteIds, allLocationsRef);
 
 // The story flow canvas draws a `site · N rooms` fact off a location's own
 // room list — the same rooms `SiteRoomsPanel` numbers and the same test for
-// "written" (`extractTiptapText`) `SiteRunSurface` uses for its own reveal.
+// "written" (`extractTiptapText`) the explore screen (`SiteExploreView`) uses for its own reveal.
 // #886: a `wilds` site's children are `grounds`, not `room` — the same
 // interior predicate `SiteRoomsPanel` reads, so a wilds beat's card stops
 // reporting 0 rooms for a fully built wood.

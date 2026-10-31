@@ -13,12 +13,18 @@ const calibration = { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 
 const move = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
 const live = vi.hoisted(() => ({ value: null as unknown }));
+const table = vi.hoisted(() => ({ pings: { value: [] as unknown[] }, sendPing: vi.fn() }));
 const canvas = vi.hoisted(() => ({ panX: null as unknown, panY: null as unknown, scale: null as unknown }));
 
 vi.mock("@/composables/encounters/useEncounterLive", async () => {
   const { ref } = await import("vue");
   live.value = ref(null);
   return { liveState: live.value, updateCombatantPosition: move };
+});
+vi.mock("@/composables/encounters/useTableChannel", async () => {
+  const { ref } = await import("vue");
+  table.pings = ref<unknown[]>([]);
+  return { useTableChannel: () => ({ pings: table.pings, measures: ref([]), drawings: ref([]), sendPing: table.sendPing }) };
 });
 vi.mock("@/composables/encounters/useMapCanvas", async () => {
   const { ref } = await import("vue");
@@ -138,6 +144,8 @@ beforeEach(() => {
   move.mockReset();
   move.mockResolvedValue(undefined);
   toastError.mockReset();
+  table.sendPing.mockReset();
+  table.pings.value = [];
   (canvas.panX as { value: number }).value = 0;
   (canvas.panY as { value: number }).value = 0;
   (canvas.scale as { value: number }).value = 1;
@@ -249,5 +257,68 @@ describe("the tablet battle map", () => {
     (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
     await tapSquare(wrapper, 6, 2);
     expect(wrapper.find(".map-canvas-host [data-testid=map-move-sheet]").exists()).toBe(true);
+  });
+});
+
+describe("the table's pings on the player's map (#1125 decision 12)", () => {
+  // A player who cannot see the DM's ping is the whole bug: "look here" has to land on every screen.
+  it("shows a ping another member sent, with who sent it", async () => {
+    const wrapper = mountView();
+    table.pings.value = [{ id: 1, x: 3, y: 2, by: { id: "u9", name: "Ayla", color: "#e11d48" } }];
+    await flushPromises();
+    expect(wrapper.find("[data-testid=table-ping]").text()).toContain("Ayla pinged");
+  });
+
+  describe("a long press", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    const down = (wrapper: ReturnType<typeof mountView>, x: number, y: number) =>
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointerdown", { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+
+    it("pings the square under the finger once held for half a second", () => {
+      const wrapper = mountView();
+      const cell = (canvas.scale as { value: number }).value * (1000 / 20);
+      const x = (canvas.panX as { value: number }).value + 6.5 * cell;
+      const y = (canvas.panY as { value: number }).value + 2.5 * cell;
+      down(wrapper, x, y);
+      vi.advanceTimersByTime(499);
+      expect(table.sendPing).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(table.sendPing).toHaveBeenCalledTimes(1);
+      const [px, py] = table.sendPing.mock.calls[0];
+      expect(px).toBeCloseTo(6.5);
+      expect(py).toBeCloseTo(2.5);
+    });
+
+    it("a ping is not also a tap: lifting after it does not ask to move the picked token there", async () => {
+      const wrapper = mountView();
+      (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
+      const cell = (canvas.scale as { value: number }).value * (1000 / 20);
+      const x = (canvas.panX as { value: number }).value + 6.5 * cell;
+      const y = (canvas.panY as { value: number }).value + 2.5 * cell;
+      down(wrapper, x, y);
+      vi.advanceTimersByTime(500);
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointerup", { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+      await flushPromises();
+      expect(wrapper.find("[data-testid=map-move-sheet]").exists()).toBe(false);
+    });
+
+    it("does not ping when the finger drags to pan", () => {
+      const wrapper = mountView();
+      down(wrapper, 100, 100);
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointermove", { clientX: 140, clientY: 100, isPrimary: true, bubbles: true }));
+      vi.advanceTimersByTime(1000);
+      expect(table.sendPing).not.toHaveBeenCalled();
+    });
+
+    it("does not ping when the finger lifts before half a second (that is a tap)", () => {
+      const wrapper = mountView();
+      down(wrapper, 100, 100);
+      vi.advanceTimersByTime(300);
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, clientY: 100, isPrimary: true, bubbles: true }));
+      vi.advanceTimersByTime(1000);
+      expect(table.sendPing).not.toHaveBeenCalled();
+    });
   });
 });

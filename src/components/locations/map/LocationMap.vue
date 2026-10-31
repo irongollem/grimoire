@@ -122,7 +122,7 @@
       <!-- The side column holds the Prepared-here panel. The Spaces and Zones
            lists live only in the full-screen editor (#1125); the Map tab reads
            the map. Run mode renders its own click-to-move room list instead
-           (`SiteRunSurface`), which needs no side column. -->
+           (the explore screen, `SiteExploreView`), which needs no side column. -->
       <div
         v-if="showRegions && hasRegionContent && !runMode"
         class="flex w-full flex-col gap-3 lg:w-85 lg:shrink-0"
@@ -281,7 +281,7 @@ const {
    *  `showRegions`. */
   spaces?: BindableSpace[];
   /** Regions interaction: browse (select/navigate, default) or run
-   *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`.
+   *  (click-to-move-party, `SiteExploreView`'s plan fallback). Ignored when `!showRegions`.
    *  Tracing/editing both moved to `MapWorkbench` (#884 S11) — this
    *  component is read-only + click-to-navigate in every mode it still has. */
   runMode?: boolean;
@@ -296,7 +296,7 @@ const {
    *  off the `layer-counts` emit instead. Default true so every other caller
    *  (the sheet, the run surface) is unaffected. */
   showLayerBar?: boolean;
-  /** The DM's own site-fog hint (#884 S11) — `SiteRunSurface`'s Fog toggle
+  /** The DM's own site-fog hint (#884 S11) — the explore screen's fog
    *  and its `buildDmFogPlan(...).glimpsed` cells, forwarded straight to
    *  `MapRegionsLayer`. Off/empty for every other caller. */
   showFog?: boolean;

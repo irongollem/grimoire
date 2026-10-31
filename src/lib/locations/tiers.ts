@@ -142,7 +142,7 @@ export function tierOf(type: LocationType): LocationTier | null {
  *
  * Keeps the name `isSiteType` rather than becoming `isStructureType` or
  * similar: "site" is already a term of art across this epic —
- * `location_map_regions.site_location_id`, `SiteRoomsPanel`, `SiteRunSurface`,
+ * `location_map_regions.site_location_id`, `SiteRoomsPanel`,
  * `siteRun.ts`, `useSiteDoors` — and only this module ever disagreed with it.
  */
 export function isSiteType(type: LocationType): boolean {

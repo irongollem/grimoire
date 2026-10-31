@@ -17,6 +17,7 @@ import {
   type FogCellKey,
 } from "@/lib/battlemap/fogMask";
 import { zoneIdAt } from "@/lib/battlemap/darkness";
+import { roomCellsAt } from "@/lib/battlemap/roomFog";
 import { doorAt, effectiveDoors, sameDoorStates, toggleDoor } from "@/lib/battlemap/doors";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import type { MoveTerrain } from "@/lib/battlemap/movement";
@@ -38,7 +39,7 @@ import { placedCombatants, unplacedCombatants } from "./playRoster";
  */
 export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter<PlayMapMode>) {
   const room = useEncounterRoom(encounterId);
-  const { encounter, location: encounterLocation, mapLocation: location, surface, focusRoom, terrainZones } = room;
+  const { encounter, location: encounterLocation, mapLocation: location, surface, focusRoom, terrainZones, regions } = room;
   const store = useEncounterRunStore();
   const campaign = useCampaignStore();
   const toast = useToast();
@@ -106,9 +107,23 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     scheduleMapPush({ fogMask: encodeFogMask(fogMask.value) });
   }
 
-  function paintFog(cells: Set<FogCellKey>, kind: FogBrushKind) {
+  function paintFog(cells: Set<FogCellKey>, kind: Exclude<FogBrushKind, "room">) {
     fogMask.value = applyBrush(fogMask.value, cells, kind === "reveal" ? "reveal" : "rehide");
     pushFog();
+  }
+
+  /**
+   * The Fog tool's Room: reveals the whole traced room under a point with one click (#1125 frame 11). The mask is what
+   * `roomsRevealedInCombat` reads when the fight ends, so the room is offered as explored like any room brushed open.
+   * False when the point is on no room.
+   */
+  function revealRoomAt(x: number, y: number): boolean {
+    const s = surface.value;
+    if (!s) return false;
+    const cells = roomCellsAt(regions.value ?? [], s.calibration, { x, y });
+    if (!cells) return false;
+    paintFog(cells, "reveal");
+    return true;
   }
 
   /** "Reveal all" can't enumerate an infinite grid, so it fills the cells the picture covers. */
@@ -273,6 +288,7 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     moveCombatant,
     fogMask,
     paintFog,
+    revealRoomAt,
     revealAll,
     hideAll,
     darknessZones,

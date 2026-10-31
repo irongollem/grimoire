@@ -1,13 +1,30 @@
 import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from "vue";
 import { useSetExploreParty } from "@/composables/campaign/useCampaigns";
 import { useToast } from "@/composables/useToast";
-import { exploreToken, positionsOnSite, seedPartyPositions, type ExploreCell } from "@/lib/locations/explore";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
+import { exploreTokens, memberSize, positionsOnSite, seedPartyPositions, type ExploreCell } from "@/lib/locations/explore";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
+import type { MonsterSize } from "@/types/monster.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { PartyMember } from "@/types/party.types";
 
 type Member = Pick<PartyMember, "id" | "name" | "current_hp" | "max_hp" | "portrait_url" | "portrait_focal_point">;
+
+/**
+ * How big each character is, by the book (species, or the subrace that replaces it): the size their token covers on
+ * the grid. Null for a character whose species has not loaded or who has none, which draws as Medium.
+ */
+export function usePartyTokenSizes(
+  members: MaybeRefOrGetter<readonly Pick<PartyMember, "id" | "species_id" | "subrace">[] | undefined>,
+): (memberId: string) => MonsterSize | null {
+  const { data: speciesById } = useSpeciesByIds(() => (toValue(members) ?? []).map((m) => m.species_id));
+  return (memberId) => {
+    const member = toValue(members)?.find((m) => m.id === memberId);
+    if (!member?.species_id) return null;
+    return memberSize(speciesById.value.get(member.species_id), member.subrace);
+  };
+}
 
 /** How long a burst of moves (a drag, a run of clicks) waits before it is written as one. */
 const WRITE_AFTER_MS = 400;
@@ -25,6 +42,8 @@ export function useExploreParty(input: {
   roomCells: MaybeRefOrGetter<ReadonlyMap<string, CellKey[]> | null>;
   roomOrder: MaybeRefOrGetter<readonly string[]>;
   partyRoomId: MaybeRefOrGetter<string | null>;
+  /** A character's size, so a Large one covers four squares; Medium for any it does not know. */
+  sizeOf?: (memberId: string) => MonsterSize | null;
 }) {
   const campaign = useCampaignStore();
   const toast = useToast();
@@ -80,9 +99,10 @@ export function useExploreParty(input: {
   );
 
   /** The party as tokens; a character with no square yet has none and is left off the map. */
-  const tokens = computed<RunCombatant[]>(() =>
-    (members.value ?? []).map((m) => exploreToken(m, Object.hasOwn(positions.value, m.id) ? positions.value[m.id] : null)),
-  );
+  const tokens = computed<RunCombatant[]>(() => {
+    const siteId = toValue(input.siteId);
+    return exploreTokens(members.value ?? [], { site_id: siteId, positions: positions.value }, siteId, input.sizeOf);
+  });
 
   return { positions, tokens, place, flush };
 }

@@ -21,7 +21,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { cellOutline, cellsCentre } from "@/lib/locations/explore";
+import { cellOutline } from "@/lib/battlemap/cellOutline";
+import { cellsCentre } from "@/lib/locations/explore";
 import type { CellKey } from "@/types/dungeonMap.types";
 
 /**

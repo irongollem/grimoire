@@ -14,11 +14,20 @@
             size="sm"
             :icon="IconMonitor"
             label="Table screen"
-            tooltip="The table screen follows a live fight. Start one to open it."
-            disabled
+            tooltip="Open the table screen in a new window (for a second monitor)"
+            data-testid="explore-table-screen"
+            @click="openTableScreen"
           />
           <PlayViewMenu v-model="view" :only="VIEW_ENTRIES" :labels="{ showZones: 'Room names' }" @reset-view="map?.resetView()" />
-          <AppButton variant="live" size="sm" :icon="IconEncounter" label="Start a fight" to="/encounters/new" />
+          <AppButton
+            variant="live"
+            size="sm"
+            :icon="IconEncounter"
+            label="Start a fight"
+            :loading="starting"
+            data-testid="explore-start-fight"
+            @click="startFight"
+          />
         </div>
       </header>
     </template>
@@ -129,8 +138,9 @@ import ExploreRoomCard from "@/components/locations/explore/ExploreRoomCard.vue"
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import TriggerBeatPrompt from "@/components/locations/run/TriggerBeatPrompt.vue";
 import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
+import { useStartFight } from "@/composables/encounters/useStartFight";
 import { useActiveParty } from "@/composables/party/useActiveParty";
-import { useExploreParty } from "@/composables/locations/useExploreParty";
+import { useExploreParty, usePartyTokenSizes } from "@/composables/locations/useExploreParty";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import { useDoorStateForSite, useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useMoveParty } from "@/composables/locations/useMoveParty";
@@ -205,12 +215,14 @@ const { moveParty } = useMoveParty();
 const { data: party } = useActiveParty();
 const roomCells = computed(() => (surface.value ? roomBattleCells(regions.value, surface.value.calibration) : null));
 const roomIndex = computed(() => (surface.value ? roomCellIndex(regions.value, surface.value.calibration) : new Map()));
+const sizeOf = usePartyTokenSizes(party);
 const { tokens, place } = useExploreParty({
   siteId,
   members: () => (surface.value ? party.value : undefined),
   roomCells,
   roomOrder: roomIds,
   partyRoomId: currentRoomId,
+  sizeOf,
 });
 
 // ── Who moves: everyone, until the DM picks one token ───────────────────────
@@ -363,6 +375,18 @@ function advanceTriggerBeat() {
 }
 function dismissTriggerPrompt() {
   dismissedTriggerRoomId.value = currentRoomId.value;
+}
+
+/** The table screen is a second window, for a screen the table looks at; it follows the party from there. */
+function openTableScreen() {
+  window.open(`/locations/${siteId.value}/table`, "_blank", "noopener,noreferrer");
+}
+
+// A fight starts where the party stands: in their room when they are in one, else at the site.
+const { startFightAt, starting } = useStartFight();
+function startFight() {
+  const where = currentRoom.value ?? site.value;
+  if (where) void startFightAt(where.id, `${where.name} fight`);
 }
 
 /** Back to the site's Map tab, where the way into exploring started. */

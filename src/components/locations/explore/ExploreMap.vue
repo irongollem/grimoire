@@ -69,6 +69,19 @@
         :label-at="preview.labelAt"
       />
 
+      <!-- Pings, measure lines and drawings from the whole table (#1125 decision 12). -->
+      <PlayTableMarks
+        v-if="imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :pings="table.pings.value"
+        :measures="table.measures.value"
+        :drawings="table.drawings.value"
+      />
+
       <div v-if="boxStyle" class="select-box" :style="boxStyle" aria-hidden="true"></div>
 
       <img v-if="surface.imageUrl && !imageReady" :src="surface.imageUrl" class="hidden-loader" @load="onImageLoad" />
@@ -81,23 +94,41 @@
       Click a square and the party moves together, in order. Click one token to send it alone, and again to bring everyone back.
     </p>
 
+    <!-- Fog is by room while exploring, so no Fog, Area or Darkness here (#1125 frame 11). -->
+    <PlayToolbelt
+      v-if="imageReady"
+      v-model:tool="tool"
+      v-model:draw-pinned="drawPinned"
+      :tools="EXPLORE_TOOLS"
+      class="absolute bottom-3 left-1/2 -translate-x-1/2"
+      @clear-drawings="table.clearAll()"
+    />
+
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import PlayMovePath from "@/components/encounters/play/PlayMovePath.vue";
+import PlayTableMarks from "@/components/encounters/play/PlayTableMarks.vue";
+import PlayToolbelt from "@/components/encounters/play/PlayToolbelt.vue";
+import { usePlayTableTools } from "@/components/encounters/play/usePlayTableTools";
+import { useTableChannel } from "@/composables/encounters/useTableChannel";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import { senderColor } from "@/lib/battlemap/tableIdentity";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { isClick } from "@/components/encounters/play/playPointer";
 import { usePlayTokenMoves, type MoveMapState, type MoveTurnBook } from "@/components/encounters/play/usePlayTokenMoves";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import type { ExploreCell } from "@/lib/locations/explore";
-import { DEFAULT_PLAY_VIEW, type PlayViewState } from "@/components/encounters/play/playTypes";
+import { DEFAULT_PLAY_VIEW, PLAY_TOOL_KEYS, type PlayTool, type PlayViewState } from "@/components/encounters/play/playTypes";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { DEFAULT_FACTIONS, type RunCombatant } from "@/types/encounter.types";
 import type { CellKey } from "@/types/dungeonMap.types";
@@ -214,6 +245,29 @@ const noTurns: MoveTurnBook = {
   undoMove: () => null,
 };
 
+const tool = ref<PlayTool>("move");
+const EXPLORE_TOOLS: readonly PlayTool[] = ["move", "measure", "ping", "draw"];
+
+const auth = useAuthStore();
+const campaignStore = useCampaignStore();
+const identity = computed(() =>
+  auth.user ? { id: auth.user.id, name: auth.publicName ?? "The DM", color: senderColor(auth.user.id) } : null,
+);
+const table = useTableChannel(() => campaignStore.activeCampaign?.id ?? null, { identity });
+const drawPinned = ref(false);
+const tableTools = usePlayTableTools({
+  channel: table,
+  tool,
+  color: () => (identity.value ? identity.value.color : senderColor("")),
+  pinned: drawPinned,
+});
+watch(tool, () => tableTools.cancel());
+useHotkeys(() => [
+  ...EXPLORE_TOOLS.map((id) => ({ combo: PLAY_TOOL_KEYS[id], description: `${id[0].toUpperCase()}${id.slice(1)} tool`, handler: () => (tool.value = id) })),
+  // Lets go of a measure line being held; the page's own Esc still re-selects the party.
+  { combo: "escape", description: "Let go of the line", hidden: true, handler: () => tableTools.cancel() },
+]);
+
 const moves = usePlayTokenMoves({
   state: mapState,
   store: noTurns,
@@ -221,7 +275,7 @@ const moves = usePlayTokenMoves({
   groupIds: () => groupIds,
   partyMembers: () => [],
   canEdit: computed(() => true),
-  tool: ref("move"),
+  tool,
   placing: () => false,
   select: (id) => emit("select", id),
   selectGroup: (ids) => emit("update:groupIds", ids),
@@ -235,6 +289,13 @@ const boxEnd = ref<{ x: number; y: number } | null>(null);
 function onPointerDown(e: PointerEvent) {
   if (!imageReady.value) return;
   moves.hover.value = null;
+  if (tableTools.owns.value) {
+    const at = imageCellAt(e.clientX, e.clientY);
+    if (!at) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    tableTools.down(at, { x: e.clientX, y: e.clientY });
+    return;
+  }
   if (e.shiftKey) {
     press.value = { x: e.clientX, y: e.clientY, kind: "box" };
     boxEnd.value = { x: e.clientX, y: e.clientY };
@@ -246,6 +307,11 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
+  if (tableTools.live.value) {
+    const at = imageCellAt(e.clientX, e.clientY);
+    if (at) tableTools.move(at);
+    return;
+  }
   if (press.value?.kind === "box") {
     boxEnd.value = { x: e.clientX, y: e.clientY };
     return;
@@ -259,6 +325,12 @@ function onPointerMove(e: PointerEvent) {
 }
 
 function onPointerUp(e: PointerEvent) {
+  if (tableTools.live.value) {
+    const at = imageCellAt(e.clientX, e.clientY);
+    if (at) tableTools.up(at, { x: e.clientX, y: e.clientY });
+    else tableTools.cancel();
+    return;
+  }
   const pressed = press.value;
   press.value = null;
   boxEnd.value = null;
@@ -273,6 +345,7 @@ function onPointerUp(e: PointerEvent) {
 }
 
 function onPointerLeave(e: PointerEvent) {
+  tableTools.release();
   moves.hover.value = null;
   press.value = null;
   boxEnd.value = null;

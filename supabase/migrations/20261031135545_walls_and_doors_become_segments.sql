@@ -40,9 +40,14 @@ set map_live = map_live
       '[]'::jsonb),
     'doors', coalesce(
       (select jsonb_agg((d - 'edge') || jsonb_build_object('id', d ->> 'edge') || pg_temp.edge_segment(d ->> 'edge'))
-       from jsonb_array_elements(map_live -> 'doors') d),
+       from jsonb_array_elements(map_live -> 'doors') d
+       where jsonb_typeof(d -> 'edge') = 'string'),
       '[]'::jsonb))
-where map_live ->> 'version' = '2';
+where map_live ->> 'version' = '2'
+  -- A snapshot whose walls or doors are not lists is malformed; it stays v2, reads as absent, and a re-publish
+  -- replaces it, as for v1.
+  and jsonb_typeof(map_live -> 'walls') = 'array'
+  and jsonb_typeof(map_live -> 'doors') = 'array';
 
 -- The door-state list's shape check moves to ids. An id is an edge key (a door on a grid line) or a uuid (an angled
 -- door). Still total: anything else is false, never NULL.
@@ -68,7 +73,7 @@ as $function$
           and jsonb_typeof(door -> 'id') = 'string'
           and ((door ->> 'id') ~ '^-?[0-9]{1,5},-?[0-9]{1,5}:[NW]$'
             or (door ->> 'id') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
-          and jsonb_typeof(door -> 'open') = 'boolean'
+          and coalesce(jsonb_typeof(door -> 'open') = 'boolean', false)
           and (door - 'id' - 'open') = '{}'::jsonb)
         from jsonb_array_elements(p_doors) door),
       true)

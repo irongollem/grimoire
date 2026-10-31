@@ -183,7 +183,7 @@
  * same fog treatment as `BattleMapFogLayer.vue`, at room resolution instead
  * of cell resolution — "two resolutions of one layer, not two features."
  * `opaque` defaults to true (a player's own view, per the maintainer's
- * ruling: fully black, edge to edge, right up to the feather); `SiteRunSurface`
+ * ruling: fully black, edge to edge, right up to the feather); the Play map (`PlayMap`)
  * passes `false` for the DM's own translucent hint — "a hint, never a wall."
  */
 import { computed } from "vue";

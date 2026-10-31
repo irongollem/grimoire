@@ -1,6 +1,6 @@
 // ── Site runner: pure derivations (#791, epic #780) ─────────────────────────
 //
-// `SiteRunSurface` answers two questions that are easy to get subtly wrong,
+// `QuestSiteHandoff` and the quest beat panel answer two questions that are easy to get subtly wrong,
 // so both live here — pure and colocated-tested — rather than inline in the
 // component.
 

@@ -38,6 +38,7 @@ import {
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
   VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
   Fence, Type, SunMoon,
+  BowArrow, Pencil, Radius, Signal, Target,
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -202,6 +203,14 @@ export { LibraryBig as IconScriptorium }
 export { Library as IconLibrary }
 export { Swords as IconEncounter }
 export { Sword as IconSword }
+// Attack rows (the runner's and the Play card's): the kind of attack reads by glyph, never by emoji.
+export { BowArrow as IconRangedAttack }
+export { Target as IconThrownAttack }
+export { Wand2 as IconSpellAttack }
+// The Play toolbelt (#1125 frame 11): Measure is IconRuler; Area, Ping and Draw are these.
+export { Radius as IconAreaOfEffect }
+export { Signal as IconPing }
+export { Pencil as IconDraw }
 export { Shield as IconShield }
 export { ShieldCheck as IconShieldCheck }
 export { Skull as IconMonster }

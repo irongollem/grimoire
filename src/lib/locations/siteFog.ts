@@ -30,7 +30,7 @@ export interface DmFogRoom {
  * real map already has — no RPC, no withholding. `isExplored`/`isCleared`/
  * `isLooted` are callbacks rather than a pre-built map so a caller can hand
  * in whatever room-state lookup it already has (`useLocationStateForRooms`'s
- * `stateOf`, in `SiteRunSurface`) without this module knowing its shape.
+ * `stateOf`, in `SiteExploreView`) without this module knowing its shape.
  */
 export function buildDmFogPlan(
   regions: readonly LocationMapRegion[],
