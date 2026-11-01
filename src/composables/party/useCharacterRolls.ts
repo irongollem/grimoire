@@ -1,11 +1,15 @@
 import { computed, onBeforeUnmount, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { liveState } from "@/composables/encounters/useEncounterLive";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useToast } from "@/composables/useToast";
 import { setNextRollMode } from "@/composables/dice/useNextRollMode";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollToastResult } from "@/components/common/feedback/RollToast.vue";
 import { combineModes, type RollMode } from "@/lib/dice/dice";
 import { effectiveAbilityScores, savingThrowEntries } from "@/rules/characterChecks";
+import { memberInitiativeModifier } from "@/rules/initiative";
 import {
   getExhaustionD20Penalty,
   hasAttackDisadvantage,
@@ -54,9 +58,10 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
   async function doRoll(label: string, modifier: number, mode: RollMode = "normal") {
     const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
     const result = await promptRoll({ counts: { 20: 1 }, modifier, label: label + modeTag, mode });
-    if (!result) return;
+    if (!result) return null;
     const kept = result.breakdown.find((d) => !d.dropped)!;
     lastRoll.value = { label: result.label, dice: kept.val, modifier, total: result.total };
+    return result;
   }
 
   function rollAbility(_key: string, label: string, mod: number, override: RollMode | null = null) {
@@ -75,6 +80,36 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
     );
   }
 
+  const { mutateAsync: updateMember } = useUpdatePartyMember();
+  const toast = useToast();
+
+  /**
+   * Initiative is a DEX check, so it takes the check's conditions and the 2024
+   * Exhaustion penalty, and the Wild Shape form's DEX. The roll goes to chat like
+   * any other; when the character is in the running encounter and has no
+   * initiative there yet, the total is also written to `current_initiative`,
+   * which the DM's runner takes in live (#504, as the encounter panel's Roll
+   * initiative does). A character who already has one keeps it: a second roll
+   * from the sheet must not reorder a fight in progress.
+   */
+  async function rollInitiative(override: RollMode | null = null) {
+    const m = toValue(member);
+    if (!m) return;
+    const result = await doRoll(
+      "Initiative",
+      memberInitiativeModifier(m, effectiveScores.value.dex) + exhaustionD20Penalty.value,
+      combineModes(override ?? "normal", checkDisadvantage.value ? "disadvantage" : "normal"),
+    );
+    if (!result) return;
+    const combatant = liveState.value?.combatants_live.find((c) => c.party_member_id === m.id);
+    if (!combatant || combatant.initiative !== null) return;
+    try {
+      await updateMember({ id: m.id, update: { current_initiative: result.total } });
+    } catch (error) {
+      toast.error(toast.fromError(error, "Couldn't send your initiative to the encounter."));
+    }
+  }
+
   // A pick made on this surface is for its next roll, not a stranger's.
   onBeforeUnmount(() => setNextRollMode("normal"));
 
@@ -91,5 +126,6 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
     onChildRoll,
     rollAbility,
     rollSave,
+    rollInitiative,
   };
 }
