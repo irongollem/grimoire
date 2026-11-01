@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { checkSpellMechanics } from "@/lib/library/spellMechanicsCheck";
 import type { SpellMechanicsInput } from "@/lib/library/spellMechanicsCheck";
+import type { CuratedRoll, CuratedSpellMechanics } from "@/lib/library/curatedSpellMechanics";
 import type { StructuredSpellEffect } from "@/types/spell.types";
 
 function effect(overrides: Partial<StructuredSpellEffect>): StructuredSpellEffect {
@@ -1011,5 +1012,158 @@ describe("checkSpellMechanics: third-party plain wording", () => {
       effects: [effect({ outcome: "failed_save", dice: "4d6", damageType: "fire" })],
     };
     expect(findingCodes(boiling)).toContain("main_sentence_not_found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Curated basis (#1123 follow-up)
+// ---------------------------------------------------------------------------
+
+/** Invented wording no sentence template reads: the damage is a verb phrase, not "takes X damage". */
+const scorch: SpellMechanicsInput = {
+  ...noRoll,
+  name: "Scorch",
+  level: 2,
+  description: "Each creature in a 10-foot-radius sphere makes a Dexterity saving throw. Flames sear a creature that fails for 3d6 fire damage, and one that succeeds is seared for half as much.",
+  higher_levels: "When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d6 for each slot level above 2nd.",
+  attack_type: "save",
+  save_attribute: "DEX",
+  save_effect: "half",
+  damage_rolls: [{ dice: "3d6", type: "fire" }],
+  higher_level_damage: { dice_per_level: "1d6", type: null },
+  effects: [
+    effect({ id: "base", outcome: "failed_save", dice: "3d6", target: { type: null, count: null }, scaling: { mode: "slot", dice: "1d6" } }),
+    effect({ id: "base-save-half", outcome: "successful_save", multiplier: 0.5, dice: "3d6", target: { type: null, count: null }, scaling: { mode: "slot", dice: "1d6" } }),
+  ],
+};
+
+const scorchEntry: CuratedSpellMechanics = {
+  verdict: "roll",
+  category: null,
+  evidence: "Flames sear a creature that fails for 3d6 fire damage, and one that succeeds is seared for half as much.",
+  roll: {
+    kind: "damage", resolution: "save", save_ability: "DEX", save_half: true, parts: [{ dice: "3d6", type: "fire" }],
+    type_choices: null, adds_spellcasting_modifier: false, instances: null,
+    upcast: { dice_per_level: "1d6", part_type: null }, cantrip_scaling: false,
+  },
+};
+
+const withRoll = (over: Partial<CuratedRoll>): CuratedSpellMechanics => ({ ...scorchEntry, roll: { ...(scorchEntry.roll as CuratedRoll), ...over } });
+const codes = (verdict: ReturnType<typeof checkSpellMechanics>): string[] =>
+  verdict.approved ? [] : verdict.findings.map((f) => f.code);
+
+describe("checkSpellMechanics curated basis", () => {
+  it("the templates do not read the invented wording, so the entry is what approves it", () => {
+    expect(checkSpellMechanics(scorch).approved).toBe(false);
+    expect(checkSpellMechanics(scorch, scorchEntry)).toEqual({ approved: true, basis: "curated" });
+  });
+
+  it("an approved curated row matches regardless of dice spacing and case in the stored columns", () => {
+    const spaced = { ...scorch, damage_rolls: [{ dice: "3D6", type: "Fire" }], higher_level_damage: { dice_per_level: "1D6", type: null } };
+    expect(checkSpellMechanics(spaced, scorchEntry)).toEqual({ approved: true, basis: "curated" });
+  });
+
+  it("stored mechanics that differ from the entry are rejected (a hand-edited row never rides an entry)", () => {
+    const edited = { ...scorch, damage_rolls: [{ dice: "4d6", type: "fire" }] };
+    expect(codes(checkSpellMechanics(edited, scorchEntry))).toContain("curated_stored_mismatch");
+    const noTwin = { ...scorch, effects: [scorch.effects?.[0] as StructuredSpellEffect] };
+    expect(codes(checkSpellMechanics(noTwin, scorchEntry))).toContain("curated_stored_mismatch");
+  });
+
+  it("a row with nothing stored is rejected until the apply script has written it", () => {
+    const bare = { ...scorch, ...noRoll };
+    expect(codes(checkSpellMechanics(bare, scorchEntry))).toContain("curated_stored_mismatch");
+  });
+
+  it("evidence that is not in the description is rejected; whitespace and case differences are not", () => {
+    expect(codes(checkSpellMechanics(scorch, { ...scorchEntry, evidence: "Flames sear a creature for 3d6 fire damage." }))).toEqual(["curated_evidence_not_in_text"]);
+    expect(checkSpellMechanics(scorch, { ...scorchEntry, evidence: scorchEntry.evidence.toUpperCase().replace(/ /g, "  ") }).approved).toBe(true);
+  });
+
+  it("dice the text never states are rejected, on both the entry and a matching row", () => {
+    const entry = withRoll({ parts: [{ dice: "4d6", type: "fire" }] });
+    const row = { ...scorch, damage_rolls: [{ dice: "4d6", type: "fire" }], effects: scorch.effects?.map((e) => ({ ...e, dice: "4d6" })) };
+    expect(codes(checkSpellMechanics(row, entry))).toEqual(["curated_dice_not_in_text"]);
+  });
+
+  it("dice that only appear as a longer number's tail do not count as stated", () => {
+    const row = { ...scorch, description: scorch.description.replace("3d6", "13d6") };
+    expect(codes(checkSpellMechanics(row, { ...scorchEntry, evidence: scorchEntry.evidence.replace("3d6", "13d6") }))).toContain("curated_dice_not_in_text");
+  });
+
+  it("dice written with spaces around the plus are found", () => {
+    const row: SpellMechanicsInput = {
+      ...scorch,
+      description: scorch.description.replace("3d6", "3d6 + 2"),
+      damage_rolls: [{ dice: "3d6+2", type: "fire" }],
+      effects: scorch.effects?.map((e) => ({ ...e, dice: "3d6+2" })),
+    };
+    const entry = { ...withRoll({ parts: [{ dice: "3d6+2", type: "fire" }] }), evidence: scorchEntry.evidence.replace("3d6", "3d6 + 2") };
+    expect(checkSpellMechanics(row, entry)).toEqual({ approved: true, basis: "curated" });
+  });
+
+  it("a damage type or type choice missing from the text is rejected", () => {
+    const row = { ...scorch, description: scorch.description.replace("fire", "searing") };
+    expect(codes(checkSpellMechanics(row, { ...scorchEntry, evidence: scorchEntry.evidence.replace("fire", "searing") }))).toEqual(["curated_type_not_in_text"]);
+  });
+
+  it("a type choice missing from the text is rejected", () => {
+    const choice: SpellMechanicsInput = {
+      ...scorch,
+      damage_rolls: [{ dice: "3d6", type: "" }],
+      effects: scorch.effects?.map((e) => ({ ...e, damageType: null, damageTypeChoices: ["fire", "cold"] })),
+    };
+    expect(codes(checkSpellMechanics(choice, withRoll({ parts: [{ dice: "3d6", type: null }], type_choices: ["fire", "cold"] })))).toEqual(["curated_type_not_in_text"]);
+  });
+
+  it("a save ability whose full name is not in the text is rejected", () => {
+    const row = { ...scorch, description: scorch.description.replace("Dexterity", "agility") };
+    expect(codes(checkSpellMechanics(row, scorchEntry))).toEqual(["curated_save_ability_not_in_text"]);
+  });
+
+  it("upcast dice found in neither higher_levels nor the description are rejected", () => {
+    const row = { ...scorch, higher_levels: "The damage grows when you use a higher slot." };
+    expect(codes(checkSpellMechanics(row, scorchEntry))).toContain("curated_upcast_not_in_text");
+  });
+
+  it("higher_levels dice the entry records no upcast for are rejected, so a higher slot never rolls too little", () => {
+    const row = { ...scorch, higher_level_damage: null, effects: scorch.effects?.map((e) => ({ ...e, scaling: null })) };
+    expect(codes(checkSpellMechanics(row, withRoll({ upcast: null })))).toEqual(["curated_upcast_unmodelled"]);
+  });
+
+  it("an attack resolution needs its spell attack phrase in the text", () => {
+    const attackRow: SpellMechanicsInput = {
+      ...scorch, higher_levels: null, attack_type: "ranged_spell", save_attribute: null, save_effect: null, higher_level_damage: null,
+      effects: [effect({ dice: "3d6", target: { type: null, count: null } })],
+    };
+    const entry = { ...withRoll({ resolution: "attack_ranged", save_ability: null, save_half: null, upcast: null }) };
+    expect(codes(checkSpellMechanics(attackRow, entry))).toEqual(["curated_attack_not_in_text"]);
+    const melee = { ...attackRow, attack_type: "melee_spell", description: `${attackRow.description} Make a melee spell attack.` };
+    expect(checkSpellMechanics(melee, { ...entry, roll: { ...(entry.roll as CuratedRoll), resolution: "attack_melee" } }).approved).toBe(true);
+    const meleeEntry = { ...entry, roll: { ...(entry.roll as CuratedRoll), resolution: "attack_melee" as const } };
+    expect(codes(checkSpellMechanics({ ...attackRow, attack_type: "melee_spell" }, meleeEntry))).toEqual(["curated_attack_not_in_text"]);
+    // the same text names a melee attack, not a ranged one
+    expect(codes(checkSpellMechanics({ ...melee, attack_type: "ranged_spell" }, entry))).toEqual(["curated_attack_not_in_text"]);
+  });
+
+  it("cantrip scaling on a leveled spell is rejected", () => {
+    expect(codes(checkSpellMechanics(scorch, withRoll({ cantrip_scaling: true, resolution: "attack_ranged" })))).toContain("curated_unconvertible");
+  });
+
+  it("an entry the converter refuses is its own finding", () => {
+    const entry = withRoll({ parts: [{ dice: "3d6", type: "fire" }, { dice: "1d6", type: "cold" }] });
+    expect(codes(checkSpellMechanics(scorch, entry))).toContain("curated_unconvertible");
+  });
+
+  it("the template proof wins when it applies: Fire Bolt is automation even with a contradicting entry", () => {
+    const wrong = withRoll({ parts: [{ dice: "9d9", type: "fire" }] });
+    expect(checkSpellMechanics(fireBolt, wrong)).toEqual({ approved: true, basis: "automation" });
+  });
+
+  it("a not_one_roll entry keeps the spell manual and names why instead of 'nothing stored'", () => {
+    const manual = { ...scorch, ...noRoll };
+    expect(codes(checkSpellMechanics(manual))).toEqual(["dice_without_automation"]);
+    const verdict = checkSpellMechanics(manual, { verdict: "not_one_roll", category: "summon", roll: null, evidence: "x" });
+    expect(verdict).toEqual({ approved: false, findings: [{ code: "not_one_roll_at_cast", detail: "summon" }] });
   });
 });

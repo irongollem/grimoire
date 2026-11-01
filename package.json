@@ -57,6 +57,7 @@
     "scriptorium:book": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/scriptorium-book.ts",
     "import-statblocks": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/import-statblocks.ts",
     "spells:check-mechanics": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/spells/check-library-spell-mechanics.ts",
+    "spells:apply-curated": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/spells/apply-curated-spell-mechanics.ts",
     "stat-blocks:structure": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/stat-blocks/structure-stat-blocks.ts",
     "stat-blocks:release": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/stat-blocks/release.ts",
     "dev:library": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-library.ts",

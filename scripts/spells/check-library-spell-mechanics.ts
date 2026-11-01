@@ -22,6 +22,7 @@ import { DEFAULT_SRD_DOCUMENT_KEYS, installOpen5eUserAgent } from "../lib/seed-h
 import { type ServiceTarget as Target, resolveServiceTarget as resolveTarget, serviceHeaders as headers } from "../lib/dev-stack.ts";
 import { fetchOpen5eSpells } from "@/lib/library/open5eSpellImport";
 import { checkSpellMechanics } from "@/lib/library/spellMechanicsCheck";
+import { loadCuratedFile } from "./curated-file.ts";
 import type { SpellMechanicsFinding, SpellMechanicsInput, SpellMechanicsVerdict } from "@/lib/library/spellMechanicsCheck";
 
 export interface SpellRow extends SpellMechanicsInput {
@@ -133,7 +134,8 @@ async function main(): Promise<void> {
     console.log(`Checking ${rows.length} spells from ${target.label}.`);
   }
 
-  const verdicts = rows.map((row) => checkSpellMechanics(row));
+  const curated = loadCuratedFile();
+  const verdicts = rows.map((row) => checkSpellMechanics(row, curated[row.id] ?? null));
   const report = buildReport(rows, verdicts);
   console.log(summarize(report));
   if (values.report) {
