@@ -37,6 +37,8 @@ import {
   installOpen5eUserAgent,
   createServiceClient,
   fetchAllRows,
+  fetchStoredIdentities,
+  carryExistingIds,
   upsertBatch,
   parseSeedCliArgs,
   printAvailableDocuments,
@@ -261,22 +263,23 @@ async function main(): Promise<void> {
   if (unsupported > 0) {
     console.log(`  Skipped ${unsupported} monster(s) from a non-5e-2014/2024 document (no supported ruleset).`);
   }
-  const rows: SeededMonster[] = supported.map((monster) => {
+  const minted: SeededMonster[] = supported.map((monster) => {
     const sourceRecordKey = monster.source_record_key;
     if (!sourceRecordKey) {
       throw new Error(`Monster "${monster.name}" has no source_record_key — cannot derive a stable library_monsters.id.`);
     }
     return seedRow(monster, libraryMonsterId(sourceRecordKey));
   });
-  console.log(`  Mapped ${rows.length} monsters.\n`);
+  console.log(`  Mapped ${minted.length} monsters.\n`);
 
   if (parsed.dryRun) {
-    printDryRunSummary(rows);
+    printDryRunSummary(minted);
     return;
   }
 
   const env = requireEnv();
   const supabase = createServiceClient(env);
+  const rows = carryExistingIds(minted, await fetchStoredIdentities(supabase, "library_monsters"));
 
   console.log("Step 2: Upserting to library_monsters table…");
   const existing = await fetchExistingStatBlocks(supabase, documentKeys);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
-import { buildContentSourcePlan, deriveMachineFields, ourKeyFor, type ContentSourceRow } from "./seed-content-sources";
+import { buildContentSourcePlan, deriveMachineFields, type ContentSourceRow } from "./seed-content-sources";
 
 const bfrdDocument: Open5eDocumentRef = {
   key: "bfrd",
@@ -26,7 +26,7 @@ const srd2014Document: Open5eDocumentRef = {
 
 /** The hand-curated Black Flag row: license_keys corrected to `orc`, flagged curated. */
 const curatedBlackFlagRow: ContentSourceRow = {
-  key: "blackflag",
+  key: "bfrd",
   open5e_key: "bfrd",
   title: "Black Flag Reference Document",
   publisher: "Kobold Press",
@@ -54,22 +54,10 @@ const nonCuratedSrdRow: ContentSourceRow = {
   sort_order: 1,
 };
 
-describe("ourKeyFor", () => {
-  it("maps a known legacy alias back to OUR key", () => {
-    expect(ourKeyFor("bfrd")).toBe("blackflag");
-    expect(ourKeyFor("ccdx")).toBe("cc");
-  });
-
-  it("is the identity for a key with no legacy alias", () => {
-    expect(ourKeyFor("srd-2014")).toBe("srd-2014");
-    expect(ourKeyFor("tob3")).toBe("tob3");
-  });
-});
-
 describe("deriveMachineFields", () => {
-  it("derives every machine field, aliasing the key back to ours and setting open5e_key only when it differs", () => {
+  it("derives every machine field, with the Open5e document key as both key and open5e_key", () => {
     expect(deriveMachineFields(bfrdDocument)).toEqual({
-      key: "blackflag",
+      key: "bfrd",
       open5e_key: "bfrd",
       title: "Black Flag SRD",
       publisher: "Kobold Press",
@@ -80,8 +68,8 @@ describe("deriveMachineFields", () => {
     });
   });
 
-  it("leaves open5e_key null when our key already matches upstream", () => {
-    expect(deriveMachineFields(srd2014Document)?.open5e_key).toBeNull();
+  it("sets open5e_key for a book that never had a second key too, so a re-seed does not null it", () => {
+    expect(deriveMachineFields(srd2014Document)?.open5e_key).toBe("srd-2014");
   });
 
   it("falls back to the document's name for a title, and to null for a missing link or game system", () => {
@@ -99,11 +87,24 @@ describe("deriveMachineFields", () => {
 });
 
 describe("buildContentSourcePlan — curated vs. non-curated merge", () => {
+  it("never plans a row for an A5E document, even a redistributable one (A5E is frozen, #934)", () => {
+    const a5e: Open5eDocumentRef = {
+      key: "a5e-ag",
+      name: "Adventurer's Guide",
+      publisher: { name: "EN Publishing", key: "en-publishing" },
+      gamesystem: { name: "Level Up", key: "a5e" },
+      licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
+    };
+    const { plan, skippedA5e } = buildContentSourcePlan([a5e], []);
+    expect(plan).toHaveLength(0);
+    expect(skippedA5e).toEqual(["a5e-ag"]);
+  });
+
   it("leaves a curated row out of the write plan entirely, even though its Open5e document is present and disagrees", () => {
     const { plan, skippedCurated } = buildContentSourcePlan([bfrdDocument], [curatedBlackFlagRow]);
 
     expect(plan).toHaveLength(0);
-    expect(skippedCurated).toEqual(["blackflag"]);
+    expect(skippedCurated).toEqual(["bfrd"]);
   });
 
   it("refreshes a non-curated row's machine fields from the current Open5e document", () => {
@@ -113,7 +114,7 @@ describe("buildContentSourcePlan — curated vs. non-curated merge", () => {
     expect(plan).toHaveLength(1);
     expect(plan[0]?.fields).toEqual({
       key: "srd-2014",
-      open5e_key: null,
+      open5e_key: "srd-2014",
       title: "5e 2014 Rules",
       publisher: "Wizards of the Coast",
       license_keys: ["cc-by-40"],

@@ -121,7 +121,7 @@ export function useOfficialClassContentImport() {
           fetchOpen5eClasses(),
           fetchOpen5eFeats(),
           readAll<ContentSourceRef>((from, to) =>
-            supabase.from("content_sources").select("key, open5e_key, is_redistributable").order("key").range(from, to)),
+            supabase.from("content_sources").select("key, is_redistributable").order("key").range(from, to)),
           readAll<SystemClassRef & { features: FeatureMap | null }>((from, to) =>
             supabase.from("system_classes").select("id, ruleset, class_name, features").order("id").range(from, to)),
           readOfficialFeatures(),

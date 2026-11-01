@@ -5,7 +5,10 @@
  */
 
 import { createClient, type SupabaseClient, type PostgrestError } from "@supabase/supabase-js";
-import { isRedistributable, licenseKeysFor, LEGACY_DOCUMENT_KEY_ALIASES, type Open5eDocumentRef } from "@/lib/library/open5eApi";
+import { isRedistributable, licenseKeysFor, type Open5eDocumentRef } from "@/lib/library/open5eApi";
+import type { StoredIdentity } from "@/lib/library/carryExistingIds";
+
+export { carryExistingIds } from "@/lib/library/carryExistingIds";
 
 export interface SupabaseEnv {
   supabaseUrl: string;
@@ -115,6 +118,21 @@ export async function fetchAllRows<T>(
 }
 
 /**
+ * Every stored row's id and source identity from a library table, for
+ * `carryExistingIds`: a seed must keep the id a row already has, not mint a new one.
+ */
+export function fetchStoredIdentities(supabase: SupabaseClient, table: string): Promise<StoredIdentity[]> {
+  return fetchAllRows<StoredIdentity>((from, to) =>
+    supabase
+      .from(table)
+      .select("id,source_document_key,source_record_key")
+      .order("id")
+      .range(from, to)
+      .returns<StoredIdentity[]>(),
+  );
+}
+
+/**
  * Upserts rows keyed on `onConflict` — pass the table's source-identity
  * unique constraint columns (`source_document_key,source_record_key`), NOT
  * the `id` primary key. `id` is an app-facing convenience key; source
@@ -201,10 +219,10 @@ export function countByRuleset(rows: ReadonlyArray<{ ruleset: string }>): Record
  * `--all` (which already only ever offers redistributable keys, via
  * `fetchSupported5eDocumentKeys`).
  *
- * `requestedKeys` are OUR keys (bare CLI args, e.g. "cc", "taldorei") — each
- * is translated through `LEGACY_DOCUMENT_KEY_ALIASES` to the current Open5e
- * v2 key before being looked up in `documents` (as fetched via
- * `fetchOpen5eDocumentRefs()`). `grimoire-bundled` is never an Open5e
+ * `requestedKeys` are Open5e v2 document keys (bare CLI args, e.g. "ccdx",
+ * "tdcs"), looked up in `documents` (as fetched via
+ * `fetchOpen5eDocumentRefs()`). A document of the `a5e` gamesystem is always
+ * refused: A5E rows are frozen until #934 moves them. `grimoire-bundled` is never an Open5e
  * document and must never be passed in `requestedKeys` — callers scope this
  * to the document keys they're about to fetch FROM Open5e, not to any
  * grimoire-owned bundled content they seed alongside it.
@@ -221,16 +239,19 @@ export function assertRedistributableDocuments(
   const problems: string[] = [];
 
   for (const requestedKey of requestedKeys) {
-    const upstreamKey = LEGACY_DOCUMENT_KEY_ALIASES[requestedKey] ?? requestedKey;
-    const document = byKey.get(upstreamKey);
+    const document = byKey.get(requestedKey);
     if (!document) {
-      problems.push(`"${requestedKey}" (looked up as "${upstreamKey}"): no such Open5e v2 document`);
+      problems.push(`"${requestedKey}": no such Open5e v2 document`);
+      continue;
+    }
+    if (document.gamesystem?.key?.toLowerCase() === "a5e") {
+      problems.push(`"${requestedKey}": A5E documents are frozen and never seeded`);
       continue;
     }
     if (!isRedistributable(document)) {
       const keys = licenseKeysFor(document);
       const licenseDesc = keys.length ? keys.join(", ") : "no licenses listed";
-      problems.push(`"${requestedKey}" (looked up as "${upstreamKey}"): license(s) [${licenseDesc}] do not permit hosted redistribution`);
+      problems.push(`"${requestedKey}": license(s) [${licenseDesc}] do not permit hosted redistribution`);
     }
   }
 

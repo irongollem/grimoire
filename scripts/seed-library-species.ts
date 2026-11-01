@@ -56,6 +56,8 @@ import {
   countByRuleset,
   assertRedistributableDocuments,
   DEFAULT_SRD_DOCUMENT_KEYS,
+  fetchStoredIdentities,
+  carryExistingIds,
 } from "./lib/seed-helpers";
 import { pathToFileURL } from "node:url";
 
@@ -119,7 +121,7 @@ const CREATE_ONLY_COLUMNS = Object.keys(buildCreateOnlyDefaults()).filter((colum
  */
 export function splitForReseed(
   rows: readonly SeededSpecies[],
-  existing: ReadonlyArray<{ source_document_key: string | null; source_record_key: string | null }>,
+  existing: ReadonlyArray<{ source_document_key?: string | null; source_record_key?: string | null }>,
   emptyRecordKeys: ReadonlySet<string> = new Set(),
 ): { fresh: SeededSpecies[]; refresh: Partial<SeededSpecies>[]; keptEmpty: string[] } {
   const seeded = new Set(existing.map((row) => `${row.source_document_key}/${row.source_record_key}`));
@@ -212,27 +214,24 @@ async function main(): Promise<void> {
   const mapped = coreRaces.map((race) =>
     buildSeededSpeciesRow(race, documentMetadata, subracesByParent.get(race.key)),
   );
-  const rows = mapped.filter((row): row is SeededSpecies => row !== null);
-  const unsupported = mapped.length - rows.length;
+  const minted = mapped.filter((row): row is SeededSpecies => row !== null);
+  const unsupported = mapped.length - minted.length;
   if (unsupported > 0) {
     console.log(`  Skipped ${unsupported} species from a non-5e-2014/2024 document (no supported ruleset).`);
   }
-  console.log(`  Mapped ${rows.length} species.\n`);
+  console.log(`  Mapped ${minted.length} species.\n`);
 
   if (parsed.dryRun) {
-    printDryRunSummary(rows);
+    printDryRunSummary(minted);
     return;
   }
 
   const env = requireEnv();
   const supabase = createServiceClient(env);
+  const existing = await fetchStoredIdentities(supabase, "library_species");
+  const rows = carryExistingIds(minted, existing);
 
   console.log("Step 2: Upserting to library_species table…");
-  const { data: existing, error } = await supabase
-    .from("library_species")
-    .select("source_document_key, source_record_key")
-    .in("source_document_key", documentKeys);
-  if (error) throw error;
   const emptyRecordKeys = new Set(coreRaces.filter((race) => race.traits.length === 0).map((race) => race.key));
   const { fresh, refresh, keptEmpty } = splitForReseed(rows, existing, emptyRecordKeys);
   for (const key of keptEmpty) console.log(`  ${key}: Open5e's record is empty; keeping the stored row.`);

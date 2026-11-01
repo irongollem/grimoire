@@ -478,7 +478,7 @@ The shape to understand before touching it: most of what we host is **not** WotC
 - **`is_metadata_curated`** — rows where upstream metadata is wrong or absent and we maintain them by hand. `scripts/seed-content-sources.ts` skips them. This is what stops a re-seed silently reverting Black Flag's licence from ORC to Open5e's incorrect CC-BY tag.
 - **Audio** (`get_audio_licenses()`, migration `20260729000003`, `AudioLicenseCard.vue`) — the tab also covers the soundboard's shipped catalogue: 802 sounds, of which **82 are CC-BY and legally require credit**. Grouped by `(license, source)` rather than modelled into `content_sources`, because audio attribution is per-sound and each `sound_library` row already stores a ready-to-display credit line. `attributions` is **null, never `[]`**, for CC0 groups — no credit required is a different state from credits gone missing, and the card says so in words. Per-sound credit still travels onto the DM's board via `SoundCard.vue`; this is the consolidated notice.
 
-Several `source_document_key` values are stale pre-v2 Open5e slugs (`cc`, `menagerie`, `dmag`, `blackflag`, `taldorei`…) that no longer match upstream keys (`ccdx`, `a5e-mm`, `deepm`, `bfrd`, `tdcs`). `LEGACY_DOCUMENT_KEY_ALIASES` in `src/lib/library/open5eApi.ts` maps between them — any data-driven backfill that skips it matches nothing.
+A library row's `source` and `source_document_key` are the Open5e v2 document key (`ccdx`, `bfrd`, `deepm`, `deepmx`, `wz`, `open5e`, `tdcs`), equal to its `content_sources.key`; there is no alias layer between key generations (#1124). A5E (`a5e`, `menagerie`) is frozen with its old keys and no importer touches an `a5e` gamesystem document until #934.
 
 ### AI house rule generator (#910)
 

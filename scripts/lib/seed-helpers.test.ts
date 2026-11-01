@@ -93,8 +93,19 @@ describe("assertRedistributableDocuments", () => {
     expect(() => assertRedistributableDocuments(["srd-2014"], documents)).not.toThrow();
   });
 
-  it("resolves a legacy alias (\"cc\" -> \"ccdx\") through LEGACY_DOCUMENT_KEY_ALIASES before checking", () => {
-    expect(() => assertRedistributableDocuments(["cc"], documents)).not.toThrow();
+  it("takes the Open5e v2 key as it stands (ccdx) and no longer translates the old one (cc)", () => {
+    expect(() => assertRedistributableDocuments(["ccdx"], documents)).not.toThrow();
+    expect(() => assertRedistributableDocuments(["cc"], documents)).toThrow(/"cc"/);
+  });
+
+  it("refuses an A5E document even when it is redistributable (A5E is frozen, #934)", () => {
+    const a5e: Open5eDocumentRef = {
+      key: "a5e-ag",
+      name: "Adventurer's Guide",
+      gamesystem: { name: "Level Up", key: "a5e" },
+      licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
+    };
+    expect(() => assertRedistributableDocuments(["a5e-ag"], [...documents, a5e])).toThrow(/a5e-ag/);
   });
 
   it("throws naming the offending key for one that doesn't exist upstream", () => {

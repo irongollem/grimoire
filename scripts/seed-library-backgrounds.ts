@@ -7,25 +7,23 @@
  * plumbing, the library row shape, and the Supabase upsert. Mirrors
  * seed-library-species.ts.
  *
- * What a library row says about its book is OUR slug, not Open5e's: `source` and
- * `source_document_key` are the `content_sources` key (a5e, taldorei, o5e, …),
- * which is what a campaign enables and what library_monsters / library_spells
- * carry. `source_record_key` stays Open5e's record key, and the id is
- * stableSrdId(source_record_key), so a run lands on the rows migration
- * library_backgrounds already made from the old per-user imports.
+ * `source` and `source_document_key` are Open5e's document key, which is also
+ * the `content_sources` key a campaign enables. `source_record_key` is Open5e's
+ * record key; a new row's id is stableSrdId(source_record_key) and an existing
+ * row keeps the id it has (carryExistingIds).
  *
  * Art is never written here: image_url and focal_point are left out of the upsert
  * payload, so a re-run does not take back a picture an admin has set.
  *
  * Run (default: every Open5e document that clears the redistribution guard and is
- * 5e-2014, 5e-2024 or A5E, which is 2014-compatible):
+ * 5e-2014 or 5e-2024; A5E is not touched):
  *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-backgrounds.ts
  *   npm run seed-library-backgrounds
  *
  * Optional flags:
  *   --list             List available Open5e v2 documents and exit
  *   --dry-run          Fetch + map only; print row counts per edition and book; write nothing
- *   <key> [<key>…]     Seed only the listed document keys (OUR keys, e.g. srd-2014 a5e taldorei)
+ *   <key> [<key>…]     Seed only the listed document keys (Open5e document keys, e.g. srd-2014 tdcs)
  *
  * Required env vars in .env.local (not required for --list or --dry-run):
  *   VITE_SUPABASE_URL         — project URL
@@ -37,7 +35,6 @@ import { fetchOpen5eDocuments } from "@/lib/library/open5eMonsterImport";
 import {
   fetchOpen5eDocumentRefs,
   isRedistributable,
-  LEGACY_DOCUMENT_KEY_ALIASES,
   rulesetForDocument,
   stableSrdId,
 } from "@/lib/library/open5eApi";
@@ -49,6 +46,8 @@ import {
   installOpen5eUserAgent,
   createServiceClient,
   upsertBatch,
+  fetchStoredIdentities,
+  carryExistingIds,
   parseSeedCliArgs,
   printAvailableDocuments,
   countByRuleset,
@@ -76,32 +75,15 @@ export type SeededBackground = Omit<
   source_record_key: string;
 };
 
-const REVERSE_DOCUMENT_KEY_ALIASES: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(LEGACY_DOCUMENT_KEY_ALIASES).map(([ours, upstream]) => [upstream, ours]),
-);
-
-/** Maps an Open5e v2 document key to OUR slug for the book; identity when we have no alias. */
-export function ourDocumentKey(open5eKey: string): string {
-  return REVERSE_DOCUMENT_KEY_ALIASES[open5eKey] ?? open5eKey;
-}
-
-/** A5E ("Level Up") is built on the 2014 rules; the library has no third edition. */
-function rulesetFor(row: BackgroundInsert): RulesetKey | null {
-  if (row.ruleset) return row.ruleset;
-  const gamesystem = (row.provenance as { document?: { gamesystem?: { key?: string } | null } } | null)
-    ?.document?.gamesystem?.key;
-  return gamesystem === "a5e" ? "2014" : null;
-}
-
 /**
  * Maps one mapped Open5e background into a `library_backgrounds` row, or `null`
- * when its document is neither 5e-2014, 5e-2024 nor A5E (no ruleset to file it under).
+ * when its document is neither 5e-2014 nor 5e-2024 (no ruleset to file it under; A5E is frozen).
  */
 export function buildSeededBackgroundRow(row: BackgroundInsert): SeededBackground | null {
-  const ruleset = rulesetFor(row);
+  const ruleset = row.ruleset;
   if (!ruleset || !row.source_document_key || !row.source_record_key) return null;
   const { open5e_import: _import, ai_provenance: _ai, image_url: _image, focal_point: _focal, ...fields } = row;
-  const book = ourDocumentKey(row.source_document_key);
+  const book = row.source_document_key;
   return {
     ...fields,
     id: stableSrdId(row.source_record_key),
@@ -113,10 +95,9 @@ export function buildSeededBackgroundRow(row: BackgroundInsert): SeededBackgroun
   };
 }
 
-/** Whether a document is one the library can hold backgrounds from: redistributable, and a 5e edition or A5E. */
+/** Whether a document is one the library can hold backgrounds from: redistributable, and a 5e edition. */
 export function isSeedableDocument(document: Open5eDocumentRef): boolean {
-  const supported = rulesetForDocument(document) !== null || document.gamesystem?.key === "a5e";
-  return supported && isRedistributable(document);
+  return rulesetForDocument(document) !== null && isRedistributable(document);
 }
 
 // ── dry run ───────────────────────────────────────────────────────────────────
@@ -160,28 +141,28 @@ async function main(): Promise<void> {
 
   console.log("Checking documents are licensed for hosted redistribution…");
   const documents = await fetchOpen5eDocumentRefs();
-  const ourKeys = parsed.documentKeys.length
+  const documentKeys = parsed.documentKeys.length
     ? parsed.documentKeys
-    : documents.filter(isSeedableDocument).map((document) => ourDocumentKey(document.key));
-  assertRedistributableDocuments(ourKeys, documents);
-  console.log(`=== Seeding library_backgrounds (sources: ${ourKeys.join(", ")}) ===\n`);
+    : documents.filter(isSeedableDocument).map((document) => document.key);
+  assertRedistributableDocuments(documentKeys, documents);
+  console.log(`=== Seeding library_backgrounds (sources: ${documentKeys.join(", ")}) ===\n`);
 
   console.log("Step 1: Fetching + mapping backgrounds from Open5e v2…");
-  const upstreamKeys = ourKeys.map((key) => LEGACY_DOCUMENT_KEY_ALIASES[key] ?? key);
-  const fetched = await fetchBackgrounds(upstreamKeys);
+  const fetched = await fetchBackgrounds(documentKeys);
   const mapped = fetched.map(buildSeededBackgroundRow);
-  const rows = mapped.filter((row): row is SeededBackground => row !== null);
-  if (rows.length < mapped.length) {
-    console.log(`  Skipped ${mapped.length - rows.length} background(s) from a document with no supported ruleset.`);
+  const minted = mapped.filter((row): row is SeededBackground => row !== null);
+  if (minted.length < mapped.length) {
+    console.log(`  Skipped ${mapped.length - minted.length} background(s) from a document with no supported ruleset.`);
   }
-  console.log(`  Mapped ${rows.length} backgrounds.\n`);
+  console.log(`  Mapped ${minted.length} backgrounds.\n`);
 
   if (parsed.dryRun) {
-    printDryRunSummary(rows);
+    printDryRunSummary(minted);
     return;
   }
 
   const supabase = createServiceClient(requireEnv());
+  const rows = carryExistingIds(minted, await fetchStoredIdentities(supabase, "library_backgrounds"));
   console.log("Step 2: Upserting to library_backgrounds table…");
   await upsertBatch(supabase, "library_backgrounds", rows, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });
   console.log(`  Done, ${rows.length} rows upserted.\n`);

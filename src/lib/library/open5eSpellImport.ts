@@ -2,6 +2,7 @@ import type { SpellInsert, SpellSchool, HigherLevelDamage } from "@/types/spell.
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
 import { SRD_2014_CLASS_SPELL_LISTS } from "@/data/srd2014ClassSpellLists";
+import { carryExistingIds } from "@/lib/library/carryExistingIds";
 import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -402,15 +403,16 @@ export function planLibrarySpellImport(
     `${row.source_document_key}::${row.source_record_key}`,
     row,
   ]));
+  const withIds = carryExistingIds(spells, existing);
   const rows: ImportedLibrarySpell[] = [];
   let skippedReviewed = 0;
-  for (const spell of spells) {
+  for (const spell of withIds) {
     const current = byIdentity.get(`${spell.source_document_key}::${spell.source_record_key}`);
     if (current?.mechanics_reviewed) {
       skippedReviewed++;
       continue;
     }
-    rows.push(current ? { ...spell, id: current.id, image_url: current.image_url } : spell);
+    rows.push(current ? { ...spell, image_url: current.image_url } : spell);
   }
   return { rows, skippedReviewed };
 }
