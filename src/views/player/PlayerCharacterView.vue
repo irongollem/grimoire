@@ -42,6 +42,7 @@
           :effective-dex="effectiveScores.dex"
           :hide-player-actions="hidePlayerActions || isMindingThis"
           @level-up="emit('level-up')"
+          @roll-initiative="rollInitiative"
         >
           <template #conditions>
             <PlayerConditions :member="member" @roll="onChildRoll" />
@@ -274,6 +275,7 @@ const {
   onChildRoll,
   rollAbility,
   rollSave,
+  rollInitiative,
 } = useCharacterRolls(member);
 
 const { isDruid } = useWildshapeDruid(resolvedMemberId, () => member.value);
