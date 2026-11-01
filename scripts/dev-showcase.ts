@@ -5,7 +5,7 @@
  * every kind, lights, flowing water, swaying trees, a rounded room, fog by
  * room and a fight to run on it.
  *
- * What it makes, for dm-fixture in the fixture campaign (the earliest, the one
+ * What it makes, for dm-fixture in the fixture campaign (dev:auth's "(fixture)" clone, the one
  * `dev:auth` seats the party and the player in):
  *
  *  1. "Showcase: the Drowned Shrine", a dungeon site with a Cartographer drawing
@@ -44,6 +44,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { parseArgs } from "node:util";
 import { quote, sql } from "./lib/dev-db.ts";
+import { fixtureCampaign } from "./lib/dev-fixture-campaign.ts";
 import {
   assertDemoKey,
   isLoopback,
@@ -96,17 +97,10 @@ function resolveContext(): Omit<Context, "admin"> {
   );
   if (!userId)
     throw new Error("No dm-fixture account. Run `npm run dev:auth` first.");
-  // The same pick as dev:auth's party: the owner's earliest campaign.
-  const campaign = sql(
-    stack.DB_URL,
-    `select id, name from public.campaigns where user_id = ${quote(userId)} order by created_at limit 1`,
-  );
-  if (!campaign)
-    throw new Error(
-      "dm-fixture has no campaign. Run `npm run dev:auth` first.",
-    );
-  const [campaignId, campaignName] = campaign.split("\t");
-  return { stack, userId, campaignId, campaignName };
+  // The same campaign dev:auth gives the party: its "(fixture)" clone, the one the DM fixture has open.
+  const campaign = fixtureCampaign(stack.DB_URL, userId);
+  if (!campaign) throw new Error("dm-fixture has no fixture campaign. Run `npm run dev:auth` first.");
+  return { stack, userId, campaignId: campaign.id, campaignName: campaign.name };
 }
 
 function assertLocalApp(raw: string): string {
