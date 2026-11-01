@@ -462,6 +462,7 @@ const {
   toolbar = "full",
   aiContext,
   size = "md",
+  autofocus = false,
 } = defineProps<{
   modelValue: string | null | undefined;
   placeholder?: string;
@@ -492,6 +493,8 @@ const {
    */
   toolbar?: "full" | "focus";
   aiContext?: string;
+  /** Put the cursor at the end of the text once the editor is built (a field opened by a tap). */
+  autofocus?: boolean;
 }>();
 
 const isSticky = computed(() => stickyToolbar && toolbar === "full");
@@ -644,6 +647,7 @@ const cursorPlaced = ref(false);
 
 const editor = useEditor({
   content: parseContent(modelValue),
+  autofocus: autofocus ? "end" : false,
   extensions: [
     StarterKit.configure({
       document: false,

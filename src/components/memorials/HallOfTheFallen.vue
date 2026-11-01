@@ -148,7 +148,7 @@
       :label="notesFor ? `${notesFor.character_name}'s journal` : 'Journal'"
       @close="notesFor = null"
     >
-      <div v-if="notesFor" class="flex flex-col gap-3 p-4" :style="darkStyle">
+      <div v-if="notesFor" class="flex flex-col gap-3 p-4">
         <FallenCharacterNotes :name="notesFor.character_name" :notes="notesByMember.get(notesFor.party_member_id) ?? []" />
         <AppButton variant="outline" size="md" label="Close" @click="notesFor = null" />
       </div>
