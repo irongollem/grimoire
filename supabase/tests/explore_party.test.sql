@@ -1,4 +1,4 @@
--- Where the party stands while exploring (#1125, 20261031160734): campaigns.explore_party holds a site of THIS
+-- Where the party stands while exploring (#1125, 20261101023202): campaigns.explore_party holds a site of THIS
 -- campaign and a square per party member, and nothing else. Its site id reaches every member who reads the row.
 begin;
 create extension if not exists pgtap with schema extensions;

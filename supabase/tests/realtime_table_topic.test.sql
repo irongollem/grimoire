@@ -1,4 +1,4 @@
--- The table topic (#1125 decision 12, 20261031154633): pings, measure lines and drawings are Broadcast messages a
+-- The table topic (#1125 decision 12, 20261101023201): pings, measure lines and drawings are Broadcast messages a
 -- member sends on `table:<campaign id>`. Only a member of that campaign (DM or player) may hear or send on it; the
 -- doorbell stays receive-only; every predicate is total.
 begin;

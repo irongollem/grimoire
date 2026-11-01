@@ -2,7 +2,7 @@
 // live row, so the rules `get_player_encounter_state` applies on the server are applied again here, on the client:
 // hidden monsters are left out, unseen ones become "???", monster hit points are never drawn, and a creature that has
 // walked out of revealed space leaves the map. Pure functions; the screen only draws what they return.
-// Parity: the server side is `get_player_encounter_state` (latest in 20261031135706_every_creature_takes_its_size.sql),
+// Parity: the server side is `get_player_encounter_state` (latest in 20261101023158_every_creature_takes_its_size.sql),
 // pinned by supabase/tests/player_encounter_state.test.sql. Change one, change the other and the matching tests.
 // One deliberate difference: the server still sends a revealed monster's real hit points (the player portal draws
 // them); the table is a shared screen that never draws them, so it keeps only "down or not".

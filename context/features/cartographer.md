@@ -121,7 +121,7 @@ Project-wide policy. The pack loader **rejects any non-`.webp` asset**. Exports 
 
 ### Wall model: edge-based walls + optional cell-based solid blocks
 
-**Chosen:** walls are stored on **cell edges**, not in cells. Walls live in one segment graph, `layers.walls` (#1125 decision 5): a wall on a grid line is keyed by its lattice edge key, `"x,y:N"` for the top of cell (x,y) and `"x,y:W"` for its left, so a lattice edge is stored once; an angled wall is keyed by a uuid and carries its own endpoints `a` and `b`. A segment with `visible: false` blocks sight and light but is not drawn (an imported wall over a picture that already shows it). Placed lights are `layers.lights`, keyed by uuid (migration 20261031142002). A separate **`solidBlock`** layer lets the DM place full-cell thick walls (5 ft of dressed stone, sand-filled battlement, mountain rock) when wall thickness is itself part of the dungeon's mass.
+**Chosen:** walls are stored on **cell edges**, not in cells. Walls live in one segment graph, `layers.walls` (#1125 decision 5): a wall on a grid line is keyed by its lattice edge key, `"x,y:N"` for the top of cell (x,y) and `"x,y:W"` for its left, so a lattice edge is stored once; an angled wall is keyed by a uuid and carries its own endpoints `a` and `b`. A segment with `visible: false` blocks sight and light but is not drawn (an imported wall over a picture that already shows it). Placed lights are `layers.lights`, keyed by uuid (migration 20261101023159). A separate **`solidBlock`** layer lets the DM place full-cell thick walls (5 ft of dressed stone, sand-filled battlement, mountain rock) when wall thickness is itself part of the dungeon's mass.
 
 **Why both?**
 
