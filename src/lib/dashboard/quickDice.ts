@@ -1,5 +1,6 @@
 import { ALL_DICE, parseExpression } from "@/lib/dice/dice";
-import type { DieResult, DieSize, ParsedExpression, RollMode, RollResult } from "@/lib/dice/dice";
+import type { DieResult, DieSize, ParsedExpression, RollResult } from "@/lib/dice/dice";
+import { advantageAppliesTo } from "@/systems/dnd5e/dice/rollMode";
 
 /**
  * Pure logic behind the dashboard's quick dice roller (#764).
@@ -20,34 +21,12 @@ export interface QuickDieButton {
   supportsAdvantage: boolean;
 }
 
-/**
- * 5e ties Advantage/Disadvantage specifically to the d20: it is how ability
- * checks, saving throws and attack rolls resolve, and no other die is
- * described that way in the rules. "Roll two d6 and keep the higher" for a
- * damage die is a house rule, not RAW — offering the toggle on every die in
- * this row would imply a mechanic the game doesn't have. So only d20 gets it.
- */
-export function advantageAppliesTo(sides: DieSize): boolean {
-  return sides === 20;
-}
-
 /** The quick-roll row: every standard die, in the order a physical set racks. */
 export const QUICK_DICE_BUTTONS: readonly QuickDieButton[] = ALL_DICE.map((sides) => ({
   sides,
   label: `d${sides}`,
   supportsAdvantage: advantageAppliesTo(sides),
 }));
-
-/**
- * The mode actually sent to the roller for a given die click. A DM can leave
- * the Advantage/Disadvantage toggle set and then click d6 — `rollDice` itself
- * would silently ignore the mode for anything but a single d20 (see
- * `@/lib/dice/dice`), but resolving it here means the roll this module hands
- * back never claims a mode that did nothing.
- */
-export function effectiveMode(sides: DieSize, mode: RollMode): RollMode {
-  return advantageAppliesTo(sides) ? mode : "normal";
-}
 
 export type QuickExpressionCheck =
   | { status: "empty" }

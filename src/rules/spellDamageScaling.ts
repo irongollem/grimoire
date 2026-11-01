@@ -1,5 +1,5 @@
 import { scaleExpression } from "@/lib/dice/dice";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { HigherLevelDamage, Spell } from "@/types/spell.types";
 

@@ -1,4 +1,4 @@
-import type { RollMode } from "@/lib/dice/dice";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { hasCondition, hasSaveDisadvantage } from "@/rules/conditions";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";

@@ -171,7 +171,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import DiceResult from "@/components/common/dice/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/dice/diceAudio";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import type { DieSize, RollMode, RollResult } from "@/lib/dice/roller";
+import type { DieSize, RollResult } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { ButtonTone } from "../controls/appButtonVariants";
 
 const DICE: { sides: DieSize; icon: Component }[] = [

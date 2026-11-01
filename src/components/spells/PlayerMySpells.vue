@@ -353,7 +353,7 @@ import { usePlayerUiStore } from "@/stores/ui/player";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { parseExpression, parsedToCounts, scaleExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { signedNum } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";

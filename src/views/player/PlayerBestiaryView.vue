@@ -359,7 +359,7 @@ import type { ActionStructure, StatBlockEntry } from "@/types/statBlock.types";
 import { formatHitPoints } from "@/lib/utils";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import { rollParsed } from "@/lib/dice/roller";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import type { DiscoveredMonster, PlayerVisibleMonster } from "@/types/monster.types";
 import AppButton from "@/components/common/controls/AppButton.vue";

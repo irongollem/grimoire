@@ -1,10 +1,10 @@
 import { computed, onBeforeUnmount, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { setNextRollMode } from "@/composables/dice/useNextRollMode";
+import { setNextRollMode } from "@/systems/dnd5e/dice/useNextRollMode";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollToastResult } from "@/components/common/feedback/RollToast.vue";
-import { combineModes, type RollMode } from "@/lib/dice/dice";
+import { combineModes, type RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { effectiveAbilityScores, savingThrowEntries } from "@/rules/characterChecks";
 import {
   getExhaustionD20Penalty,

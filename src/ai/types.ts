@@ -3,7 +3,7 @@ import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster
 import type { ProseStatBlockFields } from "@/rules/statBlock/structureStatBlock";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { SpellSchool } from "@/types/spell.types";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import type { TrapType, TrapTrigger, TrapResetType, TrapSaveType, DamageEntry } from "@/types/trap.types";
 import type { AiProvenance } from "@/ai/provenance";
 

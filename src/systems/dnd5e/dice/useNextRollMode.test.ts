@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   markRollModeHintSeen,
@@ -5,7 +6,7 @@ import {
   rollModeHintSeen,
   setNextRollMode,
   takeNextRollMode,
-} from "@/composables/dice/useNextRollMode";
+} from "./useNextRollMode";
 
 describe("next roll mode", () => {
   beforeEach(() => {

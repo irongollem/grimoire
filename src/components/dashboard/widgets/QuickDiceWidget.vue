@@ -14,7 +14,7 @@
         />
       </div>
 
-      <!-- Only d20 reads this (see quickDice.ts's advantageAppliesTo), but the
+      <!-- Only d20 reads this (see advantageAppliesTo in systems/dnd5e/dice/rollMode.ts), but the
            toggle stays visible rather than popping in/out around the row above
            — a control that appears and disappears as you click different dice
            reads as broken before it reads as smart. -->
@@ -75,7 +75,7 @@
  * session: one standard die, or a short damage/check expression they already
  * know by heart. Anything more elaborate is one click away in the sidebar.
  *
- * Every roll goes through `@/lib/dice/roller`, never `@/lib/dice/dice`
+ * Every roll goes through `@/lib/dice/roller` (or the 5e `rollDiceWithMode`), never `@/lib/dice/dice`
  * directly, so the dice sound and the future roll-history hook stay wired —
  * see that module's docstring. `quickDice.ts` holds everything that is pure:
  * the button list, the Advantage/Disadvantage-applies-to-d20 rule, expression
@@ -92,11 +92,12 @@ import SegmentedControl, { type SegmentedOption } from "@/components/common/cont
 import DiceResult from "@/components/common/dice/DiceResult.vue";
 import { IconDice } from "@/lib/icons";
 import { IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from "@/lib/dice/dieIcons";
-import { rollDice, rollParsed } from "@/lib/dice/roller";
-import type { DieSize, RollMode } from "@/lib/dice/dice";
+import { rollParsed } from "@/lib/dice/roller";
+import { rollDiceWithMode } from "@/systems/dnd5e/dice/roller";
+import type { DieSize } from "@/lib/dice/dice";
+import { effectiveMode, type RollMode } from "@/systems/dnd5e/dice/rollMode";
 import {
   QUICK_DICE_BUTTONS,
-  effectiveMode,
   checkQuickExpression,
   displayStandardRoll,
   displayExpressionRoll,
@@ -128,7 +129,7 @@ const expressionCheck = computed(() => checkQuickExpression(expression.value));
 
 function rollStandard(button: QuickDieButton) {
   const usedMode = effectiveMode(button.sides, mode.value);
-  const result = rollDice({ [button.sides]: 1 }, 0, usedMode);
+  const result = rollDiceWithMode({ [button.sides]: 1 }, 0, usedMode);
   display.value = displayStandardRoll(result);
 }
 

@@ -92,7 +92,8 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue';
 import { ALL_DICE } from '@/lib/dice/dice';
-import type { DieSize, RollMode } from '@/lib/dice/dice';
+import type { DieSize } from '@/lib/dice/dice';
+import type { RollMode } from '@/systems/dnd5e/dice/rollMode';
 import { IconAdd, IconMinus } from '@/lib/icons';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import AppInput from '@/components/common/controls/AppInput.vue';

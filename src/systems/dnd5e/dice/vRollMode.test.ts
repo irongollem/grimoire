@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick, ref, withDirectives } from "vue";
 import { mount } from "@vue/test-utils";
 import { vRollMode, type RollModeBinding } from "./vRollMode";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "./rollMode";
 
 const picker = vi.hoisted(() => ({ open: vi.fn() }));
-vi.mock("@/composables/dice/useRollModePicker", () => ({ openRollModePicker: picker.open }));
+vi.mock("./useRollModePicker", () => ({ openRollModePicker: picker.open }));
 
 function mountTrigger(enabled: ReturnType<typeof ref<boolean>>) {
   return mount(

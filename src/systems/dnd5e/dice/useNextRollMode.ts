@@ -1,7 +1,6 @@
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, readonly } from "vue";
-import type { RollMode } from "@/lib/dice/roller";
-import { combineModes } from "@/lib/dice/dice";
+import { combineModes, type RollMode } from "./rollMode";
 
 /**
  * The roll mode a player picked on the sheet for their NEXT d20 roll. One

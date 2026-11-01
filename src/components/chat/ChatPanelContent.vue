@@ -374,7 +374,8 @@ import type {
 } from "@/types/chat.types";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
-import type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
+import type { DieSize, RollResult } from "@/lib/dice/dice";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { COINS, toCP } from "@/rules/currency";
 import type { CoinKey } from "@/types/downtime.types";

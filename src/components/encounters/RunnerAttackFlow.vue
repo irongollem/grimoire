@@ -141,7 +141,7 @@ import type {
   ConcentrationCheck,
   DamageApplied,
 } from "@/composables/encounters/useActionResolution";
-import type { RollMode } from "@/lib/dice/dice";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { targetCandidates, withinFiveFeet } from "@/lib/encounters/actionTargeting";
 import { describeStructure } from "@/lib/statBlock/describeStructure";
 import { attackRollMode } from "@/rules/combat/attackRoll";

@@ -38,10 +38,10 @@ import {
   nextRollMode,
   rollModeHintSeen,
   setNextRollMode,
-} from "@/composables/dice/useNextRollMode";
+} from "@/systems/dnd5e/dice/useNextRollMode";
 import { disadvantageNote, type DisadvantageTarget } from "@/rules/rollModeNotes";
 import type { AppliedCondition } from "@/types/condition.types";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 
 const { conditions, shown } = defineProps<{
   conditions: AppliedCondition[];

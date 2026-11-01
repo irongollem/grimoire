@@ -1,11 +1,13 @@
 import { ref } from "vue";
-import { rollDice } from "@/lib/dice/roller";
+import { rollDiceWithMode } from "@/systems/dnd5e/dice/roller";
+import { withModeTag, type RollMode } from "@/systems/dnd5e/dice/rollMode";
+import { scoreRoll } from "@/systems/dnd5e/dice/d20Roll";
 import { playDiceRollSound } from "@/lib/dice/diceAudio";
-import type { DieSize, RollMode, RollResult, DieResult } from "@/lib/dice/dice";
+import type { DieSize, RollResult } from "@/lib/dice/dice";
 import { useDicePrefs } from "@/composables/dice/useDicePrefs";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import { takeNextRollMode } from "@/composables/dice/useNextRollMode";
+import { takeNextRollMode } from "@/systems/dnd5e/dice/useNextRollMode";
 
 export interface PromptedRollArgs {
   counts: Partial<Record<DieSize, number>>;
@@ -29,28 +31,6 @@ export interface PendingManualRoll {
 }
 
 const pending = ref<PendingManualRoll | null>(null);
-
-function buildLabel(
-  counts: Partial<Record<DieSize, number>>,
-  modifier: number,
-  mode: RollMode,
-  hasD20: boolean,
-): string {
-  const parts: string[] = [];
-  for (const sides of [4, 6, 8, 10, 12, 20, 100] as DieSize[]) {
-    const n = counts[sides] ?? 0;
-    if (n > 0) parts.push(`${n}d${sides}`);
-  }
-  if (modifier !== 0) parts.push(modifier > 0 ? `+${modifier}` : `${modifier}`);
-  const modeSuffix = hasD20 && mode !== "normal" ? ` (${mode === "advantage" ? "Adv" : "Dis"})` : "";
-  return parts.join("+") + modeSuffix;
-}
-
-/** The label with its "(Adv)" / "(Dis)" tag swapped for the mode actually rolled. */
-function withModeTag(label: string, mode: RollMode): string {
-  const bare = label.replace(/ \((Adv|Dis)\)$/, "");
-  return mode === "advantage" ? `${bare} (Adv)` : mode === "disadvantage" ? `${bare} (Dis)` : bare;
-}
 
 export function usePromptedRoll() {
   const { diceMode } = useDicePrefs();
@@ -83,7 +63,7 @@ export function usePromptedRoll() {
       if (result) playDiceRollSound(result.isCrit, isHidden ? false : result.isFumble);
     } else {
       // Mute automatic sound so we can control fumble suppression
-      result = rollDice(args.counts, args.modifier, mode, { mute: true });
+      result = rollDiceWithMode(args.counts, args.modifier, mode, { mute: true });
       if (result) playDiceRollSound(result.isCrit, isHidden ? false : result.isFumble);
     }
 
@@ -109,45 +89,8 @@ export function usePromptedRoll() {
       p.resolve(null);
       return;
     }
-    const breakdown: DieResult[] = [];
-    let sum = 0;
-    let isCrit = false;
-    let isFumble = false;
-
-    for (const sides of [4, 6, 8, 10, 12, 20, 100] as DieSize[]) {
-      const entered = values[sides] ?? [];
-      const need = p.counts[sides] ?? 0;
-      if (need === 0 || entered.length === 0) continue;
-
-      if (sides === 20 && need === 1 && p.mode !== "normal" && entered.length === 2) {
-        const [r1, r2] = entered;
-        const keep = p.mode === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
-        const drop = p.mode === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
-        breakdown.push({ val: keep, dropped: false });
-        breakdown.push({ val: drop, dropped: true });
-        sum += keep;
-        if (keep === 20) isCrit = true;
-        if (keep === 1) isFumble = true;
-      } else {
-        for (const val of entered) {
-          breakdown.push({ val, dropped: false });
-          sum += val;
-          if (sides === 20 && val === 20) isCrit = true;
-          if (sides === 20 && val === 1) isFumble = true;
-        }
-      }
-    }
-
-    const hasD20 = (p.counts[20] ?? 0) > 0;
-    const result: RollResult = {
-      total: sum + p.modifier,
-      label: buildLabel(p.counts, p.modifier, p.mode, hasD20),
-      modifier: p.modifier,
-      breakdown,
-      isCrit,
-      isFumble,
-      manual: true,
-    };
+    // A physical roll is scored by the same 5e rules as a digital one.
+    const result: RollResult = { ...scoreRoll(p.counts, p.modifier, p.mode, values), manual: true };
     p.resolve(result);
   }
 
