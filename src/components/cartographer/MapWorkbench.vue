@@ -1001,8 +1001,7 @@ const selectedDressingInfo = computed(() => {
   return { name: dressingCatalog.value.get(placement.prop_id)?.name ?? "Unknown prop", rotation: placement.rotation };
 });
 
-// A brushed cell under half covered has an area entry but no floor, so count both.
-const cellsPainted = computed(() => new Set([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]).size);
+const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 
 // Tools Alt inverts into an erase mirror — see useMapCanvasEditor.ts's
 // toolPointerDown/Move/Up. Select/Pan/Fill/Wrap/Annotate/Link/Eraser/Space
@@ -1111,7 +1110,7 @@ const { liningUp, draftCalibration, boxMode, pictureNatural, pictureStage, lineU
 // Drawing and Zoning open fitted to the whole map the first time each is entered (frame 18).
 useFitMapOnFirstEntry({
   activeLayer, picture: referencePicture, pictureNatural, fitCanvasTo, mapId: () => map?.id,
-  paintedBounds: () => boundsOfCells([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]),
+  paintedBounds: () => boundsOfCells(Object.keys(layers.value.floor)),
 });
 
 /** The Grid options' size read-out, once the base image has a grid of its own to read it from. */

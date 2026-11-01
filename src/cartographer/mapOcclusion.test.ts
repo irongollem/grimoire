@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { emptyLayers } from "@/types/dungeonMap.types";
-import { collectOcclusion, occlusionSegment } from "./mapOcclusion";
-import { applyDisc } from "./area";
+import { collectOcclusion, latticeOcclusionSegment } from "./mapOcclusion";
+import { brushDisc } from "@/test/brushDisc";
 import { putWall } from "./testWalls";
 import { clearLine, occluders } from "@/lib/battlemap/occlusion";
+import { cachedWallGeometry, wallIdOfPiece } from "./wallGeometry";
 
 const REF = { pack_id: "p", pack_version: 1, variant: 0 };
 
@@ -46,13 +47,13 @@ describe("collectOcclusion reads layers.walls (#1125 story 5)", () => {
     expect(walls).toEqual([]);
   });
 
-  it("names a lattice wall by the shifted edge key through occlusionSegment", () => {
-    expect(occlusionSegment("5,7:W", { ...REF, type: "wall", a: [5, 7], b: [5, 8] }, 1, 1).id).toBe("4,6:W");
+  it("names a lattice wall by the shifted edge key through latticeOcclusionSegment", () => {
+    expect(latticeOcclusionSegment("5,7:W", 1, 1).id).toBe("4,6:W");
   });
 });
 
-describe("a round brushed room stops light at its drawn curve (#1125)", () => {
-  const room = applyDisc(emptyLayers(), { x: 5, y: 5, r: 3 }, REF, "paint");
+describe("a round-brush room stops light at its drawn curve (#1125)", () => {
+  const room = brushDisc(emptyLayers(), { x: 5, y: 5, r: 3 }, REF);
   const occ = occluders(collectOcclusion(room, 0, 0));
   const lit = (angle: number, r: number): boolean => clearLine(occ, 5, 5, 5 + Math.cos(angle) * r, 5 + Math.sin(angle) * r);
 
@@ -64,9 +65,55 @@ describe("a round brushed room stops light at its drawn curve (#1125)", () => {
     for (let k = 0; k < 48; k++) expect(lit((k / 48) * Math.PI * 2, 2.6)).toBe(true);
   });
 
-  it("adds no lattice edges for the area: its blockers are the curve", () => {
+  it("blocks along the curve, not along lattice edges, with a few more pieces than the wall has nodes", () => {
     const { walls } = collectOcclusion(room, 0, 0);
-    expect(walls.length).toBeGreaterThan(40);
-    expect(walls.every((w) => w.id.startsWith("area:"))).toBe(true);
+    expect(walls.length).toBeGreaterThan(20);
+    expect(walls.every((w) => !/^-?\d+,-?\d+:[NW]$/.test(w.id))).toBe(true);
+  });
+});
+
+describe("collectOcclusion follows a curved wall (#1125, curved walls)", () => {
+  /** A flat wall and a wall going down meet at (4,0); the node is smooth, so the corner is cut by a curve. */
+  function corner(smooth: boolean) {
+    const layers = emptyLayers();
+    layers.walls.p = { ...REF, type: "wall", a: [0, 0], b: [4, 0], ...(smooth ? { smoothB: true as const } : {}) };
+    layers.walls.q = { ...REF, type: "wall", a: [4, 0], b: [4, 4], ...(smooth ? { smoothA: true as const } : {}) };
+    return layers;
+  }
+
+  it("blocks a ray that crosses the drawn curve where the chord is nowhere near", () => {
+    const smooth = corner(true);
+    // The drawn wall bows out of its chord x = 4; find where it bows furthest.
+    const curve = cachedWallGeometry(smooth.walls).lines.get("q")!.path;
+    const far = curve.reduce((best, pt) => (pt[0] > best[0] ? pt : best));
+    expect(far[0]).toBeGreaterThan(4.2);
+    // Start between the chord and the curve and look outwards: only the curve is in the way.
+    const from = { x: 4 + (far[0] - 4) * 0.5, y: far[1] };
+    const to = { x: far[0] + 1, y: far[1] };
+    expect(clearLine(occluders(collectOcclusion(corner(false), 0, 0)), from.x, from.y, to.x, to.y)).toBe(true);
+    expect(clearLine(occluders(collectOcclusion(smooth, 0, 0)), from.x, from.y, to.x, to.y)).toBe(false);
+  });
+
+  it("names each piece by its wall, so a piece resolves to the wall it came from", () => {
+    const { walls } = collectOcclusion(corner(true), 0, 0);
+    expect(walls.length).toBeGreaterThan(2);
+    expect(new Set(walls.map((w) => wallIdOfPiece(w.id)))).toEqual(new Set(["p", "q"]));
+    expect(new Set(walls.map((w) => w.id)).size).toBe(walls.length);
+  });
+
+  it("shifts every piece by the origin", () => {
+    const here = collectOcclusion(corner(true), 0, 0).walls;
+    const there = collectOcclusion(corner(true), 2, 3).walls;
+    there.forEach((w, i) => {
+      expect(w.a[0] + 2).toBeCloseTo(here[i].a[0]);
+      expect(w.a[1] + 3).toBeCloseTo(here[i].a[1]);
+    });
+  });
+
+  it("keeps a door one straight segment under its own id, even beside a curved wall", () => {
+    const layers = corner(true);
+    layers.walls.d = { ...REF, type: "doorClosed", a: [4, 4], b: [4, 6] };
+    const { doors } = collectOcclusion(layers, 0, 0);
+    expect(doors).toEqual([{ id: "d", a: [4, 4], b: [4, 6], open: false }]);
   });
 });

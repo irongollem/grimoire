@@ -30,7 +30,7 @@ export function isDrawn(wall: WallEdge | undefined): wall is WallEdge {
 
 /** The plain pack-edge data of a wall, without the geometry and visibility the segment graph adds. */
 export function edgeSegOf(wall: WallEdge): EdgeSeg {
-  const { a: _a, b: _b, visible: _visible, ...seg } = wall;
+  const { a: _a, b: _b, visible: _visible, smoothA: _smoothA, smoothB: _smoothB, ...seg } = wall;
   return seg;
 }
 

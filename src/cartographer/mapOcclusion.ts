@@ -2,10 +2,10 @@
 // illumination preview and the glow baked into the picture (map cells, origin 0). In its own module so drawMap can use
 // it without importing mapLive, which imports drawMap.
 
-import { areaWallSegments, cachedAreaLoops } from "@/cartographer/area";
 import type { CellKey, DungeonMapLayers, WallEdge } from "@/types/dungeonMap.types";
 import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 import { isLatticeKey } from "@/cartographer/wallGraph";
+import { cachedWallGeometry, type WallGeometry } from "@/cartographer/wallGeometry";
 
 export function toImageCell(key: CellKey, originCellX: number, originCellY: number): string {
   const [xs, ys] = key.split(",");
@@ -13,19 +13,33 @@ export function toImageCell(key: CellKey, originCellX: number, originCellY: numb
 }
 
 /**
- * One wall as the segment sight and light test, shifted by the origin. A lattice wall's id is its image-cell edge key,
- * which is what `door_states` and `location_doors.edge_key` already name a door by; an angled wall keeps its uuid.
+ * One lattice wall as the segment sight and light test, shifted by the origin. Its id is its image-cell edge key, which
+ * is what `door_states` and `location_doors.edge_key` already name a door by.
  */
-export function occlusionSegment(key: string, wall: WallEdge, originCellX: number, originCellY: number): WallSegment {
-  if (isLatticeKey(key)) {
-    const [cell, side] = key.split(":");
-    return latticeSegment(`${toImageCell(cell as CellKey, originCellX, originCellY)}:${side}`);
-  }
-  return {
-    id: key,
-    a: [wall.a[0] - originCellX, wall.a[1] - originCellY],
-    b: [wall.b[0] - originCellX, wall.b[1] - originCellY],
-  };
+export function latticeOcclusionSegment(key: string, originCellX: number, originCellY: number): WallSegment {
+  const [cell, side] = key.split(":");
+  return latticeSegment(`${toImageCell(cell as CellKey, originCellX, originCellY)}:${side}`);
+}
+
+/**
+ * The segments of one wall, shifted by the origin. A lattice wall is one segment named by its edge key; an angled wall
+ * is the pieces of its drawn line (several when it curves through a smooth node), each named by the wall's uuid plus a
+ * sub-index, so sight stops at the curve the player sees and not at its chord.
+ */
+export function occlusionSegments(
+  key: string,
+  wall: WallEdge,
+  geometry: WallGeometry,
+  originCellX: number,
+  originCellY: number,
+): WallSegment[] {
+  if (isLatticeKey(key)) return [latticeOcclusionSegment(key, originCellX, originCellY)];
+  const pieces = geometry.lines.get(key)?.pieces ?? [{ id: key, a: wall.a, b: wall.b }];
+  return pieces.map((p) => ({
+    id: p.id,
+    a: [p.a[0] - originCellX, p.a[1] - originCellY],
+    b: [p.b[0] - originCellX, p.b[1] - originCellY],
+  }));
 }
 
 /**
@@ -40,14 +54,14 @@ export function collectOcclusion(
 ): { walls: WallSegment[]; doors: (WallSegment & { open: boolean })[]; solid: string[] } {
   const walls: WallSegment[] = [];
   const doors: (WallSegment & { open: boolean })[] = [];
+  const geometry = cachedWallGeometry(layers.walls);
   for (const [key, wall] of Object.entries(layers.walls)) {
-    const segment = occlusionSegment(key, wall, originCellX, originCellY);
-    if (wall.type === "wall" || wall.type === "sluice") walls.push(segment);
-    else if (wall.type === "doorClosed") doors.push({ ...segment, open: false });
-    else if (wall.type === "doorOpen") doors.push({ ...segment, open: true });
+    const segments = occlusionSegments(key, wall, geometry, originCellX, originCellY);
+    if (wall.type === "wall" || wall.type === "sluice") walls.push(...segments);
+    // A door is never curved (a door end is a corner), so it is the one segment.
+    else if (wall.type === "doorClosed") doors.push({ ...segments[0], open: false });
+    else if (wall.type === "doorOpen") doors.push({ ...segments[0], open: true });
   }
-  // A brushed area's wall is the contour its art is drawn on, curved or not (one function for both, so they cannot drift).
-  walls.push(...areaWallSegments(cachedAreaLoops(layers), originCellX, originCellY));
   const solid = Object.keys(layers.solidBlock).map((key) => toImageCell(key as CellKey, originCellX, originCellY));
   return { walls, doors, solid };
 }

@@ -39,7 +39,7 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 
 | Tool | Key | What it does |
 | --- | --- | --- |
-| Brush | `V` | Drag to paint a round area of floor, not cell by cell. Hold Alt to erase; `[` and `]` shrink and grow the brush. |
+| Brush | `V` | Drag to paint a round room with its own smooth wall. A stroke that starts inside a room grows it; one on empty ground makes a new room. Hold Alt to carve floor out. `[` and `]` shrink and grow the brush. |
 | Tiles | `B` | Paints floor cells with a random variant from the active pack. |
 | Eraser | `E` | Removes floor, walls, and objects from a cell. |
 | Wall | `W` | Click a cell edge to place a wall; drag along multiple edges for a run. Shift+click a cell walls all 4 of its edges. The tool's options, at the top left of the map, pick what it places: **Wall**, **Grate**, **Sluice** or **Decal** (see Walls, grates and decals below). |
@@ -98,9 +98,16 @@ Click any wall with **Select** and its whole run is picked: every wall joined to
 - **Drag a node** and every wall meeting there follows. Drop it on another wall and it snaps on and joins it; a loop that closes fills with floor, and squares left outside lose theirs.
 - The floor follows the wall: where a wall runs at an angle, the floor is cut to its line, so no corner of a square pokes out past it and none is left bare under it.
 - **Double-click a wall** to put a node there, or drag the middle of a wall to do the same and bend it as you go.
+- **Double-click a node** to switch it between a **curve** (round handle: the wall bends smoothly through it) and a **corner** (square handle: a sharp angle). Walls you draw start with corners. A node where three walls meet, or where a door ends, stays a corner. Drag a curved node and the wall bends with it.
 - **Delete** on a node joins its two walls into one. Delete on a wall takes that wall away.
 - **Shift**-drag a wall to slide it sideways; **Shift** while dragging a node holds it to 45 degrees. **Alt** skips the grid. **Esc** lets go of a drag, and one gesture is one step in Undo.
 - Off the grid, tile walls become lines in the tile set's wall colour; back on the grid they are tiles again.
+
+## The round brush and walls
+
+The Brush never removes a wall. A stroke that starts inside a room grows that room: its wall moves out to the new edge, and the stroke stops at any other room's wall. To join two rooms, select the wall between them and press **Delete**. Hold **Alt** to carve floor out instead, and the room's wall follows the new edge. A stroke that starts on empty ground makes a new room with a wall of its own. The wall a round brush makes is smooth and has only a few nodes, so you can select it and drag a node like any other wall.
+
+Maps drawn with the older brush, which had no walls of its own, are converted the first time you open them: their round edges become walls and the floor stays where it was.
 
 ## Rooms are found on the Zoning tab
 

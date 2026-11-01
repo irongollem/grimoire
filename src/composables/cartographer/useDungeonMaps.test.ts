@@ -12,11 +12,12 @@ const { fake } = await vi.hoisted(async () => {
 const session = vi.hoisted(() => ({ user: { id: "u1" } as { id: string } | null }));
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
+import { applyDiscs, emptyLegacy } from "@/test/legacyArea";
 import { useCampaignStore } from "@/stores/campaign";
 import { flushPromises } from "@vue/test-utils";
 import { useCreateDungeonMap, useDeleteDungeonMap, useDungeonMap, useDungeonMaps, useUpdateDungeonMap } from "./useDungeonMaps";
 
-/** A row as an old build stored it on the device: no `terrain`, `dressing` or `area` layer. */
+/** A row as an old build stored it on the device: no `terrain` or `dressing` layer. */
 const legacyRow = {
   id: "m1",
   name: "Old crypt",
@@ -46,7 +47,6 @@ describe("useDungeonMaps", () => {
   it("fills missing layers on data that did not come through the fetch", () => {
     const { data } = mountWith((c) => c.setQueryData(["dungeon_maps"], [legacyRow]), useDungeonMaps);
     const [map] = data.value as DungeonMap[];
-    expect(map.layers.area).toEqual({});
     expect(map.layers.terrain).toEqual({});
     expect(map.layers.floor).toEqual({ "1,1": "stone" });
   });
@@ -84,7 +84,7 @@ describe("dungeon map writes", () => {
       useCampaignStore().activeCampaignId = "camp-a";
       return useCreateDungeonMap();
     }).mutateAsync({ name: "Crypt" });
-    expect(created.layers.area).toEqual({});
+    expect(created.layers.terrain).toEqual({});
     expect(fake.rows("dungeon_maps")).toMatchObject([{ name: "Crypt", user_id: "u1", campaign_id: null, darkness: "daylight" }]);
   });
 
@@ -113,5 +113,46 @@ describe("dungeon map writes", () => {
     const listed = run(() => useDungeonMaps()) as unknown as ReturnType<typeof useDungeonMaps>;
     await flushPromises();
     expect(listed.data.value?.map((m) => m.id)).toEqual(["new", "old"]);
+  });
+});
+
+// The round brush used to store coverage masks in `layers.area` (#1125 retired it). A row saved that way is made into
+// walls the first time it is read, and written back once so the new wall ids are the ones every later read sees.
+describe("a map saved with brushed coverage", () => {
+  const ref = { pack_id: "p", pack_version: 1, variant: 0 };
+  const run = <T,>(use: () => T): T => mountWith(() => undefined, use as () => { data: { value: unknown } }) as unknown as T;
+  const brushedRow = (user: string) => ({
+    id: "m1",
+    user_id: user,
+    name: "Chapel",
+    campaign_id: null,
+    layers: applyDiscs(emptyLegacy(), [{ x: 6, y: 6, r: 3 }], ref, "paint"),
+  });
+
+  it("comes back as walls with no area, and the first read writes that back, so the wall ids stay the same", async () => {
+    fake.seed("dungeon_maps", [brushedRow("u1")]);
+    const first = run(() => useDungeonMap("m1")) as unknown as ReturnType<typeof useDungeonMap>;
+    await flushPromises();
+    const read = first.data.value as DungeonMap;
+    expect("area" in read.layers).toBe(false);
+    expect(Object.keys(read.layers.walls).length).toBeGreaterThan(0);
+    const stored = fake.rows("dungeon_maps")[0].layers as Record<string, unknown>;
+    expect("area" in stored).toBe(false);
+    expect(Object.keys(stored.walls as object).sort()).toEqual(Object.keys(read.layers.walls).sort());
+
+    // A second read finds nothing left to convert: same ids, and no second write.
+    const writes = fake.calls.filter((c) => JSON.stringify(c).includes("update")).length;
+    const second = run(() => useDungeonMap("m1")) as unknown as ReturnType<typeof useDungeonMap>;
+    await flushPromises();
+    expect(Object.keys((second.data.value as DungeonMap).layers.walls).sort()).toEqual(Object.keys(read.layers.walls).sort());
+    expect(fake.calls.filter((c) => JSON.stringify(c).includes("update")).length).toBe(writes);
+  });
+
+  it("converts another account's map in memory only, and never writes a row it does not own", async () => {
+    fake.seed("dungeon_maps", [brushedRow("someone-else")]);
+    const q = run(() => useDungeonMap("m1")) as unknown as ReturnType<typeof useDungeonMap>;
+    await flushPromises();
+    expect("area" in (q.data.value as DungeonMap).layers).toBe(false);
+    expect("area" in (fake.rows("dungeon_maps")[0].layers as object)).toBe(true);
   });
 });

@@ -7,8 +7,9 @@
 
 import { computed, ref, shallowRef } from "vue";
 import type { CellKey, DungeonMapLayers, PackRef, WallEdge } from "@/types/dungeonMap.types";
-import { moveBone, moveNode, removeNode, deleteBone, splitAt, type EditOptions, type EditRefusal } from "@/cartographer/wallEdit/edit";
-import { buildGraph, nodePos, runAt, type GraphNode, type Run, type WallGraph, type WallMap } from "@/cartographer/wallEdit/graph";
+import { moveBone, moveNode, removeNode, deleteBone, splitAt, toggleSmooth, type EditOptions, type EditRefusal } from "@/cartographer/wallEdit/edit";
+import { buildGraph, nearestOnPath, nodePos, runAt, type GraphNode, type Run, type WallGraph, type WallMap } from "@/cartographer/wallEdit/graph";
+import { wallsAsPieces } from "@/cartographer/wallGeometry";
 import { detectRooms, floorChange } from "@/cartographer/wallEdit/rooms";
 import { snapNode, type SnapTarget } from "@/cartographer/wallEdit/snap";
 import { clean, nodeIdOf, type Pt } from "@/cartographer/wallEdit/geometry";
@@ -63,10 +64,9 @@ const isDoor = (w: WallEdge): boolean => w.type === "doorClosed" || w.type === "
 const DRAG_START = 0.05;
 const GRID_STEP = 0.5;
 
-/** The floor and area changes of a commit applied to the layers; the caller's undo step stores the result. */
+/** The floor changes of a commit applied to the layers; the caller's undo step stores the result. */
 export function applyWallCommit(layers: DungeonMapLayers, change: WallNodeCommit): DungeonMapLayers {
   const floor = { ...layers.floor };
-  const area = { ...layers.area };
   const ref: PackRef = { pack_id: change.pack.packId, pack_version: change.pack.packVersion, variant: change.pack.variant };
   for (const key of change.addFloor) {
     // Floor already laid there (a different pack, a hand-painted square) stays as it is.
@@ -74,9 +74,8 @@ export function applyWallCommit(layers: DungeonMapLayers, change: WallNodeCommit
   }
   for (const key of change.removeFloor) {
     delete floor[key];
-    delete area[key];
   }
-  return { ...layers, floor, area, walls: change.walls };
+  return { ...layers, floor, walls: change.walls };
 }
 
 type Drag =
@@ -297,7 +296,8 @@ export function useWallNodeEdit(opts: WallNodeEditOptions) {
   }
 
   function emit(base: WallMap, next: WallMap): void {
-    const change = floorChange(detectRooms(buildGraph(base)), detectRooms(buildGraph(next)));
+    // Rooms are found on the drawn lines, so a curved wall takes the floor with it.
+    const change = floorChange(detectRooms(buildGraph(wallsAsPieces(base))), detectRooms(buildGraph(wallsAsPieces(next))));
     opts.commit({ walls: next, addFloor: change.add, removeFloor: change.remove, pack: opts.pack() });
   }
 
@@ -353,12 +353,44 @@ export function useWallNodeEdit(opts: WallNodeEditOptions) {
     return false;
   }
 
+  /** Double-click on a node switches it between a smooth curve and a corner; one undo step. */
+  function toggleNode(base: WallMap, nodeId: string): boolean {
+    const res = toggleSmooth(base, nodeId);
+    if (!res.ok) {
+      refusal.value = res.reason;
+      return false;
+    }
+    refusal.value = null;
+    // A corner on a straight stretch leaves no trace in the walls, so it is carried to stay a node on screen.
+    kept.value = new Set([...kept.value, nodeId]);
+    focus.value = { kind: "node", id: nodeId };
+    emit(base, res.walls);
+    return true;
+  }
+
+  /** Double-click: on a node, switch it between curve and corner; on a wall away from the nodes, add a node there. */
   function doubleClick(point: Pt): boolean {
     if (!hasSelection.value && !select(point)) return false;
     const base = currentWalls();
     const g = graphOf(base);
+    const nodeId = nodeAt(g, point);
+    if (nodeId) return toggleNode(base, nodeId);
     const run = boneAt(g, point);
     if (!run) return false;
+    const at = run.path ? nearestOnPath(point, run.path).foot : onStraightRun(g, run, point);
+    const res = splitAt(base, run.id, at, editOpts(kept.value));
+    if (!res.ok || !res.node) return false;
+    kept.value = new Set([...kept.value, res.node]);
+    focus.value = { kind: "node", id: res.node };
+    // A node on a wall that is already one changes no walls; nothing to record.
+    if (Object.keys(res.walls).some((k) => res.walls[k] !== base[k]) || Object.keys(base).length !== Object.keys(res.walls).length) {
+      opts.commit({ walls: res.walls, addFloor: [], removeFloor: [], pack: opts.pack() });
+    }
+    return true;
+  }
+
+  /** Where a new node goes on a straight run: the half cell along it nearest the click, else the click's foot. */
+  function onStraightRun(g: WallGraph, run: Run, point: Pt): [number, number] {
     const a = nodePos(g, run.a);
     const b = nodePos(g, run.b);
     const dx = b[0] - a[0];
@@ -371,16 +403,7 @@ export function useWallNodeEdit(opts: WallNodeEditOptions) {
     const snapped = Math.round((t * along) / GRID_STEP) * GRID_STEP;
     const onHalf = snapped / along;
     const cand: [number, number] = [a[0] + dx * onHalf, a[1] + dy * onHalf];
-    const at = Math.hypot(cand[0] - foot[0], cand[1] - foot[1]) <= opts.hitTolerance() ? cand : foot;
-    const res = splitAt(base, run.id, at, editOpts(kept.value));
-    if (!res.ok || !res.node) return false;
-    kept.value = new Set([...kept.value, res.node]);
-    focus.value = { kind: "node", id: res.node };
-    // A node on a wall that is already one changes no walls; nothing to record.
-    if (Object.keys(res.walls).some((k) => res.walls[k] !== base[k]) || Object.keys(base).length !== Object.keys(res.walls).length) {
-      opts.commit({ walls: res.walls, addFloor: [], removeFloor: [], pack: opts.pack() });
-    }
-    return true;
+    return Math.hypot(cand[0] - foot[0], cand[1] - foot[1]) <= opts.hitTolerance() ? cand : foot;
   }
 
   /** Del: on a node its two bones become one wall; on a bone that wall goes. Returns whether anything changed. */

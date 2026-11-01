@@ -5,17 +5,20 @@
 // along square edges is covered by whole squares exactly, and keeps being drawn that way by `paintGround`. For the
 // others every square the outline touches is laid and clipped to the outline, so the floor meets the wall along its
 // line: nothing pokes past it, and a square whose middle fell just outside still shows its inside part, borrowing the
-// tile of the room's floor next to it. Brushed rooms are `drawArea.ts`'s and are left alone.
+// tile of the room's floor next to it.
 
 import type { CellKey, DungeonMapLayers } from "@/types/dungeonMap.types";
 import { cellKey, parseCellKey } from "@/types/dungeonMap.types";
 import type { GridPoint } from "@/types/locationMapRegion.types";
 import { pointInRing } from "@/lib/locations/polygon";
 import type { Frame, Target } from "./drawFrame";
-import type { VariantAt } from "./drawArea";
+import type { PackCategory } from "./packSchema";
+import type { TilePackRuntime } from "./packLoader";
 import { crossesSquare, findFaces, type FoundFace } from "./roomOutline";
 import { projectOnSegment } from "./wallEdit/geometry";
 import { isLatticeKey } from "./wallGraph";
+
+export type VariantAt = (r: TilePackRuntime, category: PackCategory, x: number, y: number, stored: number) => number;
 
 export interface ClippedRoom {
   outline: GridPoint[];
@@ -54,11 +57,11 @@ function isOpenFloor(layers: DungeonMapLayers, key: CellKey): boolean {
 }
 
 function build(layers: DungeonMapLayers): ClippedGround {
-  // Only an angled wall makes an outline that leaves the grid (a brushed curve is the area painter's).
+  // Only an angled wall makes an outline that leaves the grid.
   if (!Object.keys(layers.walls).some((k) => !isLatticeKey(k))) return NONE;
 
   const all = findFaces(layers);
-  const faces = all.filter((f) => !runsAlongSquares(f.outline) && f.cells.some((k) => layers.area[k] === undefined));
+  const faces = all.filter((f) => !runsAlongSquares(f.outline) && f.cells.length > 0);
   if (faces.length === 0) return NONE;
 
   const owner = new Map<CellKey, FoundFace>();
@@ -69,7 +72,6 @@ function build(layers: DungeonMapLayers): ClippedGround {
   for (const face of faces) {
     const squares = new Map<CellKey, ClippedRoom["squares"][number]>();
     for (const k of face.cells) {
-      if (layers.area[k] !== undefined) continue;
       const [x, y] = parseCellKey(k);
       squares.set(k, { x, y, borrow: null });
     }
@@ -81,7 +83,7 @@ function build(layers: DungeonMapLayers): ClippedGround {
       for (let y = Math.floor(Math.min(a[1], b[1])); y <= Math.floor(Math.max(a[1], b[1])); y++) {
         for (let x = Math.floor(Math.min(a[0], b[0])); x <= Math.floor(Math.max(a[0], b[0])); x++) {
           const k = cellKey(x, y);
-          if (squares.has(k) || layers.area[k] !== undefined || layers.solidBlock[k]) continue;
+          if (squares.has(k) || layers.solidBlock[k]) continue;
           if (!crossesSquare(a, b, x, y)) continue;
           // A square another room owns is that room's to draw.
           if (owner.has(k) && owner.get(k) !== face) continue;
@@ -108,15 +110,15 @@ function build(layers: DungeonMapLayers): ClippedGround {
   return { rooms, handled };
 }
 
-type Cached = { floor: unknown; area: unknown; solidBlock: unknown; ground: ClippedGround };
+type Cached = { floor: unknown; solidBlock: unknown; ground: ClippedGround };
 const cache = new WeakMap<object, Cached>();
 
 /** The clipped rooms of a drawing, kept per `layers.walls` (the editor redraws on every pointer move). */
 export function cachedClippedGround(layers: DungeonMapLayers): ClippedGround {
   const hit = cache.get(layers.walls);
-  if (hit && hit.floor === layers.floor && hit.area === layers.area && hit.solidBlock === layers.solidBlock) return hit.ground;
+  if (hit && hit.floor === layers.floor && hit.solidBlock === layers.solidBlock) return hit.ground;
   const ground = build(layers);
-  cache.set(layers.walls, { floor: layers.floor, area: layers.area, solidBlock: layers.solidBlock, ground });
+  cache.set(layers.walls, { floor: layers.floor, solidBlock: layers.solidBlock, ground });
   return ground;
 }
 

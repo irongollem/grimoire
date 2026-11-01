@@ -11,7 +11,7 @@
     />
     <span class="basis-full text-caption-sm text-muted-foreground">
       <template v-if="refusal">{{ refusal }}</template>
-      <template v-else>Drag a node to move it. Double-click a wall to add one. Shift slides a wall or holds 45°, Alt skips the grid.</template>
+      <template v-else>Drag a node to move it. Double-click a wall to add a node, a node to switch it between curve and corner. Shift slides a wall or holds 45°, Alt skips the grid.</template>
     </span>
   </div>
 </template>
@@ -46,6 +46,7 @@ const REFUSALS: Record<EditRefusal, string> = {
   "not-two-bones": "A node joins two walls only where exactly two meet. Delete a wall to take it away.",
   "at-end": "That is the end of the wall already.",
   "off-run": "That is not on the wall.",
+  "not-smoothable": "A wall curves through a node only where exactly two plain walls meet. Doors, grid walls, junctions and ends stay corners.",
 };
 const refusal = computed(() => (refusalReason ? REFUSALS[refusalReason] : null));
 </script>

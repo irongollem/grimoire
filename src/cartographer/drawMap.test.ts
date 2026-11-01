@@ -805,13 +805,18 @@ describe("angled and hidden walls", () => {
     expect(rec.calls).not.toContain("setLineDash");
   });
 
-  it("strokes an angled wall as a line between its end points, in the pack's wall tone", () => {
+  it("strokes an angled wall without wall art as a band along its line, capped half a band past each end, in the pack's wall tone", () => {
     const layers = emptyLayers();
     layers.walls.slant = { ...ref, type: "wall", a: [1, 1], b: [3, 2] };
     const rt = makeRuntime(PACK, { palette: { wallSegmentH: [7, 8, 9] } });
     const { input: i, rec } = input(rt, { layers });
     drawMapContent(i);
-    expect(rec.points).toEqual([[128, 128], [384, 256]]);
+    // A band is a quarter of a tile (app convention, WALL_BAND_RATIO): 32px at 128px a tile, so the caps reach 16px.
+    const cap = 16 / Math.hypot(2, 1);
+    expect(rec.points[0][0]).toBeCloseTo(128 - 2 * cap);
+    expect(rec.points[0][1]).toBeCloseTo(128 - cap);
+    expect(rec.points[1][0]).toBeCloseTo(384 + 2 * cap);
+    expect(rec.points[1][1]).toBeCloseTo(256 + cap);
     expect(rec.strokeStyles).toContain("rgb(7,8,9)");
     expect(cats(rec)).toEqual([]); // no edge tile: art is one tile per grid edge
   });
@@ -883,5 +888,83 @@ describe("angled and hidden walls", () => {
     const { input: i } = input(makeRuntime(PACK), { layers, shadows: true, showHiddenWalls: true, makeCanvas: f.makeCanvas });
     renderShadowLayer(i);
     for (const layer of f.layers) expect(layer.rec.calls).not.toContain("setLineDash");
+  });
+});
+
+describe("angled walls get the wall texture (#1125, curved walls)", () => {
+  const art = () => makeRuntime(PACK, { categoryCounts: { wallSegmentH: 1 } });
+  /** Slices of the wall art bent onto a line (the nine-argument drawImage); a grid edge's tile is drawn whole. */
+  const slices = (rec: Recorder) => rec.drawImages.filter((d) => d.src !== undefined && sourceOf(d)?.category === "wallSegmentH");
+
+  it("draws a plain angled wall with the pack's wall art, where it used to be a bare line", () => {
+    const layers = emptyLayers();
+    layers.walls.slant = { ...ref, type: "wall", a: [1, 1], b: [3, 2] };
+    const { input: i, rec } = input(art(), { layers });
+    drawMapContent(i);
+    expect(slices(rec).length).toBeGreaterThan(0);
+  });
+
+  it("draws a curved wall as more slices than the same wall straight, and the slices follow the curve", () => {
+    const flat = emptyLayers();
+    flat.walls.p = { ...ref, type: "wall", a: [1, 1], b: [4, 1] };
+    flat.walls.q = { ...ref, type: "wall", a: [4, 1], b: [4, 4] };
+    const bent = emptyLayers();
+    bent.walls.p = { ...flat.walls.p, smoothB: true };
+    bent.walls.q = { ...flat.walls.q, smoothA: true };
+    const straight = input(art(), { layers: flat });
+    drawMapContent(straight.input);
+    const curved = input(art(), { layers: bent });
+    drawMapContent(curved.input);
+    expect(slices(curved.rec).length).toBeGreaterThan(slices(straight.rec).length);
+    // Slices are rotated onto their piece: a straight wall turns only for its own two directions, a curve for many.
+    expect(new Set(curved.rec.rotates.map((r) => r.toFixed(2))).size).toBeGreaterThan(new Set(straight.rec.rotates.map((r) => r.toFixed(2))).size);
+  });
+
+  it("carries the texture on from one piece of a curve to the next instead of restarting each", () => {
+    const layers = emptyLayers();
+    layers.walls.p = { ...ref, type: "wall", a: [1, 1], b: [4, 1], smoothB: true };
+    layers.walls.q = { ...ref, type: "wall", a: [4, 1], b: [4, 4], smoothA: true };
+    const { input: i, rec } = input(art(), { layers });
+    drawMapContent(i);
+    const starts = slices(rec).map((d) => d.src!.x);
+    // A ribbon that restarted at every piece would begin each slice at the same place in the tile.
+    expect(new Set(starts.map((x) => Math.round(x))).size).toBeGreaterThan(3);
+  });
+
+  it("leaves grid walls to their edge tiles: no bent slices for them", () => {
+    const layers = emptyLayers();
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+    const { input: i, rec } = input(art(), { layers });
+    drawMapContent(i);
+    expect(slices(rec)).toHaveLength(0);
+    expect(cats(rec)).toContain("wallSegmentH");
+  });
+
+  it("draws a pack with only placeholder wall art as a band in its tone, as before", () => {
+    const layers = emptyLayers();
+    layers.walls.slant = { ...ref, type: "wall", a: [1, 1], b: [3, 2] };
+    const rt = makeRuntime(PACK, { categoryCounts: { wallSegmentH: 1 }, placeholders: ["wallSegmentH"], palette: { wallSegmentH: [7, 8, 9] } });
+    const { input: i, rec } = input(rt, { layers });
+    drawMapContent(i);
+    expect(slices(rec)).toHaveLength(0);
+    expect(rec.strokeStyles).toContain("rgb(7,8,9)");
+  });
+
+  it("puts the textured angled wall in the shadow silhouette, so it throws the shadow a grid wall does", () => {
+    const layers = emptyLayers();
+    layers.walls.slant = { ...ref, type: "wall", a: [1, 1], b: [3, 2] };
+    const f = makeLayerFactory();
+    const { input: i } = input(art(), { layers, shadows: true, makeCanvas: f.makeCanvas });
+    renderShadowLayer(i);
+    expect(f.layers.some((l) => l.rec.drawImages.some((d) => d.src !== undefined))).toBe(true);
+  });
+
+  it("keeps a door on an angled wall as posts and a leaf, with no ribbon", () => {
+    const layers = emptyLayers();
+    layers.walls.door = { ...ref, type: "doorClosed", a: [1, 1], b: [2, 2] };
+    const { input: i, rec } = input(art(), { layers });
+    drawMapContent(i);
+    expect(slices(rec)).toHaveLength(0);
+    expect(rec.fillRects).toHaveLength(1);
   });
 });

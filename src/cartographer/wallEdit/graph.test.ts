@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGraph, runAt, type WallMap } from "./graph";
+import { cachedWallGeometry } from "@/cartographer/wallGeometry";
 import { angled, lattice, rect } from "./fixtures.test-helpers";
 
 describe("runs", () => {
@@ -76,5 +77,42 @@ describe("runAt", () => {
   it("picks the nearer of two runs near a corner", () => {
     expect(runAt(g, [0.1, 0.15], 0.25)!.run.id).toBe("0,0>0,3");
     expect(runAt(g, [0.15, 0.1], 0.25)!.run.id).toBe("0,0>4,0");
+  });
+});
+
+describe("curved runs", () => {
+  function bowed(): WallMap {
+    const walls: WallMap = {};
+    angled(walls, "p", [0, 0], [4, 0], { smoothB: true });
+    angled(walls, "q", [4, 0], [4, 4], { smoothA: true });
+    return walls;
+  }
+
+  it("a smooth node ends a run even where the two walls are in line", () => {
+    const walls: WallMap = {};
+    angled(walls, "h1", [0, 0], [2, 0], { smoothB: true });
+    angled(walls, "h2", [2, 0], [4, 0], { smoothA: true });
+    const g = buildGraph(walls);
+    expect(g.runs).toHaveLength(2);
+    expect(g.nodes.get("2,0")!.smooth).toBe(true);
+  });
+
+  it("a curved run is hit along its drawn curve and missed along its chord", () => {
+    const walls = bowed();
+    const g = buildGraph(walls);
+    const path = cachedWallGeometry(walls).lines.get("q")!.path;
+    const far = path.reduce((best, pt) => (pt[0] > best[0] ? pt : best));
+    expect(far[0]).toBeGreaterThan(4.25);
+    expect(runAt(g, far, 0.1)?.run.id).toBe("4,0>4,4");
+    // On the chord, halfway down, nothing is drawn (the curve bows 0.3 away): a click there picks nothing.
+    expect(runAt(g, [4, 2], 0.1)).toBeUndefined();
+  });
+
+  it("a straight run keeps no path, so a lattice wall is hit exactly as before", () => {
+    const walls: WallMap = {};
+    lattice(walls, 0, 0, 4, 0);
+    const [run] = buildGraph(walls).runs;
+    expect(run.path).toBeUndefined();
+    expect(runAt(buildGraph(walls), [2, 0.05], 0.1)?.run.id).toBe(run.id);
   });
 });

@@ -11,7 +11,7 @@ import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/carto
 import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
 import { gatherLightSources } from "@/cartographer/drawLights";
 import { doorLeafArt } from "@/cartographer/doorLeaf";
-import { collectOcclusion, occlusionSegment, toImageCell } from "@/cartographer/mapOcclusion";
+import { collectOcclusion, latticeOcclusionSegment, toImageCell } from "@/cartographer/mapOcclusion";
 import { edgeSegOf, isLatticeKey } from "@/cartographer/wallGraph";
 import { cellKey } from "@/types/dungeonMap.types";
 import type { WallSegment } from "@/lib/battlemap/walls";
@@ -104,7 +104,7 @@ function gatherDoors(
   for (const [key, wall] of Object.entries(map.layers.walls)) {
     // An angled door has no leaf the live layer can turn to its line, so the bake keeps drawing it.
     if (!isLatticeKey(key)) continue;
-    leaves.set(occlusionSegment(key, wall, originCellX, originCellY).id, doorLeafArt(edgeSegOf(wall), runtimes.get(wall.pack_id) ?? null));
+    leaves.set(latticeOcclusionSegment(key, originCellX, originCellY).id, doorLeafArt(edgeSegOf(wall), runtimes.get(wall.pack_id) ?? null));
   }
   return doors.map((door) => ({ ...toMapLiveWall(door), open: door.open, leaf: leaves.get(door.id) ?? null }));
 }

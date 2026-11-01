@@ -4,8 +4,14 @@
 
 import type { WallEdge } from "@/types/dungeonMap.types";
 import { dist, nodeIdOf, projectOnSegment, WELD, type Pt } from "./geometry";
+import { cachedWallGeometry, type WallMap } from "@/cartographer/wallGeometry";
 
-export type WallMap = Record<string, WallEdge>;
+export type { WallMap };
+
+/** Whether `wall` asks to curve through its end that sits at `node`. */
+export function flagAt(wall: WallEdge, node: string): boolean {
+  return (nodeIdOf(wall.a) === node ? wall.smoothA : wall.smoothB) === true;
+}
 
 export interface GraphNode {
   /** The cleaned position, `"x,y"`. */
@@ -14,6 +20,8 @@ export interface GraphNode {
   y: number;
   /** Keys of the segments ending here. */
   segs: string[];
+  /** The wall curves through this node: exactly two angled walls meet here and both ask for it. */
+  smooth: boolean;
 }
 
 export interface GraphSeg {
@@ -41,6 +49,10 @@ export interface Run {
   length: number;
   /** Wall and door segments in order along the run. */
   segments: RunSegment[];
+  /** Whether the walls at the run's ends ask to curve through them (kept through every edit that re-lays the run). */
+  smoothEnds: { a: boolean; b: boolean };
+  /** The line as drawn, from `a` to `b`, when it is curved; a straight run has none (its line is `a` to `b`). */
+  path?: [number, number][];
 }
 
 export interface WallGraph {
@@ -59,7 +71,26 @@ export interface GraphOptions {
   breakAt?: ReadonlySet<string>;
 }
 
+/** The drawn line of a run when any of its walls is curved, oriented from the run's `a`. */
+function pathOf(
+  segments: readonly RunSegment[],
+  start: GraphNode,
+  geometry: ReturnType<typeof cachedWallGeometry>,
+): { path?: [number, number][] } {
+  if (!segments.some((s) => (geometry.lines.get(s.key)?.pieces.length ?? 1) > 1)) return {};
+  const path: [number, number][] = [[start.x, start.y]];
+  for (const s of segments) {
+    const pieces = geometry.lines.get(s.key)?.pieces;
+    const line: [number, number][] = pieces ? [pieces[0].a, ...pieces.map((p) => p.b)] : [s.wall.a, s.wall.b];
+    const here = path[path.length - 1];
+    if (dist(line[0], here) > dist(line[line.length - 1], here)) line.reverse();
+    path.push(...line.slice(1));
+  }
+  return { path };
+}
+
 export function buildGraph(walls: WallMap, opts: GraphOptions = {}): WallGraph {
+  const geometry = cachedWallGeometry(walls);
   const nodes = new Map<string, GraphNode>();
   const segs = new Map<string, GraphSeg>();
   const node = (p: Pt): GraphNode => {
@@ -67,7 +98,7 @@ export function buildGraph(walls: WallMap, opts: GraphOptions = {}): WallGraph {
     let n = nodes.get(id);
     if (!n) {
       const [x, y] = id.split(",").map(Number);
-      n = { id, x, y, segs: [] };
+      n = { id, x, y, segs: [], smooth: false };
       nodes.set(id, n);
     }
     return n;
@@ -81,6 +112,11 @@ export function buildGraph(walls: WallMap, opts: GraphOptions = {}): WallGraph {
     to.segs.push(key);
   }
 
+  for (const id of geometry.smooth) {
+    const n = nodes.get(id);
+    if (n) n.smooth = true;
+  }
+
   const dir = (s: GraphSeg, fromNode: string): [number, number] => {
     const f = nodes.get(fromNode)!;
     const t = nodes.get(fromNode === s.from ? s.to : s.from)!;
@@ -90,7 +126,7 @@ export function buildGraph(walls: WallMap, opts: GraphOptions = {}): WallGraph {
   /** The segment continuing straight on through `at` after `via`, if `at` is a plain degree-2 straight point. */
   const continuation = (via: GraphSeg, at: string): GraphSeg | undefined => {
     const n = nodes.get(at)!;
-    if (n.segs.length !== 2 || opts.breakAt?.has(at)) return undefined;
+    if (n.segs.length !== 2 || n.smooth || opts.breakAt?.has(at)) return undefined;
     const other = segs.get(n.segs[0] === via.key ? n.segs[1] : n.segs[0])!;
     const d1 = dir(via, at === via.to ? via.from : via.to); // heading into `at`
     const d2 = dir(other, at);
@@ -144,7 +180,11 @@ export function buildGraph(walls: WallMap, opts: GraphOptions = {}): WallGraph {
     });
     segments.sort((p, q) => p.t0 - q.t0);
     const id = `${startId}>${endId}`;
-    runs.push({ id, a: startId, b: endId, length, segments });
+    const smoothEnds = {
+      a: flagAt(segments[0].wall, startId),
+      b: flagAt(segments[segments.length - 1].wall, endId),
+    };
+    runs.push({ id, a: startId, b: endId, length, segments, smoothEnds, ...pathOf(segments, a, geometry) });
     for (const s of segments) runOf.set(s.key, id);
   }
   return { nodes, segs, runs, runOf };
@@ -158,13 +198,32 @@ export interface RunHit {
   dist: number;
 }
 
-/** The run nearest to `point` within `tol` cells, with where along it the point falls. */
+/** The line of a run as drawn: its curve when it has one, else the straight line between its ends. */
+export function runLine(graph: WallGraph, run: Run): [number, number][] {
+  if (run.path) return run.path;
+  const a = graph.nodes.get(run.a)!;
+  const b = graph.nodes.get(run.b)!;
+  return [[a.x, a.y], [b.x, b.y]];
+}
+
+/** The nearest point of a polyline to `point`, and how far along it (0..1 of its length) that point is. */
+export function nearestOnPath(point: Pt, path: readonly Pt[]): { foot: [number, number]; dist: number; t: number } {
+  let best = { foot: [path[0][0], path[0][1]] as [number, number], dist: Infinity, at: 0 };
+  let walked = 0;
+  for (let i = 0; i + 1 < path.length; i++) {
+    const hit = projectOnSegment(point, path[i], path[i + 1]);
+    const len = dist(path[i], path[i + 1]);
+    if (hit.dist < best.dist) best = { foot: hit.foot, dist: hit.dist, at: walked + hit.t * len };
+    walked += len;
+  }
+  return { foot: best.foot, dist: best.dist, t: walked === 0 ? 0 : best.at / walked };
+}
+
+/** The run nearest to `point` within `tol` cells, with where along it the point falls. A curved run is hit along its curve. */
 export function runAt(graph: WallGraph, point: Pt, tol: number): RunHit | undefined {
   let best: RunHit | undefined;
   for (const run of graph.runs) {
-    const a = graph.nodes.get(run.a)!;
-    const b = graph.nodes.get(run.b)!;
-    const hit = projectOnSegment(point, [a.x, a.y], [b.x, b.y]);
+    const hit = nearestOnPath(point, runLine(graph, run));
     if (hit.dist <= tol + WELD && (!best || hit.dist < best.dist)) best = { run, t: hit.t, foot: hit.foot, dist: hit.dist };
   }
   return best;

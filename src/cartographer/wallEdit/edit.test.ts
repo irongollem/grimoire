@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { deleteBone, moveBone, moveNode, moveNodes, removeNode, splitAt, type EditResult } from "./edit";
+import { deleteBone, moveBone, moveNode, moveNodes, removeNode, splitAt, toggleSmooth, type EditResult } from "./edit";
 import { buildGraph, type WallMap } from "./graph";
+import { cachedWallGeometry, smoothNodeIds } from "@/cartographer/wallGeometry";
 import { detectRooms } from "./rooms";
 import { angled, counter, lattice, rect } from "./fixtures.test-helpers";
 
@@ -272,5 +273,134 @@ describe("removeNode", () => {
 
   it("refuses an unknown node", () => {
     expect(removeNode(rect(0, 0, 2, 2), "9,9")).toEqual({ ok: false, reason: "unknown-node" });
+  });
+});
+
+// A bend: p runs flat, q turns down, r runs flat again; the nodes at (4,0) and (6,3) curve.
+function bend(): WallMap {
+  const walls: WallMap = {};
+  angled(walls, "p", [0, 0], [4, 0], { smoothB: true });
+  angled(walls, "q", [4, 0], [6, 3], { smoothA: true, smoothB: true });
+  angled(walls, "r", [6, 3], [10, 3], { smoothA: true });
+  return walls;
+}
+
+describe("smooth nodes through every edit (#1125, curved walls)", () => {
+  it("dragging a smooth node leaves it smooth: the curve bends instead of snapping to a corner", () => {
+    const after = ok(moveNode(bend(), "4,0", [4, 1], opts()));
+    expect(smoothNodeIds(after).has("4,1")).toBe(true);
+    expect(after.p.smoothB).toBe(true);
+    expect(after.q.smoothA).toBe(true);
+  });
+
+  it("moving the far end of a wall keeps the smooth flag at its other end", () => {
+    const after = ok(moveNode(bend(), "10,3", [10, 5], opts()));
+    expect(after.r.smoothA).toBe(true);
+    expect(smoothNodeIds(after).has("6,3")).toBe(true);
+  });
+
+  it("sliding a bone keeps the flags of both its ends", () => {
+    const walls = bend();
+    const run = buildGraph(walls).runs.find((r) => r.a === "4,0" && r.b === "6,3")!;
+    const after = ok(moveBone(walls, run.id, [0, 1], opts()));
+    expect(smoothNodeIds(after)).toEqual(new Set(["4,1", "6,4"]));
+  });
+
+  it("a bone dragged onto a grid line stays an angled wall while an end curves, instead of quietly becoming a corner", () => {
+    const walls: WallMap = {};
+    angled(walls, "h1", [0, 0], [2, 0], { smoothB: true });
+    angled(walls, "h2", [2, 0], [4, 1], { smoothA: true });
+    const after = ok(moveNode(walls, "4,1", [5, 0], opts()));
+    expect(Object.keys(after).every(isUuidKey)).toBe(true);
+    expect(smoothNodeIds(after).has("2,0")).toBe(true);
+  });
+
+  it("splitting a smooth stretch makes the new node smooth, on the drawn curve and off the chord", () => {
+    const walls = bend();
+    const mid = cachedWallGeometry(walls).lines.get("q")!.path[10];
+    const run = buildGraph(walls).runs.find((r) => r.a === "4,0" && r.b === "6,3")!;
+    const res = splitAt(walls, run.id, mid, opts());
+    if (!res.ok || !res.node) throw new Error("refused");
+    expect(smoothNodeIds(res.walls).has(res.node)).toBe(true);
+    // The far ends of the split wall still curve through their own nodes.
+    expect(smoothNodeIds(res.walls).has("4,0")).toBe(true);
+    expect(smoothNodeIds(res.walls).has("6,3")).toBe(true);
+    // The chord from (4,0) to (6,3) is far from the curve's middle sample; the node is where the curve was.
+    expect(res.node).toBe(`${mid[0]},${mid[1]}`);
+  });
+
+  it("splitting a straight wall between two corners makes a corner", () => {
+    const walls: WallMap = {};
+    angled(walls, "s", [0, 0], [4, 2]);
+    const run = buildGraph(walls).runs[0];
+    const res = splitAt(walls, run.id, [2, 1], opts());
+    if (!res.ok || !res.node) throw new Error("refused");
+    expect(smoothNodeIds(res.walls).size).toBe(0);
+  });
+
+  it("removing a smooth node joins its two walls and keeps the flags at the far ends", () => {
+    const after = ok(removeNode(bend(), "6,3", opts()));
+    const joined = Object.values(after).find((w) => w.b[0] === 10)!;
+    expect([joined.a, joined.b]).toEqual([[4, 0], [10, 3]]);
+    expect(joined.smoothA).toBe(true);
+    expect(joined.smoothB).toBeUndefined();
+    expect(smoothNodeIds(after).has("4,0")).toBe(true);
+  });
+
+  it("a smooth node splits a straight line into two bones, so nothing joins the halves behind its back", () => {
+    const walls: WallMap = {};
+    angled(walls, "h1", [0, 0], [2, 0], { smoothB: true });
+    angled(walls, "h2", [2, 0], [4, 0], { smoothA: true });
+    expect(buildGraph(walls).runs).toHaveLength(2);
+    const plain: WallMap = { h1: { ...walls.h1, smoothB: undefined }, h2: { ...walls.h2, smoothA: undefined } };
+    expect(buildGraph(plain).runs).toHaveLength(1);
+  });
+});
+
+describe("toggleSmooth", () => {
+  it("makes a corner between two plain walls smooth, and back again, restoring the walls exactly", () => {
+    const walls: WallMap = {};
+    angled(walls, "p", [0, 0], [4, 0]);
+    angled(walls, "q", [4, 0], [6, 3]);
+    const smooth = ok(toggleSmooth(walls, "4,0"));
+    expect(smoothNodeIds(smooth).has("4,0")).toBe(true);
+    expect(ok(toggleSmooth(smooth, "4,0"))).toEqual(walls);
+  });
+
+  it("switching one node leaves the other end of the same walls alone", () => {
+    const walls = bend();
+    const after = ok(toggleSmooth(walls, "4,0"));
+    expect(after.q.smoothB).toBe(true);
+    expect(after.p.smoothB).toBeUndefined();
+    expect(after.q.smoothA).toBeUndefined();
+  });
+
+  it("refuses a three-way junction", () => {
+    const walls: WallMap = {};
+    angled(walls, "p", [0, 0], [4, 0]);
+    angled(walls, "q", [4, 0], [6, 3]);
+    angled(walls, "t", [4, 0], [4, -3]);
+    expect(toggleSmooth(walls, "4,0")).toEqual({ ok: false, reason: "not-smoothable" });
+  });
+
+  it("refuses a door end", () => {
+    const walls: WallMap = {};
+    angled(walls, "p", [0, 0], [4, 0]);
+    angled(walls, "d", [4, 0], [6, 3], { type: "doorClosed" });
+    expect(toggleSmooth(walls, "4,0")).toEqual({ ok: false, reason: "not-smoothable" });
+  });
+
+  it("refuses a grid wall's end and a dead end", () => {
+    const grid: WallMap = {};
+    lattice(grid, 4, 0, 6, 0);
+    angled(grid, "p", [0, 3], [4, 0]);
+    expect(toggleSmooth(grid, "4,0")).toEqual({ ok: false, reason: "not-smoothable" });
+    const lone: WallMap = {};
+    angled(lone, "p", [0, 0], [4, 0]);
+    expect(toggleSmooth(lone, "4,0")).toEqual({ ok: false, reason: "not-smoothable" });
+  });
+
+  it("refuses a node that is not there", () => {
+    expect(toggleSmooth(bend(), "99,99")).toEqual({ ok: false, reason: "unknown-node" });
   });
 });

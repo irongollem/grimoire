@@ -212,3 +212,18 @@ describe("buildMapLive", () => {
     expect(live.lights[0]).toMatchObject({ x: 3.5, y: 3, color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 });
   });
 });
+
+describe("buildMapLive and a curved wall (#1125, curved walls)", () => {
+  it("carries the sampled pieces of the curve, each named so it resolves to its wall, shifted to image cells", () => {
+    const layers = emptyLayers();
+    layers.walls.p = { ...ref("p"), type: "wall", a: [4, 4], b: [8, 4], smoothB: true };
+    layers.walls.q = { ...ref("p"), type: "wall", a: [8, 4], b: [8, 8], smoothA: true };
+    const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 1);
+    expect(live.walls.length).toBeGreaterThan(2);
+    expect(new Set(live.walls.map((w) => w.id.split("#")[0]))).toEqual(new Set(["p", "q"]));
+    expect(live.walls[0].a).toEqual([3, 3]);
+    // End to end: no gap between one piece and the next, or a ray would slip through the seam.
+    const p = live.walls.filter((w) => w.id.startsWith("p"));
+    p.slice(1).forEach((w, i) => expect(w.a).toEqual(p[i].b));
+  });
+});

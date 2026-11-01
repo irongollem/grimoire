@@ -3,7 +3,6 @@ import { drawMapContent } from "./drawMap";
 import { gatherLightSources, renderLightLayer } from "./drawLights";
 import type { DrawMapInput } from "./drawFrame";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
-import { applyDisc } from "./area";
 import { putWall } from "./testWalls";
 import type { DressingCatalog } from "./dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
@@ -207,21 +206,6 @@ describe("lights behind walls", () => {
     expect(at(2.5, 2.5)).toBe(255);
     expect(at(4.5, 2.5)).toBe(0);
     expect(at(1.5, 0.5)).toBe(0);
-  });
-
-  it("lays the glow on a brushed cell only where it is brushed", () => {
-    const f = makeLayerFactory();
-    const layers = applyDisc(emptyLayers(), { x: 2.5, y: 2.5, r: 0.3 }, ref, "paint");
-    layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
-    const { input: i } = input(rt(), { layers, lights: true, makeCanvas: f.makeCanvas });
-    drawMapContent(i);
-    const put = f.layers.flatMap((l) => l.rec.putImages);
-    expect(put).toHaveLength(1);
-    // the light sits at (2.5, 2.5); its mask box runs x -6..10, y -6..10
-    const at = (cx: number, cy: number): number => put[0].alpha[Math.floor((cy + 6) * 4) * put[0].width + Math.floor((cx + 6) * 4)];
-    expect(at(2.5, 2.5)).toBe(255);
-    // the cell's corner is inside the cell but outside the brushed disc
-    expect(at(2.1, 2.1)).toBe(0);
   });
 
   it("still draws the glow, unmasked, when no canvas can be made", () => {

@@ -3,7 +3,7 @@
  * can play (epic #1125), so the DM fixture has a site to look at that is not a
  * hand-painted corner of something else. Pure: no database, no browser. The
  * layers come out in the CURRENT shape (`src/types/dungeonMap.types.ts`: walls
- * as segments keyed by edge key or uuid, brushed area, lights, dressing).
+ * as segments keyed by edge key or uuid, a brushed room, lights, dressing).
  *
  * The plan, in cell units (x right, y down). A wall line "N of row r" is the key
  * `"x,r:N"`, a left line "W of column c" is `"c,y:W"`:
@@ -15,10 +15,10 @@
  *   Sealed Crypt         x14-18 y18-22  behind a locked door
  *   Drowned Cistern      x19-23 y18-22  seen through a grate, all water
  *   Vestibule            x24-27 y11-13
- *   Round Chapel         disc, centre (32.5, 12.5), radius 4.5: brushed area, a placed light
+ *   Round Chapel         disc, centre (32.5, 12.5), radius 4.5: a smooth wall run made by the round brush, a placed light
  */
 
-import { applyDisc } from "@/cartographer/area";
+import { applyBrushStroke } from "@/cartographer/brushWalls";
 import { latticeWall } from "@/cartographer/wallGraph";
 import type { CanonicalSide } from "@/cartographer/edges";
 import type { EdgeSegType, WallEdge } from "@/types/dungeonMap.types";
@@ -177,12 +177,18 @@ export function buildShowcaseLayers(): DungeonMapLayers {
   // the half of such a square under the wall still shows floor, borrowed from the room next to it.
   removeFloor(layers, ["21,8", "22,8", "23,8", "22,9", "23,9", "23,10"]);
 
-  // The round chapel: a brushed disc. A cell covered at least half also gets ordinary floor (`applyDisc` does it).
-  layers = applyDisc(
+  // The round chapel: one round-brush disc on empty ground, which makes a room with its own smooth wall run
+  // (a few nodes with smooth ends, not a ring of straight pieces). Ids are fixed so a re-run writes the same map.
+  let chapelWalls = 0;
+  layers = applyBrushStroke(
     layers,
-    { x: 32.5, y: 12.5, r: 4.5 },
-    { ...STONE, variant: 1 },
-    "paint",
+    { discs: [{ x: 32.5, y: 12.5, r: 4.5 }] },
+    {
+      erase: false,
+      pack: { ...STONE, variant: 1 },
+      wall: { ...STONE, variant: 0 },
+      newKey: () => uuid(4, ++chapelWalls),
+    },
   );
 
   // ── Walls ─────────────────────────────────────────────────────────────────

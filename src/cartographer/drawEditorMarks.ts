@@ -6,6 +6,7 @@ import { FEET_PER_CELL, type TileLight } from "@/cartographer/packSchema";
 import type { Ctx2D } from "@/cartographer/dressing";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
 import type { CellPoint } from "@/cartographer/wallPick";
+import { lineOfWall } from "@/cartographer/wallGeometry";
 import { paintWallNodes, type WallNodeMarks } from "@/cartographer/drawWallNodes";
 
 export interface EditorMarks {
@@ -60,15 +61,15 @@ export function paintEditorMarks(
   const px = (v: number): number => v * tilePx - viewportOffset.x;
   const py = (v: number): number => v * tilePx - viewportOffset.y;
 
-  const selectedWall = marks.selectedWallId ? layers.walls[marks.selectedWallId] : undefined;
-  if (selectedWall) {
+  const selectedLine = marks.selectedWallId && layers.walls[marks.selectedWallId] ? lineOfWall(layers.walls, marks.selectedWallId) : [];
+  if (selectedLine.length > 1) {
     ctx.save();
     ctx.strokeStyle = ACCENT;
     ctx.lineWidth = Math.max(4, tilePx * 0.12);
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
-    ctx.moveTo(px(selectedWall.a[0]), py(selectedWall.a[1]));
-    ctx.lineTo(px(selectedWall.b[0]), py(selectedWall.b[1]));
+    selectedLine.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(px(x), py(y)) : ctx.lineTo(px(x), py(y))));
     ctx.stroke();
     ctx.restore();
   }

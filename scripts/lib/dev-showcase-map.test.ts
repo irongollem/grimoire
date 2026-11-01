@@ -39,7 +39,7 @@ describe("showcase map: what publish will read off the drawing", () => {
 
   it("puts floor under the chapel's doorway cell, or the arch would lead nowhere", () => {
     expect(layers.floor["28,12"]?.floor).toBeDefined();
-    expect(layers.area["32,12"]?.mask).toBe("full");
+    expect(layers.floor["32,12"]?.floor).toBeDefined();
   });
 
   it("keeps the river inside the nave's floor", () => {
@@ -55,12 +55,26 @@ describe("showcase map: what publish will read off the drawing", () => {
   });
 });
 
+describe("showcase map: the round chapel", () => {
+  it("is a smooth wall run of few nodes the Select tool can pick, not a ring of straight pieces", () => {
+    const chapel = Object.entries(layers.walls).filter(([k]) => k.startsWith("5a0c0004"));
+    expect(chapel.length).toBeGreaterThan(0);
+    expect(chapel.length).toBeLessThan(40);
+    expect(chapel.every(([, w]) => w.smoothA === true && w.smoothB === true)).toBe(true);
+  });
+
+  it("holds no brushed coverage: the layers carry no area at all", () => {
+    expect("area" in layers).toBe(false);
+  });
+});
+
 describe("showcase map: every feature the Map Table plays is present", () => {
   const walls = Object.values(layers.walls);
 
   it("has lattice walls, an angled run, closed/open doors, a grate and a hidden wall", () => {
     expect(latticeWalls(layers).length).toBeGreaterThan(40);
-    expect(angledWalls(layers).length).toBe(3);
+    // The nave's chamfer is three straight pieces; the round chapel's wall comes on top of them.
+    expect(angledWalls(layers).length).toBeGreaterThan(3);
     expect(walls.some((w) => w.type === "doorClosed")).toBe(true);
     expect(walls.some((w) => w.type === "doorOpen")).toBe(true);
     expect(walls.some((w) => w.type === "grate")).toBe(true);

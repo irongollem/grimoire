@@ -33,7 +33,8 @@ import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
 import { CommandStack } from "@/cartographer/commandStack";
 import { cellsForTemplate } from "@/lib/map/gestures/template";
-import { applyDiscs, type Disc } from "@/cartographer/area";
+import type { Disc } from "@/cartographer/area";
+import { applyBrushStroke } from "@/cartographer/brushWalls";
 import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
 import { cellsInLine } from "@/lib/map/gestures/line";
 import { constrainShapeEnd, isCellPainter, useStraightStrokes, type CellPainter } from "@/composables/cartographer/useStraightStrokes";
@@ -221,6 +222,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // one stroke is one look.
   let brushLast: [number, number] | null = null;
   let brushVariant = 0;
+  // The stroke is applied from the layers as they stood at pointer-down with ALL its discs on every move: the room's
+  // run is re-fitted each time, so stacking segment on segment would let its nodes drift. Alt is read once, at press.
+  let brushBase: DungeonMapLayers | null = null;
+  let brushDiscs: Disc[] = [];
+  let brushErase = false;
   /** Pointer in fractional cells, for the brush's cursor preview. */
   const hoverPoint = ref<[number, number] | null>(null);
 
@@ -458,9 +464,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return BASE_TILE_SIZE * zoom.value * (window.devicePixelRatio || 1);
   }
 
-  /** Inclusive bounds of every cell that holds floor or an area; null for an empty map. */
+  /** Inclusive bounds of every cell that holds floor; null for an empty map. */
   function paintedBounds(): CellBounds | null {
-    return boundsOfCells([...Object.keys(layers.value.floor), ...Object.keys(layers.value.area)]);
+    return boundsOfCells(Object.keys(layers.value.floor));
   }
 
   // Wheel, zoom keys and the Space hand.
@@ -682,23 +688,26 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   // Round brush: discs at most radius / 3 apart along the pointer path, so a
   // fast drag leaves one smooth stroke instead of a string of dots. Positions
-  // are fractional cells; the mask resolution lives in area.ts.
-  function brushTo(x: number, y: number, erase: boolean): void {
-    if (!packRuntime.value) return;
+  // are fractional cells. The stroke makes walls (brushWalls.ts): it grows the
+  // room it starts in, or makes a new one on empty ground; Alt carves.
+  function brushTo(x: number, y: number): void {
+    if (!packRuntime.value || !brushBase) return;
     const r = brushRadius.value;
     const ref = { pack_id: currentPackId.value, pack_version: activePackVersion(), variant: brushVariant };
-    const mode = erase ? "erase" : "paint";
     const from = brushLast;
     const step = r / 3;
     const dist = from ? Math.hypot(x - from[0], y - from[1]) : 0;
     const n = from ? Math.max(1, Math.ceil(dist / step)) : 1;
-    const discs: Disc[] = [];
     for (let i = 1; i <= n; i++) {
       const t = from ? i / n : 1;
-      discs.push({ x: from ? from[0] + (x - from[0]) * t : x, y: from ? from[1] + (y - from[1]) * t : y, r });
+      brushDiscs.push({ x: from ? from[0] + (x - from[0]) * t : x, y: from ? from[1] + (y - from[1]) * t : y, r });
     }
-    // One copy of the records per pointer move, however many discs the move needs.
-    const next = applyDiscs(layers.value, discs, ref, mode);
+    const next = applyBrushStroke(brushBase, { discs: brushDiscs }, {
+      erase: brushErase,
+      pack: ref,
+      wall: { ...ref, variant: 0 },
+      newKey: () => crypto.randomUUID(),
+    });
     brushLast = [x, y];
     if (next !== layers.value) {
       layers.value = next;
@@ -884,8 +893,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const { runs, nodes } = wallNodes.selection.value;
     const focus = wallNodes.focus.value;
     return {
-      bones: runs.map((r) => ({ id: r.id, a: r.a, b: r.b })),
-      nodes: nodes.map((n) => ({ id: n.id, x: n.x, y: n.y })),
+      bones: runs.map((r) => ({ id: r.id, a: r.a, b: r.b, path: r.path })),
+      nodes: nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, smooth: n.smooth })),
       focusBone: focus?.kind === "bone" ? focus.runId : null,
       hoverNode: wallNodes.hoverNode.value,
       draggedNode: wallNodes.draggedNode.value,
@@ -1146,7 +1155,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (activeTool.value === "brush") {
       brushLast = null;
       brushVariant = pickFloorVariant(cx, cy);
-      for (const [px, py] of straight.brushPress(fractionalCellAt(ev), ev.shiftKey)) brushTo(px, py, ev.altKey);
+      brushBase = layers.value;
+      brushDiscs = [];
+      brushErase = ev.altKey;
+      for (const [px, py] of straight.brushPress(fractionalCellAt(ev), ev.shiftKey)) brushTo(px, py);
       return;
     }
 
@@ -1259,7 +1271,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         previewCells.value = new Set(cellsForTemplate(dragStartCell[0], dragStartCell[1], r, activeTemplateShape.value));
       } else if (tool === "brush") {
         const [fx, fy] = straight.brushTarget(fractionalCellAt(ev), ev.shiftKey);
-        brushTo(fx, fy, ev.altKey);
+        brushTo(fx, fy);
       } else if (isCellPainter(tool)) paintCellsWith(tool, straight.cellDrag([cx, cy], ev.shiftKey), ev.altKey);
       else if (tool === "place" && armedObject()) { if (ev.altKey) eraseObjectAt(cx, cy); else paintObjectAt(cx, cy); }
       else if (tool === "eraser") {
@@ -1339,7 +1351,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       }
 
       // Where this stroke ended is where the next Shift+click joins on.
-      if (tool === "brush") straight.brushEnded(brushLast);
+      if (tool === "brush") {
+        straight.brushEnded(brushLast);
+        brushBase = null;
+        brushDiscs = [];
+      }
       else if (isCellPainter(tool)) straight.cellEnded();
       else if (tool === "wall") straight.wallEnded(fractionalCellAt(ev));
 

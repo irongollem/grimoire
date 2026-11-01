@@ -3,7 +3,9 @@ import { ref } from "vue";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
 import { buildGraph } from "@/cartographer/wallEdit/graph";
 import { detectRooms } from "@/cartographer/wallEdit/rooms";
-import { counter, lattice, rect } from "@/cartographer/wallEdit/fixtures.test-helpers";
+import { angled, counter, lattice, rect } from "@/cartographer/wallEdit/fixtures.test-helpers";
+import { cachedWallGeometry, smoothNodeIds } from "@/cartographer/wallGeometry";
+import { projectOnSegment } from "@/cartographer/wallEdit/geometry";
 import { applyWallCommit, useWallNodeEdit, type WallNodeCommit } from "./useWallNodeEdit";
 
 const PACK = { packId: "p", packVersion: 1, variant: 0 };
@@ -11,7 +13,7 @@ const NO = { shift: false, alt: false };
 const SHIFT = { shift: true, alt: false };
 
 function setup(walls = rect(0, 0, 4, 4), floor: DungeonMapLayers["floor"] = {}) {
-  const layers = ref({ floor, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {}, walls, lights: {} } as DungeonMapLayers);
+  const layers = ref({ floor, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls, lights: {} } as DungeonMapLayers);
   const commits: WallNodeCommit[] = [];
   const edit = useWallNodeEdit({
     layers: () => layers.value,
@@ -140,16 +142,14 @@ describe("dragging a node", () => {
     for (const [, c] of filled) expect(c.floor).toEqual({ pack_id: "p", pack_version: 1, variant: 0 });
   });
 
-  it("shrinking a room removes the floor from squares left outside, and their area entry", () => {
+  it("shrinking a room removes the floor from squares left outside", () => {
     const floor: DungeonMapLayers["floor"] = {};
     for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) floor[`${x},${y}`] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     floor["9,9"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } }; // outside any room: never touched
     const { edit, drag, layers } = setup(rect(0, 0, 4, 4), floor);
-    layers.value.area["3,3"] = { pack_id: "p", pack_version: 1, variant: 0, mask: "full" };
     edit.select([2, 0]);
     drag([4, 4], [2, 2]);
     expect(layers.value.floor["3,3"]).toBeUndefined();
-    expect(layers.value.area["3,3"]).toBeUndefined();
     expect(layers.value.floor["0,0"]).toBeDefined();
     expect(layers.value.floor["9,9"]).toBeDefined();
   });
@@ -256,5 +256,73 @@ describe("double click and delete", () => {
     edit.pointerUp();
     expect(edit.deleteSelection()).toBe(false);
     expect(commits).toHaveLength(0);
+  });
+});
+
+// p runs flat into q, which turns down; the corner at (4,0) is smooth, so q bows away from its chord (4,0)-(4,4).
+function bowed() {
+  const walls: ReturnType<typeof rect> = {};
+  angled(walls, "p", [0, 0], [4, 0], { smoothB: true });
+  angled(walls, "q", [4, 0], [4, 4], { smoothA: true });
+  return walls;
+}
+
+/** The drawn point of q furthest from its chord, checked to be well off it so a chord-only picker cannot pass. */
+function bulge(walls: ReturnType<typeof rect>): [number, number] {
+  const path = cachedWallGeometry(walls).lines.get("q")!.path;
+  const far = path.reduce((best, pt) => (projectOnSegment(pt, [4, 0], [4, 4]).dist > projectOnSegment(best, [4, 0], [4, 4]).dist ? pt : best));
+  expect(projectOnSegment(far, [4, 0], [4, 4]).dist).toBeGreaterThan(0.25);
+  return far;
+}
+
+describe("curved walls", () => {
+  it("a click on the drawn curve picks its run, where the chord would have missed", () => {
+    const walls = bowed();
+    const { edit } = setup(walls);
+    expect(edit.select(bulge(walls))).toBe(true);
+    expect(edit.selection.value.bones).toBeGreaterThan(0);
+  });
+
+  it("double-clicking a node switches it between corner and smooth, one undo step each way", () => {
+    const walls: ReturnType<typeof rect> = {};
+    angled(walls, "p", [0, 0], [4, 0]);
+    angled(walls, "q", [4, 0], [4, 4]);
+    const { edit, commits, layers } = setup(walls);
+    edit.select([2, 0]);
+    expect(edit.doubleClick([4.05, 0.05])).toBe(true);
+    expect(commits).toHaveLength(1);
+    expect(smoothNodeIds(layers.value.walls).has("4,0")).toBe(true);
+    expect(edit.doubleClick([4.05, 0.05])).toBe(true);
+    expect(commits).toHaveLength(2);
+    expect(smoothNodeIds(layers.value.walls).size).toBe(0);
+    // The node stays on screen as a corner, so the next double-click can bring the curve back.
+    expect(edit.selection.value.nodes.map((n) => n.id)).toContain("4,0");
+  });
+
+  it("double-clicking a node that cannot curve changes nothing and says why", () => {
+    const walls = rect(0, 0, 4, 4);
+    const { edit, commits } = setup(walls);
+    edit.select([2, 0]);
+    expect(edit.doubleClick([4, 0])).toBe(false);
+    expect(commits).toHaveLength(0);
+    expect(edit.refusal.value).toBe("not-smoothable");
+  });
+
+  it("double-clicking a smooth wall away from its nodes adds a smooth node on the drawn curve", () => {
+    const walls = bowed();
+    const { edit, layers } = setup(walls);
+    const at = bulge(walls);
+    edit.select(at);
+    expect(edit.doubleClick(at)).toBe(true);
+    const node = [...smoothNodeIds(layers.value.walls)].find((id) => id !== "4,0");
+    expect(node).toBe(`${at[0]},${at[1]}`);
+  });
+
+  it("dragging a smooth node keeps it smooth, so the curve bends rather than breaking into a corner", () => {
+    const walls = bowed();
+    const { edit, drag, layers } = setup(walls);
+    edit.select(bulge(walls));
+    drag([4, 0], [4, 1]);
+    expect(smoothNodeIds(layers.value.walls).has("4,1")).toBe(true);
   });
 });

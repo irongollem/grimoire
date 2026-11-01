@@ -3,6 +3,7 @@
 
 import type { PlacedLight, WallEdge } from "@/types/dungeonMap.types";
 import { isLatticeKey } from "@/cartographer/wallGraph";
+import { cachedWallGeometry } from "@/cartographer/wallGeometry";
 
 export type CellPoint = [number, number];
 
@@ -34,9 +35,11 @@ export function nearestAngledWall(
 ): string | null {
   let best: string | null = null;
   let bestDistance = radius;
-  for (const [id, wall] of Object.entries(walls)) {
+  const geometry = cachedWallGeometry(walls);
+  for (const id of Object.keys(walls)) {
     if (isLatticeKey(id)) continue;
-    const d = distanceToSegment(p, wall.a, wall.b);
+    // The drawn line, which is a curve where the wall bends through a smooth node.
+    const d = Math.min(...(geometry.lines.get(id)?.pieces ?? []).map((piece) => distanceToSegment(p, piece.a, piece.b)));
     if (d <= bestDistance) {
       best = id;
       bestDistance = d;

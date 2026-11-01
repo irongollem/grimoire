@@ -111,3 +111,37 @@ describe("a lattice-only map", () => {
     expect(cachedClippedGround(squareRoom()).rooms).toHaveLength(0);
   });
 });
+
+/** A round room of radius 3 around (5,5): six angled walls, every node smooth, floor on the squares whose middle is inside. */
+function roundRoom(smooth: boolean): DungeonMapLayers {
+  const l = emptyLayers();
+  const at = (i: number): [number, number] => [
+    Math.round((5 + 3 * Math.cos((2 * Math.PI * i) / 6)) * 1e6) / 1e6,
+    Math.round((5 + 3 * Math.sin((2 * Math.PI * i) / 6)) * 1e6) / 1e6,
+  ];
+  for (let i = 0; i < 6; i++) {
+    l.walls[`w${i}`] = { ...ref, type: "wall", a: at(i), b: at((i + 1) % 6), ...(smooth ? { smoothA: true as const, smoothB: true as const } : {}) };
+  }
+  for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) if (Math.hypot(x + 0.5 - 5, y + 0.5 - 5) < 2.8) l.floor[cellKey(x, y)] = { floor: ref };
+  return l;
+}
+
+const areaOf = (poly: readonly (readonly [number, number])[]): number =>
+  Math.abs(poly.reduce((sum, p, i) => sum + p[0] * poly[(i + 1) % poly.length][1] - poly[(i + 1) % poly.length][0] * p[1], 0)) / 2;
+
+describe("a room walled by a curve (#1125, curved walls)", () => {
+  it("clips its floor to the curve, not to the chords of the polygon through its nodes", () => {
+    const round = cachedClippedGround(roundRoom(true)).rooms[0];
+    const chords = cachedClippedGround(roundRoom(false)).rooms[0];
+    // A regular hexagon of radius 3 is 23.4 cells, a circle of radius 3 is 28.3: the curve must enclose most of the gap (a six-node curve is not quite a circle).
+    expect(areaOf(chords.outline)).toBeCloseTo(23.38, 1);
+    expect(areaOf(round.outline)).toBeGreaterThan(26.5);
+  });
+
+  it("lays the floor of squares the curve cuts that the chords would have left out", () => {
+    const squaresOf = (l: DungeonMapLayers): number => cachedClippedGround(l).rooms.reduce((n, r) => n + r.squares.length, 0);
+    expect(squaresOf(roundRoom(true))).toBeGreaterThanOrEqual(squaresOf(roundRoom(false)));
+    const rec = draw(roundRoom(true), "ground");
+    expect(rec.clipCount).toBeGreaterThan(0);
+  });
+});

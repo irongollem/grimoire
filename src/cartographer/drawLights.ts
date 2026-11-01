@@ -6,7 +6,6 @@ import { MAX_LIGHT_RANGE, type TileLight } from "@/cartographer/packSchema";
 import { cellKey, type DungeonMapLayers, type ObjectCell } from "@/types/dungeonMap.types";
 import { lightReachCells, lightStops } from "@/cartographer/lights";
 import { lightMask, MASK_SAMPLES_PER_CELL, type GroundTest, type LightMaskCache } from "@/cartographer/lightMask";
-import { AREA_RES, decodeMask } from "@/cartographer/area";
 import { collectOcclusion } from "@/cartographer/mapOcclusion";
 import { occluders } from "@/lib/battlemap/occlusion";
 import { dressingCentre, type Ctx2D, type DressingCatalog } from "@/cartographer/dressing";
@@ -109,26 +108,11 @@ function lightGradient(ctx: Ctx2D, cx: number, cy: number, radius: number, light
 }
 
 /**
- * Where the glow may land: a cell with a floor tile, water or solid rock, or, for a cell with a brushed area entry,
- * only the sub-cells its mask covers (judged by the mask alone, even if the cell also has floor).
+ * Where the glow may land: a cell with a floor tile, water or solid rock.
  */
 export function groundTest(layers: DungeonMapLayers): GroundTest {
-  const masks = new Map<string, Uint8Array>();
   return (px, py) => {
-    const cx = Math.floor(px);
-    const cy = Math.floor(py);
-    const key = cellKey(cx, cy);
-    const area = layers.area[key];
-    if (area) {
-      let bits = masks.get(key);
-      if (!bits) {
-        bits = decodeMask(area.mask);
-        masks.set(key, bits);
-      }
-      const sx = Math.min(AREA_RES - 1, Math.floor((px - cx) * AREA_RES));
-      const sy = Math.min(AREA_RES - 1, Math.floor((py - cy) * AREA_RES));
-      return bits[sy * AREA_RES + sx] === 1;
-    }
+    const key = cellKey(Math.floor(px), Math.floor(py));
     return Boolean(layers.floor[key]?.floor) || key in layers.terrain || key in layers.solidBlock;
   };
 }

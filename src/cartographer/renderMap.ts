@@ -303,7 +303,7 @@ function cachedIllumination(
 /** The cell box around everything painted, or null for an empty map: the area the veil covers. */
 function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let extent: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
-  for (const cells of [layers.floor, layers.area, layers.terrain, layers.solidBlock, layers.object]) {
+  for (const cells of [layers.floor, layers.terrain, layers.solidBlock, layers.object]) {
     for (const key of Object.keys(cells) as CellKey[]) {
       const [xs, ys] = key.split(",");
       const x = Number(xs);

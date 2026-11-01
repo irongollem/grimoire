@@ -24,7 +24,6 @@ import { doorLeafArt, edgeTileOrigin, paintDoorLeaf } from "@/cartographer/doorL
 import { classifyJoint } from "@/cartographer/edges";
 import { paintAngledWalls } from "@/cartographer/drawAngledWalls";
 import { edgeSegOf, isDrawn, ownedWall } from "@/cartographer/wallGraph";
-import { paintAreaGround, paintAreaWalls } from "@/cartographer/drawArea";
 import { cachedClippedGround, paintClippedGround } from "@/cartographer/clipFloor";
 import { paintLights, renderLightLayer } from "@/cartographer/drawLights";
 import { frameOf, type DrawMapInput, type Frame, type MakeCanvas, type ShadowLayer, type Target } from "@/cartographer/drawFrame";
@@ -236,8 +235,6 @@ function paintGround(f: Frame, t: Target): void {
         }
         // A pack without water art leaves the floor showing rather than a hole.
       }
-      // A brushed cell is clipped to its curve with the others, in `paintAreaGround` below.
-      if (layers.area[key]) continue;
       // A square an angled wall cuts is laid clipped to the room, in `paintClippedGround` below.
       if (clipped.has(key)) continue;
       const cell = layers.floor[key];
@@ -249,7 +246,6 @@ function paintGround(f: Frame, t: Target): void {
     }
   }
   paintClippedGround(f, t, variantAt);
-  paintAreaGround(f, t, variantAt);
 }
 
 function fadeFrom(ctx: Ctx2D, x0: number, y0: number, x1: number, y1: number, alpha: number): CanvasGradient {
@@ -609,7 +605,6 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   const raised = silhouette((t) => {
     paintSolid(f, t);
     paintEdges(f, t);
-    paintAreaWalls(f, t);
     paintJoints(f, t);
   });
   const low = silhouette((t) => {
@@ -710,7 +705,6 @@ export function drawMapContent(input: DrawMapInput): void {
 
     if (pass === "all") paintSolid(f, t);
     paintEdges(f, t);
-    paintAreaWalls(f, t);
     paintJoints(f, t);
 
     afterDressing?.();

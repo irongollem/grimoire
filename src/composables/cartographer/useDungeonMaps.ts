@@ -5,8 +5,9 @@ import {
   type DungeonMap,
   type DungeonMapInsert,
   type DungeonMapUpdate,
-  withLayerDefaults,
 } from "@/types/dungeonMap.types";
+import { hasBrushedArea, readLayers } from "@/cartographer/areaToWalls";
+import type { LayersWithArea } from "@/cartographer/area";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Ref } from "vue";
@@ -28,7 +29,26 @@ const QUERY_KEY = "dungeon_maps";
  *  is how a map with no `area` layer crashed the Cartographer list's cell
  *  count (Sentry DUNGEON-GRIMOIRE-P). */
 function readDungeonMap(row: DungeonMap): DungeonMap {
-  return { ...row, layers: withLayerDefaults(row.layers) };
+  return { ...row, layers: readLayers(row.layers, { newKey: () => crypto.randomUUID() }) };
+}
+
+/**
+ * A row saved with the old brush (`layers.area`) is converted to walls on its first read and written back once, so the
+ * new wall ids are the ones every later read sees; a read that never saved would mint fresh ids each time. Only the
+ * owner's row is written (a DM or admin reading someone else's map converts in memory only).
+ */
+async function convertStoredArea(row: DungeonMap): Promise<DungeonMap> {
+  if (!hasBrushedArea(row.layers as LayersWithArea)) return row;
+  const converted = readDungeonMap(row);
+  if (row.user_id !== getCurrentUser()?.id) return converted;
+  const { data, error } = await supabase
+    .from("dungeon_maps")
+    .update({ layers: converted.layers })
+    .eq("id", row.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DungeonMap;
 }
 
 function readDungeonMaps(rows: DungeonMap[]): DungeonMap[] {
@@ -45,7 +65,7 @@ async function fetchDungeonMaps(): Promise<DungeonMap[]> {
     .select("*")
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  return data as DungeonMap[];
+  return Promise.all((data as DungeonMap[]).map(convertStoredArea));
 }
 
 async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
@@ -55,7 +75,7 @@ async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
-  return (data as DungeonMap | null) ?? null;
+  return data ? convertStoredArea(data as DungeonMap) : null;
 }
 
 async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string }): Promise<DungeonMap> {
@@ -64,7 +84,7 @@ async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string 
   const payload = {
     name: map.name,
     description: map.description ?? null,
-    layers: withLayerDefaults(map.layers),
+    layers: readLayers(map.layers, { newKey: () => crypto.randomUUID() }),
     metadata: map.metadata ?? {},
     default_pack_id: map.default_pack_id ?? null,
     darkness: map.darkness ?? "daylight",

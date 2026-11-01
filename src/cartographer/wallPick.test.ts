@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { distanceToSegment, nearestAngledWall, nearestLight, snapPoint } from "./wallPick";
 import type { WallEdge } from "@/types/dungeonMap.types";
+import { cachedWallGeometry } from "./wallGeometry";
 
 const wall = (a: [number, number], b: [number, number]): WallEdge => ({ pack_id: "p", pack_version: 1, variant: 0, type: "wall", a, b });
 
@@ -51,5 +52,15 @@ describe("nearestLight", () => {
     };
     expect(nearestLight(lights, [2.7, 2.1])).toBe("near");
     expect(nearestLight(lights, [3.5, 2])).toBeNull();
+  });
+});
+
+describe("nearestAngledWall on a curved wall (#1125)", () => {
+  it("picks the wall by the curve it is drawn on, not by its chord", () => {
+    const walls = { p: { ...wall([0, 0], [4, 0]), smoothB: true as const }, q: { ...wall([4, 0], [4, 4]), smoothA: true as const } };
+    const far = cachedWallGeometry(walls).lines.get("q")!.path.reduce((best, pt) => (pt[0] > best[0] ? pt : best));
+    expect(far[0]).toBeGreaterThan(4.25);
+    expect(nearestAngledWall(walls, far)).toBe("q");
+    expect(nearestAngledWall(walls, [3.8, 2])).toBeNull() // 0.2 from the chord, 0.5 from the curve;
   });
 });

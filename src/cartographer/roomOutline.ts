@@ -1,6 +1,5 @@
 // Rooms found from the walls, as faces of the wall graph (epic #1125, frame 17: "all maps should be graphs/vectors").
-// A room is a closed loop of the lines that bound it: lattice walls, angled walls, doors, the stroked curve of a
-// brushed area, and the plain edge of a floor square where floor meets nothing and no wall stands. Its `cells` are
+// A room is a closed loop of the lines that bound it: lattice walls, angled walls, doors, and the plain edge of a floor square where floor meets nothing and no wall stands. Its `cells` are
 // then the squares whose middle falls inside that loop, the rule the floor itself follows, so squares, fog and token
 // footprints keep working underneath while the outline is what is drawn. Two rooms that share a wall share exactly
 // that line, because it is the same segment in the graph.
@@ -10,9 +9,9 @@
 import type { CellKey, DungeonMapLayers, WallEdge } from "@/types/dungeonMap.types";
 import { cellKey } from "@/types/dungeonMap.types";
 import type { GridPoint } from "@/types/locationMapRegion.types";
-import { cachedAreaLoops } from "./area";
 import { canonicaliseEdge, type Side } from "./edges";
-import { wallSegment } from "./wallGraph";
+import { isLatticeKey, wallSegment } from "./wallGraph";
+import { cachedWallGeometry } from "./wallGeometry";
 import { buildGraph } from "./wallEdit/graph";
 import { detectRooms, floorCellsOf } from "./wallEdit/rooms";
 import { clean, meet, projectOnSegment, samePt, WELD, type Pt } from "./wallEdit/geometry";
@@ -26,13 +25,13 @@ export interface FoundFace {
   outline: GridPoint[];
 }
 
-/** How far a stroked curve may stop short of the walls and floor edges it meets and still be joined to them (cells). */
+/** How far a bucketed neighbour may lie and still be compared when welding (cells). */
 const JOIN = 0.6;
 
 type Seg = {
   a: [number, number];
   b: [number, number];
-  kind: "lattice" | "edge" | "angled" | "curve";
+  kind: "lattice" | "edge" | "angled";
   /** A floor edge's outward direction (towards the void it faces). */
   out?: [number, number];
 };
@@ -51,23 +50,28 @@ const SIDES: readonly [dx: number, dy: number, side: Side][] = [
 ];
 
 /** Every line a room can be bounded by, before the pieces are cut where they meet. */
-function collectSegments(layers: DungeonMapLayers): { segs: Seg[]; runEnds: Pt[] } {
+function collectSegments(layers: DungeonMapLayers): Seg[] {
   const segs: Seg[] = [];
   const wallKeys = Object.keys(layers.walls).sort();
+  const geometry = cachedWallGeometry(layers.walls);
   for (const key of wallKeys) {
-    const s = wallSegment(key, layers.walls[key]);
-    if (samePt(s.a, s.b)) continue;
-    const lattice = key.includes(":");
-    segs.push({ a: [s.a[0], s.a[1]], b: [s.b[0], s.b[1]], kind: lattice ? "lattice" : "angled" });
+    if (isLatticeKey(key)) {
+      const s = wallSegment(key, layers.walls[key]);
+      segs.push({ a: [s.a[0], s.a[1]], b: [s.b[0], s.b[1]], kind: "lattice" });
+      continue;
+    }
+    // A wall that curves through a smooth node closes the room along the curve, piece by piece.
+    for (const p of geometry.lines.get(key)?.pieces ?? []) {
+      if (!samePt(p.a, p.b)) segs.push({ a: [p.a[0], p.a[1]], b: [p.b[0], p.b[1]], kind: "angled" });
+    }
   }
 
-  // A square's edge facing nothing bounds it, unless a wall already stands there. Brushed squares are bounded by
-  // the curve instead, which is the line the player sees.
+  // A square's edge facing nothing bounds it, unless a wall already stands there.
   const seen = new Set<string>(wallKeys);
   const floorKeys = Object.keys(layers.floor).sort();
   for (const k of floorKeys) {
     const [x, y] = k.split(",").map(Number);
-    if (!isOpenFloor(layers, x, y) || layers.area[k as CellKey] !== undefined) continue;
+    if (!isOpenFloor(layers, x, y)) continue;
     for (const [dx, dy, side] of SIDES) {
       if (isOpenFloor(layers, x + dx, y + dy)) continue;
       const o = canonicaliseEdge(x, y, side);
@@ -79,43 +83,7 @@ function collectSegments(layers: DungeonMapLayers): { segs: Seg[]; runEnds: Pt[]
     }
   }
 
-  const runEnds: Pt[] = [];
-  for (const loop of cachedAreaLoops(layers)) {
-    if (holdsFloor(layers, loop.points)) continue;
-    const n = loop.points.length;
-    for (let i = 0; i < n; i++) {
-      if (!loop.stroke[i]) continue;
-      const a = loop.points[i];
-      const b = loop.points[(i + 1) % n];
-      segs.push({ a: [clean(a[0]), clean(a[1])], b: [clean(b[0]), clean(b[1])], kind: "curve" });
-      if (!loop.stroke[(i + n - 1) % n]) runEnds.push(a);
-      if (!loop.stroke[(i + 1) % n]) runEnds.push(b);
-    }
-  }
-  return { segs, runEnds };
-}
-
-/**
- * A loop that goes round a hole (its covered side faces outwards) which still holds open floor is the brushed
- * mask being thinner than the floor drawn over it, not a wall: floor cells with an area entry that covers less than
- * half of them. Left in, it would wall that floor off as a room of its own.
- */
-function holdsFloor(layers: DungeonMapLayers, points: readonly [number, number][]): boolean {
-  // Outer loops run with the covered side on the left (y down), which makes their signed area negative.
-  let twice = 0;
-  points.forEach((p, i) => {
-    const q = points[(i + 1) % points.length];
-    twice += p[0] * q[1] - q[0] * p[1];
-  });
-  if (twice <= 0) return false;
-  const xs = points.map((p) => p[0]);
-  const ys = points.map((p) => p[1]);
-  for (let y = Math.floor(Math.min(...ys)); y < Math.ceil(Math.max(...ys)); y++) {
-    for (let x = Math.floor(Math.min(...xs)); x < Math.ceil(Math.max(...xs)); x++) {
-      if (isOpenFloor(layers, x, y) && pointInRing(x + 0.5, y + 0.5, points)) return true;
-    }
-  }
-  return false;
+  return segs;
 }
 
 /** Whether the segment runs through the inside of the square, not just along its edge or past its corner. */
@@ -146,12 +114,9 @@ export function crossesSquare(a: readonly number[], b: readonly number[], x: num
   return t1 - t0 > EPS;
 }
 
-const bucketOf = (x: number, y: number): string => `${Math.floor(x)},${Math.floor(y)}`;
-
-/** Cuts segments where they meet or where a curve stops just short, so the pieces share end points. */
-function weld(segs: Seg[], runEnds: readonly Pt[]): Seg[] {
+/** Cuts segments where they meet, so the pieces share end points. */
+function weld(segs: Seg[]): Seg[] {
   const cuts: Pt[][] = segs.map(() => []);
-  const extra: Seg[] = [];
 
   // Bucket by the squares a segment's box touches, so only neighbours are compared.
   const buckets = new Map<string, number[]>();
@@ -167,10 +132,10 @@ function weld(segs: Seg[], runEnds: readonly Pt[]): Seg[] {
     }
   });
 
-  // Angled walls and curves are the pieces that can meet others mid-way; lattice pieces only meet at corners.
+  // Angled walls are the pieces that can meet others mid-way; lattice pieces only meet at corners.
   const done = new Set<string>();
   segs.forEach((s, i) => {
-    if (s.kind !== "angled" && s.kind !== "curve") return;
+    if (s.kind !== "angled") return;
     const x0 = Math.floor(Math.min(s.a[0], s.b[0]));
     const x1 = Math.floor(Math.max(s.a[0], s.b[0]));
     const y0 = Math.floor(Math.min(s.a[1], s.b[1]));
@@ -179,7 +144,6 @@ function weld(segs: Seg[], runEnds: readonly Pt[]): Seg[] {
       for (const j of buckets.get(`${x},${y}`) ?? []) {
         if (j === i) continue;
         const t = segs[j];
-        if (s.kind === "curve" && (t.kind === "curve" || t.kind === "edge")) continue;
         const id = i < j ? `${i}:${j}` : `${j}:${i}`;
         if (done.has(id)) continue;
         done.add(id);
@@ -189,29 +153,15 @@ function weld(segs: Seg[], runEnds: readonly Pt[]): Seg[] {
           cuts[j].push(m.point);
         } else if (m.kind === "touch-ab") cuts[i].push(m.point);
         else if (m.kind === "touch-cd") cuts[j].push(m.point);
+        else if (m.kind === "overlap" && t.kind === "edge") {
+          // A floor edge lying along an angled wall: cut it where the wall's ends fall, so the covered stretch can go.
+          for (const q of [s.a, s.b]) if (projectOnSegment(q, t.a, t.b).dist < WELD) cuts[j].push([q[0], q[1]]);
+        }
       }
     }
   });
 
-  // A curve's end that touches nothing is pulled to the nearest line within reach, so the room closes.
-  const id = (q: Pt): string => `${clean(q[0])},${clean(q[1])}`;
-  const nodes = new Set(segs.flatMap((s, i) => (s.kind === "curve" ? [] : [id(s.a), id(s.b), ...cuts[i].map(id)])));
-  for (const end of runEnds) {
-    const p: Pt = [clean(end[0]), clean(end[1])];
-    if (nodes.has(id(p))) continue;
-    let best: { i: number; foot: [number, number]; d: number } | undefined;
-    for (const i of buckets.get(bucketOf(p[0], p[1])) ?? []) {
-      const s = segs[i];
-      if (s.kind === "curve") continue;
-      const hit = projectOnSegment(p, s.a, s.b);
-      if (hit.dist <= JOIN && (!best || hit.dist < best.d)) best = { i, foot: [clean(hit.foot[0]), clean(hit.foot[1])], d: hit.dist };
-    }
-    if (!best) continue;
-    if (best.d > WELD) extra.push({ a: [p[0], p[1]], b: best.foot, kind: "curve" });
-    cuts[best.i].push(best.foot);
-  }
-
-  const out: Seg[] = [...extra];
+  const out: Seg[] = [];
   segs.forEach((s, i) => {
     const along = (q: Pt): number => (q[0] - s.a[0]) * (s.b[0] - s.a[0]) + (q[1] - s.a[1]) * (s.b[1] - s.a[1]);
     const points = [s.a as Pt, ...cuts[i], s.b as Pt].sort((p, q) => along(p) - along(q));
@@ -220,18 +170,11 @@ function weld(segs: Seg[], runEnds: readonly Pt[]): Seg[] {
       out.push({ a: [clean(points[k][0]), clean(points[k][1])], b: [clean(points[k + 1][0]), clean(points[k + 1][1])], kind: s.kind, ...(s.out ? { out: s.out } : {}) });
     }
   });
-  // A curve that runs along a wall for a stretch lies on the same two points as the wall: one line, the wall's.
-  const at = (q: Pt): string => `${clean(q[0])},${clean(q[1])}`;
-  const lineKey = (s: Seg): string => [at(s.a), at(s.b)].sort().join("|");
-  const owned = new Set(out.filter((s) => s.kind !== "curve").map(lineKey));
-  const seenCurve = new Set<string>();
-  return out.filter((s) => {
-    if (s.kind !== "curve") return true;
-    const key = lineKey(s);
-    if (owned.has(key) || seenCurve.has(key)) return false;
-    seenCurve.add(key);
-    return true;
-  });
+  // A floor edge that lies on an angled wall is that wall's line, not a second one: left in, it doubles the line the
+  // face walk has to follow and a closed loop of angled walls over floor yields no face.
+  const angled = out.filter((s) => s.kind === "angled");
+  const onAngled = (q: Pt): boolean => angled.some((w) => projectOnSegment(q, w.a, w.b).dist < WELD);
+  return out.filter((s) => s.kind !== "edge" || !(onAngled(s.a) && onAngled(s.b) && onAngled([(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2])));
 }
 
 /** How far (cells) an outline point may sit off the line between its neighbours and still be dropped: far below what
@@ -340,8 +283,7 @@ function enclosedVoidsJoinRooms(pieces: Seg[]): Seg[] {
 }
 
 export function findFaces(layers: DungeonMapLayers): FoundFace[] {
-  const { segs, runEnds } = collectSegments(layers);
-  const pieces = enclosedVoidsJoinRooms(weld(segs, runEnds));
+  const pieces = enclosedVoidsJoinRooms(weld(collectSegments(layers)));
   const walls: Record<string, WallEdge> = {};
   pieces.forEach((s, i) => {
     walls[`f${i}`] = { type: "wall", pack_id: "", pack_version: 0, variant: 0, a: s.a, b: s.b };

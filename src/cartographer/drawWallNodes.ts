@@ -6,10 +6,10 @@ import type { Ctx2D } from "@/cartographer/dressing";
 import type { SnapTarget } from "@/cartographer/wallEdit/snap";
 
 export interface WallNodeMarks {
-  /** Bones of the selected run, as the ids of their two ends. */
-  bones: readonly { id: string; a: string; b: string }[];
-  /** Nodes of the selected run, in cells. */
-  nodes: readonly { id: string; x: number; y: number }[];
+  /** Bones of the selected run, as the ids of their two ends, and the line drawn between them when it curves (cells). */
+  bones: readonly { id: string; a: string; b: string; path?: readonly (readonly [number, number])[] }[];
+  /** Nodes of the selected run, in cells. A smooth node (the wall curves through it) is round, a corner square. */
+  nodes: readonly { id: string; x: number; y: number; smooth?: boolean }[];
   /** The bone Del would remove, drawn stronger. */
   focusBone?: string | null;
   hoverNode?: string | null;
@@ -40,9 +40,11 @@ export function paintWallNodes(
     const focused = bone.id === marks.focusBone;
     ctx.strokeStyle = focused ? FOCUS : ACCENT;
     ctx.lineWidth = Math.max(focused ? 5 : 4, tilePx * (focused ? 0.14 : 0.1));
+    ctx.lineJoin = "round";
     ctx.beginPath();
-    ctx.moveTo(px(a.x), py(a.y));
-    ctx.lineTo(px(b.x), py(b.y));
+    // A curved bone is highlighted along the curve it is drawn on, not along the chord between its nodes.
+    const line = bone.path ?? [[a.x, a.y], [b.x, b.y]];
+    line.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(px(x), py(y)) : ctx.lineTo(px(x), py(y))));
     ctx.stroke();
   }
 
@@ -54,7 +56,17 @@ export function paintWallNodes(
     ctx.strokeStyle = dragged ? INK : ACCENT;
     ctx.lineWidth = dragged || hovered ? 3 : 2;
     ctx.beginPath();
-    ctx.arc(px(n.x), py(n.y), dragged || hovered ? r * 1.3 : r, 0, Math.PI * 2);
+    const radius = dragged || hovered ? r * 1.3 : r;
+    if (n.smooth) ctx.arc(px(n.x), py(n.y), radius, 0, Math.PI * 2);
+    else {
+      // A corner is a square, so the two kinds read apart without colour.
+      const half = radius * 0.9;
+      ctx.moveTo(px(n.x) - half, py(n.y) - half);
+      ctx.lineTo(px(n.x) + half, py(n.y) - half);
+      ctx.lineTo(px(n.x) + half, py(n.y) + half);
+      ctx.lineTo(px(n.x) - half, py(n.y) + half);
+      ctx.closePath();
+    }
     ctx.fill();
     ctx.stroke();
   }

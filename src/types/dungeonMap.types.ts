@@ -37,6 +37,14 @@ export interface WallEdge extends EdgeSeg {
   b: [number, number];
   /** `false` blocks sight and light but is not drawn (an imported wall over a picture that already shows it). */
   visible?: boolean;
+  /**
+   * The wall asks to curve through its end at `a` (`smoothA`) or `b` (`smoothB`). A node is smooth only where exactly
+   * two angled walls meet and both ask for it there; a junction of three, a door end and a lattice wall end are
+   * corners whatever the flags say. A lattice wall never carries them. Kept on the walls so they travel through every
+   * edit without a record of their own (#1125, wall curves).
+   */
+  smoothA?: true;
+  smoothB?: true;
 }
 
 /** A light the DM placed (epic #1125 story 5), at a point in cell units. */
@@ -90,19 +98,6 @@ export interface DressingPlacement {
   z: number;
 }
 
-/**
- * One cell of a brushed area (epic #1073, story 8): a fine coverage mask, 8 x 8
- * sub-cells per cell, so a round brush can cover part of a cell and erasing is
- * just clearing bits. `mask` is `"full"` when all 64 sub-cells are covered, else
- * 16 lowercase hex chars holding a 64-bit number whose bit `i` is sub-cell
- * `(i % 8, Math.floor(i / 8))`, sub-cell (0,0) being the cell's top-left. An
- * empty mask is never stored (the entry is removed). The PackRef is the cell's
- * floor pack; a cell covered at least half also carries ordinary `floor`.
- */
-export interface AreaCell extends PackRef {
-  mask: string;
-}
-
 export interface DungeonMapLayers {
   floor: Record<CellKey, FloorCell>;
   solidBlock: Record<CellKey, SolidCell>;
@@ -112,8 +107,6 @@ export interface DungeonMapLayers {
   annotation: Record<CellKey, AnnotationCell>;
   /** Keyed by a placement uuid. */
   dressing: Record<string, DressingPlacement>;
-  /** Brushed areas, a coverage mask per cell (see `AreaCell`). */
-  area: Record<CellKey, AreaCell>;
   /** Walls, doors and fittings as segments: lattice edges by edge key, angled walls by uuid (see `WallEdge`). */
   walls: Record<string, WallEdge>;
   /** Lights placed by hand, keyed by a uuid. */
@@ -152,7 +145,7 @@ export type DungeonMapInsert = Omit<DungeonMap, "id" | "user_id" | "created_at" 
 export type DungeonMapUpdate = Partial<DungeonMapInsert>;
 
 export function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {}, walls: {}, lights: {} };
+  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} };
 }
 
 /**
@@ -162,20 +155,20 @@ export function emptyLayers(): DungeonMapLayers {
  * a spread would keep the `null`, and every reader calls `Object.keys` on it.
  */
 export function withLayerDefaults(raw: Partial<DungeonMapLayers> | null | undefined): DungeonMapLayers {
+  // `area` is the retired brush coverage; `convertAreaLayer` has already made walls of it before a map gets here.
   const present = Object.fromEntries(
-    Object.entries(raw ?? {}).filter(([, layer]) => typeof layer === "object" && layer !== null),
+    Object.entries(raw ?? {}).filter(([name, layer]) => name !== "area" && typeof layer === "object" && layer !== null),
   );
   return { ...emptyLayers(), ...present };
 }
 
 /**
- * How many cells of a map have anything painted on them: floor, water, rock, an object or a brushed area. Each cell
- * counts once, however many layers it has (a floor cell with a barrel on it is one painted cell), and a brushed cell
- * counts even when it is covered less than half and so carries no floor of its own.
+ * How many cells of a map have anything painted on them: floor, water, rock or an object. Each cell
+ * counts once, however many layers it has (a floor cell with a barrel on it is one painted cell).
  */
 export function paintedCellCount(layers: DungeonMapLayers): number {
   const cells = new Set<string>();
-  for (const layer of [layers.floor, layers.terrain, layers.solidBlock, layers.object, layers.area]) {
+  for (const layer of [layers.floor, layers.terrain, layers.solidBlock, layers.object]) {
     for (const key of Object.keys(layer)) cells.add(key);
   }
   return cells.size;

@@ -16,7 +16,7 @@ function emptyMap(): DungeonMap {
     campaign_id: null,
     name: "Test",
     description: null,
-    layers: { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {}, walls: {}, lights: {} },
+    layers: { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} },
     metadata: {},
     default_pack_id: null,
     darkness: "daylight",
@@ -42,13 +42,6 @@ describe("computeBakedDimensions", () => {
     map.layers.object["2,6"] = { pack_id: "p", pack_version: 1, variant: 0, category: "objectChest" };
     // bbox (2,3)→(7,6) = 6 cols × 4 rows, plus 6 cells of padding total.
     expect(computeBakedDimensions(map, none)).toEqual({ cols: 12, rows: 10, originCellX: -1, originCellY: 0 });
-  });
-
-  it("counts a brushed cell that is too thinly covered to have floor", () => {
-    const map = emptyMap();
-    map.layers.area["9,2"] = { pack_id: "p", pack_version: 1, variant: 0, mask: "0000000000000001" };
-    // The only painted cell is (9,2): 1 x 1 plus 3 cells of padding each side.
-    expect(computeBakedDimensions(map, none)).toEqual({ cols: 7, rows: 7, originCellX: 6, originCellY: -1 });
   });
 
   it("handles negative coordinates (infinite-canvas origin)", () => {

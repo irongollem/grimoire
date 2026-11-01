@@ -33,6 +33,9 @@ import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { pickVariant } from "@/cartographer/tileVariants";
+import { putWall } from "@/cartographer/testWalls";
+import { deriveSpaces } from "@/cartographer/structure";
+import { brushDisc } from "@/test/brushDisc";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 
 vi.mock("@/cartographer/renderMap", async (importOriginal) => {
@@ -493,13 +496,13 @@ describe("round brush", () => {
     for (const k of ["0,0", "1,0", "2,0", "3,0"] as CellKey[]) {
       expect(layers.value.floor[k]?.floor).toBeDefined();
     }
-    expect(layers.value.area["0,0" as CellKey]?.mask).toBe("full");
-    // A fractional edge: the disc reaches 1.5 cells either side of 0.5, so the row above is partial.
-    expect(layers.value.area["0,-1" as CellKey]).toBeDefined();
+    // The stroke made a room with its own wall: angled walls, not coverage masks.
+    expect(Object.keys(layers.value.walls).length).toBeGreaterThan(0);
+    expect("area" in layers.value).toBe(false);
 
     editor.undoEdit();
     expect(Object.keys(layers.value.floor)).toHaveLength(0);
-    expect(Object.keys(layers.value.area)).toHaveLength(0);
+    expect(Object.keys(layers.value.walls)).toHaveLength(0);
     expect(editor.canUndo.value).toBe(false);
   });
 
@@ -511,6 +514,56 @@ describe("round brush", () => {
     editor.onPointerDown(down(64, 64, { altKey: true }));
     editor.onPointerUp(up(64, 64, { altKey: true }));
     expect(layers.value.floor["0,0" as CellKey]).toBeUndefined();
+  });
+
+  // The maintainer's rules (1 Nov 2026): the brush never removes a wall; a stroke inside a room grows it; Alt carves.
+  const PK = { pack_id: "pack-1", pack_version: 3, variant: 0 };
+  const px = (c: number): number => Math.round(c * BASE_TILE_SIZE);
+  const stroke = (editor: ReturnType<typeof useMapCanvasEditor>, from: [number, number], to: [number, number], init: PointerEventInit = {}): void => {
+    editor.onPointerDown(down(px(from[0]), px(from[1]), init));
+    editor.onPointerMove(move(px(to[0]), px(to[1]), init));
+    editor.onPointerUp(up(px(to[0]), px(to[1]), init));
+  };
+
+  it("a stroke that starts inside a room grows it: the floor reaches the new edge, the wall moves out, one undo restores it", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "brush";
+    layers.value = brushDisc(emptyLayers(), { x: 3, y: 3, r: 2.2 }, PK);
+    const before = JSON.stringify(layers.value);
+    expect(layers.value.floor["7,3" as CellKey]).toBeUndefined();
+    stroke(editor, [3, 3], [7, 3]);
+    expect(layers.value.floor["7,3" as CellKey]?.floor).toBeDefined();
+    // still ONE room with a wall of its own, and no brushed coverage anywhere
+    expect(deriveSpaces(layers.value)).toHaveLength(1);
+    expect("area" in layers.value).toBe(false);
+    editor.undoEdit();
+    expect(JSON.stringify(layers.value)).toBe(before);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("a stroke across two rooms never removes the wall between them", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "brush";
+    const l = emptyLayers();
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 6; x++) l.floor[`${x},${y}` as CellKey] = { floor: PK };
+    for (const [x0, x1] of [[0, 3], [3, 6]]) {
+      for (let x = x0; x < x1; x++) { putWall(l, x, 0, "N", { ...PK, type: "wall" }); putWall(l, x, 3, "N", { ...PK, type: "wall" }); }
+      for (let y = 0; y < 3; y++) { putWall(l, x0, y, "W", { ...PK, type: "wall" }); putWall(l, x1, y, "W", { ...PK, type: "wall" }); }
+    }
+    layers.value = l;
+    stroke(editor, [1.5, 1.5], [4.5, 1.5]);
+    for (let y = 0; y < 3; y++) expect(layers.value.walls[`3,${y}:W`]?.type, `row ${y}`).toBe("wall");
+  });
+
+  it("Alt carves floor out of a room and its wall follows the new edge", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "brush";
+    layers.value = brushDisc(emptyLayers(), { x: 4, y: 4, r: 3.4 }, PK);
+    expect(layers.value.floor["4,1" as CellKey]?.floor).toBeDefined();
+    stroke(editor, [4, 1.5], [4, 2], { altKey: true });
+    expect(layers.value.floor["4,1" as CellKey]).toBeUndefined();
+    expect(layers.value.floor["4,4" as CellKey]?.floor).toBeDefined();
+    expect(deriveSpaces(layers.value)).toHaveLength(1);
   });
 
   it("a stroke that changes nothing pushes no command", () => {

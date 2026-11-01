@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CellKey, DungeonMapLayers, EdgeSegType, PackRef, WallEdge } from "@/types/dungeonMap.types";
 import { cellKey } from "@/types/dungeonMap.types";
-import { applyDisc } from "./area";
+import { brushDisc, brushDiscs } from "@/test/brushDisc";
 import { canonicaliseEdge, type Side } from "./edges";
 import { findFaces, simplifyLoop } from "./roomOutline";
 import { deriveSpaces } from "./structure";
@@ -11,7 +11,7 @@ import { wallAt } from "./wallGraph";
 const PACK: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
 
 function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {}, walls: {}, lights: {} };
+  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} };
 }
 
 function room(layers: DungeonMapLayers, x0: number, y0: number, w: number, h: number): void {
@@ -100,9 +100,9 @@ describe("rooms found from the walls", () => {
     expect(cells).toHaveLength(36);
   });
 
-  it("a round brushed room follows the curve and its squares are exactly the ones whose middle lies inside", () => {
+  it("a round-brush room follows the curve and its squares are exactly the ones whose middle lies inside", () => {
     const l = emptyLayers();
-    const painted = applyDisc(l, { x: 4, y: 4, r: 3.2 }, PACK, "paint");
+    const painted = brushDisc(l, { x: 4, y: 4, r: 3.2 }, PACK);
     const faces = findFaces(painted);
     expect(faces).toHaveLength(1);
     const { outline, cells } = faces[0];
@@ -120,8 +120,8 @@ describe("rooms found from the walls", () => {
 
   // The chapel beside the vestibule: the curve runs along the vestibule's own wall for a stretch, and the two lines
   // being one line is what keeps the vestibule a room at all.
-  it("a walled room whose wall a brushed disc touches stays a room of its own", () => {
-    const l = applyDisc(emptyLayers(), { x: 12.5, y: 2.5, r: 4.5 }, PACK, "paint");
+  it("a walled room whose wall a round-brush disc touches stays a room of its own", () => {
+    const l = brushDisc(emptyLayers(), { x: 12.5, y: 2.5, r: 4.5 }, PACK);
     room(l, 4, 1, 4, 3);
     for (let x = 4; x < 8; x++) { wall(l, x, 1, "N"); wall(l, x, 3, "S"); }
     for (let y = 1; y < 4; y++) { wall(l, 4, y, "W"); wall(l, 7, y, "E", y === 2 ? "doorOpen" : "wall"); }
@@ -131,19 +131,22 @@ describe("rooms found from the walls", () => {
     expect(vestibule?.cells).toHaveLength(12);
   });
 
-  // No wall anywhere: the disc's curve ends against the bare floor edges of the room it opens into, and the two
-  // meet within a fraction of a square rather than exactly. They are one open room, closed all the way round.
-  it("a brushed disc opening into a bare floor room is one room, closed round the curve and the floor edges", () => {
-    const l = applyDisc(emptyLayers(), { x: 8, y: 2.5, r: 3.1 }, PACK, "paint");
-    room(l, 2, 1, 3, 3);
+  // No wall anywhere but the bare floor room: a stroke that starts inside it grows it, so the result is still one room,
+  // closed round the new curve and the old floor edges.
+  it("a round-brush stroke from inside a bare floor room grows it into one room", () => {
+    const l0 = emptyLayers();
+    room(l0, 2, 1, 3, 3);
+    const path = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ x: 3.5 + i * 0.8, y: 2.5, r: 2.1 }));
+    const l = brushDiscs(l0, path, PACK);
     const faces = findFaces(l);
     expect(faces).toHaveLength(1);
     expect([...faces[0].cells].sort()).toEqual((Object.keys(l.floor) as string[]).sort());
+    expect(Object.keys(l.floor).length).toBeGreaterThan(9);
   });
 
-  it("a pillar erased out of a brushed room stays a hole in it", () => {
-    const disc = applyDisc(emptyLayers(), { x: 5, y: 5, r: 4.4 }, PACK, "paint");
-    const l = applyDisc(disc, { x: 5, y: 5, r: 1.2 }, PACK, "erase");
+  it("a pillar erased out of a round-brush room stays a hole in it", () => {
+    const disc = brushDisc(emptyLayers(), { x: 5, y: 5, r: 4.4 }, PACK);
+    const l = brushDisc(disc, { x: 5, y: 5, r: 1.2 }, PACK, true);
     expect(l.floor["4,4"]).toBeUndefined();
     const cells = findFaces(l).flatMap((f) => f.cells);
     expect(cells).not.toContain("4,4");

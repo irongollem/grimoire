@@ -29,8 +29,8 @@ function recorder(): { ctx: Ctx2D; calls: Call[] } {
 const marks: WallNodeMarks = {
   bones: [{ id: "0,0>4,0", a: "0,0", b: "4,0" }],
   nodes: [
-    { id: "0,0", x: 0, y: 0 },
-    { id: "4,0", x: 4, y: 0 },
+    { id: "0,0", x: 0, y: 0, smooth: true },
+    { id: "4,0", x: 4, y: 0, smooth: true },
   ],
 };
 
@@ -56,5 +56,20 @@ describe("paintWallNodes", () => {
     paintWallNodes(grid.ctx, { ...marks, snap: { kind: "grid", point: [2, 2] } }, 50, { x: 0, y: 0 });
     const lastStroke = (calls: Call[]): string => calls.filter((c) => c.op === "stroke").at(-1)!.stroke;
     expect(lastStroke(join.calls)).not.toBe(lastStroke(grid.calls));
+  });
+
+  it("draws a curved bone along its curve, not along the chord between its nodes", () => {
+    const { ctx, calls } = recorder();
+    const curved: WallNodeMarks = { ...marks, bones: [{ id: "0,0>4,0", a: "0,0", b: "4,0", path: [[0, 0], [1, 1], [3, 1], [4, 0]] }] };
+    paintWallNodes(ctx, curved, 50, { x: 0, y: 0 });
+    expect(calls.filter((c) => c.op === "lineTo").map((c) => c.args)).toEqual([[50, 50], [150, 50], [200, 0]]);
+  });
+
+  it("draws a smooth node round and a corner node square, so the two kinds read apart", () => {
+    const { ctx, calls } = recorder();
+    paintWallNodes(ctx, { ...marks, nodes: [{ id: "0,0", x: 0, y: 0, smooth: true }, { id: "4,0", x: 4, y: 0, smooth: false }] }, 50, { x: 0, y: 0 });
+    expect(calls.filter((c) => c.op === "arc")).toHaveLength(1);
+    // The square is four corners: three lineTo after its moveTo, beyond the bone's own.
+    expect(calls.filter((c) => c.op === "lineTo").length).toBeGreaterThanOrEqual(4);
   });
 });
