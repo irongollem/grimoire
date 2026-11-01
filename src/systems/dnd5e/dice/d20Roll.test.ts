@@ -63,6 +63,13 @@ describe("a 5e roll through dnd5eDiceRules", () => {
     expect(r.breakdown).toHaveLength(1);
   });
 
+  it("a mode on several d20s keeps them all and does not claim (Adv) on the label", () => {
+    queue(0.5, 0.5);
+    const r = rollDiceWithMode({ 20: 2 }, 0, "advantage");
+    expect(r.label).toBe("2d20");
+    expect(r.breakdown.filter((d) => !d.dropped)).toHaveLength(2);
+  });
+
   it("a natural 20 on a lone d20 in normal mode is a crit", () => {
     queue(0.99);
     expect(rollDiceWithMode({ 20: 1 }, 0, "normal").isCrit).toBe(true);

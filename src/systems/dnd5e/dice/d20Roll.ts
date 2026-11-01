@@ -3,6 +3,11 @@ import type { DieResult, DieSize, RollResult } from "@/lib/dice/dice";
 import type { RollModeKey, RolledFaces } from "@/lib/dice/diceRules";
 import { modeSuffix, toRollMode } from "./rollMode";
 
+/** 5e advantage and disadvantage change only a lone d20; on any other pool the mode does nothing. */
+export function modeTakesEffect(counts: Partial<Record<DieSize, number>>): boolean {
+  return (counts[20] ?? 0) === 1;
+}
+
 /**
  * Scores faces that were already rolled under the 5e d20 rules (pure). The one
  * copy of these rules: a digital roll and a physical roll typed in by a player
@@ -12,7 +17,7 @@ import { modeSuffix, toRollMode } from "./rollMode";
  *   other die, or for several d20s.
  * - Any kept d20 showing 20 is a crit, showing 1 a fumble. With several d20s and
  *   no mode, every d20 counts.
- * - The label gets " (Adv)" / " (Dis)" only when the pool holds a d20.
+ * - The label gets " (Adv)" / " (Dis)" only where the mode takes effect: a lone d20.
  * Sizes not in `counts` are ignored, so stray faces cannot inflate a total.
  */
 export function scoreRoll(
@@ -47,7 +52,7 @@ export function scoreRoll(
     }
   }
 
-  const suffix = (counts[20] ?? 0) > 0 ? modeSuffix(mode) : "";
+  const suffix = modeTakesEffect(counts) ? modeSuffix(mode) : "";
   return {
     total: sum + modifier,
     label: formatCounts(counts, modifier) + suffix,
@@ -60,5 +65,5 @@ export function scoreRoll(
 
 /** How many faces a pool needs: a lone d20 with advantage or disadvantage takes two. */
 export function facesNeeded(sides: DieSize, count: number, mode: RollModeKey): number {
-  return sides === 20 && count === 1 && toRollMode(mode) !== "normal" ? 2 : count;
+  return sides === 20 && modeTakesEffect({ [sides]: count }) && toRollMode(mode) !== "normal" ? 2 : count;
 }

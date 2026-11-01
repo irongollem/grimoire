@@ -41,8 +41,8 @@ export interface DiceRules {
   score(counts: Partial<Record<DieSize, number>>, modifier: number, mode: RollModeKey, faces: RolledFaces): RollResult;
   /** Merges two options picked from different sources into the one that applies. */
   combine(a: RollModeKey, b: RollModeKey): RollModeKey;
-  /** Swaps a label's option tag for the option actually rolled. */
-  tagLabel(label: string, mode: RollModeKey): string;
+  /** Swaps a label's option tag for the option actually rolled, untagged where the option does nothing to this pool. */
+  tagLabel(label: string, mode: RollModeKey, counts: Partial<Record<DieSize, number>>): string;
 }
 
 /** A digital roll under a system's rules (pure, no sound): rolls the faces it needs, then scores them. */

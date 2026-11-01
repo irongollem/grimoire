@@ -13,4 +13,9 @@ describe("dnd5eDiceRules", () => {
       expect(rollWithRules(dnd5eDiceRules, { 20: 1 }, 0, option.key).breakdown).toHaveLength(2);
     }
   });
+
+  it("tags a prompt label only where the mode takes effect (a sheet pick on 2d20 claimed Adv)", () => {
+    expect(dnd5eDiceRules.tagLabel("Check", "advantage", { 20: 1 })).toBe("Check (Adv)");
+    expect(dnd5eDiceRules.tagLabel("Check", "advantage", { 20: 2 })).toBe("Check");
+  });
 });

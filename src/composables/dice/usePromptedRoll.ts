@@ -48,7 +48,7 @@ export function usePromptedRoll() {
     const takesPick = poolTakesOption && !args.silent && !args.isDamage;
     const base = args.mode ?? NORMAL_ROLL;
     const mode = takesPick ? takeNextRollMode(base) : base;
-    const label = mode === base ? args.label : rules.tagLabel(args.label, mode);
+    const label = mode === base ? args.label : rules.tagLabel(args.label, mode, args.counts);
     let result: RollResult | null = null;
 
     const isHidden = !!args.recipientUserId;

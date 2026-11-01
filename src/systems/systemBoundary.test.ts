@@ -22,7 +22,7 @@ const NEUTRAL = [
 const CORE = "src/lib/dice";
 
 /** Any `@/systems/` import (static or dynamic) except the registry. */
-const SYSTEM_IMPORT = /(?:from\s+|import\s*\(\s*)["']@\/systems\/(?!registry["'])/;
+const SYSTEM_IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)["']@\/systems\/(?!registry["'])/;
 const REGISTRY_IMPORT = /(?:from\s+|import\s*\(\s*)["']@\/systems\/registry["']/;
 const DAMAGE_TYPES_IMPORT = /(?:from\s+|import\s*\(\s*)["']@\/types\/damage\.types["']/;
 

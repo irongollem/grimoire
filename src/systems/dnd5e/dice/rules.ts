@@ -1,5 +1,5 @@
 import type { DiceRules } from "@/lib/dice/diceRules";
-import { facesNeeded, scoreRoll } from "./d20Roll";
+import { facesNeeded, modeTakesEffect, scoreRoll } from "./d20Roll";
 import { advantageAppliesTo, combineModes, withModeTag } from "./rollMode";
 
 /** D&D 5e's dice rules, as the neutral dice surfaces see them through `@/systems/registry`. */
@@ -12,5 +12,5 @@ export const dnd5eDiceRules: DiceRules = {
   facesNeeded,
   score: scoreRoll,
   combine: combineModes,
-  tagLabel: withModeTag,
+  tagLabel: (label, mode, counts) => withModeTag(label, modeTakesEffect(counts) ? mode : "normal"),
 };
