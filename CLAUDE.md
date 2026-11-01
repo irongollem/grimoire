@@ -63,7 +63,7 @@ Same rule forward in time: no "we'll refactor later", no "we'll extract this whe
 
 **Waves by file overlap:** stories with disjoint files run in parallel in the shared checkout; stories sharing a file run in sequence. Structure work so shared code stabilizes first, then fan out dependents.
 
-**The integration gate is typecheck + full vitest + `npm run build`** — vue-tsc and vitest have both missed a malformed .vue SFC that only the vite build caught. Never accept agent-written .vue files without a build run. The overseer re-runs the gates itself; an executor's green report is a claim, not a verification.
+**The integration gate is typecheck + full vitest + `npm run build`** — vue-tsc and vitest have both missed a malformed .vue SFC that only the vite build caught. Never accept agent-written .vue files without a build run. The overseer re-runs the gates itself; an executor's green report is a claim, not a verification. **The full suite and the build run once per commit, by the overseer, and nowhere else**: an executor verifies with `npx vitest related <its files> --run` plus vue-tsc and oxlint on its own files (the `/overseer` skill has the wording for a spec).
 
 **The two exits**, both said out loud in one line when taken:
 
