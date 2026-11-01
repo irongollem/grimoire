@@ -13,7 +13,6 @@ function partyMember(overrides: Partial<PartyMember> & { id: string }): PartyMem
     portrait_focal_point: null,
     current_hp: 10,
     max_hp: 10,
-    ac: 15,
     wis: 10,
     proficiency_bonus: 2,
     skill_proficiencies: {},

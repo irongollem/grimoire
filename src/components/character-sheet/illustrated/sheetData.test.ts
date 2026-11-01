@@ -32,7 +32,6 @@ function member(overrides: Partial<PartyMember> = {}): PartyMember {
     max_hp: 32,
     current_hp: 32,
     temp_hp: 0,
-    ac: null,
     ac_formula: null,
     speed: 30,
     initiative_bonus: 0,
@@ -187,7 +186,7 @@ describe("toFront — ability modifiers", () => {
   });
 
   it("mirrors CharacterSheetRenderer's initiative and AC math", () => {
-    const m = member({ dex: 16, initiative_bonus: 1, ac: null });
+    const m = member({ dex: 16, initiative_bonus: 1 });
     const front = toFront(m, [], WIZARD_5, null, null, 17); // the calculated AC is printed as given
     expect(front.init).toBe("+4"); // dex mod (+3) + initiative_bonus (1)
     expect(front.ac).toBe("17"); // never the stored number

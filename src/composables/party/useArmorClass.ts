@@ -5,7 +5,7 @@ import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { useAuthStore } from "@/stores/auth";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
-import { calculateAc, previousAc, wornGearByMember, type AcBreakdown, type AcMember, type WornGear } from "@/rules/armorClass";
+import { calculateAc, wornGearByMember, type AcBreakdown, type AcMember, type WornGear } from "@/rules/armorClass";
 
 /**
  * Reactive Armour Class, per party member.
@@ -52,15 +52,9 @@ function useArmorClassImpl() {
     return acBreakdownFor(member).total;
   }
 
-  /** The AC the sheet showed before it was calculated; see `previousAc`. */
-  function previousAcFor(member: AcMember & { ac: number }): number {
-    return previousAc(member, gearByMember.value[member.id] ?? []);
-  }
-
   /**
    * True once the gear is known. Until then every AC reads as if nothing were worn,
-   * so anything that compares the calculated AC against something (the one-time
-   * notice) must wait for this.
+   * so anything that compares the calculated AC against something must wait for this.
    */
   const isReady = computed(
     () =>
@@ -70,7 +64,7 @@ function useArmorClassImpl() {
       (auth.isDM || projection.value !== undefined),
   );
 
-  return { acFor, acBreakdownFor, previousAcFor, wornGearFor, isReady };
+  return { acFor, acBreakdownFor, wornGearFor, isReady };
 }
 
 /** Shared across all instances (see composable docstring above). */

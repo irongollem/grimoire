@@ -104,7 +104,6 @@ function partyMember(over: Partial<PartyMember> = {}): PartyMember {
     max_hp: 40,
     current_hp: 40,
     temp_hp: 0,
-    ac: 16,
     speed: 30,
     initiative_bonus: 2,
     current_initiative: null,

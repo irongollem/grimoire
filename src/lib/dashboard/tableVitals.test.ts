@@ -27,7 +27,6 @@ function member(overrides: Partial<PartyMember> = {}): PartyMember {
     max_hp: 30,
     current_hp: 30,
     temp_hp: 0,
-    ac: 14,
     speed: 30,
     initiative_bonus: 0,
     current_initiative: null,

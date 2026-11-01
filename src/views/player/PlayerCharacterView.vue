@@ -32,8 +32,6 @@
       <CharacterApprovalNotice v-if="member.campaign_id" :member="member" />
       <CharacterCaretakingNotice :member="member" :viewed-by-dm="!!memberId" />
       <MemorialBanner v-if="memorialInEffect" :memorial="memorialInEffect" :viewer="memorialViewer" />
-      <!-- The gear in view is the active table's, so only a character seated there can be compared. -->
-      <AcCalculatedNotice v-if="campaign.activeCampaign && member.campaign_id === campaign.activeCampaign.id" :member="member" />
       <!-- ── Always visible ─────────────────────────────────── -->
       <!-- One card: the header, closed underneath by the six ability boxes -->
       <div ref="sheetCard" class="rounded-lg border border-border bg-card overflow-hidden">
@@ -198,7 +196,6 @@ import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.v
 import RollToast from "@/components/common/feedback/RollToast.vue";
 import CharacterEditionNotice from "@/components/player/CharacterEditionNotice.vue";
 import CharacterApprovalNotice from "@/components/player/CharacterApprovalNotice.vue";
-import AcCalculatedNotice from "@/components/player/AcCalculatedNotice.vue";
 import PlayerCharacterHeader from "@/components/player/PlayerCharacterHeader.vue";
 import PlayerHpStrip from "@/components/player/PlayerHpStrip.vue";
 import PlayerConditions from "@/components/player/PlayerConditions.vue";
