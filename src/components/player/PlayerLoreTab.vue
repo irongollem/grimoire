@@ -10,12 +10,11 @@
         <span class="text-label-lg font-semibold text-muted-foreground uppercase">About</span>
       </div>
       <div class="p-3">
-        <RichTextEditor
-          toolbar="focus"
+        <TapToEditRichText
           v-if="isOwner"
+          label="about"
           :model-value="member.player_description ?? null"
           placeholder="Describe yourself to your party…"
-          size="sm"
           @update:model-value="saveDescription"
         />
         <RichTextViewer
@@ -58,10 +57,9 @@
         </div>
         <div>
           <label class="field-label">Physical Description</label>
-          <RichTextEditor
-            toolbar="focus"
+          <TapToEditRichText
+            label="physical description"
             :model-value="form.physical_description"
-            size="sm"
             placeholder="Height, build, hair, eyes, distinguishing marks…"
             @update:model-value="form.physical_description = $event; scheduleAutoSave()"
           />
@@ -130,40 +128,36 @@
         </div>
         <div>
           <label class="field-label">Personality Traits</label>
-          <RichTextEditor
-            toolbar="focus"
+          <TapToEditRichText
+            label="personality traits"
             :model-value="form.personality_traits"
-            size="sm"
             placeholder="I always have a plan…"
             @update:model-value="form.personality_traits = $event; scheduleAutoSave()"
           />
         </div>
         <div>
           <label class="field-label">Ideals</label>
-          <RichTextEditor
-            toolbar="focus"
+          <TapToEditRichText
+            label="ideals"
             :model-value="form.ideals"
-            size="sm"
             placeholder="What drives you…"
             @update:model-value="form.ideals = $event; scheduleAutoSave()"
           />
         </div>
         <div>
           <label class="field-label">Bonds</label>
-          <RichTextEditor
-            toolbar="focus"
+          <TapToEditRichText
+            label="bonds"
             :model-value="form.bonds"
-            size="sm"
             placeholder="Who or what do you protect…"
             @update:model-value="form.bonds = $event; scheduleAutoSave()"
           />
         </div>
         <div>
           <label class="field-label">Flaws</label>
-          <RichTextEditor
-            toolbar="focus"
+          <TapToEditRichText
+            label="flaws"
             :model-value="form.flaws"
-            size="sm"
             placeholder="Your weakness or vice…"
             @update:model-value="form.flaws = $event; scheduleAutoSave()"
           />
@@ -196,10 +190,17 @@
       </div>
     </div>
 
-    <!-- Notes (plain DM/creation notes — read-only always) -->
-    <div v-if="member.notes" class="rounded-lg border border-border bg-card p-4">
+    <!-- Notes: the owner taps to edit (the full editor offers the same field), everyone else reads -->
+    <div v-if="isOwner || member.notes" class="rounded-lg border border-border bg-card p-4">
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mb-2">Notes</p>
-      <RichTextViewer :content="member.notes" class="text-body text-foreground" />
+      <TapToEditRichText
+        v-if="isOwner"
+        label="notes"
+        :model-value="form.notes"
+        placeholder="Tap to add notes…"
+        @update:model-value="form.notes = $event; scheduleAutoSave()"
+      />
+      <RichTextViewer v-else :content="member.notes" class="text-body text-foreground" />
     </div>
 
     <!-- Background -->
@@ -291,7 +292,7 @@ import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useAllDeities } from "@/composables/deities/useDeities";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
-import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import TapToEditRichText from "@/components/common/richtext/TapToEditRichText.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import CalendarDateInput from "@/components/common/controls/CalendarDateInput.vue";
 import { displayAge, displayBirth } from "@/lib/calendar/age";
@@ -348,6 +349,7 @@ interface LoreForm {
   ideals: string;
   bonds: string;
   flaws: string;
+  notes: string;
 }
 
 function loreToForm(m: PartyMember | null): LoreForm {
@@ -366,6 +368,7 @@ function loreToForm(m: PartyMember | null): LoreForm {
     ideals:               m?.ideals               ?? "",
     bonds:                m?.bonds                ?? "",
     flaws:                m?.flaws                ?? "",
+    notes:                m?.notes                ?? "",
   };
 }
 
@@ -392,6 +395,7 @@ const CONFLICT_LABELS: Record<keyof LoreForm, string> = {
   ideals: "Ideals",
   bonds: "Bonds",
   flaws: "Flaws",
+  notes: "Notes",
 };
 const conflictLabels = computed(() => [...new Set(conflicts.value.map((key) => CONFLICT_LABELS[key]))]);
 
@@ -411,6 +415,7 @@ function loreRow(f: LoreForm) {
     ideals:               f.ideals || null,
     bonds:                f.bonds || null,
     flaws:                f.flaws || null,
+    notes:                f.notes || null,
   };
 }
 
