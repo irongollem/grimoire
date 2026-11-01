@@ -111,6 +111,14 @@
                 @edit-account="emit('edit-account', m)"
                 @open="openOnPhone(m)"
               />
+              <AppButton
+                v-if="!isPhone && (notesByMember.get(m.party_member_id)?.length ?? 0) > 0"
+                class="mx-auto mt-2"
+                variant="ghost"
+                size="sm"
+                :label="`From their journal (${notesByMember.get(m.party_member_id)?.length})`"
+                @click="notesFor = m"
+              />
             </li>
           </ul>
         </section>
@@ -128,7 +136,21 @@
     >
       <div v-if="openMemorial" class="flex flex-col items-center gap-3 p-2" :style="darkStyle">
         <HallCardSlot v-bind="slotProps(openMemorial)" @flip="toggleFlip(openMemorial.id)" @light-candle="light(openMemorial)" @edit-words="wordsFor = openMemorial" @edit-account="emit('edit-account', openMemorial)" />
+        <FallenCharacterNotes :name="openMemorial.character_name" :notes="notesByMember.get(openMemorial.party_member_id) ?? []" />
         <AppButton variant="outline" size="md" label="Close" @click="openId = null" />
+      </div>
+    </AppModal>
+
+    <!-- Desktop: the fallen character's Character notes, which left the live journal with them. -->
+    <AppModal
+      :open="notesFor !== null"
+      size="md"
+      :label="notesFor ? `${notesFor.character_name}'s journal` : 'Journal'"
+      @close="notesFor = null"
+    >
+      <div v-if="notesFor" class="flex flex-col gap-3 p-4" :style="darkStyle">
+        <FallenCharacterNotes :name="notesFor.character_name" :notes="notesByMember.get(notesFor.party_member_id) ?? []" />
+        <AppButton variant="outline" size="md" label="Close" @click="notesFor = null" />
       </div>
     </AppModal>
 
@@ -143,6 +165,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import FallenCharacterNotes from "@/components/memorials/FallenCharacterNotes.vue";
 import HallCardSlot from "@/components/memorials/HallCardSlot.vue";
 import HallCell from "@/components/memorials/HallCell.vue";
 import HallHeader from "@/components/memorials/HallHeader.vue";
@@ -158,6 +181,7 @@ import {
   useWallMemorials,
   type MournerTarget,
 } from "@/composables/memorials/useMemorials";
+import { groupCharacterNotes, useCharacterJournalNotes } from "@/composables/notes/usePlayerJournal";
 import { hallStoneUrl } from "@/lib/memorials/hallGround";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useTheme } from "@/composables/useTheme";
@@ -293,6 +317,12 @@ function slotProps(m: CharacterMemorial) {
     flipped: flipped.value.has(m.id),
   };
 }
+
+// Character notes follow their character to the wall. RLS decides whose are readable (the
+// viewer's own and other players' public ones for a player; the same for a DM).
+const notesQuery = useCharacterJournalNotes(() => scoped.value.map((m) => m.party_member_id));
+const notesByMember = computed(() => groupCharacterNotes(notesQuery.data.value ?? []));
+const notesFor = ref<CharacterMemorial | null>(null);
 
 // The phone's open card.
 const openId = ref<string | null>(null);

@@ -264,9 +264,10 @@ import type { Component } from "vue";
 import {
   useMyJournalEntries, useSharedJournalEntries,
   useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry,
-  useReorderJournalEntries,
+  useReorderJournalEntries, withoutFallenCharacterNotes,
   JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST,
 } from "@/composables/notes/usePlayerJournal";
+import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 import { useNotesUiStore } from "@/stores/ui/notes";
 import { storeToRefs } from "pinia";
 import { sortEntities, type SortField } from "@/lib/noteSort";
@@ -296,9 +297,13 @@ import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composable
 const { mentionItems } = usePlayerEntityMentionItems();
 
 // ── Data ───────────────────────────────────────────────────────────────────────
-const { data: myEntries,     isLoading: loadingMine }   = useMyJournalEntries();
-const { data: sharedEntries, isLoading: loadingShared } = useSharedJournalEntries();
-const isLoading = computed(() => loadingMine.value || loadingShared.value);
+const { data: myRaw,     isLoading: loadingMine }   = useMyJournalEntries();
+const { data: sharedRaw, isLoading: loadingShared } = useSharedJournalEntries();
+// A fallen character's Character notes live in the Hall of the Fallen, not in the live journal.
+const { data: memorials, isLoading: loadingMemorials } = useCampaignMemorials();
+const myEntries     = computed(() => withoutFallenCharacterNotes(myRaw.value ?? [], memorials.value));
+const sharedEntries = computed(() => withoutFallenCharacterNotes(sharedRaw.value ?? [], memorials.value));
+const isLoading = computed(() => loadingMine.value || loadingShared.value || loadingMemorials.value);
 const { memberByUserId } = useMemberByUserId();
 
 // Entity data for context picker — player-scoped to avoid leaking DM data
