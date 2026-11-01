@@ -142,13 +142,6 @@ export interface PartyMember {
   max_hp: number;
   current_hp: number;
   temp_hp: number;
-  /**
-   * The AC this character had before Armour Class became calculated. Read only
-   * by the one-time "your AC is now worked out from your gear" notice, which
-   * clears it; null for every new or edited character. Never display it: the
-   * AC is `useArmorClass().acFor(member)`.
-   */
-  ac: number | null;
   /** An extra AC calculation the character has; see the grammar below. */
   ac_formula?: string | null;
   speed: number;

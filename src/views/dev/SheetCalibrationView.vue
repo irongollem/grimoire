@@ -315,7 +315,6 @@ const sampleMember: PartyMember = {
   max_hp: 88,
   current_hp: 61,
   temp_hp: 12,
-  ac: null,
   ac_formula: null,
   speed: 30,
   initiative_bonus: 2,

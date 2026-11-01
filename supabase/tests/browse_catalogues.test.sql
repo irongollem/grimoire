@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 -- browse_monsters / browse_items / browse_spells (#972, migration
 -- 20261004230629): one page of the Monsters, Vault and Spells lists, with the
@@ -29,7 +29,15 @@ insert into public.monsters (id, user_id, campaign_id, name, monster_type, size,
 insert into public.library_monsters (id, name, monster_type, ruleset, conceptual_key, source, source_document_key, source_record_key, stat_block) values
   ('browse_test_owlbear', 'Zz Library Owlbear', 'monstrosity', '2014', 'zz_library_owlbear', 'srd-2014', 'srd-2014', 'browse-test-owlbear', '{}'::jsonb);
 insert into public.library_items (id, name, item_type, rarity, source, source_document_key, source_record_key) values
-  ('browse_test_lantern', 'Zz Library Lantern', 'gear', 'mundane', 'grimoire-bundled', 'grimoire-bundled', 'browse-test-lantern');
+  ('browse_test_lantern', 'Zz Library Lantern', 'gear', 'mundane', 'grimoire-bundled', 'grimoire-bundled', 'browse-test-lantern'),
+  ('browse_test_rope',    'Zz Library Rope',    'gear', 'mundane', 'grimoire-bundled', 'grimoire-bundled', 'browse-test-rope'),
+  ('browse_test_torch',   'Zz Library Torch',   'gear', 'mundane', 'grimoire-bundled', 'grimoire-bundled', 'browse-test-torch');
+
+-- An own item with a source but no identity keys shadows a library item by
+-- name, case aside; homebrew (no source) never shadows anything.
+insert into public.items (id, user_id, campaign_id, name, item_type, rarity, source) values
+  ('97250000-0000-4000-8000-000000000031', '97250000-0000-4000-8000-000000000001', null, 'ZZ LIBRARY ROPE', 'gear', 'mundane', 'grimoire-bundled'),
+  ('97250000-0000-4000-8000-000000000032', '97250000-0000-4000-8000-000000000001', null, 'Zz Library Torch', 'gear', 'mundane', null);
 
 -- An own item that is a customized copy of a library item (same identity keys).
 insert into public.items (id, user_id, campaign_id, name, item_type, rarity, source, source_document_key, source_record_key)
@@ -114,6 +122,15 @@ select is(
   public.browse_items(array[]::text[], '2014', null, '(mine)', null, null, null, 'library') -> 'rows',
   '[]'::jsonb,
   'the library scope holds no own row'
+);
+
+select is(
+  (select jsonb_agg(r ->> 'id' order by r ->> 'id') from jsonb_array_elements(
+     public.browse_items(array[]::text[], '2014', null, 'Zz Library', null, null, null, null, 5000) -> 'rows') r
+    where r ->> 'id' in ('browse_test_rope', 'browse_test_torch',
+                         '97250000-0000-4000-8000-000000000031', '97250000-0000-4000-8000-000000000032')),
+  '["97250000-0000-4000-8000-000000000031", "97250000-0000-4000-8000-000000000032", "browse_test_torch"]'::jsonb,
+  'an own item with a source and no identity hides its library namesake; homebrew hides nothing'
 );
 
 -- Spells: a copy of a library spell is shared, homebrew is not.
