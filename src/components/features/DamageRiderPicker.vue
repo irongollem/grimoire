@@ -50,7 +50,7 @@ import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useToast } from "@/composables/useToast";
 import { type RollResult } from "@/lib/dice/dice";
-import { rollDiceWithMode } from "@/systems/dnd5e/dice/roller";
+import { rollDice } from "@/lib/dice/roller";
 import { abilityMod } from "@/rules/weaponAttack";
 import { slotPool, spellSlotKey } from "@/rules/spellSlots";
 import type { SpellSlotEntry } from "@/types/party.types";
@@ -248,7 +248,7 @@ const rolling = ref(false);
 
 /** A roll with no dice (an Unarmed Strike's 1 + Strength): nothing to throw, so no dice prompt, but it still goes to the chat. */
 async function rollFlat(total: number, text: string): Promise<RollResult> {
-  const result: RollResult = { ...rollDiceWithMode({}, total, "normal"), label: text, isDamage: true };
+  const result: RollResult = { ...rollDice({}, total), label: text, isDamage: true };
   if (!silent) await sendRoll(result, null, senderName).catch(e => reportChatFailure(e, "post the roll to the chat"));
   return result;
 }

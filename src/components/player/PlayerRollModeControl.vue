@@ -38,7 +38,7 @@ import {
   nextRollMode,
   rollModeHintSeen,
   setNextRollMode,
-} from "@/systems/dnd5e/dice/useNextRollMode";
+} from "@/composables/dice/useNextRollMode";
 import { disadvantageNote, type DisadvantageTarget } from "@/rules/rollModeNotes";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";

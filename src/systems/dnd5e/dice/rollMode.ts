@@ -1,14 +1,20 @@
 import type { DieSize } from "@/lib/dice/dice";
+import type { RollModeKey } from "@/lib/dice/diceRules";
 
 /** 5e roll modes: advantage / disadvantage apply to a single d20. */
 export type RollMode = "normal" | "advantage" | "disadvantage";
+
+/** Reads an option key as a 5e mode; a key 5e does not offer is a normal roll. */
+export function toRollMode(key: RollModeKey): RollMode {
+  return key === "advantage" || key === "disadvantage" ? key : "normal";
+}
 
 /**
  * Combine two roll modes per 5e RAW: any advantage + any disadvantage cancel to
  * normal, regardless of how many of each. Used to merge a player-chosen mode
  * (from the long-press / right-click picker) with a condition-imposed one.
  */
-export function combineModes(a: RollMode, b: RollMode): RollMode {
+export function combineModes(a: RollModeKey, b: RollModeKey): RollMode {
   const adv = a === "advantage" || b === "advantage";
   const dis = a === "disadvantage" || b === "disadvantage";
   if (adv && dis) return "normal";
@@ -28,23 +34,13 @@ export function advantageAppliesTo(sides: DieSize): boolean {
   return sides === 20;
 }
 
-/**
- * The mode actually applied for a given die click. A DM can leave the
- * Advantage/Disadvantage toggle set and then click d6; in 5e advantage applies
- * to the d20 only, so resolving it here means the roll never claims a mode that
- * did nothing.
- */
-export function effectiveMode(sides: DieSize, mode: RollMode): RollMode {
-  return advantageAppliesTo(sides) ? mode : "normal";
-}
-
 /** The label tag for a mode: " (Adv)", " (Dis)" or nothing. */
-export function modeSuffix(mode: RollMode): " (Adv)" | " (Dis)" | "" {
+export function modeSuffix(mode: RollModeKey): " (Adv)" | " (Dis)" | "" {
   return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
 }
 
 /** The label with its "(Adv)" / "(Dis)" tag swapped for the mode actually rolled. */
-export function withModeTag(label: string, mode: RollMode): string {
+export function withModeTag(label: string, mode: RollModeKey): string {
   const bare = label.replace(/ \((Adv|Dis)\)$/, "");
   return `${bare}${modeSuffix(mode)}`;
 }

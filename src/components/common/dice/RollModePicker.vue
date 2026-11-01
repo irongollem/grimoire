@@ -30,16 +30,22 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from "vue";
 import type { CSSProperties } from "vue";
-import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
-import { rollModePickerState, resolveRollModePicker } from "@/systems/dnd5e/dice/useRollModePicker";
+import { rollChoices, type RollModeKey } from "@/lib/dice/diceRules";
+import { rollModePickerState, resolveRollModePicker } from "@/composables/dice/useRollModePicker";
+import { activeDiceRules } from "@/systems/registry";
 
 const state = rollModePickerState;
 
-const OPTIONS: { value: RollMode; label: string; cls: string }[] = [
-  { value: "advantage", label: "Advantage", cls: "opt-adv" },
-  { value: "normal", label: "Normal", cls: "opt-normal" },
-  { value: "disadvantage", label: "Disadvantage", cls: "opt-dis" },
-];
+const rules = activeDiceRules();
+
+// Help first, then Normal, then hindrance: the reverse of the reading order.
+const OPTIONS: { value: RollModeKey; label: string; cls: string }[] = rollChoices(rules)
+  .reverse()
+  .map((c) => ({
+    value: c.key,
+    label: c.label,
+    cls: c.tone === "success" ? "opt-adv" : c.tone === "danger" ? "opt-dis" : "opt-normal",
+  }));
 
 // Anchor the menu near the pointer, nudged so it stays on screen. Sizes are
 // approximate — enough to avoid spilling off the right/bottom edges.
@@ -55,7 +61,7 @@ const menuStyle = computed<CSSProperties>(() => {
   };
 });
 
-function choose(mode: RollMode) {
+function choose(mode: RollModeKey) {
   resolveRollModePicker(mode);
 }
 function dismiss() {

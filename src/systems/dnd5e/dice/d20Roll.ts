@@ -1,9 +1,7 @@
-import { ALL_DICE, formatCounts, keepOne, rollDie } from "@/lib/dice/dice";
+import { ALL_DICE, formatCounts, keepOne } from "@/lib/dice/dice";
 import type { DieResult, DieSize, RollResult } from "@/lib/dice/dice";
-import { modeSuffix, type RollMode } from "./rollMode";
-
-/** Faces per die size, as rolled or as typed in from a physical roll. */
-export type RolledFaces = Partial<Record<DieSize, number[]>>;
+import type { RollModeKey, RolledFaces } from "@/lib/dice/diceRules";
+import { modeSuffix, toRollMode } from "./rollMode";
 
 /**
  * Scores faces that were already rolled under the 5e d20 rules (pure). The one
@@ -20,9 +18,10 @@ export type RolledFaces = Partial<Record<DieSize, number[]>>;
 export function scoreRoll(
   counts: Partial<Record<DieSize, number>>,
   modifier: number,
-  mode: RollMode,
+  modeKey: RollModeKey,
   faces: RolledFaces,
 ): RollResult {
+  const mode = toRollMode(modeKey);
   const breakdown: DieResult[] = [];
   let sum = 0;
   let isCrit = false;
@@ -59,21 +58,7 @@ export function scoreRoll(
   };
 }
 
-/** How many faces a pool needs: a lone d20 with a mode takes two. */
-function facesNeeded(sides: DieSize, n: number, mode: RollMode): number {
-  return sides === 20 && n === 1 && mode !== "normal" ? 2 : n;
-}
-
-/** A digital pool roll under the 5e d20 rules (pure, no sound): rolls the faces, then `scoreRoll`. */
-export function rollDiceWithMode(
-  counts: Partial<Record<DieSize, number>>,
-  modifier: number,
-  mode: RollMode,
-): RollResult {
-  const faces: RolledFaces = {};
-  for (const sides of ALL_DICE) {
-    const n = counts[sides] ?? 0;
-    if (n > 0) faces[sides] = Array.from({ length: facesNeeded(sides, n, mode) }, () => rollDie(sides));
-  }
-  return scoreRoll(counts, modifier, mode, faces);
+/** How many faces a pool needs: a lone d20 with advantage or disadvantage takes two. */
+export function facesNeeded(sides: DieSize, count: number, mode: RollModeKey): number {
+  return sides === 20 && count === 1 && toRollMode(mode) !== "normal" ? 2 : count;
 }

@@ -36,3 +36,24 @@ describe("DiceRoller pool size", () => {
     expect(wrapper.findAll(".die-slot")[3].get(".count-val").text()).toBe("99");
   });
 });
+
+describe("DiceRoller roll options", () => {
+  // A system with no roll options must not show an empty option strip.
+  it("hides the option control when the active system offers none", async () => {
+    vi.resetModules();
+    vi.doMock("@/systems/registry", async (orig) => {
+      const real = await orig<typeof import("@/systems/registry")>();
+      return { ...real, activeDiceRules: () => ({ ...real.activeDiceRules(), options: [] }) };
+    });
+    const { default: Bare } = await import("./DiceRoller.vue");
+    const wrapper = mount(Bare, { global: { stubs: { teleport: true } } });
+    await wrapper.get('button[aria-label="Dice Roller"]').trigger("click");
+    expect(wrapper.find(".adv-row").exists()).toBe(false);
+    vi.doUnmock("@/systems/registry");
+  });
+
+  it("shows Disadvantage, Normal, Advantage in that order for 5e", async () => {
+    const wrapper = await openPanel();
+    expect(wrapper.get(".adv-row").findAll("button").map((b) => b.text())).toEqual(["DIS", "Normal", "ADV"]);
+  });
+});

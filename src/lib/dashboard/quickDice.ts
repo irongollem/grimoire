@@ -1,6 +1,6 @@
 import { ALL_DICE, parseExpression } from "@/lib/dice/dice";
 import type { DieResult, DieSize, ParsedExpression, RollResult } from "@/lib/dice/dice";
-import { advantageAppliesTo } from "@/systems/dnd5e/dice/rollMode";
+import type { DiceRules } from "@/lib/dice/diceRules";
 
 /**
  * Pure logic behind the dashboard's quick dice roller (#764).
@@ -17,16 +17,18 @@ import { advantageAppliesTo } from "@/systems/dnd5e/dice/rollMode";
 export interface QuickDieButton {
   sides: DieSize;
   label: string;
-  /** Whether Advantage/Disadvantage applies to a single click of this die. */
-  supportsAdvantage: boolean;
+  /** Whether the system's roll options (5e: advantage/disadvantage) apply to a single click of this die. */
+  takesOptions: boolean;
 }
 
 /** The quick-roll row: every standard die, in the order a physical set racks. */
-export const QUICK_DICE_BUTTONS: readonly QuickDieButton[] = ALL_DICE.map((sides) => ({
-  sides,
-  label: `d${sides}`,
-  supportsAdvantage: advantageAppliesTo(sides),
-}));
+export function quickDiceButtons(rules: DiceRules): readonly QuickDieButton[] {
+  return ALL_DICE.map((sides) => ({
+    sides,
+    label: `d${sides}`,
+    takesOptions: rules.optionAppliesTo(sides),
+  }));
+}
 
 export type QuickExpressionCheck =
   | { status: "empty" }

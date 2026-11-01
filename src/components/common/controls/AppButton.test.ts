@@ -5,7 +5,7 @@ import { mount } from "@vue/test-utils";
 import { h } from "vue";
 import { RouterLinkStub } from "@vue/test-utils";
 import AppButton from "./AppButton.vue";
-import { vRollMode } from "@/systems/dnd5e/dice/vRollMode";
+import { vRollMode } from "@/directives/vRollMode";
 import { buttonVariants, BUTTON_COLOUR_TONES, BUTTON_EMPHASES } from "./appButtonVariants";
 
 // Pruned under #1116. "Variant X contains class Y" tests are gone: the compile-time

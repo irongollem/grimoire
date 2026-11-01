@@ -1,21 +1,25 @@
 import { describe, it, expect } from "vitest";
 import type { RollResult } from "@/lib/dice/dice";
+import { dnd5eDiceRules } from "@/systems/dnd5e/dice/rules";
+import type { DiceRules } from "@/lib/dice/diceRules";
 import {
-  QUICK_DICE_BUTTONS,
+  quickDiceButtons,
   checkQuickExpression,
   displayStandardRoll,
   displayExpressionRoll,
 } from "./quickDice";
 
 describe("quickDice", () => {
-  describe("QUICK_DICE_BUTTONS", () => {
-    it("labels a button d<sides> and offers Advantage on the d20 alone", () => {
-      expect(QUICK_DICE_BUTTONS.find((b) => b.sides === 8)).toEqual({
-        sides: 8,
-        label: "d8",
-        supportsAdvantage: false,
-      });
-      expect(QUICK_DICE_BUTTONS.find((b) => b.sides === 20)?.supportsAdvantage).toBe(true);
+  describe("quickDiceButtons", () => {
+    it("labels a button d<sides> and offers 5e's roll options on the d20 alone", () => {
+      const buttons = quickDiceButtons(dnd5eDiceRules);
+      expect(buttons.find((b) => b.sides === 8)).toEqual({ sides: 8, label: "d8", takesOptions: false });
+      expect(buttons.find((b) => b.sides === 20)?.takesOptions).toBe(true);
+    });
+
+    it("asks the rules it is given, not 5e (a system with options on every die)", () => {
+      const everyDie: DiceRules = { ...dnd5eDiceRules, optionAppliesTo: () => true };
+      expect(quickDiceButtons(everyDie).every((b) => b.takesOptions)).toBe(true);
     });
   });
 

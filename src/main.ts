@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import { createPinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
-import { vRollMode } from "./systems/dnd5e/dice/vRollMode";
+import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { prefetchInitialChunks } from "./router/prefetchInitial";
 import { supabase, onSessionLost, consumeRefusedRead, getCurrentUser, readStoredSession } from "./lib/supabase";

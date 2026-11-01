@@ -375,7 +375,7 @@ import type {
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { DieSize, RollResult } from "@/lib/dice/dice";
-import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
+import type { RollModeKey } from "@/lib/dice/diceRules";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { COINS, toCP } from "@/rules/currency";
 import type { CoinKey } from "@/types/downtime.types";
@@ -645,7 +645,7 @@ const diceOpen = ref(false);
 
 const { promptRoll } = usePromptedRoll();
 
-async function onDiceRoll(payload: { counts: Partial<Record<DieSize, number>>; modifier: number; mode: RollMode }) {
+async function onDiceRoll(payload: { counts: Partial<Record<DieSize, number>>; modifier: number; mode: RollModeKey }) {
   const parts: string[] = [];
   for (const [d, c] of Object.entries(payload.counts)) {
     if ((c ?? 0) > 0) parts.push(`${c}d${d}`);

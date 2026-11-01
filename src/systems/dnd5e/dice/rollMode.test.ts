@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ALL_DICE } from "@/lib/dice/dice";
-import { advantageAppliesTo, combineModes, effectiveMode, modeSuffix, withModeTag } from "./rollMode";
+import { advantageAppliesTo, combineModes, modeSuffix, withModeTag } from "./rollMode";
 
 describe("combineModes", () => {
   it("returns the other mode when one side is normal", () => {
@@ -19,23 +19,6 @@ describe("combineModes", () => {
   it("cancels to normal when advantage meets disadvantage (5e RAW)", () => {
     expect(combineModes("advantage", "disadvantage")).toBe("normal");
     expect(combineModes("disadvantage", "advantage")).toBe("normal");
-  });
-});
-
-describe("effectiveMode", () => {
-  it("passes advantage/disadvantage through for d20", () => {
-    expect(effectiveMode(20, "advantage")).toBe("advantage");
-    expect(effectiveMode(20, "disadvantage")).toBe("disadvantage");
-  });
-
-  it("flattens a stale mode to normal for every other die, so the result never claims a mode that did nothing", () => {
-    expect(effectiveMode(6, "advantage")).toBe("normal");
-    expect(effectiveMode(100, "disadvantage")).toBe("normal");
-  });
-
-  it("leaves normal mode alone regardless of die", () => {
-    expect(effectiveMode(4, "normal")).toBe("normal");
-    expect(effectiveMode(20, "normal")).toBe("normal");
   });
 });
 

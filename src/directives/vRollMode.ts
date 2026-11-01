@@ -1,32 +1,35 @@
 import type { Directive, DirectiveBinding } from "vue";
-import type { RollMode } from "./rollMode";
-import { openRollModePicker } from "./useRollModePicker";
+import type { RollModeKey } from "@/lib/dice/diceRules";
+import { openRollModePicker } from "@/composables/dice/useRollModePicker";
+import { activeDiceRules } from "@/systems/registry";
 
 /**
- * `v-roll-mode` — attach advantage/disadvantage selection to a roll trigger (#501).
+ * `v-roll-mode` — attach roll-option selection (5e: advantage/disadvantage) to a roll trigger (#501).
  *
  * A plain click/tap fires the handler with `null` (roll as normal — any
  * condition-derived mode still applies). A right-click (desktop) or long-press
- * (touch) opens the Normal/Advantage/Disadvantage picker; the chosen mode is
+ * (touch) opens the roll-option picker; the chosen mode is
  * passed to the handler, which should combine it with any condition mode via
- * `combineModes` before rolling.
+ * the active system's `combine` before rolling.
  *
  * Usage: replace `@click="rollSkill(s)"` with
  *        `v-roll-mode="(mode) => rollSkill(s, mode)"`.
  */
-export type RollModeHandler = (mode: RollMode | null, ev: Event) => void;
+export type RollModeHandler = (mode: RollModeKey | null, ev: Event) => void;
 
 /**
  * Directive value. Pass a bare handler to always enable the picker, or an
  * object to gate it — `enabled: false` keeps the plain click but disables the
  * long-press/right-click picker (used by shared tables that also render in DM /
- * read-only contexts where advantage selection doesn't apply).
+ * read-only contexts where roll-option selection doesn't apply).
  */
 export type RollModeBinding = RollModeHandler | { enabled?: boolean; on: RollModeHandler };
 
 function resolveBinding(value: RollModeBinding): { enabled: boolean; on: RollModeHandler } {
-  if (typeof value === "function") return { enabled: true, on: value };
-  return { enabled: value.enabled !== false, on: value.on };
+  // A system with no roll options has nothing to pick, so the gesture stays the OS's.
+  const hasOptions = activeDiceRules().options.length > 0;
+  if (typeof value === "function") return { enabled: hasOptions, on: value };
+  return { enabled: hasOptions && value.enabled !== false, on: value.on };
 }
 
 const LONG_PRESS_MS = 450;
@@ -72,7 +75,7 @@ export const vRollMode: Directive<HTMLElement, RollModeBinding> = {
 
     // Read fresh each event so a reactive `enabled` toggle is honoured.
     const current = () => latest.get(el) ?? binding.value;
-    const call = (mode: RollMode | null, ev: Event) => resolveBinding(current()).on(mode, ev);
+    const call = (mode: RollModeKey | null, ev: Event) => resolveBinding(current()).on(mode, ev);
     const pickerEnabled = () => resolveBinding(current()).enabled;
 
     const clearTimer = () => {

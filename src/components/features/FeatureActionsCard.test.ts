@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
-import { vRollMode } from "@/systems/dnd5e/dice/vRollMode";
+import { vRollMode } from "@/directives/vRollMode";
 import type { CharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
 import type { ActionEntry, ResourcePool } from "@/rules/features/characterFeatures";

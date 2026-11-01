@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { rollDiceWithMode, scoreRoll } from "./d20Roll";
+import { rollWithRules, type RollModeKey } from "@/lib/dice/diceRules";
+import type { DieSize } from "@/lib/dice/dice";
+import { scoreRoll } from "./d20Roll";
+import { dnd5eDiceRules } from "./rules";
 
-describe("rollDiceWithMode", () => {
+/** A digital 5e roll, through the same contract the neutral surfaces use. */
+function rollDiceWithMode(counts: Partial<Record<DieSize, number>>, modifier: number, mode: RollModeKey) {
+  return rollWithRules(dnd5eDiceRules, counts, modifier, mode);
+}
+
+describe("a 5e roll through dnd5eDiceRules", () => {
   afterEach(() => vi.restoreAllMocks());
 
   // rollDie(sides) = floor(random * sides) + 1, so 0 rolls a 1 and 0.99 rolls the top face.
