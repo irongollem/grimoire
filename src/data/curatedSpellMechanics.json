@@ -1,0 +1,2213 @@
+{
+  "srd_abhorrent_apparition": {
+    "category": null,
+    "evidence": "Each creature within 15 feet of that spot takes 6d8 psychic damage and becomes frightened of you for 1 minute; a successful Wisdom saving throw halves the damage and negates the fright.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "6d8",
+          "type": "psychic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "WIS",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "1d8",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_acid_gate": {
+    "category": "area_entry",
+    "evidence": "Any creature that tries to move through the gate, other than those selected by you when the spell was cast, takes 10d6 acid damage and is teleported 1d100 × 10 feet in a random, horizontal direction.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_acid_rain": {
+    "category": "area_entry",
+    "evidence": "A creature that starts its turn in the area or that enters the area for the first time on its turn takes 6d6 acid damage, or half as much damage if it makes a successful Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_air_wave_a5e": {
+    "category": "other",
+    "evidence": "Make a melee weapon attack against the target.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_alchemical_form": {
+    "category": "other",
+    "evidence": "you gain the following action: **Melee Weapon Attack:** spellcasting ability modifier + proficiency bonus to hit, range 5 ft., one target; **Hit:** 4d6 acid or poison damage (your choice), and the target must make a successful Constitution saving throw or be poisoned until the start of your next turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_altered_strike_a5e": {
+    "category": "other",
+    "evidence": "You briefly transform your weapon or fist into another material and strike with it, making a melee weapon attack against a target within your reach.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_amplify_gravity": {
+    "category": "other",
+    "evidence": "Inside the area, damage from falling is quadrupled (2d6 per 5 feet fallen) and maximum damage from falling is 40d6.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_animate_construct": {
+    "category": "summon",
+    "evidence": "The object acts immediately, on your turn, and can attack your opponents to the best of its ability.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_arcane_muscles_a5e": {
+    "category": "other",
+    "evidence": "In addition, your unarmed strikes deal 1d6 bludgeoning damage and count as magical for the purpose of overcoming resistance and immunity to nonmagical attacks and damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_armored_formation": {
+    "category": "conditional_extra",
+    "evidence": "Each creature gains a +2 bonus to AC, and when it hits with any weapon, it deals an extra 1d6 damage of the weapon's type.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_aspect_of_the_moon_a5e": {
+    "category": "other",
+    "evidence": "You gain a +1 bonus to AC, your Speed increases by 10 feet, you have advantage on Perception checks, and your unarmed strikes deal 1d8 slashing damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_aspect_of_the_serpent": {
+    "category": "several_damage_clauses",
+    "evidence": "As a bonus action when you cast the spell, the target can make a ranged weapon attack with a normal range of 60 feet that deals 2d6 poison damage on a hit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_avert_evil_eye": {
+    "category": "no_damage_or_healing",
+    "evidence": "When avert evil eye is cast, the recipient has a small degree of protection against the evil eye for up to 1 hour.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_awaken_object": {
+    "category": "summon",
+    "evidence": "An awakened object can use an action to make a melee weapon attack against a target within 5 feet of it.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_banshee_wail": {
+    "category": "varies_by_outcome",
+    "evidence": "Those that fail take 6d10 psychic damage and become frightened of you; a frightened creature repeats the saving throw at the end of its turn, ending the effect on itself on a success.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_beast_within": {
+    "category": "other",
+    "evidence": "The claws deal slashing damage equal to 1d4 + the target's Strength modifier on a hit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_become_nightwing": {
+    "category": "other",
+    "evidence": "For the duration of the spell, you gain a flying speed of 60 feet and a new attack action: Nightwing Breath.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_benediction": {
+    "category": "no_damage_or_healing",
+    "evidence": "The next time the creature takes damage, it rolls a d4 and reduces the damage by the result.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_bestial_fury": {
+    "category": "other",
+    "evidence": "For the duration, the target’s attacks deal an extra 1d6 damage of the same type dealt by its weapon, and the target can’t be charmed or frightened.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_bitter_chains": {
+    "category": "other",
+    "evidence": "If it moves more than 5 feet during a turn, it takes 3d6 piercing damage from the barbs.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_black_swan_storm": {
+    "category": null,
+    "evidence": "The feathers deal 2d8 force damage to creatures in the cube’s area and radiate darkness, causing the illumination level within 20 feet of the cube to drop by one step (from bright light to dim light, and from dim light to darkness).",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "2d8",
+          "type": "force"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "DEX",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "1d8",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_black_well": {
+    "category": "area_entry",
+    "evidence": "A creature takes damage only upon entering the well—it takes no additional damage for remaining there—but if it leaves the well and is pulled back in again, it takes damage again.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_blade_of_wrath": {
+    "category": "other",
+    "evidence": "You can use your action to make a melee spell attack with the blade.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_blazing_chariot": {
+    "category": "other",
+    "evidence": "Any other creature that touches the chariot or hits it (or a creature riding in it) with a melee attack while within 5 feet of the chariot takes 3d6 fire damage and 3d6 radiant damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_bleed": {
+    "category": "several_damage_clauses",
+    "evidence": "Each time you hit a creature with this weapon while it suffers from a bleeding wound, your weapon deals an extra 1 necrotic damage for each time you have previously hit the creature with this weapon (to a maximum of 10 necrotic damage).",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_blizzard": {
+    "category": "area_entry",
+    "evidence": "A creature also makes this saving throw and takes damage when it enters the area for the first time on a turn or ends its turn there.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_blood_and_steel": {
+    "category": "self_damage",
+    "evidence": "When you cast this spell, you cut your hand and take 1d4 slashing damage that can’t be healed until you take a long rest.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_bloodlust": {
+    "category": "other",
+    "evidence": "The target gains 1d6 temporary hit points, has advantage on Strength checks, and deals an extra 1d6 damage when it hits with a weapon attack.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_bloodshot": {
+    "category": "self_damage",
+    "evidence": "You take 1d6 necrotic damage and make a ranged spell attack against the target.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_boiling_blood": {
+    "category": "varies_by_outcome",
+    "evidence": "On a successful save, it takes 2d6 fire damage and the spell ends.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_booster_shot": {
+    "category": "random_table",
+    "evidence": "Roll a d6 to determine the additional effect for each casting of this spell.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_boreass_breath": {
+    "category": "over_turns",
+    "evidence": "While restrained in this way, a creature takes 1d6 cold damage at the end of its turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_bottomless_stomach": {
+    "category": "other",
+    "evidence": "The GM determines the exact effect based on the type of liquid regurgitated, using 1d6 damage of the appropriate type as the baseline.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_brimstone_infusion": {
+    "category": "other",
+    "evidence": "While so enchanted, the alchemist's fire can be thrown 40 feet instead of 20, and it does 2d6 fire damage instead of 1d4.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_butterfly_effect": {
+    "category": "other",
+    "evidence": "While charmed, the target can't take reactions and must roll a d10 at the start of each of its turns to determine its behavior for that turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_calculated_retribution_a5e": {
+    "category": "other",
+    "evidence": "By expending the retribution charge when you hit with a melee attack, you deal an additional 2d10 force damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_carmello_voltas_irksome_preserves": {
+    "category": "other",
+    "evidence": "If it's eaten (as a bonus action) within 24 hours, the jam restores 1d4 hit points.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_caustic_blood": {
+    "category": "other",
+    "evidence": "Each target takes 1d10 acid damage unless it makes a successful Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_chains_of_the_goddess": {
+    "category": "over_turns",
+    "evidence": "While restrained in this way, the creature also takes 6d8 bludgeoning damage at the start of each of your turns.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_chains_of_torment": {
+    "category": "over_turns",
+    "evidence": "A creature that’s restrained at the start of its turn takes 4d6 psychic damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_champions_weapon": {
+    "category": "other",
+    "evidence": "It has standard statistics for a weapon of its kind, but it deals force damage instead of its normal damage type and it sheds dim light in a 10-foot radius.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_chaotic_vitality": {
+    "category": "random_table",
+    "evidence": "Roll a d100 and increase or decrease the number rolled by any number up to your spellcasting level, then find the result on the Hit Point Flux table.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_child_of_light_and_darkness": {
+    "category": "other",
+    "evidence": "Roll a d20 at the end of each of your turns for the duration of the spell.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_chilling_words": {
+    "category": "other",
+    "evidence": "When the target hears the phrase, it must make a successful Constitution saving throw or take 1d6 psychic damage and become restrained for 1 round.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_circle_of_devestation": {
+    "category": "over_turns",
+    "evidence": "At the start of each of your subsequent turns, the ring's radius expands by 20 feet.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_clash_of_glaciers": {
+    "category": "other",
+    "evidence": "Each creature in the area takes 5d6 bludgeoning damage plus 5d6 cold damage, or half the damage with a successful Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_claws_of_darkness": {
+    "category": "other",
+    "evidence": "While the spell lasts, you can make a melee spell attack with them that deals 1d10 cold damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_claws_of_the_earth_dragon": {
+    "category": "conditional_extra",
+    "evidence": "If the target was flying or levitating, it takes an additional 1d6 bludgeoning damage per 10 feet it falls.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_closing_in": {
+    "category": "over_turns",
+    "evidence": "The creature has disadvantage on ability checks and attack rolls for the duration, and it takes 2d6 psychic damage at the end of each of its turns.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_cobras_spit_a5e": {
+    "category": "other",
+    "evidence": "Until the spell ends, you can use an action to spit venom, making a ranged spell attack at a creature or object within 30 feet.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_conjure_greater_spectral_dead": {
+    "category": "summon",
+    "evidence": "You summon an incorporeal undead creature that appears in an unoccupied space you can see within range.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_conjure_minor_voidborn": {
+    "category": "summon",
+    "evidence": "You summon fiends or aberrations that appear in unoccupied spaces you can see within range.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_conjure_voidborn": {
+    "category": "summon",
+    "evidence": "You summon a fiend or aberration of challenge rating 6 or lower, which appears in an unoccupied space that you can see within range.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_corpse_explosion_a5e": {
+    "category": null,
+    "evidence": "A creature takes 3d6 thunder damage and is poisoned for 1 minute on a failed save, or it takes half as much damage and is not poisoned on a successful one.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "3d6",
+          "type": "thunder"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CON",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_costly_victory": {
+    "category": "other",
+    "evidence": "The affected creature takes 6d8 fire damage and 6d8 radiant damage when it bursts into flame.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_creeping_ice": {
+    "category": "over_turns",
+    "evidence": "A creature restrained by the ice takes 2d6 cold damage at the start of its turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_crushing_haymaker_a5e": {
+    "category": "conditional_extra",
+    "evidence": "This spell's damage is doubled against objects and structures.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_crushing_trample": {
+    "category": "other",
+    "evidence": "Each enemy whose space you move through must make a successful Strength saving throw or be knocked prone and take 4d6 bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_curse_of_incompetence": {
+    "category": "random_table",
+    "evidence": "If the target fails on an Intelligence saving throw, roll a d4 and refer to the following table to determine what the target does on its turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_daggerhawk": {
+    "category": "other",
+    "evidence": "The hawk and dagger fly into the air and make a melee attack against one creature you select within 60 feet, using your spell attack modifier and dealing piercing damage equal to 1d4 + your Intelligence modifier on a hit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_dark_heraldry": {
+    "category": null,
+    "evidence": "Each of those creatures takes 5d8 psychic damage and becomes frightened of you; a creature that makes a successful Wisdom saving throw takes half as much damage and is not frightened.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "5d8",
+          "type": "psychic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "WIS",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_darkbolt": {
+    "category": null,
+    "evidence": "Make a ranged spell attack for each target (not each ray); each ray that hits deals 1d10 cold damage.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": {
+        "count": 3,
+        "noun": "ray",
+        "per_slot_above": 1
+      },
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "1d10",
+          "type": "cold"
+        }
+      ],
+      "resolution": "attack_ranged",
+      "save_ability": null,
+      "save_half": null,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_demon_within": {
+    "category": "over_turns",
+    "evidence": "For the spell’s duration, you can use a bonus action to further agitate the demon, dealing an additional 2d6 force damage to the target each time.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_destructive_resonance": {
+    "category": null,
+    "evidence": "Each creature in a 15-foot cone that can hear you takes 4d6 psychic damage, or half that damage with a successful Wisdom saving throw.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "4d6",
+          "type": "psychic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "WIS",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "1d6",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_devas_wings": {
+    "category": "other",
+    "evidence": "When the target takes the Attack action, it can use a bonus action to make a melee weapon attack with the wings, with a reach of 10 feet.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_devouring_darkness": {
+    "category": "other",
+    "evidence": "The creature takes 5d6 psychic damage on a failed save, or half as much damage on a successful one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_divine_retribution": {
+    "category": "conditional_extra",
+    "evidence": "If the attacker is a fiend or undead, it takes an extra 1d8 radiant damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_doom_of_consuming_fire": {
+    "category": "self_damage",
+    "evidence": "You take 1d6 cold damage each round for the duration of the spell.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_doom_of_dancing_blades": {
+    "category": "conditional_extra",
+    "evidence": "If you make a melee attack that scores a critical hit while **doom of dancing blades** is in effect on you, all your illusory weapons also strike the target and deal 1d8 bludgeoning, piercing, or slashing damage (your choice) each.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_doom_of_serpent_coils": {
+    "category": "over_turns",
+    "evidence": "On a subsequent failed save, it takes 4d6 poison damage and is still poisoned.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_dragon_breath": {
+    "category": "over_turns",
+    "evidence": "While the spell remains active, roll a d6 at the start of your turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_dragon_roar": {
+    "category": null,
+    "evidence": "If it fails, the target takes 1d4 psychic damage and is frightened until the start of your next turn.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": true,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "1d4",
+          "type": "psychic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CHA",
+      "save_half": false,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_dryads_kiss": {
+    "category": "other",
+    "evidence": "While the buds remain, whenever the target takes damage from a source other than this spell, one bud blossoms into a purple and yellow flower that deals an extra 1d8 necrotic damage to the target.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_earthskimmer": {
+    "category": "other",
+    "evidence": "It takes 4d6 bludgeoning damage and is knocked prone on a failed save, or takes half as much damage and isn’t knocked prone on a succesful one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_earworm_melody": {
+    "category": "over_turns",
+    "evidence": "For the spell’s duration, the target takes 2d4 psychic damage at the start of each of its turns as the melody plays over and over in its mind.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_ectoplasm": {
+    "category": "area_entry",
+    "evidence": "Any creature that ends its turn within 5 feet of the manifestation takes 2d6 psychic damage, or half the damage with a successful Wisdom saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_eldritch_cube_a5e": {
+    "category": "area_entry",
+    "evidence": "When a creature starts its turn in the cube or enters the cube for the first time on its turn it must make an Intelligence saving throw, taking 5d6 psychic damage on a failed save, or half damage on a success.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_elemental_horns": {
+    "category": "other",
+    "evidence": "The creature’s gore attack deals 3d6 damage of the chosen type in addition to any other damage the attack normally deals.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_elemental_twist": {
+    "category": "other",
+    "evidence": "In addition, the spell’s damage increases by 1d6.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_enrage_architecture_a5e": {
+    "category": "over_turns",
+    "evidence": "While the target is thrashing, any creature inside or within 30 feet of it must make a Dexterity saving throw, taking 2d10+5 bludgeoning damage on a failed save or half as much on a successful one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_eruption": {
+    "category": "over_turns",
+    "evidence": "Each round you maintain concentration on this spell, the cinder cone produces additional effects on your turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_essence_instability": {
+    "category": "over_turns",
+    "evidence": "Both the target and every creature beginning or ending its turn within 20 feet of the target suffer 2d6 poison damage per round.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_exsanguinate": {
+    "category": "varies_by_outcome",
+    "evidence": "On a successful save, it takes 2d6 bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_exsanguinating_cloud": {
+    "category": "other",
+    "evidence": "Any creature in the cloud when it’s created or at the start of your turn takes 6d6 necrotic damage and gains one level of exhaustion; a successful Constitution saving throw halves the damage and prevents the exhaustion.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_fault_line": {
+    "category": null,
+    "evidence": "In addition, all creatures in the affected area are knocked prone and take 8d6 bludgeoning damage.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "8d6",
+          "type": "bludgeoning"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "DEX",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_fey_touched_blade": {
+    "category": null,
+    "evidence": "Until the spell ends, the weapon becomes a magic weapon and deals an extra 1d4 damage of the chosen type to any target it hits.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "1d4",
+          "type": null
+        }
+      ],
+      "resolution": "weapon_rider",
+      "save_ability": null,
+      "save_half": null,
+      "type_choices": [
+        "force",
+        "psychic",
+        "necrotic",
+        "radiant"
+      ],
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_fire_under_the_tongue": {
+    "category": "other",
+    "evidence": "Campfire-sized flames deal 2d6 fire damage, while torch-sized flames deal 1d6 fire damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_fist_of_iron": {
+    "category": "other",
+    "evidence": "Your unarmed attacks deal 1d6 bludgeoning damage and are considered magical.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_flame_wave": {
+    "category": null,
+    "evidence": "A creature takes 6d8 fire damage and is pushed 20 feet away from you on a failed save; on a successful save, the creature takes half as much damage and isn’t pushed.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "6d8",
+          "type": "fire"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "DEX",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "1d8",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_fluctuating_alignment": {
+    "category": "random_table",
+    "evidence": "A target that gets a failure on a Wisdom saving throw must roll 1d20 and consult the Alignment Fluctuation table to find its new alignment, and it must roll again after every minute of the spell’s duration.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_force_of_will_a5e": {
+    "category": "no_damage_or_healing",
+    "evidence": "The damage you take from the triggering attack is reduced by 2d10 + your spellcasting ability modifier.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_freeze_blood": {
+    "category": "over_turns",
+    "evidence": "For the spell’s duration, the affected creature’s speed is halved and it takes 2d6 cold damage at the start of each of its turns.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_freezing_fog": {
+    "category": "area_entry",
+    "evidence": "It takes 2d6 cold damage and gains one level of exhaustion on a failed save, or takes half as much damage and no exhaustion on a successful one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_frenzied_bolt": {
+    "category": "random_table",
+    "evidence": "If the bolt hits, the target takes 3d8 damage, of a type determined by rolling on the Random Damage Type table.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_frostbitten_fingers": {
+    "category": "over_turns",
+    "evidence": "After every 10 minutes of being affected by frostbitten fingers, the target must make a successful Constitution saving throw, or take 1d6 cold damage and lose one of the fingers on the affected hand, beginning with the pinkie.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_frozen_razors": {
+    "category": "area_entry",
+    "evidence": "A creature that moves more than 5 feet into or inside the area on a turn takes 2d6 slashing damage and 3d6 cold damage, or half as much damage if it makes a successful Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_furious_hooves": {
+    "category": "other",
+    "evidence": "In addition to any attacks the creature can normally make, this spell grants two hoof attacks, each of which deals bludgeoning damage equal to 1d6 + plus the target’s Strength modifier (or 1d8 if the target of the spell is Large).",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_gluey_globule": {
+    "category": "other",
+    "evidence": "When the creature breaks free, it takes 2d6 slashing damage from the glue tearing its skin.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_glyph_of_shifting": {
+    "category": "other",
+    "evidence": "If no destination was set, the creature takes 4d4 force damage and is knocked prone.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_greater_maze": {
+    "category": "over_turns",
+    "evidence": "The target takes 4d6 psychic damage on a failed save, or half as much damage on a success.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_greater_seal_of_sanctuary": {
+    "category": "area_entry",
+    "evidence": "On a failed save, it takes 15d8 radiant damage, is repelled to 5 feet outside the boundary, and can’t target anything inside the boundary with attacks, spells, or abilities until the spell ends.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_green_decay": {
+    "category": "over_turns",
+    "evidence": "On a failed save, the creature takes 1d6 necrotic damage, and its hit point maximum is reduced by an amount equal to the necrotic damage taken.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_gremlins": {
+    "category": "over_turns",
+    "evidence": "While the spell remains in effect, the construct has disadvantage on attack rolls, ability checks, and saving throws, and it takes 3d8 force damage at the start of each of its turns as it is magically disassembled by the spirits.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_grinding_gears": {
+    "category": "area_entry",
+    "evidence": "Failure indicates that the creature falls prone and takes 1d8 points of bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_guest_of_honor": {
+    "category": "later_bonus",
+    "evidence": "The target adds 1d4 to all Charisma (Persuasion) checks made to influence the attitudes of others.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_heart_seeking_arrow": {
+    "category": "other",
+    "evidence": "On a hit, the weapon deals an extra 6d6 damage of the same type dealt by the weapon, or half as much damage on a miss as it streaks unerringly toward its target.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_hedgehog_dozen": {
+    "category": "no_damage_or_healing",
+    "evidence": "Each time a creature targets you with an attack during the spell's duration, roll a d8 to determine whether the attack instead targets one of your duplicates.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_hedrens_birds_of_clay": {
+    "category": "no_damage_or_healing",
+    "evidence": "You create a number of clay pigeons equal to 1d4 + your spellcasting modifier (minimum of one) that swirl around you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_hellforging": {
+    "category": "self_damage",
+    "evidence": "If the saving throw succeeds, you take 2d10 psychic damage plus 2d10 necrotic damage from waves of uncontrolled energy rippling out from the disembodied spirit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_hirvsths_call": {
+    "category": "over_turns",
+    "evidence": "The target takes 1d6 bludgeoning damage for every 20 feet it is dragged by the ponies.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_hunger_of_leng": {
+    "category": "other",
+    "evidence": "If there isn’t a viable creature within range for the target to attack, it deals piercing damage to itself equal to 2d4 + its Strength modifier.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_hypnagogia": {
+    "category": "random_table",
+    "evidence": "It can't take reactions, and it must roll a d4 at the beginning of its turn to determine its behavior.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_icy_grasp_of_the_void": {
+    "category": null,
+    "evidence": "The target takes 10d10 cold damage and is restrained for the duration; a successful Constitution saving throw halves the damage and negates the restrained condition.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "10d10",
+          "type": "cold"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CON",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_ill_fated_word": {
+    "category": "other",
+    "evidence": "Roll a d4 and subtract the number rolled from an attack roll, ability check, or saving throw that the target has just made; the target uses the lowered result to determine the outcome of its roll.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_inescapable_malady_a5e": {
+    "category": "other",
+    "evidence": "At any time after you cast this spell, as long as you are on the same plane of existence as the target, you can use an action to deal 7d10 necrotic damage to the target.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_infernal_weapon_a5e": {
+    "category": "other",
+    "evidence": "On a hit, you deal 5d8 damage of a type determined by the weapon's form.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_invigorated_strikes_a5e": {
+    "category": "other",
+    "evidence": "For the duration of the spell, whenever the target deals damage with an unarmed strike or natural weapon, it deals 1d4 extra damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_ire_of_the_mountain": {
+    "category": "varies_by_outcome",
+    "evidence": "On a successful save, the creature takes 1d8 fire damage and the spell has no further effect.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_jagged_forcelance": {
+    "category": "area_entry",
+    "evidence": "Any creature that touches the tether or ends its turn in a space the tether passes through must make a Strength saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_jeweled_fissure": {
+    "category": "varies_by_outcome",
+    "evidence": "All creatures in that line and up to 100 feet above it take 2d8 thunder damage plus 2d8 piercing damage; a successful Dexterity saving throw negates the piercing damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_killing_fields": {
+    "category": "conditional_extra",
+    "evidence": "Once per turn, when a helped creature hits with any weapon, the weapon deals an extra 1d6 damage of its type to a hindered creature.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_kobolds_fury": {
+    "category": "other",
+    "evidence": "In addition, its next successful melee weapon attack against a creature larger than itself does an additional 2d8 damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_labyrinthine_howl": {
+    "category": "other",
+    "evidence": "A creature that faces the beasts takes 7d8 psychic damage, and then the spell ends on it.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_last_rays_of_the_dying_sun": {
+    "category": "several_damage_clauses",
+    "evidence": "A burst of searing heat explodes from you, dealing 6d6 fire damage to all enemies within range.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_lava_stone": {
+    "category": "over_turns",
+    "evidence": "If it hits, the target takes 1d8 bludgeoning damage plus 6d6 fire damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_legion_of_rabid_squirrels": {
+    "category": "summon",
+    "evidence": "While in a forest, you call a legion of rabid squirrels to descend from the nearby trees at a point you can see within range.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_ley_leech": {
+    "category": null,
+    "evidence": "The target takes 8d10 necrotic damage and must succeed on a Constitution saving throw or have disadvantage on attack rolls, saving throws, and ability checks.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "8d10",
+          "type": "necrotic"
+        }
+      ],
+      "resolution": "attack_melee",
+      "save_ability": null,
+      "save_half": null,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "1d10",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_ley_surge": {
+    "category": null,
+    "evidence": "Each creature in the sphere takes 14d6 force damage and is stunned for 1 minute; a successful Constitution saving throw halves the damage and negates the stun.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "14d6",
+          "type": "force"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CON",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_ley_whip": {
+    "category": "over_turns",
+    "evidence": "When you cast the spell and as a bonus action on subsequent turns, you can direct the tendril to strike a target within 50 feet of you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_life_drain": {
+    "category": null,
+    "evidence": "Creatures within 15 feet of the point take 10d6 necrotic damage, or half that damage with a successful Constitution saving throw.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "10d6",
+          "type": "necrotic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CON",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "1d6",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_life_transference_arrow": {
+    "category": "self_damage",
+    "evidence": "You take 2d6 necrotic damage, and the target heals the same amount of hit points.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_long_game": {
+    "category": "other",
+    "evidence": "When the effect is triggered, the target takes 5d8 psychic damage plus an extra 1d8 psychic damage for every 24 hours that has passed since you cast the spell, up to a total of 12d8 psychic damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_lovesick": {
+    "category": "random_table",
+    "evidence": "This spell causes creatures to behave unpredictably, as they randomly experience the full gamut of emotions of someone who has fallen head over heels in love.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_magma_spray": {
+    "category": "area_entry",
+    "evidence": "A creature that enters the area on its turn or ends its turn there also takes 3d8 fire damage, or half as much damage with a successful Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_mammons_due": {
+    "category": "area_entry",
+    "evidence": "A creature that’s in the area when the spell is cast, or that begins its turn in the area or enters it during its turn, takes 10d6 fire damage and must make a Strength or Dexterity (creature’s choice) saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_mass_repair_metal": {
+    "category": "other",
+    "evidence": "You repair 1d8 + 5 damage to a metal object or construct by sealing up rents and bending metal back into place.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_maw_of_needles": {
+    "category": "over_turns",
+    "evidence": "Until this spell ends, the target must succeed on a Constitution saving throw at the start of each of its turns or take 1d6 piercing damage from the spines.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_meld_into_stone_a5e": {
+    "category": "other",
+    "evidence": "If the target is damaged such that its shape changes and you no longer fit within it, you are expelled and take 6d6 bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_mephitic_croak": {
+    "category": "other",
+    "evidence": "Creatures in the area take 2d6 acid damage plus 2d6 thunder damage, or half as much damage with a successful Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_molechs_blessing": {
+    "category": "other",
+    "evidence": "If the ritual is completed and the victim fails to make a successful Wisdom saving throw (or the victim chooses not to make one), the being is transformed into an avatar of Molech under your control.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_moons_respite": {
+    "category": "other",
+    "evidence": "The creature takes 2d10 radiant damage per level of shadow corruption and removes 1 level of shadow corruption on a failed saving throw, or half as much damage and removes 2 levels of shadow corruption on a success.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_overclock": {
+    "category": "other",
+    "evidence": "When the spell ends, the clockwork takes 2d8 force damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_oversized_paws": {
+    "category": "later_bonus",
+    "evidence": "For the duration, the creature adds 1d4 to damage it deals with its unarmed strike.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_pendulum": {
+    "category": "no_damage_or_healing",
+    "evidence": "You give the touched creature an aspect of regularity in its motions and fortunes.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_peruns_doom": {
+    "category": "other",
+    "evidence": "On a failed save, the creature takes 3d8 bludgeoning damage, is pulled to the center of the cylinder, and thrown 50 feet upward into the air.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_phantasmal_talons_a5e": {
+    "category": "other",
+    "evidence": "For the duration, your unarmed strikes gain the finesse property and deal psychic damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_pitfall": {
+    "category": "other",
+    "evidence": "It lands prone and takes 6d6 bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_poison_skin_a5e": {
+    "category": "over_turns",
+    "evidence": "On a failed save, the creature becomes poisoned and takes 1d6 ongoing poison damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_portal_trap": {
+    "category": "no_damage_or_healing",
+    "evidence": "A creature that touches, steps on, or otherwise interacts with or enters the portal must succeed on a Wisdom saving throw or be teleported to an unoccupied space up to 30 feet away in a random direction.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_power_word_fling": {
+    "category": "over_turns",
+    "evidence": "As a bonus action on each of your subsequent turns, you can attempt to fling the same creature again.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_power_word_pain": {
+    "category": "over_turns",
+    "evidence": "When you utter this word of power, one creature within 60 feet of you takes 4d10 force damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_primal_infusion": {
+    "category": "other",
+    "evidence": "Your weapon attacks deal an extra 1d10 damage of the same type dealt by the weapon on a hit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_prismatic_ray": {
+    "category": "random_table",
+    "evidence": "The ray’s effect and the saving throw that applies to it depend on which color is dominant when the beam strikes its target, determined by rolling a d8.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_putrescent_faerie_circle": {
+    "category": "other",
+    "evidence": "At the start of each of your turns, each creature within the circle must make a Constitution saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_pyroclasm": {
+    "category": "over_turns",
+    "evidence": "Each creature in the cylinder when it erupts or at the start of your turn takes 10d8 fire damage, or half as much damage if it makes a successful Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_quicksilver_mantle": {
+    "category": "no_damage_or_healing",
+    "evidence": "On a result of 4, the cloak deflects the ray, which instead strikes a randomly selected target within 10 feet of you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_rage_of_the_meek_a5e": {
+    "category": "over_turns",
+    "evidence": "on each of your turns you can use an action to make a melee spell attack against a target within 5 feet that deals 4d8 force damage on a successful hit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_rain_of_blades": {
+    "category": null,
+    "evidence": "The blades deal 6d6 slashing damage to each creature in the area at the moment the spell is cast, or half as much damage on a successful Dexterity saving throw.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "6d6",
+          "type": "slashing"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "DEX",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_ray_of_alchemical_negation": {
+    "category": "conditional_extra",
+    "evidence": "In that case, a hit deals 6d6 force damage, and the target must make a successful Constitution saving throw or it deals only half as much damage with its acidic, poisonous, or alchemical attacks for 1 minute.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_reaver_spirit": {
+    "category": "no_damage_or_healing",
+    "evidence": "When the spell ends, each affected creature must succeed on a Constitution saving throw or gain 1d4 levels of exhaustion.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_rebounding_bolt": {
+    "category": "several_damage_clauses",
+    "evidence": "The first target takes 5d6 force damage on a failed save, or half as much damage on a successful one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_repulsing_wall": {
+    "category": "area_entry",
+    "evidence": "One side of the wall, selected by you when you cast this spell, deals 5d8 radiant damage when a creature enters the wall for the first time on a turn or ends its turn there.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_reverberate": {
+    "category": null,
+    "evidence": "Creatures and unattended objects touching the ground in a 15-foot cone emanating from you take 4d6 thunder damage, and creatures fall prone; a creature that makes a successful Dexterity saving throw takes half the damage and does not fall prone.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "4d6",
+          "type": "thunder"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "DEX",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "1d6",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_ring_strike": {
+    "category": "later_bonus",
+    "evidence": "The target takes 1d10 bludgeoning damage and must succeed on a Strength saving throw or be pushed 5 feet directly away from you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_riptide": {
+    "category": "other",
+    "evidence": "An affected creature takes 3d8 bludgeoning damage and is pushed 40 feet in the chosen direction, landing prone.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_rise_of_the_green": {
+    "category": "other",
+    "evidence": "If a creature is restrained by plants at the beginning of your turn, it takes 1d6 bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_risen_road": {
+    "category": "no_damage_or_healing",
+    "evidence": "The spell expires 2d6 hours after being cast.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_rive": {
+    "category": "conditional_extra",
+    "evidence": "If the target isn't native to the plane you're on, it takes an extra 3d6 psychic damage and must succeed on a Constitution saving throw or be stunned until the end of its next turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_robe_of_shards": {
+    "category": "other",
+    "evidence": "You can also use a bonus action to dispel the robe, causing it to explode into a shower of flying metal that does 8d6 slashing damage, +1d6 per point of basic (non-Dexterity) AC above 14, to all creatures within 30 feet of you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_rolling_thunder": {
+    "category": "over_turns",
+    "evidence": "it takes 2d8 thunder damage at the start of its turn, and its speed is halved.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_sacrificial_healing": {
+    "category": "self_damage",
+    "evidence": "The number rolled is the amount of damage healed by the target and the damage you take, as its wounds close and similar damage appears on your body (or the body of the other willing target of the spell).",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_salt_lash": {
+    "category": "conditional_extra",
+    "evidence": "Constructs and undead are immune to the blade’s secondary (stun) effect; plants and creatures composed mostly of water, such as water elementals, also take an additional 2d8 necrotic damage if they fail the saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_scattered_images": {
+    "category": "no_damage_or_healing",
+    "evidence": "When scattered images is cast, 1d4 + 2 images are created.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_sculpt_snow": {
+    "category": "summon",
+    "evidence": "When they attack, they deal normal damage plus a similar amount of cold damage; an animated Medium sculpture, for example, deals 2d6 + 1 bludgeoning damage plus 2d6 + 1 cold damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_seal_of_sanctuary": {
+    "category": "other",
+    "evidence": "On a failed save, it takes 10d8 radiant damage, is repelled to 5 feet outside the boundary, and can’t target anything inside the boundary with attacks, spells, or abilities until the spell ends.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_searing_sun": {
+    "category": "area_entry",
+    "evidence": "Each creature that starts its turn in that area takes 5d8 fire damage, or half the damage with a successful Constitution saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_seed_of_destruction": {
+    "category": "other",
+    "evidence": "Roll initiative for the hydra, which takes its own turns.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_seeping_death": {
+    "category": "no_damage_or_healing",
+    "evidence": "On a hit, the creature’s Dexterity score is reduced by 1d4, and it is afflicted with the seeping death disease for the duration.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_shadow_hands": {
+    "category": null,
+    "evidence": "Any creature caught in the shadow takes 2d4 necrotic damage and is frightened; a successful Wisdom saving throw halves the damage and negates the frightened condition.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "2d4",
+          "type": "necrotic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "WIS",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": {
+        "dice_per_level": "2d4",
+        "part_type": null
+      }
+    },
+    "verdict": "roll"
+  },
+  "srd_shadow_puppets": {
+    "category": "over_turns",
+    "evidence": "As a bonus action when you cast the spell, or as an action on subsequent rounds while you maintain concentration, make a melee spell attack against the creature.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_shadowy_retribution": {
+    "category": "self_damage",
+    "evidence": "You fill a small silver cup with your own blood (taking 1d4 piercing damage) while chanting vile curses in the dark.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_sheen_of_ice": {
+    "category": "no_damage_or_healing",
+    "evidence": "Each creature within 20 feet of that point must make a successful Dexterity saving throw or become coated in ice for 1 minute.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_shiver": {
+    "category": "no_damage_or_healing",
+    "evidence": "Roll 5d8; the total is the maximum hit points of a creature this spell can affect.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_skull_road": {
+    "category": "no_damage_or_healing",
+    "evidence": "If your casting is at 5th level, this opens a pathway to the River of Tears, to the Vitreous Mire, or to the Plains of Bone-travel to a settlement can take up to 7 days (1d6+1).",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_slither": {
+    "category": "self_damage",
+    "evidence": "If you return to your normal form while in a space too small for you (such as a mouse hole, sewer pipe, or the like), you take 4d6 force damage and are pushed to the nearest space within 50 feet big enough to hold you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_smelting_blast": {
+    "category": "over_turns",
+    "evidence": "A creature coated in liquid metal takes 1d8 fire damage at the start of each of its turns as the metal scorches while it cools.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_sneer": {
+    "category": null,
+    "evidence": "The target must succeed on a Charisma saving throw or take psychic damage equal to 2d4 + your spellcasting ability modifier.",
+    "roll": {
+      "adds_spellcasting_modifier": true,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "2d4",
+          "type": "psychic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CHA",
+      "save_half": false,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_snow_boulder": {
+    "category": "over_turns",
+    "evidence": "If the boulder hits, the creature must make a successful Dexterity saving throw or be knocked prone and take the damage indicated below.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_snow_fort": {
+    "category": "other",
+    "evidence": "The spell also creates a dozen snowballs that can be thrown (range 20/60) and that deal 1d4 bludgeoning damage plus 1d4 cold damage on a hit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_soulwrought_fists_a5e": {
+    "category": "other",
+    "evidence": "In addition, the target's unarmed strikes deal 1d8 bludgeoning damage and count as magical for the purpose of overcoming resistance and immunity to nonmagical attacks and damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_sphere_of_order": {
+    "category": "area_entry",
+    "evidence": "Chaotic creatures that start their turn in the area or enter it on their turn take 5d8 psychic damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_spinning_axes": {
+    "category": "over_turns",
+    "evidence": "A bleeding creature takes 2d6 necrotic damage at the end of each of its turns for 1 minute.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_acid_arrow": {
+    "category": "over_turns",
+    "evidence": "On a hit, the target takes 4d4 Acid damage and 2d4 Acid damage at the end of its next turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_animate_objects": {
+    "category": "summon",
+    "evidence": "Each target animates, sprouts legs, and becomes a Construct that uses the Animated Object stat block; this creature is under your control until the spell ends or until it is reduced to 0 Hit Points.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_arcane_hand": {
+    "category": "other",
+    "evidence": "On a hit, the target takes 5d8 Force damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_arcane_sword": {
+    "category": "over_turns",
+    "evidence": "On your later turns, you can take a Bonus Action to move the sword up to 30 feet to a spot you can see and repeat the attack against the same target or a different one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_blink": {
+    "category": "no_damage_or_healing",
+    "evidence": "Roll 1d6 at the end of each of your turns for the duration.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_confusion": {
+    "category": "other",
+    "evidence": "Each creature in a 10-foot-radius Sphere centered on a point you choose within range must succeed on a Wisdom saving throw, or that target can't take Bonus Actions or Reactions and must roll 1d10 at the start of each of its turns to determine its behavior for that turn, consulting the table below.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_conjure_celestial": {
+    "category": "area_entry",
+    "evidence": "Whenever the Cylinder moves into the space of a creature you can see and whenever a creature you can see enters the Cylinder or ends its turn there, you can bathe it in one of the lights.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_conjure_fey": {
+    "category": "over_turns",
+    "evidence": "As a Bonus Action on your later turns, you can teleport the spirit to an unoccupied space you can see within 30 feet of the space it left and make the attack against a creature within 5 feet of it.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_contact_other_plane": {
+    "category": "self_damage",
+    "evidence": "On a failed save, you take 6d6 Psychic damage and have the Incapacitated condition until you finish a Long Rest.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_control_water": {
+    "category": "other",
+    "evidence": "As a Magic action on your later turns, you can repeat the same effect or choose a different one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_control_weather": {
+    "category": "no_damage_or_healing",
+    "evidence": "You take control of the weather within 5 miles of you for the duration.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_delayed_blast_fireball": {
+    "category": "over_turns",
+    "evidence": "The spell's base damage is 12d6, and the damage increases by 1d6 whenever your turn ends and the spell hasn't ended.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_dream": {
+    "category": "other",
+    "evidence": "On a failed save, the target gains no benefit from its rest, and it takes 3d6 Psychic damage when it wakes up.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_enlargereduce": {
+    "category": "other",
+    "evidence": "The target's attacks with its enlarged weapons or Unarmed Strikes deal an extra 1d4 damage on a hit.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_ensnaring_strike": {
+    "category": "over_turns",
+    "evidence": "While Restrained, the target takes 1d6 Piercing damage at the start of each of its turns.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_freezing_sphere": {
+    "category": "other",
+    "evidence": "You can refrain from firing the globe after completing the spell's casting.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_geas": {
+    "category": "conditional_extra",
+    "evidence": "While Charmed, the creature takes 5d10 Psychic damage if it acts in a manner directly counter to your command.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_glyph_of_warding": {
+    "category": "area_entry",
+    "evidence": "When triggered, the glyph erupts with magical energy in a 20-foot-radius Sphere centered on the glyph.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_mirror_image": {
+    "category": "no_damage_or_healing",
+    "evidence": "Each time a creature hits you with an attack roll during the spell's duration, roll a d6 for each of your remaining duplicates.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_phantasmal_force": {
+    "category": "over_turns",
+    "evidence": "On each of your turns, such a phantasm can deal 2d8 Psychic damage to the target if it is in the phantasm's area or within 5 feet of the phantasm.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_prismatic_spray": {
+    "category": "random_table",
+    "evidence": "For each target, roll 1d8 to determine which color ray affects it, consulting the Prismatic Rays table.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_prismatic_wall": {
+    "category": "other",
+    "evidence": "Each layer forces the creature to make a Dexterity saving throw or be affected by that layer's properties as described in the Prismatic Layers table.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_reincarnate": {
+    "category": "other",
+    "evidence": "Roll 1d10 and consult the table below to determine the body's species, or the GM chooses another playable species.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_searing_smite": {
+    "category": "over_turns",
+    "evidence": "At the start of each of its turns until the spell ends, the target takes 1d6 Fire damage and then makes a Constitution saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_storm_of_vengeance": {
+    "category": "over_turns",
+    "evidence": "At the start of each of your later turns, the storm produces different effects, as detailed below.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_symbol": {
+    "category": "other",
+    "evidence": "Each creature in the Sphere when the glyph activates is targeted by its effect, as is a creature that enters the Sphere for the first time on a turn or ends its turn there.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_teleport": {
+    "category": "random_table",
+    "evidence": "The GM rolls 1d100 and consults the Teleportation Outcome table and the explanations after it.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_time_stop": {
+    "category": "no_damage_or_healing",
+    "evidence": "No time passes for other creatures, while you take 1d4 + 1 turns in a row, during which you can use actions and move as normal.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_tsunami": {
+    "category": "over_turns",
+    "evidence": "Any Huge or smaller creature inside the wall or whose space the wall enters when it moves must succeed on a Strength saving throw or take 5d10 Bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_vitriolic_sphere": {
+    "category": "over_turns",
+    "evidence": "On a failed save, a creature takes 10d4 Acid damage and another 5d4 Acid damage at the end of its next turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_web": {
+    "category": "other",
+    "evidence": "Any 5-foot Cube of webs exposed to fire burns away in 1 round, dealing 2d4 Fire damage to any creature that starts its turn in the fire.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_weird": {
+    "category": "over_turns",
+    "evidence": "On a failed save, it takes 5d10 Psychic damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_2024_wish": {
+    "category": "other",
+    "evidence": "The basic use of this spell is to duplicate any other spell of level 8 or lower.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_acid_arrow": {
+    "category": "over_turns",
+    "evidence": "On a hit, the target takes 4d4 acid damage immediately and 2d4 acid damage at the end of its next turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_alter_self": {
+    "category": "other",
+    "evidence": "You assume a different form.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_animate_objects": {
+    "category": "summon",
+    "evidence": "Objects come to life at your command.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_bestow_curse": {
+    "category": "later_bonus",
+    "evidence": "While the target is cursed, your attacks and spells deal an extra 1d8 necrotic damage to the target.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_blink": {
+    "category": "no_damage_or_healing",
+    "evidence": "Roll a d20 at the end of each of your turns for the duration of the spell.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_color_spray": {
+    "category": "no_damage_or_healing",
+    "evidence": "Roll 6d10; the total is how many hit points of creatures this spell can effect.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_confusion": {
+    "category": "other",
+    "evidence": "An affected target can't take reactions and must roll a d10 at the start of each of its turns to determine its behavior for that turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_contact_other_plane": {
+    "category": "self_damage",
+    "evidence": "On a failure, you take 6d6 psychic damage and are insane until you finish a long rest.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_control_weather": {
+    "category": "no_damage_or_healing",
+    "evidence": "It takes 1d4 x 10 minutes for the new conditions to take effect.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_delayed_blast_fireball": {
+    "category": "over_turns",
+    "evidence": "If at the end of your turn the bead has not yet detonated, the damage increases by 1d6.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_dimension_door": {
+    "category": "conditional_extra",
+    "evidence": "If you would arrive in a place already occupied by an object or a creature, you and any creature traveling with you each take 4d6 force damage, and the spell fails to teleport you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_dream": {
+    "category": "conditional_extra",
+    "evidence": "In addition, when the target wakes up, it takes 3d6 psychic damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_enhance_ability": {
+    "category": "no_damage_or_healing",
+    "evidence": "You touch a creature and bestow upon it a magical enhancement.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_enlargereduce": {
+    "category": "other",
+    "evidence": "While these weapons are enlarged, the target's attacks with them deal 1d4 extra damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_faithful_hound": {
+    "category": "summon",
+    "evidence": "At the start of each of your turns, the hound attempts to bite one creature within 5 feet of it that is hostile to you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_false_life": {
+    "category": "no_damage_or_healing",
+    "evidence": "Bolstering yourself with a necromantic facsimile of life, you gain 1d4 + 4 temporary hit points for the duration.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_fire_shield": {
+    "category": "conditional_extra",
+    "evidence": "The attacker then suffers 2d8 points of fire damage or cold, depending on the model.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_geas": {
+    "category": "conditional_extra",
+    "evidence": "While the creature is charmed by you, it takes 5d10 psychic damage each time it acts in a manner directly counter to your instructions, but no more than once each day.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_guardian_of_faith": {
+    "category": "area_entry",
+    "evidence": "The creature takes 20 radiant damage on a failed save, or half as much damage on a successful one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_heat_metal": {
+    "category": "over_turns",
+    "evidence": "Until the spell ends, you can use a bonus action on each of your subsequent turns to cause this damage again.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_heroes_feast": {
+    "category": "other",
+    "evidence": "Its hit point maximum also increases by 2d10, and it gains the same number of hit points.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_hunters_mark": {
+    "category": "other",
+    "evidence": "Until the spell ends, you deal an extra 1d6 damage to the target whenever you hit it with a weapon attack, and you have advantage on any Wisdom (Perception) or Wisdom (Survival) check you make to find it.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_meld_into_stone": {
+    "category": "other",
+    "evidence": "Minor physical damage to the stone doesn't harm you, but its partial destruction or a change in its shape (to the extent that you no longer fit within it) expels you and deals 6d6 bludgeoning damage to you.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_mirror_image": {
+    "category": "no_damage_or_healing",
+    "evidence": "Three illusionary duplicates of yourself appear in your space.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_prismatic_spray": {
+    "category": "random_table",
+    "evidence": "For each target, roll a d8 to determine which color ray affects it.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_prismatic_wall": {
+    "category": "other",
+    "evidence": "As it passes or reaches through each layer, the creature must make a dexterity saving throw or be affected by that layer's properties as described below.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_shillelagh": {
+    "category": "other",
+    "evidence": "For the duration, you can use your spellcasting ability instead of Strength for the attack and damage rolls of melee attacks using that weapon, and the weapon's damage die becomes a d8.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_sleep": {
+    "category": "no_damage_or_healing",
+    "evidence": "Roll 5d8; the total is how many hit points of creatures this spell can affect.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_slow": {
+    "category": "no_damage_or_healing",
+    "evidence": "Each target must succeed on a wisdom saving throw or be affected by this spell for the duration.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_spiritual_weapon": {
+    "category": "other",
+    "evidence": "As a bonus action on your turn, you can move the weapon up to 20 feet and repeat the attack against a creature within 5 feet of it.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_storm_of_vengeance": {
+    "category": "over_turns",
+    "evidence": "Each round you maintain concentration on this spell, the storm produces additional effects on your turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_time_stop": {
+    "category": "no_damage_or_healing",
+    "evidence": "You briefly stop the flow of time for everyone but yourself.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_wall_of_ice": {
+    "category": "several_damage_clauses",
+    "evidence": "On a failed save, the creature takes 10d6 cold damage, or half as much damage on a successful save.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_wall_of_thorns": {
+    "category": "several_damage_clauses",
+    "evidence": "It takes 7d8 slashing damage on a failed save, or half as much damage on a successful one.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_web": {
+    "category": "other",
+    "evidence": "Any 5-foot cube of webs exposed to fire burns away in 1 round, dealing 2d4 fire damage to any creature that starts its turn in the fire.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_srd_wish": {
+    "category": "self_damage",
+    "evidence": "After enduring that stress, each time you cast a spell until you finish a long rest, you take 1d10 necrotic damage per level of that spell.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_starfall": {
+    "category": null,
+    "evidence": "Each bolt strikes one target, dealing 6d6 radiant damage, knocking the target prone, and blinding it until the start of your next turn.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": {
+        "count": 5,
+        "noun": "bolt",
+        "per_slot_above": 1
+      },
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "6d6",
+          "type": "radiant"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "DEX",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_stars_heart": {
+    "category": "over_turns",
+    "evidence": "A creature that starts its turn prone and incapacitated makes a Strength saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_steam_whistle": {
+    "category": null,
+    "evidence": "All other creatures in a 30-foot radius around you take 10d10 thunder damage and are deafened for 1d8 hours.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "10d10",
+          "type": "thunder"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CON",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_storm_kick_a5e": {
+    "category": "other",
+    "evidence": "If you hit, you instantly flash to an open space of your choosing adjacent to the target, dealing bludgeoning damage equal to 1d6 + your spellcasting modifier plus 3d8 thunder damage and 6d8 lightning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_storm_of_axes": {
+    "category": "area_entry",
+    "evidence": "If the storm of axes moves into spaces containing creatures, they immediately must make another Dexterity saving throw or suffer damage again.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_storm_of_wings": {
+    "category": "area_entry",
+    "evidence": "Each creature in the storm when it appears and each a creature that starts its turn in the storm is affected by the storm.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_sudden_stampede": {
+    "category": null,
+    "evidence": "Each creature in the line takes 6d10 bludgeoning damage and is knocked prone.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "6d10",
+          "type": "bludgeoning"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "DEX",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_summon_eldritch_servitor": {
+    "category": "summon",
+    "evidence": "You summon eldritch aberrations that appear in unoccupied spaces you can see within range.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_surprise_blessing": {
+    "category": "other",
+    "evidence": "You touch a willing creature and choose one of the conditions listed below that the creature is currently subjected to.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_talons_of_a_hungry_land": {
+    "category": "several_damage_clauses",
+    "evidence": "When the lines appear, each creature in their area must make a Dexterity saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_targeting_foreknowledge": {
+    "category": "other",
+    "evidence": "By casting this spell as a bonus action after making a successful melee weapon attack, you deal an extra 2d6 damage of the weapon’s type to the target.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_thin_the_ice": {
+    "category": "area_entry",
+    "evidence": "If a creature weighing more than 20 pounds (or a greater weight specified by you when casting the spell) treads over the cylinder or is already standing on it, the ice gives way.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_thunderclap": {
+    "category": null,
+    "evidence": "Each creature within 20 feet of you takes 8d4 thunder damage and is deafened for 1d8 rounds, or it takes half as much damage and isn’t deafened if it makes a successful Constitution saving throw.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "8d4",
+          "type": "thunder"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CON",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  },
+  "srd_thunderous_charge": {
+    "category": "other",
+    "evidence": "With a thunderous battle cry, you move up to 10 feet in a straight line and make a melee weapon attack.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_thunderous_stampede": {
+    "category": "other",
+    "evidence": "A target other than you must use its reaction to move and attack under the effect of thunderous stampede.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_thunderous_wave": {
+    "category": "varies_by_outcome",
+    "evidence": "On a failed save, a creature is pushed 30 feet and knocked prone; if it strikes a solid obstruction, it also takes 5d6 bludgeoning damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_time_jump": {
+    "category": "no_damage_or_healing",
+    "evidence": "You touch a construct and throw it forward in time if it fails a Constitution saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_time_vortex": {
+    "category": "random_table",
+    "evidence": "An affected creature can’t take reactions and rolls a d10 at the start of its turn to determine its behavior for that turn.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_timely_distraction": {
+    "category": "random_table",
+    "evidence": "If the target gets a failure on a Wisdom saving throw, roll a d4 and consult the following table to determine the result.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_triumph_of_ice": {
+    "category": "other",
+    "evidence": "The specific effect depends on the element you choose.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_twist_the_skein": {
+    "category": "no_damage_or_healing",
+    "evidence": "You tweak a strand of a creature’s fate as it attempts an attack roll, saving throw, or skill check.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_umbral_storm": {
+    "category": "area_entry",
+    "evidence": "Any creature that starts its turn in the storm or enters it for the first time on its turn takes 6d8 necrotic damage and gains one level of exhaustion; a successful Constitution saving throw halves the damage and prevents the exhaustion.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_uncontrollable_transformation": {
+    "category": "random_table",
+    "evidence": "Roll a d10 and consult the Uncontrollable Transformation table below to determine what mutation occurs.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_unseen_strangler": {
+    "category": "summon",
+    "evidence": "If any creatures hostile to you are within 5 feet of the strangler at the start of your turn, the strangler attacks one of them with a tentacle.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_vengeful_panopy_of_the_ley_line_ignited": {
+    "category": "over_turns",
+    "evidence": "Additionally, each round, including the round it is cast, you may make a ranged spell attack as an action.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_visage_of_madness": {
+    "category": "other",
+    "evidence": "On a failed save, a creature claws savagely at its eyes, dealing piercing damage to itself equal to 1d6 + the creature’s Strength modifier.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_void_rift": {
+    "category": "other",
+    "evidence": "A creature that starts its turn in the rift or that comes into contact with it for the first time on its turn takes 8d10 necrotic damage.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_vomit_tentacles": {
+    "category": "over_turns",
+    "evidence": "Until this grapple ends, the target is restrained and it takes the same damage at the start of each of your turns.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_walk_the_twisted_path": {
+    "category": "over_turns",
+    "evidence": "On a failed check, you don't find your path this round, and you and your companions each take 4d6 psychic damage as the madness of the shifting maze exacts its toll.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_walking_wall": {
+    "category": "other",
+    "evidence": "It can make up to four attacks per round on your turn, using your spell attack modifier to hit and with a reach of 10 feet.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_war_horn": {
+    "category": "no_damage_or_healing",
+    "evidence": "Each friendly target gains a number of temporary hit points equal to 2d4 + your spellcasting ability modifier and has advantage on the next attack roll it makes before the spell ends.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_warriors_instincts_a5e": {
+    "category": "no_damage_or_healing",
+    "evidence": "Finally, you can end the spell early to treat a single weapon attack roll as though you had rolled a 15 on the d20.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_weapon_of_blood": {
+    "category": "self_damage",
+    "evidence": "When you cast this spell, you inflict 1d4 slashing damage on yourself that can’t be healed until after the blade created by this spell is destroyed or the spell ends.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_weilers_ward": {
+    "category": "area_entry",
+    "evidence": "Whenever a Large or smaller enemy enters that area of dim light, or starts its turn in the area, you can use your reaction to attack it with one or more of the orbs.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_whirlwind_kick_a5e": {
+    "category": "other",
+    "evidence": "As part of the casting of this spell, make a melee spell attack against any number of creatures in the area.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_wind_of_the_hereafter": {
+    "category": "area_entry",
+    "evidence": "When a creature starts its turn in the sphere, it takes 8d8 necrotic damage, or half as much damage if it makes a successful Constitution saving throw.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_wintry_glide": {
+    "category": "conditional_extra",
+    "evidence": "If the mass of ice or snow is destroyed while you are transiting it, you must make a successful Constitution saving throw against your spell save DC to avoid taking 4d6 bludgeoning damage and falling prone at the midpoint of a line between your entrance point and your intended exit point.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_writhing_arms": {
+    "category": "over_turns",
+    "evidence": "If the target does not escape your grapple, you can use your action on each subsequent turn to deal 1d10 necrotic damage to the target automatically.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_writhing_transformation_a5e": {
+    "category": "other",
+    "evidence": "Over the following week, you are incapacitated and do not need air, food, or sleep.",
+    "roll": null,
+    "verdict": "not_one_roll"
+  },
+  "srd_zymurgic_aura": {
+    "category": null,
+    "evidence": "It takes 10d6 necrotic damage on a failed save or half as much on a successful save.",
+    "roll": {
+      "adds_spellcasting_modifier": false,
+      "cantrip_scaling": false,
+      "instances": null,
+      "kind": "damage",
+      "parts": [
+        {
+          "dice": "10d6",
+          "type": "necrotic"
+        }
+      ],
+      "resolution": "save",
+      "save_ability": "CON",
+      "save_half": true,
+      "type_choices": null,
+      "upcast": null
+    },
+    "verdict": "roll"
+  }
+}

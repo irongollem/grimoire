@@ -13,6 +13,8 @@ import {
   withoutZoneTrigger,
 } from "@/lib/library/spellTextMechanics";
 import type { DamagePart, SaveDamage } from "@/lib/library/spellTextMechanics";
+import { storedMechanicsFor } from "@/lib/library/curatedSpellMechanics";
+import type { CuratedSpellMechanics } from "@/lib/library/curatedSpellMechanics";
 import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { HigherLevelDamage, SpellEffectInstances, StructuredSpellEffect } from "@/types/spell.types";
 
@@ -38,7 +40,7 @@ export interface SpellMechanicsFinding {
 }
 
 export type SpellMechanicsVerdict =
-  | { approved: true; basis: "no_dice" | "no_cast_roll" | "automation" | "rider" }
+  | { approved: true; basis: "no_dice" | "no_cast_roll" | "automation" | "rider" | "curated" }
   | { approved: false; findings: SpellMechanicsFinding[] };
 
 const ABILITY_NAMES: Record<string, string> = {
@@ -170,7 +172,7 @@ function checkRider(spell: SpellMechanicsInput, rider: DamagePart): SpellMechani
   return findings.length > 0 ? { approved: false, findings } : { approved: true, basis: "rider" };
 }
 
-export function checkSpellMechanics(spell: SpellMechanicsInput): SpellMechanicsVerdict {
+function checkByTemplates(spell: SpellMechanicsInput): SpellMechanicsVerdict {
   const findings: SpellMechanicsFinding[] = [];
   const fail = (code: string, detail: string): void => {
     findings.push({ code, detail });
@@ -450,4 +452,105 @@ export function checkSpellMechanics(spell: SpellMechanicsInput): SpellMechanicsV
   if (base?.dice) findings.push(...upcastTableFindings(spell, base.dice, perLevel));
 
   return findings.length > 0 ? { approved: false, findings } : { approved: true, basis: "automation" };
+}
+
+type StoredColumns = Omit<ReturnType<typeof storedMechanicsFor>, "effects"> & { effects?: StructuredSpellEffect[] | null };
+
+/** The stored columns in one canonical form: dice trimmed of spaces and case, empty lists as null, keys sorted. */
+function canonicalColumns(columns: StoredColumns): string {
+  const dice = (value: string | null | undefined): string | null => (value ? normDice(value) : null);
+  const effects = (columns.effects ?? []).map((effect) => ({
+    ...effect,
+    dice: dice(effect.dice),
+    damageType: effect.damageType ? effect.damageType.toLowerCase() : null,
+    scaling: effect.scaling ? { ...effect.scaling, dice: normDice(effect.scaling.dice) } : null,
+    modifier: effect.modifier ?? null,
+    instances: effect.instances ?? null,
+    damageTypeChoices: effect.damageTypeChoices && effect.damageTypeChoices.length > 0 ? effect.damageTypeChoices : null,
+  }));
+  const rolls = (columns.damage_rolls ?? []).map((r) => ({ dice: normDice(r.dice), type: r.type.trim().toLowerCase() }));
+  const canonical = {
+    attack_type: columns.attack_type,
+    save_attribute: columns.save_attribute ? columns.save_attribute.toUpperCase() : null,
+    save_effect: columns.save_effect,
+    damage_rolls: rolls.length > 0 ? rolls : null,
+    healing_dice: dice(columns.healing_dice),
+    higher_level_damage: columns.higher_level_damage
+      ? { dice_per_level: normDice(columns.higher_level_damage.dice_per_level), type: columns.higher_level_damage.type ? columns.higher_level_damage.type.toLowerCase() : null }
+      : null,
+    higher_level_healing: dice(columns.higher_level_healing),
+    effects,
+  };
+  const sorted = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(sorted);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, sorted(v)]));
+    }
+    return value;
+  };
+  return JSON.stringify(sorted(canonical));
+}
+
+/** Dice as prose may write them: spaces allowed around + and -, and not a longer number's tail. */
+const diceInText = (text: string, dice: string): boolean => new RegExp(`(?<!\\d)${diceSource(dice)}(?!\\d)`).test(text);
+
+/** Findings for a curated roll entry; none means the row holds exactly what the entry says and the text bears it out. */
+function curatedFindings(spell: SpellMechanicsInput, entry: CuratedSpellMechanics): SpellMechanicsFinding[] {
+  const findings: SpellMechanicsFinding[] = [];
+  const fail = (code: string, detail: string): void => {
+    findings.push({ code, detail });
+  };
+  const roll = entry.roll;
+  if (!roll) return [{ code: "curated_no_roll", detail: "A roll entry carries no roll." }];
+  const description = clean(spell.description);
+  const higherLevels = spell.higher_levels ? clean(spell.higher_levels) : "";
+
+  let expected: ReturnType<typeof storedMechanicsFor> | null = null;
+  try {
+    expected = storedMechanicsFor(entry, spell);
+  } catch (error) {
+    fail("curated_unconvertible", error instanceof Error ? error.message : "The entry cannot be converted.");
+  }
+  if (expected && canonicalColumns(expected) !== canonicalColumns(spell)) {
+    fail("curated_stored_mismatch", "The stored mechanics differ from what the curated entry produces.");
+  }
+
+  if (!clean(entry.evidence) || !description.includes(clean(entry.evidence))) fail("curated_evidence_not_in_text", "The evidence sentence is not in the description.");
+  for (const part of roll.parts) {
+    if (!diceInText(description, part.dice)) fail("curated_dice_not_in_text", `${part.dice} does not occur in the description.`);
+    if (part.type !== null && !new RegExp(`\\b${part.type.toLowerCase()}\\b`).test(description)) fail("curated_type_not_in_text", `${part.type} does not occur in the description.`);
+  }
+  for (const type of roll.type_choices ?? []) {
+    if (!new RegExp(`\\b${type.toLowerCase()}\\b`).test(description)) fail("curated_type_not_in_text", `Choice ${type} does not occur in the description.`);
+  }
+  if (roll.resolution === "save") {
+    const ability = roll.save_ability ? ABILITY_NAMES[roll.save_ability] : undefined;
+    if (!ability || !description.includes(ability)) fail("curated_save_ability_not_in_text", `The description does not name ${ability ?? "a save ability"}.`);
+  }
+  if (roll.upcast && !diceInText(`${higherLevels} ${description}`, roll.upcast.dice_per_level)) {
+    fail("curated_upcast_not_in_text", `${roll.upcast.dice_per_level} occurs in neither higher_levels nor the description.`);
+  }
+  // Dice in the upcast text the entry does not model would roll too little at a higher slot.
+  if (!roll.upcast && !roll.cantrip_scaling && textDice(higherLevels).length > 0) {
+    fail("curated_upcast_unmodelled", "higher_levels has dice but the entry records no upcast.");
+  }
+  if (roll.resolution === "attack_melee" && !description.includes("melee spell attack")) fail("curated_attack_not_in_text", "The text does not say 'melee spell attack'.");
+  if (roll.resolution === "attack_ranged" && !description.includes("ranged spell attack")) fail("curated_attack_not_in_text", "The text does not say 'ranged spell attack'.");
+  return findings;
+}
+
+/**
+ * A spell is approved when its text proves its stored roll (templates), or else
+ * when a curated entry says what the roll is, the row stores exactly that, and the
+ * entry's own claims are found in the text. An entry that says the spell is not one
+ * roll at cast keeps it manual and names why.
+ */
+export function checkSpellMechanics(spell: SpellMechanicsInput, curated: CuratedSpellMechanics | null = null): SpellMechanicsVerdict {
+  const verdict = checkByTemplates(spell);
+  if (verdict.approved || !curated) return verdict;
+  if (curated.verdict === "not_one_roll") {
+    return { approved: false, findings: [{ code: "not_one_roll_at_cast", detail: curated.category ?? "other" }] };
+  }
+  const findings = curatedFindings(spell, curated);
+  return findings.length > 0 ? { approved: false, findings } : { approved: true, basis: "curated" };
 }
