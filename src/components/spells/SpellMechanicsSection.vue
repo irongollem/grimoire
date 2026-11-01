@@ -152,7 +152,7 @@ import type { SpellSchool } from "@/types/spell.types";
 import DamageRollsInput from "@/components/common/controls/DamageRollsInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 
 const {
   attackType,

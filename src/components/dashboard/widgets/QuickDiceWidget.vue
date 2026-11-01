@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-3 p-3">
       <div class="flex flex-wrap gap-1.5">
         <AppButton
-          v-for="button in QUICK_DICE_BUTTONS"
+          v-for="button in buttons"
           :key="button.sides"
           variant="subtle"
           surface="card"
@@ -14,11 +14,11 @@
         />
       </div>
 
-      <!-- Only d20 reads this (see quickDice.ts's advantageAppliesTo), but the
+      <!-- Only the dice the system's options apply to read this (rules.optionAppliesTo; 5e: the d20), but the
            toggle stays visible rather than popping in/out around the row above
            — a control that appears and disappears as you click different dice
            reads as broken before it reads as smart. -->
-      <SegmentedControl v-model="mode" :options="MODE_OPTIONS" size="xs" block />
+      <SegmentedControl v-if="rules.options.length > 0" v-model="mode" :options="MODE_OPTIONS" size="xs" block />
 
       <div class="flex items-center gap-1.5">
         <AppInput
@@ -75,10 +75,11 @@
  * session: one standard die, or a short damage/check expression they already
  * know by heart. Anything more elaborate is one click away in the sidebar.
  *
- * Every roll goes through `@/lib/dice/roller`, never `@/lib/dice/dice`
+ * Every roll goes through `@/lib/dice/roller` (`rollDiceWithRules` under the active
+ * system's rules), never `@/lib/dice/dice`
  * directly, so the dice sound and the future roll-history hook stay wired —
  * see that module's docstring. `quickDice.ts` holds everything that is pure:
- * the button list, the Advantage/Disadvantage-applies-to-d20 rule, expression
+ * the button list, expression
  * validation, and reshaping a roll for display.
  *
  * Takes no props: unlike the DM screen card or the roll-table card, there is
@@ -92,11 +93,12 @@ import SegmentedControl, { type SegmentedOption } from "@/components/common/cont
 import DiceResult from "@/components/common/dice/DiceResult.vue";
 import { IconDice } from "@/lib/icons";
 import { IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from "@/lib/dice/dieIcons";
-import { rollDice, rollParsed } from "@/lib/dice/roller";
-import type { DieSize, RollMode } from "@/lib/dice/dice";
+import { rollDiceWithRules, rollParsed } from "@/lib/dice/roller";
+import type { DieSize } from "@/lib/dice/dice";
+import { NORMAL_ROLL, rollChoices, type RollModeKey } from "@/lib/dice/diceRules";
+import { activeDiceRules } from "@/systems/registry";
 import {
-  QUICK_DICE_BUTTONS,
-  effectiveMode,
+  quickDiceButtons,
   checkQuickExpression,
   displayStandardRoll,
   displayExpressionRoll,
@@ -114,21 +116,21 @@ const DIE_ICONS: Record<DieSize, Component> = {
   100: IconDie100,
 };
 
-const MODE_OPTIONS = [
-  { value: "disadvantage", label: "Dis" },
-  { value: "normal", label: "Normal" },
-  { value: "advantage", label: "Adv" },
-] as const satisfies readonly SegmentedOption<RollMode>[];
+const rules = activeDiceRules();
+const buttons = quickDiceButtons(rules);
 
-const mode = ref<RollMode>("normal");
+// The system's options around Normal (5e: Dis / Normal / Adv).
+const MODE_OPTIONS: SegmentedOption<RollModeKey>[] = rollChoices(rules).map((c) => ({ value: c.key, label: c.short }));
+
+const mode = ref<RollModeKey>(NORMAL_ROLL);
 const expression = ref("");
 const display = ref<QuickRollDisplay | null>(null);
 
 const expressionCheck = computed(() => checkQuickExpression(expression.value));
 
 function rollStandard(button: QuickDieButton) {
-  const usedMode = effectiveMode(button.sides, mode.value);
-  const result = rollDice({ [button.sides]: 1 }, 0, usedMode);
+  const usedMode = rules.optionAppliesTo(button.sides) ? mode.value : NORMAL_ROLL;
+  const result = rollDiceWithRules(rules, { [button.sides]: 1 }, 0, usedMode);
   display.value = displayStandardRoll(result);
 }
 

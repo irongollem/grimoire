@@ -5,7 +5,7 @@
  * Pure: the script feeds it rows, the caller decides what to do with a verdict.
  */
 import { scaleExpression } from "@/lib/dice/dice";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import { UPCAST_DICE_RE } from "@/lib/library/open5eSpellImport";
 import {
   classifyTextDice, cleanText as clean, isDurationOnlyUpcast, matchAttackDamage, matchChoiceAttackDamage, matchChoiceSaveDamage,

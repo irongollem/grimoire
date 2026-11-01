@@ -1,5 +1,5 @@
 import { DAMAGE_TYPES, type DamageType } from "@/types/damage.types";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 
 /**
  * A set of damage types that share a qualifier — e.g. the physical types in

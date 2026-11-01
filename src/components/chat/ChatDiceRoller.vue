@@ -69,6 +69,7 @@
         @click="modifier++"
       />
       <SegmentedControl
+        v-if="rules.options.length > 0"
         v-model="mode"
         :options="MODES"
         variant="ghost"
@@ -92,25 +93,29 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue';
 import { ALL_DICE } from '@/lib/dice/dice';
-import type { DieSize, RollMode } from '@/lib/dice/dice';
+import type { DieSize } from '@/lib/dice/dice';
+import { NORMAL_ROLL, rollChoices, type RollModeKey } from '@/lib/dice/diceRules';
+import { activeDiceRules } from '@/systems/registry';
 import { IconAdd, IconMinus } from '@/lib/icons';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import AppInput from '@/components/common/controls/AppInput.vue';
 import SegmentedControl from '@/components/common/controls/SegmentedControl.vue';
 
 const emit = defineEmits<{
-  roll: [payload: { counts: Partial<Record<DieSize, number>>; modifier: number; mode: RollMode }];
+  roll: [payload: { counts: Partial<Record<DieSize, number>>; modifier: number; mode: RollModeKey }];
 }>();
 
-const MODES: { value: RollMode; label: string }[] = [
-  { value: 'disadvantage', label: 'DIS' },
-  { value: 'normal', label: 'NRM' },
-  { value: 'advantage', label: 'ADV' },
-];
+const rules = activeDiceRules();
+
+// The system's options around Normal (5e: DIS / NRM / ADV).
+const MODES: { value: RollModeKey; label: string }[] = rollChoices(rules).map((c) => ({
+  value: c.key,
+  label: c.tone ? c.short.toUpperCase() : 'NRM',
+}));
 
 const diceCounts = reactive<Partial<Record<DieSize, number>>>({});
 const modifier = ref(0);
-const mode = ref<RollMode>('normal');
+const mode = ref<RollModeKey>(NORMAL_ROLL);
 
 const totalDice = computed(() =>
   ALL_DICE.reduce((s, d) => s + (diceCounts[d] ?? 0), 0),

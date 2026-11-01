@@ -436,12 +436,15 @@ A DM can replace a canonical SRD image with their own — that override lives in
 
 | What it is                                            | Where it goes        |
 | ----------------------------------------------------- | -------------------- |
-| 5e rules computation (AC, HP, DCs, slots, attacks)    | `src/rules/`         |
+| 5e rules computation (AC, HP, DCs, slots, attacks)    | `src/rules/` (moving into `src/systems/dnd5e/`, see below) |
+| The 5e half of a system that is otherwise neutral     | `src/systems/dnd5e/<system>/` |
 | Logic owned by one feature                            | `src/lib/<feature>/` |
 | A multi-module subsystem, however many callers it has | `src/lib/<name>/`    |
 | Static data tables with no logic                      | `src/data/`          |
 | A lone utility used by three or more features         | `src/lib/` root      |
 | A test-only helper shared across features (the Supabase fake) | `src/test/`  |
+
+**Game-system logic lives under `src/systems/<system>/`, never inside a neutral module** (#934). The epic makes Grimoire's systems neutral one at a time: each keeps its neutral core where it was and its D&D 5e half moves to `src/systems/dnd5e/<system>/`. Dice went first: `lib/dice/` parses and rolls any expression, while advantage/disadvantage, the d20 crit and fumble rule and damage-type parsing live in `systems/dnd5e/dice/`. Neutral code never names a system: the core defines a contract (for dice, `DiceRules` in `lib/dice/diceRules.ts`: the roll options a system offers, how it scores faces, how options combine), each system fills it, and `src/systems/registry.ts` is the one place that picks the active campaign's system (`activeDiceRules()`, always 5e until campaigns carry a `game_system`). `src/systems/systemBoundary.test.ts` fails if a neutral folder or file imports from `@/systems/` other than through the registry, and the core itself not even that; a surface joins its list when it is made neutral. Features that are 5e by nature (spell mechanics, attacks, the character sheet) import `systems/dnd5e/` directly until feature gating by system decides where they show. `src/rules/` and `src/levelup/` are all 5e and move under `systems/dnd5e/` as their systems come up.
 
 Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/campaignLiveSync/`, `lib/canvasControls/` (the Photoshop/Figma wheel, zoom-key and Space rules every design canvas shares), `lib/dice/`, `lib/downtime/`, `lib/illuminate/`, `lib/library/` (Open5e import + shared-content identity), `lib/scriptorium/`, `lib/tiptap/`. Top-level `src/cartographer/` is the tile-pack **authoring** tool and is separate from `lib/battlemap/`, which is the live **encounter runner** — do not merge them.
 

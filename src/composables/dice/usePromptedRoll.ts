@@ -1,7 +1,10 @@
 import { ref } from "vue";
-import { rollDice } from "@/lib/dice/roller";
+import { activeDiceRules } from "@/systems/registry";
+import { ALL_DICE } from "@/lib/dice/dice";
+import { NORMAL_ROLL, type RollModeKey } from "@/lib/dice/diceRules";
+import { rollDiceWithRules } from "@/lib/dice/roller";
 import { playDiceRollSound } from "@/lib/dice/diceAudio";
-import type { DieSize, RollMode, RollResult, DieResult } from "@/lib/dice/dice";
+import type { DieSize, RollResult } from "@/lib/dice/dice";
 import { useDicePrefs } from "@/composables/dice/useDicePrefs";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -11,7 +14,7 @@ export interface PromptedRollArgs {
   counts: Partial<Record<DieSize, number>>;
   modifier: number;
   label: string;
-  mode?: RollMode;
+  mode?: RollModeKey;
   recipientUserId?: string | null;
   senderName?: string;
   /** Skip posting to chat (e.g. internal mechanics rolls). Default false. */
@@ -24,33 +27,11 @@ export interface PendingManualRoll {
   counts: Partial<Record<DieSize, number>>;
   modifier: number;
   label: string;
-  mode: RollMode;
+  mode: RollModeKey;
   resolve: (result: RollResult | null) => void;
 }
 
 const pending = ref<PendingManualRoll | null>(null);
-
-function buildLabel(
-  counts: Partial<Record<DieSize, number>>,
-  modifier: number,
-  mode: RollMode,
-  hasD20: boolean,
-): string {
-  const parts: string[] = [];
-  for (const sides of [4, 6, 8, 10, 12, 20, 100] as DieSize[]) {
-    const n = counts[sides] ?? 0;
-    if (n > 0) parts.push(`${n}d${sides}`);
-  }
-  if (modifier !== 0) parts.push(modifier > 0 ? `+${modifier}` : `${modifier}`);
-  const modeSuffix = hasD20 && mode !== "normal" ? ` (${mode === "advantage" ? "Adv" : "Dis"})` : "";
-  return parts.join("+") + modeSuffix;
-}
-
-/** The label with its "(Adv)" / "(Dis)" tag swapped for the mode actually rolled. */
-function withModeTag(label: string, mode: RollMode): string {
-  const bare = label.replace(/ \((Adv|Dis)\)$/, "");
-  return mode === "advantage" ? `${bare} (Adv)` : mode === "disadvantage" ? `${bare} (Dis)` : bare;
-}
 
 export function usePromptedRoll() {
   const { diceMode } = useDicePrefs();
@@ -58,12 +39,16 @@ export function usePromptedRoll() {
   const { reportChatFailure } = useChatSendFailure();
 
   async function promptRoll(args: PromptedRollArgs): Promise<RollResult | null> {
-    // A mode picked on the sheet applies to the next d20 roll anyone makes for
-    // the player, whichever button made it. Damage and internal rolls never take it.
-    const takesPick = (args.counts[20] ?? 0) > 0 && !args.silent && !args.isDamage;
-    const base = args.mode ?? "normal";
+    // Resolved per call so the active campaign's system decides, not the module load.
+    const rules = activeDiceRules();
+    // An option picked on the sheet applies to the next roll it applies to that
+    // anyone makes for the player (5e: a d20), whichever button made it. Damage
+    // and internal rolls never take it.
+    const poolTakesOption = ALL_DICE.some((sides) => (args.counts[sides] ?? 0) > 0 && rules.optionAppliesTo(sides));
+    const takesPick = poolTakesOption && !args.silent && !args.isDamage;
+    const base = args.mode ?? NORMAL_ROLL;
     const mode = takesPick ? takeNextRollMode(base) : base;
-    const label = mode === base ? args.label : withModeTag(args.label, mode);
+    const label = mode === base ? args.label : rules.tagLabel(args.label, mode, args.counts);
     let result: RollResult | null = null;
 
     const isHidden = !!args.recipientUserId;
@@ -83,7 +68,7 @@ export function usePromptedRoll() {
       if (result) playDiceRollSound(result.isCrit, isHidden ? false : result.isFumble);
     } else {
       // Mute automatic sound so we can control fumble suppression
-      result = rollDice(args.counts, args.modifier, mode, { mute: true });
+      result = rollDiceWithRules(rules, args.counts, args.modifier, mode, { mute: true });
       if (result) playDiceRollSound(result.isCrit, isHidden ? false : result.isFumble);
     }
 
@@ -109,45 +94,8 @@ export function usePromptedRoll() {
       p.resolve(null);
       return;
     }
-    const breakdown: DieResult[] = [];
-    let sum = 0;
-    let isCrit = false;
-    let isFumble = false;
-
-    for (const sides of [4, 6, 8, 10, 12, 20, 100] as DieSize[]) {
-      const entered = values[sides] ?? [];
-      const need = p.counts[sides] ?? 0;
-      if (need === 0 || entered.length === 0) continue;
-
-      if (sides === 20 && need === 1 && p.mode !== "normal" && entered.length === 2) {
-        const [r1, r2] = entered;
-        const keep = p.mode === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
-        const drop = p.mode === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
-        breakdown.push({ val: keep, dropped: false });
-        breakdown.push({ val: drop, dropped: true });
-        sum += keep;
-        if (keep === 20) isCrit = true;
-        if (keep === 1) isFumble = true;
-      } else {
-        for (const val of entered) {
-          breakdown.push({ val, dropped: false });
-          sum += val;
-          if (sides === 20 && val === 20) isCrit = true;
-          if (sides === 20 && val === 1) isFumble = true;
-        }
-      }
-    }
-
-    const hasD20 = (p.counts[20] ?? 0) > 0;
-    const result: RollResult = {
-      total: sum + p.modifier,
-      label: buildLabel(p.counts, p.modifier, p.mode, hasD20),
-      modifier: p.modifier,
-      breakdown,
-      isCrit,
-      isFumble,
-      manual: true,
-    };
+    // A physical roll is scored by the same rules as a digital one.
+    const result: RollResult = { ...activeDiceRules().score(p.counts, p.modifier, p.mode, values), manual: true };
     p.resolve(result);
   }
 

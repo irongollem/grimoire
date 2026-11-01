@@ -55,7 +55,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import type { WeaponMasteryProperty } from "@/types/item.types";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 import { useTableRuleset } from "@/composables/rules/useRuleset";

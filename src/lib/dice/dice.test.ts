@@ -1,13 +1,13 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import {
-  combineModes,
   hitPointsToMax,
   maxExpression,
-  parseDamageExpression,
   parseDiceAvg,
   parseExpression,
   parsedToCounts,
+  formatCounts,
   rollDice,
+  keepOne,
   scaleExpression,
 } from "@/lib/dice/dice";
 
@@ -55,26 +55,6 @@ describe("hitPointsToMax", () => {
 
   it("falls back when the average would be zero or negative", () => {
     expect(hitPointsToMax("0", 4)).toBe(4);
-  });
-});
-
-describe("combineModes", () => {
-  it("returns the other mode when one side is normal", () => {
-    expect(combineModes("normal", "normal")).toBe("normal");
-    expect(combineModes("advantage", "normal")).toBe("advantage");
-    expect(combineModes("normal", "advantage")).toBe("advantage");
-    expect(combineModes("disadvantage", "normal")).toBe("disadvantage");
-    expect(combineModes("normal", "disadvantage")).toBe("disadvantage");
-  });
-
-  it("keeps the mode when both sides agree", () => {
-    expect(combineModes("advantage", "advantage")).toBe("advantage");
-    expect(combineModes("disadvantage", "disadvantage")).toBe("disadvantage");
-  });
-
-  it("cancels to normal when advantage meets disadvantage (5e RAW)", () => {
-    expect(combineModes("advantage", "disadvantage")).toBe("normal");
-    expect(combineModes("disadvantage", "advantage")).toBe("normal");
   });
 });
 
@@ -140,69 +120,64 @@ describe("parsedToCounts", () => {
   });
 });
 
-describe("parseDamageExpression", () => {
-  it("splits a compound expression into typed rolls and untyped flat numbers", () => {
-    expect(parseDamageExpression("2d6 fire + 1d6 slashing + 5")).toEqual([
-      { dice: "2d6", type: "fire" },
-      { dice: "1d6", type: "slashing" },
-      { dice: "5", type: "" },
-    ]);
-  });
-
-  it("is empty for blank input", () => {
-    expect(parseDamageExpression("   ")).toEqual([]);
+describe("label words are stripped generically", () => {
+  it("parses damage words that are not in any 5e list, so the core needs no vocabulary", () => {
+    const two6 = { terms: [{ count: 2, sides: 6 }], modifier: 0 };
+    expect(parseExpression("2d6 radiant")).toEqual(two6);
+    expect(parseExpression("2d6 holy")).toEqual(two6);
+    expect(parseExpression("1d8 necrotic + 2")).toEqual({ terms: [{ count: 1, sides: 8 }], modifier: 2 });
+    expect(parseDiceAvg("2d6 holy + 1d6 radiant")).toBe(10.5);
   });
 });
 
-describe("rollDice", () => {
+describe("formatCounts", () => {
+  it("labels the modifier once with its own sign, never as ++3 or +-2", () => {
+    expect(formatCounts({ 20: 1 }, 5)).toBe("1d20+5");
+    expect(formatCounts({ 6: 2 }, -1)).toBe("2d6-1");
+    expect(formatCounts({ 8: 1 }, 0)).toBe("1d8");
+    expect(formatCounts({ 8: 1, 6: 1 }, 0)).toBe("1d6+1d8");
+  });
+});
+
+describe("rollDice (neutral)", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  // rollDie(sides) = floor(random * sides) + 1, so 0 rolls a 1 and 0.99 rolls the top face.
   function queue(...values: number[]) {
     const spy = vi.spyOn(Math, "random");
     for (const v of values) spy.mockReturnValueOnce(v);
   }
 
-  it("advantage keeps the higher d20 and marks the other dropped (5e PHB 'Advantage and Disadvantage')", () => {
-    queue(0, 0.99);
-    const r = rollDice({ 20: 1 }, 3, "advantage");
-    expect(r.breakdown).toEqual([
+  it("never reports a crit or fumble: a natural 20 means nothing without a game system's rules", () => {
+    queue(0.99);
+    const hi = rollDice({ 20: 1 }, 0);
+    expect(hi.breakdown).toEqual([{ val: 20, dropped: false }]);
+    expect(hi.isCrit).toBe(false);
+    queue(0);
+    expect(rollDice({ 20: 1 }, 0).isFumble).toBe(false);
+  });
+
+  it("sums a plain pool in die-size order and adds the modifier", () => {
+    queue(0.99, 0.5); // d6 -> 6, d8 -> 5
+    const r = rollDice({ 8: 1, 6: 1 }, 2);
+    expect(r.breakdown.map((d) => d.val)).toEqual([6, 5]);
+    expect(r.total).toBe(13);
+    expect(r.label).toBe("1d6+1d8+2");
+  });
+});
+
+describe("keepOne", () => {
+  it("keeps the highest face first and marks the others dropped", () => {
+    expect(keepOne([1, 20, 11], "highest")).toEqual([
       { val: 20, dropped: false },
       { val: 1, dropped: true },
+      { val: 11, dropped: true },
     ]);
-    expect(r.total).toBe(23);
-    expect(r.isCrit).toBe(true);
-    expect(r.isFumble).toBe(false);
-    expect(r.label.endsWith(" (Adv)")).toBe(true);
   });
 
-  it("disadvantage keeps the lower d20", () => {
-    queue(0.99, 0);
-    const r = rollDice({ 20: 1 }, -2, "disadvantage");
-    expect(r.total).toBe(-1);
-    expect(r.isFumble).toBe(true);
-    expect(r.isCrit).toBe(false);
-    expect(r.label.endsWith(" (Dis)")).toBe(true);
-  });
-
-  it("sums a plain pool and adds the modifier", () => {
-    queue(0.99, 0.5); // smallest die rolls first: d6 -> 6, d8 -> 5
-    const r = rollDice({ 6: 1, 8: 1 }, 2, "normal");
-    expect(r.total).toBe(13);
-    expect(r.isCrit).toBe(false);
-  });
-
-  it("labels the modifier once with its own sign, never as ++3 or +-2", () => {
-    queue(0.5, 0.5);
-    expect(rollDice({ 20: 1 }, 3, "advantage").label).toBe("1d20+3 (Adv)");
-    queue(0.5, 0.5);
-    expect(rollDice({ 20: 1 }, -2, "disadvantage").label).toBe("1d20-2 (Dis)");
-    queue(0.5, 0.5);
-    expect(rollDice({ 6: 1, 8: 1 }, 0, "normal").label).toBe("1d6+1d8");
-  });
-
-  it("a natural 20 on a lone d20 in normal mode is a crit", () => {
-    queue(0.99);
-    expect(rollDice({ 20: 1 }, 0, "normal").isCrit).toBe(true);
+  it("keeps the lowest face when asked, not merely the last one given", () => {
+    expect(keepOne([20, 1], "lowest")).toEqual([
+      { val: 1, dropped: false },
+      { val: 20, dropped: true },
+    ]);
   });
 });

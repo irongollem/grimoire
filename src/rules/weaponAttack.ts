@@ -7,7 +7,8 @@
 // this is a pure extraction, not a redesign.
 
 import { parseExpression } from "@/lib/dice/dice";
-import type { DamageRoll, ParsedExpression } from "@/lib/dice/dice";
+import type { ParsedExpression } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 
 /** Minimal shape of an `Item` this module needs — avoids coupling to the full Item type. */
 export interface WeaponLike {

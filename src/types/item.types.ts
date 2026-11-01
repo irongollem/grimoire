@@ -1,4 +1,4 @@
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import type { VersionedContentMetadata } from "@/types/content.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { RulesetKey } from "@/types/ruleset.types";

@@ -109,7 +109,7 @@
 
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { SaveEntry } from "@/rules/characterChecks";
 
 const ABILITIES = [

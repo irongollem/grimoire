@@ -98,8 +98,8 @@
           </div>
         </div>
 
-        <!-- Advantage / Normal / Disadvantage (only relevant when d20 included) -->
-        <div class="adv-row">
+        <!-- The system's roll options around Normal (5e: Disadvantage / Normal / Advantage) -->
+        <div v-if="rules.options.length > 0" class="adv-row">
           <AppButton
             v-for="m in MODES"
             :key="m.value"
@@ -171,7 +171,9 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import DiceResult from "@/components/common/dice/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/dice/diceAudio";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import type { DieSize, RollMode, RollResult } from "@/lib/dice/roller";
+import type { DieSize, RollResult } from "@/lib/dice/roller";
+import { NORMAL_ROLL, rollChoices, type RollModeKey } from "@/lib/dice/diceRules";
+import { activeDiceRules } from "@/systems/registry";
 import type { ButtonTone } from "../controls/appButtonVariants";
 
 const DICE: { sides: DieSize; icon: Component }[] = [
@@ -184,11 +186,14 @@ const DICE: { sides: DieSize; icon: Component }[] = [
   { sides: 100, icon: IconDie100 },
 ];
 
-const MODES: { value: RollMode; label: string; tone: ButtonTone }[] = [
-  { value: "disadvantage", label: "DIS", tone: "danger" },
-  { value: "normal", label: "Normal", tone: "neutral" },
-  { value: "advantage", label: "ADV", tone: "success" },
-];
+const rules = activeDiceRules();
+
+// The system's options around Normal (5e: DIS / Normal / ADV).
+const MODES: { value: RollModeKey; label: string; tone: ButtonTone }[] = rollChoices(rules).map((c) => ({
+  value: c.key,
+  label: c.tone ? c.short.toUpperCase() : c.label,
+  tone: c.tone ?? "neutral",
+}));
 
 const isOpen = ref(false);
 const triggerRef = ref<ComponentPublicInstance | null>(null);
@@ -248,7 +253,7 @@ const counts = reactive<Record<DieSize, number>>({
   4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 1, 100: 0,
 });
 const modifier = ref(0);
-const mode = ref<RollMode>("normal");
+const mode = ref<RollModeKey>(NORMAL_ROLL);
 const result = ref<RollResult | null>(null);
 
 const totalDice = computed(() => Object.values(counts).reduce((s, c) => s + c, 0));
@@ -298,7 +303,7 @@ function clearAll() {
   for (const d of DICE) counts[d.sides] = 0;
   counts[20] = 1;
   modifier.value = 0;
-  mode.value = "normal";
+  mode.value = NORMAL_ROLL;
   result.value = null;
 }
 </script>

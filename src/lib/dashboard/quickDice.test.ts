@@ -1,52 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { ALL_DICE } from "@/lib/dice/dice";
 import type { RollResult } from "@/lib/dice/dice";
+import { dnd5eDiceRules } from "@/systems/dnd5e/dice/rules";
+import type { DiceRules } from "@/lib/dice/diceRules";
 import {
-  QUICK_DICE_BUTTONS,
-  advantageAppliesTo,
-  effectiveMode,
+  quickDiceButtons,
   checkQuickExpression,
   displayStandardRoll,
   displayExpressionRoll,
 } from "./quickDice";
 
 describe("quickDice", () => {
-  describe("QUICK_DICE_BUTTONS", () => {
-    it("labels a button d<sides> and offers Advantage on the d20 alone", () => {
-      expect(QUICK_DICE_BUTTONS.find((b) => b.sides === 8)).toEqual({
-        sides: 8,
-        label: "d8",
-        supportsAdvantage: false,
-      });
-      expect(QUICK_DICE_BUTTONS.find((b) => b.sides === 20)?.supportsAdvantage).toBe(true);
+  describe("quickDiceButtons", () => {
+    it("labels a button d<sides> and offers 5e's roll options on the d20 alone", () => {
+      const buttons = quickDiceButtons(dnd5eDiceRules);
+      expect(buttons.find((b) => b.sides === 8)).toEqual({ sides: 8, label: "d8", takesOptions: false });
+      expect(buttons.find((b) => b.sides === 20)?.takesOptions).toBe(true);
+    });
+
+    it("asks the rules it is given, not 5e (a system with options on every die)", () => {
+      const everyDie: DiceRules = { ...dnd5eDiceRules, optionAppliesTo: () => true };
+      expect(quickDiceButtons(everyDie).every((b) => b.takesOptions)).toBe(true);
     });
   });
 
-  describe("advantageAppliesTo", () => {
-    it("is true for d20 and false for every other die", () => {
-      expect(advantageAppliesTo(20)).toBe(true);
-      for (const sides of ALL_DICE.filter((s) => s !== 20)) {
-        expect(advantageAppliesTo(sides)).toBe(false);
-      }
-    });
-  });
 
-  describe("effectiveMode", () => {
-    it("passes advantage/disadvantage through for d20", () => {
-      expect(effectiveMode(20, "advantage")).toBe("advantage");
-      expect(effectiveMode(20, "disadvantage")).toBe("disadvantage");
-    });
-
-    it("flattens a stale mode to normal for every other die, so the result never claims a mode that did nothing", () => {
-      expect(effectiveMode(6, "advantage")).toBe("normal");
-      expect(effectiveMode(100, "disadvantage")).toBe("normal");
-    });
-
-    it("leaves normal mode alone regardless of die", () => {
-      expect(effectiveMode(4, "normal")).toBe("normal");
-      expect(effectiveMode(20, "normal")).toBe("normal");
-    });
-  });
 
   describe("checkQuickExpression", () => {
     it("reads an empty field as its own resting state, not an error", () => {

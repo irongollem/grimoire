@@ -394,7 +394,7 @@ import {
   isArmorType,
 } from "@/types/item.types";
 import type { Item, ItemType, ItemRarity, WeaponMasteryProperty } from "@/types/item.types";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { sourceLinkHost } from "@/lib/library/sourceLabel";
 import { buildEntityContext, toPlainText } from "@/ai/utils";

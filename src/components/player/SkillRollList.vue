@@ -34,8 +34,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import SkillRollRow from "@/components/player/SkillRollRow.vue";
-import type { RollMode } from "@/lib/dice/roller";
-import { combineModes } from "@/lib/dice/dice";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
+import { combineModes } from "@/systems/dnd5e/dice/rollMode";
 import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";

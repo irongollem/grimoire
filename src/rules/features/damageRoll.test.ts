@@ -56,7 +56,7 @@ describe("assembleDamage", () => {
     expect(r.counts).toEqual({});
     expect(r.modifier).toBe(3);
     expect(r.parts).toEqual(["+3"]);
-    expect(rollDice({}, 3, "normal").total).toBe(3);
+    expect(rollDice({}, 3).total).toBe(3);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { ComputedRef, InjectionKey, Ref } from "vue";
 import type { DamageAmount, useActionResolution } from "@/composables/encounters/useActionResolution";
-import type { RollMode } from "@/lib/dice/dice";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { DamageType } from "@/types/damage.types";
 
 /** What `useActionResolution` returns; the resolve panel hands one instance to its flows. */

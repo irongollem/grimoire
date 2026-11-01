@@ -1,32 +1,34 @@
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, readonly } from "vue";
-import type { RollMode } from "@/lib/dice/roller";
-import { combineModes } from "@/lib/dice/dice";
+import { NORMAL_ROLL, type RollModeKey } from "@/lib/dice/diceRules";
+import { activeDiceRules } from "@/systems/registry";
 
 /**
- * The roll mode a player picked on the sheet for their NEXT d20 roll. One
+ * The roll option (5e: advantage/disadvantage) a player picked on the sheet for their NEXT roll
+ * it applies to. One
  * module-level value, so the control on the sheet and every roll button agree
  * without each call site passing it along: `usePromptedRoll` folds it into the
- * roll and puts it back to Normal, so a pick never lingers into a roll the
+ * roll and puts it back to a normal roll, so a pick never lingers into a roll the
  * player did not mean it for.
  */
-const next = ref<RollMode>("normal");
+const next = ref<RollModeKey>(NORMAL_ROLL);
 
 /** Read-only, for controls that show the pick. */
 export const nextRollMode = readonly(next);
 
-export function setNextRollMode(mode: RollMode): void {
+export function setNextRollMode(mode: RollModeKey): void {
   next.value = mode;
 }
 
 /**
- * Fold the pending pick into `base` (a condition-imposed or long-press mode)
- * and reset it. Opposing sources cancel to normal, as 5e says.
+ * Fold the pending pick into `base` (a condition-imposed or long-press option)
+ * and reset it. The active system decides how two options combine (5e: opposing
+ * sources cancel to normal).
  */
-export function takeNextRollMode(base: RollMode): RollMode {
+export function takeNextRollMode(base: RollModeKey): RollModeKey {
   const picked = next.value;
-  next.value = "normal";
-  return combineModes(base, picked);
+  next.value = NORMAL_ROLL;
+  return activeDiceRules().combine(base, picked);
 }
 
 export function useNextRollMode() {

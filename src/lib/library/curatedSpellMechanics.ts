@@ -6,7 +6,7 @@
  * bases expect, and `checkSpellMechanics` approves a row only when its stored
  * columns equal that conversion and the entry survives the text sanity checks.
  */
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import { normDice } from "@/lib/library/spellTextMechanics";
 import type { HigherLevelDamage, SpellEffectInstances, StructuredSpellEffect } from "@/types/spell.types";
 
