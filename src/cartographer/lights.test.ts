@@ -66,12 +66,13 @@ describe("what counts as a fire", () => {
 
 describe("lightMotion", () => {
   it("lets a light that declares its own flicker or pulse keep it, fire-coloured or not", () => {
-    expect(lightMotion({ color: "#88aaff", flicker: 0.4 })).toEqual({ flicker: 0.4 });
-    expect(lightMotion({ color: "#ff8030", pulse: 0.2 })).toEqual({ pulse: 0.2 });
+    expect(lightMotion({ color: "#88aaff", flicker: 0.4 })).toEqual({ kind: "flicker", amount: 0.4 });
+    expect(lightMotion({ color: "#ff8030", pulse: 0.2 })).toEqual({ kind: "pulse", amount: 0.2 });
   });
 
-  it("flickers a fire-coloured light that declares nothing, and leaves a cool one steady", () => {
-    expect(lightMotion({ color: "#ff8030" })).toEqual({ flicker: FIRE_FLICKER });
-    expect(lightMotion({ color: "#88aaff" })).toBeNull();
+  // The maintainer, 2 Nov 2026: most lights flicker, the rest pulse, none is steady.
+  it("flickers a fire-coloured light that declares nothing, and makes a cool one pulse rather than stand still", () => {
+    expect(lightMotion({ color: "#ff8030" })).toEqual({ kind: "flicker", amount: FIRE_FLICKER });
+    expect(lightMotion({ color: "#88aaff" }).kind).toBe("pulse");
   });
 });

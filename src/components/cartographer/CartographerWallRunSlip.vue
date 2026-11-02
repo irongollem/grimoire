@@ -11,6 +11,7 @@
     />
     <span class="basis-full text-caption-sm text-muted-foreground">
       <template v-if="refusal">{{ refusal }}</template>
+      <template v-else-if="run.object">Drag to move it a cell at a time. Shift+click adds more, a drag on empty ground draws a box, Esc lets go.</template>
       <template v-else-if="run.items !== undefined">Drag any picked piece to move them all together. Shift+click adds or removes one. Esc lets go.</template>
       <template v-else>Alt+click picks the whole wall, Shift+click adds to the pick, a drag on empty ground draws a box. Drag a node to move it, double-click a wall to add a node, a node to switch it between curve and corner. Alt skips the grid.</template>
     </span>
@@ -19,14 +20,14 @@
 
 <script setup lang="ts">
 // The slip Select shows over picked walls (#1125 frame 17): "Wall · 4 segments · 1 door", or "3 items" when props and
-// lights are picked with them, what Delete does, and in a line why a drag was refused when it was.
+// lights are picked with them, or what a lone pack object is ("a brazier, from the Stone set"), what Delete does, and in a line why a drag was refused when it was.
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconDelete } from "@/lib/icons";
 import type { EditRefusal } from "@/cartographer/wallEdit/edit";
 
 const { run, refusalReason = null } = defineProps<{
-  run: { bones: number; nodes: number; doors: number; items?: number };
+  run: { bones: number; nodes: number; doors: number; items?: number; object?: { label: string; rotation: number } };
   /** Why the last move or delete was refused (the controller keeps the last good shape on screen). */
   refusalReason?: EditRefusal | null;
 }>();
@@ -34,6 +35,7 @@ const emit = defineEmits<{ delete: [] }>();
 
 const plural = (n: number, one: string): string => `${n} ${one}${n === 1 ? "" : "s"}`;
 const summary = computed(() => {
+  if (run.object) return run.object.label;
   if (run.items !== undefined) return plural(run.items, "item");
   // Segments when whole segments are picked; bare nodes (a box that caught corners only) are counted as nodes.
   const parts = ["Wall", run.bones > 0 ? plural(run.bones, "segment") : plural(run.nodes, "node")];

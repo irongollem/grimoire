@@ -44,9 +44,21 @@ export function useGroundRegionEdit(opts: {
   watch(selected, (region) => {
     if (selectedId.value && !region) { selectedId.value = null; controller.clearSelection(); }
   }, { flush: "sync" });
+  /** Whether a physical wall segment lies under `point`. */
+  function wallAt(point: Pt): boolean {
+    return Boolean(runAt(buildGraph(opts.layers.value.walls), point, opts.hitTolerance()));
+  }
+  /** Whether `point` is on a corner of the picked region's outline, where its handles are. */
+  function onSelectedCorner(point: Pt): boolean {
+    const region = selected.value;
+    if (!region) return false;
+    const tolerance = opts.hitTolerance();
+    return groundLoops(region).some((loop) => loop.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) <= tolerance));
+  }
   /**
-   * Picks what is under `point`. A material region is picked whole (its outline, to move nodes of); a physical wall as
-   * Illustrator would: one segment, with Alt the whole wall, with Shift added to the walls already picked. With
+   * Picks what is under `point`. A physical wall comes first, as Illustrator would: one segment, with Alt the whole
+   * wall, with Shift added to the walls already picked. A material region is picked whole (its outline, to move nodes
+   * of) by its unwalled boundary or from inside. With
    * `interior` false only an outline or a wall counts (a press that may begin a marquee); a click on a region's
    * middle passes true.
    */
@@ -55,8 +67,10 @@ export function useGroundRegionEdit(opts: {
     const onBoundary = Object.entries(opts.layers.value.ground).sort(([, a], [, b]) => b.z - a.z).find(([, r]) =>
       groundLoops(r).some((loop) => loop.some((a, i) => projectOnSegment(point, a, loop[(i + 1) % loop.length]).dist <= tolerance)),
     );
-    const onWall = runAt(buildGraph(opts.layers.value.walls), point, tolerance);
-    const nextId = onBoundary?.[0] ?? (onWall || !interior ? null : groundRegionAt(opts.layers.value, point[0], point[1]));
+    const onWall = wallAt(point);
+    // A physical wall under the pointer is picked as the wall even when it lies along a region's edge; the outline is
+    // reached by its unwalled stretch, or by clicking inside the region (so a region walled all round still has a way in).
+    const nextId = onWall ? null : onBoundary?.[0] ?? (!interior ? null : groundRegionAt(opts.layers.value, point[0], point[1]));
     // Walls add to walls; changing between a region and walls (or regions) starts over.
     const additive = mods.shift && nextId === null && selectedId.value === null;
     if (!additive) controller.clearSelection();
@@ -93,5 +107,5 @@ export function useGroundRegionEdit(opts: {
       return controller.deleteSelection();
     },
   };
-  return { controller: boundaryController, selectedId, selected, shownLayers, pick, clear, setWallMode, rename, remove };
+  return { controller: boundaryController, selectedId, selected, shownLayers, pick, wallAt, onSelectedCorner, clear, setWallMode, rename, remove };
 }

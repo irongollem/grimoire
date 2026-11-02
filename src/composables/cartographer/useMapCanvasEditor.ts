@@ -18,7 +18,7 @@ import type { StampCategory } from "@/cartographer/stampCategories";
 import { pinchOf, pinchViewport, type Pinch, type CanvasViewport, type CellBounds } from "@/cartographer/viewport";
 import { clampBrushRadius, resolveKeyAction, type EditorLayer } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
-import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
+import { BASE_TILE_SIZE, categoryLabel, type PackCategory } from "@/cartographer/packSchema";
 import { wallKindCategory, type WallKind } from "@/cartographer/wallKinds";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DressingCatalog } from "@/cartographer/dressing";
@@ -316,6 +316,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const selectTool = useSelectTool({
     layers, catalog: dressing, dressingTool, lightTool, groundEdit, selectedDressingId,
     clearCell: () => { selectedCell.value = null; },
+    describeObject: (cell) => {
+      const manifest = loadedRuntimes.value.get(cell.pack_id)?.manifest;
+      const label = manifest?.labels?.[cell.category]?.[cell.variant] ?? categoryLabel(cell.category).replace(/^object /, "");
+      return manifest ? `${label}, from the ${manifest.name} set` : label;
+    },
     snapshotStr, pushCommand, markDirty,
     holdUndo: (before) => { heldUndo = before; },
     slop: () => SELECT_DRAG_SLOP_PX / tilePixelSize(),
@@ -357,7 +362,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const selectedWallRun = computed(() => {
     if (selectedGroundRegion.value) return null;
     // More than one kind picked (or more than one prop): the slip only counts them.
-    if (selectTool.isMixed.value) return { bones: 0, nodes: 0, doors: 0, items: selectTool.pieceCount.value };
+    if (selectTool.isMixed.value) return { bones: 0, nodes: 0, doors: 0, items: selectTool.pieceCount.value, object: selectTool.lonelyObject.value ?? undefined };
     const { bones, nodeCount, doors } = wallNodes.selection.value;
     return nodeCount > 0 ? { bones, nodes: nodeCount, doors } : null;
   });
@@ -985,7 +990,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
       dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, gridAlpha,
-      shownLayers, wallNodes.selection, wallNodes.focus, wallNodes.hoverNode, wallNodes.snap, selectTool.marquee, selectTool.multiProps, selectTool.multiLights, ...extraRenderDeps, ...planRenderDeps,
+      shownLayers, wallNodes.selection, wallNodes.focus, wallNodes.hoverNode, wallNodes.snap, selectTool.marquee, selectTool.multiProps, selectTool.multiLights, selectTool.multiObjects, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
@@ -1609,6 +1614,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
           || wallNodes.hasSelection.value
           || selectTool.multiProps.value.size > 0
           || selectTool.multiLights.value.size > 0
+          || selectTool.multiObjects.value.size > 0
           || angledTool.selectedId.value !== null
           || selectedCell.value !== null,
       },
@@ -1624,7 +1630,12 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         if (keysActive && !keysActive()) return;
         navigation.zoomTo(action.to);
         break;
-      case "rotatePlace": dressingTool.turn(action.delta); break;
+      case "rotatePlace": {
+        const object = selectTool.lonelyObject.value;
+        if (object) selectTool.rotateObjects((((object.rotation + action.delta) % 360) + 360) % 360);
+        else dressingTool.turn(action.delta);
+        break;
+      }
       case "clearSelection":
         // Esc lets go of a drag first, and only then of what is picked.
         if (wallNodes.dragging.value || selectTool.isHolding()) {
@@ -1759,7 +1770,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     /** The Angled wall tool's state, for tests and the status line. */
     angledTool,
     /** Turns the selected Dressing prop (one undo step) and the brush with it. */
-    rotateSelectedDressing: dressingTool.rotateSelected,
+    rotateSelectedDressing: (degrees: number) => {
+      if (selectTool.multiObjects.value.size > 0) selectTool.rotateObjects(degrees);
+      else dressingTool.rotateSelected(degrees);
+    },
     /** Removes the selected Dressing prop (one undo step). */
     deleteSelectedDressing: dressingTool.deleteSelected,
   };

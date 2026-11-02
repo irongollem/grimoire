@@ -311,13 +311,14 @@ describe("light options (#1125 story 5)", () => {
     expect(wrapper.emitted("update:light")).toBeUndefined();
   });
 
-  it("turns Flicker on with an amount and off by clearing it", async () => {
-    const wrapper = mountOptions(lightProps);
-    await wrapper.find("input[type=checkbox]").setValue(true);
-    expect(wrapper.emitted("update:light")?.[0]).toEqual([{ flicker: 0.25 }]);
-    const flickering = mountOptions({ ...lightProps, light: { color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 } });
-    await flickering.find("input[type=checkbox]").setValue(false);
-    expect(flickering.emitted("update:light")?.[0]).toEqual([{ flicker: undefined }]);
+  // Every light moves; the choice is how, and each choice writes one kind and clears the other.
+  it("switches a light between Flicker and Pulse, writing one and clearing the other", async () => {
+    const warm = mountOptions(lightProps);
+    await warm.findAll("button").find((b) => b.text() === "Pulse")!.trigger("click");
+    expect(warm.emitted("update:light")?.[0]).toEqual([{ pulse: 0.3, flicker: undefined }]);
+    const pulsing = mountOptions({ ...lightProps, light: { color: "#ffb347", bright: 20, dim: 20, pulse: 0.3 } });
+    await pulsing.findAll("button").find((b) => b.text() === "Flicker")!.trigger("click");
+    expect(pulsing.emitted("update:light")?.[0]).toEqual([{ flicker: 0.3, pulse: undefined }]);
   });
 
   it("offers Delete only while a placed light is picked", async () => {

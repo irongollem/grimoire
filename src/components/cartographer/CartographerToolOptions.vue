@@ -109,6 +109,11 @@
         :refusal-reason="wallRefusal"
         @delete="emit('deleteWallRun')"
       />
+      <RotationControl
+        v-if="wallRun.object"
+        :model-value="wallRun.object.rotation"
+        @update:model-value="emit('rotateSelected', $event)"
+      />
       <SegmentedControl
         v-if="wallRun.items === undefined && wallRun.bones > 0"
         :model-value="selectedWallVisible === false ? 'hidden' : 'visible'"
@@ -171,11 +176,12 @@
           @update:model-value="setReach('dim', $event)"
         />
       </label>
-      <AppCheckbox
-        :model-value="light.flicker !== undefined"
-        label="Flicker"
-        size="sm"
-        @update:model-value="emit('update:light', { flicker: $event ? FLICKER_AMOUNT : undefined })"
+      <SegmentedControl
+        :model-value="lightMotion(light).kind"
+        :options="LIGHT_MOTIONS"
+        size="xs"
+        aria-label="How the light moves"
+        @update:model-value="emit('update:light', $event === 'flicker' ? { flicker: FLICKER_AMOUNT, pulse: undefined } : { pulse: PULSE_AMOUNT, flicker: undefined })"
       />
       <AppButton
         v-if="lightSelected"
@@ -335,6 +341,7 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import { FIRE_FLICKER, lightMotion, PULSE_GLOW } from "@/cartographer/lights";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ColorInput from "@/components/common/controls/ColorInput.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
@@ -431,7 +438,7 @@ const props = defineProps<{
   /** A placed light is picked, so the edits are to it and Delete takes it away. */
   lightSelected: boolean;
   /** Select picked walls: how many segments, nodes and doors; `items` when it also holds props or lights (null when none). */
-  wallRun: { bones: number; nodes: number; doors: number; items?: number } | null;
+  wallRun: { bones: number; nodes: number; doors: number; items?: number; object?: { label: string; rotation: number } } | null;
   /** Why the last wall edit was refused, if it was. */
   wallRefusal: EditRefusal | null;
 }>();
@@ -470,8 +477,10 @@ const detailsOpen = ref(false);
 /** An angled wall is a stroked line, so it has no decal kind. */
 const ANGLED_WALL_KINDS = WALL_KINDS.filter((k) => k.value !== "decal");
 const WALL_VISIBILITY = [{ value: "visible", label: "Visible" }, { value: "hidden", label: "Hidden" }];
-/** How much brighter a flickering light gets above its steady level: a fire's, per `TileLight.flicker`. */
-const FLICKER_AMOUNT = 0.25;
+/** What the choice writes: how much brighter the light gets above its steady level, per `TileLight.flicker` / `pulse`. */
+const FLICKER_AMOUNT = FIRE_FLICKER;
+const PULSE_AMOUNT = PULSE_GLOW;
+const LIGHT_MOTIONS = [{ value: "flicker", label: "Flicker" }, { value: "pulse", label: "Pulse" }];
 
 /** Bright or dim feet, held to the rules' range and never both zero (a light with no reach is nothing). */
 function setReach(field: "bright" | "dim", raw: string | number): void {

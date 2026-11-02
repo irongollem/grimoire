@@ -1,9 +1,9 @@
-// Which props and lights a Select marquee catches (#1125). A thing is in when its centre is: a prop is grabbed by
+// Which props, objects and lights a Select marquee catches (#1125). A thing is in when its centre is: a prop is grabbed by
 // where it stands, not by every cell of its footprint, so a long table is not caught by a box that clips its end.
 // Pure: plain values in, ids out.
 
 import { dressingCentre, dressingFootprint, type DressingCatalog, type DressingLayer } from "@/cartographer/dressing";
-import type { PlacedLight } from "@/types/dungeonMap.types";
+import { cellKey, parseCellKey, type CellKey, type ObjectCell, type PlacedLight } from "@/types/dungeonMap.types";
 
 export interface CellRect {
   x0: number;
@@ -33,4 +33,19 @@ export function propsInRect(dressing: DressingLayer, catalog: DressingCatalog, r
 export function lightsInRect(lights: Readonly<Record<string, PlacedLight>>, rect: CellRect): string[] {
   const r = normalizedRect(rect);
   return Object.entries(lights).filter(([, l]) => inside(r, l.x, l.y)).map(([id]) => id);
+}
+
+/** Pack objects stand one to a cell; the box catches an object by the centre of its cell, as it catches a prop. */
+export function objectsInRect(objects: Readonly<Record<CellKey, ObjectCell>>, rect: CellRect): CellKey[] {
+  const r = normalizedRect(rect);
+  return (Object.keys(objects) as CellKey[]).filter((key) => {
+    const [x, y] = parseCellKey(key);
+    return inside(r, x + 0.5, y + 0.5);
+  });
+}
+
+/** The object whose cell holds the point, if any. */
+export function objectAtPoint(objects: Readonly<Record<CellKey, ObjectCell>>, x: number, y: number): CellKey | null {
+  const key = cellKey(Math.floor(x), Math.floor(y));
+  return objects[key] ? key : null;
 }

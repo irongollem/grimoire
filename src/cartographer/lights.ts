@@ -45,10 +45,24 @@ export function lightStops(light: TileLight): [number, string][] {
   return [[0, at(intensity)], [near, at(intensity * LIGHT_FALLOFF.near)], [edge, at(intensity * LIGHT_FALLOFF.edge)], [1, at(0)]];
 }
 
-/** How much a fire's light brightens above its steady baked glow when its pack declares no flicker: a fraction of `intensity`. */
+/** How much a flickering light brightens above its steady baked glow when its pack declares no amount: a fraction of `intensity`. */
 export const FIRE_FLICKER = 0.3;
-/** How far a fire's reach breathes in and out around its steady radius, as a fraction of it (a few percent). */
-export const FIRE_RADIUS_DRIFT = 0.05;
+/** The same for a pulsing light (a mushroom, a crystal, a magical glow). */
+export const PULSE_GLOW = 0.3;
+/**
+ * How far a light's reach swells and shrinks around its steady radius, as a fraction of it. A flame is larger and
+ * irregular; a pulse is smaller, slow and even. Smaller than this and the circle reads as steady on a table screen
+ * (the first cut drifted 5% and nobody could see it, 2 Nov 2026).
+ */
+export const FLICKER_REACH = 0.15;
+export const PULSE_REACH = 0.1;
+/**
+ * The live glow is added to the steady baked one, and at the default intensity (0.35) a 30% brightening is a 0.1
+ * alpha: below what an eye picks out against the baked glow. The gain makes the swing a visible one.
+ */
+export const LIGHT_BOOST_GAIN = 1.6;
+/** A pulse's breath, in seconds. */
+export const PULSE_PERIOD_S = 3;
 
 /**
  * Whether a light's colour is that of a flame: a warm, saturated and not dim hue, red-orange through amber (5 to 55
@@ -68,12 +82,15 @@ export function isFireColor(hex: string): boolean {
   return degrees >= 5 && degrees <= 55;
 }
 
+export type LightMotion = { kind: "flicker" | "pulse"; amount: number };
+
 /**
- * What moves in a light, if anything. A light that declares `flicker` or `pulse` does that; a fire-coloured one that
- * declares neither flickers by `FIRE_FLICKER`. Anything else is steady (null).
+ * How a light moves. Every light does (the maintainer, 2 Nov 2026: most lights flicker a bit, so only a mushroom may
+ * be calm, and then it still breathes). A light that declares `flicker` or `pulse` does that, by that amount; a
+ * fire-coloured one that declares neither flickers; anything else pulses.
  */
-export function lightMotion(light: Pick<TileLight, "color" | "flicker" | "pulse">): { flicker?: number; pulse?: number } | null {
-  if (light.flicker !== undefined) return { flicker: light.flicker };
-  if (light.pulse !== undefined) return { pulse: light.pulse };
-  return isFireColor(light.color) ? { flicker: FIRE_FLICKER } : null;
+export function lightMotion(light: Pick<TileLight, "color" | "flicker" | "pulse">): LightMotion {
+  if (light.flicker !== undefined) return { kind: "flicker", amount: light.flicker };
+  if (light.pulse !== undefined) return { kind: "pulse", amount: light.pulse };
+  return isFireColor(light.color) ? { kind: "flicker", amount: FIRE_FLICKER } : { kind: "pulse", amount: PULSE_GLOW };
 }

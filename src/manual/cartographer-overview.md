@@ -117,7 +117,7 @@ Nothing here writes to your Atlas until you publish. Grimoire also tracks how ma
 
 ## Motion
 
-Flowing water, swaying trees and firelight play on every map that has them (any warm, flame-coloured light, such as a campfire, brazier, torch or candelabra, flickers gently on its own, its glow swelling and shrinking a few percent out of step with the next fire), the editor included, exactly as the battle map shows them. The **Motion** button in the map's corner pauses them while you edit and plays them again; this device remembers the choice. If your device asks for reduced motion, they stay still.
+Flowing water, swaying trees and every light play on every map that has them, the editor included, exactly as the battle map shows them. Warm, flame-coloured lights (a campfire, brazier, torch or candelabra) flicker: the circle of light swells and shrinks by about a seventh, unevenly, out of step with the next fire. Every other light (glowing moss, a crystal, a magical glow) pulses, a slow even breath of about a tenth over three seconds. In the Light tool you can switch a placed light between Flicker and Pulse. The **Motion** button in the map's corner pauses them while you edit and plays them again; this device remembers the choice. If your device asks for reduced motion, they stay still.
 
 ## Layers
 

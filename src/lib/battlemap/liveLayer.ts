@@ -3,7 +3,7 @@
 // here touches the DOM, so it can be tested with plain numbers.
 
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoorState, type MapLiveGroup, type MapLiveLight, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
-import { FIRE_RADIUS_DRIFT, lightMotion, lightReachCells } from "@/cartographer/lights";
+import { FLICKER_REACH, lightMotion, lightReachCells, PULSE_PERIOD_S, PULSE_REACH } from "@/cartographer/lights";
 import { lightMask, type LightMask } from "@/cartographer/lightMask";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
 
@@ -66,10 +66,10 @@ export function spritesIn(live: MapLive | null, stratum: Stratum): MapLiveSprite
   return live === null || stratum === "ground" ? [] : live.sprites;
 }
 
-/** The lights that move (flicker, pulse, or the colour of a fire). They brighten the floor, so they live in the ground layer. */
+/** The lights that move, which is every light (`lightMotion`). They brighten the floor, so they live in the ground layer. */
 export function lightsIn(live: MapLive | null, stratum: Stratum): MapLiveLight[] {
   if (live === null || stratum === "top") return [];
-  return live.lights.filter((l) => lightMotion(l) !== null);
+  return live.lights;
 }
 
 /** Whether the snapshot has anything to animate in this stratum. */
@@ -106,24 +106,22 @@ export function flameNoise(seed: number, t: number): number {
 
 /**
  * How much of its flicker or pulse a light shows at time `t`, 0..1 (the caller multiplies by the light's own
- * fraction). A flame is layered noise (`flameNoise`) so it never settles into a blink; a pulse is one slow breath.
- * A light that does neither is always 0.
+ * fraction). A flame is layered noise (`flameNoise`) so it never settles into a blink; a pulse is one slow breath,
+ * `PULSE_PERIOD_S` long, each light at its own point in it.
  */
 export function lightBoost(light: Pick<MapLiveLight, "color" | "flicker" | "pulse" | "phase">, t: number): number {
-  const motion = lightMotion(light);
-  if (motion === null) return 0;
-  if (motion.flicker !== undefined) return Math.min(1, Math.max(0, 0.5 + 0.5 * flameNoise(light.phase, t)));
-  return 0.5 + 0.5 * Math.sin(1.0 * t + light.phase);
+  if (lightMotion(light).kind === "flicker") return Math.min(1, Math.max(0, 0.5 + 0.5 * flameNoise(light.phase, t)));
+  return 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / PULSE_PERIOD_S + light.phase);
 }
 
 /**
- * How far a light's reach is stretched at time `t`, around 1: a flame swells and shrinks a few percent, drifting on
- * its own noise (not the brightness's, so the two do not move in lockstep). Pulsing and steady lights keep their reach.
+ * How far a light's reach is stretched at time `t`, around 1: a flame swells and shrinks by up to `FLICKER_REACH`,
+ * drifting on its own noise (not the brightness's, so the two do not move in lockstep); a pulse breathes by
+ * `PULSE_REACH`, in step with its brightness.
  */
 export function lightRadiusScale(light: Pick<MapLiveLight, "color" | "flicker" | "pulse" | "phase">, t: number): number {
-  const motion = lightMotion(light);
-  if (motion === null || motion.flicker === undefined) return 1;
-  return 1 + FIRE_RADIUS_DRIFT * flameNoise(light.phase * 1.7 + 4, t * 0.8);
+  if (lightMotion(light).kind === "flicker") return 1 + FLICKER_REACH * flameNoise(light.phase * 1.7 + 4, t * 0.8);
+  return 1 + PULSE_REACH * Math.sin((2 * Math.PI * t) / PULSE_PERIOD_S + light.phase);
 }
 
 /** A light's line-of-sight mask over its whole square, in image cells from (x0,y0). */
@@ -157,7 +155,8 @@ export function boostMask(live: MapLive, light: MapLiveLight, doorStates: readon
   }
   let held = perStates.get(light);
   if (!held) {
-    const reach = lightReachCells(light);
+    // Room for the largest swell, so a glow that grows past its steady reach is not cut off at the mask's edge.
+    const reach = lightReachCells(light) * (1 + Math.max(FLICKER_REACH, PULSE_REACH));
     const x0 = Math.floor(light.x - reach);
     const y0 = Math.floor(light.y - reach);
     const x1 = Math.ceil(light.x + reach);

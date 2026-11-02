@@ -28,7 +28,7 @@ import { segmentAxis } from "@/lib/battlemap/walls";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
 import { clipGroundMotion } from "@/lib/battlemap/groundMotionClip";
 import { boostMask, type BoostMask, groupsIn, hasMotion, lightBoost, lightRadiusScale, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
-import { lightMotion, lightReachCells, lightStops } from "@/cartographer/lights";
+import { LIGHT_BOOST_GAIN, lightMotion, lightReachCells, lightStops } from "@/cartographer/lights";
 import { DEFAULT_LIGHT_INTENSITY } from "@/cartographer/packSchema";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive, MapLiveDoor, MapLiveDoorState, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
@@ -211,15 +211,11 @@ function maskCanvasFor(light: MapLiveLight): { canvas: HTMLCanvasElement; x0: nu
 /**
  * The glow a flickering or pulsing light adds on top of its steady baked glow. Composed on a scratch canvas: the
  * gradient, cut to what the light can see (`destination-in` its mask, scaled up smooth as the baked glow's is) and
- * to the ground picture's painted part, then laid on with `screen`. Without the ground picture loaded there is no
- * floor on screen to brighten, so nothing is drawn.
+ * to the ground picture's painted part (when there is one: waiting for it to load draws nothing), then laid on with
+ * `screen`.
  */
 function paintLightBoost(ctx: CanvasRenderingContext2D, light: MapLiveLight, t: number) {
-  const motion = lightMotion(light);
-  if (motion === null) return;
-  const fraction = motion.flicker ?? motion.pulse;
-  if (fraction === undefined) return;
-  const intensity = (light.intensity ?? DEFAULT_LIGHT_INTENSITY) * fraction * lightBoost(light, t);
+  const intensity = (light.intensity ?? DEFAULT_LIGHT_INTENSITY) * lightMotion(light).amount * LIGHT_BOOST_GAIN * lightBoost(light, t);
   if (intensity <= 0.001) return;
   const tileLight = { color: light.color, bright: light.bright, dim: light.dim, intensity };
   // The reach breathes with the flame; the line-of-sight mask below stays the steady reach (no occlusion per frame).
@@ -227,9 +223,11 @@ function paintLightBoost(ctx: CanvasRenderingContext2D, light: MapLiveLight, t: 
   const cx = originX + light.x * cellPx;
   const cy = originY + light.y * cellPx;
   if (cx + radius < 0 || cy + radius < 0 || cx - radius > hostW || cy - radius > hostH) return;
+  // The battle map keeps the glow to the ground picture's painted part. The editor has no such picture to hand the
+  // layer (its ground is a canvas), so there the glow is cut to line of sight alone.
   const groundImg = ground ? imageFor(ground.url) : null;
   const mask = maskCanvasFor(light);
-  if (!ground || !groundImg || !mask) return;
+  if (!mask || (ground && !groundImg)) return;
 
   const left = originX + mask.x0 * cellPx;
   const top = originY + mask.y0 * cellPx;
@@ -252,7 +250,7 @@ function paintLightBoost(ctx: CanvasRenderingContext2D, light: MapLiveLight, t: 
   g.globalCompositeOperation = "destination-in";
   g.imageSmoothingEnabled = true;
   g.drawImage(mask.canvas, 0, 0, (mask.x1 - mask.x0) * cellPx, (mask.y1 - mask.y0) * cellPx);
-  g.drawImage(groundImg, ground.x - left, ground.y - top, ground.w, ground.h);
+  if (ground && groundImg) g.drawImage(groundImg, ground.x - left, ground.y - top, ground.w, ground.h);
 
   ctx.save();
   ctx.globalCompositeOperation = "screen";

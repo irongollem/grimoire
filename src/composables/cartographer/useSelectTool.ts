@@ -12,16 +12,16 @@
 import { computed, ref, shallowRef, watch, type Ref } from "vue";
 import { dressingCorners, dressingFootprint, hitTestDressing, type CellPoint, type DressingCatalog } from "@/cartographer/dressing";
 import * as paintOps from "@/cartographer/paintOps";
-import { lightsInRect, normalizedRect, propsInRect, type CellRect } from "@/cartographer/selectionPick";
+import { lightsInRect, normalizedRect, objectAtPoint, objectsInRect, propsInRect, type CellRect } from "@/cartographer/selectionPick";
 import { nearestLight } from "@/cartographer/wallPick";
-import type { DungeonMapLayers } from "@/types/dungeonMap.types";
+import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type ObjectCell } from "@/types/dungeonMap.types";
 import type { useDressingTool } from "./useDressingTool";
 import type { useGroundRegionEdit } from "./useGroundRegionEdit";
 import type { useLightTool } from "./useLightTool";
 import type { WallNodeMods } from "./useWallNodeEdit";
 
 type Pt = readonly [number, number];
-type Piece = { kind: "prop" | "light"; id: string } | { kind: "wall" };
+type Piece = { kind: "prop" | "light" | "object"; id: string } | { kind: "wall" };
 
 export interface SelectToolOptions {
   layers: Ref<DungeonMapLayers>;
@@ -37,6 +37,8 @@ export interface SelectToolOptions {
   markDirty: () => void;
   /** While set, wall commits join this gesture's undo step instead of filing their own. */
   holdUndo: (before: string | null) => void;
+  /** What a pack object is called for the slip: "a brazier, from the Stone set". */
+  describeObject: (cell: ObjectCell) => string;
   /** How far the pointer travels (cells) before a press on empty ground is a marquee rather than a click. */
   slop: () => number;
 }
@@ -46,6 +48,9 @@ interface Group {
   before: string;
   props: Map<string, Pt>;
   lights: Map<string, Pt>;
+  /** The picked objects' cells and the whole object layer as it was, so a drag always starts from the same cells. */
+  objects: CellKey[];
+  objectBase: Record<CellKey, ObjectCell>;
   walls: boolean;
   /** What a click that never moved narrows the selection to. */
   narrow: Piece;
@@ -69,6 +74,8 @@ export function useSelectTool(opts: SelectToolOptions) {
   /** Props and lights picked together with something else (or with each other). A lone one stays in its own tool. */
   const multiProps = shallowRef<ReadonlySet<string>>(EMPTY);
   const multiLights = shallowRef<ReadonlySet<string>>(EMPTY);
+  /** Pack objects (a brazier, a barrel) picked, by cell key. They have no tool of their own, so even one is held here. */
+  const multiObjects = shallowRef<ReadonlySet<string>>(EMPTY);
   const marquee = ref<CellRect | null>(null);
   let group: Group | null = null;
   let pending: Marquee | null = null;
@@ -83,23 +90,33 @@ export function useSelectTool(opts: SelectToolOptions) {
     return runs.length + nodes.filter((n) => !inRuns.has(n.id)).length;
   });
   /** How many things are picked, all kinds together. */
-  const pieceCount = computed(() => wallPieces.value + currentProps().size + currentLights().size);
+  const pieceCount = computed(() => wallPieces.value + currentProps().size + currentLights().size + multiObjects.value.size);
   /** More than one kind, or more than one prop or light: this tool carries it, the single-piece tools cannot. */
   const isMixed = computed(() => {
     const walls = wallNodes.hasSelection.value ? 1 : 0;
     const props = currentProps().size;
     const lights = currentLights().size;
+    const objects = multiObjects.value.size;
+    // A lone object counts: it has no single-piece tool to hand it to.
+    if (objects > 0) return true;
     return props + lights + walls > 1 && !(walls > 0 && props + lights === 0);
   });
   /** "3 items" for the slip when what is picked is not one wall or one thing, else null. */
   const summary = computed(() => (isMixed.value ? `${pieceCount.value} items` : null));
+  /** The one object picked on its own, for the slip: what it is, and how it is turned. */
+  const lonelyObject = computed(() => {
+    if (multiObjects.value.size !== 1 || pieceCount.value !== 1) return null;
+    const [key] = multiObjects.value;
+    const cell = layers.value.object[key as CellKey];
+    return cell ? { label: opts.describeObject(cell), rotation: cell.rotation ?? 0 } : null;
+  });
 
   /** After any change: a lone prop or light goes back to its own tool, everything else is held here. */
   function normalize(): void {
     const props = [...currentProps()];
     const lights = [...currentLights()];
     const walls = wallNodes.hasSelection.value;
-    if (props.length + lights.length + (walls ? 1 : 0) <= 1) {
+    if (props.length + lights.length + (walls ? 1 : 0) <= 1 && multiObjects.value.size === 0) {
       multiProps.value = EMPTY;
       multiLights.value = EMPTY;
       selectedDressingId.value = props[0] ?? null;
@@ -118,6 +135,7 @@ export function useSelectTool(opts: SelectToolOptions) {
     const keepLight = except?.kind === "light" ? except.id : null;
     multiProps.value = EMPTY;
     multiLights.value = EMPTY;
+    multiObjects.value = except?.kind === "object" ? new Set([except.id]) : EMPTY;
     selectedDressingId.value = keepProp;
     lightTool.selectedId.value = keepLight;
     if (except?.kind !== "wall") groundEdit.clear();
@@ -133,12 +151,14 @@ export function useSelectTool(opts: SelectToolOptions) {
   }
 
   // Undo, redo or an erase can take away what is picked.
-  watch(() => [layers.value.dressing, layers.value.lights], () => {
+  watch(() => [layers.value.dressing, layers.value.lights, layers.value.object], () => {
     const props = new Set([...multiProps.value].filter((id) => layers.value.dressing[id]));
     const lights = new Set([...multiLights.value].filter((id) => layers.value.lights[id]));
-    if (props.size === multiProps.value.size && lights.size === multiLights.value.size) return;
+    const objects = new Set([...multiObjects.value].filter((key) => layers.value.object[key as CellKey]));
+    if (props.size === multiProps.value.size && lights.size === multiLights.value.size && objects.size === multiObjects.value.size) return;
     multiProps.value = props;
     multiLights.value = lights;
+    multiObjects.value = objects;
     normalize();
   });
 
@@ -158,31 +178,39 @@ export function useSelectTool(opts: SelectToolOptions) {
       if (l) lights.set(id, [l.x, l.y]);
     }
     const walls = wallNodes.beginGroup();
-    group = { start, before, props, lights, walls, narrow, moved: false };
+    group = { start, before, props, lights, objects: [...multiObjects.value] as CellKey[], objectBase: { ...layers.value.object }, walls, narrow, moved: false };
   }
 
   function pressPiece(piece: Extract<Piece, { id: string }>, fr: Pt, cell: [number, number], mods: WallNodeMods): void {
     const props = currentProps();
     const lights = currentLights();
+    const objects = multiObjects.value;
     if (mods.shift) {
       // Shift never drags: it adds the piece, or takes it out if it was already picked.
-      const set = new Set(piece.kind === "prop" ? props : lights);
+      const set = new Set(piece.kind === "prop" ? props : piece.kind === "light" ? lights : objects);
       if (set.has(piece.id)) set.delete(piece.id);
       else set.add(piece.id);
       multiProps.value = piece.kind === "prop" ? set : props;
       multiLights.value = piece.kind === "light" ? set : lights;
+      multiObjects.value = piece.kind === "object" ? set : objects;
       selectedDressingId.value = null;
       lightTool.selectedId.value = null;
       opts.clearCell();
       normalize();
       return;
     }
-    const picked = piece.kind === "prop" ? props.has(piece.id) : lights.has(piece.id);
+    const picked = piece.kind === "prop" ? props.has(piece.id) : piece.kind === "light" ? lights.has(piece.id) : objects.has(piece.id);
     if (picked && isMixed.value) {
       startGroup(fr, piece);
       return;
     }
     clearPicks(piece);
+    if (piece.kind === "object") {
+      // An object has no tool to hand the drag to: this one carries it, alone or not.
+      opts.clearCell();
+      startGroup(fr, piece);
+      return;
+    }
     if (piece.kind === "prop") dressingTool.grabAt(cell, [fr[0], fr[1]]);
     else lightTool.grabAt([fr[0], fr[1]]);
   }
@@ -202,6 +230,12 @@ export function useSelectTool(opts: SelectToolOptions) {
       pressPiece({ kind: "light", id: lightId }, fr, cell, mods);
       return;
     }
+    // A pack object, unless a wall runs along its edge under the pointer: the wall is the thinner, harder target.
+    const objectKey = objectAtPoint(layers.value.object, fr[0], fr[1]);
+    if (objectKey && !groundEdit.wallAt(fr)) {
+      pressPiece({ kind: "object", id: objectKey }, fr, cell, mods);
+      return;
+    }
     // A picked wall piece in a selection that spans kinds drags the whole selection.
     if (isMixed.value && wallNodes.pickedPieceAt(fr)) {
       if (mods.shift) {
@@ -212,7 +246,10 @@ export function useSelectTool(opts: SelectToolOptions) {
       startGroup(fr, { kind: "wall" });
       return;
     }
-    if (wallNodes.hasSelection.value && wallNodes.pointerDown(fr, mods)) {
+    // A wall lying on a picked material region's edge is picked as the wall, not as the region's outline (#1125, 2 Nov
+    // 2026), unless the press is on one of the outline's own corner handles.
+    const wallOverRegion = groundEdit.selectedId.value !== null && groundEdit.wallAt(fr) && !groundEdit.onSelectedCorner(fr);
+    if (!wallOverRegion && wallNodes.hasSelection.value && wallNodes.pointerDown(fr, mods)) {
       if (!mods.shift) clearPicks({ kind: "wall" });
       else promoteForWalls();
       return;
@@ -251,7 +288,7 @@ export function useSelectTool(opts: SelectToolOptions) {
     let dx = fr[0] - g.start[0];
     let dy = fr[1] - g.start[1];
     // Props stand on whole cells; without any, half cells like nodes and lights, and Alt skips the grid.
-    if (g.props.size > 0) {
+    if (g.props.size > 0 || g.objects.length > 0) {
       dx = Math.round(dx);
       dy = Math.round(dy);
     } else if (!mods.alt) {
@@ -262,6 +299,10 @@ export function useSelectTool(opts: SelectToolOptions) {
     for (const [id, [x, y]] of g.lights) {
       const light = layers.value.lights[id];
       if (light) layers.value.lights[id] = { ...light, x: x + dx, y: y + dy };
+    }
+    if (g.objects.length > 0) {
+      layers.value.object = paintOps.shiftedObjects(g.objectBase, g.objects, dx, dy);
+      multiObjects.value = new Set(g.objects.map((key) => { const [x, y] = parseCellKey(key); return cellKey(x + dx, y + dy); }));
     }
     if (g.walls) wallNodes.moveGroupBy([dx, dy]);
     if (dx !== 0 || dy !== 0) g.moved = true;
@@ -290,11 +331,13 @@ export function useSelectTool(opts: SelectToolOptions) {
     const nodes = wallNodes.nodesInRect(box);
     const props = propsInRect(layers.value.dressing, catalog.value, box);
     const lights = lightsInRect(layers.value.lights, box);
+    const objects = objectsInRect(layers.value.object, box);
     const keepProps = m.additive ? currentProps() : EMPTY;
     const keepLights = m.additive ? currentLights() : EMPTY;
     wallNodes.pickNodes(nodes, m.additive);
     multiProps.value = new Set([...keepProps, ...props]);
     multiLights.value = new Set([...keepLights, ...lights]);
+    multiObjects.value = new Set([...(m.additive ? multiObjects.value : EMPTY), ...objects]);
     selectedDressingId.value = null;
     lightTool.selectedId.value = null;
     normalize();
@@ -348,6 +391,10 @@ export function useSelectTool(opts: SelectToolOptions) {
         const light = layers.value.lights[id];
         if (light) layers.value.lights[id] = { ...light, x, y };
       }
+      if (g.objects.length > 0) {
+        layers.value.object = g.objectBase;
+        multiObjects.value = new Set(g.objects);
+      }
       if (g.walls) wallNodes.cancel();
       holdUndo(null);
     }
@@ -371,6 +418,7 @@ export function useSelectTool(opts: SelectToolOptions) {
     const lights = { ...layers.value.lights };
     for (const id of currentLights()) delete lights[id];
     layers.value.lights = lights;
+    paintOps.removeObjects(layers.value, multiObjects.value as ReadonlySet<CellKey>);
     holdUndo(null);
     clearPicks();
     markDirty();
@@ -389,7 +437,28 @@ export function useSelectTool(opts: SelectToolOptions) {
       const { w, h } = dressingFootprint(placement, catalog.value);
       out.push(dressingCorners(placement, w, h));
     }
+    for (const key of multiObjects.value) {
+      const [x, y] = parseCellKey(key as CellKey);
+      out.push([{ x, y }, { x: x + 1, y }, { x: x + 1, y: y + 1 }, { x, y: y + 1 }]);
+    }
     return out;
+  }
+
+  /** Turns the picked objects to `degrees` (one undo step). */
+  function rotateObjects(degrees: number): void {
+    if (multiObjects.value.size === 0) return;
+    const before = snapshotStr();
+    const next = { ...layers.value.object };
+    for (const key of multiObjects.value) {
+      const cell = next[key as CellKey];
+      if (!cell) continue;
+      const turned: ObjectCell = { ...cell, rotation: degrees };
+      if (!degrees) delete turned.rotation;
+      next[key as CellKey] = turned;
+    }
+    layers.value.object = next;
+    markDirty();
+    pushCommand(before, snapshotStr());
   }
 
   return {
@@ -408,5 +477,8 @@ export function useSelectTool(opts: SelectToolOptions) {
     marquee,
     multiLights,
     multiProps,
+    multiObjects,
+    lonelyObject,
+    rotateObjects,
   };
 }

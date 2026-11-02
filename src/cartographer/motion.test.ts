@@ -60,7 +60,7 @@ describe("mapHasMotion", () => {
     expect(mapHasMotion(layers, new Map(), new Map([["palm", { ...palm, sway: null }]]))).toBe(false);
   });
 
-  it("counts a flickering torch and a fire-coloured light that declares nothing, not a steady cool one", () => {
+  it("counts every light: a flickering torch, a fire-coloured one that declares nothing, and a cool one that pulses", () => {
     const layers = emptyLayers();
     layers.object[cellKey(2, 2)] = { ...ref("keep"), category: "objectBrazier", variant: 0 };
     const lit = (light: { color: string; bright: number; dim: number; flicker?: number }) =>
@@ -69,7 +69,8 @@ describe("mapHasMotion", () => {
     expect(mapHasMotion(layers, lit({ ...cool, flicker: 0.3 }), NONE)).toBe(true);
     // A brazier in a flame's colour needs no declaration (the maintainer, 2 Nov 2026: fire sources pulse).
     expect(mapHasMotion(layers, lit({ color: "#ff8030", bright: 20, dim: 20 }), NONE)).toBe(true);
-    expect(mapHasMotion(layers, lit(cool), NONE)).toBe(false);
+    expect(mapHasMotion(layers, lit(cool), NONE)).toBe(true);
+    expect(mapHasMotion(emptyLayers(), lit(cool), NONE)).toBe(false);
   });
 
 });

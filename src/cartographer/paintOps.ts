@@ -11,7 +11,7 @@
 // for a no-op. None of them set a dirty flag themselves — the caller does
 // `if (changed) dirty.value = true;` at the call site.
 
-import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSegType, type WallEdge } from "@/types/dungeonMap.types";
+import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type EdgeSegType, type ObjectCell, type WallEdge } from "@/types/dungeonMap.types";
 import { eraseGroundCells, paintGroundCells } from "./groundRegions";
 import { nextDressingZ } from "@/cartographer/dressing";
 import type { StampCategory } from "@/cartographer/stampCategories";
@@ -171,6 +171,40 @@ export function eraseObjectAt(ctx: PaintContext, x: number, y: number): boolean 
   delete next[k];
   ctx.layers.object = next;
   return true;
+}
+
+/**
+ * `base` with the objects at `keys` carried `dx`,`dy` whole cells. Always built from the cells as they were when the
+ * drag began, so a drag over a neighbour and back leaves the neighbour where it was.
+ */
+export function shiftedObjects(
+  base: Readonly<Record<CellKey, ObjectCell>>,
+  keys: readonly CellKey[],
+  dx: number,
+  dy: number,
+): Record<CellKey, ObjectCell> {
+  const next = { ...base };
+  for (const key of keys) delete next[key];
+  for (const key of keys) {
+    const cell = base[key];
+    if (!cell) continue;
+    const [x, y] = parseCellKey(key);
+    next[cellKey(x + dx, y + dy)] = cell;
+  }
+  return next;
+}
+
+/** Takes the objects at `keys` away. False, changing nothing, when none of them is there. */
+export function removeObjects(layers: DungeonMapLayers, keys: Iterable<CellKey>): boolean {
+  const next = { ...layers.object };
+  let any = false;
+  for (const key of keys) {
+    if (!next[key]) continue;
+    delete next[key];
+    any = true;
+  }
+  if (any) layers.object = next;
+  return any;
 }
 
 // ── Dressing (props, epic #1062) ──────────────────────────────────────────────

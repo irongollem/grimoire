@@ -2907,3 +2907,117 @@ describe("motion over the map (#1125 frames 16-17)", () => {
     expect(editor.gestureBusy.value).toBe(false);
   });
 });
+
+// The maintainer, 2 Nov 2026: "all should be selectable" (pack objects) and "clicking a wall selects the piece while
+// alt clicking the wall selects the whole wall" (even on a material edge).
+describe("Select picks pack objects and walls on a material edge", () => {
+  const REF = { pack_id: "pack-1", pack_version: 3, variant: 0 };
+  const BRAZIER = { ...REF, category: "objectBrazier" as const };
+  const onCell = (c: number): number => px(c) + 64;
+  const at = (x: number, y: number): CellKey => `${x},${y}`;
+
+  it("a click on a brazier picks it, and Delete takes it away as one undo step", () => {
+    const { editor, layers } = mountWithKeys("select");
+    layers.value.object[at(3, 3)] = { ...BRAZIER };
+    clickCell(editor, onCell(3), onCell(3));
+    expect([...editor.selectTool.multiObjects.value]).toEqual(["3,3"]);
+    key("Delete");
+    expect(layers.value.object).toEqual({});
+    editor.undoEdit();
+    expect(Object.keys(layers.value.object)).toEqual(["3,3"]);
+  });
+
+  it("a box catches the objects whose cell centre is inside it, and leaves the rest", () => {
+    const { editor, layers } = mountWithKeys("select");
+    layers.value.object[at(3, 3)] = { ...BRAZIER };
+    layers.value.object[at(4, 3)] = { ...BRAZIER };
+    layers.value.object[at(9, 9)] = { ...BRAZIER };
+    editor.onPointerDown(down(px(2), px(2)));
+    editor.onPointerMove(move(px(5), px(5)));
+    editor.onPointerUp(up(px(5), px(5)));
+    expect([...editor.selectTool.multiObjects.value].sort()).toEqual(["3,3", "4,3"]);
+  });
+
+  it("dragging a brazier carries it one whole cell per cell, as one undo step, and undo puts it back", () => {
+    const { editor, layers } = mountWithKeys("select");
+    layers.value.object[at(3, 3)] = { ...BRAZIER };
+    editor.onPointerDown(down(onCell(3), onCell(3)));
+    editor.onPointerMove(move(onCell(5), onCell(4)));
+    editor.onPointerUp(up(onCell(5), onCell(4)));
+    expect(Object.keys(layers.value.object)).toEqual(["5,4"]);
+    expect([...editor.selectTool.multiObjects.value]).toEqual(["5,4"]);
+    editor.undoEdit();
+    expect(Object.keys(layers.value.object)).toEqual(["3,3"]);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("dragging over a neighbour and back leaves the neighbour where it was", () => {
+    const { editor, layers } = mountWithKeys("select");
+    layers.value.object[at(3, 3)] = { ...BRAZIER };
+    layers.value.object[at(4, 3)] = { ...REF, category: "objectBarrel" as const };
+    editor.onPointerDown(down(onCell(3), onCell(3)));
+    editor.onPointerMove(move(onCell(4), onCell(3)));
+    editor.onPointerMove(move(onCell(3), onCell(3)));
+    editor.onPointerUp(up(onCell(3), onCell(3)));
+    expect(layers.value.object[at(4, 3)]?.category).toBe("objectBarrel");
+  });
+
+  it("a drag of less than half a cell (but past a quarter, where half-cell snapping would move it) leaves an object on its cell, never on a fractional key", () => {
+    const { editor, layers } = mountWithKeys("select");
+    layers.value.object[at(3, 3)] = { ...BRAZIER };
+    editor.onPointerDown(down(onCell(3), onCell(3)));
+    editor.onPointerMove(move(onCell(3) + 50, onCell(3) + 50));
+    editor.onPointerUp(up(onCell(3) + 50, onCell(3) + 50));
+    expect(Object.keys(layers.value.object)).toEqual(["3,3"]);
+  });
+
+  it("the slip names a lone object, not a count", () => {
+    const { editor, layers } = mountWithKeys("select");
+    layers.value.object[at(3, 3)] = { ...BRAZIER };
+    clickCell(editor, onCell(3), onCell(3));
+    expect(editor.selectedWallRun.value?.object?.label).toContain("brazier");
+  });
+
+  /** Two sand cells with a wall along the top edge of the first: a click on that wall lies on the region's boundary. */
+  function sandWithWall(layers: Ref<DungeonMapLayers>): void {
+    layers.value = paintGroundCells(layers.value, new Set(["2,2", "3,2", "4,2"] as CellKey[]), REF);
+    layers.value.walls["3,2:N"] = { ...REF, type: "wall", a: [3, 2], b: [4, 2] };
+  }
+
+  it("a click on a wall along a material edge picks that wall piece, and Alt picks the whole wall", () => {
+    const { editor, layers } = mountWithKeys("select");
+    sandWithWall(layers);
+    layers.value.walls["4,2:W"] = { ...REF, type: "wall", a: [4, 2], b: [4, 3] };
+    clickCell(editor, onCell(3), px(2));
+    expect(editor.selectedWallRun.value).toEqual({ bones: 1, nodes: 2, doors: 0 });
+    expect(editor.selectedGroundRegion.value).toBeNull();
+    editor.selectTool.clear();
+    editor.onPointerDown(down(onCell(3), px(2), { altKey: true }));
+    editor.onPointerUp(up(onCell(3), px(2), { altKey: true }));
+    expect(editor.selectedWallRun.value).toEqual({ bones: 2, nodes: 3, doors: 0 });
+  });
+
+  it("a wall on the edge of an already picked region is still picked as the wall", () => {
+    const { editor, layers } = mountWithKeys("select");
+    sandWithWall(layers);
+    clickCell(editor, onCell(3), onCell(2));
+    expect(editor.selectedGroundRegion.value).not.toBeNull();
+    clickCell(editor, onCell(3), px(2));
+    expect(editor.selectedGroundRegion.value).toBeNull();
+    expect(editor.selectedWallRun.value).toEqual({ bones: 1, nodes: 2, doors: 0 });
+  });
+
+  it("a click inside the region still picks its outline", () => {
+    const { editor, layers } = mountWithKeys("select");
+    sandWithWall(layers);
+    clickCell(editor, onCell(3), onCell(2));
+    expect(editor.selectedGroundRegion.value).not.toBeNull();
+  });
+
+  it("a click on the region's unwalled edge picks its outline", () => {
+    const { editor, layers } = mountWithKeys("select");
+    sandWithWall(layers);
+    clickCell(editor, px(2), onCell(2)); // the left edge: no wall there
+    expect(editor.selectedGroundRegion.value).not.toBeNull();
+  });
+});

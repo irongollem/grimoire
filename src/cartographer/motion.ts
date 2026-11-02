@@ -1,12 +1,10 @@
-// Whether a Drawing has anything that moves (#1125 frames 16-17): flowing water, swaying props, a flickering or
-// pulsing light, and any fire (a warm light) that flickers on its own. The Motion button shows only then. Built from the same predicates the live snapshot uses
+// Whether a Drawing has anything that moves (#1125 frames 16-17): flowing water, swaying props, any light (a warm one flickers, the rest pulse). The Motion button shows only then. Built from the same predicates the live snapshot uses
 // (`objectSway`, `dressingSway`, `gatherLightSources`, a pack's `motion` overlays), so the button never offers
 // motion the snapshot would not animate. No vue, no DOM.
 
 import type { DressingCatalog } from "@/cartographer/dressing";
 import { dressingSway, objectSway } from "@/cartographer/sway";
 import { gatherLightSources } from "@/cartographer/drawLights";
-import { lightMotion } from "@/cartographer/lights";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
 
@@ -40,5 +38,5 @@ export function mapHasMotion(
     if (dressingSway(dressing.get(placement.prop_id))) return true;
   }
   const lights = gatherLightSources(layers, (id) => runtimes.get(id) ?? null, dressing, null);
-  return lights.some(({ light }) => lightMotion(light) !== null);
+  return lights.length > 0;
 }

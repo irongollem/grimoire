@@ -41,9 +41,9 @@ describe("the live layer's loop for firelight", () => {
     expect(frame).not.toHaveBeenCalled();
   });
 
-  it("runs no loop for a steady cool light", () => {
+  it("runs a loop for a cool light too: it pulses", () => {
     reduced(false);
     mountLayer(withFire("#88aaff"));
-    expect(frame).not.toHaveBeenCalled();
+    expect(frame).toHaveBeenCalled();
   });
 });
