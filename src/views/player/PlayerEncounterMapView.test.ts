@@ -14,6 +14,14 @@ const move = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
 const live = vi.hoisted(() => ({ value: null as unknown }));
 const table = vi.hoisted(() => ({ pings: { value: [] as unknown[] }, sendPing: vi.fn() }));
+const sightMock = vi.hoisted(() => ({
+  cells: new Set<string>(),
+  memory: new Set<string>(),
+  opts: null as null | { onlyInstanceId: () => string | null; grid: { value: unknown } | (() => unknown) },
+  memoryArgs: null as null | { campaign: string | null; place: string | null },
+  campaign: { id: "c1", battle_map_show_tokens: true, player_sight: "shared" } as Record<string, unknown>,
+  writers: vi.fn(),
+}));
 const canvas = vi.hoisted(() => ({ panX: null as unknown, panY: null as unknown, scale: null as unknown }));
 
 vi.mock("@/composables/encounters/useEncounterLive", async () => {
@@ -60,7 +68,25 @@ vi.mock("@/lib/locations/mapStack", () => ({ primaryImage: () => ({ url: "map.pn
 vi.mock("@/lib/battlemap/liveLayer", () => ({ currentMapLive: () => null }));
 vi.mock("@/lib/battlemap/roomBridge", () => ({ pictureUnderDrawing: () => null }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ linkedPartyMemberId: "m1" }) }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { battle_map_show_tokens: true } }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: sightMock.campaign }) }));
+vi.mock("@/composables/encounters/usePartySight", async () => {
+  const { computed } = await import("vue");
+  return {
+    usePartySight: (opts: typeof sightMock.opts) => {
+      sightMock.opts = opts;
+      return { viewers: computed(() => []), sight: computed(() => sightMock.cells) };
+    },
+  };
+});
+vi.mock("@/composables/locations/useMapMemory", async () => {
+  const { computed } = await import("vue");
+  return {
+    useMapMemory: (campaign: () => string | null, place: () => string | null) => {
+      sightMock.memoryArgs = { campaign: campaign(), place: place() };
+      return { memory: computed(() => sightMock.memory), remember: sightMock.writers, hide: sightMock.writers, forgetAll: sightMock.writers, replaceWith: sightMock.writers };
+    },
+  };
+});
 vi.mock("@/composables/party/useParty", async () => {
   const { ref } = await import("vue");
   return { useParty: () => ({ data: ref([{ id: "m1", speed: 30, species_id: null }]) }) };
@@ -85,6 +111,7 @@ const Tokens = defineComponent({
   props: ["onSelect", "onPositionChange", "onDragPreview", "draggableInstanceIds", "selectedInstanceIds", "combatants"],
   template: `<div data-testid="tokens" />`,
 });
+const Fog = defineComponent({ props: ["mask", "seen", "opaque"], template: `<div data-testid="fog" />` });
 const Plain = defineComponent({ template: `<div />` });
 const Button = defineComponent({ props: ["label", "active"], template: `<button :data-active="active">{{ label }}</button>` });
 
@@ -113,7 +140,7 @@ function mountView() {
       stubs: {
         BattleMapTokenLayer: Tokens,
         BattleMapStack: Plain,
-        BattleMapFogLayer: Plain,
+        BattleMapFogLayer: Fog,
         PlayerMapNav: defineComponent({ template: `<nav data-testid="map-nav" />` }),
         RouterLink: Plain,
         AppButton: Button,
@@ -150,6 +177,54 @@ beforeEach(() => {
   (canvas.panY as { value: number }).value = 0;
   (canvas.scale as { value: number }).value = 1;
   setLive("p-m1");
+  sightMock.cells = new Set();
+  sightMock.memory = new Set();
+  sightMock.campaign = { id: "c1", battle_map_show_tokens: true, player_sight: "shared" };
+  sightMock.writers.mockReset();
+});
+
+describe("what the phone shows of the map (epic #1133)", () => {
+  const ids = (w: ReturnType<typeof mountView>) =>
+    (w.findComponent(Tokens).props("combatants") as Array<{ instance_id: string }>).map((c) => c.instance_id);
+
+  it("punches remembered squares and current sight out of the fog, and half-fogs the remembered ones", () => {
+    sightMock.memory = new Set(["1,1"]);
+    sightMock.cells = new Set(["2,2"]);
+    const fog = mountView().findComponent(Fog);
+    expect([...(fog.props("mask") as Set<string>)].sort()).toEqual(["1,1", "2,2"]);
+    expect([...(fog.props("seen") as Set<string>)]).toEqual(["2,2"]);
+    expect(fog.props("opaque")).toBe(true);
+  });
+
+  it("a monster the party cannot see is not drawn, and the player's own token always is", () => {
+    sightMock.cells = new Set();
+    expect(ids(mountView())).toEqual(["p-m1"]);
+  });
+
+  it("a monster standing on a square the party sees is drawn", () => {
+    sightMock.cells = new Set(["10,10"]);
+    expect(ids(mountView()).sort()).toEqual(["g1", "p-m1"]);
+  });
+
+  it("with tokens switched off for players nothing is drawn, whatever the party sees", () => {
+    sightMock.campaign = { id: "c1", battle_map_show_tokens: false, player_sight: "shared" };
+    sightMock.cells = new Set(["10,10"]);
+    expect(ids(mountView())).toEqual([]);
+  });
+
+  it("'shared' sight lets the whole party look; 'own' limits the look to the player's own token", () => {
+    mountView();
+    expect(sightMock.opts?.onlyInstanceId()).toBeNull();
+    sightMock.campaign = { id: "c1", battle_map_show_tokens: true, player_sight: "own" };
+    mountView();
+    expect(sightMock.opts?.onlyInstanceId()).toBe("p-m1");
+  });
+
+  it("reads the memory of the map's place in this campaign and never writes it", () => {
+    mountView();
+    expect(sightMock.memoryArgs).toEqual({ campaign: "c1", place: "loc-1" });
+    expect(sightMock.writers).not.toHaveBeenCalled();
+  });
 });
 
 describe("the phone battle map", () => {

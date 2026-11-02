@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "@/types/encounter.types";
-import { partyCentre, siteFogMask, tableOnMap, tableOrder, tableTurn, tableVisible, UNSEEN_NAME, type DisguisableNpc } from "./tableScreen";
+import { partyCentre, tableOrder, tableTurn, tableVisible, UNSEEN_NAME, type DisguisableNpc } from "./tableScreen";
 
 function creature(over: Partial<RunCombatant> & Pick<RunCombatant, "instance_id" | "name">): RunCombatant {
   return {
@@ -85,14 +85,6 @@ describe("tableVisible", () => {
   });
 });
 
-describe("tableOnMap", () => {
-  // Frame 13: unrevealed squares are black. A monster standing in one is not drawn.
-  it("drops a creature standing in a square the fog still covers", () => {
-    const list = [creature({ instance_id: "m1", name: "Ogre", position: { x: 5, y: 5 } }), creature({ instance_id: "m2", name: "Imp", position: { x: 1, y: 1 } })];
-    expect(tableOnMap(list, new Set(["1,1"])).map((c) => c.name)).toEqual(["Imp"]);
-  });
-});
-
 describe("tableOrder and tableTurn", () => {
   it("lists the order by initiative, highest first", () => {
     const order = tableOrder([creature({ instance_id: "a", name: "Slow", initiative: 3 }), creature({ instance_id: "b", name: "Quick", initiative: 19 })]);
@@ -110,25 +102,6 @@ describe("tableOrder and tableTurn", () => {
 
   it("names no one when the creature up is not one the table knows", () => {
     expect(tableTurn(1, null)).toEqual({ eyebrow: "Round 1", title: null });
-  });
-});
-
-describe("siteFogMask", () => {
-  it("lights explored rooms and keeps the rest black", () => {
-    const mask = siteFogMask([["0,0", "1,0"]], []);
-    expect([...mask].sort()).toEqual(["0,0", "1,0"]);
-  });
-
-  // A party in a corridor must not stand in the dark: a square of margin around every character is lit.
-  it("lights a square of margin around each character, around the whole of a big one", () => {
-    const mask = siteFogMask([], [{ position: { x: 10, y: 10 }, footprint: 2 }]);
-    expect(mask.has("9,9")).toBe(true);
-    expect(mask.has("12,12")).toBe(true);
-    expect(mask.has("13,13")).toBe(false);
-  });
-
-  it("ignores a character with no square yet", () => {
-    expect(siteFogMask([], [{ footprint: 1 }]).size).toBe(0);
   });
 });
 

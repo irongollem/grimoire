@@ -454,9 +454,6 @@ export interface EncounterState {
   faction_colors?: FactionColor[];
   combatants_live: RunCombatant[];
   events_fired?: string[];
-  /** VTT fog of war — semicolon-joined list of revealed "x,y" cell keys.
-   *  null/empty = nothing revealed (full fog). See `src/lib/battlemap/fogMask.ts`. */
-  fog_mask?: string | null;
   /** Magical darkness on the battle map; reaches players through the player-safe projection. */
   magical_darkness: MagicalDarknessZone[];
   /** Doors the DM has opened or shut this fight, over their drawn state in `locations.map_live.doors` (#1073). A door

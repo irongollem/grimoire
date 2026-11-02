@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { illuminationGrid } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
-import { canSee, partyViewers, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
+import { canSee, partyViewers, playerVeilAlpha, sightAt, visionGrid, type Viewer } from "./vision";
 import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 
 const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 });
@@ -113,47 +113,6 @@ describe("canSee", () => {
   });
 });
 
-describe("seenCombatants", () => {
-  const list = [
-    { instance_id: "p-1", position: { x: 30, y: 30 } },
-    { instance_id: "m-near", position: { x: 6, y: 5 } },
-    { instance_id: "m-far", position: { x: 40, y: 5 } },
-    { instance_id: "m-unplaced", position: null },
-    { instance_id: "m-big", position: { x: -7, y: 5 }, footprint: 2 },
-  ];
-
-  it("keeps the player's own token, the unplaced and what the viewers see, and drops the rest", () => {
-    const kept = seenCombatants(list, darkScene, [viewer(60)], "p-1").map((c) => c.instance_id);
-    expect(kept).toEqual(["p-1", "m-near", "m-unplaced", "m-big"]);
-  });
-
-  it("hides everything but the own token from a blind viewer", () => {
-    const kept = seenCombatants(list, darkScene, [viewer(0)], "p-1").map((c) => c.instance_id);
-    expect(kept).toEqual(["p-1", "m-unplaced"]);
-  });
-
-  // PHB 2024 "Creature Size": a Huge creature's space is 15 ft, three squares on a side.
-  it("sees a Huge token by its far square, though its anchor square is out of sight", () => {
-    // Darkvision 40 ft is 8 cells from (5.5, 5.5). Anchor cell -4 (centre -3.5) is 9 cells off; cell -2 (centre -1.5) is 7.
-    const along = (axis: "x" | "y", size: "huge" | "small") => [{ instance_id: `m-${size}`, position: axis === "x" ? { x: -4, y: 5 } : { x: 5, y: -4 }, size }];
-    for (const axis of ["x", "y"] as const) {
-      expect(seenCombatants(along(axis, "huge"), darkScene, [viewer(40)], null).map((c) => c.instance_id)).toEqual(["m-huge"]);
-      expect(seenCombatants(along(axis, "small"), darkScene, [viewer(40)], null)).toEqual([]);
-    }
-  });
-
-  it("an Enlarge override makes a distant token reach into sight", () => {
-    const grown = [{ instance_id: "m", position: { x: -4, y: 5 }, size: "medium" as const, size_override: "huge" as const }];
-    expect(seenCombatants(grown, darkScene, [viewer(40)], null)).toHaveLength(1);
-  });
-
-  it("a Tiny token on a half cell touches only its own square", () => {
-    // Cell -5 (centre -4.5) is 10 cells from the viewer: out of 40 ft darkvision. A Tiny token adds no square beside it.
-    const tiny = [{ instance_id: "m-tiny", position: { x: -4.5, y: 5 }, size: "tiny" as const }];
-    expect(seenCombatants(tiny, darkScene, [viewer(40)], null)).toEqual([]);
-  });
-});
-
 describe("sight against walls", () => {
   const wall = occluders({ walls: [latticeSegment("6,5:W")], doors: [], solid: [] });
   const lamp = { x: 8.5, y: 5.5, bright: 60, dim: 0 };
@@ -177,14 +136,6 @@ describe("sight against walls", () => {
 
   it("applies no line test with no viewer", () => {
     expect(canSee(scene, [], 8, 5)).toBe(true);
-  });
-
-  it("hides a monster behind a wall from the player", () => {
-    const list = [
-      { instance_id: "p-1", position: { x: 5, y: 5 } },
-      { instance_id: "m-behind", position: { x: 8, y: 5 } },
-    ];
-    expect(seenCombatants(list, scene, [viewer(0, 5.5, 5.5)], "p-1").map((c) => c.instance_id)).toEqual(["p-1"]);
   });
 
   it("times a 60x60 vision grid", () => {
@@ -240,11 +191,6 @@ describe("sight and magical darkness", () => {
     const without = visionGrid({ illumination, minX, minY: 0, cols: 16, rows: 12, samplesPerCell: 1, viewers: [viewer(120)], occluders: NO_OCCLUDERS });
     expect(without.seen[at(10, 5)]).toBe(0.5);
   });
-
-  it("seenCombatants hides a token in the sphere", () => {
-    const kept = seenCombatants([{ instance_id: "m", position: { x: 10, y: 5 } }, { instance_id: "n", position: { x: 6, y: 5 } }], daylit, [viewer(0)], null);
-    expect(kept.map((c) => c.instance_id)).toEqual(["n"]);
-  });
 });
 
 describe("a viewer inside magical darkness", () => {
@@ -284,5 +230,15 @@ describe("partyViewers", () => {
     ]);
     expect(viewers.map((v) => [v.x, v.y])).toEqual([[2.5, 3.5], [7, 7]]);
     expect(viewers.every((v) => v.darkvisionFeet === 0 && v.blindsightFeet === 0)).toBe(true);
+  });
+});
+
+describe("partyViewers with senses", () => {
+  const ranges = { darkvision: 60, blindsight: 10, truesight: 0, tremorsense: 0, devilsSight: 30 };
+  it("takes a character's senses when the screen can read them and none when it cannot", () => {
+    const party = [{ type: "player", position: { x: 1, y: 1 }, id: "a" }, { type: "player", position: { x: 2, y: 2 }, id: "b" }];
+    const [a, b] = partyViewers(party, (c) => (c.id === "a" ? ranges : null));
+    expect([a.darkvisionFeet, a.blindsightFeet, a.devilsSightFeet]).toEqual([60, 10, 30]);
+    expect([b.darkvisionFeet, b.blindsightFeet, b.devilsSightFeet]).toEqual([0, 0, 0]);
   });
 });

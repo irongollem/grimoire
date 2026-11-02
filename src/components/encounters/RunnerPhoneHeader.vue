@@ -105,14 +105,11 @@ const menuItems = computed<OverflowMenuEntry[]>(() => {
   if (canGoLive) {
     items.push({ key: "go-live", label: isLive ? "Stop live" : "Go live", disabled: goingLive });
   }
-  // The map itself is the List | Map switch under this header. The table screen is a second window
-  // that follows the live fight (#1120): before going live it has nothing to show.
+  // The map itself is the List | Map switch under this header. The table screen is the map's own second window (#1133).
   if (canOpenBattleMap) {
     items.push({
       key: "table-screen",
       label: "Open table screen in a new window",
-      disabled: !isLive,
-      reason: isLive ? undefined : "Go live first. The table screen follows the live fight.",
     });
   }
   if (!store.started) items.push({ key: "roll-initiative", label: "Roll initiative for everyone left", disabled: store.rollingInitiative });

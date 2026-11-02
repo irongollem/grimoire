@@ -4,8 +4,6 @@ import {
   pictureUnderDrawing,
   regionCellToBattleCell,
   resolveBattleSurface,
-  roomsRevealedInCombat,
-  seedFogMask,
   seedTokenPositions,
 } from "@/lib/battlemap/roomBridge";
 import type { GridCalibration, Location } from "@/types/location.types";
@@ -486,51 +484,6 @@ describe("seedTokenPositions", () => {
     const combatants = [makeCombatant({ footprint: 4 })];
     const result = seedTokenPositions(combatants, ["0,0", "1,0"], { footprintOf: (c) => c.footprint ?? 1 });
     expect(result[0].position).toBeUndefined();
-  });
-});
-
-describe("seedFogMask", () => {
-  it("reveals exactly the focus cells, and nothing when there are none", () => {
-    expect(seedFogMask(["0,0", "1,0"])).toEqual(new Set(["0,0", "1,0"]));
-    expect(seedFogMask([])).toEqual(new Set());
-  });
-});
-
-describe("roomsRevealedInCombat", () => {
-  it("reveals a room whose region is at least half revealed", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const region = makeRegion({ space_location_id: "room-1", cells: ["0,0", "1,0"] });
-    const revealed = new Set(["0,0"]); // 1 of 2 cells = 50%
-    expect(roomsRevealedInCombat(revealed, [region], calibration)).toEqual(["room-1"]);
-  });
-
-  it("does not reveal a room under the 50% threshold", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const region = makeRegion({ space_location_id: "room-1", cells: ["0,0", "1,0", "2,0"] });
-    const revealed = new Set(["0,0"]); // 1 of 3 cells
-    expect(roomsRevealedInCombat(revealed, [region], calibration)).toEqual([]);
-  });
-
-  it("converts region cells through the calibration's origin before comparing", () => {
-    const calibration = makeCalibration({ origin_cell_x: -2, origin_cell_y: -2 });
-    const region = makeRegion({ space_location_id: "room-1", cells: ["2,2", "3,2"] });
-    // Battle-cell space: "2,2" -> "4,4", "3,2" -> "5,4"
-    const revealed = new Set(["4,4", "5,4"]);
-    expect(roomsRevealedInCombat(revealed, [region], calibration)).toEqual(["room-1"]);
-  });
-
-  it("skips zones and unbound regions", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const zone = makeRegion({ region_role: "zone", zone_kind: "terrain", space_location_id: "room-z", cells: ["0,0"] });
-    const unbound = makeRegion({ region_role: "space", space_location_id: null, cells: ["1,1"] });
-    const revealed = new Set(["0,0", "1,1"]);
-    expect(roomsRevealedInCombat(revealed, [zone, unbound], calibration)).toEqual([]);
-  });
-
-  it("skips regions with no traced cells", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const region = makeRegion({ space_location_id: "room-1", cells: [] });
-    expect(roomsRevealedInCombat(new Set(), [region], calibration)).toEqual([]);
   });
 });
 

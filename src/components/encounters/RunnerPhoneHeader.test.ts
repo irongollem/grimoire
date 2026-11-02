@@ -45,19 +45,14 @@ describe("RunnerPhoneHeader", () => {
     document.body.innerHTML = "";
   });
 
-  // #1120: a second window follows the live fight, so before going live it
-  // opened on an empty board with no tokens.
-  it("offers the table screen in a new window only once the fight is live", async () => {
+  // #1133: the table screen is the map's own, so it opens before the fight is live too.
+  it("offers the table screen before the fight is live", async () => {
     const w = mountHeader({ isLive: false });
     await openMenu(w);
-    expect(menuButton("Open table screen in a new window")!.disabled).toBe(true);
-    w.unmount();
-    document.body.innerHTML = "";
-
-    const live = mountHeader({ isLive: true });
-    await openMenu(live);
-    menuButton("Open table screen in a new window")!.click();
-    expect(live.emitted("table-screen")).toHaveLength(1);
+    const entry = menuButton("Open table screen in a new window")!;
+    expect(entry.disabled).toBe(false);
+    entry.click();
+    expect(w.emitted("table-screen")).toHaveLength(1);
   });
 
   // The old bar put End Combat one thumb-slip from Roll; on a phone it lives behind the menu.

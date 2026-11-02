@@ -10,7 +10,8 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { PartyMember } from "@/types/party.types";
 import { exploreRoute } from "@/lib/locations/placeRoute";
 import { regionCellToBattleCell, seedTokenPositions } from "@/lib/battlemap/roomBridge";
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { footprintCells } from "@/lib/battlemap/partySight";
+import { sizeToFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import type { MonsterSize } from "@/types/monster.types";
 import type { SpeciesSize } from "@/types/species.types";
 import { effectiveSize, type SpeciesStatsSource } from "@/rules/speciesStats";
@@ -83,6 +84,22 @@ export function roomCellIndex(regions: readonly LocationMapRegion[], calibration
     }
   }
   return index;
+}
+
+/** The rooms whose traced squares any of these tokens stands on (footprint included): entering a room marks it Explored. */
+export function roomsUnder(
+  tokens: readonly (SizedToken & { position?: { x: number; y: number } | null })[],
+  index: ReadonlyMap<CellKey, string>,
+): Set<string> {
+  const rooms = new Set<string>();
+  for (const t of tokens) {
+    if (!t.position) continue;
+    for (const key of footprintCells({ ...t, position: t.position })) {
+      const room = index.get(key as CellKey);
+      if (room) rooms.add(room);
+    }
+  }
+  return rooms;
 }
 
 /** A room's cells in battle-cell space, by room id. */

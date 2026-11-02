@@ -36,6 +36,10 @@ export interface Campaign {
   theme: string; // references GrimoireTheme.id, defaults to 'vellum' (DEFAULT_THEME_ID)
   health_visibility: "strategic" | "immersive" | "unknown";
   immersive_rolls: boolean;
+  /** What the map keeps of what the party has seen: "remembered" greys it out, "strict" hides it again. */
+  map_memory: "remembered" | "strict";
+  /** "shared": the party sees through each other's eyes; "own": each player sees only their own character. */
+  player_sight: "shared" | "own";
   /** When false, hide the VTT token layer from players entirely. The DM
    *  still sees their own view normally. Useful for in-person sessions
    *  where the VTT is used for map + fog only. */
@@ -96,6 +100,8 @@ export type CampaignInsert = Omit<
   | "disabled_species_ids"
   | "health_visibility"
   | "immersive_rolls"
+  | "map_memory"
+  | "player_sight"
   | "optional_rules"
   | "ruleset"
   | "allows_mixed_rulesets"
@@ -123,6 +129,8 @@ export type CampaignInsert = Omit<
   disabled_species_ids?: string[];
   health_visibility?: Campaign["health_visibility"];
   immersive_rolls?: boolean;
+  map_memory?: Campaign["map_memory"];
+  player_sight?: Campaign["player_sight"];
   optional_rules?: CampaignOptionalRules;
   ruleset?: RulesetKey;
   allows_mixed_rulesets?: boolean;

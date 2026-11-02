@@ -5,17 +5,17 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
-import { seatFromExploring } from "@/lib/locations/explore";
+import { roomCellIndex, roomsUnder, seatFromExploring } from "@/lib/locations/explore";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
-import { seedFogMask, seedTokenPositions } from "@/lib/battlemap/roomBridge";
-import {
-  applyBrush,
-  decodeFogMask,
-  encodeFogMask,
-  shouldSeedFog,
-  type FogCellKey,
-} from "@/lib/battlemap/fogMask";
+import { seedTokenPositions } from "@/lib/battlemap/roomBridge";
+import type { FogCellKey } from "@/lib/battlemap/fogMask";
+import type { CellKey } from "@/types/dungeonMap.types";
+import type { MapGrid } from "@/lib/battlemap/partySight";
+import { useMapMemory } from "@/composables/locations/useMapMemory";
+import { usePartySight } from "@/composables/encounters/usePartySight";
+import { useRememberSight } from "@/composables/locations/useRememberSight";
+import { useAssertLocationState, useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { zoneIdAt } from "@/lib/battlemap/darkness";
 import { roomCellsAt } from "@/lib/battlemap/roomFog";
 import { doorAt, effectiveDoors, sameDoorStates, toggleDoor } from "@/lib/battlemap/doors";
@@ -30,14 +30,19 @@ import { placedCombatants, unplacedCombatants } from "./playRoster";
 
 /**
  * Everything the Play map reads and writes that is not geometry: which combatants to draw, the
- * fog, darkness and door mirrors with their pushes, and the seeding of a fight into its room.
+ * map memory and the party's sight, darkness and door mirrors with their pushes, and the seating of a fight in its room.
  * Geometry (pixels to cells) lives in PlayMap, which calls the cell-based actions below, so this
  * file needs no DOM.
  *
  * Who runs the fight (#1120): the DM's screen shares the runner's store; a follower window starts
  * with an empty store and follows the live row instead. The mode decides which, not the store.
  */
-export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter<PlayMapMode>) {
+export function usePlayMapState(
+  encounterId: Ref<string>,
+  mode: MaybeRefOrGetter<PlayMapMode>,
+  /** The map picture's natural size, once known: the grid sight is computed over (null until then). */
+  imageSize: MaybeRefOrGetter<{ w: number; h: number } | null> = null,
+) {
   const room = useEncounterRoom(encounterId);
   const { encounter, location: encounterLocation, mapLocation: location, surface, focusRoom, terrainZones, regions } = room;
   const store = useEncounterRunStore();
@@ -92,34 +97,37 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
   }
 
   // ── Fog of war ──────────────────────────────────────────────────────────
-  // Mirrored locally so a brush stroke feels instant while the debounced push catches up.
-  const fogMask = ref<Set<FogCellKey>>(new Set());
-  watch(
-    () => liveState.value?.fog_mask,
-    (encoded) => {
-      fogMask.value = decodeFogMask(encoded ?? null);
-    },
-    { immediate: true },
+  // The fog is the map's memory (epic #1133): shared by exploring and every fight on this map, so a fight owns no
+  // fog of its own. Only the DM's window writes; a follower reads.
+  const canWrite = computed(() => !following.value);
+  const memory = useMapMemory(
+    () => campaign.activeCampaign?.id ?? null,
+    () => surface.value?.mapLocation.id ?? null,
   );
 
-  function pushFog() {
-    if (!isLive.value) return;
-    scheduleMapPush({ fogMask: encodeFogMask(fogMask.value) });
+  function reportMemoryFailure(error: unknown) {
+    toast.error(toast.fromError(error, "Couldn't save the fog."));
   }
 
   function paintFog(cells: Set<FogCellKey>, kind: Exclude<FogBrushKind, "room">) {
-    fogMask.value = applyBrush(fogMask.value, cells, kind === "reveal" ? "reveal" : "rehide");
-    pushFog();
+    if (!canWrite.value) return;
+    // Only the squares that change: a stroke repaints the same squares many times a second, and each write is a request.
+    if (kind === "reveal") {
+      const fresh = [...cells].filter((k) => !memory.memory.value.has(k));
+      memory.remember(fresh).catch(reportMemoryFailure);
+    } else {
+      const held = [...cells].filter((k) => memory.memory.value.has(k));
+      memory.hide(held).catch(reportMemoryFailure);
+    }
   }
 
   /**
-   * The Fog tool's Room: reveals the whole traced room under a point with one click (#1125 frame 11). The mask is what
-   * `roomsRevealedInCombat` reads when the fight ends, so the room is offered as explored like any room brushed open.
-   * False when the point is on no room.
+   * The Fog tool's Room: reveals the whole traced room under a point with one click (#1125 frame 11). False when the
+   * point is on no room.
    */
   function revealRoomAt(x: number, y: number): boolean {
     const s = surface.value;
-    if (!s) return false;
+    if (!s || !canWrite.value) return false;
     const cells = roomCellsAt(regions.value ?? [], s.calibration, { x, y });
     if (!cells) return false;
     paintFog(cells, "reveal");
@@ -129,7 +137,7 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
   /** "Reveal all" can't enumerate an infinite grid, so it fills the cells the picture covers. */
   function revealAll(imageW: number, imageH: number) {
     const s = surface.value;
-    if (!s) return;
+    if (!s || !canWrite.value) return;
     const cellsAcross = s.calibration.cells_per_image_width;
     if (!cellsAcross || imageH <= 0) return;
     const cellsDown = Math.ceil(cellsAcross * (imageH / imageW));
@@ -137,13 +145,12 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     for (let y = 0; y < cellsDown; y++) {
       for (let x = 0; x < cellsAcross; x++) next.add(`${x},${y}`);
     }
-    fogMask.value = next;
-    pushFog();
+    memory.replaceWith(next).catch(reportMemoryFailure);
   }
 
   function hideAll() {
-    fogMask.value = new Set();
-    pushFog();
+    if (!canWrite.value) return;
+    memory.forgetAll().catch(reportMemoryFailure);
   }
 
   // ── Magical darkness ────────────────────────────────────────────────────
@@ -193,13 +200,10 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
   }
 
   // ── Seeding ─────────────────────────────────────────────────────────────
-  // Entering combat seats the party in the room they already occupy and starts the room's own cells
-  // revealed (frame 13/16). Token placement is idempotent (it only fills combatants with no position).
-  // The fog seed is gated on the row's own `fog_mask`, not a local flag: `goLive` writes it to null on
-  // every fresh go-live and nothing writes it back, so `shouldSeedFog` answers "never seeded this
-  // fight" across any number of remounts, and tells a DM's "Hide all" (an empty mask) from "never
-  // seeded" (null). Tokens are placed from the live row, never the runner's store, which does not
-  // hear players' moves.
+  // Entering combat seats the party in the room they already occupy (frame 13/16). Token placement is
+  // idempotent (it only fills combatants with no position). The fog is not seeded: what the party sees comes
+  // from their senses, and the map's memory is the map's. Tokens are placed from the live row, never the
+  // runner's store, which does not hear players' moves.
   function seedRoomIfNeeded() {
     const s = surface.value;
     const row = liveState.value;
@@ -212,14 +216,6 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     seeded.forEach((c, i) => {
       if (c.position && !row.combatants_live[i]?.position) moveToken(c.instance_id, c.position).catch(reportMoveFailure);
     });
-
-    if (s.focusCells.length > 0 && shouldSeedFog(row.fog_mask)) {
-      fogMask.value = seedFogMask(s.focusCells);
-      // Marked seeded locally at once: the push is debounced, and a surface recompute landing in that
-      // window would read `null` again and seed a second time over whatever the DM had brushed.
-      liveState.value = { ...row, fog_mask: encodeFogMask(fogMask.value) };
-      pushFog();
-    }
   }
 
   // A combatant spawned mid-fight joins the roster without a place; the count changing seats it like the rest.
@@ -227,6 +223,45 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     () => [isLive.value, surface.value, liveState.value?.combatants_live.length, following.value] as const,
     ([live, , , follower]) => {
       if (live && !follower) seedRoomIfNeeded();
+    },
+    { immediate: true },
+  );
+
+  // ── What the party sees, and the rooms they enter ────────────────────────
+  const grid = computed<MapGrid | null>(() => {
+    const size = toValue(imageSize);
+    const across = surface.value?.calibration.cells_per_image_width;
+    if (!size || !across || size.w <= 0 || size.h <= 0) return null;
+    return { cols: across, rows: Math.ceil(across * (size.h / size.w)) };
+  });
+  const { viewers, sight } = usePartySight({
+    live: () => surface.value?.live ?? null,
+    doorStates,
+    zones: darknessZones,
+    tokens: placed,
+    grid,
+  });
+  useRememberSight({
+    memory,
+    sight,
+    enabled: () => canWrite.value && !!campaign.activeCampaign?.id && !!surface.value?.mapLocation.id,
+  });
+
+  // Entering a room marks it Explored (decision 7). Once per room per session, never undone, DM window only.
+  const roomIndex = computed(() => (surface.value ? roomCellIndex(regions.value ?? [], surface.value.calibration) : new Map<CellKey, string>()));
+  const tracedRoomIds = computed(() => [...new Set(roomIndex.value.values())]);
+  const roomFacts = useLocationStateForRooms(tracedRoomIds);
+  const assertState = useAssertLocationState();
+  const markedExplored = new Set<string>();
+  watch(
+    () => [roomsUnder(placed.value.filter((c) => c.type === "player"), roomIndex.value), roomFacts.isSuccess.value] as const,
+    ([entered, loaded]) => {
+      if (!canWrite.value || !loaded) return;
+      for (const id of entered) {
+        if (markedExplored.has(id) || roomFacts.stateOf(id, "explored")?.value) continue;
+        markedExplored.add(id);
+        assertState.mutate({ location_id: id, fact: "explored", value: true, note: "entered in a fight" });
+      }
     },
     { immediate: true },
   );
@@ -286,7 +321,9 @@ export function usePlayMapState(encounterId: Ref<string>, mode: MaybeRefOrGetter
     factions,
     monsters,
     moveCombatant,
-    fogMask,
+    memory: memory.memory,
+    sight,
+    viewers,
     paintFog,
     revealRoomAt,
     revealAll,

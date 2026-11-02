@@ -1,14 +1,12 @@
 // What the Table screen shows (#1125 decision 15): the fight in the players' eyes. The DM's window holds the whole
 // live row, so the rules `get_player_encounter_state` applies on the server are applied again here, on the client:
-// hidden monsters are left out, unseen ones become "???", monster hit points are never drawn, and a creature that has
-// walked out of revealed space leaves the map. Pure functions; the screen only draws what they return.
+// hidden monsters are left out, unseen ones become "???" and monster hit points are never drawn. Which squares and
+// tokens the party can see is `lib/battlemap/partySight.ts`. Pure functions; the screen only draws what they return.
 // Parity: the server side is `get_player_encounter_state` (latest in 20261101213551_every_creature_takes_its_size.sql),
 // pinned by supabase/tests/player_encounter_state.test.sql. Change one, change the other and the matching tests.
 // One deliberate difference: the server still sends a revealed monster's real hit points (the player portal draws
 // them); the table is a shared screen that never draws them, so it keeps only "down or not".
 
-import { revealedCombatants, type FogCellKey } from "@/lib/battlemap/fogMask";
-import { cellKey, type CellKey } from "@/types/dungeonMap.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { NpcListRow } from "@/types/npc.types";
@@ -69,11 +67,6 @@ export function tableVisible(combatants: readonly RunCombatant[], npcs: readonly
   });
 }
 
-/** The tokens drawn on the map: the visible creatures that stand in revealed squares. */
-export function tableOnMap(visible: readonly RunCombatant[], fog: Set<FogCellKey>): RunCombatant[] {
-  return revealedCombatants(visible, fog);
-}
-
 /** The ribbon: the visible creatures in turn order. */
 export function tableOrder(visible: readonly RunCombatant[]): RunCombatant[] {
   return sortCombatantsByInitiative([...visible]);
@@ -93,26 +86,6 @@ export function tableTurn(round: number, active: RunCombatant | null): TableTurn
 }
 
 // ── Exploring ───────────────────────────────────────────────────────────────
-
-/**
- * The squares the table sees while the party explores: every explored room, plus a square of margin around each
- * character so the party is never standing in the dark in a corridor. Anything else stays black until the DM reveals it.
- */
-export function siteFogMask(
-  exploredRoomCells: readonly (readonly CellKey[])[],
-  party: readonly Pick<RunCombatant, "position" | "footprint">[],
-): Set<FogCellKey> {
-  const mask = new Set<FogCellKey>();
-  for (const cells of exploredRoomCells) for (const cell of cells) mask.add(cell);
-  for (const member of party) {
-    if (!member.position) continue;
-    const size = Math.max(1, Math.ceil(member.footprint ?? 1));
-    const x0 = Math.floor(member.position.x);
-    const y0 = Math.floor(member.position.y);
-    for (let y = y0 - 1; y <= y0 + size; y++) for (let x = x0 - 1; x <= x0 + size; x++) mask.add(cellKey(x, y));
-  }
-  return mask;
-}
 
 /** The middle of where the party stands, for the screen to keep in view. Null when nobody has a square yet. */
 export function partyCentre(party: readonly Pick<RunCombatant, "position">[]): { x: number; y: number } | null {

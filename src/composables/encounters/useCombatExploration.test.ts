@@ -1,17 +1,8 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ref } from "vue";
 
-const mocks = vi.hoisted(() => ({
-  confirm: vi.fn(),
-  assertState: vi.fn(),
-  revealed: vi.fn(),
-}));
 const room = vi.hoisted(() => ({ surface: { value: null } as { value: unknown } }));
 
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
-vi.mock("@/composables/locations/useLocationState", () => ({
-  useAssertLocationState: () => ({ mutateAsync: mocks.assertState }),
-}));
 vi.mock("@/composables/encounters/useEncounterRoom", () => ({
   useEncounterRoom: () => ({
     encounter: ref({ location_id: "loc-1" }),
@@ -20,7 +11,6 @@ vi.mock("@/composables/encounters/useEncounterRoom", () => ({
     regions: ref([]),
   }),
 }));
-vi.mock("@/lib/battlemap/roomBridge", () => ({ roomsRevealedInCombat: mocks.revealed }));
 
 import { resolveBattleMapGate, useCombatExploration } from "@/composables/encounters/useCombatExploration";
 import type { GridCalibration, Location } from "@/types/location.types";
@@ -194,44 +184,12 @@ describe("resolveBattleMapGate", () => {
   });
 });
 
-describe("markRoomsExploredFromFogMask", () => {
-  beforeEach(() => {
-    mocks.confirm.mockReset().mockResolvedValue(true);
-    mocks.assertState.mockReset().mockResolvedValue(undefined);
-    mocks.revealed.mockReset().mockReturnValue(["room-a", "room-b"]);
-    room.surface.value = makeSurface({ focusRoomId: "room-a" });
-  });
-
-  it("asks once for every room the party saw, and on yes marks each of them explored", async () => {
-    await useCombatExploration("enc-1").markRoomsExploredFromFogMask("1,1;1,2");
-    expect(mocks.confirm).toHaveBeenCalledTimes(1);
-    expect(mocks.confirm.mock.calls[0]![0]).toContain("2");
-    expect(mocks.assertState.mock.calls.map((c) => [c[0].location_id, c[0].fact, c[0].value])).toEqual([
-      ["room-a", "explored", true],
-      ["room-b", "explored", true],
-    ]);
-  });
-
-  it("marks nothing when the DM declines", async () => {
-    mocks.confirm.mockResolvedValue(false);
-    await useCombatExploration("enc-1").markRoomsExploredFromFogMask("1,1");
-    expect(mocks.assertState).not.toHaveBeenCalled();
-  });
-
-  it("does not even ask when no room was revealed", async () => {
-    mocks.revealed.mockReturnValue([]);
-    await useCombatExploration("enc-1").markRoomsExploredFromFogMask("1,1");
-    expect(mocks.confirm).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["the fight was never pushed live (no fog mask)", null, makeSurface({ focusRoomId: "room-a" })],
-    ["the encounter has no focus room", "1,1", makeSurface({ focusRoomId: null })],
-    ["no surface resolved", "1,1", null],
-  ])("is a no-op when %s", async (_label, mask, surface) => {
-    room.surface.value = surface;
-    await useCombatExploration("enc-1").markRoomsExploredFromFogMask(mask);
-    expect(mocks.confirm).not.toHaveBeenCalled();
-    expect(mocks.assertState).not.toHaveBeenCalled();
+describe("useCombatExploration mapPlaceId", () => {
+  // #1133: the Table screen is the map's, not the fight's, so a room fight opens its site's screen.
+  it("names the place whose map is drawn (the site for a room), and nothing before a surface resolves", () => {
+    room.surface.value = makeSurface({ focusRoomId: "room-a", mapLocation: makeLocation({ id: "site-1", location_type: "dungeon" }) });
+    expect(useCombatExploration("enc-1").mapPlaceId.value).toBe("site-1");
+    room.surface.value = null;
+    expect(useCombatExploration("enc-1").mapPlaceId.value).toBeNull();
   });
 });

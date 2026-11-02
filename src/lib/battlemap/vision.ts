@@ -15,6 +15,7 @@ import { FEET_PER_CELL } from "@/cartographer/packSchema";
 import { inZone, lightLevelAt, NO_ZONES, segmentTouchesZone, type DarknessZone, type LitSource } from "@/lib/battlemap/illumination";
 import { combatantFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import { clearLine, nudgedOrigins, type Occluders } from "@/lib/battlemap/occlusion";
+import type { CharacterSenses } from "@/rules/characterSenses";
 
 /** A creature that sees for a player: centre in image cells and the range of each sense in feet (0 for none). */
 export interface Viewer {
@@ -47,7 +48,7 @@ const SOFT_BAND_CELLS = 1 / 3;
 const HALF_BAND = SOFT_BAND_CELLS / 2;
 
 /** A cell whose centre sees this much or less counts as unseen. */
-const SEEN_THRESHOLD = 0.25;
+export const SEEN_THRESHOLD = 0.25;
 
 /** The veil strength of a creature that sees at the dim step: lightly obscured. */
 const LIGHTLY_OBSCURED_ALPHA = 0.45;
@@ -208,46 +209,28 @@ export function canSee(scene: LitScene, viewers: readonly Viewer[], cellX: numbe
 }
 
 /**
- * The party as the viewers of a screen that has no one character behind it: the Table screen, and the DM's "As players
- * see it". Every placed player character looks from the centre of its token. Their senses are not known to such a
- * screen, so none is assumed: it shows no more than a character standing there would see by the light.
+ * The party as the viewers of a screen that has no one character behind it: the Table screen, the DM's "As players
+ * see it" and the party's shared sight. Every placed player character looks from the centre of its token. A character
+ * whose senses a screen cannot read (`sensesOf` absent or null) is assumed to have none: it shows no more than a
+ * character standing there would see by the light.
  */
-export function partyViewers(combatants: readonly (SizedToken & { type: string; position?: { x: number; y: number } | null })[]): Viewer[] {
+export function partyViewers<C extends SizedToken & { type: string; position?: { x: number; y: number } | null }>(
+  combatants: readonly C[],
+  sensesOf?: (c: C) => CharacterSenses | null | undefined,
+): Viewer[] {
   return combatants.flatMap((c) => {
     if (c.type !== "player" || !c.position) return [];
     const half = combatantFootprint(c) / 2;
-    return [{ x: c.position.x + half, y: c.position.y + half, darkvisionFeet: 0, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 }];
-  });
-}
-
-interface Placed extends SizedToken {
-  instance_id: string;
-  position?: { x: number; y: number } | null;
-}
-
-/**
- * The tokens a player can see on a lit map: their own always, a token with no position (not placed yet) as before,
- * and any other when the viewers see at least one cell it stands on.
- */
-export function seenCombatants<T extends Placed>(
-  list: readonly T[],
-  scene: LitScene,
-  viewers: readonly Viewer[],
-  ownId: string | null,
-): T[] {
-  return list.filter((c) => {
-    if (c.instance_id === ownId || !c.position) return true;
-    // Every cell the token's box touches; a Tiny one on a half cell touches only its own square.
-    const size = combatantFootprint(c);
-    const firstX = Math.floor(c.position.x);
-    const firstY = Math.floor(c.position.y);
-    const endX = Math.ceil(c.position.x + size);
-    const endY = Math.ceil(c.position.y + size);
-    for (let x = firstX; x < endX; x++) {
-      for (let y = firstY; y < endY; y++) {
-        if (canSee(scene, viewers, x, y)) return true;
-      }
-    }
-    return false;
+    const senses = sensesOf ? sensesOf(c) : null;
+    return [
+      {
+        x: c.position.x + half,
+        y: c.position.y + half,
+        darkvisionFeet: senses ? senses.darkvision : 0,
+        blindsightFeet: senses ? senses.blindsight : 0,
+        truesightFeet: senses ? senses.truesight : 0,
+        devilsSightFeet: senses ? senses.devilsSight : 0,
+      },
+    ];
   });
 }

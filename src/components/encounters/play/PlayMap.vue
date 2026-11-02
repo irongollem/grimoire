@@ -39,12 +39,14 @@
         :origin-y="gridOrigin.y"
         :zones="state.darknessZones.value"
         :door-states="state.doorStates.value"
-        :viewers="asPlayerViewers"
+        :viewers="view.asPlayer ? state.viewers.value : null"
       />
 
-      <!-- Dims the plan outside the encounter's room and outlines it + its terrain zones (frame 13). -->
+      <!-- Dims the plan outside the encounter's room and outlines it + its terrain zones (frame 13). The DM's
+           alone: "As players see it" shows the fog and the senses, not where the fight was set. -->
       <BattleMapRoomFocusLayer
-        v-if="surface?.focusRoomId && imageReady && cellPx > 0"
+        v-if="!view.asPlayer && surface?.focusRoomId && imageReady && cellPx > 0"
+        :label="FIGHT_LABEL"
         :host-w="hostW"
         :host-h="hostH"
         :cell-px="cellPx"
@@ -55,6 +57,21 @@
       />
 
       <!-- Every token drags under every tool; a press anywhere else is the tool's. A follower reads only. -->
+      <!-- "As player" is the whole player view: tokens the party cannot see dropped, hidden ones omitted, unseen ones a
+           silhouette (found by the #884 review pass), and the fog opaque. Under the tokens, as on the Table screen: a
+           character standing in the dark is still drawn, the room around them is not. -->
+      <BattleMapFogLayer
+        v-if="(view.showFog || view.asPlayer) && location && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :mask="view.asPlayer ? shownCells(state.memory.value, state.sight.value) : state.memory.value"
+        :seen="view.asPlayer ? state.sight.value : null"
+        :opaque="view.asPlayer"
+      />
+
       <BattleMapTokenLayer
         v-if="view.showTokens && location && imageReady && cellPx > 0"
         :host-w="hostW"
@@ -62,7 +79,7 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :combatants="view.asPlayer ? revealedCombatants(state.placed.value, state.fogMask.value) : state.placed.value"
+        :combatants="view.asPlayer ? tableTokens(state.placed.value, state.sight.value) : state.placed.value"
         :hide-hidden="view.asPlayer"
         :silhouette-unseen="view.asPlayer"
         :factions="state.factions.value"
@@ -121,19 +138,6 @@
 
       <div v-if="boxStyle" class="select-box" :style="boxStyle" data-testid="play-select-box" aria-hidden="true"></div>
 
-      <!-- "As player" is the whole player view: fogged-out combatants dropped, hidden ones omitted,
-           unseen ones a silhouette (found by the #884 review pass), and the fog opaque. -->
-      <BattleMapFogLayer
-        v-if="(view.showFog || view.asPlayer) && location && imageReady && cellPx > 0"
-        :host-w="hostW"
-        :host-h="hostH"
-        :cell-px="cellPx"
-        :origin-x="gridOrigin.x"
-        :origin-y="gridOrigin.y"
-        :mask="state.fogMask.value"
-        :opaque="view.asPlayer"
-      />
-
       <img v-if="surface?.imageUrl && !imageReady" :src="surface.imageUrl" class="hidden-loader" @load="onImageLoad" />
     </div>
 
@@ -189,8 +193,8 @@ import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import BattleMapRoomFocusLayer from "@/components/encounters/BattleMapRoomFocusLayer.vue";
 import BattleMapLegend from "@/components/encounters/BattleMapLegend.vue";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
-import { cellBrushCells, revealedCombatants, roundBrushCells, type FogCellKey } from "@/lib/battlemap/fogMask";
-import { partyViewers, type Viewer } from "@/lib/battlemap/vision";
+import { cellBrushCells, roundBrushCells, type FogCellKey } from "@/lib/battlemap/fogMask";
+import { shownCells, tableTokens } from "@/lib/battlemap/partySight";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import PlayToolbelt from "./PlayToolbelt.vue";
 import PlayMovePath from "./PlayMovePath.vue";
@@ -260,20 +264,8 @@ const emit = defineEmits<{
 }>();
 
 const store = useEncounterRunStore();
-const state = usePlayMapState(
-  computed(() => encounterId),
-  () => mode,
-);
-const { surface, location } = state;
 const canEdit = computed(() => mode === "dm");
 const READ_ONLY = new Set<string>();
-
-// "As players see it" shows the dark as the Table screen does: drawn from every player character's token, not the
-// DM's translucent veil over the whole map.
-const asPlayerViewers = computed<Viewer[] | null>(() => (view.asPlayer ? partyViewers(state.placed.value) : null));
-
-const portraitOverrides = useCombatantMinis(state.combatants);
-const dollFigures = useCombatantDollFigures(state.combatants);
 
 const {
   canvasHost,
@@ -292,6 +284,17 @@ const {
   endPan,
   resetView,
 } = useMapCanvas();
+
+const state = usePlayMapState(
+  computed(() => encounterId),
+  () => mode,
+  () => (imageNaturalW.value > 0 && imageNaturalH.value > 0 ? { w: imageNaturalW.value, h: imageNaturalH.value } : null),
+);
+const FIGHT_LABEL = "Fight here";
+const { surface, location } = state;
+
+const portraitOverrides = useCombatantMinis(state.combatants);
+const dollFigures = useCombatantDollFigures(state.combatants);
 
 // ── Geometry ──────────────────────────────────────────────────────────────
 

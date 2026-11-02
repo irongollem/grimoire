@@ -18,19 +18,6 @@ export function decodeFogMask(encoded: string | null | undefined): Set<FogCellKe
   return result;
 }
 
-/**
- * Whether a live encounter's fog has never been seeded. `null`/`undefined` is
- * that "never seeded" state — `goLive` writes `fog_mask: null` on every fresh
- * go-live, and nothing ever writes it back to null afterwards, so a seeded
- * row stays seeded across a remount (a refresh, or a second map window).
- * An empty string is "Hide all" — a real DM choice made *after* seeding —
- * and must read as already-seeded, not as "never seeded", or the next
- * surface recompute would silently undo it.
- */
-export function shouldSeedFog(encoded: string | null | undefined): boolean {
-  return encoded == null;
-}
-
 export interface BrushInput {
   pixelX: number;
   pixelY: number;
@@ -248,19 +235,4 @@ function featherFalloff(dist: number): number {
   if (dist <= 0) return 1;
   if (dist >= FEATHER_FRACTION) return 0;
   return 1 - dist / FEATHER_FRACTION;
-}
-
-/**
- * Combatants whose anchor cell is under fog are omitted — the encounter
- * battle map's "tokens obey fog" rule (frame 08/13): a player never sees a
- * monster that has walked out of revealed space, even with the token layer
- * itself on. A combatant with no position (not yet placed) is always kept —
- * there is no cell to check it against. The DM's own view never calls this;
- * it reads `combatants` directly and sees every token regardless of fog.
- */
-export function revealedCombatants<T extends { position?: { x: number; y: number } | null }>(
-  combatants: readonly T[],
-  mask: Set<FogCellKey>,
-): T[] {
-  return combatants.filter((c) => !c.position || mask.has(`${c.position.x},${c.position.y}`));
 }

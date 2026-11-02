@@ -8,7 +8,7 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 /**
  * The room under a point, as the battle cells to reveal (#1125 frame 11, Fog "Room": "reveals a whole traced room
  * with one click"). A room is a traced `space` region; a zone is terrain, never a room. Null when the point is on no
- * room. The cells are the region's own, so `roomsRevealedInCombat` finds the room revealed when the fight ends.
+ * room. The cells are the region's own battle cells.
  * A room found from the walls holds the point by its outline, not by its squares: a point inside a round chapel's
  * curve is in the room even where the square under it has its middle outside the curve, and a point outside the
  * curve is not, even where a square of the room reaches past it.

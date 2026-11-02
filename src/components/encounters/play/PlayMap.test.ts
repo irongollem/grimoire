@@ -18,6 +18,9 @@ const s = vi.hoisted(() => ({
   moveCombatant: vi.fn(),
   active: null as { value: string | null } | null,
   second: true,
+  surface: null as { value: { focusRoomId: string | null; focusCells: string[] } } | null,
+  memory: [] as string[],
+  sight: [] as string[],
 }));
 
 vi.mock("./usePlayMapState", async () => {
@@ -28,17 +31,19 @@ vi.mock("./usePlayMapState", async () => {
   });
   const active = r<string | null>(null);
   s.active = active;
+  s.surface = surface;
   const combatant = {
     instance_id: "a", type: "monster", name: "Ash", faction_id: "f", initiative: 1, hp: 1, max_hp: 1, ac: "10",
     conditions: [], curses: [], death_saves: { successes: 0, failures: 0 }, dex_mod: 0, position: { x: 1, y: 1 },
   } satisfies RunCombatant;
-  const buddy = { ...combatant, instance_id: "b", name: "Bram", position: { x: 2, y: 1 } } satisfies RunCombatant;
+  const buddy = { ...combatant, instance_id: "b", name: "Bram", type: "player", position: { x: 2, y: 1 } } satisfies RunCombatant;
+  const lurker = { ...combatant, instance_id: "c", name: "Lurk", position: { x: 8, y: 8 } } satisfies RunCombatant;
   return {
     usePlayMapState: () => ({
       surface, location: r({ id: "l1" }), focusRoom: r(null), terrainZones: r([]), isLive: r(true), following: r(false),
-      combatants: r([combatant, buddy]), round: r(1), placed: r([combatant, buddy]), unplaced: r([]), activeInstanceId: active,
+      combatants: r([combatant, buddy, lurker]), round: r(1), placed: r([combatant, buddy, lurker]), unplaced: r([]), activeInstanceId: active,
       moveTerrain: r({ difficult: new Set<string>(), walls: [] }),
-      factions: r([]), monsters: r([]), moveCombatant: s.moveCombatant, fogMask: r(new Set()), paintFog: s.paintFog,
+      factions: r([]), monsters: r([]), moveCombatant: s.moveCombatant, memory: r(new Set<string>(s.memory)), sight: r(new Set<string>(s.sight)), viewers: r([]), paintFog: s.paintFog,
       revealAll: vi.fn(), hideAll: vi.fn(), revealRoomAt: s.revealRoomAt, darknessZones: r([]), toggleDarknessAt: s.toggleDarknessAt, doorStates: r([]),
       doorIdAt: () => s.doorAt, toggleDoorAt: s.toggleDoorAt, loadingState: r(null),
     }),
@@ -106,6 +111,9 @@ describe("PlayMap", () => {
     s.doorAt = null;
     Object.assign(s, { panned: 0 });
     vi.clearAllMocks();
+    s.memory = [];
+    s.sight = [];
+    if (s.surface) Object.assign(s.surface.value, { focusRoomId: null, focusCells: [] });
   });
 
   afterEach(() => {
@@ -125,6 +133,37 @@ describe("PlayMap", () => {
     const stack = (w: ReturnType<typeof mountMap>) => w.findComponent({ name: "BattleMapStack" });
     expect(stack(mountMap()).props("viewers")).toBeNull();
     expect(stack(mountMap({ view: { ...DEFAULT_PLAY_VIEW, asPlayer: true } })).props("viewers")).toEqual([]);
+  });
+
+  // Epic #1133: a player's screen is the map's memory plus what the party sees now, and only the tokens they see.
+  it("As players see it fogs by memory plus sight, half-fogs what is only remembered, drops a monster nobody sees and keeps every player's coin", () => {
+    s.memory = ["5,5"];
+    s.sight = ["1,1"];
+    const fog = mountMap({ view: { ...DEFAULT_PLAY_VIEW, asPlayer: true } }).findComponent({ name: "BattleMapFogLayer" });
+    expect([...fog.props("mask")].sort()).toEqual(["1,1", "5,5"]);
+    expect([...fog.props("seen")]).toEqual(["1,1"]);
+    expect(fog.props("opaque")).toBe(true);
+    const w = mountMap({ view: { ...DEFAULT_PLAY_VIEW, asPlayer: true } });
+    expect(w.findComponent(TokenLayer).props("combatants").map((c: RunCombatant) => c.instance_id)).toEqual(["a", "b"]);
+  });
+
+  it("the DM's own view fogs by the memory alone and shows every token", () => {
+    s.memory = ["5,5"];
+    s.sight = ["1,1"];
+    const w = mountMap({ view: { ...DEFAULT_PLAY_VIEW, showFog: true } });
+    const fog = w.findComponent({ name: "BattleMapFogLayer" });
+    expect([...fog.props("mask")]).toEqual(["5,5"]);
+    expect(fog.props("opaque")).toBe(false);
+    expect(w.findComponent(TokenLayer).props("combatants")).toHaveLength(3);
+  });
+
+  // The focus room is where the DM set the fight, not something the players know.
+  it("mounts the room focus (labelled) for the DM and not in As players see it", () => {
+    Object.assign(s.surface!.value, { focusRoomId: "r1", focusCells: ["0,0"] });
+    const focus = mountMap().findComponent({ name: "BattleMapRoomFocusLayer" });
+    expect(focus.exists()).toBe(true);
+    expect(focus.props("label")).toBe("Fight here");
+    expect(mountMap({ view: { ...DEFAULT_PLAY_VIEW, asPlayer: true } }).findComponent({ name: "BattleMapRoomFocusLayer" }).exists()).toBe(false);
   });
 
   it("a follower window offers no tools and lets no token be dragged", () => {

@@ -78,7 +78,6 @@ function mountMap(groupIds: string[], selectedId: string, tokens: RunCombatant[]
       surface,
       tokens,
       rooms: [],
-      shadedCells: [],
       enteringCells: [],
       selectedId,
       groupIds,

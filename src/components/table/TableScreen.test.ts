@@ -32,9 +32,9 @@ const surface = {
   calibration: { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0 },
 } as unknown as BattleSurface;
 
-const FogStub = defineComponent({ name: "BattleMapFogLayer", props: ["opaque", "mask"], template: "<div data-testid='fog' />" });
-const TokensStub = defineComponent({ name: "BattleMapTokenLayer", props: ["combatants", "hideHidden", "silhouetteUnseen"], template: "<div />" });
-const StackStub = defineComponent({ name: "BattleMapStack", template: "<div />" });
+const FogStub = defineComponent({ name: "BattleMapFogLayer", props: ["opaque", "mask", "seen"], template: "<div data-testid='fog' />" });
+const TokensStub = defineComponent({ name: "BattleMapTokenLayer", props: ["combatants", "hideHidden", "silhouetteUnseen"], template: "<div data-testid='tokens' />" });
+const StackStub = defineComponent({ name: "BattleMapStack", props: ["viewers"], template: "<div />" });
 
 const orc: RunCombatant = {
   instance_id: "m1", type: "monster", name: "Brakka", faction_id: "foes", initiative: 12, hp: 1, max_hp: 1, ac: "", conditions: [],
@@ -43,7 +43,7 @@ const orc: RunCombatant = {
 
 function mountScreen(props: Record<string, unknown> = {}) {
   return mount(TableScreen, {
-    props: { surface, combatants: [orc], fogMask: new Set<string>(), eyebrow: "Round 3", title: "Brakka's turn", ...props },
+    props: { surface, combatants: [orc], fogMask: new Set<string>(), seen: new Set<string>(), viewers: [], eyebrow: "Round 3", title: "Brakka's turn", ...props },
     global: { stubs: { BattleMapFogLayer: FogStub, BattleMapTokenLayer: TokensStub, BattleMapStack: StackStub } },
   });
 }
@@ -61,6 +61,26 @@ describe("TableScreen", () => {
     const w = mountScreen();
     expect(w.findComponent({ name: "BattleMapFogLayer" }).props("opaque")).toBe(true);
     expect(w.findComponent({ name: "BattleMapTokenLayer" }).props()).toMatchObject({ hideHidden: true, silhouetteUnseen: true });
+  });
+
+  // Seen on the TV, 3 Nov 2026: the party stood in an unlit room and their coins vanished under the black.
+  it("draws the tokens over the fog, so a character standing in the dark is still on the table", () => {
+    const w = mountScreen();
+    const order = w.findAll("[data-testid='fog'], [data-testid='tokens']").map((n) => n.attributes("data-testid"));
+    expect(order).toEqual(["fog", "tokens"]);
+  });
+
+  // Epic #1133 decision 1: the veil sees through the party's real senses (a dwarf's darkvision), not a default.
+  it("hands the stack the party's viewers and the fog layer what is seen now, so remembered squares are half fogged", () => {
+    const viewers = [{ x: 1, y: 1, darkvisionFeet: 60, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 }];
+    const w = mountScreen({ viewers, fogMask: new Set(["1,1", "5,5"]), seen: new Set(["1,1"]) });
+    expect(w.findComponent({ name: "BattleMapStack" }).props("viewers")).toEqual(viewers);
+    expect([...w.findComponent({ name: "BattleMapFogLayer" }).props("seen")]).toEqual(["1,1"]);
+  });
+
+  // The view computes sight over the map's grid, which only the screen knows once the picture has loaded.
+  it("tells its caller the picture's size once it has loaded", () => {
+    expect(mountScreen().emitted("imageSize")).toEqual([[{ w: 1000, h: 600 }]]);
   });
 
   it("says the round and whose turn it is, in the corner", () => {

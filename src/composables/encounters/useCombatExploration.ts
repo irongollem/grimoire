@@ -1,12 +1,8 @@
 import { computed, type MaybeRefOrGetter } from "vue";
-import { useConfirm } from "@/composables/useConfirm";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
-import { useAssertLocationState } from "@/composables/locations/useLocationState";
-import { decodeFogMask } from "@/lib/battlemap/fogMask";
-import { roomsRevealedInCombat, type BattleSurface } from "@/lib/battlemap/roomBridge";
+import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
-import { isInteriorType, spaceNoun } from "@/lib/locations/tiers";
-import { pluralizeCount } from "@/lib/utils";
+import { isInteriorType } from "@/lib/locations/tiers";
 import type { Location } from "@/types/location.types";
 
 /**
@@ -57,15 +53,13 @@ export function resolveBattleMapGate(params: {
 }
 
 /**
- * Battle-map gating and end-of-combat room exploration for the DM's runner
- * (epic #868). Shares `useEncounterRoom`'s resolution of which surface an
- * encounter opens on — the same one the Play map renders — so the
- * runner's gate and the map's render can never disagree.
+ * Battle-map gating for the DM's runner (epic #868), and the place whose map the Play screen draws. Shares
+ * `useEncounterRoom`'s resolution of which surface an encounter opens on, the same one the Play map renders, so the
+ * runner's gate and the map's render can never disagree. Rooms are marked Explored as a party token enters them, live
+ * (#1133), so nothing is reconciled when a fight ends.
  */
 export function useCombatExploration(encounterId: MaybeRefOrGetter<string>) {
-  const { encounter, location, surface, regions } = useEncounterRoom(encounterId);
-  const { confirm } = useConfirm();
-  const { mutateAsync: assertLocationState } = useAssertLocationState();
+  const { encounter, location, surface } = useEncounterRoom(encounterId);
 
   const gate = computed(() =>
     resolveBattleMapGate({
@@ -76,35 +70,8 @@ export function useCombatExploration(encounterId: MaybeRefOrGetter<string>) {
   );
   const canOpenBattleMap = computed(() => gate.value.canOpen);
   const battleMapDisabledReason = computed(() => gate.value.reason);
+  /** The place whose map is drawn (the site for a fight in a room), the one Table screen this fight shows on. */
+  const mapPlaceId = computed(() => surface.value?.mapLocation.id ?? null);
 
-  /**
-   * One prompt for every room the party actually saw this fight, not a
-   * per-room decision (frame 16). Never the reverse — un-brushing a cell
-   * never un-explores a room. No-op when the encounter has no focus room, or
-   * fog was never pushed (fresh lobby, ended before going live).
-   */
-  async function markRoomsExploredFromFogMask(fogMaskAtEnd: string | null): Promise<void> {
-    const s = surface.value;
-    if (!s?.focusRoomId || !fogMaskAtEnd) return;
-    const revealedRoomIds = roomsRevealedInCombat(decodeFogMask(fogMaskAtEnd), regions.value ?? [], s.calibration);
-    if (revealedRoomIds.length === 0) return;
-    // `s.mapLocation` is the *site* whose plan these cells were revealed on
-    // (#886/#887) — when there's a focus room, `resolveBattleSurface` sets
-    // `mapLocation` to that room's parent, never the room itself — so its
-    // `location_type` is the one `spaceNoun` needs, not the encounter's own
-    // (possibly interior) location.
-    const noun = spaceNoun(s.mapLocation.location_type);
-    const confirmed = await confirm(
-      `Mark ${pluralizeCount(revealedRoomIds.length, noun.singular, noun.plural)} revealed in combat as explored?`,
-      { danger: false, confirmLabel: "Mark explored" },
-    );
-    if (!confirmed) return;
-    await Promise.all(
-      revealedRoomIds.map((locationId) =>
-        assertLocationState({ location_id: locationId, fact: "explored", value: true, note: "revealed in combat" }),
-      ),
-    );
-  }
-
-  return { canOpenBattleMap, battleMapDisabledReason, markRoomsExploredFromFogMask };
+  return { canOpenBattleMap, battleMapDisabledReason, mapPlaceId };
 }

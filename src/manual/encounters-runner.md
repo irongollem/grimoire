@@ -134,7 +134,7 @@ HP syncs both ways: your changes in the runner reach the party's character sheet
 - **End Combat**: syncs every player's HP, conditions, death saves and curses back to their record, then returns you to the encounter sheet. Companion HP and conditions are written back the same way.
 - **Abandon**: ends the live session without writing any of that back. Use it for a test combat or a false start.
 
-Either way, if the fight had a room-anchored battle map open, ending combat may ask whether to mark the rooms the party actually uncovered as explored: see [Encounter Map](#encounter-map-battle-map-fog-of-war).
+Rooms the party walked into during the fight were already marked explored as they went, so ending combat asks nothing about them. It leaves the party standing where the fight left them on the site's explore screen: see [Encounter Map](#encounter-map-battle-map-fog-of-war).
 
 ## What your players see
 

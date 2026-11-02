@@ -50,7 +50,8 @@
         :surface="surface"
         :tokens="tokens"
         :rooms="roomLabels"
-        :shaded-cells="shadedCells"
+        :fog-mask="fogMask"
+        :fog-seen="sight"
         :entering-cells="enteringCells"
         :view="view"
         :selected-id="selectedId"
@@ -61,16 +62,18 @@
         @select="onSelect"
         @update:group-ids="groupIds = $event"
       >
-        <!-- Asked once the lead token steps into a room the party has not seen: reveal it, or keep walking. -->
+        <!-- Walking into a room moves the party there. A room with a fight set up in it offers to start it. -->
         <div
-          v-if="askRoom"
+          v-if="offered"
           data-slip
-          data-testid="explore-reveal-slip"
+          data-testid="explore-encounter-slip"
           class="absolute left-1/2 top-3 flex -translate-x-1/2 flex-wrap items-center justify-center gap-3 rounded-md border border-border bg-popover px-4 py-2 shadow-lg"
         >
-          <p class="text-body text-foreground">The party steps into the <strong>{{ askRoom.name }}</strong>.</p>
-          <AppButton variant="live" size="sm" label="Reveal the room" @click="revealRoom(askRoom.id)" />
-          <AppButton variant="ghost" size="sm" label="Not yet" @click="notYet(askRoom.id)" />
+          <p class="text-body text-foreground">
+            <strong>{{ offered.name }}</strong> is set here.<span v-if="morePrepared > 0" class="text-muted-foreground"> +{{ morePrepared }} more</span>
+          </p>
+          <AppButton variant="live" size="sm" label="Start it" @click="startPrepared(offered.id)" />
+          <AppButton variant="ghost" size="sm" label="Not now" @click="notNow" />
         </div>
       </ExploreMap>
 
@@ -140,12 +143,17 @@ import ExploreRoomCard from "@/components/locations/explore/ExploreRoomCard.vue"
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import TriggerBeatPrompt from "@/components/locations/run/TriggerBeatPrompt.vue";
 import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
+import { usePartySight } from "@/composables/encounters/usePartySight";
+import { usePreparedEncounters } from "@/composables/encounters/usePreparedEncounters";
 import { useStartFight } from "@/composables/encounters/useStartFight";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useExploreParty, usePartyTokenSizes } from "@/composables/locations/useExploreParty";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import { useDoorStateForSite, useLocationStateForRooms } from "@/composables/locations/useLocationState";
+import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useMoveParty } from "@/composables/locations/useMoveParty";
+import { useRememberSight } from "@/composables/locations/useRememberSight";
+import { shownCells } from "@/lib/battlemap/partySight";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
@@ -274,29 +282,15 @@ const lead = computed(() => {
 const enteringRoomId = computed(() => roomBeingEntered(lead.value, roomIndex.value, currentRoomId.value));
 const enteringRoom = computed(() => rooms.value.find((r) => r.id === enteringRoomId.value) ?? null);
 
-// "Not yet" holds for as long as the lead stays in that room's cells.
-const notYetRoomId = ref<string | null>(null);
-watch(enteringRoomId, (id) => {
-  if (id !== notYetRoomId.value) notYetRoomId.value = null;
-});
-const askRoom = computed(() =>
-  enteringRoom.value && !isExplored(enteringRoom.value.id) && notYetRoomId.value !== enteringRoom.value.id ? enteringRoom.value : null,
-);
-
-async function goTo(roomId: string): Promise<boolean> {
+async function goTo(roomId: string, walked = false): Promise<boolean> {
   const room = rooms.value.find((r) => r.id === roomId);
   if (!room) return false;
-  return moveParty({ roomId, roomName: room.name, currentRoomId: currentRoomId.value, reachable: reachable.value });
+  // A room the token physically walked into is where the party is: the door graph has no say, so nothing is asked.
+  return moveParty({ roomId, roomName: room.name, currentRoomId: currentRoomId.value, reachable: walked ? null : reachable.value });
 }
-function revealRoom(roomId: string) {
-  void goTo(roomId);
-}
-function notYet(roomId: string) {
-  notYetRoomId.value = roomId;
-}
-// A room the party has been in before needs no asking: the lead walking into it is the party being there.
+// The lead walking into a room is the party being there, explored or not; the arrival trigger marks it explored.
 watch(enteringRoomId, (id) => {
-  if (id && isExplored(id)) void goTo(id);
+  if (id) void goTo(id, true);
 });
 
 // The list moves the party to a room and stands them in it, so the map and the room agree.
@@ -306,6 +300,32 @@ async function goToRoom(roomId: string) {
   place(seedPartyPositions(party.value, roomCells.value, roomIds.value, roomId));
 }
 
+// ── What the party sees, and what the map remembers of it (epic #1133) ───────
+// Exploring is the DM's controlling window, so it is the one that writes the memory. No doors or darkness are played
+// here, so the site's walls and lights alone decide sight.
+const grid = computed(() => (frame.value ? { cols: Math.ceil(frame.value.across), rows: Math.ceil(frame.value.down) } : null));
+const { sight } = usePartySight({ live: () => surface.value?.live ?? null, doorStates: [], zones: [], tokens, grid });
+const mapMemory = useMapMemory(() => campaign.activeCampaignId, siteId);
+// Written only once there is a campaign: with none the memory cannot be read, and a write would fail loudly.
+useRememberSight({ memory: mapMemory, sight, enabled: () => !!campaign.activeCampaignId });
+const fogMask = computed(() => shownCells(mapMemory.memory.value, sight.value));
+
+// ── A fight set up in the room the party stands in ──────────────────────────
+const { prepared } = usePreparedEncounters(() => campaign.activeCampaignId, currentRoomId);
+// "Not now" holds for as long as the party stays in that room.
+const notNowRoomId = ref<string | null>(null);
+watch(currentRoomId, () => {
+  notNowRoomId.value = null;
+});
+const offered = computed(() => (prepared.value.length > 0 && notNowRoomId.value !== currentRoomId.value ? prepared.value[0] : null));
+const morePrepared = computed(() => Math.max(prepared.value.length - 1, 0));
+function notNow() {
+  notNowRoomId.value = currentRoomId.value;
+}
+function startPrepared(encounterId: string) {
+  void router.push({ path: `/encounters/${encounterId}/run`, query: { live: "1" } });
+}
+
 // ── What the map paints ─────────────────────────────────────────────────────
 const roomLabels = computed(() =>
   rooms.value.flatMap((r) => {
@@ -313,7 +333,6 @@ const roomLabels = computed(() =>
     return cells ? [{ id: r.id, name: r.name, cells }] : [];
   }),
 );
-const shadedCells = computed(() => rooms.value.filter((r) => !isExplored(r.id)).flatMap((r) => roomCells.value?.get(r.id) ?? []));
 const enteringCells = computed(() => (enteringRoomId.value ? (roomCells.value?.get(enteringRoomId.value) ?? []) : []));
 
 const roomRows = computed(() =>
@@ -330,6 +349,7 @@ const map = ref<InstanceType<typeof ExploreMap> | null>(null);
 
 // ── The plan, for a site whose grid is not lined up yet ─────────────────────
 const mapStack = computed(() => buildMapStack(site.value));
+// The grid is not lined up yet on a site that falls back to the plan, so only the plan keeps the room-level hint.
 const dmFogPlan = computed(() =>
   buildDmFogPlan(
     regions.value,

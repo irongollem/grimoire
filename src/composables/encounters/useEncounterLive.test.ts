@@ -56,7 +56,6 @@ const stateRow = (encounter_id: string, over: Record<string, unknown> = {}) => (
   active_combatant_index: 0,
   combatants_live: [],
   events_fired: [],
-  fog_mask: null,
   magical_darkness: [],
   door_states: [],
   ...over,
@@ -136,13 +135,12 @@ describe("useEncounterLive loading", () => {
 describe("goLive", () => {
   const rowOf = (id: string) => fake.rows("encounter_state").find((r) => r.encounter_id === id);
 
-  // A second go-live of the same encounter upserts onto the same row, so a mask,
-  // darkness or door left from the previous fight would survive into the new one.
-  it("starts a repeat fight clean: no fog mask, no magical darkness, every door as drawn", async () => {
+  // A second go-live of the same encounter upserts onto the same row, so darkness
+  // or door left from the previous fight would survive into the new one.
+  it("starts a repeat fight clean: no magical darkness, every door as drawn", async () => {
     fake.seed("encounter_state", [
       stateRow("encounter-1", {
         is_running: false,
-        fog_mask: "1,1;1,2",
         magical_darkness: [{ id: "z1", x: 1, y: 1, radius: 15 }],
         door_states: [{ id: "3,2:N", open: true }],
         events_fired: ["old"],
@@ -155,7 +153,6 @@ describe("goLive", () => {
 
     expect(rowOf("encounter-1")).toMatchObject({
       is_running: true,
-      fog_mask: null,
       magical_darkness: [],
       door_states: [],
       events_fired: [],
@@ -256,7 +253,6 @@ describe("pushing state", () => {
   // #1120: a second map window writes the map's own state. Riding the roster
   // push, it wrote its stale copy of the roster over the runner's last change.
   it.each([
-    ["fogMask", "fog_mask", "1,1"],
     ["magicalDarkness", "magical_darkness", [{ id: "z1", x: 2.5, y: 3, radius: 15 }]],
     ["doorStates", "door_states", [{ id: "3,2:N", open: true }]],
   ])("writes %s on its own, leaving the roster as the runner left it", async (key, column, value) => {
@@ -264,16 +260,16 @@ describe("pushing state", () => {
     scheduleMapPush({ [key]: value });
     await vi.advanceTimersByTimeAsync(400);
     expect(fake.rows("encounter_state")[0]).toMatchObject({ [column]: value, current_round: 5, combatants_live: [tokenAt("g1", null)] });
-    expect(liveState.value?.[column as "fog_mask"]).toEqual(value);
+    expect(liveState.value?.[column as "door_states"]).toEqual(value);
   });
 
   it("keeps every part of the map's state changed within one burst, not just the last", async () => {
     const { scheduleMapPush } = await live();
-    scheduleMapPush({ fogMask: "1,1" });
+    scheduleMapPush({ magicalDarkness: [{ id: "z1", x: 1, y: 1, radius: 15 }] });
     scheduleMapPush({ doorStates: [{ id: "3,2:N", open: true }] });
     await vi.advanceTimersByTimeAsync(400);
     expect(updates()).toHaveLength(1);
-    expect(fake.rows("encounter_state")[0]).toMatchObject({ fog_mask: "1,1", door_states: [{ id: "3,2:N", open: true }] });
+    expect(fake.rows("encounter_state")[0]).toMatchObject({ magical_darkness: [{ id: "z1", x: 1, y: 1, radius: 15 }], door_states: [{ id: "3,2:N", open: true }] });
   });
 
   // Leaving the runner for the battle map unmounts it, and dropping its pending
@@ -459,25 +455,25 @@ describe("following the live row", () => {
     expect(rings.ring).toHaveLength(0);
   });
 
-  // A ring from someone else landing while a brush stroke waits to be written
-  // handed back the row without the stroke, and the fog flashed back.
+  // A ring from someone else landing while a map change waits to be written
+  // handed back the row without it, and the change flashed back.
   it("holds a read back while this tab has a write pending, then reads once it is written", async () => {
     const { api } = await mountLive(true);
-    api.scheduleMapPush({ fogMask: "2,2" });
+    api.scheduleMapPush({ doorStates: [{ id: "2,2:N", open: true }] });
     await setRow({ current_round: 6 });
     ringRow();
     await vi.advanceTimersByTimeAsync(0);
     expect(liveState.value?.current_round).toBe(1);
 
     await vi.advanceTimersByTimeAsync(400);
-    expect(liveState.value).toMatchObject({ current_round: 6, fog_mask: "2,2" });
+    expect(liveState.value).toMatchObject({ current_round: 6, door_states: [{ id: "2,2:N", open: true }] });
   });
 
   it("does not even ask for the row while a write is pending", async () => {
     const { api } = await mountLive(true);
     const reads = () => fake.calls.filter((c) => c.target === "encounter_state" && c.op === "select").length;
     const before = reads();
-    api.scheduleMapPush({ fogMask: "2,2" });
+    api.scheduleMapPush({ doorStates: [{ id: "2,2:N", open: true }] });
     ringRow();
     await vi.advanceTimersByTimeAsync(0);
     expect(reads()).toBe(before);
@@ -487,23 +483,23 @@ describe("following the live row", () => {
     const { api } = await mountLive(true);
     await setRow({ current_round: 6 });
     ringRow();
-    api.scheduleMapPush({ fogMask: "2,2" });
+    api.scheduleMapPush({ doorStates: [{ id: "2,2:N", open: true }] });
     await vi.advanceTimersByTimeAsync(0);
     expect(liveState.value?.current_round).toBe(1);
     await vi.advanceTimersByTimeAsync(400);
-    expect(liveState.value).toMatchObject({ current_round: 6, fog_mask: "2,2" });
+    expect(liveState.value).toMatchObject({ current_round: 6, door_states: [{ id: "2,2:N", open: true }] });
   });
 
-  // A door opened a minute after a brush stroke re-sent the stroke's mask, over
-  // whatever the other window had brushed since.
+  // A door opened a minute after a darkness change re-sent the darkness, over
+  // whatever the other window had drawn since.
   it("sends each part of the map's state once, not again with the next change", async () => {
     const { api } = await mountLive(true);
-    api.scheduleMapPush({ fogMask: "1,1" });
+    api.scheduleMapPush({ magicalDarkness: [{ id: "z1", x: 1, y: 1, radius: 15 }] });
     await vi.advanceTimersByTimeAsync(400);
-    await setRow({ fog_mask: "9,9" });
+    await setRow({ magical_darkness: [{ id: "z9", x: 9, y: 9, radius: 5 }] });
     api.scheduleMapPush({ doorStates: [] });
     await vi.advanceTimersByTimeAsync(400);
-    expect(fake.rows("encounter_state")[0]!.fog_mask).toBe("9,9");
+    expect(fake.rows("encounter_state")[0]!.magical_darkness).toEqual([{ id: "z9", x: 9, y: 9, radius: 5 }]);
   });
 
   it("shows a token where the DM put it at once, and writes it through the position function", async () => {

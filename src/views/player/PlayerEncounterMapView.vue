@@ -107,7 +107,8 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :mask="fogMask"
+        :mask="shown"
+        :seen="sight"
         :opaque="true"
       />
 
@@ -149,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -158,14 +159,18 @@ import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue
 import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
-import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
+import { usePartySight } from "@/composables/encounters/usePartySight";
+import { useMapMemory } from "@/composables/locations/useMapMemory";
+import { sameDoorStates } from "@/lib/battlemap/doors";
+import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
+import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
+import { partyVisibleCombatants, shownCells, type MapGrid } from "@/lib/battlemap/partySight";
+import type { MapLiveDoorState } from "@/types/mapLive.types";
 import { currentMapLive } from "@/lib/battlemap/liveLayer";
 import { pictureUnderDrawing } from "@/lib/battlemap/roomBridge";
-import { seenCombatants } from "@/lib/battlemap/vision";
 import { usePlayerMapFollow } from "@/composables/player/usePlayerMapFollow";
 import { usePlayerMapPointer } from "@/composables/player/usePlayerMapPointer";
 import { usePlayerMapMove } from "@/composables/player/usePlayerMapMove";
-import { usePlayerMapSight } from "@/composables/player/usePlayerMapSight";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import PlayMovePath from "@/components/encounters/play/PlayMovePath.vue";
 import PlayTableMarks from "@/components/encounters/play/PlayTableMarks.vue";
@@ -218,20 +223,6 @@ const standLiveUrl = computed(() =>
     : null,
 );
 
-// Decode only when the source string actually changes (a plain `computed`
-// would re-decode on every liveState mutation, including unrelated token
-// HP / position pushes that happen many times per second during combat).
-const fogMask = ref<Set<string>>(new Set());
-watch(
-  () => liveState.value?.fog_mask ?? null,
-  (src) => { fogMask.value = decodeFogMask(src); },
-  { immediate: true },
-);
-
-// Player view: combatants whose anchor cell sits in a fogged cell are
-// hidden, regardless of reveal_state. This is the "monsters walk out of
-// sight" feature without LoS — just a cell membership check. Tokens with
-// no position render at the origin row (visible by default).
 // Every store this view reads is declared first: the computeds below run during setup (the token filter reads
 // `sight`, which reads the own member through `auth`), and a store declared further down would still be in its
 // temporal dead zone when they do.
@@ -247,19 +238,65 @@ const showTokens = computed(
   () => campaignStore.activeCampaign?.battle_map_show_tokens ?? true,
 );
 
+const {
+  canvasHost,
+  hostW,
+  hostH,
+  imageNaturalW,
+  imageNaturalH,
+  imageReady,
+  panX,
+  panY,
+  scale,
+  onImageLoad,
+  onWheel,
+  startPan,
+  continuePan,
+  endPan,
+  resetView,
+} = useMapCanvas();
+
+// Spheres of magical darkness and the doors the DM opened or shut this fight, from the player-safe projection. A re-read
+// hands a fresh array of equal content; the previous one is kept so the occluders memoised on its identity are not rebuilt.
+const zones = computed<readonly DarknessZone[]>(() => (liveState.value ? liveState.value.magical_darkness : NO_ZONES));
+const doorStates = computed<readonly MapLiveDoorState[]>((prev) => {
+  const next = liveState.value ? liveState.value.door_states : NO_DOOR_STATES;
+  return prev && sameDoorStates(prev, next) ? prev : next;
+});
+
+// The map's grid in battle cells: the calibration gives the columns, the picture's shape the rows.
+const mapGrid = computed<MapGrid | null>(() => {
+  const calibration = image.value?.calibration;
+  if (!calibration || !imageReady.value || imageNaturalW.value <= 0) return null;
+  const cols = calibration.cells_per_image_width;
+  return { cols, rows: Math.ceil((cols * imageNaturalH.value) / imageNaturalW.value) };
+});
+
+// What the phone sees: the whole party's eyes, or only its own character's when the campaign says "each their own".
+const { viewers, sight } = usePartySight({
+  live,
+  doorStates,
+  zones,
+  tokens: () => (liveState.value?.combatants_live ? liveState.value.combatants_live : []),
+  grid: mapGrid,
+  onlyInstanceId: () => (campaignStore.activeCampaign?.player_sight === "own" ? ownInstanceId.value : null),
+});
+// What the map remembers is only read here; the DM's windows write it.
+const { memory } = useMapMemory(
+  () => campaignStore.activeCampaign?.id ?? null,
+  () => location.value?.id ?? null,
+);
+const shown = computed(() => shownCells(memory.value, sight.value));
+
 const liveCombatants = computed<RunCombatant[] | null>(() => {
   // Campaign-level kill switch: when the DM has disabled VTT tokens for
   // players, omit the token layer entirely (map + fog only).
   if (!showTokens.value) return [];
   const list = liveState.value?.combatants_live;
   if (!list) return null;
-  // "Tokens obey fog" (#884, wave 4): a monster that has walked out of
-  // revealed space disappears from the player's own map, VTT tokens or not.
-  const revealed = revealedCombatants(list, fogMask.value);
-  // In the dark a token you cannot see is not drawn either (#1073 story 5); fog above still applies.
-  return sight.value ? seenCombatants(revealed, sight.value.scene, sight.value.viewers, ownInstanceId.value) : revealed;
+  // Your own token always; any other only where the party sees it right now.
+  return partyVisibleCombatants(list, sight.value, ownInstanceId.value);
 });
-const { zones, doorStates, sight, viewers } = usePlayerMapSight(live, ownInstanceId);
 const dollFigures = useCombatantDollFigures(() => liveCombatants.value ?? []);
 const activeInstanceId = computed(() => {
   const list = liveState.value?.combatants_live;
@@ -290,24 +327,6 @@ const follow = ref(true);
 const table = useTableChannel(() => campaignStore.activeCampaign?.id ?? null, {
   identity: () => (auth.user ? { id: auth.user.id, name: auth.publicName ?? "A player", color: senderColor(auth.user.id) } : null),
 });
-
-const {
-  canvasHost,
-  hostW,
-  hostH,
-  imageNaturalW,
-  imageNaturalH,
-  imageReady,
-  panX,
-  panY,
-  scale,
-  onImageLoad,
-  onWheel,
-  startPan,
-  continuePan,
-  endPan,
-  resetView,
-} = useMapCanvas();
 
 const loadingState = computed(() => {
   if (!liveState.value) return "No live encounter right now.";

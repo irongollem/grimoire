@@ -21,6 +21,11 @@ const h = await vi.hoisted(async () => {
     push: vi.fn(),
     startFightAt: vi.fn(),
     open: vi.fn(),
+    doors: vueRef<unknown[]>([]),
+    prepared: vueRef<{ id: string; name: string }[]>([]),
+    remember: vi.fn(),
+    rememberArgs: [] as unknown[],
+    memory: vueRef<Set<string>>(new Set()),
   };
 });
 
@@ -45,7 +50,7 @@ vi.mock("@/composables/locations/useLocationState", () => ({
   useLocationStateForRooms: () => ({ stateOf: (id: string, fact: string) => (fact === "explored" && h.explored.has(id) ? { value: true } : undefined) }),
   useDoorStateForSite: () => ({ stateOf: () => undefined }),
 }));
-vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: h.doors }) }));
 vi.mock("@/composables/locations/useMoveParty", () => ({ useMoveParty: () => ({ moveParty: h.moveParty }) }));
 vi.mock("@/composables/locations/useExploreParty", () => ({ useExploreParty: () => ({ tokens: h.tokens, place: h.place, seatAt: h.seatAt }), usePartyTokenSizes: () => () => null }));
 vi.mock("@/composables/encounters/useStartFight", () => ({ useStartFight: () => ({ startFightAt: h.startFightAt, starting: ref(false) }) }));
@@ -54,6 +59,12 @@ vi.mock("@/composables/quests/useBeatsStagedAt", () => ({ useBeatsStagedAt: () =
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useLootPlacements: () => ({ data: ref([]) }),
   useQuestBeat: () => ({ data: ref(undefined) }),
+}));
+vi.mock("@/composables/encounters/usePreparedEncounters", () => ({ usePreparedEncounters: () => ({ prepared: h.prepared }) }));
+vi.mock("@/composables/encounters/usePartySight", () => ({ usePartySight: () => ({ sight: ref(new Set(["1,1"])), viewers: ref([]) }) }));
+vi.mock("@/composables/locations/useMapMemory", () => ({ useMapMemory: () => ({ memory: h.memory, isLoading: ref(false) }) }));
+vi.mock("@/composables/locations/useRememberSight", () => ({
+  useRememberSight: (opts: { enabled: boolean | (() => boolean) }) => h.rememberArgs.push(opts.enabled),
 }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 
@@ -68,10 +79,11 @@ const REGIONS = [region("hall", ["10,20", "11,20", "12,20"]), region("crypt", ["
 
 const MapStub = defineComponent({
   name: "ExploreMap",
-  props: ["tokens", "shadedCells", "enteringCells"],
+  props: ["tokens", "enteringCells", "fogMask", "fogSeen"],
   emits: ["move", "select", "update:groupIds", "seat", "frame"],
   template: "<div data-testid='map'><slot /></div>",
 });
+const PartyStub = defineComponent({ name: "ExplorePartyPanel", emits: ["go"], template: "<div />" });
 const PlanStub = defineComponent({ name: "LocationMap", emits: ["move-party"], template: "<div data-testid='plan' />" });
 const ShellStub = defineComponent({
   template: "<div><slot name='bar' /><slot name='left' /><slot name='map' /><slot name='right' /></div>",
@@ -94,13 +106,14 @@ async function walkIntoCrypt(currentRoom = "hall") {
 function mountView(currentRoom: string | null = "hall") {
   const campaign = useCampaignStore();
   campaign.activeCampaign = { id: "c1", current_location_id: currentRoom } as never;
+  campaign.activeCampaignId = "c1";
   return mount(SiteExploreView, {
     global: {
       stubs: {
         PlayShell: ShellStub,
         ExploreMap: MapStub,
         LocationMap: PlanStub,
-        ExplorePartyPanel: true,
+        ExplorePartyPanel: PartyStub,
         ExploreRoomCard: true,
         TriggerBeatPrompt: true,
         PlayViewMenu: true,
@@ -121,29 +134,80 @@ describe("SiteExploreView", () => {
     h.surface.value = { calibration };
     // The lead token stands at x=4, y=0: the crypt's first cell (region cell 14,20 less the origin 10,20).
     h.tokens.value = [stand("a", 4), stand("b", 5)];
+    h.prepared.value = [];
+    h.doors.value = [];
+    h.memory.value = new Set();
+    h.rememberArgs = [];
   });
 
-  // #1125 decision 9, frame 09.
-  it("asks before showing a room the party has not seen, and Reveal moves the party's room there", async () => {
+  // Epic #1133 decision 7: entering a room is the exploring; nothing is asked.
+  it("moves the party into a room the lead walks into, with no prompt and no reachability question", async () => {
     const w = await walkIntoCrypt();
-    expect(w.find("[data-testid='explore-reveal-slip']").text()).toContain("Crypt");
-    expect(h.moveParty).not.toHaveBeenCalled();
-    await w.findAll("button").find((b) => b.text() === "Reveal the room")!.trigger("click");
-    expect(h.moveParty).toHaveBeenCalledWith(expect.objectContaining({ roomId: "crypt", currentRoomId: "hall" }));
-  });
-
-  it("Not yet puts the question away without moving the party", async () => {
-    const w = await walkIntoCrypt();
-    await w.findAll("button").find((b) => b.text() === "Not yet")!.trigger("click");
     expect(w.find("[data-testid='explore-reveal-slip']").exists()).toBe(false);
-    expect(h.moveParty).not.toHaveBeenCalled();
+    expect(h.moveParty).toHaveBeenCalledWith({ roomId: "crypt", roomName: "Crypt", currentRoomId: "hall", reachable: null });
   });
 
-  it("does not ask when the lead steps into a room the party has already explored; the party just follows", async () => {
+  it("still asks about reachability when the room is picked from the list", async () => {
+    // A door out of the hall to a third room only: the crypt is not reachable from the hall.
+    h.doors.value = [{ id: "d1", from_location_id: "hall", to_location_id: "vault" }];
+    const w = mountView();
+    await flushPromises();
+    w.findComponent({ name: "ExplorePartyPanel" }).vm.$emit("go", "crypt");
+    await flushPromises();
+    expect(h.moveParty).toHaveBeenCalledWith(expect.objectContaining({ roomId: "crypt", reachable: expect.any(Set) }));
+  });
+
+  it("moves the party into an already explored room just the same", async () => {
     h.explored = new Set(["hall", "crypt"]);
-    const w = await walkIntoCrypt();
-    expect(w.find("[data-testid='explore-reveal-slip']").exists()).toBe(false);
+    await walkIntoCrypt();
     expect(h.moveParty).toHaveBeenCalledWith(expect.objectContaining({ roomId: "crypt" }));
+  });
+
+  it("offers the encounter set in the party's room, and Start it opens the runner live", async () => {
+    h.prepared.value = [{ id: "e1", name: "Ghouls" }];
+    const w = mountView("crypt");
+    await flushPromises();
+    expect(w.get("[data-testid='explore-encounter-slip']").text()).toContain("Ghouls is set here.");
+    await w.findAll("button").find((b) => b.text() === "Start it")!.trigger("click");
+    expect(h.push).toHaveBeenCalledWith({ path: "/encounters/e1/run", query: { live: "1" } });
+  });
+
+  it("offers nothing when no encounter is prepared in the room", async () => {
+    const w = mountView("crypt");
+    await flushPromises();
+    expect(w.find("[data-testid='explore-encounter-slip']").exists()).toBe(false);
+  });
+
+  it("says how many more are set in the room beyond the one offered", async () => {
+    h.prepared.value = [{ id: "e1", name: "Ghouls" }, { id: "e2", name: "Bats" }];
+    const w = mountView("crypt");
+    await flushPromises();
+    expect(w.get("[data-testid='explore-encounter-slip']").text()).toContain("+1 more");
+  });
+
+  it("Not now holds while the party stays in the room and offers again on coming back", async () => {
+    h.prepared.value = [{ id: "e1", name: "Ghouls" }];
+    const w = mountView("crypt");
+    await flushPromises();
+    await w.findAll("button").find((b) => b.text() === "Not now")!.trigger("click");
+    expect(w.find("[data-testid='explore-encounter-slip']").exists()).toBe(false);
+    expect(h.push).not.toHaveBeenCalled();
+    const campaign = useCampaignStore();
+    campaign.activeCampaign = { id: "c1", current_location_id: "hall" } as never;
+    await flushPromises();
+    campaign.activeCampaign = { id: "c1", current_location_id: "crypt" } as never;
+    await flushPromises();
+    expect(w.find("[data-testid='explore-encounter-slip']").exists()).toBe(true);
+  });
+
+  it("draws what the party sees and remembers as the map's fog, and is the window that writes the memory", async () => {
+    h.memory.value = new Set(["5,5"]);
+    const w = mountView();
+    await flushPromises();
+    const map = w.findComponent({ name: "ExploreMap" });
+    expect([...(map.props("fogMask") as Set<string>)].sort()).toEqual(["1,1", "5,5"]);
+    const enabled = h.rememberArgs as (boolean | (() => boolean))[];
+    expect(enabled.map((e) => (typeof e === "function" ? e() : e))).toEqual([true]);
   });
 
   it("does not ask while the lead stays in the room the party is in", async () => {

@@ -7,7 +7,7 @@ summary: The map on the Play screen: tokens and their sizes, moving by the book,
 keywords: measure, area of effect, ping, draw, damage all, encounter, map, battle map, play, fog of war, fog, brush, reveal, hide, token, size, move, movement, turn card, room, site, cartographer, difficult terrain, legend
 ---
 
-The map is part of the Play screen, the one screen that runs a fight. From tablet width up it is full screen: the initiative list (and any unplaced combatants) on the left, the map in the middle with its toolbelt along the bottom, and the turn card or a character sheet on the right. Open it from an encounter with **Run Encounter** (`/encounters/:id/run`). Once you are live, **Open the table screen in a new window** opens the same map in the players' eyes on a second monitor (`/encounters/:id/table`). On a phone the runner has a **List | Map** switch instead.
+The map is part of the Play screen, the one screen that runs a fight. From tablet width up it is full screen: the initiative list (and any unplaced combatants) on the left, the map in the middle with its toolbelt along the bottom, and the turn card or a character sheet on the right. Open it from an encounter with **Run Encounter** (`/encounters/:id/run`). **Table screen** (always available) opens the map's one Table screen in the players' eyes on a second monitor (`/locations/:id/table`); it follows the party while you explore and shows the fight while one is live. On a phone the runner has a **List | Map** switch instead.
 
 ## Key ideas
 
@@ -15,8 +15,9 @@ The map is part of the Play screen, the one screen that runs a fight. From table
 | --- | --- |
 | **Battle surface** | Whichever map actually gets drawn: the location's own uploaded image, or (for a room with none of its own) its site's published Atlas plan, focused on that room. |
 | **Calibration** | The 5-ft grid scale a map needs before it can be used here at all. Set from the location (own map) or from the Cartographer (a site plan). |
-| **Fog mask** | What's currently revealed to players. You paint it; it syncs to them live. |
-| **Focus room** | When the battle surface is a site plan, the one room the fight is dimmed down to. |
+| **Map memory** | What the party has seen or you have revealed on this map. It belongs to the map, not the fight, so it carries from exploring into every fight there and back. Hide all clears it. |
+| **Sight** | What the party's characters can see right now: in light or within their darkvision, with a clear line (walls and closed doors stop it). Sight lifts the fog by itself. |
+| **Focus room** | When the battle surface is a site plan, the one room the fight is set in. You see it outlined and labelled "Fight here"; your players never see that. |
 
 ## Getting to a usable battle map
 
@@ -67,31 +68,37 @@ Everything you do with these shows on your players' screens too.
 
 - **Measure** (M): drag from anywhere, or click to keep the line and click again to bend it round a pillar. Click the square it already ends at, or press Esc, to let it go. It reads the length by the book, 5 ft a square with diagonals included. While it is there the players see the line.
 - **Area** (T): pick **Sphere**, **Cone**, **Line** or **Cube** and a size in feet. A sphere or cube follows the pointer and a click sets it down. A cone or line starts from the selected token and points where you aim; with nobody selected, click once to set where it starts. The squares it covers are tinted, and the creatures inside are ringed and selected for you, so the slip reads, for example, "20 ft · 3 inside". Type an amount and press **Damage all 3** to take it off everyone selected; click tokens first if you want to add someone or leave someone out. You still roll their saves your own way. A square counts as covered when the area covers at least half of it.
-- **Fog** (F): **Room** reveals a whole traced room with one click, **Brush** and **Hide** paint as before. Rooms you reveal this way are offered as explored when the fight ends. **As players see it** shows the map the way your players see it.
+- **Fog** (F): **Room** reveals a whole traced room with one click, **Brush** and **Hide** paint as before. Your brush reveals stay on the map. **As players see it** shows the map the way your players see it.
 - **Ping** (P): click or hold anywhere. Everyone sees a gilt ripple with "your name pinged". On a phone a player pings by holding a finger on the map for half a second.
 - **Draw** (D): draw freehand in your own colour. Strokes fade when the turn ends unless **Pin drawings** is on; **Clear drawings** wipes them all.
 
-The map you use while exploring a site has Move, Measure, Ping and Draw; fog there is by room.
+The map you use while exploring a site has Move, Measure, Ping and Draw. Its fog is the same map memory the fight uses, so you will see the same fog there.
 
 ## Fog of war
 
-Going live seeds the fog to reveal the room the party starts in, so they're never staring at a blank map wondering where they are. From there:
+The fog belongs to the map, so going live does not wipe it: whatever the party has already seen of this map, while exploring or in an earlier fight, is still revealed. As characters move, what they can see lifts the fog by itself. You can still reveal or hide by hand:
 
 1. Pick **Brush** (reveal) or **Hide** (re-hide), a shape, and a size. Or pick **Room** and click a traced room to reveal all of it.
-2. Paint over the map. Every stroke pushes to players in real time.
-3. Use **Reveal all** or **Hide all** for a clean sweep instead of painting by hand.
+2. Paint over the map. Every stroke reaches players in real time, and stays on the map after the fight.
+3. Use **Reveal all** or **Hide all** for a clean sweep instead of painting by hand. **Hide all** also makes the map forget what the party had seen.
+
+Sight uses each character's real senses: darkvision from their species and their Senses field. A character standing in complete darkness without darkvision sees nothing and reveals nothing; on a map with no lights drawn, daylight is assumed and only walls and closed doors limit sight.
+
+In **Remembered** mode (the default) squares the party has seen stay revealed, shaded a little where nobody can see them right now. In **Strict** mode only what they see now shows, plus what you reveal by hand. Both are set in Campaign Settings (see [Campaign Settings](#campaign-settings)).
 
 ## Difficult terrain
 
 A zone you've traced as difficult terrain is outlined in dashed cyan on the map (turn on **Zones** and **Legend** in the View menu) and costs double to cross, as described under Moving tokens. Nothing slows anyone for you automatically beyond the feet the counter shows; the speed itself is still yours to keep.
 
-## Ending combat: marking rooms explored
+## Rooms and ending combat
 
-When you end combat, if the fog revealed enough of a room to count (at least half its traced cells), Grimoire asks once ("Mark N rooms revealed in combat as explored?"), covering every qualifying room in one prompt, never room by room. Confirming records each room as explored in the Atlas's location-state log. This only ever adds: brushing fog back to hidden mid-fight never un-explores a room afterward.
+When a player character's token moves into a traced room during a fight, Grimoire marks that room as explored right then, with the note "entered in a fight". Nothing is asked. It only ever adds: it never un-explores a room.
+
+When you end combat, the party is left standing where the fight left them, so the explore screen picks up from those squares.
 
 ## What your players see
 
-Players reach their own view from the **View battle map** button on their encounter panel, on a phone as well as a tablet or desktop. It needs only a calibrated grid on the map: the location does not have to be flagged as a battle map. It's always fog-gated with no "as player" toggle needed, since it already is one: hidden combatants never appear, unseen ones show as an unnamed silhouette, and even a token marked Revealed disappears the moment its cell isn't currently under fog. Tokens obey fog, not just reveal state. Players see the plain map, grid, fog, and tokens; the dimmed-outside-the-room effect and the difficult-terrain outline are DM-only. A campaign-wide setting can hide the token layer for players entirely, showing them only the map and fog.
+Players reach their own view from the **View battle map** button on their encounter panel, on a phone as well as a tablet or desktop. It needs only a calibrated grid on the map: the location does not have to be flagged as a battle map. It's always fog-gated with no "as player" toggle needed, since it already is one: hidden combatants never appear, unseen ones show as an unnamed silhouette, and even a token marked Revealed disappears when nobody in the party can see its square. Tokens obey sight, not just reveal state. Players see the plain map, grid, fog, and tokens; the "Fight here" outline and the difficult-terrain outline are DM-only, and the rest of the map is never dimmed for them. What a player sees is what the map remembers plus what their characters can see now. Their own token always shows; any other token (a teammate or a monster) shows only where someone in the party can see it. With the **Each their own** Sight setting, a phone shows only what that player's own character can see. A campaign-wide setting can hide the token layer for players entirely, showing them only the map and fog.
 
 A player moves only their own character's token, in either of two ways: drag it, or tap the token and then tap a square. A tap shows the path and a ghost of the token, and a **Move here?** card with the feet against their speed ("20 of 30 ft", gilt within the speed, amber for a Dash, red beyond it) and **Cancel** and **Move** buttons. The counter only warns; it never refuses a move.
 

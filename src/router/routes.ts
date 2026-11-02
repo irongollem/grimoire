@@ -718,11 +718,11 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/locations/SiteExploreView.vue"),
     meta: { requiresAuth: true, title: "Exploring" },
   },
-  // The same site on the Table screen: the party and the rooms they have explored, for a screen the table looks at.
+  // One Table screen per map (epic #1133): follows the party, shows a fight on this map while one is live, for a screen the table looks at.
   {
     path: "/locations/:id/table",
-    name: "site-table",
-    component: () => import("@/views/locations/SiteTableView.vue"),
+    name: "map-table",
+    component: () => import("@/views/locations/MapTableView.vue"),
     meta: { requiresAuth: true, title: "Table screen" },
   },
 
@@ -936,13 +936,6 @@ export const routes: RouteRecordRaw[] = [
     name: "encounter-run",
     component: () => import("@/views/encounters/EncounterRunView.vue"),
     meta: { requiresAuth: true, title: "Combat" },
-  },
-  {
-    // The Table screen (#1125): the map a DM opens in a second window, for a TV on the table.
-    path: "/encounters/:id/table",
-    name: "encounter-table",
-    component: () => import("@/views/encounters/EncounterTableView.vue"),
-    meta: { requiresAuth: true, title: "Table screen" },
   },
 
   // Quests

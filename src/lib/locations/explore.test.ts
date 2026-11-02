@@ -16,6 +16,7 @@ import {
   roomBattleCells,
   roomBeingEntered,
   roomCellIndex,
+  roomsUnder,
   roomUnder,
   seatFromExploring,
   seatInFormation,
@@ -49,6 +50,17 @@ describe("room cells", () => {
     expect(roomUnder({ x: 2, y: 0 }, 1, index)).toBe("hall");
     expect(roomUnder({ x: 3, y: 0 }, 2, index)).toBeNull();
     expect(roomUnder({ x: 3, y: -1 }, 2, index)).toBe("crypt");
+  });
+});
+
+describe("roomsUnder", () => {
+  const index = roomCellIndex([hall, crypt], calibration);
+  it("marks a room when any square of a big token's footprint is in it, and ignores unplaced tokens", () => {
+    // A Large token at 3,0 covers 3..4: its 4,0 square is the crypt's.
+    expect([...roomsUnder([{ size: "large", position: { x: 3, y: 0 } }, { position: null }], index)]).toEqual(["crypt"]);
+  });
+  it("floors a Tiny token's half-square position onto its own square", () => {
+    expect([...roomsUnder([{ footprint: 0.5, position: { x: 4.5, y: 0.5 } }], index)]).toEqual(["crypt"]);
   });
 });
 

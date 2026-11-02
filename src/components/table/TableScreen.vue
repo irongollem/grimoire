@@ -25,6 +25,20 @@
           :door-states="doorStates"
         />
 
+        <BattleMapFogLayer
+          v-if="imageReady && cellPx > 0"
+          :host-w="hostW"
+          :host-h="hostH"
+          :cell-px="cellPx"
+          :origin-x="gridOrigin.x"
+          :origin-y="gridOrigin.y"
+          :mask="fogMask"
+          :seen="seen"
+          :opaque="true"
+        />
+
+        <!-- Above the fog: a character standing in the dark is still on the table, the room around them is not. Only
+             tokens the party may see reach this layer (tableTokens), so nothing hidden is drawn over the black. -->
         <BattleMapTokenLayer
           v-if="imageReady && cellPx > 0"
           :host-w="hostW"
@@ -41,17 +55,6 @@
           :draggable-instance-ids="NOBODY"
           :portrait-overrides="portraitOverrides"
           :figures="dollFigures"
-        />
-
-        <BattleMapFogLayer
-          v-if="imageReady && cellPx > 0"
-          :host-w="hostW"
-          :host-h="hostH"
-          :cell-px="cellPx"
-          :origin-x="gridOrigin.x"
-          :origin-y="gridOrigin.y"
-          :mask="fogMask"
-          :opaque="true"
         />
 
         <PlayTableMarks
@@ -98,7 +101,7 @@ import type { DarknessZone } from "@/lib/battlemap/illumination";
 import { NO_ZONES } from "@/lib/battlemap/illumination";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
-import { partyViewers, type Viewer } from "@/lib/battlemap/vision";
+import type { Viewer } from "@/lib/battlemap/vision";
 import { panToKeepInView } from "@/lib/table/follow";
 import { prefersReducedMotion } from "@/lib/motion";
 import { useCampaignStore } from "@/stores/campaign";
@@ -112,13 +115,15 @@ import TableRibbon from "./TableRibbon.vue";
 /**
  * The Table screen (#1125 frame 13, decision 15): the map alone, in the players' eyes, for a screen the table looks
  * at. It draws what it is handed and decides nothing: `lib/table/tableScreen.ts` has already taken away what the
- * players may not see. It follows `follow` smoothly, plays a moving map through the stack, and shows the marks the
+ * players may not see, and the squares and viewers come from the party's sight. It follows `follow` smoothly, plays a moving map through the stack, and shows the marks the
  * table sends over the channel.
  */
 const {
   surface,
   combatants,
   fogMask,
+  seen,
+  viewers,
   factions = [],
   monsters = [],
   activeInstanceId = null,
@@ -134,7 +139,12 @@ const {
   surface: BattleSurface;
   /** Already what the table may see: the map draws exactly these. */
   combatants: RunCombatant[];
+  /** The squares shown: what the map remembers plus what the party sees now. */
   fogMask: Set<FogCellKey>;
+  /** What the party sees now; shown squares outside it are drawn half fogged (remembered, not seen). */
+  seen: ReadonlySet<FogCellKey>;
+  /** The party's eyes, with their real senses: the veil's sight in the dark. */
+  viewers: Viewer[];
   factions?: readonly FactionColor[];
   monsters?: Monster[];
   activeInstanceId?: string | null;
@@ -150,6 +160,8 @@ const {
   /** Why there is nothing to draw yet. */
   message?: string | null;
 }>();
+
+const emit = defineEmits<{ imageSize: [size: { w: number; h: number }] }>();
 
 const NOBODY = new Set<string>();
 
@@ -178,8 +190,14 @@ const gridStrokeOpacity = computed(() => surface.calibration.grid_opacity ?? DEF
 const portraitOverrides = useCombatantMinis(() => combatants);
 const dollFigures = useCombatantDollFigures(() => combatants);
 
-// Sight in the dark is the party's: a character sees what is lit around them (`partyViewers`).
-const viewers = computed<Viewer[]>(() => partyViewers(combatants));
+// The map's size gives the caller the grid sight is computed over.
+watch(
+  () => [imageReady.value, imageNaturalW.value, imageNaturalH.value] as const,
+  ([ready, w, h]) => {
+    if (ready && w > 0 && h > 0) emit("imageSize", { w, h });
+  },
+  { immediate: true },
+);
 
 // ── The table channel: marks only arrive here, this window sends none ───────
 const campaign = useCampaignStore();

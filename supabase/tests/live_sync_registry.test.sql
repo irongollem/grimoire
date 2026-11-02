@@ -89,7 +89,9 @@ insert into live_sync_doorbell (name) values
   -- World Web (#1084).
   ('world_links'),
   -- Open Book (#1085): the owner's settings, releases and choices, read by the owner only.
-  ('open_books'), ('open_book_releases'), ('open_book_entries');
+  ('open_books'), ('open_book_releases'), ('open_book_entries'),
+  -- What the party has seen of a map (#1133).
+  ('map_memory');
 
 -- Campaign tables deliberately on no route, each with the reason. Grimoire
 -- runs live games, so a table a member's screen reads is live by default; the

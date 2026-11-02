@@ -22,6 +22,19 @@ function mountBar() {
   });
 }
 
+describe("PlayBar table screen button", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  // #1133: the Table screen is the map's, so a fight that is not live yet can still open it.
+  it("is enabled before the fight is live and asks the runner to open the table screen", async () => {
+    const w = mountBar();
+    const button = w.findAll("button").find((b) => b.text().includes("Table screen"))!;
+    expect(button.attributes("disabled")).toBeUndefined();
+    await button.trigger("click");
+    expect(w.emitted("table-screen")).toHaveLength(1);
+  });
+});
+
 describe("PlayBar back link", () => {
   beforeEach(() => {
     setActivePinia(createPinia());

@@ -31,8 +31,14 @@ The **Details** tab holds the campaign's core identity and table-wide toggles.
    - **Immersive**: player characters show a bar only (no numbers); monsters show status words only.
    - **Unknown**: no health information shown for anything that isn't a player character.
 8. **Immersive Rolls**: when on, Stealth, Investigation, and Insight-style checks show only flavor text in chat; the full numeric result is whispered to the DM only, so the player never sees their own roll's outcome.
-9. **Show VTT tokens to players**: when off, the player-facing battle map shows only the map and fog of war, with no character or monster tokens. Use this for in-person sessions run with physical minis or theater of the mind; your own DM view is unaffected either way.
-10. Click **Save Changes**.
+9. **Map memory**: how much of the map your players keep once they have seen it.
+   - **Remembered** (the default): what the party has seen stays on the map, shaded a little where they cannot see right now.
+   - **Strict**: the map shows only what the party can see right now, plus anything you reveal by hand.
+10. **Sight**: whose eyes a player's phone looks through.
+   - **Shared by the party** (the default): every screen shows what any character can see. Best when everyone sits at one table.
+   - **Each their own**: a player's phone shows only what their own character can see. Best for online play. The table screen on your TV always shows the whole party.
+11. **Show VTT tokens to players**: when off, the player-facing battle map shows only the map and fog of war, with no character or monster tokens. Use this for in-person sessions run with physical minis or theater of the mind; your own DM view is unaffected either way.
+12. Click **Save Changes**.
 
 ## Managing members and invites
 

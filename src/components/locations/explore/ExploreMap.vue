@@ -36,9 +36,21 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :shaded="shadedCells"
         :entering="enteringCells"
         :rooms="view.showZones ? rooms : []"
+      />
+
+      <!-- What the party has seen and sees: the DM's translucent hint, never opaque (epic #1133). -->
+      <BattleMapFogLayer
+        v-if="fogMask && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :mask="fogMask"
+        :seen="fogSeen"
+        class="pointer-events-none"
       />
 
       <BattleMapTokenLayer
@@ -94,7 +106,7 @@
       Click a square and the party moves together, in order. Click one token to send it alone, and again to bring everyone back.
     </p>
 
-    <!-- Fog is by room while exploring, so no Fog, Area or Darkness here (#1125 frame 11). -->
+    <!-- Fog is the map's memory while exploring, so no Fog, Area or Darkness tools here (#1125 frame 11, epic #1133). -->
     <PlayToolbelt
       v-if="imageReady"
       v-model:tool="tool"
@@ -111,6 +123,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
+import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import PlayMovePath from "@/components/encounters/play/PlayMovePath.vue";
@@ -125,6 +138,7 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import { isClick } from "@/components/encounters/play/playPointer";
 import { usePlayTokenMoves, type MoveMapState, type MoveTurnBook } from "@/components/encounters/play/usePlayTokenMoves";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
+import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import type { ExploreCell, ExploreFrame } from "@/lib/locations/explore";
@@ -137,29 +151,33 @@ import ExploreRoomLayer from "./ExploreRoomLayer.vue";
 
 /**
  * The site's map while the party explores it (#1125 decision 9, frame 09): the same battle-map stack, token layer and
- * movement rules a fight uses, with the party's tokens, the unexplored rooms shaded for the DM and the room being
+ * movement rules a fight uses, with the party's tokens, the party's remembered sight as fog for the DM and the room being
  * entered outlined. It writes nothing itself: a move is handed up as the squares the characters now stand on.
  */
 const {
   surface,
   tokens,
   rooms,
-  shadedCells,
   enteringCells,
   view = DEFAULT_PLAY_VIEW,
   selectedId = null,
   groupIds = [],
+  fogMask = null,
+  fogSeen = null,
 } = defineProps<{
   surface: BattleSurface;
   tokens: RunCombatant[];
   rooms: readonly { id: string; name: string; cells: readonly CellKey[] }[];
-  shadedCells: readonly CellKey[];
   enteringCells: readonly CellKey[];
   view?: PlayViewState;
   /** The token moved on its own, or the lead of the group. */
   selectedId?: string | null;
   /** Several tokens moving together; empty when only `selectedId` is selected. */
   groupIds?: string[];
+  /** The squares the party has seen or sees (map memory plus sight); null draws no fog. */
+  fogMask?: Set<FogCellKey> | null;
+  /** The squares in view right now; a revealed square outside it keeps a partial fog. */
+  fogSeen?: ReadonlySet<FogCellKey> | null;
 }>();
 
 const emit = defineEmits<{

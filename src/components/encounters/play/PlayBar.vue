@@ -65,8 +65,7 @@
         size="sm"
         :icon="IconMonitor"
         label="Table screen"
-        :tooltip="isLive ? 'Open the table screen in a new window (for a second monitor)' : 'Go live first. The table screen follows the live fight.'"
-        :disabled="!isLive"
+        tooltip="Open the table screen for this map in a new window (for the TV)"
         @click="emit('table-screen')"
       />
       <PlayViewMenu v-model="view" @reset-view="emit('reset-view')" />

@@ -247,6 +247,8 @@ import AppButton from '@/components/common/controls/AppButton.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
+import { useSetExploreParty } from "@/composables/campaign/useCampaigns";
+import { partyAfterFight } from "@/lib/encounters/exploreAfterFight";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
@@ -297,7 +299,7 @@ const fightSite = useEncounterSite(encounterId);
 const campaign = useCampaignStore();
 const appUi = useAppUiStore();
 const toast = useToast();
-const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
+const { isLive, liveStateLoaded, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
 const goingLive = ref(false);
 const { sendSystemMessages } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
@@ -309,12 +311,13 @@ const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
 // Shared with the Play map (via useEncounterRoom internally): the two must never disagree
 // about which map an encounter opens on, which cells are its focus room, or when it is legal.
-const { canOpenBattleMap, battleMapDisabledReason, markRoomsExploredFromFogMask } =
-  useCombatExploration(encounterId);
+const { canOpenBattleMap, battleMapDisabledReason, mapPlaceId } = useCombatExploration(encounterId);
+const { mutateAsync: setExploreParty } = useSetExploreParty();
 
-/** The table screen is a second window that follows the live fight (for a second monitor). */
+/** The table screen is the map's own, a second window for the TV; it follows this fight while it is live (#1133). */
 function openTableScreen() {
-  window.open(`/encounters/${encounterId.value}/table`, "_blank", "noopener,noreferrer");
+  if (mapPlaceId.value === null) return;
+  window.open(`/locations/${mapPlaceId.value}/table`, "_blank", "noopener,noreferrer");
 }
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: updateNpc } = useUpdateNpc();
@@ -580,6 +583,22 @@ watch(
   },
 );
 
+// The Explore screen's "Start it" arrives with ?live=1 (#1133 decision 7): go live once the live row has been read,
+// (declared after the party sync it uses, since an immediate watch runs at once) through the same handler as the button (which also ensures a session), then drop the query so a reload does not retry.
+let liveIntentHandled = false;
+watch(
+  [() => route.query.live, liveStateLoaded],
+  async ([intent, loaded]) => {
+    if (intent !== "1" || !loaded || liveIntentHandled) return;
+    liveIntentHandled = true;
+    if (!isLive.value) await handleGoLive();
+    const rest = { ...route.query };
+    delete rest.live;
+    await router.replace({ query: rest });
+  },
+  { immediate: true },
+);
+
 async function handleAbandon() {
   if (!await confirm("Abandon this run? Party HP and conditions will NOT be updated.")) return;
   await endLive();
@@ -599,10 +618,9 @@ async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   // A change still waiting for its debounced write is absorbed by the
   // authoritative write below (writePartyMember merges it); nothing is dropped.
-  // Read before endLive() clears it — leaving asserts explored for whatever
-  // the room-anchored fog mask actually revealed (frame 16), never the
-  // reverse: un-brushing a cell never un-explores a room.
-  const fogMaskAtEnd = liveState.value?.fog_mask ?? null;
+  // Where the tokens stand comes from the live row, read before endLive() clears it: the runner's store does not
+  // hear a player moving their own token.
+  const tokensAtEnd = liveState.value?.encounter_id === encounterId.value ? liveState.value.combatants_live : store.combatants;
   await endLive();
   // Hands the music slot back to whatever was playing before the fight, or
   // stops it if the DM had nothing running.
@@ -638,9 +656,10 @@ async function handleEndCombat() {
     ),
   ]);
 
-  // One prompt, not seven toggles (frame 16): every room the party actually
-  // saw this fight becomes one confirm, not a per-room decision.
-  await markRoomsExploredFromFogMask(fogMaskAtEnd);
+  // The party stands where the fight left them (#1133 decision 7). Rooms were marked explored live as they entered.
+  const activeCampaign = campaign.activeCampaign;
+  const standing = partyAfterFight(tokensAtEnd, activeCampaign?.explore_party ?? null, fightSite.value?.id ?? null);
+  if (activeCampaign && standing) await setExploreParty({ id: activeCampaign.id, explore: standing });
 
   store.reset();
   // A fight anchored in a site goes back to exploring it; any other back to its encounter (#1125).

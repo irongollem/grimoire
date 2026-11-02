@@ -244,36 +244,3 @@ export function seedTokenPositions(
     return c; // room too small to fit this one — leave unplaced
   });
 }
-
-// ── Fog: entering combat starts revealed where the party is standing ───────
-
-/** The room's own cells, revealed by default — "you are standing in it". */
-export function seedFogMask(focusCells: CellKey[]): Set<CellKey> {
-  return new Set(focusCells);
-}
-
-// ── Leaving combat: which rooms did the party actually see? ────────────────
-
-/**
- * Rooms whose traced region is at least half revealed by the encounter's fog
- * mask (both compared in battle-cell space — `calibration` converts each
- * region's own cells once per call). Frame 16: "leaving asserts explored —
- * rooms the DM revealed get an `explored` event." Never the reverse.
- */
-export function roomsRevealedInCombat(
-  revealedCells: Set<string>,
-  regions: LocationMapRegion[],
-  calibration: GridCalibration,
-): string[] {
-  const revealed: string[] = [];
-  for (const region of regions) {
-    if (region.region_role !== "space" || !region.space_location_id) continue;
-    if (region.cells.length === 0) continue;
-    let hits = 0;
-    for (const cell of region.cells) {
-      if (revealedCells.has(regionCellToBattleCell(cell, calibration))) hits++;
-    }
-    if (hits / region.cells.length >= 0.5) revealed.push(region.space_location_id);
-  }
-  return revealed;
-}
