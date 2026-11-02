@@ -29,7 +29,9 @@ changing a section's composition.
   paper. The board is the page darkened with umber (gilt cut with ink) in a
   light theme, and with gilt cut with oxblood in a dark one (darkening a dark
   page read as "pure black"). Below `md` (48rem) there is no board: the papers
-  sit on the page, which a phone cannot spare a frame of padding from. Papers
+  sit on the page, which a phone cannot spare a frame of padding from, and
+  they carry no pin, because on a bare page players read it as an unread
+  marker (2 Nov 2026). Papers
   are never rotated: several hold controls.
 - **A fixed composition.** Not the DM dashboard's widget grid (#760). A player
   surface on `dashboard_layouts` is a later upgrade, not a missing feature.
