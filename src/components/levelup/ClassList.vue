@@ -163,6 +163,7 @@ import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
+import { useToast } from "@/composables/useToast";
 import { useAllCustomClasses, useAllSystemClasses, useDuplicateClass } from "@/composables/rules/useCustomClasses";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
@@ -171,6 +172,7 @@ const router = useRouter();
 const { data: all, isLoading } = useAllCustomClasses();
 const { data: system, isLoading: systemLoading } = useAllSystemClasses();
 const { duplicate: duplicateSystemClass } = useDuplicateClass();
+const toast = useToast();
 
 const duplicating = ref<string | null>(null);
 
@@ -225,6 +227,8 @@ async function duplicate(cls: SystemClass) {
   try {
     const created = await duplicateSystemClass(cls);
     router.push(`/levelup/classes/${created.id}`);
+  } catch (e) {
+    toast.error(toast.fromError(e, "Could not copy the class."));
   } finally {
     duplicating.value = null;
   }

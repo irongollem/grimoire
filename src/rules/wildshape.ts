@@ -104,10 +104,11 @@ export function wildShapeRulesFor(
 
 /**
  * The part of a class row Wild Shape reads. `capabilities` is the class
- * definition's list, stamped onto the row by the database (#934); `class_name`
- * is not here because it decides nothing.
+ * definition's list, stamped onto the row by the database (#934). `class_name`
+ * decides only for a row that has no `capabilities` at all (see druidProfile).
  */
 export interface WildShapeClassRow {
+  class_name: string;
   capabilities: readonly string[];
   subclass_name: string | null;
   levels: number;
@@ -134,14 +135,20 @@ export interface DruidProfile {
  * Fighter 6 / Druid 2 was offered CR 1½ forms instead of ¼. One function, so
  * the sheet, the bestiary and the encounter runner cannot disagree about it.
  */
+function canWildShape(row: WildShapeClassRow): boolean {
+  // A class row restored from the persisted query cache of a build before #934
+  // has no `capabilities` and is refetched at once (queryPersistence/persistence.ts;
+  // such a record is dropped after a week). For that beat it is read the way that
+  // build read it, by name, so a druid's Wild Shape tab never blinks out while
+  // the fresh row loads. A row that has the field is decided by it alone.
+  if (!Array.isArray(row.capabilities)) return row.class_name.toLowerCase().includes("druid");
+  return row.capabilities.includes("wild_shape");
+}
+
 export function druidProfile(
   classRows: readonly WildShapeClassRow[],
 ): DruidProfile {
-  // `capabilities?.` is deliberate: a class row restored from the persisted query
-  // cache of a previous build has no `capabilities` and is refetched at once
-  // (src/lib/queryPersistence/persistence.ts). It reads like a cold load for that
-  // beat, never as a crash.
-  const druidRow = classRows.find((row) => row.capabilities?.includes("wild_shape") === true);
+  const druidRow = classRows.find(canWildShape);
   return {
     isDruid: !!druidRow,
     druidLevel: druidRow?.levels ?? 0,

@@ -316,6 +316,11 @@ const saving = ref(false);
 const saveError = ref("");
 const canSave = computed(() => form.value.class_name.trim() !== "");
 
+function capabilitiesUnknown(): boolean {
+  const row = existing.value;
+  return !!row && !Array.isArray(row.capabilities) && form.value.capabilities.length === 0;
+}
+
 async function save() {
   if (!canSave.value) return;
   saving.value = true;
@@ -336,7 +341,11 @@ async function save() {
     caster_type: form.value.isSpellcaster ? form.value.caster_type : "none",
     prepared_ability: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_ability : null,
     prepared_divisor: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_divisor : null,
-    capabilities: form.value.capabilities,
+    // A row cached by a build before #934 has no `capabilities`, and the form
+    // shows it as none until the fresh row lands. Saving that would strip Wild
+    // Shape from the definition and every character of the class, so an
+    // untouched box over such a row leaves the column alone.
+    ...(capabilitiesUnknown() ? {} : { capabilities: form.value.capabilities }),
   };
   // Material edit detection: any change to the class's rules content means a
   // human has now authored part of an AI-generated class. Campaign scope is a
@@ -356,7 +365,8 @@ async function save() {
   };
   try {
     if (isNew.value) {
-      await create(payload);
+      // A new class has no older cached row, so its list is always known.
+      await create({ ...payload, capabilities: form.value.capabilities });
     } else {
       await update({ id: id.value, update: payload });
     }

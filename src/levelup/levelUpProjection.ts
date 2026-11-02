@@ -77,13 +77,14 @@ export function projectClasses(input: ProjectionInput): { before: GrantedClassIn
  */
 export function projectWildShapeRows(
   input: ProjectionInput,
-): { capabilities: string[]; subclass_name: string | null; levels: number }[] {
+): { class_name: string; capabilities: string[]; subclass_name: string | null; levels: number }[] {
   const picked = input.pickedSubclass;
   const rows = input.rows.map((row) => {
     if (row.id !== input.chosenRowId) {
-      return { capabilities: row.capabilities, subclass_name: row.subclassName, levels: row.levels };
+      return { class_name: row.className, capabilities: row.capabilities, subclass_name: row.subclassName, levels: row.levels };
     }
     return {
+      class_name: row.className,
       capabilities: row.capabilities,
       subclass_name: picked === null ? row.subclassName : picked.name,
       levels: row.levels + 1,
@@ -91,6 +92,7 @@ export function projectWildShapeRows(
   });
   if (input.newClass !== null) {
     rows.push({
+      class_name: input.newClass.className,
       capabilities: input.newClass.capabilities,
       subclass_name: picked === null ? null : picked.name,
       levels: input.newClass.startLevels,

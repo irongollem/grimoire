@@ -79,8 +79,8 @@ describe("projectWildShapeRows", () => {
       newClass: { className: "Druid", classFeatures: null, startLevels: 1, capabilities: ["wild_shape"] },
     });
     expect(rows).toEqual([
-      { capabilities: [], subclass_name: null, levels: 4 },
-      { capabilities: ["wild_shape"], subclass_name: null, levels: 1 },
+      { class_name: "Rogue", capabilities: [], subclass_name: null, levels: 4 },
+      { class_name: "Druid", capabilities: ["wild_shape"], subclass_name: null, levels: 1 },
     ]);
   });
 
@@ -91,8 +91,8 @@ describe("projectWildShapeRows", () => {
       pickedSubclass: { name: "Circle of the Moon", features: null },
     });
     expect(rows).toEqual([
-      { capabilities: [], subclass_name: null, levels: 4 },
-      { capabilities: ["wild_shape"], subclass_name: "Circle of the Moon", levels: 4 },
+      { class_name: "Rogue", capabilities: [], subclass_name: null, levels: 4 },
+      { class_name: "Druid", capabilities: ["wild_shape"], subclass_name: "Circle of the Moon", levels: 4 },
     ]);
   });
 });

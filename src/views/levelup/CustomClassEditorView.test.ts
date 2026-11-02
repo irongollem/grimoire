@@ -34,7 +34,7 @@ vi.mock("@/components/levelup/CustomClassProficienciesPanel.vue", () => ({ defau
 
 import CustomClassEditorView from "./CustomClassEditorView.vue";
 
-function cls(capabilities: string[]) {
+function cls(capabilities: string[] | undefined) {
   return {
     id: "c1", class_name: "Skinchanger", hit_die: 8, primary_ability: null, saving_throws: [],
     armor_proficiencies: [], weapon_proficiencies: [], subclass_level: 3, features: {},
@@ -44,7 +44,7 @@ function cls(capabilities: string[]) {
   };
 }
 
-async function mountWith(capabilities: string[]) {
+async function mountWith(capabilities: string[] | undefined) {
   record.value = { kind: "custom", cls: cls(capabilities) };
   const w = mount(CustomClassEditorView, {
     global: { stubs: { PageHeader: { template: "<div><slot /><slot name='actions' /></div>" }, CustomClassSheet: true } },
@@ -78,5 +78,17 @@ describe("CustomClassEditorView Wild Shape capability", () => {
     await box.setValue(false);
     await (w.vm as unknown as { save: () => Promise<void> }).save();
     expect(update.mock.calls[1][0].update.capabilities).toEqual([]);
+  });
+
+  // Bug: a Druid row from a previous build's cache has no `capabilities`, the box
+  // shows unticked, and saving sent [] — stripping Wild Shape from the class and
+  // every character of it before the fresh row had even landed.
+  it("leaves the capability alone when the loaded row predates it and the box is untouched", async () => {
+    const w = await mountWith(undefined);
+    await (w.vm as unknown as { save: () => Promise<void> }).save();
+    expect(update.mock.calls[0][0].update).not.toHaveProperty("capabilities");
+    await w.find('input[type="checkbox"]').setValue(true);
+    await (w.vm as unknown as { save: () => Promise<void> }).save();
+    expect(update.mock.calls[1][0].update.capabilities).toEqual(["wild_shape"]);
   });
 });
