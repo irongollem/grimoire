@@ -519,7 +519,10 @@ begin
   end if;
   -- Drops are member-authored messages, so the coins are checked rather than
   -- trusted: whole and non-negative, so a claim can never debit a purse.
-  if not private.valid_coins(coalesce(v_meta->'coins', '{}'::jsonb)) then
+  -- Known keys too: a coin the campaign does not have is worthless today and
+  -- would become real money the day the DM adds a coin by that key.
+  if not private.valid_coins(coalesce(v_meta->'coins', '{}'::jsonb))
+     or not private.coins_known(v_meta->'coins', private.campaign_currency(v_msg.campaign_id)) then
     raise exception 'Invalid drop';
   end if;
 
@@ -593,16 +596,29 @@ begin
     raise exception 'Cannot spend from a character you do not own';
   end if;
 
+  -- Any member may post a message of any type, and paying now debits a purse,
+  -- so only an offer a DM of this campaign posted can be paid. A player's
+  -- look-alike offer would take the coins and deliver nothing.
+  if not exists (
+    select 1 from public.campaign_members cm
+     where cm.campaign_id = v_msg.campaign_id and cm.user_id = v_msg.user_id and cm.role = 'dm'
+  ) and not exists (
+    select 1 from public.campaigns c where c.id = v_msg.campaign_id and c.user_id = v_msg.user_id
+  ) then
+    raise exception 'Only a DM''s offer can be paid';
+  end if;
+
   v_meta := coalesce(v_msg.metadata, '{}'::jsonb);
   if v_meta->>'paid_by_user_id' is not null then
     raise exception 'Already paid';
   end if;
-  if not private.valid_coins(coalesce(v_meta->'price', '{}'::jsonb)) then
+  v_currency := private.campaign_currency(v_msg.campaign_id);
+  if not private.valid_coins(coalesce(v_meta->'price', '{}'::jsonb))
+     or not private.coins_known(v_meta->'price', v_currency) then
     raise exception 'Invalid offer price';
   end if;
 
   if p_party_member_id is not null then
-    v_currency := private.campaign_currency(v_msg.campaign_id);
     perform 1 from public.party_members where id = p_party_member_id for update;
     update public.party_members
        set coins = private.pay_coins(coins, private.coins_value(v_meta->'price', v_currency), v_currency)
@@ -824,6 +840,13 @@ declare
   v_coins jsonb;
 begin
   if (select auth.uid()) is null then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  -- Authorized before the lock, so a caller cannot lock a purse they may not
+  -- touch; read again under the lock and judged again, as give_coins does.
+  select * into v_member from public.party_members where id = p_member_id;
+  if not found or v_member.campaign_id is null
+     or not private.can_write_pack(v_member.campaign_id, v_member.id) then
     raise exception 'Not authorized' using errcode = '42501';
   end if;
   select * into v_member from public.party_members where id = p_member_id for update;

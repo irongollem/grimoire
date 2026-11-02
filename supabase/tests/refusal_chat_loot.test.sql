@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(33);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('93620000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -48,6 +48,7 @@ insert into public.campaign_messages (id, campaign_id, user_id, message, type, m
     '{"price":{"gp":1},"seller_party_member_id":"93620000-0000-4000-8000-0000000000e1","inventory_item_id":"93620000-0000-4000-8000-0000000000f1"}'),
   ('93620000-0000-4000-8000-0000000000a5', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'vendor', 'vendor_offer', '{"price":{"gp":2}}'),
   ('93620000-0000-4000-8000-0000000000ae', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'vendor', 'vendor_offer', '{"price":{"gp":50}}'),
+  ('93620000-0000-4000-8000-0000000000af', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000003', 'vendor', 'vendor_offer', '{"price":{"gp":1}}'),
   ('93620000-0000-4000-8000-0000000000a6', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'item', 'item_drop', '{"item_name":"Torch","quantity":3}'),
   ('93620000-0000-4000-8000-0000000000a7', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'item', 'item_drop', '{"item_name":"Flint","quantity":1}');
 
@@ -136,6 +137,8 @@ select is((select coins from public.party_members where id = '93620000-0000-4000
   'claim_vendor_offer: paying debits the price from the payer''s purse (5 gp, the 3 gp drop and the 1 gp sale above, less 2)');
 select throws_ok($$ select public.claim_vendor_offer('93620000-0000-4000-8000-0000000000ae', 'Player two', '93620000-0000-4000-8000-0000000000e1') $$,
   '22023', 'Insufficient funds', 'claim_vendor_offer: an offer the purse cannot cover is refused, not paid into debt');
+select throws_ok($$ select public.claim_vendor_offer('93620000-0000-4000-8000-0000000000af', 'Player two', '93620000-0000-4000-8000-0000000000e1') $$,
+  'P0001', 'Only a DM''s offer can be paid', 'claim_vendor_offer: a player''s look-alike vendor offer cannot take another player''s coins');
 
 -- ── grab_item_drop ──────────────────────────────────────────────────────────
 select set_config('request.jwt.claims', '{"role":"authenticated"}', true);

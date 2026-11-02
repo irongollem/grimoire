@@ -7,7 +7,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('93400000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -78,6 +78,11 @@ select is((select coins from public.party_members where id = '93400000-0000-4000
 reset role;
 update public.party_members set coins = private.coins_add(coins, '{"ep": 3}') where id = '93400000-0000-4000-8000-0000000000e2';
 set local role authenticated;
+select pg_temp.as_user(2);
+update public.campaigns set currency = jsonb_set(currency, '{default_key}', '"pp"')
+ where id = '93400000-0000-4000-8000-0000000000c1';
+select is((select currency->>'default_key' from public.campaigns where id = '93400000-0000-4000-8000-0000000000c1'), 'gp',
+  'a player cannot change the campaign''s currency (and so cannot convert anyone''s purse)');
 select pg_temp.as_user(1);
 select lives_ok($$
   update public.campaigns
