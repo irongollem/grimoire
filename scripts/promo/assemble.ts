@@ -12,7 +12,7 @@ import { DEVICES } from "./devices";
 import { formatCanvas, layoutFor, type Layout } from "./layouts";
 import { chaptersText, srtText } from "./sidecars";
 import { BED_CROSSFADE, bedWindow, planBeds } from "./beds";
-import { BED_DB, FULL_DB, SILENT_DB, gainExpression, planTheme } from "./theme";
+import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme } from "./theme";
 import { planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
 import type { Device, EpisodeManifest, Format, RecordedShot } from "./types";
 
@@ -343,6 +343,10 @@ function bedsIn(brandDir: string): string[] {
 
 /** Under the voice, a bed is level-matched to the theme and set this far below the Reel's bed: the tunes are busier than its underscore. */
 const BED_EXTRA_DB = -3;
+/** The motif settles from full to the bed's level this long after the logo, as in a Reel. */
+const MOTIF_SETTLE = 0.8;
+/** The motif's last note hands over to the first tune over this long. */
+const MOTIF_HANDOVER = 1.5;
 /**
  * Keeps a busy tune behind the voice and the chain sounding like one piece:
  * no rumble, a dip in the low mids (where it muddies a voice) and where speech
@@ -364,13 +368,17 @@ function bedThemeGraph(themeFile: string, bedFiles: string[], total: number, int
   const themeLoudness = loudnessOf(themeFile);
   const windows = bedFiles.map((f) => bedWindow(leadingSilence(f), audibleEnd(f)));
   const trims = bedFiles.map((f) => themeLoudness - loudnessOf(f));
-  // The tunes take over from the motif as the logo ends, and hand over to the theme's ending at its crossfade.
-  const bedFrom = intro;
+  // The motif plays to its end (THEME_MOTIF_END in the file), at full over the logo and settling to the bed's
+  // level after it, as in a Reel. Only then does the first tune come in, so two pieces never play at once;
+  // the tunes hand over to the theme's ending at its crossfade.
+  const lead = plan.body[0].from;
+  const motifStop = intro > 0 ? Math.max(intro + MOTIF_SETTLE, THEME_MOTIF_END - lead) : 0;
+  const bedFrom = Math.max(0, motifStop - MOTIF_HANDOVER / 2);
   const bedTo = plan.bodyLength;
   const segs = planBeds({ from: bedFrom, to: bedTo, chapterStarts, beds: windows });
   const last = segs.length - 1;
   const pieces = segs.map((s, i) => {
-    const fadeIn = i === 0 && intro === 0 ? 0.5 : BED_CROSSFADE;
+    const fadeIn = i > 0 ? BED_CROSSFADE : intro > 0 ? MOTIF_HANDOVER : 0.5;
     const fadeOut = i === last ? bedTo - plan.tail.at : BED_CROSSFADE;
     const ms = Math.round(s.at * 1000);
     return (
@@ -378,14 +386,21 @@ function bedThemeGraph(themeFile: string, bedFiles: string[], total: number, int
       `afade=t=in:st=0:d=${fadeIn}:curve=qsin,afade=t=out:st=${Math.max(0, s.length - fadeOut)}:d=${fadeOut}:curve=qsin,adelay=${ms}|${ms}[bed${i}];`
     );
   });
-  const motifEnd = intro + BED_CROSSFADE;
-  const motifGain = gainExpression([{ t: 0, db: FULL_DB }, { t: intro, db: FULL_DB }, { t: motifEnd, db: SILENT_DB }]);
+  const motifEnd = motifStop + MOTIF_HANDOVER / 2;
+  const bedDb = BED_DB + BED_EXTRA_DB;
+  const motifGain = gainExpression([
+    { t: 0, db: FULL_DB },
+    { t: intro, db: FULL_DB },
+    { t: intro + MOTIF_SETTLE, db: bedDb },
+    { t: motifStop - MOTIF_HANDOVER / 2, db: bedDb },
+    { t: motifEnd, db: SILENT_DB },
+  ]);
   const delay = Math.round(plan.tail.at * 1000);
   return (
     `[3:a]${STEREO_48K},asplit=2[tsMotif][tsTail];` +
     (intro > 0 ? `[tsMotif]atrim=${plan.body[0].from}:${plan.body[0].from + motifEnd},asetpts=PTS-STARTPTS,volume='${motifGain}':eval=frame[tmotif];` : `[tsMotif]anullsink;`) +
     pieces.join("") +
-    `${segs.map((_, i) => `[bed${i}]`).join("")}amix=inputs=${segs.length}:duration=longest:normalize=0,${BED_EQ},volume=${BED_DB + BED_EXTRA_DB}dB[tbeds];` +
+    `${segs.map((_, i) => `[bed${i}]`).join("")}amix=inputs=${segs.length}:duration=longest:normalize=0,${BED_EQ},volume=${bedDb}dB[tbeds];` +
     `[tsTail]atrim=${plan.tail.from},asetpts=PTS-STARTPTS,adelay=${delay}|${delay},volume='${gainExpression(plan.tailGain)}':eval=frame[ttail];` +
     `${intro > 0 ? "[tmotif]" : ""}[tbeds][ttail]amix=inputs=${intro > 0 ? 3 : 2}:duration=longest:normalize=0,apad,atrim=0:${total}[th];` +
     `[vo1]asplit[voA][voB];[th][voB]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[duck];` +
