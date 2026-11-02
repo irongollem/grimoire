@@ -87,7 +87,7 @@ export interface InventionNewItem {
   item_type: ItemType;
   subtype: string | null;
   rarity: ItemRarity;
-  /** Formatted from value_cp, e.g. "40 gp". */
+  /** Formatted from value_cp in the campaign's coins, e.g. "40 gp" in a 5e campaign. */
   cost: string;
   /** Per unit. */
   value_cp: number;

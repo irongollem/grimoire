@@ -581,7 +581,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
           description: 'e.g. "by a spellcaster".',
         },
         weight: { type: "number", description: "In pounds." },
-        cost: { type: "text", description: 'e.g. "50 gp".' },
+        cost: { type: "text", description: 'A price as text in the campaign\'s coins, e.g. "50 gp".' },
         damage_rolls: DAMAGE_LIST,
         versatile_damage: {
           type: "text",
@@ -696,7 +696,6 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
           values: QUEST_STATUS,
           description: "Defaults to active.",
         },
-        rewards: { type: "text" },
         notes: { type: "text" },
         location_id: { type: "uuid" },
         giver_npc_id: { type: "uuid" },

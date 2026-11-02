@@ -1,44 +1,66 @@
 import { describe, it, expect } from "vitest";
-import { formatCostCp, parseCostCp, unitValueCp } from "./price.ts";
+import { DND5E_CURRENCY } from "../../../../src/systems/dnd5e/currency/dnd5eCurrency";
+import { formatCost, parseCostValue, unitValue } from "./price.ts";
 
-describe("parseCostCp", () => {
-  it("reads coins", () => {
-    expect(parseCostCp("50 gp")).toBe(5000);
-    expect(parseCostCp("1,500 gp")).toBe(150000);
-    expect(parseCostCp("5 sp")).toBe(50);
-    expect(parseCostCp("2 cp")).toBe(2);
-    expect(parseCostCp("1 pp")).toBe(1000);
-    expect(parseCostCp("3 ep")).toBe(150);
-    expect(parseCostCp("1 gp 5 sp")).toBe(150);
+const DOLLARS = {
+  default_key: "usd",
+  denominations: [
+    { key: "usd", name: "Dollar", abbr: "$", value: 100, color: "#00aa00", makes_change: true },
+    { key: "cent", name: "Cent", abbr: "c", value: 1, color: "#aa5500", makes_change: true },
+  ],
+};
+
+describe("parseCostValue", () => {
+  it("reads 5e coins", () => {
+    expect(parseCostValue("50 gp", DND5E_CURRENCY)).toBe(5000);
+    expect(parseCostValue("1,500 gp", DND5E_CURRENCY)).toBe(150000);
+    expect(parseCostValue("5 sp", DND5E_CURRENCY)).toBe(50);
+    expect(parseCostValue("1 pp", DND5E_CURRENCY)).toBe(1000);
+    expect(parseCostValue("3 ep", DND5E_CURRENCY)).toBe(150);
+    expect(parseCostValue("1 gp 5 sp", DND5E_CURRENCY)).toBe(150);
   });
-  it("treats a bare number as gp", () => {
-    expect(parseCostCp("12")).toBe(1200);
-    expect(parseCostCp("0.50")).toBe(50);
+  // Bug it fails on: a bare number hard-wired to gold instead of the campaign's default coin.
+  it("reads a bare number in the campaign's default coin", () => {
+    expect(parseCostValue("12", DND5E_CURRENCY)).toBe(1200);
+    expect(parseCostValue("12", DOLLARS)).toBe(1200);
+    expect(parseCostValue("12", { ...DOLLARS, default_key: "cent" })).toBe(12);
+  });
+  it("does not know the 5e coins in a campaign without them", () => {
+    expect(parseCostValue("50 gp", DOLLARS)).toBeNull();
+    expect(parseCostValue("$5 7 c", DOLLARS)).toBe(507);
   });
   it("calls zero, blank and junk unpriced", () => {
-    expect(parseCostCp("0.00")).toBeNull();
-    expect(parseCostCp("0")).toBeNull();
-    expect(parseCostCp("  ")).toBeNull();
-    expect(parseCostCp(null)).toBeNull();
-    expect(parseCostCp("priceless")).toBeNull();
+    expect(parseCostValue("0", DND5E_CURRENCY)).toBeNull();
+    expect(parseCostValue("0 gp", DND5E_CURRENCY)).toBeNull();
+    expect(parseCostValue("  ", DND5E_CURRENCY)).toBeNull();
+    expect(parseCostValue(null, DND5E_CURRENCY)).toBeNull();
+    expect(parseCostValue("priceless", DND5E_CURRENCY)).toBeNull();
   });
 });
 
-describe("unitValueCp", () => {
-  it("falls back to the rarity table", () => {
-    expect(unitValueCp("0.00", "mundane")).toBe(100);
-    expect(unitValueCp(null, "uncommon")).toBe(10100);
-    expect(unitValueCp("", "artifact")).toBe(5000100);
-    expect(unitValueCp("7 gp", "rare")).toBe(700);
+describe("unitValue", () => {
+  it("falls back to the 5e rarity table on the 5e coins", () => {
+    expect(unitValue("0", "mundane", DND5E_CURRENCY)).toBe(100);
+    expect(unitValue(null, "uncommon", DND5E_CURRENCY)).toBe(10100);
+    expect(unitValue("", "artifact", DND5E_CURRENCY)).toBe(5000100);
+    expect(unitValue("7 gp", "rare", DND5E_CURRENCY)).toBe(700);
+  });
+  // Bug it fails on: 5e copper prices applied to a currency whose smallest coin is a cent.
+  it("leaves an unpriced item unpriced on any other coins", () => {
+    expect(unitValue(null, "uncommon", DOLLARS)).toBe(0);
+    expect(unitValue("$7", "rare", DOLLARS)).toBe(700);
   });
 });
 
-describe("formatCostCp", () => {
-  it("prefers gp, then sp, then cp", () => {
-    expect(formatCostCp(4000)).toBe("40 gp");
-    expect(formatCostCp(70)).toBe("7 sp");
-    expect(formatCostCp(150000)).toBe("1,500 gp");
-    expect(formatCostCp(155)).toBe("155 cp");
-    expect(formatCostCp(0)).toBe("0 cp");
+describe("formatCost", () => {
+  it("writes change in the campaign's coins", () => {
+    expect(formatCost(4000, DND5E_CURRENCY)).toBe("40 gp");
+    expect(formatCost(150000, DND5E_CURRENCY)).toBe("1500 gp");
+    expect(formatCost(155, DND5E_CURRENCY)).toBe("1 gp 5 sp 5 cp");
+    expect(formatCost(0, DND5E_CURRENCY)).toBe("0 cp");
+  });
+  it("never names a coin the campaign lacks", () => {
+    expect(formatCost(507, DOLLARS)).toBe("5 $ 7 c");
+    expect(formatCost(0, DOLLARS)).toBe("0 c");
   });
 });

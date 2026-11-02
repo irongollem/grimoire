@@ -1,20 +1,18 @@
+import { coinValue, formatCoins, makeChange, parsePrice, type CurrencyConfig } from "../currency.ts";
 import type { ItemRarity } from "./types.ts";
 
-const COIN_CP: Record<string, number> = {
-  pp: 1000,
-  platinum: 1000,
-  gp: 100,
-  gold: 100,
-  ep: 50,
-  electrum: 50,
-  sp: 10,
-  silver: 10,
-  cp: 1,
-  copper: 1,
-};
+/**
+ * Prices are whole numbers of the campaign's smallest coin (the denomination
+ * worth 1). The stored fields keep their historical `value_cp` names, but the
+ * unit is the campaign's, not copper.
+ */
 
-// What an item with no usable price is worth, by rarity (DMG 7-1 floor of the band).
-const UNPRICED_CP: Record<ItemRarity, number> = {
+// What an item with no usable price is worth, by rarity (DMG 7-1 floor of the
+// band), in 5e copper. This is genuinely 5e data: it only applies when the
+// campaign uses the 5e coins (see usesDnd5eCoins). Any other currency has no
+// agreed worth for a rarity, so an unpriced item there is worth 0 (unpriced)
+// rather than a number we would have to invent.
+const DND5E_UNPRICED: Record<ItemRarity, number> = {
   mundane: 100,
   common: 5000,
   uncommon: 10100,
@@ -24,42 +22,39 @@ const UNPRICED_CP: Record<ItemRarity, number> = {
   artifact: 5000100,
 };
 
-const NUMBER = String.raw`(\d[\d,]*(?:\.\d+)?|\.\d+)`;
-const COIN_RE = new RegExp(`${NUMBER}\\s*(pp|platinum|gp|gold|ep|electrum|sp|silver|cp|copper)\\b`, "gi");
-const BARE_RE = new RegExp(`^${NUMBER}$`);
-
-function toNumber(text: string): number {
-  return Number(text.replace(/,/g, ""));
+/** True when the campaign's coins are the 5e set the rarity table is written in (gp = 100 and cp = 1 of the smallest coin). */
+function usesDnd5eCoins(cfg: CurrencyConfig): boolean {
+  const worth = (key: string) => cfg.denominations.find((d) => d.key === key)?.value;
+  return worth("gp") === 100 && worth("sp") === 10 && worth("cp") === 1;
 }
 
-/** Copper value of a cost text, or null when blank, zero or unparseable. A bare number is gp. */
-export function parseCostCp(cost: string | null): number | null {
+/** Value of a cost text in the smallest coin, or null when blank, zero or unparseable. A bare number is the campaign's default coin. */
+export function parseCostValue(cost: string | null, cfg: CurrencyConfig): number | null {
   if (cost === null) return null;
   const text = cost.trim();
   if (text === "") return null;
-  const bare = BARE_RE.exec(text);
-  let total = 0;
-  if (bare) {
-    total = toNumber(bare[1]) * 100;
-  } else {
-    for (const m of text.matchAll(COIN_RE)) {
-      total += toNumber(m[1]) * COIN_CP[m[2].toLowerCase()];
-    }
-  }
-  const cp = Math.round(total);
-  return Number.isFinite(cp) && cp > 0 ? cp : null;
+  const coins = parsePrice(text, cfg);
+  if (coins === null) return null;
+  const value = coinValue(coins, cfg);
+  return value > 0 ? value : null;
 }
 
-/** Per-unit value in copper: the cost when it parses, else the rarity's unpriced value. */
-export function unitValueCp(cost: string | null, rarity: ItemRarity): number {
-  const parsed = parseCostCp(cost);
-  return parsed === null ? UNPRICED_CP[rarity] : parsed;
+/** Per-unit value: the cost when it parses, else the 5e rarity value (5e coins only), else 0. */
+export function unitValue(cost: string | null, rarity: ItemRarity, cfg: CurrencyConfig): number {
+  const parsed = parseCostValue(cost, cfg);
+  if (parsed !== null) return parsed;
+  return usesDnd5eCoins(cfg) ? DND5E_UNPRICED[rarity] : 0;
 }
 
-/** "1,500 gp" when a whole number of gp, else sp, else cp. */
-export function formatCostCp(cp: number): string {
-  const n = Math.max(0, Math.round(cp));
-  if (n > 0 && n % 100 === 0) return `${(n / 100).toLocaleString("en-US")} gp`;
-  if (n > 0 && n % 10 === 0) return `${(n / 10).toLocaleString("en-US")} sp`;
-  return `${n.toLocaleString("en-US")} cp`;
+/**
+ * "1 gp 5 sp": the value as change in the campaign's coins. Coins worth more
+ * than the default coin are not used, so a price reads in the coin a bare
+ * number would ("1500 gp", never "15 pp") and parses back to the same value.
+ */
+export function formatCost(value: number, cfg: CurrencyConfig): string {
+  const n = Math.max(0, Math.round(value));
+  const top = cfg.denominations.find((d) => d.key === cfg.default_key)?.value ?? Infinity;
+  const priced: CurrencyConfig = { ...cfg, denominations: cfg.denominations.filter((d) => d.value <= top) };
+  const text = formatCoins(makeChange(n, priced), priced);
+  return text === "" ? `0 ${cfg.denominations.find((d) => d.value === 1)?.abbr ?? cfg.default_key}` : text;
 }

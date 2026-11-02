@@ -1,3 +1,4 @@
+import { DND5E_CURRENCY } from "../../../../src/systems/dnd5e/currency/dnd5eCurrency";
 import { describe, it, expect } from "vitest";
 import { acceptsAsMaterial, acceptsAsOutput, benchBudget, buildUserContent, draftView, keyCandidates, rarityBand, type CandidateRow } from "./candidates.ts";
 import type { InventionBenchEntry, InventionDraft } from "./types.ts";
@@ -78,12 +79,18 @@ describe("keyCandidates", () => {
 
 describe("benchBudget", () => {
   it("takes the rarest ingredient as the ceiling and prices by dish", () => {
-    expect(benchBudget([bench()], 2)).toEqual({ ceiling: "uncommon", valueLimitCp: 20000 });
+    expect(benchBudget([bench()], 2, DND5E_CURRENCY)).toEqual({ ceiling: "uncommon", valueLimitCp: 20000 });
   });
 });
 
 describe("buildUserContent", () => {
-  const base = { discipline: "tinkering" as const, valueMultiple: 2, bench: [bench()], outputCandidates: [], materialCandidates: [], wish: null, revision: null };
+  // Bug it fails on: the model pricing in "copper" because the request never names the campaign's coins.
+  it("names the campaign's coins", () => {
+    const dollars = { default_key: "usd", denominations: [{ key: "usd", name: "Dollar", abbr: "$", value: 100, color: "#000000", makes_change: true }, { key: "cent", name: "Cent", abbr: "c", value: 1, color: "#000000", makes_change: true }] };
+    const j = JSON.parse(buildUserContent({ discipline: "tinkering", valueMultiple: 2, currency: dollars, bench: [bench()], outputCandidates: [], materialCandidates: [], wish: null, revision: null, mode: "materials" }));
+    expect(j.currency).toEqual({ default_coin: "usd", coins: [{ key: "usd", name: "Dollar", abbr: "$", worth_in_smallest_coin: 100 }, { key: "cent", name: "Cent", abbr: "c", worth_in_smallest_coin: 1 }] });
+  });
+  const base = { discipline: "tinkering" as const, valueMultiple: 2, currency: DND5E_CURRENCY, bench: [bench()], outputCandidates: [], materialCandidates: [], wish: null, revision: null };
   it("states the limits in materials mode and leaves out material candidates", () => {
     const j = JSON.parse(buildUserContent({ ...base, mode: "materials" }));
     expect(j.rarity_ceiling).toBe("uncommon");

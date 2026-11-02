@@ -14,7 +14,8 @@ import {
   timeFloorFor,
   toMinutes,
 } from "./budget.ts";
-import { formatCostCp, unitValueCp } from "./price.ts";
+import type { CurrencyConfig } from "../currency.ts";
+import { formatCost, unitValue } from "./price.ts";
 import { scanProse } from "./prose.ts";
 import {
   ITEM_RARITIES,
@@ -35,7 +36,7 @@ import {
   type ItemType,
 } from "./types.ts";
 
-export { formatCostCp, unitValueCp } from "./price.ts";
+export { formatCost, unitValue } from "./price.ts";
 export { laneFor, rarityCeiling, RARITY_ORDER } from "./budget.ts";
 export type { InventionDraft } from "./types.ts";
 
@@ -55,6 +56,8 @@ export interface InventionContext {
   mode: InventionMode;
   discipline: CraftingDiscipline;
   valueMultiple: number;
+  /** The campaign's coins: prices are read and written in them, in whole smallest coins. */
+  currency: CurrencyConfig;
   bench: InventionBenchEntry[];
   outputCandidates: InventionCandidate[];
   materialCandidates: InventionCandidate[];
@@ -94,8 +97,8 @@ function asRarity(v: unknown): ItemRarity | null {
 function asItemType(v: unknown): ItemType | null {
   return typeof v === "string" && (ITEM_TYPES as readonly string[]).includes(v) ? (v as ItemType) : null;
 }
-function money(cp: number): string {
-  return formatCostCp(cp);
+function money(value: number, currency: CurrencyConfig): string {
+  return formatCost(value, currency);
 }
 
 /** A string field that may be left out: absent gives an explicit null, a wrong type is an error. */
@@ -285,7 +288,7 @@ interface IngredientResult {
   ingredients: InventionIngredient[];
 }
 
-function benchIngredients(bench: readonly InventionBenchEntry[], errors: string[]): IngredientResult {
+function benchIngredients(bench: readonly InventionBenchEntry[], currency: CurrencyConfig, errors: string[]): IngredientResult {
   const ingredients: InventionIngredient[] = [];
   if (bench.length === 0) errors.push("The bench is empty.");
   if (bench.length > MAX_INGREDIENTS) errors.push(`The bench holds more than ${MAX_INGREDIENTS} different materials.`);
@@ -295,7 +298,7 @@ function benchIngredients(bench: readonly InventionBenchEntry[], errors: string[
       errors.push(`The bench row "${row.name}" is not a usable material.`);
       continue;
     }
-    ingredients.push({ ref, new: null, name: row.name, rarity: row.rarity, value_cp: unitValueCp(row.cost, row.rarity), quantity: row.dishes });
+    ingredients.push({ ref, new: null, name: row.name, rarity: row.rarity, value_cp: unitValue(row.cost, row.rarity, currency), quantity: row.dishes });
   }
   return { ingredients };
 }
@@ -309,6 +312,7 @@ function cleanMaterialBand(rarity: ItemRarity, value: number): number {
 function ideaIngredients(
   raw: unknown,
   candidates: readonly InventionCandidate[],
+  currency: CurrencyConfig,
   errors: string[],
   adjustments: string[],
 ): IngredientResult {
@@ -335,7 +339,7 @@ function ideaIngredients(
         errors.push(`${at} names "${clip(entry.candidate_id, 40)}", which is not a listed material.`);
         return;
       }
-      ingredients.push({ ref: c.ref, new: null, name: c.name, rarity: c.rarity, value_cp: unitValueCp(c.cost, c.rarity), quantity });
+      ingredients.push({ ref: c.ref, new: null, name: c.name, rarity: c.rarity, value_cp: unitValue(c.cost, c.rarity, currency), quantity });
       return;
     }
     if (!isObj(entry.new)) {
@@ -355,16 +359,16 @@ function ideaIngredients(
     const match = candidates.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
     if (match) {
       adjustments.push(`Matched to the existing ${match.name}.`);
-      ingredients.push({ ref: match.ref, new: null, name: match.name, rarity: match.rarity, value_cp: unitValueCp(match.cost, match.rarity), quantity });
+      ingredients.push({ ref: match.ref, new: null, name: match.name, rarity: match.rarity, value_cp: unitValue(match.cost, match.rarity, currency), quantity });
       return;
     }
     const value = cleanMaterialBand(rarity, rawValue);
-    if (value !== rawValue) adjustments.push(`${name} priced at ${money(value)} to fit ${rarityLabel(rarity)}.`);
+    if (value !== rawValue) adjustments.push(`${name} priced at ${money(value, currency)} to fit ${rarityLabel(rarity)}.`);
     const material: InventionNewMaterial = {
       name,
       item_type: "crafting_material",
       rarity,
-      cost: formatCostCp(value),
+      cost: formatCost(value, currency),
       value_cp: value,
       description: description === null ? "" : description,
       tags: [],
@@ -478,8 +482,8 @@ export function validateInvention(raw: unknown, ctx: InventionContext): Inventio
   // Ingredients decide the ceiling and the budget of value.
   const { ingredients } =
     ctx.mode === "materials"
-      ? benchIngredients(ctx.bench, errors)
-      : ideaIngredients(raw.ingredients, ctx.materialCandidates, errors, adjustments);
+      ? benchIngredients(ctx.bench, ctx.currency, errors)
+      : ideaIngredients(raw.ingredients, ctx.materialCandidates, ctx.currency, errors, adjustments);
   const ceiling = rarityCeiling(ingredients.map((i) => i.rarity));
   const materialsValue = ingredients.reduce((s, i) => s + i.value_cp * i.quantity, 0);
   const limit = Math.floor(materialsValue * ctx.valueMultiple);
@@ -523,7 +527,7 @@ export function validateInvention(raw: unknown, ctx: InventionContext): Inventio
   if (existing === null && newSource !== null && typeof newSource.name === "string") {
     const wanted = clip(newSource.name, NAME_MAX).toLowerCase();
     const match = wanted === "" ? undefined : ctx.outputCandidates.find((c) => c.name.trim().toLowerCase() === wanted);
-    if (match && checkCandidate(match, ceiling, ctx).length === 0 && fitExisting(unitValueCp(match.cost, match.rarity), quantity, limit) !== null) {
+    if (match && checkCandidate(match, ceiling, ctx).length === 0 && fitExisting(unitValue(match.cost, match.rarity, ctx.currency), quantity, limit) !== null) {
       existing = match;
       newSource = null;
       adjustments.push(`Matched to the existing ${match.name}.`);
@@ -534,7 +538,7 @@ export function validateInvention(raw: unknown, ctx: InventionContext): Inventio
 
   if (existing !== null) {
     errors.push(...checkCandidate(existing, ceiling, ctx));
-    const unit1 = unitValueCp(existing.cost, existing.rarity);
+    const unit1 = unitValue(existing.cost, existing.rarity, ctx.currency);
     const fit = fitExisting(unit1, quantity, limit);
     if (fit === null) {
       errors.push(`${existing.name} is worth more than these materials can pay for.`);
@@ -600,14 +604,14 @@ export function validateInvention(raw: unknown, ctx: InventionContext): Inventio
       const itemRecharge = charges === null ? null : declared && declared.kind === "charges" && declared.recharge !== null ? declared.recharge : recharge;
 
       const clamped = cleanMaterialBand(rarity, valueIn);
-      if (clamped !== valueIn) adjustments.push(`Value set to ${money(clamped)} to fit a ${rarityLabel(rarity)} item.`);
+      if (clamped !== valueIn) adjustments.push(`Value set to ${money(clamped, ctx.currency)} to fit a ${rarityLabel(rarity)} item.`);
       const fit = fitNew(clamped, quantity, limit, rarity);
       let finalValue = clamped;
       if (fit === null) {
         errors.push(`These materials are not worth enough for a ${rarityLabel(rarity)} item.`);
       } else {
         if (fit.quantity !== quantity) adjustments.push(`Quantity reduced to ${fit.quantity} to fit the value of the materials.`);
-        if (fit.value !== clamped) adjustments.push(`Value lowered to ${money(fit.value)} to fit the materials.`);
+        if (fit.value !== clamped) adjustments.push(`Value lowered to ${money(fit.value, ctx.currency)} to fit the materials.`);
         quantity = fit.quantity;
         finalValue = fit.value;
       }
@@ -617,7 +621,7 @@ export function validateInvention(raw: unknown, ctx: InventionContext): Inventio
         item_type: type,
         subtype,
         rarity,
-        cost: formatCostCp(finalValue),
+        cost: formatCost(finalValue, ctx.currency),
         value_cp: finalValue,
         weight,
         flavor,
