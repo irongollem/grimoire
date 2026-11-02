@@ -344,11 +344,15 @@ function bedsIn(brandDir: string): string[] {
 /** Under the voice, a bed is level-matched to the theme and set this far below the Reel's bed: the tunes are busier than its underscore. */
 const BED_EXTRA_DB = -3;
 /**
- * Keeps a busy tune behind the voice: no rumble, a dip where speech is
- * intelligible, softened highs. The same on every tune, so the chain sounds
- * like one piece of music rather than three.
+ * Keeps a busy tune behind the voice and the chain sounding like one piece:
+ * no rumble, a dip in the low mids (where it muddies a voice) and where speech
+ * is intelligible, softened highs, then a slow leveller. Generated tunes jump
+ * at their section changes (a bass line entering a minute in, a texture
+ * thickening), and an even bed hides both those jumps and the handovers.
  */
-const BED_EQ = "highpass=f=90,equalizer=f=2500:t=q:w=1.2:g=-5,treble=g=-4:f=6000";
+const BED_EQ =
+  "highpass=f=90,equalizer=f=300:t=q:w=1:g=-3,equalizer=f=2500:t=q:w=1.2:g=-5,treble=g=-4:f=6000," +
+  "acompressor=threshold=0.05:ratio=3:attack=400:release=2500:knee=4";
 
 /**
  * The theme's motif over the opening logo and its ending over the close, as
