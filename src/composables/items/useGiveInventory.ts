@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
-import type { CoinKey } from "@/types/downtime.types";
+import type { Coins } from "@/lib/currency/currency";
 
 /**
  * Handing things between packs (#1112). A player may write only their own pack and
@@ -41,7 +41,7 @@ export function useGiveInventoryItem() {
 export interface GiveCoinsArgs {
   fromMemberId: string;
   toMemberId: string;
-  coins: Record<CoinKey, number>;
+  coins: Coins;
 }
 
 export function useGiveCoins() {
@@ -52,11 +52,7 @@ export function useGiveCoins() {
       const { error } = await supabase.rpc("give_coins", {
         p_from_member_id: fromMemberId,
         p_to_member_id: toMemberId,
-        p_pp: coins.pp,
-        p_gp: coins.gp,
-        p_ep: coins.ep,
-        p_sp: coins.sp,
-        p_cp: coins.cp,
+        p_coins: coins,
       });
       if (error) throw error;
     },

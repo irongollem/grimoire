@@ -1,6 +1,7 @@
 import type { LootEntryAiResult } from "./types";
 import { ITEM_RARITIES, ITEM_TYPES, type ItemRarity, type ItemType } from "@/types/item.types";
 import { parseExpression, maxExpression } from "@/lib/dice/dice";
+import type { Coins, CurrencyConfig } from "@/lib/currency/currency";
 
 /**
  * App-side half of #602: the loot generator returns item *names*, not ids.
@@ -44,7 +45,7 @@ export type ResolvedLootEntry =
     kind: "currency";
     label: string | null;
     dropChance: number;
-    pp: number; gp: number; ep: number; sp: number; cp: number;
+    coins: Coins;
     notes: string | null;
   }
   | {
@@ -115,10 +116,19 @@ function cleanQty(raw: unknown): number | null {
   return raw;
 }
 
-/** Whole non-negative coin amount, or 0. */
-function cleanCoin(raw: unknown): number {
-  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) return 0;
-  return Math.round(raw);
+/** The model's `coins` map reduced to whole positive counts of denominations
+ *  the campaign's currency actually has; anything else it invented is dropped. */
+function cleanCoins(raw: unknown, currency: CurrencyConfig): Coins {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const given = raw as Record<string, unknown>;
+  const out: Coins = {};
+  for (const d of currency.denominations) {
+    const n = given[d.key];
+    if (typeof n !== "number" || !Number.isFinite(n) || n < 0) continue;
+    const whole = Math.round(n);
+    if (whole > 0) out[d.key] = whole;
+  }
+  return out;
 }
 
 function isItemRarity(value: unknown): value is ItemRarity {
@@ -138,6 +148,7 @@ function isItemType(value: unknown): value is ItemType {
 function resolveEntry(
   entry: LootEntryAiResult,
   nameIndex: Map<string, LootItemPoolRow>,
+  currency: CurrencyConfig,
 ): ResolvedLootEntry {
   const dropChance = normalizeDropChance(entry.drop_chance);
   const notes = cleanString(entry.notes);
@@ -149,8 +160,7 @@ function resolveEntry(
       kind: "currency",
       label: cleanString(entry.currency_label),
       dropChance,
-      pp: cleanCoin(entry.pp), gp: cleanCoin(entry.gp), ep: cleanCoin(entry.ep),
-      sp: cleanCoin(entry.sp), cp: cleanCoin(entry.cp),
+      coins: cleanCoins(entry.coins, currency),
       notes,
     };
   }
@@ -204,12 +214,13 @@ function resolveEntry(
 export function resolveGeneratedLoot(
   entries: LootEntryAiResult[],
   pool: LootItemPoolRow[],
+  currency: CurrencyConfig,
 ): ResolvedLootEntry[] {
   const nameIndex = buildNameIndex(pool);
   const seenItemIds = new Set<string>();
 
   return entries.map((entry) => {
-    const resolved = resolveEntry(entry, nameIndex);
+    const resolved = resolveEntry(entry, nameIndex, currency);
     // A model that lists the same sword twice produces two entries that each
     // roll independently — which reads as a bug in the table, not as variety.
     // The duplicate is surfaced rather than merged: the DM may well have

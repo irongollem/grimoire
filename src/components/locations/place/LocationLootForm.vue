@@ -13,9 +13,7 @@
 
       <template v-else-if="kind === 'currency'">
         <AppInput v-model="label" placeholder="Currency label (optional)" />
-        <div class="grid grid-cols-5 gap-2">
-          <label v-for="coin in coins" :key="coin" class="text-caption uppercase text-muted-foreground">{{ coin }}<AppInput v-model.number="currency[coin]" type="number" min="0" /></label>
-        </div>
+        <CoinInput v-model="coins" />
       </template>
 
       <template v-else>
@@ -25,7 +23,7 @@
         <div v-if="rolledAtoms.length || rolledUnresolved.length" class="flex flex-col gap-1 rounded-md border border-border bg-muted/40 p-2">
           <p v-for="atom in rolledAtoms" :key="atom.atom_id" class="text-caption text-foreground truncate">
             <template v-if="atom.type === 'item'">· {{ atom.item_name }}</template>
-            <template v-else>💰 {{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}</template>
+            <template v-else>💰 <CoinAmount :coins="atom.coins ?? {}" size="sm" empty="nothing" /></template>
           </p>
           <p v-for="u in rolledUnresolved" :key="u.entry_id" class="text-caption-sm text-muted-foreground italic">
             ⚠ {{ u.wanted }}: {{ unresolvedReasonLabel(u.reason) }}
@@ -64,7 +62,7 @@
  * is selected (#972, story 11); the held list beside it needs only the loot
  * rows. See the panel for how a drop flips the room's `looted` fact.
  */
-import { computed, reactive, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
 import { useLootPool } from "@/composables/dungeon-features/useLootPool";
 import { itemRefColumns } from "@/lib/itemRef";
@@ -78,10 +76,12 @@ import {
   type RolledUnresolvedEntry,
 } from "@/lib/dungeon-features/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
-import { formatCoinParts } from "@/rules/currency";
+import { hasCoins, type Coins } from "@/lib/currency/currency";
 import { IconClose, IconDiceRoll } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import CoinInput from "@/components/currency/CoinInput.vue";
+import CoinAmount from "@/components/currency/CoinAmount.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
@@ -108,8 +108,7 @@ const kind = ref<LootPlacementKind>("item");
 const itemId = ref("");
 const label = ref("");
 const quantity = ref(1);
-const coins = ["pp", "gp", "ep", "sp", "cp"] as const;
-const currency = reactive<Record<(typeof coins)[number], number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+const coins = ref<Coins>({});
 
 // ── Loot-chest prep — roll now, hold the result, drop it later ──────────────
 const lootTableId = ref("");
@@ -167,13 +166,13 @@ function onChestFileChange(fileEvent: Event) {
 
 const canAdd = computed(() => {
   if (kind.value === "item") return !!itemId.value && quantity.value > 0;
-  if (kind.value === "currency") return coins.some((coin) => currency[coin] > 0);
+  if (kind.value === "currency") return hasCoins(coins.value);
   return !!selectedLootTable.value && !atomsLoading.value && rolledAtoms.value.length > 0 && !!effectiveCap.value;
 });
 
 function resetDraft() {
   itemId.value = ""; label.value = ""; quantity.value = 1;
-  for (const coin of coins) currency[coin] = 0;
+  coins.value = {};
   lootTableId.value = ""; rolledEntries.value = []; claimsDice.value = "1"; chestImageUrl.value = null;
 }
 watch(kind, () => { resetDraft(); error.value = ""; });
@@ -218,7 +217,7 @@ async function add() {
         ...itemRefColumns(kind.value === "item" ? itemId.value : null),
         quantity: kind.value === "item" ? Math.max(1, Math.floor(quantity.value)) : 1,
         label: label.value.trim(),
-        payload: kind.value === "currency" ? { ...currency } : {},
+        payload: kind.value === "currency" ? { coins: coins.value } : {},
         source_type: "prepared",
         source_id: null,
         sort_order: lootCount,

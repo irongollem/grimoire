@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestPayoffPanel from "./QuestPayoffPanel.vue";
 import type { LootPlacement, QuestBeat, QuestBeatEdge, QuestConsequence } from "@/types/quest.types";
@@ -99,6 +100,7 @@ function mountPanel(props: Partial<InstanceType<typeof QuestPayoffPanel>["$props
 
 describe("QuestPayoffPanel", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     mocks.createConsequence.mockReset();
     mocks.removeConsequence.mockReset();
     mocks.createLoot.mockReset();
@@ -488,13 +490,13 @@ describe("QuestPayoffPanel", () => {
     it("Riches needs at least one coin, and is always one entry carrying the purse", async () => {
       const wrapper = mountPanel();
       await open(wrapper, "Riches");
-      expect(wrapper.findAll("label.uppercase")).toHaveLength(5);
+      expect(wrapper.findAll('input[aria-label]')).toHaveLength(5);
       expect(addButton(wrapper).props("disabled")).toBe(true);
-      await wrapper.findAll("label.uppercase").find((l) => l.text().toLowerCase() === "gp")!.get("input").setValue(25);
+      await wrapper.get('input[aria-label="Gold"]').setValue(25);
       expect(addButton(wrapper).props("disabled")).toBe(false);
       await submit(wrapper);
       expect(mocks.createLoot).toHaveBeenCalledWith(expect.objectContaining({
-        kind: "currency", quantity: 1, payload: { pp: 0, gp: 25, ep: 0, sp: 0, cp: 0 },
+        kind: "currency", quantity: 1, payload: { coins: { gp: 25 } },
       }));
     });
 

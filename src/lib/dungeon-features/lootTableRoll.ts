@@ -20,6 +20,7 @@
 import { rollDie } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import { parseExpression } from "@/lib/dice/dice";
+import type { Coins } from "@/lib/currency/currency";
 import type { Item } from "@/types/item.types";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS } from "@/types/item.types";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
@@ -45,11 +46,7 @@ export interface RolledItemEntry extends RolledBase {
 export interface RolledCurrencyEntry extends RolledBase {
   type: "currency";
   currency_label?: string | null;
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
+  coins: Coins;
 }
 
 /** Why a hit entry produced no loot. */
@@ -151,11 +148,7 @@ export function rollLootTable(
         type: "currency",
         entry_id: entry.id,
         currency_label: entry.currency_label ?? null,
-        pp: entry.pp ?? 0,
-        gp: entry.gp ?? 0,
-        ep: entry.ep ?? 0,
-        sp: entry.sp ?? 0,
-        cp: entry.cp ?? 0,
+        coins: entry.coins ?? {},
         notes: entry.notes ?? null,
       });
     }

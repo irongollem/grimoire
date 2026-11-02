@@ -243,9 +243,9 @@
           <div class="cs-section-title">Currency</div>
           <div class="cs-section-body">
             <div class="cs-currency-row">
-              <div v-for="coin in COINS" :key="coin.key" class="cs-coin">
-                <div class="cs-coin-amount">{{ member[coin.key] }}</div>
-                <div class="cs-coin-label">{{ coin.label }}</div>
+              <div v-for="d in currency.denominations" :key="d.key" class="cs-coin">
+                <div class="cs-coin-amount">{{ member.coins[d.key] ?? 0 }}</div>
+                <div class="cs-coin-label">{{ d.abbr }}</div>
               </div>
             </div>
           </div>
@@ -302,6 +302,7 @@
 <script setup lang="ts">
 import { characterSenses, formatSenses } from "@/rules/characterSenses";
 import { computed } from "vue";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
@@ -336,13 +337,7 @@ const ABILITIES = [
   { key: "cha" as const, label: "Charisma" },
 ] as const;
 
-const COINS = [
-  { key: "pp" as keyof PartyMember, label: "PP" },
-  { key: "gp" as keyof PartyMember, label: "GP" },
-  { key: "ep" as keyof PartyMember, label: "EP" },
-  { key: "sp" as keyof PartyMember, label: "SP" },
-  { key: "cp" as keyof PartyMember, label: "CP" },
-] as const;
+const { currency } = useCurrency();
 
 // ── Data resolution ────────────────────────────────────────────────────────────
 

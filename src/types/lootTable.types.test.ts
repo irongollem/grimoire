@@ -71,6 +71,6 @@ describe("validateEntries — quantity guards (#487)", () => {
   });
 
   it("leaves currency entries valid regardless of quantity fields", () => {
-    expect(validateEntries([entry({ type: "currency", gp: 10 })])).toBeNull();
+    expect(validateEntries([entry({ type: "currency", coins: { gp: 10 } })])).toBeNull();
   });
 });

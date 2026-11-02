@@ -2,6 +2,8 @@ import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { addCoins, hasCoins, type Coins } from "@/lib/currency/currency";
 import { createNpc, queueNpcEmbedding } from "@/composables/npcs/useNpcs";
 import { createItem, queueItemEmbedding } from "@/composables/items/useItems";
 import { createNote, queueNoteEmbedding } from "@/composables/notes/useNotes";
@@ -13,16 +15,17 @@ import {
   noteInsertFromSeed,
 } from "@/lib/downtime/downtimeSeedReward";
 import {
-  applyCoinEffects,
   applyConditionEffects,
   applyHpEffects,
+  coinGain,
+  coinSpend,
   hasApplicableMemberEffect,
+  unknownCoinKeys,
 } from "@/lib/downtime/downtimeEffects";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type {
-  CoinKey,
   DowntimeDeckBack,
   DowntimeDeckBackInsert,
   DowntimeDraw,
@@ -330,7 +333,7 @@ export function useResolveDraw() {
 
 /**
  * Apply the ticked effects the app can enact — coin, HP, and conditions — to the
- * character who drew. `party_members` carries cp/sp/ep/gp/pp, current_hp/max_hp,
+ * character who drew. `party_members` carries the `coins` purse, current_hp/max_hp,
  * and a `conditions` array, so all three are safe and verifiable. The `item`
  * kind still renders as a checklist the DM performs by hand (it names an item to
  * drop into inventory, which the effect alone can't safely resolve) — a named
@@ -342,6 +345,7 @@ export function useResolveDraw() {
  */
 export function useApplyEffects() {
   const queryClient = useQueryClient();
+  const { currency } = useCurrency();
   return useMutation({
     mutationFn: async (args: {
       partyMemberId: string;
@@ -349,29 +353,49 @@ export function useApplyEffects() {
     }): Promise<void> => {
       if (!hasApplicableMemberEffect(args.effects)) return;
 
+      // A price in coins the campaign does not have can be neither paid nor
+      // stored; say so before anything is written rather than half-apply.
+      const unknown = unknownCoinKeys(args.effects, currency.value);
+      if (unknown.length > 0) {
+        throw new Error(
+          `This outcome is priced in coins this campaign does not have (${unknown.join(", ")}).`,
+        );
+      }
+
       const { data: member, error: readError } = await supabase
         .from("party_members")
-        .select("cp, sp, ep, gp, pp, current_hp, max_hp, conditions")
+        .select("coins, current_hp, max_hp, conditions")
         .eq("id", args.partyMemberId)
         .single();
       if (readError) throw readError;
 
-      const row = member as Record<CoinKey, number> & {
+      const row = member as {
+        coins: Coins;
         current_hp: number;
         max_hp: number;
         conditions: AppliedCondition[];
       };
 
-      const coins = applyCoinEffects(
-        { pp: row.pp, gp: row.gp, ep: row.ep, sp: row.sp, cp: row.cp },
-        args.effects,
-      );
+      // A cost goes through the server, which pays with change and refuses an
+      // unaffordable price ("Insufficient funds"); it runs first so a refused
+      // cost aborts before HP, conditions or the gain are written.
+      const price = coinSpend(args.effects);
+      let purse = row.coins;
+      if (hasCoins(price)) {
+        const { data: paid, error: spendError } = await supabase.rpc("spend_coins", {
+          p_member_id: args.partyMemberId,
+          p_price: price,
+        });
+        if (spendError) throw spendError;
+        purse = paid as Coins;
+      }
+      const coins = addCoins(purse, coinGain(args.effects));
       const currentHp = applyHpEffects(row.current_hp, row.max_hp, args.effects);
       const conditions = applyConditionEffects(row.conditions, args.effects);
 
       const { error: writeError } = await supabase
         .from("party_members")
-        .update({ ...coins, current_hp: currentHp, conditions })
+        .update({ coins, current_hp: currentHp, conditions })
         .eq("id", args.partyMemberId);
       if (writeError) throw writeError;
     },

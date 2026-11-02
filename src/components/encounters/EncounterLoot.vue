@@ -78,7 +78,7 @@
             icon-size="xs"
             label="Drop"
             class="shrink-0"
-            :disabled="!hasCoins(pool)"
+            :disabled="!hasCoins(pool.coins)"
             :tooltip="`Drop '${pool.label || 'Pool'}' to chat`"
             @click="emit('drop-pool', pool)"
           />
@@ -92,23 +92,11 @@
             @click="removePool(pool.id)"
           />
         </div>
-        <div class="grid grid-cols-5 gap-1.5">
-          <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
-            <label
-              class="text-label font-semibold text-center"
-              :style="{ color: coin.color }"
-            >{{ coin.label }}</label>
-            <AppInput
-              :model-value="pool[coin.key as keyof typeof pool]"
-              type="number"
-              min="0"
-              tone="card"
-              size="caption"
-              align="center"
-              @update:model-value="updatePool(pool.id, coin.key, Number($event) || 0)"
-            />
-          </div>
-        </div>
+        <CoinInput
+          :model-value="pool.coins"
+          size="caption"
+          @update:model-value="(v) => updatePool(pool.id, 'coins', v)"
+        />
       </div>
 
       <!-- Add controls -->
@@ -158,6 +146,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import type { Item, ItemIndexEntry } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
+import { hasCoins, type Coins } from "@/lib/currency/currency";
+import CoinInput from "@/components/currency/CoinInput.vue";
 
 const itemIds = defineModel<string[]>("itemIds", { required: true });
 const currencyPools = defineModel<RewardCurrencyPool[]>("currencyPools", { required: true });
@@ -173,14 +163,6 @@ const emit = defineEmits<{
   "drop-pool": [pool: RewardCurrencyPool];
   "drop-item": [payload: { item: Item; qty: number }];
 }>();
-
-const COIN_TYPES = [
-  { key: "pp", label: "PP", color: "#a855f7" },
-  { key: "gp", label: "GP", color: "#f59e0b" },
-  { key: "ep", label: "EP", color: "#60a5fa" },
-  { key: "sp", label: "SP", color: "#9ca3af" },
-  { key: "cp", label: "CP", color: "#b45309" },
-];
 
 const itemCounts = computed(() => {
   const counts = new Map<string, number>();
@@ -235,7 +217,7 @@ function removeAllOfItem(id: string) {
 function addPool() {
   currencyPools.value = [
     ...currencyPools.value,
-    { id: crypto.randomUUID(), label: "", pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
+    { id: crypto.randomUUID(), label: "", coins: {} },
   ];
 }
 
@@ -243,12 +225,8 @@ function removePool(id: string) {
   currencyPools.value = currencyPools.value.filter((p) => p.id !== id);
 }
 
-function updatePool(id: string, key: string, value: string | number) {
+function updatePool(id: string, key: "label" | "coins", value: string | Coins) {
   currencyPools.value = currencyPools.value.map((p) => (p.id === id ? { ...p, [key]: value } : p));
-}
-
-function hasCoins(pool: RewardCurrencyPool) {
-  return pool.pp + pool.gp + pool.ep + pool.sp + pool.cp > 0;
 }
 
 </script>

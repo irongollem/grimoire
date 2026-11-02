@@ -1,18 +1,12 @@
-import { computed, reactive, ref, type Ref } from "vue";
-import { COINS } from "@/rules/currency";
-import type { CoinKey } from "@/types/downtime.types";
+import { computed, ref, type Ref } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import { hasPowerfulBuild, carryCapacity } from "@/lib/utils";
 import { ENCUMBERED_AT, HEAVY_AT, burdenLevel as burdenOf, carryColorClass } from "@/lib/inventory/pack";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { hasCoins, type Coins } from "@/lib/currency/currency";
 import { useGiveCoins } from "@/composables/items/useGiveInventory";
-import {
-  coinGiveBlocked,
-  giveCoinsLabel,
-  hasCoins,
-  leavesYouLine,
-  wholeCoins,
-} from "@/lib/inventory/coinGive";
+import { coinGiveBlocked, coinsLeft, giveCoinsLabel, leavesYouLine } from "@/lib/inventory/coinGive";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -27,6 +21,7 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
   const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
   const { sendCurrencyDrop } = useCampaignMessages();
   const toast = useToast();
+  const { currency } = useCurrency();
   const { data: partyMembers } = useParty();
   const { mutateAsync: giveCoins } = useGiveCoins();
   const { reportChatFailure } = useChatSendFailure();
@@ -81,66 +76,53 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
   }
 
   // ── Currency ─────────────────────────────────────────────────────────────────
-  const memberCoins = computed((): Record<CoinKey, number> => ({
-    pp: member.value?.pp ?? 0,
-    gp: member.value?.gp ?? 0,
-    ep: member.value?.ep ?? 0,
-    sp: member.value?.sp ?? 0,
-    cp: member.value?.cp ?? 0,
-  }));
+  const memberCoins = computed((): Coins => member.value?.coins ?? {});
 
-  async function setCurrency(key: CoinKey, value: number) {
+  /** Writes the whole purse: the column is one map, so a change sends all of it. */
+  async function setCoins(coins: Coins) {
     if (!member.value) return;
     try {
-      await updatePartyMember({ id: member.value.id, update: { [key]: value } });
+      await updatePartyMember({ id: member.value.id, update: { coins } });
     } catch (error) {
       toast.error(toast.fromError(error, "Couldn't update your coins."));
     }
   }
 
+  async function setCurrency(key: string, value: number) {
+    const next: Coins = { ...memberCoins.value };
+    if (value > 0) next[key] = value;
+    else delete next[key];
+    await setCoins(next);
+  }
+
   const showCoinDrop = ref(false);
-  const coinDrop = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
-  const coinDropHasValue = computed(() => COINS.some((c) => coinDrop[c.key] > 0));
-  const coinDropOverLimit = computed(() =>
-    member.value ? COINS.some((c) => coinDrop[c.key] > (member.value![c.key] ?? 0)) : false,
-  );
+  const coinDrop = ref<Coins>({});
+  const coinDropHasValue = computed(() => hasCoins(coinDrop.value));
+  const coinDropOverLimit = computed(() => coinGiveBlocked(memberCoins.value, coinDrop.value));
 
   function openCoinDrop() {
-    COINS.forEach((c) => { coinDrop[c.key] = 0; });
+    coinDrop.value = {};
     showCoinDrop.value = true;
   }
 
   async function submitCoinDrop() {
     if (!member.value || !coinDropHasValue.value || coinDropOverLimit.value) return;
-    // Clamp to non-negative integers up front and deduct exactly what is dropped —
-    // sendCurrencyDrop floors internally, so deducting the raw (fractional) input
-    // would destroy coin (or debit for a drop that floored to nothing and never sent).
-    const coin = (n: number) => Math.max(0, Math.floor(n || 0));
-    const clamped: Record<CoinKey, number> = {
-      pp: coin(coinDrop.pp), gp: coin(coinDrop.gp), ep: coin(coinDrop.ep), sp: coin(coinDrop.sp), cp: coin(coinDrop.cp),
-    };
-    if (!COINS.some((c) => clamped[c.key] > 0)) return; // nothing droppable after clamping
-    // The purse is debited only after the drop is posted, so a failed post loses no coin.
+    // The coins handed over leave the purse as exactly those coins (no change-making),
+    // and only after the drop is posted, so a failed post loses no coin.
+    const dropped = { ...coinDrop.value };
     try {
-      await sendCurrencyDrop(
-        clamped.pp, clamped.gp, clamped.ep, clamped.sp, clamped.cp,
-        member.value.name ?? undefined,
-      );
+      await sendCurrencyDrop(dropped, member.value.name ?? undefined);
     } catch (e) {
       reportChatFailure(e, "drop the coins to the chat");
       return;
     }
-    for (const c of COINS) {
-      if (clamped[c.key] > 0) {
-        void setCurrency(c.key, Math.max(0, (member.value[c.key] ?? 0) - clamped[c.key]));
-      }
-    }
+    void setCoins(coinsLeft(memberCoins.value, dropped));
     showCoinDrop.value = false;
   }
 
   // ── Giving coins to another character (#1112) ────────────────────────────────
   const showCoinGive = ref(false);
-  const coinGive = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+  const coinGive = ref<Coins>({});
   const coinGiveTo = ref("");
   /** Everyone at the table but this character; the stash is not a person to hand coin to. */
   const coinGiveRecipients = computed(() =>
@@ -152,14 +134,14 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
   const coinGiveCanSend = computed(
     () =>
       coinGiveRecipient.value !== null &&
-      hasCoins(wholeCoins(coinGive)) &&
-      !coinGiveBlocked(memberCoins.value, wholeCoins(coinGive)),
+      hasCoins(coinGive.value) &&
+      !coinGiveBlocked(memberCoins.value, coinGive.value),
   );
-  const coinGiveLeaves = computed(() => leavesYouLine(memberCoins.value, wholeCoins(coinGive)));
-  const coinGiveLabel = computed(() => giveCoinsLabel(wholeCoins(coinGive), coinGiveRecipient.value?.name ?? null));
+  const coinGiveLeaves = computed(() => leavesYouLine(memberCoins.value, coinGive.value, currency.value));
+  const coinGiveLabel = computed(() => giveCoinsLabel(coinGive.value, coinGiveRecipient.value?.name ?? null, currency.value));
 
   function openCoinGive() {
-    COINS.forEach((c) => { coinGive[c.key] = 0; });
+    coinGive.value = {};
     coinGiveTo.value = coinGiveRecipients.value[0]?.id ?? "";
     showCoinGive.value = true;
   }
@@ -168,7 +150,7 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
     const to = coinGiveRecipient.value;
     if (!member.value || !to || !coinGiveCanSend.value) return;
     try {
-      await giveCoins({ fromMemberId: member.value.id, toMemberId: to.id, coins: wholeCoins(coinGive) });
+      await giveCoins({ fromMemberId: member.value.id, toMemberId: to.id, coins: coinGive.value });
     } catch {
       return; // useGiveCoins has already toasted; keep the form so nothing typed is lost
     }

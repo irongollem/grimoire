@@ -24,7 +24,7 @@
             <template v-else-if="r.type === 'currency'">
               <span class="text-heading-sm font-bold text-ink-caution shrink-0 w-7 text-right">💰</span>
               <span class="text-body text-foreground truncate">
-                {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
+                {{ r.currency_label ? r.currency_label + ': ' : '' }}<CoinAmount :coins="r.coins" size="sm" />
               </span>
             </template>
             <template v-else-if="r.type === 'unresolved'">
@@ -92,7 +92,7 @@
  */
 import { ref, computed, watch } from "vue";
 import { IconDiceRoll, IconPackageOpen } from "@/lib/icons";
-import { formatCoinParts } from "@/rules/currency";
+import CoinAmount from "@/components/currency/CoinAmount.vue";
 import {
   rollLootTable,
   unresolvedReasonLabel,

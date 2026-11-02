@@ -1,4 +1,4 @@
-import { formatCoinParts } from "@/rules/currency";
+import { formatCoins, type Coins, type CurrencyConfig } from "@/lib/currency/currency";
 import type {
   CampaignMessage,
   CurrencyDropMetadata,
@@ -16,24 +16,15 @@ export interface WaitingItem {
   detail: string | null;
 }
 
-interface Price {
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
-}
-
-function priceText(p: Price): string | null {
-  const parts = formatCoinParts(p.pp, p.gp, p.ep, p.sp, p.cp);
-  return parts.length ? parts.join(" ") : null;
+function priceText(coins: Coins, currency: CurrencyConfig): string | null {
+  return formatCoins(coins, currency) || null;
 }
 
 function withQuantity(name: string, quantity: number): string {
   return quantity > 1 ? `${quantity}× ${name}` : name;
 }
 
-function describe(m: CampaignMessage): Omit<WaitingItem, "messageId"> | null {
+function describe(m: CampaignMessage, currency: CurrencyConfig): Omit<WaitingItem, "messageId"> | null {
   switch (m.type) {
     case "item_drop": {
       const d = m.metadata as ItemDropMetadata | null;
@@ -45,7 +36,7 @@ function describe(m: CampaignMessage): Omit<WaitingItem, "messageId"> | null {
     case "currency_drop": {
       const d = m.metadata as CurrencyDropMetadata | null;
       if (!d || d.claimed_by_user_id !== null) return null;
-      return { kind: "coins", title: d.label ?? "Coins", detail: priceText(d) };
+      return { kind: "coins", title: d.label ?? "Coins", detail: priceText(d.coins, currency) };
     }
     case "loot_chest": {
       const d = m.metadata as LootChestMetadata | null;
@@ -57,12 +48,12 @@ function describe(m: CampaignMessage): Omit<WaitingItem, "messageId"> | null {
     case "player_offer": {
       const d = m.metadata as PlayerOfferMetadata | null;
       if (!d || d.sold_to_user_id !== null) return null;
-      return { kind: "offer", title: withQuantity(d.item_name, d.quantity), detail: priceText(d) };
+      return { kind: "offer", title: withQuantity(d.item_name, d.quantity), detail: priceText(d.price, currency) };
     }
     case "vendor_offer": {
       const d = m.metadata as VendorOfferMetadata | null;
       if (!d || d.paid_by_user_id !== null) return null;
-      return { kind: "vendor", title: d.item_name ?? d.description, detail: priceText(d) };
+      return { kind: "vendor", title: d.item_name ?? d.description, detail: priceText(d.price, currency) };
     }
     default:
       return null;
@@ -79,6 +70,7 @@ export function openTableItems(
   messages: readonly CampaignMessage[],
   myUserId: string | null | undefined,
   sinceIso: string,
+  currency: CurrencyConfig,
 ): WaitingItem[] {
   const since = Date.parse(sinceIso);
   return messages
@@ -87,7 +79,7 @@ export function openTableItems(
     .filter((m) => Date.parse(m.created_at) >= since)
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
     .flatMap((m) => {
-      const d = describe(m);
+      const d = describe(m, currency);
       return d ? [{ messageId: m.id, ...d }] : [];
     });
 }

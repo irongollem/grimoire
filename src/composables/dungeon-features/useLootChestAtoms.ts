@@ -38,7 +38,7 @@ export function useLootChestAtoms(rolled: MaybeRefOrGetter<readonly RolledLootEn
           atom_id: crypto.randomUUID(),
           type: "currency",
           currency_label: entry.currency_label ?? null,
-          pp: entry.pp, gp: entry.gp, ep: entry.ep, sp: entry.sp, cp: entry.cp,
+          coins: entry.coins ?? {},
         });
       }
       // "unresolved" entries hit but produced no loot: surfaced separately, never an atom.

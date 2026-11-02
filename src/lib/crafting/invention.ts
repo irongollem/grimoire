@@ -1,4 +1,4 @@
-import { formatCoinParts, fromCP } from "@/rules/currency";
+import { formatCoins, makeChange, type CurrencyConfig } from "@/lib/currency/currency";
 import { craftingTimeText } from "./craftingTime";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
 import type {
@@ -223,11 +223,16 @@ function ordinal(n: number): string {
   }
 }
 
-/** Copper pieces as coins in gold, silver and copper (items are priced in gp, so platinum folds in), e.g. 4000 -> "40 GP". */
-export function inventionValueText(cp: number): string {
-  const c = fromCP(Math.max(0, Math.round(cp)));
-  const parts = formatCoinParts(0, c.gp + c.pp * 10, 0, c.sp, c.cp);
-  return parts.length > 0 ? parts.join(" ") : "0 CP";
+/**
+ * A value in the campaign's smallest coin (the stored `value_cp` fields, whatever the
+ * currency calls its smallest unit) written as change in its own coins, e.g. 4000 -> "40 gp"
+ * in 5e. Zero or less reads as "0" of the smallest coin.
+ */
+export function inventionValueText(value: number, currency: CurrencyConfig): string {
+  const text = formatCoins(makeChange(Math.max(0, Math.round(value)), currency), currency);
+  if (text) return text;
+  const unit = currency.denominations.find((d) => d.value === 1);
+  return `0 ${unit?.abbr ?? currency.denominations.at(-1)?.abbr}`;
 }
 
 /** The status chip's words, from whose screen it is. */

@@ -40,11 +40,11 @@
         @open-drop="openCoinDrop"
         @cancel-drop="showCoinDrop = false"
         @submit-drop="submitCoinDrop"
-        @update-drop="(key, val) => { coinDrop[key] = val }"
+        @update-drop="(coins) => { coinDrop = coins }"
         @open-give="openCoinGive"
         @cancel-give="showCoinGive = false"
         @submit-give="submitCoinGive"
-        @update-give="(key, val) => { coinGive[key] = val }"
+        @update-give="(coins) => { coinGive = coins }"
         @update-give-to="(id) => { coinGiveTo = id }"
       />
     </div>

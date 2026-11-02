@@ -115,6 +115,34 @@ describe("useCampaignMessages write errors", () => {
   });
 });
 
+describe("coin messages carry whole, non-negative coins", () => {
+  beforeEach(() => {
+    mocks.campaignStore.activeCampaignId = "c1";
+  });
+
+  // Fails if the clamp is removed: a negative or fractional drop would
+  // subtract from, or corrupt, the claimer's purse.
+  it("sendCurrencyDrop floors fractions, drops negatives and zeros, and posts nothing for an empty purse", async () => {
+    const { sendCurrencyDrop } = useCampaignMessages();
+    await sendCurrencyDrop({ gp: 5.9, sp: -3, cp: 0 });
+    expect(fake.rows("campaign_messages")).toMatchObject([
+      { type: "currency_drop", message: "dropped currency: 5 gp", metadata: { coins: { gp: 5 } } },
+    ]);
+    await sendCurrencyDrop({ gp: -1, sp: 0 });
+    expect(fake.rows("campaign_messages")).toHaveLength(1);
+  });
+
+  it("sendVendorOffer and sendPlayerOffer store the price as cleaned coins", async () => {
+    const { sendVendorOffer, sendPlayerOffer } = useCampaignMessages();
+    await sendVendorOffer("Rope", "Rope", null, { gp: 1.5, sp: 2 });
+    await sendPlayerOffer("Sword", null, "inv1", 1, "pm1", { gp: -4, cp: 7 });
+    expect(fake.rows("campaign_messages")).toMatchObject([
+      { type: "vendor_offer", metadata: { price: { gp: 1, sp: 2 } } },
+      { type: "player_offer", metadata: { price: { cp: 7 }, quantity: 1 } },
+    ]);
+  });
+});
+
 describe("useCampaignMessages history (#999)", () => {
   it("reads only a narrow probe while the chat has never been opened, then the full window once", async () => {
     mocks.campaignStore.activeCampaignId = "c-probe";

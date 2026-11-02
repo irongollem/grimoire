@@ -222,8 +222,7 @@ describe("rollLootTable — currency entries", () => {
       drop_chance: 100,
       type: "currency",
       currency_label: "Belt pouch",
-      gp: 15,
-      sp: 3,
+      coins: { gp: 15, sp: 3 },
     });
     stubRandom([]); // currency entries never consume a random for quantity
     const result = rollLootTable(makeLootTable([entry]), new Map());
@@ -232,11 +231,7 @@ describe("rollLootTable — currency entries", () => {
         type: "currency",
         entry_id: "e1",
         currency_label: "Belt pouch",
-        pp: 0,
-        gp: 15,
-        ep: 0,
-        sp: 3,
-        cp: 0,
+        coins: { gp: 15, sp: 3 },
         notes: null,
       } satisfies RolledCurrencyEntry,
     ]);
@@ -244,9 +239,12 @@ describe("rollLootTable — currency entries", () => {
 });
 
 describe("rollLootTable — currency coins", () => {
-  it("carries every coin to its own column", () => {
-    const entry = makeLootEntry({ id: "e1", type: "currency", pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
-    expect(rollLootTable(makeLootTable([entry]), new Map())[0]).toMatchObject({ pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
+  it("carries a non-5e campaign's coins through untouched, and an entry with none rolls an empty purse", () => {
+    const dollars = makeLootEntry({ id: "e1", type: "currency", coins: { dollar: 2, cent: 40 } });
+    const bare = makeLootEntry({ id: "e2", type: "currency" });
+    const [a, b] = rollLootTable(makeLootTable([dollars, bare]), new Map());
+    expect(a).toMatchObject({ coins: { dollar: 2, cent: 40 } });
+    expect(b).toMatchObject({ coins: {} });
   });
 });
 

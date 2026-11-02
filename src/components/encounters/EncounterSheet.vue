@@ -265,7 +265,8 @@ import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { formatCoinParts } from "@/rules/currency";
+import { addCoins, type Coins } from "@/lib/currency/currency";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -397,21 +398,12 @@ const lootItems = computed(() =>
     .filter((it): it is NonNullable<typeof it> => !!it),
 );
 
+const { formatCoins } = useCurrency();
+
 const coinSummary = computed(() => {
   const pools = props.encounter.reward_currency_pools ?? [];
   if (!pools.length) return "";
-  const sum = pools.reduce(
-    (acc, p) => ({
-      pp: acc.pp + (p.pp ?? 0),
-      gp: acc.gp + (p.gp ?? 0),
-      ep: acc.ep + (p.ep ?? 0),
-      sp: acc.sp + (p.sp ?? 0),
-      cp: acc.cp + (p.cp ?? 0),
-    }),
-    { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
-  );
-  const parts = formatCoinParts(sum.pp, sum.gp, sum.ep, sum.sp, sum.cp);
-  return parts.join(" ");
+  return formatCoins(pools.reduce<Coins>((acc, p) => addCoins(acc, p.coins), {}));
 });
 
 const hasLoot = computed(

@@ -1,3 +1,4 @@
+import type { Coins } from "@/lib/currency/currency";
 import type { NpcRelationship } from "@/types/npc.types";
 import type { LocationType } from "@/types/location.types";
 import type { AiProvenance } from "@/ai/provenance";
@@ -1121,11 +1122,7 @@ export type LootPlacementInsert = Omit<
 export interface RewardCurrencyPool {
   id: string;
   label: string;
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
+  coins: Coins;
 }
 
 export type QuestRefType = "npc" | "location" | "monster" | "item" | "encounter" | "faction";

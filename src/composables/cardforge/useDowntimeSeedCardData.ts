@@ -1,6 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import type { DowntimeSeed } from "@/types/downtime.types";
 import { getDowntimeActivity, RISK_LABELS } from "@/data/downtimeActivities";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { describeEffect } from "@/lib/downtime/downtimeEffects";
 import { truncateCard } from "@/types/card.types";
 
@@ -18,6 +19,7 @@ import { truncateCard } from "@/types/card.types";
  * what the on-screen card does.
  */
 export function useDowntimeSeedCardData(data: MaybeRefOrGetter<DowntimeSeed>) {
+  const { currency } = useCurrency();
   const activity = computed(() => getDowntimeActivity(toValue(data).activityKey));
 
   /** The archetype's own art is the fallback, so a note card is never blank. */
@@ -89,7 +91,7 @@ export function useDowntimeSeedCardData(data: MaybeRefOrGetter<DowntimeSeed>) {
   const effects = computed(() =>
     toValue(data).proposedEffects.map((e) => ({
       kind: e.kind,
-      text: describeEffect(e),
+      text: describeEffect(e, currency.value),
       note: e.note,
     })),
   );

@@ -102,7 +102,7 @@
             :meta="msg.metadata as VendorOfferMetadata"
             :sender-name="msg.sender_name"
             :linked-party-member-id="auth.linkedPartyMemberId"
-            :can-afford="canAffordOffer(msg.metadata as VendorOfferMetadata)"
+            :can-afford="canAffordOffer((msg.metadata as VendorOfferMetadata).price)"
             :time-label="timeLabel(msg.created_at)"
             @pay-vendor-offer="$emit('pay-vendor-offer', $event)"
           />
@@ -115,7 +115,7 @@
             :sender-name="msg.sender_name"
             :is-d-m="auth.isDM"
             :can-buy="auth.isDM || (!!auth.linkedPartyMemberId && auth.linkedPartyMemberId !== (msg.metadata as PlayerOfferMetadata)?.seller_party_member_id)"
-            :can-afford="canAffordOffer(msg.metadata as PlayerOfferMetadata)"
+            :can-afford="canAffordOffer((msg.metadata as PlayerOfferMetadata).price)"
             :time-label="timeLabel(msg.created_at)"
             @buy-player-offer="$emit('buy-player-offer', $event)"
           />
@@ -220,20 +220,7 @@
           </div>
           <div v-if="vendorShowItems" class="fixed inset-0 z-10" @click="vendorShowItems = false" />
         </div>
-        <div class="grid grid-cols-5 gap-1">
-          <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-            <span class="text-label font-bold" :class="coin.color">{{ coin.symbol }}</span>
-            <AppInput
-              v-model.number="vendorPrice[coin.key]"
-              type="number"
-              min="0"
-              tone="muted"
-              size="xs"
-              align="center"
-              class="bg-muted/30 px-1"
-            />
-          </div>
-        </div>
+        <CoinInput v-model="vendorPrice" size="xs" />
         <button
           type="button"
           :disabled="!vendorDesc.trim() || !vendorHasPrice"
@@ -377,8 +364,9 @@ import type { PartyMember } from "@/types/party.types";
 import type { DieSize, RollResult } from "@/lib/dice/dice";
 import type { RollModeKey } from "@/lib/dice/diceRules";
 import { useItemIndex } from "@/composables/items/useItemIndex";
-import { COINS, toCP } from "@/rules/currency";
-import type { CoinKey } from "@/types/downtime.types";
+import CoinInput from "@/components/currency/CoinInput.vue";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { canAfford, hasCoins, type Coins } from "@/lib/currency/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperTarget } from "@/composables/campaign/useWhisperRecipients";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -417,7 +405,7 @@ const emit = defineEmits<{
   "claim-currency": [payload: { messageId: string }];
   "claim-to-npc": [payload: { messageId: string; npcId: string; npcName: string }];
   "pay-vendor-offer": [payload: { messageId: string }];
-  "send-vendor-offer": [payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }];
+  "send-vendor-offer": [payload: { description: string; itemName: string | null; itemId: string | null; price: Coins }];
   "buy-player-offer": [payload: { messageId: string }];
   "claim-loot-chest": [payload: { messageId: string; atomId: string }];
   "load-older": [];
@@ -442,12 +430,12 @@ const myMember = computed(() =>
     : null
 );
 
-function canAffordOffer(meta: { pp: number; gp: number; ep: number; sp: number; cp: number }): boolean {
+const { currency } = useCurrency();
+
+function canAffordOffer(price: Coins): boolean {
   const m = myMember.value;
   if (!m) return false;
-  const walletCP = toCP(m.pp, m.gp, m.ep, m.sp, m.cp);
-  const costCP   = toCP(meta.pp, meta.gp, meta.ep, meta.sp, meta.cp);
-  return walletCP >= costCP;
+  return canAfford(m.coins, price, currency.value);
 }
 
 // ── Vendor offer form (DM only) ─────────────────────────────────────────────────────
@@ -464,8 +452,8 @@ const vendorItemSuggestions = computed(() => {
   return all.filter(it => it.name.toLowerCase().includes(q)).slice(0, 8);
 });
 
-const vendorPrice = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
-const vendorHasPrice = computed(() => COINS.some(c => vendorPrice[c.key] > 0));
+const vendorPrice = ref<Coins>({});
+const vendorHasPrice = computed(() => hasCoins(vendorPrice.value));
 
 function postVendorOffer() {
   if (!vendorDesc.value.trim()) return;
@@ -478,11 +466,10 @@ function postVendorOffer() {
     description: vendorDesc.value.trim(),
     itemName: selectedItem?.name ?? null,
     itemId: selectedItem?.id ?? null,
-    pp: vendorPrice.pp, gp: vendorPrice.gp, ep: vendorPrice.ep,
-    sp: vendorPrice.sp, cp: vendorPrice.cp,
+    price: vendorPrice.value,
   });
   vendorDesc.value = ""; vendorItemQuery.value = ""; vendorItemId.value = "";
-  COINS.forEach(c => { vendorPrice[c.key] = 0; });
+  vendorPrice.value = {};
   vendorOpen.value = false;
 }
 

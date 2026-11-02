@@ -30,10 +30,10 @@ describe("useLootChestAtoms", () => {
   });
 
   it("makes an atom of a currency drop and none of an unresolved hit", () => {
-    const currency: RolledLootEntry = { type: "currency", entry_id: "c", currency_label: "Purse", pp: 0, gp: 12, ep: 0, sp: 3, cp: 0, notes: null };
+    const currency: RolledLootEntry = { type: "currency", entry_id: "c", currency_label: "Purse", coins: { gp: 12, sp: 3 }, notes: null };
     const missed: RolledLootEntry = { type: "unresolved", entry_id: "u", reason: "item_deleted", wanted: "Old Blade", notes: null };
     const { atoms } = useLootChestAtoms(ref<RolledLootEntry[]>([currency, missed]));
     expect(atoms.value).toHaveLength(1);
-    expect(atoms.value[0]).toMatchObject({ type: "currency", currency_label: "Purse", gp: 12, sp: 3 });
+    expect(atoms.value[0]).toMatchObject({ type: "currency", currency_label: "Purse", coins: { gp: 12, sp: 3 } });
   });
 });

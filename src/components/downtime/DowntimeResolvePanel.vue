@@ -8,6 +8,8 @@ import DowntimeActivityCard from "./DowntimeActivityCard.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { previewDraw, useResolveDraw, useCancelDraw, useApplyEffects } from "@/composables/downtime/useDowntime";
+import { useToast } from "@/composables/useToast";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { isAutoAppliedKind, describeEffect } from "@/lib/downtime/downtimeEffects";
 import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -78,7 +80,8 @@ const seedReward = computed<{ noun: string; name: string } | null>(() => {
 });
 
 /** Shared with the printed outcome card, so a consequence reads the same both places. */
-const effectSummary = describeEffect;
+const { currency } = useCurrency();
+const effectSummary = (effect: DowntimeEffect) => describeEffect(effect, currency.value);
 
 /** Coin, HP, and conditions are enacted by the app; `item` is the DM's to hand out. */
 function isAutoApplied(effect: DowntimeEffect): boolean {
@@ -88,6 +91,7 @@ function isAutoApplied(effect: DowntimeEffect): boolean {
 const resolve = useResolveDraw();
 const cancel = useCancelDraw();
 const applyEffects = useApplyEffects();
+const toast = useToast();
 
 // ── AI outcome drafting ──────────────────────────────────────────────────────
 // A drafted outcome REPLACES what the deck dealt: it becomes the `result` this
@@ -141,12 +145,22 @@ async function onResolve() {
       result: result.value,
       ai_provenance: draftProvenance.value,
     });
+  } catch (e) {
+    errorMessage.value = e instanceof Error ? e.message : "Could not resolve this draw.";
+    return;
+  }
+  try {
     await applyEffects.mutateAsync({
       partyMemberId: draw.party_member_id,
       effects: effects.value,
     });
   } catch (e) {
-    errorMessage.value = e instanceof Error ? e.message : "Could not resolve this draw.";
+    // The draw is resolved by now and this panel may close with it, so the DM is
+    // told by toast too: a cost the purse could not pay ("Insufficient funds")
+    // moved nothing and must be settled at the table.
+    const message = toast.fromError(e, "The outcome is saved, but its effects could not be applied.");
+    errorMessage.value = message;
+    toast.error(message);
   }
 }
 
