@@ -258,29 +258,47 @@ describe("availableWildShapeForms", () => {
   });
 });
 
+const WILD = ["wild_shape"];
+
 describe("druidProfile", () => {
   it("reads a single-class druid from its class row", () => {
     expect(
-      druidProfile([{ class_name: "Druid", subclass_name: "Circle of the Moon", levels: 4 }]),
+      druidProfile([{ capabilities: WILD, subclass_name: "Circle of the Moon", levels: 4 }]),
     ).toEqual({ isDruid: true, druidLevel: 4, isCircleOfMoon: true });
   });
 
   it("finds Druid taken as a second class, and uses its class level rather than the total", () => {
     expect(
       druidProfile([
-        { class_name: "Fighter", subclass_name: "Champion", levels: 6 },
-        { class_name: "Druid", subclass_name: "Circle of the Land", levels: 2 },
+        { capabilities: [], subclass_name: "Champion", levels: 6 },
+        { capabilities: WILD, subclass_name: "Circle of the Land", levels: 2 },
       ]),
     ).toEqual({ isDruid: true, druidLevel: 2, isCircleOfMoon: false });
   });
 
   it("is not a druid for any other class, or with no class at all", () => {
-    expect(druidProfile([{ class_name: "Rogue", subclass_name: null, levels: 4 }])).toEqual({
+    expect(druidProfile([{ capabilities: [], subclass_name: null, levels: 4 }])).toEqual({
       isDruid: false,
       druidLevel: 0,
       isCircleOfMoon: false,
     });
     expect(druidProfile([])).toEqual({ isDruid: false, druidLevel: 0, isCircleOfMoon: false });
+  });
+
+  // Bug: matching the class NAME made a homebrew class called "Druid" shapeshift
+  // without being given the ability, and a "Skinchanger" that was given it never.
+  it("is decided by the capability, not by the class name", () => {
+    const named = { class_name: "Druid", capabilities: [], subclass_name: null, levels: 5 };
+    expect(druidProfile([named]).isDruid).toBe(false);
+    const skinchanger = { class_name: "Skinchanger", capabilities: WILD, subclass_name: null, levels: 5 };
+    expect(druidProfile([skinchanger])).toEqual({ isDruid: true, druidLevel: 5, isCircleOfMoon: false });
+  });
+
+  // Bug: a class row restored from the persisted query cache of a previous build
+  // has no `capabilities`; reading it threw and blanked the sheet until the refetch.
+  it("reads a row from a previous build's cache (no capabilities) as not a druid, without throwing", () => {
+    const stale = { class_name: "Druid", subclass_name: null, levels: 3 } as unknown as Parameters<typeof druidProfile>[0][number];
+    expect(druidProfile([stale])).toEqual({ isDruid: false, druidLevel: 0, isCircleOfMoon: false });
   });
 });
 
@@ -308,8 +326,8 @@ describe("wildShapeRulesFor", () => {
     const rules = wildShapeRulesFor(
       { wis: 16 },
       [
-        { class_name: "Fighter", subclass_name: null, levels: 6 },
-        { class_name: "Druid", subclass_name: "Circle of the Moon", levels: 3 },
+        { capabilities: [], subclass_name: null, levels: 6 },
+        { capabilities: WILD, subclass_name: "Circle of the Moon", levels: 3 },
       ],
       "2024",
     );

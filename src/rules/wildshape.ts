@@ -89,7 +89,7 @@ export function wildShapeRules(input: {
  */
 export function wildShapeRulesFor(
   member: { wis?: number | null } | null | undefined,
-  classRows: readonly { class_name: string; subclass_name: string | null; levels: number }[],
+  classRows: readonly WildShapeClassRow[],
   edition: RulesetKey,
 ): WildShapeRules {
   const profile = druidProfile(classRows);
@@ -100,6 +100,17 @@ export function wildShapeRulesFor(
     isCircleOfMoon: profile.isCircleOfMoon,
     wisMod: wis === null || wis === undefined ? 0 : Math.floor((wis - 10) / 2),
   });
+}
+
+/**
+ * The part of a class row Wild Shape reads. `capabilities` is the class
+ * definition's list, stamped onto the row by the database (#934); `class_name`
+ * is not here because it decides nothing.
+ */
+export interface WildShapeClassRow {
+  capabilities: readonly string[];
+  subclass_name: string | null;
+  levels: number;
 }
 
 /** What Wild Shape needs to know about a character's druid class. */
@@ -113,7 +124,9 @@ export interface DruidProfile {
 /**
  * Derive druid-ness, druid class level and circle from the `character_classes`
  * rows, the only record of a character's classes (#943). A character with no
- * rows has no class, so it is not a druid.
+ * rows has no class, so it is not a druid. Druid-ness is the `wild_shape`
+ * capability of the row's class definition, never its name (#934), so a custom
+ * "Skinchanger" can Wild Shape and a homebrew class named "Druid" need not.
  *
  * Reading `member.class` and `member.level` is the bug this replaces: that text
  * mirrors the primary class only, so Druid taken as a second class was not
@@ -122,12 +135,17 @@ export interface DruidProfile {
  * the sheet, the bestiary and the encounter runner cannot disagree about it.
  */
 export function druidProfile(
-  classRows: readonly { class_name: string; subclass_name: string | null; levels: number }[],
+  classRows: readonly WildShapeClassRow[],
 ): DruidProfile {
-  const druidRow = classRows.find((row) => row.class_name.toLowerCase().includes("druid"));
+  // `capabilities?.` is deliberate: a class row restored from the persisted query
+  // cache of a previous build has no `capabilities` and is refetched at once
+  // (src/lib/queryPersistence/persistence.ts). It reads like a cold load for that
+  // beat, never as a crash.
+  const druidRow = classRows.find((row) => row.capabilities?.includes("wild_shape") === true);
   return {
     isDruid: !!druidRow,
     druidLevel: druidRow?.levels ?? 0,
+    // Stays on the name: a subclass may be free text with no definition to hold a flag (#934).
     isCircleOfMoon: (druidRow?.subclass_name ?? "").toLowerCase().includes("moon"),
   };
 }

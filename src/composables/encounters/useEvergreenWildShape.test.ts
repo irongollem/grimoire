@@ -19,7 +19,7 @@ vi.mock("@/composables/party/useParty", () => ({
 }));
 vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({
-    data: ref([{ party_member_id: "pm-oak", class_name: "Druid", subclass_name: null, levels: 20 }]),
+    data: ref([{ party_member_id: "pm-oak", class_name: "Druid", capabilities: ["wild_shape"], subclass_name: null, levels: 20 }]),
   }),
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useRuleset: () => ({ ruleset: ref("2024") }) }));

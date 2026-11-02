@@ -34,7 +34,7 @@ function row(levels: number, subclassId: string | null): CharacterClass {
   return {
     id: "row-1", party_member_id: "m1", class_name: "Fighter", class_definition_id: "def-fighter",
     class_definition_kind: "system", subclass_name: subclassId ? "Held" : null, subclass_definition_id: subclassId,
-    subclass_variant: null, levels, is_primary: true, hit_dice_used: 0, sort_order: 0, created_at: "", updated_at: "",
+    subclass_variant: null, levels, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [], created_at: "", updated_at: "",
   };
 }
 

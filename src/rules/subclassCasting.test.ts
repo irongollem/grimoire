@@ -122,7 +122,7 @@ describe("per-class stats for a subclass caster", () => {
   const row = {
     id: "r1", party_member_id: "m", class_name: "Fighter", class_definition_id: "fighter",
     class_definition_kind: "system", subclass_name: "Eldritch Knight", subclass_definition_id: "ek",
-    subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, created_at: "", updated_at: "",
+    subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [], created_at: "", updated_at: "",
   } satisfies CharacterClass;
   const member = { str: 16, dex: 10, con: 10, int: 16, wis: 10, cha: 10, proficiency_bonus: 3 };
 

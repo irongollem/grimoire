@@ -90,6 +90,8 @@ export function customClassCopy(cls: CustomClass | SystemClass): CustomClassInse
     source: null,
     image_url: cls.image_url,
     focal_point: cls.focal_point,
+    // A copy of a Wild Shape class is one too (#934).
+    capabilities: cls.capabilities,
   };
 }
 

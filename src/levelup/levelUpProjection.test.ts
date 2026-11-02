@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { GrantedFeature, ResourcePool } from "@/rules/features/characterFeatures";
 import type { ClassFeature } from "@/types/feature.types";
-import { gainedAtLevel, lowerClasses, poolChanges, projectClasses, scalingChanges, type ClassRowInfo } from "./levelUpProjection";
+import { gainedAtLevel, lowerClasses, poolChanges, projectClasses, projectWildShapeRows, scalingChanges, type ClassRowInfo } from "./levelUpProjection";
 
 const row = (over: Partial<ClassRowInfo> = {}): ClassRowInfo => ({
-  id: "r1", className: "Rogue", subclassName: null, levels: 4, classFeatures: { "5": ["a"] }, subclassFeatures: null, armorProficiencies: [], ...over,
+  id: "r1", className: "Rogue", subclassName: null, levels: 4, classFeatures: { "5": ["a"] }, subclassFeatures: null, armorProficiencies: [], capabilities: [], ...over,
 });
 const g = (id: string, kind: "class" | "subclass", levelsGained: number[], scalingValue: string | null = null, className = "Rogue"): GrantedFeature => ({
   feature: { id, name: id } as unknown as ClassFeature,
@@ -25,7 +25,7 @@ describe("projectClasses", () => {
     const { after } = projectClasses({ rows: [row()], chosenRowId: "r1", newClass: null, pickedSubclass: picked });
     expect(after[0].subclassName).toBe("Thief");
     expect(after[0].subclassMap).toEqual({ "5": ["t"] });
-    const added = projectClasses({ rows: [row()], chosenRowId: null, newClass: { className: "Wizard", classFeatures: null, startLevels: 1 }, pickedSubclass: null });
+    const added = projectClasses({ rows: [row()], chosenRowId: null, newClass: { className: "Wizard", classFeatures: null, startLevels: 1, capabilities: [] }, pickedSubclass: null });
     expect(added.after.map((c) => `${c.className}${c.levels}`)).toEqual(["Rogue4", "Wizard1"]);
   });
 });
@@ -65,5 +65,34 @@ describe("lowerClasses", () => {
     expect(lowerClasses(rows, "r2", false).map((c) => c.className)).toEqual(["Rogue"]);
     const cleared = lowerClasses(rows, "r1", true);
     expect(cleared[0]).toMatchObject({ levels: 3, subclassName: null, subclassMap: null });
+  });
+});
+
+describe("projectWildShapeRows", () => {
+  const druid = row({ id: "d1", className: "Druid", subclassName: null, levels: 3, capabilities: ["wild_shape"] });
+
+  // Bug: a first druid level taken as a new class was invisible to Wild Shape
+  // (the rows came from the existing classes only), so its forms were not offered.
+  it("carries the definition's capabilities for a first level taken as a new class", () => {
+    const rows = projectWildShapeRows({
+      rows: [row()], chosenRowId: null, pickedSubclass: null,
+      newClass: { className: "Druid", classFeatures: null, startLevels: 1, capabilities: ["wild_shape"] },
+    });
+    expect(rows).toEqual([
+      { capabilities: [], subclass_name: null, levels: 4 },
+      { capabilities: ["wild_shape"], subclass_name: null, levels: 1 },
+    ]);
+  });
+
+  // Bug: using the pre-level druid level would cap CR and uses a level behind.
+  it("adds one level to the chosen druid row and the picked subclass, leaving the others", () => {
+    const rows = projectWildShapeRows({
+      rows: [row(), druid], chosenRowId: "d1", newClass: null,
+      pickedSubclass: { name: "Circle of the Moon", features: null },
+    });
+    expect(rows).toEqual([
+      { capabilities: [], subclass_name: null, levels: 4 },
+      { capabilities: ["wild_shape"], subclass_name: "Circle of the Moon", levels: 4 },
+    ]);
   });
 });

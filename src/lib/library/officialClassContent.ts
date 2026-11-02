@@ -555,6 +555,9 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
       prepared_divisor: null,
       image_url: null,
       focal_point: null,
+      // A druid by concept can Wild Shape (#934). Insert only: the update below
+      // never writes capabilities, so a re-import cannot clear what an admin set.
+      capabilities: slugifyKey(cls.name) === "druid" ? ["wild_shape"] : [],
     };
     // Open5e exposes none of a class's mechanical progression, so everything
     // past the shell is filled in by hand and a re-import must not reset it.

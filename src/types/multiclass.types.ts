@@ -19,12 +19,16 @@ export interface CharacterClass {
   is_primary: boolean;
   hit_dice_used: number;
   sort_order: number;
+  /** The class definition's capabilities, stamped by a database trigger (#934); a client cannot set it. */
+  capabilities: string[];
   created_at: string;
   updated_at: string;
 }
 
-export type CharacterClassInsert = Omit<CharacterClass, "id" | "created_at" | "updated_at">;
-export type CharacterClassUpdate = Partial<Omit<CharacterClass, "id" | "party_member_id" | "created_at" | "updated_at">>;
+export type CharacterClassInsert = Omit<CharacterClass, "id" | "created_at" | "updated_at" | "capabilities">;
+export type CharacterClassUpdate = Partial<
+  Omit<CharacterClass, "id" | "party_member_id" | "created_at" | "updated_at" | "capabilities">
+>;
 
 /**
  * PHB multiclass prerequisite row. Seeded by migration, read-only for clients.

@@ -315,7 +315,7 @@ const {
   chosenRowId: computed(() => chosenExistingEntry.value?.id ?? null),
   newClass: computed(() =>
     isAddingNewClass.value && newClassDefinition.value
-      ? { className: newClassName.value, classFeatures: newClassDefinition.value.value.features, startLevels: levelInChosenClass.value }
+      ? { className: newClassName.value, classFeatures: newClassDefinition.value.value.features, startLevels: levelInChosenClass.value, capabilities: newClassDefinition.value.value.capabilities }
       : null,
   ),
   pickedSubclass,
