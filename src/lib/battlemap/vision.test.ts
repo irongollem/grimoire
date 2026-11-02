@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { illuminationGrid } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
-import { canSee, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
+import { canSee, partyViewers, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
 import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 
 const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 });
@@ -271,5 +271,18 @@ describe("a viewer inside magical darkness", () => {
   it("a light inside a sphere lights nothing beyond it", async () => {
     const { lightLevelAt } = await import("./illumination");
     expect(lightLevelAt(0, [{ x: 5.5, y: 5.5, bright: 60, dim: 0 }], NO_OCCLUDERS, 12, 5, [zoneA])).toBe(0);
+  });
+});
+
+describe("partyViewers", () => {
+  it("looks from the centre of every placed player character's token, and from no monster or unplaced one", () => {
+    const viewers = partyViewers([
+      { type: "player", position: { x: 2, y: 3 } },
+      { type: "player", position: { x: 6, y: 6 }, size: "large" },
+      { type: "monster", position: { x: 1, y: 1 } },
+      { type: "player", position: null },
+    ]);
+    expect(viewers.map((v) => [v.x, v.y])).toEqual([[2.5, 3.5], [7, 7]]);
+    expect(viewers.every((v) => v.darkvisionFeet === 0 && v.blindsightFeet === 0)).toBe(true);
   });
 });

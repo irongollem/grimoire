@@ -207,6 +207,19 @@ export function canSee(scene: LitScene, viewers: readonly Viewer[], cellX: numbe
   return sightThrough(scene.occluders, scene.zones, level, lookFrom(viewers), x, y).seen > SEEN_THRESHOLD;
 }
 
+/**
+ * The party as the viewers of a screen that has no one character behind it: the Table screen, and the DM's "As players
+ * see it". Every placed player character looks from the centre of its token. Their senses are not known to such a
+ * screen, so none is assumed: it shows no more than a character standing there would see by the light.
+ */
+export function partyViewers(combatants: readonly (SizedToken & { type: string; position?: { x: number; y: number } | null })[]): Viewer[] {
+  return combatants.flatMap((c) => {
+    if (c.type !== "player" || !c.position) return [];
+    const half = combatantFootprint(c) / 2;
+    return [{ x: c.position.x + half, y: c.position.y + half, darkvisionFeet: 0, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 }];
+  });
+}
+
 interface Placed extends SizedToken {
   instance_id: string;
   position?: { x: number; y: number } | null;

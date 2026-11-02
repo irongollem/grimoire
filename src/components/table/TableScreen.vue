@@ -98,8 +98,7 @@ import type { DarknessZone } from "@/lib/battlemap/illumination";
 import { NO_ZONES } from "@/lib/battlemap/illumination";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
-import type { Viewer } from "@/lib/battlemap/vision";
-import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
+import { partyViewers, type Viewer } from "@/lib/battlemap/vision";
 import { panToKeepInView } from "@/lib/table/follow";
 import { prefersReducedMotion } from "@/lib/motion";
 import { useCampaignStore } from "@/stores/campaign";
@@ -179,17 +178,8 @@ const gridStrokeOpacity = computed(() => surface.calibration.grid_opacity ?? DEF
 const portraitOverrides = useCombatantMinis(() => combatants);
 const dollFigures = useCombatantDollFigures(() => combatants);
 
-// Sight in the dark is the party's: a character sees what is lit around them. Their senses are not known to a window
-// with no character behind it, so none is assumed (the screen shows no more than a player standing there would see).
-const viewers = computed<Viewer[]>(() =>
-  combatants
-    .filter((c) => c.type === "player" && c.position)
-    .map((c) => {
-      const half = combatantFootprint(c) / 2;
-      const at = c.position ?? { x: 0, y: 0 };
-      return { x: at.x + half, y: at.y + half, darkvisionFeet: 0, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 };
-    }),
-);
+// Sight in the dark is the party's: a character sees what is lit around them (`partyViewers`).
+const viewers = computed<Viewer[]>(() => partyViewers(combatants));
 
 // ── The table channel: marks only arrive here, this window sends none ───────
 const campaign = useCampaignStore();

@@ -120,6 +120,13 @@ describe("PlayMap", () => {
     expect(w.findComponent(TokenLayer).classes()).not.toContain("pointer-events-none");
   });
 
+  // The maintainer, 2 Nov 2026: "shouldnt vision be drawn FROM their coins?" The preview drew the DM's veil instead.
+  it("As players see it draws the dark from the party's tokens, and the DM's view does not", () => {
+    const stack = (w: ReturnType<typeof mountMap>) => w.findComponent({ name: "BattleMapStack" });
+    expect(stack(mountMap()).props("viewers")).toBeNull();
+    expect(stack(mountMap({ view: { ...DEFAULT_PLAY_VIEW, asPlayer: true } })).props("viewers")).toEqual([]);
+  });
+
   it("a follower window offers no tools and lets no token be dragged", () => {
     const w = mountMap({ mode: "follower" });
     expect(w.find("[role=toolbar]").exists()).toBe(false);

@@ -39,6 +39,7 @@
         :origin-y="gridOrigin.y"
         :zones="state.darknessZones.value"
         :door-states="state.doorStates.value"
+        :viewers="asPlayerViewers"
       />
 
       <!-- Dims the plan outside the encounter's room and outlines it + its terrain zones (frame 13). -->
@@ -189,6 +190,7 @@ import BattleMapRoomFocusLayer from "@/components/encounters/BattleMapRoomFocusL
 import BattleMapLegend from "@/components/encounters/BattleMapLegend.vue";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
 import { cellBrushCells, revealedCombatants, roundBrushCells, type FogCellKey } from "@/lib/battlemap/fogMask";
+import { partyViewers, type Viewer } from "@/lib/battlemap/vision";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import PlayToolbelt from "./PlayToolbelt.vue";
 import PlayMovePath from "./PlayMovePath.vue";
@@ -265,6 +267,10 @@ const state = usePlayMapState(
 const { surface, location } = state;
 const canEdit = computed(() => mode === "dm");
 const READ_ONLY = new Set<string>();
+
+// "As players see it" shows the dark as the Table screen does: drawn from every player character's token, not the
+// DM's translucent veil over the whole map.
+const asPlayerViewers = computed<Viewer[] | null>(() => (view.asPlayer ? partyViewers(state.placed.value) : null));
 
 const portraitOverrides = useCombatantMinis(state.combatants);
 const dollFigures = useCombatantDollFigures(state.combatants);
