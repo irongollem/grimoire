@@ -19,6 +19,28 @@ export interface LightSource {
   light: TileLight;
 }
 
+/** How far in front of its wall a sconce's light stands, in cells: off the wall's line, so the wall does not shade it. */
+const SCONCE_STANDOFF = 0.05;
+
+const hasFloor = (layers: DungeonMapLayers, x: number, y: number): boolean => {
+  const key = cellKey(x, y);
+  return Boolean(layers.floor[key]?.floor) || key in layers.terrain;
+};
+
+/**
+ * Which way a wall-mounted light shines. A decal hangs in the wall's thickness and shines into the room it faces, so
+ * with floor on only one side its light stands a hair off the wall on that side (the room behind the wall, or the open
+ * void outside it, is not lit through it). With floor on both sides or neither it stays on the line and `nudgedOrigins`
+ * lights both faces.
+ */
+function facingOffset(layers: DungeonMapLayers, x: number, y: number, side: "N" | "W"): { dx: number; dy: number } {
+  const behind = side === "N" ? hasFloor(layers, x, y - 1) : hasFloor(layers, x - 1, y);
+  const front = hasFloor(layers, x, y);
+  if (behind === front) return { dx: 0, dy: 0 };
+  const sign = front ? SCONCE_STANDOFF : -SCONCE_STANDOFF;
+  return side === "N" ? { dx: 0, dy: sign } : { dx: sign, dy: 0 };
+}
+
 /**
  * Every light source on a map: object cells, wall decals, dressing props whose pack (or library row) declares
  * one, and the lights the DM placed by hand. A wall decal sits on its wall's midpoint. With `reach`, only sources inside that inclusive cell window (the draw window plus
@@ -46,7 +68,7 @@ export function gatherLightSources(
       visit(Number(xs), Number(ys));
     }
   }
-  for (const { wall } of latticeWalls(layers)) {
+  for (const { wall, x: wx, y: wy, side } of latticeWalls(layers)) {
     if (wall.type !== "wall" || wall.decal === undefined) continue;
     const decalLight = runtime(wall.pack_id)?.manifest.lights?.wallDecal?.[wall.decal];
     if (!decalLight) continue;
@@ -55,7 +77,8 @@ export function gatherLightSources(
     const cx = Math.floor(mx);
     const cy = Math.floor(my);
     if (reach && (cx < reach.minX || cx > reach.maxX || cy < reach.minY || cy > reach.maxY)) continue;
-    out.push({ x: mx, y: my, light: decalLight });
+    const lit = facingOffset(layers, wx, wy, side);
+    out.push({ x: mx + lit.dx, y: my + lit.dy, light: decalLight });
   }
   for (const placed of Object.values(layers.lights)) {
     if (reach && (placed.x < reach.minX || placed.x > reach.maxX + 1 || placed.y < reach.minY || placed.y > reach.maxY + 1)) continue;

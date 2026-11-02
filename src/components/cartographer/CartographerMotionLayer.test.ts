@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enableAutoUnmount, mount } from "@vue/test-utils";
+import { reactive } from "vue";
 import CartographerMotionLayer from "./CartographerMotionLayer.vue";
 import { MOTION_REBUILD_INTERVAL_MS } from "@/cartographer/motion";
 import * as mapLive from "@/cartographer/mapLive";
 import { paintGroundCells } from "@/cartographer/groundRegions";
-import { emptyLayers } from "@/types/dungeonMap.types";
+import { cellKey, emptyLayers } from "@/types/dungeonMap.types";
 import { makeRuntime } from "@/cartographer/testCanvas";
 
 enableAutoUnmount(afterEach);
@@ -116,5 +117,28 @@ describe("the editor's motion layer", () => {
     await w.vm.$nextTick();
     const layer = w.findComponent({ name: "BattleMapLiveLayer" });
     expect(layer.props()).toMatchObject({ cellPx: 32, originX: -100, originY: -50, hostW: 400, hostH: 300 });
+  });
+
+  it("a pack that loads after the first build lights the map: the snapshot is rebuilt when the runtime Map grows", async () => {
+    // The editor keeps its runtimes in one Map that packs are set into as they load; the Map's identity never changes.
+    const runtimes = reactive(new Map<string, ReturnType<typeof makeRuntime>>());
+    const layers = emptyLayers();
+    layers.object[cellKey(2, 2)] = { pack_id: "stone-dungeon", pack_version: 1, variant: 0, category: "objectBrazier" };
+    const w = mount(CartographerMotionLayer, { props: props({ layers, runtimes, darkness: "dark" }) });
+    const lightsOf = () => (w.findComponent({ name: "BattleMapVeil" }).props("live") as { lights: unknown[] }).lights;
+    expect(lightsOf()).toHaveLength(0);
+    runtimes.set("stone-dungeon", makeRuntime("stone-dungeon", { lights: { objectBrazier: [{ color: "#ff9116", bright: 20, dim: 20 }] } }));
+    await w.vm.$nextTick();
+    expect(lightsOf()).toHaveLength(1);
+  });
+
+  it("the animated veil covers the painted cells, as the still one does, and not the whole view", async () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(2, 3)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    layers.floor[cellKey(4, 3)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    const w = mount(CartographerMotionLayer, { props: props({ layers, darkness: "dark", viewportOffset: { x: 64, y: 0 } }) });
+    await w.vm.$nextTick();
+    // tilePx 64 at dpr 2 is 32 css px a cell; the offset of 64 device px moves the origin 32 css px left.
+    expect(w.findComponent({ name: "BattleMapVeil" }).props()).toMatchObject({ panX: -32 + 2 * 32, panY: 3 * 32, imageW: 3 * 32, imageH: 32 });
   });
 });

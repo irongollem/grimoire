@@ -101,10 +101,11 @@ export interface MapRenderScene {
   /**
    * Which half of the map to draw (#1125 frames 16-17). The battle map puts its live water between the ground and
    * what stands, so while motion plays the editor draws two canvases the same way: `ground` is the background, the
-   * base image and the ground, nothing else; `standing` is transparent and holds what stands on the ground, the
-   * darkness veil and every editing aid. Absent draws the whole map on one canvas, as the editor always did.
+   * base image and the ground, nothing else; `standing` is transparent and holds what stands on the ground; `aids` is
+   * transparent and holds every editing aid (labels, selection, wall nodes, the brush footprint, hover marks), stacked
+   * above the animated darkness veil so an aid is never dimmed by it. Absent draws the whole map on one canvas.
    */
-  pass?: "ground" | "standing";
+  pass?: "ground" | "standing" | "aids";
   /** Canvas factory for the shadow layers; defaults to OffscreenCanvas where it exists. Tests pass a fake. */
   makeCanvas?: MakeCanvas;
 }
@@ -301,7 +302,7 @@ function cachedIllumination(
 }
 
 /** The cell box around everything painted, or null for an empty map: the area the veil covers. */
-function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
+export function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let extent: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
   for (const cells of [layers.floor, layers.terrain, layers.solidBlock, layers.object]) {
     for (const key of Object.keys(cells) as CellKey[]) {
@@ -355,8 +356,8 @@ export function renderMap(scene: MapRenderScene): void {
 
   ctx.imageSmoothingEnabled = false;
   const pass = scene.pass;
-  if (pass === "standing") {
-    // The ground canvas under this one holds the background and the base image.
+  if (pass === "standing" || pass === "aids") {
+    // The ground canvas under these holds the background and the base image.
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   } else {
     ctx.fillStyle = "rgb(20, 18, 16)";
@@ -365,7 +366,7 @@ export function renderMap(scene: MapRenderScene): void {
 
   // Reference layer (#884 S6) — drawn right after the background fill so
   // every painted layer sits above it, ghost-faint underneath the drawing.
-  if (referenceImage && pass !== "standing") {
+  if (referenceImage && (pass === undefined || pass === "ground")) {
     ctx.save();
     ctx.globalAlpha = referenceImage.opacity;
     ctx.drawImage(referenceImage.source, referenceImage.x, referenceImage.y, referenceImage.width, referenceImage.height);
@@ -391,7 +392,7 @@ export function renderMap(scene: MapRenderScene): void {
     glyphPackId: currentPackId,
     dressing,
     lights: true,
-    pass,
+    pass: pass === "aids" ? undefined : pass,
     omitLive: scene.omitLive,
     // The editor shows the walls that are hidden in the bake, dashed, so the DM can find and edit them.
     showHiddenWalls: true,
@@ -417,14 +418,16 @@ export function renderMap(scene: MapRenderScene): void {
   // Shadows come from the cache; a null layer (no OffscreenCanvas) draws none.
   // The standing pass draws neither (they lie on the ground), so it builds neither.
   const standingOnly = pass === "standing";
-  drawMapContent({
-    ...content,
-    shadows: true,
-    shadowLayer: standingOnly ? null : cachedLayer("shadow", scene, content, renderShadowLayer),
-    lightLayer: content.lights && !standingOnly ? cachedLayer("light", scene, content, (c) => renderLightLayer({ ...c, lightMasks: lightMasksFor(scene) })) : null,
-  });
-  // The ground canvas is the background, the base image and the ground; the veil and the aids belong to the one above.
-  if (pass === "ground") return;
+  if (pass !== "aids") {
+    drawMapContent({
+      ...content,
+      shadows: true,
+      shadowLayer: standingOnly ? null : cachedLayer("shadow", scene, content, renderShadowLayer),
+      lightLayer: content.lights && !standingOnly ? cachedLayer("light", scene, content, (c) => renderLightLayer({ ...c, lightMasks: lightMasksFor(scene) })) : null,
+    });
+  }
+  // While motion plays the map is three canvases: the ground, what stands, and (above the animated veil) the aids.
+  if (pass === "ground" || pass === "standing") return;
 
   // The DM's darkness veil, carved by the map's lights, over the drawing but under the editing aids (labels, link
   // dots, selection), so what the DM is working on stays readable. The same function paints it on the battle map.

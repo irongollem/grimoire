@@ -74,7 +74,7 @@ describe("lights", () => {
     expect(lightsOf(makeRuntime(PACK), { layers }).radialGradients).toHaveLength(0);
   });
 
-  it("lights a wall decal at its edge midpoint", () => {
+  it("lights a wall decal at its edge midpoint, a hair into the room it faces", () => {
     const layers = emptyLayers();
     layers.floor[cellKey(2, 3)] = { floor: ref };
     putWall(layers, 2, 3, "N", { ...ref, type: "wall", decal: 1 });
@@ -82,8 +82,8 @@ describe("lights", () => {
     const decalFire = { color: "#ffcc66", bright: 20, dim: 20 };
     const rec = lightsOf(lit({ wallDecal: [decalFire, { ...decalFire, color: "#ff0000" }] }), { layers });
     expect(rec.radialGradients.map((g) => [g.x0, g.y0, g.stops[0][1]])).toEqual([
-      [2.5 * 128, 3 * 128, "rgba(255,0,0,0.35)"],
-      [2 * 128, 3.5 * 128, "rgba(255,204,102,0.35)"],
+      [2.5 * 128, 3.05 * 128, "rgba(255,0,0,0.35)"],
+      [2.05 * 128, 3.5 * 128, "rgba(255,204,102,0.35)"],
     ]);
   });
 
@@ -231,9 +231,24 @@ describe("gatherLightSources", () => {
   it("finds a wall decal at its edge midpoint, and ignores a decal on a door", () => {
     const layers = emptyLayers();
     layers.floor[cellKey(2, 3)] = { floor: ref };
+    layers.floor[cellKey(1, 3)] = { floor: ref };
+    layers.floor[cellKey(2, 2)] = { floor: ref };
     putWall(layers, 2, 3, "N", { ...ref, type: "wall", decal: 0 });
     putWall(layers, 2, 3, "W", { ...ref, type: "doorClosed", decal: 0 });
+    // Floor on both sides of the wall: the light stays on its line and shines on both faces.
     expect(gather(layers, null)).toEqual([{ x: 2.5, y: 3, light: FIRE }]);
+  });
+
+  it("a sconce on the outside wall of a room stands in the room, so it lights no void or neighbour behind the wall", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(2, 3)] = { floor: ref }; // the room is south of the north wall; nothing lies north of it
+    putWall(layers, 2, 3, "N", { ...ref, type: "wall", decal: 0 });
+    const [only] = gather(layers, null);
+    expect(only.y).toBeGreaterThan(3);
+    const north = emptyLayers();
+    north.floor[cellKey(2, 2)] = { floor: ref }; // now the room lies north of the wall: the light moves to that side
+    putWall(north, 2, 3, "N", { ...ref, type: "wall", decal: 0 });
+    expect(gather(north, null)[0].y).toBeLessThan(3);
   });
 
   it("limits a windowed search to the window", () => {

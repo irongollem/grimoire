@@ -98,6 +98,13 @@
             @contextmenu.prevent
           ></canvas>
         </CartographerMotionLayer>
+        <!-- The editing aids sit above the animated darkness veil, so the veil never dims them. -->
+        <canvas
+          v-if="motionOn"
+          ref="aidsCanvasEl"
+          class="pointer-events-none absolute inset-0 block h-full w-full"
+          aria-hidden="true"
+        ></canvas>
         <CartographerMotionButton
           v-if="hasMotion"
           class="absolute bottom-9 right-2 z-10"
@@ -726,6 +733,7 @@ const RAIL_FAMILIES: RailFamily[] = TOOL_FAMILIES.map((f) => ({
 const { secondPackByMap, gridShown, gridStrength, gridAlpha, motionPlaying, motionRunning } = storeToRefs(useCartographerUiStore());
 // The Motion button (#1125 frames 16-17): the map's own water, sway and firelight, played while it is edited.
 const groundCanvasEl = ref<HTMLCanvasElement | null>(null);
+const aidsCanvasEl = ref<HTMLCanvasElement | null>(null);
 const reducedMotionPreference = usePreferredReducedMotion();
 const osReducedMotion = computed(() => reducedMotionPreference.value === "reduce");
 const hasMotion = computed(() => {
@@ -1122,7 +1130,7 @@ const {
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
   plan, activeLayer, hasLayerTabs: !!site, gridAlpha, toggleGrid, keysActive, swapTileSets,
-  groundCanvasEl, motionPlaying: () => motionOn.value,
+  groundCanvasEl, aidsCanvasEl, motionPlaying: () => motionOn.value,
 });
 
 // Picture layer (canvas frame 07): lining the grid up and fitting the view.

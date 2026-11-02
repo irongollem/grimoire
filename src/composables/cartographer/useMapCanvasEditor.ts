@@ -148,6 +148,11 @@ export interface MapCanvasEditorOptions {
    * background and the ground, so the live water can lie between it and what stands. Null or absent: one canvas.
    */
   groundCanvasEl?: Ref<HTMLCanvasElement | null>;
+  /**
+   * The editing aids while motion plays: a transparent canvas above the animated darkness veil, so a label, a
+   * selection outline or a wall node is never dimmed by it. Absent or null: the aids are drawn on the main canvas.
+   */
+  aidsCanvasEl?: Ref<HTMLCanvasElement | null>;
   /** Motion is playing over the map, so both canvases leave out what the live layer draws itself. */
   motionPlaying?: () => boolean;
 }
@@ -164,7 +169,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
     dressing, placeItem, selectedDressingId, cellGlyphs, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape,
     brushRadius, rectWalls, selectedCell, toolOptionsRef, mapKey, getReferenceImage, extraRenderDeps,
-    plan, activeLayer, hasLayerTabs, gridAlpha, toggleGrid, keysActive, swapTileSets, groundCanvasEl, motionPlaying,
+    plan, activeLayer, hasLayerTabs, gridAlpha, toggleGrid, keysActive, swapTileSets, groundCanvasEl, aidsCanvasEl, motionPlaying,
   } = opts;
   const wallVisible = opts.wallVisible ?? ref(true);
   const brushRegionMode = opts.brushRegionMode ?? ref<BrushRegionMode>("new");
@@ -832,6 +837,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       ground.width = targetW;
       ground.height = targetH;
     }
+    const aids = aidsCanvasEl?.value;
+    if (aids && (aids.width !== targetW || aids.height !== targetH)) {
+      aids.width = targetW;
+      aids.height = targetH;
+    }
     if (canvasBox.value.w !== w || canvasBox.value.h !== h || canvasBox.value.dpr !== dpr) canvasBox.value = { w, h, dpr };
   }
 
@@ -872,8 +882,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // what the live layer draws itself (a swaying prop, a door leaf).
     const ground = motionPlaying?.() ? groundCanvasEl?.value ?? null : null;
     const groundCtx = ground?.getContext("2d") ?? null;
+    const aids = ground ? aidsCanvasEl?.value ?? null : null;
+    const aidsCtx = aids?.getContext("2d") ?? null;
 
-    const scene = (target: CanvasRenderingContext2D, size: HTMLCanvasElement, pass: "ground" | "standing" | undefined): MapRenderScene => ({
+    const scene = (target: CanvasRenderingContext2D, size: HTMLCanvasElement, pass: "ground" | "standing" | "aids" | undefined): MapRenderScene => ({
       ctx: target,
       canvasWidth: size.width,
       canvasHeight: size.height,
@@ -923,6 +935,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
     if (ground && groundCtx) renderMap(scene(groundCtx, ground, "ground"));
     renderMap(scene(ctx, canvas, ground ? "standing" : undefined));
+    // The aids sit above the veil the live layer draws between, so they get a canvas of their own.
+    if (aids && aidsCtx) renderMap(scene(aidsCtx, aids, "aids"));
+    // The plan overlay is an aid too: with an aids canvas it goes there, above the veil.
+    const overlayCtx = aidsCtx && aids ? aidsCtx : ctx;
 
     // ── Plan overlay (#884 S7b) — drawn over the Drawing, on the same
     // canvas, in the same tile-pixel space `renderMap` just used. Always
@@ -941,15 +957,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       }
       const viewport: TileViewport = { tilePx, viewportOffset: viewportOffset.value };
       const planScene = planTools.renderScene();
-      drawPlanSpaces(ctx, viewport, planScene.regions, planScene.activeRegionId, planScene.cellsOverride);
-      drawPlanWays(ctx, viewport, planScene.ways);
-      drawPlanZones(ctx, viewport, planScene.regions, planScene.activeRegionId, planScene.cellsOverride);
+      drawPlanSpaces(overlayCtx, viewport, planScene.regions, planScene.activeRegionId, planScene.cellsOverride);
+      drawPlanWays(overlayCtx, viewport, planScene.ways);
+      drawPlanZones(overlayCtx, viewport, planScene.regions, planScene.activeRegionId, planScene.cellsOverride);
       if (isPlanLayerActive()) {
         drawPlanTracingOverlay(
-          ctx, viewport, planScene.tracingRing, planScene.tracingClosed, planScene.tracingHoverPoint,
+          overlayCtx, viewport, planScene.tracingRing, planScene.tracingClosed, planScene.tracingHoverPoint,
           planScene.templateDraft, planScene.templateRingPreview,
         );
-        if (planScene.hoveredDoorEdge) drawPlanDoorHover(ctx, viewport, planScene.hoveredDoorEdge);
+        if (planScene.hoveredDoorEdge) drawPlanDoorHover(overlayCtx, viewport, planScene.hoveredDoorEdge);
       }
     }
   }
@@ -1009,7 +1025,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     });
   }
   // Motion starting or stopping swaps one canvas for two (or back): draw again, once the ground canvas is mounted.
-  watch(() => [!!motionPlaying?.(), groundCanvasEl?.value], () => scheduleRender(), { flush: "post" });
+  watch(() => [!!motionPlaying?.(), groundCanvasEl?.value, aidsCanvasEl?.value], () => scheduleRender(), { flush: "post" });
   // viewMode is a getter over a prop, not a ref — watched separately so the
   // list above can stay a plain array of refs.
   watch(viewMode, () => scheduleRender());

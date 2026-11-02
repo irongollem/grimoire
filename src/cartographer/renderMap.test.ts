@@ -475,6 +475,18 @@ describe("renderMap: darkness veil", () => {
     expect(veilDraws(rec)).toHaveLength(0);
   });
 
+  it("the aids pass draws the editing aids and none of the map, the standing pass the map and none of the aids", () => {
+    // While motion plays the aids sit on a canvas above the animated veil; drawn into the standing canvas they would be dimmed.
+    const layers = paintOne();
+    const aids = baseScene({ layers, darkness: "dark", activeTool: "link", selectedCell: [2, 3], pass: "aids", omitLive: true });
+    renderMap(aids.scene);
+    expect(aids.rec.calls.filter((c) => c === "strokeRect").length).toBeGreaterThan(0);
+    expect(aids.rec.drawImages).toHaveLength(0);
+    const standing = baseScene({ layers, darkness: "dark", activeTool: "link", selectedCell: [2, 3], pass: "standing", omitLive: true });
+    renderMap(standing.scene);
+    expect(standing.rec.calls.filter((c) => c === "strokeRect")).toHaveLength(0);
+  });
+
   it("clears the veil around a light and keeps dim ambient at least dim", () => {
     const layers = emptyLayers();
     for (let x = 0; x < 6; x++) layers.floor[cellKey(x, 0)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };

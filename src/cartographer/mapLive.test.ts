@@ -9,6 +9,8 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DressingCatalog, DressingProp } from "./dressing";
 import { makeRuntime } from "./testCanvas";
 import { phaseAt } from "./sway";
+import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
+import { occludersOf } from "@/lib/battlemap/occlusion";
 
 const FOAM: MotionOverlay = { url: "https://cdn/foam.webp", cells: 4, drift: [0.1, 0], alpha: 0.5 };
 const GLINT: MotionOverlay = { url: "https://cdn/glint.webp", cells: 2, drift: [0, 0], alpha: 0.4, breathe: { amount: 0.3, speed: 2, phase: 0 } };
@@ -226,6 +228,37 @@ describe("buildMapLive", () => {
     const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 2, 1);
     expect(live.lights).toHaveLength(1);
     expect(live.lights[0]).toMatchObject({ x: 3.5, y: 3, color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 });
+  });
+});
+
+describe("every kind of fire lights the dark (the Drowned Shrine's braziers lit nothing)", () => {
+  it("a pack object, a wall decal, a Dressing prop and a placed light each clear the veil around themselves on a dark map", () => {
+    const layers = emptyLayers();
+    // Four rooms of floor, each with one light of a different kind, walled from the others so no light helps another.
+    const spots = [{ x: 2, y: 2 }, { x: 12, y: 2 }, { x: 22, y: 2 }, { x: 32, y: 2 }];
+    for (const { x, y } of spots) for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) layers.floor[cellKey(x + dx, y + dy)] = { floor: ref("p") };
+    layers.object[cellKey(2, 2)] = { ...ref("p"), category: "objectBrazier" };
+    putWall(layers, 12, 1, "N", { type: "wall", decal: 0, pack_id: "p", pack_version: 1, variant: 0 });
+    layers.dressing.lamp = { prop_id: "lamp", x: 22, y: 2, rotation: 0, z: 0 };
+    layers.lights.hand = { x: 32.5, y: 2.5, light: { color: "#ffaa33", bright: 20, dim: 0 } };
+    const fire = { color: "#ff9116", bright: 20, dim: 0 };
+    const dressing: DressingCatalog = new Map([["lamp", { id: "lamp", name: "Lamp", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: fire, url: null, sway: null }]]);
+    const live = buildMapLive(
+      mapWith(layers),
+      runtimes([["p", makeRuntime("p", { lights: { objectBrazier: [fire], wallDecal: [fire] } })]]),
+      dressing,
+      0,
+      0,
+    );
+    expect(live.lights).toHaveLength(4);
+    const grid = illuminationGrid({
+      ambient: AMBIENT.dark, sources: live.lights, occluders: occludersOf(live),
+      minX: 0, minY: 0, cols: 40, rows: 8, samplesPerCell: 1,
+    });
+    for (const light of live.lights) {
+      // One cell off the light, inside its bright radius of four cells.
+      expect(grid[Math.floor(light.y + 1) * 40 + Math.floor(light.x + 1)], `light at ${light.x},${light.y}`).toBe(1);
+    }
   });
 });
 

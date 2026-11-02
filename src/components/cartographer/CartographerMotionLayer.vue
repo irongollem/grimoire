@@ -23,13 +23,13 @@
     />
     <!-- The darkness veil, whose lit edge breathes with the lights. While motion plays the standing canvas leaves it out. -->
     <BattleMapVeil
-      v-if="live.darkness !== 'daylight' && cellPx > 0"
+      v-if="live.darkness !== 'daylight' && cellPx > 0 && veilBox"
       :host-w="width"
       :host-h="height"
-      :pan-x="0"
-      :pan-y="0"
-      :image-w="width"
-      :image-h="height"
+      :pan-x="veilBox.x"
+      :pan-y="veilBox.y"
+      :image-w="veilBox.w"
+      :image-h="veilBox.h"
       :cell-px="cellPx"
       :origin-x="originX"
       :origin-y="originY"
@@ -52,6 +52,7 @@ import { createSnapshotScheduler } from "@/cartographer/motionSnapshot";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
 import { buildMapLive } from "@/cartographer/mapLive";
+import { paintedExtent } from "@/cartographer/renderMap";
 import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DarknessLevel, DungeonMapLayers } from "@/types/dungeonMap.types";
@@ -92,9 +93,13 @@ const {
 
 // Image cell (0,0) is the editor's cell (0,0): the snapshot is only ever drawn back over the same canvas.
 const live = shallowRef<MapLive | null>(null);
+// The cells the map is painted over, kept with the snapshot: the static veil covers exactly this box, so the animated
+// one does too and a dark map does not look different when Motion toggles.
+const extent = shallowRef<ReturnType<typeof paintedExtent>>(null);
 
 const scheduler = createSnapshotScheduler(() => {
   live.value = buildMapLive({ layers, darkness }, runtimes, dressing, 0, 0);
+  extent.value = paintedExtent(layers);
 }, MOTION_REBUILD_INTERVAL_MS);
 
 // Playing builds at once (edits made while paused were not tracked). Paused builds nothing.
@@ -106,8 +111,10 @@ watch(
   },
   { immediate: true },
 );
+// A pack loads into the same Map object after the first build, and a Map's identity does not say it grew: its size does
+// (the lights of a pack not yet loaded were missing from the snapshot, so most fires lit nothing).
 watch(
-  () => [revision, layers, runtimes, dressing, darkness],
+  () => [revision, layers, runtimes, runtimes.size, dressing, darkness],
   () => {
     if (playing) scheduler.changed(busy);
   },
@@ -125,4 +132,14 @@ onBeforeUnmount(() => scheduler.cancel());
 const cellPx = computed(() => tilePx / dpr);
 const originX = computed(() => -viewportOffset.x / dpr);
 const originY = computed(() => -viewportOffset.y / dpr);
+const veilBox = computed(() => {
+  const e = extent.value;
+  if (!e) return null;
+  return {
+    x: originX.value + e.minX * cellPx.value,
+    y: originY.value + e.minY * cellPx.value,
+    w: (e.maxX - e.minX + 1) * cellPx.value,
+    h: (e.maxY - e.minY + 1) * cellPx.value,
+  };
+});
 </script>
