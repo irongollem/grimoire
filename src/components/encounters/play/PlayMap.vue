@@ -3,7 +3,8 @@
     <div
       ref="canvasHost"
       data-testid="play-map-host"
-      class="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden active:cursor-grabbing"
+      class="relative min-h-0 flex-1 touch-none overflow-hidden"
+      :class="hostCursor"
       @wheel.prevent="onWheel"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
@@ -45,7 +46,7 @@
       <!-- Dims the plan outside the encounter's room and outlines it + its terrain zones (frame 13). The DM's
            alone: "As players see it" shows the fog and the senses, not where the fight was set. -->
       <BattleMapRoomFocusLayer
-        v-if="!view.asPlayer && surface?.focusRoomId && imageReady && cellPx > 0"
+        v-if="!view.asPlayer && !fogArmed && surface?.focusRoomId && imageReady && cellPx > 0"
         :label="FIGHT_LABEL"
         :host-w="hostW"
         :host-h="hostH"
@@ -61,7 +62,7 @@
            silhouette (found by the #884 review pass), and the fog opaque. Under the tokens, as on the Table screen: a
            character standing in the dark is still drawn, the room around them is not. -->
       <BattleMapFogLayer
-        v-if="(view.showFog || view.asPlayer) && location && imageReady && cellPx > 0"
+        v-if="(view.showFog || view.asPlayer || fogArmed) && location && imageReady && cellPx > 0"
         :host-w="hostW"
         :host-h="hostH"
         :cell-px="cellPx"
@@ -137,6 +138,16 @@
       />
 
       <div v-if="boxStyle" class="select-box" :style="boxStyle" data-testid="play-select-box" aria-hidden="true"></div>
+
+      <!-- Where the fog brush paints, and how wide: the cursor is hidden over the map while it shows. -->
+      <div
+        v-if="brushOutline"
+        class="fog-brush"
+        :class="{ round: shape === 'round', hiding: brushKind === 'hide' }"
+        :style="brushOutline"
+        data-testid="play-fog-brush"
+        aria-hidden="true"
+      ></div>
 
       <img v-if="surface?.imageUrl && !imageReady" :src="surface.imageUrl" class="hidden-loader" @load="onImageLoad" />
     </div>
@@ -344,6 +355,17 @@ function imageCellAt(clientX: number, clientY: number): { x: number; y: number }
 const tool = ref<PlayTool>("move");
 const fogKind = ref<FogBrushKind>("reveal");
 const shape = ref<BrushShape>("round");
+/** The Fog tool is in hand: the fog shows whatever the View menu says, and the fight room's dimming steps aside. */
+const fogArmed = computed(() => tool.value === "fog" && canEdit.value);
+/** Where the pointer is over the map (host px), for the fog brush's outline. */
+const pointerAt = ref<{ x: number; y: number } | null>(null);
+/** The cursor says what a press will do: grab the map, paint fog (the outline stands in for it), click a room, or aim. */
+const hostCursor = computed(() => {
+  if (tool.value === "move" || !canEdit.value) return "cursor-grab active:cursor-grabbing";
+  if (tool.value === "fog") return fogKind.value === "room" ? "cursor-pointer" : "cursor-none";
+  return "cursor-crosshair";
+});
+
 /** What a brush stroke does; Room is a click, not a stroke, and never reaches the brush. */
 const brushKind = computed(() => (fogKind.value === "hide" ? "hide" : "reveal"));
 const size = ref<BrushSize>(3);
@@ -455,6 +477,26 @@ useHotkeys(
   { enabled: () => canEdit.value },
 );
 
+/** The fog brush's footprint on screen: a circle under the pointer, or the square of cells it will paint. */
+const brushOutline = computed(() => {
+  const at = pointerAt.value;
+  if (!fogArmed.value || fogKind.value === "room" || !at || cellPx.value <= 0) return null;
+  const side = size.value * cellPx.value;
+  if (shape.value === "round") {
+    return { left: `${at.x - side / 2}px`, top: `${at.y - side / 2}px`, width: `${side}px`, height: `${side}px` };
+  }
+  // The square brush paints whole cells centred on the cell under the pointer (cellBrushCells).
+  const half = Math.floor(size.value / 2);
+  const cx = Math.floor((at.x - gridOrigin.value.x) / cellPx.value);
+  const cy = Math.floor((at.y - gridOrigin.value.y) / cellPx.value);
+  return {
+    left: `${gridOrigin.value.x + (cx - half) * cellPx.value}px`,
+    top: `${gridOrigin.value.y + (cy - half) * cellPx.value}px`,
+    width: `${side}px`,
+    height: `${side}px`,
+  };
+});
+
 function brushedCells(clientX: number, clientY: number): Set<FogCellKey> {
   const host = canvasHost.value;
   if (!host) return new Set();
@@ -528,6 +570,11 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
+  const host = canvasHost.value;
+  if (fogArmed.value && host) {
+    const rect = host.getBoundingClientRect();
+    pointerAt.value = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
   if (tableTools.live.value) {
     const at = imageCellAt(e.clientX, e.clientY);
     if (at) tableTools.move(at);
@@ -576,6 +623,7 @@ function onPointerUp(e: PointerEvent) {
 }
 
 function onPointerLeave(e: PointerEvent) {
+  pointerAt.value = null;
   tableTools.release();
   area.hover(null);
   moves.hover.value = null;
@@ -652,6 +700,18 @@ defineExpose({ resetView, backToStart: () => moves.undoMove("all") });
   background: color-mix(in oklab, var(--color-background), black 45%);
 }
 
+.fog-brush {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid rgb(255 255 255 / 0.85);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+}
+.fog-brush.round {
+  border-radius: 9999px;
+}
+.fog-brush.hiding {
+  border-style: dashed;
+}
 .select-box {
   position: absolute;
   pointer-events: none;

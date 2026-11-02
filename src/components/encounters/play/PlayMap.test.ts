@@ -166,6 +166,29 @@ describe("PlayMap", () => {
     expect(mountMap({ view: { ...DEFAULT_PLAY_VIEW, asPlayer: true } }).findComponent({ name: "BattleMapRoomFocusLayer" }).exists()).toBe(false);
   });
 
+  // The maintainer, 3 Nov 2026: "if I click fog then i have brush selected but my cursor stays the move hand and not
+  // much happens". The fog was only drawn with View > Fog on, so a stroke revealed squares nobody could see.
+  it("arming the Fog tool shows the fog and the brush's outline under the pointer", async () => {
+    const w = mountMap();
+    expect(w.findComponent({ name: "BattleMapFogLayer" }).exists()).toBe(false);
+    await armTool(w, "Fog");
+    expect(w.findComponent({ name: "BattleMapFogLayer" }).exists()).toBe(true);
+    const host = w.find("[data-testid=play-map-host]");
+    expect(host.classes()).toContain("cursor-none");
+    host.element.dispatchEvent(new MouseEvent("pointermove", { clientX: 40, clientY: 30, bubbles: true }));
+    await w.vm.$nextTick();
+    expect(w.find("[data-testid=play-fog-brush]").exists()).toBe(true);
+  });
+
+  it("the Move tool keeps the hand and draws no brush", async () => {
+    const w = mountMap();
+    const host = w.find("[data-testid=play-map-host]");
+    host.element.dispatchEvent(new MouseEvent("pointermove", { clientX: 40, clientY: 30, bubbles: true }));
+    await w.vm.$nextTick();
+    expect(host.classes()).toContain("cursor-grab");
+    expect(w.find("[data-testid=play-fog-brush]").exists()).toBe(false);
+  });
+
   it("a follower window offers no tools and lets no token be dragged", () => {
     const w = mountMap({ mode: "follower" });
     expect(w.find("[role=toolbar]").exists()).toBe(false);
