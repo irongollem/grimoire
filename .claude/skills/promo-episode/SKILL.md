@@ -1,6 +1,6 @@
 ---
 name: promo-episode
-description: Write, film and cut a pair of Instagram Reels (DM side and player side) about one Grimoire feature, using the promo pipeline in scripts/promo. Use when the maintainer asks for the next promo episode, a Reel or short video about a feature, or to re-film an existing one.
+description: Write, film and cut a pair of Instagram Reels (DM side and player side) about one Grimoire feature, using the promo pipeline in scripts/promo. Use when the maintainer asks for the next promo episode, a Reel or short video about a feature, or to re-film an existing one. A long in-depth video is /promo-youtube; recording takes and assembling is /promo-booth.
 user-invocable: true
 ---
 
@@ -25,6 +25,10 @@ to re-film.
 - Four or five shots per episode, under about 45 seconds. Each shot: a
   caption of eight words at most, one or two sentences of narration in plain
   spoken English (no em-dashes), and the actions.
+- A DM episode may film the laptop (`device: "desktop"`). The Reel shows it
+  landscape in a browser window, resting on the page beside the sidebar, with
+  the narration written out below; small text needs a `focus()` to be read on
+  a phone, so point the camera at whatever the narration names.
 
 ## 2. Stage the scene
 
@@ -55,9 +59,8 @@ to re-film.
 
 Put both drafts and the narration on an artifact page for the maintainer (the
 videos as published files, `script.md` text inline), with your notes per shot.
-They record with `npm run promo:voice` (a page that lists every episode;
-picking one shows its shots), which saves each take under the right name and
-builds the Reel.
+They record in the booth (`npm run promo:voice`); assembling their takes into
+the finished Reels is `/promo-booth`.
 
 Commit the episode, setup and any pipeline fix by explicit file. Never commit
 `promo-out/`.
