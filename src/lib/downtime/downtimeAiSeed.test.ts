@@ -67,12 +67,12 @@ describe("effectsFromAi", () => {
   });
 
   it("accepts an hp effect and drops a zero delta", () => {
-    expect(effectsFromAi([{ kind: "hp", delta: -6 }], DND5E_CURRENCY)[0], DND5E_CURRENCY).toMatchObject({ kind: "hp", delta: -6 });
-    expect(effectsFromAi([{ kind: "hp", delta: 0 }])).toEqual([]);
+    expect(effectsFromAi([{ kind: "hp", delta: -6 }], DND5E_CURRENCY)[0]).toMatchObject({ kind: "hp", delta: -6 });
+    expect(effectsFromAi([{ kind: "hp", delta: 0 }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("rounds a fractional hp delta", () => {
-    expect(effectsFromAi([{ kind: "hp", delta: -6.7 }])[0], DND5E_CURRENCY).toMatchObject({ delta: -7 });
+    expect(effectsFromAi([{ kind: "hp", delta: -6.7 }], DND5E_CURRENCY)[0]).toMatchObject({ delta: -7 });
   });
 
   it("accepts a real SRD condition, case-insensitively, and canonicalises it", () => {
@@ -81,11 +81,11 @@ describe("effectsFromAi", () => {
   });
 
   it("drops a hallucinated condition", () => {
-    expect(effectsFromAi([{ kind: "condition", condition: "Hungover" }])).toEqual([]);
+    expect(effectsFromAi([{ kind: "condition", condition: "Hungover" }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("drops an invented effect kind", () => {
-    expect(effectsFromAi([{ kind: "xp", amount: 100 }])).toEqual([]);
+    expect(effectsFromAi([{ kind: "xp", amount: 100 }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("drops an `item` effect — no seed emits one and we cannot mint the item_id", () => {

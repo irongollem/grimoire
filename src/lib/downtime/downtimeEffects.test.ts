@@ -102,7 +102,7 @@ describe("applyHpEffects", () => {
   });
 
   it("leaves hp untouched when no hp effect is present", () => {
-    expect(applyHpEffects(12, 20, [gold({ gp: 5 })])).toBe(12);
+    expect(applyHpEffects(12, 20, [gold({ gain: { gp: 5 } })])).toBe(12);
   });
 });
 
@@ -160,13 +160,13 @@ describe("applyConditionEffects", () => {
 
 describe("hasApplicableMemberEffect", () => {
   it("is true when a ticked gold/hp/condition effect is present", () => {
-    expect(hasApplicableMemberEffect([gold({ gp: 5 })])).toBe(true);
+    expect(hasApplicableMemberEffect([gold({ gain: { gp: 5 } })])).toBe(true);
     expect(hasApplicableMemberEffect([hp(-2)])).toBe(true);
     expect(hasApplicableMemberEffect([condition("Poisoned")])).toBe(true);
   });
 
   it("is false when the only applicable effects are un-ticked", () => {
-    expect(hasApplicableMemberEffect([gold({ applied: false, gp: 5 }), hp(-2, false)])).toBe(false);
+    expect(hasApplicableMemberEffect([gold({ applied: false, gain: { gp: 5 } }), hp(-2, false)])).toBe(false);
   });
 
   it("is false for a ticked item effect (not applied to the member row)", () => {

@@ -29,7 +29,7 @@
           class="mb-3"
           :model-value="coinDrop"
           :max="purseCap"
-          @update:model-value="(c) => $emit('update-drop', c)"
+          @update:model-value="(c) => $emit('update-drop', c ?? {})"
         />
         <div class="flex gap-2">
           <AppButton
@@ -72,7 +72,7 @@
           class="mb-2"
           :model-value="coinGive"
           :max="purseCap"
-          @update:model-value="(c) => $emit('update-give', c)"
+          @update:model-value="(c) => $emit('update-give', c ?? {})"
         />
         <p class="text-caption text-muted-foreground mb-3">
           {{ coinGiveLeaves }}
@@ -122,7 +122,6 @@ import type { Coins } from '@/lib/currency/currency';
 import { useCurrency } from '@/composables/currency/useCurrency';
 import { IconCoins, IconMessage } from '@/lib/icons';
 import type { PartyMember } from '@/types/party.types';
-import AppInput from '@/components/common/controls/AppInput.vue';
 import AppSelect from '@/components/common/controls/AppSelect.vue';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import CoinRow from '@/components/inventory/CoinRow.vue';
