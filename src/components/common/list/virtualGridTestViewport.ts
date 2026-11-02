@@ -8,19 +8,29 @@ import { afterAll, beforeAll } from "vitest";
  * without changing what is under test. After mounting, `await
  * flushMicrotasks()`: the grid finds its scroller on mount and items follow.
  * `viewportPx` is the scroller's height and `itemPx` every other box's.
+ *
+ * Both `offsetHeight` and `clientHeight` are faked: virtual-core measures items
+ * by `offsetHeight` and, since 3.19.9, the scroller by `clientHeight`.
  */
+const FAKED = ["offsetHeight", "clientHeight"] as const;
+
 export function useVirtualGridViewport({ viewportPx = 2600, itemPx = 260 } = {}): void {
-  const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+  const originals = FAKED.map((prop) => [prop, Object.getOwnPropertyDescriptor(HTMLElement.prototype, prop)] as const);
   beforeAll(() => {
-    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-      configurable: true,
-      get(this: HTMLElement) {
-        return this === document.documentElement ? viewportPx : itemPx;
-      },
-    });
+    for (const prop of FAKED) {
+      Object.defineProperty(HTMLElement.prototype, prop, {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this === document.documentElement ? viewportPx : itemPx;
+        },
+      });
+    }
   });
   afterAll(() => {
-    if (original) Object.defineProperty(HTMLElement.prototype, "offsetHeight", original);
+    for (const [prop, original] of originals) {
+      if (original) Object.defineProperty(HTMLElement.prototype, prop, original);
+      else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[prop];
+    }
   });
 }
 
