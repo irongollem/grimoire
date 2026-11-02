@@ -372,7 +372,9 @@ describe("renderMap — shadow cache", () => {
     expect(masks()).toBe(2);
   });
 
-  it("a pan rebuilds the light layer but recomputes no masks; an edit recomputes them", () => {
+  // The maintainer, 2 Nov 2026: "zooming and panning feels REALLY slow". The layers were keyed on the pan, so every
+  // step of a drag re-blurred the map (about 30 ms at 128 px a cell).
+  it("a pan reuses the light layer and its masks; an edit recomputes them", () => {
     const f = makeLayerFactory();
     const layers = stoneLayers();
     layers.object[cellKey(2, 2)] = { pack_id: "stone-dungeon", pack_version: 1, category: "objectBrazier", variant: 0 };
@@ -384,28 +386,48 @@ describe("renderMap — shadow cache", () => {
     const puts = (): number => f.layers.flatMap((l) => l.rec.putImages).length;
     const base = maskCalls();
     renderMap(scene());
-    const first = puts();
-    expect(first).toBe(1);
+    const built = f.layers.length;
+    expect(puts()).toBe(1);
     expect(maskCalls() - base).toBe(1);
-    // A pan changes the window and offset: the layer is rebuilt (more canvases), the mask array is not recomputed.
     renderMap(scene({ viewportOffset: { x: 40, y: 12 }, bounds: { minX: 0, minY: 0, maxX: 6, maxY: 6 } }));
-    expect(puts()).toBe(2);
+    expect(f.layers).toHaveLength(built);
     expect(maskCalls() - base).toBe(1);
     renderMap(scene({ layersRevision: 6 }));
     expect(maskCalls() - base).toBe(2);
   });
 
-  it("rebuilds when the zoom or the window changes", () => {
+  it("rebuilds when the zoom crosses an octave, not for a step inside one", () => {
     const f = makeLayerFactory();
     const layers = stoneLayers();
     const runtimes = new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]);
     const dressing: DressingCatalog = new Map();
     const scene = (overrides: Partial<MapRenderScene>): MapRenderScene =>
       baseScene({ layers, runtimes, dressing, makeCanvas: f.makeCanvas, layersRevision: 1, ...overrides }).scene;
-    renderMap(scene({}));
+    renderMap(scene({ tilePx: 40 }));
     const built = f.layers.length;
-    renderMap(scene({ tilePx: 32 }));
+    renderMap(scene({ tilePx: 56 }));
+    expect(f.layers).toHaveLength(built);
+    renderMap(scene({ tilePx: 30 }));
     expect(f.layers.length).toBeGreaterThan(built);
+  });
+
+  it("lays a layer built coarser than the screen scaled up to the drawing, where the pan puts it", () => {
+    const f = makeLayerFactory();
+    const layers = stoneLayers();
+    const { scene, rec } = baseScene({
+      layers,
+      runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]),
+      makeCanvas: f.makeCanvas,
+      layersRevision: 1,
+      tilePx: 128,
+      viewportOffset: { x: 100, y: 50 },
+    });
+    renderMap(scene);
+    // The shadow layer is the first canvas made: built at 64 px a cell over the drawing (cells 1..2) widened by a
+    // cell of margin and the shadow's own cell, so its corner is cell -1, drawn at 128 px a cell less the pan.
+    const shadow = f.layers[0];
+    const laid = rec.drawImages.find((d) => d.source === shadow.canvas);
+    expect(laid).toMatchObject({ x: -1 * 128 - 100, y: -1 * 128 - 50, w: shadow.width * 2, h: shadow.height * 2 });
   });
 });
 

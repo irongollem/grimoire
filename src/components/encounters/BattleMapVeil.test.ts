@@ -102,6 +102,15 @@ describe("BattleMapVeil", () => {
     expect(last.rect.x).toBe(27);
   });
 
+  it("does not recompute the grid for a zoom whose float noise would round the window up a cell", async () => {
+    const w = mount(BattleMapVeil, { props: { ...props, live: snapshot({ lights: [torch] }) } });
+    const first = painted.calls[0].grid;
+    // 312.33 / 52.05499999999999 is 6.000000000000001: without the snap the window grows to seven columns.
+    await w.setProps({ panX: 24.122, originX: 24.122, imageW: 312.33, imageH: 208.22, cellPx: 52.05499999999999 });
+    expect(painted.calls.length).toBeGreaterThan(1);
+    expect(painted.calls[painted.calls.length - 1].grid).toBe(first);
+  });
+
   it("repaints a new grid when the snapshot changes", async () => {
     const w = mount(BattleMapVeil, { props });
     const first = painted.calls[0].grid;

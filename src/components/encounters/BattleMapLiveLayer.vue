@@ -186,8 +186,24 @@ function paintSprite(ctx: CanvasRenderingContext2D, sprite: MapLiveSprite, t: nu
   ctx.restore();
 }
 
-// One scratch canvas the boost is composed in. A light's sight mask canvas is shared with the veil's breathing edge.
+// The glow is soft (a gradient cut by a mask sampled a few times per cell), so it is composed at a few pixels per cell
+// and scaled up smooth, never at the map's own resolution: at 128 px a cell a fire's square was 2,000 px wide, redrawn
+// three times a frame per light, which held the editor and the battle map to a handful of frames a second.
+const BOOST_PX_PER_CELL = 12;
+/** The longest side the composed glow may have, so a sprawling map cannot ask for a huge canvas each frame. */
+const BOOST_MAX_PX = 2048;
+
+// Two canvases that only ever grow: one light is composed in `scratch`, every light is gathered in `accum`, and the
+// whole of `accum` goes onto the layer in one draw. A canvas that is resized is reallocated, so neither shrinks.
 let scratch: HTMLCanvasElement | null = null;
+let accum: HTMLCanvasElement | null = null;
+
+function grown(canvas: HTMLCanvasElement | null, w: number, h: number): HTMLCanvasElement {
+  const c = canvas ?? document.createElement("canvas");
+  if (c.width < w) c.width = w;
+  if (c.height < h) c.height = h;
+  return c;
+}
 
 function maskCanvasFor(light: MapLiveLight): { canvas: HTMLCanvasElement; x0: number; y0: number; x1: number; y1: number } | null {
   if (!live) return null;
@@ -196,53 +212,87 @@ function maskCanvasFor(light: MapLiveLight): { canvas: HTMLCanvasElement; x0: nu
   return canvas ? { canvas, x0: held.x0, y0: held.y0, x1: held.x1, y1: held.y1 } : null;
 }
 
+type Boost = { light: MapLiveLight; tileLight: { color: string; bright: number; dim: number; intensity: number }; radius: number; mask: NonNullable<ReturnType<typeof maskCanvasFor>> };
+
 /**
- * The glow a flickering or pulsing light adds on top of its steady baked glow. Composed on a scratch canvas: the
- * gradient, cut to what the light can see (`destination-in` its mask, scaled up smooth as the baked glow's is) and
- * to the ground picture's painted part (when there is one: waiting for it to load draws nothing), then laid on with
- * `screen`.
+ * The glow flickering and pulsing lights add on top of their steady baked glow. Each light's gradient (radius in cells)
+ * is cut to what it can see (`destination-in` its mask, scaled up smooth as the baked glow's is) and gathered with
+ * `screen` in image-cell space; the gathering is then cut once to the ground picture's painted part (when there is one:
+ * waiting for it to load draws nothing) and laid on with `screen`.
  */
-function paintLightBoost(ctx: CanvasRenderingContext2D, light: MapLiveLight, t: number) {
-  const intensity = (light.intensity ?? DEFAULT_LIGHT_INTENSITY) * lightMotion(light).amount * LIGHT_BOOST_GAIN * lightBoost(light, t);
-  if (intensity <= 0.001) return;
-  const tileLight = { color: light.color, bright: light.bright, dim: light.dim, intensity };
-  // The reach breathes with the flame; the line-of-sight mask below stays the steady reach (no occlusion per frame).
-  const radius = lightReachCells(tileLight) * cellPx * lightRadiusScale(light, t);
-  const cx = originX + light.x * cellPx;
-  const cy = originY + light.y * cellPx;
-  if (cx + radius < 0 || cy + radius < 0 || cx - radius > hostW || cy - radius > hostH) return;
+function paintLightBoosts(ctx: CanvasRenderingContext2D, lights: readonly MapLiveLight[], t: number) {
+  const groundImg = ground ? imageFor(ground.url) : null;
   // The battle map keeps the glow to the ground picture's painted part. The editor has no such picture to hand the
   // layer (its ground is a canvas), so there the glow is cut to line of sight alone.
-  const groundImg = ground ? imageFor(ground.url) : null;
-  const mask = maskCanvasFor(light);
-  if (!mask || (ground && !groundImg)) return;
-
-  const left = originX + mask.x0 * cellPx;
-  const top = originY + mask.y0 * cellPx;
-  const w = Math.ceil((mask.x1 - mask.x0) * cellPx);
-  const h = Math.ceil((mask.y1 - mask.y0) * cellPx);
-  if (w <= 0 || h <= 0) return;
-  scratch ??= document.createElement("canvas");
-  if (scratch.width !== w || scratch.height !== h) {
-    scratch.width = w;
-    scratch.height = h;
+  if (ground && !groundImg) return;
+  const boosts: Boost[] = [];
+  let bx0 = Infinity;
+  let by0 = Infinity;
+  let bx1 = -Infinity;
+  let by1 = -Infinity;
+  for (const light of lights) {
+    const intensity = (light.intensity ?? DEFAULT_LIGHT_INTENSITY) * lightMotion(light).amount * LIGHT_BOOST_GAIN * lightBoost(light, t);
+    if (intensity <= 0.001) continue;
+    const tileLight = { color: light.color, bright: light.bright, dim: light.dim, intensity };
+    // The reach breathes with the flame; the line-of-sight mask stays the steady reach (no occlusion per frame).
+    const radius = lightReachCells(tileLight) * lightRadiusScale(light, t);
+    const cx = originX + light.x * cellPx;
+    const cy = originY + light.y * cellPx;
+    const r = radius * cellPx;
+    if (cx + r < 0 || cy + r < 0 || cx - r > hostW || cy - r > hostH) continue;
+    const mask = maskCanvasFor(light);
+    if (!mask || mask.x1 <= mask.x0 || mask.y1 <= mask.y0) continue;
+    boosts.push({ light, tileLight, radius, mask });
+    bx0 = Math.min(bx0, mask.x0);
+    by0 = Math.min(by0, mask.y0);
+    bx1 = Math.max(bx1, mask.x1);
+    by1 = Math.max(by1, mask.y1);
   }
-  const g = scratch.getContext("2d");
-  if (!g) return;
-  g.globalCompositeOperation = "source-over";
-  g.clearRect(0, 0, w, h);
-  const gradient = g.createRadialGradient(cx - left, cy - top, 0, cx - left, cy - top, radius);
-  for (const [offset, color] of lightStops(tileLight)) gradient.addColorStop(offset, color);
-  g.fillStyle = gradient;
-  g.fillRect(0, 0, w, h);
-  g.globalCompositeOperation = "destination-in";
-  g.imageSmoothingEnabled = true;
-  g.drawImage(mask.canvas, 0, 0, (mask.x1 - mask.x0) * cellPx, (mask.y1 - mask.y0) * cellPx);
-  if (ground && groundImg) g.drawImage(groundImg, ground.x - left, ground.y - top, ground.w, ground.h);
+  if (boosts.length === 0) return;
 
+  const q = Math.min(cellPx, BOOST_PX_PER_CELL, BOOST_MAX_PX / Math.max(bx1 - bx0, by1 - by0));
+  const aw = Math.ceil((bx1 - bx0) * q);
+  const ah = Math.ceil((by1 - by0) * q);
+  accum = grown(accum, aw, ah);
+  const a = accum.getContext("2d");
+  if (!a) return;
+  a.globalCompositeOperation = "source-over";
+  a.clearRect(0, 0, accum.width, accum.height);
+
+  for (const { light, tileLight, radius, mask } of boosts) {
+    const sw = Math.ceil((mask.x1 - mask.x0) * q);
+    const sh = Math.ceil((mask.y1 - mask.y0) * q);
+    scratch = grown(scratch, sw, sh);
+    const g = scratch.getContext("2d");
+    if (!g) return;
+    g.globalCompositeOperation = "source-over";
+    g.clearRect(0, 0, scratch.width, scratch.height);
+    const gx = (light.x - mask.x0) * q;
+    const gy = (light.y - mask.y0) * q;
+    const gradient = g.createRadialGradient(gx, gy, 0, gx, gy, radius * q);
+    for (const [offset, color] of lightStops(tileLight)) gradient.addColorStop(offset, color);
+    g.fillStyle = gradient;
+    g.fillRect(0, 0, sw, sh);
+    g.globalCompositeOperation = "destination-in";
+    g.imageSmoothingEnabled = true;
+    g.drawImage(mask.canvas, 0, 0, (mask.x1 - mask.x0) * q, (mask.y1 - mask.y0) * q);
+    a.globalCompositeOperation = "screen";
+    a.drawImage(scratch, 0, 0, sw, sh, (mask.x0 - bx0) * q, (mask.y0 - by0) * q, sw, sh);
+  }
+
+  // Host px of the gathering's top-left cell, and how many host px one of its pixels covers.
+  const left = originX + bx0 * cellPx;
+  const top = originY + by0 * cellPx;
+  const k = q / cellPx;
+  if (ground && groundImg) {
+    a.globalCompositeOperation = "destination-in";
+    a.imageSmoothingEnabled = true;
+    a.drawImage(groundImg, (ground.x - left) * k, (ground.y - top) * k, ground.w * k, ground.h * k);
+  }
   ctx.save();
   ctx.globalCompositeOperation = "screen";
-  ctx.drawImage(scratch, left, top);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(accum, 0, 0, aw, ah, left, top, aw / k, ah / k);
   ctx.restore();
 }
 
@@ -259,7 +309,7 @@ function render(t: number, still = false) {
     for (const overlay of group.overlays) paintOverlay(ctx, overlay, t);
     ctx.restore();
   }
-  for (const light of lightsIn(live, stratum)) paintLightBoost(ctx, light, t);
+  paintLightBoosts(ctx, lightsIn(live, stratum), t);
   for (const door of leafDoors()) paintLeaf(ctx, door);
   for (const sprite of spritesIn(live, stratum)) paintSprite(ctx, sprite, t, still);
 }

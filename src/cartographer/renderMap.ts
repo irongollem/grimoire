@@ -21,6 +21,7 @@ import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type 
 import type { CellEdge } from "@/cartographer/edges";
 import type { Tool } from "@/cartographer/tools";
 import {
+  dressingCellBounds,
   drawDressing,
   dressingFootprint,
   strokeDressingOutline,
@@ -135,12 +136,11 @@ interface ShadowKey {
   runtimes: TilePackRuntime[];
   fallback: TilePackRuntime | null;
   currentPackId: string;
-  tilePx: number;
-  bounds: MapRenderScene["bounds"];
-  offsetX: number;
-  offsetY: number;
+  /** Pixels a cell the layer is built at: a power of two, so zooming rebuilds it once an octave, not once a step. */
+  scale: number;
 }
 
+/** The cells a layer is built over, and the layer, at `key.scale` px a cell with cell (0,0) at its pixel (0,0). */
 interface LayerCache {
   key: ShadowKey;
   layer: ShadowLayer | null;
@@ -166,22 +166,58 @@ function sameShadowKey(a: ShadowKey, b: ShadowKey): boolean {
     a.dressing === b.dressing &&
     a.fallback === b.fallback &&
     a.currentPackId === b.currentPackId &&
-    a.tilePx === b.tilePx &&
-    a.offsetX === b.offsetX &&
-    a.offsetY === b.offsetY &&
-    a.bounds.minX === b.bounds.minX &&
-    a.bounds.minY === b.bounds.minY &&
-    a.bounds.maxX === b.bounds.maxX &&
-    a.bounds.maxY === b.bounds.maxY &&
+    a.scale === b.scale &&
     a.runtimes.length === b.runtimes.length &&
     a.runtimes.every((r, i) => r === b.runtimes[i])
   );
 }
 
+// The shadow and glow layers are soft (blurred silhouettes, masked gradients), so they are built once over the whole
+// drawing at a modest scale and scaled onto the screen: a pan only moves them and a zoom inside the same octave only
+// stretches them. They used to be built over the window at full resolution, keyed on the pan, so every step of a pan
+// re-blurred the map (about 30 ms a frame at 128 px a cell).
+const LAYER_MAX_PX_PER_CELL = 64;
+const LAYER_MIN_PX_PER_CELL = 4;
+/** The longest side a layer may have; a sprawling drawing is built coarser instead. */
+const LAYER_MAX_PX = 4096;
+/** Cells around the drawing a layer also covers: a wall's shadow falls past the last floor. */
+const LAYER_MARGIN = 1;
+
+/** The scale a layer is built at for `tilePx`: the next power of two up, within limits, coarser for a huge drawing. */
+export function layerScale(tilePx: number, extentCells: number): number {
+  let q = Math.min(LAYER_MAX_PX_PER_CELL, Math.max(LAYER_MIN_PX_PER_CELL, 2 ** Math.ceil(Math.log2(Math.max(1, tilePx)))));
+  while (q > LAYER_MIN_PX_PER_CELL && extentCells * q > LAYER_MAX_PX) q /= 2;
+  return q;
+}
+
+/** The cells everything drawn covers (floor, walls, props), or null for an empty drawing. */
+export function drawnExtent(layers: DungeonMapLayers, dressing: DressingCatalog): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  const painted = paintedExtent(layers);
+  let out = painted ? { ...painted } : null;
+  const grow = (x0: number, y0: number, x1: number, y1: number) => {
+    if (!out) out = { minX: x0, minY: y0, maxX: x1, maxY: y1 };
+    else {
+      out.minX = Math.min(out.minX, x0);
+      out.minY = Math.min(out.minY, y0);
+      out.maxX = Math.max(out.maxX, x1);
+      out.maxY = Math.max(out.maxY, y1);
+    }
+  };
+  for (const w of Object.values(layers.walls)) {
+    grow(Math.floor(Math.min(w.a[0], w.b[0])), Math.floor(Math.min(w.a[1], w.b[1])), Math.ceil(Math.max(w.a[0], w.b[0])), Math.ceil(Math.max(w.a[1], w.b[1])));
+  }
+  for (const placement of Object.values(layers.dressing)) {
+    const b = dressingCellBounds(placement, dressing);
+    grow(b.minX, b.minY, b.maxX, b.maxY);
+  }
+  return out;
+}
+
 /**
- * A window-sized canvas layer (shadows, the masked light glow) rebuilt only when the edit revision, the loaded packs
- * or the window change, so hovering never re-blurs the map or re-walks every light's lines of sight. A caller that
- * cannot name a revision gets a fresh build each frame rather than a stale one.
+ * A soft layer (shadows, the masked light glow) for this frame: built over the whole drawing at `layerScale` and
+ * rebuilt only when the edit revision, the loaded packs or the scale change, so hovering and panning never re-blur the
+ * map or re-walk every light's lines of sight. Returned placed on the screen. A caller that cannot name a revision
+ * gets a fresh build each frame rather than a stale one.
  */
 function cachedLayer(
   slot: "shadow" | "light",
@@ -191,6 +227,15 @@ function cachedLayer(
 ): ShadowLayer | null {
   if (!input.makeCanvas) return null;
   if (scene.layersRevision === undefined) return build(input);
+  const extent = drawnExtent(scene.layers, scene.dressing);
+  if (!extent) return null;
+  const bounds = {
+    minX: extent.minX - LAYER_MARGIN,
+    minY: extent.minY - LAYER_MARGIN,
+    maxX: extent.maxX + LAYER_MARGIN,
+    maxY: extent.maxY + LAYER_MARGIN,
+  };
+  const scale = layerScale(scene.tilePx, Math.max(bounds.maxX - bounds.minX + 1, bounds.maxY - bounds.minY + 1));
   const key: ShadowKey = {
     layers: scene.layers,
     revision: scene.layersRevision,
@@ -198,17 +243,25 @@ function cachedLayer(
     runtimes: [...scene.runtimes.values()],
     fallback: scene.fallbackRuntime,
     currentPackId: scene.currentPackId,
-    tilePx: scene.tilePx,
-    bounds: scene.bounds,
-    offsetX: scene.viewportOffset.x,
-    offsetY: scene.viewportOffset.y,
+    scale,
   };
   const held = slot === "shadow" ? shadowCache : lightCache;
-  if (held && sameShadowKey(held.key, key)) return held.layer;
-  const next = { key, layer: build(input) };
-  if (slot === "shadow") shadowCache = next;
-  else lightCache = next;
-  return next.layer;
+  let layer: ShadowLayer | null;
+  if (held && sameShadowKey(held.key, key)) layer = held.layer;
+  else {
+    layer = build({ ...input, tilePx: scale, origin: { x: 0, y: 0 }, bounds });
+    if (slot === "shadow") shadowCache = { key, layer };
+    else lightCache = { key, layer };
+  }
+  if (!layer) return null;
+  const k = scene.tilePx / scale;
+  return {
+    canvas: layer.canvas,
+    left: layer.left * k - scene.viewportOffset.x,
+    top: layer.top * k - scene.viewportOffset.y,
+    width: layer.width * k,
+    height: layer.height * k,
+  };
 }
 
 // ── Illumination cache ─────────────────────────────────────────────────────

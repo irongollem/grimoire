@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { isReactive, reactive } from "vue";
 import { boostMask, currentMapLive, flameNoise, groupsIn, hasMotion, lightBoost, lightRadiusScale, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
 import { FLICKER_REACH, PULSE_REACH } from "@/cartographer/lights";
 import type { MapLive, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
@@ -173,6 +174,15 @@ describe("currentMapLive", () => {
   it("passes the current version and null through", () => {
     expect(currentMapLive(live)).toBe(live);
     expect(currentMapLive(null)).toBeNull();
+  });
+
+  it("hands out the plain snapshot from a reactive row, so the sight grids do not track millions of reads", () => {
+    // The battle map reads the snapshot from a query's reactive row; through the proxy one illumination grid took
+    // 720 ms instead of 15.
+    const row = reactive({ map_live: { ...live, walls: [{ a: [0, 0], b: [1, 0] }] } as MapLive });
+    const out = currentMapLive(row.map_live);
+    expect(isReactive(out)).toBe(false);
+    expect(isReactive(out?.walls[0])).toBe(false);
   });
 
   it("ignores a version-1 snapshot, whose bakes still hold every door leaf", () => {

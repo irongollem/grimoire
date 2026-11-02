@@ -485,7 +485,13 @@ export function drawMapContent(input: DrawMapInput): void {
     paintObjects(f, t, "stairsDown");
 
     const layer = input.shadowLayer !== undefined ? input.shadowLayer : input.shadows ? renderShadowLayer(input) : null;
-    if (layer) ctx.drawImage(layer.canvas, layer.left, layer.top, layer.width, layer.height);
+    if (layer) {
+      // The editor builds its layers coarser than the screen and scales them up: smooth, never blocky.
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(layer.canvas, layer.left, layer.top, layer.width, layer.height);
+      ctx.restore();
+    }
 
     // Flat things go above the shadow layer, which holds their own occlusion: that is a blurred copy of their whole
     // silhouette, so drawn over them it greys them out entirely instead of rimming them.
@@ -497,6 +503,7 @@ export function drawMapContent(input: DrawMapInput): void {
       if (glow) {
         ctx.save();
         ctx.globalCompositeOperation = "screen";
+        ctx.imageSmoothingEnabled = true;
         ctx.drawImage(glow.canvas, glow.left, glow.top, glow.width, glow.height);
         ctx.restore();
       } else {

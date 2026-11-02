@@ -98,6 +98,17 @@ describe("the veil's lit edge breathing", () => {
     expect(cut).toBeGreaterThan(ring);
   });
 
+  // The maintainer, 2 Nov 2026: "zooming and panning feels REALLY slow". Each light was laid on the screen-sized veil
+  // two or three times a frame, about half a millisecond a draw.
+  it("lays every light's halo onto the veil in one draw, however many lights breathe", () => {
+    const a = fire({ x: 5, y: 5 });
+    const b = fire({ x: 9, y: 6 });
+    const t = timeWhere(a, (s) => s > 1.1);
+    const { breath, veilLog, veil, frame } = setup();
+    expect(breath.paint(veil as never, frame({ lights: [a, b], t }))).toBe(2);
+    expect(veilLog.filter((o) => o.kind === "drawImage" && o.op === "screen")).toHaveLength(1);
+  });
+
   it("draws nothing for a light whose reach is at its steady one", () => {
     const light = fire();
     const t = timeWhere(light, (s) => Math.abs(s - 1) < 0.005);

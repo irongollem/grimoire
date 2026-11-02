@@ -79,12 +79,15 @@ const {
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 const makeCanvas = domMakeCanvas();
 
-// The window of image cells under the image, as three integers: a pan that only translates changes none of them (the
-// computeds only notify on a changed value), so the grid below is not recomputed and only its drawing moves.
-const firstCol = computed(() => (cellPx > 0 ? Math.floor((panX - originX) / cellPx) : 0));
-const firstRow = computed(() => (cellPx > 0 ? Math.floor((panY - originY) / cellPx) : 0));
-const cols = computed(() => (cellPx > 0 ? Math.ceil((panX + imageW - originX) / cellPx) - firstCol.value : 0));
-const rows = computed(() => (cellPx > 0 ? Math.ceil((panY + imageH - originY) / cellPx) - firstRow.value : 0));
+// The window of image cells under the image, as four integers: a pan or a zoom changes none of them (the computeds only
+// notify on a changed value), so the grid below is not recomputed and only its drawing moves. Each ratio is snapped
+// before it is rounded: a zoom scales both sides of it, and the float noise that leaves (say) 41.0000000003 would grow
+// the window by a cell, every few wheel steps, and recompute every light's lines of sight (most of a second each).
+const snapped = (v: number) => Math.round(v * 1e6) / 1e6;
+const firstCol = computed(() => (cellPx > 0 ? Math.floor(snapped((panX - originX) / cellPx)) : 0));
+const firstRow = computed(() => (cellPx > 0 ? Math.floor(snapped((panY - originY) / cellPx)) : 0));
+const cols = computed(() => (cellPx > 0 ? Math.ceil(snapped((panX + imageW - originX) / cellPx)) - firstCol.value : 0));
+const rows = computed(() => (cellPx > 0 ? Math.ceil(snapped((panY + imageH - originY) / cellPx)) - firstRow.value : 0));
 
 // Walls, closed doors (at the state the DM left them in) and solid rock stop light and sight; built once per snapshot
 // and set of door states.

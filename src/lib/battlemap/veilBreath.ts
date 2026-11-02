@@ -115,21 +115,29 @@ type Scratch = Pick<
 > & { fillStyle: CanvasRenderingContext2D["fillStyle"] };
 type Target = Pick<CanvasRenderingContext2D, "save" | "restore" | "drawImage" | "globalCompositeOperation" | "imageSmoothingEnabled">;
 
-/** The painter keeps one scratch canvas, resized to the biggest light box it has been asked for. */
-export function createVeilBreath(makeCanvas: MakeCanvas) {
-  let scratch: { canvas: CanvasImageSource & { width: number; height: number }; ctx: Scratch } | null = null;
+type Grown = { canvas: CanvasImageSource & { width: number; height: number }; ctx: Scratch };
 
-  function scratchOf(w: number, h: number): Scratch | null {
-    if (!scratch) {
+/**
+ * The painter composes each light on one scratch canvas, and gathers them on three more, one per way of laying them
+ * on: the rings that lift the veil, the rings that lay it back, and the halos. Each gathering then goes onto the veil
+ * in a single draw. Laying every light straight onto the veil cost about half a millisecond a draw on a screen-sized
+ * canvas, two or three draws a light, every frame. All four canvases only grow and are used from their top-left
+ * corner: resizing a canvas reallocates it.
+ */
+export function createVeilBreath(makeCanvas: MakeCanvas) {
+  const held: Record<"scratch" | "lift" | "lay" | "glow", Grown | null> = { scratch: null, lift: null, lay: null, glow: null };
+
+  function grown(slot: keyof typeof held, w: number, h: number): Grown | null {
+    let c = held[slot];
+    if (!c) {
       const made = makeCanvas(w, h);
       if (!made) return null;
-      scratch = { canvas: made.canvas as CanvasImageSource & { width: number; height: number }, ctx: made.ctx };
+      c = { canvas: made.canvas as Grown["canvas"], ctx: made.ctx };
+      held[slot] = c;
     }
-    if (scratch.canvas.width !== w || scratch.canvas.height !== h) {
-      scratch.canvas.width = w;
-      scratch.canvas.height = h;
-    }
-    return scratch.ctx;
+    if (c.canvas.width < w) c.canvas.width = w;
+    if (c.canvas.height < h) c.canvas.height = h;
+    return c;
   }
 
   /** Cut what is in the scratch to the light's sight (and, for a player, to what they see). */
@@ -140,19 +148,16 @@ export function createVeilBreath(makeCanvas: MakeCanvas) {
     if (limit) g.drawImage(limit, -left * SCRATCH_SCALE, -top * SCRATCH_SCALE, f.hostW * SCRATCH_SCALE, f.hostH * SCRATCH_SCALE);
   }
 
-  /** Lay the scratch onto the veil canvas with `op`. */
-  function lay(ctx: Target, g: { canvas: CanvasImageSource }, op: GlobalCompositeOperation, left: number, top: number, w: number, h: number) {
-    ctx.save();
-    ctx.globalCompositeOperation = op;
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(g.canvas, left, top, w, h);
-    ctx.restore();
-  }
+  type Job = { light: MapLiveLight; b: Breath; mask: BreathMask; left: number; top: number; w: number; h: number; ring: "lift" | "lay" | null; halo: boolean };
 
   /** Draw every breathing light's ring and halo over `ctx`, which already holds the static veil. Returns lights drawn. */
   function paint(ctx: Target, f: BreathFrame): number {
     const alphaScale = DM_VEIL[f.darkness] / DM_VEIL.dark;
-    let drawn = 0;
+    const jobs: Job[] = [];
+    let ux0 = Infinity;
+    let uy0 = Infinity;
+    let ux1 = -Infinity;
+    let uy1 = -Infinity;
     for (const light of f.lights) {
       const b = breathOf(light, f.t);
       if (b.mode === "none") continue;
@@ -167,35 +172,62 @@ export function createVeilBreath(makeCanvas: MakeCanvas) {
       const w = Math.ceil((mask.x1 - mask.x0) * f.cellPx);
       const h = Math.ceil((mask.y1 - mask.y0) * f.cellPx);
       if (w <= 0 || h <= 0) continue;
+      // The veil lifts between the steady edge and the swollen one; a light drawn in lays it back, unless it stands in
+      // another light's core, which keeps it lit. A player's veil (`limit` null: nothing seen) is never lifted.
+      const ring = b.mode === "lighten" ? (f.limit !== null ? "lift" : null) : inAnotherCore(f.lights, light) ? null : "lay";
+      const halo = f.limit !== null;
+      jobs.push({ light, b, mask, left, top, w, h, ring, halo });
+      ux0 = Math.min(ux0, left);
+      uy0 = Math.min(uy0, top);
+      ux1 = Math.max(ux1, left + w);
+      uy1 = Math.max(uy1, top + h);
+    }
+    if (jobs.length === 0) return 0;
+
+    const aw = Math.max(1, Math.ceil((ux1 - ux0) * SCRATCH_SCALE));
+    const ah = Math.max(1, Math.ceil((uy1 - uy0) * SCRATCH_SCALE));
+    const used = { lift: false, lay: false, glow: false };
+    const gather = (slot: "lift" | "lay" | "glow", sw: number, sh: number, left: number, top: number) => {
+      const into = grown(slot, aw, ah);
+      const from = held.scratch;
+      if (!into || !from) return;
+      if (!used[slot]) {
+        into.ctx.globalCompositeOperation = "source-over";
+        into.ctx.clearRect(0, 0, into.canvas.width, into.canvas.height);
+        used[slot] = true;
+      }
+      // Rings pile up as one veil would (over); halos add light as the veil's own screen would.
+      into.ctx.globalCompositeOperation = slot === "glow" ? "screen" : "source-over";
+      into.ctx.drawImage(from.canvas, 0, 0, sw, sh, (left - ux0) * SCRATCH_SCALE, (top - uy0) * SCRATCH_SCALE, sw, sh);
+    };
+
+    for (const { light, b, mask, left, top, w, h, ring, halo } of jobs) {
       const sw = Math.max(1, Math.ceil(w * SCRATCH_SCALE));
       const sh = Math.max(1, Math.ceil(h * SCRATCH_SCALE));
-      const g = scratchOf(sw, sh);
-      if (!g || !scratch) continue;
-      const gx = (cx - left) * SCRATCH_SCALE;
-      const gy = (cy - top) * SCRATCH_SCALE;
+      const s = grown("scratch", sw, sh);
+      if (!s) continue;
+      const g = s.ctx;
+      const gx = (f.originX + light.x * f.cellPx - left) * SCRATCH_SCALE;
+      const gy = (f.originY + light.y * f.cellPx - top) * SCRATCH_SCALE;
 
-      if (b.mode === "lighten") {
-        if (f.limit !== null) {
-          // The veil lifts between the steady edge and the swollen one, strongest at the old edge.
-          g.globalCompositeOperation = "source-over";
-          g.clearRect(0, 0, sw, sh);
-          const outer = b.r * f.cellPx * SCRATCH_SCALE;
-          const grad = g.createRadialGradient(gx, gy, 0, gx, gy, outer);
-          grad.addColorStop(0, "rgba(0,0,0,0)");
-          grad.addColorStop((b.r0 * RING_INNER) / b.r, "rgba(0,0,0,0)");
-          grad.addColorStop(b.r0 / b.r, `rgba(0,0,0,${LIGHTEN_PEAK * b.strength})`);
-          grad.addColorStop(1, "rgba(0,0,0,0)");
-          g.fillStyle = grad;
-          g.fillRect(0, 0, sw, sh);
-          cut(g, mask, f.cellPx, left, top, f, f.limit);
-          lay(ctx, scratch, "destination-out", left, top, w, h);
-        }
-      } else if (!inAnotherCore(f.lights, light)) {
+      if (ring === "lift") {
+        // The veil lifts between the steady edge and the swollen one, strongest at the old edge.
+        g.globalCompositeOperation = "source-over";
+        g.clearRect(0, 0, sw, sh);
+        const grad = g.createRadialGradient(gx, gy, 0, gx, gy, b.r * f.cellPx * SCRATCH_SCALE);
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop((b.r0 * RING_INNER) / b.r, "rgba(0,0,0,0)");
+        grad.addColorStop(b.r0 / b.r, `rgba(0,0,0,${LIGHTEN_PEAK * b.strength})`);
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = grad;
+        g.fillRect(0, 0, sw, sh);
+        cut(g, mask, f.cellPx, left, top, f, f.limit);
+        gather("lift", sw, sh, left, top);
+      } else if (ring === "lay") {
         // The light drew in: the ring between its reach now and its steady one goes back to the ambient veil.
         g.globalCompositeOperation = "source-over";
         g.clearRect(0, 0, sw, sh);
-        const outer = b.r0 * f.cellPx * SCRATCH_SCALE;
-        const grad = g.createRadialGradient(gx, gy, 0, gx, gy, outer);
+        const grad = g.createRadialGradient(gx, gy, 0, gx, gy, b.r0 * f.cellPx * SCRATCH_SCALE);
         const [r, gr, bl] = VEIL_RGB;
         const peak = DARKEN_PEAK * b.strength * alphaScale;
         grad.addColorStop(0, `rgba(${r},${gr},${bl},0)`);
@@ -205,11 +237,11 @@ export function createVeilBreath(makeCanvas: MakeCanvas) {
         g.fillStyle = grad;
         g.fillRect(0, 0, sw, sh);
         cut(g, mask, f.cellPx, left, top, f, undefined);
-        lay(ctx, scratch, "source-over", left, top, w, h);
+        gather("lay", sw, sh, left, top);
       }
 
       // The warm halo: the light's own colour, swelling and fading with its reach and brightness.
-      if (f.limit !== null) {
+      if (halo) {
         const intensity = (light.intensity ?? DEFAULT_LIGHT_INTENSITY) * HALO_GAIN * (0.4 + 0.6 * lightBoost(light, f.t));
         g.globalCompositeOperation = "source-over";
         g.clearRect(0, 0, sw, sh);
@@ -220,11 +252,21 @@ export function createVeilBreath(makeCanvas: MakeCanvas) {
         g.fillStyle = grad;
         g.fillRect(0, 0, sw, sh);
         cut(g, mask, f.cellPx, left, top, f, f.limit);
-        lay(ctx, scratch, "screen", left, top, w, h);
+        gather("glow", sw, sh, left, top);
       }
-      drawn++;
     }
-    return drawn;
+
+    // Lifted first, then laid back, then the halos over both, each in one draw.
+    for (const [slot, op] of [["lift", "destination-out"], ["lay", "source-over"], ["glow", "screen"]] as const) {
+      const c = held[slot];
+      if (!used[slot] || !c) continue;
+      ctx.save();
+      ctx.globalCompositeOperation = op;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(c.canvas, 0, 0, aw, ah, ux0, uy0, aw / SCRATCH_SCALE, ah / SCRATCH_SCALE);
+      ctx.restore();
+    }
+    return jobs.length;
   }
 
   return { paint };
