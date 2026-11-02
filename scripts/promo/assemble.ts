@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { canvasFor, homeView, planCamera, zoompanExpressions } from "./camera";
-import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards } from "./compose/cards";
+import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards, subtitleCard } from "./compose/cards";
 import { audibleEnd, durationOf, ffmpeg, hasAudio, leadingSilence, loudnessOf, STEREO_48K } from "./compose/ffmpeg";
 import { DEVICES } from "./devices";
 import { gainExpression, planTheme } from "./theme";
@@ -56,17 +56,26 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work:
   // A frozen last frame holds the screen, and with it wherever the camera ended.
   const hold = p.freeze > 0 ? `tpad=stop_mode=clone:stop_duration=${p.freeze},` : "";
   const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(L), "-i", file];
+  // The caption above the window, and on a device with room for them the narration below it, as the last inputs.
+  const words = (first: number) =>
+    spec.subtitles
+      ? {
+          inputs: [...loop(join(work, `caption-${p.id}.png`)), ...loop(join(work, `subtitle-${p.id}.png`))],
+          graph: `[a][${first}:v]overlay=0:230:format=auto[t];[t][${first + 1}:v]overlay=0:${spec.subtitles.y}:format=auto,format=yuv420p[v]`,
+        }
+      : { inputs: loop(join(work, `caption-${p.id}.png`)), graph: `[a][${first}:v]overlay=0:230:format=auto,format=yuv420p[v]` };
   const camera = (shot.camera?.length ?? 0) > 0 || !spec.framed;
   if (!camera) {
+    const text = words(3);
     ffmpeg([
       ...loop(join(work, `base-${device}.png`)),
       "-i", clip,
       ...loop(join(work, `mask-${device}.png`)),
-      ...loop(join(work, `caption-${p.id}.png`)),
+      ...text.inputs,
       "-filter_complex",
       `[1:v]fps=30,scale=${w}:${h},${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuva420p[c];` +
         `[2:v]format=gray[m];[c][m]alphamerge[s];` +
-        `[0:v][s]overlay=${x}:${y}:format=auto[a];[a][3:v]overlay=0:230:format=auto,format=yuv420p[v]`,
+        `[0:v][s]overlay=${x}:${y}:format=auto[a];${text.graph}`,
       "-map", "[v]", "-t", String(L), ...INTERMEDIATE, out,
     ]);
     return;
@@ -75,10 +84,13 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work:
   const canvas = canvasOf(shot);
   if (!shot.size) throw new Error(`Shot ${shot.id} has no recorded size: re-film it.`);
   const size = shot.size;
-  const home = homeView(canvas, size, spec.sidebar * spec.scale);
-  const { z, x: zx, y: zy } = zoompanExpressions(planCamera(shot.camera ?? [], canvas, home, (inset) => homeView(canvas, size, inset)), canvas, home);
+  const sidebar = spec.sidebar * spec.scale;
+  const home = homeView(canvas, size, sidebar);
+  const plan = planCamera(shot.camera ?? [], canvas, home, (inset) => homeView(canvas, size, inset), sidebar);
+  const { z, x: zx, y: zy } = zoompanExpressions(plan, canvas, home);
+  const text = words(4);
   const window =
-    `[4:v]format=yuv420p[bd];[1:v]fps=30,${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuv420p[c];` +
+    `[3:v]format=yuv420p[bd];[1:v]fps=30,${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuv420p[c];` +
     `[bd][c]overlay=${canvas.screenX}:${canvas.screenY}[cv];` +
     `[cv]zoompan=z='${z}':x='${zx}':y='${zy}':d=1:s=${w}x${h}:fps=30[zp]`;
   const place = spec.framed
@@ -88,9 +100,9 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work:
     ...loop(join(work, `base-${device}.png`)),
     "-i", clip,
     ...loop(spec.framed ? join(work, `mask-${device}.png`) : join(work, `base-${device}.png`)),
-    ...loop(join(work, `caption-${p.id}.png`)),
     ...loop(join(work, `backdrop-${p.id}.png`)),
-    "-filter_complex", `${window};${place};[a][3:v]overlay=0:230:format=auto,format=yuv420p[v]`,
+    ...text.inputs,
+    "-filter_complex", `${window};${place};${text.graph}`,
     "-map", "[v]", "-t", String(L), ...INTERMEDIATE, out,
   ]);
 }
@@ -174,6 +186,10 @@ async function main() {
       .filter((s) => (s.camera?.length ?? 0) > 0 || !DEVICES[s.device ?? "phone"].framed)
       .map((s) => backdropCard(join(work, `backdrop-${s.id}.png`), s.device ?? "phone", canvasOf(s), s.size ?? { width: 0, height: 0 })),
     ...manifest.shots.map((s) => captionCard(join(work, `caption-${s.id}.png`), s.caption)),
+    ...manifest.shots.flatMap((s) => {
+      const band = DEVICES[s.device ?? "phone"].subtitles;
+      return band ? [subtitleCard(join(work, `subtitle-${s.id}.png`), s.narration, band.h)] : [];
+    }),
     ...(brand ? [introCard(join(work, "intro.png"), manifest.title), outroCard(join(work, "outro.png"))] : []),
   ]);
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { canvasFor, homeView, GLIDE, MAX_ZOOM, MIN_PADDING, planCamera, viewAt, viewFor, zoompanExpressions, type Rect } from "./camera";
+import { DEVICES } from "./devices";
 
-const WINDOW = { width: 1000, height: 1440 };
+const SPEC = DEVICES.desktop;
+const WINDOW = { width: SPEC.window.w, height: SPEC.window.h };
 const DESKTOP = { width: 2880, height: 1800 };
 const canvas = canvasFor(DESKTOP, WINDOW);
 const inside = (r: Rect, c = canvas) =>
@@ -12,7 +14,7 @@ const contains = (view: Rect, t: Rect) =>
 describe("canvasFor", () => {
   it("a wide screen gets paper above and below, centred, in the window's shape", () => {
     expect(canvas.width).toBe(2880);
-    expect(canvas.height / canvas.width).toBeCloseTo(1440 / 1000, 3);
+    expect(canvas.height / canvas.width).toBeCloseTo(WINDOW.height / WINDOW.width, 3);
     expect(canvas.screenY).toBeGreaterThan(0);
     expect(canvas.screenY * 2 + DESKTOP.height).toBe(canvas.height);
   });
@@ -51,7 +53,7 @@ describe("viewFor", () => {
   it("the view keeps the window's shape so it fills the window without bars", () => {
     const view = viewFor({ x: 900, y: 300, width: 900, height: 200 }, canvas);
     expect(view.width / view.height).toBeCloseTo(canvas.width / canvas.height, 9);
-    expect(view.width / view.height).toBeCloseTo(1000 / 1440, 3);
+    expect(view.width / view.height).toBeCloseTo(WINDOW.width / WINDOW.height, 3);
   });
   it("a target wider than the canvas falls back to the whole canvas instead of a view past the edges", () => {
     const view = viewFor({ x: 0, y: 0, width: 2880, height: 1800 }, canvas);
@@ -147,15 +149,21 @@ describe("zoompanExpressions", () => {
 });
 
 describe("homeView, the resting view of a wide screen", () => {
-  const sidebar = 480;
+  const sidebar = SPEC.sidebar * SPEC.scale;
   const home = homeView(canvas, DESKTOP, sidebar);
 
-  it("the resting desktop view is readable: it fills the window's height instead of shrinking the screen to a strip", () => {
-    expect(home.height).toBe(DESKTOP.height);
+  it("the resting desktop view shows the whole page beside the sidebar, its right half not cut away", () => {
+    // A tall window once rested on 1250 of these 2400 px, so every page lost its right side.
+    expect(home.x).toBe(canvas.screenX + sidebar);
+    expect(home.x + home.width).toBe(canvas.screenX + DESKTOP.width);
     expect(home.y).toBe(canvas.screenY);
-    // The whole-canvas view shows the screen at 2880 px wide in a 1000 px window; this one shows 1250 px of it.
-    expect(canvas.width / home.width).toBeGreaterThan(2);
-    expect(home.width / home.height).toBeCloseTo(1000 / 1440, 3);
+    expect(home.height).toBe(DESKTOP.height);
+  });
+  it("the desktop stays landscape in the Reel, zoomed or not", () => {
+    expect(home.width).toBeGreaterThan(home.height);
+    expect(viewFor({ x: 1400, y: 800, width: 30, height: 10 }, canvas).width).toBeGreaterThan(
+      viewFor({ x: 1400, y: 800, width: 30, height: 10 }, canvas).height,
+    );
   });
   it("it shows no paper: the view lies wholly on the screen", () => {
     expect(home.y).toBeGreaterThanOrEqual(canvas.screenY);
@@ -181,9 +189,26 @@ describe("homeView, the resting view of a wide screen", () => {
     expect(viewAt(plan, canvas, 5 + GLIDE + 1, home)).toEqual(home);
     expect(viewAt(plan, canvas, 9 + GLIDE + 1, home)).toEqual(viewFor(null, canvas));
   });
-  it("a page with no sidebar (the player portal in preview) can rest on the screen's left edge instead", () => {
+  it("a page with no sidebar (the player portal in preview) rests on the whole screen, its right edge not cut", () => {
     const plan = planCamera([{ t: 1, rect: null, homeInset: 0 }], canvas, home, (inset) => homeView(canvas, DESKTOP, inset));
-    expect(viewAt(plan, canvas, 1 + GLIDE + 1, home).x).toBe(canvas.screenX);
+    const view = viewAt(plan, canvas, 1 + GLIDE + 1, home);
+    expect(view.x).toBe(canvas.screenX);
+    expect(view.x + view.width).toBeGreaterThanOrEqual(canvas.screenX + DESKTOP.width);
+    expect(inside(view)).toBe(true);
+  });
+  it("a zoom on something at the page's left edge keeps the sidebar out of frame", () => {
+    // The sheets episode's "Equipped" heading, as recorded: just right of the sidebar.
+    const tab = { x: 562, y: 932.95, width: 107.5, height: 37.33 };
+    const plan = planCamera([{ t: 1, rect: tab, padding: 240 }], canvas, home, undefined, sidebar);
+    const view = viewAt(plan, canvas, 1 + GLIDE + 1, home);
+    expect(view.x).toBeGreaterThanOrEqual(canvas.screenX + sidebar);
+    expect(contains(view, tab)).toBe(true);
+  });
+  it("after the page rests with no sidebar (the player portal in preview), a zoom may reach the screen's left edge", () => {
+    // Centred on this, the view starts well left of where the DM's sidebar would end.
+    const near = { x: 520, y: 900, width: 200, height: 80 };
+    const plan = planCamera([{ t: 1, rect: null, homeInset: 0 }, { t: 3, rect: near }], canvas, home, (i) => homeView(canvas, DESKTOP, i), sidebar);
+    expect(viewAt(plan, canvas, 3 + GLIDE + 1, home).x).toBeLessThan(canvas.screenX + sidebar);
   });
   it("a zoom on a target near the top of the screen shows no paper above the screen", () => {
     const view = viewFor({ x: 600, y: 20, width: 600, height: 200 }, canvas);

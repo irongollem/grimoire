@@ -87,9 +87,9 @@ export interface ShotContext {
   focus(target: ReturnType<Page["locator"]> | null, opts?: { padding?: number; leftInset?: number }): Promise<void>;
   /**
    * The true whole screen, for a deliberate beat of "here is all of it". On a
-   * laptop that is a strip with paper above and below, hard to read on a phone:
-   * use it once an episode at most. `focus(null)` is the resting view, which
-   * fills the window.
+   * laptop that adds the sidebar and a band of paper above and below to the
+   * resting view, which is already the whole page: use it once an episode at
+   * most. `focus(null)` is the resting view.
    */
   overview(): Promise<void>;
   /** Waits until the page has real content (no grey loading placeholders): call it after a tap that navigates, before the camera moves or the moment the narration is about starts. */

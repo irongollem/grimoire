@@ -42,12 +42,14 @@ export async function renderCards(workDir: string, cards: Card[]): Promise<void>
       await page.goto(pathToFileURL(pagePath).href);
       // Scripts run in the page, so they are strings (this file is typed without DOM lib).
       await page.evaluate("document.fonts.ready.then(() => undefined)");
-      // A caption that wraps past two lines shrinks until it fits.
+      // Text that wraps past its lines (data-lines, two by default) shrinks until it fits.
       await page.evaluate(`(() => {
         const el = document.getElementById("fit");
         if (!el) return;
+        const lines = Number(el.dataset.lines || 2);
         let size = parseFloat(getComputedStyle(el).fontSize);
-        while (size > 34 && el.getBoundingClientRect().height > size * 1.15 * 2 + 2) {
+        const ratio = parseFloat(getComputedStyle(el).lineHeight) / size;
+        while (size > 30 && el.getBoundingClientRect().height > size * ratio * lines + 2) {
           size -= 2;
           el.style.fontSize = size + "px";
         }
@@ -113,6 +115,17 @@ export const captionCard = (file: string, text: string): Card => ({
   body: `<div class="w"><div id="fit">${esc(text)}</div></div>`,
   css: `.w{width:1080px;height:${CAPTION_BAND.h}px;display:flex;align-items:center;justify-content:center}
     #fit{max-width:900px;text-align:center;text-wrap:balance;font:700 56px/1.15 'Alegreya Sans',sans-serif;color:${INK}}`,
+});
+
+/** A shot's narration written out under a desktop window (`DeviceSpec.subtitles`), up to four lines. */
+export const subtitleCard = (file: string, text: string, height: number): Card => ({
+  file,
+  width: 1080,
+  height,
+  transparent: true,
+  body: `<div class="w"><div id="fit" data-lines="4">${esc(text)}</div></div>`,
+  css: `.w{width:1080px;height:${height}px;display:flex;align-items:flex-start;justify-content:center}
+    #fit{max-width:940px;text-align:center;text-wrap:balance;font:700 46px/1.3 'Alegreya Sans',sans-serif;color:${INK}}`,
 });
 
 /** The wordmark with its bookmark banner, the same file the app's boot splash shows. */

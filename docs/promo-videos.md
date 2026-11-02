@@ -114,7 +114,7 @@ device has its own signed-in page. `devices.ts` holds the sizes:
 | --- | --- | --- | --- | --- |
 | phone | 390x693 | 3x | 1170x2078 | rounded screen 780x1387 |
 | tablet | 820x1180 | 2x | 1640x2360 | rounded screen 900x1295 |
-| desktop | 1440x900 | 2x | 2880x1800 | camera window 1000x1440, no frame |
+| desktop | 1440x900 | 2x | 2880x1800 | landscape camera window 1080x810, no frame, narration below |
 
 A headed Chrome renders at one scale per browser, so the recorder launches one
 browser per scale in use and opens each device's stage on first need. On a
@@ -130,7 +130,17 @@ whole screen.
 The arithmetic is `camera.ts` (tested): the view is padded, fitted to the
 window's shape, centred and clamped inside the canvas, and never closer than
 2.6x the full view. Each move eases with a smoothstep over 0.7 s and the
-camera holds still between moves. A desktop screen sits on a canvas of paper
+camera holds still between moves.
+
+A desktop stays landscape. Its window runs the Reel's full width at 4:3, which
+is the page beside the sidebar (1200x900 CSS px) exactly, so a desktop shot
+rests on the whole page with nothing cut; a page with no sidebar (the player
+portal in preview, `focus(null, { leftInset: 0 })`) rests on the whole screen.
+A tall window once showed 625 of those 1200 px and lost every page's right
+half. The whole page is small on a phone, so the shot's narration is written
+out under the window (`subtitles` in `devices.ts`, up to four lines), and a
+`focus` is what makes text readable: zooms keep the landscape shape, and one on
+the page keeps the sidebar out of frame. A desktop screen sits on a canvas of paper
 with a soft shadow (`backdrop-<shot>.png`); ffmpeg's `zoompan` crops the
 window out of it with `z`, `x`, `y` expressions on the input time. A frozen
 last frame keeps the camera where it ended. Phone and tablet shots with no
