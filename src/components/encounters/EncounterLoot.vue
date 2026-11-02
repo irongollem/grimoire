@@ -95,7 +95,7 @@
         <CoinInput
           :model-value="pool.coins"
           size="caption"
-          @update:model-value="(v) => updatePool(pool.id, 'coins', v)"
+          @update:model-value="(v) => updatePool(pool.id, 'coins', v ?? {})"
         />
       </div>
 
