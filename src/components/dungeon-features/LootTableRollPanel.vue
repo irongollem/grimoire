@@ -100,6 +100,7 @@ import {
   type RolledUnresolvedEntry,
   type LootPoolItem,
 } from "@/lib/dungeon-features/lootTableRoll";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { useLootChestAtoms } from "@/composables/dungeon-features/useLootChestAtoms";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -120,10 +121,12 @@ const { table, itemsById, entriesError, isNew, summaryDropPercent } = defineProp
   summaryDropPercent: number;
 }>();
 
+const { currency } = useCurrency();
+
 // ── Roll panel ─────────────────────────────────────────────────────────────
 const lastRoll = ref<RolledLootEntry[] | null>(null);
 function onRoll() {
-  lastRoll.value = rollLootTable(table, itemsById);
+  lastRoll.value = rollLootTable(table, itemsById, currency.value);
 }
 
 // ── Drop-in-chat dialog ─────────────────────────────────────────────────────
@@ -151,7 +154,7 @@ watch(dropDialogOpen, (open) => {
 watch(claimsDice, rollClaims);
 
 function reroll() {
-  dropPreview.value = rollLootTable(table, itemsById);
+  dropPreview.value = rollLootTable(table, itemsById, currency.value);
   rollClaims();
 }
 

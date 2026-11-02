@@ -57,7 +57,7 @@ export function coinGain(effects: readonly DowntimeEffect[]): Coins {
 
 /**
  * Everything the ticked `gold` effects cost, summed per denomination. This is a
- * price, not a purse change: the server pays it with change (`spend_coins`) and
+ * price, not a purse change: the server pays it with change (`apply_downtime_effects`) and
  * refuses it when the purse cannot cover it, so a shortfall reaches the DM as an
  * error instead of being floored away.
  */

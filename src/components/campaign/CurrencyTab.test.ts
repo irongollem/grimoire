@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { reactive, ref } from "vue";
+import { nextTick, reactive, ref } from "vue";
 import CurrencyTab from "./CurrencyTab.vue";
 import type { CurrencyConfig } from "@/lib/currency/currency";
 
@@ -43,7 +43,7 @@ beforeEach(() => {
   mocks.confirm.mockReset();
   mocks.success.mockReset();
   const campaign = reactive({ id: "c1", currency: structuredClone(DOLLARS) });
-  mocks.store = { activeCampaign: campaign, switchToCampaign: vi.fn() };
+  mocks.store = reactive({ activeCampaign: campaign, switchToCampaign: vi.fn() });
   mocks.update.mockImplementation(async ({ update }) => ({ ...campaign, ...update }));
 });
 
@@ -117,5 +117,55 @@ describe("CurrencyTab", () => {
     const w = mountTab();
     const options = w.findAll("select option").map((o) => o.text());
     expect(options).toEqual(["Dollar", "Bit", "Cent"]);
+  });
+
+  describe("a campaign refetch while the DM is editing", () => {
+    async function editBitAbbr(w: ReturnType<typeof mountTab>) {
+      const abbr = w.findAll("input").find((i) => (i.element as HTMLInputElement).value === "bt")!;
+      await abbr.setValue("qt");
+    }
+    const abbrs = (w: ReturnType<typeof mountTab>) => w.findAll("input").map((i) => (i.element as HTMLInputElement).value);
+
+    it("keeps unsaved edits when the store swaps in an equal campaign object", async () => {
+      const w = mountTab();
+      await editBitAbbr(w);
+      mocks.store.activeCampaign = { id: "c1", currency: structuredClone(DOLLARS) };
+      await nextTick();
+      expect(abbrs(w)).toContain("qt");
+    });
+
+    it("keeps edits and says so when the saved coins changed elsewhere", async () => {
+      const w = mountTab();
+      await editBitAbbr(w);
+      const other = structuredClone(DOLLARS);
+      other.denominations[2].name = "Penny";
+      (mocks.store.activeCampaign as { currency: CurrencyConfig }).currency = other;
+      await flushPromises();
+      expect(abbrs(w)).toContain("qt");
+      expect(w.find("[data-testid=currency-changed-elsewhere]").exists()).toBe(true);
+      await w.findAll("button").find((b) => b.text() === "Load saved coins")!.trigger("click");
+      expect(abbrs(w)).toContain("bt");
+      expect(w.find("[data-testid=currency-changed-elsewhere]").exists()).toBe(false);
+    });
+
+    it("takes changed saved coins silently when there are no edits", async () => {
+      const w = mountTab();
+      const other = structuredClone(DOLLARS);
+      other.denominations[2].abbr = "p";
+      (mocks.store.activeCampaign as { currency: CurrencyConfig }).currency = other;
+      await flushPromises();
+      expect(abbrs(w)).toContain("p");
+      expect(w.find("[data-testid=currency-changed-elsewhere]").exists()).toBe(false);
+    });
+
+    it("reloads when a different campaign becomes active, even over edits", async () => {
+      const w = mountTab();
+      await editBitAbbr(w);
+      const campaign = mocks.store.activeCampaign as { id: string; currency: CurrencyConfig };
+      campaign.id = "c2";
+      await flushPromises();
+      expect(abbrs(w)).toContain("bt");
+      expect(abbrs(w)).not.toContain("qt");
+    });
   });
 });

@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCurrency } from "@/composables/currency/useCurrency";
-import { addCoins, hasCoins, type Coins } from "@/lib/currency/currency";
 import { createNpc, queueNpcEmbedding } from "@/composables/npcs/useNpcs";
 import { createItem, queueItemEmbedding } from "@/composables/items/useItems";
 import { createNote, queueNoteEmbedding } from "@/composables/notes/useNotes";
@@ -339,9 +338,9 @@ export function useResolveDraw() {
  * drop into inventory, which the effect alone can't safely resolve) — a named
  * limit, not an oversight.
  *
- * All three write to the same `party_members` row, so a single read-modify-write
- * applies them together. That is acceptable: only the DM resolves draws, so
- * there is no concurrent writer to race against.
+ * All three land through one database call (`apply_downtime_effects`), so they
+ * apply together or not at all; HP and conditions are computed here from the row
+ * read, the purse is never read.
  */
 export function useApplyEffects() {
   const queryClient = useQueryClient();
@@ -364,40 +363,29 @@ export function useApplyEffects() {
 
       const { data: member, error: readError } = await supabase
         .from("party_members")
-        .select("coins, current_hp, max_hp, conditions")
+        .select("current_hp, max_hp, conditions")
         .eq("id", args.partyMemberId)
         .single();
       if (readError) throw readError;
 
       const row = member as {
-        coins: Coins;
         current_hp: number;
         max_hp: number;
         conditions: AppliedCondition[];
       };
 
-      // A cost goes through the server, which pays with change and refuses an
-      // unaffordable price ("Insufficient funds"); it runs first so a refused
-      // cost aborts before HP, conditions or the gain are written.
-      const price = coinSpend(args.effects);
-      let purse = row.coins;
-      if (hasCoins(price)) {
-        const { data: paid, error: spendError } = await supabase.rpc("spend_coins", {
-          p_member_id: args.partyMemberId,
-          p_price: price,
-        });
-        if (spendError) throw spendError;
-        purse = paid as Coins;
-      }
-      const coins = addCoins(purse, coinGain(args.effects));
-      const currentHp = applyHpEffects(row.current_hp, row.max_hp, args.effects);
-      const conditions = applyConditionEffects(row.conditions, args.effects);
-
-      const { error: writeError } = await supabase
-        .from("party_members")
-        .update({ coins, current_hp: currentHp, conditions })
-        .eq("id", args.partyMemberId);
-      if (writeError) throw writeError;
+      // One statement carries the lot: the server adds the gain, pays the cost with
+      // change (refusing an unaffordable price, "Insufficient funds", before anything
+      // is written) and sets HP and conditions, so a refused cost leaves the
+      // character untouched and the purse is never read back and rewritten here.
+      const { error: applyError } = await supabase.rpc("apply_downtime_effects", {
+        p_member_id: args.partyMemberId,
+        p_gain: coinGain(args.effects),
+        p_spend: coinSpend(args.effects),
+        p_current_hp: applyHpEffects(row.current_hp, row.max_hp, args.effects),
+        p_conditions: applyConditionEffects(row.conditions, args.effects),
+      });
+      if (applyError) throw applyError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["party"] }),
   });

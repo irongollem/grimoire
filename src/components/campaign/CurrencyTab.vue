@@ -39,6 +39,16 @@
       </p>
     </section>
 
+    <div
+      v-if="changedElsewhere"
+      class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3"
+      role="status"
+      data-testid="currency-changed-elsewhere"
+    >
+      <p class="text-caption text-muted-foreground">The saved coins changed elsewhere. Your edits are kept; saving replaces them.</p>
+      <AppButton variant="outline" size="sm" label="Load saved coins" @click="loadSaved" />
+    </div>
+
     <ul v-if="problems.length" class="space-y-1" role="alert">
       <li v-for="p in problems" :key="p" class="text-caption text-destructive">{{ p }}</li>
     </ul>
@@ -93,12 +103,43 @@ let nextUid = 1;
 const rows = ref<Row[]>([]);
 const defaultUid = ref(0);
 
+/** The saved currency the draft was last loaded from, serialised: content, never object identity. */
+let loadedKey = JSON.stringify(null);
+/** The saved coins changed under unsaved edits (another DM saved); the draft is kept. */
+const changedElsewhere = ref(false);
+
 function load(cfg: CurrencyConfig | null) {
+  loadedKey = JSON.stringify(cfg);
+  changedElsewhere.value = false;
   rows.value = (cfg?.denominations ?? []).map((den) => ({ uid: nextUid++, den: { ...den }, isNew: false }));
   defaultUid.value = rows.value.find((r) => r.den.key === cfg?.default_key)?.uid ?? 0;
 }
 
-watch(() => [campaignStore.activeCampaign?.id, saved.value] as const, () => load(saved.value), { immediate: true });
+function loadSaved() {
+  load(saved.value);
+}
+
+load(saved.value);
+
+// A refetch hands back a new campaign object with the same coins; only a
+// different campaign, or different coins, concerns the draft (and unsaved
+// edits are never thrown away: they get a note instead).
+watch(
+  () => campaignStore.activeCampaign?.id,
+  () => load(saved.value),
+);
+watch(
+  () => JSON.stringify(saved.value),
+  (key) => {
+    if (key === loadedKey) return;
+    const hadEdits = JSON.stringify(sorted.value) !== loadedKey;
+    if (!hadEdits || JSON.stringify(sorted.value) === key) load(saved.value);
+    else {
+      loadedKey = key;
+      changedElsewhere.value = true;
+    }
+  },
+);
 
 /** "Gp" -> "gp"; a symbol or digit-led abbreviation still yields a legal key. */
 function keyFromAbbr(abbr: string, taken: Set<string>): string {

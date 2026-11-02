@@ -36,6 +36,7 @@
         :coin-give-can-send="coinGiveCanSend"
         :coin-give-leaves="coinGiveLeaves"
         :coin-give-label="coinGiveLabel"
+        @adjust-currency="adjustCurrency"
         @set-currency="setCurrency"
         @open-drop="openCoinDrop"
         @cancel-drop="showCoinDrop = false"
@@ -266,6 +267,7 @@ const {
   onSaveCapacity,
   resetCapacity,
   memberCoins,
+  adjustCurrency,
   setCurrency,
   showCoinDrop,
   coinDrop,

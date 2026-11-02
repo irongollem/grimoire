@@ -62,6 +62,7 @@
  * is selected (#972, story 11); the held list beside it needs only the loot
  * rows. See the panel for how a drop flips the room's `looted` fact.
  */
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { computed, ref, watch } from "vue";
 import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
 import { useLootPool } from "@/composables/dungeon-features/useLootPool";
@@ -125,6 +126,7 @@ const { itemsById, itemOptions } = useLootPool(
   () => (selectedLootTable.value?.entries ?? []).flatMap((e) => (e.item_id ? [e.item_id] : [])),
 );
 
+const { currency } = useCurrency();
 const { atoms: rolledAtoms, isLoading: atomsLoading } = useLootChestAtoms(rolledEntries);
 const rolledUnresolved = computed(() => rolledEntries.value.filter((entry): entry is RolledUnresolvedEntry => entry.type === "unresolved"));
 
@@ -149,7 +151,7 @@ const effectiveCap = computed<number | null>(() => {
 
 function rollChest() {
   if (!selectedLootTable.value) return;
-  rolledEntries.value = rollLootTable(selectedLootTable.value, itemsById.value);
+  rolledEntries.value = rollLootTable(selectedLootTable.value, itemsById.value, currency.value);
 }
 
 const uploadingChestImage = ref(false);

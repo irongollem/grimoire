@@ -5,7 +5,6 @@ import {
   canAfford,
   coinParts,
   coinValue,
-  convertRemoved,
   formatCoins,
   formatPrice,
   hasCoins,
@@ -59,6 +58,22 @@ describe("parsePrice", () => {
   it("reads thousands separators (1,500 gp read as 1 gp)", () => {
     expect(parsePrice("1,500 gp", FIVE)).toEqual({ gp: 1500 });
   });
+  // Bug it fails on: "1.5 gp" read as 5 gp (the number match started after the dot), 10x too high.
+  it("reads decimal amounts as whole coins of change", () => {
+    expect(parsePrice("1.5 gp", FIVE)).toEqual({ gp: 1, sp: 5 });
+    expect(parsePrice("0.5 gp", FIVE)).toEqual({ gp: 0, sp: 5 });
+    expect(parsePrice("0.50", FIVE)).toEqual({ gp: 0, sp: 5 });
+    expect(parsePrice("1,500.25 gp", FIVE)).toEqual({ gp: 1500, sp: 2, cp: 5 });
+    expect(parsePrice("12.25 $", USD)).toEqual({ usd: 12, cent: 25 });
+  });
+  it("is unparseable when a decimal falls between two smallest coins (0.5 cp)", () => {
+    expect(parsePrice("0.5 cp", FIVE)).toBeNull();
+    expect(parsePrice("1 gp 0.5 cp", FIVE)).toBeNull();
+  });
+  it("never starts a number inside another (1.5 gp is not 5 gp, 1,5 sp is not 5 sp)", () => {
+    expect(parsePrice("1.5 gp", FIVE)).not.toEqual({ gp: 5 });
+    expect(parsePrice("1,5 sp", FIVE)).toBeNull();
+  });
   it("reads several parts", () => {
     expect(parsePrice("1 gp 5 sp", FIVE)).toEqual({ gp: 1, sp: 5 });
   });
@@ -94,7 +109,7 @@ describe("parsePrice", () => {
   });
 });
 
-describe("makeChange / convertRemoved", () => {
+describe("makeChange", () => {
   it("never hands out electrum as change (makes_change ignored)", () => {
     expect(makeChange(50, FIVE)).toEqual({ sp: 5 });
     expect(makeChange(1234, FIVE)).toEqual({ pp: 1, gp: 2, sp: 3, cp: 4 });
@@ -109,12 +124,6 @@ describe("makeChange / convertRemoved", () => {
       ],
     };
     expect(makeChange(27, cfg)).toEqual({ a: 2, c: 7 });
-  });
-  it("converts a removed coin to the remaining ones and keeps the rest", () => {
-    expect(convertRemoved({ ep: 3, gp: 1 }, FIVE, "ep")).toEqual({ gp: 2, sp: 5 });
-  });
-  it("leaves coins alone when the removed key is absent", () => {
-    expect(convertRemoved({ gp: 1 }, FIVE, "ep")).toEqual({ gp: 1 });
   });
 });
 

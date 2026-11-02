@@ -27,6 +27,7 @@ import {
   remapSpeciesForImport,
   remapSpellForImport,
   stripPartyMemberRow,
+  upgradeBundleCoins,
   type GrimoireBundle,
   type ImportRemapCtx,
 } from "./useWorldBundle";
@@ -687,5 +688,24 @@ describe("deities and pantheons in a bundle (#1119)", () => {
   it("a character whose god did not travel imports with no god, never the exporter's row", () => {
     const ctx: ImportRemapCtx = { idMap: buildIdMap(emptyBundle()), campaignId: "camp-new", userId: "importer" };
     expect(remapPartyMemberForImport({ id: "pm1", ruleset: "2024", deity_id: "d-exporters" }, ctx).deity_id).toBeNull();
+  });
+});
+
+describe("upgradeBundleCoins (#934)", () => {
+  it("turns a version 2 bundle's five-coin characters and encounter pools into coin maps and stamps the current version", () => {
+    const old = emptyBundle({
+      version: "2",
+      party_members: [{ id: "pm", gp: 9, sp: 0, pp: 0, ep: 0, cp: 2 }],
+      encounters: [{ id: "e", reward_currency_pools: [{ id: "p", label: "Hoard", gp: 50, pp: 0, ep: 0, sp: 0, cp: 0 }] }],
+    });
+    const out = upgradeBundleCoins(old);
+    expect(out.version).toBe(BUNDLE_FORMAT_VERSION);
+    expect(out.party_members).toEqual([{ id: "pm", coins: { gp: 9, cp: 2 } }]);
+    expect(out.encounters).toEqual([{ id: "e", reward_currency_pools: [{ id: "p", label: "Hoard", coins: { gp: 50 } }] }]);
+  });
+
+  it("hands a current bundle back untouched", () => {
+    const bundle = emptyBundle({ party_members: [{ id: "pm", coins: { dollar: 1 } }] });
+    expect(upgradeBundleCoins(bundle)).toBe(bundle);
   });
 });

@@ -68,7 +68,26 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+|\d+)`;
+const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)`;
+// A number never starts inside another one ("1.5" is not "5").
+const NOT_IN_NUMBER = String.raw`(?<![a-z0-9])(?<!\d[.,])`;
+
+/**
+ * An amount of one denomination as coins. A decimal part must be a whole number
+ * of smallest coins; it becomes change in coins worth less than the denomination
+ * ("1.5 gp" is 1 gp 5 sp). Null when it falls between two smallest coins.
+ */
+function amountCoins(key: string, raw: string, cfg: CurrencyConfig): Coins | null {
+  const [whole, frac = ""] = raw.replace(/,/g, "").split(".");
+  const out: Coins = { [key]: parseInt(whole, 10) };
+  if (!/[1-9]/.test(frac)) return out;
+  const value = cfg.denominations.find((d) => d.key === key)?.value ?? 1;
+  const units = (parseInt(frac, 10) * value) / 10 ** frac.length;
+  if (Math.abs(units - Math.round(units)) > 1e-9) return null;
+  const smaller: CurrencyConfig = { ...cfg, denominations: cfg.denominations.filter((d) => d.value < value) };
+  for (const [k, n] of Object.entries(makeChange(Math.round(units), smaller))) out[k] = (out[k] ?? 0) + n;
+  return out;
+}
 
 /**
  * Reads free-text prices ("1,500 gp", "1 gp 5 sp", "2 golds", "$5") using the
@@ -86,9 +105,14 @@ export function parsePrice(text: string, cfg: CurrencyConfig): Coins | null {
 
   const coins: Coins = {};
   let found = false;
+  let bad = false;
   const add = (key: string, raw: string) => {
-    const n = parseInt(raw.replace(/,/g, ""), 10);
-    coins[key] = (coins[key] ?? 0) + n;
+    const part = amountCoins(key, raw, cfg);
+    if (!part) {
+      bad = true;
+      return;
+    }
+    for (const [k, n] of Object.entries(part)) coins[k] = (coins[k] ?? 0) + n;
     found = true;
   };
 
@@ -105,7 +129,7 @@ export function parsePrice(text: string, cfg: CurrencyConfig): Coins | null {
     // Letters must end at a word boundary; a name may carry a plural "s".
     const suffix = symbol ? "" : String.raw`(?:s)?(?![a-z0-9])`;
     const before = symbol ? String.raw`(?:${w}\s*${AMOUNT})` : null;
-    const after = String.raw`(?:(?<![a-z0-9])${AMOUNT}\s*${w}${suffix})`;
+    const after = String.raw`(?:${NOT_IN_NUMBER}${AMOUNT}\s*${w}${suffix})`;
     const re = new RegExp(before ? `${before}|${after}` : after, "g");
     for (const m of rest.matchAll(re)) {
       const raw = m[1] ?? m[2];
@@ -114,10 +138,11 @@ export function parsePrice(text: string, cfg: CurrencyConfig): Coins | null {
       blank(m);
     }
   }
+  if (bad) return null;
   if (found) return coins;
 
   const bare = rest.trim().match(new RegExp(`^${AMOUNT}$`));
-  if (bare) return { [cfg.default_key]: parseInt(bare[1].replace(/,/g, ""), 10) };
+  if (bare) return amountCoins(cfg.default_key, bare[1], cfg);
   return null;
 }
 
@@ -156,17 +181,6 @@ export function formatPrice(value: number, cfg: CurrencyConfig): string {
   if (text) return text;
   const unit = cfg.denominations.find((d) => d.value === 1);
   return `0 ${unit?.abbr ?? cfg.default_key}`;
-}
-
-/**
- * Re-expresses the removed denomination's count, by value, in the coins that
- * make change; every other count stays. Pure: callers decide what to do with it.
- */
-export function convertRemoved(coins: Coins, cfg: CurrencyConfig, removedKey: string): Coins {
-  const removed = cfg.denominations.find((d) => d.key === removedKey);
-  const { [removedKey]: count = 0, ...kept } = coins;
-  if (!removed || count <= 0) return kept;
-  return addCoins(kept, makeChange(count * removed.value, cfg));
 }
 
 const KEY_RE = /^[a-z][a-z0-9_]{0,15}$/;

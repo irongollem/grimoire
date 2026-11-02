@@ -125,14 +125,16 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { resolveItemById, useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useSpeaker } from "@/composables/party/useSpeaker";
-import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
+import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
 import type { ItemDropMetadata, LootRollChoice, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
-import { addCoins, canAfford, type Coins } from "@/lib/currency/currency";
+import { canAfford, hasCoins, type Coins } from "@/lib/currency/currency";
+import { knownCoins } from "@/lib/dungeon-features/lootTableRoll";
+import { useAdjustPurse } from "@/composables/items/usePurseWrites";
 import { useCurrency } from "@/composables/currency/useCurrency";
 import { itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
@@ -233,7 +235,7 @@ const { data: namedItems } = useItemsByIds(namedItemIds, () => ({ enabled: appUi
 const { data: npcsData } = useNpcs(chatOpen);
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { currency } = useCurrency();
-const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
+const { mutateAsync: adjustPurse }         = useAdjustPurse();
 const queryClient = useQueryClient();
 
 // The DM's "As:" persona list. `getNpcDisplayName`, not `n.name`: an NPC with
@@ -570,10 +572,11 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   if (atom.type === 'currency') {
     const member = (party.value ?? []).find(p => p.id === partyMemberId);
     if (!member) return;
-    await updatePartyMember({
-      id: member.id,
-      update: { coins: addCoins(member.coins, atom.coins ?? {}) },
-    });
+    // Only this campaign's coins can be paid; a chest rolled under another currency
+    // may carry others, and a chest left with nothing credits nothing.
+    const coins = knownCoins(atom.coins ?? {}, currency.value);
+    if (!hasCoins(coins)) return;
+    await adjustPurse({ memberId: member.id, delta: coins });
     return;
   }
 

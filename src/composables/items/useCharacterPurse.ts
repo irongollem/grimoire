@@ -5,8 +5,9 @@ import { ENCUMBERED_AT, HEAVY_AT, burdenLevel as burdenOf, carryColorClass } fro
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCurrency } from "@/composables/currency/useCurrency";
 import { hasCoins, type Coins } from "@/lib/currency/currency";
+import { useAdjustPurse, useSetPurseCoin } from "@/composables/items/usePurseWrites";
 import { useGiveCoins } from "@/composables/items/useGiveInventory";
-import { coinGiveBlocked, coinsLeft, giveCoinsLabel, leavesYouLine } from "@/lib/inventory/coinGive";
+import { coinGiveBlocked, giveCoinsLabel, leavesYouLine } from "@/lib/inventory/coinGive";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -19,6 +20,8 @@ import { useToast } from "@/composables/useToast";
  */
 export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedWeight: Ref<number>) {
   const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
+  const { mutateAsync: adjustPurse } = useAdjustPurse();
+  const { mutateAsync: setPurseCoin } = useSetPurseCoin();
   const { sendCurrencyDrop } = useCampaignMessages();
   const toast = useToast();
   const { currency } = useCurrency();
@@ -78,21 +81,24 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
   // ── Currency ─────────────────────────────────────────────────────────────────
   const memberCoins = computed((): Coins => member.value?.coins ?? {});
 
-  /** Writes the whole purse: the column is one map, so a change sends all of it. */
-  async function setCoins(coins: Coins) {
+  /** A +/- click: one signed coin, added to whatever the purse holds when it lands. */
+  async function adjustCurrency(key: string, delta: number) {
     if (!member.value) return;
     try {
-      await updatePartyMember({ id: member.value.id, update: { coins } });
+      await adjustPurse({ memberId: member.value.id, delta: { [key]: delta } });
     } catch (error) {
       toast.error(toast.fromError(error, "Couldn't update your coins."));
     }
   }
 
-  async function setCurrency(key: string, value: number) {
-    const next: Coins = { ...memberCoins.value };
-    if (value > 0) next[key] = value;
-    else delete next[key];
-    await setCoins(next);
+  /** A typed count for one coin. */
+  async function setCurrency(key: string, count: number) {
+    if (!member.value) return;
+    try {
+      await setPurseCoin({ memberId: member.value.id, key, count });
+    } catch (error) {
+      toast.error(toast.fromError(error, "Couldn't update your coins."));
+    }
   }
 
   const showCoinDrop = ref(false);
@@ -116,7 +122,13 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
       reportChatFailure(e, "drop the coins to the chat");
       return;
     }
-    void setCoins(coinsLeft(memberCoins.value, dropped));
+    // The drop leaves as a debit of exactly those coins, not a rewrite of the purse.
+    const debit: Coins = Object.fromEntries(Object.entries(dropped).map(([key, n]) => [key, -n]));
+    try {
+      await adjustPurse({ memberId: member.value.id, delta: debit });
+    } catch (error) {
+      toast.error(toast.fromError(error, "The drop was posted, but couldn't take the coins from your purse."));
+    }
     showCoinDrop.value = false;
   }
 
@@ -182,6 +194,7 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
     onSaveCapacity,
     resetCapacity,
     memberCoins,
+    adjustCurrency,
     setCurrency,
     showCoinDrop,
     coinDrop,

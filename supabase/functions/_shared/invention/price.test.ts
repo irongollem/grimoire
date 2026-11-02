@@ -19,6 +19,13 @@ describe("parseCostValue", () => {
     expect(parseCostValue("3 ep", DND5E_CURRENCY)).toBe(150);
     expect(parseCostValue("1 gp 5 sp", DND5E_CURRENCY)).toBe(150);
   });
+  // Bug it fails on: "0.5 gp" priced as 5 gp, "0.50" not parsed at all (rarity default instead).
+  it("reads decimal prices", () => {
+    expect(parseCostValue("0.5 gp", DND5E_CURRENCY)).toBe(50);
+    expect(parseCostValue("1.5 gp", DND5E_CURRENCY)).toBe(150);
+    expect(parseCostValue("0.50", DND5E_CURRENCY)).toBe(50);
+    expect(parseCostValue("0.5 cp", DND5E_CURRENCY)).toBeNull();
+  });
   // Bug it fails on: a bare number hard-wired to gold instead of the campaign's default coin.
   it("reads a bare number in the campaign's default coin", () => {
     expect(parseCostValue("12", DND5E_CURRENCY)).toBe(1200);

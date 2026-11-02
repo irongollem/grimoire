@@ -31,6 +31,10 @@
 
 -- ── Coin arithmetic ─────────────────────────────────────────────────────────
 
+-- Held equal to DND5E_CURRENCY (src/systems/dnd5e/currency/dnd5eCurrency.ts)
+-- by dnd5eCurrency.test.ts, which reads this function from this file: "Reset to
+-- D&D 5e coins" and the no-campaign fallback must be the same set a new
+-- campaign gets.
 create or replace function private.dnd5e_currency()
 returns jsonb
 language sql
@@ -40,11 +44,11 @@ as $$
   select jsonb_build_object(
     'default_key', 'gp',
     'denominations', jsonb_build_array(
-      jsonb_build_object('key', 'pp', 'name', 'Platinum', 'abbr', 'pp', 'value', 1000, 'color', '#b8c4d6', 'makes_change', true),
-      jsonb_build_object('key', 'gp', 'name', 'Gold',     'abbr', 'gp', 'value', 100,  'color', '#d4a017', 'makes_change', true),
-      jsonb_build_object('key', 'ep', 'name', 'Electrum', 'abbr', 'ep', 'value', 50,   'color', '#7fa7b5', 'makes_change', false),
-      jsonb_build_object('key', 'sp', 'name', 'Silver',   'abbr', 'sp', 'value', 10,   'color', '#a8a9ad', 'makes_change', true),
-      jsonb_build_object('key', 'cp', 'name', 'Copper',   'abbr', 'cp', 'value', 1,    'color', '#b87333', 'makes_change', true)
+      jsonb_build_object('key', 'pp', 'name', 'Platinum', 'abbr', 'pp', 'value', 1000, 'color', '#a855f7', 'makes_change', true),
+      jsonb_build_object('key', 'gp', 'name', 'Gold',     'abbr', 'gp', 'value', 100,  'color', '#f59e0b', 'makes_change', true),
+      jsonb_build_object('key', 'ep', 'name', 'Electrum', 'abbr', 'ep', 'value', 50,   'color', '#60a5fa', 'makes_change', false),
+      jsonb_build_object('key', 'sp', 'name', 'Silver',   'abbr', 'sp', 'value', 10,   'color', '#9ca3af', 'makes_change', true),
+      jsonb_build_object('key', 'cp', 'name', 'Copper',   'abbr', 'cp', 'value', 1,    'color', '#b45309', 'makes_change', true)
     )
   );
 $$;
@@ -249,28 +253,83 @@ begin
 end;
 $$;
 
--- Re-expresses the coins of denominations p_new no longer has, by their value
--- in p_old, as change in p_new. Coins p_new still has keep their counts, and
--- keys neither currency knows are left alone.
+-- Re-expresses the coins of denominations p_new no longer has, by their worth,
+-- as change in p_new. Coins p_new still has keep their counts, and keys neither
+-- currency knows are left alone.
+--
+-- The two currencies may count in different smallest units: removing the coin
+-- worth 1 forces the rest to be revalued (copper gone, silver becomes 1 and gold
+-- 10). The rate between the units is read off the coins both keep, so 5 cp
+-- becomes half a silver, not 5 silver. Refused, rather than rounded, when the
+-- rate is ambiguous (coins revalued unevenly in the same change) or a holding
+-- cannot be paid exactly in what is left: the maintainer's call (1 Nov 2026) was
+-- to convert by value, never to make value up or throw it away.
 create or replace function private.convert_coins(p_coins jsonb, p_old jsonb, p_new jsonb)
+returns jsonb
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_kept jsonb;
+  v_removed numeric;
+  v_rate numeric;
+  v_new_value numeric;
+begin
+  select coalesce(jsonb_object_agg(c.key, c.value), '{}'::jsonb) into v_kept
+    from jsonb_each(coalesce(p_coins, '{}'::jsonb)) c
+   where exists (select 1 from jsonb_array_elements(p_new->'denominations') d where d->>'key' = c.key)
+      or not exists (select 1 from jsonb_array_elements(p_old->'denominations') d where d->>'key' = c.key);
+
+  select coalesce(sum((c.value #>> '{}')::numeric * (d->>'value')::numeric), 0) into v_removed
+    from jsonb_each(coalesce(p_coins, '{}'::jsonb)) c
+    join jsonb_array_elements(p_old->'denominations') d on d->>'key' = c.key
+   where not exists (select 1 from jsonb_array_elements(p_new->'denominations') n where n->>'key' = c.key);
+
+  if v_removed = 0 then
+    return private.coins_add(v_kept, '{}'::jsonb);
+  end if;
+
+  -- New smallest units per old one, from the coins both currencies keep.
+  select min((n->>'value')::numeric / (o->>'value')::numeric) into v_rate
+    from jsonb_array_elements(p_old->'denominations') o
+    join jsonb_array_elements(p_new->'denominations') n on n->>'key' = o->>'key';
+  if v_rate is null then
+    raise exception 'Keep at least one coin when you remove another, so what it held can be converted'
+      using errcode = '22023';
+  end if;
+  if exists (
+    select 1
+      from jsonb_array_elements(p_old->'denominations') o
+      join jsonb_array_elements(p_new->'denominations') n on n->>'key' = o->>'key'
+     where (n->>'value')::numeric / (o->>'value')::numeric <> v_rate
+  ) then
+    raise exception 'Remove coins and change what coins are worth in separate saves'
+      using errcode = '22023';
+  end if;
+
+  v_new_value := v_removed * v_rate;
+  if v_new_value <> trunc(v_new_value) then
+    raise exception 'Some coins held cannot be paid exactly in the coins that are left; convert those holdings first'
+      using errcode = '22023';
+  end if;
+  return private.coins_add(v_kept, private.make_change(v_new_value::bigint, p_new));
+end;
+$$;
+
+-- A loot-chest atom array with every currency atom's coins converted.
+create or replace function private.convert_atoms(p_atoms jsonb, p_old jsonb, p_new jsonb)
 returns jsonb
 language sql
 immutable
 set search_path = ''
 as $$
-  select private.coins_add(
-    (select coalesce(jsonb_object_agg(c.key, c.value), '{}'::jsonb)
-       from jsonb_each(coalesce(p_coins, '{}'::jsonb)) c
-      where exists (select 1 from jsonb_array_elements(p_new->'denominations') d where d->>'key' = c.key)
-         or not exists (select 1 from jsonb_array_elements(p_old->'denominations') d where d->>'key' = c.key)),
-    private.make_change(
-      (select coalesce(sum((c.value #>> '{}')::numeric * (d->>'value')::bigint), 0)::bigint
-         from jsonb_each(coalesce(p_coins, '{}'::jsonb)) c
-         join jsonb_array_elements(p_old->'denominations') d on d->>'key' = c.key
-        where not exists (select 1 from jsonb_array_elements(p_new->'denominations') n where n->>'key' = c.key)),
-      p_new
-    )
-  );
+  select coalesce(jsonb_agg(
+           case when a->>'type' = 'currency' and a ? 'coins'
+                then jsonb_set(a, '{coins}', private.convert_coins(a->'coins', p_old, p_new))
+                else a end
+           order by ord), '[]'::jsonb)
+    from jsonb_array_elements(coalesce(p_atoms, '[]'::jsonb)) with ordinality as t(a, ord);
 $$;
 
 -- "120 gp, 40 sp": the chat line for a coin map, highest coin first.
@@ -445,9 +504,17 @@ begin
      set payload = jsonb_set(payload, '{coins}', private.convert_coins(payload->'coins', v_old, v_new))
    where campaign_id = new.id and kind = 'currency' and dispatched_at is null;
 
+  update public.loot_placements
+     set payload = jsonb_set(payload, '{rolled_atoms}', private.convert_atoms(payload->'rolled_atoms', v_old, v_new))
+   where campaign_id = new.id and kind = 'loot_chest' and dispatched_at is null
+     and jsonb_typeof(payload->'rolled_atoms') = 'array';
+
   update public.campaign_messages
      set metadata = jsonb_set(metadata, '{coins}', private.convert_coins(metadata->'coins', v_old, v_new))
    where campaign_id = new.id and type = 'currency_drop' and metadata ? 'coins';
+  update public.campaign_messages
+     set metadata = jsonb_set(metadata, '{rolled_atoms}', private.convert_atoms(metadata->'rolled_atoms', v_old, v_new))
+   where campaign_id = new.id and type = 'loot_chest' and jsonb_typeof(metadata->'rolled_atoms') = 'array';
   update public.campaign_messages
      set metadata = jsonb_set(metadata, '{price}', private.convert_coins(metadata->'price', v_old, v_new))
    where campaign_id = new.id and type in ('vendor_offer', 'player_offer') and metadata ? 'price';
@@ -826,51 +893,139 @@ comment on function public.give_coins(uuid, uuid, jsonb) is
 revoke execute on function public.give_coins(uuid, uuid, jsonb) from public, anon;
 grant execute on function public.give_coins(uuid, uuid, jsonb) to authenticated, service_role;
 
--- Pays a price out of a purse, with change: what a downtime cost or any other
--- in-world expense does. Same authority as handing the purse's coins over.
-create function public.spend_coins(p_member_id uuid, p_price jsonb)
+-- ── Purse writes, one statement each ────────────────────────────────────────
+-- A purse is one jsonb value, so a client that sent the whole map would undo
+-- whatever changed since it last read it: a second click before the refetch,
+-- a drop claimed, coins given. Every client purse write goes through one of
+-- these instead, which changes only what it names, in one UPDATE. They are
+-- SECURITY INVOKER: the party_members_update policy decides who may write, as
+-- it did for the five columns, and the caretaker guard still applies. A write
+-- RLS hides is reported, not silently dropped.
+
+-- Adds signed counts ({"gp": 1}, {"sp": -2}) to a purse. No change is made:
+-- removing a coin the purse does not hold is refused by the coins check.
+create function public.adjust_purse(p_member_id uuid, p_delta jsonb)
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
-  v_member public.party_members%rowtype;
-  v_currency jsonb;
+  v_campaign uuid;
   v_coins jsonb;
 begin
-  if (select auth.uid()) is null then
+  select pm.campaign_id into v_campaign from public.party_members pm where pm.id = p_member_id;
+  if v_campaign is null then
+    raise exception 'Not authorized' using errcode = '42501';  -- not a character the caller can see
+  end if;
+  if jsonb_typeof(p_delta) is distinct from 'object'
+     or exists (
+       select 1 from jsonb_each(p_delta) e
+        where jsonb_typeof(e.value) <> 'number'
+           or (e.value #>> '{}')::numeric <> trunc((e.value #>> '{}')::numeric)
+     )
+     or not private.coins_known(p_delta, private.campaign_currency(v_campaign)) then
+    raise exception 'Invalid coins' using errcode = '22023';
+  end if;
+  if exists (
+    select 1 from public.party_members pm, jsonb_each(p_delta) e
+     where pm.id = p_member_id
+       and coalesce((pm.coins->>e.key)::numeric, 0) + (e.value #>> '{}')::numeric < 0
+  ) then
+    raise exception 'Not that many coins in the purse' using errcode = '22023';
+  end if;
+  update public.party_members
+     set coins = private.coins_add(coins, p_delta)
+   where id = p_member_id
+  returning coins into v_coins;
+  if not found then
     raise exception 'Not authorized' using errcode = '42501';
   end if;
-  -- Authorized before the lock, so a caller cannot lock a purse they may not
-  -- touch; read again under the lock and judged again, as give_coins does.
-  select * into v_member from public.party_members where id = p_member_id;
-  if not found or v_member.campaign_id is null
-     or not private.can_write_pack(v_member.campaign_id, v_member.id) then
-    raise exception 'Not authorized' using errcode = '42501';
-  end if;
-  select * into v_member from public.party_members where id = p_member_id for update;
-  if not found or v_member.campaign_id is null
-     or not private.can_write_pack(v_member.campaign_id, v_member.id) then
-    raise exception 'Not authorized' using errcode = '42501';
-  end if;
-
-  v_currency := private.campaign_currency(v_member.campaign_id);
-  if not private.valid_coins(p_price) or not private.coins_known(p_price, v_currency) then
-    raise exception 'Invalid price' using errcode = '22023';
-  end if;
-
-  v_coins := private.pay_coins(v_member.coins, private.coins_value(p_price, v_currency), v_currency);
-  update public.party_members set coins = v_coins where id = p_member_id;
   return v_coins;
 end;
 $$;
 
-comment on function public.spend_coins(uuid, jsonb) is
-  'Pay a price out of a party member''s purse in the campaign''s currency, breaking a coin for change when needed (#934).';
+-- Sets one coin's count, as typed into the purse.
+create function public.set_purse_coin(p_member_id uuid, p_key text, p_count integer)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_campaign uuid;
+  v_coins jsonb;
+begin
+  select pm.campaign_id into v_campaign from public.party_members pm where pm.id = p_member_id;
+  if v_campaign is null then
+    raise exception 'Not authorized' using errcode = '42501';  -- not a character the caller can see
+  end if;
+  if p_count is null or p_count < 0
+     or not private.coins_known(jsonb_build_object(p_key, 0), private.campaign_currency(v_campaign)) then
+    raise exception 'Invalid coins' using errcode = '22023';
+  end if;
+  update public.party_members
+     set coins = private.coins_add(coins - p_key, jsonb_build_object(p_key, p_count))
+   where id = p_member_id
+  returning coins into v_coins;
+  if not found then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  return v_coins;
+end;
+$$;
 
-revoke execute on function public.spend_coins(uuid, jsonb) from public, anon;
-grant execute on function public.spend_coins(uuid, jsonb) to authenticated, service_role;
+-- A downtime outcome on one character, all or nothing: the gain is added, the
+-- cost paid with change ("Insufficient funds" refuses the whole outcome), and
+-- the HP and conditions the DM's tick produced are written, in one UPDATE. A
+-- failure leaves nothing applied, so applying again cannot charge twice.
+create function public.apply_downtime_effects(
+  p_member_id uuid,
+  p_gain jsonb,
+  p_spend jsonb,
+  p_current_hp integer,
+  p_conditions jsonb
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_currency jsonb;
+  v_coins jsonb;
+begin
+  select private.campaign_currency(pm.campaign_id) into v_currency
+    from public.party_members pm where pm.id = p_member_id;
+  if v_currency is null then
+    raise exception 'Not authorized' using errcode = '42501';  -- not a character the caller can see
+  end if;
+  if not private.valid_coins(coalesce(p_gain, '{}'::jsonb)) or not private.valid_coins(coalesce(p_spend, '{}'::jsonb))
+     or not private.coins_known(p_gain, v_currency) or not private.coins_known(p_spend, v_currency) then
+    raise exception 'Invalid coins' using errcode = '22023';
+  end if;
+  update public.party_members
+     set coins = private.pay_coins(
+                   private.coins_add(coins, coalesce(p_gain, '{}'::jsonb)),
+                   private.coins_value(p_spend, v_currency),
+                   v_currency),
+         current_hp = p_current_hp,
+         conditions = p_conditions
+   where id = p_member_id
+  returning coins into v_coins;
+  if not found then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  return v_coins;
+end;
+$$;
+
+revoke execute on function public.adjust_purse(uuid, jsonb) from public, anon;
+grant execute on function public.adjust_purse(uuid, jsonb) to authenticated, service_role;
+revoke execute on function public.set_purse_coin(uuid, text, integer) from public, anon;
+grant execute on function public.set_purse_coin(uuid, text, integer) to authenticated, service_role;
+revoke execute on function public.apply_downtime_effects(uuid, jsonb, jsonb, integer, jsonb) from public, anon;
+grant execute on function public.apply_downtime_effects(uuid, jsonb, jsonb, integer, jsonb) to authenticated, service_role;
 
 -- ── Loot ────────────────────────────────────────────────────────────────────
 

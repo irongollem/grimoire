@@ -1,7 +1,9 @@
 import { computed, toValue } from "vue";
 import type { MaybeRefOrGetter } from "vue";
 import { useItemsByIds } from "@/composables/items/useItemsByIds";
-import type { RolledLootEntry } from "@/lib/dungeon-features/lootTableRoll";
+import { knownCoins, type RolledLootEntry } from "@/lib/dungeon-features/lootTableRoll";
+import { hasCoins } from "@/lib/currency/currency";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import type { LootChestAtom } from "@/types/chat.types";
 
 /**
@@ -16,6 +18,7 @@ export function useLootChestAtoms(rolled: MaybeRefOrGetter<readonly RolledLootEn
     toValue(rolled).flatMap((entry) => (entry.type === "item" ? [entry.item_id] : [])),
   );
   const { data: itemsById, isLoading } = useItemsByIds(rolledIds);
+  const { currency } = useCurrency();
 
   const atoms = computed<LootChestAtom[]>(() => {
     const out: LootChestAtom[] = [];
@@ -34,11 +37,15 @@ export function useLootChestAtoms(rolled: MaybeRefOrGetter<readonly RolledLootEn
           });
         }
       } else if (entry.type === "currency") {
+        // A chest may be built from rolls made under another currency; only this
+        // campaign's coins can be claimed, and a pool left empty is no atom.
+        const coins = knownCoins(entry.coins ?? {}, currency.value);
+        if (!hasCoins(coins)) continue;
         out.push({
           atom_id: crypto.randomUUID(),
           type: "currency",
           currency_label: entry.currency_label ?? null,
-          coins: entry.coins ?? {},
+          coins,
         });
       }
       // "unresolved" entries hit but produced no loot: surfaced separately, never an atom.

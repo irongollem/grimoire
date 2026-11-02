@@ -19,12 +19,19 @@ import { remapBooksForImport } from "@/lib/scriptorium/bookTransfer";
 import type { JSONContent } from "@tiptap/core";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
 import { downloadBlob } from "@/lib/downloadBlob";
+import { upgradeEncounterCoins, upgradeLootTableCoins, upgradePartyMemberCoins } from "@/lib/campaign/legacyCoins";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 
+/**
+ * Version 3 (#934) stores coins as campaign-defined maps. A version 2 backup carries the five fixed 5e coins and is
+ * translated on restore (`legacyCoins`); anything older is refused.
+ */
+export const BACKUP_FORMAT_VERSION = "3";
+
 export interface GrimoireBackup {
-  version: "2";
+  version: typeof BACKUP_FORMAT_VERSION | "2";
   file_type: "backup";
   exported_at: string;
   campaign: Row;
@@ -346,7 +353,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
   };
 
   return {
-    version: "2",
+    version: BACKUP_FORMAT_VERSION,
     file_type: "backup",
     exported_at: new Date().toISOString(),
     campaign: campaignExport,
@@ -540,6 +547,8 @@ export async function executeImport(
 
   const newCampaignId = crypto.randomUUID();
   const idMap = buildIdMap(backup);
+  // A version 2 backup holds the five fixed coins; the database no longer has those columns (see legacyCoins).
+  const fromV2 = backup.version === "2";
   idMap.set(backup.campaign.id as string, newCampaignId);
 
   // 1. Insert campaign
@@ -569,7 +578,7 @@ export async function executeImport(
     // 2. Party members
     await batchInsert(
       "party_members",
-      backup.party_members.map(({ class: _class, subclass: _subclass, ...own }) => ({
+      backup.party_members.map(({ class: _class, subclass: _subclass, ...ownRow }) => fromV2 ? upgradePartyMemberCoins(ownRow) : ownRow).map((own) => ({
         // A character's own edition rides along in this spread, including one
         // the restored campaign would not admit at its door: a table that
         // switched edition keeps its characters, flagged, and a restore puts
@@ -708,7 +717,7 @@ export async function executeImport(
     // 8. Encounters
     await batchInsert(
       "encounters",
-      backup.encounters.map((enc) => ({
+      backup.encounters.map((encRow) => fromV2 ? upgradeEncounterCoins(encRow) : encRow).map((enc) => ({
         ...enc,
         id: r(enc.id, idMap),
         campaign_id: newCampaignId,
@@ -819,7 +828,7 @@ export async function executeImport(
     );
     await batchInsert(
       "loot_tables",
-      backup.loot_tables.map((lt) => ({
+      backup.loot_tables.map((ltRow) => fromV2 ? upgradeLootTableCoins(ltRow) : ltRow).map((lt) => ({
         ...lt,
         id: r(lt.id, idMap),
         campaign_id: newCampaignId,
@@ -1244,12 +1253,12 @@ export function parseBackupFile(file: File): Promise<GrimoireBackup> {
           reject(new Error("Invalid file type. This appears to be a world bundle (.grimoire), not a campaign backup."));
           return;
         }
-        if (json.version !== "2") {
-          reject(new Error(`This backup is format version ${json.version}, and Grimoire only restores version 2. Restore it with the version of Grimoire that made it, or make a new backup.`));
+        if (json.version !== "2" && json.version !== BACKUP_FORMAT_VERSION) {
+          reject(new Error(`This backup is format version ${json.version}, and Grimoire only restores versions 2 and ${BACKUP_FORMAT_VERSION}. Restore it with the version of Grimoire that made it, or make a new backup.`));
           return;
         }
         if (!Array.isArray(json.quest_consequences)) {
-          reject(new Error("Malformed backup: a version 2 file must carry quest_consequences."));
+          reject(new Error("Malformed backup: a version 2 or 3 file must carry quest_consequences."));
           return;
         }
         assertBackupCarriesCharacterEditions(json);

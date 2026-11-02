@@ -16,7 +16,8 @@
           :symbol="d.abbr"
           :color="d.color"
           :value="memberCoins[d.key] ?? 0"
-          @commit="(v) => $emit('set-currency', d.key, v)"
+          @adjust="(delta) => $emit('adjust-currency', d.key, delta)"
+          @set="(count) => $emit('set-currency', d.key, count)"
         />
       </div>
 
@@ -159,7 +160,8 @@ const {
 }>();
 
 defineEmits<{
-  'set-currency': [key: string, value: number];
+  'adjust-currency': [key: string, delta: number];
+  'set-currency': [key: string, count: number];
   'open-drop': [];
   'cancel-drop': [];
   'submit-drop': [];

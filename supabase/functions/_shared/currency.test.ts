@@ -16,7 +16,7 @@ describe("edge currency copy agrees with src/lib/currency", () => {
   // Bug it fails on: the edge copy of parsePrice/makeChange/formatCoins drifting from the client's.
   for (const [label, cfg] of [["5e", DND5E_CURRENCY], ["dollars", DOLLARS]] as const) {
     it(`prices, change and formatting match for ${label}`, () => {
-      for (const text of ["12", "1,500 gp", "1 gp 5 sp", "$5", "7 c", "2 golds", "priceless"]) {
+      for (const text of ["12", "1,500 gp", "1 gp 5 sp", "$5", "7 c", "2 golds", "priceless", "1.5 gp", "0.50", "0.5 cp", "12.25 $", "1,500.25 gp"]) {
         expect(edge.parsePrice(text, cfg)).toEqual(app.parsePrice(text, cfg));
       }
       for (const value of [0, 1, 99, 100, 155, 150000]) {

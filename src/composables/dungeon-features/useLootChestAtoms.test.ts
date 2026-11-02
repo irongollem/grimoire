@@ -5,6 +5,10 @@ import type { RolledLootEntry } from "@/lib/dungeon-features/lootTableRoll";
 
 const read = vi.hoisted(() => ({ ids: [] as unknown[] }));
 
+vi.mock("@/composables/currency/useCurrency", () => ({
+  useCurrency: () => ({ currency: { value: { denominations: [{ key: "gp" }, { key: "sp" }] } } }),
+}));
+
 vi.mock("@/composables/items/useItemsByIds", () => ({
   useItemsByIds: (ids: { value: readonly string[] }) => {
     read.ids.push(ids.value);
@@ -35,5 +39,13 @@ describe("useLootChestAtoms", () => {
     const { atoms } = useLootChestAtoms(ref<RolledLootEntry[]>([currency, missed]));
     expect(atoms.value).toHaveLength(1);
     expect(atoms.value[0]).toMatchObject({ type: "currency", currency_label: "Purse", coins: { gp: 12, sp: 3 } });
+  });
+
+  it("makes no atom of coins the campaign lacks, and keeps the ones it has (the claim would credit an unknown key)", () => {
+    const foreign: RolledLootEntry = { type: "currency", entry_id: "f", currency_label: null, coins: { crown: 4 }, notes: null };
+    const mixed: RolledLootEntry = { type: "currency", entry_id: "m", currency_label: null, coins: { crown: 4, sp: 2 }, notes: null };
+    const { atoms } = useLootChestAtoms(ref<RolledLootEntry[]>([foreign, mixed]));
+    expect(atoms.value).toHaveLength(1);
+    expect(atoms.value[0]).toMatchObject({ coins: { sp: 2 } });
   });
 });
