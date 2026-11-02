@@ -4,6 +4,7 @@
 // own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use). Doors carry
 // their leaf art and hinge too, so the battle map can draw each at the state the DM sets in play.
 
+import { groundContains, groundLoops, orderedGround } from "./groundRegions";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveWall, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
@@ -51,9 +52,23 @@ export function buildMapLive(
   const overlaysOf = (packId: string, key: "terrainWater" | "solidBlock"): MotionOverlay[] =>
     runtimes.get(packId)?.manifest.motion?.[key] ?? [];
 
-  for (const [packId, cells] of groupByPack(map.layers.terrain, originCellX, originCellY)) {
-    groups.push({ kind: "water", cells, overlays: overlaysOf(packId, "terrainWater") });
-  }
+  const regions = orderedGround(map.layers);
+  const imageLoops = (loops: ReturnType<typeof groundLoops>) => loops.map((loop) => loop.map(([x, y]): [number, number] => [x - originCellX, y - originCellY]));
+  const solidLoops: [number, number][][] = Object.keys(map.layers.solidBlock).map((key) => {
+    const [x, y] = key.split(",").map(Number);
+    return [[x - originCellX, y - originCellY], [x + 1 - originCellX, y - originCellY], [x + 1 - originCellX, y + 1 - originCellY], [x - originCellX, y + 1 - originCellY]];
+  });
+  regions.forEach(([, region], index) => {
+    if (region.category !== "terrainWater") return;
+    const cells = Object.entries(map.layers.terrain).filter(([key, ref]) => {
+      const [x, y] = key.split(",").map(Number);
+      return ref.pack_id === region.material.pack_id && groundContains(region, x + 0.5, y + 0.5);
+    }).map(([key]) => toImageCell(key as CellKey, originCellX, originCellY));
+    groups.push({ kind: "water", cells, overlays: overlaysOf(region.material.pack_id, "terrainWater"), clip: {
+      outline: imageLoops(groundLoops(region)),
+      occluded: [...regions.slice(index + 1).map(([, above]) => imageLoops(groundLoops(above))), ...solidLoops.map((loop) => [loop])],
+    } });
+  });
   for (const [packId, cells] of groupByPack(map.layers.solidBlock, originCellX, originCellY)) {
     const overlays = overlaysOf(packId, "solidBlock");
     if (overlays.length > 0) groups.push({ kind: "outer", cells, overlays });

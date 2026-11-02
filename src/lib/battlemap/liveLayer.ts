@@ -3,7 +3,7 @@
 // here touches the DOM, so it can be tested with plain numbers.
 
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoorState, type MapLiveGroup, type MapLiveLight, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
-import { lightReachCells } from "@/cartographer/lights";
+import { FIRE_RADIUS_DRIFT, lightMotion, lightReachCells } from "@/cartographer/lights";
 import { lightMask, type LightMask } from "@/cartographer/lightMask";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
 
@@ -66,10 +66,10 @@ export function spritesIn(live: MapLive | null, stratum: Stratum): MapLiveSprite
   return live === null || stratum === "ground" ? [] : live.sprites;
 }
 
-/** The lights that move (flicker or pulse). They brighten the floor, so they live in the ground layer. */
+/** The lights that move (flicker, pulse, or the colour of a fire). They brighten the floor, so they live in the ground layer. */
 export function lightsIn(live: MapLive | null, stratum: Stratum): MapLiveLight[] {
   if (live === null || stratum === "top") return [];
-  return live.lights.filter((l) => l.flicker !== undefined || l.pulse !== undefined);
+  return live.lights.filter((l) => lightMotion(l) !== null);
 }
 
 /** Whether the snapshot has anything to animate in this stratum. */
@@ -92,18 +92,38 @@ export function swayAngle(sway: MapLiveSprite["sway"], t: number): number {
 }
 
 /**
- * How much of its flicker or pulse a light shows at time `t`, 0..1 (the caller multiplies by the light's own
- * fraction). A flame is several fast sines that do not line up, so it never repeats audibly; a pulse is one slow
- * breath. A light that does neither is always 0.
+ * Layered noise in -1..1 that never repeats on a beat anyone can hear: four sines whose rates share no common period,
+ * the slow ones heavy and the quick ones a light crackle on top. `seed` offsets each rate separately, so two fires
+ * (different `phase`) are out of step in the slow drift as well as in the crackle, not merely shifted in time.
  */
-export function lightBoost(light: Pick<MapLiveLight, "flicker" | "pulse" | "phase">, t: number): number {
-  if (light.flicker !== undefined) {
-    const p = light.phase;
-    const mix = (Math.sin(6.3 * t + p) + Math.sin(11.7 * t + p * 2.1 + 1) + Math.sin(19.1 * t + p * 0.7 + 2)) / 3;
-    return Math.min(1, Math.max(0, 0.5 + 0.5 * mix));
-  }
-  if (light.pulse !== undefined) return 0.5 + 0.5 * Math.sin(1.0 * t + light.phase);
-  return 0;
+export function flameNoise(seed: number, t: number): number {
+  const slow = Math.sin(0.9 * t + seed);
+  const mid = Math.sin(2.3 * t + seed * 1.9 + 1.3);
+  const quick = Math.sin(5.1 * t + seed * 0.7 + 2.1);
+  const crackle = Math.sin(9.7 * t + seed * 2.9 + 0.4);
+  return 0.45 * slow + 0.3 * mid + 0.17 * quick + 0.08 * crackle;
+}
+
+/**
+ * How much of its flicker or pulse a light shows at time `t`, 0..1 (the caller multiplies by the light's own
+ * fraction). A flame is layered noise (`flameNoise`) so it never settles into a blink; a pulse is one slow breath.
+ * A light that does neither is always 0.
+ */
+export function lightBoost(light: Pick<MapLiveLight, "color" | "flicker" | "pulse" | "phase">, t: number): number {
+  const motion = lightMotion(light);
+  if (motion === null) return 0;
+  if (motion.flicker !== undefined) return Math.min(1, Math.max(0, 0.5 + 0.5 * flameNoise(light.phase, t)));
+  return 0.5 + 0.5 * Math.sin(1.0 * t + light.phase);
+}
+
+/**
+ * How far a light's reach is stretched at time `t`, around 1: a flame swells and shrinks a few percent, drifting on
+ * its own noise (not the brightness's, so the two do not move in lockstep). Pulsing and steady lights keep their reach.
+ */
+export function lightRadiusScale(light: Pick<MapLiveLight, "color" | "flicker" | "pulse" | "phase">, t: number): number {
+  const motion = lightMotion(light);
+  if (motion === null || motion.flicker === undefined) return 1;
+  return 1 + FIRE_RADIUS_DRIFT * flameNoise(light.phase * 1.7 + 4, t * 0.8);
 }
 
 /** A light's line-of-sight mask over its whole square, in image cells from (x0,y0). */

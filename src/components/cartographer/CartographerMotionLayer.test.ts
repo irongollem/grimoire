@@ -3,7 +3,8 @@ import { enableAutoUnmount, mount } from "@vue/test-utils";
 import CartographerMotionLayer from "./CartographerMotionLayer.vue";
 import { MOTION_REBUILD_INTERVAL_MS } from "@/cartographer/motion";
 import * as mapLive from "@/cartographer/mapLive";
-import { cellKey, emptyLayers } from "@/types/dungeonMap.types";
+import { paintGroundCells } from "@/cartographer/groundRegions";
+import { emptyLayers } from "@/types/dungeonMap.types";
 import { makeRuntime } from "@/cartographer/testCanvas";
 
 enableAutoUnmount(afterEach);
@@ -11,8 +12,7 @@ enableAutoUnmount(afterEach);
 const FOAM = { url: "https://cdn/foam.webp", cells: 4, drift: [0.1, 0] as [number, number], alpha: 0.5 };
 
 function props(over: Record<string, unknown> = {}) {
-  const layers = emptyLayers();
-  layers.terrain[cellKey(0, 0)] = { pack_id: "sea", pack_version: 1, variant: 0 };
+  const layers = paintGroundCells(emptyLayers(), new Set(["0,0"]), { pack_id: "sea", pack_version: 1, variant: 0 }, "terrainWater");
   return {
     layers, revision: 0, runtimes: new Map([["sea", makeRuntime("sea", { motion: { terrainWater: [FOAM] } })]]),
     dressing: new Map(), tilePx: 64, viewportOffset: { x: 0, y: 0 }, dpr: 2, width: 400, height: 300, playing: true,

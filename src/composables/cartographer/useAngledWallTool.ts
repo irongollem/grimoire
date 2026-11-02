@@ -19,6 +19,8 @@ export interface AngledWallToolOptions {
   wallKind: Ref<WallKind>;
   /** The pack and version a new wall is recorded against. */
   pack: () => { packId: string; packVersion: number };
+  /** Creation visibility is independent from blocking: hidden walls still stop sight and movement. */
+  visible?: () => boolean;
   snapshotStr: () => string;
   pushCommand: (before: string, after: string) => void;
   markDirty: () => void;
@@ -70,6 +72,7 @@ export function useAngledWallTool(opts: AngledWallToolOptions) {
         variant: 0,
         a: [points[i][0], points[i][1]],
         b: [points[i + 1][0], points[i + 1][1]],
+        ...(opts.visible?.() === false ? { visible: false } : {}),
       };
       lastId = id;
     }

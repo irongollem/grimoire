@@ -1,13 +1,27 @@
 import { describe, it, expect } from "vitest";
 import { putWall } from "./testWalls";
-import { curbEdges, curbPosts, drawMapContent, renderShadowLayer, variantAt } from "./drawMap";
+import { applyGroundStroke, convertCellGround, groundLoops, orderedGround } from "./groundRegions";
+import { drawMapContent, renderShadowLayer, variantAt } from "./drawMap";
 import type { DrawMapInput } from "./drawFrame";
-import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
+import { emptyLayers, cellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
 import type { DressingCatalog, DressingProp } from "./dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { makeCtx, makeLayerFactory, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
 
 const PACK = "p";
+
+// Fixture ingestion is one-time, just as saved rows convert once before rendering. The same source identity must
+// survive hover/pan renders so these tests still exercise the renderer's real caches.
+const sourceFixtures = new WeakMap<DungeonMapLayers, DungeonMapLayers>();
+function sourceLayers(layers: DungeonMapLayers): DungeonMapLayers {
+  if (Object.keys(layers.ground).length > 0) return layers;
+  const existing = sourceFixtures.get(layers);
+  if (existing) return existing;
+  let id = 0;
+  const converted = convertCellGround(layers, () => `fixture-${id++}`);
+  sourceFixtures.set(layers, converted);
+  return converted;
+}
 
 function input(
   rt: TilePackRuntime | null,
@@ -21,7 +35,6 @@ function input(
       tilePx: 128,
       origin: { x: 0, y: 0 },
       bounds: { minX: 0, minY: 0, maxX: 5, maxY: 5 },
-      layers: emptyLayers(),
       runtime: () => rt,
       defaultPackId: PACK,
       glyphs: {},
@@ -29,6 +42,8 @@ function input(
       dressing: new Map(),
       lights: false,
       ...overrides,
+      // Saved cell fixtures cross the same one-time source boundary as persisted maps.
+      layers: sourceLayers(overrides.layers ?? emptyLayers()),
     },
   };
 }
@@ -36,6 +51,30 @@ function input(
 const ref = { pack_id: PACK, pack_version: 1, variant: 0 };
 
 describe("drawMapContent", () => {
+  it("clips desert and its offset water oasis to their exact sampled curves, independently of projected cells", () => {
+    let serial = 0;
+    const newKey = () => `smooth-${serial++}`;
+    const sand = applyGroundStroke(emptyLayers(), [{ x: 3, y: 3, r: 2.5 }], { pack: ref, wall: ref, erase: false, newKey });
+    const oasis = { pack_id: "oasis", pack_version: 1, variant: 0 };
+    const layers = applyGroundStroke(sand, [{ x: 3.2, y: 2.7, r: 0.8 }], { pack: oasis, wall: oasis, category: "terrainWater", erase: false, newKey });
+    // These cells serve gameplay; removing this derived cache cannot change the authored material geometry.
+    layers.floor = {};
+    layers.terrain = {};
+    const sandRuntime = makeRuntime(PACK);
+    const waterRuntime = makeRuntime("oasis", { categoryCounts: { terrainWater: 1 } });
+    const origin = { x: 64, y: 32 };
+    const { input: i, rec } = input(sandRuntime, { layers, origin, runtime: (id) => id === "oasis" ? waterRuntime : sandRuntime });
+    drawMapContent(i);
+    const loops = orderedGround(layers).flatMap(([, region]) => groundLoops(region));
+    expect(loops.some((loop) => loop.some(([x, y]) => !Number.isInteger(x) || !Number.isInteger(y)))).toBe(true);
+    expect(rec.points).toEqual(loops.flatMap((loop) => loop.map(([x, y]) => [x * 128 - origin.x, y * 128 - origin.y])));
+    expect(rec.clipCount).toBe(2);
+    expect(rec.drawImages.every((draw) => draw.clips > 0)).toBe(true);
+    expect(cats(rec)).toEqual(expect.arrayContaining(["floor", "terrainWater"]));
+    expect(cats(rec).filter((category) => category?.startsWith("wall") || category?.startsWith("curb"))).toEqual([]);
+    expect(layers.walls).toEqual({});
+  });
+
   it("translates cells by the origin", () => {
     const layers = emptyLayers();
     layers.floor[cellKey(2, 3)] = { floor: ref };
@@ -348,7 +387,7 @@ describe("variantAt", () => {
 describe("terrain", () => {
   const rt = makeRuntime(PACK, { variantCount: 4 });
 
-  it("draws terrainWater instead of the floor in its cell", () => {
+  it("overpaints the floor with clipped terrainWater while retaining the source below", () => {
     const layers = emptyLayers();
     layers.floor[cellKey(1, 1)] = { floor: ref };
     layers.floor[cellKey(2, 1)] = { floor: ref };
@@ -357,11 +396,12 @@ describe("terrain", () => {
     drawMapContent(i);
     const at = (x: number): (string | undefined)[] =>
       rec.drawImages.filter((d) => d.x === x * 128 && d.y === 128).map((d) => sourceOf(d).category);
-    expect(at(1)).toEqual(["terrainWater"]);
+    expect(at(1)).toEqual(["floor", "terrainWater"]);
+    expect(rec.drawImages.every((draw) => draw.clips > 0)).toBe(true);
     expect(at(2)).toEqual(["floor"]);
   });
 
-  it("darkens the sides facing a bank, harder on top and left", () => {
+  it("does not paint square bank shading across an editable vector shoreline", () => {
     const layers = emptyLayers();
     layers.floor[cellKey(1, 1)] = { floor: ref };
     layers.terrain[cellKey(1, 1)] = water;
@@ -369,130 +409,47 @@ describe("terrain", () => {
     layers.floor[cellKey(2, 1)] = { floor: ref };
     const { input: i, rec } = input(rt, { layers });
     drawMapContent(i);
-    // cell (1,1): top, left, bottom open; right shares water. Four sides minus one.
-    const own = rec.gradients.filter((g) => g.x0 >= 128 && g.y0 >= 128 && g.y0 <= 256 && g.x0 < 256);
-    expect(own).toHaveLength(3);
-    const top = own.find((g) => g.y0 === 128 && g.y1 > g.y0);
-    expect(top?.stops[0][1]).toContain("0.65");
-    expect(top?.y1).toBeCloseTo(128 + 128 * 0.3);
-    const bottom = own.find((g) => g.y0 === 256 && g.y1 < g.y0);
-    expect(bottom?.stops[0][1]).toContain("0.35");
+    expect(rec.gradients).toEqual([]);
   });
 });
 
-describe("curbEdges and curbPosts", () => {
-  const floorCell = { floor: ref };
-
-  it("puts a curb on every edge between terrain and floor", () => {
-    const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = floorCell;
-    layers.floor[cellKey(2, 1)] = floorCell;
-    layers.terrain[cellKey(1, 1)] = water;
-    expect(curbEdges(layers)).toEqual([{ x: 2, y: 1, axis: "V", packId: PACK, waterSide: "W" }]);
-  });
-
-  it("gives none where the edge already carries a seg, nor between terrain cells, nor to void", () => {
-    const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = floorCell;
-    layers.floor[cellKey(2, 1)] = { floor: ref };
-    putWall(layers, 2, 1, "W", { ...ref, type: "wall" });
-    layers.floor[cellKey(3, 1)] = floorCell;
-    layers.terrain[cellKey(1, 1)] = water;
-    layers.terrain[cellKey(0, 1)] = water; // next to void on the far side, next to terrain here
-    expect(curbEdges(layers)).toEqual([]);
-  });
-
-  it("gives a curb to an edge whose wall is hidden, since nothing is drawn there to stand in for it", () => {
-    const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = floorCell;
-    layers.floor[cellKey(2, 1)] = floorCell;
-    layers.terrain[cellKey(1, 1)] = water;
-    putWall(layers, 2, 1, "W", { ...ref, type: "wall" }, false);
-    expect(curbEdges(layers)).toHaveLength(1);
-  });
-
-  it("records which side the water is on, so a curb can face it", () => {
-    const layers = emptyLayers();
-    for (const [x, y] of [[2, 2], [2, 1], [2, 3], [1, 2], [3, 2]]) layers.floor[cellKey(x, y)] = floorCell;
-    layers.terrain[cellKey(2, 2)] = water;
-    expect(curbEdges(layers).map((c) => `${c.axis}${c.x},${c.y}${c.waterSide}`).sort()).toEqual(["H2,2S", "H2,3N", "V2,2E", "V3,2W"]);
-  });
-
-  it("puts a post where a curb meets a wall", () => {
-    const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: ref };
-    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
-    layers.floor[cellKey(2, 1)] = floorCell;
-    layers.terrain[cellKey(1, 1)] = water;
-    // the V curb on x=2 runs (2,1)-(2,2); the wall on y=1 ends at the point (2,1)
-    const posts = curbPosts(layers);
-    expect(posts).toContainEqual({ x: 2, y: 1, packId: PACK });
-  });
-
-  it("puts a post where an H and a V curb turn, and none along a straight run", () => {
-    const layers = emptyLayers();
-    for (const [x, y] of [[1, 1], [2, 1], [1, 2], [3, 1]]) layers.floor[cellKey(x, y)] = floorCell;
-    layers.terrain[cellKey(1, 1)] = water;
-    const posts = curbPosts(layers);
-    expect(posts.map((p) => `${p.x},${p.y}`).sort()).toEqual(["2,2"]);
-    // (2,1) -> (2,2) is the V curb, (1,2) -> (2,2) the H curb: they meet at (2,2).
-  });
-
-  it("draws curbs on the gridline like walls, and a post centred on the point", () => {
-    const layers = emptyLayers();
-    for (const [x, y] of [[1, 1], [2, 1], [1, 2]]) layers.floor[cellKey(x, y)] = floorCell;
-    layers.terrain[cellKey(1, 1)] = water;
-    const { input: i, rec } = input(makeRuntime(PACK, { variantCount: 4 }), { layers });
-    drawMapContent(i);
-    const v = rec.drawImages.find((d) => sourceOf(d).category === "curbV");
-    const h = rec.drawImages.find((d) => sourceOf(d).category === "curbH");
-    expect(v).toMatchObject({ x: 256 - 64, y: 128, w: 128 });
-    // the H curb has its water to the north, so it is turned a half about the centre of its spot on the gridline
-    expect(h).toMatchObject({ x: -64, y: -64, w: 128 });
-    expect(rec.translates).toContainEqual([128 + 64, 256]);
-    const post = rec.drawImages.find((d) => sourceOf(d).category === "curbPost");
-    expect(post?.w).toBeCloseTo(128 * 0.24);
-    expect(post!.x + post!.w / 2).toBeCloseTo(256);
-    expect(post!.y + post!.h / 2).toBeCloseTo(256);
-  });
-});
-describe("curbs on the map", () => {
-  const floorCell = { floor: ref };
+describe("vector shorelines", () => {
   const lake = () => {
     const layers = emptyLayers();
-    for (const [x, y] of [[2, 2], [2, 1], [2, 3]]) layers.floor[cellKey(x, y)] = floorCell;
+    for (const [x, y] of [[2, 2], [2, 1], [2, 3], [1, 2], [3, 2]]) layers.floor[cellKey(x, y)] = { floor: ref };
     layers.terrain[cellKey(2, 2)] = water;
-    return layers;
+    return sourceLayers(layers);
   };
 
-  it("draws a curb as painted where the water is below it, and turned a half where it is above", () => {
-    const { input: i, rec } = input(makeRuntime(PACK, { categoryCounts: { curbH: 1 } }), { layers: lake() });
+  it("adds no grid curb or post where material boundaries meet floor or physical walls", () => {
+    const layers = lake();
+    putWall(layers, 2, 2, "N", { ...ref, type: "wall" });
+    const before = input(makeRuntime(PACK, { variantCount: 4 }), { layers });
+    drawMapContent(before.input);
+    expect(cats(before.rec).filter((category) => category?.startsWith("curb"))).toEqual([]);
+    putWall(layers, 3, 2, "W", { ...ref, type: "wall" }, false);
+    const after = input(makeRuntime(PACK, { variantCount: 4 }), { layers });
+    drawMapContent(after.input);
+    expect(cats(after.rec).filter((category) => category?.startsWith("curb"))).toEqual([]);
+  });
+
+  it("renders the material boundary without curb art, posts, rotations or cell-bank shading", () => {
+    const runtime = makeRuntime(PACK, { categoryCounts: { terrainWater: 1, curbH: 1, curbV: 1, curbPost: 1 } });
+    const { input: i, rec } = input(runtime, { layers: lake() });
     drawMapContent(i);
-    const curbs = rec.drawImages.filter((d) => sourceOf(d)?.category === "curbH");
-    expect(curbs).toHaveLength(2);
-    // the top bank (water south of it) is drawn as painted; the bottom bank (water north) is turned 180 degrees
-    expect(rec.rotates).toEqual([Math.PI]);
+    expect(cats(rec)).toContain("terrainWater");
+    expect(cats(rec).filter((category) => category?.startsWith("curb"))).toEqual([]);
+    expect(rec.rotates).toEqual([]);
+    expect(rec.gradients).toEqual([]);
   });
 
-  it("sinks water below stone banks but not below flush ones (surf on a beach)", () => {
-    const sunk = (rt: TilePackRuntime) => {
-      const { input: i, rec } = input(rt, { layers: lake() });
-      drawMapContent(i);
-      return rec.gradients.length;
-    };
-    expect(sunk(makeRuntime(PACK, { categoryCounts: { curbH: 1 } }))).toBeGreaterThan(0);
-    expect(sunk(makeRuntime(PACK, { categoryCounts: { curbH: 1 }, flush: ["curbH", "curbV"] }))).toBe(0);
-  });
-
-  it("leaves a pack's flush curbs out of the shadows, and keeps a stone lip's", () => {
-    const shadowCats = (rt: TilePackRuntime) => {
+  it("casts no artificial curb shadows, whatever the pack's flush setting", () => {
+    for (const flush of [[], ["curbH", "curbV", "curbPost"]] as const) {
       const f = makeLayerFactory();
-      const { input: i } = input(rt, { layers: lake(), shadows: true, makeCanvas: f.makeCanvas });
+      const { input: i } = input(makeRuntime(PACK, { categoryCounts: { curbH: 1 }, flush: [...flush] }), { layers: lake(), shadows: true, makeCanvas: f.makeCanvas });
       renderShadowLayer(i);
-      return cats(f.layers[2].rec);
-    };
-    expect(shadowCats(makeRuntime(PACK, { categoryCounts: { curbH: 1 } }))).toContain("curbH");
-    expect(shadowCats(makeRuntime(PACK, { categoryCounts: { curbH: 1 }, flush: ["curbH", "curbV", "curbPost"] }))).not.toContain("curbH");
+      expect(f.layers.flatMap((layer) => cats(layer.rec)).filter((category) => category?.startsWith("curb"))).toEqual([]);
+    }
   });
 });
 
@@ -580,16 +537,16 @@ describe("shadows", () => {
     });
     const layer = renderShadowLayer(i);
     expect(layer).not.toBeNull();
-    // layer 0 is the output; then raised, low, standing, flat
-    const [, raised, , standing, flat] = f.layers;
+    // Layer 0 is the output, followed by physical raised, standing and flat silhouettes.
+    const [, raised, standing, flat] = f.layers;
     expect(cats(raised.rec)).toEqual(expect.arrayContaining(["solidBlock", "wallSegmentH"]));
     expect(cats(raised.rec)).not.toContain("objectChest");
     expect(cats(standing.rec)).toEqual(["objectChest"]);
     expect(cats(flat.rec)).toEqual(["rubble"]);
     for (const l of f.layers) expect(cats(l.rec)).not.toContain("stairsUp");
-    // 3 casts + 4 occlusion passes, drawn on the output layer
-    expect(f.layers[0].rec.shadowDraws).toHaveLength(7);
-    expect(f.layers[0].rec.shadowDraws.filter((d) => d.blur === 128 * 0.03)).toHaveLength(4);
+    // Two casts and three occlusion passes; shorelines have no artificial low silhouette.
+    expect(f.layers[0].rec.shadowDraws).toHaveLength(5);
+    expect(f.layers[0].rec.shadowDraws.filter((d) => d.blur === 128 * 0.03)).toHaveLength(3);
     const cast = f.layers[0].rec.shadowDraws.find((d) => d.color === "rgba(10,8,6,0.42)");
     expect(cast?.offsetY).toBeCloseTo(128 * 0.14);
   });
@@ -707,25 +664,24 @@ describe("pieces that sit on the window's border", () => {
     expect(rec.drawImages).toHaveLength(0);
   });
 
-  it("draws a curb and a post on the window's first column", () => {
-    // water at (-1,1), floor at (0,1): the V curb lies on x = 0, the window's left line; a turn at (0,2) puts a post there too
+  it("adds no artificial curb or post where an unwalled shoreline reaches the window edge", () => {
+    // A water region outside the viewport still must not leak grid curb art onto its first column.
     const layers = emptyLayers();
     for (const [x, y] of [[-1, 1], [0, 1], [-1, 2], [1, 1]]) layers.floor[cellKey(x, y)] = { floor: ref };
     layers.terrain[cellKey(-1, 1)] = water;
     const { input: i, rec } = input(makeRuntime(PACK, { variantCount: 4, categoryCounts: { curbV: 1, curbH: 1, curbPost: 1 } }), { layers });
     drawMapContent(i);
-    expect(cats(rec)).toContain("curbV");
-    expect(cats(rec)).toContain("curbPost");
+    expect(cats(rec).filter((category) => category?.startsWith("curb"))).toEqual([]);
   });
 
-  it("draws a flush pack's curbs and posts on the map itself, and leaves them out of its shadows only", () => {
+  it("keeps flush pack shorelines free of artificial curbs and posts too", () => {
     const layers = emptyLayers();
     for (const [x, y] of [[1, 1], [2, 1], [1, 2]]) layers.floor[cellKey(x, y)] = { floor: ref };
     layers.terrain[cellKey(1, 1)] = water;
     const flush = makeRuntime(PACK, { categoryCounts: { curbH: 1, curbV: 1, curbPost: 1 }, flush: ["curbH", "curbV", "curbPost"] });
     const { input: i, rec } = input(flush, { layers });
     drawMapContent(i);
-    expect(cats(rec)).toEqual(expect.arrayContaining(["curbH", "curbV", "curbPost"]));
+    expect(cats(rec).filter((category) => category?.startsWith("curb"))).toEqual([]);
   });
 });
 

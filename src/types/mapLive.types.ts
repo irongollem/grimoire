@@ -26,6 +26,14 @@ export interface MapLiveGroup {
   kind: "water" | "outer";
   cells: string[];
   overlays: MotionOverlay[];
+  /** Vector water follows its shoreline; higher material shapes hide the water underneath them. Image cells. */
+  clip?: MapLiveGroundClip;
+}
+
+export interface MapLiveGroundClip {
+  outline: [number, number][][];
+  /** Each entry is one higher shape, including that shape's holes. */
+  occluded: [number, number][][][];
 }
 
 /** A light in image cells (centre of the source). */

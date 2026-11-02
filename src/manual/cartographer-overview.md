@@ -89,18 +89,18 @@ Place puts things on the map from one panel of pictures. Press `O` and the Place
 
 Pick a picture and click the map to place it; for an object, drag to paint a run of them. A prop shows a faint copy that follows your cursor, and after the click it stays selected: `Q` and `E` turn it a quarter turn, `[` and `]` nudge it one degree, and `Delete` removes it. The **Rotate** buttons in the slip at the top left of the map do the same, and with nothing selected those keys turn the next thing you place.
 
-The quickest way to move or turn a prop is the **Select** tool (`V`): click a prop, a light or a wall and it is picked, with its own options at the top left (turn and Delete for a prop, colour and reach for a light, the run's bones, nodes and doors for a wall); drag a prop or a light to move it. Click empty floor to pick the cell instead, and `Esc` puts down whatever is picked. Select reaches a prop even while you hold something in Place. You can also put what you are holding down first (`Esc`), then drag the prop with Place. Right-click, or hold **Alt** and click, takes away the prop under the cursor, or the object if there is no prop, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
+The quickest way to move or turn a prop is the **Select** tool (`V`): click a prop, a light or a wall and it is picked, with its own options at the top left (turn and Delete for a prop, colour and reach for a light, the segments and doors for a wall); drag a prop or a light to move it. Click empty floor to pick the cell instead, and `Esc` puts down whatever is picked. **Shift**+click adds a piece to the pick or takes it out, and a drag on empty ground draws a box that picks everything whose centre is inside it. Drag any picked piece and the whole pick moves together, as one step in Undo. Hold **Space** and drag, or use the middle button, the wheel or the Pan tool (`H`), to move the map. Select reaches a prop even while you hold something in Place. You can also put what you are holding down first (`Esc`), then drag the prop with Place. Right-click, or hold **Alt** and click, takes away the prop under the cursor, or the object if there is no prop, and the Eraser takes props before anything beneath them. Every placement, move, turn and removal is one step in Undo.
 
 ## Reshaping walls
 
-Click any wall with **Select** and its whole run is picked: every wall joined to it, with a round handle on each corner (a **node**) and the slip at the top left counting them ("Wall run · 4 bones · 4 nodes · 1 door").
+Click a wall with **Select** and that one segment is picked, with a handle on each end (a **node**) and the slip at the top left counting it ("Wall · 1 segment"). **Alt**+click picks the whole wall instead, every segment joined to it ("Wall · 12 segments · 3 doors"). **Shift**+click adds a segment, or takes a picked one out, and a box drawn with **V** picks the nodes inside it and the segments between them. Drag a picked wall by its middle and every picked piece moves with it; drag a node to move that node alone (or all of a Shift or box pick).
 
 - **Drag a node** and every wall meeting there follows. Drop it on another wall and it snaps on and joins it; a loop that closes fills with floor, and squares left outside lose theirs.
 - The floor follows the wall: where a wall runs at an angle, the floor is cut to its line, so no corner of a square pokes out past it and none is left bare under it.
 - **Double-click a wall** to put a node there, or drag the middle of a wall to do the same and bend it as you go.
 - **Double-click a node** to switch it between a **curve** (round handle: the wall bends smoothly through it) and a **corner** (square handle: a sharp angle). Walls you draw start with corners. A node where three walls meet, or where a door ends, stays a corner. Drag a curved node and the wall bends with it.
-- **Delete** on a node joins its two walls into one. Delete on a wall takes that wall away.
-- **Shift**-drag a wall to slide it sideways; **Shift** while dragging a node holds it to 45 degrees. **Alt** skips the grid. **Esc** lets go of a drag, and one gesture is one step in Undo.
+- **Delete** on a node joins its two walls into one. Delete on picked segments takes just those away.
+- **Shift**-drag a picked segment to slide it sideways; **Shift** while dragging a node holds it to 45 degrees. **Alt** skips the grid. **Esc** lets go of a drag, and one gesture is one step in Undo.
 - Off the grid, tile walls become lines in the tile set's wall colour; back on the grid they are tiles again.
 
 ## The round brush and walls
@@ -117,7 +117,7 @@ Nothing here writes to your Atlas until you publish. Grimoire also tracks how ma
 
 ## Motion
 
-Flowing water, swaying trees and firelight play on every map that has them, the editor included, exactly as the battle map shows them. The **Motion** button in the map's corner pauses them while you edit and plays them again; this device remembers the choice. If your device asks for reduced motion, they stay still.
+Flowing water, swaying trees and firelight play on every map that has them (any warm, flame-coloured light, such as a campfire, brazier, torch or candelabra, flickers gently on its own, its glow swelling and shrinking a few percent out of step with the next fire), the editor included, exactly as the battle map shows them. The **Motion** button in the map's corner pauses them while you edit and plays them again; this device remembers the choice. If your device asks for reduced motion, they stay still.
 
 ## Layers
 

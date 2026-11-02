@@ -79,6 +79,21 @@ describe("resolveKeyAction", () => {
     expect(resolveKeyAction(ev({ key: "]" }), ctx("floor"))).toBeNull();
   });
 
+  it("B selects Brush from another tool, then toggles its walls while Brush is active", () => {
+    const tools: KeyContext["tools"] = [{ id: "select" }, { id: "brush", shortcut: "b" }];
+    expect(resolveKeyAction(ev({ key: "b" }), { ...ctx("floor"), tools })).toEqual({ kind: "selectTool", tool: "brush" });
+    expect(resolveKeyAction(ev({ key: "b" }), { ...ctx("brush"), tools })).toEqual({ kind: "toggleBrushWalls" });
+    expect(resolveKeyAction(ev({ key: "b", repeat: true }), { ...ctx("brush"), tools })).toBeNull();
+  });
+
+  it("does not toggle brush walls while typing, on another layer, or when Brush is disabled", () => {
+    const tools: KeyContext["tools"] = [{ id: "brush", shortcut: "b" }];
+    const brush: KeyContext = { ...ctx("brush"), tools };
+    expect(resolveKeyAction(ev({ key: "b", targetIsTextEntry: true }), brush)).toBeNull();
+    expect(resolveKeyAction(ev({ key: "b" }), { ...brush, layer: "plan" })).toBeNull();
+    expect(resolveKeyAction(ev({ key: "b" }), { ...brush, tools: [{ id: "brush", shortcut: "b", disabled: true }] })).toBeNull();
+  });
+
   it("clamps the brush radius to its range", () => {
     expect(clampBrushRadius(0.1)).toBe(0.5);
     expect(clampBrushRadius(9)).toBe(6);

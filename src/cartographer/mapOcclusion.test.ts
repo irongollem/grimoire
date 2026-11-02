@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { emptyLayers } from "@/types/dungeonMap.types";
 import { collectOcclusion, latticeOcclusionSegment } from "./mapOcclusion";
+import { setGroundWalls } from "./groundRegions";
 import { brushDisc } from "@/test/brushDisc";
 import { putWall } from "./testWalls";
 import { clearLine, occluders } from "@/lib/battlemap/occlusion";
@@ -53,7 +54,8 @@ describe("collectOcclusion reads layers.walls (#1125 story 5)", () => {
 });
 
 describe("a round-brush room stops light at its drawn curve (#1125)", () => {
-  const room = brushDisc(emptyLayers(), { x: 5, y: 5, r: 3 }, REF);
+  const floor = brushDisc(emptyLayers(), { x: 5, y: 5, r: 3 }, REF);
+  const room = setGroundWalls(floor, Object.keys(floor.ground)[0], "visible");
   const occ = occluders(collectOcclusion(room, 0, 0));
   const lit = (angle: number, r: number): boolean => clearLine(occ, 5, 5, 5 + Math.cos(angle) * r, 5 + Math.sin(angle) * r);
 

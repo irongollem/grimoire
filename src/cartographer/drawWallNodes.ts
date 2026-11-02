@@ -12,6 +12,8 @@ export interface WallNodeMarks {
   nodes: readonly { id: string; x: number; y: number; smooth?: boolean }[];
   /** The bone Del would remove, drawn stronger. */
   focusBone?: string | null;
+  /** The selected node stays marked after the pointer leaves or the drag ends. */
+  focusNode?: string | null;
   hoverNode?: string | null;
   draggedNode?: string | null;
   snap?: SnapTarget | null;
@@ -51,12 +53,14 @@ export function paintWallNodes(
   const r = Math.max(4, tilePx * 0.1);
   for (const n of marks.nodes) {
     const dragged = n.id === marks.draggedNode;
+    const focused = n.id === marks.focusNode;
     const hovered = n.id === marks.hoverNode;
-    ctx.fillStyle = dragged ? FOCUS : hovered ? "rgba(255,255,255,1)" : "rgba(255,255,255,0.9)";
-    ctx.strokeStyle = dragged ? INK : ACCENT;
-    ctx.lineWidth = dragged || hovered ? 3 : 2;
+    const selected = dragged || focused;
+    ctx.fillStyle = selected ? FOCUS : hovered ? "rgba(255,255,255,1)" : "rgba(255,255,255,0.9)";
+    ctx.strokeStyle = selected ? INK : ACCENT;
+    ctx.lineWidth = selected || hovered ? 3 : 2;
     ctx.beginPath();
-    const radius = dragged || hovered ? r * 1.3 : r;
+    const radius = selected || hovered ? r * 1.3 : r;
     if (n.smooth) ctx.arc(px(n.x), py(n.y), radius, 0, Math.PI * 2);
     else {
       // A corner is a square, so the two kinds read apart without colour.

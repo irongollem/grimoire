@@ -26,8 +26,9 @@ import { paintDoorLeaf, edgeTileOrigin } from "@/cartographer/doorLeaf";
 import { effectiveDoors } from "@/lib/battlemap/doors";
 import { segmentAxis } from "@/lib/battlemap/walls";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
-import { boostMask, type BoostMask, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
-import { lightReachCells, lightStops } from "@/cartographer/lights";
+import { clipGroundMotion } from "@/lib/battlemap/groundMotionClip";
+import { boostMask, type BoostMask, groupsIn, hasMotion, lightBoost, lightRadiusScale, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
+import { lightMotion, lightReachCells, lightStops } from "@/cartographer/lights";
 import { DEFAULT_LIGHT_INTENSITY } from "@/cartographer/packSchema";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive, MapLiveDoor, MapLiveDoorState, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
@@ -214,12 +215,15 @@ function maskCanvasFor(light: MapLiveLight): { canvas: HTMLCanvasElement; x0: nu
  * floor on screen to brighten, so nothing is drawn.
  */
 function paintLightBoost(ctx: CanvasRenderingContext2D, light: MapLiveLight, t: number) {
-  const fraction = light.flicker ?? light.pulse;
+  const motion = lightMotion(light);
+  if (motion === null) return;
+  const fraction = motion.flicker ?? motion.pulse;
   if (fraction === undefined) return;
   const intensity = (light.intensity ?? DEFAULT_LIGHT_INTENSITY) * fraction * lightBoost(light, t);
   if (intensity <= 0.001) return;
   const tileLight = { color: light.color, bright: light.bright, dim: light.dim, intensity };
-  const radius = lightReachCells(tileLight) * cellPx;
+  // The reach breathes with the flame; the line-of-sight mask below stays the steady reach (no occlusion per frame).
+  const radius = lightReachCells(tileLight) * cellPx * lightRadiusScale(light, t);
   const cx = originX + light.x * cellPx;
   const cy = originY + light.y * cellPx;
   if (cx + radius < 0 || cy + radius < 0 || cx - radius > hostW || cy - radius > hostH) return;
@@ -264,15 +268,7 @@ function render(t: number, still = false) {
   for (const group of groupsIn(live, stratum)) {
     if (group.overlays.length === 0) continue;
     ctx.save();
-    ctx.beginPath();
-    for (const key of group.cells) {
-      const [xs, ys] = key.split(",");
-      const px = originX + Number(xs) * cellPx;
-      const py = originY + Number(ys) * cellPx;
-      if (px + cellPx < 0 || py + cellPx < 0 || px > hostW || py > hostH) continue;
-      ctx.rect(px, py, cellPx, cellPx);
-    }
-    ctx.clip();
+    clipGroundMotion(ctx, group, { cellPx, originX, originY, width: hostW, height: hostH });
     ctx.globalCompositeOperation = "screen";
     for (const overlay of group.overlays) paintOverlay(ctx, overlay, t);
     ctx.restore();

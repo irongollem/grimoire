@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { putWall } from "./testWalls";
+import { convertCellGround } from "./groundRegions";
 import * as lightMaskModule from "./lightMask";
 import { renderMap, type MapRenderScene } from "./renderMap";
-import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
+import { emptyLayers, cellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
 import type { DressingCatalog } from "./dressing";
 import { makeCtx, makeLayerFactory, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
 
@@ -13,6 +14,18 @@ vi.mock("./lightMask", async (importOriginal) => {
 });
 const maskCalls = (): number => vi.mocked(lightMaskModule.lightMask).mock.calls.length;
 
+// Fixture ingestion is one-time, just as saved rows convert once before rendering. The same source identity must
+// survive hover/pan renders so these tests still exercise the renderer's real caches.
+const sourceFixtures = new WeakMap<DungeonMapLayers, DungeonMapLayers>();
+function sourceLayers(layers: DungeonMapLayers): DungeonMapLayers {
+  const existing = sourceFixtures.get(layers);
+  if (existing) return existing;
+  let id = 0;
+  const converted = convertCellGround(layers, () => `fixture-${id++}`);
+  sourceFixtures.set(layers, converted);
+  return converted;
+}
+
 function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderScene; rec: Recorder } {
   const { ctx, rec } = makeCtx();
   const scene: MapRenderScene = {
@@ -22,7 +35,6 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     tilePx: 64,
     viewportOffset: { x: 0, y: 0 },
     bounds: { minX: 0, minY: 0, maxX: 5, maxY: 5 },
-    layers: emptyLayers(),
     metadata: {},
     glyphs: {},
     runtimes: new Map(),
@@ -37,6 +49,8 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     dressing: new Map(),
     gridAlpha: 0.06,
     ...overrides,
+    // These fixtures represent saved cell layers; authoring and rendering consume their converted sources.
+    layers: sourceLayers(overrides.layers ?? emptyLayers()),
   };
   return { scene, rec };
 }

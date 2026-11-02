@@ -11,7 +11,8 @@
 // for a no-op. None of them set a dirty flag themselves — the caller does
 // `if (changed) dirty.value = true;` at the call site.
 
-import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type EdgeSegType, type WallEdge } from "@/types/dungeonMap.types";
+import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSegType, type WallEdge } from "@/types/dungeonMap.types";
+import { eraseGroundCells, paintGroundCells } from "./groundRegions";
 import { nextDressingZ } from "@/cartographer/dressing";
 import type { StampCategory } from "@/cartographer/stampCategories";
 import { canonicaliseEdge, type CanonicalEdge, type CellEdge } from "@/cartographer/edges";
@@ -25,6 +26,8 @@ export interface PaintContext {
   layers: DungeonMapLayers;
   packId: string;
   packVersion: number;
+  /** Hidden walls remain physical blockers; omitted means ordinary visible creation. */
+  wallVisible?: boolean;
 }
 
 /**
@@ -62,15 +65,10 @@ export function edgeDirection(side: "N" | "E" | "S" | "W"): "H" | "V" {
 export function paintCell(ctx: PaintContext, x: number, y: number, variant: number): boolean {
   const k = cellKey(x, y);
   const existing = ctx.layers.floor[k];
-  if (existing?.floor?.pack_id === ctx.packId && existing?.floor?.variant === variant) return false;
-  ctx.layers.floor[k] = {
-    ...existing,
-    floor: {
-      pack_id: ctx.packId,
-      pack_version: ctx.packVersion,
-      variant,
-    },
-  };
+  if (!ctx.layers.terrain[k] && existing?.floor?.pack_id === ctx.packId && existing.floor.pack_version === ctx.packVersion && existing.floor.variant === variant) return false;
+  Object.assign(ctx.layers, paintGroundCells(ctx.layers, new Set([k]), {
+    pack_id: ctx.packId, pack_version: ctx.packVersion, variant,
+  }));
   return true;
 }
 
@@ -88,12 +86,7 @@ export function eraseCell(ctx: PaintContext, x: number, y: number): boolean {
     for (const wallKey of ownedWalls) delete nextWalls[wallKey];
     ctx.layers.walls = nextWalls;
   }
-  if (hadFloor) {
-    const next = { ...ctx.layers.floor };
-    delete next[k];
-    ctx.layers.floor = next;
-  }
-  if (hadTerrain) eraseTerrainAt(ctx, x, y);
+  if (hadFloor || hadTerrain) Object.assign(ctx.layers, eraseGroundCells(ctx.layers, new Set([k])));
   return true;
 }
 
@@ -112,22 +105,23 @@ export function paintTerrainAt(
   floorVariant?: number,
 ): boolean {
   const k = cellKey(x, y);
-  let changed = false;
-  if (floorVariant !== undefined && !ctx.layers.floor[k]?.floor) {
-    changed = paintCell(ctx, x, y, floorVariant);
-  }
+  // The terrain tool promises a lasting ground surface underneath newly painted water. Keep it as a separate
+  // source, so removing the water reveals its original floor variant instead of deleting the playable square.
+  const addedFloor = floorVariant !== undefined && !ctx.layers.floor[k]?.floor
+    ? paintCell(ctx, x, y, floorVariant)
+    : false;
   const existing = ctx.layers.terrain[k];
-  if (existing?.pack_id === ctx.packId && existing.variant === variant) return changed;
-  ctx.layers.terrain[k] = { pack_id: ctx.packId, pack_version: ctx.packVersion, variant };
+  if (existing?.pack_id === ctx.packId && existing.variant === variant && existing.pack_version === ctx.packVersion) return addedFloor;
+  Object.assign(ctx.layers, paintGroundCells(ctx.layers, new Set([k]), {
+    pack_id: ctx.packId, pack_version: ctx.packVersion, variant,
+  }, "terrainWater"));
   return true;
 }
 
 export function eraseTerrainAt(ctx: PaintContext, x: number, y: number): boolean {
   const k = cellKey(x, y);
   if (!ctx.layers.terrain[k]) return false;
-  const next = { ...ctx.layers.terrain };
-  delete next[k];
-  ctx.layers.terrain = next;
+  Object.assign(ctx.layers, eraseGroundCells(ctx.layers, new Set([k]), "terrainWater"));
   return true;
 }
 
@@ -262,7 +256,7 @@ export function paintWallAtCellEdge(
   if (stroke.painted.has(strokeKey)) return false;
 
   const { key, existing } = latticeEntry(ctx, canon);
-  if (existing && !mayOverwriteEdge(existing, kind, ctx.packId)) {
+  if (existing && !mayOverwriteEdge(existing, kind, ctx.packId, ctx.wallVisible)) {
     stroke.painted.add(strokeKey);
     return false;
   }
@@ -272,7 +266,7 @@ export function paintWallAtCellEdge(
     pack_version: ctx.packVersion,
     type: kind,
     variant,
-  });
+  }, ctx.wallVisible);
 
   stroke.painted.add(strokeKey);
   return true;
@@ -281,10 +275,11 @@ export function paintWallAtCellEdge(
 // Doors are never overwritten. A plain wall only restyles a wall of another
 // pack; a grate or sluice replaces a wall (any pack) or the other opening,
 // but not a copy of itself from the same pack.
-function mayOverwriteEdge(existing: EdgeSeg, kind: PaintedWallKind, packId: string): boolean {
+function mayOverwriteEdge(existing: WallEdge, kind: PaintedWallKind, packId: string, visible = true): boolean {
   if (existing.type === "doorClosed" || existing.type === "doorOpen") return false;
-  if (kind === "wall") return existing.type === "wall" && existing.pack_id !== packId;
-  return !(existing.type === kind && existing.pack_id === packId);
+  const visibilityChanged = (existing.visible !== false) !== visible;
+  if (kind === "wall") return existing.type === "wall" && (existing.pack_id !== packId || visibilityChanged);
+  return visibilityChanged || !(existing.type === kind && existing.pack_id === packId);
 }
 
 /**
@@ -310,7 +305,7 @@ export function setWallEdgeIfEmpty(ctx: PaintContext, edge: CellEdge, variant: n
     pack_version: ctx.packVersion,
     type: "wall",
     variant,
-  });
+  }, ctx.wallVisible);
   return true;
 }
 
@@ -345,7 +340,7 @@ export function paintDoorAtEdge(ctx: PaintContext, edge: CellEdge, stroke: Strok
     pack_version: ctx.packVersion,
     type: newType,
     variant,
-  });
+  }, existing ? existing.visible : ctx.wallVisible);
   stroke.painted.add(strokeKey);
   return true;
 }
@@ -360,7 +355,7 @@ export function removeDoorAtEdge(ctx: PaintContext, edge: CellEdge, wallVariant:
     pack_version: ctx.packVersion,
     type: "wall",
     variant: wallVariant,
-  });
+  }, existing.visible);
   return true;
 }
 

@@ -53,12 +53,30 @@
         </dl>
       </template>
       <span v-else class="text-caption text-muted-foreground italic">
-        Click a cell to see what is in it. Drag to move the map.
+        Click a cell to see what is in it. Drag a box to pick what is inside it. Shift adds to a pick. Space+drag moves the map.
       </span>
     </template>
 
+    <!-- A material region's boundary is editable independently of its optional walls. -->
+    <CartographerGroundControls
+      v-else-if="activeTool === 'select' && selectedGroundRegion"
+      editing
+      :selected="selectedGroundRegion"
+      :wall-mode="selectedGroundRegion.walls.mode"
+      @update:wall-mode="emit('update:groundWallMode', $event)"
+      @update:name="emit('update:groundName', $event)"
+      @delete="emit('deleteGroundRegion')"
+    />
+
     <!-- Wall: what the tool paints, or the decal it sets on a wall. -->
     <template v-else-if="activeTool === 'wall'">
+      <SegmentedControl
+        :model-value="wallVisible === false ? 'hidden' : 'visible'"
+        :options="WALL_VISIBILITY"
+        size="xs"
+        aria-label="New wall visibility"
+        @update:model-value="emit('update:wallVisible', $event === 'visible')"
+      />
       <SegmentedControl
         :model-value="activeWallKind"
         :options="WALL_KINDS"
@@ -84,16 +102,32 @@
       <span v-else class="text-caption-sm text-muted-foreground">Shift+click runs a straight wall from the last one.</span>
     </template>
 
-    <!-- Select picked a wall: its whole run, with the nodes to drag. -->
-    <CartographerWallRunSlip
-      v-else-if="activeTool === 'select' && wallRun"
-      :run="wallRun"
-      :refusal-reason="wallRefusal"
-      @delete="emit('deleteWallRun')"
-    />
+    <!-- Select picked walls (a segment, or with Alt the whole wall), or a mix of walls, props and lights. -->
+    <template v-else-if="activeTool === 'select' && wallRun">
+      <CartographerWallRunSlip
+        :run="wallRun"
+        :refusal-reason="wallRefusal"
+        @delete="emit('deleteWallRun')"
+      />
+      <SegmentedControl
+        v-if="wallRun.items === undefined && wallRun.bones > 0"
+        :model-value="selectedWallVisible === false ? 'hidden' : 'visible'"
+        :options="WALL_VISIBILITY"
+        size="xs"
+        aria-label="Selected wall visibility"
+        @update:model-value="emit('update:selectedWallVisible', $event === 'visible')"
+      />
+    </template>
 
     <!-- Angled wall: the kind it draws, and how a run is driven. -->
     <template v-else-if="activeTool === 'angledWall'">
+      <SegmentedControl
+        :model-value="wallVisible === false ? 'hidden' : 'visible'"
+        :options="WALL_VISIBILITY"
+        size="xs"
+        aria-label="New wall visibility"
+        @update:model-value="emit('update:wallVisible', $event === 'visible')"
+      />
       <SegmentedControl
         :model-value="activeWallKind"
         :options="ANGLED_WALL_KINDS"
@@ -253,6 +287,15 @@
 
     <!-- Brush: size -->
     <template v-else-if="activeTool === 'brush'">
+      <CartographerGroundControls
+        :selected="selectedGroundRegion ?? null"
+        :region-mode="brushRegionMode ?? 'new'"
+        :category="brushCategory ?? 'floor'"
+        :wall-mode="brushWallMode ?? 'none'"
+        @update:region-mode="emit('update:brushRegionMode', $event)"
+        @update:category="emit('update:brushCategory', $event)"
+        @update:wall-mode="emit('update:brushWallMode', $event)"
+      />
       <label class="text-label text-muted-foreground" for="brush-size">Size</label>
       <input
         id="brush-size"
@@ -308,6 +351,8 @@ import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { RailTool } from "@/components/cartographer/CartographerToolRail.vue";
 import CartographerWallRunSlip from "@/components/cartographer/CartographerWallRunSlip.vue";
+import CartographerGroundControls from "@/components/cartographer/CartographerGroundControls.vue";
+import type { BrushRegionMode, GroundWallMode } from "@/types/dungeonMap.types";
 import type { EditRefusal } from "@/cartographer/wallEdit/edit";
 import PlaceItemThumb from "@/components/cartographer/PlaceItemThumb.vue";
 import { IconDelete, IconLibrary } from "@/lib/icons";
@@ -352,6 +397,8 @@ const props = defineProps<{
   /** The active pack's manifest: its `labels` name stamps and decals. Null until a pack loads. */
   manifest: Pick<TilePackManifest, "labels"> | null;
   activeWallKind: WallKind;
+  wallVisible?: boolean;
+  selectedWallVisible?: boolean;
   activeWallDecal: number;
   wallDecalCount: number;
   selectedCell: [number, number] | null;
@@ -373,14 +420,18 @@ const props = defineProps<{
   activeTemplateShape: string;
   templateShapes: TemplateShape[];
   brushRadius: number;
+  brushRegionMode?: BrushRegionMode;
+  brushCategory?: "floor" | "terrainWater";
+  brushWallMode?: GroundWallMode;
+  selectedGroundRegion?: { id: string; name: string; walls: { mode: GroundWallMode } } | null;
   /** Rectangle: also wrap the perimeter in walls. */
   rectWalls: boolean;
   /** The Light tool's colour and reach: the picked light's, or what the next one will be. */
   light: TileLight;
   /** A placed light is picked, so the edits are to it and Delete takes it away. */
   lightSelected: boolean;
-  /** Select picked a wall run: how many bones, nodes and doors it holds (null when none). */
-  wallRun: { bones: number; nodes: number; doors: number } | null;
+  /** Select picked walls: how many segments, nodes and doors; `items` when it also holds props or lights (null when none). */
+  wallRun: { bones: number; nodes: number; doors: number; items?: number } | null;
   /** Why the last wall edit was refused, if it was. */
   wallRefusal: EditRefusal | null;
 }>();
@@ -393,6 +444,8 @@ const emit = defineEmits<{
   deleteSelected: [];
   openCatalogue: [];
   "update:activeWallKind": [kind: WallKind];
+  "update:wallVisible": [visible: boolean];
+  "update:selectedWallVisible": [visible: boolean];
   "update:activeWallDecal": [variant: number];
   "update:annotationText": [text: string];
   "update:linkedNoteId": [id: string];
@@ -401,6 +454,12 @@ const emit = defineEmits<{
   "update:linkedFeatureId": [id: string];
   "update:activeTemplateShape": [shape: string];
   "update:brushRadius": [radius: number];
+  "update:brushRegionMode": [mode: BrushRegionMode];
+  "update:brushCategory": [category: "floor" | "terrainWater"];
+  "update:brushWallMode": [mode: GroundWallMode];
+  "update:groundWallMode": [mode: GroundWallMode];
+  "update:groundName": [name: string];
+  deleteGroundRegion: [];
   "update:rectWalls": [on: boolean];
   "update:light": [patch: Partial<TileLight>];
   deleteLight: [];
@@ -410,6 +469,7 @@ const detailsOpen = ref(false);
 
 /** An angled wall is a stroked line, so it has no decal kind. */
 const ANGLED_WALL_KINDS = WALL_KINDS.filter((k) => k.value !== "decal");
+const WALL_VISIBILITY = [{ value: "visible", label: "Visible" }, { value: "hidden", label: "Hidden" }];
 /** How much brighter a flickering light gets above its steady level: a fire's, per `TileLight.flicker`. */
 const FLICKER_AMOUNT = 0.25;
 
@@ -423,7 +483,7 @@ function setReach(field: "bright" | "dim", raw: string | number): void {
 }
 
 /** Select picked a prop, a light or a wall run, so the slip shows that instead of a cell. */
-const selectedPicked = computed(() => props.selectedPlaced !== null || props.lightSelected || props.wallRun !== null);
+const selectedPicked = computed(() => props.selectedPlaced !== null || props.lightSelected || props.wallRun !== null || props.selectedGroundRegion != null);
 
 /** Tools with nothing to set: what a click does, in a line. */
 const HINTS: Record<Tool, string> = {

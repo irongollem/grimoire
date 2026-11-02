@@ -36,6 +36,8 @@ export type KeyAction =
   | { kind: "clearSelection" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
+  /** B while Brush is already selected: switch its optional perimeter walls on or off. */
+  | { kind: "toggleBrushWalls" }
   /** X: the active and second tile sets trade places, as Photoshop's X trades its two colours. */
   | { kind: "swapTileSets" }
   /** 1, 2, 3: switch to the Base image, Drawing or Zoning tab (only where the map has tabs). */
@@ -56,6 +58,8 @@ export interface KeyEventLike {
   shiftKey: boolean;
   /** True when focus is in an input, textarea or contenteditable — the view derives this from ev.target. */
   targetIsTextEntry: boolean;
+  /** Held keys must not repeatedly flip the brush's wall mode. */
+  repeat?: boolean;
 }
 
 export interface KeyContext {
@@ -153,6 +157,11 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
 
   if (ctx.activeTool === "brush" && (key === "[" || key === "]")) {
     return { kind: "resizeBrush", delta: key === "[" ? -BRUSH_RADIUS_STEP : BRUSH_RADIUS_STEP };
+  }
+
+  if (ctx.activeTool === "brush" && key === "b") {
+    const brush = ctx.tools.find((tool) => tool.id === "brush");
+    return brush && !brush.disabled && !ev.repeat ? { kind: "toggleBrushWalls" } : null;
   }
 
   // Q/E turn what Place holds, checked before the shortcut lookup so `e` turns it

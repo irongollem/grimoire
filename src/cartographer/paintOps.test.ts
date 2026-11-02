@@ -36,6 +36,15 @@ describe("paintCell / eraseCell", () => {
     expect(paintOps.paintCell(ctx, 1, 2, 4)).toBe(true);
   });
 
+  it("can paint the same ground pack over water instead of treating its underfloor as already painted", () => {
+    const ctx = makeCtx();
+    paintOps.paintCell(ctx, 0, 0, 0);
+    paintOps.paintTerrainAt(ctx, 0, 0, 1, 0);
+    expect(paintOps.paintCell(ctx, 0, 0, 0)).toBe(true);
+    expect(ctx.layers.terrain["0,0"]).toBeUndefined();
+    expect(ctx.layers.floor["0,0"]?.floor?.pack_id).toBe("pack-a");
+  });
+
   it("repainting a plain cell with another pack leaves it a plain cell", () => {
     const ctx = makeCtx("ice");
     ctx.layers.floor[cellKey(0, 0)] = { floor: { pack_id: "stone", pack_version: 1, variant: 0 } };
@@ -101,6 +110,26 @@ describe("erase on an empty cell is a no-op (returns false)", () => {
 });
 
 describe("paintWallAtCellEdge — direction lock", () => {
+  it("changes same-pack wall visibility when a new visible or hidden stroke targets it", () => {
+    const ctx = makeCtx(); const edge = { x: 0, y: 0, side: "N" as const };
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0);
+    ctx.wallVisible = false;
+    expect(paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0)).toBe(true);
+    expect(ctx.layers.walls["0,0:N"].visible).toBe(false);
+    ctx.wallVisible = true;
+    expect(paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0)).toBe(true);
+    expect(ctx.layers.walls["0,0:N"].visible).toBeUndefined();
+  });
+
+  it("creates hidden W-tool walls that remain blockers while visible creation stays the default", () => {
+    const hidden = { ...makeCtx(), wallVisible: false };
+    expect(paintOps.paintWallAtCellEdge(hidden, { x: 0, y: 0, side: "N" }, paintOps.createStrokeState(), 2)).toBe(true);
+    expect(hidden.layers.walls["0,0:N"]).toMatchObject({ type: "wall", visible: false, variant: 2 });
+    const visible = makeCtx();
+    expect(paintOps.paintWallAtCellEdge(visible, { x: 0, y: 0, side: "N" }, paintOps.createStrokeState(), 2)).toBe(true);
+    expect(visible.layers.walls["0,0:N"].visible).toBeUndefined();
+  });
+
   it("commits to the first edge's direction; a later perpendicular edge in the same stroke is ignored", () => {
     const ctx = makeCtx();
     const stroke = paintOps.createStrokeState();
@@ -177,6 +206,14 @@ describe("paintWallAtCellEdge — door preservation and pack-aware wall skip", (
 });
 
 describe("setWallEdgeIfEmpty", () => {
+  it("applies hidden creation without changing an existing wall's visibility", () => {
+    const ctx = { ...makeCtx(), wallVisible: false };
+    expect(paintOps.setWallEdgeIfEmpty(ctx, { x: 0, y: 0, side: "N" }, 1)).toBe(true);
+    expect(ctx.layers.walls["0,0:N"].visible).toBe(false);
+    expect(paintOps.setWallEdgeIfEmpty({ ...ctx, wallVisible: true }, { x: 0, y: 0, side: "N" }, 2)).toBe(false);
+    expect(ctx.layers.walls["0,0:N"].visible).toBe(false);
+  });
+
   it("writes a wall when the edge is empty, ignoring stroke tracking entirely", () => {
     const ctx = makeCtx();
     expect(paintOps.setWallEdgeIfEmpty(ctx, { x: 0, y: 0, side: "N" }, 1)).toBe(true);
@@ -194,6 +231,25 @@ describe("setWallEdgeIfEmpty", () => {
 });
 
 describe("paintDoorAtEdge", () => {
+  it("retains a hidden physical wall's visibility when it becomes a door and turns back into a wall", () => {
+    const ctx = { ...makeCtx(), wallVisible: false };
+    const edge = { x: 0, y: 0, side: "N" as const };
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1);
+    paintOps.paintDoorAtEdge({ ...ctx, wallVisible: true }, edge, paintOps.createStrokeState(), 2);
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({ type: "doorClosed", visible: false });
+    paintOps.removeDoorAtEdge(ctx, edge, 1);
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({ type: "wall", visible: false });
+  });
+
+  it("keeps a visible wall visible when a door is added, whatever the new-wall draft setting", () => {
+    const ctx = makeCtx();
+    const edge = { x: 0, y: 0, side: "N" as const };
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1);
+    paintOps.paintDoorAtEdge({ ...ctx, wallVisible: false }, edge, paintOps.createStrokeState(), 2);
+    expect(ctx.layers.walls["0,0:N"].type).toBe("doorClosed");
+    expect(ctx.layers.walls["0,0:N"].visible).toBeUndefined();
+  });
+
   it("places a new closed door using the caller-supplied variant", () => {
     const ctx = makeCtx();
     const stroke = paintOps.createStrokeState();

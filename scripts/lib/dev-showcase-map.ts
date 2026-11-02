@@ -18,14 +18,17 @@
  *   Round Chapel         disc, centre (32.5, 12.5), radius 4.5: a smooth wall run made by the round brush, a placed light
  */
 
-import { applyBrushStroke } from "@/cartographer/brushWalls";
+import { applyBrushStroke, cellBoundary, putGroundRegion } from "@/cartographer/groundRegions";
 import { latticeWall } from "@/cartographer/wallGraph";
 import type { CanonicalSide } from "@/cartographer/edges";
 import type { EdgeSegType, WallEdge } from "@/types/dungeonMap.types";
 import {
   cellKey,
   emptyLayers,
+  type CellKey,
   type DungeonMapLayers,
+  type GroundRegion,
+  type PackRef,
 } from "@/types/dungeonMap.types";
 import type { ObjectCategory } from "@/cartographer/packSchema";
 
@@ -73,8 +76,8 @@ export const SHOWCASE_DOORS = {
 } as const;
 
 /** The river through the nave: difficult terrain for the Plan's zone, and the cells that carry flowing water. */
-export const SHOWCASE_RIVER: readonly string[] = (() => {
-  const cells: string[] = [];
+export const SHOWCASE_RIVER: readonly CellKey[] = (() => {
+  const cells: CellKey[] = [];
   for (let x = 14; x <= 22; x++)
     for (const y of [13, 14]) cells.push(cellKey(x, y));
   return cells;
@@ -90,12 +93,40 @@ function uuid(kind: number, n: number): string {
   return `5a0c${pad(kind, 4)}-0000-4000-8000-${pad(n, 12)}`;
 }
 
-function floorRect(layers: DungeonMapLayers, r: Rect, pack: TileSet): void {
-  for (let y = r.y0; y <= r.y1; y++) {
-    for (let x = r.x0; x <= r.x1; x++) {
-      layers.floor[cellKey(x, y)] = { floor: { ...pack, variant: hash(x, y) } };
-    }
+/** Ground the way the editor stores it: one material region per surface, its tile variants kept per square.
+ *  Fixed ids keep a re-run writing the same map; `putGroundRegion` projects the region onto floor/terrain. */
+function groundRegion(
+  layers: DungeonMapLayers,
+  id: string,
+  name: string,
+  cells: ReadonlySet<CellKey>,
+  material: PackRef,
+  category: GroundRegion["category"],
+  variantOf: (x: number, y: number) => number,
+): DungeonMapLayers {
+  const variants: GroundRegion["variants"] = {};
+  for (const k of cells) {
+    const [x, y] = k.split(",").map(Number);
+    variants[k] = variantOf(x, y);
   }
+  const z = Math.max(-1, ...Object.values(layers.ground).map((r) => r.z)) + 1;
+  return putGroundRegion(layers, id, {
+    name,
+    material,
+    category,
+    z,
+    boundary: cellBoundary(cells, material),
+    variants,
+    walls: { mode: "none", material, ids: [], segments: {}, excluded: [] },
+  });
+}
+
+function rectCells(r: Rect, skip: ReadonlySet<string> = new Set()): Set<CellKey> {
+  const cells = new Set<CellKey>();
+  for (let y = r.y0; y <= r.y1; y++)
+    for (let x = r.x0; x <= r.x1; x++)
+      if (!skip.has(`${x},${y}`)) cells.add(cellKey(x, y));
+  return cells;
 }
 
 function setWall(
@@ -153,10 +184,6 @@ function object(
   layers.object[cellKey(x, y)] = { ...pack, category, variant };
 }
 
-function removeFloor(layers: DungeonMapLayers, cells: readonly string[]): void {
-  for (const k of cells) delete layers.floor[k as keyof typeof layers.floor];
-}
-
 export function buildShowcaseLayers(): DungeonMapLayers {
   let layers = emptyLayers();
 
@@ -169,22 +196,32 @@ export function buildShowcaseLayers(): DungeonMapLayers {
   const cistern: Rect = { x0: 19, y0: 18, x1: 23, y1: 22 };
   const vestibule: Rect = { x0: 24, y0: 11, x1: 27, y1: 13 };
 
-  floorRect(layers, courtyard, FOREST);
-  for (const r of [hall, vault, nave, crypt, cistern, vestibule])
-    floorRect(layers, r, STONE);
   // The nave's north-east corner is cut off by an angled wall (the line y = x - 13). A square whose middle is not
   // inside the line has no floor of its own, as the editor would leave it; the floor is drawn clipped to the wall, so
   // the half of such a square under the wall still shows floor, borrowed from the room next to it.
-  removeFloor(layers, ["21,8", "22,8", "23,8", "22,9", "23,9", "23,10"]);
+  const naveCut = new Set(["21,8", "22,8", "23,8", "22,9", "23,9", "23,10"]);
+  const rooms: [string, Rect, TileSet, ReadonlySet<string>?][] = [
+    ["Overgrown Courtyard", courtyard, FOREST],
+    ["Entry Hall", hall, STONE],
+    ["Hidden Vault", vault, STONE],
+    ["Flooded Nave", nave, STONE, naveCut],
+    ["Sealed Crypt", crypt, STONE],
+    ["Drowned Cistern", cistern, STONE],
+    ["Vestibule", vestibule, STONE],
+  ];
+  rooms.forEach(([name, rect, pack, skip], i) => {
+    layers = groundRegion(layers, uuid(5, i + 1), `${name} floor`, rectCells(rect, skip), { ...pack, variant: 0 }, "floor", hash);
+  });
 
-  // The round chapel: one round-brush disc on empty ground, which makes a room with its own smooth wall run
-  // (a few nodes with smooth ends, not a ring of straight pieces). Ids are fixed so a re-run writes the same map.
+  // The round chapel: one round-brush disc on empty ground with Walls: Visible, which makes a region with its own
+  // smooth wall run the Select tool can pick (a few nodes with smooth ends, not a ring of straight pieces). Ids are fixed so a re-run writes the same map.
   let chapelWalls = 0;
   layers = applyBrushStroke(
     layers,
     { discs: [{ x: 32.5, y: 12.5, r: 4.5 }] },
     {
       erase: false,
+      walls: "visible",
       pack: { ...STONE, variant: 1 },
       wall: { ...STONE, variant: 0 },
       newKey: () => uuid(4, ++chapelWalls),
@@ -248,16 +285,12 @@ export function buildShowcaseLayers(): DungeonMapLayers {
   setWall(layers, 8, 11, "W", "wall", { visible: false });
 
   // ── Water: the nave's river, the cistern, a pool ──────────────────────────
-  const water = (x: number, y: number) => {
-    layers.terrain[cellKey(x, y)] = { ...WATER, variant: (x * 5 + y * 3) % 4 };
-  };
-  for (const k of SHOWCASE_RIVER) {
-    const [x, y] = k.split(",").map(Number);
-    water(x, y);
-  }
-  for (let y = 15; y <= 16; y++) for (let x = 18; x <= 20; x++) water(x, y);
-  for (let y = cistern.y0; y <= cistern.y1; y++)
-    for (let x = cistern.x0; x <= cistern.x1; x++) water(x, y);
+  const waterVariant = (x: number, y: number) => (x * 5 + y * 3) % 4;
+  const pool = new Set<CellKey>();
+  for (let y = 15; y <= 16; y++) for (let x = 18; x <= 20; x++) pool.add(cellKey(x, y));
+  layers = groundRegion(layers, uuid(5, 20), "Nave river", new Set(SHOWCASE_RIVER), { ...WATER, variant: 0 }, "terrainWater", waterVariant);
+  layers = groundRegion(layers, uuid(5, 21), "Nave pool", pool, { ...WATER, variant: 0 }, "terrainWater", waterVariant);
+  layers = groundRegion(layers, uuid(5, 22), "Cistern water", rectCells(cistern), { ...WATER, variant: 0 }, "terrainWater", waterVariant);
 
   // ── Object stamps ─────────────────────────────────────────────────────────
   object(layers, 11, 11, "objectChest", 0);

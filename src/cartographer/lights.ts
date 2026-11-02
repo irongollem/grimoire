@@ -44,3 +44,36 @@ export function lightStops(light: TileLight): [number, string][] {
   if (light.dim === 0) return [[0, at(intensity)], [near, at(intensity * LIGHT_FALLOFF.near)], [1, at(intensity * LIGHT_FALLOFF.edge)]];
   return [[0, at(intensity)], [near, at(intensity * LIGHT_FALLOFF.near)], [edge, at(intensity * LIGHT_FALLOFF.edge)], [1, at(0)]];
 }
+
+/** How much a fire's light brightens above its steady baked glow when its pack declares no flicker: a fraction of `intensity`. */
+export const FIRE_FLICKER = 0.3;
+/** How far a fire's reach breathes in and out around its steady radius, as a fraction of it (a few percent). */
+export const FIRE_RADIUS_DRIFT = 0.05;
+
+/**
+ * Whether a light's colour is that of a flame: a warm, saturated and not dim hue, red-orange through amber (5 to 55
+ * degrees). A campfire, brazier, torch, candelabra or hearth all give light in it, and so does a light the DM placed
+ * in a warm colour, so none of them needs to declare that it flickers.
+ */
+export function isFireColor(hex: string): boolean {
+  const r = Number.parseInt(hex.slice(1, 3), 16) / 255;
+  const g = Number.parseInt(hex.slice(3, 5), 16) / 255;
+  const b = Number.parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max < 0.5 || max === min || (max - min) / max < 0.45) return false;
+  const d = max - min;
+  const hue = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const degrees = hue * 60;
+  return degrees >= 5 && degrees <= 55;
+}
+
+/**
+ * What moves in a light, if anything. A light that declares `flicker` or `pulse` does that; a fire-coloured one that
+ * declares neither flickers by `FIRE_FLICKER`. Anything else is steady (null).
+ */
+export function lightMotion(light: Pick<TileLight, "color" | "flicker" | "pulse">): { flicker?: number; pulse?: number } | null {
+  if (light.flicker !== undefined) return { flicker: light.flicker };
+  if (light.pulse !== undefined) return { pulse: light.pulse };
+  return isFireColor(light.color) ? { flicker: FIRE_FLICKER } : null;
+}

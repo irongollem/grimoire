@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { projectGround } from "@/cartographer/groundRegions";
 import { deriveStructure } from "@/cartographer/structure";
 import { collectOcclusion } from "@/cartographer/mapOcclusion";
 import { latticeWalls, angledWalls } from "@/cartographer/wallGraph";
@@ -129,5 +130,21 @@ describe("showcase map: every feature the Map Table plays is present", () => {
   it("blocks sight along the invisible stub even though it is not drawn", () => {
     const occlusion = collectOcclusion(layers, 0, 0);
     expect(occlusion.walls.some((w) => w.id === "8,10:W")).toBe(true);
+  });
+});
+
+describe("showcase map: ground is stored as editable regions", () => {
+  it("keeps every floor and water square when the editor re-projects the ground (floor written as bare cells is wiped)", () => {
+    // The editor re-derives floor/terrain from `layers.ground` on every edit; cells with no region behind them vanish.
+    const again = projectGround(layers);
+    expect(Object.keys(again.floor).sort()).toEqual(Object.keys(layers.floor).sort());
+    expect(Object.keys(again.terrain).sort()).toEqual(Object.keys(layers.terrain).sort());
+    expect(Object.keys(layers.floor).length).toBeGreaterThan(200);
+  });
+
+  it("gives the round chapel visible walls the Select tool can pick (Walls: None would leave it open)", () => {
+    const chapel = Object.values(layers.ground).find((r) => r.walls.mode === "visible");
+    expect(chapel?.walls.ids.length).toBeGreaterThan(2);
+    expect(chapel?.walls.ids.every((id) => layers.walls[id]?.visible !== false)).toBe(true);
   });
 });

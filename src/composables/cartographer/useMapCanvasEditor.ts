@@ -11,11 +11,11 @@
 // refs the caller owns — nothing here is a copy, so watching those refs
 // elsewhere (structure derivation, dirty tracking) keeps working unchanged.
 
-import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type ComputedRef, type Ref } from "vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { StampCategory } from "@/cartographer/stampCategories";
-import { boundsOfCells, pinchOf, pinchViewport, type Pinch, type CanvasViewport, type CellBounds } from "@/cartographer/viewport";
+import { pinchOf, pinchViewport, type Pinch, type CanvasViewport, type CellBounds } from "@/cartographer/viewport";
 import { clampBrushRadius, resolveKeyAction, type EditorLayer } from "@/cartographer/keymap";
 import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata, type DarknessLevel } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
@@ -34,11 +34,14 @@ import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
 import { CommandStack } from "@/cartographer/commandStack";
 import { cellsForTemplate } from "@/lib/map/gestures/template";
 import type { Disc } from "@/cartographer/area";
-import { applyBrushStroke } from "@/cartographer/brushWalls";
+import { groundCellBounds, paintGroundCells } from "@/cartographer/groundRegions";
+import { useGroundRegionEdit } from "./useGroundRegionEdit";
+import { useSelectTool } from "./useSelectTool";
+import type { BrushRegionMode, GroundRegion, GroundWallMode } from "@/types/dungeonMap.types";
+import { applyBrushStroke } from "@/cartographer/groundRegions";
 import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
 import { cellsInLine } from "@/lib/map/gestures/line";
 import { constrainShapeEnd, isCellPainter, useStraightStrokes, type CellPainter } from "@/composables/cartographer/useStraightStrokes";
-import { applyWallCommit, useWallNodeEdit } from "@/composables/cartographer/useWallNodeEdit";
 import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
 import { useLightTool } from "@/composables/cartographer/useLightTool";
@@ -96,11 +99,15 @@ export interface MapCanvasEditorOptions {
   /** What the wall tool paints (or, for "decal", sets on an existing wall) and the decal variant it sets. */
   activeWallKind: Ref<WallKind>;
   activeWallDecal: Ref<number>;
+  wallVisible?: Ref<boolean>;
   /** What the Light tool puts down next: colour, reach and flicker, edited in the slip. */
   lightDraft: Ref<TileLight>;
   activeTemplateShape: Ref<TemplateShape>;
   /** Round brush radius in cells (fractional); `[` / `]` change it, the tool options show it. */
   brushRadius: Ref<number>;
+  brushRegionMode?: Ref<BrushRegionMode>;
+  brushWallMode?: Ref<GroundWallMode>;
+  brushCategory?: Ref<GroundRegion["category"]>;
   /** Rectangle: whether the perimeter is also wrapped in walls (the tool's "Walls" option). */
   rectWalls: Ref<boolean>;
   selectedCell: Ref<[number, number] | null>;
@@ -159,6 +166,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     brushRadius, rectWalls, selectedCell, toolOptionsRef, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer, hasLayerTabs, gridAlpha, toggleGrid, keysActive, swapTileSets, groundCanvasEl, motionPlaying,
   } = opts;
+  const wallVisible = opts.wallVisible ?? ref(true);
+  const brushRegionMode = opts.brushRegionMode ?? ref<BrushRegionMode>("new");
+  const brushWallMode = opts.brushWallMode ?? ref<GroundWallMode>("none");
+  const brushCategory = opts.brushCategory ?? ref<GroundRegion["category"]>("floor");
 
   /** Every edit funnels through here instead of writing `dirty.value = true`
    *  directly — see `editRevision`'s docblock above for why the bump matters
@@ -184,15 +195,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // in src/cartographer/paintOps.ts for what each field replaces and why.
   let strokeState = paintOps.createStrokeState();
 
-  // Select tool — a press hasn't committed to "click" or "drag" yet.
-  // Holds the local pointer position from pointerdown; toolPointerMove
-  // promotes it to an ordinary pan once the pointer travels past the slop,
-  // and toolPointerUp treats it as a plain click (select the cell) if it
-  // never did. RMB/middle/Space already pan unconditionally before this
-  // tool is ever consulted (the pan checks in toolPointerDown), so this only
-  // ever arms for a genuine left-button press made without Space held.
+  // Select: a drag on empty ground draws a marquee (useSelectTool); RMB, middle and Space pan before it is consulted.
   const SELECT_DRAG_SLOP_PX = 4;
-  let pendingSelectStart: { x: number; y: number } | null = null;
+  // The wall controller files its own undo step per commit; a gesture that also moves props and lights holds it back
+  // and files one step for all of them (useSelectTool).
+  let heldUndo: string | null = null;
 
   // Alt inverts a painting tool into its erase mirror, tracked at the
   // window level (not per-pointer-event) so the status pill can show
@@ -227,6 +234,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   let brushBase: DungeonMapLayers | null = null;
   let brushDiscs: Disc[] = [];
   let brushErase = false;
+  let brushMode: BrushRegionMode = "new";
+  let brushTarget: string | null = null;
+  let brushWalls: GroundWallMode = "none";
+  let brushMaterial: { pack_id: string; pack_version: number; variant: number } | null = null;
+  let brushName = "";
+  let brushGroundCategory: GroundRegion["category"] = "floor";
+  let brushFootprint: Path2D | null = null;
+  let brushPause: ReturnType<typeof setTimeout> | undefined;
+  const brushResult = shallowRef<DungeonMapLayers | null>(null);
   /** Pointer in fractional cells, for the brush's cursor preview. */
   const hoverPoint = ref<[number, number] | null>(null);
 
@@ -277,6 +293,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // The Angled wall and Light tools (#1125 story 5); this module only routes to them.
   const angledTool = useAngledWallTool({
     layers, wallKind: activeWallKind,
+    visible: () => wallVisible.value,
     pack: () => ({ packId: currentPackId.value, packVersion: activePackVersion() }),
     snapshotStr, pushCommand, markDirty,
   });
@@ -284,47 +301,65 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   // Wall nodes (#1125 frame 17): Select picks a wall's whole run, and its nodes and bones are then dragged, split and
   // removed by this controller. Each gesture is one undo step, floor included.
-  const wallNodes = useWallNodeEdit({
-    layers: () => layers.value,
-    commit: (change) => {
+  const groundEdit = useGroundRegionEdit({
+    layers,
+    commit: (next) => {
       const before = snapshotStr();
-      layers.value = applyWallCommit(layers.value, change);
+      layers.value = next;
       markDirty();
-      pushCommand(before, snapshotStr());
+      if (heldUndo === null) pushCommand(before, snapshotStr());
     },
     pack: () => ({ packId: currentPackId.value, packVersion: activePackVersion(), variant: 0 }),
-    // 0.3 cells, the reach a wall pick always had, and never under ten screen pixels when zoomed far out.
     hitTolerance: () => Math.max(0.3, 10 / (BASE_TILE_SIZE * zoom.value)),
   });
+  const wallNodes = groundEdit.controller;
+  const selectTool = useSelectTool({
+    layers, catalog: dressing, dressingTool, lightTool, groundEdit, selectedDressingId,
+    clearCell: () => { selectedCell.value = null; },
+    snapshotStr, pushCommand, markDirty,
+    holdUndo: (before) => { heldUndo = before; },
+    slop: () => SELECT_DRAG_SLOP_PX / tilePixelSize(),
+  });
+  const selectedGroundRegion = groundEdit.selected;
+  const selectedWallVisible = computed(() => wallNodes.selection.value.runs.every((r) => r.segments.every((s) => s.wall.visible !== false)));
+  function setSelectedWallVisible(visible: boolean): void {
+    if (selectedGroundRegion.value) return;
+    const before = snapshotStr();
+    const walls = { ...layers.value.walls };
+    for (const run of wallNodes.selection.value.runs) for (const segment of run.segments) {
+      const wall = { ...walls[segment.key] };
+      if (visible) delete wall.visible; else wall.visible = false;
+      walls[segment.key] = wall;
+    }
+    layers.value = { ...layers.value, walls };
+    markDirty(); pushCommand(before, snapshotStr());
+  }
   /** A gesture is under way (a drag, a held stroke), so the motion snapshot rebuilds on an interval, not per edit. */
   const gestureBusy = ref(false);
   const syncBusy = (): void => {
-    gestureBusy.value = isPainting.value || dressingTool.isHolding() || lightTool.isHolding() || wallNodes.dragging.value;
+    gestureBusy.value = isPainting.value || dressingTool.isHolding() || lightTool.isHolding() || wallNodes.dragging.value || selectTool.isHolding();
   };
   /** The layers as drawn: the wall drag's preview stands in for the stored walls until it is released. */
   const shownLayers = computed<DungeonMapLayers>(() =>
-    wallNodes.preview.value ? { ...layers.value, walls: wallNodes.preview.value } : layers.value,
+    brushResult.value ?? groundEdit.shownLayers.value,
   );
   // Undo and redo can take away what is selected; leaving a tool puts its unfinished work down.
   watch(layers, () => { angledTool.dropStaleSelection(); lightTool.dropStaleSelection(); }, { deep: true });
   watch(activeTool, (tool, previous) => {
+    if (previous === "brush" && tool !== "brush") clearBrush();
     if (previous === "angledWall" && tool !== "angledWall") angledTool.abandon();
     if (tool !== "angledWall") angledTool.selectedId.value = null;
     if (tool !== "light" && tool !== "select") lightTool.selectedId.value = null;
-    if (tool !== "select") wallNodes.clearSelection();
+    if (tool !== "select") { selectTool.clear(); wallNodes.clearSelection(); }
   });
 
-  /** Select picks one thing at a time: picking a prop, a light or a wall puts the others down. */
-  function clearPicks(except: "prop" | "light" | "wall" | null): void {
-    if (except !== "prop") selectedDressingId.value = null;
-    if (except !== "light") lightTool.selectedId.value = null;
-    if (except !== "wall") wallNodes.clearSelection();
-    selectedCell.value = null;
-  }
-  /** The picked wall run for the slip: "Wall run · 4 bones · 4 nodes · 1 door". Null when no run is picked. */
+  /** The picked walls for the slip: "Wall · 4 segments · 1 door". Null when no wall is picked or the pick spans kinds. */
   const selectedWallRun = computed(() => {
+    if (selectedGroundRegion.value) return null;
+    // More than one kind picked (or more than one prop): the slip only counts them.
+    if (selectTool.isMixed.value) return { bones: 0, nodes: 0, doors: 0, items: selectTool.pieceCount.value };
     const { bones, nodeCount, doors } = wallNodes.selection.value;
-    return bones > 0 ? { bones, nodes: nodeCount, doors } : null;
+    return nodeCount > 0 ? { bones, nodes: nodeCount, doors } : null;
   });
 
   /** Fractional cell coordinates under a pointer event, for hit-testing props. */
@@ -443,7 +478,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Mutation context handed to paintOps functions — `layers` is the same
   // reactive object as layers.value, so writes through it stay reactive.
   function paintContext(): PaintContext {
-    return { layers: layers.value, packId: currentPackId.value, packVersion: activePackVersion() };
+    return { layers: layers.value, packId: currentPackId.value, packVersion: activePackVersion(), wallVisible: wallVisible.value };
   }
 
   // Rectangle/line cell enumeration moved to `src/lib/map/gestures/` (epic
@@ -466,7 +501,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   /** Inclusive bounds of every cell that holds floor; null for an empty map. */
   function paintedBounds(): CellBounds | null {
-    return boundsOfCells(Object.keys(layers.value.floor));
+    return groundCellBounds(layers.value);
   }
 
   // Wheel, zoom keys and the Space hand.
@@ -624,10 +659,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // planting floor (existing floor is re-skinned, keeping its shape). Bounded by a 2 000-cell safety cap.
   function applyFill(cx: number, cy: number): void {
     if (!packRuntime.value) return;
-    for (const key of paintOps.fillRegion(layers.value, cx, cy, 2000)) {
-      const [xs, ys] = key.split(",");
-      paintCell(Number(xs), Number(ys));
-    }
+    paintGroundBatch(new Set(paintOps.fillRegion(layers.value, cx, cy, 2000)));
   }
 
   // Wrap walls: find the connected floor region and place walls on every boundary
@@ -644,23 +676,13 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function applyRect(ax: number, ay: number, bx: number, by: number, withWalls: boolean): void {
     if (!packRuntime.value) return;
     const stroke = rectangleGesture(ax, ay, bx, by, withWalls);
-    for (const key of stroke.cells) {
-      const [x, y] = parseCellKey(key);
-      paintCell(x, y);
-    }
-    if (stroke.withWalls) {
-      const region = new Set<CellKey>(stroke.cells);
-      for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
-    }
+    paintGroundBatch(new Set(stroke.cells), stroke.withWalls ? "visible" : "none");
   }
 
   // Line: Bresenham floor line between two cells.
   function applyLine(ax: number, ay: number, bx: number, by: number): void {
     if (!packRuntime.value) return;
-    for (const key of cellsInLine(ax, ay, bx, by)) {
-      const [x, y] = parseCellKey(key);
-      paintCell(x, y);
-    }
+    paintGroundBatch(new Set(cellsInLine(ax, ay, bx, by)));
   }
 
   // Room template: fill the chosen shape centered on (ax, ay) and wrap walls.
@@ -668,12 +690,20 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (!packRuntime.value) return;
     const r = Math.max(Math.abs(bx - ax), Math.abs(by - ay));
     const keys = cellsForTemplate(ax, ay, r, activeTemplateShape.value);
-    for (const key of keys) {
-      const [xs, ys] = (key as string).split(",");
-      paintCell(Number(xs), Number(ys));
-    }
-    const region = new Set(keys);
-    for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
+    paintGroundBatch(new Set(keys), "visible");
+  }
+
+  function paintGroundBatch(cells: ReadonlySet<CellKey>, walls: GroundWallMode = "none"): void {
+    const first = cells.values().next().value;
+    if (!first) return;
+    const [x, y] = parseCellKey(first);
+    layers.value = paintGroundCells(layers.value, cells, {
+      pack_id: currentPackId.value, pack_version: activePackVersion(), variant: pickFloorVariant(x, y),
+    }, "floor", walls, {
+      name: `${packRuntime.value?.manifest.name ?? currentPackId.value} ground`,
+      variants: Object.fromEntries([...cells].map((key) => { const [cx, cy] = parseCellKey(key); return [key, pickFloorVariant(cx, cy)]; })),
+    });
+    markDirty();
   }
 
   // Cell painters (Tiles, Water, Rock): paint or erase each cell in turn.
@@ -693,24 +723,51 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function brushTo(x: number, y: number): void {
     if (!packRuntime.value || !brushBase) return;
     const r = brushRadius.value;
-    const ref = { pack_id: currentPackId.value, pack_version: activePackVersion(), variant: brushVariant };
     const from = brushLast;
     const step = r / 3;
     const dist = from ? Math.hypot(x - from[0], y - from[1]) : 0;
     const n = from ? Math.max(1, Math.ceil(dist / step)) : 1;
     for (let i = 1; i <= n; i++) {
       const t = from ? i / n : 1;
-      brushDiscs.push({ x: from ? from[0] + (x - from[0]) * t : x, y: from ? from[1] + (y - from[1]) * t : y, r });
+      const disc = { x: from ? from[0] + (x - from[0]) * t : x, y: from ? from[1] + (y - from[1]) * t : y, r };
+      brushDiscs.push(disc);
+      brushFootprint!.moveTo(disc.x + r, disc.y);
+      brushFootprint!.arc(disc.x, disc.y, r, 0, Math.PI * 2);
     }
-    const next = applyBrushStroke(brushBase, { discs: brushDiscs }, {
-      erase: brushErase,
-      pack: ref,
-      wall: { ...ref, variant: 0 },
-      newKey: () => crypto.randomUUID(),
-    });
     brushLast = [x, y];
-    if (next !== layers.value) {
+    brushResult.value = null;
+    clearTimeout(brushPause);
+    brushPause = setTimeout(() => {
+      brushResult.value = computeBrush();
+      scheduleRender();
+    }, 150);
+    scheduleRender();
+  }
+
+  function computeBrush(): DungeonMapLayers {
+    const pack = brushMaterial!;
+    return applyBrushStroke(brushBase!, { discs: brushDiscs }, {
+      erase: brushErase, pack, wall: { ...pack, variant: 0 }, newKey: () => crypto.randomUUID(),
+      mode: brushMode, targetId: brushTarget, walls: brushWalls, category: brushGroundCategory, name: brushName,
+    });
+  }
+
+  function clearBrush(): void {
+    clearTimeout(brushPause);
+    brushBase = null;
+    brushDiscs = [];
+    brushFootprint = null;
+    brushResult.value = null;
+    scheduleRender();
+  }
+
+  function commitBrush(): void {
+    const next = brushResult.value ?? computeBrush();
+    if (next !== brushBase) {
       layers.value = next;
+      if (brushMode === "new" && !brushErase) {
+        groundEdit.selectedId.value = Object.entries(next.ground).find(([id]) => brushBase?.ground[id] === undefined)?.[0] ?? groundEdit.selectedId.value;
+      }
       markDirty();
     }
   }
@@ -842,11 +899,15 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       gridAlpha: gridAlpha.value,
       ...dressingTool.renderScene(),
       editorMarks: {
+        brushStroke: brushFootprint && !brushResult.value ? { path: brushFootprint, erase: brushErase } : null,
         wallRun: activeTool.value === "angledWall" ? { points: angledTool.run.value, hover: angledTool.hover.value } : null,
         selectedWallId: angledTool.selectedId.value,
-        wallNodes: activeTool.value === "select" && wallNodes.selection.value.bones > 0 ? wallNodeMarks() : null,
+        wallNodes: activeTool.value === "select" && wallNodes.hasSelection.value ? wallNodeMarks() : null,
         showLights: activeTool.value === "light" || activeTool.value === "select",
         selectedLightId: lightTool.selectedId.value,
+        selectedLightIds: activeTool.value === "select" ? [...selectTool.multiLights.value] : [],
+        selectedProps: activeTool.value === "select" ? selectTool.propOutlines() : [],
+        marquee: activeTool.value === "select" ? selectTool.marquee.value : null,
         lightGhost: activeTool.value === "light" && lightTool.hover.value
           ? { point: lightTool.hover.value, light: lightDraft.value }
           : null,
@@ -896,6 +957,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       bones: runs.map((r) => ({ id: r.id, a: r.a, b: r.b, path: r.path })),
       nodes: nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, smooth: n.smooth })),
       focusBone: focus?.kind === "bone" ? focus.runId : null,
+      focusNode: focus?.kind === "node" ? focus.id : null,
       hoverNode: wallNodes.hoverNode.value,
       draggedNode: wallNodes.draggedNode.value,
       snap: wallNodes.snap.value,
@@ -923,7 +985,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
       dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, gridAlpha,
-      shownLayers, wallNodes.selection, wallNodes.focus, wallNodes.hoverNode, wallNodes.snap, ...extraRenderDeps, ...planRenderDeps,
+      shownLayers, wallNodes.selection, wallNodes.focus, wallNodes.hoverNode, wallNodes.snap, selectTool.marquee, selectTool.multiProps, selectTool.multiLights, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
@@ -1081,43 +1143,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       return;
     }
 
-    // Select tool: a plain left click selects the cell; a drag pans,
-    // exactly like Pan — so a DM's first tap after opening the editor never
-    // paints, and one finger still moves the map on a phone. RMB/middle/
-    // Space already panned above regardless of tool, so only a genuine
-    // left-button press reaches this ambiguous "click or drag?" state; see
-    // toolPointerMove/toolPointerUp for how it resolves.
+    // Select, as Illustrator's Direct Selection: click picks one thing, Shift adds, Alt picks a whole wall, and a drag on
+    // empty ground draws a marquee. The map pans with Space, the Pan tool, the middle button and the wheel.
     if (activeTool.value === "select") {
-      // A prop under the pointer is picked up and dragged, as in Place: Select reaches everything placed on the map.
-      // Then a light, the same way.
-      if (ev.button === 0 && dressingTool.grabAt([cx, cy], fractionalCellAt(ev))) {
-        clearPicks("prop");
-        canvasEl.value?.setPointerCapture(ev.pointerId);
-        return;
-      }
-      if (ev.button === 0 && lightTool.grabAt(fractionalCellAt(ev))) {
-        clearPicks("light");
-        canvasEl.value?.setPointerCapture(ev.pointerId);
-        return;
-      }
-      // A picked wall run: a press on one of its nodes or bones drags it; a press anywhere else picks the run there,
-      // or puts the run down and falls through to the cell. With no run picked a press may still be the start of a pan,
-      // so a wall is picked on release, like a cell.
-      if (ev.button === 0 && wallNodes.selection.value.bones > 0) {
-        wallNodes.pointerDown(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
-        if (wallNodes.dragging.value) {
-          canvasEl.value?.setPointerCapture(ev.pointerId);
-          return;
-        }
-        if (wallNodes.selection.value.bones > 0) {
-          clearPicks("wall");
-          return;
-        }
-      }
-      // Anything else is a click on a wall or a cell (resolved on release), or the start of a pan.
-      selectedDressingId.value = null;
-      lightTool.selectedId.value = null;
-      pendingSelectStart = local;
+      if (ev.button !== 0) return;
+      selectTool.press(fractionalCellAt(ev), [cx, cy], { shift: ev.shiftKey, alt: ev.altKey });
       canvasEl.value?.setPointerCapture(ev.pointerId);
       return;
     }
@@ -1155,9 +1185,16 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (activeTool.value === "brush") {
       brushLast = null;
       brushVariant = pickFloorVariant(cx, cy);
-      brushBase = layers.value;
+      brushBase = toRaw(layers.value);
+      brushFootprint = new Path2D();
       brushDiscs = [];
       brushErase = ev.altKey;
+      brushMode = brushRegionMode.value;
+      brushTarget = groundEdit.selectedId.value;
+      brushWalls = brushWallMode.value;
+      brushGroundCategory = brushCategory.value;
+      brushName = `${packRuntime.value?.manifest.name ?? currentPackId.value} ${brushGroundCategory === "terrainWater" ? "water" : "ground"}`;
+      brushMaterial = { pack_id: currentPackId.value, pack_version: activePackVersion(), variant: brushVariant };
       for (const [px, py] of straight.brushPress(fractionalCellAt(ev), ev.shiftKey)) brushTo(px, py);
       return;
     }
@@ -1207,23 +1244,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (activeTool.value === "angledWall") angledTool.track(fractionalCellAt(ev), ev.altKey);
     if (activeTool.value === "light" || lightTool.isHolding()) lightTool.onPointerMove(fractionalCellAt(ev), ev.altKey);
     if (activeTool.value === "select" && !viewMode() && !isPanning.value && !isPlanLayerActive()) {
-      wallNodes.pointerMove(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
-      if (wallNodes.dragging.value) {
+      selectTool.move(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
+      if (wallNodes.dragging.value || selectTool.isHolding()) {
         lastPointer = local;
         return;
-      }
-    }
-
-    // Select tool: the press hasn't committed to click-or-drag yet.
-    // Once it travels past the slop it's a drag, so hand off to the ordinary
-    // pan path below — same threshold shape as the touch multiplexer's own
-    // TOUCH_SLOP_PX further down, just for the mouse/pen path that skips
-    // that multiplexer entirely.
-    if (pendingSelectStart) {
-      const moved = Math.hypot(local.x - pendingSelectStart.x, local.y - pendingSelectStart.y);
-      if (moved > SELECT_DRAG_SLOP_PX) {
-        pendingSelectStart = null;
-        isPanning.value = true;
       }
     }
 
@@ -1303,6 +1327,12 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // Also bound to `@pointerleave` (MapWorkbench's template) — clears the
     // Plan's hover state (door edge highlight, pen cursor tracking) either way.
     planTools?.onPointerLeave();
+    // Select: a group drag or a marquee ends first, so the wall controller's own release below sees a settled drag.
+    let selectClick: "cell" | null = null;
+    if (activeTool.value === "select" && selectTool.isHolding()) {
+      selectClick = selectTool.release(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
+      canvasEl.value?.releasePointerCapture(ev.pointerId);
+    }
     if (dressingTool.isHolding()) {
       dressingTool.onPointerUp();
       canvasEl.value?.releasePointerCapture(ev.pointerId);
@@ -1313,6 +1343,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
     if (wallNodes.dragging.value) {
       wallNodes.pointerUp();
+      selectTool.normalize();
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
     if (isPanning.value) {
@@ -1345,6 +1376,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         dragStartCell = null;
         previewCells.value = new Set();
       } else if (strokeSnapshot !== null) {
+        if (tool === "brush" && brushBase) commitBrush();
         // Stroke-based tools: push one undo command for the whole stroke.
         const after = snapshotStr();
         if (strokeSnapshot !== after) pushCommand(strokeSnapshot, after);
@@ -1353,8 +1385,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       // Where this stroke ended is where the next Shift+click joins on.
       if (tool === "brush") {
         straight.brushEnded(brushLast);
-        brushBase = null;
-        brushDiscs = [];
+        clearBrush();
       }
       else if (isCellPainter(tool)) straight.cellEnded();
       else if (tool === "wall") straight.wallEnded(fractionalCellAt(ev));
@@ -1363,19 +1394,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       isPainting.value = false;
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
-    if (pendingSelectStart) {
-      // Never travelled past the slop in toolPointerMove — a genuine click,
-      // not a drag. Select the cell under the release point.
-      const local = getLocalPointer(ev);
-      const [cx, cy] = viewportToCell(local.x, local.y);
-      // A click on a wall picks its whole run, nodes and all (so Delete can take it away); otherwise it picks the cell.
-      if (wallNodes.select(fractionalCellAt(ev))) {
-        clearPicks("wall");
-      } else {
-        selectedCell.value = [cx, cy];
-      }
-      pendingSelectStart = null;
-      canvasEl.value?.releasePointerCapture(ev.pointerId);
+    if (selectClick === "cell") {
+      const [cx, cy] = viewportToCell(getLocalPointer(ev).x, getLocalPointer(ev).y);
+      selectedCell.value = [cx, cy];
     }
     lastPointer = null;
   }
@@ -1426,6 +1447,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   }
 
   function abandonToolGesture(): void {
+    clearBrush();
     if (pendingTouch) {
       clearTimeout(pendingTouch.timer);
       pendingTouch = null;
@@ -1447,10 +1469,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     }
     dressingTool.cancelGesture();
     lightTool.cancelGesture();
+    selectTool.cancelGesture();
     if (wallNodes.dragging.value) wallNodes.cancel();
     syncBusy();
     isPanning.value = false;
-    pendingSelectStart = null;
     lastPointer = null;
   }
 
@@ -1536,7 +1558,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (isPlanLayerActive()) planTools!.onDoubleClick(ev);
     else if (activeTool.value === "angledWall") angledTool.finish();
     // Double-click a picked wall: a node there (#1125 frame 17).
-    else if (activeTool.value === "select" && !viewMode() && wallNodes.selection.value.bones > 0) {
+    else if (activeTool.value === "select" && !viewMode() && wallNodes.hasSelection.value) {
       wallNodes.doubleClick(fractionalCellAt(ev));
     }
   }
@@ -1564,6 +1586,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         altKey: ev.altKey,
         shiftKey: ev.shiftKey,
         targetIsTextEntry,
+        repeat: ev.repeat,
       },
       {
         activeTool: activeTool.value,
@@ -1574,15 +1597,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         placeArmed: placeItem.value !== null,
         angledRunOpen: angledTool.run.value.length > 0,
         selectionDeletable:
-          wallNodes.selection.value.bones > 0
+          wallNodes.hasSelection.value
           || angledTool.selectedId.value !== null
           || lightTool.selectedId.value !== null
+          || selectTool.isMixed.value
           || (activeTool.value === "select" && selectedDressingId.value !== null),
         selectedPropInSelect: activeTool.value === "select" && selectedDressingId.value !== null,
         selectionPresent:
           selectedDressingId.value !== null
           || lightTool.selectedId.value !== null
-          || wallNodes.selection.value.bones > 0
+          || wallNodes.hasSelection.value
+          || selectTool.multiProps.value.size > 0
+          || selectTool.multiLights.value.size > 0
           || angledTool.selectedId.value !== null
           || selectedCell.value !== null,
       },
@@ -1601,10 +1627,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "rotatePlace": dressingTool.turn(action.delta); break;
       case "clearSelection":
         // Esc lets go of a drag first, and only then of what is picked.
-        if (wallNodes.dragging.value) {
-          wallNodes.cancel();
+        if (wallNodes.dragging.value || selectTool.isHolding()) {
+          selectTool.cancelGesture();
+          if (wallNodes.dragging.value) wallNodes.cancel();
           syncBusy();
-        } else clearPicks(null);
+        } else selectTool.clear();
         break;
       case "selectZoningTool": {
         const tool = PLAN_TOOLS.find((t) => t.id === action.tool);
@@ -1616,10 +1643,14 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "finishAngledWall": angledTool.finish(); break;
       case "abandonAngledWall": angledTool.abandon(); break;
       case "deleteSelected":
+        if (activeTool.value === "select" && selectTool.deleteAll()) break;
         if (activeTool.value === "select" && wallNodes.deleteSelection()) break;
         if (angledTool.deleteSelected()) break;
         if (activeTool.value === "select" && selectedDressingId.value !== null) dressingTool.deleteSelected();
         else lightTool.deleteSelected();
+        break;
+      case "toggleBrushWalls":
+        brushWallMode.value = brushWallMode.value === "none" ? "visible" : "none";
         break;
       case "resizeBrush":
         brushRadius.value = clampBrushRadius(brushRadius.value + action.delta);
@@ -1655,6 +1686,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   });
 
   onBeforeUnmount(() => {
+    clearTimeout(brushPause);
     if (pendingTouch) clearTimeout(pendingTouch.timer);
     window.removeEventListener("resize", onResize);
     window.removeEventListener("keydown", onKeyDown);
@@ -1702,9 +1734,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     onDoubleClick,
     onWheel: navigation.onWheel,
     /** The picked wall run's counts for the slip (null when none), and what Delete does to it. */
+    selectedGroundRegion,
+    selectedGroundRegionId: groundEdit.selectedId,
+    setGroundWallMode: groundEdit.setWallMode,
+    renameGroundRegion: groundEdit.rename,
+    selectedWallVisible,
+    setSelectedWallVisible,
+    deleteGroundRegion: groundEdit.remove,
     selectedWallRun,
     wallRefusal: wallNodes.refusal,
-    deleteSelectedWall: () => { wallNodes.deleteSelection(); },
+    deleteSelectedWall: () => { if (!selectTool.deleteAll()) wallNodes.deleteSelection(); },
+    /** The Select tool, for tests. */
+    selectTool,
     /** The canvas's CSS size and pixel ratio, for the motion layers that share its box. */
     canvasBox,
     /** Edits arrive faster than a snapshot should be rebuilt: true while a drag or a held stroke is under way. */

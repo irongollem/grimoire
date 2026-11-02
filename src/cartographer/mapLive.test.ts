@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { putWall } from "./testWalls";
+import { convertCellGround, groundLoops, paintGroundCells } from "./groundRegions";
+import type { MapLiveSource } from "./mapLive";
 import { buildMapLive } from "./mapLive";
 import { cellKey, emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MotionOverlay } from "@/types/mapLive.types";
@@ -12,8 +14,9 @@ const FOAM: MotionOverlay = { url: "https://cdn/foam.webp", cells: 4, drift: [0.
 const GLINT: MotionOverlay = { url: "https://cdn/glint.webp", cells: 2, drift: [0, 0], alpha: 0.4, breathe: { amount: 0.3, speed: 2, phase: 0 } };
 const ref = (pack_id: string) => ({ pack_id, pack_version: 1, variant: 0 });
 
-function mapWith(layers: DungeonMap["layers"]): DungeonMap {
-  return { id: "m", layers } as unknown as DungeonMap;
+function mapWith(layers: DungeonMap["layers"]): MapLiveSource {
+  let serial = 0;
+  return { layers: Object.keys(layers.ground).length > 0 ? layers : convertCellGround(layers, () => `region-${serial++}`), darkness: "daylight" };
 }
 
 function runtimes(entries: [string, TilePackRuntime][]): Map<string, TilePackRuntime> {
@@ -43,9 +46,22 @@ describe("buildMapLive", () => {
       2,
     );
     const sea = live.groups.find((g) => g.cells.includes("1,1"));
-    expect(sea).toEqual({ kind: "water", cells: ["1,1", "2,1"], overlays: [FOAM] });
+    expect(sea).toMatchObject({ kind: "water", cells: ["1,1", "2,1"], overlays: [FOAM], clip: { outline: expect.any(Array) } });
     // Water without motion still makes a group: later stories read its cells.
-    expect(live.groups.find((g) => g.cells.includes("1,2"))).toEqual({ kind: "water", cells: ["1,2"], overlays: [] });
+    expect(live.groups.find((g) => g.cells.includes("1,2"))).toMatchObject({ kind: "water", cells: ["1,2"], overlays: [], clip: { outline: expect.any(Array) } });
+  });
+
+  it("carries exact vector water curves and higher-region occlusion in image-cell coordinates", () => {
+    const water = paintGroundCells(emptyLayers(), new Set(["4,5", "5,5"]), ref("sea"), "terrainWater");
+    const land = paintGroundCells(water, new Set(["5,5"]), ref("sand"));
+    land.solidBlock["4,5"] = ref("rock");
+    const live = buildMapLive(mapWith(land), runtimes([]), NO_DRESSING, 3, 4);
+    const [sea] = live.groups;
+    expect(sea.clip?.outline).toEqual(groundLoops(Object.values(water.ground)[0]).map((loop) => loop.map(([x, y]) => [x - 3, y - 4])));
+    expect(sea.clip?.occluded).toHaveLength(2);
+    expect(sea.clip?.occluded[0]).toEqual(groundLoops(Object.values(land.ground).at(-1)!).map((loop) => loop.map(([x, y]) => [x - 3, y - 4])));
+    expect(sea.clip?.occluded[1]).toEqual([[[1, 1], [2, 1], [2, 2], [1, 2]]]);
+    expect(live.walls).toEqual([]);
   });
 
   it("makes an outer group only for a pack whose solidBlock has overlays", () => {

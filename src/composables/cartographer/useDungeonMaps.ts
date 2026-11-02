@@ -38,7 +38,7 @@ function readDungeonMap(row: DungeonMap): DungeonMap {
  * owner's row is written (a DM or admin reading someone else's map converts in memory only).
  */
 async function convertStoredArea(row: DungeonMap): Promise<DungeonMap> {
-  if (!hasBrushedArea(row.layers as LayersWithArea)) return row;
+  if (!hasBrushedArea(row.layers as LayersWithArea) && row.layers.ground !== undefined) return row;
   const converted = readDungeonMap(row);
   if (row.user_id !== getCurrentUser()?.id) return converted;
   const { data, error } = await supabase

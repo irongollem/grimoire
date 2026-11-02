@@ -14,6 +14,7 @@
 // run against that stub. See src/lib/locations/planCanvas.test.ts for the
 // sibling "record what a fake 2D context was asked to draw" approach; this
 // file doesn't need that because renderMap itself is swapped out.
+import { paintGroundCells } from "@/cartographer/groundRegions";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { computed, defineComponent, h, nextTick, ref, type ComputedRef, type Ref } from "vue";
 import { enableAutoUnmount, mount } from "@vue/test-utils";
@@ -35,6 +36,7 @@ import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMa
 import { pickVariant } from "@/cartographer/tileVariants";
 import { putWall } from "@/cartographer/testWalls";
 import { deriveSpaces } from "@/cartographer/structure";
+import { applyBrushStroke } from "@/cartographer/groundRegions";
 import { brushDisc } from "@/test/brushDisc";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 
@@ -44,6 +46,10 @@ vi.mock("@/cartographer/renderMap", async (importOriginal) => {
 });
 
 const mockedRenderMap = vi.mocked(renderMap);
+vi.mock("@/cartographer/groundRegions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/cartographer/groundRegions")>();
+  return { ...actual, applyBrushStroke: vi.fn(actual.applyBrushStroke) };
+});
 
 // The Plan layer's own pointer dispatch (#884 review finding 2 — see the
 // "Plan layer" describe block below). Mocked wholesale: this file exercises
@@ -116,6 +122,7 @@ function fakePlan(): ReturnType<typeof usePlanPalette> {
 // scheduled render happens immediately — happy-dom's own rAF is
 // Immediate-based and would need real event-loop ticks to observe.
 beforeEach(() => {
+  vi.stubGlobal("Path2D", class { moveTo = vi.fn(); arc = vi.fn(); });
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback): number => {
     cb(0);
     return 0;
@@ -486,6 +493,150 @@ describe("stroke painting", () => {
 });
 
 describe("round brush", () => {
+  it("moving a brush only appends new footprint discs and leaves layers and undo untouched until release", async () => {
+    // Maintainer's brush performance brief: pointer moves must be O(new discs), never fit walls.
+    const { editor, layers, activeTool, dirty } = makeHarness();
+    activeTool.value = "brush";
+    const base = layers.value;
+    vi.mocked(applyBrushStroke).mockClear();
+    editor.onPointerDown(down(64, 64));
+    await nextTick();
+    const path = mockedRenderMap.mock.calls.at(-1)![0].editorMarks!.brushStroke!.path;
+    expect(vi.mocked(path.arc)).toHaveBeenCalledTimes(1);
+    editor.onPointerMove(move(128, 64));
+    expect(vi.mocked(path.arc)).toHaveBeenCalledTimes(2);
+    editor.onPointerMove(move(192, 64));
+    expect(vi.mocked(path.arc)).toHaveBeenCalledTimes(3);
+    expect(applyBrushStroke).not.toHaveBeenCalled();
+    expect(layers.value).toBe(base);
+    expect(dirty.value).toBe(false);
+    expect(editor.canUndo.value).toBe(false);
+    editor.onPointerUp(up(192, 64));
+    expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+    expect(layers.value.floor["1,0" as CellKey]?.floor).toBeDefined();
+    editor.undoEdit();
+    expect(Object.keys(layers.value.floor)).toHaveLength(0);
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("a 150 ms pause fits uncommitted walls once and release reuses that result", async () => {
+    // Maintainer's brush performance brief: a pause previews the true outline without committing.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { editor, layers, activeTool, dirty } = makeHarness();
+      activeTool.value = "brush";
+      vi.mocked(applyBrushStroke).mockClear();
+      editor.onPointerDown(down(64, 64, { altKey: false }));
+      vi.advanceTimersByTime(149);
+      expect(applyBrushStroke).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      await nextTick();
+      expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+      const preview = mockedRenderMap.mock.calls.at(-1)![0];
+      expect(Object.keys(preview.layers.ground).length).toBeGreaterThan(0);
+      expect(Object.keys(preview.layers.walls)).toHaveLength(0);
+      expect(preview.editorMarks!.brushStroke).toBeNull();
+      expect(Object.keys(layers.value.walls)).toHaveLength(0);
+      expect(dirty.value).toBe(false);
+      expect(editor.canUndo.value).toBe(false);
+      editor.onPointerUp(up(64, 64));
+      expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+      expect(layers.value).toEqual(preview.layers);
+      vi.advanceTimersByTime(500);
+      expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("continuous movement resets the pause instead of fitting an obsolete partial stroke", () => {
+    // Maintainer's brush performance brief: fit only after 150 ms without new discs.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { editor, activeTool } = makeHarness();
+      activeTool.value = "brush";
+      vi.mocked(applyBrushStroke).mockClear();
+      editor.onPointerDown(down(64, 64));
+      vi.advanceTimersByTime(100);
+      editor.onPointerMove(move(128, 64));
+      vi.advanceTimersByTime(50);
+      expect(applyBrushStroke).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(100);
+      expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+      editor.onPointerUp(up(128, 64));
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("moving after a pause drops the old wall preview and Alt keeps the carve footprint tone", async () => {
+    // Maintainer's brush performance brief: resumed movement returns to the cheap footprint.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { editor, activeTool } = makeHarness();
+      activeTool.value = "brush";
+      vi.mocked(applyBrushStroke).mockClear();
+      editor.onPointerDown(down(64, 64, { altKey: true }));
+      vi.advanceTimersByTime(150);
+      expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+      editor.onPointerMove(move(128, 64));
+      await nextTick();
+      expect(mockedRenderMap.mock.calls.at(-1)![0].editorMarks!.brushStroke?.erase).toBe(true);
+      expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(149);
+      expect(applyBrushStroke).toHaveBeenCalledTimes(1);
+      editor.onPointerUp(up(128, 64));
+      expect(applyBrushStroke).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime(1);
+      expect(applyBrushStroke).toHaveBeenCalledTimes(2);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("leaving the brush before its pause cannot resurrect an abandoned preview", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { editor, activeTool, layers } = makeHarness();
+      activeTool.value = "brush";
+      editor.onPointerDown(down(64, 64));
+      await nextTick();
+      vi.mocked(applyBrushStroke).mockClear();
+      activeTool.value = "floor";
+      await nextTick();
+      vi.advanceTimersByTime(150);
+      expect(applyBrushStroke).not.toHaveBeenCalled();
+      expect(Object.keys(layers.value.floor)).toHaveLength(0);
+      expect(mockedRenderMap.mock.calls.at(-1)![0].editorMarks!.brushStroke).toBeNull();
+      editor.onPointerUp(up(64, 64));
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("unmount cancels a pending brush fit before it can render into a detached canvas", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let captured!: Harness;
+      const wrapper = mount(defineComponent({ setup() { captured = makeHarness(); return () => h("div"); } }));
+      captured.activeTool.value = "brush";
+      captured.editor.onPointerDown(down(64, 64));
+      vi.mocked(applyBrushStroke).mockClear();
+      wrapper.unmount();
+      vi.advanceTimersByTime(150);
+      expect(applyBrushStroke).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("a second finger cancels both the brush footprint and its pending pause fit", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { editor, activeTool, layers } = makeHarness();
+      activeTool.value = "brush";
+      editor.onPointerDown(down(64, 64, { pointerType: "touch", pointerId: 1 }));
+      vi.advanceTimersByTime(90);
+      vi.mocked(applyBrushStroke).mockClear();
+      editor.onPointerDown(down(192, 64, { pointerType: "touch", pointerId: 2 }));
+      vi.advanceTimersByTime(150);
+      await nextTick();
+      expect(applyBrushStroke).not.toHaveBeenCalled();
+      expect(mockedRenderMap.mock.calls.at(-1)![0].editorMarks!.brushStroke).toBeNull();
+      expect(Object.keys(layers.value.floor)).toHaveLength(0);
+    } finally { vi.useRealTimers(); }
+  });
+
   it("paints discs along a drag, between the pointer samples, as ONE undo command", () => {
     const { editor, layers, activeTool } = makeHarness();
     activeTool.value = "brush";
@@ -497,7 +648,8 @@ describe("round brush", () => {
       expect(layers.value.floor[k]?.floor).toBeDefined();
     }
     // The stroke made a room with its own wall: angled walls, not coverage masks.
-    expect(Object.keys(layers.value.walls).length).toBeGreaterThan(0);
+    expect(Object.keys(layers.value.ground)).toHaveLength(1);
+    expect(Object.keys(layers.value.walls)).toHaveLength(0);
     expect("area" in layers.value).toBe(false);
 
     editor.undoEdit();
@@ -555,11 +707,12 @@ describe("round brush", () => {
     for (let y = 0; y < 3; y++) expect(layers.value.walls[`3,${y}:W`]?.type, `row ${y}`).toBe("wall");
   });
 
-  it("Alt carves floor out of a room and its wall follows the new edge", () => {
+  it("Alt cuts only the explicitly selected material shape", () => {
     const { editor, layers, activeTool } = makeHarness();
     activeTool.value = "brush";
     layers.value = brushDisc(emptyLayers(), { x: 4, y: 4, r: 3.4 }, PK);
     expect(layers.value.floor["4,1" as CellKey]?.floor).toBeDefined();
+    editor.selectedGroundRegionId.value = Object.keys(layers.value.ground)[0];
     stroke(editor, [4, 1.5], [4, 2], { altKey: true });
     expect(layers.value.floor["4,1" as CellKey]).toBeUndefined();
     expect(layers.value.floor["4,4" as CellKey]?.floor).toBeDefined();
@@ -855,12 +1008,13 @@ describe("centerMap", () => {
     expect(editor.viewportOffset.value).toEqual({ x: 0.5 * 128 - 400, y: 0.5 * 128 - 300 });
   });
 
-  it("centres the viewport on the bounding box of every painted floor cell", () => {
+  it("centres the viewport on the bounding box of every painted material region", () => {
     const { editor, layers, canvasEl } = makeHarness();
     canvasEl.value!.width = 800;
     canvasEl.value!.height = 600;
-    layers.value.floor["0,0" as CellKey] = { floor: { pack_id: "pack-1", pack_version: 3, variant: 0 } };
-    layers.value.floor["3,1" as CellKey] = { floor: { pack_id: "pack-1", pack_version: 3, variant: 0 } };
+    // Material regions are the floor's source now; the floor cells are only their projection.
+    const material = { pack_id: "pack-1", pack_version: 3, variant: 0 };
+    layers.value = paintGroundCells(layers.value, new Set(["0,0", "3,1"] as CellKey[]), material);
 
     editor.centerMap();
     // bbox x: [0,3] -> cx = (0+3+1)/2 = 2; bbox y: [0,1] -> cy = (0+1+1)/2 = 1.
@@ -918,12 +1072,14 @@ describe("what starts a pan", () => {
     expect(layers.value.floor["0,0" as CellKey]).toBeDefined();
   });
 
-  it("a Shift+click with Select armed selects the cell rather than panning", () => {
+  it("a Shift+click with Select armed neither pans nor selects the cell: Shift adds to a pick, and bare ground has none", () => {
     const selectedCell = ref<[number, number] | null>(null);
     const { editor } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
+    const before = { ...editor.viewportOffset.value };
     editor.onPointerDown(down(10, 10, { shiftKey: true }));
     editor.onPointerUp(up(10, 10, { shiftKey: true }));
-    expect(selectedCell.value).toEqual([0, 0]);
+    expect(selectedCell.value).toBeNull();
+    expect(editor.viewportOffset.value).toEqual(before);
   });
 
   it("the middle button pans with any tool, painting nothing", () => {
@@ -1250,15 +1406,18 @@ describe("select tool", () => {
     expect(editor.canUndo.value).toBe(false);
   });
 
-  it("a drag pans the viewport instead of selecting", () => {
+  it("a drag on empty ground draws a box instead of panning the map (the maintainer, 2 Nov 2026: box-select when V is active)", () => {
     const selectedCell = ref<[number, number] | null>(null);
     const { editor } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
     const before = { ...editor.viewportOffset.value };
     editor.onPointerDown(down(10, 10));
     editor.onPointerMove(move(60, 10)); // past the 4px slop
+    expect(editor.selectTool.marquee.value).not.toBeNull();
     editor.onPointerUp(up(60, 10));
-    expect(editor.viewportOffset.value).not.toEqual(before);
+    expect(editor.viewportOffset.value).toEqual(before);
+    expect(editor.isPanning.value).toBe(false);
     expect(selectedCell.value).toBeNull();
+    expect(editor.selectTool.marquee.value).toBeNull();
   });
 
   it("RMB still pans with Select armed, exactly as with any other tool", () => {
@@ -1272,7 +1431,7 @@ describe("select tool", () => {
     expect(selectedCell.value).toBeNull();
   });
 
-  it("one finger pans on touch — never paints and never selects mid-drag", () => {
+  it("one finger on touch with Select never paints while it draws its box", () => {
     const selectedCell = ref<[number, number] | null>(null);
     const { editor, layers } = makeHarness({ activeTool: ref<Tool>("select"), selectedCell });
     vi.useFakeTimers();
@@ -2506,13 +2665,92 @@ describe("Select on a wall run (#1125 frame 17)", () => {
   const snapshot = (layers: Ref<DungeonMapLayers>): unknown => JSON.parse(JSON.stringify({ walls: layers.value.walls, floor: layers.value.floor }));
   const dbl = (x: number, y: number): MouseEvent => new MouseEvent("dblclick", { clientX: x, clientY: y });
 
-  it("a click on one wall picks the whole room outline, and the slip counts its bones, nodes and doors", () => {
+  it("a click on one wall picks that one segment, not the whole room outline (Illustrator's Direct Selection)", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    clickCell(editor, px(2) + 64, px(4)); // the middle of the bottom wall
+    expect(editor.selectedWallRun.value).toEqual({ bones: 1, nodes: 2, doors: 0 });
+  });
+
+  it("Alt+click picks the whole connected wall, and the slip counts its segments, nodes and doors", () => {
     const { editor, layers } = mountWithKeys("select");
     room(layers);
     layers.value.walls["1,0:N"] = { ...PACK_REF, type: "doorClosed", a: [1, 0], b: [2, 0] };
-    clickCell(editor, px(2) + 64, px(4)); // the middle of the bottom wall
+    editor.onPointerDown(down(px(2) + 64, px(4), { altKey: true }));
+    editor.onPointerUp(up(px(2) + 64, px(4), { altKey: true }));
     // Four sides, four corners, and the one door sitting in the top side.
     expect(editor.selectedWallRun.value).toEqual({ bones: 4, nodes: 4, doors: 1 });
+  });
+
+  it("Shift+click adds a second wall to the pick, and Shift+click on it again takes it out", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    clickCell(editor, px(2) + 64, px(4));
+    editor.onPointerDown(down(px(2) + 64, px(0), { shiftKey: true }));
+    editor.onPointerUp(up(px(2) + 64, px(0), { shiftKey: true }));
+    expect(editor.selectedWallRun.value).toEqual({ bones: 2, nodes: 4, doors: 0 });
+    editor.onPointerDown(down(px(2) + 64, px(0), { shiftKey: true }));
+    editor.onPointerUp(up(px(2) + 64, px(0), { shiftKey: true }));
+    expect(editor.selectedWallRun.value).toEqual({ bones: 1, nodes: 2, doors: 0 });
+  });
+
+  it("a box on empty ground picks the corners, props and lights inside it, and Delete takes them all in one undo step", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    layers.value.dressing.camp = { prop_id: "camp", x: 1, y: 2, rotation: 0, z: 0 };
+    layers.value.lights.torch = { x: 1.5, y: 1.5, light: { color: "#ffb347", bright: 20, dim: 20 } };
+    const before = snapshot(layers);
+    editor.onPointerDown(down(px(-2), px(-2)));
+    editor.onPointerMove(move(px(2.2), px(5)));
+    expect(editor.selectTool.marquee.value).not.toBeNull();
+    editor.onPointerUp(up(px(2.2), px(5)));
+    // The west wall's two ends are inside, so it is picked whole; the east wall's are not.
+    expect(editor.wallNodes.selection.value.bones).toBe(1);
+    expect(editor.selectedWallRun.value).toMatchObject({ items: 3 });
+    key("Delete");
+    expect(layers.value.dressing.camp).toBeUndefined();
+    expect(layers.value.lights.torch).toBeUndefined();
+    expect(layers.value.walls["0,1:W"]).toBeUndefined();
+    editor.undoEdit();
+    expect(snapshot(layers)).toEqual(before);
+    expect(layers.value.dressing.camp).toBeDefined();
+    expect(layers.value.lights.torch).toBeDefined();
+    expect(editor.canUndo.value).toBe(false); // the whole selection was one step
+  });
+
+  it("dragging a picked piece moves the walls, the prop and the light together as one undo step", () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    layers.value.dressing.camp = { prop_id: "camp", x: 1, y: 2, rotation: 0, z: 0 };
+    layers.value.lights.torch = { x: 1.5, y: 1.5, light: { color: "#ffb347", bright: 20, dim: 20 } };
+    editor.onPointerDown(down(px(-2), px(-2)));
+    editor.onPointerMove(move(px(2.2), px(5)));
+    editor.onPointerUp(up(px(2.2), px(5)));
+    const before = snapshot(layers);
+    // Grab the picked west wall and pull it two squares right.
+    editor.onPointerDown(down(px(0), px(2)));
+    editor.onPointerMove(move(px(1), px(2)));
+    editor.onPointerMove(move(px(2), px(2)));
+    editor.onPointerUp(up(px(2), px(2)));
+    expect(layers.value.dressing.camp.x).toBe(3);
+    expect(layers.value.lights.torch.x).toBe(3.5);
+    expect(Object.values(layers.value.walls).some((w) => w.a[0] === 2 && w.b[0] === 2 && w.a[1] !== w.b[1])).toBe(true);
+    editor.undoEdit();
+    expect(snapshot(layers)).toEqual(before);
+    expect(layers.value.dressing.camp.x).toBe(1);
+    expect(layers.value.lights.torch.x).toBe(1.5);
+  });
+
+  it("Space+drag still pans with Select, and does not draw a box", () => {
+    const { editor } = mountWithKeys("select");
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+    const before = { ...editor.viewportOffset.value };
+    editor.onPointerDown(down(10, 10));
+    editor.onPointerMove(move(60, 10));
+    editor.onPointerUp(up(60, 10));
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+    expect(editor.viewportOffset.value).not.toEqual(before);
+    expect(editor.selectTool.marquee.value).toBeNull();
   });
 
   it("dragging a corner is one undo step, and undo puts the walls and the floor back", () => {
@@ -2530,6 +2768,24 @@ describe("Select on a wall run (#1125 frame 17)", () => {
     editor.undoEdit();
     expect(snapshot(layers)).toEqual(before);
     expect(editor.canUndo.value).toBe(false); // exactly one step
+  });
+
+  it("passes the focused node to the overlay after release and hover departure, including after moving it", async () => {
+    const { editor, layers } = mountWithKeys("select");
+    room(layers);
+    clickCell(editor, px(2) + 64, px(4));
+    clickCell(editor, px(4), px(4));
+    editor.onPointerMove(move(px(2), px(2)));
+    await nextTick();
+    const marks = () => mockedRenderMap.mock.calls.at(-1)![0].editorMarks!.wallNodes;
+    expect(marks()).toMatchObject({ focusNode: "4,4", focusBone: null, hoverNode: null, draggedNode: null });
+
+    editor.onPointerDown(down(px(4), px(4)));
+    editor.onPointerMove(move(px(6), px(4)));
+    editor.onPointerUp(up(px(6), px(4)));
+    editor.onPointerMove(move(px(2), px(2)));
+    await nextTick();
+    expect(marks()).toMatchObject({ focusNode: "6,4", hoverNode: null, draggedNode: null });
   });
 
   it("Esc lets go of a drag and leaves the walls alone", () => {

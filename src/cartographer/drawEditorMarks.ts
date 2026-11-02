@@ -1,5 +1,5 @@
-// What the editor draws over the map for the Angled wall and Light tools (#1125 story 5): the run being drawn, the
-// selected wall, and the placed lights with their reach. Overlay only, never part of a bake. Plain values in, so it
+// What the editor draws over the map (#1125): the brush footprint, the run being drawn, the selected wall,
+// and the placed lights with their reach. Overlay only, never part of a bake. Plain values in, so it
 // must not import "vue".
 
 import { FEET_PER_CELL, type TileLight } from "@/cartographer/packSchema";
@@ -10,6 +10,8 @@ import { lineOfWall } from "@/cartographer/wallGeometry";
 import { paintWallNodes, type WallNodeMarks } from "@/cartographer/drawWallNodes";
 
 export interface EditorMarks {
+  /** Append-only disc path in cells; the real wall fit waits until the pointer pauses. */
+  brushStroke?: { path: Path2D; erase: boolean } | null;
   /** The Angled wall run in progress and the snapped point the next click would add. */
   wallRun?: { points: CellPoint[]; hover: CellPoint | null } | null;
   selectedWallId?: string | null;
@@ -18,11 +20,18 @@ export interface EditorMarks {
   /** The Light tool is active: every placed light is marked with its reach. */
   showLights?: boolean;
   selectedLightId?: string | null;
+  /** Lights picked together with other pieces (a lone one is `selectedLightId`). */
+  selectedLightIds?: readonly string[];
+  /** Outlines, in cells, of the props picked together with other pieces (a lone one gets the renderer's own outline). */
+  selectedProps?: readonly (readonly { x: number; y: number }[])[];
+  /** The Select marquee being dragged, in cells. */
+  marquee?: { x0: number; y0: number; x1: number; y1: number } | null;
   /** Where the next light would go, with what it is made of. */
   lightGhost?: { point: CellPoint; light: TileLight } | null;
 }
 
 const ACCENT = "rgba(80,180,255,0.9)";
+const NO_OUTLINES: readonly (readonly { x: number; y: number }[])[] = [];
 
 function reachRings(ctx: Ctx2D, cx: number, cy: number, light: TileLight, tilePx: number, dashed: boolean): void {
   ctx.save();
@@ -60,6 +69,16 @@ export function paintEditorMarks(
 ): void {
   const px = (v: number): number => v * tilePx - viewportOffset.x;
   const py = (v: number): number => v * tilePx - viewportOffset.y;
+
+  if (marks.brushStroke) {
+    ctx.save();
+    ctx.translate(-viewportOffset.x, -viewportOffset.y);
+    ctx.scale(tilePx, tilePx);
+    ctx.fillStyle = marks.brushStroke.erase ? "rgba(220,100,80,0.35)" : "rgba(100,190,160,0.35)";
+    // Fill the whole path once: stroking it exposes every overlapping disc.
+    ctx.fill(marks.brushStroke.path);
+    ctx.restore();
+  }
 
   const selectedLine = marks.selectedWallId && layers.walls[marks.selectedWallId] ? lineOfWall(layers.walls, marks.selectedWallId) : [];
   if (selectedLine.length > 1) {
@@ -104,9 +123,20 @@ export function paintEditorMarks(
     ctx.restore();
   }
 
+  for (const outline of marks.selectedProps ?? NO_OUTLINES) {
+    ctx.save();
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    outline.forEach((c, i) => (i === 0 ? ctx.moveTo(px(c.x), py(c.y)) : ctx.lineTo(px(c.x), py(c.y))));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
   if (marks.showLights) {
     for (const [id, placed] of Object.entries(layers.lights)) {
-      const selected = id === marks.selectedLightId;
+      const selected = id === marks.selectedLightId || (marks.selectedLightIds !== undefined && marks.selectedLightIds.includes(id));
       reachRings(ctx, px(placed.x), py(placed.y), placed.light, tilePx, !selected);
       lightDot(ctx, px(placed.x), py(placed.y), placed.light, tilePx, selected);
     }
@@ -114,5 +144,21 @@ export function paintEditorMarks(
       const { point, light } = marks.lightGhost;
       reachRings(ctx, px(point[0]), py(point[1]), light, tilePx, true);
     }
+  }
+
+  const box = marks.marquee;
+  if (box) {
+    ctx.save();
+    const x = px(Math.min(box.x0, box.x1));
+    const y = py(Math.min(box.y0, box.y1));
+    const w = Math.abs(box.x1 - box.x0) * tilePx;
+    const h = Math.abs(box.y1 - box.y0) * tilePx;
+    ctx.fillStyle = "rgba(80,180,255,0.12)";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
   }
 }

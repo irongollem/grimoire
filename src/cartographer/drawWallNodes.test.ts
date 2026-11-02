@@ -6,24 +6,31 @@ interface Call {
   op: string;
   args: number[];
   stroke: string;
+  fill: string;
+  width: number;
 }
 
 function recorder(): { ctx: Ctx2D; calls: Call[] } {
   const calls: Call[] = [];
-  const state = { strokeStyle: "", fillStyle: "", lineWidth: 0, lineCap: "" };
-  const rec = (op: string) => (...args: number[]) => calls.push({ op, args, stroke: state.strokeStyle });
-  const ctx = Object.assign(state, {
+  const state: Pick<CanvasRenderingContext2D, "strokeStyle" | "fillStyle" | "lineWidth" | "lineCap"> = {
+    strokeStyle: "", fillStyle: "", lineWidth: 0, lineCap: "round",
+  };
+  const ctx: Partial<CanvasRenderingContext2D> = state;
+  const rec = (op: string) => (...args: number[]) => {
+    calls.push({ op, args, stroke: String(state.strokeStyle), fill: String(state.fillStyle), width: state.lineWidth });
+  };
+  Object.assign(ctx, {
     save: () => {},
     restore: () => {},
     beginPath: () => {},
     closePath: () => {},
-    fill: () => {},
+    fill: rec("fill"),
     moveTo: rec("moveTo"),
     lineTo: rec("lineTo"),
     arc: rec("arc"),
     stroke: rec("stroke"),
   });
-  return { ctx: ctx as unknown as Ctx2D, calls };
+  return { ctx: ctx as CanvasRenderingContext2D, calls };
 }
 
 const marks: WallNodeMarks = {
@@ -47,6 +54,26 @@ describe("paintWallNodes", () => {
     paintWallNodes(ctx, { ...marks, draggedNode: "4,0" }, 50, { x: 0, y: 0 });
     const radii = calls.filter((c) => c.op === "arc").map((c) => c.args[2]);
     expect(radii[1]).toBeGreaterThan(radii[0]);
+  });
+
+  it.each([true, false])("keeps a focused node yellow and larger after hover leaves (smooth: %s)", (smooth) => {
+    const idle = recorder();
+    const focused = recorder();
+    const hovered = recorder();
+    const nodes = marks.nodes.map((n) => ({ ...n, smooth }));
+    paintWallNodes(idle.ctx, { ...marks, nodes }, 50, { x: 0, y: 0 });
+    paintWallNodes(focused.ctx, { ...marks, nodes, focusNode: "4,0" }, 50, { x: 0, y: 0 });
+    paintWallNodes(hovered.ctx, { ...marks, nodes, hoverNode: "4,0" }, 50, { x: 0, y: 0 });
+    const fills = (calls: Call[]) => calls.filter((c) => c.op === "fill");
+    expect(fills(focused.calls)[0]).toEqual(fills(idle.calls)[0]);
+    expect(fills(focused.calls)[1]).toMatchObject({ fill: "rgba(255,220,100,0.95)", stroke: "rgba(20,16,12,0.9)", width: 3 });
+    expect(fills(focused.calls)[1].fill).not.toBe(fills(hovered.calls)[1].fill);
+    // The shape remains round or square; both gain size while focused.
+    const size = (calls: Call[]) => smooth
+      ? calls.filter((c) => c.op === "arc")[1].args[2]
+      : Math.abs(calls.filter((c) => c.op === "moveTo").at(-1)!.args[0] - 200);
+    expect(size(focused.calls)).toBeGreaterThan(size(idle.calls));
+    expect(focused.calls.filter((c) => c.op === "arc")).toHaveLength(smooth ? 2 : 0);
   });
 
   it("rings a node it would join differently from a plain grid landing", () => {

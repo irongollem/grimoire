@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lightReachCells, lightRgba, lightStops } from "./lights";
+import { FIRE_FLICKER, isFireColor, lightMotion, lightReachCells, lightRgba, lightStops } from "./lights";
 import { DEFAULT_LIGHT_INTENSITY } from "@/cartographer/packSchema";
 
 describe("lightRgba", () => {
@@ -49,5 +49,29 @@ describe("lightStops", () => {
 
   it("uses the default intensity when none is given", () => {
     expect(lightStops({ color: "#00ff00", bright: 20, dim: 20 })[0][1]).toBe(`rgba(0,255,0,${DEFAULT_LIGHT_INTENSITY})`);
+  });
+});
+
+describe("what counts as a fire", () => {
+  // The pack and prop colours the maintainer's fires use: torch, campfire, brazier, candle, hearth coals.
+  it.each(["#ffb347", "#ff8030", "#ff7a1a", "#ffd080", "#ff5a1f"])("%s is a flame's colour", (hex) => {
+    expect(isFireColor(hex)).toBe(true);
+  });
+
+  // Cool or pale lights must not flicker as if burning: moonlight, a lit crystal, glowing moss, a plain lantern's white.
+  it.each(["#88aaff", "#30ff80", "#ffffff", "#c8c8d8", "#ff30c0", "#331100", "#ffe4d0"])("%s is not", (hex) => {
+    expect(isFireColor(hex)).toBe(false);
+  });
+});
+
+describe("lightMotion", () => {
+  it("lets a light that declares its own flicker or pulse keep it, fire-coloured or not", () => {
+    expect(lightMotion({ color: "#88aaff", flicker: 0.4 })).toEqual({ flicker: 0.4 });
+    expect(lightMotion({ color: "#ff8030", pulse: 0.2 })).toEqual({ pulse: 0.2 });
+  });
+
+  it("flickers a fire-coloured light that declares nothing, and leaves a cool one steady", () => {
+    expect(lightMotion({ color: "#ff8030" })).toEqual({ flicker: FIRE_FLICKER });
+    expect(lightMotion({ color: "#88aaff" })).toBeNull();
   });
 });

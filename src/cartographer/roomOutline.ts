@@ -282,7 +282,7 @@ function enclosedVoidsJoinRooms(pieces: Seg[]): Seg[] {
   });
 }
 
-export function findFaces(layers: DungeonMapLayers): FoundFace[] {
+export function findFaces(layers: DungeonMapLayers, opts: { simplify?: boolean } = {}): FoundFace[] {
   const pieces = enclosedVoidsJoinRooms(weld(collectSegments(layers)));
   const walls: Record<string, WallEdge> = {};
   pieces.forEach((s, i) => {
@@ -304,7 +304,7 @@ export function findFaces(layers: DungeonMapLayers): FoundFace[] {
   const out: FoundFace[] = [];
   faces.forEach((face, i) => {
     if (cellsOf[i].length === 0) return;
-    out.push({ cells: cellsOf[i], outline: simplifyLoop(face.polygon) });
+    out.push({ cells: cellsOf[i], outline: opts.simplify === false ? face.polygon : simplifyLoop(face.polygon) });
   });
   return out;
 }

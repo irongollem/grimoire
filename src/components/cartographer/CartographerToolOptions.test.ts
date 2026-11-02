@@ -58,6 +58,49 @@ describe("rectangle walls option", () => {
   });
 });
 
+describe("material shape options", () => {
+  const oasis = { id: "oasis", name: "Water oasis", walls: { mode: "none" } };
+
+  it("shows the selected shape instead of the cell summary and forwards wall edits and deletion", async () => {
+    const wrapper = mountOptions({ activeTool: "select", selectedGroundRegion: oasis });
+    expect((wrapper.get('input[aria-label="Shape name"]').element as HTMLInputElement).value).toBe("Water oasis");
+    expect(wrapper.text()).not.toContain("Click a cell");
+    await button(wrapper, "Hidden").trigger("click");
+    expect(wrapper.emitted("update:groundWallMode")?.[0]).toEqual(["hidden"]);
+    await button(wrapper, "Delete shape").trigger("click");
+    expect(wrapper.emitted("deleteGroundRegion")).toHaveLength(1);
+    await wrapper.get('input[aria-label="Shape name"]').setValue("Moonwell");
+    expect(wrapper.emitted("update:groundName")?.at(-1)).toEqual(["Moonwell"]);
+  });
+
+  it("forwards brush mode and wall settings while naming the selected extension target", async () => {
+    const wrapper = mountOptions({ activeTool: "brush", selectedGroundRegion: oasis, brushRegionMode: "extend", brushWallMode: "none" });
+    expect(wrapper.text()).toContain("Extending: Water oasis");
+    await button(wrapper, "New shape").trigger("click");
+    expect(wrapper.emitted("update:brushRegionMode")?.[0]).toEqual(["new"]);
+    await button(wrapper, "Visible").trigger("click");
+    expect(wrapper.emitted("update:brushWallMode")?.[0]).toEqual(["visible"]);
+  });
+});
+
+describe("physical wall visibility", () => {
+  it.each(["wall", "angledWall"])("exposes visible and hidden creation for %s", async (activeTool) => {
+    const wrapper = mountOptions({ activeTool, wallVisible: true });
+    expect(button(wrapper, "Visible").attributes("aria-pressed")).toBe("true");
+    await button(wrapper, "Hidden").trigger("click");
+    expect(wrapper.emitted("update:wallVisible")?.[0]).toEqual([false]);
+  });
+
+  it("changes the selected physical wall visibility without reselecting a tool or deleting it", async () => {
+    const wrapper = mountOptions({ activeTool: "select", wallRun: { bones: 3, nodes: 4, doors: 0 }, selectedWallVisible: false });
+    expect(button(wrapper, "Hidden").attributes("aria-pressed")).toBe("true");
+    await button(wrapper, "Visible").trigger("click");
+    expect(wrapper.emitted("update:selectedWallVisible")?.[0]).toEqual([true]);
+    expect(wrapper.emitted("update:activeTool")).toBeUndefined();
+    expect(wrapper.emitted("deleteWallRun")).toBeUndefined();
+  });
+});
+
 describe("Shift captions", () => {
   it.each([
     ["wall", "Shift+click runs a straight wall"],
@@ -306,7 +349,7 @@ describe("Select shows what it picked", () => {
 
   it("a picked wall run shows its counts and Delete", async () => {
     const wrapper = mountOptions({ ...select, wallRun: { bones: 4, nodes: 4, doors: 1 } });
-    expect(wrapper.text()).toContain("Wall run · 4 bones · 4 nodes · 1 door");
+    expect(wrapper.text()).toContain("Wall · 4 segments · 1 door");
     await button(wrapper, "Delete").trigger("click");
     expect(wrapper.emitted("deleteWallRun")).toHaveLength(1);
   });

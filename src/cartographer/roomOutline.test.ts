@@ -7,11 +7,12 @@ import { findFaces, simplifyLoop } from "./roomOutline";
 import { deriveSpaces } from "./structure";
 import { putWall } from "./testWalls";
 import { wallAt } from "./wallGraph";
+import { applyBrushStroke } from "./groundRegions";
 
 const PACK: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
 
 function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} };
+  return { ground: {}, floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} };
 }
 
 function room(layers: DungeonMapLayers, x0: number, y0: number, w: number, h: number): void {
@@ -100,9 +101,12 @@ describe("rooms found from the walls", () => {
     expect(cells).toHaveLength(36);
   });
 
-  it("a round-brush room follows the curve and its squares are exactly the ones whose middle lies inside", () => {
+  it("a round-brush room with explicit perimeter walls follows the curve and its squares are exactly the ones whose middle lies inside", () => {
     const l = emptyLayers();
-    const painted = brushDisc(l, { x: 4, y: 4, r: 3.2 }, PACK);
+    let key = 0;
+    const painted = applyBrushStroke(l, { discs: [{ x: 4, y: 4, r: 3.2 }] }, {
+      pack: PACK, wall: PACK, erase: false, walls: "visible", newKey: () => `room-${key++}`,
+    });
     const faces = findFaces(painted);
     expect(faces).toHaveLength(1);
     const { outline, cells } = faces[0];
@@ -146,7 +150,10 @@ describe("rooms found from the walls", () => {
 
   it("a pillar erased out of a round-brush room stays a hole in it", () => {
     const disc = brushDisc(emptyLayers(), { x: 5, y: 5, r: 4.4 }, PACK);
-    const l = brushDisc(disc, { x: 5, y: 5, r: 1.2 }, PACK, true);
+    let key = 0;
+    const l = applyBrushStroke(disc, { discs: [{ x: 5, y: 5, r: 1.2 }] }, {
+      pack: PACK, wall: PACK, erase: true, targetId: Object.keys(disc.ground)[0], newKey: () => `cut-${key++}`,
+    });
     expect(l.floor["4,4"]).toBeUndefined();
     const cells = findFaces(l).flatMap((f) => f.cells);
     expect(cells).not.toContain("4,4");

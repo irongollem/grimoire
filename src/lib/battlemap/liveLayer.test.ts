@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { boostMask, currentMapLive, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
+import { boostMask, currentMapLive, flameNoise, groupsIn, hasMotion, lightBoost, lightRadiusScale, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
+import { FIRE_RADIUS_DRIFT } from "@/cartographer/lights";
 import type { MapLive, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 
 const base: MotionOverlay = { url: "u", cells: 4, drift: [0.5, -0.25], alpha: 0.6 };
@@ -182,5 +183,50 @@ describe("currentMapLive", () => {
     // The DB may hold a 1 the types no longer allow.
     const old = JSON.parse(JSON.stringify({ ...live, version: 1 })) as MapLive;
     expect(currentMapLive(old)).toBeNull();
+  });
+});
+
+// The maintainer, 2 Nov 2026: "pulsing light from fire sources that give the illusion the flames move".
+describe("a fire's light moves without being told to", () => {
+  const brazier: MapLiveLight = { x: 3, y: 3, color: "#ffb347", bright: 20, dim: 20, phase: 0.4 }; // no flicker declared
+  const torch: MapLiveLight = { ...brazier, x: 9, y: 1, phase: 2.7 };
+  const times = Array.from({ length: 600 }, (_, i) => i * 0.05);
+
+  it("counts a fire-coloured light with no flicker field as moving, and a cool one with none as still", () => {
+    expect(lightsIn({ ...live(), lights: [brazier, steady] }, "ground")).toEqual([brazier]);
+  });
+
+  it("changes its brightness over time, never settling into a regular blink", () => {
+    const values = times.map((t) => lightBoost(brazier, t));
+    expect(Math.max(...values) - Math.min(...values)).toBeGreaterThan(0.3);
+    // A blink would repeat: no lag between 0.5 and 10 seconds lines the signal up with itself.
+    for (const lag of [0.5, 1, 2, 3.7, 5, 10]) {
+      const shifted = times.map((t) => lightBoost(brazier, t + lag));
+      const same = values.filter((v, i) => Math.abs(v - shifted[i]) < 0.01).length;
+      expect(same / values.length).toBeLessThan(0.1);
+    }
+  });
+
+  it("drifts its reach by a few percent: within the drift, and not standing still", () => {
+    const scales = times.map((t) => lightRadiusScale(brazier, t));
+    expect(Math.max(...scales)).toBeLessThanOrEqual(1 + FIRE_RADIUS_DRIFT + 1e-9);
+    expect(Math.min(...scales)).toBeGreaterThanOrEqual(1 - FIRE_RADIUS_DRIFT - 1e-9);
+    expect(Math.max(...scales) - Math.min(...scales)).toBeGreaterThan(FIRE_RADIUS_DRIFT);
+  });
+
+  it("keeps two fires out of phase, in brightness and in reach", () => {
+    const apart = (f: (l: MapLiveLight, t: number) => number) => times.filter((t) => Math.abs(f(brazier, t) - f(torch, t)) > 0.05).length / times.length;
+    expect(apart(lightBoost)).toBeGreaterThan(0.5);
+    expect(apart(lightRadiusScale) > 0 && times.some((t) => Math.abs(lightRadiusScale(brazier, t) - lightRadiusScale(torch, t)) > 0.01)).toBe(true);
+  });
+
+  it("leaves a steady cool light and a pulse's reach alone", () => {
+    expect(lightRadiusScale(steady, 3)).toBe(1);
+    expect(lightRadiusScale(glow, 3)).toBe(1);
+    expect(lightBoost(steady, 3)).toBe(0);
+  });
+
+  it("keeps the noise within -1..1 so the brightness stays within 0..1", () => {
+    for (const t of times) expect(Math.abs(flameNoise(brazier.phase, t))).toBeLessThanOrEqual(1);
   });
 });

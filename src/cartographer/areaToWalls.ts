@@ -3,6 +3,7 @@
 // square whose middle is covered becomes plain floor in its pack. Stretches against plain floor were never walls
 // (`areaWallSegments`), so they stay unwalled. Idempotent: a map with no area entries comes back as the same object.
 
+import { convertCellGround, projectGround } from "./groundRegions";
 import { areaOutline, decodeMask, AREA_RES, type LayersWithArea, type OutlineLoop } from "./area";
 import { cachedWallGeometry } from "./wallGeometry";
 import { isLatticeKey, wallSegment } from "./wallGraph";
@@ -136,5 +137,6 @@ export function convertAreaLayer(layers: LayersWithArea, opts: { newKey: () => s
 export function readLayers(raw: (Partial<DungeonMapLayers> & Pick<LayersWithArea, "area">) | null | undefined, opts: { newKey: () => string }): DungeonMapLayers {
   const defaults = withLayerDefaults(raw);
   const area = raw?.area;
-  return convertAreaLayer(area && typeof area === "object" ? { ...defaults, area } : defaults, opts);
+  const converted = convertAreaLayer(area && typeof area === "object" ? { ...defaults, area } : defaults, opts);
+  return projectGround(raw?.ground === undefined ? convertCellGround(converted, opts.newKey) : converted);
 }

@@ -14,6 +14,7 @@ import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
 import { encodeWebp } from "@/lib/webpEncode";
+import { groundBounds } from "./groundRegions";
 import { dressingCellBounds, type DressingCatalog } from "./dressing";
 
 export interface BakeOptions {
@@ -103,6 +104,10 @@ function paintedExtent(map: DungeonMap, dressing: DressingCatalog): { minX: numb
   for (const k of allKeys) {
     const [xs, ys] = k.split(",");
     include(Number(xs), Number(ys));
+  }
+  for (const region of Object.values(layers.ground)) {
+    const box = groundBounds(region);
+    if (box) include(Math.floor(box.minX), Math.floor(box.minY), Math.ceil(box.maxX) - 1, Math.ceil(box.maxY) - 1);
   }
   for (const placement of Object.values(layers.dressing)) {
     const b = dressingCellBounds(placement, dressing);

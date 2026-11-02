@@ -179,6 +179,8 @@
             :runtime="packRuntime"
             :manifest="packRuntime?.manifest ?? null"
             :active-wall-kind="activeWallKind"
+            :wall-visible="wallVisible"
+            :selected-wall-visible="selectedWallVisible"
             :active-wall-decal="activeWallDecal"
             :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
             :selected-cell="selectedCell"
@@ -199,6 +201,10 @@
             :active-template-shape="activeTemplateShape"
             :template-shapes="TEMPLATE_SHAPES"
             :brush-radius="brushRadius"
+            :brush-region-mode="brushRegionMode"
+            :brush-category="brushCategory"
+            :brush-wall-mode="brushWallMode"
+            :selected-ground-region="selectedGroundRegion"
             :rect-walls="rectWalls"
             :light="shownLight"
             :light-selected="selectedLightId !== null"
@@ -213,6 +219,8 @@
             @delete-selected="deleteSelectedDressing"
             @open-catalogue="drawer = 'place'"
             @update:active-wall-kind="activeWallKind = $event"
+            @update:wall-visible="wallVisible = $event"
+            @update:selected-wall-visible="setSelectedWallVisible"
             @update:active-wall-decal="activeWallDecal = $event"
             @update:annotation-text="annotationText = $event"
             @update:linked-note-id="linkedNoteId = $event"
@@ -221,6 +229,12 @@
             @update:linked-feature-id="linkedFeatureId = $event"
             @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
             @update:brush-radius="brushRadius = $event"
+            @update:brush-region-mode="brushRegionMode = $event"
+            @update:brush-category="brushCategory = $event"
+            @update:brush-wall-mode="brushWallMode = $event"
+            @update:ground-wall-mode="setGroundWallMode"
+            @update:ground-name="renameGroundRegion"
+            @delete-ground-region="deleteGroundRegion"
             @update:rect-walls="rectWalls = $event"
           />
           <CartographerPictureOptions
@@ -309,6 +323,8 @@
 </template>
 
 <script setup lang="ts">
+import { groundCellBounds } from "@/cartographer/groundRegions";
+import { readLayers } from "@/cartographer/areaToWalls";
 // The Cartographer's editing surface, extracted out of CartographerEditorView
 // (epic #884 S6) so it can be embedded both at `/cartographer/:id` and,
 // later, inside the Atlas's map area. This component owns the toolbox, the
@@ -442,17 +458,18 @@ import { useCampaignStore } from "@/stores/campaign";
 import type { MapMenuAction, PlaceItem, Tool } from "@/cartographer/tools";
 import { placeItemLabel, pushRecent } from "@/cartographer/placeItem";
 import type { EditorLayer } from "@/cartographer/keymap";
-import { boundsOfCells } from "@/cartographer/viewport";
 import { mapHasMotion } from "@/cartographer/motion";
 import { BASE_TILE_SIZE } from "@/cartographer/packSchema";
 import {
   emptyLayers,
-  withLayerDefaults,
+
   cellKey,
   type CellKey,
   type DarknessLevel,
   type DungeonMap,
   type DungeonMapLayers,
+  type BrushRegionMode,
+  type GroundWallMode,
   type CellMetadata,
   type EdgeSegType,
 } from "@/types/dungeonMap.types";
@@ -803,6 +820,10 @@ const TEMPLATE_SHAPES: { id: TemplateShape; label: string; icon: string }[] = [
 
 // Round brush radius in cells (fractional)
 const brushRadius = ref(1.5);
+const brushRegionMode = ref<BrushRegionMode>("new");
+const brushCategory = ref<"floor" | "terrainWater">("floor");
+const brushWallMode = ref<GroundWallMode>("none");
+const wallVisible = ref(true);
 // Whether the Rectangle tool also wraps its perimeter in walls (on by default)
 const rectWalls = ref(true);
 
@@ -1089,10 +1110,14 @@ const {
   onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onDoubleClick, onWheel,
   rotateSelectedDressing, deleteSelectedDressing, selectedLightId, updateSelectedLight, deleteSelectedLight,
   selectedWallRun, wallRefusal, deleteSelectedWall, canvasBox, gestureBusy,
+  selectedGroundRegion, setGroundWallMode, deleteGroundRegion,
+  selectedWallVisible, setSelectedWallVisible, renameGroundRegion,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
   placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape, brushRadius, rectWalls,
+  brushRegionMode, brushCategory, brushWallMode,
+  wallVisible,
   selectedCell, toolOptionsRef, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
@@ -1110,7 +1135,7 @@ const { liningUp, draftCalibration, boxMode, pictureNatural, pictureStage, lineU
 // Drawing and Zoning open fitted to the whole map the first time each is entered (frame 18).
 useFitMapOnFirstEntry({
   activeLayer, picture: referencePicture, pictureNatural, fitCanvasTo, mapId: () => map?.id,
-  paintedBounds: () => boundsOfCells(Object.keys(layers.value.floor)),
+  paintedBounds: () => groundCellBounds(layers.value),
 });
 
 /** The Grid options' size read-out, once the base image has a grid of its own to read it from. */
@@ -1198,7 +1223,7 @@ function cloneLayers(src: DungeonMapLayers | null | undefined): DungeonMapLayers
   // JSON round-trip — layers are pure data, and this strips Vue's readonly proxy
   // wrapping that comes off TanStack Query's cached result so the editor owns a
   // writable copy.
-  return withLayerDefaults(JSON.parse(JSON.stringify(src)) as Partial<DungeonMapLayers>);
+  return readLayers(JSON.parse(JSON.stringify(src)) as Partial<DungeonMapLayers>, { newKey: () => crypto.randomUUID() });
 }
 
 /** (Re)initializes every editable field from `m` — the `map` prop's watcher,

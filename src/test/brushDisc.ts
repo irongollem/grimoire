@@ -1,7 +1,7 @@
 // Test-only: one round-brush disc applied the way the editor does (`applyBrushStroke` from the layers at pointer-down),
 // with ids that count up so a run is repeatable.
 
-import { applyBrushStroke } from "@/cartographer/brushWalls";
+import { applyBrushStroke } from "@/cartographer/groundRegions";
 import type { Disc } from "@/cartographer/area";
 import type { DungeonMapLayers, PackRef } from "@/types/dungeonMap.types";
 
