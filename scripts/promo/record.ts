@@ -100,11 +100,12 @@ try {
     const { duration, size, camera, cues } = await stage.film(keep ? join(dir, ".scratch", "discard.mp4") : out, shot.run);
     recorded.push(
       keep
-        ? { ...keep, caption: shot.caption, narration: shot.narration }
+        ? { ...keep, caption: shot.caption, narration: shot.narration, chapter: shot.chapter }
         : {
             id: shot.id,
             caption: shot.caption,
             narration: shot.narration,
+            chapter: shot.chapter,
             file: `shots/${shot.id}.mp4`,
             device,
             size,
@@ -132,6 +133,7 @@ const manifest: EpisodeManifest = {
   title: episode.title,
   pairedWith: episode.pairedWith ?? null,
   account: episode.account,
+  ...(episode.format === undefined ? {} : { format: episode.format }),
   recordedAt: new Date().toISOString(),
   shots: recorded,
 };
@@ -145,6 +147,7 @@ function scriptMarkdown(m: EpisodeManifest): string {
     const words = s.narration.split(/\s+/).filter(Boolean).length;
     lines.push(
       `## ${s.id}`,
+      ...(s.chapter === undefined ? [] : [`### Chapter: ${s.chapter}`, ""]),
       "",
       `On screen: "${s.caption}"`,
       "",

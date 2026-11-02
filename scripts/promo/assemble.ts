@@ -9,9 +9,11 @@ import { canvasFor, homeView, planCamera, zoompanExpressions } from "./camera";
 import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards, subtitleCard } from "./compose/cards";
 import { audibleEnd, durationOf, ffmpeg, hasAudio, leadingSilence, loudnessOf, STEREO_48K } from "./compose/ffmpeg";
 import { DEVICES } from "./devices";
+import { formatCanvas, layoutFor, type Layout } from "./layouts";
+import { chaptersText, srtText } from "./sidecars";
 import { gainExpression, planTheme } from "./theme";
-import { planTimeline, VO_LEAD, type PlannedShot, type ShotInput } from "./timeline";
-import type { Device, EpisodeManifest, RecordedShot } from "./types";
+import { planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
+import type { Device, EpisodeManifest, Format, RecordedShot } from "./types";
 
 const INTERMEDIATE = ["-c:v", "libx264", "-crf", "14", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", "30", "-g", "30", "-an"];
 const WAV = ["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2"];
@@ -41,30 +43,49 @@ function findFirst(dir: string, stem: string, exts: string[]): string | null {
 const silence = (seconds: number) => ["-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=48000:cl=stereo"];
 
 /** The camera's canvas for a recorded shot: its screen on paper in the window's shape. */
-function canvasOf(shot: RecordedShot) {
-  const { window: w } = DEVICES[shot.device ?? "phone"];
+function canvasOf(shot: RecordedShot, format: Format | undefined) {
+  const { window: w } = layoutFor(format, shot.device);
   if (!shot.size) throw new Error(`Shot ${shot.id} has camera moves but no recorded size: re-film it.`);
   return canvasFor(shot.size, { width: w.w, height: w.h });
 }
 
+/**
+ * The caption, and where the layout has one the narration, as the last inputs of a
+ * shot's filter graph (`first` is the index of the first of them), with the graph
+ * that lays them over `[a]` and ends in `[v]`.
+ */
+function textLayers(layout: Layout, p: PlannedShot, work: string, first: number): { inputs: string[]; graph: string } {
+  const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(p.length), "-i", file];
+  const caption = loop(join(work, `caption-${p.id}.png`));
+  const c = layout.caption;
+  if (c.kind === "band") {
+    const over = `[a][${first}:v]overlay=0:${c.y}:format=auto`;
+    return layout.subtitles
+      ? {
+          inputs: [...caption, ...loop(join(work, `subtitle-${p.id}.png`))],
+          graph: `${over}[t];[t][${first + 1}:v]overlay=0:${layout.subtitles.y}:format=auto,format=yuv420p[v]`,
+        }
+      : { inputs: caption, graph: `${over},format=yuv420p[v]` };
+  }
+  if (c.kind === "panel") return { inputs: caption, graph: `[a][${first}:v]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
+  // A lower third fades in and out inside its window, so the pill does not pop on and off the page.
+  const FADE = 0.25;
+  const fade = `[${first}:v]format=rgba,fade=t=in:st=${c.from}:d=${FADE}:alpha=1,fade=t=out:st=${c.to - FADE}:d=${FADE}:alpha=1[cap]`;
+  return { inputs: caption, graph: `${fade};[a][cap]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
+}
+
 /** The silent screen-in-frame video for one shot. */
-function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work: string, out: string): void {
+function renderShotVideo(p: PlannedShot, shot: RecordedShot, format: Format | undefined, clip: string, work: string, out: string): void {
   const device: Device = shot.device ?? "phone";
   const spec = DEVICES[device];
-  const { x, y, w, h } = spec.window;
+  const layout = layoutFor(format, device);
+  const { x, y, w, h } = layout.window;
   const L = p.length;
   // A frozen last frame holds the screen, and with it wherever the camera ended.
   const hold = p.freeze > 0 ? `tpad=stop_mode=clone:stop_duration=${p.freeze},` : "";
   const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(L), "-i", file];
-  // The caption above the window, and on a device with room for them the narration below it, as the last inputs.
-  const words = (first: number) =>
-    spec.subtitles
-      ? {
-          inputs: [...loop(join(work, `caption-${p.id}.png`)), ...loop(join(work, `subtitle-${p.id}.png`))],
-          graph: `[a][${first}:v]overlay=0:230:format=auto[t];[t][${first + 1}:v]overlay=0:${spec.subtitles.y}:format=auto,format=yuv420p[v]`,
-        }
-      : { inputs: loop(join(work, `caption-${p.id}.png`)), graph: `[a][${first}:v]overlay=0:230:format=auto,format=yuv420p[v]` };
-  const camera = (shot.camera?.length ?? 0) > 0 || spec.frame === "browser";
+  const words = (first: number) => textLayers(layout, p, work, first);
+  const camera = (shot.camera?.length ?? 0) > 0 || layout.frame === "browser";
   if (!camera) {
     const text = words(3);
     ffmpeg([
@@ -81,7 +102,7 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work:
     return;
   }
   // Camera: the screen goes onto its backdrop, zoompan crops a window out of that, and the window goes on the page.
-  const canvas = canvasOf(shot);
+  const canvas = canvasOf(shot, format);
   if (!shot.size) throw new Error(`Shot ${shot.id} has no recorded size: re-film it.`);
   const size = shot.size;
   const sidebar = spec.sidebar * spec.scale;
@@ -139,12 +160,12 @@ function renderFxWav(p: PlannedShot, out: string): void {
 
 interface BrandSeg { video: string; audio: string; length: number }
 
-/** A brand clip or a placeholder card, as a 1080x1920 30 fps video plus a wav. */
-function renderBrandSegment(name: string, file: string | null, card: string, cardLength: number, work: string): BrandSeg {
+/** A brand clip or a placeholder card, as a 30 fps video of the format's size plus a wav. */
+function renderBrandSegment(name: string, file: string | null, card: string, cardLength: number, work: string, canvas: Layout["canvas"]): BrandSeg {
   const video = join(work, `${name}.mp4`);
   const audio = join(work, `${name}.wav`);
   if (file) {
-    const vf = `fps=30,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=${BG},setsar=1`;
+    const vf = `fps=30,scale=${canvas.width}:${canvas.height}:force_original_aspect_ratio=decrease,pad=${canvas.width}:${canvas.height}:(ow-iw)/2:(oh-ih)/2:color=${BG},setsar=1`;
     ffmpeg(["-i", file, "-vf", vf, ...INTERMEDIATE, video]);
     const length = durationOf(video);
     if (hasAudio(file)) ffmpeg(["-i", file, "-af", `${STEREO_48K},apad=whole_dur=${length},atrim=0:${length}`, ...WAV, audio]);
@@ -170,6 +191,8 @@ async function main() {
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
 
+  const format = manifest.format;
+  const frame = formatCanvas(format);
   const brandDir = join(root, "brand");
   const introFile = brand ? findFirst(brandDir, "intro", ["mp4", "mov"]) : null;
   const outroFile = brand ? findFirst(brandDir, "outro", ["mp4", "mov"]) : null;
@@ -178,21 +201,21 @@ async function main() {
   // Static art, once per run.
   const devicesUsed = [...new Set(manifest.shots.map((s): Device => s.device ?? "phone"))];
   await renderCards(work, [
-    ...devicesUsed.map((d) => baseCard(join(work, `base-${d}.png`), d)),
-    ...devicesUsed.map((d) => maskCard(join(work, `mask-${d}.png`), d)),
+    ...devicesUsed.map((d) => baseCard(join(work, `base-${d}.png`), layoutFor(format, d))),
+    ...devicesUsed.map((d) => maskCard(join(work, `mask-${d}.png`), layoutFor(format, d))),
     ...manifest.shots
-      .filter((s) => (s.camera?.length ?? 0) > 0 || DEVICES[s.device ?? "phone"].frame === "browser")
-      .map((s) => backdropCard(join(work, `backdrop-${s.id}.png`), s.device ?? "phone", canvasOf(s))),
-    ...manifest.shots.map((s) => captionCard(join(work, `caption-${s.id}.png`), s.caption)),
+      .filter((s) => (s.camera?.length ?? 0) > 0 || layoutFor(format, s.device).frame === "browser")
+      .map((s) => backdropCard(join(work, `backdrop-${s.id}.png`), layoutFor(format, s.device), canvasOf(s, format))),
+    ...manifest.shots.map((s) => captionCard(join(work, `caption-${s.id}.png`), s.caption, layoutFor(format, s.device), s.chapter)),
     ...manifest.shots.flatMap((s) => {
-      const band = DEVICES[s.device ?? "phone"].subtitles;
-      return band ? [subtitleCard(join(work, `subtitle-${s.id}.png`), s.narration, band.h)] : [];
+      const layout = layoutFor(format, s.device);
+      return layout.subtitles ? [subtitleCard(join(work, `subtitle-${s.id}.png`), s.narration, layout)] : [];
     }),
-    ...(brand ? [introCard(join(work, "intro.png"), manifest.title), outroCard(join(work, "outro.png"))] : []),
+    ...(brand ? [introCard(join(work, "intro.png"), manifest.title, frame), outroCard(join(work, "outro.png"), frame)] : []),
   ]);
 
-  const intro = brand ? renderBrandSegment("intro", introFile, join(work, "intro.png"), 1.2, work) : null;
-  const outro = brand ? renderBrandSegment("outro", outroFile, join(work, "outro.png"), 2, work) : null;
+  const intro = brand ? renderBrandSegment("intro", introFile, join(work, "intro.png"), 1.2, work, frame) : null;
+  const outro = brand ? renderBrandSegment("outro", outroFile, join(work, "outro.png"), 2, work, frame) : null;
 
   const voFiles = manifest.shots.map((s) => findFirst(join(dir, "vo"), s.id, ["wav", "m4a", "mp3", "aif", "aiff"]));
   const inputs: ShotInput[] = manifest.shots.map((s, i) => ({
@@ -212,7 +235,7 @@ async function main() {
     const vo = join(work, `vo-${i}.wav`);
     const fx = join(work, `fx-${i}.wav`);
     console.log(`shot ${p.id}: start ${p.start.toFixed(2)}s, length ${p.length.toFixed(2)}s${p.voStart === null ? " (no VO)" : ""}, ${p.cues.length} cue(s)`);
-    renderShotVideo(p, manifest.shots[i], join(dir, manifest.shots[i].file), work, v);
+    renderShotVideo(p, manifest.shots[i], format, join(dir, manifest.shots[i].file), work, v);
     renderVoWav(p, voFiles[i], vo);
     renderFxWav(p, fx);
     videos.push(v); voWavs.push(vo); fxWavs.push(fx);
@@ -252,8 +275,25 @@ async function main() {
   const first = tl.shots[0];
   ffmpeg(["-ss", String(first.length / 2), "-i", join(work, "shot-0.mp4"), "-frames:v", "1", "-q:v", "2", join(dir, "cover.jpg")]);
 
+  if (format === "youtube") writeSidecars(dir, manifest, tl, inputs);
+
   rmSync(work, { recursive: true, force: true });
   console.log(`wrote ${out} (${T.toFixed(2)}s planned, ${durationOf(out).toFixed(2)}s actual) and cover.jpg`);
+}
+
+/** `chapters.txt` for the description and `captions.srt` for the subtitles, beside the finished video. */
+function writeSidecars(dir: string, manifest: EpisodeManifest, tl: Timeline, inputs: ShotInput[]): void {
+  const chapters = tl.shots.flatMap((p, i) => {
+    const title = manifest.shots[i].chapter;
+    return title === undefined ? [] : [{ title, start: p.start }];
+  });
+  if (chapters.length === 0) console.warn("No shot has a chapter: add `chapter` to the shots that start one. chapters.txt is not written.");
+  else writeFileSync(join(dir, "chapters.txt"), `${chaptersText(chapters, tl.total)}\n`);
+  const srt = srtText(
+    tl.shots.map((p, i) => ({ start: p.start, length: p.length, voStart: p.voStart, voDuration: inputs[i].voDuration, narration: manifest.shots[i].narration })),
+  );
+  if (srt === "") console.warn("No shot has a voice-over yet: captions.srt is not written.");
+  else writeFileSync(join(dir, "captions.srt"), srt);
 }
 
 /**

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { canvasFor, homeView, GLIDE, MAX_ZOOM, MIN_PADDING, planCamera, viewAt, viewFor, zoompanExpressions, type Rect } from "./camera";
 import { DEVICES } from "./devices";
+import { layoutFor } from "./layouts";
 
 const SPEC = DEVICES.desktop;
-const WINDOW = { width: SPEC.window.w, height: SPEC.window.h };
+const LAYOUT = layoutFor("reel", "desktop");
+const WINDOW = { width: LAYOUT.window.w, height: LAYOUT.window.h };
 const DESKTOP = { width: 2880, height: 1800 };
 const canvas = canvasFor(DESKTOP, WINDOW);
 const inside = (r: Rect, c = canvas) =>

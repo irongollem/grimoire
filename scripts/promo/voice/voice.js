@@ -27,6 +27,11 @@
   function buildCard(shot, i) {
     const video = el("video", { className: "clip", muted: true, playsInline: true, preload: "metadata", src: withEp(`/clip/${shot.id}`) });
     video.muted = true;
+    // A clip is as wide as it was filmed: a landscape desktop clip gets a wider box than a phone's.
+    if (shot.size) {
+      video.style.aspectRatio = `${shot.size.width} / ${shot.size.height}`;
+      if (shot.size.width > shot.size.height) video.style.width = "320px";
+    }
     const count = el("div", { className: "count" });
     const state = el("span", { className: "state" });
     const actions = el("div", { className: "actions" });
@@ -234,7 +239,7 @@
       log.hidden = false;
       log.className = body.ok ? "" : "fail";
       log.textContent = body.tail || body.error || "";
-      status.textContent = body.ok ? "The Reel is ready." : "Assembling failed.";
+      status.textContent = body.ok ? (episode.format === "youtube" ? "The video is ready." : "The Reel is ready.") : "Assembling failed.";
       if (body.ok) {
         const reel = $("reel");
         reel.src = withEp(`/reel?t=${Date.now()}`);
@@ -248,13 +253,14 @@
 
   // ---------- start ----------
   // ---------- choosing an episode ----------
+  const sideOf = (e) => (e.format === "youtube" ? "YouTube" : e.account === "dm" ? "DM side" : "Player side");
   const progress = (e) => `${e.takes} of ${e.shots} takes${e.reel ? ", Reel built" : ""}`;
 
   function fillEpisodeMenu(list) {
     const menu = $("episode");
     menu.replaceChildren(
       el("option", { value: "", textContent: "Choose an episode..." }),
-      ...list.map((e) => el("option", { value: e.id, textContent: `${e.title} (${e.account === "dm" ? "DM" : "player"})`, selected: e.id === EP })),
+      ...list.map((e) => el("option", { value: e.id, textContent: `${e.title} (${e.format === "youtube" ? "YouTube" : e.account === "dm" ? "DM" : "player"})`, selected: e.id === EP })),
     );
     menu.addEventListener("change", () => {
       if (rec.phase !== "idle" && !confirmLeave()) { menu.value = EP ?? ""; return; }
@@ -288,7 +294,7 @@
         el(
           "a",
           { className: `episode${done ? " done" : ""}`, href: `?episode=${encodeURIComponent(e.id)}` },
-          el("span", { className: "who", textContent: e.account === "dm" ? "DM side" : "Player side" }),
+          el("span", { className: "who", textContent: sideOf(e) }),
           el("strong", { textContent: e.title }),
           el("span", { className: "progress", textContent: progress(e) }),
         ),
@@ -309,6 +315,13 @@
     holder.style.display = "grid";
     holder.style.gap = "18px";
     episode.shots.forEach((s, i) => { const c = buildCard(s, i); cards.push(c); holder.append(c.root); });
+    if (episode.format === "youtube") {
+      // The finished video is landscape.
+      const reel = $("reel");
+      reel.style.width = "480px";
+      reel.style.aspectRatio = "16 / 9";
+      $("assemble").textContent = "Assemble the video";
+    }
     $("assemble").addEventListener("click", assemble);
     mic = createMic({
       beforeSwitch: () => { if (rec.phase === "recording" || rec.phase === "counting") cancelTake(); },

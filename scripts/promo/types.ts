@@ -22,6 +22,9 @@ export interface SoundCue {
   gain?: number;
 }
 
+/** What a finished video is cut for: a vertical Instagram Reel, or a landscape YouTube feature video. */
+export type Format = "reel" | "youtube";
+
 /** The screen a shot is filmed on. A phone is 390x693 CSS px at 3x, a tablet 820x1180 at 2x, a desktop 1440x900 at 2x. */
 export type Device = "phone" | "tablet" | "desktop";
 
@@ -109,6 +112,8 @@ export interface Shot {
   startAt?: string;
   /** Overrides the episode's device for this shot (a Reel may cut from a laptop to a phone). A shot on another device than the one before needs a `startAt`. */
   device?: Device;
+  /** YouTube: this shot starts a chapter with this title (the first chapter is forced to 0:00). */
+  chapter?: string;
   run(ctx: ShotContext): Promise<void>;
 }
 
@@ -120,6 +125,8 @@ export interface Episode {
   /** The episode that shows the other side of the same feature (DM or player). */
   pairedWith?: string;
   account: Account;
+  /** What the finished video is cut for; a Reel when omitted. */
+  format?: Format;
   /** The screen the episode is filmed on; phone when omitted. */
   device?: Device;
   /** Puts the local stack into the state the first shot expects. Runs before every recording, so it must be idempotent. */
@@ -148,6 +155,8 @@ export interface RecordedShot {
   device?: Device;
   /** The clip's size in device pixels. */
   size?: { width: number; height: number };
+  /** YouTube: the title of the chapter this shot starts. */
+  chapter?: string;
   /** Camera moves, in clip time. Absent means the whole screen throughout. */
   camera?: CameraKeyframe[];
   /** Seconds. */
@@ -161,6 +170,8 @@ export interface EpisodeManifest {
   title: string;
   pairedWith: string | null;
   account: Account;
+  /** Absent means a Reel, so manifests filmed before formats existed keep working. */
+  format?: Format;
   recordedAt: string;
   shots: RecordedShot[];
 }
