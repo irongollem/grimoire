@@ -56,6 +56,17 @@ Brand assets shared by every episode go in `promo-out/brand/`:
 `theme.mp3` (the bed under every episode, ducked under the voice). Without
 them the assembler draws placeholder title cards and plays no bed.
 
+A YouTube video outlasts the one-minute theme, so it also takes
+`bed-1.mp3`, `bed-2.mp3`, ... : background tunes of up to three minutes in
+the theme's key, tempo and ensemble. The theme keeps its motif over the logo
+and its ending over the close; between them the tunes play one after another
+(`scripts/promo/beds.ts`), each from its middle so its introduction and
+ending are never heard, handing over where a chapter starts, back to the
+first after the last. They are level-matched to the theme, set 3 dB under the
+Reel's bed and filtered the same way (`BED_EQ` in `assemble.ts`), so busy
+tunes stay behind the voice and the chain reads as one piece. Without
+`bed-1` a YouTube video loops the theme's underscore, which is audible.
+
 ## How it works
 
 - **Filmed where it is safe to show.** Every episode runs in the DM fixture's
