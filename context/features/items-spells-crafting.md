@@ -281,7 +281,18 @@ Below the doll: three pip dots. Filled pips are colored `bg-primary`; empty pips
 
 #### Coin Purse
 
-Five currency columns (PP, GP, EP, SP, CP) shown as a compact grid. Each coin denomination is editable inline via `CoinRow`. A "Drop Coins to Chat" button opens a form for selecting amounts to drop; confirmed drops deduct from the player's wallet and post a campaign chat message.
+One row per coin of the campaign's currency (see **Currency** below), each editable inline via `CoinRow`. A "Drop Coins to Chat" button opens a form for selecting amounts to drop; confirmed drops deduct from the player's purse and post a campaign chat message.
+
+#### Currency (#934)
+
+A campaign's coins are its own config, not D&D's five. `campaigns.currency` holds `{ default_key, denominations: [{ key, name, abbr, value, color, makes_change }] }`, highest value first, `value` counted in the campaign's smallest coin (exactly one coin is worth 1, so every amount has exact change). Every campaign starts on the 5e set (`DND5E_CURRENCY`, `src/systems/dnd5e/currency/`; electrum does not make change) and the DM edits it in Campaign settings → Currency.
+
+- **Everything that holds coins holds a coin map** `{ "<key>": count }`: `party_members.coins`, currency loot (`payload.coins`), currency drops and loot-chest atoms (`coins`), vendor and player offers (`price`), loot-table currency entries and encounter pools (`coins`), downtime gold effects (`gain` / `spend`). Migration `20261101161919` converted every old five-key shape and dropped the purse's five columns. `party_members_coins_valid` holds counts to whole and non-negative.
+- **Prices stay text** ("50 gp", "1,500 gp", "2 gold") and are read with the campaign's abbreviations and names (`parsePrice`, `src/lib/currency/currency.ts`). A bare number is read in the **default coin** (the maintainer's call, 1 Nov 2026: "Any number that doesn't have an identifier gets treated as base"), so "50" is 50 gp in 5e and 50 dollars in a dollar campaign. Library prices are 5e text; in a campaign without that coin they show as text and are not offered for automatic purchase.
+- **Paying makes change** (`private.pay_coins`): the coins needed are taken highest first without breaking any; a remainder breaks the smallest coin still held and the change comes back in coins that make change. Nothing else in the purse moves (the old sale re-packed both whole purses and wiped electrum). `claim_vendor_offer` (only offers a DM posted), `claim_player_offer` and `spend_coins` (downtime costs) pay this way, in one transaction with their claim; `give_coins` and drops hand coins over as they are.
+- **Removing a coin converts what it held** (`private.campaign_currency_changed`, after update of `campaigns.currency`): purses, unsent currency loot, loot tables, encounter pools, chat history and downtime effects re-express the removed coin by value in the remaining change-making coins. Renaming or revaluing a coin keeps every count; the key never changes, which is why the editor derives it once from the abbreviation.
+- **Display and entry** go through `CoinAmount` and `CoinInput` (`src/components/currency/`), never a hand-rolled five-coin grid, and labels come from the denominations.
+- **The AI** gets the campaign's coins with every loot, downtime and invention request (`supabase/functions/_shared/currency.ts`), and the stored prompts ask for coin maps. Invention values (`value_cp`) are counted in the smallest coin, whatever it is called.
 
 #### Carry Weight Bar
 

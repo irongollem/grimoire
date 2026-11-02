@@ -302,9 +302,9 @@ A full equipment and item management system. Full detail documented separately i
 
 **Coin purse:**
 
-- Editable PP/GP/EP/SP/CP values with inline increment/decrement
+- One editable row per coin of the campaign's currency, with inline increment/decrement
 - "Drop Coins to Chat" form deducts chosen amounts and posts a currency-drop message to campaign chat
-- "Give coins…" opens a slip: a recipient (every other party member), five coin fields, a live "Leaves you 36 gp, 12 sp, 30 cp." line and a button naming the act ("Give 5 gp to Dorn"), disabled when nothing is entered or an amount is negative or above the purse (`coinGive.ts`, held by `coinGive.test.ts`). It calls `give_coins` through `useGiveCoins`; there is no accept step and no chat announcement, the receiver's page refreshes from the campaign ring. The DM gets the same on a character's Inventory tab (#1112)
+- "Give coins…" opens a slip: a recipient (every other party member), one field per coin (`CoinInput`), a live "Leaves you 36 gp, 12 sp, 30 cp." line and a button naming the act ("Give 5 gp to Dorn"), disabled when nothing is entered or an amount is negative or above the purse (`coinGive.ts`, held by `coinGive.test.ts`). It calls `give_coins` through `useGiveCoins`; there is no accept step and no chat announcement, the receiver's page refreshes from the campaign ring. The DM gets the same on a character's Inventory tab (#1112)
 
 **Giving items (#1112):** every row's menu (and a container's header menu) has a "Give to" group listing the other party members, stash rows included; the stash itself is a Move target, not repeated. A stack asks how many first (an inline count with minus and plus, default all); a container goes whole, contents with it. Always the `give_inventory_item` RPC (`useGiveInventoryItem`), never a `carried_by` update, which RLS no longer lets a player write into another pack.
 
