@@ -64,7 +64,7 @@ export const ytCombat: Episode = {
       id: "build-details",
       caption: "Name it, place it, pick the party",
       narration:
-        "An encounter starts in the builder. Give it a name, a description for the scene, and the location where it happens. Then tick the heroes and companions who are in the fight. A pet is left out, because it never fights.",
+        "An encounter starts in the builder. Under Details, give it a name, a description for the scene, and the location where it happens. Then, in Party Members, tick the heroes and companions who are in the fight. A pet is left out, because it never fights.",
       async run({ page, scrollTo, focus, hold }) {
         await scrollTo(page.getByRole("heading", { name: "Details", exact: true }), 900, 90);
         await focus(builderCard(page, "Details"), { padding: 16 });
@@ -113,7 +113,7 @@ export const ytCombat: Episode = {
       id: "build-extras",
       caption: "Events, loot, traps and music",
       narration:
-        "Below that sit the extras. Events fire on a round, a hit point threshold, a death, or when you choose. Loot and traps travel with the fight, and a trap counts toward the difficulty. There is even a music theme, and starting combat asks your soundboard for a matching playlist.",
+        "Below that sit Events, Loot, and Traps and Hazards. Events fire on a round, a hit point threshold, a death, or when you choose. Loot and traps travel with the fight, and a trap counts toward the difficulty. There is even a Battle music theme, and starting combat asks your soundboard for a matching playlist.",
       async run({ page, scrollTo, focus, hold }) {
         const events = sideCard(page, "Events");
         await scrollTo(events, 1200, 90);
@@ -135,7 +135,7 @@ export const ytCombat: Episode = {
     {
       id: "build-run",
       caption: "Run Encounter",
-      narration: "When you are ready, press Run Encounter. The runner opens in the pre-combat lobby.",
+      narration: "When you are ready, press Run Encounter. The runner opens at Pre-Combat, the lobby before the first round.",
       async run({ page, scrollTo, focus, tap, hold, settled }) {
         const run = page.getByRole("button", { name: "Run Encounter" });
         await scrollTo(run, 1200, 20);
@@ -320,7 +320,7 @@ export const ytCombat: Episode = {
       id: "run-spawn",
       caption: "Reinforcements mid-fight",
       narration:
-        "At the foot of the list is the spawn panel, for reinforcements. Pick a monster or an NPC, a faction and a count, and they join the order with their initiative rolled for you. Your own notes on the encounter sit just below.",
+        "At the foot of the list, Spawn Combatant brings in reinforcements. Pick a Monster or an NPC, a Faction and a Count, press Add, and they join the order with their initiative rolled for you. Your own notes on the encounter sit just below, under DM notes.",
       async run({ page, tap, hold, focus }) {
         await tap(page.locator(".detail-close").first(), 800);
         const spawn = page.locator(".spawn-panel");
@@ -368,7 +368,7 @@ export const ytCombat: Episode = {
       device: "phone",
       caption: "Your players follow on their phones",
       narration:
-        "Now the other side of the table. This is a player's phone, following the same fight. It shows the round, whose turn it is, and the order, with each hero's health and conditions. Monsters you have revealed appear by name and portrait. One you are holding back is simply not on the list.",
+        "Now the other side of the table. This is a player's phone, and its Encounter panel follows the same fight. It shows the round, whose turn it is, and the order, with each hero's health and conditions. Monsters you have revealed appear by name and portrait. One you are holding back is simply not on the list.",
       startAt: "/play/encounter",
       async run({ page, hold, scroll, settled }) {
         await page.getByText("ROUND", { exact: false }).first().waitFor({ timeout: 20_000 });

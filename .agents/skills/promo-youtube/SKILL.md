@@ -53,6 +53,13 @@ Argument: the feature, or an existing `yt-*` id to re-film.
 - `narration`: spoken English, warm and plain, second person, British spelling
   as in the existing episodes, no em dashes, no superlatives. One to four
   sentences per shot. Several short shots beat one long one.
+- Say the name on screen. The viewer has no time to read a section's heading
+  while the voice is already explaining it, so the first time a shot reaches
+  a part, the line names it by the app's own label, word for word ("Under
+  Equipped, ...", "The Spawn panel ..."), never by a description ("the paper
+  doll", "the panel at the bottom"). A viewer who hears the name finds it on
+  screen, and finds it again in the app. Check each label in the code; a part
+  with no heading needs no name.
 - Pace: about 2.5 words a second. Fill each shot's narration time with action
   or a deliberate hold on what is being described; a still frame held for more
   than two seconds looks dead.

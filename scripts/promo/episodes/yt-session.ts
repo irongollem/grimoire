@@ -99,9 +99,9 @@ export const ytSession: Episode = {
     },
     {
       id: "prep-sounds",
-      caption: "Sounds are prepared in Arrange mode",
+      caption: "Sounds are prepared between sessions",
       narration:
-        "Sounds belong to preparing too. Outside a session the soundboard is in arrange mode, with every control in reach. Drag sounds into order, trim one that is too loud, build ambient scenes that layer on top of each other, and music playlists that play one track at a time.",
+        "Sounds belong to preparing too. Outside a session the Soundboard is laid out for preparing, with every control in reach. Drag sounds into order, trim one that is too loud, build ambient scenes that layer on top of each other, and music playlists that play one track at a time.",
       startAt: "/soundboard",
       async run({ page, hold, scroll, settled }) {
         await page.getByText("Ambient sounds & music for your sessions").filter({ visible: true }).first().waitFor();
@@ -135,7 +135,7 @@ export const ytSession: Episode = {
       id: "changes",
       caption: "What changes while it runs",
       narration:
-        "A live rail under the session control keeps the time, and lists whatever is running: a fight, quests in play, sounds playing. The dashboard shows the table board. Quests open on the run cockpit. The soundboard turns to performance pads. And a reveal now announces itself to your players.",
+        "The control now reads Session live, with the minutes beside it, and the rail under it lists whatever is running: a fight, quests in play, sounds playing. The dashboard shows At the table. Quests open on the run cockpit. The Soundboard turns into pads. And a reveal now announces itself to your players.",
       async run({ page, tap, hold, focus }) {
         const rail = page.getByText(/session 3 live/i).first();
         await focus(rail.locator("xpath=../.."), { padding: 40 });
@@ -189,7 +189,7 @@ export const ytSession: Episode = {
       chapter: "Atmosphere",
       caption: "The soundboard becomes your pads",
       narration:
-        "With a session running, the soundboard switches to Perform. The same sounds, as big pads with their artwork, and none of the editing controls, so you cannot rearrange the board by accident mid-scene. Tap a pad to fire it. Double-tap to loop it.",
+        "With a session running, the Soundboard turns into pads. The same sounds, as big pads with their artwork, and none of the editing controls, so you cannot rearrange the board by accident mid-scene. Tap a pad to fire it. Double-tap to loop it.",
       startAt: "/soundboard",
       async run({ page, tap, hold, scroll, settled }) {
         await page.getByText("Ambient sounds & music for your sessions").filter({ visible: true }).first().waitFor();
@@ -204,7 +204,7 @@ export const ytSession: Episode = {
       id: "pads-more",
       caption: "Keys 1 to 9, mixer, shared music",
       narration:
-        "Keys one to nine fire the first nine pads, in the order you set. The mixer pulls down a whole group, the ambience say, without touching your music. And in Board settings you can share the playing music with players who are not in the room. It is off by default, it is music only, and each player presses Join audio on their own device.",
+        "Keys one to nine fire the first nine pads, in the order you set. The Mixer pulls down a whole group, the ambience say, without touching your music. And in Board settings you can share the playing music with players who are not in the room. It is off by default, it is music only, and each player presses Join audio on their own device.",
       async run({ page, tap, hold, scroll }) {
         await scroll(-260, 1200);
         await hold(1500);
@@ -221,7 +221,7 @@ export const ytSession: Episode = {
       chapter: "Notes and reveals",
       caption: "A private note on everything",
       narration:
-        "Every NPC, place, monster and quest has a DM note: one private box your players never see. It saves as you type, so you never open an editor to jot something down at the table.",
+        "Every NPC, place, monster and quest has DM notes: one private box, marked Players never see this. It saves as you type, so you never open an editor to jot something down at the table.",
       startAt: "/npcs",
       async run({ page, tap, type, hold, settled }) {
         await page.getByText(NOTED_NPC).filter({ visible: true }).first().waitFor();
@@ -268,7 +268,7 @@ export const ytSession: Episode = {
       id: "reveal-control",
       caption: "Reveal a character to your party",
       narration:
-        "Sharing a character is one button. While a session runs, revealing someone to the party posts a line in their chat. With no session running, the same reveal is silent. Watch the phone.",
+        "Sharing a character is one button on their page. It reads Hidden until you choose Whole party. While a session runs, revealing someone to the party posts a line in their chat. With no session running, the same reveal is silent. Watch the phone.",
       async run({ page, hold, focus }) {
         const reveal = page.getByRole("button", { name: `Reveal ${NOTED_NPC} to players` }).first();
         await hold(1500);
@@ -342,7 +342,7 @@ export const ytSession: Episode = {
       chapter: "Ending the night",
       caption: "End the session. Nothing else moves.",
       narration:
-        "When the night is over, press the cross beside the live pill. Ending closes the entry in your log and nothing more. Quest threads stay where the party left them, and a fight in progress stays live for next time. A toast offers Undo, in case you pressed it by mistake.",
+        "When the night is over, press End session, the cross beside Session live. Ending closes the entry in your log and nothing more. Quest threads stay where the party left them, and a fight in progress stays live for next time. A toast offers Undo, in case you pressed it by mistake.",
       device: "desktop",
       startAt: "/dashboard",
       async run({ page, tap, hold }) {
@@ -355,7 +355,7 @@ export const ytSession: Episode = {
       id: "log",
       caption: "Every evening, remembered",
       narration:
-        "The Sessions page remembers every evening, newest first, with its length and what came of it. Open one and it lists what the party learned: people met, places, handouts, creatures discovered, quests and combat. You never log that by hand. Whatever you shared while the session ran is filed under it. And a session with no notes says so, so you can write them, or have the Chronicler draft them.",
+        "The Sessions page remembers every evening, newest first, with its length and what came of it. Open one and What the party learned lists People met, Places, Handouts, Creatures discovered, Quests and Combat. You never log that by hand. Whatever you shared while the session ran is filed under it. And a session with no notes says so, so you can write them, or have the Chronicler draft them.",
       startAt: "/sessions",
       async run({ page, tap, hold, scroll, settled }) {
         await settled();

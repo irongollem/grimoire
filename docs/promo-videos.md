@@ -87,6 +87,11 @@ play muted), a narration line, and a `run` that drives the page with the
 helpers in `ShotContext` (`tap`, `type`, `scroll`, `scrollTo`, `hold`). Keep
 an episode under about 45 seconds and open on the payoff.
 
+The narration names what is on screen by the app's own label ("Under
+Equipped", "the Spawn panel"), the first time the shot reaches it. A viewer
+cannot read a heading while the voice is already explaining what sits under
+it; hearing the name lets them find it, and find it again in the app.
+
 ## Setup and teardown
 
 `Episode.setup` puts the scene back before every recording, so it must be

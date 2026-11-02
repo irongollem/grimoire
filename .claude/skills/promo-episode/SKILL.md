@@ -25,6 +25,12 @@ to re-film.
 - Four or five shots per episode, under about 45 seconds. Each shot: a
   caption of eight words at most, one or two sentences of narration in plain
   spoken English (no em-dashes), and the actions.
+- Say the name on screen. A viewer has no time to read a panel's heading
+  while the voice is already explaining it, so the first time the camera
+  lands on a part, the line names it by the app's own label, word for word
+  ("Under Equipped, ...", "Press Run Encounter"), not by a description of it
+  ("the paper doll", "the green button"). Check the label in the code; a
+  part with no heading needs no name.
 - A DM episode may film the laptop (`device: "desktop"`). The Reel shows it
   landscape in a browser window, resting on the page beside the sidebar, with
   the narration written out below; small text needs a `focus()` to be read on

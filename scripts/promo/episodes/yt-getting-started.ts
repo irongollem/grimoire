@@ -297,7 +297,7 @@ export const ytGettingStarted: Episode = {
       id: "invite-form",
       caption: "Label it, then Generate Link",
       narration:
-        "Below that is the invite panel. Give the link a label that only you can see, such as the player's name. You can add an expiry date and a maximum number of uses, or leave both empty. Joins as is Player, and Co-DM is there for someone who will run the game in your place. Then press Generate Link.",
+        "Below that, under Invite Links, is New Invite Link. Give it a Label that only you can see, such as the player's name. Expires and Max uses are optional, so leave both empty if you like. Joins as is Player, and Co-DM is there for someone who will run the game in your place. Then press Generate Link.",
       async run({ page, tap, type, hold, focus, scrollTo }) {
         const panel = cardAround(page.getByText("New Invite Link", { exact: true }));
         await scrollTo(page.getByText("New Invite Link", { exact: true }), 1200, 120);
@@ -388,7 +388,7 @@ export const ytGettingStarted: Episode = {
       id: "hearth",
       caption: "Hearth: the player's home screen",
       narration:
-        "Here is the player's own phone. This is Hearth, their home screen, as Chicory's player sees it. It shows the date in the realm, the character's numbers, the next session, anything new that you have shared, their quests and a place for notes. The bar at the bottom holds the main tabs, Hearth, Character, Spellbook and Journal, and More opens everything else.",
+        "Here is the player's own phone. This is Hearth, their home screen, as Chicory's player sees it. It shows the date in the realm and the character's numbers, then Next session, New for you with anything you have shared, Your quests and Your notes. The bar at the bottom holds the main tabs, Hearth, Character, Spellbook and Journal, and More opens everything else.",
       device: "phone",
       account: "player",
       startAt: "/play",

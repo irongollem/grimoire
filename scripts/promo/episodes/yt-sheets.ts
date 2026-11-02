@@ -195,7 +195,7 @@ export const ytSheets: Episode = {
       chapter: "Inventory and gear",
       caption: "What she wears and carries",
       narration:
-        "The Inventory page shows what she wears on a paper doll. Main hand, off hand, body armour and the rest sit in labelled slots around the figure, and what she wears feeds her armour class. Below it are her coins, how much she carries against what she can carry, then her belt and her backpack.",
+        "On the Inventory page, Equipped shows what she wears on a paper doll. Main hand, off hand, body armour and the rest sit in labelled slots around the figure, and what she wears feeds her armour class. Below it are her Coin Purse, how much she carries against what she can carry, then her Belt and her Backpack.",
       async run({ page, hold, scroll, settled }) {
         await goTo(page, "/play/inventory");
         await page.getByText("Coin Purse").first().waitFor({ timeout: 15_000 });
@@ -232,7 +232,7 @@ export const ytSheets: Episode = {
       chapter: "Spells",
       caption: "Cast a spell, spend a slot",
       narration:
-        "Her spells are in the Spellbook. A slot strip shows every slot she has, and a filled pip is one still available. Open a level, press Cast on Bless, confirm the slot, and one goes dark, so everyone can see what is left. The page also shows how many spells she has prepared, against her limit.",
+        "Her spells are in the Spellbook. At the top, a row for each spell level shows every slot she has, and a filled pip is one still available. Open a level, press Cast on Bless, confirm the slot, and one goes dark, so everyone can see what is left. Spells prepared shows how many she has ready, against her limit.",
       async run({ page, tap, hold, settled }) {
         await goTo(page, "/play/spells");
         await settled();
@@ -252,7 +252,7 @@ export const ytSheets: Episode = {
       chapter: "Levelling up",
       caption: "The level up wizard",
       narration:
-        "When she has earned a level, the level up wizard walks her through it. At tables that track experience, a Ready arrow appears by her XP bar. The wizard shows the class features she gains, lets her take the average hit points or roll the hit die, and asks for every choice the new level grants, like an ability score increase or new spells. Nothing changes until she presses Confirm.",
+        "When she has earned a level, the level up wizard walks her through it. At tables that track experience, a Ready arrow appears by her XP bar. The wizard shows the class features she gains, lets her take the average hit points or roll the hit die, and asks for every choice the new level grants, like an ability score increase or new spells. Nothing changes until she presses Confirm Level.",
       async run({ page, hold, scroll, settled }) {
         await goTo(page, "/play/character/levelup");
         await page.getByText("Features Gained").first().waitFor({ timeout: 15_000 });
