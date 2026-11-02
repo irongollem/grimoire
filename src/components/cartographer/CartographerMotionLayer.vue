@@ -21,6 +21,20 @@
       :origin-y="originY"
       :live="live"
     />
+    <!-- The darkness veil, whose lit edge breathes with the lights. While motion plays the standing canvas leaves it out. -->
+    <BattleMapVeil
+      v-if="live.darkness !== 'daylight' && cellPx > 0"
+      :host-w="width"
+      :host-h="height"
+      :pan-x="0"
+      :pan-y="0"
+      :image-w="width"
+      :image-h="height"
+      :cell-px="cellPx"
+      :origin-x="originX"
+      :origin-y="originY"
+      :live="live"
+    />
   </template>
 </template>
 
@@ -36,6 +50,7 @@ import { computed, onBeforeUnmount, shallowRef, watch } from "vue";
 import { MOTION_REBUILD_INTERVAL_MS } from "@/cartographer/motion";
 import { createSnapshotScheduler } from "@/cartographer/motionSnapshot";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
+import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
 import { buildMapLive } from "@/cartographer/mapLive";
 import type { DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";

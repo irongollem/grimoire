@@ -95,7 +95,7 @@ export interface MapRenderScene {
   layersRevision?: number;
   /**
    * Leave out what the live layer draws itself (swaying props, door leaves); see `omitLive` on `DrawMapInput`. Set
-   * while the editor plays motion over the map, so a prop is never drawn twice.
+   * while the editor plays motion over the map, so a prop is never drawn twice and the darkness veil is left to the animated one above.
    */
   omitLive?: boolean;
   /**
@@ -428,7 +428,8 @@ export function renderMap(scene: MapRenderScene): void {
 
   // The DM's darkness veil, carved by the map's lights, over the drawing but under the editing aids (labels, link
   // dots, selection), so what the DM is working on stays readable. The same function paints it on the battle map.
-  if (darkness && darkness !== "daylight") {
+  // While motion plays the animated veil above the canvas draws it instead (`omitLive`), so its lit edge can breathe.
+  if (darkness && darkness !== "daylight" && !scene.omitLive) {
     const lit = cachedIllumination(scene, darkness, rt);
     if (lit) {
       const { extent } = lit;

@@ -468,6 +468,13 @@ describe("renderMap: darkness veil", () => {
     expect(veilDraws(b.rec)).toHaveLength(0);
   });
 
+  it("leaves the veil to the animated one above while motion plays, so the lit edge can breathe", () => {
+    const v = veilCanvas();
+    const { scene, rec } = baseScene({ layers: paintOne(), darkness: "dark", makeCanvas: v.makeCanvas, omitLive: true });
+    renderMap(scene);
+    expect(veilDraws(rec)).toHaveLength(0);
+  });
+
   it("clears the veil around a light and keeps dim ambient at least dim", () => {
     const layers = emptyLayers();
     for (let x = 0; x < 6; x++) layers.floor[cellKey(x, 0)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };

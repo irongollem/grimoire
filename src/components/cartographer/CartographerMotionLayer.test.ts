@@ -96,6 +96,16 @@ describe("the editor's motion layer", () => {
     expect(layers).toEqual(["ground", "top"]);
   });
 
+  it("lays the breathing darkness veil over the standing canvas on a dark map, and none by day", async () => {
+    const slots = { default: '<canvas class="standing"></canvas>' };
+    const dark = mount(CartographerMotionLayer, { props: props({ darkness: "dark" }), slots });
+    await dark.vm.$nextTick();
+    expect(dark.findAllComponents({ name: "BattleMapVeil" })).toHaveLength(1);
+    const day = mount(CartographerMotionLayer, { props: props({ darkness: "daylight" }), slots });
+    await day.vm.$nextTick();
+    expect(day.findAllComponents({ name: "BattleMapVeil" })).toHaveLength(0);
+  });
+
   it("paused, the standing canvas is still there and no live layer is", async () => {
     const w = mount(CartographerMotionLayer, { props: props({ playing: false }), slots: { default: '<canvas class="standing"></canvas>' } });
     expect(w.findAll("canvas")).toHaveLength(1);

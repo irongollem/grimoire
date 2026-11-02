@@ -27,9 +27,10 @@ import { effectiveDoors } from "@/lib/battlemap/doors";
 import { segmentAxis } from "@/lib/battlemap/walls";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
 import { clipGroundMotion } from "@/lib/battlemap/groundMotionClip";
-import { boostMask, type BoostMask, groupsIn, hasMotion, lightBoost, lightRadiusScale, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
+import { boostMask, groupsIn, hasMotion, lightBoost, lightRadiusScale, lightsIn, overlayFrame, spritesIn, swayAngle, type Stratum } from "@/lib/battlemap/liveLayer";
 import { LIGHT_BOOST_GAIN, lightMotion, lightReachCells, lightStops } from "@/cartographer/lights";
 import { DEFAULT_LIGHT_INTENSITY } from "@/cartographer/packSchema";
+import { maskCanvasOf } from "@/lib/battlemap/veilBreath";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { MapLive, MapLiveDoor, MapLiveDoorState, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 
@@ -185,27 +186,14 @@ function paintSprite(ctx: CanvasRenderingContext2D, sprite: MapLiveSprite, t: nu
   ctx.restore();
 }
 
-// One canvas per light's line-of-sight mask, and one scratch canvas the boost is composed in.
-// Keyed on the mask itself, so a door the DM opens (a new mask for the same light) gets a canvas of its own.
-const maskCanvases = new WeakMap<BoostMask, HTMLCanvasElement>();
+// One scratch canvas the boost is composed in. A light's sight mask canvas is shared with the veil's breathing edge.
 let scratch: HTMLCanvasElement | null = null;
 
 function maskCanvasFor(light: MapLiveLight): { canvas: HTMLCanvasElement; x0: number; y0: number; x1: number; y1: number } | null {
   if (!live) return null;
   const held = boostMask(live, light, doorStates);
-  let canvas = maskCanvases.get(held);
-  if (!canvas) {
-    canvas = document.createElement("canvas");
-    canvas.width = held.mask.width;
-    canvas.height = held.mask.height;
-    const mctx = canvas.getContext("2d");
-    if (!mctx) return null;
-    const image = mctx.createImageData(held.mask.width, held.mask.height);
-    for (let k = 0; k < held.mask.alpha.length; k++) image.data[k * 4 + 3] = held.mask.alpha[k];
-    mctx.putImageData(image, 0, 0);
-    maskCanvases.set(held, canvas);
-  }
-  return { canvas, x0: held.x0, y0: held.y0, x1: held.x1, y1: held.y1 };
+  const canvas = maskCanvasOf(held);
+  return canvas ? { canvas, x0: held.x0, y0: held.y0, x1: held.x1, y1: held.y1 } : null;
 }
 
 /**
