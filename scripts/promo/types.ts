@@ -112,6 +112,12 @@ export interface Shot {
   startAt?: string;
   /** Overrides the episode's device for this shot (a Reel may cut from a laptop to a phone). A shot on another device than the one before needs a `startAt`. */
   device?: Device;
+  /**
+   * Overrides the episode's account for this shot: a YouTube video that shows both sides of the table films the
+   * DM's laptop and the player's own phone, signed in as each, rather than the DM previewing the player. Each
+   * account and device pair is its own signed-in page, so the first shot on a new pair needs a `startAt`.
+   */
+  account?: Account;
   /** YouTube: this shot starts a chapter with this title (the first chapter is forced to 0:00). */
   chapter?: string;
   run(ctx: ShotContext): Promise<void>;

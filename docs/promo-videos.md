@@ -109,7 +109,11 @@ Like `setup`, it writes to the local stack's demo campaign only.
 `Episode.device` is `"phone"` (default), `"tablet"` or `"desktop"`, and a
 shot's own `device` overrides it, so a Reel can cut from a laptop to a phone.
 A shot on another device than the one before needs its own `startAt`: each
-device has its own signed-in page. `devices.ts` holds what filming needs
+device has its own signed-in page. A shot's `account` likewise overrides the
+episode's, so one video can film the DM's laptop and then the player's own
+phone signed in as the player; each account and device pair is its own page.
+A shot that names neither falls back to the episode's, even right after a shot
+on another pair, so every shot off the default names both. `devices.ts` holds what filming needs
 (viewport, scale, sidebar); where each screen sits in a finished video is
 `layouts.ts`, per format. The Reel's sizes:
 
