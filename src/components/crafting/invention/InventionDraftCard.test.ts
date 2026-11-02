@@ -84,10 +84,10 @@ describe("InventionDraftCard", () => {
   it("shows the item, its mechanics, the recipe and the value limit", () => {
     const text = mount(InventionDraftCard, { props: { invention: invention(), viewer: "dm", characterName: "Nessa" } }).text();
     expect(text).toContain("Songbird Automaton");
-    expect(text).toContain("Common, Adventuring Gear, 4 pp, New item");
+    expect(text).toContain("Common, Adventuring Gear, 40 gp, New item");
     expect(text).toContain("+1 to attack and damage rolls");
     expect(text).toContain("DC 12, Tinker's Tools, 5 days");
-    expect(text).toContain("Materials worth 15 pp, so up to 30 pp.");
+    expect(text).toContain("Materials worth 150 gp, so up to 300 gp.");
     expect(text).toContain("Invented by Nessa");
     expect(text).toContain("Waiting for you");
   });
@@ -120,7 +120,7 @@ describe("InventionDraftCard", () => {
 
   it("shows the quantity when more than one is made", () => {
     const text = mount(InventionDraftCard, { props: { invention: invention({}, { quantity: 3 }), viewer: "dm" } }).text();
-    expect(text).toContain("4 pp each, x 3");
+    expect(text).toContain("40 gp each, x 3");
   });
 
   it("titles the note by whose screen it is", () => {

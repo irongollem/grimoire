@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   confirm: vi.fn(),
   success: vi.fn(),
-  store: { activeCampaign: null as unknown },
+  store: { activeCampaign: null as unknown, switchToCampaign: vi.fn() as unknown },
 }));
 
 vi.mock("@/composables/campaign/useCampaigns", () => ({

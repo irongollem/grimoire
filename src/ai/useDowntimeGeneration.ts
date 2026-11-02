@@ -8,6 +8,8 @@ import { getTextProvider } from "./providers";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { currencyPromptBlock } from "@edge-shared/currency.ts";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { seedFromAiResult } from "@/lib/downtime/downtimeAiSeed";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
@@ -60,6 +62,7 @@ export interface DowntimeDraftResult {
 
 export function useDowntimeGeneration() {
   const campaign = useCampaignStore();
+  const { currency } = useCurrency();
   const { ruleset } = useTableRuleset();
 
   async function generate(args: DowntimeDraftArgs): Promise<DowntimeDraftResult | null> {
@@ -85,7 +88,7 @@ export function useDowntimeGeneration() {
 
       // The airlock: anything the model invented that we can't honour is dropped
       // here, and a genuinely unusable draft throws with a message the DM reads.
-      const seed = seedFromAiResult(raw, args.activity.key, args.activity.rewardType);
+      const seed = seedFromAiResult(raw, args.activity.key, args.activity.rewardType, currency.value);
       const ai_provenance = (raw as { ai_provenance?: AiProvenance } | null)?.ai_provenance;
       return { seed, ai_provenance };
     } catch (e) {
@@ -132,6 +135,9 @@ export function useDowntimeGeneration() {
       `reward.kind MUST be: ${args.activity.rewardType}`,
     ];
     if (args.characterName) constraints.push(`Character: ${args.characterName}`);
+    // The server path appends the same block (generate-downtime): coin effects
+    // must name this campaign's coins.
+    constraints.push(currencyPromptBlock(currency.value));
 
     const userContent = args.steer
       ? `${wrapUserInput(args.steer)}\n\nConstraints:\n${constraints.join("\n")}`

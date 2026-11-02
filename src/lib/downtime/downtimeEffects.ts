@@ -76,6 +76,20 @@ export function unknownCoinKeys(effects: readonly DowntimeEffect[], currency: Cu
 }
 
 /**
+ * A seed card's effects as this campaign can use them. The built-in seeds are
+ * 5e content priced in 5e coins; in a campaign without those coins a gold
+ * effect is dropped rather than offered, so ticking it can never fail on a coin
+ * the campaign does not have. The card's story and other effects stand, and the
+ * DM can still hand coins over from the purse.
+ */
+export function effectsForCurrency(effects: readonly DowntimeEffect[], currency: CurrencyConfig): DowntimeEffect[] {
+  const known = new Set(currency.denominations.map((d) => d.key));
+  return effects
+    .filter((e) => e.kind !== "gold" || [...Object.keys(e.gain), ...Object.keys(e.spend)].every((k) => known.has(k)))
+    .map((e) => ({ ...e }));
+}
+
+/**
  * Apply every ticked `hp` delta, clamped to [0, maxHp]. Downtime bruises and
  * mends; it never drops a character below 0 (that is combat's job) nor heals
  * past their maximum.

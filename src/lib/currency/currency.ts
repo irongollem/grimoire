@@ -144,6 +144,21 @@ export function makeChange(value: number, cfg: CurrencyConfig): Coins {
 }
 
 /**
+ * A value (in the smallest coin) written as a price: change in coins worth no
+ * more than the default coin, so it reads the way a bare number would ("1500
+ * gp", never "15 pp") and parses back to the same value. Zero reads as "0" of
+ * the smallest coin. Mirrors `formatCost` in supabase/functions/_shared/invention/price.ts.
+ */
+export function formatPrice(value: number, cfg: CurrencyConfig): string {
+  const top = cfg.denominations.find((d) => d.key === cfg.default_key)?.value ?? Infinity;
+  const priced: CurrencyConfig = { ...cfg, denominations: cfg.denominations.filter((d) => d.value <= top) };
+  const text = formatCoins(makeChange(Math.max(0, Math.round(value)), priced), priced);
+  if (text) return text;
+  const unit = cfg.denominations.find((d) => d.value === 1);
+  return `0 ${unit?.abbr ?? cfg.default_key}`;
+}
+
+/**
  * Re-expresses the removed denomination's count, by value, in the coins that
  * make change; every other count stays. Pure: callers decide what to do with it.
  */

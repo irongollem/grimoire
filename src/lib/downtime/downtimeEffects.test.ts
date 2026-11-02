@@ -3,6 +3,7 @@ import {
   coinGain,
   coinSpend,
   unknownCoinKeys,
+  effectsForCurrency,
   applyConditionEffects,
   applyHpEffects,
   describeEffect,
@@ -195,5 +196,14 @@ describe("describeEffect", () => {
 
   it("names a condition", () => {
     expect(describeEffect(condition("Poisoned"), DND5E_CURRENCY)).toBe("Poisoned");
+  });
+});
+
+describe("effectsForCurrency", () => {
+  it("drops a 5e-priced seed's gold effect in a dollar campaign, so ticking it cannot fail (bug: seed cards erroring outside 5e)", () => {
+    expect(effectsForCurrency([gold({ gain: { gp: 5 } }), hp(2, false)], DOLLARS)).toEqual([hp(2, false)]);
+  });
+  it("keeps a gold effect in coins the campaign has", () => {
+    expect(effectsForCurrency([gold({ gain: { gp: 5 } })], DND5E_CURRENCY)).toHaveLength(1);
   });
 });

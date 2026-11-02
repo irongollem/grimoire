@@ -172,14 +172,13 @@ describe("inventionMechanicLine", () => {
 });
 
 describe("inventionValueText", () => {
-  it("writes coins", () => {
-    expect(inventionValueText(4000, DND5E_CURRENCY)).toBe("4 pp");
+  it("reads as a price in the default coin and below, as the server writes it (40 gp, never 4 pp)", () => {
+    expect(inventionValueText(4000, DND5E_CURRENCY)).toBe("40 gp");
     expect(inventionValueText(5, DND5E_CURRENCY)).toBe("5 cp");
-    expect(inventionValueText(1250, DND5E_CURRENCY)).toBe("1 pp 2 gp 5 sp");
+    expect(inventionValueText(1250, DND5E_CURRENCY)).toBe("12 gp 5 sp");
   });
-  it("makes change in the campaign's own coins, not 5e's, and never folds platinum into gold", () => {
+  it("makes change in the campaign's own coins, not 5e's", () => {
     expect(inventionValueText(1250, DOLLARS)).toBe("12 $ 50 ¢");
-    expect(inventionValueText(12000, DND5E_CURRENCY)).toBe("12 pp");
   });
   it("writes nothing as zero of the smallest coin", () => {
     expect(inventionValueText(0, DND5E_CURRENCY)).toBe("0 cp");

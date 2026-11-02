@@ -7,6 +7,7 @@ import {
   coinValue,
   convertRemoved,
   formatCoins,
+  formatPrice,
   hasCoins,
   makeChange,
   parsePrice,
@@ -144,5 +145,15 @@ describe("validateCurrency", () => {
     const cfg = ok();
     mutate(cfg);
     expect(validateCurrency(cfg).length).toBeGreaterThan(0);
+  });
+});
+
+describe("formatPrice", () => {
+  it("writes a price in the default coin and below, so it reads back as the same price (bug: 4000 cp shown as 4 pp)", () => {
+    expect(formatPrice(4000, FIVE)).toBe("40 gp");
+    expect(parsePrice(formatPrice(150055, FIVE), FIVE)).toEqual({ gp: 1500, sp: 5, cp: 5 });
+  });
+  it("writes nothing as zero of the smallest coin", () => {
+    expect(formatPrice(0, FIVE)).toBe("0 cp");
   });
 });

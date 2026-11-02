@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as edge from "./currency.ts";
 import * as app from "../../../src/lib/currency/currency";
+import { formatCost } from "./invention/price.ts";
 import { DND5E_CURRENCY } from "../../../src/systems/dnd5e/currency/dnd5eCurrency";
 
 const DOLLARS: edge.CurrencyConfig = {
@@ -23,6 +24,8 @@ describe("edge currency copy agrees with src/lib/currency", () => {
         expect(change).toEqual(app.makeChange(value, cfg));
         expect(edge.coinValue(change, cfg)).toBe(app.coinValue(change, cfg));
         expect(edge.formatCoins(change, cfg)).toBe(app.formatCoins(change, cfg));
+        // The server writes an invention's cost; the client shows its value. One rule for both.
+        expect(formatCost(value, cfg)).toBe(app.formatPrice(value, cfg));
       }
     });
   }

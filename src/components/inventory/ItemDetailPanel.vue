@@ -395,7 +395,6 @@ import CoinInput from "@/components/currency/CoinInput.vue";
 import { useCurrency } from "@/composables/currency/useCurrency";
 import { hasCoins, type Coins } from "@/lib/currency/currency";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import { ITEM_QUALITIES, QUALITY_LABELS, QUALITY_MODIFIER } from "@/lib/items/quality";

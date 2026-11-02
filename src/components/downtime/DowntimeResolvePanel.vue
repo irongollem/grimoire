@@ -10,7 +10,7 @@ import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { previewDraw, useResolveDraw, useCancelDraw, useApplyEffects } from "@/composables/downtime/useDowntime";
 import { useToast } from "@/composables/useToast";
 import { useCurrency } from "@/composables/currency/useCurrency";
-import { isAutoAppliedKind, describeEffect } from "@/lib/downtime/downtimeEffects";
+import { isAutoAppliedKind, describeEffect, effectsForCurrency } from "@/lib/downtime/downtimeEffects";
 import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
@@ -47,8 +47,9 @@ onMounted(() => {
   if (drawn?.source === "seed") {
     title.value = drawn.seed.title;
     vignette.value = markdownToTiptapJson(drawn.seed.vignette);
-    // Clone so ticking a box never mutates the shared seed constant.
-    effects.value = drawn.seed.proposedEffects.map((e) => ({ ...e }));
+    // Cloned (so ticking a box never mutates the shared seed constant) and
+    // fitted to the campaign's coins: the built-in seeds are priced in 5e coins.
+    effects.value = effectsForCurrency(drawn.seed.proposedEffects, currency.value);
   } else if (drawn?.source === "prepped") {
     title.value = "";
     vignette.value = null;

@@ -1,4 +1,4 @@
-import { formatCoins, makeChange, type CurrencyConfig } from "@/lib/currency/currency";
+import { formatPrice, type CurrencyConfig } from "@/lib/currency/currency";
 import { craftingTimeText } from "./craftingTime";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
 import type {
@@ -229,10 +229,7 @@ function ordinal(n: number): string {
  * in 5e. Zero or less reads as "0" of the smallest coin.
  */
 export function inventionValueText(value: number, currency: CurrencyConfig): string {
-  const text = formatCoins(makeChange(Math.max(0, Math.round(value)), currency), currency);
-  if (text) return text;
-  const unit = currency.denominations.find((d) => d.value === 1);
-  return `0 ${unit?.abbr ?? currency.denominations.at(-1)?.abbr}`;
+  return formatPrice(value, currency);
 }
 
 /** The status chip's words, from whose screen it is. */
