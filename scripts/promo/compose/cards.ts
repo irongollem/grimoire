@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { DEVICES } from "../devices.ts";
+import { BROWSER_BAR, DEVICES } from "../devices.ts";
 import type { Device } from "../types.ts";
 
 export const BACKGROUND = "#f2ece0"; // vellum --background
@@ -63,48 +63,67 @@ export async function renderCards(workDir: string, cards: Card[]): Promise<void>
   }
 }
 
-/** The Reel's page behind a shot: a framed device gets its screen box and shadow, a desktop is bare paper (its shadow is in the camera's backdrop). */
+const SHADOW = "0 28px 70px rgba(43,32,25,.38),0 6px 18px rgba(43,32,25,.22)";
+const LOCK = `<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="3" y="7" width="10" height="7.5" rx="1.6" fill="currentColor"/><path d="M5.2 7V5.2a2.8 2.8 0 0 1 5.6 0V7" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>`;
+
+/**
+ * The Reel's page behind a shot, with the frame the screen sits in: a device's
+ * screen box, or a browser window whose title bar carries the three window dots
+ * and the app's address. Both are rounded and cast the same shadow.
+ */
 export const baseCard = (file: string, device: Device): Card => {
-  const { window: w, framed } = DEVICES[device];
+  const { window: w, frame } = DEVICES[device];
+  if (frame === "device") {
+    return {
+      file,
+      width: 1080,
+      height: 1920,
+      transparent: false,
+      body: `<div class="s"></div>`,
+      css: `.s{position:absolute;left:${w.x}px;top:${w.y}px;width:${w.w}px;height:${w.h}px;border-radius:${w.radius}px;background:#000;box-shadow:${SHADOW}}`,
+    };
+  }
   return {
     file,
     width: 1080,
     height: 1920,
     transparent: false,
-    body: framed ? `<div class="s"></div>` : "",
-    css: framed
-      ? `.s{position:absolute;left:${w.x}px;top:${w.y}px;width:${w.w}px;height:${w.h}px;border-radius:${w.radius}px;background:#000;box-shadow:0 28px 70px rgba(43,32,25,.38),0 6px 18px rgba(43,32,25,.22)}`
-      : "",
+    body: `<div class="win"><div class="bar"><i></i><i></i><i></i><div class="url">${LOCK}<span>app.dungeongrimoire.com</span></div></div></div>`,
+    css: `.win{position:absolute;left:${w.x}px;top:${w.y - BROWSER_BAR}px;width:${w.w}px;height:${w.h + BROWSER_BAR}px;border-radius:${w.radius}px;background:#fbf7ef;box-shadow:${SHADOW},0 0 0 1px rgba(43,32,25,.14);overflow:hidden}
+      .bar{position:relative;height:${BROWSER_BAR}px;display:flex;align-items:center;gap:9px;padding:0 20px;background:#e8dfcd;border-bottom:1px solid rgba(43,32,25,.14)}
+      .bar i{width:13px;height:13px;border-radius:50%;background:#c9bda6}
+      .bar i:nth-child(1){background:#c96a52}.bar i:nth-child(2){background:#d6a94a}.bar i:nth-child(3){background:#7c9a5c}
+      .url{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:32px;padding:0 22px;border-radius:9999px;background:#f8f4ea;display:flex;align-items:center;gap:8px;font:700 19px 'Alegreya Sans',sans-serif;color:#7a6b5a}`,
   };
 };
 
-/** The rounded corners of a framed device's screen. */
+/** The screen's rounded corners: all four on a device, the bottom two in a browser (the title bar covers the top). */
 export const maskCard = (file: string, device: Device): Card => {
-  const { window: w } = DEVICES[device];
+  const { window: w, frame } = DEVICES[device];
+  const radius = frame === "device" ? `${w.radius}px` : `0 0 ${w.radius}px ${w.radius}px`;
   return {
     file,
     width: w.w,
     height: w.h,
     transparent: true,
     body: `<div class="m"></div>`,
-    css: `.m{width:${w.w}px;height:${w.h}px;border-radius:${w.radius}px;background:#fff}`,
+    css: `.m{width:${w.w}px;height:${w.h}px;border-radius:${radius};background:#fff}`,
   };
 };
 
 /**
- * What the camera looks at, in device pixels: a framed device on black, or a
- * desktop screen on paper with a soft shadow, so it reads as a laptop screen
- * floating on the page. A tight shot sees little of the shadow, a wide one all of it.
+ * What the camera looks at, in device pixels: a device's screen on black, or a
+ * desktop screen on plain paper, which reads as the page's own margin inside the
+ * browser when a view takes in more than the screen (the whole of a page with no
+ * sidebar, or an overview).
  */
-export const backdropCard = (file: string, device: Device, canvas: { width: number; height: number; screenX: number; screenY: number }, screen: { width: number; height: number }): Card => ({
+export const backdropCard = (file: string, device: Device, canvas: { width: number; height: number }): Card => ({
   file,
   width: canvas.width,
   height: canvas.height,
   transparent: false,
-  body: DEVICES[device].framed ? "" : `<div class="s"></div>`,
-  css: DEVICES[device].framed
-    ? `html,body{background:#000!important}`
-    : `.s{position:absolute;left:${canvas.screenX}px;top:${canvas.screenY}px;width:${screen.width}px;height:${screen.height}px;background:#000;box-shadow:0 90px 220px rgba(43,32,25,.38),0 20px 60px rgba(43,32,25,.22)}`,
+  body: "",
+  css: DEVICES[device].frame === "device" ? `html,body{background:#000!important}` : "",
 });
 
 export const captionCard = (file: string, text: string): Card => ({

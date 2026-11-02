@@ -64,7 +64,7 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work:
           graph: `[a][${first}:v]overlay=0:230:format=auto[t];[t][${first + 1}:v]overlay=0:${spec.subtitles.y}:format=auto,format=yuv420p[v]`,
         }
       : { inputs: loop(join(work, `caption-${p.id}.png`)), graph: `[a][${first}:v]overlay=0:230:format=auto,format=yuv420p[v]` };
-  const camera = (shot.camera?.length ?? 0) > 0 || !spec.framed;
+  const camera = (shot.camera?.length ?? 0) > 0 || spec.frame === "browser";
   if (!camera) {
     const text = words(3);
     ffmpeg([
@@ -93,13 +93,11 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, clip: string, work:
     `[3:v]format=yuv420p[bd];[1:v]fps=30,${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuv420p[c];` +
     `[bd][c]overlay=${canvas.screenX}:${canvas.screenY}[cv];` +
     `[cv]zoompan=z='${z}':x='${zx}':y='${zy}':d=1:s=${w}x${h}:fps=30[zp]`;
-  const place = spec.framed
-    ? `[zp]format=yuva420p[zv];[2:v]format=gray[m];[zv][m]alphamerge[s];[0:v][s]overlay=${x}:${y}:format=auto[a]`
-    : `[0:v][zp]overlay=${x}:${y}[a]`;
+  const place = `[zp]format=yuva420p[zv];[2:v]format=gray[m];[zv][m]alphamerge[s];[0:v][s]overlay=${x}:${y}:format=auto[a]`;
   ffmpeg([
     ...loop(join(work, `base-${device}.png`)),
     "-i", clip,
-    ...loop(spec.framed ? join(work, `mask-${device}.png`) : join(work, `base-${device}.png`)),
+    ...loop(join(work, `mask-${device}.png`)),
     ...loop(join(work, `backdrop-${p.id}.png`)),
     ...text.inputs,
     "-filter_complex", `${window};${place};${text.graph}`,
@@ -181,10 +179,10 @@ async function main() {
   const devicesUsed = [...new Set(manifest.shots.map((s): Device => s.device ?? "phone"))];
   await renderCards(work, [
     ...devicesUsed.map((d) => baseCard(join(work, `base-${d}.png`), d)),
-    ...devicesUsed.filter((d) => DEVICES[d].framed).map((d) => maskCard(join(work, `mask-${d}.png`), d)),
+    ...devicesUsed.map((d) => maskCard(join(work, `mask-${d}.png`), d)),
     ...manifest.shots
-      .filter((s) => (s.camera?.length ?? 0) > 0 || !DEVICES[s.device ?? "phone"].framed)
-      .map((s) => backdropCard(join(work, `backdrop-${s.id}.png`), s.device ?? "phone", canvasOf(s), s.size ?? { width: 0, height: 0 })),
+      .filter((s) => (s.camera?.length ?? 0) > 0 || DEVICES[s.device ?? "phone"].frame === "browser")
+      .map((s) => backdropCard(join(work, `backdrop-${s.id}.png`), s.device ?? "phone", canvasOf(s))),
     ...manifest.shots.map((s) => captionCard(join(work, `caption-${s.id}.png`), s.caption)),
     ...manifest.shots.flatMap((s) => {
       const band = DEVICES[s.device ?? "phone"].subtitles;
