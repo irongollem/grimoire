@@ -266,7 +266,7 @@ import {
   withCondition,
 } from "@/rules/conditions";
 import type { PartyMember } from "@/types/party.types";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";

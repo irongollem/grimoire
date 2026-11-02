@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(32);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('93620000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -31,29 +31,30 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name) v
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
 -- pm1 belongs to player 2, pm2 to player 3 (with funds), both in c1.
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, gp, ruleset) values
-  ('93620000-0000-4000-8000-0000000000e1', '93620000-0000-4000-8000-000000000002', '93620000-0000-4000-8000-000000000002', '93620000-0000-4000-8000-0000000000c1', 'Pm one', 5, '2014'),
-  ('93620000-0000-4000-8000-0000000000e2', '93620000-0000-4000-8000-000000000003', '93620000-0000-4000-8000-000000000003', '93620000-0000-4000-8000-0000000000c1', 'Pm two', 5, '2014');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, coins, ruleset) values
+  ('93620000-0000-4000-8000-0000000000e1', '93620000-0000-4000-8000-000000000002', '93620000-0000-4000-8000-000000000002', '93620000-0000-4000-8000-0000000000c1', 'Pm one', '{"gp": 5}', '2014'),
+  ('93620000-0000-4000-8000-0000000000e2', '93620000-0000-4000-8000-000000000003', '93620000-0000-4000-8000-000000000003', '93620000-0000-4000-8000-0000000000c1', 'Pm two', '{"gp": 5}', '2014');
 
 insert into public.party_inventory (id, campaign_id, user_id, name, quantity, carried_by) values
   ('93620000-0000-4000-8000-0000000000f1', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000002', 'Lantern', 1, '93620000-0000-4000-8000-0000000000e1');
 
 -- Messages, one per RPC, all in c1.
 insert into public.campaign_messages (id, campaign_id, user_id, message, type, metadata) values
-  ('93620000-0000-4000-8000-0000000000a1', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'coins', 'currency_drop', '{"gp":3}'),
+  ('93620000-0000-4000-8000-0000000000a1', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'coins', 'currency_drop', '{"coins":{"gp":3}}'),
   ('93620000-0000-4000-8000-0000000000a2', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'item', 'item_drop', '{"item_name":"Rope","quantity":2}'),
   ('93620000-0000-4000-8000-0000000000a3', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'chest', 'loot_chest',
     '{"claims_total":1,"claims":[],"rolled_atoms":[{"atom_id":"atom-1"}]}'),
   ('93620000-0000-4000-8000-0000000000a4', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":1,"seller_party_member_id":"93620000-0000-4000-8000-0000000000e1","inventory_item_id":"93620000-0000-4000-8000-0000000000f1"}'),
-  ('93620000-0000-4000-8000-0000000000a5', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'vendor', 'vendor_offer', '{}'),
+    '{"price":{"gp":1},"seller_party_member_id":"93620000-0000-4000-8000-0000000000e1","inventory_item_id":"93620000-0000-4000-8000-0000000000f1"}'),
+  ('93620000-0000-4000-8000-0000000000a5', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'vendor', 'vendor_offer', '{"price":{"gp":2}}'),
+  ('93620000-0000-4000-8000-0000000000ae', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'vendor', 'vendor_offer', '{"price":{"gp":50}}'),
   ('93620000-0000-4000-8000-0000000000a6', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'item', 'item_drop', '{"item_name":"Torch","quantity":3}'),
   ('93620000-0000-4000-8000-0000000000a7', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-000000000001', 'item', 'item_drop', '{"item_name":"Flint","quantity":1}');
 
 insert into public.locations (id, user_id, campaign_id, name) values
   ('93620000-0000-4000-8000-0000000000b1', '93620000-0000-4000-8000-000000000001', '93620000-0000-4000-8000-0000000000c1', 'Crypt');
 insert into public.loot_placements (id, campaign_id, location_id, kind, payload) values
-  ('93620000-0000-4000-8000-0000000000d1', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-0000000000b1', 'currency', '{"gp":5}');
+  ('93620000-0000-4000-8000-0000000000d1', '93620000-0000-4000-8000-0000000000c1', '93620000-0000-4000-8000-0000000000b1', 'currency', '{"coins":{"gp":5}}');
 
 create function pg_temp.as_user(p_n int) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -117,7 +118,7 @@ select is(public.claim_player_offer('93620000-0000-4000-8000-0000000000a4', 'Pla
   '93620000-0000-4000-8000-000000000003', 'claim_player_offer: the rightful buyer pays from their own character');
 
 -- ── claim_vendor_offer ──────────────────────────────────────────────────────
--- The RPC stamps who paid; the purse debit happens in the client, through RLS.
+-- The RPC stamps who paid and debits the payer's purse in the same transaction.
 -- Membership, and the payer being the caller's own character, are its checks.
 select pg_temp.as_user(4);
 select throws_ok($$ select public.claim_vendor_offer('93620000-0000-4000-8000-0000000000a5', 'Stranger', null) $$,
@@ -131,6 +132,10 @@ select throws_ok($$ select public.claim_vendor_offer('93620000-0000-4000-8000-00
 select pg_temp.as_user(2);
 select is(public.claim_vendor_offer('93620000-0000-4000-8000-0000000000a5', 'Player two', '93620000-0000-4000-8000-0000000000e1') ->> 'paid_by_user_id',
   '93620000-0000-4000-8000-000000000002', 'claim_vendor_offer: a member pays');
+select is((select coins from public.party_members where id = '93620000-0000-4000-8000-0000000000e1'), '{"gp": 7}'::jsonb,
+  'claim_vendor_offer: paying debits the price from the payer''s purse (5 gp, the 3 gp drop and the 1 gp sale above, less 2)');
+select throws_ok($$ select public.claim_vendor_offer('93620000-0000-4000-8000-0000000000ae', 'Player two', '93620000-0000-4000-8000-0000000000e1') $$,
+  '22023', 'Insufficient funds', 'claim_vendor_offer: an offer the purse cannot cover is refused, not paid into debt');
 
 -- ── grab_item_drop ──────────────────────────────────────────────────────────
 select set_config('request.jwt.claims', '{"role":"authenticated"}', true);

@@ -1,4 +1,6 @@
 import type { DiceRules } from "@/lib/dice/diceRules";
+import type { CurrencyConfig } from "@/lib/currency/currency";
+import { DND5E_CURRENCY } from "./dnd5e/currency/dnd5eCurrency";
 import { dnd5eDiceRules } from "./dnd5e/dice/rules";
 
 /**
@@ -24,4 +26,13 @@ export function activeGameSystem(): GameSystemKey {
 /** The dice rules of the active campaign's game system. */
 export function activeDiceRules(): DiceRules {
   return DICE_RULES[activeGameSystem()];
+}
+
+const CURRENCIES: Record<GameSystemKey, CurrencyConfig> = {
+  dnd5e: DND5E_CURRENCY,
+};
+
+/** The currency a new campaign of this game system starts with. */
+export function defaultCurrencyFor(system: GameSystemKey): CurrencyConfig {
+  return CURRENCIES[system];
 }

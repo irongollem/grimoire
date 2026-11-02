@@ -20,13 +20,13 @@ insert into public.campaigns (id, user_id, name) values
   ('11120000-0000-4000-8000-0000000000c1', '11120000-0000-4000-8000-000000000001', 'Dana''s table'),
   ('11120000-0000-4000-8000-0000000000c2', '11120000-0000-4000-8000-000000000001', 'Dana''s other table');
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed, ruleset, gp, sp) values
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed, ruleset, coins) values
   ('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-000000000002',
-   '11120000-0000-4000-8000-000000000002', '11120000-0000-4000-8000-0000000000c1', 'Ilse', false, '2014', 41, 12),
+   '11120000-0000-4000-8000-000000000002', '11120000-0000-4000-8000-0000000000c1', 'Ilse', false, '2014', '{"gp": 41, "sp": 12}'),
   ('11120000-0000-4000-8000-0000000000e3', '11120000-0000-4000-8000-000000000003',
-   '11120000-0000-4000-8000-000000000003', '11120000-0000-4000-8000-0000000000c1', 'Dorn', false, '2014', 7, 0),
+   '11120000-0000-4000-8000-000000000003', '11120000-0000-4000-8000-0000000000c1', 'Dorn', false, '2014', '{"gp": 7}'),
   ('11120000-0000-4000-8000-0000000000e9', '11120000-0000-4000-8000-000000000001',
-   null, '11120000-0000-4000-8000-0000000000c2', 'Elsewhere', true, '2014', 0, 0);
+   null, '11120000-0000-4000-8000-0000000000c2', 'Elsewhere', true, '2014', '{}');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
   ('11120000-0000-4000-8000-0000000000c1', '11120000-0000-4000-8000-000000000001', 'dm', 'Dana', null),
@@ -181,43 +181,43 @@ select throws_ok(
   $$ select public.give_inventory_item('11120000-0000-4000-8000-0000000000b1', null) $$,
   '42501', 'Not authorized', 'nobody signed in gives nothing');
 select throws_ok(
-  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', 0, 1) $$,
+  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', '{"gp": 1}') $$,
   '42501', 'Not authorized', 'nobody signed in moves no coins');
 select pg_temp.as_user(2);
 
 -- ── give_coins ───────────────────────────────────────────────────────────────
 select pg_temp.as_user(3);
 select throws_ok(
-  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', 0, 5) $$,
+  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', '{"gp": 5}') $$,
   '42501', 'Not authorized', 'Quinn cannot take coins out of Pat''s purse');
 select pg_temp.as_user(4);
 select throws_ok(
-  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', 0, 5) $$,
+  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', '{"gp": 5}') $$,
   '42501', 'Not authorized', 'a stranger cannot move Pat''s coins');
 
 select pg_temp.as_user(2);
 select throws_ok(
-  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', 0, 100) $$,
+  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', '{"gp": 100}') $$,
   '22023', 'Not that many coins in the purse', 'Pat cannot give more gold than Pat has');
 select throws_ok(
-  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3') $$,
+  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', '{}') $$,
   '22023', 'Give at least one coin', 'a give of nothing is refused');
 select throws_ok(
-  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', 0, -5) $$,
+  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', '{"gp": -5}') $$,
   '22023', 'Give at least one coin', 'a negative give cannot pull coins the other way');
 select throws_ok(
-  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e9', 0, 5) $$,
+  $$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e9', '{"gp": 5}') $$,
   '22023', 'That character is not in this campaign', 'Pat cannot pay a character at another table');
 
-select lives_ok($$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', 0, 5, 0, 2) $$,
+select lives_ok($$ select public.give_coins('11120000-0000-4000-8000-0000000000e2', '11120000-0000-4000-8000-0000000000e3', '{"gp": 5, "sp": 2}') $$,
   'Pat gives Quinn 5 gp and 2 sp');
-select is((select gp from public.party_members where id = '11120000-0000-4000-8000-0000000000e3'), 12, 'Quinn has 12 gp');
+select is((select coins from public.party_members where id = '11120000-0000-4000-8000-0000000000e3'), '{"gp": 12, "sp": 2}'::jsonb, 'Quinn has 12 gp and the 2 sp, handed over as the coins they were');
 
 select pg_temp.as_user(1);
-select lives_ok($$ select public.give_coins('11120000-0000-4000-8000-0000000000e3', '11120000-0000-4000-8000-0000000000e2', 0, 1) $$,
+select lives_ok($$ select public.give_coins('11120000-0000-4000-8000-0000000000e3', '11120000-0000-4000-8000-0000000000e2', '{"gp": 1}') $$,
   'the DM moves a gold piece from Quinn back to Pat');
-select is((select gp::text || '/' || sp::text from public.party_members where id = '11120000-0000-4000-8000-0000000000e2'),
-  '37/10', 'Pat ends with 37 gp and 10 sp');
+select is((select coins from public.party_members where id = '11120000-0000-4000-8000-0000000000e2'),
+  '{"gp": 37, "sp": 10}'::jsonb, 'Pat ends with 37 gp and 10 sp');
 
 select * from finish();
 rollback;
