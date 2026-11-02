@@ -1,3 +1,5 @@
+import { DND5E_CURRENCY } from "@/systems/dnd5e/currency/dnd5eCurrency";
+import type { CurrencyConfig } from "@/lib/currency/currency";
 import { describe, expect, it } from "vitest";
 import type { CraftingInvention, InventionMechanic } from "@/types/crafting.types";
 import {
@@ -11,6 +13,14 @@ import {
   parseInvention,
   recipeDescriptionText,
 } from "./invention";
+
+const DOLLARS: CurrencyConfig = {
+  default_key: "dollar",
+  denominations: [
+    { key: "dollar", name: "Dollar", abbr: "$", value: 100, color: "#2e7d32", makes_change: true },
+    { key: "cent", name: "Cent", abbr: "¢", value: 1, color: "#9e9e9e", makes_change: true },
+  ],
+};
 
 function inventionRow(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -162,14 +172,17 @@ describe("inventionMechanicLine", () => {
 });
 
 describe("inventionValueText", () => {
-  it("writes coins", () => {
-    expect(inventionValueText(4000)).toBe("40 GP");
-    expect(inventionValueText(5)).toBe("5 CP");
-    expect(inventionValueText(1250)).toBe("12 GP 5 SP");
+  it("reads as a price in the default coin and below, as the server writes it (40 gp, never 4 pp)", () => {
+    expect(inventionValueText(4000, DND5E_CURRENCY)).toBe("40 gp");
+    expect(inventionValueText(5, DND5E_CURRENCY)).toBe("5 cp");
+    expect(inventionValueText(1250, DND5E_CURRENCY)).toBe("12 gp 5 sp");
   });
-  it("writes nothing as zero copper", () => {
-    expect(inventionValueText(0)).toBe("0 CP");
-    expect(inventionValueText(-50)).toBe("0 CP");
+  it("makes change in the campaign's own coins, not 5e's", () => {
+    expect(inventionValueText(1250, DOLLARS)).toBe("12 $ 50 ¢");
+  });
+  it("writes nothing as zero of the smallest coin", () => {
+    expect(inventionValueText(0, DND5E_CURRENCY)).toBe("0 cp");
+    expect(inventionValueText(-50, DOLLARS)).toBe("0 ¢");
   });
 });
 

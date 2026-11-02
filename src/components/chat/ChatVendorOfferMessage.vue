@@ -18,14 +18,8 @@
         {{ meta.description }}
       </p>
       <!-- Price -->
-      <div class="flex flex-wrap gap-2 mb-2">
-        <template v-for="coin in COINS" :key="coin.key">
-          <span
-            v-if="meta[coin.key]"
-            class="text-body font-semibold"
-            :style="{ color: coin.hexColor }"
-          >{{ meta[coin.key] }} {{ coin.symbol }}</span>
-        </template>
+      <div class="mb-2">
+        <CoinAmount :coins="meta.price" />
       </div>
       <!-- Paid state -->
       <div v-if="meta.paid_by_user_id" class="text-caption text-muted-foreground italic">
@@ -56,7 +50,7 @@
 <script setup lang="ts">
 import { IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { COINS } from '@/rules/currency';
+import CoinAmount from '@/components/currency/CoinAmount.vue';
 import type { VendorOfferMetadata } from '@/types/chat.types';
 
 const {

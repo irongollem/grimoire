@@ -43,7 +43,7 @@ export function setupSheets(): void {
      update public.party_members
         set current_hp = max_hp, temp_hp = 0, conditions = '[]'::jsonb, concentration = null,
             inspiration = false, death_save_successes = 0, death_save_failures = 0,
-            gp = 87, sp = 0, cp = 0, ep = 0, pp = 0,
+            coins = '{"gp": 87}'::jsonb,
             spell_slots = (select coalesce(jsonb_agg(jsonb_set(s, '{used}', '0'::jsonb)), '[]'::jsonb) from jsonb_array_elements(spell_slots) s)
       where id = ${pm};
      update public.party_members set conditions = '[]'::jsonb, concentration = null

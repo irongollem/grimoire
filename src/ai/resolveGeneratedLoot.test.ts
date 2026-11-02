@@ -1,6 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { resolveGeneratedLoot, type LootItemPoolRow } from "./resolveGeneratedLoot";
 import type { LootEntryAiResult } from "./types";
+import { DND5E_CURRENCY } from "@/systems/dnd5e/currency/dnd5eCurrency";
+import type { CurrencyConfig } from "@/lib/currency/currency";
+
+const DOLLARS: CurrencyConfig = {
+  default_key: "dollar",
+  denominations: [
+    { key: "dollar", name: "Dollar", abbr: "$", value: 100, color: "#2e7d32", makes_change: true },
+    { key: "cent", name: "Cent", abbr: "¢", value: 1, color: "#9e9e9e", makes_change: true },
+  ],
+};
 
 const POOL: LootItemPoolRow[] = [
   { id: "uuid-flame-tongue", name: "Flame Tongue", rarity: "rare", item_type: "weapon" },
@@ -17,24 +27,24 @@ function itemEntry(overrides: Partial<LootEntryAiResult> = {}): LootEntryAiResul
 
 describe("resolveGeneratedLoot — item entries", () => {
   it("resolves a name to its vault row", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry()], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry()], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "item", generatedName: "Flame Tongue", dropChance: 40 });
     expect(entry.kind === "item" && entry.item.id).toBe("uuid-flame-tongue");
   });
 
   it("matches case- and whitespace-insensitively but keeps the model's spelling", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "  flame TONGUE " })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "  flame TONGUE " })], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "item", generatedName: "flame TONGUE" });
     expect(entry.kind === "item" && entry.item.name).toBe("Flame Tongue");
   });
 
   it("prefers the DM's own row over the shared row of the same name", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "Cloak of Elvenkind" })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "Cloak of Elvenkind" })], POOL, DND5E_CURRENCY);
     expect(entry.kind === "item" && entry.item.id).toBe("uuid-own-cloak");
   });
 
   it("surfaces an unknown name as unresolved rather than dropping it", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "Sword of Nonexistence" })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "Sword of Nonexistence" })], POOL, DND5E_CURRENCY);
     expect(entry).toEqual({
       kind: "unresolved",
       generatedName: "Sword of Nonexistence",
@@ -43,44 +53,44 @@ describe("resolveGeneratedLoot — item entries", () => {
   });
 
   it("surfaces an item entry with no name at all", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "   " })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ item_name: "   " })], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "unresolved", reason: "the entry named no item" });
   });
 
   it("marks a repeated item as unresolved instead of silently merging it", () => {
-    const resolved = resolveGeneratedLoot([itemEntry(), itemEntry()], POOL);
+    const resolved = resolveGeneratedLoot([itemEntry(), itemEntry()], POOL, DND5E_CURRENCY);
     expect(resolved[0].kind).toBe("item");
     expect(resolved[1]).toMatchObject({ kind: "unresolved", reason: "already listed by an earlier entry" });
   });
 
   it("prefers a dice expression over a fixed quantity, never keeping both", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "2d4", fixed_qty: 3 })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "2d4", fixed_qty: 3 })], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "item", dice: "2d4", fixedQty: null });
   });
 
   it("rejects a dice expression that can never roll positive, falling back to a fixed quantity (#487)", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "1d4-10", fixed_qty: 2 })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "1d4-10", fixed_qty: 2 })], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "item", dice: null, fixedQty: 2 });
   });
 
   it("rejects a dice expression whose best roll is exactly 0 (1d4-4)", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "1d4-4", fixed_qty: 2 })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "1d4-4", fixed_qty: 2 })], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "item", dice: null, fixedQty: 2 });
   });
 
   it("rejects an unparseable dice expression rather than persisting it", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "a handful", fixed_qty: null })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ dice: "a handful", fixed_qty: null })], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "item", dice: null, fixedQty: 1 });
   });
 
   it("falls back to a quantity of 1 when the model sets neither dice nor a usable fixed_qty", () => {
-    const [entry] = resolveGeneratedLoot([itemEntry({ dice: null, fixed_qty: 0 })], POOL);
+    const [entry] = resolveGeneratedLoot([itemEntry({ dice: null, fixed_qty: 0 })], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "item", dice: null, fixedQty: 1 });
   });
 
   it("clamps an out-of-range drop chance rather than discarding the entry", () => {
-    const [tooHigh] = resolveGeneratedLoot([itemEntry({ drop_chance: 140 })], POOL);
-    const [tooLow] = resolveGeneratedLoot([itemEntry({ drop_chance: 0 })], POOL);
+    const [tooHigh] = resolveGeneratedLoot([itemEntry({ drop_chance: 140 })], POOL, DND5E_CURRENCY);
+    const [tooLow] = resolveGeneratedLoot([itemEntry({ drop_chance: 0 })], POOL, DND5E_CURRENCY);
     expect(tooHigh).toMatchObject({ dropChance: 100 });
     expect(tooLow).toMatchObject({ dropChance: 1 });
   });
@@ -90,23 +100,39 @@ describe("resolveGeneratedLoot — currency entries", () => {
   it("normalises coin amounts and keeps the label", () => {
     const [entry] = resolveGeneratedLoot([{
       type: "currency", currency_label: "Belt pouch", drop_chance: 100,
-      gp: 120, sp: 40.4, pp: -5,
-    }], POOL);
+      coins: { gp: 120, sp: 40.4, pp: -5 },
+    }], POOL, DND5E_CURRENCY);
     expect(entry).toEqual({
       kind: "currency", label: "Belt pouch", dropChance: 100,
-      pp: 0, gp: 120, ep: 0, sp: 40, cp: 0, notes: null,
+      coins: { gp: 120, sp: 40 }, notes: null,
     });
   });
 
   it("reads a negative or fractional coin amount as none or the nearest whole coin", () => {
     const [entry] = resolveGeneratedLoot([{
-      type: "currency", drop_chance: 100, gp: -1, sp: 2.6, cp: -0.4,
-    }], POOL);
-    expect(entry).toMatchObject({ kind: "currency", gp: 0, sp: 3, cp: 0 });
+      type: "currency", drop_chance: 100, coins: { gp: -1, sp: 2.6, cp: -0.4 },
+    }], POOL, DND5E_CURRENCY);
+    expect(entry).toMatchObject({ kind: "currency", coins: { sp: 3 } });
+  });
+
+  it("keeps only the campaign's own denominations, so a model answering in gp for a dollar world adds nothing", () => {
+    const [entry] = resolveGeneratedLoot([{
+      type: "currency", drop_chance: 100, coins: { dollar: 3, cent: 50, gp: 9 },
+    }], POOL, DOLLARS);
+    expect((entry as { coins: unknown }).coins).toEqual({ dollar: 3, cent: 50 });
+  });
+
+  it("reads a missing or malformed coins field as an empty purse", () => {
+    const [none, bad] = resolveGeneratedLoot([
+      { type: "currency", drop_chance: 100 },
+      { type: "currency", drop_chance: 100, coins: [5] as unknown as Record<string, number> },
+    ], POOL, DOLLARS);
+    expect(none).toMatchObject({ coins: {} });
+    expect(bad).toMatchObject({ coins: {} });
   });
 
   it("treats a blank label as absent", () => {
-    const [entry] = resolveGeneratedLoot([{ type: "currency", currency_label: "  ", drop_chance: 50 }], POOL);
+    const [entry] = resolveGeneratedLoot([{ type: "currency", currency_label: "  ", drop_chance: 50 }], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "currency", label: null });
   });
 });
@@ -115,21 +141,21 @@ describe("resolveGeneratedLoot — random entries", () => {
   it("keeps a valid rarity and item-type filter", () => {
     const [entry] = resolveGeneratedLoot([{
       type: "random", rarity: "uncommon", item_type_filter: "potion", drop_chance: 50, fixed_qty: 2,
-    }], POOL);
+    }], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "random", rarity: "uncommon", itemTypeFilter: "potion", fixedQty: 2 });
   });
 
   it("drops an unrecognised item-type filter but keeps the entry", () => {
     const [entry] = resolveGeneratedLoot([{
       type: "random", rarity: "rare", item_type_filter: "greatsword", drop_chance: 25,
-    }], POOL);
+    }], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({ kind: "random", rarity: "rare", itemTypeFilter: null });
   });
 
   it("surfaces a random entry whose rarity is not a real rarity", () => {
     const [entry] = resolveGeneratedLoot([{
       type: "random", rarity: "super rare", drop_chance: 25,
-    }], POOL);
+    }], POOL, DND5E_CURRENCY);
     expect(entry).toMatchObject({
       kind: "unresolved",
       generatedName: "Random super rare",
@@ -141,10 +167,10 @@ describe("resolveGeneratedLoot — random entries", () => {
 describe("resolveGeneratedLoot — ordering", () => {
   it("returns one result per generated entry, in the model's order", () => {
     const resolved = resolveGeneratedLoot([
-      { type: "currency", drop_chance: 100, gp: 50 },
+      { type: "currency", drop_chance: 100, coins: { gp: 50 } },
       itemEntry(),
       itemEntry({ item_name: "Ghost Sword" }),
-    ], POOL);
+    ], POOL, DND5E_CURRENCY);
     expect(resolved.map((e) => e.kind)).toEqual(["currency", "item", "unresolved"]);
   });
 });

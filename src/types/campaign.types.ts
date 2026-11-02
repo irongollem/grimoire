@@ -2,6 +2,7 @@ import type { Climate } from "@/types/calendar.types";
 import type { WeatherPin } from "@/lib/calendar/weather";
 import type { SettingCalendarDef } from "@/settings/types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import type { CurrencyConfig } from "@/lib/currency/currency";
 
 /** Per-campaign house-rule toggles. Shape is open-ended; known keys are typed. */
 export interface CampaignOptionalRules {
@@ -57,6 +58,8 @@ export interface Campaign {
   climate: Climate;
   /** The DM's overrides of the generated weather, for every climate source (#1086). */
   weather_pins: WeatherPin[];
+  /** The denominations this campaign counts money in (#934). */
+  currency: CurrencyConfig;
   is_archived: boolean;
   /** True on the one campaign new users can load as the demo (#912). Set only by `publish_demo_version`. */
   demo_template: boolean;
@@ -102,6 +105,7 @@ export type CampaignInsert = Omit<
   | "weather_pins"
   | "custom_calendar"
   | "ai_enabled"
+  | "currency"
   // Written only by the demo RPCs; a trigger discards client writes to them.
   | "demo_template"
   | "demo_version"
@@ -131,6 +135,7 @@ export type CampaignInsert = Omit<
   climate?: Climate;
   weather_pins?: WeatherPin[];
   custom_calendar?: SettingCalendarDef | null;
+  currency?: CurrencyConfig;
 };
 export type CampaignUpdate = Partial<CampaignInsert> & {
   ical_token?: string;

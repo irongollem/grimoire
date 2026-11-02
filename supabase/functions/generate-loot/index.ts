@@ -30,6 +30,7 @@ import {
 } from "../_shared/embeddings.ts";
 import { retrieveLootItems, formatItemBlock, type CandidateItem } from "../_shared/itemRetrieval.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { currencyPromptBlock, loadCampaignCurrency } from "../_shared/currency.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 /**
@@ -115,7 +116,8 @@ interface LootEntryAiResult {
   dice?: string | null;
   fixed_qty?: number | null;
   notes?: string | null;
-  pp?: number; gp?: number; ep?: number; sp?: number; cp?: number;
+  /** Currency entries: whole counts per denomination key of the campaign's currency. */
+  coins?: Record<string, number>;
 }
 
 interface LootGenerationResult {
@@ -353,8 +355,18 @@ serve(withCors(async (req: Request) => {
   if (rarities.length > 0) constraints.push(`Item rarities appropriate to this tier: ${rarities.join(", ")}`);
   if (exclude_attunement) constraints.push("Avoid items that require attunement — the party has no attunement slots free.");
 
+  // The coin map the model answers in is keyed by the campaign's denominations.
+  let currencyBlock: string;
+  try {
+    currencyBlock = currencyPromptBlock(await loadCampaignCurrency(admin, campaign_id));
+  } catch (e) {
+    await releaseCredits(admin, reservation.ids);
+    console.error("Loot currency read failed:", e);
+    return new Response(JSON.stringify({ error: "Could not read the campaign's currency." }), { status: 500, headers: { "Content-Type": "application/json" } });
+  }
+
   const userContent =
-    `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}` + itemBlock;
+    `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}` + currencyBlock + itemBlock;
 
   const textModel = text.config?.text_model;
 

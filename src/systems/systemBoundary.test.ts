@@ -10,6 +10,7 @@ import { extname, join, relative } from "node:path";
  */
 const NEUTRAL = [
   "src/lib/dice",
+  "src/lib/currency",
   "src/composables/dice",
   "src/directives",
   "src/components/common/dice",

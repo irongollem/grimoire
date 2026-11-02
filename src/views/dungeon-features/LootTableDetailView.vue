@@ -91,7 +91,7 @@
                     {{ entry.currency_label || 'Currency' }}
                   </span>
                   <span class="text-label text-ink-caution shrink-0">
-                    {{ formatCoinParts(entry.pp ?? 0, entry.gp ?? 0, entry.ep ?? 0, entry.sp ?? 0, entry.cp ?? 0).join(', ') || '—' }}
+                    <CoinAmount :coins="entry.coins ?? {}" size="sm" />
                   </span>
                 </template>
                 <template v-else>
@@ -274,7 +274,7 @@ import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
-import { formatCoinParts } from "@/rules/currency";
+import CoinAmount from "@/components/currency/CoinAmount.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import PageHeaderAction from "@/components/common/list/PageHeaderAction.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -384,7 +384,7 @@ function addEntry(type: LootEntryType) {
   if (type === "item") {
     form.value.entries.push({ ...base, item_id: "", dice: null, fixed_qty: 1 });
   } else if (type === "currency") {
-    form.value.entries.push({ ...base, currency_label: null, pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+    form.value.entries.push({ ...base, currency_label: null, coins: {} });
   } else {
     form.value.entries.push({ ...base, rarity: "common", item_type_filter: null, dice: null, fixed_qty: 1 });
   }

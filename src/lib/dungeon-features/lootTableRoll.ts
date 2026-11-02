@@ -7,7 +7,10 @@
  * Entry types:
  *   "item"     — rolls quantity (dice or fixed); one result per hit
  *   "random"   — picks one matching Vault item at random, then rolls quantity
- *   "currency" — no quantity roll; whole coin pool drops as one result
+ *   "currency" — no quantity roll; whole coin pool drops as one result, kept to
+ *                the active campaign's denominations (a table can be campaign-less
+ *                and keyed for another currency); a pool that keeps nothing is
+ *                not rolled at all
  *
  * A hit that resolves to nothing (deleted item, empty candidate pool, or a
  * quantity of ≤ 0) is NOT silently dropped: it produces an `unresolved` result
@@ -20,6 +23,7 @@
 import { rollDie } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import { parseExpression } from "@/lib/dice/dice";
+import { hasCoins, type Coins, type CurrencyConfig } from "@/lib/currency/currency";
 import type { Item } from "@/types/item.types";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS } from "@/types/item.types";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
@@ -45,11 +49,7 @@ export interface RolledItemEntry extends RolledBase {
 export interface RolledCurrencyEntry extends RolledBase {
   type: "currency";
   currency_label?: string | null;
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
+  coins: Coins;
 }
 
 /** Why a hit entry produced no loot. */
@@ -86,12 +86,23 @@ export function unresolvedReasonLabel(reason: UnresolvedReason): string {
   }
 }
 
+/**
+ * The coins of `coins` the campaign's currency has, with non-positive counts dropped.
+ * A loot table may be campaign-less and hold coins keyed for another currency; such a
+ * coin can be neither stored nor shown, so it never leaves the roll.
+ */
+export function knownCoins(coins: Coins, cfg: CurrencyConfig): Coins {
+  const keys = new Set(cfg.denominations.map((d) => d.key));
+  return Object.fromEntries(Object.entries(coins).filter(([key, n]) => keys.has(key) && n > 0));
+}
+
 // ── Core roller ───────────────────────────────────────────────────────────────
 
-/** Roll the table once. `itemsById` snapshots Vault items for display. */
+/** Roll the table once. `itemsById` snapshots Vault items for display; `currency` is the campaign's. */
 export function rollLootTable(
   table: LootTable,
   itemsById: Map<string, LootPoolItem>,
+  currency: CurrencyConfig,
 ): RolledLootEntry[] {
   const results: RolledLootEntry[] = [];
 
@@ -147,15 +158,13 @@ export function rollLootTable(
       });
     } else {
       // currency
+      const coins = knownCoins(entry.coins ?? {}, currency);
+      if (!hasCoins(coins)) continue;
       results.push({
         type: "currency",
         entry_id: entry.id,
         currency_label: entry.currency_label ?? null,
-        pp: entry.pp ?? 0,
-        gp: entry.gp ?? 0,
-        ep: entry.ep ?? 0,
-        sp: entry.sp ?? 0,
-        cp: entry.cp ?? 0,
+        coins,
         notes: entry.notes ?? null,
       });
     }

@@ -125,14 +125,17 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { resolveItemById, useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useSpeaker } from "@/composables/party/useSpeaker";
-import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
+import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
 import type { ItemDropMetadata, LootRollChoice, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
-import { toCP, fromCP } from "@/rules/currency";
+import { canAfford, hasCoins, type Coins } from "@/lib/currency/currency";
+import { knownCoins } from "@/lib/dungeon-features/lootTableRoll";
+import { useAdjustPurse } from "@/composables/items/usePurseWrites";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 
@@ -231,7 +234,8 @@ const namedItemIds = computed(() =>
 const { data: namedItems } = useItemsByIds(namedItemIds, () => ({ enabled: appUi.chatOpen }));
 const { data: npcsData } = useNpcs(chatOpen);
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
-const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
+const { currency } = useCurrency();
+const { mutateAsync: adjustPurse }         = useAdjustPurse();
 const queryClient = useQueryClient();
 
 // The DM's "As:" persona list. `getNpcDisplayName`, not `n.name`: an NPC with
@@ -411,9 +415,9 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
   void queryClient.invalidateQueries({ queryKey: ["party"] });
 }
 
-async function handleSendVendorOffer(payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }) {
+async function handleSendVendorOffer(payload: { description: string; itemName: string | null; itemId: string | null; price: Coins }) {
   try {
-    await sendVendorOffer(payload.description, payload.itemName, payload.itemId, payload.pp, payload.gp, payload.ep, payload.sp, payload.cp);
+    await sendVendorOffer(payload.description, payload.itemName, payload.itemId, payload.price);
   } catch (e) {
     reportChatFailure(e, "post the offer to the chat");
   }
@@ -429,9 +433,7 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   const member = partyMemberId ? (party.value ?? []).find(m => m.id === partyMemberId) : null;
   if (!member) return;
 
-  const walletCP = toCP(member.pp, member.gp, member.ep, member.sp, member.cp);
-  const costCP   = toCP(meta.pp, meta.gp, meta.ep, meta.sp, meta.cp);
-  if (walletCP < costCP) return; // button is already disabled; guard against race conditions
+  if (!canAfford(member.coins, meta.price, currency.value)) return; // button is already disabled
 
   // Read the item before any money moves: its flags decide whether it is a service or
   // arrives identified, and the reactive map can lag a refetch. A failed read aborts here.
@@ -446,23 +448,24 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   const payerName = resolveClaimerName();
   try {
     await claimVendorOffer(messageId, payerName, partyMemberId);
-  } catch {
-    return; // lost the race (already paid) or RLS denied — don't deduct wallet
+  } catch (e) {
+    // claim_vendor_offer debits the payer itself, with change, so a throw means
+    // nothing was charged: lost the race, not enough coin, or not a DM's offer.
+    reportChatFailure(e, "pay for that");
+    return;
   }
 
-  const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
+  void queryClient.invalidateQueries({ queryKey: ["party"] });
   const isService = vendorVaultItem?.item_type === "service";
-  await Promise.all([
-    updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } }),
-    meta.item_name && !isService ? addInventoryItem({
-      name: meta.item_name, quantity: 1, ...itemRefColumns(meta.item_id),
-      carried_by: partyMemberId,
-      location: 'backpack', slot: null,
-      is_container: false, container_id: null,
-      is_attuned: false, is_equipped: false, notes: null,
-      is_identified: !vendorVaultItem || vendorVaultItem.rarity === 'mundane',
-    }) : Promise.resolve(),
-  ]);
+  if (!meta.item_name || isService) return;
+  await addInventoryItem({
+    name: meta.item_name, quantity: 1, ...itemRefColumns(meta.item_id),
+    carried_by: partyMemberId,
+    location: 'backpack', slot: null,
+    is_container: false, container_id: null,
+    is_attuned: false, is_equipped: false, notes: null,
+    is_identified: !vendorVaultItem || vendorVaultItem.rarity === 'mundane',
+  });
 }
 
 async function handleBuyPlayerOffer({ messageId }: { messageId: string }) {
@@ -569,16 +572,11 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   if (atom.type === 'currency') {
     const member = (party.value ?? []).find(p => p.id === partyMemberId);
     if (!member) return;
-    await updatePartyMember({
-      id: member.id,
-      update: {
-        pp: member.pp + (atom.pp ?? 0),
-        gp: member.gp + (atom.gp ?? 0),
-        ep: member.ep + (atom.ep ?? 0),
-        sp: member.sp + (atom.sp ?? 0),
-        cp: member.cp + (atom.cp ?? 0),
-      },
-    });
+    // Only this campaign's coins can be paid; a chest rolled under another currency
+    // may carry others, and a chest left with nothing credits nothing.
+    const coins = knownCoins(atom.coins ?? {}, currency.value);
+    if (!hasCoins(coins)) return;
+    await adjustPurse({ memberId: member.id, delta: coins });
     return;
   }
 

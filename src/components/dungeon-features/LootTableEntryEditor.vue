@@ -102,21 +102,11 @@
             <AppButton variant="ghost" tone="danger" size="icon-xs" :icon="IconDelete" @click="emit('remove', idx)" />
           </div>
           <!-- Coin amounts -->
-          <div class="grid grid-cols-5 gap-1.5">
-            <div v-for="coin in COINS" :key="coin.key" class="flex flex-col gap-0.5">
-              <span class="text-eyebrow font-semibold text-muted-foreground text-center">{{ coin.symbol }}</span>
-              <AppInput
-                :model-value="getCoinVal(entry, coin.key)"
-                type="number"
-                min="0"
-                tone="filled"
-                size="body-xs"
-                align="right"
-                placeholder="0"
-                @update:model-value="(v) => setCoinVal(entry, coin.key, String(v ?? ''))"
-              />
-            </div>
-          </div>
+          <CoinInput
+            :model-value="entry.coins ?? {}"
+            size="body-xs"
+            @update:model-value="(v) => (entry.coins = v)"
+          />
         </template>
 
         <!-- ── Random-pick entry ───────────────────────────────── -->
@@ -199,8 +189,6 @@
 
 <script setup lang="ts">
 import { IconAdd, IconDelete } from '@/lib/icons';
-import { COINS } from '@/rules/currency';
-import type { CoinKey } from '@/types/downtime.types';
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
@@ -208,6 +196,7 @@ import {
   ITEM_RARITY_LABELS,
 } from '@/types/item.types';
 import type { LootEntry, LootEntryType } from '@/types/lootTable.types';
+import CoinInput from '@/components/currency/CoinInput.vue';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import AppInput from '@/components/common/controls/AppInput.vue';
 import AppSelect from '@/components/common/controls/AppSelect.vue';
@@ -230,14 +219,6 @@ const emit = defineEmits<{
   add: [type: LootEntryType];
   remove: [idx: number];
 }>();
-
-function getCoinVal(entry: LootEntry, key: CoinKey): number {
-  return (entry as Record<CoinKey, number | undefined>)[key] ?? 0;
-}
-function setCoinVal(entry: LootEntry, key: CoinKey, raw: string) {
-  const n = parseInt(raw, 10);
-  (entry as Record<CoinKey, number | undefined>)[key] = Number.isFinite(n) ? Math.max(0, n) : 0;
-}
 
 function onQuantityInput(entry: LootEntry, raw: string) {
   const trimmed = raw.trim();

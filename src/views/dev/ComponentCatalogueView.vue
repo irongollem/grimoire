@@ -351,6 +351,16 @@
       </div>
     </CatalogueSection>
 
+    <CatalogueSection title="CoinAmount / CoinInput" note="A purse in a campaign's own coins (#934). Shown with the default 5e currency and a two-coin dollars-and-cents one, so a hard-coded coin list is visible at a glance. CoinInput's max caps each field.">
+      <div class="flex flex-col gap-3">
+        <CoinAmount :coins="coinsFive" :currency="coinCurrencyFive" />
+        <CoinAmount :coins="coinsDollars" :currency="coinCurrencyDollars" size="sm" />
+        <CoinAmount :coins="{}" :currency="coinCurrencyDollars" />
+        <CoinInput v-model="coinsFive" :currency="coinCurrencyFive" />
+        <CoinInput v-model="coinsDollars" :currency="coinCurrencyDollars" :max="{ d: 20 }" class="max-w-xs" />
+      </div>
+    </CatalogueSection>
+
     <CatalogueSection title="AppInput" note="size × tone from fieldVariants: the same recipe AppSelect and EntityCombobox use. An input and a select at the same size must line up; the day/month/year row on the Dashboard is the case that matters.">
       <div class="flex flex-col gap-3">
         <div v-for="tone in FIELD_TONES" :key="tone" class="flex flex-wrap items-end gap-3">
@@ -627,6 +637,10 @@ import { SWITCH_SIZES } from "@/components/common/controls/toggleSwitchVariants"
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
+import CoinAmount from "@/components/currency/CoinAmount.vue";
+import CoinInput from "@/components/currency/CoinInput.vue";
+import { defaultCurrencyFor } from "@/systems/registry";
+import type { Coins, CurrencyConfig } from "@/lib/currency/currency";
 import SpellsByLevelGrid from "@/components/levelup/SpellsByLevelGrid.vue";
 import {
   BUTTON_VARIANTS,
@@ -722,6 +736,16 @@ const gridClass = ref<Record<string, string[]>>({ "3": ["a"], "5": ["b", "c"] })
 const gridSpell = ref<Record<string, string[]>>({ "1": ["c"] });
 const checkboxGroup = ref<string[]>(["dawn"]);
 const inputValue = ref<string | number | null>("Ancient Red Dragon");
+const coinCurrencyFive = defaultCurrencyFor("dnd5e");
+const coinCurrencyDollars: CurrencyConfig = {
+  default_key: "c",
+  denominations: [
+    { key: "d", name: "Dollar", abbr: "$", value: 100, color: "#22aa44", makes_change: true },
+    { key: "c", name: "Cent", abbr: "c", value: 1, color: "#aa2244", makes_change: true },
+  ],
+};
+const coinsFive = ref<Coins>({ gp: 12, sp: 3 });
+const coinsDollars = ref<Coins>({ d: 5, c: 30 });
 const numberValue = ref<string | number | null>(12);
 
 const route = useRoute();

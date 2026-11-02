@@ -1,3 +1,4 @@
+import { hasCoins, type Coins, type CurrencyConfig } from "@/lib/currency/currency";
 import { CONDITIONS } from "@/rules/conditions";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
 import type { ItemRarity, ItemType } from "@/types/item.types";
@@ -82,11 +83,27 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
 }
 
 /**
+ * A coin map the model wrote. Only the campaign's own denominations survive
+ * (the model invents "gold" and "silver" for a currency that has neither), and
+ * only positive whole counts: the direction lives in `gain` versus `spend`.
+ */
+function coinsFromAi(value: unknown, currency: CurrencyConfig): Coins {
+  const raw = asRecord(value);
+  const out: Coins = {};
+  if (!raw) return out;
+  for (const d of currency.denominations) {
+    const n = intOr(raw[d.key], 0);
+    if (n > 0) out[d.key] = n;
+  }
+  return out;
+}
+
+/**
  * Effects the model proposed, keeping only the three kinds the app can actually
  * apply, and only when they carry usable values. Everything arrives `applied:
  * false` — the DM ticks it, never the model.
  */
-export function effectsFromAi(raw: unknown): DowntimeEffect[] {
+export function effectsFromAi(raw: unknown, currency: CurrencyConfig): DowntimeEffect[] {
   if (!Array.isArray(raw)) return [];
 
   const out: DowntimeEffect[] = [];
@@ -97,17 +114,12 @@ export function effectsFromAi(raw: unknown): DowntimeEffect[] {
 
     switch (e.kind) {
       case "gold": {
-        const coins = {
-          cp: intOr(e.cp, 0),
-          sp: intOr(e.sp, 0),
-          ep: intOr(e.ep, 0),
-          gp: intOr(e.gp, 0),
-          pp: intOr(e.pp, 0),
-        };
-        // An all-zero purse movement is not an effect; drop it rather than show
+        const gain = coinsFromAi(e.gain, currency);
+        const spend = coinsFromAi(e.spend, currency);
+        // A purse movement of nothing is not an effect; drop it rather than show
         // the DM a checkbox that does nothing.
-        if (Object.values(coins).every((c) => c === 0)) continue;
-        out.push({ kind: "gold", applied: false, note, ...coins });
+        if (!hasCoins(gain) && !hasCoins(spend)) continue;
+        out.push({ kind: "gold", applied: false, note, gain, spend });
         break;
       }
       case "hp": {
@@ -226,6 +238,7 @@ export function seedFromAiResult(
   raw: unknown,
   activityKey: string,
   expectedReward: DowntimeRewardType,
+  currency: CurrencyConfig,
 ): DowntimeSeed {
   const r = asRecord(raw);
   if (!r) throw new DowntimeAiParseError("The model returned nothing usable. Try drafting again.");
@@ -239,7 +252,7 @@ export function seedFromAiResult(
     // An AI-drafted outcome has no canonical card art — never take a URL from
     // the model. It renders the archetype glyph face.
     artUrl: null,
-    proposedEffects: effectsFromAi(r.proposed_effects),
+    proposedEffects: effectsFromAi(r.proposed_effects, currency),
     reward: rewardFromAi(r.reward, expectedReward),
   };
 }

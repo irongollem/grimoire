@@ -21,14 +21,14 @@
           >New material</span>
         </span>
         <span class="shrink-0 text-caption tabular-nums text-muted-foreground">
-          {{ inventionValueText(ing.value_cp) }}<template v-if="ing.quantity > 1"> each</template>
+          {{ valueText(ing.value_cp) }}<template v-if="ing.quantity > 1"> each</template>
         </span>
       </li>
     </ul>
 
     <p class="text-caption text-muted-foreground">
-      Materials worth {{ inventionValueText(draft.materials_value_cp) }}, so up to
-      {{ inventionValueText(draft.value_limit_cp) }}.
+      Materials worth {{ valueText(draft.materials_value_cp) }}, so up to
+      {{ valueText(draft.value_limit_cp) }}.
     </p>
   </section>
 </template>
@@ -42,9 +42,13 @@ import {
   inventionValueText,
   recipeDescriptionText,
 } from "@/lib/crafting/invention";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import type { CraftingDiscipline, InventionDraft } from "@/types/crafting.types";
 
 const { draft, discipline } = defineProps<{ draft: InventionDraft; discipline: CraftingDiscipline }>();
+
+const { currency } = useCurrency();
+const valueText = (value: number) => inventionValueText(value, currency.value);
 
 // The first tool is the discipline's primary one, the name shown everywhere.
 const tool = computed(() => getDiscipline(discipline).tools[0]);

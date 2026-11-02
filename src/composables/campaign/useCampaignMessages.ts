@@ -11,7 +11,8 @@ import { useSpeaker } from "@/composables/party/useSpeaker";
 import type { Speaker } from "@/lib/player/speaker";
 import type { ItemQuality } from "@/types/inventory.types";
 import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, LootRollChoice, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata, SpeakerMetadata } from "@/types/chat.types";
-import { formatCoinParts } from "@/rules/currency";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import type { Coins } from "@/lib/currency/currency";
 import type { RollResult } from "@/lib/dice/dice";
 
 const LIMIT = 100;
@@ -321,11 +322,26 @@ function ensureWatcher() {
 }
 
 // ── Public composable ──────────────────────────────────────────────────────────
+/**
+ * Whole, non-negative counts with the zeros dropped. A negative drop would
+ * subtract from the claimer's purse and fractional coins corrupt wallets, so
+ * every coin map is cleaned at the source before it is posted.
+ */
+export function wholeCoins(coins: Coins): Coins {
+  const out: Coins = {};
+  for (const [key, n] of Object.entries(coins)) {
+    const count = Math.max(0, Math.floor(n || 0));
+    if (count > 0) out[key] = count;
+  }
+  return out;
+}
+
 export function useCampaignMessages() {
   ensureWatcher();
 
   const campaign = useCampaignStore();
   const auth = useAuthStore();
+  const { formatCoins } = useCurrency();
   const appUi = useAppUiStore();
   // Both lists are read only to resolve a name or a previewed player (#999), so
   // they load only when there is one to resolve: a linked or previewed
@@ -577,19 +593,18 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendCurrencyDrop(pp: number, gp: number, ep: number, sp: number, cp: number, label?: string) {
+  async function sendCurrencyDrop(coins: Coins, label?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     // Clamp every coin to a non-negative integer at the source — a negative drop
     // would subtract from the claimer's purse, and fractional coins corrupt wallets.
-    const coin = (n: number) => Math.max(0, Math.floor(n || 0));
-    pp = coin(pp); gp = coin(gp); ep = coin(ep); sp = coin(sp); cp = coin(cp);
-    const parts = formatCoinParts(pp, gp, ep, sp, cp);
-    if (!parts.length) return;
+    const clean = wholeCoins(coins);
+    const text = formatCoins(clean);
+    if (!text) return;
     const speaker = currentSpeaker();
     const metadata: CurrencyDropMetadata = {
       label: label || null,
-      pp, gp, ep, sp, cp,
+      coins: clean,
       claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
       ...forTag(speaker),
     };
@@ -598,7 +613,7 @@ export function useCampaignMessages() {
       user_id: auth.user.id,
       recipient_user_id: null,
       sender_name: speaker.name,
-      message: label ? `dropped ${label}: ${parts.join(", ")}` : `dropped currency: ${parts.join(", ")}`,
+      message: label ? `dropped ${label}: ${text}` : `dropped currency: ${text}`,
       type: "currency_drop",
       metadata,
     };
@@ -607,13 +622,14 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendVendorOffer(description: string, itemName: string | null, itemId: string | null, pp: number, gp: number, ep: number, sp: number, cp: number, senderName?: string) {
+  async function sendVendorOffer(description: string, itemName: string | null, itemId: string | null, price: Coins, senderName?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
-    const parts = formatCoinParts(pp, gp, ep, sp, cp);
+    const cleanPrice = wholeCoins(price);
+    const priceText = formatCoins(cleanPrice);
     const metadata: VendorOfferMetadata = {
       description, item_name: itemName, item_id: itemId,
-      pp, gp, ep, sp, cp,
+      price: cleanPrice,
       paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null,
     };
     const insert: CampaignMessageInsert = {
@@ -621,7 +637,7 @@ export function useCampaignMessages() {
       user_id: auth.user.id,
       recipient_user_id: null,
       sender_name: senderName ?? getSenderName(),
-      message: `offers ${description}${parts.length ? ` for ${parts.join(", ")}` : ""}`,
+      message: `offers ${description}${priceText ? ` for ${priceText}` : ""}`,
       type: "vendor_offer",
       metadata,
     };
@@ -802,13 +818,14 @@ export function useCampaignMessages() {
 
   const myUserId = computed(() => auth.user?.id);
 
-  async function sendPlayerOffer(itemName: string, itemId: string | null, inventoryItemId: string, quantity: number, sellerPartyMemberId: string, pp: number, gp: number, ep: number, sp: number, cp: number) {
+  async function sendPlayerOffer(itemName: string, itemId: string | null, inventoryItemId: string, quantity: number, sellerPartyMemberId: string, price: Coins) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
-    const parts = formatCoinParts(pp, gp, ep, sp, cp);
+    const cleanPrice = wholeCoins(price);
+    const priceText = formatCoins(cleanPrice);
     const metadata: PlayerOfferMetadata = {
       item_name: itemName, item_id: itemId, inventory_item_id: inventoryItemId,
-      quantity, pp, gp, ep, sp, cp,
+      quantity, price: cleanPrice,
       seller_party_member_id: sellerPartyMemberId,
       sold_to_user_id: null, sold_to_name: null, sold_to_party_member_id: null,
     };
@@ -817,7 +834,7 @@ export function useCampaignMessages() {
       user_id: auth.user.id,
       recipient_user_id: null,
       sender_name: getSenderName(),
-      message: `offers ${quantity > 1 ? `${quantity}× ` : ""}${itemName} for ${parts.join(", ")}`,
+      message: `offers ${quantity > 1 ? `${quantity}× ` : ""}${itemName} for ${priceText}`,
       type: "player_offer",
       metadata,
     };

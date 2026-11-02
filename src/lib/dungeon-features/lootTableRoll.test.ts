@@ -1,12 +1,27 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
-  rollLootTable,
+  knownCoins,
+  rollLootTable as rollUnder,
   type RolledItemEntry,
   type RolledCurrencyEntry,
   type RolledUnresolvedEntry,
+  type LootPoolItem,
 } from "@/lib/dungeon-features/lootTableRoll";
+import { DND5E_CURRENCY } from "@/systems/dnd5e/currency/dnd5eCurrency";
+import type { CurrencyConfig } from "@/lib/currency/currency";
 import type { Item } from "@/types/item.types";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
+
+const DOLLARS: CurrencyConfig = {
+  denominations: [
+    { key: "dollar", name: "Dollar", abbr: "$", color: "#118833", value: 100, makes_change: true },
+    { key: "cent", name: "Cent", abbr: "c", color: "#aa7733", value: 1, makes_change: true },
+  ],
+  default_key: "dollar",
+};
+
+/** Most tests roll under the 5e set; the currency tests pass their own. */
+const rollLootTable = (table: LootTable, items: Map<string, LootPoolItem>) => rollUnder(table, items, DND5E_CURRENCY);
 
 // ── Randomness control ──────────────────────────────────────────────────────
 //
@@ -222,8 +237,7 @@ describe("rollLootTable — currency entries", () => {
       drop_chance: 100,
       type: "currency",
       currency_label: "Belt pouch",
-      gp: 15,
-      sp: 3,
+      coins: { gp: 15, sp: 3 },
     });
     stubRandom([]); // currency entries never consume a random for quantity
     const result = rollLootTable(makeLootTable([entry]), new Map());
@@ -232,11 +246,7 @@ describe("rollLootTable — currency entries", () => {
         type: "currency",
         entry_id: "e1",
         currency_label: "Belt pouch",
-        pp: 0,
-        gp: 15,
-        ep: 0,
-        sp: 3,
-        cp: 0,
+        coins: { gp: 15, sp: 3 },
         notes: null,
       } satisfies RolledCurrencyEntry,
     ]);
@@ -244,9 +254,28 @@ describe("rollLootTable — currency entries", () => {
 });
 
 describe("rollLootTable — currency coins", () => {
-  it("carries every coin to its own column", () => {
-    const entry = makeLootEntry({ id: "e1", type: "currency", pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
-    expect(rollLootTable(makeLootTable([entry]), new Map())[0]).toMatchObject({ pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
+  it("carries a non-5e campaign's coins through untouched", () => {
+    const dollars = makeLootEntry({ id: "e1", type: "currency", coins: { dollar: 2, cent: 40 } });
+    const [a] = rollUnder(makeLootTable([dollars]), new Map(), DOLLARS);
+    expect(a).toMatchObject({ coins: { dollar: 2, cent: 40 } });
+  });
+
+  it("rolls no gp from a 5e table under a {dollar, cent} currency, and keeps the coins it can (a chest atom would credit an unknown key)", () => {
+    const fiveE = makeLootEntry({ id: "e1", type: "currency", coins: { gp: 50 } });
+    const mixed = makeLootEntry({ id: "e2", type: "currency", coins: { gp: 5, cent: 7 } });
+    const result = rollUnder(makeLootTable([fiveE, mixed]), new Map(), DOLLARS);
+    expect(result).toEqual([expect.objectContaining({ entry_id: "e2", coins: { cent: 7 } })]);
+  });
+
+  it("does not roll an empty purse for an entry that holds no coins", () => {
+    const bare = makeLootEntry({ id: "e1", type: "currency" });
+    expect(rollUnder(makeLootTable([bare]), new Map(), DOLLARS)).toEqual([]);
+  });
+});
+
+describe("knownCoins", () => {
+  it("drops unknown keys and non-positive counts", () => {
+    expect(knownCoins({ gp: 1, dollar: 3, cent: 0, other: -2 }, DOLLARS)).toEqual({ dollar: 3 });
   });
 });
 

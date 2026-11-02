@@ -1,5 +1,6 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
+import { loadCampaignCurrency, type CurrencyConfig } from "../_shared/currency.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import {
@@ -171,6 +172,14 @@ serve(withCors(async (req: Request) => {
   if (campaign.ai_enabled !== true) return json({ error: "AI is turned off for this campaign." }, 403);
 
   const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+  // Read once: the validator prices in these coins and the model is told them.
+  let currency: CurrencyConfig;
+  try {
+    currency = await loadCampaignCurrency(admin, context.campaign_id);
+  } catch (e) {
+    console.error("invent-recipe: currency read failed", e);
+    return json({ error: "Could not read the campaign." }, 500);
+  }
   const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts")
     .select("generator_type, content")
@@ -210,7 +219,7 @@ serve(withCors(async (req: Request) => {
   };
 
   try {
-    const { ceiling } = mode === "materials" ? benchBudget(context.bench, context.value_multiple) : { ceiling: "legendary" as const };
+    const { ceiling } = mode === "materials" ? benchBudget(context.bench, context.value_multiple, currency) : { ceiling: "legendary" as const };
     // The table guarantees an idea has a wish; a null here is a corrupt row, not a case to paper over.
     if (mode === "idea" && wish === null) throw new Error("An idea invention has no wish.");
     const base = mode === "materials" ? context.bench.map((b) => b.name).join(", ") : (wish as string);
@@ -245,6 +254,7 @@ serve(withCors(async (req: Request) => {
       mode,
       discipline,
       valueMultiple: context.value_multiple,
+      currency,
       bench: context.bench,
       outputCandidates,
       materialCandidates,
@@ -253,6 +263,7 @@ serve(withCors(async (req: Request) => {
       mode,
       discipline,
       valueMultiple: context.value_multiple,
+      currency,
       bench: context.bench,
       outputCandidates,
       materialCandidates,

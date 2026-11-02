@@ -2,6 +2,7 @@ import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { createNpc, queueNpcEmbedding } from "@/composables/npcs/useNpcs";
 import { createItem, queueItemEmbedding } from "@/composables/items/useItems";
 import { createNote, queueNoteEmbedding } from "@/composables/notes/useNotes";
@@ -13,16 +14,17 @@ import {
   noteInsertFromSeed,
 } from "@/lib/downtime/downtimeSeedReward";
 import {
-  applyCoinEffects,
   applyConditionEffects,
   applyHpEffects,
+  coinGain,
+  coinSpend,
   hasApplicableMemberEffect,
+  unknownCoinKeys,
 } from "@/lib/downtime/downtimeEffects";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type {
-  CoinKey,
   DowntimeDeckBack,
   DowntimeDeckBackInsert,
   DowntimeDraw,
@@ -330,18 +332,19 @@ export function useResolveDraw() {
 
 /**
  * Apply the ticked effects the app can enact — coin, HP, and conditions — to the
- * character who drew. `party_members` carries cp/sp/ep/gp/pp, current_hp/max_hp,
+ * character who drew. `party_members` carries the `coins` purse, current_hp/max_hp,
  * and a `conditions` array, so all three are safe and verifiable. The `item`
  * kind still renders as a checklist the DM performs by hand (it names an item to
  * drop into inventory, which the effect alone can't safely resolve) — a named
  * limit, not an oversight.
  *
- * All three write to the same `party_members` row, so a single read-modify-write
- * applies them together. That is acceptable: only the DM resolves draws, so
- * there is no concurrent writer to race against.
+ * All three land through one database call (`apply_downtime_effects`), so they
+ * apply together or not at all; HP and conditions are computed here from the row
+ * read, the purse is never read.
  */
 export function useApplyEffects() {
   const queryClient = useQueryClient();
+  const { currency } = useCurrency();
   return useMutation({
     mutationFn: async (args: {
       partyMemberId: string;
@@ -349,31 +352,40 @@ export function useApplyEffects() {
     }): Promise<void> => {
       if (!hasApplicableMemberEffect(args.effects)) return;
 
+      // A price in coins the campaign does not have can be neither paid nor
+      // stored; say so before anything is written rather than half-apply.
+      const unknown = unknownCoinKeys(args.effects, currency.value);
+      if (unknown.length > 0) {
+        throw new Error(
+          `This outcome is priced in coins this campaign does not have (${unknown.join(", ")}).`,
+        );
+      }
+
       const { data: member, error: readError } = await supabase
         .from("party_members")
-        .select("cp, sp, ep, gp, pp, current_hp, max_hp, conditions")
+        .select("current_hp, max_hp, conditions")
         .eq("id", args.partyMemberId)
         .single();
       if (readError) throw readError;
 
-      const row = member as Record<CoinKey, number> & {
+      const row = member as {
         current_hp: number;
         max_hp: number;
         conditions: AppliedCondition[];
       };
 
-      const coins = applyCoinEffects(
-        { pp: row.pp, gp: row.gp, ep: row.ep, sp: row.sp, cp: row.cp },
-        args.effects,
-      );
-      const currentHp = applyHpEffects(row.current_hp, row.max_hp, args.effects);
-      const conditions = applyConditionEffects(row.conditions, args.effects);
-
-      const { error: writeError } = await supabase
-        .from("party_members")
-        .update({ ...coins, current_hp: currentHp, conditions })
-        .eq("id", args.partyMemberId);
-      if (writeError) throw writeError;
+      // One statement carries the lot: the server adds the gain, pays the cost with
+      // change (refusing an unaffordable price, "Insufficient funds", before anything
+      // is written) and sets HP and conditions, so a refused cost leaves the
+      // character untouched and the purse is never read back and rewritten here.
+      const { error: applyError } = await supabase.rpc("apply_downtime_effects", {
+        p_member_id: args.partyMemberId,
+        p_gain: coinGain(args.effects),
+        p_spend: coinSpend(args.effects),
+        p_current_hp: applyHpEffects(row.current_hp, row.max_hp, args.effects),
+        p_conditions: applyConditionEffects(row.conditions, args.effects),
+      });
+      if (applyError) throw applyError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["party"] }),
   });

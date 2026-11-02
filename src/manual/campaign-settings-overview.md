@@ -9,7 +9,7 @@ keywords: campaign settings, members, invites, scheduling, rules, classes, speci
 
 Campaign Settings is where every setting that applies to the whole campaign (rather than to one NPC, quest, or location) lives, organized into tabs. Open it from **Campaign → Settings** at the bottom of the sidebar's Campaign group (it's always last in the list), or go straight to `/campaign/settings`. It's DM-only: players are blocked from this route entirely.
 
-This page covers the tabs you'll use most: **Details**, **Members & Invites**, **Scheduling**, **Rules**, **Classes**, **Species**, and **AI Assistant**. The more occasional, administrative tabs (**Spotify**, **Backup**, **World Bundle**, **Import Document**, and **Danger Zone**) are covered on [Campaign Settings: Backup, Sharing & Danger Zone](#campaign-settings-backup-sharing-danger-zone). Connecting an external AI assistant (Claude, etc.) to *read* your campaign by conversation is a different tab, **AI Connections**, covered on its own page: [Connecting an AI Assistant](#connecting-an-ai-assistant).
+This page covers the tabs you'll use most: **Details**, **Members & Invites**, **Scheduling**, **Rules**, **Currency**, **Classes**, **Species**, and **AI Assistant**. The more occasional, administrative tabs (**Spotify**, **Backup**, **World Bundle**, **Import Document**, and **Danger Zone**) are covered on [Campaign Settings: Backup, Sharing & Danger Zone](#campaign-settings-backup-sharing-danger-zone). Connecting an external AI assistant (Claude, etc.) to *read* your campaign by conversation is a different tab, **AI Connections**, covered on its own page: [Connecting an AI Assistant](#connecting-an-ai-assistant).
 
 ## Key ideas
 
@@ -88,6 +88,19 @@ The **Rules** tab has two parts.
 | Slow Natural Healing | Long rests restore Hit Dice, not HP: HP recovery requires spending them. | Off |
 
 **Crafting** and **The Interlude** are the two rules on by default: they gate the **Workshop** and **Interlude** items in the sidebar nav respectively. Turn either off here to hide that nav item and its data from players for this campaign.
+
+## Setting the campaign's coins
+
+The **Currency** tab lists the coins your table uses. A new campaign starts with the D&D coins (platinum, gold, electrum, silver, copper); change them to your own homebrew coins, or to dollars or credits for another kind of game.
+
+- **Each coin** has a name, a short name (shown everywhere: "5 gp"), a worth counted in your smallest coin, a colour, and **Used for change**: whether it is handed back as change when someone pays (D&D's electrum is not).
+- **Exactly one coin is worth 1.** It is the smallest coin, and every other coin's worth is counted in it.
+- **Default coin**: a price written as just a number ("50") is read in this coin.
+- **Removing a coin** converts what everyone holds of it into the remaining coins, by worth: purses, unsent loot, loot tables, encounter coin pools and chat history. Grimoire asks before it does.
+- **Renaming a coin** or changing its colour keeps everyone's coins as they are.
+- **Reset to D&D 5e coins** puts the standard set back (it still needs **Save**).
+
+Payments make change: paying 1 gp with only a platinum piece takes the platinum and hands back 9 gp.
 
 ## Choosing available classes and species
 

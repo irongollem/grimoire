@@ -5,67 +5,91 @@ import {
   rewardFromAi,
   seedFromAiResult,
 } from "@/lib/downtime/downtimeAiSeed";
+import { DND5E_CURRENCY } from "@/systems/dnd5e/currency/dnd5eCurrency";
+import type { CurrencyConfig } from "@/lib/currency/currency";
+
+const DOLLARS: CurrencyConfig = {
+  default_key: "dollar",
+  denominations: [
+    { key: "dollar", name: "dollar", abbr: "$", value: 100, color: "#00aa00", makes_change: true },
+    { key: "cent", name: "cent", abbr: "c", value: 1, color: "#aa7700", makes_change: true },
+  ],
+};
 
 // The model's JSON is untrusted input. These tests pin the airlock's policy:
 // drop what we cannot honour, throw only on what we cannot do without.
 
 describe("effectsFromAi", () => {
   it("returns nothing for a non-array", () => {
-    expect(effectsFromAi(undefined)).toEqual([]);
-    expect(effectsFromAi("gold")).toEqual([]);
+    expect(effectsFromAi(undefined, DND5E_CURRENCY)).toEqual([]);
+    expect(effectsFromAi("gold", DND5E_CURRENCY)).toEqual([]);
   });
 
-  it("accepts a gold effect and forces applied=false", () => {
-    const out = effectsFromAi([
-      { kind: "gold", note: "A night of rounds", cp: 0, sp: 0, ep: 0, gp: -5, pp: 0 },
-    ]);
+  it("accepts a gold effect with its gain and spend maps and forces applied=false", () => {
+    const out = effectsFromAi(
+      [{ kind: "gold", note: "A night of rounds", gain: {}, spend: { gp: 5 } }],
+      DND5E_CURRENCY,
+    );
     expect(out).toEqual([
-      { kind: "gold", applied: false, note: "A night of rounds", cp: 0, sp: 0, ep: 0, gp: -5, pp: 0 },
+      { kind: "gold", applied: false, note: "A night of rounds", gain: {}, spend: { gp: 5 } },
     ]);
   });
 
   it("never trusts an `applied: true` from the model, whatever the kind", () => {
-    const out = effectsFromAi([
-      { kind: "gold", applied: true, gp: 10 },
-      { kind: "hp", applied: true, delta: -2 },
-      { kind: "condition", applied: true, condition: "Poisoned" },
-    ]);
+    const out = effectsFromAi(
+      [
+        { kind: "gold", applied: true, gain: { gp: 10 } },
+        { kind: "hp", applied: true, delta: -2 },
+        { kind: "condition", applied: true, condition: "Poisoned" },
+      ],
+      DND5E_CURRENCY,
+    );
     expect(out.map((e) => e.applied)).toEqual([false, false, false]);
   });
 
-  it("drops an all-zero gold effect rather than show a checkbox that does nothing", () => {
-    expect(effectsFromAi([{ kind: "gold", cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }])).toEqual([]);
+  it("drops a gold effect that moves no coin rather than show a checkbox that does nothing", () => {
+    expect(effectsFromAi([{ kind: "gold", gain: { gp: 0 }, spend: {} }], DND5E_CURRENCY)).toEqual([]);
   });
 
-  it("defaults missing coin fields to zero", () => {
-    const out = effectsFromAi([{ kind: "gold", gp: 7 }]);
-    expect(out[0]).toMatchObject({ kind: "gold", cp: 0, sp: 0, ep: 0, gp: 7, pp: 0 });
+  it("defaults a missing map to empty", () => {
+    const out = effectsFromAi([{ kind: "gold", gain: { gp: 7 } }], DND5E_CURRENCY);
+    expect(out[0]).toMatchObject({ kind: "gold", gain: { gp: 7 }, spend: {} });
+  });
+
+  it("drops coins the campaign does not have, so a dollar campaign never stores gold", () => {
+    const out = effectsFromAi([{ kind: "gold", gain: { gp: 7, dollar: 2 }, spend: { cent: 50 } }], DOLLARS);
+    expect(out).toEqual([{ kind: "gold", applied: false, note: null, gain: { dollar: 2 }, spend: { cent: 50 } }]);
+    expect(effectsFromAi([{ kind: "gold", gain: { gp: 7 } }], DOLLARS)).toEqual([]);
+  });
+
+  it("reads a negative count as nothing, since direction lives in gain versus spend", () => {
+    expect(effectsFromAi([{ kind: "gold", spend: { gp: -5 } }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("accepts an hp effect and drops a zero delta", () => {
-    expect(effectsFromAi([{ kind: "hp", delta: -6 }])[0]).toMatchObject({ kind: "hp", delta: -6 });
-    expect(effectsFromAi([{ kind: "hp", delta: 0 }])).toEqual([]);
+    expect(effectsFromAi([{ kind: "hp", delta: -6 }], DND5E_CURRENCY)[0]).toMatchObject({ kind: "hp", delta: -6 });
+    expect(effectsFromAi([{ kind: "hp", delta: 0 }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("rounds a fractional hp delta", () => {
-    expect(effectsFromAi([{ kind: "hp", delta: -6.7 }])[0]).toMatchObject({ delta: -7 });
+    expect(effectsFromAi([{ kind: "hp", delta: -6.7 }], DND5E_CURRENCY)[0]).toMatchObject({ delta: -7 });
   });
 
   it("accepts a real SRD condition, case-insensitively, and canonicalises it", () => {
-    const out = effectsFromAi([{ kind: "condition", condition: "exhaustion" }]);
+    const out = effectsFromAi([{ kind: "condition", condition: "exhaustion" }], DND5E_CURRENCY);
     expect(out[0]).toMatchObject({ kind: "condition", condition: "Exhaustion" });
   });
 
   it("drops a hallucinated condition", () => {
-    expect(effectsFromAi([{ kind: "condition", condition: "Hungover" }])).toEqual([]);
+    expect(effectsFromAi([{ kind: "condition", condition: "Hungover" }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("drops an invented effect kind", () => {
-    expect(effectsFromAi([{ kind: "xp", amount: 100 }])).toEqual([]);
+    expect(effectsFromAi([{ kind: "xp", amount: 100 }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("drops an `item` effect — no seed emits one and we cannot mint the item_id", () => {
-    expect(effectsFromAi([{ kind: "item", item_id: "abc", qty: 1 }])).toEqual([]);
+    expect(effectsFromAi([{ kind: "item", item_id: "abc", qty: 1 }], DND5E_CURRENCY)).toEqual([]);
   });
 
   it("keeps the good effects alongside the bad ones it drops", () => {
@@ -73,13 +97,13 @@ describe("effectsFromAi", () => {
       { kind: "condition", condition: "Hungover" },
       { kind: "hp", delta: -3 },
       { kind: "nonsense" },
-    ]);
+    ], DND5E_CURRENCY);
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ kind: "hp", delta: -3 });
   });
 
   it("normalises a blank note to null", () => {
-    expect(effectsFromAi([{ kind: "hp", delta: 2, note: "  " }])[0].note).toBeNull();
+    expect(effectsFromAi([{ kind: "hp", delta: 2, note: "  " }], DND5E_CURRENCY)[0].note).toBeNull();
   });
 });
 
@@ -198,12 +222,12 @@ describe("seedFromAiResult", () => {
   const good = {
     title: "A friend in low places",
     vignette: "Three drinks in, she finally speaks.",
-    proposed_effects: [{ kind: "gold", gp: -5 }],
+    proposed_effects: [{ kind: "gold", spend: { gp: 5 } }],
     reward: { kind: "npc", npc: { name: "Sela" } },
   };
 
   it("builds a DowntimeSeed the ordinary resolve path can consume", () => {
-    const seed = seedFromAiResult(good, "carouse", "npc");
+    const seed = seedFromAiResult(good, "carouse", "npc", DND5E_CURRENCY);
     expect(seed.activityKey).toBe("carouse");
     expect(seed.id).toBe("ai:carouse");
     expect(seed.weight).toBeGreaterThan(0);
@@ -213,23 +237,23 @@ describe("seedFromAiResult", () => {
   });
 
   it("throws when there is no title", () => {
-    expect(() => seedFromAiResult({ ...good, title: "" }, "carouse", "npc")).toThrow(
+    expect(() => seedFromAiResult({ ...good, title: "" }, "carouse", "npc", DND5E_CURRENCY)).toThrow(
       DowntimeAiParseError,
     );
   });
 
   it("throws when there is no vignette", () => {
-    expect(() => seedFromAiResult({ ...good, vignette: undefined }, "carouse", "npc")).toThrow(
+    expect(() => seedFromAiResult({ ...good, vignette: undefined }, "carouse", "npc", DND5E_CURRENCY)).toThrow(
       DowntimeAiParseError,
     );
   });
 
   it("throws on a non-object", () => {
-    expect(() => seedFromAiResult("nope", "carouse", "npc")).toThrow(DowntimeAiParseError);
+    expect(() => seedFromAiResult("nope", "carouse", "npc", DND5E_CURRENCY)).toThrow(DowntimeAiParseError);
   });
 
   it("tolerates missing effects entirely", () => {
-    const seed = seedFromAiResult({ ...good, proposed_effects: undefined }, "carouse", "npc");
+    const seed = seedFromAiResult({ ...good, proposed_effects: undefined }, "carouse", "npc", DND5E_CURRENCY);
     expect(seed.proposedEffects).toEqual([]);
   });
 });

@@ -82,7 +82,7 @@ insert into public.locations (id, user_id, campaign_id, parent_id, name, locatio
 update public.quest_beats set staged_at_location_id = '85200000-0000-4000-8000-000000000090' where id = '85200000-0000-4000-8000-000000000035';
 
 insert into public.loot_placements (id, beat_id, quest_id, campaign_id, kind, label, payload, sort_order) values
-  ('85200000-0000-4000-8000-000000000095', '85200000-0000-4000-8000-000000000035', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', 'currency', 'Stipend', '{"gp": 10}'::jsonb, 0);
+  ('85200000-0000-4000-8000-000000000095', '85200000-0000-4000-8000-000000000035', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', 'currency', 'Stipend', '{"coins": {"gp": 10}}'::jsonb, 0);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000001', true);

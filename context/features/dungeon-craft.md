@@ -401,7 +401,7 @@ Loot tables support three kinds of entry in any mix:
 **Currency** — a fixed coin pool.
 
 - Optional `currency_label` for the chat display (e.g. "Belt pouch")
-- Per-denomination amounts: PP, GP, EP, SP, CP
+- One amount per coin of the campaign's currency (`coins`, see items-spells-crafting.md → Currency)
 - `drop_chance` (1–100%)
 
 **Random** — picks a random item from the Vault matching filters.

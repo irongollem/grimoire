@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from "pinia";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
@@ -39,7 +40,7 @@ function findButtonByLabel(wrapper: VueWrapper, label: string) {
 }
 
 function currencyEntry(overrides: Partial<LootEntry> = {}): LootEntry {
-  return { id: "entry-1", type: "currency", drop_chance: 100, gp: 5, ...overrides };
+  return { id: "entry-1", type: "currency", drop_chance: 100, coins: { gp: 5 }, ...overrides };
 }
 
 function makeTable(overrides: Partial<LootTable> = {}): LootTable {
@@ -75,6 +76,7 @@ function mountPanel(props: Partial<InstanceType<typeof LootTableRollPanel>["$pro
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   sendLootChest.mockReset();
   sendLootChest.mockResolvedValue(undefined);
 });
@@ -101,13 +103,13 @@ describe("LootTableRollPanel", () => {
   });
 
   it("rolls the table into a Drops list", async () => {
-    const wrapper = mountPanel({ table: makeTable({ entries: [currencyEntry({ gp: 5 })] }) });
+    const wrapper = mountPanel({ table: makeTable({ entries: [currencyEntry({ coins: { gp: 5 } })] }) });
     expect(wrapper.text()).not.toContain("Drops");
 
     await findButtonByLabel(wrapper, "Roll").trigger("click");
 
     expect(wrapper.text()).toContain("Drops");
-    expect(wrapper.text()).toContain("5 GP");
+    expect(wrapper.text()).toContain("5 gp");
   });
 
   it("opens the drop dialog pre-rolled, and re-rolls the preview on request", async () => {

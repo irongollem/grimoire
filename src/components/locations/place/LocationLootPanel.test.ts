@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LocationLootPanel from "./LocationLootPanel.vue";
@@ -28,7 +29,7 @@ vi.mock("@/composables/useImageUpload", () => ({ useImageUpload: () => ({ upload
 const lootTable = (overrides: Partial<LootTable> = {}): LootTable => ({
   id: "table-1", user_id: "dm", campaign_id: "campaign-1", name: "Vault cache",
   description: null, cr_tier: "any",
-  entries: [{ id: "entry-1", type: "currency", drop_chance: 100, gp: 12 }],
+  entries: [{ id: "entry-1", type: "currency", drop_chance: 100, coins: { gp: 12 } }],
   tags: [], notes: null, monster_ids: [], created_at: "", updated_at: "",
   ...overrides,
 });
@@ -38,7 +39,7 @@ vi.mock("@/composables/dungeon-features/useLootTables", () => ({ useLootTables: 
 
 const loot = (overrides: Partial<LootPlacement> = {}): LootPlacement => ({
   id: "loot-1", beat_id: null, quest_id: null, location_id: "room-1", campaign_id: "campaign-1",
-  kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: "Chest by the door", payload: { gp: 12 },
+  kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: "Chest by the door", payload: { coins: { gp: 12 } },
   source_type: "loot_table", source_id: "table-1", sort_order: 0, dispatch_message_id: null,
   dispatched_at: null, delivery_state: "held", quantity_remaining: 1, claimed_by_names: [],
   handed_out_this_session: false,
@@ -64,6 +65,7 @@ async function openForm(wrapper: ReturnType<typeof mountPanel>) {
 
 describe("LocationLootPanel", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     mocks.create.mockReset();
     mocks.dispatch.mockReset();
     mocks.remove.mockReset();
@@ -76,9 +78,7 @@ describe("LocationLootPanel", () => {
     const wrapper = mountPanel();
     await openForm(wrapper);
     await findButton(wrapper, "Currency").trigger("click");
-    await wrapper.find('input[type="number"]').exists(); // ensure currency inputs mounted
-    const gpInput = wrapper.findAllComponents({ name: "AppInput" }).find((i) => i.props("modelValue") === 0);
-    await gpInput?.vm.$emit("update:modelValue", 12);
+    await wrapper.get('input[aria-label="Gold"]').setValue(12);
     await findButton(wrapper, "Prepare").trigger("click");
 
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -87,6 +87,7 @@ describe("LocationLootPanel", () => {
       location_id: "room-1",
       campaign_id: "campaign-1",
       kind: "currency",
+      payload: { coins: { gp: 12 } },
       source_type: "prepared",
     }));
   });
@@ -101,7 +102,7 @@ describe("LocationLootPanel", () => {
     await combobox.vm.$emit("update:modelValue", "table-1");
     await findButton(wrapper, "Roll").trigger("click");
 
-    expect(wrapper.text()).toContain("12 GP");
+    expect(wrapper.text()).toContain("12 gp");
 
     await findButton(wrapper, "Prepare").trigger("click");
 

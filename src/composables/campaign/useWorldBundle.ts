@@ -13,6 +13,7 @@ import { withWalkSpeed } from "@/rules/speciesStats";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { downloadBlob } from "@/lib/downloadBlob";
 import { legacyTiesToLinks, linkEnd, remapLinkEnds } from "@/lib/campaign/worldLinkTransfer";
+import { upgradeEncounterCoins, upgradePartyMemberCoins } from "@/lib/campaign/legacyCoins";
 import type { LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 import {
   sortByHierarchy,
@@ -55,11 +56,14 @@ export interface PickerItem {
   label: string;
 }
 
-/** The one format this app writes and reads. */
-export const BUNDLE_FORMAT_VERSION = "2";
+/** The format this app writes. Version 3 (#934) stores coins as campaign-defined maps. */
+export const BUNDLE_FORMAT_VERSION = "3";
+
+/** A version 2 bundle carries the five fixed 5e coins and is translated on read (`legacyCoins`). */
+const LEGACY_BUNDLE_FORMAT_VERSION = "2";
 
 export interface GrimoireBundle {
-  version: typeof BUNDLE_FORMAT_VERSION;
+  version: typeof BUNDLE_FORMAT_VERSION | typeof LEGACY_BUNDLE_FORMAT_VERSION;
   file_type: "world_bundle";
   name: string;
   description: string;
@@ -1160,6 +1164,17 @@ export function assertBundleCarriesCharacterEditions(bundle: GrimoireBundle): vo
   }
 }
 
+/** A version 2 bundle's characters and encounters hold the five fixed coins; they become coin maps, as a restore does. */
+export function upgradeBundleCoins(bundle: GrimoireBundle): GrimoireBundle {
+  if (bundle.version !== LEGACY_BUNDLE_FORMAT_VERSION) return bundle;
+  return {
+    ...bundle,
+    version: BUNDLE_FORMAT_VERSION,
+    ...(bundle.party_members && { party_members: bundle.party_members.map(upgradePartyMemberCoins) }),
+    ...(bundle.encounters && { encounters: bundle.encounters.map(upgradeEncounterCoins) }),
+  };
+}
+
 export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   let text: string;
   try {
@@ -1181,9 +1196,10 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   if (json.file_type !== "world_bundle") {
     throw new Error("Unrecognised file type. Make sure you selected a .grimoire bundle file.");
   }
-  if (json.version !== BUNDLE_FORMAT_VERSION) {
+  if (json.version !== BUNDLE_FORMAT_VERSION && json.version !== LEGACY_BUNDLE_FORMAT_VERSION) {
     throw new Error(`Unsupported bundle version: ${json.version}. Export it again from the campaign it came from.`);
   }
+  json = upgradeBundleCoins(json);
   assertBundleCarriesCharacterEditions(json);
   const hasContent = [
     json.npcs, json.locations, json.factions, json.quests,

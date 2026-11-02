@@ -5,7 +5,8 @@ import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { pendingRewardLabel } from "@/lib/downtime/downtimeReward";
 import type { DowntimeOutcome, DowntimeEffect } from "@/types/downtime.types";
-import { COIN_KEYS } from "@/types/downtime.types";
+import { describeEffect } from "@/lib/downtime/downtimeEffects";
+import { useCurrency } from "@/composables/currency/useCurrency";
 
 const {
   outcome,
@@ -46,12 +47,12 @@ const rewardLabel = computed(() => {
 
 const appliedEffects = computed(() => outcome.proposed_effects.filter((e) => e.applied));
 
+const { currency } = useCurrency();
+
 function effectSummary(effect: DowntimeEffect): string {
   switch (effect.kind) {
-    case "gold": {
-      const parts = COIN_KEYS.filter((k) => effect[k] !== 0).map((k) => `${effect[k]} ${k}`);
-      return parts.length > 0 ? parts.join(", ") : "no coin changed hands";
-    }
+    case "gold":
+      return describeEffect(effect, currency.value);
     case "item":
       return `${effect.qty}× item`;
     case "hp":

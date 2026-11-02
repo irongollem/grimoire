@@ -61,7 +61,7 @@ Open any owned item and click **Edit** (or it's already in edit mode for a new i
 - **Portrait**: tabbed **Identified** / **Mundane** art, each with independent focal-point control. The mundane image is what players see before identification.
 - **Tags**: free-form; drives automation across the app. See [Item Tags Overview](#item-tags-overview).
 - **Name, Type, Subtype, Rarity**.
-- **Weight** and **Cost**: cost is freeform text (e.g. "50 gp"); a rarity-based price hint appears for magic items.
+- **Weight** and **Cost**: cost is freeform text in your campaign's coins (e.g. "50 gp"; a bare number is read in the default coin); a rarity-based price hint appears for magic items when the campaign uses gold pieces.
 - **Weapon section** (weapons only): damage rolls, versatile damage, range, weapon properties, and (2024-ruleset campaigns only) a **Mastery** dropdown.
 - **Armor section** (armor only): Armor Class text, supports formulas like "13 + DEX modifier (max 2)".
 - **Magic Properties** (non-mundane only): **Requires Attunement** toggle with an optional "by whom" text.
@@ -108,7 +108,7 @@ Players manage everything they carry from **Inventory** in the Player Portal:
 
 - **The Paper Doll**: a character silhouette with eleven equip slots (Head, Neck, Shoulders, Body, Gloves, Ring, Waist, Clothes, Boots, Main Hand, Off Hand). Each slot accepts items matching its tags or type: a `helmet`/`hat`/`hood`/`crown` tag for Head, an item **Type** of Armor for Body, and so on. Clicking a filled slot opens its detail panel; clicking an empty one lists eligible items to equip. Equipping part of a stack splits off one unit automatically. The silhouette itself switches art depending on whether the Clothes slot is filled.
 - **Attunement tracker**: three pip dots showing how many of the player's three attunement slots are used; hovering a filled pip names the item.
-- **Coin Purse**: five currency columns (PP/GP/EP/SP/CP), each editable inline. **Drop Coins to Chat** posts a currency drop the party can see.
+- **Coin Purse**: one row per coin of the campaign's currency, each editable inline. **Drop Coins to Chat** posts a currency drop the party can see.
 - **Carry Weight bar**: shows load against capacity (STR × 15, doubled for a **Powerful Build** species), with Unencumbered/Encumbered/Heavily Encumbered/Over Encumbered bands. The capacity figure is click-to-override with an absolute value, a multiplier (`*2`), or an addition (`+30`); a reset control restores the default. Items in a container tagged `extradimensional` contribute zero weight.
 - **Backpack, Belt, and custom containers**: see [Containers](#containers) for how a container is created and how it affects ranged-ammo selection.
 - **Stored Elsewhere** and **Party Stash** sections for items not on the character's person or not assigned to anyone.

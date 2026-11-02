@@ -365,18 +365,7 @@
               />
               <div v-else class="space-y-2">
                 <p class="text-eyebrow text-ink-caution/80 ">List for Sale</p>
-                <div class="grid grid-cols-5 gap-1">
-                  <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-                    <span class="text-label font-bold" :class="coin.color">{{ coin.symbol }}</span>
-                    <AppInput
-                      v-model.number="sellPrice[coin.key]"
-                      type="number" min="0"
-                      tone="muted"
-                      size="xs"
-                      align="center"
-                    />
-                  </div>
-                </div>
+                <CoinInput v-model="sellPrice" size="xs" />
                 <div class="flex gap-2">
                   <AppButton
                     variant="primary"
@@ -398,14 +387,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { IconAdd, IconHide, IconMinus, IconReveal, IconShop, IconWand } from '@/lib/icons';
 import { useQuery } from "@tanstack/vue-query";
-import { COINS, parseCoinText } from "@/rules/currency";
-import type { CoinKey } from "@/types/downtime.types";
+import CoinInput from "@/components/currency/CoinInput.vue";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { hasCoins, type Coins } from "@/lib/currency/currency";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import QualityBadge from "@/components/inventory/QualityBadge.vue";
 import { ITEM_QUALITIES, QUALITY_LABELS, QUALITY_MODIFIER } from "@/lib/items/quality";
@@ -449,7 +438,7 @@ const emit = defineEmits<{
   unequip: [];
   equip: [slot: InventorySlot];
   dropToChat: [];
-  sell: [pp: number, gp: number, ep: number, sp: number, cp: number];
+  sell: [price: Coins];
   consume: [id: string]; // scroll fully used up — parent should remove the inventory row
 }>();
 
@@ -484,18 +473,18 @@ watch(
 const MAX_ATTUNED = 3;
 
 const sellOpen  = ref(false);
-const sellPrice = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
-const sellHasPrice = computed(() => COINS.some(c => sellPrice[c.key] > 0));
+const { parsePrice } = useCurrency();
+const sellPrice = ref<Coins>({});
+const sellHasPrice = computed(() => hasCoins(sellPrice.value));
 
 function openSell() {
-  const parsed = props.vaultItem?.cost ? parseCoinText(props.vaultItem.cost) : null;
-  COINS.forEach(c => { sellPrice[c.key] = parsed?.[c.key] ?? 0; });
+  sellPrice.value = (props.vaultItem?.cost ? parsePrice(props.vaultItem.cost) : null) ?? {};
   sellOpen.value = true;
 }
 
 function confirmSell() {
   if (!sellHasPrice.value) return;
-  emit('sell', sellPrice.pp, sellPrice.gp, sellPrice.ep, sellPrice.sp, sellPrice.cp);
+  emit('sell', sellPrice.value);
   sellOpen.value = false;
 }
 

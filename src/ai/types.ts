@@ -426,7 +426,8 @@ export interface LootEntryAiResult {
   /** Fixed quantity; used when `dice` is absent. */
   fixed_qty?: number | null;
   notes?: string | null;
-  pp?: number; gp?: number; ep?: number; sp?: number; cp?: number;
+  /** type "currency": whole coins per denomination key of the campaign's currency. */
+  coins?: Record<string, number>;
 }
 
 export interface LootTableAiResult {

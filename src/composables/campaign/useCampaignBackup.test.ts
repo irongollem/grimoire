@@ -36,6 +36,7 @@ import { defineComponent } from "vue";
 import {
   assertBackupCarriesCharacterEditions,
   executeImport,
+  parseBackupFile,
   useExportCampaign,
   type GrimoireBackup,
 } from "./useCampaignBackup";
@@ -682,5 +683,65 @@ describe("exporting a campaign", () => {
     const backup = await exportBackup("c1");
     // One copy each: the campaign's own class is pinned too, and is not fetched twice.
     expect(backup.custom_classes.map((r) => r.id).sort()).toEqual(["def-global", "def-own"]);
+  });
+
+  it("writes format version 3, so a restore knows its coins are maps and not the five columns", async () => {
+    fake.seed("campaigns", [campaignRow("c1", "The Mere")]);
+    expect((await exportBackup("c1")).version).toBe("3");
+  });
+});
+
+describe("restoring coins (#934)", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+    fake.reset();
+  });
+
+  const rowsOf = (table: string) => inserted.find((i) => i.table === table)!.rows;
+
+  it("translates a version 2 backup's five-coin shapes, which the dropped columns would otherwise reject", async () => {
+    const backup = backupWith({
+      version: "2",
+      party_members: [{ ...member, pp: 0, gp: 25, ep: 0, sp: 3, cp: 0 }],
+      loot_tables: [{ id: "lt-1", entries: [{ type: "currency", currency_label: "Purse", drop_chance: 80, gp: 10, sp: 0, cp: 4, notes: "" }] }],
+      encounters: [{ id: "en-1", reward_currency_pools: [{ id: "p1", label: "Hoard", pp: 0, gp: 200, ep: 0, sp: 0, cp: 0 }] }],
+    });
+    await executeImport(backup, "Restored");
+    const pm = rowsOf("party_members")[0];
+    expect(pm.coins).toEqual({ gp: 25, sp: 3 });
+    for (const key of ["pp", "gp", "ep", "sp", "cp"]) expect(pm).not.toHaveProperty(key);
+    expect(rowsOf("loot_tables")[0].entries).toEqual([
+      { type: "currency", currency_label: "Purse", drop_chance: 80, coins: { gp: 10, cp: 4 }, notes: "" },
+    ]);
+    expect(rowsOf("encounters")[0].reward_currency_pools).toEqual([{ id: "p1", label: "Hoard", coins: { gp: 200 } }]);
+  });
+
+  it("restores a version 3 backup's coin maps exactly as they are, in a currency that is not 5e", async () => {
+    const backup = backupWith({
+      version: "3",
+      party_members: [{ ...member, coins: { dollar: 12, cent: 5 } }],
+      loot_tables: [{ id: "lt-1", entries: [{ type: "currency", drop_chance: 100, coins: { dollar: 3 } }] }],
+      encounters: [{ id: "en-1", reward_currency_pools: [{ id: "p1", label: "Till", coins: { cent: 40 } }] }],
+    });
+    await executeImport(backup, "Restored");
+    expect(rowsOf("party_members")[0].coins).toEqual({ dollar: 12, cent: 5 });
+    expect(rowsOf("loot_tables")[0].entries).toEqual([{ type: "currency", drop_chance: 100, coins: { dollar: 3 } }]);
+    expect(rowsOf("encounters")[0].reward_currency_pools).toEqual([{ id: "p1", label: "Till", coins: { cent: 40 } }]);
+  });
+
+  it("leaves the campaign's currency unset on a version 2 backup so the database default applies", async () => {
+    await executeImport(backupWith({ version: "2" }), "Restored");
+    expect(rowsOf("campaigns")[0]).not.toHaveProperty("currency");
+  });
+});
+
+describe("parseBackupFile versions", () => {
+  const file = (version: string) =>
+    new File([JSON.stringify({ version, file_type: "backup", quest_consequences: [], party_members: [], character_classes: [], custom_classes: [], custom_subclasses: [] })], "b.grimoire-backup");
+
+  it("accepts versions 2 and 3 and refuses an older one with a message naming what it restores", async () => {
+    await expect(parseBackupFile(file("2"))).resolves.toMatchObject({ version: "2" });
+    await expect(parseBackupFile(file("3"))).resolves.toMatchObject({ version: "3" });
+    await expect(parseBackupFile(file("1"))).rejects.toThrow(/versions 2 and 3/);
   });
 });

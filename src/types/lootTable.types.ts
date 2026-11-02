@@ -11,6 +11,7 @@
 
 import { parseExpression, maxExpression } from "@/lib/dice/dice";
 import type { ItemRarity } from "@/types/item.types";
+import type { Coins } from "@/lib/currency/currency";
 import type { AiProvenance } from "@/ai/provenance";
 
 export const LOOT_CR_TIERS = ["any", "0-4", "5-10", "11-16", "17+"] as const;
@@ -74,11 +75,8 @@ export interface LootEntry {
   // ── Currency fields (type === "currency") ──────────────────────────────────
   /** Optional label shown in chat (e.g. "Belt pouch"). */
   currency_label?: string | null;
-  pp?: number;
-  gp?: number;
-  ep?: number;
-  sp?: number;
-  cp?: number;
+  /** Whole coins per denomination key of the campaign's currency. */
+  coins?: Coins;
 }
 
 export interface LootTable {

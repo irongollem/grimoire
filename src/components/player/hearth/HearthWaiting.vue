@@ -33,6 +33,7 @@ import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/use
 import { usePlayerUnread } from "@/composables/player/usePlayerUnread";
 import { openTableItems, type WaitingItem } from "@/lib/hearth/waitingItems";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useCurrency } from "@/composables/currency/useCurrency";
 
 /**
  * What the table has put in front of this player. Handouts open their page.
@@ -45,6 +46,7 @@ const { startedAt } = defineProps<{ startedAt: string | null }>();
 const appUi = useAppUiStore();
 const { items: unread } = usePlayerUnread();
 const { messages, myUserId } = useCampaignMessages();
+const { currency } = useCurrency();
 // This surface reads the message list itself, so it asks for the history the
 // closed chat otherwise defers (#999).
 loadChatHistory();
@@ -80,7 +82,7 @@ const waiting = computed<WaitingRow[]>(() => {
       to: h.to,
     }));
   const table = startedAt
-    ? openTableItems(messages.value, myUserId.value, startedAt).map((t): WaitingRow => {
+    ? openTableItems(messages.value, myUserId.value, startedAt, currency.value).map((t): WaitingRow => {
         const sender = t.kind === "offer" ? (messages.value.find((m) => m.id === t.messageId)?.sender_name ?? null) : null;
         return {
           key: `msg-${t.messageId}`,

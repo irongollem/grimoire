@@ -66,6 +66,7 @@ import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePartyInventory, useRemoveInventoryItem, useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
 import { useGiveInventoryItem } from "@/composables/items/useGiveInventory";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { usePartyUiStore } from "@/stores/ui/party";
 import { isCursedItem, isHiddenCurse } from "@/lib/dashboard/cursedItems";
@@ -98,6 +99,7 @@ const { mutate: giveItem } = useGiveInventoryItem();
 const { mutate: updateItem } = useUpdateInventoryItem();
 const { mutateAsync: removeItem } = useRemoveInventoryItem();
 const stacked = useBelow("sm");
+const { formatCoins } = useCurrency();
 const adding = ref(false);
 
 // Only the packs drawn here: the stash and the active party. A fallen or retired
@@ -139,7 +141,7 @@ const things = (list: readonly PartyInventoryItem[]) => list.reduce((n, r) => n 
 function memberSubline(member: PartyMember, slices: ReturnType<typeof packSlices>): string {
   const weights = packWeights(slices, (inv) => inventoryItemWeight(inv, weightMap.value), isExtradimensional.value);
   const capacity = carryCapacity(member.str, speciesNameOf(member), member.carry_capacity_override);
-  return `${weights.total} / ${capacity} lb · ✦ ${slices.attuned.length}/${ATTUNEMENT_SLOTS} · ${member.gp} gp`;
+  return `${weights.total} / ${capacity} lb · ✦ ${slices.attuned.length}/${ATTUNEMENT_SLOTS} · ${formatCoins(member.coins) || "no coins"}`;
 }
 
 function buildColumn(member: PartyMember | null): PackColumnData {

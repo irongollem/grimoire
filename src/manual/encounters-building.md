@@ -79,7 +79,7 @@ Two checkboxes per event:
 ### Loot
 
 - Linked vault items, each with quantity **+**/**−** and a **Drop to chat** button.
-- Currency pools: a label (placeholder "Label (e.g. Iron Chest)…") plus PP/GP/EP/SP/CP amounts, and a **Drop** button to post the pool to chat (disabled while every coin value is 0).
+- Currency pools: a label (placeholder "Label (e.g. Iron Chest)…") plus an amount for each of the campaign's coins, and a **Drop** button to post the pool to chat (disabled while every coin value is 0).
 
 Use **Add loot item…** or **Add currency pool** to add either.
 

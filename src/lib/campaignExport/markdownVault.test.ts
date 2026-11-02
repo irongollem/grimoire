@@ -119,7 +119,7 @@ function partyMember(over: Partial<PartyMember> = {}): PartyMember {
     portrait_url: null,
     notes: null,
     sort_order: 0,
-    cp: 0, sp: 0, ep: 0, gp: 0, pp: 0,
+    coins: {},
     tool_proficiencies: [],
     languages: [],
     weapon_masteries: [],

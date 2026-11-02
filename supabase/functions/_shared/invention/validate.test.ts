@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateInvention, type InventionCandidate, type InventionContext } from "./validate.ts";
+import { DND5E_CURRENCY } from "../../../../src/systems/dnd5e/currency/dnd5eCurrency";
 import type { InventionBenchEntry, ItemRarity } from "./types.ts";
 
 function row(rarity: ItemRarity, cost: string | null, dishes = 1, id = "r1"): InventionBenchEntry {
@@ -10,6 +11,7 @@ function ctx(over: Partial<InventionContext> = {}): InventionContext {
     mode: "materials",
     discipline: "tinkering",
     valueMultiple: 2,
+    currency: DND5E_CURRENCY,
     bench: [row("common", "50 gp", 2)],
     outputCandidates: [],
     materialCandidates: [],
@@ -317,5 +319,28 @@ describe("limits are inclusive: what the table allows is accepted, one more is n
     const atFloor = draft(raw({}, { value_cp: 8000 }), ctx({ valueMultiple: 0.5 }));
     expect(atFloor.item.value_cp).toBe(5000);
     expect(errors(raw({}, { value_cp: 8000 }), ctx({ valueMultiple: 0.49 })).join(" ")).toContain("not worth enough");
+  });
+});
+
+describe("a campaign with its own coins", () => {
+  const DOLLARS = {
+    default_key: "usd",
+    denominations: [
+      { key: "usd", name: "Dollar", abbr: "$", value: 100, color: "#00aa00", makes_change: true },
+      { key: "cent", name: "Cent", abbr: "c", value: 1, color: "#aa5500", makes_change: true },
+    ],
+  };
+  // Bug it fails on: prices read as gold and written back as "gp" in a campaign that has no gold.
+  it("reads bench prices and writes the item cost in the campaign's coins", () => {
+    const c = ctx({ currency: DOLLARS, bench: [row("common", "$50", 2)] });
+    const d = draft(raw({}, { value_cp: 8000 }), c);
+    expect(d.materials_value_cp).toBe(10000);
+    expect(d.item.new?.cost).toBe("80 $");
+    expect(d.item.new?.cost).not.toMatch(/gp|cp/);
+  });
+  // Bug it fails on: the 5e rarity table pricing an unpriced item in a currency whose smallest coin is not copper.
+  it("treats an unpriced material as worth nothing outside the 5e coins", () => {
+    const e = errors(raw(), ctx({ currency: DOLLARS, bench: [row("common", null, 2)] }));
+    expect(e.join(" ")).toContain("not worth enough");
   });
 });

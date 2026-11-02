@@ -1,15 +1,18 @@
 import { EXHAUSTION, getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
 import type { AppliedCondition } from "@/types/condition.types";
-import { COIN_KEYS, type CoinKey, type DowntimeEffect } from "@/types/downtime.types";
+import { addCoins, formatCoins, type Coins, type CurrencyConfig } from "@/lib/currency/currency";
+import type { DowntimeEffect } from "@/types/downtime.types";
 
 /**
  * One effect, in words. Shared by the DM's resolution board and the printed
  * outcome card, so a consequence reads identically on screen and on the table.
  */
-export function describeEffect(effect: DowntimeEffect): string {
+export function describeEffect(effect: DowntimeEffect, currency: CurrencyConfig): string {
   switch (effect.kind) {
     case "gold": {
-      const parts = COIN_KEYS.filter((k) => effect[k] !== 0).map((k) => `${effect[k]} ${k}`);
+      const gain = formatCoins(effect.gain, currency);
+      const spend = formatCoins(effect.spend, currency);
+      const parts = [gain && `+${gain}`, spend && `-${spend}`].filter((p) => p !== "");
       return parts.length > 0 ? parts.join(", ") : "no coin";
     }
     case "item":
@@ -44,22 +47,46 @@ export function isAutoAppliedKind(kind: DowntimeEffect["kind"]): boolean {
   return (AUTO_APPLIED_EFFECT_KINDS as readonly string[]).includes(kind);
 }
 
+/** Everything the ticked `gold` effects pay out, summed per denomination. */
+export function coinGain(effects: readonly DowntimeEffect[]): Coins {
+  return effects.reduce<Coins>(
+    (sum, e) => (e.kind === "gold" && e.applied ? addCoins(sum, e.gain) : sum),
+    {},
+  );
+}
+
 /**
- * Fold every ticked `gold` effect into the character's purse. A purse cannot go
- * negative — the DM narrates a shortfall rather than the app inventing debt.
+ * Everything the ticked `gold` effects cost, summed per denomination. This is a
+ * price, not a purse change: the server pays it with change (`apply_downtime_effects`) and
+ * refuses it when the purse cannot cover it, so a shortfall reaches the DM as an
+ * error instead of being floored away.
  */
-export function applyCoinEffects(
-  coins: Record<CoinKey, number>,
-  effects: readonly DowntimeEffect[],
-): Record<CoinKey, number> {
-  const next: Record<CoinKey, number> = { ...coins };
-  for (const effect of effects) {
-    if (effect.kind !== "gold" || !effect.applied) continue;
-    for (const key of COIN_KEYS) {
-      next[key] = Math.max(0, next[key] + effect[key]);
-    }
-  }
-  return next;
+export function coinSpend(effects: readonly DowntimeEffect[]): Coins {
+  return effects.reduce<Coins>(
+    (sum, e) => (e.kind === "gold" && e.applied ? addCoins(sum, e.spend) : sum),
+    {},
+  );
+}
+
+/** Denominations the ticked `gold` effects name that the campaign's currency lacks. */
+export function unknownCoinKeys(effects: readonly DowntimeEffect[], currency: CurrencyConfig): string[] {
+  const known = new Set(currency.denominations.map((d) => d.key));
+  const named = new Set([...Object.keys(coinGain(effects)), ...Object.keys(coinSpend(effects))]);
+  return [...named].filter((k) => !known.has(k));
+}
+
+/**
+ * A seed card's effects as this campaign can use them. The built-in seeds are
+ * 5e content priced in 5e coins; in a campaign without those coins a gold
+ * effect is dropped rather than offered, so ticking it can never fail on a coin
+ * the campaign does not have. The card's story and other effects stand, and the
+ * DM can still hand coins over from the purse.
+ */
+export function effectsForCurrency(effects: readonly DowntimeEffect[], currency: CurrencyConfig): DowntimeEffect[] {
+  const known = new Set(currency.denominations.map((d) => d.key));
+  return effects
+    .filter((e) => e.kind !== "gold" || [...Object.keys(e.gain), ...Object.keys(e.spend)].every((k) => known.has(k)))
+    .map((e) => ({ ...e }));
 }
 
 /**
