@@ -125,3 +125,51 @@ describe("useMapMemory while a brush stroke is under way", () => {
     expect([...api.memory.value]).toEqual(["2,2"]);
   });
 });
+
+// #1133 review: one queue served every map, and the writer's own doorbell re-read dropped what was still queued.
+describe("useMapMemory per map", () => {
+  function setupWith(placeId: string) {
+    const cid = ref<string | null>("c1");
+    const pid = ref<string | null>(placeId);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let api!: ReturnType<typeof useMapMemory>;
+    mount(defineComponent({ setup() { api = useMapMemory(cid, pid); return () => null; } }), {
+      global: { plugins: [[VueQueryPlugin, { queryClient: client }]] },
+    });
+    return { api, pid, client };
+  }
+
+  it("sends a write for another map at once, with that map's id, while one is out for the first", async () => {
+    const answers: ((seen: string) => void)[] = [];
+    fake.onRpc("remember_map_cells", () => new Promise<string>((resolve) => answers.push(resolve)));
+    const { api, pid } = setupWith("p1");
+    await flushPromises();
+    const first = api.remember(["1,1"]);
+    pid.value = "p2";
+    await flushPromises();
+    const second = api.remember(["2,2"]);
+    const rpcs = fake.calls.filter((c) => c.kind === "rpc");
+    expect(rpcs).toHaveLength(2);
+    expect(rpcs[1].payload).toMatchObject({ p_location_id: "p2", p_reveal: ["2,2"] });
+    answers.forEach((a, i) => a(i === 0 ? "1,1" : "2,2"));
+    await Promise.all([first, second]);
+  });
+
+  it("a re-read while writes are still out keeps showing their squares", async () => {
+    const answers: ((seen: string) => void)[] = [];
+    fake.onRpc("remember_map_cells", () => new Promise<string>((resolve) => answers.push(resolve)));
+    const { api, client } = setupWith("p1");
+    await flushPromises();
+    const first = api.remember(["1,1"]);
+    const second = api.remember(["2,2"]);
+    // The doorbell rings for another tab's write; the server holds neither square yet.
+    await client.invalidateQueries({ queryKey: ["map-memory"] });
+    await flushPromises();
+    expect([...api.memory.value].sort()).toEqual(["1,1", "2,2"]);
+    answers[0]("1,1");
+    await first;
+    await flushPromises();
+    answers[1]("1,1;2,2");
+    await second;
+  });
+});

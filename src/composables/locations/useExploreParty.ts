@@ -65,11 +65,15 @@ export function useExploreParty(input: {
 
   const positions = ref<Record<string, ExploreCell>>({});
   let timer: ReturnType<typeof setTimeout> | null = null;
+  /** The site the pending moves were made on: a write belongs to it, whatever site is showing when the timer fires. */
+  let pendingSite: string | null = null;
 
   // Follow the campaign row until we have something unsent of our own.
   watch(
     () => [campaign.activeCampaign?.explore_party ?? null, toValue(input.siteId)] as const,
-    ([stored, siteId]) => {
+    ([stored, siteId], previous) => {
+      // Moves still waiting were made on the site we are leaving: write them there now, then show the new site.
+      if (timer !== null && previous && previous[1] !== siteId) flush();
       if (timer === null) positions.value = positionsOnSite(stored, siteId);
     },
     { immediate: true },
@@ -78,10 +82,12 @@ export function useExploreParty(input: {
   function flush() {
     if (timer !== null) clearTimeout(timer);
     timer = null;
+    const site = pendingSite ?? toValue(input.siteId);
+    pendingSite = null;
     const campaignId = campaign.activeCampaignId;
     if (!campaignId) return;
     write(
-      { id: campaignId, explore: { site_id: toValue(input.siteId), positions: positions.value } },
+      { id: campaignId, explore: { site_id: site, positions: positions.value } },
       { onError: (e) => toast.error(toast.fromError(e, "Couldn't save where the party stands.")) },
     );
   }
@@ -89,6 +95,7 @@ export function useExploreParty(input: {
   /** Records new squares for some characters (one move, however many walk) and schedules the single write. */
   function place(moves: Record<string, ExploreCell>) {
     positions.value = { ...positions.value, ...moves };
+    if (timer === null) pendingSite = toValue(input.siteId);
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(flush, WRITE_AFTER_MS);
   }

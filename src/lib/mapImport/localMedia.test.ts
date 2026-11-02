@@ -15,6 +15,7 @@ function notFound() {
 class FakeDir {
   files = new Map<string, Blob>();
   dirs = new Map<string, FakeDir>();
+  failWrites = false;
   async getDirectoryHandle(name: string, opts?: { create?: boolean }) {
     let d = this.dirs.get(name);
     if (!d) {
@@ -34,8 +35,15 @@ class FakeDir {
       createWritable: async () => {
         let data: Blob = new Blob([]);
         return {
-          write: async (d: Blob | string) => { data = new Blob([d]); },
+          write: async (d: Blob | string) => {
+            if (this.failWrites) {
+              data = new Blob(["partial"]);
+              throw new DOMException("full", "QuotaExceededError");
+            }
+            data = new Blob([d]);
+          },
           close: async () => { this.files.set(name, data); },
+          abort: async () => { /* discards the pending data */ },
         };
       },
     };
@@ -116,6 +124,14 @@ describe("localMedia", () => {
   it("answers false when the browser refuses the write", async () => {
     vi.stubGlobal("navigator", { storage: { getDirectory: async () => { throw new Error("SecurityError"); } } });
     expect(await saveLocalMap("loc-1", gif())).toBe(false);
+  });
+
+  it("keeps no truncated file when a write fails partway (quota)", async () => {
+    await root.getDirectoryHandle("map-media", { create: true });
+    root.dirs.get("map-media")!.failWrites = true;
+    expect(await saveLocalMap("loc-1", gif())).toBe(false);
+    expect(await getLocalMap("loc-1")).toBeNull();
+    expect(root.dirs.get("map-media")?.files.size).toBe(0);
   });
 
   it("asks for persistence once per page load", async () => {

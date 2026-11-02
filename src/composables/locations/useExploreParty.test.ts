@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { effectScope, nextTick } from "vue";
+import { effectScope, nextTick, ref } from "vue";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { Campaign, ExploreParty } from "@/types/campaign.types";
 
@@ -120,6 +120,45 @@ describe("useExploreParty", () => {
     api.place({ a: { x: 5, y: 5 } });
     scope.stop();
     expect(h.write).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useExploreParty when the site changes", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.useFakeTimers();
+    h.write.mockClear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  // A move made on site A and still waiting must not be written as standing on site B's map.
+  it("writes a waiting move to the site it was made on, then shows the new site", async () => {
+    const store = useCampaignStore();
+    store.activeCampaignId = "c1";
+    store.activeCampaign = campaignWith({ site_id: "sA", positions: { a: { x: 0, y: 0 }, b: { x: 1, y: 0 } } });
+    const siteId = ref("sA");
+    const scope = effectScope();
+    const api = scope.run(() =>
+      useExploreParty({
+        siteId,
+        members: () => [member("a"), member("b")],
+        roomCells: () => ROOMS,
+        roomOrder: ["hall"],
+        partyRoomId: () => null,
+      }),
+    )!;
+    api.place({ a: { x: 9, y: 9 } });
+    siteId.value = "sB";
+    await nextTick();
+    expect(h.write.mock.calls[0][0]).toEqual({
+      id: "c1",
+      explore: { site_id: "sA", positions: { a: { x: 9, y: 9 }, b: { x: 1, y: 0 } } },
+    });
+    // The new site starts from its own squares, not A's.
+    expect(api.positions.value.a).not.toEqual({ x: 9, y: 9 });
+    vi.advanceTimersByTime(1000);
+    for (const call of h.write.mock.calls) expect(call[0].explore.site_id === "sB" && call[0].explore.positions.a?.x === 9).toBe(false);
+    scope.stop();
   });
 });
 

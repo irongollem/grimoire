@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor } from "@/types/mapLive.types";
-import { newlySeen, partyVisibleCombatants, shownCells, sightCells, sightScene, tableTokens } from "./partySight";
+import { imageGrid, newlySeen, partyVisibleCombatants, shownCells, sightCells, sightScene, tableTokens } from "./partySight";
 import type { Viewer } from "./vision";
 
 const eyes = (x: number, y: number, darkvisionFeet = 0): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 });
@@ -104,5 +104,22 @@ describe("tableTokens", () => {
 
   it("shows a large monster when one square of its footprint is seen", () => {
     expect(tableTokens([tok("big", "monster", { x: 2, y: 2 }, { footprint: 2 })], sight)).toHaveLength(1);
+  });
+});
+
+describe("imageGrid", () => {
+  // A box calibration of 29.9999 across: row-major indexing `j * cols + i` is only whole with a whole column count.
+  it("rounds the columns up so a fractional calibration still indexes whole cells", () => {
+    expect(imageGrid(29.9999, { w: 1000, h: 500 })).toEqual({ cols: 30, rows: 15 });
+  });
+
+  it("is null until the picture's size is known, and for a calibration that is not a positive number", () => {
+    expect(imageGrid(20, null)).toBeNull();
+    expect(imageGrid(0, { w: 10, h: 10 })).toBeNull();
+    expect(imageGrid(-5, { w: 10, h: 10 })).toBeNull();
+    expect(imageGrid(Number.NaN, { w: 10, h: 10 })).toBeNull();
+    expect(imageGrid(Number.POSITIVE_INFINITY, { w: 10, h: 10 })).toBeNull();
+    expect(imageGrid(20, { w: 0, h: 10 })).toBeNull();
+    expect(imageGrid(20, { w: 10, h: Number.NaN })).toBeNull();
   });
 });

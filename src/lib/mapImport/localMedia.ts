@@ -39,9 +39,12 @@ async function writeFile(dir: FileSystemDirectoryHandle, name: string, data: Blo
   const w = await handle.createWritable();
   try {
     await w.write(data);
-  } finally {
-    await w.close();
+  } catch (e) {
+    // close() would commit the half-written bytes; abort() throws them away.
+    await w.abort().catch(() => undefined);
+    throw e;
   }
+  await w.close();
 }
 
 export async function saveLocalMap(key: string, file: File): Promise<boolean> {
@@ -54,6 +57,8 @@ export async function saveLocalMap(key: string, file: File): Promise<boolean> {
     await writeFile(dir, key + META_SUFFIX, JSON.stringify(meta));
     return true;
   } catch {
+    // A failed save leaves no file under the key (an empty one would be served as the map).
+    await deleteLocalMap(key);
     return false;
   }
 }

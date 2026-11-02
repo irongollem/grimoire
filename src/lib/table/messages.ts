@@ -41,6 +41,14 @@ export function tableTopic(campaignId: string): string {
   return `table:${campaignId}`;
 }
 
+/**
+ * The DM's own table topic (#1133 review): measure lines, drawings and clearing them. Only the campaign's DM may send
+ * on it, because Realtime authorizes a sender when it joins a topic, never per message; members hear it.
+ */
+export function tableDmTopic(campaignId: string): string {
+  return `table-dm:${campaignId}`;
+}
+
 type Obj = Record<string, unknown>;
 
 function isObj(v: unknown): v is Obj {

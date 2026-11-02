@@ -34,6 +34,31 @@ function mergeBatch(earlier: Batch, later: Batch): Batch {
 }
 
 /**
+ * Writes this app has sent or gathered for one map and not yet seen land, by query key. Module-level, because two
+ * screens of one map share its cache; per map, so a batch is never sent with another map's id.
+ */
+interface Pending {
+  inFlight: Promise<void> | null;
+  /** The batch the request out now carries. */
+  sending: Batch | null;
+  /** Writes made while it is out: they go together in the next request. */
+  queued: Batch | null;
+  queuedDone: Promise<void> | null;
+}
+const pendingByKey = new Map<string, Pending>();
+const keyOf = (cid: string, pid: string) => `${cid}/${pid}`;
+
+/** What is still on its way, layered over what the server holds, so a refetch never shows a square fogged again. */
+function withPending(seen: string, cid: string, pid: string): string {
+  const pending = pendingByKey.get(keyOf(cid, pid));
+  if (!pending || (!pending.sending && !pending.queued)) return seen;
+  let cells = decodeFogMask(seen);
+  if (pending.sending) cells = applyBatch(cells, pending.sending);
+  if (pending.queued) cells = applyBatch(cells, pending.queued);
+  return encodeFogMask(cells);
+}
+
+/**
  * What the party has seen of one place's map (`map_memory`, one row per campaign and place), shared by exploring
  * and every fight on that map. Another device's change arrives through the doorbell (`map_memory` signal), never
  * a poll. Writes go through `remember_map_cells`, which only the DM may call and which returns the new `seen`.
@@ -54,7 +79,8 @@ export function useMapMemory(campaignId: MaybeRefOrGetter<string | null>, placeI
         .eq("location_id", pid)
         .maybeSingle();
       if (error) throw error;
-      return data ? data.seen : "";
+      // The writer's own write rings every tab, this one included: the re-read must not undo what is still queued.
+      return withPending(data ? data.seen : "", cid, pid);
     },
     enabled: () => !!toValue(campaignId) && !!toValue(placeId),
   });
@@ -65,31 +91,34 @@ export function useMapMemory(campaignId: MaybeRefOrGetter<string | null>, placeI
   // merged into the cache before the request goes), and while one request is out the next writes gather into one
   // batch, so a stroke costs a request at a time rather than one per frame. The server merges too, so the order
   // in which two windows' batches land does not matter.
-  let inFlight: Promise<void> | null = null;
-  let queued: Batch | null = null;
-  let queuedDone: Promise<void> | null = null;
-
   function write(batch: Batch): Promise<void> {
     const cid = toValue(campaignId);
     const pid = toValue(placeId);
     if (!cid || !pid) return Promise.reject(new Error("Cannot change the map's memory without a campaign and a place"));
-    const key = ["map-memory", cid, pid] as const;
-    queryClient.setQueryData<string>(key, (seen) => encodeFogMask(applyBatch(decodeFogMask(seen), batch)));
-    if (inFlight) {
-      queued = queued ? mergeBatch(queued, batch) : batch;
-      queuedDone ??= inFlight.then(() => {
-        const next = queued;
-        queued = null;
-        queuedDone = null;
-        return next ? send(cid, pid, next) : undefined;
-      });
-      return queuedDone;
+    const cacheKey = ["map-memory", cid, pid] as const;
+    queryClient.setQueryData<string>(cacheKey, (seen) => encodeFogMask(applyBatch(decodeFogMask(seen), batch)));
+    let pending = pendingByKey.get(keyOf(cid, pid));
+    if (!pending) {
+      pending = { inFlight: null, sending: null, queued: null, queuedDone: null };
+      pendingByKey.set(keyOf(cid, pid), pending);
     }
-    return send(cid, pid, batch);
+    const p = pending;
+    if (p.inFlight) {
+      p.queued = p.queued ? mergeBatch(p.queued, batch) : batch;
+      p.queuedDone ??= p.inFlight.then(() => {
+        const next = p.queued;
+        p.queued = null;
+        p.queuedDone = null;
+        return next ? send(cid, pid, p, next) : undefined;
+      });
+      return p.queuedDone;
+    }
+    return send(cid, pid, p, batch);
   }
 
-  function send(cid: string, pid: string, batch: Batch): Promise<void> {
-    const key = ["map-memory", cid, pid] as const;
+  function send(cid: string, pid: string, p: Pending, batch: Batch): Promise<void> {
+    const cacheKey = ["map-memory", cid, pid] as const;
+    p.sending = batch;
     const request = (async () => {
       const { data, error } = await supabase.rpc("remember_map_cells", {
         p_campaign_id: cid,
@@ -98,22 +127,24 @@ export function useMapMemory(campaignId: MaybeRefOrGetter<string | null>, placeI
         p_hide: [...batch.hide],
         p_forget: batch.forget,
       });
+      p.sending = null;
       if (error) {
         // What this screen showed early was never saved: read the row again rather than keep showing it.
-        void queryClient.invalidateQueries({ queryKey: key });
+        void queryClient.invalidateQueries({ queryKey: cacheKey });
         throw error;
       }
       // Writes gathered meanwhile are still to come: keep showing them over what the server holds now.
-      queryClient.setQueryData<string>(key, queued ? encodeFogMask(applyBatch(decodeFogMask(data), queued)) : data);
+      queryClient.setQueryData<string>(cacheKey, withPending(data, cid, pid));
     })();
     // The queue waits on this, success or failure: a failed write still lets the gathered batch go.
     const settled: Promise<void> = request.then(
       () => undefined,
       () => undefined,
     ).finally(() => {
-      if (inFlight === settled) inFlight = null;
+      if (p.inFlight === settled) p.inFlight = null;
+      if (!p.inFlight && !p.queued && !p.sending) pendingByKey.delete(keyOf(cid, pid));
     });
-    inFlight = settled;
+    p.inFlight = settled;
     return request;
   }
 

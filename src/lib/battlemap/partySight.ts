@@ -117,8 +117,14 @@ export function tableTokens<T extends SizedToken & { type: string; position?: { 
   });
 }
 
-/** The battle cells a map picture covers, from its calibration and its natural size; null until the picture's size is known. */
+/**
+ * The battle cells a map picture covers, from its calibration and its natural size; null until the picture's size is
+ * known. The column count is a whole number (rounded up, as the Explore screen does with its frame): a calibration
+ * like 29.9999 would otherwise make every row-major index `j * cols + i` fractional and sight would read only row 0.
+ * The rows follow the unrounded width, which is the one the picture is drawn at.
+ */
 export function imageGrid(cellsAcross: number | null | undefined, size: { w: number; h: number } | null): MapGrid | null {
-  if (!size || !cellsAcross || size.w <= 0 || size.h <= 0) return null;
-  return { cols: cellsAcross, rows: Math.ceil(cellsAcross * (size.h / size.w)) };
+  if (!size || cellsAcross == null || !Number.isFinite(cellsAcross) || cellsAcross <= 0) return null;
+  if (!Number.isFinite(size.w) || !Number.isFinite(size.h) || size.w <= 0 || size.h <= 0) return null;
+  return { cols: Math.ceil(cellsAcross), rows: Math.ceil(cellsAcross * (size.h / size.w)) };
 }

@@ -115,7 +115,7 @@ const {
   /** Bound spaces that are themselves a nested site rather than a room
    *  (#818) — clicking one descends into it instead of pushing to its
    *  sheet. Derived by `LocationMap.vue` from the same `spaces` prop that
-   *  feeds `SiteMapRegionList`. */
+   *  feeds the Zoning list (`ZoningList`). */
   nestedSiteIds?: ReadonlySet<string>;
   /** The DM's own site-fog hint (#884 S11) — drawn over the plan rather
    *  than beside it as a second `PlayerSitePlan`. Each entry is one

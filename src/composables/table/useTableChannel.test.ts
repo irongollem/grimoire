@@ -7,26 +7,39 @@ import { MEASURE_THROTTLE_MS, MEASURE_TTL_MS, PING_MS, useTableChannel } from ".
 const ME: TableSender = { id: "u1", name: "Ayla", color: "#ff0000" };
 const OTHER: TableSender = { id: "u2", name: "Bram", color: "#00ff00" };
 
-// A channel with no network: records sends and lets a test deliver a broadcast.
+// Channels with no network, one per topic: they record sends and let a test deliver a broadcast on a topic.
 function fakeChannel() {
   const sent: unknown[] = [];
-  let listener: ((m: { payload: unknown }) => void) | null = null;
+  const sentOn = new Map<string, unknown[]>();
+  const listeners = new Map<string, (m: { payload: unknown }) => void>();
+  const statuses: ((s: string) => void)[] = [];
+  const topics: string[] = [];
   const stop = vi.fn();
-  let options: Parameters<typeof createRealtimeChannel>[0] | null = null;
   const create: typeof createRealtimeChannel = (o) => {
-    options = o;
+    topics.push(o.topic);
+    if (o.onStatus) statuses.push(o.onStatus);
     const ch = {
-      on: (_t: string, _f: unknown, cb: (m: { payload: unknown }) => void) => { listener = cb; return ch; },
-      send: (m: unknown) => { sent.push(m); },
+      on: (_t: string, _f: unknown, cb: (m: { payload: unknown }) => void) => { listeners.set(o.topic, cb); return ch; },
+      send: (m: unknown) => {
+        sent.push(m);
+        sentOn.set(o.topic, [...(sentOn.get(o.topic) ?? []), m]);
+      },
     };
     o.bind(ch as never);
     return { reconcile: () => undefined, stop };
   };
+  /** Deliver as the app's traffic arrives: a ping on the shared topic, every other mark on the DM's. */
+  const deliver = (payload: unknown) => {
+    const event = typeof payload === "object" && payload !== null ? (payload as { event?: unknown }).event : null;
+    const topic = topics.find((t) => (event === "ping" ? t.startsWith("table:") : t.startsWith("table-dm:")));
+    if (topic) listeners.get(topic)?.({ payload });
+  };
   return {
-    create, sent, stop,
-    deliver: (payload: unknown) => listener?.({ payload }),
-    status: (s: string) => options?.onStatus?.(s),
-    topic: () => options?.topic,
+    create, sent, stop, deliver,
+    deliverOn: (topic: string, payload: unknown) => listeners.get(topic)?.({ payload }),
+    sentOn: (topic: string) => sentOn.get(topic) ?? [],
+    status: (s: string) => statuses.forEach((f) => f(s)),
+    topics: () => topics,
   };
 }
 
@@ -43,9 +56,32 @@ describe("useTableChannel", () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it("joins the table topic, not the doorbell", () => {
+  it("joins the table topic and the DM's table topic, not the doorbell", () => {
     const { f } = setup("c1");
-    expect(f.topic()).toBe("table:c1"); // #1125 decision 12
+    expect(f.topics()).toEqual(["table:c1", "table-dm:c1"]); // #1125 decision 12, #1133 review
+  });
+
+  // #1133 review: any member may send on the shared topic, so a player's console could clear the DM's pinned
+  // drawings or draw in the DM's name. Only a ping is taken from it.
+  it("takes nothing but a ping from the shared topic", () => {
+    const { f, t } = setup("c1");
+    f.deliver({ event: "draw", id: "d", points: [[0, 0], [1, 1]], color: "#fff", width: 2, by: OTHER, pinned: true, at: 1 });
+    expect(t.drawings.value).toHaveLength(1);
+    f.deliverOn("table:c1", { event: "draw-clear", all: true });
+    f.deliverOn("table:c1", { event: "draw", id: "x", points: [[0, 0], [1, 1]], color: "#fff", width: 2, by: OTHER, pinned: false, at: 1 });
+    f.deliverOn("table:c1", { event: "measure", id: "m", points: [[0, 0], [1, 1]], by: OTHER, at: 1 });
+    expect(t.drawings.value.map((d) => d.id)).toEqual(["d"]);
+    expect(t.measures.value).toEqual([]);
+    f.deliverOn("table:c1", { event: "ping", x: 1, y: 1, by: OTHER, at: 1 });
+    expect(t.pings.value).toHaveLength(1);
+  });
+
+  it("sends a ping on the shared topic and a drawing on the DM's", () => {
+    const { f, t } = setup("c1");
+    t.sendPing(1, 2);
+    t.draw({ id: "d", points: [[0, 0], [1, 1]], color: "#fff", width: 2, pinned: false });
+    expect(f.sentOn("table:c1")).toHaveLength(1);
+    expect(f.sentOn("table-dm:c1")).toHaveLength(1);
   });
 
   it("drops a malformed payload from another client instead of showing it", () => {
@@ -166,13 +202,13 @@ describe("useTableChannel", () => {
     const { f, t, scope } = setup();
     t.sendPing(1, 1);
     scope.stop();
-    expect(f.stop).toHaveBeenCalledTimes(1);
+    expect(f.stop).toHaveBeenCalledTimes(2); // both topics
     expect(t.pings.value).toEqual([]);
     expect(t.connected.value).toBe(false);
   });
 
   it("opens no channel without a campaign", () => {
     const { f } = setup(null);
-    expect(f.topic()).toBeUndefined();
+    expect(f.topics()).toEqual([]);
   });
 });

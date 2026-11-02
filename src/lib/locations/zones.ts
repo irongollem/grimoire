@@ -98,7 +98,7 @@ export function isPlayerVisible(region: Pick<LocationMapRegion, "zone_payload">)
 }
 
 /** A freshly-drawn, unnamed zone ready for `useCreateLocationMapRegion` —
- *  the zone twin of `SiteMapRegionList`'s `addUnboundRegion`. `space_location_id`
+ *  the zone twin of a new room row in `ZoningList`. `space_location_id`
  *  is omitted rather than set to null: the column default already is null,
  *  and a zone binding to a space at all is what the DB trigger refuses.
  *

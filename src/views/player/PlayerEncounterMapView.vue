@@ -164,10 +164,10 @@ import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { sameDoorStates } from "@/lib/battlemap/doors";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
-import { partyVisibleCombatants, shownCells, type MapGrid } from "@/lib/battlemap/partySight";
+import { imageGrid, partyVisibleCombatants, shownCells, type MapGrid } from "@/lib/battlemap/partySight";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
-import { currentMapLive } from "@/lib/battlemap/liveLayer";
-import { pictureUnderDrawing } from "@/lib/battlemap/roomBridge";
+import { resolveBattleSurface } from "@/lib/battlemap/roomBridge";
+import { isInteriorType } from "@/lib/locations/tiers";
 import { usePlayerMapFollow } from "@/composables/player/usePlayerMapFollow";
 import { usePlayerMapPointer } from "@/composables/player/usePlayerMapPointer";
 import { usePlayerMapMove } from "@/composables/player/usePlayerMapMove";
@@ -179,7 +179,6 @@ import { senderColor } from "@/lib/table/identity";
 import PlayerMapTurnHeader from "@/components/player/PlayerMapTurnHeader.vue";
 import PlayerMapMoveSheet from "@/components/player/PlayerMapMoveSheet.vue";
 import PlayerMapNav from "@/components/player/PlayerMapNav.vue";
-import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant, FactionColor } from "@/types/encounter.types";
@@ -200,28 +199,26 @@ const locationIdRef = computed(() => liveState.value?.location_id ?? "");
 const factionColors = computed<readonly FactionColor[]>(() =>
   liveState.value?.faction_colors ? liveState.value.faction_colors : [],
 );
-const { data: location } = usePlayerVisibleLocation(locationIdRef);
-
-// The image this battle view actually draws — the site's Drawing when it
-// has one, else its Picture (#884: never `location.map_url` directly, or a
-// Drawing-only battle map would render nothing).
-const image = computed(() => primaryImage(location.value));
-// The snapshot is in the cells of whatever is on screen: the Drawing, or a Picture with no Drawing (same rule as
-// `resolveBattleSurface`, which the DM's map uses).
-const live = computed(() => (location.value ? currentMapLive(location.value.map_live) : null));
+const { data: encounterLocation } = usePlayerVisibleLocation(locationIdRef);
+// A room with no map of its own is drawn on its site's plan, exactly as on the DM's screen (`resolveBattleSurface`).
+// The parent is read through the same player-safe projection, which hands back a place whose map is shared.
+const parentIdRef = computed(() =>
+  encounterLocation.value && isInteriorType(encounterLocation.value.location_type) ? (encounterLocation.value.parent_id ?? "") : "",
+);
+const { data: parentLocation } = usePlayerVisibleLocation(parentIdRef);
+// The room's traced cells only focus the DM's camera; the phone draws the whole plan, so it needs no regions.
+const surface = computed(() =>
+  resolveBattleSurface({ encounterLocation: encounterLocation.value, parent: parentLocation.value, regions: [] }),
+);
+// The place whose map is on screen: the memory is read, and the snapshot taken, for this place and not the encounter's.
+const location = computed(() => surface.value?.mapLocation ?? null);
+const image = computed(() => (surface.value ? { url: surface.value.imageUrl, calibration: surface.value.calibration } : null));
+// The snapshot is in the cells of whatever is on screen: the Drawing, or a Picture with no Drawing.
+const live = computed(() => surface.value?.live ?? null);
 // The Picture under the Drawing (#1125 decision 8), when both are calibrated. Players never get a moving Picture.
-const picture = computed(() => pictureUnderDrawing(location.value));
-
-// The standing half rides with the Drawing the same way; a hand-calibrated Picture has none.
-const standUrl = computed(() =>
-  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? location.value.map_layer_stand_url : null,
-);
-
-const standLiveUrl = computed(() =>
-  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url
-    ? location.value.map_layer_stand_live_url
-    : null,
-);
+const picture = computed(() => surface.value?.picture ?? null);
+const standUrl = computed(() => surface.value?.standUrl ?? null);
+const standLiveUrl = computed(() => surface.value?.standLiveUrl ?? null);
 
 // Every store this view reads is declared first: the computeds below run during setup (the token filter reads
 // `sight`, which reads the own member through `auth`), and a store declared further down would still be in its
@@ -266,10 +263,10 @@ const doorStates = computed<readonly MapLiveDoorState[]>((prev) => {
 
 // The map's grid in battle cells: the calibration gives the columns, the picture's shape the rows.
 const mapGrid = computed<MapGrid | null>(() => {
-  const calibration = image.value?.calibration;
-  if (!calibration || !imageReady.value || imageNaturalW.value <= 0) return null;
-  const cols = calibration.cells_per_image_width;
-  return { cols, rows: Math.ceil((cols * imageNaturalH.value) / imageNaturalW.value) };
+  return imageGrid(
+    image.value?.calibration.cells_per_image_width,
+    imageReady.value ? { w: imageNaturalW.value, h: imageNaturalH.value } : null,
+  );
 });
 
 // What the phone sees: the whole party's eyes, or only its own character's when the campaign says "each their own".
@@ -332,14 +329,13 @@ const loadingState = computed(() => {
   if (!liveState.value) return "No live encounter right now.";
   if (!liveState.value) return "Loading encounter…";
   if (!liveState.value.location_id) return "This encounter has no battle map.";
-  if (!location.value) return "Loading location…";
-  if (!image.value) return "The battle map has no image yet.";
-  if (!image.value.calibration) return "The DM hasn't calibrated this map yet.";
+  if (!encounterLocation.value || (parentIdRef.value && !parentLocation.value)) return "Loading location…";
+  if (!image.value) return "The DM hasn't calibrated this map yet.";
   return null;
 });
 
 const cellPx = computed(() =>
-  image.value?.calibration
+  image.value
     ? cellSizeInDisplay({
         imageNaturalWidth: imageNaturalW.value,
         cellsPerImageWidth: image.value.calibration.cells_per_image_width,
@@ -349,7 +345,7 @@ const cellPx = computed(() =>
 );
 
 const gridOrigin = computed(() =>
-  image.value?.calibration
+  image.value
     ? gridOriginInDisplay({
         panX: panX.value,
         panY: panY.value,
@@ -369,7 +365,7 @@ const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
 );
 const gridStrokeOpacity = computed(
-  () => image.value?.calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
+  () => image.value?.calibration.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 
 const followTarget = computed(() => (isMyTurn.value ? ownCombatant.value : activeCombatant.value));

@@ -11,7 +11,7 @@ import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { seedTokenPositions } from "@/lib/battlemap/roomBridge";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { CellKey } from "@/types/dungeonMap.types";
-import type { MapGrid } from "@/lib/battlemap/partySight";
+import { imageGrid, type MapGrid } from "@/lib/battlemap/partySight";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { usePartySight } from "@/composables/encounters/usePartySight";
 import { useRememberSight } from "@/composables/locations/useRememberSight";
@@ -48,7 +48,7 @@ export function usePlayMapState(
   const store = useEncounterRunStore();
   const campaign = useCampaignStore();
   const toast = useToast();
-  const { isLive, liveStateLoaded, scheduleMapPush, moveToken } = useEncounterLive(encounterId.value, { follow: true });
+  const { isLive, liveStateLoaded, scheduleMapPush, moveToken } = useEncounterLive(encounterId, { follow: true });
 
   const following = computed(() => toValue(mode) === "follower");
 
@@ -228,12 +228,7 @@ export function usePlayMapState(
   );
 
   // ── What the party sees, and the rooms they enter ────────────────────────
-  const grid = computed<MapGrid | null>(() => {
-    const size = toValue(imageSize);
-    const across = surface.value?.calibration.cells_per_image_width;
-    if (!size || !across || size.w <= 0 || size.h <= 0) return null;
-    return { cols: across, rows: Math.ceil(across * (size.h / size.w)) };
-  });
+  const grid = computed<MapGrid | null>(() => imageGrid(surface.value?.calibration.cells_per_image_width, toValue(imageSize)));
   const { viewers, sight } = usePartySight({
     live: () => surface.value?.live ?? null,
     doorStates,

@@ -1,9 +1,10 @@
 -- The table topic (#1125 decision 12, 20261101213554): pings, measure lines and drawings are Broadcast messages a
 -- member sends on `table:<campaign id>`. Only a member of that campaign (DM or player) may hear or send on it; the
--- doorbell stays receive-only; every predicate is total.
+-- doorbell stays receive-only; every predicate is total. Measures, drawings and clears travel on `table-dm:<id>`,
+-- which only the DM may send on (20261102234458): Realtime authorizes a sender at join, never per message.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(17);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data) values
   ('99910000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'table-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
@@ -29,15 +30,25 @@ select is(private.can_send_realtime_topic('doorbell:99910000-0000-4000-8000-0000
   'but may never send on the doorbell: only the database rings it');
 select is(private.can_send_realtime_topic('table:99910000-0000-4000-8000-000000000011'), false,
   'nor on another campaign''s table');
+select is(private.can_send_realtime_topic('table-dm:99910000-0000-4000-8000-000000000010'), false,
+  'a player may not send on the DM''s topic, so cannot clear the DM''s drawings or draw in the DM''s name');
+select is(private.can_hear_realtime_topic('table-dm:99910000-0000-4000-8000-000000000010'), true,
+  'but hears the DM''s measures and drawings');
 
 select set_config('request.jwt.claim.sub', '99910000-0000-4000-8000-000000000001', true);
 select is(private.can_send_realtime_topic('table:99910000-0000-4000-8000-000000000010'), true,
   'the DM may send on the table topic');
+select is(private.can_send_realtime_topic('table-dm:99910000-0000-4000-8000-000000000010'), true,
+  'and on their own topic');
 
 select set_config('request.jwt.claim.sub', '99910000-0000-4000-8000-000000000003', true);
 select is(private.can_send_realtime_topic('table:99910000-0000-4000-8000-000000000010'), false,
   'a stranger may not send on a campaign''s table');
 select is(private.can_hear_realtime_topic('table:99910000-0000-4000-8000-000000000010'), false,
+  'nor hear it');
+select is(private.can_send_realtime_topic('table-dm:99910000-0000-4000-8000-000000000010'), false,
+  'a DM of another campaign may not send on this campaign''s DM topic');
+select is(private.can_hear_realtime_topic('table-dm:99910000-0000-4000-8000-000000000010'), false,
   'nor hear it');
 
 select is(private.can_send_realtime_topic('table:not-a-uuid'), false, 'a malformed table topic is false, not NULL');

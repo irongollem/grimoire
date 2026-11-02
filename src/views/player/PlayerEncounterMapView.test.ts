@@ -10,6 +10,12 @@ const h = vi.hoisted(() => ({
 }));
 
 const calibration = { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0, grid_opacity: 0.4 };
+// A site with a map of its own, and a room inside it that has none (it is drawn on the site's plan).
+const mapPlace = { map_url: "map.png", grid_calibration: calibration, map_layer_url: null, map_layer_calibration: null, map_live: null, location_type: "region", parent_id: null };
+const places: Record<string, Record<string, unknown>> = {
+  "loc-1": { ...mapPlace, id: "loc-1" },
+  "room-1": { id: "room-1", location_type: "room", parent_id: "loc-1", map_url: null, grid_calibration: null, map_layer_url: null, map_layer_calibration: null, map_live: null },
+};
 const move = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
 const live = vi.hoisted(() => ({ value: null as unknown }));
@@ -60,13 +66,13 @@ vi.mock("@/composables/encounters/useMapCanvas", async () => {
   };
 });
 vi.mock("@/composables/locations/useLocations", async () => {
-  const { ref } = await import("vue");
-  // No `is_battle_map`: a calibrated grid is enough to play (#1125 decision 14).
-  return { usePlayerVisibleLocation: () => ({ data: ref({ id: "loc-1", map_live: null }) }) };
+  const { computed, unref } = await import("vue");
+  // The player-safe projection: only the place asked for, by id. No `is_battle_map`: a calibrated grid is enough to
+  // play (#1125 decision 14).
+  return {
+    usePlayerVisibleLocation: (id: unknown) => ({ data: computed(() => places[unref(id) as string] ?? null) }),
+  };
 });
-vi.mock("@/lib/locations/mapStack", () => ({ primaryImage: () => ({ url: "map.png", calibration }) }));
-vi.mock("@/lib/battlemap/liveLayer", () => ({ currentMapLive: () => null }));
-vi.mock("@/lib/battlemap/roomBridge", () => ({ pictureUnderDrawing: () => null }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ linkedPartyMemberId: "m1" }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: sightMock.campaign }) }));
 vi.mock("@/composables/encounters/usePartySight", async () => {
@@ -122,9 +128,9 @@ function combatant(id: string, name: string, x: number, y: number, extra: Record
   };
 }
 
-function setLive(activeId: string) {
+function setLive(activeId: string, locationId = "loc-1") {
   (live.value as { value: unknown }).value = {
-    id: "enc-1", location_id: "loc-1", current_round: 3, active_combatant_index: 0, active_combatant_instance_id: activeId,
+    id: "enc-1", location_id: locationId, current_round: 3, active_combatant_index: 0, active_combatant_instance_id: activeId,
     combatants_live: [combatant("p-m1", "Wren", 2, 2, { movement_used: 0 }), combatant("g1", "Goblin", 10, 10)],
     magical_darkness: [], door_states: [], fog_mask: null, faction_colors: [],
   };
@@ -212,12 +218,34 @@ describe("what the phone shows of the map (epic #1133)", () => {
     expect(ids(mountView())).toEqual([]);
   });
 
+  // A calibration like 29.9999 (a box calibration) must not make the grid's column count fractional: sight indexes
+  // row-major by `j * cols + i` and would read only row 0.
+  it("hands the sight a whole number of columns for a fractional calibration", () => {
+    places["loc-1"] = { ...mapPlace, id: "loc-1", grid_calibration: { ...calibration, cells_per_image_width: 29.9999 } };
+    try {
+      mountView();
+      const g = (sightMock.opts as { grid: { value: { cols: number; rows: number } } }).grid.value;
+      expect(g).toEqual({ cols: 30, rows: 30 });
+    } finally {
+      places["loc-1"] = { ...mapPlace, id: "loc-1" };
+    }
+  });
+
   it("'shared' sight lets the whole party look; 'own' limits the look to the player's own token", () => {
     mountView();
     expect(sightMock.opts?.onlyInstanceId()).toBeNull();
     sightMock.campaign = { id: "c1", battle_map_show_tokens: true, player_sight: "own" };
     mountView();
     expect(sightMock.opts?.onlyInstanceId()).toBe("p-m1");
+  });
+
+  // A fight in a room with no map of its own is drawn, and remembered, on its site's plan: the DM's screen writes the
+  // memory under the site, so reading it under the room would show the phone a map that never lifts.
+  it("reads the memory of the site's map for a fight set in a room without a map of its own", () => {
+    setLive("p-m1", "room-1");
+    const wrapper = mountView();
+    expect(sightMock.memoryArgs).toEqual({ campaign: "c1", place: "loc-1" });
+    expect(wrapper.find("[data-testid='fog']").exists()).toBe(true);
   });
 
   it("reads the memory of the map's place in this campaign and never writes it", () => {

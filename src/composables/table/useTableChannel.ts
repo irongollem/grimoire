@@ -1,4 +1,7 @@
-// The live table: pings, measure lines and drawings shared over `table:<campaign id>` (#1125 decision 12).
+// The live table: pings, measure lines and drawings (#1125 decision 12), on two topics. Any member pings on
+// `table:<campaign id>`; only the DM sends measures, drawings and clears, on `table-dm:<campaign id>` (#1133 review):
+// Realtime authorizes a sender when it joins a topic, never per message, so a mark the DM alone may make is taken only
+// from the topic the DM alone may send on. A player sending `draw-clear all` on the shared topic is ignored.
 //
 // Own sends are echoed locally rather than by Realtime's `broadcast.self`: `createRealtimeChannel` owns channel
 // creation and does not pass that config, and a local append also shows the sender their own mark at once, even
@@ -11,6 +14,7 @@ import {
 import {
   TABLE_BROADCAST_EVENT,
   parseTableMessage,
+  tableDmTopic,
   tableTopic,
   type Point,
   type TableMessage,
@@ -64,6 +68,9 @@ export function useTableChannel(
   let pingSeq = 0;
   let handle: RealtimeChannelHandle | null = null;
   let channel: SendableChannel | null = null;
+  let dmHandle: RealtimeChannelHandle | null = null;
+  let dmChannel: SendableChannel | null = null;
+  const dmConnected = ref(false);
 
   const addPing = (x: number, y: number, by: TableSender) => {
     const id = ++pingSeq;
@@ -112,8 +119,11 @@ export function useTableChannel(
 
   const transmit = (msg: TableMessage) => {
     apply(msg);
-    if (!connected.value || !channel) return;
-    void channel.send({ type: "broadcast", event: TABLE_BROADCAST_EVENT, payload: msg });
+    // A ping goes on the shared topic; everything else is the DM's and goes on the DM's topic.
+    const toDm = msg.event !== "ping";
+    const target = toDm ? dmChannel : channel;
+    if (!target || !(toDm ? dmConnected.value : connected.value)) return;
+    void target.send({ type: "broadcast", event: TABLE_BROADCAST_EVENT, payload: msg });
   };
 
   const sender = () => toValue(options.identity);
@@ -133,6 +143,10 @@ export function useTableChannel(
     handle = null;
     channel = null;
     connected.value = false;
+    dmHandle?.stop();
+    dmHandle = null;
+    dmChannel = null;
+    dmConnected.value = false;
     reset();
     lastMeasureSend.clear();
     for (const t of trailing.values()) clearTimeout(t);
@@ -150,6 +164,19 @@ export function useTableChannel(
         onStatus: (status) => { connected.value = status === "SUBSCRIBED"; },
         bind: (ch) => {
           channel = ch;
+          return ch.on("broadcast", { event: TABLE_BROADCAST_EVENT }, ({ payload }) => {
+            const msg = parseTableMessage(payload);
+            // Anyone may send here, so only a ping is taken from it.
+            if (msg && msg.event === "ping") apply(msg);
+          });
+        },
+      });
+      dmHandle = create({
+        topic: tableDmTopic(id),
+        isPrivate: true,
+        onStatus: (status) => { dmConnected.value = status === "SUBSCRIBED"; },
+        bind: (ch) => {
+          dmChannel = ch;
           return ch.on("broadcast", { event: TABLE_BROADCAST_EVENT }, ({ payload }) => {
             const msg = parseTableMessage(payload);
             if (msg) apply(msg);

@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   isLive: { value: false },
   liveState: { value: null as unknown },
   scheduleMapPush: vi.fn(),
+  liveArgs: [] as unknown[],
+  sightGrid: null as unknown,
   moveToken: vi.fn(() => Promise.resolve()),
   surface: { value: null as unknown },
   zones: { value: [] as { region: unknown; battleCells: string[] }[] },
@@ -30,7 +32,12 @@ vi.mock("@/composables/locations/useMapMemory", () => ({
 }));
 vi.mock("@/composables/encounters/usePartySight", async () => {
   const { ref: r } = await import("vue");
-  return { usePartySight: () => ({ viewers: r([]), sight: r(new Set<string>()) }) };
+  return {
+    usePartySight: (opts: { grid: unknown }) => {
+      h.sightGrid = opts.grid;
+      return { viewers: r([]), sight: r(new Set<string>()) };
+    },
+  };
 });
 vi.mock("@/composables/locations/useRememberSight", () => ({ useRememberSight: vi.fn() }));
 vi.mock("@/composables/locations/useLocationState", () => ({
@@ -53,12 +60,15 @@ vi.mock("@/composables/encounters/useEncounterRoom", () => ({
   }),
 }));
 vi.mock("@/composables/encounters/useEncounterLive", () => ({
-  useEncounterLive: () => ({
+  useEncounterLive: (...args: unknown[]) => {
+    h.liveArgs = args;
+    return {
     isLive: h.isLive,
     liveStateLoaded: ref(true),
     scheduleMapPush: h.scheduleMapPush,
     moveToken: h.moveToken,
-  }),
+    };
+  },
   liveState: h.liveState,
 }));
 vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: ref(new Map()) }) }));
@@ -99,6 +109,25 @@ describe("usePlayMapState", () => {
       calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
       live: { doors: [door] },
     };
+  });
+
+  // The same component is reused from /encounters/A/run to /encounters/B/run: live state bound to A's id would push B's
+  // doors and tokens into A's fight.
+  it("binds the live state to the encounter id as it changes, not to the id at setup", () => {
+    const id = ref("e1");
+    usePlayMapState(id, "dm");
+    const bound = h.liveArgs[0] as { value?: string } | (() => string);
+    const read = () => (typeof bound === "function" ? bound() : bound.value);
+    expect(read()).toBe("e1");
+    id.value = "e2";
+    expect(read()).toBe("e2");
+  });
+
+  // A box calibration of 29.9999 made the column count fractional, so sight indexed row 0 only and the fog never lifted.
+  it("hands sight a whole number of columns for a fractional calibration", () => {
+    h.surface.value = { ...(h.surface.value as object), calibration: { cells_per_image_width: 29.9999, origin_x_pct: 0, origin_y_pct: 0 } };
+    usePlayMapState(ref("e1"), "dm", { w: 1000, h: 1000 });
+    expect((h.sightGrid as { value: unknown }).value).toEqual({ cols: 30, rows: 30 });
   });
 
   // #1125 frame 10: "doors toggle by clicking a door in ANY tool", so the click must find the door and nothing else.
