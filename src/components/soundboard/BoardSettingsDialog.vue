@@ -23,25 +23,6 @@
          their reasoning measures ~36rem, so a short laptop would otherwise clip
          this at the Done button rather than let the reader scroll to it. -->
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-5 px-5 py-4">
-      <!-- A preference, not performance chrome: three size buttons parked
-           beside the mode control competed with it on every visit for a
-           decision made about once per campaign. -->
-      <section class="space-y-1.5">
-        <span class="block text-heading-sm text-foreground">Pad size in Perform</span>
-        <!-- The selected size used to be a `bg-card` chip in a trough — a
-             rival to AppButton's gold `active` tint, which is the app's one
-             selected treatment. -->
-        <SegmentedControl
-          :model-value="soundboardUi.soundboardPadSize"
-          :options="PAD_SIZES"
-          size="sm"
-          @update:model-value="(v) => (soundboardUi.soundboardPadSize = v)"
-        />
-        <p class="text-caption text-muted-foreground">
-          {{ PAD_SIZES.find((p) => p.value === soundboardUi.soundboardPadSize)?.hint }}
-        </p>
-      </section>
-
       <AppCheckbox
         label-role="label-lg"
         label-weight="normal"
@@ -82,6 +63,8 @@
           route.
         </p>
       </div>
+
+      <DeckControllersSection />
     </div>
 
     <div class="flex shrink-0 justify-end border-t border-border px-5 py-3">
@@ -99,15 +82,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
-import type { PadSize } from "@/types/sound.types";
-import { useSoundboardUiStore } from "@/stores/ui/soundboard";
-
-const PAD_SIZES = [
-  { value: "sm", label: "Small", hint: "Name and colour only. Fits the most on screen." },
-  { value: "md", label: "Medium", hint: "Name, length and loop mark." },
-  { value: "lg", label: "Large", hint: "Adds the artist." },
-] as const satisfies readonly (SegmentedOption<PadSize> & { hint: string })[];
+import DeckControllersSection from "@/components/soundboard/DeckControllersSection.vue";
 
 /**
  * The two switches that used to sit in the mixer wearing faders' clothes.
@@ -120,7 +95,6 @@ const PAD_SIZES = [
 const { open } = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 
-const soundboardUi = useSoundboardUiStore();
 const store = useSoundboardStore();
 const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
 const { broadcasting, broadcastError, setBroadcasting } = useSoundboardBroadcast();
