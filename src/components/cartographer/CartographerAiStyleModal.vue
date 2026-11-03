@@ -16,7 +16,7 @@
       <h2 id="ai-style-picker-title" class="text-heading-sm font-bold text-foreground mb-1">✦ AI Map Style</h2>
       <p class="text-body text-muted-foreground mb-4">
         <template v-if="fixedTargetLabel">
-          Re-render this site's map, picture and tiles together, in an artistic style. Saving makes it the site's new picture.
+          Re-render this site's map, base image and tiles together, in an artistic style. Saving makes it the site's new base image.
         </template>
         <template v-else>
           Re-render this map in an artistic style. The result is a new image, and your tile map stays unchanged.
@@ -135,7 +135,7 @@
       <template v-if="fixedTargetLabel">
         <label class="block text-eyebrow text-muted-foreground mb-1">Save to</label>
         <p class="text-body text-foreground">
-          <strong class="font-semibold">{{ fixedTargetLabel }}</strong>'s Picture layer
+          <strong class="font-semibold">{{ fixedTargetLabel }}</strong>'s base image
         </p>
       </template>
       <template v-else>
@@ -149,7 +149,7 @@
         />
       </template>
       <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-ink-caution">
-        {{ fixedTargetLabel ? "This site already has a Picture. Saving will replace it." : "This location already has a map. Saving will replace it." }}
+        {{ fixedTargetLabel ? "This site already has a base image. Saving will replace it." : "This location already has a map. Saving will replace it." }}
       </p>
       <p v-if="atlasError" class="mt-2 text-caption text-destructive">{{ atlasError }}</p>
     </div>
@@ -165,7 +165,7 @@
           size="sm"
           class="px-4"
           :disabled="(!fixedTargetLabel && !atlasLocationId) || atlasSaving"
-          :label="atlasSaving ? 'Saving…' : fixedTargetLabel ? 'Save to Picture' : 'Save to Atlas'"
+          :label="atlasSaving ? 'Saving…' : fixedTargetLabel ? 'Use as the base image' : 'Save to Atlas'"
           @click="$emit('saveToAtlas', atlasLocationId)"
         />
       </div>
@@ -250,19 +250,19 @@ const { requireCredits } = useOutOfCredits();
 const { confirm } = useConfirm();
 
 /**
- * In Atlas Build, saving a styled render replaces the site's Picture and
+ * In Atlas Build, saving a styled render replaces the site's base image and
  * sets its Drawing aside (the `dungeon_maps` row survives, unlinked, for
  * later corrections and republishing — see `useSaveStyledSitePicture`).
  * That's a real consequence for the DM's tile work, and it happens on Save,
  * a screen away from here, so it's said plainly before the credits for the
  * render that leads there are spent, rather than sprung as a side effect of
- * the eventual "Save to Picture" click.
+ * the eventual "Use as the base image" click.
  */
 async function onGenerateClick() {
   if (!requireCredits(credits, byok)) return;
   if (fixedTargetLabel) {
     const ok = await confirm(
-      "The styled map replaces this site's picture. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Calibrate fixes it.",
+      "The styled map replaces this site's base image. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Line up the grid on the Base image tab fixes it.",
       { title: "Style with AI", confirmLabel: "Generate" },
     );
     if (!ok) return;

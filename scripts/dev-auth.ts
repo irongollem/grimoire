@@ -52,6 +52,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { parseArgs } from "node:util";
 import { quote, sql } from "./lib/dev-db.ts";
+import { fixtureCampaign } from "./lib/dev-fixture-campaign.ts";
 import { ensureFixtureContent } from "./lib/dev-fixture-content.ts";
 import { ensureFixtureQuest } from "./lib/dev-fixture-quest.ts";
 import { LOCAL_DEV_PASSWORD, readLocalStack, type StackStatus } from "./lib/dev-stack.ts";
@@ -400,10 +401,7 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
  * created character gets from the app.
  */
 function ensureFixtureParty(dbUrl: string, ownerId: string): number {
-  const campaignId = sql(
-    dbUrl,
-    `select id from public.campaigns where user_id = ${quote(ownerId)} order by created_at limit 1`,
-  );
+  const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
   if (!campaignId) return 0;
 
   const already = Number(
@@ -534,10 +532,7 @@ async function ensureFixturePlayer(
     passwordChanged = true;
   }
 
-  const campaignId = sql(
-    dbUrl,
-    `select id from public.campaigns where user_id = ${quote(dmOwnerId)} order by created_at limit 1`,
-  );
+  const campaignId = fixtureCampaign(dbUrl, dmOwnerId)?.id;
   if (!campaignId) return { characterName: null, passwordChanged };
 
   const character = findClaimableCharacter(dbUrl, campaignId, playerId);
@@ -632,10 +627,7 @@ function findClaimableCharacter(
  * locally depends on whichever `seed.sql` dump the machine has.
  */
 function ensureFixtureBestiary(dbUrl: string, ownerId: string): number {
-  const campaignId = sql(
-    dbUrl,
-    `select id from public.campaigns where user_id = ${quote(ownerId)} order by created_at limit 1`,
-  );
+  const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
   if (!campaignId) return 0;
 
   // Guarded on creatures rather than on rows, because those are not the same

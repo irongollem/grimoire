@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -15,22 +15,27 @@ vi.mock("@/lib/supabase", () => {
   return { supabase: chain, getCurrentUser: () => ({ id: "u1" }) };
 });
 const nav = vi.hoisted(() => ({
-  query: {} as Record<string, string>,
+  params: { id: "m1" } as Record<string, string>,
   push: vi.fn(),
   replace: vi.fn(),
   confirm: vi.fn(),
   del: vi.fn(),
   update: vi.fn(),
+  create: vi.fn(),
   nameInEditor: "Henge",
+  query: {} as Record<string, string>,
+  exportVtt: vi.fn(),
 }));
+vi.mock("@/lib/mapImport/exportDrawing", () => ({ exportDrawingAsVtt: (...a: unknown[]) => nav.exportVtt(...a) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: nav.confirm }) }));
 vi.mock("@/composables/cartographer/useDungeonMaps", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/composables/cartographer/useDungeonMaps")>()),
   useDeleteDungeonMap: () => ({ mutateAsync: nav.del, isPending: { value: false } }),
   useUpdateDungeonMap: () => ({ mutateAsync: nav.update, isPending: { value: false } }),
+  useCreateDungeonMap: () => ({ mutateAsync: nav.create, isPending: { value: false } }),
 }));
 vi.mock("vue-router", () => ({
-  useRoute: () => ({ params: { id: "m1" }, query: nav.query, name: "cartographer-editor" }),
+  useRoute: () => ({ params: nav.params, query: nav.query, name: "cartographer-editor" }),
   useRouter: () => ({ push: nav.push, replace: nav.replace }),
   onBeforeRouteLeave: vi.fn(),
   onBeforeRouteUpdate: vi.fn(),
@@ -43,7 +48,10 @@ const map = { id: "m1", name: "Henge", rev: 3, campaign_id: null, layers: emptyL
 /** The workbench as a stand-in: it mounts a tick after the view's setup, as the real one does. */
 const MapWorkbenchStub = defineComponent({
   name: "MapWorkbench",
-  setup(_props, { expose, slots }) {
+  props: ["map", "viewMode", "saveState", "menuActions", "frame"],
+  emits: ["update:dirty", "update:editRevision", "menu-action"],
+  setup(_props, { expose }) {
+    const revision = 0;
     expose({
       getLayers: () => emptyLayers(),
       getMetadata: () => ({}),
@@ -56,90 +64,135 @@ const MapWorkbenchStub = defineComponent({
       getCurrentPackId: () => "pack-1",
       getDarkness: () => "daylight",
       getCampaignId: () => null,
+      getEditRevision: () => revision,
       markSaved: () => {},
       getPackName: () => "",
       getCellsPainted: () => 0,
       resetEdits: () => {},
     });
-    return () => h("div", slots["bar-end"]?.());
+    return () => h("div");
   },
 });
+
+async function mountEditor(opts: { cached?: boolean; id?: string } = {}) {
+  setActivePinia(createPinia());
+  nav.params = opts.id === undefined ? { id: "m1" } : opts.id ? { id: opts.id } : {};
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
+  if (opts.cached !== false) client.setQueryData(["dungeon_maps", "m1"], map);
+  const errors: unknown[] = [];
+  const wrapper = mount(CartographerEditorView, {
+    global: {
+      plugins: [[VueQueryPlugin, { queryClient: client }]],
+      stubs: { MapWorkbench: MapWorkbenchStub, CartographerPublishModal: true, CartographerAiStyleModal: true },
+      config: { errorHandler: (err) => void errors.push(err) },
+    },
+  });
+  await flushPromises();
+  return { wrapper, workbench: wrapper.findComponent(MapWorkbenchStub), errors };
+}
 
 // DUNGEON-GRIMOIRE-Q/R/S/T: with the map already in the cache, the publish
 // composable read the workbench during setup, before it had mounted, and the
 // editor threw instead of rendering.
 describe("CartographerEditorView", () => {
-  it("opens a map that is already cached without reading the workbench before it mounts", async () => {
-    setActivePinia(createPinia());
-    const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
-    client.setQueryData(["dungeon_maps", "m1"], map);
-    const errors: unknown[] = [];
-
-    const wrapper = mount(CartographerEditorView, {
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient: client }]],
-        stubs: { MapWorkbench: MapWorkbenchStub, CartographerPublishModal: true, CartographerAiStyleModal: true },
-        config: { errorHandler: (err) => void errors.push(err) },
-      },
-    });
-    await flushPromises();
-
-    expect(errors).toEqual([]);
-    expect(wrapper.text()).toContain("Publish to Atlas");
-  });
-});
-
-describe("CartographerEditorView editing", () => {
-  async function mountEditing() {
-    setActivePinia(createPinia());
-    const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
-    client.setQueryData(["dungeon_maps", "m1"], map);
-    const wrapper = mount(CartographerEditorView, {
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient: client }]],
-        stubs: { MapWorkbench: MapWorkbenchStub, CartographerPublishModal: true, CartographerAiStyleModal: true },
-      },
-    });
-    await flushPromises();
-    return wrapper;
-  }
-  const click = async (w: Awaited<ReturnType<typeof mountEditing>>, label: string) => {
-    await w.findAll("button").find((b) => b.text() === label)!.trigger("click");
-    await flushPromises();
-  };
-
   beforeEach(() => {
-    nav.query = { edit: "true" };
-    nav.push.mockReset();
-    nav.replace.mockReset();
-    nav.confirm.mockReset();
-    nav.del.mockReset().mockResolvedValue(undefined);
-    nav.update.mockReset().mockResolvedValue({ id: "m1" });
+    vi.useFakeTimers();
+    for (const m of [nav.push, nav.replace, nav.confirm, nav.del, nav.update, nav.create]) m.mockReset();
+    nav.del.mockResolvedValue(undefined);
+    nav.update.mockResolvedValue({ id: "m1" });
+    nav.create.mockResolvedValue({ id: "m9" });
     nav.nameInEditor = "Henge";
+    nav.query = {};
+    nav.exportVtt.mockReset();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("opens a map that is already cached without reading the workbench before it mounts", async () => {
+    const { errors, workbench } = await mountEditor();
+    expect(errors).toEqual([]);
+    expect(workbench.exists()).toBe(true);
   });
 
-  it("keeps the map when the DM backs out of the delete confirmation", async () => {
-    nav.confirm.mockResolvedValue(false);
-    const w = await mountEditing();
-    await click(w, "Delete");
-    expect(nav.confirm).toHaveBeenCalledWith('Delete "Henge"? This cannot be undone.');
-    expect(nav.del).not.toHaveBeenCalled();
-    expect(nav.push).not.toHaveBeenCalled();
+  // #1125 decision 4: always the editor, always autosaving.
+  it("is always the editor: no view mode, and no Save, Cancel, Edit or Done to press", async () => {
+    const { wrapper, workbench } = await mountEditor();
+    expect(workbench.props("viewMode")).toBe(false);
+    const labels = wrapper.findAll("button").map((b) => b.text());
+    for (const gone of ["Save", "Cancel", "Edit", "Done"]) expect(labels).not.toContain(gone);
   });
 
-  it("deletes the map after confirming, then returns to the list", async () => {
-    nav.confirm.mockResolvedValue(true);
-    const w = await mountEditing();
-    await click(w, "Delete");
-    expect(nav.del).toHaveBeenCalledWith("m1");
-    expect(nav.push).toHaveBeenCalledWith("/cartographer");
-  });
-
-  it("saves the trimmed name, or 'Untitled Map' for a blank one, and drops back to view mode", async () => {
+  it("saves an edit on its own after the pause, under the trimmed name or 'Untitled Map' for a blank one", async () => {
     nav.nameInEditor = "   ";
-    const w = await mountEditing();
-    await click(w, "Save");
-    expect(nav.update.mock.calls[0][0]).toMatchObject({ id: "m1", update: { name: "Untitled Map", default_pack_id: "pack-1" } });
-    expect(nav.replace).toHaveBeenCalledWith({ query: {} });
+    const { workbench } = await mountEditor();
+    workbench.vm.$emit("update:editRevision", 1);
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(nav.update.mock.calls[0]![0]).toMatchObject({ id: "m1", update: { name: "Untitled Map", default_pack_id: "pack-1" } });
+    expect(nav.create).not.toHaveBeenCalled();
+  });
+
+  it("does not save before the pause ends: strokes are batched", async () => {
+    const { workbench } = await mountEditor();
+    workbench.vm.$emit("update:editRevision", 1);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(nav.update).not.toHaveBeenCalled();
+  });
+
+  it("moves the address to a fresh row when the one it was editing is gone, instead of failing the save", async () => {
+    const { workbench } = await mountEditor({ id: "", cached: false });
+    workbench.vm.$emit("update:editRevision", 1);
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(nav.create).toHaveBeenCalledTimes(1);
+    expect(nav.update).not.toHaveBeenCalled();
+    expect(nav.replace).toHaveBeenCalledWith({ path: "/cartographer/m9" });
+  });
+
+  describe("the size from Start a map", () => {
+    it("opens an empty map on the squares it was started with", async () => {
+      nav.query = { size: "30x20" };
+      expect((await mountEditor()).workbench.props("frame")).toEqual({ cols: 30, rows: 20 });
+    });
+
+    it("opens on the default view when there is no size, or one that is not a size", async () => {
+      expect((await mountEditor()).workbench.props("frame")).toBeUndefined();
+      nav.query = { size: "wide" };
+      expect((await mountEditor()).workbench.props("frame")).toBeUndefined();
+    });
+  });
+
+  describe("the Map menu", () => {
+    it("exports the map for another VTT under its name, with the canvas's layers over the saved row", async () => {
+      const { workbench } = await mountEditor();
+      workbench.vm.$emit("menu-action", "export-vtt");
+      await flushPromises();
+      expect(nav.exportVtt).toHaveBeenCalledTimes(1);
+      const [exported, , , , fileName] = nav.exportVtt.mock.calls[0]!;
+      expect(exported.id).toBe("m1");
+      expect(fileName).toBe("Henge");
+    });
+
+    it("offers Delete, and Export for another VTT beside Download", async () => {
+      const actions = (await mountEditor()).workbench.props("menuActions");
+      expect(actions).toContain("delete");
+      expect(actions).toContain("export-vtt");
+    });
+
+    it("keeps the map when the DM backs out of the delete confirmation", async () => {
+      nav.confirm.mockResolvedValue(false);
+      const { workbench } = await mountEditor();
+      workbench.vm.$emit("menu-action", "delete");
+      await flushPromises();
+      expect(nav.confirm).toHaveBeenCalledWith('Delete "Henge"? This cannot be undone.');
+      expect(nav.del).not.toHaveBeenCalled();
+      expect(nav.push).not.toHaveBeenCalled();
+    });
+
+    it("deletes the map after confirming, then returns to the list", async () => {
+      nav.confirm.mockResolvedValue(true);
+      const { workbench } = await mountEditor();
+      workbench.vm.$emit("menu-action", "delete");
+      await flushPromises();
+      expect(nav.del).toHaveBeenCalledWith("m1");
+      expect(nav.push).toHaveBeenCalledWith("/cartographer");
+    });
   });
 });

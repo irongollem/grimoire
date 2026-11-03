@@ -13,6 +13,7 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
 import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useEncounterRunStore } from "@/stores/encounterRun";
@@ -39,6 +40,8 @@ const { data: companions, isFetching: companionsFetching } = useCompanions();
 // 10 + Dex.
 const { acFor, isReady: acReady } = useArmorClass();
 const { data: npcs, isFetching: npcsFetching } = useNpcs();
+// A character's token takes its species' (or subrace's) size, so the species the party has are read by id.
+const { data: speciesById, isLoading: speciesLoading } = useSpeciesByIds(() => (party.value ?? []).map((m) => m.species_id));
 // byId resolves the ids the encounter stored, library and own alike.
 const { byId: trapsById, isLoading: trapsLoading } = useTrapIndex(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
@@ -98,7 +101,7 @@ watch(npcs, (list) => {
   store.adoptStatBlocks();
 });
 
-const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !trapsLoading.value && acReady.value);
+const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!party.value && !!companions.value && !!npcs.value && !trapsLoading.value && !speciesLoading.value && acReady.value);
 
 // A run that is not live exists only in the store, so the store decides whether it
 // is built. Rebuilding it on every refetch threw the fight away: the HP write a
@@ -113,9 +116,9 @@ const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!
 const readsSettled = computed(() => !partyFetching.value && !companionsFetching.value && !npcsFetching.value);
 
 watch(
-  [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, liveState, liveStateLoaded, acReady, readsSettled],
+  [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, liveState, liveStateLoaded, acReady, readsSettled, speciesLoading],
   ([enc, monsterRows, loadingMonsters, par, comps, npcList, traps, trapsPending]) => {
-    if (!enc || loadingMonsters || !par || !comps || !npcList || trapsPending || !liveStateLoaded.value || !acReady.value) return;
+    if (!enc || loadingMonsters || !par || !comps || !npcList || trapsPending || speciesLoading.value || !liveStateLoaded.value || !acReady.value) return;
     const mons = [...monsterRows.values()];
     const live = liveState.value;
     if (live?.encounter_id === enc.id && live?.is_running) {
@@ -188,7 +191,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   store.encounterId = enc.id;
   store.encounterName = enc.name;
   store.factions = enc.factions.length ? enc.factions : [...DEFAULT_FACTIONS];
-  const combatants = buildRunCombatants({ encounter: enc, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, acFor });
+  const combatants = buildRunCombatants({ encounter: enc, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor });
   store.combatants = combatants;
   store.availableMonsters = mons;
   store.availableNpcs = npcList;

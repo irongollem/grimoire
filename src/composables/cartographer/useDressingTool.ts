@@ -77,10 +77,10 @@ export function useDressingTool(opts: DressingToolOptions) {
   let place: PlaceState | null = null;
   let drag: DragState | null = null;
 
-  // Leaving the tool drops the selection (its outline would hang on a canvas
+  // Leaving Place and Select drops the selection (its outline would hang on a canvas
   // that no longer offers to do anything with it); the brush is kept.
   watch(activeTool, (tool) => {
-    if (tool !== "place") selectedId.value = null;
+    if (tool !== "place" && tool !== "select") selectedId.value = null;
   });
   // Undo, redo or an erase can remove the selected prop: never keep a handle
   // on something that is gone.
@@ -146,16 +146,23 @@ export function useDressingTool(opts: DressingToolOptions) {
       return true;
     }
 
-    const hit = hitTestDressing(layers.value.dressing, catalog.value, p.frac[0], p.frac[1]);
-    if (!hit) {
-      selectedId.value = null;
-      return true;
-    }
+    if (!grabAt(p.cell, p.frac)) selectedId.value = null;
+    return true;
+  }
+
+  /**
+   * Picks up the topmost prop under the pointer: selects it and starts a drag. False, changing nothing, when there is
+   * no prop there. Whatever the Place tool has armed is ignored, so the Select tool can reach a prop too (#1125: a DM
+   * clicking a campfire with Select expects to move it, and Place stamps a new one when an item is still armed).
+   */
+  function grabAt(cell: [number, number], frac: [number, number]): boolean {
+    const hit = hitTestDressing(layers.value.dressing, catalog.value, frac[0], frac[1]);
+    if (!hit) return false;
     selectedId.value = hit;
     const placement = layers.value.dressing[hit];
     drag = {
       id: hit,
-      offset: [placement.x - p.cell[0], placement.y - p.cell[1]],
+      offset: [placement.x - cell[0], placement.y - cell[1]],
       origin: [placement.x, placement.y],
       before: snapshotStr(),
       moved: false,
@@ -244,12 +251,12 @@ export function useDressingTool(opts: DressingToolOptions) {
 
   /** What renderMap needs on top of the layers: the ghost under the cursor and the selection outline. */
   function renderScene(): { dressingGhost: { placement: DressingPlacement; alpha: number } | null; selectedDressingId: string | null } {
-    const live = isActive() && activeTool.value === "place";
+    const live = isActive() && (activeTool.value === "place" || activeTool.value === "select");
     const cell = hover.value;
     const armed = brushId.value;
     return {
       dressingGhost:
-        live && armed && cell
+        live && activeTool.value === "place" && armed && cell
           ? { placement: { prop_id: armed, x: cell[0], y: cell[1], rotation: brushRotation.value, z: 0 }, alpha: GHOST_ALPHA }
           : null,
       selectedDressingId: live ? selectedId.value : null,
@@ -261,6 +268,7 @@ export function useDressingTool(opts: DressingToolOptions) {
     setHover,
     clearHover,
     onPointerDown,
+    grabAt,
     removeTopAt,
     onPointerMove,
     onPointerUp,

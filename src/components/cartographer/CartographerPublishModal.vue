@@ -34,7 +34,7 @@
             <span class="block text-eyebrow text-muted-foreground mb-1">Also written</span>
             Transparent bake → <code>location-maps/…</code> · <code>map_layer_url</code> · <code>map_layer_calibration</code> = {{ review.bakedDims.cols }} cells wide,
             origin cell ({{ review.bakedDims.originCellX }}, {{ review.bakedDims.originCellY }}) from the bake padding ·
-            <code>source_map_id</code> · <code>map_published_rev = {{ review.mapRev }}</code>. The Picture (<code>map_url</code>) is untouched.
+            <code>source_map_id</code> · <code>map_published_rev = {{ review.mapRev }}</code>. The base image is untouched.
           </div>
         </div>
         <div class="flex-1 min-w-0">

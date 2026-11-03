@@ -18,11 +18,13 @@
 
 import { DEFAULT_DOOR_LEAF, WALL_BAND_RATIO, isFlatCategory, type PackCategory } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
-import { cellKey, type CellKey, type DungeonMapLayers, type EdgeSeg, type ObjectCell } from "@/types/dungeonMap.types";
+import { cellKey, type EdgeSeg, type ObjectCell } from "@/types/dungeonMap.types";
 import { dressingSway, objectSway } from "@/cartographer/sway";
 import { doorLeafArt, edgeTileOrigin, paintDoorLeaf } from "@/cartographer/doorLeaf";
 import { classifyJoint } from "@/cartographer/edges";
-import { paintAreaGround, paintAreaWalls } from "@/cartographer/drawArea";
+import { paintAngledWalls } from "@/cartographer/drawAngledWalls";
+import { edgeSegOf, isDrawn, ownedWall } from "@/cartographer/wallGraph";
+import { paintGroundRegions } from "./clipFloor";
 import { paintLights, renderLightLayer } from "@/cartographer/drawLights";
 import { frameOf, type DrawMapInput, type Frame, type MakeCanvas, type ShadowLayer, type Target } from "@/cartographer/drawFrame";
 import {
@@ -34,7 +36,7 @@ import {
 
 /**
  * Render-time shadows (#1065 decision 3). The light is top-left, so a shadow
- * falls down and to the right. A tall wall throws a long one, a prop or a curb
+ * falls down and to the right. A tall wall throws a long one, a prop
  * a short one (a third), and flat things (rubble, nests, glyphs) none at all:
  * an offset shadow makes a flat thing look lifted off the floor, so they only
  * get occlusion, the tight dark contact line where they meet the ground.
@@ -45,12 +47,8 @@ export const SHADOW = {
   occlusion: { blur: 0.03, color: "rgba(10,8,6,0.55)" },
   raised: { dx: 0.11, dy: 0.14, blur: 0.08, color: "rgba(10,8,6,0.42)" },
   short: { dx: 0.11 / 3, dy: 0.14 / 3, blur: 0.04, color: "rgba(10,8,6,0.45)" },
-  /** Water sunk under its bank: the top and left bank shade it more, the light being top-left. */
-  sunkEdge: { span: 0.3, near: 0.65, far: 0.35 },
   /** A stair down is a hollow: its top and left inner edges darken. */
   hollow: { span: 0.35, alpha: 0.7 },
-  /** Curb post size, as a fraction of a tile. */
-  post: 0.24,
 } as const;
 
 const INK = "10,8,6";
@@ -89,78 +87,6 @@ export function variantAt(r: TilePackRuntime, category: PackCategory, x: number,
   if (ALONG_X.has(category)) return r.variantCount(category) < n ? stored : mod(x, n);
   if (ALONG_Y.has(category)) return r.variantCount(category) < n ? stored : mod(y, n);
   return stored;
-}
-
-// ── Curbs and posts (pure) ─────────────────────────────────────────────────
-
-export interface CurbEdge {
-  /** The gridline: an H curb runs from (x, y) to (x+1, y), a V curb from (x, y) to (x, y+1). */
-  x: number;
-  y: number;
-  axis: "H" | "V";
-  packId: string;
-  /** Which side of the gridline the water is on: N or S for an H curb, W or E for a V curb. */
-  waterSide: "N" | "S" | "E" | "W";
-}
-
-/**
- * Every edge between a terrain cell and a floor cell that is not terrain, and
- * that carries no edge of its own (a wall, door, grate or sluice already marks
- * it). The bank belongs to the terrain's pack. Automatic on purpose: a DM who
- * paints water gets its banks without a second tool.
- */
-export function curbEdges(layers: DungeonMapLayers): CurbEdge[] {
-  const out: CurbEdge[] = [];
-  const hasSeg = (x: number, y: number, side: "wallN" | "wallW"): boolean => !!layers.floor[cellKey(x, y)]?.[side];
-  for (const key of Object.keys(layers.terrain) as CellKey[]) {
-    const terrain = layers.terrain[key];
-    if (!terrain) continue;
-    const [x, y] = key.split(",").map(Number);
-    const { pack_id: packId } = terrain;
-    const bank = (nx: number, ny: number): boolean =>
-      !layers.terrain[cellKey(nx, ny)] && !!layers.floor[cellKey(nx, ny)]?.floor;
-    if (bank(x, y - 1) && !hasSeg(x, y, "wallN")) out.push({ x, y, axis: "H", packId, waterSide: "S" });
-    if (bank(x, y + 1) && !hasSeg(x, y + 1, "wallN")) out.push({ x, y: y + 1, axis: "H", packId, waterSide: "N" });
-    if (bank(x - 1, y) && !hasSeg(x, y, "wallW")) out.push({ x, y, axis: "V", packId, waterSide: "E" });
-    if (bank(x + 1, y) && !hasSeg(x + 1, y, "wallW")) out.push({ x: x + 1, y, axis: "V", packId, waterSide: "W" });
-  }
-  return out;
-}
-
-export interface CurbPost {
-  /** The grid point. */
-  x: number;
-  y: number;
-  packId: string;
-}
-
-/** A grid point gets a post where a curb meets a wall edge, or where an H and a V curb meet (a turn). */
-export function curbPosts(layers: DungeonMapLayers): CurbPost[] {
-  const curbs = curbEdges(layers);
-  const h = new Map<string, string>();
-  const v = new Map<string, string>();
-  for (const c of curbs) (c.axis === "H" ? h : v).set(`${c.x},${c.y}`, c.packId);
-  const points = new Map<string, { x: number; y: number }>();
-  for (const c of curbs) {
-    const [ex, ey] = c.axis === "H" ? [c.x + 1, c.y] : [c.x, c.y + 1];
-    points.set(`${c.x},${c.y}`, { x: c.x, y: c.y });
-    points.set(`${ex},${ey}`, { x: ex, y: ey });
-  }
-  const out: CurbPost[] = [];
-  for (const { x, y } of points.values()) {
-    const arms = [h.get(`${x - 1},${y}`), h.get(`${x},${y}`), v.get(`${x},${y - 1}`), v.get(`${x},${y}`)];
-    const packId = arms.find((a) => a !== undefined);
-    if (!packId) continue;
-    const horizontal = h.has(`${x - 1},${y}`) || h.has(`${x},${y}`);
-    const vertical = v.has(`${x},${y - 1}`) || v.has(`${x},${y}`);
-    const wall =
-      !!layers.floor[cellKey(x - 1, y)]?.wallN ||
-      !!layers.floor[cellKey(x, y)]?.wallN ||
-      !!layers.floor[cellKey(x, y - 1)]?.wallW ||
-      !!layers.floor[cellKey(x, y)]?.wallW;
-    if (wall || (horizontal && vertical)) out.push({ x, y, packId });
-  }
-  return out;
 }
 
 // ── Painters ───────────────────────────────────────────────────────────────
@@ -215,34 +141,7 @@ function drawEdgeSeg(
 
 /** Floor and terrain. A terrain cell draws its water INSTEAD of the floor tile. */
 function paintGround(f: Frame, t: Target): void {
-  const { tilePx, bounds, layers, runtime } = f;
-  const { ctx } = t;
-  for (let y = bounds.minY; y <= bounds.maxY; y++) {
-    for (let x = bounds.minX; x <= bounds.maxX; x++) {
-      const key = cellKey(x, y);
-      const sx = x * tilePx - t.ox;
-      const sy = y * tilePx - t.oy;
-      const terrain = layers.terrain[key];
-      if (terrain) {
-        const r = runtime(terrain.pack_id);
-        if (r && r.variantCount("terrainWater") > 0) {
-          const tile = r.getTile("terrainWater", variantAt(r, "terrainWater", x, y, terrain.variant));
-          ctx.drawImage(tile.source, sx, sy, tilePx, tilePx);
-          continue;
-        }
-        // A pack without water art leaves the floor showing rather than a hole.
-      }
-      // A brushed cell is clipped to its curve with the others, in `paintAreaGround` below.
-      if (layers.area[key]) continue;
-      const cell = layers.floor[key];
-      if (!cell?.floor) continue;
-      const r = runtime(cell.floor.pack_id);
-      if (!r) continue;
-      const tile = r.getTile("floor", variantAt(r, "floor", x, y, cell.floor.variant));
-      ctx.drawImage(tile.source, sx, sy, tilePx, tilePx);
-    }
-  }
-  paintAreaGround(f, t, variantAt);
+  paintGroundRegions(f, t, variantAt);
 }
 
 function fadeFrom(ctx: Ctx2D, x0: number, y0: number, x1: number, y1: number, alpha: number): CanvasGradient {
@@ -250,45 +149,6 @@ function fadeFrom(ctx: Ctx2D, x0: number, y0: number, x1: number, y1: number, al
   g.addColorStop(0, `rgba(${INK},${alpha})`);
   g.addColorStop(1, `rgba(${INK},0)`);
   return g;
-}
-
-/**
- * Darken each terrain cell inward from the sides that face a bank, so the
- * water reads as sunk below its curb. The top and left banks shade more: the
- * light comes from the top-left, so they stand in its way.
- */
-function paintSunkEdges(f: Frame, t: Target): void {
-  const { tilePx, bounds, layers, runtime } = f;
-  const { ctx } = t;
-  const span = tilePx * SHADOW.sunkEdge.span;
-  for (let y = bounds.minY; y <= bounds.maxY; y++) {
-    for (let x = bounds.minX; x <= bounds.maxX; x++) {
-      const terrain = layers.terrain[cellKey(x, y)];
-      if (!terrain) continue;
-      // Water whose banks lie flush with it (surf on a beach) is not sunk below them: no darkened edge, or the surf
-      // and the waves would not meet (Water, 16 Oct 2026).
-      if (runtime(terrain.pack_id)?.manifest.flush?.includes("curbH")) continue;
-      const sx = x * tilePx - t.ox;
-      const sy = y * tilePx - t.oy;
-      const { near, far } = SHADOW.sunkEdge;
-      if (!layers.terrain[cellKey(x, y - 1)]) {
-        ctx.fillStyle = fadeFrom(ctx, sx, sy, sx, sy + span, near);
-        ctx.fillRect(sx, sy, tilePx, span);
-      }
-      if (!layers.terrain[cellKey(x - 1, y)]) {
-        ctx.fillStyle = fadeFrom(ctx, sx, sy, sx + span, sy, near);
-        ctx.fillRect(sx, sy, span, tilePx);
-      }
-      if (!layers.terrain[cellKey(x, y + 1)]) {
-        ctx.fillStyle = fadeFrom(ctx, sx, sy + tilePx, sx, sy + tilePx - span, far);
-        ctx.fillRect(sx, sy + tilePx - span, tilePx, span);
-      }
-      if (!layers.terrain[cellKey(x + 1, y)]) {
-        ctx.fillStyle = fadeFrom(ctx, sx + tilePx, sy, sx + tilePx - span, sy, far);
-        ctx.fillRect(sx + tilePx - span, sy, span, tilePx);
-      }
-    }
-  }
 }
 
 function paintSolid(f: Frame, t: Target): void {
@@ -309,25 +169,28 @@ function paintSolid(f: Frame, t: Target): void {
 // they sit on. The wall tile is 128×128 with the painted strip in the
 // CENTER (vertically for H, horizontally for V). We shift the tile by
 // half a tile so the strip lands ON the gridline, straddling both
-// adjacent cells equally. NW ownership: cell stores wallN/wallW.
+// adjacent cells equally. NW ownership: the edge key names the owner cell.
+// Walked row by row, not in storage order: jsonb keeps no key order, and
+// overlapping tiles must stack the same way every time.
 function paintEdges(f: Frame, t: Target): void {
   const { tilePx, bounds, layers, runtime } = f;
   for (let y = bounds.minY; y <= bounds.maxY + 1; y++) {
     for (let x = bounds.minX; x <= bounds.maxX + 1; x++) {
-      const cell = layers.floor[cellKey(x, y)];
-      if (!cell) continue;
       const drawX = x * tilePx - t.ox;
       const drawY = y * tilePx - t.oy;
-      if (cell.wallN) {
-        const r = runtime(cell.wallN.pack_id);
-        if (r) drawEdgeSeg(t.ctx, r, cell.wallN, "H", x, y, drawX, drawY, tilePx, f.omitLive);
+      const north = ownedWall(layers, x, y, "N");
+      if (isDrawn(north)) {
+        const r = runtime(north.pack_id);
+        if (r) drawEdgeSeg(t.ctx, r, edgeSegOf(north), "H", x, y, drawX, drawY, tilePx, f.omitLive);
       }
-      if (cell.wallW) {
-        const r = runtime(cell.wallW.pack_id);
-        if (r) drawEdgeSeg(t.ctx, r, cell.wallW, "V", x, y, drawX, drawY, tilePx, f.omitLive);
+      const west = ownedWall(layers, x, y, "W");
+      if (isDrawn(west)) {
+        const r = runtime(west.pack_id);
+        if (r) drawEdgeSeg(t.ctx, r, edgeSegOf(west), "V", x, y, drawX, drawY, tilePx, f.omitLive);
       }
     }
   }
+  paintAngledWalls(f, t);
 }
 
 // Corner joints — fill / tile the gap at every grid intersection where H and
@@ -344,10 +207,14 @@ function paintJoints(f: Frame, t: Target): void {
   const halfThick = thickness / 2;
   for (let jy = bounds.minY - 1; jy <= bounds.maxY + 1; jy++) {
     for (let jx = bounds.minX - 1; jx <= bounds.maxX + 1; jx++) {
-      const wH = !!layers.floor[cellKey(jx - 1, jy)]?.wallN;
-      const eH = !!layers.floor[cellKey(jx, jy)]?.wallN;
-      const nV = !!layers.floor[cellKey(jx, jy - 1)]?.wallW;
-      const sV = !!layers.floor[cellKey(jx, jy)]?.wallW;
+      const wHWall = ownedWall(layers, jx - 1, jy, "N");
+      const eHWall = ownedWall(layers, jx, jy, "N");
+      const nVWall = ownedWall(layers, jx, jy - 1, "W");
+      const sVWall = ownedWall(layers, jx, jy, "W");
+      const wH = isDrawn(wHWall);
+      const eH = isDrawn(eHWall);
+      const nV = isDrawn(nVWall);
+      const sV = isDrawn(sVWall);
       if (!(wH || eH) || !(nV || sV)) continue;
       const cornerX = jx * tilePx - t.ox;
       const cornerY = jy * tilePx - t.oy;
@@ -355,10 +222,10 @@ function paintJoints(f: Frame, t: Target): void {
       // Check all four adjacent walls for pack ownership — avoids falling back to
       // the default pack and having corners change style when the active pack switches.
       const jointPackId =
-        layers.floor[cellKey(jx, jy)]?.wallN?.pack_id ??
-        layers.floor[cellKey(jx - 1, jy)]?.wallN?.pack_id ??
-        layers.floor[cellKey(jx, jy)]?.wallW?.pack_id ??
-        layers.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
+        (isDrawn(eHWall) ? eHWall.pack_id : undefined) ??
+        (isDrawn(wHWall) ? wHWall.pack_id : undefined) ??
+        (isDrawn(sVWall) ? sVWall.pack_id : undefined) ??
+        (isDrawn(nVWall) ? nVWall.pack_id : undefined) ??
         defaultPackId;
       const jointRt = jointPackId ? runtime(jointPackId) : null;
       // Like the walls it joins, a joint waits for its pack: a square painted
@@ -380,44 +247,6 @@ function paintJoints(f: Frame, t: Target): void {
         ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);
       }
     }
-  }
-}
-
-/** Curbs on the banks of terrain, positioned on the gridline exactly like wall tiles. */
-/**
- * The curbs along every bank. Curb art is painted with the land along its top and the water along its bottom (`curbH`;
- * `curbV` is it turned a quarter clockwise, so its water is on the left), and each curb is turned a half where the
- * water lies the other way, so surf always washes up from the water onto the land (Water, 16 Oct 2026).
- * `shadowPass` leaves out the pieces a pack declares `flush`: they lie flat with the ground and cast nothing.
- */
-function paintCurbs(f: Frame, t: Target, shadowPass = false): void {
-  const { tilePx, bounds, runtime } = f;
-  for (const c of curbEdges(f.layers)) {
-    if (c.x < bounds.minX || c.x > bounds.maxX + 1 || c.y < bounds.minY || c.y > bounds.maxY + 1) continue;
-    const r = runtime(c.packId);
-    const category = c.axis === "H" ? "curbH" : "curbV";
-    if (!r || r.variantCount(category) === 0) continue;
-    if (shadowPass && r.manifest.flush?.includes(category)) continue;
-    const tile = r.getTile(category, variantAt(r, category, c.x, c.y, 0));
-    const drawX = c.x * tilePx - t.ox;
-    const drawY = c.y * tilePx - t.oy;
-    const flipped = c.waterSide === "N" || c.waterSide === "E";
-    if (c.axis === "H") drawTurned(t.ctx, tile.source, drawX, drawY - tilePx / 2, tilePx, flipped ? 180 : undefined);
-    else drawTurned(t.ctx, tile.source, drawX - tilePx / 2, drawY, tilePx, flipped ? 180 : undefined);
-  }
-}
-
-function paintPosts(f: Frame, t: Target, shadowPass = false): void {
-  const { tilePx, bounds, runtime } = f;
-  const size = tilePx * SHADOW.post;
-  for (const p of curbPosts(f.layers)) {
-    if (p.x < bounds.minX || p.x > bounds.maxX + 1 || p.y < bounds.minY || p.y > bounds.maxY + 1) continue;
-    const r = runtime(p.packId);
-    const count = r ? r.variantCount("curbPost") : 0;
-    if (!r || count === 0) continue;
-    if (shadowPass && r.manifest.flush?.includes("curbPost")) continue;
-    const tile = r.getTile("curbPost", Math.abs(p.x * 31 + p.y * 17) % count);
-    t.ctx.drawImage(tile.source, p.x * tilePx - t.ox - size / 2, p.y * tilePx - t.oy - size / 2, size, size);
   }
 }
 
@@ -584,7 +413,7 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   if (!out) return null;
   // The shadow keeps what the live layer draws (a swaying prop, a door leaf): it draws them moving or at the
   // DM's door state, their shadow stays on the floor.
-  const f: Frame = { ...frameOf(input, wide), omitLive: false };
+  const f: Frame = { ...frameOf(input, wide), omitLive: false, showHiddenWalls: false };
 
   const silhouette = (paint: (t: Target) => void): CanvasImageSource | null => {
     const made = makeCanvas(width, height);
@@ -595,12 +424,7 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   const raised = silhouette((t) => {
     paintSolid(f, t);
     paintEdges(f, t);
-    paintAreaWalls(f, t);
     paintJoints(f, t);
-  });
-  const low = silhouette((t) => {
-    paintCurbs(f, t, true);
-    paintPosts(f, t, true);
   });
   const standing = silhouette((t) => {
     paintObjects(f, t, "standing");
@@ -610,7 +434,7 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
     paintObjects(f, t, "flat");
     paintDressing(f, t, true);
   });
-  if (!raised || !low || !standing || !flat) return null;
+  if (!raised || !standing || !flat) return null;
 
   const px = (fraction: number): number => fraction * tilePx;
   const scaled = (s: { dx: number; dy: number; blur: number; color: string }) => ({
@@ -621,10 +445,9 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
   });
   // Cast shadows first, then the tight occlusion on top of them.
   castShadow(out.ctx, raised, width, height, scaled(SHADOW.raised));
-  castShadow(out.ctx, low, width, height, scaled(SHADOW.short));
   castShadow(out.ctx, standing, width, height, scaled(SHADOW.short));
   const occlusion = { dx: 0, dy: 0, blur: px(SHADOW.occlusion.blur), color: SHADOW.occlusion.color };
-  for (const s of [raised, low, standing, flat]) castShadow(out.ctx, s, width, height, occlusion);
+  for (const s of [raised, standing, flat]) castShadow(out.ctx, s, width, height, occlusion);
 
   return {
     canvas: out.canvas,
@@ -638,8 +461,8 @@ export function renderShadowLayer(input: DrawMapInput): ShadowLayer | null {
 // ── The map ────────────────────────────────────────────────────────────────
 
 /**
- * Draws the pack content in this order: ground (floor, terrain, sunk edges),
- * `afterGround`, stairs down, the shadows, curbs and posts, flat objects and
+ * Draws the pack content in this order: ground material regions,
+ * `afterGround`, stairs down, the shadows, flat objects and
  * flat dressing, the lights, standing objects and dressing, stairs up, walls and
  * everything in them (rock, edges, joints), `afterDressing`, glyphs. Without
  * shadows or lights the order is the same with that step simply absent.
@@ -657,16 +480,19 @@ export function drawMapContent(input: DrawMapInput): void {
 
   if (pass !== "standing") {
     paintGround(f, t);
-    paintSunkEdges(f, t);
     afterGround?.();
 
     paintObjects(f, t, "stairsDown");
 
     const layer = input.shadowLayer !== undefined ? input.shadowLayer : input.shadows ? renderShadowLayer(input) : null;
-    if (layer) ctx.drawImage(layer.canvas, layer.left, layer.top, layer.width, layer.height);
+    if (layer) {
+      // The editor builds its layers coarser than the screen and scales them up: smooth, never blocky.
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(layer.canvas, layer.left, layer.top, layer.width, layer.height);
+      ctx.restore();
+    }
 
-    paintCurbs(f, t);
-    paintPosts(f, t);
     // Flat things go above the shadow layer, which holds their own occlusion: that is a blurred copy of their whole
     // silhouette, so drawn over them it greys them out entirely instead of rimming them.
     paintObjects(f, t, "flat");
@@ -677,6 +503,7 @@ export function drawMapContent(input: DrawMapInput): void {
       if (glow) {
         ctx.save();
         ctx.globalCompositeOperation = "screen";
+        ctx.imageSmoothingEnabled = true;
         ctx.drawImage(glow.canvas, glow.left, glow.top, glow.width, glow.height);
         ctx.restore();
       } else {
@@ -696,7 +523,6 @@ export function drawMapContent(input: DrawMapInput): void {
 
     if (pass === "all") paintSolid(f, t);
     paintEdges(f, t);
-    paintAreaWalls(f, t);
     paintJoints(f, t);
 
     afterDressing?.();

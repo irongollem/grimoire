@@ -1,143 +1,104 @@
 <template>
   <!-- Melee Attacks -->
-  <div class="detail-divider" />
-  <p class="detail-section-label">Melee Attacks</p>
-  <div v-for="atk in meleeAttacks" :key="atk.name" class="detail-trait">
-    <div class="detail-trait-header">
-      <strong>{{ atk.name }}.</strong>
-      <div class="trait-roll-bar">
-        <button
-          type="button"
-          class="trait-roll-btn trait-atk-btn"
-          @click.stop="emit('roll-attack', atk.attackBonus, atk.name, resolvedFor(atk.key))"
-        >⚔ {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
-        <button
-          v-if="atk.damageDice || atk.shape?.kind === 'unarmed'"
-          type="button"
-          class="trait-roll-btn trait-dmg-btn"
-          @click.stop="toggleDamage(atk.key)"
-        >🎲 {{ atk.damageDice ? actionDiceLabel(atk.damageDice) : atk.damageFixed }}</button>
-      </div>
-    </div>
-    <span class="detail-trait-desc">{{ atk.description }}</span>
-    <DamageRiderPicker v-if="damageOpenFor === atk.key && atk.shape" v-bind="pickerProps(atk)" />
-  </div>
+  <div v-if="!compact" class="my-1 border-t border-border/60" />
+  <p v-if="!compact" class="mt-1 text-eyebrow font-bold text-muted-foreground">Melee Attacks</p>
+  <RunnerPcAttackRow
+    v-for="atk in meleeAttacks"
+    :key="atk.name"
+    :compact="compact"
+    :name="atk.name"
+    :attack-bonus="atk.attackBonus"
+    :damage-label="atk.damageDice ? actionDiceLabel(atk.damageDice) : atk.shape?.kind === 'unarmed' ? atk.damageFixed : null"
+    :description="atk.description"
+    @attack="emit('roll-attack', atk.attackBonus, atk.name, resolvedFor(atk.key))"
+    @damage="toggleDamage(atk.key)"
+  >
+    <template #below>
+      <DamageRiderPicker v-if="damageOpenFor === atk.key && atk.shape" v-bind="pickerProps(atk)" />
+    </template>
+  </RunnerPcAttackRow>
 
   <!-- Ranged Attacks -->
   <template v-if="rangedAttacks.length">
-    <div class="detail-divider" />
-    <p class="detail-section-label">Ranged Attacks</p>
-    <div v-for="atk in rangedAttacks" :key="atk.weaponInvId" class="detail-trait">
-      <div class="detail-trait-header">
-        <strong>{{ atk.name }}.</strong>
-        <div class="trait-roll-bar">
-          <!-- Self-charged weapon (laser rifle, etc.) -->
-          <template v-if="atk.ammoTag === null">
-            <button
-              type="button"
-              class="trait-roll-btn trait-atk-btn"
-              :disabled="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) <= 0"
-              :title="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) <= 0 ? 'No charges remaining' : undefined"
-              @click.stop="fireRangedAttack(atk)"
-            >🏹 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
-            <button
-              v-if="atk.damageDice"
-              type="button"
-              class="trait-roll-btn trait-dmg-btn"
-              @click.stop="toggleDamage(atk.weaponInvId)"
-            >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-            <span
-              class="text-label whitespace-nowrap self-center"
-              :class="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) > 0 ? 'text-muted-foreground' : 'text-destructive'"
-            >⚡ {{ weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) }}</span>
-          </template>
-          <!-- External ammo weapon (bow, crossbow, etc.) -->
-          <template v-else>
-            <button
-              type="button"
-              class="trait-roll-btn trait-atk-btn"
-              :disabled="!availableAmmoFor(atk.ammoTag)"
-              :title="!availableAmmoFor(atk.ammoTag) ? 'No ammunition available' : undefined"
-              @click.stop="fireRangedAttack(atk)"
-            >🏹 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
-            <button
-              v-if="atk.damageDice"
-              type="button"
-              class="trait-roll-btn trait-dmg-btn"
-              @click.stop="toggleDamage(atk.weaponInvId)"
-            >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-            <span
-              v-if="availableAmmoFor(atk.ammoTag)"
-              class="text-label text-muted-foreground whitespace-nowrap self-center"
-            >× {{ ammoRemainingCount(availableAmmoFor(atk.ammoTag)) }}</span>
-            <span
-              v-else
-              class="text-label text-destructive whitespace-nowrap self-center"
-            >no ammo</span>
-          </template>
-        </div>
-      </div>
-      <span class="detail-trait-desc">{{ atk.description }}</span>
-      <DamageRiderPicker v-if="damageOpenFor === atk.weaponInvId" v-bind="pickerProps(atk)" />
-    </div>
+    <div v-if="!compact" class="my-1 border-t border-border/60" />
+    <p v-if="!compact" class="mt-1 text-eyebrow font-bold text-muted-foreground">Ranged Attacks</p>
+    <RunnerPcAttackRow
+      v-for="atk in rangedAttacks"
+      :key="atk.weaponInvId"
+      :compact="compact"
+      :name="atk.name"
+      :attack-bonus="atk.attackBonus"
+      :attack-icon="IconRangedAttack"
+      :damage-label="atk.damageDice ? actionDiceLabel(atk.damageDice) : null"
+      :description="atk.description"
+      :attack-disabled="rangedBlocked(atk) !== null"
+      :attack-title="rangedBlocked(atk) ?? undefined"
+      @attack="fireRangedAttack(atk)"
+      @damage="toggleDamage(atk.weaponInvId)"
+    >
+      <template #note>
+        <!-- Self-charged weapon (laser rifle, etc.) shows its charges; an ammunition weapon, what is left in the quiver. -->
+        <span
+          v-if="atk.ammoTag === null"
+          class="inline-flex items-center gap-0.5 whitespace-nowrap text-label"
+          :class="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) > 0 ? 'text-muted-foreground' : 'text-destructive'"
+        ><IconLightning class="h-3 w-3" aria-hidden="true" />{{ weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) }}</span>
+        <span v-else-if="availableAmmoFor(atk.ammoTag)" class="whitespace-nowrap text-label text-muted-foreground">× {{ ammoRemainingCount(availableAmmoFor(atk.ammoTag)) }}</span>
+        <span v-else class="whitespace-nowrap text-label text-destructive">no ammo</span>
+      </template>
+      <template #below>
+        <DamageRiderPicker v-if="damageOpenFor === atk.weaponInvId" v-bind="pickerProps(atk)" />
+      </template>
+    </RunnerPcAttackRow>
   </template>
 
   <!-- Thrown Attacks -->
   <template v-if="thrownAttacks.length">
-    <div class="detail-divider" />
-    <p class="detail-section-label">Thrown Attacks</p>
-    <div v-for="atk in thrownAttacks" :key="atk.weaponInvId" class="detail-trait">
-      <div class="detail-trait-header">
-        <strong>{{ atk.name }}.</strong>
-        <div class="trait-roll-bar">
-          <button
-            type="button"
-            class="trait-roll-btn trait-atk-btn"
-            :disabled="throwCountFor(atk.weaponInvId) <= 0"
-            :title="throwCountFor(atk.weaponInvId) <= 0 ? 'None left to throw' : undefined"
-            @click.stop="fireThrownAttack(atk)"
-          >🎯 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
-          <button
-            v-if="atk.damageDice"
-            type="button"
-            class="trait-roll-btn trait-dmg-btn"
-            @click.stop="toggleDamage(atk.weaponInvId)"
-          >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
-          <span class="text-label text-muted-foreground whitespace-nowrap self-center">× {{ throwCountFor(atk.weaponInvId) }}</span>
-        </div>
-      </div>
-      <span class="detail-trait-desc">Thrown attack. The weapon lands on the ground, recoverable from chat.</span>
-      <DamageRiderPicker v-if="damageOpenFor === atk.weaponInvId" v-bind="pickerProps(atk)" />
-    </div>
+    <div v-if="!compact" class="my-1 border-t border-border/60" />
+    <p v-if="!compact" class="mt-1 text-eyebrow font-bold text-muted-foreground">Thrown Attacks</p>
+    <RunnerPcAttackRow
+      v-for="atk in thrownAttacks"
+      :key="atk.weaponInvId"
+      :compact="compact"
+      :name="atk.name"
+      :attack-bonus="atk.attackBonus"
+      :attack-icon="IconThrownAttack"
+      :damage-label="atk.damageDice ? actionDiceLabel(atk.damageDice) : null"
+      description="Thrown attack. The weapon lands on the ground, recoverable from chat."
+      :attack-disabled="throwCountFor(atk.weaponInvId) <= 0"
+      attack-title="None left to throw"
+      @attack="fireThrownAttack(atk)"
+      @damage="toggleDamage(atk.weaponInvId)"
+    >
+      <template #note>
+        <span class="whitespace-nowrap text-label text-muted-foreground">× {{ throwCountFor(atk.weaponInvId) }}</span>
+      </template>
+      <template #below>
+        <DamageRiderPicker v-if="damageOpenFor === atk.weaponInvId" v-bind="pickerProps(atk)" />
+      </template>
+    </RunnerPcAttackRow>
   </template>
 
   <!-- Custom Attacks -->
   <template v-if="member.custom_attacks?.length">
-    <div class="detail-divider" />
-    <p class="detail-section-label">Custom Attacks</p>
-    <div v-for="atk in member.custom_attacks" :key="atk.id" class="detail-trait">
-      <div class="detail-trait-header">
-        <strong>{{ atk.name }}.</strong>
-        <div class="trait-roll-bar">
-          <button
-            v-if="atk.attack_bonus != null"
-            type="button"
-            class="trait-roll-btn trait-atk-btn"
-            @click.stop="emit('roll-attack', atk.attack_bonus, atk.name)"
-          >✨ {{ atk.attack_bonus >= 0 ? '+' : '' }}{{ atk.attack_bonus }}</button>
-          <button
-            type="button"
-            class="trait-roll-btn trait-dmg-btn"
-            @click.stop="emit('roll-damage', atk.damage, atk.name)"
-          >🎲 {{ actionDiceLabel(atk.damage) }}</button>
-          <span
-            v-if="atk.damage_type"
-            class="text-label text-muted-foreground whitespace-nowrap self-center"
-          >{{ atk.damage_type }}</span>
-        </div>
-      </div>
-      <span class="detail-trait-desc">Custom attack.</span>
-    </div>
+    <div v-if="!compact" class="my-1 border-t border-border/60" />
+    <p v-if="!compact" class="mt-1 text-eyebrow font-bold text-muted-foreground">Custom Attacks</p>
+    <RunnerPcAttackRow
+      v-for="atk in member.custom_attacks"
+      :key="atk.id"
+      :compact="compact"
+      :name="atk.name"
+      :attack-bonus="atk.attack_bonus ?? null"
+      :attack-icon="IconSpellAttack"
+      :damage-label="actionDiceLabel(atk.damage)"
+      description="Custom attack."
+      @attack="rollCustomAttack(atk)"
+      @damage="emit('roll-damage', atk.damage, atk.name)"
+    >
+      <template v-if="atk.damage_type" #note>
+        <span class="whitespace-nowrap text-label text-muted-foreground">{{ atk.damage_type }}</span>
+      </template>
+    </RunnerPcAttackRow>
   </template>
 </template>
 
@@ -161,8 +122,10 @@ import { isRangedWeaponItem } from "@/rules/ammunition";
 import type { AttackShape } from "@/rules/features/resolve";
 import type { CharacterFeatures } from "@/composables/features/useCharacterFeatures";
 import DamageRiderPicker from "@/components/features/DamageRiderPicker.vue";
+import RunnerPcAttackRow from "@/components/encounters/RunnerPcAttackRow.vue";
+import { IconLightning, IconRangedAttack, IconSpellAttack, IconThrownAttack } from "@/lib/icons";
 
-const { member, features, profBonus, abilityMod, senderName, silent = false } = defineProps<{
+const { member, features, profBonus, abilityMod, senderName, silent = false, compact = false } = defineProps<{
   member: PartyMember;
   /** The member's resolved features, shared with every rider picker. */
   features: CharacterFeatures;
@@ -172,6 +135,8 @@ const { member, features, profBonus, abilityMod, senderName, silent = false } = 
   senderName?: string;
   /** The runner's "don't post to chat" mode. */
   silent?: boolean;
+  /** One line per attack with a Roll, for the Play turn card (#1125 frame 10); the full sheet keeps the whole list. */
+  compact?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -211,6 +176,12 @@ const {
 const { throwWeapon } = useThrownWeapon();
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+
+// A custom attack with no to-hit bonus (auto-hit or save-based) has nothing to roll: never roll it as +0.
+function rollCustomAttack(atk: { name: string; attack_bonus?: number | null }) {
+  if (atk.attack_bonus == null) return;
+  emit("roll-attack", atk.attack_bonus, atk.name);
+}
 
 // ── Hidden clearing ───────────────────────────────────────────────────────────
 // Attacking gives away your position (5e RAW) — mirrors PlayerCombatTab's
@@ -396,6 +367,14 @@ const rangedAttacks = computed<RangedAttack[]>(() => {
     });
 });
 
+/** Why a ranged attack cannot be fired right now, else null. */
+function rangedBlocked(atk: RangedAttack): string | null {
+  if (atk.ammoTag === null) {
+    return weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) <= 0 ? "No charges remaining" : null;
+  }
+  return availableAmmoFor(atk.ammoTag) ? null : "No ammunition available";
+}
+
 function fireRangedAttack(atk: RangedAttack) {
   const remember = resolvedFor(atk.weaponInvId);
   emit("roll-attack", atk.attackBonus, atk.name, (rolled, crit) => {
@@ -480,47 +459,3 @@ function actionDiceLabel(desc: string): string {
   return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
 }
 </script>
-
-<style scoped>
-@reference "@/assets/main.css";
-
-.detail-divider {
-  @apply border-t border-border/60 my-1;
-}
-
-.detail-section-label {
-  @apply text-eyebrow font-bold text-muted-foreground mt-1;
-}
-
-.detail-trait {
-  @apply flex flex-col gap-0.5;
-}
-
-.detail-trait-header {
-  @apply flex items-start justify-between gap-2;
-}
-
-.detail-trait-header strong {
-  @apply text-label font-bold text-foreground;
-}
-
-.trait-roll-bar {
-  @apply flex items-center gap-1 flex-wrap justify-end;
-}
-
-.trait-roll-btn {
-  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-label font-semibold cursor-pointer transition-colors whitespace-nowrap;
-}
-
-.trait-atk-btn {
-  @apply bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25;
-}
-
-.trait-dmg-btn {
-  @apply bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25;
-}
-
-.detail-trait-desc {
-  @apply text-caption text-muted-foreground leading-relaxed;
-}
-</style>

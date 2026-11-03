@@ -1548,8 +1548,8 @@ zero pixels wide at any ordinary laptop width: the map was mounted and
 invisible, with its calibration chip hanging over the room list. So two rules:
 the handoff gets the full width, and its column count is a **container query**
 on its own width (`@6xl`, 72rem, for the third column; below that Ways out and
-Progress drop beneath the plan). `SiteRunSurface` follows the same rule inside
-the Atlas pane. Do not put a viewport breakpoint back on either grid. "Advance
+Progress drop beneath the plan). The explore screen (`SiteExploreView`) follows the same rule inside
+its own panels. Do not put a viewport breakpoint back on either grid. "Advance
 beat" in the handoff's header opens the same Advance dialog the rail's outcome
 strip does, so nothing is unreachable while the rail is away. "Leave site"
 keeps the room cursor, and **Enter site** on `QuestRunBeatCard` is the way
@@ -1567,8 +1567,8 @@ drift.
   click-to-move, the unwritten/Fill affordance, a loot chip), now mounted with
   `run-captions` on — the same frame-08 reachability captions ("Reachable",
   "Not reachable from here", "Secret door — undiscovered", "Party here ·
-  `<zone>` active") `SiteRunSurface` shows, computed identically in both
-  callers rather than the plain description snippet the handoff used to fall
+  `<zone>` active"), derived with the same helpers the explore screen's room
+  card uses, rather than the plain description snippet the handoff used to fall
   back to.
 - **The floor plan** (`LocationMap`, run-mode) is unchanged in mechanism, and
   now sits above the room's own stack rather than beside a room-detail column.
@@ -1599,7 +1599,7 @@ caption reads "not yet inside — opens at `<room>`" until the party actually
 moves there; nothing here moves them on its own.
 
 **A trigger zone can prompt this beat's own advance, and never fires it.**
-`SiteMapZoneList.vue` lets a `trigger`-kind zone name a `beat_id` (#868 S12).
+`ZoneDetailsEditor.vue` (opened from a Zoning list row) lets a `trigger`-kind zone name a `beat_id` (#868 S12).
 When the party's current room falls inside a trigger zone naming _this_ beat
 — compared by id, not "any beat in the quest," since `advance` has no target
 parameter and can only ever advance the beat already staged here — the
@@ -1631,8 +1631,8 @@ decisions, and `QuestRulesPanel.vue` for where a DM authors "when a place…".
 the mechanism but left it reachable only from `QuestRulesPanel.vue`, where the
 DM re-finds the room in a campaign-wide combobox — the complaint that
 opened #878: "I can't hang quest outcomes/beats etc. to these zones where needed."
-`SiteMapRegionList.vue` (the Spaces panel on a site's floor plan, Build mode
-only) now carries a "Rules" toggle on every **bound space** row, opening
+`ZoningList.vue` (Zoning's one list of rooms and zones on a site's floor plan, Build mode
+only) now carries a "Rules" toggle on every **bound room** row, opening
 `SiteMapRoomRules.vue` — list the room's existing rules, add a new one: pick a
 quest, pick which fact (`explored`/`cleared`/`looted`), pick the ledger verb,
 pick the objective. Both components read `useQuestConsequencesByLocations`
@@ -1648,7 +1648,7 @@ zone, on purpose.** `quest_consequences.on_location_id` is a real FK to
 `guard_location_map_region_space` raises if a zone-role region is given a
 `space_location_id` ("a zone binds to nothing," migration `20260908215640`) —
 so a zone has no identity for a rule to watch at all, not merely one this
-surface declined to wire up. `SiteMapZoneList.vue`'s own quest hook (a
+surface declined to wire up. `ZoneDetailsEditor.vue`'s own quest hook (a
 `trigger`-kind zone naming a `beat_id`, #868 S12) is a different mechanism
 entirely — it prompts a beat's advance when the party's token enters the
 zone, not a durable place-fact — and this story left it untouched.
@@ -1668,11 +1668,13 @@ regardless of which surface authored it, via the shared
 `describeQuestConsequenceAction` — a world-action rule created on
 `QuestRulesPanel.vue` shows there too, just not addable from the room.
 
-**One room surface, two callers.** `SiteRoomList.vue` (`src/components/locations/site/`), `SiteRunWaysOut.vue`
-and `SiteRunRoomStack.vue` (`src/components/locations/run/`) are now shared
-verbatim between `QuestSiteHandoff` and `SiteRunSurface`'s Atlas Run action —
-before #868, only the room list itself was shared (#850 story H); the room
-card and its ways-out were each hand-rolled per caller. There is now exactly
+**One room surface, two callers.** `SiteRunWaysOut.vue` and `SiteRunRoomStack.vue`
+(`src/components/locations/run/`) are shared between `QuestSiteHandoff` and the
+explore screen's room card (`SiteExploreView`, `/locations/:id/explore`); the
+handoff alone mounts `SiteRoomList.vue` (`src/components/locations/site/`), as
+the explore screen's left column is the party panel. Before #868 only the room
+list was shared (#850 story H); the room card and its ways-out were each
+hand-rolled per caller. There is now exactly
 one implementation of "what does the DM see when the party is in this room,"
 so the cockpit's crawl and the Atlas's crawl can never quietly disagree again.
 Pure derivations shared by both callers (which rooms are unwritten, a room's

@@ -57,6 +57,7 @@ The essentials live on the **Details** tab:
 - **Theme**: the app's colour palette for this campaign.
 - **Health Visibility**: how HP appears to players: **Strategic** (bars + labels for everyone, exact numbers for player characters only), **Immersive** (player characters show a bar with no numbers; monsters show status words only), or **Unknown** (no health info shown for anyone but player characters).
 - **Immersive Rolls**: stealth, knowledge, and insight checks show only flavor text in chat; the full result is whispered to you, the DM, only.
+- **Map memory** and **Sight**: whether the map keeps what the party has seen, and whether a player's phone shows what the whole party sees or only their own character. The defaults suit most tables.
 - **Show VTT tokens to players**: turn this off for in-person sessions using physical minis or theater of the mind; players' battle map then shows only the map and fog of war, with no tokens. Your own view is unaffected.
 
 ## After creating the campaign

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { illuminationGrid } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
-import { canSee, playerVeilAlpha, seenCombatants, sightAt, visionGrid, type Viewer } from "./vision";
+import { canSee, partyViewers, playerVeilAlpha, sightAt, visionGrid, type Viewer } from "./vision";
+import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 
 const viewer = (darkvisionFeet: number, x = 5.5, y = 5.5): Viewer => ({ x, y, darkvisionFeet, blindsightFeet: 0, truesightFeet: 0, devilsSightFeet: 0 });
 const sensed = (senses: Partial<Viewer>, x = 5.5, y = 5.5): Viewer => ({ ...viewer(0, x, y), ...senses });
@@ -46,7 +47,7 @@ describe("blindsight and truesight", () => {
   });
 
   it("blindsight does not reach round a wall", () => {
-    const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
+    const wall = occluders({ walls: [latticeSegment("6,5:W")], doors: [], solid: [] });
     const scene = { ambient: 0, sources: [], occluders: wall, zones: [] };
     expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 7, 5)).toBe(false);
     expect(canSee(scene, [sensed({ blindsightFeet: 30 })], 4, 5)).toBe(true);
@@ -112,28 +113,8 @@ describe("canSee", () => {
   });
 });
 
-describe("seenCombatants", () => {
-  const list = [
-    { instance_id: "p-1", position: { x: 30, y: 30 } },
-    { instance_id: "m-near", position: { x: 6, y: 5 } },
-    { instance_id: "m-far", position: { x: 40, y: 5 } },
-    { instance_id: "m-unplaced", position: null },
-    { instance_id: "m-big", position: { x: -7, y: 5 }, footprint: 2 },
-  ];
-
-  it("keeps the player's own token, the unplaced and what the viewers see, and drops the rest", () => {
-    const kept = seenCombatants(list, darkScene, [viewer(60)], "p-1").map((c) => c.instance_id);
-    expect(kept).toEqual(["p-1", "m-near", "m-unplaced", "m-big"]);
-  });
-
-  it("hides everything but the own token from a blind viewer", () => {
-    const kept = seenCombatants(list, darkScene, [viewer(0)], "p-1").map((c) => c.instance_id);
-    expect(kept).toEqual(["p-1", "m-unplaced"]);
-  });
-});
-
 describe("sight against walls", () => {
-  const wall = occluders({ walls: ["6,5:W"], doors: [], solid: [] });
+  const wall = occluders({ walls: [latticeSegment("6,5:W")], doors: [], solid: [] });
   const lamp = { x: 8.5, y: 5.5, bright: 60, dim: 0 };
   const scene = { ambient: 0, sources: [lamp], occluders: wall, zones: [] };
 
@@ -157,17 +138,9 @@ describe("sight against walls", () => {
     expect(canSee(scene, [], 8, 5)).toBe(true);
   });
 
-  it("hides a monster behind a wall from the player", () => {
-    const list = [
-      { instance_id: "p-1", position: { x: 5, y: 5 } },
-      { instance_id: "m-behind", position: { x: 8, y: 5 } },
-    ];
-    expect(seenCombatants(list, scene, [viewer(0, 5.5, 5.5)], "p-1").map((c) => c.instance_id)).toEqual(["p-1"]);
-  });
-
   it("times a 60x60 vision grid", () => {
-    const walls: string[] = [];
-    for (let i = 0; i < 60; i += 5) for (let j = 0; j < 60; j += 3) walls.push(`${i},${j}:W`, `${j},${i}:N`);
+    const walls: WallSegment[] = [];
+    for (let i = 0; i < 60; i += 5) for (let j = 0; j < 60; j += 3) walls.push(latticeSegment(`${i},${j}:W`), latticeSegment(`${j},${i}:N`));
     const occ = occluders({ walls, doors: [], solid: [] });
     const illumination = new Float32Array(240 * 240).fill(1);
     const t0 = performance.now();
@@ -204,7 +177,7 @@ describe("sight and magical darkness", () => {
 
   it("is perceived by blindsight within range, but not round a wall", () => {
     expect(canSee(daylit, [sensed({ blindsightFeet: 30 })], 10, 5)).toBe(true);
-    const wall = occluders({ walls: ["8,5:W"], doors: [], solid: [] });
+    const wall = occluders({ walls: [latticeSegment("8,5:W")], doors: [], solid: [] });
     expect(canSee({ ...daylit, occluders: wall }, [sensed({ blindsightFeet: 30 })], 10, 5)).toBe(false);
   });
 
@@ -217,11 +190,6 @@ describe("sight and magical darkness", () => {
     expect(v.seen[at(10, 5)]).toBe(0); // inside it: nothing
     const without = visionGrid({ illumination, minX, minY: 0, cols: 16, rows: 12, samplesPerCell: 1, viewers: [viewer(120)], occluders: NO_OCCLUDERS });
     expect(without.seen[at(10, 5)]).toBe(0.5);
-  });
-
-  it("seenCombatants hides a token in the sphere", () => {
-    const kept = seenCombatants([{ instance_id: "m", position: { x: 10, y: 5 } }, { instance_id: "n", position: { x: 6, y: 5 } }], daylit, [viewer(0)], null);
-    expect(kept.map((c) => c.instance_id)).toEqual(["n"]);
   });
 });
 
@@ -249,5 +217,28 @@ describe("a viewer inside magical darkness", () => {
   it("a light inside a sphere lights nothing beyond it", async () => {
     const { lightLevelAt } = await import("./illumination");
     expect(lightLevelAt(0, [{ x: 5.5, y: 5.5, bright: 60, dim: 0 }], NO_OCCLUDERS, 12, 5, [zoneA])).toBe(0);
+  });
+});
+
+describe("partyViewers", () => {
+  it("looks from the centre of every placed player character's token, and from no monster or unplaced one", () => {
+    const viewers = partyViewers([
+      { type: "player", position: { x: 2, y: 3 } },
+      { type: "player", position: { x: 6, y: 6 }, size: "large" },
+      { type: "monster", position: { x: 1, y: 1 } },
+      { type: "player", position: null },
+    ]);
+    expect(viewers.map((v) => [v.x, v.y])).toEqual([[2.5, 3.5], [7, 7]]);
+    expect(viewers.every((v) => v.darkvisionFeet === 0 && v.blindsightFeet === 0)).toBe(true);
+  });
+});
+
+describe("partyViewers with senses", () => {
+  const ranges = { darkvision: 60, blindsight: 10, truesight: 0, tremorsense: 0, devilsSight: 30 };
+  it("takes a character's senses when the screen can read them and none when it cannot", () => {
+    const party = [{ type: "player", position: { x: 1, y: 1 }, id: "a" }, { type: "player", position: { x: 2, y: 2 }, id: "b" }];
+    const [a, b] = partyViewers(party, (c) => (c.id === "a" ? ranges : null));
+    expect([a.darkvisionFeet, a.blindsightFeet, a.devilsSightFeet]).toEqual([60, 10, 30]);
+    expect([b.darkvisionFeet, b.blindsightFeet, b.devilsSightFeet]).toEqual([0, 0, 0]);
   });
 });

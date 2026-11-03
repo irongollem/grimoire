@@ -68,7 +68,7 @@
             </p>
           </div>
 
-          <!-- View battle map (tablet+ only) — phones stay on the stats panel -->
+          <!-- View battle map: phones play on it too (#1125 decision 14) -->
           <AppButton
             v-if="canShowBattleMap"
             to="/play/encounter/map"
@@ -76,7 +76,6 @@
             tone="primary"
             emphasis="soft"
             size="sm"
-            class="hidden md:flex"
             :icon="IconMap"
             icon-size="md"
             label="View battle map"
@@ -270,9 +269,8 @@ const { data: battleLocation } = usePlayerVisibleLocation(battleLocationIdRef);
 const canShowBattleMap = computed(
   () =>
     !!liveState.value &&
-    !!battleLocation.value?.is_battle_map &&
-    // The Drawing counts here too (#884), not just the Picture — a
-    // drawing-only battle map draws now where it used to be unshowable.
+    // A calibrated grid is enough (#1125 decision 14): `is_battle_map` no longer gates play. The Drawing counts as
+    // well as the Picture (#884).
     !!primaryImage(battleLocation.value)?.calibration,
 );
 // Player-visible pre-scripted events — shown as narrative beats in the combat panel

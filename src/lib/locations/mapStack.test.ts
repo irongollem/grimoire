@@ -34,6 +34,7 @@ describe("buildMapStack", () => {
         frameCalibration: null,
         blank: null,
         hasAnyLayer: false,
+        motion: null,
       });
     }
   });
@@ -47,6 +48,7 @@ describe("buildMapStack", () => {
       frameCalibration: null,
       blank: null,
       hasAnyLayer: false,
+      motion: null,
     });
   });
 
@@ -256,5 +258,20 @@ describe("placePicture", () => {
     const cal: GridCalibration = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 };
     const stack = stackWith(bad, cal);
     expect(placePicture(stack, { w: 1000, h: 1000 }, { w: 1000, h: 1000 })).toBeNull();
+  });
+});
+
+describe("moving Picture (#1125 decision 6)", () => {
+  const motion = { kind: "video" as const, file_name: "r.mp4", mime: "video/mp4", bytes: 4, width: 8, height: 8 };
+  const withPicture = { map_url: "/p.webp", grid_calibration: null };
+
+  it("keys the local file by the place id", () => {
+    expect(buildMapStack({ ...source(withPicture), id: "loc-1", map_motion: motion }).motion).toEqual({ key: "loc-1", motion });
+  });
+
+  it("is null for a still Picture, for a source with no id (a player projection), and with no Picture to move", () => {
+    expect(buildMapStack({ ...source(withPicture), id: "loc-1", map_motion: null }).motion).toBeNull();
+    expect(buildMapStack({ ...source(withPicture), map_motion: motion }).motion).toBeNull();
+    expect(buildMapStack({ ...source(), id: "loc-1", map_motion: motion }).motion).toBeNull();
   });
 });

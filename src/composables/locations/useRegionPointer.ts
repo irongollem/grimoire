@@ -201,7 +201,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
    * the only thing added here is tracing's own guard — a click while a
    * (possibly dangling) selection exists is still "already tracing
    * something", never a fresh selection. Selecting a *new* shape to trace
-   * (from `SiteMapZoneList`'s Draw/Trace buttons) never goes through a tap
+   * (from `ZoningList`'s Reshape button) never goes through a tap
    * on the map at all, which is why this guard is safe to apply whenever an
    * active region id is set.
    */

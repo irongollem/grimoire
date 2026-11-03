@@ -1,7 +1,15 @@
 <template>
-  <CartographerOptionsSlip :title="title">
-    <!-- Select: a read-only summary of the selected cell, compact until opened. -->
-    <template v-if="activeTool === 'select'">
+  <CartographerOptionsSlip
+    :title="title"
+    :caption="caption"
+    :tools="familyTools"
+    :active-tool="activeTool"
+    hints
+    @update:active-tool="emit('update:activeTool', $event as Tool)"
+  >
+    <!-- Select: what it picked shows that thing's own controls (the Light and Place branches below); a cell, a
+         read-only summary, compact until opened. -->
+    <template v-if="activeTool === 'select' && !selectedPicked">
       <template v-if="selectedCell">
         <span class="text-caption text-muted-foreground">
           Cell {{ selectedCell[0] }}, {{ selectedCell[1] }}: {{ cellSummary }}
@@ -45,12 +53,30 @@
         </dl>
       </template>
       <span v-else class="text-caption text-muted-foreground italic">
-        Click a cell to see what is in it. Drag to move the map.
+        Click a cell to see what is in it. Drag a box to pick what is inside it. Shift adds to a pick. Space+drag moves the map.
       </span>
     </template>
 
+    <!-- A material region's boundary is editable independently of its optional walls. -->
+    <CartographerGroundControls
+      v-else-if="activeTool === 'select' && selectedGroundRegion"
+      editing
+      :selected="selectedGroundRegion"
+      :wall-mode="selectedGroundRegion.walls.mode"
+      @update:wall-mode="emit('update:groundWallMode', $event)"
+      @update:name="emit('update:groundName', $event)"
+      @delete="emit('deleteGroundRegion')"
+    />
+
     <!-- Wall: what the tool paints, or the decal it sets on a wall. -->
     <template v-else-if="activeTool === 'wall'">
+      <SegmentedControl
+        :model-value="wallVisible === false ? 'hidden' : 'visible'"
+        :options="WALL_VISIBILITY"
+        size="xs"
+        aria-label="New wall visibility"
+        @update:model-value="emit('update:wallVisible', $event === 'visible')"
+      />
       <SegmentedControl
         :model-value="activeWallKind"
         :options="WALL_KINDS"
@@ -76,8 +102,101 @@
       <span v-else class="text-caption-sm text-muted-foreground">Shift+click runs a straight wall from the last one.</span>
     </template>
 
+    <!-- Select picked walls (a segment, or with Alt the whole wall), or a mix of walls, props and lights. -->
+    <template v-else-if="activeTool === 'select' && wallRun">
+      <CartographerWallRunSlip
+        :run="wallRun"
+        :refusal-reason="wallRefusal"
+        @delete="emit('deleteWallRun')"
+      />
+      <RotationControl
+        v-if="wallRun.object"
+        :model-value="wallRun.object.rotation"
+        @update:model-value="emit('rotateSelected', $event)"
+      />
+      <SegmentedControl
+        v-if="wallRun.items === undefined && wallRun.bones > 0"
+        :model-value="selectedWallVisible === false ? 'hidden' : 'visible'"
+        :options="WALL_VISIBILITY"
+        size="xs"
+        aria-label="Selected wall visibility"
+        @update:model-value="emit('update:selectedWallVisible', $event === 'visible')"
+      />
+    </template>
+
+    <!-- Angled wall: the kind it draws, and how a run is driven. -->
+    <template v-else-if="activeTool === 'angledWall'">
+      <SegmentedControl
+        :model-value="wallVisible === false ? 'hidden' : 'visible'"
+        :options="WALL_VISIBILITY"
+        size="xs"
+        aria-label="New wall visibility"
+        @update:model-value="emit('update:wallVisible', $event === 'visible')"
+      />
+      <SegmentedControl
+        :model-value="activeWallKind"
+        :options="ANGLED_WALL_KINDS"
+        size="xs"
+        @update:model-value="$emit('update:activeWallKind', $event)"
+      />
+      <span class="text-caption-sm text-muted-foreground">
+        Click to start, click to add points. Enter or a double-click ends the run, Esc drops it. Alt places a point freely.
+      </span>
+    </template>
+
+    <!-- Light: colour and reach of the next one, or of the one picked. -->
+    <template v-else-if="activeTool === 'light' || (activeTool === 'select' && lightSelected)">
+      <ColorInput
+        :model-value="light.color"
+        label="Colour"
+        aria-label="Light colour"
+        @update:model-value="emit('update:light', { color: $event })"
+      />
+      <label class="flex items-center gap-1.5">
+        <span class="text-label text-muted-foreground">Bright ft</span>
+        <AppInput
+          :model-value="light.bright"
+          :model-modifiers="{ number: true, lazy: true }"
+          type="number"
+          size="body-xs"
+          class="w-16"
+          aria-label="Bright light, in feet"
+          @update:model-value="setReach('bright', $event)"
+        />
+      </label>
+      <label class="flex items-center gap-1.5">
+        <span class="text-label text-muted-foreground">Dim ft</span>
+        <AppInput
+          :model-value="light.dim"
+          :model-modifiers="{ number: true, lazy: true }"
+          type="number"
+          size="body-xs"
+          class="w-16"
+          aria-label="Dim light, in feet"
+          @update:model-value="setReach('dim', $event)"
+        />
+      </label>
+      <SegmentedControl
+        :model-value="lightMotion(light).kind"
+        :options="LIGHT_MOTIONS"
+        size="xs"
+        aria-label="How the light moves"
+        @update:model-value="emit('update:light', $event === 'flicker' ? { flicker: FLICKER_AMOUNT, pulse: undefined } : { pulse: PULSE_AMOUNT, flicker: undefined })"
+      />
+      <AppButton
+        v-if="lightSelected"
+        variant="destructive"
+        size="xs"
+        :icon="IconDelete"
+        label="Delete"
+        tooltip="Delete the selected light (Delete)"
+        @click="emit('deleteLight')"
+      />
+      <span v-else class="text-caption-sm text-muted-foreground">Click the map to place. Click a light to move it. Alt places freely.</span>
+    </template>
+
     <!-- Place: what is armed, how it is turned, and the way back to the catalogue. -->
-    <template v-else-if="activeTool === 'place'">
+    <template v-else-if="activeTool === 'place' || (activeTool === 'select' && selectedPlaced)">
       <template v-if="selectedPlaced">
         <span class="text-caption text-foreground">{{ selectedPlaced.name }}</span>
         <RotationControl :model-value="selectedPlaced.rotation" @update:model-value="emit('rotateSelected', $event)" />
@@ -109,7 +228,7 @@
         </span>
       </template>
       <AppButton
-        v-if="!catalogueOpen"
+        v-if="activeTool === 'place' && !catalogueOpen"
         variant="ghost"
         fill="muted"
         size="xs"
@@ -174,6 +293,15 @@
 
     <!-- Brush: size -->
     <template v-else-if="activeTool === 'brush'">
+      <CartographerGroundControls
+        :selected="selectedGroundRegion ?? null"
+        :region-mode="brushRegionMode ?? 'new'"
+        :category="brushCategory ?? 'floor'"
+        :wall-mode="brushWallMode ?? 'none'"
+        @update:region-mode="emit('update:brushRegionMode', $event)"
+        @update:category="emit('update:brushCategory', $event)"
+        @update:wall-mode="emit('update:brushWallMode', $event)"
+      />
       <label class="text-label text-muted-foreground" for="brush-size">Size</label>
       <input
         id="brush-size"
@@ -213,19 +341,26 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import { FIRE_FLICKER, lightMotion, PULSE_GLOW } from "@/cartographer/lights";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import ColorInput from "@/components/common/controls/ColorInput.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import CartographerOptionsSlip from "@/components/cartographer/CartographerOptionsSlip.vue";
 import RotationControl from "@/components/cartographer/RotationControl.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import type { EdgeSegType } from "@/types/dungeonMap.types";
-import type { PackCategory, TilePackManifest } from "@/cartographer/packSchema";
+import { MAX_LIGHT_FEET, type PackCategory, type TileLight, type TilePackManifest } from "@/cartographer/packSchema";
 import { decalLabel, stampLabel } from "@/cartographer/stampCategories";
 import { BRUSH_RADIUS_MAX, BRUSH_RADIUS_MIN, BRUSH_RADIUS_STEP } from "@/cartographer/keymap";
 import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
+import type { RailTool } from "@/components/cartographer/CartographerToolRail.vue";
+import CartographerWallRunSlip from "@/components/cartographer/CartographerWallRunSlip.vue";
+import CartographerGroundControls from "@/components/cartographer/CartographerGroundControls.vue";
+import type { BrushRegionMode, GroundWallMode } from "@/types/dungeonMap.types";
+import type { EditRefusal } from "@/cartographer/wallEdit/edit";
 import PlaceItemThumb from "@/components/cartographer/PlaceItemThumb.vue";
 import { IconDelete, IconLibrary } from "@/lib/icons";
 
@@ -248,8 +383,12 @@ interface SelectedCellEdge {
 }
 
 const props = defineProps<{
-  /** The tool's name, with " erase" appended while Alt inverts it. */
+  /** The tool family's name ("Draw"). */
   title: string;
+  /** What the family is for, or "erasing" while Alt inverts the armed tool. */
+  caption?: string;
+  /** The family's tools, for the slip's grid; it draws none for a family of one. */
+  familyTools?: RailTool[];
   activeTool: Tool;
   /** What Place holds, or null for nothing; with its name and, for a prop, its picture and footprint. */
   placeItem: PlaceItem | null;
@@ -265,6 +404,8 @@ const props = defineProps<{
   /** The active pack's manifest: its `labels` name stamps and decals. Null until a pack loads. */
   manifest: Pick<TilePackManifest, "labels"> | null;
   activeWallKind: WallKind;
+  wallVisible?: boolean;
+  selectedWallVisible?: boolean;
   activeWallDecal: number;
   wallDecalCount: number;
   selectedCell: [number, number] | null;
@@ -286,16 +427,32 @@ const props = defineProps<{
   activeTemplateShape: string;
   templateShapes: TemplateShape[];
   brushRadius: number;
+  brushRegionMode?: BrushRegionMode;
+  brushCategory?: "floor" | "terrainWater";
+  brushWallMode?: GroundWallMode;
+  selectedGroundRegion?: { id: string; name: string; walls: { mode: GroundWallMode } } | null;
   /** Rectangle: also wrap the perimeter in walls. */
   rectWalls: boolean;
+  /** The Light tool's colour and reach: the picked light's, or what the next one will be. */
+  light: TileLight;
+  /** A placed light is picked, so the edits are to it and Delete takes it away. */
+  lightSelected: boolean;
+  /** Select picked walls: how many segments, nodes and doors; `items` when it also holds props or lights (null when none). */
+  wallRun: { bones: number; nodes: number; doors: number; items?: number; object?: { label: string; rotation: number } } | null;
+  /** Why the last wall edit was refused, if it was. */
+  wallRefusal: EditRefusal | null;
 }>();
 
 const emit = defineEmits<{
+  "update:activeTool": [tool: Tool];
+  deleteWallRun: [];
   "update:placeRotation": [deg: number];
   rotateSelected: [deg: number];
   deleteSelected: [];
   openCatalogue: [];
   "update:activeWallKind": [kind: WallKind];
+  "update:wallVisible": [visible: boolean];
+  "update:selectedWallVisible": [visible: boolean];
   "update:activeWallDecal": [variant: number];
   "update:annotationText": [text: string];
   "update:linkedNoteId": [id: string];
@@ -304,10 +461,38 @@ const emit = defineEmits<{
   "update:linkedFeatureId": [id: string];
   "update:activeTemplateShape": [shape: string];
   "update:brushRadius": [radius: number];
+  "update:brushRegionMode": [mode: BrushRegionMode];
+  "update:brushCategory": [category: "floor" | "terrainWater"];
+  "update:brushWallMode": [mode: GroundWallMode];
+  "update:groundWallMode": [mode: GroundWallMode];
+  "update:groundName": [name: string];
+  deleteGroundRegion: [];
   "update:rectWalls": [on: boolean];
+  "update:light": [patch: Partial<TileLight>];
+  deleteLight: [];
 }>();
 
 const detailsOpen = ref(false);
+
+/** An angled wall is a stroked line, so it has no decal kind. */
+const ANGLED_WALL_KINDS = WALL_KINDS.filter((k) => k.value !== "decal");
+const WALL_VISIBILITY = [{ value: "visible", label: "Visible" }, { value: "hidden", label: "Hidden" }];
+/** What the choice writes: how much brighter the light gets above its steady level, per `TileLight.flicker` / `pulse`. */
+const FLICKER_AMOUNT = FIRE_FLICKER;
+const PULSE_AMOUNT = PULSE_GLOW;
+const LIGHT_MOTIONS = [{ value: "flicker", label: "Flicker" }, { value: "pulse", label: "Pulse" }];
+
+/** Bright or dim feet, held to the rules' range and never both zero (a light with no reach is nothing). */
+function setReach(field: "bright" | "dim", raw: string | number): void {
+  const feet = Math.min(MAX_LIGHT_FEET, Math.max(0, Math.round(Number(raw))));
+  if (!Number.isFinite(feet)) return;
+  const other = field === "bright" ? props.light.dim : props.light.bright;
+  if (feet === 0 && other === 0) return;
+  emit("update:light", { [field]: feet });
+}
+
+/** Select picked a prop, a light or a wall run, so the slip shows that instead of a cell. */
+const selectedPicked = computed(() => props.selectedPlaced !== null || props.lightSelected || props.wallRun !== null || props.selectedGroundRegion != null);
 
 /** Tools with nothing to set: what a click does, in a line. */
 const HINTS: Record<Tool, string> = {
@@ -317,6 +502,8 @@ const HINTS: Record<Tool, string> = {
   terrain: "Paint water over the floor; a cell with no floor gets one. Shift+click draws a straight line from the last cell. Alt erases the water and keeps the floor.",
   eraser: "Drag to take out floor, walls and objects.",
   wall: "",
+  angledWall: "",
+  light: "",
   door: "Click a wall edge to add a door; click a door to open or close it. Right-click removes it.",
   solid: "Paint thick, full-cell rock. Shift+click draws a straight line from the last cell. Alt erases.",
   place: "",
@@ -326,7 +513,6 @@ const HINTS: Record<Tool, string> = {
   wrap: "Click a floor region to wall every edge that faces empty space.",
   annotate: "",
   link: "",
-  space: "Click a floor region to claim it. Its name, ways out and links show in the Spaces drawer.",
   template: "",
   brush: "",
 };

@@ -230,7 +230,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // A fired or dismissed consequence moves the runtime the DM is running, and
   // get_player_visible_quest_beats reads it for the players' story so far.
   ["quest_consequence_events", ["quest_consequence_events", RUNTIME_CONTEXT_KEY, BEATS_KEY, TRANSITIONS_KEY]],
-  ["encounters", ["encounters", QUEST_BOARD_KEY, "session-learned"]],
+  ["encounters", ["encounters", QUEST_BOARD_KEY, "session-learned", "prepared-encounters"]],
   ["loot_tables", ["loot_tables"]],
   ["roll_tables", ["roll_tables"]],
   ["dungeon_maps", ["dungeon_maps"]],
@@ -263,6 +263,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions", PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   // A place's map: the DM's site views, and the players' site state.
   ["location_doors", ["location-doors", "site-doors", "player-visible-site-state"]],
+  // What the party has seen of a place's map, shared by exploring and every fight on it.
+  ["map_memory", ["map-memory", "map-doors"]],
   ["location_map_regions", ["location-map-regions", "player-visible-site-state"]],
   // Quest wiring. get_player_visible_quest_beats reads all three of edges,
   // attachments and refs for the players' story so far.
@@ -331,7 +333,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // projection — refresh both, or a shop stocked mid-session lists "Unknown item".
   ["store_items", ["store-items", "items", CONNECTIONS_KEY]],
   // A fight's session label feeds the session log's facts and learned moments.
-  ["encounter_state", ["session-facts", "session-learned"]],
+  // A fight going live or ending changes which prepared encounters the Explore screen may offer (#1133).
+  ["encounter_state", ["session-facts", "session-learned", "prepared-encounters"]],
   // A shared handout (#970). Documents ring instead of subscribing: they are
   // large, most are DM-only drafts, and the editor autosaves, so the trigger
   // (20261004105821) rings only when a document a player holds changes. Only

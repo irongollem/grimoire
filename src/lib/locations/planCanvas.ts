@@ -12,6 +12,7 @@
 
 import { cellFractionSize, cellRectInImageFractions, gridExtent } from "@/lib/locations/gridCalibration";
 import { edgeSegment } from "@/lib/locations/planSvg";
+import { drawnRing, enclosingRing, tracePath, usableRing } from "@/lib/locations/regionShape";
 import { ZONE_KIND_FILL } from "@/lib/locations/zones";
 import { isNearFirstNode } from "@/lib/map/gestures/pen";
 import { cellKey, type CellKey } from "@/types/dungeonMap.types";
@@ -167,13 +168,28 @@ export function drawSpacesPass(
         ? opts.partyRoomId !== null && region.space_location_id === opts.partyRoomId
         : region.id === opts.activeRegionId;
 
+    // A room found from the walls is drawn along its own outline; squares are what is left underneath.
+    const ring = drawnRing(region, cellsOverride);
+
     ctx.fillStyle = regionFillColor(region, opts);
-    for (const key of cells) {
-      const rect = cellRectInImageFractions(key, cal, w, h);
-      ctx.fillRect(rect.x * canvasWidth, rect.y * canvasHeight, rect.w * canvasWidth, rect.h * canvasHeight);
+    if (ring) {
+      ctx.beginPath();
+      tracePath(ctx, ring.map(pointToCanvas));
+      ctx.fill();
+    } else {
+      for (const key of cells) {
+        const rect = cellRectInImageFractions(key, cal, w, h);
+        ctx.fillRect(rect.x * canvasWidth, rect.y * canvasHeight, rect.w * canvasWidth, rect.h * canvasHeight);
+      }
     }
 
-    if (isHighlighted) {
+    if (isHighlighted && ring) {
+      ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      tracePath(ctx, ring.map(pointToCanvas));
+      ctx.stroke();
+    } else if (isHighlighted) {
       ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
       ctx.lineWidth = 2;
       for (const key of cells) {
@@ -186,11 +202,10 @@ export function drawSpacesPass(
       }
     }
 
-    if (region.vertices) {
-      // A pen-traced region always shows its own polygon outline, not the
-      // stepped cell boundary — otherwise a diagonal wall (the Nave's apse,
-      // frame 12) reads as a staircase of cell corners.
-      drawPersistedRingOutline(ctx, pointToCanvas, region.vertices);
+    if (ring) {
+      // A region with an outline (pen-traced, or found from the walls) always shows it, not the stepped cell
+      // boundary, otherwise a diagonal or curved wall reads as a staircase of cell corners.
+      drawPersistedRingOutline(ctx, pointToCanvas, ring);
     }
   }
 }
@@ -304,6 +319,7 @@ export function drawZonesPass(
   regions: readonly LocationMapRegion[],
   activeRegionId: string | null,
   dpr: number,
+  pointToCanvas: PointToCanvas,
   cellsOverride?: ReadonlyMap<string, readonly CellKey[]>,
 ): void {
   const { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth, canvasHeight } = geometry;
@@ -312,34 +328,60 @@ export function drawZonesPass(
     if (region.region_role !== "zone" || !region.zone_kind) continue;
     const cells = cellsOverride?.get(region.id) ?? region.cells;
     const { fill, stroke: strokeColor } = ZONE_KIND_FILL[region.zone_kind];
+    const ring = drawnRing(region, cellsOverride);
+    const ringPoints = ring ? ring.map(pointToCanvas) : null;
+    // A zone painted by cells that lies inside a room is cut to that room's outline.
+    const clip = ringPoints ? null : enclosingRing(cells, region, regions);
+
+    ctx.save();
+    if (clip) {
+      ctx.beginPath();
+      tracePath(ctx, clip.map(pointToCanvas));
+      ctx.clip();
+    }
 
     ctx.fillStyle = fill;
-    for (const key of cells) {
-      const rect = cellRectInImageFractions(key, cal, w, h);
-      ctx.fillRect(rect.x * canvasWidth, rect.y * canvasHeight, rect.w * canvasWidth, rect.h * canvasHeight);
+    if (ringPoints) {
+      ctx.beginPath();
+      tracePath(ctx, ringPoints);
+      ctx.fill();
+    } else {
+      for (const key of cells) {
+        const rect = cellRectInImageFractions(key, cal, w, h);
+        ctx.fillRect(rect.x * canvasWidth, rect.y * canvasHeight, rect.w * canvasWidth, rect.h * canvasHeight);
+      }
     }
 
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([7, 5]);
-    for (const key of cells) {
-      const rect = cellRectInImageFractions(key, cal, w, h);
-      ctx.strokeRect(rect.x * canvasWidth, rect.y * canvasHeight, rect.w * canvasWidth, rect.h * canvasHeight);
+    if (ringPoints) {
+      ctx.beginPath();
+      tracePath(ctx, ringPoints);
+      ctx.stroke();
+    } else {
+      for (const key of cells) {
+        const rect = cellRectInImageFractions(key, cal, w, h);
+        ctx.strokeRect(rect.x * canvasWidth, rect.y * canvasHeight, rect.w * canvasWidth, rect.h * canvasHeight);
+      }
     }
     ctx.setLineDash([]);
 
     if (region.id === activeRegionId) {
       ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
       ctx.lineWidth = 2;
-      for (const key of cells) {
-        const rect = cellRectInImageFractions(key, cal, w, h);
-        const x = rect.x * canvasWidth;
-        const y = rect.y * canvasHeight;
-        const cw = rect.w * canvasWidth;
-        const ch = rect.h * canvasHeight;
-        ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
+      if (ringPoints) {
+        ctx.beginPath();
+        tracePath(ctx, ringPoints);
+        ctx.stroke();
+      } else {
+        for (const key of cells) {
+          const rect = cellRectInImageFractions(key, cal, w, h);
+          ctx.strokeRect(rect.x * canvasWidth + 1, rect.y * canvasHeight + 1, rect.w * canvasWidth - 2, rect.h * canvasHeight - 2);
+        }
       }
     }
+    ctx.restore();
 
     if (cells.length) {
       let sx = 0;
@@ -376,25 +418,35 @@ export function drawZonesPass(
 export function drawFogPass(
   ctx: CanvasRenderingContext2D,
   geometry: RenderGeometry,
-  glimpsedCellGroups: readonly (readonly CellKey[])[],
+  glimpsed: readonly { cells: readonly CellKey[]; vertices?: readonly GridPoint[] | null }[],
+  pointToCanvas: PointToCanvas,
 ): void {
   const { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth, canvasHeight } = geometry;
   const FOG_FILL = "rgba(11, 9, 7, 0.55)";
   const FOG_OUTLINE = "rgba(180, 165, 140, 0.34)";
 
-  for (const cells of glimpsedCellGroups) {
+  for (const { cells, vertices } of glimpsed) {
     ctx.fillStyle = FOG_FILL;
     ctx.strokeStyle = FOG_OUTLINE;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 5]);
-    for (const key of cells) {
-      const rect = cellRectInImageFractions(key, cal, w, h);
-      const x = rect.x * canvasWidth;
-      const y = rect.y * canvasHeight;
-      const cw = rect.w * canvasWidth;
-      const ch = rect.h * canvasHeight;
-      ctx.fillRect(x, y, cw, ch);
-      ctx.strokeRect(x, y, cw, ch);
+    // A room with an outline is fogged along it, so a curved room's fog has a curved edge.
+    const ring = usableRing(vertices);
+    if (ring) {
+      ctx.beginPath();
+      tracePath(ctx, ring.map(pointToCanvas));
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      for (const key of cells) {
+        const rect = cellRectInImageFractions(key, cal, w, h);
+        const x = rect.x * canvasWidth;
+        const y = rect.y * canvasHeight;
+        const cw = rect.w * canvasWidth;
+        const ch = rect.h * canvasHeight;
+        ctx.fillRect(x, y, cw, ch);
+        ctx.strokeRect(x, y, cw, ch);
+      }
     }
     ctx.setLineDash([]);
   }

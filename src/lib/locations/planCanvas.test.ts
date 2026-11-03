@@ -37,7 +37,7 @@ function createRecordingCtx(): { ctx: CanvasRenderingContext2D; calls: string[] 
     });
   }
 
-  for (const method of ["fillRect", "strokeRect", "beginPath", "moveTo", "lineTo", "closePath", "stroke", "fill", "setLineDash", "fillText"] as const) {
+  for (const method of ["fillRect", "strokeRect", "beginPath", "moveTo", "lineTo", "closePath", "stroke", "fill", "setLineDash", "fillText", "save", "restore", "clip"] as const) {
     (ctx as unknown as Record<string, (...args: unknown[]) => void>)[method] = (...args: unknown[]) => {
       calls.push(`${method}(${args.map(round).join(",")})`);
     };
@@ -45,6 +45,9 @@ function createRecordingCtx(): { ctx: CanvasRenderingContext2D; calls: string[] 
 
   return { ctx, calls };
 }
+
+/** Grid point to canvas pixel for GEOMETRY below: four cells across a 400px canvas, so one cell is 100px. */
+const POINT = (p: readonly [number, number]): { x: number; y: number } => ({ x: p[0] * 100, y: p[1] * 100 });
 
 const CALIBRATION: GridCalibration = {
   cells_per_image_width: 4,
@@ -192,7 +195,8 @@ describe("drawSpacesPass", () => {
     });
     drawSpacesPass(ctx, GEOMETRY, [region], opts, identityPointToCanvas);
     expect(calls).toContain("strokeStyle=rgba(74, 222, 128, 0.8)");
-    expect(calls.filter((c) => c.startsWith("closePath"))).toHaveLength(1);
+    // One closed path for the fill, one for the outline stroke.
+    expect(calls.filter((c) => c.startsWith("closePath"))).toHaveLength(2);
   });
 
   it("draws an in-flight stroke's cells instead of the region's own", () => {
@@ -229,7 +233,7 @@ describe("drawZonesPass", () => {
   it("fills, dashes, and labels a zone", () => {
     const { ctx, calls } = createRecordingCtx();
     const zone = makeRegion({ region_role: "zone", zone_kind: "hazard", cells: ["0,0", "1,0"], label: "Ash" });
-    drawZonesPass(ctx, GEOMETRY, [zone], null, 1);
+    drawZonesPass(ctx, GEOMETRY, [zone], null, 1, POINT);
     expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(2);
     // Dashed stroke set, then cleared.
     expect(calls.some((c) => c.startsWith("setLineDash(7,5)"))).toBe(true);
@@ -248,6 +252,7 @@ describe("drawZonesPass", () => {
       ],
       null,
       1,
+      POINT,
     );
     expect(calls.some((c) => c.startsWith("fillText(HAZARD"))).toBe(true);
     expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(1);
@@ -256,7 +261,7 @@ describe("drawZonesPass", () => {
   it("adds the active-region highlight box on top", () => {
     const { ctx, calls } = createRecordingCtx();
     const zone = makeRegion({ id: "z1", region_role: "zone", zone_kind: "hazard", cells: ["0,0"] });
-    drawZonesPass(ctx, GEOMETRY, [zone], "z1", 1);
+    drawZonesPass(ctx, GEOMETRY, [zone], "z1", 1, POINT);
     expect(calls).toContain("strokeStyle=rgba(96, 165, 250, 0.9)");
   });
 
@@ -271,6 +276,7 @@ describe("drawZonesPass", () => {
       ],
       "z1",
       1,
+      POINT,
     );
     // Each zone's own dashed box (2) plus one highlight box on z1 (1).
     expect(calls.filter((c) => c.startsWith("strokeRect"))).toHaveLength(3);
@@ -362,7 +368,7 @@ describe("drawWaysPass", () => {
 describe("drawFogPass", () => {
   it("covers every glimpsed cell with fog and an outline, and leaves the dash cleared", () => {
     const { ctx, calls } = createRecordingCtx();
-    drawFogPass(ctx, GEOMETRY, [["0,0", "1,0"], ["3,3"]]);
+    drawFogPass(ctx, GEOMETRY, [{ cells: ["0,0", "1,0"] }, { cells: ["3,3"] }], POINT);
     expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(3);
     expect(calls.filter((c) => c.startsWith("strokeRect"))).toHaveLength(3);
     expect(calls[calls.length - 1]).toBe("setLineDash()");
@@ -370,7 +376,7 @@ describe("drawFogPass", () => {
 
   it("draws nothing when nothing is glimpsed", () => {
     const { ctx, calls } = createRecordingCtx();
-    drawFogPass(ctx, GEOMETRY, []);
+    drawFogPass(ctx, GEOMETRY, [], POINT);
     expect(calls).toHaveLength(0);
   });
 });
@@ -445,5 +451,49 @@ describe("drawTemplatePreview", () => {
     expect(calls).toContain("fillStyle=rgba(167, 139, 250, 0.22)");
     expect(calls).toContain("fill()");
     expect(calls).toContain("stroke()");
+  });
+});
+
+describe("regions drawn along their outline", () => {
+  const ring: [number, number][] = [[0, 0], [2, 0], [1, 2]];
+
+  it("a room found from the walls fills its outline, not its squares, so a curved wall is not a staircase", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawSpacesPass(ctx, GEOMETRY, [makeRegion({ cells: ["0,0", "1,0", "1,1"], vertices: ring })], { mode: "browse", activeRegionId: null, partyRoomId: null, reachableRoomIds: null }, POINT);
+    expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(0);
+    expect(calls).toContain("moveTo(0,0)");
+    expect(calls).toContain("lineTo(200,0)");
+    expect(calls).toContain("lineTo(100,200)");
+    expect(calls).toContain("fill()");
+  });
+
+  it("a room whose squares are being painted right now falls back to the squares in flight", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawSpacesPass(ctx, GEOMETRY, [makeRegion({ id: "r", cells: ["0,0"], vertices: ring })], { mode: "browse", activeRegionId: null, partyRoomId: null, reachableRoomIds: null }, POINT, new Map([["r", ["3,3"]]]));
+    expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(1);
+  });
+
+  it("a zone painted by squares inside a room is clipped to the room's outline", () => {
+    const { ctx, calls } = createRecordingCtx();
+    const room = makeRegion({ id: "room", cells: ["0,0", "1,0"], vertices: [[0, 0], [3, 0], [3, 3], [0, 3]] });
+    const zone = makeRegion({ id: "z", region_role: "zone", zone_kind: "hazard", cells: ["1,1"] });
+    drawZonesPass(ctx, GEOMETRY, [room, zone], null, 1, POINT);
+    expect(calls).toContain("clip()");
+    expect(calls.indexOf("clip()")).toBeLessThan(calls.findIndex((c) => c.startsWith("fillRect")));
+  });
+
+  it("a zone that is not inside any room's outline is not clipped", () => {
+    const { ctx, calls } = createRecordingCtx();
+    const room = makeRegion({ id: "room", cells: ["0,0"], vertices: [[0, 0], [1, 0], [1, 1], [0, 1]] });
+    const zone = makeRegion({ id: "z", region_role: "zone", zone_kind: "hazard", cells: ["2,2"] });
+    drawZonesPass(ctx, GEOMETRY, [room, zone], null, 1, POINT);
+    expect(calls).not.toContain("clip()");
+  });
+
+  it("an unexplored room with an outline is fogged along it", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawFogPass(ctx, GEOMETRY, [{ cells: ["0,0"], vertices: ring }], POINT);
+    expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(0);
+    expect(calls).toContain("lineTo(100,200)");
   });
 });

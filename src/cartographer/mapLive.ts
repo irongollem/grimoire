@@ -4,15 +4,21 @@
 // own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use). Doors carry
 // their leaf art and hinge too, so the battle map can draw each at the state the DM sets in play.
 
-import type { DungeonMap, CellKey, FloorCell } from "@/types/dungeonMap.types";
-import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveDoorState, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
+import { groundContains, groundLoops, orderedGround } from "./groundRegions";
+import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
+import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveWall, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { dressingCentre, dressingDrawOrder, type DressingCatalog } from "@/cartographer/dressing";
 import { dressingSway, objectSway, phaseAt } from "@/cartographer/sway";
 import { gatherLightSources } from "@/cartographer/drawLights";
 import { doorLeafArt } from "@/cartographer/doorLeaf";
-import { collectOcclusion, toImageCell } from "@/cartographer/mapOcclusion";
+import { collectOcclusion, latticeOcclusionSegment, toImageCell } from "@/cartographer/mapOcclusion";
+import { edgeSegOf, isLatticeKey } from "@/cartographer/wallGraph";
 import { cellKey } from "@/types/dungeonMap.types";
+import type { WallSegment } from "@/lib/battlemap/walls";
+
+/** All a snapshot reads of a map: the editor builds one from its live layers, with no saved row behind them. */
+export type MapLiveSource = Pick<DungeonMap, "layers" | "darkness">;
 
 function groupByPack(
   cells: Record<CellKey, { pack_id: string }>,
@@ -36,7 +42,7 @@ function groupByPack(
  * calibration stores.
  */
 export function buildMapLive(
-  map: DungeonMap,
+  map: MapLiveSource,
   runtimes: Map<string, TilePackRuntime>,
   dressing: DressingCatalog,
   originCellX: number,
@@ -46,9 +52,23 @@ export function buildMapLive(
   const overlaysOf = (packId: string, key: "terrainWater" | "solidBlock"): MotionOverlay[] =>
     runtimes.get(packId)?.manifest.motion?.[key] ?? [];
 
-  for (const [packId, cells] of groupByPack(map.layers.terrain, originCellX, originCellY)) {
-    groups.push({ kind: "water", cells, overlays: overlaysOf(packId, "terrainWater") });
-  }
+  const regions = orderedGround(map.layers);
+  const imageLoops = (loops: ReturnType<typeof groundLoops>) => loops.map((loop) => loop.map(([x, y]): [number, number] => [x - originCellX, y - originCellY]));
+  const solidLoops: [number, number][][] = Object.keys(map.layers.solidBlock).map((key) => {
+    const [x, y] = key.split(",").map(Number);
+    return [[x - originCellX, y - originCellY], [x + 1 - originCellX, y - originCellY], [x + 1 - originCellX, y + 1 - originCellY], [x - originCellX, y + 1 - originCellY]];
+  });
+  regions.forEach(([, region], index) => {
+    if (region.category !== "terrainWater") return;
+    const cells = Object.entries(map.layers.terrain).filter(([key, ref]) => {
+      const [x, y] = key.split(",").map(Number);
+      return ref.pack_id === region.material.pack_id && groundContains(region, x + 0.5, y + 0.5);
+    }).map(([key]) => toImageCell(key as CellKey, originCellX, originCellY));
+    groups.push({ kind: "water", cells, overlays: overlaysOf(region.material.pack_id, "terrainWater"), clip: {
+      outline: imageLoops(groundLoops(region)),
+      occluded: [...regions.slice(index + 1).map(([, above]) => imageLoops(groundLoops(above))), ...solidLoops.map((loop) => [loop])],
+    } });
+  });
   for (const [packId, cells] of groupByPack(map.layers.solidBlock, originCellX, originCellY)) {
     const overlays = overlaysOf(packId, "solidBlock");
     if (overlays.length > 0) groups.push({ kind: "outer", cells, overlays });
@@ -68,17 +88,20 @@ export function buildMapLive(
     }),
   );
 
-  const { doors: doorStates, ...occlusion } = collectOcclusion(map.layers, originCellX, originCellY);
+  const { walls, doors: doorSegments, solid } = collectOcclusion(map.layers, originCellX, originCellY);
   return {
     version: MAP_LIVE_VERSION,
     darkness: map.darkness,
     groups,
     lights,
     sprites: gatherSprites(map, runtimes, dressing, originCellX, originCellY),
-    ...occlusion,
-    doors: gatherDoors(map, doorStates, runtimes, originCellX, originCellY),
+    walls: walls.map(toMapLiveWall),
+    doors: gatherDoors(map, doorSegments, runtimes, originCellX, originCellY),
+    solid,
   };
 }
+
+const toMapLiveWall = ({ id, a, b }: WallSegment): MapLiveWall => ({ id, a: [a[0], a[1]], b: [b[0], b[1]] });
 
 /**
  * Each door's state with its leaf art, matched to its seg by edge key (the same keys `collectOcclusion` writes). The
@@ -86,20 +109,19 @@ export function buildMapLive(
  * `omitLive` plus these leaves shows every door exactly once.
  */
 function gatherDoors(
-  map: DungeonMap,
-  states: MapLiveDoorState[],
+  map: Pick<DungeonMap, "layers">,
+  doors: (WallSegment & { open: boolean })[],
   runtimes: Map<string, TilePackRuntime>,
   originCellX: number,
   originCellY: number,
 ): MapLiveDoor[] {
   const leaves = new Map<string, MapLiveDoorLeaf | null>();
-  for (const [key, cell] of Object.entries(map.layers.floor) as [CellKey, FloorCell][]) {
-    const at = toImageCell(key, originCellX, originCellY);
-    for (const [side, seg] of [["N", cell.wallN], ["W", cell.wallW]] as const) {
-      if (seg) leaves.set(`${at}:${side}`, doorLeafArt(seg, runtimes.get(seg.pack_id) ?? null));
-    }
+  for (const [key, wall] of Object.entries(map.layers.walls)) {
+    // An angled door has no leaf the live layer can turn to its line, so the bake keeps drawing it.
+    if (!isLatticeKey(key)) continue;
+    leaves.set(latticeOcclusionSegment(key, originCellX, originCellY).id, doorLeafArt(edgeSegOf(wall), runtimes.get(wall.pack_id) ?? null));
   }
-  return states.map((state) => ({ ...state, leaf: leaves.get(state.edge) ?? null }));
+  return doors.map((door) => ({ ...toMapLiveWall(door), open: door.open, leaf: leaves.get(door.id) ?? null }));
 }
 
 /**
@@ -108,7 +130,7 @@ function gatherDoors(
  * Standing objects in row-major order (the order the bake paints them), then Dressing by z.
  */
 function gatherSprites(
-  map: DungeonMap,
+  map: Pick<DungeonMap, "layers">,
   runtimes: Map<string, TilePackRuntime>,
   dressing: DressingCatalog,
   originCellX: number,

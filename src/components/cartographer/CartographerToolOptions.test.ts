@@ -20,6 +20,7 @@ function mountOptions(over: Record<string, unknown> = {}) {
       linkedNoteId: "", linkedEncounterId: "", linkedTrapId: "", linkedFeatureId: "",
       noteOptions: [], encounterOptions: [], trapOptions: [], featureOptions: [],
       activeTemplateShape: "circle", templateShapes: [], brushRadius: 1.5, rectWalls: true,
+      light: { color: "#ffb347", bright: 20, dim: 20 }, lightSelected: false, wallRun: null, wallRefusal: null,
       ...over,
     },
     global: { stubs: { EntityCombobox: true } },
@@ -54,6 +55,49 @@ describe("rectangle walls option", () => {
     expect(wrapper.text()).toContain("Shift makes it square");
     await box.setValue(false);
     expect(wrapper.emitted("update:rectWalls")?.[0]).toEqual([false]);
+  });
+});
+
+describe("material shape options", () => {
+  const oasis = { id: "oasis", name: "Water oasis", walls: { mode: "none" } };
+
+  it("shows the selected shape instead of the cell summary and forwards wall edits and deletion", async () => {
+    const wrapper = mountOptions({ activeTool: "select", selectedGroundRegion: oasis });
+    expect((wrapper.get('input[aria-label="Shape name"]').element as HTMLInputElement).value).toBe("Water oasis");
+    expect(wrapper.text()).not.toContain("Click a cell");
+    await button(wrapper, "Hidden").trigger("click");
+    expect(wrapper.emitted("update:groundWallMode")?.[0]).toEqual(["hidden"]);
+    await button(wrapper, "Delete shape").trigger("click");
+    expect(wrapper.emitted("deleteGroundRegion")).toHaveLength(1);
+    await wrapper.get('input[aria-label="Shape name"]').setValue("Moonwell");
+    expect(wrapper.emitted("update:groundName")?.at(-1)).toEqual(["Moonwell"]);
+  });
+
+  it("forwards brush mode and wall settings while naming the selected extension target", async () => {
+    const wrapper = mountOptions({ activeTool: "brush", selectedGroundRegion: oasis, brushRegionMode: "extend", brushWallMode: "none" });
+    expect(wrapper.text()).toContain("Extending: Water oasis");
+    await button(wrapper, "New shape").trigger("click");
+    expect(wrapper.emitted("update:brushRegionMode")?.[0]).toEqual(["new"]);
+    await button(wrapper, "Visible").trigger("click");
+    expect(wrapper.emitted("update:brushWallMode")?.[0]).toEqual(["visible"]);
+  });
+});
+
+describe("physical wall visibility", () => {
+  it.each(["wall", "angledWall"])("exposes visible and hidden creation for %s", async (activeTool) => {
+    const wrapper = mountOptions({ activeTool, wallVisible: true });
+    expect(button(wrapper, "Visible").attributes("aria-pressed")).toBe("true");
+    await button(wrapper, "Hidden").trigger("click");
+    expect(wrapper.emitted("update:wallVisible")?.[0]).toEqual([false]);
+  });
+
+  it("changes the selected physical wall visibility without reselecting a tool or deleting it", async () => {
+    const wrapper = mountOptions({ activeTool: "select", wallRun: { bones: 3, nodes: 4, doors: 0 }, selectedWallVisible: false });
+    expect(button(wrapper, "Hidden").attributes("aria-pressed")).toBe("true");
+    await button(wrapper, "Visible").trigger("click");
+    expect(wrapper.emitted("update:selectedWallVisible")?.[0]).toEqual([true]);
+    expect(wrapper.emitted("update:activeTool")).toBeUndefined();
+    expect(wrapper.emitted("deleteWallRun")).toBeUndefined();
   });
 });
 
@@ -201,5 +245,117 @@ describe("link, room and brush options", () => {
     expect(wrapper.text()).toContain("15 ft across");
     await wrapper.find("input[type=range]").setValue("2.5");
     expect(wrapper.emitted("update:brushRadius")).toEqual([[2.5]]);
+  });
+});
+
+describe("the family grid", () => {
+  const TOOLS = [
+    { id: "brush", label: "Brush", icon: {}, shortcut: "b" },
+    { id: "rect", label: "Rectangle", icon: {}, shortcut: "r" },
+  ];
+
+  it("lists the family's tools with their keys and reports a pick", async () => {
+    const wrapper = mountOptions({ title: "Draw", activeTool: "brush", familyTools: TOOLS });
+    const grid = wrapper.find('[aria-label="Draw tools"]');
+    expect(grid.text()).toContain("B");
+    await grid.findAll("button")[1]!.trigger("click");
+    expect(wrapper.emitted("update:activeTool")?.[0]).toEqual(["rect"]);
+  });
+
+  it("draws no grid for a family of one tool", () => {
+    const wrapper = mountOptions({ title: "Things", activeTool: "place", familyTools: [TOOLS[0]] });
+    expect(wrapper.find('[aria-label="Things tools"]').exists()).toBe(false);
+  });
+});
+
+describe("angled wall options (#1125 story 5)", () => {
+  it("offers the kinds an angled wall can be, without Decal, and says how a run ends", async () => {
+    const wrapper = mountOptions({ title: "Walls", activeTool: "angledWall" });
+    for (const label of ["Wall", "Grate", "Sluice"]) expect(button(wrapper, label).exists()).toBe(true);
+    expect(wrapper.findAll("button").some((b) => b.text() === "Decal")).toBe(false);
+    expect(wrapper.text()).toContain("Enter or a double-click ends the run");
+    await button(wrapper, "Grate").trigger("click");
+    expect(wrapper.emitted("update:activeWallKind")?.[0]).toEqual(["grate"]);
+  });
+});
+
+describe("light options (#1125 story 5)", () => {
+  const lightProps = { title: "Things", activeTool: "light" };
+  const field = (wrapper: ReturnType<typeof mountOptions>, label: string) =>
+    wrapper.find(`input[aria-label="${label}"]`);
+
+  it("shows the colour and reach of what the next light will be", () => {
+    const wrapper = mountOptions(lightProps);
+    expect((field(wrapper, "Light colour").element as HTMLInputElement).value).toBe("#ffb347");
+    expect((field(wrapper, "Bright light, in feet").element as HTMLInputElement).value).toBe("20");
+    expect((field(wrapper, "Dim light, in feet").element as HTMLInputElement).value).toBe("20");
+  });
+
+  it("emits a colour change as a patch", async () => {
+    const wrapper = mountOptions(lightProps);
+    await field(wrapper, "Light colour").setValue("#00ff00");
+    expect(wrapper.emitted("update:light")?.[0]).toEqual([{ color: "#00ff00" }]);
+  });
+
+  it("holds a reach to the rules' 60 feet", async () => {
+    const wrapper = mountOptions(lightProps);
+    await field(wrapper, "Bright light, in feet").setValue("200");
+    await field(wrapper, "Bright light, in feet").trigger("change");
+    expect(wrapper.emitted("update:light")?.[0]).toEqual([{ bright: 60 }]);
+  });
+
+  it("refuses to take both radii to zero, which would be a light that lights nothing", async () => {
+    const wrapper = mountOptions({ ...lightProps, light: { color: "#ffb347", bright: 0, dim: 20 } });
+    await field(wrapper, "Dim light, in feet").setValue("0");
+    await field(wrapper, "Dim light, in feet").trigger("change");
+    expect(wrapper.emitted("update:light")).toBeUndefined();
+  });
+
+  // Every light moves; the choice is how, and each choice writes one kind and clears the other.
+  it("switches a light between Flicker and Pulse, writing one and clearing the other", async () => {
+    const warm = mountOptions(lightProps);
+    await warm.findAll("button").find((b) => b.text() === "Pulse")!.trigger("click");
+    expect(warm.emitted("update:light")?.[0]).toEqual([{ pulse: 0.3, flicker: undefined }]);
+    const pulsing = mountOptions({ ...lightProps, light: { color: "#ffb347", bright: 20, dim: 20, pulse: 0.3 } });
+    await pulsing.findAll("button").find((b) => b.text() === "Flicker")!.trigger("click");
+    expect(pulsing.emitted("update:light")?.[0]).toEqual([{ flicker: 0.3, pulse: undefined }]);
+  });
+
+  it("offers Delete only while a placed light is picked", async () => {
+    expect(mountOptions(lightProps).findAll("button").some((b) => b.text() === "Delete")).toBe(false);
+    const picked = mountOptions({ ...lightProps, lightSelected: true });
+    await button(picked, "Delete").trigger("click");
+    expect(picked.emitted("deleteLight")).toHaveLength(1);
+  });
+});
+
+describe("Select shows what it picked", () => {
+  const select = { title: "Select", activeTool: "select" };
+
+  it("a picked light shows the light's colour, reach and Delete, not a cell summary", async () => {
+    const wrapper = mountOptions({ ...select, lightSelected: true, selectedCell: [1, 1] });
+    expect(wrapper.text()).toContain("Bright ft");
+    expect(wrapper.text()).not.toContain("Cell 1, 1");
+    await button(wrapper, "Delete").trigger("click");
+    expect(wrapper.emitted("deleteLight")).toHaveLength(1);
+  });
+
+  it("a picked prop shows its name and Delete, and no Catalogue button", async () => {
+    const wrapper = mountOptions({ ...select, catalogueOpen: false, selectedPlaced: { name: "Campfire", rotation: 0 } });
+    expect(wrapper.text()).toContain("Campfire");
+    expect(wrapper.findAll("button").some((b) => b.text() === "Catalogue")).toBe(false);
+    await button(wrapper, "Delete").trigger("click");
+    expect(wrapper.emitted("deleteSelected")).toHaveLength(1);
+  });
+
+  it("a picked wall run shows its counts and Delete", async () => {
+    const wrapper = mountOptions({ ...select, wallRun: { bones: 4, nodes: 4, doors: 1 } });
+    expect(wrapper.text()).toContain("Wall · 4 segments · 1 door");
+    await button(wrapper, "Delete").trigger("click");
+    expect(wrapper.emitted("deleteWallRun")).toHaveLength(1);
+  });
+
+  it("with nothing picked it shows the cell summary", () => {
+    expect(mountOptions({ ...select, selectedCell: [1, 1] }).text()).toContain("Cell 1, 1");
   });
 });

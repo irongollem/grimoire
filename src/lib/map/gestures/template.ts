@@ -26,7 +26,7 @@ import { cellKey } from "@/types/dungeonMap.types";
 
 // Not named/exported as its own type: `lib/locations/polygon.ts` already
 // owns the canonical `TemplateShape` union (consumed outside this story's
-// ownership, e.g. `SiteMapRegionList.vue`), and that module imports
+// ownership, e.g. `usePlanPalette.ts`), and that module imports
 // `cellsForTemplate` from here — naming a second `TemplateShape` here would
 // either duplicate that type or import it back, circularly, for a type only
 // used inline below.

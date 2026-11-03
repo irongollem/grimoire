@@ -1,0 +1,449 @@
+import { flushPromises, mount } from "@vue/test-utils";
+import { defineComponent } from "vue";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import PlayerEncounterMapView from "./PlayerEncounterMapView.vue";
+
+// A 1000px image of 20 cells is 50px a square at scale 1; the host sits at the page origin in jsdom.
+const h = vi.hoisted(() => ({
+  phone: true,
+  isMapLive: false,
+}));
+
+const calibration = { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0, grid_opacity: 0.4 };
+// A site with a map of its own, and a room inside it that has none (it is drawn on the site's plan).
+const mapPlace = { map_url: "map.png", grid_calibration: calibration, map_layer_url: null, map_layer_calibration: null, map_live: null, location_type: "region", parent_id: null };
+const places: Record<string, Record<string, unknown>> = {
+  "loc-1": { ...mapPlace, id: "loc-1" },
+  "room-1": { id: "room-1", location_type: "room", parent_id: "loc-1", map_url: null, grid_calibration: null, map_layer_url: null, map_layer_calibration: null, map_live: null },
+};
+const move = vi.hoisted(() => vi.fn());
+const toastError = vi.hoisted(() => vi.fn());
+const live = vi.hoisted(() => ({ value: null as unknown }));
+const table = vi.hoisted(() => ({ pings: { value: [] as unknown[] }, sendPing: vi.fn() }));
+const sightMock = vi.hoisted(() => ({
+  cells: new Set<string>(),
+  memory: new Set<string>(),
+  opts: null as null | { onlyInstanceId: () => string | null; grid: { value: unknown } | (() => unknown) },
+  memoryArgs: null as null | { campaign: string | null; place: string | null },
+  doorArgs: null as null | { campaign: string | null; place: string | null },
+  doors: [] as { id: string; open: boolean }[],
+  campaign: { id: "c1", battle_map_show_tokens: true, player_sight: "shared" } as Record<string, unknown>,
+  writers: vi.fn(),
+}));
+const canvas = vi.hoisted(() => ({ panX: null as unknown, panY: null as unknown, scale: null as unknown }));
+
+vi.mock("@/composables/encounters/useEncounterLive", async () => {
+  const { ref } = await import("vue");
+  live.value = ref(null);
+  return { liveState: live.value, updateCombatantPosition: move };
+});
+vi.mock("@/composables/table/useTableChannel", async () => {
+  const { ref } = await import("vue");
+  table.pings = ref<unknown[]>([]);
+  return { useTableChannel: () => ({ pings: table.pings, measures: ref([]), drawings: ref([]), sendPing: table.sendPing }) };
+});
+vi.mock("@/composables/encounters/useMapCanvas", async () => {
+  const { ref } = await import("vue");
+  canvas.panX = ref(0);
+  canvas.panY = ref(0);
+  canvas.scale = ref(1);
+  return {
+    useMapCanvas: () => ({
+      canvasHost: ref<HTMLElement | null>(null),
+      hostW: ref(400),
+      hostH: ref(600),
+      imageNaturalW: ref(1000),
+      imageNaturalH: ref(1000),
+      imageReady: ref(true),
+      panX: canvas.panX,
+      panY: canvas.panY,
+      scale: canvas.scale,
+      onImageLoad: vi.fn(),
+      onWheel: vi.fn(),
+      startPan: vi.fn(),
+      continuePan: vi.fn(),
+      endPan: vi.fn(),
+      resetView: vi.fn(),
+    }),
+  };
+});
+vi.mock("@/composables/locations/useLocations", async () => {
+  const { computed, unref } = await import("vue");
+  // The player-safe projection: only the place asked for, by id. No `is_battle_map`: a calibrated grid is enough to
+  // play (#1125 decision 14).
+  return {
+    usePlayerVisibleLocation: (id: unknown) => ({ data: computed(() => places[unref(id) as string] ?? null) }),
+  };
+});
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ linkedPartyMemberId: "m1" }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: sightMock.campaign }) }));
+vi.mock("@/composables/encounters/usePartySight", async () => {
+  const { computed } = await import("vue");
+  return {
+    usePartySight: (opts: typeof sightMock.opts) => {
+      sightMock.opts = opts;
+      return { viewers: computed(() => []), sight: computed(() => sightMock.cells) };
+    },
+  };
+});
+vi.mock("@/composables/locations/useMapDoors", async () => {
+  const { computed } = await import("vue");
+  return {
+    useMapDoors: (campaign: () => string | null, place: () => string | null) => {
+      sightMock.doorArgs = { campaign: campaign(), place: place() };
+      return { doorStates: computed(() => sightMock.doors), setDoor: sightMock.writers };
+    },
+  };
+});
+vi.mock("@/composables/locations/useMapMemory", async () => {
+  const { computed } = await import("vue");
+  return {
+    useMapMemory: (campaign: () => string | null, place: () => string | null) => {
+      sightMock.memoryArgs = { campaign: campaign(), place: place() };
+      return { memory: computed(() => sightMock.memory), remember: sightMock.writers, hide: sightMock.writers, forgetAll: sightMock.writers, replaceWith: sightMock.writers };
+    },
+  };
+});
+vi.mock("@/composables/party/useParty", async () => {
+  const { ref } = await import("vue");
+  return { useParty: () => ({ data: ref([{ id: "m1", speed: 30, species_id: null }]) }) };
+});
+vi.mock("@/composables/rules/useSpecies", async () => {
+  const { ref } = await import("vue");
+  return { useSpeciesByIds: () => ({ data: ref(new Map()) }) };
+});
+vi.mock("@/composables/encounters/useCombatantDollFigures", async () => {
+  const { ref } = await import("vue");
+  return { useCombatantDollFigures: () => ref(new Map()) };
+});
+vi.mock("@/composables/useBreakpoint", async () => {
+  const { computed } = await import("vue");
+  return { useIsMobile: () => computed(() => h.phone) };
+});
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ error: toastError, fromError: (_e: unknown, fallback: string) => fallback }),
+}));
+
+const Tokens = defineComponent({
+  props: ["onSelect", "onPositionChange", "onDragPreview", "draggableInstanceIds", "selectedInstanceIds", "combatants"],
+  template: `<div data-testid="tokens" />`,
+});
+const Fog = defineComponent({ props: ["mask", "seen", "opaque"], template: `<div data-testid="fog" />` });
+const Plain = defineComponent({ template: `<div />` });
+const Button = defineComponent({ props: ["label", "active"], template: `<button :data-active="active">{{ label }}</button>` });
+
+function combatant(id: string, name: string, x: number, y: number, extra: Record<string, unknown> = {}) {
+  return {
+    instance_id: id, party_member_id: id.startsWith("p-") ? id.slice(2) : undefined, name, type: id.startsWith("p-") ? "player" : "monster", faction_id: "f", hp: 24, max_hp: 31,
+    position: { x, y }, initiative: 10, reveal_state: "revealed", size: "medium", ...extra,
+  };
+}
+
+function setLive(activeId: string, locationId = "loc-1") {
+  (live.value as { value: unknown }).value = {
+    id: "enc-1", location_id: locationId, current_round: 3, active_combatant_index: 0, active_combatant_instance_id: activeId,
+    combatants_live: [combatant("p-m1", "Wren", 2, 2, { movement_used: 0 }), combatant("g1", "Goblin", 10, 10)],
+    magical_darkness: [], fog_mask: null, faction_colors: [],
+  };
+}
+
+// Every mounted view is torn down: they share the module-level live state, so a survivor would keep following it.
+const mounted: Array<{ unmount: () => void }> = [];
+afterEach(() => mounted.splice(0).forEach((w) => w.unmount()));
+
+function mountView() {
+  const wrapper = mount(PlayerEncounterMapView, {
+    global: {
+      stubs: {
+        BattleMapTokenLayer: Tokens,
+        BattleMapStack: Plain,
+        BattleMapFogLayer: Fog,
+        PlayerMapNav: defineComponent({ template: `<nav data-testid="map-nav" />` }),
+        RouterLink: Plain,
+        AppButton: Button,
+      },
+    },
+    attachTo: document.body,
+  });
+  mounted.push(wrapper);
+  return wrapper;
+}
+
+// Taps the middle of grid square (cx, cy) as the map is drawn right now: on a phone it has zoomed to 56px squares and
+// panned to the token, so the pixel for a square is read back from the pan and scale the view settled on.
+function tapSquare(wrapper: ReturnType<typeof mountView>, cx: number, cy: number) {
+  const cell = (canvas.scale as { value: number }).value * (1000 / 20);
+  return tap(wrapper, (canvas.panX as { value: number }).value + (cx + 0.5) * cell, (canvas.panY as { value: number }).value + (cy + 0.5) * cell);
+}
+
+function tap(wrapper: ReturnType<typeof mountView>, x: number, y: number) {
+  const host = wrapper.find(".map-canvas-host");
+  host.element.dispatchEvent(new PointerEvent("pointerdown", { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+  host.element.dispatchEvent(new PointerEvent("pointerup", { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+  return flushPromises();
+}
+
+beforeEach(() => {
+  h.phone = true;
+  sightMock.doors = [];
+  move.mockReset();
+  move.mockResolvedValue(undefined);
+  toastError.mockReset();
+  table.sendPing.mockReset();
+  table.pings.value = [];
+  (canvas.panX as { value: number }).value = 0;
+  (canvas.panY as { value: number }).value = 0;
+  (canvas.scale as { value: number }).value = 1;
+  setLive("p-m1");
+  sightMock.cells = new Set();
+  sightMock.memory = new Set();
+  sightMock.campaign = { id: "c1", battle_map_show_tokens: true, player_sight: "shared" };
+  sightMock.writers.mockReset();
+});
+
+describe("what the phone shows of the map (epic #1133)", () => {
+  const ids = (w: ReturnType<typeof mountView>) =>
+    (w.findComponent(Tokens).props("combatants") as Array<{ instance_id: string }>).map((c) => c.instance_id);
+
+  it("punches remembered squares and current sight out of the fog, and half-fogs the remembered ones", () => {
+    sightMock.memory = new Set(["1,1"]);
+    sightMock.cells = new Set(["2,2"]);
+    const fog = mountView().findComponent(Fog);
+    expect([...(fog.props("mask") as Set<string>)].sort()).toEqual(["1,1", "2,2"]);
+    expect([...(fog.props("seen") as Set<string>)]).toEqual(["2,2"]);
+    expect(fog.props("opaque")).toBe(true);
+  });
+
+  it("a monster the party cannot see is not drawn, and the player's own token always is", () => {
+    sightMock.cells = new Set();
+    expect(ids(mountView())).toEqual(["p-m1"]);
+  });
+
+  it("a monster standing on a square the party sees is drawn", () => {
+    sightMock.cells = new Set(["10,10"]);
+    expect(ids(mountView()).sort()).toEqual(["g1", "p-m1"]);
+  });
+
+  it("with tokens switched off for players nothing is drawn, whatever the party sees", () => {
+    sightMock.campaign = { id: "c1", battle_map_show_tokens: false, player_sight: "shared" };
+    sightMock.cells = new Set(["10,10"]);
+    expect(ids(mountView())).toEqual([]);
+  });
+
+  // A calibration like 29.9999 (a box calibration) must not make the grid's column count fractional: sight indexes
+  // row-major by `j * cols + i` and would read only row 0.
+  it("hands the sight a whole number of columns for a fractional calibration", () => {
+    places["loc-1"] = { ...mapPlace, id: "loc-1", grid_calibration: { ...calibration, cells_per_image_width: 29.9999 } };
+    try {
+      mountView();
+      const g = (sightMock.opts as { grid: { value: { cols: number; rows: number } } }).grid.value;
+      expect(g).toEqual({ cols: 30, rows: 30 });
+    } finally {
+      places["loc-1"] = { ...mapPlace, id: "loc-1" };
+    }
+  });
+
+  it("'shared' sight lets the whole party look; 'own' limits the look to the player's own token", () => {
+    mountView();
+    expect(sightMock.opts?.onlyInstanceId()).toBeNull();
+    sightMock.campaign = { id: "c1", battle_map_show_tokens: true, player_sight: "own" };
+    mountView();
+    expect(sightMock.opts?.onlyInstanceId()).toBe("p-m1");
+  });
+
+  // A fight in a room with no map of its own is drawn, and remembered, on its site's plan: the DM's screen writes the
+  // memory under the site, so reading it under the room would show the phone a map that never lifts.
+  it("reads the memory of the site's map for a fight set in a room without a map of its own", () => {
+    setLive("p-m1", "room-1");
+    const wrapper = mountView();
+    expect(sightMock.memoryArgs).toEqual({ campaign: "c1", place: "loc-1" });
+    expect(wrapper.find("[data-testid='fog']").exists()).toBe(true);
+  });
+
+  it("hands sight the doors of the map's own place, so a fight in a room sees the doors the site's plan holds", () => {
+    sightMock.doors = [{ id: "3,2:N", open: true }];
+    setLive("p-m1", "room-1");
+    mountView();
+    const opts = sightMock.opts as unknown as { doorStates: { value: unknown } };
+    expect(opts.doorStates.value).toEqual([{ id: "3,2:N", open: true }]);
+    expect(sightMock.doorArgs).toEqual({ campaign: "c1", place: "loc-1" });
+    expect(sightMock.writers).not.toHaveBeenCalled();
+  });
+
+  it("reads the memory of the map's place in this campaign and never writes it", () => {
+    mountView();
+    expect(sightMock.memoryArgs).toEqual({ campaign: "c1", place: "loc-1" });
+    expect(sightMock.writers).not.toHaveBeenCalled();
+  });
+});
+
+describe("the phone battle map", () => {
+  it("says 'Your turn' only on the player's own turn, and names whose turn it is otherwise", async () => {
+    const wrapper = mountView();
+    expect(wrapper.find("[data-testid=map-turn-title]").text()).toBe("Your turn");
+    setLive("g1");
+    await flushPromises();
+    expect(wrapper.find("[data-testid=map-turn-title]").text()).toBe("Goblin's turn");
+  });
+
+  it("opens with no is_battle_map flag: a calibrated grid is enough (#1125 decision 14)", () => {
+    const wrapper = mountView();
+    expect(wrapper.find(".empty-state").exists()).toBe(false);
+    expect(wrapper.find("[data-testid=tokens]").exists()).toBe(true);
+  });
+
+  it("lets only the player's own token be dragged or picked", () => {
+    const wrapper = mountView();
+    const tokens = wrapper.findComponent(Tokens);
+    expect([...(tokens.props("draggableInstanceIds") as Set<string>)]).toEqual(["p-m1"]);
+  });
+
+  it("a tap on a square before the token is picked does nothing", async () => {
+    const wrapper = mountView();
+    await tapSquare(wrapper, 6, 2);
+    expect(wrapper.find("[data-testid=map-move-sheet]").exists()).toBe(false);
+  });
+
+  it("tapping someone else's token does not pick it, so a tap after it asks nothing", async () => {
+    const wrapper = mountView();
+    (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("g1", false);
+    await tapSquare(wrapper, 6, 2);
+    expect(wrapper.find("[data-testid=map-move-sheet]").exists()).toBe(false);
+  });
+
+  it("own token then a square asks 'Move here?' with 20 of 30 ft", async () => {
+    const wrapper = mountView();
+    (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
+    await tapSquare(wrapper, 6, 2);
+    expect(wrapper.find("[data-testid=map-move-sheet]").text()).toContain("Move here?");
+    expect(wrapper.find("[data-testid=map-move-feet]").text()).toBe("20 of 30 ft");
+  });
+
+  it("Cancel leaves the token where it was", async () => {
+    const wrapper = mountView();
+    (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
+    await tapSquare(wrapper, 6, 2);
+    await wrapper.find("[data-testid=map-move-cancel]").trigger("click");
+    expect(move).not.toHaveBeenCalled();
+    expect(wrapper.find("[data-testid=map-move-sheet]").exists()).toBe(false);
+  });
+
+  it("Move sends the snapped square for this encounter and this token", async () => {
+    const wrapper = mountView();
+    (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
+    await tapSquare(wrapper, 6, 2);
+    await wrapper.find("[data-testid=map-move-confirm]").trigger("click");
+    await flushPromises();
+    expect(move).toHaveBeenCalledWith("enc-1", "p-m1", { x: 6, y: 2 });
+    expect(wrapper.find("[data-testid=map-move-sheet]").exists()).toBe(false);
+  });
+
+  it("a failed move says so and does not leave the sheet claiming it moved", async () => {
+    move.mockRejectedValue(new Error("nope"));
+    const wrapper = mountView();
+    (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
+    await tapSquare(wrapper, 6, 2);
+    await wrapper.find("[data-testid=map-move-confirm]").trigger("click");
+    await flushPromises();
+    expect(toastError).toHaveBeenCalledWith("Couldn't move your token.");
+  });
+
+  it("follows the active token when it is not the player's, centring it", async () => {
+    setLive("g1");
+    mountView();
+    await flushPromises();
+    // Zoomed to 56px squares, the goblin's middle (10.5, 10.5) sits at the middle of a 400x600 host.
+    expect((canvas.panX as { value: number }).value).toBeCloseTo(200 - 10.5 * 56);
+    expect((canvas.panY as { value: number }).value).toBeCloseTo(300 - 10.5 * 56);
+  });
+
+  it("Follow off leaves the map where the player put it", async () => {
+    setLive("g1");
+    const wrapper = mountView();
+    await flushPromises();
+    const before = (canvas.panX as { value: number }).value;
+    await wrapper.find("[data-testid=map-follow]").trigger("click");
+    (canvas.panX as { value: number }).value = 7;
+    // The goblin takes a step; with Follow off the map does not chase it.
+    const state = (live.value as { value: { combatants_live: Array<{ position: { x: number; y: number } }> } }).value;
+    state.combatants_live[1].position = { x: 14, y: 10 };
+    await flushPromises();
+    expect(before).not.toBe(7);
+    expect((canvas.panX as { value: number }).value).toBe(7);
+  });
+});
+
+describe("the tablet battle map", () => {
+  it("keeps the plain top bar and no phone nav, and confirms in an inline slip", async () => {
+    h.phone = false;
+    const wrapper = mountView();
+    expect(wrapper.find("[data-testid=map-turn-header]").exists()).toBe(false);
+    expect(wrapper.find("[data-testid=map-nav]").exists()).toBe(false);
+    (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
+    await tapSquare(wrapper, 6, 2);
+    expect(wrapper.find(".map-canvas-host [data-testid=map-move-sheet]").exists()).toBe(true);
+  });
+});
+
+describe("the table's pings on the player's map (#1125 decision 12)", () => {
+  // A player who cannot see the DM's ping is the whole bug: "look here" has to land on every screen.
+  it("shows a ping another member sent, with who sent it", async () => {
+    const wrapper = mountView();
+    table.pings.value = [{ id: 1, x: 3, y: 2, by: { id: "u9", name: "Ayla", color: "#e11d48" } }];
+    await flushPromises();
+    expect(wrapper.find("[data-testid=table-ping]").text()).toContain("Ayla pinged");
+  });
+
+  describe("a long press", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    const down = (wrapper: ReturnType<typeof mountView>, x: number, y: number) =>
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointerdown", { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+
+    it("pings the square under the finger once held for half a second", () => {
+      const wrapper = mountView();
+      const cell = (canvas.scale as { value: number }).value * (1000 / 20);
+      const x = (canvas.panX as { value: number }).value + 6.5 * cell;
+      const y = (canvas.panY as { value: number }).value + 2.5 * cell;
+      down(wrapper, x, y);
+      vi.advanceTimersByTime(499);
+      expect(table.sendPing).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(table.sendPing).toHaveBeenCalledTimes(1);
+      const [px, py] = table.sendPing.mock.calls[0];
+      expect(px).toBeCloseTo(6.5);
+      expect(py).toBeCloseTo(2.5);
+    });
+
+    it("a ping is not also a tap: lifting after it does not ask to move the picked token there", async () => {
+      const wrapper = mountView();
+      (wrapper.findComponent(Tokens).props("onSelect") as (id: string, add: boolean) => void)("p-m1", false);
+      const cell = (canvas.scale as { value: number }).value * (1000 / 20);
+      const x = (canvas.panX as { value: number }).value + 6.5 * cell;
+      const y = (canvas.panY as { value: number }).value + 2.5 * cell;
+      down(wrapper, x, y);
+      vi.advanceTimersByTime(500);
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointerup", { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+      await flushPromises();
+      expect(wrapper.find("[data-testid=map-move-sheet]").exists()).toBe(false);
+    });
+
+    it("does not ping when the finger drags to pan", () => {
+      const wrapper = mountView();
+      down(wrapper, 100, 100);
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointermove", { clientX: 140, clientY: 100, isPrimary: true, bubbles: true }));
+      vi.advanceTimersByTime(1000);
+      expect(table.sendPing).not.toHaveBeenCalled();
+    });
+
+    it("does not ping when the finger lifts before half a second (that is a tap)", () => {
+      const wrapper = mountView();
+      down(wrapper, 100, 100);
+      vi.advanceTimersByTime(300);
+      wrapper.find(".map-canvas-host").element.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, clientY: 100, isPrimary: true, bubbles: true }));
+      vi.advanceTimersByTime(1000);
+      expect(table.sendPing).not.toHaveBeenCalled();
+    });
+  });
+});

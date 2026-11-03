@@ -31,7 +31,6 @@
       mode="edit"
       show-hidden-pins
       compact
-      :location-id="location.id"
       @pin-click="emit('select', $event)"
     />
 

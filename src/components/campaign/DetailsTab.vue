@@ -132,28 +132,11 @@
       </div>
     </div>
 
-    <!-- Health Visibility -->
-    <div>
-      <label class="block text-label-lg font-semibold text-muted-foreground mb-2">HEALTH VISIBILITY</label>
-      <div class="flex flex-col gap-1.5">
-        <AppButton
-          v-for="opt in HEALTH_VIS_OPTIONS"
-          :key="opt.value"
-          variant="outline"
-          fill="muted"
-          size="md"
-          block
-          :active="form.health_visibility === opt.value"
-          @click="form.health_visibility = opt.value"
-        >
-          <div class="flex-1 min-w-0">
-            <span class="text-caption font-semibold text-foreground">{{ opt.label }}</span>
-            <p class="text-caption text-muted-foreground mt-0.5">{{ opt.desc }}</p>
-          </div>
-          <IconCheck v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
-        </AppButton>
-      </div>
-    </div>
+    <SettingChoiceList v-model="form.health_visibility" label="HEALTH VISIBILITY" :options="HEALTH_VIS_OPTIONS" />
+
+    <SettingChoiceList v-model="form.map_memory" label="MAP MEMORY" :options="MAP_MEMORY_OPTIONS" />
+
+    <SettingChoiceList v-model="form.player_sight" label="SIGHT" :options="PLAYER_SIGHT_OPTIONS" />
 
     <!-- Immersive Rolls -->
     <div>
@@ -201,7 +184,7 @@
 <script setup lang="ts">
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { ref, computed } from "vue";
-import { IconCheck, IconGenerate } from '@/lib/icons';
+import { IconGenerate } from '@/lib/icons';
 import ThemeSwatchButton from '@/components/common/settings/ThemeSwatchButton.vue';
 import { useTheme } from "@/composables/useTheme";
 import { useCampaignStore } from "@/stores/campaign";
@@ -212,6 +195,7 @@ import type { Campaign } from "@/types/campaign.types";
 import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/settings/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
+import SettingChoiceList from "@/components/campaign/SettingChoiceList.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -242,6 +226,16 @@ const HEALTH_VIS_OPTIONS = [
   { value: "unknown" as const, label: "Unknown", desc: "No health info shown for non-PCs." },
 ] as const;
 
+const MAP_MEMORY_OPTIONS = [
+  { value: "remembered" as const, label: "Remembered", desc: "What the party has seen stays on the map, shaded where they cannot see it now." },
+  { value: "strict" as const, label: "Strict", desc: "The map shows only what the party can see right now, and what you reveal by hand." },
+] as const;
+
+const PLAYER_SIGHT_OPTIONS = [
+  { value: "shared" as const, label: "Shared by the party", desc: "Every screen shows what any character can see. Best when everyone sits at one table." },
+  { value: "own" as const, label: "Each their own", desc: "A player's phone shows only what their own character can see. For online play." },
+] as const;
+
 function buildForm(c: Campaign | null) {
   return {
     name: c?.name ?? "",
@@ -251,6 +245,8 @@ function buildForm(c: Campaign | null) {
     climate: c?.climate ?? "temperate",
     theme: c?.theme ?? DEFAULT_THEME_ID,
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
+    map_memory: c?.map_memory ?? "remembered",
+    player_sight: c?.player_sight ?? "shared",
     immersive_rolls: c?.immersive_rolls ?? false,
     battle_map_show_tokens: c?.battle_map_show_tokens ?? true,
     custom_calendar: (c?.custom_calendar ?? null) as SettingCalendarDef | null,
@@ -273,6 +269,8 @@ const CONFLICT_LABELS: Record<keyof CampaignForm, string> = {
   climate: "Climate",
   theme: "Theme",
   health_visibility: "Health visibility",
+  map_memory: "Map memory",
+  player_sight: "Sight",
   immersive_rolls: "Immersive Rolls",
   battle_map_show_tokens: "VTT tokens",
   custom_calendar: "Custom calendar",
@@ -289,6 +287,8 @@ function campaignRow(f: CampaignForm) {
     climate: f.climate,
     theme: f.theme,
     health_visibility: f.health_visibility,
+    map_memory: f.map_memory,
+    player_sight: f.player_sight,
     immersive_rolls: f.immersive_rolls,
     battle_map_show_tokens: f.battle_map_show_tokens,
     custom_calendar: f.calendar_id === "custom" ? f.custom_calendar : null,

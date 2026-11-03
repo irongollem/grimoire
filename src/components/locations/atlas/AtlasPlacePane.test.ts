@@ -83,7 +83,7 @@ const stubs = {
   SiteReadinessMeter: true,
   TabBar: true,
   DmNoteBox: true,
-  SiteLevelAssignment: true,
+  PlaceMapEmpty: true,
 };
 
 // Every test mounts through this so `afterEach` can always tear it down.
@@ -172,79 +172,80 @@ describe("AtlasPlacePane ambient audio", () => {
   });
 });
 
-describe("AtlasPlacePane header buttons (#958)", () => {
+// #1125 decision 1: Build is retired. A place has Reveal, ambience, Explore (a
+// site's alone) and Details, and two tabs, Overview and Map, always.
+describe("AtlasPlacePane header buttons (#1125)", () => {
   function labels(w: VueWrapper): string[] {
     return w.findAllComponents(AppButton).map((b) => String(b.props("ariaLabel")));
   }
 
-  it("gives a site Build, Run and Details", async () => {
+  it("gives a site Explore and Details, and no Build or Run", async () => {
     const w = mountPane(place({ id: "s", location_type: "dungeon" }));
     await flushPromises();
-    expect(labels(w)).toEqual(expect.arrayContaining(["Build", "Run", "Details"]));
-    expect(labels(w)).not.toContain("Edit");
-  });
-
-  it("gives every other place Build and Details, no Run and no Edit", async () => {
-    const w = mountPane(place({ id: "w", location_type: "region" }));
-    await flushPromises();
-    expect(labels(w)).toEqual(expect.arrayContaining(["Build", "Details"]));
+    expect(labels(w)).toEqual(expect.arrayContaining(["Explore", "Details"]));
+    expect(labels(w)).not.toContain("Build");
     expect(labels(w)).not.toContain("Run");
-    expect(labels(w)).not.toContain("Edit");
+    expect(labels(w)).not.toContain("Done");
   });
 
-  it("reads Done while a non-site place is in Build, and forces the Map tab", async () => {
+  it("gives every other place Details alone", async () => {
+    const w = mountPane(place({ id: "w", location_type: "region" }));
+    await flushPromises();
+    expect(labels(w)).toContain("Details");
+    expect(labels(w)).not.toContain("Explore");
+    expect(labels(w)).not.toContain("Build");
+  });
+
+  it("ignores a stray ?build=true from an old link: no Done, and the tab is not forced", async () => {
     mocks.query.value = { build: "true" };
     const w = mountPane(place({ id: "w", location_type: "region" }));
     await flushPromises();
-    expect(labels(w)).toContain("Done");
-    expect(w.emitted("update:paneMode")?.[0]).toEqual(["map"]);
+    expect(labels(w)).not.toContain("Done");
+    expect(w.emitted("update:paneMode")).toBeUndefined();
   });
 
-  it("offers the Map tab in Build on a place with no map, and not when browsing", async () => {
-    const browsing = mountPane(place({ id: "w", location_type: "region" }));
+  it("shows the Overview and Map tabs on a place with no map, and on a battle map", async () => {
+    const mapless = mountPane(place({ id: "w", location_type: "region" }));
     await flushPromises();
-    expect(browsing.findComponent({ name: "TabBar" }).exists()).toBe(false);
-    browsing.unmount();
+    expect(mapless.findComponent({ name: "TabBar" }).exists()).toBe(true);
+    mapless.unmount();
 
-    mocks.query.value = { build: "true" };
-    const building = mountPane(place({ id: "w", location_type: "region" }));
+    const battle = mountPane(place({ id: "b", location_type: "region", map_url: "https://x/m.webp", is_battle_map: true }));
     await flushPromises();
-    expect(building.findComponent({ name: "TabBar" }).exists()).toBe(true);
+    expect(battle.findComponent({ name: "TabBar" }).exists()).toBe(true);
   });
 
-  it("offers the Map tab in Build on a battle map, which Browse hides", async () => {
-    mocks.query.value = { build: "true" };
-    const w = mountPane(place({ id: "w", location_type: "region", map_url: "https://x/m.webp", is_battle_map: true }));
+  // #1125 decision 9: Details is a flag on the Atlas selection; Explore is the Play screen, a route, not `?run=true`.
+  it("opens Details as a flag on the selection and Explore as the site's own Play screen", async () => {
+    mocks.query.value = { at: "s" };
+    const w = mountPane(place({ id: "s", location_type: "dungeon" }));
     await flushPromises();
-    expect(w.findComponent({ name: "TabBar" }).exists()).toBe(true);
+    const press = (label: string) => w.findAllComponents(AppButton).find((b) => b.props("ariaLabel") === label)!.vm.$emit("click");
+    press("Details");
+    press("Explore");
+    expect(mocks.push).toHaveBeenNthCalledWith(1, { query: { at: "s", edit: "true" } });
+    expect(mocks.push).toHaveBeenNthCalledWith(2, "/locations/s/explore");
   });
 });
 
 // The meter's Mapped pill is how a DM finds a site's map from the Overview,
-// on a phone above all. Opening it to read must not drop them into Build
-// (4 Oct 2026): Build is only where a site with nothing to look at yet goes,
-// to start its first layer in the Layers panel.
+// on a phone above all. It only ever opens the Map tab (#1125): a map to read,
+// or the empty card that starts one. It never navigates.
 describe("AtlasPlacePane Mapped pill", () => {
   function openMap(w: VueWrapper) {
     w.findComponent({ name: "SiteReadinessMeter" }).vm.$emit("open-map");
   }
 
-  it("opens a mapped site's Map in Browse", async () => {
-    const w = mountPane(place({ id: "s", location_type: "dungeon", map_url: "https://x/m.webp" }));
+  it.each([
+    ["a mapped site", { map_url: "https://x/m.webp" }],
+    ["a site with no map yet", {}],
+  ])("opens the Map tab for %s without leaving the page", async (_name, over) => {
+    const w = mountPane(place({ id: "s", location_type: "dungeon", ...over }));
     await flushPromises();
     openMap(w);
     await flushPromises();
     expect(w.emitted("update:paneMode")?.at(-1)).toEqual(["map"]);
     expect(mocks.push).not.toHaveBeenCalled();
-  });
-
-  it("takes a site with no map yet into Build, where the first layer starts", async () => {
-    const w = mountPane(place({ id: "s", location_type: "dungeon" }));
-    await flushPromises();
-    openMap(w);
-    await flushPromises();
-    expect(w.emitted("update:paneMode")?.at(-1)).toEqual(["map"]);
-    expect(mocks.push).toHaveBeenCalledWith({ query: { build: "true" } });
   });
 });
 
@@ -259,84 +260,15 @@ describe("AtlasPlacePane DM note (#983)", () => {
   });
 });
 
-describe("AtlasPlacePane Browse and Build (epic #884)", () => {
+describe("AtlasPlacePane Overview and Map (#1125)", () => {
   const site = (over: Partial<Location> & { id: string }) => place({ location_type: "dungeon", ...over });
-  const floor = () => {
+
+  it("holds no level assignment: that lives in the Details form", async () => {
     const parent = site({ id: "up" });
-    return [parent, site({ id: "down", parent_id: "up" })] as const;
-  };
-
-  it("shows the level assignment only in Build, and only under a site", async () => {
-    const [parent, child] = floor();
-    const browse = mountPane(child, [parent, child]);
+    const child = site({ id: "down", parent_id: "up" });
+    const w = mountPane(child, [parent, child]);
     await flushPromises();
-    expect(browse.findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
-    browse.unmount();
-
-    mocks.query.value = { build: "true" };
-    const build = mountPane(child, [parent, child]);
-    await flushPromises();
-    expect(build.findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(true);
-    build.unmount();
-
-    const region = place({ id: "r", location_type: "region" });
-    const inRegion = site({ id: "in", parent_id: "r" });
-    const underRegion = mountPane(inRegion, [region, inRegion]);
-    await flushPromises();
-    expect(underRegion.findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
-  });
-
-  it("enters Build by adding the flag and keeps the rest of the address", async () => {
-    mocks.query.value = { at: "s" };
-    const w = mountPane(site({ id: "s" }));
-    await flushPromises();
-    w.findAllComponents(AppButton).find((b) => b.props("ariaLabel") === "Build")!.vm.$emit("click");
-    expect(mocks.push).toHaveBeenCalledWith({ query: { at: "s", build: "true" } });
-  });
-
-  it("leaves Build by dropping only the flag", async () => {
-    mocks.query.value = { at: "s", build: "true" };
-    const w = mountPane(site({ id: "s" }));
-    await flushPromises();
-    w.findAllComponents(AppButton).find((b) => b.props("ariaLabel") === "Done")!.vm.$emit("click");
-    expect(mocks.push).toHaveBeenCalledWith({ query: { at: "s" } });
-  });
-
-  it("opens Details and Run as flags on the same selection", async () => {
-    mocks.query.value = { at: "s" };
-    const w = mountPane(site({ id: "s" }));
-    await flushPromises();
-    const press = (label: string) => w.findAllComponents(AppButton).find((b) => b.props("ariaLabel") === label)!.vm.$emit("click");
-    press("Details");
-    press("Run");
-    expect(mocks.push).toHaveBeenNthCalledWith(1, { query: { at: "s", edit: "true" } });
-    expect(mocks.push).toHaveBeenNthCalledWith(2, { query: { at: "s", run: "true" } });
-  });
-
-  it("does not ask for the Map when a Build link arrives with the Map already open", async () => {
-    mocks.query.value = { build: "true" };
-    const loc = place({ id: "w", location_type: "region" });
-    wrapper = mount(AtlasPlacePane, {
-      props: { index: buildAtlasIndex([loc]), location: loc, paneMode: "map", todayYear: 1000 },
-      global: { stubs },
-    });
-    await flushPromises();
-    expect(wrapper.emitted("update:paneMode")).toBeUndefined();
-  });
-
-  it("does not push Build again from the Mapped pill when the DM is already building", async () => {
-    mocks.query.value = { build: "true" };
-    const w = mountPane(place({ id: "s", location_type: "dungeon" }));
-    await flushPromises();
-    w.findComponent({ name: "SiteReadinessMeter" }).vm.$emit("open-map");
-    await flushPromises();
-    expect(mocks.push).not.toHaveBeenCalled();
-  });
-
-  it("hides a battle map's tab while browsing", async () => {
-    const w = mountPane(place({ id: "w", location_type: "region", map_url: "https://x/m.webp", is_battle_map: true }));
-    await flushPromises();
-    expect(w.findComponent({ name: "TabBar" }).exists()).toBe(false);
+    expect(w.findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
   });
 
   it("shows the readiness meter on a site's Overview and not on its Map", async () => {
@@ -350,11 +282,45 @@ describe("AtlasPlacePane Browse and Build (epic #884)", () => {
     expect(w.findComponent({ name: "LocationDetailSections" }).exists()).toBe(false);
   });
 
-  it("passes Build down to the map workbench", async () => {
-    mocks.query.value = { build: "true" };
-    const w = mountPane(site({ id: "s", map_url: "https://x/m.webp" }));
+  it("shows a mapped place's map on its Map tab, with no empty card", async () => {
+    const w = mountPane(place({ id: "w", location_type: "region", map_url: "https://x/m.webp" }));
     await w.setProps({ paneMode: "map" });
-    expect(w.findComponent({ name: "AtlasSiteMapMode" }).props("building")).toBe(true);
+    expect(w.findComponent({ name: "AtlasSiteMapMode" }).exists()).toBe(true);
+    expect(w.findComponent({ name: "PlaceMapEmpty" }).exists()).toBe(false);
+  });
+
+  it("shows the empty card, told whether the place is a site, on a place with no map", async () => {
+    const w = mountPane(site({ id: "s" }));
+    await w.setProps({ paneMode: "map" });
+    const empty = w.findComponent({ name: "PlaceMapEmpty" });
+    expect(empty.exists()).toBe(true);
+    expect(empty.props("isSite")).toBe(true);
+    expect(w.findComponent({ name: "AtlasSiteMapMode" }).exists()).toBe(false);
+
+    const town = mountPane(place({ id: "t", location_type: "city" }));
+    await town.setProps({ paneMode: "map" });
+    expect(town.findComponent({ name: "PlaceMapEmpty" }).props("isSite")).toBe(false);
+  });
+
+  it("treats a battle map as no map in the Atlas: the empty card, not the map", async () => {
+    const w = mountPane(place({ id: "b", location_type: "region", map_url: "https://x/m.webp", is_battle_map: true }));
+    await w.setProps({ paneMode: "map" });
+    expect(w.findComponent({ name: "PlaceMapEmpty" }).exists()).toBe(true);
+    expect(w.findComponent({ name: "AtlasSiteMapMode" }).exists()).toBe(false);
+  });
+
+  it("offers the Map tab from a thumbnail card on the Overview of a mapped place", async () => {
+    const w = mountPane(place({ id: "w", location_type: "region", map_url: "https://x/m.webp" }));
+    await flushPromises();
+    const open = w.findAllComponents(AppButton).find((b) => b.props("label") === "Open the map tab")!;
+    open.vm.$emit("click");
+    expect(w.emitted("update:paneMode")?.at(-1)).toEqual(["map"]);
+  });
+
+  it("offers no thumbnail card on a place with no map", async () => {
+    const w = mountPane(place({ id: "w", location_type: "region" }));
+    await flushPromises();
+    expect(w.findAllComponents(AppButton).some((b) => b.props("label") === "Open the map tab")).toBe(false);
   });
 });
 

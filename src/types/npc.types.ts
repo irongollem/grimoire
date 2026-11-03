@@ -1,5 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
-import type { MonsterStatBlock } from "@/types/monster.types";
+import type { MonsterSize, MonsterStatBlock } from "@/types/monster.types";
 
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
 export type NpcRelationship =
@@ -69,6 +69,8 @@ export interface Npc {
   // The true form on a transparent background, preferred in Scriptorium books
   // and on tokens (#917). Never shown to players while the NPC is concealed.
   cutout_url: string | null;
+  /** The NPC's creature size: sets its token's footprint on the battle map (#1125). */
+  size: MonsterSize;
   // Alter ego / disguise: false identity shown to players until revealed
   disguise_name: string | null;
   disguise_portrait_url: string | null;
@@ -102,7 +104,7 @@ export type NpcListRow = Omit<Npc, (typeof NPC_LIST_HEAVY_COLUMNS)[number]>;
 /** Every `npcs` column except the heavy ones; a typed list so a renamed column fails the build. */
 export const NPC_LIST_COLUMNS = [
   "id", "user_id", "campaign_id", "name", "race", "alignment", "age", "born_year", "born_month", "born_day", "died_year", "died_month", "died_day", "occupation", "location_id",
-  "status", "relationship", "portrait_url", "portrait_focal_point", "cutout_url", "stat_block", "disguise_name",
+  "status", "relationship", "portrait_url", "portrait_focal_point", "cutout_url", "size", "stat_block", "disguise_name",
   "disguise_portrait_url", "disguise_portrait_focal_point", "is_revealed", "tags", "linked_monster_id",
   "scriptorium_doc_id", "player_visible_to", "player_visible_fields", "ai_provenance", "unmasked_at",
   "created_at", "updated_at",
@@ -114,7 +116,7 @@ export const NPC_LIST_COLUMNS = [
  * anything reading `useSharedNpcs`, and resolve the name through `getNpcDisplayName`
  * (falling back to "???"). Also carries `relevance` (1–5), which the RPC returns.
  */
-export type PlayerNpc = Omit<Npc, "name"> & {
+export type PlayerNpc = Omit<Npc, "name" | "size"> & {
   name: string | null;
   relevance?: number;
   /** First moment this viewer could see the NPC (`npc_reveals`); null when unknown. */
@@ -125,11 +127,13 @@ export type PlayerNpc = Omit<Npc, "name"> & {
 
 export type NpcInsert = Omit<
   Npc,
-  "id" | "user_id" | "created_at" | "updated_at" | "unmasked_at" | "location_id" | "linked_monster_id"
+  "id" | "user_id" | "created_at" | "updated_at" | "unmasked_at" | "location_id" | "linked_monster_id" | "size"
   | "born_year" | "born_month" | "born_day" | "died_year" | "died_month" | "died_day"
 > & {
   location_id?: string | null;
   linked_monster_id?: string | null;
+  /** Omit to take the column default: Medium. */
+  size?: MonsterSize;
   /** Omit to take the column default of null: no birth date. */
   born_year?: number | null;
   born_month?: number | null;

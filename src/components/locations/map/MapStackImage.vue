@@ -21,9 +21,21 @@
       calibration is missing) it simply covers the primary box, which is a
       reasonable placement to start from rather than nothing at all.
     -->
+    <video
+      v-if="showsUnderlyingPicture && playsVideo"
+      :src="media.url.value ?? undefined"
+      class="pointer-events-none rounded-lg absolute"
+      :style="underlyingPictureStyle"
+      autoplay
+      loop
+      muted
+      playsinline
+      aria-hidden="true"
+      @loadedmetadata="onPictureMeta"
+    />
     <img
-      v-if="showsUnderlyingPicture"
-      :src="stack.picture!.url"
+      v-else-if="showsUnderlyingPicture"
+      :src="pictureSrc"
       class="pointer-events-none rounded-lg absolute"
       :style="underlyingPictureStyle"
       draggable="false"
@@ -38,9 +50,23 @@
       so an unpositioned Drawing sat *under* the Picture it was meant to show
       through to. Positioning both makes DOM order decide, Picture first.
     -->
+    <video
+      v-if="stack.primary && primaryPlaysVideo"
+      :src="media.url.value ?? undefined"
+      class="pointer-events-none rounded-lg relative"
+      :class="[MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : '']"
+      :style="primaryStyle"
+      autoplay
+      loop
+      muted
+      playsinline
+      aria-label="Location map"
+      @loadedmetadata="onPrimaryMeta"
+      @error="onPrimaryError"
+    />
     <img
-      v-if="stack.primary"
-      :src="stack.primary.url"
+      v-else-if="stack.primary"
+      :src="primarySrc"
       class="pointer-events-none rounded-lg relative"
       :class="[MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : '']"
       :style="primaryStyle"
@@ -103,6 +129,8 @@
 import { computed, ref, useId, watch } from "vue";
 import type { CSSProperties } from "vue";
 import { MAP_IMAGE_COMPACT_SIZING, MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
+import { useLocalMapMedia } from "@/composables/locations/useLocalMapMedia";
+import { prefersReducedMotion } from "@/lib/motion";
 import { placePicture } from "@/lib/locations/mapStack";
 import type { MapStack, PlacedRect } from "@/lib/locations/mapStack";
 
@@ -129,6 +157,20 @@ const emit = defineEmits<{
    *  is no image to fail. */
   failed: [];
 }>();
+
+// A moving Picture (#1125 decision 6): the DM's own file, when this device has it and motion is not reduced. Players'
+// stacks never carry `motion`, so they, and everyone else, get the still `map_url`.
+const media = useLocalMapMedia(
+  () => stack.motion?.key ?? null,
+  () => (stack.motion ? { fileName: stack.motion.motion.file_name, bytes: stack.motion.motion.bytes } : null),
+);
+const playing = computed(() => media.url.value !== null && !prefersReducedMotion());
+const playsVideo = computed(() => playing.value && stack.motion?.motion.kind === "video");
+const playsAnimated = computed(() => playing.value && stack.motion?.motion.kind === "animated");
+const pictureSrc = computed(() => (playsAnimated.value ? media.url.value ?? undefined : stack.picture?.url));
+const primaryIsPicture = computed(() => stack.primary?.kind === "picture");
+const primaryPlaysVideo = computed(() => primaryIsPicture.value && playsVideo.value);
+const primarySrc = computed(() => (primaryIsPicture.value && playsAnimated.value ? media.url.value ?? undefined : stack.primary?.url));
 
 const showsUnderlyingPicture = computed(() => stack.primary?.kind === "drawing" && !!stack.picture);
 
@@ -181,6 +223,17 @@ function onPrimaryLoad(e: Event) {
   const img = e.target as HTMLImageElement;
   primaryNatural.value = { w: img.naturalWidth, h: img.naturalHeight };
   emit("measured", img.naturalWidth, img.naturalHeight);
+}
+
+function onPrimaryMeta(e: Event) {
+  const v = e.target as HTMLVideoElement;
+  primaryNatural.value = { w: v.videoWidth, h: v.videoHeight };
+  emit("measured", v.videoWidth, v.videoHeight);
+}
+
+function onPictureMeta(e: Event) {
+  const v = e.target as HTMLVideoElement;
+  pictureNatural.value = { w: v.videoWidth, h: v.videoHeight };
 }
 
 function onPrimaryError() {

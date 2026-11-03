@@ -3,7 +3,7 @@ import { drawMapContent } from "./drawMap";
 import { gatherLightSources, renderLightLayer } from "./drawLights";
 import type { DrawMapInput } from "./drawFrame";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
-import { applyDisc } from "./area";
+import { putWall } from "./testWalls";
 import type { DressingCatalog } from "./dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { makeCtx, makeLayerFactory, makeRuntime, type Recorder } from "./testCanvas";
@@ -74,24 +74,23 @@ describe("lights", () => {
     expect(lightsOf(makeRuntime(PACK), { layers }).radialGradients).toHaveLength(0);
   });
 
-  it("lights a wall decal at its edge midpoint", () => {
+  it("lights a wall decal at its edge midpoint, a hair into the room it faces", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(2, 3)] = {
-      floor: ref,
-      wallN: { ...ref, type: "wall", decal: 1 },
-      wallW: { ...ref, type: "wall", decal: 0 },
-    };
+    layers.floor[cellKey(2, 3)] = { floor: ref };
+    putWall(layers, 2, 3, "N", { ...ref, type: "wall", decal: 1 });
+    putWall(layers, 2, 3, "W", { ...ref, type: "wall", decal: 0 });
     const decalFire = { color: "#ffcc66", bright: 20, dim: 20 };
     const rec = lightsOf(lit({ wallDecal: [decalFire, { ...decalFire, color: "#ff0000" }] }), { layers });
     expect(rec.radialGradients.map((g) => [g.x0, g.y0, g.stops[0][1]])).toEqual([
-      [2.5 * 128, 3 * 128, "rgba(255,0,0,0.35)"],
-      [2 * 128, 3.5 * 128, "rgba(255,204,102,0.35)"],
+      [2.5 * 128, 3.05 * 128, "rgba(255,0,0,0.35)"],
+      [2.05 * 128, 3.5 * 128, "rgba(255,204,102,0.35)"],
     ]);
   });
 
   it("ignores a decal on something that is not a wall", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(2, 3)] = { floor: ref, wallN: { ...ref, type: "doorClosed", decal: 0 } };
+    layers.floor[cellKey(2, 3)] = { floor: ref };
+    putWall(layers, 2, 3, "N", { ...ref, type: "doorClosed", decal: 0 });
     expect(lightsOf(lit({ wallDecal: [FIRE] }), { layers }).radialGradients).toHaveLength(0);
   });
 
@@ -139,7 +138,8 @@ describe("lights behind walls", () => {
     // Painted ground all round, so only the wall decides what the glow reaches.
     for (let y = -8; y <= 10; y++) for (let x = -8; x <= 10; x++) layers.floor[cellKey(x, y)] = { floor: ref };
     for (let y = 0; y <= 5; y++) {
-      layers.floor[cellKey(3, y)] = { floor: ref, wallW: { ...ref, type: y === 2 && door ? door : "wall" } };
+      layers.floor[cellKey(3, y)] = { floor: ref };
+      putWall(layers, 3, y, "W", { ...ref, type: y === 2 && door ? door : "wall" });
     }
     return layers;
   };
@@ -208,21 +208,6 @@ describe("lights behind walls", () => {
     expect(at(1.5, 0.5)).toBe(0);
   });
 
-  it("lays the glow on a brushed cell only where it is brushed", () => {
-    const f = makeLayerFactory();
-    const layers = applyDisc(emptyLayers(), { x: 2.5, y: 2.5, r: 0.3 }, ref, "paint");
-    layers.object[cellKey(2, 2)] = { pack_id: PACK, pack_version: 1, category: "objectBrazier", variant: 1 };
-    const { input: i } = input(rt(), { layers, lights: true, makeCanvas: f.makeCanvas });
-    drawMapContent(i);
-    const put = f.layers.flatMap((l) => l.rec.putImages);
-    expect(put).toHaveLength(1);
-    // the light sits at (2.5, 2.5); its mask box runs x -6..10, y -6..10
-    const at = (cx: number, cy: number): number => put[0].alpha[Math.floor((cy + 6) * 4) * put[0].width + Math.floor((cx + 6) * 4)];
-    expect(at(2.5, 2.5)).toBe(255);
-    // the cell's corner is inside the cell but outside the brushed disc
-    expect(at(2.1, 2.1)).toBe(0);
-  });
-
   it("still draws the glow, unmasked, when no canvas can be made", () => {
     const { input: i, rec } = input(rt(), { layers: walled(), lights: true });
     drawMapContent(i);
@@ -245,8 +230,25 @@ describe("gatherLightSources", () => {
 
   it("finds a wall decal at its edge midpoint, and ignores a decal on a door", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(2, 3)] = { floor: ref, wallN: { ...ref, type: "wall", decal: 0 }, wallW: { ...ref, type: "doorClosed", decal: 0 } };
+    layers.floor[cellKey(2, 3)] = { floor: ref };
+    layers.floor[cellKey(1, 3)] = { floor: ref };
+    layers.floor[cellKey(2, 2)] = { floor: ref };
+    putWall(layers, 2, 3, "N", { ...ref, type: "wall", decal: 0 });
+    putWall(layers, 2, 3, "W", { ...ref, type: "doorClosed", decal: 0 });
+    // Floor on both sides of the wall: the light stays on its line and shines on both faces.
     expect(gather(layers, null)).toEqual([{ x: 2.5, y: 3, light: FIRE }]);
+  });
+
+  it("a sconce on the outside wall of a room stands in the room, so it lights no void or neighbour behind the wall", () => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(2, 3)] = { floor: ref }; // the room is south of the north wall; nothing lies north of it
+    putWall(layers, 2, 3, "N", { ...ref, type: "wall", decal: 0 });
+    const [only] = gather(layers, null);
+    expect(only.y).toBeGreaterThan(3);
+    const north = emptyLayers();
+    north.floor[cellKey(2, 2)] = { floor: ref }; // now the room lies north of the wall: the light moves to that side
+    putWall(north, 2, 3, "N", { ...ref, type: "wall", decal: 0 });
+    expect(gather(north, null)[0].y).toBeLessThan(3);
   });
 
   it("limits a windowed search to the window", () => {
@@ -279,5 +281,20 @@ describe("gatherLightSources", () => {
     };
     expect(placed(0)).toBe(1); // centre x = 1, the window's first column
     expect(placed(-1)).toBe(0); // centre x = 0
+  });
+
+  // #1125 story 5: the DM places lights by hand, in cell units, with no cell or pack behind them.
+  it("gathers a light the DM placed, at its own point", () => {
+    const layers = emptyLayers();
+    layers.lights.torch = { x: 4.5, y: 2, light: FIRE };
+    expect(gather(layers, null)).toEqual([{ x: 4.5, y: 2, light: FIRE }]);
+  });
+
+  it("leaves out a placed light beyond the window, and keeps one on its edge", () => {
+    const window = { minX: 0, minY: 0, maxX: 3, maxY: 3 };
+    const layers = emptyLayers();
+    layers.lights.inside = { x: 4, y: 1, light: FIRE }; // the window's last column ends at x = 4
+    layers.lights.outside = { x: 4.5, y: 1, light: FIRE };
+    expect(gather(layers, window).map((s) => s.x)).toEqual([4]);
   });
 });

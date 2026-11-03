@@ -44,6 +44,7 @@
     "seed-library-items": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-items.ts",
     "seed-content-sources": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-content-sources.ts",
     "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts",
+    "dev:showcase": "tsx --tsconfig tsconfig.node.json scripts/dev-showcase.ts",
     "dev:buckets": "tsx --tsconfig tsconfig.node.json scripts/dev-buckets.ts",
     "library:art": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/generate-library-art.ts",
     "library:move-art": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/move-library-art-to-srd.ts",

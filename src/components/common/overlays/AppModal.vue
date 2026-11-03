@@ -74,6 +74,7 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import { cn } from "@/lib/utils";
 import { takeModalOrigin } from "@/lib/modalOrigin";
 import { canAnimate, originTransform, REST_TRANSFORM, whenSettled } from "@/lib/motion";
+import { trapTab } from "./focusTrap";
 import { provideModalAria } from "./modalAria";
 import { useModalStack } from "./modalStack";
 
@@ -264,50 +265,11 @@ function onBackdropClick() {
 
 // ── Focus ────────────────────────────────────────────────────────────────────
 
-const FOCUSABLE = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
-
 /** What had focus when the modal opened, so it can be handed back on close. */
 let focusOnClose: HTMLElement | null = null;
 
-function focusables(): HTMLElement[] {
-  const panel = panelRef.value;
-  if (!panel) return [];
-  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-    // `offsetParent` is null for anything `display:none` — a collapsed accordion
-    // section, an inactive tab panel — which must not become a Tab stop.
-    (el) => el.offsetParent !== null,
-  );
-}
-
-/**
- * The panel is teleported to `body`, so it has no ancestor to contain Tab: left
- * alone, tabbing out of the last control walks into the page behind the
- * backdrop, where every stop is invisible and unclickable.
- */
 function onTab(event: KeyboardEvent) {
-  const items = focusables();
-  if (!items.length) {
-    event.preventDefault();
-    return;
-  }
-  const first = items[0];
-  const last = items[items.length - 1];
-  const active = document.activeElement;
-
-  if (event.shiftKey && (active === first || active === panelRef.value)) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && active === last) {
-    event.preventDefault();
-    first.focus();
-  }
+  trapTab(event, panelRef.value);
 }
 
 // ── Animation ────────────────────────────────────────────────────────────────

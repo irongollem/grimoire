@@ -10,6 +10,7 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
     name: "Aldric Thorne",
     race: "Human",
     alignment: "Lawful Neutral",
+    size: "medium",
     age: "47",
     born_year: null,
     born_month: null,

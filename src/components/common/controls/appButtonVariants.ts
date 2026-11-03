@@ -81,6 +81,14 @@ export const buttonVariants = cva(
          * border and ink tokens. `block` stretches it; pair with `size="well"`.
          */
         well: "min-w-0 flex-col items-stretch justify-center text-left font-normal border border-dashed border-primary/50 text-muted-foreground hover:border-primary hover:bg-primary/5",
+        /**
+         * A tool in a tool rail or toolbelt: quiet until it is the armed one. The
+         * box has a transparent border at rest so arming it (`active`: primary edge
+         * and tint, see the compound below) moves nothing. Pair with `size="tile"`
+         * for the icon-over-word tile, or any text size for a labelled button in a
+         * grid. The map editor's rail and options slip, and the Play toolbelt.
+         */
+        tool: "border border-transparent text-muted-foreground hover:text-foreground hover:border-primary/50",
       },
       size: {
         /**
@@ -173,6 +181,13 @@ export const buttonVariants = cva(
          * because the two lines inside carry their own type roles, so this names none.
          */
         well: "rounded-md px-2 py-1 min-h-11",
+        /**
+         * A tool tile: icon over a short word, a key cap pinned to the corner. A size
+         * rather than call-site classes because it re-declares the whole box (fixed
+         * height, minimum width, column flow), which is what a size is for. `relative`
+         * anchors `KeyCap corner`; the word names its own role through the caller.
+         */
+        tile: "relative h-12 min-w-14 flex-col justify-center gap-0.5 rounded-md px-1 text-caption-sm",
         "icon-2xs": "h-5 w-5 rounded text-label",
         "icon-xs": "h-6 w-6 rounded text-label-lg",
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
@@ -571,6 +586,8 @@ export const buttonVariants = cva(
       { active: true, activeFill: "tint", tone: "info", class: "bg-tone-info/15" },
       { active: true, activeFill: "tint", tone: "arcane", class: "bg-tone-arcane/15" },
       { active: true, activeFill: "tint", tone: "caution", class: "bg-tone-caution/15" },
+      // After the tint on purpose: the armed tool restates the background and edge.
+      { variant: "tool", active: true, class: "border-primary/70 bg-primary/15 text-foreground hover:text-foreground hover:border-primary/70" },
 
       // Only the variants that already draw a border get the selected border colour,
       // and only while the button is untoned. Gating on `tone` matters: without it a
@@ -620,11 +637,11 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "well", "icon-2xs", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "well", "tile", "icon-2xs", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional

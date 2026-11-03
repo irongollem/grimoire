@@ -134,7 +134,7 @@ HP syncs both ways: your changes in the runner reach the party's character sheet
 - **End Combat**: syncs every player's HP, conditions, death saves and curses back to their record, then returns you to the encounter sheet. Companion HP and conditions are written back the same way.
 - **Abandon**: ends the live session without writing any of that back. Use it for a test combat or a false start.
 
-Either way, if the fight had a room-anchored battle map open, ending combat may ask whether to mark the rooms the party actually uncovered as explored: see [Encounter Map](#encounter-map-battle-map-fog-of-war).
+Rooms the party walked into during the fight were already marked explored as they went, so ending combat asks nothing about them. It leaves the party standing where the fight left them on the site's explore screen: see [Encounter Map](#encounter-map-battle-map-fog-of-war).
 
 ## What your players see
 
@@ -142,7 +142,7 @@ Players who are subscribed to the campaign see a live encounter panel in their o
 
 ## Tips
 
-> The battle map link in the top bar is disabled with an explanation until the encounter's location has a usable map: see [Encounter Map](#encounter-map-battle-map-fog-of-war) for exactly what that requires.
+> From tablet width up the runner and the map are one Play screen: the map sits in the middle, the initiative list on the left and the turn card on the right. Without a usable map the middle says what is missing; see [Encounter Map](#encounter-map-battle-map-fog-of-war) for exactly what that requires, how tokens move, and the turn card.
 
 - Rolls the runner makes for you (initiative, attacks, complications) are never posted individually to chat when they'd leak a hidden combatant's presence: the order and outcome reach players through the live state instead.
 - A companion benched from the party tracker or the player's own portal drops out of the roster automatically while the fight is still in its lobby; once combat starts, the roster locks.

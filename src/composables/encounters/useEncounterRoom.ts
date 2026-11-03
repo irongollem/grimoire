@@ -2,9 +2,30 @@ import { computed, type MaybeRefOrGetter, toValue } from "vue";
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useLocation } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
-import { regionCellToBattleCell, resolveBattleSurface } from "@/lib/battlemap/roomBridge";
+import { regionCellToBattleCell, resolveBattleSurface, type BattleSurface } from "@/lib/battlemap/roomBridge";
 import { isInteriorType } from "@/lib/locations/tiers";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+
+/**
+ * The difficult-ground zones a fight on this surface crosses, with their cells in battle-map space. A room fight
+ * keeps the zones that touch the room (a zone binds to nothing by rule, so this is a spatial filter, not a lookup
+ * by room id); a whole-map fight has no room to focus, so every zone on the map counts (#1125).
+ */
+export function terrainZonesOf(
+  regions: readonly LocationMapRegion[],
+  surface: Pick<BattleSurface, "focusCells" | "calibration"> | null,
+): { region: LocationMapRegion; battleCells: string[] }[] {
+  if (!surface) return [];
+  const focusSet = surface.focusCells.length > 0 ? new Set(surface.focusCells) : null;
+  const zones: { region: LocationMapRegion; battleCells: string[] }[] = [];
+  for (const region of regions) {
+    if (region.region_role !== "zone") continue;
+    if ((region.zone_payload.movement_cost ?? 1) <= 1) continue;
+    const battleCells = region.cells.map((c) => regionCellToBattleCell(c, surface.calibration));
+    if (focusSet === null || battleCells.some((c) => focusSet.has(c))) zones.push({ region, battleCells });
+  }
+  return zones;
+}
 
 /**
  * Resolves which map a location's battle view draws — the room/site surface
@@ -56,23 +77,7 @@ export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
     surface.value?.focusRoomId && location.value?.id === surface.value.focusRoomId ? location.value : null,
   );
 
-  /** Terrain zones (difficult ground etc.) whose cells fall inside the focus
-   *  room — a zone binds to nothing by rule, so this is a spatial filter, not
-   *  a lookup by room id. Whole-map view (no focus room) shows none, since
-   *  there is nothing to focus around. */
-  const terrainZones = computed(() => {
-    const s = surface.value;
-    if (!s || s.focusCells.length === 0) return [];
-    const focusSet = new Set(s.focusCells);
-    const zones: { region: LocationMapRegion; battleCells: string[] }[] = [];
-    for (const region of regions.value ?? []) {
-      if (region.region_role !== "zone") continue;
-      if ((region.zone_payload.movement_cost ?? 1) <= 1) continue;
-      const battleCells = region.cells.map((c) => regionCellToBattleCell(c, s.calibration));
-      if (battleCells.some((c) => focusSet.has(c))) zones.push({ region, battleCells });
-    }
-    return zones;
-  });
+  const terrainZones = computed(() => terrainZonesOf(regions.value ?? [], surface.value));
 
   return { location, parent, siteId, regions, surface, mapLocation, focusRoom, terrainZones };
 }

@@ -7,21 +7,43 @@
       :going-live="goingLive"
       :can-go-live="!!campaign.activeCampaignId"
       :can-open-battle-map="canOpenBattleMap"
-      :battle-map-disabled-reason="battleMapDisabledReason"
       :turn-timer-seconds="turnTimerSeconds"
       :turn-reset-key="turnResetKey"
       :can-generate="campaign.isAiEnabled"
       @tools="toolsOpen = true"
       @go-live="handleGoLive"
-      @battle-map="router.push(`/encounters/${encounterId}/run/map`)"
-      @battle-map-window="openBattleMapInNewWindow"
+      @table-screen="openTableScreen"
       @generate="openGenerator"
       @roll-initiative="handleRollInitiative"
       @abandon="handleAbandon"
       @end-combat="handleEndCombat"
     />
 
-    <!-- Top bar -->
+    <!-- Tablet and up, with a battle map: one Play screen, initiative + map + sheet (#1125). -->
+    <PlayLayout
+      v-else-if="canOpenBattleMap"
+      class="flex-1"
+      v-model:selected-id="selectedId"
+      v-model:selected-trap-id="selectedTrapId"
+      v-model:tools-open="toolsOpen"
+      :encounter-id="encounterId"
+      :is-live="isLive"
+      :going-live="goingLive"
+      :can-go-live="!!campaign.activeCampaignId"
+      :can-generate="campaign.isAiEnabled"
+      :turn-timer-seconds="turnTimerSeconds"
+      :turn-reset-key="turnResetKey"
+      :party-members="partyMembers ?? []"
+      @roll-initiative="handleRollInitiative"
+      @start-combat="handleStartCombat"
+      @go-live="handleGoLive"
+      @table-screen="openTableScreen"
+      @generate="openGenerator"
+      @abandon="handleAbandon"
+      @end-fight="handleEndCombat"
+    />
+
+    <!-- No battle map: the classic runner, a top bar over the list and a sheet. -->
     <div v-else class="runner-topbar">
       <RouterLink :to="`/encounters/${encounterId}`" class="back-link">
         ← Back to Builder
@@ -91,24 +113,14 @@
           :disabled="goingLive"
           @click="handleGoLive"
         />
+        <!-- Why there is no map to fight on: the Play screen needs a calibrated battle map. -->
         <AppButton
           variant="outline"
           size="sm"
           :icon="IconMap"
           label="Battle Map"
-          :to="canOpenBattleMap ? `/encounters/${encounterId}/run/map` : undefined"
-          :tooltip="canOpenBattleMap ? 'Open battle map' : battleMapDisabledReason"
-          :disabled="!canOpenBattleMap"
-        />
-        <AppButton
-          v-if="canOpenBattleMap"
-          variant="outline"
-          size="sm"
-          :icon="IconExternalLink"
-          aria-label="Open battle map in a new window"
-          :tooltip="isLive ? 'Open battle map in a new window (for a second monitor)' : 'Go live first. The new window follows the live fight.'"
-          :disabled="!isLive"
-          @click="openBattleMapInNewWindow"
+          :tooltip="battleMapDisabledReason"
+          disabled
         />
         <RunnerGenerateMenu v-if="campaign.isAiEnabled" @generate="openGenerator" />
         <AppButton
@@ -132,13 +144,17 @@
     </div>
 
     <!-- Rolls the turn hooks left to the DM, and conditions that just ended -->
-    <RunnerDueConditions />
+    <RunnerDueConditions v-if="isMobile || !canOpenBattleMap" />
 
     <!-- Phone: one column, the list owns the screen. Surprise, events, traps,
          spawn and the DM note live in the tools sheet; the stat block is a
          full-screen layer; the turn bar sits above the bottom nav. -->
     <template v-if="isMobile">
-      <div class="min-h-0 flex-1 overflow-y-auto">
+      <div v-if="canOpenBattleMap" class="shrink-0 border-b border-border bg-card px-3 py-1.5">
+        <SegmentedControl v-model="phoneTab" :options="PHONE_TABS" variant="outline" size="sm" block />
+      </div>
+      <PlayPhoneMap v-if="canOpenBattleMap && phoneTab === 'map'" :encounter-id="encounterId" />
+      <div v-else class="min-h-0 flex-1 overflow-y-auto">
         <div class="px-3 pt-2 empty:hidden"><RunnerBossMechanics /></div>
         <RunnerCombatantList :selected-id="selectedId" @select="selectedId = $event" />
       </div>
@@ -173,7 +189,7 @@
     </template>
 
     <!-- Body: list + optional detail panel -->
-    <div v-else class="runner-body-wrap">
+    <div v-else-if="!canOpenBattleMap" class="runner-body-wrap">
       <!-- Initiative list -->
       <div class="runner-body">
         <!-- Surprise strip, then lair + legendary actions -->
@@ -201,12 +217,7 @@
 
       <!-- Stat block detail panel with draggable left border -->
       <template v-if="selectedId !== null || selectedTrapId !== null">
-        <div
-          class="resize-handle"
-          title="Drag to resize"
-          @mousedown.prevent="startDetailResize($event)"
-          @touchstart.prevent="startDetailResizeTouch($event)"
-        />
+        <ResizeHandle @mousedown="startMouse" @touchstart="startTouch" />
         <div class="panel-shell" :style="{ width: detailWidth + 'px' }">
           <RunnerEntityDetail
             :selected-id="selectedId"
@@ -225,15 +236,19 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
+import { useEncounterSite } from "@/composables/locations/useEncounterSite";
+import { afterFightRoute } from "@/lib/locations/explore";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 const { confirm } = useConfirm();
 import { ref, computed, watch, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconDungeon, IconEncounter, IconExternalLink, IconFlag, IconLive, IconMap } from '@/lib/icons';
+import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
 import AppButton from '@/components/common/controls/AppButton.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
+import { useSetExploreParty } from "@/composables/campaign/useCampaigns";
+import { partyAfterFight } from "@/lib/encounters/exploreAfterFight";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
@@ -264,6 +279,11 @@ import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
 import RunnerSurprisePanel from "./RunnerSurprisePanel.vue";
 import RunnerPhoneHeader from "./RunnerPhoneHeader.vue";
+import PlayLayout from "./play/PlayLayout.vue";
+import PlayPhoneMap from "./play/PlayPhoneMap.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import ResizeHandle from "@/components/common/layout/ResizeHandle.vue";
+import { useDetailResize } from "@/composables/encounters/useDetailResize";
 import RunnerTurnBar from "./RunnerTurnBar.vue";
 import RunnerToolsSheet from "./RunnerToolsSheet.vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
@@ -275,10 +295,11 @@ const store = useEncounterRunStore();
 const router = useRouter();
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
+const fightSite = useEncounterSite(encounterId);
 const campaign = useCampaignStore();
 const appUi = useAppUiStore();
 const toast = useToast();
-const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
+const { isLive, liveStateLoaded, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
 const goingLive = ref(false);
 const { sendSystemMessages } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
@@ -288,14 +309,15 @@ const { reportChatFailure } = useChatSendFailure();
 const { data: partyMembers } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
-// Shared with EncounterMapView (via useEncounterRoom internally) — the two
-// views must never disagree about which map an encounter opens on, which
-// cells are its focus room, or when the battle map is legal to open.
-const { canOpenBattleMap, battleMapDisabledReason, markRoomsExploredFromFogMask } =
-  useCombatExploration(encounterId);
+// Shared with the Play map (via useEncounterRoom internally): the two must never disagree
+// about which map an encounter opens on, which cells are its focus room, or when it is legal.
+const { canOpenBattleMap, battleMapDisabledReason, mapPlaceId } = useCombatExploration(encounterId);
+const { mutateAsync: setExploreParty } = useSetExploreParty();
 
-function openBattleMapInNewWindow() {
-  window.open(`/encounters/${encounterId.value}/run/map`, "_blank", "noopener,noreferrer");
+/** The table screen is the map's own, a second window for the TV; it follows this fight while it is live (#1133). */
+function openTableScreen() {
+  if (mapPlaceId.value === null) return;
+  window.open(`/locations/${mapPlaceId.value}/table`, "_blank", "noopener,noreferrer");
 }
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: updateNpc } = useUpdateNpc();
@@ -307,6 +329,13 @@ const selectedTrapId = ref<string | null>(null);
 // Phone shell (below md): its own header, turn bar and tools sheet.
 const isMobile = useIsMobile();
 const toolsOpen = ref(false);
+// Phone with a battle map: the list, or the same map as the Play screen.
+type PhoneTab = "list" | "map";
+const phoneTab = ref<PhoneTab>("list");
+const PHONE_TABS: { value: PhoneTab; label: string }[] = [
+  { value: "list", label: "List" },
+  { value: "map", label: "Map" },
+];
 
 /** The turn bar's centre: open the active combatant's stat block and actions. */
 function openActiveCombatant() {
@@ -326,43 +355,7 @@ function openGenerator(mode: ComplicationMode) {
   generatorOpen.value = true;
 }
 
-const detailWidth = ref(320);
-
-function startDetailResize(e: MouseEvent) {
-  const startX = e.clientX;
-  const startWidth = detailWidth.value;
-  document.body.style.cursor = "col-resize";
-  document.body.style.userSelect = "none";
-
-  function onMove(ev: MouseEvent) {
-    detailWidth.value = Math.max(200, Math.min(700, startWidth + (startX - ev.clientX)));
-  }
-  function onUp() {
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
-  }
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
-}
-
-function startDetailResizeTouch(e: TouchEvent) {
-  const startX = e.touches[0].clientX;
-  const startWidth = detailWidth.value;
-  document.body.style.userSelect = "none";
-
-  function onMove(ev: TouchEvent) {
-    detailWidth.value = Math.max(200, Math.min(700, startWidth + (startX - ev.touches[0].clientX)));
-  }
-  function onEnd() {
-    document.body.style.userSelect = "";
-    document.removeEventListener("touchmove", onMove);
-    document.removeEventListener("touchend", onEnd);
-  }
-  document.addEventListener("touchmove", onMove, { passive: false });
-  document.addEventListener("touchend", onEnd);
-}
+const { detailWidth, startMouse, startTouch } = useDetailResize(320);
 
 // ── Initiative rolling ───────────────────────────────────────────────────────
 // The store owns the "who still needs a value" logic; the actual d20 goes
@@ -590,6 +583,22 @@ watch(
   },
 );
 
+// The Explore screen's "Start it" arrives with ?live=1 (#1133 decision 7): go live once the live row has been read,
+// (declared after the party sync it uses, since an immediate watch runs at once) through the same handler as the button (which also ensures a session), then drop the query so a reload does not retry.
+let liveIntentHandled = false;
+watch(
+  [() => route.query.live, liveStateLoaded],
+  async ([intent, loaded]) => {
+    if (intent !== "1" || !loaded || liveIntentHandled) return;
+    liveIntentHandled = true;
+    if (!isLive.value) await handleGoLive();
+    const rest = { ...route.query };
+    delete rest.live;
+    await router.replace({ query: rest });
+  },
+  { immediate: true },
+);
+
 async function handleAbandon() {
   if (!await confirm("Abandon this run? Party HP and conditions will NOT be updated.")) return;
   await endLive();
@@ -609,10 +618,9 @@ async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   // A change still waiting for its debounced write is absorbed by the
   // authoritative write below (writePartyMember merges it); nothing is dropped.
-  // Read before endLive() clears it — leaving asserts explored for whatever
-  // the room-anchored fog mask actually revealed (frame 16), never the
-  // reverse: un-brushing a cell never un-explores a room.
-  const fogMaskAtEnd = liveState.value?.fog_mask ?? null;
+  // Where the tokens stand comes from the live row, read before endLive() clears it: the runner's store does not
+  // hear a player moving their own token.
+  const tokensAtEnd = liveState.value?.encounter_id === encounterId.value ? liveState.value.combatants_live : store.combatants;
   await endLive();
   // Hands the music slot back to whatever was playing before the fight, or
   // stops it if the DM had nothing running.
@@ -648,12 +656,14 @@ async function handleEndCombat() {
     ),
   ]);
 
-  // One prompt, not seven toggles (frame 16): every room the party actually
-  // saw this fight becomes one confirm, not a per-room decision.
-  await markRoomsExploredFromFogMask(fogMaskAtEnd);
+  // The party stands where the fight left them (#1133 decision 7). Rooms were marked explored live as they entered.
+  const activeCampaign = campaign.activeCampaign;
+  const standing = partyAfterFight(tokensAtEnd, activeCampaign?.explore_party ?? null, fightSite.value?.id ?? null);
+  if (activeCampaign && standing) await setExploreParty({ id: activeCampaign.id, explore: standing });
 
   store.reset();
-  router.push(`/encounters/${encounterId.value}`);
+  // A fight anchored in a site goes back to exploring it; any other back to its encounter (#1125).
+  router.push(afterFightRoute(encounterId.value, fightSite.value));
 }
 </script>
 
@@ -697,28 +707,6 @@ async function handleEndCombat() {
 .runner-body {
   @apply flex-1 overflow-y-auto min-w-0;
   container: runner-list / inline-size;
-}
-
-.resize-handle {
-  position: relative;
-  width: 0.3125rem;
-  flex-shrink: 0;
-  cursor: col-resize;
-  background: theme(colors.border / 100%);
-  transition: background 0.15s;
-  z-index: 1;
-}
-
-/* Expand the touch/click surface to 44px without affecting layout */
-.resize-handle::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  margin-inline: -1.25rem;
-}
-
-.resize-handle:hover {
-  background: theme(colors.primary / 50%);
 }
 
 .panel-shell {

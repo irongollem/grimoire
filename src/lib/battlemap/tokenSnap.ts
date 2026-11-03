@@ -12,7 +12,7 @@ export interface SnapInput {
   /** Canvas-pixel coordinate of cell (0,0)'s top-left. */
   originX: number;
   originY: number;
-  /** Token footprint in cells (1 / 2 / 3 / 4). */
+  /** Token footprint in cells (0.5 / 1 / 2 / 3 / 4). */
   footprint: number;
 }
 
@@ -22,9 +22,12 @@ export function snapPixelToCell(input: SnapInput): { x: number; y: number } {
   // then express in cell units relative to origin, then round to nearest cell.
   const anchorPxX = input.pixelX - halfFootprintPx;
   const anchorPxY = input.pixelY - halfFootprintPx;
+  // A Tiny token (under one cell) lives on the half-cell lattice so four share a
+  // square (#1125 decision 13); everything else sits on whole cells.
+  const steps = input.footprint < 1 ? 2 : 1;
   return {
-    x: Math.round((anchorPxX - input.originX) / input.cellPx) + 0,
-    y: Math.round((anchorPxY - input.originY) / input.cellPx) + 0,
+    x: Math.round(((anchorPxX - input.originX) / input.cellPx) * steps) / steps + 0,
+    y: Math.round(((anchorPxY - input.originY) / input.cellPx) * steps) / steps + 0,
   };
 }
 

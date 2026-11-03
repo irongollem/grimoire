@@ -54,6 +54,29 @@ describe("withinFiveFeet", () => {
     expect(withinFiveFeet(a, c("b", { position: { x: 5, y: 3 } }))).toBe(false);
   });
 
+  // PHB 2024 "Creature Size": Large is a 10 ft space, two squares on a side.
+  it("a Large creature is adjacent to a Medium one two squares from its anchor", () => {
+    const large = c("large", { position: { x: 0, y: 0 }, size: "large" });
+    expect(withinFiveFeet(large, c("b", { position: { x: 2, y: 0 } }))).toBe(true);
+    expect(withinFiveFeet(large, c("b", { position: { x: 3, y: 0 } }))).toBe(false);
+  });
+
+  it("reads a beast form's size, so a wild-shaped druid reaches as far as the beast does", () => {
+    const bear = c("druid", { position: { x: 0, y: 0 }, size: "medium", wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "large" } });
+    expect(withinFiveFeet(bear, c("b", { position: { x: 2, y: 0 } }))).toBe(true);
+  });
+
+  it("an Enlarge override widens the reach of a Medium creature", () => {
+    const grown = c("grown", { position: { x: 0, y: 0 }, size: "medium", size_override: "large" });
+    expect(withinFiveFeet(grown, c("b", { position: { x: 2, y: 0 } }))).toBe(true);
+  });
+
+  it("a Tiny creature in the near half of a square is next to the Medium one beside it, but not one square further", () => {
+    const tiny = c("tiny", { position: { x: 0, y: 0 }, size: "tiny" });
+    expect(withinFiveFeet(tiny, c("b", { position: { x: 1, y: 0 } }))).toBe(true);
+    expect(withinFiveFeet(tiny, c("b", { position: { x: 2, y: 0 } }))).toBe(false);
+  });
+
   it("measures between footprints, not anchors", () => {
     const big = c("big", { position: { x: 0, y: 0 }, footprint: 3 });
     expect(withinFiveFeet(big, c("b", { position: { x: 3, y: 1 } }))).toBe(true);

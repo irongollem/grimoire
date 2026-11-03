@@ -47,7 +47,7 @@ import type { PreparedMarkKind } from "@/lib/locations/preparedMarks";
 
 const { mode = "browse", showPrepared = false, showRoomFacts = false, preparedCounts } = defineProps<{
   /** Browse (default): the map's own editing/tracing vocabulary. Run
-   *  (`SiteRunSurface`): party/reachable/locked instead. */
+   *  (`QuestSiteHandoff`): party/reachable/locked instead. */
   mode?: "browse" | "run";
   /** Whether the Prepared layer is currently on — appends its six entries.
    *  Ignored in run mode. */

@@ -67,6 +67,7 @@ export interface BucketWritePolicy {
 }
 
 const FIVE_MB = 5 * 1024 * 1024;
+const TEN_MB = 10 * 1024 * 1024;
 const TWENTY_MB = 20 * 1024 * 1024;
 const FIFTY_MB = 50 * 1024 * 1024;
 
@@ -97,9 +98,13 @@ const AUDIO_MIMES = [
   "audio/flac",
 ] as const;
 
-const image = (id: string, adminPrefixes: readonly string[] = []): BucketWritePolicy => ({
+const image = (
+  id: string,
+  adminPrefixes: readonly string[] = [],
+  maxBytes: number = FIVE_MB,
+): BucketWritePolicy => ({
   id,
-  maxBytes: FIVE_MB,
+  maxBytes,
   mimeTypes: IMAGE_MIMES,
   adminPrefixes,
   clientWrites: true,
@@ -121,7 +126,8 @@ export const STORAGE_WRITE_POLICY: readonly BucketWritePolicy[] = [
   // srd/ for Dressing, a shared prop library (#1062). Like background-images, its
   // RLS has srd/ policies only; the owner prefix is the rule every image bucket has.
   image("dressing-images", ["srd"]),
-  image("location-images"),
+  // 10 MB: map stills go up to 4096 px (#1125 decision 6).
+  image("location-images", [], TEN_MB),
   image("faction-images"),
   image("pantheon-emblems"),
   image("loot-images"),

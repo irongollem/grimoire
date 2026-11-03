@@ -266,7 +266,8 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/player/PlayerEncounterMapView.vue"),
     // fillsMain: the map draws its own frame edge to edge, so the player layout
     // gives it the whole content area instead of a padded column of no height.
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map", fillsMain: true },
+    // fullscreenMobile: on a phone the view draws its own turn header and Map / My sheet / Roll nav (#1125).
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Battle Map", fillsMain: true, fullscreenMobile: true },
   },
   {
     // What the player's character knows of the world's ties, focus-first (#1084).
@@ -684,11 +685,18 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/cartographer/CartographerListView.vue"),
     meta: { requiresAuth: true, title: "Cartographer" },
   },
+  // Start a map and Bring a map (#1125, frames 05 and 06) take the whole screen like the editor does.
   {
     path: "/cartographer/new",
     name: "cartographer-new",
-    component: () => import("@/views/cartographer/CartographerEditorView.vue"),
-    meta: { requiresAuth: true, title: "New Map" },
+    component: () => import("@/views/cartographer/CartographerStartView.vue"),
+    meta: { requiresAuth: true, title: "New Map", fullscreenMobile: true },
+  },
+  {
+    path: "/cartographer/bring",
+    name: "cartographer-bring",
+    component: () => import("@/views/cartographer/CartographerBringView.vue"),
+    meta: { requiresAuth: true, title: "Bring a Map", fullscreenMobile: true },
   },
   {
     path: "/cartographer/packs",
@@ -700,7 +708,22 @@ export const routes: RouteRecordRaw[] = [
     path: "/cartographer/:id",
     name: "cartographer-editor",
     component: () => import("@/views/cartographer/CartographerEditorView.vue"),
-    meta: { requiresAuth: true, title: "Edit Map" },
+    meta: { requiresAuth: true, title: "Edit Map", fullscreenMobile: true },
+  },
+  // Exploring a site: the Play screen with the party walking its map (#1125 decision 9). It replaced the Atlas
+  // pane's Run layout, so `?run=true` no longer means anything.
+  {
+    path: "/locations/:id/explore",
+    name: "site-explore",
+    component: () => import("@/views/locations/SiteExploreView.vue"),
+    meta: { requiresAuth: true, title: "Exploring" },
+  },
+  // One Table screen per map (epic #1133): follows the party, shows a fight on this map while one is live, for a screen the table looks at.
+  {
+    path: "/locations/:id/table",
+    name: "map-table",
+    component: () => import("@/views/locations/MapTableView.vue"),
+    meta: { requiresAuth: true, title: "Table screen" },
   },
 
   // Loot table detail
@@ -914,12 +937,6 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/encounters/EncounterRunView.vue"),
     meta: { requiresAuth: true, title: "Combat" },
   },
-  {
-    path: "/encounters/:id/run/map",
-    name: "encounter-run-map",
-    component: () => import("@/views/encounters/EncounterMapView.vue"),
-    meta: { requiresAuth: true, title: "Battle Map" },
-  },
 
   // Quests
   {
@@ -1012,6 +1029,14 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/locations/:id",
     redirect: (to) => ({ path: "/locations", query: { ...to.query, at: to.params.id } }),
+  },
+  // A place's map is a tab in the Atlas; changing it is this full-screen
+  // editor, like the Scriptorium's (#1125). `?layer=` picks where it opens.
+  {
+    path: "/locations/:id/map",
+    name: "place-map-editor",
+    component: () => import("@/views/locations/PlaceMapEditorView.vue"),
+    meta: { requiresAuth: true, title: "Edit Map", fullscreenMobile: true },
   },
 
   // Deities (Pantheon)

@@ -234,6 +234,21 @@ describe("hit points and dying", () => {
   });
 });
 
+describe("size override (Enlarge/Reduce)", () => {
+  it("sets and clears a creature's size for the fight without touching its own", () => {
+    const grown = run(stateOf([pc("p-1", { size: "medium" })]), { type: "set_size_override", instanceId: "p-1", size: "large" });
+    expect(find(grown.state, "p-1")).toMatchObject({ size: "medium", size_override: "large" });
+    expect(grown.events).toEqual([]);
+    const cleared = run(grown.state, { type: "set_size_override", instanceId: "p-1", size: null });
+    expect(find(cleared.state, "p-1").size_override).toBeNull();
+  });
+
+  it("is a no-op for a combatant that is not in the fight", () => {
+    const state = stateOf([pc("p-1")]);
+    expect(run(state, { type: "set_size_override", instanceId: "ghost", size: "huge" }).state.combatants).toEqual(state.combatants);
+  });
+});
+
 describe("wild shape", () => {
   const form: WildshapeState = { monster_id: "bear", beast_name: "Bear", beast_image_url: null, beast_hp: 20, beast_max_hp: 20, beast_ac: "11" };
 
@@ -244,6 +259,13 @@ describe("wild shape", () => {
     const reverted = run(entered.state, { type: "revert_wildshape", instanceId: "p-1" });
     expect(find(reverted.state, "p-1").wildshape).toBeUndefined();
     expect(reverted.events).toEqual([{ type: "player_persist", partyMemberId: "pm-p-1", patch: { wildshape_state: null } }]);
+  });
+
+  it("a beast form's size reaches the combatant and the saved sheet", () => {
+    const large: WildshapeState = { ...form, beast_size: "large" };
+    const { state, events } = run(stateOf([pc("p-1")]), { type: "enter_wildshape", instanceId: "p-1", form: large, wildshapesUsed: 1 });
+    expect(find(state, "p-1").wildshape?.beast_size).toBe("large");
+    expect(events[0]).toMatchObject({ patch: { wildshape_state: { beast_size: "large" } } });
   });
 
   it("entering a form that grants no temp HP leaves the existing temp HP out of the save", () => {
@@ -309,6 +331,43 @@ describe("conditions, flags and pools", () => {
     expect(find(rearmed.state, "m").conditions[1]).toMatchObject({ ends: { armed: true } });
     const moved = run(s, { type: "apply_condition", instanceId: "m", condition: { name: "Dazed", ends: { kind: "turn", at: "start", of: "self" } } });
     expect(find(moved.state, "m").conditions[1]).toMatchObject({ ends: { armed: false } });
+  });
+
+  // #1125 decision 10/11: the turn card's tallies belong to one turn only.
+  it("a new turn starts with full speed, action and bonus action", () => {
+    const list = [
+      combatant("a", { initiative: 20 }),
+      combatant("b", { initiative: 5, movement_used: 25, action_used: true, bonus_used: true }),
+    ];
+    const { state } = run(stateOf(list), { type: "next_turn" });
+    expect(find(state, "b")).toMatchObject({ movement_used: 0, action_used: false, bonus_used: false });
+  });
+
+  it("the turn's tallies of someone whose turn is not starting are left alone", () => {
+    const list = [combatant("a", { initiative: 20, movement_used: 15, action_used: true }), combatant("b", { initiative: 5 })];
+    const { state } = run(stateOf(list), { type: "next_turn" });
+    expect(find(state, "a")).toMatchObject({ movement_used: 15, action_used: true });
+  });
+
+  it("moves add up over a turn, and an undo takes exactly its own feet back", () => {
+    const s = stateOf([combatant("m")]);
+    const one = run(s, { type: "record_move", instanceId: "m", feet: 20 }).state;
+    const two = run(one, { type: "record_move", instanceId: "m", feet: 10 }).state;
+    expect(find(two, "m").movement_used).toBe(30);
+    expect(find(run(two, { type: "undo_move", instanceId: "m", feet: 10 }).state, "m").movement_used).toBe(20);
+  });
+
+  it("an undo never leaves less than nothing moved", () => {
+    const s = stateOf([combatant("m", { movement_used: 5 })]);
+    expect(find(run(s, { type: "undo_move", instanceId: "m", feet: 20 }).state, "m").movement_used).toBe(0);
+  });
+
+  it("marks and clears the action and the bonus action on their own", () => {
+    const s = stateOf([combatant("m")]);
+    const used = run(run(s, { type: "set_action_used", instanceId: "m", used: true }).state, { type: "set_bonus_used", instanceId: "m", used: true }).state;
+    expect(find(used, "m")).toMatchObject({ action_used: true, bonus_used: true });
+    const cleared = run(used, { type: "set_action_used", instanceId: "m", used: false }).state;
+    expect(find(cleared, "m")).toMatchObject({ action_used: false, bonus_used: true });
   });
 
   it("toggles surprise and reaction", () => {

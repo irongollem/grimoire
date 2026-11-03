@@ -193,6 +193,7 @@ export function buildMonsterCombatants(monster: Monster, opts: MonsterSpawnOptio
       portrait_url: monster.image_url ?? null,
       portrait_focal_point: monster.portrait_focal_point ?? null,
       token_url: resolveTokenArt(monster)?.tokenUrl,
+      size: monster.size,
       footprint: sizeToFootprint(monster.size),
       ...(legendaryCap !== undefined && {
         legendary_action_cap: legendaryCap,
@@ -236,7 +237,8 @@ export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunC
       portrait_url: npc.portrait_url ?? null,
       portrait_focal_point: npc.portrait_focal_point ?? null,
       token_url: resolveTokenArt(npc)?.tokenUrl,
-      footprint: 1,
+      size: npc.size,
+      footprint: sizeToFootprint(npc.size),
     });
   }
   return out;

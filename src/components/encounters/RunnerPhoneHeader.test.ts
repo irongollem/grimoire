@@ -20,7 +20,6 @@ const baseProps = {
   goingLive: false,
   canGoLive: true,
   canOpenBattleMap: true,
-  battleMapDisabledReason: "No map yet",
   turnTimerSeconds: null,
   turnResetKey: "k",
   canGenerate: false,
@@ -46,19 +45,14 @@ describe("RunnerPhoneHeader", () => {
     document.body.innerHTML = "";
   });
 
-  // #1120: a second window follows the live fight, so before going live it
-  // opened on an empty board with no tokens.
-  it("offers the map in a new window only once the fight is live", async () => {
+  // #1133: the table screen is the map's own, so it opens before the fight is live too.
+  it("offers the table screen before the fight is live", async () => {
     const w = mountHeader({ isLive: false });
     await openMenu(w);
-    expect(menuButton("Open map in a new window")!.disabled).toBe(true);
-    w.unmount();
-    document.body.innerHTML = "";
-
-    const live = mountHeader({ isLive: true });
-    await openMenu(live);
-    menuButton("Open map in a new window")!.click();
-    expect(live.emitted("battle-map-window")).toHaveLength(1);
+    const entry = menuButton("Open table screen in a new window")!;
+    expect(entry.disabled).toBe(false);
+    entry.click();
+    expect(w.emitted("table-screen")).toHaveLength(1);
   });
 
   // The old bar put End Combat one thumb-slip from Roll; on a phone it lives behind the menu.
@@ -87,11 +81,12 @@ describe("RunnerPhoneHeader", () => {
     expect(menuButton("Stop live")).toBeUndefined();
   });
 
-  it("disables the battle map with its reason and offers no second window when it cannot open", async () => {
+  // The map is the List | Map switch, not a menu entry; with no battle map there is no second window either.
+  it("offers no table screen when the encounter has no battle map", async () => {
     const w = mountHeader({ canOpenBattleMap: false });
     await openMenu(w);
-    expect(menuButton("Battle map")!.disabled).toBe(true);
-    expect(menuButton("new window")).toBeUndefined();
+    expect(menuButton("table screen")).toBeUndefined();
+    expect(menuButton("Battle map")).toBeUndefined();
   });
 
   it("offers Roll initiative only before combat starts", async () => {

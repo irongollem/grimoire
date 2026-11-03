@@ -171,8 +171,7 @@ function roomRegion(overrides: Partial<LocationMapRegion> = {}): LocationMapRegi
 
 // `AppButton` renders for real (needed to find buttons by their label text);
 // the heavier subtrees are stubbed — each has its own dedicated test file (or
-// no test file at all, same as `SiteRunSurface`, which mounts the identical
-// pieces), and `LocationMap` reaches into composables this file has no reason
+// no test file at all), and `LocationMap` reaches into composables this file has no reason
 // to mock. `RouterLink` has no router plugin in this harness.
 const stubs = {
   RouterLink: true, LocationMap: true, SiteRoomList: true,
