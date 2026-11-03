@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, reactive } from "vue";
 import type { ModalOrigin } from "@/lib/modalOrigin";
 import type {
   SoundPlaybackState,
@@ -30,6 +30,7 @@ import {
   forgetGeneration,
   busForCategory,
   loopShadowId,
+  isLoopShadowId,
 } from "@/lib/audio/soundTransport";
 
 // ── Playlist run-state types (module-level, not exported) ─────────────────
@@ -90,6 +91,32 @@ const AMBIENT_FADE_MS = 1200;
 const LOOP_CROSSFADE_MS = 700;
 
 const DEFAULT_VOLUME = 0.8;
+/** Solo: everything outside the set sits at this fraction of its level. */
+const SOLO_DIM = 0.25;
+const SOLO_RAMP_MS = 250;
+/** Short overlap used to hand a gapless loop's audible half back to the main element. */
+const LOOP_HANDOFF_MS = 150;
+
+/** Per-press options. Anything omitted keeps the sound's own behaviour. */
+export interface PlayOptions {
+  /** Fade-in length; omitted keeps the default 250ms. */
+  fadeInMs?: number;
+  /** Multiplies the sound's level for this play only (velocity, take variation). 1 is neutral. */
+  gain?: number;
+  /** playbackRate with pitch preservation off, so it nudges pitch. 1 is neutral. */
+  rate?: number;
+  /** Loop gaplessly (plain element loop where Web Audio is unavailable). */
+  loop?: boolean;
+}
+
+/** What the last play of a sound used, so it can be converted to a loop without the caller repeating it. */
+interface PlayMeta {
+  fileUrl: string;
+  bus: AudioBus;
+  gainTrim: number | undefined;
+  playGain: number;
+  rate: number;
+}
 
 /**
  * A looping sound played as two alternating elements, so the wrap is covered by
@@ -100,6 +127,9 @@ interface GaplessLoop {
   fileUrl: string;
   bus: AudioBus;
   gainTrim: number | undefined;
+  /** Per-play level and rate, carried to the partner element on every swap. */
+  playGain: number;
+  rate: number;
   liveId: string;
   swapping: boolean;
 }
@@ -220,6 +250,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
     // The new mode starts at unity — hand it the levels the DM already set.
     engine.setMasterVolume(masterVolume.value, 0);
+    engine.setHush(hushedRef.value);
     (Object.keys(busVolumes.value) as AudioBus[]).forEach((bus) =>
       engine.setBusVolume(bus, busVolumes.value[bus], 0),
     );
@@ -346,22 +377,62 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       audio.volume = 1;
       engine.setSoundVolume(soundId, volume, rampMs);
     } else {
-      audio.volume = volume;
+      // No graph to compose the per-play gain and solo dim in, so fold them in here.
+      const meta = playMeta.get(soundId);
+      const playGain = meta === undefined ? 1 : meta.playGain;
+      audio.volume = Math.min(1, volume * playGain * dimFor(soundId));
     }
   }
 
+  /** soundId → options of its latest play. Plain map: not UI state. */
+  const playMeta = new Map<string, PlayMeta>();
+
+  function setRate(audio: HTMLAudioElement, rate: number): void {
+    audio.playbackRate = rate;
+    // Pitch follows the rate only when a rate was asked for; otherwise leave
+    // the browser's default so a later plain play is untouched.
+    audio.preservesPitch = rate === 1;
+  }
+
+  /**
+   * Start a sound. `category` is required in practice: omitting it routes to the
+   * ambient bus, so every call site names it.
+   */
   function play(
     soundId: string,
     fileUrl: string,
     category?: SoundCategory,
     gainTrim?: number,
+    opts?: PlayOptions,
+  ): void {
+    if (opts !== undefined && opts.loop === true) {
+      startGaplessLoop(soundId, fileUrl, category, gainTrim, opts);
+      return;
+    }
+    playElement(soundId, fileUrl, category, gainTrim, opts);
+  }
+
+  function playElement(
+    soundId: string,
+    fileUrl: string,
+    category: SoundCategory | undefined,
+    gainTrim: number | undefined,
+    opts: PlayOptions | undefined,
   ): void {
     const audio = getOrCreate(soundId, fileUrl);
     const state = getState(soundId);
     const bus = busForCategory(category);
+    const playGain = opts !== undefined && opts.gain !== undefined ? Math.max(0, opts.gain) : 1;
+    const rate = opts !== undefined && opts.rate !== undefined ? opts.rate : 1;
 
     engine.attach(soundId, audio, bus);
     if (gainTrim !== undefined) engine.setSoundTrim(soundId, gainTrim);
+    // Always set, so one press's velocity never leaks into the next play.
+    playMeta.set(soundId, { fileUrl, bus, gainTrim, playGain, rate });
+    engine.setSoundPlayGain(soundId, playGain);
+    setRate(audio, rate);
+    // A sound that starts under a solo comes up already dimmed, not at full level.
+    applyDim(soundId, 0);
 
     audio.loop = state.isLooping;
     attachHandlers(soundId, audio, bus);
@@ -372,6 +443,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (isCasting.value) {
       // Cast device is the output; keep the UI truthful about it playing.
       state.isPlaying = true;
+      noteSoloStart(soundId);
       return;
     }
 
@@ -384,7 +456,13 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         const live = playbackStates.value[soundId];
         if (live) live.isPlaying = true;
         if (bus === "effects") acquireDuck(soundId);
-        engine.fadeIn(soundId, FADE_IN_MS);
+        noteSoloStart(soundId);
+        if (opts !== undefined && opts.fadeInMs !== undefined) {
+          // An asked-for fade must be audible, so it climbs from silence.
+          engine.fadeIn(soundId, opts.fadeInMs, true);
+        } else {
+          engine.fadeIn(soundId, FADE_IN_MS);
+        }
       })
       .catch(() => {
         // Autoplay blocked (or the element was torn down mid-start). Previously
@@ -428,6 +506,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         s.currentTime = 0;
       }
       if (bus === "effects") releaseDuck(soundId);
+      checkSoloAlive();
 
       // Fallback advance for streams whose duration never resolves, so
       // ontimeupdate's early crossfade never got a chance to fire.
@@ -451,6 +530,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       st.isPlaying = false;
       if (rewind) st.currentTime = 0;
     }
+    checkSoloAlive();
     if (!audio) return;
 
     const halt = (): void => {
@@ -475,8 +555,13 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   }
 
   function stop(soundId: string): void {
-    stopGaplessLoop(soundId, FADE_OUT_MS);
-    fadeAndHalt(soundId, true, FADE_OUT_MS);
+    fadeOut(soundId, FADE_OUT_MS);
+  }
+
+  /** Fade a sound to silence over `ms`, then stop and rewind it. A gapless loop ends with it. */
+  function fadeOut(soundId: string, ms: number): void {
+    stopGaplessLoop(soundId, ms);
+    fadeAndHalt(soundId, true, ms);
   }
 
   function pause(soundId: string): void {
@@ -496,9 +581,10 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     fileUrl: string,
     category?: SoundCategory,
     gainTrim?: number,
+    opts?: PlayOptions,
   ): void {
     seek(soundId, 0);
-    play(soundId, fileUrl, category, gainTrim);
+    play(soundId, fileUrl, category, gainTrim, opts);
   }
 
   function seek(soundId: string, time: number): void {
@@ -562,11 +648,51 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     engine.setBusVolume(bus, clamped, 60);
   }
 
-  function toggleLoop(soundId: string): void {
+  /** Is the sound set to loop, whether by the plain flag or as a gapless pair? */
+  function isLooping(soundId: string): boolean {
+    return gaplessLoops.has(soundId) || getState(soundId).isLooping;
+  }
+
+  /**
+   * Turn looping on or off. A sound that is playing switches in place: on
+   * converts it to a gapless pair without a restart, off lets the take finish
+   * its current pass (no gap, no restart). A silent sound just gets the flag.
+   */
+  function setLooping(soundId: string, on: boolean): void {
     const state = getState(soundId);
-    state.isLooping = !state.isLooping;
     const audio = getInstance(soundId);
-    if (audio) audio.loop = state.isLooping;
+    const loop = gaplessLoops.get(soundId);
+
+    if (on) {
+      if (loop) return;
+      const meta = playMeta.get(soundId);
+      // A playlist track advances off its own end, so it keeps the plain flag.
+      if (engine.available && audio && state.isPlaying && meta !== undefined && !playlistOwnedIds().has(soundId)) {
+        gaplessLoops.set(soundId, {
+          fileUrl: meta.fileUrl, bus: meta.bus, gainTrim: meta.gainTrim,
+          playGain: meta.playGain, rate: meta.rate, liveId: soundId, swapping: false,
+        });
+        state.isLooping = false;
+        audio.loop = false;
+        getOrCreate(loopShadowId(soundId), meta.fileUrl);
+        return;
+      }
+      state.isLooping = true;
+      if (audio) audio.loop = true;
+      return;
+    }
+
+    if (loop) {
+      gaplessLoops.delete(soundId);
+      // Mid-swap the audible half is not settled yet; the swap finishes the job.
+      if (!loop.swapping) releaseLoopHalves(soundId, loop);
+    }
+    state.isLooping = false;
+    if (audio) audio.loop = false;
+  }
+
+  function toggleLoop(soundId: string): void {
+    setLooping(soundId, !isLooping(soundId));
   }
 
   function stopAll(): void {
@@ -584,6 +710,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     engine.unduck(0);
     activeMusicPlaylist.value = null;
     activeAmbientPlaylists.value = [];
+    suspendedByPauseAll.clear();
+    pausedAllActive.value = false;
+    setSolo(null);
   }
 
   /**
@@ -591,7 +720,16 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * Only ones playing in their own right — playlist and scene members are
    * restored by their own playlist, not individually.
    */
-  const suspendedByPauseAll = new Set<string>();
+  const suspendedByPauseAll = reactive(new Set<string>());
+  /** Set when pauseAll paused something; cleared by resumeAll and any stop. */
+  const pausedAllActive = ref(false);
+  const isPausedAll = computed(
+    () =>
+      pausedAllActive.value &&
+      (suspendedByPauseAll.size > 0 ||
+        activeMusicPlaylist.value?.paused === true ||
+        activeAmbientPlaylists.value.some((s) => s.paused)),
+  );
 
   /** Sound IDs currently owned by a running playlist or scene. */
   function playlistOwnedIds(): Set<string> {
@@ -622,6 +760,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (mpl && !mpl.paused) pauseMusicPlaylist();
     // No id: every running scene pauses, which is what "everything" means.
     pauseAmbientPlaylist();
+    pausedAllActive.value = true;
   }
 
   function resumeAll(): void {
@@ -646,12 +785,109 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
     if (activeMusicPlaylist.value?.paused) resumeMusicPlaylist();
     resumeAmbientPlaylist();
+    pausedAllActive.value = false;
   }
 
   /** One key for "hold on a moment" and "carry on" — see the space binding. */
   function togglePauseAll(): void {
     if (hasActiveAudio.value) pauseAll();
     else resumeAll();
+  }
+
+  /**
+   * Fade everything out over `ms` and end it: loose sounds, the music slot and
+   * every scene. Unlike pauseAll nothing is kept, so there is no place to come
+   * back to. Safe on an empty board.
+   */
+  function fadeOutAll(ms: number): void {
+    const ids = new Set<string>();
+    Object.entries(playbackStates.value).forEach(([id, st]) => {
+      if (st.isPlaying) ids.add(id);
+    });
+    const scenes = activeAmbientPlaylists.value;
+    scenes.forEach((s) => s.soundIds.forEach((id) => ids.add(id)));
+
+    ids.forEach((id) => fadeOut(id, ms));
+    generators.stop(scenes.flatMap((s) => s.soundIds));
+
+    activeMusicPlaylist.value = null;
+    activeAmbientPlaylists.value = [];
+    suspendedByPauseAll.clear();
+    pausedAllActive.value = false;
+    // Last, so the fading sounds are already marked as fading when the dim lifts.
+    setSolo(null);
+  }
+
+  // ── Hush ────────────────────────────────────────────────────────────────
+
+  const hushedRef = ref(false);
+  const hushed = computed(() => hushedRef.value);
+
+  /** Drop the whole mix to a fraction of its level, independent of master, mute and the duck. */
+  function setHush(on: boolean): void {
+    hushedRef.value = on;
+    engine.setHush(on);
+  }
+
+  // ── Solo ────────────────────────────────────────────────────────────────
+
+  const soloIdsRef = ref<readonly string[] | null>(null);
+  const soloIds = computed(() => soloIdsRef.value);
+  /** True once a soloed sound has actually been heard, so a solo set before its sound starts is not cleared early. */
+  let soloSeen = false;
+
+  function logicalId(id: string): string {
+    return isLoopShadowId(id) ? id.slice(0, -6) : id;
+  }
+
+  function dimFor(id: string): number {
+    const solo = soloIdsRef.value;
+    if (solo === null) return 1;
+    return solo.includes(logicalId(id)) ? 1 : SOLO_DIM;
+  }
+
+  function applyDim(id: string, rampMs: number): void {
+    engine.setSoundDim(id, dimFor(id), rampMs);
+  }
+
+  /** Every id solo may need to touch: sounds, scene layers and gapless shadows. */
+  function knownIds(): Set<string> {
+    const ids = new Set<string>(Object.keys(playbackStates.value));
+    activeAmbientPlaylists.value.forEach((s) => s.soundIds.forEach((id) => ids.add(id)));
+    gaplessLoops.forEach((_loop, id) => ids.add(loopShadowId(id)));
+    return ids;
+  }
+
+  function isAlive(id: string): boolean {
+    const st = playbackStates.value[id];
+    if (st !== undefined && st.isPlaying) return true;
+    // Generator layers have no playback state; they are alive while their scene runs.
+    return activeAmbientPlaylists.value.some((s) => !s.paused && s.soundIds.includes(id));
+  }
+
+  function noteSoloStart(id: string): void {
+    const solo = soloIdsRef.value;
+    if (solo !== null && solo.includes(logicalId(id))) soloSeen = true;
+  }
+
+  /** Clear solo once every soloed sound has stopped, so the rest is not left dimmed for good. */
+  function checkSoloAlive(): void {
+    const solo = soloIdsRef.value;
+    if (solo === null || !soloSeen) return;
+    if (!solo.some(isAlive)) setSolo(null);
+  }
+
+  /**
+   * Keep only these sounds at full level; everything else audible dims to 25%.
+   * `null` (or an empty list) restores everything. Sounds that start later are
+   * dimmed too, unless they are in the set.
+   */
+  function setSolo(ids: readonly string[] | null): void {
+    const next = ids !== null && ids.length > 0 ? [...ids] : null;
+    if (next === null && soloIdsRef.value === null) return;
+    soloIdsRef.value = next;
+    soloSeen = next !== null && next.some(isAlive);
+    knownIds().forEach((id) => applyDim(id, SOLO_RAMP_MS));
   }
 
   // ── Gapless looping ─────────────────────────────────────────────────────
@@ -669,21 +905,27 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     fileUrl: string,
     category: SoundCategory | undefined,
     gainTrim: number | undefined,
+    opts?: PlayOptions,
   ): void {
     if (!engine.available) {
       getState(soundId).isLooping = true;
-      play(soundId, fileUrl, category, gainTrim);
+      playElement(soundId, fileUrl, category, gainTrim, opts);
       return;
     }
 
+    // Looping an already-looping sound again must not leave the old pair's partner running.
+    if (gaplessLoops.has(soundId)) stopGaplessLoop(soundId, 0);
+
     const bus = busForCategory(category);
-    gaplessLoops.set(soundId, { fileUrl, bus, gainTrim, liveId: soundId, swapping: false });
+    const playGain = opts !== undefined && opts.gain !== undefined ? Math.max(0, opts.gain) : 1;
+    const rate = opts !== undefined && opts.rate !== undefined ? opts.rate : 1;
+    gaplessLoops.set(soundId, { fileUrl, bus, gainTrim, playGain, rate, liveId: soundId, swapping: false });
 
     // The visible half loops off; the swap handles wrapping.
     getState(soundId).isLooping = false;
     const el = getOrCreate(soundId, fileUrl);
     el.loop = false;
-    play(soundId, fileUrl, category, gainTrim);
+    playElement(soundId, fileUrl, category, gainTrim, opts);
 
     // Pre-buffer the partner so its fetch and decode are done well before the
     // wrap, not during it.
@@ -718,6 +960,10 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     attachHandlers(incomingId, incoming, loop.bus);
     engine.attach(incomingId, incoming, loop.bus);
     if (loop.gainTrim !== undefined) engine.setSoundTrim(incomingId, loop.gainTrim);
+    // The partner must sound like the half it replaces: same press level, rate and solo dim.
+    engine.setSoundPlayGain(incomingId, loop.playGain);
+    setRate(incoming, loop.rate);
+    applyDim(incomingId, 0);
 
     incoming.loop = false;
     incoming.currentTime = 0;
@@ -738,12 +984,58 @@ export const useSoundboardStore = defineStore("soundboard", () => {
           audio.currentTime = 0;
         });
         loop.swapping = false;
+        // Looping was switched off while the swap was in flight.
+        if (gaplessLoops.get(logicalId) !== loop) releaseLoopHalves(logicalId, loop);
       })
       .catch(() => {
         // Autoplay refused the second element — fall back to a plain loop so the
         // bed keeps running, seam and all, rather than stopping dead.
         loop.swapping = false;
-        audio.loop = true;
+        audio.loop = gaplessLoops.get(logicalId) === loop;
+      });
+  }
+
+  /**
+   * After a gapless pair is dissolved, make sure exactly the main element is
+   * left to finish. If the partner is the audible half, hand over to the main
+   * element at the same position with a short overlap; otherwise just retire
+   * the idle partner.
+   */
+  function releaseLoopHalves(logicalId: string, loop: GaplessLoop): void {
+    const shadowId = loopShadowId(logicalId);
+    const shadowEl = getInstance(shadowId);
+    const main = getInstance(logicalId);
+
+    if (loop.liveId === logicalId || !shadowEl || !main) {
+      if (shadowEl) {
+        const gen = bumpGeneration(shadowId);
+        void engine.fadeOut(shadowId, LOOP_HANDOFF_MS).then(() => {
+          if (!isCurrentGeneration(shadowId, gen)) return;
+          shadowEl.pause();
+          shadowEl.currentTime = 0;
+        });
+      }
+      return;
+    }
+
+    main.loop = false;
+    main.currentTime = shadowEl.currentTime;
+    engine.setSoundVolume(logicalId, 0, 0);
+    void main
+      .play()
+      .then(() => {
+        const live = playbackStates.value[logicalId];
+        engine.setSoundVolume(logicalId, live === undefined ? DEFAULT_VOLUME : live.volume, LOOP_HANDOFF_MS);
+        const gen = bumpGeneration(shadowId);
+        void engine.fadeOut(shadowId, LOOP_HANDOFF_MS).then(() => {
+          if (!isCurrentGeneration(shadowId, gen)) return;
+          shadowEl.pause();
+          shadowEl.currentTime = 0;
+        });
+      })
+      .catch(() => {
+        // The main element refused; the partner keeps playing out its pass.
+        engine.setSoundVolume(logicalId, 0, 0);
       });
   }
 
@@ -1001,6 +1293,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
           panSpread: t.pan_spread,
           layerVolume: t.layer_volume,
         });
+        // Generators fire later through their own elements; the engine remembers the dim for them.
+        applyDim(t.sound.id, 0);
+        noteSoloStart(t.sound.id);
         return;
       }
 
@@ -1023,6 +1318,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       apl.soundIds.forEach((id) => pause(id));
       apl.paused = true;
     });
+    checkSoloAlive();
   }
 
   function resumeAmbientPlaylist(playlistId?: string): void {
@@ -1058,6 +1354,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     activeAmbientPlaylists.value = activeAmbientPlaylists.value.filter(
       (s) => !gone.has(s.playlistId),
     );
+    checkSoloAlive();
   }
 
   // ── Playlist dispatch ───────────────────────────────────────────────────
@@ -1171,6 +1468,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     forgetGeneration(soundId);
     delete playbackStates.value[soundId];
     delete soundEffects.value[soundId];
+    playMeta.delete(soundId);
   }
 
   /**
@@ -1272,6 +1570,15 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     setBusVolume,
     setMasterEffect,
     toggleLoop,
+    setLooping,
+    isLooping,
+    fadeOut,
+    fadeOutAll,
+    hushed,
+    setHush,
+    soloIds,
+    setSolo,
+    isPausedAll,
     stopAll,
     releaseSound,
     pauseForCast,

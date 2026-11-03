@@ -243,10 +243,10 @@ function reachableFrom(from: FakeAudioNode): Set<FakeAudioNode> {
 // the three bus filters, then the reverb return and master send. Attaching a sound adds its filter, gain and
 // reverb send. Tests name nodes by that creation order rather than by exporting engine internals.
 function graphNodes(ctx: FakeAudioContext) {
-  const [master, music, ambient, effects, reverbReturn, masterSend, soundGain, reverbSend] = ctx.gains;
+  const [master, music, ambient, effects, reverbReturn, masterSend, hush, soundGain, reverbSend] = ctx.gains;
   const [masterFilter, musicFilter, ambientFilter, effectsFilter, soundFilter] = ctx.filters;
   return {
-    master, music, ambient, effects, reverbReturn, masterSend, soundGain, reverbSend,
+    master, music, ambient, effects, reverbReturn, masterSend, hush, soundGain, reverbSend,
     masterFilter, musicFilter, ambientFilter, effectsFilter, soundFilter,
   };
 }
@@ -410,7 +410,7 @@ describe("audioEngine", () => {
       const engine = await loadEngine(ctx);
       engine.attach("a", makeAudioEl(), "music");
       engine.attach("b", makeAudioEl(), "music");
-      const [soundGainA, soundGainB] = [ctx.gains[6], ctx.gains[8]];
+      const [soundGainA, soundGainB] = [ctx.gains[7], ctx.gains[9]];
 
       engine.setSoundTrim("a", 0.6);
       engine.setSoundVolume("a", 0.5);
@@ -508,6 +508,169 @@ describe("audioEngine", () => {
       // at volume times trim, 0.35, the level the sound would otherwise be playing at.
       expect(soundGain.gain.valueAt(0.075)).toBeGreaterThan(0.1);
       expect(soundGain.gain.valueAt(0.15)).toBeCloseTo(0.35);
+    });
+  });
+
+  describe("per-play gain, solo dim and fade from silence", () => {
+    it("composes the per-play gain with volume and trim instead of replacing them", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "effects");
+      const { soundGain } = graphNodes(ctx);
+
+      engine.setSoundVolume("s1", 0.8);
+      engine.setSoundTrim("s1", 0.5);
+      engine.setSoundPlayGain("s1", 0.5);
+      expect(soundGain.gain.value).toBeCloseTo(0.2);
+
+      // A later fader move must keep the press's velocity, not forget it.
+      engine.setSoundVolume("s1", 1);
+      expect(soundGain.gain.value).toBeCloseTo(0.25);
+    });
+
+    it("composes the solo dim into the same gain and keeps it through volume changes", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { soundGain } = graphNodes(ctx);
+      engine.setSoundVolume("s1", 0.8);
+
+      engine.setSoundDim("s1", 0.25, 250);
+      expect(soundGain.gain.valueAt(0.25)).toBeCloseTo(0.2);
+
+      engine.setSoundVolume("s1", 0.4);
+      expect(soundGain.gain.value).toBeCloseTo(0.1);
+    });
+
+    it("dims a sound that is attached after the solo began", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.setSoundDim("late", 0.25, 0);
+
+      engine.attach("late", makeAudioEl(), "ambient");
+      const { soundGain } = graphNodes(ctx);
+      engine.setSoundVolume("late", 1);
+
+      expect(soundGain.gain.value).toBeCloseTo(0.25);
+    });
+
+    it("lifts the dim again, and a dim of 1 leaves nothing behind for the next attach", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.setSoundDim("s1", 0.25, 0);
+      engine.setSoundDim("s1", 1, 0);
+
+      engine.attach("s1", makeAudioEl(), "ambient");
+      const { soundGain } = graphNodes(ctx);
+      engine.setSoundVolume("s1", 1);
+
+      expect(soundGain.gain.value).toBe(1);
+    });
+
+    it("does not pull a sound back up mid fade-out when the dim changes", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { soundGain } = graphNodes(ctx);
+      engine.setSoundVolume("s1", 1);
+      engine.setSoundDim("s1", 0.25, 0);
+
+      void engine.fadeOut("s1", 400);
+      engine.setSoundDim("s1", 1, 250);
+
+      expect(soundGain.gain.valueAt(0.4)).toBe(0);
+    });
+
+    it("fades in from true silence when asked, even though the gain already sits at its target", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "effects");
+      const { soundGain } = graphNodes(ctx);
+      engine.setSoundVolume("s1", 0.8);
+
+      engine.fadeIn("s1", 100, true);
+
+      expect(soundGain.gain.valueAt(0)).toBe(0);
+      expect(soundGain.gain.valueAt(0.05)).toBeCloseTo(0.4);
+      expect(soundGain.gain.valueAt(0.1)).toBeCloseTo(0.8);
+    });
+
+    it("leaves a plain fadeIn ramping from wherever the gain is, so existing starts do not dip", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "effects");
+      const { soundGain } = graphNodes(ctx);
+      engine.setSoundVolume("s1", 0.8);
+
+      engine.fadeIn("s1", 100);
+
+      expect(soundGain.gain.valueAt(0.05)).toBeCloseTo(0.8);
+    });
+  });
+
+  describe("hush", () => {
+    it("drops the whole mix to 30% quickly and comes back slowly", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { hush } = graphNodes(ctx);
+
+      engine.setHush(true);
+      expect(hush.gain.valueAt(0.2)).toBeCloseTo(0.3);
+      expect(hush.gain.valueAt(0.1)).toBeGreaterThan(0.3);
+
+      ctx.currentTime = 1;
+      engine.setHush(false);
+      expect(hush.gain.valueAt(1.8)).toBeCloseTo(1);
+      // 200ms into an 800ms release it is still well under halfway back.
+      expect(hush.gain.valueAt(1.2)).toBeLessThan(0.45);
+    });
+
+    it("is its own stage: master volume, mute and the effects duck never touch it", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { hush, master } = graphNodes(ctx);
+
+      engine.setHush(true);
+      engine.setMasterVolume(0, 0);
+      engine.duck(0, 0.25);
+      engine.unduck(0);
+      engine.setMasterVolume(1, 0);
+
+      expect(hush.gain.valueAt(0.2)).toBeCloseTo(0.3);
+      expect(master.gain.value).toBe(1);
+    });
+
+    it("sits after the master gain so the reverb return is hushed too", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { hush, reverbReturn, master } = graphNodes(ctx);
+
+      expect(reachableFrom(reverbReturn).has(hush)).toBe(true);
+      expect(reachableFrom(master).has(hush)).toBe(true);
+      expect(hush.connections).toContain(ctx.destination);
+    });
+
+    it("keeps the hush when a new AudioContext replaces the old one", async () => {
+      vi.resetModules();
+      const first = new FakeAudioContext();
+      const second = new FakeAudioContext();
+      let current: FakeAudioContext = first;
+      vi.doMock("@/lib/audio/audioContext", () => ({
+        getAudioContext: () => asAudioContext(current),
+        primeAudioContext: () => {},
+        resumeExistingAudioContext: () => {},
+      }));
+      const engine = (await import("@/lib/audio/audioEngine")).getAudioEngine();
+      engine.setHush(true);
+
+      current = second;
+      engine.attach("s1", makeAudioEl(), "music");
+
+      // The rebuilt graph must come up hushed, not at full level with the UI saying hushed.
+      expect(graphNodes(second).hush.gain.value).toBe(0.3);
     });
   });
 

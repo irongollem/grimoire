@@ -345,3 +345,67 @@ describe("audioDirectOutput — chain lifecycle", () => {
     expect(el.volume).toBe(1);
   });
 });
+
+describe("audioDirectOutput — hush, solo dim and per-play gain", () => {
+  beforeEach(() => stubVolumeSettable(true));
+
+  it("hushes every sound to 30% and releases it, independent of the master fader", async () => {
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    const el = makeEl();
+    mod.attach("s1", el, "music");
+    mod.setSoundVolume("s1", 1);
+
+    mod.setHush(true);
+    mod.setMasterVolume(0.5);
+    // Hush rides a ramp; let it land.
+    await new Promise((r) => setTimeout(r, 300));
+    expect(el.volume).toBeCloseTo(0.15);
+
+    mod.setHush(false);
+    await new Promise((r) => setTimeout(r, 900));
+    expect(el.volume).toBeCloseTo(0.5);
+  });
+
+  it("composes dim and per-play gain with the other levels", async () => {
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    const el = makeEl();
+    mod.attach("s1", el, "music");
+    mod.setSoundVolume("s1", 0.8);
+    mod.setSoundPlayGain("s1", 0.5);
+    mod.setSoundDim("s1", 0.5, 0);
+
+    expect(el.volume).toBeCloseTo(0.2);
+  });
+
+  it("dims a sound attached after the dim was set", async () => {
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    mod.setSoundDim("late", 0.25, 0);
+    const el = makeEl();
+
+    mod.attach("late", el, "ambient");
+    mod.setSoundVolume("late", 1);
+
+    expect(el.volume).toBeCloseTo(0.25);
+    mod.setSoundDim("late", 1, 0);
+  });
+
+  it("does not bring a fading-out sound back when hush changes", async () => {
+    vi.useFakeTimers();
+    const mod = await import("@/lib/audio/audioDirectOutput");
+    mod.reset();
+    const el = makeEl();
+    mod.attach("s1", el, "music");
+    mod.setSoundVolume("s1", 1);
+
+    void mod.fadeOut("s1", 400);
+    vi.advanceTimersByTime(200);
+    mod.setHush(true);
+    mod.setHush(false);
+    vi.advanceTimersByTime(400);
+
+    expect(el.volume).toBe(0);
+  });
+});
