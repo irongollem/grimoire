@@ -21,19 +21,14 @@
       >
         <div class="flex items-center gap-2">
           <!-- Color swatch / picker -->
-          <div
-            class="w-4 h-4 rounded-full shrink-0 border border-border/50 cursor-pointer overflow-hidden relative"
-            :style="{ backgroundColor: faction.color }"
+          <ColorInput
+            shape="dot"
             :title="faction.color"
-          >
-            <input
-              v-if="isCustomFaction(faction.id)"
-              type="color"
-              :value="faction.color"
-              class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              @input="(e) => updateFactionColor(faction.id, (e.target as HTMLInputElement).value)"
-            />
-          </div>
+            :aria-label="`${faction.name} colour`"
+            :model-value="faction.color"
+            :disabled="!isCustomFaction(faction.id)"
+            @update:model-value="(color) => updateFactionColor(faction.id, color)"
+          />
 
           <!-- Name -->
           <AppInput
@@ -87,6 +82,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ColorInput from "@/components/common/controls/ColorInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconAdd, IconClose } from '@/lib/icons';
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";

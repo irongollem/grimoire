@@ -12,6 +12,8 @@ import type { CellEdge } from "./edges";
 export interface FloodFillOptions {
   /** Safety cap to prevent runaway fills on unbounded predicates. */
   maxCells?: number;
+  /** Whether the fill may step from one cell to its neighbour (a wall between them says no). Default: always. */
+  canStep?: (fromX: number, fromY: number, toX: number, toY: number) => boolean;
 }
 
 export function floodFill(
@@ -39,6 +41,7 @@ export function floodFill(
       const k = cellKey(nx, ny);
       if (visited.has(k)) continue;
       if (!matches(nx, ny)) continue;
+      if (opts.canStep && !opts.canStep(x, y, nx, ny)) continue;
       visited.add(k);
       if (visited.size >= cap) break;
       queue.push([nx, ny]);

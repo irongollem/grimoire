@@ -200,6 +200,7 @@ export function useLevelUpClassSelection(member: () => PartyMember) {
         classFeatures: classDef ? classDef.features : null,
         subclassFeatures: subclassDef ? subclassDef.features : null,
         armorProficiencies: classDef ? classDef.armor_proficiencies : [],
+        capabilities: row.capabilities,
       };
     }),
   );

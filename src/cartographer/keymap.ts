@@ -8,6 +8,12 @@
 import type { Tool } from "@/cartographer/tools";
 import { resolveZoomKey, type ZoomTarget } from "@/lib/canvasControls/zoomKeys";
 
+/** The editor's three tabs under their code names: Base image, Drawing, Zoning. */
+export type EditorLayer = "picture" | "drawing" | "plan";
+
+/** 1, 2 and 3 pick the tabs in the order the bar draws them. */
+const LAYER_KEYS: Record<string, EditorLayer> = { "1": "picture", "2": "drawing", "3": "plan" };
+
 export type KeyAction =
   | { kind: "undo" }
   | { kind: "redo" }
@@ -20,8 +26,26 @@ export type KeyAction =
   | { kind: "deleteDressing" }
   /** Place tool: puts the armed item down without leaving the tool. */
   | { kind: "disarmPlace" }
+  /** Angled wall: Enter ends the run in progress, keeping the segments drawn so far. */
+  | { kind: "finishAngledWall" }
+  /** Angled wall: Escape throws the unfinished run away and stays in the tool. */
+  | { kind: "abandonAngledWall" }
+  /** Select, Angled wall or Light: removes the selected angled wall or placed light (a no-op when none is). */
+  | { kind: "deleteSelected" }
+  /** Select: puts down whatever is picked (prop, light, wall or cell). */
+  | { kind: "clearSelection" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
+  /** B while Brush is already selected: switch its optional perimeter walls on or off. */
+  | { kind: "toggleBrushWalls" }
+  /** X: the active and second tile sets trade places, as Photoshop's X trades its two colours. */
+  | { kind: "swapTileSets" }
+  /** 1, 2, 3: switch to the Base image, Drawing or Zoning tab (only where the map has tabs). */
+  | { kind: "selectLayer"; layer: EditorLayer }
+  /** G: show or hide the square grid on every tab. */
+  | { kind: "toggleGrid" }
+  /** Z, D, F, E on the Zoning tab: the id of the Zoning tool whose key it is. */
+  | { kind: "selectZoningTool"; tool: string }
   | { kind: "selectTool"; tool: Tool };
 
 export interface KeyEventLike {
@@ -34,17 +58,38 @@ export interface KeyEventLike {
   shiftKey: boolean;
   /** True when focus is in an input, textarea or contenteditable — the view derives this from ev.target. */
   targetIsTextEntry: boolean;
+  /** Held keys must not repeatedly flip the brush's wall mode. */
+  repeat?: boolean;
 }
 
 export interface KeyContext {
   activeTool: Tool;
-  tools: ReadonlyArray<{ id: Tool; shortcut?: string; /** Further keys that pick the same tool (Place answers to G as well as O). */ aliases?: readonly string[]; disabled?: boolean }>;
+  tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
+  /** The map has the Base image / Drawing / Zoning tabs (a site's map); 1, 2 and 3 do nothing without them. */
+  hasLayerTabs?: boolean;
+  /**
+   * The tab that is up. Only the Drawing owns the tool letters, and on Zoning the same letters (D door, F fill, E
+   * eraser on the Drawing) mean Zoning's tools; absent means a map without tabs, which is the Drawing.
+   */
+  layer?: EditorLayer;
+  /** Zoning's tools and their keys (#1125 frame 19). Answered only while `layer` is "plan". */
+  zoningTools?: ReadonlyArray<{ id: string; shortcut: string }>;
   /** Place has something armed (an object or a prop); Escape then puts it down before it leaves the tool. */
   placeArmed?: boolean;
+  /** Angled wall has points down that are not yet a wall; Enter ends the run, Escape abandons it. */
+  angledRunOpen?: boolean;
+  /** An angled wall or a placed light is selected, so Delete has something to remove. */
+  selectionDeletable?: boolean;
+  /** Select has a placed prop picked, so Q/E and [ ] turn it (#1125). */
+  selectedPropInSelect?: boolean;
+  /** Anything at all is picked, so Escape puts it down before it means "back to Select". */
+  selectionPresent?: boolean;
 }
 
 // Delete and Backspace are the same key on the two keyboard families.
 const DRESSING_DELETE_KEYS = new Set(["delete", "backspace"]);
+/** The tools in which a selected angled wall or placed light can be taken away with Delete. */
+const SELECTION_TOOLS = new Set<Tool>(["select", "angledWall", "light"]);
 
 export const BRUSH_RADIUS_MIN = 0.5;
 export const BRUSH_RADIUS_MAX = 6;
@@ -73,6 +118,20 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   const key = ev.key.toLowerCase();
   if (key === "c") return { kind: "center" };
 
+  // Photoshop's swap. Shift+X means nothing (it used to be the swap while X was Wrap).
+  if (key === "x") return ev.shiftKey ? null : { kind: "swapTileSets" };
+  if (key === "g") return { kind: "toggleGrid" };
+  // Shift+1 is the zoom-to-fit chord, resolved above; with Shift the digit is not a tab key.
+  if (ctx.hasLayerTabs && !ev.shiftKey && key in LAYER_KEYS) return { kind: "selectLayer", layer: LAYER_KEYS[key] };
+
+  // Z, D, F and E on Zoning. Checked before anything Drawing-shaped, because three of the letters are Drawing
+  // shortcuts too, and the Drawing's tools must not be picked behind the DM's back while another tab is up.
+  if (ctx.layer === "plan" && !ev.shiftKey) {
+    const zoning = ctx.zoningTools?.find((t) => t.shortcut === key);
+    if (zoning) return { kind: "selectZoningTool", tool: zoning.id };
+  }
+  const onDrawing = ctx.layer === undefined || ctx.layer === "drawing";
+
   // Escape always means "back to Select" — none of the free letters
   // read naturally for it, and unlike every other tool it needs a way back
   // that works no matter which tool is currently active. Goes through the
@@ -81,23 +140,42 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   // context ever disables the tool instead of assuming it's always there.
   if (key === "escape") {
     if (ctx.activeTool === "place" && ctx.placeArmed) return { kind: "disarmPlace" };
+    if (ctx.activeTool === "angledWall" && ctx.angledRunOpen) return { kind: "abandonAngledWall" };
+    if (ctx.activeTool === "select" && ctx.selectionPresent) return { kind: "clearSelection" };
     const select = ctx.tools.find((t) => t.id === "select");
     return select && !select.disabled ? { kind: "selectTool", tool: select.id } : null;
+  }
+
+  // Everything below is the Drawing's own: its tools, its picks, its brush.
+  if (!onDrawing) return null;
+
+  if (ctx.activeTool === "angledWall" && key === "enter" && ctx.angledRunOpen) return { kind: "finishAngledWall" };
+
+  if (ctx.selectionDeletable && DRESSING_DELETE_KEYS.has(key) && SELECTION_TOOLS.has(ctx.activeTool)) {
+    return { kind: "deleteSelected" };
   }
 
   if (ctx.activeTool === "brush" && (key === "[" || key === "]")) {
     return { kind: "resizeBrush", delta: key === "[" ? -BRUSH_RADIUS_STEP : BRUSH_RADIUS_STEP };
   }
 
+  if (ctx.activeTool === "brush" && key === "b") {
+    const brush = ctx.tools.find((tool) => tool.id === "brush");
+    return brush && !brush.disabled && !ev.repeat ? { kind: "toggleBrushWalls" } : null;
+  }
+
   // Q/E turn what Place holds, checked before the shortcut lookup so `e` turns it
   // instead of picking the Eraser. The editor decides whether that is the selected
   // prop or the armed item's rotation.
+  if (ctx.activeTool === "select" && ctx.selectedPropInSelect && key in STAMP_ROTATIONS) {
+    return { kind: "rotatePlace", delta: STAMP_ROTATIONS[key] };
+  }
   if (ctx.activeTool === "place") {
     if (key in STAMP_ROTATIONS) return { kind: "rotatePlace", delta: STAMP_ROTATIONS[key] };
     if (DRESSING_DELETE_KEYS.has(key)) return { kind: "deleteDressing" };
   }
 
-  const tool = ctx.tools.find((t) => t.shortcut === key || t.aliases?.includes(key));
+  const tool = ctx.tools.find((t) => t.shortcut === key);
   if (tool && !tool.disabled) return { kind: "selectTool", tool: tool.id };
 
   return null;

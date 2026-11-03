@@ -1,39 +1,37 @@
 // What stops light and sight on a map (epic #1073 story 6): walls, closed doors, sluices (a solid gate) and solid
 // rock. An open door and a grate (bars you can see through) do not. A line between two points is clear when it
-// crosses no blocking edge and enters no solid cell.
+// meets no blocking wall and enters no solid cell.
 //
-// Edges are named as the Cartographer stores them, NW-owned: `"x,y:N"` is the top edge of cell (x,y), `"x,y:W"` its
-// left edge. Pure and DOM-free; the same test serves the editor's preview and the live battle map.
+// A wall is a segment between two points in cell units (#1125 decision 5); a wall on a grid line is the segment of its
+// NW-owned edge key (`"x,y:N"`, `"x,y:W"`, see walls.ts). Pure and DOM-free; the same test serves the editor's preview
+// and the live battle map.
 
 import { effectiveDoors } from "@/lib/battlemap/doors";
+import { buildSegmentIndex, cellNum, segmentsIntersect, type Point, type SegmentIndex, type WallSegment } from "@/lib/battlemap/walls";
 import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
 
 export interface Occluders {
-  /** Blocking edges, `"x,y:N"` or `"x,y:W"`. */
-  walls: ReadonlySet<string>;
+  /** Blocking segments: walls and the doors that are not open. */
+  segments: readonly WallSegment[];
   /** Solid cells, `"x,y"`. */
   solid: ReadonlySet<string>;
-  /** The same sets as numbers, so a line walk does no string work. Built by `occluders`. */
+  /** The same sets as numbers and buckets, so a line walk does no string work. Built by `occluders`. */
   readonly index: {
-    north: ReadonlySet<number>;
-    west: ReadonlySet<number>;
+    segments: SegmentIndex;
     solid: ReadonlySet<number>;
     empty: boolean;
   };
 }
 
 export interface OccluderInput {
-  /** Edges that always block (walls, sluices). */
-  walls: readonly string[];
-  /** Door edges; a door blocks while it is not open. */
-  doors: readonly { edge: string; open: boolean }[];
+  /** Segments that always block (walls, sluices). */
+  walls: readonly WallSegment[];
+  /** Door segments; a door blocks while it is not open. */
+  doors: readonly (WallSegment & { open: boolean })[];
   solid: readonly string[];
 }
 
-const OFFSET = 1 << 15;
-const SPAN = 1 << 16;
-/** A cell (or edge owner) as one number; coordinates stay well inside +-32768 cells. */
-const num = (x: number, y: number): number => (x + OFFSET) * SPAN + (y + OFFSET);
+const num = cellNum;
 
 function parseCell(key: string): [number, number] {
   const [xs, ys] = key.split(",");
@@ -41,22 +39,18 @@ function parseCell(key: string): [number, number] {
 }
 
 export function occluders(input: OccluderInput): Occluders {
-  const blocking = [...input.walls, ...input.doors.filter((d) => !d.open).map((d) => d.edge)];
-  const walls = new Set(blocking);
+  const segments = [...input.walls, ...input.doors.filter((d) => !d.open)];
   const solid = new Set(input.solid);
-  const north = new Set<number>();
-  const west = new Set<number>();
-  for (const edge of walls) {
-    const [cell, side] = edge.split(":");
-    const [x, y] = parseCell(cell);
-    (side === "N" ? north : west).add(num(x, y));
-  }
   const solidNum = new Set<number>();
   for (const key of solid) {
     const [x, y] = parseCell(key);
     solidNum.add(num(x, y));
   }
-  return { walls, solid, index: { north, west, solid: solidNum, empty: walls.size === 0 && solid.size === 0 } };
+  return {
+    segments,
+    solid,
+    index: { segments: buildSegmentIndex(segments), solid: solidNum, empty: segments.length === 0 && solid.size === 0 },
+  };
 }
 
 /** Nothing blocks. */
@@ -85,17 +79,28 @@ export function occludersOf(live: MapLive, doorStates: readonly MapLiveDoorState
 }
 
 const CORNER_EPS = 1e-9;
+/** A ray ends this fraction short of its target: a wall the target sits exactly on does not hide it. */
+const END_TRIM = 1e-6;
 
 /**
  * Whether light or sight passes from (ax,ay) to (bx,by), in cells. Walks the cells the segment crosses; false when it
- * crosses a blocking edge or enters a solid cell other than the one it starts in. A segment through a grid corner is
- * blocked when either way round the corner is, so light never leaks where two walls meet.
+ * meets a blocking wall segment in one of them or enters a solid cell other than the one it starts in. Wall contact is
+ * closed, so a segment through a grid corner is blocked when any wall ending at that corner is, and light never leaks
+ * where two walls meet.
  */
 export function clearLine(occ: Occluders, ax: number, ay: number, bx: number, by: number): boolean {
-  const { north, west, solid, empty } = occ.index;
+  const { segments, solid, empty } = occ.index;
   if (empty) return true;
   const dx = bx - ax;
   const dy = by - ay;
+  const from: Point = [ax, ay];
+  const to: Point = [ax + dx * (1 - END_TRIM), ay + dy * (1 - END_TRIM)];
+  const hits = (cx: number, cy: number): boolean => {
+    const list = segments.cells.get(num(cx, cy));
+    if (!list) return false;
+    for (const seg of list) if (segmentsIntersect(from, to, seg.a, seg.b)) return true;
+    return false;
+  };
   let x = Math.floor(ax);
   let y = Math.floor(ay);
   const sx = dx > 0 ? 1 : -1;
@@ -105,17 +110,14 @@ export function clearLine(occ: Occluders, ax: number, ay: number, bx: number, by
   let tMaxX = dx === 0 ? Infinity : (dx > 0 ? x + 1 - ax : ax - x) * tDeltaX;
   let tMaxY = dy === 0 ? Infinity : (dy > 0 ? y + 1 - ay : ay - y) * tDeltaY;
   for (;;) {
+    if (hits(x, y)) return false;
     const t = Math.min(tMaxX, tMaxY);
     if (t >= 1) return true;
     const corner = Math.abs(tMaxX - tMaxY) < CORNER_EPS;
     if (corner) {
-      const kx = sx > 0 ? x + 1 : x;
-      const ky = sy > 0 ? y + 1 : y;
+      // A wall ending at the corner is filed in all four cells around it (see `buildSegmentIndex`), so the two cells
+      // the ray enters find it; only the rock on the flanks needs looking at.
       if (
-        west.has(num(kx, y)) ||
-        west.has(num(kx, y + sy)) ||
-        north.has(num(x, ky)) ||
-        north.has(num(x + sx, ky)) ||
         solid.has(num(x + sx, y + sy)) ||
         solid.has(num(x + sx, y)) ||
         solid.has(num(x, y + sy))
@@ -127,12 +129,10 @@ export function clearLine(occ: Occluders, ax: number, ay: number, bx: number, by
       tMaxX += tDeltaX;
       tMaxY += tDeltaY;
     } else if (tMaxX < tMaxY) {
-      if (west.has(num(sx > 0 ? x + 1 : x, y))) return false;
       x += sx;
       if (solid.has(num(x, y))) return false;
       tMaxX += tDeltaX;
     } else {
-      if (north.has(num(x, sy > 0 ? y + 1 : y))) return false;
       y += sy;
       if (solid.has(num(x, y))) return false;
       tMaxY += tDeltaY;

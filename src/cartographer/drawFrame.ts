@@ -80,6 +80,11 @@ export interface DrawMapInput {
    * shadow stays on the floor. Default false.
    */
   omitLive?: boolean;
+  /**
+   * Draw the walls marked `visible: false` as a faint dashed line so the DM can see and edit them. Only the editor
+   * sets it: a bake leaves them out, and so does a shadow.
+   */
+  showHiddenWalls?: boolean;
 }
 
 export type MapPass = "all" | "ground" | "standing";
@@ -96,6 +101,8 @@ export interface Frame {
   makeCanvas: MakeCanvas | undefined;
   /** Leave out what the live layer draws itself (#1073); see `omitLive` on the input. */
   omitLive: boolean;
+  /** Draw hidden walls dashed; see `showHiddenWalls` on the input. */
+  showHiddenWalls: boolean;
 }
 
 export interface Target {
@@ -116,4 +123,5 @@ export const frameOf = (input: DrawMapInput, bounds: DrawMapInput["bounds"]): Fr
   dressing: input.dressing,
   makeCanvas: input.makeCanvas,
   omitLive: input.omitLive ?? false,
+  showHiddenWalls: input.showHiddenWalls ?? false,
 });

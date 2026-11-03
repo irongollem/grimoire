@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { MapLive } from "@/types/mapLive.types";
+import type { MapLive, MapLiveDoor } from "@/types/mapLive.types";
+import { latticeSegment, type WallSegment } from "./walls";
 import { clearLine, NO_DOOR_STATES, NO_OCCLUDERS, nudgedOrigins, occluders, occludersOf } from "./occlusion";
 
-const build = (o: Partial<Parameters<typeof occluders>[0]>) => occluders({ walls: [], doors: [], solid: [], ...o });
+type Spec = { walls?: string[]; doors?: { edge: string; open: boolean }[]; solid?: string[] };
+/** Lattice edge keys in, occluders out: the spec for grid walls is unchanged by the segment model. */
+const build = (o: Spec) =>
+  occluders({
+    walls: (o.walls ?? []).map(latticeSegment),
+    doors: (o.doors ?? []).map((d) => ({ ...latticeSegment(d.edge), open: d.open })),
+    solid: o.solid ?? [],
+  });
 
 describe("clearLine", () => {
   it("is clear across an open room", () => {
@@ -96,34 +104,80 @@ describe("nudgedOrigins", () => {
 });
 
 describe("occludersOf with door states", () => {
+  const liveDoor = (edge: string, open: boolean): MapLiveDoor => {
+    const { id, a, b } = latticeSegment(edge);
+    return { id, a: [a[0], a[1]], b: [b[0], b[1]], open, leaf: null };
+  };
   const live: MapLive = {
-    version: 2,
+    version: 3,
     darkness: "daylight",
     groups: [],
     lights: [],
     sprites: [],
     walls: [],
     doors: [
-      { edge: "5,0:W", open: false, leaf: null },
-      { edge: "5,3:W", open: true, leaf: null },
+      liveDoor("5,0:W", false),
+      liveDoor("5,3:W", true),
     ],
     solid: [],
   };
 
   it("lets a line through a closed door the DM opened", () => {
     expect(clearLine(occludersOf(live), 2.5, 0.5, 8.5, 0.5)).toBe(false);
-    expect(clearLine(occludersOf(live, [{ edge: "5,0:W", open: true }]), 2.5, 0.5, 8.5, 0.5)).toBe(true);
+    expect(clearLine(occludersOf(live, [{ id: "5,0:W", open: true }]), 2.5, 0.5, 8.5, 0.5)).toBe(true);
   });
 
   it("blocks a line at an open door the DM shut", () => {
     expect(clearLine(occludersOf(live), 2.5, 3.5, 8.5, 3.5)).toBe(true);
-    expect(clearLine(occludersOf(live, [{ edge: "5,3:W", open: false }]), 2.5, 3.5, 8.5, 3.5)).toBe(false);
+    expect(clearLine(occludersOf(live, [{ id: "5,3:W", open: false }]), 2.5, 3.5, 8.5, 3.5)).toBe(false);
   });
 
   it("returns the same object for the same snapshot and states", () => {
-    const states = [{ edge: "5,0:W", open: true }];
+    const states = [{ id: "5,0:W", open: true }];
     expect(occludersOf(live, states)).toBe(occludersOf(live, states));
     expect(occludersOf(live)).toBe(occludersOf(live, NO_DOOR_STATES));
     expect(occludersOf(live, states)).not.toBe(occludersOf(live));
+  });
+});
+
+describe("angled walls", () => {
+  // #1125 decision 5: a wall is a segment, not a grid edge.
+  const diagonal: WallSegment = { id: "d1", a: [2, 2], b: [6, 6] };
+  const angled = (walls: WallSegment[]) => occluders({ walls, doors: [], solid: [] });
+
+  it("blocks a ray crossing a diagonal wall and not one passing beside it", () => {
+    const occ = angled([diagonal]);
+    expect(clearLine(occ, 2.5, 5.5, 5.5, 2.5)).toBe(false);
+    expect(clearLine(occ, 5.5, 2.5, 2.5, 5.5)).toBe(false);
+    // Parallel to the wall, a cell off it; and past its far end.
+    expect(clearLine(occ, 2.5, 3.5, 5.5, 6.5)).toBe(true);
+    expect(clearLine(occ, 6.5, 8.5, 8.5, 6.5)).toBe(true);
+  });
+
+  it("passes through the gap between two angled walls", () => {
+    const occ = angled([
+      { id: "w1", a: [2, 2], b: [4, 4] },
+      { id: "w2", a: [5, 5], b: [7, 7] },
+    ]);
+    // The ray crosses the diagonal line at (4.5, 4.5), in the gap.
+    expect(clearLine(occ, 3, 6, 6, 3)).toBe(true);
+    // Through the end of the first wall, at (4,4), is not a gap.
+    expect(clearLine(occ, 2.5, 5.5, 5.5, 2.5)).toBe(false);
+    // And through the middle of the first wall.
+    expect(clearLine(occ, 2, 4, 4, 2)).toBe(false);
+  });
+
+  it("finds a long wall by the cells in the middle of it, not only its ends", () => {
+    const occ = angled([{ id: "long", a: [0.5, 0.5], b: [30.5, 3.5] }]);
+    expect(clearLine(occ, 15, 0, 15, 5)).toBe(false);
+  });
+
+  it("is clear with no walls and no rock, whatever the line", () => {
+    expect(clearLine(angled([]), -40.3, 12.1, 90.7, -3.9)).toBe(true);
+  });
+
+  it("does not hide a target that sits exactly on a wall line", () => {
+    // Old grid behaviour: a ray that only reaches the wall at its end is not stopped by it.
+    expect(clearLine(build({ walls: ["5,0:W"] }), 2.5, 0.5, 5, 0.5)).toBe(true);
   });
 });

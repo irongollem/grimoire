@@ -276,8 +276,10 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
 
 /** The flat Atlas read; shared by `useAllLocations` and the navigation prefetch. */
 export function allLocationsQuery(campaignId: string | null) {
+  const campaign = useCampaignStore();
   // The owner comes from the active campaign row (#590: a co-DM reads the owner's library places) and is part of the key.
-  const ownerId = useCampaignStore().activeCampaign?.user_id ?? null;
+  // Another campaign's owner is not known here, so it reads only the caller's own global places besides its own rows.
+  const ownerId = campaignId === campaign.activeCampaignId ? (campaign.activeCampaign?.user_id ?? null) : null;
   return {
     queryKey: [QUERY_KEY, campaignId, "all", ownerId] as const,
     queryFn: () => {
@@ -294,9 +296,11 @@ export function allLocationsQuery(campaignId: string | null) {
  *  `enabled` lets permanently-mounted callers (the generator panels, which live
  *  in DefaultLayout on every DM page) defer the fetch until their panel is open.
  *  Query keys are shared, so the Atlas itself still fetches once. */
-export function useAllLocations(enabled?: () => boolean) {
+export function useAllLocations(enabled?: () => boolean, forCampaign?: MaybeRefOrGetter<string | null>) {
   const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
+  // `forCampaign` reads another campaign's Atlas (a place opened by link from outside the active one) without switching it.
+  // `null`/absent falls back to the active campaign.
+  const campaignId = computed(() => toValue(forCampaign) ?? campaign.activeCampaignId);
   const options = computed(() => allLocationsQuery(campaignId.value));
   return useQuery({
     queryKey: computed(() => options.value.queryKey),
@@ -586,13 +590,13 @@ export function useUpdateLocationDrawing() {
 /**
  * Update a location's Picture layer — `map_url`, and optionally the
  * `grid_calibration` that goes with it. A DM upload/scan passes no
- * calibration (they calibrate by hand afterward); the standalone
+ * calibration (they line the grid up by hand afterward, in `MapGridLineUp`); the standalone
  * Cartographer page's AI styler (epic #884) does, derived from its own
  * fitted input geometry (`src/cartographer/aiStyleInput.ts`'s
  * `styledPictureCalibration`) since the arbitrary location it saves to may
  * have no `source_map_id` relationship to reconcile. Omitting `calibration`
  * leaves the column untouched (a bare `{ map_url }` update) — every other
- * caller, including the plain upload flow in `MapLayersPanel.vue`; never
+ * caller, including the plain upload flow in `usePlacePicture`; never
  * carries `source_map_id`, which describes the Drawing.
  */
 export function useUpdateLocationPicture() {
@@ -632,9 +636,9 @@ export function useUpdateLocationPicture() {
  * safe to write because the edge function requests exactly the size that
  * geometry was fitted to (`supabase/functions/style-map/index.ts`) — but
  * the model itself can still shrink or grow the grid a little in its own
- * render. The Layers panel's Calibrate action stays available and opens
- * seeded from whatever this wrote (`GridCalibrationDialog`'s `existing`
- * prop), exactly as it does for any other Picture.
+ * render. The Picture layer's "Line up the grid on the map" (`MapGridLineUp`)
+ * stays available and opens seeded from whatever this wrote, exactly as it
+ * does for any other Picture.
  */
 export function useSaveStyledSitePicture() {
   const queryClient = useQueryClient();
@@ -651,19 +655,6 @@ export function useSaveStyledSitePicture() {
         source_map_id: null,
         map_published_rev: null,
       }),
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
-    },
-  });
-}
-
-/** Set or clear the VTT grid calibration on a location. */
-export function useUpdateLocationGridCalibration() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, calibration }: { id: string; calibration: GridCalibration | null }) =>
-      updateLocation(id, { grid_calibration: calibration }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

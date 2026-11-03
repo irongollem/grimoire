@@ -7,7 +7,7 @@ summary: Publish a map into an Atlas site, download it as PNG, and re-render it 
 keywords: cartographer, export, PNG, publish to atlas, AI style, map style, isometric, parchment, woodcut, tactical, AI map, structure
 ---
 
-Once a map is saved, Grimoire offers three actions from the **view mode** action bar: **↓ PNG**, **AI Style**, and **Publish to Atlas**.
+Once a map is saved, Grimoire offers three actions from the editor's **Map** menu: **Download PNG**, **Style with AI**, and **Publish to Atlas**.
 
 ## Publish to Atlas
 
@@ -15,7 +15,7 @@ Once a map is saved, Grimoire offers three actions from the **view mode** action
 
 ### How to use it
 
-1. Click **Publish to Atlas** in the view-mode action bar (or arrive here already targeting a site, the Atlas's **Re-publish**/**Preview** buttons and its "draw a level" flow open the map with the site preselected).
+1. Click **Publish to Atlas** in the **Map** menu (or arrive here already targeting a site, the Atlas's **Re-publish**/**Preview** buttons and its "draw a level" flow open the map with the site preselected).
 2. If no site is picked yet, search for one in the site combobox at the top of the modal. Click **Change place…** to switch sites later.
 3. Review the plan: a rendered preview of what will publish, plus a row-by-row list grouped by what will happen: new rooms, region updates, new or updated doors, and any placements getting re-anchored to a different room. Unresolved stairs prompt you to pick their target room right there.
 4. The footer names exactly what gets written (e.g. "Writes 3 rooms, 2 doors, 1 image."); it also always writes the baked picture itself.
@@ -42,7 +42,7 @@ Click **↓ PNG** to export the map as a full-resolution PNG rendered right in y
 
 ### How to use it
 
-1. Click **AI Style** in the view-mode action bar.
+1. Click **Style with AI** in the **Map** menu.
 2. Pick a style preset.
 3. Optionally add freeform details in the text field: describe specific features, mood, or elements you want emphasised (up to 300 characters).
 4. Click **Generate** and wait (usually 15–30 seconds).
@@ -54,16 +54,16 @@ Click **↓ PNG** to export the map as a full-resolution PNG rendered right in y
 
 All styled images include a small `dungeongrimoire.com` watermark. Closing the result without saving or downloading loses it for good: nothing here is auto-recovered.
 
-The grid it sets automatically is a first guess: the AI can shrink or grow it a little in its own render, so check that it lines up and use **Calibrate** on the Layers panel to fine-tune if it's drifted, the same action you'd use on any scanned picture.
+The grid it sets automatically is a first guess: the AI can shrink or grow it a little in its own render, so check that it lines up and use **Line up the grid** on the map editor's Base image tab to fine-tune it if it's drifted, the same action you'd use on any scanned picture.
 
 ### Styling a site's own Drawing
 
-A site's **Build** screen (see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon)) has its own **Style with AI** action on the Layers panel's Drawing row. It works the same way, with two differences:
+A site's map editor (**Edit map** on its Map tab; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon)) has its own **Style it with AI** entry in its Map menu. It works the same way, with two differences:
 
-- There's no location picker: the target is always the site you're already in, so the result button reads **Save to Picture**.
-- Saving asks first, plainly: the styled render replaces the site's Picture, and its Drawing (the Cartographer map you were just editing) is set aside rather than deleted. It stays in your Cartographer, ready to reopen, so you can draw fixes on top of the new Picture and style again, as many times as you like.
+- There's no location picker: the target is always the site you're already in, so the result button reads **Use as the base image**.
+- Saving asks first, plainly: the styled render replaces the site's base image, and its Drawing (the Cartographer map you were just editing) is set aside rather than deleted. It stays in your Cartographer, ready to reopen, so you can draw fixes on top of the new base image and style again, as many times as you like.
 
-Each pass sets the Picture's grid automatically too, so tracing and doors keep working right away. Check it and Calibrate if needed, same as above.
+Each pass sets the base image's grid automatically too, so tracing and doors keep working right away. Check it and line the grid up again if needed, same as above.
 
 ### Style presets
 

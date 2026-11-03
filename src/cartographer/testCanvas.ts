@@ -39,6 +39,7 @@ interface FakeCtx {
   textBaseline: string;
   font: string;
   fillRect(x: number, y: number, w: number, h: number): void;
+  clearRect(x: number, y: number, w: number, h: number): void;
   strokeRect(x: number, y: number, w: number, h: number): void;
   drawImage(source: CanvasImageSource, ...args: number[]): void;
   clip(): void;
@@ -143,6 +144,7 @@ export function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     get strokeStyle() { return strokeStyle; },
     set strokeStyle(v: string) { strokeStyle = v; rec.strokeStyles.push(v); },
     fillRect: (x, y, w, h) => { rec.calls.push("fillRect"); rec.fillRects.push({ x, y, w, h }); rec.fillRectStyles.push(fillStyle); },
+    clearRect: () => { rec.calls.push("clearRect"); },
     strokeRect: () => rec.calls.push("strokeRect"),
     drawImage: (source, ...a) => {
       rec.calls.push("drawImage");

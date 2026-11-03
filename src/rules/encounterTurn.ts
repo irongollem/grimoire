@@ -1,4 +1,5 @@
 import type { ActionUse, RunCombatant, WildshapeState } from "@/types/encounter.types";
+import type { MonsterSize } from "@/types/monster.types";
 import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
@@ -74,8 +75,16 @@ export type EncounterTurnCommand =
   | { type: "end_concentration"; instanceId: string; spell?: string }
   | { type: "enter_wildshape"; instanceId: string; form: WildshapeState; wildshapesUsed: number; tempHp?: number }
   | { type: "revert_wildshape"; instanceId: string }
+  /** The DM's Enlarge/Reduce (or any resize) for this fight; null puts the creature back to its own size. */
+  | { type: "set_size_override"; instanceId: string; size: MonsterSize | null }
   | { type: "toggle_surprised"; instanceId: string }
   | { type: "toggle_reaction"; instanceId: string }
+  /** The active token moved `feet` this turn (#1125 decision 11); adds to what the turn has used. */
+  | { type: "record_move"; instanceId: string; feet: number }
+  /** Takes `feet` back off the turn's movement (Back to start, Ctrl Z). Never goes below nothing moved. */
+  | { type: "undo_move"; instanceId: string; feet: number }
+  | { type: "set_action_used"; instanceId: string; used: boolean }
+  | { type: "set_bonus_used"; instanceId: string; used: boolean }
   /** caps: instance_id -> legendary action cap. Missing entries get no pool. */
   | { type: "prime_legendary_actions"; caps: Record<string, number> }
   | { type: "spend_legendary_actions"; instanceId: string; cost: number }
@@ -180,9 +189,9 @@ function usesDeathSaves(c: RunCombatant): boolean {
 }
 
 /** Refill the per-turn pools a combatant regains at the start of its turn
- *  (5e RAW: reaction resets, legendary actions refill). */
+ *  (5e RAW: reaction resets, legendary actions refill; a new turn has its full speed, action and bonus action). */
 function refreshTurnStart(c: RunCombatant): RunCombatant {
-  const next: RunCombatant = { ...c, reactionUsed: false };
+  const next: RunCombatant = { ...c, reactionUsed: false, movement_used: 0, action_used: false, bonus_used: false };
   if (typeof c.legendary_action_cap === "number") next.legendary_actions_remaining = c.legendary_action_cap;
   return next;
 }
@@ -659,6 +668,10 @@ export function reduceEncounterTurn(
       if (!found?.wildshape) return done(state);
       return done(editCombatant(state, command.instanceId, (c) => revertForm(c, events)));
     }
+    case "set_size_override":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.size_override = command.size;
+      }));
     case "toggle_surprised":
       return done(editCombatant(state, command.instanceId, (c) => {
         c.surprised = !c.surprised;
@@ -666,6 +679,22 @@ export function reduceEncounterTurn(
     case "toggle_reaction":
       return done(editCombatant(state, command.instanceId, (c) => {
         c.reactionUsed = !c.reactionUsed;
+      }));
+    case "record_move":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.movement_used = (c.movement_used ?? 0) + command.feet;
+      }));
+    case "undo_move":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.movement_used = Math.max(0, (c.movement_used ?? 0) - command.feet);
+      }));
+    case "set_action_used":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.action_used = command.used;
+      }));
+    case "set_bonus_used":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.bonus_used = command.used;
       }));
     case "prime_legendary_actions":
       return done({

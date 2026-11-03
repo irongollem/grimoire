@@ -147,6 +147,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import { canEditClass, isCustomClass, useDeleteCustomClass, useDuplicateClass } from "@/composables/rules/useCustomClasses";
 import { useAuthStore } from "@/stores/auth";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
@@ -173,10 +174,16 @@ const readOnlyLabel = computed(() => {
   return book ? `${book}, read only` : "Read only";
 });
 
+const toast = useToast();
+
 async function handleDuplicate() {
   if (editable.value) return;
-  const created = await duplicate(props.cls);
-  void router.push(`/levelup/classes/${created.id}`);
+  try {
+    const created = await duplicate(props.cls);
+    void router.push(`/levelup/classes/${created.id}`);
+  } catch (e) {
+    toast.error(toast.fromError(e, "Could not copy the class."));
+  }
 }
 
 const { data: allFeatures } = useAllFeatures();

@@ -33,15 +33,13 @@
  */
 import { markdownToTiptap } from "./tiptap.ts";
 import { quote, sql } from "./dev-db.ts";
+import { fixtureCampaign } from "./dev-fixture-campaign.ts";
 
 /** How many rows of each kind the fixture ended up with, for the CLI summary. */
 export type FixtureContentCounts = Record<string, number>;
 
 export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureContentCounts {
-  const campaignId = sql(
-    dbUrl,
-    `select id from public.campaigns where user_id = ${quote(ownerId)} order by created_at limit 1`,
-  );
+  const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
   if (!campaignId) return {};
 
   const owner = quote(ownerId);

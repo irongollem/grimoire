@@ -1,5 +1,13 @@
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const reduced = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/motion", () => ({ prefersReducedMotion: () => reduced.on }));
+const device = vi.hoisted(() => ({ files: new Map<string, File>() }));
+vi.mock("@/lib/mapImport/localMedia", () => ({
+  getLocalMap: (key: string) => Promise.resolve(device.files.get(key) ?? null),
+  saveLocalMap: () => Promise.resolve(true),
+}));
+
 import MapStackImage from "./MapStackImage.vue";
 import type { MapStack } from "@/lib/locations/mapStack";
 
@@ -12,6 +20,7 @@ function stackOf(over: Partial<MapStack>): MapStack {
     frameCalibration: null,
     blank: null,
     hasAnyLayer: false,
+    motion: null,
     ...over,
   };
 }
@@ -170,5 +179,58 @@ describe("MapStackImage", () => {
       await wrapper.setProps({ stack: { ...wide, drawing: next, primary: next } });
       expect(style(wrapper, "/picture.webp")).toContain("width: 100%");
     });
+  });
+});
+
+
+describe("MapStackImage moving Picture (#1125 decision 6)", () => {
+  const picture = { kind: "picture" as const, url: "/picture.webp", calibration: null };
+  const motionOf = (kind: "video" | "animated") => ({
+    key: "loc-1",
+    motion: { kind, file_name: "r.mp4", mime: "video/mp4", bytes: 4, width: 8, height: 8 },
+  });
+  const stackFor = (kind: "video" | "animated") => stackOf({ picture, primary: picture, hasAnyLayer: true, motion: motionOf(kind) });
+
+  beforeEach(() => {
+    reduced.on = false;
+    device.files.clear();
+    URL.createObjectURL = () => "blob:movie";
+    URL.revokeObjectURL = () => undefined;
+  });
+
+  it("plays the DM's video in place of the still when this device has the file", async () => {
+    device.files.set("loc-1", new File(["abcd"], "r.mp4"));
+    const wrapper = mount(MapStackImage, { props: { stack: stackFor("video") } });
+    await flushPromises();
+    expect(wrapper.find("video").attributes("src")).toBe("blob:movie");
+    expect(wrapper.find("img").exists()).toBe(false);
+  });
+
+  it("swaps an animated image's src for the device file", async () => {
+    device.files.set("loc-1", new File(["abcd"], "r.gif"));
+    const wrapper = mount(MapStackImage, { props: { stack: stackFor("animated") } });
+    await flushPromises();
+    expect(wrapper.find("img").attributes("src")).toBe("blob:movie");
+  });
+
+  it("keeps the still when the file is missing, and under reduced motion", async () => {
+    const missing = mount(MapStackImage, { props: { stack: stackFor("video") } });
+    await flushPromises();
+    expect(missing.find("video").exists()).toBe(false);
+    expect(missing.find("img").attributes("src")).toBe("/picture.webp");
+
+    device.files.set("loc-1", new File(["abcd"], "r.mp4"));
+    reduced.on = true;
+    const calm = mount(MapStackImage, { props: { stack: stackFor("video") } });
+    await flushPromises();
+    expect(calm.find("video").exists()).toBe(false);
+    expect(calm.find("img").attributes("src")).toBe("/picture.webp");
+  });
+
+  it("never moves a stack without motion (what a player's stack is)", async () => {
+    device.files.set("loc-1", new File(["abcd"], "r.mp4"));
+    const wrapper = mount(MapStackImage, { props: { stack: stackOf({ picture, primary: picture, hasAnyLayer: true }) } });
+    await flushPromises();
+    expect(wrapper.find("video").exists()).toBe(false);
   });
 });

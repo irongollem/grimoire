@@ -48,7 +48,7 @@ export type RegionRole = (typeof REGION_ROLES)[number];
 
 /** A short, closed list for the same reason `hazard_glyph` is one: the
  *  renderer must be able to draw any value, whatever pack is loaded. */
-export const ZONE_KINDS = ["terrain", "hazard", "light", "trigger", "marker"] as const;
+export const ZONE_KINDS = ["terrain", "hazard", "light", "trigger", "marker", "entrance"] as const;
 export type ZoneKind = (typeof ZONE_KINDS)[number];
 
 export const ZONE_KIND_LABELS: Record<ZoneKind, string> = {
@@ -57,6 +57,8 @@ export const ZONE_KIND_LABELS: Record<ZoneKind, string> = {
   light: "Light",
   trigger: "Trigger",
   marker: "Marker",
+  // #1125: where the party walks in when the DM explores the site; it draws like a marker.
+  entrance: "Entrance",
 };
 
 export const REGION_PROVENANCES = ["dm", "floodfill", "annotation"] as const;
@@ -150,14 +152,14 @@ export type LocationMapRegionUpdate = Partial<
  *  site with its own floor plan. `LocationMap.vue` builds this list from its
  *  `rooms` and `children` props (a room plus whichever children satisfy
  *  `isSiteType`, `src/lib/locations/tiers.ts`) and hands it to
- *  `SiteMapRegionList.vue`, which never needs more than an id to bind and a
+ *  `ZoningList.vue`, which never needs more than an id to bind and a
  *  name to display. */
 export interface BindableSpace {
   id: string;
   name: string;
   /** Present whenever the caller's own child list already carries it — every
    *  `bindableSpaces()` caller's does, since that function is generic over
-   *  `{ location_type: LocationType }` — so `SiteMapRegionList.vue` can read
+   *  `{ location_type: LocationType }` — so `ZoningList.vue` can read
    *  "Nested site · click to descend" (#868, frame 03) for a bound site
    *  without this shared type needing every consumer's full shape. */
   location_type?: LocationType;

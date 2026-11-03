@@ -31,7 +31,7 @@ export const LOCAL_BUCKETS: ReadonlyArray<{
   { id: "monster-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "trap-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "dressing-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
-  { id: "location-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
+  { id: "location-images", public: true, maxBytes: 10485760, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "faction-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "pantheon-emblems", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "loot-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },

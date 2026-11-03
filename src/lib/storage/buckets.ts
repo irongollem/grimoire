@@ -70,6 +70,7 @@ export interface BucketConfig {
 }
 
 const FIVE_MB   =  5 * 1024 * 1024;
+const TEN_MB    = 10 * 1024 * 1024;
 const TWENTY_MB = 20 * 1024 * 1024;
 const FIFTY_MB  = 50 * 1024 * 1024;
 
@@ -205,7 +206,8 @@ export const BUCKETS = {
   },
   locationImages: {
     id: "location-images",
-    maxBytes: FIVE_MB,
+    // 4096 px map stills (#1125 decision 6) run past the 5 MB the other images fit in.
+    maxBytes: TEN_MB,
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,

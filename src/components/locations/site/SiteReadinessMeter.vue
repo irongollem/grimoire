@@ -6,11 +6,10 @@
     >1</span>
     <span class="text-eyebrow font-semibold text-muted-foreground">Floor plan</span>
 
-    <!-- Mapped links into the Layers panel (#884, S5) — the one pill among
-         the five that names something the DM fixes by choosing a layer,
-         which is exactly what that panel is for. The other four name a
-         tracing/binding gap the map itself (not this meter) is where you'd
-         go fix, so they stay plain facts. `AppButton tinted` rather than the
+    <!-- Mapped opens the map: to read it, or to start one. It is the one pill
+         among the five that is a way somewhere; the other four name a gap the
+         map itself (not this meter) is where you'd go fix, so they stay
+         plain facts. `AppButton tinted` rather than the
          other four pills' raw span: this one is genuinely interactive, and
          the primitives rule is what governs "a coloured pill whose colour
          means something" once it does something. -->
@@ -44,8 +43,8 @@
  * that say what a site is missing before a session, not during one. The site
  * analogue of the Quest Board's gap chips: this reads `SiteReadiness`
  * (`lib/locations/siteReadiness.ts`) rather than deriving anything of its
- * own, so the meter and the Layers panel's own read of the stack never
- * disagree about the same site.
+ * own, so the meter and the map editor's ready check never disagree about the
+ * same site.
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -55,9 +54,8 @@ import type { SiteReadiness } from "@/lib/locations/siteReadiness";
 
 const { readiness } = defineProps<{ readiness: SiteReadiness }>();
 
-/** Emitted by the Mapped pill (#884, S5) — the caller switches to Map mode:
- *  in Browse when there is a map to read, in Build (where the Layers panel
- *  starts one) when there is not. */
+/** Emitted by the Mapped pill — the caller opens the map: the Map tab when
+ *  there is one to read, the editor (which starts one) when there is not. */
 const emit = defineEmits<{ "open-map": [] }>();
 
 // The one pressable pill grows to a finger target on a phone, and carries the
@@ -66,7 +64,7 @@ const isBelowSm = useBelow("sm");
 
 const pills = computed(() => [
   { key: "mapped", label: "Mapped", ok: readiness.mapped },
-  { key: "calibrated", label: "Calibrated", ok: readiness.calibrated },
+  { key: "calibrated", label: "Grid", ok: readiness.calibrated },
   { key: "traced", label: "Traced", ok: readiness.traced },
   { key: "bound", label: "Bound", ok: readiness.bound },
   { key: "waysOut", label: "Ways out", ok: readiness.waysOut },
@@ -78,7 +76,7 @@ const restPills = computed(() => pills.value.filter((p) => p.key !== "mapped"));
 
 const ariaLabel = computed(() => {
   const missing = pills.value.filter((p) => !p.ok).map((p) => p.label);
-  if (!missing.length) return "Floor plan ready: mapped, calibrated, traced, bound, ways out";
+  if (!missing.length) return "Floor plan ready: mapped, grid, traced, bound, ways out";
   return `Floor plan missing: ${missing.join(", ")}${readiness.caption ? ` · ${readiness.caption}` : ""}`;
 });
 </script>

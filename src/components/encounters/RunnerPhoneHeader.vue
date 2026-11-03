@@ -66,7 +66,6 @@ const {
   goingLive,
   canGoLive,
   canOpenBattleMap,
-  battleMapDisabledReason,
   turnTimerSeconds,
   turnResetKey,
   canGenerate,
@@ -77,7 +76,6 @@ const {
   /** A campaign is active, so there is a table to go live to. */
   canGoLive: boolean;
   canOpenBattleMap: boolean;
-  battleMapDisabledReason: string;
   turnTimerSeconds: number | null;
   turnResetKey: string | number;
   /** The campaign's AI is on, so the complication and reinforcement generators are offered. */
@@ -87,8 +85,7 @@ const {
 const emit = defineEmits<{
   tools: [];
   "go-live": [];
-  "battle-map": [];
-  "battle-map-window": [];
+  "table-screen": [];
   "roll-initiative": [];
   generate: [mode: ComplicationMode];
   abandon: [];
@@ -108,19 +105,11 @@ const menuItems = computed<OverflowMenuEntry[]>(() => {
   if (canGoLive) {
     items.push({ key: "go-live", label: isLive ? "Stop live" : "Go live", disabled: goingLive });
   }
-  items.push({
-    key: "battle-map",
-    label: "Battle map",
-    disabled: !canOpenBattleMap,
-    reason: canOpenBattleMap ? undefined : battleMapDisabledReason,
-  });
-  // A second window follows the live fight (#1120): before going live it has nothing to show.
+  // The map itself is the List | Map switch under this header. The table screen is the map's own second window (#1133).
   if (canOpenBattleMap) {
     items.push({
-      key: "battle-map-window",
-      label: "Open map in a new window",
-      disabled: !isLive,
-      reason: isLive ? undefined : "Go live first. The new window follows the live fight.",
+      key: "table-screen",
+      label: "Open table screen in a new window",
     });
   }
   if (!store.started) items.push({ key: "roll-initiative", label: "Roll initiative for everyone left", disabled: store.rollingInitiative });
@@ -137,8 +126,7 @@ const menuItems = computed<OverflowMenuEntry[]>(() => {
 function onSelect(key: string) {
   if (key === "manual") void router.push(manualPageRoute("encounter-runner"));
   else if (key === "go-live") emit("go-live");
-  else if (key === "battle-map") emit("battle-map");
-  else if (key === "battle-map-window") emit("battle-map-window");
+  else if (key === "table-screen") emit("table-screen");
   else if (key === "roll-initiative") emit("roll-initiative");
   else if (key === "generate-complication") emit("generate", "complication");
   else if (key === "generate-reinforcements") emit("generate", "reinforcements");

@@ -1,7 +1,36 @@
 <template>
-  <!-- Ground: the floor, shadows and rock of the Drawing (or the whole picture when it has no standing half). -->
+  <!--
+    A moving Picture plays UNDER everything, as an HTML element in the moving layer's box. An HTML sibling rather than
+    a foreignObject: pan and zoom are already px numbers (panX/imageW), so a box in those px stays exact, and Safari
+    mishandles a <video> inside an SVG foreignObject. It sits before the ground svg, so the Drawing's transparent bake
+    draws over it; the still is left out of the svg while it plays.
+  -->
+  <video
+    v-if="playsVideo && motionBox"
+    class="motion-layer"
+    :src="media.url.value ?? undefined"
+    :style="motionStyle"
+    autoplay
+    loop
+    muted
+    playsinline
+    aria-hidden="true"
+    data-testid="map-motion"
+  />
+  <img
+    v-else-if="playsAnimated && motionBox"
+    class="motion-layer"
+    :src="media.url.value ?? undefined"
+    :style="motionStyle"
+    alt=""
+    draggable="false"
+    data-testid="map-motion"
+  />
+
+  <!-- Ground: the Picture (under a Drawing), then the floor, shadows and rock of the Drawing (or the whole picture when it has no standing half). -->
   <svg class="map-svg" :viewBox="`0 0 ${hostW} ${hostH}`" preserveAspectRatio="none">
-    <image :href="imageUrl" :x="panX" :y="panY" :width="imageW" :height="imageH" />
+    <image v-if="pictureBox && !playing" :href="pictureBox.url" :x="pictureBox.x" :y="pictureBox.y" :width="pictureBox.w" :height="pictureBox.h" />
+    <image v-if="!groundIsMoving" :href="imageUrl" :x="panX" :y="panY" :width="imageW" :height="imageH" />
   </svg>
 
   <BattleMapLiveLayer
@@ -82,6 +111,29 @@
     :ground-url="imageUrl"
     :stand-url="standUrl"
   />
+
+  <!-- Only a DM's surface has a moving map (a player's projection never carries one), so this is a DM-only chip. -->
+  <div
+    v-if="motion && media.missing.value"
+    data-slip
+    class="absolute right-2 top-2 z-20 flex max-w-xs flex-col gap-1 rounded-md border border-border bg-card px-2 py-1.5 text-label text-foreground"
+    data-testid="map-motion-missing"
+    @pointerdown.stop
+    @wheel.stop
+  >
+    <span>Moving map: this device doesn't have the file</span>
+    <AppButton variant="outline" size="xs" @click="fileInput?.click()">Pick the file</AppButton>
+    <input ref="fileInput" type="file" class="hidden" accept="video/*,image/gif,image/webp,image/png" @change="onPicked" />
+  </div>
+  <div
+    v-else-if="motion && media.mismatch.value"
+    data-slip
+    class="absolute right-2 top-2 z-20 max-w-xs rounded-md border border-border bg-card px-2 py-1.5 text-label text-foreground"
+    data-testid="map-motion-mismatch"
+    @pointerdown.stop
+  >
+    This is not the file the map was imported with ({{ motion.fileName }}). It plays anyway.
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -96,21 +148,25 @@
 // picture loads), and the layer draws them from then on only, so they never show twice. Until then, or when an image
 // fails to load, everything stays in the full `standUrl` and nothing is ever missing. A reduced-motion user gets the
 // same swap: the layer draws one still frame instead of a loop, which a door the DM opens still needs (#1073).
-import { computed, shallowRef } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { useLocalMapMedia } from "@/composables/locations/useLocalMapMedia";
+import { prefersReducedMotion } from "@/lib/motion";
+import { placeCalibrated, type PlacedRect } from "@/lib/locations/mapStack";
 import BattleMapLiveLayer from "@/components/encounters/BattleMapLiveLayer.vue";
 import BattleMapVeil from "@/components/encounters/BattleMapVeil.vue";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
+import type { BattleMapLayers } from "@/lib/battlemap/roomBridge";
 import type { Viewer } from "@/lib/battlemap/vision";
 import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
 
-const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, viewers = null, zones = NO_ZONES, doorStates = NO_DOOR_STATES } = defineProps<{
+const { layers, panX, panY, imageW, imageH, viewers = null, zones = NO_ZONES, doorStates = NO_DOOR_STATES } = defineProps<{
   hostW: number;
   hostH: number;
-  imageUrl: string;
-  standUrl: string | null;
-  /** The standing image without the swaying props, or null when nothing sways. */
-  standLiveUrl: string | null;
+  /** What the map is made of: the ground image, the standing half, the live snapshot (#1125: one object, so a new
+   *  layer reaches every battle map without each mount learning a prop). The DM's `BattleSurface` is one. */
+  layers: BattleMapLayers;
   panX: number;
   panY: number;
   /** The image's drawn size on screen, in px. */
@@ -123,7 +179,6 @@ const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, view
   cellPx: number;
   originX: number;
   originY: number;
-  live: MapLive | null;
   /** The player's sight: set, the veil shows what these viewers see; null, the DM's translucent veil. */
   viewers?: Viewer[] | null;
   /** Magical darkness: counts as a dark map for mounting the veil, even on a daylight one. */
@@ -132,19 +187,95 @@ const { imageUrl, panX, panY, imageW, imageH, standUrl, standLiveUrl, live, view
   doorStates?: readonly MapLiveDoorState[];
 }>();
 
+const imageUrl = computed(() => layers.imageUrl);
+const standUrl = computed(() => layers.standUrl);
+const standLiveUrl = computed(() => layers.standLiveUrl);
+const live = computed(() => layers.live);
+
+// ── The Picture under the Drawing, and a moving Picture (#1125 decisions 6 and 8) ──
+const picture = computed(() => layers.picture);
+const pictureUrl = computed(() => picture.value?.url ?? null);
+// The Picture's natural size is not known to the surface; only its aspect matters to `placeCalibrated`.
+const pictureNatural = ref<{ w: number; h: number } | null>(null);
+watch(
+  pictureUrl,
+  (url) => {
+    pictureNatural.value = null;
+    if (url === null) return;
+    const probe = new Image();
+    probe.onload = () => {
+      // A newer Picture may have replaced this one while it loaded.
+      if (pictureUrl.value === url) pictureNatural.value = { w: probe.naturalWidth, h: probe.naturalHeight };
+    };
+    probe.src = url;
+  },
+  { immediate: true },
+);
+const pictureRect = computed<PlacedRect | null>(() => {
+  const p = picture.value;
+  const natural = pictureNatural.value;
+  if (!p || !natural || imageW <= 0 || imageH <= 0) return null;
+  return placeCalibrated(p.drawingCalibration, p.calibration, { w: imageW, h: imageH }, natural);
+});
+const pictureBox = computed(() => {
+  const r = pictureRect.value;
+  const p = picture.value;
+  return r && p ? { url: p.url, x: panX + r.left * imageW, y: panY + r.top * imageH, w: r.width * imageW, h: r.height * imageH } : null;
+});
+
+const motion = computed(() => layers.motion);
+const media = useLocalMapMedia(
+  () => motion.value?.key ?? null,
+  () => (motion.value ? { fileName: motion.value.fileName, bytes: motion.value.bytes } : null),
+);
+// Reduced motion shows the still, which is `map_url` and already drawn as the ground or the Picture.
+const playing = computed(() => !!motion.value && media.url.value !== null && !prefersReducedMotion());
+// The moving layer is the Picture: under the Drawing in its placed rect, or the ground itself when it is all there is.
+const motionBox = computed(() => {
+  const m = motion.value;
+  if (!m || !playing.value) return null;
+  if (picture.value) return pictureBox.value;
+  return imageUrl.value === m.still ? { x: panX, y: panY, w: imageW, h: imageH } : null;
+});
+// The ground IS the Picture and it is playing: the video draws it, so the still must not cover it.
+const groundIsMoving = computed(() => playing.value && !picture.value && motion.value?.still === imageUrl.value);
+const playsVideo = computed(() => playing.value && motion.value?.kind === "video");
+const playsAnimated = computed(() => playing.value && motion.value?.kind === "animated");
+const motionStyle = computed(() => {
+  const b = motionBox.value;
+  return b ? { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` } : {};
+});
+
+const fileInput = ref<HTMLInputElement | null>(null);
+async function onPicked(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (file) await media.pick(file);
+}
+
 const topDraws = computed(
-  () => live !== null && standLiveUrl !== null && (live.sprites.length > 0 || live.doors.some((d) => d.leaf !== null)),
+  () => {
+    const snapshot = live.value;
+    return snapshot !== null && standLiveUrl.value !== null && (snapshot.sprites.length > 0 || snapshot.doors.some((d) => d.leaf !== null));
+  },
 );
 // Ready is remembered per snapshot: a new one has sprites of its own to load before its standing image can drop them.
 // A shallow ref, because it is compared by identity: `ref` would wrap the snapshot in a reactive proxy that never
 // equals the raw object the prop carries, and the stack would never swap.
 const readyLive = shallowRef<MapLive | null>(null);
 // The ground picture's box, so the ground layer keeps a light's flicker to its painted part.
-const groundBox = computed(() => ({ url: imageUrl, x: panX, y: panY, w: imageW, h: imageH }));
-const shownStandUrl = computed(() => (topDraws.value && readyLive.value === live ? standLiveUrl : standUrl));
+const groundBox = computed(() => ({ url: imageUrl.value, x: panX, y: panY, w: imageW, h: imageH }));
+const shownStandUrl = computed(() => (topDraws.value && readyLive.value === live.value ? standLiveUrl.value : standUrl.value));
 </script>
 
 <style scoped>
+.motion-layer {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
 .map-svg {
   position: absolute;
   inset: 0;

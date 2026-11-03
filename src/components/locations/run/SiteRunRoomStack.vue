@@ -1,6 +1,6 @@
 <template>
-  <div class="flex flex-col gap-3 rounded-xl border border-tone-info bg-card p-4">
-    <div class="flex flex-wrap items-center gap-1.5">
+  <div class="flex flex-col gap-3" :class="compact ? '' : 'rounded-xl border border-tone-info bg-card p-4'">
+    <div v-if="!compact" class="flex flex-wrap items-center gap-1.5">
       <span class="inline-flex items-center gap-1.5 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
         <span class="relative flex h-1.5 w-1.5">
           <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tone-info opacity-75" />
@@ -9,10 +9,14 @@
         Party here
       </span>
     </div>
-    <h2 class="text-heading-sm font-bold text-foreground">{{ room.name }}</h2>
+    <h2 v-if="!compact" class="text-heading-sm font-bold text-foreground">{{ room.name }}</h2>
 
-    <section v-if="hasDescription" class="rounded-lg border border-primary/30 bg-primary/5 p-4">
-      <h3 class="mb-2 text-heading-sm font-bold text-primary">Read aloud</h3>
+    <!-- The Play screen's room card (frame 09) draws the read-aloud as a quotation: an oxblood rule down its edge, italic. -->
+    <section
+      v-if="hasDescription"
+      :class="compact ? 'rounded-r-lg border-l-4 border-primary bg-primary/5 p-3 italic' : 'rounded-lg border border-primary/30 bg-primary/5 p-4'"
+    >
+      <h3 v-if="!compact" class="mb-2 text-heading-sm font-bold text-primary">Read aloud</h3>
       <RichTextViewer :content="room.description" />
     </section>
     <p v-else class="text-caption italic text-muted-foreground">Nothing written for this room yet.</p>
@@ -44,7 +48,7 @@
 
     <LocationLootPanel v-if="campaignId" :location-id="room.id" :campaign-id="campaignId" :loot="loot" />
 
-    <p class="text-caption text-muted-foreground">Prompts, not automation: Trigger, Run, Reveal, Roll and Drop are all buttons. Nothing on this surface fires because a token moved.</p>
+    <p v-if="!compact" class="text-caption text-muted-foreground">Prompts, not automation: Trigger, Run, Reveal, Roll and Drop are all buttons. Nothing on this surface fires because a token moved.</p>
   </div>
 </template>
 
@@ -98,19 +102,21 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { LootPlacement } from "@/types/quest.types";
 import type { Location } from "@/types/location.types";
 
-const { siteId, room, regions, doors, doorState, loot, campaignId } = defineProps<{
+const { siteId, room, regions, doors, doorState, loot, campaignId, compact = false } = defineProps<{
   siteId: string;
   room: Location;
   /** The whole site's regions — space + zone — same set `LocationMap.vue`
    *  already holds for `MapRegionsLayer`. */
   regions: LocationMapRegion[];
-  /** The whole site's doors, from `useSiteDoors` — `SiteRunSurface` already
+  /** The whole site's doors, from `useSiteDoors` — `QuestSiteHandoff` already
    *  fetches this once for the map and `SiteRunWaysOut`. */
   doors: SiteDoorWithSpaces[];
   doorState: (doorId: string, fact: DoorStateFact) => LocationState | undefined;
   /** This room's own loot. */
   loot: LootPlacement[];
   campaignId: string | null;
+  /** The Play screen's room card: no frame, title or footnote of its own, and no fight row (that card has "Waiting here"). */
+  compact?: boolean;
 }>();
 
 const roomIdRef = computed(() => room.id);
@@ -142,7 +148,7 @@ const rows = computed<RoomStackRow[]>(() =>
 // Loot has its own richer surface (`LocationLootPanel`, below) — see the
 // docstring for why the pure module's loot rows aren't rendered as generic
 // prompts here.
-const promptRows = computed(() => rows.value.filter((row) => row.kind !== "loot"));
+const promptRows = computed(() => rows.value.filter((row) => row.kind !== "loot" && !(compact && row.kind === "encounter")));
 
 const hasDescription = computed(() => extractTiptapText(room.description, 1).length > 0);
 

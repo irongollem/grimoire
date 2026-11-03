@@ -20,18 +20,13 @@
           @click="emit('update:ringColor', preset.color)"
         />
         <!-- Custom colour picker -->
-        <label
-          class="h-7 w-7 rounded-full border-2 border-border cursor-pointer overflow-hidden hover:scale-110 transition-transform"
+        <ColorInput
+          shape="wheel"
           title="Custom colour"
-          style="background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red)"
-        >
-          <input
-            type="color"
-            :value="ringColor"
-            class="sr-only"
-            @input="emit('update:ringColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
+          aria-label="Custom ring colour"
+          :model-value="ringColor"
+          @update:model-value="(color) => emit('update:ringColor', color)"
+        />
         <span class="text-label text-muted-foreground ml-1">{{ ringColor.toUpperCase() }}</span>
       </div>
     </div>
@@ -77,6 +72,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ColorInput from "@/components/common/controls/ColorInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 
 const RING_PRESETS = [

@@ -69,6 +69,7 @@ function sources(overrides: Partial<RunCombatantSources> = {}): RunCombatantSour
     companions: [],
     monsters: [monster()],
     npcs: [],
+    species: [],
     acFor: () => 10,
     ...overrides,
   };
@@ -146,7 +147,7 @@ describe("buildRunCombatants", () => {
     const member = {
       id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, conditions: [], curses: [],
       death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
-      ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {}, portrait_url: null,
+      species_id: null, subrace: null, ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {}, portrait_url: null,
       portrait_focal_point: { x: 0.5, y: 0.25 }, wildshape_state: form,
     };
     const [shaped] = buildRunCombatants(sources({
@@ -169,7 +170,7 @@ describe("buildRunCombatants", () => {
     const member = {
       id: "pm-briar", name: "Briar", current_hp: 7, max_hp: 24, temp_hp: 5, conditions: [{ name: "Prone" }], curses: [],
       death_save_successes: 2, death_save_failures: 1, dex: 14, con: 12, wis: 10, cha: 8,
-      ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
+      species_id: null, subrace: null, ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
       portrait_url: null, portrait_focal_point: null, wildshape_state: null,
     };
     const encounter = { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: { "pm-briar": "neutral" }, combatants: [] };
@@ -191,7 +192,7 @@ describe("buildRunCombatants", () => {
   });
 
   it("sits a companion on the party side unless the encounter says otherwise", () => {
-    const companion = { id: "c-1", name: "Nibbles", current_hp: 5, max_hp: 5, ac: 12, conditions: [], combat_ready: true, companion_type: "familiar" as const, portrait_url: null, portrait_focal_point: null };
+    const companion = { id: "c-1", name: "Nibbles", current_hp: 5, max_hp: 5, ac: 12, conditions: [], combat_ready: true, companion_type: "familiar" as const, portrait_url: null, portrait_focal_point: null, size: "medium" as const };
     const encounter = { party_member_ids: [], companion_ids: ["c-1"], party_member_factions: {}, combatants: [] };
     const [plain] = buildRunCombatants(sources({ encounter, companions: [companion] }));
     expect(plain).toMatchObject({ instance_id: "c-c-1", companion_id: "c-1", faction_id: "players", ac: "12", hp: 5 });
@@ -214,7 +215,7 @@ describe("buildRunCombatants", () => {
   it("falls back to 1 HP for a monster whose hit points do not parse, and to 10 HP and AC 10 for an NPC with no stat block", () => {
     const [m] = buildRunCombatants(sources({ monsters: [monster({ stat_block: statBlock({ hit_points: "" }) })] }));
     expect(m).toMatchObject({ hp: 1, max_hp: 1 });
-    const npc = { id: "n-1", name: "Commoner", stat_block: null, portrait_url: null, portrait_focal_point: null, cutout_url: null };
+    const npc = { id: "n-1", name: "Commoner", stat_block: null, portrait_url: null, portrait_focal_point: null, cutout_url: null, size: "medium" as const };
     const encounter = { party_member_ids: [], companion_ids: [], party_member_factions: {}, combatants: [slot({ id: "def-npc", monster_id: null, npc_id: "n-1", faction_id: "ally", count: 2, custom_name: "Guard" })] };
     const npcs = buildRunCombatants(sources({ encounter, npcs: [npc], monsters: [] }));
     expect(npcs.map((c) => c.name)).toEqual(["Guard 1", "Guard 2"]);
@@ -225,7 +226,7 @@ describe("buildRunCombatants", () => {
     const member = {
       id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, conditions: [], curses: [],
       death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
-      ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
+      species_id: null, subrace: null, ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
       portrait_url: null, portrait_focal_point: null, wildshape_state: null,
     };
     const [pc] = buildRunCombatants(sources({
@@ -264,6 +265,7 @@ describe("buildRunCombatants", () => {
       portrait_url: null,
       portrait_focal_point: null,
       cutout_url: "https://example.com/bartender-cutout.webp",
+      size: "medium" as const,
     };
     const encounter = {
       party_member_ids: [], companion_ids: [], party_member_factions: {},
@@ -282,7 +284,7 @@ describe("buildRunCombatants", () => {
 
   // 2024 MM stat blocks list Initiative; an NPC built from one rolls it like a monster does.
   it("carries an NPC's listed initiative bonus onto its combatant, and none when the stat block lists none", () => {
-    const npc = { id: "n-1", name: "Veteran", stat_block: statBlock({ initiative_bonus: 5 }), portrait_url: null, portrait_focal_point: null, cutout_url: null };
+    const npc = { id: "n-1", name: "Veteran", stat_block: statBlock({ initiative_bonus: 5 }), portrait_url: null, portrait_focal_point: null, cutout_url: null, size: "medium" as const };
     const encounter = {
       party_member_ids: [], companion_ids: [], party_member_factions: {},
       combatants: [slot({ id: "def-npc", monster_id: null, npc_id: "n-1" })],
@@ -302,6 +304,7 @@ describe("buildRunCombatants", () => {
       companion_type: "familiar" as const,
       portrait_url: null,
       portrait_focal_point: null,
+      size: "medium" as const,
     };
     const encounter = {
       party_member_ids: [], companion_ids: ["c-1"], party_member_factions: {}, combatants: [],
@@ -317,7 +320,7 @@ describe("buildRunCombatants", () => {
   it("never fields a pet, even one whose row says combat_ready", () => {
     const base = {
       name: "Nibbles", current_hp: 5, max_hp: 5, ac: 12, conditions: [], combat_ready: true,
-      portrait_url: null, portrait_focal_point: null,
+      portrait_url: null, portrait_focal_point: null, size: "medium" as const,
     };
     const encounter = {
       party_member_ids: [], companion_ids: ["pet-1", "fam-1"], party_member_factions: {}, combatants: [],
@@ -330,6 +333,57 @@ describe("buildRunCombatants", () => {
       ],
     }));
     expect(out.map((c) => c.companion_id)).toEqual(["fam-1"]);
+  });
+});
+
+// PHB 2024 "Creature Size": Tiny 2½ ft, Small/Medium 5 ft, Large 10 ft, Huge 15 ft, Gargantuan 20 ft.
+describe("buildRunCombatants: every creature takes its size (#1125 decision 13)", () => {
+  const member = {
+    id: "pm-1", name: "Pip", current_hp: 8, max_hp: 8, temp_hp: 0, conditions: [], curses: [],
+    death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
+    species_id: "sp-halfling" as string | null, subrace: null as string | null,
+    ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
+    portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+  };
+  const withMember = (over: Partial<typeof member>, species: RunCombatantSources["species"]) => buildRunCombatants(sources({
+    encounter: { party_member_ids: ["pm-1"], companion_ids: [], party_member_factions: {}, combatants: [] },
+    party: [{ ...member, ...over }],
+    species,
+  }))[0];
+
+  it("a Huge NPC covers nine squares: three across, and keeps its size for later resizing", () => {
+    const mammoth = { id: "n-1", name: "Mammoth", stat_block: null, portrait_url: null, portrait_focal_point: null, cutout_url: null, size: "huge" as const };
+    const encounter = { party_member_ids: [], companion_ids: [], party_member_factions: {}, combatants: [slot({ id: "def-npc", monster_id: null, npc_id: "n-1" })] };
+    const [npc] = buildRunCombatants(sources({ encounter, npcs: [mammoth], monsters: [] }));
+    expect(npc).toMatchObject({ footprint: 3, size: "huge" });
+  });
+
+  it("a party member whose subrace is Small takes a Medium species' square, not its size", () => {
+    const species = [{ id: "sp-halfling", size: "medium" as const, subraces: [{ name: "Lightfoot", description: "", traits: [], size: "small" as const }] }];
+    expect(withMember({ subrace: "Lightfoot" }, species)).toMatchObject({ size: "small", footprint: 1 });
+  });
+
+  it("a species that is Large makes a Large character", () => {
+    expect(withMember({}, [{ id: "sp-halfling", size: "large", subraces: null }])).toMatchObject({ size: "large", footprint: 2 });
+  });
+
+  it("a character with no species, or a species with no size, is Medium (app convention)", () => {
+    expect(withMember({ species_id: null }, [])).toMatchObject({ size: "medium", footprint: 1 });
+    expect(withMember({}, [{ id: "sp-halfling", size: null, subraces: null }])).toMatchObject({ size: "medium", footprint: 1 });
+    expect(withMember({ species_id: "sp-gone" }, [{ id: "sp-halfling", size: "tiny", subraces: null }])).toMatchObject({ size: "medium", footprint: 1 });
+  });
+
+  it("a companion takes its own size", () => {
+    const horse = { id: "c-1", name: "Warhorse", current_hp: 19, max_hp: 19, ac: 11, conditions: [], combat_ready: true, companion_type: "mount" as const, portrait_url: null, portrait_focal_point: null, size: "large" as const };
+    const [comp] = buildRunCombatants(sources({
+      encounter: { party_member_ids: [], companion_ids: ["c-1"], party_member_factions: {}, combatants: [] },
+      companions: [horse],
+    }));
+    expect(comp).toMatchObject({ size: "large", footprint: 2 });
+  });
+
+  it("a monster bakes its size beside its footprint", () => {
+    expect(buildRunCombatants(sources())[0]).toMatchObject({ size: "large", footprint: 2 });
   });
 });
 

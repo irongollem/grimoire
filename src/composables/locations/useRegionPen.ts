@@ -149,7 +149,7 @@ export function useRegionPen(): UseRegionPenReturn {
 
 // ── The template shape picker's selection ────────────────────────────────────
 // A module-level singleton, the same idiom `useConfirm`'s dialog state uses:
-// the picker (`SiteMapRegionList`'s header, frame 12) and the drag it feeds
+// the picker (the Zone tool's slip, Map Table frame 19) and the drag it feeds
 // (`MapRegionsLayer`) are sibling components, both mounted by `LocationMap.vue`
 // — which does not otherwise mediate this value, and touching it is outside
 // this story. A single "currently selected shape" is exactly the shape of

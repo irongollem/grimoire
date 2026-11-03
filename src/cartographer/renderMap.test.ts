@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
+import { putWall } from "./testWalls";
+import { convertCellGround } from "./groundRegions";
 import * as lightMaskModule from "./lightMask";
 import { renderMap, type MapRenderScene } from "./renderMap";
-import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
+import { emptyLayers, cellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
 import type { DressingCatalog } from "./dressing";
 import { makeCtx, makeLayerFactory, makeRuntime, sourceOf, type Recorder } from "./testCanvas";
 
@@ -12,6 +14,18 @@ vi.mock("./lightMask", async (importOriginal) => {
 });
 const maskCalls = (): number => vi.mocked(lightMaskModule.lightMask).mock.calls.length;
 
+// Fixture ingestion is one-time, just as saved rows convert once before rendering. The same source identity must
+// survive hover/pan renders so these tests still exercise the renderer's real caches.
+const sourceFixtures = new WeakMap<DungeonMapLayers, DungeonMapLayers>();
+function sourceLayers(layers: DungeonMapLayers): DungeonMapLayers {
+  const existing = sourceFixtures.get(layers);
+  if (existing) return existing;
+  let id = 0;
+  const converted = convertCellGround(layers, () => `fixture-${id++}`);
+  sourceFixtures.set(layers, converted);
+  return converted;
+}
+
 function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderScene; rec: Recorder } {
   const { ctx, rec } = makeCtx();
   const scene: MapRenderScene = {
@@ -21,7 +35,6 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     tilePx: 64,
     viewportOffset: { x: 0, y: 0 },
     bounds: { minX: 0, minY: 0, maxX: 5, maxY: 5 },
-    layers: emptyLayers(),
     metadata: {},
     glyphs: {},
     runtimes: new Map(),
@@ -34,7 +47,10 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     selectedCell: null,
     previewCells: new Set(),
     dressing: new Map(),
+    gridAlpha: 0.06,
     ...overrides,
+    // These fixtures represent saved cell layers; authoring and rendering consume their converted sources.
+    layers: sourceLayers(overrides.layers ?? emptyLayers()),
   };
   return { scene, rec };
 }
@@ -48,6 +64,23 @@ describe("renderMap — empty map", () => {
     expect(rec.fillRects[0]).toEqual({ x: 0, y: 0, w: 800, h: 600 });
     expect(rec.calls).toContain("stroke"); // grid overlay
     expect(rec.drawImages).toHaveLength(0);
+  });
+});
+
+describe("renderMap: the Grid switch", () => {
+  it("draws no grid lines at all when the grid is switched off", () => {
+    const { scene, rec } = baseScene({ gridAlpha: null });
+    renderMap(scene);
+    expect(rec.calls).not.toContain("stroke");
+  });
+
+  it("strokes the grid at the strength it is given, so Bold is stronger than Faint", () => {
+    const faint = baseScene({ gridAlpha: 0.06 });
+    renderMap(faint.scene);
+    const bold = baseScene({ gridAlpha: 0.36 });
+    renderMap(bold.scene);
+    expect(faint.rec.strokeStyles[0]).toBe("rgba(255, 255, 255, 0.06)");
+    expect(bold.rec.strokeStyles[0]).toBe("rgba(255, 255, 255, 0.36)");
   });
 });
 
@@ -210,65 +243,6 @@ describe("renderMap — runtime fallback rule", () => {
   });
 });
 
-describe("renderMap — derived-space outlines (#868)", () => {
-  it("draws nothing when derivedSpaces is absent", () => {
-    const { scene, rec } = baseScene();
-    renderMap(scene);
-
-    expect(rec.texts).toHaveLength(0);
-  });
-
-  it("outlines a space and labels it with its proposed name", () => {
-    const { scene, rec } = baseScene({
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0), cellKey(1, 0)], displayName: "Cistern", nameSource: null }],
-      selectedSpaceKey: null,
-    });
-    renderMap(scene);
-
-    expect(rec.strokeStyles).toContain("rgba(255,255,255,0.35)");
-    expect(rec.texts).toContain("Cistern");
-  });
-
-  it("highlights the selected space in a different colour", () => {
-    const { scene, rec } = baseScene({
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0)], displayName: "Cistern", nameSource: null }],
-      selectedSpaceKey: "s:0,0",
-    });
-    renderMap(scene);
-
-    expect(rec.strokeStyles).toContain("rgba(96,165,250,0.9)");
-    expect(rec.strokeStyles).not.toContain("rgba(255,255,255,0.35)");
-  });
-
-  it("does not draw the centroid label when the name came from an annotation — the annotation layer already draws it", () => {
-    const layers = emptyLayers();
-    layers.annotation[cellKey(0, 0)] = { text: "Cistern" };
-    const { scene, rec } = baseScene({
-      layers,
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0), cellKey(1, 0)], displayName: "Cistern", nameSource: "annotation" }],
-      selectedSpaceKey: null,
-    });
-    renderMap(scene);
-
-    // The outline still draws (stroke). Each fillText call draws a drop
-    // shadow plus the lit text, so the annotation layer alone accounts for
-    // two "Cistern" calls — what this asserts is that the centroid label
-    // contributes none on top of that (it would otherwise add two more).
-    expect(rec.strokeStyles).toContain("rgba(255,255,255,0.35)");
-    expect(rec.texts.filter((t) => t === "Cistern")).toHaveLength(2);
-  });
-
-  it("still draws the centroid label for an unnamed region", () => {
-    const { scene, rec } = baseScene({
-      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0)], displayName: "Region 1", nameSource: null }],
-      selectedSpaceKey: null,
-    });
-    renderMap(scene);
-
-    expect(rec.texts).toContain("Region 1");
-  });
-});
-
 describe("renderMap: Dressing layer (#1062)", () => {
   const art = (name: string): CanvasImageSource => ({ name }) as unknown as CanvasImageSource;
   const catalog: DressingCatalog = new Map([
@@ -355,7 +329,8 @@ describe("renderMap: Dressing layer (#1062)", () => {
 describe("renderMap — shadow cache", () => {
   const stoneLayers = (): ReturnType<typeof emptyLayers> => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 }, wallN: { pack_id: "stone-dungeon", pack_version: 1, variant: 0, type: "wall" } };
+    layers.floor[cellKey(1, 1)] = { floor: { pack_id: "stone-dungeon", pack_version: 1, variant: 0 } };
+    putWall(layers, 1, 1, "N", { pack_id: "stone-dungeon", pack_version: 1, variant: 0, type: "wall" });
     return layers;
   };
 
@@ -397,7 +372,9 @@ describe("renderMap — shadow cache", () => {
     expect(masks()).toBe(2);
   });
 
-  it("a pan rebuilds the light layer but recomputes no masks; an edit recomputes them", () => {
+  // The maintainer, 2 Nov 2026: "zooming and panning feels REALLY slow". The layers were keyed on the pan, so every
+  // step of a drag re-blurred the map (about 30 ms at 128 px a cell).
+  it("a pan reuses the light layer and its masks; an edit recomputes them", () => {
     const f = makeLayerFactory();
     const layers = stoneLayers();
     layers.object[cellKey(2, 2)] = { pack_id: "stone-dungeon", pack_version: 1, category: "objectBrazier", variant: 0 };
@@ -409,28 +386,48 @@ describe("renderMap — shadow cache", () => {
     const puts = (): number => f.layers.flatMap((l) => l.rec.putImages).length;
     const base = maskCalls();
     renderMap(scene());
-    const first = puts();
-    expect(first).toBe(1);
+    const built = f.layers.length;
+    expect(puts()).toBe(1);
     expect(maskCalls() - base).toBe(1);
-    // A pan changes the window and offset: the layer is rebuilt (more canvases), the mask array is not recomputed.
     renderMap(scene({ viewportOffset: { x: 40, y: 12 }, bounds: { minX: 0, minY: 0, maxX: 6, maxY: 6 } }));
-    expect(puts()).toBe(2);
+    expect(f.layers).toHaveLength(built);
     expect(maskCalls() - base).toBe(1);
     renderMap(scene({ layersRevision: 6 }));
     expect(maskCalls() - base).toBe(2);
   });
 
-  it("rebuilds when the zoom or the window changes", () => {
+  it("rebuilds when the zoom crosses an octave, not for a step inside one", () => {
     const f = makeLayerFactory();
     const layers = stoneLayers();
     const runtimes = new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]);
     const dressing: DressingCatalog = new Map();
     const scene = (overrides: Partial<MapRenderScene>): MapRenderScene =>
       baseScene({ layers, runtimes, dressing, makeCanvas: f.makeCanvas, layersRevision: 1, ...overrides }).scene;
-    renderMap(scene({}));
+    renderMap(scene({ tilePx: 40 }));
     const built = f.layers.length;
-    renderMap(scene({ tilePx: 32 }));
+    renderMap(scene({ tilePx: 56 }));
+    expect(f.layers).toHaveLength(built);
+    renderMap(scene({ tilePx: 30 }));
     expect(f.layers.length).toBeGreaterThan(built);
+  });
+
+  it("lays a layer built coarser than the screen scaled up to the drawing, where the pan puts it", () => {
+    const f = makeLayerFactory();
+    const layers = stoneLayers();
+    const { scene, rec } = baseScene({
+      layers,
+      runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]),
+      makeCanvas: f.makeCanvas,
+      layersRevision: 1,
+      tilePx: 128,
+      viewportOffset: { x: 100, y: 50 },
+    });
+    renderMap(scene);
+    // The shadow layer is the first canvas made: built at 64 px a cell over the drawing (cells 1..2) widened by a
+    // cell of margin and the shadow's own cell, so its corner is cell -1, drawn at 128 px a cell less the pan.
+    const shadow = f.layers[0];
+    const laid = rec.drawImages.find((d) => d.source === shadow.canvas);
+    expect(laid).toMatchObject({ x: -1 * 128 - 100, y: -1 * 128 - 50, w: shadow.width * 2, h: shadow.height * 2 });
   });
 });
 
@@ -491,6 +488,25 @@ describe("renderMap: darkness veil", () => {
     const b = baseScene({ darkness: "dark", makeCanvas: empty.makeCanvas });
     renderMap(b.scene);
     expect(veilDraws(b.rec)).toHaveLength(0);
+  });
+
+  it("leaves the veil to the animated one above while motion plays, so the lit edge can breathe", () => {
+    const v = veilCanvas();
+    const { scene, rec } = baseScene({ layers: paintOne(), darkness: "dark", makeCanvas: v.makeCanvas, omitLive: true });
+    renderMap(scene);
+    expect(veilDraws(rec)).toHaveLength(0);
+  });
+
+  it("the aids pass draws the editing aids and none of the map, the standing pass the map and none of the aids", () => {
+    // While motion plays the aids sit on a canvas above the animated veil; drawn into the standing canvas they would be dimmed.
+    const layers = paintOne();
+    const aids = baseScene({ layers, darkness: "dark", activeTool: "link", selectedCell: [2, 3], pass: "aids", omitLive: true });
+    renderMap(aids.scene);
+    expect(aids.rec.calls.filter((c) => c === "strokeRect").length).toBeGreaterThan(0);
+    expect(aids.rec.drawImages).toHaveLength(0);
+    const standing = baseScene({ layers, darkness: "dark", activeTool: "link", selectedCell: [2, 3], pass: "standing", omitLive: true });
+    renderMap(standing.scene);
+    expect(standing.rec.calls.filter((c) => c === "strokeRect")).toHaveLength(0);
   });
 
   it("clears the veil around a light and keeps dim ambient at least dim", () => {
@@ -603,5 +619,61 @@ describe("renderMap: grid and overlays", () => {
       expect(strokes({ activeTool: "wall", hoveredEdge: edge }).styles.some(reddish)).toBe(false);
       expect(strokes({ activeTool: "eraser", hoveredEdge: edge }).styles.some(reddish)).toBe(true);
     });
+  });
+});
+
+// #1125 frames 16-17: while motion plays the editor draws two canvases with the live water between them.
+describe("renderMap: the two passes under playing motion", () => {
+  const ref = { pack_id: "p", pack_version: 1, variant: 0 };
+  const SWAY = { amount: 4, speed: 1 };
+  const twoPassScene = (over: Partial<MapRenderScene> = {}): { scene: MapRenderScene; rec: Recorder } => {
+    const layers = emptyLayers();
+    layers.floor[cellKey(1, 1)] = { floor: ref };
+    layers.object[cellKey(2, 2)] = { ...ref, category: "objectPillar", variant: 0 };
+    putWall(layers, 1, 1, "N", { ...ref, type: "wall" });
+    const runtime = makeRuntime("p", {
+      sway: { objectPillar: [SWAY] },
+      assets: { objectPillar: [{ variant: 0, url: "https://cdn/tree.webp" }] },
+    });
+    return baseScene({ layers, runtimes: new Map([["p", runtime]]), currentPackId: "p", ...over });
+  };
+  const categories = (rec: Recorder): (string | undefined)[] => rec.drawImages.map((d) => sourceOf(d).category);
+
+  it("the ground canvas holds the floor and none of what stands, so the live water can lie between them", () => {
+    const { scene, rec } = twoPassScene({ pass: "ground", previewCells: new Set([cellKey(1, 1)]) });
+    renderMap(scene);
+    // The editing aids (a drag preview here) belong to the standing canvas above.
+    expect(rec.fillRects).toEqual([{ x: 0, y: 0, w: 800, h: 600 }]);
+    expect(categories(rec)).toContain("floor");
+    expect(categories(rec).filter((c) => c !== "floor")).toEqual([]);
+    expect(rec.fillStyles[0]).toBe("rgb(20, 18, 16)");
+  });
+
+  it("the standing canvas holds the walls and the standing objects and no floor, and does not paint a background over the ground", () => {
+    const { scene, rec } = twoPassScene({ pass: "standing" });
+    renderMap(scene);
+    expect(categories(rec)).not.toContain("floor");
+    expect(categories(rec).some((c) => c?.startsWith("wall"))).toBe(true);
+    expect(categories(rec)).toContain("objectPillar");
+    expect(rec.fillRects.some((r) => r.w === 800 && r.h === 600)).toBe(false);
+    expect(rec.calls).toContain("clearRect"); // transparent, so the ground canvas shows through
+  });
+
+  it("omitLive leaves a swaying prop to the live layer so it is never drawn twice", () => {
+    const still = twoPassScene({ pass: "standing", omitLive: true });
+    renderMap(still.scene);
+    expect(categories(still.rec)).not.toContain("objectPillar");
+    const plain = twoPassScene({ pass: "standing" });
+    renderMap(plain.scene);
+    expect(categories(plain.rec)).toContain("objectPillar");
+  });
+
+  it("without a pass the whole map is one canvas, as before", () => {
+    const { scene, rec } = twoPassScene();
+    renderMap(scene);
+    const c = categories(rec);
+    expect(c).toContain("floor");
+    expect(c).toContain("objectPillar");
+    expect(c.indexOf("floor")).toBeLessThan(c.indexOf("objectPillar"));
   });
 });

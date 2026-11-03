@@ -15,11 +15,6 @@ export interface DoorHinge {
   openDegrees: number;
 }
 
-/** The axis an edge's art is drawn on: an N edge is a horizontal doorway, a W edge a vertical one. */
-export function edgeAxis(side: "N" | "W"): "H" | "V" {
-  return side === "N" ? "H" : "V";
-}
-
 /**
  * The top-left of an edge's band tile, given the top-left of the cell it belongs to. The tile is shifted half a tile
  * so its strip lands on the gridline: up for an N edge, left for a W edge.

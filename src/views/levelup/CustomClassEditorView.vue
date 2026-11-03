@@ -101,6 +101,13 @@
                 </AppSelect>
               </div>
             </div>
+
+            <AppCheckbox
+              v-model="form.capabilities"
+              value="wild_shape"
+              label="This class can Wild Shape"
+              hint="Gives the class the druid's Wild Shape: forms, uses and the sheet's Wild Shape tab."
+            />
           </div>
         </div>
       </section>
@@ -157,6 +164,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
 import { canEditClass, useClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
 import { useAuthStore } from "@/stores/auth";
@@ -232,6 +240,7 @@ interface FormState {
   prepared_divisor: number | null;
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
+  capabilities: string[];
 }
 
 const form = ref<FormState>({
@@ -253,6 +262,7 @@ const form = ref<FormState>({
   prepared_divisor: 1,
   image_url: null,
   focal_point: null,
+  capabilities: [],
 });
 
 // Same default flip as items/spells/species/locations (#596): a new custom
@@ -294,6 +304,8 @@ watch(existing, (val) => {
     prepared_divisor: raw.prepared_divisor ?? 1,
     image_url: raw.image_url,
     focal_point: raw.focal_point,
+    // A class row cached by an older build has no capabilities yet (#934).
+    capabilities: raw.capabilities ?? [],
   };
   campaignScope.value = raw.campaign_id ?? "all";
 }, { immediate: true });
@@ -303,6 +315,11 @@ watch(existing, (val) => {
 const saving = ref(false);
 const saveError = ref("");
 const canSave = computed(() => form.value.class_name.trim() !== "");
+
+function capabilitiesUnknown(): boolean {
+  const row = existing.value;
+  return !!row && !Array.isArray(row.capabilities) && form.value.capabilities.length === 0;
+}
 
 async function save() {
   if (!canSave.value) return;
@@ -324,6 +341,11 @@ async function save() {
     caster_type: form.value.isSpellcaster ? form.value.caster_type : "none",
     prepared_ability: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_ability : null,
     prepared_divisor: form.value.isSpellcaster && form.value.caster_type !== "known" ? form.value.prepared_divisor : null,
+    // A row cached by a build before #934 has no `capabilities`, and the form
+    // shows it as none until the fresh row lands. Saving that would strip Wild
+    // Shape from the definition and every character of the class, so an
+    // untouched box over such a row leaves the column alone.
+    ...(capabilitiesUnknown() ? {} : { capabilities: form.value.capabilities }),
   };
   // Material edit detection: any change to the class's rules content means a
   // human has now authored part of an AI-generated class. Campaign scope is a
@@ -343,7 +365,8 @@ async function save() {
   };
   try {
     if (isNew.value) {
-      await create(payload);
+      // A new class has no older cached row, so its list is always known.
+      await create({ ...payload, capabilities: form.value.capabilities });
     } else {
       await update({ id: id.value, update: payload });
     }

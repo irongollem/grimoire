@@ -20,6 +20,7 @@ import type { Location } from "@/types/location.types";
  */
 
 const activeCampaignId = ref<string | null>("campaign-1");
+const allLocationsRef = ref<Partial<Location>[]>([]);
 
 // reactive(), not a plain object with a getter: LocationEditor reads this
 // store through Pinia's storeToRefs, which only picks up properties that are
@@ -57,7 +58,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocations: () => ({ data: ref([]) }),
-  useAllLocations: () => ({ data: ref([]) }),
+  useAllLocations: () => ({ data: allLocationsRef }),
   useCreateLocation: () => ({ mutateAsync: mocks.create }),
   useUpdateLocation: () => ({ mutateAsync: mocks.update }),
   useDeleteLocation: () => ({ mutateAsync: mocks.del }),
@@ -72,6 +73,7 @@ const stubs = {
   ThemeInput: true,
   CampaignScopeField: true,
   LocationHierarchyPanel: true,
+  SiteLevelAssignment: true,
   LocationResidents: true,
   AppSelect: true,
   AppInput: true,
@@ -384,5 +386,39 @@ describe("LocationEditor Done with edits that did not save (#958)", () => {
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.confirm).not.toHaveBeenCalled();
     expect(mocks.push).toHaveBeenCalledWith({ query: { tab: "details" } });
+  });
+});
+
+// #1125: which floor a place is moved out of Build into Details. Offered only
+// where `guard_location_room_parent` lets `is_level` exist: a site under a site.
+describe("LocationEditor level assignment", () => {
+  const parentSite = { id: "up", name: "Ashmouth", location_type: "dungeon" } as Partial<Location>;
+
+  beforeEach(() => {
+    allLocationsRef.value = [parentSite];
+  });
+
+  function level(over: Partial<Location> = {}): Location {
+    return { id: "down", name: "Cellar", location_type: "dungeon", parent_id: "up", campaign_id: "campaign-1", ...over } as Location;
+  }
+
+  it("offers 'a place or a level' for a site under a site, naming the parent", () => {
+    const control = mountEditor(level()).findComponent({ name: "SiteLevelAssignment" });
+    expect(control.exists()).toBe(true);
+    expect(control.attributes("parentname")).toBe("Ashmouth");
+  });
+
+  it("does not offer it for a room, whose parent can never hold levels", () => {
+    expect(mountEditor(level({ location_type: "room" })).findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
+  });
+
+  it("does not offer it under a parent that is not a site", () => {
+    allLocationsRef.value = [{ id: "up", name: "Waterdeep", location_type: "city" }];
+    expect(mountEditor(level()).findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
+  });
+
+  it("does not offer it for a place with no parent, or a place not created yet", () => {
+    expect(mountEditor(level({ parent_id: null })).findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
+    expect(mountEditor(null).findComponent({ name: "SiteLevelAssignment" }).exists()).toBe(false);
   });
 });

@@ -8,11 +8,10 @@
          worth inventing, so the row simply goes. -->
 
     <!-- Site-default ambience (#868) — the floor every themeless space here
-         falls back to. Build only (#884): the cell mixes display with its own
-         edit control (`RoomAmbienceCell`), and assigning a theme is a prep
-         decision, not something read off mid-session. -->
+         falls back to. Always editable (#1125: Build is retired, the page reads
+         the same at the table and at the desk). -->
     <div
-      v-if="site && building"
+      v-if="site"
       class="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2"
     >
       <span class="min-w-0 shrink-0 truncate text-caption font-semibold text-foreground">{{ site.name }}</span>
@@ -26,14 +25,15 @@
       />
     </div>
 
-    <!-- Space list. Draggable only in Build (#884) — the static <div> fallback
-         never receives drag attributes, same idiom `PlayerJournalMyTab` uses
-         for its own manual-sort/static split. -->
-    <component
-      :is="building ? VueDraggable : 'div'"
+    <!-- Space list, always draggable (#1125). -->
+    <VueDraggable
       v-if="dragList.length"
-      v-bind="dragBindings"
+      v-model="dragList"
+      handle=".space-drag-handle"
+      :animation="150"
+      ghost-class="opacity-40"
       class="flex flex-col gap-1.5"
+      @end="persistOrder"
     >
       <div
         v-for="(space, idx) in dragList"
@@ -42,7 +42,6 @@
       >
         <div class="flex items-center gap-2">
           <div
-            v-if="building"
             class="space-drag-handle shrink-0 cursor-grab text-muted-foreground/40 transition-colors hover:text-muted-foreground/80 active:cursor-grabbing"
             title="Drag to reorder"
           >
@@ -51,20 +50,12 @@
 
           <span class="w-5 shrink-0 text-caption-sm tabular-nums text-muted-foreground">{{ idx + 1 }}.</span>
 
-          <AppInput
-            v-if="building && editingId === space.id"
-            ref="renameInput"
-            v-model="nameDraft"
-            size="xs"
-            class="flex-1"
-            @keydown.enter="saveRename(space.id)"
-            @keydown.escape="cancelRename"
-            @blur="saveRename(space.id)"
-          />
-          <span
-            v-else
-            class="min-w-0 flex-1 truncate text-caption font-semibold text-foreground"
-          >{{ space.name }}</span>
+          <!-- Renaming and deleting a room live on its own Details; the name
+               opens it. -->
+          <RouterLink
+            :to="placeRoute(space.id)"
+            class="min-w-0 flex-1 truncate text-caption font-semibold text-foreground hover:underline"
+          >{{ space.name }}</RouterLink>
 
           <!-- Read-only cleared/looted markers (#787, epic #780) — a play
                fact, so it stays visible in Browse. The toggles themselves
@@ -86,55 +77,29 @@
             title="Looted"
           />
 
-          <template v-if="building">
-            <AppButton
-              v-if="editingId !== space.id"
-              variant="ghost"
-              size="icon-xs"
-              :icon="IconEdit"
-              :tooltip="`Rename ${spaceWord(space)}`"
-              class="shrink-0"
-              @click="startRename(space)"
-            />
-            <AppButton
-              variant="ghost"
-              tone="danger"
-              size="icon-xs"
-              :icon="IconClose"
-              :tooltip="`Delete ${spaceWord(space)}`"
-              class="shrink-0"
-              @click="removeSpace(space)"
-            />
-          </template>
         </div>
 
-        <!-- Ambience (#868) — Build only, same reasoning as the site-default
-             row above. Indented under the drag handle + index so it reads as
-             this space's own second line, not a sibling row. -->
-        <div v-if="building" class="pl-7">
+        <!-- Ambience (#868), indented under the drag handle + index so it
+             reads as this space's own second line, not a sibling row. -->
+        <div class="pl-7">
           <RoomAmbienceCell
             :location-id="space.id"
             :own-theme="space.audio_theme"
             :resolved="spaceAmbience(space.id)"
             :theme-options="themeOptions"
             @save="saveAmbience"
-        @edit-start="themesWanted = true"
+            @edit-start="themesWanted = true"
           />
         </div>
       </div>
-    </component>
+    </VueDraggable>
 
     <p v-else class="text-caption text-muted-foreground italic">
-      {{
-        building
-          ? `No ${childTypePlural} yet. Add the first one below.`
-          : `No ${childTypePlural} yet. Build the site to add them.`
-      }}
+      No {{ childTypePlural }} yet. Add the first one below.
     </p>
 
-    <!-- Inline add — Build only. -->
+    <!-- The add row is always there (frame 02). -->
     <div
-      v-if="building"
       class="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2"
     >
       <IconAdd class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -162,27 +127,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
-import { IconAdd, IconClose, IconDrag, IconEdit, IconLoot, IconShieldCheck } from "@/lib/icons";
+import { IconAdd, IconDrag, IconLoot, IconShieldCheck } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
-import { useConfirm } from "@/composables/useConfirm";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import {
   useLocations,
   useAllLocations,
   useCreateLocation,
   useUpdateLocation,
-  useDeleteLocation,
   useReorderLocations,
 } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { stateReadScope } from "@/lib/locations/stateReadScope";
 import { buildAtlasIndex } from "@/lib/locations/tree";
 import { childSpaceType, isInteriorType, spaceNoun } from "@/lib/locations/tiers";
+import { placeRoute } from "@/lib/locations/placeRoute";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { collectThemes } from "@/lib/audio/audioThemes";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
@@ -209,13 +173,11 @@ import type { Location, LocationInsert, LocationType } from "@/types/location.ty
  * reuses one mounted instance across every selected location instead of
  * remounting per id.
  *
- * Structural (add, reorder, rename, delete, ambience) only in Build mode
- * (#884, `building` prop) — Browse renders the numbered list read-only, plus
- * the cleared/looted markers, which are play facts and stay live everywhere.
+ * Add, reorder and ambience are always available (#1125: Build is retired);
+ * rename and delete are the room's own Details, one click away on its name.
  */
-const { locationId, building = false } = defineProps<{
+const { locationId } = defineProps<{
   locationId: string;
-  building?: boolean;
 }>();
 
 const locationIdRef = computed(() => locationId);
@@ -231,7 +193,8 @@ const stateScope = computed(() => stateReadScope(locationId, children.value));
 const { stateOf: siteStateOf } = useLocationStateForRooms(stateScope);
 
 const toast = useToast();
-const { confirm } = useConfirm();
+
+const { mutate: updateLocation } = useUpdateLocation();
 
 // ── Ambience (#868) ───────────────────────────────────────────────────────
 // Full campaign list (shared query key — the Atlas already pays for this
@@ -247,7 +210,7 @@ function spaceAmbience(spaceId: string) {
 
 // The suggestions are only needed once a theme input opens, so the two
 // catalogue reads wait for the first edit rather than running on every
-// Build-mode selection (#972).
+// selection (#972).
 const themesWanted = ref(false);
 const { data: playlists } = usePlaylists(() => themesWanted.value);
 const { data: sounds } = useSounds(() => themesWanted.value);
@@ -271,22 +234,6 @@ function persistOrder() {
   reorder(dragList.value.map((s) => s.id));
 }
 
-// VueDraggable props are only bound in Build — the static <div> fallback
-// never receives stray drag attributes. Same idiom as `PlayerJournalMyTab`'s
-// manual-sort/static split.
-const dragBindings = computed(() =>
-  building
-    ? {
-        modelValue: dragList.value,
-        "onUpdate:modelValue": (v: Location[]) => { dragList.value = v; },
-        handle: ".space-drag-handle",
-        animation: 150,
-        ghostClass: "opacity-40",
-        onEnd: persistOrder,
-      }
-    : {},
-);
-
 // ── Add ─────────────────────────────────────────────────────────────────────────
 // The type a new space gets follows the parent — see `childSpaceType`'s
 // docstring for the rule. `site` is this panel's own location (looked up
@@ -298,13 +245,6 @@ const childTypePlural = computed(() => spaceNoun(site.value?.location_type).plur
 // needs its article back once it's no longer the fixed word in a template
 // literal.
 const childTypeArticled = computed(() => (childType.value === "grounds" ? "grounds" : "a room"));
-
-/** Per-row rename/delete tooltip word — the row's own type, not the panel's
- *  default, so a site that changed shape after some spaces were already
- *  added still reads correctly for each of them individually. */
-function spaceWord(space: Location): string {
-  return space.location_type === "grounds" ? "grounds" : "room";
-}
 
 const newSpaceName = ref("");
 const { mutate: createLocation, isPending: isCreating } = useCreateLocation();
@@ -352,49 +292,5 @@ function addSpace() {
       toast.error(toast.fromError(e));
     },
   });
-}
-
-// ── Rename ──────────────────────────────────────────────────────────────────────
-const editingId = ref<string | null>(null);
-const nameDraft = ref("");
-// AppInput exposes { el, focus, select } rather than the raw element, since a
-// bare component ref resolves to the public instance, not the DOM node.
-const renameInput = ref<{ focus: () => void; select: () => void } | null>(null);
-const { mutate: updateLocation } = useUpdateLocation();
-
-function startRename(space: Location) {
-  editingId.value = space.id;
-  nameDraft.value = space.name;
-  nextTick(() => {
-    const el = Array.isArray(renameInput.value) ? renameInput.value[0] : renameInput.value;
-    el?.focus();
-    el?.select();
-  });
-}
-
-function saveRename(id: string) {
-  const trimmed = nameDraft.value.trim();
-  editingId.value = null;
-  if (!trimmed) return;
-  updateLocation(
-    { id, update: { name: trimmed } },
-    { onError: (e) => toast.error(toast.fromError(e)) },
-  );
-}
-
-function cancelRename() {
-  editingId.value = null;
-}
-
-// ── Delete ──────────────────────────────────────────────────────────────────────
-const { mutate: deleteLocation } = useDeleteLocation(); // already toasts onError
-
-async function removeSpace(space: Location) {
-  const ok = await confirm(`Delete "${space.name}"? This cannot be undone.`, {
-    confirmLabel: "Delete",
-    danger: true,
-  });
-  if (!ok) return;
-  deleteLocation(space.id);
 }
 </script>

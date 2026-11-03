@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvasEl" class="h-4 w-4 shrink-0 rounded-sm border border-border bg-muted" width="16" height="16" aria-hidden="true"></canvas>
+  <canvas ref="canvasEl" :class="size === 'lg' ? 'h-7 w-7' : 'h-4 w-4'" class="shrink-0 rounded-sm border border-border bg-muted" :width="size === 'lg' ? 32 : 16" :height="size === 'lg' ? 32 : 16" aria-hidden="true"></canvas>
 </template>
 
 <script setup lang="ts">
@@ -9,7 +9,7 @@
 import { onMounted, ref, watch } from "vue";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 
-const { runtime } = defineProps<{ runtime: TilePackRuntime | null }>();
+const { runtime, size = "sm" } = defineProps<{ runtime: TilePackRuntime | null; size?: "sm" | "lg" }>();
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
 function draw(): void {

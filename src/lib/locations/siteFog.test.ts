@@ -33,7 +33,7 @@ describe("buildDmFogPlan", () => {
       () => false,
     );
     expect(plan.spaces).toEqual([
-      { space_location_id: "room-1", name: "Nave of Ash", cells: ["0,0", "0,1"], label: null, sort_order: 2, is_cleared: true, is_looted: false },
+      { space_location_id: "room-1", name: "Nave of Ash", cells: ["0,0", "0,1"], label: null, sort_order: 2, is_cleared: true, is_looted: false, vertices: null },
     ]);
     expect(plan.glimpsed).toEqual([]);
   });
@@ -47,7 +47,7 @@ describe("buildDmFogPlan", () => {
       () => false,
     );
     expect(plan.spaces).toEqual([]);
-    expect(plan.glimpsed).toEqual([{ cells: ["3,3"] }]);
+    expect(plan.glimpsed).toEqual([{ cells: ["3,3"], vertices: null }]);
   });
 
   it("ignores zone regions and regions with no matching room", () => {

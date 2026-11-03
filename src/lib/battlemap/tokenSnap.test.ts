@@ -40,3 +40,26 @@ describe("cellToPixel", () => {
     expect(cellToPixel({ cellX: -2, cellY: -2, cellPx: 50, originX: 100, originY: 100 })).toEqual({ x: 0, y: 0 });
   });
 });
+
+describe("snapPixelToCell, Tiny tokens", () => {
+  // PHB 2024 "Creature Size": a Tiny creature's space is 2½ ft, so up to four share a 5 ft square (#1125 decision 13).
+  it("lands a Tiny token on a half cell, not a whole one", () => {
+    // Cell 50px. A Tiny token (25px) centred at (62.5, 37.5) has its top-left at (50, 25): (1, 0.5) cells.
+    expect(snapPixelToCell({ pixelX: 62.5, pixelY: 37.5, cellPx: 50, originX: 0, originY: 0, footprint: 0.5 })).toEqual({ x: 1, y: 0.5 });
+  });
+
+  it("snaps to the nearest half cell", () => {
+    // Top-left at (0.6, 1.2) cells: nearest half cells are 0.5 and 1.
+    expect(snapPixelToCell({ pixelX: 30 + 12.5, pixelY: 60 + 12.5, cellPx: 50, originX: 0, originY: 0, footprint: 0.5 })).toEqual({ x: 0.5, y: 1 });
+  });
+
+  it("still rounds a Medium token to a whole cell", () => {
+    expect(snapPixelToCell({ pixelX: 62.5, pixelY: 37.5, cellPx: 50, originX: 0, originY: 0, footprint: 1 })).toEqual({ x: 1, y: 0 });
+  });
+
+  it("returns a plain 0 for a Tiny token dropped just before the origin", () => {
+    const snapped = snapPixelToCell({ pixelX: 12.4, pixelY: 12.4, cellPx: 50, originX: 0, originY: 0, footprint: 0.5 });
+    expect(Object.is(snapped.x, 0)).toBe(true);
+    expect(Object.is(snapped.y, 0)).toBe(true);
+  });
+});

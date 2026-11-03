@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { putWall } from "./testWalls";
 import {
   deriveLinks,
   deriveSpaces,
@@ -17,14 +18,14 @@ import type { PackCategory } from "./packSchema";
 
 // ── Fixture builders — a DungeonMapLayers assembled cell by cell, mirroring
 // how the editor itself writes these layers, rather than an ASCII plan: the
-// interesting cases here turn on which of a cell's TWO edges (wallN/wallW)
+// interesting cases here turn on which of a cell's TWO edges (N/W keys in `layers.walls`)
 // carries a segment and under whose ownership, which an ASCII grid would
 // have to re-derive anyway. ─────────────────────────────────────────────
 
 const PACK: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
 
 function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {} };
+  return { ground: {}, floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} };
 }
 
 function addFloor(layers: DungeonMapLayers, x: number, y: number): void {
@@ -34,10 +35,7 @@ function addFloor(layers: DungeonMapLayers, x: number, y: number): void {
 
 function addEdge(layers: DungeonMapLayers, x: number, y: number, side: Side, type: EdgeSegType): void {
   const owner = canonicaliseEdge(x, y, side);
-  const k = cellKey(owner.x, owner.y);
-  const cell = layers.floor[k] ?? {};
-  const seg = { ...PACK, type };
-  layers.floor[k] = owner.side === "N" ? { ...cell, wallN: seg } : { ...cell, wallW: seg };
+  putWall(layers, owner.x, owner.y, owner.side, { ...PACK, type });
 }
 
 function addSolid(layers: DungeonMapLayers, x: number, y: number): void {
@@ -367,7 +365,7 @@ describe("deriveStructure", () => {
 
 function fakeSpace(cells: CellKey[]): DerivedSpace {
   const canon = canonicalCells(cells);
-  return { key: `s:${canon[0]}`, cells: canon, signature: cellSignature(canon), name: null, nameSource: null };
+  return { key: `s:${canon[0]}`, cells: canon, signature: cellSignature(canon), outline: [[0, 0], [1, 0], [1, 1]], name: null, nameSource: null };
 }
 
 function fakeStructure(spaces: DerivedSpace[], ways: DerivedWay[] = []): DerivedStructure {
@@ -435,5 +433,60 @@ describe("structureDelta", () => {
     expect(structureDelta(fakeStructure([]), after).newWays).toBe(2);
     expect(structureDelta(before, after).newWays).toBe(1);
     expect(structureDelta(before, after).goneWays).toBe(0);
+  });
+});
+
+// #1125 story 5: an angled wall is a segment in `layers.walls`, and cuts the fill wherever it crosses the edge
+// between two floor cells. A wall that only ends at a corner never splits cells it does not pass between.
+describe("deriveSpaces with angled walls", () => {
+  const strip = (): DungeonMapLayers => {
+    const layers = emptyLayers();
+    addFloor(layers, 0, 0);
+    addFloor(layers, 1, 0);
+    return layers;
+  };
+  const angled = (layers: DungeonMapLayers, id: string, a: [number, number], b: [number, number], type: EdgeSegType = "wall") => {
+    layers.walls[id] = { ...PACK, type, a, b };
+  };
+
+  it("a slanted wall across the edge between two cells makes them two rooms", () => {
+    const layers = strip();
+    angled(layers, "slant", [0.6, -0.2], [1.4, 1.2]);
+    expect(deriveSpaces(layers).map((s) => s.cells)).toEqual([["0,0"], ["1,0"]]);
+  });
+
+  it("a wall that only reaches the corner of the edge does not split the cells", () => {
+    const layers = strip();
+    angled(layers, "corner", [0, 2], [1, 1]);
+    expect(deriveSpaces(layers)).toHaveLength(1);
+  });
+
+  it("a slanted wall that passes beside the edge leaves the room whole", () => {
+    const layers = strip();
+    angled(layers, "beside", [1.2, 0.2], [2, 0.8]);
+    expect(deriveSpaces(layers)).toHaveLength(1);
+  });
+
+  it("an angled door cuts the fill like any other wall, since the fill cuts at every door", () => {
+    const layers = strip();
+    angled(layers, "door", [0.6, -0.2], [1.4, 1.2], "doorClosed");
+    expect(deriveSpaces(layers)).toHaveLength(2);
+  });
+
+  it("a wall on the grid line splits the two cells whichever kind stores it", () => {
+    const lattice = strip();
+    addEdge(lattice, 0, 0, "E", "wall");
+    const free = strip();
+    angled(free, "free", [1, 0], [1, 1]);
+    expect(deriveSpaces(lattice)).toHaveLength(2);
+    expect(deriveSpaces(free)).toHaveLength(2);
+  });
+
+  it("an angled door is not a way out: ways are named by a grid edge key, which it has none of", () => {
+    const layers = strip();
+    angled(layers, "door", [0.6, -0.2], [1.4, 1.2], "doorClosed");
+    const spaces = deriveSpaces(layers);
+    expect(spaces).toHaveLength(2);
+    expect(deriveWays(layers, spaces)).toEqual([]);
   });
 });

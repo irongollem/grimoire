@@ -44,3 +44,53 @@ export function lightStops(light: TileLight): [number, string][] {
   if (light.dim === 0) return [[0, at(intensity)], [near, at(intensity * LIGHT_FALLOFF.near)], [1, at(intensity * LIGHT_FALLOFF.edge)]];
   return [[0, at(intensity)], [near, at(intensity * LIGHT_FALLOFF.near)], [edge, at(intensity * LIGHT_FALLOFF.edge)], [1, at(0)]];
 }
+
+/** How much a flickering light brightens above its steady baked glow when its pack declares no amount: a fraction of `intensity`. */
+export const FIRE_FLICKER = 0.3;
+/** The same for a pulsing light (a mushroom, a crystal, a magical glow). */
+export const PULSE_GLOW = 0.3;
+/**
+ * How far a light's reach swells and shrinks around its steady radius, as a fraction of it. A flame is larger and
+ * irregular; a pulse is smaller, slow and even. Smaller than this and the circle reads as steady on a table screen
+ * (the first cut drifted 5% and nobody could see it, 2 Nov 2026).
+ */
+export const FLICKER_REACH = 0.15;
+export const PULSE_REACH = 0.1;
+/**
+ * The live glow is added to the steady baked one, and at the default intensity (0.35) a 30% brightening is a 0.1
+ * alpha: below what an eye picks out against the baked glow. The gain makes the swing a visible one.
+ */
+export const LIGHT_BOOST_GAIN = 1.6;
+/** A pulse's breath, in seconds. */
+export const PULSE_PERIOD_S = 3;
+
+/**
+ * Whether a light's colour is that of a flame: a warm, saturated and not dim hue, red-orange through amber (5 to 55
+ * degrees). A campfire, brazier, torch, candelabra or hearth all give light in it, and so does a light the DM placed
+ * in a warm colour, so none of them needs to declare that it flickers.
+ */
+export function isFireColor(hex: string): boolean {
+  const r = Number.parseInt(hex.slice(1, 3), 16) / 255;
+  const g = Number.parseInt(hex.slice(3, 5), 16) / 255;
+  const b = Number.parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max < 0.5 || max === min || (max - min) / max < 0.45) return false;
+  const d = max - min;
+  const hue = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const degrees = hue * 60;
+  return degrees >= 5 && degrees <= 55;
+}
+
+export type LightMotion = { kind: "flicker" | "pulse"; amount: number };
+
+/**
+ * How a light moves. Every light does (the maintainer, 2 Nov 2026: most lights flicker a bit, so only a mushroom may
+ * be calm, and then it still breathes). A light that declares `flicker` or `pulse` does that, by that amount; a
+ * fire-coloured one that declares neither flickers; anything else pulses.
+ */
+export function lightMotion(light: Pick<TileLight, "color" | "flicker" | "pulse">): LightMotion {
+  if (light.flicker !== undefined) return { kind: "flicker", amount: light.flicker };
+  if (light.pulse !== undefined) return { kind: "pulse", amount: light.pulse };
+  return isFireColor(light.color) ? { kind: "flicker", amount: FIRE_FLICKER } : { kind: "pulse", amount: PULSE_GLOW };
+}

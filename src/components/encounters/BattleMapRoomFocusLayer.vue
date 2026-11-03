@@ -25,6 +25,12 @@
       stroke-linecap="round"
     />
 
+    <!-- Says what the outline is (decision 8): a quiet chip on the room's top edge, not a banner. -->
+    <g v-if="label && labelAnchor" class="room-focus-label" data-testid="room-focus-label">
+      <rect :x="labelAnchor.x" :y="labelAnchor.y" :width="labelWidth" height="18" rx="4" />
+      <text :x="labelAnchor.x + 7" :y="labelAnchor.y + 13">{{ label }}</text>
+    </g>
+
     <!-- Difficult-terrain zones inside the room: a read, not an enforcement —
          "it does not halve anyone's speed" (frame 13). -->
     <template v-for="(zone, zi) in zones" :key="`zone-${zi}`">
@@ -45,8 +51,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { cellOutline } from "@/lib/battlemap/cellOutline";
 
-const { hostW, hostH, cellPx, originX, originY, focusCells, zones = [] } = defineProps<{
+const { hostW, hostH, cellPx, originX, originY, focusCells, zones = [], label = null } = defineProps<{
   hostW: number;
   hostH: number;
   cellPx: number;
@@ -56,6 +63,8 @@ const { hostW, hostH, cellPx, originX, originY, focusCells, zones = [] } = defin
   focusCells: string[];
   /** Difficult-terrain zones inside the room, cells in the same space. */
   zones?: { battleCells: string[] }[];
+  /** What the outline is called on screen ("Fight here"); null for no chip. */
+  label?: string | null;
 }>();
 
 function parseCell(key: string): [number, number] {
@@ -85,43 +94,28 @@ interface Edge {
   y2: number;
 }
 
-/** The boundary edges of a set of grid cells, in pixel space — an edge is
- *  drawn wherever a cell's neighbour on that side is NOT in the set, so the
- *  result traces the shape's actual perimeter rather than its bounding box. */
+/** The boundary edges of a set of grid cells in pixel space: the perimeter of the shape, not its bounding box. */
 function boundaryEdges(cells: string[]): Edge[] {
-  const set = new Set(cells);
-  const edges: Edge[] = [];
-  const toPx = (cx: number, cy: number): [number, number] => [
-    originX + cx * cellPx,
-    originY + cy * cellPx,
-  ];
-  for (const key of cells) {
-    const [x, y] = parseCell(key);
-    if (!set.has(`${x},${y - 1}`)) {
-      const [x1, y1] = toPx(x, y);
-      const [x2] = toPx(x + 1, y);
-      edges.push({ x1, y1, x2, y2: y1 });
-    }
-    if (!set.has(`${x},${y + 1}`)) {
-      const [x1, y1] = toPx(x, y + 1);
-      const [x2] = toPx(x + 1, y + 1);
-      edges.push({ x1, y1, x2, y2: y1 });
-    }
-    if (!set.has(`${x - 1},${y}`)) {
-      const [x1, y1] = toPx(x, y);
-      const [, y2] = toPx(x, y + 1);
-      edges.push({ x1, y1, x2: x1, y2 });
-    }
-    if (!set.has(`${x + 1},${y}`)) {
-      const [x1, y1] = toPx(x + 1, y);
-      const [, y2] = toPx(x + 1, y + 1);
-      edges.push({ x1, y1, x2: x1, y2 });
-    }
-  }
-  return edges;
+  return cellOutline(cells).map((e) => ({
+    x1: originX + e.x1 * cellPx,
+    y1: originY + e.y1 * cellPx,
+    x2: originX + e.x2 * cellPx,
+    y2: originY + e.y2 * cellPx,
+  }));
 }
 
 const roomOutlineEdges = computed(() => boundaryEdges(focusCells));
+
+/** The chip sits just inside the room's top-left corner, so it never leaves the lit room nor covers the dimmed plan. */
+const labelAnchor = computed(() => {
+  if (focusCells.length === 0) return null;
+  const parsed = focusCells.map(parseCell);
+  const top = Math.min(...parsed.map(([, y]) => y));
+  const left = Math.min(...parsed.filter(([, y]) => y === top).map(([x]) => x));
+  return { x: originX + left * cellPx + 4, y: originY + top * cellPx + 4 };
+});
+// Monospace-ish estimate: the chip is SVG text, which cannot size its own rect.
+const labelWidth = computed(() => (label ? label.length * 6.4 + 14 : 0));
 
 function zoneOutlineEdges(cells: string[]): Edge[] {
   return boundaryEdges(cells);
@@ -129,6 +123,17 @@ function zoneOutlineEdges(cells: string[]): Edge[] {
 </script>
 
 <style scoped>
+.room-focus-label rect {
+  fill: rgba(10, 8, 6, 0.82);
+  stroke: rgba(96, 165, 250, 0.85);
+  stroke-width: 1px;
+}
+.room-focus-label text {
+  fill: rgb(191, 219, 254);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
 .room-focus-layer {
   position: absolute;
   inset: 0;

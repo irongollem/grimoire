@@ -15,7 +15,7 @@
  * reveal. In run mode the room list shows it as a pending prompt, never as
  * an automatic action") and frame 15's own quoted line, "'Beat 5 is staged
  * on this floor — advance?' as a prompt in Run" (#868). Pulled out of
- * `QuestSiteHandoff` so `SiteRunSurface` (the Atlas Run action) shows the
+ * `QuestSiteHandoff` so any other surface that shows it uses the
  * identical prompt rather than growing a second copy that can drift.
  *
  * Deliberately dumb: this component doesn't know which room the party is

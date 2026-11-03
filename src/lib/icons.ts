@@ -17,7 +17,7 @@ import {
   Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
   Hammer, Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
   Cloud, CloudDrizzle, CloudFog, CloudRain, CloudSnow, Snowflake,
-  Keyboard, KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
+  Keyboard, KeyRound, Lamp, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Shrink,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Lock, LogOut,
@@ -31,7 +31,7 @@ import {
   PictureInPicture2,
   Save, ScanEye, Scissors, Scroll, ScrollText, Search, Send, Settings, Settings2,
   Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipBack, SkipForward, Skull, SlidersHorizontal,
-  Sparkles, Square, SquareCode, SquareSplitVertical, Stamp, Star, Strikethrough, Sun, Sword, Swords,
+  Spline, Sparkles, Square, SquareCode, SquareSplitVertical, Stamp, Star, Strikethrough, Sun, Sword, Swords,
   Table2, Tag, Trash2, Truck,
   Aperture, TrendingUp,
   Underline, Undo2, Upload, UploadCloud,
@@ -39,6 +39,7 @@ import {
   VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
   Fence, Type, SunMoon,
   StepForward, ToggleRight, FastForward, TrendingDown, ChartNoAxesColumn,
+  BowArrow, Pencil, Radius, Signal, Target,
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -109,6 +110,12 @@ export { BrickWall as IconWall }
  *  glyph `IconWall` uses: the Cartographer palette shows both tools side by
  *  side, and two identical buttons read as one tool twice. */
 export { Fence as IconWrapWalls }
+/** Angled wall: a segment run at any angle, off the lattice. Not `IconRuler`,
+ *  which already means Measure on the same palette. */
+export { Spline as IconAngledWall }
+/** A placed light (the Light tool). Not `IconLightbulb`, which means "feature
+ *  request" elsewhere; a lamp reads as a light in the world. */
+export { Lamp as IconLight }
 export { PaintBucket as IconFill }
 export { DoorClosed as IconDoor }
 export { Box as IconCube }
@@ -197,6 +204,14 @@ export { LibraryBig as IconScriptorium }
 export { Library as IconLibrary }
 export { Swords as IconEncounter }
 export { Sword as IconSword }
+// Attack rows (the runner's and the Play card's): the kind of attack reads by glyph, never by emoji.
+export { BowArrow as IconRangedAttack }
+export { Target as IconThrownAttack }
+export { Wand2 as IconSpellAttack }
+// The Play toolbelt (#1125 frame 11): Measure is IconRuler; Area, Ping and Draw are these.
+export { Radius as IconAreaOfEffect }
+export { Signal as IconPing }
+export { Pencil as IconDraw }
 export { Shield as IconShield }
 export { ShieldCheck as IconShieldCheck }
 export { Skull as IconMonster }

@@ -23,18 +23,17 @@ export type Tool =
   | "line"
   | "fill"
   | "wrap"
+  // A wall run at any angle (#1125 story 5): click points, Enter or a double-click ends it.
+  | "angledWall"
   // Place (#1073 story 11): the set's objects (chest, barrel, stairs, rubble) and the
   // Dressing books' props (tables, beds, coffins at any angle) from one picture catalogue.
   | "place"
+  // A light the DM sets down by hand (#1125 story 5), beside the ones sets and props carry.
+  | "light"
   | "annotate"
   | "link"
   | "template"
-  | "brush"
-  // Structure group (#868) — doesn't paint pixels, it claims/annotates what
-  // the drawing MEANS: "space" selects the derived room under the cursor.
-  // Zoning was retired (#884 S11) — a zone is now a Plan region authored
-  // once in the Plan palette, never derived from the Drawing.
-  | "space";
+  | "brush";
 
 /**
  * What the Place tool puts down. An object is a set's own stamp (a chest, a barrel), either
@@ -45,3 +44,9 @@ export type Tool =
 export type PlaceItem =
   | { kind: "object"; category: import("@/cartographer/stampCategories").StampCategory; variant: number | "any" }
   | { kind: "prop"; propId: string };
+
+/**
+ * What the map editor's Map menu can ask its host to do (#1125, canvas frame 07). The host
+ * lists the ones it handles; the workbench draws only those, and reports the pick.
+ */
+export type MapMenuAction = "style" | "review" | "download" | "export-vtt" | "delete";

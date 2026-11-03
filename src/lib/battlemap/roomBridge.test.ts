@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   battleCellToRegionCell,
+  pictureUnderDrawing,
   regionCellToBattleCell,
   resolveBattleSurface,
-  roomsRevealedInCombat,
-  seedFogMask,
   seedTokenPositions,
 } from "@/lib/battlemap/roomBridge";
 import type { GridCalibration, Location } from "@/types/location.types";
@@ -54,6 +53,7 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     map_layer_stand_url: null,
     map_layer_stand_live_url: null,
     map_layer_calibration: null,
+    map_motion: null,
     map_live: null,
     map_scale: null,
     plan_size: null,
@@ -151,6 +151,8 @@ describe("resolveBattleSurface", () => {
       calibration,
       imageUrl: "https://example.test/map.webp",
       live: null,
+      picture: null,
+      motion: null,
       standUrl: null,
       standLiveUrl: null,
     });
@@ -233,7 +235,7 @@ describe("resolveBattleSurface", () => {
 
   describe("live snapshot (#1073)", () => {
     const live: MapLive = {
-      version: 2, darkness: "daylight",
+      version: 3, darkness: "daylight",
       groups: [{ kind: "water", cells: ["1,1"], overlays: [] }],
       lights: [],
       sprites: [],
@@ -269,7 +271,7 @@ describe("resolveBattleSurface", () => {
       expect(surface?.live).toBe(live);
     });
 
-    it("is null when the surface is a Picture, even if a snapshot exists", () => {
+    it("carries a Picture-only place's snapshot: an import writes walls and lights into the Picture's own cells (#1125)", () => {
       const location = makeLocation({
         location_type: "dungeon",
         climate: null,
@@ -278,6 +280,17 @@ describe("resolveBattleSurface", () => {
         grid_calibration: makeCalibration(),
         map_live: live,
       });
+      expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })?.live).toBe(live);
+    });
+
+    it("is null for a Picture with no snapshot", () => {
+      const location = makeLocation({
+        location_type: "dungeon",
+        climate: null,
+        terrain: null,
+        map_url: "https://example.test/picture.webp",
+        grid_calibration: makeCalibration(),
+    });
       expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })?.live).toBeNull();
     });
   });
@@ -442,6 +455,31 @@ describe("seedTokenPositions", () => {
     expect(result[1].position).toEqual({ x: 2, y: 0 });
   });
 
+  // PHB 2024 "Creature Size": a Tiny creature's space is 2½ ft, so four fit in one 5 ft square (#1125 decision 13).
+  it("puts four Tiny tokens in one square and the fifth in the next", () => {
+    const combatants = [1, 2, 3, 4, 5].map((n) => makeCombatant({ instance_id: `p-${n}`, size: "tiny" }));
+    const result = seedTokenPositions(combatants, ["0,0", "1,0"]);
+    expect(result.slice(0, 4).map((c) => c.position)).toEqual([
+      { x: 0, y: 0 }, { x: 0.5, y: 0 }, { x: 0, y: 0.5 }, { x: 0.5, y: 0.5 },
+    ]);
+    expect(result[4].position).toEqual({ x: 1, y: 0 });
+  });
+
+  it("does not seat a Medium token in a square a Tiny one already stands in", () => {
+    const combatants = [makeCombatant({ instance_id: "p-tiny", size: "tiny" }), makeCombatant({ instance_id: "p-med" })];
+    const result = seedTokenPositions(combatants, ["0,0", "1,0"]);
+    expect(result[1].position).toEqual({ x: 1, y: 0 });
+  });
+
+  it("seats a Huge token on nine squares by default, reading its size", () => {
+    const cells: `${number},${number}`[] = [];
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) cells.push(`${x},${y}`);
+    const result = seedTokenPositions([makeCombatant({ size: "huge" }), makeCombatant({ instance_id: "p-2" })], cells);
+    expect(result[0].position).toEqual({ x: 0, y: 0 });
+    // All nine squares are the Huge token's, so the second has nowhere to go.
+    expect(result[1].position).toBeUndefined();
+  });
+
   it("leaves a combatant unplaced when the room has no room for its footprint", () => {
     const combatants = [makeCombatant({ footprint: 4 })];
     const result = seedTokenPositions(combatants, ["0,0", "1,0"], { footprintOf: (c) => c.footprint ?? 1 });
@@ -449,47 +487,61 @@ describe("seedTokenPositions", () => {
   });
 });
 
-describe("seedFogMask", () => {
-  it("reveals exactly the focus cells, and nothing when there are none", () => {
-    expect(seedFogMask(["0,0", "1,0"])).toEqual(new Set(["0,0", "1,0"]));
-    expect(seedFogMask([])).toEqual(new Set());
-  });
-});
+describe("the Picture under the Drawing and a moving Picture (#1125 decisions 6 and 8)", () => {
+  const picture = "https://example.test/picture.webp";
+  const drawing = "https://example.test/drawing.webp";
+  const both = (over: Partial<Location> = {}) =>
+    makeLocation({
+      id: "site-1",
+      location_type: "dungeon",
+      climate: null,
+      terrain: null,
+      map_url: picture,
+      grid_calibration: makeCalibration({ cells_per_image_width: 10 }),
+      map_layer_url: drawing,
+      map_layer_calibration: makeCalibration({ cells_per_image_width: 16 }),
+      ...over,
+    });
+  const resolve = (loc: Location) => resolveBattleSurface({ encounterLocation: loc, parent: null, regions: [] });
 
-describe("roomsRevealedInCombat", () => {
-  it("reveals a room whose region is at least half revealed", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const region = makeRegion({ space_location_id: "room-1", cells: ["0,0", "1,0"] });
-    const revealed = new Set(["0,0"]); // 1 of 2 cells = 50%
-    expect(roomsRevealedInCombat(revealed, [region], calibration)).toEqual(["room-1"]);
-  });
-
-  it("does not reveal a room under the 50% threshold", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const region = makeRegion({ space_location_id: "room-1", cells: ["0,0", "1,0", "2,0"] });
-    const revealed = new Set(["0,0"]); // 1 of 3 cells
-    expect(roomsRevealedInCombat(revealed, [region], calibration)).toEqual([]);
-  });
-
-  it("converts region cells through the calibration's origin before comparing", () => {
-    const calibration = makeCalibration({ origin_cell_x: -2, origin_cell_y: -2 });
-    const region = makeRegion({ space_location_id: "room-1", cells: ["2,2", "3,2"] });
-    // Battle-cell space: "2,2" -> "4,4", "3,2" -> "5,4"
-    const revealed = new Set(["4,4", "5,4"]);
-    expect(roomsRevealedInCombat(revealed, [region], calibration)).toEqual(["room-1"]);
+  it("carries the Picture and both calibrations when a calibrated Picture sits under a calibrated Drawing", () => {
+    const surface = resolve(both());
+    expect(surface?.imageUrl).toBe(drawing);
+    expect(surface?.picture).toEqual({
+      url: picture,
+      calibration: makeCalibration({ cells_per_image_width: 10 }),
+      drawingCalibration: makeCalibration({ cells_per_image_width: 16 }),
+    });
   });
 
-  it("skips zones and unbound regions", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const zone = makeRegion({ region_role: "zone", zone_kind: "terrain", space_location_id: "room-z", cells: ["0,0"] });
-    const unbound = makeRegion({ region_role: "space", space_location_id: null, cells: ["1,1"] });
-    const revealed = new Set(["0,0", "1,1"]);
-    expect(roomsRevealedInCombat(revealed, [zone, unbound], calibration)).toEqual([]);
+  it("has no Picture layer for a Picture-only place (the Picture is the ground itself)", () => {
+    expect(resolve(both({ map_layer_url: null, map_layer_calibration: null }))?.picture).toBeNull();
   });
 
-  it("skips regions with no traced cells", () => {
-    const calibration = makeCalibration({ origin_cell_x: 0, origin_cell_y: 0 });
-    const region = makeRegion({ space_location_id: "room-1", cells: [] });
-    expect(roomsRevealedInCombat(new Set(), [region], calibration)).toEqual([]);
+  it("has no Picture layer when the Picture is not calibrated: there is nothing to place it by", () => {
+    expect(resolve(both({ grid_calibration: null }))?.picture).toBeNull();
+  });
+
+  it("has no Picture layer when the Drawing is not calibrated", () => {
+    expect(pictureUnderDrawing(both({ map_layer_calibration: null }))).toBeNull();
+  });
+
+  it("names the moving file's key (the map location's id), kind and still", () => {
+    const motion = { kind: "video" as const, file_name: "river.mp4", mime: "video/mp4", bytes: 4, width: 8, height: 8 };
+    expect(resolve(both({ map_motion: motion }))?.motion).toEqual({
+      key: "site-1",
+      kind: "video",
+      still: picture,
+      fileName: "river.mp4",
+      bytes: 4,
+    });
+    expect(resolve(both())?.motion).toBeNull();
+  });
+
+  it("keys a room's moving map by its site, whose plan the fight is drawn on", () => {
+    const room = makeLocation({ id: "room-1", parent_id: "site-1" });
+    const site = both({ map_motion: { kind: "animated", file_name: "a.gif", mime: "image/gif", bytes: 1, width: 1, height: 1 } });
+    const surface = resolveBattleSurface({ encounterLocation: room, parent: site, regions: [] });
+    expect(surface?.motion?.key).toBe("site-1");
   });
 });

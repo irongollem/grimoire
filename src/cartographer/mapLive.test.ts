@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { putWall } from "./testWalls";
+import { convertCellGround, groundLoops, paintGroundCells } from "./groundRegions";
+import type { MapLiveSource } from "./mapLive";
 import { buildMapLive } from "./mapLive";
 import { cellKey, emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MotionOverlay } from "@/types/mapLive.types";
@@ -6,13 +9,16 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DressingCatalog, DressingProp } from "./dressing";
 import { makeRuntime } from "./testCanvas";
 import { phaseAt } from "./sway";
+import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
+import { occludersOf } from "@/lib/battlemap/occlusion";
 
 const FOAM: MotionOverlay = { url: "https://cdn/foam.webp", cells: 4, drift: [0.1, 0], alpha: 0.5 };
 const GLINT: MotionOverlay = { url: "https://cdn/glint.webp", cells: 2, drift: [0, 0], alpha: 0.4, breathe: { amount: 0.3, speed: 2, phase: 0 } };
 const ref = (pack_id: string) => ({ pack_id, pack_version: 1, variant: 0 });
 
-function mapWith(layers: DungeonMap["layers"]): DungeonMap {
-  return { id: "m", layers } as unknown as DungeonMap;
+function mapWith(layers: DungeonMap["layers"]): MapLiveSource {
+  let serial = 0;
+  return { layers: Object.keys(layers.ground).length > 0 ? layers : convertCellGround(layers, () => `region-${serial++}`), darkness: "daylight" };
 }
 
 function runtimes(entries: [string, TilePackRuntime][]): Map<string, TilePackRuntime> {
@@ -42,9 +48,22 @@ describe("buildMapLive", () => {
       2,
     );
     const sea = live.groups.find((g) => g.cells.includes("1,1"));
-    expect(sea).toEqual({ kind: "water", cells: ["1,1", "2,1"], overlays: [FOAM] });
+    expect(sea).toMatchObject({ kind: "water", cells: ["1,1", "2,1"], overlays: [FOAM], clip: { outline: expect.any(Array) } });
     // Water without motion still makes a group: later stories read its cells.
-    expect(live.groups.find((g) => g.cells.includes("1,2"))).toEqual({ kind: "water", cells: ["1,2"], overlays: [] });
+    expect(live.groups.find((g) => g.cells.includes("1,2"))).toMatchObject({ kind: "water", cells: ["1,2"], overlays: [], clip: { outline: expect.any(Array) } });
+  });
+
+  it("carries exact vector water curves and higher-region occlusion in image-cell coordinates", () => {
+    const water = paintGroundCells(emptyLayers(), new Set(["4,5", "5,5"]), ref("sea"), "terrainWater");
+    const land = paintGroundCells(water, new Set(["5,5"]), ref("sand"));
+    land.solidBlock["4,5"] = ref("rock");
+    const live = buildMapLive(mapWith(land), runtimes([]), NO_DRESSING, 3, 4);
+    const [sea] = live.groups;
+    expect(sea.clip?.outline).toEqual(groundLoops(Object.values(water.ground)[0]).map((loop) => loop.map(([x, y]) => [x - 3, y - 4])));
+    expect(sea.clip?.occluded).toHaveLength(2);
+    expect(sea.clip?.occluded[0]).toEqual(groundLoops(Object.values(land.ground).at(-1)!).map((loop) => loop.map(([x, y]) => [x - 3, y - 4])));
+    expect(sea.clip?.occluded[1]).toEqual([[[1, 1], [2, 1], [2, 2], [1, 2]]]);
+    expect(live.walls).toEqual([]);
   });
 
   it("makes an outer group only for a pack whose solidBlock has overlays", () => {
@@ -73,7 +92,7 @@ describe("buildMapLive", () => {
       4,
     );
     expect(live.lights).toEqual([{ x: 2.5, y: 1.5, color: "#ff8030", bright: 20, dim: 20, intensity: 0.6, phase: phaseAt(2.5, 1.5) }]);
-    expect(live.version).toBe(2);
+    expect(live.version).toBe(3);
   });
 
   it("carries a light's flicker or pulse, and only when set", () => {
@@ -140,8 +159,9 @@ describe("buildMapLive", () => {
 
   it("gives each door the leaf art its pack can serve, and null where the bake must keep the leaf", () => {
     const layers = emptyLayers();
-    layers.floor[cellKey(1, 1)] = { wallN: { ...ref("lib"), type: "doorClosed" }, wallW: { ...ref("mine"), type: "doorOpen" } };
-    layers.floor[cellKey(2, 1)] = { wallN: { ...ref("lib"), variant: 1, type: "doorClosed" } };
+    putWall(layers, 1, 1, "N", { ...ref("lib"), type: "doorClosed" });
+    putWall(layers, 1, 1, "W", { ...ref("mine"), type: "doorOpen" });
+    putWall(layers, 2, 1, "N", { ...ref("lib"), variant: 1, type: "doorClosed" });
     const assets = { doorLeaf: [{ variant: 0, url: "https://cdn/leaf-0.webp" }] };
     const hinge = { hingeX: 0.5, hingeY: 0.25, openDegrees: 60 };
     const live = buildMapLive(
@@ -154,11 +174,11 @@ describe("buildMapLive", () => {
       0,
       0,
     );
-    expect(live.version).toBe(2);
+    expect(live.version).toBe(3);
     expect(live.doors).toEqual([
-      { edge: "1,1:N", open: false, leaf: { url: "https://cdn/leaf-0.webp", ...hinge } },
-      { edge: "1,1:W", open: true, leaf: null },
-      { edge: "2,1:N", open: false, leaf: null },
+      { id: "1,1:N", a: [1, 1], b: [2, 1], open: false, leaf: { url: "https://cdn/leaf-0.webp", ...hinge } },
+      { id: "1,1:W", a: [1, 1], b: [1, 2], open: true, leaf: null },
+      { id: "2,1:N", a: [2, 1], b: [3, 1], open: false, leaf: null },
     ]);
   });
 
@@ -170,16 +190,89 @@ describe("buildMapLive", () => {
   it("lists what blocks light and sight in image cells: walls, sluices, doors by drawn state, solid rock, no grates", () => {
     const layers = emptyLayers();
     const seg = (type: "wall" | "doorClosed" | "doorOpen" | "grate" | "sluice") => ({ ...ref("p"), type });
-    layers.floor[cellKey(3, 4)] = { wallN: seg("wall"), wallW: seg("doorClosed") };
-    layers.floor[cellKey(4, 4)] = { wallN: seg("doorOpen"), wallW: seg("grate") };
-    layers.floor[cellKey(5, 4)] = { wallN: seg("sluice") };
+    putWall(layers, 3, 4, "N", seg("wall"));
+    putWall(layers, 3, 4, "W", seg("doorClosed"));
+    putWall(layers, 4, 4, "N", seg("doorOpen"));
+    putWall(layers, 4, 4, "W", seg("grate"));
+    putWall(layers, 5, 4, "N", seg("sluice"));
     layers.solidBlock[cellKey(9, 9)] = ref("rock");
     const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 2);
-    expect(live.walls.sort()).toEqual(["2,2:N", "4,2:N"]);
+    expect(live.walls.map((w) => w.id).sort()).toEqual(["2,2:N", "4,2:N"]);
+    expect(live.walls.find((w) => w.id === "2,2:N")).toEqual({ id: "2,2:N", a: [2, 2], b: [3, 2] });
     expect(live.doors).toEqual([
-      { edge: "2,2:W", open: false, leaf: null },
-      { edge: "3,2:N", open: true, leaf: null },
+      { id: "2,2:W", a: [2, 2], b: [2, 3], open: false, leaf: null },
+      { id: "3,2:N", a: [3, 2], b: [4, 2], open: true, leaf: null },
     ]);
     expect(live.solid).toEqual(["8,7"]);
+  });
+
+  // #1125 story 5: the Drawing's walls and placed lights reach the live battle map as they are stored.
+  it("carries an angled wall as a segment under its own id", () => {
+    const layers = emptyLayers();
+    layers.walls.slant = { ...ref("p"), type: "wall", a: [4, 5], b: [6, 8] };
+    const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 2);
+    expect(live.walls).toEqual([{ id: "slant", a: [3, 3], b: [5, 6] }]);
+  });
+
+  it("carries an angled door without a leaf, since the live layer cannot turn a leaf to its line", () => {
+    const layers = emptyLayers();
+    layers.walls.door = { ...ref("lib"), type: "doorClosed", a: [1, 1], b: [3, 2] };
+    const assets = { doorLeaf: [{ variant: 0, url: "https://cdn/leaf-0.webp" }] };
+    const live = buildMapLive(mapWith(layers), runtimes([["lib", makeRuntime("lib", { assets })]]), NO_DRESSING, 0, 0);
+    expect(live.doors).toEqual([{ id: "door", a: [1, 1], b: [3, 2], open: false, leaf: null }]);
+  });
+
+  it("carries a light the DM placed, in image cells, with its reach and flicker", () => {
+    const layers = emptyLayers();
+    layers.lights.torch = { x: 5.5, y: 4, light: { color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 } };
+    const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 2, 1);
+    expect(live.lights).toHaveLength(1);
+    expect(live.lights[0]).toMatchObject({ x: 3.5, y: 3, color: "#ffb347", bright: 20, dim: 20, flicker: 0.25 });
+  });
+});
+
+describe("every kind of fire lights the dark (the Drowned Shrine's braziers lit nothing)", () => {
+  it("a pack object, a wall decal, a Dressing prop and a placed light each clear the veil around themselves on a dark map", () => {
+    const layers = emptyLayers();
+    // Four rooms of floor, each with one light of a different kind, walled from the others so no light helps another.
+    const spots = [{ x: 2, y: 2 }, { x: 12, y: 2 }, { x: 22, y: 2 }, { x: 32, y: 2 }];
+    for (const { x, y } of spots) for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) layers.floor[cellKey(x + dx, y + dy)] = { floor: ref("p") };
+    layers.object[cellKey(2, 2)] = { ...ref("p"), category: "objectBrazier" };
+    putWall(layers, 12, 1, "N", { type: "wall", decal: 0, pack_id: "p", pack_version: 1, variant: 0 });
+    layers.dressing.lamp = { prop_id: "lamp", x: 22, y: 2, rotation: 0, z: 0 };
+    layers.lights.hand = { x: 32.5, y: 2.5, light: { color: "#ffaa33", bright: 20, dim: 0 } };
+    const fire = { color: "#ff9116", bright: 20, dim: 0 };
+    const dressing: DressingCatalog = new Map([["lamp", { id: "lamp", name: "Lamp", footprint_w: 1, footprint_h: 1, image: null, flat: false, light: fire, url: null, sway: null }]]);
+    const live = buildMapLive(
+      mapWith(layers),
+      runtimes([["p", makeRuntime("p", { lights: { objectBrazier: [fire], wallDecal: [fire] } })]]),
+      dressing,
+      0,
+      0,
+    );
+    expect(live.lights).toHaveLength(4);
+    const grid = illuminationGrid({
+      ambient: AMBIENT.dark, sources: live.lights, occluders: occludersOf(live),
+      minX: 0, minY: 0, cols: 40, rows: 8, samplesPerCell: 1,
+    });
+    for (const light of live.lights) {
+      // One cell off the light, inside its bright radius of four cells.
+      expect(grid[Math.floor(light.y + 1) * 40 + Math.floor(light.x + 1)], `light at ${light.x},${light.y}`).toBe(1);
+    }
+  });
+});
+
+describe("buildMapLive and a curved wall (#1125, curved walls)", () => {
+  it("carries the sampled pieces of the curve, each named so it resolves to its wall, shifted to image cells", () => {
+    const layers = emptyLayers();
+    layers.walls.p = { ...ref("p"), type: "wall", a: [4, 4], b: [8, 4], smoothB: true };
+    layers.walls.q = { ...ref("p"), type: "wall", a: [8, 4], b: [8, 8], smoothA: true };
+    const live = buildMapLive(mapWith(layers), runtimes([]), NO_DRESSING, 1, 1);
+    expect(live.walls.length).toBeGreaterThan(2);
+    expect(new Set(live.walls.map((w) => w.id.split("#")[0]))).toEqual(new Set(["p", "q"]));
+    expect(live.walls[0].a).toEqual([3, 3]);
+    // End to end: no gap between one piece and the next, or a ray would slip through the seam.
+    const p = live.walls.filter((w) => w.id.startsWith("p"));
+    p.slice(1).forEach((w, i) => expect(w.a).toEqual(p[i].b));
   });
 });

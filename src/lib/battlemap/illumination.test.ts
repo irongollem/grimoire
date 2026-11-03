@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AMBIENT, illuminationGrid, lightLevelAt, segmentTouchesZone, type LitSource } from "./illumination";
 import { NO_OCCLUDERS, occluders } from "./occlusion";
+import { latticeSegment, type WallSegment } from "@/lib/battlemap/walls";
 
 const torch: LitSource = { x: 10, y: 10, bright: 20, dim: 20 }; // 4 cells bright, 8 cells reach
 
@@ -81,7 +82,7 @@ describe("illuminationGrid", () => {
 });
 
 describe("light against walls", () => {
-  const wall = occluders({ walls: ["12,10:W"], doors: [], solid: [] });
+  const wall = occluders({ walls: [latticeSegment("12,10:W")], doors: [], solid: [] });
   const lamp: LitSource = { x: 10.5, y: 10.5, bright: 30, dim: 0 };
 
   it("does not reach past a wall, and still lights the room it is in", () => {
@@ -112,14 +113,14 @@ describe("light against walls", () => {
     expect(lightLevelAt(AMBIENT.dark, [sconce], wall, 10.5, 10.5)).toBe(1);
     expect(lightLevelAt(AMBIENT.dark, [sconce], wall, 13.5, 10.5)).toBe(1);
     // Two such lights, one per face of a thick wall pair, each lights only its own side.
-    const both = occluders({ walls: ["12,10:W", "13,10:W"], doors: [], solid: [] });
+    const both = occluders({ walls: ["12,10:W", "13,10:W"].map(latticeSegment), doors: [], solid: [] });
     expect(lightLevelAt(AMBIENT.dark, [sconce], both, 10.5, 10.5)).toBe(1);
     expect(lightLevelAt(AMBIENT.dark, [sconce], both, 14.5, 10.5)).toBe(0);
   });
 
   it("times a 60x60 grid with 30 lights and a few hundred wall edges", () => {
-    const walls: string[] = [];
-    for (let i = 0; i < 60; i += 5) for (let j = 0; j < 60; j += 3) walls.push(`${i},${j}:W`, `${j},${i}:N`);
+    const walls: WallSegment[] = [];
+    for (let i = 0; i < 60; i += 5) for (let j = 0; j < 60; j += 3) walls.push(latticeSegment(`${i},${j}:W`), latticeSegment(`${j},${i}:N`));
     const occ = occluders({ walls, doors: [], solid: [] });
     const sources = Array.from({ length: 30 }, (_, i): LitSource => ({ x: 2 + ((i * 7) % 56) + 0.5, y: 2 + ((i * 11) % 56) + 0.5, bright: 20, dim: 20 }));
     const t0 = performance.now();

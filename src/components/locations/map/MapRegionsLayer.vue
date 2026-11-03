@@ -44,6 +44,7 @@ import {
   type RenderGeometry,
   type RoomFacts,
 } from "@/lib/locations/planCanvas";
+import type { PlayerSitePlanGlimpse } from "@/composables/locations/usePlayerVisibleSiteState";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridCalibration } from "@/types/location.types";
@@ -66,14 +67,14 @@ const {
   showWays = true,
   nestedSiteIds = new Set<string>(),
   showFog = false,
-  fogGlimpsedCells = [],
+  fogGlimpsed = [],
 } = defineProps<{
   regions: LocationMapRegion[];
   calibration: GridCalibration | null;
   imageNaturalWidth: number;
   imageNaturalHeight: number;
   /** Browse: select/navigate (the sheet, the Atlas pane). Run:
-   *  click-to-move-party (`SiteRunSurface`). Tracing/editing both moved to
+   *  click-to-move-party (`QuestSiteHandoff`). Tracing/editing both moved to
    *  `MapWorkbench` (#884 S11) — neither mode here ever edits. */
   mode: "browse" | "run";
   /** The room the party currently occupies. Only meaningful in run mode. */
@@ -114,15 +115,15 @@ const {
   /** Bound spaces that are themselves a nested site rather than a room
    *  (#818) — clicking one descends into it instead of pushing to its
    *  sheet. Derived by `LocationMap.vue` from the same `spaces` prop that
-   *  feeds `SiteMapRegionList`. */
+   *  feeds the Zoning list (`ZoningList`). */
   nestedSiteIds?: ReadonlySet<string>;
   /** The DM's own site-fog hint (#884 S11) — drawn over the plan rather
    *  than beside it as a second `PlayerSitePlan`. Each entry is one
-   *  unexplored space's own traced cells; `SiteRunSurface` builds this off
+   *  unexplored space's own traced cells; `SiteExploreView` builds this off
    *  `siteFog.ts`'s `buildDmFogPlan` (its `.glimpsed`). Off by default —
-   *  only the run surface's Fog toggle turns it on. */
+   *  only the explore screen turns it on. */
   showFog?: boolean;
-  fogGlimpsedCells?: readonly (readonly CellKey[])[];
+  fogGlimpsed?: readonly PlayerSitePlanGlimpse[];
 }>();
 
 const emit = defineEmits<{
@@ -237,11 +238,11 @@ function renderOverlay(): void {
   // Zones paint above spaces — a room is a floor to stand on, a zone is an
   // overlay ON that floor (water, ash, darkness) — and always dashed, so a
   // zone reads as an area effect rather than a second, competing room shape.
-  if (showZones) drawZonesPass(ctx, geometry, regions, null, dpr, undefined);
+  if (showZones) drawZonesPass(ctx, geometry, regions, null, dpr, pointToCanvas, undefined);
 
   // The DM's own site-fog hint (#884 S11) — drawn last, over everything
   // else, so it reads as a shade over the plan rather than under it.
-  if (showFog && fogGlimpsedCells.length > 0) drawFogPass(ctx, geometry, fogGlimpsedCells);
+  if (showFog && fogGlimpsed.length > 0) drawFogPass(ctx, geometry, fogGlimpsed, pointToCanvas);
 }
 
 watch(
@@ -260,7 +261,7 @@ watch(
     () => ways,
     () => showWays,
     () => showFog,
-    () => fogGlimpsedCells,
+    () => fogGlimpsed,
   ],
   () => renderOverlay(),
   { flush: "post", immediate: true },

@@ -183,6 +183,16 @@ describe("location list reads", () => {
     unmount();
   });
 
+  // Bug: the full-screen map editor opened a site of another campaign and listed "No spaces yet".
+  it("reads the campaign it is asked for, not the active one, and drops the active campaign's owner", async () => {
+    ownerId.value = "owner-1";
+    const { unmount } = withQueryClient(() => useAllLocations(undefined, () => "campaign-2"));
+    await flushPromises();
+    const read = fake.calls.find((c) => c.target === "locations");
+    expect(read?.filters).toContainEqual({ op: "or", column: "", value: "campaign_id.eq.campaign-2,and(campaign_id.is.null,user_id.in.(user-1))" });
+    unmount();
+  });
+
   it("loads the slim summary columns, never every column", async () => {
     const { unmount } = withQueryClient(() => useAllLocations());
     await flushPromises();

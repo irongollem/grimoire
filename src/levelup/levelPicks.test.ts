@@ -108,7 +108,7 @@ describe("resolveLevelPicks", () => {
 describe("a level and its de-level", () => {
   const classRow: CharacterClass = {
     id: "cc1", party_member_id: "m1", class_name: "Fighter", class_definition_id: "fighter-def", class_definition_kind: "system",
-    subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 3, is_primary: true, hit_dice_used: 0, sort_order: 0, created_at: "", updated_at: "",
+    subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 3, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [], created_at: "", updated_at: "",
   };
   const before = {
     id: "m1", level: 3, proficiency_bonus: 2, max_hp: 28, current_hp: 28, hit_dice_remaining: 3,

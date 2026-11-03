@@ -1,5 +1,5 @@
 import type { AppliedCondition } from "@/types/condition.types";
-import type { MonsterStatBlock } from "@/types/monster.types";
+import type { MonsterSize, MonsterStatBlock } from "@/types/monster.types";
 
 export type CompanionType = "familiar" | "animal_companion" | "mount" | "ally" | "sidekick" | "pet";
 export type CompanionSourceType = "monster" | "npc" | "custom";
@@ -52,9 +52,14 @@ export interface Companion {
   portrait_url: string | null;
   portrait_focal_point?: { x: number; y: number } | null;
   stat_block: MonsterStatBlock | null;
+  /** The companion's creature size: sets its token's footprint on the battle map (#1125). */
+  size: MonsterSize;
   created_at: string;
   updated_at: string;
 }
 
-export type CompanionInsert = Omit<Companion, "id" | "user_id" | "created_at" | "updated_at">;
+export type CompanionInsert = Omit<Companion, "id" | "user_id" | "created_at" | "updated_at" | "size"> & {
+  /** Omit to take the column default: Medium. */
+  size?: MonsterSize;
+};
 export type CompanionUpdate = Partial<CompanionInsert>;

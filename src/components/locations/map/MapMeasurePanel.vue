@@ -11,9 +11,9 @@
     <!-- Nothing can be measured without a scale; say where it is set. -->
     <div v-if="!scale" class="flex flex-wrap items-center gap-2">
       <p class="min-w-0 flex-1 text-body text-muted-foreground">
-        This map has no scale yet, so it cannot tell a distance. Open Build and choose Set scale.
+        This map has no scale yet, so it cannot tell a distance. Edit the map and choose Set scale.
       </p>
-      <AppButton variant="outline" size="xs" label="Open Build" @click="openBuild" />
+      <AppButton variant="outline" size="xs" label="Edit map" @click="openEditor" />
     </div>
 
     <template v-else>
@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import EventModal from "@/components/calendar/EventModal.vue";
@@ -75,6 +75,7 @@ import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { IconAddEvent, IconClose, IconEraser, IconRuler, IconUndo } from "@/lib/icons";
 import { routeDescription, routeEventPrefill, type RoutePoint, type RouteSummary } from "@/lib/locations/mapRoute";
 import { formatDistance } from "@/lib/locations/mapScale";
+import { mapEditorRoute } from "@/lib/locations/placeRoute";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import {
   formatTravelTime,
@@ -90,7 +91,9 @@ import type { MapScale } from "@/types/location.types";
 
 const paceId = defineModel<TravelPaceId>("pace", { required: true });
 
-const { scale, points, summary } = defineProps<{
+const { locationId, scale, points, summary } = defineProps<{
+  /** The place whose map is measured: where "Edit map" goes to set the scale. */
+  locationId: string;
   scale: MapScale | null;
   points: readonly RoutePoint[];
   summary: RouteSummary | null;
@@ -100,12 +103,11 @@ const emit = defineEmits<{ undo: []; clear: []; close: [] }>();
 
 const PACE_OPTIONS = TRAVEL_PACES.map((p) => ({ value: p.id, label: p.label }));
 
-const route = useRoute();
 const router = useRouter();
 
-/** Build is where the scale is set (`PlaceMapPinsEditor`). */
-function openBuild() {
-  void router.push({ query: { ...route.query, build: "true" } });
+/** The map editor is where the scale is set (`PlaceMapPinsEditor`). */
+function openEditor() {
+  void router.push(mapEditorRoute(locationId, "base"));
 }
 
 /** "Waterdeep to Daggerford", when the route's ends are places. */

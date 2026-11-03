@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { chooseStyleImageSize, computeBakedDimensions, padToAspect, padToStyleAspect } from "./bake";
-import type { DungeonMap } from "@/types/dungeonMap.types";
+import { emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { DressingCatalog } from "./dressing";
+import { applyGroundStroke } from "./groundRegions";
 
 const none: DressingCatalog = new Map();
 const props: DressingCatalog = new Map([
@@ -16,7 +17,7 @@ function emptyMap(): DungeonMap {
     campaign_id: null,
     name: "Test",
     description: null,
-    layers: { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {} },
+    layers: { ground: {}, floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} },
     metadata: {},
     default_pack_id: null,
     darkness: "daylight",
@@ -29,6 +30,19 @@ function emptyMap(): DungeonMap {
 }
 
 describe("computeBakedDimensions", () => {
+  it("includes an editable subcell source even when it contains no gameplay cell centre", () => {
+    const map = emptyMap();
+    const material = { pack_id: "p", pack_version: 1, variant: 0 };
+    let serial = 0;
+    map.layers = applyGroundStroke(emptyLayers(), [{ x: 6.25, y: 8.25, r: 0.2 }], {
+      pack: material, wall: material, erase: false, newKey: () => `subcell-${serial++}`,
+    });
+    expect(Object.keys(map.layers.ground)).toHaveLength(1);
+    expect(map.layers.floor).toEqual({});
+    expect(map.layers.terrain).toEqual({});
+    expect(computeBakedDimensions(map, none, 0)).toEqual({ cols: 1, rows: 1, originCellX: 6, originCellY: 8 });
+  });
+
   it("returns padding-only dimensions when the map is empty", () => {
     // No painted cells: bbox collapses to (0,0)→(0,0) = 1×1 cell, plus 3 cells
     // of padding on each side = 7×7.
@@ -42,13 +56,6 @@ describe("computeBakedDimensions", () => {
     map.layers.object["2,6"] = { pack_id: "p", pack_version: 1, variant: 0, category: "objectChest" };
     // bbox (2,3)→(7,6) = 6 cols × 4 rows, plus 6 cells of padding total.
     expect(computeBakedDimensions(map, none)).toEqual({ cols: 12, rows: 10, originCellX: -1, originCellY: 0 });
-  });
-
-  it("counts a brushed cell that is too thinly covered to have floor", () => {
-    const map = emptyMap();
-    map.layers.area["9,2"] = { pack_id: "p", pack_version: 1, variant: 0, mask: "0000000000000001" };
-    // The only painted cell is (9,2): 1 x 1 plus 3 cells of padding each side.
-    expect(computeBakedDimensions(map, none)).toEqual({ cols: 7, rows: 7, originCellX: 6, originCellY: -1 });
   });
 
   it("handles negative coordinates (infinite-canvas origin)", () => {

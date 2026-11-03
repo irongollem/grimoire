@@ -35,6 +35,9 @@ export interface DerivedSpace {
   cells: CellKey[];
   /** `cellSignature(cells)` — the identity a re-publish reconciles on. */
   signature: string;
+  /** The loop of lines that bounds the room (cell units): walls, doors, the brushed curve, plain floor edges. `cells`
+   *  are the squares whose middle falls inside it. */
+  outline: [number, number][];
   /** Text of the first annotation whose cell lies inside this space, or
    *  null. "Throne Room" typed once in the editor is the room's name. */
   name: string | null;

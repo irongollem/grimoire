@@ -31,6 +31,7 @@ function makeSpace(overrides: Partial<DerivedSpace> = {}): DerivedSpace {
     key: `s:${cells[0]}`,
     cells,
     signature: cellSignature(cells),
+    outline: [[0, 0], [1, 0], [1, 1]],
     name: null,
     nameSource: null,
     ...overrides,

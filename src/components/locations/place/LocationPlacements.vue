@@ -32,7 +32,6 @@
         </template>
         <template #actions>
           <AppButton
-            v-if="building"
             variant="ghost"
             tone="danger"
             size="icon-xs"
@@ -46,22 +45,19 @@
           cell {{ p.source_cell_key }}
         </p>
         <PlacementNoteInput
-          v-if="building"
           :model-value="p.note"
           placeholder="Note: what it's doing in this room…"
           @commit="(value) => onNoteCommit(p, value)"
         />
-        <p v-else-if="p.note" class="text-caption-sm text-muted-foreground italic">{{ p.note }}</p>
       </PlacementRow>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">
-      {{ building ? "Nothing prepared here yet." : "Nothing prepared here yet. Build the site to add something." }}
+      Nothing prepared here yet.
     </p>
 
-    <!-- Inline add — Build only, and its own component so the four pick lists
-         it reads (traps, features, roll tables, loot tables) are fetched when
-         Build opens it, not whenever a place is merely browsed (#972). -->
-    <LocationPlacementAdd v-if="building" :location-id="locationId" :placements="placements ?? []" />
+    <!-- Inline add, its own component so the four pick lists it reads (traps,
+         features, roll tables, loot tables) load only where it mounts (#972). -->
+    <LocationPlacementAdd :location-id="locationId" :placements="placements ?? []" />
   </div>
 </template>
 
@@ -98,12 +94,8 @@ import type { LocationPlacementWithEntity } from "@/composables/locations/useLoc
 import { LOCATION_PLACEMENT_KIND_LABELS, placementKind } from "@/types/locationPlacement.types";
 import type { LocationPlacementKind } from "@/types/locationPlacement.types";
 
-const { locationId, building = false } = defineProps<{
+const { locationId } = defineProps<{
   locationId: string;
-  /** Build mode (#884) — gates the add picker, note editing, and remove.
-   *  Browse still shows every placed entry (it links out regardless) plus
-   *  any already-written note, read-only. */
-  building?: boolean;
 }>();
 
 const locationIdRef = computed(() => locationId);

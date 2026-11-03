@@ -51,8 +51,8 @@ vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fr
 
 const stubs = { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, EntityCombobox: true };
 
-function mountPanel(building = false) {
-  return mount(LocationSortPanel, { props: { locationId: "site-1", building }, global: { stubs } });
+function mountPanel() {
+  return mount(LocationSortPanel, { props: { locationId: "site-1" }, global: { stubs } });
 }
 
 describe("LocationSortPanel — the #879 re-homing backlog", () => {
@@ -66,13 +66,13 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
   });
 
   it("renders nothing when the place has no children — nothing to sort into", () => {
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
     expect(wrapper.find("h2").exists()).toBe(false);
   });
 
   it("renders nothing when the place has children but nothing is homed there", () => {
     childrenRef.value = [room("room-a", "Nave of Ash")];
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
     expect(wrapper.text()).toContain("Sort Into Rooms");
     expect(wrapper.text()).toContain("Nothing homed here or in its rooms yet.");
   });
@@ -83,7 +83,7 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
       { id: "npc-1", name: "Unsorted Priest", location_id: "site-1" },
       { id: "npc-2", name: "Sorted Acolyte", location_id: "room-a" },
     ];
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
 
     expect(wrapper.text()).toContain("1 of 2 still on Ashmouth Undercroft, waiting to be placed.");
     expect(wrapper.text()).toContain("Needs a room");
@@ -94,27 +94,18 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
   it("lists an encounter from a child room and marks it Done when finished", () => {
     childrenRef.value = [room("room-a", "Nave of Ash")];
     encountersRef.value = [{ id: "enc-1", name: "Ambush", is_finished: true, location_id: "room-a" }];
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
 
     expect(wrapper.text()).toContain("Ambush");
     expect(wrapper.text()).toContain("Done");
     expect(wrapper.text()).toContain("Everyone is placed.");
   });
 
-  it("Browse: shows the current room as text, no picker", () => {
-    childrenRef.value = [room("room-a", "Nave of Ash")];
-    npcsRef.value = [{ id: "npc-1", name: "Priest", location_id: "room-a" }];
-    const wrapper = mountPanel(false);
-
-    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
-    expect(wrapper.text()).toContain("Nave of Ash");
-  });
-
-  it("Build: commits the move immediately when the picker changes, for both kinds", () => {
+  it("commits the move immediately when the picker changes, for both kinds", () => {
     childrenRef.value = [room("room-a", "Nave of Ash")];
     npcsRef.value = [{ id: "npc-1", name: "Priest", location_id: "site-1" }];
     encountersRef.value = [{ id: "enc-1", name: "Ambush", is_finished: false, location_id: "site-1" }];
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
 
     const pickers = wrapper.findAllComponents({ name: "EntityCombobox" });
     expect(pickers).toHaveLength(2);
@@ -136,7 +127,7 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
   // "Rooms" beneath one saying "Grounds" would be wrong in a single glance.
   it("says Rooms on an ordinary site", () => {
     childrenRef.value = [room("room-a", "Flooded Nave")];
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
     expect(wrapper.text()).toContain("Sort Into Rooms");
     expect(wrapper.text()).not.toContain("Sort Into Grounds");
   });
@@ -144,10 +135,10 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
   it("says Grounds on a wilds, including the empty line and the backlog badge", () => {
     locationRef.value = place({ location_type: "wilds", name: "Thornwood Deeps" });
     childrenRef.value = [room("room-a", "Sunken Clearing")];
-    expect(mountPanel(true).text()).toContain("Nothing homed here or in its grounds yet.");
+    expect(mountPanel().text()).toContain("Nothing homed here or in its grounds yet.");
 
     npcsRef.value = [{ id: "npc-1", name: "The Hanged Man", location_id: "site-1" }];
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
     expect(wrapper.text()).toContain("Sort Into Grounds");
     expect(wrapper.text()).toContain("Needs grounds");
     expect(wrapper.text()).not.toContain("Needs a room");
@@ -156,7 +147,7 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
   it("ignores a clear (empty id) from the picker — no unset affordance exists here", () => {
     childrenRef.value = [room("room-a", "Nave of Ash")];
     npcsRef.value = [{ id: "npc-1", name: "Priest", location_id: "room-a" }];
-    const wrapper = mountPanel(true);
+    const wrapper = mountPanel();
 
     wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "");
     expect(mocks.updateNpc).not.toHaveBeenCalled();
@@ -165,11 +156,11 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
   // #972: the sort panel shares the subtree read the sections above it make,
   // and must not start it for a place with nothing to sort into.
   it("reads nothing while the place has no children, and the shared subtree once it has", () => {
-    mountPanel(true);
+    mountPanel();
     expect(mocks.npcReadIds.value?.value).toEqual([]);
 
     childrenRef.value = [room("room-a", "Nave of Ash")];
-    mountPanel(true);
+    mountPanel();
     expect(mocks.npcReadIds.value?.value).toEqual(["site-1"]);
   });
 
@@ -179,7 +170,7 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
       { id: "npc-1", name: "Priest", location_id: "room-a" },
       { id: "npc-2", name: "Deep Dweller", location_id: "grandchild-1" },
     ];
-    const text = mountPanel(true).text();
+    const text = mountPanel().text();
     expect(text).toContain("Priest");
     expect(text).not.toContain("Deep Dweller");
   });
@@ -192,7 +183,7 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
       { id: "npc-3", name: "Abel (waiting)", location_id: "site-1" },
     ];
     encountersRef.value = [{ id: "enc-1", name: "Ambush", is_finished: false, location_id: "site-1" }];
-    const links = mountPanel(true).findAll("a");
+    const links = mountPanel().findAll("a");
     expect(links.map((a) => a.text())).toEqual(["Abel (waiting)", "Ambush", "Yara (waiting)", "Zed (sorted)"]);
     expect(links.map((a) => a.attributes("href"))).toEqual(["/npcs/npc-3", "/encounters/enc-1", "/npcs/npc-2", "/npcs/npc-1"]);
   });
@@ -200,13 +191,13 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
   it("marks only a finished encounter as Done", () => {
     childrenRef.value = [room("room-a", "Nave of Ash")];
     encountersRef.value = [{ id: "enc-1", name: "Ambush", is_finished: false, location_id: "room-a" }];
-    expect(mountPanel(true).text()).not.toContain("Done");
+    expect(mountPanel().text()).not.toContain("Done");
   });
 
   it("writes nothing when the picker lands on the room the row is already in", () => {
     childrenRef.value = [room("room-a", "Nave of Ash")];
     npcsRef.value = [{ id: "npc-1", name: "Priest", location_id: "room-a" }];
-    mountPanel(true).findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "room-a");
+    mountPanel().findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "room-a");
     expect(mocks.updateNpc).not.toHaveBeenCalled();
   });
 });

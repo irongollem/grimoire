@@ -41,17 +41,12 @@
           >{{ needsLabel }}</span>
         </div>
 
-        <!-- Build only, like every structural panel (#884; every place has Build
-             since #958). Browse shows where it already sits,
-             read-only. -->
         <EntityCombobox
-          v-if="building"
           :model-value="row.location_id"
           :options="targets"
           placeholder="Move to…"
           @update:model-value="(id) => move(row, id)"
         />
-        <p v-else class="text-caption-sm text-muted-foreground italic">{{ targetNameOf(row.location_id) }}</p>
       </div>
     </div>
   </section>
@@ -95,12 +90,8 @@ import { useNpcsByLocations, useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { useEncountersByLocations, useUpdateEncounter } from "@/composables/encounters/useEncounters";
 import { childSpaceType, spaceHeading, spaceNoun } from "@/lib/locations/tiers";
 
-const { locationId, building = false } = defineProps<{
+const { locationId } = defineProps<{
   locationId: string;
-  /** Build mode (#884) — the same flag LocationDetailSections threads to
-   *  Ways out and Prepared Here. Browse shows every row's current
-   *  room, read-only, rather than the picker. */
-  building?: boolean;
 }>();
 
 const toast = useToast();
@@ -141,10 +132,6 @@ const targets = computed<{ id: string; name: string }[]>(() => {
   const self = locationData.value ? [{ id: locationData.value.id, name: locationData.value.name }] : [];
   return [...self, ...children.value];
 });
-
-function targetNameOf(id: string): string {
-  return targets.value.find((t) => t.id === id)?.name ?? "???";
-}
 
 // ── The rows: NPCs and encounters homed at this place or one of its
 //    children. `.in("location_id", ids)` never returns a null location_id, so

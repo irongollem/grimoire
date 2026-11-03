@@ -83,6 +83,7 @@
           :disguise-name="form.disguise_name"
           :race="form.race"
           :alignment="form.alignment"
+          :size="form.size"
           :age="form.age"
           :born-year="form.born_year ?? null"
           :born-month="form.born_month ?? null"
@@ -98,6 +99,7 @@
           @update:disguise-name="form.disguise_name = $event"
           @update:race="form.race = $event"
           @update:alignment="form.alignment = $event"
+          @update:size="form.size = $event"
           @update:age="form.age = $event"
           @update:birth="Object.assign(form, $event)"
           @update:death="Object.assign(form, $event)"
@@ -256,7 +258,7 @@ import type { NpcArtTab } from '@/components/npcs/npcArtTabs'
 import { buildEntityContext, toPlainText } from '@/ai/utils'
 import NpcEditMobile from '@/components/npcs/NpcEditMobile.vue'
 import type { Npc, NpcInsert, StatBlock } from '@/types/npc.types'
-import type { Monster } from '@/types/monster.types'
+import type { Monster, MonsterSize } from '@/types/monster.types'
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/controls/EntityCombobox.vue'
 import PlayerNotesWidget from '@/components/player/PlayerNotesWidget.vue'
@@ -443,6 +445,8 @@ function applyMonster(m: Monster) {
 
   if (!form.name)        form.name = m.name
   if (!form.alignment)   form.alignment = m.alignment ?? null
+  // A monstrous NPC stands as big as its monster, unless the DM already made it something else.
+  if (form.size === 'medium') form.size = m.size
   if (!form.tags.length) form.tags = [...m.tags]
 
   if (!form.portrait_url && m.image_url) {
@@ -464,7 +468,7 @@ function applyMonster(m: Monster) {
 // The stat block and its "include" toggle live in the draft beside the NPC's
 // own columns, so the row builder below is a pure function of the draft and
 // useRecordDraft can tell which columns the DM actually touched (#946).
-type NpcDraft = Omit<NpcInsert, 'notes'> & { statBlock: StatBlock; hasStatBlock: boolean }
+type NpcDraft = Omit<NpcInsert, 'notes' | 'size'> & { size: MonsterSize; statBlock: StatBlock; hasStatBlock: boolean }
 
 function toStatBlockDraft(sb: StatBlock | null | undefined): StatBlock {
   return {
@@ -501,6 +505,7 @@ function toNpcDraft(npc: Npc | null): NpcDraft {
     name: npc?.name ?? '',
     race: npc?.race ?? null,
     alignment: npc?.alignment ?? null,
+    size: npc?.size ?? 'medium',
     age: npc?.age ?? null,
     born_year: npc?.born_year ?? null,
     born_month: npc?.born_month ?? null,
@@ -546,7 +551,7 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 })
 
 const CONFLICT_LABELS: Partial<Record<keyof NpcDraft, string>> = {
-  name: 'Name', race: 'Race', alignment: 'Alignment', age: 'Age', born_year: 'Birth date', born_month: 'Birth date', born_day: 'Birth date', died_year: 'Death date', died_month: 'Death date', died_day: 'Death date', occupation: 'Occupation',
+  name: 'Name', race: 'Race', alignment: 'Alignment', size: 'Size', age: 'Age', born_year: 'Birth date', born_month: 'Birth date', born_day: 'Birth date', died_year: 'Death date', died_month: 'Death date', died_day: 'Death date', occupation: 'Occupation',
   location_id: 'Location', appearance: 'Appearance', personality: 'Personality',
   backstory: 'Backstory', status: 'Status', relationship: 'Relationship',
   portrait_url: 'Portrait', cutout_url: 'Cutout', disguise_name: 'Alter ego name',

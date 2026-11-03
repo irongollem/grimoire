@@ -6,10 +6,10 @@ import { MAX_LIGHT_RANGE, type TileLight } from "@/cartographer/packSchema";
 import { cellKey, type DungeonMapLayers, type ObjectCell } from "@/types/dungeonMap.types";
 import { lightReachCells, lightStops } from "@/cartographer/lights";
 import { lightMask, MASK_SAMPLES_PER_CELL, type GroundTest, type LightMaskCache } from "@/cartographer/lightMask";
-import { AREA_RES, decodeMask } from "@/cartographer/area";
 import { collectOcclusion } from "@/cartographer/mapOcclusion";
 import { occluders } from "@/lib/battlemap/occlusion";
 import { dressingCentre, type Ctx2D, type DressingCatalog } from "@/cartographer/dressing";
+import { latticeWalls } from "@/cartographer/wallGraph";
 import { frameOf, type DrawMapInput, type Frame, type ShadowLayer, type Target } from "@/cartographer/drawFrame";
 
 export interface LightSource {
@@ -19,10 +19,31 @@ export interface LightSource {
   light: TileLight;
 }
 
+/** How far in front of its wall a sconce's light stands, in cells: off the wall's line, so the wall does not shade it. */
+const SCONCE_STANDOFF = 0.05;
+
+const hasFloor = (layers: DungeonMapLayers, x: number, y: number): boolean => {
+  const key = cellKey(x, y);
+  return Boolean(layers.floor[key]?.floor) || key in layers.terrain;
+};
+
 /**
- * Every light source on a map: object cells, wall decals and dressing props whose pack (or library row) declares
- * one. A wall decal sits on its edge's midpoint (edges are stored NW-owned: a cell's `wallN` runs along its top,
- * its `wallW` along its left). With `reach`, only sources inside that inclusive cell window (the draw window plus
+ * Which way a wall-mounted light shines. A decal hangs in the wall's thickness and shines into the room it faces, so
+ * with floor on only one side its light stands a hair off the wall on that side (the room behind the wall, or the open
+ * void outside it, is not lit through it). With floor on both sides or neither it stays on the line and `nudgedOrigins`
+ * lights both faces.
+ */
+function facingOffset(layers: DungeonMapLayers, x: number, y: number, side: "N" | "W"): { dx: number; dy: number } {
+  const behind = side === "N" ? hasFloor(layers, x, y - 1) : hasFloor(layers, x - 1, y);
+  const front = hasFloor(layers, x, y);
+  if (behind === front) return { dx: 0, dy: 0 };
+  const sign = front ? SCONCE_STANDOFF : -SCONCE_STANDOFF;
+  return side === "N" ? { dx: 0, dy: sign } : { dx: sign, dy: 0 };
+}
+
+/**
+ * Every light source on a map: object cells, wall decals, dressing props whose pack (or library row) declares
+ * one, and the lights the DM placed by hand. A wall decal sits on its wall's midpoint. With `reach`, only sources inside that inclusive cell window (the draw window plus
  * `MAX_LIGHT_RANGE`, so a lantern just off screen still lights the edge) are returned; with null, the whole map.
  * No window and no canvas: the live snapshot (#1073) reuses it.
  */
@@ -38,21 +59,30 @@ export function gatherLightSources(
     const obj: ObjectCell | undefined = layers.object[key];
     const objLight = obj ? runtime(obj.pack_id)?.manifest.lights?.[obj.category]?.[obj.variant] : null;
     if (objLight) out.push({ x: x + 0.5, y: y + 0.5, light: objLight });
-    const cell = layers.floor[key];
-    for (const [seg, sx, sy] of [[cell?.wallN, x + 0.5, y], [cell?.wallW, x, y + 0.5]] as const) {
-      if (seg?.type !== "wall" || seg.decal === undefined) continue;
-      const decalLight = runtime(seg.pack_id)?.manifest.lights?.wallDecal?.[seg.decal];
-      if (decalLight) out.push({ x: sx, y: sy, light: decalLight });
-    }
   };
   if (reach) {
     for (let y = reach.minY; y <= reach.maxY; y++) for (let x = reach.minX; x <= reach.maxX; x++) visit(x, y);
   } else {
-    const keys = new Set([...Object.keys(layers.object), ...Object.keys(layers.floor)]);
-    for (const key of keys) {
+    for (const key of Object.keys(layers.object)) {
       const [xs, ys] = key.split(",");
       visit(Number(xs), Number(ys));
     }
+  }
+  for (const { wall, x: wx, y: wy, side } of latticeWalls(layers)) {
+    if (wall.type !== "wall" || wall.decal === undefined) continue;
+    const decalLight = runtime(wall.pack_id)?.manifest.lights?.wallDecal?.[wall.decal];
+    if (!decalLight) continue;
+    const mx = (wall.a[0] + wall.b[0]) / 2;
+    const my = (wall.a[1] + wall.b[1]) / 2;
+    const cx = Math.floor(mx);
+    const cy = Math.floor(my);
+    if (reach && (cx < reach.minX || cx > reach.maxX || cy < reach.minY || cy > reach.maxY)) continue;
+    const lit = facingOffset(layers, wx, wy, side);
+    out.push({ x: mx + lit.dx, y: my + lit.dy, light: decalLight });
+  }
+  for (const placed of Object.values(layers.lights)) {
+    if (reach && (placed.x < reach.minX || placed.x > reach.maxX + 1 || placed.y < reach.minY || placed.y > reach.maxY + 1)) continue;
+    out.push({ x: placed.x, y: placed.y, light: placed.light });
   }
   for (const placement of Object.values(layers.dressing)) {
     const prop = dressing.get(placement.prop_id);
@@ -101,26 +131,11 @@ function lightGradient(ctx: Ctx2D, cx: number, cy: number, radius: number, light
 }
 
 /**
- * Where the glow may land: a cell with a floor tile, water or solid rock, or, for a cell with a brushed area entry,
- * only the sub-cells its mask covers (judged by the mask alone, even if the cell also has floor).
+ * Where the glow may land: a cell with a floor tile, water or solid rock.
  */
 export function groundTest(layers: DungeonMapLayers): GroundTest {
-  const masks = new Map<string, Uint8Array>();
   return (px, py) => {
-    const cx = Math.floor(px);
-    const cy = Math.floor(py);
-    const key = cellKey(cx, cy);
-    const area = layers.area[key];
-    if (area) {
-      let bits = masks.get(key);
-      if (!bits) {
-        bits = decodeMask(area.mask);
-        masks.set(key, bits);
-      }
-      const sx = Math.min(AREA_RES - 1, Math.floor((px - cx) * AREA_RES));
-      const sy = Math.min(AREA_RES - 1, Math.floor((py - cy) * AREA_RES));
-      return bits[sy * AREA_RES + sx] === 1;
-    }
+    const key = cellKey(Math.floor(px), Math.floor(py));
     return Boolean(layers.floor[key]?.floor) || key in layers.terrain || key in layers.solidBlock;
   };
 }

@@ -75,7 +75,7 @@ describe("CartographerAiStyleModal", () => {
       expect(mocks.confirm).toHaveBeenCalledTimes(1);
       const [message] = mocks.confirm.mock.calls[0] as [string];
       expect(message).not.toContain("—"); // no em-dash
-      expect(message.toLowerCase()).toContain("picture");
+      expect(message.toLowerCase()).toContain("base image");
       expect(message.toLowerCase()).toContain("set aside");
       await wrapper.vm.$nextTick();
       expect(wrapper.emitted("generate")).toHaveLength(1);
@@ -92,12 +92,12 @@ describe("CartographerAiStyleModal", () => {
       const wrapper = mountModal({ showPicker: false, showResult: true, fixedTargetLabel: "Ashmouth Undercroft" });
       expect(wrapper.text()).toContain("Ashmouth Undercroft");
       expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
-      expect(() => findButton(wrapper, "Save to Picture")).not.toThrow();
+      expect(() => findButton(wrapper, "Use as the base image")).not.toThrow();
     });
 
-    it("enables Save to Picture with no location chosen, unlike the free-pick flow", () => {
+    it("enables Use as the base image with no location chosen, unlike the free-pick flow", () => {
       const wrapper = mountModal({ showPicker: false, showResult: true, fixedTargetLabel: "Ashmouth Undercroft" });
-      const button = findButton(wrapper, "Save to Picture");
+      const button = findButton(wrapper, "Use as the base image");
       expect(button.props("disabled")).toBe(false);
     });
   });

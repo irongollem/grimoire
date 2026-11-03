@@ -98,13 +98,6 @@ export const useLocationsUiStore = defineStore("ui:locations", () => {
   // reveals the Picture beneath it (when there is one), and turning the
   // Picture off hides it where nothing else covers it. Default both on, same
   // as every other layer here.
-  // `tokens`/`fog` (#884, wave 4, S12) are the stack's two PLAYED layers —
-  // see `lib/locations/mapStack.ts`'s `MAP_STACK_LAYERS`. Default off: unlike
-  // the authored layers above, a caller only ever offers these where play
-  // state actually exists (a run surface, an encounter, Build's player
-  // preview), so there is no "every other layer here" default to match —
-  // fog starting on would open a site run already fogged before the DM
-  // asked for it.
   const siteMapLayers = ref({
     spaces: true,
     ways: true,
@@ -113,8 +106,6 @@ export const useLocationsUiStore = defineStore("ui:locations", () => {
     grid: true,
     picture: true,
     drawing: true,
-    tokens: false,
-    fog: false,
   });
 
   // Which layers the DM has explicitly toggled this session — tracked here,

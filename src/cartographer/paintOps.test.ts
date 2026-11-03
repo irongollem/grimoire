@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as paintOps from "./paintOps";
 import { emptyLayers, cellKey } from "@/types/dungeonMap.types";
 import type { PaintContext } from "./paintOps";
+import { putWall } from "./testWalls";
 
 function makeCtx(packId = "pack-a"): PaintContext {
   return { layers: emptyLayers(), packId, packVersion: 1 };
@@ -35,26 +36,20 @@ describe("paintCell / eraseCell", () => {
     expect(paintOps.paintCell(ctx, 1, 2, 4)).toBe(true);
   });
 
-  it("paints a brushed cell back to a whole square, dropping its mask", () => {
+  it("can paint the same ground pack over water instead of treating its underfloor as already painted", () => {
     const ctx = makeCtx();
-    const floor = { pack_id: "pack-a", pack_version: 1, variant: 3 };
-    ctx.layers.floor[cellKey(1, 2)] = { floor };
-    ctx.layers.area[cellKey(1, 2)] = { ...floor, mask: "00000000ffffffff" };
-    expect(paintOps.paintCell(ctx, 1, 2, 3)).toBe(true);
-    expect(ctx.layers.area[cellKey(1, 2)]).toBeUndefined();
-    expect(ctx.layers.floor[cellKey(1, 2)]?.floor).toEqual(floor);
+    paintOps.paintCell(ctx, 0, 0, 0);
+    paintOps.paintTerrainAt(ctx, 0, 0, 1, 0);
+    expect(paintOps.paintCell(ctx, 0, 0, 0)).toBe(true);
+    expect(ctx.layers.terrain["0,0"]).toBeUndefined();
+    expect(ctx.layers.floor["0,0"]?.floor?.pack_id).toBe("pack-a");
   });
 
-  it("erases a brushed cell, with or without floor", () => {
-    const ctx = makeCtx();
-    const ref = { pack_id: "pack-a", pack_version: 1, variant: 0 };
-    ctx.layers.floor[cellKey(0, 0)] = { floor: ref };
-    ctx.layers.area[cellKey(0, 0)] = { ...ref, mask: "00ffffffffffffff" };
-    ctx.layers.area[cellKey(1, 0)] = { ...ref, mask: "000000000000000f" };
-    expect(paintOps.eraseCell(ctx, 0, 0)).toBe(true);
-    expect(paintOps.eraseCell(ctx, 1, 0)).toBe(true);
-    expect(ctx.layers.area).toEqual({});
-    expect(ctx.layers.floor).toEqual({});
+  it("repainting a plain cell with another pack leaves it a plain cell", () => {
+    const ctx = makeCtx("ice");
+    ctx.layers.floor[cellKey(0, 0)] = { floor: { pack_id: "stone", pack_version: 1, variant: 0 } };
+    paintOps.paintCell(ctx, 0, 0, 0);
+    expect(ctx.layers.floor[cellKey(0, 0)]?.floor?.pack_id).toBe("ice");
   });
 });
 
@@ -73,7 +68,7 @@ describe("paintObjectAt", () => {
   it("records the active object category, variant and rotation", () => {
     const ctx = makeCtx();
     expect(paintOps.paintObjectAt(ctx, 3, 4, "objectChest", 2, 90)).toBe(true);
-    expect(ctx.layers.object[cellKey(3, 4)]).toEqual({
+    expect(ctx.layers.object[cellKey(3, 4)]).toMatchObject({
       pack_id: "pack-a",
       pack_version: 1,
       category: "objectChest",
@@ -115,6 +110,26 @@ describe("erase on an empty cell is a no-op (returns false)", () => {
 });
 
 describe("paintWallAtCellEdge — direction lock", () => {
+  it("changes same-pack wall visibility when a new visible or hidden stroke targets it", () => {
+    const ctx = makeCtx(); const edge = { x: 0, y: 0, side: "N" as const };
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0);
+    ctx.wallVisible = false;
+    expect(paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0)).toBe(true);
+    expect(ctx.layers.walls["0,0:N"].visible).toBe(false);
+    ctx.wallVisible = true;
+    expect(paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0)).toBe(true);
+    expect(ctx.layers.walls["0,0:N"].visible).toBeUndefined();
+  });
+
+  it("creates hidden W-tool walls that remain blockers while visible creation stays the default", () => {
+    const hidden = { ...makeCtx(), wallVisible: false };
+    expect(paintOps.paintWallAtCellEdge(hidden, { x: 0, y: 0, side: "N" }, paintOps.createStrokeState(), 2)).toBe(true);
+    expect(hidden.layers.walls["0,0:N"]).toMatchObject({ type: "wall", visible: false, variant: 2 });
+    const visible = makeCtx();
+    expect(paintOps.paintWallAtCellEdge(visible, { x: 0, y: 0, side: "N" }, paintOps.createStrokeState(), 2)).toBe(true);
+    expect(visible.layers.walls["0,0:N"].visible).toBeUndefined();
+  });
+
   it("commits to the first edge's direction; a later perpendicular edge in the same stroke is ignored", () => {
     const ctx = makeCtx();
     const stroke = paintOps.createStrokeState();
@@ -125,9 +140,9 @@ describe("paintWallAtCellEdge — direction lock", () => {
     expect(stroke.direction).toBe("H");
 
     // Second edge: W side → V direction, perpendicular to the lock — ignored.
-    const before = JSON.stringify(ctx.layers.floor);
+    const before = JSON.stringify(ctx.layers.walls);
     expect(paintOps.paintWallAtCellEdge(ctx, { x: 1, y: 1, side: "W" }, stroke, 0)).toBe(false);
-    expect(JSON.stringify(ctx.layers.floor)).toBe(before);
+    expect(JSON.stringify(ctx.layers.walls)).toBe(before);
 
     // A further H edge is still accepted.
     expect(paintOps.paintWallAtCellEdge(ctx, { x: 0, y: 1, side: "N" }, stroke, 0)).toBe(true);
@@ -153,74 +168,93 @@ describe("paintWallAtCellEdge — stroke dedup", () => {
     // Same physical edge, addressed via its "S" alias from the cell above.
     expect(paintOps.paintWallAtCellEdge(ctx, { x: 2, y: 1, side: "S" }, stroke, 5)).toBe(false);
     // The variant from the first paint sticks — the second call never wrote.
-    expect(ctx.layers.floor[cellKey(2, 2)]?.wallN?.variant).toBe(3);
+    expect(ctx.layers.walls["2,2:N"]?.variant).toBe(3);
   });
 });
 
 describe("paintWallAtCellEdge — door preservation and pack-aware wall skip", () => {
   it("preserves an existing door when a wall is painted over it", () => {
     const ctx = makeCtx();
-    ctx.layers.floor[cellKey(0, 0)] = {
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 2 },
-    };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 2 });
     const stroke = paintOps.createStrokeState();
 
     expect(paintOps.paintWallAtCellEdge(ctx, { x: 0, y: 0, side: "N" }, stroke, 9)).toBe(false);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN).toEqual({
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({
       pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 2,
     });
   });
 
   it("skips repainting a wall segment already owned by the same pack", () => {
     const ctx = makeCtx();
-    ctx.layers.floor[cellKey(0, 0)] = {
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 2 },
-    };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 2 });
     const stroke = paintOps.createStrokeState();
 
     expect(paintOps.paintWallAtCellEdge(ctx, { x: 0, y: 0, side: "N" }, stroke, 9)).toBe(false);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN?.variant).toBe(2);
+    expect(ctx.layers.walls["0,0:N"]?.variant).toBe(2);
   });
 
   it("restyles a wall segment owned by a different pack", () => {
     const ctx = makeCtx("pack-a");
-    ctx.layers.floor[cellKey(0, 0)] = {
-      wallN: { pack_id: "pack-b", pack_version: 1, type: "wall", variant: 2 },
-    };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-b", pack_version: 1, type: "wall", variant: 2 });
     const stroke = paintOps.createStrokeState();
 
     expect(paintOps.paintWallAtCellEdge(ctx, { x: 0, y: 0, side: "N" }, stroke, 9)).toBe(true);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN).toEqual({
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({
       pack_id: "pack-a", pack_version: 1, type: "wall", variant: 9,
     });
   });
 });
 
 describe("setWallEdgeIfEmpty", () => {
+  it("applies hidden creation without changing an existing wall's visibility", () => {
+    const ctx = { ...makeCtx(), wallVisible: false };
+    expect(paintOps.setWallEdgeIfEmpty(ctx, { x: 0, y: 0, side: "N" }, 1)).toBe(true);
+    expect(ctx.layers.walls["0,0:N"].visible).toBe(false);
+    expect(paintOps.setWallEdgeIfEmpty({ ...ctx, wallVisible: true }, { x: 0, y: 0, side: "N" }, 2)).toBe(false);
+    expect(ctx.layers.walls["0,0:N"].visible).toBe(false);
+  });
+
   it("writes a wall when the edge is empty, ignoring stroke tracking entirely", () => {
     const ctx = makeCtx();
     expect(paintOps.setWallEdgeIfEmpty(ctx, { x: 0, y: 0, side: "N" }, 1)).toBe(true);
     // Calling it again on the same, now-occupied edge is a no-op — no stroke object involved.
     expect(paintOps.setWallEdgeIfEmpty(ctx, { x: 0, y: 0, side: "N" }, 7)).toBe(false);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN?.variant).toBe(1);
+    expect(ctx.layers.walls["0,0:N"]?.variant).toBe(1);
   });
 
   it("preserves an existing door", () => {
     const ctx = makeCtx();
-    ctx.layers.floor[cellKey(0, 0)] = {
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 4 },
-    };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 4 });
     expect(paintOps.setWallEdgeIfEmpty(ctx, { x: 0, y: 0, side: "N" }, 9)).toBe(false);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN?.type).toBe("doorClosed");
+    expect(ctx.layers.walls["0,0:N"]?.type).toBe("doorClosed");
   });
 });
 
 describe("paintDoorAtEdge", () => {
+  it("retains a hidden physical wall's visibility when it becomes a door and turns back into a wall", () => {
+    const ctx = { ...makeCtx(), wallVisible: false };
+    const edge = { x: 0, y: 0, side: "N" as const };
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1);
+    paintOps.paintDoorAtEdge({ ...ctx, wallVisible: true }, edge, paintOps.createStrokeState(), 2);
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({ type: "doorClosed", visible: false });
+    paintOps.removeDoorAtEdge(ctx, edge, 1);
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({ type: "wall", visible: false });
+  });
+
+  it("keeps a visible wall visible when a door is added, whatever the new-wall draft setting", () => {
+    const ctx = makeCtx();
+    const edge = { x: 0, y: 0, side: "N" as const };
+    paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1);
+    paintOps.paintDoorAtEdge({ ...ctx, wallVisible: false }, edge, paintOps.createStrokeState(), 2);
+    expect(ctx.layers.walls["0,0:N"].type).toBe("doorClosed");
+    expect(ctx.layers.walls["0,0:N"].visible).toBeUndefined();
+  });
+
   it("places a new closed door using the caller-supplied variant", () => {
     const ctx = makeCtx();
     const stroke = paintOps.createStrokeState();
     expect(paintOps.paintDoorAtEdge(ctx, { x: 0, y: 0, side: "N" }, stroke, 6)).toBe(true);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN).toEqual({
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({
       pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 6,
     });
   });
@@ -233,13 +267,13 @@ describe("paintDoorAtEdge", () => {
     // New stroke — the dedup set is per-stroke.
     stroke = paintOps.createStrokeState();
     expect(paintOps.paintDoorAtEdge(ctx, { x: 0, y: 0, side: "N" }, stroke, 999)).toBe(true);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN).toEqual({
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({
       pack_id: "pack-a", pack_version: 1, type: "doorOpen", variant: 6,
     });
 
     stroke = paintOps.createStrokeState();
     expect(paintOps.paintDoorAtEdge(ctx, { x: 0, y: 0, side: "N" }, stroke, 999)).toBe(true);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN).toEqual({
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({
       pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 6,
     });
   });
@@ -255,20 +289,16 @@ describe("paintDoorAtEdge", () => {
 describe("removeDoorAtEdge", () => {
   it("reverts a door to a plain wall, preserving the edge", () => {
     const ctx = makeCtx();
-    ctx.layers.floor[cellKey(0, 0)] = {
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 3 },
-    };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "doorClosed", variant: 3 });
     expect(paintOps.removeDoorAtEdge(ctx, { x: 0, y: 0, side: "N" }, 8)).toBe(true);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN).toEqual({
+    expect(ctx.layers.walls["0,0:N"]).toMatchObject({
       pack_id: "pack-a", pack_version: 1, type: "wall", variant: 8,
     });
   });
 
   it("is a no-op on a plain wall or an empty edge", () => {
     const wallCtx = makeCtx();
-    wallCtx.layers.floor[cellKey(0, 0)] = {
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 },
-    };
+    putWall(wallCtx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 });
     expect(paintOps.removeDoorAtEdge(wallCtx, { x: 0, y: 0, side: "N" }, 8)).toBe(false);
 
     expect(paintOps.removeDoorAtEdge(makeCtx(), { x: 0, y: 0, side: "N" }, 8)).toBe(false);
@@ -290,49 +320,42 @@ describe("eraseWallAtCellEdge on a cell that lacks that wall", () => {
   it("leaves the other wall alone: no north wall to erase beside a west wall, and the reverse", () => {
     const ctx = makeCtx();
     const wall = { pack_id: "pack-a", pack_version: 1, variant: 0, type: "wall" as const };
-    ctx.layers.floor[cellKey(2, 2)] = { wallW: wall };
-    ctx.layers.floor[cellKey(5, 5)] = { wallN: wall };
+    putWall(ctx.layers, 2, 2, "W", wall);
+    putWall(ctx.layers, 5, 5, "N", wall);
     expect(paintOps.eraseWallAtCellEdge(ctx, { x: 2, y: 2, side: "N" }, stroke())).toBe(false);
     expect(paintOps.eraseWallAtCellEdge(ctx, { x: 5, y: 5, side: "W" }, stroke())).toBe(false);
-    expect(ctx.layers.floor[cellKey(2, 2)]).toEqual({ wallW: wall });
-    expect(ctx.layers.floor[cellKey(5, 5)]).toEqual({ wallN: wall });
+    expect(ctx.layers.walls["2,2:W"]).toMatchObject(wall);
+    expect(ctx.layers.walls["5,5:N"]).toMatchObject(wall);
   });
 });
 
 describe("eraseWallAtCellEdge", () => {
   it("removes a wall segment", () => {
     const ctx = makeCtx();
-    ctx.layers.floor[cellKey(0, 0)] = {
-      floor: { pack_id: "pack-a", pack_version: 1, variant: 0 },
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 },
-    };
+    ctx.layers.floor[cellKey(0, 0)] = { floor: { pack_id: "pack-a", pack_version: 1, variant: 0 } };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 });
     const stroke = paintOps.createStrokeState();
     expect(paintOps.eraseWallAtCellEdge(ctx, { x: 0, y: 0, side: "N" }, stroke)).toBe(true);
-    expect(ctx.layers.floor[cellKey(0, 0)]?.wallN).toBeUndefined();
+    expect(ctx.layers.walls["0,0:N"]).toBeUndefined();
     // Cell still has a floor, so it isn't dropped.
     expect(ctx.layers.floor[cellKey(0, 0)]).toBeDefined();
   });
 
-  it("drops the cell entirely once it has no floor and no walls left", () => {
+  it("leaves the floor under an erased wall alone, and the wall gone from the layer", () => {
     const ctx = makeCtx();
-    ctx.layers.floor[cellKey(0, 0)] = {
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 },
-    };
-    const stroke = paintOps.createStrokeState();
-    expect(paintOps.eraseWallAtCellEdge(ctx, { x: 0, y: 0, side: "N" }, stroke)).toBe(true);
-    expect(ctx.layers.floor[cellKey(0, 0)]).toBeUndefined();
+    ctx.layers.floor[cellKey(0, 0)] = { floor: { pack_id: "pack-a", pack_version: 1, variant: 0 } };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 });
+    expect(paintOps.eraseWallAtCellEdge(ctx, { x: 0, y: 0, side: "N" }, paintOps.createStrokeState())).toBe(true);
+    expect(Object.keys(ctx.layers.walls)).toEqual([]);
+    expect(ctx.layers.floor[cellKey(0, 0)]?.floor).toBeDefined();
   });
 
   it("respects the same direction lock as paintWallAtCellEdge", () => {
     const ctx = makeCtx();
-    ctx.layers.floor[cellKey(0, 0)] = {
-      floor: { pack_id: "pack-a", pack_version: 1, variant: 0 },
-      wallN: { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 },
-    };
-    ctx.layers.floor[cellKey(1, 1)] = {
-      floor: { pack_id: "pack-a", pack_version: 1, variant: 0 },
-      wallW: { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 },
-    };
+    ctx.layers.floor[cellKey(0, 0)] = { floor: { pack_id: "pack-a", pack_version: 1, variant: 0 } };
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 });
+    ctx.layers.floor[cellKey(1, 1)] = { floor: { pack_id: "pack-a", pack_version: 1, variant: 0 } };
+    putWall(ctx.layers, 1, 1, "W", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 1 });
     const stroke = paintOps.createStrokeState();
     stroke.active = true;
 
@@ -340,7 +363,7 @@ describe("eraseWallAtCellEdge", () => {
     expect(stroke.direction).toBe("H");
     // Perpendicular edge — ignored under the direction lock, wall untouched.
     expect(paintOps.eraseWallAtCellEdge(ctx, { x: 1, y: 1, side: "W" }, stroke)).toBe(false);
-    expect(ctx.layers.floor[cellKey(1, 1)]?.wallW).toBeDefined();
+    expect(ctx.layers.walls["1,1:W"]).toBeDefined();
   });
 });
 
@@ -407,7 +430,7 @@ describe("terrain", () => {
     paintOps.paintWallAtCellEdge(ctx, { x: 5, y: 5, side: "N" }, paintOps.createStrokeState(), 0);
     paintOps.paintTerrainAt(ctx, 5, 5, 4, 7);
     expect(ctx.layers.floor[cellKey(5, 5)]?.floor?.variant).toBe(7);
-    expect(ctx.layers.floor[cellKey(5, 5)]?.wallN).toBeDefined();
+    expect(ctx.layers.walls["5,5:N"]).toBeDefined();
   });
 
   it("is a no-op for the same water, and erases only the water", () => {
@@ -435,9 +458,9 @@ describe("wall kinds and decals", () => {
   it("writes a grate or sluice edge", () => {
     const ctx = makeCtx();
     paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1, "grate");
-    expect(ctx.layers.floor[cellKey(2, 3)]?.wallN?.type).toBe("grate");
+    expect(ctx.layers.walls["2,3:N"]?.type).toBe("grate");
     paintOps.paintWallAtCellEdge(ctx, { x: 2, y: 3, side: "W" }, paintOps.createStrokeState(), 1, "sluice");
-    expect(ctx.layers.floor[cellKey(2, 3)]?.wallW?.type).toBe("sluice");
+    expect(ctx.layers.walls["2,3:W"]?.type).toBe("sluice");
   });
 
   it("a grate replaces a plain wall, dropping its decal, and never a door", () => {
@@ -445,14 +468,14 @@ describe("wall kinds and decals", () => {
     paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 1);
     paintOps.setDecalAtEdge(ctx, edge, 0);
     expect(paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 2, "grate")).toBe(true);
-    expect(ctx.layers.floor[cellKey(2, 3)]?.wallN).toEqual({
+    expect(ctx.layers.walls["2,3:N"]).toMatchObject({
       pack_id: "pack-a", pack_version: 1, type: "grate", variant: 2,
     });
 
     const doors = makeCtx();
     paintOps.paintDoorAtEdge(doors, edge, paintOps.createStrokeState(), 0);
     expect(paintOps.paintWallAtCellEdge(doors, edge, paintOps.createStrokeState(), 2, "grate")).toBe(false);
-    expect(doors.layers.floor[cellKey(2, 3)]?.wallN?.type).toBe("doorClosed");
+    expect(doors.layers.walls["2,3:N"]?.type).toBe("doorClosed");
   });
 
   it("a plain wall does not overwrite a grate", () => {
@@ -466,10 +489,10 @@ describe("wall kinds and decals", () => {
     expect(paintOps.setDecalAtEdge(ctx, edge, 1)).toBe(false); // nothing there
     paintOps.paintWallAtCellEdge(ctx, edge, paintOps.createStrokeState(), 0);
     expect(paintOps.setDecalAtEdge(ctx, edge, 1)).toBe(true);
-    expect(ctx.layers.floor[cellKey(2, 3)]?.wallN?.decal).toBe(1);
+    expect(ctx.layers.walls["2,3:N"]?.decal).toBe(1);
     expect(paintOps.setDecalAtEdge(ctx, edge, 1)).toBe(false);
     expect(paintOps.setDecalAtEdge(ctx, edge, undefined)).toBe(true);
-    expect("decal" in (ctx.layers.floor[cellKey(2, 3)]?.wallN ?? {})).toBe(false);
+    expect("decal" in (ctx.layers.walls["2,3:N"] ?? {})).toBe(false);
   });
 
   it("refuses a decal on a grate, a sluice or a door, and finds the owner from the S side", () => {
@@ -480,6 +503,129 @@ describe("wall kinds and decals", () => {
     const walls = makeCtx();
     paintOps.paintWallAtCellEdge(walls, edge, paintOps.createStrokeState(), 0);
     expect(paintOps.setDecalAtEdge(walls, { x: 2, y: 2, side: "S" }, 0)).toBe(true);
-    expect(walls.layers.floor[cellKey(2, 3)]?.wallN?.decal).toBe(0);
+    expect(walls.layers.walls["2,3:N"]?.decal).toBe(0);
+  });
+});
+
+// #1125 decision 5: a wall is a segment, so the grid tools store its end points too.
+describe("a lattice wall carries its end points", () => {
+  it("runs a north edge along the cell's top and a west edge down its left (NW ownership)", () => {
+    const ctx = makeCtx();
+    paintOps.setWallEdgeIfEmpty(ctx, { x: 2, y: 3, side: "N" }, 0);
+    paintOps.setWallEdgeIfEmpty(ctx, { x: 2, y: 3, side: "W" }, 0);
+    expect(ctx.layers.walls["2,3:N"]).toMatchObject({ a: [2, 3], b: [3, 3] });
+    expect(ctx.layers.walls["2,3:W"]).toMatchObject({ a: [2, 3], b: [2, 4] });
+  });
+
+  it("files a south edge under the cell below, so both neighbours see the one wall", () => {
+    const ctx = makeCtx();
+    paintOps.setWallEdgeIfEmpty(ctx, { x: 2, y: 3, side: "S" }, 0);
+    expect(Object.keys(ctx.layers.walls)).toEqual(["2,4:N"]);
+  });
+});
+
+describe("eraseCell takes the walls on the cell's own north and west edges with it", () => {
+  it("removes N and W of the erased cell, and not the south or east edge another cell owns", () => {
+    const ctx = makeCtx();
+    const seg = { pack_id: "pack-a", pack_version: 1, type: "wall" as const, variant: 0 };
+    ctx.layers.floor[cellKey(1, 1)] = { floor: { pack_id: "pack-a", pack_version: 1, variant: 0 } };
+    putWall(ctx.layers, 1, 1, "N", seg);
+    putWall(ctx.layers, 1, 1, "W", seg);
+    putWall(ctx.layers, 1, 2, "N", seg); // the erased cell's south edge, owned by the cell below
+    putWall(ctx.layers, 2, 1, "W", seg); // its east edge, owned by the cell to the east
+    expect(paintOps.eraseCell(ctx, 1, 1)).toBe(true);
+    expect(Object.keys(ctx.layers.walls).sort()).toEqual(["1,2:N", "2,1:W"]);
+  });
+
+  it("removes the walls of a cell that has no floor of its own", () => {
+    const ctx = makeCtx();
+    putWall(ctx.layers, 4, 4, "N", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 0 });
+    expect(paintOps.eraseCell(ctx, 4, 4)).toBe(true);
+    expect(ctx.layers.walls).toEqual({});
+  });
+});
+
+describe("angled walls", () => {
+  const angled = (type: "wall" | "doorClosed" | "doorOpen" = "wall") => ({
+    pack_id: "pack-a", pack_version: 1, type, variant: 0, a: [0.5, 0] as [number, number], b: [2, 1.5] as [number, number],
+  });
+
+  it("toggles an angled wall into a door with the given variant, and back to a wall", () => {
+    const ctx = makeCtx();
+    ctx.layers.walls.w1 = angled();
+    expect(paintOps.toggleAngledDoor(ctx, "w1", 5)).toBe(true);
+    expect(ctx.layers.walls.w1).toMatchObject({ type: "doorClosed", variant: 5, a: [0.5, 0], b: [2, 1.5] });
+    expect(paintOps.toggleAngledDoor(ctx, "w1", 9)).toBe(true);
+    expect(ctx.layers.walls.w1).toMatchObject({ type: "wall", a: [0.5, 0], b: [2, 1.5] });
+  });
+
+  it("treats an open angled door as a door to turn back into a wall", () => {
+    const ctx = makeCtx();
+    ctx.layers.walls.w1 = angled("doorOpen");
+    paintOps.toggleAngledDoor(ctx, "w1", 5);
+    expect(ctx.layers.walls.w1.type).toBe("wall");
+  });
+
+  it("refuses to toggle a missing id or a wall on a grid line, which the grid door tool owns", () => {
+    const ctx = makeCtx();
+    putWall(ctx.layers, 0, 0, "N", { pack_id: "pack-a", pack_version: 1, type: "wall", variant: 0 });
+    expect(paintOps.toggleAngledDoor(ctx, "nope", 5)).toBe(false);
+    expect(paintOps.toggleAngledDoor(ctx, "0,0:N", 5)).toBe(false);
+    expect(ctx.layers.walls["0,0:N"].type).toBe("wall");
+  });
+
+  it("removes a wall by id and reports a missing one as no change", () => {
+    const ctx = makeCtx();
+    ctx.layers.walls.w1 = angled();
+    expect(paintOps.removeWallById(ctx, "w1")).toBe(true);
+    expect(ctx.layers.walls).toEqual({});
+    expect(paintOps.removeWallById(ctx, "w1")).toBe(false);
+  });
+});
+
+describe("fillRegion", () => {
+  const wall = { pack_id: "a", pack_version: 1, type: "wall", variant: 0 } as const;
+
+  it("stops at a lattice wall instead of flooding to the other side", () => {
+    const ctx = makeCtx();
+    // A wall down the line between column 1 and 2 over rows -3..3, boxing the left part in with the cap as the only other limit.
+    for (let y = -3; y <= 3; y++) putWall(ctx.layers, 2, y, "W", wall);
+    for (let y = -3; y <= 3; y++) putWall(ctx.layers, -3, y, "W", wall);
+    for (let x = -3; x < 2; x++) { putWall(ctx.layers, x, -3, "N", wall); putWall(ctx.layers, x, 4, "N", wall); }
+    const region = paintOps.fillRegion(ctx.layers, 0, 0, 2000);
+    expect(region.has(cellKey(1, 0))).toBe(true);
+    expect(region.has(cellKey(2, 0))).toBe(false);
+    expect(region.size).toBe(5 * 7);
+  });
+
+  it("stops at an angled wall", () => {
+    const ctx = makeCtx();
+    ctx.layers.walls["angled-1"] = { pack_id: "a", pack_version: 1, type: "wall", variant: 0, a: [0.2, -50], b: [0.2, 50] };
+    const region = paintOps.fillRegion(ctx.layers, 0, 0, 300);
+    expect(region.has(cellKey(-1, 0))).toBe(false);
+    expect(region.has(cellKey(1, 0))).toBe(true);
+  });
+
+  // A ring of four smooth nodes is drawn as a round curve that bulges well past the diamond its chords make. Fill
+  // used the chords, so a step from outside into the bulge crossed no wall and the fill leaked into the ring.
+  it("does not leak into the bulge of a smooth ring: the wall is the curve, not its chords", () => {
+    const ctx = makeCtx();
+    const ref = { pack_id: "a", pack_version: 1, variant: 0 };
+    const nodes: [number, number][] = [[10, 6], [14, 10], [10, 14], [6, 10]];
+    nodes.forEach((a, i) => {
+      ctx.layers.walls[`ring-${i}`] = { ...ref, type: "wall", a, b: nodes[(i + 1) % 4], smoothA: true, smoothB: true };
+    });
+    const region = paintOps.fillRegion(ctx.layers, 10, 2, 300);
+    expect(region.has(cellKey(10, 2))).toBe(true);
+    // (12,7) lies outside the diamond (|dx|+|dy| = 5 > 4) but inside the curve (3.5 from the centre, radius about 4)
+    expect(region.has(cellKey(12, 7))).toBe(false);
+    expect(region.has(cellKey(10, 10))).toBe(false);
+  });
+
+  it("an unwalled plain-floor edge is not a barrier, so the fill goes on past it", () => {
+    const ctx = makeCtx();
+    const ref = { pack_id: "a", pack_version: 1, variant: 0 };
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 3; y++) ctx.layers.floor[cellKey(x, y)] = { floor: ref };
+    expect(paintOps.fillRegion(ctx.layers, 0, 1, 40).has(cellKey(-1, 1))).toBe(true);
   });
 });

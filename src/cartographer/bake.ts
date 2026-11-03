@@ -14,6 +14,7 @@ import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
 import { encodeWebp } from "@/lib/webpEncode";
+import { groundBounds } from "./groundRegions";
 import { dressingCellBounds, type DressingCatalog } from "./dressing";
 
 export interface BakeOptions {
@@ -87,8 +88,6 @@ function paintedExtent(map: DungeonMap, dressing: DressingCatalog): { minX: numb
   const layers = map.layers;
   const allKeys = [
     ...Object.keys(layers.floor),
-    // A brushed cell under half covered has no floor tile but is still drawn.
-    ...Object.keys(layers.area),
     ...Object.keys(layers.solidBlock),
     ...Object.keys(layers.object),
     ...Object.keys(layers.annotation),
@@ -105,6 +104,10 @@ function paintedExtent(map: DungeonMap, dressing: DressingCatalog): { minX: numb
   for (const k of allKeys) {
     const [xs, ys] = k.split(",");
     include(Number(xs), Number(ys));
+  }
+  for (const region of Object.values(layers.ground)) {
+    const box = groundBounds(region);
+    if (box) include(Math.floor(box.minX), Math.floor(box.minY), Math.ceil(box.maxX) - 1, Math.ceil(box.maxY) - 1);
   }
   for (const placement of Object.values(layers.dressing)) {
     const b = dressingCellBounds(placement, dressing);
@@ -347,7 +350,7 @@ export function chooseStyleImageSize(effWidth: number, effHeight: number): { wid
  * `chooseStyleImageSize` rounds each edge down to a multiple of 16 on its
  * own, so the final aspect can differ from the padded one by up to about 1%.
  * `GridCalibration` has a single cell size, so that sliver shows up as rows
- * drifting slightly toward the bottom edge; the Layers panel's Calibrate is
+ * drifting slightly toward the bottom edge; the Picture layer's Line up the grid is
  * the fix, as it is for the model's own drift. See `useMapExport.ts`'s
  * header for the rest of the calibration argument.
  */

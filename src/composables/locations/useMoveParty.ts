@@ -13,9 +13,9 @@ export interface MovePartyRequest {
 }
 
 /**
- * Moving the party to a room of a site being run: the one write the run
+ * Moving the party to a room of a site being explored: the one write the run
  * surfaces make (`campaigns.current_location_id`), shared by the room list
- * (`SiteRoomList`) and the plan (`SiteRunSurface`, `QuestSiteHandoff`).
+ * (`SiteRoomList`) and the plan (`SiteExploreView`, `QuestSiteHandoff`).
  *
  * Reachability does not gate the move. The door graph is the DM's own prep
  * and is often unfinished or simply wrong for what happened at the table (a
