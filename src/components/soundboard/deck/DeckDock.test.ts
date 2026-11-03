@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { nextTick, reactive, ref } from "vue";
 
-const snapshot = ref({ pages: [{ id: "p", name: "Mill" }], pageIndex: 0, lanes: [], rows: 1, cells: [], tool: "play", lockedTool: "play", hush: false, paused: false, audibleCount: 2, masterVolume: 1 });
+const snapshot = ref({ pages: [{ id: "p", name: "Mill" }], pageIndex: 0, lanes: [], rows: 1, cells: [], keyRow: 0, tool: "play", lockedTool: "play", hush: false, paused: false, audibleCount: 2, masterVolume: 1 });
 // Refs inside a reactive object, as a Pinia store holds its state, so storeToRefs sees them.
 const ui = reactive({
   deckSize: ref<"tucked" | "row" | "deck" | "full">("tucked"),
@@ -11,7 +11,13 @@ const ui = reactive({
   deckControls: ref("simple"),
 });
 
-vi.mock("@/composables/soundboard/useDeck", () => ({ useDeck: () => ({ snapshot, dispatch: vi.fn() }) }));
+// The deck's own answer to showRow, kept on the page, so the bar reads back what it asked for.
+const dispatch = vi.fn((action: { type: string; row?: number }) => {
+  if (action.type === "showRow" && action.row !== undefined) {
+    snapshot.value = { ...snapshot.value, keyRow: Math.min(action.row, snapshot.value.rows - 1) };
+  }
+});
+vi.mock("@/composables/soundboard/useDeck", () => ({ useDeck: () => ({ snapshot, dispatch }) }));
 vi.mock("@/stores/ui/soundboard", () => ({ useSoundboardUiStore: () => ui }));
 
 const { default: DeckDock } = await import("./DeckDock.vue");
@@ -32,7 +38,8 @@ function dock(props: { empty?: boolean } = {}) {
 }
 
 beforeEach(() => {
-  snapshot.value = { ...snapshot.value, pageIndex: 0, rows: 1 };
+  snapshot.value = { ...snapshot.value, pageIndex: 0, rows: 1, keyRow: 0 };
+  dispatch.mockClear();
   ui.deckSize = "tucked";
   ui.deckPeekEnabled = true;
   ui.deckPeekSignal = 0;
@@ -116,22 +123,13 @@ describe("DeckDock", () => {
       expect(event.defaultPrevented).toBe(false);
     });
 
-    it("goes back to the top row on another page", async () => {
-      const w = rowBar(3);
+    it("shows the deck's row in view, the one keys 1 to 8 fire, and moves it through the deck", async () => {
+      // A row of its own would let the bar show one row while the keys fired another.
+      snapshot.value = { ...snapshot.value, keyRow: 2 };
+      const w = rowBar(4);
+      expect(shownRow(w)).toBe("2");
       await w.get("[data-testid='deck-row-down']").trigger("click");
-      expect(shownRow(w)).toBe("1");
-      snapshot.value = { ...snapshot.value, pageIndex: 1 };
-      await nextTick();
-      expect(shownRow(w)).toBe("0");
-    });
-
-    it("shows the last row when the page has fewer rows than where the bar was", async () => {
-      const w = rowBar(3);
-      await w.get("[data-testid='deck-row-down']").trigger("click");
-      await w.get("[data-testid='deck-row-down']").trigger("click");
-      snapshot.value = { ...snapshot.value, rows: 2 };
-      await nextTick();
-      expect(shownRow(w)).toBe("1");
+      expect(dispatch).toHaveBeenCalledWith({ type: "showRow", row: 3 });
     });
   });
 });

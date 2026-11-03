@@ -7,7 +7,8 @@ const dispatch = vi.fn<(action: DeckAction) => void>();
 const clearEditRequest = vi.fn();
 const editRequest = ref<{ padId: string } | null>(null);
 const midi = vi.fn();
-let hotkeyTarget: { dispatch(action: DeckAction): void } | null = null;
+let hotkeyTarget: { dispatch(action: DeckAction): void; keyRow(): number } | null = null;
+const snapshot = ref({ keyRow: 2 });
 let hotkeyEnabled: (() => boolean) | null = null;
 const push = vi.fn();
 const route = reactive<{ path: string; meta: Record<string, unknown> }>({ path: "/npcs", meta: {} });
@@ -22,9 +23,9 @@ const app = reactive({ editorFocus: false });
 const sounds = ref<unknown[] | undefined>(undefined);
 const pads = ref<unknown[] | undefined>([{}]);
 
-vi.mock("@/composables/soundboard/useDeck", () => ({ useDeck: () => ({ dispatch, editRequest, clearEditRequest }) }));
+vi.mock("@/composables/soundboard/useDeck", () => ({ useDeck: () => ({ dispatch, editRequest, clearEditRequest, snapshot }) }));
 vi.mock("@/composables/soundboard/useDeckHotkeys", () => ({
-  useDeckHotkeys: (target: { dispatch(action: DeckAction): void }, options: { enabled: () => boolean }) => {
+  useDeckHotkeys: (target: { dispatch(action: DeckAction): void; keyRow(): number }, options: { enabled: () => boolean }) => {
     hotkeyTarget = target;
     hotkeyEnabled = options.enabled;
   },
@@ -160,11 +161,13 @@ describe("SoundDeck host", () => {
     w.unmount();
   });
 
-  it("reaches for the deck when a key 1 to 8 fires a top-row pad, and still sends the press", () => {
+  it("reaches for the deck when a key 1 to 8 fires a pad in any row, and still sends the press", () => {
+    // Keys follow the row in view, so a peek keyed on row 0 would stop opening the deck once the bar moved down.
     const w = host();
-    hotkeyTarget?.dispatch({ type: "press", lane: 2, row: 0 });
+    expect(hotkeyTarget?.keyRow()).toBe(2);
+    hotkeyTarget?.dispatch({ type: "press", lane: 2, row: 2 });
     expect(ui.requestDeckPeek).toHaveBeenCalledOnce();
-    expect(dispatch).toHaveBeenCalledWith({ type: "press", lane: 2, row: 0 });
+    expect(dispatch).toHaveBeenCalledWith({ type: "press", lane: 2, row: 2 });
     hotkeyTarget?.dispatch({ type: "hush", phase: "toggle" });
     expect(ui.requestDeckPeek).toHaveBeenCalledOnce();
     w.unmount();

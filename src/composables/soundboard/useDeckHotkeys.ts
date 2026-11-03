@@ -2,7 +2,7 @@
  * The deck's keyboard (#1136): the same protocol as the screen and a Launchpad,
  * so a key does exactly what the pad under it does.
  *
- *   1 to 8      the top-row pad of lanes 1 to 8 (press, and release for Gate and Repeat)
+ *   1 to 8      the pad of lanes 1 to 8 in the row in view (press, and release for Gate and Repeat)
  *   L S F O V E  the Loop, Stop, Fade, Solo, Volume and Edit tools: hold to borrow, tap to lock
  *   P           back to Play
  *   H           Hush: hold to dip the mix, tap to lock it
@@ -26,6 +26,13 @@ import { createHoldTap } from "@/lib/audio/deck/holdTap";
 
 export interface DeckHotkeyTarget {
   dispatch(action: DeckAction): void;
+  /** The row keys 1 to 8 fire now (`DeckSnapshot.keyRow`). */
+  keyRow(): number;
+}
+
+function deckTarget(): DeckHotkeyTarget {
+  const deck = useDeck();
+  return { dispatch: deck.dispatch, keyRow: () => deck.snapshot.value.keyRow };
 }
 
 export interface DeckHotkeyOptions {
@@ -43,8 +50,12 @@ const TOOL_KEYS: ReadonlyArray<{ key: string; tool: DeckTool; label: string }> =
   { key: "e", tool: "edit", label: "Edit" },
 ];
 
-export function useDeckHotkeys(target: DeckHotkeyTarget = useDeck(), options: DeckHotkeyOptions = {}): void {
+export function useDeckHotkeys(target: DeckHotkeyTarget = deckTarget(), options: DeckHotkeyOptions = {}): void {
   const buttons = createHoldTap(options.now ?? (() => Date.now()));
+  // The row each held key pressed. The row in view can change under a held key
+  // (the Row bar stepped, the deck scrolled), and a release sent to the new row
+  // would leave a Gate pad on the old one playing.
+  const heldRows = new Map<number, number>();
 
   const toolSender = (tool: DeckTool) => (phase: DeckPhase) => target.dispatch({ type: "tool", tool, phase });
   const hushSender = (phase: DeckPhase) => target.dispatch({ type: "hush", phase });
@@ -55,14 +66,21 @@ export function useDeckHotkeys(target: DeckHotkeyTarget = useDeck(), options: De
     for (let lane = 0; lane < DECK_LANES; lane++) {
       list.push({
         combo: String(lane + 1),
-        description: lane === 0 ? "Fire the top pad of lanes 1 to 8" : `Fire the top pad of lane ${lane + 1}`,
+        description: lane === 0 ? "Fire lanes 1 to 8 in the row showing" : `Fire lane ${lane + 1} in the row showing`,
         hidden: lane !== 0,
         ignoreRepeat: true,
         handler: () => {
           buttons.padPressed();
-          target.dispatch({ type: "press", lane, row: 0 });
+          const row = target.keyRow();
+          heldRows.set(lane, row);
+          target.dispatch({ type: "press", lane, row });
         },
-        onRelease: () => target.dispatch({ type: "release", lane, row: 0 }),
+        onRelease: () => {
+          const row = heldRows.get(lane);
+          if (row === undefined) return;
+          heldRows.delete(lane);
+          target.dispatch({ type: "release", lane, row });
+        },
       });
     }
 

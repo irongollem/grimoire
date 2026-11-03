@@ -48,7 +48,7 @@
       @master="deck.dispatch({ type: 'master', value: $event })"
     />
     <p v-if="soundboardUi.deckControls === 'full' && !phone" class="text-caption text-muted-foreground">
-      Keys <b class="text-gold-400">1 to 8</b> fire the top row. Space pauses everything.
+      Keys <b class="text-gold-400">1 to 8</b> fire the row with their numbers on it. Space pauses everything.
     </p>
   </div>
 </template>

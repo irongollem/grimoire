@@ -11,6 +11,7 @@ const { useDeckHotkeys } = await import("./useDeckHotkeys");
 let scope: EffectScope;
 let actions: DeckAction[];
 let clock: number;
+let keyRow: number;
 
 function key(type: "keydown" | "keyup", k: string, init: KeyboardEventInit = {}) {
   document.dispatchEvent(new KeyboardEvent(type, { key: k, code: init.code ?? `Key${k.toUpperCase()}`, bubbles: true, cancelable: true, ...init }));
@@ -21,8 +22,9 @@ const up = (k: string, init?: KeyboardEventInit) => key("keyup", k, init);
 beforeEach(() => {
   actions = [];
   clock = 1000;
+  keyRow = 0;
   scope = effectScope();
-  scope.run(() => useDeckHotkeys({ dispatch: (a) => void actions.push(a) }, { now: () => clock }));
+  scope.run(() => useDeckHotkeys({ dispatch: (a) => void actions.push(a), keyRow: () => keyRow }, { now: () => clock }));
 });
 
 afterEach(() => {
@@ -41,6 +43,27 @@ describe("number keys", () => {
     expect(presses.map((a) => (a.type === "press" ? [a.lane, a.row] : null))).toEqual([0, 1, 2, 3, 4, 5, 6, 7].map((l) => [l, 0]));
     expect(releases).toHaveLength(8);
     expect(releases[2]).toEqual({ type: "release", lane: 2, row: 0 });
+  });
+
+  it("fire the row in view, not the top row, when the deck is looking further down", () => {
+    keyRow = 3;
+    down("2", { code: "Digit2" });
+    up("2", { code: "Digit2" });
+    expect(actions).toEqual([
+      { type: "press", lane: 1, row: 3 },
+      { type: "release", lane: 1, row: 3 },
+    ]);
+  });
+
+  it("release the row they pressed even if the row in view moved meanwhile (fails if a held Gate pad were left playing)", () => {
+    keyRow = 1;
+    down("1", { code: "Digit1" });
+    keyRow = 2;
+    up("1", { code: "Digit1" });
+    expect(actions).toEqual([
+      { type: "press", lane: 0, row: 1 },
+      { type: "release", lane: 0, row: 1 },
+    ]);
   });
 
   it("do not fire on 9 or with the browser's tab chord (fails if modifiers were ignored)", () => {

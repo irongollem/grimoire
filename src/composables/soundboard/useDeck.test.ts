@@ -707,6 +707,29 @@ describe("global actions", () => {
   });
 });
 
+describe("the row in view", () => {
+  it("puts the number keys on the row a screen says is in view, kept on the page", async () => {
+    const deck = boot({ pads: [pad("a"), pad("b", { grid_row: 2 })], sounds: [sound("a"), sound("b")] });
+    expect(cell(deck, 0, 0).keyLabel).toBe("1");
+    deck.dispatch({ type: "showRow", row: 2 });
+    expect(deck.snapshot.value.keyRow).toBe(2);
+    expect(cell(deck, 0, 2).keyLabel).toBe("1");
+    expect(cell(deck, 0, 0).keyLabel).toBeNull();
+    // Past the page's last row: the keys stay on the last one rather than on nothing.
+    deck.dispatch({ type: "showRow", row: 9 });
+    expect(deck.snapshot.value.keyRow).toBe(2);
+  });
+
+  it("starts another page at its top row", async () => {
+    const deck = boot({ pads: [pad("a", { grid_row: 2 }), pad("b", { page_id: "p2", grid_row: 3 })], pages: [page("p1"), page("p2")] });
+    deck.dispatch({ type: "showRow", row: 2 });
+    expect(deck.snapshot.value.keyRow).toBe(2);
+    deck.dispatch({ type: "pageStep", delta: 1 });
+    await nextTick();
+    expect(deck.snapshot.value.keyRow).toBe(0);
+  });
+});
+
 describe("padVolume", () => {
   it("moves the level now and saves once after the pause, last value winning (fails if every drag step wrote)", () => {
     const deck = boot({ pads: [pad("a")] });

@@ -50,9 +50,11 @@ const visible = computed(
 useDeckHotkeys(
   {
     dispatch(action: DeckAction) {
-      if (action.type === "press" && action.row === 0) ui.requestDeckPeek();
+      // Only keys press through here: a pad on screen dispatches to the deck itself.
+      if (action.type === "press") ui.requestDeckPeek();
       deck.dispatch(action);
     },
+    keyRow: () => deck.snapshot.value.keyRow,
   },
   { enabled: () => !app.editorFocus },
 );

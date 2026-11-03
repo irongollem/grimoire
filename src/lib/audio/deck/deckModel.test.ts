@@ -15,7 +15,8 @@ import {
   padKind,
   rowsForPage,
   takeVariation,
-  topRowKey,
+  keyRowFor,
+  rowKey,
   velocityGain,
   defaultLaunchMode,
   defaultLoop,
@@ -193,10 +194,17 @@ describe("takes and velocity", () => {
     expect(velocityGain(-1, "gentle")).toBe(0.05);
   });
 
-  it("only the top row has a number key", () => {
-    expect(topRowKey(0, 0)).toBe("1");
-    expect(topRowKey(7, 0)).toBe("8");
-    expect(topRowKey(3, 1)).toBeNull();
-    expect(topRowKey(8, 0)).toBeNull();
+  it("only the row in view has number keys", () => {
+    expect(rowKey(0, 0, 0)).toBe("1");
+    expect(rowKey(7, 2, 2)).toBe("8");
+    expect(rowKey(3, 0, 2)).toBeNull();
+    expect(rowKey(8, 2, 2)).toBeNull();
+  });
+
+  it("keeps the key row on the page when the page is shorter than where the screen was", () => {
+    expect(keyRowFor(5, 3)).toBe(2);
+    expect(keyRowFor(1, 3)).toBe(1);
+    expect(keyRowFor(-1, 3)).toBe(0);
+    expect(keyRowFor(4, 0)).toBe(0);
   });
 });

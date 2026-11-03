@@ -182,10 +182,18 @@ export function velocityGain(velocity: number, curve: VelocityCurve): number {
   return Math.min(1, Math.max(0.05, shaped));
 }
 
-/** The number key that fires a top-row pad, "1" to "8"; only row 0 has one. */
-export function topRowKey(lane: number, row: number): string | null {
-  if (row !== 0 || lane < 0 || lane >= DECK_LANES) return null;
+/**
+ * The number key that fires a pad, "1" to "8": keys answer to the row in view
+ * (`keyRow`), so only that row has them.
+ */
+export function rowKey(lane: number, row: number, keyRow: number): string | null {
+  if (row !== keyRow || lane < 0 || lane >= DECK_LANES) return null;
   return String(lane + 1);
+}
+
+/** The row keys 1 to 8 fire: the one a screen says is in view, kept on the page. */
+export function keyRowFor(rowInView: number, rows: number): number {
+  return Math.min(Math.max(0, rowInView), Math.max(0, rows - 1));
 }
 
 /** A slot with nothing in it, in every surface's terms. */

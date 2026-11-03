@@ -14,6 +14,7 @@ function snap(over: Partial<DeckSnapshot> = {}): DeckSnapshot {
     pageIndex: 0,
     lanes: [],
     rows: 1,
+    keyRow: 0,
     cells: [],
     tool: "play",
     lockedTool: "play",

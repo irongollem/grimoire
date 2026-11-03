@@ -125,6 +125,14 @@ export function createDeck(): DeckController {
   /** Levels being dragged, shown until the saved value arrives. */
   const volumeOverrides = ref<Record<string, number>>({});
   const editRequest = ref<{ padId: string } | null>(null);
+  /** The row a screen last said was in view; keys 1 to 8 fire it. Another page starts at its top row. */
+  const rowInView = ref(0);
+  watch(
+    () => (activePage.value ? activePage.value.id : null),
+    () => {
+      rowInView.value = 0;
+    },
+  );
 
   // Held pads are tracked by pad id and keyed by the slot they were pressed in, so a page change under a held finger still releases the right pad.
   interface HeldPad {
@@ -588,6 +596,9 @@ export function createDeck(): DeckController {
       case "pageStep":
         stepPage(action.delta);
         return;
+      case "showRow":
+        rowInView.value = Math.max(0, action.row);
+        return;
       case "hush":
         applyHush(action.phase);
         return;
@@ -619,7 +630,7 @@ export function createDeck(): DeckController {
 
   // ── The snapshot ─────────────────────────────────────────────────────────
 
-  const snapshot = useDeckSnapshot({ resolved: deckResolved, readout, cursors, heldPadIds, fadingIds, hushOn, currentTool, lockedTool });
+  const snapshot = useDeckSnapshot({ resolved: deckResolved, readout, cursors, heldPadIds, fadingIds, hushOn, currentTool, lockedTool, rowInView });
 
   // A trigger arriving in a "one" lane takes it over, as a pad pressed there would. A "together" lane is left alone.
   function padHolds(info: DeckPadInfo, id: string): boolean {

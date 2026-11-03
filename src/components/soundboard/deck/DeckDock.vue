@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from "vue";
+import { computed, useTemplateRef } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useDeck } from "@/composables/soundboard/useDeck";
 import { useDeckPeek } from "@/composables/soundboard/useDeckPeek";
@@ -187,19 +187,13 @@ function setSize(next: DeckSize): void {
 }
 
 // ── The one-row bar: which row it shows ───────────────────────────────────
-// Kept here, not in the store: it is where this bar is looking, not a setting.
-const rowStart = ref(0);
-// A page with fewer rows than where the bar was looking shows its last row.
-const shownRow = computed(() => Math.min(rowStart.value, Math.max(0, snapshot.value.rows - 1)));
-watch(
-  () => snapshot.value.pageIndex,
-  () => {
-    rowStart.value = 0;
-  },
-);
+// The deck's row in view, the same one keys 1 to 8 fire: the deck keeps it on
+// the page and starts another page at its top row, and a peek opens on it.
+const shownRow = computed(() => snapshot.value.keyRow);
 
 function stepRow(delta: number): void {
-  rowStart.value = Math.min(Math.max(0, shownRow.value + delta), Math.max(0, snapshot.value.rows - 1));
+  const row = Math.min(Math.max(0, shownRow.value + delta), Math.max(0, snapshot.value.rows - 1));
+  if (row !== shownRow.value) deck.dispatch({ type: "showRow", row });
 }
 
 const wheelStep = createWheelStep(() => performance.now());

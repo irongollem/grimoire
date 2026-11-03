@@ -12,7 +12,8 @@ import {
   isDefaultLaunchMode,
   laneCategory,
   rowsForPage,
-  topRowKey,
+  keyRowFor,
+  rowKey,
 } from "@/lib/audio/deck/deckModel";
 import {
   DECK_LANES,
@@ -46,6 +47,8 @@ export interface DeckSnapshotState {
   hushOn: Readonly<Ref<boolean>>;
   currentTool: Readonly<Ref<DeckTool>>;
   lockedTool: Readonly<Ref<DeckTool>>;
+  /** The row a screen last said was in view; the snapshot keeps it on the page. */
+  rowInView: Readonly<Ref<number>>;
 }
 
 export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnapshot> {
@@ -54,7 +57,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
   const sharing = useAudioSharing();
   const { pages, activePage, pagePads, byPlaylist, soundsById, playlistsById } = state.resolved;
   const { musicTrigger, ambientTriggers } = useActiveAudioTriggers();
-  const { cursors, heldPadIds, fadingIds, hushOn, currentTool, lockedTool } = state;
+  const { cursors, heldPadIds, fadingIds, hushOn, currentTool, lockedTool, rowInView } = state;
   const { isAudible, padLoops, blockedFor, isSoloed, progressOf, volumeOf, nextSound } = state.readout;
 
   function lightOf(info: DeckPadInfo, audible: boolean, loop: boolean, blocked: string | null, soloed: boolean): DeckLight {
@@ -85,7 +88,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
   }
 
 
-  function cellOf(info: DeckPadInfo): DeckCellView {
+  function cellOf(info: DeckPadInfo, keyRow: number): DeckCellView {
     const { pad } = info;
     const audible = isAudible(info);
     const loop = padLoops(info);
@@ -113,7 +116,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       soloed,
       blockedReason: blocked,
       meta: metaOf(info),
-      keyLabel: topRowKey(pad.lane, pad.grid_row),
+      keyLabel: rowKey(pad.lane, pad.grid_row, keyRow),
     };
   }
 
@@ -163,7 +166,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
     return current === undefined ? [] : [current];
   }
 
-  function guestCell(guest: PlacedGuest): DeckCellView {
+  function guestCell(guest: PlacedGuest, keyRow: number): DeckCellView {
     const id = targetId(guest.target);
     const isSound = guest.target !== id;
     const sound: Sound | undefined = isSound ? soundsById.value.get(id) : undefined;
@@ -193,7 +196,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       volume: 1,
       soloed,
       meta: `From ${guest.label}`,
-      keyLabel: topRowKey(guest.lane, guest.row),
+      keyLabel: rowKey(guest.lane, guest.row, keyRow),
     };
   }
 
@@ -213,12 +216,13 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       const key = `${g.lane}:${g.row}`;
       if (!guestAt.has(key)) guestAt.set(key, g);
     }
+    const keyRow = keyRowFor(rowInView.value, rows);
     const cells: DeckCellView[] = [];
     for (let row = 0; row < rows; row++) {
       for (let lane = 0; lane < DECK_LANES; lane++) {
         const found = padAt.get(`${lane}:${row}`);
         const guest = found ? undefined : guestAt.get(`${lane}:${row}`);
-        cells.push(found ? cellOf(found) : guest ? guestCell(guest) : emptyDeckCell(lane, row));
+        cells.push(found ? cellOf(found, keyRow) : guest ? guestCell(guest, keyRow) : emptyDeckCell(lane, row));
       }
     }
     const laneDefs = page ? page.lanes : DEFAULT_LANES;
@@ -234,6 +238,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       lanes,
       rows,
       cells,
+      keyRow,
       tool: currentTool.value,
       lockedTool: lockedTool.value,
       hush: hushOn.value,

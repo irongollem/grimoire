@@ -121,7 +121,7 @@ The deck has two modes, set behind the settings pip in its header. **Simple** is
 
 | Key | What it does |
 | --- | --- |
-| **1** to **8** | Fire the top pad of that lane. |
+| **1** to **8** | Fire that lane's pad in the row you are looking at: the row the Row bar shows, or the top row showing at Deck and Full size. The pads in that row show their numbers. |
 | **L S F O V E** | Hold to borrow Loop, Stop, Fade, Solo, Volume or Edit. Tap to lock. |
 | **P** | Back to Play. |
 | **H** | Hush. |
@@ -161,7 +161,7 @@ The Soundboard itself is entirely DM-only. What players *can* get, if you choose
 
 > Pulling the Ambience fader down when the table gets loud is faster and safer than muting individual pads: nothing stays silenced by accident after the scene changes.
 
-- Put the sounds you reach for most in the top row: keys **1** to **8** fire it without touching the mouse.
+- Put the sounds you reach for most in one row: keys **1** to **8** fire whichever row you are looking at, without touching the mouse. Each new page starts on its top row.
 - Free plans have a quota on sounds, pages, and scenes/playlists combined: see [Billing & Subscription](#billing-subscription) for the exact numbers. Curated library sounds and starter scenes don't count against it.
 - Uploading your own audio files is a Pro feature, gated independently of the count-based quotas above. Generating a sound with AI is not: it works on every plan, billed to credits, once the campaign's AI Assistant is on.
 - A sound's category decides which fader it rides and whether it ducks the mix. Moving an ambient bed to Effects makes it duck the mix instead of sitting under it.

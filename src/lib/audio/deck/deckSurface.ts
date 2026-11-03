@@ -52,6 +52,8 @@ export type DeckAction =
   | { type: "tool"; tool: DeckTool; phase: DeckPhase }
   | { type: "page"; index: number }
   | { type: "pageStep"; delta: -1 | 1 }
+  /** A screen says which row is in view (the Row bar's row, the top row scrolled to); keys 1 to 8 fire it. */
+  | { type: "showRow"; row: number }
   | { type: "hush"; phase: DeckPhase }
   /** Fade everything out over the board's fade time. */
   | { type: "fadeAll" }
@@ -157,6 +159,8 @@ export interface DeckSnapshot {
   rows: number;
   /** Row-major, `rows * DECK_LANES` long. */
   cells: readonly DeckCellView[];
+  /** The row keys 1 to 8 fire: the one in view, back to 0 on another page, never past the last row. */
+  keyRow: number;
   /** What a press does now: a held tool wins over a locked one. */
   tool: DeckTool;
   /** The tool tapped on, or `play`. */
