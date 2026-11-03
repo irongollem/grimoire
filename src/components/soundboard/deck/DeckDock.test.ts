@@ -32,6 +32,7 @@ function dock(props: { empty?: boolean } = {}) {
 }
 
 beforeEach(() => {
+  snapshot.value = { ...snapshot.value, pageIndex: 0, rows: 1 };
   ui.deckSize = "tucked";
   ui.deckPeekEnabled = true;
   ui.deckPeekSignal = 0;
@@ -76,5 +77,61 @@ describe("DeckDock", () => {
     const w = dock({ empty: true });
     expect(w.text()).toContain("Build your deck");
     expect(w.find("[data-testid='body']").exists()).toBe(false);
+  });
+
+  describe("the one-row bar steps through the rows", () => {
+    function rowBar(rows: number) {
+      snapshot.value = { ...snapshot.value, rows };
+      ui.deckSize = "row";
+      return dock();
+    }
+    const shownRow = (w: ReturnType<typeof dock>) => w.get("deck-grid-stub").attributes("rowstart");
+
+    it("moves to the next row and back with the buttons, and cannot go past either end", async () => {
+      const w = rowBar(3);
+      expect(shownRow(w)).toBe("0");
+      expect(w.get("[data-testid='deck-row-up']").attributes("disabled")).toBe("true");
+      await w.get("[data-testid='deck-row-down']").trigger("click");
+      await w.get("[data-testid='deck-row-down']").trigger("click");
+      expect(shownRow(w)).toBe("2");
+      expect(w.get("[data-testid='deck-row-down']").attributes("disabled")).toBe("true");
+      await w.get("[data-testid='deck-row-up']").trigger("click");
+      expect(shownRow(w)).toBe("1");
+    });
+
+    it("steps one row on a scroll and keeps the scroll from moving the page", async () => {
+      const w = rowBar(3);
+      const event = new WheelEvent("wheel", { deltaY: 100, cancelable: true });
+      w.get("[data-testid='deck-dock'] > div.h-19").element.dispatchEvent(event);
+      await nextTick();
+      expect(shownRow(w)).toBe("1");
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("leaves the scroll to the page when there is only one row", async () => {
+      const w = rowBar(1);
+      expect(w.find("[data-testid='deck-row-steps']").exists()).toBe(false);
+      const event = new WheelEvent("wheel", { deltaY: 100, cancelable: true });
+      w.get("[data-testid='deck-dock'] > div.h-19").element.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("goes back to the top row on another page", async () => {
+      const w = rowBar(3);
+      await w.get("[data-testid='deck-row-down']").trigger("click");
+      expect(shownRow(w)).toBe("1");
+      snapshot.value = { ...snapshot.value, pageIndex: 1 };
+      await nextTick();
+      expect(shownRow(w)).toBe("0");
+    });
+
+    it("shows the last row when the page has fewer rows than where the bar was", async () => {
+      const w = rowBar(3);
+      await w.get("[data-testid='deck-row-down']").trigger("click");
+      await w.get("[data-testid='deck-row-down']").trigger("click");
+      snapshot.value = { ...snapshot.value, rows: 2 };
+      await nextTick();
+      expect(shownRow(w)).toBe("1");
+    });
   });
 });

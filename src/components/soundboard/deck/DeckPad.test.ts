@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import DeckPad from "./DeckPad.vue";
 import { fixtureCell, fixtureEmpty } from "./deckFixtures";
 import type { DeckCellView, DeckControls, DeckTool } from "@/lib/audio/deck/deckSurface";
@@ -13,7 +13,7 @@ function mountPad(
   });
 }
 
-const pointer = (type: string, init: Record<string, number> = {}) =>
+const pointer = (type: string, init: Record<string, number | string> = {}) =>
   new PointerEvent(type, { bubbles: true, pointerId: 1, button: 0, ...init });
 
 describe("DeckPad press and release", () => {
@@ -74,6 +74,63 @@ describe("DeckPad press and release", () => {
     await w.trigger("click");
     expect(w.emitted("press")).toBeUndefined();
     expect(w.emitted("select")).toHaveLength(1);
+  });
+});
+
+describe("DeckPad under a finger", () => {
+  // A phone scrolls the deck with the same finger that plays it.
+  const touch = (type: string, init: Record<string, number> = {}) => pointer(type, { pointerType: "touch", clientX: 10, clientY: 10, ...init });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("plays a tap when the finger lifts where it landed", () => {
+    vi.useFakeTimers();
+    const w = mountPad(fixtureCell());
+    w.element.dispatchEvent(touch("pointerdown"));
+    expect(w.emitted("press")).toBeUndefined();
+    w.element.dispatchEvent(touch("pointerup"));
+    expect(w.emitted("press")).toHaveLength(1);
+    expect(w.emitted("release")).toHaveLength(1);
+  });
+
+  it("does not play a swipe that starts on the pad", () => {
+    vi.useFakeTimers();
+    const w = mountPad(fixtureCell());
+    w.element.dispatchEvent(touch("pointerdown"));
+    w.element.dispatchEvent(touch("pointermove", { clientY: 40 }));
+    w.element.dispatchEvent(touch("pointerup", { clientY: 40 }));
+    vi.advanceTimersByTime(500);
+    expect(w.emitted("press")).toBeUndefined();
+  });
+
+  it("does not play when the browser takes the touch for a scroll", () => {
+    vi.useFakeTimers();
+    const w = mountPad(fixtureCell());
+    w.element.dispatchEvent(touch("pointerdown"));
+    w.element.dispatchEvent(touch("pointercancel"));
+    vi.advanceTimersByTime(500);
+    expect(w.emitted("press")).toBeUndefined();
+    expect(w.emitted("release")).toBeUndefined();
+  });
+
+  it("holds a Gate pad while a still finger stays down, and releases it on lift", () => {
+    vi.useFakeTimers();
+    const w = mountPad(fixtureCell({ mode: "gate", modeIsDefault: false }));
+    w.element.dispatchEvent(touch("pointerdown"));
+    vi.advanceTimersByTime(200);
+    expect(w.emitted("press")).toHaveLength(1);
+    expect(w.emitted("release")).toBeUndefined();
+    w.element.dispatchEvent(touch("pointerup"));
+    expect(w.emitted("press")).toHaveLength(1);
+    expect(w.emitted("release")).toHaveLength(1);
+  });
+
+  it("a mouse still plays the moment it goes down", () => {
+    const w = mountPad(fixtureCell());
+    w.element.dispatchEvent(pointer("pointerdown", { pointerType: "mouse" }));
+    expect(w.emitted("press")).toHaveLength(1);
   });
 });
 

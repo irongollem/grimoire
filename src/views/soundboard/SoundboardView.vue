@@ -106,16 +106,36 @@
           />
         </div>
 
+        <!-- Build: one side panel and the deck. The panel is the library, or the picked
+             pad's settings, with a switch between the two; it never changes width and
+             never leaves, so picking a pad moves nothing and the deck keeps its width.
+             (The library used to step aside for a separate settings column below 2xl,
+             and the whole page jumped left on every pick; three columns at once left a
+             laptop's pads too narrow to read.) -->
         <div v-else class="flex min-w-0 items-start gap-5">
-          <!-- Library: a column from lg, a sheet below. While a pad's settings are
-               open it steps aside below 2xl: three columns squeezed the deck to
-               unreadable lanes, and you place sounds or edit a pad, rarely both. -->
+          <!-- A column from lg, sheets below. -->
           <aside
-            v-if="mode === 'build' && isWide && (isVeryWide || !selectedPadId)"
-            class="w-72 shrink-0 xl:w-80"
-            aria-label="Library"
+            v-if="mode === 'build' && isWide"
+            class="flex w-72 shrink-0 flex-col gap-3 2xl:w-80"
+            aria-label="Library and pad settings"
           >
+            <SegmentedControl
+              :model-value="sidePanel"
+              :options="sidePanelOptions"
+              size="sm"
+              block
+              aria-label="Side panel"
+              @update:model-value="panelChoice = $event"
+            />
+            <PadSettingsPanel
+              v-if="sidePanel === 'pad' && selectedPadId"
+              :key="selectedPadId"
+              :pad-id="selectedPadId"
+              :controls="soundboardUi.deckControls"
+              @close="selectedPadId = null"
+            />
             <DeckLibraryPanel
+              v-else
               :used-sound-ids="usedSoundIds"
               :used-playlist-ids="usedPlaylistIds"
               :can-place="canPlace"
@@ -207,20 +227,6 @@
             <BuilderPlayDeck v-else :lane-start="laneStart" :lane-count="laneCount" :phone="isPhone" />
 
           </section>
-
-          <!-- Selected pad's settings: autosaves itself. -->
-          <aside
-            v-if="mode === 'build' && isWide && selectedPadId"
-            class="w-80 shrink-0"
-            aria-label="Pad settings"
-          >
-            <PadSettingsPanel
-              :key="selectedPadId"
-              :pad-id="selectedPadId"
-              :controls="soundboardUi.deckControls"
-              @close="selectedPadId = null"
-            />
-          </aside>
         </div>
       </div>
 
@@ -322,6 +328,7 @@ const MODE_OPTIONS = [
   { value: "build", label: "Build" },
   { value: "play", label: "Play" },
 ] as const;
+type SidePanel = "library" | "pad";
 const LANE_WINDOWS = [
   { value: 0, label: "Lanes 1 to 4" },
   { value: 4, label: "Lanes 5 to 8" },
@@ -357,7 +364,6 @@ const activePageId = deck.activePageId;
 const isPending = computed(() => soundsPending.value || padsPending.value);
 
 const isWide = useAbove("lg");
-const isVeryWide = useAbove("2xl");
 const isPhone = useBelow("md");
 
 // ── The page exists ──────────────────────────────────────────────────────
@@ -431,6 +437,15 @@ const laneCount = computed(() => (isPhone.value ? 4 : undefined));
 const selectedPadId = ref<string | null>(null);
 const selectedSlot = ref<{ lane: number; row: number } | null>(null);
 
+// The side panel follows the pick (a pad opens its settings, an empty slot the
+// library) until the DM flips it, say to the library to drag in another take.
+const panelChoice = ref<SidePanel>("library");
+const sidePanel = computed<SidePanel>(() => (selectedPadId.value === null ? "library" : panelChoice.value));
+const sidePanelOptions = computed(() => [
+  { value: "library" as const, label: "Library" },
+  { value: "pad" as const, label: "Pad", disabled: selectedPadId.value === null, tooltip: selectedPadId.value === null ? "Pick a pad first" : undefined },
+]);
+
 function padAtSlot(lane: number, row: number) {
   return pagePadInfos.value.find((info) => info.pad.lane === lane && info.pad.grid_row === row) ?? null;
 }
@@ -444,10 +459,14 @@ function onSelect({ lane, row, padId }: { lane: number; row: number; padId: stri
   if (padId === null) {
     selectedSlot.value = { lane, row };
     selectedPadId.value = null;
+    // Below lg the library is a sheet, and a phone cannot drag into the deck: tapping
+    // an empty slot opens the library on it, so the next tap on a row places it there.
+    if (mode.value === "build" && !isWide.value) libraryOpen.value = true;
   } else {
     selectedSlot.value = null;
     selectedPadId.value = padId;
   }
+  panelChoice.value = padId === null ? "library" : "pad";
 }
 
 function focusPad(padId: string): boolean {
@@ -457,6 +476,7 @@ function focusPad(padId: string): boolean {
   chosenMode.value = "build";
   selectedSlot.value = null;
   selectedPadId.value = padId;
+  panelChoice.value = "pad";
   return true;
 }
 

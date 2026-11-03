@@ -521,12 +521,14 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     solo.checkAlive();
     if (!audio) return;
 
+    // The gain stays where the fade left it, at silence. pause() is not
+    // sample-accurate: the element goes on feeding the graph for a moment (long
+    // enough to hear on iOS Safari), so putting the gain back to full here played
+    // that last fraction of a second loud. The next play sets its own level
+    // (applyVolume in playElement), and Resume all fades back in from here.
     const halt = (): void => {
       audio.pause();
       if (rewind) audio.currentTime = 0;
-      // Restore the gain node for the next play, which starts from this value.
-      const live = playbackStates.value[soundId];
-      engine.setSoundVolume(soundId, live === undefined ? DEFAULT_VOLUME : live.volume, 0);
     };
 
     if (!engine.available || fadeMs <= 0) {

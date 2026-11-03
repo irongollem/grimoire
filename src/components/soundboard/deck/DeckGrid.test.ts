@@ -38,6 +38,17 @@ describe("DeckGrid", () => {
     expect(w.find("[data-cell='4:0']").exists()).toBe(true);
   });
 
+  it("the one-row bar on row 2 draws that row and a press names it, not the top row", async () => {
+    // Filtering on `row < rows` alone would draw the top row whatever the bar was showing.
+    const w = mountGrid({ rows: 1, rowStart: 1 });
+    expect(w.findAll("[data-cell]")).toHaveLength(8);
+    expect(w.find("[data-cell='0:0']").exists()).toBe(false);
+    const pad = w.find("[data-cell='2:1'] button");
+    await pad.trigger("pointerdown", { button: 0 });
+    await pad.trigger("pointerup");
+    expect(w.emitted("press")).toEqual([[{ lane: 2, row: 1 }]]);
+  });
+
   it("leaves lane headers inert while playing and makes them buttons in build mode", async () => {
     const play = mountGrid();
     expect(play.findAll("[role=row] button")).toHaveLength(0);

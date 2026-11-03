@@ -79,13 +79,15 @@ import type { DeckLaneRule, SoundCategory } from "@/types/sound.types";
  * The deck's lanes and pads (#1136). It lays out what the snapshot says and
  * re-emits every pad event with the cell's own lane and row, so the controller
  * never has to know which column is on screen: the phone shows four lanes at a
- * time (`laneStart`, `laneCount`) and a press still names its true lane.
+ * time (`laneStart`, `laneCount`), the one-row bar one row (`rowStart`), and a
+ * press still names its true lane and row.
  */
 
 const {
   lanes,
   cells,
   rows,
+  rowStart = 0,
   laneStart = 0,
   laneCount,
   size,
@@ -98,6 +100,8 @@ const {
   lanes: readonly DeckLaneView[];
   cells: readonly DeckCellView[];
   rows: number;
+  /** First row shown; the one-row bar steps through the page. `rows` counts from here. */
+  rowStart?: number;
   /** First lane shown; the phone pages through four at a time. */
   laneStart?: number;
   /** How many lanes are shown; every lane when absent. */
@@ -148,7 +152,7 @@ const columnsStyle = computed(() => ({
 const shownCells = computed(() => {
   const first = laneStart;
   const last = laneStart + visibleLanes.value.length;
-  return cells.filter((c) => c.lane >= first && c.lane < last && c.row < rows);
+  return cells.filter((c) => c.lane >= first && c.lane < last && c.row >= rowStart && c.row < rowStart + rows);
 });
 
 function laneAt(index: number): DeckLaneView {

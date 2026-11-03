@@ -16,7 +16,7 @@ The deck sits under the page and pushes it up, so it never covers what you are r
 | Size | What you see |
 | --- | --- |
 | **Tucked** | A slim handle that shows what is playing. |
-| **Row** | One pad per lane. |
+| **Row** | One pad per lane, one row at a time. Scroll over it, or use its up and down arrows, to step through the rows. |
 | **Deck** | Two and a half rows. The cut-off half tells you there is more; scroll for the rest. |
 | **Full** | The whole window. |
 
@@ -93,15 +93,15 @@ Always within reach on the deck:
 
 ## Building the deck
 
-Open the **Soundboard** page. On the left is your **library**: your sounds, scenes and playlists, plus the shared Grimoire sounds, with search and a category filter. In the middle is the deck you are building, and the **Build / Play** switch lets you try it out right there. While a session is running the page opens in Play.
+Open the **Soundboard** page. On the left is a side panel with two sides, **Library** and **Pad**. The library is your sounds, scenes and playlists, plus the shared Grimoire sounds, with search and a category filter; picking a pad turns the panel to that pad's settings, and the switch at its top turns it back. Beside it is the deck you are building, and the **Build / Play** switch lets you try it out right there. While a session is running the page opens in Play.
 
 - **Add a sound.** Click **Add sound**, then choose a source: **URL**, **Upload** (Pro), **Spotify**, **Generate** (AI, needs the campaign's AI Assistant on, and works on every plan, billed to credits), or browse **Grimoire Sounds** (free, curated, doesn't count against your quota) or Freesound's CC0/CC-BY clips.
-- **Place it.** Drag a row onto a slot, or select an empty slot and click the row.
-- **Add a take.** Drop a sound onto a pad that already has one and it becomes another take of that pad.
+- **Place it.** Drag a row onto a slot, or select an empty slot and click the row. On a phone, tap an empty slot and the library opens on it: tap a sound to put it there.
+- **Add a take.** Drop a sound onto a pad that already has one and it becomes another take of that pad. With the pad's settings open, switch the panel to **Library** to drag one in.
 - **Move pads.** Drag a pad to another slot. If a pad is already there, the two swap. Drop a pad on a page tab to send it to that page.
 - **Scenes and playlists.** Use **New scene** or **New playlist** in the library. The type is fixed when you create it. Free plans have a quota on these. A scene or playlist goes on an empty slot.
 - **Lanes.** Click a lane's name to rename it and choose how it plays.
-- **Pad settings.** Select a pad to open its settings: name, loop, volume, launch mode, fade in and out (leave empty for the usual fade), whether each hit varies a little, and whether a controller's harder hit plays louder. Changes save by themselves; **Done** closes the panel.
+- **Pad settings.** Select a pad and the side panel shows its settings: name, loop, volume, launch mode, fade in and out (leave empty for the usual fade), whether each hit varies a little, and whether a controller's harder hit plays louder. Changes save by themselves; **Done** hands the panel back to the library.
 
 If you start with nothing, a starter-scenes offer adds a handful of ready-made ambient scenes in one click.
 
@@ -133,7 +133,7 @@ The deck has two modes, set behind the settings pip in its header. **Simple** is
 
 ## On a phone
 
-On a phone the deck is a bottom sheet above the navigation bar. Folded, it shows four pads and Hush. Open it for the whole deck, four lanes at a time: swipe sideways for lanes 5 to 8. Tools and the big buttons sit at the bottom, in thumb reach.
+On a phone the deck is a bottom sheet above the navigation bar. Folded, it shows four pads and Hush. Open it for the whole deck, four lanes at a time: swipe sideways for lanes 5 to 8. Tools and the big buttons sit at the bottom, in thumb reach. A pad plays when your finger lifts, or once you hold it still, so a scroll that starts on a pad plays nothing.
 
 ## Controllers
 

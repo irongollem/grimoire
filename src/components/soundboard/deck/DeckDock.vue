@@ -49,7 +49,8 @@
         <IconChevronUp class="h-3 w-3" aria-hidden="true" />
       </button>
 
-      <div v-else-if="size === 'row'" class="flex h-19 items-center gap-3 px-3">
+      <!-- Scrolling the bar steps through the page's rows, one at a time. -->
+      <div v-else-if="size === 'row'" class="flex h-19 items-center gap-3 px-3" @wheel="onRowWheel">
         <AppButton
           variant="outline"
           size="sm"
@@ -67,6 +68,7 @@
           :lanes="snapshot.lanes"
           :cells="snapshot.cells"
           :rows="1"
+          :row-start="shownRow"
           size="sm"
           :controls="ui.deckControls"
           :tool="snapshot.tool"
@@ -76,6 +78,30 @@
           @keep="(p) => deck.dispatch({ type: 'keep', ...p })"
           @pad-volume="(p) => deck.dispatch({ type: 'padVolume', ...p })"
         />
+        <!-- The same steps as the scroll, as buttons: no gesture is the only way in. -->
+        <div v-if="snapshot.rows > 1" class="flex shrink-0 flex-col items-center" data-testid="deck-row-steps">
+          <AppButton
+            variant="ghost"
+            size="icon-2xs"
+            :icon="IconChevronUp"
+            aria-label="Previous row"
+            tooltip="Previous row (or scroll up)"
+            :disabled="shownRow === 0"
+            data-testid="deck-row-up"
+            @click="stepRow(-1)"
+          />
+          <span class="text-caption tabular-nums text-muted-foreground" aria-live="polite">{{ shownRow + 1 }}/{{ snapshot.rows }}</span>
+          <AppButton
+            variant="ghost"
+            size="icon-2xs"
+            :icon="IconChevronDown"
+            aria-label="Next row"
+            tooltip="Next row (or scroll down)"
+            :disabled="shownRow === snapshot.rows - 1"
+            data-testid="deck-row-down"
+            @click="stepRow(1)"
+          />
+        </div>
         <DeckTransport
           class="shrink-0"
           compact
@@ -119,13 +145,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useTemplateRef } from "vue";
+import { computed, ref, useTemplateRef, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useDeck } from "@/composables/soundboard/useDeck";
 import { useDeckPeek } from "@/composables/soundboard/useDeckPeek";
 import { useDockBottom } from "@/composables/soundboard/useDockBottom";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { IconChevronRight, IconChevronUp, IconMusic } from "@/lib/icons";
+import { IconChevronDown, IconChevronRight, IconChevronUp, IconMusic } from "@/lib/icons";
+import { createWheelStep, wheelPixels } from "@/lib/audio/deck/wheelStep";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { DeckLight, DeckSize } from "@/lib/audio/deck/deckSurface";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
@@ -157,6 +184,31 @@ const peek = useDeckPeek({ size, enabled: deckPeekEnabled, signal: deckPeekSigna
 
 function setSize(next: DeckSize): void {
   ui.deckSize = next;
+}
+
+// ── The one-row bar: which row it shows ───────────────────────────────────
+// Kept here, not in the store: it is where this bar is looking, not a setting.
+const rowStart = ref(0);
+// A page with fewer rows than where the bar was looking shows its last row.
+const shownRow = computed(() => Math.min(rowStart.value, Math.max(0, snapshot.value.rows - 1)));
+watch(
+  () => snapshot.value.pageIndex,
+  () => {
+    rowStart.value = 0;
+  },
+);
+
+function stepRow(delta: number): void {
+  rowStart.value = Math.min(Math.max(0, shownRow.value + delta), Math.max(0, snapshot.value.rows - 1));
+}
+
+const wheelStep = createWheelStep(() => performance.now());
+function onRowWheel(event: WheelEvent): void {
+  // One row: nothing to step through, so the page keeps the scroll.
+  if (snapshot.value.rows < 2) return;
+  event.preventDefault();
+  const direction = wheelStep(wheelPixels(event));
+  if (direction !== 0) stepRow(direction);
 }
 
 const pageName = computed(() => snapshot.value.pages[snapshot.value.pageIndex]?.name ?? "Pages");

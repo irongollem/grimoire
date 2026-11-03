@@ -37,7 +37,7 @@
 
     <StarterScenesCard v-if="list === 'scenes' && scenesEmpty" compact />
 
-    <p v-if="canPlace" class="text-caption text-muted-foreground">Click a row to put it in the selected slot, or drag it onto the deck.</p>
+    <p v-if="canPlace" class="text-caption text-muted-foreground">Pick a row to put it in the selected slot, or drag it onto the deck.</p>
     <p v-else class="text-caption text-muted-foreground">Drag a row onto the deck, or select an empty slot first.</p>
 
     <ul v-if="rows.length > 0" class="min-h-0 flex-1 space-y-0.5 overflow-y-auto" :aria-label="`${list} library`">

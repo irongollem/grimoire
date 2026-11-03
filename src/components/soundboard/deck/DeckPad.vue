@@ -36,12 +36,12 @@
     :data-pad-state="cell.light"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
-    @pointerup="endPress"
-    @pointercancel="endPress"
-    @lostpointercapture="endPress"
+    @pointerup="onPointerUp"
+    @pointercancel="cancelPress"
+    @lostpointercapture="cancelPress"
     @keydown="onKeyDown"
     @keyup="onKeyUp"
-    @blur="endPress"
+    @blur="cancelPress"
     @contextmenu.prevent
     @click="onClick"
     @dragstart="onDragStart"
@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import { cn } from "@/lib/utils";
 import {
   IconAdd,
@@ -144,6 +144,12 @@ import { isLit, launchModeWords, padAccessibleName, padCategory, toolChipFor } f
  * the lostpointercapture the browser fires afterwards all land in `endPress`,
  * which only acts while a press is open. A Gate pad that never heard its
  * release would play forever.
+ *
+ * A finger is not pressed the moment it lands, because on a phone the same touch
+ * may be the start of a scroll through the deck: it is a tap when it lifts where
+ * it landed, a hold once it has stayed still for TOUCH_HOLD_MS, and nothing at all
+ * once it moves or the browser takes it for a scroll (pointercancel). A mouse,
+ * a pen and a key still press at once.
  */
 
 const {
@@ -291,6 +297,38 @@ function levelFromPointer(event: PointerEvent): void {
 let lastVolume = -1;
 let dragging = false;
 
+// ── A finger: a tap, a hold, or a scroll that only started on a pad ─────────
+
+/** A finger that stays down this long without moving is a hold, so Gate and Repeat still work by touch. */
+const TOUCH_HOLD_MS = 120;
+/** A finger that travels further than this is scrolling, not pressing. */
+const TOUCH_SLOP_PX = 10;
+
+let touch: { x: number; y: number; timer: ReturnType<typeof setTimeout> } | null = null;
+
+function forgetTouch(): void {
+  if (touch === null) return;
+  clearTimeout(touch.timer);
+  touch = null;
+}
+
+/** pointercancel (the browser took the touch for a scroll), a lost capture, a blur: no press, and an open one ends. */
+function cancelPress(): void {
+  forgetTouch();
+  endPress();
+}
+
+function onPointerUp(): void {
+  // Lifted before it became a hold: a tap, pressed and released at once.
+  if (touch !== null) {
+    forgetTouch();
+    startPress();
+  }
+  endPress();
+}
+
+onBeforeUnmount(forgetTouch);
+
 function onPointerDown(event: PointerEvent): void {
   if (mode === "build" || event.button !== 0) return;
   const target = event.currentTarget;
@@ -303,11 +341,24 @@ function onPointerDown(event: PointerEvent): void {
     levelFromPointer(event);
     return;
   }
+  if (event.pointerType === "touch") {
+    forgetTouch();
+    touch = {
+      x: event.clientX,
+      y: event.clientY,
+      timer: setTimeout(() => {
+        touch = null;
+        startPress();
+      }, TOUCH_HOLD_MS),
+    };
+    return;
+  }
   startPress();
 }
 
 function onPointerMove(event: PointerEvent): void {
   if (dragging) levelFromPointer(event);
+  if (touch !== null && Math.hypot(event.clientX - touch.x, event.clientY - touch.y) > TOUCH_SLOP_PX) forgetTouch();
 }
 
 function onClick(): void {

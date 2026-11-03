@@ -36,7 +36,9 @@ const toastError = vi.fn();
 const replace = vi.fn();
 
 vi.mock("vue-router", () => ({ useRoute: () => route, useRouter: () => ({ replace }) }));
-vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => ref(true), useBelow: () => ref(false) }));
+// Wide (lg and up) by default; a test sets it false for the phone and tablet sheets.
+const screen = vi.hoisted(() => ({ wide: true }));
+vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => ref(screen.wide), useBelow: () => ref(!screen.wide) }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError, fromError: (_e: unknown, f: string) => f }) }));
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: ref(true) }) }));
@@ -93,12 +95,13 @@ const STUB_NAMES = [
 const mounted: VueWrapper[] = [];
 afterEach(() => mounted.splice(0).forEach((w) => w.unmount()));
 
-function mountView() {
+function mountView(extraStubs: Record<string, unknown> = {}) {
   const wrapper = mount(SoundboardView, {
     global: {
       stubs: {
         ...Object.fromEntries(STUB_NAMES.map((n) => [n, true])),
         ListPageLayout: { template: '<div><slot name="actions" /><slot /></div>' },
+        ...extraStubs,
       },
     },
   });
@@ -122,6 +125,7 @@ beforeEach(() => {
   kinds.value = { "scene-pad": "scene" };
   dmMode.dmMode = "prep";
   route.query = {};
+  screen.wide = true;
   for (const m of [createPad, movePad, addTake, createPage, toastError, replace]) m.mockReset();
 });
 
@@ -196,10 +200,6 @@ describe("click to place", () => {
     const library = () => w.findComponent({ name: "DeckLibraryPanel" });
     expect(library().props("canPlace")).toBe(false);
 
-    grid(w).vm.$emit("select", { lane: 0, row: 0, padId: "sound-pad" });
-    await w.vm.$nextTick();
-    expect(library().props("canPlace")).toBe(false);
-
     grid(w).vm.$emit("select", { lane: 6, row: 1, padId: null });
     await w.vm.$nextTick();
     expect(library().props("canPlace")).toBe(true);
@@ -212,6 +212,88 @@ describe("click to place", () => {
     const w = mountView();
     w.findComponent({ name: "DeckLibraryPanel" }).vm.$emit("place", { kind: "sound", id: "s-new" });
     expect(createPad).not.toHaveBeenCalled();
+  });
+});
+
+describe("the side panel", () => {
+  const sideSwitch = (w: VueWrapper) =>
+    w.findAllComponents({ name: "SegmentedControl" }).find((c) => c.attributes("aria-label") === "Side panel");
+
+  it("shows the library until a pad is picked, then that pad's settings in the same place", async () => {
+    // Library and settings were two columns, and the library stepped aside below 2xl, so the page jumped on every pick.
+    const w = mountView();
+    expect(w.findComponent({ name: "DeckLibraryPanel" }).exists()).toBe(true);
+    expect(w.findComponent({ name: "PadSettingsPanel" }).exists()).toBe(false);
+    grid(w).vm.$emit("select", { lane: 0, row: 0, padId: "sound-pad" });
+    await w.vm.$nextTick();
+    expect(w.findComponent({ name: "PadSettingsPanel" }).props("padId")).toBe("sound-pad");
+    expect(w.findComponent({ name: "DeckLibraryPanel" }).exists()).toBe(false);
+    expect(sideSwitch(w)?.props("modelValue")).toBe("pad");
+  });
+
+  it("flips back to the library with the pad still picked, so another take can be dragged onto it", async () => {
+    const w = mountView();
+    grid(w).vm.$emit("select", { lane: 0, row: 0, padId: "sound-pad" });
+    await w.vm.$nextTick();
+    sideSwitch(w)?.vm.$emit("update:modelValue", "library");
+    await w.vm.$nextTick();
+    expect(w.findComponent({ name: "DeckLibraryPanel" }).exists()).toBe(true);
+    expect(grid(w).props("selectedPadId")).toBe("sound-pad");
+  });
+
+  it("goes back to the library when an empty slot is picked after a pad", async () => {
+    const w = mountView();
+    grid(w).vm.$emit("select", { lane: 0, row: 0, padId: "sound-pad" });
+    await w.vm.$nextTick();
+    grid(w).vm.$emit("select", { lane: 6, row: 1, padId: null });
+    await w.vm.$nextTick();
+    expect(w.findComponent({ name: "DeckLibraryPanel" }).props("canPlace")).toBe(true);
+  });
+
+  it("Done on the settings hands the panel back to the library, and the switch says so", async () => {
+    // Otherwise the switch stays on a Pad option that has just been disabled.
+    const w = mountView();
+    grid(w).vm.$emit("select", { lane: 0, row: 0, padId: "sound-pad" });
+    await w.vm.$nextTick();
+    w.findComponent({ name: "PadSettingsPanel" }).vm.$emit("close");
+    await w.vm.$nextTick();
+    expect(sideSwitch(w)?.props("modelValue")).toBe("library");
+    expect(w.findComponent({ name: "DeckLibraryPanel" }).exists()).toBe(true);
+  });
+
+  it("cannot switch to Pad with no pad picked", () => {
+    const w = mountView();
+    const control = sideSwitch(w);
+    if (control === undefined) throw new Error("no side panel switch");
+    const pad = (control.props("options") as Array<{ value: string; disabled?: boolean }>).find((o) => o.value === "pad");
+    expect(pad?.disabled).toBe(true);
+  });
+});
+
+describe("tap to place on a phone", () => {
+  // A sheet that draws its contents, so the library inside it can be reached.
+  const MobileSheet = { name: "MobileSheet", props: ["open", "title", "showUntil"], template: "<div><slot /></div>" };
+  const librarySheet = (w: VueWrapper) =>
+    w.findAllComponents({ name: "MobileSheet" }).find((sheet) => sheet.props("title") === "Library");
+
+  it("opens the library on an empty slot tapped, and a row tapped there fills that slot", async () => {
+    // Drag and drop is the only other way onto a slot, and a phone has no drag.
+    screen.wide = false;
+    const w = mountView({ MobileSheet });
+    expect(librarySheet(w)?.props("open")).toBe(false);
+    grid(w).vm.$emit("select", { lane: 3, row: 1, padId: null });
+    await w.vm.$nextTick();
+    expect(librarySheet(w)?.props("open")).toBe(true);
+    librarySheet(w)?.findComponent({ name: "DeckLibraryPanel" }).vm.$emit("place", { kind: "sound", id: "s-new" });
+    expect(createPad.mock.calls[0]?.[0]).toEqual({ pad: { page_id: "pg-a", lane: 3, grid_row: 1 }, soundIds: ["s-new"] });
+  });
+
+  it("does not open the library for a pad tapped: that opens its settings", async () => {
+    screen.wide = false;
+    const w = mountView({ MobileSheet });
+    grid(w).vm.$emit("select", { lane: 0, row: 0, padId: "sound-pad" });
+    await w.vm.$nextTick();
+    expect(librarySheet(w)?.props("open")).toBe(false);
   });
 });
 
@@ -235,10 +317,12 @@ describe("?pad=", () => {
 describe("build or play", () => {
   it("opens in Build when no session runs and Play when one does", () => {
     dmMode.dmMode = "prep";
-    expect(mountView().findComponent({ name: "SegmentedControl" }).props("modelValue")).toBe("build");
+    const modeSwitch = (w: VueWrapper) =>
+      w.findAllComponents({ name: "SegmentedControl" }).find((c) => c.attributes("aria-label") === "Build or play");
+    expect(modeSwitch(mountView())?.props("modelValue")).toBe("build");
     dmMode.dmMode = "play";
     const w = mountView();
-    expect(w.findComponent({ name: "SegmentedControl" }).props("modelValue")).toBe("play");
+    expect(modeSwitch(w)?.props("modelValue")).toBe("play");
     expect(w.findComponent({ name: "BuilderPlayDeck" }).exists()).toBe(true);
     expect(w.findComponent({ name: "DeckLibraryPanel" }).exists()).toBe(false);
   });

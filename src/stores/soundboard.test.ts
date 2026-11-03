@@ -293,6 +293,32 @@ describe("fades replace hard cuts", () => {
     expect(el.paused).toBe(true);
   });
 
+  it("leaves the gain at silence when the fade ends, so the moment after pause() is not loud", async () => {
+    // pause() lags the audio thread: on iOS the element plays on briefly, and a gain put back to full as it
+    // stopped made the last fraction of a second of every fade-out louder than the music it ended.
+    const store = await loadStore();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    await flush();
+    engineCalls.setSoundVolume.mockClear();
+    store.stop("s1");
+    await flush();
+    expect(created[0].paused).toBe(true);
+    expect(engineCalls.setSoundVolume).not.toHaveBeenCalled();
+  });
+
+  it("the next play after a fade-out sets its own level again", async () => {
+    const store = await loadStore();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    await flush();
+    store.setVolume("s1", 0.6);
+    store.stop("s1");
+    await flush();
+    engineCalls.setSoundVolume.mockClear();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    await flush();
+    expect(engineCalls.setSoundVolume).toHaveBeenCalledWith("s1", 0.6, 0);
+  });
+
   it("does not let a stale fade-out pause a sound that has already restarted", async () => {
     const store = await loadStore();
     store.play("s1", "https://example.test/a.mp3", "music");
