@@ -4,15 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import type { JSONContent } from "@tiptap/core";
 import { useBookChapterHtml } from "./useBookChapterHtml";
 import type { ScriptoriumKind } from "@/types/scriptorium.types";
+import { entityRefKey } from "@/lib/scriptorium/entityEmbeds";
 
-const state = vi.hoisted(() => ({ chapters: [] as unknown[] }));
+const state = vi.hoisted(() => ({ chapters: [] as unknown[], lookup: {} as Record<string, string> }));
 vi.mock("@/composables/scriptorium/useScriptoriumChapters", async () => {
   const { computed } = await import("vue");
   return { useBookChaptersFull: () => ({ data: computed(() => state.chapters) }) };
 });
 vi.mock("@/composables/scriptorium/useEntityEmbedData", async () => {
   const { computed } = await import("vue");
-  return { useEntityEmbedData: () => ({ lookup: computed(() => ({})) }) };
+  return { useEntityEmbedData: () => ({ lookup: computed(() => state.lookup) }) };
 });
 
 const p = (text: string): JSONContent => ({ type: "paragraph", content: [{ type: "text", text }] });
@@ -26,11 +27,14 @@ const lens: JSONContent = {
 };
 const secret: JSONContent = { type: "secretBlock", attrs: { secretId: "x" }, content: [p("hidden plot")] };
 
-function feed(kind: ScriptoriumKind) {
-  state.chapters = [
+function feed(
+  kind: ScriptoriumKind,
+  chapters: unknown[] = [
     { id: "a", updated_at: "1", content: doc(p("chapter a"), lens, secret) },
     { id: "b", updated_at: "1", content: doc(p("chapter b")) },
-  ];
+  ],
+) {
+  state.chapters = chapters;
   const live = ref<{ id: string; json: JSONContent } | null>(null);
   const liveVersion = ref(0);
   const scope = effectScope();
@@ -64,6 +68,15 @@ describe("useBookChapterHtml", () => {
     const book = feed("book");
     expect(book.chapters()[0]!.html).toContain("deep text");
     book.scope.stop();
+  });
+
+  it("fills a linked monster into the page, instead of printing an empty box", () => {
+    state.lookup = { [entityRefKey({ type: "monster", id: "m1" })]: "<p>Toffee Maw stat block</p>" };
+    const embed: JSONContent = { type: "entityEmbed", attrs: { entityType: "monster", entityId: "m1" } };
+    const { chapters, scope } = feed("book", [{ id: "a", updated_at: "1", content: doc(p("before"), embed) }]);
+    expect(chapters()[0]!.html).toContain("Toffee Maw stat block");
+    state.lookup = {};
+    scope.stop();
   });
 
   it("takes the open chapter from the editor, and the others from the saved copy", () => {

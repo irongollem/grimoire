@@ -180,6 +180,14 @@ export function applyEmbedNodeOptions(root: Element, opts: EmbedNodeOptions): vo
 }
 
 /**
+ * What an `entityEmbed` node renders as (`entityEmbed.ts` renderHTML): the one
+ * test for "this HTML links an entity". The book preview once tested for the
+ * node's name, `data-type="entityEmbed"`, which the HTML never contains, so
+ * every linked monster, NPC and item printed as an empty box.
+ */
+export const ENTITY_EMBED_MARKER = 'data-type="entity-embed"';
+
+/**
  * Replace every `entityEmbed` placeholder div in a rendered HTML string with
  * its entity's current, sanitized content — or the missing-entity marker when
  * the lookup has nothing for it (deleted entity, or a fetch still in flight
@@ -194,7 +202,7 @@ export function applyEmbedNodeOptions(root: Element, opts: EmbedNodeOptions): vo
  * injection.
  */
 export function resolveEntityEmbeds(html: string, lookup: EntityEmbedLookup): string {
-  if (!html.includes('data-type="entity-embed"')) return html;
+  if (!html.includes(ENTITY_EMBED_MARKER)) return html;
 
   const container = document.createElement("div");
   container.innerHTML = html;

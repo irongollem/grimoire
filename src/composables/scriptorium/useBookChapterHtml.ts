@@ -14,7 +14,7 @@ import type { JSONContent } from "@tiptap/core";
 import { useBookChaptersFull } from "@/composables/scriptorium/useScriptoriumChapters";
 import { useEntityEmbedData } from "@/composables/scriptorium/useEntityEmbedData";
 import { chapterLayoutHtml } from "@/lib/scriptorium/layoutContent";
-import { collectEntityRefs, entityRefKey, resolveEntityEmbeds } from "@/lib/scriptorium/entityEmbeds";
+import { collectEntityRefs, ENTITY_EMBED_MARKER, entityRefKey, resolveEntityEmbeds } from "@/lib/scriptorium/entityEmbeds";
 import type { EntityRef } from "@/lib/scriptorium/entityEmbeds";
 import type { BookChapterInput } from "@/lib/scriptorium/bookLayout/types";
 import type { ScriptoriumKind, ScriptoriumTheme } from "@/types/scriptorium.types";
@@ -31,7 +31,6 @@ interface Memo {
   resolved: string;
 }
 
-const EMBED_MARKER = 'data-type="entityEmbed"';
 
 export function useBookChapterHtml(options: {
   documentId: Ref<string>;
@@ -102,7 +101,7 @@ export function useBookChapterHtml(options: {
     const out: BookChapterInput[] = [];
     for (const chapter of full.value ?? []) {
       const memo = entryOf(chapter);
-      if (memo.html.includes(EMBED_MARKER) && memo.resolvedFor !== lookup.value) {
+      if (memo.html.includes(ENTITY_EMBED_MARKER) && memo.resolvedFor !== lookup.value) {
         memo.resolved = resolveEntityEmbeds(memo.html, lookup.value);
         memo.resolvedFor = lookup.value;
       }
