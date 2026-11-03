@@ -70,6 +70,10 @@ export function canEditClass(cls: CustomClass | SystemClass, viewer: ClassViewer
 
 /** The custom-class insert that copies any class the viewer can read, ready to be edited. */
 export function customClassCopy(cls: CustomClass | SystemClass): CustomClassInsert {
+  // A row cached by a build before #934 has no `capabilities`. Copying it would
+  // make a Druid copy that cannot Wild Shape, so refuse until the fresh row lands
+  // (it is refetched at once, so a second try a moment later succeeds).
+  if (!Array.isArray(cls.capabilities)) throw new Error("This class is still loading. Try again in a moment.");
   return {
     class_name: `${cls.class_name} (copy)`,
     campaign_id: null,
@@ -90,6 +94,8 @@ export function customClassCopy(cls: CustomClass | SystemClass): CustomClassInse
     source: null,
     image_url: cls.image_url,
     focal_point: cls.focal_point,
+    // A copy of a Wild Shape class is one too (#934).
+    capabilities: [...cls.capabilities],
   };
 }
 

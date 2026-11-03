@@ -149,6 +149,7 @@ function classRow(definitionId: string, levels: number, overrides: Partial<Chara
     is_primary: false,
     hit_dice_used: 0,
     sort_order: 0,
+    capabilities: [],
     created_at: "",
     updated_at: "",
     ...overrides,

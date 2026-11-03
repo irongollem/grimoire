@@ -406,6 +406,7 @@ const sampleClassRow: CharacterClass = {
   is_primary: true,
   hit_dice_used: 0,
   sort_order: 0,
+  capabilities: [],
   created_at: nowIso,
   updated_at: nowIso,
 };

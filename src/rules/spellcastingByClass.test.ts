@@ -16,6 +16,7 @@ function classEntry(overrides: Partial<CharacterClass> = {}): CharacterClass {
     is_primary: true,
     hit_dice_used: 0,
     sort_order: 0,
+    capabilities: [],
     created_at: "",
     updated_at: "",
     ...overrides,

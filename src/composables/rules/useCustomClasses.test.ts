@@ -59,6 +59,7 @@ const library = {
   prepared_divisor: null,
   image_url: null,
   focal_point: null,
+  capabilities: [],
 } as unknown as SystemClass;
 
 describe("fetchClassRecord", () => {
@@ -184,6 +185,15 @@ describe("isCustomClass and customClassCopy", () => {
       source: null,
       features: { "1": ["f1"] },
     });
+  });
+
+  // Bug: a library Druid from a previous build's cache has no `capabilities`, and
+  // its copy was saved with none, so the DM's own Druid could never Wild Shape.
+  it("copies the Wild Shape capability, and refuses a row whose capabilities have not loaded", () => {
+    const druid = { ...library, class_name: "Druid", capabilities: ["wild_shape"] } as unknown as SystemClass;
+    expect(customClassCopy(druid).capabilities).toEqual(["wild_shape"]);
+    const stale = { ...library, class_name: "Druid", capabilities: undefined } as unknown as SystemClass;
+    expect(() => customClassCopy(stale)).toThrow(/still loading/);
   });
 });
 
