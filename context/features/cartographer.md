@@ -121,7 +121,7 @@ Project-wide policy. The pack loader **rejects any non-`.webp` asset**. Exports 
 
 ### Wall model: edge-based walls + optional cell-based solid blocks
 
-**Chosen:** walls are stored on **cell edges**, not in cells. Walls live in one segment graph, `layers.walls` (#1125 decision 5): a wall on a grid line is keyed by its lattice edge key, `"x,y:N"` for the top of cell (x,y) and `"x,y:W"` for its left, so a lattice edge is stored once; an angled wall is keyed by a uuid and carries its own endpoints `a` and `b`. A segment with `visible: false` blocks sight and light but is not drawn (an imported wall over a picture that already shows it). Placed lights are `layers.lights`, keyed by uuid (migration 20261101213552). A separate **`solidBlock`** layer lets the DM place full-cell thick walls (5 ft of dressed stone, sand-filled battlement, mountain rock) when wall thickness is itself part of the dungeon's mass.
+**Chosen:** walls are stored on **cell edges**, not in cells. Walls live in one segment graph, `layers.walls` (#1125 decision 5): a wall on a grid line is keyed by its lattice edge key, `"x,y:N"` for the top of cell (x,y) and `"x,y:W"` for its left, so a lattice edge is stored once; an angled wall is keyed by a uuid and carries its own endpoints `a` and `b`. A segment with `visible: false` blocks sight and light but is not drawn (an imported wall over a picture that already shows it). Placed lights are `layers.lights`, keyed by uuid (migration 20261103093424). A separate **`solidBlock`** layer lets the DM place full-cell thick walls (5 ft of dressed stone, sand-filled battlement, mountain rock) when wall thickness is itself part of the dungeon's mass.
 
 **Why both?**
 
@@ -515,7 +515,7 @@ The brush defaults to **Walls: None**. B from another tool selects Brush; B whil
 
 While dragging, the editor appends new discs to one translucent footprint and leaves the source untouched. A 150 ms pause fits the true preview without committing; resumed movement returns to the footprint. Release commits or reuses that fit as one undo step. The source and chosen target/material/wall mode are captured at pointer-down. `[` / `]` resize (0.5 to 6 cells, default 1.5), and Shift retains straight strokes.
 
-Cell-only saved drawings convert once on read into material regions, grouping contiguous tiles by material while retaining their individual variants. Owner reads write the converted source back so its identities survive reload; another account's read never writes it. New row defaults include `ground` in migration `20261101213559_editable_material_regions.sql`.
+Cell-only saved drawings convert once on read into material regions, grouping contiguous tiles by material while retaining their individual variants. Owner reads write the converted source back so its identities survive reload; another account's read never writes it. New row defaults include `ground` in migration `20261103093431_editable_material_regions.sql`.
 
 Animated water carries the same vector outline in `MapLiveGroup.clip`, offset into image cells, with higher material shapes as covers. `groundMotionClip.ts` applies even-odd shoreline/hole clipping before animation, so the live map cannot shimmer across a shore or through land painted above it. Grid-based outer-mass motion keeps its square coverage.
 

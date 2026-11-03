@@ -1,7 +1,7 @@
--- The table topic (#1125 decision 12, 20261101213554): pings, measure lines and drawings are Broadcast messages a
+-- The table topic (#1125 decision 12, 20261103093426): pings, measure lines and drawings are Broadcast messages a
 -- member sends on `table:<campaign id>`. Only a member of that campaign (DM or player) may hear or send on it; the
 -- doorbell stays receive-only; every predicate is total. Measures, drawings and clears travel on `table-dm:<id>`,
--- which only the DM may send on (20261102234458): Realtime authorizes a sender at join, never per message.
+-- which only the DM may send on (20261103093434): Realtime authorizes a sender at join, never per message.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(17);

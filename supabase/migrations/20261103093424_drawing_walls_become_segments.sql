@@ -8,7 +8,7 @@
 -- existing drawing.
 --
 -- A floor cell that held only walls is left with nothing and is dropped. The live battle map already reads segments
--- (20261101213550), and this move changes nothing a published site shows, so the revision trigger is held off for it:
+-- (20261103093422), and this move changes nothing a published site shows, so the revision trigger is held off for it:
 -- otherwise every published site would read as behind its drawing and ask to be reviewed for no change at all.
 
 alter table public.dungeon_maps disable trigger dungeon_maps_bump_rev;

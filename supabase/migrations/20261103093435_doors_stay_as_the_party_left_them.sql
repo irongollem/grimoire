@@ -2,7 +2,7 @@
 --
 -- A door the DM opened or shut lived in encounter_state.door_states, which belonged to one fight and was reset at the
 -- next Go live; exploring had none at all, so the party could walk through a door in a fight and find it shut again
--- the moment the fight ended. Like the fog (#1133, 20261102225132), a door's play state belongs to the map: it now
+-- the moment the fight ended. Like the fog (#1133, 20261103093432), a door's play state belongs to the map: it now
 -- lives on map_memory beside what the party has seen, per campaign and map place, read by every member and written by
 -- the DM through set_map_door, which merges on the server. The list keeps its shape ({ id, open } overrides of the
 -- drawn state, checked by private.is_door_state_list). encounter_state.door_states moves into it and is dropped, and
