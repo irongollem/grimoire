@@ -1,7 +1,6 @@
 import type { AppliedCondition } from "@/types/condition.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 import type { AiProvenance } from "@/ai/provenance";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { MonsterSize } from "@/types/monster.types";
 export type { RewardCurrencyPool };
 
@@ -456,9 +455,6 @@ export interface EncounterState {
   events_fired?: string[];
   /** Magical darkness on the battle map; reaches players through the player-safe projection. */
   magical_darkness: MagicalDarknessZone[];
-  /** Doors the DM has opened or shut this fight, over their drawn state in `locations.map_live.doors` (#1073). A door
-   *  not named keeps its drawn state; every go-live starts the list empty. Reaches players like the fog. */
-  door_states: MapLiveDoorState[];
   started_at: string | null;
   updated_at: string;
 }

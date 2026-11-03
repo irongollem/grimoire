@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MapLiveDoor } from "@/types/mapLive.types";
-import { doorAt, effectiveDoors, sameDoorStates, toggleDoor } from "./doors";
+import { doorAt, effectiveDoors, sameDoorStates } from "./doors";
 
 const drawn: MapLiveDoor[] = [
   { id: "3,2:N", a: [3, 2], b: [4, 2], open: false, leaf: null },
@@ -56,32 +56,6 @@ describe("doorAt on angled doors", () => {
       { id: "near", a: [0, 1], b: [4, 1], open: false, leaf: null },
     ];
     expect(doorAt(two, 2, 0.7)).toBe("near");
-  });
-});
-
-describe("toggleDoor", () => {
-  it("adds an override that flips the drawn state", () => {
-    expect(toggleDoor(drawn, [], "3,2:N")).toEqual([{ id: "3,2:N", open: true }]);
-  });
-
-  it("drops the override when the door goes back to its drawn state", () => {
-    const once = toggleDoor(drawn, [], "3,2:N");
-    expect(toggleDoor(drawn, once, "3,2:N")).toEqual([]);
-  });
-
-  it("returns a new array and leaves other overrides alone", () => {
-    const start = [{ id: "5,4:W", open: false }];
-    const next = toggleDoor(drawn, start, "3,2:N");
-    expect(next).not.toBe(start);
-    expect(next).toEqual([
-      { id: "5,4:W", open: false },
-      { id: "3,2:N", open: true },
-    ]);
-  });
-
-  it("ignores an id that is not a door, keeping the overrides it has", () => {
-    const start = [{ id: "5,4:W", open: false }];
-    expect(toggleDoor(drawn, start, "0,0:N")).toEqual(start);
   });
 });
 

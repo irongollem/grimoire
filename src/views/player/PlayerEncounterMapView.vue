@@ -161,11 +161,9 @@ import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import { usePartySight } from "@/composables/encounters/usePartySight";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
-import { sameDoorStates } from "@/lib/battlemap/doors";
+import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
-import { NO_DOOR_STATES } from "@/lib/battlemap/occlusion";
 import { imageGrid, partyVisibleCombatants, shownCells, type MapGrid } from "@/lib/battlemap/partySight";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
 import { resolveBattleSurface } from "@/lib/battlemap/roomBridge";
 import { isInteriorType } from "@/lib/locations/tiers";
 import { usePlayerMapFollow } from "@/composables/player/usePlayerMapFollow";
@@ -253,13 +251,13 @@ const {
   resetView,
 } = useMapCanvas();
 
-// Spheres of magical darkness and the doors the DM opened or shut this fight, from the player-safe projection. A re-read
-// hands a fresh array of equal content; the previous one is kept so the occluders memoised on its identity are not rebuilt.
+// Spheres of magical darkness, from the player-safe projection.
 const zones = computed<readonly DarknessZone[]>(() => (liveState.value ? liveState.value.magical_darkness : NO_ZONES));
-const doorStates = computed<readonly MapLiveDoorState[]>((prev) => {
-  const next = liveState.value ? liveState.value.door_states : NO_DOOR_STATES;
-  return prev && sameDoorStates(prev, next) ? prev : next;
-});
+// The doors the DM opened or shut are the map's, like the fog, and only read here.
+const { doorStates } = useMapDoors(
+  () => campaignStore.activeCampaign?.id ?? null,
+  () => location.value?.id ?? null,
+);
 
 // The map's grid in battle cells: the calibration gives the columns, the picture's shape the rows.
 const mapGrid = computed<MapGrid | null>(() => {

@@ -264,7 +264,7 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // A place's map: the DM's site views, and the players' site state.
   ["location_doors", ["location-doors", "site-doors", "player-visible-site-state"]],
   // What the party has seen of a place's map, shared by exploring and every fight on it.
-  ["map_memory", ["map-memory"]],
+  ["map_memory", ["map-memory", "map-doors"]],
   ["location_map_regions", ["location-map-regions", "player-visible-site-state"]],
   // Quest wiring. get_player_visible_quest_beats reads all three of edges,
   // attachments and refs for the players' story so far.

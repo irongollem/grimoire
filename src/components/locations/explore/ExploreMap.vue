@@ -27,6 +27,7 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
+        :door-states="doorStates"
       />
 
       <ExploreRoomLayer
@@ -139,7 +140,9 @@ import { isClick } from "@/components/encounters/play/playPointer";
 import { usePlayTokenMoves, type MoveMapState, type MoveTurnBook } from "@/components/encounters/play/usePlayTokenMoves";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
-import { occludersOf } from "@/lib/battlemap/occlusion";
+import { doorAt, effectiveDoors } from "@/lib/battlemap/doors";
+import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
+import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import type { ExploreCell, ExploreFrame } from "@/lib/locations/explore";
 import { DEFAULT_PLAY_VIEW, PLAY_TOOL_KEYS, type ExploreTool, type PlayTool, type PlayViewState } from "@/components/encounters/play/playTypes";
@@ -164,6 +167,7 @@ const {
   groupIds = [],
   fogMask = null,
   fogSeen = null,
+  doorStates = NO_DOOR_STATES,
 } = defineProps<{
   surface: BattleSurface;
   tokens: RunCombatant[];
@@ -178,6 +182,8 @@ const {
   fogMask?: Set<FogCellKey> | null;
   /** The squares in view right now; a revealed square outside it keeps a partial fog. */
   fogSeen?: ReadonlySet<FogCellKey> | null;
+  /** The doors the DM has opened or shut on this map (`map_memory`), over their drawn state. */
+  doorStates?: readonly MapLiveDoorState[];
 }>();
 
 const emit = defineEmits<{
@@ -189,6 +195,8 @@ const emit = defineEmits<{
   seat: [memberIds: string[], at: ExploreCell];
   /** The picture's size in image cells, once it has loaded. */
   frame: [frame: ExploreFrame];
+  /** A press on a door, under any tool: the door and the state it should take. */
+  door: [id: string, open: boolean];
 }>();
 
 const {
@@ -248,10 +256,10 @@ const mapState: MoveMapState = {
   placed,
   monsters: computed<Monster[]>(() => []),
   activeInstanceId: computed<string | null>(() => null),
-  // Walls stop a path as they do in a fight; a door drawn open or shut stays as drawn, as nothing here toggles one.
+  // Walls stop a path as they do in a fight; a door stands as the map holds it (drawn, or as the DM left it).
   moveTerrain: computed(() => ({
     difficult: new Set<string>(),
-    walls: surface.live ? occludersOf(surface.live, []).segments : [],
+    walls: surface.live ? occludersOf(surface.live, doorStates).segments : [],
   })),
   moveCombatant: (instanceId, position) => {
     const memberId = tokens.find((c) => c.instance_id === instanceId)?.party_member_id;
@@ -326,9 +334,24 @@ function clickSquare(at: { x: number; y: number } | null) {
 const press = ref<{ x: number; y: number; kind: "pan" | "box" } | null>(null);
 const boxEnd = ref<{ x: number; y: number } | null>(null);
 
+/** The door under a point and the state a press would give it, or null when none is there. */
+function doorPress(at: { x: number; y: number } | null): { id: string; open: boolean } | null {
+  if (!at || !surface.live) return null;
+  const doors = effectiveDoors(surface.live.doors, doorStates);
+  const id = doorAt(doors, at.x, at.y);
+  const door = doors.find((d) => d.id === id);
+  return door ? { id: door.id, open: !door.open } : null;
+}
+
 function onPointerDown(e: PointerEvent) {
   if (!imageReady.value) return;
   moves.hover.value = null;
+  // Doors open and shut under any tool, as they do in a fight, so one opened while exploring stays open in the next.
+  const door = doorPress(imageCellAt(e.clientX, e.clientY));
+  if (door) {
+    emit("door", door.id, door.open);
+    return;
+  }
   if (tableTools.owns.value) {
     const at = imageCellAt(e.clientX, e.clientY);
     if (!at) return;

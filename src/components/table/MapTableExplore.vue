@@ -4,6 +4,7 @@
     :surface="surface"
     :combatants="standing"
     :fog-mask="fogMask"
+    :door-states="doorStates"
     :seen="sight"
     :viewers="viewers"
     :follow="follow"
@@ -29,6 +30,7 @@ import { usePartySight } from "@/composables/encounters/usePartySight";
 import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
 import { usePartyTokenSizes } from "@/composables/locations/useExploreParty";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";
+import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { imageGrid, shownCells, tableTokens } from "@/lib/battlemap/partySight";
@@ -70,9 +72,11 @@ const eyebrow = computed(() => (waiting.value ? "Waiting" : room.value ? "The pa
 
 const imageSize = ref<{ w: number; h: number } | null>(null);
 const grid = computed(() => imageGrid(surface.value?.calibration.cells_per_image_width, imageSize.value));
+// The doors the DM opened or shut are the map's, like the fog, and only read here.
+const { doorStates } = useMapDoors(() => campaign.activeCampaignId, mapId);
 const { viewers, sight } = usePartySight({
   live: () => surface.value?.live ?? null,
-  doorStates: [],
+  doorStates,
   zones: [],
   tokens: standing,
   grid,

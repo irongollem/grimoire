@@ -23,6 +23,16 @@ const h = vi.hoisted(() => ({
   explored: new Set<string>(),
   assert: vi.fn(),
   statesLoaded: { value: true },
+  doors: { value: [] as { id: string; open: boolean }[] },
+  setDoor: vi.fn(() => Promise.resolve()),
+  doorArgs: [] as unknown[],
+}));
+
+vi.mock("@/composables/locations/useMapDoors", () => ({
+  useMapDoors: (...args: unknown[]) => {
+    h.doorArgs = args;
+    return { doorStates: h.doors, setDoor: h.setDoor };
+  },
 }));
 
 vi.mock("@/composables/locations/useMapMemory", () => ({
@@ -101,6 +111,7 @@ describe("usePlayMapState", () => {
     h.zones.value = [];
     h.regions.value = [];
     h.memory.value = new Set();
+    h.doors.value = [];
     h.explored = new Set();
     h.statesLoaded.value = true;
     useCampaignStore().activeCampaign = { id: "c1", explore_party: null } as Campaign;
@@ -131,16 +142,27 @@ describe("usePlayMapState", () => {
   });
 
   // #1125 frame 10: "doors toggle by clicking a door in ANY tool", so the click must find the door and nothing else.
-  it("flips the door under the click and leaves the other doors and clicks alone", () => {
-    h.isLive.value = true;
+  it("opens the door under the click through the map's doors, live or not, and leaves other clicks alone", () => {
     const s = setup();
     expect(s.toggleDoorAt(3.5, 2.1)).toBe(true);
-    expect(s.doorStates.value).toEqual([{ id: "3,2:N", open: true }]);
-    expect(h.scheduleMapPush).toHaveBeenCalledWith({ doorStates: [{ id: "3,2:N", open: true }] });
-
-    h.scheduleMapPush.mockClear();
-    expect(s.toggleDoorAt(8, 8)).toBe(false);
+    expect(h.setDoor).toHaveBeenCalledWith("3,2:N", true);
     expect(h.scheduleMapPush).not.toHaveBeenCalled();
+    expect((h.doorArgs[1] as () => string)()).toBe("l1");
+
+    h.setDoor.mockClear();
+    expect(s.toggleDoorAt(8, 8)).toBe(false);
+    expect(h.setDoor).not.toHaveBeenCalled();
+  });
+
+  it("shuts a door the map holds open, from the drawn state plus the overrides", () => {
+    h.doors.value = [{ id: "3,2:N", open: true }];
+    setup().toggleDoorAt(3.5, 2.1);
+    expect(h.setDoor).toHaveBeenCalledWith("3,2:N", false);
+  });
+
+  it("a follower window never writes a door", () => {
+    expect(setup("follower").toggleDoorAt(3.5, 2.1)).toBe(false);
+    expect(h.setDoor).not.toHaveBeenCalled();
   });
 
   it("does not push anything before the fight is live", () => {
@@ -297,9 +319,8 @@ describe("usePlayMapState", () => {
 
   it("an open door no longer wedges anyone", () => {
     h.surface.value = { ...(h.surface.value as object), live: { walls: [], doors: [door], solid: [] } };
-    const s = setup();
-    s.toggleDoorAt(3.5, 2.1);
-    expect(s.moveTerrain.value.walls).toEqual([]);
+    h.doors.value = [{ id: "3,2:N", open: true }];
+    expect(setup().moveTerrain.value.walls).toEqual([]);
   });
   // #1125 decision 9: a fight started while exploring the site stands everyone where they were.
   describe("a fight started from exploring", () => {

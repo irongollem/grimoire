@@ -25,6 +25,8 @@ const sightMock = vi.hoisted(() => ({
   memory: new Set<string>(),
   opts: null as null | { onlyInstanceId: () => string | null; grid: { value: unknown } | (() => unknown) },
   memoryArgs: null as null | { campaign: string | null; place: string | null },
+  doorArgs: null as null | { campaign: string | null; place: string | null },
+  doors: [] as { id: string; open: boolean }[],
   campaign: { id: "c1", battle_map_show_tokens: true, player_sight: "shared" } as Record<string, unknown>,
   writers: vi.fn(),
 }));
@@ -84,6 +86,15 @@ vi.mock("@/composables/encounters/usePartySight", async () => {
     },
   };
 });
+vi.mock("@/composables/locations/useMapDoors", async () => {
+  const { computed } = await import("vue");
+  return {
+    useMapDoors: (campaign: () => string | null, place: () => string | null) => {
+      sightMock.doorArgs = { campaign: campaign(), place: place() };
+      return { doorStates: computed(() => sightMock.doors), setDoor: sightMock.writers };
+    },
+  };
+});
 vi.mock("@/composables/locations/useMapMemory", async () => {
   const { computed } = await import("vue");
   return {
@@ -132,7 +143,7 @@ function setLive(activeId: string, locationId = "loc-1") {
   (live.value as { value: unknown }).value = {
     id: "enc-1", location_id: locationId, current_round: 3, active_combatant_index: 0, active_combatant_instance_id: activeId,
     combatants_live: [combatant("p-m1", "Wren", 2, 2, { movement_used: 0 }), combatant("g1", "Goblin", 10, 10)],
-    magical_darkness: [], door_states: [], fog_mask: null, faction_colors: [],
+    magical_darkness: [], fog_mask: null, faction_colors: [],
   };
 }
 
@@ -174,6 +185,7 @@ function tap(wrapper: ReturnType<typeof mountView>, x: number, y: number) {
 
 beforeEach(() => {
   h.phone = true;
+  sightMock.doors = [];
   move.mockReset();
   move.mockResolvedValue(undefined);
   toastError.mockReset();
@@ -246,6 +258,16 @@ describe("what the phone shows of the map (epic #1133)", () => {
     const wrapper = mountView();
     expect(sightMock.memoryArgs).toEqual({ campaign: "c1", place: "loc-1" });
     expect(wrapper.find("[data-testid='fog']").exists()).toBe(true);
+  });
+
+  it("hands sight the doors of the map's own place, so a fight in a room sees the doors the site's plan holds", () => {
+    sightMock.doors = [{ id: "3,2:N", open: true }];
+    setLive("p-m1", "room-1");
+    mountView();
+    const opts = sightMock.opts as unknown as { doorStates: { value: unknown } };
+    expect(opts.doorStates.value).toEqual([{ id: "3,2:N", open: true }]);
+    expect(sightMock.doorArgs).toEqual({ campaign: "c1", place: "loc-1" });
+    expect(sightMock.writers).not.toHaveBeenCalled();
   });
 
   it("reads the memory of the map's place in this campaign and never writes it", () => {

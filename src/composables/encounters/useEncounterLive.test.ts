@@ -57,7 +57,6 @@ const stateRow = (encounter_id: string, over: Record<string, unknown> = {}) => (
   combatants_live: [],
   events_fired: [],
   magical_darkness: [],
-  door_states: [],
   ...over,
 });
 
@@ -136,13 +135,12 @@ describe("goLive", () => {
   const rowOf = (id: string) => fake.rows("encounter_state").find((r) => r.encounter_id === id);
 
   // A second go-live of the same encounter upserts onto the same row, so darkness
-  // or door left from the previous fight would survive into the new one.
-  it("starts a repeat fight clean: no magical darkness, every door as drawn", async () => {
+  // left from the previous fight would survive into the new one. Doors are the map's now, not the fight's (#1134).
+  it("starts a repeat fight clean: no magical darkness", async () => {
     fake.seed("encounter_state", [
       stateRow("encounter-1", {
         is_running: false,
         magical_darkness: [{ id: "z1", x: 1, y: 1, radius: 15 }],
-        door_states: [{ id: "3,2:N", open: true }],
         events_fired: ["old"],
       }),
     ]);
@@ -154,7 +152,6 @@ describe("goLive", () => {
     expect(rowOf("encounter-1")).toMatchObject({
       is_running: true,
       magical_darkness: [],
-      door_states: [],
       events_fired: [],
     });
     expect(fake.rows("encounter_state")).toHaveLength(1);
@@ -252,24 +249,22 @@ describe("pushing state", () => {
 
   // #1120: a second map window writes the map's own state. Riding the roster
   // push, it wrote its stale copy of the roster over the runner's last change.
-  it.each([
-    ["magicalDarkness", "magical_darkness", [{ id: "z1", x: 2.5, y: 3, radius: 15 }]],
-    ["doorStates", "door_states", [{ id: "3,2:N", open: true }]],
-  ])("writes %s on its own, leaving the roster as the runner left it", async (key, column, value) => {
+  it("writes the darkness on its own, leaving the roster as the runner left it", async () => {
     const { scheduleMapPush } = await live({ current_round: 5, combatants_live: [tokenAt("g1", null)] });
-    scheduleMapPush({ [key]: value });
+    const zones = [{ id: "z1", x: 2.5, y: 3, radius: 15 }];
+    scheduleMapPush({ magicalDarkness: zones });
     await vi.advanceTimersByTimeAsync(400);
-    expect(fake.rows("encounter_state")[0]).toMatchObject({ [column]: value, current_round: 5, combatants_live: [tokenAt("g1", null)] });
-    expect(liveState.value?.[column as "door_states"]).toEqual(value);
+    expect(fake.rows("encounter_state")[0]).toMatchObject({ magical_darkness: zones, current_round: 5, combatants_live: [tokenAt("g1", null)] });
+    expect(liveState.value?.magical_darkness).toEqual(zones);
   });
 
-  it("keeps every part of the map's state changed within one burst, not just the last", async () => {
+  it("writes a burst of darkness changes as one update carrying the last", async () => {
     const { scheduleMapPush } = await live();
     scheduleMapPush({ magicalDarkness: [{ id: "z1", x: 1, y: 1, radius: 15 }] });
-    scheduleMapPush({ doorStates: [{ id: "3,2:N", open: true }] });
+    scheduleMapPush({ magicalDarkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
     await vi.advanceTimersByTimeAsync(400);
     expect(updates()).toHaveLength(1);
-    expect(fake.rows("encounter_state")[0]).toMatchObject({ magical_darkness: [{ id: "z1", x: 1, y: 1, radius: 15 }], door_states: [{ id: "3,2:N", open: true }] });
+    expect(fake.rows("encounter_state")[0]).toMatchObject({ magical_darkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
   });
 
   // Leaving the runner for the battle map unmounts it, and dropping its pending
@@ -459,21 +454,21 @@ describe("following the live row", () => {
   // handed back the row without it, and the change flashed back.
   it("holds a read back while this tab has a write pending, then reads once it is written", async () => {
     const { api } = await mountLive(true);
-    api.scheduleMapPush({ doorStates: [{ id: "2,2:N", open: true }] });
+    api.scheduleMapPush({ magicalDarkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
     await setRow({ current_round: 6 });
     ringRow();
     await vi.advanceTimersByTimeAsync(0);
     expect(liveState.value?.current_round).toBe(1);
 
     await vi.advanceTimersByTimeAsync(400);
-    expect(liveState.value).toMatchObject({ current_round: 6, door_states: [{ id: "2,2:N", open: true }] });
+    expect(liveState.value).toMatchObject({ current_round: 6, magical_darkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
   });
 
   it("does not even ask for the row while a write is pending", async () => {
     const { api } = await mountLive(true);
     const reads = () => fake.calls.filter((c) => c.target === "encounter_state" && c.op === "select").length;
     const before = reads();
-    api.scheduleMapPush({ doorStates: [{ id: "2,2:N", open: true }] });
+    api.scheduleMapPush({ magicalDarkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
     ringRow();
     await vi.advanceTimersByTimeAsync(0);
     expect(reads()).toBe(before);
@@ -483,23 +478,11 @@ describe("following the live row", () => {
     const { api } = await mountLive(true);
     await setRow({ current_round: 6 });
     ringRow();
-    api.scheduleMapPush({ doorStates: [{ id: "2,2:N", open: true }] });
+    api.scheduleMapPush({ magicalDarkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
     await vi.advanceTimersByTimeAsync(0);
     expect(liveState.value?.current_round).toBe(1);
     await vi.advanceTimersByTimeAsync(400);
-    expect(liveState.value).toMatchObject({ current_round: 6, door_states: [{ id: "2,2:N", open: true }] });
-  });
-
-  // A door opened a minute after a darkness change re-sent the darkness, over
-  // whatever the other window had drawn since.
-  it("sends each part of the map's state once, not again with the next change", async () => {
-    const { api } = await mountLive(true);
-    api.scheduleMapPush({ magicalDarkness: [{ id: "z1", x: 1, y: 1, radius: 15 }] });
-    await vi.advanceTimersByTimeAsync(400);
-    await setRow({ magical_darkness: [{ id: "z9", x: 9, y: 9, radius: 5 }] });
-    api.scheduleMapPush({ doorStates: [] });
-    await vi.advanceTimersByTimeAsync(400);
-    expect(fake.rows("encounter_state")[0]!.magical_darkness).toEqual([{ id: "z9", x: 9, y: 9, radius: 5 }]);
+    expect(liveState.value).toMatchObject({ current_round: 6, magical_darkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
   });
 
   it("shows a token where the DM put it at once, and writes it through the position function", async () => {

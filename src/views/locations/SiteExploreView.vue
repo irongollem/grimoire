@@ -52,6 +52,8 @@
         :rooms="roomLabels"
         :fog-mask="fogMask"
         :fog-seen="sight"
+        :door-states="doorStates"
+        @door="onDoor"
         :entering-cells="enteringCells"
         :view="view"
         :selected-id="selectedId"
@@ -150,6 +152,8 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useExploreParty, usePartyTokenSizes } from "@/composables/locations/useExploreParty";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import { useDoorStateForSite, useLocationStateForRooms } from "@/composables/locations/useLocationState";
+import { useToast } from "@/composables/useToast";
+import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useRememberSight } from "@/composables/locations/useRememberSight";
@@ -301,10 +305,15 @@ async function goToRoom(roomId: string) {
 }
 
 // ── What the party sees, and what the map remembers of it (epic #1133) ───────
-// Exploring is the DM's controlling window, so it is the one that writes the memory. No doors or darkness are played
-// here, so the site's walls and lights alone decide sight.
+// Exploring is the DM's controlling window, so it is the one that writes the memory and the doors. A door opened here
+// is the map's, so it stays open into a fight and after it (#1134). No darkness is played here.
 const grid = computed(() => (frame.value ? { cols: Math.ceil(frame.value.across), rows: Math.ceil(frame.value.down) } : null));
-const { sight } = usePartySight({ live: () => surface.value?.live ?? null, doorStates: [], zones: [], tokens, grid });
+const toast = useToast();
+const { doorStates, setDoor } = useMapDoors(() => campaign.activeCampaignId, siteId);
+const { sight } = usePartySight({ live: () => surface.value?.live ?? null, doorStates, zones: [], tokens, grid });
+function onDoor(id: string, open: boolean) {
+  setDoor(id, open).catch((error: unknown) => toast.error(toast.fromError(error, "Couldn't save the door.")));
+}
 const mapMemory = useMapMemory(() => campaign.activeCampaignId, siteId);
 // Written only once there is a campaign: with none the memory cannot be read, and a write would fail loudly.
 useRememberSight({ memory: mapMemory, sight, enabled: () => !!campaign.activeCampaignId });

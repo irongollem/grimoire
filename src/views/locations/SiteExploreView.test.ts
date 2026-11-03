@@ -26,6 +26,9 @@ const h = await vi.hoisted(async () => {
     remember: vi.fn(),
     rememberArgs: [] as unknown[],
     memory: vueRef<Set<string>>(new Set()),
+    mapDoors: vueRef<{ id: string; open: boolean }[]>([]),
+    setDoor: vi.fn(() => Promise.resolve()),
+    doorArgs: [] as unknown[],
   };
 });
 
@@ -62,6 +65,12 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 }));
 vi.mock("@/composables/encounters/usePreparedEncounters", () => ({ usePreparedEncounters: () => ({ prepared: h.prepared }) }));
 vi.mock("@/composables/encounters/usePartySight", () => ({ usePartySight: () => ({ sight: ref(new Set(["1,1"])), viewers: ref([]) }) }));
+vi.mock("@/composables/locations/useMapDoors", () => ({
+  useMapDoors: (...args: unknown[]) => {
+    h.doorArgs = args;
+    return { doorStates: h.mapDoors, setDoor: h.setDoor };
+  },
+}));
 vi.mock("@/composables/locations/useMapMemory", () => ({ useMapMemory: () => ({ memory: h.memory, isLoading: ref(false) }) }));
 vi.mock("@/composables/locations/useRememberSight", () => ({
   useRememberSight: (opts: { enabled: boolean | (() => boolean) }) => h.rememberArgs.push(opts.enabled),
@@ -79,8 +88,8 @@ const REGIONS = [region("hall", ["10,20", "11,20", "12,20"]), region("crypt", ["
 
 const MapStub = defineComponent({
   name: "ExploreMap",
-  props: ["tokens", "enteringCells", "fogMask", "fogSeen"],
-  emits: ["move", "select", "update:groupIds", "seat", "frame"],
+  props: ["tokens", "enteringCells", "fogMask", "fogSeen", "doorStates"],
+  emits: ["move", "select", "update:groupIds", "seat", "frame", "door"],
   template: "<div data-testid='map'><slot /></div>",
 });
 const PartyStub = defineComponent({ name: "ExplorePartyPanel", emits: ["go"], template: "<div />" });
@@ -137,7 +146,20 @@ describe("SiteExploreView", () => {
     h.prepared.value = [];
     h.doors.value = [];
     h.memory.value = new Set();
+    h.mapDoors.value = [];
     h.rememberArgs = [];
+  });
+
+  // #1134: a door opened while exploring is the map's, so it is written to the map and shown from it.
+  it("writes a door the map asks for through the map's doors, and hands the map the doors it holds", async () => {
+    h.mapDoors.value = [{ id: "3,2:N", open: true }];
+    const w = mountView();
+    await flushPromises();
+    const map = w.findComponent({ name: "ExploreMap" });
+    expect(map.props("doorStates")).toEqual([{ id: "3,2:N", open: true }]);
+    map.vm.$emit("door", "5,5:E", true);
+    expect(h.setDoor).toHaveBeenCalledWith("5,5:E", true);
+    expect((h.doorArgs[1] as { value: string }).value).toBe("s1");
   });
 
   // Epic #1133 decision 7: entering a room is the exploring; nothing is asked.

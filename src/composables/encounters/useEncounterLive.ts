@@ -3,7 +3,6 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { EncounterState, MagicalDarknessZone, RunCombatant, RunningEncounterState } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
@@ -158,7 +157,6 @@ let rereadAfterWrites: (() => void) | null = null;
 
 interface MapPatch {
   magical_darkness?: MagicalDarknessZone[];
-  door_states?: MapLiveDoorState[];
 }
 
 function writesPending(): boolean {
@@ -304,8 +302,6 @@ export function useEncounterLive(
       started_at: new Date().toISOString(),
       // Likewise a new fight starts without the last one's spheres of darkness.
       magical_darkness: [],
-      // And every door starts as the map drew it: the DM's open and shut doors belong to the fight (#1073).
-      door_states: [],
     };
     const { data, error } = await trackWrite(async () =>
       supabase.from("encounter_state").upsert(payload, { onConflict: "encounter_id" }).select().single(),
@@ -370,12 +366,10 @@ export function useEncounterLive(
 
   /**
    * The battle map's own state, debounced: only the columns given are written, and
-   * patches inside one burst merge, so a door opened while the darkness push is pending
-   * does not drop the darkness.
+   * patches inside one burst merge, so one burst of pushes is one write.
    */
-  function scheduleMapPush(patch: { magicalDarkness?: MagicalDarknessZone[]; doorStates?: MapLiveDoorState[] }) {
+  function scheduleMapPush(patch: { magicalDarkness?: MagicalDarknessZone[] }) {
     if (patch.magicalDarkness !== undefined) pendingMapPatch.magical_darkness = patch.magicalDarkness;
-    if (patch.doorStates !== undefined) pendingMapPatch.door_states = patch.doorStates;
     mapPush.schedule(() => {
       const columns = pendingMapPatch;
       pendingMapPatch = {};

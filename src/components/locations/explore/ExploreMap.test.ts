@@ -129,6 +129,52 @@ describe("ExploreMap", () => {
     expect(w.emitted("move")).toBeUndefined();
   });
 
+  // #1134: "a door can be opened while exploring and stays open into a fight".
+  describe("doors", () => {
+    const doorSurface = {
+      ...surface,
+      live: { walls: [], solid: [], lights: [], darkness: "dark", doors: [{ id: "3,2:N", a: [3, 2], b: [4, 2], open: false, leaf: null }] },
+    } as unknown as BattleSurface;
+
+    async function press(w: ReturnType<typeof mountMap>, x: number, y: number) {
+      const host = w.find("[data-testid=explore-map-host]");
+      (host.element as HTMLElement).setPointerCapture = vi.fn();
+      // 10px a cell, as in the Ping test.
+      const e = new MouseEvent("pointerdown", { clientX: x, clientY: y, bubbles: true });
+      Object.defineProperty(e, "pointerId", { value: 1 });
+      host.element.dispatchEvent(e);
+    }
+
+    it("asks to open the shut door under a press, under any tool, and starts no pan or ping", async () => {
+      const w = mountMap([], "p-a");
+      await w.setProps({ surface: doorSurface });
+      await w.find("[aria-label='Ping']").trigger("click");
+      await press(w, 35, 21);
+      expect(w.emitted("door")).toEqual([["3,2:N", true]]);
+      expect(table.sendPing).not.toHaveBeenCalled();
+    });
+
+    it("asks to shut a door the map holds open, from the drawn state plus the doors it holds", async () => {
+      const w = mountMap([], "p-a");
+      await w.setProps({ surface: doorSurface, doorStates: [{ id: "3,2:N", open: true }] });
+      await press(w, 35, 21);
+      expect(w.emitted("door")).toEqual([["3,2:N", false]]);
+    });
+
+    it("leaves a press away from any door alone", async () => {
+      const w = mountMap([], "p-a");
+      await w.setProps({ surface: doorSurface });
+      await press(w, 200, 200);
+      expect(w.emitted("door")).toBeUndefined();
+    });
+
+    it("draws the picture with the doors the map holds", async () => {
+      const w = mountMap([], "p-a");
+      await w.setProps({ surface: doorSurface, doorStates: [{ id: "3,2:N", open: true }] });
+      expect(w.findComponent({ name: "BattleMapStack" }).props("doorStates")).toEqual([{ id: "3,2:N", open: true }]);
+    });
+  });
+
   // The Hollow Clearing bug: unplaced tokens went to the token layer, which stacks them in a strip along row 0.
   it("never hands an unplaced character to the token layer", () => {
     const w = mountMap([], "p-a", [hero("a", 2, 2), unplaced("b")]);

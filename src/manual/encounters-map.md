@@ -82,6 +82,8 @@ The fog belongs to the map, so going live does not wipe it: whatever the party h
 2. Paint over the map. Every stroke reaches players in real time, and stays on the map after the fight.
 3. Use **Reveal all** or **Hide all** for a clean sweep instead of painting by hand. **Hide all** also makes the map forget what the party had seen.
 
+**Doors stay as you left them.** Click a door on the map to open or shut it, with any tool, in a fight or while exploring. A door you open stays open when the fight ends and the party walks on, and players see through it on every screen.
+
 Sight uses each character's real senses: darkvision from their species and their Senses field. A character standing in complete darkness without darkvision sees nothing and reveals nothing; on a map with no lights drawn, daylight is assumed and only walls and closed doors limit sight.
 
 In **Remembered** mode (the default) squares the party has seen stay revealed, shaded a little where nobody can see them right now. In **Strict** mode only what they see now shows, plus what you reveal by hand. Both are set in Campaign Settings (see [Campaign Settings](#campaign-settings)).

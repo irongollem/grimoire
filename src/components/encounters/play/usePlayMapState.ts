@@ -13,17 +13,17 @@ import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { CellKey } from "@/types/dungeonMap.types";
 import { imageGrid, type MapGrid } from "@/lib/battlemap/partySight";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
+import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { usePartySight } from "@/composables/encounters/usePartySight";
 import { useRememberSight } from "@/composables/locations/useRememberSight";
 import { useAssertLocationState, useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { zoneIdAt } from "@/lib/battlemap/darkness";
 import { roomCellsAt } from "@/lib/battlemap/roomFog";
-import { doorAt, effectiveDoors, sameDoorStates, toggleDoor } from "@/lib/battlemap/doors";
+import { doorAt, effectiveDoors } from "@/lib/battlemap/doors";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import type { MoveTerrain } from "@/lib/battlemap/movement";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { MagicalDarknessZone, RunCombatant } from "@/types/encounter.types";
 import type { DarknessRadius, FogBrushKind, PlayMapMode } from "./playTypes";
 import { placedCombatants, unplacedCombatants } from "./playRoster";
@@ -174,14 +174,10 @@ export function usePlayMapState(
   }
 
   // ── Doors ───────────────────────────────────────────────────────────────
-  const doorStates = ref<MapLiveDoorState[]>([]);
-  watch(
-    () => liveState.value?.door_states,
-    (states) => {
-      // A re-read hands a fresh array of equal content; keeping ours spares the light grids rebuilt on its identity.
-      if (states && !sameDoorStates(doorStates.value, states)) doorStates.value = states;
-    },
-    { immediate: true },
+  // A door's play state is the map's, like the fog (#1134): exploring and every fight on this map share it, live or not.
+  const { doorStates, setDoor } = useMapDoors(
+    () => campaign.activeCampaign?.id ?? null,
+    () => surface.value?.mapLocation.id ?? null,
   );
 
   function doorIdAt(x: number, y: number): string | null {
@@ -193,9 +189,10 @@ export function usePlayMapState(
   function toggleDoorAt(x: number, y: number): boolean {
     const drawn = surface.value?.live?.doors;
     const id = doorIdAt(x, y);
-    if (!drawn || id === null) return false;
-    doorStates.value = toggleDoor(drawn, doorStates.value, id);
-    if (isLive.value) scheduleMapPush({ doorStates: doorStates.value });
+    if (!drawn || id === null || !canWrite.value) return false;
+    const now = effectiveDoors(drawn, doorStates.value).find((d) => d.id === id);
+    if (!now) return false;
+    setDoor(id, !now.open).catch((error: unknown) => toast.error(toast.fromError(error, "Couldn't save the door.")));
     return true;
   }
 

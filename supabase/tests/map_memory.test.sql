@@ -4,7 +4,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(21);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -84,6 +84,64 @@ select set_config('request.jwt.claim.sub', '11330000-0000-4000-8000-000000000003
 select is_empty(
   $$ select id from public.map_memory where campaign_id = '11330000-0000-4000-8000-000000000010' $$,
   'someone outside the campaign reads nothing'
+);
+
+-- Doors stay as the party left them (#1134): the DM sets one, a second setting replaces it, a player cannot.
+select set_config('request.jwt.claim.sub', '11330000-0000-4000-8000-000000000001', true);
+select is(
+  public.set_map_door('11330000-0000-4000-8000-000000000010', '11330000-0000-4000-8000-000000000020', '3,4:N', true),
+  '[{"id": "3,4:N", "open": true}]'::jsonb,
+  'the DM opens a door on the map'
+);
+select is(
+  public.set_map_door('11330000-0000-4000-8000-000000000010', '11330000-0000-4000-8000-000000000020', '3,4:N', false),
+  '[{"id": "3,4:N", "open": false}]'::jsonb,
+  'shutting it again replaces the override rather than adding a second'
+);
+select throws_ok(
+  $$ select public.set_map_door('11330000-0000-4000-8000-000000000010', '11330000-0000-4000-8000-000000000020', 'not a door', true) $$,
+  '23514', null,
+  'a door id that names no door is refused by the shape check'
+);
+select set_config('request.jwt.claim.sub', '11330000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$ select public.set_map_door('11330000-0000-4000-8000-000000000010', '11330000-0000-4000-8000-000000000020', '3,4:N', true) $$,
+  '42501', null,
+  'a player cannot open a door on the map'
+);
+select ok(
+  not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'encounter_state' and column_name = 'door_states'),
+  'a fight keeps no doors of its own any more'
+);
+
+-- The overrides' shape is held on the map as it was on the fight (moved from player_encounter_state.test.sql).
+reset role;
+select throws_ok(
+  $$update public.map_memory set door_states = '[{"id":"3,4:S","open":true}]'::jsonb where campaign_id = '11330000-0000-4000-8000-000000000010'$$,
+  '23514', null,
+  'a door override names an N or W edge, or an angled door by uuid'
+);
+select throws_ok(
+  $$update public.map_memory set door_states = '[{"id":"3,4:N","open":"yes"}]'::jsonb where campaign_id = '11330000-0000-4000-8000-000000000010'$$,
+  '23514', null,
+  'a door override is open or shut, nothing else'
+);
+select throws_ok(
+  $$update public.map_memory set door_states = '[{"id":"3,4:N"}]'::jsonb where campaign_id = '11330000-0000-4000-8000-000000000010'$$,
+  '23514', null,
+  'a door override without open or shut is refused'
+);
+select lives_ok(
+  $$update public.map_memory set door_states = '[{"id":"3,4:N","open":true},{"id":"0b6f8a2e-1c3d-4e5f-8a7b-9c0d1e2f3a4b","open":false}]'::jsonb where campaign_id = '11330000-0000-4000-8000-000000000010'$$,
+  'an angled door is named by its uuid'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '11330000-0000-4000-8000-000000000002', true);
+select is(
+  (select door_states from public.map_memory where campaign_id = '11330000-0000-4000-8000-000000000010'),
+  '[{"id":"3,4:N","open":true},{"id":"0b6f8a2e-1c3d-4e5f-8a7b-9c0d1e2f3a4b","open":false}]'::jsonb,
+  'players read which doors the DM has opened'
 );
 
 -- Forgetting empties it (Hide all).

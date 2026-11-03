@@ -11,6 +11,8 @@ const h = await vi.hoisted(async () => {
     remember: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
     memory: vueRef(new Set<string>()),
     sight: vueRef(new Set<string>()),
+    doors: vueRef<{ id: string; open: boolean }[]>([]),
+    doorArgs: [] as unknown[],
   };
 });
 
@@ -38,6 +40,12 @@ vi.mock("@/composables/locations/useMapMemory", async () => {
   h.remember = vi.fn();
   return { useMapMemory: () => ({ memory: h.memory, isLoading: ref(false), remember: h.remember, hide: h.remember, replaceWith: h.remember, forgetAll: h.remember }) };
 });
+vi.mock("@/composables/locations/useMapDoors", () => ({
+  useMapDoors: (...args: unknown[]) => {
+    h.doorArgs = args;
+    return { doorStates: h.doors, setDoor: vi.fn() };
+  },
+}));
 vi.mock("@/composables/encounters/usePartySight", () => ({
   usePartySight: () => ({ viewers: ref([{ x: 1, y: 0 }]), sight: h.sight }),
 }));
@@ -48,7 +56,7 @@ import MapTableExplore from "./MapTableExplore.vue";
 const calibration = { cells_per_image_width: 30, origin_x_pct: 0, origin_y_pct: 0 };
 const Screen = defineComponent({
   name: "TableScreen",
-  props: ["combatants", "fogMask", "seen", "viewers", "eyebrow", "title", "order", "follow", "followNote"],
+  props: ["combatants", "doorStates", "fogMask", "seen", "viewers", "eyebrow", "title", "order", "follow", "followNote"],
   template: "<div />",
 });
 
@@ -68,6 +76,7 @@ describe("MapTableExplore", () => {
     h.surface.value = { calibration, mapLocation: { id: "s1" }, live: null };
     h.memory.value = new Set();
     h.sight.value = new Set();
+    h.doors.value = [];
     h.remember.mockClear();
   });
 
@@ -92,6 +101,14 @@ describe("MapTableExplore", () => {
     expect([...(s.props("fogMask") as Set<string>)].sort()).toEqual(["1,0", "5,5"]);
     expect([...(s.props("seen") as Set<string>)]).toEqual(["1,0"]);
     expect(s.props("viewers")).toEqual([{ x: 1, y: 0 }]);
+  });
+
+  // #1134: a door the DM opened while exploring shows open on the table, read from the map under the site.
+  it("hands the screen the doors the map holds, read for the map's own place", () => {
+    h.doors.value = [{ id: "3,2:N", open: true }];
+    const s = mountView();
+    expect(s.props("doorStates")).toEqual([{ id: "3,2:N", open: true }]);
+    expect((h.doorArgs[1] as { value: string }).value).toBe("s1");
   });
 
   // The DM's window owns the memory; this screen only reads it.
