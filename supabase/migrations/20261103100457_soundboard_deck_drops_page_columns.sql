@@ -1,6 +1,6 @@
 -- The deck (#1136) replaced the board's page membership and drag order: a
 -- sound or playlist is on a page because a pad (soundboard_pads, laid out from
--- these columns by 20261103001544) puts it there, and the pad's lane and row
+-- these columns by 20261103100456) puts it there, and the pad's lane and row
 -- are its order. These columns had no reader left, so they go rather than
 -- linger as a second, silently drifting answer to "what is on this page".
 --

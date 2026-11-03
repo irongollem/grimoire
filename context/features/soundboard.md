@@ -48,7 +48,7 @@ A lane may also take a **feed**: where audio the campaign starts by itself shows
 | `soundboard_pad_takes` | the sounds a sound pad plays, `position`-ordered, unique per `(pad_id, sound_id)` |
 | `public.move_soundboard_pad(pad, page, lane, row)` | drag a pad to a slot; a pad already there swaps into the slot it left, in one transaction. `security invoker`: RLS decides who may move what |
 
-Migrations `20261103001544_soundboard_deck.sql` (tables, categories, lanes, the guards) and `20261103011751_soundboard_deck_drops_page_columns.sql` (the old columns). The guards, and why each exists:
+Migrations `20261103100456_soundboard_deck.sql` (tables, categories, lanes, the guards) and `20261103100457_soundboard_deck_drops_page_columns.sql` (the old columns). The guards, and why each exists:
 
 - **A take's sound must be in the pad's campaign, and only sound pads take takes** (`guard_pad_take_campaign`). A take has no `campaign_id`, so the shared same-campaign trigger cannot see it.
 - **A pad's campaign is fixed** (`guard_pad_campaign_fixed`). Its takes were checked against the campaign it was made in; a moved pad would carry another campaign's sounds.
