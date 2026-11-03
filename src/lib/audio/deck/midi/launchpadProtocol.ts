@@ -1,8 +1,9 @@
 /**
  * The Launchpad's wire protocol (#1136), pure: bytes in, deck events out, and
  * a DeckSnapshot in, LED messages out. Nothing here touches Web MIDI or Vue.
- * Layout and byte facts: Novation's Launchpad Pro [MK3] Programmer's reference;
- * the other models are unverified, see launchpadProfiles.ts.
+ * Layout and byte facts: Novation's Launchpad Pro [MK3] Programmer's reference,
+ * and a Launchpad X on the desk; see launchpadProfiles.ts for what each model
+ * has been checked against.
  */
 
 import { DECK_HARDWARE_ROWS, DECK_LANES, type DeckCellView, type DeckSnapshot, type DeckTool } from "../deckSurface";
@@ -94,56 +95,71 @@ export function decodeLaunchpadMessage(profile: LaunchpadProfile, data: ArrayLik
 
 export type LedSpec =
   | { type: "static"; color: number }
+  | { type: "flash"; color: number; between: number }
   | { type: "pulse"; color: number }
   | { type: "rgb"; r: number; g: number; b: number };
 
 export type LedFrame = Map<number, LedSpec>;
 
 type Rgb = readonly [number, number, number];
+type Category = "music" | "ambient" | "effects";
 
-/** 0xf2c35a and friends, halved into the 0 to 127 the device takes. */
-const CATEGORY_RGB: Record<"music" | "ambient" | "effects", Rgb> = {
-  music: [0xf2 >> 1, 0xc3 >> 1, 0x5a >> 1],
-  ambient: [0x74 >> 1, 0xcd >> 1, 0xb0 >> 1],
-  effects: [0x86 >> 1, 0xa9 >> 1, 0xf5 >> 1],
+// Picked by eye on a Launchpad X (3 Nov 2026), which shows two things the
+// screen colours cannot predict. The LEDs are not linear: an RGB value scaled
+// down still reads bright, and at low levels the mix breaks into a muddy,
+// broken-looking colour that drifts to blue, so every dim look is a Novation
+// palette shade, tuned by Novation for these LEDs, never a scaled RGB. And the
+// screen's gold washes to white and its teal reads as the effects blue, so the
+// device gets its own saturated gold, a green for ambient, and a violet blue.
+// The Pro MK3 and Mini MK3 share the palette and the LEDs.
+
+/** Playing, full RGB. */
+const CATEGORY_RGB: Record<Category, Rgb> = {
+  music: [127, 75, 0],
+  ambient: [0, 127, 60],
+  effects: [40, 30, 127],
 };
-const CATEGORY_PULSE_PALETTE: Record<"music" | "ambient" | "effects", number> = { music: 13, ambient: 37, effects: 45 };
+/** Loaded and silent: the dim palette shade of the category. */
+const CATEGORY_READY_PALETTE: Record<Category, number> = { music: 126, ambient: 22, effects: 38 };
+/** Looping: the device pulses this palette colour by itself. */
+const CATEGORY_PULSE_PALETTE: Record<Category, number> = { music: 96, ambient: 21, effects: 45 };
+
+const PALETTE_BLOCKED = 121;
+const PALETTE_IDLE = 103;
+const PALETTE_OTHER_PAGE = 126;
 
 const OFF: LedSpec = { type: "static", color: 0 };
 const WHITE: Rgb = [110, 110, 110];
-const DIM_GOLD: Rgb = [40, 30, 10];
-const DIM_GREY: Rgb = [12, 12, 12];
-const DIM_RED: Rgb = [40, 0, 0];
 const AMBER: Rgb = [127, 80, 10];
 
 function rgb(c: Rgb): LedSpec {
   return { type: "rgb", r: c[0], g: c[1], b: c[2] };
 }
 
-function scaled(c: Rgb, f: number): LedSpec {
-  return { type: "rgb", r: Math.round(c[0] * f), g: Math.round(c[1] * f), b: Math.round(c[2] * f) };
+function palette(color: number): LedSpec {
+  return { type: "static", color };
 }
 
 export function cellLed(cell: DeckCellView | undefined): LedSpec {
   if (!cell) return OFF;
   const category = cell.category ?? "effects";
-  const base = CATEGORY_RGB[category];
   switch (cell.light) {
     case "off":
       return OFF;
     case "ready":
-      return scaled(base, 0.15);
+    // A ducked pad is still playing, under a solo; the dim shade says "turned down".
+    case "ducked":
+      return palette(CATEGORY_READY_PALETTE[category]);
     case "playing":
     case "held":
-      return scaled(base, 1);
+      return rgb(CATEGORY_RGB[category]);
     case "looping":
       return { type: "pulse", color: CATEGORY_PULSE_PALETTE[category] };
     case "fading":
-      return scaled(base, 0.45);
-    case "ducked":
-      return scaled(base, 0.3);
+      // A hard flash, unlike a loop's smooth pulse: on its way out.
+      return { type: "flash", color: CATEGORY_PULSE_PALETTE[category], between: CATEGORY_READY_PALETTE[category] };
     case "blocked":
-      return rgb(DIM_RED);
+      return palette(PALETTE_BLOCKED);
   }
 }
 
@@ -160,25 +176,27 @@ export function buildLedFrame(profile: LaunchpadProfile, snapshot: DeckSnapshot)
   }
   for (let i = 0; i < 8; i++) {
     let top: LedSpec = OFF;
-    if (i < snapshot.pages.length) top = rgb(i === snapshot.pageIndex ? WHITE : DIM_GOLD);
+    if (i < snapshot.pages.length) top = i === snapshot.pageIndex ? rgb(WHITE) : palette(PALETTE_OTHER_PAGE);
     frame.set(topButtonCc(i), top);
     const button = RIGHT_COLUMN_TOOLS[i];
-    let colour: Rgb = DIM_GREY;
-    if (button === "hush") colour = snapshot.hush ? AMBER : DIM_GREY;
-    else if (button !== "fadeAll" && button === snapshot.tool) colour = WHITE;
-    frame.set(rightButtonCc(i), rgb(colour));
+    let light = palette(PALETTE_IDLE);
+    if (button === "hush" && snapshot.hush) light = rgb(AMBER);
+    else if (button !== "hush" && button !== "fadeAll" && button === snapshot.tool) light = rgb(WHITE);
+    frame.set(rightButtonCc(i), light);
   }
   if (profile.hasLeftColumn) {
-    const paged = snapshot.pages.length > 8 ? rgb(DIM_GREY) : OFF;
+    const paged = snapshot.pages.length > 8 ? palette(PALETTE_IDLE) : OFF;
     frame.set(CC_LEFT_PREV, paged);
     frame.set(CC_LEFT_NEXT, paged);
-    frame.set(CC_LEFT_STOP_ALL, rgb(DIM_RED));
+    frame.set(CC_LEFT_STOP_ALL, palette(PALETTE_BLOCKED));
   }
   return frame;
 }
 
 function specKey(spec: LedSpec): string {
-  return spec.type === "rgb" ? `rgb${spec.r},${spec.g},${spec.b}` : `${spec.type}${spec.color}`;
+  if (spec.type === "rgb") return `rgb${spec.r},${spec.g},${spec.b}`;
+  if (spec.type === "flash") return `flash${spec.color},${spec.between}`;
+  return `${spec.type}${spec.color}`;
 }
 
 /** The LEDs whose look differs; a null previous frame means everything. */
@@ -201,6 +219,8 @@ export function blankLedFrame(frame: LedFrame): LedFrame {
 
 function specBytes(led: number, spec: LedSpec): number[] {
   if (spec.type === "static") return [0, led, spec.color];
+  // Novation's order is colour B, then colour A.
+  if (spec.type === "flash") return [1, led, spec.between, spec.color];
   if (spec.type === "pulse") return [2, led, spec.color];
   return [3, led, spec.r, spec.g, spec.b];
 }

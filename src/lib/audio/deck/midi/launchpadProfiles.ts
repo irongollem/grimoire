@@ -6,10 +6,19 @@
  * manual: the Pro row (device byte 0x0E, port "LPProMK3 MIDI", velocity, left
  * column).
  *
- * UNVERIFIED, from memory and never tried on hardware: the X row (device byte
- * 0x0C, port "LPX MIDI"), the Mini MK3 row (0x0D, "LPMiniMK3 MIDI"), that both
- * use the same programmer-mode (0x0E) and LED (0x03) SysEx commands, that the
- * Mini MK3 sends a fixed velocity, and that the X and Mini have no left column.
+ * VERIFIED on a Launchpad X on 3 Nov 2026: the X row. It answers the device
+ * inquiry as family 01 03, switches to and from programmer mode with 0x0E on
+ * device byte 0x0C and confirms each switch, takes the LED (0x03) message with
+ * static, flash, pulse and RGB specs, and sends pads as notes 11 to 88 with
+ * velocity (a hard press 127, a soft one about 20) and release as a zero
+ * velocity note, the top row as CC 91 up and the right column as CC 89 down.
+ * macOS names its ports "LPX MIDI In" / "LPX MIDI Out" (displayed with a
+ * "Launchpad X " prefix) beside "LPX DAW". The LED colours in
+ * launchpadProtocol.ts were picked by eye on the same device.
+ *
+ * UNVERIFIED, from memory and never tried on hardware: the Mini MK3 row (0x0D,
+ * "LPMiniMK3 MIDI"), that it uses the same commands, and that it sends a fixed
+ * velocity.
  */
 
 export type LaunchpadProfileId = "pro3" | "x" | "mini3";

@@ -7,6 +7,8 @@ import {
   decodeLaunchpadMessage,
   diffLedFrames,
   encodeLedMessages,
+  type LedFrame,
+  type LedSpec,
   MAX_LED_SPECS,
   padNote,
   programmerModeMessage,
@@ -123,17 +125,26 @@ describe("LED frame", () => {
     const c = (light: DeckCellView["light"], category: DeckCellView["category"] = "music") =>
       cellLed(cell({ light, category }));
     expect(c("off")).toEqual({ type: "static", color: 0 });
-    expect(c("ready")).toEqual({ type: "rgb", r: 18, g: 15, b: 7 });
-    expect(c("playing")).toEqual({ type: "rgb", r: 121, g: 97, b: 45 });
+    expect(c("playing")).toEqual({ type: "rgb", r: 127, g: 75, b: 0 });
     expect(c("held")).toEqual(c("playing"));
-    expect(c("fading")).toEqual({ type: "rgb", r: 54, g: 44, b: 20 });
-    expect(c("ducked")).toEqual({ type: "rgb", r: 36, g: 29, b: 14 });
-    expect(c("blocked")).toEqual({ type: "rgb", r: 40, g: 0, b: 0 });
-    expect(c("looping", "music")).toEqual({ type: "pulse", color: 13 });
-    expect(c("looping", "ambient")).toEqual({ type: "pulse", color: 37 });
+    expect(c("blocked")).toEqual({ type: "static", color: 121 });
+    expect(c("playing", "ambient")).toEqual({ type: "rgb", r: 0, g: 127, b: 60 });
+    expect(c("playing", "effects")).toEqual({ type: "rgb", r: 40, g: 30, b: 127 });
+  });
+
+  it("draws every dim look from the palette, never a scaled RGB, which the LEDs turn muddy", () => {
+    const c = (light: DeckCellView["light"], category: DeckCellView["category"]) => cellLed(cell({ light, category }));
+    expect(c("ready", "music")).toEqual({ type: "static", color: 126 });
+    expect(c("ready", "ambient")).toEqual({ type: "static", color: 22 });
+    expect(c("ready", "effects")).toEqual({ type: "static", color: 38 });
+    expect(c("ducked", "ambient")).toEqual(c("ready", "ambient"));
+    expect(c("looping", "music")).toEqual({ type: "pulse", color: 96 });
+    expect(c("looping", "ambient")).toEqual({ type: "pulse", color: 21 });
     expect(c("looping", "effects")).toEqual({ type: "pulse", color: 45 });
-    expect(c("playing", "ambient")).toEqual({ type: "rgb", r: 58, g: 102, b: 88 });
-    expect(c("playing", "effects")).toEqual({ type: "rgb", r: 67, g: 84, b: 122 });
+  });
+
+  it("flashes a fading pad between its pulse colour and its ready shade, so it reads apart from a loop", () => {
+    expect(cellLed(cell({ light: "fading", category: "ambient" }))).toEqual({ type: "flash", color: 21, between: 22 });
   });
 
   it("lights a cell at its own note, and every other pad off", () => {
@@ -155,24 +166,24 @@ describe("LED frame", () => {
       }),
     );
     expect(frame.get(topButtonCc(1))).toEqual({ type: "rgb", r: 110, g: 110, b: 110 });
-    expect(frame.get(topButtonCc(0))).toEqual({ type: "rgb", r: 40, g: 30, b: 10 });
+    expect(frame.get(topButtonCc(0))).toEqual({ type: "static", color: 126 });
     expect(frame.get(topButtonCc(2))).toEqual({ type: "static", color: 0 });
   });
 
   it("lights the active tool white, hush amber while on, others dim grey", () => {
     const frame = buildLedFrame(PRO, snap({ tool: "stop", hush: true }));
     expect(frame.get(rightButtonCc(1))).toEqual({ type: "rgb", r: 110, g: 110, b: 110 });
-    expect(frame.get(rightButtonCc(0))).toEqual({ type: "rgb", r: 12, g: 12, b: 12 });
+    expect(frame.get(rightButtonCc(0))).toEqual({ type: "static", color: 103 });
     expect(frame.get(rightButtonCc(6))).toEqual({ type: "rgb", r: 127, g: 80, b: 10 });
-    expect(frame.get(rightButtonCc(7))).toEqual({ type: "rgb", r: 12, g: 12, b: 12 });
-    expect(buildLedFrame(PRO, snap()).get(rightButtonCc(6))).toEqual({ type: "rgb", r: 12, g: 12, b: 12 });
+    expect(frame.get(rightButtonCc(7))).toEqual({ type: "static", color: 103 });
+    expect(buildLedFrame(PRO, snap()).get(rightButtonCc(6))).toEqual({ type: "static", color: 103 });
   });
 
   it("lights the Pro extras only on the Pro, page arrows only past 8 pages", () => {
     const many = snap({ pages: Array.from({ length: 9 }, (_, i) => ({ id: `${i}`, name: `${i}` })) });
-    expect(buildLedFrame(PRO, many).get(80)).toEqual({ type: "rgb", r: 12, g: 12, b: 12 });
+    expect(buildLedFrame(PRO, many).get(80)).toEqual({ type: "static", color: 103 });
     expect(buildLedFrame(PRO, snap()).get(80)).toEqual({ type: "static", color: 0 });
-    expect(buildLedFrame(PRO, snap()).get(10)).toEqual({ type: "rgb", r: 40, g: 0, b: 0 });
+    expect(buildLedFrame(PRO, snap()).get(10)).toEqual({ type: "static", color: 121 });
     expect(buildLedFrame(MINI, many).has(80)).toBe(false);
     expect(buildLedFrame(MINI, many).has(10)).toBe(false);
   });
@@ -191,15 +202,23 @@ describe("diff and encoding", () => {
     expect(diffLedFrames(null, a).size).toBe(a.size);
   });
 
-  it("encodes static, pulse and RGB specs byte for byte", () => {
-    const leds = new Map([
+  it("encodes static, flash, pulse and RGB specs byte for byte", () => {
+    const leds = new Map<number, LedSpec>([
       [11, { type: "static", color: 5 }],
       [12, { type: "pulse", color: 13 }],
       [13, { type: "rgb", r: 1, g: 2, b: 3 }],
-    ] as const);
-    expect(encodeLedMessages(PRO, leds)).toEqual([
-      [0xf0, 0, 0x20, 0x29, 2, 0x0e, 0x03, 0, 11, 5, 2, 12, 13, 3, 13, 1, 2, 3, 0xf7],
+      // Novation's flash takes colour B first: the ready shade, then the pulse colour.
+      [14, { type: "flash", color: 96, between: 126 }],
     ]);
+    expect(encodeLedMessages(PRO, leds)).toEqual([
+      [0xf0, 0, 0x20, 0x29, 2, 0x0e, 0x03, 0, 11, 5, 2, 12, 13, 3, 13, 1, 2, 3, 1, 14, 126, 96, 0xf7],
+    ]);
+  });
+
+  it("resends a fading pad when either of its two flash colours changes", () => {
+    const a: LedFrame = new Map([[11, { type: "flash", color: 96, between: 126 }]]);
+    const b: LedFrame = new Map([[11, { type: "flash", color: 96, between: 22 }]]);
+    expect([...diffLedFrames(a, b).keys()]).toEqual([11]);
   });
 
   it("splits at 106 specs per message; the device rejects a longer one", () => {
