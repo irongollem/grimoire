@@ -17,7 +17,8 @@ export interface PadDraft {
 
 export const REPEAT_MIN = 100;
 export const REPEAT_MAX = 5000;
-const FADE_MAX_MS = 30_000;
+/** Matches the database CHECK on fade_in_ms and fade_out_ms (0 to 20000). */
+const FADE_MAX_MS = 20_000;
 
 function secondsText(ms: number | null): string {
   return ms === null ? "" : String(ms / 1000);

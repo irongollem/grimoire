@@ -340,6 +340,32 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   const playMeta = new Map<string, PlayMeta>();
 
   /**
+   * Sounds asked to play whose file has not started yet. isPlaying only turns
+   * true once play() resolves, so without this a stop in that gap (a quick
+   * Gate tap, a lane-mate taking over) would find nothing to stop.
+   */
+  const startingIds = reactive(new Set<string>());
+
+  function isStarting(soundId: string): boolean {
+    return startingIds.has(soundId);
+  }
+
+  /**
+   * What ran out by itself since it last started: a sound id, or `playlist:<id>`
+   * for a music playlist that played its last track. Lets a listener tell a
+   * track that finished from one the DM stopped (#1136's music takeover rule).
+   */
+  const finishedKeys = reactive(new Set<string>());
+
+  function finishedByItself(soundId: string): boolean {
+    return finishedKeys.has(soundId);
+  }
+
+  function playlistFinishedByItself(playlistId: string): boolean {
+    return finishedKeys.has(`playlist:${playlistId}`);
+  }
+
+  /**
    * Start a sound. `category` is required in practice: omitting it routes to the
    * ambient bus, so every call site names it.
    */
@@ -381,8 +407,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     audio.loop = state.isLooping;
     attachHandlers(soundId, audio, bus);
 
-    // A new play supersedes any in-flight fade-out for this sound.
-    bumpGeneration(soundId);
+    // A new play supersedes any in-flight fade-out for this sound, and a stop
+    // that lands before the file starts supersedes this play in turn.
+    const gen = bumpGeneration(soundId);
 
     if (isCasting.value) {
       // Cast device is the output; keep the UI truthful about it playing.
@@ -394,9 +421,17 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     // Start silent so fadeIn has somewhere to come from.
     applyVolume(soundId, audio, state.volume, 0);
 
+    startingIds.add(soundId);
+    finishedKeys.delete(soundId);
     void audio
       .play()
       .then(() => {
+        // Stopped while the file was still loading (a quick tap on a Gate pad),
+        // or played again. Marking it playing or fading it in now would leave a
+        // sound running that nobody holds; the stop's own halt pauses it, still
+        // silent, and a newer play owns the state.
+        if (!isCurrentGeneration(soundId, gen)) return;
+        startingIds.delete(soundId);
         const live = playbackStates.value[soundId];
         if (live) live.isPlaying = true;
         if (bus === "effects") acquireDuck(soundId);
@@ -409,6 +444,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         }
       })
       .catch(() => {
+        // A newer play owns the state now.
+        if (!isCurrentGeneration(soundId, gen)) return;
+        startingIds.delete(soundId);
         // Autoplay blocked (or the element was torn down mid-start). Previously
         // isPlaying was set unconditionally before this point, so the UI showed
         // a playing sound while the room heard silence. Tell the truth instead.
@@ -439,11 +477,16 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       if (mpl.trackSoundIds[mpl.currentIndex] !== soundId) return;
       if (!audio.loop && isFinite(audio.duration) && audio.duration > 0) {
         const remainingMs = (audio.duration - audio.currentTime) * 1000;
-        if (remainingMs <= CROSSFADE_MS) advanceMusicPlaylist(1, CROSSFADE_MS);
+        if (remainingMs <= CROSSFADE_MS) advanceMusicPlaylist(1, CROSSFADE_MS, true);
       }
     };
 
     audio.onended = () => {
+      // A gapless half running out while its partner carries the bed is the
+      // wrap, not the end: the sound is still playing.
+      const loop = loops.get(logicalSoundId(soundId));
+      if (loop !== undefined && (loop.swapping || loop.liveId !== soundId)) return;
+      finishedKeys.add(soundId);
       const s = playbackStates.value[soundId];
       if (s) {
         s.isPlaying = false;
@@ -456,7 +499,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       // ontimeupdate's early crossfade never got a chance to fire.
       const mpl = activeMusicPlaylist.value;
       if (mpl && mpl.trackSoundIds[mpl.currentIndex] === soundId) {
-        advanceMusicPlaylist(1, 0);
+        advanceMusicPlaylist(1, 0, true);
       }
     };
   }
@@ -474,6 +517,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       st.isPlaying = false;
       if (rewind) st.currentTime = 0;
     }
+    startingIds.delete(soundId);
     solo.checkAlive();
     if (!audio) return;
 
@@ -639,6 +683,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         playbackStates.value[id].isPlaying = false;
       }
     });
+    startingIds.clear();
     generators.stopAll();
     loops.clear();
     clearDucking();
@@ -686,7 +731,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     suspendedByPauseAll.clear();
 
     Object.entries(playbackStates.value).forEach(([id, st]) => {
-      if (!st.isPlaying || owned.has(id)) return;
+      // Still loading counts, or it would start under the pause.
+      if ((!st.isPlaying && !startingIds.has(id)) || owned.has(id)) return;
       suspendedByPauseAll.add(id);
       pause(id);
     });
@@ -735,7 +781,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * back to. Safe on an empty board.
    */
   function fadeOutAll(ms: number): void {
-    const ids = new Set<string>();
+    // Still loading counts: it would start a moment after "everything" ended.
+    const ids = new Set<string>(startingIds);
     Object.entries(playbackStates.value).forEach(([id, st]) => {
       if (st.isPlaying) ids.add(id);
     });
@@ -828,6 +875,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     playlist: { id: string; name: string; shuffle: boolean; repeat: boolean },
     tracks: PlaylistTrackWithSound[],
   ): void {
+    finishedKeys.delete(`playlist:${playlist.id}`);
     // Stop any currently running music playlist track
     if (activeMusicPlaylist.value) {
       const curId = activeMusicPlaylist.value.trackSoundIds[activeMusicPlaylist.value.currentIndex];
@@ -908,7 +956,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * fade-in. `fadeMs` of 0 means the outgoing track already ended, so there is
    * nothing to overlap.
    */
-  function advanceMusicPlaylist(delta: number, fadeMs: number): void {
+  /** `byItself`: the track ran out, rather than the DM skipping. */
+  function advanceMusicPlaylist(delta: number, fadeMs: number, byItself = false): void {
     const mpl = activeMusicPlaylist.value;
     if (!mpl) return;
 
@@ -917,6 +966,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
     if (nextIndex >= mpl.trackSoundIds.length) {
       if (!mpl.repeat) {
+        if (byItself) finishedKeys.add(`playlist:${mpl.playlistId}`);
         fadeAndHalt(outgoingId, true, fadeMs);
         activeMusicPlaylist.value = null;
         return;
@@ -1227,6 +1277,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     });
     releaseDuck(soundId);
     bumpGeneration(soundId);
+    startingIds.delete(soundId);
     engine.detach(soundId);
     destroyAudio(soundId);
     clearRetried(soundId);
@@ -1325,6 +1376,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     toggleLoop,
     setLooping,
     isLooping,
+    isStarting,
+    finishedByItself,
+    playlistFinishedByItself,
     fadeOut,
     fadeOutAll,
     hushed,

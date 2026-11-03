@@ -22,6 +22,8 @@ const h = await vi.hoisted(async () => {
     isPausedAll: false,
     activeAudioCount: 0,
     masterVolume: 1,
+    startingIds: [] as string[],
+    isStarting: (id: string) => store.startingIds.includes(id),
     play: vi.fn(),
     restart: vi.fn(),
     fadeOut: vi.fn(),
@@ -211,6 +213,7 @@ beforeEach(() => {
     if (h.store.playbackStates[id]) h.store.playbackStates[id].isPlaying = false;
   });
   h.fetchTracks.mockResolvedValue([]);
+  h.store.startingIds = [];
   scope = effectScope();
 });
 
@@ -297,6 +300,20 @@ describe("gate", () => {
     release(deck);
     expect(h.store.fadeOut).toHaveBeenCalledWith("g", expect.any(Number));
     expect(h.store.fadeOut).toHaveBeenCalledTimes(1);
+  });
+
+  // Fails if a stop only looks at isPlaying: a quick tap releases before the
+  // file has started, the stop finds nothing, and a looping take then runs
+  // forever with nobody holding the pad.
+  it("stops a gate pad released while its file is still loading", () => {
+    const deck = boot({ pads: [pad("g", { launch_mode: "gate" })] });
+    h.store.play.mockImplementationOnce((id: string) => {
+      h.store.startingIds.push(id);
+    });
+    press(deck);
+    expect(h.store.playbackStates.g?.isPlaying).not.toBe(true);
+    release(deck);
+    expect(h.store.fadeOut).toHaveBeenCalledWith("g", expect.any(Number));
   });
 
   it("ignores a release for a slot nothing is held in", () => {
@@ -712,6 +729,23 @@ describe("padVolume", () => {
     expect(h.store.setVolume).toHaveBeenCalledTimes(1);
   });
 
+  // Fails if the dragged level is only dropped when the saved one reads back
+  // equal: a float4 column never returns a knob's 64/127 exactly, so the drag
+  // stuck forever and hid every later change, a co-DM's included.
+  it("lets the saved level take over once the save is back, though a float4 rounds it", async () => {
+    const deck = boot({ pads: [pad("a")] });
+    deck.dispatch({ type: "padVolume", lane: 0, row: 0, value: 64 / 127 });
+    vi.advanceTimersByTime(400);
+    const callbacks = h.updatePad.mock.calls[0][1] as { onSuccess: () => void };
+    callbacks.onSuccess();
+    h.data.pads.value = [pad("a", { volume: 0.503937 })];
+    await nextTick();
+    expect(cell(deck).volume).toBe(0.503937);
+    h.data.pads.value = [pad("a", { volume: 0.3 })];
+    await nextTick();
+    expect(cell(deck).volume).toBe(0.3);
+  });
+
   it("does not lose the last drag when the deck is torn down", () => {
     const deck = boot({ pads: [pad("a")] });
     deck.dispatch({ type: "padVolume", lane: 0, row: 0, value: 0.3 });
@@ -739,6 +773,20 @@ describe("scene and playlist pads", () => {
     press(deck);
     await vi.advanceTimersByTimeAsync(0);
     expect(h.store.playMusicPlaylist).toHaveBeenCalledWith(expect.objectContaining({ id: "pl" }), [track("pl", "x")]);
+  });
+
+  // Fails if the fetched tracks start whatever happened meanwhile: the DM
+  // pressed the Toggle pad again to cancel, and the music starts anyway.
+  it("cancels a playlist press that is stopped while its tracks load", async () => {
+    let deliver: (tracks: unknown[]) => void = () => undefined;
+    h.fetchTracks.mockReturnValueOnce(new Promise((resolve) => (deliver = resolve)));
+    const deck = boot({ pads: [pad("mp", { playlist_id: "pl" }, [])], sounds: [], playlists: [playlist("pl", "music")] });
+    press(deck);
+    press(deck);
+    deliver([track("pl", "x")]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.store.playMusicPlaylist).not.toHaveBeenCalled();
+    expect(h.fetchTracks).toHaveBeenCalledTimes(1);
   });
 
   it("stops a music playlist with stopMusicPlaylist", () => {

@@ -34,6 +34,10 @@ const store = reactive({
   /** The music playlist that is audible right now, as the store tracks it. */
   activeMusicPlaylist: null as { playlistId: string } | null,
   isPausedAll: false,
+  /** What ran out by itself, as the real store records it (sound ids, `playlist:<id>`). */
+  finished: [] as string[],
+  finishedByItself: (id: string) => store.finished.includes(id),
+  playlistFinishedByItself: (id: string) => store.finished.includes(`playlist:${id}`),
   /** Not a mock: the scenes running right now, as the store tracks them. */
   activeAmbientPlaylists: [] as { playlistId: string }[],
 });
@@ -119,6 +123,7 @@ beforeEach(async () => {
   store.activeAmbientPlaylists = [];
   store.activeMusicPlaylist = null;
   store.isPausedAll = false;
+  store.finished = [];
   store.activeMusicPlaylistId.mockImplementation(() => null);
   store.isPlaylistActive.mockImplementation(() => false);
   playlists.value = [];
@@ -980,6 +985,29 @@ describe("once the DM touches the music, it is theirs", () => {
     await flush();
 
     expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+  });
+
+  // Bug: a fight's loose file that played to its end read as the DM stopping
+  // it, so the fight's end never brought the place's music back.
+  it("hands the floor back when the fight's music ran out by itself", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    const travel = playlist({ id: "travel" });
+    playlists.value = [travel];
+    sounds.value = [{ id: "s9", file_url: "u", category: "music", gain_trim: 1, tags: ["battle"] } as Sound];
+    hearMusic("travel");
+    requestAudioTheme(fight);
+    await flush();
+    store.activeMusicPlaylist = null;
+    stateFor("s9").isPlaying = true;
+    await flush();
+
+    store.finished = ["s9"];
+    stateFor("s9").isPlaying = false;
+    await flush();
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    expect(store.playPlaylist).toHaveBeenLastCalledWith(travel, tracks);
   });
 
   // Bug: the real store clears the pause at once but marks a file playing only

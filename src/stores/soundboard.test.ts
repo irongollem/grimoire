@@ -64,6 +64,9 @@ interface FakeAudio {
 const created: FakeAudio[] = [];
 /** When set, the next play() rejects — simulates the browser blocking autoplay. */
 let rejectNextPlay = false;
+/** When set, the next play() waits for `startPlay()`: a file still loading. */
+let deferNextPlay = false;
+let startPlay: () => void = () => undefined;
 
 function installAudioStub(): void {
   created.length = 0;
@@ -86,6 +89,15 @@ function installAudioStub(): void {
       if (rejectNextPlay) {
         rejectNextPlay = false;
         return Promise.reject(new Error("NotAllowedError"));
+      }
+      if (deferNextPlay) {
+        deferNextPlay = false;
+        return new Promise((resolve) => {
+          startPlay = () => {
+            this.paused = false;
+            resolve();
+          };
+        });
       }
       this.paused = false;
       return Promise.resolve();
@@ -115,6 +127,7 @@ beforeEach(async () => {
   engineCalls.fadeOut.mockImplementation(() => Promise.resolve());
   engineAvailable = true;
   rejectNextPlay = false;
+  deferNextPlay = false;
   installAudioStub();
   setActivePinia(createPinia());
 });
@@ -408,6 +421,22 @@ describe("music playlist advance", () => {
     store.musicPlaylistNext();
     await flush();
     expect(store.activeMusicPlaylist).toBeNull();
+    // The DM skipped past the end: that is their doing, not the playlist running out.
+    expect(store.playlistFinishedByItself("p")).toBe(false);
+  });
+
+  // Fails if a playlist that plays out is not recorded: a fight's music ending
+  // would read as the DM stopping it, and the place's music never comes back.
+  it("records a playlist whose last track played to its end", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: false }, tracks);
+    await flush();
+    store.musicPlaylistNext();
+    await flush();
+    const last = created[created.length - 1];
+    last.onended?.();
+    expect(store.activeMusicPlaylist).toBeNull();
+    expect(store.playlistFinishedByItself("p")).toBe(true);
   });
 
   it("wraps to the first track when repeat is on", async () => {
@@ -587,6 +616,22 @@ describe("gapless looping", () => {
     expect(engineCalls.fadeOut).toHaveBeenCalledWith("a1::loop", expect.any(Number));
   });
 
+  // Fails if the outgoing half's natural end marks the sound stopped: the
+  // partner carries on, but the deck shows the pad idle, a Toggle press starts
+  // it again instead of stopping it, and a Solo on it lifts.
+  it("still counts the sound as playing when the outgoing half runs out during the wrap", async () => {
+    const store = await loadStore();
+    store.play("a1", "https://example.test/bed.mp3", "ambient", undefined, { loop: true });
+    await flush();
+    const primary = created[0];
+    primary.duration = 60;
+    primary.currentTime = 59.9;
+    primary.ontimeupdate?.();
+    await flush();
+    primary.onended?.();
+    expect(store.playbackStates.a1.isPlaying).toBe(true);
+  });
+
   it("falls back to a plain loop when Web Audio is unavailable", async () => {
     engineAvailable = false;
     const store = await loadStore();
@@ -624,6 +669,53 @@ describe("gapless looping", () => {
     const faded = engineCalls.fadeOut.mock.calls.map((c) => c[0]);
     expect(faded).toContain("a1");
     expect(faded).toContain("a1::loop");
+  });
+});
+
+describe("a stop before the file starts", () => {
+  // Fails if play() marks the sound playing whatever happened while it loaded:
+  // a quick Gate tap stops it, then it starts anyway and loops with nobody holding it.
+  it("keeps a sound stopped that was stopped while it was still loading", async () => {
+    const store = await loadStore();
+    deferNextPlay = true;
+    store.play("s1", "https://example.test/a.mp3", "ambient", undefined, { loop: true });
+    expect(store.isStarting("s1")).toBe(true);
+    store.fadeOut("s1", 100);
+    expect(store.isStarting("s1")).toBe(false);
+    engineCalls.fadeIn.mockClear();
+    startPlay();
+    await flush();
+    expect(store.playbackStates.s1.isPlaying).toBe(false);
+    expect(engineCalls.fadeIn).not.toHaveBeenCalled();
+  });
+
+  it("fades out a sound still loading with everything else", async () => {
+    const store = await loadStore();
+    deferNextPlay = true;
+    store.play("s1", "https://example.test/a.mp3", "effects");
+    store.fadeOutAll(500);
+    startPlay();
+    await flush();
+    expect(store.playbackStates.s1.isPlaying).toBe(false);
+  });
+});
+
+describe("what ran out by itself", () => {
+  // Fails if a stop is recorded as an end, or an end is not recorded: the
+  // trigger bus would either hand the music back over the DM's choice, or
+  // never bring the place's music back after a fight's track finished.
+  it("records a track that played to its end, and forgets it on the next play", async () => {
+    const store = await loadStore();
+    store.play("m1", "https://example.test/m.mp3", "music");
+    await flush();
+    store.fadeOut("m1", 0);
+    expect(store.finishedByItself("m1")).toBe(false);
+    store.play("m1", "https://example.test/m.mp3", "music");
+    await flush();
+    created[0].onended?.();
+    expect(store.finishedByItself("m1")).toBe(true);
+    store.play("m1", "https://example.test/m.mp3", "music");
+    expect(store.finishedByItself("m1")).toBe(false);
   });
 });
 

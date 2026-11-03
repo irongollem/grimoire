@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(25);
 
 -- The soundboard deck (#1136): pads on a page's eight lanes, a sound pad's
 -- takes, and the page's lanes. Each assertion names the guard it protects.
@@ -159,6 +159,58 @@ select is_empty(
 select isnt_empty(
   $$select id from public.soundboard_pads where id = 'd3c70000-0000-4000-8000-000000000051'$$,
   'a scene pad has no takes and stays');
+
+-- update_soundboard_page_lane changes one lane in place, so an edit to another
+-- lane that landed first survives (a whole-array write from a stale cache lost it).
+select public.update_soundboard_page_lane('d3c70000-0000-4000-8000-000000000020', 4, '{"name": "Doors"}'::jsonb);
+select public.update_soundboard_page_lane('d3c70000-0000-4000-8000-000000000020', 3, '{"name": "Fights", "feed": "music"}'::jsonb);
+select is(
+  (select lanes -> 4 ->> 'name' from public.soundboard_pages where id = 'd3c70000-0000-4000-8000-000000000020'),
+  'Doors',
+  'a lane edit leaves the lane another edit just changed alone');
+select is(
+  (select lanes -> 3 from public.soundboard_pages where id = 'd3c70000-0000-4000-8000-000000000020'),
+  '{"name": "Fights", "rule": "together", "feed": "music"}'::jsonb,
+  'the patch merges over the lane, keeping what it does not name');
+select is(
+  (select jsonb_typeof(lanes -> 0 -> 'feed') from public.soundboard_pages where id = 'd3c70000-0000-4000-8000-000000000020'),
+  'null',
+  'a feed given to one lane moves off the lane that had it');
+select throws_ok(
+  $$select public.update_soundboard_page_lane('d3c70000-0000-4000-8000-000000000020', 2, '{"name": " "}'::jsonb)$$,
+  '23514', null,
+  'a lane patch the CHECK refuses is refused');
+
+-- reorder_soundboard_pad_takes: the takes take the order given, in one statement.
+insert into public.sounds (id, user_id, campaign_id, name, category, file_url) values
+  ('d3c70000-0000-4000-8000-000000000032', 'd3c70000-0000-4000-8000-000000000001', 'd3c70000-0000-4000-8000-000000000010', 'Thunder one', 'effects', 'https://example.invalid/t1.mp3'),
+  ('d3c70000-0000-4000-8000-000000000033', 'd3c70000-0000-4000-8000-000000000001', 'd3c70000-0000-4000-8000-000000000010', 'Thunder two', 'effects', 'https://example.invalid/t2.mp3');
+insert into public.soundboard_pads (id, campaign_id, user_id, page_id, lane, grid_row) values
+  ('d3c70000-0000-4000-8000-000000000052', 'd3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000001', 'd3c70000-0000-4000-8000-000000000020', 6, 0);
+insert into public.soundboard_pad_takes (id, pad_id, sound_id, position) values
+  ('d3c70000-0000-4000-8000-000000000060', 'd3c70000-0000-4000-8000-000000000052', 'd3c70000-0000-4000-8000-000000000032', 0),
+  ('d3c70000-0000-4000-8000-000000000061', 'd3c70000-0000-4000-8000-000000000052', 'd3c70000-0000-4000-8000-000000000033', 1);
+select public.reorder_soundboard_pad_takes('d3c70000-0000-4000-8000-000000000052',
+  array['d3c70000-0000-4000-8000-000000000061', 'd3c70000-0000-4000-8000-000000000060']::uuid[]);
+select results_eq(
+  $$select id::text, position::integer from public.soundboard_pad_takes
+     where pad_id = 'd3c70000-0000-4000-8000-000000000052' order by position$$,
+  $$values ('d3c70000-0000-4000-8000-000000000061', 0), ('d3c70000-0000-4000-8000-000000000060', 1)$$,
+  'takes are reordered as given');
+
+-- Neither is a side door: both are invokers, so a player's call reaches no row.
+select set_config('request.jwt.claims', '{"sub":"d3c70000-0000-4000-8000-000000000002","role":"authenticated"}', true);
+select throws_ok(
+  $$select public.update_soundboard_page_lane('d3c70000-0000-4000-8000-000000000020', 5, '{"name": "Mine"}'::jsonb)$$,
+  'P0002', null,
+  'a player cannot change a lane');
+select public.reorder_soundboard_pad_takes('d3c70000-0000-4000-8000-000000000052',
+  array['d3c70000-0000-4000-8000-000000000060', 'd3c70000-0000-4000-8000-000000000061']::uuid[]);
+select set_config('request.jwt.claims', '{"sub":"d3c70000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select is(
+  (select position::integer from public.soundboard_pad_takes where id = 'd3c70000-0000-4000-8000-000000000061'),
+  0,
+  'a player cannot reorder a pad''s takes');
 
 select * from finish();
 rollback;

@@ -76,6 +76,43 @@ alter table public.soundboard_pages
 alter table public.soundboard_pages
   add constraint soundboard_pages_lanes_check check (private.is_valid_deck_lanes(lanes));
 
+-- One lane changes in place, inside the row's update, so two DMs editing two
+-- lanes at once both keep their change: writing the whole array back from a
+-- client's cache would undo whichever landed first. A feed moves: giving one to
+-- this lane takes it from the lane that had it. Invoker, so RLS decides who may.
+create or replace function public.update_soundboard_page_lane(p_page_id uuid, p_lane integer, p_patch jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_feed text := case when jsonb_typeof(p_patch -> 'feed') = 'string' then p_patch ->> 'feed' end;
+begin
+  if p_lane is null or p_lane not between 0 and 7 then
+    raise exception 'No lane %', p_lane using errcode = '22023';
+  end if;
+  if jsonb_typeof(p_patch) is distinct from 'object' then
+    raise exception 'A lane patch is an object' using errcode = '22023';
+  end if;
+  update public.soundboard_pages
+     set lanes = (
+       select jsonb_agg(
+                case when e.i - 1 = p_lane then e.lane || p_patch
+                     when v_feed is not null and e.lane ->> 'feed' = v_feed
+                       then e.lane || '{"feed": null}'::jsonb
+                     else e.lane end
+                order by e.i)
+         from jsonb_array_elements(lanes) with ordinality as e(lane, i))
+   where id = p_page_id;
+  if not found then
+    raise exception 'Page not found' using errcode = 'P0002';
+  end if;
+end;
+$$;
+revoke execute on function public.update_soundboard_page_lane(uuid, integer, jsonb) from public, anon;
+grant execute on function public.update_soundboard_page_lane(uuid, integer, jsonb) to authenticated, service_role;
+
 -- ── 3. Pads ───────────────────────────────────────────────────────────────────
 create table public.soundboard_pads (
   id           uuid primary key default gen_random_uuid(),
@@ -293,6 +330,22 @@ create policy "soundboard_pad_takes_delete" on public.soundboard_pad_takes for d
        and (((select auth.uid()) = p.user_id) or private.is_campaign_owner(p.campaign_id))));
 
 grant select, insert, update, delete on public.soundboard_pad_takes to authenticated, service_role;
+
+-- A pad's takes take the order given, in one statement: one ring, and never a
+-- half-reordered pad. Ids not on this pad are ignored. Invoker, so RLS decides who may.
+create or replace function public.reorder_soundboard_pad_takes(p_pad_id uuid, p_take_ids uuid[])
+returns void
+language sql
+security invoker
+set search_path = ''
+as $$
+  update public.soundboard_pad_takes t
+     set position = o.n - 1
+    from unnest(p_take_ids) with ordinality as o(id, n)
+   where t.id = o.id and t.pad_id = p_pad_id;
+$$;
+revoke execute on function public.reorder_soundboard_pad_takes(uuid, uuid[]) from public, anon;
+grant execute on function public.reorder_soundboard_pad_takes(uuid, uuid[]) to authenticated, service_role;
 
 -- ── 5. Live: both ring the campaign doorbell ─────────────────────────────────
 create trigger soundboard_pads_signal_insert after insert on public.soundboard_pads

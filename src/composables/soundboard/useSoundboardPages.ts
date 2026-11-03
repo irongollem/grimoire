@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { persistReorder } from "@/lib/reorder";
-import { isValidLanes } from "@/lib/audio/deck/deckModel";
 import type { DeckLane, SoundboardPage, SoundboardPageUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "soundboard_pages";
@@ -120,28 +119,22 @@ export function useReorderSoundboardPages() {
 }
 
 /**
- * Change one lane's name, rule or feed. Reads the page's lanes from the cache,
- * swaps one, and refuses anything the database CHECK would. A feed moves: giving
- * it to this lane takes it from the lane that had it, since a page has one of each.
+ * Change one lane's name, rule or feed. The server changes that one lane in
+ * place, so two lane edits at once both survive, and a feed given to this lane
+ * moves off the lane that had it (a page has one of each).
  */
 export function useUpdatePageLane() {
   const qc = useQueryClient();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useMutation({
-    mutationFn: ({ pageId, laneIndex, patch }: { pageId: string; laneIndex: number; patch: Partial<DeckLane> }) => {
-      const pages = qc.getQueryData<SoundboardPage[]>([QUERY_KEY, activeCampaignId.value]);
-      const page = pages?.find((p) => p.id === pageId);
-      if (!page) throw new Error("useUpdatePageLane: page is not loaded");
-      const current = page.lanes[laneIndex];
-      if (!current) throw new Error(`useUpdatePageLane: no lane ${laneIndex}`);
-      const moved = patch.feed !== undefined && patch.feed !== null ? patch.feed : null;
-      const lanes = page.lanes.map((lane, i) => {
-        if (i === laneIndex) return { ...lane, ...patch };
-        return moved !== null && lane.feed === moved ? { ...lane, feed: null } : lane;
+    mutationFn: async ({ pageId, laneIndex, patch }: { pageId: string; laneIndex: number; patch: Partial<DeckLane> }) => {
+      const { error } = await supabase.rpc("update_soundboard_page_lane", {
+        p_page_id: pageId,
+        p_lane: laneIndex,
+        p_patch: patch,
       });
-      if (!isValidLanes(lanes)) throw new Error("useUpdatePageLane: lanes would be invalid");
-      return updatePage(pageId, { lanes });
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });

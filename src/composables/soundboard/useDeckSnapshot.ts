@@ -202,11 +202,22 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
     const padsHere = pagePads.value;
     const guestsHere = guests.value;
     const rows = rowsForPage([...padsHere.map((info) => info.pad), ...guestsHere.map((g) => ({ lane: g.lane, grid_row: g.row }))]);
+    // First one in a cell wins, as the linear find did.
+    const padAt = new Map<string, (typeof padsHere)[number]>();
+    for (const info of padsHere) {
+      const key = `${info.pad.lane}:${info.pad.grid_row}`;
+      if (!padAt.has(key)) padAt.set(key, info);
+    }
+    const guestAt = new Map<string, (typeof guestsHere)[number]>();
+    for (const g of guestsHere) {
+      const key = `${g.lane}:${g.row}`;
+      if (!guestAt.has(key)) guestAt.set(key, g);
+    }
     const cells: DeckCellView[] = [];
     for (let row = 0; row < rows; row++) {
       for (let lane = 0; lane < DECK_LANES; lane++) {
-        const found = padsHere.find((info) => info.pad.lane === lane && info.pad.grid_row === row);
-        const guest = found ? undefined : guestsHere.find((g) => g.lane === lane && g.row === row);
+        const found = padAt.get(`${lane}:${row}`);
+        const guest = found ? undefined : guestAt.get(`${lane}:${row}`);
         cells.push(found ? cellOf(found) : guest ? guestCell(guest) : emptyDeckCell(lane, row));
       }
     }

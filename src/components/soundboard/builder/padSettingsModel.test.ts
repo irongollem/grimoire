@@ -43,6 +43,11 @@ describe("fadeMsFromText", () => {
     expect(fadeMsFromText("")).toBeNull();
     expect(fadeMsFromText("abc")).toBeNull();
   });
+
+  // Fails if the cap drifts above the database CHECK (20000): the save would be refused.
+  it("clamps a 25 second fade to the 20 second the database allows", () => {
+    expect(fadeMsFromText("25")).toBe(20000);
+  });
 });
 
 describe("moveId", () => {

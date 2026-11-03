@@ -44,7 +44,9 @@ async function createPad(
     if (takesError) {
       // A sound pad with no takes and no playlist plays nothing and the database only drops one when its last take is deleted, so undo the insert.
       if (pad.playlist_id === null || pad.playlist_id === undefined) {
-        await supabase.from("soundboard_pads").delete().eq("id", id);
+        const { error: cleanupError } = await supabase.from("soundboard_pads").delete().eq("id", id);
+        // Both failures matter: the takes error is the cause, the cleanup error leaves an empty pad behind.
+        if (cleanupError) throw new AggregateError([takesError, cleanupError], "Pad takes failed and the new pad could not be removed");
       }
       throw takesError;
     }
@@ -98,15 +100,9 @@ async function removeTake(takeId: string): Promise<void> {
 }
 
 async function reorderTakes(padId: string, takeIds: readonly string[]): Promise<void> {
-  for (const [position, takeId] of takeIds.entries()) {
-    // The pad filter keeps a stray id from another pad out of this write.
-    const { error } = await supabase
-      .from("soundboard_pad_takes")
-      .update({ position })
-      .eq("id", takeId)
-      .eq("pad_id", padId);
-    if (error) throw error;
-  }
+  // One statement on the server; ids that are not on this pad are ignored there.
+  const { error } = await supabase.rpc("reorder_soundboard_pad_takes", { p_pad_id: padId, p_take_ids: takeIds });
+  if (error) throw error;
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────

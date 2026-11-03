@@ -41,7 +41,7 @@ import {
 import { feedOfTrigger, targetId } from "@/lib/audio/deck/deckGuests";
 import { type DeckAction, type DeckCellView, type DeckSnapshot, type DeckTool } from "@/lib/audio/deck/deckSurface";
 import type { PlayOptions } from "@/stores/soundboard";
-import type { PlaylistTrackWithSound } from "@/types/sound.types";
+import type { PlaylistTrackWithSound, Sound } from "@/types/sound.types";
 
 export type { DeckPadInfo };
 
@@ -53,6 +53,8 @@ export const STOP_TOOL_MS = 60;
 export const GATE_MIN_RELEASE_MS = 80;
 /** How long a dragged pad volume waits before it is written. */
 export const VOLUME_SAVE_MS = 400;
+/** Closer than this, a saved level is the dragged one: a float4 keeps about seven digits. */
+const VOLUME_MATCH = 1e-4;
 
 export interface DeckController {
   snapshot: ComputedRef<DeckSnapshot>;
@@ -166,6 +168,24 @@ export function createDeck(): DeckController {
   const readout = useDeckReadout({ cursors, volumeOverrides });
   const { soundPlaying, isAudible, padLoops, padSoundIds, isSoloed, volumeOf, nextSound, blockedFor } = readout;
 
+  /** Pad id → the press whose playlist tracks are still being fetched. */
+  const pendingPlaylists = new Map<string, symbol>();
+
+  function soundStarting(sound: Sound): boolean {
+    return sound.source_type !== "spotify" && store.isStarting(sound.id);
+  }
+
+  /**
+   * Audible, or asked to play and still loading. A press counts as on from the
+   * moment it lands, so a quick Gate release, a Toggle's second press or a lane
+   * mate taking over stops a sound whose file has not started yet.
+   */
+  function isLive(info: DeckPadInfo): boolean {
+    if (isAudible(info)) return true;
+    if (info.kind === "sound") return info.sounds.some(soundStarting);
+    return pendingPlaylists.has(info.pad.id);
+  }
+
   // ── Starting and stopping ────────────────────────────────────────────────
 
   function laneIsOne(info: DeckPadInfo): boolean {
@@ -180,7 +200,7 @@ export function createDeck(): DeckController {
     for (const other of resolved.value.values()) {
       if (other.pad.id === info.pad.id) continue;
       if (other.pad.page_id !== info.pad.page_id || other.pad.lane !== info.pad.lane) continue;
-      if (isAudible(other)) stopPad(other, effectiveFades(other.pad, other.category).outMs);
+      if (isLive(other)) stopPad(other, effectiveFades(other.pad, other.category).outMs);
     }
     // Triggered audio in the lane has no pad of its own to compete with, and it yields too.
     if (info.pad.page_id !== activePage.value?.id) return;
@@ -288,8 +308,18 @@ export function createDeck(): DeckController {
       else store.playMusicPlaylist(playlist, tracks);
     };
     const cached = byPlaylist.value?.get(playlist.id);
-    if (cached && cached.length > 0) begin(cached);
-    else void fetchTracks(playlist.id).then(begin);
+    if (cached && cached.length > 0) {
+      begin(cached);
+      return;
+    }
+    // A stop while the tracks load cancels this press, and a newer press supersedes it.
+    const press = Symbol(info.pad.id);
+    pendingPlaylists.set(info.pad.id, press);
+    void fetchTracks(playlist.id).then((tracks) => {
+      if (pendingPlaylists.get(info.pad.id) !== press) return;
+      pendingPlaylists.delete(info.pad.id);
+      begin(tracks);
+    });
   }
 
   function startPad(info: DeckPadInfo, velocity?: number, fadeInMs?: number) {
@@ -300,11 +330,12 @@ export function createDeck(): DeckController {
   }
 
   function stopPad(info: DeckPadInfo, ms: number) {
-    if (!isAudible(info)) return;
+    if (!isLive(info)) return;
+    pendingPlaylists.delete(info.pad.id);
     markFading(info.pad.id, ms);
     if (info.kind === "sound") {
       for (const sound of info.sounds) {
-        if (!soundPlaying(sound)) continue;
+        if (!soundPlaying(sound) && !soundStarting(sound)) continue;
         if (sound.source_type === "spotify") void spotify.pause();
         else store.fadeOut(sound.id, ms);
       }
@@ -376,7 +407,7 @@ export function createDeck(): DeckController {
         startPad(info, velocity);
         return;
       case "toggle":
-        if (isAudible(info)) stopPad(info, effectiveFades(info.pad, info.category).outMs);
+        if (isLive(info)) stopPad(info, effectiveFades(info.pad, info.category).outMs);
         else startPad(info, velocity);
         return;
       case "gate":
@@ -419,7 +450,7 @@ export function createDeck(): DeckController {
         stopPad(info, STOP_TOOL_MS);
         return;
       case "fade":
-        if (isAudible(info)) stopPad(info, FADE_TOOL_MS);
+        if (isLive(info)) stopPad(info, FADE_TOOL_MS);
         else startPad(info, undefined, FADE_TOOL_MS);
         return;
       case "solo":
@@ -450,6 +481,8 @@ export function createDeck(): DeckController {
   // ── The rest of the protocol ─────────────────────────────────────────────
 
   const volumeTimers = new Map<string, { value: number; timer: ReturnType<typeof setTimeout> }>();
+  /** Pads whose dragged level has been saved: the next read of the pads is the truth. */
+  const savedVolumes = new Set<string>();
 
   function saveVolume(padId: string) {
     const pending = volumeTimers.get(padId);
@@ -459,6 +492,7 @@ export function createDeck(): DeckController {
     updatePad.mutate(
       { id: padId, patch: { volume: pending.value } },
       {
+        onSuccess: () => savedVolumes.add(padId),
         onError: () => {
           const { [padId]: _dropped, ...rest } = volumeOverrides.value;
           volumeOverrides.value = rest;
@@ -471,6 +505,7 @@ export function createDeck(): DeckController {
     const info = infoAt(lane, row);
     if (!info) return;
     const value = Math.min(1, Math.max(0, raw));
+    savedVolumes.delete(info.pad.id);
     volumeOverrides.value = { ...volumeOverrides.value, [info.pad.id]: value };
     for (const sound of info.sounds) if (sound.source_type !== "spotify") store.setVolume(sound.id, value);
     const pending = volumeTimers.get(info.pad.id);
@@ -493,7 +528,16 @@ export function createDeck(): DeckController {
       for (const id of ids) {
         const pad = list.find((p) => p.id === id);
         const value = current[id];
-        if (pad && value !== undefined && (pad.volume !== value || volumeTimers.has(id))) keep[id] = value;
+        if (!pad || value === undefined) continue;
+        if (volumeTimers.has(id)) {
+          keep[id] = value;
+          continue;
+        }
+        // Once saved, the pads read back are the truth, whatever they say: the
+        // column is a float4, so a knob's 64/127 never reads back exactly, and
+        // a co-DM may have set another level since.
+        if (savedVolumes.delete(id)) continue;
+        if (Math.abs(pad.volume - value) > VOLUME_MATCH) keep[id] = value;
       }
       if (Object.keys(keep).length !== ids.length) volumeOverrides.value = keep;
     },
@@ -548,7 +592,8 @@ export function createDeck(): DeckController {
         applyHush(action.phase);
         return;
       case "fadeAll":
-        for (const info of resolved.value.values()) if (isAudible(info)) markFading(info.pad.id, FADE_TOOL_MS);
+        for (const info of resolved.value.values()) if (isLive(info)) markFading(info.pad.id, FADE_TOOL_MS);
+        pendingPlaylists.clear();
         store.fadeOutAll(FADE_TOOL_MS);
         if (spotify.isPlaying) void spotify.pause();
         return;
@@ -556,6 +601,7 @@ export function createDeck(): DeckController {
         store.togglePauseAll();
         return;
       case "stopAll":
+        pendingPlaylists.clear();
         store.stopAll();
         if (spotify.isPlaying) void spotify.pause();
         return;
@@ -588,7 +634,7 @@ export function createDeck(): DeckController {
     if (lane === null || page.lanes[lane]?.rule !== "one") return;
     const id = targetId(trigger.target);
     for (const info of pagePads.value) {
-      if (info.pad.lane !== lane || padHolds(info, id) || !isAudible(info)) continue;
+      if (info.pad.lane !== lane || padHolds(info, id) || !isLive(info)) continue;
       stopPad(info, effectiveFades(info.pad, info.category).outMs);
     }
     for (const cell of snapshot.value.cells) {

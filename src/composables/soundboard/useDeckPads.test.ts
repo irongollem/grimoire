@@ -120,6 +120,18 @@ describe("useCreatePad", () => {
     expect(fake.rows("soundboard_pads")).toEqual([]);
   });
 
+  // Fails if the cleanup delete's error is dropped: an empty pad would stay and nobody would hear of it.
+  it("reports both errors when the cleanup delete also fails", async () => {
+    fake.failNext("soundboard_pad_takes", { message: "takes boom" });
+    fake.failNext("soundboard_pads", { message: "cleanup boom" }, { after: 1 });
+    const { result } = inApp(() => useCreatePad());
+    const failure = await result
+      .mutateAsync({ pad: { page_id: "pg", lane: 3, grid_row: 0 }, soundIds: ["s-a"] })
+      .catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect((failure as AggregateError).errors).toMatchObject([{ message: "takes boom" }, { message: "cleanup boom" }]);
+  });
+
   it("refuses to create without a campaign", async () => {
     session.campaignId = null;
     const { result } = inApp(() => useCreatePad());
@@ -156,16 +168,14 @@ describe("takes", () => {
     expect(fake.rows("soundboard_pad_takes").map((t) => t.id)).toEqual(["t2"]);
   });
 
-  it("reorders by the given id order and leaves another pad's take alone", async () => {
-    fake.seed("soundboard_pad_takes", [
-      { id: "t1", pad_id: "p1", position: 0 },
-      { id: "t2", pad_id: "p1", position: 1 },
-      { id: "foreign", pad_id: "p2", position: 7 },
-    ]);
+  // Fails if the reorder goes back to one write per take: not atomic, and a ring per take.
+  it("reorders with one RPC call carrying the ids in order", async () => {
+    fake.onRpc("reorder_soundboard_pad_takes", () => null);
     const { result } = inApp(() => useReorderTakes());
-    await result.mutateAsync({ padId: "p1", takeIds: ["t2", "t1", "foreign"] });
-    const pos = Object.fromEntries(fake.rows("soundboard_pad_takes").map((t) => [t.id, t.position]));
-    expect(pos).toEqual({ t1: 1, t2: 0, foreign: 7 });
+    await result.mutateAsync({ padId: "p1", takeIds: ["t2", "t1", "t3"] });
+    const rpcCalls = fake.calls.filter((c) => c.target === "reorder_soundboard_pad_takes");
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0]?.payload).toEqual({ p_pad_id: "p1", p_take_ids: ["t2", "t1", "t3"] });
   });
 });
 
@@ -197,32 +207,21 @@ describe("useUpdatePageLane", () => {
   }
   const useUpdateLane = () => useUpdatePageLane();
 
-  it("replaces just the one lane and keeps the other seven", async () => {
+  // Fails if the client rebuilds the whole lanes array: a concurrent edit to another lane would be lost.
+  it("sends only the one lane's patch to the server", async () => {
+    fake.onRpc("update_soundboard_page_lane", () => null);
     const { result } = setup();
     await result.mutateAsync({ pageId: "pg", laneIndex: 1, patch: { rule: "together" } });
-    const saved = fake.rows("soundboard_pages")[0]?.lanes as typeof DEFAULT_LANES;
-    expect(saved[1]).toEqual({ name: "Place", rule: "together", feed: "place" });
-    expect(saved.filter((_, i) => i !== 1)).toEqual(DEFAULT_LANES.filter((_, i) => i !== 1));
+    const rpcCalls = fake.calls.filter((c) => c.target === "update_soundboard_page_lane");
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0]?.payload).toEqual({ p_page_id: "pg", p_lane: 1, p_patch: { rule: "together" } });
   });
 
-  // Fails if the feed is not taken off the lane that had it: the save would carry
-  // one feed in two lanes and the database CHECK would refuse it.
-  it("moves a feed off the lane that had it", async () => {
+  it("throws the server's refusal", async () => {
+    fake.failNext("update_soundboard_page_lane", { message: "bad lane" });
     const { result } = setup();
-    await result.mutateAsync({ pageId: "pg", laneIndex: 3, patch: { feed: "music" } });
-    const saved = fake.rows("soundboard_pages")[0]?.lanes as typeof DEFAULT_LANES;
-    expect(saved[3]?.feed).toBe("music");
-    expect(saved[0]?.feed).toBeNull();
-  });
-
-  it("refuses an empty name before it reaches the database", async () => {
-    const { result } = setup();
-    await expect(result.mutateAsync({ pageId: "pg", laneIndex: 0, patch: { name: "" } })).rejects.toThrow();
-    expect(fake.rows("soundboard_pages")[0]?.lanes).toEqual(DEFAULT_LANES);
-  });
-
-  it("refuses a page that is not in the cache", async () => {
-    const { result } = setup();
-    await expect(result.mutateAsync({ pageId: "ghost", laneIndex: 0, patch: { name: "x" } })).rejects.toThrow();
+    await expect(result.mutateAsync({ pageId: "pg", laneIndex: 0, patch: { name: "" } })).rejects.toMatchObject({
+      message: "bad lane",
+    });
   });
 });

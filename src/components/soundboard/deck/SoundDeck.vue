@@ -45,12 +45,17 @@ const visible = computed(
 );
 
 // A key 1 to 8 reaches for the deck, so it peeks like a hand on its edge would.
-useDeckHotkeys({
-  dispatch(action: DeckAction) {
-    if (action.type === "press" && action.row === 0) ui.requestDeckPeek();
-    deck.dispatch(action);
+// Off while an editor owns the screen: the Cartographer and the Play screen
+// bind their own letters (X, E, O, V), and one key must not do two things.
+useDeckHotkeys(
+  {
+    dispatch(action: DeckAction) {
+      if (action.type === "press" && action.row === 0) ui.requestDeckPeek();
+      deck.dispatch(action);
+    },
   },
-});
+  { enabled: () => !app.editorFocus },
+);
 useDeckMidiShared();
 
 useHotkeys(
@@ -63,7 +68,7 @@ useHotkeys(
       },
     },
   ],
-  { layer: "global", enabled: () => !onBoard.value },
+  { layer: "global", enabled: () => !onBoard.value && !app.editorFocus },
 );
 
 // Simple or Full is settled once, from whether the campaign already had sounds.

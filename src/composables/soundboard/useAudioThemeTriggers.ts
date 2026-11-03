@@ -485,8 +485,9 @@ export function useAudioThemeTriggers(): void {
   // or restart over their choice, so forget it all.
   // Between "top changed" and "new music audible" the old music still plays
   // under the new top; `heard` starts false for each top, so that gap never
-  // counts. Pause all is not a change (`isPausedAll`), and a playlist moving
-  // to its next track keeps its playlistId.
+  // counts. Pause all is not a change (`isPausedAll`), a playlist moving to
+  // its next track keeps its playlistId, and music that ends by itself is not
+  // the DM's doing either.
   let watchedTop: string | null = null;
   let heard = false;
   function topIsAudible(top: ActiveTrigger): boolean {
@@ -494,6 +495,11 @@ export function useAudioThemeTriggers(): void {
     if (soundId !== null) return store.getState(soundId).isPlaying;
     const running = store.activeMusicPlaylist;
     return running !== null && running.playlistId === top.target;
+  }
+  /** A track that played to its end, or a playlist that ran out: nobody touched it. */
+  function topFinishedByItself(top: ActiveTrigger): boolean {
+    const soundId = soundIdOfTarget(top.target);
+    return soundId !== null ? store.finishedByItself(soundId) : store.playlistFinishedByItself(top.target);
   }
   watch(
     () => {
@@ -520,6 +526,9 @@ export function useAudioThemeTriggers(): void {
       // playing again once the browser's play() resolves: that one quiet beat
       // is the resume, not the DM.
       if (before !== undefined && before.paused) return;
+      // Music that ran out by itself was not the DM's doing: the stack stays,
+      // so the fight's end still brings the place's music back.
+      if (topFinishedByItself(top)) return;
       musicStack.value = [];
       musicFloor.value = null;
       heard = false;
