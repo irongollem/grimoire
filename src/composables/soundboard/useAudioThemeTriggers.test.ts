@@ -31,6 +31,9 @@ const store = reactive({
   activeMusicPlaylistId: vi.fn<() => string | null>(() => null),
   isPlaylistActive: vi.fn<(id: string) => boolean>(() => false),
   getState: vi.fn((soundId: string) => stateFor(soundId)),
+  /** The music playlist that is audible right now, as the store tracks it. */
+  activeMusicPlaylist: null as { playlistId: string } | null,
+  isPausedAll: false,
   /** Not a mock: the scenes running right now, as the store tracks them. */
   activeAmbientPlaylists: [] as { playlistId: string }[],
 });
@@ -114,6 +117,8 @@ beforeEach(async () => {
   for (const value of Object.values(store)) if (vi.isMockFunction(value)) value.mockClear();
   requestDeckPeek.mockClear();
   store.activeAmbientPlaylists = [];
+  store.activeMusicPlaylist = null;
+  store.isPausedAll = false;
   store.activeMusicPlaylistId.mockImplementation(() => null);
   store.isPlaylistActive.mockImplementation(() => false);
   playlists.value = [];
@@ -127,6 +132,17 @@ beforeEach(async () => {
   const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
   clearAudioTriggerHandlers();
 });
+
+/** What the store does when a music playlist starts: it becomes the audible one. */
+function hearMusic(id: string): void {
+  store.activeMusicPlaylist = { playlistId: id };
+  store.activeMusicPlaylistId.mockImplementation(() => id);
+}
+/** What the store does when the music stops: nothing is audible. */
+function silenceMusic(): void {
+  store.activeMusicPlaylist = null;
+  store.activeMusicPlaylistId.mockImplementation(() => null);
+}
 
 describe("a trigger that matches nothing", () => {
   it("leaves the board completely alone", async () => {
@@ -825,5 +841,168 @@ describe("a beat's audio cue", () => {
 
       expect(fireSound).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("once the DM touches the music, it is theirs", () => {
+  const fight = { sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" } as const;
+
+  // Bug: ending a fight stopped the playlist the DM had pressed mid-fight.
+  it("leaves a different playlist the DM started mid-fight playing on release", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] }), playlist({ id: "calm" })];
+    requestAudioTheme(fight);
+    await flush();
+    hearMusic("battle");
+    await flush();
+
+    hearMusic("calm");
+    await flush();
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    expect(store.stopPlaylist).not.toHaveBeenCalled();
+    expect(store.playPlaylist).toHaveBeenCalledOnce();
+  });
+
+  // Bug: a DM who stopped the music mid-fight had silence replaced by a stop call or the floor.
+  it("does not stop or restart anything on release when the DM stopped the music", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+    requestAudioTheme(fight);
+    await flush();
+    hearMusic("battle");
+    await flush();
+
+    silenceMusic();
+    await flush();
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    expect(store.stopPlaylist).not.toHaveBeenCalled();
+    expect(store.playPlaylist).toHaveBeenCalledOnce();
+  });
+
+  // Bug: the pre-fight floor came back over music the DM had stopped.
+  it("does not restart the pre-fight floor when the DM stopped the music", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] }), playlist({ id: "travel" })];
+    hearMusic("travel");
+    requestAudioTheme(fight);
+    await flush();
+    hearMusic("battle");
+    await flush();
+
+    silenceMusic();
+    await flush();
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    expect(store.playPlaylist).toHaveBeenCalledOnce();
+    expect(store.stopPlaylist).not.toHaveBeenCalled();
+  });
+
+  // Bug: a loose file standing in for the theme, stopped by the DM, still got "handed back".
+  it("counts a loose stand-in file the DM stopped as taking over", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    sounds.value = [{ id: "s9", file_url: "u", category: "music", gain_trim: 1, tags: ["battle"] } as Sound];
+    requestAudioTheme(fight);
+    await flush();
+    stateFor("s9").isPlaying = true;
+    await flush();
+
+    stateFor("s9").isPlaying = false;
+    await flush();
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    expect(store.stopPlaylist).not.toHaveBeenCalled();
+  });
+
+  // Bug: the bus switching music itself (a cue ducking the fight) read as the DM taking over,
+  // so releasing the cue no longer uncovered the fight's theme.
+  it("does not count the bus's own switch to a second trigger as a takeover", async () => {
+    const { requestAudioTheme, requestAudioCue, releaseAudioTheme } = await mount();
+    const boss = playlist({ id: "boss", tags: ["boss"] });
+    const calm = playlist({ id: "calm" });
+    playlists.value = [boss, calm];
+    requestAudioTheme({ ...fight, theme: "boss" });
+    await flush();
+    hearMusic("boss");
+    await flush();
+
+    // The cue is on top but boss still plays under it until calm starts.
+    requestAudioCue({ sourceId: "beat:b1:a1", kind: "beat", label: "Beat", slot: "music", target: { playlistId: "calm" } });
+    await flush();
+    hearMusic("calm");
+    await flush();
+
+    releaseAudioTheme("beat:b1:a1");
+    await flush();
+    expect(store.playPlaylist).toHaveBeenLastCalledWith(boss, tracks);
+  });
+
+  // Bug: a new top not yet audible, over old music that is, looked like a takeover.
+  it("does not count the gap before a new trigger's music is audible", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    const travel = playlist({ id: "travel" });
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] }), travel];
+    hearMusic("travel");
+    let finish: (t: PlaylistTrackWithSound[]) => void = () => {};
+    fetchTracksImpl = () => new Promise((resolve) => { finish = resolve; });
+    requestAudioTheme(fight);
+    await flush();
+
+    releaseAudioTheme("encounter:1");
+    finish(tracks);
+    fetchTracksImpl = () => Promise.resolve(tracks);
+    await flush();
+
+    expect(store.playPlaylist).toHaveBeenLastCalledWith(travel, tracks);
+  });
+
+  // Bug: Pause all silenced a stand-in file, which read as the DM stopping it.
+  it("does not count Pause all and resume as a takeover", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    sounds.value = [{ id: "s9", file_url: "u", category: "music", gain_trim: 1, tags: ["battle"] } as Sound];
+    requestAudioTheme(fight);
+    await flush();
+    stateFor("s9").isPlaying = true;
+    await flush();
+
+    store.isPausedAll = true;
+    stateFor("s9").isPlaying = false;
+    await flush();
+    store.isPausedAll = false;
+    stateFor("s9").isPlaying = true;
+    await flush();
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+  });
+
+  // Bug: the real store clears the pause at once but marks a file playing only
+  // once the browser's play() resolves, so the beat in between read as the DM
+  // stopping it.
+  it("does not count the quiet beat while a resumed file starts again as a takeover", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    sounds.value = [{ id: "s9", file_url: "u", category: "music", gain_trim: 1, tags: ["battle"] } as Sound];
+    requestAudioTheme(fight);
+    await flush();
+    stateFor("s9").isPlaying = true;
+    await flush();
+
+    store.isPausedAll = true;
+    stateFor("s9").isPlaying = false;
+    await flush();
+    store.isPausedAll = false;
+    await flush();
+    stateFor("s9").isPlaying = true;
+    await flush();
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    expect(store.stopPlaylist).toHaveBeenCalledWith("music");
   });
 });

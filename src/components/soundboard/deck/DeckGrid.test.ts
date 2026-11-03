@@ -60,4 +60,22 @@ describe("DeckGrid", () => {
     await w.find("[data-cell='7:1'] button").trigger("click");
     expect(w.emitted("select")).toEqual([[{ lane: 7, row: 1, padId: null }]]);
   });
+
+  it("Keep on a guest names its slot and does not press the pad", async () => {
+    // Bug: Keep shared the pad's press area, so keeping a guest also stopped it; or it named the wrong slot.
+    const guest = fixtureCell({
+      lane: 2,
+      row: 1,
+      padId: null,
+      guest: { sourceId: "fight:1", label: "Goblin ambush", target: "playlist-1" },
+    });
+    const cells = board().map((c) => (c.lane === 2 && c.row === 1 ? guest : c));
+    const w = mountGrid({ cells });
+    const keep = w.find("[data-cell='2:1'] [data-guest-keep]");
+    await keep.trigger("pointerdown", { button: 0 });
+    await keep.trigger("click");
+    expect(w.emitted("keep")).toEqual([[{ lane: 2, row: 1 }]]);
+    expect(w.emitted("press")).toBeUndefined();
+    expect(w.find("[data-cell='3:1'] [data-guest-keep]").exists()).toBe(false);
+  });
 });

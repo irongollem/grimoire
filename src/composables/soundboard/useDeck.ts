@@ -18,23 +18,28 @@ import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
-import { useUpdatePad } from "@/composables/soundboard/useDeckPads";
+import { useCreatePad, useUpdatePad } from "@/composables/soundboard/useDeckPads";
+import { useActiveAudioTriggers, type ActiveTrigger } from "@/composables/soundboard/useAudioThemeTriggers";
+import { useToast } from "@/composables/useToast";
 import { useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useBlockedCheck } from "@/composables/soundboard/useSoundPlayback";
 import { useDeckReadout } from "@/composables/soundboard/useDeckReadout";
 import { useDeckResolved, type DeckPadInfo } from "@/composables/soundboard/useDeckResolved";
 import { useDeckSnapshot } from "@/composables/soundboard/useDeckSnapshot";
 import {
+  DEFAULT_FADES,
   effectiveFades,
   effectiveLaunchMode,
   effectiveLoop,
   nextTakeIndex,
+  laneForFeed,
   padAt,
   takeVariation,
   velocityGain,
   type VelocityCurve,
 } from "@/lib/audio/deck/deckModel";
-import { type DeckAction, type DeckSnapshot, type DeckTool } from "@/lib/audio/deck/deckSurface";
+import { feedOfTrigger, targetId } from "@/lib/audio/deck/deckGuests";
+import { type DeckAction, type DeckCellView, type DeckSnapshot, type DeckTool } from "@/lib/audio/deck/deckSurface";
 import type { PlayOptions } from "@/stores/soundboard";
 import type { PlaylistTrackWithSound } from "@/types/sound.types";
 
@@ -74,6 +79,9 @@ export function createDeck(): DeckController {
   const spotify = useSpotifyStore();
   const ui = useSoundboardUiStore();
   const updatePad = useUpdatePad();
+  const createPad = useCreatePad();
+  const toast = useToast();
+  const { musicTrigger, ambientTriggers } = useActiveAudioTriggers();
   const fetchTracks = useFetchPlaylistTracks();
   const blockedReason = useBlockedCheck();
 
@@ -88,7 +96,7 @@ export function createDeck(): DeckController {
   // ── What is on the deck ──────────────────────────────────────────────────
 
   const deckResolved = useDeckResolved();
-  const { padsQuery, pages, activePage, resolved, pagePads, byPlaylist } = deckResolved;
+  const { padsQuery, pages, activePage, resolved, pagePads, byPlaylist, soundsById } = deckResolved;
 
   // ── Deck-owned state ─────────────────────────────────────────────────────
 
@@ -173,6 +181,60 @@ export function createDeck(): DeckController {
       if (other.pad.id === info.pad.id) continue;
       if (other.pad.page_id !== info.pad.page_id || other.pad.lane !== info.pad.lane) continue;
       if (isAudible(other)) stopPad(other, effectiveFades(other.pad, other.category).outMs);
+    }
+    // Triggered audio in the lane has no pad of its own to compete with, and it yields too.
+    if (info.pad.page_id !== activePage.value?.id) return;
+    for (const cell of snapshot.value.cells) {
+      if (cell.guest !== null && cell.lane === info.pad.lane) stopGuest(cell, effectiveFades(info.pad, info.category).outMs);
+    }
+  }
+
+  // ── Guests: triggered audio shown as a pad on the deck ────────────────────
+
+  function guestAt(lane: number, row: number): DeckCellView | null {
+    return snapshot.value.cells.find((cell) => cell.guest !== null && cell.lane === lane && cell.row === row) ?? null;
+  }
+
+  /** Stops the audio directly; a release would hand music back to what played before, and a stop wants quiet. */
+  function stopGuest(cell: DeckCellView, ms: number) {
+    const guest = cell.guest;
+    if (guest === null) return;
+    const id = targetId(guest.target);
+    markFading(`guest:${guest.target}`, ms);
+    if (guest.target !== id) store.fadeOut(id, ms);
+    else if (cell.kind === "scene") store.stopAmbientPlaylist(id);
+    else if (store.activeMusicPlaylist?.playlistId === id) store.stopMusicPlaylist();
+  }
+
+  function keepGuest(lane: number, row: number) {
+    const cell = guestAt(lane, row);
+    const page = activePage.value;
+    if (cell === null || cell.guest === null || page === null) return;
+    const id = targetId(cell.guest.target);
+    const slot = { page_id: page.id, lane, grid_row: row };
+    const vars = cell.guest.target === id ? { pad: { ...slot, playlist_id: id } } : { pad: slot, soundIds: [id] };
+    createPad.mutate(vars, { onError: (e) => toast.error(toast.fromError(e, "Could not keep that on the deck.")) });
+  }
+
+  function pressGuest(cell: DeckCellView) {
+    const category = cell.category === null ? "effects" : cell.category;
+    switch (currentTool.value) {
+      case "play":
+        stopGuest(cell, DEFAULT_FADES[category].outMs);
+        return;
+      case "stop":
+        stopGuest(cell, STOP_TOOL_MS);
+        return;
+      case "fade":
+        stopGuest(cell, FADE_TOOL_MS);
+        return;
+      case "edit":
+        keepGuest(cell.lane, cell.row);
+        return;
+      case "loop":
+      case "solo":
+      case "volume":
+        return;
     }
   }
 
@@ -297,7 +359,11 @@ export function createDeck(): DeckController {
 
   function press(lane: number, row: number, velocity: number | undefined) {
     const info = infoAt(lane, row);
-    if (!info) return;
+    if (!info) {
+      const guest = guestAt(lane, row);
+      if (guest !== null) pressGuest(guest);
+      return;
+    }
     const tool = currentTool.value;
     if (tool !== "play") {
       toolPress(tool, info);
@@ -499,12 +565,52 @@ export function createDeck(): DeckController {
       case "master":
         store.setMasterVolume(action.value);
         return;
+      case "keep":
+        keepGuest(action.lane, action.row);
+        return;
     }
   }
 
   // ── The snapshot ─────────────────────────────────────────────────────────
 
   const snapshot = useDeckSnapshot({ resolved: deckResolved, readout, cursors, heldPadIds, fadingIds, hushOn, currentTool, lockedTool });
+
+  // A trigger arriving in a "one" lane takes it over, as a pad pressed there would. A "together" lane is left alone.
+  function padHolds(info: DeckPadInfo, id: string): boolean {
+    return info.playlist !== null ? info.playlist.id === id : info.sounds.some((sound) => sound.id === id);
+  }
+
+  function yieldLaneTo(trigger: ActiveTrigger) {
+    const page = activePage.value;
+    if (page === null) return;
+    const feed = feedOfTrigger(trigger, (id) => soundsById.value.get(id)?.category);
+    const lane = feed === null ? null : laneForFeed(page.lanes, feed);
+    if (lane === null || page.lanes[lane]?.rule !== "one") return;
+    const id = targetId(trigger.target);
+    for (const info of pagePads.value) {
+      if (info.pad.lane !== lane || padHolds(info, id) || !isAudible(info)) continue;
+      stopPad(info, effectiveFades(info.pad, info.category).outMs);
+    }
+    for (const cell of snapshot.value.cells) {
+      if (cell.guest !== null && cell.lane === lane && cell.guest.target !== trigger.target) {
+        stopGuest(cell, DEFAULT_FADES[cell.category === null ? "effects" : cell.category].outMs);
+      }
+    }
+  }
+
+  let seenMusic: string | null = musicTrigger.value === null ? null : musicTrigger.value.sourceId;
+  let seenAmbient = new Set(ambientTriggers.value.map((t) => t.sourceId));
+  watch(
+    () => ({ music: musicTrigger.value, ambient: ambientTriggers.value.map((t) => t.sourceId), list: ambientTriggers.value }),
+    ({ music, list }) => {
+      const arrived: ActiveTrigger[] = [];
+      if (music !== null && music.sourceId !== seenMusic) arrived.push(music);
+      seenMusic = music === null ? null : music.sourceId;
+      for (const trigger of list) if (!seenAmbient.has(trigger.sourceId)) arrived.push(trigger);
+      seenAmbient = new Set(list.map((t) => t.sourceId));
+      for (const trigger of arrived) yieldLaneTo(trigger);
+    },
+  );
 
   onScopeDispose(() => {
     for (const padId of volumeTimers.keys()) saveVolume(padId); // The last drag is not lost.

@@ -273,8 +273,8 @@ import { useAbove, useBelow } from "@/composables/useBreakpoint";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useToast } from "@/composables/useToast";
 import { IconList, IconMixer, IconSettings } from "@/lib/icons";
-import { firstFreeSlot } from "@/lib/audio/deck/deckModel";
-import { DECK_LANES, type DeckCellView } from "@/lib/audio/deck/deckSurface";
+import { emptyDeckCell, firstFreeSlot } from "@/lib/audio/deck/deckModel";
+import { DECK_LANES } from "@/lib/audio/deck/deckSurface";
 import { useDeck } from "@/composables/soundboard/useDeck";
 import { useAddTake, useCreatePad, useDeckPads, useMovePad } from "@/composables/soundboard/useDeckPads";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/soundboard/useSoundboardPages";
@@ -407,22 +407,16 @@ const showEmptyState = computed(
   () => !isPending.value && (sounds.value ?? []).length === 0 && allPads.value.length === 0,
 );
 
-function emptyCell(lane: number, row: number): DeckCellView {
-  return {
-    lane, row, padId: null, kind: null, category: null, name: "", light: "off", loop: false,
-    mode: "trigger", modeIsDefault: true, takes: 0, nextTake: 0, progress: 0, volume: 0,
-    soloed: false, blockedReason: null, meta: null, keyLabel: null,
-  };
-}
 
 const buildRows = computed(() => Math.max(MIN_BUILD_ROWS, snapshot.value.rows + 1));
 // The snapshot ends at the lowest pad; build adds empty rows beneath it.
 const buildCells = computed(() => {
-  const cells = [...snapshot.value.cells];
+  // A guest is triggered audio passing through, not part of the layout, so building sees its slot as free.
+  const cells = snapshot.value.cells.map((cell) => (cell.guest === null ? cell : emptyDeckCell(cell.lane, cell.row)));
   const have = new Set(cells.map((c) => `${c.lane}:${c.row}`));
   for (let row = 0; row < buildRows.value; row++) {
     for (let lane = 0; lane < DECK_LANES; lane++) {
-      if (!have.has(`${lane}:${row}`)) cells.push(emptyCell(lane, row));
+      if (!have.has(`${lane}:${row}`)) cells.push(emptyDeckCell(lane, row));
     }
   }
   return cells;

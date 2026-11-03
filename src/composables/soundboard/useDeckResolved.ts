@@ -83,7 +83,7 @@ export function useDeckResolved() {
   );
   const { byPlaylist } = usePlaylistsTracks(playlistPadIds);
 
-  return { padsQuery, pages, activePage, resolved, pagePads, byPlaylist };
+  return { padsQuery, pages, activePage, resolved, pagePads, byPlaylist, soundsById, playlistsById };
 }
 
 export type DeckResolved = ReturnType<typeof useDeckResolved>;

@@ -121,6 +121,7 @@ const stateCells: StateCell[] = [
   { label: "soloed", cell: pad("ambient", { light: "playing", soloed: true, loop: true }) },
   { label: "scene", cell: pad("ambient", { kind: "scene", name: "Tavern", meta: "3 layers", mode: "toggle" }) },
   { label: "playlist", cell: pad("music", { kind: "playlist", name: "Exploration", meta: "12 tracks" }) },
+  { label: "guest (started by a fight)", cell: pad("music", { padId: null, light: "playing", loop: true, keyLabel: null, meta: "From Goblin ambush", guest: { sourceId: "fight:1", label: "Goblin ambush", target: "playlist-1" } }) },
   { label: "void (play mode)", cell: fixtureEmpty() },
   { label: "empty (build mode)", cell: fixtureEmpty(), mode: "build" as const },
   { label: "selected (build mode)", cell: pad("effects"), mode: "build" as const, selected: true },

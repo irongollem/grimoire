@@ -31,7 +31,7 @@
       <div
         v-for="cell in shownCells"
         :key="`${cell.lane}:${cell.row}`"
-        class="min-w-0"
+        class="relative min-w-0"
         :data-cell="`${cell.lane}:${cell.row}`"
         @dragover="onDragOver($event, cell)"
         @dragleave="onDragLeave(cell)"
@@ -50,6 +50,18 @@
           @pad-volume="(value) => emit('padVolume', { lane: cell.lane, row: cell.row, value })"
           @select="emit('select', { lane: cell.lane, row: cell.row, padId: cell.padId })"
         />
+        <!-- A sibling of the pad, not a child: a button cannot sit inside a button. -->
+        <AppButton
+          v-if="cell.guest !== null && cell.padId === null"
+          variant="ghost"
+          size="icon-2xs"
+          class="absolute end-1.5 top-1.5 z-20 pointer-coarse:size-9"
+          :icon="IconPin"
+          aria-label="Keep on deck"
+          tooltip="Keep it on the deck as a pad"
+          data-guest-keep
+          @click="emit('keep', { lane: cell.lane, row: cell.row })"
+        />
       </div>
     </div>
   </div>
@@ -58,6 +70,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconPin } from "@/lib/icons";
 import DeckPad from "./DeckPad.vue";
 import type { DeckCellView, DeckControls, DeckLaneView, DeckTool } from "@/lib/audio/deck/deckSurface";
 import type { DeckLaneRule, SoundCategory } from "@/types/sound.types";
@@ -103,6 +116,8 @@ const emit = defineEmits<{
   release: [payload: { lane: number; row: number }];
   padVolume: [payload: { lane: number; row: number; value: number }];
   select: [payload: { lane: number; row: number; padId: string | null }];
+  /** A guest pad's Keep was pressed. */
+  keep: [payload: { lane: number; row: number }];
   /** Build mode: a header was pressed, to edit that lane. */
   laneActivate: [index: number];
   /** Build mode: something was dropped on a slot. */

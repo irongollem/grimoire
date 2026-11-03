@@ -14,6 +14,7 @@
         mode="play"
         @press="deck.dispatch({ type: 'press', ...$event })"
         @release="deck.dispatch({ type: 'release', ...$event })"
+        @keep="deck.dispatch({ type: 'keep', ...$event })"
         @pad-volume="deck.dispatch({ type: 'padVolume', ...$event })"
       />
       <DeckToolStrip

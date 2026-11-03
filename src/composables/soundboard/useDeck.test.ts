@@ -63,6 +63,8 @@ const h = await vi.hoisted(async () => {
     byPlaylist: ref<Map<string, unknown[]> | undefined>(undefined),
     sharing: ref(false),
     blocked: new Map<string, string>(),
+    music: ref<null | { sourceId: string; label: string; kind: string; slot: string; target: string }>(null),
+    ambient: ref<Array<{ sourceId: string; label: string; kind: string; slot: string; target: string }>>([]),
   };
   return {
     store,
@@ -70,6 +72,8 @@ const h = await vi.hoisted(async () => {
     ui,
     data,
     updatePad: vi.fn(),
+    createPad: vi.fn(),
+    toastError: vi.fn(),
     fetchTracks: vi.fn(),
   };
 });
@@ -80,6 +84,13 @@ vi.mock("@/stores/ui/soundboard", () => ({ useSoundboardUiStore: () => h.ui }));
 vi.mock("@/composables/soundboard/useDeckPads", () => ({
   useDeckPads: () => ({ data: h.data.pads }),
   useUpdatePad: () => ({ mutate: h.updatePad }),
+  useCreatePad: () => ({ mutate: h.createPad }),
+}));
+vi.mock("@/composables/soundboard/useAudioThemeTriggers", () => ({
+  useActiveAudioTriggers: () => ({ musicTrigger: h.data.music, ambientTriggers: h.data.ambient }),
+}));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ error: h.toastError, fromError: (_e: unknown, fallback: string) => fallback }),
 }));
 vi.mock("@/composables/soundboard/useSoundboardPages", () => ({ useSoundboardPages: () => ({ data: h.data.pages }) }));
 vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: () => ({ data: h.data.sounds }) }));
@@ -188,6 +199,8 @@ beforeEach(() => {
   h.data.byPlaylist.value = undefined;
   h.data.sharing.value = false;
   h.data.blocked.clear();
+  h.data.music.value = null;
+  h.data.ambient.value = [];
   localStorage.clear();
   // A play puts the sound in the store's playing state; a fade-out takes it out.
   h.store.play.mockImplementation((id: string, _url: string, _cat: string, _trim: number, opts?: { loop?: boolean }) =>
@@ -961,5 +974,160 @@ describe("snapshot lights", () => {
     expect(snap.lanes).toHaveLength(8);
     press(deck);
     expect(h.store.play).not.toHaveBeenCalled();
+  });
+});
+
+// ── Guests: audio a trigger started ────────────────────────────────────────
+
+type Trig = NonNullable<typeof h.data.music.value>;
+const fightMusic: Trig = { sourceId: "enc1", label: "Goblin ambush", kind: "encounter", slot: "music", target: "battle" };
+const mill: Trig = { sourceId: "loc1", label: "The Mill", kind: "location", slot: "ambient", target: "mill" };
+
+/** The store as it is while a trigger's music plays. */
+function fightPlaying() {
+  h.store.activeMusicPlaylist = { playlistId: "battle", trackSoundIds: ["b1"], currentIndex: 0, paused: false };
+  h.data.music.value = fightMusic;
+}
+
+describe("guest pads", () => {
+  it("shows triggered music in the first free row of the music lane, from its label (fails if the guest never reached the grid)", () => {
+    const deck = boot({ pads: [pad("a")], playlists: [playlist("battle", "music")] });
+    fightPlaying();
+    const guest = cell(deck, 0, 1);
+    expect(guest.guest).toEqual({ sourceId: "enc1", label: "Goblin ambush", target: "battle" });
+    expect(guest.padId).toBeNull();
+    expect(guest.kind).toBe("playlist");
+    expect(guest.name).toBe("PL battle");
+    expect(guest.meta).toBe("From Goblin ambush");
+    expect(guest.light).toBe("playing");
+  });
+
+  it("shows no guest when a pad on the page already holds the target (that pad lights instead)", () => {
+    const deck = boot({ pads: [pad("mp", { playlist_id: "battle" }, [])], sounds: [], playlists: [playlist("battle", "music")] });
+    fightPlaying();
+    expect(deck.snapshot.value.cells.filter((c) => c.guest !== null)).toHaveLength(0);
+    expect(cell(deck).light).toBe("playing");
+  });
+
+  it("shows no guest for a beat's loose effect", () => {
+    const deck = boot({ pads: [], sounds: [sound("zap", "effects")] });
+    playing("zap");
+    h.data.ambient.value = [{ sourceId: "b1", label: "Beat", kind: "beat", slot: "ambient", target: "sound:zap" }];
+    expect(deck.snapshot.value.cells.filter((c) => c.guest !== null)).toHaveLength(0);
+  });
+
+  it("pressing a guest stops the music directly, never releasing the trigger (fails if it went through the bus)", () => {
+    const deck = boot({ pads: [pad("a")], playlists: [playlist("battle", "music")] });
+    fightPlaying();
+    press(deck, 0, 1);
+    expect(h.store.stopMusicPlaylist).toHaveBeenCalledTimes(1);
+  });
+
+  it("pressing a scene guest stops that scene; a loose sound fades out over the Stop tool's 60 ms", () => {
+    const deck = boot({ pads: [], sounds: [sound("rain", "ambient")], playlists: [playlist("mill", "ambient")] });
+    h.store.activeAmbientPlaylists = [{ playlistId: "mill", soundIds: ["m1"], paused: false }];
+    h.data.ambient.value = [mill, { sourceId: "b2", label: "Storm", kind: "beat", slot: "ambient", target: "sound:rain" }];
+    playing("rain");
+    expect(cell(deck, 1, 0).kind).toBe("scene");
+    press(deck, 1, 0);
+    expect(h.store.stopAmbientPlaylist).toHaveBeenCalledWith("mill");
+    deck.dispatch({ type: "tool", tool: "stop", phase: "down" });
+    press(deck, 2, 0);
+    expect(h.store.fadeOut).toHaveBeenCalledWith("rain", 60);
+  });
+
+  it("the Fade tool fades a guest over 3 s; Loop does nothing to it", () => {
+    const deck = boot({ pads: [], sounds: [sound("rain", "ambient")] });
+    playing("rain");
+    h.data.ambient.value = [{ sourceId: "b2", label: "Storm", kind: "beat", slot: "ambient", target: "sound:rain" }];
+    deck.dispatch({ type: "tool", tool: "loop", phase: "down" });
+    press(deck, 2, 0);
+    expect(h.store.fadeOut).not.toHaveBeenCalled();
+    deck.dispatch({ type: "tool", tool: "loop", phase: "up" });
+    deck.dispatch({ type: "tool", tool: "fade", phase: "down" });
+    press(deck, 2, 0);
+    expect(h.store.fadeOut).toHaveBeenCalledWith("rain", 3000);
+  });
+
+  it("keep makes the guest a pad in its slot with the playlist, or the sound as its take (fails if a field was wrong)", () => {
+    const deck = boot({ pads: [pad("a")], sounds: [sound("a"), sound("rain", "ambient")], playlists: [playlist("battle", "music")] });
+    fightPlaying();
+    deck.dispatch({ type: "keep", lane: 0, row: 1 });
+    expect(h.createPad.mock.calls[0][0]).toEqual({ pad: { page_id: "p1", lane: 0, grid_row: 1, playlist_id: "battle" } });
+    playing("rain");
+    h.data.ambient.value = [{ sourceId: "b2", label: "Storm", kind: "beat", slot: "ambient", target: "sound:rain" }];
+    deck.dispatch({ type: "keep", lane: 2, row: 0 });
+    expect(h.createPad.mock.calls[1][0]).toEqual({ pad: { page_id: "p1", lane: 2, grid_row: 0 }, soundIds: ["rain"] });
+  });
+
+  it("keep on a slot that is not a guest does nothing, and a failed keep says so (fails if the error were swallowed)", () => {
+    const deck = boot({ pads: [pad("a")], playlists: [playlist("battle", "music")] });
+    deck.dispatch({ type: "keep", lane: 0, row: 1 });
+    expect(h.createPad).not.toHaveBeenCalled();
+    fightPlaying();
+    deck.dispatch({ type: "keep", lane: 0, row: 1 });
+    h.createPad.mock.calls[0][1].onError(new Error("x"));
+    expect(h.toastError).toHaveBeenCalledWith("Could not keep that on the deck.");
+  });
+
+  it("pressing a pad in a 'one' lane stops the lane's guest (fails if only pads yielded)", () => {
+    const deck = boot({ pads: [pad("a")], playlists: [playlist("battle", "music")] });
+    fightPlaying();
+    press(deck, 0, 0);
+    expect(h.store.stopMusicPlaylist).toHaveBeenCalled();
+  });
+
+  // A Repeat pad held on one page keeps firing after the DM turns to another.
+  // Fails if its lane mates were read off the page on screen: it would stop
+  // that page's guest, which is in a different deck altogether.
+  it("a pad still firing from another page leaves this page's guest alone", () => {
+    const deck = boot({
+      pads: [pad("r", { launch_mode: "repeat", repeat_ms: 200 })],
+      playlists: [playlist("battle", "music")],
+      pages: [page("p1"), page("p2")],
+    });
+    press(deck, 0, 0);
+    deck.dispatch({ type: "page", index: 1 });
+    fightPlaying();
+    vi.advanceTimersByTime(250);
+    expect(h.store.stopMusicPlaylist).not.toHaveBeenCalled();
+  });
+});
+
+describe("trigger arrival", () => {
+  it("in a 'one' lane stops a loose music pad that plays something else (fails if arrival left both playing)", async () => {
+    const deck = boot({ pads: [pad("loose", { lane: 0 }, ["l1"])], sounds: [sound("l1", "music")], playlists: [playlist("battle", "music")] });
+    playing("l1");
+    expect(deck.snapshot.value.rows).toBe(1);
+    fightPlaying();
+    await nextTick();
+    expect(h.store.fadeOut).toHaveBeenCalledWith("l1", 1500);
+  });
+
+  it("leaves the pad alone when the trigger plays that very thing", async () => {
+    boot({ pads: [pad("mp", { playlist_id: "battle" }, [])], sounds: [], playlists: [playlist("battle", "music")] });
+    h.store.activeMusicPlaylist = { playlistId: "battle", trackSoundIds: ["b1"], currentIndex: 0, paused: false };
+    h.data.music.value = fightMusic;
+    await nextTick();
+    expect(h.store.stopMusicPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("in a 'together' lane stops nothing (fails if every arrival cleared its lane)", async () => {
+    const lanes = DEFAULT_LANES.map((lane) => (lane.feed === "music" ? { ...lane, rule: "together" as const } : lane));
+    boot({ pads: [pad("loose", { lane: 0 }, ["l1"])], sounds: [sound("l1", "music")], playlists: [playlist("battle", "music")], pages: [page("p1", lanes)] });
+    playing("l1");
+    fightPlaying();
+    await nextTick();
+    expect(h.store.fadeOut).not.toHaveBeenCalled();
+  });
+
+  it("a trigger that was already there stops nothing when something else changes (fails if every change counted as an arrival)", async () => {
+    boot({ pads: [pad("loose", { lane: 0 }, ["l1"])], sounds: [sound("l1", "music")], playlists: [playlist("battle", "music")] });
+    fightPlaying();
+    await nextTick();
+    playing("l1");
+    h.data.ambient.value = [];
+    await nextTick();
+    expect(h.store.fadeOut).not.toHaveBeenCalled();
   });
 });

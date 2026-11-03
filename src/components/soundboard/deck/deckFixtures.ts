@@ -6,6 +6,7 @@ export function fixtureCell(over: Partial<DeckCellView> = {}): DeckCellView {
     lane: 0,
     row: 0,
     padId: "pad-1",
+    guest: null,
     kind: "sound",
     category: "effects",
     name: "Door slam",
@@ -45,6 +46,7 @@ export function fixtureLanes(): DeckLaneView[] {
   return names.map((name, i) => ({
     name,
     rule: i % 3 === 0 ? "one" : "together",
+    feed: i === 0 ? "music" : null,
     category: i % 3 === 0 ? "music" : i % 3 === 1 ? "ambient" : "effects",
   }));
 }

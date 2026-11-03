@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LaneEditor from "./LaneEditor.vue";
 
 const updateLane = vi.fn().mockResolvedValue(undefined);
-const pages = ref([{ id: "pg", lanes: [{ name: "Music", rule: "one" }] }]);
+const pages = ref([{ id: "pg", lanes: [{ name: "Music", rule: "one", feed: null }] }]);
 
 vi.mock("@/composables/soundboard/useSoundboardPages", () => ({
   useSoundboardPages: () => ({ data: pages }),
@@ -40,7 +40,7 @@ describe("LaneEditor", () => {
   it("saves a valid name for the right lane", async () => {
     const w = mount(LaneEditor, { props: { pageId: "pg", laneIndex: 0 } });
     await edit(w, "Battle");
-    expect(updateLane).toHaveBeenCalledWith({ pageId: "pg", laneIndex: 0, patch: { name: "Battle", rule: "one" } });
+    expect(updateLane).toHaveBeenCalledWith({ pageId: "pg", laneIndex: 0, patch: { name: "Battle", rule: "one", feed: null } });
   });
 
   it("saves the rule", async () => {
@@ -49,6 +49,19 @@ describe("LaneEditor", () => {
     await together?.trigger("click");
     await vi.advanceTimersByTimeAsync(1000);
     await flushPromises();
-    expect(updateLane).toHaveBeenCalledWith({ pageId: "pg", laneIndex: 0, patch: { name: "Music", rule: "together" } });
+    expect(updateLane).toHaveBeenCalledWith({ pageId: "pg", laneIndex: 0, patch: { name: "Music", rule: "together", feed: null } });
+  });
+
+  it("saves the feed a lane takes", async () => {
+    // Bug: the feed was left out of the autosave, so picking one looked saved and the lane never took it.
+    const w = mount(LaneEditor, { props: { pageId: "pg", laneIndex: 0 } });
+    await w.find("select").setValue("place");
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushPromises();
+    expect(updateLane).toHaveBeenCalledWith({
+      pageId: "pg",
+      laneIndex: 0,
+      patch: { name: "Music", rule: "one", feed: "place" },
+    });
   });
 });

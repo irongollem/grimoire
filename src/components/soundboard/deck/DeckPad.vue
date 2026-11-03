@@ -8,7 +8,7 @@
   />
 
   <button
-    v-else-if="cell.padId === null"
+    v-else-if="cell.padId === null && cell.guest === null"
     type="button"
     class="flex w-full items-center justify-center gap-1.5 rounded-md border-[1.5px] border-dashed text-label text-muted-foreground transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     :class="[
@@ -30,7 +30,8 @@
     type="button"
     class="relative flex w-full cursor-pointer flex-col justify-between gap-1 overflow-hidden rounded-md border px-2.5 py-2 text-start select-none transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [-webkit-touch-callout:none]"
     :class="[heightClass, lookClass, touchClass, dropOver ? 'outline-2 outline-primary' : '']"
-    :draggable="mode === 'build'"
+    :draggable="mode === 'build' && cell.guest === null"
+    :data-guest="cell.guest !== null ? '' : undefined"
     :aria-label="padAccessibleName(cell, tool)"
     :data-pad-state="cell.light"
     @pointerdown="onPointerDown"
@@ -63,7 +64,8 @@
       {{ chip.text }}
     </span>
 
-    <span class="relative flex min-w-0 items-start gap-1.5">
+    <!-- A guest's Keep sits in the top corner (DeckGrid draws it), so its name stops short of it. -->
+    <span class="relative flex min-w-0 items-start gap-1.5" :class="cell.guest !== null ? 'pe-5 pointer-coarse:pe-9' : ''">
       <component :is="kindIcon" class="mt-0.5 h-3.5 w-3.5 shrink-0" :class="lit ? '' : PAD_ICON[category]" aria-hidden="true" />
       <span
         class="min-w-0 flex-1 font-semibold leading-tight [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
@@ -71,7 +73,7 @@
       >
         {{ cell.name }}
       </span>
-      <KeyCap v-if="cell.keyLabel !== null && chip === null" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
+      <KeyCap v-if="cell.keyLabel !== null && chip === null && cell.guest === null" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
     </span>
 
     <span class="relative flex min-w-0 items-center gap-1.5 text-label" :class="blockedText ? 'text-destructive' : footClass">
@@ -110,6 +112,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { cn } from "@/lib/utils";
 import {
   IconAdd,
   IconLaunchGate,
@@ -173,10 +176,10 @@ const emit = defineEmits<{
 
 const el = ref<HTMLButtonElement | null>(null);
 
-const isVoid = computed(() => cell.padId === null && mode === "play");
+const isVoid = computed(() => cell.padId === null && cell.guest === null && mode === "play");
 const category = computed<SoundCategory>(() => padCategory(cell));
 const lit = computed(() => isLit(cell));
-const chip = computed(() => (mode === "play" ? toolChipFor(cell, tool) : null));
+const chip = computed(() => (mode === "play" && cell.guest === null ? toolChipFor(cell, tool) : null));
 const blockedText = computed(() => cell.light === "blocked" && cell.blockedReason !== null);
 
 const heightClass = computed(() => (size === "sm" ? "min-h-15" : "min-h-21"));
@@ -229,6 +232,9 @@ const lookClass = computed(() => {
   if (cell.light === "blocked") classes.push("opacity-60");
   if (cell.soloed) classes.push(SOLO_RING[cat]);
   if (selected) classes.push("ring-2 ring-primary ring-offset-2 ring-offset-background");
+  // A guest is passing through, so it wears the empty slot's dashed edge. In ink, not
+  // the category colour: a lit guest's fill is that colour and would swallow it.
+  if (cell.guest !== null) return cn(classes, "border-dashed border-current/45");
   return classes;
 });
 

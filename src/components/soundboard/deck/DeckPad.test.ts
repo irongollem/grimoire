@@ -120,3 +120,35 @@ describe("DeckPad appearance", () => {
     expect(dots.map((d) => d.classes().includes("opacity-100"))).toEqual([false, true, false]);
   });
 });
+
+describe("DeckPad guest", () => {
+  const guest = fixtureCell({
+    padId: null,
+    guest: { sourceId: "fight:1", label: "Goblin ambush", target: "playlist-1" },
+    name: "Battle theme",
+    meta: "From Goblin ambush",
+    light: "playing",
+  });
+
+  it("draws a guest as a playable pad, not an empty or void slot", () => {
+    // Bug: padId === null was read as "empty", so the audio playing by itself had no pad to stop.
+    for (const mode of ["play", "build"] as const) {
+      const w = mountPad(guest, { mode });
+      expect(w.find("[data-pad-state='playing']").exists()).toBe(true);
+      expect(w.text()).toContain("From Goblin ambush");
+      expect(w.find("[data-pad-state='empty']").exists()).toBe(false);
+      expect(w.find("[data-pad-state='void']").exists()).toBe(false);
+    }
+  });
+
+  it("presses like a pad", async () => {
+    const w = mountPad(guest);
+    await w.find("[data-pad-state='playing']").trigger("pointerdown", { button: 0, pointerId: 1 });
+    expect(w.emitted("press")).toHaveLength(1);
+  });
+
+  it("is not draggable in build mode", () => {
+    // Bug: dragging a guest would carry a null pad id and drop nothing.
+    expect(mountPad(guest, { mode: "build" }).find("[data-guest]").attributes("draggable")).toBe("false");
+  });
+});

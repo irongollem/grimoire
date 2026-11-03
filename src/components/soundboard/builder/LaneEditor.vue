@@ -12,6 +12,16 @@
       <p class="text-caption text-muted-foreground">{{ RULE_HINT[draft.rule] }}</p>
     </div>
 
+    <div class="space-y-1">
+      <label class="text-label-lg text-muted-foreground" :for="feedId">Plays here by itself</label>
+      <AppSelect :id="feedId" v-model="draft.feed" block>
+        <option v-for="option in FEEDS" :key="option.label" :value="option.value">{{ option.label }}</option>
+      </AppSelect>
+      <p class="text-caption text-muted-foreground">
+        Shows what the campaign starts on its own here, so you can stop it. Picking one moves it from the lane that had it.
+      </p>
+    </div>
+
     <div class="flex items-center justify-between gap-2">
       <AutosaveStatus :status="autosave.status.value" :error="autosave.saveError.value" paused-label="Not saved yet" />
       <AppButton variant="tinted" tone="primary" size="sm" label="Done" @click="done" />
@@ -23,8 +33,9 @@
 import { computed, reactive, useId, watch } from "vue";
 import { useSoundboardPages, useUpdatePageLane } from "@/composables/soundboard/useSoundboardPages";
 import { useAutosave } from "@/composables/useAutosave";
-import type { DeckLane } from "@/types/sound.types";
+import type { DeckFeed, DeckLane } from "@/types/sound.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
@@ -43,13 +54,21 @@ const RULE_HINT: Record<DeckLane["rule"], string> = {
   together: "Pads play over each other.",
 };
 
+const FEEDS: { value: DeckFeed | null; label: string }[] = [
+  { value: null, label: "Nothing" },
+  { value: "music", label: "Music from fights and quests" },
+  { value: "place", label: "Where the party is" },
+  { value: "ambience", label: "Quest ambience" },
+];
+
+const feedId = `${useId()}-lane-feed`;
 const nameId = `${useId()}-lane-name`;
 const { data: pages } = useSoundboardPages();
 const { mutateAsync: updateLane } = useUpdatePageLane();
 
 const lane = computed(() => (pages.value ?? []).find((p) => p.id === pageId)?.lanes[laneIndex] ?? null);
 
-const draft = reactive<DeckLane>({ name: "", rule: "one" });
+const draft = reactive<DeckLane>({ name: "", rule: "one", feed: null });
 const nameValid = computed(() => {
   const length = draft.name.trim().length;
   return length >= 1 && length <= LANE_NAME_MAX;
@@ -59,14 +78,14 @@ let hydrated: { pageId: string; laneIndex: number } | null = null;
 
 const autosave = useAutosave<DeckLane>({
   draft,
-  initial: () => (lane.value ? { ...lane.value } : { ...draft }),
-  equal: (a, b) => a.name === b.name && a.rule === b.rule,
+  initial: () => (lane.value ? { ...lane.value, feed: lane.value.feed ?? null } : { ...draft }),
+  equal: (a, b) => a.name === b.name && a.rule === b.rule && a.feed === b.feed,
   canSave: () => nameValid.value,
   delay: 500,
   save: async (snapshot) => {
     // The lane the draft was hydrated from, even if the props have moved on.
     if (hydrated === null) return;
-    await updateLane({ ...hydrated, patch: { name: snapshot.name.trim(), rule: snapshot.rule } });
+    await updateLane({ ...hydrated, patch: { name: snapshot.name.trim(), rule: snapshot.rule, feed: snapshot.feed } });
   },
 });
 

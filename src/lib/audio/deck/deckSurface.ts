@@ -12,7 +12,7 @@
  * implementation.
  */
 
-import type { DeckLaneRule, LaunchMode, SoundCategory } from "@/types/sound.types";
+import type { DeckFeed, DeckLaneRule, LaunchMode, SoundCategory } from "@/types/sound.types";
 
 /** Columns on every page. A Launchpad's grid is 8 wide; so is the deck. */
 export const DECK_LANES = 8;
@@ -62,7 +62,9 @@ export type DeckAction =
   /** A pad's own level, 0 to 1: the Volume tool's drag, or a learned knob. */
   | { type: "padVolume"; lane: number; row: number; value: number }
   /** The master fader, 0 to 1. */
-  | { type: "master"; value: number };
+  | { type: "master"; value: number }
+  /** Make the guest in this slot a real pad there, so it stays after the trigger lets go. */
+  | { type: "keep"; lane: number; row: number };
 
 export type DeckPadKind = "sound" | "scene" | "playlist";
 
@@ -86,11 +88,29 @@ export type DeckLight =
   /** Cannot play here; `blockedReason` says why. */
   | "blocked";
 
+/**
+ * Audio the campaign started by itself (a fight's music, the party's place, a
+ * quest beat's cue) that no pad on this page holds. It stands in the first free
+ * slot of the lane that takes its feed, because a DM who wants it gone looks for
+ * it on the deck. Never saved: it goes when the audio does. A press stops it, the
+ * Fade tool fades it, and `keep` makes it a real pad in that slot.
+ */
+export interface DeckGuest {
+  /** The trigger that owns it, as the audio bus names it. */
+  sourceId: string;
+  /** What started it, for the pad: "Goblin ambush", "The Mill". */
+  label: string;
+  /** A playlist id, or `sound:<id>` for a loose file. */
+  target: string;
+}
+
 export interface DeckCellView {
   lane: number;
   row: number;
-  /** Null for an empty slot; every field below is then a neutral default. */
+  /** Null for an empty slot and for a guest; for an empty slot every field below is a neutral default. */
   padId: string | null;
+  /** Set when the slot shows triggered audio no pad holds; `padId` is then null. */
+  guest: DeckGuest | null;
   kind: DeckPadKind | null;
   category: SoundCategory | null;
   name: string;
@@ -120,6 +140,8 @@ export interface DeckCellView {
 export interface DeckLaneView {
   name: string;
   rule: DeckLaneRule;
+  /** What the campaign plays here by itself, or null. */
+  feed: DeckFeed | null;
   /** The colour its header takes: the kind of sound most of its pads are, else effects. */
   category: SoundCategory;
 }

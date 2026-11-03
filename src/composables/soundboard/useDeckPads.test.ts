@@ -201,8 +201,18 @@ describe("useUpdatePageLane", () => {
     const { result } = setup();
     await result.mutateAsync({ pageId: "pg", laneIndex: 1, patch: { rule: "together" } });
     const saved = fake.rows("soundboard_pages")[0]?.lanes as typeof DEFAULT_LANES;
-    expect(saved[1]).toEqual({ name: "Place", rule: "together" });
+    expect(saved[1]).toEqual({ name: "Place", rule: "together", feed: "place" });
     expect(saved.filter((_, i) => i !== 1)).toEqual(DEFAULT_LANES.filter((_, i) => i !== 1));
+  });
+
+  // Fails if the feed is not taken off the lane that had it: the save would carry
+  // one feed in two lanes and the database CHECK would refuse it.
+  it("moves a feed off the lane that had it", async () => {
+    const { result } = setup();
+    await result.mutateAsync({ pageId: "pg", laneIndex: 3, patch: { feed: "music" } });
+    const saved = fake.rows("soundboard_pages")[0]?.lanes as typeof DEFAULT_LANES;
+    expect(saved[3]?.feed).toBe("music");
+    expect(saved[0]?.feed).toBeNull();
   });
 
   it("refuses an empty name before it reaches the database", async () => {

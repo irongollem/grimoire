@@ -35,9 +35,19 @@ export type SoundboardPageUpdate = Partial<
  */
 export type DeckLaneRule = "one" | "together";
 
+/**
+ * Audio the campaign starts by itself, by where it shows up on the deck: music
+ * from a fight or a quest beat, the sound of where the party is, or a quest
+ * beat's ambience. Such audio has no pad, so the deck draws it as a passing
+ * pad in the lane that takes its feed, and that lane's rule applies to it.
+ */
+export type DeckFeed = "music" | "place" | "ambience";
+
 export interface DeckLane {
   name: string;
   rule: DeckLaneRule;
+  /** Absent or null: nothing the campaign starts shows up here. At most one lane per feed. */
+  feed?: DeckFeed | null;
 }
 
 /**

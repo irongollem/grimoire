@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(18);
 
 -- The soundboard deck (#1136): pads on a page's eight lanes, a sound pad's
 -- takes, and the page's lanes. Each assertion names the guard it protects.
@@ -44,6 +44,23 @@ select throws_ok(
      where id = 'd3c70000-0000-4000-8000-000000000020'$$,
   '23514', null,
   'a lane with no rule is refused (a missing key is false, not NULL)');
+select throws_ok(
+  $$update public.soundboard_pages
+       set lanes = jsonb_set(lanes, '{3,feed}', '"combat"'::jsonb)
+     where id = 'd3c70000-0000-4000-8000-000000000020'$$,
+  '23514', null,
+  'a lane with an unknown feed is refused');
+select throws_ok(
+  $$update public.soundboard_pages
+       set lanes = jsonb_set(lanes, '{3,feed}', '"music"'::jsonb)
+     where id = 'd3c70000-0000-4000-8000-000000000020'$$,
+  '23514', null,
+  'one feed in two lanes is refused, so a trigger always knows where it goes');
+select lives_ok(
+  $$update public.soundboard_pages
+       set lanes = jsonb_set(jsonb_set(lanes, '{0,feed}', 'null'::jsonb), '{3,feed}', '"music"'::jsonb)
+     where id = 'd3c70000-0000-4000-8000-000000000020'$$,
+  'a feed moved to another lane is accepted');
 
 -- 3. Positive control: the DM lays out a sound pad and a scene pad.
 set local role authenticated;

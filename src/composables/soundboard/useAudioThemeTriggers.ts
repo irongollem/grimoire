@@ -11,6 +11,8 @@ import {
   type AudioThemeRequest,
   type AudioCueRequest,
   type AudioTriggerKind,
+  soundIdOfTarget,
+  soundTarget,
 } from "@/lib/audio/audioTriggers";
 import { resolveAudioTheme, type AudioSlot, type ThemeMatch } from "@/lib/audio/audioThemes";
 import { getAudioTriggersEnabled, setAudioTriggersEnabled } from "@/lib/audio/audioTriggerPrefs";
@@ -67,6 +69,11 @@ export interface ActiveTrigger {
  * trigger (or none) was underneath. `musicFloor` is the one thing that is not
  * a trigger — whatever the DM had running by hand before anything on the
  * stack took over — captured once, when the stack first stops being empty.
+ *
+ * The DM can take the music over. Once the top trigger's music has actually
+ * been heard, if it is replaced by something else or goes quiet and the bus
+ * did not do that, the stack and the floor are forgotten (see the watch in
+ * `useAudioThemeTriggers`): a later release then changes no playback.
  */
 const musicStack = ref<ActiveTrigger[]>([]);
 const musicFloor = ref<string | null>(null);
@@ -75,10 +82,6 @@ const musicOwner = computed<ActiveTrigger | null>(() => musicStack.value.at(-1) 
 /** Scenes stack, so ambient ownership is a list rather than a single slot. */
 const ambientOwners = ref<ActiveTrigger[]>([]);
 
-/** Key for a loose sound standing in for a scene. */
-function soundTarget(soundId: string): string {
-  return `sound:${soundId}`;
-}
 
 /**
  * Read-only view of what the campaign is currently driving, for the UI.
@@ -214,8 +217,9 @@ export function useAudioThemeTriggers(): void {
 
   /** Restart whatever a music-stack entry points at — a playlist, or a bare file standing in for one. */
   async function resumeMusicTarget(target: string, gen: number): Promise<void> {
-    if (target.startsWith("sound:")) {
-      const sound = currentSounds().find((s) => s.id === target.slice("sound:".length));
+    const soundId = soundIdOfTarget(target);
+    if (soundId !== null) {
+      const sound = currentSounds().find((s) => s.id === soundId);
       if (sound === undefined || gen !== generation.music) return;
       store.play(sound.id, sound.file_url, sound.category, sound.gain_trim);
       return;
@@ -423,7 +427,8 @@ export function useAudioThemeTriggers(): void {
       // silence the other's.
       const stillWanted = ambientOwners.value.some((owner) => owner.target === owned.target);
       if (!stillWanted) {
-        if (owned.target.startsWith("sound:")) store.stop(owned.target.slice("sound:".length));
+        const soundId = soundIdOfTarget(owned.target);
+        if (soundId !== null) store.stop(soundId);
         // By id: leaving one themed location must not silence the scenes
         // another location, or the DM, still has running.
         else store.stopAmbientPlaylist(owned.target);
@@ -470,6 +475,55 @@ export function useAudioThemeTriggers(): void {
       const stopped = before.filter((id) => !running.includes(id));
       if (stopped.length === 0) return;
       ambientOwners.value = ambientOwners.value.filter((owner) => !stopped.includes(owner.target));
+    },
+  );
+
+  // Once you touch the music, it's yours. A trigger's music that has been
+  // heard and then stops being the audible music, with the bus not having
+  // switched it (the top is unchanged), was changed by the DM: another pad,
+  // a stop, stop-all. Keeping the stack would let the trigger's release stop
+  // or restart over their choice, so forget it all.
+  // Between "top changed" and "new music audible" the old music still plays
+  // under the new top; `heard` starts false for each top, so that gap never
+  // counts. Pause all is not a change (`isPausedAll`), and a playlist moving
+  // to its next track keeps its playlistId.
+  let watchedTop: string | null = null;
+  let heard = false;
+  function topIsAudible(top: ActiveTrigger): boolean {
+    const soundId = soundIdOfTarget(top.target);
+    if (soundId !== null) return store.getState(soundId).isPlaying;
+    const running = store.activeMusicPlaylist;
+    return running !== null && running.playlistId === top.target;
+  }
+  watch(
+    () => {
+      const top = musicOwner.value;
+      return {
+        top,
+        key: top === null ? null : `${top.sourceId}|${top.target}`,
+        audible: top === null ? false : topIsAudible(top),
+        paused: store.isPausedAll,
+      };
+    },
+    ({ top, key, audible, paused }, before) => {
+      if (key !== watchedTop) {
+        watchedTop = key;
+        heard = false;
+      }
+      if (top === null) return;
+      if (audible) {
+        heard = true;
+        return;
+      }
+      if (!heard || paused) return;
+      // Resume all clears the pause at once, but a loose file only reads as
+      // playing again once the browser's play() resolves: that one quiet beat
+      // is the resume, not the DM.
+      if (before !== undefined && before.paused) return;
+      musicStack.value = [];
+      musicFloor.value = null;
+      heard = false;
+      watchedTop = null;
     },
   );
 

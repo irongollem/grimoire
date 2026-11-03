@@ -4,8 +4,8 @@
  * the screen and a hardware driver all read the same answers.
  */
 
-import type { DeckLane, LaunchMode, SoundCategory, SoundboardPad } from "@/types/sound.types";
-import type { DeckPadKind } from "./deckSurface";
+import type { DeckFeed, DeckLane, LaunchMode, SoundCategory, SoundboardPad } from "@/types/sound.types";
+import type { DeckCellView, DeckPadKind } from "./deckSurface";
 import { DECK_LANES } from "./deckSurface";
 
 /** The highest grid_row the database allows is 255. */
@@ -13,9 +13,9 @@ export const MAX_GRID_ROWS = 256;
 
 /** Equal to the default of `soundboard_pages.lanes`. */
 export const DEFAULT_LANES: DeckLane[] = [
-  { name: "Music", rule: "one" },
-  { name: "Place", rule: "one" },
-  { name: "Ambience", rule: "together" },
+  { name: "Music", rule: "one", feed: "music" },
+  { name: "Place", rule: "one", feed: "place" },
+  { name: "Ambience", rule: "together", feed: "ambience" },
   { name: "Effects", rule: "together" },
   { name: "Effects", rule: "together" },
   { name: "Effects", rule: "together" },
@@ -25,19 +25,36 @@ export const DEFAULT_LANES: DeckLane[] = [
 
 const LANE_NAME_MAX = 40;
 
-/** Mirrors the database CHECK: eight lanes, a 1 to 40 character name, rule one or together. */
+const FEEDS: ReadonlySet<unknown> = new Set<DeckFeed>(["music", "place", "ambience"]);
+
+/**
+ * Mirrors the database CHECK: eight lanes, a 1 to 40 character name, rule one
+ * or together, an optional feed, and no feed in two lanes.
+ */
 export function isValidLanes(lanes: unknown): lanes is DeckLane[] {
   if (!Array.isArray(lanes) || lanes.length !== DECK_LANES) return false;
-  return lanes.every((lane: unknown) => {
+  const feeds: unknown[] = [];
+  const wellFormed = lanes.every((lane: unknown) => {
     if (typeof lane !== "object" || lane === null) return false;
-    const { name, rule } = lane as Record<string, unknown>;
+    const { name, rule, feed } = lane as Record<string, unknown>;
+    if (feed !== undefined && feed !== null) {
+      if (!FEEDS.has(feed)) return false;
+      feeds.push(feed);
+    }
     return (
       typeof name === "string" &&
-      name.length >= 1 &&
+      name.trim().length >= 1 &&
       name.length <= LANE_NAME_MAX &&
       (rule === "one" || rule === "together")
     );
   });
+  return wellFormed && new Set(feeds).size === feeds.length;
+}
+
+/** The lane on a page that takes a feed, or null when none does. */
+export function laneForFeed(lanes: readonly DeckLane[], feed: DeckFeed): number | null {
+  const index = lanes.findIndex((lane) => lane.feed === feed);
+  return index === -1 ? null : index;
 }
 
 // ── Kind, category, defaults ──────────────────────────────────────────────
@@ -169,4 +186,29 @@ export function velocityGain(velocity: number, curve: VelocityCurve): number {
 export function topRowKey(lane: number, row: number): string | null {
   if (row !== 0 || lane < 0 || lane >= DECK_LANES) return null;
   return String(lane + 1);
+}
+
+/** A slot with nothing in it, in every surface's terms. */
+export function emptyDeckCell(lane: number, row: number): DeckCellView {
+  return {
+    lane,
+    row,
+    padId: null,
+    guest: null,
+    kind: null,
+    category: null,
+    name: "",
+    light: "off",
+    loop: false,
+    mode: "trigger",
+    modeIsDefault: true,
+    takes: 0,
+    nextTake: 0,
+    progress: 0,
+    volume: 0,
+    soloed: false,
+    blockedReason: null,
+    meta: null,
+    keyLabel: null,
+  };
 }

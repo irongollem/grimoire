@@ -82,6 +82,7 @@ export function padAccessibleName(cell: DeckCellView, tool: DeckTool): string {
   const state = [STATE_WORDS[cell.light]];
   if (cell.light === "blocked" && cell.blockedReason !== null) state.push(cell.blockedReason);
   if (cell.soloed) state.push("soloed");
+  if (cell.guest !== null) return `${cell.name}. Started by ${cell.guest.label}. Pressing stops it. ${state.join(", ")}.`;
   return `${cell.name}. ${action}. ${state.join(", ")}.`;
 }
 

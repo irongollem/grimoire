@@ -119,7 +119,11 @@ export function useReorderSoundboardPages() {
   });
 }
 
-/** Change one lane's name or rule. Reads the page's lanes from the cache, swaps one, and refuses anything the database CHECK would. */
+/**
+ * Change one lane's name, rule or feed. Reads the page's lanes from the cache,
+ * swaps one, and refuses anything the database CHECK would. A feed moves: giving
+ * it to this lane takes it from the lane that had it, since a page has one of each.
+ */
 export function useUpdatePageLane() {
   const qc = useQueryClient();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
@@ -131,7 +135,11 @@ export function useUpdatePageLane() {
       if (!page) throw new Error("useUpdatePageLane: page is not loaded");
       const current = page.lanes[laneIndex];
       if (!current) throw new Error(`useUpdatePageLane: no lane ${laneIndex}`);
-      const lanes = page.lanes.map((lane, i) => (i === laneIndex ? { ...lane, ...patch } : lane));
+      const moved = patch.feed !== undefined && patch.feed !== null ? patch.feed : null;
+      const lanes = page.lanes.map((lane, i) => {
+        if (i === laneIndex) return { ...lane, ...patch };
+        return moved !== null && lane.feed === moved ? { ...lane, feed: null } : lane;
+      });
       if (!isValidLanes(lanes)) throw new Error("useUpdatePageLane: lanes would be invalid");
       return updatePage(pageId, { lanes });
     },

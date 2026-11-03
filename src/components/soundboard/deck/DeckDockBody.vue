@@ -16,6 +16,7 @@
         mode="play"
         @press="(p) => deck.dispatch({ type: 'press', ...p })"
         @release="(p) => deck.dispatch({ type: 'release', ...p })"
+        @keep="(p) => deck.dispatch({ type: 'keep', ...p })"
         @pad-volume="(p) => deck.dispatch({ type: 'padVolume', ...p })"
       />
     </div>

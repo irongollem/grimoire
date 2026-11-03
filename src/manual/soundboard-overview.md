@@ -37,6 +37,16 @@ Each page has **8 lanes** (columns) and as many rows as you need. A lane has a n
 
 A new page starts with Music and Place (one at a time), Ambience, four Effects lanes and Stingers (together). You can rename any lane and change its rule.
 
+### Sound the campaign starts by itself
+
+A fight can start its own music, a quest beat can cue a sound, and the party arriving somewhere can bring in that place's ambience. That sound shows up on the deck in its own lane: fight and quest music in **Music**, where the party is in **Place**, a quest's ambience in **Ambience**. If one of your pads already holds it, that pad lights up. If not, it appears in the lane's first free slot as a dashed pad that says what started it, for example "From Goblin ambush".
+
+- **Press it** to stop it, like any pad.
+- **Keep** turns it into a real pad in that slot, so it is there next time.
+- The lane's rule applies. A fight's music fades out the Music pad you had playing, and pressing a Music pad takes over from the fight.
+
+Once you change or stop the music yourself, it is yours: when the fight ends, the deck leaves your choice alone. To pick which lane takes what, click a lane's name in the builder and set **Plays here by itself**.
+
 A **pad** is one of three things:
 
 | Pad | What it plays |

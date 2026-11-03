@@ -9,7 +9,11 @@
 --
 -- A lane is "one at a time" (a new pad crossfades the old) or "together". The
 -- eight lanes live on the page as jsonb, because they are the page's layout and
--- never queried on their own.
+-- never queried on their own. A lane may also be where audio the campaign starts
+-- by itself shows up (`feed`): fight and quest music, the sound of where the
+-- party is, or a quest beat's ambience. That audio has no pad of its own, and
+-- the DM who wants to stop it looks for it on the deck, so the client draws it
+-- as a passing pad in that lane and the lane's rule applies to it.
 --
 -- Also here: the `misc` category goes. Production held no misc sounds and the
 -- shared library none; it was only the column default, and it played through
@@ -46,16 +50,23 @@ as $$
                  or coalesce(jsonb_typeof(lane -> 'name'), '') <> 'string'
                  or coalesce(char_length(lane ->> 'name'), 0) not between 1 and 40
                  or coalesce(btrim(lane ->> 'name'), '') = ''
-                 or coalesce(lane ->> 'rule', '') not in ('one', 'together'))
+                 or coalesce(lane ->> 'rule', '') not in ('one', 'together')
+                 or (lane ? 'feed' and jsonb_typeof(lane -> 'feed') <> 'null'
+                     and coalesce(lane ->> 'feed', '') not in ('music', 'place', 'ambience')))
+           -- Each feed lands in one lane at most, or a trigger would not know where to go.
+           and (select count(*) from jsonb_array_elements(p_lanes) as lane
+                 where jsonb_typeof(lane) = 'object' and jsonb_typeof(lane -> 'feed') = 'string')
+             = (select count(distinct lane ->> 'feed') from jsonb_array_elements(p_lanes) as lane
+                 where jsonb_typeof(lane) = 'object' and jsonb_typeof(lane -> 'feed') = 'string')
          else false end;
 $$;
 grant execute on function private.is_valid_deck_lanes(jsonb) to authenticated, service_role;
 
 alter table public.soundboard_pages
   add column lanes jsonb not null default '[
-    {"name": "Music",    "rule": "one"},
-    {"name": "Place",    "rule": "one"},
-    {"name": "Ambience", "rule": "together"},
+    {"name": "Music",    "rule": "one",      "feed": "music"},
+    {"name": "Place",    "rule": "one",      "feed": "place"},
+    {"name": "Ambience", "rule": "together", "feed": "ambience"},
     {"name": "Effects",  "rule": "together"},
     {"name": "Effects",  "rule": "together"},
     {"name": "Effects",  "rule": "together"},

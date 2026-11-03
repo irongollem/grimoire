@@ -4,9 +4,11 @@
  */
 
 import { computed, type ComputedRef, type Ref } from "vue";
+import { placeGuests, targetId, type GuestTrigger, type PlacedGuest } from "@/lib/audio/deck/deckGuests";
 import {
   DEFAULT_LANES,
   effectiveLaunchMode,
+  emptyDeckCell,
   isDefaultLaunchMode,
   laneCategory,
   rowsForPage,
@@ -16,12 +18,15 @@ import {
   DECK_LANES,
   type DeckCellView,
   type DeckLaneView,
+  type DeckPadKind,
   type DeckLight,
   type DeckSnapshot,
   type DeckTool,
 } from "@/lib/audio/deck/deckSurface";
 import { useAudioSharing } from "@/composables/soundboard/useAudioSharing";
+import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import type { DeckReadout } from "@/composables/soundboard/useDeckReadout";
+import type { Sound } from "@/types/sound.types";
 import type { DeckPadInfo, DeckResolved } from "@/composables/soundboard/useDeckResolved";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
@@ -47,7 +52,8 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
   const store = useSoundboardStore();
   const spotify = useSpotifyStore();
   const sharing = useAudioSharing();
-  const { pages, activePage, pagePads, byPlaylist } = state.resolved;
+  const { pages, activePage, pagePads, byPlaylist, soundsById, playlistsById } = state.resolved;
+  const { musicTrigger, ambientTriggers } = useActiveAudioTriggers();
   const { cursors, heldPadIds, fadingIds, hushOn, currentTool, lockedTool } = state;
   const { isAudible, padLoops, blockedFor, isSoloed, progressOf, volumeOf, nextSound } = state.readout;
 
@@ -78,28 +84,6 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
     return tracks ? plural(tracks.length, "track", "tracks") : null;
   }
 
-  function emptyCell(lane: number, row: number): DeckCellView {
-    return {
-      lane,
-      row,
-      padId: null,
-      kind: null,
-      category: null,
-      name: "",
-      light: "off",
-      loop: false,
-      mode: "trigger",
-      modeIsDefault: true,
-      takes: 0,
-      nextTake: 0,
-      progress: 0,
-      volume: 0,
-      soloed: false,
-      blockedReason: null,
-      meta: null,
-      keyLabel: null,
-    };
-  }
 
   function cellOf(info: DeckPadInfo): DeckCellView {
     const { pad } = info;
@@ -114,6 +98,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       lane: pad.lane,
       row: pad.grid_row,
       padId: pad.id,
+      guest: null,
       kind: info.kind,
       category: info.category,
       name: pad.name !== null && pad.name !== "" ? pad.name : first ? first.name : info.playlist ? info.playlist.name : "",
@@ -132,21 +117,104 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
     };
   }
 
+  // ── Guests: triggered audio no pad on this page holds ──────────────────────
+
+  function soundCategory(soundId: string) {
+    return soundsById.value.get(soundId)?.category;
+  }
+
+  function targetAudible(target: string): boolean {
+    const id = targetId(target);
+    if (target !== id) return store.playbackStates[id]?.isPlaying === true;
+    return store.activeMusicPlaylist?.playlistId === id || store.activeAmbientPlaylists.some((s) => s.playlistId === id);
+  }
+
+  const guests = computed<PlacedGuest[]>(() => {
+    const page = activePage.value;
+    if (!page) return [];
+    const triggers: GuestTrigger[] = [];
+    if (musicTrigger.value) triggers.push(musicTrigger.value);
+    triggers.push(...ambientTriggers.value);
+    const heldIds = new Set<string>();
+    for (const info of pagePads.value) {
+      if (info.playlist) heldIds.add(info.playlist.id);
+      for (const sound of info.sounds) heldIds.add(sound.id);
+    }
+    return placeGuests({
+      lanes: page.lanes,
+      heldIds,
+      occupied: pagePads.value.map((info) => ({ lane: info.pad.lane, row: info.pad.grid_row })),
+      triggers: triggers.filter((trigger) => targetAudible(trigger.target)),
+      soundCategory,
+    });
+  });
+
+  /** The sound ids a guest stands for, for Solo's ducking. */
+  function guestSoundIds(guest: PlacedGuest, kind: DeckPadKind): string[] {
+    const id = targetId(guest.target);
+    if (kind === "sound") return [id];
+    if (kind === "scene") {
+      const scene = store.activeAmbientPlaylists.find((s) => s.playlistId === id);
+      return scene ? [...scene.soundIds] : [];
+    }
+    const music = store.activeMusicPlaylist;
+    if (music === null || music.playlistId !== id) return [];
+    const current = music.trackSoundIds[music.currentIndex];
+    return current === undefined ? [] : [current];
+  }
+
+  function guestCell(guest: PlacedGuest): DeckCellView {
+    const id = targetId(guest.target);
+    const isSound = guest.target !== id;
+    const sound: Sound | undefined = isSound ? soundsById.value.get(id) : undefined;
+    const list = isSound ? undefined : playlistsById.value.get(id);
+    const ambient = list ? list.playlist_type === "ambient" : ambientTriggers.value.some((t) => t.target === guest.target);
+    const kind: DeckPadKind = isSound ? "sound" : ambient ? "scene" : "playlist";
+    const category = sound ? sound.category : ambient ? "ambient" : "music";
+    const loop = kind === "scene" || (kind === "sound" && store.isLooping(id));
+    const ids = guestSoundIds(guest, kind);
+    const soloed = store.soloIds !== null && ids.length > 0 && ids.every((sid) => store.soloIds?.includes(sid) === true);
+    let light: DeckLight = loop ? "looping" : "playing";
+    if (fadingIds.value.has(`guest:${guest.target}`)) light = "fading";
+    else if (store.soloIds !== null && !soloed) light = "ducked";
+    let name = guest.label;
+    if (sound) name = sound.name;
+    else if (list) name = list.name;
+    return {
+      ...emptyDeckCell(guest.lane, guest.row),
+      guest: { sourceId: guest.sourceId, label: guest.label, target: guest.target },
+      kind,
+      category,
+      name,
+      light,
+      loop,
+      mode: "toggle",
+      modeIsDefault: true,
+      volume: 1,
+      soloed,
+      meta: `From ${guest.label}`,
+      keyLabel: topRowKey(guest.lane, guest.row),
+    };
+  }
+
   const snapshot = computed<DeckSnapshot>(() => {
     const page = activePage.value;
     const padsHere = pagePads.value;
-    const rows = rowsForPage(padsHere.map((info) => info.pad));
+    const guestsHere = guests.value;
+    const rows = rowsForPage([...padsHere.map((info) => info.pad), ...guestsHere.map((g) => ({ lane: g.lane, grid_row: g.row }))]);
     const cells: DeckCellView[] = [];
     for (let row = 0; row < rows; row++) {
       for (let lane = 0; lane < DECK_LANES; lane++) {
         const found = padsHere.find((info) => info.pad.lane === lane && info.pad.grid_row === row);
-        cells.push(found ? cellOf(found) : emptyCell(lane, row));
+        const guest = found ? undefined : guestsHere.find((g) => g.lane === lane && g.row === row);
+        cells.push(found ? cellOf(found) : guest ? guestCell(guest) : emptyDeckCell(lane, row));
       }
     }
     const laneDefs = page ? page.lanes : DEFAULT_LANES;
     const lanes: DeckLaneView[] = laneDefs.map((def, lane) => ({
       name: def.name,
       rule: def.rule,
+      feed: def.feed === undefined ? null : def.feed,
       category: laneCategory(padsHere.filter((info) => info.pad.lane === lane).map((info) => info.category)),
     }));
     return {
