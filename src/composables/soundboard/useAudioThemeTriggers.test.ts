@@ -31,8 +31,6 @@ const store = reactive({
   activeMusicPlaylistId: vi.fn<() => string | null>(() => null),
   isPlaylistActive: vi.fn<(id: string) => boolean>(() => false),
   getState: vi.fn((soundId: string) => stateFor(soundId)),
-  /** Not a mock: the floating player's open flag, which triggers now set. */
-  widgetOpen: false,
   /** Not a mock: the scenes running right now, as the store tracks them. */
   activeAmbientPlaylists: [] as { playlistId: string }[],
 });
@@ -49,8 +47,9 @@ vi.mock("@/composables/soundboard/useSounds", () => ({
 }));
 /** Lets a test hold a playlist's track fetch open to stage a race. */
 let fetchTracksImpl: (id: string) => Promise<PlaylistTrackWithSound[]> = () => Promise.resolve(tracks);
-const onDesktop = ref(true);
-vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => onDesktop }));
+/** The deck's peek request: what a trigger asks for instead of opening a floating player. */
+const requestDeckPeek = vi.fn();
+vi.mock("@/stores/ui/soundboard", () => ({ useSoundboardUiStore: () => ({ requestDeckPeek }) }));
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
   playlistsQueryOptions: (id: string) => ({ queryKey: ["soundboard_playlists", id] as const, queryFn: () => Promise.resolve(playlists.value) }),
   useFetchPlaylistTracks: () => (id: string) => fetchTracksImpl(id),
@@ -113,7 +112,7 @@ async function mount() {
 beforeEach(async () => {
   vi.resetModules();
   for (const value of Object.values(store)) if (vi.isMockFunction(value)) value.mockClear();
-  store.widgetOpen = false;
+  requestDeckPeek.mockClear();
   store.activeAmbientPlaylists = [];
   store.activeMusicPlaylistId.mockImplementation(() => null);
   store.isPlaylistActive.mockImplementation(() => false);
@@ -123,7 +122,6 @@ beforeEach(async () => {
   fireSound.mockClear();
   libraryCached = true;
   libraryInvalidated = false;
-  onDesktop.value = true;
   fetchTracksImpl = () => Promise.resolve(tracks);
   fetchQuery.mockClear();
   const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
@@ -143,7 +141,7 @@ describe("a trigger that matches nothing", () => {
     expect(store.stopPlaylist).not.toHaveBeenCalled();
     expect(store.play).not.toHaveBeenCalled();
     // …and nothing to control, so no player pops open.
-    expect(store.widgetOpen).toBe(false);
+    expect(requestDeckPeek).not.toHaveBeenCalled();
   });
 
   it("does not stop the music that is already running", async () => {
@@ -158,20 +156,9 @@ describe("a trigger that matches nothing", () => {
 });
 
 describe("a trigger that matches", () => {
-  // Audio that starts on its own must come with a way to stop it: the floating
-  // player used to stay shut unless the DM had opened it by hand.
-  it("opens the floating player when it starts something", async () => {
-    const { requestAudioTheme } = await mount();
-    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
-
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
-    await flush();
-
-    expect(store.widgetOpen).toBe(true);
-  });
-
-  it("leaves the floating player shut on a phone, where it would cover the page", async () => {
-    onDesktop.value = false;
+  // Audio that starts on its own must come with a way to stop it: the deck may
+  // be tucked, so a trigger asks it to peek.
+  it("asks the deck to peek when it starts something, rather than opening a floating player", async () => {
     const { requestAudioTheme } = await mount();
     playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
 
@@ -179,7 +166,7 @@ describe("a trigger that matches", () => {
     await flush();
 
     expect(store.playPlaylist).toHaveBeenCalledOnce();
-    expect(store.widgetOpen).toBe(false);
+    expect(requestDeckPeek).toHaveBeenCalled();
   });
 
   it("lets a loose file stand in for a theme with no playlist, stopping the playlist that held the slot", async () => {

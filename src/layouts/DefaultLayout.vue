@@ -7,7 +7,7 @@
   <div class="flex h-dvh overflow-hidden bg-background pr-(--dock-right)" :style="chromeStyle">
     <AppSidebar v-if="!editorFocus" />
 
-    <div class="flex-1 flex flex-col min-w-0">
+    <div class="relative flex-1 flex flex-col min-w-0">
       <!-- Account-frozen notice (chargeback/fraud or admin freeze) -->
       <SuspensionBanner />
 
@@ -25,7 +25,7 @@
       <main
         ref="mainEl"
         class="flex flex-1 min-h-0 flex-col overflow-y-auto sidenav:pb-0"
-        :class="fullscreenMobile || editorFocus ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'"
+        :class="fullscreenMobile || editorFocus ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))]'"
       >
         <div v-if="returnTo" class="border-b border-border bg-card px-3 py-2">
           <AppButton :to="returnTo" label="Back to quest beat" size="sm" variant="subtle" />
@@ -35,6 +35,11 @@
           <slot />
         </DmCampaignGate>
       </main>
+
+      <!-- The sound deck: in the column's flow on a desktop, so it pushes the
+           page up rather than covering it; a sheet above the bar on a phone.
+           Its height is --dock-bottom (see base.css). -->
+      <SoundDeck v-if="isDm" />
     </div>
 
     <!-- Docked, mode-aware DM bottom navigation — shown whenever the bar (not
@@ -60,9 +65,6 @@
 
     <!-- Shows a pill for every active/completed/errored AI generation -->
     <AiGenerationBadge />
-
-    <!-- Soundboard floating widget — always mounted so audio survives navigation -->
-    <SoundboardWidget />
 
     <!-- DM scratchpad: docked note panel that follows the entity on screen -->
     <DmScratchpad v-if="isDm" />
@@ -110,7 +112,7 @@ import StaleSessionPrompt from "@/components/layout/StaleSessionPrompt.vue";
 import DmCampaignGate from "@/components/campaign/DmCampaignGate.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import AiGenerationBadge from "@/components/common/ai/AiGenerationBadge.vue";
-import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
+import SoundDeck from "@/components/soundboard/deck/SoundDeck.vue";
 import DmScratchpad from "@/components/notes/DmScratchpad.vue";
 import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
 import NpcPeekHost from "@/components/npcs/NpcPeekHost.vue";

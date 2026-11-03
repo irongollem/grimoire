@@ -5,7 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { soundsQueryOptions } from "@/composables/soundboard/useSounds";
 import { playlistsQueryOptions, useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSoundTrigger } from "@/composables/soundboard/useSoundPlayback";
-import { useAbove } from "@/composables/useBreakpoint";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import {
   onAudioTrigger,
   type AudioThemeRequest,
@@ -115,17 +115,16 @@ export function useAudioThemeTriggers(): void {
   // function every playback button in the app calls — refire-as-effect,
   // Safari's webm block, Spotify's own play path all stay exactly as they are.
   const fireSound = useSoundTrigger();
-  const isDesktop = useAbove("md");
+  const deckUi = useSoundboardUiStore();
 
   /**
-   * Audio that starts on its own must come with a way to stop it. The floating
-   * player only opened when the DM popped it out by hand, so a session's
-   * ambience or an encounter's music could start with no control anywhere on
-   * screen. Desktop only: on a phone the floating panel would cover the page,
-   * and the mobile soundboard lives in its own sheet.
+   * Audio that starts on its own must come with a way to stop it. The docked
+   * deck is always there, but tucked it is a thin handle, so a trigger asks it
+   * to peek: it opens over the page for a few seconds and settles back. On a
+   * phone the peek is the folded row, which covers little.
    */
   function revealPlayer(): void {
-    if (isDesktop.value) store.widgetOpen = true;
+    deckUi.requestDeckPeek();
   }
 
   /**

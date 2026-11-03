@@ -33,7 +33,7 @@
     </div>
 
     <div>
-      <p class="mb-2 text-caption text-muted-foreground">DeckGrid with lane headers; the tool strip drives the chips</p>
+      <p class="mb-2 text-caption text-muted-foreground">The grid with lane headers; the tool strip drives the chips</p>
       <div class="flex gap-3">
         <DeckGrid class="min-w-0 flex-1" :lanes="lanes" :cells="gridCells" :rows="3" size="md" controls="full" :tool="tool" mode="play" />
         <DeckToolStrip class="w-40 shrink-0" :tool="tool" :locked-tool="tool" controls="full" layout="grid" :show-keys="true" @tool="onTool" />

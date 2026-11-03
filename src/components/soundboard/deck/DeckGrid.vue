@@ -1,12 +1,18 @@
 <template>
   <div class="flex min-w-0 flex-col gap-2">
-    <div class="grid gap-2" :style="columnsStyle" role="row">
+    <div
+      v-if="headers !== 'hidden'"
+      class="grid gap-2"
+      :class="headers === 'sticky' ? 'sticky top-0 z-10 bg-card' : ''"
+      :style="columnsStyle"
+      role="row"
+    >
       <component
         :is="mode === 'build' ? AppButton : 'div'"
         v-for="index in visibleLanes"
         :key="`h-${index}`"
         v-bind="mode === 'build' ? { variant: 'ghost', size: 'inline-xs', block: true, class: 'justify-start' } : {}"
-        class="flex min-w-0 items-center gap-1.5 border-b-2 pb-1 text-label font-bold tracking-wider text-foreground uppercase"
+        class="flex min-w-0 items-center gap-1.5 border-b-2 pb-1 text-eyebrow font-bold text-foreground"
         :class="LANE_RULE[laneAt(index).category]"
         :aria-label="mode === 'build' ? `Edit ${laneName(index)}` : undefined"
         @click="mode === 'build' ? emit('laneActivate', index) : undefined"
@@ -74,6 +80,7 @@ const {
   tool,
   mode,
   selectedPadId,
+  headers = "shown",
 } = defineProps<{
   lanes: readonly DeckLaneView[];
   cells: readonly DeckCellView[];
@@ -87,6 +94,8 @@ const {
   tool: DeckTool;
   mode: "play" | "build";
   selectedPadId?: string;
+  /** Lane names above the grid: shown, kept in view while the grid scrolls, or left off (the one-row bar). */
+  headers?: "shown" | "sticky" | "hidden";
 }>();
 
 const emit = defineEmits<{
