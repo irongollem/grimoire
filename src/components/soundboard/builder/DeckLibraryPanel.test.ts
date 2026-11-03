@@ -23,8 +23,8 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({ isPlaylistA
 
 function sound(id: string, name: string, over: Partial<Sound> = {}): Sound {
   return {
-    id, user_id: "u", campaign_id: "c", page_id: null, name, category: "effects", source_type: "upload",
-    file_url: "https://example.test/a.mp3", storage_path: null, library_id: null, tags: [], sort_order: 0,
+    id, user_id: "u", campaign_id: "c", name, category: "effects", source_type: "upload",
+    file_url: "https://example.test/a.mp3", storage_path: null, library_id: null, tags: [],
     attribution: null, attribution_url: null, thumbnail_url: null, artist: null, gain_trim: 1,
     created_at: "", updated_at: "", ...over,
   };

@@ -290,12 +290,10 @@ if (import.meta.env.PROD) {
     // This used to `import()` them, on the theory that it kept the audio stack
     // out of the entry chunk for a check that only runs on deploys. It did not:
     // the app shell already reaches both eagerly and unconditionally, via the
-    // top bar's playing-count badge (SoundboardWidgetToggle), the always-mounted
-    // SoundboardWidget and trigger bus in DefaultLayout, and useMediaSession in
+    // docked deck and trigger bus in DefaultLayout and useMediaSession in
     // App.vue. So the dynamic import moved nothing and only earned an
-    // INEFFECTIVE_DYNAMIC_IMPORT warning. Removing all four of those consumers
-    // outright takes a measured 11 kB gzip off the entry — which does not pay
-    // for async-ifying the CarPlay media-session or audio-trigger paths.
+    // INEFFECTIVE_DYNAMIC_IMPORT warning, and it does not pay for async-ifying
+    // the CarPlay media-session or audio-trigger paths.
     isBusy: () =>
       queryClient.isMutating() > 0 ||
       useSoundboardStore(pinia).hasActiveAudio ||

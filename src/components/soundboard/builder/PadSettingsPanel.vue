@@ -77,6 +77,13 @@
           hint="Most useful with two or more takes, so a repeated sound does not machine-gun."
         />
         <AppCheckbox v-model="draft.velocity" label="Louder the harder you hit, on a controller that feels it" />
+        <!-- Heard through a door, a wall, underwater: live for this session,
+             as it always was, and for every take of the pad. Direct output
+             bypasses the effect chain, so it is not offered there. -->
+        <div v-if="kind === 'sound' && !soundboardStore.directOutput && effectSounds.length > 0" class="flex items-center gap-2">
+          <span class="text-caption text-muted-foreground">Effect</span>
+          <SoundEffectPicker :model-value="currentEffect" @update:model-value="applyEffect" />
+        </div>
       </div>
 
       <div v-if="sound" class="space-y-2 border-t border-border/50 pt-3">
@@ -94,7 +101,7 @@
       <AppButton variant="tinted" tone="primary" size="sm" label="Done" @click="done" />
     </footer>
 
-    <PlaylistEditorDialog :open="editorOpen" :playlist="playlist" :page-id="null" @close="editorOpen = false" />
+    <PlaylistEditorDialog :open="editorOpen" :playlist="playlist" @close="editorOpen = false" />
   </section>
 </template>
 
@@ -109,7 +116,9 @@ import { useAutosave } from "@/composables/useAutosave";
 import { useConfirm } from "@/composables/useConfirm";
 import { padCategory, padKind } from "@/lib/audio/deck/deckModel";
 import type { DeckControls } from "@/lib/audio/deck/deckSurface";
-import type { LaunchMode, SoundCategory } from "@/types/sound.types";
+import type { AudioEffectPreset, LaunchMode, SoundCategory } from "@/types/sound.types";
+import { useSoundboardStore } from "@/stores/soundboard";
+import SoundEffectPicker from "../SoundEffectPicker.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -153,6 +162,7 @@ const { mutate: removeTake } = useRemoveTake();
 const { mutate: reorderTakes } = useReorderTakes();
 const { mutate: updateSound } = useUpdateSound();
 const { confirm } = useConfirm();
+const soundboardStore = useSoundboardStore();
 const isAudible = useAudibleCheck();
 const toggleSound = useSoundToggle();
 
@@ -169,6 +179,20 @@ const firstSound = computed(() => {
 const category = computed(() => (kind.value ? padCategory(kind.value, firstSound.value?.category ?? null) : "effects"));
 // The single sound a one-take pad is made of; a pad of several takes has no one sound to edit.
 const sound = computed(() => (kind.value === "sound" && pad.value?.takes.length === 1 ? firstSound.value : null));
+
+// The pad's playable takes for the effect picker; Spotify plays outside the effect chain.
+const effectSounds = computed(() =>
+  (pad.value?.takes ?? [])
+    .map((take) => soundsById.value.get(take.sound_id))
+    .filter((s): s is NonNullable<typeof s> => s !== undefined && s.source_type !== "spotify"),
+);
+const currentEffect = computed<AudioEffectPreset>(() => {
+  const first = effectSounds.value[0];
+  return first === undefined ? "none" : (soundboardStore.soundEffects[first.id] ?? "none");
+});
+function applyEffect(preset: AudioEffectPreset): void {
+  for (const s of effectSounds.value) soundboardStore.setEffect(s.id, s.file_url, preset, s.category);
+}
 
 const ownName = computed(() => (kind.value === "sound" ? firstSound.value?.name : playlist.value?.name) ?? "Name");
 const shownName = computed(() => (draft.name.trim() === "" ? ownName.value : draft.name.trim()));

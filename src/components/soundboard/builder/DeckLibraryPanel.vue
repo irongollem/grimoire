@@ -64,7 +64,6 @@
     <PlaylistEditorDialog
       :open="editorOpen"
       :playlist="editTarget"
-      :page-id="null"
       :default-type="list === 'scenes' ? 'ambient' : 'music'"
       @close="closeEditor"
     />
@@ -182,8 +181,6 @@ function openAddSound() {
     soundPaywall.value = true;
     return;
   }
-  // Unassigned: the builder's pages hold pads, not sounds.
-  soundboardUi.addSoundPageId = null;
   soundboardUi.addSoundDialogOpen = true;
 }
 

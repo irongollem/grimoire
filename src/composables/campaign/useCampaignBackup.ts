@@ -783,10 +783,12 @@ export async function executeImport(
       })),
     );
 
-    // 12. Sounds
+    // 12. Sounds. A backup taken before the deck (#1136) still carries the
+    // `page_id` / `sort_order` columns that dropped; the insert would reject
+    // the whole batch over them, so they are left out.
     await batchInsert(
       "sounds",
-      backup.sounds.map((s) => ({
+      backup.sounds.map(({ page_id: _pageId, sort_order: _sortOrder, ...s }) => ({
         ...s,
         id: r(s.id, idMap),
         campaign_id: newCampaignId,

@@ -78,7 +78,7 @@ async function createSoundsFor(
 ): Promise<Map<string, string>> {
   if (entries.length === 0) return new Map();
 
-  const inserts = entries.map((entry, index) => ({
+  const inserts = entries.map((entry) => ({
     campaign_id: campaignId,
     user_id: userId,
     name: entry.title,
@@ -90,11 +90,9 @@ async function createSoundsFor(
     // everyone else. See `deleteSound`.
     storage_path: null,
     library_id: entry.id,
-    page_id: null,
     // Theme labels ride along, which is what makes encounter and location
     // triggers work the moment a scene is added.
     tags: entry.tags,
-    sort_order: index,
     attribution: entry.attribution,
     attribution_url: entry.attribution === null ? null : entry.source_page,
     artist: entry.author,
@@ -125,8 +123,7 @@ async function createScene(
     .insert({
       campaign_id: campaignId,
       user_id: userId,
-      page_id: null,
-      name: planned.scene.name,
+        name: planned.scene.name,
       playlist_type: "ambient",
       shuffle: false,
       repeat: true,

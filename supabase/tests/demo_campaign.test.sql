@@ -15,7 +15,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(73);
+select plan(74);
 
 -- ── Structure ───────────────────────────────────────────────────────────────
 
@@ -230,23 +230,30 @@ insert into public.world_links (user_id, campaign_id, from_kind, from_faction_id
 insert into public.soundboard_pages (id, user_id, campaign_id, name) values
   ('91200000-0000-4000-8000-000000000070', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'Sugarwell');
-insert into public.sounds (id, user_id, campaign_id, name, file_url, page_id) values
+insert into public.sounds (id, user_id, campaign_id, name, file_url) values
   ('91200000-0000-4000-8000-000000000071', '91200000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000010', 'The Crew Round', 'https://cdn.example.invalid/sound-files/demo/crew-round.mp3',
-   '91200000-0000-4000-8000-000000000070');
+   '91200000-0000-4000-8000-000000000010', 'The Crew Round', 'https://cdn.example.invalid/sound-files/demo/crew-round.mp3');
 -- A generated track: the music generator names the file after the sound's own
 -- row id, under the author's folder.
-insert into public.sounds (id, user_id, campaign_id, name, file_url, storage_path, page_id) values
+insert into public.sounds (id, user_id, campaign_id, name, file_url, storage_path) values
   ('91200000-0000-4000-8000-000000000073', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'Floss''s Inn',
    'https://cdn.example.invalid/sounds/91200000-0000-4000-8000-000000000001/ai/91200000-0000-4000-8000-000000000073.mp3',
-   '91200000-0000-4000-8000-000000000001/ai/91200000-0000-4000-8000-000000000073.mp3',
-   '91200000-0000-4000-8000-000000000070');
-insert into public.soundboard_playlists (id, user_id, campaign_id, name, playlist_type, page_id) values
+   '91200000-0000-4000-8000-000000000001/ai/91200000-0000-4000-8000-000000000073.mp3');
+insert into public.soundboard_playlists (id, user_id, campaign_id, name, playlist_type) values
   ('91200000-0000-4000-8000-000000000072', '91200000-0000-4000-8000-000000000001',
-   '91200000-0000-4000-8000-000000000010', 'Understage', 'music', '91200000-0000-4000-8000-000000000070');
+   '91200000-0000-4000-8000-000000000010', 'Understage', 'music');
 insert into public.soundboard_playlist_tracks (playlist_id, sound_id) values
   ('91200000-0000-4000-8000-000000000072', '91200000-0000-4000-8000-000000000071');
+-- The deck (#1136): a sound pad playing The Crew Round, and a playlist pad.
+insert into public.soundboard_pads (id, user_id, campaign_id, page_id, lane, grid_row, playlist_id) values
+  ('91200000-0000-4000-8000-000000000074', '91200000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000010', '91200000-0000-4000-8000-000000000070', 3, 0, null),
+  ('91200000-0000-4000-8000-000000000075', '91200000-0000-4000-8000-000000000001',
+   '91200000-0000-4000-8000-000000000010', '91200000-0000-4000-8000-000000000070', 0, 0,
+   '91200000-0000-4000-8000-000000000072');
+insert into public.soundboard_pad_takes (pad_id, sound_id) values
+  ('91200000-0000-4000-8000-000000000074', '91200000-0000-4000-8000-000000000071');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
   ('91200000-0000-4000-8000-000000000080', '91200000-0000-4000-8000-000000000001',
@@ -600,6 +607,20 @@ select is(
     where p.campaign_id = (select campaign from demo_ids) and s.campaign_id = p.campaign_id),
   'https://cdn.example.invalid/sound-files/demo/crew-round.mp3',
   'the playlist track joins the copied playlist to the copied sound, which still plays the shared file'
+);
+
+-- Fails if the deck's pads were left out of the copy, or kept pointing at the
+-- template's page, playlist or sounds: the copy's deck must be its own.
+select is(
+  (select string_agg(p.lane || ':' || coalesce(s.name, pl.name), ',' order by p.lane)
+     from public.soundboard_pads p
+     join public.soundboard_pages pg on pg.id = p.page_id and pg.campaign_id = p.campaign_id
+     left join public.soundboard_pad_takes t on t.pad_id = p.id
+     left join public.sounds s on s.id = t.sound_id and s.campaign_id = p.campaign_id
+     left join public.soundboard_playlists pl on pl.id = p.playlist_id and pl.campaign_id = p.campaign_id
+    where p.campaign_id = (select campaign from demo_ids)),
+  '0:Understage,3:The Crew Round',
+  'the copy''s deck has its own pads, on its own page, playing its own sounds and playlist'
 );
 
 -- A file named after its own row is still the author's file. The copy's sound

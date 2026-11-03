@@ -17,6 +17,10 @@ const pad: SoundboardPadWithTakes = {
 const slam = {
   id: "s1", name: "Door slam", category: "effects", source_type: "upload", gain_trim: 1, tags: [], file_url: "x",
 } as unknown as Sound;
+const spotifyTake = {
+  id: "s2", name: "Theme", category: "effects", source_type: "spotify", gain_trim: 1, tags: [], file_url: "spotify:track:1",
+} as unknown as Sound;
+const setEffect = vi.fn();
 
 vi.mock("@/composables/soundboard/useDeckPads", () => ({
   useDeckPads: () => ({ data: ref([pad]) }),
@@ -26,7 +30,7 @@ vi.mock("@/composables/soundboard/useDeckPads", () => ({
   useReorderTakes: () => ({ mutate: vi.fn() }),
 }));
 vi.mock("@/composables/soundboard/useSounds", () => ({
-  useSounds: () => ({ data: ref([slam]) }),
+  useSounds: () => ({ data: ref([slam, spotifyTake]) }),
   useUpdateSound: () => ({ mutate: vi.fn() }),
 }));
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: () => ({ data: ref([]) }) }));
@@ -35,8 +39,11 @@ vi.mock("@/composables/soundboard/useSoundPlayback", () => ({
   useSoundToggle: () => vi.fn(),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm }) }));
+vi.mock("@/stores/soundboard", () => ({
+  useSoundboardStore: () => ({ setEffect, soundEffects: {}, directOutput: false }),
+}));
 
-const stubs = { PlaylistEditorDialog: true, SoundTrimControl: true };
+const stubs = { PlaylistEditorDialog: true, SoundTrimControl: true, SoundEffectPicker: true };
 
 function mountPanel(controls: "simple" | "full") {
   return mount(PadSettingsPanel, { props: { padId: "p1", controls }, global: { stubs } });
@@ -47,6 +54,7 @@ beforeEach(() => {
   updatePad.mockClear();
   deletePad.mockClear();
   confirm.mockReset();
+  setEffect.mockClear();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -54,6 +62,20 @@ const button = (w: ReturnType<typeof mountPanel>, label: string) =>
   w.findAll("button").find((b) => b.text() === label);
 
 describe("PadSettingsPanel", () => {
+  it("puts an effect on every take of the pad, and none on a Spotify take", () => {
+    // Bug: the effect reached only the first take (the next press played the
+    // dry sound), or was sent to Spotify, which plays outside the effect chain.
+    pad.takes.push({ id: "t2", pad_id: "p1", sound_id: "s2", position: 1, created_at: "", updated_at: "" },
+      { id: "t3", pad_id: "p1", sound_id: "s1b", position: 2, created_at: "", updated_at: "" });
+    try {
+      const w = mountPanel("full");
+      w.findComponent({ name: "SoundEffectPicker" }).vm.$emit("update:modelValue", "through_door");
+      expect(setEffect.mock.calls).toEqual([["s1", "x", "through_door", "effects"]]);
+    } finally {
+      pad.takes.splice(1);
+    }
+  });
+
   it("Simple hides the Full fields", () => {
     // Bug: a beginner would see launch modes and fades they never asked for.
     const simple = mountPanel("simple");

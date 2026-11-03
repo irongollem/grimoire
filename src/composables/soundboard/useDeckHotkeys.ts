@@ -10,8 +10,8 @@
  *   Shift+F     fade everything out
  *
  * Hold-versus-tap is the rule the MIDI driver uses (`lib/audio/deck/holdTap.ts`).
- * Bound on the global layer, so the page layer of /soundboard still shadows
- * 1 to 9 and X there until that screen's own hotkeys are retired.
+ * Bound on the global layer, so they work on every page; /soundboard adds only
+ * a page-layer Space (pause all) while its Play mode is showing.
  *
  * No Space here, on purpose: the registry claims a key the moment a binding
  * matches, so a global Space would stop Space pressing buttons and scrolling

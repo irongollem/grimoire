@@ -1,7 +1,7 @@
 <template>
   <!--
     Self-hiding: a campaign with no named soundboard pages has nothing to jump
-    to, and the "All" tab is already where the soundboard opens. Registry and
+    to. Registry and
     component agree — `v-if`, no `loading`/`empty` props.
   -->
   <DashboardWidget
@@ -32,7 +32,7 @@
  * Jump straight to a named ambience page (#764).
  *
  * **This deliberately carries no playback control, and that is what keeps it
- * on the right side of the two-surfaces rule.** The floating `SoundboardWidget`
+ * on the right side of the two-surfaces rule.** The docked deck
  * already owns "what is playing" from every page in the app; a second set of
  * transport buttons here would be exactly the drift that rule exists to
  * prevent. So this widget only *navigates* — there is no control appearing in

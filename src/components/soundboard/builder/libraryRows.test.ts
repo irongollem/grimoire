@@ -4,16 +4,16 @@ import { DRAG_PLAYLIST, DRAG_SOUND, dragTypeFor, libraryRows } from "./libraryRo
 
 function sound(over: Partial<Sound>): Sound {
   return {
-    id: "s1", user_id: "u", campaign_id: "c", page_id: null, name: "Door slam", category: "effects",
+    id: "s1", user_id: "u", campaign_id: "c", name: "Door slam", category: "effects",
     source_type: "upload", file_url: "https://example.test/a.mp3", storage_path: null, library_id: null,
-    tags: [], sort_order: 0, attribution: null, attribution_url: null, thumbnail_url: null, artist: null,
+    tags: [], attribution: null, attribution_url: null, thumbnail_url: null, artist: null,
     gain_trim: 1, created_at: "", updated_at: "", ...over,
   };
 }
 
 function playlist(over: Partial<SoundboardPlaylist>): SoundboardPlaylist {
   return {
-    id: "p1", campaign_id: "c", user_id: "u", page_id: null, name: "Tavern", playlist_type: "ambient",
+    id: "p1", campaign_id: "c", user_id: "u", name: "Tavern", playlist_type: "ambient",
     shuffle: false, repeat: false, sort_order: 0, tags: [], library_scene_slug: null, created_at: "", updated_at: "", ...over,
   } as SoundboardPlaylist;
 }

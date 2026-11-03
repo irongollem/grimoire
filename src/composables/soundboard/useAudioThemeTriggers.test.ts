@@ -86,7 +86,7 @@ vi.mock("@/composables/soundboard/useSoundPlayback", () => ({ useSoundTrigger: (
 
 function playlist(over: Partial<SoundboardPlaylist> & { id: string }): SoundboardPlaylist {
   return {
-    campaign_id: "c", user_id: "u", page_id: null, name: over.id,
+    campaign_id: "c", user_id: "u", name: over.id,
     playlist_type: "music", shuffle: false, repeat: true, sort_order: 0,
     tags: [], created_at: "", updated_at: "",
     ...over,

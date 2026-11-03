@@ -44,7 +44,7 @@ Clicking **Go Live** on an encounter starts a session automatically if one isn't
 The four things the start dialog lists for you:
 
 - **Reveals announce themselves.** Showing an NPC to the party posts a line into your players' chat: *"The party encounters Sephek Kaltro."* While no session is running, the same reveal is silent.
-- **The soundboard switches to Perform.** Big pads with artwork instead of edit controls and drag handles. To rearrange the board mid-evening, end the session or use the Soundboard page's own controls.
+- **The deck is ready to play.** On a phone its first four pads sit above the bottom bar, and the Soundboard page opens in Play rather than Build. To rearrange the deck mid-evening, switch that page to Build.
 - **Quests open on the run cockpit** (where the party is standing) instead of the quest's premise/overview.
 - **The bottom bar reshuffles** on touch devices: table-side sections come first, and the centre button becomes the dice roller instead of ＋.
 

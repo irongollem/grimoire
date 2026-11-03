@@ -84,7 +84,6 @@ interface MusicJobRequest {
   model: string;
   name: string;
   category: SoundCategory;
-  pageId: string | null;
   /** Up to LYRIA_MAX_IMAGES storage/CDN URLs Lyria composes alongside the prompt. */
   imageUrls: string[];
 }
@@ -136,7 +135,6 @@ function requestFromJob(job: GenerationJob): MusicJobRequest {
     model: request.model,
     name: request.name,
     category: category as SoundCategory,
-    pageId: typeof request.page_id === "string" ? request.page_id : null,
     imageUrls: imageUrls as string[],
   };
 }
@@ -344,7 +342,7 @@ serve(withCors(async (req: Request) => {
   if (accountRefusal) return accountRefusal;
 
   let campaignId: string, soundName: string;
-  let category: SoundCategory, pageId: string | null, requestId: string, imageUrls: string[];
+  let category: SoundCategory, requestId: string, imageUrls: string[];
   let description: string, lengthSeconds: MusicLengthSeconds, vocals: MusicVocals;
   let lyrics: string | null, mentions: MusicMention[], prompt: string | null;
   try {
@@ -352,7 +350,6 @@ serve(withCors(async (req: Request) => {
     campaignId = body.campaign_id;
     soundName = typeof body.sound_name === "string" ? body.sound_name.trim() : "";
     category = body.category;
-    pageId = typeof body.page_id === "string" ? body.page_id : null;
     requestId = typeof body.request_id === "string" ? body.request_id : "";
     description = typeof body.description === "string" ? body.description.trim() : "";
     lengthSeconds = body.length_seconds;
@@ -399,7 +396,7 @@ serve(withCors(async (req: Request) => {
     ) throw new Error("invalid");
   } catch {
     return new Response(
-      "Invalid body — need request_id, campaign_id, sound_name, category, page_id, description (non-empty, " +
+      "Invalid body — need request_id, campaign_id, sound_name, category, description (non-empty, " +
         `max ${MAX_DESCRIPTION_CHARS} chars), length_seconds (60|120|180), vocals (instrumental|choir|vocals), ` +
         `lyrics (optional, max ${MAX_LYRICS_CHARS} chars), prompt (optional, a complete Lyria prompt sent as ` +
         `written, max ${MUSIC_PROMPT_MAX_CHARS} chars), mentions (optional, max ${MAX_MENTIONS}, label max ` +
@@ -418,11 +415,6 @@ serve(withCors(async (req: Request) => {
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
   if (!(await isCampaignDm(admin, campaign, user.id))) {
     return new Response("Forbidden", { status: 403 });
-  }
-  if (pageId) {
-    const { data: page } = await admin.from("soundboard_pages").select("id")
-      .eq("id", pageId).eq("campaign_id", campaignId).maybeSingle();
-    if (!page) return new Response("Soundboard page not found", { status: 404 });
   }
 
   const existing = await findGenerationJob(admin, user.id, "music", requestId);
@@ -515,7 +507,7 @@ serve(withCors(async (req: Request) => {
     }
     durableRequest = {
       campaignId, userId: user.id, description, lengthSeconds, vocals, lyrics, mentions, prompt,
-      model: configuredModel, name: soundName, category, pageId, imageUrls,
+      model: configuredModel, name: soundName, category, imageUrls,
     };
   }
 
@@ -548,7 +540,6 @@ serve(withCors(async (req: Request) => {
           model: durableRequest.model,
           name: soundName,
           category,
-          page_id: pageId,
           image_urls: durableRequest.imageUrls,
         },
         billing: {

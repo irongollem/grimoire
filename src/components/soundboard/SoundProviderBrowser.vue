@@ -154,10 +154,6 @@ import { useCreateSound } from "@/composables/soundboard/useSounds";
 import { useToast } from "@/composables/useToast";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
-const { pageId = null } = defineProps<{
-  pageId?: string | null;
-}>();
-
 const emit = defineEmits<{
   (e: "saved"): void;
 }>();
@@ -298,9 +294,7 @@ async function addHit(hit: ProviderHit) {
       // it for everyone.
       storage_path: null,
       library_id: hit.libraryId,
-      page_id: pageId,
       tags: hit.tags.slice(0, 8),
-      sort_order: 0,
       attribution: hit.attribution,
       attribution_url: hit.attributionUrl,
       artist: null,

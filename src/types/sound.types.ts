@@ -4,17 +4,6 @@
  */
 export type SoundCategory = "ambient" | "music" | "effects";
 
-/**
- * How big the fire targets are on the board.
- *
- * `sm` is not a shrunken `md` — at that density a DM is firing by position and
- * colour, so the pad drops everything that is not "is it playing". Fewer
- * things on screen, more of them visible at once.
- */
-export type PadSize = "sm" | "md" | "lg";
-
-/** Whether the grid shows fire targets only, or fire targets plus their controls. */
-export type BoardMode = "perform" | "arrange";
 export type SoundSourceType = "upload" | "url" | "spotify" | "freesound" | "library";
 
 export interface SoundboardPage {
@@ -113,7 +102,6 @@ export interface Sound {
   id: string;
   user_id: string;
   campaign_id: string;
-  page_id: string | null;
   name: string;
   category: SoundCategory;
   source_type: SoundSourceType;
@@ -134,7 +122,6 @@ export interface Sound {
    */
   library_id: string | null;
   tags: string[];
-  sort_order: number;
   attribution: string | null; // e.g. "Sound by FreesoundUser (CC-BY)" — only set when license requires it
   attribution_url: string | null; // link back to the source page
   thumbnail_url: string | null; // optional cover art — used by Media Session (CarPlay, lock screen, etc.)
@@ -183,7 +170,6 @@ export interface SoundboardPlaylist {
   id: string;
   campaign_id: string;
   user_id: string;
-  page_id: string | null;
   name: string;
   playlist_type: PlaylistType;
   shuffle: boolean;

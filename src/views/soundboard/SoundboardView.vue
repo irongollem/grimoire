@@ -14,7 +14,7 @@
         size="sm"
         :icon="IconSettings"
         aria-label="Board settings"
-        tooltip="Board settings: pad size, triggers, sharing"
+        tooltip="Board settings: triggers, sharing, output, controllers"
         class="hidden sm:flex"
         @click="soundboardUi.soundboardSettingsOpen = true"
       />
@@ -31,6 +31,9 @@
         class="hidden lg:flex"
         @click="soundboardUi.soundboardMixerOpen = !soundboardUi.soundboardMixerOpen"
       />
+
+      <!-- Below lg there is no drawer: the deck's own mixer popover stands in. -->
+      <DeckMixerPopover class="lg:hidden" />
 
       <!-- Spotify connect/disconnect (only for the owner user) -->
       <template v-if="spotifyStore.isEnabled">
@@ -294,6 +297,7 @@ import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
+import DeckMixerPopover from "@/components/soundboard/deck/DeckMixerPopover.vue";
 import DeckGrid from "@/components/soundboard/deck/DeckGrid.vue";
 import BuilderPlayDeck from "@/components/soundboard/builder/BuilderPlayDeck.vue";
 import BuilderMixerDrawer from "@/components/soundboard/builder/BuilderMixerDrawer.vue";
@@ -654,7 +658,6 @@ function openAddSound() {
     showSoundPaywall.value = true;
     return;
   }
-  soundboardUi.addSoundPageId = activePageId.value;
   soundboardUi.addSoundDialogOpen = true;
 }
 

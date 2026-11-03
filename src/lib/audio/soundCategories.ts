@@ -18,39 +18,11 @@ import type { SoundCategory } from "@/types/sound.types";
 // Its existence was the stated reason `VolumeSlider` carried four accents; it
 // went with them in #754. A fader takes the themed `primary`.
 
-/** Text colour. */
-export const CATEGORY_TEXT: Record<SoundCategory, string> = {
-  music: "text-sound-music",
-  ambient: "text-sound-ambient",
-  effects: "text-sound-effects",
-};
-
 /** The card/pad spine — the thing that makes the category readable at a glance. */
 export const CATEGORY_SPINE: Record<SoundCategory, string> = {
   music: "bg-sound-music",
   ambient: "bg-sound-ambient",
   effects: "bg-sound-effects",
-};
-
-/** Border for an active/playing surface. */
-export const CATEGORY_BORDER: Record<SoundCategory, string> = {
-  music: "border-sound-music",
-  ambient: "border-sound-ambient",
-  effects: "border-sound-effects",
-};
-
-/** Tinted fill for an active/playing surface. */
-export const CATEGORY_TINT: Record<SoundCategory, string> = {
-  music: "bg-sound-music/12",
-  ambient: "bg-sound-ambient/12",
-  effects: "bg-sound-effects/12",
-};
-
-/** Pill/chip styling for the category filter, so the filter speaks the same colour. */
-export const CATEGORY_PILL: Record<SoundCategory, string> = {
-  music: "bg-sound-music/15 border-sound-music/40 text-sound-music",
-  ambient: "bg-sound-ambient/15 border-sound-ambient/40 text-sound-ambient",
-  effects: "bg-sound-effects/15 border-sound-effects/40 text-sound-effects",
 };
 
 /**

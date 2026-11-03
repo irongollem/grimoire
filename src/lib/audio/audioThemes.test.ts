@@ -13,7 +13,7 @@ import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
 
 function playlist(over: Partial<SoundboardPlaylist> & { id: string }): SoundboardPlaylist {
   return {
-    campaign_id: "c", user_id: "u", page_id: null, name: over.id,
+    campaign_id: "c", user_id: "u", name: over.id,
     playlist_type: "music", shuffle: false, repeat: true, sort_order: 0,
     tags: [], created_at: "", updated_at: "",
     ...over,
@@ -22,9 +22,9 @@ function playlist(over: Partial<SoundboardPlaylist> & { id: string }): Soundboar
 
 function sound(over: Partial<Sound> & { id: string }): Sound {
   return {
-    user_id: "u", campaign_id: "c", page_id: null, name: over.id,
+    user_id: "u", campaign_id: "c", name: over.id,
     category: "music", source_type: "upload", file_url: "https://example.test/a.mp3",
-    storage_path: null, tags: [], sort_order: 0, attribution: null, attribution_url: null,
+    storage_path: null, tags: [], attribution: null, attribution_url: null,
     thumbnail_url: null, artist: null, gain_trim: 1, created_at: "", updated_at: "",
     ...over,
   } as Sound;

@@ -21,30 +21,16 @@
       </span>
     </p>
 
-    <!-- Collapsible header — only used in the floating widget, where space is tight. -->
-    <button
-      v-if="collapsible"
-      class="flex w-full items-center gap-1.5 text-left text-muted-foreground transition-colors hover:text-foreground"
-      :aria-expanded="open"
-      @click="open = !open"
-    >
-      <IconChevronRight
-        class="h-3 w-3 shrink-0 transition-transform"
-        :class="open ? 'rotate-90' : ''"
-      />
-      <span class="flex-1 text-label font-semibold ">Mixer</span>
-      <span v-if="!open" class="text-2xs tabular-nums">
-        {{ Math.round(store.masterVolume * 100) }}
-      </span>
-    </button>
+    <div class="space-y-2">
+      <!-- Cast lives here, not in the always-docked header: the Cast SDK is
+           loaded when a CastButton first mounts, and its device discovery made
+           audio crackle when it ran from app start. The mixer exists only while
+           it is open. -->
+      <div v-if="isCastAvailable" class="flex items-center justify-between gap-2">
+        <span class="text-caption text-muted-foreground">Cast to a speaker</span>
+        <CastButton variant="subtle" size="icon-sm" />
+      </div>
 
-    <!--
-      A drawer rather than a v-if, so the faders keep their DOM: the widget's
-      mixer can be folded away mid-session with a bus part-way down, and
-      rebuilding the sliders on every open would be both a jump and a lost drag.
-    -->
-    <Transition v-bind="drawerTransition()">
-      <div v-show="!collapsible || open" class="space-y-2">
         <div class="flex min-w-0 items-center gap-2">
           <VolumeSlider
             class="flex-1"
@@ -90,7 +76,7 @@
           type="button"
           class="flex w-full items-center gap-1.5 border-t border-border/50 pt-1.5 text-left text-2xs text-muted-foreground transition-colors hover:text-foreground"
           title="Open board settings"
-          @click="soundboardUi.soundboardSettingsOpen = true"
+          @click="openBoardSettings"
         >
           <IconSettings class="h-3 w-3 shrink-0" />
           <span>
@@ -102,22 +88,20 @@
         <p v-if="broadcastError" class="w-full text-2xs text-destructive">
           {{ broadcastError }}
         </p>
-      </div>
-    </Transition>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// The mixer is shared deliberately.
-//
-// There are two soundboard surfaces — the /soundboard page and the floating
-// quick-access widget that follows the DM onto other pages — and they must not
-// drift apart. A control that exists in one and not the other is worse than no
-// control at all, because the DM learns it is there and then cannot find it.
-// Anything new belongs here, not in one of the two hosts.
-import { computed, ref } from "vue";
-import { IconChevronRight, IconSettings, IconWarning } from "@/lib/icons";
-import { drawerTransition } from "@/lib/motion";
+// The mixer is shared deliberately: the deck's header opens it on every page
+// and /soundboard shows it in a drawer (#1136), and the two must not drift. A
+// control in one and not the other is worse than none, because the DM learns it
+// is there and then cannot find it. Anything new belongs here.
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { IconSettings, IconWarning } from "@/lib/icons";
+import { useCast } from "@/composables/soundboard/useCast";
+import CastButton from "./CastButton.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useAudioTriggerPrefs } from "@/composables/soundboard/useAudioThemeTriggers";
@@ -133,17 +117,8 @@ const BUSES = [
   { id: "effects", label: "Effects" },
 ] as const satisfies readonly { id: AudioBus; label: string }[];
 
-const { collapsible = false } = defineProps<{
-  /** Widget mode: fold behind a disclosure row because vertical space is scarce. */
-  collapsible?: boolean;
-}>();
-
-// The faders always stack. There used to be a `column` prop selecting between a
-// full-width wrapping row and this column, but both surfaces that mount the
-// mixer are narrow — a 16.5rem sidebar and a 18rem floating widget — and the row
-// squeezed four faders and their labels onto one unreadable line in either. So
-// every mount point passed the column, and the row branch had been unreachable
-// for as long as it had two call sites.
+// The faders always stack: both places that mount the mixer are narrow (the
+// deck's popover and the /soundboard drawer).
 
 const store = useSoundboardStore();
 const soundboardUi = useSoundboardUiStore();
@@ -154,8 +129,14 @@ const { broadcasting, broadcastError } = useSoundboardBroadcast();
 
 // Only worth the space when a scene is actually running.
 const showScene = computed(() => store.activeAmbientPlaylists.length > 0);
+const { isCastAvailable } = useCast();
 
-// Open by default even when collapsible — a collapsed grey row is
-// indistinguishable from "nothing changed here".
-const open = ref(true);
+// Board settings is mounted on /soundboard only, so from the deck's mixer on
+// any other page the click goes there first; otherwise it would do nothing.
+const route = useRoute();
+const router = useRouter();
+async function openBoardSettings(): Promise<void> {
+  soundboardUi.soundboardSettingsOpen = true;
+  if (!route.path.startsWith("/soundboard")) await router.push("/soundboard");
+}
 </script>
