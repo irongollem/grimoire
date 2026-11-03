@@ -62,9 +62,14 @@ export function readSchedule(file = SCHEDULE_FILE): ScheduleEntry[] {
 export function setScheduled(id: string, at: string | null, file = SCHEDULE_FILE): ScheduleEntry[] {
   const rest = readSchedule(file).filter((e) => e.id !== id);
   const next = parseSchedule(at === null ? rest : [...rest, { id, at }]);
-  next.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  writeFileSync(file, "[\n" + next.map((e) => `  ${JSON.stringify(e)}`).join(",\n") + "\n]\n");
-  return next;
+  return writeSchedule(next, file);
+}
+
+/** Writes the schedule in time order, one Reel per line so a diff reads as what moved. */
+export function writeSchedule(entries: ScheduleEntry[], file = SCHEDULE_FILE): ScheduleEntry[] {
+  const sorted = [...entries].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  writeFileSync(file, "[\n" + sorted.map((e) => `  ${JSON.stringify(e)}`).join(",\n") + "\n]\n");
+  return sorted;
 }
 
 export function checkReel(root: string, id: string, captionText: string | null = readCaption(id)): ReelCheck {

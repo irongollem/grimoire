@@ -83,6 +83,53 @@
   .take .file { flex: 1 1 200px; }
   .take .dur { color: var(--muted); font-size: 15px; min-width: 56px; }
   button.quiet { border-color: var(--line); color: var(--muted); padding: 4px 12px; }
+  /* Socials tab */
+  .tab-socials .bar > :not(h1) { display: none; }
+  .acct { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; display: flex; gap: 8px 24px; flex-wrap: wrap; align-items: center; }
+  .acct .handle { font: 400 1.4rem "Fondamento", serif; }
+  .acct .stat { color: var(--muted); font-size: .9rem; }
+  .acct .stat b { color: var(--ink); font-size: 1.1rem; }
+  .acct .err { color: var(--red); }
+  .acct .sched { margin-left: auto; font-weight: 700; font-size: .9rem; }
+  .acct .sched.on { color: var(--green); }
+  .acct .sched.off { color: var(--red); }
+  .acct .install { flex-basis: 100%; display: grid; gap: 6px; color: var(--muted); font-size: .9rem; }
+  .acct .install p { margin: 0; }
+  .soc-grid { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 18px; align-items: start; }
+  .soc-queue h2, .soc-h { font: 400 1.5rem "Fondamento", serif; margin: 0 0 10px; }
+  .soc-list { display: grid; gap: 8px; }
+  .soc-row { display: grid; grid-template-columns: 3rem 1fr; gap: 12px; align-items: center; width: 100%; text-align: left; font-weight: 400; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 8px 8px; }
+  .soc-row:hover, .soc-row:focus-visible { border-color: var(--gold); outline: none; }
+  .soc-row[aria-selected="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(154, 111, 31, .22); }
+  .soc-thumb { width: 3rem; aspect-ratio: 9 / 16; border-radius: 5px; background: var(--paper); border: 1px solid var(--line); object-fit: cover; display: grid; place-items: center; color: var(--muted); font-size: .7rem; }
+  .soc-row .t { display: grid; gap: 3px; min-width: 0; }
+  .soc-row strong { font-size: 1.05rem; overflow-wrap: anywhere; }
+  .soc-row .line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+  .badge { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 0 5px; }
+  .chip { font-size: .8rem; font-weight: 700; border-radius: 9999px; padding: 0 9px; border: 1px solid currentColor; }
+  .chip.posted { color: var(--green); }
+  .chip.scheduled { color: var(--gold); }
+  .chip.ready { color: var(--ink); }
+  .chip.notready { color: var(--red); }
+  .soc-detail { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; grid-template-columns: auto 1fr; gap: 22px; }
+  .soc-detail video { width: 14rem; aspect-ratio: 9 / 16; background: #000; border-radius: 8px; display: block; }
+  .soc-form { display: grid; gap: 14px; min-width: 0; align-content: start; }
+  .soc-form h3 { font: 400 1.5rem "Fondamento", serif; margin: 0; }
+  .soc-form label { display: grid; gap: 4px; color: var(--muted); font-size: .9rem; }
+  .soc-form textarea, .soc-form input[type="datetime-local"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+  .soc-form textarea { min-height: 11rem; resize: vertical; line-height: 1.4; }
+  .soc-form textarea:focus, .soc-form input:focus { outline: none; border-color: var(--gold); }
+  .counter { display: flex; gap: 16px; font-size: .85rem; color: var(--muted); }
+  .counter .over { color: var(--red); font-weight: 700; }
+  .problems { margin: 0; padding-left: 1.2rem; color: var(--red); font-size: .9rem; }
+  .readonly-caption { white-space: pre-wrap; margin: 0; }
+  .soc-status { font-size: .95rem; min-height: 1.4rem; }
+  .soc-status.fail { color: var(--red); }
+  .soc-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 12px; }
+  .soc-post { display: grid; gap: 4px; color: inherit; text-decoration: none; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px; font-size: .85rem; color: var(--muted); }
+  .soc-post:hover, .soc-post:focus-visible { border-color: var(--gold); outline: none; }
+  .soc-post img, .soc-post .soc-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 5px; }
+  @media (max-width: 800px) { .soc-grid { grid-template-columns: 1fr; } .soc-detail { grid-template-columns: 1fr; } }
   @media (max-width: 640px) { .shot { grid-template-columns: 1fr; } .narration { font-size: 24px; } }
 </style>
 </head>
@@ -91,6 +138,7 @@
   <nav class="tabs" aria-label="Recorder">
     <a id="tab-voice" href="/">Voice-over</a>
     <a id="tab-sounds" href="/?tab=sounds">Sounds</a>
+    <a id="tab-socials" href="/?tab=socials">Socials</a>
   </nav>
   <div class="bar">
     <h1 id="title">Voice-over<small id="subtitle"></small></h1>
@@ -128,9 +176,24 @@
     </div>
     <div id="sound-list" class="tab-body"></div>
   </div>
+  <div id="socials" class="tab-body" hidden>
+    <section class="acct" id="soc-account" aria-live="polite"></section>
+    <div class="soc-grid">
+      <section class="soc-queue" aria-label="Reel queue">
+        <h2>Queue</h2>
+        <div id="soc-list" class="soc-list" role="listbox" aria-label="Reels"></div>
+      </section>
+      <section class="soc-detail" id="soc-detail" aria-label="Selected Reel"></section>
+    </div>
+    <section aria-label="Recent on Instagram">
+      <h2 class="soc-h">Recent on Instagram</h2>
+      <div id="soc-recent" class="soc-recent"></div>
+    </section>
+  </div>
 </main>
 <script src="/shared.js"></script>
 <script src="/voice.js"></script>
 <script src="/sounds.js"></script>
+<script src="/socials.js"></script>
 </body>
 </html>

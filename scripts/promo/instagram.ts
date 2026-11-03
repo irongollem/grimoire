@@ -75,6 +75,47 @@ export async function postsLeft(token: string, igId: string): Promise<{ used: nu
   return { used: res.data[0].quota_usage, total: res.data[0].config.quota_total };
 }
 
+/** Follower and post counts for the Socials tab. */
+export async function accountSummary(token: string, igId: string): Promise<{ followers: number; posts: number }> {
+  const res = await graph<{ followers_count: number; media_count: number }>(token, igId, { params: { fields: "followers_count,media_count" } });
+  return { followers: res.followers_count, posts: res.media_count };
+}
+
+export interface RecentMedia {
+  permalink: string;
+  timestamp: string;
+  caption: string | null;
+  thumbnail: string | null;
+  likes: number | null;
+  comments: number | null;
+}
+
+/** The account's latest posts. A field the API omits stays null rather than becoming a fake zero. */
+export async function recentMedia(token: string, igId: string, limit = 12): Promise<RecentMedia[]> {
+  const res = await graph<{
+    data: {
+      caption?: string;
+      permalink: string;
+      timestamp: string;
+      thumbnail_url?: string;
+      media_url?: string;
+      media_type?: string;
+      like_count?: number;
+      comments_count?: number;
+    }[];
+  }>(token, `${igId}/media`, {
+    params: { fields: "caption,permalink,timestamp,thumbnail_url,media_url,media_type,like_count,comments_count", limit: String(limit) },
+  });
+  return res.data.map((m) => ({
+    permalink: m.permalink,
+    timestamp: m.timestamp,
+    caption: m.caption ?? null,
+    thumbnail: (m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url) ?? null,
+    likes: m.like_count ?? null,
+    comments: m.comments_count ?? null,
+  }));
+}
+
 /** Creates the Reel container, uploads the file into it, and returns the container id once Instagram has processed it. */
 export async function uploadReel(
   token: string,

@@ -22,7 +22,8 @@ window.Promo = (() => {
     n.textContent = text || "";
   }
 
-  const tab = new URLSearchParams(location.search).get("tab") === "sounds" ? "sounds" : "voice";
+  const tabParam = new URLSearchParams(location.search).get("tab");
+  const tab = tabParam === "sounds" || tabParam === "socials" ? tabParam : "voice";
 
   const WORKLET = `
     class Tap extends AudioWorkletProcessor {
@@ -175,7 +176,7 @@ window.Promo = (() => {
   }
 
   // The tab bar: the address's ?tab= says which tab this page is.
-  $(tab === "sounds" ? "tab-sounds" : "tab-voice").setAttribute("aria-current", "page");
+  $(`tab-${tab}`).setAttribute("aria-current", "page");
 
   return { $, el, secs, store, sleep, notice, tab, createMic };
 })();

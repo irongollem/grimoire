@@ -15,8 +15,8 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { durationOf } from "./compose/ffmpeg";
 import { findAccount, postsLeft } from "./instagram";
-import { checkReel, postReel, readPosted, readSchedule } from "./publishing";
-import { nextDue } from "./schedule";
+import { checkReel, postReel, readPosted, readSchedule, writeSchedule } from "./publishing";
+import { LATE_LIMIT_HOURS, nextDue, pushMissed } from "./schedule";
 
 function parseArgs(argv: string[]) {
   let root = "promo-out";
@@ -85,8 +85,17 @@ async function main() {
   }
 
   const posted = new Set(schedule.filter((e) => readPosted(root, e.id) !== null).map((e) => e.id));
-  const due = nextDue(schedule, posted, new Date());
-  const stamp = new Date().toISOString();
+  const now = new Date();
+  const stamp = now.toISOString();
+  const missed = pushMissed(schedule, posted, now);
+  if (missed) {
+    writeSchedule(missed.entries);
+    const days = missed.days === 1 ? "a day" : `${missed.days} days`;
+    console.log(`${stamp} missed a slot by more than ${LATE_LIMIT_HOURS} hours; moved the queue back ${days}`);
+    notify("Grimoire Reels moved", `A Reel missed its time (the Mac was off or asleep). The queue moved back ${days}.`);
+    return;
+  }
+  const due = nextDue(schedule, posted, now);
   if (!due) {
     console.log(`${stamp} nothing due`);
     return;

@@ -86,8 +86,19 @@ it; `promo:post -- --due` posts the earliest Reel whose time has come and that
 has no `posted.json`, one per run. A launchd job on the maintainer's Mac runs
 it at five past every hour (`scripts/promo/launchd/`, install and stop
 commands in the file), logging to `promo-out/post.log` and raising a macOS
-notification on every post or failure. A Mac asleep at the time posts on
-waking. To stop a Reel going out, take it off the schedule.
+notification on every post or failure. Reels go out at 23:00 Amsterdam time,
+17:00 in New York: most of the audience is in the US. A Reel the job would
+post more than three hours late (the Mac was asleep) does not go out; it and
+every Reel after it move back by whole days to the same time
+(`pushMissed` in `schedule.ts`). To stop a Reel going out, take it off the
+schedule.
+
+The recorder's **Socials** tab (`?tab=socials`, `socials.ts` and
+`voice/socials.js`) is the same thing with buttons: the account, every Reel
+with its readiness, caption, schedule and post link, Post now, and the latest
+posts on Instagram. Its writes accept only requests from its own page
+(`isTrustedWrite`), because it can post publicly and any website can send
+requests to 127.0.0.1.
 
 The caption is `scripts/promo/captions/<id>.txt`. The token is
 `INSTAGRAM_SYSTEM_USER_TOKEN` in `.env.local`: a system user of the Dungeon

@@ -11,8 +11,12 @@
  * with the clip playing, keeps or retakes it, and cuts the Reel. Takes land as
  * `promo-out/<id>/vo/<shot id>.wav`, trimmed, exactly where assemble.ts looks.
  * Its Sounds tab (`?tab=sounds`) records sound effects instead, as numbered
- * takes in `promo-out/sounds/` (sounds.ts). See docs/promo-videos.md. The page
- * (voice/index.html, voice/shared.js, voice/voice.js, voice/sounds.js) is plain
+ * takes in `promo-out/sounds/` (sounds.ts). Its Socials tab (`?tab=socials`,
+ * socials.ts) shows the Instagram account, edits each Reel's caption and
+ * schedule and can post one; it needs INSTAGRAM_SYSTEM_USER_TOKEN (the
+ * promo:voice script loads .env.local) and works offline without it. See
+ * docs/promo-videos.md. The page (voice/index.html, voice/shared.js,
+ * voice/voice.js, voice/sounds.js, voice/socials.js) is plain
  * browser JS because the scripts' tsconfig has no DOM types.
  */
 import { execFile, spawn } from "node:child_process";
@@ -20,6 +24,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, rmS
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { handleSocials } from "./socials";
 import { nextTakeFile, SOUND_FILE, soundSlug } from "./sounds";
 import { encodeWav, trimSilence } from "./wav";
 import type { EpisodeManifest } from "./types";
@@ -42,6 +47,7 @@ const PAGE_FILES: Record<string, string> = {
   "/shared.js": "voice/shared.js",
   "/voice.js": "voice/voice.js",
   "/sounds.js": "voice/sounds.js",
+  "/socials.js": "voice/socials.js",
 };
 
 function parseArgs(argv: string[]): { id: string | null; root: string } {
@@ -249,6 +255,17 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     });
     return json(res, 200, list);
   }
+
+  // ---- the Socials tab ----
+  const handled = await handleSocials(req, res, url, {
+    root: ROOT,
+    port,
+    json,
+    sendFile,
+    episodeIds,
+    readManifest: (id) => readManifest({ id, dir: join(ROOT, id), vo: join(ROOT, id, "vo") }),
+  });
+  if (handled) return;
 
   // ---- the Sounds tab ----
   if (method === "GET" && path === "/api/sounds") {
