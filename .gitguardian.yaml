@@ -32,3 +32,13 @@ secret:
     # local database rather than written here, so no account name is committed.
     - name: Local dev sign-in password (loopback-only, see scripts/dev-auth.ts)
       match: grimoire-local-dev
+
+    # The made-up invite token the YouTube "getting started" promo types into
+    # the join box (`JOIN_TOKEN` in scripts/promo/episodes/yt-getting-started.ts).
+    # It is a hand-written UUID that no invite row has ever held: the episode
+    # only shows the signed-out join form and never submits it, and invite
+    # tokens are minted server-side at creation. It has to be UUID-shaped
+    # because the player join box rejects anything else, which is exactly what
+    # makes it read as high entropy. Flagged on commit f2f2d77 (2 Nov 2026).
+    - name: Promo episode placeholder invite token (fictional, never valid)
+      match: 7c1f2e3a-5b4d-4c6e-9a8f-0b1c2d3e4f5a
