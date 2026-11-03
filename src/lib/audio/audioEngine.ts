@@ -8,7 +8,7 @@
 //   masterFilter →  masterSend ─────────┴→ convolver → reverbReturn → masterGain
 //
 // This gives us a master volume fader, per-bus (music/ambient/effects) volume,
-// ducking (attenuate music+ambient while an effect one-shot plays), and effects
+// and effects
 // at any of the three levels — none of which are possible when every sound
 // routes straight to ctx.destination.
 //
@@ -67,10 +67,6 @@ export interface AudioEngine {
   fadeIn(soundId: string, ms: number, fromSilence?: boolean): void;
   /** Ramp a sound down to true silence. Resolves once the ramp has finished, so callers can safely pause/stop after. */
   fadeOut(soundId: string, ms: number): Promise<void>;
-  /** Attenuate the music + ambient buses (NOT effects) — fast attack for an effect one-shot. */
-  duck(attackMs?: number, depth?: number): void;
-  /** Restore whatever duck() attenuated, with a slower release. */
-  unduck(releaseMs?: number): void;
   /** Apply (or clear, via "none") a preset to a single sound — the local case, e.g. one bard heard through a door. */
   setEffect(soundId: string, preset: AudioEffectPreset, rampMs?: number): void;
   /** Apply a preset to a whole bus, colouring every sound routed through it. */
@@ -101,7 +97,7 @@ export interface AudioEngine {
   /**
    * Hush the whole mix (all buses, reverb included) to a fraction of its level
    * on a dedicated stage after master, so it is independent of the master
-   * fader, mute and the effects duck. Quick attack, slow release.
+   * fader and mute. Quick attack, slow release.
    */
   setHush(on: boolean): void;
   /** Resume a suspended AudioContext (e.g. after OS/PWA backgrounding). */
@@ -141,11 +137,6 @@ const OPEN_FILTER: FilterTarget = { frequency: 22000, Q: 0.7071, gain: 1.0, send
 
 const EFFECT_RAMP_MS_DEFAULT = 500;
 
-const DEFAULT_DUCK_DEPTH = 0.25;        // ducked buses drop to 25% of their pre-duck gain
-const DEFAULT_DUCK_ATTACK_MS = 80;      // fast attack
-const DEFAULT_DUCK_RELEASE_MS = 400;    // slower release
-const DUCKED_BUSES: readonly AudioBus[] = ["music", "ambient"]; // effects bus is never ducked
-
 // Below this, treat a gain value as "silent" for ramp-shape purposes.
 // exponentialRampToValueAtTime can neither approach nor leave true zero —
 // see scheduleGain() below for the classic bug this avoids.
@@ -172,7 +163,7 @@ function clamp01(n: number): number {
 //   (matches perceived loudness better than linear), falling back to linear
 //   whenever silence is involved on either end. exponentialRampToValueAtTime
 //   throws if asked to ramp to/from 0 — that's the "classic bug" this avoids,
-//   and it's why fades to silence (fadeOut, duck to 0, etc.) always end up
+//   and it's why fades to silence (fadeOut, etc.) always end up
 //   linear here and reach a true 0 rather than stalling at some epsilon.
 
 function scheduleLinear(param: AudioParam, ctx: AudioContext, target: number, rampMs: number): void {
@@ -334,10 +325,6 @@ function setDirectMode(enabled: boolean): void {
     direct.reset();
   }
 }
-
-// Remembers each ducked bus's gain from just before duck() ran, so unduck()
-// restores exactly (and so a duck() while already ducked doesn't compound).
-let preDuckGains: Partial<Record<AudioBus, number>> | null = null;
 
 /** Whether hush is engaged, remembered so a graph built later starts in the right state. */
 let hushOn = false;
@@ -563,38 +550,6 @@ function fadeOut(soundId: string, ms: number): Promise<void> {
   return waitMs(ms);
 }
 
-function duck(attackMs = DEFAULT_DUCK_ATTACK_MS, depth = DEFAULT_DUCK_DEPTH): void {
-  if (directMode) return direct.duck(attackMs, depth);
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  const busGraph = ensureGraph(ctx);
-  const clampedDepth = clamp01(depth);
-
-  if (!preDuckGains) {
-    preDuckGains = {};
-    for (const bus of DUCKED_BUSES) preDuckGains[bus] = busGraph.buses[bus].gain.value;
-  }
-
-  for (const bus of DUCKED_BUSES) {
-    const base = preDuckGains[bus] ?? busGraph.buses[bus].gain.value;
-    scheduleGain(busGraph.buses[bus].gain, ctx, base * clampedDepth, attackMs);
-  }
-}
-
-function unduck(releaseMs = DEFAULT_DUCK_RELEASE_MS): void {
-  if (directMode) return direct.unduck(releaseMs);
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  const busGraph = ensureGraph(ctx);
-  if (!preDuckGains) return; // nothing to restore
-
-  for (const bus of DUCKED_BUSES) {
-    const base = preDuckGains[bus];
-    if (base !== undefined) scheduleGain(busGraph.buses[bus].gain, ctx, base, releaseMs);
-  }
-  preDuckGains = null;
-}
-
 /**
  * Point the shared convolver at a tail of the requested length.
  *
@@ -733,8 +688,6 @@ export function getAudioEngine(): AudioEngine {
       setMasterVolume,
       fadeIn,
       fadeOut,
-      duck,
-      unduck,
       setEffect,
       setBusEffect,
       setMasterEffect,

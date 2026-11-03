@@ -27,7 +27,13 @@ export const DECK_HARDWARE_ROWS = 8;
  */
 export type DeckTool = "play" | "loop" | "stop" | "fade" | "solo" | "volume" | "edit";
 
-export const DECK_TOOLS: readonly DeckTool[] = ["play", "loop", "stop", "fade", "solo", "volume", "edit"];
+/**
+ * In the order a Launchpad X has them, so the screen and the device read the
+ * same top to bottom: Play and Loop on its top row (Session, Note), then its
+ * right column's Volume, Pan (Fade), Stop Clip (Stop), Solo and Record Arm
+ * (Edit). Hush and Fade all are transport buttons on screen.
+ */
+export const DECK_TOOLS: readonly DeckTool[] = ["play", "loop", "volume", "fade", "stop", "solo", "edit"];
 
 /** The tools Simple mode shows. Every other one is Full only. */
 export const SIMPLE_TOOLS: readonly DeckTool[] = ["play", "loop", "stop"];

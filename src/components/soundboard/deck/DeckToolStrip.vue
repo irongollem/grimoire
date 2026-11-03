@@ -1,7 +1,7 @@
 <template>
   <div
     class="gap-1.5"
-    :class="layout === 'grid' ? 'grid grid-cols-2' : 'flex items-stretch'"
+    :class="layout === 'grid' ? 'grid grid-cols-2' : layout === 'column' ? 'flex flex-col' : 'flex items-stretch'"
     role="toolbar"
     aria-label="Pad tools"
   >
@@ -60,8 +60,12 @@ const { tool, lockedTool, controls, layout, showKeys } = defineProps<{
   tool: DeckTool;
   lockedTool: DeckTool;
   controls: DeckControls;
-  /** `grid`: two columns beside the deck. `row`: one row along a phone's bottom. */
-  layout: "grid" | "row";
+  /**
+   * `column`: one tool under another beside the deck, as a Launchpad's tools
+   * run down its side. `grid`: two columns, where the deck is too short for
+   * one (the docked deck at Deck size). `row`: along a phone's bottom.
+   */
+  layout: "column" | "grid" | "row";
   /** Show the key letter on each tool (a keyboard is present). */
   showKeys: boolean;
 }>();

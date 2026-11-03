@@ -4,7 +4,6 @@
 // while this module owns the non-reactive plumbing underneath it:
 //
 //   - the HTMLAudioElement instances themselves
-//   - which sounds currently hold the effects-bus duck
 //   - the generation counter that keeps a stale fade-out from stopping a sound
 //     that has already restarted
 //   - category → bus mapping
@@ -20,13 +19,6 @@ const audioInstances = new Map<string, HTMLAudioElement>();
 
 /** Sound IDs already retried once after a load error. Freesound CDN 502s are usually transient. */
 const retriedIds = new Set<string>();
-
-/**
- * Sound IDs currently holding the effects-bus duck. Set membership IS the
- * refcount, so overlapping one-shots don't un-duck each other prematurely and
- * a double-release is a no-op.
- */
-const duckingSounds = new Set<string>();
 
 /**
  * Bumped whenever a sound starts a fade-out. A fade-out completion callback
@@ -83,25 +75,6 @@ export function clearRetried(soundId: string): void {
   retriedIds.delete(soundId);
 }
 
-// ── Duck refcounting ───────────────────────────────────────────────────────
-
-/** Returns true when this acquisition took the count from 0 to 1, i.e. the caller should duck. */
-export function acquireDuck(soundId: string): boolean {
-  if (duckingSounds.has(soundId)) return false;
-  duckingSounds.add(soundId);
-  return duckingSounds.size === 1;
-}
-
-/** Returns true when this release emptied the set, i.e. the caller should un-duck. */
-export function releaseDuck(soundId: string): boolean {
-  if (!duckingSounds.delete(soundId)) return false;
-  return duckingSounds.size === 0;
-}
-
-export function clearDucking(): void {
-  duckingSounds.clear();
-}
-
 // ── Transition generations ─────────────────────────────────────────────────
 
 export function bumpGeneration(soundId: string): number {
@@ -122,9 +95,8 @@ export function forgetGeneration(soundId: string): void {
 // ── Routing ────────────────────────────────────────────────────────────────
 
 /**
- * Which bus a sound is summed through. Only an explicit "effects" category
- * triggers ducking, so an uncategorised sound can never accidentally duck the
- * music bed under itself.
+ * Which bus a sound is summed through. Nothing ducks any more; the bus only
+ * decides which fader the sound rides.
  */
 export function busForCategory(category: SoundCategory | undefined): AudioBus {
   if (category === "music") return "music";

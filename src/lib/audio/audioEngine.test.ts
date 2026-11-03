@@ -626,7 +626,7 @@ describe("audioEngine", () => {
       expect(hush.gain.valueAt(1.2)).toBeLessThan(0.45);
     });
 
-    it("is its own stage: master volume, mute and the effects duck never touch it", async () => {
+    it("is its own stage: master volume and mute never touch it", async () => {
       const ctx = new FakeAudioContext();
       const engine = await loadEngine(ctx);
       engine.attach("s1", makeAudioEl(), "music");
@@ -634,8 +634,6 @@ describe("audioEngine", () => {
 
       engine.setHush(true);
       engine.setMasterVolume(0, 0);
-      engine.duck(0, 0.25);
-      engine.unduck(0);
       engine.setMasterVolume(1, 0);
 
       expect(hush.gain.valueAt(0.2)).toBeCloseTo(0.3);
@@ -671,91 +669,6 @@ describe("audioEngine", () => {
 
       // The rebuilt graph must come up hushed, not at full level with the UI saying hushed.
       expect(graphNodes(second).hush.gain.value).toBe(0.3);
-    });
-  });
-
-  describe("ducking", () => {
-    it("ducks music and ambient to a quarter, leaves effects alone, and unduck restores them", async () => {
-      const ctx = new FakeAudioContext();
-      const engine = await loadEngine(ctx);
-      engine.setMasterVolume(1);
-      const { music, ambient, effects } = graphNodes(ctx);
-      engine.setBusVolume("music", 0.8, 0);
-      engine.setBusVolume("ambient", 0.6, 0);
-
-      engine.duck(0);
-
-      expect(music.gain.value).toBeCloseTo(0.2);
-      expect(ambient.gain.value).toBeCloseTo(0.15);
-      expect(effects.gain.value).toBe(1);
-
-      engine.unduck(0);
-
-      expect(music.gain.value).toBeCloseTo(0.8);
-      expect(ambient.gain.value).toBeCloseTo(0.6);
-    });
-
-    it("ducking twice does not compound: one unduck returns to the original level", async () => {
-      const ctx = new FakeAudioContext();
-      const engine = await loadEngine(ctx);
-      engine.setMasterVolume(1);
-      const { music } = graphNodes(ctx);
-
-      engine.duck(0);
-      engine.duck(0);
-      expect(music.gain.value).toBeCloseTo(0.25);
-      engine.unduck(0);
-
-      expect(music.gain.value).toBeCloseTo(1);
-    });
-
-    it("ducks from the levels the buses have now, not from the levels before an earlier duck", async () => {
-      const ctx = new FakeAudioContext();
-      const engine = await loadEngine(ctx);
-      engine.setMasterVolume(1);
-      const { music } = graphNodes(ctx);
-      engine.duck(0);
-      engine.unduck(0);
-      engine.setBusVolume("music", 0.5, 0);
-
-      engine.duck(0);
-
-      expect(music.gain.value).toBeCloseTo(0.125);
-    });
-
-    it("a duck depth above 1 never boosts a bus", async () => {
-      const ctx = new FakeAudioContext();
-      const engine = await loadEngine(ctx);
-      engine.setMasterVolume(1);
-      const { music } = graphNodes(ctx);
-      engine.setBusVolume("music", 0.6, 0);
-
-      engine.duck(0, 5);
-
-      expect(music.gain.value).toBeCloseTo(0.6);
-    });
-
-    it("unduck with nothing ducked changes nothing", async () => {
-      const ctx = new FakeAudioContext();
-      const engine = await loadEngine(ctx);
-      engine.setMasterVolume(1);
-      const { music } = graphNodes(ctx);
-      engine.setBusVolume("music", 0.5, 0);
-
-      engine.unduck(0);
-
-      expect(music.gain.value).toBeCloseTo(0.5);
-    });
-
-    it("duck depth is configurable via its second argument", async () => {
-      const ctx = new FakeAudioContext();
-      const engine = await loadEngine(ctx);
-      engine.setMasterVolume(1);
-      const { music } = graphNodes(ctx);
-
-      engine.duck(0, 0.1);
-
-      expect(music.gain.value).toBeCloseTo(0.1);
     });
   });
 
@@ -872,8 +785,6 @@ describe("audioEngine", () => {
       expect(() => engine.setMasterVolume(0.5, 100)).not.toThrow();
       expect(() => engine.fadeIn("s1", 200)).not.toThrow();
       await expect(engine.fadeOut("s1", 200)).resolves.toBeUndefined();
-      expect(() => engine.duck()).not.toThrow();
-      expect(() => engine.unduck()).not.toThrow();
       expect(() => engine.setEffect("s1", "cave", 100)).not.toThrow();
       expect(() => engine.setBusEffect("music", "cave", 0)).not.toThrow();
       expect(() => engine.setMasterEffect("cave", 0)).not.toThrow();

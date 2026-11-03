@@ -21,9 +21,6 @@ import {
   hasRetried,
   markRetried,
   clearRetried,
-  acquireDuck as takeDuck,
-  releaseDuck as dropDuck,
-  clearDucking,
   bumpGeneration,
   isCurrentGeneration,
   forgetGeneration,
@@ -109,7 +106,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   const loops = createGaplessLoops({
     engine,
     getOrCreate: (id, url) => getOrCreate(id, url),
-    attachHandlers: (id, el, bus) => attachHandlers(id, el, bus),
+    attachHandlers: (id, el) => attachHandlers(id, el),
     getLevel: (id) => {
       const st = playbackStates.value[id];
       return st === undefined ? undefined : st.volume;
@@ -306,16 +303,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     setInstance(soundId, fresh);
   }
 
-  // ── Ducking ─────────────────────────────────────────────────────────────
-
-  function acquireDuck(soundId: string): void {
-    if (takeDuck(soundId)) engine.duck();
-  }
-
-  function releaseDuck(soundId: string): void {
-    if (dropDuck(soundId)) engine.unduck();
-  }
-
   // ── Core playback ───────────────────────────────────────────────────────
 
   /**
@@ -405,7 +392,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     solo.applyDim(soundId, 0);
 
     audio.loop = state.isLooping;
-    attachHandlers(soundId, audio, bus);
+    attachHandlers(soundId, audio);
 
     // A new play supersedes any in-flight fade-out for this sound, and a stop
     // that lands before the file starts supersedes this play in turn.
@@ -434,7 +421,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         startingIds.delete(soundId);
         const live = playbackStates.value[soundId];
         if (live) live.isPlaying = true;
-        if (bus === "effects") acquireDuck(soundId);
         solo.noteStart(soundId);
         if (opts !== undefined && opts.fadeInMs !== undefined) {
           // An asked-for fade must be audible, so it climbs from silence.
@@ -455,7 +441,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       });
   }
 
-  function attachHandlers(soundId: string, audio: HTMLAudioElement, bus: AudioBus): void {
+  function attachHandlers(soundId: string, audio: HTMLAudioElement): void {
     audio.ontimeupdate = () => {
       // The shadow half of a gapless pair drives the swap but owns no UI state.
       const logicalId = logicalSoundId(soundId);
@@ -492,7 +478,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         s.isPlaying = false;
         s.currentTime = 0;
       }
-      if (bus === "effects") releaseDuck(soundId);
       solo.checkAlive();
 
       // Fallback advance for streams whose duration never resolves, so
@@ -510,7 +495,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    */
   function fadeAndHalt(soundId: string, rewind: boolean, fadeMs: number): void {
     const audio = getInstance(soundId);
-    releaseDuck(soundId);
 
     const st = playbackStates.value[soundId];
     if (st) {
@@ -688,8 +672,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     startingIds.clear();
     generators.stopAll();
     loops.clear();
-    clearDucking();
-    engine.unduck(0);
     activeMusicPlaylist.value = null;
     activeAmbientPlaylists.value = [];
     suspendedByPauseAll.clear();
@@ -807,7 +789,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   const hushedRef = ref(false);
   const hushed = computed(() => hushedRef.value);
 
-  /** Drop the whole mix to a fraction of its level, independent of master, mute and the duck. */
+  /** Drop the whole mix to a fraction of its level, independent of master and mute. */
   function setHush(on: boolean): void {
     hushedRef.value = on;
     engine.setHush(on);
@@ -1245,7 +1227,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    *
    * `category` must reflect the sound's real bus — a hardcoded bus here would
    * silently move a playing music or effects sound onto the ambient bus (off
-   * its own volume fader, and onto the wrong side of ducking) the moment an
+   * its own volume fader) the moment an
    * effect was applied to it.
    */
   function setEffect(
@@ -1277,7 +1259,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       engine.detach(id);
       destroyAudio(id);
     });
-    releaseDuck(soundId);
     bumpGeneration(soundId);
     startingIds.delete(soundId);
     engine.detach(soundId);

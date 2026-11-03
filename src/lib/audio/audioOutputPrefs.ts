@@ -13,7 +13,7 @@ const STORAGE_KEY = "grimoire.audioOutput.direct";
 
 /**
  * Defaults to off. The graph is what makes the soundboard a soundboard —
- * fades, ducking, atmosphere presets — so the working-around mode has to be
+ * fades, atmosphere presets — so the working-around mode has to be
  * asked for rather than guessed at.
  */
 export function getDirectOutputEnabled(): boolean {

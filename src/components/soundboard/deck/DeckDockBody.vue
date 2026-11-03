@@ -23,12 +23,14 @@
         @pad-volume="(p) => deck.dispatch({ type: 'padVolume', ...p })"
       />
     </div>
+    <!-- One column when the deck fills the screen; at Deck size the dock is too short for seven in a column. -->
     <DeckToolStrip
-      class="w-44 shrink-0 self-start"
+      class="shrink-0 self-start"
+      :class="fill ? 'w-24' : 'w-44'"
       :tool="snapshot.tool"
       :locked-tool="snapshot.lockedTool"
       :controls="ui.deckControls"
-      layout="grid"
+      :layout="fill ? 'column' : 'grid'"
       :show-keys="ui.deckControls === 'full'"
       @tool="(p) => deck.dispatch({ type: 'tool', ...p })"
     />

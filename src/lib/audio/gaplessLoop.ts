@@ -28,7 +28,7 @@ export interface GaplessLoopDeps {
   engine: AudioEngine;
   getOrCreate: (soundId: string, fileUrl: string) => HTMLAudioElement;
   /** The play() handlers (time updates call back into maybeSwap); the partner needs them too. */
-  attachHandlers: (soundId: string, audio: HTMLAudioElement, bus: AudioBus) => void;
+  attachHandlers: (soundId: string, audio: HTMLAudioElement) => void;
   /** The logical sound's UI volume, or undefined when it has no playback state. */
   getLevel: (logicalId: string) => number | undefined;
   /** Re-apply the solo dim to an element id (the partner must sound like the half it replaces). */
@@ -87,7 +87,7 @@ export function createGaplessLoops(deps: GaplessLoopDeps) {
     // play(): ontimeupdate is what calls this function. Without it the pair
     // swaps exactly once — the shadow plays its length with nobody watching,
     // and a "looping" bed dies on the second pass.
-    attachHandlers(incomingId, incoming, loop.bus);
+    attachHandlers(incomingId, incoming);
     engine.attach(incomingId, incoming, loop.bus);
     if (loop.gainTrim !== undefined) engine.setSoundTrim(incomingId, loop.gainTrim);
     // The partner must sound like the half it replaces: same press level, rate and solo dim.

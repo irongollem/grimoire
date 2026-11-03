@@ -185,6 +185,99 @@ describe("Launchpad pads and page buttons", () => {
   });
 });
 
+describe("a Launchpad X, its buttons matched to their printed labels", () => {
+  const tap = (r: Rig, cc: number) => {
+    r.press([0xb0, cc, 127]);
+    r.press([0xb0, cc, 0]);
+  };
+
+  it("Session unlocks a tapped tool; without it a locked tool had no way out on the device", async () => {
+    const r = rig({ lpName: "LPX MIDI" });
+    await r.midi.connect();
+    tap(r, 95);
+    expect(r.actions).toEqual([{ type: "tool", tool: "play", phase: "toggle" }]);
+  });
+
+  it("maps Volume, Pan, Send A, Stop Clip, Mute, Solo and Record Arm, and leaves Send B dark", async () => {
+    const r = rig({ lpName: "LPX MIDI" });
+    await r.midi.connect();
+    const firstOf = (cc: number) => {
+      r.actions.length = 0;
+      tap(r, cc);
+      return r.actions[0];
+    };
+    expect(firstOf(89)).toEqual({ type: "tool", tool: "volume", phase: "down" });
+    expect(firstOf(79)).toEqual({ type: "tool", tool: "fade", phase: "down" });
+    expect(firstOf(69)).toEqual({ type: "fadeAll" });
+    expect(firstOf(59)).toBeUndefined();
+    expect(firstOf(49)).toEqual({ type: "tool", tool: "stop", phase: "down" });
+    expect(firstOf(39)).toEqual({ type: "hush", phase: "down" });
+    expect(firstOf(29)).toEqual({ type: "tool", tool: "solo", phase: "down" });
+    expect(firstOf(19)).toEqual({ type: "tool", tool: "edit", phase: "down" });
+  });
+
+  it("steps pages with left and right, and gives Note, Custom and Capture MIDI Loop, Pause all and Stop all", async () => {
+    const r = rig({ lpName: "LPX MIDI" });
+    await r.midi.connect();
+    tap(r, 93);
+    tap(r, 94);
+    tap(r, 97);
+    tap(r, 98);
+    tap(r, 96);
+    expect(r.actions.slice(0, 4)).toEqual([
+      { type: "pageStep", delta: -1 },
+      { type: "pageStep", delta: 1 },
+      { type: "pauseAll" },
+      { type: "stopAll" },
+    ]);
+    expect(r.actions[4]).toEqual({ type: "tool", tool: "loop", phase: "down" });
+  });
+
+  it("scrolls the grid one row per arrow, so a pad plays the row it shows, never past the last", async () => {
+    const r = rig({ lpName: "LPX MIDI" });
+    r.snapshot.value = snap({ rows: 10 });
+    await r.midi.connect();
+    tap(r, 92);
+    r.press([0x90, 81, 100]);
+    expect(r.actions.at(-1)).toMatchObject({ type: "press", lane: 0, row: 1 });
+    for (let i = 0; i < 5; i++) tap(r, 92);
+    r.press([0x90, 82, 100]);
+    expect(r.actions.at(-1)).toMatchObject({ type: "press", lane: 1, row: 2 });
+    tap(r, 91);
+    r.press([0x90, 83, 100]);
+    expect(r.actions.at(-1)).toMatchObject({ type: "press", lane: 2, row: 1 });
+  });
+
+  it("plays what the device shows after the page loses rows under a scrolled grid", async () => {
+    const r = rig({ lpName: "LPX MIDI" });
+    r.snapshot.value = snap({ rows: 10 });
+    await r.midi.connect();
+    tap(r, 92);
+    tap(r, 92);
+    // A pad below row 8 was cleared: the page is eight rows again and cannot scroll.
+    r.snapshot.value = snap({ rows: 8 });
+    await Promise.resolve();
+    r.press([0x90, 81, 100]);
+    expect(r.actions.at(-1)).toMatchObject({ type: "press", lane: 0, row: 0 });
+  });
+
+  it("lights the scrolled rows, and starts another page at its top row", async () => {
+    const r = rig({ lpName: "LPX MIDI" });
+    const cell = { ...cellAt("playing"), row: 1 };
+    r.snapshot.value = snap({ rows: 10, cells: [cell] });
+    await r.midi.connect();
+    tap(r, 92);
+    // Row 1 now sits on the device's top row: note 81, full gold.
+    expect(`,${r.sent.at(-1)?.join(",")},`).toContain(",3,81,127,75,0,");
+    r.press([0x90, 81, 100]);
+    r.press([0x90, 81, 0]);
+    r.snapshot.value = snap({ rows: 10, cells: [cell], pageIndex: 1 });
+    await Promise.resolve();
+    r.press([0x90, 81, 100]);
+    expect(r.actions.at(-1)).toMatchObject({ type: "press", lane: 0, row: 0 });
+  });
+});
+
 describe("tool buttons: tap locks, hold borrows", () => {
   it("sends down then up then toggle for a quick tap", async () => {
     const r = rig();

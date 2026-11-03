@@ -17,6 +17,19 @@ const buttonFor = (w: ReturnType<typeof strip>, label: string) => {
 };
 
 describe("DeckToolStrip", () => {
+  it("lists the tools in the Launchpad X's order, so the screen and the device read the same top to bottom", () => {
+    const w = strip({ layout: "column" });
+    expect(w.findAll("button").map((b) => b.attributes("aria-label")?.split(",")[0])).toEqual([
+      "Play",
+      "Loop",
+      "Volume",
+      "Fade",
+      "Stop",
+      "Solo",
+      "Edit",
+    ]);
+  });
+
   it("a quick tap locks the tool: one toggle, no borrow", async () => {
     const w = strip();
     const loop = buttonFor(w, "Loop");

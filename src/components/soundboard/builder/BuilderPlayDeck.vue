@@ -19,11 +19,11 @@
       />
       <DeckToolStrip
         v-if="!phone"
-        class="w-40 shrink-0"
+        class="w-24 shrink-0"
         :tool="snapshot.tool"
         :locked-tool="snapshot.lockedTool"
         :controls="soundboardUi.deckControls"
-        layout="grid"
+        layout="column"
         show-keys
         @tool="deck.dispatch({ type: 'tool', ...$event })"
       />

@@ -87,8 +87,7 @@ export function useSoundToggle(): (sound: Sound) => void {
     }
 
     if (isAudible(sound)) soundboardStore.pause(sound.id);
-    // Category picks the bus: "effects" one-shots duck the music and ambient
-    // beds under themselves, music and ambience do not.
+    // Category picks the bus (and so the fader) the sound rides.
     else soundboardStore.play(sound.id, sound.file_url, sound.category, sound.gain_trim);
   };
 }

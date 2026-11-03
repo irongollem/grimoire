@@ -12,15 +12,15 @@ import { createHoldTap, TAP_MS } from "@/lib/audio/deck/holdTap";
 import {
   blankLedFrame,
   buildLedFrame,
+  clampRowOffset,
   decodeLaunchpadMessage,
   diffLedFrames,
   encodeLedMessages,
   type LaunchpadEvent,
   type LedFrame,
   programmerModeMessage,
-  RIGHT_COLUMN_TOOLS,
 } from "@/lib/audio/deck/midi/launchpadProtocol";
-import type { LaunchpadProfile } from "@/lib/audio/deck/midi/launchpadProfiles";
+import type { LaunchpadButton, LaunchpadProfile } from "@/lib/audio/deck/midi/launchpadProfiles";
 import {
   findLaunchpads,
   findOtherInputs,
@@ -72,14 +72,14 @@ export interface OtherMidiInput {
 export { TAP_MS };
 export const LIGHTS_STORAGE_KEY = "grimoire.deckMidi.lights.v1";
 
-const TOOL_BUTTONS = RIGHT_COLUMN_TOOLS;
-
 interface LiveLaunchpad {
   id: string;
   profile: LaunchpadProfile;
   input: MidiInputLike;
   output: MidiOutputLike;
   frame: LedFrame | null;
+  /** The page row the device's top row shows; the arrows move it one row. */
+  rowOffset: number;
 }
 
 type SendPhase = (phase: DeckPhase) => void;
@@ -141,7 +141,7 @@ export function useDeckMidi(deck: DeckMidiTarget, options: DeckMidiOptions = {})
 
   function pushLights(lp: LiveLaunchpad, full: boolean) {
     if (!lightsEnabled.value) return;
-    const next = buildLedFrame(lp.profile, deck.snapshot.value);
+    const next = buildLedFrame(lp.profile, deck.snapshot.value, lp.rowOffset);
     const changed = diffLedFrames(full ? null : lp.frame, next);
     lp.frame = next;
     if (changed.size > 0) send(lp, encodeLedMessages(lp.profile, changed));
@@ -154,8 +154,13 @@ export function useDeckMidi(deck: DeckMidiTarget, options: DeckMidiOptions = {})
 
   watch(
     () => deck.snapshot.value,
-    () => {
-      for (const lp of live.values()) pushLights(lp, false);
+    (next, prev) => {
+      // Another page starts at its top row, as the screen does.
+      const newPage = prev !== undefined && next.pageIndex !== prev.pageIndex;
+      for (const lp of live.values()) {
+        if (newPage) lp.rowOffset = 0;
+        pushLights(lp, false);
+      }
     },
   );
 
@@ -194,27 +199,57 @@ export function useDeckMidi(deck: DeckMidiTarget, options: DeckMidiOptions = {})
 
   // --- Launchpad input ---
 
+  function onButton(lp: LiveLaunchpad, button: LaunchpadButton, down: boolean) {
+    if (button === null) return;
+    const source = lp.id;
+    // A tool and Hush borrow while held and lock on a tap; the rest fire on the press.
+    if (button.action === "tool") {
+      buttons.edge(`${source}|tool:${button.tool}`, down, toolSender(button.tool));
+      return;
+    }
+    if (button.action === "hush") {
+      buttons.edge(`${source}|hush`, down, hushSender);
+      return;
+    }
+    if (!down) return;
+    switch (button.action) {
+      case "play":
+        // Play unlocks whatever tool was tapped on.
+        deck.dispatch({ type: "tool", tool: "play", phase: "toggle" });
+        return;
+      case "page":
+        if (button.index < deck.snapshot.value.pages.length) deck.dispatch({ type: "page", index: button.index });
+        return;
+      case "pageStep":
+        deck.dispatch({ type: "pageStep", delta: button.delta });
+        return;
+      case "rowStep":
+        lp.rowOffset = clampRowOffset(lp.rowOffset + button.delta, deck.snapshot.value.rows);
+        pushLights(lp, false);
+        return;
+      case "fadeAll":
+      case "pauseAll":
+      case "stopAll":
+        deck.dispatch({ type: button.action });
+    }
+  }
+
   function onLaunchpadEvent(lp: LiveLaunchpad, ev: LaunchpadEvent) {
     const source = lp.id;
     switch (ev.kind) {
-      case "pad":
-        if (ev.down) padDown(source, ev.lane, ev.row, lp.profile.hasVelocity ? ev.velocity / 127 : undefined);
-        else padUp(source, ev.lane, ev.row);
-        return;
-      case "top":
-        if (ev.down && ev.index < deck.snapshot.value.pages.length) deck.dispatch({ type: "page", index: ev.index });
-        return;
-      case "right": {
-        const button = TOOL_BUTTONS[ev.index];
-        if (button === "fadeAll") {
-          if (ev.down) deck.dispatch({ type: "fadeAll" });
-        } else if (button === "hush") {
-          buttons.edge(`${source}|hush`, ev.down, hushSender);
-        } else {
-          buttons.edge(`${source}|tool:${button}`, ev.down, toolSender(button));
-        }
+      case "pad": {
+        // Clamped here too: the page may have lost rows since the arrows moved.
+        const row = ev.row + clampRowOffset(lp.rowOffset, deck.snapshot.value.rows);
+        if (ev.down) padDown(source, ev.lane, row, lp.profile.hasVelocity ? ev.velocity / 127 : undefined);
+        else padUp(source, ev.lane, row);
         return;
       }
+      case "top":
+        onButton(lp, lp.profile.topRow[ev.index] ?? null, ev.down);
+        return;
+      case "right":
+        onButton(lp, lp.profile.rightColumn[ev.index] ?? null, ev.down);
+        return;
       case "left":
         if (!ev.down) return;
         if (ev.button === "stopAll") deck.dispatch({ type: "stopAll" });
@@ -223,7 +258,7 @@ export function useDeckMidi(deck: DeckMidiTarget, options: DeckMidiOptions = {})
   }
 
   function attachLaunchpad(found: { profile: LaunchpadProfile; input: MidiInputLike; output: MidiOutputLike }) {
-    const lp: LiveLaunchpad = { id: found.input.id, ...found, frame: null };
+    const lp: LiveLaunchpad = { id: found.input.id, ...found, frame: null, rowOffset: 0 };
     live.set(lp.id, lp);
     found.input.onmidimessage = (e) => {
       if (!e.data) return;

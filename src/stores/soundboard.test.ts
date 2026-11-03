@@ -5,7 +5,7 @@ import type { AudioBus } from "@/lib/audio/audioEngine";
 // ── Engine double ──────────────────────────────────────────────────────────
 //
 // The store's job is orchestration: which bus a sound lands on, when a fade or
-// a duck fires, and whether playback state tells the truth. The DSP itself is
+// a fade fires, and whether playback state tells the truth. The DSP itself is
 // covered by audioEngine.test.ts, so here the engine is a spy.
 
 const engineCalls = {
@@ -17,8 +17,6 @@ const engineCalls = {
   setMasterVolume: vi.fn(),
   fadeIn: vi.fn<(soundId: string, ms: number, fromSilence?: boolean) => void>(),
   fadeOut: vi.fn<(soundId: string, ms: number) => Promise<void>>(() => Promise.resolve()),
-  duck: vi.fn(),
-  unduck: vi.fn(),
   setEffect: vi.fn(),
   setPan: vi.fn<(soundId: string, pan: number) => void>(),
   resume: vi.fn(),
@@ -145,7 +143,7 @@ describe("bus routing", () => {
     expect(engineCalls.attach).toHaveBeenCalledWith("s1", expect.anything(), "effects");
   });
 
-  it("routes an uncategorised sound to ambient, so it can never duck the bed under itself", async () => {
+  it("routes an uncategorised sound to ambient", async () => {
     const store = await loadStore();
     store.play("s1", "https://example.test/a.mp3");
     expect(engineCalls.attach).toHaveBeenCalledWith("s1", expect.anything(), "ambient");
@@ -154,7 +152,7 @@ describe("bus routing", () => {
   it("keeps a music sound on the music bus when an effect is applied to it", async () => {
     // Regression: setEffect used to hardcode "ambient", silently moving a
     // playing music/effects sound off its own bus fader and, for effects,
-    // onto the one bus that IS ducked.
+    // off its own bus.
     const store = await loadStore();
     store.play("s1", "https://example.test/a.mp3", "music");
     engineCalls.attach.mockClear();
@@ -163,7 +161,7 @@ describe("bus routing", () => {
     expect(engineCalls.attach).toHaveBeenCalledWith("s1", expect.anything(), "music");
   });
 
-  it("keeps an effects sound off the ambient (ducked) bus when an effect is applied to it", async () => {
+  it("keeps an effects sound off the ambient bus when an effect is applied to it", async () => {
     const store = await loadStore();
     store.play("s1", "https://example.test/a.mp3", "effects");
     engineCalls.attach.mockClear();
@@ -233,46 +231,21 @@ describe("playback state truthfulness", () => {
   });
 });
 
-describe("ducking", () => {
-  it("ducks when an effects one-shot starts", async () => {
+describe("effects and the music bed", () => {
+  it("playing and stopping an effects sound leaves the music and ambient levels alone", async () => {
     const store = await loadStore();
-    store.play("fx1", "https://example.test/fx.mp3", "effects");
+    store.play("m1", "https://example.test/m.mp3", "music");
     await flush();
-    expect(engineCalls.duck).toHaveBeenCalledTimes(1);
-  });
+    engineCalls.setBusVolume.mockClear();
+    engineCalls.setSoundVolume.mockClear();
 
-  it("does not duck for music", async () => {
-    const store = await loadStore();
-    store.play("s1", "https://example.test/a.mp3", "music");
-    await flush();
-    expect(engineCalls.duck).not.toHaveBeenCalled();
-  });
-
-  it("ducks once across overlapping one-shots and unducks only when the last ends", async () => {
-    const store = await loadStore();
-    store.play("fx1", "https://example.test/fx1.mp3", "effects");
-    store.play("fx2", "https://example.test/fx2.mp3", "effects");
-    await flush();
-    expect(engineCalls.duck).toHaveBeenCalledTimes(1);
-
-    store.stop("fx1");
-    await flush();
-    // fx2 is still going — the bed must stay down.
-    expect(engineCalls.unduck).not.toHaveBeenCalled();
-
-    store.stop("fx2");
-    await flush();
-    expect(engineCalls.unduck).toHaveBeenCalledTimes(1);
-  });
-
-  it("treats a repeated release of the same sound as a no-op", async () => {
-    const store = await loadStore();
     store.play("fx1", "https://example.test/fx.mp3", "effects");
     await flush();
     store.stop("fx1");
-    store.stop("fx1");
     await flush();
-    expect(engineCalls.unduck).toHaveBeenCalledTimes(1);
+
+    expect(engineCalls.setBusVolume).not.toHaveBeenCalled();
+    expect(engineCalls.setSoundVolume).not.toHaveBeenCalledWith("m1", expect.anything(), expect.anything());
   });
 });
 
@@ -551,12 +524,11 @@ describe("teardown", () => {
     expect(store.playbackStates.s1).toBeUndefined();
   });
 
-  it("clears ducking when everything stops", async () => {
+  it("clears the active music playlist when everything stops", async () => {
     const store = await loadStore();
     store.play("fx1", "https://example.test/fx.mp3", "effects");
     await flush();
     store.stopAll();
-    expect(engineCalls.unduck).toHaveBeenCalled();
     expect(store.activeMusicPlaylist).toBeNull();
   });
 

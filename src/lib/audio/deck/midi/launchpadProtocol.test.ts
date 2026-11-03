@@ -189,6 +189,41 @@ describe("LED frame", () => {
   });
 });
 
+describe("Launchpad X buttons and the row window", () => {
+  it("lights Play white until a tool is tapped on, then the tool's own button", () => {
+    expect(buildLedFrame(X, snap()).get(topButtonCc(4))).toEqual({ type: "rgb", r: 110, g: 110, b: 110 });
+    const locked = buildLedFrame(X, snap({ tool: "stop", lockedTool: "stop" }));
+    expect(locked.get(topButtonCc(4))).toEqual({ type: "static", color: 103 });
+    expect(locked.get(rightButtonCc(4))).toEqual({ type: "rgb", r: 110, g: 110, b: 110 });
+  });
+
+  it("lights Mute amber while hushed and Custom amber while paused, and leaves Send B dark", () => {
+    const frame = buildLedFrame(X, snap({ hush: true, paused: true }));
+    expect(frame.get(rightButtonCc(5))).toEqual({ type: "rgb", r: 127, g: 80, b: 10 });
+    expect(frame.get(topButtonCc(6))).toEqual({ type: "rgb", r: 127, g: 80, b: 10 });
+    expect(frame.get(rightButtonCc(3))).toEqual({ type: "static", color: 0 });
+  });
+
+  it("lights an arrow only where it can go", () => {
+    const top = buildLedFrame(X, snap({ rows: 10 }), 0);
+    expect(top.get(topButtonCc(0))).toEqual({ type: "static", color: 0 });
+    expect(top.get(topButtonCc(1))).toEqual({ type: "static", color: 103 });
+    const bottom = buildLedFrame(X, snap({ rows: 10 }), 2);
+    expect(bottom.get(topButtonCc(0))).toEqual({ type: "static", color: 103 });
+    expect(bottom.get(topButtonCc(1))).toEqual({ type: "static", color: 0 });
+    // A page of eight rows or fewer does not scroll at all.
+    expect(buildLedFrame(X, snap({ rows: 8 })).get(topButtonCc(1))).toEqual({ type: "static", color: 0 });
+  });
+
+  it("draws the rows from the offset down, and clamps an offset past the last row", () => {
+    const cells = [cell({ lane: 0, row: 0, light: "playing" }), cell({ lane: 0, row: 9, light: "playing" })];
+    const scrolled = buildLedFrame(X, snap({ rows: 10, cells }), 2);
+    expect(scrolled.get(padNote(0, 7))).toMatchObject({ type: "rgb" });
+    expect(scrolled.get(padNote(0, 0))).toEqual({ type: "static", color: 0 });
+    expect(buildLedFrame(X, snap({ rows: 10, cells }), 50)).toEqual(scrolled);
+  });
+});
+
 describe("diff and encoding", () => {
   it("sends only the LEDs that changed; resending a whole frame per tick floods the device", () => {
     const a = buildLedFrame(PRO, snap({ cells: [cell({ light: "ready" })] }));

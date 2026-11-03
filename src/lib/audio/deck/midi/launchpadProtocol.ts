@@ -6,8 +6,8 @@
  * has been checked against.
  */
 
-import { DECK_HARDWARE_ROWS, DECK_LANES, type DeckCellView, type DeckSnapshot, type DeckTool } from "../deckSurface";
-import type { LaunchpadProfile } from "./launchpadProfiles";
+import { DECK_HARDWARE_ROWS, DECK_LANES, type DeckCellView, type DeckSnapshot } from "../deckSurface";
+import type { LaunchpadButton, LaunchpadProfile } from "./launchpadProfiles";
 
 const SYSEX_START = 0xf0;
 const SYSEX_END = 0xf7;
@@ -17,18 +17,6 @@ const CMD_LED = 0x03;
 
 /** The manual allows up to 106 LED specs in one message. */
 export const MAX_LED_SPECS = 106;
-
-/** Right-hand column, top to bottom. Null entries are the non-tool buttons. */
-export const RIGHT_COLUMN_TOOLS: readonly (DeckTool | "hush" | "fadeAll")[] = [
-  "loop",
-  "stop",
-  "fade",
-  "solo",
-  "volume",
-  "edit",
-  "hush",
-  "fadeAll",
-];
 
 const CC_TOP_FIRST = 91;
 const CC_RIGHT_FIRST = 89;
@@ -43,6 +31,15 @@ export function programmerModeMessage(profile: LaunchpadProfile, on: boolean): n
 /** Deck row 0 is the top row, so it is note 8x. */
 export function padNote(lane: number, row: number): number {
   return 10 * (DECK_HARDWARE_ROWS - row) + lane + 1;
+}
+
+/** The furthest the device's eight rows can scroll down a page of `rows`. */
+export function maxRowOffset(rows: number): number {
+  return Math.max(0, rows - DECK_HARDWARE_ROWS);
+}
+
+export function clampRowOffset(offset: number, rows: number): number {
+  return Math.min(Math.max(0, offset), maxRowOffset(rows));
 }
 
 export function topButtonCc(index: number): number {
@@ -163,11 +160,47 @@ export function cellLed(cell: DeckCellView | undefined): LedSpec {
   }
 }
 
-/** Every LED the device has, as the snapshot says it should look. */
-export function buildLedFrame(profile: LaunchpadProfile, snapshot: DeckSnapshot): LedFrame {
+function buttonLed(button: LaunchpadButton, snapshot: DeckSnapshot, rowOffset: number): LedSpec {
+  if (button === null) return OFF;
+  switch (button.action) {
+    case "page":
+      if (button.index >= snapshot.pages.length) return OFF;
+      return button.index === snapshot.pageIndex ? rgb(WHITE) : palette(PALETTE_OTHER_PAGE);
+    case "tool":
+      return snapshot.tool === button.tool ? rgb(WHITE) : palette(PALETTE_IDLE);
+    case "play":
+      return snapshot.tool === "play" ? rgb(WHITE) : palette(PALETTE_IDLE);
+    case "hush":
+      return snapshot.hush ? rgb(AMBER) : palette(PALETTE_IDLE);
+    case "pauseAll":
+      return snapshot.paused ? rgb(AMBER) : palette(PALETTE_IDLE);
+    case "fadeAll":
+      return palette(PALETTE_IDLE);
+    case "stopAll":
+      return palette(PALETTE_BLOCKED);
+    case "pageStep": {
+      const next = snapshot.pageIndex + button.delta;
+      return next >= 0 && next < snapshot.pages.length ? palette(PALETTE_IDLE) : OFF;
+    }
+    case "rowStep": {
+      const next = rowOffset + button.delta;
+      return next >= 0 && next <= maxRowOffset(snapshot.rows) ? palette(PALETTE_IDLE) : OFF;
+    }
+  }
+}
+
+/**
+ * Every LED the device has, as the snapshot says it should look. The grid
+ * shows the page's rows from `rowOffset` down, which the arrows scroll.
+ */
+export function buildLedFrame(profile: LaunchpadProfile, snapshot: DeckSnapshot, rowOffset = 0): LedFrame {
+  const offset = clampRowOffset(rowOffset, snapshot.rows);
   const frame: LedFrame = new Map();
   const byAddress = new Map<number, DeckCellView>();
-  for (const cell of snapshot.cells) byAddress.set(padNote(cell.lane, cell.row), cell);
+  for (const cell of snapshot.cells) {
+    const row = cell.row - offset;
+    if (row >= 0 && row < DECK_HARDWARE_ROWS) byAddress.set(padNote(cell.lane, row), cell);
+  }
   for (let row = 0; row < DECK_HARDWARE_ROWS; row++) {
     for (let lane = 0; lane < DECK_LANES; lane++) {
       const note = padNote(lane, row);
@@ -175,14 +208,8 @@ export function buildLedFrame(profile: LaunchpadProfile, snapshot: DeckSnapshot)
     }
   }
   for (let i = 0; i < 8; i++) {
-    let top: LedSpec = OFF;
-    if (i < snapshot.pages.length) top = i === snapshot.pageIndex ? rgb(WHITE) : palette(PALETTE_OTHER_PAGE);
-    frame.set(topButtonCc(i), top);
-    const button = RIGHT_COLUMN_TOOLS[i];
-    let light = palette(PALETTE_IDLE);
-    if (button === "hush" && snapshot.hush) light = rgb(AMBER);
-    else if (button !== "hush" && button !== "fadeAll" && button === snapshot.tool) light = rgb(WHITE);
-    frame.set(rightButtonCc(i), light);
+    frame.set(topButtonCc(i), buttonLed(profile.topRow[i] ?? null, snapshot, offset));
+    frame.set(rightButtonCc(i), buttonLed(profile.rightColumn[i] ?? null, snapshot, offset));
   }
   if (profile.hasLeftColumn) {
     const paged = snapshot.pages.length > 8 ? palette(PALETTE_IDLE) : OFF;

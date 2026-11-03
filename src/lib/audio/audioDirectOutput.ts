@@ -17,7 +17,7 @@
 // up to 16K were all tried in the wild with no improvement.
 //
 // The only thing that works is to not use that code path. So this module
-// mirrors the engine's volume/fade/duck surface while driving
+// mirrors the engine's volume/fade surface while driving
 // `HTMLAudioElement.volume` directly, leaving the element on the platform's own
 // media pipeline where the bug does not live.
 //
@@ -26,7 +26,7 @@
 // On iOS, `volume` is not settable at all — Apple: "the audio level is always
 // under the user's physical control. The volume property is not settable in
 // JavaScript. Reading the volume property always returns 1." So on an iPhone
-// this mode gives up every fader, fade, crossfade and duck; the device's own
+// this mode gives up every fader, fade and crossfade; the device's own
 // volume control is the only one left. Elsewhere (desktop, Android) `volume`
 // works and only the graph-only features — filters, reverb, stereo pan — are
 // lost.
@@ -70,10 +70,6 @@ const HUSH_ATTACK_MS = 200;
 const HUSH_RELEASE_MS = 800;
 /** Dim factors by sound id, so a sound attached after a solo began starts dimmed. */
 const dimTargets = new Map<string, number>();
-
-/** Mirrors the engine's duck bookkeeping: remembers pre-duck levels so unduck restores exactly. */
-let preDuckGains: Partial<Record<AudioBus, number>> | null = null;
-const DUCKED_BUSES: readonly AudioBus[] = ["music", "ambient"];
 
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
@@ -251,38 +247,8 @@ export function setHush(on: boolean): void {
   reapply(on ? HUSH_ATTACK_MS : HUSH_RELEASE_MS);
 }
 
-export function duck(attackMs: number, depth: number): void {
-  if (!preDuckGains) {
-    preDuckGains = {};
-    for (const bus of DUCKED_BUSES) preDuckGains[bus] = busVolumes[bus];
-  }
-  for (const bus of DUCKED_BUSES) {
-    const base = preDuckGains[bus] ?? busVolumes[bus];
-    busVolumes[bus] = clamp01(base * clamp01(depth));
-    reapply(attackMs, bus);
-  }
-}
-
-export function unduck(releaseMs: number): void {
-  if (!preDuckGains) return;
-  for (const bus of DUCKED_BUSES) {
-    const base = preDuckGains[bus];
-    if (base === undefined) continue;
-    busVolumes[bus] = base;
-    reapply(releaseMs, bus);
-  }
-  preDuckGains = null;
-}
-
 /** Drop every chain and cancel every ramp — used when switching output mode. */
 export function reset(): void {
   chains.forEach(cancelRamp);
   chains.clear();
-  // A reset mid-duck must hand the buses back their own levels: forgetting the
-  // remembered ones alone would leave music held at the ducked level, with no
-  // unduck left that could ever lift it.
-  if (preDuckGains) {
-    for (const bus of DUCKED_BUSES) busVolumes[bus] = preDuckGains[bus] ?? busVolumes[bus];
-  }
-  preDuckGains = null;
 }

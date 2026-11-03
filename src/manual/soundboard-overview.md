@@ -55,7 +55,7 @@ A **pad** is one of three things:
 | **Scene** | An ambient playlist. Every track loops as a layer, so rain and a crackling fire can run together. |
 | **Playlist** | A music playlist. Tracks play one at a time and crossfade. |
 
-Every sound has a **category** that decides which part of the mix it joins: **Music**, **Ambience** or **Effects**. Music and Ambience sit under everything else, while an Effects sound briefly ducks them so a thunderclap lands clearly.
+Every sound has a **category** that decides which part of the mix it joins: **Music**, **Ambience** or **Effects**. Each category has its own fader, so you can set the music, the ambience and the effects apart; playing an Effects sound never changes the level of the others.
 
 ## What a press does
 
@@ -137,7 +137,23 @@ On a phone the deck is a bottom sheet above the navigation bar. Folded, it shows
 
 ## Controllers
 
-You can play the deck from a **Launchpad** (Mini MK3, X or Pro MK3). Open **Board settings** on the Soundboard page and connect it. The grid mirrors the page you are on, the top row picks pages, the right column holds the tools, and the lights show which pads are ready, playing and looping. On models that sense how hard you hit, a harder hit can play louder.
+You can play the deck from a **Launchpad** (Mini MK3, X or Pro MK3). Open **Board settings** on the Soundboard page and connect it. The grid shows eight rows of the page you are on, and the lights show which pads are ready, playing, looping and fading. On models that sense how hard you hit, a harder hit can play louder.
+
+On a **Launchpad X** the buttons do what their labels say:
+
+| Button | What it does |
+| --- | --- |
+| Up and down arrows | Move the grid one row, on a page longer than eight rows |
+| Left and right arrows | Previous and next page |
+| Session | Play: back to normal from any tool |
+| Note | Loop |
+| Custom | Pause all |
+| Capture MIDI | Stop everything |
+| Volume, Pan, Stop Clip, Solo, Record Arm | Volume, Fade, Stop, Solo, Edit |
+| Send A | Fade all |
+| Mute | Hush |
+
+Hold a tool's button to use it for a moment; tap it to keep it on, and tap **Session** to go back to playing. The tools beside the deck on screen run in the same order. A Mini MK3 has the same top row; on a Pro the top row picks pages and the right column holds the tools.
 
 Any other MIDI controller works through **Learn a control**: pick what it should do, then press the key or turn the knob. Learned controls have no lights.
 
@@ -164,7 +180,7 @@ The Soundboard itself is entirely DM-only. What players *can* get, if you choose
 - Put the sounds you reach for most in one row: keys **1** to **8** fire whichever row you are looking at, without touching the mouse. Each new page starts on its top row.
 - Free plans have a quota on sounds, pages, and scenes/playlists combined: see [Billing & Subscription](#billing-subscription) for the exact numbers. Curated library sounds and starter scenes don't count against it.
 - Uploading your own audio files is a Pro feature, gated independently of the count-based quotas above. Generating a sound with AI is not: it works on every plan, billed to credits, once the campaign's AI Assistant is on.
-- A sound's category decides which fader it rides and whether it ducks the mix. Moving an ambient bed to Effects makes it duck the mix instead of sitting under it.
+- A sound's category decides which fader it rides. Moving an ambient bed to Effects puts it on the Effects fader instead.
 
 ## Related
 
