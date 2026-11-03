@@ -41,7 +41,13 @@ async function createPad(
   if (soundIds.length > 0) {
     const takes = soundIds.map((sound_id, position) => ({ pad_id: id, sound_id, position }));
     const { error: takesError } = await supabase.from("soundboard_pad_takes").insert(takes);
-    if (takesError) throw takesError;
+    if (takesError) {
+      // A sound pad with no takes and no playlist plays nothing and the database only drops one when its last take is deleted, so undo the insert.
+      if (pad.playlist_id === null || pad.playlist_id === undefined) {
+        await supabase.from("soundboard_pads").delete().eq("id", id);
+      }
+      throw takesError;
+    }
   }
   return data as SoundboardPad;
 }

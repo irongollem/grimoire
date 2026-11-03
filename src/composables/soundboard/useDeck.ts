@@ -18,52 +18,27 @@ import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
-import { useDeckPads, useUpdatePad } from "@/composables/soundboard/useDeckPads";
-import { useSoundboardPages } from "@/composables/soundboard/useSoundboardPages";
-import { useSounds } from "@/composables/soundboard/useSounds";
-import {
-  useFetchPlaylistTracks,
-  usePlaylists,
-  usePlaylistsTracks,
-} from "@/composables/soundboard/useSoundboardPlaylists";
+import { useUpdatePad } from "@/composables/soundboard/useDeckPads";
+import { useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useBlockedCheck } from "@/composables/soundboard/useSoundPlayback";
-import { useAudioSharing } from "@/composables/soundboard/useAudioSharing";
+import { useDeckReadout } from "@/composables/soundboard/useDeckReadout";
+import { useDeckResolved, type DeckPadInfo } from "@/composables/soundboard/useDeckResolved";
+import { useDeckSnapshot } from "@/composables/soundboard/useDeckSnapshot";
 import {
-  DEFAULT_LANES,
   effectiveFades,
   effectiveLaunchMode,
   effectiveLoop,
-  isDefaultLaunchMode,
-  laneCategory,
   nextTakeIndex,
   padAt,
-  padCategory,
-  padKind,
-  rowsForPage,
   takeVariation,
-  topRowKey,
   velocityGain,
   type VelocityCurve,
 } from "@/lib/audio/deck/deckModel";
-import {
-  DECK_LANES,
-  type DeckAction,
-  type DeckCellView,
-  type DeckLaneView,
-  type DeckLight,
-  type DeckPadKind,
-  type DeckSnapshot,
-  type DeckTool,
-} from "@/lib/audio/deck/deckSurface";
+import { type DeckAction, type DeckSnapshot, type DeckTool } from "@/lib/audio/deck/deckSurface";
 import type { PlayOptions } from "@/stores/soundboard";
-import type {
-  PlaylistTrackWithSound,
-  Sound,
-  SoundCategory,
-  SoundboardPad,
-  SoundboardPadWithTakes,
-  SoundboardPlaylist,
-} from "@/types/sound.types";
+import type { PlaylistTrackWithSound } from "@/types/sound.types";
+
+export type { DeckPadInfo };
 
 /** Length of the Fade tool's fade, and of Fade all. */
 export const FADE_TOOL_MS = 3000;
@@ -73,19 +48,6 @@ export const STOP_TOOL_MS = 60;
 export const GATE_MIN_RELEASE_MS = 80;
 /** How long a dragged pad volume waits before it is written. */
 export const VOLUME_SAVE_MS = 400;
-
-const SPOTIFY_SHARING_NOTE = "Spotify: this device only";
-
-/** A pad with everything the deck derives from it, resolved once. */
-export interface DeckPadInfo {
-  pad: SoundboardPadWithTakes;
-  kind: DeckPadKind;
-  category: SoundCategory;
-  /** The playlist a scene or music pad plays; null for a sound pad. */
-  playlist: SoundboardPlaylist | null;
-  /** A sound pad's takes as sounds, in order; a take whose sound is not loaded is left out. */
-  sounds: Sound[];
-}
 
 export interface DeckController {
   snapshot: ComputedRef<DeckSnapshot>;
@@ -107,22 +69,13 @@ function isCurve(value: string): value is VelocityCurve {
   return CURVES.some((curve) => curve === value);
 }
 
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
 export function createDeck(): DeckController {
   const store = useSoundboardStore();
   const spotify = useSpotifyStore();
   const ui = useSoundboardUiStore();
-  const padsQuery = useDeckPads();
-  const pagesQuery = useSoundboardPages();
-  const playlistsQuery = usePlaylists();
-  const soundsQuery = useSounds();
   const updatePad = useUpdatePad();
   const fetchTracks = useFetchPlaylistTracks();
   const blockedReason = useBlockedCheck();
-  const sharing = useAudioSharing();
 
   // ── Preferences ──────────────────────────────────────────────────────────
 
@@ -134,56 +87,8 @@ export function createDeck(): DeckController {
 
   // ── What is on the deck ──────────────────────────────────────────────────
 
-  const pages = computed(() => (pagesQuery.data.value === undefined ? [] : pagesQuery.data.value));
-
-  const activePage = computed(() => {
-    const wanted = ui.soundboardActivePage;
-    const found = wanted === null ? undefined : pages.value.find((page) => page.id === wanted);
-    return found ?? pages.value[0] ?? null;
-  });
-
-  const soundsById = computed(() => {
-    const map = new Map<string, Sound>();
-    if (soundsQuery.data.value) for (const sound of soundsQuery.data.value) map.set(sound.id, sound);
-    return map;
-  });
-
-  const playlistsById = computed(() => {
-    const map = new Map<string, SoundboardPlaylist>();
-    if (playlistsQuery.data.value) for (const playlist of playlistsQuery.data.value) map.set(playlist.id, playlist);
-    return map;
-  });
-
-  /** Every pad on every page, resolved. A pad whose playlist is gone is left out: it reads as empty. */
-  const resolved = computed(() => {
-    const map = new Map<string, DeckPadInfo>();
-    if (!padsQuery.data.value) return map;
-    for (const pad of padsQuery.data.value) {
-      const kind = padKind(pad, playlistsById.value);
-      if (kind === null) continue;
-      const playlist = pad.playlist_id === null ? null : playlistsById.value.get(pad.playlist_id) ?? null;
-      const sounds: Sound[] = [];
-      for (const take of pad.takes) {
-        const sound = soundsById.value.get(take.sound_id);
-        if (sound) sounds.push(sound);
-      }
-      const first = sounds[0];
-      map.set(pad.id, { pad, kind, category: padCategory(kind, first ? first.category : null), playlist, sounds });
-    }
-    return map;
-  });
-
-  const pagePads = computed(() => {
-    const page = activePage.value;
-    if (!page) return [];
-    return [...resolved.value.values()].filter((info) => info.pad.page_id === page.id);
-  });
-
-  // The tracks of every playlist pad, in one read, for "3 layers" and for a start that waits for nothing.
-  const playlistPadIds = computed(() =>
-    [...resolved.value.values()].flatMap((info) => (info.playlist ? [info.playlist.id] : [])),
-  );
-  const { byPlaylist } = usePlaylistsTracks(playlistPadIds);
+  const deckResolved = useDeckResolved();
+  const { padsQuery, pages, activePage, resolved, pagePads, byPlaylist } = deckResolved;
 
   // ── Deck-owned state ─────────────────────────────────────────────────────
 
@@ -250,88 +155,8 @@ export function createDeck(): DeckController {
 
   // ── Reading the store ────────────────────────────────────────────────────
 
-  function soundPlaying(sound: Sound): boolean {
-    if (sound.source_type === "spotify") return spotify.lastPlayedUrl === sound.file_url && spotify.isPlaying;
-    return store.playbackStates[sound.id]?.isPlaying === true;
-  }
-
-  function isAudible(info: DeckPadInfo): boolean {
-    if (info.kind === "sound") return info.sounds.some(soundPlaying);
-    const playlist = info.playlist;
-    if (!playlist) return false;
-    return store.isPlaylistActive(playlist.id) && !store.isPlaylistPaused(playlist.id);
-  }
-
-  function soundLooping(sound: Sound): boolean {
-    if (sound.source_type === "spotify") return spotify.lastPlayedUrl === sound.file_url && spotify.repeatMode === 2;
-    return store.playbackStates[sound.id]?.isLooping === true || store.isLooping(sound.id);
-  }
-
-  /** Whether the pad loops now if it is playing, else whether it will when pressed. */
-  function padLoops(info: DeckPadInfo): boolean {
-    if (info.kind === "sound") {
-      const playing = info.sounds.filter(soundPlaying);
-      if (playing.length > 0) return playing.some(soundLooping);
-    }
-    return effectiveLoop(info.pad, info.category, info.kind);
-  }
-
-  /** Sound ids a pad stands for: for Solo, and for who is the soloed one. */
-  function padSoundIds(info: DeckPadInfo): string[] {
-    if (info.kind === "sound") return info.sounds.map((sound) => sound.id);
-    const playlist = info.playlist;
-    if (!playlist) return [];
-    if (info.kind === "scene") {
-      const scene = store.activeAmbientPlaylists.find((s) => s.playlistId === playlist.id);
-      return scene ? [...scene.soundIds] : [];
-    }
-    const music = store.activeMusicPlaylist;
-    if (music && music.playlistId === playlist.id) {
-      const current = music.trackSoundIds[music.currentIndex];
-      return current === undefined ? [] : [current];
-    }
-    return [];
-  }
-
-  function isSoloed(info: DeckPadInfo): boolean {
-    const solo = store.soloIds;
-    if (solo === null) return false;
-    const ids = padSoundIds(info);
-    return ids.length > 0 && ids.every((id) => solo.includes(id));
-  }
-
-  function progressOf(info: DeckPadInfo): number {
-    let soundId: string | undefined;
-    if (info.kind === "sound") {
-      soundId = info.sounds.find((s) => s.source_type !== "spotify" && soundPlaying(s))?.id;
-    } else if (info.kind === "playlist" && info.playlist) {
-      const music = store.activeMusicPlaylist;
-      if (music && music.playlistId === info.playlist.id) soundId = music.trackSoundIds[music.currentIndex];
-    }
-    if (soundId === undefined) return 0;
-    const state = store.playbackStates[soundId];
-    if (!state || state.duration <= 0) return 0;
-    return Math.min(1, Math.max(0, state.currentTime / state.duration));
-  }
-
-  function volumeOf(pad: SoundboardPad): number {
-    const dragged = volumeOverrides.value[pad.id];
-    return dragged === undefined ? pad.volume : dragged;
-  }
-
-  /** The sound a press would play next. */
-  function nextSound(info: DeckPadInfo): Sound | null {
-    const count = info.sounds.length;
-    if (count === 0) return null;
-    const cursor = cursors.value[info.pad.id];
-    return info.sounds[(cursor === undefined ? 0 : cursor) % count] ?? null;
-  }
-
-  function blockedFor(info: DeckPadInfo): string | null {
-    if (info.kind !== "sound") return null;
-    const sound = nextSound(info);
-    return sound ? blockedReason(sound) : null;
-  }
+  const readout = useDeckReadout({ cursors, volumeOverrides });
+  const { soundPlaying, isAudible, padLoops, padSoundIds, isSoloed, volumeOf, nextSound, blockedFor } = readout;
 
   // ── Starting and stopping ────────────────────────────────────────────────
 
@@ -679,119 +504,7 @@ export function createDeck(): DeckController {
 
   // ── The snapshot ─────────────────────────────────────────────────────────
 
-  function lightOf(info: DeckPadInfo, audible: boolean, loop: boolean, blocked: string | null, soloed: boolean): DeckLight {
-    if (heldPadIds.value.has(info.pad.id)) return "held";
-    if (fadingIds.value.has(info.pad.id)) return "fading";
-    if (audible) {
-      if (store.soloIds !== null && !soloed) return "ducked";
-      return loop ? "looping" : "playing";
-    }
-    return blocked !== null ? "blocked" : "ready";
-  }
-
-  function metaOf(info: DeckPadInfo): string | null {
-    const playlist = info.playlist;
-    if (info.kind === "sound") {
-      const next = nextSound(info);
-      return sharing.value && next !== null && next.source_type === "spotify" ? SPOTIFY_SHARING_NOTE : null;
-    }
-    if (!playlist) return null;
-    if (info.kind === "scene") {
-      const tracks = byPlaylist.value?.get(playlist.id);
-      return tracks ? plural(tracks.length, "layer", "layers") : null;
-    }
-    const music = store.activeMusicPlaylist;
-    if (music && music.playlistId === playlist.id) return `${music.currentIndex + 1}/${music.trackSoundIds.length}`;
-    const tracks = byPlaylist.value?.get(playlist.id);
-    return tracks ? plural(tracks.length, "track", "tracks") : null;
-  }
-
-  function emptyCell(lane: number, row: number): DeckCellView {
-    return {
-      lane,
-      row,
-      padId: null,
-      kind: null,
-      category: null,
-      name: "",
-      light: "off",
-      loop: false,
-      mode: "trigger",
-      modeIsDefault: true,
-      takes: 0,
-      nextTake: 0,
-      progress: 0,
-      volume: 0,
-      soloed: false,
-      blockedReason: null,
-      meta: null,
-      keyLabel: null,
-    };
-  }
-
-  function cellOf(info: DeckPadInfo): DeckCellView {
-    const { pad } = info;
-    const audible = isAudible(info);
-    const loop = padLoops(info);
-    const blocked = blockedFor(info);
-    const soloed = isSoloed(info);
-    const first = info.sounds[0];
-    const named = pad.name !== null && pad.name !== "";
-    const count = info.sounds.length;
-    const cursor = cursors.value[pad.id];
-    return {
-      lane: pad.lane,
-      row: pad.grid_row,
-      padId: pad.id,
-      kind: info.kind,
-      category: info.category,
-      name: named ? (pad.name ?? "") : first ? first.name : info.playlist ? info.playlist.name : "",
-      light: lightOf(info, audible, loop, blocked, soloed),
-      loop,
-      mode: effectiveLaunchMode(pad, info.category, info.kind),
-      modeIsDefault: isDefaultLaunchMode(pad, info.category, info.kind),
-      takes: info.kind === "sound" ? pad.takes.length : 0,
-      nextTake: count > 0 ? (cursor === undefined ? 0 : cursor) % count : 0,
-      progress: progressOf(info),
-      volume: volumeOf(pad),
-      soloed,
-      blockedReason: blocked,
-      meta: metaOf(info),
-      keyLabel: topRowKey(pad.lane, pad.grid_row),
-    };
-  }
-
-  const snapshot = computed<DeckSnapshot>(() => {
-    const page = activePage.value;
-    const padsHere = pagePads.value;
-    const rows = rowsForPage(padsHere.map((info) => info.pad));
-    const cells: DeckCellView[] = [];
-    for (let row = 0; row < rows; row++) {
-      for (let lane = 0; lane < DECK_LANES; lane++) {
-        const found = padsHere.find((info) => info.pad.lane === lane && info.pad.grid_row === row);
-        cells.push(found ? cellOf(found) : emptyCell(lane, row));
-      }
-    }
-    const laneDefs = page ? page.lanes : DEFAULT_LANES;
-    const lanes: DeckLaneView[] = laneDefs.map((def, lane) => ({
-      name: def.name,
-      rule: def.rule,
-      category: laneCategory(padsHere.filter((info) => info.pad.lane === lane).map((info) => info.category)),
-    }));
-    return {
-      pages: pages.value.map((p) => ({ id: p.id, name: p.name })),
-      pageIndex: page ? pages.value.findIndex((p) => p.id === page.id) : -1,
-      lanes,
-      rows,
-      cells,
-      tool: currentTool.value,
-      lockedTool: lockedTool.value,
-      hush: hushOn.value,
-      paused: store.isPausedAll,
-      audibleCount: store.activeAudioCount + (spotify.isPlaying ? 1 : 0),
-      masterVolume: store.masterVolume,
-    };
-  });
+  const snapshot = useDeckSnapshot({ resolved: deckResolved, readout, cursors, heldPadIds, fadingIds, hushOn, currentTool, lockedTool });
 
   onScopeDispose(() => {
     for (const padId of volumeTimers.keys()) saveVolume(padId); // The last drag is not lost.

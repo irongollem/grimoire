@@ -111,6 +111,15 @@ describe("useCreatePad", () => {
     expect(fake.rows("soundboard_pad_takes")).toEqual([]);
   });
 
+  it("removes the new pad again when its takes cannot be written, so no empty sound pad is left on the board", async () => {
+    fake.failNext("soundboard_pad_takes", { message: "takes boom" });
+    const { result } = inApp(() => useCreatePad());
+    await expect(
+      result.mutateAsync({ pad: { page_id: "pg", lane: 3, grid_row: 0 }, soundIds: ["s-a"] }),
+    ).rejects.toMatchObject({ message: "takes boom" });
+    expect(fake.rows("soundboard_pads")).toEqual([]);
+  });
+
   it("refuses to create without a campaign", async () => {
     session.campaignId = null;
     const { result } = inApp(() => useCreatePad());
