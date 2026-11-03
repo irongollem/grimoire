@@ -365,3 +365,182 @@ describe("useActiveHotkeys", () => {
     expect(active?.value.filter((entry) => entry.combo === "mod+k").map((entry) => entry.layer)).toEqual(["page", "global"]);
   });
 });
+
+function keyUp(init: KeyboardEventInit): KeyboardEvent {
+  return new KeyboardEvent("keyup", { bubbles: true, cancelable: true, ...init });
+}
+
+describe("useHotkeys release", () => {
+  it("calls onRelease on keyup of the key that fired the binding", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease }]);
+
+    dispatch(keyEvent({ key: "g", code: "KeyG" }));
+    expect(onRelease).not.toHaveBeenCalled();
+    dispatch(keyUp({ key: "g", code: "KeyG" }));
+
+    expect(onRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases even when the keyup carries different modifiers (shift pressed mid-hold)", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "1", description: "Pad", handler: vi.fn(), onRelease }]);
+
+    dispatch(keyEvent({ key: "1", code: "Digit1" }));
+    dispatch(keyUp({ key: "!", code: "Digit1", shiftKey: true }));
+
+    expect(onRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases the same binding after an overlay opened mid-hold, not the overlay's", () => {
+    const pageRelease = vi.fn();
+    const overlayRelease = vi.fn();
+    register([{ combo: "1", description: "Pad", handler: vi.fn(), onRelease: pageRelease }]);
+    dispatch(keyEvent({ key: "1", code: "Digit1" }));
+
+    register([{ combo: "1", description: "Overlay", handler: vi.fn(), onRelease: overlayRelease }], {
+      layer: "overlay",
+    });
+    dispatch(keyUp({ key: "1", code: "Digit1" }));
+
+    expect(pageRelease).toHaveBeenCalledTimes(1);
+    expect(overlayRelease).not.toHaveBeenCalled();
+  });
+
+  it("does not release on a keyup for a key that was never held", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease }]);
+
+    dispatch(keyUp({ key: "g", code: "KeyG" }));
+
+    expect(onRelease).not.toHaveBeenCalled();
+  });
+
+  it("releases only once per press", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease }]);
+
+    dispatch(keyEvent({ key: "g", code: "KeyG" }));
+    dispatch(keyUp({ key: "g", code: "KeyG" }));
+    dispatch(keyUp({ key: "g", code: "KeyG" }));
+
+    expect(onRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases every held binding when the window loses focus", () => {
+    const a = vi.fn();
+    const b = vi.fn();
+    register([
+      { combo: "g", description: "A", handler: vi.fn(), onRelease: a },
+      { combo: "h", description: "B", handler: vi.fn(), onRelease: b },
+    ]);
+
+    dispatch(keyEvent({ key: "g", code: "KeyG" }));
+    dispatch(keyEvent({ key: "h", code: "KeyH" }));
+    window.dispatchEvent(new Event("blur"));
+
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).toHaveBeenCalledTimes(1);
+
+    // A later keyup must not release a second time.
+    dispatch(keyUp({ key: "g", code: "KeyG" }));
+    expect(a).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases held bindings when the document becomes hidden", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease }]);
+    dispatch(keyEvent({ key: "g", code: "KeyG" }));
+
+    const spy = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    spy.mockRestore();
+
+    expect(onRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps holding when the document becomes visible again", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease }]);
+    dispatch(keyEvent({ key: "g", code: "KeyG" }));
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(onRelease).not.toHaveBeenCalled();
+  });
+
+  it("releases a held binding when its registration is disposed", () => {
+    const onRelease = vi.fn();
+    const scope = register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease }]);
+    dispatch(keyEvent({ key: "g", code: "KeyG" }));
+
+    scope.stop();
+
+    expect(onRelease).toHaveBeenCalledTimes(1);
+    dispatch(keyUp({ key: "g", code: "KeyG" }));
+    expect(onRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not release for a keydown that did not fire in text entry", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease }]);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    input.dispatchEvent(keyEvent({ key: "g", code: "KeyG" }));
+    input.dispatchEvent(keyUp({ key: "g", code: "KeyG" }));
+    input.remove();
+
+    expect(onRelease).not.toHaveBeenCalled();
+  });
+
+  it("releases an allowInTextEntry binding that fired in text entry", () => {
+    const onRelease = vi.fn();
+    register([{ combo: "g", description: "Gate", handler: vi.fn(), onRelease, allowInTextEntry: true }]);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    input.dispatchEvent(keyEvent({ key: "g", code: "KeyG" }));
+    input.dispatchEvent(keyUp({ key: "g", code: "KeyG" }));
+    input.remove();
+
+    expect(onRelease).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useHotkeys ignoreRepeat", () => {
+  it("calls the handler once for a held key, not for each auto-repeat", () => {
+    const handler = vi.fn();
+    register([{ combo: "g", description: "Gate", handler, ignoreRepeat: true }]);
+
+    dispatch(keyEvent({ key: "g" }));
+    dispatch(keyEvent({ key: "g", repeat: true }));
+    dispatch(keyEvent({ key: "g", repeat: true }));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("still calls the handler for repeats when ignoreRepeat is off", () => {
+    const handler = vi.fn();
+    register([{ combo: "g", description: "Repeat pad", handler }]);
+
+    dispatch(keyEvent({ key: "g" }));
+    dispatch(keyEvent({ key: "g", repeat: true }));
+
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("swallows a repeat without letting a lower layer take it, and still prevents default", () => {
+    const pageHandler = vi.fn();
+    const globalHandler = vi.fn();
+    register([{ combo: "g", description: "Page", handler: pageHandler, ignoreRepeat: true }], { layer: "page" });
+    register([{ combo: "g", description: "Global", handler: globalHandler }], { layer: "global" });
+
+    const repeat = keyEvent({ key: "g", repeat: true });
+    dispatch(repeat);
+
+    expect(pageHandler).not.toHaveBeenCalled();
+    expect(globalHandler).not.toHaveBeenCalled();
+    expect(repeat.defaultPrevented).toBe(true);
+  });
+});
