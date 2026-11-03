@@ -26,7 +26,7 @@
 import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { SaveKey } from "@/types/party.types";
 
 /** One skill: proficiency marker, name, bonus. Tap rolls; hold picks a mode. */

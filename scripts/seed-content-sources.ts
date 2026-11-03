@@ -40,7 +40,6 @@ import {
   fetchOpen5eDocumentRefs,
   isRedistributable,
   licenseKeysFor,
-  LEGACY_DOCUMENT_KEY_ALIASES,
 } from "@/lib/library/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -83,15 +82,6 @@ type MachineFields = Pick<
   "key" | "open5e_key" | "title" | "publisher" | "license_keys" | "product_url" | "gamesystem" | "is_redistributable"
 >;
 
-const REVERSE_DOCUMENT_KEY_ALIASES: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(LEGACY_DOCUMENT_KEY_ALIASES).map(([ours, upstream]) => [upstream, ours]),
-);
-
-/** Maps an Open5e v2 document key back to OUR source_document_key; identity when we have no legacy alias for it. */
-export function ourKeyFor(open5eKey: string): string {
-  return REVERSE_DOCUMENT_KEY_ALIASES[open5eKey] ?? open5eKey;
-}
-
 /**
  * Derives the machine-writable fields for one Open5e document, or `null`
  * when the document is missing data (`publisher`) this NOT NULL column
@@ -100,10 +90,9 @@ export function ourKeyFor(open5eKey: string): string {
  */
 export function deriveMachineFields(document: Open5eDocumentRef): MachineFields | null {
   if (!document.publisher?.name) return null;
-  const key = ourKeyFor(document.key);
   return {
-    key,
-    open5e_key: key === document.key ? null : document.key,
+    key: document.key,
+    open5e_key: document.key,
     title: document.display_name || document.name,
     publisher: document.publisher.name,
     license_keys: licenseKeysFor(document),
@@ -123,6 +112,8 @@ export interface ContentSourcePlanRow {
 export interface ContentSourcePlanResult {
   /** Rows to upsert — machine fields only. */
   plan: ContentSourcePlanRow[];
+  /** Document keys skipped: A5E is frozen (#934), its catalogue rows keep their old keys. */
+  skippedA5e: string[];
   /** Document keys skipped: no `publisher.name`, can't populate the NOT NULL column. */
   skippedNoPublisher: string[];
   /** OUR keys skipped: no existing catalogue row, and the document isn't (yet) cleared for redistribution. */
@@ -149,11 +140,16 @@ export function buildContentSourcePlan(
 ): ContentSourcePlanResult {
   const existingByKey = new Map(existingRows.map((row) => [row.key, row]));
   const plan: ContentSourcePlanRow[] = [];
+  const skippedA5e: string[] = [];
   const skippedNoPublisher: string[] = [];
   const skippedNotRedistributable: string[] = [];
   const skippedCurated: string[] = [];
 
   for (const document of documents) {
+    if (document.gamesystem?.key?.toLowerCase() === "a5e") {
+      skippedA5e.push(document.key);
+      continue;
+    }
     const fields = deriveMachineFields(document);
     if (!fields) {
       skippedNoPublisher.push(document.key);
@@ -173,7 +169,7 @@ export function buildContentSourcePlan(
     plan.push({ fields, existing });
   }
 
-  return { plan, skippedNoPublisher, skippedNotRedistributable, skippedCurated };
+  return { plan, skippedA5e, skippedNoPublisher, skippedNotRedistributable, skippedCurated };
 }
 
 // ── dry run ───────────────────────────────────────────────────────────────
@@ -241,10 +237,13 @@ async function main(): Promise<void> {
   }
   console.log();
 
-  const { plan, skippedNoPublisher, skippedNotRedistributable, skippedCurated } = buildContentSourcePlan(
+  const { plan, skippedA5e, skippedNoPublisher, skippedNotRedistributable, skippedCurated } = buildContentSourcePlan(
     documents,
     existingRows,
   );
+  if (skippedA5e.length) {
+    console.log(`  Skipped ${skippedA5e.length} A5E document(s), which are frozen: ${skippedA5e.join(", ")}`);
+  }
   if (skippedNoPublisher.length) {
     console.log(
       `  Skipped ${skippedNoPublisher.length} document(s) with no publisher name (cannot populate the NOT NULL publisher column): ${skippedNoPublisher.join(", ")}`,
@@ -276,7 +275,7 @@ async function main(): Promise<void> {
 }
 
 // Entry-point guard: this module also exports pure helpers
-// (ourKeyFor/deriveMachineFields/buildContentSourcePlan) for
+// (deriveMachineFields/buildContentSourcePlan) for
 // scripts/seed-content-sources.test.ts to import directly. Unlike the
 // sibling seed scripts' unconditional `main().catch()` (which only ever
 // gets exercised by a test file after a slow real-network fetch, so in

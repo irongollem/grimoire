@@ -545,7 +545,7 @@ Players see a live encounter panel in their portal. On mobile it renders as a fu
 **HP display** — controlled by the campaign-level `health_visibility` setting:
 
 - `strategic`: PCs show exact HP and a colour bar; monsters show a descriptive label (Healthy / Hurt / Wounded / Bloodied / Dead) with a colour bar
-- `immersive`: PCs still show exact HP; monsters show only the label with no bar
+- `immersive`: PCs show a colour bar with no numbers; monsters show only the label with no bar (`EncounterCombatantList.vue`)
 - `unknown`: no HP information shown
 
 HP bar colour thresholds: >75% green, >50% amber, >25% red, 0 grey.

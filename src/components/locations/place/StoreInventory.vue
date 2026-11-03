@@ -91,19 +91,7 @@
             size="body"
             placeholder="Description shown in chat…"
           />
-          <!-- Coin price inputs -->
-          <div class="grid grid-cols-5 gap-1">
-            <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-              <span class="text-label font-bold" :class="coin.color">{{ coin.symbol }}</span>
-              <AppInput
-                v-model.number="offerPrice[coin.key]"
-                type="number" min="0"
-                tone="muted"
-                size="xs"
-                align="center"
-              />
-            </div>
-          </div>
+          <CoinInput v-model="offerPrice" size="xs" />
           <div class="flex gap-2">
             <AppButton
               variant="tinted"
@@ -218,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from "vue";
+import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconHide, IconReveal, IconShop, IconShuffle } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -237,11 +225,13 @@ import {
 import type { StoreItem } from "@/composables/items/useStoreItems";
 import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import type { ItemIndexEntry } from "@/types/item.types";
-import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import { COINS, parseCoinText } from "@/rules/currency";
-import type { CoinKey } from "@/types/downtime.types";
+import CoinInput from "@/components/currency/CoinInput.vue";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { hasCoins, type Coins } from "@/lib/currency/currency";
+import { rarityPriceHint as dmgPriceHint } from "@/systems/dnd5e/currency/rarityPriceHints";
 
 const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();
 
@@ -255,6 +245,7 @@ const { mutate: update } = useUpdateStoreItem(locationIdRef);
 const { mutate: removeItem } = useRemoveStoreItem(locationIdRef);
 const { sendVendorOffer } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
+const { currency, parsePrice } = useCurrency();
 
 // ── Add item search ─────────────────────────────────────────────────────────────
 const search = ref("");
@@ -303,7 +294,7 @@ function remove(id: string) {
 }
 
 function rarityPriceHint(rarity: string | null | undefined): string {
-  return RARITY_PRICE_HINTS[(rarity ?? "") as keyof typeof RARITY_PRICE_HINTS] ?? "";
+  return dmgPriceHint(rarity, currency.value);
 }
 
 // ── Quick fill ──────────────────────────────────────────────────────────────────
@@ -342,8 +333,8 @@ const selected = ref<StoreItem | null>(null);
 
 const offeringId  = ref<string | null>(null);
 const offerDesc   = ref("");
-const offerPrice  = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
-const offerHasPrice = computed(() => COINS.some(c => offerPrice[c.key] > 0));
+const offerPrice  = ref<Coins>({});
+const offerHasPrice = computed(() => hasCoins(offerPrice.value));
 
 function toggleOffer(si: StoreItem) {
   if (offeringId.value === si.id) {
@@ -353,8 +344,7 @@ function toggleOffer(si: StoreItem) {
   offeringId.value = si.id;
   offerDesc.value = si.item.name;
   const priceText = si.price_override ?? si.item.cost ?? "";
-  const parsed = parseCoinText(priceText);
-  COINS.forEach(c => { offerPrice[c.key] = parsed[c.key]; });
+  offerPrice.value = parsePrice(priceText) ?? {};
 }
 
 async function postOffer(si: StoreItem) {
@@ -364,7 +354,7 @@ async function postOffer(si: StoreItem) {
       offerDesc.value.trim(),
       si.item.name,
       si.item_id,
-      offerPrice.pp, offerPrice.gp, offerPrice.ep, offerPrice.sp, offerPrice.cp,
+      offerPrice.value,
       props.ownerNpcName ?? undefined,
     );
   } catch (e) {

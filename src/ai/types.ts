@@ -3,7 +3,7 @@ import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster
 import type { ProseStatBlockFields } from "@/rules/statBlock/structureStatBlock";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { SpellSchool } from "@/types/spell.types";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import type { TrapType, TrapTrigger, TrapResetType, TrapSaveType, DamageEntry } from "@/types/trap.types";
 import type { AiProvenance } from "@/ai/provenance";
 
@@ -426,7 +426,8 @@ export interface LootEntryAiResult {
   /** Fixed quantity; used when `dice` is absent. */
   fixed_qty?: number | null;
   notes?: string | null;
-  pp?: number; gp?: number; ep?: number; sp?: number; cp?: number;
+  /** type "currency": whole coins per denomination key of the campaign's currency. */
+  coins?: Record<string, number>;
 }
 
 export interface LootTableAiResult {

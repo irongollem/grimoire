@@ -1,37 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { coinGiveBlocked, coinText, coinsLeft, giveCoinsLabel, hasCoins, leavesYouLine, wholeCoins } from "./coinGive";
+import { DND5E_CURRENCY } from "@/systems/dnd5e/currency/dnd5eCurrency";
+import type { CurrencyConfig } from "@/lib/currency/currency";
+import { coinGiveBlocked, coinsLeft, giveCoinsLabel, leavesYouLine } from "./coinGive";
 
-const purse = { pp: 0, gp: 41, ep: 0, sp: 12, cp: 30 };
-const none = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
+const purse = { gp: 41, sp: 12, cp: 30 };
+
+const DOLLARS: CurrencyConfig = {
+  default_key: "dollar",
+  denominations: [
+    { key: "dollar", name: "dollar", abbr: "$", value: 100, color: "#00aa00", makes_change: true },
+    { key: "cent", name: "cent", abbr: "c", value: 1, color: "#aa7700", makes_change: true },
+  ],
+};
 
 describe("coinGive", () => {
   it("subtracts what is given", () => {
-    expect(coinsLeft(purse, { ...none, gp: 5 })).toEqual({ ...purse, gp: 36 });
+    expect(coinsLeft(purse, { gp: 5 })).toEqual({ ...purse, gp: 36 });
   });
   it("never adds coins back for a negative entry", () => {
-    expect(coinsLeft(purse, { ...none, gp: -5 })).toEqual(purse);
+    expect(coinsLeft(purse, { gp: -5 })).toEqual(purse);
   });
   it("words what is left, skipping empty coins", () => {
-    expect(leavesYouLine(purse, { ...none, gp: 5 })).toBe("Leaves you 36 gp, 12 sp, 30 cp.");
-    expect(leavesYouLine({ ...none, gp: 2 }, { ...none, gp: 2 })).toBe("Leaves you with nothing.");
+    expect(leavesYouLine(purse, { gp: 5 }, DND5E_CURRENCY)).toBe("Leaves you 36 gp 12 sp 30 cp.");
+    expect(leavesYouLine({ gp: 2 }, { gp: 2 }, DND5E_CURRENCY)).toBe("Leaves you with nothing.");
   });
   it("blocks an amount above the purse or below zero, allows the exact purse", () => {
-    expect(coinGiveBlocked(purse, { ...none, gp: 42 })).toBe(true);
-    expect(coinGiveBlocked(purse, { ...none, gp: -1 })).toBe(true);
-    expect(coinGiveBlocked(purse, { ...none, gp: 41 })).toBe(false);
+    expect(coinGiveBlocked(purse, { gp: 42 })).toBe(true);
+    expect(coinGiveBlocked(purse, { gp: -1 })).toBe(true);
+    expect(coinGiveBlocked(purse, { gp: 41 })).toBe(false);
   });
-  it("knows when nothing is entered", () => {
-    expect(hasCoins(none)).toBe(false);
-    expect(hasCoins({ ...none, cp: 1 })).toBe(true);
+  it("blocks a coin the purse does not hold at all", () => {
+    expect(coinGiveBlocked({ gp: 5 }, { pp: 1 })).toBe(true);
   });
   it("labels the button with the amount and the recipient", () => {
-    expect(giveCoinsLabel({ ...none, gp: 5, sp: 3 }, "Dorn")).toBe("Give 5 gp, 3 sp to Dorn");
-    expect(giveCoinsLabel(none, "Dorn")).toBe("Give");
-    expect(giveCoinsLabel({ ...none, gp: 5 }, null)).toBe("Give 5 gp");
+    expect(giveCoinsLabel({ gp: 5, sp: 3 }, "Dorn", DND5E_CURRENCY)).toBe("Give 5 gp 3 sp to Dorn");
+    expect(giveCoinsLabel({}, "Dorn", DND5E_CURRENCY)).toBe("Give");
+    expect(giveCoinsLabel({ gp: 5 }, null, DND5E_CURRENCY)).toBe("Give 5 gp");
   });
-  it("floors fractions and treats NaN as zero", () => {
-    expect(wholeCoins({ ...none, gp: 2.9, sp: Number.NaN })).toEqual({ ...none, gp: 2 });
-    expect(wholeCoins({ pp: 1.5, gp: 2.5, ep: 3.5, sp: 4.5, cp: 5.5 })).toEqual({ pp: 1, gp: 2, ep: 3, sp: 4, cp: 5 });
-    expect(coinText({ ...none, pp: 1 })).toBe("1 pp");
+  it("speaks the campaign's own coins, not gold", () => {
+    expect(giveCoinsLabel({ dollar: 2, cent: 50 }, "Mia", DOLLARS)).toBe("Give 2 $ 50 c to Mia");
+    expect(leavesYouLine({ dollar: 3 }, { dollar: 1 }, DOLLARS)).toBe("Leaves you 2 $.");
   });
 });

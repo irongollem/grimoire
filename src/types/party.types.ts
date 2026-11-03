@@ -2,6 +2,7 @@ import type { AppliedCondition } from "@/types/condition.types";
 import type { LevelChoiceRecord } from "@/rules/features/levelUpChoices";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { WildshapeState } from "@/types/encounter.types";
+import type { Coins } from "@/lib/currency/currency";
 
 export type SkillProfLevel = "none" | "proficient" | "expertise";
 export type SaveKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
@@ -142,13 +143,6 @@ export interface PartyMember {
   max_hp: number;
   current_hp: number;
   temp_hp: number;
-  /**
-   * The AC this character had before Armour Class became calculated. Read only
-   * by the one-time "your AC is now worked out from your gear" notice, which
-   * clears it; null for every new or edited character. Never display it: the
-   * AC is `useArmorClass().acFor(member)`.
-   */
-  ac: number | null;
   /** An extra AC calculation the character has; see the grammar below. */
   ac_formula?: string | null;
   speed: number;
@@ -196,12 +190,8 @@ export interface PartyMember {
   player_description?: string | null;
   // Experience points (optional — campaigns using milestone levelling leave it 0)
   experience_points?: number;
-  // Currency
-  cp: number;
-  sp: number;
-  ep: number;
-  gp: number;
-  pp: number;
+  /** The purse, in the campaign's own denominations (#934). */
+  coins: Coins;
   // Proficiencies & languages
   tool_proficiencies: string[];
   languages: string[];

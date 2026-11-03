@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(52);
+select plan(56);
 
 select has_table('public', 'loot_placements', 'beat loot has a dedicated orchestration table');
 select has_function('public', 'dispatch_loot', array['uuid[]'], 'loot has an atomic dispatch RPC, home-agnostic');
@@ -50,14 +50,18 @@ insert into public.quest_beat_transitions (
 
 select throws_ok($$
   insert into public.loot_placements (beat_id, quest_id, campaign_id, kind, payload)
-  values ('66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'currency', '{"gp":0}')
+  values ('66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'currency', '{"coins":{"gp":0}}')
 $$, '23514', null, 'empty currency cannot become a misleading drop');
+select throws_ok($$
+  insert into public.loot_placements (beat_id, quest_id, campaign_id, kind, payload)
+  values ('66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'currency', '{"coins":{"crowns":5}}')
+$$, '23514', null, 'currency loot in a coin the campaign does not have is refused, not dropped as nothing');
 
 select lives_ok($$
   insert into public.loot_placements (id, beat_id, quest_id, campaign_id, kind, item_id, quantity, label, payload, source_type, source_id, sort_order) values
     ('66100000-0000-4000-8000-000000000061', '66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'item', '66100000-0000-4000-8000-000000000030', 2, 'Moon keys', '{}', 'quest_reward', '66100000-0000-4000-8000-000000000040', 1),
-    ('66100000-0000-4000-8000-000000000062', '66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'currency', null, 1, 'Vault purse', '{"gp":12,"sp":3}', 'prepared', null, 2),
-    ('66100000-0000-4000-8000-000000000063', '66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'loot_chest', null, 1, '', '{"loot_table_id":null,"loot_table_name":"Vault cache","chest_image_url":null,"rolled_atoms":[{"atom_id":"atom-1","type":"currency","gp":1}],"claims_total":1}', 'encounter_loot', null, 3)
+    ('66100000-0000-4000-8000-000000000062', '66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'currency', null, 1, 'Vault purse', '{"coins":{"gp":12,"sp":3}}', 'prepared', null, 2),
+    ('66100000-0000-4000-8000-000000000063', '66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'loot_chest', null, 1, '', '{"loot_table_id":null,"loot_table_name":"Vault cache","chest_image_url":null,"rolled_atoms":[{"atom_id":"atom-1","type":"currency","coins":{"gp":1}}],"claims_total":1}', 'encounter_loot', null, 3)
 $$, 'item, currency, and encounter chest placements share the beat without cloning inventory');
 
 set local role authenticated;
@@ -108,6 +112,20 @@ select lives_ok($$
     'Claiming hero', '66100000-0000-4000-8000-000000000020'
   )
 $$, 'existing atomic currency claim delivers beat loot');
+select is(
+  (select metadata->'coins' from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000062'),
+  '{"gp": 12, "sp": 3}'::jsonb,
+  'a currency drop carries the placement''s coin map'
+);
+select ok(
+  (select message like '%Vault purse: 12 gp, 3 sp' from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000062'),
+  'the drop''s chat line names the coins in the campaign''s abbreviations'
+);
+select is(
+  (select coins from public.party_members where id = '66100000-0000-4000-8000-000000000020'),
+  '{"gp": 12, "sp": 3}'::jsonb,
+  'claiming the drop credits the claimer''s purse with exactly those coins'
+);
 
 select set_config('request.jwt.claim.sub', '66100000-0000-4000-8000-000000000001', true);
 select is((select delivery_state from public.get_loot_placements('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000061'), 'partially_claimed', 'partial stack claims are reflected in Run status');
@@ -163,24 +181,24 @@ values
 
 select throws_ok($$
   insert into public.loot_placements (campaign_id, kind, quantity, label, payload, source_type, sort_order)
-  values ('66100000-0000-4000-8000-000000000010', 'currency', 1, 'homeless', '{"gp":1}', 'prepared', 9)
+  values ('66100000-0000-4000-8000-000000000010', 'currency', 1, 'homeless', '{"coins":{"gp":1}}', 'prepared', 9)
 $$, '23514', null, 'loot with no home is refused');
 
 select throws_ok($$
   insert into public.loot_placements (beat_id, quest_id, location_id, campaign_id, kind, quantity, label, payload, source_type, sort_order)
-  values ('66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000071', '66100000-0000-4000-8000-000000000010', 'currency', 1, 'two homes', '{"gp":1}', 'prepared', 9)
+  values ('66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000071', '66100000-0000-4000-8000-000000000010', 'currency', 1, 'two homes', '{"coins":{"gp":1}}', 'prepared', 9)
 $$, '23514', null, 'loot cannot hang on a beat and a room at once');
 
 -- The composite FK, not the validator: a room in another campaign has no
 -- (id, campaign_id) pair matching this loot row.
 select throws_ok($$
   insert into public.loot_placements (location_id, campaign_id, kind, quantity, label, payload, source_type, sort_order)
-  values ('66100000-0000-4000-8000-000000000072', '66100000-0000-4000-8000-000000000010', 'currency', 1, 'trespass', '{"gp":1}', 'prepared', 9)
+  values ('66100000-0000-4000-8000-000000000072', '66100000-0000-4000-8000-000000000010', 'currency', 1, 'trespass', '{"coins":{"gp":1}}', 'prepared', 9)
 $$, '23503', null, 'a room from another campaign cannot hold this campaign''s loot');
 
 select lives_ok($$
   insert into public.loot_placements (id, location_id, campaign_id, kind, quantity, label, payload, source_type, sort_order)
-  values ('66100000-0000-4000-8000-000000000080', '66100000-0000-4000-8000-000000000071', '66100000-0000-4000-8000-000000000010', 'currency', 1, 'Chest by the door', '{"gp":50}', 'loot_table', 1)
+  values ('66100000-0000-4000-8000-000000000080', '66100000-0000-4000-8000-000000000071', '66100000-0000-4000-8000-000000000010', 'currency', 1, 'Chest by the door', '{"coins":{"gp":50}}', 'loot_table', 1)
 $$, 'a room holds loot with no quest and no beat');
 
 -- Re-homing to a foreign room is refused on UPDATE too, not just INSERT — the

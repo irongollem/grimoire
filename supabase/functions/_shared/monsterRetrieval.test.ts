@@ -71,14 +71,14 @@ beforeEach(() => {
 
 describe("retrieveMonsterCandidates: the enabled-sources boundary", () => {
   it("hands the library matcher this campaign's enabled slugs and no other campaign's", async () => {
-    enable(BASE_ARGS.campaignId, "tob2", "blackflag");
+    enable(BASE_ARGS.campaignId, "tob2", "bfrd");
     enable(OTHER_CAMPAIGN, "secret-book");
 
     await retrieveMonsterCandidates(admin, BASE_ARGS);
 
     // A book another campaign turned on must not be searched for this one (#567/#583 licensing).
     expect(rpcArgs.match_library_monsters).toHaveLength(1);
-    expect(rpcArgs.match_library_monsters[0].source_slugs).toEqual(["tob2", "blackflag"]);
+    expect(rpcArgs.match_library_monsters[0].source_slugs).toEqual(["tob2", "bfrd"]);
   });
 
   it("does not call the library matcher at all when the campaign has enabled no sources", async () => {

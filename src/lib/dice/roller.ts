@@ -1,32 +1,48 @@
 /**
- * Central dice rolling entry point.
+ * Central neutral dice rolling entry point.
  *
  * All game dice rolls — initiative, attacks, skill checks, damage, death saves,
- * hit dice, crafting — must go through this module so that sound and future
- * effects (animation, roll history, etc.) are applied in one place.
+ * hit dice, crafting — must go through here so that sound and future effects
+ * (animation, roll history, etc.) are applied in one place. A roll under a game
+ * system's rules (5e advantage, crit on a natural 20) is `rollDiceWithRules`,
+ * given the rules from `activeDiceRules()` in `@/systems/registry`.
  *
- * Rule: never call rollDie / rollDice from @/lib/dice directly in components.
+ * Rule: never call rollDie / rollDice from @/lib/dice/dice directly in components.
  *       Never call playDiceRollSound directly in components.
- *       Import from here instead.
  */
 
 import { rollDie as _rollDie, rollDice as _rollDice } from "@/lib/dice/dice";
 import { playDiceRollSound } from "@/lib/dice/diceAudio";
-import type { DieSize, RollMode, RollResult, ParsedExpression } from "@/lib/dice/dice";
+import type { DieSize, RollResult, ParsedExpression } from "@/lib/dice/dice";
+import { rollWithRules, type DiceRules, type RollModeKey } from "@/lib/dice/diceRules";
 
-export type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
+export type { DieSize, RollResult } from "@/lib/dice/dice";
 
 /**
- * Roll a full dice pool with modifier and optional advantage/disadvantage.
- * Plays a single sound. Returns a full RollResult (total, breakdown, isCrit, isFumble, label).
+ * Roll a full dice pool with modifier, no game rules. Plays a single sound.
  */
 export function rollDice(
   counts: Partial<Record<DieSize, number>>,
   modifier: number,
-  mode: RollMode = "normal",
   options?: { mute?: boolean },
 ): RollResult {
-  const result = _rollDice(counts, modifier, mode);
+  const result = _rollDice(counts, modifier);
+  if (!options?.mute) playDiceRollSound(result.isCrit, result.isFumble);
+  return result;
+}
+
+/**
+ * Roll a pool under a game system's rules, with a roll option such as 5e
+ * advantage. Plays a single sound, crit/fumble aware.
+ */
+export function rollDiceWithRules(
+  rules: DiceRules,
+  counts: Partial<Record<DieSize, number>>,
+  modifier: number,
+  mode: RollModeKey,
+  options?: { mute?: boolean },
+): RollResult {
+  const result = rollWithRules(rules, counts, modifier, mode);
   if (!options?.mute) playDiceRollSound(result.isCrit, result.isFumble);
   return result;
 }

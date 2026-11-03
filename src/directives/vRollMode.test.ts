@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, nextTick, ref, withDirectives } from "vue";
 import { mount } from "@vue/test-utils";
 import { vRollMode, type RollModeBinding } from "./vRollMode";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollModeKey } from "@/lib/dice/diceRules";
 
 const picker = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock("@/composables/dice/useRollModePicker", () => ({ openRollModePicker: picker.open }));
+const system = vi.hoisted(() => ({ options: [{ key: "advantage" }] as { key: string }[] }));
+vi.mock("@/systems/registry", () => ({ activeDiceRules: () => ({ options: system.options }) }));
 
 function mountTrigger(enabled: ReturnType<typeof ref<boolean>>) {
   return mount(
@@ -54,7 +56,7 @@ describe("v-roll-mode handler freshness", () => {
 });
 
 describe("v-roll-mode gestures", () => {
-  const calls: Array<RollMode | null> = [];
+  const calls: Array<RollModeKey | null> = [];
   function mountRoller(enabled = true) {
     return mount(
       defineComponent({
@@ -148,5 +150,17 @@ describe("v-roll-mode gestures", () => {
     w.unmount();
     el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(calls).toEqual([]);
+  });
+});
+
+describe("v-roll-mode under a system with no roll options", () => {
+  afterEach(() => {
+    system.options = [{ key: "advantage" }];
+  });
+
+  it("leaves the long-press to the OS, since there is nothing to pick", () => {
+    system.options = [];
+    const wrapper = mountTrigger(ref(true));
+    expect(wrapper.element.style.userSelect).toBe("");
   });
 });

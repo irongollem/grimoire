@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BackgroundInsert } from "@/types/background.types";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
-import { buildSeededBackgroundRow, isSeedableDocument, ourDocumentKey } from "./seed-library-backgrounds";
+import { buildSeededBackgroundRow, isSeedableDocument } from "./seed-library-backgrounds";
 
 function mapped(overrides: Partial<BackgroundInsert>): BackgroundInsert {
   return {
@@ -36,29 +36,16 @@ function mapped(overrides: Partial<BackgroundInsert>): BackgroundInsert {
   };
 }
 
-describe("ourDocumentKey", () => {
-  it("maps Open5e's key for a book back to the slug a campaign enables", () => {
-    expect(ourDocumentKey("a5e-ag")).toBe("a5e");
-    expect(ourDocumentKey("tdcs")).toBe("taldorei");
-    expect(ourDocumentKey("open5e")).toBe("o5e");
-  });
-
-  it("leaves a key that has no alias alone", () => {
-    expect(ourDocumentKey("srd-2024")).toBe("srd-2024");
-    expect(ourDocumentKey("toh")).toBe("toh");
-  });
-});
-
 describe("buildSeededBackgroundRow", () => {
-  it("mints the id the migration minted and files the row under our slug", () => {
+  it("files the row under Open5e's document key as it comes, with a minted id", () => {
     const row = buildSeededBackgroundRow(
-      mapped({ source: "a5e-ag", source_document_key: "a5e-ag", source_record_key: "a5e-ag_artisan", name: "Artisan" }),
+      mapped({ source: "tdcs", source_document_key: "tdcs", source_record_key: "tdcs_outlander", name: "Outlander" }),
     );
     expect(row).toMatchObject({
-      id: "srd_a5e_ag_artisan",
-      source: "a5e",
-      source_document_key: "a5e",
-      source_record_key: "a5e-ag_artisan",
+      id: "srd_tdcs_outlander",
+      source: "tdcs",
+      source_document_key: "tdcs",
+      source_record_key: "tdcs_outlander",
     });
   });
 
@@ -70,11 +57,11 @@ describe("buildSeededBackgroundRow", () => {
     }
   });
 
-  it("files A5E under 2014, which it is built on", () => {
+  it("refuses an A5E row: A5E is frozen and is not filed under 2014 any more (#934)", () => {
     const row = buildSeededBackgroundRow(
       mapped({ ruleset: null, provenance: { document: { gamesystem: { key: "a5e", name: "A5E" } } } }),
     );
-    expect(row?.ruleset).toBe("2014");
+    expect(row).toBeNull();
   });
 
   it("keeps what Open5e supplied, and falls back to the book's slug for a missing title", () => {
@@ -103,9 +90,12 @@ describe("isSeedableDocument", () => {
     licenses: [{ name: "OGL", key: "ogl-10a" }],
   };
 
-  it("takes a redistributable 5e document and an A5E one", () => {
+  it("takes a redistributable 5e document", () => {
     expect(isSeedableDocument(base)).toBe(true);
-    expect(isSeedableDocument({ ...base, gamesystem: { name: "A5E", key: "a5e" } })).toBe(true);
+  });
+
+  it("refuses a redistributable A5E document (frozen, #934)", () => {
+    expect(isSeedableDocument({ ...base, gamesystem: { name: "A5E", key: "a5e" } })).toBe(false);
   });
 
   it("refuses an unlicensed document and a non-5e one", () => {

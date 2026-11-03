@@ -101,7 +101,7 @@ describe("resolveGeneratedCombatants", () => {
   });
 
   it("exposes every same-tier version as a candidate, in bestiary order (#601)", () => {
-    const blackflagGhost = makeMonster({ id: "m-bf", name: "Ghost", source: "blackflag" });
+    const blackflagGhost = makeMonster({ id: "m-bf", name: "Ghost", source: "bfrd" });
     const menagerieGhost = makeMonster({ id: "m-men", name: "Ghost", source: "menagerie" });
     const result = resolveGeneratedCombatants(
       [makeAiCombatant({ name: "Ghost" })],
@@ -197,7 +197,7 @@ describe("resolveGeneratedCombatants", () => {
 });
 
 describe("swapCombatantVersion", () => {
-  const blackflagGhost = makeMonster({ id: "m-bf", name: "Ghost", source: "blackflag" });
+  const blackflagGhost = makeMonster({ id: "m-bf", name: "Ghost", source: "bfrd" });
   const menagerieGhost = makeMonster({ id: "m-men", name: "Ghost", source: "menagerie" });
 
   function makeAmbiguousMatch(role = "Haunter") {

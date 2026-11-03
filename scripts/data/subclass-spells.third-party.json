@@ -2,7 +2,7 @@
  {
   "class": "Druid",
   "subclass": "Circle of the Many",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "d2498382-7954-427f-8944-df3d0a3166a2",
   "open5e_key": "open5e_circle-of-the-many",
@@ -11,7 +11,7 @@
  {
   "class": "Bard",
   "subclass": "College of Skalds",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "0571ab38-a24b-485d-9ba5-01c80bf3d52c",
   "open5e_key": "open5e_college-of-skalds",
@@ -20,7 +20,7 @@
  {
   "class": "Cleric",
   "subclass": "Demise Domain",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "d456bcab-cf4f-4f22-81b9-9fdec7d4a648",
   "open5e_key": "open5e_demise-domain",
@@ -89,7 +89,7 @@
  {
   "class": "Cleric",
   "subclass": "Mischief Domain",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "6902ef88-83d0-4e6d-a22c-b7d89c108b8c",
   "open5e_key": "open5e_mischief-domain",
@@ -158,7 +158,7 @@
  {
   "class": "Paladin",
   "subclass": "Oathless Betrayer",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "cd03d9ef-44a2-4356-ad6a-64479375adf9",
   "open5e_key": "open5e_oathless-betrayer",
@@ -227,7 +227,7 @@
  {
   "class": "Cleric",
   "subclass": "Storm Domain",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "f222a5b0-3b8e-42a0-8e25-d9d2a5d366a9",
   "open5e_key": "open5e_storm-domain",
@@ -296,7 +296,7 @@
  {
   "class": "Warlock",
   "subclass": "The Ancient Fey Court",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "a75f37f7-71f3-420d-923f-96d65ece763b",
   "open5e_key": "open5e_the-ancient-fey-court",
@@ -365,7 +365,7 @@
  {
   "class": "Warlock",
   "subclass": "The Great Elder Thing",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "1e3d2564-91b5-428c-a081-e42a0d16a595",
   "open5e_key": "open5e_the-great-elder-thing",
@@ -434,7 +434,7 @@
  {
   "class": "Sorcerer",
   "subclass": "Wyrd Magic",
-  "source": "o5e",
+  "source": "open5e",
   "ruleset": "2014",
   "subclass_row_id": "1aaf7074-32e5-4ad7-9832-b87a6ea8a3e3",
   "open5e_key": "open5e_wyrd-magic",
@@ -443,7 +443,7 @@
  {
   "class": "Cleric",
   "subclass": "Blood Domain",
-  "source": "taldorei",
+  "source": "tdcs",
   "ruleset": "2014",
   "subclass_row_id": "c689e680-3eb3-484b-9e30-65f6bf7615e7",
   "open5e_key": "tdcs_blood-domain",
@@ -512,7 +512,7 @@
  {
   "class": "Sorcerer",
   "subclass": "Runechild",
-  "source": "taldorei",
+  "source": "tdcs",
   "ruleset": "2014",
   "subclass_row_id": "95951b8f-903d-4aa5-a20f-dae30b3e241a",
   "open5e_key": "tdcs_runechild",

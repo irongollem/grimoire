@@ -93,7 +93,7 @@ import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { MONSTER_SIZES } from "@/types/monster.types";
-import type { RollMode } from "@/lib/dice/dice";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { PartyMember } from "@/types/party.types";
 import PlayPcAttacks from "./PlayPcAttacks.vue";
 import PlayPortrait from "./PlayPortrait.vue";

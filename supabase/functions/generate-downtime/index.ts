@@ -18,6 +18,7 @@ import {
   toVectorLiteral,
   EmbeddingProviderConfigError,
 } from "../_shared/embeddings.ts";
+import { currencyPromptBlock, loadCampaignCurrency } from "../_shared/currency.ts";
 import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaignEntityRetrieval.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
@@ -157,9 +158,18 @@ serve(withCors(async (req: Request) => {
   ];
   if (character_name) constraints.push(`Character: ${character_name}`);
 
-  const userContent = prompt
+  // A gold effect's "gain" and "spend" are coin maps keyed by the campaign's denominations.
+  let currencyBlock: string;
+  try {
+    currencyBlock = currencyPromptBlock(await loadCampaignCurrency(admin, campaign_id));
+  } catch (e) {
+    console.error("Downtime currency read failed:", e);
+    return new Response(JSON.stringify({ error: "Could not read the campaign's currency." }), { status: 500, headers: { "Content-Type": "application/json" } });
+  }
+
+  const userContent = (prompt
     ? `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}`
-    : `Draft the outcome.\n\nConstraints:\n${constraints.join("\n")}`;
+    : `Draft the outcome.\n\nConstraints:\n${constraints.join("\n")}`) + currencyBlock;
 
   // The platform picks the model: a campaign on credits runs on the provider the
   // admin enabled, and campaigns.text_provider only counts with the campaign's own key.

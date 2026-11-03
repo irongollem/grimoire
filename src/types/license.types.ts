@@ -5,7 +5,7 @@
 // tables (monsters, spells, items, species, rules, classes).
 export interface ContentLicenseSource {
   key: string;                     // our internal source_document_key, e.g. "tob3", "srd-2014", "grimoire-bundled"
-  open5e_key: string | null;       // the upstream Open5e v2 document key when it differs, e.g. "ccdx" for our "cc"
+  open5e_key: string | null;       // the Open5e v2 document key; equals `key` for Open5e books, null for our own
   title: string;                   // e.g. "Tome of Beasts 3"
   publisher: string;                // e.g. "Kobold Press"
   license_keys: string[];          // e.g. ["ogl-10a"] or ["cc-by-40", "ogl-10a"]; [] means no third-party license

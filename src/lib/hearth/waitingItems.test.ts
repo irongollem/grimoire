@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CampaignMessage } from "@/types/chat.types";
+import type { CurrencyConfig } from "@/lib/currency/currency";
+import { DND5E_CURRENCY } from "@/systems/dnd5e/currency/dnd5eCurrency";
 import { openTableItems } from "./waitingItems";
 
 function msg(o: Partial<CampaignMessage> & Pick<CampaignMessage, "id" | "type">): CampaignMessage {
@@ -14,7 +16,6 @@ function msg(o: Partial<CampaignMessage> & Pick<CampaignMessage, "id" | "type">)
     ...o,
   };
 }
-const coin = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
 const SINCE = "2026-10-05T10:00:00Z";
 
 describe("openTableItems", () => {
@@ -37,20 +38,21 @@ describe("openTableItems", () => {
           id: "coins",
           type: "currency_drop",
           created_at: "2026-10-05T12:30:00Z",
-          metadata: { label: null, ...coin, gp: 5, sp: 3, claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null },
+          metadata: { label: null, coins: { gp: 5, sp: 3 }, claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null },
         }),
       ],
       "me",
       SINCE,
+      DND5E_CURRENCY,
     );
     expect(out.map((i) => i.messageId)).toEqual(["chest", "coins", "item"]);
     expect(out[0]).toMatchObject({ kind: "chest", title: "Goblin Hoard", detail: "2 of 4 left" });
-    expect(out[1]).toMatchObject({ kind: "coins", title: "Coins", detail: "5 GP 3 SP" });
+    expect(out[1]).toMatchObject({ kind: "coins", title: "Coins", detail: "5 gp 3 sp" });
     expect(out[2]).toMatchObject({ kind: "item", title: "2× Potion of Healing" });
   });
 
   it("keeps what was whispered to me and what was posted at the very moment the session opened", () => {
-    const vendor = { description: "Rations", item_name: "Hard tack", item_id: null, ...coin, sp: 5, paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null };
+    const vendor = { description: "Rations", item_name: "Hard tack", item_id: null, price: { sp: 5 }, paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null };
     const out = openTableItems(
       [
         msg({ id: "whisper", type: "vendor_offer", recipient_user_id: "me", metadata: vendor }),
@@ -58,6 +60,7 @@ describe("openTableItems", () => {
       ],
       "me",
       SINCE,
+      DND5E_CURRENCY,
     );
     expect(out.map((i) => i.messageId).sort()).toEqual(["atStart", "whisper"]);
     // A vendor offer is titled by the item when it has one, not the description.
@@ -70,10 +73,11 @@ describe("openTableItems", () => {
       [
         msg({ id: "one", type: "item_drop", metadata: item }),
         msg({ id: "none", type: "item_drop", metadata: { ...item, quantity_remaining: 0 } }),
-        msg({ id: "hoard", type: "currency_drop", metadata: { label: "Dragon hoard", ...coin, claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null } }),
+        msg({ id: "hoard", type: "currency_drop", metadata: { label: "Dragon hoard", coins: {}, claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null } }),
       ],
       "me",
       SINCE,
+      DND5E_CURRENCY,
     );
     expect(out.map((i) => i.messageId).sort()).toEqual(["hoard", "one"]);
     expect(out.find((i) => i.messageId === "one")?.title).toBe("Potion");
@@ -83,8 +87,8 @@ describe("openTableItems", () => {
 
   it("drops claimed, emptied, sold, paid, mine, old and whispered-to-others", () => {
     const claimedItem = { item_id: null, item_name: "X", item_rarity: null, quantity: 1, claimed_by_user_id: "u", claimed_by_name: "n", claimed_party_member_id: null };
-    const offer = { item_name: "Sword", item_id: null, inventory_item_id: "i", quantity: 1, ...coin, gp: 10, seller_party_member_id: "s", sold_to_user_id: null, sold_to_name: null, sold_to_party_member_id: null };
-    const vendor = { description: "Rations", item_name: null, item_id: null, ...coin, sp: 5, paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null };
+    const offer = { item_name: "Sword", item_id: null, inventory_item_id: "i", quantity: 1, price: { gp: 10 }, seller_party_member_id: "s", sold_to_user_id: null, sold_to_name: null, sold_to_party_member_id: null };
+    const vendor = { description: "Rations", item_name: null, item_id: null, price: { sp: 5 }, paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null };
     const out = openTableItems(
       [
         msg({ id: "claimed", type: "item_drop", metadata: claimedItem }),
@@ -100,9 +104,27 @@ describe("openTableItems", () => {
       ],
       "me",
       SINCE,
+      DND5E_CURRENCY,
     );
     expect(out.map((i) => i.messageId).sort()).toEqual(["okOffer", "okVendor"]);
-    expect(out.find((i) => i.messageId === "okOffer")).toMatchObject({ kind: "offer", title: "2× Sword", detail: "10 GP" });
-    expect(out.find((i) => i.messageId === "okVendor")).toMatchObject({ kind: "vendor", title: "Rations", detail: "5 SP" });
+    expect(out.find((i) => i.messageId === "okOffer")).toMatchObject({ kind: "offer", title: "2× Sword", detail: "10 gp" });
+    expect(out.find((i) => i.messageId === "okVendor")).toMatchObject({ kind: "vendor", title: "Rations", detail: "5 sp" });
+  });
+
+  it("prices in the campaign's own coins, not the 5e ones", () => {
+    const dollars: CurrencyConfig = {
+      denominations: [
+        { key: "dollar", name: "Dollar", abbr: "$", value: 100, color: "#00aa00", makes_change: true },
+        { key: "cent", name: "Cent", abbr: "c", value: 1, color: "#888888", makes_change: true },
+      ],
+      default_key: "dollar",
+    };
+    const out = openTableItems(
+      [msg({ id: "v", type: "vendor_offer", metadata: { description: "Pie", item_name: null, item_id: null, price: { dollar: 2, cent: 50 }, paid_by_user_id: null, paid_by_name: null, paid_party_member_id: null } })],
+      "me",
+      SINCE,
+      dollars,
+    );
+    expect(out[0].detail).toBe("2 $ 50 c");
   });
 });

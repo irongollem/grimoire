@@ -315,7 +315,6 @@ const sampleMember: PartyMember = {
   max_hp: 88,
   current_hp: 61,
   temp_hp: 12,
-  ac: null,
   ac_formula: null,
   speed: 30,
   initiative_bonus: 2,
@@ -363,11 +362,8 @@ const sampleMember: PartyMember = {
   player_description:
     "Trained at the Sundered Vale academy until it fell to the Ashen Concord; fled with a handful of surviving apprentices and has spent the last decade rebuilding what she can of its library from memory, one recovered tome at a time.",
   experience_points: 85000,
-  cp: 23,
-  sp: 47,
-  ep: 0,
-  gp: 312,
-  pp: 8,
+  // A D&D 5e sample sheet, so its purse is in the 5e default coins.
+  coins: { cp: 23, sp: 47, gp: 312, pp: 8 },
   tool_proficiencies: ["Calligrapher's Supplies", "Herbalism Kit"],
   languages: ["Common", "Elvish", "Draconic", "Celestial"],
   weapon_masteries: [],

@@ -8,7 +8,7 @@ function recorder(): { ctx: CanvasRenderingContext2D; calls: string[] } {
   const calls: string[] = [];
   const ctx = {} as CanvasRenderingContext2D;
   for (const prop of ["fillStyle", "strokeStyle", "lineWidth", "font", "textAlign", "textBaseline"]) {
-    Object.defineProperty(ctx, prop, { set: () => undefined, get: () => undefined });
+    Object.defineProperty(ctx, prop, { set: () => {}, get: () => undefined });
   }
   for (const m of ["fillRect", "strokeRect", "beginPath", "moveTo", "lineTo", "closePath", "stroke", "fill", "setLineDash", "fillText", "save", "restore", "clip"]) {
     (ctx as unknown as Record<string, (...a: unknown[]) => void>)[m] = (...a) => calls.push(`${m}(${a.join(",")})`);

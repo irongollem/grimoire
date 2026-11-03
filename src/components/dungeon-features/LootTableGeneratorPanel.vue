@@ -82,7 +82,7 @@
               <template v-else-if="entry.kind === 'currency'">
                 <IconCoins class="inline h-3 w-3 mb-0.5 mr-0.5 text-ink-caution" />
                 {{ entry.label ?? "Coins" }}
-                <span class="text-muted-foreground">: {{ formatCoins(entry) }}</span>
+                <span class="text-muted-foreground">: {{ coinText(entry) }}</span>
               </template>
               <template v-else-if="entry.kind === 'random'">
                 Random {{ ITEM_RARITY_LABELS[entry.rarity].toLowerCase() }}
@@ -164,6 +164,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconAdd, IconCheckCircle, IconCoins, IconWarning } from "@/lib/icons";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useCreateLootTable } from "@/composables/dungeon-features/useLootTables";
 import { useLootGeneration } from "@/ai/useLootGeneration";
@@ -224,8 +225,10 @@ const itemPool = computed(() =>
 );
 
 const resolvedEntries = computed<ResolvedLootEntry[]>(() =>
-  result.value ? resolveGeneratedLoot(result.value.entries, itemPool.value) : [],
+  result.value ? resolveGeneratedLoot(result.value.entries, itemPool.value, currency.value) : [],
 );
+
+const { currency, formatCoins } = useCurrency();
 
 const unresolvedCount = computed(() => resolvedEntries.value.filter((e) => e.kind === "unresolved").length);
 const creatableCount = computed(() => resolvedEntries.value.length - unresolvedCount.value);
@@ -234,11 +237,8 @@ function rarityTextClass(rarity: string): string {
   return RARITY_TEXT[rarity as ItemRarity] ?? RARITY_TEXT.mundane;
 }
 
-const COIN_ORDER = ["pp", "gp", "ep", "sp", "cp"] as const;
-
-function formatCoins(entry: Extract<ResolvedLootEntry, { kind: "currency" }>): string {
-  const parts = COIN_ORDER.filter((c) => entry[c] > 0).map((c) => `${entry[c]} ${c}`);
-  return parts.length > 0 ? parts.join(", ") : "no coin";
+function coinText(entry: Extract<ResolvedLootEntry, { kind: "currency" }>): string {
+  return formatCoins(entry.coins) || "no coin";
 }
 
 const creating = ref(false);
@@ -297,7 +297,7 @@ async function createTable() {
           type: "currency",
           currency_label: resolved.label,
           drop_chance: resolved.dropChance,
-          pp: resolved.pp, gp: resolved.gp, ep: resolved.ep, sp: resolved.sp, cp: resolved.cp,
+          coins: resolved.coins,
           notes: resolved.notes,
         });
       } else {

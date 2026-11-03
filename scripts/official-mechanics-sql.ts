@@ -230,7 +230,6 @@ async function main(): Promise<void> {
   for (const record of [...classes, ...feats]) documents.set(record.document.key, record.document);
   const sources: ContentSourceRef[] = [...documents.values()].map(d => ({
     key: d.key,
-    open5e_key: d.key,
     is_redistributable: true,
   }));
   const systemClasses: SystemClassRef[] = (Object.entries(SYSTEM_CLASS_NAMES) as [RulesetKey, readonly string[]][]).flatMap(

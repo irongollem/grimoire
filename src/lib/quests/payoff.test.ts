@@ -168,6 +168,15 @@ describe("derivePayoffRows", () => {
     expect(lootRow.icon).toBe("coins");
   });
 
+  it("summarises an unlabelled currency placement by the coins it holds, and keeps a written label over them", () => {
+    const base = { beatId: "beat-fork", consequences: [], outgoingEdges, beats, objectiveLabel };
+    const fmt = (c: Record<string, number>) => Object.entries(c).map(([k, n]) => `${n} ${k}`).join(" ");
+    const [bare] = derivePayoffRows({ ...base, formatCoins: fmt, loot: [loot({ id: "l1", kind: "currency", label: "", payload: { coins: { dollar: 5, cent: 30 } } })] });
+    const [named] = derivePayoffRows({ ...base, formatCoins: fmt, loot: [loot({ id: "l2", kind: "currency", label: "Skimmed", payload: { coins: { dollar: 5 } } })] });
+    expect(bare!.summary).toBe("5 dollar 30 cent");
+    expect(named!.summary).toBe("Skimmed");
+  });
+
   it("shows a non-currency loot row as a package, and a route whose target beat is missing by name", () => {
     const rows = derivePayoffRows({
       beatId: "beat-fork",

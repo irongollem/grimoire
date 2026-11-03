@@ -9,7 +9,7 @@ import {
   type ItemType as EdgeType,
 } from "@edge-shared/invention/types.ts";
 import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import { ITEM_RARITIES, ITEM_TYPES, type ItemRarity, type ItemType } from "@/types/item.types";
 

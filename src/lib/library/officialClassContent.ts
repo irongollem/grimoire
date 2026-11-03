@@ -30,7 +30,6 @@ import type { RulesetKey } from "@/types/ruleset.types";
 /** The columns of `content_sources` the import reads. */
 export interface ContentSourceRef {
   key: string;
-  open5e_key: string | null;
   /** False parks a book we may not host; its records are not imported. */
   is_redistributable: boolean;
 }
@@ -142,9 +141,9 @@ const SUBCLASS_CASTING = new Map(
   LIBRARY_SUBCLASS_CASTING.map(c => [officialIdentity(c.source_document_key, c.source_record_key, c.ruleset), c.spellcasting]),
 );
 
-/** Open5e document key to the `content_sources.key` a table enables, or null when no hostable book matches. */
+/** Open5e document key to the `content_sources.key` a table enables (they are the same string), or null when no hostable book matches. */
 export function sourceKeyForDocument(documentKey: string, sources: readonly ContentSourceRef[]): string | null {
-  const book = sources.find(s => s.open5e_key === documentKey) ?? sources.find(s => s.key === documentKey);
+  const book = sources.find(s => s.key === documentKey);
   return book && book.is_redistributable ? book.key : null;
 }
 

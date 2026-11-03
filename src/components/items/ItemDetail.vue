@@ -91,7 +91,7 @@
             <span class="text-label-lg text-muted-foreground uppercase">Cost</span>
             <AppInput
               v-model="cost"
-              placeholder="e.g. 50 gp"
+              :placeholder="`e.g. 50 ${defaultAbbr}`"
               tone="card"
               size="body"
             />
@@ -389,12 +389,13 @@ import {
   ITEM_RARITIES,
   ITEM_RARITY_LABELS,
   RARITY_SURFACE_BG,
-  RARITY_PRICE_HINTS,
   isWeaponType,
   isArmorType,
 } from "@/types/item.types";
 import type { Item, ItemType, ItemRarity, WeaponMasteryProperty } from "@/types/item.types";
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { rarityPriceHint as dmgRarityPriceHint } from "@/systems/dnd5e/currency/rarityPriceHints";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { sourceLinkHost } from "@/lib/library/sourceLabel";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
@@ -591,7 +592,11 @@ const isWeapon = computed(() => isWeaponType(itemType.value));
 const isArmor = computed(() => isArmorType(itemType.value));
 const isMagic = computed(() => rarity.value !== "mundane");
 
-const rarityPriceHint = computed(() => RARITY_PRICE_HINTS[rarity.value] ?? "");
+const { currency } = useCurrency();
+const defaultAbbr = computed(
+  () => currency.value.denominations.find((d) => d.key === currency.value.default_key)?.abbr ?? "",
+);
+const rarityPriceHint = computed(() => dmgRarityPriceHint(rarity.value, currency.value));
 const isArtObject = computed(() => itemType.value === "art_object");
 const rarityColor = computed(() => RARITY_SURFACE_BG[rarity.value] ?? "#888888");
 

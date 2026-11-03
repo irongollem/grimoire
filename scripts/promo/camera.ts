@@ -58,8 +58,12 @@ export function smoothstep(u: number): number {
   return c * c * (3 - 2 * c);
 }
 
-/** The view the camera rests on for a target (screen coordinates), in canvas coordinates. `null` is the whole canvas. */
-export function viewFor(target: Rect | null, canvas: Canvas, padding?: number): Rect {
+/**
+ * The view the camera rests on for a target (screen coordinates), in canvas coordinates. `null` is the whole canvas.
+ * `leftInset` is the sidebar's width in device pixels: a target in the page beside it is framed without it, so a
+ * zoom on a tab near the page's left edge is all page rather than half menu.
+ */
+export function viewFor(target: Rect | null, canvas: Canvas, padding?: number, leftInset = 0): Rect {
   const full: Rect = { x: 0, y: 0, width: canvas.width, height: canvas.height };
   if (target === null) return full;
   const aspect = canvas.width / canvas.height;
@@ -72,7 +76,14 @@ export function viewFor(target: Rect | null, canvas: Canvas, padding?: number): 
   const cx = target.x + canvas.screenX + target.width / 2;
   const cy = target.y + canvas.screenY + target.height / 2;
   // Where the screen lies on the canvas; a view that fits inside it never shows paper (a target near the screen's top does not pull the paper above it into frame).
-  const [x0, x1] = width <= canvas.width - 2 * canvas.screenX ? [canvas.screenX, canvas.width - canvas.screenX] : [0, canvas.width];
+  const page = canvas.screenX + leftInset;
+  const screenRight = canvas.width - canvas.screenX;
+  const [x0, x1] =
+    leftInset > 0 && target.x >= leftInset && width <= screenRight - page
+      ? [page, screenRight]
+      : width <= canvas.width - 2 * canvas.screenX
+        ? [canvas.screenX, screenRight]
+        : [0, canvas.width];
   const [y0, y1] = height <= canvas.height - 2 * canvas.screenY ? [canvas.screenY, canvas.height - canvas.screenY] : [0, canvas.height];
   return {
     x: Math.min(x1 - width, Math.max(x0, cx - width / 2)),
@@ -85,22 +96,22 @@ export function viewFor(target: Rect | null, canvas: Canvas, padding?: number): 
 /**
  * The view the camera rests on when nothing is being pointed at. A screen that
  * fills the window's shape (a phone, a tablet) rests on the whole canvas. A
- * wide screen (a laptop) would shrink to a strip with paper above and below,
- * unreadable on a phone, so it rests on a "fill" view instead: the window's
- * full height over the screen's full height, as wide as the window's shape
- * makes it, starting `leftInset` device pixels in (the sidebar's width) so the
- * page's own column and its heading are what the viewer sees first.
+ * wide screen (a laptop) rests on its page: everything right of `leftInset`
+ * (the sidebar's width, in device pixels) across its whole width, and at least
+ * the screen's whole height. Nothing of the page is cut; the menu beside it is.
+ * A page with no sidebar (`leftInset` 0) rests on the whole screen.
  */
 export function homeView(canvas: Canvas, screen: Size, leftInset = 0): Rect {
   const full: Rect = { x: 0, y: 0, width: canvas.width, height: canvas.height };
   if (canvas.height - screen.height <= 2) return full;
   const aspect = canvas.width / canvas.height;
-  const width = Math.min(canvas.width, screen.height * aspect);
+  const width = Math.min(canvas.width, Math.max(screen.width - leftInset, screen.height * aspect));
+  const height = width / aspect;
   return {
     x: Math.min(canvas.width - width, Math.max(0, canvas.screenX + leftInset)),
-    y: canvas.screenY,
+    y: Math.min(canvas.height - height, Math.max(0, canvas.screenY + (screen.height - height) / 2)),
     width,
-    height: screen.height,
+    height,
   };
 }
 
@@ -112,21 +123,28 @@ export interface Glide {
   to: Rect;
 }
 
-/** Turns keyframes into glides. Each starts from wherever the camera is when it begins, so a cut-short glide never jumps. */
+/**
+ * Turns keyframes into glides. Each starts from wherever the camera is when it begins, so a cut-short glide never jumps.
+ * `sidebar` is the screen's sidebar width (device pixels), kept out of zooms on the page; a keyframe's `homeInset`
+ * replaces it from then on, since a page that rests on another inset (the player portal in preview) has another sidebar.
+ */
 export function planCamera(
   keyframes: CameraKeyframe[],
   canvas: Canvas,
   home: Rect = viewFor(null, canvas),
   homeWithInset?: (inset: number) => Rect,
+  sidebar = 0,
 ): Glide[] {
   const sorted = [...keyframes].sort((a, b) => a.t - b.t);
   const glides: Glide[] = [];
   let resting = home;
+  let inset = sidebar;
   sorted.forEach((k, i) => {
     const t0 = k.t;
     const next = sorted[i + 1]?.t;
     const t1 = next === undefined ? t0 + GLIDE : Math.min(t0 + GLIDE, next);
-    const glide: Glide = { t0, t1, from: resting, to: k.overview ? viewFor(null, canvas) : k.rect === null ? (k.homeInset !== undefined && homeWithInset ? homeWithInset(k.homeInset) : home) : viewFor(k.rect, canvas, k.padding) };
+    if (k.rect === null && k.homeInset !== undefined) inset = k.homeInset;
+    const glide: Glide = { t0, t1, from: resting, to: k.overview ? viewFor(null, canvas) : k.rect === null ? (k.homeInset !== undefined && homeWithInset ? homeWithInset(k.homeInset) : home) : viewFor(k.rect, canvas, k.padding, inset) };
     glides.push(glide);
     resting = lerpRect(glide.from, glide.to, smoothstep((t1 - t0) / GLIDE));
   });

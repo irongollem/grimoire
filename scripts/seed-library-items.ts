@@ -58,6 +58,8 @@ import {
   installOpen5eUserAgent,
   createServiceClient,
   fetchAllRows,
+  fetchStoredIdentities,
+  carryExistingIds,
   upsertBatch,
   parseSeedCliArgs,
   printAvailableDocuments,
@@ -308,15 +310,16 @@ async function main(): Promise<void> {
   const bundledRows = await loadBundledDatasets();
   console.log(`  Mapped ${bundledRows.length} bundled items.\n`);
 
-  const rows: SeededItem[] = [...apiRows, ...bundledRows];
+  const minted: SeededItem[] = [...apiRows, ...bundledRows];
 
   if (parsed.dryRun) {
-    printDryRunSummary(rows);
+    printDryRunSummary(minted);
     return;
   }
 
   const env = requireEnv();
   const supabase = createServiceClient(env);
+  const rows = carryExistingIds(minted, await fetchStoredIdentities(supabase, "library_items"));
 
   console.log("Step 3: Upserting to library_items table…");
   await upsertBatch(supabase, "library_items", rows, "source_document_key,source_record_key", { insertOnly: parsed.insertOnly });

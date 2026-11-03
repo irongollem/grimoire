@@ -84,6 +84,7 @@
   DM's/player's hand under Vellum (the scoped rule below; vellum.css only reaches rich text).
 */
 import { computed } from "vue";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import AiGeneratedBadge from "@/components/common/ai/AiGeneratedBadge.vue";
 import InventionRecipeBlock from "@/components/crafting/invention/InventionRecipeBlock.vue";
 import { inventionMechanicLine, inventionStatusLabel, inventionValueText, outputIsNew } from "@/lib/crafting/invention";
@@ -96,12 +97,13 @@ const { invention, viewer, characterName } = defineProps<{
   characterName?: string;
 }>();
 
+const { currency } = useCurrency();
 const draft = computed(() => invention.draft);
 const isNew = computed(() => outputIsNew(draft.value));
 const rarityLabel = computed(() => ITEM_RARITY_LABELS[draft.value.item.rarity]);
 const typeLabel = computed(() => ITEM_TYPE_LABELS[draft.value.item.item_type]);
 const valueLine = computed(() => {
-  const each = inventionValueText(draft.value.item.value_cp);
+  const each = inventionValueText(draft.value.item.value_cp, currency.value);
   return draft.value.quantity > 1 ? `${each} each, x ${draft.value.quantity}` : each;
 });
 </script>

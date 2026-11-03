@@ -18,32 +18,8 @@
         v-if="meta.label"
         class="text-label-lg font-semibold text-foreground mb-1"
       >{{ meta.label }}</p>
-      <div class="flex flex-wrap gap-2 mb-1">
-        <span
-          v-if="meta.pp"
-          class="text-body font-semibold"
-          style="color: #a855f7"
-        >{{ meta.pp }} PP</span>
-        <span
-          v-if="meta.gp"
-          class="text-body font-semibold"
-          style="color: #f59e0b"
-        >{{ meta.gp }} GP</span>
-        <span
-          v-if="meta.ep"
-          class="text-body font-semibold"
-          style="color: #60a5fa"
-        >{{ meta.ep }} EP</span>
-        <span
-          v-if="meta.sp"
-          class="text-body font-semibold"
-          style="color: #9ca3af"
-        >{{ meta.sp }} SP</span>
-        <span
-          v-if="meta.cp"
-          class="text-body font-semibold"
-          style="color: #b45309"
-        >{{ meta.cp }} CP</span>
+      <div class="mb-1">
+        <CoinAmount :coins="meta.coins" />
       </div>
       <div
         v-if="meta.claimed_by_user_id"
@@ -68,6 +44,7 @@
 
 <script setup lang="ts">
 import { IconCoins } from '@/lib/icons';
+import CoinAmount from '@/components/currency/CoinAmount.vue';
 import type { CurrencyDropMetadata } from '@/types/chat.types';
 
 const {

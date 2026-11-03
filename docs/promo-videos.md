@@ -1,6 +1,7 @@
 # Promo videos
 
-Short vertical Instagram Reels, one feature per episode, filmed from the real
+Short vertical Instagram Reels (and, with `format: "youtube"`, landscape
+YouTube videos, see "YouTube format" below), one feature per episode, filmed from the real
 app. Episodes come in pairs, one from the DM's side and one from the player's,
 posted a few days apart. The `/promo-episode` skill writes and films a new
 pair; this page is how the pipeline works.
@@ -86,6 +87,11 @@ play muted), a narration line, and a `run` that drives the page with the
 helpers in `ShotContext` (`tap`, `type`, `scroll`, `scrollTo`, `hold`). Keep
 an episode under about 45 seconds and open on the payoff.
 
+The narration names what is on screen by the app's own label ("Under
+Equipped", "the Spawn panel"), the first time the shot reaches it. A viewer
+cannot read a heading while the voice is already explaining what sits under
+it; hearing the name lets them find it, and find it again in the app.
+
 ## Setup and teardown
 
 `Episode.setup` puts the scene back before every recording, so it must be
@@ -108,13 +114,19 @@ Like `setup`, it writes to the local stack's demo campaign only.
 `Episode.device` is `"phone"` (default), `"tablet"` or `"desktop"`, and a
 shot's own `device` overrides it, so a Reel can cut from a laptop to a phone.
 A shot on another device than the one before needs its own `startAt`: each
-device has its own signed-in page. `devices.ts` holds the sizes:
+device has its own signed-in page. A shot's `account` likewise overrides the
+episode's, so one video can film the DM's laptop and then the player's own
+phone signed in as the player; each account and device pair is its own page.
+A shot that names neither falls back to the episode's, even right after a shot
+on another pair, so every shot off the default names both. `devices.ts` holds what filming needs
+(viewport, scale, sidebar); where each screen sits in a finished video is
+`layouts.ts`, per format. The Reel's sizes:
 
 | Device | CSS viewport | Scale | Clip | In the Reel |
 | --- | --- | --- | --- | --- |
 | phone | 390x693 | 3x | 1170x2078 | rounded screen 780x1387 |
 | tablet | 820x1180 | 2x | 1640x2360 | rounded screen 900x1295 |
-| desktop | 1440x900 | 2x | 2880x1800 | camera window 1000x1440, no frame |
+| desktop | 1440x900 | 2x | 2880x1800 | landscape 1000x750 in a browser window, narration below |
 
 A headed Chrome renders at one scale per browser, so the recorder launches one
 browser per scale in use and opens each device's stage on first need. On a
@@ -130,8 +142,18 @@ whole screen.
 The arithmetic is `camera.ts` (tested): the view is padded, fitted to the
 window's shape, centred and clamped inside the canvas, and never closer than
 2.6x the full view. Each move eases with a smoothstep over 0.7 s and the
-camera holds still between moves. A desktop screen sits on a canvas of paper
-with a soft shadow (`backdrop-<shot>.png`); ffmpeg's `zoompan` crops the
+camera holds still between moves.
+
+A desktop stays landscape, in a browser window (a title bar with the app's
+address, rounded and shadowed like the phone) whose page area is 4:3, which
+is the page beside the sidebar (1200x900 CSS px) exactly, so a desktop shot
+rests on the whole page with nothing cut; a page with no sidebar (the player
+portal in preview, `focus(null, { leftInset: 0 })`) rests on the whole screen.
+A tall window once showed 625 of those 1200 px and lost every page's right
+half. The whole page is small on a phone, so the shot's narration is written
+out under the window (`subtitles` in `layouts.ts`, up to four lines), and a
+`focus` is what makes text readable: zooms keep the landscape shape, and one on
+the page keeps the sidebar out of frame. A desktop screen sits on a canvas of plain paper (`backdrop-<shot>.png`); ffmpeg's `zoompan` crops the
 window out of it with `z`, `x`, `y` expressions on the input time. A frozen
 last frame keeps the camera where it ended. Phone and tablet shots with no
 camera move go through the plain screen-in-frame path.
@@ -146,3 +168,42 @@ runs in its own headless browser and context, is never filmed, and is opened by
 the first shot that asks and kept for the rest of the episode, so its realtime
 connection stays up. The first call can take a while (a cold app compile); do it
 before the moment you film.
+
+## YouTube format
+
+`Episode.format` is `"reel"` (the default, 1080x1920) or `"youtube"`
+(1920x1080), for longer, in-depth feature videos. It is copied into
+`manifest.json`; a manifest without it is a Reel, so older episodes assemble
+as before. A shot that starts a chapter carries `chapter: "Title"`, which
+`record.ts` keeps in the manifest and prints as a heading in `script.md`.
+
+Presentation lives in `layouts.ts`, one entry per format and device, and
+`assemble.ts` and `compose/cards.ts` read the layout rather than any size.
+
+| Format | Device | Window | Caption |
+| --- | --- | --- | --- |
+| reel | phone | rounded screen 780x1387 | band across the top, always on |
+| reel | tablet | rounded screen 900x1295 | band across the top, always on |
+| reel | desktop | landscape 1000x750 in a browser window | band across the top, narration written out below |
+| youtube | desktop | 16:10 page area 1536x960 in a browser window, the whole screen with its sidebar | pill over the foot of the page, shown from 0.3 s to 4.5 s of each shot, fading in and out |
+| youtube | phone | rounded screen 540x960 on the left | text panel on the right, always on |
+| youtube | tablet | rounded screen 667x960 on the left | text panel on the right, always on |
+
+On YouTube a shot that opens a chapter shows its title as a small gold line
+above the caption. There is no burned-in narration: upload the subtitles
+instead. Narration is long on YouTube, so a caption is a heading for what is
+on screen, not a summary.
+
+Assembling a YouTube episode also writes two files beside the `.mp4`:
+
+- `chapters.txt`: one `m:ss Title` line per shot with a `chapter`, at that
+  shot's start (`h:mm:ss` once the video passes an hour). The first line is
+  always `0:00`, as YouTube requires, even though the first shot starts after
+  the intro. YouTube wants at least three chapters of ten seconds or more.
+  Paste the file into the video's description.
+- `captions.srt`: the narration, one cue per sentence, spread across each
+  shot's voice-over in proportion to the sentence's length and never past the
+  end of the shot. Upload it under Subtitles in YouTube Studio. A shot with no
+  voice-over yet gets no cue.
+
+The arithmetic is `sidecars.ts` (tested).

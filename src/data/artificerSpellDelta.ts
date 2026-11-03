@@ -4,7 +4,7 @@
  * Sources used:
  *  - Official Artificer spell list (TCoE + 2024 PHB) via dnd5e.wikidot.com/spells:artificer
  *  - Thematic additions: device/construct/energy spells fitting the class flavour
- *  - Deep Magic (dmag) gnome/tinker/clockwork/steam spells
+ *  - Deep Magic (deepm) gnome/tinker/clockwork/steam spells
  *
  * Applied automatically during the Open5e import — spells in this set that don't
  * already carry "Artificer" in their dnd_class field will have it added.
@@ -172,7 +172,7 @@ export const ARTIFICER_SPELL_DELTA = new Set<string>([
   "Stone to Flesh",
 
   // ── Deep Magic — gnome / tinker / clockwork / steam themed ────────────────
-  // Kobold Press Deep Magic (document slug: dmag)
+  // Kobold Press Deep Magic (document key: deepm)
 
   // Explicitly device/machine
   "Analyze Device",

@@ -59,7 +59,7 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
                 <span class="text-body font-semibold text-foreground truncate">
-                  {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
+                  {{ atom.currency_label ? atom.currency_label + ': ' : '' }}<CoinAmount :coins="atom.coins ?? {}" />
                 </span>
               </div>
               <span v-if="atomClaim(atom.atom_id)" class="text-caption-sm text-muted-foreground italic">
@@ -103,7 +103,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { IconCoins, IconPackage, IconPackageOpen } from '@/lib/icons';
-import { formatCoinParts } from '@/rules/currency';
+import CoinAmount from '@/components/currency/CoinAmount.vue';
 import FocalImage from '@/components/common/media/FocalImage.vue';
 import type { LootChestMetadata, LootChestClaim } from '@/types/chat.types';
 

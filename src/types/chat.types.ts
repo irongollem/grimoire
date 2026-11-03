@@ -1,3 +1,4 @@
+import type { Coins } from "@/lib/currency/currency";
 import type { ItemQuality } from "@/types/inventory.types";
 
 export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer" | "player_offer" | "loot_chest" | "dm_roll";
@@ -98,11 +99,7 @@ export interface ItemDropMetadata {
 
 export interface CurrencyDropMetadata {
   label: string | null;
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
+  coins: Coins;
   claimed_by_user_id: string | null;
   claimed_by_name: string | null;
   claimed_party_member_id: string | null;
@@ -114,11 +111,7 @@ export interface VendorOfferMetadata {
   description: string;          // what is being sold / flavor text
   item_name: string | null;     // if set, added to buyer's inventory on payment
   item_id: string | null;       // optional vault item link
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
+  price: Coins;
   paid_by_user_id: string | null;
   paid_by_name: string | null;
   paid_party_member_id: string | null;
@@ -129,11 +122,7 @@ export interface PlayerOfferMetadata {
   item_id: string | null;
   inventory_item_id: string;        // party_inventory row being sold
   quantity: number;
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
+  price: Coins;
   seller_party_member_id: string;   // needed to credit money after sale
   sold_to_user_id: string | null;
   sold_to_name: string | null;
@@ -183,11 +172,7 @@ export interface LootChestAtom {
 
   // ── Currency fields (type === "currency") ──────────────────────────────────
   currency_label?: string | null;
-  pp?: number;
-  gp?: number;
-  ep?: number;
-  sp?: number;
-  cp?: number;
+  coins?: Coins;
 }
 
 export interface LootChestClaim {

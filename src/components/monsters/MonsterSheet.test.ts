@@ -39,7 +39,7 @@ function monster(overrides: Partial<Monster>): Monster {
     size: "medium",
     alignment: "unaligned",
     habitat: null,
-    source: "blackflag",
+    source: "bfrd",
     tags: [],
     stat_block: { armor_class: 11, hit_points: "19", speed: "40 ft.", str: 15, dex: 10, con: 14, int: 2, wis: 12, cha: 7, challenge_rating: "1/2" },
     notes: null,

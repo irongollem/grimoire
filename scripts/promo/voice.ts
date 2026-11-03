@@ -239,6 +239,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         id,
         title: m.title,
         account: m.account,
+        format: m.format ?? "reel",
         pairedWith: m.pairedWith,
         recordedAt: m.recordedAt,
         shots: m.shots.length,

@@ -632,6 +632,14 @@ describe("planLibrarySpellImport", () => {
     expect(plan.skippedReviewed).toBe(0);
   });
 
+  it("keeps the stored id of a spell whose row was minted from an older key, and mints one only for a new spell", () => {
+    const fresh = mapOpen5eV2Spell(
+      record({ key: "srd-2024_fireball", name: "Fireball" }) as Parameters<typeof mapOpen5eV2Spell>[0],
+    ) as ImportedLibrarySpell;
+    const plan = planLibrarySpellImport([spell, fresh], [existingRow({ id: "srd_acid_splash_v1" })]);
+    expect(plan.rows.map((row) => row.id)).toEqual(["srd_acid_splash_v1", fresh.id]);
+  });
+
   it("excludes a reviewed row entirely instead of resetting mechanics_reviewed to false", () => {
     const existing = existingRow({ id: "reviewed-uuid", mechanics_reviewed: true });
     const plan = planLibrarySpellImport([spell], [existing]);

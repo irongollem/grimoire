@@ -2,6 +2,8 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { hasMemorialInEffect } from "@/composables/memorials/useMemorials";
+import type { CharacterMemorial } from "@/types/memorial.types";
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -37,13 +39,32 @@ export interface PlayerJournalEntry {
   ref_type: JournalRefType | null;
   ref_id: string | null;
   ref_label: string | null;
+  /**
+   * The character a Character note belongs to; null for every other category. The database
+   * stamps it (a trigger), so no client ever sends it.
+   */
+  party_member_id: string | null;
   sort_order: number | null; // manual drag order; null until the user reorders
   created_at: string;
   updated_at: string;
 }
 
-export type PlayerJournalEntryInsert = Omit<PlayerJournalEntry, "id" | "user_id" | "created_at" | "updated_at" | "sort_order">;
+export type PlayerJournalEntryInsert = Omit<PlayerJournalEntry, "id" | "user_id" | "created_at" | "updated_at" | "sort_order" | "party_member_id">;
 export type PlayerJournalEntryUpdate = Partial<Omit<PlayerJournalEntryInsert, "campaign_id">>;
+
+/**
+ * The live journal without the Character notes of a character who has a memorial in effect:
+ * those notes go with the fallen to the Hall, and a new character starts clean. A restored
+ * character (restored_at set) is live again, so its notes return.
+ */
+export function withoutFallenCharacterNotes(
+  entries: readonly PlayerJournalEntry[],
+  memorials: readonly CharacterMemorial[] | undefined,
+): PlayerJournalEntry[] {
+  return entries.filter(
+    (e) => !(e.category === "character" && e.party_member_id !== null && hasMemorialInEffect(memorials, e.party_member_id)),
+  );
+}
 
 // ── Query key ─────────────────────────────────────────────────────────────────
 
@@ -131,6 +152,38 @@ export function useSharedJournalEntries() {
     },
     enabled: () => !!campaignId.value,
   });
+}
+
+/**
+ * Character notes written about the given characters, read across campaigns (the Hall is not
+ * scoped to the active one). RLS decides whose: the viewer's own plus other players' public ones.
+ */
+export function useCharacterJournalNotes(partyMemberIds: () => readonly string[]) {
+  return useQuery({
+    // Sorted so the same set in another order is one cache entry.
+    queryKey: computed(() => [KEY, "character", [...partyMemberIds()].sort()] as const),
+    queryFn: async ({ queryKey: [, , ids] }) => {
+      const { data, error } = await supabase
+        .from("player_journal_entries")
+        .select("*")
+        .in("party_member_id", ids)
+        .eq("category", "character")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as PlayerJournalEntry[];
+    },
+    enabled: () => partyMemberIds().length > 0,
+  });
+}
+
+/** Character notes grouped by the character they belong to. */
+export function groupCharacterNotes(entries: readonly PlayerJournalEntry[]): Map<string, PlayerJournalEntry[]> {
+  const out = new Map<string, PlayerJournalEntry[]>();
+  for (const e of entries) {
+    if (e.category !== "character" || e.party_member_id === null) continue;
+    out.set(e.party_member_id, [...(out.get(e.party_member_id) ?? []), e]);
+  }
+  return out;
 }
 
 export function useCreateJournalEntry() {

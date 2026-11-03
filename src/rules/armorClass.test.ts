@@ -6,7 +6,6 @@ import {
   describeAc,
   parseArmorClass,
   parseShieldAcBonus,
-  previousAc,
   wornGearByMember,
   type AcMember,
   type WornGear,
@@ -313,23 +312,5 @@ describe("describeAc", () => {
     const r = calculateAc(member({ dex: 8 }), [worn(CHAIN_MAIL, "body"), worn(SHIELD, "off_hand")]);
     expect(describeAc(r)).toBe("Chain Mail 16, Shield +2");
     expect(describeAc(calculateAc(member({ dex: 8 }), []))).toBe("Base 10, Dexterity −1");
-  });
-});
-
-describe("previousAc: what the sheet showed before AC was calculated", () => {
-  it("reads the best armour when several are carried as worn", () => {
-    // Chain Mail 16 beats Leather 11 + Dex 2 = 13; the stored 15 is the Mage Armor total it replaces.
-    const m = { ...member({ ac_formula: "mage_armor", dex: 14 }), ac: 15 };
-    expect(previousAc(m, [worn(LEATHER, "body"), worn(CHAIN_MAIL, "body")])).toBe(16);
-  });
-
-  it("is the stored number plus a shield in any slot", () => {
-    expect(previousAc({ ...member(), ac: 16 }, [worn(SHIELD, "off_hand")])).toBe(18);
-    expect(previousAc({ ...member(), ac: 16 }, [worn(SHIELD, "main_hand")])).toBe(18);
-    expect(previousAc({ ...member(), ac: 16 }, [])).toBe(16);
-  });
-  it("let armour replace an unarmoured formula, and natural armour keep the higher", () => {
-    expect(previousAc({ ...member({ ac_formula: "mage_armor", dex: 14 }), ac: 15 }, [worn(CHAIN_MAIL, "body")])).toBe(16);
-    expect(previousAc({ ...member({ ac_formula: "natural:17", dex: 14 }), ac: 17 }, [worn(CHAIN_MAIL, "body")])).toBe(17);
   });
 });

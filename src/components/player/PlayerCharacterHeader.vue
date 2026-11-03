@@ -198,11 +198,12 @@
     </div>
 
     <!-- Reference numbers, boxed as on the 2024 sheet: Armor Class in its
-         shield, the rest in small frames with the label beneath. Read at the
-         table, never rolled from here. A row of five under the portrait on a
-         phone; a block beside the name once the header is 48rem wide. -->
+         shield, the rest in small frames with the label beneath. Initiative is
+         the one rolled from here (long-press or right-click for advantage, as on
+         the ability boxes). A row of five under the portrait on a phone; a block
+         beside the name once the header is 48rem wide. -->
     <dl class="grid basis-full grid-cols-5 gap-1.5 @3xl:flex @3xl:basis-auto @3xl:shrink-0 @3xl:gap-2">
-      <div v-for="cs in combatStats" :key="cs.label" class="flex min-w-0 flex-col-reverse items-center gap-1">
+      <div v-for="cs in combatStats" :key="cs.label" class="group flex min-w-0 flex-col-reverse items-center gap-1">
         <dt class="text-center text-label leading-tight text-muted-foreground">
           <span class="@3xl:hidden">{{ cs.short }}</span><span class="@max-3xl:hidden">{{ cs.label }}</span>
         </dt>
@@ -218,7 +219,16 @@
           </svg>
           <span v-else class="absolute inset-0 rounded-md border border-border" aria-hidden="true" />
           <AcBreakdownPopover v-if="cs.shield" :breakdown="acBreakdown" :beast-form="wildshape?.beast_name" />
-          <span class="relative -mt-0.5">{{ cs.value }}<span v-if="cs.suffix" class="ml-0.5 text-label font-normal text-muted-foreground">{{ cs.suffix }}</span></span>
+          <!-- No chrome of its own: the frame above is the box, this only makes it a target. -->
+          <button
+            v-else-if="cs.rolls"
+            type="button"
+            class="absolute inset-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            :aria-label="`Initiative ${cs.value}: roll initiative`"
+            title="Roll initiative"
+            v-roll-mode="(mode: RollMode | null) => emit('roll-initiative', mode)"
+          />
+          <span class="pointer-events-none relative -mt-0.5" :class="cs.rolls ? 'transition-colors group-hover:text-primary' : ''">{{ cs.value }}<span v-if="cs.suffix" class="ml-0.5 text-label font-normal text-muted-foreground">{{ cs.suffix }}</span></span>
         </dd>
       </div>
     </dl>
@@ -256,6 +266,7 @@ import {
   withCondition,
 } from "@/rules/conditions";
 import type { PartyMember } from "@/types/party.types";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";
@@ -284,7 +295,10 @@ const props = defineProps<{
 }>();
 const portraitOf = useFormPortraits(() => [props.wildshape]);
 const portrait = computed(() => portraitOf(props.member, props.wildshape));
-const emit = defineEmits<{ (e: "level-up"): void }>();
+const emit = defineEmits<{
+  (e: "level-up"): void;
+  (e: "roll-initiative", mode: RollMode | null): void;
+}>();
 
 const { data: allSpecies } = useAllSpecies();
 const speciesName = computed(() =>
@@ -420,11 +434,11 @@ const initiativeDisplay = computed(() => {
 });
 
 const combatStats = computed(() => [
-  { label: "Armor Class", short: "AC",       value: displayAc.value, suffix: "", shield: true },
-  { label: "Initiative",  short: "Init",     value: initiativeDisplay.value, suffix: "", shield: false },
-  { label: "Speed",       short: "Speed",    value: (props.wildshape ? walkingSpeed(props.beastSpeed) : null) ?? props.member.speed, suffix: "ft", shield: false },
-  { label: "Proficiency", short: "Prof",     value: `+${props.member.proficiency_bonus}`, suffix: "", shield: false },
-  { label: "Hit Dice",    short: "Hit Dice", value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value, shield: false },
+  { label: "Armor Class", short: "AC",       value: displayAc.value, suffix: "", shield: true, rolls: false },
+  { label: "Initiative",  short: "Init",     value: initiativeDisplay.value, suffix: "", shield: false, rolls: true },
+  { label: "Speed",       short: "Speed",    value: (props.wildshape ? walkingSpeed(props.beastSpeed) : null) ?? props.member.speed, suffix: "ft", shield: false, rolls: false },
+  { label: "Proficiency", short: "Prof",     value: `+${props.member.proficiency_bonus}`, suffix: "", shield: false, rolls: false },
+  { label: "Hit Dice",    short: "Hit Dice", value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value, shield: false, rolls: false },
 ]);
 
 const hpPct = computed(() => {

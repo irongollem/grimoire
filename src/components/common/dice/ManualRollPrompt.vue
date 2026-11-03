@@ -91,12 +91,15 @@
  */
 import { computed, ref, watch } from "vue";
 import type { DieSize } from "@/lib/dice/dice";
+import type { RolledFaces } from "@/lib/dice/diceRules";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { activeDiceRules } from "@/systems/registry";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 
 const { pending, _resolveManual } = usePromptedRoll();
+const rules = activeDiceRules();
 
 interface Row {
   sides: DieSize;
@@ -117,11 +120,12 @@ watch(
     for (const sides of [4, 6, 8, 10, 12, 20, 100] as DieSize[]) {
       const n = p.counts[sides] ?? 0;
       if (n === 0) continue;
-      const isAdv = sides === 20 && n === 1 && p.mode !== "normal";
+      const needed = rules.facesNeeded(sides, n, p.mode);
+      const option = needed > n ? rules.options.find((o) => o.key === p.mode) : undefined;
       next.push({
         sides,
-        inputs: Array.from({ length: isAdv ? 2 : n }, () => null),
-        advLabel: isAdv ? (p.mode === "advantage" ? "Advantage (keep higher)" : "Disadvantage (keep lower)") : "",
+        inputs: Array.from({ length: needed }, () => null),
+        advLabel: option ? `${option.label} (${option.hint})` : "",
       });
     }
     rows.value = next;
@@ -148,17 +152,11 @@ const allFilled = computed(() =>
 const runningTotal = computed(() => {
   const p = pending.value;
   if (!p) return 0;
-  let sum = p.modifier;
+  const faces: RolledFaces = {};
   for (const r of rows.value) {
-    const vals = r.inputs.map((v) => clamp(r.sides, v)).filter((v): v is number => v !== null);
-    if (vals.length === 0) continue;
-    if (r.sides === 20 && (p.counts[20] ?? 0) === 1 && p.mode !== "normal" && vals.length === 2) {
-      sum += p.mode === "advantage" ? Math.max(vals[0], vals[1]) : Math.min(vals[0], vals[1]);
-    } else {
-      sum += vals.reduce((s, v) => s + v, 0);
-    }
+    faces[r.sides] = r.inputs.map((v) => clamp(r.sides, v)).filter((v): v is number => v !== null);
   }
-  return sum;
+  return rules.score(p.counts, p.modifier, p.mode, faces).total;
 });
 
 function submit() {

@@ -89,31 +89,6 @@ export function rulesetForDocument(document: Open5eDocumentRef | null | undefine
  */
 export const REDISTRIBUTABLE_LICENSE_KEYS = ["ogl-10a", "cc-by-40", "cc0", "orc"] as const;
 
-/**
- * Maps OUR `source_document_key` values to the current Open5e v2 document
- * key, for the documents where the two differ. These are PRE-v2 Open5e
- * slugs that are still live as `source_document_key` on rows already in
- * production (library_monsters, library_spells, library_items, library_species) — they must
- * NEVER be "cleaned up" to match the upstream key, or every existing row
- * referencing them would silently orphan from its source document.
- *
- * Keys not listed here (`srd-2014`, `srd-2024`, `tob`, `tob2`, `tob3`,
- * `tob-2023`, `toh`, `kp`) are already identical upstream and need no alias.
- * `grimoire-bundled` is our own non-Open5e content and must never be looked
- * up against this map or fetched upstream.
- */
-export const LEGACY_DOCUMENT_KEY_ALIASES: Readonly<Record<string, string>> = {
-  cc: "ccdx",
-  blackflag: "bfrd",
-  menagerie: "a5e-mm",
-  dmag: "deepm",
-  "dmag-e": "deepmx",
-  warlock: "wz",
-  a5e: "a5e-ag",
-  o5e: "open5e",
-  taldorei: "tdcs",
-};
-
 /** Every license key attached to a document; `[]` when the document has none. */
 export function licenseKeysFor(document: Open5eDocumentRef): string[] {
   return document.licenses?.map((license) => license.key) ?? [];

@@ -5,7 +5,7 @@ import {
   rollModeHintSeen,
   setNextRollMode,
   takeNextRollMode,
-} from "@/composables/dice/useNextRollMode";
+} from "./useNextRollMode";
 
 describe("next roll mode", () => {
   beforeEach(() => {

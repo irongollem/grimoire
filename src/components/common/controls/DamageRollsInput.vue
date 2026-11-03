@@ -77,7 +77,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { DAMAGE_TYPES } from "@/types/damage.types";
-import { parseDiceAvg, parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
+import { parseDiceAvg } from "@/lib/dice/dice";
+import { parseDamageExpression, type DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 
 const SCHOOL_HINTS: Record<string, string> = {
   evocation: "e.g. 8d6 fire + 2d6 thunder…",

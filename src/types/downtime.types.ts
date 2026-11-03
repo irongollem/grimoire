@@ -2,6 +2,7 @@ import type { NpcInsert } from "./npc.types";
 import type { ItemInsert } from "./item.types";
 import type { NoteInsert } from "./notes.types";
 import type { AiProvenance } from "@/ai/provenance";
+import type { Coins } from "@/lib/currency/currency";
 
 // ── Reward + status vocabularies ──────────────────────────────────────────────
 // Mirrors the CHECK constraints in migration 20260710000001.
@@ -42,19 +43,14 @@ interface DowntimeEffectShared {
 export type DowntimeEffect =
   | (DowntimeEffectShared & {
       kind: "gold";
-      cp: number;
-      sp: number;
-      ep: number;
-      gp: number;
-      pp: number;
+      /** Coins the character receives, in the campaign's denominations (#934). */
+      gain: Coins;
+      /** Coins the character pays; the server makes change and refuses an unaffordable price. */
+      spend: Coins;
     })
   | (DowntimeEffectShared & { kind: "item"; item_id: string; qty: number })
   | (DowntimeEffectShared & { kind: "hp"; delta: number })
   | (DowntimeEffectShared & { kind: "condition"; condition: string });
-
-/** Coin fields, in the order they are displayed. */
-export const COIN_KEYS = ["pp", "gp", "ep", "sp", "cp"] as const;
-export type CoinKey = (typeof COIN_KEYS)[number];
 
 // ── The archetype catalog ─────────────────────────────────────────────────────
 // Lives in code (src/data/downtimeActivities.ts), never the DB: a new archetype

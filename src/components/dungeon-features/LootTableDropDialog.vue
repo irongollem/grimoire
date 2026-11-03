@@ -62,7 +62,7 @@
           <li v-for="atom in atoms" :key="atom.atom_id" class="text-body text-foreground truncate">
             <template v-if="(atom.type ?? 'item') === 'item'">· {{ atom.item_name }}</template>
             <template v-else-if="atom.type === 'currency'">
-              💰 {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
+              💰 {{ atom.currency_label ? atom.currency_label + ': ' : '' }}<CoinAmount :coins="atom.coins ?? {}" size="sm" />
             </template>
             <template v-else>· {{ atom.item_name }}</template>
           </li>
@@ -107,7 +107,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { IconClose, IconPackageOpen, IconWarning } from '@/lib/icons';
-import { formatCoinParts } from '@/rules/currency';
+import CoinAmount from '@/components/currency/CoinAmount.vue';
 import { useImageUpload } from '@/composables/useImageUpload';
 import FocalImage from '@/components/common/media/FocalImage.vue';
 import AppButton from '@/components/common/controls/AppButton.vue';

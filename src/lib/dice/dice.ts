@@ -1,10 +1,14 @@
 /**
- * Shared dice utilities.
- * Used by spellAdvisor, monsters, equipment — anything that parses dice expressions.
- * Also exports rollDice() used by DiceRoller and CampaignChat.
+ * Game-system-neutral dice core: notation parsing, plain rolls, keep-one.
+ *
+ * Rules of a particular game (5e advantage, crit on a natural 20, damage-type
+ * vocabulary) live under `src/systems/<system>/dice/` and are built from the
+ * primitives here. Nothing in this folder may import from `@/systems/`
+ * (held by `src/systems/systemBoundary.test.ts`).
  */
 
-import { DAMAGE_TYPES } from "@/types/damage.types";
+/** A whole word of letters only; dice tokens like "2d6" contain digits so never match. */
+const LABEL_WORD = /\b[a-z]+\b/gi;
 
 /**
  * Parses a dice expression into its average value.
@@ -14,15 +18,14 @@ import { DAMAGE_TYPES } from "@/types/damage.types";
  *   - Spaced:    "2d6 + 12"
  *   - Compound:  "2d6 force + 1d6 fire", "3d8 + 2d6 + 5"
  *
- * Damage type words (fire, cold, etc.) are stripped before parsing.
+ * Any whole word made only of letters ("fire", "radiant", "holy") is stripped
+ * before parsing. This is deliberate: a label is never part of dice notation
+ * in any game system, so the core needs no list of them.
  */
 export function parseDiceAvg(expr: string): number {
   if (!expr.trim()) return 0;
 
-  let cleaned = expr.toLowerCase();
-  for (const word of DAMAGE_TYPES) {
-    cleaned = cleaned.replace(new RegExp(`\\b${word}\\b`, "g"), "");
-  }
+  const cleaned = expr.toLowerCase().replace(LABEL_WORD, "");
 
   const terms = cleaned.replace(/\s+/g, "").split("+").filter(Boolean);
 
@@ -44,7 +47,6 @@ export function parseDiceAvg(expr: string): number {
 // ── Live roller types + helpers (used by DiceRoller and CampaignChat) ─────────
 
 export type DieSize = 4 | 6 | 8 | 10 | 12 | 20 | 100;
-export type RollMode = "normal" | "advantage" | "disadvantage";
 
 export interface DieResult { val: number; dropped: boolean }
 export interface RollResult {
@@ -52,7 +54,9 @@ export interface RollResult {
   label: string;
   modifier: number;
   breakdown: DieResult[];
+  /** Set by the game system's rules; the neutral roller never sets it true. */
   isCrit: boolean;
+  /** Set by the game system's rules; the neutral roller never sets it true. */
   isFumble: boolean;
   manual?: boolean;
   /** True for spell/weapon damage rolls — suppresses d20-centric display in chat. */
@@ -61,73 +65,59 @@ export interface RollResult {
 
 export const ALL_DICE: DieSize[] = [4, 6, 8, 10, 12, 20, 100];
 
-/**
- * Combine two roll modes per 5e RAW: any advantage + any disadvantage cancel to
- * normal, regardless of how many of each. Used to merge a player-chosen mode
- * (from the long-press / right-click picker) with a condition-imposed one.
- */
-export function combineModes(a: RollMode, b: RollMode): RollMode {
-  const adv = a === "advantage" || b === "advantage";
-  const dis = a === "disadvantage" || b === "disadvantage";
-  if (adv && dis) return "normal";
-  if (adv) return "advantage";
-  if (dis) return "disadvantage";
-  return "normal";
-}
-
 export function rollDie(sides: number): number {
   return Math.floor(Math.random() * sides) + 1;
 }
 
-export function rollDice(
-  counts: Partial<Record<DieSize, number>>,
-  modifier: number,
-  mode: RollMode,
-): RollResult {
-  const breakdown: DieResult[] = [];
-  let sum = 0;
-  let isCrit = false;
-  let isFumble = false;
-  const labelParts: string[] = [];
+/**
+ * Keeps the highest or lowest of already-rolled faces and marks the rest
+ * dropped, kept face first. The primitive game-system "roll twice, keep one"
+ * rules are built from; it takes faces rather than rolling them so a physical
+ * roll typed in by a player is scored exactly like a digital one.
+ */
+export function keepOne(values: number[], keep: "highest" | "lowest"): DieResult[] {
+  const keptIndex = values.reduce(
+    (best, v, i) => (keep === "highest" ? (v > values[best] ? i : best) : v < values[best] ? i : best),
+    0,
+  );
+  const kept = { val: values[keptIndex], dropped: false };
+  const rest = values.filter((_, i) => i !== keptIndex).map((val) => ({ val, dropped: true }));
+  return [kept, ...rest];
+}
 
+/**
+ * The label of a pool, e.g. "1d20+5", "2d6-1", "1d6+1d8". The modifier carries
+ * its own sign, so it is appended, not joined with "+".
+ */
+export function formatCounts(counts: Partial<Record<DieSize, number>>, modifier: number): string {
+  const parts: string[] = [];
   for (const sides of ALL_DICE) {
     const n = counts[sides] ?? 0;
-    if (n === 0) continue;
-    labelParts.push(`${n}d${sides}`);
+    if (n > 0) parts.push(`${n}d${sides}`);
+  }
+  const modifierLabel = modifier > 0 ? `+${modifier}` : modifier < 0 ? `${modifier}` : "";
+  return parts.join("+") + modifierLabel;
+}
+
+/** Plain roll of a pool: every die in ALL_DICE order, summed with the modifier. No game rules. */
+export function rollDice(counts: Partial<Record<DieSize, number>>, modifier: number): RollResult {
+  const breakdown: DieResult[] = [];
+  let sum = 0;
+  for (const sides of ALL_DICE) {
+    const n = counts[sides] ?? 0;
     for (let i = 0; i < n; i++) {
-      if (sides === 20 && n === 1 && mode !== "normal") {
-        const r1 = rollDie(20);
-        const r2 = rollDie(20);
-        const keep = mode === "advantage" ? Math.max(r1, r2) : Math.min(r1, r2);
-        const drop = mode === "advantage" ? Math.min(r1, r2) : Math.max(r1, r2);
-        breakdown.push({ val: keep, dropped: false });
-        breakdown.push({ val: drop, dropped: true });
-        sum += keep;
-        if (keep === 20) isCrit = true;
-        if (keep === 1) isFumble = true;
-      } else {
-        const r = rollDie(sides);
-        breakdown.push({ val: r, dropped: false });
-        sum += r;
-        if (sides === 20 && r === 20) isCrit = true;
-        if (sides === 20 && r === 1) isFumble = true;
-      }
+      const r = rollDie(sides);
+      breakdown.push({ val: r, dropped: false });
+      sum += r;
     }
   }
-
-  // The modifier carries its own sign, so it is appended, not joined with "+".
-  const modifierLabel = modifier > 0 ? `+${modifier}` : modifier < 0 ? `${modifier}` : "";
-  const modeLabel = (counts[20] ?? 0) > 0 && mode !== "normal"
-    ? ` (${mode === "advantage" ? "Adv" : "Dis"})`
-    : "";
-
   return {
     total: sum + modifier,
-    label: labelParts.join("+") + modifierLabel + modeLabel,
+    label: formatCounts(counts, modifier),
     modifier,
     breakdown,
-    isCrit,
-    isFumble,
+    isCrit: false,
+    isFumble: false,
   };
 }
 
@@ -147,7 +137,7 @@ export interface ParsedExpression {
  * Parse a dice expression into structured form. Handles:
  *   "2d6+3"  "1d8"  "3d6-2"  "15" (flat)  "2d6+1d4+3" (compound)
  *   "22 (3d8+9)" — monster HP format; extracts the parenthetical expression
- *   "2d6 fire" — strips damage type words before parsing
+ *   "2d6 fire" — strips label words (any letters-only word) before parsing
  *
  * Returns null if unparseable.
  */
@@ -160,10 +150,8 @@ export function parseExpression(expr: string | null | undefined): ParsedExpressi
   const parenMatch = s.match(/\(([^)]+)\)/);
   if (parenMatch) s = parenMatch[1].trim();
 
-  // Strip damage type words so "2d6 fire" parses cleanly
-  for (const word of DAMAGE_TYPES) {
-    s = s.replace(new RegExp(`\\b${word}\\b`, "gi"), "");
-  }
+  // Strip label words so "2d6 fire" parses cleanly (see LABEL_WORD)
+  s = s.replace(LABEL_WORD, "");
   s = s.replace(/\s+/g, "");
   if (!s) return null;
 
@@ -272,37 +260,4 @@ export function rollExpression(parsed: ParsedExpression): number {
     for (let i = 0; i < t.count; i++) r += rollDie(t.sides);
     return s + r;
   }, parsed.modifier);
-}
-
-// ── Damage expression helpers ──────────────────────────────────────────────────
-
-export interface DamageRoll {
-  dice: string; // e.g. "2d6", "1d8+4", "5"
-  type: string; // e.g. "fire", "" for untyped
-}
-
-/**
- * Parses a compound expression like "2d6 fire + 1d6 slashing + 5" into
- * structured rolls: [{dice:"2d6", type:"fire"}, {dice:"1d6", type:"slashing"}, {dice:"5", type:""}]
- */
-export function parseDamageExpression(expr: string): DamageRoll[] {
-  if (!expr.trim()) return [];
-  return expr
-    .split("+")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((term) => {
-      const lower = term.toLowerCase();
-      const type =
-        (DAMAGE_TYPES as readonly string[]).find((t) => new RegExp(`\\b${t}\\b`).test(lower)) ?? "";
-      // Extract dice or flat number, strip type label
-      const cleaned = DAMAGE_TYPES.reduce(
-        (s, t) => s.replace(new RegExp(`\\b${t}\\b`, "gi"), ""),
-        term,
-      )
-        .replace(/\s+/g, "")
-        .trim();
-      return { dice: cleaned, type };
-    })
-    .filter((r) => r.dice.length > 0);
 }

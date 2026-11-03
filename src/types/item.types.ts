@@ -1,4 +1,4 @@
-import type { DamageRoll } from "@/lib/dice/dice";
+import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 import type { VersionedContentMetadata } from "@/types/content.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -69,17 +69,6 @@ export const ITEM_RARITY_LABELS: Record<ItemRarity, string> = {
   very_rare: "Very Rare",
   legendary: "Legendary",
   artifact: "Artifact",
-};
-
-/** DMG Table 7-1 price guidance, keyed by rarity — used in tooltips and hints. */
-export const RARITY_PRICE_HINTS: Partial<Record<ItemRarity, string>> = {
-  mundane:   "Mundane: market price",
-  common:    "Common: ~50–100 gp",
-  uncommon:  "Uncommon: ~101–500 gp",
-  rare:      "Rare: ~501–5,000 gp",
-  very_rare: "Very Rare: ~5,001–50,000 gp",
-  legendary: "Legendary: 50,000+ gp",
-  artifact:  "Artifact: priceless",
 };
 
 /** Frame colours for card printing, keyed by rarity */

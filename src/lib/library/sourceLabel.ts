@@ -15,8 +15,8 @@
  *  AI label says the same thing in its own place, so it is never shown as one. */
 export const AI_DRAFT_SOURCE = "Grimoire:AI";
 
-// Human-readable labels for open5e document slugs (v1 slugs and the v2
-// document keys imported classes and subclasses carry in source_document_key), used only as a fallback when
+// Human-readable labels for open5e document keys (v2; `a5e` and `menagerie`
+// are the frozen A5E rows' keys), used only as a fallback when
 // neither `content_sources` nor the row knows a title. The authoritative
 // per-source title, publisher and licence live in the `content_sources` table
 // (see the Licences tab in the Reliquary); these labels must never contradict
@@ -29,18 +29,17 @@ export const OPEN5E_SOURCE_LABELS: Record<string, string> = {
   "srd-2024": "System Reference Document 5.2",
   "wotc-srd": "System Reference Document 5.1",
   // Kobold Press — OGL 1.0a, except the Black Flag SRD (CC-BY-4.0)
-  "blackflag": "Black Flag SRD",
   "bfrd": "Black Flag SRD",
-  "cc": "Creature Codex",
+  "ccdx": "Creature Codex",
   "tob": "Tome of Beasts",
   "tob2": "Tome of Beasts 2",
   "tob3": "Tome of Beasts 3",
   "tob-2023": "Tome of Beasts 2023",
   "toh": "Tome of Heroes",
-  "dmag": "Deep Magic",
-  "dmag-e": "Deep Magic Extended",
+  "deepm": "Deep Magic",
+  "deepmx": "Deep Magic Extended",
   "vom": "Vault of Magic",
-  "warlock": "Warlock Archives",
+  "wz": "Warlock Archives",
   "kp": "Kobold Press Compilation",
   // EN Publishing (Level Up: Advanced 5th Edition) — OGL 1.0a.
   // NOT a Kobold Press title: this slug was previously mislabelled "Tome of
@@ -48,10 +47,8 @@ export const OPEN5E_SOURCE_LABELS: Record<string, string> = {
   "menagerie": "Level Up: Monstrous Menagerie",
   "a5e": "Level Up: Adventurer's Guide",
   // Open5e's own content — OGL 1.0a
-  "o5e": "Open5e Originals",
   "open5e": "Open5e Originals",
   // Green Ronin Publishing
-  "taldorei": "Tal'Dorei Campaign Setting",
   "tdcs": "Tal'Dorei Campaign Setting",
   // Books we do not host: these appear only on content a DM imported themselves.
   "phb": "Player's Handbook",

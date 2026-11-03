@@ -40,9 +40,9 @@ const unknownBook = {
 };
 
 const sources = [
-  { key: "srd-2014", open5e_key: null, is_redistributable: true },
-  { key: "srd-2024", open5e_key: null, is_redistributable: true },
-  { key: "taldorei", open5e_key: "tdcs", is_redistributable: true },
+  { key: "srd-2014", is_redistributable: true },
+  { key: "srd-2024", is_redistributable: true },
+  { key: "tdcs", is_redistributable: true },
 ];
 
 const noCatalogues: OfficialClassContentCatalogues = {
@@ -134,12 +134,12 @@ describe("planOfficialClassContent", () => {
     expect(result.classes).toHaveLength(1);
     expect(result.classes[0].insert).toMatchObject({
       class_name: "Blood Hunter",
-      source: "taldorei",
+      source: "tdcs",
       source_document_key: "tdcs",
       hit_die: 10,
       campaign_id: null,
     });
-    expect(result.features[0].insert.source).toBe("taldorei");
+    expect(result.features[0].insert.source).toBe("tdcs");
   });
 
   it("skips a book that has no content source and says so", () => {
@@ -148,8 +148,12 @@ describe("planOfficialClassContent", () => {
     expect(result.skippedDocuments).toEqual(["mystery"]);
   });
 
+  it("does not map an A5E document onto the frozen `a5e` row: the document key must equal the source key", () => {
+    expect(sourceKeyForDocument("a5e-ag", [{ key: "a5e", is_redistributable: true }])).toBeNull();
+  });
+
   it("skips a book the sources mark as not redistributable", () => {
-    expect(sourceKeyForDocument("tdcs", [{ key: "taldorei", open5e_key: "tdcs", is_redistributable: false }])).toBeNull();
+    expect(sourceKeyForDocument("tdcs", [{ key: "tdcs", is_redistributable: false }])).toBeNull();
   });
 
   it("skips a feat of an unknown book too, and lists skipped books sorted", () => {
@@ -288,7 +292,7 @@ describe("planOfficialClassContent", () => {
       document: { ...srd2014, key: "toh", name: "Tome of Heroes" },
       features: [],
     };
-    const [subclass] = plan({ classes: [lords], sources: [...sources, { key: "toh", open5e_key: null, is_redistributable: true }] }).subclasses;
+    const [subclass] = plan({ classes: [lords], sources: [...sources, { key: "toh", is_redistributable: true }] }).subclasses;
     expect(subclass.insert.spell_variant_label).toBe("Affinity");
     expect(Object.keys(subclass.insert.expanded_spell_variants).sort()).toEqual(["Air", "Earth", "Water"]);
     expect(Object.keys(subclass.update)).not.toContain("expanded_spell_variants");

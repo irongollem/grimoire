@@ -56,12 +56,14 @@ const filmedAs = episode.account;
 // A headed Chrome renders at one device scale per browser, so a browser is launched
 // for each scale the episode uses, and a signed-in stage for each device, on first need.
 const browsers = new Map<number, Browser>();
-const stages = new Map<Device, Stage>();
+// Keyed by account and device: a shot may film the DM's laptop and the next the player's own phone.
+const stages = new Map<string, Stage>();
 const offstages = new Map<Account, Offstage>();
 let quiet: Browser | null = null;
 
-async function stageFor(device: Device): Promise<Stage> {
-  const have = stages.get(device);
+async function stageFor(device: Device, account: Account): Promise<Stage> {
+  const key = `${account}:${device}`;
+  const have = stages.get(key);
   if (have) return have;
   const scale = DEVICES[device].scale;
   let browser = browsers.get(scale);
@@ -69,8 +71,8 @@ async function stageFor(device: Device): Promise<Stage> {
     browser = await launch(scale);
     browsers.set(scale, browser);
   }
-  const stage = await openStage(browser, { base, account: filmedAs, device, campaignId, seed, scratch: join(dir, ".scratch"), offstage });
-  stages.set(device, stage);
+  const stage = await openStage(browser, { base, account, device, campaignId, seed, scratch: join(dir, ".scratch"), offstage });
+  stages.set(key, stage);
   return stage;
 }
 
@@ -89,22 +91,24 @@ try {
   await episode.prepare?.({ offstage });
   for (const shot of episode.shots) {
     const device = shot.device ?? episode.device ?? "phone";
-    const stage = await stageFor(device);
+    const account = shot.account ?? filmedAs;
+    const stage = await stageFor(device, account);
     // A shot continues from the state the previous one left, so every shot
     // before the chosen one still runs; only the filming is skipped.
     if (shot.startAt) await stage.open(shot.startAt);
-    else if (stage.page.url() === "about:blank") throw new Error(`Shot "${shot.id}" is the first on the ${device} and needs a startAt.`);
+    else if (stage.page.url() === "about:blank") throw new Error(`Shot "${shot.id}" is the first on the ${account}'s ${device} and needs a startAt.`);
     const out = join(dir, "shots", `${shot.id}.mp4`);
     const keep = values.shot && values.shot !== shot.id ? previous?.shots.find((s) => s.id === shot.id) : undefined;
-    console.log(`${keep ? "running" : "filming"} ${shot.id} (${device})`);
+    console.log(`${keep ? "running" : "filming"} ${shot.id} (${account}, ${device})`);
     const { duration, size, camera, cues } = await stage.film(keep ? join(dir, ".scratch", "discard.mp4") : out, shot.run);
     recorded.push(
       keep
-        ? { ...keep, caption: shot.caption, narration: shot.narration }
+        ? { ...keep, caption: shot.caption, narration: shot.narration, chapter: shot.chapter }
         : {
             id: shot.id,
             caption: shot.caption,
             narration: shot.narration,
+            chapter: shot.chapter,
             file: `shots/${shot.id}.mp4`,
             device,
             size,
@@ -132,6 +136,7 @@ const manifest: EpisodeManifest = {
   title: episode.title,
   pairedWith: episode.pairedWith ?? null,
   account: episode.account,
+  ...(episode.format === undefined ? {} : { format: episode.format }),
   recordedAt: new Date().toISOString(),
   shots: recorded,
 };
@@ -145,6 +150,7 @@ function scriptMarkdown(m: EpisodeManifest): string {
     const words = s.narration.split(/\s+/).filter(Boolean).length;
     lines.push(
       `## ${s.id}`,
+      ...(s.chapter === undefined ? [] : [`### Chapter: ${s.chapter}`, ""]),
       "",
       `On screen: "${s.caption}"`,
       "",

@@ -10,7 +10,6 @@ import {
   isRedistributable,
   licenseForDocumentKey,
   licenseKeysFor,
-  LEGACY_DOCUMENT_KEY_ALIASES,
   REDISTRIBUTABLE_LICENSE_KEYS,
   rulesetForDocument,
 } from "@/lib/library/open5eApi";
@@ -160,22 +159,6 @@ describe("licenseForDocumentKey", () => {
 
   it("returns null when no map is provided at all", () => {
     expect(licenseForDocumentKey(undefined, "ccdx")).toBeNull();
-  });
-});
-
-describe("LEGACY_DOCUMENT_KEY_ALIASES", () => {
-  it("maps every legacy source_document_key to its verified current Open5e v2 key", () => {
-    expect(LEGACY_DOCUMENT_KEY_ALIASES).toEqual({
-      cc: "ccdx",
-      blackflag: "bfrd",
-      menagerie: "a5e-mm",
-      dmag: "deepm",
-      "dmag-e": "deepmx",
-      warlock: "wz",
-      a5e: "a5e-ag",
-      o5e: "open5e",
-      taldorei: "tdcs",
-    });
   });
 });
 

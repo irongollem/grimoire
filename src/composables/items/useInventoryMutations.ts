@@ -16,6 +16,7 @@ import type {
 } from "@/types/inventory.types";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { fetchResolvedItem } from "@/composables/items/useItems";
+import type { Coins } from "@/lib/currency/currency";
 import type { Item, ItemIndexEntry } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -354,13 +355,7 @@ export function useInventoryMutations({
     await removeInventoryItem(id);
   }
 
-  async function handleSell(
-    pp: number,
-    gp: number,
-    ep: number,
-    sp: number,
-    cp: number,
-  ) {
+  async function handleSell(price: Coins) {
     const inv = selectedInv.value;
     if (!inv || !member.value) return;
     try {
@@ -374,11 +369,7 @@ export function useInventoryMutations({
         inv.id,
         inv.quantity,
         member.value.id,
-        pp,
-        gp,
-        ep,
-        sp,
-        cp,
+        price,
       );
     } catch (e) {
       reportChatFailure(e, "send the offer to the chat");

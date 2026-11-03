@@ -53,14 +53,7 @@
             <label class="text-caption text-muted-foreground">Quantity <AppInput v-model.number="quantity" type="number" min="1" /></label>
             <label class="text-caption text-muted-foreground">Table label <AppInput v-model="label" placeholder="Optional label" /></label>
           </div>
-          <div v-else class="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <label
-              v-for="coin in COINS"
-              :key="coin"
-              class="text-caption uppercase text-muted-foreground"
-              :class="coin === 'cp' ? 'col-span-2 sm:col-span-1' : ''"
-            >{{ coin }}<AppInput v-model.number="currency[coin]" type="number" min="0" class="max-sm:min-h-11" /></label>
-          </div>
+          <CoinInput v-else v-model="coins" />
         </template>
 
         <template v-else>
@@ -136,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch, type Component } from "vue";
+import { computed, ref, watch, type Component } from "vue";
 import { useCreateLootPlacement, useCreateQuestConsequence, useDeleteLootPlacement, useDeleteQuestConsequence } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
 import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
@@ -155,6 +148,9 @@ import {
 } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import CoinInput from "@/components/currency/CoinInput.vue";
+import { useCurrency } from "@/composables/currency/useCurrency";
+import { hasCoins, type Coins } from "@/lib/currency/currency";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import QuestWorldVerbFields from "./QuestWorldVerbFields.vue";
@@ -197,6 +193,7 @@ const rows = computed<PayoffRow[]>(() => derivePayoffRows({
   outgoingEdges: outgoingEdges.value,
   beats,
   loot,
+  formatCoins,
   objectiveLabel,
   questLabel: unlockQuestLabel,
   beatLabel: unlockBeatLabel,
@@ -268,8 +265,8 @@ const createLoot = useCreateLootPlacement();
 const itemId = ref("");
 const label = ref("");
 const quantity = ref(1);
-const COINS = ["pp", "gp", "ep", "sp", "cp"] as const;
-const currency = reactive<Record<(typeof COINS)[number], number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+const coins = ref<Coins>({});
+const { formatCoins } = useCurrency();
 // Library rows are offered as references; the index already holds only this account's own rows.
 const itemOptions = computed(() => (items.value ?? []).map((item) => ({ id: item.id, name: item.name })));
 
@@ -319,7 +316,7 @@ const {
 
 function resetQuickAddFields() {
   itemId.value = ""; label.value = ""; quantity.value = 1;
-  for (const coin of COINS) currency[coin] = 0;
+  coins.value = {};
   conditionEdgeId.value = ""; afterDays.value = 0;
   targetNpcId.value = ""; relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY; targetQuestId.value = ""; targetDocumentId.value = ""; resetEntryBeatPicker();
   knowledgeText.value = ""; favorText.value = ""; milestoneText.value = "";
@@ -348,7 +345,7 @@ const worldDraft = computed<WorldVerbDraft>(() => ({
 const canAdd = computed(() => {
   switch (activeQuickAdd.value) {
     case "item": return !!itemId.value && quantity.value > 0;
-    case "riches": return COINS.some((coin) => currency[coin] > 0);
+    case "riches": return hasCoins(coins.value);
     case "influence": return !!targetNpcId.value && relationshipShiftPayload(relationshipShiftKey.value) !== null;
     case "knowledge": return !!knowledgeText.value.trim();
     case "quest": return !!targetQuestId.value;
@@ -378,7 +375,7 @@ async function submit() {
         ...itemRefColumns(activeQuickAdd.value === "item" ? itemId.value : null),
         quantity: activeQuickAdd.value === "item" ? Math.max(1, Math.floor(quantity.value)) : 1,
         label: label.value.trim(),
-        payload: activeQuickAdd.value === "riches" ? { ...currency } : {},
+        payload: activeQuickAdd.value === "riches" ? { coins: coins.value } : {},
         source_type: "prepared",
         source_id: null,
         sort_order: loot.length,

@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CurrencyConfig } from "../currency.ts";
 import { wrapUserInput } from "../ai-prompt.ts";
 import { budgetFor, canAttune, MAGIC_ONLY_TYPES, rarityIndex } from "./budget.ts";
-import { laneFor, rarityCeiling, RARITY_ORDER, unitValueCp, type InventionCandidate, type InventionDraft } from "./validate.ts";
+import { laneFor, rarityCeiling, RARITY_ORDER, unitValue, type InventionCandidate, type InventionDraft } from "./validate.ts";
 import {
   ITEM_RARITIES,
   ITEM_TYPES,
@@ -98,6 +99,7 @@ export interface UserContentInput {
   mode: InventionMode;
   discipline: CraftingDiscipline;
   valueMultiple: number;
+  currency: CurrencyConfig;
   bench: readonly InventionBenchEntry[];
   outputCandidates: readonly InventionCandidate[];
   materialCandidates: readonly InventionCandidate[];
@@ -106,8 +108,8 @@ export interface UserContentInput {
 }
 
 /** Materials mode: the ceiling and the value limit the validator will hold the answer to. */
-export function benchBudget(bench: readonly InventionBenchEntry[], valueMultiple: number): { ceiling: ItemRarity; valueLimitCp: number } {
-  const value = bench.reduce((s, b) => s + unitValueCp(b.cost, b.rarity) * b.dishes, 0);
+export function benchBudget(bench: readonly InventionBenchEntry[], valueMultiple: number, currency: CurrencyConfig): { ceiling: ItemRarity; valueLimitCp: number } {
+  const value = bench.reduce((s, b) => s + unitValue(b.cost, b.rarity, currency) * b.dishes, 0);
   return { ceiling: rarityCeiling(bench.map((b) => b.rarity)), valueLimitCp: Math.floor(value * valueMultiple) };
 }
 
@@ -128,13 +130,18 @@ export function draftView(d: InventionDraft) {
 
 export function buildUserContent(input: UserContentInput): string {
   const materialsFixed = input.mode === "materials";
-  const budget = materialsFixed ? benchBudget(input.bench, input.valueMultiple) : null;
+  const budget = materialsFixed ? benchBudget(input.bench, input.valueMultiple, input.currency) : null;
   const block: Record<string, unknown> = {
     mode: input.mode,
     discipline: input.discipline,
     discipline_item_types: laneFor(input.discipline),
     rarity_ceiling: budget ? budget.ceiling : "legendary",
     value_multiple: input.valueMultiple,
+    // Prices are whole smallest coins ("value_cp" fields and the limit below); say which coins those are.
+    currency: {
+      default_coin: input.currency.default_key,
+      coins: input.currency.denominations.map((d) => ({ key: d.key, name: d.name, abbr: d.abbr, worth_in_smallest_coin: d.value })),
+    },
     bench: input.bench.map((b) => ({ name: b.name, rarity: b.rarity, cost: b.cost, quantity: b.dishes })),
     output_candidates: input.outputCandidates.map(candidateView),
   };

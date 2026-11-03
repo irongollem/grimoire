@@ -112,7 +112,7 @@ import { useToast } from "@/composables/useToast";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import type { RollMode } from "@/lib/dice/roller";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { abilityMod } from "@/rules/armorClass";
 import type { ActionEntry } from "@/rules/features/characterFeatures";
 import { poolLabel } from "@/rules/features/characterFeatures";

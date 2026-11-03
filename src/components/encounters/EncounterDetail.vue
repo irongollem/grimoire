@@ -670,16 +670,9 @@ async function toggleFinished() {
   });
 }
 
-async function handleDropLootPool(pool: {
-  pp: number;
-  gp: number;
-  ep: number;
-  sp: number;
-  cp: number;
-  label?: string | null;
-}) {
+async function handleDropLootPool(pool: RewardCurrencyPool) {
   try {
-    await sendCurrencyDrop(pool.pp, pool.gp, pool.ep, pool.sp, pool.cp, pool.label || undefined);
+    await sendCurrencyDrop(pool.coins, pool.label || undefined);
   } catch (e) {
     reportChatFailure(e, "drop the coins to the chat");
   }

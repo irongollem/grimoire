@@ -32,15 +32,15 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name) v
   ('93680000-0000-4000-8000-0000000000c2', '93680000-0000-4000-8000-000000000004', 'dm', 'DM two')
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, gp, ruleset) values
-  ('93680000-0000-4000-8000-0000000000e1', '93680000-0000-4000-8000-000000000002', '93680000-0000-4000-8000-000000000002', '93680000-0000-4000-8000-0000000000c1', 'Pm one', 0, '2014'),
-  ('93680000-0000-4000-8000-0000000000e2', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-0000000000c1', 'Pm two', 50, '2014'),
-  ('93680000-0000-4000-8000-0000000000e3', '93680000-0000-4000-8000-000000000004', '93680000-0000-4000-8000-000000000004', '93680000-0000-4000-8000-0000000000c2', 'Pm c2', 0, '2014'),
-  ('93680000-0000-4000-8000-0000000000e4', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-0000000000c2', 'Pm x3', 50, '2014');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, coins, ruleset) values
+  ('93680000-0000-4000-8000-0000000000e1', '93680000-0000-4000-8000-000000000002', '93680000-0000-4000-8000-000000000002', '93680000-0000-4000-8000-0000000000c1', 'Pm one', '{"gp": 0}', '2014'),
+  ('93680000-0000-4000-8000-0000000000e2', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-0000000000c1', 'Pm two', '{"gp": 50}', '2014'),
+  ('93680000-0000-4000-8000-0000000000e3', '93680000-0000-4000-8000-000000000004', '93680000-0000-4000-8000-000000000004', '93680000-0000-4000-8000-0000000000c2', 'Pm c2', '{"gp": 0}', '2014'),
+  ('93680000-0000-4000-8000-0000000000e4', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-000000000003', '93680000-0000-4000-8000-0000000000c2', 'Pm x3', '{"gp": 50}', '2014');
 -- e5 is DM-managed and unclaimed: owner_user_id is NULL, the case that would
 -- make an uncoalesced "owner = author or ..." guard NULL and let it through.
-insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, gp, is_dm_managed, ruleset) values
-  ('93680000-0000-4000-8000-0000000000e5', '93680000-0000-4000-8000-000000000001', null, '93680000-0000-4000-8000-0000000000c1', 'Pm unowned', 0, true, '2014');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, coins, is_dm_managed, ruleset) values
+  ('93680000-0000-4000-8000-0000000000e5', '93680000-0000-4000-8000-000000000001', null, '93680000-0000-4000-8000-0000000000c1', 'Pm unowned', '{"gp": 0}', true, '2014');
 
 -- f1 sold by pm1; f2 is pm2's own item; f3 lives in c2, carried by pmc2.
 insert into public.party_inventory (id, campaign_id, user_id, name, quantity, carried_by) values
@@ -52,7 +52,7 @@ insert into public.party_inventory (id, campaign_id, user_id, name, quantity, ca
 -- Every wallet and item owner involved, read past RLS so a failed claim can
 -- be shown to have changed nothing.
 create function pg_temp.state() returns text language sql security definer as $$
-  select (select string_agg(id::text || ':' || pp || '/' || gp || '/' || ep || '/' || sp || '/' || cp, ',' order by id)
+  select (select string_agg(id::text || ':' || coins::text, ',' order by id)
             from public.party_members where id::text like '93680000-%')
       || '|' ||
          (select string_agg(id::text || ':' || coalesce(carried_by::text, '-') || '/' || user_id, ',' order by id)
@@ -75,28 +75,28 @@ select pg_temp.as_user(2);
 insert into public.campaign_messages (id, campaign_id, user_id, message, type, metadata) values
   -- a1 legitimate: pm1 sells its own Lantern for 10 gp
   ('93680000-0000-4000-8000-0000000000a1', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":10,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f1"}'),
+    '{"price":{"gp":10},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f1"}'),
   -- a2 forged: a seller from another campaign
   ('93680000-0000-4000-8000-0000000000a2', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":10,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e3","inventory_item_id":"93680000-0000-4000-8000-0000000000f3"}'),
+    '{"price":{"gp":10},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e3","inventory_item_id":"93680000-0000-4000-8000-0000000000f3"}'),
   -- a3 forged: a seller in this campaign that the author does not control
   ('93680000-0000-4000-8000-0000000000a3', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":10,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e2","inventory_item_id":"93680000-0000-4000-8000-0000000000f2"}'),
+    '{"price":{"gp":10},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e2","inventory_item_id":"93680000-0000-4000-8000-0000000000f2"}'),
   -- a4 forged: an inventory row from another campaign
   ('93680000-0000-4000-8000-0000000000a4', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":10,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f3"}'),
+    '{"price":{"gp":10},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f3"}'),
   -- a5 forged: an inventory row in this campaign that the seller does not carry
   ('93680000-0000-4000-8000-0000000000a5', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":10,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f2"}'),
+    '{"price":{"gp":10},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f2"}'),
   -- a6 forged: a negative price
   ('93680000-0000-4000-8000-0000000000a6', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":-5,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f1"}'),
+    '{"price":{"gp":-5},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f1"}'),
   -- a7 forged: a fractional price
   ('93680000-0000-4000-8000-0000000000a7', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":1.5,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f1"}'),
+    '{"price":{"gp":1.5},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e1","inventory_item_id":"93680000-0000-4000-8000-0000000000f1"}'),
   -- a9 forged: the item of a DM-managed character nobody owns
   ('93680000-0000-4000-8000-0000000000a9', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000002', 'offer', 'player_offer',
-    '{"gp":0,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e5","inventory_item_id":"93680000-0000-4000-8000-0000000000f5"}');
+    '{"price":{"gp":0},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e5","inventory_item_id":"93680000-0000-4000-8000-0000000000f5"}');
 
 -- ── Forged offers, each claimed by the real buyer (user 3, pm2) ────────────
 select pg_temp.as_user(3);
@@ -128,10 +128,10 @@ select is(pg_temp.state(), (select s from before_state), 'no coin and no item mo
 -- ── Positive control: the legitimate sale ───────────────────────────────────
 select is(public.claim_player_offer('93680000-0000-4000-8000-0000000000a1', 'Buyer', '93680000-0000-4000-8000-0000000000e2') ->> 'sold_to_user_id',
   '93680000-0000-4000-8000-000000000003', 'the legitimate sale succeeds for the rightful buyer');
-select is((select pp * 10 + gp from public.party_members where id = '93680000-0000-4000-8000-0000000000e2'), 40,
+select is((select coins from public.party_members where id = '93680000-0000-4000-8000-0000000000e2'), '{"gp": 40}'::jsonb,
   'the buyer was debited 10 gp');
 select pg_temp.as_user(2);
-select is((select pp * 10 + gp from public.party_members where id = '93680000-0000-4000-8000-0000000000e1'), 10,
+select is((select coins from public.party_members where id = '93680000-0000-4000-8000-0000000000e1'), '{"gp": 10}'::jsonb,
   'the seller was credited 10 gp');
 select is((select carried_by from public.party_inventory where id = '93680000-0000-4000-8000-0000000000f1'),
   '93680000-0000-4000-8000-0000000000e2'::uuid, 'the item moved to the buyer');
@@ -142,14 +142,14 @@ select is((select user_id from public.party_inventory where id = '93680000-0000-
 reset role;
 insert into public.campaign_messages (id, campaign_id, user_id, message, type, metadata) values
   ('93680000-0000-4000-8000-0000000000a8', '93680000-0000-4000-8000-0000000000c1', '93680000-0000-4000-8000-000000000003', 'offer', 'player_offer',
-    '{"gp":2,"seller_party_member_id":"93680000-0000-4000-8000-0000000000e2","inventory_item_id":"93680000-0000-4000-8000-0000000000f2"}');
+    '{"price":{"gp":2},"seller_party_member_id":"93680000-0000-4000-8000-0000000000e2","inventory_item_id":"93680000-0000-4000-8000-0000000000f2"}');
 set local role authenticated;
 select pg_temp.as_user(1);
 select is(public.claim_player_offer('93680000-0000-4000-8000-0000000000a8', 'DM', null) ->> 'sold_to_user_id',
   '93680000-0000-4000-8000-000000000001', 'the DM can still buy a legitimate offer without a character');
 select ok(not exists (select 1 from public.party_inventory where id = '93680000-0000-4000-8000-0000000000f2'),
   'the DM purchase removed the item from play');
-select is((select pp * 10 + gp from public.party_members where id = '93680000-0000-4000-8000-0000000000e2'), 42,
+select is((select coins from public.party_members where id = '93680000-0000-4000-8000-0000000000e2'), '{"gp": 42}'::jsonb,
   'the DM purchase credited the seller');
 
 select * from finish();

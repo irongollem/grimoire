@@ -33,7 +33,7 @@ import RunnerAttackFlow from "@/components/encounters/RunnerAttackFlow.vue";
 import RunnerSaveFlow from "@/components/encounters/RunnerSaveFlow.vue";
 import { useActionResolution } from "@/composables/encounters/useActionResolution";
 import { useCompanions } from "@/composables/encounters/useCompanions";
-import type { RollMode } from "@/lib/dice/dice";
+import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 

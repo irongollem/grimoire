@@ -1,4 +1,5 @@
 import type { LootPlacement, QuestBeat, QuestBeatEdge, QuestConsequence, QuestConsequenceAction } from "@/types/quest.types";
+import type { Coins } from "@/lib/currency/currency";
 import { describeQuestConsequenceAction, type QuestConsequenceLabelResolver } from "./consequences";
 
 /**
@@ -72,7 +73,14 @@ function consequenceCaption(row: QuestConsequence, outgoingEdges: readonly Quest
   return `${row.action} · ${condition}${delaySuffix(row.after_days)}`;
 }
 
-function lootSummary(entry: LootPlacement): string {
+function lootSummary(entry: LootPlacement, formatCoins?: (coins: Coins) => string): string {
+  // A purse prepared without a label reads as what it holds ("5 gp 3 sp").
+  if (entry.kind === "currency" && !entry.label.trim() && formatCoins) {
+    const coins = entry.payload.coins;
+    if (typeof coins === "object" && coins !== null && !Array.isArray(coins)) {
+      return formatCoins(coins as Coins);
+    }
+  }
   return entry.quantity > 1 ? `${entry.quantity}× ${entry.label}` : entry.label;
 }
 
@@ -102,6 +110,9 @@ export interface DerivePayoffRowsInput {
   npcLabel?: QuestConsequenceLabelResolver["npcLabel"];
   locationLabel?: QuestConsequenceLabelResolver["locationLabel"];
   factionLabel?: QuestConsequenceLabelResolver["factionLabel"];
+  /** Writes a purse in the campaign's coins; lets an unlabelled currency
+   *  placement show what it holds instead of a blank row. */
+  formatCoins?: (coins: Coins) => string;
 }
 
 /**
@@ -139,7 +150,7 @@ export function derivePayoffRows(input: DerivePayoffRowsInput): PayoffRow[] {
     source: "loot",
     tone: "primary",
     icon: entry.kind === "currency" ? "coins" : "package",
-    summary: lootSummary(entry),
+    summary: lootSummary(entry, input.formatCoins),
     caption: `loot_placement · ${entry.kind} · ${entry.delivery_state}`,
     chip: "you dispatch",
   }));

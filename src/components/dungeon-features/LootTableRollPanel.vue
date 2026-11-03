@@ -24,7 +24,7 @@
             <template v-else-if="r.type === 'currency'">
               <span class="text-heading-sm font-bold text-ink-caution shrink-0 w-7 text-right">💰</span>
               <span class="text-body text-foreground truncate">
-                {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
+                {{ r.currency_label ? r.currency_label + ': ' : '' }}<CoinAmount :coins="r.coins" size="sm" />
               </span>
             </template>
             <template v-else-if="r.type === 'unresolved'">
@@ -92,7 +92,7 @@
  */
 import { ref, computed, watch } from "vue";
 import { IconDiceRoll, IconPackageOpen } from "@/lib/icons";
-import { formatCoinParts } from "@/rules/currency";
+import CoinAmount from "@/components/currency/CoinAmount.vue";
 import {
   rollLootTable,
   unresolvedReasonLabel,
@@ -100,6 +100,7 @@ import {
   type RolledUnresolvedEntry,
   type LootPoolItem,
 } from "@/lib/dungeon-features/lootTableRoll";
+import { useCurrency } from "@/composables/currency/useCurrency";
 import { useLootChestAtoms } from "@/composables/dungeon-features/useLootChestAtoms";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -120,10 +121,12 @@ const { table, itemsById, entriesError, isNew, summaryDropPercent } = defineProp
   summaryDropPercent: number;
 }>();
 
+const { currency } = useCurrency();
+
 // ── Roll panel ─────────────────────────────────────────────────────────────
 const lastRoll = ref<RolledLootEntry[] | null>(null);
 function onRoll() {
-  lastRoll.value = rollLootTable(table, itemsById);
+  lastRoll.value = rollLootTable(table, itemsById, currency.value);
 }
 
 // ── Drop-in-chat dialog ─────────────────────────────────────────────────────
@@ -151,7 +154,7 @@ watch(dropDialogOpen, (open) => {
 watch(claimsDice, rollClaims);
 
 function reroll() {
-  dropPreview.value = rollLootTable(table, itemsById);
+  dropPreview.value = rollLootTable(table, itemsById, currency.value);
   rollClaims();
 }
 
