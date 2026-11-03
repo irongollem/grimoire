@@ -594,6 +594,13 @@
         <SpellsByLevelGrid v-model="gridSpell" :all-spell-options="gridSpells" level-kind="spell" />
       </div>
     </CatalogueSection>
+
+    <CatalogueSection
+      title="Deck: pads, lanes, tools and Now chips"
+      note="The soundboard deck's presentational pieces (#1136), drawn from hand-written cells. Check every light in more than one theme: lit is the full category colour with dark ink, fading and ducked are tints, blocked says why in words."
+    >
+      <DeckCatalogue />
+    </CatalogueSection>
   </div>
 </template>
 
@@ -637,6 +644,7 @@ import { SWITCH_SIZES } from "@/components/common/controls/toggleSwitchVariants"
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
+import DeckCatalogue from "@/components/soundboard/deck/DeckCatalogue.vue";
 import CoinAmount from "@/components/currency/CoinAmount.vue";
 import CoinInput from "@/components/currency/CoinInput.vue";
 import { defaultCurrencyFor } from "@/systems/registry";

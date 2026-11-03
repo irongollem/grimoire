@@ -38,6 +38,7 @@ import {
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
   VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
   Fence, Type, SunMoon,
+  StepForward, ToggleRight, FastForward, TrendingDown, ChartNoAxesColumn,
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -267,6 +268,15 @@ export { VolumeX as IconMute }
 export { Music as IconMusic }
 export { Music2 as IconMusicNote }
 export { Cast as IconCast }
+// Deck (#1136): launch modes, the fade and solo tools, a pad's level.
+export { StepForward as IconLaunchTrigger }
+export { ToggleRight as IconLaunchToggle }
+export { Hand as IconLaunchGate }
+export { FastForward as IconLaunchRepeat }
+export { MessageCircle as IconHush }
+export { TrendingDown as IconFade }
+export { Crosshair as IconSolo }
+export { ChartNoAxesColumn as IconPadLevel }
 
 // ── Content / Rich Text ───────────────────────────────────────────────────────
 export { AlignLeft as IconAlignLeft }
