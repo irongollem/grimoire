@@ -1,14 +1,7 @@
 // MapWorkbench (epic #884 S6) — the extracted Cartographer editing surface.
 // A focused smoke test: it must mount cleanly both with and without the
-// `site` prop, and the reference-layer toggle (the embedded-in-Atlas case)
-// must only appear when a site with a Picture layer is actually given —
-// with no `site`, the workbench must look and behave exactly like the
-// pre-extraction standalone editor.
-//
-// Mounted in view mode throughout where it can be: edit mode additionally mounts the
-// bar, whose settings popover holds a CampaignScopeField that reaches for a real
-// Pinia store + TanStack Query composable this file has no reason to stand
-// up for what is a prop-surface smoke test, not a bar test.
+// `site` prop; with no `site`, the workbench must look and behave exactly like
+// the pre-extraction standalone editor.
 //
 // Every data-fetching composable MapWorkbench itself touches (notes/
 // encounters/traps/features/published-sites/tile-packs/campaign store) is
@@ -19,7 +12,6 @@ import { computed, h, ref, shallowRef } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapWorkbench from "./MapWorkbench.vue";
-import CartographerBar from "./CartographerBar.vue";
 import CartographerToolRail from "./CartographerToolRail.vue";
 import { emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MapStackSource } from "@/lib/locations/mapStack";
@@ -215,25 +207,9 @@ const siteWithDrawing: MapStackSource & { id: string } = {
 };
 
 describe("MapWorkbench", () => {
-  it("mounts without a site prop, and shows no reference-layer toggle", () => {
-    const wrapper = mount(MapWorkbench, {
-      props: { map: baseMap, viewMode: true },
-    });
-    expect(wrapper.exists()).toBe(true);
-    expect(wrapper.text()).not.toContain("Reference");
-  });
-
-  it("mounts with a site prop, and shows the reference-layer toggle for its Picture", () => {
-    const wrapper = mount(MapWorkbench, {
-      props: { map: baseMap, viewMode: true, site: siteWithPicture },
-    });
-    expect(wrapper.exists()).toBe(true);
-    expect(wrapper.text()).toContain("Reference");
-  });
-
   it("keeps the browser's middle-press autoscroll off the canvas, and only for the middle button", () => {
-    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
-    const canvas = wrapper.find("canvas").element;
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
+    const canvas = wrapper.find("canvas.touch-none").element;
     const middle = new MouseEvent("mousedown", { button: 1, bubbles: true, cancelable: true });
     canvas.dispatchEvent(middle);
     expect(middle.defaultPrevented).toBe(true);
@@ -243,8 +219,8 @@ describe("MapWorkbench", () => {
   });
 
   it("takes Space only while the pointer is over the map", () => {
-    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
-    const area = wrapper.find("canvas").element.parentElement as HTMLElement;
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
+    const area = wrapper.find("canvas.touch-none").element.closest(".relative") as HTMLElement;
     const space = (): KeyboardEvent => new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
 
     const away = space();
@@ -263,8 +239,7 @@ describe("MapWorkbench", () => {
     expect(left.defaultPrevented).toBe(false);
   });
 
-  // Edit mode additionally mounts the drawer's panels (real Pinia/TanStack deps, same
-  // reason the file's own docblock gives for staying in view mode everywhere else), stubbed
+  // The editor mounts the drawer's panels (real Pinia/TanStack deps), stubbed
   // out here since these tests are only about the rail and the bar.
   // ZoningList (the one list of Zoning) is stubbed for the same reason: it reaches for
   // `useQuests`/`useQuestBeat`/`useQuestBeats` (TanStack Query) and the quest rules query,
@@ -279,20 +254,20 @@ describe("MapWorkbench", () => {
   };
 
   it("shows no layer selector or Plan palette without a site, even in edit mode", () => {
-    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
     expect(wrapper.text()).not.toContain("Drawing");
     expect(tool(wrapper, "Zone")).toBe(false);
   });
 
   it("offers the Water terrain tool in the Drawing palette, in the Terrain family's slip", async () => {
-    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
     expect(tool(wrapper, "Terrain")).toBe(true);
     await wrapper.find('nav[aria-label="Map tools"] [aria-label="Terrain"]').trigger("click");
     expect(wrapper.find("[data-slip]").text()).toContain("Water");
   });
 
   it("shows the layer selector with a site, in edit mode, and can switch layers by hand", async () => {
-    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap, site: siteWithNoImagery }, ...editModeStubs });
     expect(wrapper.text()).toContain("Drawing");
     expect(wrapper.text()).toContain("Zoning");
     // A site with nothing drawn yet opens on the Drawing's own tool palette…
@@ -306,7 +281,7 @@ describe("MapWorkbench", () => {
 
   it("shows Zoning's one list and the Ways out, both editable (#1125 frame 19)", () => {
     const wrapper = mount(MapWorkbench, {
-      props: { map: baseMap, viewMode: false, site: siteWithPicture },
+      props: { map: baseMap, site: siteWithPicture },
       ...editModeStubs,
     });
     expect(wrapper.findComponent({ name: "ZoningList" }).exists()).toBe(true);
@@ -320,14 +295,14 @@ describe("MapWorkbench", () => {
   // imagery to trace over. These four cover the new initial-default rule.
   describe("initial layer default (#878 S2)", () => {
     it("opens on Drawing without a site at all (the standalone /cartographer route)", () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       expect(tool(wrapper, "Draw")).toBe(true);
       expect(tool(wrapper, "Zone")).toBe(false);
     });
 
     it("opens on Drawing for a site with no map imagery yet", () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithNoImagery },
+        props: { map: baseMap, site: siteWithNoImagery },
         ...editModeStubs,
       });
       expect(tool(wrapper, "Draw")).toBe(true);
@@ -336,7 +311,7 @@ describe("MapWorkbench", () => {
 
     it("opens on Plan for a site whose imagery is a Picture", () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        props: { map: baseMap, site: siteWithPicture },
         ...editModeStubs,
       });
       expect(tool(wrapper, "Zone")).toBe(true);
@@ -346,7 +321,7 @@ describe("MapWorkbench", () => {
 
     it("opens on Plan for a site whose imagery is a Drawing (no Picture)", () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithDrawing },
+        props: { map: baseMap, site: siteWithDrawing },
         ...editModeStubs,
       });
       expect(tool(wrapper, "Zone")).toBe(true);
@@ -355,12 +330,12 @@ describe("MapWorkbench", () => {
 
     it("opens on the layer the host was sent for, over the default (a \"Place it\" link asks for the Plan)", () => {
       const plan = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithNoImagery, startLayer: "plan" },
+        props: { map: baseMap, site: siteWithNoImagery, startLayer: "plan" },
         ...editModeStubs,
       });
       expect(tool(plan, "Zone")).toBe(true);
       const drawing = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithPicture, startLayer: "drawing" },
+        props: { map: baseMap, site: siteWithPicture, startLayer: "drawing" },
         ...editModeStubs,
       });
       expect(tool(drawing, "Draw")).toBe(true);
@@ -368,7 +343,7 @@ describe("MapWorkbench", () => {
 
     it("keeps the DM's own layer choice — a later prop update does not force it back", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        props: { map: baseMap, site: siteWithPicture },
         ...editModeStubs,
       });
       // Starts on Plan (site has a Picture)…
@@ -408,7 +383,7 @@ describe("MapWorkbench", () => {
     afterEach(() => { vi.unstubAllGlobals(); });
 
     const mountPicture = async (site: MapStackSource & { id: string; is_battle_map?: boolean }, extra: object = {}) => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site, ...extra }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, site, ...extra }, ...editModeStubs });
       await flushPromises();
       return wrapper;
     };
@@ -502,7 +477,7 @@ describe("MapWorkbench", () => {
         libraryPack({ pack_id: "sunny-meadow", name: "Sunny Meadow", sort_order: 0 }),
         libraryPack({ pack_id: "unpublished-pack", name: "Draft Pack", status: "draft", sort_order: 1 }),
       ];
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       await flushPromises();
 
       const bundledPacks = wrapper.findComponent(CartographerToolRail).props("tileSet")?.packs;
@@ -511,7 +486,7 @@ describe("MapWorkbench", () => {
 
     it("shows a real empty state when nothing is published, never a fallback constant", async () => {
       mockLibraryRows.value = [];
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       await flushPromises();
 
       expect(wrapper.text()).toContain("No tile packs are published yet");
@@ -524,7 +499,7 @@ describe("MapWorkbench", () => {
         libraryPack({ pack_id: "aaa-first", name: "Aaa First", sort_order: 0 }),
         libraryPack({ pack_id: "zzz-last", name: "Zzz Last", sort_order: 1 }),
       ];
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       await flushPromises();
 
       const vm = wrapper.vm as unknown as { getCurrentPackId: () => string };
@@ -536,7 +511,7 @@ describe("MapWorkbench", () => {
         libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 0 }),
         libraryPack({ pack_id: "no-assets", name: "No Assets Yet", sort_order: 1 }),
       ];
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       await flushPromises();
 
       // Still listed even though its own runtime load rejects below — the
@@ -557,7 +532,7 @@ describe("MapWorkbench", () => {
         libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 0 }),
         libraryPack({ pack_id: "icy-cave", name: "Icy Cave", sort_order: 1 }),
       ];
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       await flushPromises();
       const vm = wrapper.vm as unknown as { getCurrentPackId: () => string };
       expect(vm.getCurrentPackId()).toBe("stone-dungeon");
@@ -579,14 +554,16 @@ describe("MapWorkbench", () => {
 
   it("mounts with a null map (the unsaved-new-map case)", () => {
     const wrapper = mount(MapWorkbench, {
-      props: { map: null, viewMode: true },
+      props: { map: null },
+      ...editModeStubs,
     });
     expect(wrapper.exists()).toBe(true);
   });
 
   it("exposes getters the host reads at Save/Cancel time", () => {
     const wrapper = mount(MapWorkbench, {
-      props: { map: baseMap, viewMode: true },
+      props: { map: baseMap },
+      ...editModeStubs,
     });
     const vm = wrapper.vm as unknown as {
       getName: () => string;
@@ -603,7 +580,7 @@ describe("MapWorkbench", () => {
         libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 0 }),
         libraryPack({ pack_id: "icy-cave", name: "Icy Cave", sort_order: 1 }),
       ];
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       await flushPromises();
       return wrapper;
     }
@@ -630,7 +607,7 @@ describe("MapWorkbench", () => {
         libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 0 }),
         libraryPack({ pack_id: "icy-cave", name: "Icy Cave", sort_order: 1 }),
       ];
-      const w = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
+      const w = mount(MapWorkbench, { props: { map: baseMap, site: siteWithNoImagery }, ...editModeStubs });
       await flushPromises();
       expect(w.findComponent(CartographerToolRail).props("tileSet")).toBeDefined();
       await layerTab(w, "Zoning")?.trigger("click");
@@ -643,13 +620,13 @@ describe("MapWorkbench", () => {
 
   describe("the slim bar, rail and slip (17 Oct 2026)", () => {
     it("draws seven families in the order of canvas frame 07, with Erase after the rule", () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       const names = wrapper.findAll('nav[aria-label="Map tools"] button').map((b) => b.attributes("aria-label"));
       expect(names.slice(0, 7)).toEqual(["Select", "Draw", "Walls", "Things", "Terrain", "Notes", "Erase"]);
     });
 
     it("files every tool in one family, with the keys it always had (#1125 decision 3)", async () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       const nav = wrapper.find('nav[aria-label="Map tools"]');
       const slipTools: Record<string, string[]> = {};
       for (const family of ["Select", "Draw", "Walls", "Terrain", "Notes"]) {
@@ -667,7 +644,7 @@ describe("MapWorkbench", () => {
     });
 
     it("files Light beside Place in Things, and U picks it with its own options in the slip (#1125 story 5)", async () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       const area = wrapper.find("canvas").element.parentElement as HTMLElement;
       area.dispatchEvent(new Event("pointerenter"));
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "u", code: "KeyU" }));
@@ -681,7 +658,7 @@ describe("MapWorkbench", () => {
     });
 
     it("titles the slip with the family and follows a tool picked in its grid", async () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       const slip = () => wrapper.find("[data-slip]");
       expect(slip().text()).toContain("Select");
       await wrapper.find('nav[aria-label="Map tools"] [aria-label="Terrain"]').trigger("click");
@@ -694,7 +671,7 @@ describe("MapWorkbench", () => {
     });
 
     it("selects a tool's family when its key is pressed (R lands in Draw)", async () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       const area = wrapper.find("canvas").element.parentElement as HTMLElement;
       area.dispatchEvent(new Event("pointerenter"));
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "r", code: "KeyR" }));
@@ -706,7 +683,7 @@ describe("MapWorkbench", () => {
     // The Drawing's separate "Spaces on this map" drawer is gone: Zoning's list is the one rooms list.
     it("has no Spaces drawer on the Drawing, and the Map menu no longer offers one", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithNoImagery },
+        props: { map: baseMap, site: siteWithNoImagery },
         global: { stubs: { ...editModeStubs.global.stubs, CampaignScopeField: true } },
       });
       await wrapper.findAll("header button").find((b) => b.text() === "Map")?.trigger("click");
@@ -717,7 +694,7 @@ describe("MapWorkbench", () => {
 
     it("opens Zoning's list with the tab, closes it from the drawer, and brings it back from the slip", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        props: { map: baseMap, site: siteWithPicture },
         global: { stubs: { ...editModeStubs.global.stubs, CampaignScopeField: true } },
       });
       expect(wrapper.find("section[aria-label='Zones on this map']").exists()).toBe(true);
@@ -730,7 +707,7 @@ describe("MapWorkbench", () => {
     // D, F and E are Drawing shortcuts as well (door, fill, eraser), so the tab decides who answers.
     it("Z, D, F and E pick Zoning's tools on the Zoning tab only", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        props: { map: baseMap, site: siteWithPicture },
         global: { stubs: { ...editModeStubs.global.stubs, CampaignScopeField: true } },
         attachTo: document.body,
       });
@@ -756,14 +733,14 @@ describe("MapWorkbench", () => {
     });
 
     it("shows each tab's key beside its name", () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, site: siteWithNoImagery }, ...editModeStubs });
       const keys = wrapper.findAll('[aria-label="Map layer"] button').map((b) => b.findAll("span").map((span) => span.text()));
       expect(keys).toEqual([["Base image", "1"], ["Drawing", "2"], ["Zoning", "3"]]);
     });
 
     it("opens the Place catalogue with its tool and puts it away with the next one", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false },
+        props: { map: baseMap },
         global: { stubs: { ...editModeStubs.global.stubs, CartographerPlaceCatalog: true } },
       });
       await wrapper.find('nav[aria-label="Map tools"] [aria-label="Things"]').trigger("click");
@@ -772,16 +749,9 @@ describe("MapWorkbench", () => {
       expect(wrapper.find("section[aria-label='Place']").exists()).toBe(false);
     });
 
-    it("shows no bar, rail or slip in view mode", () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
-      expect(wrapper.findComponent(CartographerBar).exists()).toBe(false);
-      expect(wrapper.find('nav[aria-label="Map tools"]').exists()).toBe(false);
-      expect(wrapper.find("[data-slip]").exists()).toBe(false);
-    });
-
     it("hands the host the name and a setter through bar-start, and a rename is an unsaved change", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false },
+        props: { map: baseMap },
         slots: {
           "bar-start": (slot: { mapName: string; setName: (v: string) => void }) =>
             h("button", { class: "rename", onClick: () => slot.setName(`${slot.mapName}!`) }, slot.mapName),
@@ -799,7 +769,7 @@ describe("MapWorkbench", () => {
 
     it("does not call a rename to the same name an unsaved change", async () => {
       const wrapper = mount(MapWorkbench, {
-        props: { map: baseMap, viewMode: false },
+        props: { map: baseMap },
         slots: {
           "bar-start": (slot: { mapName: string; setName: (v: string) => void }) =>
             h("button", { class: "same-name", onClick: () => slot.setName(slot.mapName) }, slot.mapName),
@@ -812,14 +782,14 @@ describe("MapWorkbench", () => {
     });
 
     it("shows the host's save state in the bar", () => {
-      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, saveState: "Saving…" }, ...editModeStubs });
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, saveState: "Saving…" }, ...editModeStubs });
       expect(wrapper.find("header").text()).toContain("Saving…");
     });
   });
 
   it("keeps the map's light level: edited from the bar's Light control, an unsaved change, restored by resetEdits", async () => {
     const wrapper = mount(MapWorkbench, {
-      props: { map: { ...baseMap, darkness: "dim" }, viewMode: false },
+      props: { map: { ...baseMap, darkness: "dim" } },
       global: { stubs: { CampaignScopeField: true } },
     });
     const vm = wrapper.vm as unknown as {
@@ -845,7 +815,7 @@ describe("MapWorkbench", () => {
     const key = (k: string, code: string, init: KeyboardEventInit = {}) =>
       window.dispatchEvent(new KeyboardEvent("keydown", { key: k, code, ...init }));
     const siteMount = () =>
-      mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
+      mount(MapWorkbench, { props: { map: baseMap, site: siteWithNoImagery }, ...editModeStubs });
 
     it("1, 2 and 3 switch Base image, Drawing and Zoning, and do nothing while a number is typed into a field", async () => {
       const w = siteMount();
@@ -868,7 +838,7 @@ describe("MapWorkbench", () => {
     });
 
     it("1, 2 and 3 do nothing in the standalone Cartographer, which has only the Drawing", async () => {
-      const w = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const w = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       key("3", "Digit3");
       await flushPromises();
       expect(tool(w, "Draw")).toBe(true);
@@ -886,7 +856,7 @@ describe("MapWorkbench", () => {
     });
 
     it("J picks the Wrap tool, which gave X to the tile-set swap", async () => {
-      const w = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      const w = mount(MapWorkbench, { props: { map: baseMap }, ...editModeStubs });
       key("j", "KeyJ");
       await flushPromises();
       expect(w.find("[data-slip]").text()).toContain("Walls");

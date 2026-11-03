@@ -265,6 +265,8 @@ const {
 const emit = defineEmits<{
   /** The combatants with no square, whenever they change: the tray lists exactly these. */
   unplaced: [combatants: RunCombatant[]];
+  /** The rooms the map has cells for, the fight's own first: what the tray offers to scatter foes in. */
+  rooms: [rooms: { id: string; name: string }[]];
   placed: [instanceId: string];
   "cancel-placing": [];
   /** The DM picked a token on the map (null: Esc cleared the selection and the sheet follows the turn again). */
@@ -668,6 +670,7 @@ function onDrop(e: DragEvent) {
 }
 
 watch(state.unplaced, (list) => emit("unplaced", list), { immediate: true });
+watch(state.rooms, (list) => emit("rooms", list), { immediate: true });
 
 const hint = computed(() => {
   if (!canEdit.value) return "";
@@ -692,7 +695,7 @@ watch(
   },
 );
 
-defineExpose({ resetView, backToStart: () => moves.undoMove("all") });
+defineExpose({ resetView, backToStart: () => moves.undoMove("all"), scatterInRoom: (roomId: string) => state.scatterInRoom(roomId) });
 </script>
 
 <style scoped>

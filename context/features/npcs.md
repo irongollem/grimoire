@@ -137,6 +137,7 @@ lets the buttons wrap and keeps the page's own name (see the note in
 | Name          | Text input (required) |                                                                     |
 | Disguise Name | Text input            | The alter-ego name shown to players when concealed                  |
 | Species       | Text input            | Free-text, e.g. "Half-Elf", "Tiefling"                              |
+| Size          | `AppSelect`           | Tiny to Gargantuan, Medium by default: the token's footprint on the battle map (#1125 decision 13) |
 | Alignment     | Select                | 10 D&D alignments + Unaligned                                       |
 | Age (description) | Text input        | What a date cannot say ("Ancient"); replaced on the sheet by a birth date |
 | Born          | `CalendarDateInput`   | Year, then optional month and day in the campaign calendar (#1086)  |
@@ -487,6 +488,7 @@ Sort, view and filters live in `usePlayerUiStore` (`playerPeopleSortBy` / `SortD
 | `name`                          | string                                      | True name                                                                |
 | `disguise_name`                 | string \| null                              | Alter-ego name                                                           |
 | `race`                          | string \| null                              | Free-text species                                                        |
+| `size`                          | `tiny` … `gargantuan`, default `medium`     | Token footprint on the battle map (`20261103093423`, #1125)              |
 | `alignment`                     | string \| null                              | e.g. "Lawful Good"                                                       |
 | `age`                           | string \| null                              | Descriptive or numeric                                                   |
 | `occupation`                    | string \| null                              |                                                                          |

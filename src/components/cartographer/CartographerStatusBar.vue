@@ -8,11 +8,7 @@
     <span>
       Zoom: <strong class="text-foreground">{{ Math.round(zoom * 100) }}%</strong>
     </span>
-    <span v-if="viewMode">
-      Pack: <strong class="text-foreground">{{ packLabel }}</strong>
-      <span v-if="packLoadError" class="text-destructive"> ({{ packLoadError }})</span>
-    </span>
-    <span v-else-if="packLoadError" class="text-destructive">{{ packLoadError }}</span>
+    <span v-if="packLoadError" class="text-destructive">{{ packLoadError }}</span>
     <span v-if="cellsPainted > 0">
       Floor cells: <strong class="text-foreground">{{ cellsPainted }}</strong>
     </span>
@@ -38,8 +34,6 @@ import { IconCenter } from "@/lib/icons";
 defineProps<{
   hoverCell: [number, number] | null;
   zoom: number;
-  viewMode: boolean;
-  packLabel: string;
   packLoadError: string | null;
   cellsPainted: number;
   caution: string | null;

@@ -60,7 +60,6 @@ export interface MapRenderScene {
   // Interaction state render() reads — same types the view already declares
   // for these refs.
   activeTool: Tool;
-  viewMode: boolean;
   hoveredEdge: CellEdge | null;
   hoverCell: [number, number] | null;
   /** Round brush cursor, in fractional cells; radius in cells; dashed when erasing (Alt). Only set while the Brush is active. */
@@ -391,7 +390,6 @@ export function renderMap(scene: MapRenderScene): void {
     fallbackRuntime,
     currentPackId,
     activeTool,
-    viewMode,
     hoveredEdge,
     hoverCell,
     brushPreview,
@@ -576,7 +574,7 @@ export function renderMap(scene: MapRenderScene): void {
     );
   }
 
-  if (editorMarks && !viewMode) paintEditorMarks(ctx, layers, editorMarks, tilePx, viewportOffset);
+  if (editorMarks) paintEditorMarks(ctx, layers, editorMarks, tilePx, viewportOffset);
 
   // Origin marker
   const ox = 0 - viewportOffset.x;
@@ -596,45 +594,43 @@ export function renderMap(scene: MapRenderScene): void {
     }
   }
 
-  if (!viewMode) {
-    // Cell-hover highlight (only when the active tool targets cells)
-    if (hoverCell && (activeTool === "floor" || activeTool === "template" || (activeTool === "eraser" && !hoveredEdge))) {
-      const [hx, hy] = hoverCell;
-      const drawX = hx * tilePx - viewportOffset.x;
-      const drawY = hy * tilePx - viewportOffset.y;
-      ctx.strokeStyle = activeTool === "eraser" ? "rgba(220, 80, 80, 0.6)" : "rgba(255, 255, 255, 0.35)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(drawX, drawY, tilePx, tilePx);
-    }
+  // Cell-hover highlight (only when the active tool targets cells)
+  if (hoverCell && (activeTool === "floor" || activeTool === "template" || (activeTool === "eraser" && !hoveredEdge))) {
+    const [hx, hy] = hoverCell;
+    const drawX = hx * tilePx - viewportOffset.x;
+    const drawY = hy * tilePx - viewportOffset.y;
+    ctx.strokeStyle = activeTool === "eraser" ? "rgba(220, 80, 80, 0.6)" : "rgba(255, 255, 255, 0.35)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(drawX, drawY, tilePx, tilePx);
+  }
 
-    if (brushPreview && activeTool === "brush") {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(brushPreview.x * tilePx - viewportOffset.x, brushPreview.y * tilePx - viewportOffset.y, brushPreview.radius * tilePx, 0, Math.PI * 2);
-      ctx.setLineDash(brushPreview.erase ? [6, 4] : []);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = brushPreview.erase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 255, 255, 0.7)";
-      ctx.stroke();
-      ctx.restore();
-    }
+  if (brushPreview && activeTool === "brush") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(brushPreview.x * tilePx - viewportOffset.x, brushPreview.y * tilePx - viewportOffset.y, brushPreview.radius * tilePx, 0, Math.PI * 2);
+    ctx.setLineDash(brushPreview.erase ? [6, 4] : []);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = brushPreview.erase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 255, 255, 0.7)";
+    ctx.stroke();
+    ctx.restore();
+  }
 
-    // Edge-hover highlight (wall / door / edge-aware eraser tools)
-    if (hoveredEdge) {
-      const { x, y, side } = hoveredEdge;
-      const baseX = x * tilePx - viewportOffset.x;
-      const baseY = y * tilePx - viewportOffset.y;
-      const isErase = activeTool === "eraser";
-      ctx.strokeStyle = isErase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 220, 100, 0.85)";
-      ctx.lineWidth = Math.max(3, tilePx * 0.08);
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      switch (side) {
-        case "N": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX + tilePx, baseY); break;
-        case "S": ctx.moveTo(baseX, baseY + tilePx);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-        case "W": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX, baseY + tilePx); break;
-        case "E": ctx.moveTo(baseX + tilePx, baseY);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-      }
-      ctx.stroke();
+  // Edge-hover highlight (wall / door / edge-aware eraser tools)
+  if (hoveredEdge) {
+    const { x, y, side } = hoveredEdge;
+    const baseX = x * tilePx - viewportOffset.x;
+    const baseY = y * tilePx - viewportOffset.y;
+    const isErase = activeTool === "eraser";
+    ctx.strokeStyle = isErase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 220, 100, 0.85)";
+    ctx.lineWidth = Math.max(3, tilePx * 0.08);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    switch (side) {
+      case "N": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX + tilePx, baseY); break;
+      case "S": ctx.moveTo(baseX, baseY + tilePx);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+      case "W": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX, baseY + tilePx); break;
+      case "E": ctx.moveTo(baseX + tilePx, baseY);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
     }
+    ctx.stroke();
   }
 }

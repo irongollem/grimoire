@@ -41,7 +41,6 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     fallbackRuntime: null,
     currentPackId: "stone-dungeon",
     activeTool: "floor",
-    viewMode: false,
     hoveredEdge: null,
     hoverCell: null,
     selectedCell: null,

@@ -8,7 +8,6 @@
     <MapWorkbench
       ref="workbenchRef"
       :map="seed"
-      :view-mode="false"
       :save-state="saveState"
       :menu-actions="menuActions"
       :frame="frame"

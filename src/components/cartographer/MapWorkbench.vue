@@ -1,9 +1,8 @@
 <template>
-  <div ref="rootEl" :class="viewMode ? 'flex flex-col lg:flex-row gap-3 mt-2' : 'flex h-full min-h-0 flex-col gap-2'">
-    <!-- Edit: a column of the 3rem bar and, under it, the rail and the canvas, filling whatever
-         height the host gives it. View: the canvas alone, as the page always showed it. -->
+  <div ref="rootEl" class="flex h-full min-h-0 flex-col gap-2">
+    <!-- A column of the 3rem bar and, under it, the rail and the canvas, filling whatever
+         height the host gives it. -->
     <CartographerBar
-      v-if="!viewMode"
       :darkness="darkness"
       :campaign-id="campaignId"
       :can-undo="canUndo"
@@ -38,9 +37,9 @@
       <template #end><slot name="bar-end" /></template>
     </CartographerBar>
 
-    <div :class="viewMode ? 'contents' : 'flex min-h-0 flex-1 flex-col-reverse gap-2 lg:flex-row'">
+    <div class="flex min-h-0 flex-1 flex-col-reverse gap-2 lg:flex-row">
       <CartographerToolRail
-        v-if="!viewMode && activeLayer !== 'picture'"
+        v-if="activeLayer !== 'picture'"
         :families="activeLayer === 'drawing' ? RAIL_FAMILIES : PLAN_RAIL_FAMILIES"
         :active-tool="activeLayer === 'drawing' ? activeTool : plan.planTool.value"
         :tile-set="activeLayer === 'drawing' ? tileSetForRail : undefined"
@@ -51,14 +50,12 @@
       />
 
       <!-- Canvas. Pinned to the frame's edges rather than `h-full`: the frame's height
-           comes from the flex row (or, in view mode, `min-height` alone), and a
+           comes from the flex row, and a
            percentage height does not resolve against a min-height, so the canvas fell
            back to its own attribute height and drew a strip across the top of an
            otherwise white frame. -->
       <div
-        class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden"
-        :class="viewMode ? '' : 'min-h-64'"
-        :style="viewMode ? 'min-height: 60vh' : undefined"
+        class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden min-h-64"
         @pointerenter="pointerOverMap = true"
         @pointerleave="pointerOverMap = false"
       >
@@ -125,7 +122,7 @@
 
         <!-- The base image is shown on a guessed grid until the DM lines one up: say so, and go there. -->
         <AppButton
-          v-if="!viewMode && gridNotLinedUp"
+          v-if="gridNotLinedUp"
           data-slip
           variant="tinted"
           tone="caution"
@@ -139,8 +136,6 @@
         <CartographerStatusBar
           :hover-cell="hoverCell"
           :zoom="zoom"
-          :view-mode="viewMode"
-          :pack-label="packLabel"
           :pack-load-error="packLoadError"
           :cells-painted="cellsPainted"
           :caution="changedRegionsCaution"
@@ -149,121 +144,112 @@
 
         <!-- The active tool and its options, top left where the eye lands first. On a phone
              it spans the top and the rail lies along the bottom. -->
-        <template v-if="!viewMode">
-          <CartographerToolOptions
-            v-if="activeLayer === 'drawing'"
-            ref="toolOptionsRef"
-            :title="slipTitle"
-            :caption="slipCaption"
-            :family-tools="activeFamily?.tools"
-            :active-tool="activeTool"
-            :place-item="placeItem"
-            :place-label="placeItemInfo.label"
-            :place-image-url="placeItemInfo.imageUrl"
-            :place-footprint="placeItemInfo.footprint"
-            :place-rotation="placeRotation"
-            :selected-placed="selectedDressingInfo"
-            :catalogue-open="drawer === 'place'"
-            :runtime="packRuntime"
-            :manifest="packRuntime?.manifest ?? null"
-            :active-wall-kind="activeWallKind"
-            :wall-visible="wallVisible"
-            :selected-wall-visible="selectedWallVisible"
-            :active-wall-decal="activeWallDecal"
-            :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
-            :selected-cell="selectedCell"
-            :selected-cell-floor="selectedCellFloor"
-            :selected-cell-solid="selectedCellSolid"
-            :selected-cell-edges="selectedCellEdges"
-            :selected-cell-object-category="selectedCellObjectCategory"
-            :selected-cell-linked-names="selectedCellLinkedNames"
-            :annotation-text="annotationText"
-            :linked-note-id="linkedNoteId"
-            :linked-encounter-id="linkedEncounterId"
-            :linked-trap-id="linkedTrapId"
-            :linked-feature-id="linkedFeatureId"
-            :note-options="noteOptions"
-            :encounter-options="encounterOptions"
-            :trap-options="trapOptions"
-            :feature-options="featureOptions"
-            :active-template-shape="activeTemplateShape"
-            :template-shapes="TEMPLATE_SHAPES"
-            :brush-radius="brushRadius"
-            :brush-region-mode="brushRegionMode"
-            :brush-category="brushCategory"
-            :brush-wall-mode="brushWallMode"
-            :selected-ground-region="selectedGroundRegion"
-            :rect-walls="rectWalls"
-            :light="shownLight"
-            :light-selected="selectedLightId !== null"
-            :wall-run="selectedWallRun"
-            :wall-refusal="wallRefusal"
-            @delete-wall-run="deleteSelectedWall"
-            @update:light="onLightEdit"
-            @delete-light="deleteSelectedLight"
-            @update:active-tool="activeTool = $event"
-            @update:place-rotation="placeRotation = $event"
-            @rotate-selected="rotateSelectedDressing"
-            @delete-selected="deleteSelectedDressing"
-            @open-catalogue="drawer = 'place'"
-            @update:active-wall-kind="activeWallKind = $event"
-            @update:wall-visible="wallVisible = $event"
-            @update:selected-wall-visible="setSelectedWallVisible"
-            @update:active-wall-decal="activeWallDecal = $event"
-            @update:annotation-text="annotationText = $event"
-            @update:linked-note-id="linkedNoteId = $event"
-            @update:linked-encounter-id="linkedEncounterId = $event"
-            @update:linked-trap-id="linkedTrapId = $event"
-            @update:linked-feature-id="linkedFeatureId = $event"
-            @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
-            @update:brush-radius="brushRadius = $event"
-            @update:brush-region-mode="brushRegionMode = $event"
-            @update:brush-category="brushCategory = $event"
-            @update:brush-wall-mode="brushWallMode = $event"
-            @update:ground-wall-mode="setGroundWallMode"
-            @update:ground-name="renameGroundRegion"
-            @delete-ground-region="deleteGroundRegion"
-            @update:rect-walls="rectWalls = $event"
-          />
-          <CartographerPictureOptions
-            v-else-if="activeLayer === 'picture'"
-            v-model:draft="draftCalibration"
-            v-model:box-mode="boxMode"
-            :has-picture="!!referencePicture" :calibrated="!!referencePicture?.calibration"
-            :moving="stack.motion !== null" :battle-map="site?.is_battle_map ?? false"
-            :busy="pictureBusy" :lining-up="liningUp" :natural="pictureNatural"
-            @upload="emit('picture-upload', $event)"
-            @remove="emit('picture-remove')"
-            @line-up="startLineUp"
-            @done="finishLineUp"
-            @cancel="cancelLineUp"
-            @update:battle-map="emit('update:isBattleMap', $event)"
-          />
-          <CartographerPlanOptions
-            v-else
-            v-model:trace-tool="plan.traceTool.value"
-            v-model:template-shape="plan.templateShape.value"
-            v-model:zone-kind="plan.zoneKind.value"
-            v-model:zone-label="plan.zoneLabel.value"
-            :title="planToolLabel"
-            :plan-tool="plan.planTool.value"
-            :list-open="drawer === 'zoning'"
-            @start-new="plan.startNew()"
-            @toggle-list="drawer = drawer === 'zoning' ? null : 'zoning'"
-          />
-        </template>
-
-        <!-- View options (Reference) keep the top right in view mode; while editing they
-             are in the bar's settings. The host's own controls moved into the bar. -->
-        <div v-if="viewMode && referencePicture" data-slip class="absolute top-2 right-2 px-2 py-1 rounded-md bg-card/95 border border-border">
-          <AppCheckbox v-model="showPictureReference" label="Reference" size="sm" />
-        </div>
+        <CartographerToolOptions
+          v-if="activeLayer === 'drawing'"
+          ref="toolOptionsRef"
+          :title="slipTitle"
+          :caption="slipCaption"
+          :family-tools="activeFamily?.tools"
+          :active-tool="activeTool"
+          :place-item="placeItem"
+          :place-label="placeItemInfo.label"
+          :place-image-url="placeItemInfo.imageUrl"
+          :place-footprint="placeItemInfo.footprint"
+          :place-rotation="placeRotation"
+          :selected-placed="selectedDressingInfo"
+          :catalogue-open="drawer === 'place'"
+          :runtime="packRuntime"
+          :manifest="packRuntime?.manifest ?? null"
+          :active-wall-kind="activeWallKind"
+          :wall-visible="wallVisible"
+          :selected-wall-visible="selectedWallVisible"
+          :active-wall-decal="activeWallDecal"
+          :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
+          :selected-cell="selectedCell"
+          :selected-cell-floor="selectedCellFloor"
+          :selected-cell-solid="selectedCellSolid"
+          :selected-cell-edges="selectedCellEdges"
+          :selected-cell-object-category="selectedCellObjectCategory"
+          :selected-cell-linked-names="selectedCellLinkedNames"
+          :annotation-text="annotationText"
+          :linked-note-id="linkedNoteId"
+          :linked-encounter-id="linkedEncounterId"
+          :linked-trap-id="linkedTrapId"
+          :linked-feature-id="linkedFeatureId"
+          :note-options="noteOptions"
+          :encounter-options="encounterOptions"
+          :trap-options="trapOptions"
+          :feature-options="featureOptions"
+          :active-template-shape="activeTemplateShape"
+          :template-shapes="TEMPLATE_SHAPES"
+          :brush-radius="brushRadius"
+          :brush-region-mode="brushRegionMode"
+          :brush-category="brushCategory"
+          :brush-wall-mode="brushWallMode"
+          :selected-ground-region="selectedGroundRegion"
+          :rect-walls="rectWalls"
+          :light="shownLight"
+          :light-selected="selectedLightId !== null"
+          :wall-run="selectedWallRun"
+          :wall-refusal="wallRefusal"
+          @delete-wall-run="deleteSelectedWall"
+          @update:light="onLightEdit"
+          @delete-light="deleteSelectedLight"
+          @update:active-tool="activeTool = $event"
+          @update:place-rotation="placeRotation = $event"
+          @rotate-selected="rotateSelectedDressing"
+          @delete-selected="deleteSelectedDressing"
+          @open-catalogue="drawer = 'place'"
+          @update:active-wall-kind="activeWallKind = $event"
+          @update:wall-visible="wallVisible = $event"
+          @update:selected-wall-visible="setSelectedWallVisible"
+          @update:active-wall-decal="activeWallDecal = $event"
+          @update:annotation-text="annotationText = $event"
+          @update:linked-note-id="linkedNoteId = $event"
+          @update:linked-encounter-id="linkedEncounterId = $event"
+          @update:linked-trap-id="linkedTrapId = $event"
+          @update:linked-feature-id="linkedFeatureId = $event"
+          @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
+          @update:brush-radius="brushRadius = $event"
+          @update:brush-region-mode="brushRegionMode = $event"
+          @update:brush-category="brushCategory = $event"
+          @update:brush-wall-mode="brushWallMode = $event"
+          @update:ground-wall-mode="setGroundWallMode"
+          @update:ground-name="renameGroundRegion"
+          @delete-ground-region="deleteGroundRegion"
+          @update:rect-walls="rectWalls = $event"
+        />
+        <CartographerPictureOptions
+          v-else-if="activeLayer === 'picture'"
+          v-model:draft="draftCalibration"
+          v-model:box-mode="boxMode"
+          :has-picture="!!referencePicture" :calibrated="!!referencePicture?.calibration"
+          :moving="stack.motion !== null" :battle-map="site?.is_battle_map ?? false"
+          :busy="pictureBusy" :lining-up="liningUp" :natural="pictureNatural"
+          @upload="emit('picture-upload', $event)"
+          @remove="emit('picture-remove')"
+          @line-up="startLineUp"
+          @done="finishLineUp"
+          @cancel="cancelLineUp"
+          @update:battle-map="emit('update:isBattleMap', $event)"
+        />
+        <CartographerPlanOptions
+          v-else
+          v-model:trace-tool="plan.traceTool.value"
+          v-model:template-shape="plan.templateShape.value"
+          v-model:zone-kind="plan.zoneKind.value"
+          v-model:zone-label="plan.zoneLabel.value"
+          :title="planToolLabel"
+          :plan-tool="plan.planTool.value"
+          :list-open="drawer === 'zoning'"
+          @start-new="plan.startNew()"
+          @toggle-list="drawer = drawer === 'zoning' ? null : 'zoning'"
+        />
 
         <!-- One drawer at a time, over the canvas's right edge: the Dressing props, or Zoning's one list
              (Map Table frame 19). The Zoning rail decides which GESTURE a click means; naming a room,
              binding it to a place, reshaping and deleting stay list actions, which is what this gives it. -->
         <CartographerDrawerPanels
-          v-if="!viewMode"
           :drawer="drawer"
           :title="drawerTitle"
           :site="site"
@@ -314,8 +300,6 @@ import { groundCellBounds } from "@/cartographer/groundRegions";
 //               unsaved new map / while the host's query is still loading.
 //               Changing it re-initializes every editable field (same rule
 //               the pre-extraction view's `watch(loadedMap, ...)` followed).
-// `viewMode` — read-only display: pan/zoom only, no bar, no rail, no options,
-//               no painting. The host derives this from its own route query.
 // `saveState` — the host's save state text for the bar ("Saving…", "Unsaved changes").
 // `site`     — optional, `MapStackSource`-shaped (see
 //               `lib/locations/mapStack.ts`) plus the site's own `id`. When
@@ -374,7 +358,6 @@ import { groundCellBounds } from "@/cartographer/groundRegions";
 import { computed, onMounted, ref, watch } from "vue";
 
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import { storeToRefs } from "pinia";
 import { usePreferredReducedMotion } from "@vueuse/core";
@@ -424,11 +407,10 @@ import type { GridCalibration, LocationType } from "@/types/location.types";
 import { squareReadout, useCanvasFraming, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
 
 const {
-  map, viewMode, site, spaces, saveState, menuActions = [], reviewCount, showReady = false, startLayer,
+  map, site, spaces, saveState, menuActions = [], reviewCount, showReady = false, startLayer,
   defaultName = "Untitled Map", pictureBusy = false, frame,
 } = defineProps<{
   map: DungeonMap | null;
-  viewMode: boolean;
   /** The layer to open on, when the host was sent for one ("Place it" asks for the Plan). Absent: the Plan
    *  when the site already has a map to trace over, else the Drawing. */
   startLayer?: EditorLayer;
@@ -570,7 +552,7 @@ const activeLayer = ref<EditorLayer>(
 const { setSecondPack, swapTileSets, tileSetForRail } = useWorkbenchTileSets({
   mapId: () => map?.id, selectablePacks, currentPackId, loadedRuntimes, packRuntime, activeLayer,
 });
-const { showPictureReference, referenceImageEl, buildReferenceImage, gridNotLinedUp } = useReferencePicture(referencePicture, activeLayer);
+const { referenceImageEl, buildReferenceImage, gridNotLinedUp } = useReferencePicture(referencePicture, activeLayer);
 function toggleGrid(): void {
   gridShown.value = !gridShown.value;
 }
@@ -611,13 +593,13 @@ const {
   selectedWallVisible, setSelectedWallVisible, renameGroundRegion,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
-  dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
+  dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS,
   placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape, brushRadius, rectWalls,
   brushRegionMode, brushCategory, brushWallMode,
   wallVisible,
   selectedCell, toolOptionsRef, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
-  extraRenderDeps: [showPictureReference, referenceImageEl],
+  extraRenderDeps: [referenceImageEl],
   plan, activeLayer, hasLayerTabs: !!site, gridAlpha, toggleGrid, keysActive, swapTileSets,
   groundCanvasEl, aidsCanvasEl, motionPlaying: () => motionOn.value,
 });
@@ -660,10 +642,9 @@ function onLightEdit(patch: Partial<TileLight>): void {
 }
 
 // The hand shows while Space is held or the Pan tool is armed on the Drawing, and closes
-// into a fist for the drag itself. View mode has no tools, so it keeps the plain arrow.
+// into a fist for the drag itself.
 const canvasCursor = computed(() => {
   if (isPanning.value) return "cursor-grabbing";
-  if (viewMode) return "cursor-default";
   if (spaceHeld.value || (activeLayer.value === "drawing" && activeTool.value === "pan")) return "cursor-grab";
   return "cursor-crosshair";
 });

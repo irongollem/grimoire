@@ -51,7 +51,7 @@ export type { MapCanvasEditorOptions } from "./mapCanvasEditor.types";
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
     canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
-    dressing, placeItem, selectedDressingId, activeTool, tools, viewMode, placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape,
+    dressing, placeItem, selectedDressingId, activeTool, tools, placeRotation, activeWallKind, activeWallDecal, lightDraft, activeTemplateShape,
     brushRadius, rectWalls, selectedCell, toolOptionsRef, mapKey,
     plan, activeLayer, hasLayerTabs, toggleGrid, keysActive, swapTileSets,
   } = opts;
@@ -208,7 +208,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const dressingTool = useDressingTool({
     layers, catalog: dressing, activeTool, brushId: armedProp, brushRotation: placeRotation,
     selectedId: selectedDressingId,
-    isActive: () => !viewMode() && !isPlanLayerActive(),
+    isActive: () => !isPlanLayerActive(),
     snapshotStr, pushCommand, markDirty,
   });
 
@@ -320,7 +320,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   }
 
   const pointer = useEditorPointer({
-    canvasEl, layers, metadata, activeTool, viewMode, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
+    canvasEl, layers, metadata, activeTool, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
     viewportOffset, isPanning, isPainting, previewCells, hoverCell, hoverPoint, hoveredEdge, geometry, navigation, straight,
     painting, brush, dressingTool, angledTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
     snapshotStr, pushCommand, markDirty, dropTouch: () => touch.dropPending(),
@@ -341,7 +341,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (isPlanLayerActive()) planTools!.onDoubleClick(ev);
     else if (activeTool.value === "angledWall") angledTool.finish();
     // Double-click a picked wall: a node there (#1125 frame 17).
-    else if (activeTool.value === "select" && !viewMode() && wallNodes.hasSelection.value) {
+    else if (activeTool.value === "select" && wallNodes.hasSelection.value) {
       wallNodes.doubleClick(fractionalCellAt(ev));
     }
   }
@@ -372,7 +372,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         tools,
         hasLayerTabs,
         layer: activeLayer?.value,
-        zoningTools: planTools && !viewMode() ? PLAN_TOOLS : undefined,
+        zoningTools: planTools ? PLAN_TOOLS : undefined,
         placeArmed: placeItem.value !== null,
         angledRunOpen: angledTool.run.value.length > 0,
         selectionDeletable:

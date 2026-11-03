@@ -1631,8 +1631,8 @@ decisions, and `QuestRulesPanel.vue` for where a DM authors "when a place…".
 the mechanism but left it reachable only from `QuestRulesPanel.vue`, where the
 DM re-finds the room in a campaign-wide combobox — the complaint that
 opened #878: "I can't hang quest outcomes/beats etc. to these zones where needed."
-`ZoningList.vue` (Zoning's one list of rooms and zones on a site's floor plan, Build mode
-only) now carries a "Rules" toggle on every **bound room** row, opening
+`ZoningList.vue` (Zoning's one list of rooms and zones on a site's floor plan, in the
+full-screen Edit map since #1125 retired Build) now carries a "Rules" toggle on every **bound room** row, opening
 `SiteMapRoomRules.vue` — list the room's existing rules, add a new one: pick a
 quest, pick which fact (`explored`/`cleared`/`looted`), pick the ledger verb,
 pick the objective. Both components read `useQuestConsequencesByLocations`

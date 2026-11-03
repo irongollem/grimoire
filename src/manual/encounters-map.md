@@ -43,7 +43,7 @@ A bar under the map explains what you're looking at: **Party** (the ring colour 
 A creature's size sets its footprint, for every kind of creature: **Tiny** shares a square (up to four to a square), **Small** and **Medium** take one, **Large** 2 x 2, **Huge** 3 x 3, **Gargantuan** 4 x 4. A monster takes its stat block's size, an NPC its **Size** field, a companion its own size, a character its species' size, and a Wild Shaped druid the beast's. **Enlarge** and **Reduce** (and anything else that changes size) are set per fight in the turn card's **Size** menu.
 
 - **Before combat**, from the builder's Battlefield Setup panel: place enemy and NPC tokens ahead of time; their positions are saved with the encounter. See [Encounter Builder](#encounter-builder).
-- **On the Play screen**, combatants without a place wait in the **Not on the map yet** tray under the initiative list: drag one onto the map, or click it and then click a square. Party tokens are dropped for you onto a free square inside the focus room the moment you go live, and Grimoire only fills tokens that have no position, so it never disturbs one you've moved.
+- **On the Play screen**, combatants without a place wait in the **Not on the map yet** tray under the initiative list: drag one onto the map, or click it and then click a square. To seat every waiting foe at once, use **Scatter in a room** under the tray and pick a room (the fight's own room comes first): Grimoire spreads them out across it, clear of everyone already on the map, with big creatures placed first. Anyone the room has no space for stays in the tray. Party tokens are dropped for you onto a free square inside the focus room the moment you go live, and Grimoire only fills tokens that have no position, so it never disturbs one you've moved.
 
 ## Moving tokens
 
@@ -97,6 +97,12 @@ A zone you've traced as difficult terrain is outlined in dashed cyan on the map 
 When a player character's token moves into a traced room during a fight, Grimoire marks that room as explored right then, with the note "entered in a fight". Nothing is asked. It only ever adds: it never un-explores a room.
 
 When you end combat, the party is left standing where the fight left them, so the explore screen picks up from those squares.
+
+## The Table screen
+
+The Table screen is the map as your players see it, for a TV or second monitor at the table. Open it with **Table screen** in the Play screen's bar, or while exploring a site; it opens in its own window, so drag it onto the TV and make it full screen. Each map has one Table screen (`/locations/:id/table`), and you can leave it open all session: it shows the party exploring, switches to the fight when one goes live on that map, and goes back to exploring when the fight ends.
+
+It always shows what the players would see, never your view: the fog is solid rather than see-through, monsters show no hit points, every player character's token is shown, and other tokens appear only where the party can see them. It follows whoever's turn it is, and it shows pings, measure lines and drawings as you make them. A moving map plays there too, as long as the window is on the same computer that holds the map's file.
 
 ## What your players see
 

@@ -102,17 +102,6 @@ describe("useReferencePicture", () => {
     layer.value = "picture";
     expect(buildReferenceImage(10, { x: 0, y: 0 })?.opacity).toBe(1);
   });
-
-  it("the 'show picture underneath' switch does not hide it on the Picture layer", () => {
-    const pic = ref<WorkbenchPicture | null>({ url: "", calibration: calibrationFor({ width: 100, height: 100 }, 10) });
-    const layer = ref<"drawing" | "plan" | "picture">("drawing");
-    const { buildReferenceImage, referenceImageEl, showPictureReference } = useReferencePicture(pic, layer);
-    referenceImageEl.value = { naturalWidth: 100, naturalHeight: 100 } as HTMLImageElement;
-    showPictureReference.value = false;
-    expect(buildReferenceImage(10, { x: 0, y: 0 })).toBeNull();
-    layer.value = "picture";
-    expect(buildReferenceImage(10, { x: 0, y: 0 })).not.toBeNull();
-  });
 });
 
 describe("useFitMapOnFirstEntry", () => {

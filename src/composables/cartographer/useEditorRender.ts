@@ -57,7 +57,7 @@ export function useEditorRender(inputs: {
   } = inputs;
   const {
     canvasEl, layers, metadata, editRevision, currentPackId, darkness, packRuntime, loadedRuntimes, dressing, placeItem,
-    selectedDressingId, cellGlyphs, activeTool, viewMode, placeRotation, lightDraft, brushRadius, selectedCell,
+    selectedDressingId, cellGlyphs, activeTool, placeRotation, lightDraft, brushRadius, selectedCell,
     getReferenceImage, extraRenderDeps, activeLayer, plan, gridAlpha, groundCanvasEl, aidsCanvasEl, motionPlaying,
   } = opts;
   const { devicePixelDims, visibleCellBounds } = geometry;
@@ -124,10 +124,9 @@ export function useEditorRender(inputs: {
       currentPackId: currentPackId.value,
       darkness: darkness.value,
       activeTool: activeTool.value,
-      viewMode: viewMode(),
       hoveredEdge: hoveredEdge.value,
       hoverCell: hoverCell.value,
-      brushPreview: activeTool.value === "brush" && hoverPoint.value && !viewMode()
+      brushPreview: activeTool.value === "brush" && hoverPoint.value
         ? { x: hoverPoint.value[0], y: hoverPoint.value[1], radius: brushRadius.value, erase: altHeld.value }
         : null,
       selectedCell: selectedCell.value,
@@ -246,9 +245,6 @@ export function useEditorRender(inputs: {
   }
   // Motion starting or stopping swaps one canvas for two (or back): draw again, once the ground canvas is mounted.
   watch(() => [!!motionPlaying?.(), groundCanvasEl?.value, aidsCanvasEl?.value], () => scheduleRender(), { flush: "post" });
-  // viewMode is a getter over a prop, not a ref — watched separately so the
-  // list above can stay a plain array of refs.
-  watch(viewMode, () => scheduleRender());
 
   return {
     scheduleRender,

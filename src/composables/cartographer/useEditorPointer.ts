@@ -36,7 +36,6 @@ export function useEditorPointer(inputs: {
   layers: Ref<DungeonMapLayers>;
   metadata: Ref<Record<CellKey, CellMetadata>>;
   activeTool: Ref<Tool>;
-  viewMode: () => boolean;
   selectedCell: Ref<[number, number] | null>;
   toolOptionsRef: Ref<{ annotationInputEl: AppInputHandle | null } | null>;
   rectWalls: Ref<boolean>;
@@ -68,7 +67,7 @@ export function useEditorPointer(inputs: {
   dropTouch: () => void;
 }) {
   const {
-    canvasEl, layers, metadata, activeTool, viewMode, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
+    canvasEl, layers, metadata, activeTool, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
     viewportOffset, isPanning, isPainting, previewCells, hoverCell, hoverPoint, hoveredEdge, geometry, navigation, straight,
     painting, brush, dressingTool, angledTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
     snapshotStr, pushCommand, markDirty, dropTouch,
@@ -110,12 +109,6 @@ export function useEditorPointer(inputs: {
   function toolPointerDownNow(ev: PointerEvent): void {
     const local = getLocalPointer(ev);
     lastPointer = local;
-
-    // View mode: pan only — skip all painting logic.
-    if (viewMode()) {
-      isPanning.value = true;
-      return;
-    }
 
     // Middle button, or left with Space held: pans with any tool on either layer.
     if (navigation.isForcedPan(ev)) {
@@ -313,7 +306,7 @@ export function useEditorPointer(inputs: {
     dressingTool.onPointerMove([cx, cy]);
     if (activeTool.value === "angledWall") angledTool.track(fractionalCellAt(ev), ev.altKey);
     if (activeTool.value === "light" || lightTool.isHolding()) lightTool.onPointerMove(fractionalCellAt(ev), ev.altKey);
-    if (activeTool.value === "select" && !viewMode() && !isPanning.value && !isPlanLayerActive()) {
+    if (activeTool.value === "select" && !isPanning.value && !isPlanLayerActive()) {
       selectTool.move(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
       if (wallNodes.dragging.value || selectTool.isHolding()) {
         lastPointer = local;

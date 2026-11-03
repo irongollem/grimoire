@@ -17,6 +17,7 @@ import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location, MapMotion } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
+import { createOccupancy, startOffsets } from "@/lib/battlemap/occupancy";
 import { currentMapLive } from "@/lib/battlemap/liveLayer";
 import type { MapLive } from "@/types/mapLive.types";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -208,32 +209,13 @@ export function seedTokenPositions(
   const cells = focusCells.map((k) => parseCellKey(k)).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
   const available = new Set<CellKey>(focusCells);
   // Occupancy is tracked in half cells so a Tiny token can claim a quarter square.
-  const occupied = new Set<string>();
-
-  /** Half-cell units a box starting at (x, y) with `size` cells per side covers. */
-  function units(x: number, y: number, size: number): [number, number][] {
-    const out: [number, number][] = [];
-    const span = Math.round(size * 2);
-    for (let dy = 0; dy < span; dy++) {
-      for (let dx = 0; dx < span; dx++) out.push([Math.round(x * 2) + dx, Math.round(y * 2) + dy]);
-    }
-    return out;
-  }
-
-  function fits(x: number, y: number, size: number): boolean {
-    return units(x, y, size).every(([ux, uy]) =>
-      available.has(cellKey(Math.floor(ux / 2), Math.floor(uy / 2))) && !occupied.has(`${ux},${uy}`));
-  }
-
-  function claim(x: number, y: number, size: number): void {
-    for (const [ux, uy] of units(x, y, size)) occupied.add(`${ux},${uy}`);
-  }
+  const { fits, claim } = createOccupancy(available);
 
   return combatants.map((c) => {
     if (c.type !== "player" || c.position) return c;
     const size = footprintOf(c);
     // Whole squares for anything a square or larger; the four quarters of a square, in reading order, for a Tiny one.
-    const offsets: [number, number][] = size < 1 ? [[0, 0], [0.5, 0], [0, 0.5], [0.5, 0.5]] : [[0, 0]];
+    const offsets = startOffsets(size);
     for (const [x, y] of cells) {
       for (const [ox, oy] of offsets) {
         if (!fits(x + ox, y + oy, size)) continue;

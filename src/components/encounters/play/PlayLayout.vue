@@ -28,7 +28,14 @@
     <template #left>
       <h2 class="px-3 pt-3 text-eyebrow uppercase text-muted-foreground">Initiative</h2>
       <PlayInitiativeList :selected-id="shownId" @select="onSelect" />
-      <PlayUnplacedTray :combatants="unplaced" :factions="store.factions" :armed-id="placingId" @arm="placingId = $event" />
+      <PlayUnplacedTray
+        :combatants="unplaced"
+        :factions="store.factions"
+        :armed-id="placingId"
+        :rooms="rooms"
+        @arm="placingId = $event"
+        @scatter="map?.scatterInRoom($event)"
+      />
     </template>
 
     <template #map>
@@ -44,6 +51,7 @@
         @update:group-ids="groupIds = $event"
         @update:view="view = $event"
         @unplaced="unplaced = $event"
+        @rooms="rooms = $event"
         @placed="placingId = null"
         @cancel-placing="placingId = null"
       />
@@ -143,6 +151,7 @@ const emit = defineEmits<{
 const store = useEncounterRunStore();
 const view = ref<PlayViewState>({ ...DEFAULT_PLAY_VIEW });
 const unplaced = ref<RunCombatant[]>([]);
+const rooms = ref<{ id: string; name: string }[]>([]);
 const placingId = ref<string | null>(null);
 const map = ref<InstanceType<typeof PlayMap> | null>(null);
 

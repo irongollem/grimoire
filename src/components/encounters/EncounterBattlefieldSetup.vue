@@ -143,11 +143,8 @@ const emit = defineEmits<{
 const locationIdRef = computed(() => props.locationId ?? "");
 const { location, surface } = useLocationBattleSurface(locationIdRef);
 
-const isReady = computed(() => {
-  const s = surface.value;
-  if (!s) return false;
-  return s.focusRoomId !== null || !!s.mapLocation.is_battle_map;
-});
+// Any place with a calibrated grid can be played (#1125 decision 14): a resolved surface is enough.
+const isReady = computed(() => !!surface.value);
 const readinessHint = computed(() => {
   if (!props.locationId) return "Pick a place whose map has its grid lined up to enable placement.";
   if (!location.value) return "Loading location…";
@@ -166,9 +163,6 @@ const readinessHint = computed(() => {
     return hasAnyMapLayer(location.value)
       ? "Line up the grid on this place's map (Edit map) to enable placement."
       : "The linked location has no map.";
-  }
-  if (s.focusRoomId === null && !s.mapLocation.is_battle_map) {
-    return "Tick \"Battle map\" on the location to enable placement.";
   }
   return "";
 });

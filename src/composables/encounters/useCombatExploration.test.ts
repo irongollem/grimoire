@@ -138,17 +138,10 @@ describe("resolveBattleMapGate", () => {
     expect(gate.reason).toBe("Line up the grid on this place's map first");
   });
 
-  it("blocks a resolved, non-room surface that isn't flagged as a battle map", () => {
+  // #1125 decision 14: a calibrated grid is enough; the Battle map flag only keeps a map out of the Atlas zoom.
+  it("opens a resolved, non-room surface that isn't flagged as a battle map", () => {
     const loc = makeLocation({ location_type: "dungeon", map_url: "map.png" });
     const surface = makeSurface({ focusRoomId: null, mapLocation: { ...loc, is_battle_map: false } });
-    const gate = resolveBattleMapGate({ hasLocationId: true, location: loc, surface });
-    expect(gate.canOpen).toBe(false);
-    expect(gate.reason).toBe('Toggle "Battle map" on the location to enable the VTT');
-  });
-
-  it("opens a resolved, non-room surface flagged as a battle map", () => {
-    const loc = makeLocation({ location_type: "dungeon", map_url: "map.png" });
-    const surface = makeSurface({ focusRoomId: null, mapLocation: { ...loc, is_battle_map: true } });
     const gate = resolveBattleMapGate({ hasLocationId: true, location: loc, surface });
     expect(gate).toEqual({ canOpen: true, reason: "" });
   });

@@ -5,10 +5,12 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
-import { roomCellIndex, roomsUnder, seatFromExploring } from "@/lib/locations/explore";
+import { roomBattleCells, roomCellIndex, roomsUnder, seatFromExploring } from "@/lib/locations/explore";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { seedTokenPositions } from "@/lib/battlemap/roomBridge";
+import { scatterInRoom as scatterInCells } from "@/lib/battlemap/scatter";
+import { useLocationNames } from "@/composables/locations/useLocations";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { CellKey } from "@/types/dungeonMap.types";
 import { imageGrid, type MapGrid } from "@/lib/battlemap/partySight";
@@ -26,7 +28,7 @@ import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
 import type { MagicalDarknessZone, RunCombatant } from "@/types/encounter.types";
 import type { DarknessRadius, FogBrushKind, PlayMapMode } from "./playTypes";
-import { placedCombatants, unplacedCombatants } from "./playRoster";
+import { footprintOf, placedCombatants, unplacedCombatants } from "./playRoster";
 
 /**
  * Everything the Play map reads and writes that is not geometry: which combatants to draw, the
@@ -267,6 +269,28 @@ export function usePlayMapState(
     };
   });
 
+  // ── Scatter in a room ───────────────────────────────────────────────────
+  const roomNames = useLocationNames(tracedRoomIds);
+  const cellsByRoom = computed(() => (surface.value ? roomBattleCells(regions.value ?? [], surface.value.calibration) : new Map<string, CellKey[]>()));
+  /** The rooms this map has cells for, the room the fight is anchored in first. */
+  const rooms = computed<{ id: string; name: string }[]>(() => {
+    const focus = surface.value?.focusRoomId ?? null;
+    return [...cellsByRoom.value.keys()]
+      .map((id) => ({ id, name: roomNames.value.get(id) ?? "Unnamed room" }))
+      .sort((a, b) => Number(b.id === focus) - Number(a.id === focus));
+  });
+
+  /**
+   * Places every foe the map has no square for inside a room, clear of everyone already on the map. Whoever the room
+   * has no space for stays in the tray. A placement is not a move: it spends no movement and has nothing to undo.
+   */
+  function scatterInRoom(roomId: string) {
+    const cells = cellsByRoom.value.get(roomId);
+    if (!cells || !canWrite.value) return;
+    const spots = scatterInCells(combatants.value, cells, { footprintOf: (c) => footprintOf(c, monsters.value) });
+    for (const [instanceId, position] of spots) moveCombatant(instanceId, position);
+  }
+
   /** Why there is no map to draw yet, or null when there is one. */
   const loadingState = computed(() => {
     if (!encounter.value) return "Loading encounter…";
@@ -286,10 +310,6 @@ export function usePlayMapState(
       return hasAnyMapLayer(own)
         ? "This map has no grid yet. Open the place's Edit map and line up the grid on its base image."
         : "The linked location has no map. Upload or bake a map for this location first.";
-    }
-    // A room rides its site's publish, already a legal battle map; only a plain map needs the flag.
-    if (surface.value.focusRoomId === null && !surface.value.mapLocation.is_battle_map) {
-      return "This location's map isn't marked as a battle map. Open the location and tick \"Battle map\" to use it in the VTT.";
     }
     if (following.value && liveStateLoaded.value && !isLive.value) {
       return "This window follows the live fight. Go live in the runner and the tokens appear here.";
@@ -313,6 +333,8 @@ export function usePlayMapState(
     factions,
     monsters,
     moveCombatant,
+    rooms,
+    scatterInRoom,
     memory: memory.memory,
     sight,
     viewers,

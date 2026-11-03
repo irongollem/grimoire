@@ -44,7 +44,6 @@ export interface MapCanvasEditorOptions {
   activeTool: Ref<Tool>;
   /** Enough of the palette for hotkey resolution — MapWorkbench owns the full `TOOLS` array. */
   tools: ReadonlyArray<{ id: Tool; shortcut?: string; disabled?: boolean }>;
-  viewMode: () => boolean;
   /** Degrees an object or prop is put down at, shared by both (Q/E turn it). */
   placeRotation: Ref<number>;
   /** What the wall tool paints (or, for "decal", sets on an existing wall) and the decal variant it sets. */

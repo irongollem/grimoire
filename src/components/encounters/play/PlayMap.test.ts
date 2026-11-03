@@ -41,7 +41,7 @@ vi.mock("./usePlayMapState", async () => {
   return {
     usePlayMapState: () => ({
       surface, location: r({ id: "l1" }), focusRoom: r(null), terrainZones: r([]), isLive: r(true), following: r(false),
-      combatants: r([combatant, buddy, lurker]), round: r(1), placed: r([combatant, buddy, lurker]), unplaced: r([]), activeInstanceId: active,
+      combatants: r([combatant, buddy, lurker]), round: r(1), placed: r([combatant, buddy, lurker]), unplaced: r([]), rooms: r([]), scatterInRoom: vi.fn(), activeInstanceId: active,
       moveTerrain: r({ difficult: new Set<string>(), walls: [] }),
       factions: r([]), monsters: r([]), moveCombatant: s.moveCombatant, memory: r(new Set<string>(s.memory)), sight: r(new Set<string>(s.sight)), viewers: r([]), paintFog: s.paintFog,
       revealAll: vi.fn(), hideAll: vi.fn(), revealRoomAt: s.revealRoomAt, darknessZones: r([]), toggleDarknessAt: s.toggleDarknessAt, doorStates: r([]),

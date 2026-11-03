@@ -82,6 +82,9 @@ vi.mock("@/composables/encounters/useEncounterLive", () => ({
   liveState: h.liveState,
 }));
 vi.mock("@/composables/monsters/useMonstersByIds", () => ({ useMonstersByIds: () => ({ data: ref(new Map()) }) }));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationNames: () => ref(new Map([["r1", "Crypt"], ["r2", "Hall"]])),
+}));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: vi.fn() }) }));
 
 import { usePlayMapState } from "./usePlayMapState";
@@ -116,7 +119,7 @@ describe("usePlayMapState", () => {
     h.statesLoaded.value = true;
     useCampaignStore().activeCampaign = { id: "c1", explore_party: null } as Campaign;
     h.surface.value = {
-      focusRoomId: null, focusCells: [], mapLocation: { id: "l1", is_battle_map: true },
+      focusRoomId: null, focusCells: [], mapLocation: { id: "l1", is_battle_map: false },
       calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
       live: { doors: [door] },
     };
@@ -352,6 +355,50 @@ describe("usePlayMapState", () => {
     it("does not seat a character past the right edge of the picture", () => {
       fightFrom({ site_id: "l1", positions: { pm1: { x: 10, y: 4 } } });
       expect(h.moveToken).not.toHaveBeenCalledWith("p-pm1", { x: 10, y: 4 });
+    });
+  });
+
+  // Epic #1125 decision 11: unplaced foes wait in a tray, and "Scatter in a room" places them.
+  describe("scatter in a room", () => {
+    function region(room: string, cells: string[]) {
+      return { region_role: "space", space_location_id: room, cells };
+    }
+    function liveWith(tokens: RunCombatant[], mode: "dm" | "follower" = "dm") {
+      h.regions.value = [region("r1", ["0,0", "1,0"]), region("r2", ["5,5", "6,5", "5,6", "6,6"])];
+      h.isLive.value = true;
+      h.liveState.value = { combatants_live: tokens, current_round: 1, active_combatant_index: 0 };
+      return setup(mode);
+    }
+
+    it("lists the rooms the map has cells for, named, with the room the fight is anchored in first", () => {
+      h.surface.value = { ...(h.surface.value as object), focusRoomId: "r2" };
+      const s = liveWith([combatant("orc")]);
+      expect(s.rooms.value).toEqual([{ id: "r2", name: "Hall" }, { id: "r1", name: "Crypt" }]);
+    });
+
+    it("seats the foes with no square inside the chosen room and never the party", () => {
+      const s = liveWith([combatant("orc"), { ...combatant("pc"), type: "player" }]);
+      h.moveToken.mockClear();
+      s.scatterInRoom("r2");
+      expect(h.moveToken).toHaveBeenCalledTimes(1);
+      const [id, at] = h.moveToken.mock.calls[0] as unknown as [string, { x: number; y: number }];
+      expect(id).toBe("orc");
+      expect(at.x).toBeGreaterThanOrEqual(5);
+      expect(at.y).toBeGreaterThanOrEqual(5);
+    });
+
+    it("does nothing in a follower window, which only reads the fight", () => {
+      const s = liveWith([combatant("orc")], "follower");
+      h.moveToken.mockClear();
+      s.scatterInRoom("r2");
+      expect(h.moveToken).not.toHaveBeenCalled();
+    });
+
+    it("does nothing for a room the map has no cells for", () => {
+      const s = liveWith([combatant("orc")]);
+      h.moveToken.mockClear();
+      s.scatterInRoom("elsewhere");
+      expect(h.moveToken).not.toHaveBeenCalled();
     });
   });
 });

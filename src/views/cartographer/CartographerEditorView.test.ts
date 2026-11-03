@@ -48,7 +48,7 @@ const map = { id: "m1", name: "Henge", rev: 3, campaign_id: null, layers: emptyL
 /** The workbench as a stand-in: it mounts a tick after the view's setup, as the real one does. */
 const MapWorkbenchStub = defineComponent({
   name: "MapWorkbench",
-  props: ["map", "viewMode", "saveState", "menuActions", "frame"],
+  props: ["map", "saveState", "menuActions", "frame"],
   emits: ["update:dirty", "update:editRevision", "menu-action"],
   setup(_props, { expose }) {
     const revision = 0;
@@ -114,9 +114,8 @@ describe("CartographerEditorView", () => {
   });
 
   // #1125 decision 4: always the editor, always autosaving.
-  it("is always the editor: no view mode, and no Save, Cancel, Edit or Done to press", async () => {
-    const { wrapper, workbench } = await mountEditor();
-    expect(workbench.props("viewMode")).toBe(false);
+  it("is always the editor: no Save, Cancel, Edit or Done to press", async () => {
+    const { wrapper } = await mountEditor();
     const labels = wrapper.findAll("button").map((b) => b.text());
     for (const gone of ["Save", "Cancel", "Edit", "Done"]) expect(labels).not.toContain(gone);
   });

@@ -59,7 +59,6 @@ export interface WorkbenchPicture {
  * (`gridNotLinedUp` says so, for the chip); on the Base image tab the fitted stage shows it instead.
  */
 export function useReferencePicture(picture: Ref<WorkbenchPicture | null | undefined>, activeLayer: Ref<EditorLayer>) {
-  const showPictureReference = ref(true);
   const referenceImageEl = ref<HTMLImageElement | null>(null);
   watch(
     () => picture.value?.url ?? null,
@@ -89,8 +88,6 @@ export function useReferencePicture(picture: Ref<WorkbenchPicture | null | undef
    *  lines up with this frame's own cell of the same coordinates, the cell space a Drawing publish shares with its
    *  Picture (see `lib/locations/mapStack.ts`). */
   function buildReferenceImage(tilePx: number, viewportOffset: { x: number; y: number }): MapRenderReferenceImage | null {
-    // The Picture layer is about the picture, so the "show picture underneath" switch does not apply there.
-    if (!showPictureReference.value && activeLayer.value !== "picture") return null;
     const img = referenceImageEl.value;
     if (!img) return null;
     const cal = drawingCalibration(img);
@@ -111,7 +108,7 @@ export function useReferencePicture(picture: Ref<WorkbenchPicture | null | undef
     };
   }
 
-  return { showPictureReference, referenceImageEl, buildReferenceImage, gridNotLinedUp };
+  return { referenceImageEl, buildReferenceImage, gridNotLinedUp };
 }
 
 /**

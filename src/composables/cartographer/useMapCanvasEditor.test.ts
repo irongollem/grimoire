@@ -225,7 +225,6 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
       { id: "floor", shortcut: "f" },
       { id: "wall", shortcut: "w" },
     ],
-    viewMode: () => false,
     placeRotation,
     activeWallKind,
     activeWallDecal,
@@ -1372,19 +1371,6 @@ describe("touch", () => {
 // A plain click selects the cell; a drag pans instead — never paints,
 // whatever tool a previous session left armed.
 
-describe("view mode", () => {
-  it("only pans: a press paints nothing and pushes no undo step, and a drag moves the map", () => {
-    const { editor, layers } = makeHarness({ viewMode: () => true });
-    const before = { ...editor.viewportOffset.value };
-    editor.onPointerDown(down(10, 10));
-    editor.onPointerMove(move(60, 40));
-    editor.onPointerUp(up(60, 40));
-    expect(layers.value.floor).toEqual({});
-    expect(editor.canUndo.value).toBe(false);
-    expect(editor.viewportOffset.value).not.toEqual(before);
-  });
-});
-
 describe("select tool", () => {
   it("a click that wobbles within the slop still selects, and does not pan", () => {
     const selectedCell = ref<[number, number] | null>(null);
@@ -1601,8 +1587,7 @@ describe("altHeld", () => {
           cellGlyphs: computed(() => ({})),
           activeTool: ref<Tool>(tool),
           tools: [{ id: "floor", shortcut: "f" }],
-          viewMode: () => false,
-          placeRotation: ref(0),
+                placeRotation: ref(0),
           activeWallKind: ref<WallKind>("wall"),
           activeWallDecal: ref(0),
           lightDraft: ref<TileLight>({ color: "#ffb347", bright: 20, dim: 20 }),
@@ -2242,8 +2227,7 @@ function mountWithKeys(tool: Tool, over: Partial<MapCanvasEditorOptions> = {}): 
         cellGlyphs: computed(() => ({})),
         activeTool,
         tools: [{ id: "select" }, { id: "floor", shortcut: "f" }],
-        viewMode: () => false,
-        placeRotation: ref(0),
+            placeRotation: ref(0),
         activeWallKind,
         activeWallDecal: ref(0),
         lightDraft: ref<TileLight>({ color: "#ffb347", bright: 20, dim: 20 }),

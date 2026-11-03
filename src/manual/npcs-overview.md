@@ -49,7 +49,7 @@ Click a card to open the sheet as a panel over the grid (a full-screen page on p
 
 ### Identity and portrait
 
-The editor's left column holds two **Portrait** tabs, **True Form** and **Alter Ego**, each with its own image upload and focal-point picker. The right column holds Name, Disguise Name, Species, Alignment (10 D&D alignments plus Unaligned), Age, Occupation, and Location. **Factions** appears here too on an existing NPC, but the fuller faction view (role and status) lives on the Relations tab described below.
+The editor's left column holds two **Portrait** tabs, **True Form** and **Alter Ego**, each with its own image upload and focal-point picker. The right column holds Name, Disguise Name, Species, Size, Alignment (10 D&D alignments plus Unaligned), Age, Occupation, and Location. **Size** (Medium unless you change it) sets how many squares the NPC's token covers on the battle map. **Factions** appears here too on an existing NPC, but the fuller faction view (role and status) lives on the Relations tab described below.
 
 Also on the left: the **Party Stance** wheel (the five 5e attitudes, Hostile through Helpful; Unknown is simply the unset state, not a sixth option), four **Status** toggle buttons (Alive/Dead/Missing/Unknown), and a **Tags** field.
 

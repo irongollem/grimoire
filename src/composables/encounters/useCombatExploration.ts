@@ -6,10 +6,10 @@ import { isInteriorType } from "@/lib/locations/tiers";
 import type { Location } from "@/types/location.types";
 
 /**
- * Can this encounter's battle map be opened right now, and if not, why? A
- * room rides its site's own publish — already a legal battle map at combat's
- * cell scale (frame 13) — so only a plain, non-room-anchored map still needs
- * the explicit "Battle map" flag that hides tactical art from players.
+ * Can this encounter's battle map be opened right now, and if not, why? Any
+ * place with a calibrated grid can be played (#1125 decision 14): a resolved
+ * surface is enough. `is_battle_map` only keeps a battle map out of the
+ * Atlas's geography zoom; it gates nothing here.
  *
  * Pure and exported standalone (no Vue, no composable) so the branching —
  * moved out of EncounterRunner, which had grown past its line cap — is
@@ -46,9 +46,6 @@ export function resolveBattleMapGate(params: {
     };
   }
 
-  if (surface.focusRoomId === null && !surface.mapLocation.is_battle_map) {
-    return { canOpen: false, reason: 'Toggle "Battle map" on the location to enable the VTT' };
-  }
   return { canOpen: true, reason: "" };
 }
 
