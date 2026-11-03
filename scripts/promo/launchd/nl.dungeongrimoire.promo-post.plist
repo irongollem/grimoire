@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Posts the next scheduled Reel (scripts/promo/schedule.json) once its time has come.
+  Runs at five past every hour; launchd runs a missed time once when the Mac wakes.
+  Install:   cp scripts/promo/launchd/nl.dungeongrimoire.promo-post.plist ~/Library/LaunchAgents/
+             launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/nl.dungeongrimoire.promo-post.plist
+  Stop:      launchctl bootout gui/$(id -u)/nl.dungeongrimoire.promo-post
+  Log:       promo-out/post.log
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>nl.dungeongrimoire.promo-post</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd "$HOME/Repositories/DnD helper" &amp;&amp; npm run -s promo:post -- --due &gt;&gt; promo-out/post.log 2&gt;&amp;1</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>5</integer>
+  </dict>
+</dict>
+</plist>

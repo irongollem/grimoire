@@ -80,6 +80,15 @@ publishes at once; the API cannot schedule. The cover is the assembler's
 `cover.jpg` frame, passed as its offset from `cover.json`. A posted Reel
 leaves `posted.json` beside it and is not posted twice without `--again`.
 
+`scripts/promo/schedule.json` lists when each Reel goes out (`{ id, at }`,
+the time with its offset). `promo:post -- --schedule` dry-runs everything on
+it; `promo:post -- --due` posts the earliest Reel whose time has come and that
+has no `posted.json`, one per run. A launchd job on the maintainer's Mac runs
+it at five past every hour (`scripts/promo/launchd/`, install and stop
+commands in the file), logging to `promo-out/post.log` and raising a macOS
+notification on every post or failure. A Mac asleep at the time posts on
+waking. To stop a Reel going out, take it off the schedule.
+
 The caption is `scripts/promo/captions/<id>.txt`. The token is
 `INSTAGRAM_SYSTEM_USER_TOKEN` in `.env.local`: a system user of the Dungeon
 Grimoire business portfolio, assigned the Instagram account, the Page and the

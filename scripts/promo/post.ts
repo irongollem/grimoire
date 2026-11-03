@@ -2,6 +2,8 @@
  * Posts a finished Reel to the Grimoire Instagram account.
  *   npm run promo:post -- <episode id>            # a dry run: checks everything, posts nothing
  *   npm run promo:post -- <episode id> --publish  # posts it, at once
+ *   npm run promo:post -- --schedule              # the schedule, and a dry run of everything on it
+ *   npm run promo:post -- --due                   # posts the next Reel whose time has come (the launchd job)
  *
  * Reads promo-out/<id>/<id>.mp4, its cover time (cover.json, from the
  * assembler) and the caption in scripts/promo/captions/<id>.txt. The token is
@@ -13,7 +15,9 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { durationOf } from "./compose/ffmpeg";
+import { execFileSync } from "node:child_process";
 import { captionProblems, findAccount, postsLeft, publish, uploadReel } from "./instagram";
+import { nextDue, parseSchedule } from "./schedule";
 import type { EpisodeManifest } from "./types";
 
 const VOICE_EXTS = [".wav", ".m4a", ".mp3", ".aif"];
@@ -23,21 +27,36 @@ function parseArgs(argv: string[]) {
   let id: string | undefined;
   let publishNow = false;
   let again = false;
+  let mode: "one" | "schedule" | "due" = "one";
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--publish") publishNow = true;
     else if (argv[i] === "--again") again = true;
+    else if (argv[i] === "--schedule") mode = "schedule";
+    else if (argv[i] === "--due") mode = "due";
     else if (argv[i] === "--root") root = argv[++i] ?? root;
     else if (!argv[i].startsWith("--")) id = argv[i];
   }
-  if (!id) throw new Error("Usage: promo:post -- <episode id> [--publish] [--again]");
-  return { id, root: resolve(root), publishNow, again };
+  if (mode === "one" && !id) throw new Error("Usage: promo:post -- <episode id> [--publish] [--again] | --schedule | --due");
+  return { id, root: resolve(root), publishNow, again, mode };
 }
 
-async function main() {
-  const { id, root, publishNow, again } = parseArgs(process.argv.slice(2));
-  const token = process.env.INSTAGRAM_SYSTEM_USER_TOKEN;
-  if (!token) throw new Error("INSTAGRAM_SYSTEM_USER_TOKEN is not set. Run through `npm run promo:post`, which loads .env.local.");
+const SCHEDULE_FILE = resolve("scripts/promo/schedule.json");
 
+function postedIds(root: string, ids: string[]): Set<string> {
+  return new Set(ids.filter((id) => existsSync(join(root, id, "posted.json"))));
+}
+
+/** A macOS notification, so a post (or a failure) made by the hourly job while nobody is watching is still seen. */
+function notify(title: string, message: string) {
+  try {
+    execFileSync("osascript", ["-e", `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)}`]);
+  } catch {
+    // Not on a Mac, or no notification permission: the log line is the record.
+  }
+}
+
+async function postEpisode(token: string, root: string, id: string, opts: { publishNow: boolean; again: boolean }): Promise<string | null> {
+  const { publishNow, again } = opts;
   const dir = join(root, id);
   const video = join(dir, `${id}.mp4`);
   const coverFile = join(dir, "cover.json");
@@ -79,13 +98,50 @@ async function main() {
   if (quota.used >= quota.total) throw new Error("No posts left in the 24-hour limit.");
   if (!publishNow) {
     console.log("Dry run: nothing was posted. Add --publish to post it now.");
-    return;
+    return null;
   }
 
   const containerId = await uploadReel(token, account.id, { video: bytes, caption, coverAtMs: coverAt * 1000 }, (l) => console.log(l));
   const { mediaId, permalink } = await publish(token, account.id, containerId);
   writeFileSync(postedFile, JSON.stringify({ id, account: account.username, mediaId, permalink, postedAt: new Date().toISOString() }, null, 2) + "\n");
   console.log(`posted    ${permalink}`);
+  return permalink;
+}
+
+async function main() {
+  const { id, root, publishNow, again, mode } = parseArgs(process.argv.slice(2));
+  const token = process.env.INSTAGRAM_SYSTEM_USER_TOKEN;
+  if (!token) throw new Error("INSTAGRAM_SYSTEM_USER_TOKEN is not set. Run through `npm run promo:post`, which loads .env.local.");
+  if (mode === "one" && id) {
+    await postEpisode(token, root, id, { publishNow, again });
+    return;
+  }
+
+  const schedule = parseSchedule(JSON.parse(readFileSync(SCHEDULE_FILE, "utf8")));
+  const posted = postedIds(root, schedule.map((e) => e.id));
+  if (mode === "schedule") {
+    for (const e of [...schedule].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))) {
+      const when = new Date(e.at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      console.log(`\n=== ${when}  ${e.id}${posted.has(e.id) ? "  (posted)" : ""}`);
+      if (!posted.has(e.id)) await postEpisode(token, root, e.id, { publishNow: false, again: false });
+    }
+    return;
+  }
+
+  const due = nextDue(schedule, posted, new Date());
+  const stamp = new Date().toISOString();
+  if (!due) {
+    console.log(`${stamp} nothing due`);
+    return;
+  }
+  console.log(`${stamp} posting ${due.id}, planned for ${due.at}`);
+  try {
+    const permalink = await postEpisode(token, root, due.id, { publishNow: true, again: false });
+    notify("Grimoire Reel posted", `${due.id}: ${permalink}`);
+  } catch (e) {
+    notify("Grimoire Reel NOT posted", `${due.id}: ${e instanceof Error ? e.message : String(e)}`);
+    throw e;
+  }
 }
 
 main().catch((e: unknown) => {
