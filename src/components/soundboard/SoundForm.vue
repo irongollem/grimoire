@@ -35,7 +35,6 @@
         <option value="ambient">Ambient</option>
         <option value="music">Music</option>
         <option value="effects">Effects</option>
-        <option value="misc">Misc</option>
       </AppSelect>
     </div>
 

@@ -127,7 +127,7 @@ select is(
         'custom_classes','custom_subclasses','encounters','factions','items','locations',
         'loot_tables','monsters','npc_inventory','world_links','npc_sets','npcs',
         'puzzle_rooms','quests','roll_tables','rules',
-        'soundboard_pages','soundboard_playlists','sounds','species','spells','traps')),
+        'soundboard_pads','soundboard_pages','soundboard_playlists','sounds','species','spells','traps')),
   '',
   'every write policy on a campaign-scoped content table consults campaign_id');
 
@@ -145,7 +145,7 @@ select is(
         'items', 'locations', 'loot_tables', 'monsters',
         'npc_inventory', 'world_links', 'npc_sets', 'npcs',
         'puzzle_rooms', 'quests', 'roll_tables', 'rules',
-        'soundboard_pages', 'soundboard_playlists', 'sounds', 'species',
+        'soundboard_pads', 'soundboard_pages', 'soundboard_playlists', 'sounds', 'species',
         'spells', 'traps'
      ]) as t(name)
     where not exists (

@@ -257,6 +257,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["campaign_tile_packs", ["user-tile-packs"]],
   ["sounds", ["sounds", QUEST_BOARD_KEY]],
   ["soundboard_pages", ["soundboard_pages"]],
+  ["soundboard_pads", ["soundboard_pads"]],
+  ["soundboard_pad_takes", ["soundboard_pads"]],
   ["soundboard_playlists", ["soundboard_playlists", QUEST_BOARD_KEY]],
   ["soundboard_playlist_tracks", ["soundboard_playlist_tracks"]],
   ["npc_sets", ["npc_sets"]],

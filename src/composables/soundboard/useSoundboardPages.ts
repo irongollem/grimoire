@@ -5,7 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { persistReorder } from "@/lib/reorder";
-import type { SoundboardPage, SoundboardPageUpdate } from "@/types/sound.types";
+import { isValidLanes } from "@/lib/audio/deck/deckModel";
+import type { DeckLane, SoundboardPage, SoundboardPageUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "soundboard_pages";
 
@@ -111,6 +112,28 @@ export function useReorderSoundboardPages() {
   return useMutation({
     mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
       await persistReorder("reorder_soundboard_pages", updates);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
+    },
+  });
+}
+
+/** Change one lane's name or rule. Reads the page's lanes from the cache, swaps one, and refuses anything the database CHECK would. */
+export function useUpdatePageLane() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useMutation({
+    mutationFn: ({ pageId, laneIndex, patch }: { pageId: string; laneIndex: number; patch: Partial<DeckLane> }) => {
+      const pages = qc.getQueryData<SoundboardPage[]>([QUERY_KEY, activeCampaignId.value]);
+      const page = pages?.find((p) => p.id === pageId);
+      if (!page) throw new Error("useUpdatePageLane: page is not loaded");
+      const current = page.lanes[laneIndex];
+      if (!current) throw new Error(`useUpdatePageLane: no lane ${laneIndex}`);
+      const lanes = page.lanes.map((lane, i) => (i === laneIndex ? { ...lane, ...patch } : lane));
+      if (!isValidLanes(lanes)) throw new Error("useUpdatePageLane: lanes would be invalid");
+      return updatePage(pageId, { lanes });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });

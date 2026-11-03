@@ -78,7 +78,7 @@ defineEmits<{ fire: []; focus: [] }>();
 /**
  * The palette lists sounds and playlists together, so `chip` carries either a
  * category or a playlist type. "scene" is an ambient playlist and reads as
- * ambient; anything unrecognised falls back to misc rather than guessing.
+ * ambient; anything unrecognised falls back to effects rather than guessing.
  */
 const category = computed<SoundCategory>(() => {
   switch (chip) {
@@ -89,7 +89,7 @@ const category = computed<SoundCategory>(() => {
     case "scene":
       return "ambient";
     default:
-      return "misc";
+      return "effects";
   }
 });
 

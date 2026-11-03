@@ -13,7 +13,7 @@
  * argued with in tests rather than discovered after 800 files are already live.
  */
 
-export type BoardCategory = "ambient" | "music" | "effects" | "misc";
+export type BoardCategory = "ambient" | "music" | "effects";
 
 /**
  * Collections that can yield a bed. A long file in one of these sits under a

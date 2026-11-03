@@ -74,7 +74,7 @@ insert into live_sync_doorbell (name) values
   ('crafting_recipe_ingredients'), ('crafting_recipe_outputs'),
   ('crafting_recipe_modifiers'), ('campaign_enabled_sources'), ('campaign_tile_packs'),
   ('sounds'), ('soundboard_pages'), ('soundboard_playlists'),
-  ('soundboard_playlist_tracks'), ('npc_sets'),
+  ('soundboard_playlist_tracks'), ('soundboard_pads'), ('soundboard_pad_takes'), ('npc_sets'),
   ('faction_npcs'),
   ('location_doors'), ('location_map_regions'), ('quest_beat_edges'),
   ('quest_beat_edge_gates'), ('quest_beat_attachments'), ('quest_consequences'),

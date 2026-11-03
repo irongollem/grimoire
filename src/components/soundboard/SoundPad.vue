@@ -157,9 +157,6 @@ const CATEGORY_ICON: Record<SoundCategory, typeof IconMusic> = {
   music: IconMusicNote,
   ambient: IconWind,
   effects: IconLightning,
-  // Misc has no icon of its own anywhere else either; the palette falls through
-  // to the generic music glyph, so this matches rather than inventing one.
-  misc: IconMusic,
 };
 
 const PADDING_CLASS: Record<PadSize, string> = {

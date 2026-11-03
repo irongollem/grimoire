@@ -56,7 +56,7 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-type SoundCategory = "ambient" | "music" | "effects" | "misc";
+type SoundCategory = "ambient" | "music" | "effects";
 
 // Validation ceilings for the DM's structuring inputs.
 const MAX_DESCRIPTION_CHARS = 4000;
@@ -114,7 +114,7 @@ function requestFromJob(job: GenerationJob): MusicJobRequest {
   const prompt = request.prompt ?? null;
   if (
     typeof request.description !== "string" || typeof request.model !== "string" ||
-    typeof request.name !== "string" || !["ambient", "music", "effects", "misc"].includes(String(category)) ||
+    typeof request.name !== "string" || !["ambient", "music", "effects"].includes(String(category)) ||
     !MUSIC_LENGTHS.includes(Number(lengthSeconds) as MusicLengthSeconds) ||
     !MUSIC_VOCALS.includes(String(vocals) as MusicVocals) ||
     (lyrics !== null && typeof lyrics !== "string") ||
@@ -385,7 +385,7 @@ serve(withCors(async (req: Request) => {
     }
     if (
       !campaignId || !soundName || !requestId || requestId.length > 128 ||
-      !["ambient", "music", "effects", "misc"].includes(category) ||
+      !["ambient", "music", "effects"].includes(category) ||
       !description || description.length > MAX_DESCRIPTION_CHARS ||
       !MUSIC_LENGTHS.includes(lengthSeconds) || !MUSIC_VOCALS.includes(vocals) ||
       (lyrics !== null && lyrics.length > MAX_LYRICS_CHARS) ||

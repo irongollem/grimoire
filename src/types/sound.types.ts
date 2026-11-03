@@ -1,4 +1,8 @@
-export type SoundCategory = "ambient" | "music" | "effects" | "misc";
+/**
+ * One per bus (music, ambient, effects). `misc` went in #1136: production held
+ * none, and it quietly played through the ambience bus.
+ */
+export type SoundCategory = "ambient" | "music" | "effects";
 
 /**
  * How big the fire targets are on the board.
@@ -19,17 +23,91 @@ export interface SoundboardPage {
   user_id: string;
   name: string;
   sort_order: number;
+  /** Always eight, one per deck column (#1136). The database's CHECK holds it. */
+  lanes: DeckLane[];
   created_at: string;
   updated_at: string;
 }
 
 export type SoundboardPageInsert = Omit<
   SoundboardPage,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "lanes"
+> & { lanes?: DeckLane[] };
 export type SoundboardPageUpdate = Partial<
-  Pick<SoundboardPage, "name" | "sort_order">
+  Pick<SoundboardPage, "name" | "sort_order" | "lanes">
 >;
+
+// ── The deck (#1136) ──────────────────────────────────────────────────────
+
+/**
+ * A lane is a deck column. `one`: one pad plays at a time, and a new one
+ * crossfades the old (new music stops the old). `together`: they overlap
+ * (effects never stop the music).
+ */
+export type DeckLaneRule = "one" | "together";
+
+export interface DeckLane {
+  name: string;
+  rule: DeckLaneRule;
+}
+
+/**
+ * What a press does, by Ableton's names. Trigger: plays once, every press
+ * fires again. Toggle: press to start, press to stop. Gate: plays while held.
+ * Repeat: fires again on a beat while held.
+ */
+export type LaunchMode = "trigger" | "toggle" | "gate" | "repeat";
+
+/** A `soundboard_pads` row. Null settings mean "the default for its kind". */
+export interface SoundboardPad {
+  id: string;
+  campaign_id: string;
+  user_id: string;
+  page_id: string;
+  /** 0 to 7. */
+  lane: number;
+  /** 0 and up; a controller shows rows 0 to 7. */
+  grid_row: number;
+  /** A scene (ambient) or music playlist; null for a pad that plays its takes. */
+  playlist_id: string | null;
+  /** Overrides the sound's or playlist's own name on the pad. */
+  name: string | null;
+  launch_mode: LaunchMode | null;
+  loop: boolean | null;
+  /** 0 to 1. */
+  volume: number;
+  fade_in_ms: number | null;
+  fade_out_ms: number | null;
+  /** Nudge pitch and loudness a little on each press. */
+  vary: boolean;
+  /** Louder the harder a controller pad is hit. */
+  velocity: boolean;
+  /** Repeat mode's beat, 100 to 5000 ms. */
+  repeat_ms: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A `soundboard_pad_takes` row: one of the sounds a sound pad plays, in order. */
+export interface SoundboardPadTake {
+  id: string;
+  pad_id: string;
+  sound_id: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A pad as read: its takes embedded, in position order. */
+export type SoundboardPadWithTakes = SoundboardPad & { takes: SoundboardPadTake[] };
+
+export type SoundboardPadInsert = Pick<SoundboardPad, "campaign_id" | "page_id" | "lane" | "grid_row"> &
+  Partial<Pick<SoundboardPad,
+    "playlist_id" | "name" | "launch_mode" | "loop" | "volume" | "fade_in_ms" | "fade_out_ms" | "vary" | "velocity" | "repeat_ms">>;
+
+export type SoundboardPadUpdate = Partial<Pick<SoundboardPad,
+  "page_id" | "lane" | "grid_row" | "playlist_id" | "name" | "launch_mode" | "loop" | "volume"
+  | "fade_in_ms" | "fade_out_ms" | "vary" | "velocity" | "repeat_ms">>;
 
 export interface Sound {
   id: string;
