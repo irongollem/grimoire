@@ -85,8 +85,19 @@ detail, pull one full-size frame with `-ss <t> -frames:v 1`.
 Say which videos were built and give their paths
 (`promo-out/<id>/<id>.mp4`). For YouTube, also point at `chapters.txt` (paste
 into the description) and `captions.srt` (upload under Subtitles in YouTube
-Studio). Posting to Instagram or YouTube is the maintainer's; never upload or
-post anything.
+Studio).
+
+## Posting a Reel
+
+`npm run promo:post -- <id>` is a dry run: it checks every shot has a take,
+the build is newer than the takes, and the caption
+(`scripts/promo/captions/<id>.txt`) is within Instagram's limits, then prints
+what would go out. Write the caption in the voice of the posted ones (the
+feature and which side, three or four plain sentences, a pointer to the paired
+Reel, the music credit, one hashtag line). Show the maintainer the dry run and
+ask; only on their yes for **that** Reel run it again with `--publish`, which
+posts at once (the API has no scheduling). A yes covers one post, never the
+pair. YouTube uploads stay the maintainer's.
 
 Commit pipeline changes (`scripts/promo/`, `docs/promo-videos.md`) by explicit
 file. `promo-out/` is never committed.

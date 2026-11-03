@@ -1,7 +1,7 @@
 /**
  * Cuts a recorded episode into the final Reel.
  *   tsx --tsconfig tsconfig.node.json scripts/promo/assemble.ts <episode id> [--no-brand] [--root <dir>]
- * Reads <root>/<id>/ (see types.ts), writes <root>/<id>/<id>.mp4 and cover.jpg.
+ * Reads <root>/<id>/ (see types.ts), writes <root>/<id>/<id>.mp4, cover.jpg and cover.json (the cover's time).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -286,6 +286,8 @@ async function main() {
   // Cover: the composed frame from the middle of the first shot.
   const first = tl.shots[0];
   ffmpeg(["-ss", String(first.length / 2), "-i", join(work, "shot-0.mp4"), "-frames:v", "1", "-q:v", "2", join(dir, "cover.jpg")]);
+  // The same frame in program time, for promo:post: Instagram picks a Reel's cover by its offset into the video.
+  writeFileSync(join(dir, "cover.json"), JSON.stringify({ at: first.start + first.length / 2 }) + "\n");
 
   if (format === "youtube") writeSidecars(dir, manifest, tl, inputs);
 

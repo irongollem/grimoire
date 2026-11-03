@@ -67,6 +67,27 @@ Reel's bed and filtered the same way (`BED_EQ` in `assemble.ts`), so busy
 tunes stay behind the voice and the chain reads as one piece. Without
 `bed-1` a YouTube video loops the theme's underscore, which is audible.
 
+## Posting
+
+`npm run promo:post -- <id>` posts a finished Reel to @dungeongrimoire
+through the Instagram Graph API (`post.ts`, `instagram.ts`). Without
+`--publish` it is a dry run that posts nothing: it refuses a silent draft (a
+shot with no take), a build older than its takes, and a caption Instagram
+would refuse or that has a tag word without its `#`, then prints the account,
+video, cover and caption. `--publish` uploads the file (Meta's resumable
+upload, so it needs no public URL), waits for Instagram to process it and
+publishes at once; the API cannot schedule. The cover is the assembler's
+`cover.jpg` frame, passed as its offset from `cover.json`. A posted Reel
+leaves `posted.json` beside it and is not posted twice without `--again`.
+
+The caption is `scripts/promo/captions/<id>.txt`. The token is
+`INSTAGRAM_SYSTEM_USER_TOKEN` in `.env.local`: a system user of the Dungeon
+Grimoire business portfolio, assigned the Instagram account, the Page and the
+"Grimoire Promo Studio" app, with `instagram_basic`,
+`instagram_content_publish`, `pages_read_engagement` and `pages_show_list`,
+never expiring. The API reaches the account through the Page it is linked to,
+so the account must stay linked to the Page.
+
 ## How it works
 
 - **Filmed where it is safe to show.** Every episode runs in the DM fixture's

@@ -54,6 +54,7 @@
     "promo:record": "tsx --tsconfig tsconfig.node.json scripts/promo/record.ts",
     "promo:assemble": "tsx --tsconfig tsconfig.node.json scripts/promo/assemble.ts",
     "promo:voice": "tsx --tsconfig tsconfig.node.json scripts/promo/voice.ts",
+    "promo:post": "tsx --env-file=.env.local --tsconfig tsconfig.node.json scripts/promo/post.ts",
     "dev:campaigns": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-campaigns.ts",
     "scriptorium:book": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/scriptorium-book.ts",
     "import-statblocks": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/import-statblocks.ts",

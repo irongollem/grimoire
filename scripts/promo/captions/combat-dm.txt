@@ -1,0 +1,9 @@
+Combat in Dungeon Grimoire, from the DM's side.
+
+Heroes and monsters in turn order, with hit points and armour class. Click a monster, type the damage, done. Monsters attack straight from their stat block: roll to hit, roll damage, apply it to the hero they struck. Press Next Turn and the table moves on.
+
+The player's side is one post back.
+
+Music: the Grimoire theme, made in the app's own soundboard.
+
+#dnd #dnd5e #dungeonsanddragons #ttrpg #dungeonmaster #dmtips #dndcombat #tabletopgames
