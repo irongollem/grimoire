@@ -28,23 +28,26 @@ alter table public.sound_library
 
 -- ── 2. Lanes on the page ──────────────────────────────────────────────────────
 -- Total by construction: a missing key or a wrong type is false, never NULL, so
--- the CHECK cannot pass a malformed lane through.
+-- the CHECK cannot pass a malformed lane through. The CASE keeps it total
+-- whatever order the planner evaluates in: jsonb_array_length raises on a
+-- non-array, so it may only run once the argument is known to be one.
 create or replace function private.is_valid_deck_lanes(p_lanes jsonb)
 returns boolean
 language sql
 immutable
 set search_path = ''
 as $$
-  select coalesce(jsonb_typeof(p_lanes) = 'array', false)
-     and jsonb_array_length(p_lanes) = 8
-     and not exists (
-       select 1
-         from jsonb_array_elements(p_lanes) as lane
-        where coalesce(jsonb_typeof(lane), '') <> 'object'
-           or coalesce(jsonb_typeof(lane -> 'name'), '') <> 'string'
-           or coalesce(char_length(lane ->> 'name'), 0) not between 1 and 40
-           or coalesce(lane ->> 'rule', '') not in ('one', 'together')
-     );
+  select case when jsonb_typeof(p_lanes) = 'array' then
+           jsonb_array_length(p_lanes) = 8
+           and not exists (
+             select 1
+               from jsonb_array_elements(p_lanes) as lane
+              where coalesce(jsonb_typeof(lane), '') <> 'object'
+                 or coalesce(jsonb_typeof(lane -> 'name'), '') <> 'string'
+                 or coalesce(char_length(lane ->> 'name'), 0) not between 1 and 40
+                 or coalesce(btrim(lane ->> 'name'), '') = ''
+                 or coalesce(lane ->> 'rule', '') not in ('one', 'together'))
+         else false end;
 $$;
 grant execute on function private.is_valid_deck_lanes(jsonb) to authenticated, service_role;
 
@@ -102,6 +105,27 @@ create trigger soundboard_pads_guard_content_author
   for each row when (new.user_id is distinct from old.user_id or new.campaign_id is distinct from old.campaign_id)
   execute procedure private.guard_content_author();
 
+-- A pad never changes campaign. Its takes were checked against the campaign it
+-- was made in (guard_pad_take_campaign), so a moved pad would carry another
+-- campaign's sounds; nothing in the deck moves a pad between campaigns.
+create or replace function private.guard_pad_campaign_fixed()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  raise exception 'A pad stays in the campaign it was made in'
+    using errcode = '23514';
+end;
+$$;
+revoke execute on function private.guard_pad_campaign_fixed() from public, anon, authenticated;
+
+create trigger soundboard_pads_campaign_fixed
+  before update of campaign_id on public.soundboard_pads
+  for each row when (new.campaign_id is distinct from old.campaign_id)
+  execute procedure private.guard_pad_campaign_fixed();
+
 create trigger zz_same_campaign_refs
   before insert or update of page_id, playlist_id, campaign_id on public.soundboard_pads
   for each row execute procedure private.enforce_same_campaign_refs(
@@ -125,7 +149,8 @@ grant select, insert, update, delete on public.soundboard_pads to authenticated,
 -- Drag a pad to a slot; a pad already there swaps into the one it left.
 -- Invoker: RLS decides who may move what. A pad the caller cannot see is "not
 -- found", and an occupant they cannot update stays put, so the slot key then
--- refuses the move instead of stacking two pads.
+-- refuses the move instead of stacking two pads. Both rows are locked, so two
+-- drags at once queue instead of interleaving.
 create or replace function public.move_soundboard_pad(p_pad_id uuid, p_page_id uuid, p_lane integer, p_row integer)
 returns void
 language plpgsql
@@ -136,14 +161,15 @@ declare
   v_from public.soundboard_pads%rowtype;
   v_other uuid;
 begin
-  select * into v_from from public.soundboard_pads where id = p_pad_id;
+  select * into v_from from public.soundboard_pads where id = p_pad_id for update;
   if not found then
     raise exception 'Pad not found' using errcode = 'P0002';
   end if;
   set constraints public.soundboard_pads_slot_key deferred;
   select id into v_other
     from public.soundboard_pads
-   where page_id = p_page_id and lane = p_lane and grid_row = p_row and id <> p_pad_id;
+   where page_id = p_page_id and lane = p_lane and grid_row = p_row and id <> p_pad_id
+   for update;
   if v_other is not null then
     update public.soundboard_pads
        set page_id = v_from.page_id, lane = v_from.lane, grid_row = v_from.grid_row
@@ -176,7 +202,8 @@ create trigger soundboard_pad_takes_updated_at
   for each row execute procedure update_updated_at();
 
 -- A take has no campaign_id of its own, so the shared same-campaign trigger
--- cannot see it: a pad may only play its own campaign's sounds.
+-- cannot see it: a pad may only play its own campaign's sounds. And only a
+-- sound pad has takes; a scene or playlist pad plays its playlist.
 create or replace function private.guard_pad_take_campaign()
 returns trigger
 language plpgsql
@@ -189,9 +216,10 @@ begin
       from public.soundboard_pads p
       join public.sounds s on s.id = new.sound_id
      where p.id = new.pad_id
+       and p.playlist_id is null
        and s.campaign_id = p.campaign_id
   ) then
-    raise exception 'A pad can only play sounds from its own campaign'
+    raise exception 'A take belongs on a sound pad, with a sound from its own campaign'
       using errcode = '23514';
   end if;
   return new;
@@ -231,25 +259,27 @@ alter table public.soundboard_pad_takes enable row level security;
 
 create policy "soundboard_pad_takes_select" on public.soundboard_pad_takes for select to public
   using (exists (select 1 from public.soundboard_pads p where p.id = pad_id));
+-- Writes follow the pad's own rules, so the takes cannot be a side door: adding
+-- or changing a take needs the DM role the pad's update needs, and removing one
+-- needs what deleting the pad needs (its author or the campaign owner).
+-- Otherwise a co-DM could empty another DM's pad of takes and let
+-- drop_empty_sound_pad, a definer, delete the pad the pad policy keeps.
 create policy "soundboard_pad_takes_insert" on public.soundboard_pad_takes for insert to public
   with check (exists (
     select 1 from public.soundboard_pads p
-     where p.id = pad_id
-       and (((select auth.uid()) = p.user_id) or private.is_campaign_dm(p.campaign_id))));
+     where p.id = pad_id and private.is_campaign_dm(p.campaign_id)));
 create policy "soundboard_pad_takes_update" on public.soundboard_pad_takes for update to public
   using (exists (
     select 1 from public.soundboard_pads p
-     where p.id = pad_id
-       and (((select auth.uid()) = p.user_id) or private.is_campaign_dm(p.campaign_id))))
+     where p.id = pad_id and private.is_campaign_dm(p.campaign_id)))
   with check (exists (
     select 1 from public.soundboard_pads p
-     where p.id = pad_id
-       and (((select auth.uid()) = p.user_id) or private.is_campaign_dm(p.campaign_id))));
+     where p.id = pad_id and private.is_campaign_dm(p.campaign_id)));
 create policy "soundboard_pad_takes_delete" on public.soundboard_pad_takes for delete to public
   using (exists (
     select 1 from public.soundboard_pads p
      where p.id = pad_id
-       and (((select auth.uid()) = p.user_id) or private.is_campaign_dm(p.campaign_id))));
+       and (((select auth.uid()) = p.user_id) or private.is_campaign_owner(p.campaign_id))));
 
 grant select, insert, update, delete on public.soundboard_pad_takes to authenticated, service_role;
 

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(15);
 
 -- The soundboard deck (#1136): pads on a page's eight lanes, a sound pad's
 -- takes, and the page's lanes. Each assertion names the guard it protects.
@@ -10,7 +10,8 @@ select set_config('grimoire.bypass_quota', 'on', true);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data) values
   ('d3c70000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'deck-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
-  ('d3c70000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'deck-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
+  ('d3c70000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'deck-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
+  ('d3c70000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'deck-codm@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
 insert into public.campaigns (id, user_id, name) values
   ('d3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000001', 'Deck'),
@@ -18,11 +19,13 @@ insert into public.campaigns (id, user_id, name) values
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('d3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000001', 'dm', 'DM'),
   ('d3c70000-0000-4000-8000-000000000011', 'd3c70000-0000-4000-8000-000000000001', 'dm', 'DM'),
-  ('d3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000002', 'player', 'Player')
+  ('d3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000002', 'player', 'Player'),
+  ('d3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000003', 'dm', 'Co-DM')
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
 insert into public.soundboard_pages (id, campaign_id, user_id, name) values
-  ('d3c70000-0000-4000-8000-000000000020', 'd3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000001', 'Mill');
+  ('d3c70000-0000-4000-8000-000000000020', 'd3c70000-0000-4000-8000-000000000010', 'd3c70000-0000-4000-8000-000000000001', 'Mill'),
+  ('d3c70000-0000-4000-8000-000000000021', 'd3c70000-0000-4000-8000-000000000011', 'd3c70000-0000-4000-8000-000000000001', 'Elsewhere');
 insert into public.sounds (id, user_id, campaign_id, name, category, file_url) values
   ('d3c70000-0000-4000-8000-000000000030', 'd3c70000-0000-4000-8000-000000000001', 'd3c70000-0000-4000-8000-000000000010', 'Door creak', 'effects', 'https://example.invalid/door.mp3'),
   ('d3c70000-0000-4000-8000-000000000031', 'd3c70000-0000-4000-8000-000000000001', 'd3c70000-0000-4000-8000-000000000011', 'Somewhere else', 'effects', 'https://example.invalid/else.mp3');
@@ -74,6 +77,24 @@ select throws_ok(
   '23514', null,
   'a take from another campaign is refused');
 
+-- guard_pad_take_campaign: only a sound pad has takes.
+select throws_ok(
+  $$insert into public.soundboard_pad_takes (pad_id, sound_id)
+    values ('d3c70000-0000-4000-8000-000000000051', 'd3c70000-0000-4000-8000-000000000030')$$,
+  '23514', null,
+  'a take on a scene pad is refused');
+
+-- guard_pad_campaign_fixed: a pad cannot carry its takes into another campaign,
+-- even for a DM of both moving it together with a page there (which the shared
+-- same-campaign trigger alone would let through).
+select throws_ok(
+  $$update public.soundboard_pads
+       set campaign_id = 'd3c70000-0000-4000-8000-000000000011',
+           page_id = 'd3c70000-0000-4000-8000-000000000021'
+     where id = 'd3c70000-0000-4000-8000-000000000050'$$,
+  '23514', null,
+  'a pad cannot move to another campaign');
+
 -- move_soundboard_pad: dropping a pad on an occupied slot swaps the two.
 select public.move_soundboard_pad('d3c70000-0000-4000-8000-000000000050', 'd3c70000-0000-4000-8000-000000000020', 1, 0);
 select results_eq(
@@ -97,6 +118,19 @@ select throws_ok(
             'd3c70000-0000-4000-8000-000000000020', 0, 5)$$,
   '42501', null,
   'a player cannot add a pad');
+
+-- The takes are not a side door: a co-DM may not delete another DM's pad, so
+-- may not empty it of takes either (drop_empty_sound_pad would then delete it
+-- with definer rights).
+select set_config('request.jwt.claims', '{"sub":"d3c70000-0000-4000-8000-000000000003","role":"authenticated"}', true);
+delete from public.soundboard_pad_takes where pad_id = 'd3c70000-0000-4000-8000-000000000050';
+select set_config('request.jwt.claims', '{"sub":"d3c70000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select isnt_empty(
+  $$select id from public.soundboard_pad_takes where pad_id = 'd3c70000-0000-4000-8000-000000000050'$$,
+  'a co-DM cannot strip another DM''s pad of its takes');
+select isnt_empty(
+  $$select id from public.soundboard_pads where id = 'd3c70000-0000-4000-8000-000000000050'$$,
+  'so the pad survives the co-DM''s attempt');
 
 -- 8-9. drop_empty_sound_pad: deleting a sound pad's only sound removes the pad,
 --      and leaves a scene pad alone.
