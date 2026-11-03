@@ -21,6 +21,8 @@ export interface ClassRowInfo {
   subclassFeatures: FeatureMap | null;
   /** The class's armor training as the definition lists it. */
   armorProficiencies: string[];
+  /** The class definition's capabilities (`"wild_shape"`), as its character row carries them (#934). */
+  capabilities: string[];
 }
 
 export interface ProjectionInput {
@@ -28,7 +30,7 @@ export interface ProjectionInput {
   /** The existing row this level is taken in, or null when it adds a class. */
   chosenRowId: string | null;
   /** The class a new-class level adds; `startLevels` is the level its row will hold. */
-  newClass: { className: string; classFeatures: FeatureMap | null; startLevels: number } | null;
+  newClass: { className: string; classFeatures: FeatureMap | null; startLevels: number; capabilities: string[] } | null;
   /** The subclass picked at this level, for the chosen or the new class. */
   pickedSubclass: { name: string; features: FeatureMap | null } | null;
 }
@@ -65,6 +67,38 @@ export function projectClasses(input: ProjectionInput): { before: GrantedClassIn
     });
   }
   return { before, after };
+}
+
+/**
+ * The class rows once this level is taken, as Wild Shape reads them (#934): each
+ * row's definition capabilities with the projected levels and subclass. Mirrors
+ * `projectClasses`, so a character taking a first druid level, or one more, is a
+ * druid at the level they are about to hold.
+ */
+export function projectWildShapeRows(
+  input: ProjectionInput,
+): { class_name: string; capabilities: string[]; subclass_name: string | null; levels: number }[] {
+  const picked = input.pickedSubclass;
+  const rows = input.rows.map((row) => {
+    if (row.id !== input.chosenRowId) {
+      return { class_name: row.className, capabilities: row.capabilities, subclass_name: row.subclassName, levels: row.levels };
+    }
+    return {
+      class_name: row.className,
+      capabilities: row.capabilities,
+      subclass_name: picked === null ? row.subclassName : picked.name,
+      levels: row.levels + 1,
+    };
+  });
+  if (input.newClass !== null) {
+    rows.push({
+      class_name: input.newClass.className,
+      capabilities: input.newClass.capabilities,
+      subclass_name: picked === null ? null : picked.name,
+      levels: input.newClass.startLevels,
+    });
+  }
+  return rows;
 }
 
 /** Class and subclass features the chosen class gains at `classLevel`, each once. */

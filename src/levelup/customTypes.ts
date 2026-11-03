@@ -143,6 +143,12 @@ export interface CustomClass extends VersionedContentMetadata {
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
 
+  /**
+   * What the class can do beyond its tables (#934). Today only `"wild_shape"`: the
+   * druid's forms, uses and Wild Shape tab. Character class rows copy it from here.
+   */
+  capabilities: string[];
+
   /** Set when the row came from the AI generator; flipped by `markEdited` on a content edit. */
   ai_provenance?: AiProvenance | null;
 
@@ -174,6 +180,11 @@ export interface SystemClass extends VersionedContentMetadata {
   /** Canonical art under `class-images/srd/`, set from the admin focal queue. */
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
+  /**
+   * What the class can do beyond its tables (#934). Today only `"wild_shape"`: the
+   * druid's forms, uses and Wild Shape tab. Character class rows copy it from here.
+   */
+  capabilities: string[];
   created_at: string;
   updated_at: string;
 }

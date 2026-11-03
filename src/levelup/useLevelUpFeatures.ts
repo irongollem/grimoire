@@ -34,6 +34,7 @@ import {
   gainedAtLevel,
   poolChanges,
   projectClasses,
+  projectWildShapeRows,
   scalingChanges,
   type ClassRowInfo,
   type FeatureMap,
@@ -48,7 +49,7 @@ export interface LevelUpFeaturesInput {
   ruleset: Ref<RulesetKey>;
   rows: ComputedRef<ClassRowInfo[]>;
   chosenRowId: ComputedRef<string | null>;
-  newClass: ComputedRef<{ className: string; classFeatures: FeatureMap | null; startLevels: number } | null>;
+  newClass: ComputedRef<{ className: string; classFeatures: FeatureMap | null; startLevels: number; capabilities: string[] } | null>;
   pickedSubclass: ComputedRef<{ name: string; features: FeatureMap | null } | null>;
   className: ComputedRef<string>;
   /** The level in the class being taken, after this level-up. */
@@ -182,7 +183,12 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
   const wildRules = computed(() =>
     wildShapeRulesFor(
       input.member(),
-      projection.value.after.map((c) => ({ class_name: c.className, subclass_name: c.subclassName, levels: c.levels })),
+      projectWildShapeRows({
+        rows: input.rows.value,
+        chosenRowId: input.chosenRowId.value,
+        newClass: input.newClass.value,
+        pickedSubclass: input.pickedSubclass.value,
+      }),
       input.ruleset.value,
     ),
   );

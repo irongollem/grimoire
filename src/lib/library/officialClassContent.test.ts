@@ -142,6 +142,17 @@ describe("planOfficialClassContent", () => {
     expect(result.features[0].insert.source).toBe("tdcs");
   });
 
+  // Bug: an imported Druid-like book class without the capability could never
+  // Wild Shape; and the update must not write capabilities, or a re-import would
+  // clear what an admin set by hand.
+  it("gives a Druid base class the wild_shape capability on insert only", () => {
+    const result = plan({ classes: [fighter(taldorei, { name: "Druid", key: "tdcs_druid" }), fighter(taldorei, { name: "Blood Hunter", key: "tdcs_blood-hunter" })] });
+    const byName = (n: string) => result.classes.find(c => c.insert.class_name === n)!;
+    expect(byName("Druid").insert.capabilities).toEqual(["wild_shape"]);
+    expect(byName("Blood Hunter").insert.capabilities).toEqual([]);
+    expect(byName("Druid").update).not.toHaveProperty("capabilities");
+  });
+
   it("skips a book that has no content source and says so", () => {
     const result = plan({ classes: [fighter(unknownBook)], feats: [] });
     expect(result.features).toEqual([]);

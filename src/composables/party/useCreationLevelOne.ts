@@ -13,6 +13,8 @@ import type { PartyMember } from "@/types/party.types";
 export interface CreationClass {
   class_name: string;
   features: FeatureMap | null;
+  /** The class definition's capabilities (#934). */
+  capabilities: string[];
   armor_proficiencies: string[];
   weapon_proficiencies: string[];
   /** What says whether the class casts, for how a feature's spell pick is stored. */
@@ -71,7 +73,7 @@ export function useCreationLevelOne(input: CreationLevelOneInput) {
     chosenRowId: computed(() => null),
     newClass: computed(() => {
       const cls = input.selectedClass.value;
-      return cls === null ? null : { className: cls.class_name, classFeatures: cls.features, startLevels: 1 };
+      return cls === null ? null : { className: cls.class_name, classFeatures: cls.features, startLevels: 1, capabilities: cls.capabilities };
     }),
     pickedSubclass: input.pickedSubclass,
     className,

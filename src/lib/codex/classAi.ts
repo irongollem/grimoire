@@ -315,6 +315,8 @@ export function classDraftFromAi(ai: ClassAiResult, ctx: ClassDraftContext): Cla
     prepared_divisor: prepared_ability && casts ? PREPARED_DIVISOR[progression] : null,
     image_url: null,
     focal_point: null,
+    // An AI-made class carries no capabilities; the DM ticks Wild Shape in the editor (#934).
+    capabilities: [],
     ai_provenance: ai.ai_provenance ?? null,
   };
 

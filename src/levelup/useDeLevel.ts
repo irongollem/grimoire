@@ -58,6 +58,7 @@ export function useDeLevel(member: () => PartyMember, characterClasses: Ref<Char
         classFeatures: def ? def.features : null,
         subclassFeatures: sub ? sub.features : null,
         armorProficiencies: def ? def.armor_proficiencies : [],
+        capabilities: row.capabilities,
       };
     }),
   );
