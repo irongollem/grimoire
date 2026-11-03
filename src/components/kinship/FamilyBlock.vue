@@ -51,15 +51,14 @@
       </div>
     </div>
 
-    <AddRelativeDialog v-if="!player" :subject="person" :open="addOpen" @close="addOpen = false" @added="addOpen = false" />
+    <AddRelativeDialog v-if="!player && addMounted" :subject="person" :open="addOpen" @close="addOpen = false" @added="addOpen = false" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import AddRelativeDialog from "@/components/kinship/AddRelativeDialog.vue";
 import KinRow from "@/components/kinship/KinRow.vue";
 import {
   bondChoices,
@@ -76,11 +75,15 @@ import { useKinClock } from "@/composables/kinship/useKinClock";
 import { useDeleteKinLink, useUpdateKinLink } from "@/composables/kinship/useKinLinks";
 import { useDmKinGraph, usePlayerKinGraph, type KinGraphSource } from "@/composables/kinship/useKinGraph";
 import { useConfirm } from "@/composables/useConfirm";
+import { useLazyMount } from "@/composables/useLazyMount";
 import { useToast } from "@/composables/useToast";
 import { IconAddUser, IconNetwork } from "@/lib/icons";
 import { parsePersonKey } from "@/lib/kinship/keys";
 import type { TypeChoice } from "@/lib/worldLinks/connections";
 import type { PersonKey } from "@/types/kinship.types";
+
+// #1138: opened from a button, so it stays off the NPC sheet until asked.
+const AddRelativeDialog = defineAsyncComponent(() => import("@/components/kinship/AddRelativeDialog.vue"));
 
 /**
  * One person's immediate family as a list (frames 02, 07 and 08): the same
@@ -106,6 +109,8 @@ const updateLink = useUpdateKinLink();
 const retype = useRetypeConnection();
 
 const addOpen = ref(false);
+// Latched, so the dialog's close animation still plays once it has been opened.
+const addMounted = useLazyMount(addOpen);
 
 const notes = computed(() => new Map(source.links.value.map((l) => [l.id, l.note])));
 const groups = computed(() =>

@@ -2,7 +2,7 @@ import { computed, isRef, ref } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
@@ -431,7 +431,8 @@ export function useQuestFilterEntities(enabled?: () => boolean) {
         ...(factions.data ?? []).map((row) => ({ id: `faction:${row.id}`, name: `Faction · ${row.name}` })),
       ];
     },
-    enabled: () => !!campaignId.value && (enabled?.() ?? true),
+    // The owner is in the key: wait for the campaign row rather than read twice.
+    enabled: () => ownerKnownFor(campaign.activeCampaign, campaignId.value) && (enabled?.() ?? true),
   });
 }
 

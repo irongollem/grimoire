@@ -9,6 +9,7 @@ import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { isLibraryId, shadowByName } from "@/lib/dungeon-features/library";
+import { normaliseIds, useRowsByIds } from "@/composables/useRowsByIds";
 import { libraryTrapToInsert } from "@/lib/dungeon-features/libraryCopy";
 
 const QUERY_KEY = "traps";
@@ -118,10 +119,17 @@ const LIBRARY_KEY = "library-traps";
 // Library rows change only by migration, so one fetch per hour is plenty.
 const LIBRARY_STALE_MS = 60 * 60 * 1000;
 
-async function fetchLibraryTraps(): Promise<LibraryTrap[]> {
-  const { data, error } = await supabase.from("library_traps").select("*").order("name", { ascending: true });
-  if (error) throw error;
-  return data as LibraryTrap[];
+const BY_IDS_CHUNK = 100;
+
+/** Exactly these library traps, by id (chunked so a long list stays inside the URL limit). */
+async function fetchLibraryTrapsByIds(ids: readonly string[]): Promise<Map<string, LibraryTrap>> {
+  const rows = new Map<string, LibraryTrap>();
+  for (let i = 0; i < ids.length; i += BY_IDS_CHUNK) {
+    const { data, error } = await supabase.from("library_traps").select("*").in("id", ids.slice(i, i + BY_IDS_CHUNK));
+    if (error) throw error;
+    for (const row of data as LibraryTrap[]) rows.set(row.id, row);
+  }
+  return rows;
 }
 
 async function fetchLibraryTrap(id: string): Promise<LibraryTrap | null> {
@@ -154,12 +162,6 @@ export function useLibraryTraps() {
   return { ...query, isLoading: computed(() => query.isLoading.value || (slugs.value === null)) };
 }
 
-/** Every library trap, enabled or not: what a stored id RESOLVES against. Enablement
- *  governs what is offered, never whether something already placed still exists (#954). */
-export function useAllLibraryTraps() {
-  return useQuery({ queryKey: [LIBRARY_KEY, "all"], queryFn: fetchLibraryTraps, staleTime: LIBRARY_STALE_MS });
-}
-
 /** One library trap; held until `id` is a library id (a uuid is the DM's own). */
 export function useLibraryTrap(id: MaybeRefOrGetter<string | null | undefined>) {
   return useQuery({
@@ -173,30 +175,45 @@ export function useLibraryTrap(id: MaybeRefOrGetter<string | null | undefined>) 
   });
 }
 
-/** Every trap a DM can pick (`data`): the library's, minus any the DM has an own copy
+/** Every trap a DM can pick: the library's, minus any the DM has an own copy
  *  of by name (see lib/dungeon-features/library.ts), plus all own traps. */
 export function useTrapIndex(getOptions?: () => UseTrapsOptions) {
   const own = useTraps(getOptions);
   const library = useLibraryTraps();
-  const allLibrary = useAllLibraryTraps();
   const data = computed<TrapEntry[] | undefined>(() => {
     if (!own.data.value || !library.data.value) return undefined;
     return shadowByName(library.data.value, own.data.value);
   });
-  // Resolving a STORED id must not shadow: an encounter or a room that cites the
-  // library row still means that row when the DM also owns one of the same
-  // name. So `data` is the pick list and `byId` resolves every id either way.
+  return {
+    data,
+    isLoading: computed(() => own.isLoading.value || library.isLoading.value),
+    error: computed(() => own.error.value ?? library.error.value),
+  };
+}
+
+/** Resolves STORED trap ids: all own traps, plus only the library rows `libraryIds`
+ *  cites (uuids and blanks are ignored), enabled or not (#954). Never shadowed: an
+ *  encounter or a room that cites the library row still means that row when the DM
+ *  also owns one of the same name. Reads nothing from the library for no ids. */
+export function useTrapResolver(
+  getOptions: () => UseTrapsOptions,
+  libraryIds: () => readonly (string | null | undefined)[],
+) {
+  const own = useTraps(getOptions);
+  const cited = useRowsByIds<LibraryTrap>({
+    keyRoot: [LIBRARY_KEY, "by-ids"],
+    idLists: () => [normaliseIds(libraryIds()).filter(isLibraryId)],
+    fetch: ([ids]) => fetchLibraryTrapsByIds(ids),
+  });
   const byId = computed(() => {
-    const map = new Map<string, TrapEntry>();
-    for (const row of allLibrary.data.value ?? []) map.set(row.id, row);
+    const map = new Map<string, TrapEntry>(cited.data.value);
     for (const row of own.data.value ?? []) map.set(row.id, row);
     return map;
   });
   return {
-    data,
     byId,
-    isLoading: computed(() => own.isLoading.value || library.isLoading.value || allLibrary.isLoading.value),
-    error: computed(() => own.error.value ?? library.error.value ?? allLibrary.error.value),
+    isLoading: computed(() => own.isLoading.value || cited.isLoading.value),
+    error: own.error,
   };
 }
 

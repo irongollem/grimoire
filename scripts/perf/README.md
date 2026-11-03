@@ -120,9 +120,12 @@ client.)
 | TBT | sum of the part beyond 50 ms of every long task starting after FCP |
 | settled | ms from the window opening until the network was idle for 500 ms (the time of the last activity before that quiet gap; later requests are ignored) |
 
-Also in the JSON, per step: all runs, and `representativeApiPaths` (method +
-path + query of the run closest to the median settled time, no headers) so you
-can see what was fetched.
+Also in the JSON, per step: all runs (each with `apiWaves`, every API request's
+place in its serial chain), `representativeApiPaths` (method + path + query of
+the run closest to the median settled time, no headers) and
+`representativeAssetPaths` (that run's chunks, stylesheets, fonts and images,
+path only), so you can see what was fetched and diff two result files request by
+request. CI keeps its file as the `perf-journeys` artifact for 14 days.
 
 Deterministic metrics (requests, bytes, serial depth) are what a CI gate should
 use; paint, TBT and settled time vary with machine load.
@@ -165,13 +168,15 @@ read the same rows.
 npx tsx scripts/perf/check-budgets.ts perf-results/<run>.json
 ```
 
-**The CI job is ADVISORY for now.** It runs on every pull request and push,
-reports the journeys in the job summary, records the history on main and runs
-the budget check, but it never blocks a release: nothing `needs` it, and the
-budget step is `continue-on-error`. A breach shows as a failed (orange) step to
-look at, not a stop. The hard gate that remains is the boot-bundle budget inside
-`npm run build` (`bootBudgetPlugin`). Promote the job into the release jobs'
-`needs` (and drop `continue-on-error`) once it has run stably for a while.
+**A breach fails the job, and the job does not block a release.** It runs on
+every pull request and push, reports the journeys in the job summary, records
+the history on main and runs the budget check. Over budget, the job fails and
+the run is red; nothing in the release `needs` it, so the deploy still goes out.
+Promote the job into the release jobs' `needs` once it has run stably for a
+while. The budget step was `continue-on-error` until #1138, and that is how the
+budgets sat over for a month behind green runs: a breach must be seen. The
+boot-bundle budget inside `npm run build` (`bootBudgetPlugin`) is a hard gate
+either way.
 
 Rules for the check itself:
 
@@ -210,8 +215,9 @@ npx tsx scripts/perf/history.ts summarize /tmp/history.jsonl --last 20
 ```
 
 A failed history push never blocks a release (`continue-on-error`): it loses one
-data point. The whole `performance` job is advisory (see Budgets), so neither a
-budget breach nor a failed run holds a release back.
+data point. Nothing in the release needs the `performance` job (see Budgets), so
+neither a budget breach nor a failed run holds a release back; a breach does turn
+the run red.
 
 Dry-run of the CI steps locally: build and serve as above, then
 `run.ts --runs 1 --out perf-results/ci.json`, `bundle/critical-path.ts dist --json

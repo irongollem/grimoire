@@ -107,7 +107,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import WorldNodeShape from "@/components/world/WorldNodeShape.vue";
 import TypeChoiceChips from "@/components/connections/TypeChoiceChips.vue";
-import { FAMILY_TOKEN } from "@/composables/world/useWorldWebGraph";
+import { FAMILY_TOKEN } from "@/lib/worldWeb/palette";
 import { IconDelete, IconEdit } from "@/lib/icons";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { membershipCaption } from "@/lib/worldWeb/badges";

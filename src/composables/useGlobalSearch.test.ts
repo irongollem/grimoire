@@ -55,7 +55,10 @@ vi.mock("@/lib/supabase", () => ({
   },
   getCurrentUser: () => ({ id: "user-1" }),
 }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get activeCampaignId() { return mocks.campaignId; } }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({
+    get activeCampaignId() { return mocks.campaignId; },
+    get activeCampaign() { return mocks.campaignId === null ? null : { id: mocks.campaignId, user_id: "user-1" }; },
+  }) }));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useLibrarySourceSlugs: (active: () => boolean) => {
     mocks.sourcesActive = active;

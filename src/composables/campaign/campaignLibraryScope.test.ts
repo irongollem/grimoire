@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campaignScopeFilter, isReadOnlyLibraryRow } from "./campaignLibraryScope";
+import { campaignScopeFilter, isReadOnlyLibraryRow, ownerKnownFor } from "./campaignLibraryScope";
 
 describe("campaignScopeFilter (#590)", () => {
   it("takes any author's campaign rows plus the caller's and the owner's library", () => {
@@ -25,5 +25,16 @@ describe("isReadOnlyLibraryRow", () => {
     expect(isReadOnlyLibraryRow({ user_id: "owner", campaign_id: "c1" }, "me")).toBe(false);
     expect(isReadOnlyLibraryRow({ user_id: null, campaign_id: null }, "me")).toBe(false);
     expect(isReadOnlyLibraryRow({ user_id: "", campaign_id: null }, "me")).toBe(false);
+  });
+});
+
+describe("ownerKnownFor (#1138)", () => {
+  it("is true only once the store holds the row of the campaign being read", () => {
+    expect(ownerKnownFor({ id: "c1" }, "c1")).toBe(true);
+    // Row not loaded yet: a read now would go out without the owner and be sent again.
+    expect(ownerKnownFor(null, "c1")).toBe(false);
+    // The previous campaign's row during a switch: its owner is the wrong one.
+    expect(ownerKnownFor({ id: "c0" }, "c1")).toBe(false);
+    expect(ownerKnownFor({ id: "c1" }, null)).toBe(false);
   });
 });

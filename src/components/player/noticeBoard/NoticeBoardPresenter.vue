@@ -17,12 +17,13 @@
  * Mounted in the player layout only, so the DM's own screens never open it. Not shown over the board's own page, which
  * already holds the same board.
  */
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import { useRoute } from "vue-router";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { usePresentedNoticeBoard } from "@/composables/noticeBoards/usePlayerNoticeBoards";
-import PlayerNoticeBoard from "./PlayerNoticeBoard.vue";
+// #1138: only needed while the DM presents a board.
+const PlayerNoticeBoard = defineAsyncComponent(() => import("./PlayerNoticeBoard.vue"));
 
 const route = useRoute();
 const board = usePresentedNoticeBoard();

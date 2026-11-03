@@ -58,6 +58,7 @@
     </div>
 
     <AddConnectionDialog
+      v-if="addMounted"
       :open="addOpen"
       :subject="subject"
       :subject-name="subjectName"
@@ -77,21 +78,27 @@
  * from there and says so; a long list of those folds into one line that points
  * at the section which already lists them.
  */
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
-import AddConnectionDialog from "@/components/connections/AddConnectionDialog.vue";
 import ConnectionRow from "@/components/connections/ConnectionRow.vue";
 import ConnectionSuggestions from "@/components/connections/ConnectionSuggestions.vue";
 import { groupConnections } from "@/components/connections/connectionRows";
 import { useConnections } from "@/composables/connections/useConnections";
+import { useLazyMount } from "@/composables/useLazyMount";
 import { IconAdd, IconNetwork } from "@/lib/icons";
 import type { Connection, WorldRef } from "@/types/connections.types";
+
+// Opened from a button. Loaded with the section it would keep the add-relative
+// flow on every sheet that shows connections (#1138).
+const AddConnectionDialog = defineAsyncComponent(() => import("@/components/connections/AddConnectionDialog.vue"));
 
 const { subject, subjectName } = defineProps<{ subject: WorldRef; subjectName: string }>();
 
 const { data, isLoading, isError } = useConnections(() => subject.kind, () => subject.id);
 const addOpen = ref(false);
+// Latched, so the dialog's close animation still plays once it has been opened.
+const addMounted = useLazyMount(addOpen);
 
 const connections = computed<readonly Connection[]>(() => data.value ?? []);
 const groups = computed(() => groupConnections(subject, connections.value));

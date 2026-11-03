@@ -1,4 +1,4 @@
-import { defineComponent, h, ref } from "vue";
+import { defineComponent, h, ref, type Ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -6,6 +6,7 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 const mocks = vi.hoisted(() => ({
   user: { id: "user-1" } as { id: string } | null,
   slugs: null as string[] | null,
+  campaign: null as Ref<{ id: string; user_id: string } | null> | null,
 }));
 
 const { fake } = await vi.hoisted(async () => {
@@ -19,7 +20,9 @@ vi.mock("@/composables/library/useEnabledSources", () => ({
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2024") }) }));
 vi.mock("pinia", async (orig) => ({ ...(await orig<typeof import("pinia")>()), storeToRefs: (s: unknown) => s }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: ref("camp-1"), activeCampaign: ref({ id: "camp-1", user_id: "owner-1" }) }) }));
+vi.mock("@/stores/campaign", () => ({
+  useCampaignStore: () => ({ activeCampaignId: ref("camp-1"), activeCampaign: mocks.campaign ?? ref({ id: "camp-1", user_id: "owner-1" }) }),
+}));
 
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import type { ItemIndexEntry } from "@/types/item.types";
@@ -45,6 +48,7 @@ beforeEach(() => {
   fake.reset();
   mocks.user = { id: "user-1" };
   mocks.slugs = ["srd-2024"];
+  mocks.campaign = null;
 });
 
 async function ids(): Promise<string[] | undefined> {
@@ -54,6 +58,17 @@ async function ids(): Promise<string[] | undefined> {
 }
 
 describe("useItemIndex (#972)", () => {
+  it("waits for the campaign row: own rows are read once, with the owner, not first without it (#1138)", async () => {
+    const row = ref<{ id: string; user_id: string } | null>(null);
+    mocks.campaign = row;
+    run(() => useItemIndex());
+    await flushPromises();
+    expect(fake.calls.filter((c) => c.target === "items")).toHaveLength(0);
+    row.value = { id: "camp-1", user_id: "owner-1" };
+    await flushPromises();
+    expect(fake.calls.filter((c) => c.target === "items")).toHaveLength(1);
+  });
+
   it("reads slim columns, not *", async () => {
     await ids();
     for (const table of ["library_items", "items"]) {

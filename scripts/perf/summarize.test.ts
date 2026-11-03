@@ -80,6 +80,22 @@ describe("summarizeRequests", () => {
     expect(summary.apiPaths).toEqual(["GET /rest/v1/early", "GET /rest/v1/late"]);
   });
 
+  it("names every non-API request totalRequests counted, so a chunk regression has a culprit (#1138)", () => {
+    const summary = summarizeRequests(
+      [
+        req({ url: `${API}/rest/v1/a`, startMs: 0, endMs: 100 }),
+        req({ url: `${API}/rest/v1/a`, method: "OPTIONS", resourceType: "Preflight", startMs: 0, endMs: 10 }),
+        req({ url: "http://127.0.0.1:4173/assets/viz-Df6KLSBk.js?v=1", resourceType: "Script", startMs: 20, endMs: 60 }),
+        req({ url: "http://127.0.0.1:4173/assets/x.css", resourceType: "Stylesheet", startMs: 10, endMs: 50 }),
+      ],
+      API,
+      0,
+      1000,
+    );
+    expect(summary.assetPaths).toEqual(["/assets/x.css", "/assets/viz-Df6KLSBk.js"]);
+    expect(summary.totalRequests).toBe(summary.apiPaths.length + summary.assetPaths.length);
+  });
+
   it("treats a request still open at the end as finishing then", () => {
     const summary = summarizeRequests([req({ url: `${API}/rest/v1/a`, startMs: 0, endMs: null })], API, 0, 900);
     expect(summary.settledMs).toBe(900);

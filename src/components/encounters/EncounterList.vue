@@ -158,7 +158,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useCompanions } from "@/composables/encounters/useCompanions";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useTrapResolver } from "@/composables/dungeon-features/useTraps";
 import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
 import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useEncountersUiStore } from "@/stores/ui/encounters";
@@ -213,7 +213,11 @@ const { data: monsters } = useMonstersByIds(() => {
     (companions.value ?? []).filter((c) => fielded.has(c.id)),
   );
 });
-const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
+// Difficulty needs the CR of the traps the listed encounters cite, nothing else.
+const { byId: trapsById } = useTrapResolver(
+  () => ({ includeAllScopes: true }),
+  () => (encounters.value ?? []).flatMap((e) => e.library_trap_ids),
+);
 const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
 const rollTableEncounterIds = useEncountersInRollTables();

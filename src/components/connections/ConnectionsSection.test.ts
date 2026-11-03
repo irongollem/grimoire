@@ -68,7 +68,7 @@ function render(subject: { kind: "npc" | "location" | "faction"; id: string } = 
     global: {
       stubs: {
         ConnectionSuggestions: true,
-        AddConnectionDialog: true,
+        AddConnectionDialog: { template: "<div data-testid='add-connection' />" },
         AudienceRevealControl: { template: "<span data-testid='who-knows' />" },
         RouterLink: { props: ["to"], template: "<a :data-to=\"to\"><slot /></a>" },
       },
@@ -84,6 +84,15 @@ beforeEach(() => {
 });
 
 describe("ConnectionsSection", () => {
+  it("does not load the add dialog (and the add-relative flow inside it) until someone asks for it (#1138)", async () => {
+    const w = render();
+    await flushPromises();
+    expect(w.find("[data-testid='add-connection']").exists()).toBe(false);
+    await w.findAll("button").find((b) => b.text().includes("Add connection"))!.trigger("click");
+    await flushPromises();
+    expect(w.find("[data-testid='add-connection']").exists()).toBe(true);
+  });
+
   it("says so when there is nothing yet", () => {
     expect(render().text()).toContain("No connections yet.");
   });

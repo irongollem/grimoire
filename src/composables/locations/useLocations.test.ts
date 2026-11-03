@@ -28,11 +28,13 @@ const mocks = vi.hoisted(() => ({
 
 const activeCampaignId = ref<string | null>("campaign-1");
 const ownerId = ref<string | null>(null);
+// The campaign row lands after the active id is set; false is that cold-load gap.
+const rowLoaded = ref(true);
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get activeCampaignId() { return activeCampaignId.value; },
-    get activeCampaign() { return ownerId.value === null ? null : { user_id: ownerId.value }; },
+    get activeCampaign() { return rowLoaded.value ? { id: activeCampaignId.value, user_id: ownerId.value ?? "user-1" } : null; },
   }),
 }));
 vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({}) }));
@@ -99,6 +101,7 @@ beforeEach(() => {
   fake.reset();
   activeCampaignId.value = "campaign-1";
   ownerId.value = null;
+  rowLoaded.value = true;
   mocks.invoke.mockReset().mockResolvedValue({ data: null, error: null });
   mocks.deleteUnreferenced.mockReset();
   mocks.stamp.mockReset();
@@ -199,6 +202,22 @@ describe("location list reads", () => {
     const columns = fake.calls.find((c) => c.target === "locations")?.columns;
     expect(columns).toBe(LOCATION_SUMMARY_SELECT);
     for (const heavy of ["description", "notes", "map_pins"]) expect(String(columns).split(", ")).not.toContain(heavy);
+    unmount();
+  });
+
+  // Bug: the read went out with owner null before the campaign row landed, then again with the owner: a duplicate request, and for a co-DM a first answer missing the owner's places.
+  it.each([
+    ["the flat list", () => useAllLocations()],
+    ["a children list", () => useLocations(null)],
+  ])("sends %s once, only after the campaign row is known", async (_name, read) => {
+    rowLoaded.value = false;
+    ownerId.value = "owner-1";
+    const { unmount } = withQueryClient(read);
+    await flushPromises();
+    expect(fake.calls).toEqual([]);
+    rowLoaded.value = true;
+    await flushPromises();
+    expect(fake.calls.filter((c) => c.target === "locations")).toHaveLength(1);
     unmount();
   });
 

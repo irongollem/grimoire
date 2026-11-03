@@ -84,8 +84,8 @@ import LocationLootPanel from "@/components/locations/place/LocationLootPanel.vu
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { IconDice, IconEncounter, IconHide, IconTrap } from "@/lib/icons";
 import { useLocationPlacements } from "@/composables/locations/useLocationPlacements";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapResolver } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureResolver } from "@/composables/dungeon-features/useDungeonFeatures";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useAssertDoorState } from "@/composables/locations/useLocationState";
@@ -122,8 +122,18 @@ const { siteId, room, regions, doors, doorState, loot, campaignId, compact = fal
 const roomIdRef = computed(() => room.id);
 const { data: roomPlacements } = useLocationPlacements(roomIdRef);
 // Resolves stored ids, library rows included.
-const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
-const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
+// Only the library rows this room cites: its placements and its doors' feature anchors.
+const { byId: trapsById } = useTrapResolver(
+  () => ({ includeAllScopes: true }),
+  () => (roomPlacements.value ?? []).map((p) => p.library_trap_id),
+);
+const { byId: featuresById } = useDungeonFeatureResolver(
+  () => ({ includeAllScopes: true }),
+  () => [
+    ...(roomPlacements.value ?? []).map((p) => p.library_dungeon_feature_id),
+    ...doorsOfSpace(doors, room.id).map((view) => view.door.library_dungeon_feature_id),
+  ],
+);
 const { data: encounters } = useEncounters();
 const { data: rollTables } = useRollTables();
 

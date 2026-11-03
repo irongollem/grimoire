@@ -13,7 +13,7 @@ export interface Sample extends RequestSummary {
   contentReadyMs: number | null;
 }
 
-export type NumericMetric = Exclude<keyof Sample, "apiPaths" | "apiWaves">;
+export type NumericMetric = Exclude<keyof Sample, "apiPaths" | "apiWaves" | "assetPaths">;
 
 /**
  * Display order and labels. Order is the order of the printed table; `unit`
@@ -45,6 +45,8 @@ export interface StepResult {
   median: MedianSample;
   /** Request list of the run closest to the median settled time, so a reader can see what was fetched. */
   representativeApiPaths: string[];
+  /** The same run's other requests (chunks, styles, fonts, images): what `totalRequests` counted. */
+  representativeAssetPaths: string[];
 }
 
 export interface JourneyResult {
@@ -85,7 +87,7 @@ export function aggregateRuns(label: string, runs: readonly Sample[]): StepResul
   for (const { key } of METRICS) median[key] = medianOrNull(runs.map((run) => run[key]));
   const pick = runs[medianIndex(runs.map((run) => run.settledMs))];
   if (pick === undefined) throw new Error("unreachable: median index inside runs");
-  return { label, runs: [...runs], median, representativeApiPaths: pick.apiPaths };
+  return { label, runs: [...runs], median, representativeApiPaths: pick.apiPaths, representativeAssetPaths: pick.assetPaths };
 }
 
 export function formatValue(value: number | null, unit: "count" | "bytes" | "ms"): string {

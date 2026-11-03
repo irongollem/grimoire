@@ -5,8 +5,8 @@
 import { computed, type Ref } from "vue";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapIndex, useTrapResolver } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureIndex, useDungeonFeatureResolver } from "@/composables/dungeon-features/useDungeonFeatures";
 import { cellKey, type CellKey, type CellMetadata, type DungeonMapLayers, type EdgeSegType } from "@/types/dungeonMap.types";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { wallAt } from "@/cartographer/wallGraph";
@@ -38,8 +38,14 @@ export function useWorkbenchCellSelection(inputs: {
   // after its target is scoped out of the active campaign or shadowed by a copy.
   const { data: pickTrapsData } = useTrapIndex();
   const { data: pickFeaturesData } = useDungeonFeatureIndex();
-  const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
-  const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
+  const { byId: trapsById } = useTrapResolver(
+    () => ({ includeAllScopes: true }),
+    () => Object.values(metadata.value).map((m) => m?.trap_id),
+  );
+  const { byId: featuresById } = useDungeonFeatureResolver(
+    () => ({ includeAllScopes: true }),
+    () => Object.values(metadata.value).map((m) => m?.feature_id),
+  );
   // The picker offers the scoped list plus whatever the selected cell already
   // holds, so an out-of-scope or shadowed value still displays and stays selectable.
   function withCurrent(

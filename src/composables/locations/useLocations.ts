@@ -2,7 +2,7 @@ import { computed, isRef, ref, toValue, type MaybeRefOrGetter } from "vue";
 import type { Ref } from "vue";
 import { useQueries, useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import { createIdBatcher } from "@/lib/batchById";
 import { MissingRowError } from "@/lib/queryRetry";
 import { useCampaignStore } from "@/stores/campaign";
@@ -260,7 +260,7 @@ async function deleteLocation(id: string): Promise<void> {
 export function useLocations(parentId: string | null | Ref<string | null> = null) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  // A co-DM reads the owner's library places too (#590); the owner is part of the key so the read refires once the campaign row loads.
+  // A co-DM reads the owner's library places too (#590). The owner is part of the key, and the read waits for the campaign row so it is sent once with the right owner.
   const ownerId = computed(() => campaign.activeCampaign?.user_id ?? null);
   const parentIdRef = isRef(parentId) ? parentId : ref(parentId);
   return useQuery({
@@ -270,8 +270,15 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
       if (parentId === "") throw new Error("useLocations fetched with an unresolved parent id");
       return fetchLocations(cid, owner, parentId);
     },
-    enabled: () => !!campaignId.value && parentIdRef.value !== "",
+    enabled: () => ownerKnownFor(campaign.activeCampaign, campaignId.value) && parentIdRef.value !== "",
   });
+}
+
+/** The flat read of the active campaign waits for its row (the owner is in the key); another campaign's has no owner to wait for. */
+function allLocationsReady(campaignId: string | null): boolean {
+  const campaign = useCampaignStore();
+  if (campaignId === null) return false;
+  return campaignId !== campaign.activeCampaignId || ownerKnownFor(campaign.activeCampaign, campaignId);
 }
 
 /** The flat Atlas read; shared by `useAllLocations` and the navigation prefetch. */
@@ -305,7 +312,7 @@ export function useAllLocations(enabled?: () => boolean, forCampaign?: MaybeRefO
   return useQuery({
     queryKey: computed(() => options.value.queryKey),
     queryFn: () => options.value.queryFn(),
-    enabled: () => !!campaignId.value && (enabled?.() ?? true),
+    enabled: () => allLocationsReady(campaignId.value) && (enabled?.() ?? true),
   });
 }
 
@@ -487,7 +494,7 @@ export function useUpdateLocation() {
  * In DM-preview mode the DM owns the rows, so it reads the base table directly
  * (the projection would return nothing — the DM isn't a campaign_member).
  */
-export function useSharedLocations() {
+export function useSharedLocations(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
@@ -514,7 +521,7 @@ export function useSharedLocations() {
       if (error) throw error;
       return ((data ?? []) as Location[]).sort((a, b) => a.name.localeCompare(b.name));
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
 

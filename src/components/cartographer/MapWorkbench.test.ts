@@ -33,11 +33,13 @@ vi.mock("@/composables/notes/useNotes", () => ({ useNotes: () => ({ data: ref([]
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounters: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/dungeon-features/useTraps", () => ({
   useTraps: () => ({ data: ref([]) }),
-  useTrapIndex: () => ({ data: ref([]), byId: ref(new Map()) }),
+  useTrapIndex: () => ({ data: ref([]) }),
+  useTrapResolver: () => ({ byId: ref(new Map()) }),
 }));
 vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({
   useDungeonFeatures: () => ({ data: ref([]) }),
-  useDungeonFeatureIndex: () => ({ data: ref([]), byId: ref(new Map()) }),
+  useDungeonFeatureIndex: () => ({ data: ref([]) }),
+  useDungeonFeatureResolver: () => ({ byId: ref(new Map()) }),
 }));
 vi.mock("@/composables/cartographer/useLibraryDressing", () => ({
   useDressingCatalog: () => ({ catalog: shallowRef(new Map()) }),

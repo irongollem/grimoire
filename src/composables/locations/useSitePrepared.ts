@@ -13,8 +13,8 @@
 import { computed } from "vue";
 import type { Ref } from "vue";
 import { useSitePlacements } from "@/composables/locations/useSitePlacements";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
-import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useTrapResolver } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatureResolver } from "@/composables/dungeon-features/useDungeonFeatures";
 import { usePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
@@ -41,8 +41,19 @@ export function useSitePrepared(spaceIds: Ref<string[]>, regions: Ref<LocationMa
   const { data: placements } = useSitePlacements(spaceIds);
   // Resolving stored ids: every library and own row, unshadowed and across
   // every campaign scope, so a placed trap still draws after it is re-scoped.
-  const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
-  const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
+  // Only the library rows this site cites are read: placements' library columns and
+  // a hazard zone's linked trap.
+  const { byId: trapsById } = useTrapResolver(
+    () => ({ includeAllScopes: true }),
+    () => [
+      ...(placements.value ?? []).map((p) => p.library_trap_id),
+      ...regions.value.map((r) => r.zone_payload.trap_id),
+    ],
+  );
+  const { byId: featuresById } = useDungeonFeatureResolver(
+    () => ({ includeAllScopes: true }),
+    () => (placements.value ?? []).map((p) => p.library_dungeon_feature_id),
+  );
   const { data: puzzles } = usePuzzles();
   const { data: encounters } = useEncounters();
   const { data: lootPlacements } = useLootPlacements();

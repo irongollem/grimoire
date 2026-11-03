@@ -14,7 +14,7 @@ import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useTrapResolver } from "@/composables/dungeon-features/useTraps";
 import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { liveRevision, useEncounterLive } from "@/composables/encounters/useEncounterLive";
@@ -43,7 +43,10 @@ const { data: npcs, isFetching: npcsFetching } = useNpcs();
 // A character's token takes its species' (or subrace's) size, so the species the party has are read by id.
 const { data: speciesById, isLoading: speciesLoading } = useSpeciesByIds(() => (party.value ?? []).map((m) => m.species_id));
 // byId resolves the ids the encounter stored, library and own alike.
-const { byId: trapsById, isLoading: trapsLoading } = useTrapIndex(() => ({ includeAllScopes: true }));
+const { byId: trapsById, isLoading: trapsLoading } = useTrapResolver(
+  () => ({ includeAllScopes: true }),
+  () => encounter.value?.library_trap_ids ?? [],
+);
 const store = useEncounterRunStore();
 const { liveState, liveStateLoaded } = useEncounterLive(id, { follow: true });
 

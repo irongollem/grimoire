@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import { useCampaignStore } from "@/stores/campaign";
 
 /**
@@ -67,7 +67,8 @@ export function useCampaignCounts() {
       if (!cid) throw new Error("location count read without a campaign");
       return countLocations(cid, ownerId);
     },
-    enabled,
+    // The owner is in the key: wait for the campaign row rather than send the read twice.
+    enabled: () => ownerKnownFor(campaign.activeCampaign, campaignId.value),
   });
 
   return { npcs, encounters, locations };

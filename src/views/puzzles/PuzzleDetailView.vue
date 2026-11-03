@@ -403,7 +403,7 @@ import PuzzleSkillChecksEditor from "@/components/puzzles/PuzzleSkillChecksEdito
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useDungeonFeatureIndex, useDungeonFeatureResolver } from "@/composables/dungeon-features/useDungeonFeatures";
 import { featureRefColumns, featureRefOf, isLibraryId } from "@/lib/dungeon-features/library";
 import LibraryPuzzleSheet from "@/components/puzzles/LibraryPuzzleSheet.vue";
 import type { LocationSummary } from "@/types/location.types";
@@ -455,7 +455,10 @@ const { locationOptions } = useLocationTree();
 // rescopes the feature to another campaign (#800) — so it stays unscoped.
 // `pickableDungeonFeatures` backs the combobox that sets a new anchor: this
 // campaign's features and the library's, an own copy hiding its original.
-const { byId: featuresById } = useDungeonFeatureIndex(() => ({ includeAllScopes: true }));
+const { byId: featuresById } = useDungeonFeatureResolver(
+  () => ({ includeAllScopes: true }),
+  () => [puzzle.value?.library_dungeon_feature_id],
+);
 const { data: pickableDungeonFeatures } = useDungeonFeatureIndex();
 
 const anchorLocation = computed(() =>

@@ -26,7 +26,7 @@ vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({ ac
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]), isFetching: ref(false) }) }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesByIds: () => ({ data: data.species, isLoading: data.speciesLoading }) }));
 vi.mock("@/composables/dungeon-features/useTraps", () => ({
-  useTrapIndex: () => ({ byId: ref(new Map()), isLoading: ref(false) }),
+  useTrapResolver: () => ({ byId: ref(new Map()), isLoading: ref(false) }),
 }));
 vi.mock("@/composables/monsters/useMonstersByIds", () => ({
   useMonstersByIds: () => ({ data: ref(new Map()), isLoading: ref(false) }),
