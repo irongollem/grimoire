@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_LANES,
+  defaultLanes,
   effectiveFades,
   effectiveLaunchMode,
   effectiveLoop,
@@ -13,6 +13,7 @@ import {
   padAt,
   padCategory,
   padKind,
+  pageLanes,
   rowsForPage,
   takeVariation,
   keyRowFor,
@@ -22,18 +23,40 @@ import {
   defaultLoop,
 } from "./deckModel";
 
+describe("pageLanes", () => {
+  // Sentry DUNGEON-GRIMOIRE-Y/Z: the deck drew no lanes and the layout crashed.
+  it("gives the default lanes when there is no page yet", () => {
+    expect(pageLanes(null)).toEqual(defaultLanes());
+  });
+
+  it("gives the default lanes for a page row that came back without them", () => {
+    expect(pageLanes({})).toEqual(defaultLanes());
+  });
+
+  it("keeps a page's own lanes", () => {
+    const own = defaultLanes().map((lane) => ({ ...lane, name: "Mine" }));
+    expect(pageLanes({ lanes: own })).toBe(own);
+  });
+
+  it("hands out a fresh default array, so a caller cannot edit the defaults", () => {
+    const first = defaultLanes();
+    first[0] = { name: "Changed", rule: "together" };
+    expect(defaultLanes()[0]).toEqual({ name: "Music", rule: "one", feed: "music" });
+  });
+});
+
 describe("isValidLanes", () => {
   it("accepts the default lanes", () => {
-    expect(isValidLanes(DEFAULT_LANES)).toBe(true);
+    expect(isValidLanes(defaultLanes())).toBe(true);
   });
 
   it("refuses seven or nine lanes, which the database would reject", () => {
-    expect(isValidLanes(DEFAULT_LANES.slice(0, 7))).toBe(false);
-    expect(isValidLanes([...DEFAULT_LANES, DEFAULT_LANES[0]])).toBe(false);
+    expect(isValidLanes(defaultLanes().slice(0, 7))).toBe(false);
+    expect(isValidLanes([...defaultLanes(), defaultLanes()[0]])).toBe(false);
   });
 
   it("refuses an empty, over-long or non-string name and an unknown rule", () => {
-    const with0 = (lane: unknown) => [lane, ...DEFAULT_LANES.slice(1)];
+    const with0 = (lane: unknown) => [lane, ...defaultLanes().slice(1)];
     expect(isValidLanes(with0({ name: "", rule: "one" }))).toBe(false);
     expect(isValidLanes(with0({ name: "x".repeat(41), rule: "one" }))).toBe(false);
     expect(isValidLanes(with0({ name: "x".repeat(40), rule: "one" }))).toBe(true);
@@ -46,20 +69,20 @@ describe("isValidLanes", () => {
   // Each fails if its check is gone: the database refuses both, so the lane
   // editor would save something the server throws back.
   it("refuses an unknown feed", () => {
-    const lanes = DEFAULT_LANES.map((lane, i) => (i === 3 ? { ...lane, feed: "combat" } : lane));
+    const lanes = defaultLanes().map((lane, i) => (i === 3 ? { ...lane, feed: "combat" } : lane));
     expect(isValidLanes(lanes)).toBe(false);
   });
 
   it("refuses one feed in two lanes, so a trigger always knows where it goes", () => {
-    const lanes = DEFAULT_LANES.map((lane, i) => (i === 3 ? { ...lane, feed: "music" as const } : lane));
+    const lanes = defaultLanes().map((lane, i) => (i === 3 ? { ...lane, feed: "music" as const } : lane));
     expect(isValidLanes(lanes)).toBe(false);
   });
 });
 
 describe("laneForFeed", () => {
   it("finds the lane that takes a feed, and none when no lane does", () => {
-    expect(laneForFeed(DEFAULT_LANES, "place")).toBe(1);
-    const noMusic = DEFAULT_LANES.map((lane) => (lane.feed === "music" ? { ...lane, feed: null } : lane));
+    expect(laneForFeed(defaultLanes(), "place")).toBe(1);
+    const noMusic = defaultLanes().map((lane) => (lane.feed === "music" ? { ...lane, feed: null } : lane));
     expect(laneForFeed(noMusic, "music")).toBeNull();
   });
 });
