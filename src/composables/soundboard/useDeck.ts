@@ -34,6 +34,7 @@ import {
   nextTakeIndex,
   laneForFeed,
   padAt,
+  pageLanes,
   takeVariation,
   velocityGain,
   type VelocityCurve,
@@ -198,7 +199,7 @@ export function createDeck(): DeckController {
 
   function laneIsOne(info: DeckPadInfo): boolean {
     const page = pages.value.find((p) => p.id === info.pad.page_id);
-    const lane = page ? page.lanes[info.pad.lane] : undefined;
+    const lane = page ? pageLanes(page)[info.pad.lane] : undefined;
     return lane !== undefined && lane.rule === "one";
   }
 
@@ -641,8 +642,9 @@ export function createDeck(): DeckController {
     const page = activePage.value;
     if (page === null) return;
     const feed = feedOfTrigger(trigger, (id) => soundsById.value.get(id)?.category);
-    const lane = feed === null ? null : laneForFeed(page.lanes, feed);
-    if (lane === null || page.lanes[lane]?.rule !== "one") return;
+    const lanes = pageLanes(page);
+    const lane = feed === null ? null : laneForFeed(lanes, feed);
+    if (lane === null || lanes[lane]?.rule !== "one") return;
     const id = targetId(trigger.target);
     for (const info of pagePads.value) {
       if (info.pad.lane !== lane || padHolds(info, id) || !isLive(info)) continue;

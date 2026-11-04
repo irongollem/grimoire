@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick, type EffectScope } from "vue";
 import type { SoundboardPadWithTakes, Sound, SoundboardPlaylist, SoundboardPage } from "@/types/sound.types";
-import { DEFAULT_LANES } from "@/lib/audio/deck/deckModel";
+import { defaultLanes } from "@/lib/audio/deck/deckModel";
 
 const h = await vi.hoisted(async () => {
   const { reactive, ref } = await import("vue");
@@ -147,7 +147,7 @@ function playlist(id: string, type: "music" | "ambient"): SoundboardPlaylist {
   return { id, name: `PL ${id}`, playlist_type: type, shuffle: false, repeat: true } as SoundboardPlaylist;
 }
 
-function page(id: string, lanes = DEFAULT_LANES): SoundboardPage {
+function page(id: string, lanes = defaultLanes()): SoundboardPage {
   return { id, name: id.toUpperCase(), lanes } as SoundboardPage;
 }
 
@@ -355,7 +355,7 @@ describe("repeat", () => {
 // ── Lanes ──────────────────────────────────────────────────────────────────
 
 describe("lane rule", () => {
-  const lanes = DEFAULT_LANES.map((l) => ({ ...l }));
+  const lanes = defaultLanes().map((l) => ({ ...l }));
 
   it("'one' fades out the audible pad of the lane with its own fade as the new one starts (fails if the old pad kept playing)", () => {
     lanes[0] = { name: "Music", rule: "one" };
@@ -371,7 +371,7 @@ describe("lane rule", () => {
   });
 
   it("'together' leaves the other pad alone (fails if every lane crossfaded)", () => {
-    const together = DEFAULT_LANES.map((l) => ({ ...l, rule: "together" as const }));
+    const together = defaultLanes().map((l) => ({ ...l, rule: "together" as const }));
     const deck = boot({
       pads: [pad("m1", { grid_row: 0 }), pad("m2", { grid_row: 1 })],
       sounds: [sound("m1", "music"), sound("m2", "music")],
@@ -1184,7 +1184,7 @@ describe("trigger arrival", () => {
   });
 
   it("in a 'together' lane stops nothing (fails if every arrival cleared its lane)", async () => {
-    const lanes = DEFAULT_LANES.map((lane) => (lane.feed === "music" ? { ...lane, rule: "together" as const } : lane));
+    const lanes = defaultLanes().map((lane) => (lane.feed === "music" ? { ...lane, rule: "together" as const } : lane));
     boot({ pads: [pad("loose", { lane: 0 }, ["l1"])], sounds: [sound("l1", "music")], playlists: [playlist("battle", "music")], pages: [page("p1", lanes)] });
     playing("l1");
     fightPlaying();

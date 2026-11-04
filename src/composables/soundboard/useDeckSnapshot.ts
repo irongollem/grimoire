@@ -6,13 +6,13 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 import { placeGuests, targetId, type GuestTrigger, type PlacedGuest } from "@/lib/audio/deck/deckGuests";
 import {
-  DEFAULT_LANES,
   effectiveLaunchMode,
   emptyDeckCell,
   isDefaultLaunchMode,
   laneCategory,
   rowsForPage,
   keyRowFor,
+  pageLanes,
   rowKey,
 } from "@/lib/audio/deck/deckModel";
 import {
@@ -144,7 +144,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       for (const sound of info.sounds) heldIds.add(sound.id);
     }
     return placeGuests({
-      lanes: page.lanes,
+      lanes: pageLanes(page),
       heldIds,
       occupied: pagePads.value.map((info) => ({ lane: info.pad.lane, row: info.pad.grid_row })),
       triggers: triggers.filter((trigger) => targetAudible(trigger.target)),
@@ -225,8 +225,7 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
         cells.push(found ? cellOf(found, keyRow) : guest ? guestCell(guest, keyRow) : emptyDeckCell(lane, row));
       }
     }
-    const laneDefs = page ? page.lanes : DEFAULT_LANES;
-    const lanes: DeckLaneView[] = laneDefs.map((def, lane) => ({
+    const lanes: DeckLaneView[] = pageLanes(page).map((def, lane) => ({
       name: def.name,
       rule: def.rule,
       feed: def.feed === undefined ? null : def.feed,

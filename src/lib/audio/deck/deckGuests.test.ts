@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LANES } from "./deckModel";
+import { defaultLanes } from "./deckModel";
 import { feedOfTrigger, placeGuests, targetId, type GuestTrigger } from "./deckGuests";
 import type { DeckLane } from "@/types/sound.types";
 
@@ -8,7 +8,7 @@ function trig(over: Partial<GuestTrigger> & { sourceId: string }): GuestTrigger 
   return { label: `from ${over.sourceId}`, kind: "encounter", slot: "music", target: `pl-${over.sourceId}`, ...over };
 }
 function place(over: Partial<Parameters<typeof placeGuests>[0]>) {
-  return placeGuests({ lanes: DEFAULT_LANES, heldIds: new Set(), occupied: [], triggers: [], soundCategory: none, ...over });
+  return placeGuests({ lanes: defaultLanes(), heldIds: new Set(), occupied: [], triggers: [], soundCategory: none, ...over });
 }
 
 describe("feedOfTrigger", () => {
@@ -42,7 +42,7 @@ describe("placeGuests", () => {
   });
 
   it("drops a trigger whose feed has no lane on the page (fails if it landed in lane 0)", () => {
-    const lanes: DeckLane[] = DEFAULT_LANES.map((lane) => (lane.feed === "place" ? { name: lane.name, rule: lane.rule } : lane));
+    const lanes: DeckLane[] = defaultLanes().map((lane) => (lane.feed === "place" ? { name: lane.name, rule: lane.rule } : lane));
     const t = trig({ sourceId: "a", slot: "ambient", kind: "location" });
     expect(place({ lanes, triggers: [t] })).toEqual([]);
   });
@@ -53,7 +53,7 @@ describe("placeGuests", () => {
   });
 
   it("drops an effect one-shot even when the page has a lane whose feed is explicitly null (fails if the null feed were looked up as a lane)", () => {
-    const lanes: DeckLane[] = DEFAULT_LANES.map((lane) => (lane.feed === undefined ? { ...lane, feed: null } : lane));
+    const lanes: DeckLane[] = defaultLanes().map((lane) => (lane.feed === undefined ? { ...lane, feed: null } : lane));
     const t = trig({ sourceId: "a", slot: "ambient", kind: "beat", target: "sound:s1" });
     expect(place({ lanes, triggers: [t], soundCategory: () => "effects" })).toEqual([]);
   });

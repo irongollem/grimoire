@@ -33,6 +33,7 @@
 import { computed, reactive, useId, watch } from "vue";
 import { useSoundboardPages, useUpdatePageLane } from "@/composables/soundboard/useSoundboardPages";
 import { useAutosave } from "@/composables/useAutosave";
+import { pageLanes } from "@/lib/audio/deck/deckModel";
 import type { DeckFeed, DeckLane } from "@/types/sound.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -66,7 +67,10 @@ const nameId = `${useId()}-lane-name`;
 const { data: pages } = useSoundboardPages();
 const { mutateAsync: updateLane } = useUpdatePageLane();
 
-const lane = computed(() => (pages.value ?? []).find((p) => p.id === pageId)?.lanes[laneIndex] ?? null);
+const lane = computed(() => {
+  const page = (pages.value ?? []).find((p) => p.id === pageId);
+  return page ? (pageLanes(page)[laneIndex] ?? null) : null;
+});
 
 const draft = reactive<DeckLane>({ name: "", rule: "one", feed: null });
 const nameValid = computed(() => {

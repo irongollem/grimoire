@@ -11,17 +11,39 @@ import { DECK_LANES } from "./deckSurface";
 /** The highest grid_row the database allows is 255. */
 export const MAX_GRID_ROWS = 256;
 
-/** Equal to the default of `soundboard_pages.lanes`. */
-export const DEFAULT_LANES: DeckLane[] = [
-  { name: "Music", rule: "one", feed: "music" },
-  { name: "Place", rule: "one", feed: "place" },
-  { name: "Ambience", rule: "together", feed: "ambience" },
-  { name: "Effects", rule: "together" },
-  { name: "Effects", rule: "together" },
-  { name: "Effects", rule: "together" },
-  { name: "Effects", rule: "together" },
-  { name: "Stingers", rule: "together" },
-];
+/**
+ * Equal to the default of `soundboard_pages.lanes`, as a fresh array per call.
+ *
+ * A function, not a module constant, on purpose. The production bundler wraps
+ * this module in a lazy initialiser, so an exported `const` is only assigned
+ * once that initialiser has run, while a function declaration exists from the
+ * moment the chunk loads. As a constant it was read as `undefined` by the deck
+ * snapshot on a screen with no page loaded yet (Sentry DUNGEON-GRIMOIRE-Y/Z),
+ * which took the whole layout down with it.
+ */
+export function defaultLanes(): DeckLane[] {
+  return [
+    { name: "Music", rule: "one", feed: "music" },
+    { name: "Place", rule: "one", feed: "place" },
+    { name: "Ambience", rule: "together", feed: "ambience" },
+    { name: "Effects", rule: "together" },
+    { name: "Effects", rule: "together" },
+    { name: "Effects", rule: "together" },
+    { name: "Effects", rule: "together" },
+    { name: "Stingers", rule: "together" },
+  ];
+}
+
+/**
+ * The lanes the deck lays out for a page: its own, or the defaults when there
+ * is no page (nothing loaded yet, or a campaign with no pages) or the row came
+ * back without them. The deck draws in the layout on every screen, so a
+ * missing array must cost one page's lane names, never the app.
+ */
+export function pageLanes(page: { lanes?: DeckLane[] | null } | null | undefined): DeckLane[] {
+  const lanes = page ? page.lanes : undefined;
+  return Array.isArray(lanes) ? lanes : defaultLanes();
+}
 
 const LANE_NAME_MAX = 40;
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
-import { DEFAULT_LANES } from "@/lib/audio/deck/deckModel";
+import { defaultLanes } from "@/lib/audio/deck/deckModel";
 import type { SoundboardPage } from "@/types/sound.types";
 
 const { fake } = await vi.hoisted(async () => {
@@ -199,10 +199,10 @@ describe("useMovePad", () => {
 });
 
 describe("useUpdatePageLane", () => {
-  const page = { id: "pg", campaign_id: "camp-1", lanes: DEFAULT_LANES } as Partial<SoundboardPage> as SoundboardPage;
+  const page = { id: "pg", campaign_id: "camp-1", lanes: defaultLanes() } as Partial<SoundboardPage> as SoundboardPage;
 
   function setup() {
-    fake.seed("soundboard_pages", [{ id: "pg", campaign_id: "camp-1", lanes: DEFAULT_LANES }]);
+    fake.seed("soundboard_pages", [{ id: "pg", campaign_id: "camp-1", lanes: defaultLanes() }]);
     const app = inApp(() => useUpdateLane());
     app.queryClient.setQueryData(["soundboard_pages", "camp-1"], [page]);
     return app;
