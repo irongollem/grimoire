@@ -130,10 +130,12 @@ export const cupTown: Scene = {
     ambience: [
       // Wind over the hilltop, CC0 from the soundboard library.
       { src: "https://cdn.dungeongrimoire.com/sounds/library/wind/park-wind.ogg", gain: 0.35 },
-      // Act One ends when Cup Town's bell has rung the same single note three times: the maintainer's own low G
-      // bell, struck as the town comes into view.
+      // Act One ends when Cup Town's bell has rung the same single note three times: a CC0 low G bell from
+      // Freesound, on the maintainer's soundboard, struck as the town comes into view.
       { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/d425b427-43c1-4531-82d4-b739b50ba531.mp3", gain: 0.55, clip: [0, 8.76], at: 10.5 },
-      // The campaign's title song, the maintainer's own: a cut whose end, what follows and start match in level.
+      // The setting's title song, the maintainer's own version, a cut whose end, what follows and start match in
+      // level. It was made through a service that forwards to Suno; the maintainer chose it over every Lyria take
+      // of the same lyrics, knowing that (4 Nov 2026).
       { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/dda1810c-8599-4c82-a25a-62674a518425.mp3", gain: 0.7, clip: [138, 162], at: 0 },
     ],
   },

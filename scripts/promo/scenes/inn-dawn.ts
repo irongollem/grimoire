@@ -138,7 +138,7 @@ export const innDawn: Scene = {
     ambience: [
       // The hob under the kettle, offstage: a murmur, not a campfire.
       { src: "https://cdn.dungeongrimoire.com/sounds/library/fire/fireplace-loop.ogg", gain: 0.03 },
-      // Dawn bells from across the terraces: the maintainer's own low G bell from the Late in the Kind Country
+      // Dawn bells from across the terraces: a CC0 low G bell from Freesound, on the Late in the Kind Country
       // soundboard, which strikes three times (0.2, 3.2, 6.2 s) as a bell in Sothery does, and has rung out by
       // 8.7 s, inside the loop.
       { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/d425b427-43c1-4531-82d4-b739b50ba531.mp3", gain: 0.5, clip: [0, 8.76], at: 2 },
