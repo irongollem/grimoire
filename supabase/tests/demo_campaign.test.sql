@@ -211,7 +211,7 @@ update public.quests set entry_beat_id = '91200000-0000-4000-8000-000000000041'
 insert into public.notes (id, user_id, campaign_id, title) values
   ('91200000-0000-4000-8000-000000000050', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'Sugarwell at a glance');
-insert into public.calendar_events (id, user_id, campaign_id, title, harptos_year, linked_note_id) values
+insert into public.calendar_events (id, user_id, campaign_id, title, year, linked_note_id) values
   ('91200000-0000-4000-8000-000000000051', '91200000-0000-4000-8000-000000000001',
    '91200000-0000-4000-8000-000000000010', 'The Gathering', 1495, '91200000-0000-4000-8000-000000000050');
 update public.notes set linked_calendar_event_id = '91200000-0000-4000-8000-000000000051'

@@ -94,7 +94,7 @@ select isnt(
   null, 'an event fires on its due day');
 
 select is(
-  (select array[harptos_year, harptos_month, harptos_day] from public.calendar_events
+  (select array[year, month, day] from public.calendar_events
     where id = (select calendar_event_id from public.quest_consequence_events where id = '10160000-0000-4000-8000-500000000002')),
   array[1495, 1, 30], 'and what it does reaches the world');
 
