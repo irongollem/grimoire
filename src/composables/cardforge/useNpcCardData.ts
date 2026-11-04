@@ -3,10 +3,10 @@ import type { Npc } from "@/types/npc.types";
 import {
   ABILITY_KEYS,
   ABILITY_LABELS,
-  capitalize,
   truncateCard,
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
+import { skillsLine } from "@/lib/cardforge/skillsLine";
 import { parseDiceAvg } from "@/lib/dice/dice";
 import { parseSenses, type SenseEntry } from "@/lib/senses";
 
@@ -65,9 +65,7 @@ export function useNpcCardData(
     if (sb.skills && Object.keys(sb.skills).length) {
       rows.push({
         label: "Skills",
-        value: Object.entries(sb.skills)
-          .map(([k, v]) => capitalize(k) + " " + v)
-          .join(", "),
+        value: skillsLine(sb.skills),
       });
     }
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });

@@ -138,7 +138,7 @@ const artFade = computed(() => ({
   z-index: 1;
   flex: 1;
   overflow: hidden;
-  padding: 7px 10px 8px;
+  padding: 7px 10px 13px; /* clear of the shell's watermark */
   display: flex;
   flex-direction: column;
   gap: 4px;

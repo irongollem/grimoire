@@ -51,6 +51,19 @@ describe("useMonsterCardData defenses", () => {
   });
 });
 
+describe("useMonsterCardData flavor", () => {
+  it("prints the monster's lore on the back, never the DM's private notes", () => {
+    const m = { ...monster(), description: "A workshop fixture that isn't.", notes: "DM only: the Guild planted it here." } as Monster;
+    const { flavor } = useMonsterCardData(m);
+    expect(flavor.value).toBe("A workshop fixture that isn't.");
+  });
+
+  it("falls back to the habitat, still not the notes, when a monster has no lore", () => {
+    const m = { ...monster(), description: null, habitat: "Candy workshops", notes: "DM only." } as Monster;
+    expect(useMonsterCardData(m).flavor.value).toBe("Candy workshops");
+  });
+});
+
 describe("useMonsterCardData entry order", () => {
   it("puts multiattack first, then recharge actions, by structure not name", () => {
     const { entries } = useMonsterCardData(
@@ -174,9 +187,7 @@ describe("useMonsterCardData entries and flavor", () => {
     expect(entries.value[0].description).toBe("Bites hard.");
   });
 
-  it("prefers the notes over the habitat for flavor, and has none when both are empty", () => {
-    expect(useMonsterCardData({ ...monster(), notes: "Hoards teeth.", habitat: "Hills" } as Monster).flavor.value).toBe("Hoards teeth.");
-    expect(useMonsterCardData({ ...monster(), notes: null, habitat: "Hills" } as Monster).flavor.value).toBe("Hills");
-    expect(useMonsterCardData({ ...monster(), notes: null, habitat: null } as Monster).flavor.value).toBeNull();
+  it("has no flavor when a monster has neither lore nor habitat", () => {
+    expect(useMonsterCardData({ ...monster(), description: null, notes: "DM only.", habitat: null } as Monster).flavor.value).toBeNull();
   });
 });

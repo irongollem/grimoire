@@ -3,10 +3,10 @@ import type { Monster } from "@/types/monster.types";
 import {
   ABILITY_KEYS,
   ABILITY_LABELS,
-  capitalize,
   truncateCard,
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
+import { skillsLine } from "@/lib/cardforge/skillsLine";
 import type { DamageGroup } from "@/lib/damageIcons";
 import type { DamageDefense, StatBlockEntry } from "@/types/statBlock.types";
 import { formatDefenseList } from "@/rules/statBlock/parseDefenses";
@@ -113,9 +113,7 @@ export function useMonsterCardData(
     if (sb.skills && Object.keys(sb.skills).length) {
       rows.push({
         label: "Skills",
-        value: Object.entries(sb.skills)
-          .map(([k, v]) => capitalize(k) + " " + v)
-          .join(", "),
+        value: skillsLine(sb.skills),
       });
     }
     const vuln = damageRow("Vuln.", sb.defenses.vulnerabilities);
@@ -152,7 +150,10 @@ export function useMonsterCardData(
   });
 
   const flavor = computed(() => {
-    const raw = toValue(data).notes ?? toValue(data).habitat ?? null;
+    // The monster's own lore, never `notes`: those are the DM's private notes
+    // ("Players never see this" in the sheet's DM note box), and a printed card
+    // goes to the table. Cards printed DM notes on their backs until 4 Nov 2026.
+    const raw = toValue(data).description || toValue(data).habitat || null;
     // Full text — the card UI line-clamps it to whatever space remains.
     return raw ? extractTiptapText(raw, Infinity) || null : null;
   });

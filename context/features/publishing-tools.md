@@ -240,7 +240,7 @@ Every card has a **front** and a **back** component. Front and back are separate
 
 - Full stat block rows (skills, saves, resistances, senses, languages, challenge)
 - Abilities & Actions section (special abilities and actions, truncated to fit)
-- Flavor footer: flavor text + occupation/habitat
+- Flavor footer: a monster's lore (`description`), else its habitat; an NPC's personality, else backstory. Never a monster's `notes`: those are the DM's private notes, and a printed card goes to the table (cards printed them until 4 Nov 2026)
 
 **Item front:**
 

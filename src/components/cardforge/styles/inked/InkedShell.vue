@@ -54,6 +54,8 @@ const cssVars = computed(() => ({
   width: 222px;
   height: 381px;
 }
+/* Sits over the card's last ~10px, so every back's body keeps 13px clear at
+   the bottom: at 8px a long flavor line or entry ran under it. */
 .ik-wm {
   position: absolute;
   bottom: 4px;

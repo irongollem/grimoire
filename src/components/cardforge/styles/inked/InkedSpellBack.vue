@@ -82,7 +82,7 @@ const artFade = computed(() => ({
 }
 .ik-body {
   position: relative; z-index: 1; flex: 1; overflow: hidden;
-  padding: 7px 10px 8px; display: flex; flex-direction: column; gap: 4px;
+  padding: 7px 10px 13px; /* clear of the shell's watermark */ display: flex; flex-direction: column; gap: 4px;
 }
 .ik-stat-rows { display: flex; flex-direction: column; gap: 1.5px; flex-shrink: 0; }
 .ik-stat-row { display: flex; align-items: baseline; gap: 4px; }
