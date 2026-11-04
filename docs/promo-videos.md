@@ -291,7 +291,10 @@ npm run promo:post -- inn-dawn              # dry run, once captions/inn-dawn.tx
 plate, then each moving part on a transparent background with the plate
 attached, so the part takes the room's style and light. The queue holds a
 part until its plate exists and moves aside a PNG without an alpha channel.
-Keep the briefs quiet: few objects, large calm areas, one light. A busy
+Keep the briefs quiet: few objects, large calm areas, one light. Paint
+from Sothery (Sugarwell is the demo campaign, and every scene of the setting
+promotes it) and from classic D&D too: a rough tavern, a dungeon, a dragon's
+hoard (the maintainer, 4 Nov 2026). A busy
 painting is the generated look this is meant to avoid. `--art <dir>` films
 from another folder.
 

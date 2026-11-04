@@ -27,7 +27,7 @@ const CANDLE_BASE = { x: 690, y: 866 };
 const KETTLE_SCALE = 0.273;
 const CANDLE_SCALE = 0.1455;
 /** Where the part images have their spout tip and wick, relative to the anchors below, in part pixels. */
-const SPOUT = { x: KETTLE_FEET.x + (102 - 563) * KETTLE_SCALE, y: KETTLE_FEET.y + (358 - 952) * KETTLE_SCALE };
+const SPOUT = { x: KETTLE_FEET.x + (102 - 509) * KETTLE_SCALE, y: KETTLE_FEET.y + (358 - 952) * KETTLE_SCALE };
 const WICK = { x: CANDLE_BASE.x + (494 - 562) * CANDLE_SCALE, y: CANDLE_BASE.y + (540 - 1249) * CANDLE_SCALE };
 /** Gathered at the window's right side, on the window's wall, so it frames the light rather than covering it. */
 const CURTAIN_ROD = { x: 270, y: 70 };
@@ -87,10 +87,11 @@ export const innDawn: Scene = {
       id: "kettle",
       src: "inn-kettle.png",
       depth: 1,
-      anchor: { x: 563 / 1024, y: 952 / 1024 },
+      // The trivet's centre (x 509 in the kettle image, measured across its feet), so the shadow sits under it.
+      anchor: { x: 509 / 1024, y: 952 / 1024 },
       at: on(KETTLE_FEET.x, KETTLE_FEET.y),
       width: 1024 * KETTLE_SCALE * k,
-      shadow: { rx: 120, ry: 20, opacity: 0.5, dx: 16 },
+      shadow: { rx: 120, ry: 20, opacity: 0.5, dx: 6 },
     },
     {
       kind: "steam",
@@ -137,10 +138,10 @@ export const innDawn: Scene = {
     ambience: [
       // The hob under the kettle, offstage: a murmur, not a campfire.
       { src: "https://cdn.dungeongrimoire.com/sounds/library/fire/fireplace-loop.ogg", gain: 0.03 },
-      // Dawn bells from across the terraces. The recording strikes once a second for a minute and a half; a
-      // bell here strikes three times at most (the maintainer, 4 Nov 2026), so this is the cut holding the
-      // strikes at 5.4, 6.4 and 7.4 s, ending before the fourth at 8.45 s.
-      { src: "https://cdn.dungeongrimoire.com/sounds/library/town/church-bells-birds.ogg", gain: 0.24, clip: [5.25, 8.4], at: 3 },
+      // Dawn bells from across the terraces: the maintainer's own low G bell from the Late in the Kind Country
+      // soundboard, which strikes three times (0.2, 3.2, 6.2 s) as a bell in Sothery does, and has rung out by
+      // 8.7 s, inside the loop.
+      { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/d425b427-43c1-4531-82d4-b739b50ba531.mp3", gain: 0.5, clip: [0, 8.76], at: 2 },
       // Lyria 3.5, made from a text prompt about this room (Google's filter refused the plate itself). The tune
       // opens on 3 s of silence and a quiet stretch and is fullest from about 44 s; this cut's end, what follows
       // it and its start sit within half a decibel of each other, so the Reel's loop has no dip (48 s, the
