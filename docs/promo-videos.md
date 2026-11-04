@@ -294,7 +294,12 @@ part until its plate exists and moves aside a PNG without an alpha channel.
 Keep the briefs quiet: few objects, large calm areas, one light. Paint
 from Sothery (Sugarwell is the demo campaign, and every scene of the setting
 promotes it) and from classic D&D too: a rough tavern, a dungeon, a dragon's
-hoard (the maintainer, 4 Nov 2026). A busy
+hoard (the maintainer, 4 Nov 2026). Brief the next plates wide, so the
+camera can pan across the room in a portrait Reel rather than only drift:
+the inn's portrait plate leaves about 120 px either side. A landscape plate
+is enlarged about 1.9x at Reel height; a sharper route is a portrait centre
+extended left and right by the painter as edits of it, stitched into a
+panorama. That needs a `pan` camera beside today's drift. A busy
 painting is the generated look this is meant to avoid. `--art <dir>` films
 from another folder.
 
