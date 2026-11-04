@@ -4,7 +4,8 @@
  *   1 cover   the art, full bleed, with the kicker and the hook
  *   2 lore    the book page (read-aloud, description, "Run it") laid over the art
  *   3 stats   the stat block card over the art
- *   4 close   where it was made: the Scriptorium page in the editor
+ *   4 card    its Card Forge trading card, front and back (cards.ts captures them)
+ *   5 close   where it was made: the Scriptorium page in the editor
  *   tsx --tsconfig tsconfig.node.json scripts/promo/steal/slides.ts [post id]
  * Writes promo-out/<post id>/slides/slide-N.png and post.html (the slides side by side, for review).
  */
@@ -71,10 +72,23 @@ function slides(post: StealPost, dir: string, art: string): string[] {
       `.card { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); max-width: 1030px; max-height: 1150px; border-radius: 10px; box-shadow: 0 30px 80px rgba(0,0,0,.65); }`,
     ),
     page(
+      `<div class="art" style="background-image:url('${url(art)}'); filter: blur(12px) brightness(.42); transform: scale(1.1)"></div>
+       <div class="title"><div class="kicker">Print it as a card</div><div class="name">Card Forge</div></div>
+       <img class="cf back" src="${url(join(pages, "card-inked-mtg-back.png"))}">
+       <img class="cf front" src="${url(join(pages, "card-inked-mtg-front.png"))}">
+       <img class="brand" src="${WORDMARK}">`,
+      `.title { position: absolute; left: 0; right: 0; top: 70px; text-align: center; display: grid; gap: 6px; }
+       .kicker { font-size: 32px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e2bd62; }
+       .name { font-family: Fondamento, serif; font-size: 76px; }
+       .cf { position: absolute; width: 470px; border-radius: 22px; box-shadow: 0 30px 70px rgba(0,0,0,.7); }
+       .front { left: 46px; top: 310px; transform: rotate(-4deg); }
+       .back { right: 46px; top: 350px; transform: rotate(4deg); }`,
+    ),
+    page(
       `<div class="shade" style="background: radial-gradient(ellipse 80% 70% at 50% 45%, #3a2a1c 0%, #1f1813 60%, #15110d 100%)"></div>
        <img class="mark" src="${WORDMARK}">
-       <div class="line">Made in the Scriptorium</div>
-       <div class="sub">Write your own pages, with your monsters' stat blocks always up to date.</div>
+       <div class="line">Made in Dungeon Grimoire</div>
+       <div class="sub">The page from the Scriptorium, the card from Card Forge, and the stat block kept up to date in both.</div>
        <div class="window"><div class="bar"><i></i><i></i><i></i></div><div class="shot" style="background-image:url('${url(join(pages, "editor.png"))}')"></div></div>
        <div class="cta">Link in bio</div>`,
       `.mark { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); width: 420px; }
