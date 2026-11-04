@@ -65,6 +65,30 @@ describe("ordinalWithinYear", () => {
   });
 });
 
+describe("a day the month does not have", () => {
+  // Bug it fails on: the 30th of a 28-day February took month 1's start + 30 and
+  // landed in March, so a stale pin drew in the wrong month instead of at the year start.
+  const SHORT: CalendarAdapter = {
+    ...PLAIN,
+    months: [
+      { num: 1, name: "Long", days: 31 },
+      { num: 2, name: "Short", days: 28 },
+      { num: 3, name: "Long", days: 31 },
+    ],
+  };
+
+  it("has no slot past the month's last day or before its first, and keeps the last day", () => {
+    expect(ordinalWithinYear(SHORT, 2001, 2, 28, null)).toBe(59); // 31 + 28
+    expect(ordinalWithinYear(SHORT, 2001, 2, 29, null)).toBeUndefined();
+    expect(ordinalWithinYear(SHORT, 2001, 2, 30, null)).toBeUndefined();
+    expect(ordinalWithinYear(SHORT, 2001, 2, 0, null)).toBeUndefined();
+  });
+
+  it("puts such a date at the start of its year, not into the next month", () => {
+    expect(yearFraction(SHORT, 2001, 2, 30)).toBe(2001);
+  });
+});
+
 describe("daysFromTo", () => {
   it("counts within a month", () => {
     expect(daysFromTo(TEST, { year: 2001, month: 1, day: 1 }, { year: 2001, month: 1, day: 11 })).toBe(11 - 1);

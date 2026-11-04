@@ -22,7 +22,7 @@ describe("KinCard", () => {
     const w = card({ person: person() });
     expect(w.text()).toContain("Maera Thane");
     expect(w.text()).toContain("born 1431");
-    expect(w.text()).toMatch(/born 1431 · \d+/);
+    expect(w.text()).toContain("born 1431 · 64");
   });
 
   it("mutes and strikes the dead, with no age", () => {
@@ -43,7 +43,7 @@ describe("KinCard", () => {
 
   it("reads the person aloud: name, dead, and the line under it", () => {
     expect(card({ person: person({ dead: true }) }).attributes("aria-label")).toBe("Maera Thane, dead, born 1431");
-    expect(card({ person: person(), marriedIn: true }).attributes("aria-label")).toMatch(/^Maera Thane, born 1431 · \d+ · married in$/);
+    expect(card({ person: person(), marriedIn: true }).attributes("aria-label")).toBe("Maera Thane, born 1431 · 64 · married in");
   });
 
   it("shows the portrait when there is one and the first letter of the name otherwise", () => {

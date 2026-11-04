@@ -716,12 +716,23 @@ begin
                 where jsonb_typeof(m -> 'days') is distinct from 'number') then
       return null;
     end if;
+    -- Every one a number now, so the range can be read; a value past an
+    -- integer would make the cast below raise, and the campaign trigger that
+    -- calls this would then refuse every write to the calendar, the fix too.
+    if exists (select 1 from jsonb_array_elements(p_custom -> 'months') m
+                where (m ->> 'days')::numeric not between 0 and 2147483647) then
+      return null;
+    end if;
     if p_custom ? 'intercalaryDays' then
       if jsonb_typeof(p_custom -> 'intercalaryDays') is distinct from 'array' then
         return null;
       end if;
       if exists (select 1 from jsonb_array_elements(p_custom -> 'intercalaryDays') d
                   where jsonb_typeof(d -> 'afterMonth') is distinct from 'number') then
+        return null;
+      end if;
+      if exists (select 1 from jsonb_array_elements(p_custom -> 'intercalaryDays') d
+                  where (d ->> 'afterMonth')::numeric not between -2147483648 and 2147483647) then
         return null;
       end if;
     end if;

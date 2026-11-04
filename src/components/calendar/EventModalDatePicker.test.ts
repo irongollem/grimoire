@@ -23,9 +23,10 @@ describe("EventModalDatePicker", () => {
   // Bug it fails on: both day inputs had max="30" hard-coded, so a 28- or 31-day month was mis-capped.
   it("caps the day inputs at the limits it is given, not at 30", () => {
     const w = mount(EventModalDatePicker, { props: { ...props, dayMax: 28, endDayMax: 31 } });
-    const maxes = w.findAll('input[type="number"]').map((i) => i.attributes("max"));
-    expect(maxes).toContain("28");
-    expect(maxes).toContain("31");
-    expect(maxes).not.toContain("30");
+    // Each field by its own label, so swapped bindings fail too.
+    const maxOf = (label: string) =>
+      w.findAll("label").find((l) => l.text() === label)?.element.parentElement?.querySelector('input[type="number"]')?.getAttribute("max");
+    expect(maxOf("Day")).toBe("28");
+    expect(maxOf("End day")).toBe("31");
   });
 });

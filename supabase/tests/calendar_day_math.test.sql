@@ -18,7 +18,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(27);
 
 create temp table expected_calendar_shapes (calendar_id text primary key, shape jsonb not null);
 
@@ -66,6 +66,11 @@ select is(private.calendar_shape('custom', '{"months": "twelve"}'), null,
   'a custom definition without a month list is unreadable');
 select is(private.calendar_shape('custom', '{"months": [{"days": "thirty"}]}'), null,
   'a month without a numeric length is unreadable');
+-- Bug: a month length past an integer made the cast raise, so the campaign trigger refused every calendar write, the correction too.
+select is(private.calendar_shape('custom', '{"months": [{"days": 3000000000}]}'), null,
+  'a month length too large for an integer is unreadable, not an error');
+select is(private.calendar_shape('custom', '{"months": [{"days": 30}], "intercalaryDays": [{"name": "x", "afterMonth": 99999999999}]}'), null,
+  'a festival position too large for an integer is unreadable, not an error');
 select is(private.calendar_shape('custom', '{"months": []}'), null,
   'a calendar with no months is unreadable');
 select is(private.calendar_shape('custom', '{"months": [{"days": 30}], "intercalaryDays": [{"name": "x"}]}'), null,

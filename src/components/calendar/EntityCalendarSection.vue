@@ -35,7 +35,7 @@
     </div>
     <!-- Expandable form -->
     <div v-if="showForm && entityId" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
-      <SegmentedControl v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
+      <SegmentedControl v-if="hasFestivals" v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
       <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
         <div>
           <label class="block text-caption text-muted-foreground mb-1">Year</label>
@@ -101,7 +101,7 @@
     <template v-else>
       <!-- Inline add form -->
       <div v-if="showForm" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
-        <SegmentedControl v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
+        <SegmentedControl v-if="hasFestivals" v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
         <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Year</label>
@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { IconAdd, IconCalendarDays, IconClose } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -206,6 +206,13 @@ const DATE_TYPE_OPTIONS = [
   { value: "regular", label: "Regular Day" },
   { value: "festival", label: "Festival Day" },
 ] as const satisfies ReadonlyArray<{ value: DateType; label: string }>;
+
+// A calendar with no festival days (the blank one, Gregorian) offers only a regular day:
+// a festival pin with no festival saved an empty name the grid cannot show.
+const hasFestivals = computed(() => adapter.value.intercalaryDays.length > 0);
+watch(hasFestivals, (has) => {
+  if (!has) dateType.value = "regular";
+});
 
 const form = ref({
   year: calendar.currentYear,

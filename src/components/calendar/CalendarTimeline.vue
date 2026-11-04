@@ -325,7 +325,7 @@ import { useCalendarEventsRange } from "@/composables/calendar/useCalendarEvents
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import CalendarTimelineControls from "@/components/calendar/CalendarTimelineControls.vue";
 import CalendarTimelineEventList from "@/components/calendar/CalendarTimelineEventList.vue";
-import { buildYearIndex, daysInMonth, monthStartFraction, yearFraction } from "@/lib/calendar/dayMath";
+import { buildYearIndex, daysInMonth, monthStartFraction, ordinalWithinYear, yearFraction } from "@/lib/calendar/dayMath";
 import { eventColor } from "@/types/calendar.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import { IconClock, IconEncounter, IconFire, IconGenerate, IconGlobe, IconMap, IconMonster, IconReveal, IconStar, IconUndead } from '@/lib/icons';
@@ -418,8 +418,9 @@ const zoomYears = computed(() => calendar.timelineZoom);
 
 // Track which tenday (1-indexed) we're centred on for week-zoom navigation
 const currentTenday = ref(1);
+// Rounded up: a 31-day month has a fifth, short week, and its last days must be reachable.
 const tendaysPerMonth = computed(() =>
-  Math.floor(daysInMonth(calendar.adapter, calendar.currentYear, calendar.currentMonth) / calendar.adapter.weekSize),
+  Math.ceil(daysInMonth(calendar.adapter, calendar.currentYear, calendar.currentMonth) / calendar.adapter.weekSize),
 );
 const isWeekZoom = computed(
   () => zoomYears.value <= (calendar.adapter.weekSize / yearDays.value) * 1.5,
@@ -550,7 +551,7 @@ const dayTicks = computed(() => {
   let dEnd = daysInMonth(calendar.adapter, y, m);
   if (isWeekZoom.value) {
     dStart = (currentTenday.value - 1) * weekSize + 1;
-    dEnd = currentTenday.value * weekSize;
+    dEnd = Math.min(currentTenday.value * weekSize, dEnd);
   }
 
   for (let d = dStart; d <= dEnd; d++) {
@@ -569,10 +570,11 @@ const currentMarkerX = computed(() =>
 );
 
 // In-game "today" marker (campaign.todayYear/Month/Day)
+// No marker for a date this calendar has no slot for (a campaign that switched to a shorter calendar).
 const todayMarkerX = computed(() => {
-  return fractionalYearToX(
-    yearFraction(calendar.adapter, campaignStore.todayYear, campaignStore.todayMonth, campaignStore.todayDay),
-  );
+  const { todayYear, todayMonth, todayDay } = campaignStore;
+  if (ordinalWithinYear(calendar.adapter, todayYear, todayMonth, todayDay, null) === undefined) return null;
+  return fractionalYearToX(yearFraction(calendar.adapter, todayYear, todayMonth, todayDay));
 });
 
 // Human-readable range label for the nav bar

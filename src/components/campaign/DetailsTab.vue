@@ -296,7 +296,12 @@ function campaignRow(f: CampaignForm) {
   };
 }
 
-const populateSetting = computed(() => (form.calendar_id === null ? undefined : getSetting(form.calendar_id)));
+// The saved calendar, not the draft: the seeders read the campaign row, so the panel
+// must not offer a setting the DM has picked but not yet saved.
+const populateSetting = computed(() => {
+  const savedCalendar = campaign.value?.calendar_id ?? null;
+  return savedCalendar === null ? undefined : getSetting(savedCalendar);
+});
 
 function onCalendarChange() {
   if (form.calendar_id === "custom") {

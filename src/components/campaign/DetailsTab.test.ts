@@ -69,3 +69,25 @@ describe("DetailsTab map settings", () => {
     });
   });
 });
+
+describe("DetailsTab populate from setting", () => {
+  beforeEach(() => {
+    mocks.row = {
+      id: "c1", name: "Test", setting: "Forgotten Realms", calendar_id: "faerun", current_year: 1495,
+      climate: "temperate", theme: "vellum", health_visibility: "strategic", immersive_rolls: false,
+      battle_map_show_tokens: true, custom_calendar: null, map_memory: "remembered", player_sight: "shared",
+    };
+  });
+
+  // Bug: the panel named the calendar picked in the unsaved form while the
+  // seeders read the saved one, so Populate seeded a world it did not offer.
+  it("offers the saved calendar's setting, not one picked but not yet saved", async () => {
+    const w = mountTab();
+    expect(w.text()).toContain("POPULATE FROM FORGOTTEN REALMS");
+    const calendarSelect = w.findAll("select").find((s) => s.findAll("option").some((o) => o.element.value === "eberron"));
+    if (!calendarSelect) throw new Error("no calendar select");
+    await calendarSelect.setValue("eberron");
+    expect(w.text()).toContain("POPULATE FROM FORGOTTEN REALMS");
+    expect(w.text()).not.toContain("POPULATE FROM EBERRON");
+  });
+});

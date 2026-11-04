@@ -395,6 +395,21 @@ function daysInChosenMonth(year: number, month: number | null): number {
   return month === null ? 30 : daysInMonth(adapter.value, year, month);
 }
 
+// A day past the new month's end (31 after a switch to a 28-day month) would
+// block the save through the input's max; take the month's last day instead.
+watch(
+  () => [form.year, form.month] as const,
+  ([year, month]) => {
+    if (form.day !== null && month !== null) form.day = Math.min(form.day, daysInChosenMonth(year, month));
+  },
+);
+watch(
+  () => [form.end_year ?? form.year, form.end_month] as const,
+  ([year, month]) => {
+    if (form.end_day !== null && month !== null) form.end_day = Math.min(form.end_day, daysInChosenMonth(year, month));
+  },
+);
+
 const availableFestivals = computed(() =>
   adapter.value.intercalaryDays.filter(
     (d) => !d.isLeapOnly || adapter.value.isLeapYear(form.year),

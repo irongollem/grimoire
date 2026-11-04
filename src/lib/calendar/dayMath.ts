@@ -101,6 +101,8 @@ export function ordinalWithinYear(
   if (festivalDay !== null) return buildYearIndex(adapter, year).festivalOrdinals.get(festivalDay);
   if (month === null || day === null) return undefined;
   if (month < 1 || month > adapter.months.length) return undefined;
+  // A day the month does not have (the 30th of a 28-day month) has no slot either.
+  if (day < 1 || day > daysInMonth(adapter, year, month)) return undefined;
   return buildYearIndex(adapter, year).monthStartOrdinal[month - 1] + day;
 }
 

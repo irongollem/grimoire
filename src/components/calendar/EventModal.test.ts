@@ -251,3 +251,35 @@ describe("EventModal day limit", () => {
     expect(datePicker(w).props("endDayMax")).toBe(30);
   });
 });
+
+describe("EventModal day clamp", () => {
+  // Bug it fails on: day 31 stayed in the form after the month changed to a 28-day
+  // one, so the input's max blocked the save with no hint of which field was wrong.
+  it("takes the new month's last day when the chosen day does not exist there", async () => {
+    const w = await openModal({ prefill: { title: "Feast", month: 3, day: 31 } });
+    expect(datePicker(w).props("day")).toBe(31); // Three has 31 days: left alone
+    datePicker(w).vm.$emit("update:month", 2);
+    await flushPromises();
+    expect(datePicker(w).props("day")).toBe(28);
+    await submit(w);
+    expect(mocks.createEvent.mock.calls[0][0]).toMatchObject({ month: 2, day: 28 });
+  });
+
+  it("leaves a day that still fits when the month changes", async () => {
+    const w = await openModal({ prefill: { title: "Feast", month: 3, day: 12 } });
+    datePicker(w).vm.$emit("update:month", 2);
+    await flushPromises();
+    expect(datePicker(w).props("day")).toBe(12);
+  });
+
+  // Bug it fails on: the same, for the end date of a multi-day event.
+  it("clamps the end day when the end month changes to a shorter one", async () => {
+    const w = await openModal({
+      prefill: { title: "Siege", month: 3, day: 1, is_multi_day: true, end_year: 1495, end_month: 3, end_day: 31 },
+    });
+    expect(datePicker(w).props("endDay")).toBe(31);
+    datePicker(w).vm.$emit("update:endMonth", 2);
+    await flushPromises();
+    expect(datePicker(w).props("endDay")).toBe(28);
+  });
+});

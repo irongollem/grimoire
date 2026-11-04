@@ -309,6 +309,18 @@ function blankForm(): HallOfHeroInsert {
 
 const form = reactive<HallOfHeroInsert>(blankForm());
 
+// A new hero mounted before the campaign loaded starts as homebrew; take the
+// campaign's setting when it arrives, unless the DM has already picked one.
+let autoSetting = form.setting;
+watch(
+  () => campaign.activeCampaign?.calendar_id,
+  (calendarId) => {
+    if (hero.value || form.setting !== autoSetting) return;
+    autoSetting = heroSettingFor(calendarId);
+    form.setting = autoSetting;
+  },
+);
+
 watch(
   hero,
   (h) => {
