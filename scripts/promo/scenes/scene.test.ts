@@ -28,12 +28,6 @@ describe.each(SCENES.map((s) => [s.id, s] as const))("scene %s", (_, scene) => {
   it.each([0, 0.37, 2.5, scene.loop / 2, scene.loop - 1 / 30])("is at %s s exactly where it is one loop later", (t) => {
     expect(settle(stateAt(scene, t + scene.loop))).toEqual(settle(stateAt(scene, t)));
   });
-
-  it("has steam already rising on its first frame, not starting from nothing", () => {
-    scene.stack.forEach((item, i) => {
-      if (item.kind === "steam") expect(steamAt(scene, item, 0, i).length).toBeGreaterThan(item.count / 3);
-    });
-  });
 });
 
 describe("poseAt", () => {

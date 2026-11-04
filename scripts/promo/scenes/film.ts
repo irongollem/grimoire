@@ -3,6 +3,7 @@
  *
  *   npm run promo:scene -- <scene id>             films promo-out/<id>/ for promo:assemble
  *   npm run promo:scene -- <scene id> --preview   serves the scene live on 127.0.0.1 and waits
+ *   npm run promo:scene -- <scene id> --stills 0,6,12   writes promo-out/<id>/stills/<t>.png, to compose by eye
  *   [--art <dir>]   where the layer images are (default ~/Desktop/art-955/scenes/out)
  *   [--root <dir>]  where episodes go (default promo-out)
  *
@@ -42,6 +43,7 @@ const { positionals, values } = parseArgs({
   allowPositionals: true,
   options: {
     preview: { type: "boolean", default: false },
+    stills: { type: "string" },
     art: { type: "string", default: join(homedir(), "Desktop/art-955/scenes/out") },
     root: { type: "string", default: "promo-out" },
   },
@@ -63,6 +65,12 @@ const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 
 if (values.preview) {
   console.log(`Playing ${scene.id} at ${base}/?scene=${scene.id} (Ctrl-C to stop)`);
+} else if (values.stills !== undefined) {
+  try {
+    await writeStills(scene, base, resolve(values.root, scene.id, "stills"), values.stills.split(",").map(Number));
+  } finally {
+    server.close();
+  }
 } else {
   try {
     await filmScene(scene, base, resolve(values.root, scene.id));
@@ -92,6 +100,26 @@ async function serveScene(s: Scene, artDir: string): Promise<Server> {
   });
   await new Promise<void>((done) => listener.listen(values.preview ? 5183 : 0, "127.0.0.1", done));
   return listener;
+}
+
+/** Single frames at the given seconds, for placing layers by eye without filming the whole loop. */
+async function writeStills(s: Scene, url: string, dir: string, times: number[]): Promise<void> {
+  if (times.some((t) => !Number.isFinite(t))) throw new Error("--stills takes seconds separated by commas, such as 0,6,12");
+  mkdirSync(dir, { recursive: true });
+  const browser = await chromium.launch({ channel: "chrome" });
+  try {
+    const page = await browser.newPage({ viewport: s.size, deviceScaleFactor: 1 });
+    await page.goto(`${url}/?scene=${s.id}&film`);
+    await page.waitForFunction("window.scene !== undefined", undefined, { timeout: 15_000 });
+    await page.evaluate("window.scene.ready");
+    for (const t of times) {
+      const png = (await page.evaluate(`window.scene.still(${t})`)) as string;
+      writeFileSync(join(dir, `${t}.png`), Buffer.from(png.slice(png.indexOf(",") + 1), "base64"));
+    }
+    console.log(`Wrote ${times.length} stills to ${dir}`);
+  } finally {
+    await browser.close();
+  }
 }
 
 async function filmScene(s: Scene, url: string, dir: string): Promise<void> {

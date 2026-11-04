@@ -281,6 +281,7 @@ finish and moves exactly as much as the scene file says.
 
 ```bash
 npm run promo:scene -- inn-dawn --preview   # plays it live at http://127.0.0.1:5183/?scene=inn-dawn
+npm run promo:scene -- inn-dawn --stills 0,6,12   # single frames at those seconds, to place layers by eye
 npm run promo:scene -- inn-dawn             # films promo-out/inn-dawn/
 npm run promo:assemble -- inn-dawn          # the Reel: the scene alone, no brand cards or theme
 npm run promo:post -- inn-dawn              # dry run, once captions/inn-dawn.txt exists
@@ -323,7 +324,11 @@ the types and maths are `scene.ts`) is one back-to-front `stack`:
   cut-outs and the plate share one light;
 - `camera`: a slow figure-of-eight drift (`drift`, a fraction of the frame's
   width) and a push in and out (`push`). This is the parallax, and it should
-  stay at a per cent or two.
+  stay at a per cent or two. A scene bigger than the frame also gives the
+  camera a `path`: the points the view is centred on at given seconds, eased
+  from one to the next and round from the last to the first by the loop's
+  end. Cup Town tilts from a picnic at the viewer's feet up to the town and
+  back, and its `captionAt` brings the line in only once the town is up.
 
 **Loops without a seam.** Every motion's period is rounded to a whole number
 of cycles per `loop`, flicker is a sum of harmonics of the loop, and a wisp's
