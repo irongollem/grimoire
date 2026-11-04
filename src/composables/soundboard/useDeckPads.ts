@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type {
@@ -22,7 +23,10 @@ async function fetchPads(campaignId: string): Promise<SoundboardPadWithTakes[]> 
     .select("*, takes:soundboard_pad_takes(*)")
     .eq("campaign_id", campaignId);
   if (error) throw error;
-  const pads = data as SoundboardPadWithTakes[];
+  return data as SoundboardPadWithTakes[];
+}
+
+function withTakesInOrder(pads: SoundboardPadWithTakes[]): SoundboardPadWithTakes[] {
   return pads.map((pad) => ({ ...pad, takes: [...pad.takes].sort((a, b) => a.position - b.position) }));
 }
 
@@ -114,7 +118,7 @@ export function useDeckPads() {
     queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
     queryFn: ({ queryKey: [, campaignId] }) => {
       if (campaignId === null) throw new Error("useDeckPads fetched without a campaign");
-      return fetchPads(campaignId);
+      return readDeckSlice(campaignId, "pads", () => fetchPads(campaignId)).then(withTakesInOrder);
     },
     enabled: () => !!activeCampaignId.value,
   });

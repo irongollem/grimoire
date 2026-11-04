@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
 import { DEFAULT_LAYER, type PlaylistTrackLayer } from "@/types/sound.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
@@ -161,7 +162,7 @@ export function usePlaylists(enabled?: () => boolean) {
     queryKey: computed(() => [PLAYLISTS_KEY, activeCampaignId.value] as const),
     queryFn: ({ queryKey: [, campaignId] }) => {
       if (campaignId === null) throw new Error("usePlaylists fetched without a campaign");
-      return fetchPlaylists(campaignId);
+      return readDeckSlice(campaignId, "playlists", () => fetchPlaylists(campaignId));
     },
     enabled: () => !!activeCampaignId.value && (enabled?.() ?? true),
   });
