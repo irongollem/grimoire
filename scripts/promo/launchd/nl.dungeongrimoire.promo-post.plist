@@ -7,6 +7,8 @@
              launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/nl.dungeongrimoire.promo-post.plist
   Stop:      launchctl bootout gui/$(id -u)/nl.dungeongrimoire.promo-post
   Log:       promo-out/post.log
+  PATH:      node and npm come from asdf, whose shims only .zshrc adds; launchd's
+             login shell reads .zprofile alone, so the job names them itself.
 -->
 <plist version="1.0">
 <dict>
@@ -16,7 +18,7 @@
   <array>
     <string>/bin/zsh</string>
     <string>-lc</string>
-    <string>cd "$HOME/Repositories/DnD helper" &amp;&amp; npm run -s promo:post -- --due &gt;&gt; promo-out/post.log 2&gt;&amp;1</string>
+    <string>export PATH="$HOME/.asdf/shims:/opt/homebrew/bin:$PATH"; command -v npm &gt;/dev/null || { /usr/bin/osascript -e 'display notification "npm not found, nothing was posted (promo-out/post.log)" with title "Grimoire posting"'; exit 1; }; cd "$HOME/Repositories/DnD helper" &amp;&amp; npm run -s promo:post -- --due &gt;&gt; promo-out/post.log 2&gt;&amp;1</string>
   </array>
   <key>StartCalendarInterval</key>
   <dict>
