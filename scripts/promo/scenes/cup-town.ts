@@ -48,8 +48,10 @@ export const cupTown: Scene = {
   },
   seed: 1142,
   caption: "Will you join us?",
-  // The line arrives with the town, after the tilt (3 s to 11 s) has brought it up.
-  captionAt: [11.5, 17.5],
+  // The line arrives with the town, after the tilt (3 s to 11 s) has brought it up, and stays until the
+  // camera starts back down. The setting's own subtitle follows once the question has been read alone.
+  captionAt: [11.5, 18],
+  tagline: { text: "Stay as long as you like", at: [14, 18] },
   stack: [
     // Far, so it moves least: a third of the tilt. At the start the town is still hidden behind the crest.
     { kind: "layer", id: "vista", src: "cup-vista.png", depth: 0.3, anchor: { x: TOWN.x / 1024, y: TOWN.y / 1536 }, at: TOWN_AT, width: VISTA_DRAWN },

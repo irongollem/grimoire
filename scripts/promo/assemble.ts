@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { canvasFor, homeView, planCamera, zoompanExpressions } from "./camera";
-import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards, subtitleCard } from "./compose/cards";
+import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards, subtitleCard, taglineCard } from "./compose/cards";
 import { audibleEnd, durationOf, ffmpeg, hasAudio, leadingSilence, loudnessOf, STEREO_48K } from "./compose/ffmpeg";
 import { DEVICES } from "./devices";
 import { formatCanvas, layoutFor, type Layout } from "./layouts";
@@ -55,7 +55,7 @@ function canvasOf(shot: RecordedShot, format: Format | undefined) {
  * shot's filter graph (`first` is the index of the first of them), with the graph
  * that lays them over `[a]` and ends in `[v]`.
  */
-function textLayers(layout: Layout, p: PlannedShot, work: string, first: number, captionAt?: [number, number]): { inputs: string[]; graph: string } {
+function textLayers(layout: Layout, p: PlannedShot, shot: RecordedShot, work: string, first: number): { inputs: string[]; graph: string } {
   const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(p.length), "-i", file];
   const caption = loop(join(work, `caption-${p.id}.png`));
   const c = layout.caption;
@@ -71,10 +71,20 @@ function textLayers(layout: Layout, p: PlannedShot, work: string, first: number,
   if (c.kind === "panel") return { inputs: caption, graph: `[a][${first}:v]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
   // A lower third (or a scene's title) fades in and out inside its window, so it does not pop on and off.
   const FADE = 0.25;
+  const fadeIn = (input: number, [from, to]: [number, number], fade: number, label: string) =>
+    `[${input}:v]format=rgba,fade=t=in:st=${from}:d=${fade}:alpha=1,fade=t=out:st=${to - fade}:d=${fade}:alpha=1[${label}]`;
   // A shot may time its own caption: a scene's line arrives with the view it names.
-  const [from, to] = captionAt ?? [c.from, c.to];
-  const fade = `[${first}:v]format=rgba,fade=t=in:st=${from}:d=${FADE}:alpha=1,fade=t=out:st=${to - FADE}:d=${FADE}:alpha=1[cap]`;
-  return { inputs: caption, graph: `${fade};[a][cap]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
+  const title = fadeIn(first, shot.captionAt ?? [c.from, c.to], FADE, "cap");
+  const tagline = c.kind === "title" ? c.tagline : undefined;
+  if (shot.tagline === undefined) return { inputs: caption, graph: `${title};[a][cap]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
+  if (tagline === undefined) throw new Error(`Shot ${shot.id} has a tagline, and its layout has no slot for one.`);
+  // The second line comes in slower than the first: it follows a line already on screen rather than announcing one.
+  return {
+    inputs: [...caption, ...loop(join(work, `tagline-${p.id}.png`))],
+    graph:
+      `${title};${fadeIn(first + 1, shot.tagline.at, 0.6, "tag")};` +
+      `[a][cap]overlay=${c.x}:${c.y}:format=auto[t];[t][tag]overlay=${tagline.x}:${tagline.y}:format=auto,format=yuv420p[v]`,
+  };
 }
 
 /** The silent screen-in-frame video for one shot. */
@@ -86,7 +96,7 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, format: Format | un
   // A frozen last frame holds the screen, and with it wherever the camera ended.
   const hold = p.freeze > 0 ? `tpad=stop_mode=clone:stop_duration=${p.freeze},` : "";
   const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(L), "-i", file];
-  const words = (first: number) => textLayers(layout, p, work, first, shot.captionAt);
+  const words = (first: number) => textLayers(layout, p, shot, work, first);
   const camera = (shot.camera?.length ?? 0) > 0 || layout.frame === "browser";
   if (!camera) {
     const text = words(3);
@@ -224,6 +234,7 @@ async function main() {
       const layout = layoutFor(format, s.device);
       return layout.subtitles ? [subtitleCard(join(work, `subtitle-${s.id}.png`), s.narration, layout)] : [];
     }),
+    ...manifest.shots.flatMap((s) => (s.tagline ? [taglineCard(join(work, `tagline-${s.id}.png`), s.tagline.text, layoutFor(format, s.device))] : [])),
     ...(brand ? [introCard(join(work, "intro.png"), manifest.title, frame), outroCard(join(work, "outro.png"), frame)] : []),
   ]);
 

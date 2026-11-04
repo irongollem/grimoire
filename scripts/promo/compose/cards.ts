@@ -195,6 +195,23 @@ export const captionCard = (file: string, text: string, layout: Layout, chapter?
   };
 };
 
+/** A painted scene's second line, for the title layout's tagline slot: the title's hand, smaller, with no wordmark. */
+export const taglineCard = (file: string, text: string, layout: Layout): Card => {
+  const c = layout.caption;
+  if (c.kind !== "title" || !c.tagline) throw new Error("This layout has no tagline slot.");
+  const t = c.tagline;
+  return {
+    file,
+    width: t.w,
+    height: t.h,
+    transparent: true,
+    body: `<div class="w"><div id="fit" data-lines="2">${esc(text)}</div></div>`,
+    css: `.w{width:${t.w}px;height:${t.h}px;display:flex;align-items:center;justify-content:center}
+    #fit{text-align:center;text-wrap:balance;font:400 54px/1.2 'Fondamento',serif;color:#fbf3e2;
+      text-shadow:0 0 16px rgba(30,18,10,.85),0 0 36px rgba(30,18,10,.6),0 2px 4px rgba(30,18,10,.7)}`,
+  };
+};
+
 /** A shot's narration written out under a desktop window (`Layout.subtitles`), up to four lines. */
 export const subtitleCard = (file: string, text: string, layout: Layout): Card => {
   if (!layout.subtitles) throw new Error("This layout has no subtitle band.");

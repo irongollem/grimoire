@@ -172,6 +172,8 @@ export interface RecordedShot {
   chapter?: string;
   /** Seconds into the shot a timed caption (a scene's title, a lower third) shows, instead of the layout's. */
   captionAt?: [number, number];
+  /** A painted scene's second line, shown `at` seconds into the shot in the layout's tagline slot. */
+  tagline?: { text: string; at: [number, number] };
   /** Camera moves, in clip time. Absent means the whole screen throughout. */
   camera?: CameraKeyframe[];
   /** Seconds. */

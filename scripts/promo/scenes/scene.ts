@@ -50,6 +50,8 @@ export interface Scene {
   caption?: string;
   /** Seconds into the shot the line shows, when it should arrive with the view rather than at the start. */
   captionAt?: [number, number];
+  /** A second line, below the picture's middle, given its own time so the first can be read alone. */
+  tagline?: { text: string; at: [number, number] };
   sound?: {
     /**
      * Everything heard: room sounds and the scene's own tune, mixed together; a scene has no brand theme. `src`

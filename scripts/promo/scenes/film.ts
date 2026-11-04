@@ -169,6 +169,7 @@ async function filmScene(s: Scene, url: string, dir: string): Promise<void> {
     id: "scene",
     caption: s.caption ?? "",
     ...(s.captionAt === undefined ? {} : { captionAt: s.captionAt }),
+    ...(s.tagline === undefined ? {} : { tagline: s.tagline }),
     narration: "",
     file: "shots/scene.mp4",
     device: "scene",

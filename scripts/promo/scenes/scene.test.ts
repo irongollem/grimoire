@@ -30,6 +30,18 @@ describe.each(SCENES.map((s) => [s.id, s] as const))("scene %s", (_, scene) => {
   });
 });
 
+// The maintainer's ruling on Cup Town (4 Nov 2026): the question first, long enough to read on its own, then the
+// setting's subtitle under it. A tagline that starts with its title, or outlives it, breaks that order.
+describe.each(SCENES.flatMap((s) => (s.tagline ? [[s.id, s, s.tagline] as const] : [])))("scene %s tagline", (_, scene, tagline) => {
+  it("arrives at least two seconds after the title and leaves no later than it, inside the shot", () => {
+    const [titleFrom, titleTo] = scene.captionAt ?? [0, scene.duration];
+    const [from, to] = tagline.at;
+    expect(from - titleFrom).toBeGreaterThanOrEqual(2);
+    expect(to).toBeLessThanOrEqual(titleTo);
+    expect(to).toBeLessThanOrEqual(scene.duration);
+  });
+});
+
 describe("poseAt", () => {
   it("rounds a period that does not divide the loop to whole cycles, so a 4 s sway in an 11 s loop has no seam", () => {
     const swing: Layer = { kind: "layer", id: "s", src: "s.png", depth: 1, anchor: { x: 0.5, y: 0 }, at: { x: 0, y: 0 }, width: 10, motions: [{ kind: "sway", angle: 3, period: 4 }] };

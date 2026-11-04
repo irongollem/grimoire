@@ -329,6 +329,12 @@ the types and maths are `scene.ts`) is one back-to-front `stack`:
   from one to the next and round from the last to the first by the loop's
   end. Cup Town tilts from a picnic at the viewer's feet up to the town and
   back, and its `captionAt` brings the line in only once the town is up.
+- `tagline`: a second, quieter line with its own `at`, set in the bottom
+  third of a Reel (above the strip Instagram covers). The title is read
+  alone first: Cup Town asks "Will you join us?" and, two and a half seconds
+  later, answers with the setting's subtitle, "Stay as long as you like".
+  `scene.test.ts` holds a tagline to at least two seconds after its title and
+  no longer on screen than it.
 
 **Loops without a seam.** Every motion's period is rounded to a whole number
 of cycles per `loop`, flicker is a sum of harmonics of the loop, and a wisp's

@@ -27,8 +27,11 @@ export interface Layout {
     | { kind: "panel"; x: number; y: number; w: number; h: number }
     /** YouTube desktop: a pill over the page, shown from..to seconds into the shot. */
     | { kind: "lowerThird"; x: number; y: number; w: number; h: number; from: number; to: number }
-    /** A painted scene: a line of text over the picture itself, shown from..to seconds into the shot. */
-    | { kind: "title"; x: number; y: number; w: number; h: number; from: number; to: number };
+    /**
+     * A painted scene: a line of text over the picture itself, shown from..to seconds into the shot, and a
+     * slot for a second, quieter line that a shot may time on its own (`RecordedShot.tagline`).
+     */
+    | { kind: "title"; x: number; y: number; w: number; h: number; from: number; to: number; tagline?: { x: number; y: number; w: number; h: number } };
   /**
    * Where the shot's narration is written out, below the window, for a layout
    * whose window leaves room for it. Most Reels play muted, and a desktop's
@@ -50,7 +53,8 @@ const REEL_SCENE: Layout = {
   canvas: REEL_CANVAS,
   window: { x: 0, y: 0, w: REEL_CANVAS.width, h: REEL_CANVAS.height, radius: 0 },
   frame: "none",
-  caption: { kind: "title", x: 90, y: 230, w: 900, h: 420, from: 0.8, to: 7 },
+  // The tagline sits in the bottom third, above the band Instagram covers with its caption and buttons.
+  caption: { kind: "title", x: 90, y: 230, w: 900, h: 420, from: 0.8, to: 7, tagline: { x: 90, y: 1290, w: 900, h: 200 } },
 };
 
 export const LAYOUTS: Record<Format, Record<Surface, Layout>> = {
