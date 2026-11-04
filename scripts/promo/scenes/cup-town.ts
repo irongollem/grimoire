@@ -30,13 +30,15 @@ const CREST_AT = { x: FRAME.width / 2, y: 1000 };
 const TILT = 525;
 
 /**
- * The loop is the title song's own: from the breath before one "Late in the Kind Country" (2:30.55, after "the
- * walking will keep") to the breath before the next (2:53.42, after "the leaving of the day"), found by word
- * timings and the spectrogram. So the song leads back into its own refrain where the Reel starts again. 686
- * frames, so the loop is a whole number of them.
+ * The loop is the title song's own: from the "Late" of one "Late in the Kind Country" (2:31.0, after "the walking
+ * will keep") to the "Late" of the next (after "the leaving of the day"). Every word of the second refrain comes
+ * 22.65 s after the same word in the first (word timings and a chroma match agree), so the loop's blend lays a
+ * refrain over the same refrain. The seam sits on the word, not in the breath before it, because the breaths
+ * differ: the band plays through the first and drops out before the second, and a seam there opened the loop on
+ * that silence. 680 frames, 12 ms off the song.
  */
-const LOOP = 686 / 30;
-const SONG_FROM = 150.55;
+const LOOP = 680 / 30;
+const SONG_FROM = 151.0;
 
 export const cupTown: Scene = {
   id: "cup-town",
@@ -145,8 +147,8 @@ export const cupTown: Scene = {
       { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/d425b427-43c1-4531-82d4-b739b50ba531.mp3", gain: 0.55, clip: [0, 8.76], at: 10.5 },
       // The setting's title song, the maintainer's own version (made through a service that forwards to Suno; they
       // chose it over every Lyria take of the same lyrics, 4 Nov 2026). It opens on the refrain, the maintainer's
-      // pick, and has a cut seam: blended, the words after its end ran on over the loop's first second.
-      { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/dda1810c-8599-4c82-a25a-62674a518425.mp3", gain: 0.7, clip: [SONG_FROM, SONG_FROM + LOOP], at: 0, seam: "cut" },
+      // pick, and runs on past the loop's end into the next refrain, which the blend lays over the first.
+      { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/dda1810c-8599-4c82-a25a-62674a518425.mp3", gain: 0.7, clip: [SONG_FROM, SONG_FROM + LOOP], at: 0 },
     ],
   },
 };

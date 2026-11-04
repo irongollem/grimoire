@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SCENES } from "./catalog.ts";
 import { INN_PLATE, innDawn } from "./inn-dawn.ts";
-import { billowOffset, cameraAt, layersOf, lightAt, motesAt, onPlane, pathAt, poseAt, steamAt, uncovered, type Effect, type Layer, type Scene } from "./scene.ts";
+import { billowOffset, runsToEnd, cameraAt, layersOf, lightAt, motesAt, onPlane, pathAt, poseAt, steamAt, uncovered, type Effect, type Layer, type Scene } from "./scene.ts";
 
 /** Everything that moves in a scene at `t`, as one comparable value. */
 function stateAt(scene: Scene, t: number) {
@@ -152,5 +152,20 @@ describe("lightAt", () => {
     expect(() => lightAt(innDawn, { kind: "light", at: { x: 0, y: 0 }, depth: 1, radius: 10, color: [255, 255, 255], intensity: 1, follows: "kettle" }, 0)).toThrow(
       /no flicker/,
     );
+  });
+});
+
+describe("runsToEnd", () => {
+  // Cup Town, 4 Nov 2026: the song's clip, written as start + loop, floated a hair short of the shot, faded out
+  // over its last 0.6 s and stopped at every loop.
+  it("counts a clip written as start + loop as reaching the end, though it floats a hair short", () => {
+    const loop = 680 / 30;
+    expect(151 + loop - 151).toBeLessThan(loop);
+    expect(runsToEnd(0, [151, 151 + loop], loop)).toBe(true);
+  });
+
+  it("does not count a clip a frame short of the end, so a bell still fades out", () => {
+    expect(runsToEnd(10.5, [0, 8.76], 22)).toBe(false);
+    expect(runsToEnd(0, [0, 24 - 1 / 30], 24)).toBe(false);
   });
 });

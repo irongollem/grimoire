@@ -24,7 +24,7 @@ import { chromium } from "playwright";
 import { ffmpeg, STEREO_48K } from "../compose/ffmpeg.ts";
 import type { EpisodeManifest, RecordedShot } from "../types.ts";
 import { SCENES } from "./catalog.ts";
-import { layersOf, type Scene } from "./scene.ts";
+import { layersOf, runsToEnd, type Scene } from "./scene.ts";
 
 type Ambience = NonNullable<Scene["sound"]>["ambience"][number];
 
@@ -38,8 +38,6 @@ const LOOP_CROSSFADE = 1.5;
 /** A cut's own fades: short, so a bell struck just before the cut's end still sounds before it fades. */
 const CLIP_FADE_IN = 0.15;
 const CLIP_FADE_OUT = 0.6;
-/** A `cut` seam's fade at each end: long enough not to click, short enough not to swallow a word. */
-const CUT_FADE = 0.15;
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -207,50 +205,31 @@ function soundSource(src: string): string {
  * into the opening, so the last moment runs on into the first. A looping sound simply carries on into the
  * overflow; a `clip` that reaches the end of the shot (the tune) carries on past its own end into it; a
  * shorter clip (the bells) plays once from `at`, with short fades so it neither clicks on nor stops on a cut.
- * A clip with a `cut` seam (a sung line) stays out of the blend: it plays exactly its clip, laid over the joined
- * mix, so the loop goes from its last word to its first with nothing overlapping them.
  */
 function mixAmbience(sounds: Ambience[], length: number, out: string): void {
   const run = length + LOOP_CROSSFADE;
   const inputs = sounds.flatMap((a) => (a.clip ? ["-i", a.src] : ["-stream_loop", "-1", "-i", a.src]));
-  const blended = sounds.flatMap((a, i) => (a.seam === "cut" ? [] : [i]));
-  const cut = sounds.flatMap((a, i) => (a.seam === "cut" ? [i] : []));
-  if (blended.length === 0) throw new Error("A scene's sound needs at least one sound that loops through the seam.");
-  const cutChains = cut.map((i) => {
-    const a = sounds[i];
-    if (!a.clip) throw new Error(`${a.src} has a cut seam but no clip: a cut seam plays one clip exactly.`);
-    const [from, to] = a.clip;
-    const at = a.at ?? 0;
-    // A millisecond of slack: a clip written as start + loop can come out a hair over it in floating point.
-    if (at + (to - from) > length + 0.001) throw new Error(`${a.src}'s clip runs past the end of the shot, so a cut seam would cut it short.`);
-    const ms = Math.round(at * 1000);
-    return `[${i}:a]${STEREO_48K},atrim=${from}:${to},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${CUT_FADE},afade=t=out:st=${to - from - CUT_FADE}:d=${CUT_FADE},volume=${a.gain},adelay=${ms}|${ms},apad=whole_dur=${length},atrim=0:${length}[c${i}]`;
-  });
-  const chains = blended
-    .map((i) => {
-      const a = sounds[i];
+  const chains = sounds
+    .map((a, i) => {
       if (!a.clip) return `[${i}:a]${STEREO_48K},volume=${a.gain},atrim=0:${run}[s${i}]`;
       const [from, to] = a.clip;
       const at = a.at ?? 0;
       const ms = Math.round(at * 1000);
-      if (at + (to - from) >= length) {
+      if (runsToEnd(at, a.clip, length)) {
         return `[${i}:a]${STEREO_48K},atrim=${from}:${from + run - at},asetpts=PTS-STARTPTS,volume=${a.gain},adelay=${ms}|${ms},apad=whole_dur=${run}[s${i}]`;
       }
       const tail = Math.min(CLIP_FADE_OUT, (to - from) / 2);
       return `[${i}:a]${STEREO_48K},atrim=${from}:${to},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${CLIP_FADE_IN},afade=t=out:st=${to - from - tail}:d=${tail},volume=${a.gain},adelay=${ms}|${ms},apad=whole_dur=${run}[s${i}]`;
     })
-    .concat(cutChains)
     .join(";");
   const X = LOOP_CROSSFADE;
-  const over = cut.length === 0 ? "[o]" : "[looped]";
   const mix =
-    `${blended.map((i) => `[s${i}]`).join("")}amix=inputs=${blended.length}:duration=longest:normalize=0,atrim=0:${run},asplit=3[m1][m2][m3];` +
+    `${sounds.map((_, i) => `[s${i}]`).join("")}amix=inputs=${sounds.length}:duration=longest:normalize=0,atrim=0:${run},asplit=3[m1][m2][m3];` +
     // Equal-power fades: the overflow and the opening are different sounds, so their powers add.
     `[m1]atrim=0:${X},asetpts=PTS-STARTPTS,afade=t=in:d=${X}:curve=qsin[head];` +
     `[m2]atrim=${length}:${run},asetpts=PTS-STARTPTS,afade=t=out:d=${X}:curve=qsin[over];` +
     `[head][over]amix=inputs=2:normalize=0[joined];` +
     `[m3]atrim=${X}:${length},asetpts=PTS-STARTPTS[body];` +
-    `[joined][body]concat=n=2:v=0:a=1${over}` +
-    (cut.length === 0 ? "" : `;[looped]${cut.map((i) => `[c${i}]`).join("")}amix=inputs=${cut.length + 1}:duration=first:normalize=0[o]`);
+    `[joined][body]concat=n=2:v=0:a=1[o]`;
   ffmpeg([...inputs, "-filter_complex", `${chains};${mix}`, "-map", "[o]", "-t", String(length), "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2", out]);
 }
