@@ -39,8 +39,13 @@ const IGNORED: (string | RegExp)[] = [
   /AbortError/,
   "The operation was aborted",
   // A user going through a tunnel is not a defect.
+  // Firefox, Safari and Chrome each word a dropped connection differently.
+  // Chrome's is anchored at the end so "Failed to fetch dynamically imported
+  // module" still reports: a stale chunk is filtered by isStaleChunkError, and
+  // any other chunk failure is a real one (DUNGEON-GRIMOIRE-10).
   /NetworkError when attempting to fetch resource/,
   /Load failed/,
+  /(^|: )Failed to fetch$/,
   // Autofill/translate extensions injecting into the page.
   /^Non-Error promise rejection captured/,
   // A read refused because the session was not usable yet (authAwareFetch). By

@@ -93,6 +93,19 @@ describe("data collection (the privacy-policy claim, #644)", () => {
       options.ignoreErrors.some((r) => (typeof r === "string" ? m.includes(r) : r.test(m)));
     expect(ignored("AnonymousReadError: session not usable")).toBe(true);
     expect(ignored("Cannot read properties of null")).toBe(false);
+  });
+
+  it("ignores Chrome's dropped connection, as it does Firefox's and Safari's", () => {
+    const { options } = start();
+    const ignored = (m: string) =>
+      options.ignoreErrors.some((r) => (typeof r === "string" ? m.includes(r) : r.test(m)));
+    // How a supabase-js read that never reached the server is titled (DUNGEON-GRIMOIRE-10).
+    expect(ignored("PostgrestError: TypeError: Failed to fetch")).toBe(true);
+    expect(ignored("TypeError: Failed to fetch")).toBe(true);
+    expect(ignored("Failed to fetch")).toBe(true);
+    // A chunk that will not load is not a dropped connection.
+    expect(ignored("TypeError: Failed to fetch dynamically imported module: https://app.dungeongrimoire.com/assets/a.js")).toBe(false);
+    expect(ignored("Failed to fetch the campaign")).toBe(false);
     expect(options.denyUrls.some((r) => r.test("chrome-extension://abc/content.js"))).toBe(true);
     expect(options.denyUrls.some((r) => r.test("https://app.dungeongrimoire.com/a.js"))).toBe(false);
   });
