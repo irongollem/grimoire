@@ -11,9 +11,13 @@ export const VO_LEAD = 0.15;
 /** Breathing room after the narration ends. */
 export const VO_TAIL = 0.4;
 
-/** Rounds up to a whole frame, ignoring float noise (2.0000000001 stays 2). */
+/**
+ * Rounds up to a whole frame, ignoring float noise and ffprobe's six decimals: 686 frames is 22.8666... s, which
+ * ffprobe prints as 22.866667, a hair over 686 frames. A thousandth of a frame of slack keeps it 686, where the
+ * extra frame would stutter at a scene Reel's loop.
+ */
 export function snapToFrame(seconds: number): number {
-  return Math.ceil(seconds * FPS - 1e-6) / FPS;
+  return Math.ceil(seconds * FPS - 1e-3) / FPS;
 }
 
 export interface ShotInput {

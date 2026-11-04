@@ -89,4 +89,13 @@ describe("snapToFrame", () => {
   it("float noise on an exact frame count does not add a frame", () => {
     expect(snapToFrame(2.0000000001)).toBe(2);
   });
+
+  it("a frame count ffprobe prints rounded to six decimals keeps its count, so a looping scene does not stutter", () => {
+    // 686 frames at 30 fps is 22.8666... s; ffprobe reports 22.866667 (Cup Town, 4 Nov 2026).
+    expect(snapToFrame(22.866667) * 30).toBeCloseTo(686, 9);
+  });
+
+  it("a duration a real part of a frame over still gets the next frame", () => {
+    expect(snapToFrame(1 + 0.1 / 30) * 30).toBeCloseTo(31, 9);
+  });
 });

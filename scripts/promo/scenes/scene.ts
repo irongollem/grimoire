@@ -59,7 +59,17 @@ export interface Scene {
      * loops under the whole shot, unless it names a `clip` (seconds of the file): then that cut plays once,
      * from `at` seconds into the shot, with short fades at its ends.
      */
-    ambience: { src: string; gain: number; clip?: [number, number]; at?: number }[];
+    ambience: {
+      src: string;
+      gain: number;
+      clip?: [number, number];
+      at?: number;
+      /**
+       * `cut` keeps a clip out of the loop's blend: it plays exactly its clip, and the loop joins its end to its
+       * start. For a sung line, whose last words a blend would lay over the first.
+       */
+      seam?: "cut";
+    }[];
   };
   /** Seed for every pseudo-random choice (flicker, steam, motes), so a take renders the same twice. */
   seed: number;

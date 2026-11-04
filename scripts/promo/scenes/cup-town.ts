@@ -29,12 +29,21 @@ const CREST_AT = { x: FRAME.width / 2, y: 1000 };
 /** How far the view travels: half of it either side of the frame's middle, at depth 1. */
 const TILT = 525;
 
+/**
+ * The loop is the title song's own: from the breath before one "Late in the Kind Country" (2:30.55, after "the
+ * walking will keep") to the breath before the next (2:53.42, after "the leaving of the day"), found by word
+ * timings and the spectrogram. So the song leads back into its own refrain where the Reel starts again. 686
+ * frames, so the loop is a whole number of them.
+ */
+const LOOP = 686 / 30;
+const SONG_FROM = 150.55;
+
 export const cupTown: Scene = {
   id: "cup-town",
   title: "Will you join us?",
   size: FRAME,
-  loop: 24,
-  duration: 24,
+  loop: LOOP,
+  duration: LOOP,
   camera: {
     drift: 0.006,
     push: 0.01,
@@ -43,15 +52,16 @@ export const cupTown: Scene = {
       { at: 0, x: 0, y: TILT },
       { at: 3, x: 0, y: TILT },
       { at: 11, x: 0, y: -TILT },
-      { at: 18, x: 0, y: -TILT },
+      { at: 17.5, x: 0, y: -TILT },
     ],
   },
   seed: 1142,
   caption: "Will you join us?",
   // The line arrives with the town, after the tilt (3 s to 11 s) has brought it up, and stays until the
   // camera starts back down. The setting's own subtitle follows once the question has been read alone.
-  captionAt: [11.5, 18],
-  tagline: { text: "Stay as long as you like", at: [14, 18] },
+  // "and some to make you stay" is sung at 12.4 s, between the two lines.
+  captionAt: [11.5, 17.5],
+  tagline: { text: "Stay as long as you like", at: [14, 17.5] },
   stack: [
     // Far, so it moves least: a third of the tilt. At the start the town is still hidden behind the crest.
     { kind: "layer", id: "vista", src: "cup-vista.png", depth: 0.3, anchor: { x: TOWN.x / 1024, y: TOWN.y / 1536 }, at: TOWN_AT, width: VISTA_DRAWN },
@@ -133,10 +143,10 @@ export const cupTown: Scene = {
       // Act One ends when Cup Town's bell has rung the same single note three times: a CC0 low G bell from
       // Freesound, on the maintainer's soundboard, struck as the town comes into view.
       { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/d425b427-43c1-4531-82d4-b739b50ba531.mp3", gain: 0.55, clip: [0, 8.76], at: 10.5 },
-      // The setting's title song, the maintainer's own version, a cut whose end, what follows and start match in
-      // level. It was made through a service that forwards to Suno; the maintainer chose it over every Lyria take
-      // of the same lyrics, knowing that (4 Nov 2026).
-      { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/dda1810c-8599-4c82-a25a-62674a518425.mp3", gain: 0.7, clip: [138, 162], at: 0 },
+      // The setting's title song, the maintainer's own version (made through a service that forwards to Suno; they
+      // chose it over every Lyria take of the same lyrics, 4 Nov 2026). It opens on the refrain, the maintainer's
+      // pick, and has a cut seam: blended, the words after its end ran on over the loop's first second.
+      { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/dda1810c-8599-4c82-a25a-62674a518425.mp3", gain: 0.7, clip: [SONG_FROM, SONG_FROM + LOOP], at: 0, seam: "cut" },
     ],
   },
 };

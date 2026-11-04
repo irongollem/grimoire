@@ -367,7 +367,13 @@ watching again, and a seamless loop is watched again without anyone
 noticing. The sound loops too: it is mixed 1.5 s past the end and that
 overflow is crossfaded into the opening, and a tune's cut is chosen where
 its end, what follows and its start match in level, or the loop dips as it
-comes round. Ambience meant for playing at the table wants minutes, which is a
+comes round. A sung cut is different: blended, its last words run on over
+its first. It takes `seam: "cut"`, which plays exactly the clip and joins
+its end to its start, and the cut runs from the breath before a line to the
+breath before the same line next time, so the song leads back into itself.
+Cup Town's loop is set by its song (one refrain to the next, 686 frames),
+not the other way round; word timings from a local Whisper model
+(`faster-whisper`, `small.en`) and a spectrogram find those breaths. Ambience meant for playing at the table wants minutes, which is a
 longer `duration` for YouTube or the website, not a longer Reel. It also
 writes `still.png`, the opening frame, to review beside the plate.
 
