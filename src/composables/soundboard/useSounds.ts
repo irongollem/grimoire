@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
 import { uploadToBucket, deleteFromBucket, removeByPublicUrl } from "@/lib/storage";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
@@ -84,7 +85,7 @@ export function useSounds(enabled?: () => boolean) {
     queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
     queryFn: ({ queryKey: [, campaignId] }) => {
       if (campaignId === null) throw new Error("useSounds fetched without a campaign");
-      return fetchSounds(campaignId);
+      return readDeckSlice(campaignId, "sounds", () => fetchSounds(campaignId));
     },
     enabled: () => !!activeCampaignId.value && (enabled?.() ?? true),
   });

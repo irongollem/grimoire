@@ -1,24 +1,24 @@
 {
-  "$comment": "Deterministic per-step ceilings, measured on the committed synthetic fixture (npm run perf:fixture). Lowered as stories land: a change that lowers a number lowers it here in the same change; see README.md. The boot-bundle gzip budget is NOT here: it lives in bootBudgetPlugin (vite.config.ts). serialDepth is the maximum main has measured on CI, not one run (CI reads one or two deeper than a laptop on the dashboard). 3 Nov 2026 (#1138), re-set after the regressions since 9 Oct were fixed; what stayed was earned: dm-cold/dm-warm +1 API (touch_account_activity, hourly) and +5 chunks (the weather sky line, #1086, and modules that outgrew the 8 kB inline threshold); /npcs +2 API (kin_links for the family-links notice, which also warms the sheet's family block, #1083; open_books for the cards' in-the-book icon, #1085) and +3 chunks; dm-npc-detail +7 chunks (the Connections, Family and quick-fact sections, #1083/#1084); player-cold +3 API (character_caretakers, #1059; get_player_notice_boards for the presented board, #1064; touch_account_activity). /npcs and dm-npc-detail totalRequests carry the one request CI has always counted above a laptop.",
+  "$comment": "Deterministic per-step ceilings, measured on the committed synthetic fixture (npm run perf:fixture). Lowered as stories land: a change that lowers a number lowers it here in the same change; see README.md. The boot-bundle gzip budget is NOT here: it lives in bootBudgetPlugin (vite.config.ts). serialDepth is the maximum main has measured on CI, not one run (CI reads one or two deeper than a laptop on the dashboard). 3 Nov 2026 (#1138), re-set after the regressions since 9 Oct were fixed; what stayed was earned: dm-cold/dm-warm +1 API (touch_account_activity, hourly) and +5 chunks (the weather sky line, #1086, and modules that outgrew the 8 kB inline threshold); /npcs +2 API (kin_links for the family-links notice, which also warms the sheet's family block, #1083; open_books for the cards' in-the-book icon, #1085) and +3 chunks; dm-npc-detail +7 chunks (the Connections, Family and quick-fact sections, #1083/#1084); player-cold +3 API (character_caretakers, #1059; get_player_notice_boards for the presented board, #1064; touch_account_activity). /npcs and dm-npc-detail totalRequests carry the one request CI has always counted above a laptop. 4 Nov 2026 (#1136): the soundboard deck docks under every DM page and shows its pads at once, so its pads, lanes, playlists and sounds are read at boot and on every resume; one batched request (lib/audio/deck/deckBatch.ts) instead of four, so dm-cold/dm-warm/resume +1 API, and dm-cold/dm-warm +2 chunks for the deck itself. dm-cold serialDepth 6 and /npcs serialDepth 2: CI measured dm-cold at 6 on main (run 41646820078) and here twice, with the deepest chain ending at embed-content/embed-monsters rather than the deck, and /npcs at 2 on main twice of three runs since #1138 (kin_links and open_books can land a wave after the list).",
   "journeys": {
     "dm-cold": {
       "dm-cold": {
-        "apiRequests": 34,
-        "serialDepth": 5,
-        "totalRequests": 128
+        "apiRequests": 35,
+        "serialDepth": 6,
+        "totalRequests": 130
       }
     },
     "dm-warm": {
       "dm-warm": {
-        "apiRequests": 34,
+        "apiRequests": 35,
         "serialDepth": 6,
-        "totalRequests": 128
+        "totalRequests": 130
       }
     },
     "dm-nav": {
       "/npcs": {
         "apiRequests": 4,
-        "serialDepth": 1,
+        "serialDepth": 2,
         "totalRequests": 20
       },
       "/encounters": {
@@ -48,9 +48,9 @@
     },
     "resume": {
       "resume": {
-        "apiRequests": 24,
+        "apiRequests": 25,
         "serialDepth": 1,
-        "totalRequests": 24
+        "totalRequests": 25
       }
     }
   }

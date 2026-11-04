@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { persistReorder } from "@/lib/reorder";
@@ -54,7 +55,7 @@ export function useSoundboardPages() {
     queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
     queryFn: ({ queryKey: [, campaignId] }) => {
       if (campaignId === null) throw new Error("useSoundboardPages fetched without a campaign");
-      return fetchPages(campaignId);
+      return readDeckSlice(campaignId, "pages", () => fetchPages(campaignId));
     },
     enabled: () => !!activeCampaignId.value,
   });

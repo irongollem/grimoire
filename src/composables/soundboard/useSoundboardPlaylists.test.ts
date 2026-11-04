@@ -11,6 +11,8 @@ const { fake } = await vi.hoisted(async () => {
 const session = vi.hoisted(() => ({ campaignId: "camp-1" as string | null }));
 
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
+// The deck's batched read (one embedded request) is tested in deckBatch.test.ts; here every read is the table's own.
+vi.mock("@/lib/audio/deck/deckBatch", () => ({ readDeckSlice: (_c: string, _s: string, own: () => Promise<unknown>) => own() }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get activeCampaignId() {
