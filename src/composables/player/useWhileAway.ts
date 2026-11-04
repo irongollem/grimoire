@@ -40,13 +40,20 @@ export function useWhileAway(
 ) {
   const auth = useAuthStore();
   const { rows, active, openSessionId } = useCharacterCaretakers(campaignId);
-  const { data: sessions } = usePlayerSessions();
   const { data: members } = useCampaignMembers();
 
   const owned = computed(() => {
     const m = toValue(member);
     return m !== null && m.owner_user_id !== null && m.owner_user_id === auth.user?.id;
   });
+
+  // #1138: the session labels only matter once this character has been handed
+  // over; without a row every cold Hearth load paid a serial `get_player_sessions`.
+  const hasHandOver = computed(() => {
+    const m = toValue(member);
+    return owned.value && m !== null && (rows.value !== null && rows.value.some((row) => row.party_member_id === m.id));
+  });
+  const { data: sessions } = usePlayerSessions(() => hasHandOver.value);
 
   const away = computed<WhileAwayHandOver | null>(() => {
     const m = toValue(member);

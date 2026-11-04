@@ -218,7 +218,12 @@
   --color-sound-music: var(--sound-music);
   --color-sound-ambient: var(--sound-ambient);
   --color-sound-effects: var(--sound-effects);
-  --color-sound-misc: var(--sound-misc);
+  --color-pad-music: var(--pad-music);
+  --color-pad-music-fg: var(--pad-music-fg);
+  --color-pad-ambient: var(--pad-ambient);
+  --color-pad-ambient-fg: var(--pad-ambient-fg);
+  --color-pad-effects: var(--pad-effects);
+  --color-pad-effects-fg: var(--pad-effects-fg);
 
   /* Border radius */
   --radius-lg: var(--radius);
@@ -456,7 +461,14 @@
   --sound-music: #f0c74a;
   --sound-ambient: #4ade80;
   --sound-effects: #3b82f6;
-  --sound-misc: #9b7fc4;
+
+  /* Deck pads: instrument colours, the same in every theme, lit pad ink on top */
+  --pad-music: #f2c35a;
+  --pad-ambient: #74cdb0;
+  --pad-effects: #86a9f5;
+  --pad-music-fg: #16100c;
+  --pad-ambient-fg: #16100c;
+  --pad-effects-fg: #16100c;
 
   /* MONSTER_TYPE_BG */
   --monstertype-aberration: #7c3aed;

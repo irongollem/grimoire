@@ -79,7 +79,7 @@ Generating costs credits, shown on the panel before you start, and needs AI to b
 
 A feature's own page has a **Placed In** panel showing every room it's dropped into across your Atlas sites, with an editable note and a picker to add a new placement: the same feature template (e.g. a stock "false-bottomed chest") can sit in several rooms. See [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon) for the room-side view.
 
-If a feature is a **Secret Door**, **Hidden Passage**, **Moving Wall**, **Door** or **Lock**, a door you draw on a site's Plan can cite it directly: the door then reads this feature's own DCs, trigger and object stats instead of you having to enter them twice. That's set up from the Atlas/Cartographer side; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
+If a feature is a **Secret Door**, **Hidden Passage**, **Moving Wall**, **Door** or **Lock**, a door you draw on a site's Zoning tab can cite it directly: the door then reads this feature's own DCs, trigger and object stats instead of you having to enter them twice. That's set up from the Atlas/Cartographer side; see [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
 
 ## Usage during play
 

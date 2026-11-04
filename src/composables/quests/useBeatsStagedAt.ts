@@ -46,7 +46,7 @@ async function fetchBeatsStagedAt(campaignId: string, spaceIds: readonly string[
  * isn't settled yet. `spaceIds` is left to the caller — the site runner
  * passes only the site itself and the party's current room, since a beat
  * staged at a room the party isn't standing in has nothing to prompt right
- * now (see `SiteRunSurface`'s own gating).
+ * now (see the explore screen's own gating, `SiteExploreView`).
  */
 export function useBeatsStagedAt(spaceIds: Ref<string[]>) {
   const campaign = useCampaignStore();

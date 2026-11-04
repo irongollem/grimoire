@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { nodeSizeFor, useWorldWebGraph } from "./useWorldWebGraph";
+import { useWorldWebGraph } from "./useWorldWebGraph";
+import { nodeSizeFor } from "@/lib/worldWeb/palette";
 import { buildRestGraph, entityDirectory, EMPTY_FILTERS, type WebEntity } from "@/lib/worldWeb/model";
 import { tie } from "@/lib/worldWeb/tieFixture";
 

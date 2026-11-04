@@ -46,7 +46,7 @@ function mountMap(props: { measuring?: boolean } & Record<string, unknown> = {})
       mode: "view",
       ...props,
     },
-    global: { stubs: { SiteMapRegionList: true, SiteMapZoneList: true, SiteMapLegend: true, MapRegionsLayer: true, MapPreparedLayer: true } },
+    global: { stubs: { SiteMapLegend: true, MapRegionsLayer: true, MapPreparedLayer: true } },
   });
 }
 
@@ -161,7 +161,7 @@ describe("LocationMap on a site's floor plan", () => {
   ];
 
   it("reports how many spaces the plan holds, for a caller that draws its own layer bar", () => {
-    const wrapper = mountMap({ showRegions: true, spaces, locationId: "site", showLayerBar: false });
+    const wrapper = mountMap({ showRegions: true, spaces, showLayerBar: false });
     expect(wrapper.emitted("layer-counts")![0]).toEqual([{ spaces: 2, ways: 0, zones: 0, prepared: 0 }]);
     expect(wrapper.findComponent({ name: "SiteMapLayerBar" }).exists()).toBe(false);
   });
@@ -173,28 +173,28 @@ describe("LocationMap on a site's floor plan", () => {
       cell_signature: null, vertices: null, created_at: "", updated_at: "",
     });
     const regions = [region("a", "space"), region("b", "zone"), region("c", "zone")];
-    const wrapper = mountMap({ showRegions: true, spaces, regions, locationId: "site", showLayerBar: false });
+    const wrapper = mountMap({ showRegions: true, spaces, regions, showLayerBar: false });
     expect(wrapper.emitted("layer-counts")![0]).toEqual([{ spaces: 2, ways: 0, zones: 2, prepared: 0 }]);
   });
 
-  it("draws its own layer bar and side lists in Browse, and neither in Run", () => {
-    const browse = mountMap({ showRegions: true, spaces, locationId: "site" });
+  it("draws its own layer bar in Browse, and none in Run", () => {
+    const browse = mountMap({ showRegions: true, spaces });
     expect(browse.findComponent({ name: "SiteMapLayerBar" }).exists()).toBe(true);
-    expect(browse.findComponent({ name: "SiteMapRegionList" }).exists()).toBe(true);
-    const run = mountMap({ showRegions: true, spaces, locationId: "site", runMode: true });
+    // #1125: the Map tab reads the map; the region and zone lists are the editor's alone.
+    expect(browse.findComponent({ name: "SiteMapRegionList" }).exists()).toBe(false);
+    expect(browse.findComponent({ name: "SiteMapZoneList" }).exists()).toBe(false);
+    const run = mountMap({ showRegions: true, spaces, runMode: true });
     expect(run.findComponent({ name: "SiteMapLayerBar" }).exists()).toBe(false);
-    expect(run.findComponent({ name: "SiteMapRegionList" }).exists()).toBe(false);
   });
 
   it("keeps all floor-plan chrome away until the place has a space or a region", () => {
-    const wrapper = mountMap({ showRegions: true, spaces: [], locationId: "site" });
+    const wrapper = mountMap({ showRegions: true, spaces: [] });
     expect(wrapper.findComponent({ name: "SiteMapLayerBar" }).exists()).toBe(false);
-    expect(wrapper.findComponent({ name: "SiteMapRegionList" }).exists()).toBe(false);
     expect(wrapper.findComponent({ name: "SiteMapLegend" }).exists()).toBe(false);
   });
 
   it("shows no floor-plan chrome on a place that does not carry one", () => {
-    const wrapper = mountMap({ showRegions: false, spaces, locationId: "site" });
-    expect(wrapper.findComponent({ name: "SiteMapRegionList" }).exists()).toBe(false);
+    const wrapper = mountMap({ showRegions: false, spaces });
+    expect(wrapper.findComponent({ name: "SiteMapLayerBar" }).exists()).toBe(false);
   });
 });

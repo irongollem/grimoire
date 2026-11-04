@@ -329,6 +329,24 @@ describe("executeImport session log", () => {
   });
 });
 
+describe("executeImport sounds (#1136)", () => {
+  beforeEach(() => {
+    inserted.length = 0;
+    fake.reset();
+  });
+
+  it("restores a sound from a backup that still carries the dropped page_id and sort_order", async () => {
+    const backup = backupWith({
+      sounds: [{ id: "snd-1", campaign_id: "old-camp", name: "Rain", page_id: "pg-gone", sort_order: 3 }],
+    });
+    await executeImport(backup, "Restored");
+    const restored = inserted.find((i) => i.table === "sounds")!.rows[0];
+    expect(restored.name).toBe("Rain");
+    expect(restored).not.toHaveProperty("page_id");
+    expect(restored).not.toHaveProperty("sort_order");
+  });
+});
+
 describe("executeImport quest clocks (#1011)", () => {
   beforeEach(() => {
     inserted.length = 0;

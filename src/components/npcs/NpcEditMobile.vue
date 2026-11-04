@@ -95,6 +95,7 @@
           :disguise-name="form.disguise_name"
           :race="form.race"
           :alignment="form.alignment"
+          :size="form.size"
           :age="form.age"
           :born-year="form.born_year ?? null"
           :born-month="form.born_month ?? null"
@@ -110,6 +111,7 @@
           @update:disguise-name="form.disguise_name = $event"
           @update:race="form.race = $event"
           @update:alignment="form.alignment = $event"
+          @update:size="form.size = $event"
           @update:age="form.age = $event"
           @update:birth="Object.assign(form, $event)"
           @update:death="Object.assign(form, $event)"
@@ -313,7 +315,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
-import type { MonsterIndexEntry } from "@/types/monster.types";
+import type { MonsterIndexEntry, MonsterSize } from "@/types/monster.types";
 import type { LocationSummary } from "@/types/location.types";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -347,7 +349,7 @@ const {
   isSendingToScriptorium = false,
   isAiEnabled = false,
 } = defineProps<{
-  form: Omit<NpcInsert, "notes">;
+  form: Omit<NpcInsert, "notes" | "size"> & { size: MonsterSize };
   statBlock: StatBlock;
   hasStatBlock: boolean;
   artTab: NpcArtTab;

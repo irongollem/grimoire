@@ -41,7 +41,7 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { IconChevronDown, IconChevronUp } from "@/lib/icons";
-import { FAMILY_TOKEN } from "@/composables/world/useWorldWebGraph";
+import { FAMILY_TOKEN } from "@/lib/worldWeb/palette";
 import type { TypeChoice } from "@/lib/worldLinks/connections";
 
 const { choices, current = null, busy = false, label = "Type of tie" } = defineProps<{

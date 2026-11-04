@@ -1,0 +1,92 @@
+import { mount } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
+import DeckGrid from "./DeckGrid.vue";
+import { fixtureCell, fixtureEmpty, fixtureLanes } from "./deckFixtures";
+import type { DeckCellView } from "@/lib/audio/deck/deckSurface";
+
+function board(): DeckCellView[] {
+  const out: DeckCellView[] = [];
+  for (let row = 0; row < 2; row++) {
+    for (let lane = 0; lane < 8; lane++) {
+      out.push(lane === 7 && row === 1 ? fixtureEmpty(lane, row) : fixtureCell({ lane, row, padId: `p${lane}-${row}`, name: `Pad ${lane}-${row}` }));
+    }
+  }
+  return out;
+}
+
+function mountGrid(extra: Record<string, unknown> = {}) {
+  return mount(DeckGrid, {
+    props: { lanes: fixtureLanes(), cells: board(), rows: 2, size: "md", controls: "full", tool: "play", mode: "play", ...extra },
+  });
+}
+
+describe("DeckGrid", () => {
+  it("names the true lane and row on a press when the phone shows lanes 4 to 7", async () => {
+    // A phone page starts at lane 4; reporting the column index (0) would fire the wrong pad.
+    const w = mountGrid({ laneStart: 4, laneCount: 4 });
+    const pad = w.find("[data-cell='5:1'] button");
+    await pad.trigger("pointerdown", { button: 0 });
+    await pad.trigger("pointerup");
+    expect(w.emitted("press")).toEqual([[{ lane: 5, row: 1 }]]);
+    expect(w.emitted("release")).toEqual([[{ lane: 5, row: 1 }]]);
+  });
+
+  it("draws only the lanes in the window", () => {
+    const w = mountGrid({ laneStart: 4, laneCount: 4 });
+    expect(w.findAll("[data-cell]")).toHaveLength(8);
+    expect(w.find("[data-cell='3:0']").exists()).toBe(false);
+    expect(w.find("[data-cell='4:0']").exists()).toBe(true);
+  });
+
+  it("the one-row bar on row 2 draws that row and a press names it, not the top row", async () => {
+    // Filtering on `row < rows` alone would draw the top row whatever the bar was showing.
+    const w = mountGrid({ rows: 1, rowStart: 1 });
+    expect(w.findAll("[data-cell]")).toHaveLength(8);
+    expect(w.find("[data-cell='0:0']").exists()).toBe(false);
+    const pad = w.find("[data-cell='2:1'] button");
+    await pad.trigger("pointerdown", { button: 0 });
+    await pad.trigger("pointerup");
+    expect(w.emitted("press")).toEqual([[{ lane: 2, row: 1 }]]);
+  });
+
+  it("leaves lane headers inert while playing and makes them buttons in build mode", async () => {
+    const play = mountGrid();
+    expect(play.findAll("[role=row] button")).toHaveLength(0);
+    const build = mountGrid({ mode: "build" });
+    await build.findAll("[role=row] button")[2]?.trigger("click");
+    expect(build.emitted("laneActivate")).toEqual([[2]]);
+  });
+
+  it("reports a drop on the slot it landed on, and only in build mode", async () => {
+    const build = mountGrid({ mode: "build" });
+    await build.find("[data-cell='7:1']").trigger("drop");
+    expect(build.emitted("drop")?.[0]?.[0]).toMatchObject({ lane: 7, row: 1 });
+    const play = mountGrid();
+    await play.find("[data-cell='7:1']").trigger("drop");
+    expect(play.emitted("drop")).toBeUndefined();
+  });
+
+  it("selects an empty slot with a null pad id so the builder can fill it", async () => {
+    const w = mountGrid({ mode: "build" });
+    await w.find("[data-cell='7:1'] button").trigger("click");
+    expect(w.emitted("select")).toEqual([[{ lane: 7, row: 1, padId: null }]]);
+  });
+
+  it("Keep on a guest names its slot and does not press the pad", async () => {
+    // Bug: Keep shared the pad's press area, so keeping a guest also stopped it; or it named the wrong slot.
+    const guest = fixtureCell({
+      lane: 2,
+      row: 1,
+      padId: null,
+      guest: { sourceId: "fight:1", label: "Goblin ambush", target: "playlist-1" },
+    });
+    const cells = board().map((c) => (c.lane === 2 && c.row === 1 ? guest : c));
+    const w = mountGrid({ cells });
+    const keep = w.find("[data-cell='2:1'] [data-guest-keep]");
+    await keep.trigger("pointerdown", { button: 0 });
+    await keep.trigger("click");
+    expect(w.emitted("keep")).toEqual([[{ lane: 2, row: 1 }]]);
+    expect(w.emitted("press")).toBeUndefined();
+    expect(w.find("[data-cell='3:1'] [data-guest-keep]").exists()).toBe(false);
+  });
+});

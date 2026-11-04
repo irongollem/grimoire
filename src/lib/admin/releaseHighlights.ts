@@ -36,4 +36,6 @@ export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlight[] = [
   { releasedAt: "2026-10-12", line: "NPCs remember what they and the party told each other" },
   { releasedAt: "2026-10-24", line: "Share your campaign as a public book anyone can read online" },
   { releasedAt: "2026-10-24", line: "Battle maps come alive: moving water, flickering fires, and light and darkness by the rules" },
+  { releasedAt: "2026-11-02", line: "Players discover and invent recipes in the Workshop, and pass items and coins to each other" },
+  { releasedAt: "2026-11-02", line: "Every character, NPC and place shows its connections in one place, with a map of your whole world's ties" },
 ];

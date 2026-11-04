@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { track } from "@/lib/analytics";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
-import type { Campaign, CampaignInsert, CampaignRole, CampaignUpdate } from "@/types/campaign.types";
+import type { Campaign, CampaignInsert, CampaignRole, CampaignUpdate, ExploreParty } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
 import { useInvalidateQuota } from "@/composables/billing/useQuota";
 import { useCampaignStore } from "@/stores/campaign";
@@ -531,6 +531,22 @@ export function useSetCampaignLocation() {
       const store = useCampaignStore();
       if (store.activeCampaign && updatedCampaign) {
         store.activeCampaign = { ...store.activeCampaign, current_location_id: updatedCampaign.current_location_id };
+      }
+    },
+  });
+}
+
+/** Writes where the party stands on a site's grid while exploring it (#1125 decision 9). The caller debounces: one write per move. */
+export function useSetExploreParty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, explore }: { id: string; explore: ExploreParty | null }) =>
+      updateCampaign(id, { explore_party: explore }),
+    onSuccess: (updatedCampaign) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      const store = useCampaignStore();
+      if (store.activeCampaign && updatedCampaign) {
+        store.activeCampaign = { ...store.activeCampaign, explore_party: updatedCampaign.explore_party };
       }
     },
   });

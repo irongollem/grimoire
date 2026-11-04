@@ -37,7 +37,6 @@
 
     <!-- Phones reach it from the More sheet: here it would squeeze the page title. -->
     <DmScratchpadToggle size="xs" class="hidden shrink-0 sm:inline-flex" />
-    <SoundboardWidgetToggle icon-only size="xs" class="shrink-0" />
 
     <!-- Mobile search overlay -->
     <Teleport to="body">
@@ -118,7 +117,6 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
-import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import SearchResultList from "./SearchResultList.vue";
 import SessionControl from "./SessionControl.vue";

@@ -87,7 +87,7 @@ import ModalHeader from '@/components/common/overlays/ModalHeader.vue'
 /** `childAccount`: a young player's account, which must never be shown wording
  *  about plans, Pro or upgrading (#928), so it gets neutral copy and no upgrade
  *  button. The limit itself comes from `check_quota`, not from a plan name. */
-const { campaignLimit, childAccount = false } = defineProps<{
+const { show, campaignLimit, childAccount = false } = defineProps<{
   show: boolean;
   campaignLimit: number;
   childAccount?: boolean;
@@ -103,7 +103,8 @@ const subtitle = computed(() => {
 
 const router = useRouter()
 const campaignStore = useCampaignStore()
-const { data: campaignData } = useOwnedCampaigns()
+// Mounted by DefaultLayout on every DM page, shown or not: read the campaigns only while it is open.
+const { data: campaignData } = useOwnedCampaigns({ enabled: () => show })
 const { mutateAsync: archiveCampaign, isPending: isArchiving } = useArchiveCampaign()
 
 // The demo campaign (#912) is not on the plan's count, so it is neither offered

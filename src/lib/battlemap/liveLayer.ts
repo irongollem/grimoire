@@ -2,8 +2,9 @@
 // in, the tile size, tiling offset and alpha out. The component owns the canvas and the animation loop; nothing
 // here touches the DOM, so it can be tested with plain numbers.
 
+import { toRaw } from "vue";
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoorState, type MapLiveGroup, type MapLiveLight, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
-import { lightReachCells } from "@/cartographer/lights";
+import { FLICKER_REACH, lightMotion, lightReachCells, PULSE_PERIOD_S, PULSE_REACH } from "@/cartographer/lights";
 import { lightMask, type LightMask } from "@/cartographer/lightMask";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
 
@@ -11,11 +12,17 @@ import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
  * The snapshot a reader may use: only the current version. A version-1 snapshot's standing bakes hold every door leaf,
  * which the live layer would draw a second time, so a site published before the doors went live reads as a plain
  * picture until it is published again (#1073). The DB may still hold 1, hence the comparison through `number`.
+ *
+ * Returned unwrapped from Vue's reactivity. The snapshot arrives inside a query's reactive row, and the light and
+ * sight grids read its walls and lights millions of times: through the proxy each read was also a dependency to track,
+ * which made one illumination grid take most of a second instead of 15 ms. Nothing inside a snapshot changes in place
+ * (a re-read brings a new row), so nothing is lost by not tracking it.
  */
-export function currentMapLive(raw: MapLive | null): MapLive | null {
-  if (raw === null) return null;
-  const version: number = raw.version;
-  return version === MAP_LIVE_VERSION ? raw : null;
+export function currentMapLive(snapshot: MapLive | null): MapLive | null {
+  if (snapshot === null) return null;
+  const plain = toRaw(snapshot);
+  const version: number = plain.version;
+  return version === MAP_LIVE_VERSION ? plain : null;
 }
 
 export interface OverlayFrame {
@@ -66,10 +73,10 @@ export function spritesIn(live: MapLive | null, stratum: Stratum): MapLiveSprite
   return live === null || stratum === "ground" ? [] : live.sprites;
 }
 
-/** The lights that move (flicker or pulse). They brighten the floor, so they live in the ground layer. */
+/** The lights that move, which is every light (`lightMotion`). They brighten the floor, so they live in the ground layer. */
 export function lightsIn(live: MapLive | null, stratum: Stratum): MapLiveLight[] {
   if (live === null || stratum === "top") return [];
-  return live.lights.filter((l) => l.flicker !== undefined || l.pulse !== undefined);
+  return live.lights;
 }
 
 /** Whether the snapshot has anything to animate in this stratum. */
@@ -92,18 +99,36 @@ export function swayAngle(sway: MapLiveSprite["sway"], t: number): number {
 }
 
 /**
- * How much of its flicker or pulse a light shows at time `t`, 0..1 (the caller multiplies by the light's own
- * fraction). A flame is several fast sines that do not line up, so it never repeats audibly; a pulse is one slow
- * breath. A light that does neither is always 0.
+ * Layered noise in -1..1 that never repeats on a beat anyone can hear: four sines whose rates share no common period,
+ * the slow ones heavy and the quick ones a light crackle on top. `seed` offsets each rate separately, so two fires
+ * (different `phase`) are out of step in the slow drift as well as in the crackle, not merely shifted in time.
  */
-export function lightBoost(light: Pick<MapLiveLight, "flicker" | "pulse" | "phase">, t: number): number {
-  if (light.flicker !== undefined) {
-    const p = light.phase;
-    const mix = (Math.sin(6.3 * t + p) + Math.sin(11.7 * t + p * 2.1 + 1) + Math.sin(19.1 * t + p * 0.7 + 2)) / 3;
-    return Math.min(1, Math.max(0, 0.5 + 0.5 * mix));
-  }
-  if (light.pulse !== undefined) return 0.5 + 0.5 * Math.sin(1.0 * t + light.phase);
-  return 0;
+export function flameNoise(seed: number, t: number): number {
+  const slow = Math.sin(0.9 * t + seed);
+  const mid = Math.sin(2.3 * t + seed * 1.9 + 1.3);
+  const quick = Math.sin(5.1 * t + seed * 0.7 + 2.1);
+  const crackle = Math.sin(9.7 * t + seed * 2.9 + 0.4);
+  return 0.45 * slow + 0.3 * mid + 0.17 * quick + 0.08 * crackle;
+}
+
+/**
+ * How much of its flicker or pulse a light shows at time `t`, 0..1 (the caller multiplies by the light's own
+ * fraction). A flame is layered noise (`flameNoise`) so it never settles into a blink; a pulse is one slow breath,
+ * `PULSE_PERIOD_S` long, each light at its own point in it.
+ */
+export function lightBoost(light: Pick<MapLiveLight, "color" | "flicker" | "pulse" | "phase">, t: number): number {
+  if (lightMotion(light).kind === "flicker") return Math.min(1, Math.max(0, 0.5 + 0.5 * flameNoise(light.phase, t)));
+  return 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / PULSE_PERIOD_S + light.phase);
+}
+
+/**
+ * How far a light's reach is stretched at time `t`, around 1: a flame swells and shrinks by up to `FLICKER_REACH`,
+ * drifting on its own noise (not the brightness's, so the two do not move in lockstep); a pulse breathes by
+ * `PULSE_REACH`, in step with its brightness.
+ */
+export function lightRadiusScale(light: Pick<MapLiveLight, "color" | "flicker" | "pulse" | "phase">, t: number): number {
+  if (lightMotion(light).kind === "flicker") return 1 + FLICKER_REACH * flameNoise(light.phase * 1.7 + 4, t * 0.8);
+  return 1 + PULSE_REACH * Math.sin((2 * Math.PI * t) / PULSE_PERIOD_S + light.phase);
 }
 
 /** A light's line-of-sight mask over its whole square, in image cells from (x0,y0). */
@@ -137,7 +162,8 @@ export function boostMask(live: MapLive, light: MapLiveLight, doorStates: readon
   }
   let held = perStates.get(light);
   if (!held) {
-    const reach = lightReachCells(light);
+    // Room for the largest swell, so a glow that grows past its steady reach is not cut off at the mask's edge.
+    const reach = lightReachCells(light) * (1 + Math.max(FLICKER_REACH, PULSE_REACH));
     const x0 = Math.floor(light.x - reach);
     const y0 = Math.floor(light.y - reach);
     const x1 = Math.ceil(light.x + reach);

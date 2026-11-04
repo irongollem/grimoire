@@ -2,7 +2,7 @@ import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import type { LootTable, LootTableInsert, LootTableUpdate } from "@/types/lootTable.types";
 
 const QUERY_KEY = "loot_tables";
@@ -58,6 +58,8 @@ export function useLootTables() {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, campaignId.value, campaign.activeCampaign?.user_id ?? null] as const),
     queryFn: ({ queryKey: [, cid, ownerId] }) => fetchLootTables(cid, ownerId),
+    // The owner is in the key: wait for the campaign row rather than read twice.
+    enabled: () => ownerKnownFor(campaign.activeCampaign, campaignId.value),
     staleTime: 30_000,
   });
 }

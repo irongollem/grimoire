@@ -5,12 +5,10 @@ import {
   roundBrushCells,
   cellBrushCells,
   applyBrush,
-  shouldSeedFog,
   FEATHER_FRACTION,
   featherEdges,
   featherRect,
   fogOpacityAt,
-  revealedCombatants,
 } from "@/lib/battlemap/fogMask";
 
 describe("encode / decode fog mask", () => {
@@ -115,24 +113,6 @@ describe("cellBrushCells", () => {
       brushCells: 4,
     });
     expect(result.size).toBe(9);
-  });
-});
-
-describe("shouldSeedFog", () => {
-  it("is true for a never-seeded row (null)", () => {
-    expect(shouldSeedFog(null)).toBe(true);
-  });
-
-  it("is true for an absent value (undefined)", () => {
-    expect(shouldSeedFog(undefined)).toBe(true);
-  });
-
-  it("is false for an explicit \"Hide all\" (empty string), not 'never seeded'", () => {
-    expect(shouldSeedFog("")).toBe(false);
-  });
-
-  it("is false once any cells are revealed", () => {
-    expect(shouldSeedFog("1,2;3,4")).toBe(false);
   });
 });
 
@@ -243,22 +223,6 @@ describe("fogOpacityAt", () => {
     for (const [px, py] of [[0, 0], [25, 25], [49, 49], [0, 49], [49, 0]]) {
       expect(fogOpacityAt(px, py, mask, cellPx, 0, 0)).toBe(0);
     }
-  });
-});
-
-describe("revealedCombatants", () => {
-  it("keeps a combatant with no position regardless of fog", () => {
-    const combatants = [{ id: "a", position: null }];
-    expect(revealedCombatants(combatants, new Set())).toEqual(combatants);
-  });
-
-  it("keeps only combatants whose cell is in the revealed mask", () => {
-    const combatants = [
-      { id: "seen", position: { x: 1, y: 1 } },
-      { id: "hidden", position: { x: 9, y: 9 } },
-    ];
-    const result = revealedCombatants(combatants, new Set(["1,1"]));
-    expect(result.map((c) => c.id)).toEqual(["seen"]);
   });
 });
 

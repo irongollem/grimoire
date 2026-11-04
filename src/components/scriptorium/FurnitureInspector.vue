@@ -26,8 +26,11 @@
           </div>
           <div class="fi-row">
             <span class="fi-label">Tint</span>
-            <input type="color" :value="str('color', '#2a2018')" class="h-7 w-12 rounded border border-border bg-transparent"
-              @input="patchProps({ color: ($event.target as HTMLInputElement).value })" />
+            <ColorInput
+              aria-label="Tint"
+              :model-value="str('color', '#2a2018')"
+              @update:model-value="(color) => patchProps({ color })"
+            />
           </div>
           <div class="fi-row">
             <span class="fi-label">Opacity</span>
@@ -129,6 +132,7 @@ import { computed, ref, onBeforeUnmount } from "vue";
 import { IconClose, IconDelete } from "@/lib/icons";
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ColorInput from "@/components/common/controls/ColorInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { WATERCOLOR_COUNT } from "@/data/watercolorAssets";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";

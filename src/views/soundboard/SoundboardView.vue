@@ -1,14 +1,10 @@
 <template>
-  <ListPageLayout title="Soundboard" description="Ambient sounds & music for your sessions">
+  <ListPageLayout title="Soundboard" description="Build your deck and play it">
     <template #title-suffix>
       <ManualHelpLink page="soundboard" />
     </template>
 
     <template #actions>
-      <!-- No Arrange/Perform control here any more: the board follows the app's
-           own prep/play mode. It was the same question asked twice, and the two
-           could disagree. To rearrange mid-session, drop into prep and back. -->
-
       <!-- Board settings had exactly one way in: a muted status line at the
            bottom of the mixer drawer, which its own comment described as "a
            read-only echo, not a control". Three settings including remote-player
@@ -18,7 +14,7 @@
         size="sm"
         :icon="IconSettings"
         aria-label="Board settings"
-        tooltip="Board settings: pad size, triggers, sharing"
+        tooltip="Board settings: triggers, sharing, output, controllers"
         class="hidden sm:flex"
         @click="soundboardUi.soundboardSettingsOpen = true"
       />
@@ -35,6 +31,9 @@
         class="hidden lg:flex"
         @click="soundboardUi.soundboardMixerOpen = !soundboardUi.soundboardMixerOpen"
       />
+
+      <!-- Below lg there is no drawer: the deck's own mixer popover stands in. -->
+      <DeckMixerPopover class="lg:hidden" />
 
       <!-- Spotify connect/disconnect (only for the owner user) -->
       <template v-if="spotifyStore.isEnabled">
@@ -80,581 +79,605 @@
         <template #icon><BrandIcon name="spotify" class="h-4 w-4 opacity-60" /></template>
       </AppButton>
 
-      <SoundboardWidgetToggle icon-only />
-      <ListActionButton
-        v-if="soundboardUi.soundboardViewMode === 'sounds'"
-        variant="primary"
-        :icon="IconAdd"
-        :label="soundQuota?.unlimited === false ? `Add Sound (${soundQuota.current}/${soundQuota.limit})` : 'Add Sound'"
-        @click="openAddSound()"
-      />
-      <!-- Same convention, same corner, whichever peer is showing. -->
-      <ListActionButton
-        v-else
-        variant="primary"
-        :icon="IconAdd"
-        :label="newPlaylistLabel"
-        @click="createPlaylistPending = true"
-      />
     </template>
 
-    <!-- "What is audible and why" leads the page: it is the first question a
-         DM has, and answering it by scanning the grid for lit cards is the
-         delay the feature exists to remove. -->
-    <NowRail class="-mx-3 rounded-none sm:mx-0 sm:rounded-lg sm:border sm:border-border" />
+    <!-- What is audible and why leads the page: the first question a DM has. -->
+    <DeckNowChips class="mt-1" />
 
-    <!-- Ogg Vorbis is the library's format; iOS before 18.4 cannot play it. -->
     <AudioFormatNotice class="mt-3" />
-
-    <!-- Filters, under the playback block. Present on every tab — the row
-         vanishing when you switch to Scenes shifted the whole page, and a
-         scene list you cannot search is a scene list you scroll. -->
-    <div class="mt-3 flex flex-wrap items-center gap-2">
-      <ListSearchInput v-model="soundboardUi.soundboardSearchQuery" :placeholder="searchPlaceholder" />
-      <SoundCategoryFilter
-        v-if="soundboardUi.soundboardViewMode === 'sounds'"
-        v-model="soundboardUi.soundboardFilterCategory"
-      />
-      <button
-        v-if="soundboardUi.soundboardHasActiveFilters"
-        class="rounded-md border border-border px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
-        @click="soundboardUi.resetSoundboardFilters()"
-      >
-        Clear
-      </button>
-      <span class="flex-1" />
-      <!-- Says what the key caps mean, and that the order is the DM's to set. -->
-      <p v-if="soundboardUi.soundboardViewMode === 'sounds'" class="hidden text-caption text-muted-foreground md:block">
-        Keys <b class="text-gold-400">1–9</b> fire the first nine in this order
-        <span v-if="!soundboardUi.soundboardHasActiveFilters"> · drag to reorder</span>
-      </p>
-    </div>
-
-    <!-- Pages and the three peers share one row, hard-clamped to the screen.
-         Pages scope all three — a scene and a playlist both carry a page_id —
-         so stacking them implied a hierarchy that does not exist. The page
-         rail flexes and scrolls internally; this row must never be the reason
-         the page scrolls sideways. -->
-    <div class="mt-3 flex max-w-full min-w-0 items-center gap-2 overflow-hidden">
-      <!-- Wrapped rather than classed: the rail must never win a width contest
-           with the peers control, and a wrapper this view owns beats relying on
-           attribute fallthrough onto the rail's root. -->
-      <div class="min-w-0 flex-1 basis-0 overflow-hidden">
-        <SoundboardPageTabs
-          v-model="soundboardUi.soundboardActivePage"
-          :pages="pages ?? []"
-          :highlight-drops="draggingCard"
-          :drop-target="dragOverPage"
-        />
-      </div>
-      <div class="flex w-fit shrink-0 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
-        <AppButton
-          v-for="mode in VIEW_MODES"
-          :key="mode.id"
-          variant="ghost"
-          size="sm"
-          :icon="mode.icon"
-          :label="mode.label"
-          collapse-label-on-mobile
-          :active="soundboardUi.soundboardViewMode === mode.id"
-          @click="soundboardUi.soundboardViewMode = mode.id"
-        />
-      </div>
-    </div>
 
     <!-- Spotify errors surface here too, not just in the widget: a connection
          failure the DM never sees is a connection failure they cannot fix. -->
     <SpotifyErrorBanner />
 
-    <!-- The board, with the mixer as a drawer on its right — the campaign
-         chat's pattern: in-flow while open, so it pushes the grid left rather
-         than covering it, and gone entirely while closed. The toggle lives in
-         the page head. -->
-    <!-- No `gap` between the board and the rail: the gap would pop into
-         existence the instant the rail mounts, ahead of the panel it belongs to.
-         It is the rail's own padding instead, so it opens with everything else. -->
-    <div class="mt-3 flex min-w-0 items-start">
-      <div class="min-w-0 flex-1">
-
-    <!-- One panel, filtered by type — scenes and playlists are the same table
-         and the same card; only the question being asked differs. -->
-    <PlaylistsPanel
-      v-if="soundboardUi.soundboardViewMode !== 'sounds'"
-      :page-id="soundboardUi.soundboardActivePage"
-      :playlist-type="soundboardUi.soundboardViewMode === 'scenes' ? 'ambient' : 'music'"
-      :filter="soundboardUi.soundboardSearchQuery"
-      :create-pending="createPlaylistPending"
-      @create-handled="createPlaylistPending = false"
-    />
-
-    <template v-else>
-
     <PaywallModal v-if="paywallMounted" v-model="showSoundPaywall" resource="sounds" />
 
-    <!-- Loading -->
-    <!-- Loading: the board's own grid (so the columns are already where the
-         pads will be), with an Arrange-shaped card (title row, transport) or a
-         bare Perform pad to match the mode. -->
-    <div v-if="isPending" role="status" class="grid gap-3" :class="gridClass">
-      <span class="sr-only">Loading…</span>
-      <template v-if="soundboardUi.soundboardBoardMode === 'arrange'">
-        <div
-          v-for="n in 8"
-          :key="n"
-          class="flex flex-col gap-3 rounded-md border border-border bg-card p-3"
-        >
-          <SkeletonBlock class="h-4 w-3/5" />
-          <SkeletonBlock class="h-8 w-full rounded-md" />
+    <div class="mt-3 flex min-w-0 items-start">
+      <div class="min-w-0 flex-1">
+        <!-- Day one: nothing to place yet, so the starter scenes lead. -->
+        <div v-if="showEmptyState" class="space-y-4">
+          <StarterScenesCard />
+          <EmptyState
+            icon="music"
+            title="No sounds yet"
+            description="Add ambient tracks, music and effects, then lay them out on the deck."
+            action-label="Add sound"
+            @action="openAddSound()"
+          />
         </div>
-      </template>
-      <template v-else>
-        <SkeletonBlock
-          v-for="n in 12"
-          :key="n"
-          class="rounded-md"
-          :class="PAD_SKELETON_HEIGHT[soundboardUi.soundboardPadSize]"
-        />
-      </template>
-    </div>
 
-    <!-- Empty state. The starter scenes lead rather than the Add button: a DM
-         on day one has nothing to add yet, and "build your own library" is the
-         work this feature is supposed to remove. -->
-    <div v-else-if="filtered.length === 0 && !soundboardUi.soundboardHasActiveFilters" class="space-y-4">
-      <StarterScenesCard />
-      <EmptyState
-        icon="music"
-        title="No sounds yet"
-        description="Add ambient tracks, music, and effects for your sessions."
-        action-label="Add Sound"
-        @action="openAddSound()"
-      />
-    </div>
-
-    <div
-      v-else-if="filtered.length === 0"
-      class="py-10 text-center text-body text-muted-foreground italic"
-    >
-      No sounds match your filters.
-    </div>
-
-    <!-- Sound grid -->
-    <template v-else>
-      <!-- Drag hint when filters are active -->
-      <p
-        v-if="soundboardUi.soundboardHasActiveFilters"
-        class="mb-2 text-caption text-muted-foreground italic"
-      >
-        Clear filters to reorder cards.
-      </p>
-
-      <VueDraggable
-        v-model="orderedSounds"
-        class="grid gap-3"
-        :class="gridClass"
-        :disabled="soundboardUi.soundboardHasActiveFilters"
-        handle=".drag-handle"
-        :animation="150"
-        ghost-class="opacity-40"
-        @start="onCardDragStart"
-        @end="onCardDragEnd"
-      >
-        <div v-for="(sound, index) in orderedSounds" :key="sound.id" class="group relative">
-          <!-- Drag handle — Arrange only, and only when not filtered. Ordering
-               the board is setup, not performance, and on a small pad an
-               overlaid handle would sit on top of the name. -->
-          <div
-            v-if="!soundboardUi.soundboardHasActiveFilters && soundboardUi.soundboardBoardMode === 'arrange'"
-            class="drag-handle absolute top-2 inset-s-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-            title="Drag to reorder"
+        <!-- Build: one side panel and the deck. The panel is the library, or the picked
+             pad's settings, with a switch between the two; it never changes width and
+             never leaves, so picking a pad moves nothing and the deck keeps its width.
+             (The library used to step aside for a separate settings column below 2xl,
+             and the whole page jumped left on every pick; three columns at once left a
+             laptop's pads too narrow to read.) -->
+        <div v-else class="flex min-w-0 items-start gap-5">
+          <!-- A column from lg, sheets below. -->
+          <aside
+            v-if="mode === 'build' && isWide"
+            class="flex w-72 shrink-0 flex-col gap-3 2xl:w-80"
+            aria-label="Library and pad settings"
           >
-            <IconDrag class="h-3.5 w-3.5" />
-          </div>
-          <SoundCard
-            :sound="sound"
-            :show-delete="true"
-            :mode="soundboardUi.soundboardBoardMode"
-            :pad-size="soundboardUi.soundboardPadSize"
-            @delete="handleDelete"
-          >
-            <!-- The number key that fires this card. Shown rather than
-                 documented, because a shortcut nobody can see is a shortcut
-                 nobody uses. In the pad's own header row, so it cannot land on
-                 the name at small sizes. -->
-            <template #key>
-              <KeyCap v-if="index < 9" :title="`Press ${index + 1} to fire this sound`">
-                {{ index + 1 }}
-              </KeyCap>
-            </template>
-          </SoundCard>
-        </div>
-      </VueDraggable>
-    </template>
+            <SegmentedControl
+              :model-value="sidePanel"
+              :options="sidePanelOptions"
+              size="sm"
+              block
+              aria-label="Side panel"
+              @update:model-value="panelChoice = $event"
+            />
+            <PadSettingsPanel
+              v-if="sidePanel === 'pad' && selectedPadId"
+              :key="selectedPadId"
+              :pad-id="selectedPadId"
+              :controls="soundboardUi.deckControls"
+              @close="selectedPadId = null"
+            />
+            <DeckLibraryPanel
+              v-else
+              :used-sound-ids="usedSoundIds"
+              :used-playlist-ids="usedPlaylistIds"
+              :can-place="canPlace"
+              @place="onPlace"
+            />
+          </aside>
 
-    </template> <!-- end v-else sounds view -->
-      </div>
-
-      <!-- Mixer — the same component the floating widget uses, so the two
-           soundboard surfaces can never drift apart. Desktop only: below lg
-           the floating widget is the mixer surface. -->
-      <Transition v-bind="railTransition()">
-        <aside
-          v-if="soundboardUi.soundboardMixerOpen"
-          class="sticky top-0 hidden shrink-0 pl-4 lg:block"
-          aria-label="Mixer"
-        >
-          <!-- The card is a fixed-width child of the rail, not the rail itself.
-               The rail is clipped as it opens, so a full-width card would reflow
-               to the shrinking box and squeeze the faders shut; at a fixed width
-               it holds its shape and slides out from behind the page edge. -->
-          <div class="w-72 rounded-lg border border-border bg-card">
-            <!-- No Stop All here: it has exactly one home, the widget header, which
-                 follows the DM everywhere including this page. Two panic buttons
-                 for the same act is how one of them drifts. -->
-            <div class="flex items-center gap-2 border-b border-border/60 px-3 py-2">
-              <h2 class="flex-1 text-eyebrow font-bold text-gold-500 uppercase">
-                Mixer
-              </h2>
+          <section class="relative flex min-w-0 flex-1 flex-col gap-3" :aria-label="deckLabel">
+            <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+              <div class="min-w-0 flex-1 basis-60 overflow-hidden">
+                <SoundboardPageTabs
+                  :model-value="activePageId"
+                  :pages="pages ?? []"
+                  :pad-counts="padCounts"
+                  @update:model-value="soundboardUi.soundboardActivePage = $event"
+                  @pad-drop="onPadDropOnPage"
+                />
+              </div>
               <AppButton
-                variant="ghost"
-                size="icon-xs"
-                :icon="IconClose"
-                icon-size="sm"
-                aria-label="Close the mixer"
-                tooltip="Close the mixer"
-                @click="soundboardUi.soundboardMixerOpen = false"
+                v-if="mode === 'build' && !isWide"
+                variant="subtle"
+                size="sm"
+                :icon="IconList"
+                label="Library"
+                @click="libraryOpen = true"
+              />
+              <SegmentedControl
+                :model-value="mode"
+                :options="MODE_OPTIONS"
+                size="sm"
+                aria-label="Build or play"
+                @update:model-value="chosenMode = $event"
               />
             </div>
-            <div class="px-3 py-2">
-              <SoundboardMixer />
+
+            <!-- Phone: four lanes at a time, in lane order. -->
+            <SegmentedControl
+              v-if="isPhone"
+              v-model="laneWindow"
+              :options="LANE_WINDOWS"
+              size="sm"
+              block
+              aria-label="Lanes shown"
+            />
+
+            <div v-if="isPending || !activePageId" role="status" class="grid grid-cols-4 gap-2 md:grid-cols-8">
+              <span class="sr-only">Loading…</span>
+              <SkeletonBlock v-for="n in 16" :key="n" class="h-14 rounded-md" />
             </div>
-          </div>
-        </aside>
-      </Transition>
+
+            <template v-else-if="mode === 'build'">
+              <div class="relative">
+              <DeckGrid
+                :lanes="snapshot.lanes"
+                :cells="buildCells"
+                :rows="buildRows"
+                :lane-start="laneStart"
+                :lane-count="laneCount"
+                size="sm"
+                :controls="soundboardUi.deckControls"
+                tool="play"
+                mode="build"
+                :selected-pad-id="selectedPadId ?? undefined"
+                @select="onSelect"
+                @lane-activate="onLaneActivate"
+                @drop="onDropOnSlot"
+              />
+              <template v-if="laneEditing !== null && activePageId && isWide">
+                <div class="fixed inset-0 z-20" aria-hidden="true" @click="laneEditing = null" />
+                <div
+                  data-slip
+                  class="absolute top-8 z-30 w-72 max-w-full bg-card p-3 shadow-lg"
+                  :style="lanePopoverStyle"
+                  role="dialog"
+                  aria-label="Edit lane"
+                  @keydown.esc="laneEditing = null"
+                >
+                  <LaneEditor :page-id="activePageId" :lane-index="laneEditing" @close="laneEditing = null" />
+                </div>
+              </template>
+              </div>
+              <p class="max-w-prose text-caption text-muted-foreground">
+                Drag a sound from the library onto a slot, or pick an empty slot and click a sound. Dropped on a pad
+                that already has one, it becomes another take of that pad. Click a lane's name to rename it or set
+                how it plays.
+              </p>
+            </template>
+
+            <BuilderPlayDeck v-else :lane-start="laneStart" :lane-count="laneCount" :phone="isPhone" />
+
+          </section>
+        </div>
+      </div>
+
+      <BuilderMixerDrawer />
     </div>
     <BoardSettingsDialog
       v-if="settingsMounted"
       :open="soundboardUi.soundboardSettingsOpen"
       @close="soundboardUi.soundboardSettingsOpen = false"
     />
+
+    <!-- Below lg the library, pad settings and lane editor are sheets. -->
+    <template v-if="!isWide">
+      <MobileSheet v-model:open="libraryOpen" title="Library" show-until="lg">
+        <DeckLibraryPanel
+          :used-sound-ids="usedSoundIds"
+          :used-playlist-ids="usedPlaylistIds"
+          :can-place="canPlace"
+          @place="onPlaceFromSheet"
+        />
+      </MobileSheet>
+      <MobileSheet v-model:open="padSheetOpen" title="Pad settings" show-until="lg">
+        <PadSettingsPanel
+          v-if="selectedPadId"
+          :key="selectedPadId"
+          :pad-id="selectedPadId"
+          :controls="soundboardUi.deckControls"
+          @close="selectedPadId = null"
+        />
+      </MobileSheet>
+      <MobileSheet v-model:open="laneSheetOpen" title="Lane" show-until="lg">
+        <LaneEditor
+          v-if="laneEditing !== null && activePageId"
+          :page-id="activePageId"
+          :lane-index="laneEditing"
+          @close="laneEditing = null"
+        />
+      </MobileSheet>
+    </template>
+
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent, watch, onMounted, onBeforeUnmount } from "vue";
-import { useLazyMount } from "@/composables/useLazyMount";
-import { IconAdd, IconClose, IconDrag, IconList, IconListOrdered, IconWind, IconMixer, IconSettings } from '@/lib/icons';
-import { VueDraggable } from "vue-draggable-plus";
-import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage, useMoveSound } from "@/composables/soundboard/useSounds";
-import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/soundboard/useSoundboardPages";
-import { railTransition } from "@/lib/motion";
-import { useSoundboardStore } from "@/stores/soundboard";
-import { useSpotifyStore } from "@/stores/spotify";
-import { isSpotifyCollection } from "@/lib/audio/spotifyAuth";
-import { useAuthStore } from "@/stores/auth";
-import { useSoundboardUiStore } from "@/stores/ui/soundboard";
-import { useQuota } from "@/composables/billing/useQuota";
-import { useSoundboardHotkeys } from "@/composables/soundboard/useSoundboardHotkeys";
+import { ref, computed, defineAsyncComponent, watch, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
+import { useLazyMount } from "@/composables/useLazyMount";
+import { useAbove, useBelow } from "@/composables/useBreakpoint";
+import { useHotkeys } from "@/composables/useHotkeys";
+import { useToast } from "@/composables/useToast";
+import { IconList, IconMixer, IconSettings } from "@/lib/icons";
+import { emptyDeckCell, firstFreeSlot } from "@/lib/audio/deck/deckModel";
+import { DECK_LANES } from "@/lib/audio/deck/deckSurface";
+import { useDeck } from "@/composables/soundboard/useDeck";
+import { useAddTake, useCreatePad, useDeckPads, useMovePad } from "@/composables/soundboard/useDeckPads";
+import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/soundboard/useSoundboardPages";
+import { useSounds } from "@/composables/soundboard/useSounds";
+import { useQuota } from "@/composables/billing/useQuota";
+import { useSpotifyStore } from "@/stores/spotify";
+import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import type { PadSize, Sound } from "@/types/sound.types";
+import { useAppUiStore } from "@/stores/ui/app";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import AudioFormatNotice from "@/components/common/feedback/AudioFormatNotice.vue";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
-import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import SoundCard from "@/components/soundboard/SoundCard.vue";
 import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
-import NowRail from "@/components/soundboard/NowRail.vue";
-import KeyCap from "@/components/soundboard/KeyCap.vue";
-import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
-import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
-import BrandIcon from "@/components/brand/BrandIcon.vue";
-import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
-
-// The heights `SoundPad` gives each size (its HEIGHT_CLASS), so a loading Perform
-// board already stands as tall as the pads that replace it.
-const PAD_SKELETON_HEIGHT: Record<PadSize, string> = { sm: "h-14", md: "h-25", lg: "h-30" };
-
-const VIEW_MODES = [
-  { id: "sounds", label: "Sounds", icon: IconList },
-  { id: "scenes", label: "Scenes", icon: IconWind },
-  { id: "playlists", label: "Playlists", icon: IconListOrdered },
-] as const;
-
-
-import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
+import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
+import BrandIcon from "@/components/brand/BrandIcon.vue";
+import DeckMixerPopover from "@/components/soundboard/deck/DeckMixerPopover.vue";
+import DeckGrid from "@/components/soundboard/deck/DeckGrid.vue";
+import BuilderPlayDeck from "@/components/soundboard/builder/BuilderPlayDeck.vue";
+import BuilderMixerDrawer from "@/components/soundboard/builder/BuilderMixerDrawer.vue";
+import DeckNowChips from "@/components/soundboard/deck/DeckNowChips.vue";
+import DeckLibraryPanel from "@/components/soundboard/builder/DeckLibraryPanel.vue";
+import PadSettingsPanel from "@/components/soundboard/builder/PadSettingsPanel.vue";
+import LaneEditor from "@/components/soundboard/builder/LaneEditor.vue";
 
-// Shown per view mode or on demand, so none of these ride in the page's chunk:
-// the playlists panel (Scenes and Playlists views only), the paywall and the
-// board settings. The two dialogs mount through a latch so they keep their
-// state once closed; the panel unmounts on switching back to Sounds as before.
-const PlaylistsPanel = defineAsyncComponent(() => import("@/components/soundboard/PlaylistsPanel.vue"));
+// Shown on demand, so neither rides in the page's chunk. The dialogs mount
+// through a latch so they keep their state once closed.
 const PaywallModal = defineAsyncComponent(() => import("@/components/common/overlays/PaywallModal.vue"));
 const BoardSettingsDialog = defineAsyncComponent(() => import("@/components/soundboard/BoardSettingsDialog.vue"));
 
+const PAD_TYPE = "application/x-grimoire-pad";
+const SOUND_TYPE = "application/x-grimoire-sound";
+const PLAYLIST_TYPE = "application/x-grimoire-playlist";
+/** Always room to grow into: the deck never looks finished. */
+const MIN_BUILD_ROWS = 4;
+
+type Mode = "build" | "play";
+const MODE_OPTIONS = [
+  { value: "build", label: "Build" },
+  { value: "play", label: "Play" },
+] as const;
+type SidePanel = "library" | "pad";
+const LANE_WINDOWS = [
+  { value: 0, label: "Lanes 1 to 4" },
+  { value: 4, label: "Lanes 5 to 8" },
+] as const;
+
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const deck = useDeck();
 const soundboardUi = useSoundboardUiStore();
-const soundboardStore = useSoundboardStore();
+const appUi = useAppUiStore();
 const spotifyStore = useSpotifyStore();
 const auth = useAuthStore();
-const { canCreate: canCreateSound, quota: soundQuota } = useQuota("sounds");
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const { canCreate: canCreateSound } = useQuota("sounds");
+
 const showSoundPaywall = ref(false);
 const paywallMounted = useLazyMount(showSoundPaywall);
 const settingsMounted = useLazyMount(computed(() => soundboardUi.soundboardSettingsOpen));
-const campaignStore = useCampaignStore();
-const { activeCampaignId } = storeToRefs(campaignStore);
 
 onMounted(() => spotifyStore.initSDK());
 
-const { data: sounds, isPending, isSuccess: soundsReady } = useSounds();
+const { data: sounds, isPending: soundsPending } = useSounds();
 const { data: pages, isSuccess: pagesReady } = useSoundboardPages();
-const { mutateAsync: deleteSound } = useDeleteSound();
-const { mutate: reorderSounds } = useReorderSounds();
-const { mutateAsync: createDefaultPage } = useCreateSoundboardPage();
-const { mutateAsync: bulkAssign } = useBulkAssignToPage();
+const { data: padRows, isPending: padsPending } = useDeckPads();
+const { mutate: createPage } = useCreateSoundboardPage();
+const { mutate: createPad } = useCreatePad();
+const { mutate: movePad } = useMovePad();
+const { mutate: addTake } = useAddTake();
 
-// Auto-init: on first load with no pages, create "Main" and assign all existing sounds to it.
-const autoInitDone = ref(false);
+const snapshot = deck.snapshot;
+const activePageId = deck.activePageId;
+const isPending = computed(() => soundsPending.value || padsPending.value);
+
+const isWide = useAbove("lg");
+const isPhone = useBelow("md");
+
+// ── The page exists ──────────────────────────────────────────────────────
+// The migration laid every existing board out on pages, so a campaign with
+// none is a new one: it gets a single "Main" and nothing else.
+const mainRequested = ref(false);
 watch(
-  [pagesReady, soundsReady, pages],
-  ([pr, sr, p]) => {
-    if (!pr || !sr || autoInitDone.value || !activeCampaignId.value) return;
-    if ((p ?? []).length === 0) {
-      autoInitDone.value = true;
-      createDefaultPage({ name: "Main", sort_order: 0 }).then((newPage) => {
-        soundboardUi.soundboardActivePage = newPage.id;
-        return bulkAssign({ pageId: newPage.id, campaignId: activeCampaignId.value! });
-      });
+  [pagesReady, pages, activeCampaignId],
+  ([ready, list, campaignId]) => {
+    if (!ready || mainRequested.value || campaignId === null || list === undefined) return;
+    if (list.length === 0) {
+      mainRequested.value = true;
+      createPage({ name: "Main", sort_order: 0 }, { onSuccess: (page) => (soundboardUi.soundboardActivePage = page.id) });
     }
-  },
-);
-
-// The dialog itself is mounted app-wide (AiGeneratorPanels) so music
-// generation can be reopened from the badge on any page.
-function openAddSound() {
-  if (!canCreateSound.value) { showSoundPaywall.value = true; return; }
-  soundboardUi.addSoundPageId = newSoundPageId.value;
-  soundboardUi.addSoundDialogOpen = true;
-}
-
-// Page to assign new sounds to:
-// - specific page active → use it
-// - "All" with exactly 1 page → auto-assign to that page
-// - "All" with multiple pages → unassigned (null)
-const newSoundPageId = computed(() => {
-  if (soundboardUi.soundboardActivePage !== null) return soundboardUi.soundboardActivePage;
-  if ((pages.value?.length ?? 0) === 1) return pages.value![0].id;
-  return null;
-});
-
-// ── Filtering ─────────────────────────────────────────────────────────────
-
-/**
- * Column counts per pad size.
- *
- * Small pads exist to fit as many fire targets on screen as possible, so they
- * get their own much denser grid rather than the same three columns at a
- * smaller height. Arrange always uses the roomier layout — the control strip
- * needs the width regardless of pad size.
- */
-const gridClass = computed(() => {
-  // auto-fill rather than fixed column counts: the board now shares its width
-  // with the mixer sidebar, and hardcoded breakpoints left a wide screen with
-  // three columns and a lane of dead space beside them. This fills whatever
-  // width it is actually given.
-  if (soundboardUi.soundboardBoardMode === "arrange") {
-    return "grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]";
-  }
-  switch (soundboardUi.soundboardPadSize) {
-    case "sm": return "grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))]";
-    case "lg": return "grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]";
-    default:   return "grid-cols-[repeat(auto-fill,minmax(9.25rem,1fr))]";
-  }
-});
-
-const { quota: playlistQuota } = useQuota("soundboard_playlists");
-
-const newPlaylistLabel = computed(() => {
-  const base = soundboardUi.soundboardViewMode === "scenes" ? "New Scene" : "New Playlist";
-  const q = playlistQuota.value;
-  // Same shape as Add Sound: the count rides on the button now that the panel
-  // caption that used to carry it is gone.
-  return q !== undefined && q !== null && !q.unlimited ? `${base} (${q.current}/${q.limit})` : base;
-});
-
-const searchPlaceholder = computed(() => {
-  switch (soundboardUi.soundboardViewMode) {
-    case "scenes": return "Search scenes…";
-    case "playlists": return "Search playlists…";
-    default: return "Search sounds…";
-  }
-});
-
-const filtered = computed(() => {
-  // A Spotify playlist or album runs its own running order, so it lives with
-  // the playlists. A single track is a sound like any other and stays on the
-  // board: DMs want "this one song" on a pad, the way they would an upload.
-  let list = (sounds.value ?? []).filter(
-    (s) => s.source_type !== "spotify" || !isSpotifyCollection(s.file_url),
-  );
-
-  // Filter by active page (null = "All", shows everything)
-  if (soundboardUi.soundboardActivePage !== null) {
-    list = list.filter((s) => s.page_id === soundboardUi.soundboardActivePage);
-  }
-
-  if (soundboardUi.soundboardFilterCategory !== "all") {
-    list = list.filter((s) => s.category === soundboardUi.soundboardFilterCategory);
-  }
-
-  const q = soundboardUi.soundboardSearchQuery.trim().toLowerCase();
-  if (q) {
-    list = list.filter((s) => s.name.toLowerCase().includes(q));
-  }
-
-  return list;
-});
-
-// ── Drag-drop ordering ────────────────────────────────────────────────────
-
-const orderedSounds = ref<Sound[]>([]);
-
-watch(
-  filtered,
-  (newList) => {
-    orderedSounds.value = [...newList];
   },
   { immediate: true },
 );
 
-// Number keys fire the cards in the order they are rendered, so the mapping
-// always matches the badges the DM can see.
-useSoundboardHotkeys(orderedSounds);
+// ── Build or Play ───────────────────────────────────────────────────────
+// Until the DM chooses, the mode follows the session: running means play.
+const chosenMode = ref<Mode | null>(null);
+const mode = computed<Mode>(() => chosenMode.value ?? (appUi.dmMode === "play" ? "play" : "build"));
 
-const draggingCard = ref(false);
-/**
- * The page tab currently under the dragged card — `""` is the All tab, null
- * means the pointer is nowhere droppable. Drives the strong ring on exactly
- * one tab; every tab ringed alike said "drop targets exist" but never which
- * one the release would hit.
- */
-const dragOverPage = ref<string | null>(null);
+const deckLabel = computed(() => {
+  const page = (pages.value ?? []).find((p) => p.id === activePageId.value);
+  return page === undefined ? "Deck" : `Deck: page ${page.name}`;
+});
 
-/** Hit-test a viewport point against the page tabs' [data-page-drop] markers. */
-function dropTargetAt(x: number, y: number): string | null {
-  // In Sortable's touch fallback the clone rides directly under the finger and
-  // would swallow the hit — blink it out for the test.
-  const ghost = document.querySelector<HTMLElement>(".sortable-fallback");
-  const prevDisplay = ghost === null ? "" : ghost.style.display;
-  if (ghost !== null) ghost.style.display = "none";
-  const target = document
-    .elementFromPoint(x, y)
-    ?.closest<HTMLElement>("[data-page-drop]");
-  if (ghost !== null) ghost.style.display = prevDisplay;
-  const raw = target?.dataset.pageDrop;
-  return raw === undefined ? null : raw;
-}
+// ── What is on the deck ──────────────────────────────────────────────────
 
-function pointFrom(e: Event): { x: number; y: number } | null {
-  if (e instanceof MouseEvent) return { x: e.clientX, y: e.clientY };
-  if (e instanceof TouchEvent) {
-    const touch = e.touches.length > 0 ? e.touches[0] : e.changedTouches[0];
-    return touch === undefined ? null : { x: touch.clientX, y: touch.clientY };
-  }
-  return null;
-}
+const allPads = computed(() => (padRows.value === undefined ? [] : padRows.value));
+const pagePadInfos = computed(() => deck.pagePads.value);
 
-function trackDragPoint(e: Event): void {
-  const point = pointFrom(e);
-  if (point === null) return;
-  dragOverPage.value = dropTargetAt(point.x, point.y);
-}
+const usedSoundIds = computed(() => new Set(allPads.value.flatMap((pad) => pad.takes.map((take) => take.sound_id))));
+const usedPlaylistIds = computed(() => {
+  const ids = new Set<string>();
+  for (const pad of allPads.value) if (pad.playlist_id !== null) ids.add(pad.playlist_id);
+  return ids;
+});
+const padCounts = computed(() => {
+  const counts: Record<string, number> = {};
+  for (const pad of allPads.value) counts[pad.page_id] = (counts[pad.page_id] ?? 0) + 1;
+  return counts;
+});
 
-// Desktop drags emit dragover, Sortable's touch fallback emits touchmove —
-// listen for both only while a card is in flight.
-function onCardDragStart(): void {
-  draggingCard.value = true;
-  document.addEventListener("dragover", trackDragPoint, { capture: true, passive: true });
-  document.addEventListener("touchmove", trackDragPoint, { capture: true, passive: true });
-}
-
-function stopDragTracking(): void {
-  document.removeEventListener("dragover", trackDragPoint, { capture: true });
-  document.removeEventListener("touchmove", trackDragPoint, { capture: true });
-  dragOverPage.value = null;
-}
-
-onBeforeUnmount(stopDragTracking);
-/**
- * Set by the head's New Scene/Playlist button; the panel owns the dialog and
- * clears it once opened. A flag rather than a counter because the panel loads
- * on demand: a click before its chunk arrives must still open the dialog when
- * it mounts, which a bump watched only after mount would lose.
- */
-const createPlaylistPending = ref(false);
-
-// The mobile FAB's create lands here and fans out by tab.
-watch(
-  () => soundboardUi.soundboardCreateSignal,
-  () => {
-    if (soundboardUi.soundboardViewMode === "sounds") openAddSound();
-    else createPlaylistPending.value = true;
-  },
+const showEmptyState = computed(
+  () => !isPending.value && (sounds.value ?? []).length === 0 && allPads.value.length === 0,
 );
-const { mutate: moveSoundToPage } = useMoveSound();
 
-/**
- * A card dropped on a page tab moves to that page — the intuitive gesture the
- * old reveal-on-hover <select> stood in for. Dropping on "All" unassigns it.
- * Anywhere else, the drag was a reorder and persists as one.
- */
-function onCardDragEnd(evt: { oldIndex?: number; originalEvent?: Event }): void {
-  draggingCard.value = false;
 
-  const oe = evt.originalEvent;
-  const point = oe === undefined ? null : pointFrom(oe);
-  stopDragTracking();
-
-  if (point !== null && evt.oldIndex !== undefined) {
-    const pageDrop = dropTargetAt(point.x, point.y);
-    if (pageDrop !== null) {
-      const sound = orderedSounds.value[evt.oldIndex];
-      if (sound) {
-        moveSoundToPage({
-          id: sound.id,
-          pageId: pageDrop === "" ? null : pageDrop,
-        });
-        return;
-      }
+const buildRows = computed(() => Math.max(MIN_BUILD_ROWS, snapshot.value.rows + 1));
+// The snapshot ends at the lowest pad; build adds empty rows beneath it.
+const buildCells = computed(() => {
+  // A guest is triggered audio passing through, not part of the layout, so building sees its slot as free.
+  const cells = snapshot.value.cells.map((cell) => (cell.guest === null ? cell : emptyDeckCell(cell.lane, cell.row)));
+  const have = new Set(cells.map((c) => `${c.lane}:${c.row}`));
+  for (let row = 0; row < buildRows.value; row++) {
+    for (let lane = 0; lane < DECK_LANES; lane++) {
+      if (!have.has(`${lane}:${row}`)) cells.push(emptyDeckCell(lane, row));
     }
   }
+  return cells;
+});
 
-  persistOrder();
+const laneWindow = ref<0 | 4>(0);
+const laneStart = computed(() => (isPhone.value ? laneWindow.value : 0));
+const laneCount = computed(() => (isPhone.value ? 4 : undefined));
+
+// ── Selection ────────────────────────────────────────────────────────────
+
+const selectedPadId = ref<string | null>(null);
+const selectedSlot = ref<{ lane: number; row: number } | null>(null);
+
+// The side panel follows the pick (a pad opens its settings, an empty slot the
+// library) until the DM flips it, say to the library to drag in another take.
+const panelChoice = ref<SidePanel>("library");
+const sidePanel = computed<SidePanel>(() => (selectedPadId.value === null ? "library" : panelChoice.value));
+const sidePanelOptions = computed(() => [
+  { value: "library" as const, label: "Library" },
+  { value: "pad" as const, label: "Pad", disabled: selectedPadId.value === null, tooltip: selectedPadId.value === null ? "Pick a pad first" : undefined },
+]);
+
+function padAtSlot(lane: number, row: number) {
+  return pagePadInfos.value.find((info) => info.pad.lane === lane && info.pad.grid_row === row) ?? null;
 }
 
-function persistOrder() {
-  const updates = orderedSounds.value
-    .map((s, index) => ({ id: s.id, sort_order: index }))
-    .filter(({ id, sort_order }) => {
-      const original = (sounds.value ?? []).find((s) => s.id === id);
-      return original === undefined || original.sort_order !== sort_order;
-    });
-  reorderSounds(updates);
-}
+/** An empty slot is selected: the library's rows can drop into it by click. */
+const canPlace = computed(
+  () => mode.value === "build" && selectedSlot.value !== null && padAtSlot(selectedSlot.value.lane, selectedSlot.value.row) === null,
+);
 
-// ── Delete ────────────────────────────────────────────────────────────────
-
-async function handleDelete(sound: Sound) {
-  // A Spotify track on the board plays through Spotify's player, not the
-  // store, so releasing the sound alone would leave it playing.
-  if (sound.source_type === "spotify" && spotifyStore.isPlaying && spotifyStore.lastPlayedUrl === sound.file_url) {
-    void spotifyStore.pause();
+function onSelect({ lane, row, padId }: { lane: number; row: number; padId: string | null }) {
+  if (padId === null) {
+    selectedSlot.value = { lane, row };
+    selectedPadId.value = null;
+    // Below lg the library is a sheet, and a phone cannot drag into the deck: tapping
+    // an empty slot opens the library on it, so the next tap on a row places it there.
+    if (mode.value === "build" && !isWide.value) libraryOpen.value = true;
+  } else {
+    selectedSlot.value = null;
+    selectedPadId.value = padId;
   }
-  await deleteSound(sound);
-  soundboardStore.releaseSound(sound.id);
+  panelChoice.value = padId === null ? "library" : "pad";
 }
+
+function focusPad(padId: string): boolean {
+  const pad = allPads.value.find((p) => p.id === padId);
+  if (pad === undefined) return false;
+  soundboardUi.soundboardActivePage = pad.page_id;
+  chosenMode.value = "build";
+  selectedSlot.value = null;
+  selectedPadId.value = padId;
+  panelChoice.value = "pad";
+  return true;
+}
+
+// ?pad=<id> is how the dock's Edit tool lands here. Applied once per value, so
+// a refetch cannot reselect a pad the DM has since closed.
+let appliedParam: string | null = null;
+watch(
+  [() => route.query.pad, allPads],
+  ([param]) => {
+    if (typeof param !== "string") {
+      appliedParam = null;
+      return;
+    }
+    if (param === appliedParam) return;
+    if (focusPad(param)) appliedParam = param;
+  },
+  { immediate: true },
+);
+watch(selectedPadId, (id) => {
+  if (id !== null) appliedParam = id;
+  const current = typeof route.query.pad === "string" ? route.query.pad : null;
+  if (current === id) return;
+  // replace, not push: selecting pads is not navigation.
+  void router.replace({ query: { ...route.query, pad: id === null ? undefined : id } });
+});
+
+// The Edit tool pressed on this page asks the same thing as ?pad=.
+watch(
+  () => deck.editRequest.value,
+  (request) => {
+    if (request === null) return;
+    focusPad(request.padId);
+    deck.clearEditRequest();
+  },
+  { immediate: true },
+);
+
+// A selection that no longer points at anything goes away.
+watch([allPads, activePageId], () => {
+  if (selectedPadId.value === null) {
+    if (selectedSlot.value !== null && padAtSlot(selectedSlot.value.lane, selectedSlot.value.row) !== null) selectedSlot.value = null;
+    return;
+  }
+  const pad = allPads.value.find((p) => p.id === selectedPadId.value);
+  if (pad === undefined || (activePageId.value !== null && pad.page_id !== activePageId.value)) selectedPadId.value = null;
+});
+watch(activePageId, () => (selectedSlot.value = null));
+watch(mode, () => {
+  if (mode.value === "play") {
+    selectedPadId.value = null;
+    selectedSlot.value = null;
+    laneEditing.value = null;
+  }
+});
+
+// ── Placing ─────────────────────────────────────────────────────────────
+
+type LibraryItem = { kind: "sound"; id: string } | { kind: "playlist"; id: string };
+
+function placeAt(lane: number, row: number, item: LibraryItem, thenSelect: boolean) {
+  const pageId = activePageId.value;
+  if (pageId === null) return;
+  createPad(
+    item.kind === "sound"
+      ? { pad: { page_id: pageId, lane, grid_row: row }, soundIds: [item.id] }
+      : { pad: { page_id: pageId, lane, grid_row: row, playlist_id: item.id } },
+    {
+      onSuccess: (pad) => {
+        if (thenSelect) onSelect({ lane, row, padId: pad.id });
+      },
+      onError: (e) => toast.error(toast.fromError(e, "Could not put that on the deck.")),
+    },
+  );
+}
+
+function onPlace(item: LibraryItem) {
+  const slot = selectedSlot.value;
+  if (slot === null) return;
+  placeAt(slot.lane, slot.row, item, true);
+}
+
+const libraryOpen = ref(false);
+function onPlaceFromSheet(item: LibraryItem) {
+  onPlace(item);
+  libraryOpen.value = false;
+}
+
+function onDropOnSlot({ lane, row, event }: { lane: number; row: number; event: DragEvent }) {
+  const pageId = activePageId.value;
+  const data = event.dataTransfer;
+  if (pageId === null || data === null) return;
+  const occupant = padAtSlot(lane, row);
+  const padId = data.getData(PAD_TYPE);
+  const soundId = data.getData(SOUND_TYPE);
+  const playlistId = data.getData(PLAYLIST_TYPE);
+
+  if (padId !== "") {
+    if (occupant?.pad.id === padId) return;
+    // The RPC swaps with whatever sits there, in one transaction.
+    movePad({ padId, pageId, lane, row }, { onError: (e) => toast.error(toast.fromError(e, "Could not move that pad.")) });
+    return;
+  }
+  if (soundId !== "") {
+    if (occupant === null) return placeAt(lane, row, { kind: "sound", id: soundId }, false);
+    if (occupant.kind !== "sound") {
+      toast.error(`That slot holds a ${occupant.kind}; drop on an empty slot`);
+      return;
+    }
+    if (occupant.pad.takes.some((take) => take.sound_id === soundId)) return;
+    addTake({ padId: occupant.pad.id, soundId }, { onError: (e) => toast.error(toast.fromError(e, "Could not add that take.")) });
+    return;
+  }
+  if (playlistId !== "") {
+    if (occupant !== null) {
+      toast.error("That slot is taken; drop on an empty slot");
+      return;
+    }
+    placeAt(lane, row, { kind: "playlist", id: playlistId }, false);
+  }
+}
+
+/** A pad dropped on a page tab goes to that page's first free slot in its own lane. */
+function onPadDropOnPage({ pageId, padId }: { pageId: string; padId: string }) {
+  const pad = allPads.value.find((p) => p.id === padId);
+  if (pad === undefined || pad.page_id === pageId) return;
+  const target = firstFreeSlot(allPads.value.filter((p) => p.page_id === pageId), pad.lane);
+  movePad(
+    { padId, pageId, lane: target.lane, row: target.row },
+    { onError: (e) => toast.error(toast.fromError(e, "Could not move that pad.")) },
+  );
+}
+
+// ── Lanes ───────────────────────────────────────────────────────────────
+
+const laneEditing = ref<number | null>(null);
+function onLaneActivate(index: number) {
+  laneEditing.value = laneEditing.value === index ? null : index;
+}
+// Hangs under its header: left-aligned on the left half, right-aligned on the right.
+const lanePopoverStyle = computed(() => {
+  const index = laneEditing.value;
+  if (index === null) return {};
+  const shown = DECK_LANES;
+  return index < shown / 2
+    ? { left: `${(index / shown) * 100}%` }
+    : { right: `${((shown - 1 - index) / shown) * 100}%` };
+});
+
+// ── Sheets (below lg) ───────────────────────────────────────────────────
+
+const padSheetOpen = computed({
+  get: () => mode.value === "build" && !isWide.value && selectedPadId.value !== null,
+  set: (open) => {
+    if (!open) selectedPadId.value = null;
+  },
+});
+const laneSheetOpen = computed({
+  get: () => !isWide.value && laneEditing.value !== null,
+  set: (open) => {
+    if (!open) laneEditing.value = null;
+  },
+});
+
+// ── Keys ────────────────────────────────────────────────────────────────
+// The deck's own keys work everywhere. Space belongs to this page, and only
+// while playing: while building it should not stop the room.
+
+/** A focused button already answers to Space; firing the transport too would be two acts in one press. */
+function focusIsOnAControl(): boolean {
+  const el = document.activeElement;
+  if (!(el instanceof HTMLElement)) return false;
+  return el.tagName === "BUTTON" || el.tagName === "A" || el.getAttribute("role") === "button";
+}
+useHotkeys(
+  [
+    {
+      combo: "space",
+      description: "Pause or resume everything",
+      handler: () => {
+        if (focusIsOnAControl()) return;
+        deck.dispatch({ type: "pauseAll" });
+      },
+    },
+  ],
+  { layer: "page", enabled: () => mode.value === "play" },
+);
+
+// ── Add sound ───────────────────────────────────────────────────────────
+// The dialog is mounted app-wide (AiGeneratorPanels) so music generation can be
+// reopened from its badge on any page.
+function openAddSound() {
+  if (!canCreateSound.value) {
+    showSoundPaywall.value = true;
+    return;
+  }
+  soundboardUi.addSoundDialogOpen = true;
+}
+
+// The mobile FAB's create lands here.
+watch(
+  () => soundboardUi.soundboardCreateSignal,
+  () => openAddSound(),
+);
 </script>

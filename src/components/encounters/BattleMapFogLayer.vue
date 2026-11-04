@@ -20,6 +20,7 @@ const {
   originY,
   mask,
   opaque = false,
+  seen = null,
 } = defineProps<{
   hostW: number;
   hostH: number;
@@ -31,7 +32,12 @@ const {
    *  preview). When false, fog is translucent so the DM can still see the
    *  map beneath. */
   opaque?: boolean;
+  /** The squares in view right now. When given, a revealed square outside it is only remembered and keeps a partial fog. */
+  seen?: ReadonlySet<FogCellKey> | null;
 }>();
+
+/** The fog left on a square the party remembers but does not see now. */
+const REMEMBERED_FOG = 0.5;
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
@@ -67,6 +73,21 @@ function render() {
   }
   ctx.globalCompositeOperation = "source-over";
 
+  // Remembered, not seen: put a flat half fog back over the punched square. Feathering below darkens only the
+  // fully-fogged borders, so a remembered square is not feathered against a seen one.
+  if (seen) {
+    ctx.fillStyle = `rgba(${baseColor}, ${baseAlpha * REMEMBERED_FOG})`;
+    for (const key of mask) {
+      if (seen.has(key)) continue;
+      const [xs, ys] = key.split(",");
+      const px = originX + Number(xs) * cellPx;
+      const py = originY + Number(ys) * cellPx;
+      if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+      if (px + cellPx < 0 || py + cellPx < 0 || px > hostW || py > hostH) continue;
+      ctx.fillRect(px, py, cellPx, cellPx);
+    }
+  }
+
   // Feather: darken a thin band on the REVEALED side of every edge that
   // borders a hidden cell, fading to nothing half a cell in — see
   // `fogMask.ts`'s `featherEdges`/`featherRect` for the ruling this
@@ -87,7 +108,7 @@ function render() {
 onMounted(render);
 
 watch(
-  () => [hostW, hostH, cellPx, originX, originY, mask, opaque],
+  () => [hostW, hostH, cellPx, originX, originY, mask, opaque, seen],
   () => render(),
   { deep: true },
 );

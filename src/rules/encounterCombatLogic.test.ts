@@ -216,6 +216,11 @@ describe("buildMonsterCombatants", () => {
     const withoutCutout = buildMonsterCombatants(monster(), { factionId: "f1", count: 1, started: false });
     expect(withoutCutout[0].token_url).toBeUndefined();
   });
+
+  it("bakes the monster's size beside its footprint so a later resize has something to start from", () => {
+    const [dragon] = buildMonsterCombatants(monster({ size: "gargantuan" }), { factionId: "f1", count: 1, started: false });
+    expect(dragon).toMatchObject({ size: "gargantuan", footprint: 4 });
+  });
 });
 
 describe("buildNpcCombatants", () => {
@@ -225,6 +230,14 @@ describe("buildNpcCombatants", () => {
     expect(out[0].npc_id).toBe("n1");
     expect(out[0].initiative_bonus).toBeNull();
     expect(out[0].footprint).toBe(1);
+  });
+
+  // PHB 2024 "Creature Size": Huge is a 15 ft space, three squares on a side. Until #1125 an NPC was always one square.
+  it("spawns a Huge NPC three squares across and a Tiny one half a square", () => {
+    const [mammoth] = buildNpcCombatants(npc({ size: "huge" }), { factionId: "f1", count: 1, started: false });
+    expect(mammoth).toMatchObject({ size: "huge", footprint: 3 });
+    const [mouse] = buildNpcCombatants(npc({ size: "tiny" }), { factionId: "f1", count: 1, started: false });
+    expect(mouse).toMatchObject({ size: "tiny", footprint: 0.5 });
   });
 
   // 2024 MM "Initiative": a stat block's listed Initiative replaces the Dex modifier, for an NPC as for a monster.

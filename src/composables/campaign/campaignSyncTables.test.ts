@@ -80,7 +80,7 @@ describe("live sync registries", () => {
       "player_npc_ratings", "puzzle_rooms", "quest_beat_attachments", "quest_beat_edge_gates", "quest_beat_edges",
       "quest_beat_transitions", "quest_beats_player", "quest_clocks", "quest_consequence_events", "quest_runtime_state",
       "quest_threads", "quests", "quests_player", "roll_tables", "rules", "session_availability", "session_proposals",
-      "soundboard_broadcast", "soundboard_pages", "soundboard_playlists", "sounds", "species", "spells", "traps",
+      "soundboard_broadcast", "soundboard_pad_takes", "soundboard_pads", "soundboard_pages", "soundboard_playlists", "sounds", "species", "spells", "traps",
       "campaigns",
     ];
     const silent = rung.filter(

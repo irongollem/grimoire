@@ -74,7 +74,7 @@ insert into live_sync_doorbell (name) values
   ('crafting_recipe_ingredients'), ('crafting_recipe_outputs'),
   ('crafting_recipe_modifiers'), ('campaign_enabled_sources'), ('campaign_tile_packs'),
   ('sounds'), ('soundboard_pages'), ('soundboard_playlists'),
-  ('soundboard_playlist_tracks'), ('npc_sets'),
+  ('soundboard_playlist_tracks'), ('soundboard_pads'), ('soundboard_pad_takes'), ('npc_sets'),
   ('faction_npcs'),
   ('location_doors'), ('location_map_regions'), ('quest_beat_edges'),
   ('quest_beat_edge_gates'), ('quest_beat_attachments'), ('quest_consequences'),
@@ -89,7 +89,9 @@ insert into live_sync_doorbell (name) values
   -- World Web (#1084).
   ('world_links'),
   -- Open Book (#1085): the owner's settings, releases and choices, read by the owner only.
-  ('open_books'), ('open_book_releases'), ('open_book_entries');
+  ('open_books'), ('open_book_releases'), ('open_book_entries'),
+  -- What the party has seen of a map (#1133).
+  ('map_memory');
 
 -- Campaign tables deliberately on no route, each with the reason. Grimoire
 -- runs live games, so a table a member's screen reads is live by default; the

@@ -108,7 +108,7 @@ const { useMapPublish } = await import("@/composables/cartographer/useMapPublish
 
 // An own trap id is a uuid; anything else reads as a library slug.
 const TRAP_UUID = "5b0e2f0e-8f7d-4d57-9a53-1d6f3a8f2c11";
-const space = (key: string) => ({ key, cells: [`${key},0`], signature: `sig-${key}`, nameSource: null });
+const space = (key: string) => ({ key, cells: [`${key},0`], signature: `sig-${key}`, outline: [[0, 0], [1, 0], [1, 1]] as [number, number][], nameSource: null });
 const region = (id: string, spaceId: string) => ({ id, space_location_id: spaceId });
 
 function setup() {
@@ -280,6 +280,14 @@ describe("useMapPublish.publish", () => {
     expect(placements).toEqual([expect.objectContaining({ location_id: hall, trap_id: TRAP_UUID })]);
   });
 
+  // A published room is drawn along its walls' outline in the Atlas and on the player's plan; squares alone are a staircase.
+  it("writes each published room's outline with its squares", async () => {
+    const { publish } = setup();
+    await publish();
+    const regions = mocks.insertRegions.mock.calls[0]![0] as { vertices: unknown }[];
+    expect(regions.map((r) => r.vertices)).toEqual([[[0, 0], [1, 0], [1, 1]], [[0, 0], [1, 0], [1, 1]], [[0, 0], [1, 0], [1, 1]]]);
+  });
+
   it("writes a library trap or feature into its library column, not the uuid one", async () => {
     mocks.plan = {
       spaces: [{ kind: "bind", space: space("s:c"), spaceId: "room-c" }],
@@ -304,8 +312,9 @@ describe("useMapPublish.publish", () => {
     await publish();
 
     expect(mocks.updateRegions.mock.calls[0]![0]).toEqual([
-      { id: "reg-d", update: { cells: ["s:d,0"], cell_signature: "sig-s:d" } },
-      { id: "reg-o", update: { cells: [], cell_signature: null } },
+      // A reshaped room is rewritten with the outline of its new walls; an orphaned one loses both.
+      { id: "reg-d", update: { cells: ["s:d,0"], vertices: [[0, 0], [1, 0], [1, 1]], cell_signature: "sig-s:d" } },
+      { id: "reg-o", update: { cells: [], vertices: null, cell_signature: null } },
     ]);
     expect(mocks.updateDoors.mock.calls[0]![0]).toEqual([
       { id: "door-1", update: { door_kind: "arch", derived_from: "publish" } },

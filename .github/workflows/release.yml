@@ -180,21 +180,22 @@ jobs:
   # and the replayed schema (epic #999). Two things come out of it, and both
   # exist because a one-off measurement does not protect an improvement:
   #
-  #   1. A gate. `check-budgets` fails the job when a journey makes more API
-  #      requests, or waits through more serial round trips, than
-  #      scripts/perf/budgets.json allows. Only those two counts are gated:
-  #      they were identical across every local run, whereas times and bytes
-  #      move with the runner. The boot-bundle size has its own gate at build
-  #      time (bootBudgetPlugin in vite.config.ts), so it is not repeated here.
+  #   1. A gate. `check-budgets` fails the job when a journey makes more
+  #      requests (API calls, and every request including code chunks), or waits
+  #      through more serial round trips, than scripts/perf/budgets.json allows.
+  #      Only counts are gated: times and bytes move with the runner. The
+  #      boot-bundle size has its own gate at build time (bootBudgetPlugin in
+  #      vite.config.ts), so it is not repeated here.
   #   2. A history. On main, one line per release is appended to history.jsonl
   #      on the orphan `perf-history` branch, so the trend of the timings can be
   #      read later (`scripts/perf/history.ts summarize`).
   #
-  # Advisory for now (maintainer's call, 7 Oct 2026): nothing needs this job,
-  # so a breach or a flaky run never blocks a release. The budget step reports
-  # over-budget numbers as a failed step and in the summary; the boot-bundle
-  # budget, checked inside `npm run build`, stays a hard gate. Promote this job
-  # into the release jobs' `needs` once it has run stably for a while.
+  # A breach fails this job, so the run goes red. Nothing in the release
+  # `needs` it (maintainer's call, 7 Oct 2026), so it never blocks a release;
+  # promote it into the release jobs' `needs` once it has run stably for a
+  # while. The budget step used to be `continue-on-error` as well, and that hid
+  # a month of regressions behind a green run (#1138): a gate nobody sees is
+  # not a gate.
   #
   # The journeys sign in as two synthetic accounts that `npm run perf:fixture`
   # creates (scripts/perf/fixture.ts), so the numbers mean the same thing here
@@ -260,9 +261,17 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Report the critical-path size
         run: npx tsx scripts/perf/bundle/critical-path.ts dist --json perf-results/critical-path.json
-      - name: Check the request budgets (advisory)
-        continue-on-error: true
+      - name: Check the request budgets
         run: npx tsx scripts/perf/check-budgets.ts perf-results/ci.json
+      # Every request each journey made (API paths and chunk paths), so an
+      # over-budget run can be read without rebuilding anything (#1138).
+      - name: Keep the journey report
+        if: always() && steps.journeys.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-journeys
+          path: perf-results/ci.json
+          retention-days: 14
       # The history line is written here, where the results are, and handed to
       # performance-history as an artifact. Recorded even when a budget fails:
       # a regression is exactly the data point the trend should show.

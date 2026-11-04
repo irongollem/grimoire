@@ -2,12 +2,12 @@ import { computed, ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
 import { uploadToBucket, deleteFromBucket, removeByPublicUrl } from "@/lib/storage";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { toOpus } from "@/lib/mediaConvert";
 import { useImageUpload } from "@/composables/useImageUpload";
-import { persistReorder } from "@/lib/reorder";
 import type { Sound, SoundInsert, SoundUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "sounds";
@@ -19,7 +19,6 @@ async function fetchSounds(campaignId: string): Promise<Sound[]> {
     .from("sounds")
     .select("*")
     .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
   return data as Sound[];
@@ -86,7 +85,7 @@ export function useSounds(enabled?: () => boolean) {
     queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
     queryFn: ({ queryKey: [, campaignId] }) => {
       if (campaignId === null) throw new Error("useSounds fetched without a campaign");
-      return fetchSounds(campaignId);
+      return readDeckSlice(campaignId, "sounds", () => fetchSounds(campaignId));
     },
     enabled: () => !!activeCampaignId.value && (enabled?.() ?? true),
   });
@@ -147,71 +146,6 @@ export function useDeleteSound() {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
-    },
-  });
-}
-
-export function useMoveSound() {
-  const qc = useQueryClient();
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-
-  return useMutation({
-    mutationFn: ({ id, pageId }: { id: string; pageId: string | null }) =>
-      updateSound(id, { page_id: pageId }),
-    // Optimistic: Sortable snaps the dropped card back to its old slot, so if
-    // the cache only changes after the write the drop looks rejected first.
-    onMutate: async ({ id, pageId }) => {
-      const key = [QUERY_KEY, activeCampaignId.value];
-      await qc.cancelQueries({ queryKey: key });
-      const previous = qc.getQueryData<Sound[]>(key);
-      if (previous !== undefined) {
-        qc.setQueryData<Sound[]>(
-          key,
-          previous.map((s) => (s.id === id ? { ...s, page_id: pageId } : s)),
-        );
-      }
-      return { key, previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context !== undefined && context.previous !== undefined) {
-        qc.setQueryData(context.key, context.previous);
-      }
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
-    },
-  });
-}
-
-export function useBulkAssignToPage() {
-  const qc = useQueryClient();
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-
-  return useMutation({
-    mutationFn: async ({ pageId, campaignId }: { pageId: string; campaignId: string }) => {
-      const { error } = await supabase
-        .from("sounds")
-        .update({ page_id: pageId })
-        .eq("campaign_id", campaignId)
-        .is("page_id", null);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
-    },
-  });
-}
-
-export function useReorderSounds() {
-  const qc = useQueryClient();
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-
-  return useMutation({
-    mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
-      await persistReorder("reorder_sounds", updates);
-    },
-    onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
     },
   });

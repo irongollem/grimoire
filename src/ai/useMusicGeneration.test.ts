@@ -57,7 +57,6 @@ function job(overrides: Partial<AiGenerationJob> = {}): AiGenerationJob {
 
 const INPUT: MusicGenerationInput = {
   campaignId: "campaign-1",
-  pageId: null,
   soundName: "Rosie's Defense",
   category: "music",
   request: { description: "Rosie", lengthSeconds: 180, vocals: "vocals", mentions: [], imageCount: 1 },

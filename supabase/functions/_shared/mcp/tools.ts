@@ -666,7 +666,7 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
 
 /** Columns a soundboard listing shows per sound: enough to pick one, not the mixer state. */
 const SOUND_COLUMNS =
-  "id, name, category, source_type, page_id, tags, artist, attribution, attribution_url, file_url";
+  "id, name, category, source_type, tags, artist, attribution, attribution_url, file_url";
 
 // Every pages/playlists/sounds policy is owner-only, so the campaign filter is
 // what narrows the DM's whole library to one board; RLS already keeps it theirs.
@@ -678,10 +678,10 @@ async function soundboard(ctx: ToolContext, args: Record<string, unknown>) {
     ctx.supabase.from("soundboard_pages").select("id, name, sort_order").eq("campaign_id", campaignId).order("sort_order"),
     ctx.supabase
       .from("soundboard_playlists")
-      .select("id, name, playlist_type, page_id, shuffle, repeat, tags, soundboard_playlist_tracks(sound_id, sort_order)")
+      .select("id, name, playlist_type, shuffle, repeat, tags, soundboard_playlist_tracks(sound_id, sort_order)")
       .eq("campaign_id", campaignId)
       .order("sort_order"),
-    ctx.supabase.from("sounds").select(SOUND_COLUMNS).eq("campaign_id", campaignId).order("sort_order"),
+    ctx.supabase.from("sounds").select(SOUND_COLUMNS).eq("campaign_id", campaignId).order("name"),
   ]);
   if (pages.error) throw new Error(pages.error.message);
   if (playlists.error) throw new Error(playlists.error.message);

@@ -23,7 +23,7 @@ import { useAmbiencePlayback } from "./useAmbiencePlayback";
 
 function scene(id: string, tag: string): SoundboardPlaylist {
   return {
-    id, campaign_id: "c", user_id: "u", page_id: null, name: id,
+    id, campaign_id: "c", user_id: "u", name: id,
     playlist_type: "ambient", shuffle: false, repeat: true, sort_order: 0,
     tags: [tag], created_at: "", updated_at: "",
   } as SoundboardPlaylist;

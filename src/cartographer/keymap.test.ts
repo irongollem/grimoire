@@ -12,7 +12,7 @@ const ctx = (activeTool = "floor"): KeyContext => ({
     { id: "select" },
     { id: "floor", shortcut: "f" },
     { id: "wall", shortcut: "w" },
-    { id: "place", shortcut: "o", aliases: ["g"] },
+    { id: "place", shortcut: "o" },
     { id: "eraser", shortcut: "e" },
     { id: "brush", shortcut: "v", disabled: true },
   ],
@@ -79,6 +79,21 @@ describe("resolveKeyAction", () => {
     expect(resolveKeyAction(ev({ key: "]" }), ctx("floor"))).toBeNull();
   });
 
+  it("B selects Brush from another tool, then toggles its walls while Brush is active", () => {
+    const tools: KeyContext["tools"] = [{ id: "select" }, { id: "brush", shortcut: "b" }];
+    expect(resolveKeyAction(ev({ key: "b" }), { ...ctx("floor"), tools })).toEqual({ kind: "selectTool", tool: "brush" });
+    expect(resolveKeyAction(ev({ key: "b" }), { ...ctx("brush"), tools })).toEqual({ kind: "toggleBrushWalls" });
+    expect(resolveKeyAction(ev({ key: "b", repeat: true }), { ...ctx("brush"), tools })).toBeNull();
+  });
+
+  it("does not toggle brush walls while typing, on another layer, or when Brush is disabled", () => {
+    const tools: KeyContext["tools"] = [{ id: "brush", shortcut: "b" }];
+    const brush: KeyContext = { ...ctx("brush"), tools };
+    expect(resolveKeyAction(ev({ key: "b", targetIsTextEntry: true }), brush)).toBeNull();
+    expect(resolveKeyAction(ev({ key: "b" }), { ...brush, layer: "plan" })).toBeNull();
+    expect(resolveKeyAction(ev({ key: "b" }), { ...brush, tools: [{ id: "brush", shortcut: "b", disabled: true }] })).toBeNull();
+  });
+
   it("clamps the brush radius to its range", () => {
     expect(clampBrushRadius(0.1)).toBe(0.5);
     expect(clampBrushRadius(9)).toBe(6);
@@ -105,6 +120,18 @@ describe("resolveKeyAction", () => {
     });
   });
 
+  it("under Select, Escape puts down a pick first; with nothing picked it is the ordinary Escape", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("select"), selectionPresent: true })).toEqual({ kind: "clearSelection" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("select"), selectionPresent: false })).toEqual({ kind: "selectTool", tool: "select" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), { ...ctx("wall"), selectionPresent: true })).toEqual({ kind: "selectTool", tool: "select" });
+  });
+
+  it("Q, E and the bracket keys turn a prop picked under Select, and keep their meaning when none is picked", () => {
+    expect(resolveKeyAction(ev({ key: "e" }), { ...ctx("select"), selectedPropInSelect: true })).toEqual({ kind: "rotatePlace", delta: 90 });
+    expect(resolveKeyAction(ev({ key: "]" }), { ...ctx("select"), selectedPropInSelect: true })).toEqual({ kind: "rotatePlace", delta: 1 });
+    expect(resolveKeyAction(ev({ key: "e" }), ctx("select"))).toEqual({ kind: "selectTool", tool: "eraser" });
+  });
+
   it("Escape is a no-op if the Select tool is disabled", () => {
     const off: KeyContext = { activeTool: "floor", tools: [{ id: "select", disabled: true }, { id: "floor", shortcut: "f" }] };
     expect(resolveKeyAction(ev({ key: "Escape" }), off)).toBeNull();
@@ -116,9 +143,9 @@ describe("resolveKeyAction", () => {
   });
 
   describe("Place tool", () => {
-    it("answers to G as well as O", () => {
-      expect(resolveKeyAction(ev({ key: "g" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });
+    it("is picked by O, and G no longer picks it because G is the grid", () => {
       expect(resolveKeyAction(ev({ key: "o" }), ctx("floor"))).toEqual({ kind: "selectTool", tool: "place" });
+      expect(resolveKeyAction(ev({ key: "g" }), ctx("floor"))).toEqual({ kind: "toggleGrid" });
     });
 
     it("leaves e to the Eraser on every other tool", () => {
@@ -148,5 +175,138 @@ describe("resolveKeyAction", () => {
         tool: "select",
       });
     });
+  });
+});
+
+// #1125 story 5: the Angled wall run and the selected wall or light have keys of their own.
+describe("angled wall and selection keys", () => {
+  const withCtx = (activeTool: string, extra: Partial<KeyContext>): KeyContext => ({ ...ctx(activeTool), ...extra });
+
+  it("Enter ends an angled run that is open, and does nothing with no run", () => {
+    expect(resolveKeyAction(ev({ key: "Enter" }), withCtx("angledWall", { angledRunOpen: true }))).toEqual({ kind: "finishAngledWall" });
+    expect(resolveKeyAction(ev({ key: "Enter" }), withCtx("angledWall", { angledRunOpen: false }))).toBeNull();
+  });
+
+  it("Enter means nothing in another tool, even with a run left open", () => {
+    expect(resolveKeyAction(ev({ key: "Enter" }), withCtx("wall", { angledRunOpen: true }))).toBeNull();
+  });
+
+  it("Escape drops an open angled run and stays in the tool; with no run it goes back to Select", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("angledWall", { angledRunOpen: true }))).toEqual({ kind: "abandonAngledWall" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("angledWall", { angledRunOpen: false }))).toEqual({ kind: "selectTool", tool: "select" });
+  });
+
+  it("Escape in another tool goes back to Select even if a run was left open", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("wall", { angledRunOpen: true }))).toEqual({ kind: "selectTool", tool: "select" });
+  });
+
+  it.each(["select", "angledWall", "light"])("Delete and Backspace remove the selection in %s", (tool) => {
+    for (const key of ["Delete", "Backspace"]) {
+      expect(resolveKeyAction(ev({ key }), withCtx(tool, { selectionDeletable: true }))).toEqual({ kind: "deleteSelected" });
+    }
+  });
+
+  it("Delete does nothing with nothing selected, or in a tool that has no selection", () => {
+    expect(resolveKeyAction(ev({ key: "Delete" }), withCtx("select", { selectionDeletable: false }))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "Delete" }), withCtx("floor", { selectionDeletable: true }))).toBeNull();
+  });
+
+  it("Delete in Place still removes the selected prop, not the wall selection", () => {
+    expect(resolveKeyAction(ev({ key: "Delete" }), withCtx("place", { selectionDeletable: true }))).toEqual({ kind: "deleteDressing" });
+  });
+
+  describe("swapping the two tile sets (#1125, like Photoshop's X)", () => {
+    const withWrap: KeyContext = { ...ctx(), tools: [...ctx().tools, { id: "wrap", shortcut: "j" }] };
+
+    it("X swaps the sets and J picks Wrap, which used to live on X", () => {
+      expect(resolveKeyAction(ev({ key: "x", code: "KeyX" }), withWrap)).toEqual({ kind: "swapTileSets" });
+      expect(resolveKeyAction(ev({ key: "j", code: "KeyJ" }), withWrap)).toEqual({ kind: "selectTool", tool: "wrap" });
+    });
+
+    it("Shift+X no longer swaps", () => {
+      expect(resolveKeyAction(ev({ key: "X", code: "KeyX", shiftKey: true }), withWrap)).toBeNull();
+    });
+
+    it("ignores X while typing in a field", () => {
+      expect(resolveKeyAction(ev({ key: "x", code: "KeyX", targetIsTextEntry: true }), withWrap)).toBeNull();
+    });
+  });
+
+  describe("tab keys and the grid key (Map Table frame 18)", () => {
+    const tabbed: KeyContext = { ...ctx(), hasLayerTabs: true };
+
+    it("1, 2 and 3 pick Base image, Drawing and Zoning where the map has tabs", () => {
+      expect(resolveKeyAction(ev({ key: "1", code: "Digit1" }), tabbed)).toEqual({ kind: "selectLayer", layer: "picture" });
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2" }), tabbed)).toEqual({ kind: "selectLayer", layer: "drawing" });
+      expect(resolveKeyAction(ev({ key: "3", code: "Digit3" }), tabbed)).toEqual({ kind: "selectLayer", layer: "plan" });
+    });
+
+    it("do nothing on a map with no tabs (the standalone Cartographer)", () => {
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2" }), ctx())).toBeNull();
+    });
+
+    it("do nothing while typing a number in a field, or with Ctrl, Meta or Alt held", () => {
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2", targetIsTextEntry: true }), tabbed)).toBeNull();
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2", altKey: true }), tabbed)).toBeNull();
+      expect(resolveKeyAction(ev({ key: "3", code: "Digit3", metaKey: true }), tabbed)).toBeNull();
+    });
+
+    it("a digit with Shift held is not a tab key, whatever the layout types for it", () => {
+      expect(resolveKeyAction(ev({ key: "2", code: "Digit2", shiftKey: true }), tabbed)).toBeNull();
+    });
+
+    it("Shift+1 stays zoom-to-fit and is not the Base image tab", () => {
+      expect(resolveKeyAction(ev({ key: "!", code: "Digit1", shiftKey: true }), tabbed)).toEqual({ kind: "zoom", to: "fit" });
+    });
+
+    it("G toggles the grid on any map, and not while typing or with a modifier", () => {
+      expect(resolveKeyAction(ev({ key: "g", code: "KeyG" }), ctx())).toEqual({ kind: "toggleGrid" });
+      expect(resolveKeyAction(ev({ key: "g", code: "KeyG", targetIsTextEntry: true }), ctx())).toBeNull();
+      expect(resolveKeyAction(ev({ key: "g", code: "KeyG", ctrlKey: true }), ctx())).toBeNull();
+    });
+  });
+});
+
+// #1125 frame 19: Zoning has its own tools on Z, D, F and E, answered by the one key path.
+describe("Zoning keys through resolveKeyAction", () => {
+  const zoningTools = [
+    { id: "zone", shortcut: "z" },
+    { id: "door", shortcut: "d" },
+    { id: "fill", shortcut: "f" },
+    { id: "erase", shortcut: "e" },
+  ];
+  const on = (layer: KeyContext["layer"], activeTool = "select"): KeyContext => ({ ...ctx(activeTool), layer, zoningTools });
+
+  it("Z, D, F and E pick the Zone, Door, Fill and Erase tools on the Zoning tab", () => {
+    for (const [key, tool] of [["z", "zone"], ["d", "door"], ["f", "fill"], ["e", "erase"]] as const) {
+      expect(resolveKeyAction(ev({ key }), on("plan"))).toEqual({ kind: "selectZoningTool", tool });
+    }
+  });
+
+  it("Z on the Drawing tab does nothing, and F there is still the Floor tool", () => {
+    expect(resolveKeyAction(ev({ key: "z" }), on("drawing"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "f" }), on("drawing"))).toEqual({ kind: "selectTool", tool: "floor" });
+  });
+
+  it("E on Zoning is Erase, not the Drawing's Eraser and not a turn of a prop picked on the Drawing", () => {
+    const picked: KeyContext = { ...on("plan", "select"), selectedPropInSelect: true };
+    expect(resolveKeyAction(ev({ key: "e" }), picked)).toEqual({ kind: "selectZoningTool", tool: "erase" });
+  });
+
+  it("the Drawing's own letters pick nothing on Zoning or the Base image tab", () => {
+    expect(resolveKeyAction(ev({ key: "w" }), on("plan"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "w" }), on("picture"))).toBeNull();
+  });
+
+  it("Delete on Zoning does not take away something picked on the Drawing", () => {
+    const stale: KeyContext = { ...on("plan", "select"), selectionDeletable: true };
+    expect(resolveKeyAction(ev({ key: "Delete" }), stale)).toBeNull();
+  });
+
+  it("leaves typing in a field, Ctrl+Z undo and other chords alone", () => {
+    expect(resolveKeyAction(ev({ key: "f", targetIsTextEntry: true }), on("plan"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "z", ctrlKey: true }), on("plan"))).toEqual({ kind: "undo" });
+    expect(resolveKeyAction(ev({ key: "d", altKey: true }), on("plan"))).toBeNull();
+    expect(resolveKeyAction(ev({ key: "D", shiftKey: true }), on("plan"))).toBeNull();
   });
 });

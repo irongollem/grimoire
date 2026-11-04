@@ -73,7 +73,7 @@
   <Transition name="slide-up">
     <div
       v-if="appUi.chatOpen"
-      class="chat-no-print fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-0 z-50 flex flex-col bg-card border-t border-border rounded-t-2xl md:hidden"
+      class="chat-no-print fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-50 flex flex-col bg-card border-t border-border rounded-t-2xl md:hidden"
       style="height: 65vh"
     >
       <ChatPanelContent

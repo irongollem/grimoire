@@ -260,7 +260,7 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { encounterMonsterIds } from "@/lib/encounters/monsterIds";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useTrapResolver } from "@/composables/dungeon-features/useTraps";
 import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
@@ -307,7 +307,10 @@ const monsters               = computed(() => [...monsterMap.value.values()]);
 const { data: npcs }         = useNpcs();
 const { find: findStoredItem } = useStoredItemRefs(() => props.encounter.item_ids ?? []);
 // byId resolves stored ids, library and own alike, never shadowed.
-const { byId: trapsById }    = useTrapIndex(() => ({ includeAllScopes: true }));
+const { byId: trapsById }    = useTrapResolver(
+  () => ({ includeAllScopes: true }),
+  () => props.encounter.library_trap_ids,
+);
 const { data: allLocs }      = useAllLocations();
 
 // ── Difficulty ─────────────────────────────────────────────────────────────

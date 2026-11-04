@@ -24,7 +24,6 @@ export type ReorderRpc =
   | "reorder_notes"
   | "reorder_player_journal_entries"
   | "reorder_soundboard_pages"
-  | "reorder_sounds"
   | "reorder_party_inventory"
   | "reorder_locations";
 

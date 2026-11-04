@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { boostMask, currentMapLive, groupsIn, hasMotion, lightBoost, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
+import { isReactive, reactive } from "vue";
+import { boostMask, currentMapLive, flameNoise, groupsIn, hasMotion, lightBoost, lightRadiusScale, lightsIn, overlayFrame, spritesIn, swayAngle } from "./liveLayer";
+import { FLICKER_REACH, PULSE_REACH } from "@/cartographer/lights";
 import type { MapLive, MapLiveLight, MapLiveSprite, MotionOverlay } from "@/types/mapLive.types";
 
 const base: MotionOverlay = { url: "u", cells: 4, drift: [0.5, -0.25], alpha: 0.6 };
@@ -37,7 +39,7 @@ describe("overlayFrame", () => {
 });
 
 const live = (...kinds: ("water" | "outer")[]): MapLive => ({
-  version: 2, darkness: "daylight",
+  version: 3, darkness: "daylight",
   groups: kinds.map((kind) => ({ kind, cells: ["0,0"], overlays: [base] })),
   lights: [],
   sprites: [],
@@ -63,7 +65,7 @@ describe("groupsIn", () => {
 });
 
 describe("spritesIn and lightsIn", () => {
-  const snapshot: MapLive = { version: 2, darkness: "daylight", groups: [], lights: [fire, glow, steady], sprites: [sprite], walls: [], doors: [], solid: [] };
+  const snapshot: MapLive = { version: 3, darkness: "daylight", groups: [], lights: [fire, glow, steady], sprites: [sprite], walls: [], doors: [], solid: [] };
 
   it("puts every sprite in the top layer and none in the ground layer", () => {
     expect(spritesIn(snapshot, "top")).toEqual([sprite]);
@@ -71,8 +73,8 @@ describe("spritesIn and lightsIn", () => {
     expect(spritesIn(null, "top")).toEqual([]);
   });
 
-  it("puts the moving lights, and only those, in the ground layer", () => {
-    expect(lightsIn(snapshot, "ground")).toEqual([fire, glow]);
+  it("puts every light in the ground layer, the steady-looking ones too", () => {
+    expect(lightsIn(snapshot, "ground")).toEqual([fire, glow, steady]);
     expect(lightsIn(snapshot, "top")).toEqual([]);
     expect(lightsIn(null, "ground")).toEqual([]);
   });
@@ -81,20 +83,20 @@ describe("spritesIn and lightsIn", () => {
 describe("hasMotion", () => {
   it("needs at least one overlay, sprite or moving light", () => {
     expect(hasMotion(null, "ground")).toBe(false);
-    expect(hasMotion({ version: 2, darkness: "daylight", groups: [{ kind: "water", cells: [], overlays: [] }], lights: [], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 3, darkness: "daylight", groups: [{ kind: "water", cells: [], overlays: [] }], lights: [], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
     expect(hasMotion(live("water"), "ground")).toBe(true);
   });
 
   it("runs the top layer for sprites only", () => {
     expect(hasMotion(live("water"), "top")).toBe(false);
-    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "top")).toBe(true);
-    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
+    expect(hasMotion({ version: 3, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "top")).toBe(true);
+    expect(hasMotion({ version: 3, darkness: "daylight", groups: [], lights: [], sprites: [sprite], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
   });
 
-  it("runs the ground layer for a flickering or pulsing light, not a steady one", () => {
-    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [fire], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
-    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [glow], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
-    expect(hasMotion({ version: 2, darkness: "daylight", groups: [], lights: [steady], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(false);
+  it("runs the ground layer for any light: a cool one pulses", () => {
+    expect(hasMotion({ version: 3, darkness: "daylight", groups: [], lights: [fire], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
+    expect(hasMotion({ version: 3, darkness: "daylight", groups: [], lights: [glow], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
+    expect(hasMotion({ version: 3, darkness: "daylight", groups: [], lights: [steady], sprites: [], walls: [], doors: [], solid: [] }, "ground")).toBe(true);
   });
 });
 
@@ -113,10 +115,6 @@ describe("swayAngle", () => {
 });
 
 describe("lightBoost", () => {
-  it("is 0 for a steady light", () => {
-    expect(lightBoost(steady, 3.3)).toBe(0);
-  });
-
   it("stays within 0..1 for a flame and does not repeat on a short beat", () => {
     const values: number[] = [];
     for (let t = 0; t < 30; t += 0.05) {
@@ -141,7 +139,7 @@ describe("lightBoost", () => {
 describe("boostMask", () => {
   // A 5 ft bright + 5 ft dim fire (two cells of reach) in cell (1,0), a wall on the left edge of cell (2,0).
   const fire: MapLiveLight = { x: 1.5, y: 0.5, color: "#ff8800", bright: 5, dim: 5, flicker: 0.3, phase: 0 };
-  const walled: MapLive = { version: 2, darkness: "dark", groups: [], lights: [fire], sprites: [], walls: ["2,0:W"], doors: [], solid: [] };
+  const walled: MapLive = { version: 3, darkness: "dark", groups: [], lights: [fire], sprites: [], walls: [{ id: "2,0:W", a: [2, 0], b: [2, 1] }], doors: [], solid: [] };
   const sampleAt = (m: ReturnType<typeof boostMask>, x: number, y: number) => {
     const spc = m.mask.width / (m.x1 - m.x0);
     return m.mask.alpha[Math.floor((y - m.y0) * spc) * m.mask.width + Math.floor((x - m.x0) * spc)];
@@ -160,9 +158,9 @@ describe("boostMask", () => {
   });
 
   it("follows a door the DM opened", () => {
-    const door: MapLive = { ...walled, walls: [], doors: [{ edge: "2,0:W", open: false, leaf: null }] };
+    const door: MapLive = { ...walled, walls: [], doors: [{ id: "2,0:W", a: [2, 0], b: [2, 1], open: false, leaf: null }] };
     expect(sampleAt(boostMask(door, fire), 2.4, 0.5)).toBe(0);
-    expect(sampleAt(boostMask(door, fire, [{ edge: "2,0:W", open: true }]), 2.4, 0.5)).toBe(255);
+    expect(sampleAt(boostMask(door, fire, [{ id: "2,0:W", open: true }]), 2.4, 0.5)).toBe(255);
   });
 
   it("is computed once per light per snapshot", () => {
@@ -171,16 +169,79 @@ describe("boostMask", () => {
 });
 
 describe("currentMapLive", () => {
-  const live: MapLive = { version: 2, darkness: "daylight", groups: [], lights: [], sprites: [], walls: [], doors: [], solid: [] };
+  const live: MapLive = { version: 3, darkness: "daylight", groups: [], lights: [], sprites: [], walls: [], doors: [], solid: [] };
 
   it("passes the current version and null through", () => {
     expect(currentMapLive(live)).toBe(live);
     expect(currentMapLive(null)).toBeNull();
   });
 
+  it("hands out the plain snapshot from a reactive row, so the sight grids do not track millions of reads", () => {
+    // The battle map reads the snapshot from a query's reactive row; through the proxy one illumination grid took
+    // 720 ms instead of 15.
+    const row = reactive({ map_live: { ...live, walls: [{ a: [0, 0], b: [1, 0] }] } as MapLive });
+    const out = currentMapLive(row.map_live);
+    expect(isReactive(out)).toBe(false);
+    expect(isReactive(out?.walls[0])).toBe(false);
+  });
+
   it("ignores a version-1 snapshot, whose bakes still hold every door leaf", () => {
     // The DB may hold a 1 the types no longer allow.
     const old = JSON.parse(JSON.stringify({ ...live, version: 1 })) as MapLive;
     expect(currentMapLive(old)).toBeNull();
+  });
+});
+
+// The maintainer, 2 Nov 2026: "pulsing light from fire sources that give the illusion the flames move".
+describe("a fire's light moves without being told to", () => {
+  const brazier: MapLiveLight = { x: 3, y: 3, color: "#ffb347", bright: 20, dim: 20, phase: 0.4 }; // no flicker declared
+  const torch: MapLiveLight = { ...brazier, x: 9, y: 1, phase: 2.7 };
+  const times = Array.from({ length: 600 }, (_, i) => i * 0.05);
+
+
+  it("changes its brightness over time, never settling into a regular blink", () => {
+    const values = times.map((t) => lightBoost(brazier, t));
+    expect(Math.max(...values) - Math.min(...values)).toBeGreaterThan(0.3);
+    // A blink would repeat: no lag between 0.5 and 10 seconds lines the signal up with itself.
+    for (const lag of [0.5, 1, 2, 3.7, 5, 10]) {
+      const shifted = times.map((t) => lightBoost(brazier, t + lag));
+      const same = values.filter((v, i) => Math.abs(v - shifted[i]) < 0.01).length;
+      expect(same / values.length).toBeLessThan(0.1);
+    }
+  });
+
+  // A first cut drifted 5% and the maintainer saw nothing move: a flame's reach has to swing by a visible amount.
+  it("swells and shrinks a fire's reach by at least 10% over a few seconds, within its limit", () => {
+    const scales = times.map((t) => lightRadiusScale(brazier, t));
+    expect(Math.max(...scales)).toBeLessThanOrEqual(1 + FLICKER_REACH + 1e-9);
+    expect(Math.min(...scales)).toBeGreaterThanOrEqual(1 - FLICKER_REACH - 1e-9);
+    const first = scales.slice(0, 120);
+    expect(Math.max(...first) - Math.min(...first)).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it("breathes a cool light's reach by at least 8% over a few seconds, evenly", () => {
+    const cool: MapLiveLight = { ...brazier, color: "#30ff80" };
+    const scales = times.map((t) => lightRadiusScale(cool, t));
+    expect(Math.max(...scales)).toBeLessThanOrEqual(1 + PULSE_REACH + 1e-9);
+    const first = scales.slice(0, 120);
+    expect(Math.max(...first) - Math.min(...first)).toBeGreaterThanOrEqual(0.08);
+    // Slow and smooth: no frame jumps.
+    for (let i = 1; i < scales.length; i++) expect(Math.abs(scales[i] - scales[i - 1])).toBeLessThan(0.05);
+  });
+
+  it("keeps two cool lights out of phase", () => {
+    const a: MapLiveLight = { ...brazier, color: "#30ff80", phase: 0.2 };
+    const b: MapLiveLight = { ...a, phase: 2.9 };
+    expect(times.filter((t) => Math.abs(lightRadiusScale(a, t) - lightRadiusScale(b, t)) > 0.03).length / times.length).toBeGreaterThan(0.5);
+  });
+
+  it("keeps two fires out of phase, in brightness and in reach", () => {
+    const apart = (f: (l: MapLiveLight, t: number) => number) => times.filter((t) => Math.abs(f(brazier, t) - f(torch, t)) > 0.05).length / times.length;
+    expect(apart(lightBoost)).toBeGreaterThan(0.5);
+    expect(apart(lightRadiusScale) > 0 && times.some((t) => Math.abs(lightRadiusScale(brazier, t) - lightRadiusScale(torch, t)) > 0.01)).toBe(true);
+  });
+
+  it("keeps the noise within -1..1 so the brightness stays within 0..1", () => {
+    for (const t of times) expect(Math.abs(flameNoise(brazier.phase, t))).toBeLessThanOrEqual(1);
   });
 });

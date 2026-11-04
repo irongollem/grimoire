@@ -42,11 +42,10 @@
       <!-- Colour picker — only in colour mode -->
       <div v-if="vignette.mode === 'colour'" class="flex items-center gap-2">
         <span class="text-eyebrow text-muted-foreground">Colour</span>
-        <input
-          type="color"
-          :value="vignette.colour"
-          class="h-6 w-10 cursor-pointer rounded border border-border bg-transparent p-0.5"
-          @input="(e) => emit('set-colour', (e.target as HTMLInputElement).value)"
+        <ColorInput
+          aria-label="Vignette colour"
+          :model-value="vignette.colour"
+          @update:model-value="(colour) => emit('set-colour', colour)"
         />
         <span class="text-caption text-muted-foreground">{{ vignette.colour }}</span>
       </div>
@@ -85,6 +84,7 @@
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ColorInput from "@/components/common/controls/ColorInput.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import type { VignetteOptions, VignetteMode } from "@/lib/illuminate/vignette";
 

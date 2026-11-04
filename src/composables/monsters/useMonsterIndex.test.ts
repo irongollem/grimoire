@@ -13,7 +13,11 @@ vi.mock("@/composables/library/useEnabledSources", () => ({
   useLibrarySourceSlugs: () => ({ slugs: ref<string[] | null>(["srd-2024"]), isLoading: ref(false) }),
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2024") }) }));
-const campaign = vi.hoisted(() => ({ id: null as string | null }));
+const campaign = vi.hoisted(() => ({
+  id: null as string | null,
+  /** A row the test controls, to land it after mount; null builds one from `id`. */
+  row: null as import("vue").Ref<{ id: string; user_id: string } | null> | null,
+}));
 // storeToRefs only keeps refs, so the mocked store holds a real one.
 vi.mock("@/stores/campaign", async () => {
   const { ref: vueRef } = await import("vue");
@@ -21,7 +25,7 @@ vi.mock("@/stores/campaign", async () => {
     useCampaignStore: () => {
       return {
         activeCampaignId: vueRef<string | null>(campaign.id),
-        activeCampaign: vueRef(campaign.id ? { id: campaign.id, user_id: "owner-1" } : null),
+        activeCampaign: campaign.row ?? vueRef(campaign.id ? { id: campaign.id, user_id: "owner-1" } : null),
       };
     },
   };
@@ -51,9 +55,21 @@ const entry = (id: string, name: string) => ({
 beforeEach(() => {
   fake.reset();
   campaign.id = null;
+  campaign.row = null;
 });
 
 describe("useMonsterIndex", () => {
+  it("waits for the campaign row: own monsters are read once, with the owner, not first without it (#1138)", async () => {
+    campaign.id = "camp-1";
+    campaign.row = ref<{ id: string; user_id: string } | null>(null);
+    run(() => useMonsterIndex());
+    await flushPromises();
+    expect(fake.calls.filter((c) => c.target === "monsters")).toHaveLength(0);
+    campaign.row.value = { id: "camp-1", user_id: "owner-1" };
+    await flushPromises();
+    expect(fake.calls.filter((c) => c.target === "monsters")).toHaveLength(1);
+  });
+
   it("lists only library monsters from an enabled source at the table ruleset", async () => {
     fake.seed("library_monsters", [
       entry("srd_wolf", "Wolf"),

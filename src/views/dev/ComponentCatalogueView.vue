@@ -240,6 +240,28 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton: tool"
+      note="A tool in a rail, slip or toolbelt: quiet until armed (`active`: primary edge and tint). `size=tile` is icon over a word with a `KeyCap corner`; any text size gives a labelled button for a grid."
+    >
+      <div class="flex flex-wrap items-center gap-2">
+        <AppButton variant="tool" size="tile" label="Draw" :icon="IconWand" icon-size="lg">
+          <span class="leading-none">Draw</span>
+          <KeyCap corner>D</KeyCap>
+        </AppButton>
+        <AppButton variant="tool" size="tile" active label="Draw" :icon="IconWand" icon-size="lg">
+          <span class="leading-none">Draw</span>
+          <KeyCap corner>D</KeyCap>
+        </AppButton>
+        <AppButton variant="tool" size="xs" class="justify-between gap-1" label="Line">
+          <span>Line</span><KeyCap>L</KeyCap>
+        </AppButton>
+        <AppButton variant="tool" size="xs" active class="justify-between gap-1" label="Line">
+          <span>Line</span><KeyCap>L</KeyCap>
+        </AppButton>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton: ghost + danger"
       note="The chromeless remove-row ✕. `ghost` is the only non-tinted variant that reads `tone`, and only for `danger`: these sites have no box, so `destructive` (which draws a border and a resting outline) would put a visible frame around every ✕ in every editor list. Hover the middle one to see the affordance the 58 hand-rolled copies each carried inline."
     >
@@ -348,6 +370,16 @@
             <option value="b">Updated</option>
           </ListFilterSelect>
         </label>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection title="ColorInput" note="A native colour swatch, model '#rrggbb'. Labelled beside the swatch, or with an aria-label where the text around it already names it. Shapes: field (default), dot (a chip of the colour, as a faction row uses), wheel (pick-any-colour beside a row of presets).">
+      <div class="flex flex-wrap items-center gap-4">
+        <ColorInput v-model="colourValue" label="Colour" />
+        <ColorInput v-model="colourValue" aria-label="Colour" />
+        <ColorInput v-model="colourValue" label="Disabled" disabled />
+        <ColorInput v-model="colourValue" shape="dot" aria-label="Colour dot" />
+        <ColorInput v-model="colourValue" shape="wheel" aria-label="Colour wheel" />
       </div>
     </CatalogueSection>
 
@@ -594,6 +626,13 @@
         <SpellsByLevelGrid v-model="gridSpell" :all-spell-options="gridSpells" level-kind="spell" />
       </div>
     </CatalogueSection>
+
+    <CatalogueSection
+      title="Deck: pads, lanes, tools and Now chips"
+      note="The soundboard deck's presentational pieces (#1136), drawn from hand-written cells. Check every light in more than one theme: lit is the full category colour with dark ink, fading and ducked are tints, blocked says why in words."
+    >
+      <DeckCatalogue />
+    </CatalogueSection>
   </div>
 </template>
 
@@ -615,6 +654,7 @@ import type { LocationQueryValue } from "vue-router";
 import { IconWand, IconChevronRight, IconDelete, IconClose, IconStar, IconWarning, IconInfo, IconGenerate, IconDM, IconSettings } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import KeyCap from "@/components/common/controls/KeyCap.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
@@ -622,6 +662,7 @@ import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { CHECKBOX_SIZES, CHECKBOX_LABEL_ROLES, CHECKBOX_ACCENTS } from "@/components/common/controls/checkboxVariants";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import ColorInput from "@/components/common/controls/ColorInput.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { HEADER_TONES, type HeaderTone } from "@/components/common/overlays/modalHeaderVariants";
@@ -637,6 +678,7 @@ import { SWITCH_SIZES } from "@/components/common/controls/toggleSwitchVariants"
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
+import DeckCatalogue from "@/components/soundboard/deck/DeckCatalogue.vue";
 import CoinAmount from "@/components/currency/CoinAmount.vue";
 import CoinInput from "@/components/currency/CoinInput.vue";
 import { defaultCurrencyFor } from "@/systems/registry";
@@ -736,6 +778,7 @@ const gridClass = ref<Record<string, string[]>>({ "3": ["a"], "5": ["b", "c"] })
 const gridSpell = ref<Record<string, string[]>>({ "1": ["c"] });
 const checkboxGroup = ref<string[]>(["dawn"]);
 const inputValue = ref<string | number | null>("Ancient Red Dragon");
+const colourValue = ref("#d9a441");
 const coinCurrencyFive = defaultCurrencyFor("dnd5e");
 const coinCurrencyDollars: CurrencyConfig = {
   default_key: "c",

@@ -108,8 +108,8 @@ async function onClone() {
 }
 
 // ── Draw level N ──────────────────────────────────────────────────────────────
-// The same add the Build canvas's level picker makes (`useAddSiteLevel`):
-// the new level opens in Build in place, ready to draw.
+// The same add the map editor's level picker makes (`useAddSiteLevel`):
+// the new level opens in the full-screen editor, ready to draw.
 const { addLevel, isAdding: isDrawing } = useAddSiteLevel();
 
 async function onDraw() {

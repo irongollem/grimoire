@@ -67,7 +67,7 @@
 <script setup lang="ts">
 /**
  * The room-scoped half of the #869 location-fact rule editor — split out of
- * `SiteMapRegionList.vue` per CLAUDE.md's component-granularity rule rather
+ * the room list (now `ZoningList.vue`) per CLAUDE.md's component-granularity rule rather
  * than grown inline, since this is a full list + form, not a couple of
  * fields. Mounted once per bound space row, only while that row's "Rules"
  * toggle is open and only in Build (the caller gates both).
@@ -98,7 +98,7 @@ import {
 import type { LocationStateFact } from "@/types/locationState.types";
 
 const { locationId, rules } = defineProps<{
-  /** This room's own location id — `space.id` in `SiteMapRegionList`, always
+  /** This room's own location id — the bound room's id in `ZoningList`, always
    *  a bound space (a room or a nested site), never a zone (see that file's
    *  own comment on why a zone can't reach this component at all). */
   locationId: string;

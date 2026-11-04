@@ -21,7 +21,7 @@ video. Writing and filming episodes is `/promo-episode` (Reels) and
 | `promo-out/<id>/vo/<shot>.wav` | the maintainer's takes, one per shot |
 | `promo-out/<id>/<id>.mp4`, `cover.jpg` | the finished video and its cover frame |
 | `promo-out/<id>/chapters.txt`, `captions.srt` | YouTube only: description chapters and subtitles |
-| `promo-out/brand/` | `theme.mp3` (the bed under every episode); `intro.*` / `outro.*` clips if present, else drawn cards |
+| `promo-out/brand/` | `theme.mp3` (the bed under every episode); `bed-1.mp3`, `bed-2.mp3`, ... (the longer tunes under a YouTube video, chained by chapter); `intro.*` / `outro.*` clips if present, else drawn cards |
 | `promo-out/sounds/<name>-NN.wav` | sound effects from the Sounds tab |
 
 An episode's takes are the maintainer's own voice. Never delete or overwrite

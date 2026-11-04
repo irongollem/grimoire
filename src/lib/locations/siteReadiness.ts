@@ -6,7 +6,7 @@
 // `useSiteStructure` already gathers; nothing here writes anything.
 //
 // This module also holds `structureFromSite` and `publishStaleness`, which
-// back the Layers panel's Drawing row (#884, S5): reconstructing a
+// back the Drawing's publish-staleness read (#884, S5): reconstructing a
 // `DerivedStructure` from the Atlas's OWN regions/doors so it can be diffed
 // against the live Cartographer drawing with the same `structureDelta` the
 // publish review uses.
@@ -141,6 +141,8 @@ export function structureFromSite(
     key: `s:${r.id}`,
     cells: r.cells,
     signature: r.cell_signature ?? cellSignature(r.cells),
+    // The delta compares cells and signatures only; a row without an outline has nothing to say here.
+    outline: r.vertices === null ? [] : r.vertices,
     name: r.label,
     nameSource: null,
   }));
@@ -163,8 +165,8 @@ export interface PublishStaleness {
 
 /**
  * Null when there is nothing to compare (no source map, or the last publish
- * already carries the map's current rev) — the fresh state `MapLayersPanel`'s
- * Drawing row renders instead of the stale variant.
+ * already carries the map's current rev) — the fresh state the Drawing layer
+ * renders instead of the stale variant.
  */
 export function publishStaleness(
   location: { map_published_rev: number | null },

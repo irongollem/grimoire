@@ -579,6 +579,23 @@ The `PlayerEncounterPanel` component (always subscribed in the layout via `usePl
 
 The encounter subscription stays active even when the player navigates away from the encounter view, keeping the live state in sync across the whole session.
 
+### Battle map on a phone (#1125 decision 14, frame 14)
+
+`/play/encounter/map` (`PlayerEncounterMapView.vue`) is playable on a phone, not only on tablet and up. The "View battle map" button on `PlayerEncounterPanel` shows whenever the encounter's location has a calibrated primary image (Drawing or base image); `is_battle_map` no longer gates it, and the view no longer bounces a phone back to the panel.
+
+- **Header** (`PlayerMapTurnHeader`): "Your turn" with "Round N · X ft to move" (speed minus `movement_used`), or "<Name>'s turn" with "You're after the <creature>" (`actsBefore`, only a revealed creature is named), the player's own HP in gilt, and a **Follow** chip when the map is following someone else.
+- **Following**: on a phone the map zooms once to 56px squares and keeps the active token (the player's own, on their turn) centred (`panToCentre`) until Follow is switched off. Tablet and up keep the plain top bar and free pan.
+- **Moving**: drag the own token as before, or tap it (the ring appears) and then tap a square. `ownMove` snaps the tap by the token's middle (same rounding as a drag), prices it with `planMove` on open ground and colours it with `speedState` against the sheet's speed plus feet already moved this turn. The confirm is `PlayerMapMoveSheet`: a bottom sheet on a phone, an inline slip over the map on tablet and up. **Move** calls `updateCombatantPosition`; **Cancel** leaves the token. Players have no terrain or wall data, so the counter prices every square at 5 ft; it warns and never refuses (the RPC alone enforces "own token only").
+- **Bottom nav** (`PlayerMapNav`): Map, My sheet (`/play/character/sheet`) and Roll (the shared `DiceRoller`).
+- The player layout still draws its own bottom bar on this route until `routes.ts` marks it `fullscreenMobile`.
+- Pings (the "Hold anywhere to ping" hint) arrive in a later story.
+
+### The Table screen shows what a player would see (#1125 decision 15, frame 13)
+
+The DM opens `/locations/:id/table` in a second window for a screen built into the table (epic #1133: one Table screen per map; it follows the party while exploring and shows a fight on that map while one is live, `/encounters/:id/table` is gone). It is a DM-account window, so it holds the whole live row, and `lib/table/tableScreen.ts` applies on the client the rules `get_player_encounter_state` applies on the server: a hidden monster (or one the DM never revealed) is left out, an unseen one is `???` with no face, a concealed NPC wears its disguise name and portrait, a monster's hit points are never drawn (only whether it still stands), and a creature standing where the party does not see it leaves the map (`tableTokens`: every placed player character always shows, any other token only where the party sees a square of its footprint). The fog is the map's memory plus what the party sees now (`shownCells`), with a remembered square the party cannot see half fogged, and the initiative ribbon and the banner ("Round 3", "Brakka's turn") use only the creatures the table may know. An active creature the table may not know is neither named nor followed. Sight uses the party's real senses (`usePartySenses`), so a dark map shows what is lit or within a character's darkvision, and the DM's **As players see it** on the Play screen uses the same viewers and the same token rule, so the preview and the Table screen agree.
+
+**The player's phone (`PlayerEncounterMapView`).** The fog is the same memory plus sight (`useMapMemory`, `usePartySight`, `shownCells`). The player's own token always shows; any other token (teammates and monsters) only where someone in the party sees it, teammate included (`partyVisibleCombatants`). With the campaign's Sight setting on **Each their own** (`campaigns.player_sight = 'own'`) the phone looks through the player's own character only (`onlyInstanceId`); the default **Shared by the party** shows what any character sees. A character the player may not read falls back to no special senses. `usePlayerMapSight` is gone, and the phone never writes the memory: only the DM's window does.
+
 ## Key Capabilities / USPs
 
 1. **True real-time collaboration** — All player data (HP, inventory, conditions, encounter state) is synchronised via Supabase Realtime. DM changes appear instantly on player devices. No refresh needed.

@@ -13,7 +13,6 @@
          swallows its Save button. -->
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
       <SoundForm
-        :page-id="soundboardUi.addSoundPageId"
         :gemini-api-key="campaignStore.decryptedGeminiKey || null"
         :campaign-id="campaignStore.activeCampaignId"
         @saved="close"

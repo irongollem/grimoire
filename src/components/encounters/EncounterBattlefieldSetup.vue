@@ -136,7 +136,7 @@ const emit = defineEmits<{
   "update:combatants": [combatants: CombatantDef[]];
 }>();
 
-// Resolved the same way the runner and EncounterMapView resolve it: a room
+// Resolved the same way the Play screen resolves it: a room
 // with no map of its own places tokens on its site's published plan instead
 // of staying disabled, because that plan — not the room's own (absent)
 // map_url — is what combat actually draws (epic #868, frame 13).
@@ -149,7 +149,7 @@ const isReady = computed(() => {
   return s.focusRoomId !== null || !!s.mapLocation.is_battle_map;
 });
 const readinessHint = computed(() => {
-  if (!props.locationId) return "Pick a location with a calibrated battle map to enable placement.";
+  if (!props.locationId) return "Pick a place whose map has its grid lined up to enable placement.";
   if (!location.value) return "Loading location…";
   const s = surface.value;
   if (!s) {
@@ -160,11 +160,11 @@ const readinessHint = computed(() => {
     // the single reader of that distinction.
     if (isInteriorType(location.value.location_type)) {
       return hasAnyMapLayer(location.value)
-        ? "This room's map isn't calibrated yet. Calibrate it to enable placement."
-        : "This room has no map of its own, and its site isn't calibrated either.";
+        ? "This room's map has no grid yet. Line up its grid in Edit map to enable placement."
+        : "This room has no map of its own, and its site's map has no grid either.";
     }
     return hasAnyMapLayer(location.value)
-      ? "Calibrate the location's map to enable placement."
+      ? "Line up the grid on this place's map (Edit map) to enable placement."
       : "The linked location has no map.";
   }
   if (s.focusRoomId === null && !s.mapLocation.is_battle_map) {
@@ -208,6 +208,7 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           portrait_focal_point: monster.portrait_focal_point ?? null,
           token_url: resolveTokenArt(monster)?.tokenUrl,
           position: def.starting_positions?.[i] ?? null,
+          size: monster.size,
           footprint: sizeToFootprint(monster.size),
         });
       }
@@ -238,7 +239,8 @@ const previewCombatants = computed<RunCombatant[]>(() => {
           portrait_focal_point: npc.portrait_focal_point ?? null,
           token_url: resolveTokenArt(npc)?.tokenUrl,
           position: def.starting_positions?.[i] ?? null,
-          footprint: 1,
+          size: npc.size,
+          footprint: sizeToFootprint(npc.size),
         });
       }
     }

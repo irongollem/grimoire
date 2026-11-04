@@ -35,7 +35,6 @@
         <option value="ambient">Ambient</option>
         <option value="music">Music</option>
         <option value="effects">Effects</option>
-        <option value="misc">Misc</option>
       </AppSelect>
     </div>
 
@@ -250,7 +249,7 @@
 
       <!-- Browse Freesound -->
       <div v-else-if="activeSourceTab === 'browse'">
-        <SoundProviderBrowser :page-id="pageId" @saved="$emit('saved')" />
+        <SoundProviderBrowser @saved="$emit('saved')" />
       </div>
 
       <!-- File upload -->
@@ -374,8 +373,7 @@ const { isPro } = useSubscription();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
-const { pageId = null, geminiApiKey = null, campaignId = null } = defineProps<{
-  pageId?: string | null;
+const { geminiApiKey = null, campaignId = null } = defineProps<{
   geminiApiKey?: string | null;
   campaignId?: string | null;
 }>();
@@ -644,9 +642,7 @@ async function handleSubmit() {
       source_type: "url",
       file_url: form.value.external_url.trim(),
       storage_path: null,
-      page_id: pageId ?? null,
       tags: [],
-      sort_order: 0,
       attribution: null,
       attribution_url: null,
       artist: null,
@@ -664,9 +660,7 @@ async function handleSubmit() {
       source_type: "spotify",
       file_url: form.value.external_url.trim(),
       storage_path: null,
-      page_id: pageId ?? null,
       tags: [],
-      sort_order: 0,
       attribution: null,
       attribution_url: null,
       artist: null,
@@ -711,7 +705,6 @@ async function handleSubmit() {
     const soundName = form.value.name.trim() || musicRequest.description.slice(0, 60);
     const soundCategory = form.value.category;
     const originatingCampaignId = campaignId;
-    const originatingPageId = pageId ?? null;
 
     const promptOverride = editedPrompt.value?.trim() || null;
     const isLocalMode = localKeyModeChosen();
@@ -726,7 +719,6 @@ async function handleSubmit() {
       }
       const done = await music.generate({
         campaignId: originatingCampaignId,
-        pageId: originatingPageId,
         soundName,
         category: soundCategory,
         request: musicRequest,
@@ -773,9 +765,7 @@ async function handleSubmit() {
       source_type: "upload",
       file_url: result.file_url,
       storage_path: result.storage_path,
-      page_id: pageId ?? null,
       tags: [],
-      sort_order: 0,
       attribution: null,
       attribution_url: null,
       artist: "Grimoire AI",
@@ -802,9 +792,7 @@ async function handleSubmit() {
     source_type: "upload",
     file_url: result.file_url,
     storage_path: result.storage_path,
-    page_id: pageId ?? null,
     tags: [],
-    sort_order: 0,
     attribution: null,
     attribution_url: null,
     artist: null,

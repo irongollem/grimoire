@@ -11,7 +11,7 @@
         aria-label="DM scratchpad"
         data-test="dm-scratchpad"
         data-scratchpad
-        class="fixed inset-x-0 bottom-0 z-40 md:z-250 flex h-[min(70dvh,34rem)] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-2xl barnav:bottom-[calc(4rem+env(safe-area-inset-bottom))] barnav:pb-0 md:inset-x-auto md:right-0 md:bottom-0 md:top-0 md:h-auto md:w-[23rem] md:rounded-none md:border-t-0 md:border-l md:pb-0 md:barnav:top-[3.75rem] md:barnav:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]"
+        class="fixed inset-x-0 bottom-0 z-40 md:z-250 flex h-[min(70dvh,34rem)] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-2xl barnav:bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] barnav:pb-0 md:inset-x-auto md:right-0 md:bottom-0 md:top-0 md:h-auto md:w-[23rem] md:rounded-none md:border-t-0 md:border-l md:pb-0 md:barnav:top-[3.75rem] md:barnav:bottom-[calc(4.5rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))]"
       >
         <header class="flex items-start gap-2 border-b border-border bg-muted/20 px-3 py-2.5">
           <div class="min-w-0 flex-1">

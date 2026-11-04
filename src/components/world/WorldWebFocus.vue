@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import WorldNodeShape from "@/components/world/WorldNodeShape.vue";
-import { FAMILY_TOKEN, nodeSizeFor } from "@/composables/world/useWorldWebGraph";
+import { FAMILY_TOKEN, nodeSizeFor } from "@/lib/worldWeb/palette";
 import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
 import { layoutRings, type FocusGraph, type Placed } from "@/lib/worldWeb/focus";
 import { parseNodeKey, type WebKind } from "@/lib/worldWeb/kinds";

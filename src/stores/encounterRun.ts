@@ -1,7 +1,8 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef, WildshapeState } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
+import type { Monster, MonsterSize } from "@/types/monster.types";
+import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { NpcListRow } from "@/types/npc.types";
 import type { TrapEntry } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
@@ -38,6 +39,15 @@ export type PersistPlayerHandler = (partyMemberId: string, patch: PartyMemberUpd
  *  automatic d20 (used by tests and by any non-UI caller). */
 export type InitiativeRoller = (combatant: RunCombatant) => Promise<number | null>;
 
+/** One move of a token within the turn: where it left, and what the move cost in feet. */
+export interface MoveRecord {
+  from: { x: number; y: number };
+  feet: number;
+}
+
+/** The commands that hand the turn to someone else (or restart the order). */
+const TURN_CHANGING = new Set<EncounterTurnCommand["type"]>(["next_turn", "prev_turn", "reshuffle_initiative", "start_combat"]);
+
 export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** Registered by the encounter runner; routes persistence through the
    *  `useUpdatePartyMember` mutation so the party cache is invalidated. */
@@ -62,6 +72,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const combatants = ref<RunCombatant[]>([]);
   const factions = ref<FactionDef[]>([]);
   const started = ref(false); // true = initiative locked + sorted
+  /** This turn's moves per token, for Back to start and Ctrl Z (#1125 decision 11). Not persisted: it lives as long as the turn. */
+  const moveHistory = ref<Record<string, MoveRecord[]>>({});
   const events = ref<EncounterEvent[]>([]);
   const eventsFired = ref<string[]>([]);
   const traps = ref<TrapEntry[]>([]);
@@ -149,6 +161,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       lairFiredRounds: lairFiredRounds.value,
     };
     const { state, events: raised } = reduceEncounterTurn(before, command);
+    // A move can only be taken back within the turn it was made in.
+    if (TURN_CHANGING.has(command.type)) moveHistory.value = {};
     if (state.combatants !== before.combatants) combatants.value = state.combatants;
     round.value = state.round;
     activeIndex.value = state.activeIndex;
@@ -288,7 +302,15 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   function enterWildshape(instanceId: string, form: WildshapeState, wildshapesUsed: number, tempHp = 0) {
-    dispatch({ type: "enter_wildshape", instanceId, form, wildshapesUsed, tempHp });
+    // The token takes the beast's size. A caller that did not carry it in the form
+    // gets it from the beast's monster row when the runner holds that.
+    const beastSize = form.beast_size ?? availableMonsters.value.find((m) => m.id === form.monster_id)?.size;
+    dispatch({ type: "enter_wildshape", instanceId, form: beastSize ? { ...form, beast_size: beastSize } : form, wildshapesUsed, tempHp });
+  }
+
+  /** The DM's Enlarge/Reduce for this fight; null puts the creature back to its own size. */
+  function setSizeOverride(instanceId: string, size: MonsterSize | null) {
+    dispatch({ type: "set_size_override", instanceId, size });
   }
 
   function revertWildshape(instanceId: string) {
@@ -509,6 +531,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       portrait_url: comp.portrait_url ?? null,
       portrait_focal_point: comp.portrait_focal_point ?? null,
       companion_id: comp.id,
+      size: comp.size,
+      footprint: sizeToFootprint(comp.size),
     });
   }
 
@@ -587,6 +611,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     lairEnabled.value = false;
     lairOwnerInstanceId.value = null;
     lairFiredRounds.value = [];
+    moveHistory.value = {};
   }
 
   // ── Boss mechanics ───────────────────────────────────────────────────────────
@@ -613,6 +638,35 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   function toggleReaction(instanceId: string) {
     dispatch({ type: "toggle_reaction", instanceId });
+  }
+
+  /** The token left `from` and the move cost `feet`: counts against the turn's movement and can be taken back. */
+  function recordMove(instanceId: string, from: { x: number; y: number }, feet: number) {
+    moveHistory.value = { ...moveHistory.value, [instanceId]: [...(moveHistory.value[instanceId] ?? []), { from, feet }] };
+    dispatch({ type: "record_move", instanceId, feet });
+  }
+
+  /**
+   * Takes back this turn's last move ("last") or all of them ("all": Back to start). Returns where the token goes
+   * back to and hands its feet back, or null when it has not moved this turn. The caller moves the token itself,
+   * because live and offline moves travel different ways.
+   */
+  function undoMove(instanceId: string, scope: "last" | "all"): MoveRecord | null {
+    const history = moveHistory.value[instanceId] ?? [];
+    if (history.length === 0) return null;
+    const undone = scope === "all" ? history : history.slice(-1);
+    moveHistory.value = { ...moveHistory.value, [instanceId]: history.slice(0, history.length - undone.length) };
+    const feet = undone.reduce((sum, m) => sum + m.feet, 0);
+    dispatch({ type: "undo_move", instanceId, feet });
+    return { from: undone[0].from, feet };
+  }
+
+  function setActionUsed(instanceId: string, used: boolean) {
+    dispatch({ type: "set_action_used", instanceId, used });
+  }
+
+  function setBonusUsed(instanceId: string, used: boolean) {
+    dispatch({ type: "set_bonus_used", instanceId, used });
   }
 
   /** Seed legendary-action state on every combatant whose monster has a
@@ -725,6 +779,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setRevealState,
     cycleRevealState,
     enterWildshape,
+    setSizeOverride,
     revertWildshape,
     addMonster,
     addNpc,
@@ -742,6 +797,11 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setBossMechanics,
     toggleSurprised,
     toggleReaction,
+    moveHistory,
+    recordMove,
+    undoMove,
+    setActionUsed,
+    setBonusUsed,
     useAction,
     restoreAction,
     primeLegendaryActions,

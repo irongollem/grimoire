@@ -8,11 +8,12 @@ import DowngradeCampaignPickerModal from "./DowngradeCampaignPickerModal.vue";
 
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-const mocks = vi.hoisted(() => ({ campaigns: [] as unknown[], dataRef: null as { value: unknown[] } | null, archive: vi.fn(), switchTo: vi.fn(), active: "c1" }));
+const mocks = vi.hoisted(() => ({ campaigns: [] as unknown[], dataRef: null as { value: unknown[] } | null, enabledArg: null as (() => boolean) | null, archive: vi.fn(), switchTo: vi.fn(), active: "c1" }));
 vi.mock("@/composables/campaign/useCampaigns", async () => {
   const { ref } = await import("vue");
   return {
-    useOwnedCampaigns: () => {
+    useOwnedCampaigns: (opts?: { enabled?: () => boolean }) => {
+      mocks.enabledArg = opts?.enabled ?? null;
       const data = ref(mocks.campaigns);
       mocks.dataRef = data;
       return { data };
@@ -128,5 +129,29 @@ describe("DowngradeCampaignPickerModal archiving", () => {
     wrapper?.unmount();
     render(false);
     expect([...document.body.querySelectorAll("button")].some((b) => b.textContent?.includes("Upgrade to Pro instead"))).toBe(true);
+  });
+
+  // Bug: DefaultLayout mounts the modal on every DM page, and its owned-campaigns read went out on each load, hidden or not.
+  it("reads the owned campaigns only while it is shown", async () => {
+    mocks.campaigns = [];
+    const w = render(false, 1);
+    w.unmount();
+    wrapper = mount(DowngradeCampaignPickerModal, {
+      props: { show: false, campaignLimit: 1, childAccount: false },
+      global: { plugins: [createPinia(), VueQueryPlugin], stubs: { teleport: true } },
+      attachTo: document.body,
+    });
+    expect(mocks.enabledArg?.()).toBe(false);
+    await wrapper.setProps({ show: true });
+    expect(mocks.enabledArg?.()).toBe(true);
+  });
+
+  it("still preselects the first campaign when the list arrives after the modal is shown", async () => {
+    mocks.campaigns = [];
+    render(false, 1);
+    expect(keepButton().disabled).toBe(true);
+    mocks.dataRef!.value = [camp("c1", "Alpha"), camp("c2", "Bravo")];
+    await flushPromises();
+    expect(keepButton().textContent).toContain('Keep "Alpha"');
   });
 });

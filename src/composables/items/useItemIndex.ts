@@ -5,7 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { mergeLibraryWithCustom } from "@/lib/library/libraryShadow";
 import type { ItemIndexEntry } from "@/types/item.types";
@@ -91,7 +91,11 @@ export function useItemIndex(getOptions?: () => { enabled?: boolean }) {
       return fetchCustomIndex(user.id, campaignId, ownerId, rs);
     },
     // Own rows only exist for a signed-in caller; never fire the read to fail it.
-    enabled: () => isEnabled() && getCurrentUser() !== null,
+    // The owner is in the key (#590): wait for the campaign row rather than read twice (#1138).
+    enabled: () =>
+      isEnabled() &&
+      getCurrentUser() !== null &&
+      (activeCampaignId.value === null || ownerKnownFor(activeCampaign.value, activeCampaignId.value)),
     staleTime: Infinity,
   });
 

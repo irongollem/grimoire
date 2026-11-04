@@ -527,9 +527,9 @@ describe("soundboard", () => {
       { id: "pl-other", campaign_id: OTHER_CAMPAIGN, name: "Someone else's playlist", playlist_type: "music", sort_order: 0, soundboard_playlist_tracks: [] },
     ]);
     fake.seed("sounds", [
-      { id: "s1", campaign_id: CAMPAIGN, name: "Drums", sort_order: 0 },
-      { id: "s2", campaign_id: CAMPAIGN, name: "Horns", sort_order: 1 },
-      { id: "s-other", campaign_id: OTHER_CAMPAIGN, name: "Someone else's sound", sort_order: 0 },
+      { id: "s1", campaign_id: CAMPAIGN, name: "Drums" },
+      { id: "s2", campaign_id: CAMPAIGN, name: "Horns" },
+      { id: "s-other", campaign_id: OTHER_CAMPAIGN, name: "Someone else's sound" },
     ]);
   });
 

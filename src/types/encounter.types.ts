@@ -1,7 +1,7 @@
 import type { AppliedCondition } from "@/types/condition.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 import type { AiProvenance } from "@/ai/provenance";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
+import type { MonsterSize } from "@/types/monster.types";
 export type { RewardCurrencyPool };
 
 // Faction definition — who fights whom
@@ -179,6 +179,8 @@ export interface WildshapeState {
   /** Max HP of the beast. null in a 2024 form, same as `beast_hp`. */
   beast_max_hp: number | null;
   beast_ac: string;      // AC of the beast
+  /** The beast's size, which sets the druid's token on the battle grid for the form's duration (#1125). Absent on a form taken before sizes were stored. */
+  beast_size?: MonsterSize;
 }
 
 /**
@@ -257,15 +259,25 @@ export interface RunCombatant {
   legendary_actions_remaining?: number;
   // Reaction — one per round; reset at the start of each new round.
   reactionUsed?: boolean;
+  // The turn's own tallies (#1125 decision 10), all cleared when this combatant's turn starts: the feet moved,
+  // and whether the action and the bonus action are spent. The Play turn card reads and marks them.
+  movement_used?: number;
+  action_used?: boolean;
+  bonus_used?: boolean;
   // VTT battle map — anchor cell (top-left of footprint) on the encounter's
   // location map. Null/undefined = unplaced; the runner stages unplaced
   // combatants near the map origin so the DM can drag them in.
   position?: { x: number; y: number } | null;
-  // Cells the token occupies on the grid (1 = Medium, 2 = Large, 3 = Huge,
-  // 4 = Gargantuan). Baked at spawn time from the source monster's size so
-  // players — who don't have access to the monsters table — render Large+
-  // tokens at the correct footprint.
+  // Cells the token occupies on the grid (0.5 = Tiny, 1 = Small/Medium, 2 = Large,
+  // 3 = Huge, 4 = Gargantuan). Baked at spawn time, with `size`, from the source
+  // creature so players, who don't have access to the monsters table, render the
+  // token at the right footprint. Read it through `combatantFootprint`, which
+  // also honours `size_override` and a beast form.
   footprint?: number;
+  /** The creature's size, baked at spawn beside `footprint` (#1125 decision 13). */
+  size?: MonsterSize;
+  /** The DM's Enlarge/Reduce for this fight; wins over `size` and a beast form. */
+  size_override?: MonsterSize | null;
   // Limited abilities (recharge, N/day) used so far, keyed by the entry's printed name.
   action_uses?: Record<string, ActionUse>;
 }
@@ -441,14 +453,8 @@ export interface EncounterState {
   faction_colors?: FactionColor[];
   combatants_live: RunCombatant[];
   events_fired?: string[];
-  /** VTT fog of war — semicolon-joined list of revealed "x,y" cell keys.
-   *  null/empty = nothing revealed (full fog). See `src/lib/battlemap/fogMask.ts`. */
-  fog_mask?: string | null;
   /** Magical darkness on the battle map; reaches players through the player-safe projection. */
   magical_darkness: MagicalDarknessZone[];
-  /** Doors the DM has opened or shut this fight, over their drawn state in `locations.map_live.doors` (#1073). A door
-   *  not named keeps its drawn state; every go-live starts the list empty. Reaches players like the fog. */
-  door_states: MapLiveDoorState[];
   started_at: string | null;
   updated_at: string;
 }

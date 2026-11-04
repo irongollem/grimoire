@@ -7,6 +7,14 @@ function predicateFromSet(cells: ReadonlySet<CellKey>): (x: number, y: number) =
   return (x, y) => cells.has(`${x},${y}`);
 }
 
+describe("floodFill canStep", () => {
+  it("does not cross a step the caller refuses, even between matching cells", () => {
+    const row = new Set<CellKey>(["0,0", "1,0", "2,0"]);
+    const region = floodFill(0, 0, predicateFromSet(row), { canStep: (_fx, _fy, tx) => tx < 2 });
+    expect(region).toEqual(new Set(["0,0", "1,0"]));
+  });
+});
+
 describe("floodFill — 4-way contiguous region", () => {
   it("returns the start cell when the start cell is the only matching cell", () => {
     const set = new Set<CellKey>(["3,3"]);

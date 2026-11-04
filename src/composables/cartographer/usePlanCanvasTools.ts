@@ -1,11 +1,11 @@
 // Plan pointer dispatch + render scene (epic #884 S7b) — the ROUTING half of
 // the Plan layer, mirroring the WHAT/ROUTING split
 // `useCartographerStructure.ts`/`useCartographerStructureTools.ts` already
-// draw for the Drawing's own Space/Zone tools. `usePlanPalette.ts` is the
+// draw for the Drawing's own Zone tools. `usePlanPalette.ts` is the
 // WHAT (data, mutations, undo); this module is only "how a pointer event on
 // THIS canvas becomes one of those calls."
 //
-// Space/Zone tracing (paint/pen/template) is not reinvented here — it
+// Zone tracing (paint/pen/template) is not reinvented here — it
 // delegates straight to `useRegionPointer`, the exact gesture state machine
 // the Atlas's own `MapRegionsLayer.vue` uses, via the same plain-callback
 // contract that module already exposes. Only the geometry callbacks differ:
@@ -15,12 +15,12 @@
 // `useMapCanvasEditor.ts`'s Drawing tools already use — see that module's
 // `pointerToWorld`/`viewportToCell`, which the geometry callbacks below wrap.
 //
-// The Door and Claim tools are NOT trace gestures (no stroke, no ring, no
+// The Door and Fill tools are NOT trace gestures (no stroke, no ring, no
 // drag) and so are not routed through `useRegionPointer` — Door mirrors
 // `MapRegionsLayer.vue`'s own separate `onDoorPointerDown`/`onDoorPointerMove`
 // pair (edge-snap, place/cycle/alt-delete), reusing the exact edge-detection
 // primitives (`detectHoveredEdge`, `canonicaliseEdge`) the Drawing's own
-// wall/door tools already share. Claim is a one-shot click with no analogue
+// wall/door tools already share. Fill is a one-shot click with no analogue
 // in the Atlas at all: it reads the Drawing's floor layer via `floodFill`
 // and writes straight to the Plan.
 //
@@ -48,7 +48,7 @@ import type { PlanWayLike } from "@/cartographer/planOverlay";
 
 export interface PlanCanvasToolsOptions {
   plan: UsePlanPaletteReturn;
-  /** The Drawing's own floor layer — read-only here, the Claim tool's source. */
+  /** The Drawing's own floor layer — read-only here, the Fill tool's source. */
   layers: Ref<DungeonMapLayers>;
   /** Client (event) coordinates → the cell under them, in the tile grid both
    *  layers share (see `MapWorkbench.vue`'s `buildReferenceImage` docblock
@@ -80,10 +80,16 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
 
   const planHoveredDoorEdge = ref<SourceEdgeKey | null>(null);
 
-  // ── Space/Zone tracing — delegated to useRegionPointer ─────────────────
+  // ── Zone tracing — delegated to useRegionPointer ─────────────────
   function isTraceTool(): boolean {
-    return plan.planTool.value === "space" || plan.planTool.value === "zone";
+    return plan.planTool.value === "zone";
   }
+
+  /** Every room the DM can click: the written rows, then the found rooms still waiting in the list. */
+  const rooms = (): LocationMapRegion[] => [
+    ...plan.regions.value.filter((r) => r.region_role === "space"),
+    ...plan.foundRegions.value,
+  ];
 
   const pointerOptions: UseRegionPointerOptions = {
     cellAt,
@@ -93,10 +99,11 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     hasActiveRegionId: () => isTraceTool() && plan.activeRegionId.value !== null,
     tool: () => plan.traceTool.value,
     mode: () => "browse",
-    regionAt: (cell) => plan.regions.value.find((r) => r.region_role === "space" && r.cells.includes(cell)) ?? null,
+    // Found rooms with no row yet answer a click like any unbound room; `selectRegion` writes the row then.
+    regionAt: (cell) => rooms().find((r) => r.cells.includes(cell)) ?? null,
     hoverRegionAt: (cell) => {
       const zone = plan.regions.value.find((r) => r.region_role === "zone" && r.cells.includes(cell));
-      return zone ?? plan.regions.value.find((r) => r.region_role === "space" && r.cells.includes(cell)) ?? null;
+      return zone ?? rooms().find((r) => r.cells.includes(cell)) ?? null;
     },
     commitCells: plan.commitCells,
     commitRing: plan.commitRing,
@@ -105,7 +112,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     // Clicking an already-traced-but-unbound shape resumes tracing it — the
     // Cartographer has no region list to pick from, so this IS how a DM gets
     // back to a shape they started earlier without abandoning it.
-    onSelect: (regionId) => { plan.activeRegionId.value = regionId; },
+    onSelect: (regionId) => { void plan.selectRegion(regionId); },
     // Binding/navigation are panel actions (#884 S7b spec, item 4) — this
     // embedded tool never names or opens a location, so a click on an
     // already-bound space does nothing here rather than routing anywhere.
@@ -177,18 +184,18 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     plan.placeDoorAt(edgeKey, resolved.fromLocationId, resolved.toLocationId);
   }
 
-  // ── Claim tool ───────────────────────────────────────────────────────────
+  // ── Fill tool ───────────────────────────────────────────────────────────
 
-  function claimAt(clientX: number, clientY: number): void {
+  function fillAt(clientX: number, clientY: number): void {
     const cell = cellAt(clientX, clientY);
     if (!cell) return;
     if (!layers.value.floor[cell]?.floor) {
-      toastError("Click a painted floor cell to claim it as a space.");
+      toastError("Click a painted floor cell to fill it.");
       return;
     }
     const [xs, ys] = cell.split(",");
     const region = floodFill(Number(xs), Number(ys), (x, y) => !!layers.value.floor[cellKey(x, y)]?.floor);
-    void plan.claimFloorRegion([...region]);
+    void plan.fillFloorRegion([...region]);
   }
 
   // ── Dispatch ─────────────────────────────────────────────────────────────
@@ -220,9 +227,9 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return true;
     }
 
-    if (tool === "claim") {
+    if (tool === "fill") {
       if (isPanGesture(ev)) return false;
-      claimAt(ev.clientX, ev.clientY);
+      fillAt(ev.clientX, ev.clientY);
       return true;
     }
 
@@ -236,7 +243,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return true;
     }
 
-    // space / zone — delegated to useRegionPointer whether or not a region
+    // zone: delegated to useRegionPointer whether or not a region
     // is active yet: with one active, this paints into it; with none, it
     // still registers the window listeners the click-to-select-an-existing-
     // unbound-shape gesture needs on release (`onSelect` below). Starting a
@@ -256,7 +263,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return;
     }
     planHoveredDoorEdge.value = null;
-    if (tool === "claim" || tool === "erase") return;
+    if (tool === "fill" || tool === "erase") return;
     regionPointer.onPointerMove(ev);
   }
 
@@ -275,8 +282,8 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     regionPointer.dispose();
   }
 
-  /** Abandons whatever Space/Zone gesture is in flight without committing it
-   *  — the Door and Claim tools have no in-flight gesture to abandon (each
+  /** Abandons whatever Zone gesture is in flight without committing it
+   *  — the Door and Fill tools have no in-flight gesture to abandon (each
    *  is a single click). See `useRegionPointer.abandonGesture`'s own
    *  docblock (#884 review finding 2). */
   function abandonGesture(): void {
@@ -312,7 +319,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     }
 
     return {
-      regions: plan.regions.value,
+      regions: [...plan.regions.value, ...plan.foundRegions.value],
       ways: plan.ways.value,
       activeRegionId: plan.activeRegionId.value,
       cellsOverride: overrides,

@@ -26,6 +26,14 @@ export interface MapLiveGroup {
   kind: "water" | "outer";
   cells: string[];
   overlays: MotionOverlay[];
+  /** Vector water follows its shoreline; higher material shapes hide the water underneath them. Image cells. */
+  clip?: MapLiveGroundClip;
+}
+
+export interface MapLiveGroundClip {
+  outline: [number, number][][];
+  /** Each entry is one higher shape, including that shape's holes. */
+  occluded: [number, number][][][];
 }
 
 /** A light in image cells (centre of the source). */
@@ -61,11 +69,18 @@ export interface MapLiveSprite {
 }
 
 /**
- * The snapshot's shape. 2 since doors carry their leaf (`MapLiveDoor.leaf`) and the live standing bake leaves those
- * leaves out; a version-1 snapshot's bakes still hold every leaf, so the battle map reads only the current version and
- * a site published before it draws as a plain picture until it is published again.
+ * The snapshot's shape. 3 since walls and doors are segments between two points (#1125 decision 5) instead of grid
+ * edge keys; 2 added the door leaf (`MapLiveDoor.leaf`), which the live standing bake leaves out. The battle map reads
+ * only the current version, and a stored older snapshot is converted by a migration, not by a reader.
  */
-export const MAP_LIVE_VERSION = 2;
+export const MAP_LIVE_VERSION = 3;
+
+/** A wall, or the line of a door, in image cells. A wall on a grid line has its edge key (`"x,y:N"`, `"x,y:W"`) as id. */
+export interface MapLiveWall {
+  id: string;
+  a: [number, number];
+  b: [number, number];
+}
 
 export interface MapLive {
   version: typeof MAP_LIVE_VERSION;
@@ -76,18 +91,18 @@ export interface MapLive {
   /** Standing objects first (row-major), then Dressing in draw order: the order they stack in the bake. */
   sprites: MapLiveSprite[];
   /**
-   * What stops light and sight, in image cells (epic #1073 story 6). Edge keys are `"x,y:N"` (the top of cell x,y) and
-   * `"x,y:W"` (its left): walls and sluices here, solid rock in `solid` (`"x,y"`). A grate blocks nothing and is in neither.
+   * What stops light and sight, in image cells (epic #1073 story 6): walls and sluices here as segments, solid rock in
+   * `solid` (`"x,y"`). A grate blocks nothing and is in neither.
    */
-  walls: string[];
-  /** Door edges with their drawn state; a door blocks while not open. Kept apart so play can override `open`. */
+  walls: MapLiveWall[];
+  /** Door segments with their drawn state; a door blocks while not open. Kept apart so play can override `open`. */
   doors: MapLiveDoor[];
   solid: string[];
 }
 
-/** A door's open or shut state on one edge: as drawn in the snapshot, or as the DM set it during a fight. */
+/** A door's open or shut state: as drawn in the snapshot, or as the DM set it during a fight. `id` is its segment's. */
 export interface MapLiveDoorState {
-  edge: string;
+  id: string;
   open: boolean;
 }
 
@@ -106,5 +121,8 @@ export interface MapLiveDoorLeaf {
 }
 
 export interface MapLiveDoor extends MapLiveDoorState {
+  /** The doorway's line in image cells; the leaf spans it, hinged as `leaf` says. */
+  a: [number, number];
+  b: [number, number];
   leaf: MapLiveDoorLeaf | null;
 }

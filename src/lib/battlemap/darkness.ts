@@ -163,6 +163,29 @@ export function paintPlayerVeil(
   return grey !== null || veil !== null;
 }
 
+/**
+ * Where a player's viewers see at all, as a host-sized canvas opaque there (full from half-seen up): the breathing
+ * edge of a light may lift the veil only inside it, since the player veil is opaque where nothing is seen. Null when
+ * nothing is seen or no canvas can be made.
+ */
+export function seenLimit(
+  rect: VeilRect,
+  seen: Float32Array,
+  gridW: number,
+  gridH: number,
+  hostW: number,
+  hostH: number,
+  makeCanvas: MakeCanvas | undefined,
+): CanvasImageSource | null {
+  if (!makeCanvas || hostW <= 0 || hostH <= 0) return null;
+  const image = veilImage(seen, gridW, gridH, (v) => Math.min(1, v * 2), makeCanvas);
+  if (!image) return null;
+  const made = makeCanvas(hostW, hostH);
+  if (!made) return null;
+  drawSmoothed(made.ctx, image, rect);
+  return made.canvas;
+}
+
 /** A canvas factory over the DOM canvas, for components (the editor uses `offscreenMakeCanvas`). */
 export function domMakeCanvas(): MakeCanvas {
   return (width, height) => {

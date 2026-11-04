@@ -2,10 +2,11 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { persistReorder } from "@/lib/reorder";
-import type { SoundboardPage, SoundboardPageUpdate } from "@/types/sound.types";
+import type { DeckLane, SoundboardPage, SoundboardPageUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "soundboard_pages";
 
@@ -54,7 +55,7 @@ export function useSoundboardPages() {
     queryKey: computed(() => [QUERY_KEY, activeCampaignId.value] as const),
     queryFn: ({ queryKey: [, campaignId] }) => {
       if (campaignId === null) throw new Error("useSoundboardPages fetched without a campaign");
-      return fetchPages(campaignId);
+      return readDeckSlice(campaignId, "pages", () => fetchPages(campaignId));
     },
     enabled: () => !!activeCampaignId.value,
   });
@@ -111,6 +112,30 @@ export function useReorderSoundboardPages() {
   return useMutation({
     mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
       await persistReorder("reorder_soundboard_pages", updates);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
+    },
+  });
+}
+
+/**
+ * Change one lane's name, rule or feed. The server changes that one lane in
+ * place, so two lane edits at once both survive, and a feed given to this lane
+ * moves off the lane that had it (a page has one of each).
+ */
+export function useUpdatePageLane() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  return useMutation({
+    mutationFn: async ({ pageId, laneIndex, patch }: { pageId: string; laneIndex: number; patch: Partial<DeckLane> }) => {
+      const { error } = await supabase.rpc("update_soundboard_page_lane", {
+        p_page_id: pageId,
+        p_lane: laneIndex,
+        p_patch: patch,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });

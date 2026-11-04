@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import type { LibraryRollTable, RollTable, RollTableInsert, RollTableUpdate } from "@/types/rollTable.types";
 import { isLibraryId } from "@/lib/dungeon-features/library";
 import { libraryRollTableToInsert } from "@/lib/dungeon-features/libraryCopy";
@@ -62,6 +62,8 @@ export function useRollTables() {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, campaignId.value, campaign.activeCampaign?.user_id ?? null] as const),
     queryFn: ({ queryKey: [, cid, ownerId] }) => fetchRollTables(cid, ownerId),
+    // The owner is in the key: wait for the campaign row rather than read twice.
+    enabled: () => ownerKnownFor(campaign.activeCampaign, campaignId.value),
     staleTime: 30_000,
   });
 }

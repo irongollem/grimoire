@@ -117,6 +117,7 @@ function spaceRegionRow(
     site_location_id: siteId,
     space_location_id: roomId,
     cells: space.cells,
+    vertices: space.outline,
     cell_signature: space.signature,
     region_role: "space",
     derived_from: space.nameSource === "annotation" ? "annotation" : "floodfill",
@@ -422,12 +423,12 @@ export function useMapPublish(opts: {
           spaceKeyToLocationId.set(change.space.key, change.region.space_location_id!);
           regionUpdates.push({
             id: change.region.id,
-            update: { cells: change.space.cells, cell_signature: change.space.signature },
+            update: { cells: change.space.cells, vertices: change.space.outline, cell_signature: change.space.signature },
           });
         } else if (change.kind === "skip" || change.kind === "held") {
           spaceKeyToLocationId.set(change.space.key, change.region.space_location_id!);
         } else if (change.kind === "orphan") {
-          regionUpdates.push({ id: change.region.id, update: { cells: [], cell_signature: null } });
+          regionUpdates.push({ id: change.region.id, update: { cells: [], vertices: null, cell_signature: null } });
         }
       }
 
@@ -500,8 +501,8 @@ export function useMapPublish(opts: {
       // said "published rev N" before the rooms, ways and placements behind
       // it existed — so a failure partway through (a quota trigger on the
       // third room, an RLS denial, a dropped connection) left a site that
-      // read as fully published, which also hid the Layers panel's "Review
-      // changes" button, since that renders only while there is staleness to
+      // read as fully published, which also hid the map menu's "Review
+      // changes" entry, since that renders only while there is staleness to
       // report. The DM was left with a half-applied plan and no way back to
       // it from Build. Last write, after everything it claims. Found by the
       // #884 review pass.

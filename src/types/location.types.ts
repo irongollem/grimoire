@@ -167,6 +167,16 @@ export interface MapPin {
   visible_to_players: boolean;
 }
 
+/** What the Picture's local moving file is (#1125 decision 6). `kind` picks the element that plays it. */
+export interface MapMotion {
+  kind: "video" | "animated";
+  file_name: string;
+  mime: string;
+  bytes: number;
+  width: number;
+  height: number;
+}
+
 export interface Location {
   id: string;
   user_id: string;
@@ -259,6 +269,12 @@ export interface Location {
    */
   map_scale: MapScale | null;
   /**
+   * The Picture moves (#1125 decision 6): a GIF, animated WebP/APNG, WebM or MP4 that lives only in the DM's browser
+   * (OPFS, keyed by this place's id) while `map_url` holds a WebP still. Null: the Picture is a still. Never
+   * readable by players.
+   */
+  map_motion: MapMotion | null;
+  /**
    * `{cols, rows}` for a site whose Plan is traced on a blank grid with no
    * Picture and no Drawing beneath it. Null otherwise.
    */
@@ -338,6 +354,7 @@ export const LOCATION_SUMMARY_COLUMNS = [
   "map_layer_url",
   "map_layer_stand_url",
   "map_layer_calibration",
+  "map_motion",
   "plan_size",
   "map_published_rev",
   "player_summary",
@@ -416,6 +433,7 @@ export type LocationInsert = Omit<
   | "map_layer_calibration"
   | "map_live"
   | "map_scale"
+  | "map_motion"
   | "plan_size"
   | "is_level"
   | "climate"
@@ -445,6 +463,8 @@ export type LocationInsert = Omit<
   map_live?: MapLive | null;
   /** Omit to take the column default of null — the map has no scale yet. */
   map_scale?: MapScale | null;
+  /** Omit to take the column default of null: the Picture is a still. */
+  map_motion?: MapMotion | null;
   /** Omit to take the column default of null — no blank-grid plan yet. */
   plan_size?: { cols: number; rows: number } | null;
 };

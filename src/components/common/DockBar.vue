@@ -49,5 +49,5 @@ const HIDE_FROM = { sm: "sm:hidden", md: "md:hidden", lg: "lg:hidden", xl: "xl:h
 const isMobile = useIsMobile();
 const offsetClass = computed(() => isMobile.value
   ? "bottom-0"
-  : "barnav:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] sidenav:bottom-0");
+  : "barnav:bottom-[calc(4.5rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] sidenav:bottom-0");
 </script>

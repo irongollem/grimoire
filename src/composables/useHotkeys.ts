@@ -35,6 +35,22 @@ export interface HotkeyBinding {
   allowInTextEntry?: boolean;
   /** Omit from the cheat sheet (e.g. an Escape handler). Default false. */
   hidden?: boolean;
+  /**
+   * Called when the key that fired this binding is let go. The release is
+   * routed to the binding that took the keydown, whatever layers, registrations
+   * or modifiers changed since. It also fires when the window blurs or the tab
+   * hides while the key is held, and when the binding's registration is
+   * disposed. In the last two cases the original keydown event is passed.
+   */
+  onRelease?: (event: KeyboardEvent) => void;
+  /** Auto-repeat keydowns neither call `handler` nor reach another binding. Default false. */
+  ignoreRepeat?: boolean;
+}
+
+interface HeldKey {
+  binding: HotkeyBinding;
+  registration: Registration;
+  event: KeyboardEvent;
 }
 
 interface Registration {
@@ -57,6 +73,9 @@ const CHEAT_SHEET_LAYER_ORDER: Record<HotkeyLayer, number> = { overlay: 0, page:
 // `useActiveHotkeys`'s computed re-run on register/dispose.
 const registrations = shallowRef<Registration[]>([]);
 
+// Keys whose keydown a binding with `onRelease` took, by physical key.
+const heldKeys = new Map<string, HeldKey>();
+
 let listenerAttached = false;
 const isMac = isMacPlatform();
 
@@ -64,14 +83,48 @@ function addRegistration(registration: Registration): void {
   registrations.value = [...registrations.value, registration];
   if (!listenerAttached) {
     document.addEventListener("keydown", handleKeydown);
+    document.addEventListener("keyup", handleKeyup);
+    window.addEventListener("blur", releaseAllHeld);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     listenerAttached = true;
   }
 }
 
+function heldKeyId(event: KeyboardEvent): string {
+  return event.code ? event.code : event.key.toLowerCase();
+}
+
+function releaseHeld(id: string, held: HeldKey, event: KeyboardEvent): void {
+  // Delete first so a throwing onRelease cannot leave the key stuck.
+  if (heldKeys.get(id) === held) heldKeys.delete(id);
+  held.binding.onRelease?.(event);
+}
+
+function releaseAllHeld(): void {
+  for (const [id, held] of Array.from(heldKeys)) releaseHeld(id, held, held.event);
+}
+
+function handleVisibilityChange(): void {
+  if (document.visibilityState === "hidden") releaseAllHeld();
+}
+
+function handleKeyup(event: KeyboardEvent): void {
+  if (typeof event.key !== "string") return;
+  const id = heldKeyId(event);
+  const held = heldKeys.get(id);
+  if (held) releaseHeld(id, held, event);
+}
+
 function removeRegistration(registration: Registration): void {
+  for (const [id, held] of Array.from(heldKeys)) {
+    if (held.registration === registration) releaseHeld(id, held, held.event);
+  }
   registrations.value = registrations.value.filter((r) => r !== registration);
   if (registrations.value.length === 0 && listenerAttached) {
     document.removeEventListener("keydown", handleKeydown);
+    document.removeEventListener("keyup", handleKeyup);
+    window.removeEventListener("blur", releaseAllHeld);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
     listenerAttached = false;
   }
 }
@@ -121,16 +174,21 @@ function warnOnCollisions(registration: Registration, bindings: HotkeyBinding[])
   }
 }
 
-function findMatch(layer: HotkeyLayer, event: KeyboardEvent, inTextEntry: boolean): HotkeyBinding | null {
+interface Match {
+  binding: HotkeyBinding;
+  registration: Registration;
+}
+
+function findMatch(layer: HotkeyLayer, event: KeyboardEvent, inTextEntry: boolean): Match | null {
   // Iterate in registration order and let later matches overwrite earlier
   // ones, so "most recently registered wins" falls out for free.
-  let winner: HotkeyBinding | null = null;
+  let winner: Match | null = null;
   for (const registration of registrations.value) {
     if (registration.layer !== layer) continue;
     if (!toValue(registration.enabled)) continue;
     for (const binding of toValue(registration.bindings)) {
       if (inTextEntry && !binding.allowInTextEntry) continue;
-      if (matchesCombo(event, parseCombo(binding.combo), isMac)) winner = binding;
+      if (matchesCombo(event, parseCombo(binding.combo), isMac)) winner = { binding, registration };
     }
   }
   return winner;
@@ -172,7 +230,17 @@ function handleKeydown(event: KeyboardEvent): void {
     const match = findMatch(layer, event, inTextEntry);
     if (match) {
       event.preventDefault();
-      match.handler(event);
+      const { binding, registration } = match;
+      if (event.repeat && binding.ignoreRepeat) return;
+      if (binding.onRelease) {
+        const id = heldKeyId(event);
+        const previous = heldKeys.get(id);
+        // A different binding still holding this key (layers changed between
+        // two presses with no keyup) is released before the new one takes it.
+        if (previous && previous.binding !== binding) releaseHeld(id, previous, event);
+        heldKeys.set(id, { binding, registration, event });
+      }
+      binding.handler(event);
       return; // exactly one handler per event
     }
   }

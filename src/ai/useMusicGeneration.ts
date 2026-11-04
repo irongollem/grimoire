@@ -164,7 +164,6 @@ async function resumeMusicJob(
 
 export interface MusicGenerationInput {
   campaignId: string;
-  pageId: string | null;
   soundName: string;
   category: SoundCategory;
   request: FallbackPromptRequest;
@@ -203,7 +202,6 @@ export function useMusicGeneration() {
         prompt: input.prompt,
         name: input.soundName,
         category: input.category,
-        pageId: input.pageId,
         imageUrls: [...input.imageUrls].sort(),
       });
       const requestId = await getOrCreateMusicRequestId(input.campaignId, requestFingerprint);
@@ -213,7 +211,6 @@ export function useMusicGeneration() {
           campaign_id: input.campaignId,
           sound_name: input.soundName,
           category: input.category,
-          page_id: input.pageId,
           description: request.description,
           length_seconds: request.lengthSeconds,
           vocals: request.vocals,

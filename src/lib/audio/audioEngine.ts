@@ -59,8 +59,12 @@ export interface AudioEngine {
   setBusVolume(bus: AudioBus, volume: number, rampMs?: number): void;
   /** Ramp the master gain (0–1). */
   setMasterVolume(volume: number, rampMs?: number): void;
-  /** Ramp a sound in from silence to its current configured volume. */
-  fadeIn(soundId: string, ms: number): void;
+  /**
+   * Ramp a sound up to its current configured level. `fromSilence` first drops
+   * it to 0 so a requested fade-in is audible even when the gain is already at
+   * its target (the default fade only ramps from wherever the gain sits).
+   */
+  fadeIn(soundId: string, ms: number, fromSilence?: boolean): void;
   /** Ramp a sound down to true silence. Resolves once the ramp has finished, so callers can safely pause/stop after. */
   fadeOut(soundId: string, ms: number): Promise<void>;
   /** Attenuate the music + ambient buses (NOT effects) — fast attack for an effect one-shot. */
@@ -83,6 +87,23 @@ export interface AudioEngine {
    * each time is most of what stops ambience sounding like a loop.
    */
   setPan(soundId: string, pan: number): void;
+  /**
+   * Per-play multiplier (velocity, take variation) that composes with volume,
+   * trim, effect gain and dim. 1 is neutral. Applied instantly.
+   */
+  setSoundPlayGain(soundId: string, gain: number): void;
+  /**
+   * Solo dim factor, 0-1, composed into the sound's gain. Remembered even
+   * before the sound is attached, so a late starter comes up already dimmed.
+   * A sound that is mid fade-out keeps its fade; the factor lands afterwards.
+   */
+  setSoundDim(soundId: string, dim: number, rampMs?: number): void;
+  /**
+   * Hush the whole mix (all buses, reverb included) to a fraction of its level
+   * on a dedicated stage after master, so it is independent of the master
+   * fader, mute and the effects duck. Quick attack, slow release.
+   */
+  setHush(on: boolean): void;
   /** Resume a suspended AudioContext (e.g. after OS/PWA backgrounding). */
   resume(): void;
 }
@@ -129,6 +150,10 @@ const DUCKED_BUSES: readonly AudioBus[] = ["music", "ambient"]; // effects bus i
 // exponentialRampToValueAtTime can neither approach nor leave true zero —
 // see scheduleGain() below for the classic bug this avoids.
 const SILENCE_FLOOR = 0.0001;
+
+const HUSH_LEVEL = 0.3;
+const HUSH_ATTACK_MS = 200;
+const HUSH_RELEASE_MS = 800;
 
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
@@ -204,7 +229,19 @@ interface SoundChain {
   volume: number;     // 0–1 user volume, last value passed to setSoundVolume
   trim: number;        // linear multiplier, last value passed to setSoundTrim (default 1)
   effectGain: number; // linear multiplier contributed by the active effect preset (default 1)
+  playGain: number;   // per-play multiplier (velocity / take variation), default 1
+  dim: number;        // solo dim factor, default 1
+  /** True from fadeOut until the next fadeIn/setSoundVolume: a dim change must not undo the fade. */
+  fading: boolean;
 }
+
+/** The linear gain a chain should sit at: every factor that scales a sound, multiplied. */
+function chainLevel(chain: SoundChain): number {
+  return chain.volume * chain.trim * chain.effectGain * chain.playGain * chain.dim;
+}
+
+/** Dim factors by sound id, kept apart from chains so they outlive a re-attach and reach sounds not yet attached. */
+const dimTargets = new Map<string, number>();
 
 // createMediaElementSource() may only ever be called once per HTMLAudioElement
 // for the lifetime of that element — calling it twice throws. Cache by element
@@ -228,6 +265,8 @@ interface BusGraph {
   reverbReturn: GainNode;
   /** Master-level reverb send, tapped off masterFilter. */
   masterSend: GainNode;
+  /** Hush stage between master gain and the destination. */
+  hush: GainNode;
 }
 
 /**
@@ -300,6 +339,9 @@ function setDirectMode(enabled: boolean): void {
 // restores exactly (and so a duck() while already ducked doesn't compound).
 let preDuckGains: Partial<Record<AudioBus, number>> | null = null;
 
+/** Whether hush is engaged, remembered so a graph built later starts in the right state. */
+let hushOn = false;
+
 function openFilter(ctx: AudioContext): BiquadFilterNode {
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
@@ -314,7 +356,6 @@ function ensureGraph(ctx: AudioContext): BusGraph {
   // sound → busFilter → busGain → masterFilter → masterGain → destination
   const master = ctx.createGain();
   master.gain.value = 1;
-  master.connect(ctx.destination);
 
   const masterFilter = openFilter(ctx);
   masterFilter.connect(master);
@@ -350,7 +391,14 @@ function ensureGraph(ctx: AudioContext): BusGraph {
   masterFilter.connect(masterSend);
   masterSend.connect(convolver);
 
-  graph = { ctx, master, masterFilter, buses, busFilters, convolver, reverbReturn, masterSend };
+  // Hush sits after master so it also covers the reverb return and is not
+  // moved by the master fader or a mute.
+  const hush = ctx.createGain();
+  hush.gain.value = hushOn ? HUSH_LEVEL : 1;
+  master.connect(hush);
+  hush.connect(ctx.destination);
+
+  graph = { ctx, master, masterFilter, buses, busFilters, convolver, reverbReturn, masterSend, hush };
   return graph;
 }
 
@@ -396,7 +444,11 @@ function buildChain(ctx: AudioContext, busGraph: BusGraph, soundId: string, el: 
   soundGain.connect(reverbSend);
   reverbSend.connect(busGraph.convolver);
 
-  chains.set(soundId, { el, source, filter, soundGain, reverbSend, panner, bus, volume: 1, trim: 1, effectGain: 1 });
+  const dim = dimTargets.get(soundId);
+  chains.set(soundId, {
+    el, source, filter, soundGain, reverbSend, panner, bus,
+    volume: 1, trim: 1, effectGain: 1, playGain: 1, dim: dim === undefined ? 1 : dim, fading: false,
+  });
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -450,7 +502,8 @@ function setSoundVolume(soundId: string, volume: number, rampMs = 0): void {
   const chain = chains.get(soundId);
   if (!chain) return;
   chain.volume = clamp01(volume);
-  scheduleGain(chain.soundGain.gain, ctx, chain.volume * chain.trim * chain.effectGain, rampMs);
+  chain.fading = false;
+  scheduleGain(chain.soundGain.gain, ctx, chainLevel(chain), rampMs);
 }
 
 function setSoundTrim(soundId: string, trim: number): void {
@@ -460,7 +513,7 @@ function setSoundTrim(soundId: string, trim: number): void {
   const chain = chains.get(soundId);
   if (!chain) return;
   chain.trim = Math.max(0, trim);
-  scheduleGain(chain.soundGain.gain, ctx, chain.volume * chain.trim * chain.effectGain, 0);
+  scheduleGain(chain.soundGain.gain, ctx, chainLevel(chain), 0);
 }
 
 function setBusVolume(bus: AudioBus, volume: number, rampMs = 0): void {
@@ -479,13 +532,24 @@ function setMasterVolume(volume: number, rampMs = 0): void {
   scheduleGain(busGraph.master.gain, ctx, clamp01(volume), rampMs);
 }
 
-function fadeIn(soundId: string, ms: number): void {
+function fadeIn(soundId: string, ms: number, fromSilence = false): void {
   if (directMode) return direct.fadeIn(soundId, ms);
   const ctx = getAudioContext();
   if (!ctx) return;
   const chain = chains.get(soundId);
   if (!chain) return;
-  scheduleGain(chain.soundGain.gain, ctx, chain.volume * chain.trim * chain.effectGain, ms);
+  chain.fading = false;
+  if (fromSilence && ms > 0) {
+    // Anchor at 0 explicitly: param.value can lag a render quantum behind a
+    // just-scheduled value, so scheduleGain would anchor at the stale level.
+    const now = ctx.currentTime;
+    const param = chain.soundGain.gain;
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(0, now);
+    param.linearRampToValueAtTime(chainLevel(chain), now + ms / 1000);
+    return;
+  }
+  scheduleGain(chain.soundGain.gain, ctx, chainLevel(chain), ms);
 }
 
 function fadeOut(soundId: string, ms: number): Promise<void> {
@@ -494,6 +558,7 @@ function fadeOut(soundId: string, ms: number): Promise<void> {
   if (!ctx) return Promise.resolve();
   const chain = chains.get(soundId);
   if (!chain) return Promise.resolve();
+  chain.fading = true;
   scheduleGain(chain.soundGain.gain, ctx, 0, ms);
   return waitMs(ms);
 }
@@ -561,7 +626,7 @@ function setEffect(soundId: string, preset: AudioEffectPreset, rampMs = EFFECT_R
   scheduleLinear(chain.filter.Q, ctx, target.Q, rampMs);
 
   chain.effectGain = target.gain;
-  scheduleLinear(chain.soundGain.gain, ctx, chain.volume * chain.trim * chain.effectGain, rampMs);
+  scheduleLinear(chain.soundGain.gain, ctx, chainLevel(chain), rampMs);
 
   if (target.send > 0) setReverbDecay(ctx, busGraph, target.decay);
   scheduleGain(chain.reverbSend.gain, ctx, target.send, rampMs);
@@ -605,6 +670,41 @@ function setPan(soundId: string, pan: number): void {
   chain.panner.pan.setValueAtTime(clamped, ctx.currentTime);
 }
 
+function setSoundPlayGain(soundId: string, gain: number): void {
+  if (directMode) return direct.setSoundPlayGain(soundId, gain);
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const chain = chains.get(soundId);
+  if (!chain) return;
+  chain.playGain = Math.max(0, gain);
+  scheduleGain(chain.soundGain.gain, ctx, chainLevel(chain), 0);
+}
+
+function setSoundDim(soundId: string, dim: number, rampMs = 0): void {
+  const clamped = clamp01(dim);
+  // Neutral is the absence of an entry, so the map never grows with solo history.
+  if (clamped === 1) dimTargets.delete(soundId);
+  else dimTargets.set(soundId, clamped);
+  if (directMode) return direct.setSoundDim(soundId, clamped, rampMs);
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const chain = chains.get(soundId);
+  if (!chain) return;
+  chain.dim = clamped;
+  // A fade-out in flight owns the gain; the factor is picked up when it ends.
+  if (chain.fading) return;
+  scheduleGain(chain.soundGain.gain, ctx, chainLevel(chain), rampMs);
+}
+
+function setHush(on: boolean): void {
+  hushOn = on;
+  if (directMode) return direct.setHush(on);
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const busGraph = ensureGraph(ctx);
+  scheduleGain(busGraph.hush.gain, ctx, on ? HUSH_LEVEL : 1, on ? HUSH_ATTACK_MS : HUSH_RELEASE_MS);
+}
+
 function resume(): void {
   resumeExistingAudioContext();
 }
@@ -639,6 +739,9 @@ export function getAudioEngine(): AudioEngine {
       setBusEffect,
       setMasterEffect,
       setPan,
+      setSoundPlayGain,
+      setSoundDim,
+      setHush,
       resume,
     };
   }

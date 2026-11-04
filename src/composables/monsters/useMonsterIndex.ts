@@ -6,7 +6,7 @@ import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import type { MonsterIndexEntry } from "@/types/monster.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -103,7 +103,12 @@ export function useMonsterIndex(getOptions?: () => { enabled?: boolean; sides?: 
   const customQuery = useQuery({
     queryKey: computed(() => [...CUSTOM_INDEX_KEY, activeCampaignId.value, activeCampaign.value?.user_id ?? null, ruleset.value] as const),
     queryFn: ({ queryKey: [, , campaignId, ownerId, rs] }) => fetchCustomIndex(campaignId, ownerId, rs),
-    enabled: () => isEnabled() && getOptions?.().sides !== "library" && getCurrentUser() !== null,
+    // The owner is in the key (#590): wait for the campaign row rather than read twice (#1138).
+    enabled: () =>
+      isEnabled() &&
+      getOptions?.().sides !== "library" &&
+      getCurrentUser() !== null &&
+      (activeCampaignId.value === null || ownerKnownFor(activeCampaign.value, activeCampaignId.value)),
     staleTime: Infinity,
   });
 

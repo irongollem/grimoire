@@ -175,10 +175,9 @@ interface TrackListItem {
   layer: PlaylistTrackLayer;
 }
 
-const { open, playlist, pageId, defaultType = "music" } = defineProps<{
+const { open, playlist, defaultType = "music" } = defineProps<{
   open: boolean;
   playlist?: SoundboardPlaylist | null;
-  pageId: string | null;
   /**
    * What a *new* one starts as. Opening this from the Scenes tab should not
    * hand the DM a music playlist to change back. Ignored when editing.
@@ -399,7 +398,6 @@ async function save() {
       const { tracks } = buildTracks(tracksDraft);
       const created = await createPlaylist({
         campaign_id: activeCampaignId.value,
-        page_id: pageId,
         playlist_type: meta.playlist_type,
         ...buildMeta(meta),
         sort_order: 0,

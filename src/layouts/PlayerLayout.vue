@@ -371,7 +371,6 @@ import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync"
 import { usePlayerRemovalGuard } from "@/composables/player/usePlayerRemovalGuard";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
-import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
 import { usePlayerUnread } from "@/composables/player/usePlayerUnread";
@@ -407,6 +406,12 @@ const PlayerLocationDialog = defineAsyncComponent(
 );
 const PlayerCampaignsSheet = defineAsyncComponent(
   () => import("@/components/layout/PlayerCampaignsSheet.vue"),
+);
+
+// #1138: renders only in the desktop encounter sidebar; its lightboxes and
+// family block stay off the cold /play load until a fight is shown.
+const PlayerEncounterPanel = defineAsyncComponent(
+  () => import("@/components/player/PlayerEncounterPanel.vue"),
 );
 
 const bugReportOpen = ref(false);

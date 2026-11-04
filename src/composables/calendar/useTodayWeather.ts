@@ -35,12 +35,14 @@ export interface WeatherSource {
  * is worked out, shared by today's weather and the forecast. The place list is
  * the one the Atlas tree already holds; a player reads the shared places
  * instead, and a place they cannot see simply does not resolve, which falls
- * back to the campaign climate and fetches nothing extra.
+ * back to the campaign climate and fetches nothing extra. With no current place the list is not read at all.
  */
 export function useWeatherSource(options: { player?: boolean } = {}): ComputedRef<WeatherSource | null> {
   const campaign = useCampaignStore();
   // Static per call site: a screen is either the DM's or the player's.
-  const places = options.player ? useSharedLocations() : useAllLocations();
+  // With no current place there is nothing to resolve: the campaign's climate answers without the list.
+  const hasPlace = () => !!campaign.activeCampaign?.current_location_id;
+  const places = options.player ? useSharedLocations(hasPlace) : useAllLocations(hasPlace);
 
   const index = computed(() => {
     const map = new Map<string, ClimatePlace & TerrainPlace & { name: string }>();

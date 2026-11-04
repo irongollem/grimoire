@@ -6,6 +6,7 @@ import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { isLibraryId, shadowByName } from "@/lib/dungeon-features/library";
+import { normaliseIds, useRowsByIds } from "@/composables/useRowsByIds";
 import { libraryFeatureToInsert } from "@/lib/dungeon-features/libraryCopy";
 import type { MaybeRefOrGetter, Ref } from "vue";
 import { computed, isRef, ref, toValue } from "vue";
@@ -142,13 +143,20 @@ const LIBRARY_KEY = "library-dungeon-features";
 // Library rows change only by migration, so one fetch per hour is plenty.
 const LIBRARY_STALE_MS = 60 * 60 * 1000;
 
-async function fetchLibraryDungeonFeatures(): Promise<LibraryDungeonFeature[]> {
-  const { data, error } = await supabase
-    .from("library_dungeon_features")
-    .select("*")
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return data as LibraryDungeonFeature[];
+const BY_IDS_CHUNK = 100;
+
+/** Exactly these library features, by id (chunked so a long list stays inside the URL limit). */
+async function fetchLibraryDungeonFeaturesByIds(ids: readonly string[]): Promise<Map<string, LibraryDungeonFeature>> {
+  const rows = new Map<string, LibraryDungeonFeature>();
+  for (let i = 0; i < ids.length; i += BY_IDS_CHUNK) {
+    const { data, error } = await supabase
+      .from("library_dungeon_features")
+      .select("*")
+      .in("id", ids.slice(i, i + BY_IDS_CHUNK));
+    if (error) throw error;
+    for (const row of data as LibraryDungeonFeature[]) rows.set(row.id, row);
+  }
+  return rows;
 }
 
 async function fetchLibraryDungeonFeature(id: string): Promise<LibraryDungeonFeature | null> {
@@ -181,16 +189,6 @@ export function useLibraryDungeonFeatures(getOptions?: () => { enabled?: boolean
   return { ...query, isLoading: computed(() => query.isLoading.value || (slugs.value === null && (getOptions?.().enabled ?? true))) };
 }
 
-/** Every library feature, enabled or not: what a stored id RESOLVES against (#954). */
-export function useAllLibraryDungeonFeatures(getOptions?: () => { enabled?: boolean }) {
-  return useQuery({
-    queryKey: [LIBRARY_KEY, "all"],
-    queryFn: fetchLibraryDungeonFeatures,
-    staleTime: LIBRARY_STALE_MS,
-    enabled: () => getOptions?.().enabled ?? true,
-  });
-}
-
 /** One library feature; held until `id` is a library id (a uuid is the DM's own). */
 export function useLibraryDungeonFeature(id: MaybeRefOrGetter<string | null | undefined>) {
   return useQuery({
@@ -209,25 +207,41 @@ export function useLibraryDungeonFeature(id: MaybeRefOrGetter<string | null | un
 export function useDungeonFeatureIndex(getOptions?: () => UseDungeonFeaturesOptions) {
   const own = useDungeonFeatures(getOptions);
   const library = useLibraryDungeonFeatures(getOptions);
-  const allLibrary = useAllLibraryDungeonFeatures(getOptions);
   const data = computed<DungeonFeatureEntry[] | undefined>(() => {
     if (!own.data.value || !library.data.value) return undefined;
     return shadowByName(library.data.value, own.data.value);
   });
-  // Resolving a STORED id must not shadow: an encounter or a room that cites the
-  // library row still means that row when the DM also owns one of the same
-  // name. So `data` is the pick list and `byId` resolves every id either way.
+  return {
+    data,
+    isLoading: computed(() => own.isLoading.value || library.isLoading.value),
+    error: computed(() => own.error.value ?? library.error.value),
+  };
+}
+
+/** Resolves STORED feature ids: all own features, plus only the library rows
+ *  `libraryIds` cites (uuids and blanks are ignored), enabled or not (#954). Never
+ *  shadowed: a room or door that cites the library row still means that row when the
+ *  DM also owns one of the same name. Reads nothing from the library for no ids. */
+export function useDungeonFeatureResolver(
+  getOptions: () => UseDungeonFeaturesOptions,
+  libraryIds: () => readonly (string | null | undefined)[],
+) {
+  const own = useDungeonFeatures(getOptions);
+  const cited = useRowsByIds<LibraryDungeonFeature>({
+    keyRoot: [LIBRARY_KEY, "by-ids"],
+    idLists: () => [normaliseIds(libraryIds()).filter(isLibraryId)],
+    fetch: ([ids]) => fetchLibraryDungeonFeaturesByIds(ids),
+    enabled: () => getOptions().enabled !== false,
+  });
   const byId = computed(() => {
-    const map = new Map<string, DungeonFeatureEntry>();
-    for (const row of allLibrary.data.value ?? []) map.set(row.id, row);
+    const map = new Map<string, DungeonFeatureEntry>(cited.data.value);
     for (const row of own.data.value ?? []) map.set(row.id, row);
     return map;
   });
   return {
-    data,
     byId,
-    isLoading: computed(() => own.isLoading.value || library.isLoading.value || allLibrary.isLoading.value),
-    error: computed(() => own.error.value ?? library.error.value ?? allLibrary.error.value),
+    isLoading: computed(() => own.isLoading.value || cited.isLoading.value),
+    error: own.error,
   };
 }
 

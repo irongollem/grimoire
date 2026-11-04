@@ -16,6 +16,17 @@ export function campaignScopeFilter(campaignId: string | null, userId: string, o
   return `campaign_id.eq.${campaignId},and(campaign_id.is.null,user_id.in.(${authors.join(",")}))`;
 }
 
+/**
+ * Whether the campaign owner is known for `campaignId`, i.e. the store holds
+ * that campaign's row. A read keyed on the owner (`campaignScopeFilter`) must
+ * wait for this: the active id is set before the row lands, so a read started
+ * earlier goes out with owner `null`, is repeated once the row arrives, and
+ * for a co-DM its first answer misses the owner's rows.
+ */
+export function ownerKnownFor(activeCampaign: { id: string } | null, campaignId: string | null): boolean {
+  return campaignId !== null && activeCampaign?.id === campaignId;
+}
+
 /** A personal library row another DM of the campaign authored: readable, but an
  *  UPDATE or DELETE on it matches nothing under RLS, so offering to edit it
  *  would look like a save that did nothing. Shared library rows (`user_id`

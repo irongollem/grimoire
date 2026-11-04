@@ -1,4 +1,5 @@
 import { computed } from "vue";
+import { useOpenBook } from "@/composables/openBook/useOpenBook";
 import { useLocationVisibility } from "@/composables/openBook/useOpenBookShare";
 import { useParty } from "@/composables/party/useParty";
 import { npcBookBlock, npcSharingPlaceIds, type NpcBookBlock, type NpcSharing } from "@/lib/openBook/eligibility";
@@ -17,7 +18,11 @@ export function npcBlockedCaption(block: NpcBookBlock): string | null {
 export function useNpcBookRule() {
   const campaign = useCampaignStore();
   const { data: partyData } = useParty();
-  const { data: places } = useLocationVisibility(() => (campaign.isOwner ? campaign.activeCampaignId : null));
+  const ownerCampaignId = () => (campaign.isOwner ? campaign.activeCampaignId : null);
+  // Same key as the cards' own book read, so one request serves both, and it starts with the list.
+  // The rule only matters once a book exists (#1138), so the places are not read for a campaign without one.
+  const { data: book } = useOpenBook(ownerCampaignId);
+  const { data: places } = useLocationVisibility(() => (book.value ? ownerCampaignId() : null));
   const partyIds = computed(() => (partyData.value ?? []).map((m) => m.id));
   const sharedPlaceIds = computed(() => npcSharingPlaceIds(places.value ?? [], partyIds.value));
   const blockFor = (npc: NpcSharing): NpcBookBlock => npcBookBlock(npc, partyIds.value, sharedPlaceIds.value);

@@ -52,6 +52,7 @@
  * recomputes the summary, the same guard shape as `ensureFixtureBestiary`.
  */
 import { quote, sql } from "./dev-db.ts";
+import { fixtureCampaign } from "./dev-fixture-campaign.ts";
 
 const QUEST_TITLE = "The Speaker's Missing Rider";
 const QUEST_SUMMARY =
@@ -69,10 +70,7 @@ export interface FixtureQuestSummary {
 }
 
 export function ensureFixtureQuest(dbUrl: string, ownerId: string): FixtureQuestSummary | null {
-  const campaignId = sql(
-    dbUrl,
-    `select id from public.campaigns where user_id = ${quote(ownerId)} order by created_at limit 1`,
-  );
+  const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
   if (!campaignId) return null;
 
   const questId =

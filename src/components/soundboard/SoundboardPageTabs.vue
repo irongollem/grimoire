@@ -1,26 +1,7 @@
 <template>
-  <!-- No margins or borders of its own: this sits inside a shared row with the
-       Sounds/Scenes/Playlists control, and standalone spacing here pushed the
-       rail out of line with its row-mates. -->
+  <!-- No margins or borders of its own: it sits in the deck header's row and
+       standalone spacing here would push it out of line with its row-mates. -->
   <div class="flex min-w-0 items-center gap-1">
-    <!-- "All" virtual tab (pinned — stays visible while named tabs scroll) -->
-    <AppButton
-      data-page-drop=""
-      :variant="activePageId === null ? 'tinted' : 'subtle'"
-      tone="primary"
-      emphasis="strong"
-      size="sm"
-      label="All"
-      :class="[
-        'shrink-0',
-        // An inactive tab shows no box until hovered — the solid border that
-        // `subtle` draws would turn the row into a strip of outlined buttons.
-        activePageId === null ? '' : 'border-transparent hover:border-border',
-        dropRing(''),
-      ]"
-      @click="activePageId = null"
-    />
-
     <!-- Named page tabs (draggable) — scrolls horizontally when they overflow.
          Edge fades + chevron buttons cue (and trigger) the hidden tabs. -->
     <div class="relative flex-1 min-w-0">
@@ -58,7 +39,12 @@
       <div
         v-for="page in orderedPages"
         :key="page.id"
-        class="group/tab flex items-center shrink-0"
+        class="group/tab flex items-center shrink-0 rounded-md"
+        :class="dropRing(page.id)"
+        :data-page-drop="page.id"
+        @dragover="onTabDragOver($event, page.id)"
+        @dragleave="onTabDragLeave(page.id)"
+        @drop="onTabDrop($event, page.id)"
       >
         <!-- Drag handle -->
         <div
@@ -81,17 +67,13 @@
         />
         <AppButton
           v-else
-          :data-page-drop="page.id"
           :variant="activePageId === page.id ? 'tinted' : 'subtle'"
           tone="primary"
           emphasis="strong"
           size="sm"
           :label="page.name"
           :tooltip="page.name + ' (double-click to rename)'"
-          :class="[
-            activePageId === page.id ? '' : 'border-transparent hover:border-border',
-            dropRing(page.id),
-          ]"
+          :class="activePageId === page.id ? '' : 'border-transparent hover:border-border'"
           @click="activePageId = page.id"
           @dblclick="startRename(page)"
         />
@@ -120,7 +102,7 @@
       class="shrink-0 border-dashed"
       @click="addPage"
     >
-      Add Page
+      Add page
       <ProBadge v-if="!canCreatePage" />
     </AppButton>
   </div>
@@ -142,26 +124,49 @@ import {
   useDeleteSoundboardPage,
   useReorderSoundboardPages,
 } from "@/composables/soundboard/useSoundboardPages";
+import { useConfirm } from "@/composables/useConfirm";
 import { useQuota } from "@/composables/billing/useQuota";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import type { SoundboardPage } from "@/types/sound.types";
 
 const activePageId = defineModel<string | null>({ required: true });
-const { pages, highlightDrops = false, dropTarget = null } = defineProps<{
-  /** True while a sound card is being dragged — rings the tabs as drop targets. */
-  highlightDrops?: boolean;
-  /** The tab the drag is currently over — `""` is All, null is none. That one
-      gets the strong ring; the rest stay a faint hint. */
-  dropTarget?: string | null;
+const { pages, padCounts = {} } = defineProps<{
   pages: SoundboardPage[];
+  /** Pads on each page by page id, so deleting a page that holds some can ask first. */
+  padCounts?: Readonly<Record<string, number>>;
 }>();
 
-/** Faint on every tab while dragging, strong only under the pointer. */
+const emit = defineEmits<{
+  /** A pad was dropped on a tab: the view picks the slot, since it knows the pads. */
+  padDrop: [payload: { pageId: string; padId: string }];
+}>();
+
+// ── Pads dropped on a tab ───────────────────────────────────────────────────
+// Only a pad is accepted here. A tab used to take sounds too; a sound now lives
+// in the library and goes onto a slot, so dragging one over a tab does nothing.
+const PAD_TYPE = "application/x-grimoire-pad";
+const overId = ref<string | null>(null);
+
+function carriesPad(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes(PAD_TYPE) === true;
+}
+function onTabDragOver(event: DragEvent, id: string) {
+  if (!carriesPad(event)) return;
+  event.preventDefault();
+  overId.value = id;
+}
+function onTabDragLeave(id: string) {
+  if (overId.value === id) overId.value = null;
+}
+function onTabDrop(event: DragEvent, pageId: string) {
+  overId.value = null;
+  if (!carriesPad(event)) return;
+  event.preventDefault();
+  const padId = event.dataTransfer?.getData(PAD_TYPE);
+  if (padId) emit("padDrop", { pageId, padId });
+}
 function dropRing(id: string): string {
-  if (!highlightDrops) return "";
-  return dropTarget === id
-    ? "ring-2 ring-gold-400 bg-gold-500/20"
-    : "ring-1 ring-gold-400/25";
+  return overId.value === id ? "ring-2 ring-gold-400 bg-gold-500/20" : "";
 }
 
 const { mutate: createPage } = useCreateSoundboardPage();
@@ -170,6 +175,7 @@ const { mutate: deletePage_m } = useDeleteSoundboardPage();
 const { mutate: reorderPages } = useReorderSoundboardPages();
 const { canCreate: canCreatePage } = useQuota("soundboard_pages");
 const showPagePaywall = ref(false);
+const { confirm } = useConfirm();
 
 // Local ordered copy for drag-and-drop
 const orderedPages = ref<SoundboardPage[]>([]);
@@ -308,10 +314,19 @@ function cancelRename() {
 
 // ── Delete ────────────────────────────────────────────────────────────────
 
-function deletePage(id: string) {
+async function deletePage(id: string) {
+  // A page's pads go with it, so a page that holds some asks first.
+  const held = padCounts[id] ?? 0;
+  if (held > 0) {
+    const ok = await confirm(
+      `This page holds ${held} ${held === 1 ? "pad" : "pads"}. They come off the deck; the sounds stay in your library.`,
+      { title: "Delete this page?", confirmLabel: "Delete page" },
+    );
+    if (!ok) return;
+  }
   deletePage_m(id, {
     onSuccess: () => {
-      // If the deleted page was active, fall back to "All"
+      // The deck shows the first page when none is chosen.
       if (activePageId.value === id) {
         activePageId.value = null;
       }

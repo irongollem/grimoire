@@ -15,7 +15,7 @@ const engineCalls = {
   setSoundTrim: vi.fn(),
   setBusVolume: vi.fn(),
   setMasterVolume: vi.fn(),
-  fadeIn: vi.fn<(soundId: string, ms: number) => void>(),
+  fadeIn: vi.fn<(soundId: string, ms: number, fromSilence?: boolean) => void>(),
   fadeOut: vi.fn<(soundId: string, ms: number) => Promise<void>>(() => Promise.resolve()),
   duck: vi.fn(),
   unduck: vi.fn(),
@@ -23,6 +23,9 @@ const engineCalls = {
   setPan: vi.fn<(soundId: string, pan: number) => void>(),
   resume: vi.fn(),
   setDirectMode: vi.fn<(enabled: boolean) => void>(),
+  setSoundPlayGain: vi.fn<(soundId: string, gain: number) => void>(),
+  setSoundDim: vi.fn<(soundId: string, dim: number, rampMs?: number) => void>(),
+  setHush: vi.fn<(on: boolean) => void>(),
 };
 
 let engineAvailable = true;
@@ -61,6 +64,9 @@ interface FakeAudio {
 const created: FakeAudio[] = [];
 /** When set, the next play() rejects — simulates the browser blocking autoplay. */
 let rejectNextPlay = false;
+/** When set, the next play() waits for `startPlay()`: a file still loading. */
+let deferNextPlay = false;
+let startPlay: () => void = () => undefined;
 
 function installAudioStub(): void {
   created.length = 0;
@@ -83,6 +89,15 @@ function installAudioStub(): void {
       if (rejectNextPlay) {
         rejectNextPlay = false;
         return Promise.reject(new Error("NotAllowedError"));
+      }
+      if (deferNextPlay) {
+        deferNextPlay = false;
+        return new Promise((resolve) => {
+          startPlay = () => {
+            this.paused = false;
+            resolve();
+          };
+        });
       }
       this.paused = false;
       return Promise.resolve();
@@ -112,6 +127,7 @@ beforeEach(async () => {
   engineCalls.fadeOut.mockImplementation(() => Promise.resolve());
   engineAvailable = true;
   rejectNextPlay = false;
+  deferNextPlay = false;
   installAudioStub();
   setActivePinia(createPinia());
 });
@@ -277,6 +293,32 @@ describe("fades replace hard cuts", () => {
     expect(el.paused).toBe(true);
   });
 
+  it("leaves the gain at silence when the fade ends, so the moment after pause() is not loud", async () => {
+    // pause() lags the audio thread: on iOS the element plays on briefly, and a gain put back to full as it
+    // stopped made the last fraction of a second of every fade-out louder than the music it ended.
+    const store = await loadStore();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    await flush();
+    engineCalls.setSoundVolume.mockClear();
+    store.stop("s1");
+    await flush();
+    expect(created[0].paused).toBe(true);
+    expect(engineCalls.setSoundVolume).not.toHaveBeenCalled();
+  });
+
+  it("the next play after a fade-out sets its own level again", async () => {
+    const store = await loadStore();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    await flush();
+    store.setVolume("s1", 0.6);
+    store.stop("s1");
+    await flush();
+    engineCalls.setSoundVolume.mockClear();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    await flush();
+    expect(engineCalls.setSoundVolume).toHaveBeenCalledWith("s1", 0.6, 0);
+  });
+
   it("does not let a stale fade-out pause a sound that has already restarted", async () => {
     const store = await loadStore();
     store.play("s1", "https://example.test/a.mp3", "music");
@@ -405,6 +447,22 @@ describe("music playlist advance", () => {
     store.musicPlaylistNext();
     await flush();
     expect(store.activeMusicPlaylist).toBeNull();
+    // The DM skipped past the end: that is their doing, not the playlist running out.
+    expect(store.playlistFinishedByItself("p")).toBe(false);
+  });
+
+  // Fails if a playlist that plays out is not recorded: a fight's music ending
+  // would read as the DM stopping it, and the place's music never comes back.
+  it("records a playlist whose last track played to its end", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: false }, tracks);
+    await flush();
+    store.musicPlaylistNext();
+    await flush();
+    const last = created[created.length - 1];
+    last.onended?.();
+    expect(store.activeMusicPlaylist).toBeNull();
+    expect(store.playlistFinishedByItself("p")).toBe(true);
   });
 
   it("wraps to the first track when repeat is on", async () => {
@@ -584,6 +642,22 @@ describe("gapless looping", () => {
     expect(engineCalls.fadeOut).toHaveBeenCalledWith("a1::loop", expect.any(Number));
   });
 
+  // Fails if the outgoing half's natural end marks the sound stopped: the
+  // partner carries on, but the deck shows the pad idle, a Toggle press starts
+  // it again instead of stopping it, and a Solo on it lifts.
+  it("still counts the sound as playing when the outgoing half runs out during the wrap", async () => {
+    const store = await loadStore();
+    store.play("a1", "https://example.test/bed.mp3", "ambient", undefined, { loop: true });
+    await flush();
+    const primary = created[0];
+    primary.duration = 60;
+    primary.currentTime = 59.9;
+    primary.ontimeupdate?.();
+    await flush();
+    primary.onended?.();
+    expect(store.playbackStates.a1.isPlaying).toBe(true);
+  });
+
   it("falls back to a plain loop when Web Audio is unavailable", async () => {
     engineAvailable = false;
     const store = await loadStore();
@@ -621,6 +695,53 @@ describe("gapless looping", () => {
     const faded = engineCalls.fadeOut.mock.calls.map((c) => c[0]);
     expect(faded).toContain("a1");
     expect(faded).toContain("a1::loop");
+  });
+});
+
+describe("a stop before the file starts", () => {
+  // Fails if play() marks the sound playing whatever happened while it loaded:
+  // a quick Gate tap stops it, then it starts anyway and loops with nobody holding it.
+  it("keeps a sound stopped that was stopped while it was still loading", async () => {
+    const store = await loadStore();
+    deferNextPlay = true;
+    store.play("s1", "https://example.test/a.mp3", "ambient", undefined, { loop: true });
+    expect(store.isStarting("s1")).toBe(true);
+    store.fadeOut("s1", 100);
+    expect(store.isStarting("s1")).toBe(false);
+    engineCalls.fadeIn.mockClear();
+    startPlay();
+    await flush();
+    expect(store.playbackStates.s1.isPlaying).toBe(false);
+    expect(engineCalls.fadeIn).not.toHaveBeenCalled();
+  });
+
+  it("fades out a sound still loading with everything else", async () => {
+    const store = await loadStore();
+    deferNextPlay = true;
+    store.play("s1", "https://example.test/a.mp3", "effects");
+    store.fadeOutAll(500);
+    startPlay();
+    await flush();
+    expect(store.playbackStates.s1.isPlaying).toBe(false);
+  });
+});
+
+describe("what ran out by itself", () => {
+  // Fails if a stop is recorded as an end, or an end is not recorded: the
+  // trigger bus would either hand the music back over the DM's choice, or
+  // never bring the place's music back after a fight's track finished.
+  it("records a track that played to its end, and forgets it on the next play", async () => {
+    const store = await loadStore();
+    store.play("m1", "https://example.test/m.mp3", "music");
+    await flush();
+    store.fadeOut("m1", 0);
+    expect(store.finishedByItself("m1")).toBe(false);
+    store.play("m1", "https://example.test/m.mp3", "music");
+    await flush();
+    created[0].onended?.();
+    expect(store.finishedByItself("m1")).toBe(true);
+    store.play("m1", "https://example.test/m.mp3", "music");
+    expect(store.finishedByItself("m1")).toBe(false);
   });
 });
 
@@ -1134,5 +1255,480 @@ describe("scenes stack", () => {
     store.resumeAmbientPlaylist("tavern");
     await flush();
     expect(store.isPlaylistPaused("tavern")).toBe(false);
+  });
+});
+
+// ── Deck playback primitives (#1136) ───────────────────────────────────────
+
+const URL_A = "https://example.test/a.mp3";
+const sceneTracks = [
+  { id: "t1", playlist_id: "p", sound_id: "a1", sort_order: 0, created_at: "", sound: { id: "a1", file_url: "https://example.test/bed.mp3", name: "Bed", artist: null, thumbnail_url: null, gain_trim: 1 } },
+] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playAmbientPlaylist"]>[1];
+const musicTracks2 = [
+  { id: "t1", playlist_id: "m", sound_id: "m1", sort_order: 0, created_at: "", sound: { id: "m1", file_url: "https://example.test/m1.mp3", name: "M1", artist: null, thumbnail_url: null, gain_trim: 1 } },
+] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playMusicPlaylist"]>[1];
+
+describe("per-press play options", () => {
+  it("passes the press gain to the engine without touching the sound's own volume", async () => {
+    const store = await loadStore();
+    store.play("s1", URL_A, "effects", undefined, { gain: 0.5 });
+    await flush();
+
+    expect(engineCalls.setSoundPlayGain).toHaveBeenCalledWith("s1", 0.5);
+    // The fader the DM set must survive a soft press.
+    expect(store.getState("s1").volume).toBe(0.8);
+    expect(engineCalls.setSoundVolume).not.toHaveBeenCalledWith("s1", 0.4, expect.anything());
+  });
+
+  it("resets the press gain for a later play without one, so a soft hit does not stick", async () => {
+    const store = await loadStore();
+    store.play("s1", URL_A, "effects", undefined, { gain: 0.5 });
+    await flush();
+    store.play("s1", URL_A, "effects");
+    await flush();
+
+    const gains = engineCalls.setSoundPlayGain.mock.calls.map((c) => c[1]);
+    expect(gains[gains.length - 1]).toBe(1);
+  });
+
+  it("detunes with the rate and resets rate and pitch for a later plain play", async () => {
+    const store = await loadStore();
+    store.play("s1", URL_A, "effects", undefined, { rate: 1.2 });
+    await flush();
+    const el = created[0] as FakeAudio & { playbackRate: number; preservesPitch: boolean };
+    expect(el.playbackRate).toBe(1.2);
+    expect(el.preservesPitch).toBe(false);
+
+    store.play("s1", URL_A, "effects");
+    await flush();
+    expect(el.playbackRate).toBe(1);
+    expect(el.preservesPitch).toBe(true);
+  });
+
+  it("climbs from silence for an asked-for fade-in and keeps the default start untouched", async () => {
+    const store = await loadStore();
+    store.play("s1", URL_A, "music", undefined, { fadeInMs: 1500 });
+    await flush();
+    expect(engineCalls.fadeIn).toHaveBeenCalledWith("s1", 1500, true);
+
+    engineCalls.fadeIn.mockClear();
+    store.play("s2", URL_A, "music");
+    await flush();
+    // Exactly the old call: no third argument sneaks in for existing callers.
+    expect(engineCalls.fadeIn.mock.calls[0]).toEqual(["s2", 250]);
+  });
+
+  it("loops gaplessly on any bus: element loop stays off and a partner is buffered", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects", undefined, { loop: true });
+    await flush();
+
+    expect(created[0].loop).toBe(false);
+    expect(created.length).toBeGreaterThanOrEqual(2);
+    expect(store.isLooping("fx")).toBe(true);
+    expect(engineCalls.attach).toHaveBeenCalledWith("fx", created[0], "effects");
+  });
+
+  it("falls back to the element's own loop when Web Audio is unavailable", async () => {
+    engineAvailable = false;
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects", undefined, { loop: true });
+    await flush();
+
+    expect(created[0].loop).toBe(true);
+    expect(store.isLooping("fx")).toBe(true);
+  });
+
+  it("gives the loop's partner the same press gain and rate as the half it replaces", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "ambient", undefined, { loop: true, gain: 0.5, rate: 0.9 });
+    await flush();
+
+    const primary = created[0];
+    primary.duration = 60;
+    primary.currentTime = 59.9;
+    primary.ontimeupdate?.();
+    await flush();
+
+    expect(engineCalls.setSoundPlayGain).toHaveBeenCalledWith("fx::loop", 0.5);
+    const shadow = created.find((el) => el !== primary) as FakeAudio & { playbackRate: number };
+    expect(shadow.playbackRate).toBe(0.9);
+  });
+});
+
+describe("looping a sound that is already playing", () => {
+  it("switches a playing sound into its gapless loop without a restart", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects");
+    await flush();
+    const el = created[0];
+    el.currentTime = 12;
+
+    store.setLooping("fx", true);
+
+    expect(el.currentTime).toBe(12);
+    expect(el.paused).toBe(false);
+    expect(el.loop).toBe(false);
+    expect(store.isLooping("fx")).toBe(true);
+
+    // And the wrap is then covered by the swap, which the plain flag would not do.
+    el.duration = 60;
+    el.currentTime = 59.9;
+    el.ontimeupdate?.();
+    await flush();
+    expect(engineCalls.fadeOut).toHaveBeenCalledWith("fx", expect.any(Number));
+  });
+
+  it("turning it off retires the idle partner and leaves the main element playing", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects", undefined, { loop: true });
+    await flush();
+    engineCalls.fadeOut.mockClear();
+
+    store.setLooping("fx", false);
+    await flush();
+
+    expect(store.isLooping("fx")).toBe(false);
+    expect(created[0].paused).toBe(false);
+    expect(engineCalls.fadeOut).toHaveBeenCalledWith("fx::loop", expect.any(Number));
+    expect(engineCalls.fadeOut).not.toHaveBeenCalledWith("fx", expect.any(Number));
+  });
+
+  it("turning it off while the partner is the audible half hands over to the main element at the same position", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects", undefined, { loop: true });
+    await flush();
+    const primary = created[0];
+    primary.duration = 60;
+    primary.currentTime = 59.9;
+    primary.ontimeupdate?.();
+    await flush();
+    const shadow = created.find((el) => el !== primary)!;
+    shadow.currentTime = 20;
+    primary.paused = true;
+    engineCalls.fadeOut.mockClear();
+
+    store.setLooping("fx", false);
+    await flush();
+
+    // Without the hand-over the shadow would play out with nothing tracking it
+    // and the sound would read as playing forever.
+    expect(primary.currentTime).toBe(20);
+    expect(primary.paused).toBe(false);
+    expect(engineCalls.fadeOut).toHaveBeenCalledWith("fx::loop", expect.any(Number));
+    expect(shadow.paused).toBe(true);
+  });
+
+  it("only sets the flag for a silent sound, and toggleLoop still flips it", async () => {
+    const store = await loadStore();
+    store.setLooping("quiet", true);
+    expect(store.isLooping("quiet")).toBe(true);
+    expect(store.getState("quiet").isLooping).toBe(true);
+
+    store.toggleLoop("quiet");
+    expect(store.isLooping("quiet")).toBe(false);
+    store.toggleLoop("quiet");
+    expect(store.isLooping("quiet")).toBe(true);
+  });
+
+  it("toggleLoop turns a gapless loop off too, not just the plain flag", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects", undefined, { loop: true });
+    await flush();
+
+    store.toggleLoop("fx");
+    expect(store.isLooping("fx")).toBe(false);
+  });
+});
+
+describe("fadeOut and fadeOutAll", () => {
+  it("fades a sound over the given time, then stops and rewinds it", async () => {
+    const store = await loadStore();
+    store.play("s1", URL_A, "music");
+    await flush();
+    created[0].currentTime = 30;
+
+    store.fadeOut("s1", 3000);
+    expect(engineCalls.fadeOut).toHaveBeenCalledWith("s1", 3000);
+    expect(store.getState("s1").isPlaying).toBe(false);
+    await flush();
+    expect(created[0].paused).toBe(true);
+    expect(created[0].currentTime).toBe(0);
+  });
+
+  it("does not stop a sound that was pressed again during the fade", async () => {
+    const store = await loadStore();
+    store.play("s1", URL_A, "music");
+    await flush();
+
+    store.fadeOut("s1", 3000);
+    store.play("s1", URL_A, "music");
+    await flush();
+
+    expect(created[0].paused).toBe(false);
+  });
+
+  it("ends both halves of a gapless loop", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects", undefined, { loop: true });
+    await flush();
+    engineCalls.fadeOut.mockClear();
+
+    store.fadeOut("fx", 1000);
+    await flush();
+
+    const faded = engineCalls.fadeOut.mock.calls.map((c) => c[0]);
+    expect(faded).toContain("fx");
+    expect(faded).toContain("fx::loop");
+    expect(store.isLooping("fx")).toBe(false);
+  });
+
+  it("does nothing, and does not throw, on an empty board", async () => {
+    const store = await loadStore();
+    expect(() => store.fadeOutAll(3000)).not.toThrow();
+    expect(engineCalls.fadeOut).not.toHaveBeenCalled();
+  });
+
+  it("fades loose sounds, the music slot and every scene, and forgets them", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects");
+    store.playMusicPlaylist({ id: "m", name: "M", shuffle: false, repeat: true }, musicTracks2);
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, sceneTracks);
+    await flush();
+    engineCalls.fadeOut.mockClear();
+
+    store.fadeOutAll(3000);
+    await flush();
+
+    const faded = engineCalls.fadeOut.mock.calls.map((c) => c[0]);
+    expect(faded).toEqual(expect.arrayContaining(["fx", "m1", "a1", "a1::loop"]));
+    expect(engineCalls.fadeOut.mock.calls.every((c) => c[1] === 3000)).toBe(true);
+    expect(store.activeMusicPlaylist).toBeNull();
+    expect(store.activeAmbientPlaylists).toHaveLength(0);
+    expect(store.hasActiveAudio).toBe(false);
+  });
+
+  it("clears a solo, so the board is not left dimmed after everything ended", async () => {
+    const store = await loadStore();
+    store.play("a", URL_A, "effects");
+    await flush();
+    // A soloed sound that never started: the auto-clear cannot be what clears this.
+    store.setSolo(["never-started"]);
+
+    store.fadeOutAll(1000);
+
+    expect(store.soloIds).toBeNull();
+  });
+});
+
+describe("hush", () => {
+  it("passes through to the engine and reports its state", async () => {
+    const store = await loadStore();
+    expect(store.hushed).toBe(false);
+
+    store.setHush(true);
+    expect(store.hushed).toBe(true);
+    expect(engineCalls.setHush).toHaveBeenLastCalledWith(true);
+
+    store.setHush(false);
+    expect(store.hushed).toBe(false);
+    expect(engineCalls.setHush).toHaveBeenLastCalledWith(false);
+  });
+
+  it("is independent of master volume and mute: neither engages or releases it", async () => {
+    const store = await loadStore();
+    store.setHush(true);
+    store.toggleMute();
+    store.toggleMute();
+    store.setMasterVolume(0.4);
+
+    expect(store.hushed).toBe(true);
+    // Mute only ever moves the master fader, never the hush stage.
+    expect(engineCalls.setHush).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the state to the new output mode when direct output is switched", async () => {
+    const store = await loadStore();
+    store.setHush(true);
+    engineCalls.setHush.mockClear();
+
+    store.setDirectOutput(true);
+
+    expect(engineCalls.setHush).toHaveBeenCalledWith(true);
+  });
+});
+
+describe("solo", () => {
+  function dimCalls(id: string): [number, number | undefined][] {
+    return engineCalls.setSoundDim.mock.calls.filter((c) => c[0] === id).map((c) => [c[1], c[2]]);
+  }
+
+  async function threePlaying() {
+    const store = await loadStore();
+    store.play("a", URL_A, "effects");
+    store.play("b", URL_A, "effects");
+    store.play("c", URL_A, "music");
+    await flush();
+    engineCalls.setSoundDim.mockClear();
+    return store;
+  }
+
+  it("dims every audible sound outside the set to 25% over 250ms and leaves the set alone", async () => {
+    const store = await threePlaying();
+    store.setSolo(["a"]);
+
+    expect(dimCalls("a").pop()).toEqual([1, 250]);
+    expect(dimCalls("b").pop()).toEqual([0.25, 250]);
+    expect(dimCalls("c").pop()).toEqual([0.25, 250]);
+    expect(store.soloIds).toEqual(["a"]);
+  });
+
+  it("restores everything over 250ms when solo is cleared", async () => {
+    const store = await threePlaying();
+    store.setSolo(["a"]);
+    store.setSolo(null);
+
+    expect(dimCalls("b").pop()).toEqual([1, 250]);
+    expect(dimCalls("c").pop()).toEqual([1, 250]);
+    expect(store.soloIds).toBeNull();
+  });
+
+  it("dims a sound that starts while the solo is active, but not one in the set", async () => {
+    const store = await threePlaying();
+    store.setSolo(["a", "a2"]);
+    engineCalls.setSoundDim.mockClear();
+    store.play("late", URL_A, "effects");
+    store.play("a2", URL_A, "effects");
+    await flush();
+
+    // Dim lands before the sound is audible, not a fade later.
+    expect(dimCalls("late")[0]).toEqual([0.25, 0]);
+    expect(dimCalls("a2")[0]).toEqual([1, 0]);
+  });
+
+  it("dims scene layers and a gapless loop's partner as well, unless their sound is soloed", async () => {
+    const store = await loadStore();
+    store.play("a", URL_A, "effects");
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, sceneTracks);
+    await flush();
+    engineCalls.setSoundDim.mockClear();
+
+    store.setSolo(["a"]);
+    expect(dimCalls("a1").pop()).toEqual([0.25, 250]);
+    expect(dimCalls("a1::loop").pop()).toEqual([0.25, 250]);
+
+    store.setSolo(["a1"]);
+    expect(dimCalls("a1::loop").pop()).toEqual([1, 250]);
+  });
+
+  it("dims the partner the loop swaps in, so the dim survives the wrap", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, sceneTracks);
+    store.play("a", URL_A, "effects");
+    await flush();
+    store.setSolo(["a"]);
+    engineCalls.setSoundDim.mockClear();
+
+    const primary = created[0];
+    primary.duration = 60;
+    primary.currentTime = 59.9;
+    primary.ontimeupdate?.();
+    await flush();
+
+    expect(dimCalls("a1::loop")[0]).toEqual([0.25, 0]);
+  });
+
+  it("clears itself once every soloed sound has stopped", async () => {
+    const store = await threePlaying();
+    store.setSolo(["a", "b"]);
+
+    store.stop("a");
+    expect(store.soloIds).toEqual(["a", "b"]);
+    store.stop("b");
+
+    expect(store.soloIds).toBeNull();
+    expect(dimCalls("c").pop()).toEqual([1, 250]);
+  });
+
+  it("is not cleared early by an unrelated stop when its soloed sound has not started yet", async () => {
+    const store = await threePlaying();
+    store.setSolo(["not-yet"]);
+
+    store.stop("b");
+    expect(store.soloIds).toEqual(["not-yet"]);
+
+    store.play("not-yet", URL_A, "effects");
+    await flush();
+    store.stop("not-yet");
+    expect(store.soloIds).toBeNull();
+  });
+
+  it("treats an empty set as no solo", async () => {
+    const store = await threePlaying();
+    store.setSolo([]);
+    expect(store.soloIds).toBeNull();
+    expect(engineCalls.setSoundDim).not.toHaveBeenCalled();
+  });
+
+  it("is cleared by stopAll", async () => {
+    const store = await threePlaying();
+    store.setSolo(["a"]);
+    store.stopAll();
+    expect(store.soloIds).toBeNull();
+  });
+});
+
+describe("isPausedAll", () => {
+  it("follows pauseAll and resumeAll", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects");
+    await flush();
+    expect(store.isPausedAll).toBe(false);
+
+    store.pauseAll();
+    await flush();
+    expect(store.isPausedAll).toBe(true);
+
+    store.resumeAll();
+    await flush();
+    expect(store.isPausedAll).toBe(false);
+  });
+
+  it("counts a playlist and a scene that pauseAll paused", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "m", name: "M", shuffle: false, repeat: true }, musicTracks2);
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, sceneTracks);
+    await flush();
+
+    store.pauseAll();
+    await flush();
+    expect(store.isPausedAll).toBe(true);
+
+    store.resumeAll();
+    await flush();
+    expect(store.isPausedAll).toBe(false);
+  });
+
+  it("is not true for a playlist the DM paused by hand", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "m", name: "M", shuffle: false, repeat: true }, musicTracks2);
+    await flush();
+
+    store.pauseMusicPlaylist();
+    await flush();
+
+    expect(store.isPausedAll).toBe(false);
+  });
+
+  it("drops once everything is stopped", async () => {
+    const store = await loadStore();
+    store.play("fx", URL_A, "effects");
+    await flush();
+    store.pauseAll();
+    await flush();
+
+    store.stopAll();
+
+    expect(store.isPausedAll).toBe(false);
   });
 });

@@ -3,7 +3,7 @@ import { refDebounced, useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { campaignScopeFilter } from "@/composables/campaign/campaignLibraryScope";
+import { campaignScopeFilter, ownerKnownFor } from "@/composables/campaign/campaignLibraryScope";
 import { orFilterValue } from "@/lib/postgrestFilter";
 import { useCampaignStore } from "@/stores/campaign";
 import { placeRoute } from "@/lib/locations/placeRoute";
@@ -465,7 +465,8 @@ export function useGlobalSearch(query: Ref<string>, options: GlobalSearchOptions
     },
     // A cached read, so waiting for the enabled books is short; searching
     // before they are known would leak disabled books' rows.
-    enabled: () => settled.value.length >= 2 && slugs.value !== null,
+    // The owner is in the key: wait for the campaign row. No campaign at all searches the caller's own rows.
+    enabled: () => settled.value.length >= 2 && slugs.value !== null && (campaignId.value === null || ownerKnownFor(campaign.activeCampaign, campaignId.value)),
     staleTime: 30_000,
     placeholderData: { groups: [], failedGroups: [] } satisfies SearchResult,
   });

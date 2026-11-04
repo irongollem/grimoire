@@ -103,7 +103,7 @@ function fakeMap(): DungeonMap {
     campaign_id: null,
     name: "Test",
     description: null,
-    layers: { floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, area: {} },
+    layers: { ground: {}, floor: {}, solidBlock: {}, terrain: {}, object: {}, annotation: {}, dressing: {}, walls: {}, lights: {} },
     metadata: {},
     default_pack_id: null,
     darkness: "daylight",

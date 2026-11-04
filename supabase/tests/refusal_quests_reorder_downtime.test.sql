@@ -11,7 +11,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(29);
 
 -- ── Fixture ──────────────────────────────────────────────────────────────────
 
@@ -62,9 +62,6 @@ insert into public.player_journal_entries (id, user_id, campaign_id, sort_order)
 insert into public.soundboard_pages (id, campaign_id, user_id, name, sort_order) values
   ('93650000-0000-4000-8000-0000000000a3', '93650000-0000-4000-8000-0000000000c1',
    '93650000-0000-4000-8000-000000000001', 'QRD page', 1);
-insert into public.sounds (id, user_id, campaign_id, name, file_url, sort_order) values
-  ('93650000-0000-4000-8000-0000000000a4', '93650000-0000-4000-8000-000000000001',
-   '93650000-0000-4000-8000-0000000000c1', 'QRD sound', 'https://example.invalid/qrd.mp3', 1);
 insert into public.party_inventory (id, campaign_id, user_id, name, sort_order) values
   ('93650000-0000-4000-8000-0000000000f1', '93650000-0000-4000-8000-0000000000c1',
    '93650000-0000-4000-8000-000000000001', 'QRD lantern', 1);
@@ -145,8 +142,9 @@ select isnt_empty(
   $$ select * from public.search_quest_runtime_jump_targets('93650000-0000-4000-8000-0000000000c1', '93650000-0000-4000-8000-000000000091', 'QRD') $$,
   'search_quest_runtime_jump_targets: the DM of c1 sees the beat (positive control)');
 
--- ── reorder_notes / reorder_player_journal_entries / reorder_soundboard_pages
---    / reorder_sounds: the caller's own rows only ─────────────────────────────
+-- ── reorder_notes / reorder_player_journal_entries / reorder_soundboard_pages:
+--    the caller's own rows only (reorder_sounds went with sounds.sort_order in
+--    #1136; the deck's pads are ordered by lane and row) ──────────────────────
 
 select pg_temp.as_user(3);
 select throws_ok(
@@ -161,10 +159,6 @@ select throws_ok(
   $$ select public.reorder_soundboard_pages(array['93650000-0000-4000-8000-0000000000a3']::uuid[], array[9]) $$,
   'P0001', 'Not authorized to reorder one or more of the given soundboard pages',
   'reorder_soundboard_pages: a stranger cannot reorder another user''s page');
-select throws_ok(
-  $$ select public.reorder_sounds(array['93650000-0000-4000-8000-0000000000a4']::uuid[], array[9]) $$,
-  'P0001', 'Not authorized to reorder one or more of the given sounds',
-  'reorder_sounds: a stranger cannot reorder another user''s sound');
 
 -- A member of c1 who is not the owner is still not the owner.
 select pg_temp.as_user(2);
@@ -172,10 +166,6 @@ select throws_ok(
   $$ select public.reorder_soundboard_pages(array['93650000-0000-4000-8000-0000000000a3']::uuid[], array[9]) $$,
   'P0001', 'Not authorized to reorder one or more of the given soundboard pages',
   'reorder_soundboard_pages: a player at the same table is not the page''s owner');
-select throws_ok(
-  $$ select public.reorder_sounds(array['93650000-0000-4000-8000-0000000000a4']::uuid[], array[9]) $$,
-  'P0001', 'Not authorized to reorder one or more of the given sounds',
-  'reorder_sounds: a player at the same table is not the sound''s owner');
 
 select lives_ok(
   $$ select public.reorder_player_journal_entries(array['93650000-0000-4000-8000-0000000000a2']::uuid[], array[7]) $$,
@@ -190,9 +180,6 @@ select lives_ok(
 select lives_ok(
   $$ select public.reorder_soundboard_pages(array['93650000-0000-4000-8000-0000000000a3']::uuid[], array[7]) $$,
   'reorder_soundboard_pages: the owner can (positive control)');
-select lives_ok(
-  $$ select public.reorder_sounds(array['93650000-0000-4000-8000-0000000000a4']::uuid[], array[7]) $$,
-  'reorder_sounds: the owner can (positive control)');
 
 -- ── reorder_party_inventory (members of the item's campaign) ────────────────
 

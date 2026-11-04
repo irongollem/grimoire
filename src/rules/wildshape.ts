@@ -172,7 +172,7 @@ export function druidProfile(
  * had a copy.
  */
 export function wildshapeStateFor(
-  beast: Pick<PlayerVisibleMonster, "id" | "name" | "image_url" | "stat_block" | "monster_type">,
+  beast: Pick<PlayerVisibleMonster, "id" | "name" | "image_url" | "stat_block" | "monster_type" | "size">,
   rules: WildShapeRules,
 ): { form: WildshapeState; tempHp: number; usesCost: number } | null {
   const sb = beast.stat_block;
@@ -193,6 +193,8 @@ export function wildshapeStateFor(
       beast_hp: maxHp,
       beast_max_hp: maxHp,
       beast_ac: useFloor ? String(rules.acFloor) : beastAc,
+      // The token takes the beast's footprint on the battle map (#1125 decision 13).
+      beast_size: beast.size,
     },
     tempHp: rules.tempHpOnShape,
     usesCost,

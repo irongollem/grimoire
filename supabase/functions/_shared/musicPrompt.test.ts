@@ -4,7 +4,7 @@
 // read the migration file straight off disk.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
   buildStructureMessage,
@@ -132,19 +132,37 @@ describe("composeFallbackPrompt", () => {
   });
 });
 
-// ── MUSIC_STRUCTURE_SYSTEM stays identical to the migration's seed ──────────
+// ── MUSIC_STRUCTURE_SYSTEM stays identical to the row the migrations build ──
+
+const MIGRATIONS = path.join(process.cwd(), "supabase/migrations");
+const SEED = "20260924201957_upgrade_music_generation_to_lyria_3_5.sql";
+
+/** The row as production holds it: the seed, then every later replace() on it, in version order. */
+function seededRow(): string {
+  const seed = /\$prompt\$([\s\S]*?)\$prompt\$/.exec(readFileSync(path.join(MIGRATIONS, SEED), "utf-8"));
+  expect(seed).not.toBeNull();
+  let row = seed![1];
+  const later = readdirSync(MIGRATIONS).filter((f) => f > SEED && f.endsWith(".sql")).sort();
+  for (const file of later) {
+    const sql = readFileSync(path.join(MIGRATIONS, file), "utf-8");
+    if (!sql.includes("generator_type = 'music_structure'")) continue;
+    for (const [, from, to] of sql.matchAll(/\$o\$([\s\S]*?)\$o\$,\s*\$n\$([\s\S]*?)\$n\$/g)) {
+      // A replace() whose old text is gone does nothing in the database, so it must not here either; fail instead,
+      // because a migration that matches nothing is a prompt edit that never shipped.
+      expect(row, `${file} replaces text the row no longer holds`).toContain(from);
+      row = row.replace(from, to);
+    }
+  }
+  return row;
+}
 
 describe("MUSIC_STRUCTURE_SYSTEM", () => {
-  it("matches the $prompt$ body seeded by the Lyria 3.5 migration", () => {
-    // process.cwd(), not __dirname — Vitest's module runner otherwise resolves
-    // an http:// URL for import.meta.url, and cwd is the project root here.
-    const migrationPath = path.join(
-      process.cwd(),
-      "supabase/migrations/20260924201957_upgrade_music_generation_to_lyria_3_5.sql",
-    );
-    const sql = readFileSync(migrationPath, "utf-8");
-    const match = /\$prompt\$([\s\S]*?)\$prompt\$/.exec(sql);
-    expect(match).not.toBeNull();
-    expect(MUSIC_STRUCTURE_SYSTEM).toBe(match![1]);
+  it("matches the seeded row with every later migration's edits applied", () => {
+    expect(MUSIC_STRUCTURE_SYSTEM).toBe(seededRow());
+  });
+
+  it("keeps a brief the DM wrote rather than composing it again", () => {
+    expect(MUSIC_STRUCTURE_SYSTEM).toContain("## When the DM has already written the music");
+    expect(MUSIC_STRUCTURE_SYSTEM).toContain("The Intro and the Outro are optional.");
   });
 });

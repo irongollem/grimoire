@@ -183,7 +183,6 @@ import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { ref, computed, provide } from "vue";
 import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
 import RunnerRollBanner from "@/components/encounters/RunnerRollBanner.vue";
-import type { RunnerCheckResult } from "@/components/encounters/RunnerRollBanner.vue";
 import RunnerRollModeToggle from "@/components/encounters/RunnerRollModeToggle.vue";
 import type { CheckMode, ChatMode } from "@/components/encounters/RunnerRollModeToggle.vue";
 import RunnerMonsterPanel from "@/components/encounters/RunnerMonsterPanel.vue";
@@ -198,8 +197,9 @@ import { TRAP_TYPE_VAR } from "@/types/trap.types";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { parseExpression } from "@/lib/dice/dice";
+import { actionDiceLabel, hasRollableDice, parsedTermsToCounts, useRunnerRolls } from "@/composables/encounters/useRunnerRolls";
 import { rollParsed } from "@/lib/dice/roller";
-import type { DieSize, RollResult } from "@/lib/dice/roller";
+import type { RollResult } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
@@ -230,95 +230,22 @@ const selectedTrap = computed(() =>
 
 const chatMode = ref<ChatMode>("public");
 const rollMode = ref<CheckMode>("normal");
-const lastCheck = ref<RunnerCheckResult | null>(null);
 
 // Stat-block actions roll through the resolve panel, which reads the DM's mode and chat setting from here.
 provide(RUNNER_ROLL_CONTEXT, { rollMode, silent: computed(() => chatMode.value === "silent") });
 
 const { promptRoll } = usePromptedRoll();
-
-async function performCheck(modifier: number, label: string): Promise<RollResult | null> {
-  const senderName = selectedCombatant.value?.name ?? "Encounter";
-  const silent = chatMode.value === "silent";
-  const r = await promptRoll({
-    counts: { 20: 1 },
-    modifier,
-    label,
-    mode: rollMode.value,
-    senderName,
-    silent,
-  });
-  if (!r) return null;
-  const kept = r.breakdown.find((d) => !d.dropped)!;
-  const dropped = r.breakdown.find((d) => d.dropped);
-  lastCheck.value = {
-    total: r.total,
-    label,
-    modifier,
-    d20: kept.val,
-    dropped: dropped?.val,
-    isCrit: r.isCrit,
-    isFumble: r.isFumble,
-  };
-  return r;
-}
-
-// ── Action roll helpers ───────────────────────────────────────────────────────
-
-function hasRollableDice(desc: string): boolean {
-  const parsed = parseExpression(desc);
-  return !!parsed && parsed.terms.length > 0;
-}
-
-function actionDiceLabel(desc: string): string {
-  const parsed = parseExpression(desc);
-  if (!parsed || !parsed.terms.length) return "";
-  const diceStr = parsed.terms.map((t) => `${t.count}d${t.sides}`).join("+");
-  const mod = parsed.modifier;
-  return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
-}
+const { lastCheck, performCheck, rollAttack, rollActionDamage, onPcDamageRolled } = useRunnerRolls({
+  senderName: () => selectedCombatant.value?.name ?? "Encounter",
+  rollMode,
+  silent: () => chatMode.value === "silent",
+});
 
 async function postRollToChat(result: RollResult, senderName: string) {
   if (chatMode.value === "silent") return;
   await sendRoll(result, null, senderName).catch((e) =>
     reportChatFailure(e, "post the roll to the chat"),
   );
-}
-
-function rollAttack(attackBonus: number, actionName: string, onResolved?: (rolled: boolean, crit?: boolean) => void) {
-  void performCheck(attackBonus, actionName + " Attack").then((r) => onResolved?.(!!r, r?.isCrit));
-}
-
-/** A PC's damage from the rider panel has already been rolled and posted; the banner just shows it. */
-function onPcDamageRolled(r: RollResult) {
-  lastCheck.value = { total: r.total, label: r.label, modifier: r.modifier, d20: r.breakdown[0]?.val ?? r.total, isCrit: false, isFumble: false };
-}
-
-function parsedTermsToCounts(terms: { count: number; sides: number }[]): Partial<Record<DieSize, number>> {
-  const counts: Partial<Record<DieSize, number>> = {};
-  for (const t of terms) {
-    if ([4, 6, 8, 10, 12, 20, 100].includes(t.sides)) {
-      const k = t.sides as DieSize;
-      counts[k] = (counts[k] ?? 0) + t.count;
-    }
-  }
-  return counts;
-}
-
-async function rollActionDamage(desc: string, actionName: string) {
-  const parsed = parseExpression(desc);
-  if (!parsed || !parsed.terms.length) return;
-  const label = `${actionName} (${actionDiceLabel(desc)})`;
-  const counts = parsedTermsToCounts(parsed.terms);
-  const r = await promptRoll({
-    counts,
-    modifier: parsed.modifier,
-    label,
-    senderName: selectedCombatant.value?.name ?? "Encounter",
-    silent: chatMode.value === "silent",
-  });
-  if (!r) return;
-  lastCheck.value = { total: r.total, label, modifier: parsed.modifier, d20: r.breakdown[0]?.val ?? r.total, isCrit: false, isFumble: false };
 }
 
 async function rollSpellDamage(spell: SpellType) {

@@ -149,3 +149,15 @@ input[type="number"] {
 :root[data-scratchpad-dock] body > :is(.fixed.inset-0, .fixed.inset-x-0, .fixed.right-0):not([data-scratchpad]) {
   right: var(--dock-right);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   The sound deck reserves its bottom edge (#1136)
+   The docked deck (SoundDeck.vue) publishes how tall it is as `--dock-bottom`
+   on <html> (unset or 0px when it takes nothing: Full, an open phone sheet, the
+   builder). On a desktop it sits in the page's flow under <main>, so only the
+   fixed layers that hug the viewport's bottom edge need it: they add it to
+   their own offset (`bottom-[calc(1.25rem+var(--dock-bottom,0px))]`), the phone
+   layers on top of the 4.5rem bottom bar. The page itself needs nothing but the
+   phone, where <main> adds it to its bar padding. A new fixed bottom-anchored
+   layer does the same, so the deck is never covered.
+───────────────────────────────────────────────────────────────────────────── */

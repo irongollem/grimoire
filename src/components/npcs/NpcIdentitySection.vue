@@ -43,6 +43,13 @@
         </select>
       </div>
       <div>
+        <label class="field-label">Size</label>
+        <AppSelect :model-value="size" tone="muted" size="body" block weight="normal" class="capitalize" @update:model-value="emit('update:size', $event)">
+          <option v-for="s in MONSTER_SIZES" :key="s" :value="s">{{ s }}</option>
+        </AppSelect>
+        <p class="mt-1 text-label text-muted-foreground">How much of the battle map its token covers.</p>
+      </div>
+      <div>
         <label class="field-label">Age (description)</label>
         <input
           :value="age ?? ''"
@@ -100,6 +107,8 @@
 <script setup lang="ts">
 import CalendarDateInput from '@/components/common/controls/CalendarDateInput.vue'
 import EntityCombobox from '@/components/common/controls/EntityCombobox.vue'
+import AppSelect from '@/components/common/controls/AppSelect.vue'
+import { MONSTER_SIZES, type MonsterSize } from '@/types/monster.types'
 import type { LocationSummary } from '@/types/location.types'
 
 type LocationOption = LocationSummary & { depth: number }
@@ -115,6 +124,7 @@ const {
   disguiseName = null,
   race = null,
   alignment = null,
+  size,
   age = null,
   bornYear = null,
   bornMonth = null,
@@ -131,6 +141,7 @@ const {
   disguiseName?: string | null
   race?: string | null
   alignment?: string | null
+  size: MonsterSize
   age?: string | null
   bornYear?: number | null
   bornMonth?: number | null
@@ -150,6 +161,7 @@ const emit = defineEmits<{
   'update:disguiseName': [value: string | null]
   'update:race': [value: string | null]
   'update:alignment': [value: string | null]
+  'update:size': [value: MonsterSize]
   'update:age': [value: string | null]
   'update:birth': [value: { born_year: number | null; born_month: number | null; born_day: number | null }]
   'update:death': [value: { died_year: number | null; died_month: number | null; died_day: number | null }]

@@ -1,16 +1,9 @@
-export type SoundCategory = "ambient" | "music" | "effects" | "misc";
-
 /**
- * How big the fire targets are on the board.
- *
- * `sm` is not a shrunken `md` — at that density a DM is firing by position and
- * colour, so the pad drops everything that is not "is it playing". Fewer
- * things on screen, more of them visible at once.
+ * One per bus (music, ambient, effects). `misc` went in #1136: production held
+ * none, and it quietly played through the ambience bus.
  */
-export type PadSize = "sm" | "md" | "lg";
+export type SoundCategory = "ambient" | "music" | "effects";
 
-/** Whether the grid shows fire targets only, or fire targets plus their controls. */
-export type BoardMode = "perform" | "arrange";
 export type SoundSourceType = "upload" | "url" | "spotify" | "freesound" | "library";
 
 export interface SoundboardPage {
@@ -19,23 +12,106 @@ export interface SoundboardPage {
   user_id: string;
   name: string;
   sort_order: number;
+  /** Always eight, one per deck column (#1136). The database's CHECK holds it. */
+  lanes: DeckLane[];
   created_at: string;
   updated_at: string;
 }
 
 export type SoundboardPageInsert = Omit<
   SoundboardPage,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "lanes"
+> & { lanes?: DeckLane[] };
 export type SoundboardPageUpdate = Partial<
-  Pick<SoundboardPage, "name" | "sort_order">
+  Pick<SoundboardPage, "name" | "sort_order" | "lanes">
 >;
+
+// ── The deck (#1136) ──────────────────────────────────────────────────────
+
+/**
+ * A lane is a deck column. `one`: one pad plays at a time, and a new one
+ * crossfades the old (new music stops the old). `together`: they overlap
+ * (effects never stop the music).
+ */
+export type DeckLaneRule = "one" | "together";
+
+/**
+ * Audio the campaign starts by itself, by where it shows up on the deck: music
+ * from a fight or a quest beat, the sound of where the party is, or a quest
+ * beat's ambience. Such audio has no pad, so the deck draws it as a passing
+ * pad in the lane that takes its feed, and that lane's rule applies to it.
+ */
+export type DeckFeed = "music" | "place" | "ambience";
+
+export interface DeckLane {
+  name: string;
+  rule: DeckLaneRule;
+  /** Absent or null: nothing the campaign starts shows up here. At most one lane per feed. */
+  feed?: DeckFeed | null;
+}
+
+/**
+ * What a press does, by Ableton's names. Trigger: plays once, every press
+ * fires again. Toggle: press to start, press to stop. Gate: plays while held.
+ * Repeat: fires again on a beat while held.
+ */
+export type LaunchMode = "trigger" | "toggle" | "gate" | "repeat";
+
+/** A `soundboard_pads` row. Null settings mean "the default for its kind". */
+export interface SoundboardPad {
+  id: string;
+  campaign_id: string;
+  user_id: string;
+  page_id: string;
+  /** 0 to 7. */
+  lane: number;
+  /** 0 and up; a controller shows rows 0 to 7. */
+  grid_row: number;
+  /** A scene (ambient) or music playlist; null for a pad that plays its takes. */
+  playlist_id: string | null;
+  /** Overrides the sound's or playlist's own name on the pad. */
+  name: string | null;
+  launch_mode: LaunchMode | null;
+  loop: boolean | null;
+  /** 0 to 1. */
+  volume: number;
+  fade_in_ms: number | null;
+  fade_out_ms: number | null;
+  /** Nudge pitch and loudness a little on each press. */
+  vary: boolean;
+  /** Louder the harder a controller pad is hit. */
+  velocity: boolean;
+  /** Repeat mode's beat, 100 to 5000 ms. */
+  repeat_ms: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A `soundboard_pad_takes` row: one of the sounds a sound pad plays, in order. */
+export interface SoundboardPadTake {
+  id: string;
+  pad_id: string;
+  sound_id: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A pad as read: its takes embedded, in position order. */
+export type SoundboardPadWithTakes = SoundboardPad & { takes: SoundboardPadTake[] };
+
+export type SoundboardPadInsert = Pick<SoundboardPad, "campaign_id" | "page_id" | "lane" | "grid_row"> &
+  Partial<Pick<SoundboardPad,
+    "playlist_id" | "name" | "launch_mode" | "loop" | "volume" | "fade_in_ms" | "fade_out_ms" | "vary" | "velocity" | "repeat_ms">>;
+
+export type SoundboardPadUpdate = Partial<Pick<SoundboardPad,
+  "page_id" | "lane" | "grid_row" | "playlist_id" | "name" | "launch_mode" | "loop" | "volume"
+  | "fade_in_ms" | "fade_out_ms" | "vary" | "velocity" | "repeat_ms">>;
 
 export interface Sound {
   id: string;
   user_id: string;
   campaign_id: string;
-  page_id: string | null;
   name: string;
   category: SoundCategory;
   source_type: SoundSourceType;
@@ -56,7 +132,6 @@ export interface Sound {
    */
   library_id: string | null;
   tags: string[];
-  sort_order: number;
   attribution: string | null; // e.g. "Sound by FreesoundUser (CC-BY)" — only set when license requires it
   attribution_url: string | null; // link back to the source page
   thumbnail_url: string | null; // optional cover art — used by Media Session (CarPlay, lock screen, etc.)
@@ -105,7 +180,6 @@ export interface SoundboardPlaylist {
   id: string;
   campaign_id: string;
   user_id: string;
-  page_id: string | null;
   name: string;
   playlist_type: PlaylistType;
   shuffle: boolean;

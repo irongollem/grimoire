@@ -3,7 +3,6 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { EncounterState, MagicalDarknessZone, RunCombatant, RunningEncounterState } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
@@ -20,7 +19,7 @@ export function useRunningEncounters() {
     if (!campaignId) { runningStates.value = []; return; }
     // Only the columns the running-list consumers read (the banner, session rail,
     // encounter lists and the initiative widget). `combatants_live` stays because
-    // the widget draws its rows from it; `fog_mask`, `events_fired` and the rest
+    // the widget draws its rows from it; `events_fired` and the rest
     // are not read by anything here and are the bulk of a row.
     const { data, error } = await supabase
       .from("encounter_state")
@@ -120,7 +119,7 @@ let stopPlayerRings: (() => void) | null = null;
 //     runner, which owns the run;
 //   - token positions, written one combatant at a time by
 //     `update_combatant_position` from any battle map, the DM's and the players';
-//   - the map's own state (fog, magical darkness, doors), written by the DM's
+//   - the map's own state (magical darkness, doors), written by the DM's
 //     battle map without touching the roster.
 // A second map window follows the run rather than owning it (#1120), so it writes
 // positions and map state only: pushing its copy of the roster would undo the
@@ -157,9 +156,7 @@ let writeGeneration = 0;
 let rereadAfterWrites: (() => void) | null = null;
 
 interface MapPatch {
-  fog_mask?: string | null;
   magical_darkness?: MagicalDarknessZone[];
-  door_states?: MapLiveDoorState[];
 }
 
 function writesPending(): boolean {
@@ -184,11 +181,11 @@ async function trackWrite<T>(write: () => Promise<T>): Promise<T> {
 // ── Following the live row ─────────────────────────────────────────────────────
 // A window that shows a live fight it does not run (the battle map in a second
 // window, #1120) learns of every change through the campaign doorbell: the row
-// rings, and the window re-reads it. The runner follows too, so a fog mask a
-// second window brushed is the one End combat reads.
+// rings, and the window re-reads it. The runner follows too, so a change made in a
+// second window is the one the runner shows.
 //
 // A read never lands over this tab's own pending write. The tab holds a change
-// the row does not have yet (a brush stroke, a ring of HP), and adopting the
+// the row does not have yet (a door, a ring of HP), and adopting the
 // older row would flash it back, or hand the runner a roster behind its own. Such
 // a read waits for the writes to settle and is made again; the write's own ring
 // would bring one, but a failed write rings nothing.
@@ -303,18 +300,8 @@ export function useEncounterLive(
       combatants_live: state.combatants,
       events_fired: [],
       started_at: new Date().toISOString(),
-      // Upsert on `encounter_id` means a second go-live of the same encounter
-      // (a new fight after a previous one ended) would otherwise inherit the
-      // last fight's mask — nothing clears `fog_mask` on end, since it also
-      // feeds the "explored" sync read on end-combat. Null it here instead,
-      // on the row's own onConflict update, so the battle-map view's own seed
-      // check (`shouldSeedFog`, fogMask.ts) reliably fires exactly once per
-      // go-live rather than once per encounter ever.
-      fog_mask: null,
       // Likewise a new fight starts without the last one's spheres of darkness.
       magical_darkness: [],
-      // And every door starts as the map drew it: the DM's open and shut doors belong to the fight (#1073).
-      door_states: [],
     };
     const { data, error } = await trackWrite(async () =>
       supabase.from("encounter_state").upsert(payload, { onConflict: "encounter_id" }).select().single(),
@@ -379,13 +366,10 @@ export function useEncounterLive(
 
   /**
    * The battle map's own state, debounced: only the columns given are written, and
-   * patches inside one burst merge, so a door opened while the fog push is pending
-   * does not drop the fog.
+   * patches inside one burst merge, so one burst of pushes is one write.
    */
-  function scheduleMapPush(patch: { fogMask?: string | null; magicalDarkness?: MagicalDarknessZone[]; doorStates?: MapLiveDoorState[] }) {
-    if (patch.fogMask !== undefined) pendingMapPatch.fog_mask = patch.fogMask;
+  function scheduleMapPush(patch: { magicalDarkness?: MagicalDarknessZone[] }) {
     if (patch.magicalDarkness !== undefined) pendingMapPatch.magical_darkness = patch.magicalDarkness;
-    if (patch.doorStates !== undefined) pendingMapPatch.door_states = patch.doorStates;
     mapPush.schedule(() => {
       const columns = pendingMapPatch;
       pendingMapPatch = {};

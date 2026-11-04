@@ -4,21 +4,19 @@
 // `DerivedStructure` this module computes, so "what does this drawing mean"
 // has exactly one answer.
 //
-// The flood fill here is deliberately NOT `floodFill.ts`'s: that helper's
-// predicate is per-cell, so it cannot express "this edge is blocked". A
-// space is defined by both cell membership (a floor tile, not a solid
-// block) AND edge membership (no wall/door segment between neighbours) —
-// per the overseer decision on #868, EVERY edge segment cuts the fill,
-// doors included, so a door can sit "between two derived regions" at all.
-// An open arch (`doorOpen`) still cuts the fill; it becomes a `kind: "arch"`
-// way out rather than a `kind: "door"` one, but the two rooms it joins stay
-// two regions, exactly like a closed door would.
+// A space is a face of the wall graph (`roomOutline.ts`), not a flood of squares:
+// per the overseer decision on #868 EVERY wall cuts, doors included, so a door
+// can sit "between two derived regions" at all. An open arch (`doorOpen`) still
+// cuts; it becomes a `kind: "arch"` way out rather than a `kind: "door"` one,
+// but the two rooms it joins stay two regions, exactly like a closed door would.
+// The squares of a room are the ones whose middle falls inside its outline.
 
-import type { CellKey, CellMetadata, DungeonMap, DungeonMapLayers, EdgeSeg } from "@/types/dungeonMap.types";
+import type { CellKey, CellMetadata, DungeonMap, DungeonMapLayers } from "@/types/dungeonMap.types";
 import { cellKey, parseCellKey } from "@/types/dungeonMap.types";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import { canonicalCells, cellSignature } from "./cellSignature";
-import { canonicaliseEdge, type Side } from "./edges";
+import { findFaces } from "./roomOutline";
+import { latticeWalls } from "./wallGraph";
 import type { DerivedLink, DerivedSpace, DerivedStair, DerivedStructure, DerivedWay } from "./structure.types";
 
 // ── Spaces ───────────────────────────────────────────────────────────────
@@ -27,14 +25,6 @@ function isOpenFloor(layers: DungeonMapLayers, x: number, y: number): boolean {
   const k = cellKey(x, y);
   if (layers.solidBlock[k]) return false;
   return layers.floor[k]?.floor !== undefined;
-}
-
-/** The edge segment (of any type) between (x,y) and its neighbour on `side`,
- *  looked up on whichever cell owns it under NW ownership. */
-function edgeSegAt(layers: DungeonMapLayers, x: number, y: number, side: Side): EdgeSeg | undefined {
-  const owner = canonicaliseEdge(x, y, side);
-  const cell = layers.floor[cellKey(owner.x, owner.y)];
-  return owner.side === "N" ? cell?.wallN : cell?.wallW;
 }
 
 function nameFromAnnotation(
@@ -50,60 +40,28 @@ function nameFromAnnotation(
   return { name: null, nameSource: null };
 }
 
-const NEIGHBOURS: readonly [dx: number, dy: number, side: Side][] = [
-  [0, -1, "N"],
-  [1, 0, "E"],
-  [0, 1, "S"],
-  [-1, 0, "W"],
-];
-
+/**
+ * The rooms of a drawing: the faces of its wall graph that hold open floor (`roomOutline.ts`), each with the outline
+ * that bounds it and the squares whose middle falls inside. Every wall of any type cuts, doors and arches included,
+ * so a door can sit between two derived rooms.
+ */
 export function deriveSpaces(layers: DungeonMapLayers): DerivedSpace[] {
-  const visited = new Set<CellKey>();
-  const spaces: DerivedSpace[] = [];
-
-  // Canonical order of candidate starts makes the whole derivation
-  // deterministic regardless of the object's own key insertion order (jsonb
-  // does not promise to preserve it) — see `structure.types.ts` on that.
-  const candidates = canonicalCells(
-    (Object.keys(layers.floor) as CellKey[]).filter((k) => {
-      const [x, y] = parseCellKey(k);
-      return isOpenFloor(layers, x, y);
-    }),
-  );
-
-  for (const start of candidates) {
-    if (visited.has(start)) continue;
-
-    const region = new Set<CellKey>([start]);
-    visited.add(start);
-    const queue: CellKey[] = [start];
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const [x, y] = parseCellKey(current);
-      for (const [dx, dy, side] of NEIGHBOURS) {
-        const nx = x + dx;
-        const ny = y + dy;
-        const nk = cellKey(nx, ny);
-        if (visited.has(nk)) continue;
-        if (!isOpenFloor(layers, nx, ny)) continue;
-        if (edgeSegAt(layers, x, y, side) !== undefined) continue;
-        visited.add(nk);
-        region.add(nk);
-        queue.push(nk);
-      }
-    }
-
-    const cells = canonicalCells(region);
-    spaces.push({
-      key: `s:${cells[0]}`,
-      cells,
-      signature: cellSignature(cells),
-      ...nameFromAnnotation(layers.annotation, cells),
+  return findFaces(layers)
+    .map((face) => {
+      const cells = canonicalCells(face.cells);
+      return {
+        key: `s:${cells[0]}`,
+        cells,
+        signature: cellSignature(cells),
+        outline: face.outline,
+        ...nameFromAnnotation(layers.annotation, cells),
+      };
+    })
+    .sort((p, q) => {
+      const [px, py] = parseCellKey(p.cells[0]);
+      const [qx, qy] = parseCellKey(q.cells[0]);
+      return py - qy || px - qx;
     });
-  }
-
-  return spaces;
 }
 
 export function spaceContaining(cell: CellKey, spaces: readonly DerivedSpace[]): DerivedSpace | null {
@@ -132,33 +90,29 @@ export function deriveWays(layers: DungeonMapLayers, spaces: readonly DerivedSpa
   const index = indexSpaces(spaces);
   const ways: DerivedWay[] = [];
 
-  for (const key of Object.keys(layers.floor) as CellKey[]) {
-    const [x, y] = parseCellKey(key);
-    const cell = layers.floor[key];
+  for (const entry of latticeWalls(layers)) {
+    const { x, y, side, wall } = entry;
+    const key = cellKey(x, y);
+    if (wall.type !== "doorClosed" && wall.type !== "doorOpen") continue;
 
-    for (const side of ["N", "W"] as const) {
-      const seg = side === "N" ? cell.wallN : cell.wallW;
-      if (seg?.type !== "doorClosed" && seg?.type !== "doorOpen") continue;
+    const [ox, oy] = side === "N" ? [x, y - 1] : [x - 1, y];
+    // A door edge with floor on only one side leads nowhere — not a way.
+    if (!isOpenFloor(layers, x, y) || !isOpenFloor(layers, ox, oy)) continue;
 
-      const [ox, oy] = side === "N" ? [x, y - 1] : [x - 1, y];
-      // A door edge with floor on only one side leads nowhere — not a way.
-      if (!isOpenFloor(layers, x, y) || !isOpenFloor(layers, ox, oy)) continue;
+    const fromSpace = index.get(key);
+    const toSpace = index.get(cellKey(ox, oy));
+    if (!fromSpace || !toSpace) continue;
+    // The fill already cuts at every door edge, so two open-floor cells on
+    // either side land in different spaces UNLESS another route already
+    // joins them — in which case this door is internal, not a way out.
+    if (fromSpace.key === toSpace.key) continue;
 
-      const fromSpace = index.get(key);
-      const toSpace = index.get(cellKey(ox, oy));
-      if (!fromSpace || !toSpace) continue;
-      // The fill already cuts at every door edge, so two open-floor cells on
-      // either side land in different spaces UNLESS another route already
-      // joins them — in which case this door is internal, not a way out.
-      if (fromSpace.key === toSpace.key) continue;
-
-      ways.push({
-        edgeKey: `${x},${y}:${side}` as SourceEdgeKey,
-        kind: DOOR_EDGE_KIND[seg.type],
-        fromKey: fromSpace.key,
-        toKey: toSpace.key,
-      });
-    }
+    ways.push({
+      edgeKey: `${x},${y}:${side}` as SourceEdgeKey,
+      kind: DOOR_EDGE_KIND[wall.type],
+      fromKey: fromSpace.key,
+      toKey: toSpace.key,
+    });
   }
 
   return ways.sort((a, b) => (a.edgeKey < b.edgeKey ? -1 : a.edgeKey > b.edgeKey ? 1 : 0));

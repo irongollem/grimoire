@@ -95,6 +95,15 @@ describe("FamilyBlock", () => {
     expect(w.text()).toContain("Open tree");
   });
 
+  it("does not load the Add relative dialog until someone asks for it", async () => {
+    const w = mountBlock({ person: k("me") });
+    await flushPromises();
+    expect(w.find("[data-testid='dialog']").exists()).toBe(false);
+    await w.findAll("button").find((b) => b.text().includes("Add relative"))!.trigger("click");
+    await flushPromises();
+    expect(w.find("[data-testid='dialog']").exists()).toBe(true);
+  });
+
   it("draws each relative as a slip, spaced like the other connection lists", () => {
     const w = mountBlock({ person: k("me") });
     expect(w.findAll("li .torn")).toHaveLength(w.findAll("li").length);

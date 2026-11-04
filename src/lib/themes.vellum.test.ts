@@ -59,3 +59,35 @@ describe("oxblood fill and ink", () => {
     expect(contrast(vars["--live-foreground"], vars["--live"])).toBeGreaterThanOrEqual(AA_TEXT);
   });
 });
+
+// A lit deck pad is a fixed instrument colour in every theme, with dark ink on
+// it; a theme that retints one, or a pad colour that stops carrying its ink,
+// breaks the "same colour everywhere" promise and the label on a lit pad.
+describe("deck pad tokens", () => {
+  const CATS = ["music", "ambient", "effects"] as const;
+
+  it("are identical in both Vellum themes", () => {
+    for (const c of CATS) {
+      expect(VELLUM_LAMPLIGHT.vars[`--pad-${c}`]).toBe(VELLUM.vars[`--pad-${c}`]);
+      expect(VELLUM_LAMPLIGHT.vars[`--pad-${c}-fg`]).toBe(VELLUM.vars[`--pad-${c}-fg`]);
+    }
+  });
+
+  it.each(CATS)("%s ink is readable on its lit pad", (c) => {
+    expect(contrast(VELLUM.vars[`--pad-${c}-fg`], VELLUM.vars[`--pad-${c}`])).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  // PAD_ICON mixes the pad colour 55% toward the foreground in sRGB.
+  const mix = (a: string, b: string, pa: number) =>
+    "#" +
+    [1, 3, 5]
+      .map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * pa + parseInt(b.slice(i, i + 2), 16) * (1 - pa)).toString(16).padStart(2, "0"))
+      .join("");
+
+  it.each([VELLUM, VELLUM_LAMPLIGHT])("$id rest-state pad icons are 3:1 on a card", (theme) => {
+    for (const c of CATS) {
+      const icon = mix(theme.vars[`--pad-${c}`], theme.vars["--foreground"], 0.55);
+      expect(contrast(icon, theme.vars["--card"]), c).toBeGreaterThanOrEqual(3);
+    }
+  });
+});

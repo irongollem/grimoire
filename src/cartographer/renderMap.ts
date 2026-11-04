@@ -16,11 +16,12 @@ import { paintLitVeil } from "@/lib/battlemap/darkness";
 import { AMBIENT, illuminationGrid } from "@/lib/battlemap/illumination";
 import { occluders } from "@/lib/battlemap/occlusion";
 import { collectOcclusion } from "@/cartographer/mapOcclusion";
+import { paintEditorMarks, type EditorMarks } from "@/cartographer/drawEditorMarks";
 import { cellKey, type CellKey, type DarknessLevel, type DungeonMapLayers, type CellMetadata, type DressingPlacement } from "@/types/dungeonMap.types";
 import type { CellEdge } from "@/cartographer/edges";
-import { boundaryEdges } from "@/cartographer/floodFill";
 import type { Tool } from "@/cartographer/tools";
 import {
+  dressingCellBounds,
   drawDressing,
   dressingFootprint,
   strokeDressingOutline,
@@ -67,14 +68,6 @@ export interface MapRenderScene {
   selectedCell: [number, number] | null;
   previewCells: Set<CellKey>;
   /**
-   * Derived spaces to outline with their proposed name (#868) — the Space
-   * tool's "here's what claiming a region gets you" preview. Only ever set
-   * while that tool is active; every other tool leaves this undefined and
-   * draws no outlines, same convention as `hoveredEdge`/`previewCells`.
-   */
-  derivedSpaces?: { key: string; cells: CellKey[]; displayName: string; nameSource: "annotation" | null }[];
-  selectedSpaceKey?: string | null;
-  /**
    * A site's Picture layer, shown as a ghost reference beneath everything
    * else (epic #884 S6 — MapWorkbench embedded in the Atlas). Positioning is
    * computed by the caller from the site's `grid_calibration` against this
@@ -83,12 +76,16 @@ export interface MapRenderScene {
    * standalone `/cartographer/:id` route, which passes no site.
    */
   referenceImage?: MapRenderReferenceImage | null;
+  /** Opacity of the white square grid, or null to leave it off (the editor's Grid switch). */
+  gridAlpha: number | null;
   /** Dressing props by id (epic #1062), with whatever art has loaded so far. */
   dressing: DressingCatalog;
   /** A prop being placed or dragged, drawn translucent above the map. */
   dressingGhost?: { placement: DressingPlacement; alpha: number } | null;
   /** The selected placement, outlined. */
   selectedDressingId?: string | null;
+  /** The Angled wall run, the selected wall and the placed lights, drawn over the map (#1125 story 5). */
+  editorMarks?: EditorMarks;
   /**
    * Bumps on every edit of `layers` (the editor's `editRevision`). The editor
    * paints INTO the same `layers` object, so its identity cannot tell the
@@ -97,6 +94,19 @@ export interface MapRenderScene {
    * a stale one.
    */
   layersRevision?: number;
+  /**
+   * Leave out what the live layer draws itself (swaying props, door leaves); see `omitLive` on `DrawMapInput`. Set
+   * while the editor plays motion over the map, so a prop is never drawn twice and the darkness veil is left to the animated one above.
+   */
+  omitLive?: boolean;
+  /**
+   * Which half of the map to draw (#1125 frames 16-17). The battle map puts its live water between the ground and
+   * what stands, so while motion plays the editor draws two canvases the same way: `ground` is the background, the
+   * base image and the ground, nothing else; `standing` is transparent and holds what stands on the ground; `aids` is
+   * transparent and holds every editing aid (labels, selection, wall nodes, the brush footprint, hover marks), stacked
+   * above the animated darkness veil so an aid is never dimmed by it. Absent draws the whole map on one canvas.
+   */
+  pass?: "ground" | "standing" | "aids";
   /** Canvas factory for the shadow layers; defaults to OffscreenCanvas where it exists. Tests pass a fake. */
   makeCanvas?: MakeCanvas;
 }
@@ -126,12 +136,11 @@ interface ShadowKey {
   runtimes: TilePackRuntime[];
   fallback: TilePackRuntime | null;
   currentPackId: string;
-  tilePx: number;
-  bounds: MapRenderScene["bounds"];
-  offsetX: number;
-  offsetY: number;
+  /** Pixels a cell the layer is built at: a power of two, so zooming rebuilds it once an octave, not once a step. */
+  scale: number;
 }
 
+/** The cells a layer is built over, and the layer, at `key.scale` px a cell with cell (0,0) at its pixel (0,0). */
 interface LayerCache {
   key: ShadowKey;
   layer: ShadowLayer | null;
@@ -157,22 +166,58 @@ function sameShadowKey(a: ShadowKey, b: ShadowKey): boolean {
     a.dressing === b.dressing &&
     a.fallback === b.fallback &&
     a.currentPackId === b.currentPackId &&
-    a.tilePx === b.tilePx &&
-    a.offsetX === b.offsetX &&
-    a.offsetY === b.offsetY &&
-    a.bounds.minX === b.bounds.minX &&
-    a.bounds.minY === b.bounds.minY &&
-    a.bounds.maxX === b.bounds.maxX &&
-    a.bounds.maxY === b.bounds.maxY &&
+    a.scale === b.scale &&
     a.runtimes.length === b.runtimes.length &&
     a.runtimes.every((r, i) => r === b.runtimes[i])
   );
 }
 
+// The shadow and glow layers are soft (blurred silhouettes, masked gradients), so they are built once over the whole
+// drawing at a modest scale and scaled onto the screen: a pan only moves them and a zoom inside the same octave only
+// stretches them. They used to be built over the window at full resolution, keyed on the pan, so every step of a pan
+// re-blurred the map (about 30 ms a frame at 128 px a cell).
+const LAYER_MAX_PX_PER_CELL = 64;
+const LAYER_MIN_PX_PER_CELL = 4;
+/** The longest side a layer may have; a sprawling drawing is built coarser instead. */
+const LAYER_MAX_PX = 4096;
+/** Cells around the drawing a layer also covers: a wall's shadow falls past the last floor. */
+const LAYER_MARGIN = 1;
+
+/** The scale a layer is built at for `tilePx`: the next power of two up, within limits, coarser for a huge drawing. */
+export function layerScale(tilePx: number, extentCells: number): number {
+  let q = Math.min(LAYER_MAX_PX_PER_CELL, Math.max(LAYER_MIN_PX_PER_CELL, 2 ** Math.ceil(Math.log2(Math.max(1, tilePx)))));
+  while (q > LAYER_MIN_PX_PER_CELL && extentCells * q > LAYER_MAX_PX) q /= 2;
+  return q;
+}
+
+/** The cells everything drawn covers (floor, walls, props), or null for an empty drawing. */
+export function drawnExtent(layers: DungeonMapLayers, dressing: DressingCatalog): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  const painted = paintedExtent(layers);
+  let out = painted ? { ...painted } : null;
+  const grow = (x0: number, y0: number, x1: number, y1: number) => {
+    if (!out) out = { minX: x0, minY: y0, maxX: x1, maxY: y1 };
+    else {
+      out.minX = Math.min(out.minX, x0);
+      out.minY = Math.min(out.minY, y0);
+      out.maxX = Math.max(out.maxX, x1);
+      out.maxY = Math.max(out.maxY, y1);
+    }
+  };
+  for (const w of Object.values(layers.walls)) {
+    grow(Math.floor(Math.min(w.a[0], w.b[0])), Math.floor(Math.min(w.a[1], w.b[1])), Math.ceil(Math.max(w.a[0], w.b[0])), Math.ceil(Math.max(w.a[1], w.b[1])));
+  }
+  for (const placement of Object.values(layers.dressing)) {
+    const b = dressingCellBounds(placement, dressing);
+    grow(b.minX, b.minY, b.maxX, b.maxY);
+  }
+  return out;
+}
+
 /**
- * A window-sized canvas layer (shadows, the masked light glow) rebuilt only when the edit revision, the loaded packs
- * or the window change, so hovering never re-blurs the map or re-walks every light's lines of sight. A caller that
- * cannot name a revision gets a fresh build each frame rather than a stale one.
+ * A soft layer (shadows, the masked light glow) for this frame: built over the whole drawing at `layerScale` and
+ * rebuilt only when the edit revision, the loaded packs or the scale change, so hovering and panning never re-blur the
+ * map or re-walk every light's lines of sight. Returned placed on the screen. A caller that cannot name a revision
+ * gets a fresh build each frame rather than a stale one.
  */
 function cachedLayer(
   slot: "shadow" | "light",
@@ -182,6 +227,15 @@ function cachedLayer(
 ): ShadowLayer | null {
   if (!input.makeCanvas) return null;
   if (scene.layersRevision === undefined) return build(input);
+  const extent = drawnExtent(scene.layers, scene.dressing);
+  if (!extent) return null;
+  const bounds = {
+    minX: extent.minX - LAYER_MARGIN,
+    minY: extent.minY - LAYER_MARGIN,
+    maxX: extent.maxX + LAYER_MARGIN,
+    maxY: extent.maxY + LAYER_MARGIN,
+  };
+  const scale = layerScale(scene.tilePx, Math.max(bounds.maxX - bounds.minX + 1, bounds.maxY - bounds.minY + 1));
   const key: ShadowKey = {
     layers: scene.layers,
     revision: scene.layersRevision,
@@ -189,17 +243,25 @@ function cachedLayer(
     runtimes: [...scene.runtimes.values()],
     fallback: scene.fallbackRuntime,
     currentPackId: scene.currentPackId,
-    tilePx: scene.tilePx,
-    bounds: scene.bounds,
-    offsetX: scene.viewportOffset.x,
-    offsetY: scene.viewportOffset.y,
+    scale,
   };
   const held = slot === "shadow" ? shadowCache : lightCache;
-  if (held && sameShadowKey(held.key, key)) return held.layer;
-  const next = { key, layer: build(input) };
-  if (slot === "shadow") shadowCache = next;
-  else lightCache = next;
-  return next.layer;
+  let layer: ShadowLayer | null;
+  if (held && sameShadowKey(held.key, key)) layer = held.layer;
+  else {
+    layer = build({ ...input, tilePx: scale, origin: { x: 0, y: 0 }, bounds });
+    if (slot === "shadow") shadowCache = { key, layer };
+    else lightCache = { key, layer };
+  }
+  if (!layer) return null;
+  const k = scene.tilePx / scale;
+  return {
+    canvas: layer.canvas,
+    left: layer.left * k - scene.viewportOffset.x,
+    top: layer.top * k - scene.viewportOffset.y,
+    width: layer.width * k,
+    height: layer.height * k,
+  };
 }
 
 // ── Illumination cache ─────────────────────────────────────────────────────
@@ -293,9 +355,9 @@ function cachedIllumination(
 }
 
 /** The cell box around everything painted, or null for an empty map: the area the veil covers. */
-function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
+export function paintedExtent(layers: DungeonMapLayers): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let extent: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
-  for (const cells of [layers.floor, layers.area, layers.terrain, layers.solidBlock, layers.object]) {
+  for (const cells of [layers.floor, layers.terrain, layers.solidBlock, layers.object]) {
     for (const key of Object.keys(cells) as CellKey[]) {
       const [xs, ys] = key.split(",");
       const x = Number(xs);
@@ -335,23 +397,29 @@ export function renderMap(scene: MapRenderScene): void {
     brushPreview,
     selectedCell,
     previewCells,
-    derivedSpaces,
-    selectedSpaceKey,
     referenceImage,
+    gridAlpha,
     dressing,
     dressingGhost,
     selectedDressingId,
+    editorMarks,
     darkness,
   } = scene;
   const { minX, minY, maxX, maxY } = bounds;
 
   ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = "rgb(20, 18, 16)";
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  const pass = scene.pass;
+  if (pass === "standing" || pass === "aids") {
+    // The ground canvas under these holds the background and the base image.
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  } else {
+    ctx.fillStyle = "rgb(20, 18, 16)";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  }
 
   // Reference layer (#884 S6) — drawn right after the background fill so
   // every painted layer sits above it, ghost-faint underneath the drawing.
-  if (referenceImage) {
+  if (referenceImage && (pass === undefined || pass === "ground")) {
     ctx.save();
     ctx.globalAlpha = referenceImage.opacity;
     ctx.drawImage(referenceImage.source, referenceImage.x, referenceImage.y, referenceImage.width, referenceImage.height);
@@ -377,10 +445,14 @@ export function renderMap(scene: MapRenderScene): void {
     glyphPackId: currentPackId,
     dressing,
     lights: true,
+    pass: pass === "aids" ? undefined : pass,
+    omitLive: scene.omitLive,
+    // The editor shows the walls that are hidden in the bake, dashed, so the DM can find and edit them.
+    showHiddenWalls: true,
     makeCanvas: scene.makeCanvas ?? offscreenMakeCanvas(),
     afterGround: () => {
-      // Grid overlay
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      if (gridAlpha === null) return;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${gridAlpha})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let x = minX; x <= maxX + 1; x++) {
@@ -395,65 +467,25 @@ export function renderMap(scene: MapRenderScene): void {
       }
       ctx.stroke();
     },
-    afterDressing: () => {
-      // Derived-space outlines (#868) — the Space tool's "here's the region
-      // you'd claim" preview. Traces the space's true perimeter (not per-cell
-      // boxes) via `boundaryEdges`, same helper Wrap Walls uses to find the
-      // edges facing void.
-      if (derivedSpaces && derivedSpaces.length > 0) {
-        for (const space of derivedSpaces) {
-          const isSelected = space.key === selectedSpaceKey;
-          ctx.strokeStyle = isSelected ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.35)";
-          ctx.lineWidth = isSelected ? 2.5 : 1.5;
-          ctx.setLineDash([tilePx * 0.15, tilePx * 0.1]);
-          ctx.beginPath();
-          for (const { x, y, side } of boundaryEdges(new Set(space.cells))) {
-            const baseX = x * tilePx - viewportOffset.x;
-            const baseY = y * tilePx - viewportOffset.y;
-            switch (side) {
-              case "N": ctx.moveTo(baseX, baseY);           ctx.lineTo(baseX + tilePx, baseY); break;
-              case "S": ctx.moveTo(baseX, baseY + tilePx);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-              case "W": ctx.moveTo(baseX, baseY);            ctx.lineTo(baseX, baseY + tilePx); break;
-              case "E": ctx.moveTo(baseX + tilePx, baseY);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-            }
-          }
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // An annotation-sourced name is already drawn by the annotation layer
-          // below, at the cell it was typed into — drawing it again at the
-          // space's centroid would show the same name twice on screen. Only a
-          // space with no annotation of its own (still "Region N") needs this
-          // layer to say its name at all.
-          if (space.nameSource !== "annotation") {
-            const cx = space.cells.reduce((sum, c) => sum + Number(c.split(",")[0]), 0) / space.cells.length;
-            const cy = space.cells.reduce((sum, c) => sum + Number(c.split(",")[1]), 0) / space.cells.length;
-            const labelX = (cx + 0.5) * tilePx - viewportOffset.x;
-            const labelY = (cy + 0.5) * tilePx - viewportOffset.y;
-            const fontSize = Math.max(10, Math.round(tilePx * 0.18));
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = "rgba(0,0,0,0.6)";
-            ctx.fillText(space.displayName, labelX + 1, labelY + 1);
-            ctx.fillStyle = isSelected ? "rgba(191,219,254,0.95)" : "rgba(255,255,255,0.75)";
-            ctx.fillText(space.displayName, labelX, labelY);
-          }
-        }
-      }
-    },
   };
   // Shadows come from the cache; a null layer (no OffscreenCanvas) draws none.
-  drawMapContent({
-    ...content,
-    shadows: true,
-    shadowLayer: cachedLayer("shadow", scene, content, renderShadowLayer),
-    lightLayer: content.lights ? cachedLayer("light", scene, content, (c) => renderLightLayer({ ...c, lightMasks: lightMasksFor(scene) })) : null,
-  });
+  // The standing pass draws neither (they lie on the ground), so it builds neither.
+  const standingOnly = pass === "standing";
+  if (pass !== "aids") {
+    drawMapContent({
+      ...content,
+      shadows: true,
+      shadowLayer: standingOnly ? null : cachedLayer("shadow", scene, content, renderShadowLayer),
+      lightLayer: content.lights && !standingOnly ? cachedLayer("light", scene, content, (c) => renderLightLayer({ ...c, lightMasks: lightMasksFor(scene) })) : null,
+    });
+  }
+  // While motion plays the map is three canvases: the ground, what stands, and (above the animated veil) the aids.
+  if (pass === "ground" || pass === "standing") return;
 
   // The DM's darkness veil, carved by the map's lights, over the drawing but under the editing aids (labels, link
   // dots, selection), so what the DM is working on stays readable. The same function paints it on the battle map.
-  if (darkness && darkness !== "daylight") {
+  // While motion plays the animated veil above the canvas draws it instead (`omitLive`), so its lit edge can breathe.
+  if (darkness && darkness !== "daylight" && !scene.omitLive) {
     const lit = cachedIllumination(scene, darkness, rt);
     if (lit) {
       const { extent } = lit;
@@ -543,6 +575,8 @@ export function renderMap(scene: MapRenderScene): void {
       "rgba(80,180,255,0.9)",
     );
   }
+
+  if (editorMarks && !viewMode) paintEditorMarks(ctx, layers, editorMarks, tilePx, viewportOffset);
 
   // Origin marker
   const ox = 0 - viewportOffset.x;

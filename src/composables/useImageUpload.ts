@@ -86,9 +86,9 @@ export function cleanupRemovedRichTextImages(
  *   const url = await upload(file)   // returns public URL or null on error
  *
  * The file is stored at: {bucket}/{user_id}/{uuid}.webp
- * All images are converted to WebP before upload (max 1920px, 85% quality).
+ * All images are converted to WebP before upload (max 1920px unless `options.maxPx` says otherwise, 85% quality).
  */
-export function useImageUpload(bucket: BucketId) {
+export function useImageUpload(bucket: BucketId, options: { maxPx?: number } = {}) {
   const auth = useAuthStore();
   const isUploading = ref(false);
   const uploadError = ref<string | null>(null);
@@ -102,7 +102,7 @@ export function useImageUpload(bucket: BucketId) {
     isUploading.value = true;
     uploadError.value = null;
     try {
-      const webpFile = await toWebP(file);
+      const webpFile = await toWebP(file, options.maxPx);
       const cfg = BUCKETS[key];
       const url = cfg.generateVariants
         ? await uploadWithVariants({ bucket: key, userId: auth.user.id, blob: webpFile })

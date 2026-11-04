@@ -109,3 +109,16 @@ export function releaseAudioTheme(sourceId: string): void {
 export function clearAudioTriggerHandlers(): void {
   handlers.clear();
 }
+
+// A trigger's target names a playlist by its id, or a loose file standing in for
+// one as `sound:<id>`. Spelled here once, for the bus and the deck that draws it.
+const SOUND_TARGET = "sound:";
+
+export function soundTarget(soundId: string): string {
+  return `${SOUND_TARGET}${soundId}`;
+}
+
+/** The sound id a target stands for, or null when it names a playlist. */
+export function soundIdOfTarget(target: string): string | null {
+  return target.startsWith(SOUND_TARGET) ? target.slice(SOUND_TARGET.length) : null;
+}

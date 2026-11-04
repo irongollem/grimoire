@@ -7,8 +7,9 @@ import type { PlayerSessionLabel } from "@/types/session.types";
 /**
  * Every session of the campaign, as players may label it: id, number, title and
  * dates, never the DM's row. Refreshed by the `campaign_sessions` doorbell.
+ * `enabled` lets a caller that needs the labels only sometimes skip the read.
  */
-export function usePlayerSessions() {
+export function usePlayerSessions(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   return useQuery({
     queryKey: computed(() => ["player-sessions", campaign.activeCampaignId] as const),
@@ -18,6 +19,6 @@ export function usePlayerSessions() {
       if (error) throw error;
       return data as PlayerSessionLabel[];
     },
-    enabled: () => !!campaign.activeCampaignId,
+    enabled: () => !!campaign.activeCampaignId && enabled(),
   });
 }

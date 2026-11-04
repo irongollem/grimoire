@@ -25,6 +25,7 @@ import {
   regionFillColor,
   type SpacePaletteOptions,
 } from "@/lib/locations/planCanvas";
+import { drawnRing, enclosingRing, tracePath } from "@/lib/locations/regionShape";
 import { ZONE_KIND_FILL } from "@/lib/locations/zones";
 import { ZONE_KIND_LABELS, type GridPoint, type LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
@@ -80,9 +81,22 @@ function strokeCells(ctx: CanvasRenderingContext2D, cells: readonly CellKey[], v
   }
 }
 
-/** Fills every `space` region, strokes the active one, and lays a pen-traced
- *  region's true polygon outline over its stepped cell fill — the tile-space
- *  mirror of `planCanvas.ts`'s `drawSpacesPass`. */
+/** Fills the ring as one closed path, in the tile viewport. */
+function fillRing(ctx: CanvasRenderingContext2D, ring: readonly GridPoint[], viewport: TileViewport): void {
+  ctx.beginPath();
+  tracePath(ctx, ring.map((p) => tileGridPointToCanvas(p, viewport)));
+  ctx.fill();
+}
+
+function strokeRing(ctx: CanvasRenderingContext2D, ring: readonly GridPoint[], viewport: TileViewport): void {
+  ctx.beginPath();
+  tracePath(ctx, ring.map((p) => tileGridPointToCanvas(p, viewport)));
+  ctx.stroke();
+}
+
+/** Fills every `space` region along its outline when it has one (a room found from the walls, or pen-traced) and
+ *  by its squares otherwise, and strokes the active one: the tile-space mirror of `planCanvas.ts`'s
+ *  `drawSpacesPass`. */
 export function drawPlanSpaces(
   ctx: CanvasRenderingContext2D,
   viewport: TileViewport,
@@ -94,21 +108,24 @@ export function drawPlanSpaces(
   for (const region of regions) {
     if (region.region_role !== "space") continue;
     const cells = cellsOverride?.get(region.id) ?? region.cells;
+    const ring = drawnRing(region, cellsOverride);
     ctx.fillStyle = regionFillColor(region, opts);
-    fillCells(ctx, cells, viewport);
+    if (ring) fillRing(ctx, ring, viewport);
+    else fillCells(ctx, cells, viewport);
     if (region.id === activeRegionId) {
       ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
       ctx.lineWidth = 2;
-      strokeCells(ctx, cells, viewport);
+      if (ring) strokeRing(ctx, ring, viewport);
+      else strokeCells(ctx, cells, viewport);
     }
-    if (region.vertices) {
-      drawPersistedRingOutline(ctx, (p) => tileGridPointToCanvas(p, viewport), region.vertices);
+    if (ring) {
+      drawPersistedRingOutline(ctx, (p) => tileGridPointToCanvas(p, viewport), ring);
     }
   }
 }
 
-/** Zones paint above spaces, always dashed — the tile-space mirror of
- *  `planCanvas.ts`'s `drawZonesPass`. */
+/** Zones paint above spaces, always dashed: the tile-space mirror of `planCanvas.ts`'s `drawZonesPass`. A zone
+ *  painted by squares that lies inside a room is cut to that room's outline. */
 export function drawPlanZones(
   ctx: CanvasRenderingContext2D,
   viewport: TileViewport,
@@ -120,25 +137,40 @@ export function drawPlanZones(
     if (region.region_role !== "zone" || !region.zone_kind) continue;
     const cells = cellsOverride?.get(region.id) ?? region.cells;
     const { fill, stroke } = ZONE_KIND_FILL[region.zone_kind];
+    const ring = drawnRing(region, cellsOverride);
+    const clip = ring ? null : enclosingRing(cells, region, regions);
+
+    ctx.save();
+    if (clip) {
+      ctx.beginPath();
+      tracePath(ctx, clip.map((p) => tileGridPointToCanvas(p, viewport)));
+      ctx.clip();
+    }
 
     ctx.fillStyle = fill;
-    fillCells(ctx, cells, viewport);
+    if (ring) fillRing(ctx, ring, viewport);
+    else fillCells(ctx, cells, viewport);
 
     ctx.strokeStyle = stroke;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([7, 5]);
-    for (const key of cells) {
-      const [xs, ys] = key.split(",");
-      const rect = tileCellRect(Number(xs), Number(ys), viewport);
-      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    if (ring) strokeRing(ctx, ring, viewport);
+    else {
+      for (const key of cells) {
+        const [xs, ys] = key.split(",");
+        const rect = tileCellRect(Number(xs), Number(ys), viewport);
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      }
     }
     ctx.setLineDash([]);
 
     if (region.id === activeRegionId) {
       ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
       ctx.lineWidth = 2;
-      strokeCells(ctx, cells, viewport);
+      if (ring) strokeRing(ctx, ring, viewport);
+      else strokeCells(ctx, cells, viewport);
     }
+    ctx.restore();
 
     if (cells.length) {
       let sx = 0, sy = 0;

@@ -1,5 +1,5 @@
 <template>
-  <TransitionGroup name="slide-up" tag="div" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+  <TransitionGroup name="slide-up" tag="div" class="fixed bottom-[calc(1.25rem+var(--dock-bottom,0px))] barnav:bottom-[calc(1.25rem+4.5rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
     <div
       v-for="entry in activePills"
       :key="entry.label"

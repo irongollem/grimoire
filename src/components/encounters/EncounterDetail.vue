@@ -244,7 +244,7 @@ import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDif
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
-import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
+import { useTrapIndex, useTrapResolver } from "@/composables/dungeon-features/useTraps";
 import { encounterTrapRefs, splitTrapRefs } from "@/lib/dungeon-features/library";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSounds } from "@/composables/soundboard/useSounds";
@@ -344,8 +344,6 @@ const { data: companions } = useCompanions();
 const fieldableCompanions = computed(() => companions.value?.filter(takesPartInCombat));
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItemIndex();
-const { byId: trapsById } = useTrapIndex(() => ({ includeAllScopes: true }));
-const allTraps = computed(() => [...trapsById.value.values()]);
 const { data: pickableTraps } = useTrapIndex();
 const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
 const { reportChatFailure } = useChatSendFailure();
@@ -541,6 +539,14 @@ function toggleCompanion(companionId: string) {
   if (idx >= 0) form.companion_ids.splice(idx, 1);
   else form.companion_ids.push(companionId);
 }
+
+// Resolves the traps the form holds (a stored one or one just picked), library and
+// own alike; only those library rows are read. After `form`, which its ids come from.
+const { byId: trapsById } = useTrapResolver(
+  () => ({ includeAllScopes: true }),
+  () => form.trapRefs,
+);
+const allTraps = computed(() => [...trapsById.value.values()]);
 
 // Difficulty calculation (delegated to composable)
 const { difficulty, thresholdTiers, enemyEntries } = useEncounterDifficulty({

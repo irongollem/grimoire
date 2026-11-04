@@ -47,6 +47,12 @@ interface DirectChain {
   volume: number;
   /** Linear loudness-normalisation multiplier, last value passed to setSoundTrim. */
   trim: number;
+  /** Per-play multiplier (velocity / take variation), default 1. */
+  playGain: number;
+  /** Solo dim factor, default 1. */
+  dim: number;
+  /** True from fadeOut until the next fadeIn/setSoundVolume: a dim change must not undo the fade. */
+  fading: boolean;
   /** Handle of an in-flight ramp, so a new one can cancel it. */
   timer: ReturnType<typeof setInterval> | null;
 }
@@ -57,6 +63,13 @@ const chains = new Map<string, DirectChain>();
 // live as plain numbers and fold into each element's own volume instead.
 const busVolumes: Record<AudioBus, number> = { music: 1, ambient: 1, effects: 1 };
 let masterVolume = 1;
+/** 1 normally, 0.3 while hushed. Kept apart from masterVolume so a mute or fader move cannot undo it. */
+let hushFactor = 1;
+const HUSH_LEVEL = 0.3;
+const HUSH_ATTACK_MS = 200;
+const HUSH_RELEASE_MS = 800;
+/** Dim factors by sound id, so a sound attached after a solo began starts dimmed. */
+const dimTargets = new Map<string, number>();
 
 /** Mirrors the engine's duck bookkeeping: remembers pre-duck levels so unduck restores exactly. */
 let preDuckGains: Partial<Record<AudioBus, number>> | null = null;
@@ -96,7 +109,7 @@ export function isVolumeSettable(): boolean {
 
 /** The level this chain should be sitting at right now, with bus and master folded in. */
 function targetLevel(chain: DirectChain): number {
-  return clamp01(chain.volume * chain.trim * busVolumes[chain.bus] * masterVolume);
+  return clamp01(chain.volume * chain.trim * chain.playGain * chain.dim * busVolumes[chain.bus] * masterVolume * hushFactor);
 }
 
 function cancelRamp(chain: DirectChain): void {
@@ -144,6 +157,8 @@ function ramp(chain: DirectChain, target: number, rampMs: number): Promise<void>
 function reapply(rampMs: number, bus?: AudioBus): void {
   chains.forEach((chain) => {
     if (bus !== undefined && chain.bus !== bus) return;
+    // A fade-out in flight owns the level; re-ramping it would bring the sound back.
+    if (chain.fading) return;
     void ramp(chain, targetLevel(chain), rampMs);
   });
 }
@@ -157,7 +172,8 @@ export function attach(soundId: string, el: HTMLAudioElement, bus: AudioBus): vo
     return;
   }
   if (existing) cancelRamp(existing);
-  chains.set(soundId, { el, bus, volume: 1, trim: 1, timer: null });
+  const dim = dimTargets.get(soundId);
+  chains.set(soundId, { el, bus, volume: 1, trim: 1, playGain: 1, dim: dim === undefined ? 1 : dim, fading: false, timer: null });
 }
 
 export function detach(soundId: string): void {
@@ -171,6 +187,7 @@ export function setSoundVolume(soundId: string, volume: number, rampMs = 0): voi
   const chain = chains.get(soundId);
   if (!chain) return;
   chain.volume = clamp01(volume);
+  chain.fading = false;
   void ramp(chain, targetLevel(chain), rampMs);
 }
 
@@ -196,6 +213,7 @@ export function fadeIn(soundId: string, ms: number): void {
   if (!chain) return;
   // Start from silence so the ramp has somewhere to come from, exactly as the
   // graph's fadeIn does by ramping its gain node up from its current value.
+  chain.fading = false;
   if (isVolumeSettable()) chain.el.volume = 0;
   void ramp(chain, targetLevel(chain), ms);
 }
@@ -203,11 +221,34 @@ export function fadeIn(soundId: string, ms: number): void {
 export function fadeOut(soundId: string, ms: number): Promise<void> {
   const chain = chains.get(soundId);
   if (!chain) return Promise.resolve();
+  chain.fading = true;
   // Resolves immediately where volume is not settable, which matters more than
   // it looks: the caller pauses the element once this settles, and waiting out
   // a silent 1.5s "crossfade" would leave both tracks audible at full level
   // over each other. Resolving now turns it into a clean cut instead.
   return ramp(chain, 0, ms);
+}
+
+export function setSoundPlayGain(soundId: string, gain: number): void {
+  const chain = chains.get(soundId);
+  if (!chain) return;
+  chain.playGain = Math.max(0, gain);
+  void ramp(chain, targetLevel(chain), 0);
+}
+
+export function setSoundDim(soundId: string, dim: number, rampMs: number): void {
+  if (dim === 1) dimTargets.delete(soundId);
+  else dimTargets.set(soundId, dim);
+  const chain = chains.get(soundId);
+  if (!chain) return;
+  chain.dim = dim;
+  if (chain.fading) return;
+  void ramp(chain, targetLevel(chain), rampMs);
+}
+
+export function setHush(on: boolean): void {
+  hushFactor = on ? HUSH_LEVEL : 1;
+  reapply(on ? HUSH_ATTACK_MS : HUSH_RELEASE_MS);
 }
 
 export function duck(attackMs: number, depth: number): void {

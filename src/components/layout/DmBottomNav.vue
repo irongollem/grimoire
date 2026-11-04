@@ -201,7 +201,7 @@ const CREATE_ACTIONS: Record<string, CreateAction> = {
   "/monsters": { to: "/monsters/new", label: "New Monster" },
   "/deities": { to: "/deities/new", label: "New Deity" },
   // Adding a sound is a dialog, not a route, so the FAB signals the view.
-  "/soundboard": { act: () => { soundboardUi.soundboardCreateSignal++; }, label: "Create" },
+  "/soundboard": { act: () => { soundboardUi.soundboardCreateSignal++; }, label: "New Sound" },
   // Placeholder: the tab in the query picks the real action below.
   "/dungeon-craft": { to: "/dungeon-features/new", label: "New Feature" },
 };
@@ -226,16 +226,6 @@ const currentCreate = computed<CreateAction | null>(() => {
   if (prefix === "/dungeon-craft") {
     const tab = typeof route.query.tab === "string" ? route.query.tab : "features";
     return DUNGEON_CRAFT_CREATE[tab] ?? action;
-  }
-  // The soundboard's create depends on which peer is showing.
-  if (prefix === "/soundboard") {
-    const label =
-      soundboardUi.soundboardViewMode === "scenes"
-        ? "New Scene"
-        : soundboardUi.soundboardViewMode === "playlists"
-          ? "New Playlist"
-          : "New Sound";
-    return { ...action, label };
   }
   return action;
 });

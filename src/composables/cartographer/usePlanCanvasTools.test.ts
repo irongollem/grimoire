@@ -41,8 +41,9 @@ function makeHarness() {
   const commitCells = vi.fn();
   const plan = {
     regions: ref([region]),
+    foundRegions: ref([]),
     ways: ref([]),
-    planTool: ref("space"),
+    planTool: ref("zone"),
     traceTool: ref("paint"),
     activeRegionId: ref("r1"),
     activeRegion: computed(() => region),
@@ -50,7 +51,7 @@ function makeHarness() {
     commitRing: vi.fn(async () => {}),
     commitTemplate: vi.fn(),
     confirmConvert: vi.fn(async () => true),
-    claimFloorRegion: vi.fn(async () => {}),
+    fillFloorRegion: vi.fn(async () => {}),
     existingDoorAtEdge: vi.fn(() => null),
     placeDoorAt: vi.fn(),
     cycleDoorKind: vi.fn(),
@@ -81,7 +82,7 @@ function up(x: number, y: number): PointerEvent {
 }
 
 describe("usePlanCanvasTools.abandonGesture (#884 review finding 2)", () => {
-  it("abandons an in-flight Space paint stroke so the stray pointerup does not commit it", () => {
+  it("abandons an in-flight Zone paint stroke so the stray pointerup does not commit it", () => {
     const { tools, commitCells } = makeHarness();
 
     tools.onPointerDown(down(0, 0));
@@ -96,7 +97,7 @@ describe("usePlanCanvasTools.abandonGesture (#884 review finding 2)", () => {
     expect(commitCells).not.toHaveBeenCalled();
   });
 
-  it("is a harmless no-op when nothing is in flight (e.g. the Door/Claim tools, which have no gesture to abandon)", () => {
+  it("is a harmless no-op when nothing is in flight (e.g. the Door/Fill tools, which have no gesture to abandon)", () => {
     const { tools } = makeHarness();
     expect(() => tools.abandonGesture()).not.toThrow();
   });
@@ -109,6 +110,7 @@ describe("usePlanCanvasTools Erase tool", () => {
     const eraseCells = vi.fn();
     const plan = {
       regions: ref([bound, zone]),
+      foundRegions: ref([]),
       ways: ref([]),
       planTool: ref("erase"),
       traceTool: ref("paint"),
@@ -187,12 +189,13 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
   const EDGE = "3,2:W" as SourceEdgeKey;
   const { toasts } = useToast();
 
-  function doorHarness(tool: "door" | "claim", rooms: LocationMapRegion[] = [], floor: CellKey[] = []) {
+  function doorHarness(tool: "door" | "fill", rooms: LocationMapRegion[] = [], floor: CellKey[] = []) {
     const layers = ref(emptyLayers());
     for (const cell of floor) layers.value.floor[cell] = { floor: { pack_id: "base", pack_version: 1, variant: 0 } };
     const existing = ref<string | null>(null);
     const plan = {
       regions: ref(rooms),
+      foundRegions: ref([]),
       ways: ref([]),
       planTool: ref(tool),
       traceTool: ref("paint"),
@@ -202,7 +205,7 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
       placeDoorAt: vi.fn(),
       cycleDoorKind: vi.fn(),
       removeDoor: vi.fn(),
-      claimFloorRegion: vi.fn(async () => {}),
+      fillFloorRegion: vi.fn(async () => {}),
     } as unknown as ReturnType<typeof usePlanPalette>;
     const tools = usePlanCanvasTools({
       plan,
@@ -267,23 +270,23 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
     expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 2 * TILE + 16, clientY: 2 * TILE + 16 }))).toBe(true);
   });
 
-  it("claims the whole connected floor under a click, not the separate patch beside it", () => {
-    const { tools, plan } = doorHarness("claim", [], ["0,0", "1,0", "1,1", "8,8"] as CellKey[]);
+  it("fills the whole connected floor under a click, not the separate patch beside it", () => {
+    const { tools, plan } = doorHarness("fill", [], ["0,0", "1,0", "1,1", "8,8"] as CellKey[]);
     expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0 }))).toBe(true);
-    expect(vi.mocked(plan.claimFloorRegion).mock.calls[0]![0].slice().sort()).toEqual(["0,0", "1,0", "1,1"]);
+    expect(vi.mocked(plan.fillFloorRegion).mock.calls[0]![0].slice().sort()).toEqual(["0,0", "1,0", "1,1"]);
   });
 
-  it("will not claim an unpainted cell, and tells the DM", () => {
-    const { tools, plan } = doorHarness("claim", [], ["0,0"] as CellKey[]);
+  it("will not fill an unpainted cell, and tells the DM", () => {
+    const { tools, plan } = doorHarness("fill", [], ["0,0"] as CellKey[]);
     tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 4, clientY: 4 }));
-    expect(plan.claimFloorRegion).not.toHaveBeenCalled();
+    expect(plan.fillFloorRegion).not.toHaveBeenCalled();
     expect(toasts.value).toHaveLength(1);
   });
 
-  it("leaves a right-click with the Claim tool to the pan", () => {
-    const { tools, plan } = doorHarness("claim", [], ["0,0"] as CellKey[]);
+  it("leaves a right-click with the Fill tool to the pan", () => {
+    const { tools, plan } = doorHarness("fill", [], ["0,0"] as CellKey[]);
     expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0, button: 2 }))).toBe(false);
-    expect(plan.claimFloorRegion).not.toHaveBeenCalled();
+    expect(plan.fillFloorRegion).not.toHaveBeenCalled();
   });
 
   it("shows the hovered door edge only while the Door tool is the one in use", () => {
@@ -294,11 +297,50 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
     expect(tools.renderScene().hoveredDoorEdge).toBeNull();
 
     tools.onPointerMove(new PointerEvent("pointermove", { clientX: EDGE_POINT.x, clientY: EDGE_POINT.y }));
-    plan.planTool.value = "claim";
+    plan.planTool.value = "fill";
     expect(tools.renderScene().hoveredDoorEdge).toBeNull();
     // Moving under another tool forgets the edge, so switching back does not show a stale one.
     tools.onPointerMove(new PointerEvent("pointermove", { clientX: 0, clientY: 0 }));
     plan.planTool.value = "door";
     expect(tools.renderScene().hoveredDoorEdge).toBeNull();
+  });
+});
+
+// #1125 frame 19: a room the walls found has no row; the canvas still draws it and a click on it picks it.
+describe("usePlanCanvasTools found rooms", () => {
+  function foundHarness() {
+    const found = makeRegion({ id: "found:s:0,0", cells: ["0,0", "1,0"] as CellKey[], derived_from: "floodfill" });
+    const selectRegion = vi.fn();
+    const plan = {
+      regions: ref([]),
+      foundRegions: ref([found]),
+      ways: ref([]),
+      planTool: ref("zone"),
+      traceTool: ref("paint"),
+      activeRegionId: ref(null),
+      activeRegion: computed(() => null),
+      selectRegion,
+    } as unknown as ReturnType<typeof usePlanPalette>;
+    const tools = usePlanCanvasTools({
+      plan,
+      layers: ref(emptyLayers()),
+      cellAt: (x, y) => `${Math.floor(x / 32)},${Math.floor(y / 32)}` as CellKey,
+      gridPointAt: (x, y) => [x, y],
+      worldPointAt: (x, y) => ({ x, y }),
+      tilePixelSize: () => 32,
+    });
+    return { tools, selectRegion };
+  }
+
+  it("draws a found room on the canvas beside the written rows", () => {
+    const { tools } = foundHarness();
+    expect(tools.renderScene().regions.map((r) => r.id)).toEqual(["found:s:0,0"]);
+  });
+
+  it("a click on a found room asks the palette to pick it, which is what writes its row", () => {
+    const { tools, selectRegion } = foundHarness();
+    tools.onPointerDown(down(4, 4));
+    window.dispatchEvent(up(4, 4));
+    expect(selectRegion).toHaveBeenCalledWith("found:s:0,0");
   });
 });

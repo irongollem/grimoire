@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import type { MapLive } from "@/types/mapLive.types";
 
+const spies = vi.hoisted(() => ({ grid: vi.fn() }));
 const painted = vi.hoisted(() => ({
   calls: [] as { rect: { x: number; y: number; w: number; h: number }; grid: Float32Array; gw: number; gh: number }[],
   player: [] as { seen: Float32Array; grey: Float32Array; gw: number; gh: number; images: number }[],
@@ -22,19 +23,29 @@ vi.mock("@/lib/battlemap/darkness", async (orig) => ({
   },
 }));
 
+vi.mock("@/lib/battlemap/illumination", async (orig) => {
+  const real = await orig<typeof import("@/lib/battlemap/illumination")>();
+  return { ...real, illuminationGrid: (...args: Parameters<typeof real.illuminationGrid>) => (spies.grid(), real.illuminationGrid(...args)) };
+});
+
 import BattleMapVeil from "./BattleMapVeil.vue";
 
-const ctx = { clearRect: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), arc: vi.fn(), stroke: vi.fn(), setLineDash: vi.fn() };
+const ctx = { drawImage: vi.fn(), createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }), putImageData: vi.fn(), clearRect: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), arc: vi.fn(), stroke: vi.fn(), setLineDash: vi.fn() };
 
+let frames: FrameRequestCallback[] = [];
 beforeEach(() => {
   vi.clearAllMocks();
+  frames = [];
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => frames.push(cb));
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }));
   painted.calls.length = 0;
   painted.player.length = 0;
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
 });
 
 const snapshot = (over: Partial<MapLive> = {}): MapLive => ({
-  version: 2,
+  version: 3,
   darkness: "dark",
   groups: [],
   lights: [],
@@ -91,6 +102,15 @@ describe("BattleMapVeil", () => {
     expect(last.rect.x).toBe(27);
   });
 
+  it("does not recompute the grid for a zoom whose float noise would round the window up a cell", async () => {
+    const w = mount(BattleMapVeil, { props: { ...props, live: snapshot({ lights: [torch] }) } });
+    const first = painted.calls[0].grid;
+    // 312.33 / 52.05499999999999 is 6.000000000000001: without the snap the window grows to seven columns.
+    await w.setProps({ panX: 24.122, originX: 24.122, imageW: 312.33, imageH: 208.22, cellPx: 52.05499999999999 });
+    expect(painted.calls.length).toBeGreaterThan(1);
+    expect(painted.calls[painted.calls.length - 1].grid).toBe(first);
+  });
+
   it("repaints a new grid when the snapshot changes", async () => {
     const w = mount(BattleMapVeil, { props });
     const first = painted.calls[0].grid;
@@ -113,16 +133,16 @@ describe("BattleMapVeil", () => {
 
   it("lets light through a door the DM opened over its drawn state, and stops it again when shut", async () => {
     // The torch is in cell (0,0); the door is the left edge of cell (1,0). Sample column 6 is x = 1.6, row 2 is y = 0.6.
-    const closedDoor = { edge: "1,0:W", open: false, leaf: null };
+    const closedDoor = { id: "1,0:W", a: [1, 0] as [number, number], b: [1, 1] as [number, number], open: false, leaf: null };
     const w = mount(BattleMapVeil, { props: { ...props, live: snapshot({ lights: [torch], doors: [closedDoor] }) } });
     const behind = () => {
       const { grid, gw } = painted.calls[painted.calls.length - 1];
       return grid[2 * gw + 6];
     };
     expect(behind()).toBe(0);
-    await w.setProps({ doorStates: [{ edge: "1,0:W", open: true }] });
+    await w.setProps({ doorStates: [{ id: "1,0:W", open: true }] });
     expect(behind()).toBeGreaterThan(0);
-    await w.setProps({ doorStates: [{ edge: "1,0:W", open: false }] });
+    await w.setProps({ doorStates: [{ id: "1,0:W", open: false }] });
     expect(behind()).toBe(0);
   });
 
@@ -206,6 +226,42 @@ describe("BattleMapVeil", () => {
     it("starts without the grey pictures: none has loaded", () => {
       mount(BattleMapVeil, { props: { ...props, viewers: [viewer], groundUrl: "ground.webp" } });
       expect(painted.player[0].images).toBe(0);
+    });
+  });
+
+  describe("the lit edge breathing", () => {
+    const lit = () => snapshot({ lights: [torch] });
+
+    it("computes the illumination once however many frames play, so a fire does not cost a grid per frame", () => {
+      mount(BattleMapVeil, { props: { ...props, live: lit() } });
+      for (let i = 0; i < 5; i++) frames.shift()?.(1000 + i * 16);
+      expect(spies.grid).toHaveBeenCalledTimes(1);
+      expect(frames.length).toBeGreaterThan(0);
+    });
+
+    it("lays the static veil down again on every frame", () => {
+      mount(BattleMapVeil, { props: { ...props, live: lit() } });
+      ctx.drawImage.mockClear();
+      frames.shift()?.(2000);
+      expect(ctx.drawImage).toHaveBeenCalled();
+    });
+
+    it("runs no loop and draws the veil straight onto the canvas with reduced motion", () => {
+      vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
+      mount(BattleMapVeil, { props: { ...props, live: lit() } });
+      expect(frames).toHaveLength(0);
+      expect(painted.calls).toHaveLength(1);
+    });
+
+    it("runs no loop on a map without lights", () => {
+      mount(BattleMapVeil, { props });
+      expect(frames).toHaveLength(0);
+    });
+
+    it("stops its loop when it leaves", () => {
+      const w = mount(BattleMapVeil, { props: { ...props, live: lit() } });
+      w.unmount();
+      expect(cancelAnimationFrame).toHaveBeenCalled();
     });
   });
 });

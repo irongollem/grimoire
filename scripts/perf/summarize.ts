@@ -55,6 +55,12 @@ export interface RequestSummary {
   apiPaths: string[];
   /** Each API request's link in the longest chain ending at it, parallel to `apiPaths` (see `chainPositions`). */
   apiWaves: number[];
+  /**
+   * Every other request counted in `totalRequests` (code chunks, stylesheets, fonts, images, the document), as a
+   * path without origin or query, in start order. Without it a `totalRequests` regression names no culprit: #1138
+   * had to rebuild the budgets' commit to find which chunks were new.
+   */
+  assetPaths: string[];
 }
 
 /**
@@ -77,6 +83,7 @@ export function summarizeRequests(
   const apiIntervals: Interval[] = [];
   const allIntervals: Interval[] = [];
   const apiPaths: string[] = [];
+  const assetPaths: string[] = [];
 
   for (const request of [...requests].sort((a, b) => a.startMs - b.startMs)) {
     const kind = classifyRequest(request, apiOrigin);
@@ -92,7 +99,10 @@ export function summarizeRequests(
       apiBytes += request.encodedBytes;
       apiIntervals.push(interval);
       apiPaths.push(describeRequest(request));
-    } else if (kind === "js") jsBytes += request.encodedBytes;
+      continue;
+    }
+    assetPaths.push(new URL(request.url).pathname);
+    if (kind === "js") jsBytes += request.encodedBytes;
     else if (kind === "css") cssBytes += request.encodedBytes;
   }
 
@@ -108,6 +118,7 @@ export function summarizeRequests(
     settledMs: settledTime(allIntervals, windowStartMs, quietMs),
     apiPaths,
     apiWaves,
+    assetPaths,
   };
 }
 

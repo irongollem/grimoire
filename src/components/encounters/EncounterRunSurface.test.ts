@@ -15,6 +15,8 @@ const data = vi.hoisted(() => ({
   partyFetching: null as unknown,
   liveState: null as unknown,
   liveRevision: null as unknown,
+  species: null as unknown,
+  speciesLoading: null as unknown,
 }));
 
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounter: () => ({ data: data.encounter }) }));
@@ -22,8 +24,9 @@ vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ 
 vi.mock("@/composables/encounters/useCompanions", () => ({ useCompanions: () => ({ data: data.companions, isFetching: ref(false) }) }));
 vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({ acFor: () => 10, isReady: ref(true) }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]), isFetching: ref(false) }) }));
+vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesByIds: () => ({ data: data.species, isLoading: data.speciesLoading }) }));
 vi.mock("@/composables/dungeon-features/useTraps", () => ({
-  useTrapIndex: () => ({ byId: ref(new Map()), isLoading: ref(false) }),
+  useTrapResolver: () => ({ byId: ref(new Map()), isLoading: ref(false) }),
 }));
 vi.mock("@/composables/monsters/useMonstersByIds", () => ({
   useMonstersByIds: () => ({ data: ref(new Map()), isLoading: ref(false) }),
@@ -61,6 +64,29 @@ describe("EncounterRunSurface: a run that is not live", () => {
     data.partyFetching = ref(false);
     data.liveState = ref(null);
     data.liveRevision = ref(0);
+    data.species = ref(new Map());
+    data.speciesLoading = ref(false);
+  });
+
+  // PHB 2024 "Creature Size": a Small character fits a 5 ft square like a Medium one; a Large one takes four.
+  it("waits for the party's species, so a Large character is not built as Medium and kept that way", async () => {
+    const member = {
+      id: "pm-1", name: "Brakka", current_hp: 9, max_hp: 9, temp_hp: 0, conditions: [], curses: [],
+      death_save_successes: 0, death_save_failures: 0, dex: 10, con: 10, wis: 10, cha: 10,
+      species_id: "sp-goliath", subrace: null, ruleset: "2014", class: null, subclass: null, ac_formula: null,
+      class_choices: {}, portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+    } as unknown as PartyMember;
+    (data.party as { value: PartyMember[] }).value = [member];
+    (data.encounter as { value: Encounter }).value = { ...encounter, party_member_ids: ["pm-1"] };
+    (data.speciesLoading as { value: boolean }).value = true;
+    mount(EncounterRunSurface, { props: { encounterId: "e1" }, global: { stubs } });
+    const store = useEncounterRunStore();
+    expect(store.encounterId).toBe(null);
+
+    (data.species as { value: Map<string, unknown> }).value = new Map([["sp-goliath", { id: "sp-goliath", size: "large", subraces: null }]]);
+    (data.speciesLoading as { value: boolean }).value = false;
+    await nextTick();
+    expect(store.combatants[0]).toMatchObject({ size: "large", footprint: 2 });
   });
 
   it("keeps the fight when the party refetches (a damage write rang it back and reset the run to the lobby)", async () => {

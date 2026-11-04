@@ -1,7 +1,17 @@
 <template>
   <div class="map-root">
-    <!-- Top bar -->
-    <div class="map-topbar">
+    <!-- Phone: the turn header (#1125 frame 14). Tablet and up keep the plain top bar. -->
+    <PlayerMapTurnHeader
+      v-if="isPhone"
+      :mine="isMyTurn"
+      :title="turnTitle"
+      :subtitle="turnSubtitle"
+      :portrait-url="turnPortraitUrl"
+      :hp="ownHp"
+      :following="follow"
+      @toggle-follow="follow = !follow"
+    />
+    <div v-else class="map-topbar">
       <RouterLink to="/play/encounter" class="back-link">← Back</RouterLink>
       <!-- Not the encounter's name: a DM's title can name the twist, and players read only the projection. -->
       <span class="encounter-name">Battle map</span>
@@ -15,11 +25,11 @@
       ref="canvasHost"
       class="map-canvas-host"
       @wheel.prevent="onWheel"
-      @pointerdown="startPan"
-      @pointermove="continuePan"
-      @pointerup="endPan"
-      @pointercancel="endPan"
-      @pointerleave="endPan"
+      @pointerdown="onHostDown"
+      @pointermove="onHostMove"
+      @pointerup="onHostUp"
+      @pointercancel="onHostCancel"
+      @pointerleave="onHostCancel"
     >
       <div v-if="loadingState" class="empty-state">{{ loadingState }}</div>
 
@@ -28,9 +38,7 @@
         v-else-if="location && image && imageReady"
         :host-w="hostW"
         :host-h="hostH"
-        :image-url="image.url"
-        :stand-url="standUrl"
-        :stand-live-url="standLiveUrl"
+        :layers="{ imageUrl: image.url, standUrl, standLiveUrl, live, picture, motion: null }"
         :pan-x="panX"
         :pan-y="panY"
         :image-w="imageNaturalW * scale"
@@ -42,7 +50,6 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :live="live"
         :viewers="viewers"
         :zones="zones"
         :door-states="doorStates"
@@ -60,9 +67,36 @@
         :factions="factionColors"
         :active-instance-id="activeInstanceId"
         :draggable-instance-ids="draggableSet"
+        :selected-instance-ids="pickedSet"
         :hide-hidden="true"
         :silhouette-unseen="true"
         :on-position-change="onOwnTokenMoved"
+        :on-select="onOwnTokenTapped"
+        :on-drag-preview="onOwnTokenDragPreview"
+      />
+
+      <!-- The path and the ghost square a tap or a drag would make; it only draws. -->
+      <PlayMovePath
+        v-if="location && imageReady && cellPx > 0 && pathLines.length > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :lines="pathLines"
+      />
+
+      <!-- What the table has pinged, measured and drawn (#1125 decision 12): players see it all and send only pings. -->
+      <PlayTableMarks
+        v-if="location && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :pings="table.pings.value"
+        :measures="table.measures.value"
+        :drawings="table.drawings.value"
       />
 
       <!-- Fog layer (always opaque on the player side) -->
@@ -73,7 +107,8 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :mask="fogMask"
+        :mask="shown"
+        :seen="sight"
         :opaque="true"
       />
 
@@ -83,32 +118,65 @@
         class="hidden-loader"
         @load="onImageLoad"
       />
+
+      <!-- Tablet and up: the confirm is a slip over the map. -->
+      <PlayerMapMoveSheet
+        v-if="pending && !isPhone"
+        inline
+        @pointerdown.stop
+        :feet-text="pending.feetText"
+        :label="pending.label"
+        :state="pending.state"
+        :busy="moving"
+        @cancel="cancelMove"
+        @move="confirmMove"
+      />
     </div>
+
+    <template v-if="isPhone">
+      <PlayerMapMoveSheet
+        v-if="pending"
+        :feet-text="pending.feetText"
+        :label="pending.label"
+        :state="pending.state"
+        :busy="moving"
+        @cancel="cancelMove"
+        @move="confirmMove"
+      />
+      <p v-else-if="isMyTurn && ownCombatant?.position" class="tap-hint">Tap your token, then a square. Drag works too.</p>
+      <PlayerMapNav />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { computed, ref } from "vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
-import { liveState, updateCombatantPosition } from "@/composables/encounters/useEncounterLive";
+import { liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import { useCombatantDollFigures } from "@/composables/encounters/useCombatantDollFigures";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
-import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
-import { AMBIENT, NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
-import { sameDoorStates } from "@/lib/battlemap/doors";
-import { currentMapLive } from "@/lib/battlemap/liveLayer";
-import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
-import type { MapLiveDoorState } from "@/types/mapLive.types";
-import { seenCombatants, type LitScene, type Viewer } from "@/lib/battlemap/vision";
-import { useParty } from "@/composables/party/useParty";
-import { useSpeciesByIds } from "@/composables/rules/useSpecies";
-import { characterSenses } from "@/rules/characterSenses";
-import { primaryImage } from "@/lib/locations/mapStack";
+import { usePartySight } from "@/composables/encounters/usePartySight";
+import { useMapMemory } from "@/composables/locations/useMapMemory";
+import { useMapDoors } from "@/composables/locations/useMapDoors";
+import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
+import { imageGrid, partyVisibleCombatants, shownCells, type MapGrid } from "@/lib/battlemap/partySight";
+import { resolveBattleSurface } from "@/lib/battlemap/roomBridge";
+import { isInteriorType } from "@/lib/locations/tiers";
+import { usePlayerMapFollow } from "@/composables/player/usePlayerMapFollow";
+import { usePlayerMapPointer } from "@/composables/player/usePlayerMapPointer";
+import { usePlayerMapMove } from "@/composables/player/usePlayerMapMove";
+import { useIsMobile } from "@/composables/useBreakpoint";
+import PlayMovePath from "@/components/encounters/play/PlayMovePath.vue";
+import PlayTableMarks from "@/components/encounters/play/PlayTableMarks.vue";
+import { useTableChannel } from "@/composables/table/useTableChannel";
+import { senderColor } from "@/lib/table/identity";
+import PlayerMapTurnHeader from "@/components/player/PlayerMapTurnHeader.vue";
+import PlayerMapMoveSheet from "@/components/player/PlayerMapMoveSheet.vue";
+import PlayerMapNav from "@/components/player/PlayerMapNav.vue";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant, FactionColor } from "@/types/encounter.types";
@@ -119,20 +187,9 @@ import {
   gridOriginInDisplay,
 } from "@/lib/battlemap/battleMapGeometry";
 
-const router = useRouter();
-
-const MOBILE_BREAKPOINT_PX = 768;
-
-function isMobile(): boolean {
-  return typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT_PX;
-}
-
-onMounted(() => {
-  // Phones don't see the battle map — bounce back to the stats panel.
-  if (isMobile()) {
-    router.replace("/play/encounter");
-  }
-});
+// Phones get the map too (#1125 decision 14): a header that says whose turn it is, tap-then-square moves with a
+// confirm sheet, and a bottom nav.
+const isPhone = useIsMobile();
 
 // The battle location and the token ring colours come from the player-safe projection: players cannot read the
 // encounter row itself.
@@ -140,42 +197,27 @@ const locationIdRef = computed(() => liveState.value?.location_id ?? "");
 const factionColors = computed<readonly FactionColor[]>(() =>
   liveState.value?.faction_colors ? liveState.value.faction_colors : [],
 );
-const { data: location } = usePlayerVisibleLocation(locationIdRef);
-
-// The image this battle view actually draws — the site's Drawing when it
-// has one, else its Picture (#884: never `location.map_url` directly, or a
-// Drawing-only battle map would render nothing).
-const image = computed(() => primaryImage(location.value));
-// The snapshot is in the Drawing's image cells, so it only applies when the Drawing is what is on screen.
-const live = computed(() =>
-  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? currentMapLive(location.value.map_live) : null,
+const { data: encounterLocation } = usePlayerVisibleLocation(locationIdRef);
+// A room with no map of its own is drawn on its site's plan, exactly as on the DM's screen (`resolveBattleSurface`).
+// The parent is read through the same player-safe projection, which hands back a place whose map is shared.
+const parentIdRef = computed(() =>
+  encounterLocation.value && isInteriorType(encounterLocation.value.location_type) ? (encounterLocation.value.parent_id ?? "") : "",
 );
-
-// The standing half rides with the Drawing the same way; a hand-calibrated Picture has none.
-const standUrl = computed(() =>
-  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url ? location.value.map_layer_stand_url : null,
+const { data: parentLocation } = usePlayerVisibleLocation(parentIdRef);
+// The room's traced cells only focus the DM's camera; the phone draws the whole plan, so it needs no regions.
+const surface = computed(() =>
+  resolveBattleSurface({ encounterLocation: encounterLocation.value, parent: parentLocation.value, regions: [] }),
 );
+// The place whose map is on screen: the memory is read, and the snapshot taken, for this place and not the encounter's.
+const location = computed(() => surface.value?.mapLocation ?? null);
+const image = computed(() => (surface.value ? { url: surface.value.imageUrl, calibration: surface.value.calibration } : null));
+// The snapshot is in the cells of whatever is on screen: the Drawing, or a Picture with no Drawing.
+const live = computed(() => surface.value?.live ?? null);
+// The Picture under the Drawing (#1125 decision 8), when both are calibrated. Players never get a moving Picture.
+const picture = computed(() => surface.value?.picture ?? null);
+const standUrl = computed(() => surface.value?.standUrl ?? null);
+const standLiveUrl = computed(() => surface.value?.standLiveUrl ?? null);
 
-const standLiveUrl = computed(() =>
-  location.value?.map_layer_url && location.value.map_layer_url === image.value?.url
-    ? location.value.map_layer_stand_live_url
-    : null,
-);
-
-// Decode only when the source string actually changes (a plain `computed`
-// would re-decode on every liveState mutation, including unrelated token
-// HP / position pushes that happen many times per second during combat).
-const fogMask = ref<Set<string>>(new Set());
-watch(
-  () => liveState.value?.fog_mask ?? null,
-  (src) => { fogMask.value = decodeFogMask(src); },
-  { immediate: true },
-);
-
-// Player view: combatants whose anchor cell sits in a fogged cell are
-// hidden, regardless of reveal_state. This is the "monsters walk out of
-// sight" feature without LoS — just a cell membership check. Tokens with
-// no position render at the origin row (visible by default).
 // Every store this view reads is declared first: the computeds below run during setup (the token filter reads
 // `sight`, which reads the own member through `auth`), and a store declared further down would still be in its
 // temporal dead zone when they do.
@@ -190,91 +232,6 @@ const ownInstanceId = computed(() =>
 const showTokens = computed(
   () => campaignStore.activeCampaign?.battle_map_show_tokens ?? true,
 );
-
-const liveCombatants = computed<RunCombatant[] | null>(() => {
-  // Campaign-level kill switch: when the DM has disabled VTT tokens for
-  // players, omit the token layer entirely (map + fog only).
-  if (!showTokens.value) return [];
-  const list = liveState.value?.combatants_live;
-  if (!list) return null;
-  // "Tokens obey fog" (#884, wave 4): a monster that has walked out of
-  // revealed space disappears from the player's own map, VTT tokens or not.
-  const revealed = revealedCombatants(list, fogMask.value);
-  // In the dark a token you cannot see is not drawn either (#1073 story 5); fog above still applies.
-  return sight.value ? seenCombatants(revealed, sight.value.scene, sight.value.viewers, ownInstanceId.value) : revealed;
-});
-// Sight (#1073 story 5): a player sees the lit map through their own token, by the rules. Senses are the better of the
-// species' darkvision and the character's own senses field (`characterSenses`).
-const { data: party } = useParty();
-const ownMember = computed(() =>
-  auth.linkedPartyMemberId ? (party.value?.find((m) => m.id === auth.linkedPartyMemberId) ?? null) : null,
-);
-const { data: speciesById } = useSpeciesByIds(() => [ownMember.value?.species_id]);
-const ownSenses = computed(() => {
-  const member = ownMember.value;
-  const species = member?.species_id ? speciesById.value.get(member.species_id) : undefined;
-  return characterSenses({ species, subrace: member?.subrace, senses: member?.senses });
-});
-// Spheres of magical darkness the DM placed (story 10), from the player-safe projection of the live row.
-const zones = computed<readonly DarknessZone[]>(() => (liveState.value ? liveState.value.magical_darkness : NO_ZONES));
-// Doors the DM opened or shut this fight, from the same projection. A re-read hands a fresh array of equal content;
-// the previous one is kept so the occluders memoised on its identity are not rebuilt.
-const doorStates = computed<readonly MapLiveDoorState[]>((prev) => {
-  const next = liveState.value ? liveState.value.door_states : NO_DOOR_STATES;
-  return prev && sameDoorStates(prev, next) ? prev : next;
-});
-// Only a dark or dim map, or one with a sphere of magical darkness, has sight to apply: in plain daylight everything is
-// seen, so there is no scene and no viewers.
-// Viewers are the own token's centre; a player with no token on the map sees only what is lit.
-const sight = computed<{ scene: LitScene; viewers: Viewer[] } | null>(() => {
-  if (!live.value || (live.value.darkness === "daylight" && zones.value.length === 0)) return null;
-  const scene: LitScene = {
-    ambient: AMBIENT[live.value.darkness],
-    sources: live.value.lights,
-    occluders: occludersOf(live.value, doorStates.value),
-    zones: zones.value,
-  };
-  const own = liveState.value?.combatants_live?.find((c) => c.instance_id === ownInstanceId.value);
-  if (!own?.position) return { scene, viewers: [] };
-  const half = (own.footprint ?? 1) / 2;
-  const { darkvision, blindsight, truesight, devilsSight } = ownSenses.value;
-  const viewer: Viewer = {
-    x: own.position.x + half,
-    y: own.position.y + half,
-    darkvisionFeet: darkvision,
-    blindsightFeet: blindsight,
-    truesightFeet: truesight,
-    devilsSightFeet: devilsSight,
-  };
-  return { scene, viewers: [viewer] };
-});
-const viewers = computed<Viewer[] | null>(() => (sight.value ? sight.value.viewers : null));
-const dollFigures = useCombatantDollFigures(() => liveCombatants.value ?? []);
-const activeInstanceId = computed(() => {
-  const list = liveState.value?.combatants_live;
-  if (!list) return null;
-  if (liveState.value?.active_combatant_instance_id) {
-    return liveState.value.active_combatant_instance_id;
-  }
-  // active_combatant_index indexes the initiative-SORTED order (see encounterRun),
-  // not the fog-filtered liveCombatants list — sort the full list with the shared
-  // comparator and match by instance_id (the token layer keys on the id).
-  return sortCombatantsByInitiative(list)[liveState.value?.active_combatant_index ?? 0]?.instance_id ?? null;
-});
-
-const draggableSet = computed(() =>
-  ownInstanceId.value ? new Set([ownInstanceId.value]) : new Set<string>(),
-);
-
-async function onOwnTokenMoved(instanceId: string, position: { x: number; y: number }) {
-  if (!liveState.value) return;
-  if (instanceId !== ownInstanceId.value) return;
-  try {
-    await updateCombatantPosition(liveState.value.id, instanceId, position);
-  } catch (e) {
-    console.error("Failed to update token position", e);
-  }
-}
 
 const {
   canvasHost,
@@ -294,19 +251,89 @@ const {
   resetView,
 } = useMapCanvas();
 
+// Spheres of magical darkness, from the player-safe projection.
+const zones = computed<readonly DarknessZone[]>(() => (liveState.value ? liveState.value.magical_darkness : NO_ZONES));
+// The doors the DM opened or shut are the map's, like the fog, and only read here.
+const { doorStates } = useMapDoors(
+  () => campaignStore.activeCampaign?.id ?? null,
+  () => location.value?.id ?? null,
+);
+
+// The map's grid in battle cells: the calibration gives the columns, the picture's shape the rows.
+const mapGrid = computed<MapGrid | null>(() => {
+  return imageGrid(
+    image.value?.calibration.cells_per_image_width,
+    imageReady.value ? { w: imageNaturalW.value, h: imageNaturalH.value } : null,
+  );
+});
+
+// What the phone sees: the whole party's eyes, or only its own character's when the campaign says "each their own".
+const { viewers, sight } = usePartySight({
+  live,
+  doorStates,
+  zones,
+  tokens: () => (liveState.value?.combatants_live ? liveState.value.combatants_live : []),
+  grid: mapGrid,
+  onlyInstanceId: () => (campaignStore.activeCampaign?.player_sight === "own" ? ownInstanceId.value : null),
+});
+// What the map remembers is only read here; the DM's windows write it.
+const { memory } = useMapMemory(
+  () => campaignStore.activeCampaign?.id ?? null,
+  () => location.value?.id ?? null,
+);
+const shown = computed(() => shownCells(memory.value, sight.value));
+
+const liveCombatants = computed<RunCombatant[] | null>(() => {
+  // Campaign-level kill switch: when the DM has disabled VTT tokens for
+  // players, omit the token layer entirely (map + fog only).
+  if (!showTokens.value) return [];
+  const list = liveState.value?.combatants_live;
+  if (!list) return null;
+  // Your own token always; any other only where the party sees it right now.
+  return partyVisibleCombatants(list, sight.value, ownInstanceId.value);
+});
+const dollFigures = useCombatantDollFigures(() => liveCombatants.value ?? []);
+const activeInstanceId = computed(() => {
+  const list = liveState.value?.combatants_live;
+  if (!list) return null;
+  if (liveState.value?.active_combatant_instance_id) {
+    return liveState.value.active_combatant_instance_id;
+  }
+  // active_combatant_index indexes the initiative-SORTED order (see encounterRun),
+  // not the fog-filtered liveCombatants list — sort the full list with the shared
+  // comparator and match by instance_id (the token layer keys on the id).
+  return sortCombatantsByInitiative(list)[liveState.value?.active_combatant_index ?? 0]?.instance_id ?? null;
+});
+
+const draggableSet = computed(() =>
+  ownInstanceId.value ? new Set([ownInstanceId.value]) : new Set<string>(),
+);
+
+const {
+  ownCombatant, isMyTurn, activeCombatant, turnTitle, turnSubtitle, turnPortraitUrl, ownHp,
+  picked, pickedSet, target, moving, pending, pathLines,
+  onOwnTokenMoved, onOwnTokenTapped, onOwnTokenDragPreview, cancelMove, confirmMove,
+} = usePlayerMapMove(ownInstanceId, activeInstanceId);
+
+// Following: the map sits on whoever is up (you, on your turn) until the player turns it off in the header.
+const follow = ref(true);
+
+// The table's marks: players hear them all and send pings only.
+const table = useTableChannel(() => campaignStore.activeCampaign?.id ?? null, {
+  identity: () => (auth.user ? { id: auth.user.id, name: auth.publicName ?? "A player", color: senderColor(auth.user.id) } : null),
+});
+
 const loadingState = computed(() => {
   if (!liveState.value) return "No live encounter right now.";
   if (!liveState.value) return "Loading encounter…";
   if (!liveState.value.location_id) return "This encounter has no battle map.";
-  if (!location.value) return "Loading location…";
-  if (!image.value) return "The battle map has no image yet.";
-  if (!location.value.is_battle_map) return "This isn't a battle map.";
-  if (!image.value.calibration) return "The DM hasn't calibrated this map yet.";
+  if (!encounterLocation.value || (parentIdRef.value && !parentLocation.value)) return "Loading location…";
+  if (!image.value) return "The DM hasn't calibrated this map yet.";
   return null;
 });
 
 const cellPx = computed(() =>
-  image.value?.calibration
+  image.value
     ? cellSizeInDisplay({
         imageNaturalWidth: imageNaturalW.value,
         cellsPerImageWidth: image.value.calibration.cells_per_image_width,
@@ -316,7 +343,7 @@ const cellPx = computed(() =>
 );
 
 const gridOrigin = computed(() =>
-  image.value?.calibration
+  image.value
     ? gridOriginInDisplay({
         panX: panX.value,
         panY: panY.value,
@@ -336,8 +363,15 @@ const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
 );
 const gridStrokeOpacity = computed(
-  () => image.value?.calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
+  () => image.value?.calibration.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
+
+const followTarget = computed(() => (isMyTurn.value ? ownCombatant.value : activeCombatant.value));
+usePlayerMapFollow({ isPhone, follow, imageReady, cellPx, hostW, hostH, gridOrigin, scale, panX, panY, followTarget });
+// A tap picks a square, a held press pings, anything that travels pans (see usePlayerMapPointer).
+const { onHostDown, onHostMove, onHostUp, onHostCancel } = usePlayerMapPointer({
+  canvasHost, cellPx, gridOrigin, picked, target, sendPing: table.sendPing, pan: { startPan, continuePan, endPan },
+});
 </script>
 
 <style scoped>
@@ -432,6 +466,14 @@ const gridStrokeOpacity = computed(
   color: rgba(255, 255, 255, 0.55);
   padding: 2rem;
   line-height: 1.6;
+}
+
+.tap-hint {
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: rgb(255 255 255 / 0.55);
+  background: rgb(0 0 0 / 0.4);
 }
 
 .hidden-loader {

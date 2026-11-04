@@ -11,7 +11,8 @@ import { audibleEnd, durationOf, ffmpeg, hasAudio, leadingSilence, loudnessOf, S
 import { DEVICES } from "./devices";
 import { formatCanvas, layoutFor, type Layout } from "./layouts";
 import { chaptersText, srtText } from "./sidecars";
-import { gainExpression, planTheme } from "./theme";
+import { BED_CROSSFADE, bedWindow, planBeds } from "./beds";
+import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme } from "./theme";
 import { planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
 import type { Device, EpisodeManifest, Format, RecordedShot } from "./types";
 
@@ -197,6 +198,11 @@ async function main() {
   const introFile = brand ? findFirst(brandDir, "intro", ["mp4", "mov"]) : null;
   const outroFile = brand ? findFirst(brandDir, "outro", ["mp4", "mov"]) : null;
   const themeFile = brand ? findFirst(brandDir, "theme", ["mp3", "wav", "m4a"]) : null;
+  // A long video's narration sits on the longer tunes (beds.ts); a Reel keeps the theme's own underscore.
+  const bedFiles = brand && format === "youtube" ? bedsIn(brandDir) : [];
+  if (format === "youtube" && themeFile && bedFiles.length === 0) {
+    console.warn("No brand/bed-1.mp3: the theme's one-minute underscore loops under the whole video. Add bed-1, bed-2, ... for a long video.");
+  }
 
   // Static art, once per run.
   const devicesUsed = [...new Set(manifest.shots.map((s): Device => s.device ?? "phone"))];
@@ -251,13 +257,19 @@ async function main() {
 
   // Audio: narration + cues/brand audio, over a theme bed that ducks under the narration.
   const T = tl.total;
-  const theme = themeFile ? themeGraph(themeFile, T, intro?.length ?? 0, outro?.length ?? 0) : `[vo1][fx]amix=inputs=2:duration=first:normalize=0[mix]`;
+  const chapterStarts = tl.shots.flatMap((p, i) => (manifest.shots[i].chapter === undefined ? [] : [p.start]));
+  const theme = !themeFile
+    ? `[vo1][fx]amix=inputs=2:duration=first:normalize=0[mix]`
+    : bedFiles.length > 0
+      ? bedThemeGraph(themeFile, bedFiles, T, intro?.length ?? 0, outro?.length ?? 0, chapterStarts)
+      : themeGraph(themeFile, T, intro?.length ?? 0, outro?.length ?? 0);
   // The mix first, then one fixed gain to Instagram's -14 LUFS and a limiter.
   // A dynamic loudnorm would lift the quiet bed and flatten the theme's levels.
   const mixWav = join(work, "mix.wav");
   ffmpeg([
     "-i", videoAll, "-i", voAll, "-i", fxAll,
     ...(themeFile ? ["-i", themeFile] : []),
+    ...(themeFile ? bedFiles.flatMap((f) => ["-i", f]) : []),
     "-filter_complex", `[1:a]anull[vo1];[2:a]anull[fx];${theme};[mix]aresample=48000,${STEREO_48K}[a]`,
     "-map", "[a]", "-t", String(T), ...WAV, mixWav,
   ]);
@@ -314,6 +326,83 @@ function themeGraph(file: string, total: number, intro: number, outro: number): 
     `${join}concat=n=${n}:v=0:a=1,atrim=0:${plan.bodyLength},volume='${gainExpression(plan.bodyGain)}':eval=frame[tbody];` +
     `[tsTail]atrim=${plan.tail.from},asetpts=PTS-STARTPTS,adelay=${delay}|${delay},volume='${gainExpression(plan.tailGain)}':eval=frame[ttail];` +
     `[tbody][ttail]amix=inputs=2:duration=longest:normalize=0,apad,atrim=0:${total}[th];` +
+    `[vo1]asplit[voA][voB];[th][voB]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[duck];` +
+    `[voA][fx][duck]amix=inputs=3:duration=first:normalize=0[mix]`
+  );
+}
+
+/** `brand/bed-1.*`, `bed-2.*`, ... in order, stopping at the first missing number. */
+function bedsIn(brandDir: string): string[] {
+  const files: string[] = [];
+  for (let n = 1; ; n++) {
+    const file = findFirst(brandDir, `bed-${n}`, ["mp3", "wav", "m4a"]);
+    if (!file) return files;
+    files.push(file);
+  }
+}
+
+/** Under the voice, a bed is level-matched to the theme and set this far below the Reel's bed: the tunes are busier than its underscore. */
+const BED_EXTRA_DB = -3;
+/** The motif settles from full to the bed's level this long after the logo, as in a Reel. */
+const MOTIF_SETTLE = 0.8;
+/** The motif's last note hands over to the first tune over this long. */
+const MOTIF_HANDOVER = 1.5;
+/**
+ * Keeps a busy tune behind the voice and the chain sounding like one piece:
+ * no rumble, a dip in the low mids (where it muddies a voice) and where speech
+ * is intelligible, softened highs, then a slow leveller. Generated tunes jump
+ * at their section changes (a bass line entering a minute in, a texture
+ * thickening), and an even bed hides both those jumps and the handovers.
+ */
+const BED_EQ =
+  "highpass=f=90,equalizer=f=300:t=q:w=1:g=-3,equalizer=f=2500:t=q:w=1.2:g=-5,treble=g=-4:f=6000," +
+  "acompressor=threshold=0.05:ratio=3:attack=400:release=2500:knee=4";
+
+/**
+ * The theme's motif over the opening logo and its ending over the close, as
+ * in a Reel, with the background tunes chained between them (see beds.ts).
+ * Input 3 is the theme, inputs 4 and on the tunes.
+ */
+function bedThemeGraph(themeFile: string, bedFiles: string[], total: number, intro: number, outro: number, chapterStarts: number[]): string {
+  const plan = planTheme({ total, intro, outro, themeDuration: audibleEnd(themeFile), lead: leadingSilence(themeFile) });
+  const themeLoudness = loudnessOf(themeFile);
+  const windows = bedFiles.map((f) => bedWindow(leadingSilence(f), audibleEnd(f)));
+  const trims = bedFiles.map((f) => themeLoudness - loudnessOf(f));
+  // The motif plays to its end (THEME_MOTIF_END in the file), at full over the logo and settling to the bed's
+  // level after it, as in a Reel. Only then does the first tune come in, so two pieces never play at once;
+  // the tunes hand over to the theme's ending at its crossfade.
+  const lead = plan.body[0].from;
+  const motifStop = intro > 0 ? Math.max(intro + MOTIF_SETTLE, THEME_MOTIF_END - lead) : 0;
+  const bedFrom = Math.max(0, motifStop - MOTIF_HANDOVER / 2);
+  const bedTo = plan.bodyLength;
+  const segs = planBeds({ from: bedFrom, to: bedTo, chapterStarts, beds: windows });
+  const last = segs.length - 1;
+  const pieces = segs.map((s, i) => {
+    const fadeIn = i > 0 ? BED_CROSSFADE : intro > 0 ? MOTIF_HANDOVER : 0.5;
+    const fadeOut = i === last ? bedTo - plan.tail.at : BED_CROSSFADE;
+    const ms = Math.round(s.at * 1000);
+    return (
+      `[${4 + s.bed}:a]${STEREO_48K},atrim=${s.from}:${s.from + s.length},asetpts=PTS-STARTPTS,volume=${trims[s.bed].toFixed(2)}dB,` +
+      `afade=t=in:st=0:d=${fadeIn}:curve=qsin,afade=t=out:st=${Math.max(0, s.length - fadeOut)}:d=${fadeOut}:curve=qsin,adelay=${ms}|${ms}[bed${i}];`
+    );
+  });
+  const motifEnd = motifStop + MOTIF_HANDOVER / 2;
+  const bedDb = BED_DB + BED_EXTRA_DB;
+  const motifGain = gainExpression([
+    { t: 0, db: FULL_DB },
+    { t: intro, db: FULL_DB },
+    { t: intro + MOTIF_SETTLE, db: bedDb },
+    { t: motifStop - MOTIF_HANDOVER / 2, db: bedDb },
+    { t: motifEnd, db: SILENT_DB },
+  ]);
+  const delay = Math.round(plan.tail.at * 1000);
+  return (
+    `[3:a]${STEREO_48K},asplit=2[tsMotif][tsTail];` +
+    (intro > 0 ? `[tsMotif]atrim=${plan.body[0].from}:${plan.body[0].from + motifEnd},asetpts=PTS-STARTPTS,volume='${motifGain}':eval=frame[tmotif];` : `[tsMotif]anullsink;`) +
+    pieces.join("") +
+    `${segs.map((_, i) => `[bed${i}]`).join("")}amix=inputs=${segs.length}:duration=longest:normalize=0,${BED_EQ},volume=${bedDb}dB[tbeds];` +
+    `[tsTail]atrim=${plan.tail.from},asetpts=PTS-STARTPTS,adelay=${delay}|${delay},volume='${gainExpression(plan.tailGain)}':eval=frame[ttail];` +
+    `${intro > 0 ? "[tmotif]" : ""}[tbeds][ttail]amix=inputs=${intro > 0 ? 3 : 2}:duration=longest:normalize=0,apad,atrim=0:${total}[th];` +
     `[vo1]asplit[voA][voB];[th][voB]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[duck];` +
     `[voA][fx][duck]amix=inputs=3:duration=first:normalize=0[mix]`
   );

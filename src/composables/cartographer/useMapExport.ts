@@ -57,9 +57,9 @@
 // from measuring what comes back — there is nothing to measure that changes
 // the answer. It's a first guess, not a guarantee: the model can still
 // shrink or grow the grid a little in its own render, which is exactly what
-// the Layers panel's Calibrate action stays available to correct (it opens
-// seeded from whatever this wrote, same as any other Picture — see
-// `GridCalibrationDialog`'s `existing` prop).
+// the Picture layer's "Line up the grid on the map" (`MapGridLineUp`) stays
+// available to correct (it opens seeded from whatever this wrote, same as
+// any other Picture).
 
 import { computed, ref, watch } from "vue";
 import { bakeAiStyleInput, styledPictureCalibration } from "@/cartographer/aiStyleInput";
@@ -97,7 +97,7 @@ interface StyleMapResponse {
  * only to flag drift, not to correct it: if the provider's actual render
  * doesn't match the size `style-map` was asked for by more than a couple of
  * pixels, that's worth a console warning for whoever's debugging a
- * misaligned grid, even though Calibrate is the real fix either way.
+ * misaligned grid, even though lining the grid up is the real fix either way.
  */
 async function warnIfStyleResultSizeDrifted(blob: Blob, requested: { width: number; height: number }): Promise<void> {
   try {
@@ -107,7 +107,7 @@ async function warnIfStyleResultSizeDrifted(blob: Blob, requested: { width: numb
     if (Math.abs(width - requested.width) > 2 || Math.abs(height - requested.height) > 2) {
       console.warn(
         `AI Style: requested a ${requested.width}x${requested.height} render but the provider returned ${width}x${height}. ` +
-        "grid_calibration was derived from the request, not the actual result — Calibrate will fix any drift.",
+        "grid_calibration was derived from the request, not the actual result — lining the grid up will fix any drift.",
       );
     }
   } catch {
