@@ -21,7 +21,7 @@ vi.mock("@/stores/calendar", () => ({
       name: "T",
       epochName: "TE",
       defaultYear: 1,
-      months: [{ num: 1, name: "One", days: 30 }],
+      months: [{ num: 1, name: "One", days: 30 }, { num: 2, name: "Two", days: 28 }, { num: 3, name: "Three", days: 31 }],
       intercalaryDays: [],
       weekSize: 10,
       moons: [],
@@ -74,7 +74,7 @@ describe("EventModal prefill", () => {
     const wrapper = mountModal();
     await wrapper.setProps({ modelValue: true });
     const date = wrapper.findComponent({ name: "EventModalDatePicker" });
-    expect(date.props("harptosMonth")).toBe(3);
+    expect(date.props("month")).toBe(3);
     expect(wrapper.findComponent({ name: "EventModalTypePicker" }).props("eventType")).toBe("campaign");
   });
 
@@ -83,9 +83,9 @@ describe("EventModal prefill", () => {
       prefill: {
         title: "Travel to Daggerford",
         event_type: "travel",
-        harptos_year: 1495,
-        harptos_month: 1,
-        harptos_day: 5,
+        year: 1495,
+        month: 1,
+        day: 5,
         is_multi_day: true,
         end_year: 1495,
         end_month: 1,
@@ -99,7 +99,7 @@ describe("EventModal prefill", () => {
 
     expect(wrapper.findComponent({ name: "EventModalTypePicker" }).props("eventType")).toBe("travel");
     const date = wrapper.findComponent({ name: "EventModalDatePicker" });
-    expect(date.props()).toMatchObject({ harptosMonth: 1, harptosDay: 5, isMultiDay: true, endDay: 8 });
+    expect(date.props()).toMatchObject({ month: 1, day: 5, isMultiDay: true, endDay: 8 });
     const travel = wrapper.findComponent({ name: "EventModalTravelFields" });
     expect(travel.props()).toMatchObject({ linkedLocationId: "loc-b", travelPartyMemberIds: ["pm-1"] });
   });
@@ -130,9 +130,9 @@ const existing: CalendarEvent = {
   title: "Harvest feast",
   description: null,
   event_type: "campaign",
-  harptos_year: 1495,
-  harptos_month: 3,
-  harptos_day: 4,
+  year: 1495,
+  month: 3,
+  day: 4,
   festival_day: null,
   is_multi_day: false,
   end_year: null,
@@ -168,11 +168,11 @@ describe("EventModal saving", () => {
     datePicker(w).vm.$emit("update:festivalDay", "Midwinter");
     await flushPromises();
     await submit(w);
-    expect(mocks.createEvent.mock.calls[0][0]).toMatchObject({ festival_day: "Midwinter", harptos_month: null, harptos_day: null });
+    expect(mocks.createEvent.mock.calls[0][0]).toMatchObject({ festival_day: "Midwinter", month: null, day: null });
 
     const w2 = await openModal({ prefill: { title: "Feast", festival_day: "Midwinter" } });
     await submit(w2);
-    expect(mocks.createEvent.mock.calls[1][0]).toMatchObject({ festival_day: null, harptos_month: 3, harptos_day: 1 });
+    expect(mocks.createEvent.mock.calls[1][0]).toMatchObject({ festival_day: null, month: 3, day: 1 });
   });
 
   it("drops the end date of an event that is not multi-day", async () => {
@@ -235,5 +235,19 @@ describe("EventModal saving", () => {
     await flushPromises();
     expect(mocks.deleteEvent).toHaveBeenCalledWith("ev1");
     expect(w.emitted("update:modelValue")?.at(-1)).toEqual([false]);
+  });
+});
+
+describe("EventModal day limit", () => {
+  // Bug it fails on: the day input was capped at a flat 30 whatever the month's length.
+  it("caps the day at the chosen month's own length, for the start and the end date", async () => {
+    const w = await openModal({ prefill: { title: "Feast" } });
+    expect(datePicker(w).props("dayMax")).toBe(31); // month 3 of the mocked calendar
+    datePicker(w).vm.$emit("update:month", 2);
+    await flushPromises();
+    expect(datePicker(w).props("dayMax")).toBe(28);
+    datePicker(w).vm.$emit("update:endMonth", 1);
+    await flushPromises();
+    expect(datePicker(w).props("endDayMax")).toBe(30);
   });
 });

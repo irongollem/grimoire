@@ -62,7 +62,7 @@ const calendarStore = useCalendarStore();
 function navigate() {
   if (!eventData.value) return;
   const ev = eventData.value;
-  calendarStore.goToMonth(ev.harptos_year, ev.harptos_month ?? 1);
+  calendarStore.goToMonth(ev.year, ev.month ?? 1);
   calendarStore.setHighlightedEvent(ev.id);
   void router.push("/calendar");
 }

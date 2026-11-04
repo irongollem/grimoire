@@ -222,9 +222,9 @@ async function pinDate() {
     description: null,
     event_type: eventType,
     color,
-    harptos_year: form.value.year,
-    harptos_month: dateType.value === "regular" ? form.value.month : null,
-    harptos_day: dateType.value === "regular" ? form.value.day : null,
+    year: form.value.year,
+    month: dateType.value === "regular" ? form.value.month : null,
+    day: dateType.value === "regular" ? form.value.day : null,
     festival_day: dateType.value === "festival" ? form.value.festival : null,
     is_multi_day: false,
     end_year: null,
@@ -245,16 +245,16 @@ async function removePin(id: string) {
 }
 
 function formatPin(pin: CalendarEvent): string {
-  if (pin.festival_day) return `${pin.festival_day}, ${pin.harptos_year} ${adapter.value.epochName}`;
-  if (pin.harptos_month && pin.harptos_day) {
-    const month = adapter.value.months.find((m) => m.num === pin.harptos_month);
-    return `Day ${pin.harptos_day}, ${month?.name ?? ""} ${pin.harptos_year} ${adapter.value.epochName}`;
+  if (pin.festival_day) return `${pin.festival_day}, ${pin.year} ${adapter.value.epochName}`;
+  if (pin.month && pin.day) {
+    const month = adapter.value.months.find((m) => m.num === pin.month);
+    return `Day ${pin.day}, ${month?.name ?? ""} ${pin.year} ${adapter.value.epochName}`;
   }
-  return `${pin.harptos_year} ${adapter.value.epochName}`;
+  return `${pin.year} ${adapter.value.epochName}`;
 }
 
 function calendarRoute(pin: CalendarEvent): string {
-  return `/calendar?year=${pin.harptos_year}&month=${pin.harptos_month ?? ""}`;
+  return `/calendar?year=${pin.year}&month=${pin.month ?? ""}`;
 }
 
 const entityTypeLabel = computed(() =>

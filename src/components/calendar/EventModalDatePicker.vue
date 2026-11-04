@@ -9,17 +9,17 @@
     <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Year</label>
-        <AppInput v-model.number="harptosYearModel" type="number" min="1" tone="muted" size="body-xs" align="right" />
+        <AppInput v-model.number="yearModel" type="number" min="1" tone="muted" size="body-xs" align="right" />
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Month</label>
-        <AppSelect v-model.number="harptosMonthModel" tone="muted" size="body-xs" block aria-label="Month">
+        <AppSelect v-model.number="monthModel" tone="muted" size="body-xs" block aria-label="Month">
           <option v-for="m in months" :key="m.num" :value="m.num">{{ m.name }}</option>
         </AppSelect>
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Day</label>
-        <AppInput v-model.number="harptosDayModel" type="number" min="1" max="30" tone="muted" size="body-xs" align="right" />
+        <AppInput v-model.number="dayModel" type="number" min="1" :max="dayMax" tone="muted" size="body-xs" align="right" />
       </div>
     </div>
 
@@ -27,7 +27,7 @@
     <div v-else class="grid grid-cols-2 gap-2">
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Year</label>
-        <AppInput v-model.number="harptosYearModel" type="number" min="1" tone="muted" size="body-xs" align="right" />
+        <AppInput v-model.number="yearModel" type="number" min="1" tone="muted" size="body-xs" align="right" />
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Festival</label>
@@ -60,7 +60,7 @@
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">End day</label>
-        <AppInput v-model.number="endDayModel" type="number" min="1" max="30" tone="muted" size="body-xs" align="right" />
+        <AppInput v-model.number="endDayModel" type="number" min="1" :max="endDayMax" tone="muted" size="body-xs" align="right" />
       </div>
     </div>
   </div>
@@ -84,35 +84,40 @@ interface Festival {
 
 const {
   dateType,
-  harptosYear,
-  harptosMonth,
-  harptosDay,
+  year,
+  month,
+  day,
   festivalDay,
   isMultiDay,
   endYear,
   endMonth,
   endDay,
   months,
+  dayMax,
+  endDayMax,
   availableFestivals,
 } = defineProps<{
   dateType: "regular" | "festival";
-  harptosYear: number;
-  harptosMonth: number | null;
-  harptosDay: number | null;
+  year: number;
+  month: number | null;
+  day: number | null;
   festivalDay: string | null;
   isMultiDay: boolean;
   endYear: number | null;
   endMonth: number | null;
   endDay: number | null;
   months: Month[];
+  /** Days in the chosen month, from the calendar (not a flat 30). */
+  dayMax: number;
+  endDayMax: number;
   availableFestivals: Festival[];
 }>();
 
 const emit = defineEmits<{
   "update:dateType": [value: "regular" | "festival"];
-  "update:harptosYear": [value: number];
-  "update:harptosMonth": [value: number];
-  "update:harptosDay": [value: number];
+  "update:year": [value: number];
+  "update:month": [value: number];
+  "update:day": [value: number];
   "update:festivalDay": [value: string];
   "update:isMultiDay": [value: boolean];
   "update:endYear": [value: number];
@@ -128,7 +133,7 @@ const DATE_TYPE_OPTIONS = [
 // AppInput/AppSelect require v-model, but this component receives its value through
 // props+emit rather than defineModel. Each field below is a local writable computed
 // that reads the prop and re-emits on write — the same bridge CalendarEditor uses for
-// SettingMonthDef.alias. harptosMonth/harptosDay/festivalDay/endYear/endDay are
+// SettingMonthDef.alias. month/day/festivalDay/endYear/endDay are
 // nullable in the prop (the parent nulls them when the other date-type is active) but
 // these controls have no "clear" option in their own <option>/number-field range, so
 // the null guard in their setters is defensive typing, not a live path. endMonth is
@@ -138,19 +143,19 @@ const dateTypeModel = computed({
   set: (v: "regular" | "festival") => emit("update:dateType", v),
 });
 
-const harptosYearModel = computed({
-  get: () => harptosYear,
-  set: (v: number) => emit("update:harptosYear", v),
+const yearModel = computed({
+  get: () => year,
+  set: (v: number) => emit("update:year", v),
 });
 
-const harptosMonthModel = computed({
-  get: () => harptosMonth,
-  set: (v: number | null) => { if (v !== null) emit("update:harptosMonth", v); },
+const monthModel = computed({
+  get: () => month,
+  set: (v: number | null) => { if (v !== null) emit("update:month", v); },
 });
 
-const harptosDayModel = computed({
-  get: () => harptosDay,
-  set: (v: number | null) => { if (v !== null) emit("update:harptosDay", v); },
+const dayModel = computed({
+  get: () => day,
+  set: (v: number | null) => { if (v !== null) emit("update:day", v); },
 });
 
 const festivalDayModel = computed({

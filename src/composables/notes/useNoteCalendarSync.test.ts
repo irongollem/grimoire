@@ -91,9 +91,9 @@ describe("useNoteCalendarSync", () => {
     expect(mocks.createCalEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Session 7: The Sunken Road",
-        harptos_year: 1492,
-        harptos_month: 3,
-        harptos_day: 12,
+        year: 1492,
+        month: 3,
+        day: 12,
         is_multi_day: false,
         end_year: null,
         end_month: null,

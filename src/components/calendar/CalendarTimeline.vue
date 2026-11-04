@@ -325,6 +325,7 @@ import { useCalendarEventsRange } from "@/composables/calendar/useCalendarEvents
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import CalendarTimelineControls from "@/components/calendar/CalendarTimelineControls.vue";
 import CalendarTimelineEventList from "@/components/calendar/CalendarTimelineEventList.vue";
+import { buildYearIndex, daysInMonth, monthStartFraction, yearFraction } from "@/lib/calendar/dayMath";
 import { eventColor } from "@/types/calendar.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import { IconClock, IconEncounter, IconFire, IconGenerate, IconGlobe, IconMap, IconMonster, IconReveal, IconStar, IconUndead } from '@/lib/icons';
@@ -365,8 +366,12 @@ const EVENT_ICONS: Record<string, Component> = {
   travel: IconMap,
 };
 
+// A typical year of the active calendar, for sizing the week zoom. Fixed per
+// calendar (not per viewed year) so the zoom presets keep their identity.
+const yearDays = computed(() => buildYearIndex(calendar.adapter, calendar.adapter.defaultYear).totalDays);
+
 const ZOOM_PRESETS = computed(() => [
-  { value: calendar.adapter.weekSize / 365, label: "1wk" },
+  { value: calendar.adapter.weekSize / yearDays.value, label: "1wk" },
   { value: 1 / 12, label: "1mo" },
   { value: 1, label: "1yr" },
   { value: 10, label: "10yr" },
@@ -414,10 +419,10 @@ const zoomYears = computed(() => calendar.timelineZoom);
 // Track which tenday (1-indexed) we're centred on for week-zoom navigation
 const currentTenday = ref(1);
 const tendaysPerMonth = computed(() =>
-  Math.floor(30 / calendar.adapter.weekSize),
+  Math.floor(daysInMonth(calendar.adapter, calendar.currentYear, calendar.currentMonth) / calendar.adapter.weekSize),
 );
 const isWeekZoom = computed(
-  () => zoomYears.value <= (calendar.adapter.weekSize / 365) * 1.5,
+  () => zoomYears.value <= (calendar.adapter.weekSize / yearDays.value) * 1.5,
 );
 
 // Zoom mode determines which tick type to render
@@ -430,16 +435,21 @@ const zoomMode = computed((): "days" | "months" | "years" => {
 // Center the view on current position
 const centerFrac = computed(() => {
   if (isWeekZoom.value) {
-    const dayOfYear =
-      (calendar.currentMonth - 1) * 30 +
-      (currentTenday.value - 0.5) * calendar.adapter.weekSize;
-    return calendar.currentYear + dayOfYear / 365;
+    return yearFraction(
+      calendar.adapter,
+      calendar.currentYear,
+      calendar.currentMonth,
+      (currentTenday.value - 0.5) * calendar.adapter.weekSize,
+    );
   }
   if (zoomMode.value === "days") {
-    return calendar.currentYear + (calendar.currentMonth - 0.5) / 12;
+    return (
+      monthStartFraction(calendar.adapter, calendar.currentYear, calendar.currentMonth) +
+      daysInMonth(calendar.adapter, calendar.currentYear, calendar.currentMonth) / 2 / yearDays.value
+    );
   }
   if (zoomMode.value === "months") {
-    return calendar.currentYear + (calendar.currentMonth - 1) / 12;
+    return monthStartFraction(calendar.adapter, calendar.currentYear, calendar.currentMonth);
   }
   return calendar.currentYear;
 });
@@ -466,27 +476,13 @@ function fractionalYearToX(frac: number): number {
 
 // Convert an event's date to a fractional year
 function eventToFrac(event: CalendarEvent): number {
-  if (event.festival_day) {
-    const festDay = calendar.adapter.intercalaryDays.find(
-      (d) => d.name === event.festival_day,
-    );
-    if (festDay) {
-      const dayOfYear = festDay.afterMonth * 30 + 0.5;
-      return event.harptos_year + dayOfYear / 365;
-    }
-  }
-  if (event.harptos_month !== null && event.harptos_day !== null) {
-    const dayOfYear = (event.harptos_month - 1) * 30 + event.harptos_day;
-    return event.harptos_year + dayOfYear / 365;
-  }
-  return event.harptos_year;
+  return yearFraction(calendar.adapter, event.year, event.month, event.day, event.festival_day);
 }
 
 function endFracForEvent(event: CalendarEvent): number | null {
   if (!event.is_multi_day || event.end_year === null) return null;
   if (event.end_month !== null && event.end_day !== null) {
-    const dayOfYear = (event.end_month - 1) * 30 + event.end_day;
-    return event.end_year + dayOfYear / 365;
+    return yearFraction(calendar.adapter, event.end_year, event.end_month, event.end_day);
   }
   return event.end_year;
 }
@@ -527,7 +523,7 @@ const monthTicks = computed(() => {
   const ey = Math.ceil(endFrac.value);
   for (let y = sy; y <= ey; y++) {
     for (const m of calendar.adapter.months) {
-      const frac = y + (m.num - 1) / 12;
+      const frac = monthStartFraction(calendar.adapter, y, m.num);
       if (frac >= startFrac.value - 0.01 && frac <= endFrac.value + 0.01) {
         ticks.push({
           key: `${y}-${m.num}`,
@@ -551,14 +547,14 @@ const dayTicks = computed(() => {
     calendar.adapter.months.find((mo) => mo.num === m)?.name ?? "";
 
   let dStart = 1;
-  let dEnd = 30;
+  let dEnd = daysInMonth(calendar.adapter, y, m);
   if (isWeekZoom.value) {
     dStart = (currentTenday.value - 1) * weekSize + 1;
     dEnd = currentTenday.value * weekSize;
   }
 
   for (let d = dStart; d <= dEnd; d++) {
-    const frac = y + ((m - 1) * 30 + d) / 365;
+    const frac = yearFraction(calendar.adapter, y, m, d);
     ticks.push({
       day: d,
       frac,
@@ -569,19 +565,20 @@ const dayTicks = computed(() => {
 });
 
 const currentMarkerX = computed(() =>
-  fractionalYearToX(calendar.currentYear + (calendar.currentMonth - 1) / 12),
+  fractionalYearToX(monthStartFraction(calendar.adapter, calendar.currentYear, calendar.currentMonth)),
 );
 
 // In-game "today" marker (campaign.todayYear/Month/Day)
 const todayMarkerX = computed(() => {
-  const dayOfYear = (campaignStore.todayMonth - 1) * 30 + campaignStore.todayDay;
-  return fractionalYearToX(campaignStore.todayYear + dayOfYear / 365);
+  return fractionalYearToX(
+    yearFraction(calendar.adapter, campaignStore.todayYear, campaignStore.todayMonth, campaignStore.todayDay),
+  );
 });
 
 // Human-readable range label for the nav bar
 const rangeLabel = computed(() => {
   const ep = calendar.adapter.epochName;
-  const weekFrac = calendar.adapter.weekSize / 365;
+  const weekFrac = calendar.adapter.weekSize / yearDays.value;
   if (zoomMode.value === "days") {
     const m = calendar.adapter.months.find(
       (mo) => mo.num === calendar.currentMonth,
@@ -734,17 +731,17 @@ const visibleEvents = computed(() =>
 
 function formatEventDate(event: CalendarEvent): string {
   if (event.festival_day) return event.festival_day;
-  const m = event.harptos_month
-    ? calendar.adapter.months.find((mo) => mo.num === event.harptos_month)
+  const m = event.month
+    ? calendar.adapter.months.find((mo) => mo.num === event.month)
     : null;
   const monthName = m?.name ?? "";
-  if (event.harptos_day && monthName) {
-    const week = Math.ceil(event.harptos_day / calendar.adapter.weekSize);
+  if (event.day && monthName) {
+    const week = Math.ceil(event.day / calendar.adapter.weekSize);
     const label = calendar.adapter.weekRowNames?.[week - 1] ?? `Tenday ${week}`;
-    return `${monthName} ${event.harptos_day} (${label}), ${event.harptos_year}`;
+    return `${monthName} ${event.day} (${label}), ${event.year}`;
   }
-  if (monthName) return `${monthName} ${event.harptos_year}`;
-  return `${event.harptos_year}`;
+  if (monthName) return `${monthName} ${event.year}`;
+  return `${event.year}`;
 }
 
 // ── Navigation ──────────────────────────────────────────────────────────────

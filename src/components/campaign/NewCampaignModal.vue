@@ -63,8 +63,9 @@
               block
               @change="onCalendarChange"
             >
+              <option :value="null" disabled>Choose a calendar…</option>
               <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-              <option value="custom">Custom calendar…</option>
+              <option value="custom">Blank calendar (make your own)…</option>
             </AppSelect>
           </div>
           <div>
@@ -104,7 +105,7 @@
           type="submit"
           variant="primary"
           size="md"
-          :disabled="isSaving || !form.ruleset || calendarProblem !== null"
+          :disabled="isSaving || !form.ruleset || form.calendar_id === null || calendarProblem !== null"
           :label="isSaving ? 'Saving…' : 'Create Campaign'"
         />
       </div>
@@ -149,22 +150,23 @@ const { mutateAsync: createCampaign, isPending: isSaving } = useCreateCampaign()
 const { mutateAsync: claimOrphans } = useClaimOrphanedData();
 
 const availableCalendars = listCalendarAdapters();
-const defaultCalendar = availableCalendars[0];
 
-// The edition starts unchosen: it is asked first (#943), and a preselected one
-// is an edition nobody picked. The form cannot be submitted without it.
+// The edition and the calendar both start unchosen. The edition is asked first
+// (#943), and a preselected one is an edition nobody picked; a preselected
+// calendar was Faerûn, a world nobody picked. The form cannot be submitted
+// without either.
 const form = ref<{
   name: string;
   setting: string;
-  calendar_id: string;
+  calendar_id: string | null;
   current_year: number;
   ruleset: RulesetKey | null;
   allows_mixed_rulesets: boolean;
 }>({
   name: "",
   setting: "",
-  calendar_id: defaultCalendar?.id ?? "faerun",
-  current_year: defaultCalendar?.defaultYear ?? 1495,
+  calendar_id: null,
+  current_year: 1,
   ruleset: null,
   allows_mixed_rulesets: false,
 });
@@ -177,8 +179,8 @@ watch(open, (isOpen) => {
     form.value = {
       name: "",
       setting: "",
-      calendar_id: defaultCalendar?.id ?? "faerun",
-      current_year: defaultCalendar?.defaultYear ?? 1495,
+      calendar_id: null,
+      current_year: 1,
       ruleset: null,
       allows_mixed_rulesets: false,
     };
@@ -203,8 +205,10 @@ function onCalendarChange() {
     return;
   }
   customCalendarDef.value = null;
-  form.value.current_year = getCalendarAdapter(form.value.calendar_id).defaultYear;
-  const newLabel = getSetting(form.value.calendar_id)?.label ?? "";
+  const calendarId = form.value.calendar_id;
+  if (calendarId === null) return;
+  form.value.current_year = getCalendarAdapter(calendarId).defaultYear;
+  const newLabel = getSetting(calendarId)?.label ?? "";
   const knownLabels = new Set(listSettings().map((s) => s.label));
   if (newLabel && (!form.value.setting || knownLabels.has(form.value.setting))) {
     form.value.setting = newLabel;
@@ -218,12 +222,13 @@ const calendarProblem = computed(() =>
 
 async function submit() {
   const ruleset = form.value.ruleset;
-  if (!ruleset || calendarProblem.value !== null) return;
+  const calendarId = form.value.calendar_id;
+  if (!ruleset || calendarId === null || calendarProblem.value !== null) return;
   try {
     const created = await createCampaign({
       name: form.value.name,
-      setting: form.value.setting || "Custom Setting",
-      calendar_id: form.value.calendar_id,
+      setting: form.value.setting.trim() || null,
+      calendar_id: calendarId,
       current_year: form.value.current_year,
       ruleset,
       allows_mixed_rulesets: form.value.allows_mixed_rulesets,
@@ -236,7 +241,7 @@ async function submit() {
       // ai_enabled deliberately omitted — new campaigns start unchosen
       // (null); see the column comment on campaigns.ai_enabled.
       battle_map_show_tokens: true,
-      custom_calendar: form.value.calendar_id === "custom" ? customCalendarDef.value : null,
+      custom_calendar: calendarId === "custom" ? customCalendarDef.value : null,
     });
     if (showClaimOption && claimExisting.value) {
       await claimOrphans(created.id);

@@ -42,9 +42,9 @@ function ev(o: Partial<CalendarEvent>): CalendarEvent {
     title: `E${id}`,
     description: null,
     event_type: "session",
-    harptos_year: 1000,
-    harptos_month: 1,
-    harptos_day: 1,
+    year: 1000,
+    month: 1,
+    day: 1,
     festival_day: null,
     is_multi_day: false,
     end_year: null,
@@ -65,7 +65,7 @@ function ev(o: Partial<CalendarEvent>): CalendarEvent {
 
 describe("weekContainingToday", () => {
   it("returns the tenday row with its name and marks today and events", () => {
-    const w = weekContainingToday(TENDAY, { year: 1000, month: 1, day: 4 }, [ev({ harptos_day: 7 })]);
+    const w = weekContainingToday(TENDAY, { year: 1000, month: 1, day: 4 }, [ev({ day: 7 })]);
     expect(w?.label).toBe("First Tenday");
     expect(w?.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(w?.days.find((d) => d.isToday)?.day).toBe(4);
@@ -92,9 +92,9 @@ describe("weekContainingToday", () => {
 
   it("covers multi-day events and ignores other years and festivals", () => {
     const events = [
-      ev({ harptos_day: 2, is_multi_day: true, end_day: 4 }),
-      ev({ harptos_year: 999, harptos_day: 9 }),
-      ev({ harptos_month: null, harptos_day: null, festival_day: "Founding Day" }),
+      ev({ day: 2, is_multi_day: true, end_day: 4 }),
+      ev({ year: 999, day: 9 }),
+      ev({ month: null, day: null, festival_day: "Founding Day" }),
     ];
     const w = weekContainingToday(TENDAY, { year: 1000, month: 1, day: 1 }, events);
     expect(w?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([2, 3, 4]);
@@ -102,17 +102,17 @@ describe("weekContainingToday", () => {
 
   it("treats a multi-day event with no end day as a single day", () => {
     const w = weekContainingToday(TENDAY, { year: 1000, month: 1, day: 1 }, [
-      ev({ harptos_day: 2, is_multi_day: true, end_day: null }),
+      ev({ day: 2, is_multi_day: true, end_day: null }),
     ]);
     expect(w?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([2]);
   });
 
   it("carries a multi-day event across a month boundary and across a year boundary", () => {
-    const month = ev({ harptos_month: 1, harptos_day: 28, is_multi_day: true, end_month: 2, end_day: 3 });
+    const month = ev({ month: 1, day: 28, is_multi_day: true, end_month: 2, end_day: 3 });
     const inSecond = weekContainingToday(TENDAY, { year: 1000, month: 2, day: 1 }, [month]);
     expect(inSecond?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([1, 2, 3]);
 
-    const year = ev({ harptos_year: 999, harptos_month: 2, harptos_day: 29, is_multi_day: true, end_year: 1000, end_month: 1, end_day: 3 });
+    const year = ev({ year: 999, month: 2, day: 29, is_multi_day: true, end_year: 1000, end_month: 1, end_day: 3 });
     const inNewYear = weekContainingToday(TENDAY, { year: 1000, month: 1, day: 1 }, [year]);
     expect(inNewYear?.days.filter((d) => d.hasEvent).map((d) => d.day)).toEqual([1, 2, 3]);
   });

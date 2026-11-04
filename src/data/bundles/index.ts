@@ -4,9 +4,9 @@ export interface BundleEvent {
   title: string;
   description: string;
   event_type: CalendarEventType;
-  harptos_year: number;
-  harptos_month: number | null;
-  harptos_day: number | null;
+  year: number;
+  month: number | null;
+  day: number | null;
   festival_day: string | null;
   is_multi_day: boolean;
   end_year: number | null;

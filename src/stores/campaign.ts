@@ -348,7 +348,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     return campaign !== null && userId !== undefined && campaign.user_id === userId;
   });
 
-  const todayYear  = computed(() => activeCampaign.value?.current_year ?? 1495);
+  const todayYear  = computed(() => activeCampaign.value?.current_year ?? 1);
   const todayMonth = computed(() => activeCampaign.value?.current_month ?? 1);
   const todayDay   = computed(() => activeCampaign.value?.current_day ?? 1);
 

@@ -32,12 +32,12 @@ type WeekAdapter = Pick<
  *  without a month and day are not on a dated cell. */
 function eventCoversDay(event: CalendarEvent, year: number, month: number, day: number): boolean {
   if (event.festival_day) return false;
-  const { harptos_month: startMonth, harptos_day: startDay } = event;
+  const { month: startMonth, day: startDay } = event;
   if (startMonth === null || startDay === null) return false;
   const here = year * 10_000 + month * 100 + day;
-  const start = event.harptos_year * 10_000 + startMonth * 100 + startDay;
+  const start = event.year * 10_000 + startMonth * 100 + startDay;
   if (!event.is_multi_day || event.end_day === null) return here === start;
-  const endYear = event.end_year ?? event.harptos_year;
+  const endYear = event.end_year ?? event.year;
   const endMonth = event.end_month ?? startMonth;
   return here >= start && here <= endYear * 10_000 + endMonth * 100 + event.end_day;
 }

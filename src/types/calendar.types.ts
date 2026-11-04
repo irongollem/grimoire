@@ -1,6 +1,6 @@
 import type { AiProvenance } from "@/ai/provenance";
 
-export interface HarptosDate {
+export interface EventDate {
   year: number;
   month: number | null; // null when it's a festival/intercalary day
   day: number | null; // null when it's a festival/intercalary day
@@ -29,9 +29,9 @@ export interface CalendarEvent {
   title: string;
   description: string | null;
   event_type: CalendarEventType;
-  harptos_year: number;
-  harptos_month: number | null;
-  harptos_day: number | null;
+  year: number;
+  month: number | null;
+  day: number | null;
   festival_day: string | null;
   is_multi_day: boolean;
   end_year: number | null;

@@ -236,7 +236,9 @@ export function usePopulateDeities() {
         .single();
       if (campaignError) throw campaignError;
 
-      const calendarId: string = campaignRow?.calendar_id ?? "faerun";
+      // A campaign with no calendar chosen has no setting pack, so there is nothing to seed.
+      const calendarId = campaignRow.calendar_id;
+      if (calendarId === null) return [0, 0];
       const setting = await loadSettingContent(calendarId);
       if (!setting?.pantheons.length && !setting?.deities.length) return [0, 0];
 

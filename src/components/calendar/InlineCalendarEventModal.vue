@@ -51,24 +51,24 @@
           <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Year</label>
-              <AppInput v-model.number="form.harptos_year" type="number" min="1" tone="muted" size="body-xs" align="right" />
+              <AppInput v-model.number="form.year" type="number" min="1" tone="muted" size="body-xs" align="right" />
             </div>
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Month</label>
-              <AppSelect v-model.number="form.harptos_month" tone="muted" size="body-xs" block aria-label="Month">
+              <AppSelect v-model.number="form.month" tone="muted" size="body-xs" block aria-label="Month">
                 <option v-for="m in adapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
               </AppSelect>
             </div>
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Day</label>
-              <AppInput v-model.number="form.harptos_day" type="number" min="1" max="30" tone="muted" size="body-xs" align="right" />
+              <AppInput v-model.number="form.day" type="number" min="1" :max="daysInChosenMonth" tone="muted" size="body-xs" align="right" />
             </div>
           </div>
 
           <div v-else class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Year</label>
-              <AppInput v-model.number="form.harptos_year" type="number" min="1" tone="muted" size="body-xs" align="right" />
+              <AppInput v-model.number="form.year" type="number" min="1" tone="muted" size="body-xs" align="right" />
             </div>
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Festival</label>
@@ -114,6 +114,7 @@ import SegmentedControl from "@/components/common/controls/SegmentedControl.vue"
 import { useCalendarStore } from "@/stores/calendar";
 import { useCreateCalendarEvent } from "@/composables/calendar/useCalendarEvents";
 import { useCampaignStore } from "@/stores/campaign";
+import { daysInMonth } from "@/lib/calendar/dayMath";
 import { EVENT_TYPE_COLORS, eventColor } from "@/types/calendar.types";
 import type { CalendarEvent, CalendarEventInsert } from "@/types/calendar.types";
 
@@ -127,9 +128,10 @@ const campaign = useCampaignStore();
 const { mutateAsync: createEvent, isPending } = useCreateCalendarEvent();
 
 const adapter = computed(() => calendar.adapter);
+const daysInChosenMonth = computed(() => form.value.month === null ? 30 : daysInMonth(adapter.value, form.value.year, form.value.month));
 const availableFestivals = computed(() =>
   adapter.value.intercalaryDays.filter(
-    (d) => !d.isLeapOnly || adapter.value.isLeapYear(form.value.harptos_year),
+    (d) => !d.isLeapOnly || adapter.value.isLeapYear(form.value.year),
   ),
 );
 
@@ -147,9 +149,9 @@ function defaultForm(): CalendarEventInsert {
     description: null,
     event_type: "campaign",
     color: EVENT_TYPE_COLORS["campaign"],
-    harptos_year: calendar.currentYear,
-    harptos_month: calendar.currentMonth,
-    harptos_day: 1,
+    year: calendar.currentYear,
+    month: calendar.currentMonth,
+    day: 1,
     festival_day: null,
     is_multi_day: false,
     end_year: null,
@@ -175,13 +177,13 @@ watch(open, (isOpen) => {
 
 watch(dateType, (type) => {
   if (type === "festival") {
-    form.value.harptos_month = null;
-    form.value.harptos_day = null;
+    form.value.month = null;
+    form.value.day = null;
     form.value.festival_day = availableFestivals.value[0]?.name ?? null;
   } else {
     form.value.festival_day = null;
-    form.value.harptos_month = calendar.currentMonth;
-    form.value.harptos_day = 1;
+    form.value.month = calendar.currentMonth;
+    form.value.day = 1;
   }
 });
 
@@ -197,8 +199,8 @@ function close() {
 async function submit() {
   const payload: CalendarEventInsert = {
     ...form.value,
-    harptos_month: dateType.value === "regular" ? form.value.harptos_month : null,
-    harptos_day: dateType.value === "regular" ? form.value.harptos_day : null,
+    month: dateType.value === "regular" ? form.value.month : null,
+    day: dateType.value === "regular" ? form.value.day : null,
     festival_day: dateType.value === "festival" ? form.value.festival_day : null,
   };
   const created = await createEvent(payload);

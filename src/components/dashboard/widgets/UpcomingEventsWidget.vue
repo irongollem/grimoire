@@ -54,7 +54,7 @@
         <div class="min-w-0 flex-1">
           <p class="truncate text-body text-foreground">{{ item.event.title }}</p>
           <p class="truncate text-caption text-muted-foreground italic">
-            {{ adapter.formatDate(item.event.harptos_year, item.event.harptos_month, item.event.harptos_day, item.event.festival_day) }}
+            {{ adapter.formatDate(item.event.year, item.event.month, item.event.day, item.event.festival_day) }}
           </p>
         </div>
         <!-- The countdown is the point of this widget for a deadline -- prep
@@ -170,7 +170,7 @@ const upcoming = computed(() => {
  * of wherever the DM last left the calendar scrolled.
  */
 function focusEvent(event: CalendarEvent) {
-  calendarStore.goToMonth(event.harptos_year, event.harptos_month ?? 1);
+  calendarStore.goToMonth(event.year, event.month ?? 1);
   calendarStore.setHighlightedEvent(event.id);
 }
 </script>

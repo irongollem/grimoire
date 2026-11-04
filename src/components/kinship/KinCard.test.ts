@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
+import { useCampaignStore } from "@/stores/campaign";
+import type { Campaign } from "@/types/campaign.types";
 import KinCard from "./KinCard.vue";
 import type { KinPersonView } from "@/composables/kinship/useKinGraph";
 
@@ -10,6 +12,8 @@ const person = (over: Partial<KinPersonView> = {}): KinPersonView => ({
 
 function card(props: { person: KinPersonView } & Record<string, unknown>) {
   setActivePinia(createPinia());
+  // An empty campaign sits at year 1; these people were born in 1431, so the table is playing in 1495.
+  useCampaignStore().activeCampaign = { current_year: 1495, current_month: 1, current_day: 1 } as Campaign;
   return mount(KinCard, { props, global: { plugins: [] } });
 }
 

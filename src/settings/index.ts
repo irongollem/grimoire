@@ -11,7 +11,7 @@
  */
 
 import type { CalendarAdapter } from "@/types/calendar.types";
-import { calendarDefToAdapter } from "./types";
+import { calendarDefToAdapter, createDefaultCustomCalendarDef } from "./types";
 import type { SettingCalendarDef, SettingMeta } from "./types";
 import { FAERUN_CALENDAR } from "./faerun.calendar";
 import { EBERRON_CALENDAR } from "./eberron.calendar";
@@ -59,13 +59,19 @@ export const CALENDAR_REGISTRY: Record<string, CalendarAdapter> = Object.fromEnt
   ["gregorian", gregorianAdapter],
 ]);
 
-/** Get a CalendarAdapter by ID, falling back to Faerûn.
+/** The calendar of a campaign that has not chosen one: twelve 30-day months, no leap years.
+ *  Deliberately not in CALENDAR_REGISTRY (that list is what a DM can pick and what the DB mirrors). */
+const BLANK_CALENDAR: CalendarAdapter = calendarDefToAdapter("blank", createDefaultCustomCalendarDef());
+
+/** Get a CalendarAdapter by ID. A missing, null or unknown id (or 'custom' without a
+ *  definition) is the blank calendar, never a built-in setting's.
  *  Pass a `customDef` to resolve id === 'custom' to a runtime adapter built from that JSON. */
-export function getCalendarAdapter(id: string, customDef?: SettingCalendarDef | null): CalendarAdapter {
+export function getCalendarAdapter(id: string | null | undefined, customDef?: SettingCalendarDef | null): CalendarAdapter {
   if (id === "custom" && customDef) {
     return calendarDefToAdapter("custom", customDef);
   }
-  return CALENDAR_REGISTRY[id] ?? CALENDAR_REGISTRY["faerun"]!;
+  if (id && Object.hasOwn(CALENDAR_REGISTRY, id)) return CALENDAR_REGISTRY[id]!;
+  return BLANK_CALENDAR;
 }
 
 /** List all available CalendarAdapters. */
@@ -81,6 +87,12 @@ export const DND_SETTINGS = [
   { value: "homebrew", label: "Homebrew" },
   { value: "other",    label: "Other"    },
 ] as const;
+
+/** The setting a new Hall of Heroes entry starts under: the campaign's own setting pack,
+ *  else "homebrew" (no calendar chosen, Gregorian, custom, unknown). Never Faerûn by default. */
+export function heroSettingFor(calendarId: string | null | undefined): DndSettingValue {
+  return calendarId && SETTING_METAS_BY_ID.has(calendarId) ? (calendarId as DndSettingValue) : "homebrew";
+}
 
 export type DndSettingValue = (typeof DND_SETTINGS)[number]["value"];
 

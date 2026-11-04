@@ -19,11 +19,13 @@ export interface Campaign {
   /** When true, characters of either edition may be seated in this campaign. */
   allows_mixed_rulesets: boolean;
   description: string | null;
-  setting: string;
+  /** The world the DM named; null = none named. */
+  setting: string | null;
   current_year: number;
   current_month: number;
   current_day: number;
-  calendar_id: string; // references CalendarAdapter.id, defaults to 'faerun'; 'custom' uses custom_calendar
+  /** references CalendarAdapter.id; 'custom' uses custom_calendar. null = none chosen, read as the blank calendar. */
+  calendar_id: string | null;
   /** When calendar_id === 'custom', this holds the per-campaign calendar definition used to build a runtime adapter. */
   custom_calendar: SettingCalendarDef | null;
   theme: string; // references GrimoireTheme.id, defaults to 'vellum' (DEFAULT_THEME_ID)

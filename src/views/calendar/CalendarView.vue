@@ -211,7 +211,7 @@ const initialDay = ref<number | null>(null);
 const bundleModalOpen = ref(false);
 
 const hasBundleForCurrentCalendar = computed(
-  () => calendar.activeCalendarId in SETTING_BUNDLES,
+  () => calendar.activeCalendarId !== null && calendar.activeCalendarId in SETTING_BUNDLES,
 );
 
 function openCreateModal() {

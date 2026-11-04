@@ -506,7 +506,7 @@ export function useSetCampaignToday() {
       // budget cannot carry. After a deploy this import can resolve to
       // undefined (see staleChunkRecovery.ts), which isStaleChunkError claims.
       void import("@/settings/index").then(({ getCalendarAdapter }) => {
-        const adapter = getCalendarAdapter(updatedCampaign?.calendar_id ?? "faerun");
+        const adapter = getCalendarAdapter(updatedCampaign?.calendar_id, updatedCampaign?.custom_calendar);
         const dateStr = adapter.formatDate(year, month, day, null);
         void sendCampaignAnnouncement(id, `📅 The date is now ${dateStr}`);
       });

@@ -82,9 +82,9 @@ describe("routeEventPrefill", () => {
     expect(p).toMatchObject({
       title: "Travel to Daggerford",
       event_type: "travel",
-      harptos_year: 1495,
-      harptos_month: 1,
-      harptos_day: 29,
+      year: 1495,
+      month: 1,
+      day: 29,
       is_multi_day: true,
       end_year: 1495,
       end_month: 2,

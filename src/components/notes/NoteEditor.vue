@@ -405,8 +405,8 @@ function onEventCreated(event: CalendarEvent) {
   rteRef.value?.insertCalendarEventRef({
     eventId: event.id,
     label: event.title,
-    year: event.harptos_year,
-    month: event.harptos_month,
+    year: event.year,
+    month: event.month,
   });
 }
 

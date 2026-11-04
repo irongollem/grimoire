@@ -124,11 +124,11 @@ const calendarMonths = computed(() => calendarStore.adapter.months);
 
 const todayFormatted = computed(() => {
   const monthName = calendarMonths.value[campaign.todayMonth - 1]?.name ?? "";
-  return `${campaign.todayDay} ${monthName}, ${campaign.todayYear} DR`;
+  return `${campaign.todayDay} ${monthName}, ${campaign.todayYear} ${calendarStore.adapter.epochName}`;
 });
 
 const editingDate = ref(false);
-const dateForm = reactive({ year: 1495, month: 1, day: 1 });
+const dateForm = reactive({ year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay });
 /**
  * Asked of the adapter, not read off the month, so a Gregorian campaign can
  * actually set 29 February in a leap year. Every fantasy calendar here keeps
