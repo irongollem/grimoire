@@ -163,7 +163,7 @@ async function filmScene(s: Scene, url: string, dir: string): Promise<void> {
 
 /** A library URL as it is, or a file in the art folder (the scene's own tune) as its path, which must exist. */
 function soundSource(src: string): string {
-  if (/^https:\/\//.test(src)) return src;
+  if (src.startsWith("https://")) return src;
   const file = join(art, basename(src));
   if (!existsSync(file)) throw new Error(`Scene sound ${src} is not in ${art}`);
   return file;
