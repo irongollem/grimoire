@@ -2,8 +2,8 @@
  * What the promo:post command and the recorder's Socials tab share: whether a
  * Reel is ready to post, its caption and schedule on disk, and the post itself.
  *
- * A Reel is ready when every shot has a voice take (else the .mp4 is a silent
- * draft), the build is newer than every take, the assembler left its cover time
+ * A Reel is ready when every narrated shot has a voice take (else the .mp4 is a
+ * silent draft; a painted scene has no narration, its sound is its ambience), the build is newer than every take, the assembler left its cover time
  * (cover.json) and the caption (captions/<id>.txt) is one Instagram would take.
  * A posted Reel leaves promo-out/<id>/posted.json; it is never posted twice
  * unless asked to be.
@@ -88,7 +88,9 @@ export function checkReel(root: string, id: string, captionText: string | null =
 
   const voDir = join(dir, "vo");
   const takes = existsSync(voDir) ? readdirSync(voDir).filter((f) => VOICE_EXTS.some((e) => f.endsWith(e))) : [];
-  const unvoiced = manifest.shots.filter((s) => !takes.some((t) => t.replace(/\.[^.]+$/, "") === s.id)).map((s) => s.id);
+  const unvoiced = manifest.shots
+    .filter((s) => s.narration.trim() !== "" && !takes.some((t) => t.replace(/\.[^.]+$/, "") === s.id))
+    .map((s) => s.id);
   if (unvoiced.length > 0) problems.push(`no voice take for ${unvoiced.join(", ")}: the build is a silent draft`);
 
   if (!existsSync(video)) problems.push("not assembled yet");

@@ -7,11 +7,15 @@ import { checkReel, postReel, readSchedule, setScheduled } from "./publishing";
 let root: string;
 const CAPTION = "Combat in Dungeon Grimoire.\n\n#dnd #ttrpg";
 
-/** A recorded Reel `ep` with shots a and b; `takes` names the shots that have a voice take. */
-function reel(takes: string[], opts: { built?: boolean; cover?: boolean } = {}) {
+/**
+ * A recorded Reel `ep` with narrated shots a and b; `takes` names the shots that have a voice take, and
+ * `scene` adds a shot with no narration (a painted scene, whose sound is its ambience).
+ */
+function reel(takes: string[], opts: { built?: boolean; cover?: boolean; scene?: boolean } = {}) {
   const dir = join(root, "ep");
   mkdirSync(join(dir, "vo"), { recursive: true });
-  writeFileSync(join(dir, "manifest.json"), JSON.stringify({ id: "ep", shots: [{ id: "a" }, { id: "b" }] }));
+  const shots = [{ id: "a", narration: "Line a." }, { id: "b", narration: "Line b." }, ...(opts.scene ? [{ id: "room", narration: "" }] : [])];
+  writeFileSync(join(dir, "manifest.json"), JSON.stringify({ id: "ep", shots }));
   for (const t of takes) writeFileSync(join(dir, "vo", `${t}.wav`), "x");
   if (opts.built !== false) writeFileSync(join(dir, "ep.mp4"), "x");
   if (opts.cover !== false) writeFileSync(join(dir, "cover.json"), JSON.stringify({ at: 4.5 }));
@@ -34,6 +38,16 @@ describe("checkReel", () => {
 
   it("refuses a silent draft: a shot with no take", () => {
     reel(["a"]);
+    expect(checkReel(root, "ep", CAPTION).problems).toEqual(["no voice take for b: the build is a silent draft"]);
+  });
+
+  it("needs no take for a shot with nothing to narrate (a painted scene)", () => {
+    reel(["a", "b"], { scene: true });
+    expect(checkReel(root, "ep", CAPTION).problems).toEqual([]);
+  });
+
+  it("still refuses a narrated shot with no take beside a scene", () => {
+    reel(["a"], { scene: true });
     expect(checkReel(root, "ep", CAPTION).problems).toEqual(["no voice take for b: the build is a silent draft"]);
   });
 

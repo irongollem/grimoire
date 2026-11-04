@@ -14,7 +14,7 @@ import { chaptersText, srtText } from "./sidecars";
 import { BED_CROSSFADE, bedWindow, planBeds } from "./beds";
 import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme } from "./theme";
 import { planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
-import type { Device, EpisodeManifest, Format, RecordedShot } from "./types";
+import type { EpisodeManifest, Format, RecordedShot, Surface } from "./types";
 
 const INTERMEDIATE = ["-c:v", "libx264", "-crf", "14", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", "30", "-g", "30", "-an"];
 const WAV = ["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2"];
@@ -69,7 +69,7 @@ function textLayers(layout: Layout, p: PlannedShot, work: string, first: number)
       : { inputs: caption, graph: `${over},format=yuv420p[v]` };
   }
   if (c.kind === "panel") return { inputs: caption, graph: `[a][${first}:v]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
-  // A lower third fades in and out inside its window, so the pill does not pop on and off the page.
+  // A lower third (or a scene's title) fades in and out inside its window, so it does not pop on and off.
   const FADE = 0.25;
   const fade = `[${first}:v]format=rgba,fade=t=in:st=${c.from}:d=${FADE}:alpha=1,fade=t=out:st=${c.to - FADE}:d=${FADE}:alpha=1[cap]`;
   return { inputs: caption, graph: `${fade};[a][cap]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
@@ -77,8 +77,7 @@ function textLayers(layout: Layout, p: PlannedShot, work: string, first: number)
 
 /** The silent screen-in-frame video for one shot. */
 function renderShotVideo(p: PlannedShot, shot: RecordedShot, format: Format | undefined, clip: string, work: string, out: string): void {
-  const device: Device = shot.device ?? "phone";
-  const spec = DEVICES[device];
+  const device: Surface = shot.device ?? "phone";
   const layout = layoutFor(format, device);
   const { x, y, w, h } = layout.window;
   const L = p.length;
@@ -103,6 +102,8 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, format: Format | un
     return;
   }
   // Camera: the screen goes onto its backdrop, zoompan crops a window out of that, and the window goes on the page.
+  if (device === "scene") throw new Error(`Shot ${shot.id} is a painted scene: it has no screen for a camera to move over.`);
+  const spec = DEVICES[device];
   const canvas = canvasOf(shot, format);
   if (!shot.size) throw new Error(`Shot ${shot.id} has no recorded size: re-film it.`);
   const size = shot.size;
@@ -185,9 +186,13 @@ function concatList(work: string, name: string, files: string[]): string {
 }
 
 async function main() {
-  const { id, root, brand } = parseArgs(process.argv.slice(2));
+  const args = parseArgs(process.argv.slice(2));
+  const { id, root } = args;
   const dir = join(root, id);
   const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8")) as EpisodeManifest;
+  // A picture-book scene carries no brand: its title is on the picture, and with no cards at either end
+  // Instagram loops it without a seam.
+  const brand = args.brand && manifest.brand !== false;
   const work = join(dir, ".work");
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
@@ -205,7 +210,7 @@ async function main() {
   }
 
   // Static art, once per run.
-  const devicesUsed = [...new Set(manifest.shots.map((s): Device => s.device ?? "phone"))];
+  const devicesUsed = [...new Set(manifest.shots.map((s): Surface => s.device ?? "phone"))];
   await renderCards(work, [
     ...devicesUsed.map((d) => baseCard(join(work, `base-${d}.png`), layoutFor(format, d))),
     ...devicesUsed.map((d) => maskCard(join(work, `mask-${d}.png`), layoutFor(format, d))),

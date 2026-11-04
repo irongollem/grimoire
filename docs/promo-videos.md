@@ -282,7 +282,7 @@ finish and moves exactly as much as the scene file says.
 ```bash
 npm run promo:scene -- inn-dawn --preview   # plays it live at http://127.0.0.1:5183/?scene=inn-dawn
 npm run promo:scene -- inn-dawn             # films promo-out/inn-dawn/
-npm run promo:assemble -- inn-dawn          # the Reel, with the brand open and close
+npm run promo:assemble -- inn-dawn          # the Reel: the scene alone, no brand cards or theme
 npm run promo:post -- inn-dawn              # dry run, once captions/inn-dawn.txt exists
 ```
 
@@ -302,8 +302,12 @@ the types and maths are `scene.ts`) is one back-to-front `stack`:
   `at` in the frame, which it sways and scales about), a drawn `width`, a
   `depth` (the plate is 1; a part standing on something in the plate shares
   its depth, or it slides off it; nearer things are above 1 and move more),
-  an optional contact `shadow`, and `motions`: `sway`, `bob`, `drift`,
-  `flicker` (a flame) and `billow` (hanging cloth, fixed at the anchor's row);
+  an optional contact `shadow`, a `plane` for a part on a side wall (a
+  curtain at a window: it narrows and closes in on the wall's eye level
+  toward the corner, so its edges slope with the wall's own lines; a part
+  painted face-on and hung flat there reads as pasted on), and `motions`:
+  `sway`, `bob`, `drift`, `flicker` (a flame) and `billow` (hanging cloth,
+  fixed at the anchor's row);
 - effects drawn between layers: `steam` (wisps rising from a point), `motes`
   (dust turning in a shaft of light) and `light` (spill on the room around a
   source, flickering with the flame it `follows`);
@@ -327,12 +331,26 @@ same `manifest.json` and `shots/scene.mp4` a recorded episode has: one shot on
 the `scene` surface, which fills the frame with no screen around it (`frame:
 "none"` in `layouts.ts`), with the scene's `caption` as a line of text fading
 over the picture, and no narration. A shot with no narration needs no voice
-take, so the scene's sound is its ambience: the `sound.ambience` loops mixed
-into `ambience.wav` with fades, as one cue. `sound.music` (a file in the art
-folder, such as a Lyria tune made in the soundboard with the plate attached)
-plays between the theme's motif and its ending instead of the theme's
-underscore (`EpisodeManifest.music`). It also writes `still.png`, the opening
-frame, to review beside the plate.
+take, so the scene's sound is its own: the `sound.ambience` list, mixed
+into `ambience.wav` with short fades, as one cue. A sound is a soundboard
+library URL or a file in the art folder (the scene's Lyria tune), and loops
+under the whole shot unless it names a `clip`, which plays that cut once
+from `at`: the tune plays a cut from its middle, and the dawn bells strike
+three times and stop, since a bell in Sothery never strikes more.
+
+A scene's manifest says `brand: false`, so `promo:assemble` adds no brand
+open, close or theme: the title is on the picture, with the wordmark fading
+in under it and out with it (the `title` caption), and with no card at
+either end the Reel loops on Instagram without a seam, the last frame
+running straight into the first. A scene Reel is short on purpose (two of
+its loops, 22 s for the inn): Reels are ranked on watching through and
+watching again, and a seamless loop is watched again without anyone
+noticing. The sound loops too: it is mixed 1.5 s past the end and that
+overflow is crossfaded into the opening, and a tune's cut is chosen where
+its end, what follows and its start match in level, or the loop dips as it
+comes round. Ambience meant for playing at the table wants minutes, which is a
+longer `duration` for YouTube or the website, not a longer Reel. It also
+writes `still.png`, the opening frame, to review beside the plate.
 
 The renderer has no Node and no promo dependencies, and under the OS's
 reduce-motion setting it draws the opening frame and stops, so the same

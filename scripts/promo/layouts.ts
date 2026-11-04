@@ -4,7 +4,7 @@
  * card art and the assembler agree. What is needed to film a screen at all
  * (viewport, scale, touch) stays in devices.ts.
  */
-import type { Device, Format } from "./types.ts";
+import type { Format, Surface } from "./types.ts";
 
 export interface Layout {
   /** The output frame. */
@@ -14,9 +14,10 @@ export interface Layout {
    * What the screen is drawn in. A phone or tablet is a rounded `device` screen with a shadow, shown whole
    * unless a shot moves the camera. A desktop is a `browser` window (a title bar with an address over the
    * page, rounded and shadowed the same way) that the camera always looks through, since a Reel's resting
-   * view is the page beside the sidebar rather than the whole screen.
+   * view is the page beside the sidebar rather than the whole screen. A painted scene has `none`: the clip is
+   * the whole frame, with no edge, corner or shadow.
    */
-  frame: "device" | "browser";
+  frame: "device" | "browser" | "none";
   /** Browser title bar height, in output pixels, above a `browser` window. Required when `frame` is "browser". */
   bar?: number;
   caption:
@@ -25,7 +26,9 @@ export interface Layout {
     /** YouTube phone and tablet: a text panel beside the device, always on. */
     | { kind: "panel"; x: number; y: number; w: number; h: number }
     /** YouTube desktop: a pill over the page, shown from..to seconds into the shot. */
-    | { kind: "lowerThird"; x: number; y: number; w: number; h: number; from: number; to: number };
+    | { kind: "lowerThird"; x: number; y: number; w: number; h: number; from: number; to: number }
+    /** A painted scene: a line of text over the picture itself, shown from..to seconds into the shot. */
+    | { kind: "title"; x: number; y: number; w: number; h: number; from: number; to: number };
   /**
    * Where the shot's narration is written out, below the window, for a layout
    * whose window leaves room for it. Most Reels play muted, and a desktop's
@@ -38,7 +41,19 @@ const REEL_CANVAS = { width: 1080, height: 1920 };
 const REEL_CAPTION = { kind: "band", y: 230, h: 180 } as const;
 const YOUTUBE_CANVAS = { width: 1920, height: 1080 };
 
-export const LAYOUTS: Record<Format, Record<Device, Layout>> = {
+/**
+ * A painted scene fills the frame. Its line and the wordmark under it sit high, under the top of Instagram's
+ * interface and above the room's furniture (the plate keeps its top tenth spare), and stay long enough to read
+ * twice.
+ */
+const REEL_SCENE: Layout = {
+  canvas: REEL_CANVAS,
+  window: { x: 0, y: 0, w: REEL_CANVAS.width, h: REEL_CANVAS.height, radius: 0 },
+  frame: "none",
+  caption: { kind: "title", x: 90, y: 230, w: 900, h: 420, from: 0.8, to: 7 },
+};
+
+export const LAYOUTS: Record<Format, Record<Surface, Layout>> = {
   reel: {
     phone: { canvas: REEL_CANVAS, window: { x: 150, y: 430, w: 780, h: 1387, radius: 44 }, frame: "device", caption: REEL_CAPTION },
     tablet: { canvas: REEL_CANVAS, window: { x: 90, y: 430, w: 900, h: 1295, radius: 44 }, frame: "device", caption: REEL_CAPTION },
@@ -54,6 +69,7 @@ export const LAYOUTS: Record<Format, Record<Device, Layout>> = {
       caption: REEL_CAPTION,
       subtitles: { y: 1290, h: 250 },
     },
+    scene: REEL_SCENE,
   },
   youtube: {
     // The window is 16:10, the shape of the whole 1440x900 screen, so the resting view is the whole screen,
@@ -79,11 +95,17 @@ export const LAYOUTS: Record<Format, Record<Device, Layout>> = {
       frame: "device",
       caption: { kind: "panel", x: 967, y: 60, w: 793, h: 960 },
     },
+    scene: {
+      canvas: YOUTUBE_CANVAS,
+      window: { x: 0, y: 0, w: YOUTUBE_CANVAS.width, h: YOUTUBE_CANVAS.height, radius: 0 },
+      frame: "none",
+      caption: { kind: "title", x: 260, y: 700, w: 1400, h: 330, from: 0.8, to: 7 },
+    },
   },
 };
 
-/** The layout a manifest's format and a shot's device call for; an absent format is a Reel and an absent device a phone. */
-export function layoutFor(format: Format | undefined, device: Device | undefined): Layout {
+/** The layout a manifest's format and a shot's surface call for; an absent format is a Reel and an absent surface a phone. */
+export function layoutFor(format: Format | undefined, device: Surface | undefined): Layout {
   return LAYOUTS[format ?? "reel"][device ?? "phone"];
 }
 

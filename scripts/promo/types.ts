@@ -28,6 +28,13 @@ export type Format = "reel" | "youtube";
 /** The screen a shot is filmed on. A phone is 390x693 CSS px at 3x, a tablet 820x1180 at 2x, a desktop 1440x900 at 2x. */
 export type Device = "phone" | "tablet" | "desktop";
 
+/**
+ * What a recorded shot shows: a screen filmed on a device, or a painted `scene`
+ * drawn full-frame by scripts/promo/scenes, which no recorder films and no
+ * screen surrounds.
+ */
+export type Surface = Device | "scene";
+
 /** A part of the screen in device pixels, relative to the screen's top-left corner. */
 export interface ScreenRect {
   x: number;
@@ -157,8 +164,8 @@ export interface RecordedShot {
   narration: string;
   /** Relative to the episode folder: a silent 30 fps H.264 clip at the device's native pixel size. */
   file: string;
-  /** The screen it was filmed on; phone when absent (older manifests). */
-  device?: Device;
+  /** The screen it was filmed on, or `scene` for a painted scene; phone when absent (older manifests). */
+  device?: Surface;
   /** The clip's size in device pixels. */
   size?: { width: number; height: number };
   /** YouTube: the title of the chapter this shot starts. */
@@ -178,6 +185,11 @@ export interface EpisodeManifest {
   account: Account;
   /** Absent means a Reel, so manifests filmed before formats existed keep working. */
   format?: Format;
+  /**
+   * `false`: no brand open or close and no theme, as `--no-brand` does, for a picture-book scene, whose title
+   * is on the picture, whose sound is its own, and which loops without a seam with no card at either end.
+   */
+  brand?: false;
   recordedAt: string;
   shots: RecordedShot[];
 }

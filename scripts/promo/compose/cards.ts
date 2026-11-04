@@ -67,10 +67,12 @@ const LOCK = `<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"
 /**
  * The page behind a shot, with the frame the screen sits in: a device's
  * screen box, or a browser window whose title bar carries the three window dots
- * and the app's address. Both are rounded and cast the same shadow.
+ * and the app's address. Both are rounded and cast the same shadow. A painted
+ * scene covers the whole page, so there is nothing to draw behind it.
  */
 export const baseCard = (file: string, layout: Layout): Card => {
   const { window: w, frame, canvas } = layout;
+  if (frame === "none") return { file, width: canvas.width, height: canvas.height, transparent: false, body: "" };
   if (frame === "device") {
     return {
       file,
@@ -100,10 +102,10 @@ export const baseCard = (file: string, layout: Layout): Card => {
   };
 };
 
-/** The screen's rounded corners: all four on a device, the bottom two in a browser (the title bar covers the top). */
+/** The screen's rounded corners: all four on a device, the bottom two in a browser (the title bar covers the top), none on a scene. */
 export const maskCard = (file: string, layout: Layout): Card => {
   const { window: w, frame } = layout;
-  const radius = frame === "device" ? `${w.radius}px` : `0 0 ${w.radius}px ${w.radius}px`;
+  const radius = frame === "none" ? "0" : frame === "device" ? `${w.radius}px` : `0 0 ${w.radius}px ${w.radius}px`;
   return {
     file,
     width: w.w,
@@ -135,11 +137,28 @@ const KICKER_CSS = `font:700 26px 'Alegreya Sans',sans-serif;letter-spacing:.08e
 
 /**
  * A shot's caption, drawn for the layout's caption slot: a band across a Reel,
- * a panel beside a YouTube phone or tablet, a pill over a YouTube desktop's page.
+ * a panel beside a YouTube phone or tablet, a pill over a YouTube desktop's page,
+ * a line of hand-set text over a painted scene.
  * `chapter` is the title of the chapter the shot opens, if it opens one.
  */
 export const captionCard = (file: string, text: string, layout: Layout, chapter?: string): Card => {
   const c = layout.caption;
+  if (c.kind === "title") {
+    // Cream on a soft dark halo: a painting has no one colour underneath it, so the text carries its own shade.
+    // The wordmark comes and goes with the line: a scene has no brand card, so this is where the brand is.
+    const halo = "rgba(30,18,10,.8)";
+    return {
+      file,
+      width: c.w,
+      height: c.h,
+      transparent: true,
+      body: `<div class="w"><div id="fit" data-lines="3">${esc(text)}</div><img class="mark" src="${LOGO_ON_DARK}" alt="Dungeon Grimoire"></div>`,
+      css: `.w{width:${c.w}px;height:${c.h}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${Math.round(c.h * 0.07)}px}
+    #fit{text-align:center;text-wrap:balance;font:400 72px/1.2 'Fondamento',serif;color:#fbf3e2;
+      text-shadow:0 0 18px rgba(30,18,10,.85),0 0 42px rgba(30,18,10,.6),0 2px 4px rgba(30,18,10,.7)}
+    .mark{width:${Math.round(c.w * 0.4)}px;height:auto;display:block;filter:drop-shadow(0 0 14px ${halo}) drop-shadow(0 0 4px ${halo})}`,
+    };
+  }
   if (c.kind === "band") {
     return {
       file,
@@ -194,6 +213,8 @@ export const subtitleCard = (file: string, text: string, layout: Layout): Card =
 
 /** The wordmark with its bookmark banner, the same file the app's boot splash shows. */
 const LOGO = pathToFileURL(resolve("public/brand/logo-light.webp")).href;
+/** The same wordmark in cream, for a dark or painted ground. */
+const LOGO_ON_DARK = pathToFileURL(resolve("public/brand/logo-dark.webp")).href;
 const logo = `<img class="n" src="${LOGO}" alt="Dungeon Grimoire">`;
 
 const brandCss = (canvas: { width: number; height: number }) => {
