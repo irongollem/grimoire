@@ -53,6 +53,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, scene: Scene, images: I
   const { width, height } = scene.size;
   const camera = cameraAt(scene, t);
   ctx.save();
+  // A plate drawn wide enough to pan across is enlarged more than a still one: resample it with care.
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.globalCompositeOperation = "source-over";
   ctx.globalAlpha = 1;
   ctx.fillStyle = "#000";

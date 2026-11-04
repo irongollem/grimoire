@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SCENES } from "./catalog.ts";
 import { INN_PLATE, innDawn } from "./inn-dawn.ts";
-import { billowOffset, cameraAt, layersOf, lightAt, motesAt, onPlane, poseAt, steamAt, uncovered, type Effect, type Layer, type Scene } from "./scene.ts";
+import { billowOffset, cameraAt, layersOf, lightAt, motesAt, onPlane, pathAt, poseAt, steamAt, uncovered, type Effect, type Layer, type Scene } from "./scene.ts";
 
 /** Everything that moves in a scene at `t`, as one comparable value. */
 function stateAt(scene: Scene, t: number) {
@@ -68,6 +68,47 @@ describe("billowOffset", () => {
     for (const phase of [0, 1, 2.5, 4]) expect(billowOffset({ amount: 16, phase, waves: 0.8 }, 0)).toBeCloseTo(0, 9);
     const hem = [0, 1, 2.5, 4].map((phase) => Math.abs(billowOffset({ amount: 16, phase, waves: 0.8 }, 1)));
     expect(Math.max(...hem)).toBeGreaterThan(8);
+  });
+});
+
+describe("pathAt", () => {
+  // A tilt: hold on the picnic, rise to the town, hold, and come back by the loop's end.
+  const loop = 24;
+  const path = [
+    { at: 0, x: 0, y: 600 },
+    { at: 3, x: 0, y: 600 },
+    { at: 10, x: 0, y: -400 },
+    { at: 16, x: 0, y: -400 },
+  ];
+
+  it("is at each point at its time and holds between two equal points", () => {
+    expect(pathAt(path, loop, 3).y).toBeCloseTo(600, 9);
+    expect(pathAt(path, loop, 10).y).toBeCloseTo(-400, 9);
+    expect(pathAt(path, loop, 13).y).toBeCloseTo(-400, 9);
+    // Halfway through the rise, smoothstep is exactly halfway.
+    expect(pathAt(path, loop, 6.5).y).toBeCloseTo(100, 9);
+  });
+
+  it("eases from the last point back to the first by the loop's end, so the loop closes", () => {
+    // From 16 s to 24 s it travels from -400 back to 600: halfway at 20 s, and almost home just before 24 s.
+    expect(pathAt(path, loop, 20).y).toBeCloseTo(100, 9);
+    expect(pathAt(path, loop, loop - 0.001).y).toBeCloseTo(600, 3);
+    expect(pathAt(path, loop, loop + 3).y).toBeCloseTo(600, 9);
+  });
+
+  it("wraps into a path whose first point comes after the loop's start", () => {
+    // Points at 2 s (y 0) and 8 s (y 120), loop 12: from 8 s round to 14 s (2 s next loop) it travels 120 back to
+    // 0, so at 11 s (halfway) it is at 60, and at 1 s, 5/6 of the way, smoothstep gives 120 - 120 * 0.926 = 8.9.
+    const late = [{ at: 2, x: 0, y: 0 }, { at: 8, x: 0, y: 120 }];
+    expect(pathAt(late, 12, 11).y).toBeCloseTo(60, 9);
+    expect(pathAt(late, 12, 1).y).toBeCloseTo(120 - 120 * ((5 / 6) ** 2 * (3 - 2 * (5 / 6))), 9);
+  });
+});
+
+describe("cameraAt", () => {
+  it("moves the world up as the view travels down it", () => {
+    const still: Scene = { ...innDawn, camera: { drift: 0, push: 0, path: [{ at: 0, x: 0, y: 500 }] } };
+    expect(cameraAt(still, 4).dy).toBeCloseTo(-500, 9);
   });
 });
 

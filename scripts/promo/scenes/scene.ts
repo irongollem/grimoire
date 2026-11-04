@@ -35,12 +35,21 @@ export interface Scene {
     drift: number;
     /** Largest push-in, as a fraction of scale (0.015 is 1.5 per cent closer at the peak). */
     push: number;
+    /**
+     * Where the view travels, for a scene wider or taller than the frame: the point the frame is centred on, in
+     * pixels from the frame's centre at depth 1 (x right, y down), at `at` seconds into the loop. The camera
+     * eases from one to the next and from the last back to the first by the loop's end, so it loops; two equal
+     * points in a row hold the view. The drift and push still play on top.
+     */
+    path?: { at: number; x: number; y: number }[];
   };
   /** Everything drawn, back to front: the plate, the parts, and the effects between them. */
   stack: Item[];
   grade: Grade;
   /** The line shown over the picture in a Reel; none when absent. */
   caption?: string;
+  /** Seconds into the shot the line shows, when it should arrive with the view rather than at the start. */
+  captionAt?: [number, number];
   sound?: {
     /**
      * Everything heard: room sounds and the scene's own tune, mixed together; a scene has no brand theme. `src`
@@ -210,14 +219,37 @@ export function loopNoise(loop: number, speed: number, seed: number): (t: number
   return (t) => parts.reduce((sum, p) => sum + p.weight * Math.sin((TAU * p.k * t) / loop + p.phase), 0) / total * 1.6;
 }
 
-/** The camera at time `t`: a slow figure-of-eight drift and a gentle push in and out, once per loop. */
+/**
+ * The camera at time `t`: a slow figure-of-eight drift and a gentle push in and out, once per loop, on top of
+ * the view's travel along its `path`. Looking further right moves the world left, so the path is subtracted.
+ */
 export function cameraAt(scene: Scene, t: number): Camera {
   const a = (TAU * t) / scene.loop;
+  const view = scene.camera.path ? pathAt(scene.camera.path, scene.loop, t) : { x: 0, y: 0 };
   return {
-    dx: scene.camera.drift * scene.size.width * Math.sin(a),
-    dy: scene.camera.drift * scene.size.width * 0.5 * Math.sin(2 * a),
+    dx: scene.camera.drift * scene.size.width * Math.sin(a) - view.x,
+    dy: scene.camera.drift * scene.size.width * 0.5 * Math.sin(2 * a) - view.y,
     scale: 1 + scene.camera.push * (0.5 - 0.5 * Math.cos(a)),
   };
+}
+
+/**
+ * Where the view is centred at `t` along a path of points: eased (smoothstep) from each point to the next,
+ * and from the last round to the first by the end of the loop, so the loop closes on itself.
+ */
+export function pathAt(path: { at: number; x: number; y: number }[], loop: number, t: number): Point {
+  if (path.length === 0) return { x: 0, y: 0 };
+  const time = mod(t, loop);
+  const points = [...path].sort((p, q) => p.at - q.at);
+  const next = points.findIndex((p) => p.at > time);
+  const from = next <= 0 ? points[points.length - 1] : points[next - 1];
+  const to = next < 0 ? points[0] : points[next];
+  const start = next === 0 ? from.at - loop : from.at;
+  const end = next < 0 ? to.at + loop : to.at;
+  const span = end - start;
+  const f = span <= 0 ? 0 : (time - start) / span;
+  const e = f * f * (3 - 2 * f);
+  return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
 }
 
 /** A layer's own movement at time `t`, before the camera moves it with its depth. */

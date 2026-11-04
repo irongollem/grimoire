@@ -170,6 +170,8 @@ export interface RecordedShot {
   size?: { width: number; height: number };
   /** YouTube: the title of the chapter this shot starts. */
   chapter?: string;
+  /** Seconds into the shot a timed caption (a scene's title, a lower third) shows, instead of the layout's. */
+  captionAt?: [number, number];
   /** Camera moves, in clip time. Absent means the whole screen throughout. */
   camera?: CameraKeyframe[];
   /** Seconds. */

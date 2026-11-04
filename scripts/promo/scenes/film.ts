@@ -140,6 +140,7 @@ async function filmScene(s: Scene, url: string, dir: string): Promise<void> {
   const shot: RecordedShot = {
     id: "scene",
     caption: s.caption ?? "",
+    ...(s.captionAt === undefined ? {} : { captionAt: s.captionAt }),
     narration: "",
     file: "shots/scene.mp4",
     device: "scene",

@@ -55,7 +55,7 @@ function canvasOf(shot: RecordedShot, format: Format | undefined) {
  * shot's filter graph (`first` is the index of the first of them), with the graph
  * that lays them over `[a]` and ends in `[v]`.
  */
-function textLayers(layout: Layout, p: PlannedShot, work: string, first: number): { inputs: string[]; graph: string } {
+function textLayers(layout: Layout, p: PlannedShot, work: string, first: number, captionAt?: [number, number]): { inputs: string[]; graph: string } {
   const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(p.length), "-i", file];
   const caption = loop(join(work, `caption-${p.id}.png`));
   const c = layout.caption;
@@ -71,7 +71,9 @@ function textLayers(layout: Layout, p: PlannedShot, work: string, first: number)
   if (c.kind === "panel") return { inputs: caption, graph: `[a][${first}:v]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
   // A lower third (or a scene's title) fades in and out inside its window, so it does not pop on and off.
   const FADE = 0.25;
-  const fade = `[${first}:v]format=rgba,fade=t=in:st=${c.from}:d=${FADE}:alpha=1,fade=t=out:st=${c.to - FADE}:d=${FADE}:alpha=1[cap]`;
+  // A shot may time its own caption: a scene's line arrives with the view it names.
+  const [from, to] = captionAt ?? [c.from, c.to];
+  const fade = `[${first}:v]format=rgba,fade=t=in:st=${from}:d=${FADE}:alpha=1,fade=t=out:st=${to - FADE}:d=${FADE}:alpha=1[cap]`;
   return { inputs: caption, graph: `${fade};[a][cap]overlay=${c.x}:${c.y}:format=auto,format=yuv420p[v]` };
 }
 
@@ -84,7 +86,7 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, format: Format | un
   // A frozen last frame holds the screen, and with it wherever the camera ended.
   const hold = p.freeze > 0 ? `tpad=stop_mode=clone:stop_duration=${p.freeze},` : "";
   const loop = (file: string) => ["-loop", "1", "-framerate", "30", "-t", String(L), "-i", file];
-  const words = (first: number) => textLayers(layout, p, work, first);
+  const words = (first: number) => textLayers(layout, p, work, first, shot.captionAt);
   const camera = (shot.camera?.length ?? 0) > 0 || layout.frame === "browser";
   if (!camera) {
     const text = words(3);
