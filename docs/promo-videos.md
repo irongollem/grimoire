@@ -72,7 +72,7 @@ tunes stay behind the voice and the chain reads as one piece. Without
 `npm run promo:post -- <id>` posts a finished Reel to @dungeongrimoire
 through the Instagram Graph API (`post.ts`, `instagram.ts`). Without
 `--publish` it is a dry run that posts nothing: it refuses a silent draft (a
-shot with no take), a build older than its takes, and a caption Instagram
+narrated shot with no take; a picture-book scene has no narration), a build older than its takes, and a caption Instagram
 would refuse or that has a tag word without its `#`, then prints the account,
 video, cover and caption. `--publish` uploads the file (Meta's resumable
 upload, so it needs no public URL), waits for Instagram to process it and
@@ -80,7 +80,18 @@ publishes at once; the API cannot schedule. The cover is the assembler's
 `cover.jpg` frame, passed as its offset from `cover.json`. A posted Reel
 leaves `posted.json` beside it and is not posted twice without `--again`.
 
-`scripts/promo/schedule.json` lists when each Reel goes out (`{ id, at }`,
+A post folder with `slides/slide-1.jpg`, `slide-2.jpg`, ... and no
+`manifest.json` is a **carousel** (`carousels.ts`), posted the same way: the
+dry run checks there are 2 to 20 slides, all JPEG and all the size of the
+first (Instagram crops every slide to it), and posting puts the slides on the
+asset CDN under `promo/<id>/` (named by content hash) before Instagram fetches
+them, because the API takes photos only from a public URL. "Steal this" posts
+are carousels, made by `scripts/promo/steal/` (`handouts.ts` and `cards.ts`
+capture the Scriptorium page, the stat block and the Card Forge card from the
+app, `slides.ts` composes the 1080x1350 slides); convert the slides to JPEG
+before posting.
+
+`scripts/promo/schedule.json` lists when each post goes out (`{ id, at }`,
 the time with its offset). `promo:post -- --schedule` dry-runs everything on
 it; `promo:post -- --due` posts the earliest Reel whose time has come and that
 has no `posted.json`, one per run. A launchd job on the maintainer's Mac runs
@@ -259,3 +270,71 @@ Assembling a YouTube episode also writes two files beside the `.mp4`:
   voice-over yet gets no cue.
 
 The arithmetic is `sidecars.ts` (tested).
+
+## Picture-book scenes
+
+A scene is a painting that moves a little, in the manner of a picture
+book: steam off a kettle, a candle, a curtain stirring, the room shifting
+slightly with depth as the viewpoint drifts (#1139). It is one painting cut
+into layers and moved by code, not a video model, so it keeps the painting's
+finish and moves exactly as much as the scene file says.
+
+```bash
+npm run promo:scene -- inn-dawn --preview   # plays it live at http://127.0.0.1:5183/?scene=inn-dawn
+npm run promo:scene -- inn-dawn             # films promo-out/inn-dawn/
+npm run promo:assemble -- inn-dawn          # the Reel, with the brand open and close
+npm run promo:post -- inn-dawn              # dry run, once captions/inn-dawn.txt exists
+```
+
+**The art.** The painter queue is `~/Desktop/art-955/scenes/` (see the
+`make-art-from-queue` skill). The painter paints the empty room first, the
+plate, then each moving part on a transparent background with the plate
+attached, so the part takes the room's style and light. The queue holds a
+part until its plate exists and moves aside a PNG without an alpha channel.
+Keep the briefs quiet: few objects, large calm areas, one light. A busy
+painting is the generated look this is meant to avoid. `--art <dir>` films
+from another folder.
+
+**The scene file** (`scripts/promo/scenes/<id>.ts`, listed in `catalog.ts`;
+the types and maths are `scene.ts`) is one back-to-front `stack`:
+
+- a `layer` is an image with an `anchor` (the point of the image pinned to
+  `at` in the frame, which it sways and scales about), a drawn `width`, a
+  `depth` (the plate is 1; a part standing on something in the plate shares
+  its depth, or it slides off it; nearer things are above 1 and move more),
+  an optional contact `shadow`, and `motions`: `sway`, `bob`, `drift`,
+  `flicker` (a flame) and `billow` (hanging cloth, fixed at the anchor's row);
+- effects drawn between layers: `steam` (wisps rising from a point), `motes`
+  (dust turning in a shaft of light) and `light` (spill on the room around a
+  source, flickering with the flame it `follows`);
+- one `grade` (a soft-light tint and a vignette) over the whole frame, so the
+  cut-outs and the plate share one light;
+- `camera`: a slow figure-of-eight drift (`drift`, a fraction of the frame's
+  width) and a push in and out (`push`). This is the parallax, and it should
+  stay at a per cent or two.
+
+**Loops without a seam.** Every motion's period is rounded to a whole number
+of cycles per `loop`, flicker is a sum of harmonics of the loop, and a wisp's
+age is taken round the loop, so the frame at `t + loop` is the frame at `t`
+(`scene.test.ts` holds every scene in the catalog to that, and the plate to
+covering the frame however far the camera drifts).
+
+**Filming** (`scenes/film.ts`) does not screen-record. It serves the scene
+page (`scenes/browser/`, bundled with esbuild and type-checked by
+`tsconfig.scenes.json`, since it runs in a browser), steps it through exact
+frames at 30 fps in headless Chrome and pipes them to ffmpeg. It writes the
+same `manifest.json` and `shots/scene.mp4` a recorded episode has: one shot on
+the `scene` surface, which fills the frame with no screen around it (`frame:
+"none"` in `layouts.ts`), with the scene's `caption` as a line of text fading
+over the picture, and no narration. A shot with no narration needs no voice
+take, so the scene's sound is its ambience: the `sound.ambience` loops mixed
+into `ambience.wav` with fades, as one cue. `sound.music` (a file in the art
+folder, such as a Lyria tune made in the soundboard with the plate attached)
+plays between the theme's motif and its ending instead of the theme's
+underscore (`EpisodeManifest.music`). It also writes `still.png`, the opening
+frame, to review beside the plate.
+
+The renderer has no Node and no promo dependencies, and under the OS's
+reduce-motion setting it draws the opening frame and stops, so the same
+scene can later play on the website. Posts whose picture is made this way
+carry Instagram's AI label; screen recordings of the app do not.

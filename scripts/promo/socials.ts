@@ -7,10 +7,11 @@
  * Readiness, schedule and the post itself all live in publishing.ts; this file
  * only routes to them.
  */
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { checkCarousel, isCarousel, postCarousel } from "./carousels";
 import { accountSummary, findAccount, postsLeft, recentMedia, type RecentMedia } from "./instagram";
 import { checkReel, postReel, readSchedule, readPosted, setScheduled, writeCaption, type PostedRecord } from "./publishing";
 import type { EpisodeManifest } from "./types";
@@ -104,6 +105,38 @@ async function instagramPart(): Promise<{
   }
 }
 
+/** Photo posts: folders under the root holding slides and no Reel manifest. */
+function carouselIds(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && EPISODE_ID.test(d.name) && isCarousel(root, d.name))
+    .map((d) => d.name)
+    .sort();
+}
+
+/** Every post the tab can act on: Reels with a manifest, and carousels. */
+function postIds(ctx: SocialsContext): string[] {
+  return [...ctx.episodeIds(), ...carouselIds(ctx.root)];
+}
+
+function carouselRows(ctx: SocialsContext, scheduled: Map<string, string>): ReelRow[] {
+  return carouselIds(ctx.root).map((id) => {
+    const check = checkCarousel(ctx.root, id);
+    return {
+      id,
+      title: check.caption?.split("\n")[0] ?? id,
+      account: "dm",
+      pairedWith: null,
+      scheduledAt: scheduled.get(id) ?? null,
+      posted: check.posted,
+      problems: check.problems,
+      caption: check.caption,
+      coverAt: null,
+      hasVideo: false,
+      hasCover: check.slides.length > 0,
+    };
+  });
+}
+
 function reelRows(ctx: SocialsContext): ReelRow[] {
   const scheduled = new Map(readSchedule().map((e) => [e.id, e.at]));
   const rows: ReelRow[] = [];
@@ -125,7 +158,7 @@ function reelRows(ctx: SocialsContext): ReelRow[] {
       hasCover: existsSync(join(ctx.root, id, "cover.jpg")),
     });
   }
-  return orderReels(rows);
+  return orderReels([...rows, ...carouselRows(ctx, scheduled)]);
 }
 
 /** Returns true when it handled the request. */
@@ -160,7 +193,7 @@ export async function handleSocials(req: IncomingMessage, res: ServerResponse, u
   }
   // Matched against the folders on disk, so a path is never built from request input.
   const requested = url.searchParams.get("episode") ?? "";
-  const id = EPISODE_ID.test(requested) ? ctx.episodeIds().find((e) => e === requested) : undefined;
+  const id = EPISODE_ID.test(requested) ? postIds(ctx).find((e) => e === requested) : undefined;
   if (!id) {
     json(res, 404, { error: "unknown episode" });
     return true;
@@ -168,11 +201,12 @@ export async function handleSocials(req: IncomingMessage, res: ServerResponse, u
 
   switch (route[1]) {
     case "cover":
-      ctx.sendFile(req, res, join(ctx.root, id, "cover.jpg"), "image/jpeg");
+      // A carousel's cover is its first slide.
+      ctx.sendFile(req, res, isCarousel(ctx.root, id) ? join(ctx.root, id, "slides", "slide-1.jpg") : join(ctx.root, id, "cover.jpg"), "image/jpeg");
       return true;
     case "caption": {
       writeCaption(id, await readText(req));
-      json(res, 200, { problems: checkReel(ctx.root, id).problems });
+      json(res, 200, { problems: (isCarousel(ctx.root, id) ? checkCarousel(ctx.root, id) : checkReel(ctx.root, id)).problems });
       return true;
     }
     case "schedule": {
@@ -209,7 +243,8 @@ export async function handleSocials(req: IncomingMessage, res: ServerResponse, u
       }
       posting = true;
       try {
-        const posted = await postReel(token, ctx.root, id, (line) => console.log(`[socials ${id}] ${line}`));
+        const log = (line: string) => console.log(`[socials ${id}] ${line}`);
+        const posted = isCarousel(ctx.root, id) ? await postCarousel(token, ctx.root, id, log) : await postReel(token, ctx.root, id, log);
         json(res, 200, { posted });
       } catch (e) {
         json(res, 400, { error: message(e) });

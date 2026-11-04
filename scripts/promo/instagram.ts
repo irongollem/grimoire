@@ -154,6 +154,38 @@ export async function uploadReel(
   }
 }
 
+/**
+ * Builds a carousel from JPEGs at public URLs (Instagram fetches photos itself;
+ * only video has a direct upload) and returns the carousel container's id once
+ * Instagram has processed it. Every slide is cropped to the first one's shape.
+ */
+export async function createCarousel(
+  token: string,
+  igId: string,
+  input: { imageUrls: string[]; caption: string },
+  log: (line: string) => void,
+): Promise<string> {
+  const children: string[] = [];
+  for (const [i, imageUrl] of input.imageUrls.entries()) {
+    const item = await graph<{ id: string }>(token, `${igId}/media`, { method: "POST", params: { image_url: imageUrl, is_carousel_item: "true" } });
+    children.push(item.id);
+    log(`slide ${i + 1} of ${input.imageUrls.length}: container ${item.id}`);
+  }
+  const carousel = await graph<{ id: string }>(token, `${igId}/media`, {
+    method: "POST",
+    params: { media_type: "CAROUSEL", children: children.join(","), caption: input.caption },
+  });
+  const deadline = Date.now() + 5 * 60_000;
+  for (let wait = 3_000; ; wait = Math.min(wait * 2, 60_000)) {
+    const s = await graph<{ status_code: string; status?: string }>(token, carousel.id, { params: { fields: "status_code,status" } });
+    log(`processing: ${s.status_code}`);
+    if (s.status_code === "FINISHED") return carousel.id;
+    if (s.status_code !== "IN_PROGRESS") throw new Error(`Instagram could not build the carousel: ${s.status_code}${s.status ? ` (${s.status})` : ""}`);
+    if (Date.now() + wait > deadline) throw new Error(`Still processing after five minutes; container ${carousel.id} stays valid for 24 hours.`);
+    await new Promise((r) => setTimeout(r, wait));
+  }
+}
+
 /** Publishes a processed container and returns the post's public link. */
 export async function publish(token: string, igId: string, containerId: string): Promise<{ mediaId: string; permalink: string }> {
   const { id } = await graph<{ id: string }>(token, `${igId}/media_publish`, { method: "POST", params: { creation_id: containerId } });

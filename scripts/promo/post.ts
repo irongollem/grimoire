@@ -1,9 +1,9 @@
 /**
- * Posts a finished Reel to the Grimoire Instagram account.
+ * Posts a finished Reel, or a carousel of slides (carousels.ts), to the Grimoire Instagram account.
  *   npm run promo:post -- <episode id>            # a dry run: checks everything, posts nothing
  *   npm run promo:post -- <episode id> --publish  # posts it, at once
  *   npm run promo:post -- --schedule              # the schedule, and a dry run of everything on it
- *   npm run promo:post -- --due                   # posts the next Reel whose time has come (the launchd job)
+ *   npm run promo:post -- --due                   # posts the next post whose time has come (the launchd job)
  *
  * What "ready" means, the caption and schedule files and the post itself live
  * in publishing.ts, shared with the recorder's Socials tab. The token is
@@ -14,6 +14,7 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { durationOf } from "./compose/ffmpeg";
+import { checkCarousel, isCarousel, postCarousel } from "./carousels";
 import { findAccount, postsLeft } from "./instagram";
 import { checkReel, postReel, readPosted, readSchedule, writeSchedule } from "./publishing";
 import { LATE_LIMIT_HOURS, nextDue, pushMissed } from "./schedule";
@@ -45,14 +46,27 @@ function notify(title: string, message: string) {
   }
 }
 
+/** Posts a Reel or a carousel, whichever the post's folder holds. */
+function post(token: string, root: string, id: string, log: (l: string) => void, opts: { again?: boolean } = {}) {
+  return isCarousel(root, id) ? postCarousel(token, root, id, log, opts) : postReel(token, root, id, log, opts);
+}
+
 /** Prints what would go out and every reason it cannot; true when it is ready. */
 async function dryRun(token: string, root: string, id: string): Promise<boolean> {
-  const c = checkReel(root, id);
   const account = await findAccount(token);
   const quota = await postsLeft(token, account.id);
   console.log(`account   @${account.username}`);
-  console.log(`video     ${c.video}${c.problems.some((p) => p.startsWith("not assembled")) ? "" : ` (${durationOf(c.video).toFixed(1)} s)`}`);
-  if (c.coverAt !== null) console.log(`cover     the frame at ${c.coverAt.toFixed(2)} s (cover.jpg)`);
+  let c: { problems: string[]; caption: string | null; posted: { postedAt: string; permalink: string } | null };
+  if (isCarousel(root, id)) {
+    const k = checkCarousel(root, id);
+    console.log(`carousel  ${k.slides.length} slides in ${root}/${id}/slides`);
+    c = k;
+  } else {
+    const r = checkReel(root, id);
+    console.log(`video     ${r.video}${r.problems.some((p) => p.startsWith("not assembled")) ? "" : ` (${durationOf(r.video).toFixed(1)} s)`}`);
+    if (r.coverAt !== null) console.log(`cover     the frame at ${r.coverAt.toFixed(2)} s (cover.jpg)`);
+    c = r;
+  }
   console.log(`quota     ${quota.used} of ${quota.total} posts used in the last 24 hours`);
   if (c.posted) console.log(`posted    ${c.posted.postedAt}: ${c.posted.permalink}`);
   console.log(`caption\n\n${c.caption ?? "(none)"}\n`);
@@ -67,7 +81,7 @@ async function main() {
   const log = (l: string) => console.log(l);
 
   if (mode === "one" && id) {
-    if (publishNow) await postReel(token, root, id, log, { again });
+    if (publishNow) await post(token, root, id, log, { again });
     else if (await dryRun(token, root, id)) console.log("Dry run: nothing was posted. Add --publish to post it now.");
     else process.exitCode = 1;
     return;
@@ -92,7 +106,7 @@ async function main() {
     writeSchedule(missed.entries);
     const days = missed.days === 1 ? "a day" : `${missed.days} days`;
     console.log(`${stamp} missed a slot by more than ${LATE_LIMIT_HOURS} hours; moved the queue back ${days}`);
-    notify("Grimoire Reels moved", `A Reel missed its time (the Mac was off or asleep). The queue moved back ${days}.`);
+    notify("Grimoire posts moved", `A post missed its time (the Mac was off or asleep). The queue moved back ${days}.`);
     return;
   }
   const due = nextDue(schedule, posted, now);
@@ -102,10 +116,10 @@ async function main() {
   }
   console.log(`${stamp} posting ${due.id}, planned for ${due.at}`);
   try {
-    const record = await postReel(token, root, due.id, log);
-    notify("Grimoire Reel posted", `${due.id}: ${record.permalink}`);
+    const record = await post(token, root, due.id, log);
+    notify("Grimoire post published", `${due.id}: ${record.permalink}`);
   } catch (e) {
-    notify("Grimoire Reel NOT posted", `${due.id}: ${e instanceof Error ? e.message : String(e)}`);
+    notify("Grimoire post NOT published", `${due.id}: ${e instanceof Error ? e.message : String(e)}`);
     throw e;
   }
 }
