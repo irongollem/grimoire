@@ -862,20 +862,78 @@
    design — #915 story 6): each panel is a flat, muted tint of its own hue,
    with the name+score cells one shade and the Mod/Save cells a slightly
    deeper shade of the SAME hue — see --sc-abil-physical-bg(-alt) /
-   --sc-abil-mental-bg(-alt) in theme-onednd2024.css. */
+   --sc-abil-mental-bg(-alt) in theme-onednd2024.css.
+
+   Nine columns side by side do not fit a narrow card: in a wide stat block
+   on an A5 page each internal column is ~210px, and the names ran into
+   their scores ("STR14"), while giving names a width squeezed Mod and Save
+   together instead (#1140). So the table is its own size container, and its
+   rows are laid out on a grid rather than as a table: nine equal columns
+   (the gap column fixed) when there is room, and below the width nine
+   columns need, four columns with the physical panel above the mental one
+   under one Mod/Save header.
+
+   Laid out by position, not by class, and with `order` rather than explicit
+   rows, because it has to hold for three shapes of the same table: the
+   importer's (a <thead> and a classed 3-row <tbody>), a template's after
+   Tiptap has it (one <tbody> holding the header row too, a <colgroup>, a
+   <p> in every cell, no panel classes), and either after pagedTables.ts has
+   promoted the header row back into a <thead>. A row's cells 1-4 are the
+   physical panel, 5 the gap, 6-9 the mental panel. */
 .sc-theme .sc-ability-table--2024 {
-  table-layout: fixed;
+  display: block;
+  container: sc-abilities / inline-size;
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 2px;
+}
+.sc-theme .sc-ability-table--2024 colgroup {
+  display: none;
+}
+.sc-theme .sc-ability-table--2024 thead,
+.sc-theme .sc-ability-table--2024 tbody {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) 0.9rem repeat(4, minmax(0, 1fr));
+  row-gap: 2px;
+  padding-top: 2px;
+}
+.sc-theme .sc-ability-table--2024 tbody {
+  padding-bottom: 2px;
+}
+.sc-theme .sc-ability-table--2024 tr {
+  display: contents;
 }
 .sc-theme .sc-ability-table--2024 th,
 .sc-theme .sc-ability-table--2024 td {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
   border: none;
   padding: 2px 3px;
   text-align: center;
 }
-.sc-theme .sc-ability-table--2024 thead th {
+.sc-theme .sc-ability-table--2024 :is(th, td) > p {
+  margin: 0;
+}
+@container sc-abilities (width < 17.5rem) {
+  .sc-theme .sc-ability-table--2024 thead,
+  .sc-theme .sc-ability-table--2024 tbody {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  /* The gap column, and the mental panel's own copy of the header. */
+  .sc-theme .sc-ability-table--2024 tr > :nth-child(5),
+  .sc-theme .sc-ability-table--2024 tr > th:nth-child(n + 6) {
+    display: none;
+  }
+  /* Header first, then STR/DEX/CON, then INT/WIS/CHA: each panel keeps its
+     rows in document order, four cells to a grid row. */
+  .sc-theme .sc-ability-table--2024 td:nth-child(-n + 4) {
+    order: 1;
+  }
+  .sc-theme .sc-ability-table--2024 td:nth-child(n + 6) {
+    order: 2;
+  }
+}
+.sc-theme .sc-ability-table--2024 th {
   font-family: var(--sc-body-font);
   font-weight: 600;
   font-size: 0.625rem;
@@ -883,14 +941,13 @@
   color: color-mix(in srgb, var(--sc-ink) 55%, transparent);
 }
 .sc-theme .sc-ability-table--2024 .sc-abil-gap {
-  width: 0.9rem;
   background: transparent !important;
 }
-.sc-theme .sc-ability-table--2024 tbody td {
+.sc-theme .sc-ability-table--2024 td {
   font-size: 0.8125rem;
   color: var(--sc-ink);
 }
-.sc-theme .sc-ability-table--2024 tbody td.sc-abil-name {
+.sc-theme .sc-ability-table--2024 td.sc-abil-name {
   font-family: var(--sc-heading-font);
   font-weight: 700;
   font-variant: small-caps;

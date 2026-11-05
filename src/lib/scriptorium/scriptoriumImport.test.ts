@@ -11,6 +11,7 @@ import {
   formatQuestForScriptorium,
   formatItemForScriptorium,
 } from "@/lib/scriptorium/scriptoriumImport";
+import { monsterStatBlockTemplate } from "@/lib/scriptorium/templates";
 import type { Spell } from "@/types/spell.types";
 import type { Location } from "@/types/location.types";
 import type { Quest, QuestObjective } from "@/types/quest.types";
@@ -259,6 +260,19 @@ describe("formatMonsterForScriptorium — stat block frame (#915 story 6)", () =
     expect(content).toContain("sc-ability-table--2024");
     expect(content).toContain("sc-abil-physical");
     expect(content).toContain("sc-abil-mental");
+  });
+
+  // #1140: the narrow-card layout (theme-base.css) places cells by position and
+  // the panel tints key on these classes, so a template whose table drifts from
+  // the linked stat block's loses its tints, or restacks the wrong cells.
+  it("gives a template's 2024 ability table the same cells, in the same order, as a linked stat block's (#1140)", () => {
+    const cellsOf = (html: string) => {
+      const table = html.match(/<table class="sc-ability-table sc-ability-table--2024">[\s\S]*?<\/table>/)?.[0];
+      return [...(table ?? "").matchAll(/<(th|td)(?: class="([^"]*)")?>/g)].map(([, tag, cls]) => `${tag}.${cls}`);
+    };
+    const linked = cellsOf(formatMonsterForScriptorium(monster()).content);
+    expect(linked).toHaveLength(36); // a header row and three ability rows of nine cells
+    expect(cellsOf(monsterStatBlockTemplate())).toEqual(linked);
   });
 
   it("renders the ability scores as a single row of six for phb2014", () => {

@@ -22,6 +22,37 @@
 
 // ── Monster Stat Block ────────────────────────────────────────────────────────
 
+type AbilityPanel = "physical" | "mental";
+
+/** One panel's four cells of a 2024 ability-table row: name, score, mod, save. */
+function abilityPanelCells(tag: "th" | "td", panel: AbilityPanel, name: string): string {
+  const cells: [string, string][] =
+    tag === "th"
+      ? [["name", ""], ["score", ""], ["mod", "Mod"], ["save", "Save"]]
+      : [["name", name], ["score", "[10]"], ["mod", "+0"], ["save", "+0"]];
+  return cells.map(([cell, text]) => `<${tag} class="sc-abil-${cell} sc-abil-${panel}">${text}</${tag}>`).join("");
+}
+
+/**
+ * The 2024 ability table with placeholder scores, in the same cells and
+ * classes `scriptoriumImport.ts` gives a linked stat block's, so a template's
+ * panels take the same tints, and the same narrow layout (#1140).
+ */
+const ABILITY_TABLE_2024 =
+  `<table class="sc-ability-table sc-ability-table--2024"><thead><tr>` +
+  abilityPanelCells("th", "physical", "") +
+  `<th class="sc-abil-gap"></th>` +
+  abilityPanelCells("th", "mental", "") +
+  `</tr></thead><tbody>` +
+  [["STR", "INT"], ["DEX", "WIS"], ["CON", "CHA"]]
+    .map(
+      ([physical, mental]) =>
+        `<tr>${abilityPanelCells("td", "physical", physical)}<td class="sc-abil-gap"></td>` +
+        `${abilityPanelCells("td", "mental", mental)}</tr>`,
+    )
+    .join("") +
+  `</tbody></table>`;
+
 /**
  * Standard monster stat block template.
  *
@@ -35,7 +66,7 @@ export function monsterStatBlockTemplate(): string {
 <p><em>[Size] [Monster Type], [Alignment]</em></p>
 <p><strong>Armor Class</strong> [AC] &nbsp; <strong>Hit Points</strong> [HP] ([Hit Dice]) &nbsp; <strong>Speed</strong> [Speed] ft.</p>
 <p><strong>Challenge</strong> [CR] ([XP] XP) &nbsp; <strong>Proficiency Bonus</strong> +[PB]</p>
-<table class="sc-ability-table sc-ability-table--2024"><thead><tr><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th><th class="sc-abil-gap"></th><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th></tr></thead><tbody><tr><td class="sc-abil-name">STR</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">INT</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">DEX</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">WIS</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">CON</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">CHA</td><td>[10]</td><td>(+0)</td><td>+0</td></tr></tbody></table>
+${ABILITY_TABLE_2024}
 <p><strong>Saving Throws</strong> [e.g. Dex +4, Wis +2]</p>
 <p><strong>Skills</strong> [e.g. Perception +4, Stealth +6]</p>
 <p><strong>Damage Resistances</strong> [damage types]</p>
@@ -67,7 +98,7 @@ export function monsterStatBlockWideTemplate(): string {
 <p><em>[Size] [Monster Type], [Alignment]</em></p>
 <p><strong>Armor Class</strong> [AC] &nbsp; <strong>Hit Points</strong> [HP] ([Hit Dice]) &nbsp; <strong>Speed</strong> [Speed] ft.</p>
 <p><strong>Challenge</strong> [CR] ([XP] XP) &nbsp; <strong>Proficiency Bonus</strong> +[PB]</p>
-<table class="sc-ability-table sc-ability-table--2024"><thead><tr><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th><th class="sc-abil-gap"></th><th class="sc-abil-name"></th><th>Score</th><th>Mod</th><th>Save</th></tr></thead><tbody><tr><td class="sc-abil-name">STR</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">INT</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">DEX</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">WIS</td><td>[10]</td><td>(+0)</td><td>+0</td></tr><tr><td class="sc-abil-name">CON</td><td>[10]</td><td>(+0)</td><td>+0</td><td class="sc-abil-gap"></td><td class="sc-abil-name">CHA</td><td>[10]</td><td>(+0)</td><td>+0</td></tr></tbody></table>
+${ABILITY_TABLE_2024}
 <p><strong>Saving Throws</strong> [e.g. Dex +4, Wis +2]</p>
 <p><strong>Skills</strong> [e.g. Perception +4, Stealth +6]</p>
 <p><strong>Damage Resistances</strong> [damage types]</p>
