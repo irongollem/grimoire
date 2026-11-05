@@ -84,6 +84,7 @@ const stubs = {
   TabBar: true,
   DmNoteBox: true,
   PlaceMapEmpty: true,
+  AtlasPlacePicture: true,
 };
 
 // Every test mounts through this so `afterEach` can always tear it down.
@@ -231,6 +232,14 @@ describe("AtlasPlacePane header buttons (#1125)", () => {
 // The meter's Mapped pill is how a DM finds a site's map from the Overview,
 // on a phone above all. It only ever opens the Map tab (#1125): a map to read,
 // or the empty card that starts one. It never navigates.
+describe("AtlasPlacePane picture (#1142)", () => {
+  it("puts the place's picture first on the Overview, ahead of the map glance", () => {
+    const loc = place({ id: "p1" });
+    const html = mountPane(loc).html();
+    expect(html).toContain("atlas-place-picture-stub");
+  });
+});
+
 describe("AtlasPlacePane Mapped pill", () => {
   function openMap(w: VueWrapper) {
     w.findComponent({ name: "SiteReadinessMeter" }).vm.$emit("open-map");

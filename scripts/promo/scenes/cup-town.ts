@@ -5,7 +5,8 @@
  * the crest, holds while the bell strikes three times, then eases back. Briefed in
  * ~/Desktop/art-955/scenes/briefs.json (the cup-* files).
  */
-import type { Point, Scene } from "./scene.ts";
+import type { Point } from "../../../src/lib/bookNook/scene.ts";
+import type { ReelScene } from "./reel.ts";
 
 const FRAME = { width: 1080, height: 1920 };
 
@@ -40,7 +41,7 @@ const TILT = 525;
 const LOOP = 680 / 30;
 const SONG_FROM = 151.0;
 
-export const cupTown: Scene = {
+export const cupTown: ReelScene = {
   id: "cup-town",
   title: "Will you join us?",
   size: FRAME,

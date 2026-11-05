@@ -3,7 +3,8 @@
  * kettle steams on the round table, a candle burns beside it, the curtain at the window stirs, and dust turns
  * in the window's light. The layers are briefed in ~/Desktop/art-955/scenes/briefs.json.
  */
-import type { Point, Scene } from "./scene.ts";
+import type { Point } from "../../../src/lib/bookNook/scene.ts";
+import type { ReelScene } from "./reel.ts";
 
 const FRAME = { width: 1080, height: 1920 };
 /** The plate as briefed and painted. */
@@ -39,7 +40,7 @@ const CURTAIN_ROD = { x: 270, y: 70 };
 const WINDOW_WALL_HORIZON = 620;
 const shrinkOver = (px: number) => 1 - 0.11 * (px / 280);
 
-export const innDawn: Scene = {
+export const innDawn: ReelScene = {
   id: "inn-dawn",
   title: "Dawn at the Pulled Sugar Inn",
   size: FRAME,

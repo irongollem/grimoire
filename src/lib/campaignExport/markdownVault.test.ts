@@ -163,6 +163,7 @@ function location(over: Partial<Location> = {}): Location {
     npc_owner_id: null,
     related_location_ids: [],
     source_map_id: null,
+    book_nook_id: null,
     is_battle_map: false,
     grid_calibration: null,
     map_layer_url: null,

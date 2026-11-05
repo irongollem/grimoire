@@ -305,7 +305,7 @@ painting is the generated look this is meant to avoid. `--art <dir>` films
 from another folder.
 
 **The scene file** (`scripts/promo/scenes/<id>.ts`, listed in `catalog.ts`;
-the types and maths are `scene.ts`) is one back-to-front `stack`:
+the types and maths are `src/lib/bookNook/scene.ts`, shared with the app's Book Nook; the Reel-only fields are `ReelScene` in `scenes/reel.ts`) is one back-to-front `stack`:
 
 - a `layer` is an image with an `anchor` (the point of the image pinned to
   `at` in the frame, which it sways and scales about), a drawn `width`, a
@@ -333,17 +333,17 @@ the types and maths are `scene.ts`) is one back-to-front `stack`:
   third of a Reel (above the strip Instagram covers). The title is read
   alone first: Cup Town asks "Will you join us?" and, two and a half seconds
   later, answers with the setting's subtitle, "Stay as long as you like".
-  `scene.test.ts` holds a tagline to at least two seconds after its title and
+  `scenes/scene.test.ts` holds a tagline to at least two seconds after its title and
   no longer on screen than it.
 
 **Loops without a seam.** Every motion's period is rounded to a whole number
 of cycles per `loop`, flicker is a sum of harmonics of the loop, and a wisp's
 age is taken round the loop, so the frame at `t + loop` is the frame at `t`
-(`scene.test.ts` holds every scene in the catalog to that, and the plate to
+(`scenes/scene.test.ts` holds every scene in the catalog to that, and the plate to
 covering the frame however far the camera drifts).
 
 **Filming** (`scenes/film.ts`) does not screen-record. It serves the scene
-page (`scenes/browser/`, bundled with esbuild and type-checked by
+page (`scenes/browser/`, which imports the renderer from `src/lib/bookNook/render.ts`, bundled with esbuild and type-checked by
 `tsconfig.scenes.json`, since it runs in a browser), steps it through exact
 frames at 30 fps in headless Chrome and pipes them to ffmpeg. It writes the
 same `manifest.json` and `shots/scene.mp4` a recorded episode has: one shot on
@@ -380,7 +380,7 @@ Ambience meant for playing at the table wants minutes, which is a
 longer `duration` for YouTube or the website, not a longer Reel. It also
 writes `still.png`, the opening frame, to review beside the plate.
 
-The renderer has no Node and no promo dependencies, and under the OS's
+The renderer (`src/lib/bookNook/render.ts`) has no Node and no promo dependencies, and under the OS's
 reduce-motion setting it draws the opening frame and stops, so the same
 scene can later play on the website. Posts whose picture is made this way
 carry Instagram's AI label; screen recordings of the app do not.

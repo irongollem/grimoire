@@ -99,6 +99,8 @@ insert into definer_registry (name, kind, reason) values
   ('open_book_images_in_use', 'self', 'answers only for releases of campaigns the caller runs'),
   ('get_player_visible_items', 'self', 'items in campaigns the caller is a member of, keyed on auth.uid()'),
   ('get_player_visible_locations', 'refuses', null),
+  -- Book Nook (#1142): the nook a visible place shows; proof in book_nook.test.sql.
+  ('get_player_book_nook', 'refuses', null),
   ('get_player_visible_mini', 'refuses', null),
   ('get_player_visible_monsters', 'refuses', null),
   ('get_player_visible_notes', 'refuses', null),

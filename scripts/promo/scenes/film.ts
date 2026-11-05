@@ -24,9 +24,10 @@ import { chromium } from "playwright";
 import { ffmpeg, STEREO_48K } from "../compose/ffmpeg.ts";
 import type { EpisodeManifest, RecordedShot } from "../types.ts";
 import { SCENES } from "./catalog.ts";
-import { layersOf, runsToEnd, type Scene } from "./scene.ts";
+import { layersOf } from "../../../src/lib/bookNook/scene.ts";
+import { runsToEnd, type ReelScene } from "./reel.ts";
 
-type Ambience = NonNullable<Scene["sound"]>["ambience"][number];
+type Ambience = NonNullable<ReelScene["sound"]>["ambience"][number];
 
 const FPS = 30;
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -80,7 +81,7 @@ if (values.preview) {
 }
 
 /** The scene page, its script bundled from browser/page.ts, and the layer images under /art/. */
-async function serveScene(s: Scene, artDir: string): Promise<Server> {
+async function serveScene(s: ReelScene, artDir: string): Promise<Server> {
   const bundle = await build({ entryPoints: [join(HERE, "browser/page.ts")], bundle: true, format: "esm", platform: "browser", write: false, logLevel: "warning" });
   const script = bundle.outputFiles[0].text;
   const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${s.title}</title>
@@ -103,7 +104,7 @@ async function serveScene(s: Scene, artDir: string): Promise<Server> {
 }
 
 /** Single frames at the given seconds, for placing layers by eye without filming the whole loop. */
-async function writeStills(s: Scene, url: string, dir: string, times: number[]): Promise<void> {
+async function writeStills(s: ReelScene, url: string, dir: string, times: number[]): Promise<void> {
   if (times.some((t) => !Number.isFinite(t))) throw new Error("--stills takes seconds separated by commas, such as 0,6,12");
   mkdirSync(dir, { recursive: true });
   const browser = await chromium.launch({ channel: "chrome" });
@@ -122,7 +123,7 @@ async function writeStills(s: Scene, url: string, dir: string, times: number[]):
   }
 }
 
-async function filmScene(s: Scene, url: string, dir: string): Promise<void> {
+async function filmScene(s: ReelScene, url: string, dir: string): Promise<void> {
   mkdirSync(join(dir, "shots"), { recursive: true });
   const clip = join(dir, "shots", "scene.mp4");
   const browser = await chromium.launch({ channel: "chrome" });

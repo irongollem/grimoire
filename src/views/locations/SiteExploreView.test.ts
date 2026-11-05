@@ -28,6 +28,8 @@ const h = await vi.hoisted(async () => {
     memory: vueRef<Set<string>>(new Set()),
     mapDoors: vueRef<{ id: string; open: boolean }[]>([]),
     setDoor: vi.fn(() => Promise.resolve()),
+    setTableShows: vi.fn(() => Promise.resolve("picture")),
+    tableShows: vueRef<string | null>("map"),
     doorArgs: [] as unknown[],
   };
 });
@@ -74,6 +76,9 @@ vi.mock("@/composables/locations/useMapDoors", () => ({
 vi.mock("@/composables/locations/useMapMemory", () => ({ useMapMemory: () => ({ memory: h.memory, isLoading: ref(false) }) }));
 vi.mock("@/composables/locations/useRememberSight", () => ({
   useRememberSight: (opts: { enabled: boolean | (() => boolean) }) => h.rememberArgs.push(opts.enabled),
+}));
+vi.mock("@/composables/bookNook/useTableShows", () => ({
+  useTableShows: () => ({ tableShows: h.tableShows, setTableShows: h.setTableShows, isSaving: ref(false) }),
 }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 
@@ -273,6 +278,20 @@ describe("SiteExploreView", () => {
     await w.get("[data-testid='explore-table-screen']").trigger("click");
     expect(open).toHaveBeenCalledWith("/locations/s1/table", "_blank", "noopener,noreferrer");
     open.mockRestore();
+  });
+
+  // Frame 08: the switch exists only for a place that shows a nook, and writes the campaign's table_shows.
+  it("offers On the table only when the site shows a nook, and writes the choice", async () => {
+    const without = mountView();
+    await flushPromises();
+    expect(without.find("[data-testid='explore-table-shows']").exists()).toBe(false);
+
+    h.site.value = { ...(h.site.value as object), book_nook_id: "n1" };
+    const w = mountView();
+    await flushPromises();
+    const picture = w.get("[data-testid='explore-table-shows']").findAll("button").find((b) => b.text() === "Picture");
+    await picture?.trigger("click");
+    expect(h.setTableShows).toHaveBeenCalledWith("picture");
   });
 
   // A fight starts where the party is: their room when they are in one, else the site itself.

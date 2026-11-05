@@ -269,6 +269,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["map_memory", ["map-memory", "map-doors"]],
   // The DM's waiting Perception rolls (awareness rolls rule): a second DM window sees one used.
   ["awareness_rolls", ["awareness-rolls"]],
+  // Book Nook (#1142): the studio and list read "book-nooks"; a player reads a place's nook as "player-book-nook".
+  ["book_nooks", ["book-nooks", "player-book-nook"]],
   ["location_map_regions", ["location-map-regions", "player-visible-site-state"]],
   // Quest wiring. get_player_visible_quest_beats reads all three of edges,
   // attachments and refs for the players' story so far.

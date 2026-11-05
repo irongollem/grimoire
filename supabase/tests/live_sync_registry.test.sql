@@ -93,7 +93,9 @@ insert into live_sync_doorbell (name) values
   -- What the party has seen of a map (#1133).
   ('map_memory'),
   -- The DM's secret Perception rolls, so a second DM window shows the next one.
-  ('awareness_rolls');
+  ('awareness_rolls'),
+  -- Book Nook (#1142): the pictures a place shows.
+  ('book_nooks');
 
 -- Campaign tables deliberately on no route, each with the reason. Grimoire
 -- runs live games, so a table a member's screen reads is live by default; the

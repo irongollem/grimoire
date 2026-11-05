@@ -9,6 +9,16 @@
         <ManualHelpLink page="sites-maps-rooms-running-a-dungeon" />
 
         <div class="ml-auto flex flex-wrap items-center gap-2">
+          <div v-if="site.book_nook_id" class="flex items-center gap-2" data-testid="explore-table-shows">
+            <span class="text-eyebrow text-muted-foreground">On the table</span>
+            <SegmentedControl
+              :model-value="tableShows ?? 'map'"
+              :options="TABLE_SHOWS_OPTIONS"
+              size="sm"
+              :disabled="savingTableShows"
+              @update:model-value="onTableShows"
+            />
+          </div>
           <AppButton
             variant="outline"
             size="sm"
@@ -134,6 +144,7 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { RouteLocationRaw } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import PlayShell from "@/components/encounters/play/PlayShell.vue";
@@ -144,6 +155,7 @@ import ExplorePartyPanel from "@/components/locations/explore/ExplorePartyPanel.
 import ExploreRoomCard from "@/components/locations/explore/ExploreRoomCard.vue";
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import TriggerBeatPrompt from "@/components/locations/run/TriggerBeatPrompt.vue";
+import { useTableShows } from "@/composables/bookNook/useTableShows";
 import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
 import { usePartySight } from "@/composables/encounters/usePartySight";
 import { usePreparedEncounters } from "@/composables/encounters/usePreparedEncounters";
@@ -182,6 +194,7 @@ import { compareSiblings } from "@/lib/locations/tree";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import { useCampaignStore } from "@/stores/campaign";
 import { useLocationsUiStore } from "@/stores/ui/locations";
+import type { TableShows } from "@/types/bookNook.types";
 import type { Location } from "@/types/location.types";
 
 const route = useRoute();
@@ -412,6 +425,16 @@ function advanceTriggerBeat() {
 }
 function dismissTriggerPrompt() {
   dismissedTriggerRoomId.value = currentRoomId.value;
+}
+
+const TABLE_SHOWS_OPTIONS = [
+  { value: "picture", label: "Picture" },
+  { value: "map", label: "Map" },
+] as const;
+// Kept with the party's position (`campaigns.table_shows`), not sent as a moment: a TV that joins late reads it.
+const { tableShows, setTableShows, isSaving: savingTableShows } = useTableShows();
+function onTableShows(value: TableShows) {
+  setTableShows(value).catch((error: unknown) => toast.error(toast.fromError(error, "Couldn't change what is on the table.")));
 }
 
 /** The table screen is a second window, for a screen the table looks at; it follows the party from there. */

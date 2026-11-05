@@ -24,6 +24,7 @@ vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", () => ({
   usePlayerNoticeBoards: () => ({ data: ref(boards.list) }),
 }));
 vi.mock("@/composables/player/useReadItems", () => ({ useReadItems: () => ({ isNew: () => false }) }));
+vi.mock("@/composables/bookNook/usePlaceNook", () => ({ usePlaceNook: () => ({ nook: ref(null) }) }));
 import PlayerLocationDetailPanel from "./PlayerLocationDetailPanel.vue";
 import type { Location } from "@/types/location.types";
 import type { PlayerNpc } from "@/types/npc.types";

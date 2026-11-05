@@ -1039,6 +1039,21 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Edit Map", fullscreenMobile: true },
   },
 
+  // Book Nook: the list of a campaign's nooks, beside the Cartographer. Creating one opens its studio (#1142).
+  {
+    path: "/book-nook",
+    name: "book-nook",
+    component: () => import("@/views/bookNook/BookNookListView.vue"),
+    meta: { requiresAuth: true, title: "Book Nook" },
+  },
+  // The Book Nook studio: a nook's layers, stage and inspector, full screen like Edit map (#1142). It saves itself.
+  {
+    path: "/book-nook/:id",
+    name: "book-nook-studio",
+    component: () => import("@/views/bookNook/BookNookStudioView.vue"),
+    meta: { requiresAuth: true, title: "Book Nook", fullscreenMobile: true },
+  },
+
   // Deities (Pantheon)
   {
     path: "/deities",
