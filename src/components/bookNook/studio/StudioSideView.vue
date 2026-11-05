@@ -10,7 +10,7 @@
       <!-- You: the eye every depth is measured from. -->
       <div class="pointer-events-none absolute left-[2%] flex flex-col items-center gap-1" :style="{ bottom: `${FLOOR_BOTTOM + 14}%` }">
         <IconReveal class="size-6 text-white" aria-hidden="true" />
-        <span class="text-label uppercase tracking-wider">You</span>
+        <span class="text-label uppercase">You</span>
       </div>
 
       <!-- The two bounds the engine refuses to pass: past them the drift pulls the picture apart. -->
@@ -23,7 +23,7 @@
         aria-hidden="true"
       >
         <span
-          class="absolute top-2 whitespace-nowrap px-1 text-label tracking-wider"
+          class="absolute top-2 whitespace-nowrap px-1 text-label"
           :class="[bound.key === 'near' ? 'left-0' : 'right-0', refusing === bound.key ? 'text-destructive' : 'text-white/45']"
         >{{ bound.label }}</span>
       </div>
@@ -40,7 +40,7 @@
         :style="{ left: `${band.x}%`, bottom: '1%', width: '22%' }"
         data-testid="depth-band"
       >
-        <p class="truncate text-label uppercase tracking-wider text-white">{{ band.word }} <span class="text-white/60">· {{ band.depth }}</span></p>
+        <p class="truncate text-label uppercase text-white">{{ band.word }} <span class="text-white/60">· {{ band.depth }}</span></p>
         <p class="hidden truncate text-caption text-white/55 @md:block">{{ band.caption }}</p>
         <span class="block h-1 rounded-full bg-white/10" aria-hidden="true">
           <span class="block h-full rounded-full bg-primary" :style="{ width: `${(band.depth / DEPTH.max) * 100}%` }" />

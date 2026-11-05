@@ -24,7 +24,7 @@
         @click="leave"
       />
       <div class="min-w-0 flex-1">
-        <p class="flex items-center gap-1 text-label uppercase tracking-wider text-muted-foreground">Book Nook <ManualHelpLink page="book-nook" /></p>
+        <p class="flex items-center gap-1 text-label uppercase text-muted-foreground">Book Nook <ManualHelpLink page="book-nook" /></p>
         <AppInput
           v-model="draft.draft.title"
           tone="underline"
@@ -36,7 +36,7 @@
       </div>
       <SegmentedControl v-model="viewMode" :options="VIEW_OPTIONS" size="sm" />
       <div class="flex items-center gap-2">
-        <span class="text-label uppercase tracking-wider text-muted-foreground max-sm:hidden">Show on</span>
+        <span class="text-label uppercase text-muted-foreground max-sm:hidden">Show on</span>
         <SegmentedControl v-model="screen" :options="SCREEN_OPTIONS" size="sm" />
       </div>
       <AppButton

@@ -1,6 +1,6 @@
 <template>
   <details class="group rounded-md border border-border bg-muted/30">
-    <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-1.5 text-label uppercase tracking-wider text-muted-foreground">
+    <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-1.5 text-label uppercase text-muted-foreground">
       Exact
       <IconChevronDown class="size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
     </summary>

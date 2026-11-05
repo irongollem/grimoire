@@ -25,6 +25,7 @@ import {
   type Scene,
   type View,
 } from "./scene.ts";
+import { frameSlices } from "./frameSlices.ts";
 import { particlesAt, type Particles } from "./particles.ts";
 import { castAt } from "./shadows.ts";
 
@@ -105,10 +106,10 @@ export function drawScene(ctx: CanvasRenderingContext2D, scene: Scene, images: I
 
 /** Seen through any of these the frame is a silhouette: dark, soft-edged, thrown on the room. */
 const SHADOW_COLOUR = "rgba(26,16,8,1)";
-const silhouettes = new WeakMap<HTMLImageElement, { key: string; canvas: HTMLCanvasElement }>();
+const silhouettes = new WeakMap<HTMLImageElement | HTMLCanvasElement, { key: string; canvas: HTMLCanvasElement }>();
 
 /** A dark, blurred copy of `img` drawn at `width` x `height`, padded by `pad`; built once per size and blur. */
-function silhouetteOf(img: HTMLImageElement, width: number, height: number, blur: number, pad: number, alpha: number): HTMLCanvasElement {
+function silhouetteOf(img: HTMLImageElement | HTMLCanvasElement, width: number, height: number, blur: number, pad: number, alpha: number): HTMLCanvasElement {
   const key = `${width}x${height}/${blur}/${pad}/${alpha}`;
   const cached = silhouettes.get(img);
   if (cached && cached.key === key) return cached.canvas;
@@ -158,12 +159,28 @@ function drawCast(ctx: CanvasRenderingContext2D, scene: Scene, layer: Layer, img
 function drawFrame(ctx: CanvasRenderingContext2D, frame: HTMLImageElement, screen: { width: number; height: number }, view?: View): void {
   const { width, height } = screen;
   const tilt = view?.tilt ?? { x: 0, y: 0 };
-  const shadow = silhouetteOf(frame, width, height, Math.max(1, width * 0.015), 0, 0.7);
+  const fitted = fittedFrame(frame, width, height);
+  const shadow = silhouetteOf(fitted, width, height, Math.max(1, width * 0.015), 0, 0.7);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
   ctx.drawImage(shadow, tilt.x * 0.012 * width, tilt.y * 0.01 * height + 0.004 * height);
-  ctx.drawImage(frame, 0, 0, width, height);
+  ctx.drawImage(fitted, 0, 0);
+}
+
+const fittedFrames = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
+
+/** The frame laid onto a canvas of the screen's size in three slices (`frameSlices`), built once per size. */
+function fittedFrame(frame: HTMLImageElement, width: number, height: number): HTMLCanvasElement {
+  const cached = fittedFrames.get(frame);
+  if (cached && cached.width === width && cached.height === height) return cached;
+  const canvas = scratch(fittedFrames, frame, width, height);
+  const c = context(canvas);
+  c.clearRect(0, 0, width, height);
+  for (const { from, to } of frameSlices({ width: frame.naturalWidth, height: frame.naturalHeight }, { width, height })) {
+    c.drawImage(frame, from[0], from[1], from[2], from[3], to[0], to[1], to[2], to[3]);
+  }
+  return canvas;
 }
 
 function drawLayer(ctx: CanvasRenderingContext2D, scene: Scene, layer: Layer, img: HTMLImageElement, t: number): void {

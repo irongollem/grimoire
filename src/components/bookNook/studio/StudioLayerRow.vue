@@ -22,7 +22,7 @@
       </span>
       <span class="min-w-0 flex-1">
         <span class="block truncate">{{ name }}</span>
-        <span class="block text-label uppercase tracking-wider text-muted-foreground">{{ word }}</span>
+        <span class="block text-label uppercase text-muted-foreground">{{ word }}</span>
       </span>
     </AppButton>
     <AppButton

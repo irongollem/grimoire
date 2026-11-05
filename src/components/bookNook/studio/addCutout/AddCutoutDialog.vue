@@ -19,13 +19,13 @@
           <section class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-shelf">
             <header class="flex items-baseline justify-between gap-2">
               <h3 id="add-cutout-shelf" class="text-label-lg font-semibold">Stock shelf</h3>
-              <span class="text-label uppercase tracking-wider text-tone-success">Free</span>
+              <span class="text-label uppercase text-tone-success">Free</span>
             </header>
             <p v-if="parts.isPending.value" class="text-caption text-muted-foreground">Loading the shelf…</p>
             <p v-else-if="parts.isError.value" class="text-caption text-tone-danger" role="alert">The shelf could not be loaded.</p>
             <p v-else-if="!groups.length" class="text-caption text-muted-foreground">{{ EMPTY_SHELF }}</p>
             <div v-for="group in groups" :key="group.key" class="flex flex-col gap-1">
-              <h4 class="text-label uppercase tracking-wider text-muted-foreground">{{ group.label }}</h4>
+              <h4 class="text-label uppercase text-muted-foreground">{{ group.label }}</h4>
               <div class="grid grid-cols-3 gap-1.5">
                 <AppButton
                   v-for="part in group.parts"
@@ -48,7 +48,7 @@
           <section class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-upload">
             <header class="flex items-baseline justify-between gap-2">
               <h3 id="add-cutout-upload" class="text-label-lg font-semibold">Upload</h3>
-              <span class="text-label uppercase tracking-wider text-tone-success">Free</span>
+              <span class="text-label uppercase text-tone-success">Free</span>
             </header>
             <p class="text-caption text-muted-foreground">A PNG or WebP with a transparent background. A flat picture is offered Remove background rather than refused.</p>
             <input ref="fileInput" type="file" accept="image/png,image/webp,image/jpeg" class="sr-only" tabindex="-1" aria-label="Cut-out picture" @change="onFile" />
@@ -73,7 +73,7 @@
           <section class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-lift">
             <header class="flex items-baseline justify-between gap-2">
               <h3 id="add-cutout-lift" class="text-label-lg font-semibold">Lift it out</h3>
-              <span class="text-label uppercase tracking-wider text-tone-caution">{{ LIFT_PRICE_NOTE }}</span>
+              <span class="text-label uppercase text-tone-caution">{{ LIFT_PRICE_NOTE }}</span>
             </header>
             <p class="text-caption text-muted-foreground">
               Draw round the kettle in your picture. The app cuts it out with a transparent background and paints in the gap behind it, so the room is whole when the kettle moves.
@@ -85,7 +85,7 @@
           <section class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-paint">
             <header class="flex items-baseline justify-between gap-2">
               <h3 id="add-cutout-paint" class="text-label-lg font-semibold">Paint</h3>
-              <span class="text-label uppercase tracking-wider text-tone-caution">{{ PAINT_PRICE_NOTE }}</span>
+              <span class="text-label uppercase text-tone-caution">{{ PAINT_PRICE_NOTE }}</span>
             </header>
             <p class="text-caption text-muted-foreground">Paint sends the picture with the request, so the part matches its light.</p>
             <!-- Native on purpose: a model prompt is not rich text (CLAUDE.md, Sanctioned Exceptions). -->

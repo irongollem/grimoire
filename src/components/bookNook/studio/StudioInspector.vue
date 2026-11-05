@@ -3,7 +3,7 @@
     <p v-if="!subject" class="text-body text-muted-foreground">Pick something on the stage or in the list to change it.</p>
     <template v-else>
       <header class="flex flex-col gap-1">
-        <p class="text-label uppercase tracking-wider text-muted-foreground">{{ subject.kind }}</p>
+        <p class="text-label uppercase text-muted-foreground">{{ subject.kind }}</p>
         <h2 v-if="subject.picture" class="truncate text-heading-sm font-bold text-foreground">{{ subject.name }}</h2>
         <AppInput
           v-else

@@ -20,7 +20,7 @@
       <div class="absolute inset-y-0 left-0 rounded-l-sm bg-primary/20" :style="{ width: `${share * 100}%` }" />
       <div class="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-primary" :style="{ left: `${share * 100}%` }" />
     </div>
-    <span class="shrink-0 text-label uppercase tracking-wider text-muted-foreground">One loop</span>
+    <span class="shrink-0 text-label uppercase text-muted-foreground">One loop</span>
     <AppSelect :model-value="loop" size="sm" aria-label="Loop length" @update:model-value="(v) => emit('update:loop', Number(v))">
       <option v-for="seconds in LOOP_CHOICES" :key="seconds" :value="seconds">{{ seconds }} s</option>
     </AppSelect>

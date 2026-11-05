@@ -8,7 +8,7 @@
         class="pointer-events-none absolute inset-x-0 bottom-[12%] flex flex-col items-center gap-2 px-8 text-center"
         data-testid="arrival-title"
       >
-        <span v-if="parent" class="text-label-lg font-semibold uppercase tracking-[0.3em] text-white/80 [text-shadow:0_1px_8px_rgb(0_0_0/0.8)]" data-testid="arrival-parent">{{ parent.name }}</span>
+        <span v-if="parent" class="text-label-lg font-semibold uppercase text-white/80 [text-shadow:0_1px_8px_rgb(0_0_0/0.8)]" data-testid="arrival-parent">{{ parent.name }}</span>
         <h1 class="font-display text-[clamp(2.5rem,6vw,5rem)] leading-none text-white [text-shadow:0_2px_16px_rgb(0_0_0/0.85)]" data-testid="arrival-name">{{ place.name }}</h1>
       </div>
     </Transition>

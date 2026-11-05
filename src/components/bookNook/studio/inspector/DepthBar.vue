@@ -14,7 +14,7 @@
         data-testid="depth-knob"
       />
     </div>
-    <div class="relative h-4 text-label uppercase tracking-wider text-muted-foreground" aria-hidden="true">
+    <div class="relative h-4 text-label uppercase text-muted-foreground" aria-hidden="true">
       <span v-for="stop in STOPS" :key="stop.word" class="absolute -translate-x-1/2" :style="{ left: `${share(stop.depth)}%` }">{{ stop.word }}</span>
     </div>
     <p class="text-caption tabular-nums text-muted-foreground">Depth {{ rounded }}</p>

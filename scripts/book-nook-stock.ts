@@ -33,9 +33,42 @@ export function storagePath(id: string): string {
   return `srd/nooks/${id}.webp`;
 }
 
-/** WebP with the alpha channel kept, no larger than MAX_SIDE on the longest side. */
-export async function encodeWebp(png: Buffer): Promise<Buffer> {
-  return sharp(png)
+/** Alpha below this (of 255) is haze the painter left round a thing, not the thing: it is cleared. */
+export const HAZE_ALPHA = 15;
+/** In a frame, everything joined to the middle and less opaque than this is the opening: high, because the painted checkerboard reached past half; the gilt rule round an opening is fully opaque. */
+export const OPENING_ALPHA = 200;
+
+/**
+ * Cleans a part's alpha in place (RGBA bytes). Generated cut-outs keep a faint warm or green haze outside
+ * their silhouette, which shows as a smudge on a room; it is cleared, leaving soft edges as painted. A frame's
+ * opening must be fully clear, or the room is seen through a veil: the model painted a faint checkerboard into
+ * the cameo's (5 Nov 2026), so the whole opening (the region joined to the middle that is not near-opaque) is
+ * cleared, whatever was painted into it.
+ */
+export function cleanAlpha(rgba: Uint8Array, width: number, height: number, kind: "cutout" | "frame"): void {
+  for (let i = 3; i < rgba.length; i += 4) if (rgba[i] < HAZE_ALPHA) rgba[i] = 0;
+  if (kind !== "frame") return;
+  const seen = new Uint8Array(width * height);
+  const stack = [Math.floor(height / 2) * width + Math.floor(width / 2)];
+  while (stack.length > 0) {
+    const at = stack.pop() as number;
+    if (seen[at]) continue;
+    seen[at] = 1;
+    if (rgba[at * 4 + 3] >= OPENING_ALPHA) continue;
+    rgba[at * 4 + 3] = 0;
+    const x = at % width;
+    if (x > 0) stack.push(at - 1);
+    if (x < width - 1) stack.push(at + 1);
+    if (at >= width) stack.push(at - width);
+    if (at < width * (height - 1)) stack.push(at + width);
+  }
+}
+
+/** WebP with the alpha channel kept (and cleaned), no larger than MAX_SIDE on the longest side. */
+export async function encodeWebp(png: Buffer, kind: "cutout" | "frame" = "cutout"): Promise<Buffer> {
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  cleanAlpha(data, info.width, info.height, kind);
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
     .resize({ width: MAX_SIDE, height: MAX_SIDE, fit: "inside", withoutEnlargement: true })
     .webp({ quality: 88, alphaQuality: 100 })
     .toBuffer();
@@ -93,7 +126,7 @@ async function main(): Promise<void> {
   let failed = 0;
   for (const part of present) {
     try {
-      const webp = await encodeWebp(readFileSync(path.join(dir, part.file)));
+      const webp = await encodeWebp(readFileSync(path.join(dir, part.file)), part.kind);
       if (!write || r2 === null || cdnBase === null) continue;
       const key = r2ObjectKey(BUCKET, storagePath(part.id));
       const existing = await headObject(r2, key);

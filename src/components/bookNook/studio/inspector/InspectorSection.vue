@@ -1,6 +1,6 @@
 <template>
   <section class="flex flex-col gap-1.5">
-    <h3 class="text-label uppercase tracking-wider text-muted-foreground">{{ title }}</h3>
+    <h3 class="text-label uppercase text-muted-foreground">{{ title }}</h3>
     <slot />
   </section>
 </template>

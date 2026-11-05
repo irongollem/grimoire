@@ -1,7 +1,7 @@
 <template>
   <nav class="flex flex-col gap-4 p-3" aria-label="Layers">
     <section aria-labelledby="studio-layers-picture" class="flex flex-col gap-1.5">
-      <h2 id="studio-layers-picture" class="text-label uppercase tracking-wider text-muted-foreground">The picture</h2>
+      <h2 id="studio-layers-picture" class="text-label uppercase text-muted-foreground">The picture</h2>
       <StudioLayerRow
         v-if="plate"
         :name="layerName(plate.id, plate.name)"
@@ -16,7 +16,7 @@
     </section>
 
     <section aria-labelledby="studio-layers-cutouts" class="flex flex-col gap-1.5">
-      <h2 id="studio-layers-cutouts" class="text-label uppercase tracking-wider text-muted-foreground">Cut-outs</h2>
+      <h2 id="studio-layers-cutouts" class="text-label uppercase text-muted-foreground">Cut-outs</h2>
       <!-- Nearest first, like a stack of cards: back to front follows depth, and within one depth a row drags. -->
       <StudioLayerRow
         v-for="layer in cutouts"
@@ -46,7 +46,7 @@
     </section>
 
     <section aria-labelledby="studio-layers-touches" class="flex flex-col gap-1.5">
-      <h2 id="studio-layers-touches" class="text-label uppercase tracking-wider text-muted-foreground">Touches</h2>
+      <h2 id="studio-layers-touches" class="text-label uppercase text-muted-foreground">Touches</h2>
       <StudioLayerRow
         v-for="touch in touches"
         :key="touch.index"

@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
     <div class="flex items-center gap-2">
-      <span id="studio-breathing" class="text-label uppercase tracking-wider text-muted-foreground">Breathing</span>
+      <span id="studio-breathing" class="text-label uppercase text-muted-foreground">Breathing</span>
       <SegmentedControl
         :model-value="breathing"
         :options="BREATHING_OPTIONS"
@@ -11,14 +11,14 @@
       />
     </div>
     <label class="flex items-center gap-2">
-      <span class="text-label uppercase tracking-wider text-muted-foreground">Mood</span>
+      <span class="text-label uppercase text-muted-foreground">Mood</span>
       <AppSelect :model-value="mood" size="sm" aria-label="Mood" @update:model-value="(v) => v !== 'custom' && emit('mood', v)">
         <option v-for="m in MOODS" :key="m.id" :value="m.id">{{ m.label }}</option>
         <option v-if="mood === 'custom'" value="custom" disabled>Custom</option>
       </AppSelect>
     </label>
     <label class="flex items-center gap-2">
-      <span class="text-label uppercase tracking-wider text-muted-foreground">Frame</span>
+      <span class="text-label uppercase text-muted-foreground">Frame</span>
       <!-- Frames from the stock shelf, one choice per style (its tall and wide shapes together); shown in full screen only. -->
       <AppSelect :model-value="frameStyle" size="sm" aria-label="Frame" @update:model-value="pickFrame">
         <option value="none">None</option>

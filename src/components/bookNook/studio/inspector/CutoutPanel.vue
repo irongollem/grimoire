@@ -18,11 +18,11 @@
       </template>
       <template v-else-if="preset">
         <div class="flex flex-col gap-1">
-          <span class="text-label uppercase tracking-wider text-muted-foreground">Strength</span>
+          <span class="text-label uppercase text-muted-foreground">Strength</span>
           <SegmentedControl :model-value="preset.strength" :options="STRENGTH_OPTIONS" size="sm" block @update:model-value="setStrength" />
         </div>
         <div class="flex flex-col gap-1">
-          <span class="text-label uppercase tracking-wider text-muted-foreground">Pace</span>
+          <span class="text-label uppercase text-muted-foreground">Pace</span>
           <SegmentedControl :model-value="preset.pace" :options="PACE_OPTIONS" size="sm" block @update:model-value="setPace" />
         </div>
       </template>
