@@ -32,26 +32,52 @@ function c(partial: Partial<RunCombatant> & Pick<RunCombatant, "instance_id">): 
 }
 
 describe("rollInitiativeValue", () => {
-  it("adds the initiative_bonus modifier over dex_mod when present", () => {
-    expect(rollInitiativeValue({ dex_mod: 1, initiative_bonus: 5 }, () => 10)).toBe(15);
+  it("adds the modifier to one d20", () => {
+    expect(rollInitiativeValue({ modifier: 5, disadvantage: false }, () => 10)).toBe(15);
   });
 
-  it("falls back to dex_mod when initiative_bonus is absent", () => {
-    expect(rollInitiativeValue({ dex_mod: 3, initiative_bonus: null }, () => 10)).toBe(13);
+  it("keeps the lower of two d20s at disadvantage (PHB 2014 ch.7, Advantage and Disadvantage)", () => {
+    // Bug: a Poisoned combatant rolled a single die. Dice 17 then 4: lower is 4, +2 = 6.
+    const dice = [17, 4];
+    expect(rollInitiativeValue({ modifier: 2, disadvantage: true }, () => dice.shift() ?? 20)).toBe(6);
+  });
+
+  it("keeps the lower die whichever order the two land in", () => {
+    const dice = [3, 18];
+    expect(rollInitiativeValue({ modifier: 2, disadvantage: true }, () => dice.shift() ?? 20)).toBe(5);
   });
 });
 
 describe("rollAllInitiativeValues", () => {
-  it("returns a value per combatant keyed by instance_id", () => {
+  const base = { dex_mod: 0, conditions: [] };
+
+  it("returns a value per combatant keyed by instance_id, from its own modifier", () => {
     const out = rollAllInitiativeValues(
       [
-        { instance_id: "a", dex_mod: 1, initiative_bonus: null },
-        { instance_id: "b", dex_mod: 2, initiative_bonus: null },
+        { ...base, instance_id: "a", dex_mod: 1 },
+        { ...base, instance_id: "b", dex_mod: 2, initiative_bonus: 5 },
       ],
+      "2014",
       () => 10,
     );
     expect(out.get("a")).toBe(11);
-    expect(out.get("b")).toBe(12);
+    expect(out.get("b")).toBe(15);
+  });
+
+  it("re-rolls an Alert character with their bonus: DEX +2 and +5 is +7 (PHB 2014 Alert)", () => {
+    const out = rollAllInitiativeValues([{ ...base, instance_id: "a", dex_mod: 2, initiative_extra: 5 }], "2014", () => 10);
+    expect(out.get("a")).toBe(17);
+  });
+
+  it("rolls a poisoned combatant at disadvantage (Poisoned: disadvantage on ability checks)", () => {
+    // Bug: the Random Initiative Each Round re-roll ignored conditions. Dice 15, 6 keep 6, +1 = 7.
+    const dice = [15, 6];
+    const out = rollAllInitiativeValues(
+      [{ instance_id: "a", dex_mod: 1, conditions: [{ name: "Poisoned" }] }],
+      "2014",
+      () => dice.shift() ?? 20,
+    );
+    expect(out.get("a")).toBe(7);
   });
 });
 

@@ -10,7 +10,7 @@ import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollToastResult } from "@/components/common/feedback/RollToast.vue";
 import { combineModes, type RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { effectiveAbilityScores, savingThrowEntries } from "@/rules/characterChecks";
-import { memberInitiativeModifier } from "@/rules/initiative";
+import { characterInitiativeSource, initiativeRoll } from "@/rules/initiative";
 import { jackOfAllTradesBonus } from "@/rules/skillCheck";
 import {
   getExhaustionD20Penalty,
@@ -106,8 +106,9 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
   const toast = useToast();
 
   /**
-   * Initiative is a DEX check, so it takes the check's conditions and the 2024
-   * Exhaustion penalty, and the Wild Shape form's DEX. The roll goes to chat like
+   * Initiative is the one rule in `@/rules/initiative` (#1149): the same number
+   * the DM's runner rolls for this character, with the check's conditions, the
+   * 2024 Exhaustion penalty and the Wild Shape form's DEX. The roll goes to chat like
    * any other; when the character is in the running encounter and has no
    * initiative there yet, the total is also written to `current_initiative`,
    * which the DM's runner takes in live (#504, as the encounter panel's Roll
@@ -117,10 +118,11 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
   async function rollInitiative(override: RollMode | null = null) {
     const m = toValue(member);
     if (!m) return;
+    const { modifier, disadvantage } = initiativeRoll(characterInitiativeSource(m, await settledJack()), ruleset.value);
     const result = await doRoll(
       "Initiative",
-      memberInitiativeModifier(m, await settledJack(), effectiveScores.value.dex) + exhaustionD20Penalty.value,
-      combineModes(override ?? "normal", checkDisadvantage.value ? "disadvantage" : "normal"),
+      modifier,
+      combineModes(override ?? "normal", disadvantage ? "disadvantage" : "normal"),
     );
     if (!result) return;
     const combatant = liveState.value?.combatants_live.find((c) => c.party_member_id === m.id);

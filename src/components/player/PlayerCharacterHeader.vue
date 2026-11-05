@@ -253,7 +253,7 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { characterSummary } from "@/lib/partyMemberDisplay";
 import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
-import { memberInitiativeModifier } from "@/rules/initiative";
+import { characterInitiativeSource, initiativeModifier } from "@/rules/initiative";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -291,8 +291,6 @@ const props = defineProps<{
   /** The beast's speed string while wild-shaped; its walking speed replaces the character's. */
   beastSpeed?: string | null;
   hidePlayerActions?: boolean;
-  /** DEX in effect: the Wild Shape form's while shaped. Defaults to the character's own. */
-  effectiveDex?: number;
 }>();
 const { jack } = useJackOfAllTrades(() => props.member);
 const portraitOf = useFormPortraits(() => [props.wildshape]);
@@ -429,9 +427,9 @@ const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.membe
 const acBreakdown  = computed(() => acBreakdownFor(props.member));
 const displayAc    = computed(() => props.wildshape?.beast_ac     ?? acFor(props.member));
 
-// Initiative = DEX mod + initiative_bonus (feat/special extras like Alert).
+// The one initiative rule (#1149): the form's DEX while shaped, plus bonus and Jack of All Trades.
 const initiativeDisplay = computed(() => {
-  const total = memberInitiativeModifier(props.member, jack.value, props.effectiveDex);
+  const total = initiativeModifier(characterInitiativeSource(props.member, jack.value));
   return total >= 0 ? `+${total}` : `${total}`;
 });
 

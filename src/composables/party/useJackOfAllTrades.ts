@@ -65,7 +65,9 @@ function useCampaignJackOfAllTradesImpl() {
   async function settled(): Promise<void> {
     if (query.data.value === undefined) await query.suspense();
   }
-  return { jackFor, settled };
+  /** True once the class rows have loaded, for a caller that snapshots `jackFor` and must not do it early. */
+  const ready = computed(() => query.data.value !== undefined);
+  return { jackFor, settled, ready };
 }
 
 export const useCampaignJackOfAllTrades = createSharedComposable(useCampaignJackOfAllTradesImpl);

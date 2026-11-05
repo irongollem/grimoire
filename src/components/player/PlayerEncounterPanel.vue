@@ -234,8 +234,8 @@ import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useC
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/encounters/useEncounterLive";
-import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
-import { jackOfAllTradesBonus } from "@/rules/skillCheck";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
+import { initiativeRoll } from "@/rules/initiative";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { healthVisibilityOf } from "@/lib/healthVisibility";
 import type { RunCombatant, HealthVisibility, FiredPlayerEvent } from "@/types/encounter.types";
@@ -370,21 +370,15 @@ const myInitiative = computed<number | null>(
 // initiative — i.e. exactly the "prefilled + disabled" case players complained
 // about is now a live Roll button instead.
 const showMyInitiative = computed(() => isInLobby.value || myInitiative.value === null);
-const myPartyMember = computed(() => {
-  const id = myPlayer.value?.party_member_id;
-  return id ? partyMap.value.get(id) : undefined;
-});
-const { jack: myJack, settledJack: settledMyJack } = useJackOfAllTrades(myPartyMember);
-// Initiative = DEX mod (the combatant's, so a Wild Shape form's DEX) + the member's
-// initiative_bonus (feat/special extra) + Jack of All Trades (initiative is a DEX
-// check). One number feeds both the button's label and the roll.
-const rollModifier = computed(() => {
-  const member = myPlayer.value;
-  if (!member) return 0;
-  const party = myPartyMember.value;
-  if (!party) return member.dex_mod;
-  return member.dex_mod + party.initiative_bonus + jackOfAllTradesBonus(myJack.value, party.proficiency_bonus, "ability");
-});
+// The one initiative rule (#1149), fed this player's own combatant: its DEX (the Wild Shape
+// form's while shaped), the bonus and Jack of All Trades the DM's runner put in `initiative_extra`,
+// the 2024 Exhaustion penalty and check disadvantage. It is the number the DM's runner would roll
+// for them. One value feeds both the button's label and the roll.
+const { ruleset } = useTableRuleset();
+const myInitiativeRoll = computed(() =>
+  myPlayer.value ? initiativeRoll(myPlayer.value, ruleset.value) : { modifier: 0, disadvantage: false },
+);
+const rollModifier = computed(() => myInitiativeRoll.value.modifier);
 const dexModLabel = computed(() => (rollModifier.value >= 0 ? `+${rollModifier.value}` : `${rollModifier.value}`));
 
 // A new encounter clears the local echo so a stale value can't linger.
@@ -398,11 +392,10 @@ async function rollMyInitiative() {
   if (!member?.party_member_id || rollingInitiative.value) return;
   rollingInitiative.value = true;
   try {
-    // The class rows decide Jack of All Trades; the roll waits for them rather than score short.
-    await settledMyJack();
     const result = await promptRoll({
       counts: { 20: 1 },
       modifier: rollModifier.value,
+      mode: myInitiativeRoll.value.disadvantage ? "disadvantage" : "normal",
       label: "Initiative",
     });
     if (!result) return; // physical-dice prompt cancelled

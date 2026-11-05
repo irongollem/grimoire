@@ -5,7 +5,7 @@ import type { WildshapeState } from "@/types/encounter.types";
 const druid = { name: "Briar", portrait_url: "https://cdn.test/briar.webp", portrait_focal_point: { x: 0.4, y: 0.2 } };
 
 function wolf(beast_image_url: string | null): WildshapeState {
-  return { monster_id: "srd_wolf", beast_name: "Wolf", beast_image_url, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" };
+  return { monster_id: "srd_wolf", beast_name: "Wolf", beast_image_url, beast_hp: 11, beast_max_hp: 11, beast_ac: "13", beast_dex: 10 };
 }
 
 describe("formPortrait", () => {

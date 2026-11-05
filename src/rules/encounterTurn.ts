@@ -17,6 +17,7 @@ import {
   type ConditionEvent,
   type ConditionPassResult,
 } from "@/rules/conditionDurations";
+import type { RulesetKey } from "@/types/ruleset.types";
 import { rollAllInitiativeValues, findFirstActiveIndex, stepTurnIndex } from "@/rules/encounterCombatLogic";
 
 /**
@@ -45,6 +46,8 @@ export interface EncounterTurnState {
   started: boolean;
   /** "Random Initiative Each Round" optional rule. */
   randomizeInitiativeEachRound: boolean;
+  /** The table's edition: which condition rules (Exhaustion, check disadvantage) a re-rolled initiative follows. */
+  ruleset: RulesetKey;
   lairEnabled: boolean;
   /** instance_id of the combatant whose stat_block.lair_actions fire at init 20. */
   lairOwnerInstanceId: string | null;
@@ -272,7 +275,7 @@ function rechargeAtTurnStart(c: RunCombatant, deps: EncounterTurnDeps, events: E
 /** Re-roll everyone's initiative and hand the turn to the top of the freshly
  *  sorted order, refreshing that combatant's per-turn pools. */
 function reshuffle(state: EncounterTurnState, deps: EncounterTurnDeps, events: EncounterTurnEvent[]): EncounterTurnState {
-  const rolled = rollAllInitiativeValues(state.combatants, deps.rollD20);
+  const rolled = rollAllInitiativeValues(state.combatants, state.ruleset, deps.rollD20);
   let combatants = state.combatants.map((c) => ({ ...c, initiative: rolled.get(c.instance_id) ?? c.initiative }));
   const sorted = sortCombatantsByInitiative(combatants);
   const activeIndex = findFirstActiveIndex(sorted);

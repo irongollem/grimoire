@@ -5,7 +5,7 @@ import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useHpDisplay } from "@/composables/player/useHpDisplay";
 import { walkingSpeed } from "@/lib/movement";
 import { effectiveAbilityScores } from "@/rules/characterChecks";
-import { memberInitiativeModifier } from "@/rules/initiative";
+import { characterInitiativeSource, initiativeModifier } from "@/rules/initiative";
 import { passiveScore } from "@/rules/skillCheck";
 import type { PartyMember } from "@/types/party.types";
 
@@ -29,7 +29,7 @@ export function useMemberVitals(member: MaybeRefOrGetter<PartyMember>) {
   );
 
   const armorClass = computed(() => wildshape.value?.beast_ac ?? acFor(toValue(member)));
-  const initiative = computed(() => memberInitiativeModifier(toValue(member), jack.value, scores.value.dex));
+  const initiative = computed(() => initiativeModifier(characterInitiativeSource(toValue(member), jack.value)));
   const speed = computed(
     () => (wildshape.value ? walkingSpeed(beastMonster.value?.stat_block?.speed) : null) ?? toValue(member).speed,
   );

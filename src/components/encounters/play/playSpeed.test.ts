@@ -31,7 +31,7 @@ describe("a combatant's walking speed", () => {
   it("a wild-shaped druid walks at the beast's speed, not their own", () => {
     const druid = c({
       type: "player", party_member_id: "pm1",
-      wildshape: { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" },
+      wildshape: { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13", beast_dex: 10 },
     });
     expect(combatantSpeed(druid, sources)).toBe(40);
   });

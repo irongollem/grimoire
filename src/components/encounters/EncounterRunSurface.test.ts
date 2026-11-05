@@ -17,12 +17,14 @@ const data = vi.hoisted(() => ({
   liveRevision: null as unknown,
   species: null as unknown,
   speciesLoading: null as unknown,
+  jackReady: null as unknown,
 }));
 
 vi.mock("@/composables/encounters/useEncounters", () => ({ useEncounter: () => ({ data: data.encounter }) }));
 vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: data.party, isFetching: data.partyFetching }) }));
 vi.mock("@/composables/encounters/useCompanions", () => ({ useCompanions: () => ({ data: data.companions, isFetching: ref(false) }) }));
 vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({ acFor: () => 10, isReady: ref(true) }) }));
+vi.mock("@/composables/party/useJackOfAllTrades", () => ({ useCampaignJackOfAllTrades: () => ({ jackFor: () => "none", ready: data.jackReady }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]), isFetching: ref(false) }) }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesByIds: () => ({ data: data.species, isLoading: data.speciesLoading }) }));
 vi.mock("@/composables/dungeon-features/useTraps", () => ({
@@ -66,6 +68,7 @@ describe("EncounterRunSurface: a run that is not live", () => {
     data.liveRevision = ref(0);
     data.species = ref(new Map());
     data.speciesLoading = ref(false);
+    data.jackReady = ref(true);
   });
 
   // PHB 2024 "Creature Size": a Small character fits a 5 ft square like a Medium one; a Large one takes four.
@@ -101,6 +104,17 @@ describe("EncounterRunSurface: a run that is not live", () => {
 
     expect(store.round).toBe(3);
     expect(store.started).toBe(true);
+  });
+
+  it("waits for the class rows, so a Bard is not built without Jack of All Trades and kept short all fight", async () => {
+    (data.jackReady as { value: boolean }).value = false;
+    mount(EncounterRunSurface, { props: { encounterId: "e1" }, global: { stubs } });
+    const store = useEncounterRunStore();
+    expect(store.encounterId).toBe(null);
+
+    (data.jackReady as { value: boolean }).value = true;
+    await nextTick();
+    expect(store.encounterId).toBe("e1");
   });
 
   it("waits for companions before building, so they are not left out of the roster", async () => {

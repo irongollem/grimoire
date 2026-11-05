@@ -130,7 +130,7 @@ describe("runner sizes (#1125 decision 13)", () => {
     const store = useEncounterRunStore();
     store.combatants = [{ ...monster("p", 10), type: "player", party_member_id: "pm" }];
     store.availableMonsters = [{ id: "bear", size: "large" } as Monster];
-    store.enterWildshape("p", { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11" }, 1);
+    store.enterWildshape("p", { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10 }, 1);
     expect(store.combatants[0].wildshape?.beast_size).toBe("large");
   });
 
@@ -138,7 +138,7 @@ describe("runner sizes (#1125 decision 13)", () => {
     const store = useEncounterRunStore();
     store.combatants = [{ ...monster("p", 10), type: "player", party_member_id: "pm" }];
     store.availableMonsters = [{ id: "bear", size: "large" } as Monster];
-    store.enterWildshape("p", { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "huge" }, 1);
+    store.enterWildshape("p", { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10, beast_size: "huge" }, 1);
     expect(store.combatants[0].wildshape?.beast_size).toBe("huge");
   });
 

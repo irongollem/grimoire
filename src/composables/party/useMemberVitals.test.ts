@@ -50,11 +50,11 @@ describe("useMemberVitals", () => {
   });
 
   it("takes the form's AC, walking speed, hit points and DEX while Wild Shaped", () => {
-    beast.value = { stat_block: { str: 12, dex: 16, con: 11, speed: "40 ft." } };
+    beast.value = { stat_block: { str: 12, dex: 10, con: 11, speed: "40 ft." } };
     const v = vitals(
       character({
         dex: 8,
-        wildshape_state: { monster_id: "wolf", beast_name: "Wolf", beast_ac: "13", beast_hp: 9, beast_max_hp: 11, beast_image_url: null },
+        wildshape_state: { monster_id: "wolf", beast_name: "Wolf", beast_ac: "13", beast_hp: 9, beast_max_hp: 11, beast_image_url: null, beast_dex: 16 },
       } as Partial<PartyMember>),
     );
     expect(v.armorClass.value).toBe("13");

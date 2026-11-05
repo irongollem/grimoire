@@ -28,6 +28,17 @@ const monster = (id: string, over: Partial<RunCombatant> = {}) =>
 describe("runner initiative", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
+  it("keeps the table's settings when a fight is reset", () => {
+    // #1149: the runner sets these once on mount, and the run surface resets the store after the
+    // runner may already be mounted, which switched Random Initiative off and the edition back to 2014.
+    const store = useEncounterRunStore();
+    store.setRuleset("2024");
+    store.setRandomizeInitiativeEachRound(true);
+    store.reset();
+    expect(store.ruleset).toBe("2024");
+    expect(store.randomizeInitiativeEachRound).toBe(true);
+  });
+
   it("rolling for everyone fills the blanks, never overwrites, and does not start combat", async () => {
     const store = useEncounterRunStore();
     store.setInitiativeRoller(async () => 7);

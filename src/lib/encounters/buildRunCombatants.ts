@@ -9,6 +9,8 @@ import type { Species } from "@/types/species.types";
 import type { Npc } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
+import { characterInitiativeExtra } from "@/rules/initiative";
+import type { JackOfAllTrades } from "@/rules/skillCheck";
 
 /**
  * An encounter definition + the DM's rosters → the combatant list the runner
@@ -36,6 +38,8 @@ type RunPartyMember = Pick<
   | "id" | "name" | "current_hp" | "max_hp" | "temp_hp" | "conditions" | "curses"
   | "death_save_successes" | "death_save_failures" | "dex" | "portrait_url" | "portrait_focal_point"
   | "wildshape_state" | "species_id" | "subrace"
+  // What a character adds to DEX when rolling initiative (Alert, Jack of All Trades).
+  | "initiative_bonus" | "proficiency_bonus"
   // What the AC calculation reads (`@/rules/armorClass`).
   | "ruleset" | "class" | "subclass" | "con" | "wis" | "cha" | "ac_formula" | "class_choices"
 >;
@@ -70,6 +74,12 @@ export interface RunCombatantSources {
   species: Pick<Species, "id" | "size" | "subraces">[];
   /** A hero's calculated AC (`useArmorClass().acFor`), snapshotted into the combatant. */
   acFor: (member: RunPartyMember) => number;
+  /**
+   * A hero's Jack of All Trades (`useCampaignJackOfAllTrades().jackFor`),
+   * snapshotted into `initiative_extra`. It reads "none" until the class rows
+   * load, so the caller builds only once they have.
+   */
+  jackFor: (member: RunPartyMember) => JackOfAllTrades;
 }
 
 /** A character's size: their subrace's if it sets one, else the species', else Medium (app convention). */
@@ -88,6 +98,7 @@ export function buildRunCombatants({
   npcs,
   species,
   acFor,
+  jackFor,
 }: RunCombatantSources): RunCombatant[] {
   const combatants: RunCombatant[] = [];
 
@@ -120,6 +131,8 @@ export function buildRunCombatants({
       },
       party_member_id: member.id,
       dex_mod: Math.floor(((member.dex ?? 10) - 10) / 2),
+      // Alert and Jack of All Trades, so the runner rolls the number the sheet shows (#1149).
+      initiative_extra: characterInitiativeExtra(member, jackFor(member)),
       portrait_url: member.portrait_url ?? null,
       portrait_focal_point: member.portrait_focal_point ?? null,
       // A druid who took a form before the fight walks in wearing it. Left out,

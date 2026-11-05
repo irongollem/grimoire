@@ -181,6 +181,8 @@ export interface WildshapeState {
   beast_ac: string;      // AC of the beast
   /** The beast's size, which sets the druid's token on the battle grid for the form's duration (#1125). Absent on a form taken before sizes were stored. */
   beast_size?: MonsterSize;
+  /** The beast's DEX score, which replaces the character's for initiative and DEX checks (#1149). */
+  beast_dex: number;
 }
 
 /**
@@ -217,11 +219,18 @@ export interface RunCombatant {
   def_id?: string;
   party_member_id?: string;
   companion_id?: string;
-  dex_mod: number; // for initiative tiebreaking
-  // Monster-only: stat_block.initiative_bonus (2024 stat blocks), when the source
-  // monster declares one. Present (non-null) means "use this instead of dex_mod"
-  // for the initiative roll modifier — see combatantSort.initiativeModifier().
+  /** The creature's own DEX modifier (a Wild Shape form's is read from `wildshape.beast_dex`). */
+  dex_mod: number;
+  /**
+   * Monsters and NPCs only: a 2024 stat block's printed initiative, which is the
+   * whole modifier and replaces `dex_mod`. See `initiativeModifier` in `@/rules/initiative`.
+   */
   initiative_bonus?: number | null;
+  /**
+   * Characters only: what they add to DEX for initiative, `party_members.initiative_bonus`
+   * (Alert and similar) plus Jack of All Trades, set when they join the fight (#1149).
+   */
+  initiative_extra?: number;
   // Set when the monster or NPC had no hit points to read when it joined (an NPC
   // with no stat block): its HP and AC are stand-ins, replaced by the real ones
   // once the DM writes the stat block (`adoptStatBlock` in rules/encounterCombatLogic).

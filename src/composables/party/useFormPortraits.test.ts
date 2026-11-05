@@ -18,6 +18,7 @@ const form = (beast_image_url: string | null): WildshapeState => ({
   beast_hp: 37,
   beast_max_hp: 37,
   beast_ac: "14",
+  beast_dex: 10,
 });
 const beast = (image_url: string | null) => ({ id: "srd_srd_dire_wolf", image_url }) as Monster;
 

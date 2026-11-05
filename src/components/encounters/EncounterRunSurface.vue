@@ -11,6 +11,7 @@ import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
+import { useCampaignJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
@@ -39,6 +40,9 @@ const { data: companions, isFetching: companionsFetching } = useCompanions();
 // the store is built, so that waits for the gear: before it loads, everyone is
 // 10 + Dex.
 const { acFor, isReady: acReady } = useArmorClass();
+// Jack of All Trades is part of a character's initiative, snapshotted into the combatant, so a
+// fight is never built before the class rows load (it would score a Bard short all fight).
+const { jackFor, ready: jackReady } = useCampaignJackOfAllTrades();
 const { data: npcs, isFetching: npcsFetching } = useNpcs();
 // A character's token takes its species' (or subrace's) size, so the species the party has are read by id.
 const { data: speciesById, isLoading: speciesLoading } = useSpeciesByIds(() => (party.value ?? []).map((m) => m.species_id));
@@ -119,7 +123,7 @@ const isReady = computed(() => !!encounter.value && !monstersLoading.value && !!
 const readsSettled = computed(() => !partyFetching.value && !companionsFetching.value && !npcsFetching.value);
 
 watch(
-  [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, liveState, liveStateLoaded, acReady, readsSettled, speciesLoading],
+  [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, liveState, liveStateLoaded, acReady, readsSettled, speciesLoading, jackReady],
   ([enc, monsterRows, loadingMonsters, par, comps, npcList, traps, trapsPending]) => {
     if (!enc || loadingMonsters || !par || !comps || !npcList || trapsPending || speciesLoading.value || !liveStateLoaded.value || !acReady.value) return;
     const mons = [...monsterRows.values()];
@@ -153,7 +157,7 @@ watch(
       return;
     }
     if (store.encounterId === enc.id) return;
-    if (!readsSettled.value) return;
+    if (!readsSettled.value || !jackReady.value) return;
     initStore(enc, mons, par, npcList, filterEncounterTraps(enc, traps));
   },
   { immediate: true },
@@ -194,7 +198,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   store.encounterId = enc.id;
   store.encounterName = enc.name;
   store.factions = enc.factions.length ? enc.factions : [...DEFAULT_FACTIONS];
-  const combatants = buildRunCombatants({ encounter: enc, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor });
+  const combatants = buildRunCombatants({ encounter: enc, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor, jackFor });
   store.combatants = combatants;
   store.availableMonsters = mons;
   store.availableNpcs = npcList;

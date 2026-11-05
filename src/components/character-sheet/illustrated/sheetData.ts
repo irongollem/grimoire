@@ -10,7 +10,7 @@
 import { SKILLS, type PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { jackOfAllTrades, skillCheckBonus } from "@/rules/skillCheck";
-import { memberInitiativeModifier } from "@/rules/initiative";
+import { ownInitiativeModifier } from "@/rules/initiative";
 import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
 import type { Item } from "@/types/item.types";
 import {
@@ -118,7 +118,7 @@ export function toFront(
       };
     }),
     ac: String(ac),
-    init: signed(memberInitiativeModifier(m, jack)),
+    init: signed(ownInitiativeModifier(m, jack)),
     speed: String(m.speed),
     hp: { max: m.max_hp },
     hitdice: hitDicePool.length === 0

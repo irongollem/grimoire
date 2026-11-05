@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortCombatantsByInitiative, initiativeModifier } from "@/rules/combatantSort";
+import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import type { RunCombatant } from "@/types/encounter.types";
 
 function c(partial: Partial<RunCombatant> & Pick<RunCombatant, "instance_id">): RunCombatant {
@@ -69,19 +69,5 @@ describe("sortCombatantsByInitiative", () => {
     const before = input.map((x) => x.instance_id);
     sortCombatantsByInitiative(input);
     expect(input.map((x) => x.instance_id)).toEqual(before);
-  });
-});
-
-describe("initiativeModifier", () => {
-  it("falls back to dex_mod when initiative_bonus is absent (2014 monsters, NPCs, players)", () => {
-    expect(initiativeModifier(c({ instance_id: "a", dex_mod: 3 }))).toBe(3);
-  });
-
-  it("uses initiative_bonus outright when present, ignoring dex_mod", () => {
-    expect(initiativeModifier(c({ instance_id: "a", dex_mod: 0, initiative_bonus: 14 }))).toBe(14);
-  });
-
-  it("uses initiative_bonus even when it is 0, distinct from a dex_mod fallback", () => {
-    expect(initiativeModifier(c({ instance_id: "a", dex_mod: 5, initiative_bonus: 0 }))).toBe(0);
   });
 });

@@ -7,7 +7,8 @@
  * the actual computation here.
  */
 import { rollDie } from "@/lib/dice/dice";
-import { initiativeModifier } from "@/rules/combatantSort";
+import { initiativeModifier, initiativeRoll, type InitiativeSource } from "@/rules/initiative";
+import type { RulesetKey } from "@/types/ruleset.types";
 import { hitPointsToMax } from "@/lib/dice/dice";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
@@ -15,28 +16,39 @@ import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
 
-type InitiativeInputs = Pick<RunCombatant, "dex_mod" | "initiative_bonus">;
 type TurnCombatant = Pick<RunCombatant, "instance_id" | "hp" | "type">;
 type AliveCombatant = Pick<RunCombatant, "hp" | "type">;
 
 // ── Initiative rolling ──────────────────────────────────────────────────────
 
-/** Automatic d20 + modifier. `rollD20` is injectable so tests can pin the
- *  result; production callers rely on the default, which rolls via
- *  `rollDie(20)` from @/lib/dice. */
-export function rollInitiativeValue(c: InitiativeInputs, rollD20: () => number = () => rollDie(20)): number {
-  return rollD20() + initiativeModifier(c);
+/** An automatic initiative d20 test. At disadvantage (a condition that hampers
+ *  ability checks, PHB 2014 / SRD 5.2 "Initiative" is a DEX check) it rolls two
+ *  d20s and keeps the lower. `rollD20` is injectable so tests can pin the dice. */
+export function rollInitiativeValue(
+  roll: { modifier: number; disadvantage: boolean },
+  rollD20: () => number = () => rollDie(20),
+): number {
+  const first = rollD20();
+  const die = roll.disadvantage ? Math.min(first, rollD20()) : first;
+  return die + roll.modifier;
+}
+
+/** A freshly spawned monster has no conditions, so it rolls its plain modifier. */
+function spawnInitiative(stats: InitiativeSource, rollD20?: () => number): number {
+  return rollInitiativeValue({ modifier: initiativeModifier(stats), disadvantage: false }, rollD20);
 }
 
 /** Re-rolls every combatant's initiative and returns a Map of instance_id →
  *  new value. Pure — does not mutate `combatants`; the caller applies the
- *  results (used for the "Random Initiative Each Round" optional rule). */
+ *  results (used for the "Random Initiative Each Round" optional rule). Each
+ *  one rolls what `initiativeRoll` gives it, conditions included. */
 export function rollAllInitiativeValues(
-  combatants: readonly (InitiativeInputs & { instance_id: string })[],
+  combatants: readonly (Pick<RunCombatant, "instance_id" | "conditions"> & InitiativeSource)[],
+  ruleset: RulesetKey,
   rollD20: () => number = () => rollDie(20),
 ): Map<string, number> {
   const results = new Map<string, number>();
-  for (const c of combatants) results.set(c.instance_id, rollInitiativeValue(c, rollD20));
+  for (const c of combatants) results.set(c.instance_id, rollInitiativeValue(initiativeRoll(c, ruleset), rollD20));
   return results;
 }
 
@@ -183,7 +195,7 @@ export function buildMonsterCombatants(monster: Monster, opts: MonsterSpawnOptio
       type: "monster",
       name: displayName,
       faction_id: opts.factionId,
-      initiative: opts.started ? rollInitiativeValue(stats, opts.rollD20) : null,
+      initiative: opts.started ? spawnInitiative(stats, opts.rollD20) : null,
       ...stats,
       conditions: [],
       curses: [],
@@ -227,7 +239,7 @@ export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunC
       type: "monster",
       name: displayName,
       faction_id: opts.factionId,
-      initiative: opts.started ? rollInitiativeValue(stats, opts.rollD20) : null,
+      initiative: opts.started ? spawnInitiative(stats, opts.rollD20) : null,
       ...stats,
       conditions: [],
       curses: [],

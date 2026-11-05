@@ -62,7 +62,7 @@ describe("withinFiveFeet", () => {
   });
 
   it("reads a beast form's size, so a wild-shaped druid reaches as far as the beast does", () => {
-    const bear = c("druid", { position: { x: 0, y: 0 }, size: "medium", wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "large" } });
+    const bear = c("druid", { position: { x: 0, y: 0 }, size: "medium", wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10, beast_size: "large" } });
     expect(withinFiveFeet(bear, c("b", { position: { x: 2, y: 0 } }))).toBe(true);
   });
 
@@ -147,6 +147,6 @@ describe("effectiveArmorClass", () => {
   });
   it("falls back to the combatant's own AC, or its Wild Shape overlay", () => {
     expect(effectiveArmorClass({ type: "monster", ac: "15" } as RunCombatant)).toBe("15");
-    expect(effectiveArmorClass({ type: "player", ac: "12", wildshape: { beast_ac: "11" } } as RunCombatant)).toBe("11");
+    expect(effectiveArmorClass({ type: "player", ac: "12", wildshape: { beast_ac: "11", beast_dex: 10 } } as RunCombatant)).toBe("11");
   });
 });

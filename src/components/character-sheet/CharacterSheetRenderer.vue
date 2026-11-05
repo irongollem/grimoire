@@ -119,7 +119,7 @@
               <div class="cs-combat-label">Armor Class</div>
             </div>
             <div class="cs-combat-stat">
-              <div class="cs-combat-value">{{ signedBonus(memberInitiativeModifier(member, jack)) }}</div>
+              <div class="cs-combat-value">{{ signedBonus(ownInitiativeModifier(member, jack)) }}</div>
               <div class="cs-combat-label">Initiative</div>
             </div>
             <div class="cs-combat-stat">
@@ -306,7 +306,7 @@ import { useCurrency } from "@/composables/currency/useCurrency";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { jackOfAllTrades, passiveScore, skillCheckBonus } from "@/rules/skillCheck";
-import { memberInitiativeModifier } from "@/rules/initiative";
+import { ownInitiativeModifier } from "@/rules/initiative";
 import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { SheetPageSize, SheetTheme } from "@/components/character-sheet/illustrated/sheetTypes";

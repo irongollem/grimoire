@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildRunCombatants, legendaryActionCaps, type RunCombatantSources } from "./buildRunCombatants";
 import type { CombatantDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
+import { initiativeModifier } from "@/rules/initiative";
 import { emptyDefenses } from "@/types/statBlock.types";
 
 const CAMPAIGN = "campaign-here";
@@ -71,6 +72,7 @@ function sources(overrides: Partial<RunCombatantSources> = {}): RunCombatantSour
     npcs: [],
     species: [],
     acFor: () => 10,
+    jackFor: () => "none",
     ...overrides,
   };
 }
@@ -143,12 +145,13 @@ describe("buildRunCombatants", () => {
   });
 
   it("brings a party member's beast form and portrait focus into the fight", () => {
-    const form = { monster_id: "srd_wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 9, beast_max_hp: 11, beast_ac: "13" };
+    const form = { monster_id: "srd_wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 9, beast_max_hp: 11, beast_ac: "13", beast_dex: 10 };
     const member = {
       id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, conditions: [], curses: [],
       death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
       species_id: null, subrace: null, ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {}, portrait_url: null,
       portrait_focal_point: { x: 0.5, y: 0.25 }, wildshape_state: form,
+      initiative_bonus: 0, proficiency_bonus: 2,
     };
     const [shaped] = buildRunCombatants(sources({
       encounter: { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: {}, combatants: [] },
@@ -171,7 +174,7 @@ describe("buildRunCombatants", () => {
       id: "pm-briar", name: "Briar", current_hp: 7, max_hp: 24, temp_hp: 5, conditions: [{ name: "Prone" }], curses: [],
       death_save_successes: 2, death_save_failures: 1, dex: 14, con: 12, wis: 10, cha: 8,
       species_id: null, subrace: null, ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
-      portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+      portrait_url: null, portrait_focal_point: null, wildshape_state: null, initiative_bonus: 0, proficiency_bonus: 2,
     };
     const encounter = { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: { "pm-briar": "neutral" }, combatants: [] };
     const [pc] = buildRunCombatants(sources({ encounter, party: [member] }));
@@ -227,7 +230,7 @@ describe("buildRunCombatants", () => {
       id: "pm-briar", name: "Briar", current_hp: 20, max_hp: 24, temp_hp: 0, conditions: [], curses: [],
       death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
       species_id: null, subrace: null, ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
-      portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+      portrait_url: null, portrait_focal_point: null, wildshape_state: null, initiative_bonus: 0, proficiency_bonus: 2,
     };
     const [pc] = buildRunCombatants(sources({
       encounter: { party_member_ids: ["pm-briar"], companion_ids: [], party_member_factions: {}, combatants: [] },
@@ -343,7 +346,7 @@ describe("buildRunCombatants: every creature takes its size (#1125 decision 13)"
     death_save_successes: 0, death_save_failures: 0, dex: 12, con: 12, wis: 10, cha: 8,
     species_id: "sp-halfling" as string | null, subrace: null as string | null,
     ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
-    portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+    portrait_url: null, portrait_focal_point: null, wildshape_state: null, initiative_bonus: 0, proficiency_bonus: 2,
   };
   const withMember = (over: Partial<typeof member>, species: RunCombatantSources["species"]) => buildRunCombatants(sources({
     encounter: { party_member_ids: ["pm-1"], companion_ids: [], party_member_factions: {}, combatants: [] },
@@ -403,5 +406,41 @@ describe("legendaryActionCaps", () => {
     const caps = legendaryActionCaps(combatants, [monster(), boss]);
     const lich = combatants.find((c) => c.monster_id === "m-lich")!;
     expect(caps).toEqual({ [lich.instance_id]: 3 });
+  });
+});
+
+// PHB 2014 "Initiative" is a DEX check; Alert adds +5; Jack of All Trades adds half proficiency (rounded down) to any check.
+describe("buildRunCombatants: a character's initiative modifier matches their sheet (#1149)", () => {
+  const hero: RunCombatantSources["party"][number] = {
+    id: "pm-1", name: "Pip", current_hp: 8, max_hp: 8, temp_hp: 0, conditions: [], curses: [],
+    death_save_successes: 0, death_save_failures: 0, dex: 14, con: 12, wis: 10, cha: 8,
+    species_id: null, subrace: null,
+    ruleset: "2014" as const, class: null, subclass: null, ac_formula: null, class_choices: {},
+    portrait_url: null, portrait_focal_point: null, wildshape_state: null,
+    initiative_bonus: 0, proficiency_bonus: 2,
+  };
+  const build = (member: RunCombatantSources["party"][number], jackFor: RunCombatantSources["jackFor"] = () => "none") =>
+    buildRunCombatants(sources({
+      encounter: { party_member_ids: ["pm-1"], companion_ids: [], party_member_factions: {}, combatants: [] },
+      party: [member],
+      jackFor,
+    }))[0];
+
+  it("an Alert character (DEX 14, +5) rolls +7, not +2", () => {
+    // Bug: the runner rolled from dex_mod alone and lost Alert.
+    const out = build({ ...hero, initiative_bonus: 5 });
+    expect(out && initiativeModifier(out)).toBe(7);
+  });
+
+  it("a 2014 Bard 2 (DEX 16, PB 2) rolls +4: DEX +3 and Jack of All Trades +1", () => {
+    // Bug: the runner lost Jack of All Trades.
+    const out = build({ ...hero, dex: 16 }, () => "any_check");
+    expect(out && initiativeModifier(out)).toBe(4);
+  });
+
+  it("a druid who walks in wild-shaped rolls with the form's DEX 15 (+2) plus Alert +5, not their own DEX", () => {
+    const form = { monster_id: "srd_wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13", beast_dex: 15 };
+    const out = build({ ...hero, dex: 8, initiative_bonus: 5, wildshape_state: form });
+    expect(out && initiativeModifier(out)).toBe(7);
   });
 });

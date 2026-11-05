@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { defineComponent, h, ref } from "vue";
 import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CharacterClass } from "@/types/multiclass.types";
 
 // The class-rows queries, held still so a test decides when the rows "land".
@@ -27,9 +27,13 @@ function pendingQuery(rows: CharacterClass[]) {
   };
 }
 
+// Unmounted after each test: the campaign composable is shared while any host lives.
+const mounted: { unmount: () => void }[] = [];
+afterEach(() => { for (const w of mounted.splice(0)) w.unmount(); });
+
 function withSetup<T>(fn: () => T): T {
   let result!: T;
-  mount(defineComponent({ setup() { result = fn(); return () => h("div"); } }));
+  mounted.push(mount(defineComponent({ setup() { result = fn(); return () => h("div"); } })));
   return result;
 }
 
@@ -79,5 +83,15 @@ describe("useCampaignJackOfAllTrades", () => {
     expect(jackFor(toddy)).toBe("any_check");
     expect(jackFor({ id: "m2", ruleset: "2014" })).toBe("none");
     expect(jackFor({ id: "m3", ruleset: "2014" })).toBe("none");
+  });
+
+  it("is not ready until the class rows land, so a fight is not built with a Bard scored short", () => {
+    // Bug: a combatant snapshot taken before the rows load reads "none" for everyone.
+    const pending = pendingQuery([bardRow("m1", 2)]);
+    q.campaign = pending.query;
+    const { ready } = withSetup(() => useCampaignJackOfAllTrades());
+    expect(ready.value).toBe(false);
+    pending.land();
+    expect(ready.value).toBe(true);
   });
 });

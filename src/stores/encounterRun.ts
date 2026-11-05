@@ -8,6 +8,8 @@ import type { TrapEntry } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
+import { initiativeRoll } from "@/rules/initiative";
+import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
 import type { DyingOutcome } from "@/rules/dying";
 import type { AppliedCondition } from "@/types/condition.types";
 import { holdsConcentration, type ConditionEndReason } from "@/rules/conditionDurations";
@@ -132,7 +134,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** Falls back to an automatic d20 + modifier when no roller is registered —
    *  used by mid-combat spawns too (a modal per spawned goblin would stall the turn). */
   function rollOneInitiative(c: RunCombatant): Promise<number | null> {
-    return initiativeRoller ? initiativeRoller(c) : Promise.resolve(rollInitiativeValue(c));
+    return initiativeRoller ? initiativeRoller(c) : Promise.resolve(rollInitiativeValue(initiativeRoll(c, ruleset.value)));
   }
 
   /** When true, every combatant's initiative is re-rolled and the order
@@ -142,6 +144,15 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   function setRandomizeInitiativeEachRound(value: boolean) {
     randomizeInitiativeEachRound.value = value;
+  }
+
+  /** The table's edition, whose condition rules an initiative roll follows
+   *  (Exhaustion, check disadvantage). Set by the runner on mount, like the
+   *  random-initiative flag above; it starts at the app default until then. */
+  const ruleset = ref<RulesetKey>(DEFAULT_RULESET);
+
+  function setRuleset(value: RulesetKey) {
+    ruleset.value = value;
   }
 
   /** Runs a command through the pure turn reducer (`rules/encounterTurn`), adopts
@@ -156,6 +167,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       activeIndex: activeIndex.value,
       started: started.value,
       randomizeInitiativeEachRound: randomizeInitiativeEachRound.value,
+      ruleset: ruleset.value,
       lairEnabled: lairEnabled.value,
       lairOwnerInstanceId: lairOwnerInstanceId.value,
       lairFiredRounds: lairFiredRounds.value,
@@ -607,7 +619,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     lastConditionEvents.value = [];
     concentrationChecks.value = [];
     rollingInitiative.value = false;
-    randomizeInitiativeEachRound.value = false;
+    // The random-initiative flag and the ruleset are the table's settings, not this
+    // fight's: the runner's watches set them once on mount, and `initStore` resets
+    // the store after the runner may already have mounted, which used to switch
+    // Random Initiative Each Round off and the edition back to 2014 (#1149).
     lairEnabled.value = false;
     lairOwnerInstanceId.value = null;
     lairFiredRounds.value = [];
@@ -746,6 +761,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     rollingInitiative,
     randomizeInitiativeEachRound,
     setRandomizeInitiativeEachRound,
+    ruleset,
+    setRuleset,
     reshuffleInitiative,
     rollInitiative,
     rollAllInitiatives,

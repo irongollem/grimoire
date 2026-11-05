@@ -41,6 +41,7 @@ function stateOf(combatants: RunCombatant[], over: Partial<EncounterTurnState> =
     activeIndex: 0,
     started: true,
     randomizeInitiativeEachRound: false,
+    ruleset: "2014",
     lairEnabled: false,
     lairOwnerInstanceId: null,
     lairFiredRounds: [],
@@ -149,6 +150,21 @@ describe("turn order", () => {
     ]);
   });
 
+  it("re-rolls a character with their initiative extras and the table's condition rules", () => {
+    // #1149: the re-roll used DEX alone. An Alert character (+2 DEX, +5) at 2024 Exhaustion 1 (d20 tests -2)
+    // rolls 10 + 2 + 5 - 2 = 15. Under the 2014 rules the same exhaustion is disadvantage, not a penalty.
+    const exhausted = [{ name: "Exhaustion", level: 1 }];
+    const list = [
+      combatant("a", { initiative: 20 }),
+      combatant("pc", { type: "player", initiative: 5, dex_mod: 2, initiative_extra: 5, conditions: exhausted }),
+    ];
+    const at2024 = run(stateOf(list, { activeIndex: 1, randomizeInitiativeEachRound: true, ruleset: "2024" }), { type: "next_turn" }, { rollD20: () => 10 });
+    expect(find(at2024.state, "pc").initiative).toBe(15);
+    const rolls = [10, 4, 10];
+    const at2014 = run(stateOf(list, { activeIndex: 1, randomizeInitiativeEachRound: true, ruleset: "2014" }), { type: "next_turn" }, { rollD20: () => rolls.shift() ?? 1 });
+    expect(find(at2014.state, "pc").initiative).toBe(4 + 2 + 5);
+  });
+
   it("does not reshuffle mid-round", () => {
     const { state } = run(stateOf(trio(), { randomizeInitiativeEachRound: true }), { type: "next_turn" }, { rollD20: () => 1 });
     expect(find(state, "a").initiative).toBe(20);
@@ -250,7 +266,7 @@ describe("size override (Enlarge/Reduce)", () => {
 });
 
 describe("wild shape", () => {
-  const form: WildshapeState = { monster_id: "bear", beast_name: "Bear", beast_image_url: null, beast_hp: 20, beast_max_hp: 20, beast_ac: "11" };
+  const form: WildshapeState = { monster_id: "bear", beast_name: "Bear", beast_image_url: null, beast_hp: 20, beast_max_hp: 20, beast_ac: "11", beast_dex: 10 };
 
   it("enters with temp HP and persists, then reverts", () => {
     const entered = run(stateOf([pc("p-1")]), { type: "enter_wildshape", instanceId: "p-1", form, wildshapesUsed: 1, tempHp: 6 });

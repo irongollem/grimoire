@@ -110,6 +110,14 @@ describe("rollInitiative", () => {
     expect(args.silent).toBeFalsy();
   });
 
+  it("a Wild Shaped character rolls the form's DEX (beast_dex 16 is +3), not their own +2", async () => {
+    // PHB 2014 Wild Shape: the beast's game statistics replace the druid's, DEX included. 3 + initiative_bonus 5 = 8.
+    rolled(10);
+    const shaped = { ...member, wildshape_state: { beast_dex: 16 } } as unknown as PartyMember;
+    await useCharacterRolls(() => shaped).rollInitiative();
+    expect(h.promptRoll.mock.calls[0][0].modifier).toBe(8);
+  });
+
   it("Poisoned rolls it with disadvantage, as a DEX check", async () => {
     // SRD 5.2 "Poisoned": disadvantage on attack rolls and ability checks; initiative is a DEX check.
     rolled(10);

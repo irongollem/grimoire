@@ -195,6 +195,8 @@ export function wildshapeStateFor(
       beast_ac: useFloor ? String(rules.acFloor) : beastAc,
       // The token takes the beast's footprint on the battle map (#1125 decision 13).
       beast_size: beast.size,
+      // Initiative and DEX checks read the form's DEX (#1149).
+      beast_dex: sb.dex,
     },
     tempHp: rules.tempHpOnShape,
     usesCost,

@@ -264,12 +264,12 @@ describe("BattleMapTokenLayer: sizes beyond the monster table (#1125)", () => {
   });
 
   it("a wild-shaped druid is drawn as the Large beast", () => {
-    const druid = npc({ size: "medium", footprint: 1, wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "large" } });
+    const druid = npc({ size: "medium", footprint: 1, wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10, beast_size: "large" } });
     expect(widthOf(druid)).toBe("100px");
   });
 
   it("an override beats the beast form", () => {
-    const druid = npc({ size: "medium", footprint: 1, size_override: "huge", wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_size: "large" } });
+    const druid = npc({ size: "medium", footprint: 1, size_override: "huge", wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10, beast_size: "large" } });
     expect(widthOf(druid)).toBe("150px");
   });
 });
@@ -321,6 +321,7 @@ describe("BattleMapTokenLayer: what a player is shown", () => {
         beast_hp: 11,
         beast_max_hp: 11,
         beast_ac: "13",
+        beast_dex: 10,
       },
     };
     mount(BattleMapTokenLayer, {
@@ -336,7 +337,7 @@ describe("BattleMapTokenLayer: what a player is shown", () => {
     const druid: RunCombatant = {
       ...combatant("druid", "goblin"),
       type: "player",
-      wildshape: { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" },
+      wildshape: { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13", beast_dex: 10 },
     };
     mount(BattleMapTokenLayer, { props: { ...baseProps(), combatants: [druid] } });
     await nextTick();

@@ -262,7 +262,8 @@ import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredM
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { initiativeModifier } from "@/rules/combatantSort";
+import { initiativeRoll } from "@/rules/initiative";
+import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useTurnTimerConfig } from "@/composables/encounters/useTurnTimerConfig";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
@@ -368,10 +369,17 @@ const { detailWidth, startMouse, startTouch } = useDetailResize(320);
 // single global slot.
 const { promptRoll } = usePromptedRoll();
 
+// The table's edition decides which condition rules (Exhaustion, check
+// disadvantage) an initiative roll follows; the store's re-roll reads it too.
+const { ruleset } = useTableRuleset();
+watch(ruleset, (r) => store.setRuleset(r), { immediate: true });
+
 store.setInitiativeRoller(async (combatant) => {
+  const { modifier, disadvantage } = initiativeRoll(combatant, ruleset.value);
   const result = await promptRoll({
     counts: { 20: 1 },
-    modifier: initiativeModifier(combatant),
+    modifier,
+    mode: disadvantage ? "disadvantage" : "normal",
     label: `Initiative · ${combatant.name}`,
     senderName: combatant.name,
     silent: true,

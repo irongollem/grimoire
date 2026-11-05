@@ -85,7 +85,7 @@ function row(over: Partial<Row>): Row {
   };
 }
 
-const WOLF: WildshapeState = { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" };
+const WOLF: WildshapeState = { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13", beast_dex: 10 };
 
 const ring = () => ringListeners.forEach((fire) => fire());
 
@@ -404,7 +404,7 @@ describe("useRunnerPartySync guards", () => {
 
   it("adopts a form the player took on their own sheet, and drops it when the row clears", async () => {
     const store = await setup(20);
-    const wolf: WildshapeState = { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13" };
+    const wolf: WildshapeState = { monster_id: "wolf", beast_name: "Wolf", beast_image_url: null, beast_hp: 11, beast_max_hp: 11, beast_ac: "13", beast_dex: 10 };
     ring();
     await flushPromises();
     reads.shift()!([row({ wildshape_state: wolf })]);
