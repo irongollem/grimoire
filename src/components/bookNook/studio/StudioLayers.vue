@@ -52,7 +52,7 @@
         :key="touch.index"
         :name="effectLabel(touch.effect)"
         :word="touchWord(touch.effect)"
-        :icon="IconGenerate"
+        :icon="IconWind"
         :selected="isSelected(effectSel(touch.index))"
         :hidden="hidden.has(effectKey(touch.index))"
         @select="emit('select', effectSel(touch.index))"
@@ -86,7 +86,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import MenuPopover from "@/components/common/overlays/MenuPopover.vue";
 import AddCutoutDialog from "./addCutout/AddCutoutDialog.vue";
 import StudioLayerRow from "./StudioLayerRow.vue";
-import { IconAdd, IconAddImage, IconGenerate, IconImage } from "@/lib/icons";
+import { IconAdd, IconAddImage, IconImage, IconWind } from "@/lib/icons";
 import { depthBand, effectKey, effectLabel, layerKey, layerName, PICTURE_ID, TOUCHES, type Target } from "@/lib/bookNook/edit";
 import type { TouchKind } from "@/lib/bookNook/presets";
 import { layersOf, type Effect, type Layer, type Scene } from "@/lib/bookNook/scene";

@@ -52,7 +52,7 @@ const stubs = {
   SegmentedControl: {
     props: ["modelValue", "options"],
     emits: ["update:modelValue"],
-    template: "<div data-testid='seg' :data-value='modelValue'><button data-testid='pick-upload' @click=\"$emit('update:modelValue', 'upload')\" /></div>",
+    template: "<div data-testid='seg' :data-value='modelValue' :data-options='options.map((o) => o.value).join()'><button data-testid='pick-upload' @click=\"$emit('update:modelValue', 'upload')\" /></div>",
   },
   AppInput: true,
 };
@@ -83,6 +83,14 @@ describe("NewNookDialog", () => {
     await flushPromises();
     expect(m.fromPicture).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }));
     expect(d.emitted("close")).toHaveLength(1);
+  });
+
+  it("does not offer Paint with AI to a campaign with AI off", () => {
+    // Bug: Paint showed (greyed out) in a campaign that turned AI off, unlike every other Generate button.
+    m.ai = false;
+    expect(mountOpen().get("[data-testid=seg]").attributes("data-options")).toBe("picture,upload");
+    m.ai = true;
+    expect(mountOpen().get("[data-testid=seg]").attributes("data-options")).toBe("picture,upload,paint");
   });
 
   it("stays open when the start fails", async () => {

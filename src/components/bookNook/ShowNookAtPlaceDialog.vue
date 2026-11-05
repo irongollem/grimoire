@@ -1,11 +1,11 @@
 <template>
   <AppModal :open="open" size="md" @close="close">
-    <ModalHeader :title="`Show “${nook.title}” at a place`" :icon="IconNavBookNook" tone="primary" closeable @close="close" />
+    <ModalHeader :title="`Show “${nook.title}” in the Atlas`" :icon="IconNavBookNook" tone="primary" closeable @close="close" />
 
     <div class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-5 py-4">
-      <EntityCombobox v-model="placeId" :options="options" placeholder="Search places…" />
+      <EntityCombobox v-model="placeId" :options="options" placeholder="Pick an Atlas location…" />
       <p class="text-caption text-muted-foreground">
-        The place shows this nook, and its picture becomes the nook's still. A place that shows another nook is marked.
+        The nook takes over that location's picture, for you and for your players. A location that already shows another nook is marked.
       </p>
     </div>
 

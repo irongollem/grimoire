@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   paint: vi.fn(async () => new Blob(["p"])),
   lift: vi.fn(async () => new Blob(["l"])),
   png: new Blob(["png"], { type: "image/png" }),
+  ai: true,
 }));
 
 vi.mock("@/composables/bookNook/useLibraryNookParts", () => ({ useLibraryNookParts: () => h.parts }));
@@ -22,6 +23,7 @@ vi.mock("@/ai/useNookPartGeneration", () => ({
 vi.mock("@/composables/bookNook/useAddCutout", () => ({
   useAddCutout: () => ({ add: vi.fn(), addFromBlob: h.addFromBlob, addFromStock: h.addFromStock, addLifted: vi.fn(), busy: ref(false) }),
 }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get isAiEnabled() { return h.ai; } }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u" } }) }));
 vi.mock("./canvas", () => ({ blobHasTransparency: vi.fn(async () => false), canvasLiftDeps: vi.fn(), loadImage: vi.fn(() => new Promise(() => {})), redrawAsPng: vi.fn(async () => h.png) }));
 
@@ -42,6 +44,7 @@ beforeEach(() => {
   h.addFromStock.mockClear();
   h.addFromBlob.mockClear();
   h.parts = query([]);
+  h.ai = true;
 });
 
 describe("AddCutoutDialog", () => {
@@ -64,6 +67,21 @@ describe("AddCutoutDialog", () => {
     mountIt();
     expect(button("Lift · 6 credits")).toBeTruthy();
     expect(button("Paint · 3 credits")).toBeTruthy();
+  });
+
+  it("offers a campaign with AI off only the free ways in", async () => {
+    // Bug: Lift, Paint and Remove background showed in a campaign that turned AI off, and called the model when pressed.
+    h.ai = false;
+    const w = mountIt();
+    const input = document.body.querySelector('input[type=file]') as HTMLInputElement;
+    Object.defineProperty(input, "files", { value: [new File(["j"], "lamp.jpg", { type: "image/jpeg" })] });
+    input.dispatchEvent(new Event("change"));
+    await flushPromises();
+    expect(button("Add it as it is")).toBeTruthy();
+    expect(button("Remove background")).toBeUndefined();
+    expect(button("Lift ·")).toBeUndefined();
+    expect(button("Paint ·")).toBeUndefined();
+    w.unmount();
   });
 
   it("spends nothing when the credit gate says no", async () => {

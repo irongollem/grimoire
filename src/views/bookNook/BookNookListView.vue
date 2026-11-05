@@ -1,5 +1,5 @@
 <template>
-  <PageHeader title="Book Nook" description="Pictures that breathe, for the places your party goes.">
+  <PageHeader title="Book Nook" description="Pictures that breathe, for the locations in your Atlas.">
     <template #actions>
       <ListActionButton variant="primary" :icon="IconAdd" label="New nook" mobile-label="Nook" @click="creating = true" />
     </template>
@@ -22,7 +22,7 @@
     <EmptyState
       v-else
       title="No nooks yet"
-      description="A nook is a picture of a place that breathes: its flames flicker, its curtains stir. Start one from a place's picture, an upload or a room painted for it."
+      description="A nook is a picture of a room that moves a little: its flames flicker, its curtains stir. Start one from a location's picture in your Atlas, or from a picture of your own."
     >
       <template #icon>
         <IconNavBookNook class="h-16 w-16" />

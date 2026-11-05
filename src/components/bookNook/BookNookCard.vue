@@ -30,7 +30,7 @@
         <h3 class="truncate text-heading-sm font-bold text-foreground">{{ nook.title }}</h3>
         <p class="mt-0.5 flex items-center gap-1.5 text-caption text-muted-foreground">
           <IconCompassRose class="h-3 w-3 shrink-0" />
-          <span class="truncate">{{ placeName ? `Shown at ${placeName}` : "Not shown at a place" }}</span>
+          <span class="truncate">{{ placeName ? `Shown at ${placeName}` : "Not in the Atlas yet" }}</span>
         </p>
       </div>
       <div class="relative z-3 shrink-0">
@@ -64,8 +64,8 @@ const { nook, placeName, placeId = null } = defineProps<{
 }>();
 
 const menu = computed<OverflowMenuEntry[]>(() => [
-  { key: "show", label: "Show at a place…" },
-  ...(placeId ? [{ key: "stop", label: `Stop showing at ${placeName ?? "its place"}` }] : []),
+  { key: "show", label: "Show in the Atlas…" },
+  ...(placeId ? [{ key: "stop", label: `Stop showing at ${placeName ?? "its location"}` }] : []),
   { key: "delete", label: "Delete", danger: true },
 ]);
 

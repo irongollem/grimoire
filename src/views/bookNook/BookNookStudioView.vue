@@ -119,6 +119,7 @@
             @mood="(mood) => run({ op: 'mood', mood })"
             @frame="(frame) => run({ op: 'frame', frame: frame && { style: frame.style, tall: frame.tall, wide: frame.wide } })"
           />
+          <StudioSoundRow :nook-id="nookId" />
         </div>
       </main>
 
@@ -157,6 +158,7 @@ import StudioInspector from "@/components/bookNook/studio/StudioInspector.vue";
 import StudioLayers from "@/components/bookNook/studio/StudioLayers.vue";
 import StudioLoopBar from "@/components/bookNook/studio/StudioLoopBar.vue";
 import StudioSettingsBar from "@/components/bookNook/studio/StudioSettingsBar.vue";
+import StudioSoundRow from "@/components/bookNook/studio/StudioSoundRow.vue";
 import StudioSideView from "@/components/bookNook/studio/StudioSideView.vue";
 import StudioStage from "@/components/bookNook/studio/StudioStage.vue";
 import { useBookNook } from "@/composables/bookNook/useBookNooks";

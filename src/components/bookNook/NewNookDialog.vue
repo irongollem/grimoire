@@ -3,23 +3,27 @@
     <ModalHeader title="New nook" :icon="IconNavBookNook" tone="primary" closeable @close="close" />
 
     <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
+      <p class="text-body text-muted-foreground">
+        A nook is a picture of a room that moves a little: its flames flicker, its curtains stir. Pick the picture to start
+        from, then make things move in the studio.
+      </p>
       <div>
-        <label class="mb-1.5 block text-eyebrow text-muted-foreground">WHERE THE ROOM COMES FROM</label>
+        <label class="mb-1.5 block text-eyebrow text-muted-foreground">Start from</label>
         <SegmentedControl :model-value="source" :options="sources" size="sm" block @update:model-value="pickSource" />
       </div>
 
-      <!-- A place's picture: the nook is then shown there. -->
+      <!-- An Atlas location's picture: the nook is then shown there. -->
       <div v-if="source === 'picture'" class="space-y-1.5">
         <EntityCombobox
           v-model="placeId"
           :options="picturedPlaces"
-          placeholder="Search places with a picture…"
+          placeholder="Pick an Atlas location with a picture…"
         />
         <p v-if="!picturedPlaces.length" class="text-caption text-muted-foreground italic">
-          None of your places has a picture yet. Upload one or paint a room instead.
+          None of your Atlas locations has a picture yet. Upload one{{ campaign.isAiEnabled ? " or paint one" : "" }} instead.
         </p>
         <p v-else class="text-caption text-muted-foreground">
-          The nook will be shown at this place, in place of its still picture.
+          The nook takes over that location's picture in the Atlas, for you and for your players.
         </p>
       </div>
 
@@ -47,17 +51,19 @@
         <textarea
           v-model="subject"
           rows="3"
-          class="field-input resize-none"
+          class="field-input w-full resize-none"
           placeholder="Describe the room: a drowned shrine lit by one hanging lantern…"
           aria-label="Describe the room"
         />
         <EntityCombobox
           v-model="placeId"
           :options="places"
-          placeholder="Show it at a place (optional)…"
+          placeholder="Show it at an Atlas location (optional)…"
         />
         <p class="text-caption text-muted-foreground">
-          The room is painted empty of people and of anything that will move. You add those as parts.
+          This paints one picture: the room, empty of people and of anything that will move. You add those in the
+          studio, where shelf parts, your own uploads and touches are free; painting or lifting a part costs credits
+          and says how many on its button.
         </p>
       </div>
 
@@ -112,10 +118,11 @@ const places = computed<StartPlace[]>(() =>
 const showingNook = computed(() => new Set((locations.value ?? []).filter((l) => l.book_nook_id).map((l) => l.id)));
 const picturedPlaces = computed(() => places.value.filter((p) => !!p.image_url && !showingNook.value.has(p.id)));
 
+// Paint calls an image model, so a campaign with AI off is not offered it at all (as every Generate button is hidden).
 const sources = computed(() => [
-  { value: "picture" as const, label: "A place's picture" },
+  { value: "picture" as const, label: "From the Atlas" },
   { value: "upload" as const, label: "Upload" },
-  { value: "paint" as const, label: "Paint the room", disabled: !campaign.isAiEnabled },
+  ...(campaign.isAiEnabled ? [{ value: "paint" as const, label: "Paint with AI", icon: IconGenerate }] : []),
 ]);
 
 const source = ref<Source>("picture");
@@ -147,7 +154,7 @@ watch(
   { immediate: true },
 );
 
-// Places load after a cold first open: once one with a picture arrives, "A place's picture" is the better start.
+// Locations load after a cold first open: once one with a picture arrives, "From the Atlas" is the better start.
 watch(
   () => picturedPlaces.value.length,
   (count) => {

@@ -52,7 +52,7 @@ describe("BookNookCard", () => {
 
   it("names the place that shows it, or says it is not shown", () => {
     expect(mountCard("The Stag").text()).toContain("Shown at The Stag");
-    expect(mountCard(null).text()).toContain("Not shown at a place");
+    expect(mountCard(null).text()).toContain("Not in the Atlas yet");
   });
 
   it("deletes only after the DM confirms", async () => {

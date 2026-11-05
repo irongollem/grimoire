@@ -13,7 +13,7 @@
       <LiftTool v-if="lifting" :src="roomSrc" :label="liftLabel(picture)" :busy="working === 'lift'" @back="lifting = false" @lift="onLift" />
 
       <template v-else>
-        <p class="mb-3 text-caption text-muted-foreground">Four ways in, the free ones first.</p>
+        <p class="mb-3 text-caption text-muted-foreground">{{ aiEnabled ? "Four ways in, the free ones first." : "Two ways in, both free." }}</p>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <!-- 1. The stock shelf -->
           <section class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-shelf">
@@ -56,10 +56,12 @@
             <div v-if="flat" class="flex flex-col gap-2 rounded-md border border-tone-caution/40 bg-tone-caution/10 p-2" role="status">
               <p class="text-caption">{{ flat.name }} has a flat background, so it would come in as a box.</p>
               <AppButton
+                v-if="aiEnabled"
                 variant="tinted"
                 tone="caution"
                 size="sm"
                 block
+                :icon="IconGenerate"
                 :label="removeBackgroundLabel(picture)"
                 :loading="working === 'removeBg'"
                 :disabled="!!working"
@@ -69,8 +71,8 @@
             </div>
           </section>
 
-          <!-- 3. Lift -->
-          <section class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-lift">
+          <!-- 3. Lift and 4. Paint call an image model, so a campaign with AI off has neither. -->
+          <section v-if="aiEnabled" class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-lift">
             <header class="flex items-baseline justify-between gap-2">
               <h3 id="add-cutout-lift" class="text-label-lg font-semibold">Lift it out</h3>
               <span class="text-label uppercase text-tone-caution">{{ LIFT_PRICE_NOTE }}</span>
@@ -81,8 +83,7 @@
             <AppButton variant="outline" size="sm" block :icon="IconGenerate" :label="liftLabel(picture)" :disabled="!!working || !roomSrc" @click="lifting = true" />
           </section>
 
-          <!-- 4. Paint -->
-          <section class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-paint">
+          <section v-if="aiEnabled" class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" aria-labelledby="add-cutout-paint">
             <header class="flex items-baseline justify-between gap-2">
               <h3 id="add-cutout-paint" class="text-label-lg font-semibold">Paint</h3>
               <span class="text-label uppercase text-tone-caution">{{ PAINT_PRICE_NOTE }}</span>
@@ -131,6 +132,7 @@ import { paddedCrop } from "@/lib/bookNook/liftGeometry";
 import { layersOf, type Rect, type Scene } from "@/lib/bookNook/scene";
 import { uploadNookImage } from "@/lib/bookNook/upload";
 import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
 import type { LibraryNookPart, NookPartGroup } from "@/types/bookNook.types";
 import { blobHasTransparency, canvasLiftDeps, loadImage, redrawAsPng } from "./canvas";
 import {
@@ -146,7 +148,8 @@ import { runLift } from "./liftFlow";
 import LiftTool from "./LiftTool.vue";
 
 /**
- * "Add a cut-out" (frames 06 and 06b): four ways in, the free ones first. The two that cost credits say how
+ * "Add a cut-out" (frames 06 and 06b): four ways in, the free ones first, and only the free two when the campaign has
+ * AI off. The two that cost credits say how
  * many on the button, and the credit gate runs before anything is spent. Scene changes go up as `update`, and
  * the new part's id as `added`, so the studio selects it and the inspector opens on it.
  */
@@ -167,6 +170,8 @@ const GROUPS: { key: NookPartGroup; label: string }[] = [
 
 const toast = useToast();
 const auth = useAuthStore();
+const campaign = useCampaignStore();
+const aiEnabled = computed(() => campaign.isAiEnabled);
 const { requireCredits } = useOutOfCredits();
 const { picture } = useNookPartCost();
 const generation = useNookPartGeneration();
