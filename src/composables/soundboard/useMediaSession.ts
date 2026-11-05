@@ -50,6 +50,9 @@ export function useMediaSession() {
     if (document.visibilityState === "visible") store.resumeAudioEngine();
   });
 
+  /** The last position handed to the OS; null means the next one must be published. */
+  let published: PublishedPosition | null = null;
+
   // ── Metadata + handlers — refreshed whenever the active track changes ──
 
   watch(
@@ -57,7 +60,11 @@ export function useMediaSession() {
       () => store.activeMusicPlaylist?.playlistId,
       () => store.activeMusicPlaylist?.currentIndex,
     ],
-    () => syncSession(),
+    () => {
+      // A new track always republishes its position, however close it is to the old one.
+      published = null;
+      syncSession();
+    },
     { immediate: true },
   );
 
@@ -81,8 +88,6 @@ export function useMediaSession() {
   // per timeupdate: the OS extrapolates the position from the last one at the
   // given rate. Each publish is a Now Playing update sent over the CarPlay
   // link, and four a second of them is traffic the link does not need.
-
-  let published: PublishedPosition | null = null;
 
   watch(
     () => {
