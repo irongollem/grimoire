@@ -249,6 +249,8 @@ create table public.library_nook_parts (
   constraint library_nook_parts_preset_check check (jsonb_typeof(preset) = 'object')
 );
 
+create index library_nook_parts_source_idx on public.library_nook_parts (source);
+
 create trigger library_nook_parts_updated_at
   before update on public.library_nook_parts
   for each row execute procedure update_updated_at();

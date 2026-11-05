@@ -333,7 +333,7 @@ select is(
         'library_backgrounds', 'library_dressing', 'library_dungeon_features', 'library_items',
         'library_monsters', 'library_puzzles', 'library_roll_tables', 'library_rules',
         'library_species', 'library_traps',
-        'library_spells', 'library_tile_packs',
+        'library_spells', 'library_tile_packs', 'library_nook_parts',
         'library_art_defaults', 'library_monster_art_canonical',
         'library_spell_art_canonical', 'library_item_embeddings',
         'library_monster_embeddings', 'sound_library'
