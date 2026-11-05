@@ -13,7 +13,8 @@ import {
 } from "@/composables/bookNook/useBookNooks";
 import { useShowNookAtPlace } from "@/composables/bookNook/useShowNookAtPlace";
 import { newScene } from "@/lib/bookNook/edit";
-import { uploadNookImage } from "@/lib/bookNook/upload";
+import { removeNookImages, uploadNookImage } from "@/lib/bookNook/upload";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { getCurrentUser } from "@/lib/supabase";
 
 /** The picture a painted room asks for: wide, like the screen a nook plays on. */
@@ -124,14 +125,22 @@ export function useStartNook() {
         title,
         scene: newScene({ id: crypto.randomUUID(), title, room: { url: "", ...size } }),
       });
+      let uploaded: string | null = null;
       try {
-        const url = await uploadNookImage(file, row.id, user.id);
+        uploaded = await uploadNookImage(file, row.id, user.id);
         await saveBookNook(row.id, row.rev, {
-          scene: newScene({ id: row.id, title, room: { url, ...size } }),
-          still_url: url,
+          scene: newScene({ id: row.id, title, room: { url: uploaded, ...size } }),
+          still_url: uploaded,
         });
       } catch (e) {
-        await deleteBookNook(row.id);
+        // Files first, then the row: what was uploaded is removed so a failed start leaves nothing behind.
+        // Cleanup failures are logged; the failure the DM needs to read is the original one.
+        try {
+          if (uploaded) await removeNookImages([uploaded]);
+          await deleteBookNook(row.id);
+        } catch (cleanup) {
+          reportHandledError(cleanup, "bookNook.startRollback", { nookId: row.id });
+        }
         throw e;
       } finally {
         await queryClient.invalidateQueries({ queryKey: [BOOK_NOOKS_KEY] });

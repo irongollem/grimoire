@@ -34,36 +34,63 @@
         </p>
       </div>
       <div class="relative z-3 shrink-0">
-        <OverflowMenu :label="`More actions for ${nook.title}`" :items="MENU" @select="onSelect" />
+        <OverflowMenu :label="`More actions for ${nook.title}`" :items="menu" @select="onSelect" />
       </div>
     </div>
+
+    <ShowNookAtPlaceDialog :open="showing" :nook="nook" @close="showing = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import BookNookPlayer from "@/components/bookNook/BookNookPlayer.vue";
+import ShowNookAtPlaceDialog from "@/components/bookNook/ShowNookAtPlaceDialog.vue";
 import OverflowMenu from "@/components/common/overlays/OverflowMenu.vue";
 import type { OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import { useDeleteBookNook } from "@/composables/bookNook/useBookNooks";
+import { useShowNookAtPlace } from "@/composables/bookNook/useShowNookAtPlace";
+import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconCompassRose, IconImages } from "@/lib/icons";
 import type { BookNook } from "@/types/bookNook.types";
 
-const { nook, placeName } = defineProps<{
+const { nook, placeName, placeId = null } = defineProps<{
   nook: BookNook;
   /** The place that shows this nook, or null when none does. */
   placeName: string | null;
+  placeId?: string | null;
 }>();
 
-const MENU: readonly OverflowMenuEntry[] = [{ key: "delete", label: "Delete", danger: true }];
+const menu = computed<OverflowMenuEntry[]>(() => [
+  { key: "show", label: "Show at a place…" },
+  ...(placeId ? [{ key: "stop", label: `Stop showing at ${placeName ?? "its place"}` }] : []),
+  { key: "delete", label: "Delete", danger: true },
+]);
+
+const showing = ref(false);
+const { mutateAsync: showAt } = useShowNookAtPlace();
+const toast = useToast();
 
 const active = ref(false);
 const { confirm } = useConfirm();
 const { mutateAsync: deleteNook } = useDeleteBookNook();
 
 async function onSelect(key: string) {
+  if (key === "show") {
+    showing.value = true;
+    return;
+  }
+  if (key === "stop") {
+    if (!placeId) return;
+    try {
+      await showAt({ locationId: placeId, nookId: null });
+    } catch (e) {
+      toast.error(toast.fromError(e));
+    }
+    return;
+  }
   if (key !== "delete") return;
   const where = placeName ? ` It stops being shown at ${placeName}.` : "";
   const ok = await confirm(`Delete "${nook.title}"?${where}`, { title: "Delete nook", confirmLabel: "Delete" });

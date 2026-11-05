@@ -1,6 +1,8 @@
 import { computed, isRef, ref, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { nookFiles, removeNookImages } from "@/lib/bookNook/upload";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { useCampaignStore } from "@/stores/campaign";
 import type { BookNook, BookNookInsert, BookNookUpdate } from "@/types/bookNook.types";
 
@@ -57,13 +59,23 @@ export async function saveBookNook(id: string, currentRev: number, update: BookN
     .select();
   if (error) throw error;
   const rows = data as BookNook[];
-  if (rows.length === 0) throw new StaleNookError(id);
-  return rows[0];
+  if (rows.length > 0) return rows[0];
+  // No row matched: either another tab saved first (the row is readable at a different rev) or the caller lost
+  // the right to write it (RLS hides the row, or it is gone). Only the first is a stale copy.
+  const { data: current, error: readError } = await supabase.from("book_nooks").select("rev").eq("id", id).maybeSingle();
+  if (readError) throw readError;
+  if (current && (current as { rev: number }).rev !== currentRev) throw new StaleNookError(id);
+  throw new Error("You can no longer edit this nook.");
 }
 
-export async function deleteBookNook(id: string): Promise<void> {
-  const { error } = await supabase.from("book_nooks").delete().eq("id", id);
+/** Deletes the nook and returns the row that went, so its files can follow. RLS decides who may delete. */
+export async function deleteBookNook(id: string): Promise<Pick<BookNook, "id" | "campaign_id" | "scene" | "still_url">> {
+  const { data, error } = await supabase.from("book_nooks").delete().eq("id", id).select("id, campaign_id, scene, still_url");
   if (error) throw error;
+  const rows = data as Pick<BookNook, "id" | "campaign_id" | "scene" | "still_url">[];
+  // RLS lets only the author or the campaign's owner delete; anyone else matches no row and gets no error.
+  if (rows.length === 0) throw new Error("Only the nook's author or the campaign's owner can delete it.");
+  return rows[0];
 }
 
 /** The active campaign's nooks, newest first. */
@@ -121,7 +133,23 @@ export function useSaveBookNook() {
 export function useDeleteBookNook() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteBookNook,
+    mutationFn: async (id: string) => {
+      const gone = await deleteBookNook(id);
+      // The row is gone, so a failed file removal is logged and never turned into a failed delete.
+      try {
+        const files = nookFiles(gone.scene, gone.still_url, id);
+        // A place that showed this nook keeps its still as its own picture (`image_url` outlives `book_nook_id`);
+        // a file any place still uses stays. If the check cannot be made, nothing is removed.
+        const { data, error } = files.length
+          ? await supabase.from("locations").select("image_url").eq("campaign_id", gone.campaign_id).in("image_url", files)
+          : { data: [], error: null };
+        if (error) throw error;
+        const used = new Set((data as { image_url: string | null }[]).map((r) => r.image_url));
+        await removeNookImages(files.filter((u) => !used.has(u)));
+      } catch (e) {
+        reportHandledError(e, "bookNook.removeFiles", { nookId: id });
+      }
+    },
     onSettled: () => invalidateAll(queryClient),
   });
 }

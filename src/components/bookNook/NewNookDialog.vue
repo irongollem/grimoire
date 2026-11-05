@@ -5,7 +5,7 @@
     <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
       <div>
         <label class="mb-1.5 block text-eyebrow text-muted-foreground">WHERE THE ROOM COMES FROM</label>
-        <SegmentedControl v-model="source" :options="sources" size="sm" block />
+        <SegmentedControl :model-value="source" :options="sources" size="sm" block @update:model-value="pickSource" />
       </div>
 
       <!-- A place's picture: the nook is then shown there. -->
@@ -108,7 +108,9 @@ const { starting, error, paintCost, startFromPicture, startFromUpload, startFrom
 const places = computed<StartPlace[]>(() =>
   (locations.value ?? []).map((l) => ({ id: l.id, name: l.name, image_url: l.image_url })),
 );
-const picturedPlaces = computed(() => places.value.filter((p) => !!p.image_url));
+// A place that shows a nook has that nook's still (cut-outs baked in) as its picture, so it is no room to start from.
+const showingNook = computed(() => new Set((locations.value ?? []).filter((l) => l.book_nook_id).map((l) => l.id)));
+const picturedPlaces = computed(() => places.value.filter((p) => !!p.image_url && !showingNook.value.has(p.id)));
 
 const sources = computed(() => [
   { value: "picture" as const, label: "A place's picture" },
@@ -117,6 +119,12 @@ const sources = computed(() => [
 ]);
 
 const source = ref<Source>("picture");
+// Set once the DM picks a source themselves, so the places arriving late never move them off it.
+let sourceChosen = false;
+function pickSource(next: Source) {
+  sourceChosen = true;
+  source.value = next;
+}
 const placeId = ref("");
 const title = ref("");
 const subject = ref("");
@@ -128,6 +136,7 @@ watch(
   () => open,
   (isOpen) => {
     if (!isOpen) return;
+    sourceChosen = false;
     source.value = picturedPlaces.value.length ? "picture" : "upload";
     placeId.value = "";
     title.value = "";
@@ -136,6 +145,14 @@ watch(
     error.value = null;
   },
   { immediate: true },
+);
+
+// Places load after a cold first open: once one with a picture arrives, "A place's picture" is the better start.
+watch(
+  () => picturedPlaces.value.length,
+  (count) => {
+    if (open && count > 0 && !sourceChosen) source.value = "picture";
+  },
 );
 
 function onFile(event: Event) {

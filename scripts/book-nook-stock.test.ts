@@ -58,9 +58,19 @@ describe("encodeWebp", () => {
 
 describe("row and path", () => {
   it("files canonical art under srd/nooks and carries the preset", () => {
-    expect(storagePath("stock-crow")).toBe("srd/nooks/stock-crow.webp");
+    expect(storagePath("stock-crow", new Uint8Array([1, 2, 3]))).toBe("srd/nooks/stock-crow-039058c6f2.webp");
     const part = STOCK_PARTS.find((p) => p.id === "frame-arch-tall")!;
     expect(partRow(part, "https://cdn/x")).toMatchObject({ id: "frame-arch-tall", kind: "frame", preset: { shape: "tall" }, image_url: "https://cdn/x" });
+  });
+});
+
+// Bug: a fixed key under an immutable cache header kept a repainted part stale for 31 days.
+describe("storagePath versioning", () => {
+  it("changes with the bytes and not otherwise", () => {
+    const a = storagePath("stock-crow", new Uint8Array([1]));
+    expect(storagePath("stock-crow", new Uint8Array([1]))).toBe(a);
+    expect(storagePath("stock-crow", new Uint8Array([2]))).not.toBe(a);
+    expect(a).toMatch(/^srd\/nooks\/stock-crow-[0-9a-f]{10}\.webp$/);
   });
 });
 

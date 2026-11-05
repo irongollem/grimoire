@@ -35,6 +35,27 @@ function toPng(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("The picture could not be saved."))), "image/png"));
 }
 
+/** The longest side a picture sent to the model may have; the function accepts a PNG of at most 6 MB decoded. */
+export const MODEL_MAX_SIDE = 2048;
+
+/** `width x height` scaled down (never up) so its longest side is at most `max`. */
+export function fitWithin(width: number, height: number, max: number): { width: number; height: number } {
+  const scale = Math.min(1, max / Math.max(width, height));
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+}
+
+/**
+ * Any picture the browser can read, redrawn as a PNG no larger than MODEL_MAX_SIDE: the model function accepts
+ * only PNG, and a JPEG or WebP upload would be refused.
+ */
+export async function redrawAsPng(blob: Blob, max = MODEL_MAX_SIDE): Promise<Blob> {
+  const img = await loadImage(blob);
+  const size = fitWithin(img.naturalWidth, img.naturalHeight, max);
+  const [canvas, ctx] = canvasOf(size.width, size.height);
+  ctx.drawImage(img, 0, 0, size.width, size.height);
+  return toPng(canvas);
+}
+
 /** Whether an uploaded picture already has a transparent background. */
 export async function blobHasTransparency(blob: Blob): Promise<boolean> {
   const img = await loadImage(blob);

@@ -22,7 +22,10 @@ export function usePlaceNook(place: Ref<NookPlace | null | undefined>) {
   const playerId = computed(() => (hasNook.value && !appUi.dmPreviewMode ? (place.value?.id ?? null) : null));
   const dmNookId = computed(() => (hasNook.value && appUi.dmPreviewMode ? (place.value?.book_nook_id ?? null) : null));
 
-  const asPlayer = usePlayerBookNook(playerId);
+  const asPlayer = usePlayerBookNook(
+    playerId,
+    computed(() => place.value?.book_nook_id ?? null),
+  );
   const asDm = useBookNook(dmNookId);
 
   const nook = computed<BookNook | null>(() => {

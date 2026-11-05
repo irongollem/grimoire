@@ -159,6 +159,7 @@ import StudioLoopBar from "@/components/bookNook/studio/StudioLoopBar.vue";
 import StudioSettingsBar from "@/components/bookNook/studio/StudioSettingsBar.vue";
 import StudioSideView from "@/components/bookNook/studio/StudioSideView.vue";
 import StudioStage from "@/components/bookNook/studio/StudioStage.vue";
+import { useBookNook } from "@/composables/bookNook/useBookNooks";
 import { useNookDraft } from "@/composables/bookNook/useNookDraft";
 import { useNookImages } from "@/composables/bookNook/useNookImages";
 import { useStudioClock } from "@/composables/bookNook/useStudioClock";
@@ -166,8 +167,11 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { addTouchPlaced, gentler, targetKey, type StudioOp, type Target } from "@/lib/bookNook/edit";
 import { replaceRoom } from "@/lib/bookNook/editRoom";
+import { PICTURE_ID } from "@/lib/bookNook/edit";
 import { layersOf } from "@/lib/bookNook/scene";
-import { uploadNookImage } from "@/lib/bookNook/upload";
+import { removeNookImages, uploadNookImage } from "@/lib/bookNook/upload";
+import { supabase } from "@/lib/supabase";
+import { isOrphanedOwnNookFile } from "./replacedNookFile";
 import { composeStill } from "@/lib/bookNook/still";
 import { giveStillToPlace } from "@/composables/bookNook/useShowNookAtPlace";
 import { useAuthStore } from "@/stores/auth";
@@ -189,6 +193,7 @@ appUi.editorFocus = true;
 onBeforeUnmount(() => { appUi.editorFocus = false; });
 
 const draft = useNookDraft(nookId);
+const savedNook = useBookNook(nookId);
 const loading = draft.loading;
 const scene = computed(() => draft.draft.scene);
 const layerNames = computed(() => {
@@ -220,9 +225,25 @@ async function replaceRoomFrom(event: Event) {
       return;
     }
     const url = await uploadNookImage(file, nookId.value, user.id);
+    const oldUrl = layersOf(room).find((l) => l.id === PICTURE_ID)?.src;
     draft.update((latest) => replaceRoom(latest, url));
+    await removeIfReplaced(oldUrl);
   } catch (e) {
     toast.error(toast.fromError(e));
+  }
+}
+
+/**
+ * A replaced file is deleted only when it is this nook's own and nothing uses it any more; a failure is logged and
+ * never blocks the DM, because a stray file costs nothing and a stuck editor does.
+ */
+async function removeIfReplaced(oldUrl: string | null | undefined, extraGuard?: () => Promise<boolean>) {
+  try {
+    if (!isOrphanedOwnNookFile(oldUrl, nookId.value, scene.value)) return;
+    if (extraGuard && !(await extraGuard())) return;
+    await removeNookImages([oldUrl]);
+  } catch (e) {
+    console.warn("[Book Nook] could not remove a replaced file:", e);
   }
 }
 
@@ -329,10 +350,17 @@ async function writeStill() {
   if (!changedThisVisit.value || !current || !user || !nookImages.ready.value) return;
   try {
     const blob = await composeStill(current, nookImages.images.value);
+    const oldStill = savedNook.data.value?.still_url;
     const url = await uploadNookImage(blob, nookId.value, user.id);
     await draft.setStill(url);
     await giveStillToPlace(nookId.value, url);
     changedThisVisit.value = false;
+    // A place the nook was taken off keeps the old still as its own picture, so that file is not ours to remove.
+    await removeIfReplaced(oldStill, async () => {
+      const { data, error } = await supabase.from("locations").select("id").eq("image_url", oldStill!).limit(1);
+      if (error) throw error;
+      return data.length === 0;
+    });
   } catch (e) {
     // The scene is saved; only its still is behind. Say so and let the DM go.
     toast.error(`The nook is saved, but its still picture could not be updated: ${toast.fromError(e)}`);

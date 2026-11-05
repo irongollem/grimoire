@@ -132,7 +132,7 @@ import { layersOf, type Rect, type Scene } from "@/lib/bookNook/scene";
 import { uploadNookImage } from "@/lib/bookNook/upload";
 import { useAuthStore } from "@/stores/auth";
 import type { LibraryNookPart, NookPartGroup } from "@/types/bookNook.types";
-import { blobHasTransparency, canvasLiftDeps, loadImage } from "./canvas";
+import { blobHasTransparency, canvasLiftDeps, loadImage, redrawAsPng } from "./canvas";
 import {
   EMPTY_SHELF,
   LIFT_PRICE_NOTE,
@@ -242,7 +242,7 @@ const onAsIs = () => {
 async function onRemoveBackground() {
   const file = flat.value;
   if (!file || !requireCredits(picture.value)) return;
-  await route("removeBg", async () => cutouts.addFromBlob(await generation.lift(nookId, file), file.name));
+  await route("removeBg", async () => cutouts.addFromBlob(await generation.lift(nookId, await redrawAsPng(file)), file.name));
 }
 
 async function onPaint() {

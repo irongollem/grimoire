@@ -7,6 +7,7 @@ const m = vi.hoisted(() => ({
   fromUpload: vi.fn(),
   fromPainted: vi.fn(),
   ai: true,
+  places: undefined as unknown as import("vue").Ref<unknown[]>,
 }));
 vi.mock("@/composables/bookNook/useStartNook", async () => {
   const { ref } = await import("vue");
@@ -23,14 +24,12 @@ vi.mock("@/composables/bookNook/useStartNook", async () => {
 });
 vi.mock("@/composables/locations/useLocations", async () => {
   const { ref } = await import("vue");
-  return {
-    useAllLocations: () => ({
-      data: ref([
-        { id: "p1", name: "The Stag", image_url: "https://cdn.example.invalid/a.webp" },
-        { id: "p2", name: "The Bare Hill", image_url: null },
-      ]),
-    }),
-  };
+  m.places = ref([
+    { id: "p1", name: "The Stag", image_url: "https://cdn.example.invalid/a.webp", book_nook_id: null },
+    { id: "p2", name: "The Bare Hill", image_url: null, book_nook_id: null },
+    { id: "p3", name: "The Breathing Hall", image_url: "https://cdn.example.invalid/n.webp", book_nook_id: "n9" },
+  ]);
+  return { useAllLocations: () => ({ data: m.places }) };
 });
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get isAiEnabled() { return m.ai; } }) }));
 
@@ -50,7 +49,11 @@ const stubs = {
     emits: ["click"],
     template: "<button :disabled='disabled' :data-label='label' @click=\"$emit('click')\">{{ label }}</button>",
   },
-  SegmentedControl: { props: ["modelValue", "options"], template: "<div />" },
+  SegmentedControl: {
+    props: ["modelValue", "options"],
+    emits: ["update:modelValue"],
+    template: "<div data-testid='seg' :data-value='modelValue'><button data-testid='pick-upload' @click=\"$emit('update:modelValue', 'upload')\" /></div>",
+  },
   AppInput: true,
 };
 
@@ -61,6 +64,11 @@ function mountOpen() {
 beforeEach(() => {
   vi.clearAllMocks();
   m.ai = true;
+  if (m.places) m.places.value = [
+    { id: "p1", name: "The Stag", image_url: "https://cdn.example.invalid/a.webp", book_nook_id: null },
+    { id: "p2", name: "The Bare Hill", image_url: null, book_nook_id: null },
+    { id: "p3", name: "The Breathing Hall", image_url: "https://cdn.example.invalid/n.webp", book_nook_id: "n9" },
+  ];
   m.fromPicture.mockResolvedValue("n1");
 });
 
@@ -84,5 +92,32 @@ describe("NewNookDialog", () => {
     await d.findAll("button").find((b) => b.attributes("data-label") === "Start nook")!.trigger("click");
     await flushPromises();
     expect(d.emitted("close")).toBeUndefined();
+  });
+
+  it("does not offer a place that already shows a nook", () => {
+    // Bug: its picture is that nook's still with the cut-outs baked in, so a new nook started from it kept them.
+    const d = mountOpen();
+    expect(d.get("[data-testid=combo]").text()).toBe("p1");
+  });
+
+  it("moves to a place's picture when places arrive after a cold open", async () => {
+    // Bug: the source was chosen before the places loaded, so a cold first open always said Upload.
+    const all = m.places.value;
+    m.places.value = [];
+    const d = mountOpen();
+    expect(d.get("[data-testid=seg]").attributes("data-value")).toBe("upload");
+    m.places.value = all;
+    await flushPromises();
+    expect(d.get("[data-testid=seg]").attributes("data-value")).toBe("picture");
+  });
+
+  it("leaves a source the DM picked even when places arrive later", async () => {
+    const all = m.places.value;
+    m.places.value = [];
+    const d = mountOpen();
+    await d.get("[data-testid=pick-upload]").trigger("click");
+    m.places.value = all;
+    await flushPromises();
+    expect(d.get("[data-testid=seg]").attributes("data-value")).toBe("upload");
   });
 });

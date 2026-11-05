@@ -8,6 +8,7 @@ const m = vi.hoisted(() => ({
   remove: vi.fn(),
   show: vi.fn(),
   upload: vi.fn(),
+  removeFiles: vi.fn(),
   generate: vi.fn(),
   require: vi.fn(),
 }));
@@ -21,7 +22,8 @@ vi.mock("@/composables/bookNook/useBookNooks", () => ({
   deleteBookNook: m.remove,
 }));
 vi.mock("@/composables/bookNook/useShowNookAtPlace", () => ({ useShowNookAtPlace: () => ({ mutateAsync: m.show }) }));
-vi.mock("@/lib/bookNook/upload", () => ({ uploadNookImage: m.upload }));
+vi.mock("@/lib/bookNook/upload", () => ({ uploadNookImage: m.upload, removeNookImages: m.removeFiles }));
+vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "dm-1" }) }));
 vi.mock("@/ai/useImageGeneration", () => ({
   captureImageGenerationContext: () => ({ campaignId: "c1" }),
@@ -63,6 +65,7 @@ describe("startFromPicture", () => {
     expect(id).toBe("n1");
     expect(m.create.mock.calls[0][0]).toMatchObject({ title: "The Gilded Stag", still_url: place.image_url });
     expect(m.show).toHaveBeenCalledWith({ locationId: "p1", nookId: "n1" });
+    expect(m.create.mock.calls[0][0].scene.title).toBe(m.create.mock.calls[0][0].title);
     expect(m.push).toHaveBeenCalledWith({ name: "book-nook-studio", params: { id: "n1" } });
   });
 
@@ -88,6 +91,23 @@ describe("startFromUpload", () => {
     expect(m.save).toHaveBeenCalledWith("n1", 1, expect.objectContaining({ still_url: "https://cdn.example.invalid/room.webp" }));
     expect(m.remove).not.toHaveBeenCalled();
     expect(m.push).toHaveBeenCalledWith({ name: "book-nook-studio", params: { id: "n1" } });
+  });
+
+  // Bug: a failed save after a good upload left the uploaded file in storage with no nook to own it.
+  it("removes the uploaded file before deleting the row when the save fails after the upload", async () => {
+    m.save.mockRejectedValue(new Error("save failed"));
+    const start = useStartNook();
+    expect(await start.startFromUpload(file, "Cellar")).toBeNull();
+    expect(m.removeFiles).toHaveBeenCalledWith(["https://cdn.example.invalid/room.webp"]);
+    expect(m.removeFiles.mock.invocationCallOrder[0]).toBeLessThan(m.remove.mock.invocationCallOrder[0]);
+    expect(start.error.value).toBe("save failed");
+  });
+
+  it("names the scene as it names the row", async () => {
+    await useStartNook().startFromUpload(file, "Cellar");
+    expect(m.create.mock.calls[0][0].title).toBe("Cellar");
+    expect(m.create.mock.calls[0][0].scene.title).toBe("Cellar");
+    expect(m.save.mock.calls[0][2].scene.title).toBe("Cellar");
   });
 
   it("deletes the half-made row when the upload fails, and does not open the studio", async () => {

@@ -11,9 +11,12 @@ vi.mock("@/lib/storage", () => ({
   removeByPublicUrl: mocks.removeByPublicUrl,
 }));
 
-import { uploadNookImage, removeNookImages } from "./upload";
+import { uploadNookImage, removeNookImages, nookFiles } from "./upload";
 
 const webp = new File(["x"], "n.webp", { type: "image/webp" });
+
+const CDN = "https://cdn.example.invalid/location-images";
+const layer = (src: string) => ({ kind: "layer", id: src, src }) as never;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -47,5 +50,35 @@ describe("removeNookImages", () => {
   it("removes from the location-images bucket", async () => {
     await removeNookImages(["a", "b"]);
     expect(mocks.removeByPublicUrl).toHaveBeenCalledWith("locationImages", "a", "b");
+  });
+});
+
+describe("nookFiles", () => {
+  // Bug guard: deleting a nook must never remove a stock part or a place's own picture it merely points at.
+  it("keeps only files under this nook's own folder, from layers, frames and the still", () => {
+    const scene = {
+      stack: [
+        layer(`${CDN}/u1/nooks/n1/a.webp`),
+        layer(`${CDN}/srd/nooks/lantern-1234567890.webp`),
+        layer(`${CDN}/u1/nooks/n2/other.webp`),
+        { kind: "effect", id: "e" },
+      ],
+      frame: { tall: `${CDN}/u1/nooks/n1/t.webp`, wide: `${CDN}/srd/nooks/frame.webp` },
+    } as never;
+    expect(nookFiles(scene, `${CDN}/u1/nooks/n1/still.webp?v=2`, "n1")).toEqual([
+      `${CDN}/u1/nooks/n1/a.webp`,
+      `${CDN}/u1/nooks/n1/t.webp`,
+      `${CDN}/u1/nooks/n1/still.webp?v=2`,
+    ]);
+  });
+
+  it("leaves a place's own picture and a missing still alone", () => {
+    const scene = { stack: [layer(`${CDN}/u1/place-pic.webp`)] } as never;
+    expect(nookFiles(scene, null, "n1")).toEqual([]);
+  });
+
+  it("does not repeat a file the scene and the still share", () => {
+    const url = `${CDN}/u1/nooks/n1/a.webp`;
+    expect(nookFiles({ stack: [layer(url)] } as never, url, "n1")).toEqual([url]);
   });
 });

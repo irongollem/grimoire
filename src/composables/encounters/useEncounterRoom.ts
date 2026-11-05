@@ -37,7 +37,7 @@ export function terrainZonesOf(
  * the stack itself is epic #884's `lib/locations/mapStack.ts`).
  */
 export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
-  const { data: location } = useLocation(computed(() => toValue(locationId)));
+  const { data: location, isFetched: locationFetched } = useLocation(computed(() => toValue(locationId)));
 
   // A room's own map (its parent site's, when it has none of its own) is
   // resolved through its parent; anything else already IS the site. Interior
@@ -51,7 +51,7 @@ export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
   const parentId = computed(() =>
     location.value && isInteriorType(location.value.location_type) ? (location.value.parent_id ?? "") : "",
   );
-  const { data: parent } = useLocation(parentId);
+  const { data: parent, isFetched: parentFetched } = useLocation(parentId);
 
   const siteId = computed(() => {
     if (!location.value) return "";
@@ -59,7 +59,7 @@ export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
       ? (location.value.parent_id ?? "")
       : location.value.id;
   });
-  const { data: regions } = useLocationMapRegions(siteId);
+  const { data: regions, isFetched: regionsFetched } = useLocationMapRegions(siteId);
 
   const surface = computed(() =>
     resolveBattleSurface({
@@ -79,11 +79,14 @@ export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
 
   const terrainZones = computed(() => terrainZonesOf(regions.value ?? [], surface.value));
 
-  /** Every read `surface` depends on has answered, so a missing surface means "no map" rather than "not yet". */
+  /**
+   * Every read `surface` depends on has finished, so a missing surface means "no map" rather than "not yet". A read
+   * that failed, or found the place gone, has finished too: waiting for data would leave the screen blank forever.
+   */
   const settled = computed(() => {
-    if (!location.value) return false;
-    if (parentId.value && parent.value === undefined) return false;
-    return !siteId.value || regions.value !== undefined;
+    if (!locationFetched.value) return false;
+    if (parentId.value && !parentFetched.value) return false;
+    return !siteId.value || regionsFetched.value;
   });
 
   return { location, parent, siteId, regions, surface, mapLocation, focusRoom, terrainZones, settled };

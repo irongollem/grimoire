@@ -7,11 +7,13 @@ const reads = vi.hoisted(() => ({
   player: undefined as unknown,
   dm: undefined as unknown,
   playerId: undefined as unknown,
+  playerNookId: undefined as unknown,
   dmId: undefined as unknown,
 }));
 vi.mock("@/composables/bookNook/usePlayerBookNook", () => ({
-  usePlayerBookNook: (id: unknown) => {
+  usePlayerBookNook: (id: unknown, nookId: unknown) => {
     reads.playerId = id;
+    reads.playerNookId = nookId;
     return { data: { get value() { return reads.player; } } };
   },
 }));
@@ -40,6 +42,14 @@ describe("usePlaceNook", () => {
     expect(nook.value).toBe(playerNook);
     expect(value(reads.playerId)).toBe("l1");
     expect(value(reads.dmId)).toBeNull();
+  });
+
+  it("the player's read is keyed by the place's nook too, so a place switching nooks is a new query", () => {
+    const place = ref({ id: "l1", book_nook_id: "n1" });
+    usePlaceNook(place);
+    expect(value(reads.playerNookId)).toBe("n1");
+    place.value = { id: "l1", book_nook_id: "n2" };
+    expect(value(reads.playerNookId)).toBe("n2");
   });
 
   it("the DM previewing reads the nook by its id, not through the player rpc", () => {

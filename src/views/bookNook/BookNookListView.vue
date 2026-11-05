@@ -15,7 +15,7 @@
       :grid-row-estimate="GRID_ROW_PX"
     >
       <template #card="{ item }">
-        <BookNookCard :nook="item" :place-name="placeNames.get(item.id) ?? null" />
+        <BookNookCard :nook="item" :place-name="placeNames.get(item.id)?.name ?? null" :place-id="placeNames.get(item.id)?.id ?? null" />
       </template>
     </EntityCollection>
 
@@ -62,10 +62,10 @@ const nookKey = (n: BookNook) => n.id;
 // A card before it is measured: 2 border + 16:9 still at ~17rem wide (~9.5rem) + 4.5rem body.
 const GRID_ROW_PX = 240;
 
-/** nook id -> the name of the place that shows it. */
+/** nook id -> the place that shows it. */
 const placeNames = computed(() => {
-  const names = new Map<string, string>();
-  for (const l of locations.value ?? []) if (l.book_nook_id) names.set(l.book_nook_id, l.name);
+  const names = new Map<string, { id: string; name: string }>();
+  for (const l of locations.value ?? []) if (l.book_nook_id) names.set(l.book_nook_id, { id: l.id, name: l.name });
   return names;
 });
 </script>

@@ -1,4 +1,5 @@
 import { toWebP } from "@/lib/mediaConvert";
+import { layersOf, type Scene } from "@/lib/bookNook/scene";
 import { uploadToBucket, removeByPublicUrl } from "@/lib/storage";
 
 /**
@@ -22,4 +23,30 @@ export async function uploadNookImage(blob: Blob, nookId: string, userId: string
 
 export async function removeNookImages(urls: string[]): Promise<void> {
   await removeByPublicUrl("locationImages", ...urls);
+}
+
+/**
+ * The stored files that belong to one nook: every image URL its scene names (layers, frame shapes) and its still,
+ * kept only when the URL's path runs through `/{userId}/nooks/{nookId}/`. A stock part (`srd/…`), another nook's
+ * file and a place's own picture lie elsewhere, so deleting a nook can never reach them.
+ */
+export function nookFiles(scene: Scene, stillUrl: string | null, nookId: string): string[] {
+  const candidates = [
+    ...layersOf(scene).map((l) => l.src),
+    scene.frame?.tall,
+    scene.frame?.wide,
+    stillUrl,
+  ].filter((u): u is string => !!u);
+  const own = (url: string) => {
+    let path: string;
+    try {
+      path = new URL(url).pathname;
+    } catch {
+      path = url.split(/[?#]/)[0];
+    }
+    const parts = path.split("/").filter(Boolean);
+    const at = parts.indexOf("nooks");
+    return at > 0 && parts[at + 1] === nookId && parts[at - 1] !== "srd" && parts[at - 1] !== "nooks";
+  };
+  return [...new Set(candidates.filter(own))];
 }

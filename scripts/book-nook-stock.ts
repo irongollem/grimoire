@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Puts the maintainer's painted stock parts on Book Nook's shelf (#1142): each PNG in the painter
- * folder becomes a WebP (alpha kept, longest side 1536 px) at `location-images/srd/nooks/<id>.webp`
+ * folder becomes a WebP (alpha kept, longest side 1536 px) at `location-images/srd/nooks/<id>-<content hash>.webp`
  * on R2, and its `library_nook_parts` row is upserted with the CDN URL. Parts without a file are
  * left alone and listed as still to paint.
  *
@@ -9,8 +9,9 @@
  *   npm run nook:stock                                 # write to the local stack (needs R2 + CDN env)
  *   npm run nook:stock -- --production --yes-production   # the maintainer runs this himself
  *
- * Prints counts and part ids only; never a secret. A different object already at a key is replaced
- * only if its bytes differ (the key is the part id, so a repainted part is a deliberate update).
+ * Prints counts and part ids only; never a secret. The key carries the first 10 hex of the sha256 of the
+ * WebP bytes, so a repainted part is a new object at a new URL (the row is upserted to it) and the
+ * immutable cache header is true; the old object stays until someone sweeps it.
  */
 import { parseArgs } from "node:util";
 import { existsSync, readFileSync } from "node:fs";
@@ -29,8 +30,13 @@ export const BUCKET = "location-images";
 export const MAX_SIDE = 1536;
 export const DEFAULT_DIR = path.join(os.homedir(), "Desktop/art-955/scenes/out");
 
-export function storagePath(id: string): string {
-  return `srd/nooks/${id}.webp`;
+/**
+ * Versioned by content: a repainted part lands on a new key and a new URL, so the immutable cache header
+ * is true and nothing stale is served from the old one for a month.
+ */
+export function storagePath(id: string, webp: Uint8Array): string {
+  const hash = createHash("sha256").update(webp).digest("hex").slice(0, 10);
+  return `srd/nooks/${id}-${hash}.webp`;
 }
 
 /** Alpha below this (of 255) is haze the painter left round a thing, not the thing: it is cleared. */
@@ -128,7 +134,7 @@ async function main(): Promise<void> {
     try {
       const webp = await encodeWebp(readFileSync(path.join(dir, part.file)), part.kind);
       if (!write || r2 === null || cdnBase === null) continue;
-      const key = r2ObjectKey(BUCKET, storagePath(part.id));
+      const key = r2ObjectKey(BUCKET, storagePath(part.id, webp));
       const existing = await headObject(r2, key);
       const same = existing !== null && existing.etag !== null && existing.etag.replaceAll('"', "") === md5(webp);
       if (same) unchanged += 1;
@@ -136,7 +142,7 @@ async function main(): Promise<void> {
         await putObject(r2, { key, body: webp, contentType: "image/webp", cacheControl: IMMUTABLE_CACHE_CONTROL });
         uploaded += 1;
       }
-      const url = assetCdnUrl(BUCKET, storagePath(part.id), cdnBase);
+      const url = assetCdnUrl(BUCKET, storagePath(part.id, webp), cdnBase);
       if (url === null) throw new Error("no CDN url");
       const res = await fetch(`${target.origin}/rest/v1/library_nook_parts?on_conflict=id`, {
         method: "POST",

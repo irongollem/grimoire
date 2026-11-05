@@ -37,7 +37,8 @@ export function useNookDraft(nookId: MaybeRefOrGetter<string>) {
         const row = await saver.mutateAsync({
           id: toValue(nookId),
           rev: rev.value,
-          update: { title: snapshot.title.trim(), scene: snapshot.scene },
+          // The title lives on the row and in the scene (what the player screen shows); one name, never two.
+          update: { title: snapshot.title.trim(), scene: { ...snapshot.scene, title: snapshot.title.trim() } },
         });
         rev.value = row.rev;
       } catch (error) {

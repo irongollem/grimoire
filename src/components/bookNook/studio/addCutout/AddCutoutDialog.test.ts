@@ -9,19 +9,21 @@ const h = vi.hoisted(() => ({
   addFromStock: vi.fn(async () => true),
   addFromBlob: vi.fn(async () => true),
   paint: vi.fn(async () => new Blob(["p"])),
+  lift: vi.fn(async () => new Blob(["l"])),
+  png: new Blob(["png"], { type: "image/png" }),
 }));
 
 vi.mock("@/composables/bookNook/useLibraryNookParts", () => ({ useLibraryNookParts: () => h.parts }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: h.requireCredits }) }));
 vi.mock("@/ai/useNookPartGeneration", () => ({
   useNookPartCost: () => ({ picture: ref(3) }),
-  useNookPartGeneration: () => ({ paint: h.paint, lift: vi.fn(), fill: vi.fn() }),
+  useNookPartGeneration: () => ({ paint: h.paint, lift: h.lift, fill: vi.fn() }),
 }));
 vi.mock("@/composables/bookNook/useAddCutout", () => ({
   useAddCutout: () => ({ add: vi.fn(), addFromBlob: h.addFromBlob, addFromStock: h.addFromStock, addLifted: vi.fn(), busy: ref(false) }),
 }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u" } }) }));
-vi.mock("./canvas", () => ({ blobHasTransparency: vi.fn(), canvasLiftDeps: vi.fn(), loadImage: vi.fn(() => new Promise(() => {})) }));
+vi.mock("./canvas", () => ({ blobHasTransparency: vi.fn(async () => false), canvasLiftDeps: vi.fn(), loadImage: vi.fn(() => new Promise(() => {})), redrawAsPng: vi.fn(async () => h.png) }));
 
 import AddCutoutDialog from "./AddCutoutDialog.vue";
 import { EMPTY_SHELF } from "./costLabels";
@@ -77,5 +79,19 @@ describe("AddCutoutDialog", () => {
     await flushPromises();
     expect(h.requireCredits).toHaveBeenCalledWith(3);
     expect(h.paint).not.toHaveBeenCalled();
+  });
+
+  it("sends Remove background a PNG redrawn from the file, never the original JPEG", async () => {
+    // Bug: the DM's JPEG/WebP went to the PNG-only function as it was and was refused.
+    const w = mountIt();
+    const input = document.body.querySelector('input[type=file]') as HTMLInputElement;
+    const jpeg = new File(["j"], "lamp.jpg", { type: "image/jpeg" });
+    Object.defineProperty(input, "files", { value: [jpeg] });
+    input.dispatchEvent(new Event("change"));
+    await flushPromises();
+    button("Remove background")!.click();
+    await flushPromises();
+    expect(h.lift).toHaveBeenCalledWith("n1", h.png);
+    w.unmount();
   });
 });

@@ -13,10 +13,18 @@ export async function fetchPlayerBookNook(locationId: string): Promise<BookNook 
   return ((data ?? []) as BookNook[])[0] ?? null;
 }
 
-export function usePlayerBookNook(locationId: string | null | Ref<string | null | undefined>) {
+/**
+ * The key carries the nook the place shows as well as the place: the `locations` ring refreshes the place (and so
+ * its `book_nook_id`) but not this key root, so a place switching to another nook must become a new query.
+ */
+export function usePlayerBookNook(
+  locationId: string | null | Ref<string | null | undefined>,
+  bookNookId: string | null | Ref<string | null | undefined> = null,
+) {
   const idRef = isRef(locationId) ? locationId : ref(locationId);
+  const nookRef = isRef(bookNookId) ? bookNookId : ref(bookNookId);
   return useQuery({
-    queryKey: computed(() => [PLAYER_BOOK_NOOK_KEY, idRef.value] as const),
+    queryKey: computed(() => [PLAYER_BOOK_NOOK_KEY, idRef.value, nookRef.value] as const),
     queryFn: ({ queryKey: [, id] }) => {
       if (!id) throw new Error("usePlayerBookNook fetched without a place; enabled guarantees one");
       return fetchPlayerBookNook(id);

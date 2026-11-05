@@ -60,6 +60,18 @@ describe("useNookDraft", () => {
     expect(mocks.save).toHaveBeenLastCalledWith(expect.objectContaining({ rev: 4 }));
   });
 
+  // Bug: a studio rename wrote the row's title only; the player and full screen show scene.title and kept the old name.
+  it("saves the title into the scene too, so the row and the scene never name the nook differently", async () => {
+    mocks.save.mockResolvedValueOnce(row({ rev: 4 }));
+    const d = mountDraft();
+    d.draft.title = "  The Drowned Cellar ";
+    await nextTick();
+    await d.flush();
+    const update = mocks.save.mock.calls[0][0].update;
+    expect(update.title).toBe("The Drowned Cellar");
+    expect(update.scene.title).toBe("The Drowned Cellar");
+  });
+
   it("pauses autosave on a stale save, keeps the edit, and stops writing until reloaded", async () => {
     // Bug: carrying on after a stale refusal either overwrote the other tab's work or retried forever.
     mocks.save.mockRejectedValueOnce(new StaleNookError("n1"));
