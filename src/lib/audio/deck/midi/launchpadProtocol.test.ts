@@ -215,6 +215,16 @@ describe("Launchpad X buttons and the row window", () => {
     expect(buildLedFrame(X, snap({ rows: 8 })).get(topButtonCc(1))).toEqual({ type: "static", color: 0 });
   });
 
+  // Fails if the page arrows still went dark at the last page: a step from there wraps to the first.
+  it("lights both page arrows whenever there is another page, and neither with one", () => {
+    const pages = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+    const last = buildLedFrame(X, snap({ pages, pageIndex: 1 }));
+    expect(last.get(topButtonCc(2))).toEqual({ type: "static", color: 103 });
+    expect(last.get(topButtonCc(3))).toEqual({ type: "static", color: 103 });
+    const one = buildLedFrame(X, snap({ pages: [pages[0]], pageIndex: 0 }));
+    expect(one.get(topButtonCc(3))).toEqual({ type: "static", color: 0 });
+  });
+
   it("draws the rows from the offset down, and clamps an offset past the last row", () => {
     const cells = [cell({ lane: 0, row: 0, light: "playing" }), cell({ lane: 0, row: 9, light: "playing" })];
     const scrolled = buildLedFrame(X, snap({ rows: 10, cells }), 2);

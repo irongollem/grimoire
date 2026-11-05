@@ -382,14 +382,37 @@ describe("lane rule", () => {
     expect(h.store.fadeOut).not.toHaveBeenCalled();
   });
 
-  it("'one' only reaches its own lane and page (fails if it stopped pads elsewhere)", () => {
+  it("'one' leaves the page's other lanes alone (fails if it stopped another 'one' lane)", () => {
     const deck = boot({
-      pads: [pad("a", { lane: 1 }), pad("b", { lane: 0 }), pad("c", { page_id: "p2" })],
-      sounds: [sound("a", "music"), sound("b", "music"), sound("c", "music")],
-      pages: [page("p1", lanes), page("p2", lanes)],
+      pads: [pad("a", { lane: 1 }), pad("b", { lane: 0 })],
+      sounds: [sound("a", "ambient"), sound("b", "music")],
+      pages: [page("p1")],
     });
     playing("a");
-    playing("c");
+    press(deck, 0, 0);
+    expect(h.store.fadeOut).not.toHaveBeenCalled();
+  });
+
+  // 5 Nov 2026: music from page 1 kept playing under music pressed on page 2.
+  it("'one' takes over the same lane on another page (fails if it stayed on its own page)", () => {
+    const deck = boot({
+      pads: [pad("here", { lane: 0 }), pad("there", { page_id: "p2", lane: 0, fade_out_ms: 900 })],
+      sounds: [sound("here", "music"), sound("there", "music")],
+      pages: [page("p1"), page("p2")],
+    });
+    playing("there");
+    press(deck, 0, 0);
+    expect(h.store.fadeOut).toHaveBeenCalledWith("there", 900);
+  });
+
+  it("leaves another page's lane that layers (fails if 'together' there was crossfaded)", () => {
+    const layered = defaultLanes().map((l, i) => (i === 0 ? { ...l, rule: "together" as const } : l));
+    const deck = boot({
+      pads: [pad("here", { lane: 0 }), pad("there", { page_id: "p2", lane: 0 })],
+      sounds: [sound("here", "music"), sound("there", "music")],
+      pages: [page("p1"), page("p2", layered)],
+    });
+    playing("there");
     press(deck, 0, 0);
     expect(h.store.fadeOut).not.toHaveBeenCalled();
   });
@@ -692,13 +715,15 @@ describe("global actions", () => {
     expect(h.spotify.pause).not.toHaveBeenCalled();
   });
 
-  it("page and pageStep move the active page, clamped; a missing id means the first page", () => {
+  it("page and pageStep move the active page, wrapping round; a missing id means the first page", () => {
     const deck = boot({ pads: [], pages: [page("p1"), page("p2"), page("p3")] });
     expect(deck.snapshot.value.pageIndex).toBe(0);
     deck.dispatch({ type: "pageStep", delta: 1 });
     expect(h.ui.soundboardActivePage).toBe("p2");
     deck.dispatch({ type: "page", index: 2 });
     deck.dispatch({ type: "pageStep", delta: 1 });
+    expect(h.ui.soundboardActivePage).toBe("p1");
+    deck.dispatch({ type: "pageStep", delta: -1 });
     expect(h.ui.soundboardActivePage).toBe("p3");
     deck.dispatch({ type: "page", index: 9 });
     expect(h.ui.soundboardActivePage).toBe("p3");
@@ -1170,6 +1195,19 @@ describe("trigger arrival", () => {
     const deck = boot({ pads: [pad("loose", { lane: 0 }, ["l1"])], sounds: [sound("l1", "music")], playlists: [playlist("battle", "music")] });
     playing("l1");
     expect(deck.snapshot.value.rows).toBe(1);
+    fightPlaying();
+    await nextTick();
+    expect(h.store.fadeOut).toHaveBeenCalledWith("l1", 1500);
+  });
+
+  it("stops a music pad started from another page (fails if arrival only reached the page on screen)", async () => {
+    boot({
+      pads: [pad("away", { page_id: "p2", lane: 0 }, ["l1"])],
+      sounds: [sound("l1", "music")],
+      playlists: [playlist("battle", "music")],
+      pages: [page("p1"), page("p2")],
+    });
+    playing("l1");
     fightPlaying();
     await nextTick();
     expect(h.store.fadeOut).toHaveBeenCalledWith("l1", 1500);

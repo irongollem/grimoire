@@ -123,6 +123,17 @@ describe("DeckDock", () => {
       expect(event.defaultPrevented).toBe(false);
     });
 
+    // 5 Nov 2026: the bar could only step forward, so the way back was round every page or nowhere.
+    it("steps pages both ways (fails if the bar had no way back)", async () => {
+      const w = rowBar(1);
+      await w.get("[data-testid='deck-page-prev']").trigger("click");
+      await w.get("[data-testid='deck-page-next']").trigger("click");
+      expect(dispatch.mock.calls.map(([a]) => a)).toEqual([
+        { type: "pageStep", delta: -1 },
+        { type: "pageStep", delta: 1 },
+      ]);
+    });
+
     it("shows the deck's row in view, the one keys 1 to 8 fire, and moves it through the deck", async () => {
       // A row of its own would let the bar show one row while the keys fired another.
       snapshot.value = { ...snapshot.value, keyRow: 2 };

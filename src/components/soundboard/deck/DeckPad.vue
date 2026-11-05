@@ -28,8 +28,8 @@
     v-else
     ref="el"
     type="button"
-    class="relative flex w-full cursor-pointer flex-col justify-between gap-1 overflow-hidden rounded-md border px-2.5 py-2 text-start select-none transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [-webkit-touch-callout:none]"
-    :class="[heightClass, lookClass, touchClass, dropOver ? 'outline-2 outline-primary' : '']"
+    class="relative flex w-full cursor-pointer flex-col justify-between gap-1 overflow-hidden rounded-md border text-start select-none transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [-webkit-touch-callout:none]"
+    :class="[heightClass, size === 'sm' ? '@container px-2 py-1.5' : 'px-2.5 py-2', lookClass, touchClass, dropOver ? 'outline-2 outline-primary' : '']"
     :draggable="mode === 'build' && cell.guest === null"
     :data-guest="cell.guest !== null ? '' : undefined"
     :aria-label="padAccessibleName(cell, tool)"
@@ -66,20 +66,27 @@
 
     <!-- A guest's Keep sits in the top corner (DeckGrid draws it), so its name stops short of it. -->
     <span class="relative flex min-w-0 items-start gap-1.5" :class="cell.guest !== null ? 'pe-5 pointer-coarse:pe-9' : ''">
-      <component :is="kindIcon" class="mt-0.5 h-3.5 w-3.5 shrink-0" :class="lit ? '' : PAD_ICON[category]" aria-hidden="true" />
+      <!-- A small pad squeezed narrow keeps its name and lets the icon go: its colour already says the kind. -->
+      <component
+        :is="kindIcon"
+        class="mt-0.5 h-3.5 w-3.5 shrink-0"
+        :class="[lit ? '' : PAD_ICON[category], squeezable]"
+        aria-hidden="true"
+      />
       <span
         class="min-w-0 flex-1 font-semibold leading-tight [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
         :class="size === 'sm' ? 'text-label-lg' : 'text-body'"
       >
         {{ cell.name }}
       </span>
-      <KeyCap v-if="cell.keyLabel !== null && chip === null && cell.guest === null" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
+      <KeyCap v-if="showKey && size !== 'sm'" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
     </span>
 
     <span class="relative flex min-w-0 items-center gap-1.5 text-label" :class="blockedText ? 'text-destructive' : footClass">
       <!-- The launch mode is hidden in Simple when it is the default: it is noise until it differs. -->
-      <component :is="modeIcon" v-if="showMode" class="h-3 w-3 shrink-0" :title="launchModeWords(cell.mode)" aria-hidden="true" />
-      <IconRepeat v-if="cell.loop" class="h-3 w-3 shrink-0" :class="lit ? '' : PAD_ICON[category]" aria-hidden="true" />
+      <!-- On a squeezed small pad the key number outranks these: the light already says it loops. -->
+      <component :is="modeIcon" v-if="showMode" class="h-3 w-3 shrink-0" :class="squeezable" :title="launchModeWords(cell.mode)" aria-hidden="true" />
+      <IconRepeat v-if="cell.loop" class="h-3 w-3 shrink-0" :class="[lit ? '' : PAD_ICON[category], squeezable]" aria-hidden="true" />
       <span v-if="lit" class="flex h-2.5 shrink-0 items-end gap-px" aria-hidden="true">
         <span
           v-for="bar in 4"
@@ -98,6 +105,8 @@
           :class="take - 1 === cell.nextTake ? 'opacity-100' : 'opacity-40'"
         />
       </span>
+      <!-- A small pad gives its top line to the name: the key moves down to the corner. -->
+      <KeyCap v-if="showKey && size === 'sm'" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
     </span>
 
     <span
@@ -189,6 +198,11 @@ const chip = computed(() => (mode === "play" && cell.guest === null ? toolChipFo
 const blockedText = computed(() => cell.light === "blocked" && cell.blockedReason !== null);
 
 const heightClass = computed(() => (size === "sm" ? "min-h-15" : "min-h-21"));
+
+/** Gone when a small pad is too narrow for them (the pad is its own container at sm). */
+const squeezable = computed(() => (size === "sm" ? "hidden @min-[4rem]:block" : ""));
+
+const showKey = computed(() => cell.keyLabel !== null && chip.value === null && cell.guest === null);
 
 // A vertical drag must not scroll the page under the Volume tool.
 const touchClass = computed(() => (tool === "volume" ? "touch-none" : "touch-manipulation"));

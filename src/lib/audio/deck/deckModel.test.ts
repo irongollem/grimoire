@@ -21,6 +21,8 @@ import {
   velocityGain,
   defaultLaunchMode,
   defaultLoop,
+  steppedPageIndex,
+  takeoverLanes,
 } from "./deckModel";
 
 describe("pageLanes", () => {
@@ -229,5 +231,61 @@ describe("takes and velocity", () => {
     expect(keyRowFor(1, 3)).toBe(1);
     expect(keyRowFor(-1, 3)).toBe(0);
     expect(keyRowFor(4, 0)).toBe(0);
+  });
+});
+
+describe("takeoverLanes", () => {
+  const tavern = { id: "tavern", lanes: defaultLanes() };
+  const dungeon = { id: "dungeon", lanes: defaultLanes() };
+
+  // The bug of 5 Nov 2026: music started on one page kept playing under music from another.
+  it("reaches the same 'one' lane on every page (fails if it stayed on its own page)", () => {
+    expect(takeoverLanes([tavern, dungeon], "tavern", 0)).toEqual([
+      { pageId: "tavern", lane: 0 },
+      { pageId: "dungeon", lane: 0 },
+    ]);
+  });
+
+  it("finds the lane by its feed wherever it sits (fails if it matched by position)", () => {
+    const moved = { id: "moved", lanes: defaultLanes() };
+    moved.lanes[0] = { name: "Drums", rule: "one" };
+    moved.lanes[5] = { name: "Tunes", rule: "one", feed: "music" };
+    expect(takeoverLanes([tavern, moved], "tavern", 0)).toEqual([
+      { pageId: "tavern", lane: 0 },
+      { pageId: "moved", lane: 5 },
+    ]);
+  });
+
+  it("matches a lane with no feed by its name, ignoring case", () => {
+    const a = { id: "a", lanes: defaultLanes() };
+    const b = { id: "b", lanes: defaultLanes() };
+    a.lanes[7] = { name: "Bells", rule: "one" };
+    b.lanes[3] = { name: " bells ", rule: "one" };
+    expect(takeoverLanes([a, b], "a", 7)).toEqual([
+      { pageId: "a", lane: 7 },
+      { pageId: "b", lane: 3 },
+    ]);
+  });
+
+  it("leaves a page whose same lane layers (fails if 'together' elsewhere was crossfaded)", () => {
+    const layered = { id: "layered", lanes: defaultLanes() };
+    layered.lanes[0] = { name: "Music", rule: "together", feed: "music" };
+    expect(takeoverLanes([tavern, layered], "tavern", 0)).toEqual([{ pageId: "tavern", lane: 0 }]);
+  });
+
+  it("takes over nothing from a 'together' lane", () => {
+    expect(takeoverLanes([tavern, dungeon], "tavern", 3)).toEqual([]);
+  });
+});
+
+describe("steppedPageIndex", () => {
+  it("wraps from the last page to the first and back (fails if a step clamped at the end)", () => {
+    expect(steppedPageIndex(3, 2, 1)).toBe(0);
+    expect(steppedPageIndex(3, 0, -1)).toBe(2);
+    expect(steppedPageIndex(3, 1, 1)).toBe(2);
+  });
+
+  it("treats an unknown page as the first", () => {
+    expect(steppedPageIndex(3, -1, 1)).toBe(1);
   });
 });

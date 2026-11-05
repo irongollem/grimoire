@@ -49,18 +49,66 @@
         <IconChevronUp class="h-3 w-3" aria-hidden="true" />
       </button>
 
-      <!-- Scrolling the bar steps through the page's rows, one at a time. -->
-      <div v-else-if="size === 'row'" class="flex h-19 items-center gap-3 px-3" @wheel="onRowWheel">
-        <AppButton
-          variant="outline"
-          size="sm"
-          class="max-w-36 shrink-0 pointer-coarse:min-h-11"
-          :label="pageName"
-          :icon-right="IconChevronRight"
-          :tooltip="`${pageName}: next page`"
-          :disabled="snapshot.pages.length < 2"
-          @click="deck.dispatch({ type: 'pageStep', delta: 1 })"
-        />
+      <!--
+        Scrolling the bar steps through the page's rows, one at a time. The bar is
+        for pads: its controls sit two short lines high on either side so a laptop
+        keeps the pads' names, and the size switch shows only where there is room
+        (it is in Deck settings too, and D cycles it).
+      -->
+      <div v-else-if="size === 'row'" class="@container flex h-19 items-center gap-3 px-3" @wheel="onRowWheel">
+        <div class="flex w-30 shrink-0 flex-col gap-1" data-testid="deck-nav">
+          <div class="flex items-center gap-0.5" role="group" aria-label="Pages">
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconChevronLeft"
+              aria-label="Previous page"
+              tooltip="Previous page"
+              :disabled="snapshot.pages.length < 2"
+              data-testid="deck-page-prev"
+              @click="deck.dispatch({ type: 'pageStep', delta: -1 })"
+            />
+            <span class="min-w-0 flex-1 truncate text-center text-label-lg font-semibold" :title="pageName" aria-live="polite">
+              {{ pageName }}
+            </span>
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconChevronRight"
+              aria-label="Next page"
+              tooltip="Next page"
+              :disabled="snapshot.pages.length < 2"
+              data-testid="deck-page-next"
+              @click="deck.dispatch({ type: 'pageStep', delta: 1 })"
+            />
+          </div>
+          <!-- The same steps as the scroll, as buttons: no gesture is the only way in. -->
+          <div v-if="snapshot.rows > 1" class="flex items-center gap-0.5" role="group" aria-label="Rows" data-testid="deck-row-steps">
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconChevronUp"
+              aria-label="Previous row"
+              tooltip="Previous row (or scroll up)"
+              :disabled="shownRow === 0"
+              data-testid="deck-row-up"
+              @click="stepRow(-1)"
+            />
+            <span class="min-w-0 flex-1 text-center text-caption tabular-nums text-muted-foreground" aria-live="polite">
+              Row {{ shownRow + 1 }}/{{ snapshot.rows }}
+            </span>
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconChevronDown"
+              aria-label="Next row"
+              tooltip="Next row (or scroll down)"
+              :disabled="shownRow === snapshot.rows - 1"
+              data-testid="deck-row-down"
+              @click="stepRow(1)"
+            />
+          </div>
+        </div>
         <!-- One row of small pads: the lane headers belong to the full deck. -->
         <DeckGrid
           class="min-w-0 flex-1"
@@ -78,30 +126,6 @@
           @keep="(p) => deck.dispatch({ type: 'keep', ...p })"
           @pad-volume="(p) => deck.dispatch({ type: 'padVolume', ...p })"
         />
-        <!-- The same steps as the scroll, as buttons: no gesture is the only way in. -->
-        <div v-if="snapshot.rows > 1" class="flex shrink-0 flex-col items-center" data-testid="deck-row-steps">
-          <AppButton
-            variant="ghost"
-            size="icon-2xs"
-            :icon="IconChevronUp"
-            aria-label="Previous row"
-            tooltip="Previous row (or scroll up)"
-            :disabled="shownRow === 0"
-            data-testid="deck-row-up"
-            @click="stepRow(-1)"
-          />
-          <span class="text-caption tabular-nums text-muted-foreground" aria-live="polite">{{ shownRow + 1 }}/{{ snapshot.rows }}</span>
-          <AppButton
-            variant="ghost"
-            size="icon-2xs"
-            :icon="IconChevronDown"
-            aria-label="Next row"
-            tooltip="Next row (or scroll down)"
-            :disabled="shownRow === snapshot.rows - 1"
-            data-testid="deck-row-down"
-            @click="stepRow(1)"
-          />
-        </div>
         <DeckTransport
           class="shrink-0"
           compact
@@ -112,10 +136,11 @@
           @fade-all="deck.dispatch({ type: 'fadeAll' })"
           @hush="({ phase }) => deck.dispatch({ type: 'hush', phase })"
           @master="(value) => deck.dispatch({ type: 'master', value })"
-        />
-        <div class="flex shrink-0 items-center gap-1.5">
-          <DeckSizeControl :model-value="size" @update:model-value="setSize" />
+        >
           <DeckSettingsPopover />
+        </DeckTransport>
+        <div class="hidden shrink-0 @min-[87rem]:block">
+          <DeckSizeControl :model-value="size" @update:model-value="setSize" />
         </div>
       </div>
 
@@ -151,7 +176,7 @@ import { useDeck } from "@/composables/soundboard/useDeck";
 import { useDeckPeek } from "@/composables/soundboard/useDeckPeek";
 import { useDockBottom } from "@/composables/soundboard/useDockBottom";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { IconChevronDown, IconChevronRight, IconChevronUp, IconMusic } from "@/lib/icons";
+import { IconChevronDown, IconChevronLeft, IconChevronRight, IconChevronUp, IconMusic } from "@/lib/icons";
 import { createWheelStep, wheelPixels } from "@/lib/audio/deck/wheelStep";
 import { prefersReducedMotion } from "@/lib/motion";
 import type { DeckLight, DeckSize } from "@/lib/audio/deck/deckSurface";

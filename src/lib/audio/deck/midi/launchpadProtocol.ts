@@ -178,10 +178,9 @@ function buttonLed(button: LaunchpadButton, snapshot: DeckSnapshot, rowOffset: n
       return palette(PALETTE_IDLE);
     case "stopAll":
       return palette(PALETTE_BLOCKED);
-    case "pageStep": {
-      const next = snapshot.pageIndex + button.delta;
-      return next >= 0 && next < snapshot.pages.length ? palette(PALETTE_IDLE) : OFF;
-    }
+    // Page steps wrap round, so either arrow goes somewhere whenever there is another page.
+    case "pageStep":
+      return snapshot.pages.length > 1 ? palette(PALETTE_IDLE) : OFF;
     case "rowStep": {
       const next = rowOffset + button.delta;
       return next >= 0 && next <= maxRowOffset(snapshot.rows) ? palette(PALETTE_IDLE) : OFF;

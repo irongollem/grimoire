@@ -35,6 +35,8 @@ import {
   laneForFeed,
   padAt,
   pageLanes,
+  steppedPageIndex,
+  takeoverLanes,
   takeVariation,
   velocityGain,
   type VelocityCurve,
@@ -197,22 +199,26 @@ export function createDeck(): DeckController {
 
   // ── Starting and stopping ────────────────────────────────────────────────
 
-  function laneIsOne(info: DeckPadInfo): boolean {
-    const page = pages.value.find((p) => p.id === info.pad.page_id);
-    const lane = page ? pageLanes(page)[info.pad.lane] : undefined;
-    return lane !== undefined && lane.rule === "one";
-  }
+  const laneKey = (pageId: string, lane: number) => `${pageId}:${lane}`;
 
-  /** In a "one" lane a new pad takes over: everything else audible there fades out as this one fades in. */
+  /**
+   * In a "one" lane a new pad takes over: everything else audible there fades
+   * out as this one fades in, and so does the same lane on every other page
+   * (`takeoverLanes`), so music from the tavern page stops the dungeon's.
+   */
   function stopLaneMates(info: DeckPadInfo) {
-    if (!laneIsOne(info)) return;
+    const reach = takeoverLanes(pages.value, info.pad.page_id, info.pad.lane);
+    if (reach.length === 0) return;
+    const slots = new Set(reach.map((l) => laneKey(l.pageId, l.lane)));
     for (const other of resolved.value.values()) {
       if (other.pad.id === info.pad.id) continue;
-      if (other.pad.page_id !== info.pad.page_id || other.pad.lane !== info.pad.lane) continue;
+      if (!slots.has(laneKey(other.pad.page_id, other.pad.lane))) continue;
       if (isLive(other)) stopPad(other, effectiveFades(other.pad, other.category).outMs);
     }
     // Triggered audio in the lane has no pad of its own to compete with, and it yields too.
-    if (info.pad.page_id !== activePage.value?.id) return;
+    // Only to a press on the page on screen: a Repeat pad still firing from a page the DM left is not a new choice.
+    const page = activePage.value;
+    if (page === null || info.pad.page_id !== page.id) return;
     for (const cell of snapshot.value.cells) {
       if (cell.guest !== null && cell.lane === info.pad.lane) stopGuest(cell, effectiveFades(info.pad, info.category).outMs);
     }
@@ -574,7 +580,7 @@ export function createDeck(): DeckController {
     const list = pages.value;
     if (list.length === 0) return;
     const at = activePage.value ? list.findIndex((p) => p.id === activePage.value?.id) : 0;
-    const next = list[Math.min(list.length - 1, Math.max(0, at + delta))];
+    const next = list[steppedPageIndex(list.length, at, delta)];
     if (next) ui.soundboardActivePage = next.id;
   }
 
@@ -639,19 +645,24 @@ export function createDeck(): DeckController {
   }
 
   function yieldLaneTo(trigger: ActiveTrigger) {
-    const page = activePage.value;
-    if (page === null) return;
     const feed = feedOfTrigger(trigger, (id) => soundsById.value.get(id)?.category);
-    const lanes = pageLanes(page);
-    const lane = feed === null ? null : laneForFeed(lanes, feed);
-    if (lane === null || lanes[lane]?.rule !== "one") return;
+    if (feed === null) return;
     const id = targetId(trigger.target);
-    for (const info of pagePads.value) {
-      if (info.pad.lane !== lane || padHolds(info, id) || !isLive(info)) continue;
+    // Every page's lane for the feed that plays one at a time: the fight's theme stops music started from any page.
+    const slots = new Set<string>();
+    for (const page of pages.value) {
+      const lanes = pageLanes(page);
+      const lane = laneForFeed(lanes, feed);
+      if (lane !== null && lanes[lane]?.rule === "one") slots.add(laneKey(page.id, lane));
+    }
+    for (const info of resolved.value.values()) {
+      if (!slots.has(laneKey(info.pad.page_id, info.pad.lane)) || padHolds(info, id) || !isLive(info)) continue;
       stopPad(info, effectiveFades(info.pad, info.category).outMs);
     }
+    const page = activePage.value;
+    if (page === null) return;
     for (const cell of snapshot.value.cells) {
-      if (cell.guest !== null && cell.lane === lane && cell.guest.target !== trigger.target) {
+      if (cell.guest !== null && slots.has(laneKey(page.id, cell.lane)) && cell.guest.target !== trigger.target) {
         stopGuest(cell, DEFAULT_FADES[cell.category === null ? "effects" : cell.category].outMs);
       }
     }

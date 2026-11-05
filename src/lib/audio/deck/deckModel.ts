@@ -79,6 +79,49 @@ export function laneForFeed(lanes: readonly DeckLane[], feed: DeckFeed): number 
   return index === -1 ? null : index;
 }
 
+/** One lane of one page. */
+export interface PageLane {
+  pageId: string;
+  lane: number;
+}
+
+/**
+ * What makes two lanes on two pages "the same lane": the feed when it has one
+ * (Music is Music on every page, wherever it sits), else its name.
+ */
+function laneIdentity(lane: DeckLane): string {
+  return lane.feed ? `feed:${lane.feed}` : `name:${lane.name.trim().toLowerCase()}`;
+}
+
+/**
+ * Every lane a press in a `one` lane takes over: the lane itself, and on every
+ * other page the `one` lane that is the same lane. Music on the tavern page
+ * stops music started from the dungeon page, because a DM switching pages has
+ * not asked for two tracks at once (the maintainer, 5 Nov 2026). Empty when
+ * the lane is `together`. A `together` lane elsewhere is never reached: its
+ * page said to layer.
+ */
+export function takeoverLanes(pages: ReadonlyArray<{ id: string; lanes?: DeckLane[] | null }>, pageId: string, lane: number): PageLane[] {
+  const home = pages.find((p) => p.id === pageId);
+  const own = home ? pageLanes(home)[lane] : undefined;
+  if (own === undefined || own.rule !== "one") return [];
+  const identity = laneIdentity(own);
+  const out: PageLane[] = [{ pageId, lane }];
+  for (const page of pages) {
+    if (page.id === pageId) continue;
+    pageLanes(page).forEach((other, index) => {
+      if (other.rule === "one" && laneIdentity(other) === identity) out.push({ pageId: page.id, lane: index });
+    });
+  }
+  return out;
+}
+
+/** The page a step lands on: one along, wrapping round at either end. */
+export function steppedPageIndex(count: number, at: number, delta: -1 | 1): number {
+  if (count < 1) return 0;
+  return (((Math.max(0, at) + delta) % count) + count) % count;
+}
+
 // ── Kind, category, defaults ──────────────────────────────────────────────
 
 /**

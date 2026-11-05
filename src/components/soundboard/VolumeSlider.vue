@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center gap-2 min-w-0">
     <span
-      v-if="label"
+      v-if="label && !labelHidden"
       class="text-label shrink-0"
       :class="muted ? 'text-muted-foreground/50' : 'text-muted-foreground'"
     >
@@ -59,6 +59,7 @@ const ACCENT_CLASS = {
 const {
   modelValue,
   label = "",
+  labelHidden = false,
   showPercent = false,
   wide = false,
   compact = false,
@@ -69,6 +70,8 @@ const {
   modelValue: number;
   /** Shown ahead of the track, and used as the accessible name. */
   label?: string;
+  /** Keep the label as the accessible name only, where a row has no width for it. */
+  labelHidden?: boolean;
   /** Show the 0–100 readout after the track. */
   showPercent?: boolean;
   /** Fill available width instead of the fixed width. */
