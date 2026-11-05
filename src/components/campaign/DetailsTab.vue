@@ -50,8 +50,9 @@
           block
           @change="onCalendarChange"
         >
+          <option v-if="form.calendar_id === null" :value="null" disabled>Choose a calendar…</option>
           <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-          <option value="custom">Custom calendar…</option>
+          <option value="custom">Blank calendar (make your own)…</option>
         </AppSelect>
       </div>
       <div>
@@ -240,8 +241,8 @@ function buildForm(c: Campaign | null) {
   return {
     name: c?.name ?? "",
     setting: c?.setting ?? "",
-    calendar_id: c?.calendar_id ?? "faerun",
-    current_year: c?.current_year ?? 1495,
+    calendar_id: c?.calendar_id ?? null,
+    current_year: c?.current_year ?? 1,
     climate: c?.climate ?? "temperate",
     theme: c?.theme ?? DEFAULT_THEME_ID,
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
@@ -281,7 +282,7 @@ const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABE
 function campaignRow(f: CampaignForm) {
   return {
     name: f.name,
-    setting: f.setting || "Custom Setting",
+    setting: f.setting.trim() || null,
     calendar_id: f.calendar_id,
     current_year: f.current_year,
     climate: f.climate,
@@ -295,7 +296,12 @@ function campaignRow(f: CampaignForm) {
   };
 }
 
-const populateSetting = computed(() => getSetting(form.calendar_id));
+// The saved calendar, not the draft: the seeders read the campaign row, so the panel
+// must not offer a setting the DM has picked but not yet saved.
+const populateSetting = computed(() => {
+  const savedCalendar = campaign.value?.calendar_id ?? null;
+  return savedCalendar === null ? undefined : getSetting(savedCalendar);
+});
 
 function onCalendarChange() {
   if (form.calendar_id === "custom") {
@@ -303,6 +309,7 @@ function onCalendarChange() {
     return;
   }
   form.custom_calendar = null;
+  if (form.calendar_id === null) return;
   const newLabel = getSetting(form.calendar_id)?.label ?? "";
   const knownLabels = new Set(listSettings().map((s) => s.label));
   if (newLabel && (!form.setting || knownLabels.has(form.setting))) {

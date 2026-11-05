@@ -582,7 +582,9 @@ export function usePopulateFactions() {
         .single();
       if (campaignError) throw campaignError;
 
-      const calendarId: string = campaignRow?.calendar_id ?? "faerun";
+      // A campaign with no calendar chosen has no setting pack, so there is nothing to seed.
+      const calendarId = campaignRow.calendar_id;
+      if (calendarId === null) return 0;
       const setting = await loadSettingContent(calendarId);
       if (!setting?.factions.length) return 0;
 

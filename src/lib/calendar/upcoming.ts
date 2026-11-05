@@ -17,7 +17,7 @@ import { daysBetween, ordinalWithinYear } from "./dayMath";
  */
 
 /**
- * The campaign's in-world "now". Deliberately narrower than `HarptosDate`:
+ * The campaign's in-world "now". Deliberately narrower than `EventDate`:
  * a campaign's `current_year`/`current_month`/`current_day` columns are all
  * `NOT NULL` (see `Campaign` in `campaign.types.ts`, and how
  * `useCampaignStore().todayYear/todayMonth/todayDay` — `src/stores/campaign.ts`
@@ -73,13 +73,13 @@ export function nextUpcomingEvents(
     if (typeFilter && !typeFilter.has(event.event_type)) continue;
     const eventOrdinal = ordinalWithinYear(
       adapter,
-      event.harptos_year,
-      event.harptos_month,
-      event.harptos_day,
+      event.year,
+      event.month,
+      event.day,
       event.festival_day,
     );
     if (eventOrdinal === undefined) continue;
-    const daysUntil = daysBetween(adapter, today.year, todayOrdinal, event.harptos_year, eventOrdinal);
+    const daysUntil = daysBetween(adapter, today.year, todayOrdinal, event.year, eventOrdinal);
     if (daysUntil < 0) continue;
     withDays.push({ event, daysUntil });
   }

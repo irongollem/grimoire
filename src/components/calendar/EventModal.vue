@@ -80,20 +80,22 @@
         <!-- Date picker -->
         <EventModalDatePicker
           :date-type="form.date_type"
-          :harptos-year="form.harptos_year"
-          :harptos-month="form.harptos_month"
-          :harptos-day="form.harptos_day"
+          :year="form.year"
+          :month="form.month"
+          :day="form.day"
           :festival-day="form.festival_day"
           :is-multi-day="form.is_multi_day"
           :end-year="form.end_year"
           :end-month="form.end_month"
           :end-day="form.end_day"
           :months="adapter.months"
+          :day-max="daysInChosenMonth(form.year, form.month)"
+          :end-day-max="daysInChosenMonth(form.end_year ?? form.year, form.end_month)"
           :available-festivals="availableFestivals"
           @update:date-type="setDateType"
-          @update:harptos-year="form.harptos_year = $event"
-          @update:harptos-month="form.harptos_month = $event"
-          @update:harptos-day="form.harptos_day = $event"
+          @update:year="form.year = $event"
+          @update:month="form.month = $event"
+          @update:day="form.day = $event"
           @update:festival-day="form.festival_day = $event"
           @update:is-multi-day="form.is_multi_day = $event"
           @update:end-year="form.end_year = $event"
@@ -232,6 +234,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import EventModalTypePicker from "./EventModalTypePicker.vue";
+import { daysInMonth } from "@/lib/calendar/dayMath";
 import EventModalDatePicker from "./EventModalDatePicker.vue";
 import EventModalTravelFields from "./EventModalTravelFields.vue";
 import EventModalAiDraft from "./EventModalAiDraft.vue";
@@ -301,9 +304,9 @@ function toDraft(row: CalendarEvent | null): EventDraft {
       description: null,
       event_type: "campaign",
       date_type: "regular",
-      harptos_year: calendar.currentYear,
-      harptos_month: calendar.currentMonth,
-      harptos_day: props.initialDay ?? 1,
+      year: calendar.currentYear,
+      month: calendar.currentMonth,
+      day: props.initialDay ?? 1,
       festival_day: null,
       is_multi_day: false,
       end_year: null,
@@ -323,9 +326,9 @@ function toDraft(row: CalendarEvent | null): EventDraft {
     description: row.description,
     event_type: row.event_type,
     date_type: row.festival_day ? "festival" : "regular",
-    harptos_year: row.harptos_year,
-    harptos_month: row.harptos_month,
-    harptos_day: row.harptos_day,
+    year: row.year,
+    month: row.month,
+    day: row.day,
     festival_day: row.festival_day,
     is_multi_day: row.is_multi_day,
     end_year: row.end_year,
@@ -347,8 +350,8 @@ function buildRow(d: EventDraft): Omit<CalendarEventInsert, "campaign_id"> {
   return {
     ...rest,
     color: eventColor(d),
-    harptos_month: date_type === "regular" ? d.harptos_month : null,
-    harptos_day: date_type === "regular" ? d.harptos_day : null,
+    month: date_type === "regular" ? d.month : null,
+    day: date_type === "regular" ? d.day : null,
     festival_day: date_type === "festival" ? d.festival_day : null,
     end_year: d.is_multi_day ? d.end_year : null,
     end_month: d.is_multi_day ? d.end_month : null,
@@ -367,9 +370,9 @@ const CONFLICT_LABELS: Partial<Record<keyof EventDraft, string>> = {
   description: "Description",
   event_type: "Type",
   date_type: "Date",
-  harptos_year: "Date",
-  harptos_month: "Date",
-  harptos_day: "Date",
+  year: "Date",
+  month: "Date",
+  day: "Date",
   festival_day: "Date",
   is_multi_day: "Date",
   end_year: "Date",
@@ -387,9 +390,29 @@ const typeColor = computed(() => eventColor(form));
 
 const adapter = computed(() => calendar.adapter);
 
+/** Days in the month the form names, from the calendar; a flat 30 was wrong for every other length. */
+function daysInChosenMonth(year: number, month: number | null): number {
+  return month === null ? 30 : daysInMonth(adapter.value, year, month);
+}
+
+// A day past the new month's end (31 after a switch to a 28-day month) would
+// block the save through the input's max; take the month's last day instead.
+watch(
+  () => [form.year, form.month] as const,
+  ([year, month]) => {
+    if (form.day !== null && month !== null) form.day = Math.min(form.day, daysInChosenMonth(year, month));
+  },
+);
+watch(
+  () => [form.end_year ?? form.year, form.end_month] as const,
+  ([year, month]) => {
+    if (form.end_day !== null && month !== null) form.end_day = Math.min(form.end_day, daysInChosenMonth(year, month));
+  },
+);
+
 const availableFestivals = computed(() =>
   adapter.value.intercalaryDays.filter(
-    (d) => !d.isLeapOnly || adapter.value.isLeapYear(form.harptos_year),
+    (d) => !d.isLeapOnly || adapter.value.isLeapYear(form.year),
   ),
 );
 
@@ -410,13 +433,13 @@ let generated: { title: string; description: string | null } | null = null;
 
 const dateLabel = computed(() =>
   formatEventDateLabel({
-    year: form.harptos_year,
-    month: form.date_type === "regular" ? form.harptos_month : null,
-    day: form.date_type === "regular" ? form.harptos_day : null,
+    year: form.year,
+    month: form.date_type === "regular" ? form.month : null,
+    day: form.date_type === "regular" ? form.day : null,
     festivalDay: form.date_type === "festival" ? form.festival_day : null,
     monthName:
-      form.harptos_month !== null
-        ? (adapter.value.months.find((m) => m.num === form.harptos_month)?.name ?? null)
+      form.month !== null
+        ? (adapter.value.months.find((m) => m.num === form.month)?.name ?? null)
         : null,
   }),
 );
@@ -444,13 +467,13 @@ function contentChangedSince(base: { title: string; description: string | null }
 function setDateType(type: DateType) {
   form.date_type = type;
   if (type === "festival") {
-    form.harptos_month = null;
-    form.harptos_day = null;
+    form.month = null;
+    form.day = null;
     form.festival_day = availableFestivals.value[0]?.name ?? null;
   } else {
     form.festival_day = null;
-    form.harptos_month = calendar.currentMonth;
-    form.harptos_day = 1;
+    form.month = calendar.currentMonth;
+    form.day = 1;
   }
 }
 

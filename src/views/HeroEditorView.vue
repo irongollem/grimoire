@@ -236,6 +236,8 @@ import {
   useDeleteHero,
 } from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import { heroSettingFor } from "@/settings/index";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
@@ -278,10 +280,12 @@ const { mutate: updateHero, isPending: updating } = useUpdateHero();
 const { mutate: deleteHero } = useDeleteHero();
 const isSaving = computed(() => creating.value || updating.value);
 
+const campaign = useCampaignStore();
+
 function blankForm(): HallOfHeroInsert {
   return {
     name: "",
-    setting: "faerun",
+    setting: heroSettingFor(campaign.activeCampaign?.calendar_id),
     race: null,
     alignment: null,
     age: null,
@@ -304,6 +308,18 @@ function blankForm(): HallOfHeroInsert {
 }
 
 const form = reactive<HallOfHeroInsert>(blankForm());
+
+// A new hero mounted before the campaign loaded starts as homebrew; take the
+// campaign's setting when it arrives, unless the DM has already picked one.
+let autoSetting = form.setting;
+watch(
+  () => campaign.activeCampaign?.calendar_id,
+  (calendarId) => {
+    if (hero.value || form.setting !== autoSetting) return;
+    autoSetting = heroSettingFor(calendarId);
+    form.setting = autoSetting;
+  },
+);
 
 watch(
   hero,

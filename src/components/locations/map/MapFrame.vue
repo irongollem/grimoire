@@ -130,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -396,17 +396,29 @@ function onFramePointerUp(e: PointerEvent) {
   }
 }
 
+// The pending click swallow's teardown, so an unmount takes the listener and
+// its timer with it (a timer left running fired after the page was gone).
+let removeClickSwallow: (() => void) | null = null;
+
 function installClickSwallow() {
+  removeClickSwallow?.();
   const handler = (ce: Event) => {
     ce.stopImmediatePropagation();
     ce.preventDefault();
-    window.removeEventListener("click", handler, true);
+    remove();
   };
-  window.addEventListener("click", handler, true);
   // If no click arrives within 300ms, tear the listener down so it doesn't
   // persist and eat an unrelated later click.
-  setTimeout(() => window.removeEventListener("click", handler, true), 300);
+  const timer = setTimeout(() => remove(), 300);
+  function remove() {
+    window.removeEventListener("click", handler, true);
+    clearTimeout(timer);
+    removeClickSwallow = null;
+  }
+  window.addEventListener("click", handler, true);
+  removeClickSwallow = remove;
 }
+onBeforeUnmount(() => removeClickSwallow?.());
 
 function zoomAt(factor: number, anchorX: number, anchorY: number) {
   const frame = mapFrame.value;

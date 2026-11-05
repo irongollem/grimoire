@@ -17,9 +17,9 @@ async function fetchEventsByYear(year: number, campaignId: string): Promise<Cale
     .from("calendar_events")
     .select("*")
     .eq("campaign_id", campaignId)
-    .eq("harptos_year", year)
-    .order("harptos_month", { ascending: true, nullsFirst: true })
-    .order("harptos_day", { ascending: true, nullsFirst: true });
+    .eq("year", year)
+    .order("month", { ascending: true, nullsFirst: true })
+    .order("day", { ascending: true, nullsFirst: true });
   if (error) throw error;
   return data as CalendarEvent[];
 }
@@ -33,11 +33,11 @@ async function fetchEventsByRange(
     .from("calendar_events")
     .select("*")
     .eq("campaign_id", campaignId)
-    .gte("harptos_year", startYear)
-    .lte("harptos_year", endYear)
-    .order("harptos_year", { ascending: true })
-    .order("harptos_month", { ascending: true, nullsFirst: true })
-    .order("harptos_day", { ascending: true, nullsFirst: true });
+    .gte("year", startYear)
+    .lte("year", endYear)
+    .order("year", { ascending: true })
+    .order("month", { ascending: true, nullsFirst: true })
+    .order("day", { ascending: true, nullsFirst: true });
   if (error) throw error;
   return data as CalendarEvent[];
 }
@@ -96,10 +96,10 @@ export function usePlayerCalendarEvents(year: MaybeRef<number>) {
         .from("calendar_events")
         .select("*")
         .eq("campaign_id", cid)
-        .eq("harptos_year", y)
+        .eq("year", y)
         .or("player_visible.eq.true,event_type.eq.session")
-        .order("harptos_month", { ascending: true, nullsFirst: true })
-        .order("harptos_day", { ascending: true, nullsFirst: true });
+        .order("month", { ascending: true, nullsFirst: true })
+        .order("day", { ascending: true, nullsFirst: true });
       if (error) throw error;
       return data as CalendarEvent[];
     },
@@ -118,12 +118,12 @@ export function usePlayerCalendarEventsRange(startYear: MaybeRef<number>, endYea
         .from("calendar_events")
         .select("*")
         .eq("campaign_id", cid)
-        .gte("harptos_year", sy)
-        .lte("harptos_year", ey)
+        .gte("year", sy)
+        .lte("year", ey)
         .or("player_visible.eq.true,event_type.eq.session")
-        .order("harptos_year", { ascending: true })
-        .order("harptos_month", { ascending: true, nullsFirst: true })
-        .order("harptos_day", { ascending: true, nullsFirst: true });
+        .order("year", { ascending: true })
+        .order("month", { ascending: true, nullsFirst: true })
+        .order("day", { ascending: true, nullsFirst: true });
       if (error) throw error;
       return data as CalendarEvent[];
     },
@@ -162,9 +162,9 @@ export function useEntityCalendarEvents(
         .from("calendar_events")
         .select("*")
         .eq(col, id)
-        .order("harptos_year", { ascending: true })
-        .order("harptos_month", { ascending: true, nullsFirst: true })
-        .order("harptos_day", { ascending: true, nullsFirst: true });
+        .order("year", { ascending: true })
+        .order("month", { ascending: true, nullsFirst: true })
+        .order("day", { ascending: true, nullsFirst: true });
       if (error) throw error;
       return data as CalendarEvent[];
     },
@@ -179,7 +179,7 @@ export function useCreateCalendarEvent() {
     mutationFn: (event: CalendarEventInsert) =>
       createCalendarEvent({ ...event, campaign_id: campaign.activeCampaignId! }),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaign.activeCampaignId, variables.harptos_year] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaign.activeCampaignId, variables.year] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "range"] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity"] });
     },

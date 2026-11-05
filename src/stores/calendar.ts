@@ -11,32 +11,32 @@ export type TimelineZoom = number;
 
 const POSITION_KEY = "grimoire_calendar_position";
 
-const DEFAULT_ZOOM = 10 / 365; // 1 week (weekSize / 365 for Harptos)
+const DEFAULT_ZOOM = 10 / 365; // 1 week (weekSize / days in the year)
 
-function loadPosition(): { year: number; month: number; calendarId: string; zoom: number } {
+function loadPosition(): { year: number; month: number; calendarId: string | null; zoom: number } {
   try {
     const saved = safeLocalStorage().getItem(POSITION_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
-        year: parsed.year ?? 1495,
+        year: parsed.year ?? 1,
         month: parsed.month ?? 1,
-        calendarId: parsed.calendarId ?? "faerun",
+        calendarId: parsed.calendarId ?? null,
         zoom: parsed.zoom ?? DEFAULT_ZOOM,
       };
     }
   } catch {
     // ignore
   }
-  return { year: 1495, month: 1, calendarId: "faerun", zoom: DEFAULT_ZOOM };
+  return { year: 1, month: 1, calendarId: null, zoom: DEFAULT_ZOOM };
 }
 
 export const useCalendarStore = defineStore("calendar", () => {
   // Load persisted position once at store init
   const savedPos = loadPosition();
 
-  // Which calendar system is active (per campaign, defaults to Faerûn)
-  const activeCalendarId = ref<string>(savedPos.calendarId);
+  // Which calendar system is active (per campaign; null = none chosen, the blank calendar)
+  const activeCalendarId = ref<string | null>(savedPos.calendarId);
 
   // When activeCalendarId === 'custom', this holds the per-campaign calendar definition.
   const customCalendarDef = ref<SettingCalendarDef | null>(null);
@@ -59,12 +59,18 @@ export const useCalendarStore = defineStore("calendar", () => {
     getCalendarAdapter(activeCalendarId.value, customCalendarDef.value),
   );
 
+  /** The id to keep for a campaign's calendar: its own, or null when it is read as the blank calendar. */
+  function activeIdFor(id: string | null, cal: CalendarAdapter): string | null {
+    if (id === "custom") return "custom";
+    return cal.id === getCalendarAdapter(null).id ? null : cal.id;
+  }
+
   const availableCalendars = computed(() => listCalendarAdapters());
 
   function setCalendar(id: string, customDef: SettingCalendarDef | null = null) {
     customCalendarDef.value = id === "custom" ? customDef : null;
     const cal = getCalendarAdapter(id, customCalendarDef.value);
-    activeCalendarId.value = id === "custom" ? "custom" : cal.id;
+    activeCalendarId.value = activeIdFor(id, cal);
     currentYear.value = cal.defaultYear;
     currentMonth.value = 1;
   }
@@ -106,14 +112,14 @@ export const useCalendarStore = defineStore("calendar", () => {
 
   /** Called by the campaign store when switching campaigns. Syncs calendar system + year + month. */
   function loadFromCampaign(
-    calendarId: string,
+    calendarId: string | null,
     year: number,
     month = 1,
     customDef: SettingCalendarDef | null = null,
   ) {
     customCalendarDef.value = calendarId === "custom" ? customDef : null;
     const cal = getCalendarAdapter(calendarId, customCalendarDef.value);
-    activeCalendarId.value = calendarId === "custom" ? "custom" : cal.id;
+    activeCalendarId.value = activeIdFor(calendarId, cal);
     currentYear.value = year;
     currentMonth.value = month;
   }

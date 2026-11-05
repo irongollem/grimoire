@@ -84,8 +84,8 @@ describe("QuestRunObjectivesLedger", () => {
   });
 
   it("shows how close a pending objective's deadline is, and nothing once it is resolved", () => {
-    // The campaign store defaults to year 1495 month 1 day 1; due the 2nd is tomorrow.
-    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1495, due_month: 1, due_day: 2 };
+    // An empty campaign store sits at year 1 month 1 day 1; due the 2nd is tomorrow.
+    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1, due_month: 1, due_day: 2 };
     mocks.objectives.value = [
       { ...base, id: "o1", description: "Stop the ritual", status: "pending" },
       { ...base, id: "o2", description: "Warn the mayor", status: "complete" },
@@ -96,7 +96,7 @@ describe("QuestRunObjectivesLedger", () => {
   });
 
   it("shows no deadline on an objective that is failed or not yet raised", () => {
-    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1495, due_month: 1, due_day: 2 };
+    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1, due_month: 1, due_day: 2 };
     mocks.objectives.value = [
       { ...base, id: "o1", description: "Lost cause", status: "failed" },
       { ...base, id: "o2", description: "Not yet", status: "dormant" },

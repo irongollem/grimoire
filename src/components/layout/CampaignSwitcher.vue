@@ -48,8 +48,9 @@
             class="text-caption-sm text-muted-foreground italic truncate leading-tight flex items-center gap-1.5"
           >
             {{
-              activeCampaign?.setting ??
-              (nameLoading ? "" : "No campaign active")
+              activeCampaign
+                ? (activeCampaign.setting ?? "")
+                : (nameLoading ? "" : "No campaign active")
             }}
             <span
               v-if="onlineCount > 0"
@@ -133,8 +134,7 @@
                 <p
                   class="text-caption-sm text-muted-foreground italic truncate"
                 >
-                  {{ c.setting }} · {{ c.current_year }}
-                  {{ calendarEpoch(c.calendar_id) }}
+                  {{ [c.setting, `${c.current_year} ${calendarEpoch(c)}`].filter(Boolean).join(" · ") }}
                 </p>
               </div>
             </button>
@@ -365,8 +365,8 @@ watch(
   { immediate: true },
 );
 
-function calendarEpoch(calendarId: string): string {
-  return getCalendarAdapter(calendarId).epochName;
+function calendarEpoch(c: Campaign): string {
+  return getCalendarAdapter(c.calendar_id, c.custom_calendar).epochName;
 }
 
 function select(campaign: Campaign) {

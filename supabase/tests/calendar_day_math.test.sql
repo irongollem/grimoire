@@ -18,7 +18,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(27);
 
 create temp table expected_calendar_shapes (calendar_id text primary key, shape jsonb not null);
 
@@ -41,13 +41,17 @@ select is(
     where private.calendar_shape(calendar_id, null) is distinct from shape),
   0, 'calendar_shape gives every built-in calendar the shape the TS registry has');
 
+-- #934: a campaign that chose no calendar is not a Forgotten Realms campaign.
+-- The blank calendar is createDefaultCustomCalendarDef (src/settings/types.ts).
 select is(private.calendar_shape('no-such-calendar', null),
-  (select shape from expected_calendar_shapes where calendar_id = 'faerun'),
-  'an unknown calendar id falls back to Faerûn, as getCalendarAdapter does');
+  '{"months": [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30], "intercalary": [], "leap_rule": "none", "leap_month": null}'::jsonb,
+  'an unknown calendar id is read as the blank calendar, as getCalendarAdapter does (bug: it was Faerûn)');
 
-select is(private.calendar_shape('custom', null),
-  (select shape from expected_calendar_shapes where calendar_id = 'faerun'),
-  'custom with no stored definition falls back to Faerûn too');
+select is(private.calendar_shape('custom', null), private.calendar_shape(null, null),
+  'custom with no stored definition is the blank calendar too');
+
+select is(private.calendar_shape(null, null), private.calendar_shape('no-such-calendar', null),
+  'a campaign with no calendar chosen is the blank calendar');
 
 select is(
   private.calendar_shape('custom', '{"name": "Tides", "months": [{"name": "Ebb", "days": 10}, {"name": "Flow", "days": 12}], "intercalaryDays": [{"name": "Slack", "afterMonth": 1, "description": "", "isLeapOnly": true}], "leapYearRule": "every4"}'),
@@ -62,6 +66,11 @@ select is(private.calendar_shape('custom', '{"months": "twelve"}'), null,
   'a custom definition without a month list is unreadable');
 select is(private.calendar_shape('custom', '{"months": [{"days": "thirty"}]}'), null,
   'a month without a numeric length is unreadable');
+-- Bug: a month length past an integer made the cast raise, so the campaign trigger refused every calendar write, the correction too.
+select is(private.calendar_shape('custom', '{"months": [{"days": 3000000000}]}'), null,
+  'a month length too large for an integer is unreadable, not an error');
+select is(private.calendar_shape('custom', '{"months": [{"days": 30}], "intercalaryDays": [{"name": "x", "afterMonth": 99999999999}]}'), null,
+  'a festival position too large for an integer is unreadable, not an error');
 select is(private.calendar_shape('custom', '{"months": []}'), null,
   'a calendar with no months is unreadable');
 select is(private.calendar_shape('custom', '{"months": [{"days": 30}], "intercalaryDays": [{"name": "x"}]}'), null,

@@ -35,7 +35,7 @@
     </div>
     <!-- Expandable form -->
     <div v-if="showForm && entityId" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
-      <SegmentedControl v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
+      <SegmentedControl v-if="hasFestivals" v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
       <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
         <div>
           <label class="block text-caption text-muted-foreground mb-1">Year</label>
@@ -101,7 +101,7 @@
     <template v-else>
       <!-- Inline add form -->
       <div v-if="showForm" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
-        <SegmentedControl v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
+        <SegmentedControl v-if="hasFestivals" v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
         <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Year</label>
@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { IconAdd, IconCalendarDays, IconClose } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -207,6 +207,13 @@ const DATE_TYPE_OPTIONS = [
   { value: "festival", label: "Festival Day" },
 ] as const satisfies ReadonlyArray<{ value: DateType; label: string }>;
 
+// A calendar with no festival days (the blank one, Gregorian) offers only a regular day:
+// a festival pin with no festival saved an empty name the grid cannot show.
+const hasFestivals = computed(() => adapter.value.intercalaryDays.length > 0);
+watch(hasFestivals, (has) => {
+  if (!has) dateType.value = "regular";
+});
+
 const form = ref({
   year: calendar.currentYear,
   month: calendar.currentMonth,
@@ -222,9 +229,9 @@ async function pinDate() {
     description: null,
     event_type: eventType,
     color,
-    harptos_year: form.value.year,
-    harptos_month: dateType.value === "regular" ? form.value.month : null,
-    harptos_day: dateType.value === "regular" ? form.value.day : null,
+    year: form.value.year,
+    month: dateType.value === "regular" ? form.value.month : null,
+    day: dateType.value === "regular" ? form.value.day : null,
     festival_day: dateType.value === "festival" ? form.value.festival : null,
     is_multi_day: false,
     end_year: null,
@@ -245,16 +252,16 @@ async function removePin(id: string) {
 }
 
 function formatPin(pin: CalendarEvent): string {
-  if (pin.festival_day) return `${pin.festival_day}, ${pin.harptos_year} ${adapter.value.epochName}`;
-  if (pin.harptos_month && pin.harptos_day) {
-    const month = adapter.value.months.find((m) => m.num === pin.harptos_month);
-    return `Day ${pin.harptos_day}, ${month?.name ?? ""} ${pin.harptos_year} ${adapter.value.epochName}`;
+  if (pin.festival_day) return `${pin.festival_day}, ${pin.year} ${adapter.value.epochName}`;
+  if (pin.month && pin.day) {
+    const month = adapter.value.months.find((m) => m.num === pin.month);
+    return `Day ${pin.day}, ${month?.name ?? ""} ${pin.year} ${adapter.value.epochName}`;
   }
-  return `${pin.harptos_year} ${adapter.value.epochName}`;
+  return `${pin.year} ${adapter.value.epochName}`;
 }
 
 function calendarRoute(pin: CalendarEvent): string {
-  return `/calendar?year=${pin.harptos_year}&month=${pin.harptos_month ?? ""}`;
+  return `/calendar?year=${pin.year}&month=${pin.month ?? ""}`;
 }
 
 const entityTypeLabel = computed(() =>

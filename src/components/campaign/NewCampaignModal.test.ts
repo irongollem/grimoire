@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getCalendarAdapter } from "@/settings/index";
 import NewCampaignModal from "./NewCampaignModal.vue";
 
 /** The edition is asked first (#943), with the choice of letting both editions sit down. */
@@ -20,6 +21,10 @@ const stubs = {
 
 function mountModal(props: { showClaimOption?: boolean } = {}) {
   return mount(NewCampaignModal, { props: { modelValue: true, ...props }, global: { stubs } });
+}
+
+async function chooseCalendar(wrapper: ReturnType<typeof mountModal>, id: string) {
+  await wrapper.find("select").setValue(id);
 }
 
 beforeEach(() => {
@@ -46,6 +51,7 @@ describe("NewCampaignModal", () => {
   it("submits the chosen edition and the mixed-edition choice", async () => {
     const wrapper = mountModal();
     await wrapper.findAll('[role="radio"]')[1].trigger("click");
+    await chooseCalendar(wrapper, "gregorian");
     await wrapper.find('input[type="checkbox"]').setValue(true);
     await wrapper.find("form").trigger("submit");
     await flushPromises();
@@ -57,6 +63,7 @@ describe("NewCampaignModal", () => {
   it("defaults to a single-edition table", async () => {
     const wrapper = mountModal();
     await wrapper.findAll('[role="radio"]')[0].trigger("click");
+    await chooseCalendar(wrapper, "gregorian");
     await wrapper.find("form").trigger("submit");
     await flushPromises();
     const [payload] = mocks.createCampaign.mock.calls[0] as [{ allows_mixed_rulesets: boolean }];
@@ -65,17 +72,46 @@ describe("NewCampaignModal", () => {
 
   async function submitWithEdition(wrapper: ReturnType<typeof mountModal>) {
     await wrapper.findAll('[role="radio"]')[0].trigger("click");
+    await chooseCalendar(wrapper, "gregorian");
     await wrapper.find("form").trigger("submit");
     await flushPromises();
   }
 
-  it("closes and hands back the new campaign, naming an unnamed setting 'Custom Setting'", async () => {
+  it("closes and hands back the new campaign, saving an unnamed world as no world", async () => {
     const wrapper = mountModal();
     await submitWithEdition(wrapper);
     expect(wrapper.emitted("created")).toEqual([[{ id: "c1" }]]);
     expect(wrapper.emitted("update:modelValue")).toEqual([[false]]);
-    const [payload] = mocks.createCampaign.mock.calls[0] as [{ setting: string }];
-    expect(payload.setting).toBe("Custom Setting");
+    // Bug it fails on: an invented "Custom Setting" written into a world the DM never named.
+    const [payload] = mocks.createCampaign.mock.calls[0] as [{ setting: string | null }];
+    expect(payload.setting).toBeNull();
+  });
+
+  it("starts with no calendar chosen and cannot create a campaign without one", async () => {
+    // Bug it fails on: a preselected calendar made every new campaign a Forgotten Realms one.
+    const wrapper = mountModal();
+    expect(wrapper.find("select").text()).toContain("Choose a calendar");
+    await wrapper.findAll('[role="radio"]')[0].trigger("click");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.createCampaign).not.toHaveBeenCalled();
+    await wrapper.find("select").setValue("eberron");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.createCampaign).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the year from the chosen calendar and offers the blank calendar by a plain name", async () => {
+    const wrapper = mountModal();
+    await wrapper.find("select").setValue("eberron");
+    const eberronYear = getCalendarAdapter("eberron").defaultYear;
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe(String(eberronYear));
+    expect(wrapper.find("select").text()).toContain("Blank calendar (make your own)");
+    await wrapper.findAll('[role="radio"]')[0].trigger("click");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    const [payload] = mocks.createCampaign.mock.calls[0] as [{ calendar_id: string; current_year: number }];
+    expect(payload).toMatchObject({ calendar_id: "eberron", current_year: eberronYear });
   });
 
   it("claims the DM's orphaned data into the new campaign only when asked to offer it", async () => {

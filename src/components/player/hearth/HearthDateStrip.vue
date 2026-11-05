@@ -38,7 +38,7 @@
     <ul v-if="upcoming.length" class="mt-3 space-y-1 border-t border-border/60 pt-2.5">
       <li v-for="u in upcoming" :key="u.event.id" class="flex items-baseline gap-2 text-caption">
         <i class="rubric-diamond shrink-0" aria-hidden="true" />
-        <span class="shrink-0 font-semibold text-foreground">{{ u.event.festival_day ?? u.event.harptos_day }}</span>
+        <span class="shrink-0 font-semibold text-foreground">{{ u.event.festival_day ?? u.event.day }}</span>
         <span class="min-w-0 truncate text-muted-foreground">{{ u.event.title }}</span>
       </li>
     </ul>

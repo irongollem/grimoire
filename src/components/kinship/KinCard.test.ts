@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
+import { useCampaignStore } from "@/stores/campaign";
+import type { Campaign } from "@/types/campaign.types";
 import KinCard from "./KinCard.vue";
 import type { KinPersonView } from "@/composables/kinship/useKinGraph";
 
@@ -10,6 +12,8 @@ const person = (over: Partial<KinPersonView> = {}): KinPersonView => ({
 
 function card(props: { person: KinPersonView } & Record<string, unknown>) {
   setActivePinia(createPinia());
+  // An empty campaign sits at year 1; these people were born in 1431, so the table is playing in 1495.
+  useCampaignStore().activeCampaign = { current_year: 1495, current_month: 1, current_day: 1 } as Campaign;
   return mount(KinCard, { props, global: { plugins: [] } });
 }
 
@@ -18,7 +22,7 @@ describe("KinCard", () => {
     const w = card({ person: person() });
     expect(w.text()).toContain("Maera Thane");
     expect(w.text()).toContain("born 1431");
-    expect(w.text()).toMatch(/born 1431 · \d+/);
+    expect(w.text()).toContain("born 1431 · 64");
   });
 
   it("mutes and strikes the dead, with no age", () => {
@@ -39,7 +43,7 @@ describe("KinCard", () => {
 
   it("reads the person aloud: name, dead, and the line under it", () => {
     expect(card({ person: person({ dead: true }) }).attributes("aria-label")).toBe("Maera Thane, dead, born 1431");
-    expect(card({ person: person(), marriedIn: true }).attributes("aria-label")).toMatch(/^Maera Thane, born 1431 · \d+ · married in$/);
+    expect(card({ person: person(), marriedIn: true }).attributes("aria-label")).toBe("Maera Thane, born 1431 · 64 · married in");
   });
 
   it("shows the portrait when there is one and the first letter of the name otherwise", () => {

@@ -45,7 +45,7 @@ select throws_ok(
   'a player cannot insert an NPC into the DM''s campaign');
 
 select throws_ok(
-  $$ insert into public.calendar_events (user_id, campaign_id, title, harptos_year, event_type)
+  $$ insert into public.calendar_events (user_id, campaign_id, title, year, event_type)
      values ('77710000-0000-4000-8000-000000000002', '77710000-0000-4000-8000-000000000010', 'Fake session', 1495, 'session') $$,
   '42501', null,
   'a player cannot inject a session event onto the party calendar');

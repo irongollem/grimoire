@@ -103,7 +103,7 @@ import { useTodayWeather } from "@/composables/calendar/useTodayWeather";
 import { describeWeather } from "@/lib/calendar/weather";
 import { IconWeather } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCalendarStore } from "@/stores/calendar";
+import { getCalendarAdapter } from "@/settings/index";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -114,21 +114,25 @@ import DashboardWidget from "../DashboardWidget.vue";
  *  (#758): this is in-world time and place, which advances whether or not the
  *  table is sitting. */
 const campaign = useCampaignStore();
-const calendarStore = useCalendarStore();
 const { data: locations } = useAllLocations();
 const todayWeather = useTodayWeather();
 const setToday = useSetCampaignToday();
 const setLocation = useSetCampaignLocation();
 
-const calendarMonths = computed(() => calendarStore.adapter.months);
+// The campaign's own calendar, read from the same row as its date: the calendar
+// store catches up a beat after a campaign switch, and the two must never mix.
+const adapter = computed(() =>
+  getCalendarAdapter(campaign.activeCampaign?.calendar_id, campaign.activeCampaign?.custom_calendar),
+);
+const calendarMonths = computed(() => adapter.value.months);
 
 const todayFormatted = computed(() => {
   const monthName = calendarMonths.value[campaign.todayMonth - 1]?.name ?? "";
-  return `${campaign.todayDay} ${monthName}, ${campaign.todayYear} DR`;
+  return `${campaign.todayDay} ${monthName}, ${campaign.todayYear} ${adapter.value.epochName}`;
 });
 
 const editingDate = ref(false);
-const dateForm = reactive({ year: 1495, month: 1, day: 1 });
+const dateForm = reactive({ year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay });
 /**
  * Asked of the adapter, not read off the month, so a Gregorian campaign can
  * actually set 29 February in a leap year. Every fantasy calendar here keeps
@@ -137,7 +141,7 @@ const dateForm = reactive({ year: 1495, month: 1, day: 1 });
  */
 function daysIn(year: number, month: number): number {
   const fixed = calendarMonths.value[month - 1]?.days;
-  const fromAdapter = calendarStore.adapter.daysInMonth?.(year, month);
+  const fromAdapter = adapter.value.daysInMonth?.(year, month);
   if (fromAdapter !== undefined) return fromAdapter;
   // A month index the adapter does not have is a corrupt stored date, not a
   // real month; 30 is the same last-resort the rest of this control uses.

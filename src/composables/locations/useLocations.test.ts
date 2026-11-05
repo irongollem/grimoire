@@ -66,6 +66,7 @@ const {
   useAllLocations,
   useLocation,
   useLocations,
+  usePopulateLocations,
 } = await import("@/composables/locations/useLocations");
 
 function place(over: Partial<Location> & { id: string }): Record<string, unknown> {
@@ -405,5 +406,28 @@ describe("insertSettingLocations", () => {
     await expect(
       insertSettingLocations("campaign-1", [preset("A", "B"), preset("B", "A")], "faerun"),
     ).rejects.toThrow(/cycle/);
+  });
+});
+
+describe("usePopulateLocations", () => {
+  // Bug it fails on: a campaign with no calendar (or a non-pack one) was read as
+  // Faerun and got the Forgotten Realms places seeded into it.
+  it.each([
+    ["no calendar chosen", null],
+    ["Gregorian, which is not a setting pack", "gregorian"],
+    ["a custom calendar", "custom"],
+  ])("seeds nothing for a campaign with %s", async (_label, calendarId) => {
+    fake.seed("campaigns", [{ id: "campaign-1", calendar_id: calendarId }]);
+    const { result, unmount } = withQueryClient(() => usePopulateLocations());
+    await expect(result.mutateAsync()).resolves.toBe(0);
+    expect(fake.rows("locations")).toEqual([]);
+    unmount();
+  });
+
+  it("still seeds the pack the campaign chose", async () => {
+    fake.seed("campaigns", [{ id: "campaign-1", calendar_id: "faerun" }]);
+    const { result, unmount } = withQueryClient(() => usePopulateLocations());
+    expect(await result.mutateAsync()).toBeGreaterThan(0);
+    unmount();
   });
 });

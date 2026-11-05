@@ -96,7 +96,7 @@ insert into public.kin_links (user_id, campaign_id, from_npc_id, to_npc_id, kind
   ('10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', '10850000-0000-4000-8000-000000000030',
    '10850000-0000-4000-8000-000000000032', 'parent', 'mother');
 
-insert into public.calendar_events (id, user_id, campaign_id, title, event_type, player_visible, harptos_year, harptos_month, harptos_day) values
+insert into public.calendar_events (id, user_id, campaign_id, title, event_type, player_visible, year, month, day) values
   ('10850000-0000-4000-8000-000000000060', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'Feast of Orla', 'campaign', true, 312, 3, 14),
   ('10850000-0000-4000-8000-000000000061', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'OB-HIDDEN-EVENT', 'campaign', false, 312, 3, 20);
 

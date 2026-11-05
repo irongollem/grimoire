@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { CalendarAdapter } from "@/types/calendar.types";
-import { addDays, buildYearIndex, daysFromTo, daysInMonth, isOnOrBefore, ordinalWithinYear } from "./dayMath";
+import { addDays, buildYearIndex, daysFromTo, daysInMonth, isOnOrBefore, monthStartFraction, ordinalWithinYear, yearFraction } from "./dayMath";
 
 /**
  * Three 30-day months with two intercalary days after month 1 and a leap-only
@@ -62,6 +62,30 @@ describe("ordinalWithinYear", () => {
     expect(ordinalWithinYear(TEST, 2001, 0, 5, null)).toBeUndefined();
     expect(ordinalWithinYear(TEST, 2001, 2, null, null)).toBeUndefined();
     expect(ordinalWithinYear(TEST, 2001, null, null, null)).toBeUndefined();
+  });
+});
+
+describe("a day the month does not have", () => {
+  // Bug it fails on: the 30th of a 28-day February took month 1's start + 30 and
+  // landed in March, so a stale pin drew in the wrong month instead of at the year start.
+  const SHORT: CalendarAdapter = {
+    ...PLAIN,
+    months: [
+      { num: 1, name: "Long", days: 31 },
+      { num: 2, name: "Short", days: 28 },
+      { num: 3, name: "Long", days: 31 },
+    ],
+  };
+
+  it("has no slot past the month's last day or before its first, and keeps the last day", () => {
+    expect(ordinalWithinYear(SHORT, 2001, 2, 28, null)).toBe(59); // 31 + 28
+    expect(ordinalWithinYear(SHORT, 2001, 2, 29, null)).toBeUndefined();
+    expect(ordinalWithinYear(SHORT, 2001, 2, 30, null)).toBeUndefined();
+    expect(ordinalWithinYear(SHORT, 2001, 2, 0, null)).toBeUndefined();
+  });
+
+  it("puts such a date at the start of its year, not into the next month", () => {
+    expect(yearFraction(SHORT, 2001, 2, 30)).toBe(2001);
   });
 });
 
@@ -169,5 +193,42 @@ describe("addDays", () => {
   it("returns the same date after exactly one year's worth of days", () => {
     const day = { year: 2001, month: 1, day: 1 };
     expect(addDays(TEST, day, buildYearIndex(TEST, 2001).totalDays)).toEqual({ ...day, year: 2002 });
+  });
+});
+
+describe("yearFraction", () => {
+  // Bug it fails on: the timeline placed every date at (month-1)*30+day over 365, so a
+  // calendar whose months are not 30 days (or whose year is not 365) drew events in the wrong place.
+  const FEBRUARY: CalendarAdapter = {
+    ...PLAIN,
+    months: [
+      { num: 1, name: "Short", days: 28 },
+      { num: 2, name: "Long", days: 28 },
+    ],
+  };
+
+  it("divides by the calendar's own year length and uses real month lengths", () => {
+    // 56-day year: day 1 of month 2 is ordinal 29.
+    expect(yearFraction(FEBRUARY, 10, 2, 1)).toBeCloseTo(10 + 29 / 56);
+    expect(yearFraction(FEBRUARY, 10, 2, 28)).toBeCloseTo(11);
+  });
+
+  it("places a festival in the middle of its own day, after the month it follows", () => {
+    expect(yearFraction(TEST, 2001, null, null, "Founding")).toBeCloseTo(2001 + 30.5 / 92);
+  });
+
+  it("counts a leap-only day into a leap year's length only", () => {
+    expect(yearFraction(TEST, 2000, 3, 1)).toBeCloseTo(2000 + 64 / 93);
+    expect(yearFraction(TEST, 2001, 3, 1)).toBeCloseTo(2001 + 63 / 92);
+  });
+
+  it("puts a date the calendar has no slot for at the start of its year", () => {
+    expect(yearFraction(TEST, 2001, 9, 1)).toBe(2001);
+  });
+});
+
+describe("monthStartFraction", () => {
+  it("starts each month where the days before it end", () => {
+    expect(monthStartFraction(PLAIN, 5, 3)).toBeCloseTo(5 + 60 / 90);
   });
 });

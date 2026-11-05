@@ -73,9 +73,9 @@ export type RouteEventPrefill = Pick<
   CalendarEventInsert,
   | "title"
   | "event_type"
-  | "harptos_year"
-  | "harptos_month"
-  | "harptos_day"
+  | "year"
+  | "month"
+  | "day"
   | "is_multi_day"
   | "end_year"
   | "end_month"
@@ -106,9 +106,9 @@ export function routeEventPrefill(
   return {
     title: routeTitle(summary),
     event_type: "travel",
-    harptos_year: start.year,
-    harptos_month: start.month,
-    harptos_day: start.day,
+    year: start.year,
+    month: start.month,
+    day: start.day,
     is_multi_day: multiDay,
     end_year: end?.year ?? null,
     end_month: end?.month ?? null,

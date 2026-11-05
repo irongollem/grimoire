@@ -298,8 +298,8 @@ const festivalsAfterCurrentMonth = computed(() =>
 // Check if a regular (non-festival) event covers a given month/day.
 function dayIsInEvent(event: CalendarEvent, month: number, day: number): boolean {
   if (event.festival_day) return false;
-  const startMonth = event.harptos_month;
-  const startDay = event.harptos_day;
+  const startMonth = event.month;
+  const startDay = event.day;
   if (startMonth === null || startDay === null) return false;
   if (!event.is_multi_day || event.end_day === null) {
     return startMonth === month && startDay === day;
@@ -315,8 +315,8 @@ const monthEvents = computed(() => {
   const month = calendar.currentMonth;
   return (events.value ?? []).filter((e) => {
     if (e.festival_day) return false;
-    if (!e.is_multi_day || e.end_day === null) return e.harptos_month === month;
-    const startMonth = e.harptos_month ?? 0;
+    if (!e.is_multi_day || e.end_day === null) return e.month === month;
+    const startMonth = e.month ?? 0;
     const endMonth = e.end_month ?? startMonth;
     return startMonth <= month && month <= endMonth;
   });
@@ -367,11 +367,11 @@ function eventsForFestival(festivalName: string): CalendarEvent[] {
 
 function formatEventDate(event: CalendarEvent): string {
   if (event.festival_day) return event.festival_day;
-  if (event.harptos_day) {
+  if (event.day) {
     const weekSize = calendar.adapter.weekSize;
-    const week = Math.ceil(event.harptos_day / weekSize);
+    const week = Math.ceil(event.day / weekSize);
     const label = calendar.adapter.weekRowNames?.[week - 1] ?? `Week ${week}`;
-    return `Day ${event.harptos_day} (${label})`;
+    return `Day ${event.day} (${label})`;
   }
   return "";
 }

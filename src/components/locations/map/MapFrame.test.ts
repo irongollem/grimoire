@@ -222,6 +222,20 @@ describe("MapFrame gestures", () => {
     wrapper.unmount();
   });
 
+  // Bug: a drag's click swallow outlived the map, so the click after leaving it
+  // was eaten, and its timer fired after the page (and window) were gone.
+  it("drops the click swallow of a drag when the map unmounts", () => {
+    const { wrapper, frame } = mountFrame();
+    wheel(frame, -100);
+    frame.dispatchEvent(pointer("pointerdown", 1, 100, 100));
+    frame.dispatchEvent(pointer("pointermove", 1, 140, 100));
+    frame.dispatchEvent(pointer("pointerup", 1, 140, 100));
+    wrapper.unmount();
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    document.body.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(false);
+  });
+
   it("does not drag an unzoomed map, so a tap on empty map still closes what is pinned open", () => {
     const { wrapper, frame, container } = mountFrame();
     frame.dispatchEvent(pointer("pointerdown", 1, 100, 100));

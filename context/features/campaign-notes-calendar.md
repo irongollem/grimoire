@@ -296,7 +296,7 @@ Held in `questRows.test.ts`: ending a session no longer pauses anything (`202610
 Read these five files first — they cover the entire data and component surface:
 
 1. `src/types/notes.types.ts` — `Note`, `NoteCategory`, `NoteInsert`, `NoteUpdate`
-2. `src/types/calendar.types.ts` — `CalendarEvent`, `CalendarEventType`, `HarptosDate`, `CalendarAdapter`, `CalendarEventInsert`, `CalendarEventUpdate`, `LinkedEntityType`
+2. `src/types/calendar.types.ts` — `CalendarEvent`, `CalendarEventType`, `EventDate`, `CalendarAdapter`, `CalendarEventInsert`, `CalendarEventUpdate`, `LinkedEntityType`
 3. `src/composables/notes/useNotes.ts` — all note CRUD composables
 4. `src/composables/calendar/useCalendarEvents.ts` — all calendar event CRUD composables plus entity-pin helpers
 5. `src/components/notes/NoteEditor.vue` — the main editor and all its special integrations. The session-dates card and the calendar-event sync live beside it in `NoteSessionDatesPanel.vue` and `composables/notes/useNoteCalendarSync.ts` (#814)
@@ -570,9 +570,9 @@ Key columns:
 | `title`               | text                 | required                                |
 | `description`         | text                 | Tiptap JSON (optional)                  |
 | `event_type`          | text                 | see `CalendarEventType`                 |
-| `harptos_year`        | integer              | required                                |
-| `harptos_month`       | integer              | null for festival days                  |
-| `harptos_day`         | integer              | null for festival days                  |
+| `year`        | integer              | required                                |
+| `month`       | integer              | null for festival days                  |
+| `day`         | integer              | null for festival days                  |
 | `festival_day`        | text                 | null for regular days                   |
 | `is_multi_day`        | boolean              |                                         |
 | `end_year/month/day`  | integer              | multi-day end date                      |
@@ -610,9 +610,9 @@ interface CalendarEvent {
   title;
   description;
   event_type;
-  harptos_year;
-  harptos_month;
-  harptos_day;
+  year;
+  month;
+  day;
   festival_day;
   is_multi_day;
   end_year;
@@ -627,7 +627,7 @@ interface CalendarEvent {
   created_at;
   updated_at;
 }
-interface HarptosDate {
+interface EventDate {
   year;
   month;
   day;
@@ -668,7 +668,7 @@ Key state and actions:
 
 | Property/Method | Type | Description |
 | ------------------------------------ | --------------------------- | ----------------------------------------------------------------- | ------------------------------------ |
-| `activeCalendarId` | `ref<string>` | Active adapter ID (e.g. `"faerun"`) |
+| `activeCalendarId` | `ref<string \| null>` | Active adapter ID (e.g. `"faerun"`); null when the campaign chose none |
 | `view` | `ref<CalendarView>` | `"month"` or `"timeline"` |
 | `currentYear` | `ref<number>` | Currently displayed year |
 | `currentMonth` | `ref<number>` | Currently displayed month (1-indexed) |
@@ -690,6 +690,10 @@ Exported type: `CalendarView = "month" | "timeline"`.
 All calendar adapters live in `src/settings/index.ts`; consumers import `CALENDAR_REGISTRY`, `getCalendarAdapter`, `listCalendarAdapters` and the rest straight from `@/settings/index` (the old `src/calendars/` barrel is gone).
 
 `src/settings/index.ts` builds `CALENDAR_REGISTRY` from all registered `DndSettingDef` objects plus the standalone `gregorianAdapter` from `src/settings/gregorian.calendar.ts`.
+
+**A calendar is chosen, never assumed (#934, migration `20261104091128`).** `campaigns.calendar_id` has no default and may be null. The new-campaign form makes the DM pick one, as it does the 5e edition; the list holds every built-in calendar, Gregorian and the blank one ("Custom calendar", seeded from `createDefaultCustomCalendarDef()`: twelve 30-day months, a 7-day week, year 1 AY, no leap years). A campaign with no calendar, an id this build does not know, or `custom` with no stored definition is read as **that blank calendar**, by `getCalendarAdapter` and by the server's `private.calendar_shape` alike, and never as Faerûn: until #934 every one of those was silently dated in the Calendar of Harptos, 1495 DR. The blank adapter is not in `CALENDAR_REGISTRY` (the registry is the list `calendarShapeMirror.test.ts` holds equal to the database). Setting content (locations, NPCs, factions, deities) is seeded only for a campaign whose calendar is a setting pack; any other calendar seeds none. `campaigns.setting` (the free-text world name) may be null too, and `current_year` starts at 1.
+
+**Event dates are `year` / `month` / `day`.** The `calendar_events` columns were `harptos_year/month/day` until #934 renamed them; they always held the date in the campaign's own calendar.
 
 Currently registered setting IDs: `faerun`, `eberron`, `greyhawk`, `dragonlance`, `ravenloft`, `planescape`, `spelljammer`, `darksun`, `mystara`, `gregorian`.
 

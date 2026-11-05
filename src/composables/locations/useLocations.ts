@@ -819,9 +819,10 @@ export function usePopulateLocations() {
         .single();
       if (campaignError) throw campaignError;
 
-      const calendarId: string = campaignRow?.calendar_id ?? "faerun";
-      // A calendar that is not a built-in setting (custom, gregorian) falls back to Faerûn's presets.
-      const content = (await loadSettingContent(calendarId)) ?? (await loadSettingContent("faerun"));
+      // No calendar chosen, or one that is not a setting pack (custom, gregorian): nothing to seed.
+      const calendarId = campaignRow.calendar_id;
+      if (calendarId === null) return 0;
+      const content = await loadSettingContent(calendarId);
       const presets = content ? content.locations : [];
       if (!presets.length) return 0;
       return insertSettingLocations(campaignId, presets, calendarId);

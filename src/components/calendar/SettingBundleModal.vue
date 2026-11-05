@@ -63,7 +63,7 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-caption font-semibold text-foreground">{{ event.title }}</span>
-                <span class="text-caption-sm text-muted-foreground">{{ event.harptos_year }} DR</span>
+                <span class="text-caption-sm text-muted-foreground">{{ event.year }} {{ calendar.adapter.epochName }}</span>
               </div>
               <p class="text-caption text-muted-foreground mt-0.5 line-clamp-2">
                 {{ event.description }}
@@ -110,7 +110,7 @@ const open = defineModel<boolean>({ required: true });
 const calendar = useCalendarStore();
 const createEvent = useCreateCalendarEvent();
 
-const bundle = computed(() => SETTING_BUNDLES[calendar.activeCalendarId] ?? null);
+const bundle = computed(() => calendar.activeCalendarId === null ? null : (SETTING_BUNDLES[calendar.activeCalendarId] ?? null));
 
 const importing = ref(false);
 const imported = ref(0);
@@ -151,9 +151,9 @@ function buildInsert(event: BundleEvent) {
     description: event.description,
     event_type: event.event_type,
     color: event.color,
-    harptos_year: event.harptos_year,
-    harptos_month: event.harptos_month,
-    harptos_day: event.harptos_day,
+    year: event.year,
+    month: event.month,
+    day: event.day,
     festival_day: event.festival_day,
     is_multi_day: event.is_multi_day,
     end_year: event.end_year,

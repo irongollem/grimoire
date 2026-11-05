@@ -58,9 +58,9 @@ function makeEvent(overrides: Partial<CalendarEvent>): CalendarEvent {
     title: `Event ${nextId}`,
     description: null,
     event_type: "campaign",
-    harptos_year: 2001,
-    harptos_month: 1,
-    harptos_day: 1,
+    year: 2001,
+    month: 1,
+    day: 1,
     festival_day: null,
     is_multi_day: false,
     end_year: null,
@@ -81,13 +81,13 @@ function makeEvent(overrides: Partial<CalendarEvent>): CalendarEvent {
 
 describe("nextUpcomingEvents", () => {
   it("includes an event dated today, with a countdown of 0", () => {
-    const event = makeEvent({ harptos_year: 2001, harptos_month: 1, harptos_day: 15 });
+    const event = makeEvent({ year: 2001, month: 1, day: 15 });
     const result = nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 1, 15), { limit: 5 });
     expect(result).toEqual([{ event, daysUntil: 0 }]);
   });
 
   it("excludes an event in the past", () => {
-    const event = makeEvent({ harptos_year: 2001, harptos_month: 1, harptos_day: 10 });
+    const event = makeEvent({ year: 2001, month: 1, day: 10 });
     const result = nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 1, 15), { limit: 5 });
     expect(result).toEqual([]);
   });
@@ -98,8 +98,8 @@ describe("nextUpcomingEvents", () => {
     // "month 1" but actually 7 days away in 2002 — the naive bug this test
     // exists to catch would instead sort month 1 before month 3 regardless of
     // year, putting the 2002 event first.
-    const soonThisYear = makeEvent({ harptos_year: 2001, harptos_month: 3, harptos_day: 30 });
-    const laterNextYear = makeEvent({ harptos_year: 2002, harptos_month: 1, harptos_day: 2 });
+    const soonThisYear = makeEvent({ year: 2001, month: 3, day: 30 });
+    const laterNextYear = makeEvent({ year: 2002, month: 1, day: 2 });
     const result = nextUpcomingEvents(
       [laterNextYear, soonThisYear],
       TEST_ADAPTER,
@@ -113,8 +113,8 @@ describe("nextUpcomingEvents", () => {
   });
 
   it("places two intercalary days sharing an afterMonth in the adapter's own order", () => {
-    const midyear = makeEvent({ harptos_year: 2001, harptos_month: null, harptos_day: null, festival_day: "Midyear" });
-    const founding = makeEvent({ harptos_year: 2001, harptos_month: null, harptos_day: null, festival_day: "Founding Day" });
+    const midyear = makeEvent({ year: 2001, month: null, day: null, festival_day: "Midyear" });
+    const founding = makeEvent({ year: 2001, month: null, day: null, festival_day: "Founding Day" });
     const result = nextUpcomingEvents([midyear, founding], TEST_ADAPTER, today(2001, 1, 1), { limit: 5 });
     // Founding Day is declared first in TEST_ADAPTER.intercalaryDays, so it
     // falls on the day right after month 1, and Midyear the day after that.
@@ -125,19 +125,19 @@ describe("nextUpcomingEvents", () => {
   });
 
   it("includes a leap-only festival with the right countdown in a year that has it", () => {
-    const leapDay = makeEvent({ harptos_year: 2000, harptos_month: null, harptos_day: null, festival_day: "Leap Day" });
+    const leapDay = makeEvent({ year: 2000, month: null, day: null, festival_day: "Leap Day" });
     const result = nextUpcomingEvents([leapDay], TEST_ADAPTER, today(2000, 1, 1), { limit: 5 });
     expect(result).toEqual([{ event: leapDay, daysUntil: 62 }]);
   });
 
   it("silently drops a leap-only festival in a year that doesn't have it, rather than crashing", () => {
-    const leapDay = makeEvent({ harptos_year: 2001, harptos_month: null, harptos_day: null, festival_day: "Leap Day" });
+    const leapDay = makeEvent({ year: 2001, month: null, day: null, festival_day: "Leap Day" });
     const result = nextUpcomingEvents([leapDay], TEST_ADAPTER, today(2001, 1, 1), { limit: 5 });
     expect(result).toEqual([]);
   });
 
   it("returns nothing when the type filter matches no event", () => {
-    const event = makeEvent({ event_type: "campaign", harptos_year: 2001, harptos_month: 1, harptos_day: 20 });
+    const event = makeEvent({ event_type: "campaign", year: 2001, month: 1, day: 20 });
     const result = nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 1, 15), {
       limit: 5,
       eventTypes: ["quest"],
@@ -146,9 +146,9 @@ describe("nextUpcomingEvents", () => {
   });
 
   it("keeps only events matching a multi-type filter", () => {
-    const deadline = makeEvent({ event_type: "deadline", harptos_month: 1, harptos_day: 20 });
-    const festival = makeEvent({ event_type: "festival", harptos_month: 1, harptos_day: 21 });
-    const travel = makeEvent({ event_type: "travel", harptos_month: 1, harptos_day: 22 });
+    const deadline = makeEvent({ event_type: "deadline", month: 1, day: 20 });
+    const festival = makeEvent({ event_type: "festival", month: 1, day: 21 });
+    const travel = makeEvent({ event_type: "travel", month: 1, day: 22 });
     const eventTypes: CalendarEventType[] = ["deadline", "festival"];
     const result = nextUpcomingEvents([deadline, festival, travel], TEST_ADAPTER, today(2001, 1, 15), {
       limit: 5,
@@ -158,20 +158,20 @@ describe("nextUpcomingEvents", () => {
   });
 
   it("treats an empty type list as every type", () => {
-    const event = makeEvent({ event_type: "quest", harptos_month: 1, harptos_day: 20 });
+    const event = makeEvent({ event_type: "quest", month: 1, day: 20 });
     expect(nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 1, 15), { limit: 5, eventTypes: [] })).toHaveLength(1);
   });
 
   it("has nothing upcoming from a today the calendar cannot place, and for a limit of zero or less", () => {
-    const event = makeEvent({ harptos_year: 2001, harptos_month: 1, harptos_day: 20 });
+    const event = makeEvent({ year: 2001, month: 1, day: 20 });
     expect(nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 99, 1), { limit: 5 })).toEqual([]);
     expect(nextUpcomingEvents([event], TEST_ADAPTER, today(2001, 1, 15), { limit: 0 })).toEqual([]);
-    expect(nextUpcomingEvents([event, makeEvent({ harptos_month: 1, harptos_day: 21 })], TEST_ADAPTER, today(2001, 1, 15), { limit: -1 })).toEqual([]);
+    expect(nextUpcomingEvents([event, makeEvent({ month: 1, day: 21 })], TEST_ADAPTER, today(2001, 1, 15), { limit: -1 })).toEqual([]);
   });
 
   it("caps the result at limit, keeping the earliest events", () => {
     const events = [1, 2, 3, 4, 5].map((day) =>
-      makeEvent({ harptos_year: 2001, harptos_month: 1, harptos_day: 15 + day }),
+      makeEvent({ year: 2001, month: 1, day: 15 + day }),
     );
     const result = nextUpcomingEvents(events, TEST_ADAPTER, today(2001, 1, 15), { limit: 2 });
     expect(result).toHaveLength(2);
@@ -195,7 +195,7 @@ describe("adapter-supplied month lengths", () => {
   // every leap year. The length of a month belongs to the calendar, and this
   // module has to ask for it or a countdown drifts from the grid.
   it("counts a month that lengthens in a leap year", () => {
-    const event = makeEvent({ harptos_year: 2000, harptos_month: 3, harptos_day: 1 });
+    const event = makeEvent({ year: 2000, month: 3, day: 1 });
     const leap = nextUpcomingEvents(
       [event],
       GROWING_MONTH_ADAPTER,

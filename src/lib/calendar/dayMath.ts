@@ -101,6 +101,8 @@ export function ordinalWithinYear(
   if (festivalDay !== null) return buildYearIndex(adapter, year).festivalOrdinals.get(festivalDay);
   if (month === null || day === null) return undefined;
   if (month < 1 || month > adapter.months.length) return undefined;
+  // A day the month does not have (the 30th of a 28-day month) has no slot either.
+  if (day < 1 || day > daysInMonth(adapter, year, month)) return undefined;
   return buildYearIndex(adapter, year).monthStartOrdinal[month - 1] + day;
 }
 
@@ -218,4 +220,34 @@ export function addDays(
     }
   }
   return from;
+}
+
+/**
+ * A dated day (or a named festival) as a position on a ruler where each year is
+ * one unit wide: `year + ordinal / daysInThatYear`. The timeline places events
+ * on it, so a 28-day month or a 13-month year lands where the calendar says
+ * rather than where twelve 30-day months and 365 days would put it. A date the
+ * adapter has no slot for sits at the start of its year.
+ */
+export function yearFraction(
+  adapter: CalendarAdapter,
+  year: number,
+  month: number | null,
+  day: number | null,
+  festivalDay: string | null = null,
+): number {
+  const index = buildYearIndex(adapter, year);
+  if (festivalDay !== null) {
+    const ordinal = index.festivalOrdinals.get(festivalDay);
+    // A festival is a whole day: centre it, as the ruler always has.
+    if (ordinal !== undefined) return year + (ordinal - 0.5) / index.totalDays;
+  }
+  const ordinal = ordinalWithinYear(adapter, year, month, day, null);
+  return ordinal === undefined ? year : year + ordinal / index.totalDays;
+}
+
+/** Where a month begins on the same ruler, as a fraction of its year. */
+export function monthStartFraction(adapter: CalendarAdapter, year: number, month: number): number {
+  const index = buildYearIndex(adapter, year);
+  return year + (index.monthStartOrdinal[month - 1] ?? 0) / index.totalDays;
 }

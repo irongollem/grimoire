@@ -112,7 +112,7 @@ describe("MapMeasurePanel", () => {
     expect(modal.props("prefill")).toMatchObject({
       event_type: "travel",
       title: "Travel to Daggerford",
-      harptos_day: 5,
+      day: 5,
       is_multi_day: true,
       end_day: 8,
       linked_location_id: "loc-b",
