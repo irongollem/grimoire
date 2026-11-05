@@ -8,7 +8,7 @@ import {
 } from "./edit.ts";
 import { windowFor } from "./framing.ts";
 import { layersOf, uncovered, type Layer, type Scene } from "./scene.ts";
-import { DEPTH } from "./presets.ts";
+import { DEPTH, describeMotion, motionFor } from "./presets.ts";
 
 const room = { url: "room.webp", width: 2400, height: 1350 };
 const base = (): Scene => newScene({ id: "n1", title: "Cellar", room });
@@ -86,6 +86,19 @@ describe("resizeLayer", () => {
     expect(bigger.width).toBe(w * 2);
     expect(bigger.shadow?.rx).toBeCloseTo((layer(s, "chair").shadow?.rx ?? 0) * 2);
     expect(layer(resizeLayer(s, "chair", -50), "chair").width).toBeGreaterThan(0);
+  });
+
+  it("keeps a preset motion the same preset when the part is resized", () => {
+    // Bug: Wandering is sized from the part's width, so shrinking a butterfly left it wandering as far as the
+    // big one did and the inspector called its motion "Custom: tuned by hand".
+    const s = addCutout(base(), cut("moth"), { x: 1000, y: 500 });
+    const w = layer(s, "moth").width;
+    const wander = motionFor("Wandering", "gentle", "steady", { width: w }, s.loop);
+    const flame = motionFor("Flame", "lively", "quick", { width: w }, s.loop);
+    const moving = { ...s, stack: s.stack.map((i) => (i.kind === "layer" && i.id === "moth" ? { ...i, motions: [wander, flame] } : i)) };
+    const small = layer(resizeLayer(moving, "moth", w / 4), "moth");
+    expect(describeMotion(small.motions![0], small, s.loop)).toEqual({ name: "Wandering", strength: "gentle", pace: "steady" });
+    expect(small.motions![1]).toEqual(flame);
   });
 });
 

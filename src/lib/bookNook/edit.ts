@@ -20,7 +20,7 @@ import {
   type Strength,
   type TouchKind,
 } from "./presets.ts";
-import { layersOf, type Effect, type Item, type Layer, type Point, type Rect, type Scene } from "./scene.ts";
+import { layersOf, type Effect, type Item, type Layer, type Motion, type Point, type Rect, type Scene } from "./scene.ts";
 
 export { PICTURE_ID };
 
@@ -122,6 +122,25 @@ export function moveEffect(scene: Scene, index: number, to: Point): Scene {
   return { ...scene, stack: scene.stack.map((item, i) => (i === index ? moved : item)) };
 }
 
+/**
+ * A motion's pixel distances scaled with its part: a butterfly shrunk to a quarter wanders a quarter as far, and
+ * still reads as the preset it was (Cloth, Floating and Wandering are sized from the part's width). Angles,
+ * shares and periods have no size, so they stay.
+ */
+function scaleMotion(motion: Motion, ratio: number): Motion {
+  switch (motion.kind) {
+    case "bob":
+      return { ...motion, dy: motion.dy * ratio };
+    case "drift":
+      return { ...motion, dx: motion.dx * ratio, dy: motion.dy * ratio };
+    case "billow":
+      return { ...motion, amount: motion.amount * ratio };
+    case "sway":
+    case "flicker":
+      return motion;
+  }
+}
+
 /** Resizes by width (the height follows the image) about the anchor, so the pinned point stays put. */
 export function resizeLayer(scene: Scene, id: string, width: number): Scene {
   const next = Math.max(MIN_WIDTH, width);
@@ -130,7 +149,8 @@ export function resizeLayer(scene: Scene, id: string, width: number): Scene {
     const shadow = layer.shadow
       ? { ...layer.shadow, rx: layer.shadow.rx * ratio, ry: layer.shadow.ry * ratio, dx: layer.shadow.dx === undefined ? undefined : layer.shadow.dx * ratio, dy: layer.shadow.dy === undefined ? undefined : layer.shadow.dy * ratio }
       : undefined;
-    return { ...layer, width: next, ...(shadow ? { shadow } : {}) };
+    const motions = layer.motions?.map((m) => scaleMotion(m, ratio));
+    return { ...layer, width: next, ...(shadow ? { shadow } : {}), ...(motions ? { motions } : {}) };
   });
 }
 
