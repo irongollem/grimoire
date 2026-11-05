@@ -212,6 +212,8 @@ export interface Location {
   npc_owner_id: string | null;
   related_location_ids: string[];
   source_map_id: string | null;
+  /** The Book Nook this place shows (#1142); at most one place per nook. */
+  book_nook_id: string | null;
   /**
    * Shipped source that seeded this row via Populate Setting — a setting key, or
    * `'planar'` for the standard planes; null when the user made it. Content we
@@ -352,6 +354,7 @@ export const LOCATION_SUMMARY_COLUMNS = [
   "map_url",
   "grid_calibration",
   "map_layer_url",
+  "book_nook_id",
   "map_layer_stand_url",
   "map_layer_calibration",
   "map_motion",
@@ -428,6 +431,7 @@ export type LocationInsert = Omit<
   | "sort_order"
   | "map_published_rev"
   | "map_layer_url"
+  | "book_nook_id"
   | "map_layer_stand_url"
   | "map_layer_stand_live_url"
   | "map_layer_calibration"
@@ -453,6 +457,8 @@ export type LocationInsert = Omit<
   is_level?: boolean;
   /** Omit to take the column default of null: no drawing yet. */
   map_layer_url?: string | null;
+  /** Omit to take the column default of null: the place shows no nook. */
+  book_nook_id?: string | null;
   /** Omit to take the column default of null: no drawing yet. */
   map_layer_stand_url?: string | null;
   /** Omit to take the column default of null: no drawing yet. */

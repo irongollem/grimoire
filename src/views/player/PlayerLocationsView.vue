@@ -127,15 +127,11 @@
       @close="watchingLocation = null"
     />
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <div v-if="watchingLocation?.image_url" class="relative w-full aspect-video">
-        <FocalImage
-          :src="watchingLocation.image_url"
-          :alt="watchingLocation.name"
-          format="landscape"
-          class="w-full h-full"
-          ai-badge="right"
-        />
-      </div>
+      <PlaceNookPicture
+        v-if="watchingLocation && (watchingLocation.image_url || watchingLocation.book_nook_id)"
+        :place="watchingLocation"
+        @lightbox="lightboxSrc = $event"
+      />
       <div class="px-4 py-4 flex flex-col gap-4">
         <p v-if="watchingLocation?.player_summary" class="text-body text-foreground italic">
           {{ watchingLocation.player_summary }}
@@ -178,7 +174,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PlaceNookPicture from "@/components/bookNook/PlaceNookPicture.vue";
 import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import PlayerLocationFiltersBar from "@/components/player/PlayerLocationFiltersBar.vue";
@@ -192,6 +188,7 @@ interface WatchTarget {
   name: string;
   location_type: LocationType;
   image_url: string | null;
+  book_nook_id?: string | null;
   player_summary: string | null;
 }
 
@@ -413,6 +410,7 @@ function onPinWatch(childId: string) {
       name: fullLoc.name,
       location_type: fullLoc.location_type,
       image_url: fullLoc.image_url,
+      book_nook_id: fullLoc.book_nook_id,
       player_summary: fullLoc.player_summary,
     };
     return;

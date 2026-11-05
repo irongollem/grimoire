@@ -4,6 +4,8 @@ import type { SettingCalendarDef } from "@/settings/types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { CurrencyConfig } from "@/lib/currency/currency";
 
+import type { TableShows } from "@/types/bookNook.types";
+
 /** Per-campaign house-rule toggles. Shape is open-ended; known keys are typed. */
 export interface CampaignOptionalRules {
   /** PHB multiclass prereqs waived — any character can multiclass regardless of ability scores. */
@@ -68,6 +70,8 @@ export interface Campaign {
   spotify_client_id: string | null;
   ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
+  /** What the Table screen shows while no fight runs: the map, or the picture of a place's nook (#1142). */
+  table_shows: TableShows;
   /** Where each character stands on a site's grid while the party explores it (#1125 decision 9). Null until a site is explored. */
   explore_party: ExploreParty | null;
   /** The weather's climate wherever no Atlas place names one (#1086). */
@@ -119,6 +123,7 @@ export type CampaignInsert = Omit<
   | "current_month"
   | "current_day"
   | "current_location_id"
+  | "table_shows"
   | "explore_party"
   | "climate"
   | "weather_pins"
@@ -153,6 +158,7 @@ export type CampaignInsert = Omit<
   current_month?: number;
   current_day?: number;
   current_location_id?: string | null;
+  table_shows?: TableShows;
   explore_party?: ExploreParty | null;
   climate?: Climate;
   weather_pins?: WeatherPin[];

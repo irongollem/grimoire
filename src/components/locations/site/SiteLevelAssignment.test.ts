@@ -29,7 +29,7 @@ function place(over: Partial<Location> = {}): Location {
     image_url: null, map_url: null, map_pins: [], is_map_shared: false,
     player_visible_to: [], player_summary: null, is_description_shared: false,
     is_npcs_shared: false, is_inventory_shared: false, npc_owner_id: null,
-    related_location_ids: [], source_map_id: null, is_battle_map: false,
+    related_location_ids: [], source_map_id: null, book_nook_id: null, is_battle_map: false,
     grid_calibration: null, map_layer_url: null, map_layer_stand_url: null, map_layer_stand_live_url: null, map_layer_calibration: null, map_live: null, map_motion: null, map_scale: null,
     plan_size: null, era_start: null, era_end: null, audio_theme: null,
     sort_order: null, map_published_rev: null, is_level: false,

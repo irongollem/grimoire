@@ -2,20 +2,12 @@
   <div class="px-4 pb-4 flex flex-col gap-4">
     <!-- Sigil + player summary -->
     <div class="flex items-start gap-3 pt-1">
-      <button
-        v-if="loc.image_url"
-        type="button"
-        class="relative w-14 shrink-0 rounded-md overflow-hidden aspect-3/4 cursor-zoom-in"
-        @click="$emit('lightbox', loc.image_url!)"
-      >
-        <FocalImage
-          :src="loc.image_url"
-          :alt="loc.name"
-          format="portrait"
-          :focal-point="null"
-          ai-badge="right"
-        />
-      </button>
+      <PlaceNookPicture
+        v-if="loc.image_url || loc.book_nook_id"
+        :place="loc"
+        variant="thumb"
+        @lightbox="$emit('lightbox', $event)"
+      />
       <p v-if="loc.player_summary" class="text-body text-foreground italic flex-1">
         {{ loc.player_summary }}
       </p>
@@ -113,7 +105,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PlaceNookPicture from "@/components/bookNook/PlaceNookPicture.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import PlayerStoreWares from "@/components/locations/place/PlayerStoreWares.vue";
 import PlayerNoticeBoardPreview from "@/components/player/noticeBoard/PlayerNoticeBoardPreview.vue";

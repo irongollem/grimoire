@@ -14,6 +14,7 @@ import {
   IconNavGallery,
   IconNavSessions,
   IconNavHeroes,
+  IconNavBookNook,
   IconNavIlluminator,
   IconNavInterlude,
   IconNavItemVault,
@@ -340,6 +341,14 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/illuminate",
         icon: IconNavIlluminator,
         description: "Apply torn-edge effects to images",
+      },
+      {
+        label: "Book Nook",
+        desktopOnly: true,
+        to: "/book-nook",
+        icon: IconNavBookNook,
+        description: "Pictures that breathe, for your places",
+        requiresCampaign: true,
       },
       {
         label: "Cartographer",

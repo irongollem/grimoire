@@ -79,7 +79,14 @@ export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
 
   const terrainZones = computed(() => terrainZonesOf(regions.value ?? [], surface.value));
 
-  return { location, parent, siteId, regions, surface, mapLocation, focusRoom, terrainZones };
+  /** Every read `surface` depends on has answered, so a missing surface means "no map" rather than "not yet". */
+  const settled = computed(() => {
+    if (!location.value) return false;
+    if (parentId.value && parent.value === undefined) return false;
+    return !siteId.value || regions.value !== undefined;
+  });
+
+  return { location, parent, siteId, regions, surface, mapLocation, focusRoom, terrainZones, settled };
 }
 
 /**

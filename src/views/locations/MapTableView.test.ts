@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
-import { defineComponent, nextTick } from "vue";
+import { defineComponent, nextTick, ref } from "vue";
 import { routes } from "@/router/routes";
 
 const h = await vi.hoisted(async () => {
@@ -11,6 +11,9 @@ const h = await vi.hoisted(async () => {
     running: vueRef<{ encounter_id: string } | null>(null),
     fightMap: vueRef<string | null>(null),
     thisMap: vueRef<string | null>("s1"),
+    nook: vueRef<string | null>(null),
+    shows: vueRef<string | null>("map"),
+    settled: vueRef(true),
   };
 });
 
@@ -20,9 +23,15 @@ vi.mock("@/composables/encounters/useEncounterRoom", async () => {
   const { computed } = await import("vue");
   return {
     useEncounterRoom: () => ({ surface: computed(() => (h.fightMap.value ? { mapLocation: { id: h.fightMap.value } } : null)) }),
-    useLocationBattleSurface: () => ({ surface: computed(() => (h.thisMap.value ? { mapLocation: { id: h.thisMap.value } } : null)) }),
+    useLocationBattleSurface: () => ({
+      surface: computed(() => (h.thisMap.value ? { mapLocation: { id: h.thisMap.value } } : null)),
+      settled: h.settled,
+    }),
   };
 });
+
+vi.mock("@/composables/locations/useLocations", () => ({ useLocation: () => ({ data: ref({ id: "s1", book_nook_id: h.nook.value }) }) }));
+vi.mock("@/composables/bookNook/useTableShows", () => ({ useTableShows: () => ({ tableShows: h.shows }) }));
 
 import { useAppUiStore } from "@/stores/ui/app";
 import MapTableView from "./MapTableView.vue";
@@ -30,8 +39,10 @@ import MapTableView from "./MapTableView.vue";
 const Fight = defineComponent({ name: "MapTableFight", props: ["encounterId"], template: "<div data-testid='fight' />" });
 const Explore = defineComponent({ name: "MapTableExplore", props: ["placeId"], template: "<div data-testid='explore' />" });
 
+const Picture = defineComponent({ name: "MapTablePicture", props: ["placeId"], template: "<div data-testid='picture' />" });
+
 function mountView() {
-  return mount(MapTableView, { global: { stubs: { MapTableFight: Fight, MapTableExplore: Explore } } });
+  return mount(MapTableView, { global: { stubs: { MapTableFight: Fight, MapTableExplore: Explore, MapTablePicture: Picture } } });
 }
 
 describe("MapTableView", () => {
@@ -40,6 +51,71 @@ describe("MapTableView", () => {
     h.running.value = null;
     h.fightMap.value = null;
     h.thisMap.value = "s1";
+    h.nook.value = null;
+    h.shows.value = "map";
+    h.settled.value = true;
+  });
+
+  describe("the living picture (#1142)", () => {
+    const shown = (w: ReturnType<typeof mountView>) => ({
+      picture: w.find("[data-testid='picture']").exists(),
+      map: w.find("[data-testid='explore']").exists(),
+      fight: w.find("[data-testid='fight']").exists(),
+    });
+
+    // Bug: the dark "no grid yet" message when the place has a painting to show.
+    it("shows the picture at a place with no map to play on", () => {
+      h.thisMap.value = null;
+      h.nook.value = "n1";
+      expect(shown(mountView())).toEqual({ picture: true, map: false, fight: false });
+    });
+
+    // Bug: the switch has no effect when the place has a map.
+    it("shows the picture over a map when the DM chose Picture", () => {
+      h.nook.value = "n1";
+      h.shows.value = "picture";
+      expect(shown(mountView())).toEqual({ picture: true, map: false, fight: false });
+    });
+
+    // Bug: while a site's map is still loading its surface reads as "no map", so the TV flashed the picture to the
+    // players and then faded to the map.
+    it("shows neither until the map's reads have answered", async () => {
+      h.thisMap.value = null;
+      h.nook.value = "n1";
+      h.settled.value = false;
+      const w = mountView();
+      expect(shown(w)).toEqual({ picture: false, map: false, fight: false });
+      h.thisMap.value = "s1";
+      h.settled.value = true;
+      await nextTick();
+      expect(shown(w)).toEqual({ picture: false, map: true, fight: false });
+    });
+
+    it("shows the map when the DM chose Map", () => {
+      h.nook.value = "n1";
+      h.shows.value = "map";
+      expect(shown(mountView())).toEqual({ picture: false, map: true, fight: false });
+    });
+
+    // Bug: a fight hidden behind the painting because Picture was left on.
+    it("always shows the fight, whatever is on the table", () => {
+      h.nook.value = "n1";
+      h.shows.value = "picture";
+      h.running.value = { encounter_id: "e1" };
+      h.fightMap.value = "s1";
+      expect(shown(mountView())).toEqual({ picture: false, map: false, fight: true });
+    });
+
+    // Bug: Picture chosen at a place that has no nook blanks the screen.
+    it("keeps the map for a place with no nook even when Picture is chosen", () => {
+      h.shows.value = "picture";
+      expect(shown(mountView())).toEqual({ picture: false, map: true, fight: false });
+    });
+
+    it("leaves the no-grid message to the map layer when there is neither map nor nook", () => {
+      h.thisMap.value = null;
+      expect(shown(mountView())).toEqual({ picture: false, map: true, fight: false });
+    });
   });
 
   it("explores this map while nothing is running", () => {

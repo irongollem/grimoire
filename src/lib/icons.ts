@@ -318,6 +318,8 @@ export { FileText as IconDocument }
 export { ScrollText as IconScrollText }
 export { Image as IconImage }
 export { Images as IconImages }
+// Book Nook's nav mark; a hand-drawn glyph can replace it through the glyph pipeline.
+export { BookOpen as IconNavBookNook }
 export { BookUser as IconBookUser }
 export { BookMarked as IconBookMarked }
 export { Layers as IconLayers }

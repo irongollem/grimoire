@@ -143,6 +143,11 @@ function openaiUsage(data: {
   };
 }
 
+/** The edits endpoint reads the declared type, so a PNG crop must not be labelled webp. */
+function editImageType(b: Blob): "image/png" | "image/jpeg" | "image/webp" {
+  return b.type === "image/png" || b.type === "image/jpeg" ? b.type : "image/webp";
+}
+
 async function openaiGenerate(
   apiKey: string,
   model: string,
@@ -151,6 +156,7 @@ async function openaiGenerate(
   quality?: string | null,
   sources?: Blob[],
   background?: "transparent" | "opaque" | "auto",
+  mask?: Blob,
 ): Promise<ImageGenResult> {
   const q = quality && OPENAI_QUALITIES.has(quality) ? quality : null;
   if (sources && sources.length > 0) {
@@ -162,7 +168,12 @@ async function openaiGenerate(
     if (background) form.append("background", background);
     form.append("output_format", "webp");
     form.append("n", "1");
-    sources.forEach((b, i) => form.append("image[]", new File([b], `ref_${i}.webp`, { type: "image/webp" })));
+    sources.forEach((b, i) => {
+      const type = editImageType(b);
+      form.append("image[]", new File([b], `ref_${i}.${type.slice("image/".length)}`, { type }));
+    });
+    // OpenAI's edit mask: a PNG the size of the first image whose fully transparent pixels mark where to repaint.
+    if (mask) form.append("mask", new File([mask], "mask.png", { type: "image/png" }));
     const res = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form,
     });
@@ -278,6 +289,11 @@ export async function generateImage(opts: {
   /** OpenAI output background. Ignored by providers that do not expose it. */
   background?: "transparent" | "opaque" | "auto";
   /**
+   * Edit mask (OpenAI only): a PNG whose fully transparent pixels mark where to repaint in the first source
+   * image. Gemini has no such parameter, so asking it for one throws rather than repainting the whole picture.
+   */
+  mask?: Blob;
+  /**
    * Screening context (see moderation.ts). Its `apiKey` is an OpenAI key even
    * when the campaign renders on Gemini, because screening is always OpenAI's
    * free classifier — and Gemini needs it most: its adjustable safety filters
@@ -288,15 +304,16 @@ export async function generateImage(opts: {
    */
   screening?: Omit<ScreeningContext, "imageProvider">;
 }): Promise<ImageGenResult> {
-  const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages, background, screening } = opts;
+  const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages, background, mask, screening } = opts;
 
   const dispatch = () => {
     switch (provider) {
       case "gemini": {
+        if (mask) throw new Error("Gemini cannot take an edit mask");
         const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
         return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
       }
-      default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background); // openai
+      default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background, mask); // openai
     }
   };
 

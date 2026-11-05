@@ -127,7 +127,7 @@ export const STORAGE_WRITE_POLICY: readonly BucketWritePolicy[] = [
   // RLS has srd/ policies only; the owner prefix is the rule every image bucket has.
   image("dressing-images", ["srd"]),
   // 10 MB: map stills go up to 4096 px (#1125 decision 6).
-  image("location-images", [], TEN_MB),
+  image("location-images", ["srd"], TEN_MB),
   image("faction-images"),
   image("pantheon-emblems"),
   image("loot-images"),

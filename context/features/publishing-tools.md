@@ -2,7 +2,7 @@
 
 ## Overview
 
-These are DM-only tools for creating physical and printed campaign materials. They appear in the desktop navigation under a "Publishing" or "Tools" group and are not available in the player portal. The tools share a common design: they produce output that can be printed on A4 paper, exported as PNG/PDF, or uploaded to a VTT. None require external software.
+These are DM-only tools for creating physical and printed campaign materials. They appear in the desktop navigation under a "Publishing" or "Tools" group and are not available in the player portal. The tools share a common design: they produce output that can be printed on A4 paper, exported as PNG/PDF, or uploaded to a VTT. None require external software. Book Nook is the exception to the print theme: it makes a living picture for a place that plays on screens (see its section).
 
 ---
 
@@ -425,6 +425,69 @@ A client-side image processing tool for applying photographic and painterly trea
 
 ---
 
+## Book Nook (A Place's Picture That Breathes)
+
+Route: `/book-nook` (the list) and `/book-nook/:id` (the studio). Desktop-only in the sidebar, under Publish beside the Cartographer. Epic [#1142](https://github.com/irongollem/grimoire/issues/1142); the design is the canvas [Book Nook](https://claude.ai/artifact/Nq31S9bKY3hkymDWgwTdLN) (frames 01 to 10, plus 02a, 05b, 06b, 09b, 09c), approved 5 Nov 2026. Read the frame before changing a surface.
+
+A **nook** is one painting cut into layers and moved a little by code: the **room** (the picture, painted empty), **cut-outs** (each thing that moves, at a depth) and **touches** (code effects: glow, steam, smoke, dust, embers, rain, snow, fireflies, falling leaves, shadows). Every motion repeats exactly in one loop. It follows the Cartographer's pattern: the Cartographer makes a map that a place binds, Book Nook makes a nook that a place shows. A nook is its own campaign record, and a place shows at most one nook while a nook is shown at one place or none.
+
+### Data
+
+Migration `20261105124218_book_nook.sql` holds all of it.
+
+- **`book_nooks`**: `campaign_id`, `title`, `scene` jsonb (the engine's `Scene`; the client is the only writer, and a scene it cannot read renders as its still), `still_url` (the composed first frame, what lists, cards and reduce motion show) and `rev`. `rev` is bumped on every save so a stale tab's save can be refused and a player's cached bitmaps know to reload. Any DM of the campaign may make and edit one (`private.is_campaign_dm`, co-DMs included, as with Cartographer maps); a player has no read on the table. Insert, update and delete ring the campaign doorbell, and the table is copied with the demo campaign (`private.demo_campaign_tables`).
+- **`locations.book_nook_id`**: the nook a place shows, `on delete set null`, with a partial unique index so the one-to-one rule is the database's, not the UI's. It joins `private.enforce_same_campaign_refs` (a nook from another campaign cannot be shown), and `get_player_visible_locations` appends it as the last column of the `setof locations` row.
+- **`get_player_book_nook(p_location_id)`**: how a player reads a nook, a definer because players have no read on `book_nooks`. It joins through `get_player_visible_locations`, so a place the player may not see answers no rows and the two can never disagree. Its refusal test is `supabase/tests/book_nook.test.sql`.
+- **`library_nook_parts`**: the stock shelf. `kind` is `cutout` or `frame`, `group_key` is fire, cloth, creatures, air or frames, and `preset` is what the shelf sets when a part is placed (a hold and a named motion, or a frame's shape). Signed-in read, admin write. The art lives on R2 under `location-images/srd/nooks/`, with its own storage policies in the same migration. A nook that uses a stock part copies the image URL into its own scene, so nothing in `book_nooks` points at this table by id. Its source is the `grimoire-book-nook` content source, titled "Grimoire Book Nook".
+- **`campaigns.table_shows`** (`map` or `picture`, default `map`): the Table screen's **On the table** switch. It sits on the campaign row beside the party's position instead of travelling as a moment, so a TV that joins late shows what the room is showing.
+
+Files are WebP under `location-images/{userId}/nooks/{nook id}/`. Saving a nook that a place shows writes its still to that place's `image_url`.
+
+### The engine (`src/lib/bookNook/`)
+
+`scene.ts` (the types and validation), `render.ts` (the canvas drawing), `presets.ts` (named motions), `edit.ts` (every studio operation as a pure function of the scene), `framing.ts` (the window checks), `shadows.ts`, `particles.ts`, `tilt.ts`, `moods.ts`, plus the stage and depth geometry. It was moved here from `scripts/promo/scenes`, and **the promo filmer imports it** (`scripts/promo/scenes/reel.ts`: `ReelScene` extends `Scene`); how the promo pipeline films, sounds and captions is unchanged.
+
+### The studio (`/book-nook/:id`)
+
+Full screen, layers on the left (`StudioLayers`), the stage in the middle, the selected thing on the right (`StudioInspector`). The sidebar and bars step aside while it is open.
+
+- **Front and Side.** Front is the picture itself, where a thing is placed and pinned. Side is a toy theatre seen from the edge, where depth is set by dragging cards along a line marked Far, Picture and Near (0.2 to 1.6). Depth is never typed, and a thing that stands on another shares its depth.
+- **Layers and the inspector.** A cut-out's inspector offers a hold (Stands, Hangs, Floats), a named motion (Flame, Cloth, Hanging, Floating, Wandering, or None) with one **Strength** and one **Pace**, throws-light and casts-a-shadow toggles, and "Lies on a side wall". The engine's numbers sit behind **Exact**; a hand-tuned motion reads "Custom". Touches have their own panel (amount: a little, some, lots; a glow follows a flame).
+- **Shadows belong to the light, not the viewer.** A cast shadow lies on the surface it falls on, at that surface's depth. Near a flame it falls away from the light and wavers with the flicker. It never lengthens because the viewer moved (frame 05b).
+- **Picture-wide settings.** The **loop** (with Play and Pause), **breathing** (Still, Gentle, Deep), a **mood** and the **frame**.
+- **Show on.** One picture, a window per screen: TV, Table and Atlas are 16:9, the phone is tall and draggable. The studio checks every window at the camera's furthest reach and refuses a dark edge, and it flags a cut-out whose own edge floats inside a window (`StudioFramingNotice`; "Breathe gentler" is the offered fix).
+- **Autosave** (`useNookDraft` over `useAutosave`; no Save button). The status line is the feedback and **Done** returns to where the studio was opened from. If another tab saved the nook meanwhile (`rev` moved), the draft goes **stale**: autosave pauses ("Saved elsewhere") and **Reload** takes the other tab's copy, so two tabs never overwrite each other.
+- **Creating a nook opens it** (*New nook*, and *Bring it to life* on a place, through `useStartNook`): a Sanctioned Exception in CLAUDE.md. Deleting still returns to the list.
+
+### Getting art in: four ways, free first
+
+The add-a-cut-out dialog (`AddCutoutDialog`, opened by "Add a cut-out") offers, in this order:
+
+| Way | What it does | Price |
+| --- | --- | --- |
+| **Stock shelf** | Parts painted for Grimoire, with their motion preset. | Free |
+| **Upload** | A PNG or WebP with a transparent background. An alpha check runs first; a flat picture is offered **Remove background** rather than refused. | Free (Remove background is one picture) |
+| **Lift** | Draw a rectangle round a thing in the room: it is cut out and the gap behind it is painted in so the room is whole when the thing moves. | Two pictures |
+| **Paint** | A new part painted to match the room (the room picture travels with the request so the part matches its light), on a transparent background. | One picture |
+
+`supabase/functions/generate-nook-part` does the model calls (`paint`, `lift`, `fill`): OpenAI only (transparent backgrounds and edit masks), **platform keys only** (a campaign's own key is never read), and the room picture is read from the nook row server-side and checked with `isSafeStorageUrl`, never fetched from a client URL. Every call is priced as one `entity_cutout` picture at 1024x1024, so **a call costs what a picture from that model costs today**: Paint 1, Remove background 1, Lift 2 (a lift then a fill, run by `liftFlow`). Wording lives in `addCutout/costLabels.ts`. Making a nook from a place's picture, or painting the room (*New nook*), uses the place picture generator and is priced as `entity_image`. The edge function returns bytes and uploads nothing; the client uploads.
+
+### Where a nook plays
+
+- **Atlas Overview.** `AtlasPlacePicture` plays the nook quietly under a paper label, with **Edit picture** (into the studio), **Table screen**, and for a place with only a picture **Bring it to life**.
+- **Players.** `PlaceNookPicture` in the place view, read through `get_player_book_nook`; tapping it opens full screen (`BookNookFullscreen`). On a phone the picture is a window you tilt. It has no button of its own: the tap that opens full screen asks for motion permission (iPhone), Android asks nothing, and a refusal leaves the picture breathing. Tilt is smoothed, eases back to centre and is bounded by the framing check; the pointer does the same on desktop and the website, and the TV breathes. An optional **frame** (a tall and a wide shape) covers the screen's edge in full screen only and **never moves**: the room shifts behind it and the shadow inside its opening moves with the room.
+- **The Table screen** (`/locations/:id/table`, `MapTableView`, `MapTablePicture`). It shows the picture when the place has a nook and either there is no map to play on, or the DM sets **On the table** to Picture (a switch on the explore bar, kept in `campaigns.table_shows`). Two rules: **a fight always shows the map**, whatever the switch says, and a nook is never drawn under a map; and **nothing is chosen until the map's reads have answered** (`useLocationBattleSurface` settled), so a TV never flashes the picture while a map loads. Picture and map crossfade. Sound stays the place's own ambience.
+
+### Performance rules
+
+One canvas per nook on screen (`BookNookPlayer`). At most **30 fps**, device pixel ratio at most **1.5**, plays only while visible (`useVisibleLoop`: on screen and the tab visible), **reduce motion shows the still**, and a frame has a **4 ms** budget. The still also shows until the images are in. Studio decoding goes through `useNookImages`.
+
+### Stock shelf
+
+The first shelf is 32 cut-outs plus frames, defined in `scripts/book-nook-stock.data.ts` and painted by the maintainer's painter queue (briefs queued 5 Nov 2026, 39 images, output in `~/Desktop/art-955/scenes/`). `npm run nook:stock` turns each painted PNG into a WebP (alpha kept, longest side 1536 px), puts it on R2 at `location-images/srd/nooks/<id>.webp` and upserts its `library_nook_parts` row; parts with no file are listed as still to paint and the shelf ships with what is painted. `-- --check` reports only. The production run (`-- --production --yes-production`) is the maintainer's.
+
+---
+
 ## Reliquary (Rules Reference)
 
 ### DM View
@@ -527,6 +590,7 @@ Players cannot create or edit rules.
 - **Scriptorium produces genuinely styled output** — not raw HTML. The preview matches the chosen PHB theme (teal/navy 2024 or classic 2014) with two-column layout, ornamental headers, and proper page dimensions.
 - **Scriptorium images have professional layout controls** — float left/right with text wrap, absolute pin positioning, gutter bleed, and multiple size presets; comparable to desktop DTP software.
 - **Token focal-point awareness** — portrait images in tokens use the same focal-point metadata set on the entity, so the face stays centered in the circle even for off-center portraits.
+- **Book Nook turns one painting into a living picture**: cut into a room, cut-outs and touches, moved a little by shared engine code that the promo filmer also uses, and shown at a place, on players' phones and on the Table screen.
 - **Illuminator runs entirely client-side at full resolution** — no upload, no service. Edge treatment, depth of field, colour grading, and texture overlay are all composited in Canvas 2D.
 - **Custom Rules with Trackers integrate into the live session** — a rule like "Corruption" can define named levels, mechanical effects, and DM control buttons that appear directly in the party tracker during play.
 
@@ -540,4 +604,5 @@ Players cannot create or edit rules.
 | Card Forge   | localStorage only                        | `cardforge_library` — array of `{ id, name, created, items: [{kind, id}] }`                   |
 | The Mint     | No persistence                           | All token/coin state is session-local                                                         |
 | Illuminator  | No persistence                           | All image processing is session-local                                                         |
+| Book Nook    | Supabase `book_nooks`, `library_nook_parts` | scene (jsonb), still_url, rev; `locations.book_nook_id`, `campaigns.table_shows`; art on R2 |
 | Custom Rules | Supabase `custom_rules` (via `useRules`) | title, category, tags[], content (Tiptap JSON), is_player_visible, tracker (JSONB TrackerDef) |

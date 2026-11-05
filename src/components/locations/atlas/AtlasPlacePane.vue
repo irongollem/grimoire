@@ -242,6 +242,9 @@
       </template>
 
       <template v-else>
+        <!-- The place's picture, living or still, before anything else (#1142, frame 02). -->
+        <AtlasPlacePicture :location="location" />
+
         <!-- A glance at the map, and the way to its tab (#1125, frame 02). -->
         <section
           v-if="hasMap && mapThumb"
@@ -329,6 +332,7 @@ import TabBar from "@/components/common/controls/TabBar.vue";
 import AtlasScaleRail from "@/components/locations/atlas/AtlasScaleRail.vue";
 import AtlasSiteMapMode from "@/components/locations/atlas/AtlasSiteMapMode.vue";
 import PlaceMapEmpty from "@/components/locations/atlas/PlaceMapEmpty.vue";
+import AtlasPlacePicture from "@/components/locations/atlas/AtlasPlacePicture.vue";
 import AtlasTreeRow from "@/components/locations/atlas/AtlasTreeRow.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import LocationDetailSections from "@/components/locations/place/LocationDetailSections.vue";

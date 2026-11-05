@@ -5,11 +5,12 @@
  * transparent background (~/Desktop/art-955/scenes). A scene file places the
  * parts, says how each one moves, and adds what code does better than paint:
  * contact shadows, light spill, steam, motes in the light and one colour grade.
- * `render.ts` draws it on a canvas; `film.ts` films it for a Reel. See
- * docs/promo-videos.md, "Picture-book scenes".
+ * `render.ts` draws it on a canvas, in the app's Book Nook and in the promo
+ * pipeline's film.ts (which adds a Reel's lines and sound: see ReelScene in
+ * scripts/promo/scenes/reel.ts). See docs/promo-videos.md, "Picture-book scenes".
  *
  * Everything here is pure and has no DOM, so the maths is tested and the same
- * file can later drive a scene on the website. Every motion repeats exactly
+ * file drives a scene in the app. Every motion repeats exactly
  * once its scene's `loop` has passed, so a scene plays forever without a seam:
  * a motion's period is rounded to a whole number of cycles per loop.
  */
@@ -19,16 +20,45 @@ export interface Point {
   y: number;
 }
 
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** How far the world shifts when the viewer looks to the edge (tilt of 1), as a fraction of the window. */
+export const TILT_REACH = { x: 0.035, y: 0.02 };
+
+/**
+ * What a screen looks through: a window onto the room, cover-fitted to the whole canvas. `tilt` (each -1..1)
+ * is the viewer looking round the room; `breathe` (0..1) scales the camera's own drift and push.
+ */
+export interface View {
+  window: Rect;
+  tilt?: Point;
+  breathe?: number;
+}
+
 export interface Scene {
   id: string;
   /** What the series calls it, and the intro card's title. */
   title: string;
-  /** The output frame in pixels. */
+  /**
+   * The room's extent in pixels: every coordinate in the scene is in room space. Without a view the canvas is
+   * the room (a Reel's frame).
+   */
   size: { width: number; height: number };
+  /** The parts of the room each kind of screen shows: "wide" is a TV, the Table or the Atlas, "tall" a phone. */
+  windows?: Partial<Record<"wide" | "tall", Rect>>;
+  /**
+   * An ornamental frame with a transparent opening, drawn over everything in screen space; it never moves. A frame
+   * covers a screen's edge, so it comes in two shapes, tall for a phone and wide for a TV or the website; a screen
+   * whose shape is missing shows no frame rather than a stretched one. `style` names the stock frame it came from.
+   */
+  frame?: { style?: string; tall?: string; wide?: string };
   /** Seconds after which every motion repeats exactly. */
   loop: number;
-  /** Seconds filmed for a Reel. */
-  duration: number;
   /** Slow drift of the viewpoint, which is what makes the depths part (parallax). */
   camera: {
     /** Largest sideways drift, as a fraction of the frame's width (0.012 is 1.2 per cent). */
@@ -46,21 +76,6 @@ export interface Scene {
   /** Everything drawn, back to front: the plate, the parts, and the effects between them. */
   stack: Item[];
   grade: Grade;
-  /** The line shown over the picture in a Reel; none when absent. */
-  caption?: string;
-  /** Seconds into the shot the line shows, when it should arrive with the view rather than at the start. */
-  captionAt?: [number, number];
-  /** A second line, below the picture's middle, given its own time so the first can be read alone. */
-  tagline?: { text: string; at: [number, number] };
-  sound?: {
-    /**
-     * Everything heard: room sounds and the scene's own tune, mixed together; a scene has no brand theme. `src`
-     * is an https URL (the soundboard library) or a file in the scene's art folder (a Lyria tune). A sound
-     * loops under the whole shot, unless it names a `clip` (seconds of the file): then that cut plays once,
-     * from `at` seconds into the shot, with short fades at its ends.
-     */
-    ambience: { src: string; gain: number; clip?: [number, number]; at?: number }[];
-  };
   /** Seed for every pseudo-random choice (flicker, steam, motes), so a take renders the same twice. */
   seed: number;
 }
@@ -70,6 +85,8 @@ export type Item = Layer | Effect;
 export interface Layer {
   kind: "layer";
   id: string;
+  /** What the studio calls it, when the maker renamed it; the promo scenes leave it out. */
+  name?: string;
   /** An image file in the scene's art folder. */
   src: string;
   /**
@@ -95,6 +112,11 @@ export interface Layer {
    * as pasted on.
    */
   plane?: { horizon: number; far: number; across?: number };
+  /**
+   * A shadow that belongs to a light: the part's silhouette, thrown on the surface behind it at `cast.depth`
+   * (usually a little below the part's own), pinned at the anchor and leaning away from the light named.
+   */
+  cast?: { light: string; depth: number; opacity: number; blur?: number };
   /** A soft dark ellipse under the anchor, so a part stands on the surface rather than floating over it. */
   shadow?: { rx: number; ry: number; opacity: number; dx?: number; dy?: number };
 }
@@ -116,6 +138,8 @@ export type Effect =
   /** Wisps rising from a point (a kettle's spout), drawn as soft blots that grow and fade. */
   | {
       kind: "steam";
+      /** What the studio calls it, when the maker renamed it. */
+      name?: string;
       at: Point;
       depth: number;
       /** Wisps alive across one loop. */
@@ -135,7 +159,9 @@ export type Effect =
   /** Dust drifting in a shaft of light, inside a rectangle. */
   | {
       kind: "motes";
-      area: { x: number; y: number; w: number; h: number };
+      /** What the studio calls it, when the maker renamed it. */
+      name?: string;
+      area: Rect;
       depth: number;
       count: number;
       size: [number, number];
@@ -145,12 +171,29 @@ export type Effect =
   /** Light thrown on the room around a source, following a flame's flicker when `follows` names its layer. */
   | {
       kind: "light";
+      /** What the studio calls it, when the maker renamed it. */
+      name?: string;
       at: Point;
       depth: number;
       radius: number;
       color: [number, number, number];
       intensity: number;
       follows?: string;
+      /** What a layer's `cast` names. */
+      id?: string;
+    }
+  /** Weather and small living things in a rectangle: embers rise, rain and snow fall, leaves tumble, fireflies wander. */
+  | {
+      kind: "particles";
+      /** What the studio calls it, when the maker renamed it. */
+      name?: string;
+      style: "embers" | "rain" | "snow" | "fireflies" | "leaves";
+      area: Rect;
+      depth: number;
+      count: number;
+      size: [number, number];
+      opacity: number;
+      color: [number, number, number];
     };
 
 /** One colour grade over the whole frame, so the parts and the plate read as one painting. */
@@ -162,15 +205,6 @@ export interface Grade {
 }
 
 /** The painted layers of a scene, back to front. */
-/**
- * Whether a sound's clip lasts to the end of the shot, and so carries on past it into the loop's blend instead
- * of fading out. A microsecond of slack: a clip written as start + loop (Cup Town's song, 151 + 680/30) comes out
- * a hair short in floating point, and read strictly it faded out over its last 0.6 s, a stop at every loop.
- */
-export function runsToEnd(at: number, clip: [number, number], length: number): boolean {
-  return at + (clip[1] - clip[0]) >= length - 1e-6;
-}
-
 export function layersOf(scene: Scene): Layer[] {
   return scene.stack.filter((item): item is Layer => item.kind === "layer");
 }
@@ -233,14 +267,32 @@ export function loopNoise(loop: number, speed: number, seed: number): (t: number
 /**
  * The camera at time `t`: a slow figure-of-eight drift and a gentle push in and out, once per loop, on top of
  * the view's travel along its `path`. Looking further right moves the world left, so the path is subtracted.
+ * Through a `view` the drift is a fraction of the window's width, `breathe` scales the drift and push, and a
+ * tilt shifts the world the other way; parallax then scales that by depth like the rest.
  */
-export function cameraAt(scene: Scene, t: number): Camera {
+export function cameraAt(scene: Scene, t: number, view?: View): Camera {
   const a = (TAU * t) / scene.loop;
-  const view = scene.camera.path ? pathAt(scene.camera.path, scene.loop, t) : { x: 0, y: 0 };
+  const path = scene.camera.path ? pathAt(scene.camera.path, scene.loop, t) : { x: 0, y: 0 };
+  const width = view ? view.window.w : scene.size.width;
+  const breathe = view?.breathe ?? 1;
+  const tilt = view?.tilt;
   return {
-    dx: scene.camera.drift * scene.size.width * Math.sin(a) - view.x,
-    dy: scene.camera.drift * scene.size.width * 0.5 * Math.sin(2 * a) - view.y,
-    scale: 1 + scene.camera.push * (0.5 - 0.5 * Math.cos(a)),
+    dx: breathe * scene.camera.drift * width * Math.sin(a) - path.x - (tilt && view ? tilt.x * TILT_REACH.x * view.window.w : 0),
+    dy: breathe * scene.camera.drift * width * 0.5 * Math.sin(2 * a) - path.y - (tilt && view ? tilt.y * TILT_REACH.y * view.window.h : 0),
+    scale: 1 + breathe * scene.camera.push * (0.5 - 0.5 * Math.cos(a)),
+  };
+}
+
+/**
+ * How a room is laid on a canvas: the window (the whole room without a view) cover-fitted and centred, as the
+ * scale from room to canvas pixels, the room point that lands on the canvas centre, and the canvas centre.
+ */
+export function screenFit(scene: Scene, canvas: { width: number; height: number }, view?: View): { scale: number; centre: Point; origin: Point } {
+  const window = view ? view.window : { x: 0, y: 0, w: scene.size.width, h: scene.size.height };
+  return {
+    scale: view ? Math.max(canvas.width / window.w, canvas.height / window.h) : 1,
+    centre: { x: window.x + window.w / 2, y: window.y + window.h / 2 },
+    origin: { x: canvas.width / 2, y: canvas.height / 2 },
   };
 }
 
@@ -401,27 +453,41 @@ export function parallax(camera: Camera, depth: number): { dx: number; dy: numbe
 }
 
 /**
- * The frame edges a layer leaves uncovered at the camera's furthest reach, in pixels (0 = covered). The plate
- * must cover the frame at every moment, or the drift shows the black behind it.
+ * The window edges a layer leaves uncovered at the camera's furthest reach, in pixels (0 = covered). The plate
+ * must cover the window (the whole frame by default) at every moment, or the drift shows the black behind it.
+ * With `tilt` it also takes the viewer looking to each corner of the room.
  */
-export function uncovered(scene: Scene, layer: Layer, image: { width: number; height: number }, samples = 240): number {
+export function uncovered(
+  scene: Scene,
+  layer: Layer,
+  image: { width: number; height: number },
+  samples = 240,
+  opts: { window?: Rect; tilt?: boolean } = {},
+): number {
   const height = (layer.width * image.height) / image.width;
+  const win = opts.window ?? { x: 0, y: 0, w: scene.size.width, h: scene.size.height };
+  const tilts: Point[] = opts.tilt
+    ? [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }]
+    : [{ x: 0, y: 0 }];
   let worst = 0;
   for (let i = 0; i < samples; i++) {
     const t = (i / samples) * scene.loop;
-    const p = parallax(cameraAt(scene, t), layer.depth);
-    const cx = scene.size.width / 2;
-    const cy = scene.size.height / 2;
-    const left = cx + (layer.at.x - layer.anchor.x * layer.width - cx) * p.scale + p.dx;
-    const top = cy + (layer.at.y - layer.anchor.y * height - cy) * p.scale + p.dy;
-    const right = left + layer.width * p.scale;
-    const bottom = top + height * p.scale;
-    worst = Math.max(worst, left, top, scene.size.width - right, scene.size.height - bottom);
+    for (const tilt of tilts) {
+      const view = opts.window || opts.tilt ? { window: win, tilt } : undefined;
+      const p = parallax(cameraAt(scene, t, view), layer.depth);
+      const cx = win.x + win.w / 2;
+      const cy = win.y + win.h / 2;
+      const left = cx + (layer.at.x - layer.anchor.x * layer.width - cx) * p.scale + p.dx;
+      const top = cy + (layer.at.y - layer.anchor.y * height - cy) * p.scale + p.dy;
+      const right = left + layer.width * p.scale;
+      const bottom = top + height * p.scale;
+      worst = Math.max(worst, left - win.x, top - win.y, win.x + win.w - right, win.y + win.h - bottom);
+    }
   }
   return Math.max(0, worst);
 }
 
-function mod(a: number, n: number): number {
+export function mod(a: number, n: number): number {
   return ((a % n) + n) % n;
 }
 

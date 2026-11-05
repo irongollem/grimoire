@@ -3,8 +3,8 @@
  * by film.ts through `window.scene`. Layer images come from `/art/`.
  */
 import { SCENES } from "../catalog.ts";
-import type { Scene } from "../scene.ts";
-import { drawScene, loadImages, play } from "./render.ts";
+import type { ReelScene } from "../reel.ts";
+import { drawScene, loadImages, play } from "../../../../src/lib/bookNook/render.ts";
 
 /** What film.ts calls in the page. */
 export interface FilmHandle {
@@ -24,7 +24,7 @@ declare global {
 
 const params = new URLSearchParams(location.search);
 
-function sceneNamed(id: string | null): Scene {
+function sceneNamed(id: string | null): ReelScene {
   const found = SCENES.find((s) => s.id === id);
   if (!found) throw new Error(`No scene "${id}". Scenes: ${SCENES.map((s) => s.id).join(", ")}`);
   return found;
@@ -41,7 +41,7 @@ canvas.width = scene.size.width;
 canvas.height = scene.size.height;
 const ctx = need(canvas.getContext("2d"), "2D canvas context");
 
-const images = loadImages(scene, "/art/");
+const images = loadImages(scene, (src) => "/art/" + encodeURIComponent(src));
 let loaded: Awaited<typeof images> | null = null;
 
 /** Draws synchronously, so the canvas read straight after holds this frame and not the one before. */

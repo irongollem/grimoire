@@ -268,3 +268,35 @@ describe("resolveImageProvider — which provider renders", () => {
     expect(img).toMatchObject({ provider: "openai", apiKey: "sk-platform" });
   });
 });
+
+describe("generateImage — edit mask", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubEdit() {
+    const forms: FormData[] = [];
+    vi.stubGlobal("fetch", vi.fn((_url: string, init?: { body?: unknown }) => {
+      if (init?.body instanceof FormData) forms.push(init.body);
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ data: [{ b64_json: "aGk=" }] }) });
+    }));
+    return forms;
+  }
+  const edit = { provider: "openai" as const, model: "m", apiKey: "sk", prompt: "p", size: "1024x1024", sourceImages: [new Blob(["a"], { type: "image/png" })] };
+
+  it("sends the mask as the `mask` field, and the PNG crop as a png, when given", async () => {
+    const forms = stubEdit();
+    await generateImage({ ...edit, mask: new Blob(["m"], { type: "image/png" }) });
+    expect((forms[0].get("mask") as File).type).toBe("image/png");
+    expect((forms[0].getAll("image[]")[0] as File).type).toBe("image/png");
+  });
+
+  it("sends no mask field when none is given", async () => {
+    const forms = stubEdit();
+    await generateImage(edit);
+    expect(forms[0].has("mask")).toBe(false);
+  });
+
+  it("refuses a mask on Gemini rather than repainting the whole picture", async () => {
+    stubEdit();
+    await expect(generateImage({ ...edit, provider: "gemini", mask: new Blob(["m"]) })).rejects.toThrow(/mask/);
+  });
+});
