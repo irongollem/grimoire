@@ -27,6 +27,7 @@ export const METRICS: readonly { key: NumericMetric; label: string; unit: "count
   { key: "apiBytes", label: "api bytes", unit: "bytes" },
   { key: "jsBytes", label: "js bytes", unit: "bytes" },
   { key: "cssBytes", label: "css bytes", unit: "bytes" },
+  { key: "codeRequests", label: "code reqs", unit: "count" },
   { key: "totalRequests", label: "total reqs", unit: "count" },
   { key: "fcpMs", label: "FCP", unit: "ms" },
   { key: "lcpMs", label: "LCP", unit: "ms" },

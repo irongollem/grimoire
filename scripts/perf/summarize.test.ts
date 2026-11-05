@@ -96,6 +96,24 @@ describe("summarizeRequests", () => {
     expect(summary.totalRequests).toBe(summary.apiPaths.length + summary.assetPaths.length);
   });
 
+  it("counts only chunks and stylesheets as code, so a font or image painted by chance moves no gated count (#1146)", () => {
+    const summary = summarizeRequests(
+      [
+        req({ url: "http://127.0.0.1:4173/assets/a-1.js", resourceType: "Script" }),
+        req({ url: "http://127.0.0.1:4173/assets/a-1.css", resourceType: "Stylesheet" }),
+        req({ url: "http://127.0.0.1:4173/assets/crimson-pro-latin-400-normal-x.woff2", resourceType: "Font" }),
+        req({ url: "http://127.0.0.1:4173/brand/bookmark-cloth.webp", resourceType: "Image" }),
+        req({ url: "http://127.0.0.1:4173/dashboard", resourceType: "Document" }),
+        req({ url: `${API}/rest/v1/a` }),
+      ],
+      API,
+      0,
+      1000,
+    );
+    expect(summary.codeRequests).toBe(2);
+    expect(summary.totalRequests).toBe(6);
+  });
+
   it("treats a request still open at the end as finishing then", () => {
     const summary = summarizeRequests([req({ url: `${API}/rest/v1/a`, startMs: 0, endMs: null })], API, 0, 900);
     expect(summary.settledMs).toBe(900);

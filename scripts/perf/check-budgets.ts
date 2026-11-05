@@ -4,7 +4,8 @@
  *
  * Usage: npx tsx scripts/perf/check-budgets.ts <results.json> [budgets.json]
  *
- * Gates only per-step `apiRequests` and `serialDepth`. The boot-bundle gzip
+ * Gates per-step `apiRequests`, `codeRequests` and `serialDepth` (see `GATES`
+ * in budgets.ts for how the runs of a step are combined). The boot-bundle gzip
  * budget is enforced by `bootBudgetPlugin` in vite.config.ts, at build time.
  */
 

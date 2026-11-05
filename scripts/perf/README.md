@@ -113,7 +113,8 @@ client.)
 | options | CORS preflights, counted apart (see traps) |
 | serial depth | longest chain of API requests where each starts at or after the previous one finished. Parallel requests do not add to it. `depth x delay` is the floor of the load that parallelism cannot remove. Pure function in `serialDepth.ts`. |
 | api / js / css bytes | encoded bytes over the wire (CDP `encodedDataLength`); 0 for cache and service-worker hits. `vite preview` serves what the build emits, so JS bytes are not the production CDN's compressed figure: compare runs, not against the boot budget. |
-| total reqs | every real request in the window, preflights excluded |
+| code reqs | code chunks and stylesheets (`.js`, `.mjs`, `.css`, or a Script/Stylesheet resource): what rises when the chunk graph fragments (#999 2.14). Gated. |
+| total reqs | every real request in the window, preflights excluded: code, the document, fonts, images. Reported, not gated (see Budgets). |
 | FCP / LCP | PerformanceObserver paint entries, ms from navigation start. **The app boots behind a static splash in `index.html`, so these mostly time the splash** (about 90 ms), not the dashboard. Use app ready and content ready instead. |
 | app ready | ms until the static splash (`#boot-splash`, removed when Vue mounts) **and** the Vue loading screen (`.loading-screen`, shown by `App.vue` while auth and the campaign resolve) are both gone. Page loads only. Recorded by a MutationObserver in the init script (`browser.ts`). |
 | content ready | ms until a journey-specific piece of real content is visible (`CONTENT` table in `journeys.ts`): a dashboard widget heading, an NPC card link, the quest groups, the Hearth title. For `dm-nav` it is measured from the click. `n/a` for `resume`. The weakest selector is `/encounters` (the page heading: the view has no list hook). A `data-perf="content"` attribute on each view's main data region would make all of these independent of markup; until it exists, a redesign of those elements means updating the table. |
@@ -127,8 +128,9 @@ the run closest to the median settled time, no headers) and
 path only), so you can see what was fetched and diff two result files request by
 request. CI keeps its file as the `perf-journeys` artifact for 14 days.
 
-Deterministic metrics (requests, bytes, serial depth) are what a CI gate should
-use; paint, TBT and settled time vary with machine load.
+Only API and code request counts repeat exactly run to run. Serial depth
+varies with timing (see Budgets), bytes with compression and caches, and paint,
+TBT and settled time with machine load.
 
 ## Traps
 
@@ -155,14 +157,31 @@ use; paint, TBT and settled time vary with machine load.
 ## Budgets (story 0.4)
 
 `budgets.json` holds a ceiling per journey step for three counts:
-`apiRequests`, `serialDepth` and `totalRequests` (the last counts code chunks,
-stylesheets, fonts and images too, so it is the one that rises when the chunk
-graph fragments; #999 2.14). The request counts repeat run to run. `serialDepth`
-can differ by one on CI, when a request finishes just before or just after
-another starts (`main`'s history flaps `dm-cold` between 4 and 5), so a depth
-ceiling is the maximum `main` has measured, not a single run. Times and bytes are never gated: they move with the machine. They were
-measured on the committed fixture (`npm run perf:fixture`), so a laptop and CI
-read the same rows.
+`apiRequests`, `codeRequests` and `serialDepth`. They were measured on the
+committed fixture (`npm run perf:fixture`), so a laptop and CI read the same
+rows. Times and bytes are never gated: they move with the machine.
+
+**Only what the code decides is gated (#1146).** `totalRequests` used to be,
+and it went red on commits that changed nothing it measured: a web font
+(`crimson-pro-latin-400-normal-*.woff2` on `dm-cold`) or the loading flag's
+image (`/brand/bookmark-cloth.webp` on `dm-npc-detail`) loads or not depending
+on what is painted while the window is open. Fonts and images are still in
+`total reqs` and in `representativeAssetPaths`; `codeRequests` is the count
+that catches a fragmenting chunk graph.
+
+**Serial depth is judged on the shallowest run, against a ceiling with
+headroom.** Under the 4x CPU throttle the page issues one burst of parallel
+requests over a few hundred milliseconds, so a late member can start after an
+early one has been answered and is counted a wave deeper. `dm-cold` read 4, 5,
+6 and 7 on the same commit, with the boot burst (`campaign_sessions` to
+`notes`) split across waves 3 to 5. Timing only ever adds links that way, never
+removes a real one: a request that waits on another always starts after it. So
+the minimum over runs is the closest to the real chain, and a real new wave
+deepens every run, the minimum included. Even the minimum of three runs read 4
+to 6 on `dm-cold` across main, so a depth ceiling is the deepest main has
+measured, and the check asks for it to be lowered only when a step lands more
+than two waves below it (`GATES` in `budgets.ts`). That is also why every CI
+run, pull requests included, measures three times.
 
 ```bash
 npx tsx scripts/perf/check-budgets.ts perf-results/<run>.json
@@ -180,11 +199,13 @@ either way.
 
 Rules for the check itself:
 
-- Over budget exits 1 and prints an OVER BUDGET table. Exactly at budget passes.
+- Over budget exits 1 and prints an OVER BUDGET table with every run's value.
+  Exactly at budget passes.
 - **Below budget passes but prints a hint: lower the budget in the same change.**
   A story that removes requests or waves edits `budgets.json` to the new
-  numbers in its own commit; otherwise the headroom lets the next story give the
-  win back unnoticed.
+  numbers in its own commit; otherwise the slack lets the next story give the
+  win back unnoticed. The hint names the new budget: the measured count, or for
+  serial depth the shallowest run plus its headroom.
 - A journey that was skipped or was not run is "no data", never a failure.
 - A budgeted step that a journey which ran no longer produces fails (the
   journey changed shape), and a step with no budget is listed so it gets one.
@@ -220,5 +241,5 @@ neither a budget breach nor a failed run holds a release back; a breach does tur
 the run red.
 
 Dry-run of the CI steps locally: build and serve as above, then
-`run.ts --runs 1 --out perf-results/ci.json`, `bundle/critical-path.ts dist --json
+`run.ts --runs 3 --out perf-results/ci.json`, `bundle/critical-path.ts dist --json
 perf-results/critical-path.json`, `check-budgets.ts`, and `history.ts entry`.

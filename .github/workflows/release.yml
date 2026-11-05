@@ -181,9 +181,10 @@ jobs:
   # exist because a one-off measurement does not protect an improvement:
   #
   #   1. A gate. `check-budgets` fails the job when a journey makes more
-  #      requests (API calls, and every request including code chunks), or waits
+  #      requests (API calls, and code chunks and stylesheets), or waits
   #      through more serial round trips, than scripts/perf/budgets.json allows.
-  #      Only counts are gated: times and bytes move with the runner. The
+  #      Only counts the code decides are gated: times and bytes move with the
+  #      runner, and fonts and images with what happens to be painted. The
   #      boot-bundle size has its own gate at build time (bootBudgetPlugin in
   #      vite.config.ts), so it is not repeated here.
   #   2. A history. On main, one line per release is appended to history.jsonl
@@ -246,14 +247,17 @@ jobs:
           echo "::error::vite preview did not come up on 127.0.0.1:4173"
           cat preview.log
           exit 1
-      # One run is enough for the gate (the counts do not vary); main takes
-      # three so the timings recorded in the history are medians.
+      # Three runs everywhere. The gate judges serial depth on the shallowest
+      # run (timing can only make a chain look deeper, never shallower; see
+      # GATES in scripts/perf/budgets.ts), so a pull request measured once
+      # failed on one slow run (#1146). Main's three also make the timings in
+      # the history medians.
       - name: Run the journeys
         id: journeys
         run: |
           # A pipe hides the harness's exit status from `bash -e`.
           set -o pipefail
-          npx tsx scripts/perf/run.ts --runs ${{ github.event_name == 'push' && 3 || 1 }} --out perf-results/ci.json | tee perf-results.log
+          npx tsx scripts/perf/run.ts --runs 3 --out perf-results/ci.json | tee perf-results.log
           {
             echo '```'
             sed -n '/^journey/,/^wrote/p' perf-results.log

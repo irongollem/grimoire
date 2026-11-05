@@ -8,6 +8,7 @@ function sample(overrides: Partial<Sample> = {}): Sample {
     apiBytes: 2048,
     jsBytes: 1_000_000,
     cssBytes: 5000,
+    codeRequests: 20,
     totalRequests: 30,
     serialDepth: 3,
     settledMs: 2000,

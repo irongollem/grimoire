@@ -3,7 +3,7 @@ import { buildEntry, parseHistory, summarize } from "./history";
 import { aggregateRuns, type ResultsFile, type Sample } from "./results";
 
 const sample: Sample = {
-  apiRequests: 41, optionsRequests: 41, apiBytes: 1, jsBytes: 1, cssBytes: 1, totalRequests: 1, serialDepth: 5, settledMs: 1200,
+  apiRequests: 41, optionsRequests: 41, apiBytes: 1, jsBytes: 1, cssBytes: 1, codeRequests: 1, totalRequests: 1, serialDepth: 5, settledMs: 1200,
   apiPaths: ["GET /x"], apiWaves: [1], assetPaths: [], fcpMs: 90, lcpMs: 90, tbtMs: 10, appReadyMs: 500, contentReadyMs: 800,
 };
 const results: ResultsFile = {

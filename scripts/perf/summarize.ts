@@ -48,7 +48,13 @@ export interface RequestSummary {
   apiBytes: number;
   jsBytes: number;
   cssBytes: number;
-  /** Every real request (preflights excluded), API and static alike. */
+  /** Code chunks and stylesheets: what grows when the chunk graph fragments (#999 2.14). The gated static count. */
+  codeRequests: number;
+  /**
+   * Every real request (preflights excluded), API and static alike. Reported, never gated: it includes fonts and
+   * images, which load or not depending on what is painted while the window is open (a web font, the loading
+   * flag's image), so it moved by one between runs of the same commit (#1146).
+   */
   totalRequests: number;
   serialDepth: number;
   settledMs: number;
@@ -79,6 +85,7 @@ export function summarizeRequests(
   let apiBytes = 0;
   let jsBytes = 0;
   let cssBytes = 0;
+  let codeRequests = 0;
   let totalRequests = 0;
   const apiIntervals: Interval[] = [];
   const allIntervals: Interval[] = [];
@@ -102,8 +109,13 @@ export function summarizeRequests(
       continue;
     }
     assetPaths.push(new URL(request.url).pathname);
-    if (kind === "js") jsBytes += request.encodedBytes;
-    else if (kind === "css") cssBytes += request.encodedBytes;
+    if (kind === "js") {
+      jsBytes += request.encodedBytes;
+      codeRequests++;
+    } else if (kind === "css") {
+      cssBytes += request.encodedBytes;
+      codeRequests++;
+    }
   }
 
   const apiWaves = chainPositions(apiIntervals);
@@ -113,6 +125,7 @@ export function summarizeRequests(
     apiBytes,
     jsBytes,
     cssBytes,
+    codeRequests,
     totalRequests,
     serialDepth: Math.max(0, ...apiWaves),
     settledMs: settledTime(allIntervals, windowStartMs, quietMs),
