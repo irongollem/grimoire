@@ -25,6 +25,10 @@ When the optional house-rule `xp_levelling` is enabled for the campaign (Campaig
 
 On the player side, `PlayerCharacterHeader` reads `useIsRuleEnabled("xp_levelling")` and, when on, renders an XP progress bar (current / next-level threshold from `LEVEL_XP_THRESHOLDS` in `party.types.ts`) plus a **Ready ↑** level-up trigger once `levelForXp(xp) > level`. Helpers: `levelForXp`, `xpForNextLevel`, `xpForLevel`.
 
+### Awareness rolls
+
+When the optional house-rule `awareness_rolls` is enabled (DM only, registered in `src/rules/optionalRules.ts`), each active character has a secret pair of Perception d20s in `awareness_rolls` (one row per `party_member_id`; DM-only RLS for all four commands, so players read nothing). `start_campaign_session` rolls one for every active character; `use_awareness_rolls(p_campaign_id, p_party_member_ids)` uses the waiting pair, keeps it as `last_used_d20`/`last_used_d20_second`, rolls the next pair and returns `{ member_id, used_d20, used_d20_second, new_d20, new_d20_second }`. The database rolls the d20; the client never sends a number. Migration `20261105100354_awareness_rolls`. Only dice are stored: `readAwareness` in `src/rules/awareness.ts` reads them the way the sheet rolls Perception, at the moment of use (the check bonus, the lower die under disadvantage from Frightened, Poisoned or 2014 Exhaustion, the 2024 Exhaustion penalty), which is why there are two dice: whether a check has disadvantage is known only when it is made. Jack of All Trades is not applied, here or anywhere a skill check is scored (`skillCheckBonus`). Client: `useAwarenessRolls` (query key `awareness-rolls`, refreshed by the `awareness_rolls` doorbell signal) and `AwarenessRollButton` on the Dashboard Party widget, the Party page card list ("Use all awareness") and each `PartyTrackerRow`. The toast after a use carries the used values and stays about 15 seconds.
+
 ### Combat Flow
 
 **Initiative:**

@@ -36,6 +36,11 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
+// These tests are about the card, not the awareness rule: it is off here. The composable, the buttons and the use-all control have their own tests.
+vi.mock("@/composables/party/useAwarenessRolls", () => ({
+  useAwarenessRolls: () => ({ enabled: false, rolls: undefined, isError: false }),
+  useUseAwarenessRolls: () => ({ isPending: { value: false }, mutate: () => undefined }),
+}));
 vi.mock("@/composables/party/useParty", () => ({
   // Real refs, not plain `{ value }` objects: PartyWidget's template reads
   // `party`/`partyIsError` directly, relying on <script setup>'s automatic

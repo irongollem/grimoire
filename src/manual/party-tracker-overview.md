@@ -52,6 +52,12 @@ Below the roster, **Upload** a photo, or **Generate**/**Regenerate** an AI-illus
 
 Players see and manage their own character through the Player Portal's character sheet, not this tracker: the Party Tracker itself is a DM-only page. Damage, healing, conditions and death saves you record here are reflected on their own view.
 
+## Awareness rolls
+
+With the **Awareness Rolls** rule on (Campaign Settings, Rules), every character gets a secret Perception roll when a session starts. It shows as a small number beside passive Perception, on the Party page and on the Dashboard's Party widget, and only you can see it. The number is the die plus the character's current Perception bonus.
+
+When a Perception check is due, click the number instead of asking the player to roll. It is used, a notice shows what it was for a few seconds, and a new one is rolled for that character straight away. **Use all awareness** does the same for the whole party. The number is read as the character stands when you look: a level-up is picked up, a Poisoned or Frightened character (or an exhausted one under the 2014 rules) gets the lower of two dice rolled for that, and 2024 Exhaustion takes its penalty. Hover the number to see how it is made. Continuing a session keeps the numbers; starting a new one rolls fresh ones.
+
 ## Tips
 
 > Companions don't track initiative: if you need one to act in combat order, add it as a combatant in the Encounter Builder instead.

@@ -267,6 +267,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["location_doors", ["location-doors", "site-doors", "player-visible-site-state"]],
   // What the party has seen of a place's map, shared by exploring and every fight on it.
   ["map_memory", ["map-memory", "map-doors"]],
+  // The DM's waiting Perception rolls (awareness rolls rule): a second DM window sees one used.
+  ["awareness_rolls", ["awareness-rolls"]],
   ["location_map_regions", ["location-map-regions", "player-visible-site-state"]],
   // Quest wiring. get_player_visible_quest_beats reads all three of edges,
   // attachments and refs for the players' story so far.

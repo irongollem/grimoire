@@ -51,6 +51,10 @@
     <div v-else class="flex flex-col gap-3">
       <!-- DM XP award control (only when the campaign uses XP levelling) -->
       <PartyXpAward v-if="xpLevellingEnabled" :party="party ?? []" />
+      <!-- DM awareness rolls (only when the rule is on): use every character's waiting roll at once -->
+      <div v-if="awarenessOn" class="flex justify-end">
+        <UseAllAwarenessButton />
+      </div>
 
       <PartyTrackerRow
         v-for="member in sortedMembers"
@@ -129,6 +133,8 @@ import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
 import PartyTrackerRow from "./PartyTrackerRow.vue";
 import PartyPacks from "./PartyPacks.vue";
+import { useAwarenessRolls } from "@/composables/party/useAwarenessRolls";
+import UseAllAwarenessButton from "./UseAllAwarenessButton.vue";
 import PartyXpAward from "./PartyXpAward.vue";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
@@ -137,6 +143,7 @@ const { data: party, isError, refetch } = useActiveParty();
 // Who is playing a character handed over for the session (#1059).
 const { caretakerNameOf } = useSpeaker();
 const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
+const { enabled: awarenessOn } = useAwarenessRolls();
 const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {
   const m = new Map<string, string>();

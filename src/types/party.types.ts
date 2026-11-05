@@ -115,6 +115,23 @@ export interface CustomAttack {
   damage_type: string | null;
 }
 
+/** A character's secret Perception d20 waiting to be used (optional rule `awareness_rolls`). DM only. */
+export interface AwarenessRoll {
+  id: string;
+  party_member_id: string;
+  campaign_id: string;
+  /** The die waiting to be used; the bonus is added from the character as it stands. */
+  d20: number;
+  /** The second die, read only when the check has disadvantage at the moment it is used. */
+  d20_second: number;
+  last_used_d20: number | null;
+  last_used_d20_second: number | null;
+  last_used_at: string | null;
+  rolled_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PartyMember {
   id: string;
   user_id: string;

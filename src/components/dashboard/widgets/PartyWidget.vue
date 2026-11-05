@@ -2,6 +2,7 @@
   <DashboardWidget tour="dm-party" title="Party" max-height="none" :loading="partyLoading" :empty="partyEmpty">
     <template #action>
       <div class="flex items-center gap-3">
+        <UseAllAwarenessButton />
         <AppButton to="/downtime" variant="link" size="inline-xs" label="Grant downtime →" />
         <AppButton to="/party" variant="link" size="inline-xs" label="Full tracker →" />
       </div>
@@ -54,10 +55,17 @@
         <div class="flex items-center gap-1 flex-wrap">
           <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" :title="acTitle(member)">AC {{ acOf(member) }}</span>
           <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Perception">
-            <IconReveal class="h-2.5 w-2.5" />{{ passivePerception(member) }}
+            <IconReveal class="h-2.5 w-2.5" />{{ passiveScore(member, "perception") }}
           </span>
+          <AwarenessRollButton
+            v-if="awarenessOn"
+            :member="member"
+            :roll="awarenessRolls?.get(member.id)"
+            :pending="spend.isPending.value"
+            @use="spend.mutate([member.id])"
+          />
           <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Insight">
-            <IconMind class="h-2.5 w-2.5" />{{ passiveInsight(member) }}
+            <IconMind class="h-2.5 w-2.5" />{{ passiveScore(member, "insight") }}
           </span>
           <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/20 border border-primary/40 text-label text-primary">★ Insp.</span>
         </div>
@@ -84,6 +92,8 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useTrackerStates } from "@/composables/dashboard/useTrackerState";
 import { useRules } from "@/composables/rules/useRules";
 import { useArmorClass } from "@/composables/party/useArmorClass";
+import { passiveScore } from "@/rules/skillCheck";
+import { useAwarenessRolls, useUseAwarenessRolls } from "@/composables/party/useAwarenessRolls";
 import { describeAc } from "@/rules/armorClass";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
@@ -95,6 +105,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AwarenessRollButton from "@/components/party/AwarenessRollButton.vue";
+import UseAllAwarenessButton from "@/components/party/UseAllAwarenessButton.vue";
 import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import type { PartyMember } from "@/types/party.types";
@@ -118,6 +130,8 @@ const { data: party, isError: partyIsError, refetch: refetchParty } = useActiveP
 // DM-only exactly as the buttons are, so a player never sends them.
 useTrackerStates(() => auth.isDM);
 useRules(() => auth.isDM);
+const { enabled: awarenessOn, rolls: awarenessRolls } = useAwarenessRolls();
+const spend = useUseAwarenessRolls();
 
 /** A wild-shaped member wears the beast's face, as everywhere else — the
  *  beast's picture as it reads now (art tables merged), not only the copy the
@@ -190,17 +204,4 @@ function hpBarColor(current: number, max: number): string {
   if (pct <= 0.5)  return "bg-tone-caution";
   return "bg-tone-success";
 }
-
-function abilityMod(score: number): number { return Math.floor((score - 10) / 2); }
-
-function skillBonus(member: PartyMember, skill: "perception" | "insight"): number {
-  const wisMod = abilityMod(member.wis);
-  const level = member.skill_proficiencies[skill] ?? "none";
-  if (level === "expertise")  return wisMod + member.proficiency_bonus * 2;
-  if (level === "proficient") return wisMod + member.proficiency_bonus;
-  return wisMod;
-}
-
-function passivePerception(member: PartyMember): number { return 10 + skillBonus(member, "perception"); }
-function passiveInsight(member: PartyMember): number    { return 10 + skillBonus(member, "insight"); }
 </script>

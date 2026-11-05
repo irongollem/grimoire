@@ -194,7 +194,16 @@
           </span>
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">Perception</span>
-            <span class="font-bold text-foreground shrink-0">{{ passivePerception }}</span>
+            <span class="flex items-baseline gap-1.5 shrink-0">
+              <AwarenessRollButton
+                v-if="awarenessOn"
+                :member="member"
+                :roll="awarenessRolls?.get(member.id)"
+                :pending="spend.isPending.value"
+                @use="spend.mutate([member.id])"
+              />
+              <span class="font-bold text-foreground">{{ passivePerception }}</span>
+            </span>
           </span>
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">Insight</span>
@@ -294,6 +303,8 @@ import { provideCharacterRuleset } from "@/composables/rules/useRuleset";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { describeAc } from "@/rules/armorClass";
 import { useReadItems } from "@/composables/player/useReadItems";
+import AwarenessRollButton from "./AwarenessRollButton.vue";
+import { useAwarenessRolls, useUseAwarenessRolls } from "@/composables/party/useAwarenessRolls";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
 import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
@@ -490,6 +501,8 @@ const displayAc = computed(
   () => member.wildshape_state?.beast_ac ?? acFor(member),
 );
 
+const { enabled: awarenessOn, rolls: awarenessRolls } = useAwarenessRolls();
+const spend = useUseAwarenessRolls();
 const passivePerception = computed(() => passiveScore(member, "perception"));
 const passiveInsight = computed(() => passiveScore(member, "insight"));
 const passiveInvestigation = computed(() => passiveScore(member, "investigation"));

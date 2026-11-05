@@ -121,6 +121,20 @@ registerOptionalRule({
   defaultEnabled: false,
 });
 
+// ── Awareness Rolls ───────────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "awareness_rolls",
+  name: "Awareness Rolls",
+  summary:
+    "Each character gets a secret Perception roll at the start of the session, kept until a Perception check is due, so a trap is never given away by saying 'roll this'.",
+  description:
+    "Keeps trap awareness dynamic without announcing it. When a session starts, Grimoire rolls a **Perception d20 for every character** and keeps it, shown to you beside passive Perception on the Dashboard's Party widget and on the Party page.\n\n" +
+    "When a Perception check is due, **click the number** (or **Use all awareness** for the whole party) instead of asking the players to roll. That roll is used, its result appears in a notice for a few seconds, and a **new roll is made for that character at once**.\n\n" +
+    "Only the dice are kept, two of them, so the number is read as the character stands when it is used: the current Perception bonus, the lower die while Poisoned or Frightened (or exhausted under the 2014 rules), and the 2024 Exhaustion penalty. Players never see these numbers.",
+  dmOnly: true,
+  defaultEnabled: false,
+});
+
 // ── Crafting (Workshop) ───────────────────────────────────────────────────────
 registerOptionalRule({
   key: "crafting",

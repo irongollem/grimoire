@@ -84,6 +84,7 @@ The **Rules** tab has two parts.
 | Ignore Multiclass Prerequisites | Waives the PHB ability-score minimums for multiclassing. | Off |
 | Optional Class Features | Allows the Tasha's Cauldron class-feature swaps (e.g. Primal Awareness for Primeval Awareness) at Level Up. | Off |
 | Experience Points | Switches from milestone leveling to tracked XP; Level Up unlocks automatically at the threshold. | Off |
+| Awareness Rolls | Rolls a secret Perception d20 for each character when a session starts and keeps it until a Perception check is due. The DM sees it beside passive Perception; players never do. See [Party Tracker](#party-tracker). | Off |
 | **Crafting** | Turns on the **Workshop**: players gather recipes and craft items between sessions. See [Workshop Overview](#workshop-overview). | **On** |
 | **The Interlude** | Turns on downtime draws and activity cards between sessions. See [The Interlude: Downtime](#the-interlude-downtime). | **On** |
 | Encumbrance | Carried weight affects speed and imposes penalties past STR-based thresholds. | Off |

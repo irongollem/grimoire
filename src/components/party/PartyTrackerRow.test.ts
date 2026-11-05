@@ -8,6 +8,11 @@ import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
+// These tests are about the card, not the awareness rule: it is off here. The composable, the buttons and the use-all control have their own tests.
+vi.mock("@/composables/party/useAwarenessRolls", () => ({
+  useAwarenessRolls: () => ({ enabled: false, rolls: undefined, isError: false }),
+  useUseAwarenessRolls: () => ({ isPending: { value: false }, mutate: () => undefined }),
+}));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const update = vi.hoisted(() => vi.fn());
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: update }) }));
