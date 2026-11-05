@@ -43,13 +43,81 @@ describe("audioContext auto-resume", () => {
     expect(ctx.resume).toHaveBeenCalledTimes(1);
   });
 
-  it("also covers iOS's non-standard interrupted state", async () => {
+  // CarPlay reconnecting every two seconds, carried over into the next app:
+  // each resume re-activated the audio session, the car renegotiated the link,
+  // and that interrupted the context again.
+  it("leaves iOS's interrupted state to the OS instead of fighting it for the session", async () => {
     const { mod, ctx } = await freshModule();
     mod.setAutoResumeGate(() => true);
 
     ctx.setState("interrupted");
 
-    expect(ctx.resume).toHaveBeenCalledTimes(1);
+    expect(ctx.resume).not.toHaveBeenCalled();
+  });
+
+  it("stops auto-resuming when the OS takes the context back straight after a resume", async () => {
+    vi.useFakeTimers();
+    try {
+      const { mod, ctx } = await freshModule();
+      mod.setAutoResumeGate(() => true);
+
+      ctx.setState("suspended");
+      vi.advanceTimersByTime(2_000); // the reported period of the CarPlay reconnects
+      ctx.setState("suspended");
+      vi.advanceTimersByTime(20_000);
+      ctx.setState("suspended"); // halted: a quiet spell does not re-arm it either
+
+      expect(ctx.resume).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still resumes a suspension that comes long after the last one", async () => {
+    vi.useFakeTimers();
+    try {
+      const { mod, ctx } = await freshModule();
+      mod.setAutoResumeGate(() => true);
+
+      ctx.setState("suspended");
+      vi.advanceTimersByTime(60_000);
+      ctx.setState("suspended");
+
+      expect(ctx.resume).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a tap after a halt brings the audible context back and re-arms the hook", async () => {
+    vi.useFakeTimers();
+    try {
+      const { mod, ctx } = await freshModule();
+      mod.setAutoResumeGate(() => true);
+      ctx.setState("suspended");
+      ctx.setState("suspended"); // halted
+      ctx.resume.mockClear();
+
+      ctx.state = "suspended";
+      window.dispatchEvent(new Event("pointerdown"));
+      expect(ctx.resume).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(60_000);
+      ctx.setState("suspended");
+      expect(ctx.resume).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a tap does not wake a context nobody is listening to", async () => {
+    const { mod, ctx } = await freshModule();
+    mod.setAutoResumeGate(() => false);
+    ctx.state = "suspended";
+
+    window.dispatchEvent(new Event("pointerdown"));
+
+    expect(ctx.resume).not.toHaveBeenCalled();
   });
 
   it("leaves a suspended context alone when nothing is audible", async () => {
