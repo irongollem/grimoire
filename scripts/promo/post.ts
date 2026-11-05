@@ -74,6 +74,24 @@ async function dryRun(token: string, root: string, id: string): Promise<boolean>
   return c.problems.length === 0;
 }
 
+/**
+ * launchd runs a missed hour the moment the Mac wakes, often before Wi-Fi is
+ * back: the 5 Nov 2026 post died on "fetch failed" at 23:09 for exactly that.
+ * Wait up to three minutes for Instagram's host to answer before posting.
+ */
+async function networkUp(log: (line: string) => void): Promise<void> {
+  for (let tries = 0; ; tries++) {
+    try {
+      await fetch("https://graph.facebook.com/", { method: "HEAD" });
+      return;
+    } catch (e) {
+      if (tries >= 12) throw new Error(`no network after three minutes: ${e instanceof Error ? e.message : String(e)}`);
+      if (tries === 0) log("no network yet (just woke?); waiting for it");
+      await new Promise((r) => setTimeout(r, 15_000));
+    }
+  }
+}
+
 async function main() {
   const { id, root, publishNow, again, mode } = parseArgs(process.argv.slice(2));
   const token = process.env.INSTAGRAM_SYSTEM_USER_TOKEN;
@@ -116,6 +134,7 @@ async function main() {
   }
   console.log(`${stamp} posting ${due.id}, planned for ${due.at}`);
   try {
+    await networkUp(log);
     const record = await post(token, root, due.id, log);
     notify("Grimoire post published", `${due.id}: ${record.permalink}`);
   } catch (e) {

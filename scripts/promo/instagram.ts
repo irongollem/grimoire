@@ -134,13 +134,30 @@ export async function uploadReel(
     },
   });
   log(`container ${container.id}, uploading ${(input.video.byteLength / 1e6).toFixed(1)} MB`);
-  const up = await fetch(container.uri, {
-    method: "POST",
-    headers: { Authorization: `OAuth ${token}`, offset: "0", file_size: String(input.video.byteLength) },
-    body: input.video,
-  });
-  const upJson = (await up.json()) as { success?: boolean; message?: string; debug_info?: { message?: string } };
-  if (!up.ok || upJson.success !== true) throw new Error(`Upload refused: ${upJson.debug_info?.message ?? upJson.message ?? `HTTP ${up.status}`}`);
+  // rupload answers "Request processing failed" now and then for a container
+  // made moments earlier (the first try of both scheduled Reels, 4 and 5 Nov
+  // 2026), and the same bytes go in a little later. So retry into the same
+  // container before giving up, and keep the whole answer for the log.
+  const waits = [0, 10_000, 30_000, 60_000];
+  for (const [attempt, wait] of waits.entries()) {
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    const up = await fetch(container.uri, {
+      method: "POST",
+      headers: { Authorization: `OAuth ${token}`, offset: "0", file_size: String(input.video.byteLength) },
+      body: input.video,
+    });
+    const text = await up.text();
+    let upJson: { success?: boolean; message?: string; debug_info?: { message?: string } } = {};
+    try {
+      upJson = JSON.parse(text) as typeof upJson;
+    } catch {
+      // Not JSON: the raw text goes into the error below.
+    }
+    if (up.ok && upJson.success === true) break;
+    const why = `${upJson.debug_info?.message ?? upJson.message ?? `HTTP ${up.status}`} (HTTP ${up.status}: ${text.slice(0, 300)})`;
+    if (attempt === waits.length - 1) throw new Error(`Upload refused ${waits.length} times: ${why}`);
+    log(`upload refused, trying again in ${waits[attempt + 1] / 1000} s: ${why}`);
+  }
 
   // Meta asks for a poll about once a minute for at most five; a 1-minute Reel is usually ready far sooner, so start quicker.
   const deadline = Date.now() + 5 * 60_000;
