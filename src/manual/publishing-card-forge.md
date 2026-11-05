@@ -4,7 +4,7 @@ section: Publishing
 section_order: 14
 order: 2
 summary: Print physical trading-card-style cards for NPCs, monsters, items, spells, loot, and Interlude activities.
-keywords: card forge, card, print, mtg, tarot, npc, monster, item, spell, duplex, library, inked, modern, loot deck, deck back
+keywords: card forge, card, print, image, png, save card, mtg, tarot, npc, monster, item, spell, duplex, library, inked, modern, loot deck, deck back
 ---
 
 **Card Forge** generates print-ready sheets of cards for your campaign entities. Find it in the sidebar under **Compendium → Publish → Card Forge** (route `/forge`; desktop only).
@@ -62,6 +62,10 @@ Click **Print**: the button shows your selected card count, e.g. **Print (12)**.
 
 - **1mm bleed** on every card for accurate cutting.
 - **Duplex alignment**: the back sheet reverses card columns per row, so flipping the paper on the long (left) edge lines every back up with its front.
+
+## Saving one card as an image
+
+To post a card, send it to a player or drop it into a VTT or group chat, click **Save front** under its preview. Turn the card over first (click it) and the button becomes **Save back**. You get a PNG at the card's real print size (63×88mm or 70×120mm at 300 dpi) with rounded corners, named after the entity. Nothing is generated, so it costs nothing.
 
 ## Card Library (saved collections)
 

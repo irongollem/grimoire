@@ -132,6 +132,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",
     "marked": "^18.1.2",
+    "modern-screenshot": "^4.7.0",
     "pagedjs": "^0.4.3",
     "pdf-lib": "^1.17.1",
     "pinia": "^4.1.0",

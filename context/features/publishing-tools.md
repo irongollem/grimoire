@@ -14,7 +14,7 @@ A "Canva for D&D" document publisher: the DM writes in a themed, editable Tiptap
 
 ### Books, chapters and handouts (#1115 story 13)
 
-The design is the canvas *Scriptorium Chapters* (https://claude.ai/artifact/9dbv3njiLcf9dkZVee93BY, frames 01 to 12); the decisions are in the body of epic #1115 under "Story 13".
+The design is the canvas *Scriptorium Chapters* (<https://claude.ai/artifact/9dbv3njiLcf9dkZVee93BY>, frames 01 to 12); the decisions are in the body of epic #1115 under "Story 13".
 
 - **A document is a book of chapters, and there is no other shape.** `scriptorium_documents` is the book (title, `kind`, look, page settings, sharing, furniture); the text lives in `scriptorium_chapters` (`position`, `content` as a Tiptap JSON *object* in jsonb, `title`, `word_count`). A handout is a book with one chapter. Migrations `20261029222021` (the model) and `20261029222335` (every old document moved into one chapter; nothing lost: an unreadable body became plain paragraphs). A chapter is named by its first top-level heading (`chapterTitle`, `src/lib/scriptorium/chapterTitle.ts`), written by the client so the chapter list never loads a body. The book's `word_count` is a trigger's (`private.touch_book_from_chapters`): never write it. That trigger is also how a chapter rings live sync: the book's own trigger rings when the book is shared, so a private draft rings nothing.
 - **Kind.** `kind` is `book` or `handout`. A handout is written on one of four papers (`letter`, `notice`, `journal`, `plain`; `src/lib/scriptorium/looks.ts` is the one registry of looks, their classes, CSS and a paper's defaults: A5, one column, no page numbers). The list has **New handout** (the paper picker, one click creates and opens it) and **New book** (the template gallery, which creates the book and emits `created`).
@@ -284,7 +284,17 @@ Frame color is driven by entity type: each card uses a CSS `--fc` custom propert
 
 ### Preview
 
-Live card preview grid on screen (screen-sized rendering, separate from print size). Scrollable preview area shows all selected cards as front faces.
+Live card preview grid on screen (screen-sized rendering, separate from print size). Scrollable preview area shows all selected cards as front faces; clicking a card turns it over.
+
+### Save one card as an image (#1141)
+
+Under each preview card, **Save front** / **Save back** (whichever face is showing) downloads that face as a PNG at its print size, 63×88 mm (744×1041 px) or 70×120 mm (827×1419 px) at 300 dpi, with transparent rounded corners and no bleed. For posting a card, sending it to a player or dropping it into a VTT; nothing is generated, so no credits. Named after the entity, `Ashen_Warden_card_front.png`, like The Mint's tokens. Hidden in a loot deck for a non-item, which has no front to draw.
+
+`useCardImageExport` (`src/composables/cardforge/`) renders the preview card's own DOM; sizes and names live in `src/lib/cardforge/cardImage.ts`. Three decisions that look like oversights:
+
+- **modern-screenshot, not html2canvas.** html2canvas repaints the DOM itself and cannot draw the card designs (`color-mix`, `clip-path`, `mask-image` icons, `filter`; it throws on the first `color-mix`). modern-screenshot serialises the card into an SVG `foreignObject`, so the browser draws it as on screen, and inlines only the font families the card uses and every image it shows. It is lazy-loaded on the first save. Art comes from the CDN, which sends `Access-Control-Allow-Origin: *`, so inlining it never taints the canvas.
+- **The PNG is stamped 300 dpi by hand.** The library records 96 dpi × scale (357 dpi at the 3.72× a 200 px card needs), which would print "at actual size" as a 53 mm card. The composable sets `context.dpi` after `createContext`.
+- **A `clip-path` on the render's root.** Inside a `foreignObject`, a rounded card's `overflow: hidden` does not clip a transformed child, so the focal-cropped portrait filled the corners square. `inset(0 round <the card's radius>)` clips everything.
 
 ---
 

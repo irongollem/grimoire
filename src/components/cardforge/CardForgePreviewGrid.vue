@@ -12,6 +12,7 @@
     <div v-else class="card-preview-grid">
       <div v-for="subject in selectedSubjects" :key="cardKey(subject)" class="preview-card-slot">
       <div
+        :ref="(el) => setWrapper(cardKey(subject), el)"
         class="preview-card-wrapper"
         :class="{ tarot: store.cardSize === 'tarot' }"
         :style="tiltStyle(cardKey(subject))"
@@ -61,6 +62,18 @@
         </CardFlip>
       </div>
       <!-- Outside the flip wrapper so a click here never turns the card. -->
+      <AppButton
+        v-if="hasFace(subject)"
+        variant="outline"
+        fill="muted"
+        size="sm"
+        :icon="IconDownload"
+        :label="flipped.has(cardKey(subject)) ? 'Save back' : 'Save front'"
+        tooltip="Save this side as a PNG at print size"
+        :loading="savingKey === cardKey(subject)"
+        :disabled="savingKey !== null"
+        @click="saveCard(subject)"
+      />
       <PaintPortraitButton
         v-if="paintable(subject)"
         :loading="isPainting(subject)"
@@ -76,7 +89,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, type ComponentPublicInstance } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconDownload } from "@/lib/icons";
+import { useCardImageExport } from "@/composables/cardforge/useCardImageExport";
+import { cardSubjectName } from "@/lib/cardforge/cardImage";
 import CardFront from "@/components/cardforge/CardFront.vue";
 import CardBack from "@/components/cardforge/CardBack.vue";
 import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
@@ -99,6 +116,33 @@ function cardKey(s: CardSubject) {
 }
 
 const { paintable, paint, isPainting, isPaintingAny, cost, byok, errorFor } = useCardPortraitPainter();
+
+const { savingKey, saveCardImage } = useCardImageExport();
+
+/** A loot deck draws no front for anything but an item, so there is nothing to save. */
+function hasFace(s: CardSubject): boolean {
+  return store.mode !== "loot" || s.kind === "item";
+}
+
+const wrappers = new Map<string, HTMLElement>();
+function setWrapper(key: string, el: Element | ComponentPublicInstance | null) {
+  if (el instanceof HTMLElement) wrappers.set(key, el);
+  else wrappers.delete(key);
+}
+
+/** Saves the face showing: the flip's face div holds the card's own root. */
+function saveCard(s: CardSubject) {
+  const key = cardKey(s);
+  const element = wrappers.get(key)?.firstElementChild?.firstElementChild;
+  if (!(element instanceof HTMLElement)) return;
+  void saveCardImage({
+    key,
+    element,
+    size: store.cardSize,
+    name: cardSubjectName(s),
+    face: flipped.value.has(key) ? "back" : "front",
+  });
+}
 
 const flipped = ref(new Set<string>());
 function toggleFlip(key: string) {

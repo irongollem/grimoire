@@ -902,6 +902,10 @@ export default defineConfig(({ mode }) => {
               // eagerly. Its own chunk keeps the JS wrapper (and therefore the two
               // .wasm codecs it fetches at runtime) out of the boot payload.
               { name: "webp-fallback", test: /node_modules[\\/](@jsquash[\\/]webp|wasm-feature-detect)/ },
+              // Card Forge's "Save front/back" (#1141, `useCardImageExport`'s lazy
+              // import). The same trap again: unmatched, it sat in `vendor` and so
+              // in every first load, for a button almost nobody presses then.
+              { name: "card-image", test: /node_modules[\\/]modern-screenshot/ },
               // Everything else from node_modules
               { name: "vendor", test: /node_modules/ },
               // The app's own code that the entry reaches statically, filed apart
