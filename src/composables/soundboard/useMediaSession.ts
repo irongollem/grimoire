@@ -1,6 +1,32 @@
 import { watch } from "vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 
+export interface PublishedPosition {
+  position: number;
+  duration: number;
+  /** performance.now() when it was published. */
+  at: number;
+}
+
+/** How far playback may stray from where the OS thinks it is before it is told again. */
+const POSITION_DRIFT_S = 1;
+
+/**
+ * Whether the media session needs a new position: nothing published while
+ * playing, a different track length, or a position that is not where steady
+ * playback from the last publish would have put it (a seek, a stall, a resume).
+ */
+export function positionNeedsPublish(
+  last: PublishedPosition | null,
+  next: { position: number; duration: number },
+  nowMs: number,
+): boolean {
+  if (last === null) return true;
+  if (last.duration !== next.duration) return true;
+  const expected = last.position + (nowMs - last.at) / 1000;
+  return Math.abs(next.position - expected) > POSITION_DRIFT_S;
+}
+
 /**
  * Wires the active music playlist to the browser's Media Session API so that
  * OS-level media controls (CarPlay, Android Auto, lock screen, Bluetooth
@@ -50,6 +76,13 @@ export function useMediaSession() {
   );
 
   // ── Position state — lets CarPlay show a scrubber ─────────────────────
+  //
+  // Published only when it changes meaning (a new track, play, a seek), never
+  // per timeupdate: the OS extrapolates the position from the last one at the
+  // given rate. Each publish is a Now Playing update sent over the CarPlay
+  // link, and four a second of them is traffic the link does not need.
+
+  let published: PublishedPosition | null = null;
 
   watch(
     () => {
@@ -61,7 +94,13 @@ export function useMediaSession() {
         : null;
     },
     (pos) => {
-      if (!pos) return;
+      if (!pos) {
+        published = null;
+        return;
+      }
+      const now = performance.now();
+      if (!positionNeedsPublish(published, pos, now)) return;
+      published = { ...pos, at: now };
       try {
         navigator.mediaSession.setPositionState({
           duration: pos.duration,
