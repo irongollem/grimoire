@@ -1,4 +1,5 @@
 import { formatLicenseKeys, licenseKeysFor, rulesetForDocument, slugifyKey } from "@/lib/library/open5eApi";
+import { JACK_OF_ALL_TRADES } from "@/rules/skillCheck";
 import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { Open5eV2Class, Open5eV2ClassFeature } from "@/lib/library/open5eClassImport";
 import type { Open5eV2Feat } from "@/lib/library/open5eFeatImport";
@@ -183,6 +184,13 @@ function provenanceFor(document: Open5eDocumentRef): Record<string, unknown> {
       permalink: document.permalink ?? null,
     },
   };
+}
+
+/** What a book class can do beyond its tables, by its concept key (#934, #1147). */
+function conceptCapabilities(conceptKey: string): string[] {
+  if (conceptKey === "druid") return ["wild_shape"];
+  if (conceptKey === "bard") return [JACK_OF_ALL_TRADES];
+  return [];
 }
 
 function parseHitDie(hitDice: string): HitDie {
@@ -535,10 +543,11 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
       continue;
     }
 
+    const conceptKey = slugifyKey(cls.name);
     const insert: CustomClassInsert = {
       ...common,
       class_name: cls.name,
-      conceptual_key: slugifyKey(cls.name),
+      conceptual_key: conceptKey,
       hit_die: parseHitDie(cls.hit_dice),
       primary_ability: null,
       saving_throws: (cls.saving_throws ?? []).map(s => s.name),
@@ -555,9 +564,10 @@ export function planOfficialClassContent(input: OfficialClassContentInput): Offi
       prepared_divisor: null,
       image_url: null,
       focal_point: null,
-      // A druid by concept can Wild Shape (#934). Insert only: the update below
-      // never writes capabilities, so a re-import cannot clear what an admin set.
-      capabilities: slugifyKey(cls.name) === "druid" ? ["wild_shape"] : [],
+      // A druid by concept can Wild Shape (#934) and a bard has Jack of All
+      // Trades (#1147). Insert only: the update below never writes
+      // capabilities, so a re-import cannot clear what an admin set.
+      capabilities: conceptCapabilities(conceptKey),
     };
     // Open5e exposes none of a class's mechanical progression, so everything
     // past the shell is filled in by hand and a re-import must not reset it.

@@ -108,6 +108,12 @@
               label="This class can Wild Shape"
               hint="Gives the class the druid's Wild Shape: forms, uses and the sheet's Wild Shape tab."
             />
+            <AppCheckbox
+              v-model="form.capabilities"
+              :value="JACK_OF_ALL_TRADES"
+              label="This class has Jack of All Trades"
+              hint="From 2nd level in the class, half the proficiency bonus on a check made without proficiency: any ability check under the 2014 rules, initiative too; only a skill check under 2024."
+            />
           </div>
         </div>
       </section>
@@ -178,6 +184,7 @@ import type { HitDie, PreparedAbility } from "@/levelup/customTypes";
 import type { CasterType } from "@/types/spell.types";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { JACK_OF_ALL_TRADES } from "@/rules/skillCheck";
 
 const route = useRoute();
 const router = useRouter();

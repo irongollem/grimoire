@@ -40,7 +40,7 @@
       </div>
       <span class="text-caption text-foreground flex-1">{{ skill.label }}</span>
       <span class="text-label text-muted-foreground shrink-0">
-        {{ skillBonus(skill.key, skill.ability) }}
+        {{ skillBonus(skill.key) }}
       </span>
     </div>
   </div>
@@ -75,6 +75,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import type { ProficienciesFormSlice } from "./partyMemberForm.types";
+import { skillCheckBonus, type JackOfAllTrades } from "@/rules/skillCheck";
 import type { SkillProfLevel, SaveKey } from "@/types/party.types";
 
 const SAVE_STATS = [
@@ -92,9 +93,10 @@ const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
   { value: "expertise", label: "E" },
 ];
 
-const { form, profBonus } = defineProps<{
+const { form, profBonus, jack } = defineProps<{
   form: ProficienciesFormSlice;
   profBonus: number;
+  jack: JackOfAllTrades;
 }>();
 
 const emit = defineEmits<{
@@ -109,21 +111,12 @@ function mod(score: number) {
   return Math.floor((score - 10) / 2);
 }
 
-function skillProf(key: keyof ProficienciesFormSlice["skill_proficiencies"]) {
-  return form.skill_proficiencies[key] ?? "none";
-}
-
 function setSkillProf(key: keyof ProficienciesFormSlice["skill_proficiencies"], val: SkillProfLevel) {
   patch({ skill_proficiencies: { ...form.skill_proficiencies, [key]: val } });
 }
 
-function skillBonus(key: keyof ProficienciesFormSlice["skill_proficiencies"], ability: SaveKey): string {
-  const base = mod(form[ability]);
-  const prof = skillProf(key);
-  const bonus =
-    prof === "proficient" ? base + profBonus
-    : prof === "expertise" ? base + profBonus * 2
-    : base;
+function skillBonus(key: keyof ProficienciesFormSlice["skill_proficiencies"]): string {
+  const bonus = skillCheckBonus({ ...form, proficiency_bonus: profBonus }, key, jack);
   return (bonus >= 0 ? "+" : "") + bonus;
 }
 

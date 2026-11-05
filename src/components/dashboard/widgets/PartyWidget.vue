@@ -55,17 +55,18 @@
         <div class="flex items-center gap-1 flex-wrap">
           <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" :title="acTitle(member)">AC {{ acOf(member) }}</span>
           <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Perception">
-            <IconReveal class="h-2.5 w-2.5" />{{ passiveScore(member, "perception") }}
+            <IconReveal class="h-2.5 w-2.5" />{{ passiveScore(member, "perception", jackFor(member)) }}
           </span>
           <AwarenessRollButton
             v-if="awarenessOn"
             :member="member"
+            :jack="jackFor(member)"
             :roll="awarenessRolls?.get(member.id)"
             :pending="spend.isPending.value"
             @use="spend.mutate([member.id])"
           />
           <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Insight">
-            <IconMind class="h-2.5 w-2.5" />{{ passiveScore(member, "insight") }}
+            <IconMind class="h-2.5 w-2.5" />{{ passiveScore(member, "insight", jackFor(member)) }}
           </span>
           <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/20 border border-primary/40 text-label text-primary">★ Insp.</span>
         </div>
@@ -93,6 +94,7 @@ import { useTrackerStates } from "@/composables/dashboard/useTrackerState";
 import { useRules } from "@/composables/rules/useRules";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { passiveScore } from "@/rules/skillCheck";
+import { useCampaignJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { useAwarenessRolls, useUseAwarenessRolls } from "@/composables/party/useAwarenessRolls";
 import { describeAc } from "@/rules/armorClass";
 import { useSpeciesNames } from "@/composables/rules/useSpecies";
@@ -119,6 +121,7 @@ import { useFormPortraits } from "@/composables/party/useFormPortraits";
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const { acFor, acBreakdownFor } = useArmorClass();
+const { jackFor } = useCampaignJackOfAllTrades();
 /** A wild-shaped member has the beast's AC, as everywhere else. */
 const acOf = (m: PartyMember) => m.wildshape_state?.beast_ac ?? acFor(m);
 const acTitle = (m: PartyMember) =>

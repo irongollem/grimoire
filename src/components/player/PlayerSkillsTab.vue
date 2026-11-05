@@ -30,6 +30,7 @@ import { computed } from "vue";
 import PlayerRollModeControl from "@/components/player/PlayerRollModeControl.vue";
 import SkillRollList from "@/components/player/SkillRollList.vue";
 import type { DisadvantageTarget } from "@/rules/rollModeNotes";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { passiveScore } from "@/rules/skillCheck";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 
@@ -43,11 +44,13 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number; masked?: boolean }] }>();
 
+const { jack } = useJackOfAllTrades(() => props.member);
+
 /** What this tab rolls, so the roll mode control names only the conditions that matter here. */
 const CHECK_TARGETS = ["ability checks"] as const satisfies readonly DisadvantageTarget[];
 
 function passiveFor(skillKey: keyof SkillProficiencies) {
-  return passiveScore(props.member, skillKey, props.overrideScores);
+  return passiveScore(props.member, skillKey, jack.value, props.overrideScores);
 }
 const passivePerception   = computed(() => passiveFor("perception"));
 const passiveInsight      = computed(() => passiveFor("insight"));

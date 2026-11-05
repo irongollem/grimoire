@@ -349,6 +349,7 @@ import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { skillCheckBonus } from "@/rules/skillCheck";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 import PlayerRollModeControl from "@/components/player/PlayerRollModeControl.vue";
@@ -424,7 +425,8 @@ const attackBadgeLabel = computed(() => {
 // check-disadvantage/penalty props, not the attack ones. On a completed roll the
 // character is marked with the "Hidden" condition (a shared, DM-visible chip);
 // making any attack clears it again (see rollAttackWith).
-const stealthBonus = computed(() => skillCheckBonus(props.member, "stealth"));
+const { jack, settledJack } = useJackOfAllTrades(() => props.member);
+const stealthBonus = computed(() => skillCheckBonus(props.member, "stealth", jack.value));
 const isHidden = computed(() => hasCondition(props.member.conditions, "Hidden"));
 const hiding = ref(false);
 const characterRuleset = computed(() => props.member.ruleset);
@@ -472,6 +474,8 @@ async function takeHideAction(override: RollMode | null = null) {
       override ?? "normal",
       props.checkDisadvantage ? "disadvantage" : "normal",
     );
+    // The class rows decide Jack of All Trades; the roll waits for them rather than score short.
+    await settledJack();
     const modifier = stealthBonus.value + props.checkPenalty;
     const label = "Hide · Dexterity (Stealth)" + modeTag(mode);
     const result = await promptRoll({ counts: { 20: 1 }, modifier, label, mode });

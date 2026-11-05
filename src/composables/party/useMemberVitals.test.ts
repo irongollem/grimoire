@@ -8,6 +8,7 @@ vi.mock("@/composables/monsters/usePlayerMonstersByIds", () => ({
     data: computed(() => new Map(beast.value ? [["wolf", beast.value]] : [])),
   }),
 }));
+vi.mock("@/composables/party/useJackOfAllTrades", () => ({ useJackOfAllTrades: () => ({ jack: { value: "none" }, settledJack: () => Promise.resolve("none") }) }));
 vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({ acFor: () => 15 }) }));
 
 import { useMemberVitals } from "./useMemberVitals";

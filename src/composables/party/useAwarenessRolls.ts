@@ -6,6 +6,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { useToast } from "@/composables/useToast";
 import { useActiveParty } from "@/composables/party/useActiveParty";
+import { useCampaignJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { formatAwarenessUse } from "@/rules/awareness";
 import type { AwarenessRoll } from "@/types/party.types";
 
@@ -54,6 +55,7 @@ export function useUseAwarenessRolls() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { data: party } = useActiveParty();
+  const { jackFor, settled: classRowsSettled } = useCampaignJackOfAllTrades();
 
   return useMutation({
     mutationFn: async (memberIds: string[]): Promise<UseResultRow[]> => {
@@ -64,8 +66,17 @@ export function useUseAwarenessRolls() {
       if (error) throw error;
       return data as UseResultRow[];
     },
-    onSuccess: (rows) => {
+    onSuccess: async (rows) => {
       void queryClient.invalidateQueries({ queryKey: [KEY] });
+      // The totals include Jack of All Trades, so they wait for the class rows. The
+      // rolls are already used on the server, so a failure here is not a failed use.
+      try {
+        await classRowsSettled();
+      } catch {
+        // The class rows query reports its own error; this says what it cost here.
+        toast.error("The awareness rolls were used, but their totals could not be read. Reload to see them.");
+        return;
+      }
       const byId = new Map(party.value?.map((m) => [m.id, m] as const));
       const uses = rows.flatMap((row) => {
         const member = byId.get(row.member_id);
@@ -73,7 +84,7 @@ export function useUseAwarenessRolls() {
           row.used_d20 !== null && row.used_d20_second !== null
             ? { d20: row.used_d20, d20Second: row.used_d20_second }
             : null;
-        return member ? [{ name: member.name, member, used }] : [];
+        return member ? [{ name: member.name, member, jack: jackFor(member), used }] : [];
       });
       const text = formatAwarenessUse(uses);
       if (text) toast.info(text, TOAST_MS);

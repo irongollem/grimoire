@@ -34,7 +34,8 @@ import { abilityBonusesForChoice, unresolvedOriginFeatMessage } from "@/rules/ba
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { characterSpellInserts, levelOneWrites, scoresAfterBonuses } from "@/composables/party/creationLevelOne";
 import { useCreationLevelOne } from "@/composables/party/useCreationLevelOne";
-import { passiveScore, type SkillCheckSource } from "@/rules/skillCheck";
+import { jackOfAllTrades, passiveScore, skillCheckBonus, type JackOfAllTrades, type JackOfAllTradesClassRow, type SkillCheckSource } from "@/rules/skillCheck";
+import type { RulesetKey } from "@/types/ruleset.types";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
   type CharacterFormState, type AbilityKey, type AsiMode, type ScoreMode,
@@ -208,6 +209,25 @@ export type CreateDestination =
   | { name: "play-home" }
   | { name: "play-champions" }
   | { path: string };
+
+/**
+ * Jack of All Trades for the form's scores. Editing reads the member's class
+ * rows (null while they load: none until they land). Creating has no rows yet,
+ * so the chosen class at the chosen level stands in as one; no class or no
+ * edition chosen yet is none too.
+ */
+export function formJackOfAllTrades(input: {
+  existing: { ruleset: RulesetKey; rows: readonly JackOfAllTradesClassRow[] | null } | null;
+  chosen: JackOfAllTradesClassRow | null;
+  chosenRuleset: RulesetKey | null;
+}): JackOfAllTrades {
+  if (input.existing) {
+    if (!input.existing.rows) return "none";
+    return jackOfAllTrades(input.existing.rows, input.existing.ruleset);
+  }
+  if (!input.chosen || !input.chosenRuleset) return "none";
+  return jackOfAllTrades([input.chosen], input.chosenRuleset);
+}
 
 /** Where a finished create lands. A benched character goes where its notice is. */
 export function createDestination(input: {
@@ -774,10 +794,8 @@ export function useCharacterCreationForm() {
   function setSkillProf(key: keyof typeof f.skill_proficiencies, val: SkillProfLevel) {
     f.skill_proficiencies[key] = val;
   }
-  function skillBonus(key: keyof typeof f.skill_proficiencies, ability: SaveKey): string {
-    const base  = mod(f[ability]);
-    const prof  = f.skill_proficiencies[key] ?? "none";
-    const bonus = prof === "proficient" ? base + profBonus.value : prof === "expertise" ? base + profBonus.value * 2 : base;
+  function skillBonus(key: keyof typeof f.skill_proficiencies): string {
+    const bonus = skillCheckBonus(skillSource.value, key, jack.value);
     return (bonus >= 0 ? "+" : "") + bonus;
   }
   function toggleSave(key: SaveKey) {
@@ -790,15 +808,21 @@ export function useCharacterCreationForm() {
     return (bonus >= 0 ? "+" : "") + bonus;
   }
 
+  const jack = computed(() => formJackOfAllTrades({
+    existing: existingMember.value ? { ruleset: existingMember.value.ruleset, rows: memberClassRows.value ?? null } : null,
+    chosen: selectedClass.value ? { capabilities: selectedClass.value.capabilities, levels: f.level } : null,
+    chosenRuleset: chosenRuleset.value,
+  }));
+
   // The form scores like a member: same rules module as the sheet and the DM's tracker.
   const skillSource = computed<SkillCheckSource>(() => ({
     str: f.str, dex: f.dex, con: f.con, int: f.int, wis: f.wis, cha: f.cha,
     proficiency_bonus: profBonus.value,
     skill_proficiencies: f.skill_proficiencies,
   }));
-  const passivePerception    = computed(() => passiveScore(skillSource.value, "perception"));
-  const passiveInsight       = computed(() => passiveScore(skillSource.value, "insight"));
-  const passiveInvestigation = computed(() => passiveScore(skillSource.value, "investigation"));
+  const passivePerception    = computed(() => passiveScore(skillSource.value, "perception", jack.value));
+  const passiveInsight       = computed(() => passiveScore(skillSource.value, "insight", jack.value));
+  const passiveInvestigation = computed(() => passiveScore(skillSource.value, "investigation", jack.value));
 
   // ── Save ──────────────────────────────────────────────────────────────────────
 

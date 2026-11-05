@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { ref } from "vue";
 import SkillRollList from "./SkillRollList.vue";
@@ -10,8 +10,10 @@ const mocks = vi.hoisted(() => ({
   prompt: vi.fn(),
   campaign: { activeCampaign: null as { user_id: string; immersive_rolls: boolean } | null },
   auth: { user: null as { id: string } | null },
+  jack: "none" as "none" | "any_check" | "skill_check",
   whisper: { ids: new Set<string>(), ok: true },
 }));
+vi.mock("@/composables/party/useJackOfAllTrades", () => ({ useJackOfAllTrades: () => ({ jack: { get value() { return mocks.jack; } }, settledJack: () => Promise.resolve(mocks.jack) }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendFlavorMessage: mocks.flavor }) }));
 vi.mock("@/composables/campaign/chatSendErrors", () => ({ useChatSendFailure: () => ({ reportChatFailure: vi.fn() }) }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: mocks.prompt }) }));
@@ -52,6 +54,20 @@ describe("SkillRollList", () => {
   it("scores a skill from the member's proficiency", () => {
     expect(mountList("compact").text()).toContain("Stealth");
     expect(mountList("compact").text()).toContain("+6");
+  });
+});
+
+describe("SkillRollList Jack of All Trades", () => {
+  afterEach(() => { mocks.jack = "none"; });
+
+  it("a Bard adds half proficiency to a skill they lack, and the list shows it", () => {
+    // PHB 2014 "Jack of All Trades": half proficiency, rounded down (2 -> +1) on checks without proficiency.
+    mocks.jack = "any_check";
+    expect(mountList("compact").text()).toContain("+1");
+  });
+
+  it("a character without it shows no +1 on an untrained skill", () => {
+    expect(mountList("compact").text()).not.toContain("+1");
   });
 });
 

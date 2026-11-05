@@ -234,6 +234,8 @@ import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useC
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/encounters/useEncounterLive";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
+import { jackOfAllTradesBonus } from "@/rules/skillCheck";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { healthVisibilityOf } from "@/lib/healthVisibility";
 import type { RunCombatant, HealthVisibility, FiredPlayerEvent } from "@/types/encounter.types";
@@ -368,12 +370,20 @@ const myInitiative = computed<number | null>(
 // initiative — i.e. exactly the "prefilled + disabled" case players complained
 // about is now a live Roll button instead.
 const showMyInitiative = computed(() => isInLobby.value || myInitiative.value === null);
-// Initiative = DEX mod + the member's initiative_bonus (feat/special extra). One
-// number feeds both the button's label and the roll, so they cannot disagree.
+const myPartyMember = computed(() => {
+  const id = myPlayer.value?.party_member_id;
+  return id ? partyMap.value.get(id) : undefined;
+});
+const { jack: myJack, settledJack: settledMyJack } = useJackOfAllTrades(myPartyMember);
+// Initiative = DEX mod (the combatant's, so a Wild Shape form's DEX) + the member's
+// initiative_bonus (feat/special extra) + Jack of All Trades (initiative is a DEX
+// check). One number feeds both the button's label and the roll.
 const rollModifier = computed(() => {
   const member = myPlayer.value;
   if (!member) return 0;
-  return member.dex_mod + (partyMap.value.get(member.party_member_id ?? "")?.initiative_bonus ?? 0);
+  const party = myPartyMember.value;
+  if (!party) return member.dex_mod;
+  return member.dex_mod + party.initiative_bonus + jackOfAllTradesBonus(myJack.value, party.proficiency_bonus, "ability");
 });
 const dexModLabel = computed(() => (rollModifier.value >= 0 ? `+${rollModifier.value}` : `${rollModifier.value}`));
 
@@ -388,6 +398,8 @@ async function rollMyInitiative() {
   if (!member?.party_member_id || rollingInitiative.value) return;
   rollingInitiative.value = true;
   try {
+    // The class rows decide Jack of All Trades; the roll waits for them rather than score short.
+    await settledMyJack();
     const result = await promptRoll({
       counts: { 20: 1 },
       modifier: rollModifier.value,

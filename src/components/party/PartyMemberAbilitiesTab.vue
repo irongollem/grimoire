@@ -183,6 +183,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import type { AbilitiesFormSlice } from "./partyMemberForm.types";
 import type { SkillProficiencies } from "@/types/party.types";
+import { passiveScore, type JackOfAllTrades } from "@/rules/skillCheck";
 import type { AcBreakdown } from "@/rules/armorClass";
 import AcFormField from "./AcFormField.vue";
 import { ordinal } from "@/lib/ordinal";
@@ -196,7 +197,7 @@ const ABILITY_STATS = [
   { key: "cha" as const, label: "CHA" },
 ];
 
-const { form, spellSlotMaxes, skillProficiencies, profBonus, acBreakdown, naturalSeed = null, speciesDarkvisionFeet = 0 } = defineProps<{
+const { form, spellSlotMaxes, skillProficiencies, profBonus, jack, acBreakdown, naturalSeed = null, speciesDarkvisionFeet = 0 } = defineProps<{
   form: AbilitiesFormSlice;
   /** The AC as the character is right now, from `useArmorClass().acBreakdownFor`. */
   acBreakdown: AcBreakdown;
@@ -207,6 +208,7 @@ const { form, spellSlotMaxes, skillProficiencies, profBonus, acBreakdown, natura
   spellSlotMaxes: number[];
   skillProficiencies: SkillProficiencies;
   profBonus: number;
+  jack: JackOfAllTrades;
 }>();
 
 const emit = defineEmits<{
@@ -223,27 +225,15 @@ function mod(score: number) {
   return Math.floor((score - 10) / 2);
 }
 
-function skillProf(key: keyof SkillProficiencies) {
-  return skillProficiencies[key] ?? "none";
-}
+const checkSource = computed(() => ({
+  str: form.str, dex: form.dex, con: form.con, int: form.int, wis: form.wis, cha: form.cha,
+  proficiency_bonus: profBonus,
+  skill_proficiencies: skillProficiencies,
+}));
 
-const passivePerception = computed(() => {
-  const base = mod(form.wis);
-  const prof = skillProf("perception");
-  return 10 + base + (prof === "proficient" ? profBonus : prof === "expertise" ? profBonus * 2 : 0);
-});
-
-const passiveInsight = computed(() => {
-  const base = mod(form.wis);
-  const prof = skillProf("insight");
-  return 10 + base + (prof === "proficient" ? profBonus : prof === "expertise" ? profBonus * 2 : 0);
-});
-
-const passiveInvestigation = computed(() => {
-  const base = mod(form.int);
-  const prof = skillProf("investigation");
-  return 10 + base + (prof === "proficient" ? profBonus : prof === "expertise" ? profBonus * 2 : 0);
-});
+const passivePerception = computed(() => passiveScore(checkSource.value, "perception", jack));
+const passiveInsight = computed(() => passiveScore(checkSource.value, "insight", jack));
+const passiveInvestigation = computed(() => passiveScore(checkSource.value, "investigation", jack));
 </script>
 
 <style scoped>

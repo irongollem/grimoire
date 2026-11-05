@@ -10,6 +10,9 @@ const h = vi.hoisted(() => ({
   promptRoll: vi.fn(),
   updateMember: vi.fn(),
   toastError: vi.fn(),
+  /** What the sheet shows while the class rows load, and what they settle to. */
+  jack: "none" as "none" | "any_check" | "skill_check",
+  settledJack: "none" as "none" | "any_check" | "skill_check",
 }));
 
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: h.promptRoll }) }));
@@ -18,6 +21,9 @@ vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: h.toastError, fromError: (_e: unknown, msg: string) => msg }),
 }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2024") }) }));
+vi.mock("@/composables/party/useJackOfAllTrades", () => ({
+  useJackOfAllTrades: () => ({ jack: { get value() { return h.jack; } }, settledJack: () => Promise.resolve(h.settledJack) }),
+}));
 vi.mock("@/composables/party/useWildshapeForm", () => ({
   useWildshapeForm: () => ({ activeWildshape: ref(null), beastMonster: ref(null) }),
 }));
@@ -43,6 +49,56 @@ beforeEach(() => {
   vi.clearAllMocks();
   liveState.value = null;
   h.updateMember.mockResolvedValue(undefined);
+  h.jack = "none";
+  h.settledJack = "none";
+});
+
+describe("rollAbility", () => {
+  const bard = { ...member, proficiency_bonus: 4 } as unknown as PartyMember;
+
+  it("a 2014 Bard's plain ability check adds half proficiency", async () => {
+    // PHB 2014 "Bard": Jack of All Trades, half proficiency (4 -> +2) on any check without proficiency.
+    h.jack = "any_check";
+    h.settledJack = "any_check";
+    rolled(12);
+    await useCharacterRolls(() => bard).rollAbility("dex", "Dexterity", 2);
+    expect(h.promptRoll.mock.calls[0][0].modifier).toBe(4);
+  });
+
+  it("a 2024 Bard's plain ability check gets nothing", async () => {
+    // SRD 5.2 "Bard": Jack of All Trades applies to skill checks only.
+    h.jack = "skill_check";
+    h.settledJack = "skill_check";
+    rolled(12);
+    await useCharacterRolls(() => bard).rollAbility("dex", "Dexterity", 2);
+    expect(h.promptRoll.mock.calls[0][0].modifier).toBe(2);
+  });
+
+  it("waits for the class rows rather than roll a Bard's check short while they load", async () => {
+    // #1147 review: the sheet still reads "none", but the rows settle to a 2014 Bard; PB 4 -> +2.
+    h.jack = "none";
+    h.settledJack = "any_check";
+    rolled(12);
+    await useCharacterRolls(() => bard).rollAbility("dex", "Dexterity", 2);
+    expect(h.promptRoll.mock.calls[0][0].modifier).toBe(4);
+  });
+
+  it("names the check's total for the ability table only when Jack of All Trades adds to it", () => {
+    h.jack = "any_check";
+    expect(useCharacterRolls(() => bard).abilityCheckBonus.value).toEqual({ amount: 2, source: "Jack of All Trades" });
+    h.jack = "skill_check";
+    expect(useCharacterRolls(() => bard).abilityCheckBonus.value).toBeNull();
+  });
+});
+
+describe("rollInitiative with Jack of All Trades", () => {
+  it("waits for the class rows, so a 2014 Bard's initiative is not rolled short", async () => {
+    // PHB 2014: initiative is a Dexterity check. DEX +2, initiative_bonus 5, half of PB 3 is 1.
+    h.settledJack = "any_check";
+    rolled(18);
+    await useCharacterRolls(() => ({ ...member, proficiency_bonus: 3 })).rollInitiative();
+    expect(h.promptRoll.mock.calls[0][0].modifier).toBe(8);
+  });
 });
 
 describe("rollInitiative", () => {

@@ -31,7 +31,8 @@
       <AbilityScoreTable
         :scores="wildshapeScores"
         :saves="wildshapeSaves"
-        @roll-ability="(_, label, mod) => emit('roll-check', mod, label + ' Check')"
+        :check-bonus="abilityCheckBonus"
+        @roll-ability="(_, label, mod) => rollAbilityCheck(mod, label)"
         @roll-save="(_, label, bonus) => emit('roll-check', bonus, label + ' Save')"
       />
       <RunnerActionList :combatant="combatant" :sections="wildshapeActionSections" />
@@ -129,6 +130,8 @@ import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/player/useP
 import { availableWildShapeForms, knownFormIds, wildShapeFormCost } from "@/rules/wildshape";
 import { useWildshapeDruid } from "@/composables/player/useWildshapeDruid";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
+import { jackOfAllTradesBonus } from "@/rules/skillCheck";
 
 const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
@@ -148,6 +151,17 @@ const discoveredKeys = useDiscoveredKeys();
 const memberId = computed(() => member.id);
 const { data: pinnedForms } = useDmPinnedForms(memberId);
 const { mutate: togglePinnedForm } = useTogglePinnedForm();
+// A form keeps the character's class features (PHB 2014 / SRD 5.2 "Wild Shape"), so a
+// 2014 Bard's plain checks in it still take Jack of All Trades.
+const { jack, settledJack } = useJackOfAllTrades(() => member);
+const abilityCheckBonus = computed(() => {
+  const amount = jackOfAllTradesBonus(jack.value, member.proficiency_bonus, "ability");
+  return amount === 0 ? null : { amount, source: "Jack of All Trades" };
+});
+// A roll waits for the class rows that decide Jack of All Trades rather than score short.
+async function rollAbilityCheck(mod: number, label: string) {
+  emit("roll-check", mod + jackOfAllTradesBonus(await settledJack(), member.proficiency_bonus, "ability"), label + " Check");
+}
 
 // ── Class helpers ─────────────────────────────────────────────────────────────
 

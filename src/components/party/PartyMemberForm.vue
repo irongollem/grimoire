@@ -55,6 +55,7 @@
           :spell-slot-maxes="spellSlotMaxes"
           :skill-proficiencies="form.skill_proficiencies"
           :prof-bonus="profBonus"
+          :jack="jack"
           @update:form="applyAbilitiesPatch"
           @update:spell-slot-max="setSlotMax"
           @reset-slots="resetSlotsToDefault"
@@ -64,6 +65,7 @@
           v-if="activeTab === 'profs'"
           :form="proficienciesSlice"
           :prof-bonus="profBonus"
+          :jack="jack"
           @update:form="applyProficienciesPatch"
         />
 
@@ -112,6 +114,7 @@ import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
 import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
@@ -161,6 +164,8 @@ const { ruleset } = useRuleset();
 // Multiclass / builder data
 const memberId = computed(() => props.member.id);
 const { data: characterClassRows } = useCharacterClasses(memberId);
+// Jack of All Trades from the saved class rows; "none" until they load.
+const { jack } = useJackOfAllTrades(() => props.member);
 const hasClasses = computed(() => (characterClassRows.value?.length ?? 0) > 0);
 const multiclassLabel = computed(() => formatMulticlassLabel(characterClassRows.value ?? []));
 const multiclassTotal = computed(() => totalLevel(characterClassRows.value ?? []));

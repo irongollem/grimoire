@@ -1,5 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useArmorClass } from "@/composables/party/useArmorClass";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useHpDisplay } from "@/composables/player/useHpDisplay";
 import { walkingSpeed } from "@/lib/movement";
@@ -17,6 +18,7 @@ import type { PartyMember } from "@/types/party.types";
  */
 export function useMemberVitals(member: MaybeRefOrGetter<PartyMember>) {
   const { activeWildshape: wildshape, beastMonster } = useWildshapeForm(member);
+  const { jack } = useJackOfAllTrades(member);
   const { acFor } = useArmorClass();
 
   const scores = computed(() =>
@@ -27,12 +29,12 @@ export function useMemberVitals(member: MaybeRefOrGetter<PartyMember>) {
   );
 
   const armorClass = computed(() => wildshape.value?.beast_ac ?? acFor(toValue(member)));
-  const initiative = computed(() => memberInitiativeModifier(toValue(member), scores.value.dex));
+  const initiative = computed(() => memberInitiativeModifier(toValue(member), jack.value, scores.value.dex));
   const speed = computed(
     () => (wildshape.value ? walkingSpeed(beastMonster.value?.stat_block?.speed) : null) ?? toValue(member).speed,
   );
   const passivePerception = computed(() =>
-    passiveScore(toValue(member), "perception", wildshape.value ? scores.value : undefined),
+    passiveScore(toValue(member), "perception", jack.value, wildshape.value ? scores.value : undefined),
   );
 
   const current = computed(() => wildshape.value?.beast_hp ?? toValue(member).current_hp);

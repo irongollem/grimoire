@@ -119,7 +119,7 @@
               <div class="cs-combat-label">Armor Class</div>
             </div>
             <div class="cs-combat-stat">
-              <div class="cs-combat-value">{{ signedBonus(member.initiative_bonus + abilityMod(member.dex)) }}</div>
+              <div class="cs-combat-value">{{ signedBonus(memberInitiativeModifier(member, jack)) }}</div>
               <div class="cs-combat-label">Initiative</div>
             </div>
             <div class="cs-combat-stat">
@@ -305,6 +305,8 @@ import { computed } from "vue";
 import { useCurrency } from "@/composables/currency/useCurrency";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import { jackOfAllTrades, passiveScore, skillCheckBonus } from "@/rules/skillCheck";
+import { memberInitiativeModifier } from "@/rules/initiative";
 import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { SheetPageSize, SheetTheme } from "@/components/character-sheet/illustrated/sheetTypes";
@@ -376,17 +378,13 @@ function skillLevel(key: keyof SkillProficiencies): string {
   return member.skill_proficiencies?.[key] ?? "none";
 }
 
+const jack = computed(() => jackOfAllTrades(classInput.rows, member.ruleset));
+
 function computedSkillBonus(sk: typeof SKILLS[number]): number {
-  const mod = abilityMod(member[sk.ability]);
-  const level = skillLevel(sk.key);
-  const pb = member.proficiency_bonus;
-  return mod + (level === "none" ? 0 : level === "proficient" ? pb : pb * 2);
+  return skillCheckBonus(member, sk.key, jack.value);
 }
 
-const passivePerception = computed(() => {
-  const sk = SKILLS.find((s) => s.key === "perception")!;
-  return 10 + computedSkillBonus(sk);
-});
+const passivePerception = computed(() => passiveScore(member, "perception", jack.value));
 
 const castingAbility = computed(() => sheetCastingAbility(member, classInput, member.ruleset));
 const castingMod = computed(() =>

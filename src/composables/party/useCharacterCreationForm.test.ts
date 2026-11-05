@@ -9,6 +9,7 @@ import {
   createDestination,
   buildCharacterPayload,
   changedEditColumns,
+  formJackOfAllTrades,
   type CharacterEditDraft,
 } from "./useCharacterCreationForm";
 import { useAutosave, type UseAutosaveHandle } from "@/composables/useAutosave";
@@ -313,5 +314,27 @@ describe("languages the player removed by hand", () => {
   it("treats a species with null languages as granting none", () => {
     const bare = { size: null, speed: { walk: 30 }, languages: null, subraces: null } as unknown as typeof elf;
     expect(swapSpeciesLanguages(["Common"], { species: bare, subrace: "" }, bare)).toEqual(["Common"]);
+  });
+});
+
+describe("formJackOfAllTrades", () => {
+  const bard = (levels: number) => ({ capabilities: ["jack_of_all_trades"], levels });
+
+  it("gives a Bard being created Jack of All Trades from level 2, not level 1", () => {
+    // PHB 2014 "Bard": Jack of All Trades at 2nd level. Without the create-mode
+    // derivation the form showed passive Perception without it for a new Bard 2.
+    expect(formJackOfAllTrades({ existing: null, chosen: bard(1), chosenRuleset: "2014" })).toBe("none");
+    expect(formJackOfAllTrades({ existing: null, chosen: bard(2), chosenRuleset: "2014" })).toBe("any_check");
+    expect(formJackOfAllTrades({ existing: null, chosen: bard(2), chosenRuleset: "2024" })).toBe("skill_check");
+  });
+
+  it("gives nothing before a class or edition is chosen", () => {
+    expect(formJackOfAllTrades({ existing: null, chosen: null, chosenRuleset: "2014" })).toBe("none");
+    expect(formJackOfAllTrades({ existing: null, chosen: bard(5), chosenRuleset: null })).toBe("none");
+  });
+
+  it("reads a saved character's class rows, and gives nothing while they load", () => {
+    expect(formJackOfAllTrades({ existing: { ruleset: "2014", rows: [bard(3)] }, chosen: null, chosenRuleset: null })).toBe("any_check");
+    expect(formJackOfAllTrades({ existing: { ruleset: "2014", rows: null }, chosen: null, chosenRuleset: null })).toBe("none");
   });
 });

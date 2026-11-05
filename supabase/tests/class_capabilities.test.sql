@@ -1,12 +1,13 @@
 -- #934 story 9: Wild Shape comes from the class definition's capabilities, not
 -- the class name, and every character class row carries its definition's list.
+-- #1147: Jack of All Trades rides the same capability list.
 --
 --   1 Dana (DM, owns the campaign and the custom classes)   2 Pat (plays e1 and e2)
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(10);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('93410000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -76,6 +77,20 @@ update public.custom_classes set capabilities = '{}' where id = '93410000-0000-4
 reset role;
 select is((select capabilities from public.character_classes where class_name = 'Skinchanger'),
   '{}'::text[], 'taking Wild Shape away reaches the class''s characters too');
+
+select ok(
+  (select bool_and('jack_of_all_trades' = any (capabilities)) from public.system_classes where conceptual_key = 'bard'),
+  'the library Bard has Jack of All Trades in both editions (bug: the backfill missed an edition, and that Bard scores checks short)'
+);
+select ok(
+  (select not bool_or('jack_of_all_trades' = any (capabilities)) from public.system_classes where conceptual_key <> 'bard'),
+  'no other library class has Jack of All Trades (bug: a backfill keyed too wide hands every class half proficiency)'
+);
+select throws_ok(
+  $$update public.custom_classes set capabilities = '{jack_of_all_trades_plus}' where id = '93410000-0000-4000-8000-0000000000a2'$$,
+  '23514', null,
+  'an unknown capability is refused, so a typo cannot pass for a feature'
+);
 
 select * from finish();
 rollback;

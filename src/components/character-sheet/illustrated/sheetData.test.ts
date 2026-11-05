@@ -217,6 +217,16 @@ describe("toFront — skill proficiency/expertise math", () => {
     const front = toFront(m, [], WIZARD_5, null, null, 12);
     expect(front.passperc).toBe("14"); // 10 + 2 (wis) + 2 (pb)
   });
+
+  it("prints a 2014 Bard 2's Jack of All Trades on untrained skills and initiative (#1147)", () => {
+    // PHB 2014 "Bard": half of PB 3, rounded down, is +1 on any check without proficiency.
+    const m = member({ dex: 16, wis: 10, proficiency_bonus: 3, initiative_bonus: 0, skill_proficiencies: {}, ruleset: "2014" });
+    const bard = input(classRow("cleric", 2, { is_primary: true, capabilities: ["jack_of_all_trades"] }));
+    const front = toFront(m, [], bard, null, null, 12);
+    expect(front.skills.find((s) => s.name === "Stealth")?.mod).toBe("+4"); // 3 (dex) + 1
+    expect(front.passperc).toBe("11"); // 10 + 0 (wis) + 1
+    expect(front.init).toBe("+4"); // 3 (dex) + 1: initiative is a Dexterity check
+  });
 });
 
 describe("toFront — spell DC/attack", () => {

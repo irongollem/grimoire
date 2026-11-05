@@ -153,6 +153,12 @@ describe("planOfficialClassContent", () => {
     expect(byName("Druid").update).not.toHaveProperty("capabilities");
   });
 
+  // Bug (#1147): an imported Bard without the capability never adds Jack of All Trades to a check.
+  it("gives a Bard base class Jack of All Trades on insert", () => {
+    const result = plan({ classes: [fighter(taldorei, { name: "Bard", key: "tdcs_bard" })] });
+    expect(result.classes[0].insert.capabilities).toEqual(["jack_of_all_trades"]);
+  });
+
   it("skips a book that has no content source and says so", () => {
     const result = plan({ classes: [fighter(unknownBook)], feats: [] });
     expect(result.features).toEqual([]);

@@ -156,7 +156,7 @@
             @update:model-value="(v) => setSkillProf(skill.key, v)"
           />
           <span class="text-caption text-foreground flex-1">{{ skill.label }}</span>
-          <span class="text-label text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
+          <span class="text-label text-muted-foreground shrink-0">{{ skillBonus(skill.key) }}</span>
         </div>
       </div>
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-4">Tool Proficiencies</p>

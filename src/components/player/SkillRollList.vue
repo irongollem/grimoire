@@ -43,7 +43,8 @@ import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperRecipients } from "@/composables/campaign/useWhisperRecipients";
-import { skillCheckBonus } from "@/rules/skillCheck";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
+import { skillCheckBonus, type JackOfAllTrades } from "@/rules/skillCheck";
 import { SKILLS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 
@@ -63,6 +64,7 @@ const { member, checkDisadvantage, checkPenalty, overrideScores, density = "list
 }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number; masked?: boolean }] }>();
 
+const { jack, settledJack } = useJackOfAllTrades(() => member);
 const halves = [SKILLS.slice(0, 9), SKILLS.slice(9)];
 
 const { sendFlavorMessage } = useCampaignMessages();
@@ -94,10 +96,10 @@ const canWhisperDm = computed(() => {
 function profLevel(key: keyof SkillProficiencies) {
   return member.skill_proficiencies?.[key] ?? "none";
 }
-function skillBonusValue(skill: (typeof SKILLS)[number]) {
+function skillBonusValue(skill: (typeof SKILLS)[number], jackOfAllTrades: JackOfAllTrades = jack.value) {
   // When wildshaped, use beast STR/DEX/CON; player keeps INT/WIS/CHA proficiency
   // bonuses. Shared with the Hide action's Stealth roll via `@/rules/skillCheck`.
-  return skillCheckBonus(member, skill.key, overrideScores);
+  return skillCheckBonus(member, skill.key, jackOfAllTrades, overrideScores);
 }
 
 const IMMERSIVE_SKILL_KEYS = new Set([
@@ -134,7 +136,8 @@ async function rollSkill(skill: (typeof SKILLS)[number], override: RollMode | nu
   // Player-picked mode (long-press/right-click) combined with any
   // condition-imposed disadvantage: opposing sources cancel to normal (5e RAW).
   const mode: RollMode = combineModes(override ?? "normal", checkDisadvantage ? "disadvantage" : "normal");
-  const modifier = skillBonusValue(skill) + checkPenalty;
+  // The class rows decide Jack of All Trades; a roll waits for them rather than score short.
+  const modifier = skillBonusValue(skill, await settledJack()) + checkPenalty;
   const name = speakerName(member);
 
   if (isImmersive) {

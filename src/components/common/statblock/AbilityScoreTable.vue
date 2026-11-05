@@ -25,8 +25,8 @@
         block
         class="group relative flex-col justify-center gap-1 rounded-md border px-1 pt-2 pb-4 text-center"
         :class="[FRAME, WASH, HOVER]"
-        :tooltip="`Roll a ${ab.name} check`"
-        :aria-label="`${ab.name} ${scores[ab.key]}, modifier ${fmt(mod(ab.key))}: roll a check`"
+        :tooltip="checkTooltip(ab)"
+        :aria-label="checkAriaLabel(ab)"
         v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.abbr, mod(ab.key), m) }"
       >
         <span class="max-w-full truncate text-label font-bold" :class="INK">{{ ab.name }}</span>
@@ -75,8 +75,8 @@
           size="body"
           class="group col-span-3 grid grid-cols-subgrid items-baseline gap-0 rounded-none px-0 py-1.5"
           :class="[WASH, HOVER, i > 0 && 'border-t border-border/30']"
-          :tooltip="`Roll a ${ab.name} check`"
-          :aria-label="`${ab.name} ${scores[ab.key]}, modifier ${fmt(mod(ab.key))}: roll a check`"
+          :tooltip="checkTooltip(ab)"
+          :aria-label="checkAriaLabel(ab)"
           v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.abbr, mod(ab.key), m) }"
         >
           <span class="pl-2 text-label font-bold" :class="INK">{{ ab.abbr }}</span>
@@ -135,6 +135,7 @@ const {
   scores,
   saves,
   layout = "statblock",
+  checkBonus = null,
 } = defineProps<{
   /** The six ability scores. */
   scores: Record<AbilityKey, number>;
@@ -156,6 +157,13 @@ const {
    * unaffected. The chosen mode is passed as the emit's 4th argument.
    */
   rollModePicker?: boolean;
+  /**
+   * What a character adds to every plain ability check beyond the modifier
+   * (Jack of All Trades). The box keeps showing the modifier, which attacks and
+   * damage use too, and the check's total is named on the button. The parent
+   * adds it when it rolls; the emitted modifier stays the ability's own.
+   */
+  checkBonus?: { amount: number; source: string } | null;
 }>();
 
 const emit = defineEmits<{
@@ -173,6 +181,20 @@ function fmt(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
+type Ability = (typeof ABILITIES)[number];
+/** The check's total and what adds to it, or null when it is the modifier alone. */
+function checkExtra(ab: Ability): string | null {
+  if (!checkBonus || checkBonus.amount === 0) return null;
+  return `${fmt(mod(ab.key) + checkBonus.amount)} with ${checkBonus.source} ${fmt(checkBonus.amount)}`;
+}
+function checkTooltip(ab: Ability): string {
+  const extra = checkExtra(ab);
+  return extra ? `Roll a ${ab.name} check: ${extra}` : `Roll a ${ab.name} check`;
+}
+function checkAriaLabel(ab: Ability): string {
+  const extra = checkExtra(ab);
+  return `${ab.name} ${scores[ab.key]}, modifier ${fmt(mod(ab.key))}${extra ? `, check ${extra}` : ""}: roll a check`;
+}
 function saveBonus(key: AbilityKey): number {
   return saves?.[key]?.bonus ?? mod(key);
 }

@@ -22,7 +22,8 @@
     <AbilityScoreTable
       :scores="playerScores"
       :saves="playerSaves"
-      @roll-ability="(_, label, mod) => emit('roll-check', mod, label + ' Check')"
+      :check-bonus="abilityCheckBonus"
+      @roll-ability="(_, label, mod) => rollAbilityCheck(mod, label)"
       @roll-save="(_, label, bonus) => emit('roll-check', bonus, label + ' Save')"
     />
     <!-- Skills -->
@@ -35,10 +36,10 @@
         type="button"
         class="detail-check-btn"
         :class="{ 'check-proficient': skillProf(sk.key) !== 'none', 'check-expertise': skillProf(sk.key) === 'expertise' }"
-        @click="emit('roll-check', skillBonus(sk.key, sk.ability), sk.label)"
+        @click="rollSkillCheck(sk.key, sk.label)"
       >
         <span>{{ sk.label }}</span>
-        <em>{{ skillBonus(sk.key, sk.ability) >= 0 ? '+' : '' }}{{ skillBonus(sk.key, sk.ability) }}</em>
+        <em>{{ skillBonus(sk.key) >= 0 ? '+' : '' }}{{ skillBonus(sk.key) }}</em>
       </button>
     </div>
 
@@ -110,7 +111,7 @@ import RunnerPcAttacks from "@/components/encounters/RunnerPcAttacks.vue";
 import RunnerPcConditions from "@/components/encounters/RunnerPcConditions.vue";
 import RunnerPcWildshape from "@/components/encounters/RunnerPcWildshape.vue";
 import RunnerPcSpells from "@/components/encounters/RunnerPcSpells.vue";
-import type { PartyMember, SaveKey } from "@/types/party.types";
+import type { PartyMember, SaveKey, SkillProficiencies } from "@/types/party.types";
 import { SKILLS } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
@@ -119,6 +120,8 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/party/useCharacterSpells";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
+import { jackOfAllTradesBonus, skillCheckBonus, type JackOfAllTrades } from "@/rules/skillCheck";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
@@ -169,6 +172,7 @@ const memberId = computed(() => member.id);
 
 const { data: playerSpells } = useCharacterSpellsWithDetails(memberId);
 const { data: characterClasses } = useCharacterClasses(memberId);
+const { jack, settledJack } = useJackOfAllTrades(() => member);
 const { data: allSystemClasses } = useAllSystemClasses();
 const { data: allCustomClasses } = useAllCustomClasses();
 const { data: allSubclasses } = useAllCustomSubclasses();
@@ -221,12 +225,28 @@ function skillProf(key: string) {
   return member.skill_proficiencies?.[key as keyof typeof member.skill_proficiencies] ?? "none";
 }
 
-function skillBonus(key: string, ability: SaveKey): number {
-  const base = abilityMod(member[ability]);
-  const prof = skillProf(key);
-  if (prof === "expertise")  return base + profBonus.value * 2;
-  if (prof === "proficient") return base + profBonus.value;
-  return base;
+const skillSource = computed(() => ({
+  ...playerScores.value,
+  proficiency_bonus: profBonus.value,
+  skill_proficiencies: member.skill_proficiencies,
+}));
+
+function skillBonus(key: keyof SkillProficiencies, jackOfAllTrades: JackOfAllTrades = jack.value): number {
+  return skillCheckBonus(skillSource.value, key, jackOfAllTrades);
+}
+
+// Jack of All Trades on a plain check, shown on the ability table's buttons.
+const abilityCheckBonus = computed(() => {
+  const amount = jackOfAllTradesBonus(jack.value, profBonus.value, "ability");
+  return amount === 0 ? null : { amount, source: "Jack of All Trades" };
+});
+
+// A roll waits for the class rows that decide Jack of All Trades rather than score short.
+async function rollAbilityCheck(mod: number, label: string) {
+  emit("roll-check", mod + jackOfAllTradesBonus(await settledJack(), profBonus.value, "ability"), label + " Check");
+}
+async function rollSkillCheck(key: keyof SkillProficiencies, label: string) {
+  emit("roll-check", skillBonus(key, await settledJack()), label);
 }
 
 // ── Spells ────────────────────────────────────────────────────────────────────

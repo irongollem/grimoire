@@ -9,6 +9,7 @@
         :scores="effectiveScores"
         :saves="saves"
         :roll-mode-picker="true"
+        :check-bonus="abilityCheckBonus"
         @roll-ability="rollAbility"
         @roll-save="rollSave"
       />
@@ -51,6 +52,7 @@ const {
   saves,
   checkDisadvantage,
   exhaustionD20Penalty,
+  abilityCheckBonus,
   lastRoll,
   onChildRoll,
   rollAbility,

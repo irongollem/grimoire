@@ -4,12 +4,14 @@ import { liveState } from "@/composables/encounters/useEncounterLive";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useToast } from "@/composables/useToast";
 import { setNextRollMode } from "@/composables/dice/useNextRollMode";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollToastResult } from "@/components/common/feedback/RollToast.vue";
 import { combineModes, type RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { effectiveAbilityScores, savingThrowEntries } from "@/rules/characterChecks";
 import { memberInitiativeModifier } from "@/rules/initiative";
+import { jackOfAllTradesBonus } from "@/rules/skillCheck";
 import {
   getExhaustionD20Penalty,
   hasAttackDisadvantage,
@@ -31,6 +33,7 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
   // Only used for condition-effect helpers (table rules).
   const { ruleset } = useTableRuleset();
   const { activeWildshape, beastMonster } = useWildshapeForm(member);
+  const { jack, settledJack } = useJackOfAllTrades(member);
 
   // Beast's ability scores override STR/DEX/CON; player keeps INT/WIS/CHA.
   const effectiveScores = computed(() =>
@@ -64,10 +67,29 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
     return result;
   }
 
-  function rollAbility(_key: string, label: string, mod: number, override: RollMode | null = null) {
+  /**
+   * What a plain ability check adds to the ability modifier: Jack of All Trades,
+   * for a 2014 Bard (no proficiency is in the roll). The ability table shows it
+   * on the check button, so the number shown is the number rolled.
+   */
+  const abilityCheckBonus = computed(() => {
+    const m = toValue(member);
+    if (!m) return null;
+    const amount = jackOfAllTradesBonus(jack.value, m.proficiency_bonus, "ability");
+    return amount === 0 ? null : { amount, source: "Jack of All Trades" };
+  });
+
+  /**
+   * A plain ability check: the raw modifier, the 2024 Exhaustion penalty and
+   * Jack of All Trades. The roll waits for the class rows that decide Jack of
+   * All Trades rather than score short while they load.
+   */
+  async function rollAbility(_key: string, label: string, mod: number, override: RollMode | null = null) {
+    const m = toValue(member);
+    const jackBonus = m ? jackOfAllTradesBonus(await settledJack(), m.proficiency_bonus, "ability") : 0;
     return doRoll(
       `${label} Check`,
-      mod + exhaustionD20Penalty.value,
+      mod + jackBonus + exhaustionD20Penalty.value,
       combineModes(override ?? "normal", checkDisadvantage.value ? "disadvantage" : "normal"),
     );
   }
@@ -97,7 +119,7 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
     if (!m) return;
     const result = await doRoll(
       "Initiative",
-      memberInitiativeModifier(m, effectiveScores.value.dex) + exhaustionD20Penalty.value,
+      memberInitiativeModifier(m, await settledJack(), effectiveScores.value.dex) + exhaustionD20Penalty.value,
       combineModes(override ?? "normal", checkDisadvantage.value ? "disadvantage" : "normal"),
     );
     if (!result) return;
@@ -122,6 +144,7 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
     attackDisadvantage,
     checkDisadvantage,
     exhaustionD20Penalty,
+    abilityCheckBonus,
     lastRoll,
     onChildRoll,
     rollAbility,

@@ -252,6 +252,7 @@ import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { characterSummary } from "@/lib/partyMemberDisplay";
+import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { memberInitiativeModifier } from "@/rules/initiative";
 import { useClassHitDice } from "@/composables/party/useClassHitDice";
 import { useConcentration } from "@/composables/party/useConcentration";
@@ -293,6 +294,7 @@ const props = defineProps<{
   /** DEX in effect: the Wild Shape form's while shaped. Defaults to the character's own. */
   effectiveDex?: number;
 }>();
+const { jack } = useJackOfAllTrades(() => props.member);
 const portraitOf = useFormPortraits(() => [props.wildshape]);
 const portrait = computed(() => portraitOf(props.member, props.wildshape));
 const emit = defineEmits<{
@@ -429,7 +431,7 @@ const displayAc    = computed(() => props.wildshape?.beast_ac     ?? acFor(props
 
 // Initiative = DEX mod + initiative_bonus (feat/special extras like Alert).
 const initiativeDisplay = computed(() => {
-  const total = memberInitiativeModifier(props.member, props.effectiveDex);
+  const total = memberInitiativeModifier(props.member, jack.value, props.effectiveDex);
   return total >= 0 ? `+${total}` : `${total}`;
 });
 

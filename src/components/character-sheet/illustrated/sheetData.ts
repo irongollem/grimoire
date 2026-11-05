@@ -9,6 +9,8 @@
 
 import { SKILLS, type PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import { jackOfAllTrades, skillCheckBonus } from "@/rules/skillCheck";
+import { memberInitiativeModifier } from "@/rules/initiative";
 import { formatHitDicePool, sheetCastingAbility, sheetHitDice, type SheetClassInput } from "@/rules/sheetClassData";
 import type { Item } from "@/types/item.types";
 import {
@@ -75,10 +77,8 @@ export function toFront(
   const pb = m.proficiency_bonus;
   const skillLevel = (k: string) =>
     (m.skill_proficiencies?.[k as keyof typeof m.skill_proficiencies] ?? "none") as FrontData["skills"][number]["level"];
-  const skillBonus = (sk: (typeof SKILLS)[number]) => {
-    const lv = skillLevel(sk.key);
-    return mod(m[sk.ability] as number) + (lv === "none" ? 0 : lv === "proficient" ? pb : pb * 2);
-  };
+  const jack = jackOfAllTrades(classInput.rows, m.ruleset);
+  const skillBonus = (sk: (typeof SKILLS)[number]) => skillCheckBonus(m, sk.key, jack);
 
   // Casting stats — same derivation as the clean renderer.
   const castAbil = sheetCastingAbility(m, classInput, m.ruleset);
@@ -118,7 +118,7 @@ export function toFront(
       };
     }),
     ac: String(ac),
-    init: signed(m.initiative_bonus + mod(m.dex)),
+    init: signed(memberInitiativeModifier(m, jack)),
     speed: String(m.speed),
     hp: { max: m.max_hp },
     hitdice: hitDicePool.length === 0

@@ -198,6 +198,7 @@
               <AwarenessRollButton
                 v-if="awarenessOn"
                 :member="member"
+                :jack="jack"
                 :roll="awarenessRolls?.get(member.id)"
                 :pending="spend.isPending.value"
                 @use="spend.mutate([member.id])"
@@ -325,6 +326,7 @@ import PartyDeathSaves from "./PartyDeathSaves.vue";
 import { betterTempHp, formHpPools } from "@/rules/hitPoints";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { passiveScore } from "@/rules/skillCheck";
+import { useCampaignJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import type { Companion } from "@/types/companion.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
@@ -503,13 +505,15 @@ const displayAc = computed(
 
 const { enabled: awarenessOn, rolls: awarenessRolls } = useAwarenessRolls();
 const spend = useUseAwarenessRolls();
-const passivePerception = computed(() => passiveScore(member, "perception"));
-const passiveInsight = computed(() => passiveScore(member, "insight"));
-const passiveInvestigation = computed(() => passiveScore(member, "investigation"));
-const passiveArcana = computed(() => passiveScore(member, "arcana"));
-const passiveHistory = computed(() => passiveScore(member, "history"));
-const passiveNature = computed(() => passiveScore(member, "nature"));
-const passiveReligion = computed(() => passiveScore(member, "religion"));
+const { jackFor } = useCampaignJackOfAllTrades();
+const jack = computed(() => jackFor(member));
+const passivePerception = computed(() => passiveScore(member, "perception", jack.value));
+const passiveInsight = computed(() => passiveScore(member, "insight", jack.value));
+const passiveInvestigation = computed(() => passiveScore(member, "investigation", jack.value));
+const passiveArcana = computed(() => passiveScore(member, "arcana", jack.value));
+const passiveHistory = computed(() => passiveScore(member, "history", jack.value));
+const passiveNature = computed(() => passiveScore(member, "nature", jack.value));
+const passiveReligion = computed(() => passiveScore(member, "religion", jack.value));
 
 function hpColor(current: number, max: number) {
   const pct = current / max;

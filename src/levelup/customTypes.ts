@@ -144,8 +144,9 @@ export interface CustomClass extends VersionedContentMetadata {
   focal_point: { x: number; y: number } | null;
 
   /**
-   * What the class can do beyond its tables (#934). Today only `"wild_shape"`: the
-   * druid's forms, uses and Wild Shape tab. Character class rows copy it from here.
+   * What the class can do beyond its tables (#934). `"wild_shape"` (the druid's forms,
+   * uses and Wild Shape tab) and `"jack_of_all_trades"` (the bard's half proficiency). Character class
+   * rows copy it from here.
    */
   capabilities: string[];
 
@@ -181,8 +182,9 @@ export interface SystemClass extends VersionedContentMetadata {
   image_url: string | null;
   focal_point: { x: number; y: number } | null;
   /**
-   * What the class can do beyond its tables (#934). Today only `"wild_shape"`: the
-   * druid's forms, uses and Wild Shape tab. Character class rows copy it from here.
+   * What the class can do beyond its tables (#934). `"wild_shape"` (the druid's forms,
+   * uses and Wild Shape tab) and `"jack_of_all_trades"` (the bard's half proficiency). Character class
+   * rows copy it from here.
    */
   capabilities: string[];
   created_at: string;

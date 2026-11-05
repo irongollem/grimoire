@@ -13,6 +13,7 @@ vi.mock("@/composables/party/useAwarenessRolls", () => ({
   useAwarenessRolls: () => ({ enabled: false, rolls: undefined, isError: false }),
   useUseAwarenessRolls: () => ({ isPending: { value: false }, mutate: () => undefined }),
 }));
+vi.mock("@/composables/party/useJackOfAllTrades", () => ({ useCampaignJackOfAllTrades: () => ({ jackFor: () => "none", settled: () => Promise.resolve() }) }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const update = vi.hoisted(() => vi.fn());
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: update }) }));

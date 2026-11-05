@@ -18,6 +18,7 @@ vi.mock("@/composables/locations/useLocations", async () => {
   const { computed } = await import("vue");
   return { usePlayerVisibleLocation: () => ({ data: computed(() => h.location) }) };
 });
+vi.mock("@/composables/party/useJackOfAllTrades", () => ({ useJackOfAllTrades: () => ({ jack: { value: "none" }, settledJack: () => Promise.resolve("none") }) }));
 vi.mock("@/lib/locations/mapStack", () => ({ primaryImage: () => h.image }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: vi.fn() }) }));
 vi.mock("@/composables/party/useParty", async () => {

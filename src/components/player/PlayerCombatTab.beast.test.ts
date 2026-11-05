@@ -17,6 +17,7 @@ const sharedFeatures = vi.hoisted(() => ({
 }));
 const useCharacterFeatures = vi.hoisted(() => vi.fn(() => sharedFeatures));
 vi.mock("@/composables/features/useCharacterFeatures", () => ({ useCharacterFeatures }));
+vi.mock("@/composables/party/useJackOfAllTrades", () => ({ useJackOfAllTrades: () => ({ jack: { value: "none" }, settledJack: () => Promise.resolve("none") }) }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendRoll: vi.fn().mockResolvedValue(undefined) }) }));
 vi.mock("@/composables/campaign/chatSendErrors", () => ({ useChatSendFailure: () => ({ reportChatFailure: vi.fn() }) }));

@@ -1,4 +1,4 @@
-import { skillCheckBonus, type SkillCheckSource } from "@/rules/skillCheck";
+import { skillCheckBonus, type JackOfAllTrades, type SkillCheckSource } from "@/rules/skillCheck";
 import { CHECK_DIS_CONDITIONS, getExhaustionD20Penalty, getExhaustionLevel, hasCheckDisadvantage } from "@/rules/conditions";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -28,15 +28,15 @@ export interface AwarenessReading {
 
 /**
  * A kept Perception roll read the way the character's own sheet rolls Perception, as the
- * character stands at the moment it is used: the check bonus, disadvantage from conditions
+ * character stands at the moment it is used: the check bonus (Jack of All Trades included), disadvantage from conditions
  * (Frightened, Poisoned, and 2014 Exhaustion, PHB 2014 / SRD 5.2 "Conditions"), and the 2024
  * Exhaustion penalty to every d20 test (SRD 5.2 "Exhaustion"). The dice were rolled hours
  * earlier, which is why the conditions are read here and not when they were rolled.
  */
-export function readAwareness(member: AwarenessSource, dice: AwarenessDice): AwarenessReading {
+export function readAwareness(member: AwarenessSource, dice: AwarenessDice, jack: JackOfAllTrades): AwarenessReading {
   const disadvantage = hasCheckDisadvantage(member.conditions, member.ruleset);
   const die = disadvantage ? Math.min(dice.d20, dice.d20Second) : dice.d20;
-  const bonus = skillCheckBonus(member, "perception");
+  const bonus = skillCheckBonus(member, "perception", jack);
   const penalty = getExhaustionD20Penalty(member.conditions, member.ruleset);
   const disadvantageFrom = disadvantage
     ? [
@@ -60,6 +60,8 @@ export function explainAwareness(dice: AwarenessDice, reading: AwarenessReading)
 export interface AwarenessUse {
   name: string;
   member: AwarenessSource;
+  /** The character's Jack of All Trades, read from its class rows. */
+  jack: JackOfAllTrades;
   /** The dice that were used; null when the character had no roll yet. */
   used: AwarenessDice | null;
 }
@@ -73,7 +75,7 @@ export function formatAwarenessUse(uses: readonly AwarenessUse[]): string | null
   const parts: string[] = [];
   for (const use of uses) {
     if (use.used === null) continue;
-    const reading = readAwareness(use.member, use.used);
+    const reading = readAwareness(use.member, use.used, use.jack);
     const notes = [
       reading.die === 20 ? "nat 20" : reading.die === 1 ? "nat 1" : null,
       reading.disadvantageFrom.length ? "disadvantage" : null,

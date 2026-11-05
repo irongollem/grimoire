@@ -179,7 +179,7 @@
                 BG
               </span>
               <span v-else class="text-label text-muted-foreground shrink-0">
-                {{ skillBonus(skill.key, skill.ability) }}
+                {{ skillBonus(skill.key) }}
               </span>
             </div>
           </div>
