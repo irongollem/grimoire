@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
   query: {} as Record<string, string>,
   replace: vi.fn(),
   waiting: 0,
+  codex: true,
+}));
+
+vi.mock("@/composables/rules/useGameSystem", () => ({
+  useGameSystem: () => ({ offers: (feature: string) => feature !== "character-codex" || mocks.codex }),
 }));
 
 vi.mock("@/composables/party/useCharacterContentReviews", () => ({
@@ -56,6 +61,7 @@ describe("CampaignSettingsView tabs", () => {
     mocks.waiting = 0;
     mocks.aiEnabled = true;
     mocks.isOwner = true;
+    mocks.codex = true;
     mocks.query = {};
     mocks.replace.mockClear();
   });
@@ -64,6 +70,16 @@ describe("CampaignSettingsView tabs", () => {
     const l = labels(mountView());
     expect(l).toContain("AI Assistant");
     expect(l).toContain("Danger Zone");
+  });
+
+  // Bug: a Generic campaign offered 5e class and species editors in Settings.
+  it("hides Classes and Species in a system without the character codex, and their deep links (#934)", () => {
+    mocks.codex = false;
+    mocks.query = { tab: "classes" };
+    const wrapper = mountView();
+    expect(labels(wrapper)).not.toContain("Classes");
+    expect(labels(wrapper)).not.toContain("Species");
+    expect(wrapper.find('[data-stub="DetailsTab"]').exists()).toBe(true);
   });
 
   it("hides the owner-only tabs from a co-DM but keeps AI Connections (#590)", () => {

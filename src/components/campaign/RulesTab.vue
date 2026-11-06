@@ -4,7 +4,7 @@
       <div>
         <h2 class="text-heading-sm font-semibold text-foreground">Game system</h2>
         <p class="text-caption text-muted-foreground mt-1">
-          The system this table plays by. Every character keeps the edition it was built with.
+          The system this table plays by.<template v-if="tableEdition"> Every character keeps the edition it was built with.</template>
         </p>
       </div>
       <!-- A system compatible with another may switch to it; one compatible with nothing is fixed at creation. -->
@@ -56,62 +56,62 @@
     />
 
     <template v-if="offersOptionalRules">
-    <p class="text-body text-muted-foreground">
-      Toggle optional D&amp;D rules on or off for this campaign. Enabled rules appear in the
-      Rules Reliquary for all players.
-    </p>
+      <p class="text-body text-muted-foreground">
+        Toggle optional D&amp;D rules on or off for this campaign. Enabled rules appear in the
+        Rules Reliquary for all players.
+      </p>
 
-    <div class="space-y-2">
-      <div
-        v-for="def in allRules"
-        :key="def.key"
-        class="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-2.5"
-      >
-        <!-- Toggle -->
-        <ToggleSwitch
-          size="lg"
-          class="mt-0.5"
-          :model-value="isEnabled(def.key)"
-          :aria-label="isEnabled(def.key) ? `Disable ${def.name}` : `Enable ${def.name}`"
-          :disabled="toggling === def.key"
-          @update:model-value="toggle(def.key)"
-        />
+      <div class="space-y-2">
+        <div
+          v-for="def in allRules"
+          :key="def.key"
+          class="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-2.5"
+        >
+          <!-- Toggle -->
+          <ToggleSwitch
+            size="lg"
+            class="mt-0.5"
+            :model-value="isEnabled(def.key)"
+            :aria-label="isEnabled(def.key) ? `Disable ${def.name}` : `Enable ${def.name}`"
+            :disabled="toggling === def.key"
+            @update:model-value="toggle(def.key)"
+          />
 
-        <!-- Rule info -->
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="text-caption font-semibold text-foreground">{{ def.name }}</span>
-            <span
-              v-if="isEnabled(def.key)"
-              class="text-eyebrow text-ink-success/80 uppercase"
-            >active</span>
-          </div>
-          <p class="text-caption text-muted-foreground mt-0.5">{{ def.summary }}</p>
+          <!-- Rule info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-caption font-semibold text-foreground">{{ def.name }}</span>
+              <span
+                v-if="isEnabled(def.key)"
+                class="text-eyebrow text-ink-success/80 uppercase"
+              >active</span>
+            </div>
+            <p class="text-caption text-muted-foreground mt-0.5">{{ def.summary }}</p>
 
-          <!-- Configurable parameters — shown only while the rule is enabled -->
-          <div v-if="def.config && isEnabled(def.key)" class="mt-2 flex flex-wrap gap-3">
-            <label
-              v-for="field in def.config"
-              :key="field.key"
-              class="flex items-center gap-2 text-caption text-muted-foreground"
-            >
-              <span>{{ field.label }}</span>
-              <AppInput
-                v-model.lazy="fieldModel(def.key, field).value"
-                type="number"
-                :min="field.min"
-                :max="field.max"
-                size="body-xs"
-                :block="false"
-                class="w-20"
-                :disabled="savingConfig === def.key"
-              />
-              <span v-if="field.unit">{{ field.unit }}</span>
-            </label>
+            <!-- Configurable parameters — shown only while the rule is enabled -->
+            <div v-if="def.config && isEnabled(def.key)" class="mt-2 flex flex-wrap gap-3">
+              <label
+                v-for="field in def.config"
+                :key="field.key"
+                class="flex items-center gap-2 text-caption text-muted-foreground"
+              >
+                <span>{{ field.label }}</span>
+                <AppInput
+                  v-model.lazy="fieldModel(def.key, field).value"
+                  type="number"
+                  :min="field.min"
+                  :max="field.max"
+                  size="body-xs"
+                  :block="false"
+                  class="w-20"
+                  :disabled="savingConfig === def.key"
+                />
+                <span v-if="field.unit">{{ field.unit }}</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </template>
   </div>
 </template>

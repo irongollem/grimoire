@@ -433,10 +433,25 @@ bounce dialog keys on that code and offers a converted copy
 character. Admission that runs later (a parent's approval) never raises: the
 joiner is admitted and a character the table no longer takes stays in the pool.
 
+**A campaign plays a game system, and the edition comes from it (#934,
+`20261106093841`).** `campaigns.game_system` is `dnd5e-2014`, `dnd5e-2024` or
+`generic`, chosen when the campaign is created; `campaigns.ruleset` is gone.
+Every system is its own: the two 5e systems are separate systems that declare
+each other compatible, exactly as a later Pathfinder or Level Up would declare
+its own. Compatibility, held in `src/systems/registry.ts` and mirrored in
+`private.game_systems_compatible` (`gameSystemsMirror.test.ts` holds them
+equal), decides three things: which systems a campaign may switch to (a trigger
+refuses the rest, so Generic and 5e never swap), whether mixed seating may be on
+(`campaigns_mixed_needs_compatible_system`), and which characters a table seats
+(`private.campaign_seats_edition`). A Generic table seats no 5e character and
+its RS001 bounce offers no conversion. A character's edition is still its own
+5e edition; `private.game_system_edition()` derives a table's, and raises for
+a system with none rather than quietly playing 2014.
+
 **A campaign switching edition changes no character.** The trigger that rewrote
 every seated character is gone. Characters keep their edition and their seat;
-the mismatch is derivable (`party_members.ruleset <> campaigns.ruleset`) and has
-no table of its own. The owner converts in place when they choose to; the DM can
+the mismatch is derivable (`party_members.ruleset` against
+`private.game_system_edition(campaigns.game_system)`) and has no table of its own. The owner converts in place when they choose to; the DM can
 convert only a character nobody owns. A seated character converts only to an
 edition its table takes, so conversion cannot be used to walk round the door.
 
