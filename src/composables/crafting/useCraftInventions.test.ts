@@ -16,12 +16,15 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("@edge-shared/edgeError.ts", () => ({ edgeErrorMessage: async () => "edge said no" }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u1" } }) }));
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: true }) }));
+const campaignState = vi.hoisted(() => ({ activeGameSystem: "dnd5e-2024" as string }));
+vi.mock("@/stores/campaign", () => ({
+  useCampaignStore: () => ({ isAiEnabled: true, activeGameSystem: campaignState.activeGameSystem }),
+}));
 vi.mock("@/composables/rules/useOptionalRules", () => ({ useIsRuleEnabled: () => ({ value: true }) }));
 const parse = vi.fn((x: unknown) => x);
 vi.mock("@/lib/crafting/invention", () => ({ parseInvention: (x: unknown) => parse(x) }));
 
-import { inventionErrorMessage, useCraftInventions, useMyInventions } from "./useCraftInventions";
+import { inventionErrorMessage, useCraftInventions, useInventionAvailable, useMyInventions } from "./useCraftInventions";
 
 function mountWith<T>(qc: QueryClient, setup: () => T): T {
   let out!: T;
@@ -43,6 +46,18 @@ beforeEach(() => {
   fake.reset();
   invoke.mockReset();
   qc = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
+});
+
+describe("useInventionAvailable", () => {
+  // #934: invent-recipe answers a Generic campaign with HTTP 400, so no entry point may offer it.
+  it.each([
+    ["dnd5e-2014", true],
+    ["generic", false],
+  ])("in a %s campaign, inventing is offered: %s", (system, expected) => {
+    campaignState.activeGameSystem = system;
+    expect(useInventionAvailable().value).toBe(expected);
+    campaignState.activeGameSystem = "dnd5e-2024";
+  });
 });
 
 describe("inventionErrorMessage", () => {

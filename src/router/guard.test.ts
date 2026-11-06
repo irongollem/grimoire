@@ -4,7 +4,8 @@ import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter, type RouteRecordRaw } from "vue-router";
 import type { QueryClient } from "@tanstack/vue-query";
 import type { User } from "@supabase/supabase-js";
-import type { CampaignMember } from "@/types/campaign.types";
+import type { Campaign, CampaignMember } from "@/types/campaign.types";
+import { flushPromises } from "@vue/test-utils";
 
 /**
  * The lens fence, wired (#847).
@@ -38,10 +39,6 @@ vi.mock("@/lib/supabase", () => ({
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
 vi.mock("@/lib/themeRuntime", () => ({ setTheme: () => {}, setPlayerSeat: () => {} }));
 // The real one dynamically imports a shell .vue, which this has no use for.
-const game = vi.hoisted(() => ({ generic: false }));
-vi.mock("@/composables/rules/useGameSystem", () => ({
-  useGameSystem: () => ({ offers: () => !game.generic }),
-}));
 vi.mock("@/layouts/layoutLoader", () => ({ preloadLayout: async () => undefined }));
 
 import { setupRouterGuard } from "./index";
@@ -125,7 +122,6 @@ beforeEach(() => {
   fake.reset();
   setActivePinia(createPinia());
   lensRefusal.value = null;
-  game.generic = false;
 });
 
 /** A `child_accounts` row for u1, who turns 16 (leaves the fence) on `adultOn`. */
@@ -610,12 +606,17 @@ describe("a public page (the Open Book, #1085)", () => {
 });
 
 describe("the game-system fence (#934)", () => {
+  /** The active campaign's row says it plays Generic. */
+  function playsGeneric(id: string) {
+    useCampaignStore().activeCampaign = { id, game_system: "generic" } as Campaign;
+  }
+
   // Bug caught: hiding the nav entry but leaving the route open, so a bookmark
   // or typed URL still reaches the Bestiary in a Generic campaign.
   it("sends a DM away from a 5e route in a campaign whose system lacks it", async () => {
-    game.generic = true;
     const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
     await signedInDm("c1");
+    playsGeneric("c1");
     await router.push("/npcs");
 
     await router.push("/monsters");
@@ -634,9 +635,9 @@ describe("the game-system fence (#934)", () => {
 
   // Bug caught: a blanket gate that locks a Generic campaign out of its neutral pages.
   it("leaves a neutral route open in a campaign whose system lacks 5e", async () => {
-    game.generic = true;
     const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
     await signedInDm("c1");
+    playsGeneric("c1");
 
     await router.push("/npcs");
 
@@ -644,10 +645,10 @@ describe("the game-system fence (#934)", () => {
   });
 
   it("sends a player to the hearth, not the DM dashboard, from a 5e portal route", async () => {
-    game.generic = true;
     const { router } = makeRouter([{ campaign_id: "c1", role: "player" }]);
     await signedInPlayer();
     useCampaignStore().activeCampaignId = "c1";
+    playsGeneric("c1");
     useAuthStore().membership = { role: "player" } as CampaignMember;
 
     await router.push("/play/spells");
@@ -657,11 +658,34 @@ describe("the game-system fence (#934)", () => {
 
   // With no campaign open there is no system to ask; the route's own shell copes.
   it("refuses nothing while no campaign is open", async () => {
-    game.generic = true;
     const { router } = makeRouter([]);
     await signedInDm(null);
 
     await router.push("/monsters");
+
+    expect(router.currentRoute.value.name).toBe("monsters");
+  });
+  // Bug caught: on a cold load with no remembered system the store answered the
+  // 5e fallback, the Bestiary opened, and nothing asked again when the row said Generic.
+  it("leaves a 5e page once the campaign row says its system does not offer it", async () => {
+    const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    await signedInDm("c1");
+    await router.push("/monsters");
+    expect(router.currentRoute.value.name).toBe("monsters");
+
+    playsGeneric("c1");
+    await flushPromises();
+
+    expect(router.currentRoute.value.name).toBe("dashboard");
+  });
+
+  it("stays on a 5e page when the row confirms a system that offers it", async () => {
+    const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    await signedInDm("c1");
+    await router.push("/monsters");
+
+    useCampaignStore().activeCampaign = { id: "c1", game_system: "dnd5e-2024" } as Campaign;
+    await flushPromises();
 
     expect(router.currentRoute.value.name).toBe("monsters");
   });

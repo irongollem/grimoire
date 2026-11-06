@@ -50,7 +50,9 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { id: "journal", to: "/play/journal", label: "Journal", icon: IconNavQuests },
   { id: "inventory", to: "/play/inventory", label: "Inventory", icon: IconNavItemVault, feature: "party" },
   { id: "calendar", to: "/play/calendar", label: "Calendar", icon: IconNavCalendar },
-  { id: "party", to: "/play/party", label: "People", icon: IconNavParty, feature: "party" },
+  // No `feature`: People holds the NPC ledger, which every system has. The party
+  // strip inside it hides itself where the system has no party (#934).
+  { id: "party", to: "/play/party", label: "People", icon: IconNavParty },
   // The wall outlives a membership, so it stays reachable with no active campaign (#982).
   { id: "fallen", to: "/play/fallen", label: "Hall of the Fallen", icon: IconNavFallen, standalone: true },
   { id: "crafting", to: "/play/crafting", label: "Workshop", icon: IconNavWorkshop, ruleKey: "crafting" },

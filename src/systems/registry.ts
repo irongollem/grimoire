@@ -38,6 +38,7 @@ export const GAME_FEATURES = [
   "reliquary", // rules reference and the DM screen
   "stat-blocks", // NPC and monster stat blocks
   "library", // the shared library content of this system's edition
+  "rules-ai", // AI generators that write a rules system's mechanics: loot, traps, complications, recipes and inventions
 ] as const;
 export type GameFeature = (typeof GAME_FEATURES)[number];
 

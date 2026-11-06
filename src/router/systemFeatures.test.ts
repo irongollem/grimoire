@@ -42,7 +42,7 @@ describe("featureForPath", () => {
   it("leaves the neutral routes alone", () => {
     for (const path of [
       "/dashboard", "/quests/abc", "/npcs", "/locations/abc/map", "/locations/abc/table",
-      "/notes", "/soundboard", "/hall-of-heroes", "/play", "/play/journal", "/play/atlas",
+      "/notes", "/soundboard", "/hall-of-heroes", "/play", "/play/journal", "/play/atlas", "/play/party",
       "/play/home", "/play/fallen", "/campaign/settings", "/dungeon-craft", "/cartographer",
     ]) {
       expect(featureForPath(path), path).toBeNull();

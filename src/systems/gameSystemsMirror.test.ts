@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GAME_SYSTEM_KEYS, editionGameSystem, gameSystemEdition } from "@/systems/registry";
+import { GAME_SYSTEM_KEYS, editionGameSystem, gameSystemEdition, gameSystemsCompatible } from "@/systems/registry";
 
 /**
  * The database holds the game systems as a check constraint and a few helper
@@ -41,6 +41,22 @@ describe("game systems: database and registry", () => {
       const system = editionGameSystem(edition);
       expect(sql).toContain(`when '${edition}' then return '${system}'`);
       expect(sql).toContain(`when '${system}' then return '${edition}'`);
+    }
+  });
+
+  // Fails if the registry declares a compatibility the database's
+  // `private.game_systems_compatible` (the same system, or both 5e) does not
+  // share: the Rules tab would offer a switch the trigger then refuses.
+  it("compatibility is the same in both, pair by pair", () => {
+    const body = /function private\.game_systems_compatible[\s\S]*?\$\$([\s\S]*?)\$\$/.exec(sql)?.[1] ?? "";
+    expect(body.replace(/\s+/g, " ")).toContain(
+      "p_a = p_b or (private.game_system_is_5e(p_a) and private.game_system_is_5e(p_b))",
+    );
+    const fiveE = new Set(quotedList(/select coalesce\(p_system in \(([^)]*)\), false\)/));
+    for (const a of GAME_SYSTEM_KEYS) {
+      for (const b of GAME_SYSTEM_KEYS) {
+        expect(gameSystemsCompatible(a, b), `${a} / ${b}`).toBe(a === b || (fiveE.has(a) && fiveE.has(b)));
+      }
     }
   });
 });

@@ -36,7 +36,7 @@
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
         <ListActionButton
-          v-if="isAiEnabled"
+          v-if="rulesAiAvailable"
           :icon="IconGenerate"
           label="Generate"
           @click="generatorsUi.dungeonFeatureGeneratorOpen = true"
@@ -54,7 +54,7 @@
       <!-- Traps tab actions -->
       <template v-else-if="activeTab === 'traps'">
         <ListActionButton
-          v-if="isAiEnabled"
+          v-if="rulesAiAvailable"
           :icon="IconGenerate"
           label="Generate"
           @click="generatorsUi.trapGeneratorOpen = true"
@@ -99,7 +99,7 @@
       <!-- Loot Tables tab actions -->
       <template v-else-if="activeTab === 'loot-tables'">
         <ListActionButton
-          v-if="isAiEnabled"
+          v-if="rulesAiAvailable"
           :icon="IconGenerate"
           label="Generate"
           @click="generatorsUi.lootTableGeneratorOpen = true"
@@ -180,6 +180,7 @@ import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 
 
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
@@ -209,6 +210,10 @@ const puzzlesUi = usePuzzlesUiStore();
 const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
+// Dungeon features, traps and loot tables are written by generators that put out a
+// rules system's mechanics; the server refuses them in a Generic campaign (#934).
+const { offers } = useGameSystem();
+const rulesAiAvailable = computed(() => isAiEnabled.value && offers("rules-ai"));
 
 type Tab = "features" | "traps" | "puzzles" | "roll-tables" | "loot-tables" | "notice-boards" | "cartographer";
 const TABS: { id: Tab; label: string }[] = [

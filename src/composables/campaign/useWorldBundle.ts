@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import type { Campaign } from "@/types/campaign.types";
-import { isGameSystemKey, type GameSystemKey } from "@/systems/registry";
+import { defaultCurrencyFor, isGameSystemKey, type GameSystemKey } from "@/systems/registry";
 import type { SpeciesSpeed, SpeciesSubrace } from "@/types/species.types";
 import { withWalkSpeed } from "@/rules/speciesStats";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -840,6 +840,9 @@ export async function executeImport(opts: ImportBundleOptions): Promise<ImportRe
         name: opts.newCampaignName.trim(),
         user_id: userId,
         game_system: bundle.game_system,
+        // The bundle carries no coins; the new campaign starts with its system's,
+        // as the New Campaign form does, not the column's 5e default.
+        currency: defaultCurrencyFor(bundle.game_system),
         ...(bundle.allows_mixed_rulesets !== undefined ? { allows_mixed_rulesets: bundle.allows_mixed_rulesets } : {}),
       })
       .select()

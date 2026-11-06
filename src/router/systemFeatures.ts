@@ -33,7 +33,6 @@ const ROUTE_FEATURES: readonly (readonly [prefix: string, feature: GameFeature])
   // The player portal.
   ["/play/character", "party"],
   ["/play/character/levelup", "level-up"],
-  ["/play/party", "party"],
   ["/play/inventory", "party"],
   ["/play/spells", "spellbook"],
   ["/play/bestiary", "bestiary"],

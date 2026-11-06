@@ -245,14 +245,16 @@ serve(withCors(async (req: Request) => {
   const ruleset = gameSystemEdition(campaign.game_system);
   const ownerId = campaign.user_id as string;
   const model = provider.model;
-  const { data: enabledRows, error: enabledError } = await admin
-    .from("campaign_enabled_sources")
-    .select("source_slug")
-    .eq("campaign_id", campaignId);
-  if (enabledError) console.error("search-campaign: enabled sources lookup failed:", enabledError.message);
-  const enabledSlugs = enabledError
-    ? []
-    : (enabledRows ?? []).map((r: { source_slug: string }) => r.source_slug);
+  // Only the library sides read the enabled sources, and a system with no edition has none.
+  let enabledSlugs: string[] = [];
+  if (ruleset) {
+    const { data: enabledRows, error: enabledError } = await admin
+      .from("campaign_enabled_sources")
+      .select("source_slug")
+      .eq("campaign_id", campaignId);
+    if (enabledError) console.error("search-campaign: enabled sources lookup failed:", enabledError.message);
+    else enabledSlugs = (enabledRows ?? []).map((r: { source_slug: string }) => r.source_slug);
+  }
 
   const scope = { p_campaign_id: campaignId, p_owner_id: ownerId, p_embedding_model: model };
 

@@ -10,7 +10,8 @@
     and selected states are the primitive's. The description and note drop the
     button's label weight: three bold lines per card read as shouting. The
     cards share a row, so the shorter one is top-aligned rather than centred,
-    or the two titles sit at different heights. It is a
+    or the two titles sit at different heights. With an odd number of options the
+    last card takes the whole row rather than sitting half-width on its own. It is a
     radio group, so it says so: one tab stop, and the arrow keys move the choice.
   -->
   <div
@@ -21,7 +22,7 @@
     @keydown="onKeydown"
   >
     <AppButton
-      v-for="option in options"
+      v-for="(option, i) in options"
       :key="option.value"
       variant="subtle"
       size="body"
@@ -32,6 +33,7 @@
       :tabindex="tabStop === option.value ? 0 : -1"
       :disabled="disabled"
       class="flex-col items-start justify-start gap-1 whitespace-normal py-3 text-left"
+      :class="{ 'sm:col-span-2': options.length % 2 === 1 && i === options.length - 1 }"
       @click="emit('update:modelValue', option.value)"
     >
       <span class="text-caption font-semibold text-foreground">{{ option.label }}</span>

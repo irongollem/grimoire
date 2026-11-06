@@ -217,6 +217,19 @@ describe("remapCharacterClassForImport", () => {
   });
 });
 
+
+describe("executeImport into a new campaign", () => {
+  // Bug: a Generic bundle made a campaign with the five 5e coins, the column's default.
+  it("starts the new campaign with its system's coins", async () => {
+    auth.user = { id: "importer" };
+    fake.reset();
+    await executeImport({ bundle: emptyBundle({ game_system: "generic" }), includeTypes: new Set(), campaignId: null, newCampaignName: "Fresh" });
+    const [row] = fake.rows("campaigns");
+    expect(row).toMatchObject({ name: "Fresh", game_system: "generic" });
+    expect((row.currency as { denominations: { key: string }[] }).denominations.map((d) => d.key)).toEqual(["coin"]);
+  });
+});
+
 describe("scriptorium books in a bundle", () => {
   const doc = (over: Record<string, unknown> = {}) => ({
     id: "doc-1", title: "Session 1 Recap", kind: "book", word_count: 9, player_visible_to: ["pm-source"], page_furniture: [], ...over,

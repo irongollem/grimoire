@@ -1,9 +1,10 @@
-import type { Router, RouteLocationNormalized } from "vue-router";
+import { watch } from "vue";
+import type { Router, RouteLocationNormalized, RouteLocationRaw } from "vue-router";
 import type { QueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
-import { useGameSystem } from "@/composables/rules/useGameSystem";
+import { systemOffers } from "@/systems/registry";
 import { featureForPath } from "./systemFeatures";
 import { preloadLayout } from "@/layouts/layoutLoader";
 import {
@@ -148,10 +149,8 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     // hides. The path decides, like the lens (./systemFeatures.ts). Read after the
     // lens fence, which may just have closed the campaign; with none open there
     // is no system to ask, and nothing to refuse.
-    const needed = featureForPath(to.path);
-    if (needed && campaignStore.activeCampaignId && !useGameSystem().offers(needed)) {
-      return { name: isPlayerArea(to.path) ? "play" : "dashboard" };
-    }
+    const closed = systemFence(to.path, campaignStore);
+    if (closed) return closed;
 
     // The child-account fence (#919). Independent of the lens fence above: a
     // child may be a DM or a player, and either lens can reach billing or the
@@ -174,6 +173,25 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     void preloadLayout(to);
   });
 
+  // The system is not always known when a navigation passes the fence: on a
+  // cold load with no remembered hint the store answers the 5e fallback until
+  // the campaign row arrives, and switching campaigns changes the system under
+  // the page already open. So the fence is asked again whenever the system or
+  // the campaign changes, and a page the new system does not offer is left.
+  let watchingSystem = false;
+  router.afterEach(() => {
+    if (watchingSystem) return;
+    watchingSystem = true;
+    const campaignStore = useCampaignStore();
+    watch(
+      () => [campaignStore.activeCampaignId, campaignStore.activeGameSystem] as const,
+      () => {
+        const closed = systemFence(router.currentRoute.value.path, campaignStore);
+        if (closed) void router.replace(closed);
+      },
+    );
+  });
+
   // The app mounts on router.isReady(), so the shell must be resolved before
   // navigation confirms or the first paint is a blank frame. This awaits the
   // request beforeEach already started, so it usually costs nothing.
@@ -181,4 +199,14 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     if (import.meta.env.SSR) return;
     await preloadLayout(to);
   });
+}
+
+/** Where the game-system fence sends a path the active campaign's system does not offer, or null when it may stay. */
+function systemFence(
+  path: string,
+  campaign: Pick<ReturnType<typeof useCampaignStore>, "activeCampaignId" | "activeGameSystem">,
+): RouteLocationRaw | null {
+  const needed = featureForPath(path);
+  if (!needed || !campaign.activeCampaignId || systemOffers(campaign.activeGameSystem, needed)) return null;
+  return { name: isPlayerArea(path) ? "play" : "dashboard" };
 }

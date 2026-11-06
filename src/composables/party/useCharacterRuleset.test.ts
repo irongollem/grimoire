@@ -54,7 +54,6 @@ describe("parseRulesetBounce", () => {
     expect(parseRulesetBounce(bounce)).toEqual({
       characterRuleset: "2024",
       campaignGameSystem: "dnd5e-2014",
-      campaignRuleset: "2014",
     });
   });
 
@@ -64,7 +63,6 @@ describe("parseRulesetBounce", () => {
     expect(parseRulesetBounce(generic)).toEqual({
       characterRuleset: "2024",
       campaignGameSystem: "generic",
-      campaignRuleset: null,
     });
   });
 

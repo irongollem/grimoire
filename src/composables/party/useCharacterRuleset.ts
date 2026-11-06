@@ -3,7 +3,6 @@ import { supabase } from "@/lib/supabase";
 import { RULESET_KEYS, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
 import {
   editionGameSystem,
-  gameSystemEdition,
   gameSystemsCompatible,
   isGameSystemKey,
   type GameSystemKey,
@@ -66,9 +65,8 @@ export function isRulesetAdmissible(
 /** What a bounce names: the character's edition and the table's system. */
 export interface RulesetBounce {
   characterRuleset: RulesetKey;
+  /** The table's system; its edition, where it has one, is `gameSystemEdition(campaignGameSystem)`. */
   campaignGameSystem: GameSystemKey;
-  /** The 5e edition the table plays; null for a system that has none (Generic), where no conversion can make a character fit. */
-  campaignRuleset: RulesetKey | null;
 }
 
 /**
@@ -101,11 +99,7 @@ export function parseRulesetBounce(error: unknown): RulesetBounce | null {
   if (typeof parsed !== "object" || parsed === null) return null;
   const { character_ruleset, campaign_game_system } = parsed as Record<string, unknown>;
   if (!isRulesetKey(character_ruleset) || !isGameSystemKey(campaign_game_system)) return null;
-  return {
-    characterRuleset: character_ruleset,
-    campaignGameSystem: campaign_game_system,
-    campaignRuleset: gameSystemEdition(campaign_game_system) ?? null,
-  };
+  return { characterRuleset: character_ruleset, campaignGameSystem: campaign_game_system };
 }
 
 // A conversion re-pins classes and spells and rewrites the character's review

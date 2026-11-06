@@ -20,7 +20,7 @@ import { isFineResult } from "@/lib/crafting/qualityRules";
 import { inventoryItemRef } from "@/lib/itemRef";
 import type { StarterRecipeDef } from "@/data/starterRecipes";
 import { WORKSHOP_LIBRARY_EQUIVALENTS } from "@/data/workshopLibraryEquivalents";
-import { useRuleset } from "@/composables/rules/useRuleset";
+import { gameSystemEdition } from "@/systems/registry";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage/deleteUnreferenced";
 
@@ -730,10 +730,13 @@ export async function seedRecipeChildren(
 export function useImportStarterRecipes() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
-  const { ruleset } = useRuleset();
 
   return useMutation({
     mutationFn: async (): Promise<number> => {
+      // The starter recipes name 5e SRD items, so they only resolve in a campaign
+      // with an edition. No fallback to 2014 (#934): a Generic campaign is refused.
+      const edition = gameSystemEdition(campaign.activeGameSystem);
+      if (!edition) throw new Error("Starter recipes use D&D 5e items, and this campaign plays no rules system.");
       const { STARTER_RECIPES } = await import("@/data/starterRecipes");
       const { GEAR } = await import("@/data/gear");
       const { PROVISIONS } = await import("@/data/provisions");
@@ -758,7 +761,6 @@ export function useImportStarterRecipes() {
       // almost always an old clone of the Workshop's thinner bundled copy (a
       // Shortbow with no range), which is exactly what crafting must stop
       // producing.
-      const edition = ruleset.value;
       const allOutputNames = [...new Set(STARTER_RECIPES.flatMap((r) => r.outputs.map((o) => o.name)))];
       const srdCandidates = allOutputNames.flatMap((name) => {
         const id = WORKSHOP_LIBRARY_EQUIVALENTS[name]?.[edition];

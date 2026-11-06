@@ -117,8 +117,9 @@ describe("usePlayerNavPrefs visible tabs", () => {
     expect(withFiveE).toEqual(expect.arrayContaining(["character", "spells", "inventory", "party", "bestiary", "rules"]));
     game.generic = true;
     const ids = usePlayerNavPrefs().sortedNav.value.map((i) => i.id);
-    for (const id of ["character", "spells", "inventory", "party", "bestiary", "rules"]) expect(ids).not.toContain(id);
-    expect(ids).toEqual(expect.arrayContaining(["hearth", "journal", "atlas"]));
+    for (const id of ["character", "spells", "inventory", "bestiary", "rules"]) expect(ids).not.toContain(id);
+    // The People tab holds the NPC ledger, which every system has.
+    expect(ids).toEqual(expect.arrayContaining(["hearth", "journal", "atlas", "party"]));
   });
 
   // Bug caught: filtering only the default list, so a saved order that names a hidden tab revives it.

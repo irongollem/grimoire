@@ -1,10 +1,14 @@
 <template>
   <div class="space-y-8">
 
-    <PageHeader flush title="Party" description="The heroes and companions travelling with you.">
+    <PageHeader
+      flush
+      :title="hasParty ? 'Party' : 'People'"
+      :description="hasParty ? 'The heroes and companions travelling with you.' : 'The people your character has met.'"
+    >
       <template #actions>
         <AppButton
-          v-if="viewerMemberId"
+          v-if="hasParty && viewerMemberId"
           variant="subtle"
           size="sm"
           :icon="IconAdd"
@@ -15,7 +19,9 @@
     </PageHeader>
 
     <!-- ── Your company ────────────────────────────────────────────────────── -->
-    <ListSkeleton v-if="partyLoading" variant="rows" :count="3" />
+    <!-- A system with no party (Generic) has no company; the ledger below stays. -->
+    <template v-if="!hasParty" />
+    <ListSkeleton v-else-if="partyLoading" variant="rows" :count="3" />
     <p v-else-if="!members?.length" class="font-fell italic text-muted-foreground">
       No party members yet.
     </p>
@@ -89,13 +95,14 @@
     />
 
     <!-- ── Party member lightbox ───────────────────────────────────────────── -->
-    <PartyMemberLightbox :member="selectedMember" @close="closeMember" />
+    <PartyMemberLightbox v-if="hasParty" :member="selectedMember" @close="closeMember" />
 
     <!-- ── NPC lightbox ────────────────────────────────────────────────────── -->
     <PlayerNpcLightbox :npc="isLg ? null : lightboxNpc" :place="lightboxNpc ? (place(lightboxNpc)?.name ?? null) : null" @close="lightboxNpc = null" />
 
     <!-- ── Companion lightbox ──────────────────────────────────────────────── -->
     <PlayerPartyCompanionLightbox
+      v-if="hasParty"
       :companion="selectedCompanion"
       :owner-name="selectedCompanion ? ownerName(selectedCompanion) : ''"
       :viewer-member-id="viewerMemberId"
@@ -105,7 +112,7 @@
 
     <!-- ── Companion form side-sheet ───────────────────────────────────────── -->
     <CompanionForm
-      v-if="companionFormOpen"
+      v-if="hasParty && companionFormOpen"
       :companion="editingCompanion ?? undefined"
       :party-members="members ?? []"
       :locked-owner-id="viewerMemberId"
@@ -138,6 +145,7 @@ import { useReadItems, useMarkRead } from "@/composables/player/useReadItems";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNewToYou, toNewToYouItem } from "@/composables/player/useNewToYou";
 import { usePlayerPeople } from "@/composables/player/usePlayerPeople";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { useAbove } from "@/composables/useBreakpoint";
 import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
 import PlayerNpcLightbox from "@/components/player/PlayerNpcLightbox.vue";
@@ -161,6 +169,8 @@ const appUi = useAppUiStore();
 const playerUi = usePlayerUiStore();
 const campaign = useCampaignStore();
 const isLg = useAbove("lg");
+const { offers } = useGameSystem();
+const hasParty = computed(() => offers("party"));
 const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
 const lightboxSrc = ref<string | null>(null);
 const viewerMemberId = computed(() =>
