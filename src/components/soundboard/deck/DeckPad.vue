@@ -66,13 +66,7 @@
 
     <!-- A guest's Keep sits in the top corner (DeckGrid draws it), so its name stops short of it. -->
     <span class="relative flex min-w-0 items-start gap-1.5" :class="cell.guest !== null ? 'pe-5 pointer-coarse:pe-9' : ''">
-      <!-- A small pad squeezed narrow keeps its name and lets the icon go: its colour already says the kind. -->
-      <component
-        :is="kindIcon"
-        class="mt-0.5 h-3.5 w-3.5 shrink-0"
-        :class="[lit ? '' : PAD_ICON[category], squeezable]"
-        aria-hidden="true"
-      />
+      <!-- No kind icon: the pad's colour already says music, ambience or effect, and the name needs the room. -->
       <span
         class="min-w-0 flex-1 font-semibold leading-tight [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
         :class="size === 'sm' ? 'text-label-lg' : 'text-body'"
@@ -127,12 +121,7 @@ import {
   IconLaunchRepeat,
   IconLaunchToggle,
   IconLaunchTrigger,
-  IconLayers,
-  IconLightning,
-  IconListOrdered,
-  IconMusicNote,
   IconRepeat,
-  IconWind,
 } from "@/lib/icons";
 import KeyCap from "@/components/soundboard/KeyCap.vue";
 import { PAD_GLOW, PAD_ICON, PAD_LIT, PAD_REST } from "@/lib/audio/soundCategories";
@@ -259,14 +248,6 @@ const lookClass = computed(() => {
 
 // The foot is quieter than the name; on a lit pad it takes the pad's dark ink.
 const footClass = computed(() => (lit.value ? "opacity-85" : "text-muted-foreground"));
-
-const kindIcon = computed(() => {
-  if (cell.kind === "scene") return IconLayers;
-  if (cell.kind === "playlist") return IconListOrdered;
-  if (category.value === "music") return IconMusicNote;
-  if (category.value === "ambient") return IconWind;
-  return IconLightning;
-});
 
 const MODE_ICONS = {
   trigger: IconLaunchTrigger,
