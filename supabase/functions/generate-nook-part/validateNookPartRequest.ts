@@ -128,10 +128,13 @@ const PAINT_PROMPT = (subject: string) =>
   "exactly, as if it were painted by the same hand under the same lamps. Show it whole and centred on a fully " +
   "transparent background: no room, no ground, no cast shadow, no glow, no lettering.";
 
+// The DM's words are their own sentence, not a parenthesis after "the main subject": they often say what to
+// leave out ("the music box, not the table"), and a parenthesis read as a label lost that half.
 const LIFT_PROMPT = (hint?: string) =>
-  `Isolate the main subject of the attached picture${hint ? ` (${hint})` : ""} exactly as painted. Do not repaint, ` +
-  "restyle, recolour or add anything. Keep the whole subject, and make everything around it a fully " +
-  "transparent background.";
+  "Isolate the main subject of the attached picture exactly as painted. " +
+  (hint ? `What to keep, in the DM's words: "${hint}". Keep only what that describes, and nothing it leaves out. ` : "") +
+  "Do not repaint, restyle, recolour or add anything. Keep the whole subject, and make everything around it a " +
+  "fully transparent background.";
 
 const FILL_PROMPT =
   "Repaint only the masked area so the room continues seamlessly behind where an object stood. Match the " +

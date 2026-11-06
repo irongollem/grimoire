@@ -1,11 +1,11 @@
 /**
- * The geometry under "Lift" (Book Nook, #1142): draw round a thing in the room's picture, cut it out, paint the
+ * The geometry under "Lift" (Book Nook, #1142): paint over a thing in the room's picture, cut it out, paint the
  * gap behind it. Everything here is pure arithmetic over rectangles and RGBA bytes, so the canvas code that
  * feeds it is thin and the numbers are tested without a DOM.
  */
 import type { Rect } from "./scene.ts";
 
-/** The share of the drawn rectangle's size added on every side, so the model sees context round the thing. */
+/** The share of the painted bounds' size added on every side, so the model sees context round the thing. */
 export const LIFT_PAD = 0.08;
 /** Pixels the mask grows past the cut-out's edge, so the fill covers the fringe the cut leaves. */
 export const MASK_GROW = 6;
@@ -19,30 +19,7 @@ export interface Size {
   height: number;
 }
 
-/** A rectangle from two corners, in any order, clamped to the image and rounded to whole pixels. */
-export function rectFromCorners(a: { x: number; y: number }, b: { x: number; y: number }, image: Size): Rect {
-  const x0 = clamp(Math.min(a.x, b.x), 0, image.width);
-  const y0 = clamp(Math.min(a.y, b.y), 0, image.height);
-  const x1 = clamp(Math.max(a.x, b.x), 0, image.width);
-  const y1 = clamp(Math.max(a.y, b.y), 0, image.height);
-  return { x: Math.round(x0), y: Math.round(y0), w: Math.round(x1 - x0), h: Math.round(y1 - y0) };
-}
-
-/** Moves the rectangle by `dx`, `dy` without letting it leave the image. */
-export function nudgeRect(rect: Rect, dx: number, dy: number, image: Size): Rect {
-  return { ...rect, x: clamp(rect.x + dx, 0, image.width - rect.w), y: clamp(rect.y + dy, 0, image.height - rect.h) };
-}
-
-/** Grows (or shrinks) the rectangle's far corner by `dw`, `dh`, staying inside the image and at least `min` wide. */
-export function resizeRect(rect: Rect, dw: number, dh: number, image: Size, min = 8): Rect {
-  return {
-    ...rect,
-    w: clamp(rect.w + dw, Math.min(min, image.width - rect.x), image.width - rect.x),
-    h: clamp(rect.h + dh, Math.min(min, image.height - rect.y), image.height - rect.y),
-  };
-}
-
-/** The drawn rectangle widened by `pad` of its size on every side, clamped to the room's picture. */
+/** The painted bounds widened by `pad` of its size on every side, clamped to the room's picture. */
 export function paddedCrop(rect: Rect, room: Size, pad = LIFT_PAD): Rect {
   const x0 = Math.max(0, Math.floor(rect.x - rect.w * pad));
   const y0 = Math.max(0, Math.floor(rect.y - rect.h * pad));
@@ -108,6 +85,28 @@ function dilate(src: Uint8Array<ArrayBuffer>, width: number, height: number, r: 
   return out;
 }
 
+/** The brushed cells inside `crop` (1 where the brush has any alpha), crop-sized; `brush` is RGBA at the picture's size. */
+export function brushAlphaIn(brush: ArrayLike<number>, brushWidth: number, crop: Rect): Uint8Array<ArrayBuffer> {
+  const out = new Uint8Array(crop.w * crop.h);
+  for (let y = 0; y < crop.h; y++) {
+    for (let x = 0; x < crop.w; x++) {
+      if (brush[((crop.y + y) * brushWidth + crop.x + x) * 4 + 3] > 0) out[y * crop.w + x] = 1;
+    }
+  }
+  return out;
+}
+
+/** How far past the brush the model's cut may reach: a stroke that fell short of the edge must not slice the thing. */
+export function brushSlack(crop: Rect): number {
+  return Math.max(8, Math.round(0.03 * Math.max(crop.w, crop.h)));
+}
+
+/** Zeroes alpha (in place) wherever the brushed mask, grown by `slack`, is empty: what the model kept outside the paint is dropped. */
+export function clipToBrush(rgba: Uint8ClampedArray, width: number, height: number, brushed: Uint8Array<ArrayBuffer>, slack: number): void {
+  const reach = dilate(brushed, width, height, slack);
+  for (let i = 0; i < reach.length; i++) if (!reach[i]) rgba[i * 4 + 3] = 0;
+}
+
 /**
  * Where the lifted thing sits in the room, in the scene's own units: its bounds inside the crop, moved by the
  * crop's origin, then scaled from the picture's natural pixels to the room's (`scale` is 1 unless the scene's
@@ -115,8 +114,4 @@ function dilate(src: Uint8Array<ArrayBuffer>, width: number, height: number, r: 
  */
 export function partRect(bounds: Rect, crop: Rect, scale = 1): Rect {
   return { x: (crop.x + bounds.x) * scale, y: (crop.y + bounds.y) * scale, w: bounds.w * scale, h: bounds.h * scale };
-}
-
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, n));
 }

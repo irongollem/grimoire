@@ -111,8 +111,9 @@ describe("validateNookPartRequest", () => {
 describe("nookPartPrompt", () => {
   it("names the subject for paint, and the hint for lift only when given", () => {
     expect(nookPartPrompt("paint", "a copper kettle")).toContain("a copper kettle");
-    expect(nookPartPrompt("lift")).not.toContain("()");
-    expect(nookPartPrompt("lift", "the kettle")).toContain("(the kettle)");
+    // Bug: an empty hint left a dangling instruction, or the DM's exclusion never reached the model.
+    expect(nookPartPrompt("lift")).not.toContain("DM's words");
+    expect(nookPartPrompt("lift", "the music box, not the table")).toContain('"the music box, not the table"');
   });
 
   it("fill asks for repainting the masked area and adding nothing", () => {

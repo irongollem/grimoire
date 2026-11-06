@@ -78,7 +78,7 @@
               <span class="text-label uppercase text-tone-caution">{{ LIFT_PRICE_NOTE }}</span>
             </header>
             <p class="text-caption text-muted-foreground">
-              Draw round the kettle in your picture. The app cuts it out with a transparent background and paints in the gap behind it, so the room is whole when the kettle moves.
+              Paint over the kettle in your picture. The app cuts it out with a transparent background and paints in the gap behind it, so the room is whole when the kettle moves.
             </p>
             <AppButton variant="outline" size="sm" block :icon="IconGenerate" :label="liftLabel(picture)" :disabled="!!working || !roomSrc" @click="lifting = true" />
           </section>
@@ -129,7 +129,7 @@ import { useToast } from "@/composables/useToast";
 import { PICTURE_ID } from "@/lib/bookNook/edit";
 import { IconAddImage, IconGenerate } from "@/lib/icons";
 import { paddedCrop } from "@/lib/bookNook/liftGeometry";
-import { layersOf, type Rect, type Scene } from "@/lib/bookNook/scene";
+import { layersOf, type Scene } from "@/lib/bookNook/scene";
 import { uploadNookImage } from "@/lib/bookNook/upload";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
@@ -145,7 +145,7 @@ import {
   removeBackgroundLabel,
 } from "./costLabels";
 import { runLift } from "./liftFlow";
-import LiftTool from "./LiftTool.vue";
+import LiftTool, { type LiftSelection } from "./LiftTool.vue";
 
 /**
  * "Add a cut-out" (frames 06 and 06b): four ways in, the free ones first, and only the free two when the campaign has
@@ -260,7 +260,7 @@ async function onPaint() {
   });
 }
 
-async function onLift(rect: Rect) {
+async function onLift(selection: LiftSelection) {
   const user = auth.user;
   if (!user) {
     toast.error("Sign in again to lift a cut-out.");
@@ -269,11 +269,11 @@ async function onLift(rect: Rect) {
   if (!requireCredits(liftCredits(picture.value))) return;
   await route("lift", async () => {
     const room = await loadImage(roomSrc.value);
-    const crop = paddedCrop(rect, { width: room.naturalWidth, height: room.naturalHeight });
+    const crop = paddedCrop(selection.bounds, { width: room.naturalWidth, height: room.naturalHeight });
     const result = await runLift(
       {
-        ...canvasLiftDeps(room),
-        lift: (blob) => generation.lift(nookId, blob),
+        ...canvasLiftDeps(room, selection.brush),
+        lift: (blob) => generation.lift(nookId, blob, selection.hint ?? undefined),
         fill: (blob, mask) => generation.fill(nookId, blob, mask),
         upload: (blob) => uploadNookImage(blob, nookId, user.id),
       },

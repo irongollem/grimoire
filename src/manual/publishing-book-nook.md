@@ -39,7 +39,7 @@ Press **Add a cut-out** in the layers (or **Add a touch** for glow, steam and th
 
 - **Stock shelf**: ready-made cut-outs and frames painted for Grimoire. More arrive as they are finished.
 - **Upload**: a PNG or WebP with a transparent background. If your picture has a flat background, you are offered **Remove background**, which costs one picture.
-- **Lift**: draw a box round something in the room and Book Nook cuts it out and paints in the gap behind it, so the wall is whole when it moves. Lift costs two pictures, because it makes the cut-out and then fills the gap.
+- **Lift**: paint over something in the room (hold Alt, or pick Eraser, to take paint away; zoom in with Ctrl and the wheel, or pinch, to paint the edges), and say what it is if your paint covers more than one thing, such as "the music box, not the table". Book Nook cuts it out and paints in the gap behind it, so the wall is whole when it moves. Lift costs two pictures, because it makes the cut-out and then fills the gap.
 - **Paint**: describe a thing and it is painted to match the room's light, on a transparent background. This costs one picture.
 
 The price is shown on each button before you press it.

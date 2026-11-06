@@ -1,4 +1,4 @@
-import { alphaBounds, hasTransparency, maskFromAlpha } from "@/lib/bookNook/liftGeometry";
+import { alphaBounds, brushAlphaIn, brushSlack, clipToBrush, hasTransparency, maskFromAlpha } from "@/lib/bookNook/liftGeometry";
 import type { Rect } from "@/lib/bookNook/scene";
 import type { LiftDeps } from "./liftFlow";
 
@@ -66,8 +66,15 @@ export async function blobHasTransparency(blob: Blob): Promise<boolean> {
   return hasTransparency(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
 }
 
-/** The Lift pieces that touch pixels, over the room's picture. */
-export function canvasLiftDeps(room: HTMLImageElement): Pick<LiftDeps, "crop" | "analyse" | "composite"> {
+/** The DM's paint: RGBA bytes of the whole room picture at natural size, alpha above 0 where painted. */
+export interface BrushMask {
+  data: ArrayLike<number>;
+  width: number;
+  height: number;
+}
+
+/** The Lift pieces that touch pixels, over the room's picture and the paint laid on it. */
+export function canvasLiftDeps(room: HTMLImageElement, brush: BrushMask): Pick<LiftDeps, "crop" | "analyse" | "composite"> {
   return {
     async crop(rect: Rect) {
       const [canvas, ctx] = canvasOf(rect.w, rect.h);
@@ -79,9 +86,14 @@ export function canvasLiftDeps(room: HTMLImageElement): Pick<LiftDeps, "crop" | 
       // The model may hand back a different size; the mask has to line up with the crop, so read it at the crop's.
       const [canvas, ctx] = canvasOf(crop.w, crop.h);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // The model sees the whole crop for context and may keep things beside the target (the table); only what
+      // lies under the paint, give or take a slack, is the part.
+      clipToBrush(image.data, canvas.width, canvas.height, brushAlphaIn(brush.data, brush.width, crop), brushSlack(crop));
+      ctx.putImageData(image, 0, 0);
+      const { data } = image;
       const bounds = alphaBounds(data, canvas.width, canvas.height);
-      if (!bounds) throw new Error("Nothing was lifted out of that rectangle. Draw round the thing and try again.");
+      if (!bounds) throw new Error("Nothing was lifted from where you painted. Paint over the thing and try again.");
 
       const [partCanvas, partCtx] = canvasOf(bounds.w, bounds.h);
       partCtx.drawImage(canvas, bounds.x, bounds.y, bounds.w, bounds.h, 0, 0, bounds.w, bounds.h);

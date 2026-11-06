@@ -12,6 +12,9 @@ const h = vi.hoisted(() => ({
   lift: vi.fn(async () => new Blob(["l"])),
   png: new Blob(["png"], { type: "image/png" }),
   ai: true,
+  runLift: vi.fn(async () => ({ notice: null })),
+  deps: vi.fn(() => ({})),
+  loadImage: vi.fn(() => new Promise(() => {})),
 }));
 
 vi.mock("@/composables/bookNook/useLibraryNookParts", () => ({ useLibraryNookParts: () => h.parts }));
@@ -25,7 +28,10 @@ vi.mock("@/composables/bookNook/useAddCutout", () => ({
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get isAiEnabled() { return h.ai; } }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u" } }) }));
-vi.mock("./canvas", () => ({ blobHasTransparency: vi.fn(async () => false), canvasLiftDeps: vi.fn(), loadImage: vi.fn(() => new Promise(() => {})), redrawAsPng: vi.fn(async () => h.png) }));
+vi.mock("./canvas", () => ({ blobHasTransparency: vi.fn(async () => false), canvasLiftDeps: h.deps, loadImage: h.loadImage, redrawAsPng: vi.fn(async () => h.png) }));
+
+vi.mock("./liftFlow", () => ({ runLift: h.runLift }));
+vi.mock("@/lib/bookNook/upload", () => ({ uploadNookImage: vi.fn() }));
 
 import AddCutoutDialog from "./AddCutoutDialog.vue";
 import { EMPTY_SHELF } from "./costLabels";
@@ -111,5 +117,41 @@ describe("AddCutoutDialog", () => {
     await flushPromises();
     expect(h.lift).toHaveBeenCalledWith("n1", h.png);
     w.unmount();
+  });
+
+  describe("Lift", () => {
+    const brush = { data: new Uint8ClampedArray(4), width: 200, height: 100 };
+    const lifted = async (hint: string | null) => {
+      h.loadImage.mockResolvedValue({ naturalWidth: 200, naturalHeight: 100 } as never);
+      const w = mount(AddCutoutDialog, { props: { open: true, nookId: "n1", scene }, attachTo: document.body, global: { stubs: { LiftTool: true } } });
+      button("Lift · 6 credits")!.click();
+      await flushPromises();
+      w.findComponent({ name: "LiftTool" }).vm.$emit("lift", { brush, bounds: { x: 50, y: 20, w: 40, h: 40 }, hint });
+      await flushPromises();
+      return w;
+    };
+
+    it("sends the DM's words with the crop, and crops round the painted bounds", async () => {
+      // Bug: the description never reached the model, or the crop came from the whole picture instead of the paint.
+      const w = await lifted("the music box, not the table");
+      h.lift.mockClear();
+      const [deps, crop] = h.runLift.mock.calls[0] as unknown as [{ lift: (b: Blob) => unknown }, { x: number; w: number }];
+      await deps.lift(h.png);
+      expect(h.lift).toHaveBeenCalledWith("n1", h.png, "the music box, not the table");
+      expect(h.deps).toHaveBeenCalledWith(expect.anything(), brush);
+      expect(crop.x).toBeGreaterThan(40);
+      expect(crop.w).toBeLessThan(60);
+      w.unmount();
+    });
+
+    it("sends no hint at all when the words are blank", async () => {
+      // Bug: a blank box went to the server as an empty subject.
+      h.lift.mockClear();
+      const w = await lifted(null);
+      const [deps] = h.runLift.mock.calls.at(-1) as unknown as [{ lift: (b: Blob) => unknown }];
+      await deps.lift(h.png);
+      expect(h.lift).toHaveBeenCalledWith("n1", h.png, undefined);
+      w.unmount();
+    });
   });
 });

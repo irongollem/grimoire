@@ -7,61 +7,89 @@
       </li>
     </ol>
 
-    <div class="flex justify-center rounded-lg border border-border bg-muted/30 p-2">
-      <p v-if="failed" class="p-6 text-body text-muted-foreground" role="alert">The room's picture could not be loaded.</p>
-      <div v-else-if="!size" class="p-6 text-body text-muted-foreground">Loading the picture…</div>
-      <div v-else class="relative inline-block max-w-full select-none touch-none">
-        <img :src="src" alt="The room's picture" draggable="false" class="block max-h-[55vh] max-w-full" />
-        <!-- The drawing surface sits over the picture; it is the one focusable thing so the keys have somewhere to land. -->
-        <div
-          ref="surface"
-          class="absolute inset-0 cursor-crosshair focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-          role="group"
-          tabindex="0"
-          aria-label="Draw round the thing to lift. With the keyboard, the arrow keys move the rectangle and Shift with an arrow resizes it."
-          @pointerdown="onDown"
-          @pointermove="onMove"
-          @pointerup="onUp"
-          @pointercancel="onUp"
-          @keydown="onKey"
-        >
-          <div
-            v-if="rect && rect.w > 0 && rect.h > 0"
-            class="absolute border-2 border-dashed border-tone-gold bg-tone-gold/15"
-            :style="boxStyle"
-          />
-        </div>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <SegmentedControl v-model="tool" :options="TOOLS" :disabled="busy" />
+      <label class="flex items-center gap-2 text-label text-muted-foreground">
+        Size
+        <input
+          v-model.number="brushSize"
+          type="range"
+          :min="BRUSH_MIN"
+          :max="BRUSH_MAX"
+          step="4"
+          :disabled="busy"
+          class="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-border accent-primary"
+        />
+      </label>
+      <div class="flex items-center gap-1">
+        <AppButton variant="ghost" size="sm" :icon="IconZoomOut" aria-label="Zoom out" tooltip="Zoom out" :disabled="busy" @click="zoomTo('out')" />
+        <span class="w-12 text-center text-caption tabular-nums text-muted-foreground" aria-live="polite">{{ zoomPercent }}%</span>
+        <AppButton variant="ghost" size="sm" :icon="IconZoomIn" aria-label="Zoom in" tooltip="Zoom in" :disabled="busy" @click="zoomTo('in')" />
+        <AppButton variant="ghost" size="sm" label="Fit" :disabled="busy" @click="zoomTo('fit')" />
+      </div>
+      <div class="flex items-center gap-1">
+        <AppButton variant="ghost" size="sm" :icon="IconUndo" label="Undo" :disabled="busy || strokeCount === 0" @click="undo" />
+        <AppButton variant="ghost" size="sm" label="Clear" :disabled="busy || strokeCount === 0" @click="clear" />
       </div>
     </div>
 
+    <div
+      ref="viewportEl"
+      class="relative h-[58vh] touch-none select-none overflow-hidden rounded-lg border border-border bg-muted/30"
+      :class="size && !failed ? 'cursor-none' : ''"
+      role="group"
+      aria-label="The room's picture. Paint over the thing to lift with a pointer; scroll to move, pinch or Ctrl and scroll to zoom."
+      @pointerdown="handlers.onPointerDown"
+      @pointermove="handlers.onPointerMove"
+      @pointerup="handlers.onPointerUp"
+      @pointercancel="handlers.onPointerUp"
+      @pointerleave="handlers.onPointerLeave"
+    >
+      <p v-if="failed" class="p-6 text-body text-muted-foreground" role="alert">The room's picture could not be loaded.</p>
+      <p v-else-if="!size" class="p-6 text-body text-muted-foreground">Loading the picture…</p>
+      <div
+        v-show="size && !failed"
+        class="absolute left-0 top-0 origin-top-left"
+        :style="stageStyle"
+      >
+        <img :src="src" alt="" draggable="false" class="block h-full w-full" />
+        <canvas ref="canvasEl" :width="size?.width ?? 1" :height="size?.height ?? 1" class="absolute inset-0 h-full w-full opacity-50" />
+      </div>
+      <div
+        v-if="cursor && size && !panning && !spaceHeld"
+        class="pointer-events-none absolute rounded-full border-2 border-tone-gold"
+        :class="erasing ? 'border-dashed' : ''"
+        :style="ringStyle"
+      />
+    </div>
+
+    <label class="flex flex-col gap-1 text-label text-muted-foreground">
+      What to lift (optional)
+      <AppInput v-model="hint" block :disabled="busy" :maxlength="HINT_MAX" placeholder="the music box, not the table" />
+    </label>
+
     <div class="flex flex-wrap items-center justify-between gap-2">
       <AppButton variant="ghost" size="sm" label="Back" :disabled="busy" @click="emit('back')" />
-      <div class="flex items-center gap-2">
-        <AppButton v-if="rect" variant="ghost" size="sm" label="Clear" :disabled="busy" @click="rect = null" />
-        <AppButton
-          variant="primary"
-          size="sm"
-          :label="label"
-          :loading="busy"
-          :disabled="!usable"
-          @click="rect && emit('lift', rect)"
-        />
-      </div>
+      <AppButton variant="primary" size="sm" :label="label" :loading="busy" :disabled="!usable" @click="lift" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { nudgeRect, rectFromCorners, resizeRect, type Size } from "@/lib/bookNook/liftGeometry";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { BRUSH_MAX, BRUSH_MIN, useLiftCanvas } from "@/composables/bookNook/useLiftCanvas";
+import { IconBrush, IconEraser, IconUndo, IconZoomIn, IconZoomOut } from "@/lib/icons";
+import type { Size } from "@/lib/bookNook/liftGeometry";
 import type { Rect } from "@/lib/bookNook/scene";
 import { loadImage } from "./canvas";
 
 /**
- * Lift's first step (frame 06): the room's picture, fitted, with a rectangle drawn round the thing to take out.
- * The rectangle is in the picture's own pixels. It owns the drawing and the keys; the dialog owns the price,
- * the credits and the model calls, and hears `lift` with the rectangle.
+ * Lift's first step: the room's picture, zoomable, with a brush to paint over the thing to take out and a few
+ * words to say what it is. The paint is a mask in the picture's own pixels. It owns the painting; the dialog owns
+ * the price, the credits and the model calls, and hears `lift` with the mask, its bounds and the words.
  */
 const { src, label, busy = false } = defineProps<{
   src: string;
@@ -70,32 +98,50 @@ const { src, label, busy = false } = defineProps<{
   busy?: boolean;
 }>();
 
-const emit = defineEmits<{ lift: [rect: Rect]; back: [] }>();
+export interface LiftSelection {
+  /** RGBA bytes of the whole picture at natural size; alpha above 0 is painted. */
+  brush: { data: Uint8ClampedArray; width: number; height: number };
+  bounds: Rect;
+  hint: string | null;
+}
+
+const emit = defineEmits<{ lift: [selection: LiftSelection]; back: [] }>();
 
 const STEPS = [
-  "Draw round it in your picture.",
-  "It becomes a cut-out of its own.",
-  "The gap behind it is painted in, so it can move without leaving a twin.",
+  "Paint over the thing you want. Hold Alt, or pick Eraser, to take paint away.",
+  "Say what it is if your paint covers more than one thing.",
+  "It becomes a cut-out of its own, and the gap behind it is painted in.",
 ];
+const TOOLS = [
+  { value: "brush", label: "Brush", icon: IconBrush },
+  { value: "erase", label: "Eraser", icon: IconEraser },
+] as const;
 
-/** Smallest rectangle worth sending, in picture pixels. */
+/** Smallest painted area worth sending, in picture pixels. */
 const MIN_SIDE = 16;
-const KEY_STEP = 10;
+/** The server trims the words to this many characters. */
+const HINT_MAX = 300;
 
 const size = ref<Size | null>(null);
 const failed = ref(false);
-const rect = ref<Rect | null>(null);
-const surface = ref<HTMLElement | null>(null);
+const hint = ref("");
+const viewportEl = ref<HTMLElement | null>(null);
+const canvasEl = ref<HTMLCanvasElement | null>(null);
+
+const { tool, brushSize, view, strokeCount, bounds, cursor, altHeld, panning, spaceHeld, zoomPercent, zoomTo, reset, undo, clear, selection, handlers } =
+  useLiftCanvas({ viewport: viewportEl, canvas: canvasEl, natural: size, busy: () => busy });
 
 watch(
   () => src,
   async (url) => {
     size.value = null;
     failed.value = false;
-    rect.value = null;
     try {
       const img = await loadImage(url);
       size.value = { width: img.naturalWidth, height: img.naturalHeight };
+      // The canvas takes its new size from the template first; only then can it be cleared and fitted.
+      await nextTick();
+      reset();
     } catch {
       failed.value = true;
     }
@@ -103,50 +149,24 @@ watch(
   { immediate: true },
 );
 
-const usable = computed(() => !!rect.value && rect.value.w >= MIN_SIDE && rect.value.h >= MIN_SIDE);
-const boxStyle = computed(() => {
-  const r = rect.value;
-  const s = size.value;
-  if (!r || !s) return {};
-  return { left: `${(r.x / s.width) * 100}%`, top: `${(r.y / s.height) * 100}%`, width: `${(r.w / s.width) * 100}%`, height: `${(r.h / s.height) * 100}%` };
-});
+const erasing = computed(() => tool.value === "erase" || altHeld.value);
+const usable = computed(() => !busy && !!bounds.value && bounds.value.w >= MIN_SIDE && bounds.value.h >= MIN_SIDE);
+const stageStyle = computed(() => ({
+  width: `${(size.value?.width ?? 0) * view.value.scale}px`,
+  height: `${(size.value?.height ?? 0) * view.value.scale}px`,
+  transform: `translate(${view.value.tx}px, ${view.value.ty}px)`,
+}));
+const ringStyle = computed(() => ({
+  width: `${brushSize.value}px`,
+  height: `${brushSize.value}px`,
+  left: `${(cursor.value?.x ?? 0) - brushSize.value / 2}px`,
+  top: `${(cursor.value?.y ?? 0) - brushSize.value / 2}px`,
+}));
 
-let start: { x: number; y: number } | null = null;
-
-function pointAt(event: PointerEvent): { x: number; y: number } | null {
-  const box = surface.value?.getBoundingClientRect();
-  const s = size.value;
-  if (!box || !s || box.width === 0) return null;
-  return { x: ((event.clientX - box.left) / box.width) * s.width, y: ((event.clientY - box.top) / box.height) * s.height };
-}
-function onDown(event: PointerEvent) {
-  if (busy) return;
-  start = pointAt(event);
-  (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-}
-function onMove(event: PointerEvent) {
-  const here = pointAt(event);
-  if (!start || !here || !size.value) return;
-  rect.value = rectFromCorners(start, here, size.value);
-}
-function onUp() {
-  start = null;
-}
-
-function onKey(event: KeyboardEvent) {
-  const s = size.value;
-  const delta = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
-  if (!s || !delta || busy) return;
-  event.preventDefault();
-  // With nothing drawn yet an arrow starts a rectangle in the middle, a fifth of the picture across.
-  const current = rect.value ?? {
-    x: Math.round(s.width * 0.4),
-    y: Math.round(s.height * 0.4),
-    w: Math.round(s.width * 0.2),
-    h: Math.round(s.height * 0.2),
-  };
-  rect.value = event.shiftKey
-    ? resizeRect(current, delta[0] * KEY_STEP, delta[1] * KEY_STEP, s)
-    : nudgeRect(current, delta[0] * KEY_STEP, delta[1] * KEY_STEP, s);
+function lift() {
+  const picked = selection();
+  if (!picked || !usable.value) return;
+  const words = hint.value.trim().slice(0, HINT_MAX);
+  emit("lift", { ...picked, hint: words === "" ? null : words });
 }
 </script>

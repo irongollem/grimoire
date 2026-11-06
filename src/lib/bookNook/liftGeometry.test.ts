@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alphaBounds, hasTransparency, maskFromAlpha, nudgeRect, paddedCrop, partRect, rectFromCorners, resizeRect } from "./liftGeometry";
+import { alphaBounds, hasTransparency, maskFromAlpha, brushAlphaIn, brushSlack, clipToBrush, paddedCrop, partRect } from "./liftGeometry";
 
 const px = (w: number, h: number, alphaAt: (x: number, y: number) => number) => {
   const d = new Uint8ClampedArray(w * h * 4);
@@ -30,19 +30,6 @@ describe("paddedCrop", () => {
   });
 });
 
-describe("rect editing", () => {
-  const room = { width: 200, height: 100 };
-  it("normalises a drag in any direction and clamps it", () => {
-    expect(rectFromCorners({ x: 150, y: 80 }, { x: 20, y: 10 }, room)).toEqual({ x: 20, y: 10, w: 130, h: 70 });
-    expect(rectFromCorners({ x: -50, y: -5 }, { x: 500, y: 500 }, room)).toEqual({ x: 0, y: 0, w: 200, h: 100 });
-  });
-  it("nudges and resizes by keys without leaving the picture", () => {
-    expect(nudgeRect({ x: 190, y: 0, w: 10, h: 10 }, 20, -5, room)).toEqual({ x: 190, y: 0, w: 10, h: 10 });
-    expect(resizeRect({ x: 150, y: 0, w: 40, h: 10 }, 40, 0, room).w).toBe(50);
-    expect(resizeRect({ x: 0, y: 0, w: 20, h: 20 }, -100, -100, room)).toMatchObject({ w: 8, h: 8 });
-  });
-});
-
 describe("alphaBounds and partRect", () => {
   it("finds the opaque pixels and puts them back in room space", () => {
     const a = px(10, 10, (x, y) => (x >= 2 && x <= 4 && y >= 3 && y <= 7 ? 255 : 0));
@@ -66,5 +53,42 @@ describe("maskFromAlpha", () => {
   });
   it("does not mistake a faint fringe for the thing", () => {
     expect(maskFromAlpha(px(3, 3, () => 40), 3, 3, 0)[3]).toBe(255);
+  });
+});
+
+describe("brush clipping", () => {
+  it("reads the brush at the crop's origin, not the picture's corner", () => {
+    // Bug: reading the brush from (0,0) instead of the crop origin clips the lift against the wrong pixels.
+    const brush = px(10, 10, (x, y) => (x === 6 && y === 7 ? 255 : 0));
+    const got = brushAlphaIn(brush, 10, { x: 5, y: 6, w: 3, h: 3 });
+    expect([...got]).toEqual([0, 0, 0, 0, 1, 0, 0, 0, 0]);
+  });
+
+  it("drops what the model kept outside the paint and keeps what is inside or within the slack", () => {
+    // Bug: the table the model left in the lift survives, and the gap fill then repaints it away.
+    const w = 40;
+    const rgba = px(w, 1, () => 255);
+    const brushed = new Uint8Array(w);
+    brushed[20] = 1;
+    clipToBrush(rgba, w, 1, brushed, 5);
+    const kept = (x: number) => rgba[x * 4 + 3] === 255;
+    expect(kept(20)).toBe(true);
+    expect(kept(15)).toBe(true);
+    expect(kept(25)).toBe(true);
+    expect(kept(14)).toBe(false);
+    expect(kept(26)).toBe(false);
+  });
+
+  it("leaves nothing when nothing was painted in the crop", () => {
+    // Bug: an empty brush kept the whole lift, so the 'Nothing was lifted' error never fired.
+    const rgba = px(4, 4, () => 255);
+    clipToBrush(rgba, 4, 4, new Uint8Array(16), 8);
+    expect(alphaBounds(rgba, 4, 4)).toBeNull();
+  });
+
+  it("allows 8px of slack, or 3% of a big crop's longest side", () => {
+    // Bug: a fixed slack is too tight on a large crop, where a stroke short of the edge cuts the thing.
+    expect(brushSlack({ x: 0, y: 0, w: 100, h: 100 })).toBe(8);
+    expect(brushSlack({ x: 0, y: 0, w: 1000, h: 400 })).toBe(30);
   });
 });
