@@ -18,7 +18,8 @@ import {
   type ConditionPassResult,
 } from "@/rules/conditionDurations";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { rollAllInitiativeValues, findFirstActiveIndex, stepTurnIndex } from "@/rules/encounterCombatLogic";
+import { rollAllInitiativeValues } from "@/rules/encounterCombatLogic";
+import { findFirstActiveIndex, stepTurnIndex } from "@/rules/turnOrder";
 
 /**
  * The encounter turn state machine, as a pure reducer.
