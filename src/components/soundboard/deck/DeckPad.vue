@@ -79,7 +79,6 @@
       >
         {{ cell.name }}
       </span>
-      <KeyCap v-if="showKey && size !== 'sm'" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
     </span>
 
     <span class="relative flex min-w-0 items-center gap-1.5 text-label" :class="blockedText ? 'text-destructive' : footClass">
@@ -105,8 +104,8 @@
           :class="take - 1 === cell.nextTake ? 'opacity-100' : 'opacity-40'"
         />
       </span>
-      <!-- A small pad gives its top line to the name: the key moves down to the corner. -->
-      <KeyCap v-if="showKey && size === 'sm'" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
+      <!-- Every pad gives its top line to the name: the key sits in the bottom corner. -->
+      <KeyCap v-if="showKey" class="shrink-0">{{ cell.keyLabel }}</KeyCap>
     </span>
 
     <span
