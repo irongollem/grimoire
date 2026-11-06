@@ -136,6 +136,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   // behind a door"; this answers "the party is in a cave", where everything
   // audible should be in the cave rather than one selected track.
   const masterEffect = ref<AudioEffectPreset>("none");
+  /** A preset per bus: "the music is through a door" while the rest of the room is dry. */
+  const busEffects = ref<Record<AudioBus, AudioEffectPreset>>({ music: "none", ambient: "none", effects: "none" });
 
   // ── Output mode ─────────────────────────────────────────────────────────
   //
@@ -592,6 +594,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function setMasterEffect(preset: AudioEffectPreset): void {
     masterEffect.value = preset;
     engine.setMasterEffect(preset);
+  }
+
+  /** Colour every sound on one bus, between the sounds' own effects and the master's. */
+  function setBusEffect(bus: AudioBus, preset: AudioEffectPreset): void {
+    busEffects.value = { ...busEffects.value, [bus]: preset };
+    engine.setBusEffect(bus, preset);
   }
 
   /**
@@ -1339,6 +1347,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     masterVolume,
     busVolumes,
     masterEffect,
+    busEffects,
     directOutput,
     volumeControlAvailable,
     volumeControlNote,
@@ -1356,6 +1365,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     toggleMute,
     setBusVolume,
     setMasterEffect,
+    setBusEffect,
     toggleLoop,
     setLooping,
     isLooping,
