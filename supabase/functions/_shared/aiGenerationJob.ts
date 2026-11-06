@@ -172,19 +172,6 @@ export async function recordGenerationJobMetadata(
   if (error || !data) throw new Error(`recordGenerationJobMetadata failed: ${error?.message ?? "job was not running"}`);
 }
 
-/** Settles the reservation, records the real spend, and exposes the ready result in one DB transaction. */
-export async function settleGenerationJob(
-  admin: SupabaseClient,
-  jobId: string,
-  result: GenerationJson,
-): Promise<void> {
-  const { error } = await admin.rpc("settle_ai_generation_job", {
-    p_job_id: jobId,
-    p_result_json: result,
-  });
-  if (error) throw new Error(`settleGenerationJob failed: ${error.message}`);
-}
-
 /** Atomically creates the idempotent sound row and settles a persisted music artifact. */
 export async function finalizeMusicGenerationJob(
   admin: SupabaseClient,

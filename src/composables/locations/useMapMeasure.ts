@@ -66,5 +66,3 @@ export function useMapMeasure(options: {
 
   return { measuring, points, paceId, summary, start, stop, toggle, addPoint, undo, clear };
 }
-
-export type MapMeasure = ReturnType<typeof useMapMeasure>;

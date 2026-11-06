@@ -4,8 +4,8 @@ export type { LucideIcon as AppIcon } from '@lucide/vue'
 
 import {
   AlertCircle, AlertTriangle, AlignCenter, AlignLeft, AlignRight,
-  Archive, Armchair, ArrowUpFromLine, Award, Axe,
-  Backpack, BarChart2, BetweenHorizontalEnd, BetweenVerticalEnd, Cast,
+  Archive, ArrowUpFromLine, Award, 
+  Backpack, BetweenHorizontalEnd, BetweenVerticalEnd, Cast,
   BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Box, Brain, BrickWall, Brush, Bug,
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
@@ -14,36 +14,35 @@ import {
   Dna, DoorClosed, DoorOpen, Download, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
-  Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
-  Hammer, Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
+  Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
+  Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
   Cloud, CloudDrizzle, CloudFog, CloudRain, CloudSnow, Snowflake,
-  Keyboard, KeyRound, Lamp, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
+  Keyboard, KeyRound, Lamp, Landmark, Layers, LayoutGrid, LayoutList,
   Shrink,
-  Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
+  Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Lock, LogOut,
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
   Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
-  Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen,
+  Package, PackageOpen, PackagePlus, PaintBucket, Pause, PawPrint, Pen,
   PencilLine, PencilRuler, Pickaxe, Pin, Play, Plus, Printer,
   Puzzle, Quote, Radio, RectangleHorizontal, Redo2, RefreshCw,
-  Repeat, Repeat1, RotateCcw, Ruler,
-  PictureInPicture2,
+  Repeat, RotateCcw, Ruler,
+  
   Save, ScanEye, Scissors, Scroll, ScrollText, Search, Send, Settings, Settings2,
-  Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipBack, SkipForward, Skull, SlidersHorizontal,
+  Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipForward, Skull, SlidersHorizontal,
   Spline, Sparkles, Square, SquareCode, SquareSplitVertical, Stamp, Star, Strikethrough, Sun, Sword, Swords,
   Table2, Tag, Trash2, Truck,
   Aperture, TrendingUp,
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
-  VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
+  VolumeX, Wand2, Wind, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
   Fence, Type, SunMoon,
   StepForward, ToggleRight, FastForward, TrendingDown, ChartNoAxesColumn,
   BowArrow, Pencil, Radius, Signal, Target,
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
-export { PictureInPicture2 as IconPopOut }
 export { Plus as IconAdd }
 export { Minus as IconMinus }
 export { Trash2 as IconDelete }
@@ -97,7 +96,6 @@ export { Clipboard as IconClipboard }
 export { ScanEye as IconScan }
 export { Stamp as IconStamp }
 export { Scissors as IconScissors }
-export { Paintbrush as IconPaint }
 export { Brush as IconBrush }
 export { Eraser as IconEraser }
 export { Hand as IconHand }
@@ -124,7 +122,6 @@ export { Box as IconCube }
 export { Stamp as IconObjectStamp }
 /** Dressing (epic #1062): furniture and other props placed at any angle. An
  *  armchair, so it does not read as the Object stamp beside it. */
-export { Armchair as IconDressing }
 /** Annotate places text on the map (shortcut T), so a text glyph, not the
  *  pen the Line tool used to share with it. */
 export { Type as IconAnnotate }
@@ -135,7 +132,6 @@ export { Cloud as IconCave }
  *  `IconCave`, reused deliberately under its own alias: "cave" (an entity
  *  type icon) and "fog" (a played map layer) never appear side by side, so
  *  there is no ambiguity to resolve. */
-export { Cloud as IconFog }
 export { KeyRound as IconKey }
 export { Keyboard as IconKeyboard }
 export { Highlighter as IconHighlight }
@@ -144,7 +140,6 @@ export { Highlighter as IconHighlight }
 export { Menu as IconMenu }
 export { MoreHorizontal as IconMore }
 export { Home as IconHome }
-export { LayoutDashboard as IconDashboard }
 export { LayoutList as IconListView }
 export { LayoutGrid as IconGridView }
 /** The site map's Grid layer toggle (#868) — distinct from `IconGridView`,
@@ -241,7 +236,6 @@ export { Gem as IconGem }
 export { FlaskConical as IconPotion }
 export { Flame as IconFire }
 export { Droplets as IconWater }
-export { Leaf as IconNature }
 export { Wind as IconWind }
 export { Zap as IconLightning }
 export { Cloud as IconWeather }
@@ -255,9 +249,7 @@ export { Moon as IconMoon }
 export { SunMoon as IconLensPair }
 export { Ghost as IconUndead }
 export { PawPrint as IconBeast }
-export { Axe as IconAxe }
 export { Pickaxe as IconPickaxe }
-export { Hammer as IconCraft }
 export { Wrench as IconTool }
 export { Dna as IconSpecies }
 export { Brain as IconMind }
@@ -266,7 +258,6 @@ export { Gift as IconLoot }
 export { Pin as IconNoticeBoard }
 export { ShoppingBag as IconShop }
 export { Truck as IconCaravan }
-export { Wine as IconTavern }
 export { UtensilsCrossed as IconFood }
 export { Landmark as IconLandmark }
 
@@ -274,10 +265,8 @@ export { Landmark as IconLandmark }
 export { Play as IconPlay }
 export { Pause as IconPause }
 export { Square as IconStop }
-export { SkipBack as IconSkipBack }
 export { SkipForward as IconSkipForward }
 export { Repeat as IconRepeat }
-export { Repeat1 as IconRepeatOne }
 export { Shuffle as IconShuffle }
 export { VolumeX as IconMute }
 export { Music as IconMusic }
@@ -397,7 +386,6 @@ export const IconDice = glyph(DICE_D20_GLYPHS.d20);
 export const IconDiceRoll = glyph(DICE_D20_GLYPHS.d20);
 
 // ── UI / Misc ─────────────────────────────────────────────────────────────────
-export { BarChart2 as IconChart }
 export { Component as IconComponent }
 export { Bug as IconBug }
 export { Lightbulb as IconLightbulb }
@@ -406,4 +394,3 @@ export { MessageCircle as IconMessage }
 export { MessageSquare as IconComment }
 export { Megaphone as IconAnnounce }
 export { Clock as IconClock }
-export { Gamepad2 as IconGamepad }

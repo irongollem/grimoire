@@ -256,9 +256,6 @@ export function cachedWallGeometry(walls: WallMap): WallGeometry {
   return geometry;
 }
 
-/** The geometry of a walls record, cached: the entry point other modules import. */
-export const wallGeometry = cachedWallGeometry;
-
 /** The straight pieces of an angled wall (its chord, for a wall that is not curved). */
 export function piecesOfWall(walls: WallMap, key: string): readonly WallPiece[] {
   return cachedWallGeometry(walls).lines.get(key)?.pieces ?? [];

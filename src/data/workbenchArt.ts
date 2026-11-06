@@ -255,9 +255,6 @@ export const WORKBENCH_TAG_ORDER: readonly { match: readonly string[]; sprite: W
   { match: ["mineral"], sprite: "mat-ore" },
 ];
 
-/** Tags that describe rather than name a material; they never pick a sprite on their own. */
-export const WORKBENCH_DESCRIBING_TAGS: readonly string[] = ["material", "large", "raw", "blue", "black"];
-
 /** When no tag matches: by item type, then the neutral bundle. */
 export const WORKBENCH_TYPE_FALLBACK: Readonly<Record<string, WorkbenchSpriteId>> = { potion: "mat-flask", provision: "mat-vegetables" };
 export const WORKBENCH_NEUTRAL_SPRITE: WorkbenchSpriteId = "mat-bundle";

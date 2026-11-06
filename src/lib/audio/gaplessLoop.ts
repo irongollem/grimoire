@@ -197,5 +197,3 @@ export function createGaplessLoops(deps: GaplessLoopDeps) {
     stop,
   };
 }
-
-export type GaplessLoops = ReturnType<typeof createGaplessLoops>;

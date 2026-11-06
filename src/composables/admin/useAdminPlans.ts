@@ -1,9 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
-import type { Plan, QUOTA_RESOURCE_LABELS } from '@/types/subscription.types'
+import type { Plan } from '@/types/subscription.types'
 import { QUOTA_RESOURCE_LABELS as LABELS } from '@/types/subscription.types'
-
-export type { QUOTA_RESOURCE_LABELS }
 
 async function fetchPlans(): Promise<Plan[]> {
   const { data, error } = await supabase.from('plans').select('*').order('id')

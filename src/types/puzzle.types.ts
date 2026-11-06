@@ -39,8 +39,6 @@ export const PUZZLE_SKILLS = [
   "Medicine",
   "Survival",
 ] as const;
-export type PuzzleSkill = typeof PUZZLE_SKILLS[number];
-
 export interface PuzzleHint {
   order: number;
   text: string;

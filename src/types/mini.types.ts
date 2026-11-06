@@ -102,33 +102,6 @@ export type PlayerVisibleMini = Pick<
   | "updated_at"
 >;
 
-// Creation only needs the source + format — everything else is server-managed
-// by the forge-mini pipeline (stylize → sculpt → download).
-export type MiniInsert = Omit<
-  Mini,
-  | "id"
-  | "user_id"
-  | "label"
-  | "created_at"
-  | "updated_at"
-  | "status"
-  | "meshy_task_id"
-  | "glb_path"
-  | "stl_path"
-  | "extra_paths"
-  | "base_id"
-  | "scale_mm"
-  | "thumbnail_url"
-  | "polycount"
-  | "sculpt_count"
-  | "credits_spent"
-  | "reservation_ids"
-  | "error"
-  | "stylized_image_url"
-  | "stylize_job_id"
->;
-export type MiniUpdate = Partial<MiniInsert>;
-
 export const SIMULACRUM_MODES = ["hidden", "teaser", "live"] as const;
 export type SimulacrumMode = (typeof SIMULACRUM_MODES)[number];
 

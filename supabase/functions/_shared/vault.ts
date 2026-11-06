@@ -2,7 +2,7 @@
  * Shared AES-GCM vault helpers for Edge Functions.
  * Uses the VAULT_KEY environment variable (32-byte hex string).
  *
- * Mirrors the encryption logic in api-key-vault/index.ts.
+ * The one implementation: api-key-vault and every generator import it.
  * Import this instead of calling api-key-vault over HTTP.
  */
 

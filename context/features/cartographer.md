@@ -1263,7 +1263,7 @@ The Map menu's Style entry (`CartographerMapMenu.vue`, in the site editor `SiteM
 
 ```ts
 // Edge function builds: name + description + presetPrompt + userSuffix + watermark
-[mapName, mapDescription, presetPrompt, suffix, WATERMARK_SUFFIX]
+[mapName, mapDescription, presetPrompt, suffix, watermark]
   .filter(Boolean)
   .join(", ");
 ```
@@ -1272,7 +1272,7 @@ The Map menu's Style entry (`CartographerMapMenu.vue`, in the site editor `SiteM
 
 #### Files (as built)
 
-- `src/cartographer/stylePresets.ts` — `StylePreset` interface + `CARTOGRAPHER_STYLE_PRESETS` array + `WATERMARK_SUFFIX`
+- `src/cartographer/stylePresets.ts` — `StylePreset` interface + `CARTOGRAPHER_STYLE_PRESETS` array
 - `src/cartographer/bake.ts` — `fitStyleInputCanvas()`/`bakeMapForAI()` take a `provider: "openai" | "gemini"` (default `"openai"`) that picks which pad function applies, returning `{ blob, geometry, size }`; `padToAspect()` (general), `padToStyleAspect()` (clamped to OpenAI's 1:3..3:1) and `chooseStyleImageSize()` (the 2560×1440 budget, rounded down to multiples of 16) are the independently-tested pure pieces both this file and `aiStyleInput.ts` build on
 - `src/cartographer/aiStyleInput.ts`: `liveDrawingCalibration()` (the Drawing's would-be publish calibration, pure), `bakeAiStyleInput()` (the site editor's Picture+Drawing composite, fitted, or the plain fallback), `styledPictureCalibration()` (pure: fitting geometry + `liveDrawingCalibration`'s cell coordinates → a `GridCalibration`)
 - `supabase/functions/_shared/imageSize.ts` — `readPngDimensions()` (reads width/height straight out of a PNG's IHDR chunk) and `isValidStyleImageSize()` (flexible OpenAI's multiple-of-16/aspect/edge/total-pixel rules), both pure and tested

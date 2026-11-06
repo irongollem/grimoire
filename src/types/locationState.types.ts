@@ -39,11 +39,6 @@ export const LOCATION_STATE_FACT_LABELS: Record<LocationStateFact, string> = {
 export const DOOR_STATE_FACTS = ["unlocked", "found"] as const;
 export type DoorStateFact = (typeof DOOR_STATE_FACTS)[number];
 
-export const DOOR_STATE_FACT_LABELS: Record<DoorStateFact, string> = {
-  unlocked: "Unlocked",
-  found: "Found",
-};
-
 /** One row of the append-only log. A location fact has `door_id: null`; a
  *  door fact names the door and logs against its site. */
 export interface LocationStateEvent {

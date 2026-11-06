@@ -86,34 +86,6 @@ function collectSegments(layers: DungeonMapLayers): Seg[] {
   return segs;
 }
 
-/** Whether the segment runs through the inside of the square, not just along its edge or past its corner. */
-const EPS = 1e-6;
-
-export function crossesSquare(a: readonly number[], b: readonly number[], x: number, y: number): boolean {
-  // Liang-Barsky on the open square; the clipped length must be more than a point.
-  let t0 = 0;
-  let t1 = 1;
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const edges: [number, number][] = [
-    [-dx, a[0] - x],
-    [dx, x + 1 - a[0]],
-    [-dy, a[1] - y],
-    [dy, y + 1 - a[1]],
-  ];
-  for (const [p, q] of edges) {
-    if (Math.abs(p) < EPS) {
-      if (q <= EPS) return false;
-      continue;
-    }
-    const r = q / p;
-    if (p < 0) t0 = Math.max(t0, r);
-    else t1 = Math.min(t1, r);
-    if (t0 >= t1 - EPS) return false;
-  }
-  return t1 - t0 > EPS;
-}
-
 /** Cuts segments where they meet, so the pieces share end points. */
 function weld(segs: Seg[]): Seg[] {
   const cuts: Pt[][] = segs.map(() => []);

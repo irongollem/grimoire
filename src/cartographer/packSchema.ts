@@ -3,8 +3,6 @@
 
 import type { MotionOverlay } from "@/types/mapLive.types";
 
-export type CategoryKind = "random" | "directional" | "optional";
-
 export interface RandomCategoryDef {
   kind: "random";
   min: number;

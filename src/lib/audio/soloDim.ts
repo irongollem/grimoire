@@ -67,5 +67,3 @@ export function createSolo(deps: SoloDeps) {
 
   return { dimFor, applyDim, noteStart, setSolo, checkAlive };
 }
-
-export type Solo = ReturnType<typeof createSolo>;

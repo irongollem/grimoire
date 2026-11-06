@@ -1,5 +1,5 @@
 <!--
-  Documentation lives in <script setup>, not here (same reason as AppButton):
+  Documentation lives in the script block, not here (same reason as AppButton):
   any comment at the template root becomes a sibling of the `template v-if` /
   `div v-else` pair below, which is one more root node than this component
   actually has and would leak an HTML comment into the "not customizing" output

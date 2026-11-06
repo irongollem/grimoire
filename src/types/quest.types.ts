@@ -1,5 +1,4 @@
 import type { Coins } from "@/lib/currency/currency";
-import type { NpcRelationship } from "@/types/npc.types";
 import type { LocationType } from "@/types/location.types";
 import type { AiProvenance } from "@/ai/provenance";
 import { LOCATION_STATE_FACT_LABELS, type LocationStateFact } from "@/types/locationState.types";
@@ -271,10 +270,6 @@ export interface ClockTickConsequencePayload {
   step: number;
 }
 
-/** `shift_faction_standing` (#1011): the party's standing with a faction, on
- *  the same ladder and with the same two forms as an NPC's relationship. */
-export type FactionStandingShiftConsequencePayload = RelationshipShiftConsequencePayload;
-
 export type QuestConsequenceActionPayload =
   | ClockTickConsequencePayload
   | CalendarEventConsequencePayload
@@ -365,96 +360,11 @@ export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" 
 };
 
 /**
- * The append-only log of every consequence that fired: `quest_consequence_events`.
- * DM-only (`private.is_campaign_dm`) — a player's objective/verb/previous-visibility
- * history is not theirs to read (see #798 for the player-facing projection).
- *
- * A row with `performed_at is null and undone_at is null and after_days > 0` is
- * waiting for its in-world date. The database logs it, names the day it fired
- * on (`fires_on_year/month/day`) and stores the day it is due (`due_on_*`);
- * the `campaigns_fire_due_consequences` trigger performs it when the
- * campaign's today reaches that day (`private.fire_due_consequences`). The
- * client only displays the wait.
- */
-export interface QuestConsequenceEvent {
-  id: string;
-  campaign_id: string;
-  quest_id: string;
-  transition_id: string;
-  consequence_id: string | null;
-  action: QuestConsequenceAction;
-  target_objective_id: string | null;
-  previous_status: QuestObjectiveStatus | null;
-  previous_is_player_visible: boolean | null;
-  action_payload: QuestConsequenceActionPayload;
-  after_days: number;
-  fires_on_year: number | null;
-  fires_on_month: number | null;
-  fires_on_day: number | null;
-  /** `fires_on + after_days` on the campaign's calendar, computed by the
-   *  database when the row is written. All three are null when the calendar
-   *  cannot place that date, and such a row never fires. */
-  due_on_year: number | null;
-  due_on_month: number | null;
-  due_on_day: number | null;
-  performed_at: string | null;
-  performed_on_year: number | null;
-  performed_on_month: number | null;
-  performed_on_day: number | null;
-  calendar_event_id: string | null;
-  message_id: string | null;
-  /**
-   * The undo record for the two actions added after this interface was written
-   * — a disposition shift (#831) and a quest unlock (#836). Both store what the
-   * value *was*, because both are relative moves: undoing "improve by two" has
-   * to restore the stance it started from, not compute an inverse. Null for
-   * every other action, and for a row logged before the action existed.
-   *
-   * They were missing here until the #825 review. Nothing broke, because the
-   * one real reader declared its own narrower row type — but an audit-trail
-   * surface reading this interface would have been unable to see either
-   * field, with the compiler agreeing it did not exist.
-   */
-  target_npc_id: string | null;
-  previous_relationship: NpcRelationship | null;
-  target_quest_id: string | null;
-  target_document_id: string | null;
-  previous_quest_status: QuestStatus | null;
-  undone_at: string | null;
-  seq: number;
-  /**
-   * Set when the DM held this payoff back in the Advance dialog instead of
-   * letting it fire (#853). Cleared when it is fired from the log. The three
-   * rows a fired verb can point at — never more than one of the three set —
-   * are the destinations `grant_knowledge`/`owe_favor`/`award_milestone`
-   * write to; a row logged before those verbs existed, or logged for any
-   * other action, carries all three `null`.
-   */
-  held_at: string | null;
-  journal_entry_id: string | null;
-  favor_id: string | null;
-  milestone_id: string | null;
-  /** #1011's undo records: the clock's fill, the NPC's place (`npc_moved`
-   *  says it was recorded, since the old place may be null), the companion a
-   *  rule added, and the faction standing it moved. */
-  target_clock_id: string | null;
-  previous_clock_filled: number | null;
-  target_location_id: string | null;
-  previous_location_id: string | null;
-  npc_moved: boolean;
-  companion_id: string | null;
-  target_faction_id: string | null;
-  previous_standing: NpcRelationship | null;
-  created_at: string;
-  updated_at: string;
-}
-
-/**
  * What an NPC owes the party (#853, `npc_favors`). Written by the `owe_favor`
  * consequence or by hand on the NPC sheet; settled, never deleted, once
  * repaid — `settled_at` is the record that it happened, not a row to clear.
  * Lives here rather than in `npc.types.ts`: this is quest payoff pinned to an
- * NPC, the same reason `QuestConsequenceEvent` lives here and not on the NPC.
+ * NPC, so it lives here and not on the NPC.
  */
 export interface NpcFavor {
   id: string;
@@ -639,8 +549,6 @@ export interface QuestBeatEdgeGate {
   updated_at: string;
 }
 
-export type QuestBeatEdgeGateInsert = Omit<QuestBeatEdgeGate, "id" | "created_at" | "updated_at">;
-
 /** One condition as read for display, with whether it holds right now. */
 export interface QuestRouteGateCondition {
   objective_id: string;
@@ -703,8 +611,6 @@ export interface QuestThread {
   closed_at: string | null;
   updated_at: string;
 }
-
-export type QuestThreadInsert = Omit<QuestThread, "id" | "created_by" | "created_at" | "closed_at" | "updated_at">;
 
 /**
  * One quest's live cursor. Keyed `(campaign_id, quest_id, thread_id)`: a party
@@ -1007,15 +913,6 @@ export interface PlayerQuestBeatAttachmentSummary {
   role?: string;
 }
 
-export interface PlayerQuestBeatVisit {
-  visit_id: string;
-  beat_id: string;
-  quest_id: string;
-  visibility: Exclude<QuestBeatVisibility, "hidden">;
-  player_text: string | null;
-  visited_at: string;
-}
-
 export interface PlayerQuestBeatVisitSummary {
   visit_id: string;
   visited_at: string;
@@ -1127,15 +1024,6 @@ export interface RewardCurrencyPool {
 
 export type QuestRefType = "npc" | "location" | "monster" | "item" | "encounter" | "faction";
 
-export const QUEST_REF_TYPE_LABELS: Record<QuestRefType, string> = {
-  npc: "NPC",
-  location: "Location",
-  monster: "Monster",
-  item: "Item",
-  encounter: "Encounter",
-  faction: "Faction",
-};
-
 export interface QuestRef {
   id: string;
   quest_id: string;
@@ -1147,4 +1035,3 @@ export interface QuestRef {
 export type QuestRefInsert = Omit<QuestRef, "id" | "is_player_visible"> & {
   is_player_visible?: boolean;
 };
-

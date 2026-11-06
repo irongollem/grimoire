@@ -10,7 +10,6 @@ import type {
   SoundboardPlaylist,
   SoundboardPlaylistInsert,
   SoundboardPlaylistUpdate,
-  PlaylistTrack,
   PlaylistTrackWithSound,
 } from "@/types/sound.types";
 
@@ -89,24 +88,6 @@ async function updatePlaylist(id: string, update: SoundboardPlaylistUpdate): Pro
 
 async function deletePlaylist(id: string): Promise<void> {
   const { error } = await supabase.from("soundboard_playlists").delete().eq("id", id);
-  if (error) throw error;
-}
-
-async function addTrack(playlistId: string, soundId: string, sortOrder: number): Promise<PlaylistTrack> {
-  const { data, error } = await supabase
-    .from("soundboard_playlist_tracks")
-    .insert({ playlist_id: playlistId, sound_id: soundId, sort_order: sortOrder })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as PlaylistTrack;
-}
-
-async function removeTrack(trackId: string): Promise<void> {
-  const { error } = await supabase
-    .from("soundboard_playlist_tracks")
-    .delete()
-    .eq("id", trackId);
   if (error) throw error;
 }
 
@@ -268,32 +249,6 @@ export function useDeletePlaylist() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: [PLAYLISTS_KEY, activeCampaignId.value] });
-    },
-  });
-}
-
-export function useAddTrackToPlaylist() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ playlistId, soundId, sortOrder }: { playlistId: string; soundId: string; sortOrder: number }) =>
-      addTrack(playlistId, soundId, sortOrder),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: [TRACKS_KEY, vars.playlistId] });
-      qc.invalidateQueries({ queryKey: [TRACKS_KEY, TRACKS_MANY] });
-    },
-  });
-}
-
-export function useRemoveTrackFromPlaylist() {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ trackId, playlistId: _pid }: { trackId: string; playlistId: string }) =>
-      removeTrack(trackId),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: [TRACKS_KEY, vars.playlistId] });
-      qc.invalidateQueries({ queryKey: [TRACKS_KEY, TRACKS_MANY] });
     },
   });
 }

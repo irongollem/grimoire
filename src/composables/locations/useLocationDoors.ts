@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { LocationDoor, LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
 import { doorsFromRoomPerspective } from "@/lib/locations/doors";
-import type { RoomDoorView as GenericRoomDoorView } from "@/lib/locations/doors";
 
 /**
  * A door joined to both endpoints' names — needed because a door is read from
@@ -15,10 +14,6 @@ export interface LocationDoorWithRooms extends LocationDoor {
   from_location: { id: string; name: string } | null;
   to_location: { id: string; name: string } | null;
 }
-
-/** One door, as seen from a specific room: which room is at the other end,
- *  regardless of whether *this* room is the door's `from` or `to` side. */
-export type LocationRoomDoorView = GenericRoomDoorView<LocationDoorWithRooms>;
 
 /** Re-exported from `lib/locations/doors.ts` (#868), which now owns the one
  *  implementation this composable and the site-wide "Ways out" panel both

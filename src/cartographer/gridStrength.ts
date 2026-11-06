@@ -2,8 +2,6 @@
 // are for a busy base image under the grid, where the old faint line vanished.
 export type GridStrength = "faint" | "clear" | "bold";
 
-export const GRID_STRENGTHS: readonly GridStrength[] = ["faint", "clear", "bold"];
-
 /** Stroke opacity of the white grid line for each strength. */
 export const GRID_ALPHA: Record<GridStrength, number> = { faint: 0.06, clear: 0.18, bold: 0.36 };
 

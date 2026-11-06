@@ -46,22 +46,6 @@ async function fetchOne(id: string): Promise<CustomSubclass> {
   return data as CustomSubclass;
 }
 
-async function fetchByClassAndSubclass(
-  className: string,
-  subclassName: string,
-  ruleset: RulesetKey,
-): Promise<CustomSubclass | null> {
-  const { data, error } = await supabase
-    .from("custom_subclasses")
-    .select("*")
-    .eq("class_name", className)
-    .eq("subclass_name", subclassName)
-    .or(`ruleset.is.null,ruleset.eq.${ruleset}`);
-  if (error) throw error;
-  const matches = (data ?? []) as CustomSubclass[];
-  return matches.find(row => !row.source_document_key) ?? matches[0] ?? null;
-}
-
 async function createCustomSubclass(input: CustomSubclassInsert): Promise<CustomSubclass> {
   const user = getCurrentUser();
   const { data, error } = await supabase
@@ -118,19 +102,6 @@ export function useCustomSubclass(id: Ref<string>) {
     queryKey: computed(() => [QUERY_KEY, id.value] as const),
     queryFn: ({ queryKey: [, cid] }) => fetchOne(cid),
     enabled: () => !!id.value,
-  });
-}
-
-export function useCustomSubclassByClassAndSubclass(
-  className: Ref<string>,
-  subclassName: Ref<string>,
-) {
-  const { ruleset } = useRuleset();
-  return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-class", ruleset.value, className.value, subclassName.value] as const),
-    queryFn: ({ queryKey: [, , rs, name, subclassNm] }) => fetchByClassAndSubclass(name, subclassNm, rs),
-    enabled: () => !!className.value && !!subclassName.value,
-    staleTime: Infinity,
   });
 }
 

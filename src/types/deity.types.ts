@@ -33,8 +33,6 @@ export const DEITY_ALIGNMENTS = [
   "Unaligned",
 ] as const;
 
-export type DeityAlignment = (typeof DEITY_ALIGNMENTS)[number];
-
 // ── Pantheons ─────────────────────────────────────────────────────────────────
 
 export interface Pantheon {

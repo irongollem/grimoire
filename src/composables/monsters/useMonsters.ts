@@ -200,14 +200,6 @@ export function useMonsterWithArt(id: Ref<string>) {
   return { monster, isShared, isLoading };
 }
 
-export function useMonster(id: Ref<string>) {
-  return useQuery({
-    queryKey: computed(() => [QUERY_KEY, id.value] as const),
-    queryFn: ({ queryKey: [, monsterId] }) => fetchMonster(monsterId),
-    enabled: () => !!id.value,
-  });
-}
-
 /**
  * Queue this monster for semantic-search embedding (#595) so the encounter
  * suggester can retrieve it without waiting for the next admin backfill.

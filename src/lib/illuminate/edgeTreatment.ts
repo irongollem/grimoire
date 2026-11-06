@@ -229,29 +229,6 @@ export function applyEdgeTreatmentToCtx(
   ctx.globalCompositeOperation = "source-over";
 }
 
-export async function applyEdgeTreatment(
-  image: HTMLImageElement,
-  options: EdgeTreatmentOptions,
-): Promise<Blob> {
-  const w = image.naturalWidth;
-  const h = image.naturalHeight;
-
-  const canvas = document.createElement("canvas");
-  canvas.width  = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  ctx.drawImage(image, 0, 0);
-
-  applyEdgeTreatmentToCtx(ctx, w, h, options);
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("PNG export failed"))),
-      "image/png",
-    );
-  });
-}
-
 /**
  * Full export pipeline, in the order the stages actually run:
  * colour grading → DOF blur → texture → vignette → edge mask → brush mask → PNG blob.

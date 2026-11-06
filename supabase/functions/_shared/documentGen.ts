@@ -572,25 +572,6 @@ async function geminiDocument(opts: ProviderCallArgs): Promise<DocumentExtractio
 const DOCUMENT_PROVIDERS = new Set(["openai", "anthropic", "gemini"]);
 
 /**
- * Default document-extraction model per provider, mirroring textGen.ts's
- * DEFAULT_TEXT_MODELS. Values match provider_config.document_model's seeded
- * defaults (migration 20260824232822) — kept here only as a fallback for a
- * caller that doesn't resolve `model` itself; import-extract/index.ts always
- * does, since document_model is the one thing it looks up (and gates on)
- * before calling this dispatcher at all.
- *
- * OpenAI document extraction moved to `gpt-5.6-luna` after the measured
- * four-page comparison recorded in migration 20260825000600. It remains a
- * distinct setting from the platform text model even though both currently
- * resolve to Luna.
- */
-export const DEFAULT_DOCUMENT_MODELS = {
-  openai: "gpt-5.6-luna",
-  anthropic: "claude-opus-5",
-  gemini: "gemini-2.5-flash",
-} as const;
-
-/**
  * Select and call the campaign's configured document-extraction provider.
  * Unlike `callText`'s three-way fallback chain, there is no fallback here: a
  * provider with no configured `model` genuinely cannot read a document for

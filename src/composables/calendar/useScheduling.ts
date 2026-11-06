@@ -25,15 +25,6 @@ async function fetchProposals(campaignId: string): Promise<SessionProposal[]> {
   return data as SessionProposal[];
 }
 
-async function fetchAvailability(proposalId: string): Promise<SessionAvailability[]> {
-  const { data, error } = await supabase
-    .from("session_availability")
-    .select("*")
-    .eq("session_proposal_id", proposalId);
-  if (error) throw error;
-  return data as SessionAvailability[];
-}
-
 async function fetchAllAvailabilityForCampaign(campaignId: string): Promise<SessionAvailability[]> {
   const { data, error } = await supabase
     .from("session_availability")
@@ -109,14 +100,6 @@ export function useAllSessionAvailability() {
       return fetchAllAvailabilityForCampaign(cid);
     },
     enabled: () => !!campaignId.value,
-  });
-}
-
-export function useSessionAvailability(proposalId: string) {
-  return useQuery({
-    queryKey: [AVAILABILITY_KEY, proposalId],
-    queryFn: () => fetchAvailability(proposalId),
-    enabled: !!proposalId,
   });
 }
 

@@ -17,7 +17,7 @@ import { daysBetween, ordinalWithinYear } from "./dayMath";
  */
 
 /**
- * The campaign's in-world "now". Deliberately narrower than `EventDate`:
+ * The campaign's in-world "now". Deliberately narrower than an event's date:
  * a campaign's `current_year`/`current_month`/`current_day` columns are all
  * `NOT NULL` (see `Campaign` in `campaign.types.ts`, and how
  * `useCampaignStore().todayYear/todayMonth/todayDay` — `src/stores/campaign.ts`

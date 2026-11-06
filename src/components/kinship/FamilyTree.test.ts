@@ -3,13 +3,13 @@ import { ref } from "vue";
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import FamilyTree from "./FamilyTree.vue";
-import { key, makeSource } from "./testGraph";
+import { k, makeSource } from "./testGraph";
 import { selectAroundFocus } from "@/lib/kinship/select";
 
 const mobile = ref(false);
 vi.mock("@/composables/useBreakpoint", () => ({ useIsMobile: () => mobile, useIsTouch: () => ref(false) }));
 
-function mountTree(focus = key("brenna"), extra: Record<string, unknown> = {}) {
+function mountTree(focus = k("brenna"), extra: Record<string, unknown> = {}) {
   setActivePinia(createPinia());
   const source = makeSource();
   const sel = selectAroundFocus(source.graph.value, focus);
@@ -30,7 +30,7 @@ describe("FamilyTree", () => {
     const cards = w.findAllComponents({ name: "KinCard" });
     const tomas = cards.find((c) => c.text().includes("Tomas"));
     await tomas?.trigger("click");
-    expect(w.emitted("select")?.[0]).toEqual([key("tomas")]);
+    expect(w.emitted("select")?.[0]).toEqual([k("tomas")]);
   });
 
   it("offers a fold as a count button that emits unfold", async () => {
@@ -41,16 +41,16 @@ describe("FamilyTree", () => {
     const w = mount(FamilyTree, {
       props: {
         source,
-        members: new Set([key("bren"), key("brenna")]),
-        folds: new Map([[key("bren"), [key("tomas")]]]),
-        anchor: key("brenna"),
-        focus: key("brenna"),
+        members: new Set([k("bren"), k("brenna")]),
+        folds: new Map([[k("bren"), [k("tomas")]]]),
+        anchor: k("brenna"),
+        focus: k("brenna"),
       },
     });
     const fold = w.findAll("button").find((b) => b.text() === "1 child");
     expect(fold).toBeDefined();
     await fold?.trigger("click");
-    expect(w.emitted("unfold")?.[0]).toEqual([key("bren")]);
+    expect(w.emitted("unfold")?.[0]).toEqual([k("bren")]);
   });
 
   it("keeps a gap between neighbours on every row", () => {
@@ -135,7 +135,7 @@ describe("FamilyTree", () => {
 
   it("shows the succession rank, the married-in tag and the centred person from the props", () => {
     mobile.value = false;
-    const w = mountTree(key("brenna"), { succession: new Map([[key("tomas"), 2]]), marriedIn: new Set([key("odile")]) });
+    const w = mountTree(k("brenna"), { succession: new Map([[k("tomas"), 2]]), marriedIn: new Set([k("odile")]) });
     const card = (name: string) => w.findAllComponents({ name: "KinCard" }).find((c) => c.text().includes(name))!;
     expect(card("Tomas").find(".kin-rank").text()).toBe("2");
     expect(card("Bren").find(".kin-rank").exists()).toBe(false);
@@ -146,7 +146,7 @@ describe("FamilyTree", () => {
 
   it("dims only the people it is told to", () => {
     mobile.value = false;
-    const w = mountTree(key("brenna"), { dimmed: new Set([key("tomas")]) });
+    const w = mountTree(k("brenna"), { dimmed: new Set([k("tomas")]) });
     const classes = (name: string) => w.findAllComponents({ name: "KinCard" }).find((c) => c.text().includes(name))!.classes();
     expect(classes("Tomas")).toContain("opacity-40");
     expect(classes("Brenna")).not.toContain("opacity-40");
@@ -166,10 +166,10 @@ describe("FamilyTree", () => {
     const w = mount(FamilyTree, {
       props: {
         source: makeSource(),
-        members: new Set([key("bren"), key("brenna")]),
-        folds: new Map([[key("bren"), [key("tomas"), key("corin")]]]),
-        anchor: key("brenna"),
-        focus: key("brenna"),
+        members: new Set([k("bren"), k("brenna")]),
+        folds: new Map([[k("bren"), [k("tomas"), k("corin")]]]),
+        anchor: k("brenna"),
+        focus: k("brenna"),
       },
     });
     expect(w.findAll("button").some((b) => b.text() === "2 children")).toBe(true);

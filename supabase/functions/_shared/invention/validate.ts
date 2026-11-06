@@ -36,7 +36,7 @@ import {
   type ItemType,
 } from "./types.ts";
 
-export { formatCost, unitValue } from "./price.ts";
+export { unitValue } from "./price.ts";
 export { laneFor, rarityCeiling, RARITY_ORDER } from "./budget.ts";
 export type { InventionDraft } from "./types.ts";
 

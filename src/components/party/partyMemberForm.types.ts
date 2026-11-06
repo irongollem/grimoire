@@ -1,4 +1,4 @@
-import type { SkillProficiencies, SaveKey, SpellSlotEntry } from "@/types/party.types";
+import type { SkillProficiencies, SaveKey } from "@/types/party.types";
 
 /** Fields owned by the Identity tab */
 export interface IdentityFormSlice {
@@ -65,4 +65,3 @@ export interface PersonaFormSlice {
   flaws: string;
 }
 
-export type { SpellSlotEntry };

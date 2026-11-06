@@ -298,7 +298,6 @@ export type WeatherPin = { source: string | null; year: number; month: number; d
 
 /** Share of the way back to the pattern after `days` days since a `set` pin. */
 const SET_EASE = [0, 0.35, 0.65, 0.9] as const;
-export const PIN_EASE_DAYS = SET_EASE.length;
 const easeBack = (days: number) => (days >= SET_EASE.length ? 1 : SET_EASE[days]);
 /** How much of a reroll's new sky shows on the pin day itself. */
 const REROLL_FIRST_DAY = 0.5;

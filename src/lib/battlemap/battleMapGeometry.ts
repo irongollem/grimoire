@@ -13,12 +13,6 @@ export interface DisplayParams {
   imageNaturalHeight: number;
 }
 
-export interface CalibrationParams {
-  cellsPerImageWidth: number;
-  originXPct: number;
-  originYPct: number;
-}
-
 /**
  * Returns the canvas-space positions of grid lines along a single axis,
  * intersecting the viewport `[0, viewportLength]`. `start` is the canvas

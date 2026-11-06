@@ -3,7 +3,7 @@ import { reactive, ref } from "vue";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import FamilyTreeView from "./FamilyTreeView.vue";
-import { edge, key, makeSource, person, sourceOf } from "@/components/kinship/testGraph";
+import { edge, k, makeSource, person, sourceOf } from "@/components/kinship/testGraph";
 import { useFamilyUiStore } from "@/stores/ui/family";
 
 const mocks = vi.hoisted(() => ({
@@ -55,7 +55,7 @@ describe("FamilyTreeView", () => {
     const w = mountView();
     const aldous = w.findAllComponents({ name: "KinCard" }).find((c) => c.text().includes("Aldous"));
     await aldous?.trigger("click");
-    expect(mocks.replace).toHaveBeenCalledWith({ name: "family-tree", params: { key: key("aldous") } });
+    expect(mocks.replace).toHaveBeenCalledWith({ name: "family-tree", params: { key: k("aldous") } });
   });
 
   it("opens the person on a second tap of the centred card", async () => {
@@ -146,7 +146,7 @@ describe("FamilyTreeView", () => {
     const w = mountView();
     const aldous = w.findAllComponents({ name: "KinCard" }).find((c) => c.text().includes("Aldous"));
     await aldous?.trigger("click");
-    expect(mocks.replace).toHaveBeenCalledWith({ name: "play-family-tree", params: { key: key("aldous") } });
+    expect(mocks.replace).toHaveBeenCalledWith({ name: "play-family-tree", params: { key: k("aldous") } });
   });
 
   it("does not take someone with parents for a spouse who married in just because their partner has parents too", async () => {

@@ -29,16 +29,9 @@ export const SPELL_CLASSES = [
   "Rogue (Arcane Trickster)",
 ] as const;
 
-export type SpellClass = (typeof SPELL_CLASSES)[number];
-
 export const SPELL_COMPONENTS = ["V", "S", "M"] as const;
 
-// Re-exported from shared foundation so existing imports keep working
-export { DAMAGE_TYPES, type DamageType } from "./damage.types";
-
 export const AOE_SHAPES = ["sphere", "cone", "line", "cylinder", "cube", "emanation"] as const;
-export type AoeShape = (typeof AOE_SHAPES)[number];
-
 export const ATTACK_TYPES = [
   { value: "ranged_spell", label: "Ranged Spell Attack" },
   { value: "melee_spell", label: "Melee Spell Attack" },
@@ -490,14 +483,6 @@ export function getDefaultSpellSlots(
     default:
       return [];
   }
-}
-
-/**
- * Returns 'short' if the class regains spell slots on a short rest (Warlock pact magic),
- * 'long' otherwise.
- */
-export function getSlotRecovery(cls: string | null | undefined): "short" | "long" {
-  return cls === "Warlock" ? "short" : "long";
 }
 
 /**

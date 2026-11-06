@@ -159,11 +159,6 @@ export interface AppInputHandle {
   select: () => void;
 }
 
-export interface AppSelectHandle {
-  el: HTMLSelectElement | null;
-  focus: (options?: FocusOptions) => void;
-}
-
 /* Enumerations for the catalogue at /dev/components, guarded the same way as
    BUTTON_VARIANTS — see appButtonVariants.ts for why the assertion is shaped
    `[X] extends [never]`. */

@@ -5,7 +5,6 @@ import { BASE_TILE_SIZE, TILE_PACK_SCHEMA, type AssetSlot, type PackCategory, ty
 const placeholders = vi.hoisted(() => ({ tile: vi.fn(() => ({ placeholder: true })) }));
 vi.mock("./placeholderTile", () => ({
   getPlaceholderTile: placeholders.tile,
-  getStalePackTile: () => ({ stale: true }),
 }));
 
 describe("standInVariant", () => {

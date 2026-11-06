@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 
-export { CHILD_ACCOUNT_COLUMNS, isActiveChildLink } from "@/lib/childAccount";
+export { CHILD_ACCOUNT_COLUMNS } from "@/lib/childAccount";
 export type { ChildAccountLink } from "@/types/childAccount.types";
 
 /**

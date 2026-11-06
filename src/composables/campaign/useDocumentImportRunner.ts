@@ -44,7 +44,7 @@ import type { AiDocumentImport, ImportEntityKind } from "@/types/documentImport.
 import type { CombatantDef } from "@/types/encounter.types";
 import { itemRefColumns } from "@/lib/itemRef";
 
-export type { ImportSweepInput, ImportSweepPhase, ImportSweepProgress, ImportSweepReport, ImportKindOutcome } from "@/lib/documentImport/importSweep";
+export type { ImportSweepInput, ImportSweepProgress, ImportSweepReport } from "@/lib/documentImport/importSweep";
 
 /** Raw shape of one `resolve_monster_references` row as it comes back over
  *  `supabase.rpc` — the client here is untyped (src/lib/supabase.ts has no

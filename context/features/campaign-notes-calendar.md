@@ -296,7 +296,7 @@ Held in `questRows.test.ts`: ending a session no longer pauses anything (`202610
 Read these five files first — they cover the entire data and component surface:
 
 1. `src/types/notes.types.ts` — `Note`, `NoteCategory`, `NoteInsert`, `NoteUpdate`
-2. `src/types/calendar.types.ts` — `CalendarEvent`, `CalendarEventType`, `EventDate`, `CalendarAdapter`, `CalendarEventInsert`, `CalendarEventUpdate`, `LinkedEntityType`
+2. `src/types/calendar.types.ts` — `CalendarEvent`, `CalendarEventType`, `CalendarAdapter`, `CalendarEventInsert`, `CalendarEventUpdate`, `LinkedEntityType`
 3. `src/composables/notes/useNotes.ts` — all note CRUD composables
 4. `src/composables/calendar/useCalendarEvents.ts` — all calendar event CRUD composables plus entity-pin helpers
 5. `src/components/notes/NoteEditor.vue` — the main editor and all its special integrations. The session-dates card and the calendar-event sync live beside it in `NoteSessionDatesPanel.vue` and `composables/notes/useNoteCalendarSync.ts` (#814)
@@ -552,7 +552,7 @@ TanStack Query key: `"player_journal"`.
 
 Shows the current in-game date prominently, a read-only Harptos month grid, and an upcoming events list. Only events with `player_visible = true` are shown. Players cannot create or edit events.
 
-- **Composable:** `usePlayerCalendarEvents(year)` — fetches `player_visible = true` events for the active campaign year
+- **Data:** fetches `player_visible = true` events for the active campaign year
 - **Grid:** reuses `CalendarGrid` via `eventsOverride` + `readOnly` props (no create/edit interactions)
 - **Nav:** `CalendarDays` icon, positioned after Quests in `ALL_PLAYER_NAV`
 
@@ -583,7 +583,7 @@ Key columns:
 | `linked_location_id`  | uuid FK → locations  | on delete cascade                       |
 | `linked_note_id`      | uuid FK → notes      | on delete set null                      |
 
-**RLS:** Standard four-policy pattern (`auth.uid() = user_id`). Player read access via `usePlayerCalendarEvents` queries `player_visible = true` with `campaign_id` scope.
+**RLS:** Standard four-policy pattern (`auth.uid() = user_id`). Player read access queries `player_visible = true` with `campaign_id` scope.
 
 ### TypeScript Types — `src/types/calendar.types.ts`
 
@@ -627,12 +627,6 @@ interface CalendarEvent {
   created_at;
   updated_at;
 }
-interface EventDate {
-  year;
-  month;
-  day;
-  festival_day;
-}
 type CalendarEventInsert = Omit<
   CalendarEvent,
   "id" | "user_id" | "created_at" | "updated_at" | "linked_note_id"
@@ -658,7 +652,6 @@ TanStack Query key: `"calendar-events"`.
 | `useUpdateCalendarEvent()` | `mutationFn: ({ id, update: CalendarEventUpdate })` |
 | `useDeleteCalendarEvent()` | `mutationFn: (id: string)` |
 | `useCalendarEventById(id: MaybeRef<string                                                  | null>)` | Single event by UUID; `staleTime: 5min`; returns `null` if deleted |
-| `useLinkedNoteCalendarEvent(noteId: MaybeRef<string                                        | null>)` | Event linked to a specific note via `linked_note_id` |
 
 ### Pinia Store — `src/stores/calendar.ts`
 

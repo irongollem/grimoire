@@ -94,29 +94,6 @@ export function useDeleteRelease() {
   });
 }
 
-export function useUpdateReleaseNote() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      campaignId,
-      releaseId,
-      note,
-    }: {
-      campaignId: string;
-      releaseId: string;
-      note: string | null;
-    }) => {
-      const { error } = await supabase
-        .from("open_book_releases")
-        .update({ note })
-        .eq("campaign_id", campaignId)
-        .eq("id", releaseId);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [OPEN_BOOK_RELEASES_KEY] }),
-  });
-}
-
 /**
  * Records the PDF exported for a release (`pdf_url` is one of the two columns the owner may update). The file it
  * replaces is removed after the row points at the new one, so a reader never follows a link to a deleted file.

@@ -78,15 +78,6 @@ export function useParty(enabled?: () => boolean) {
   });
 }
 
-/** Returns the party member linked to the current logged-in user, or undefined. */
-export function useMe() {
-  const auth = useAuthStore();
-  const { data: party } = useParty();
-  return computed<PartyMember | undefined>(
-    () => party.value?.find((m) => m.id === auth.linkedPartyMemberId) ?? undefined,
-  );
-}
-
 export function useCreatePartyMember() {
   const queryClient = useQueryClient();
   return useMutation({

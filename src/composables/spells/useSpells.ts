@@ -1,4 +1,4 @@
-import { computed, ref, isRef } from "vue";
+import { computed } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
@@ -43,15 +43,6 @@ async function deleteSpell(spell: Spell): Promise<void> {
   const { error } = await supabase.from("spells").delete().eq("id", spell.id);
   if (error) throw error;
   await deleteUnreferencedByPublicUrl({ urls: [spell.image_url] });
-}
-
-export function useSpell(id: string | Ref<string>) {
-  const idRef = isRef(id) ? id : ref(id);
-  return useQuery({
-    queryKey: computed(() => [QUERY_KEY, idRef.value] as const),
-    queryFn: ({ queryKey: [, spellId] }) => fetchSpell(spellId),
-    enabled: computed(() => !!idRef.value),
-  });
 }
 
 export function useLibrarySpell(id: Ref<string>) {
@@ -121,4 +112,3 @@ export function useDeleteSpell() {
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }
-

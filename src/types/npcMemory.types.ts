@@ -2,7 +2,6 @@ import type { NpcMemoryKind, SecretEntityType } from "@edge-shared/npcMemories";
 import type { AiProvenance } from "@/ai/provenance";
 
 export { NPC_MEMORY_KINDS } from "@edge-shared/npcMemories";
-export { SECRET_ENTITY_TYPES } from "@edge-shared/npcMemories";
 export type { NpcMemoryKind, SecretEntityType } from "@edge-shared/npcMemories";
 
 /** A row of `npc_memories` (#1019): one thing an NPC and the party have told each other. */

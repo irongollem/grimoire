@@ -5,8 +5,6 @@
  */
 
 export const CALENDAR_AI_EVENT_TYPES = ["festival", "world", "campaign"] as const;
-export type CalendarAiEventType = (typeof CALENDAR_AI_EVENT_TYPES)[number];
-
 const MAX_LINES = 12;
 const MAX_LINE_CHARS = 400;
 const MAX_NAMED = 10;

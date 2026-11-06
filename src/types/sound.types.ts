@@ -18,10 +18,6 @@ export interface SoundboardPage {
   updated_at: string;
 }
 
-export type SoundboardPageInsert = Omit<
-  SoundboardPage,
-  "id" | "user_id" | "created_at" | "updated_at" | "lanes"
-> & { lanes?: DeckLane[] };
 export type SoundboardPageUpdate = Partial<
   Pick<SoundboardPage, "name" | "sort_order" | "lanes">
 >;

@@ -43,6 +43,3 @@ export const CARTOGRAPHER_STYLE_PRESETS: StylePreset[] = [
     icon: "▣",
   },
 ];
-
-export const WATERMARK_SUFFIX =
-  "small 'dungeongrimoire.com' text watermark in the bottom-right corner";

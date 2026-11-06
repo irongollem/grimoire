@@ -104,5 +104,3 @@ export function usePlanUndoStack() {
 
   return { push, undo, redo, clear, canUndo, canRedo, busy };
 }
-
-export type UsePlanUndoStackReturn = ReturnType<typeof usePlanUndoStack>;

@@ -24,22 +24,6 @@ export type LedgerVerb = "raise" | "achieve" | "fail" | "reveal";
 
 export const LEDGER_VERBS: readonly LedgerVerb[] = ["raise", "achieve", "fail", "reveal"];
 
-/** The verb as a sentence subject — "Raises “Save the princess”". */
-export const LEDGER_VERB_LABELS: Record<LedgerVerb, string> = {
-  raise: "Raises",
-  achieve: "Achieves",
-  fail: "Fails",
-  reveal: "Reveals",
-};
-
-/** The one-glyph form a node chip or a spine row carries. */
-export const LEDGER_VERB_MARKS: Record<LedgerVerb, string> = {
-  raise: "+",
-  achieve: "✓",
-  fail: "✕",
-  reveal: "◉",
-};
-
 /** The `quest_consequences.action` a verb is stored as. */
 export const LEDGER_VERB_ACTIONS: Record<LedgerVerb, QuestConsequenceAction> = {
   raise: "raise",

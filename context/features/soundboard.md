@@ -136,7 +136,7 @@ Mechanics that live outside it because they are not reactive state and are untes
 | `useDeckHotkeys.ts` | The deck's keyboard (global layer; see **The deck protocol**) |
 | `useDeckMidi.ts`, `useDeckMidiShared.ts` | The Launchpad and MIDI Learn driver, and the app-wide instance with its permission-only auto-reconnect |
 | `useDeckPeek.ts`, `useDockBottom.ts` | Peek state, and the `--dock-bottom` publisher |
-| `useSounds.ts` | TanStack Query CRUD for `sounds`; `useSoundUpload` (converts uploads to Opus via `toOpus()`, then to the `sounds` bucket); `useSoundThumbnailUpload` (wraps `useImageUpload("sound-images")`) |
+| `useSounds.ts` | TanStack Query CRUD for `sounds`; `useSoundUpload` (converts uploads to Opus via `toOpus()`, then to the `sounds` bucket) |
 | `useSoundboardPages.ts` | CRUD + `useReorderSoundboardPages` for `soundboard_pages` (names, order and lanes) |
 | `useSoundboardPlaylists.ts` | CRUD for `soundboard_playlists` + `soundboard_playlist_tracks`; `useReplacePlaylistTracks` deletes and re-inserts the whole track list on every save rather than diffing |
 | `useProviderSearch.ts` | TanStack Query wrapper around whichever sound provider is selected (`src/lib/audio/providers`): provider id + filters in the query key, min query length per provider, 10 min `staleTime` |

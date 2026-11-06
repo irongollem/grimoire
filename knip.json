@@ -1,0 +1,30 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "supabase/functions/*/index.ts",
+    "api/*.ts",
+    "!api/_*.ts",
+    "scripts/**/*.{ts,mjs,js}",
+    "src/lib/polyfills/install.ts",
+    "src/assets/character-sheet.css",
+    ".claude/skills/**/hooks/*.ts",
+    ".agents/skills/**/hooks/*.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,vue,css}",
+    "supabase/functions/**/*.ts",
+    "api/**/*.ts",
+    "scripts/**/*.{ts,mjs,js}"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": ["std", "claude-code", "npm"],
+  "ignoreBinaries": ["supabase", "psql", "magick", "ffmpeg", "ffprobe"],
+  "ignoreIssues": {
+    "src/components/common/controls/appButtonVariants.ts": ["types"],
+    "src/components/common/controls/checkboxVariants.ts": ["types"],
+    "src/components/common/controls/fieldVariants.ts": ["types"],
+    "src/components/common/controls/toggleSwitchVariants.ts": ["types"],
+    "src/components/common/overlays/modalHeaderVariants.ts": ["types"],
+    "supabase/functions/generate-nook-part/validateNookPartRequest.ts": ["duplicates"]
+  }
+}

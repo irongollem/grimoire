@@ -3,7 +3,7 @@ import { computed, reactive, ref, toValue } from "vue";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import HouseLineage from "./HouseLineage.vue";
-import { key, makeSource } from "@/components/kinship/testGraph";
+import { k, makeSource } from "@/components/kinship/testGraph";
 import type { Faction } from "@/types/faction.types";
 
 const mocks = vi.hoisted(() => ({
@@ -103,7 +103,7 @@ describe("HouseLineage", () => {
   });
 
   it("shows the stored line as numbers, and Centred on with a clear button", async () => {
-    mocks.route.query = { focus: key("tomas") };
+    mocks.route.query = { focus: k("tomas") };
     const w = mountIt();
     expect(w.text()).toContain("Centred on Tomas");
     expect(card(w, "Brenna")?.text()).toContain("1");
@@ -121,7 +121,7 @@ describe("HouseLineage", () => {
     expect(mocks.push).not.toHaveBeenCalled();
     await w.findAll("button").find((b) => b.text() === "Done")?.trigger("click");
     await flushPromises();
-    expect(mocks.setLine).toHaveBeenCalledWith({ factionId: "h1", line: [key("tomas"), key("bren")] });
+    expect(mocks.setLine).toHaveBeenCalledWith({ factionId: "h1", line: [k("tomas"), k("bren")] });
     expect(mocks.toastSuccess).toHaveBeenCalled();
     expect(w.text()).not.toContain("Setting the line of succession");
   });
@@ -144,7 +144,7 @@ describe("HouseLineage", () => {
     await w.findAll("button").find((b) => b.text() === "Line of succession")?.trigger("click");
     await w.findAll("button").find((b) => b.text() === "Done")?.trigger("click");
     await flushPromises();
-    expect(mocks.setLine).toHaveBeenCalledWith({ factionId: "h2", line: [key("corin")] });
+    expect(mocks.setLine).toHaveBeenCalledWith({ factionId: "h2", line: [k("corin")] });
   });
 
   const toggle = (w: ReturnType<typeof mountIt>, label: string) => w.find(`button[aria-label="${label}"]`).trigger("click");
@@ -167,7 +167,7 @@ describe("HouseLineage", () => {
   });
 
   it("a person the view is centred on stays whatever the toggles hide", async () => {
-    mocks.route.query = { focus: key("aldous") };
+    mocks.route.query = { focus: k("aldous") };
     const w = mountIt();
     await toggle(w, "The dead");
     expect(names(w)).toContain("Aldous");

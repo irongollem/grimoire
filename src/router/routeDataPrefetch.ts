@@ -92,9 +92,6 @@ const DM_DETAIL_DATA: readonly DetailData[] = [
   },
 ];
 
-/** The destinations that prefetch data, for the tests and for anyone adding one. */
-export const DATA_PREFETCH_PATHS: readonly string[] = Object.keys(DM_DATA);
-
 /**
  * Start the first data reads for `location`, if it is a DM destination with
  * any, a campaign is active and the signed-in user is its DM. Never throws and

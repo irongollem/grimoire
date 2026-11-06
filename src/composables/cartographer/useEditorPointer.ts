@@ -490,5 +490,3 @@ export function useEditorPointer(inputs: {
 
   return { toolPointerDown, toolPointerMove, toolPointerUp, abandonToolGesture, gestureBusy, syncBusy };
 }
-
-export type EditorPointer = ReturnType<typeof useEditorPointer>;

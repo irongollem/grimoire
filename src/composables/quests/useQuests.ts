@@ -148,17 +148,6 @@ export async function insertQuestRefs(refs: readonly QuestRefInsert[]): Promise<
   if (error) throw error;
 }
 
-async function updateRef(id: string, update: { is_player_visible: boolean }): Promise<QuestRef> {
-  const { data, error } = await supabase.from("quest_refs").update(update).eq("id", id).select().single();
-  if (error) throw error;
-  return data as QuestRef;
-}
-
-async function deleteRef(id: string): Promise<void> {
-  const { error } = await supabase.from("quest_refs").delete().eq("id", id);
-  if (error) throw error;
-}
-
 // ── Public composables ─────────────────────────────────────────────────────────
 
 /** The list read the quest log performs; shared with the navigation prefetch. */
@@ -449,27 +438,6 @@ export function useCreateQuestRefs() {
   });
 }
 
-export function useUpdateQuestRef() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, update }: { id: string; questId: string; update: { is_player_visible: boolean } }) =>
-      updateRef(id, update),
-    onSuccess: (_data, { questId }) =>
-      queryClient.invalidateQueries({ queryKey: [REFS_KEY, questId] }),
-  });
-}
-
-export function useDeleteQuestRef() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    mutationFn: ({ id }: { id: string; questId: string }) => deleteRef(id),
-    onSuccess: (_data, { questId }) =>
-      queryClient.invalidateQueries({ queryKey: [REFS_KEY, questId] }),
-    onError: (e) => toast.error(toast.fromError(e)),
-  });
-}
-
 // ── Reverse lookup: quests that link to a given encounter ─────────────────────
 
 const ENCOUNTER_QUESTS_KEY = "encounter_quests";
@@ -520,4 +488,3 @@ export function useEncounterQuestLinks() {
     enabled: () => !!campaignId.value,
   });
 }
-

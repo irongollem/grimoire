@@ -35,9 +35,6 @@ export type EffectType = "damage" | "healing" | "control" | "buff" | "utility";
  */
 export type EffectIntensity = "weak" | "moderate" | "major" | "extreme";
 
-/** @deprecated Use TargetingMode instead */
-export type AoeType = "single" | "small" | "medium" | "large";
-
 export type TargetingMode =
   | "self"       // self only (no targeting roll)
   | "single"     // one creature / object
@@ -292,10 +289,6 @@ export function adviseLevelRange(inputs: AdvisorInputs): AdvisorResult {
   return { suggestedMin: min, suggestedMax: max, factors, score };
 }
 
-// ── Cantrip scaling note ──────────────────────────────────────────────────────
-export const CANTRIP_SCALING_NOTE =
-  "Cantrips scale with character level: damage increases at 5th (×2), 11th (×3), and 17th (×4).";
-
 // ── Level-based damage benchmark table (for display) ─────────────────────────
 export const DAMAGE_BENCHMARKS: Array<{
   level: number;
@@ -515,30 +508,3 @@ export const SCHOOL_DESIGN_TIPS: Record<string, { title: string; tips: string[] 
     ],
   },
 };
-
-export const HEALING_BENCHMARKS: Array<{
-  level: number;
-  label: string;
-  single: string;
-  mass?: string;
-}> = [
-  { level: 1, label: "1st", single: "1d8 + mod", mass: "—" },
-  { level: 2, label: "2nd", single: "2d8 + mod", mass: "—" },
-  {
-    level: 3,
-    label: "3rd",
-    single: "3d8 + mod",
-    mass: "1d4 + mod each (Mass Heal)",
-  },
-  { level: 4, label: "4th", single: "4d8 + mod" },
-  { level: 5, label: "5th", single: "5d8 + mod", mass: "3d8 + mod each" },
-  { level: 6, label: "6th", single: "6d8 + mod" },
-  { level: 7, label: "7th", single: "7d8 + mod" },
-  { level: 8, label: "8th", single: "8d8 + mod" },
-  {
-    level: 9,
-    label: "9th",
-    single: "Full HP restore",
-    mass: "Full HP restore (group)",
-  },
-];

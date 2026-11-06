@@ -32,5 +32,3 @@ export const modernTokens = {
   statPos,
   statNeg,
 };
-
-export type ModernTokens = typeof modernTokens;

@@ -29,5 +29,3 @@ export const inkedTokens = {
   statPos,
   statNeg,
 };
-
-export type InkedTokens = typeof inkedTokens;

@@ -96,5 +96,5 @@ export function heroSettingFor(calendarId: string | null | undefined): DndSettin
 
 export type DndSettingValue = (typeof DND_SETTINGS)[number]["value"];
 
-export type { SettingMeta, SettingContentDef, SettingCalendarDef } from "./types";
+export type { SettingMeta, SettingCalendarDef } from "./types";
 export { calendarDefToAdapter, createDefaultCustomCalendarDef } from "./types";

@@ -1,19 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
-
-const VAULT_KEY_HEX = Deno.env.get("VAULT_KEY");
-if (!VAULT_KEY_HEX) {
-  throw new Error("VAULT_KEY environment variable not set");
-}
-
-const vaultKey = new Uint8Array(
-  VAULT_KEY_HEX.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-);
-
-if (vaultKey.length !== 32) {
-  throw new Error(`VAULT_KEY must be 32 bytes (64 hex chars), got ${vaultKey.length}`);
-}
+import { decryptValue, encryptValue } from "../_shared/vault.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -26,35 +14,6 @@ const CAMPAIGN_KEY_COLUMNS = [
   "anthropic_api_key",
   "gemini_api_key",
 ] as const;
-
-async function encryptValue(plaintext: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(plaintext);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await crypto.subtle.importKey("raw", vaultKey, { name: "AES-GCM" }, false, ["encrypt"]);
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
-  const ivBase64 = btoa(String.fromCharCode(...iv));
-  const ctBase64 = btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
-  return `enc:v1:${ivBase64}:${ctBase64}`;
-}
-
-async function decryptValue(encrypted: string): Promise<string> {
-  // No legacy plaintext exists (verified) — a non-enc value is malformed input,
-  // never something to echo back unchanged.
-  if (!encrypted.startsWith("enc:v1:")) {
-    throw new Error("Invalid ciphertext format");
-  }
-  const parts = encrypted.split(":");
-  if (parts.length !== 4) {
-    throw new Error("Invalid encrypted format");
-  }
-  const [, , ivBase64, ctBase64] = parts;
-  const iv = new Uint8Array(atob(ivBase64).split("").map((c) => c.charCodeAt(0)));
-  const ciphertext = new Uint8Array(atob(ctBase64).split("").map((c) => c.charCodeAt(0)));
-  const key = await crypto.subtle.importKey("raw", vaultKey, { name: "AES-GCM" }, false, ["decrypt"]);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
-  return new TextDecoder().decode(decrypted);
-}
 
 /**
  * Is `blob` a ciphertext the caller is actually allowed to decrypt?

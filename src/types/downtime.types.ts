@@ -31,9 +31,6 @@ export const DOWNTIME_DRAW_STATUS_LABELS: Record<DowntimeDrawStatus, string> = {
 // the DM ticks it on the resolution board. `gold` is the only kind Phase 1
 // applies programmatically — the rest are a checklist the DM enacts at the table.
 
-export const DOWNTIME_EFFECT_KINDS = ["gold", "item", "hp", "condition"] as const;
-export type DowntimeEffectKind = (typeof DOWNTIME_EFFECT_KINDS)[number];
-
 interface DowntimeEffectShared {
   applied: boolean;
   /** Why this effect exists, in the DM's voice. Absent when self-evident. */

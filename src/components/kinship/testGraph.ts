@@ -8,7 +8,6 @@ import type { KinClock } from "@/components/kinship/kinLifeMeta";
 
 /** Kin graph sources for the kinship and house component tests (test-only). */
 export const k = (id: string): PersonKey => `npc:${id}`;
-export const key = k;
 
 /** A campaign clock on the default calendar, for tests that show ages. */
 export function testClock(year = 1495): KinClock {

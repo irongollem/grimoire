@@ -114,11 +114,6 @@ export interface QuestBoardSummary {
   objectivesTotal: number;
 }
 
-export interface QuestBoardEntry {
-  quest: Quest;
-  summary?: QuestBoardSummary;
-}
-
 export interface QuestBoardFilters {
   search: string;
   partyOnly: boolean;

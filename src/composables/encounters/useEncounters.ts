@@ -182,15 +182,3 @@ export function useEncountersByMonster(monsterId: MaybeRefOrGetter<string>) {
     );
   });
 }
-
-/** Returns encounters that reference a given NPC in their combatants list. */
-export function useEncountersByNpc(npcId: MaybeRefOrGetter<string>) {
-  const { data: encounters } = useEncounters();
-  return computed(() => {
-    const id = toValue(npcId);
-    if (!id) return [] as EncounterListRow[];
-    return (encounters.value ?? []).filter((e) =>
-      e.combatants.some((c) => c.npc_id === id),
-    );
-  });
-}

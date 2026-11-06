@@ -85,28 +85,6 @@ export function useCalendarEvents(year: MaybeRef<number>) {
   });
 }
 
-export function usePlayerCalendarEvents(year: MaybeRef<number>) {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value, unref(year)] as const),
-    queryFn: async ({ queryKey: [, , cid, y] }) => {
-      if (cid === null) throw new Error("usePlayerCalendarEvents fetched without a campaign");
-      const { data, error } = await supabase
-        .from("calendar_events")
-        .select("*")
-        .eq("campaign_id", cid)
-        .eq("year", y)
-        .or("player_visible.eq.true,event_type.eq.session")
-        .order("month", { ascending: true, nullsFirst: true })
-        .order("day", { ascending: true, nullsFirst: true });
-      if (error) throw error;
-      return data as CalendarEvent[];
-    },
-    enabled: () => !!campaignId.value,
-  });
-}
-
 export function usePlayerCalendarEventsRange(startYear: MaybeRef<number>, endYear: MaybeRef<number>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
@@ -219,27 +197,5 @@ export function useCalendarEventById(id: MaybeRef<string | null>) {
     },
     enabled: () => !!unref(id),
     staleTime: 1000 * 60 * 5,
-  });
-}
-
-/** Fetch the calendar event linked to a note via linked_note_id. */
-export function useLinkedNoteCalendarEvent(noteId: MaybeRef<string | null>) {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "linked-note", unref(noteId), campaignId.value] as const),
-    queryFn: async ({ queryKey: [, , nId, cid] }) => {
-      if (nId === null) throw new Error("useLinkedNoteCalendarEvent fetched without a note id");
-      if (cid === null) throw new Error("useLinkedNoteCalendarEvent fetched without a campaign");
-      const { data, error } = await supabase
-        .from("calendar_events")
-        .select("*")
-        .eq("linked_note_id", nId)
-        .eq("campaign_id", cid)
-        .maybeSingle();
-      if (error) throw error;
-      return data as CalendarEvent | null;
-    },
-    enabled: () => !!unref(noteId) && !!campaignId.value,
   });
 }

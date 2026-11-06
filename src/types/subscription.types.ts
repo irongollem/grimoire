@@ -132,8 +132,6 @@ export interface QuotaResult {
   unlimited: boolean
 }
 
-export type CreditPackId = 'starter' | 'standard' | 'bulk'
-
 export type AiGenerationType =
   | 'portrait'
   | 'npc_text'
@@ -155,32 +153,8 @@ export const CREDIT_COST: Record<AiGenerationType, number> = {
   quest_design_turn:  1,
 } as const
 
-// Display fallback only — real packs (credits + Stripe-synced prices) come from
-// credit_pack_config via useCreditPacks(). Kept in sync with that table's seed.
-export const CREDIT_PACKS: Record<CreditPackId, { label: string; credits: number; eur: number }> = {
-  starter:  { label: 'Starter',  credits: 400,  eur: 5  },
-  standard: { label: 'Standard', credits: 1000, eur: 10 },
-  bulk:     { label: 'Bulk',     credits: 2600, eur: 20 },
-} as const
-
 /** Split credit balance: subscription bucket (resets monthly) + purchased (permanent). */
 export interface CreditBuckets {
   subscription_balance: number
   purchased_balance: number
-}
-
-export interface AiCreditLedgerRow {
-  id: string
-  user_id: string
-  delta: number
-  reason: string
-  stripe_payment_intent_id: string | null
-  subscription_period_start: string | null
-  model: string | null
-  provider: string | null
-  input_tokens: number | null
-  output_tokens: number | null
-  image_count: number | null
-  is_byok: boolean
-  created_at: string
 }

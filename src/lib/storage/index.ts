@@ -21,7 +21,6 @@ export {
   BUCKETS,
   VARIANT_WIDTHS,
   variantPath,
-  type BucketConfig,
   type BucketKey,
   type BucketId,
   type VariantWidth,
@@ -30,8 +29,6 @@ export {
 export {
   getPublicUrl,
   isBucketUrl,
-  parsePublicUrl,
-  type ParsedPublicUrl,
 } from "./urls";
 
 export {
@@ -41,9 +38,6 @@ export {
   inheritXmpIntoVariant,
   backfillVariants,
   healVariants,
-  type HealResult,
-  type UploadParams,
-  type UploadWithVariantsParams,
 } from "./upload";
 
 export {
@@ -54,17 +48,12 @@ export {
 
 export {
   deleteUnreferencedByPublicUrl,
-  IMAGE_REFERENCES,
-  type DeleteUnreferencedOptions,
 } from "./deleteUnreferenced";
 
 export { listOwnedPaths, listPathsUnder } from "./list";
-export { planVariantSweep, sweepTargets, targetLabel, type SweepPlan, type SweepTarget, type MissingVariants } from "./sweep";
+export { planVariantSweep, sweepTargets, targetLabel, type SweepTarget, type MissingVariants } from "./sweep";
 
 export {
   imageProvenanceKey,
-  registerImageProvenance,
-  clearImageProvenance,
   loadImageProvenance,
-  type ImageProvenanceKey,
 } from "./imageProvenance";

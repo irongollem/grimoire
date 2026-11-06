@@ -338,11 +338,6 @@ export function isArmorType(t: ItemType): boolean {
   return t === "armor" || t === "shield";
 }
 
-/** True for item types that typically carry charges */
-export function isChargeType(t: ItemType): boolean {
-  return t === "staff" || t === "wand" || t === "rod" || t === "ring";
-}
-
 /** Item types that are inherently magical — showing the type before identification reveals the magic */
 export const MAGIC_ONLY_ITEM_TYPES = new Set<ItemType>([
   "wondrous_item",

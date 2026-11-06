@@ -54,7 +54,7 @@ import {
   useUpdateLocationDoor,
 } from "@/composables/locations/useLocationDoors";
 import { useSiteDoors, type SiteDoorWithSpaces } from "@/composables/locations/useSiteDoors";
-import { TEMPLATE_SHAPES, TEMPLATE_SHAPE_LABELS, useTemplateShape } from "@/composables/locations/useRegionPen";
+import { useTemplateShape } from "@/composables/locations/useRegionPen";
 import { usePlanUndoStack } from "@/composables/cartographer/usePlanUndoStack";
 import type { DerivedSpace } from "@/cartographer/structure.types";
 import { findAgain, materializeFound, zoningList, type ZoningEntry } from "@/lib/locations/foundRooms";
@@ -115,7 +115,7 @@ export function eraseFromRegions(
   return next;
 }
 
-export { TEMPLATE_SHAPES, TEMPLATE_SHAPE_LABELS, ZONE_KINDS, ZONE_KIND_LABELS };
+export { ZONE_KINDS, ZONE_KIND_LABELS };
 export type { TraceTool };
 
 /** A one-field mutable box — see the module docblock for why a CREATE's undo

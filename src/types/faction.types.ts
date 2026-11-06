@@ -18,8 +18,6 @@ export const FACTION_TYPES = [
   "Other",
 ] as const;
 
-export type FactionType = (typeof FACTION_TYPES)[number];
-
 export const FACTION_ALIGNMENTS = [
   "Lawful Good",
   "Neutral Good",
@@ -55,8 +53,6 @@ export const NPC_FACTION_ROLES = [
   "Adversary",
   "Unknown",
 ] as const;
-
-export type NpcFactionRole = (typeof NPC_FACTION_ROLES)[number];
 
 /** The roles that name a faction's head; one holder at a time. */
 export const HEAD_ROLES: readonly string[] = ["Leader", "Head of house"];

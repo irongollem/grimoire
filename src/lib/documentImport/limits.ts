@@ -121,8 +121,6 @@ export const ACCEPTED_MIME_TYPES = [
   "image/webp",
 ] as const;
 
-export type AcceptedMimeType = (typeof ACCEPTED_MIME_TYPES)[number];
-
 /** Everything the pre-flight check needs to know about a pending upload. */
 export interface UploadCandidate {
   pageCount: number;
@@ -168,7 +166,7 @@ function checkPageCap(pageCount: number, isPro: boolean): UploadValidationResult
  */
 export function validateUpload(candidate: UploadCandidate): UploadValidationResult {
   // Widen the tuple to `readonly string[]` rather than casting the incoming
-  // value to `AcceptedMimeType` — the whole point of this line is that we do
+  // value to one of the accepted types — the whole point of this line is that we do
   // not yet know it is one, and a cast that asserts otherwise would be a lie
   // the next reader has to unpick.
   const accepted: readonly string[] = ACCEPTED_MIME_TYPES;

@@ -253,5 +253,3 @@ export function useEditorRender(inputs: {
     dispose(): void { if (rafId) cancelAnimationFrame(rafId); },
   };
 }
-
-export type EditorRender = ReturnType<typeof useEditorRender>;

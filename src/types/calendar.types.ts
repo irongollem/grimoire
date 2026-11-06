@@ -1,12 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
 
-export interface EventDate {
-  year: number;
-  month: number | null; // null when it's a festival/intercalary day
-  day: number | null; // null when it's a festival/intercalary day
-  festival_day: string | null;
-}
-
 export type CalendarEventType =
   | "campaign"
   | "world"

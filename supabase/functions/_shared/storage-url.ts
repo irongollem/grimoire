@@ -54,7 +54,6 @@ function isPrivateHostLiteral(host: string): boolean {
 
 /**
  * Returns true if `url` is a safe Supabase Storage public URL for this project.
- * Use `assertSafeStorageUrl` when you want to throw instead.
  */
 export function isSafeStorageUrl(url: string): boolean {
   const supabaseUrl = env("SUPABASE_URL");
@@ -89,14 +88,4 @@ export function isSafeStorageUrl(url: string): boolean {
   if (cdnOrigin === "null" || !cdnOrigin.startsWith("https:")) return false;
 
   return parsed.origin === cdnOrigin;
-}
-
-/**
- * Throws if `url` is not a safe Supabase Storage public URL for this project.
- * Throw site is intentionally before any fetch() of the URL.
- */
-export function assertSafeStorageUrl(url: string): void {
-  if (!isSafeStorageUrl(url)) {
-    throw new Error("Unsafe or non-storage image URL rejected");
-  }
 }

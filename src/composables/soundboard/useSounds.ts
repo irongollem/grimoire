@@ -3,11 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
 import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
-import { uploadToBucket, deleteFromBucket, removeByPublicUrl } from "@/lib/storage";
+import { uploadToBucket, deleteFromBucket } from "@/lib/storage";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { toOpus } from "@/lib/mediaConvert";
-import { useImageUpload } from "@/composables/useImageUpload";
 import type { Sound, SoundInsert, SoundUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "sounds";
@@ -43,27 +42,6 @@ async function updateSound(id: string, update: SoundUpdate): Promise<Sound> {
     .single();
   if (error) throw error;
   return data as Sound;
-}
-
-async function deleteSound(sound: Sound, currentUserId: string): Promise<void> {
-  const { error } = await supabase.from("sounds").delete().eq("id", sound.id);
-  if (error) throw error;
-  // Only the file's owner removes the underlying objects. If a shared-campaign
-  // viewer ever gains a way to "remove" a sound from their view, that should
-  // drop their reference, not the uploads that everyone else still points at.
-  if (sound.user_id === currentUserId) {
-    // `library_id` is checked as well as `storage_path` even though catalogue
-    // rows are written with a null path. This delete is destructive and shared:
-    // the catalogue file backs every campaign that added it, so one stray path
-    // on one row would take the sound away from everyone. Two conditions is a
-    // cheap price for that not being possible.
-    if (sound.storage_path && sound.library_id === null) {
-      await deleteFromBucket("sounds", [sound.storage_path]);
-    }
-    if (sound.thumbnail_url) {
-      await removeByPublicUrl("soundImages", sound.thumbnail_url);
-    }
-  }
 }
 
 // ── Query hooks ───────────────────────────────────────────────────────────
@@ -122,35 +100,6 @@ export function useUpdateSound() {
   });
 }
 
-export function useDeleteSound() {
-  const qc = useQueryClient();
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
-  const auth = useAuthStore();
-
-  return useMutation({
-    mutationFn: (sound: Sound) => deleteSound(sound, auth.user!.id),
-    // Optimistic: the card leaves the grid on the click, not after the round
-    // trip — a delete that visibly does nothing for a beat reads as a failure.
-    onMutate: async (sound) => {
-      const key = [QUERY_KEY, activeCampaignId.value];
-      await qc.cancelQueries({ queryKey: key });
-      const previous = qc.getQueryData<Sound[]>(key);
-      if (previous !== undefined) {
-        qc.setQueryData<Sound[]>(key, previous.filter((s) => s.id !== sound.id));
-      }
-      return { key, previous };
-    },
-    onError: (_err, _sound, context) => {
-      if (context !== undefined && context.previous !== undefined) {
-        qc.setQueryData(context.key, context.previous);
-      }
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
-    },
-  });
-}
-
 // ── Storage upload ────────────────────────────────────────────────────────
 
 export function useSoundUpload() {
@@ -204,8 +153,3 @@ export function useSoundUpload() {
 // Images are converted to WebP by useImageUpload before upload.
 // The public URL is stored in sounds.thumbnail_url; no storage path is
 // persisted because removeByPublicUrl() can derive it from the URL.
-
-export function useSoundThumbnailUpload() {
-  const { isUploading, uploadError, upload, remove } = useImageUpload("sound-images");
-  return { isUploading, uploadError, upload, remove };
-}

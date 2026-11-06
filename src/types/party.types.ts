@@ -257,10 +257,6 @@ export type PartyMemberUpdate = Partial<Omit<PartyMemberInsert, "ruleset">> & {
   ac?: null;
 };
 
-// Conditions + helpers now live in `@/rules/conditions`. Re-exported here so
-// existing imports from `@/types/party.types` keep working.
-export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/rules/conditions";
-
 // ── AC formula ───────────────────────────────────────────────────────────────
 // Armour Class is calculated from the character and their gear (`@/rules/armorClass`),
 // never stored. `party_members.ac_formula` names an extra calculation the character

@@ -31,10 +31,6 @@ export function takeNextRollMode(base: RollModeKey): RollModeKey {
   return activeDiceRules().combine(base, picked);
 }
 
-export function useNextRollMode() {
-  return { nextRollMode, setNextRollMode };
-}
-
 const HINT_KEY = "grimoire_roll_mode_hint_seen";
 
 /** True once the long-press tip has been shown on this device. */

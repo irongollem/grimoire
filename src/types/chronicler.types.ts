@@ -12,8 +12,6 @@ export interface ChroniclerImage {
   error: string | null;
 }
 
-export type ChroniclerImageInsert = Pick<ChroniclerImage, "campaign_id" | "user_id" | "image_url" | "prompt" | "size">;
-
 export type ChroniclerSize = "1024x1024" | "1536x1024";
 
 export type ImageJobKind =

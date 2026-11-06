@@ -6,7 +6,6 @@ import { IconDice } from "@/lib/icons";
 // here, not in icons.ts, so their ~50KB of path data loads with the two
 // components that draw them instead of with the app. The d20 is the one glyph
 // icons.ts keeps (as IconDice), so it is shared rather than stored twice.
-export const IconDie2 = glyph(DICE_GLYPHS.d2);
 export const IconDie4 = glyph(DICE_GLYPHS.d4);
 export const IconDie6 = glyph(DICE_GLYPHS.d6);
 export const IconDie8 = glyph(DICE_GLYPHS.d8);

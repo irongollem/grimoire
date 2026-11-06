@@ -76,8 +76,3 @@ function normalise(name: string): string {
 export function baseGearWeight(name: string): number | null {
   return WEIGHTS_LB[normalise(name)] ?? null;
 }
-
-/** The table as [name, weight] pairs, for generating the SQL twin. */
-export function baseGearWeightEntries(): Array<[string, number]> {
-  return Object.entries(WEIGHTS_LB);
-}

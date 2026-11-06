@@ -4,7 +4,7 @@
 // while the AI generation pipeline is producing real WebP art.
 
 import { validatePack, formatMissingForDisplay, type ValidationResult } from "./validatePack";
-import { getPlaceholderTile, getStalePackTile } from "./placeholderTile";
+import { getPlaceholderTile } from "./placeholderTile";
 import type { AssetSlot, PackCategory, TilePackManifest } from "./packSchema";
 
 export interface LoadedTileSource {
@@ -137,10 +137,6 @@ async function buildRuntime(manifest: TilePackManifest, manifestUrl: string, las
 
   runtimeCache.set(cacheKey, runtime);
   return runtime;
-}
-
-export function getStalePackPlaceholder(): CanvasImageSource {
-  return getStalePackTile();
 }
 
 export function isPackLoaded(packId: string, packVersion: number): boolean {

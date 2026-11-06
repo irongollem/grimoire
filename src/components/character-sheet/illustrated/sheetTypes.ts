@@ -49,14 +49,3 @@ export const PAGE_PX: Record<SheetPageSize, { w: number; h: number }> = {
   A4: { w: 794, h: 1122 },
   Letter: { w: 816, h: 1056 },
 };
-
-export const ILLUSTRATED_THEME_TOKENS: Record<
-  IllustratedTheme,
-  { head: string; body: string; ink: string; accent: string }
-> = {
-  classic: { head: "Cinzel", body: "EB Garamond", ink: "#3a2718", accent: "#6f2230" },
-  adventure: { head: "Cinzel", body: "EB Garamond", ink: "#41301c", accent: "#7a3410" },
-  gothic: { head: "Cinzel", body: "EB Garamond", ink: "#1d1418", accent: "#6e0f1c" },
-  fairy: { head: "Cormorant Garamond", body: "EB Garamond", ink: "#5a3146", accent: "#8b3055" },
-  sumie: { head: "Shippori Mincho", body: "Shippori Mincho", ink: "#16120e", accent: "#c8200a" },
-};

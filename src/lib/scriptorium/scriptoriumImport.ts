@@ -6,8 +6,7 @@
  *
  * To add a new asset type:
  *   1. Implement AssetFormatter<YourType>
- *   2. Register it in FORMATTERS below
- *   3. Export a typed helper function (e.g. formatMagicItemForScriptorium)
+ *   2. Export a typed helper function (e.g. formatMagicItemForScriptorium)
  */
 
 import type { Npc } from "@/types/npc.types";
@@ -1104,25 +1103,6 @@ const questFormatter: AssetFormatter<{
     };
   },
 };
-
-// ── Registry ──────────────────────────────────────────────────────────────────
-// Add new formatters here. Key = asset type identifier.
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FORMATTERS: Record<string, AssetFormatter<any>> = {
-  npc: npcFormatter,
-  monster: monsterFormatter,
-  spell: spellFormatter,
-  item: itemFormatter,
-  location: locationFormatter,
-  quest: questFormatter,
-};
-
-// Generic dispatch (for dynamic/plugin use cases)
-export function formatForScriptorium<T>(type: string, asset: T): ScriptoriumImportData | null {
-  const formatter = FORMATTERS[type] as AssetFormatter<T> | undefined;
-  return formatter ? formatter.format(asset) : null;
-}
 
 // Typed convenience exports
 export function formatNpcForScriptorium(

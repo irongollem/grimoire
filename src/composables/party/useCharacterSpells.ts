@@ -17,14 +17,6 @@ export interface SpellKnower {
   is_prepared: boolean;
 }
 
-export interface SpellChangeWindow {
-  party_member_id: string;
-  source_class_id: string;
-  change_timing: "level_up" | "long_rest";
-  remaining_changes: number | null;
-  opened_at: string;
-}
-
 const queryKey = (partyMemberId: MaybeRef<string | null>) =>
   computed(() => ["characterSpells", toValue(partyMemberId)] as const);
 
@@ -115,20 +107,6 @@ export function useAddCharacterSpell() {
   });
 }
 
-export function useSpellChangeWindows(partyMemberId: MaybeRef<string | null>) {
-  return useQuery({
-    queryKey: computed(() => ["spellChangeWindows", toValue(partyMemberId)] as const),
-    queryFn: async ({ queryKey: [, id] }) => {
-      if (!id) throw new Error("useSpellChangeWindows fetched without a party member — enabled guarantees it's set");
-      const { data, error } = await supabase.from("spell_change_windows").select("*")
-        .eq("party_member_id", id);
-      if (error) throw error;
-      return data as SpellChangeWindow[];
-    },
-    enabled: computed(() => !!toValue(partyMemberId)),
-  });
-}
-
 export function useChangePreparedSpell() {
   const qc = useQueryClient();
   return useMutation({
@@ -198,36 +176,6 @@ export function useRemoveCharacterSpell() {
     onSuccess: (_, { partyMemberId }) => {
       qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
       qc.invalidateQueries({
-        queryKey: ["characterSpellsDetails", partyMemberId],
-      });
-    },
-    onError: (e) => toast.error(toast.fromError(e)),
-  });
-}
-
-/** Delete a spell from character_spells by partyMemberId + spellId. */
-export function useDeleteCharacterSpell() {
-  const qc = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    mutationFn: async ({
-      partyMemberId,
-      spellId,
-    }: {
-      partyMemberId: string;
-      spellId: string;
-    }) => {
-      const { error } = await supabase.rpc("delete_character_spells", {
-        p_party_member_id: partyMemberId,
-        p_spell_id: spellId,
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_, { partyMemberId }) => {
-      void qc.invalidateQueries({
-        queryKey: ["characterSpells", partyMemberId],
-      });
-      void qc.invalidateQueries({
         queryKey: ["characterSpellsDetails", partyMemberId],
       });
     },
@@ -327,62 +275,6 @@ export function useRemoveCharacterSpellById() {
     },
     onError: (e) => toast.error(toast.fromError(e)),
   });
-}
-
-/** Spend an innate spell use (decrement uses_remaining by 1). Pass the new value from the caller. */
-export function useSpendInnateUse() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      newRemaining,
-    }: {
-      id: string;
-      partyMemberId: string;
-      newRemaining: number;
-    }) => {
-      const { error } = await supabase
-        .from("character_spells")
-        .update({ uses_remaining: newRemaining })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: (_, { partyMemberId }) => {
-      qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
-      qc.invalidateQueries({
-        queryKey: ["characterSpellsDetails", partyMemberId],
-      });
-    },
-  });
-}
-
-/**
- * Idempotently adds a spell granted by an Eldritch Invocation.
- * Skips silently if the (party_member_id, spell_id, source_type='feat') row already exists.
- */
-export async function addInvocationSpellGrant(
-  partyMemberId: string,
-  spellId: string,
-  invocationName: string,
-  usesPerDay: number | null,
-): Promise<void> {
-  const { error } = await supabase.from("character_spells").upsert(
-    {
-      party_member_id: partyMemberId,
-      spell_id: spellId,
-      is_prepared: false,
-      source_type: "feat" as InnateSourceType,
-      source_label: `Invocation: ${invocationName}`,
-      uses_per_day: usesPerDay,
-      uses_remaining: usesPerDay,
-      resets_on: usesPerDay !== null ? ("long_rest" as InnateResetsOn) : null,
-    },
-    {
-      onConflict: "party_member_id,spell_id,source_type",
-      ignoreDuplicates: true,
-    },
-  );
-  if (error) throw error;
 }
 
 /** Returns party members who know (or have prepared) a given spell. */

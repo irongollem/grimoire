@@ -1218,15 +1218,6 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   return json;
 }
 
-export function getBundlePreview(bundle: GrimoireBundle): BundlePreview {
-  return {
-    name: bundle.name,
-    description: bundle.description,
-    exportedAt: bundle.exported_at,
-    entityCounts: bundle._meta.entity_counts,
-  };
-}
-
 // ── Composables ──────────────────────────────────────────────────────────────
 
 export function useExportWorldBundle() {

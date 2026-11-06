@@ -29,19 +29,6 @@ import type { EntityEmbedSize, EntityEmbedType } from "@/lib/tiptap/nodeViewType
  * it never has to mount a live Vue app with a query client and a router.
  */
 
-export const ENTITY_EMBED_TYPES: readonly EntityEmbedType[] = [
-  "npc",
-  "monster",
-  "spell",
-  "item",
-  "location",
-  "quest",
-  "deity",
-  "species",
-  "faction",
-  "subclass",
-];
-
 export interface EntityEmbedAttrs {
   entityType: EntityEmbedType;
   entityId: string;

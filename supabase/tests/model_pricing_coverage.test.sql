@@ -28,7 +28,6 @@ select plan(2);
 create temporary table edge_function_models (model text primary key) on commit drop;
 insert into edge_function_models (model) values
   ('claude-haiku-4-5'),
-  ('claude-opus-5'),
   ('gemini-2.5-flash'),
   ('gemini-3.1-flash-image'),
   ('gpt-5.6-luna'),

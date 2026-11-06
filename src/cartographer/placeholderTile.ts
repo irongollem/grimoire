@@ -397,21 +397,3 @@ function finalise(canvas: HTMLCanvasElement, id: string): HTMLCanvasElement {
   cache.set(id, canvas);
   return canvas;
 }
-
-// Stale-pack tile — purple/black checker. Used when pack_id is no longer available.
-let staleTile: HTMLCanvasElement | null = null;
-export function getStalePackTile(): HTMLCanvasElement {
-  if (staleTile) return staleTile;
-  const canvas = document.createElement("canvas");
-  canvas.width = BASE_TILE_SIZE;
-  canvas.height = BASE_TILE_SIZE;
-  const ctx = canvas.getContext("2d")!;
-  const half = BASE_TILE_SIZE / 2;
-  ctx.fillStyle = "rgb(40, 0, 60)";
-  ctx.fillRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
-  ctx.fillStyle = "rgb(200, 100, 220)";
-  ctx.fillRect(0, 0, half, half);
-  ctx.fillRect(half, half, half, half);
-  staleTile = canvas;
-  return canvas;
-}

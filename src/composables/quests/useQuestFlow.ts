@@ -12,7 +12,6 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import type {
   PlayerQuestBeat,
-  PlayerQuestBeatVisit,
   QuestBeat,
   QuestBeatEdge,
   QuestBeatEdgeGate,
@@ -193,15 +192,6 @@ async function fetchAttachmentTargets(
     }
   }));
   return targets;
-}
-
-export function useQuestBeatAttachments(questId: string | Ref<string>) {
-  const id = asRef(questId);
-  return useQuery({
-    queryKey: computed(() => [ATTACHMENTS_KEY, id.value] as const),
-    queryFn: ({ queryKey: [, questId] }) => fetchAttachments(questId),
-    enabled: () => !!id.value,
-  });
 }
 
 export interface LootPlacementFilter {
@@ -541,24 +531,6 @@ export function useSetQuestBeatPositions() {
     },
     onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
-    },
-  });
-}
-
-export function useDeleteQuestBeat() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { id: string; questId: string }) => {
-      const { error } = await supabase.from("quest_beats").delete().eq("id", input.id);
-      if (error) throw error;
-    },
-    onSuccess: (_result, input) => {
-      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
-      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
-      queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
-      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
-      void invalidatePlayerQuestBeatProjections(queryClient);
-      queueQuestEmbedding(input.questId);
     },
   });
 }
@@ -980,36 +952,6 @@ export function usePlayerQuestBeats(questId?: string | Ref<string>, previewParty
       });
       if (error) throw error;
       return (data ?? []) as PlayerQuestBeat[];
-    },
-    enabled: () => !!campaignId.value,
-  });
-}
-
-export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previewPartyMemberId?: Ref<string | null>) {
-  const campaign = useCampaignStore();
-  const appUi = useAppUiStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  const id = questId === undefined ? ref("") : asRef(questId);
-  const previewId = computed(() => previewPartyMemberId?.value ?? (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
-  return useQuery({
-    queryKey: computed(() => [TRANSITIONS_KEY, "player", campaignId.value, id.value || null, previewId.value] as const),
-    queryFn: async ({ queryKey: [, , cid, qid, previewMemberId] }): Promise<PlayerQuestBeatVisit[]> => {
-      if (cid === null) throw new Error("usePlayerQuestBeatHistory fetched without a campaign");
-      const { data, error } = await supabase.rpc("get_player_visible_quest_beats", {
-        p_campaign_id: cid,
-        p_quest_id: qid,
-        p_preview_party_member_id: previewMemberId,
-      });
-      if (error) throw error;
-      return ((data ?? []) as PlayerQuestBeat[])
-        .flatMap((beat) => beat.visits.map((visit) => ({
-          ...visit,
-          beat_id: beat.id,
-          quest_id: beat.quest_id,
-          visibility: beat.visibility,
-          player_text: beat.player_text,
-        })))
-        .sort((a, b) => a.visited_at.localeCompare(b.visited_at) || a.visit_id.localeCompare(b.visit_id));
     },
     enabled: () => !!campaignId.value,
   });

@@ -30,12 +30,7 @@ export function defaultProvider(): SoundProvider | undefined {
 export type {
   SoundProvider,
   ProviderHit,
-  ProviderLicense,
-  ProviderSearchResult,
-  ProviderSearchParams,
   ProviderFilters,
-  ProviderSortKey,
 } from "./types";
 export { PROVIDER_SORTS, DEFAULT_PROVIDER_FILTERS } from "./types";
-export { FREESOUND_PROVIDER_ID } from "./freesound";
 export { LIBRARY_PROVIDER_ID } from "./library";

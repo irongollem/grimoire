@@ -185,4 +185,4 @@ export const SCRIPTORIUM_TEMPLATES: ScriptoriumTemplate[] = [
   onePageDungeon,
 ];
 
-export type { ScriptoriumTemplate, ScriptoriumTemplateSettings } from "./types";
+export type { ScriptoriumTemplate } from "./types";

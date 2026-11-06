@@ -110,13 +110,9 @@ export type {
   InventionBenchEntry,
   InventionDraft,
   InventionIngredient,
-  InventionItemRef,
   InventionMechanic,
   InventionMode,
-  InventionNewItem,
-  InventionNewMaterial,
   InventionOutput,
-  InventionRecipe,
   InventionStatus,
 } from "@edge-shared/invention/types.ts";
 

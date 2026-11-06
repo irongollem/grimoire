@@ -33,7 +33,7 @@ import {
   type ImageProviderKey,
 } from "@edge-shared/providerChoice.ts";
 
-export type { ImageProviderKey, TextProviderKey } from "@edge-shared/providerChoice.ts";
+export type { ImageProviderKey } from "@edge-shared/providerChoice.ts";
 
 /**
  * What the DM is asked instead of a model name. Quick is the provider that

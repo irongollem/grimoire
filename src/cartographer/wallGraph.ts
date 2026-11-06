@@ -70,11 +70,6 @@ export function wallSegment(id: string, wall: WallEdge): WallSegment {
   return isLatticeKey(id) ? latticeSegment(id) : { id, a: wall.a, b: wall.b };
 }
 
-/** Whether a wall of this type stops sight and light. A door stands in for one; `grate` lets sight through. */
-export function blocksSight(wall: EdgeSeg): boolean {
-  return wall.type === "wall" || wall.type === "sluice";
-}
-
 const EPS = 1e-9;
 const cross = (o: Point, p: Point, q: Point): number => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
 const sign = (v: number): number => (v > EPS ? 1 : v < -EPS ? -1 : 0);

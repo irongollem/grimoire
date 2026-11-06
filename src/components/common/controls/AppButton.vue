@@ -1,5 +1,5 @@
 <!--
-  Documentation lives in <script setup>, not here: a comment at the top of the
+  Documentation lives in the script block, not here: a comment at the top of the
   template is a second root node, which makes this a fragment component and stops
   `class` and every other attribute from being inherited at all.
 -->
