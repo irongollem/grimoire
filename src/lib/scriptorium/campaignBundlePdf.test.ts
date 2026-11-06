@@ -5,7 +5,7 @@ import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 
 const bundle: GrimoireBundle = {
   version: "2",
-  ruleset: "2014",
+  game_system: "dnd5e-2014",
   file_type: "world_bundle",
   name: "Rime of the Frostmaiden",
   description: "Test export",

@@ -1,5 +1,6 @@
 import { isRulesetAdmissible, otherRuleset } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { gameSystemEdition, type GameSystemKey } from "@/systems/registry";
 
 /**
  * The edition question in the character wizard (#943): which table the new
@@ -12,7 +13,7 @@ import type { RulesetKey } from "@/types/ruleset.types";
 export interface EditionCampaign {
   id: string;
   name: string;
-  ruleset: RulesetKey;
+  game_system: GameSystemKey;
   allows_mixed_rulesets: boolean;
 }
 
@@ -59,7 +60,7 @@ export function campaignToAttachAfterCreate(landing: EditionCampaign | null, isD
  * someone with no table would be inventing an answer.
  */
 export function initialCreationRuleset(landing: EditionCampaign | null): RulesetKey | null {
-  return landing ? landing.ruleset : null;
+  return landing ? (gameSystemEdition(landing.game_system) ?? null) : null;
 }
 
 /** The line under each edition on the picker, from the table's point of view. Empty without a table. */
@@ -69,13 +70,14 @@ export function editionStepNotes(opts: {
 }): Partial<Record<RulesetKey, string>> {
   const { landing, isDmCreate } = opts;
   if (!landing) return {};
-  const other = otherRuleset(landing.ruleset);
-  const otherNote = landing.allows_mixed_rulesets
-    ? "Your table takes both editions."
-    : isDmCreate
-      ? "This table does not take this edition."
-      : "Your table does not take this edition. The character would rest in your pool.";
-  return { [landing.ruleset]: "Your table plays this.", [other]: otherNote };
+  const notTaken = isDmCreate
+    ? "This table does not take this edition."
+    : "Your table does not take this edition. The character would rest in your pool.";
+  const own = gameSystemEdition(landing.game_system);
+  // A table with no 5e edition (Generic) takes neither.
+  if (own === undefined) return { "2014": notTaken, "2024": notTaken };
+  const otherNote = landing.allows_mixed_rulesets ? "Your table takes both editions." : notTaken;
+  return { [own]: "Your table plays this.", [otherRuleset(own)]: otherNote };
 }
 
 /**

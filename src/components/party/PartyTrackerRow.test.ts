@@ -81,7 +81,7 @@ describe("PartyTrackerRow species name", () => {
     setActivePinia(createPinia());
     const store = useCampaignStore();
     store.activeCampaignId = CAMPAIGN_ID;
-    store.activeCampaign = { id: CAMPAIGN_ID, ruleset: "2014" } as Campaign;
+    store.activeCampaign = { id: CAMPAIGN_ID, game_system: "dnd5e-2014" } as Campaign;
   });
 
   it("shows the species of a 2024 character seated at a 2014 campaign", () => {

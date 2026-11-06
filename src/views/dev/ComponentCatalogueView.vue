@@ -779,7 +779,7 @@ const gridSpell = ref<Record<string, string[]>>({ "1": ["c"] });
 const checkboxGroup = ref<string[]>(["dawn"]);
 const inputValue = ref<string | number | null>("Ancient Red Dragon");
 const colourValue = ref("#d9a441");
-const coinCurrencyFive = defaultCurrencyFor("dnd5e");
+const coinCurrencyFive = defaultCurrencyFor("dnd5e-2014");
 const coinCurrencyDollars: CurrencyConfig = {
   default_key: "c",
   denominations: [

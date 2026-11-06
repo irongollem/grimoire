@@ -87,7 +87,7 @@
     <RulesetBounceDialog
       v-if="bounce"
       :character="character"
-      :campaign-ruleset="bounce.campaignRuleset"
+      :campaign-game-system="bounce.campaignGameSystem"
       :campaign-name="bounce.campaignName"
       :bring="bringToBounceTable"
       @close="bounce = null"
@@ -118,7 +118,7 @@ import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overla
 import RulesetBounceDialog from "@/components/player/RulesetBounceDialog.vue";
 import { benchedMessage, useBenchedAfterAttach } from "@/composables/party/useBenchedAfterAttach";
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules, rulesetYear } from "@/composables/party/useCharacterRuleset";
-import type { RulesetKey } from "@/types/ruleset.types";
+import { gameSystemEdition, gameSystemLabel, type GameSystemKey } from "@/systems/registry";
 import type { PartyMember } from "@/types/party.types";
 import type { Campaign } from "@/types/campaign.types";
 
@@ -206,9 +206,11 @@ const summary = computed(() => {
 
 // Tables list their edition, and say so when they will not take this character.
 function tableLabel(c: Campaign): string {
-  return isRulesetAdmissible(character, c)
-    ? `${c.name} · ${rulesetYear(c.ruleset)}`
-    : `${c.name} · plays the ${rulesetRules(c.ruleset)}`;
+  const edition = gameSystemEdition(c.game_system);
+  if (isRulesetAdmissible(character, c)) {
+    return `${c.name} · ${edition ? rulesetYear(edition) : gameSystemLabel(c.game_system)}`;
+  }
+  return `${c.name} · plays ${edition ? `the ${rulesetRules(edition)}` : gameSystemLabel(c.game_system)}`;
 }
 
 const showAttachPicker = ref(false);
@@ -248,18 +250,18 @@ async function cloneCharacter() {
 interface BounceTarget {
   campaignId: string;
   campaignName: string;
-  campaignRuleset: RulesetKey;
+  campaignGameSystem: GameSystemKey;
 }
 const bounce = ref<BounceTarget | null>(null);
 
-function openBounce(c: Campaign, campaignRuleset: RulesetKey) {
-  bounce.value = { campaignId: c.id, campaignName: c.name, campaignRuleset };
+function openBounce(c: Campaign, campaignGameSystem: GameSystemKey) {
+  bounce.value = { campaignId: c.id, campaignName: c.name, campaignGameSystem };
 }
 
 async function attachTo(c: Campaign) {
   showAttachPicker.value = false;
   if (!isRulesetAdmissible(character, c)) {
-    openBounce(c, c.ruleset);
+    openBounce(c, c.game_system);
     return;
   }
   try {
@@ -274,7 +276,7 @@ async function attachTo(c: Campaign) {
     }
     // The table's setting may have changed since the list loaded.
     const refused = parseRulesetBounce(e);
-    if (refused) openBounce(c, refused.campaignRuleset);
+    if (refused) openBounce(c, refused.campaignGameSystem);
     else toast.error(toast.fromError(e, "Couldn't attach the character."));
   }
 }

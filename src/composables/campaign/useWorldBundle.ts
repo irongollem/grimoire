@@ -7,13 +7,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
 import type { Campaign } from "@/types/campaign.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import { isGameSystemKey, type GameSystemKey } from "@/systems/registry";
 import type { SpeciesSpeed, SpeciesSubrace } from "@/types/species.types";
 import { withWalkSpeed } from "@/rules/speciesStats";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { downloadBlob } from "@/lib/downloadBlob";
 import { legacyTiesToLinks, linkEnd, remapLinkEnds } from "@/lib/campaign/worldLinkTransfer";
 import { upgradeEncounterCoins, upgradePartyMemberCoins } from "@/lib/campaign/legacyCoins";
+import { upgradeLegacyGameSystem } from "@/lib/campaign/legacyGameSystem";
 import type { LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 import {
   sortByHierarchy,
@@ -70,11 +71,11 @@ export interface GrimoireBundle {
   author?: string;
   exported_at: string;
   /**
-   * Source campaign's edition. A new campaign made from the bundle plays it.
+   * Source campaign's game system. A new campaign made from the bundle plays it.
    * Required: `parseBundleFile` refuses a file without one.
    */
-  ruleset: RulesetKey;
-  /** Source campaign's mixed-edition setting; carried with `ruleset` when a new campaign is created from the bundle. */
+  game_system: GameSystemKey;
+  /** Source campaign's mixed-characters setting; carried with `game_system` when a new campaign is created from the bundle. */
   allows_mixed_rulesets?: boolean;
   // Campaign-scoped
   npcs?: Row[];
@@ -304,12 +305,12 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
 
   const { data: sourceCampaign, error: campaignError } = await supabase
     .from("campaigns")
-    .select("ruleset, allows_mixed_rulesets")
+    .select("game_system, allows_mixed_rulesets")
     .eq("id", campaignId)
     .single();
   if (campaignError) throw new Error(`Failed to read source campaign: ${campaignError.message}`);
-  const { ruleset: sourceRuleset, allows_mixed_rulesets: sourceAllowsMixed } = sourceCampaign as {
-    ruleset: RulesetKey;
+  const { game_system: sourceGameSystem, allows_mixed_rulesets: sourceAllowsMixed } = sourceCampaign as {
+    game_system: GameSystemKey;
     allows_mixed_rulesets: boolean;
   };
 
@@ -573,7 +574,7 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     description,
     ...(author ? { author } : {}),
     exported_at: new Date().toISOString(),
-    ruleset: sourceRuleset,
+    game_system: sourceGameSystem,
     allows_mixed_rulesets: sourceAllowsMixed,
     ...bundle,
     _meta: { entity_counts: entityCounts, app_version: "1.0.0" },
@@ -838,7 +839,7 @@ export async function executeImport(opts: ImportBundleOptions): Promise<ImportRe
       .insert({
         name: opts.newCampaignName.trim(),
         user_id: userId,
-        ruleset: bundle.ruleset,
+        game_system: bundle.game_system,
         ...(bundle.allows_mixed_rulesets !== undefined ? { allows_mixed_rulesets: bundle.allows_mixed_rulesets } : {}),
       })
       .select()
@@ -1128,15 +1129,16 @@ export async function executeImport(opts: ImportBundleOptions): Promise<ImportRe
 
 /**
  * A bundle is only read if it carries what the app writes today: the source
- * edition, each character's own edition, and a pinned definition on every class
- * row. There is no upgrade path for a file that lacks them. Guessing an edition
+ * game system, each character's own edition, and a pinned definition on every class
+ * row (an older file's edition is read as its system by `upgradeLegacyGameSystem`
+ * first). There is no upgrade path for a file that lacks them. Guessing an edition
  * or a class would put a character in the wrong rules, and the database would
  * otherwise refuse the row mid-import with no hint which file was at fault.
  */
 export function assertBundleCarriesCharacterEditions(bundle: GrimoireBundle): void {
   const outdated = "This file was exported by an older version of Grimoire and cannot be imported. Export it again from the campaign it came from.";
-  if (bundle.ruleset !== "2014" && bundle.ruleset !== "2024") {
-    throw new Error(`${outdated} (It does not record which edition the campaign plays.)`);
+  if (!isGameSystemKey(bundle.game_system)) {
+    throw new Error(`${outdated} (It does not record which game system the campaign plays.)`);
   }
   const unedited = (bundle.party_members ?? []).filter((pm) => pm.ruleset !== "2014" && pm.ruleset !== "2024");
   if (unedited.length > 0) {
@@ -1199,7 +1201,7 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   if (json.version !== BUNDLE_FORMAT_VERSION && json.version !== LEGACY_BUNDLE_FORMAT_VERSION) {
     throw new Error(`Unsupported bundle version: ${json.version}. Export it again from the campaign it came from.`);
   }
-  json = upgradeBundleCoins(json);
+  json = upgradeLegacyGameSystem(upgradeBundleCoins(json));
   assertBundleCarriesCharacterEditions(json);
   const hasContent = [
     json.npcs, json.locations, json.factions, json.quests,

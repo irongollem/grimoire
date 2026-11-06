@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   updateCampaign: vi.fn(),
   toastError: vi.fn(),
   party: [] as Array<Pick<PartyMember, "id" | "name" | "ruleset" | "owner_user_id">>,
-  active: { id: "c1", ruleset: "2024", allows_mixed_rulesets: false },
+  active: { id: "c1", game_system: "dnd5e-2024", allows_mixed_rulesets: false } as { id: string; game_system: string; allows_mixed_rulesets: boolean },
   upsert: vi.fn(),
   stored: [] as Array<{ rule_key: string; enabled: boolean; config: Record<string, number> | null }>,
   defs: [] as Array<Record<string, unknown>>,
@@ -32,7 +32,11 @@ vi.mock("@/composables/party/useCharacterRuleset", async (importOriginal) => ({
   useConvertCharacterRuleset: () => ({ mutateAsync: vi.fn(), isPending: { value: false } }),
 }));
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ activeCampaign: mocks.active, switchToCampaign: vi.fn() }),
+  useCampaignStore: () => ({
+    activeCampaign: mocks.active,
+    get activeGameSystem() { return mocks.active.game_system; },
+    switchToCampaign: vi.fn(),
+  }),
 }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({
@@ -46,7 +50,7 @@ beforeEach(() => {
   mocks.upsert.mockReset();
   mocks.stored = [];
   mocks.defs = [];
-  mocks.active = { id: "c1", ruleset: "2024", allows_mixed_rulesets: false };
+  mocks.active = { id: "c1", game_system: "dnd5e-2024", allows_mixed_rulesets: false };
   mocks.updateCampaign.mockReset();
   mocks.toastError.mockClear();
   mocks.party = [
@@ -129,6 +133,33 @@ describe("RulesTab optional rules", () => {
   });
 });
 
+describe("RulesTab game system", () => {
+  beforeEach(() => {
+    mocks.party = [];
+  });
+
+  // Fails if the picker offers every system: switching a 5e table to Generic would strand its characters.
+  it("offers a 5e campaign only itself and the system it is compatible with", () => {
+    const wrapper = mount(RulesTab);
+    expect(wrapper.findAll('[role="radio"]').map((o) => o.text())).toEqual([
+      expect.stringContaining("D&D 5e (2014)"),
+      expect.stringContaining("D&D 5e (2024)"),
+    ]);
+  });
+
+  // Fails if Generic shows a picker or the mixed toggle: it is compatible with nothing, so there is nothing to switch to.
+  it("shows a Generic campaign's system read-only, with no picker, no mixed toggle and no D&D rules", () => {
+    mocks.active = { id: "c1", game_system: "generic", allows_mixed_rulesets: false };
+    mocks.defs = [{ key: "turn_timer", name: "Turn timer", summary: "A clock." }];
+    const wrapper = mount(RulesTab);
+    expect(wrapper.find('[role="radio"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="Allow both editions"]').exists()).toBe(false);
+    expect(wrapper.get("[data-testid='game-system-fixed']").text()).toContain("Generic");
+    expect(wrapper.text()).toContain("chosen when the campaign was created");
+    expect(wrapper.text()).not.toContain("Turn timer");
+  });
+});
+
 describe("RulesTab edition changes", () => {
   it("does not save when the edition clicked is the one already in force", async () => {
     mocks.party = [];
@@ -144,7 +175,7 @@ describe("RulesTab edition changes", () => {
     const wrapper = mount(RulesTab);
     await wrapper.get('[role="radio"]:not([aria-checked="true"])').trigger("click");
     await flushPromises();
-    expect(mocks.updateCampaign).toHaveBeenCalledWith({ id: "c1", update: { ruleset: "2014" } });
+    expect(mocks.updateCampaign).toHaveBeenCalledWith({ id: "c1", update: { game_system: "dnd5e-2014" } });
   });
 
   it("saves the both-editions switch as a flag on the campaign", async () => {

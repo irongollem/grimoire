@@ -22,16 +22,22 @@ import {
 } from "./useCharacterRuleset";
 
 describe("isRulesetAdmissible", () => {
-  it("takes a character of the table's own edition", () => {
-    expect(isRulesetAdmissible({ ruleset: "2014" }, { ruleset: "2014", allows_mixed_rulesets: false })).toBe(true);
+  it("takes a character built for the table's own system", () => {
+    expect(isRulesetAdmissible({ ruleset: "2014" }, { game_system: "dnd5e-2014", allows_mixed_rulesets: false })).toBe(true);
   });
 
   it("refuses the other edition at a table that does not allow both", () => {
-    expect(isRulesetAdmissible({ ruleset: "2024" }, { ruleset: "2014", allows_mixed_rulesets: false })).toBe(false);
+    expect(isRulesetAdmissible({ ruleset: "2024" }, { game_system: "dnd5e-2014", allows_mixed_rulesets: false })).toBe(false);
   });
 
   it("takes the other edition at a table that allows both", () => {
-    expect(isRulesetAdmissible({ ruleset: "2024" }, { ruleset: "2014", allows_mixed_rulesets: true })).toBe(true);
+    expect(isRulesetAdmissible({ ruleset: "2024" }, { game_system: "dnd5e-2014", allows_mixed_rulesets: true })).toBe(true);
+  });
+
+  // Fails if "allows mixed" were read as "allows anything": Generic is compatible with no system.
+  it("takes no 5e character at a Generic table, whatever the mixed setting says", () => {
+    expect(isRulesetAdmissible({ ruleset: "2014" }, { game_system: "generic", allows_mixed_rulesets: true })).toBe(false);
+    expect(isRulesetAdmissible({ ruleset: "2024" }, { game_system: "generic", allows_mixed_rulesets: false })).toBe(false);
   });
 });
 
@@ -40,12 +46,26 @@ describe("parseRulesetBounce", () => {
   const bounce = {
     code: "RS001",
     message: "This table plays the 2014 rules and does not take 2024 characters",
-    details: '{"character_ruleset": "2024", "campaign_ruleset": "2014"}',
+    details: '{"character_ruleset": "2024", "campaign_ruleset": "2014", "campaign_game_system": "dnd5e-2014"}',
     hint: null,
   };
 
-  it("reads both editions out of a bounce", () => {
-    expect(parseRulesetBounce(bounce)).toEqual({ characterRuleset: "2024", campaignRuleset: "2014" });
+  it("reads the character's edition and the table's system out of a bounce", () => {
+    expect(parseRulesetBounce(bounce)).toEqual({
+      characterRuleset: "2024",
+      campaignGameSystem: "dnd5e-2014",
+      campaignRuleset: "2014",
+    });
+  });
+
+  // Fails if the parser still demands campaign_ruleset, which a Generic table's detail does not carry.
+  it("reads a Generic table's bounce, which names no edition", () => {
+    const generic = { ...bounce, details: '{"character_ruleset": "2024", "campaign_game_system": "generic"}' };
+    expect(parseRulesetBounce(generic)).toEqual({
+      characterRuleset: "2024",
+      campaignGameSystem: "generic",
+      campaignRuleset: null,
+    });
   });
 
   it("is null for any other failure, so it is shown as the error it is", () => {
@@ -58,8 +78,9 @@ describe("parseRulesetBounce", () => {
   it("is null rather than a guess when the detail is not what the database sends", () => {
     expect(parseRulesetBounce({ ...bounce, details: null })).toBeNull();
     expect(parseRulesetBounce({ ...bounce, details: "not json" })).toBeNull();
-    expect(parseRulesetBounce({ ...bounce, details: '{"character_ruleset": "3e", "campaign_ruleset": "2014"}' })).toBeNull();
+    expect(parseRulesetBounce({ ...bounce, details: '{"character_ruleset": "3e", "campaign_game_system": "dnd5e-2014"}' })).toBeNull();
     expect(parseRulesetBounce({ ...bounce, details: '{"character_ruleset": "2024"}' })).toBeNull();
+    expect(parseRulesetBounce({ ...bounce, details: '{"character_ruleset": "2024", "campaign_game_system": "pathfinder"}' })).toBeNull();
   });
 });
 

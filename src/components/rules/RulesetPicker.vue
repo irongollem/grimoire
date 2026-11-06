@@ -1,48 +1,20 @@
 <template>
   <!--
-    The one place an edition is chosen: the character wizard's first step, New
-    Campaign, and a campaign's Rules tab (#943). It was RulesTab's own markup
-    until a second and third surface needed the same choice.
-
-    Each option is an AppButton laid out as a two-line card: only the layout
-    tokens are overridden (stack, left-align, wrap), the border, radius, hover
-    and selected states are the primitive's. The description and note drop the
-    button's label weight: three bold lines per card read as shouting. The
-    cards share a row, so the shorter one is top-aligned rather than centred,
-    or the two titles sit at different heights. It is a
-    radio group, so it says so: one tab stop, and the arrow keys move the choice.
+    The one place a 5e edition is chosen: the character wizard's first step and
+    a character's own edition (#943). The cards are CardRadioGroup's.
   -->
-  <div
-    ref="groupRef"
-    class="grid gap-2 sm:grid-cols-2"
-    role="radiogroup"
-    :aria-label="label"
-    @keydown="onKeydown"
-  >
-    <AppButton
-      v-for="option in RULESET_OPTIONS"
-      :key="option.value"
-      variant="subtle"
-      size="body"
-      block
-      role="radio"
-      :active="modelValue === option.value"
-      :aria-checked="modelValue === option.value"
-      :tabindex="tabStop === option.value ? 0 : -1"
-      :disabled="disabled"
-      class="flex-col items-start justify-start gap-1 whitespace-normal py-3 text-left"
-      @click="emit('update:modelValue', option.value)"
-    >
-      <span class="text-caption font-semibold text-foreground">{{ option.label }}</span>
-      <span class="text-caption font-normal text-muted-foreground">{{ option.description }}</span>
-      <span v-if="notes?.[option.value]" class="text-caption font-normal text-ink-caution">{{ notes[option.value] }}</span>
-    </AppButton>
-  </div>
+  <CardRadioGroup
+    :model-value="modelValue"
+    :options="RULESET_OPTIONS"
+    :disabled="disabled"
+    :label="label"
+    :notes="notes"
+    @update:model-value="emit('update:modelValue', $event)"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import AppButton from "@/components/common/controls/AppButton.vue";
+import CardRadioGroup from "@/components/common/controls/CardRadioGroup.vue";
 import { RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
 
 const { modelValue, disabled = false, label = "Rules edition", notes } = defineProps<{
@@ -56,22 +28,4 @@ const { modelValue, disabled = false, label = "Rules edition", notes } = defineP
 }>();
 
 const emit = defineEmits<{ "update:modelValue": [value: RulesetKey] }>();
-
-const groupRef = ref<HTMLElement | null>(null);
-
-// With nothing chosen the first option holds the tab stop, or the group could
-// not be reached by keyboard at all.
-const tabStop = computed<RulesetKey>(() => modelValue ?? RULESET_OPTIONS[0].value);
-
-function onKeydown(event: KeyboardEvent) {
-  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
-    : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1
-    : 0;
-  if (step === 0 || disabled) return;
-  event.preventDefault();
-  const current = RULESET_OPTIONS.findIndex((option) => option.value === tabStop.value);
-  const next = (current + step + RULESET_OPTIONS.length) % RULESET_OPTIONS.length;
-  emit("update:modelValue", RULESET_OPTIONS[next].value);
-  groupRef.value?.querySelectorAll<HTMLElement>('[role="radio"]')[next]?.focus();
-}
 </script>

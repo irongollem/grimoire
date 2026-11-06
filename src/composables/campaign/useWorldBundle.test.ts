@@ -37,7 +37,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function emptyBundle(over: Partial<GrimoireBundle> = {}): GrimoireBundle {
   return {
     version: BUNDLE_FORMAT_VERSION,
-    ruleset: "2014",
+    game_system: "dnd5e-2014",
     file_type: "world_bundle",
     name: "Test Bundle",
     description: "",
@@ -233,7 +233,7 @@ describe("scriptorium books in a bundle", () => {
   async function importBooks(bundle: GrimoireBundle) {
     auth.user = { id: "importer" };
     fake.reset();
-    fake.seed("campaigns", [{ id: "camp-new", ruleset: "2014" }]);
+    fake.seed("campaigns", [{ id: "camp-new", game_system: "dnd5e-2014" }]);
     await executeImport({ bundle, includeTypes: new Set(["scriptorium_documents"]), campaignId: "camp-new" });
     return { books: fake.rows("scriptorium_documents"), chapters: fake.rows("scriptorium_chapters") };
   }
@@ -303,7 +303,7 @@ describe("scriptorium books in a bundle", () => {
 
   it("exports a book with its chapters, minus their timestamps", async () => {
     fake.reset();
-    fake.seed("campaigns", [{ id: "c1", ruleset: "2024", allows_mixed_rulesets: false }]);
+    fake.seed("campaigns", [{ id: "c1", game_system: "dnd5e-2024", allows_mixed_rulesets: false }]);
     fake.seed("scriptorium_documents", [{ ...doc(), user_id: "exporter", campaign_id: "c1", created_at: "x", updated_at: "y" }]);
     fake.seed("scriptorium_chapters", [
       { ...chapter("ch-1"), created_at: "x", updated_at: "y" },
@@ -443,16 +443,16 @@ describe("assertBundleCarriesCharacterEditions", () => {
 
   it("accepts a bundle shaped the way buildBundle writes one", () => {
     const bundle = emptyBundle({
-      ruleset: "2024",
+      game_system: "dnd5e-2024",
       party_members: [stripPartyMemberRow({ ...member, user_id: "u", campaign_id: "c" })],
       character_classes: [pinned],
     });
     expect(() => assertBundleCarriesCharacterEditions(bundle)).not.toThrow();
   });
 
-  it("refuses a bundle that does not record the campaign's edition", () => {
+  it("refuses a bundle that does not record the campaign's game system", () => {
     const bundle = emptyBundle();
-    delete (bundle as { ruleset?: unknown }).ruleset;
+    delete (bundle as { game_system?: unknown }).game_system;
     expect(() => assertBundleCarriesCharacterEditions(bundle)).toThrow(/older version of Grimoire/);
   });
 
@@ -473,7 +473,7 @@ describe("assertBundleCarriesCharacterEditions", () => {
 
   it("accepts a custom pin whose class and subclass the file carries", () => {
     const bundle = emptyBundle({
-      ruleset: "2024",
+      game_system: "dnd5e-2024",
       party_members: [member],
       character_classes: [custom],
       custom_classes: [{ id: "cust-1" }],
@@ -484,7 +484,7 @@ describe("assertBundleCarriesCharacterEditions", () => {
 
   it("refuses a custom class pin the file does not carry", () => {
     const bundle = emptyBundle({
-      ruleset: "2024",
+      game_system: "dnd5e-2024",
       party_members: [member],
       character_classes: [{ ...custom, subclass_definition_id: null, subclass_name: null }],
       custom_classes: [{ id: "other" }],
@@ -494,7 +494,7 @@ describe("assertBundleCarriesCharacterEditions", () => {
 
   it("refuses a subclass pin the file does not carry", () => {
     const bundle = emptyBundle({
-      ruleset: "2024",
+      game_system: "dnd5e-2024",
       party_members: [member],
       character_classes: [custom],
       custom_classes: [{ id: "cust-1" }],
@@ -565,7 +565,7 @@ describe("world links in a bundle (#1084)", () => {
 describe("buildBundle", () => {
   beforeEach(() => {
     fake.reset();
-    fake.seed("campaigns", [{ id: "c1", ruleset: "2024", allows_mixed_rulesets: true }]);
+    fake.seed("campaigns", [{ id: "c1", game_system: "dnd5e-2024", allows_mixed_rulesets: true }]);
   });
 
   const owned = (id: string, over: Record<string, unknown> = {}) => ({
@@ -581,7 +581,7 @@ describe("buildBundle", () => {
       selection: new Map([["npcs", ["n1", "n2"]]]),
     });
     expect(bundle.npcs).toEqual([{ id: "n1", name: "n1" }, { id: "n2", name: "n2" }]);
-    expect(bundle.ruleset).toBe("2024");
+    expect(bundle.game_system).toBe("dnd5e-2024");
     expect(bundle.allows_mixed_rulesets).toBe(true);
     expect(bundle._meta.entity_counts).toEqual({ npcs: 2 });
     expect(bundle).not.toHaveProperty("author");
@@ -633,7 +633,7 @@ describe("buildBundle", () => {
 describe("deities and pantheons in a bundle (#1119)", () => {
   beforeEach(() => {
     fake.reset();
-    fake.seed("campaigns", [{ id: "c1", ruleset: "2024", allows_mixed_rulesets: false }]);
+    fake.seed("campaigns", [{ id: "c1", game_system: "dnd5e-2024", allows_mixed_rulesets: false }]);
     auth.user = null;
   });
 
@@ -667,9 +667,9 @@ describe("deities and pantheons in a bundle (#1119)", () => {
 
   it("importing only the characters still brings their god and its pantheon, and points the character at the imported god", async () => {
     auth.user = { id: "importer" };
-    fake.seed("campaigns", [{ id: "camp-new", ruleset: "2024" }]);
+    fake.seed("campaigns", [{ id: "camp-new", game_system: "dnd5e-2024" }]);
     const bundle = emptyBundle({
-      ruleset: "2024",
+      game_system: "dnd5e-2024",
       party_members: [{ id: "pm1", name: "Pip", ruleset: "2024", deity_id: "d1" }],
       deities: [{ id: "d1", name: "The Kettle Witch", pantheon_id: "p1", player_visible_to: [] }],
       pantheons: [{ id: "p1", name: "The Hearth", player_visible_to: [] }],

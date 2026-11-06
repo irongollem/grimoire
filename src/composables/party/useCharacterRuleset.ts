@@ -1,6 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { RULESET_KEYS, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
+import {
+  editionGameSystem,
+  gameSystemEdition,
+  gameSystemsCompatible,
+  isGameSystemKey,
+  type GameSystemKey,
+} from "@/systems/registry";
 
 /**
  * A character's edition, as distinct from its table's (#943).
@@ -41,18 +48,27 @@ export function otherRuleset(ruleset: RulesetKey): RulesetKey {
   return ruleset === "2014" ? "2024" : "2014";
 }
 
-/** Whether a table takes a character: the same edition, or a table that allows both. */
+/**
+ * Whether a table takes a character: a character is built for the system of its
+ * edition, and a table takes it when that is the table's own system, or when the
+ * table allows other systems and declares itself compatible with it. A Generic
+ * table is compatible with nothing, so it takes no 5e character.
+ */
 export function isRulesetAdmissible(
   character: { ruleset: RulesetKey },
-  campaign: { ruleset: RulesetKey; allows_mixed_rulesets: boolean },
+  campaign: { game_system: GameSystemKey; allows_mixed_rulesets: boolean },
 ): boolean {
-  return character.ruleset === campaign.ruleset || campaign.allows_mixed_rulesets;
+  const built = editionGameSystem(character.ruleset);
+  if (built === campaign.game_system) return true;
+  return campaign.allows_mixed_rulesets && gameSystemsCompatible(built, campaign.game_system);
 }
 
-/** The two editions named by a bounce. */
+/** What a bounce names: the character's edition and the table's system. */
 export interface RulesetBounce {
   characterRuleset: RulesetKey;
-  campaignRuleset: RulesetKey;
+  campaignGameSystem: GameSystemKey;
+  /** The 5e edition the table plays; null for a system that has none (Generic), where no conversion can make a character fit. */
+  campaignRuleset: RulesetKey | null;
 }
 
 /**
@@ -68,7 +84,7 @@ function isRulesetKey(value: unknown): value is RulesetKey {
 
 /**
  * Reads a bounce out of a failed attach or join, or returns null for any other
- * failure. The database puts both editions in the error's `details` as JSON.
+ * failure. The database puts the character's edition and the table's game system in the error's `details` as JSON.
  * Null rather than a guess when the shape is wrong: a caller that gets null
  * shows the error as an error, which is right for anything unrecognised.
  */
@@ -83,9 +99,13 @@ export function parseRulesetBounce(error: unknown): RulesetBounce | null {
     return null;
   }
   if (typeof parsed !== "object" || parsed === null) return null;
-  const { character_ruleset, campaign_ruleset } = parsed as Record<string, unknown>;
-  if (!isRulesetKey(character_ruleset) || !isRulesetKey(campaign_ruleset)) return null;
-  return { characterRuleset: character_ruleset, campaignRuleset: campaign_ruleset };
+  const { character_ruleset, campaign_game_system } = parsed as Record<string, unknown>;
+  if (!isRulesetKey(character_ruleset) || !isGameSystemKey(campaign_game_system)) return null;
+  return {
+    characterRuleset: character_ruleset,
+    campaignGameSystem: campaign_game_system,
+    campaignRuleset: gameSystemEdition(campaign_game_system) ?? null,
+  };
 }
 
 // A conversion re-pins classes and spells and rewrites the character's review

@@ -7,10 +7,14 @@ import { decryptApiKey } from "@/lib/apiKeyVault";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { isLocalCiphertext, localKeyModeChosen, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
-import { normalizeRuleset, type RulesetKey } from "@/types/ruleset.types";
+import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
+import { gameSystemEdition, isGameSystemKey, setActiveGameSystem, type GameSystemKey } from "@/systems/registry";
 
 const STORAGE_KEY      = "grimoire_active_campaign";
-const RULESET_HINT_KEY = "grimoire_active_campaign_ruleset";
+const GAME_SYSTEM_HINT_KEY = "grimoire_active_campaign_game_system";
+
+/** What a campaign is read as before its row (or a usable hint) exists: the system every campaign began as. */
+const FALLBACK_GAME_SYSTEM: GameSystemKey = "dnd5e-2014";
 
 // Per-provider localStorage keys (local mode only)
 const LOCAL_KEYS: Record<string, string> = {
@@ -103,40 +107,41 @@ export const useCampaignStore = defineStore("campaign", () => {
     { flush: "sync" },
   );
 
-  // The campaign's edition keys a good many library queries (rules, species,
-  // monsters, spells, items). The shell mounts before the campaign row arrives,
-  // so until it does those queries would key on the 2014 fallback and refetch
-  // when the row said 2024. This remembers the last edition seen for the active
-  // campaign so a returning visit keys correctly from the first render. It is a
-  // hint, never an answer: the row overrides it the moment it exists, and it only
-  // applies to the id it was written for.
-  function readRulesetHint(id: string | null): string | null {
+  // The campaign's game system keys a good many library queries (rules,
+  // species, monsters, spells, items) and decides which surfaces exist. The
+  // shell mounts before the campaign row arrives, so until it does those would
+  // key on the fallback and refetch when the row said otherwise. This remembers
+  // the last system seen for the active campaign so a returning visit keys
+  // correctly from the first render. It is a hint, never an answer: the row
+  // overrides it the moment it exists, and it only applies to the id it was
+  // written for. An unreadable hint is the fallback, as before.
+  function readGameSystemHint(id: string | null): GameSystemKey | null {
     if (!id) return null;
     try {
-      const raw = safeLocalStorage().getItem(RULESET_HINT_KEY);
+      const raw = safeLocalStorage().getItem(GAME_SYSTEM_HINT_KEY);
       if (!raw) return null;
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed !== "object" || parsed === null) return null;
-      const hint = parsed as { id?: unknown; ruleset?: unknown };
-      return hint.id === id && typeof hint.ruleset === "string" ? hint.ruleset : null;
+      const hint = parsed as { id?: unknown; game_system?: unknown };
+      return hint.id === id && isGameSystemKey(hint.game_system) ? hint.game_system : null;
     } catch {
       return null;
     }
   }
-  const rulesetHint = ref<string | null>(readRulesetHint(activeCampaignId.value));
-  // ID-only switches must drop the previous edition before any query reads it.
+  const gameSystemHint = ref<GameSystemKey | null>(readGameSystemHint(activeCampaignId.value));
+  // ID-only switches must drop the previous system before any query reads it.
   watch(
     activeCampaignId,
-    (id) => { rulesetHint.value = readRulesetHint(id); },
+    (id) => { gameSystemHint.value = readGameSystemHint(id); },
     { flush: "sync" },
   );
   watch(
-    () => activeCampaign.value && ({ id: activeCampaign.value.id, ruleset: activeCampaign.value.ruleset }),
+    () => activeCampaign.value && ({ id: activeCampaign.value.id, game_system: activeCampaign.value.game_system }),
     (row) => {
       if (!row) return;
-      rulesetHint.value = row.ruleset;
+      gameSystemHint.value = row.game_system;
       try {
-        safeLocalStorage().setItem(RULESET_HINT_KEY, JSON.stringify(row));
+        safeLocalStorage().setItem(GAME_SYSTEM_HINT_KEY, JSON.stringify(row));
       } catch {
         // Storage full or blocked: the hint is an optimisation, losing it costs one refetch.
       }
@@ -144,10 +149,27 @@ export const useCampaignStore = defineStore("campaign", () => {
     { immediate: true },
   );
 
-  /** The active campaign's edition: its row once loaded, the remembered hint until then. */
-  const activeRuleset = computed<RulesetKey>(() =>
-    normalizeRuleset(activeCampaign.value ? activeCampaign.value.ruleset : rulesetHint.value),
-  );
+  /** The active campaign's game system: its row once loaded, the remembered hint until then. */
+  const activeGameSystem = computed<GameSystemKey>(() => {
+    const fromRow = activeCampaign.value?.game_system;
+    if (isGameSystemKey(fromRow)) return fromRow;
+    return gameSystemHint.value ?? FALLBACK_GAME_SYSTEM;
+  });
+  // The registry's non-reactive readers (the dice roller, the roll-mode
+  // directive) follow the store through this.
+  watch(activeGameSystem, (system) => setActiveGameSystem(system), { immediate: true });
+
+  /**
+   * The 5e edition of the active campaign's system. Read only by surfaces that
+   * exist in a 5e campaign (sheets, stat blocks, the codex, the bestiary, the
+   * vault), which a Generic campaign hides (`systemOffers`), so it never has to
+   * answer for a system with no edition. It still returns a RulesetKey, the
+   * default edition, for Generic, because ~99 `useRuleset()` callers and every
+   * library query key need a key and a throw here would crash a surface that
+   * merely mounted before the gate hid it. Anything that must know whether the
+   * campaign HAS an edition asks `gameSystemEdition(activeGameSystem)`.
+   */
+  const activeRuleset = computed<RulesetKey>(() => gameSystemEdition(activeGameSystem.value) ?? DEFAULT_RULESET);
 
   // Resolve a BYOK-local key into its plaintext (in-memory) form, decrypting
   // the local-vault ciphertext. Legacy values — pre-vault plaintext, or a
@@ -355,6 +377,7 @@ export const useCampaignStore = defineStore("campaign", () => {
   return {
     activeCampaignId,
     activeCampaign,
+    activeGameSystem,
     activeRuleset,
     isAiEnabled,
     isOwner,

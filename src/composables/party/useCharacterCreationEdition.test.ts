@@ -5,6 +5,7 @@ import { defineComponent, h, ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { editionGameSystem } from "@/systems/registry";
 import { useContentScope } from "@/composables/rules/useRuleset";
 import { useCharacterCreationEdition } from "./useCharacterCreationEdition";
 
@@ -12,7 +13,7 @@ function setCampaign(ruleset: RulesetKey | null) {
   const store = useCampaignStore();
   store.activeCampaignId = ruleset ? "campaign-1" : null;
   store.activeCampaign = ruleset
-    ? ({ id: "campaign-1", name: "Strahd", ruleset, allows_mixed_rulesets: false } as Campaign)
+    ? ({ id: "campaign-1", name: "Strahd", game_system: editionGameSystem(ruleset), allows_mixed_rulesets: false } as Campaign)
     : null;
 }
 

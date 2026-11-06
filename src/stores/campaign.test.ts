@@ -28,6 +28,7 @@ import { nextTick, reactive } from "vue";
 import { useCampaignStore } from "./campaign";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import type { Campaign } from "@/types/campaign.types";
+import { activeGameSystem as registryActiveGameSystem, setActiveGameSystem, type GameSystemKey } from "@/systems/registry";
 
 const DM_SLOT = "grimoire_active_campaign_dm";
 const PLAYER_SLOT = "grimoire_active_campaign_player";
@@ -248,8 +249,8 @@ describe("the theme follows the session, not the last campaign", () => {
 // things the store's job: never show one campaign's row under another's id, and
 // key edition-scoped queries correctly before the row lands.
 describe("the campaign row and its id", () => {
-  const HINT = "grimoire_active_campaign_ruleset";
-  const row = (id: string, ruleset: "2014" | "2024") => ({ id, ruleset, theme: null }) as unknown as Campaign;
+  const HINT = "grimoire_active_campaign_game_system";
+  const row = (id: string, game_system: GameSystemKey) => ({ id, game_system, theme: null }) as unknown as Campaign;
 
   beforeEach(() => {
     localStorage.clear();
@@ -259,14 +260,14 @@ describe("the campaign row and its id", () => {
 
   it("drops the held row as soon as the id moves to another campaign", () => {
     const store = useCampaignStore();
-    store.switchToCampaign(row("a", "2014"));
+    store.switchToCampaign(row("a", "dnd5e-2014"));
     store.activeCampaignId = "b";
     expect(store.activeCampaign).toBeNull();
   });
 
   it("keeps the row when the id is set to the one it already belongs to", () => {
     const store = useCampaignStore();
-    store.switchToCampaign(row("a", "2014"));
+    store.switchToCampaign(row("a", "dnd5e-2014"));
     store.activeCampaignId = "a";
     expect(store.activeCampaign?.id).toBe("a");
   });
@@ -275,15 +276,15 @@ describe("the campaign row and its id", () => {
     localStorage.setItem("grimoire_active_campaign", "a");
     const store = useCampaignStore();
     expect(store.activeRuleset).toBe("2014");
-    store.switchToCampaign(row("a", "2024"));
+    store.switchToCampaign(row("a", "dnd5e-2024"));
     expect(store.activeRuleset).toBe("2024");
   });
 
   it("remembers the edition per campaign and uses it before the row arrives", async () => {
     const first = useCampaignStore();
-    first.switchToCampaign(row("a", "2024"));
+    first.switchToCampaign(row("a", "dnd5e-2024"));
     await nextTick();
-    expect(JSON.parse(localStorage.getItem(HINT) ?? "null")).toEqual({ id: "a", ruleset: "2024" });
+    expect(JSON.parse(localStorage.getItem(HINT) ?? "null")).toEqual({ id: "a", game_system: "dnd5e-2024" });
 
     setActivePinia(createPinia());
     const reloaded = useCampaignStore();
@@ -292,14 +293,14 @@ describe("the campaign row and its id", () => {
   });
 
   it("ignores a remembered edition that belongs to a different campaign", () => {
-    localStorage.setItem(HINT, JSON.stringify({ id: "other", ruleset: "2024" }));
+    localStorage.setItem(HINT, JSON.stringify({ id: "other", game_system: "dnd5e-2024" }));
     localStorage.setItem("grimoire_active_campaign", "a");
     expect(useCampaignStore().activeRuleset).toBe("2014");
   });
 
   it("drops the previous edition immediately when only the campaign id changes", async () => {
     const store = useCampaignStore();
-    store.switchToCampaign(row("a", "2024"));
+    store.switchToCampaign(row("a", "dnd5e-2024"));
     await nextTick();
     expect(store.activeRuleset).toBe("2024");
 
@@ -311,7 +312,7 @@ describe("the campaign row and its id", () => {
 
   it("reads the target campaign's hint immediately when only the id changes", () => {
     localStorage.setItem("grimoire_active_campaign", "a");
-    localStorage.setItem(HINT, JSON.stringify({ id: "b", ruleset: "2024" }));
+    localStorage.setItem(HINT, JSON.stringify({ id: "b", game_system: "dnd5e-2024" }));
     const store = useCampaignStore();
     expect(store.activeRuleset).toBe("2014");
 
@@ -325,6 +326,46 @@ describe("the campaign row and its id", () => {
     localStorage.setItem(HINT, "{nope");
     localStorage.setItem("grimoire_active_campaign", "a");
     expect(useCampaignStore().activeRuleset).toBe("2014");
+  });
+
+  // Fails if the hint stores an unknown key or the computed trusts it: a stale 'pathfinder' hint must read as the fallback.
+  it("ignores a remembered system the app does not know", () => {
+    localStorage.setItem(HINT, JSON.stringify({ id: "a", game_system: "pathfinder" }));
+    localStorage.setItem("grimoire_active_campaign", "a");
+    expect(useCampaignStore().activeGameSystem).toBe("dnd5e-2014");
+  });
+});
+
+describe("the active game system (#934)", () => {
+  const row = (id: string, game_system: GameSystemKey) => ({ id, game_system, theme: null }) as unknown as Campaign;
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    setActiveGameSystem("dnd5e-2014");
+    mockUseAuthStore.mockReturnValue({ isChildAccount: false, membership: null, refreshMembership: vi.fn() } as MockAuthStore);
+  });
+
+  // Fails if the store stops pushing the system into the registry: the dice roller would keep rolling by the last system.
+  it("tells the registry which system the campaign plays, and again when it changes", async () => {
+    const store = useCampaignStore();
+    store.switchToCampaign(row("a", "generic"));
+    await nextTick();
+    expect(store.activeGameSystem).toBe("generic");
+    expect(registryActiveGameSystem()).toBe("generic");
+
+    store.switchToCampaign(row("b", "dnd5e-2024"));
+    await nextTick();
+    expect(registryActiveGameSystem()).toBe("dnd5e-2024");
+  });
+
+  // Fails if activeRuleset throws or reads the system key as an edition: 5e-only readers still mount for a tick in a Generic campaign.
+  it("answers the default edition for a system with no edition, and the system's own otherwise", () => {
+    const store = useCampaignStore();
+    store.switchToCampaign(row("a", "generic"));
+    expect(store.activeRuleset).toBe("2014");
+    store.switchToCampaign(row("b", "dnd5e-2024"));
+    expect(store.activeRuleset).toBe("2024");
   });
 });
 

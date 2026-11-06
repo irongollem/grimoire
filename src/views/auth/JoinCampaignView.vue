@@ -239,7 +239,7 @@
     <RulesetBounceDialog
       v-if="bounce"
       :character="bounce.character"
-      :campaign-ruleset="bounce.campaignRuleset"
+      :campaign-game-system="bounce.campaignGameSystem"
       :campaign-name="null"
       :bring="joinWithConvertedCopy"
       @close="bounce = null"
@@ -272,7 +272,7 @@ import RulesetBounceDialog from "@/components/player/RulesetBounceDialog.vue";
 import { parseRulesetBounce, rulesetYear } from "@/composables/party/useCharacterRuleset";
 import { replayStartingGrants } from "@/composables/party/useCharacterEquipmentSeeding";
 import type { PartyMember } from "@/types/party.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { GameSystemKey } from "@/systems/registry";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SignupConsent from "@/components/auth/SignupConsent.vue";
 import AgeQuestionStep from "@/components/auth/AgeQuestionStep.vue";
@@ -351,9 +351,9 @@ const isDecidingAutoJoin = computed(() => !hasChosen.value && decidingJoin.value
 
 // A table that does not take the chosen character's edition (#943). Not an
 // invalid invite: the player is offered a converted copy, or another character.
-// The edition comes from the refusal itself, since a non-member cannot read the
+// The system comes from the refusal itself, since a non-member cannot read the
 // campaign row before joining.
-const bounce = ref<{ character: PartyMember; campaignRuleset: RulesetKey } | null>(null);
+const bounce = ref<{ character: PartyMember; campaignGameSystem: GameSystemKey } | null>(null);
 
 async function attemptJoin(partyMemberId?: string) {
   joining.value = true;
@@ -364,7 +364,7 @@ async function attemptJoin(partyMemberId?: string) {
     const refused = parseRulesetBounce(err);
     const refusedCharacter = unattachedCharacters.value.find((pm) => pm.id === partyMemberId);
     if (refused && refusedCharacter) {
-      bounce.value = { character: refusedCharacter, campaignRuleset: refused.campaignRuleset };
+      bounce.value = { character: refusedCharacter, campaignGameSystem: refused.campaignGameSystem };
       joining.value = false;
       return;
     }
