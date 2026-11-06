@@ -22,6 +22,17 @@ set -uo pipefail
 attempts=5
 log="$(mktemp)"
 
+# Keep the kernel from lending the stack's ports to outgoing connections. The
+# CLI's fixed ports (54320 to 54329) sit inside Linux's ephemeral range (32768
+# to 60999), and the image pulls open many connections at once, so one can be
+# holding 54322 at the moment Postgres binds it. On 6 Nov 2026 run 42230374553
+# died that way: "failed to bind host port 0.0.0.0:54322/tcp: address already
+# in use", on a fresh runner with nothing else listening. CI only: on a laptop
+# this needs sudo, and a port that is really taken there is worth hearing about.
+if [ -n "${CI:-}" ]; then
+  sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329
+fi
+
 for attempt in $(seq 1 "$attempts"); do
   # Odd attempts pull from ghcr.io, even ones from the CLI's default.
   if [ $((attempt % 2)) -eq 1 ]; then

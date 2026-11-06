@@ -1706,6 +1706,29 @@ describe("isPausedAll", () => {
   });
 });
 
+describe("loosePlaying, what Now Playing names without a playlist", () => {
+  const sceneTracks = [
+    { id: "t1", playlist_id: "p", sound_id: "bed", sort_order: 0, created_at: "", sound: { id: "bed", file_url: "https://example.test/bed.mp3", name: "Bed", artist: null, thumbnail_url: null, gain_trim: 1 } },
+  ] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playAmbientPlaylist"]>[1];
+
+  it("lists a pad's sound with its bus and the name its press gave it, and leaves a scene's layers to the scene", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, sceneTracks);
+    store.play("song", "https://example.test/song.mp3", "music", undefined, { title: "Mori no Chiisana Restaurant" });
+    await flush();
+    expect(store.loosePlaying).toEqual([{ bus: "music", title: "Mori no Chiisana Restaurant" }]);
+  });
+
+  it("drops a sound once it stops", async () => {
+    const store = await loadStore();
+    store.play("song", "https://example.test/song.mp3", "music", undefined, { title: "Song" });
+    await flush();
+    store.stop("song");
+    await flush();
+    expect(store.loosePlaying).toEqual([]);
+  });
+});
+
 describe("bus effects", () => {
   it("puts one bus in a space and leaves the others dry", async () => {
     const store = await loadStore();
