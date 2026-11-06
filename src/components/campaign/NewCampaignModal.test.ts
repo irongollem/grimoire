@@ -1,9 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getCalendarAdapter } from "@/settings/index";
+import { defaultCurrencyFor } from "@/systems/registry";
 import NewCampaignModal from "./NewCampaignModal.vue";
 
-/** The edition is asked first (#943), with the choice of letting both editions sit down. */
+/** The game system is asked first (#943, #934), with the choice of letting a compatible system's characters sit down. */
 const mocks = vi.hoisted(() => ({ createCampaign: vi.fn(), claim: vi.fn() }));
 
 vi.mock("@/composables/campaign/useCampaigns", () => ({
@@ -34,33 +35,78 @@ beforeEach(() => {
 });
 
 describe("NewCampaignModal", () => {
-  it("renders the edition before the name", () => {
+  it("renders the game system before the name", () => {
     const text = mountModal().text();
-    expect(text.indexOf("RULES EDITION")).toBeGreaterThanOrEqual(0);
-    expect(text.indexOf("RULES EDITION")).toBeLessThan(text.indexOf("NAME"));
+    expect(text.indexOf("GAME SYSTEM")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("GAME SYSTEM")).toBeLessThan(text.indexOf("NAME"));
+    expect(text).not.toContain("RULES EDITION");
   });
 
-  it("starts with no edition chosen and cannot create a campaign without one", async () => {
+  it("offers every game system, none chosen, and cannot create a campaign without one", async () => {
     const wrapper = mountModal();
-    expect(wrapper.findAll('[role="radio"]').map((option) => option.attributes("aria-checked"))).toEqual(["false", "false"]);
+    expect(wrapper.findAll('[role="radio"]').map((option) => option.attributes("aria-checked"))).toEqual(["false", "false", "false"]);
+    await chooseCalendar(wrapper, "gregorian");
     await wrapper.find("form").trigger("submit");
     await flushPromises();
     expect(mocks.createCampaign).not.toHaveBeenCalled();
   });
 
-  it("submits the chosen edition and the mixed-edition choice", async () => {
+  it("submits the chosen game system and the mixed-characters choice", async () => {
     const wrapper = mountModal();
     await wrapper.findAll('[role="radio"]')[1].trigger("click");
     await chooseCalendar(wrapper, "gregorian");
     await wrapper.find('input[type="checkbox"]').setValue(true);
     await wrapper.find("form").trigger("submit");
     await flushPromises();
-    const [payload] = mocks.createCampaign.mock.calls[0] as [{ ruleset: string; allows_mixed_rulesets: boolean }];
-    expect(payload.ruleset).toBe("2024");
+    const [payload] = mocks.createCampaign.mock.calls[0] as [{ game_system: string; allows_mixed_rulesets: boolean }];
+    expect(payload.game_system).toBe("dnd5e-2024");
     expect(payload.allows_mixed_rulesets).toBe(true);
+    expect(payload).not.toHaveProperty("ruleset");
   });
 
-  it("defaults to a single-edition table", async () => {
+  it("names the compatible system in the mixed-characters choice", async () => {
+    const wrapper = mountModal();
+    await wrapper.findAll('[role="radio"]')[0].trigger("click");
+    expect(wrapper.text()).toContain("Allow characters built for D&D 5e (2024)");
+  });
+
+  // Fails if the currency is left to the database default: a Generic campaign would start with the five 5e coins.
+  it("starts a campaign with its system's coins", async () => {
+    const generic = mountModal();
+    await generic.findAll('[role="radio"]')[2].trigger("click");
+    await chooseCalendar(generic, "gregorian");
+    await generic.find("form").trigger("submit");
+    await flushPromises();
+    const [genericPayload] = mocks.createCampaign.mock.calls[0] as [{ currency: { denominations: unknown[] } }];
+    expect(genericPayload.currency).toEqual(defaultCurrencyFor("generic"));
+    expect(genericPayload.currency.denominations).toHaveLength(1);
+
+    mocks.createCampaign.mockClear();
+    const fiveE = mountModal();
+    await fiveE.findAll('[role="radio"]')[0].trigger("click");
+    await chooseCalendar(fiveE, "gregorian");
+    await fiveE.find("form").trigger("submit");
+    await flushPromises();
+    const [fiveEPayload] = mocks.createCampaign.mock.calls[0] as [{ currency: unknown }];
+    expect(fiveEPayload.currency).toEqual(defaultCurrencyFor("dnd5e-2014"));
+  });
+
+  // Fails if the mixed toggle shows for Generic, or a box ticked under 5e follows the DM to Generic (the database refuses it).
+  it("offers no mixed-characters choice for Generic and never sends one", async () => {
+    const wrapper = mountModal();
+    await wrapper.findAll('[role="radio"]')[0].trigger("click");
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+    await wrapper.findAll('[role="radio"]')[2].trigger("click");
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false);
+    await chooseCalendar(wrapper, "gregorian");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    const [payload] = mocks.createCampaign.mock.calls[0] as [{ game_system: string; allows_mixed_rulesets: boolean }];
+    expect(payload.game_system).toBe("generic");
+    expect(payload.allows_mixed_rulesets).toBe(false);
+  });
+
+  it("defaults to a single-system table", async () => {
     const wrapper = mountModal();
     await wrapper.findAll('[role="radio"]')[0].trigger("click");
     await chooseCalendar(wrapper, "gregorian");

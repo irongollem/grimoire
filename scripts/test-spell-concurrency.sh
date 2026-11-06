@@ -30,8 +30,8 @@ psql "$spell_test_db" -v ON_ERROR_STOP=1 -q <<SQL
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('$spell_test_user', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
   'spell-concurrency@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
-insert into public.campaigns (id, user_id, name, ruleset)
-values ('$spell_test_campaign', '$spell_test_user', 'Spell concurrency', '2024');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('$spell_test_campaign', '$spell_test_user', 'Spell concurrency', 'dnd5e-2024');
 insert into public.party_members (id, user_id, campaign_id, name, ruleset, level, cha, proficiency_bonus, spell_slots, class_resources, class_choices)
 values ('$spell_test_member', '$spell_test_user', '$spell_test_campaign', 'Concurrent Sorcerer', '2024', 7, 18, 3,
   '[{"level":1,"max":1,"used":0,"pool":"spellcasting","recovery":"long"}]'::jsonb,

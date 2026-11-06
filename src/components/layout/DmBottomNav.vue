@@ -99,6 +99,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { sessionTabs, type NavItem } from "@/lib/nav";
 import { useAbove } from "@/composables/useBreakpoint";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
@@ -113,6 +114,8 @@ const appUi = useAppUiStore();
 const soundboardUi = useSoundboardUiStore();
 const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 
+const { offers } = useGameSystem();
+
 const isDm = computed(() => auth.currentRole === "dm");
 
 const moreOpen = ref(false);
@@ -120,7 +123,7 @@ const moreOpen = ref(false);
 // The pools live in the nav registry alongside the sidebar's own ordering, so
 // a label or icon cannot say one thing here and another there — see
 // SESSION_TAB_ROUTES for why the bar's order ignores the sidebar's groups.
-const tabs = computed(() => sessionTabs(appUi.dmMode === "play" ? "play" : "prep"));
+const tabs = computed(() => sessionTabs(appUi.dmMode === "play" ? "play" : "prep", offers));
 
 // Bar-mode viewport width decides how much of the pool actually shows: 8
 // slots (6 tabs + FAB + More) fit at md (768), 10 at lg (1024), 12 at xl

@@ -21,11 +21,11 @@ const Header = defineComponent({
   template: "<header><h2>{{ title }}</h2><p>{{ subtitle }}</p></header>",
 });
 
-function mountDialog(bring: (id: string) => Promise<void>) {
+function mountDialog(bring: (id: string) => Promise<void>, campaignGameSystem: "dnd5e-2014" | "generic" = "dnd5e-2014") {
   return mount(RulesetBounceDialog, {
     props: {
       character: { id: "c1", name: "Mira", ruleset: "2024" as const },
-      campaignRuleset: "2014" as const,
+      campaignGameSystem,
       campaignName: null,
       bring,
     },
@@ -95,5 +95,14 @@ describe("RulesetBounceDialog", () => {
     const wrapper = mountDialog(vi.fn());
     await button(wrapper, "Choose another character").trigger("click");
     expect(wrapper.emitted("chooseAnother")).toHaveLength(1);
+  });
+
+  // Fails if a Generic table still offers a conversion: there is no edition to convert to, and the click would send a copy request for nothing.
+  it("offers no conversion at a Generic table, only another character", () => {
+    const wrapper = mountDialog(vi.fn(), "generic");
+    expect(wrapper.text()).toContain("This table plays Generic");
+    expect(wrapper.find("[data-testid='bounce-no-conversion']").exists()).toBe(true);
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Convert a copy and join"))).toBe(false);
+    expect(button(wrapper, "Choose another character").exists()).toBe(true);
   });
 });

@@ -8,8 +8,9 @@ import {
   type EditionCampaign,
 } from "./characterCreationEdition";
 
-const STRICT_2014: EditionCampaign = { id: "campaign-1", name: "Strahd", ruleset: "2014", allows_mixed_rulesets: false };
-const MIXED_2024: EditionCampaign = { id: "campaign-2", name: "Waterdeep", ruleset: "2024", allows_mixed_rulesets: true };
+const STRICT_2014: EditionCampaign = { id: "campaign-1", name: "Strahd", game_system: "dnd5e-2014", allows_mixed_rulesets: false };
+const GENERIC: EditionCampaign = { id: "campaign-3", name: "Freeform", game_system: "generic", allows_mixed_rulesets: false };
+const MIXED_2024: EditionCampaign = { id: "campaign-2", name: "Waterdeep", game_system: "dnd5e-2024", allows_mixed_rulesets: true };
 
 describe("creationLandingCampaign", () => {
   it("is the active campaign for a DM roster create", () => {
@@ -41,9 +42,20 @@ describe("initialCreationRuleset", () => {
     expect(initialCreationRuleset(MIXED_2024)).toBe("2024");
     expect(initialCreationRuleset(null)).toBeNull();
   });
+  // Fails if a Generic table's missing edition fell back to 2014: the player has to choose, and nothing fits anyway.
+  it("is nothing at a Generic table, which has no edition to offer", () => {
+    expect(initialCreationRuleset(GENERIC)).toBeNull();
+  });
 });
 
 describe("editionStepNotes", () => {
+  it("refuses both editions at a Generic table", () => {
+    const notes = editionStepNotes({ landing: GENERIC, isDmCreate: false });
+    expect(notes["2014"]).toMatch(/does not take/);
+    expect(notes["2024"]).toMatch(/does not take/);
+    expect(notes["2014"]).not.toMatch(/plays this/);
+  });
+
   it("says nothing without a table", () => {
     expect(editionStepNotes({ landing: null, isDmCreate: false })).toEqual({});
   });

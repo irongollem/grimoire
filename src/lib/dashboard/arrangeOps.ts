@@ -1,8 +1,10 @@
+import type { GameFeature } from "@/systems/registry";
 import {
   DASHBOARD_WIDGETS,
   defaultHeightFor,
   heightsFor,
   widgetById,
+  widgetOffered,
   type DashboardSurface,
   type DashboardWidgetDef,
 } from "./widgetCatalog";
@@ -327,6 +329,7 @@ export function instanceKey(entries: readonly DashboardLayoutEntry[], id: string
 export function shelfWidgets(
   entries: readonly DashboardLayoutEntry[],
   surface: DashboardSurface,
+  offers: (feature: GameFeature) => boolean,
 ): DashboardWidgetDef[] {
   const placed = new Map<string, number>();
   for (const entry of entries) {
@@ -334,7 +337,9 @@ export function shelfWidgets(
   }
   return DASHBOARD_WIDGETS.filter(
     (widget) =>
-      widget.surfaces.includes(surface) && (placed.get(widget.id) ?? 0) < widget.maxInstances,
+      widget.surfaces.includes(surface) &&
+      widgetOffered(widget, offers) &&
+      (placed.get(widget.id) ?? 0) < widget.maxInstances,
   );
 }
 

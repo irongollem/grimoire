@@ -5,6 +5,7 @@ import { defineComponent, h, nextTick, ref, type Ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { editionGameSystem } from "@/systems/registry";
 import {
   provideCharacterRuleset,
   provideRuleset,
@@ -19,7 +20,7 @@ type Seen = { build: RulesetKey; table: RulesetKey };
 function setCampaign(id: string | null, ruleset: RulesetKey | null) {
   const store = useCampaignStore();
   store.activeCampaignId = id;
-  store.activeCampaign = id && ruleset ? ({ id, ruleset } as Campaign) : null;
+  store.activeCampaign = id && ruleset ? ({ id, game_system: editionGameSystem(ruleset) } as Campaign) : null;
 }
 
 /** Reads both views in its own setup and exposes them. */

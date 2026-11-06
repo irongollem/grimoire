@@ -12,6 +12,8 @@
  * (module-placement rule: pure-logic modules don't reach into feature UI).
  */
 
+import type { GameFeature } from "@/systems/registry";
+
 export type DashboardSurface = "prep" | "session";
 export type WidgetWidth = "cell" | "wide" | "full";
 
@@ -127,6 +129,21 @@ export interface DashboardWidgetDef {
    * a widget is configurable without being able to see the editor.
    */
   configurable?: true;
+  /**
+   * The game-system feature this widget needs (#934). A system that does not
+   * offer it neither renders the widget nor lists it on the shelf; a saved
+   * layout holding one simply skips it, like an id this build has never heard
+   * of. Untagged widgets are neutral and show in every system.
+   */
+  feature?: GameFeature;
+}
+
+/** Whether a game system's features include what the widget needs (`useGameSystem().offers`). */
+export function widgetOffered(
+  widget: DashboardWidgetDef,
+  offers: (feature: GameFeature) => boolean,
+): boolean {
+  return widget.feature === undefined || offers(widget.feature);
 }
 
 const BOTH_SURFACES: readonly DashboardSurface[] = ["prep", "session"];
@@ -163,6 +180,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "unidentified",
+    feature: "item-vault",
     title: "Unidentified",
     description: "Party loot still waiting to be identified.",
     widths: LIST_WIDTHS,
@@ -182,6 +200,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "party",
+    feature: "party",
     title: "Party",
     description: "The party roster at a glance.",
     widths: FULL_ONLY,
@@ -211,6 +230,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "live-encounter",
+    feature: "encounters",
     title: "Live encounter",
     description: "Live encounter banner; shows only while a combat is running.",
     widths: FULL_ONLY,
@@ -232,6 +252,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "dm-screen-card",
+    feature: "reliquary",
     title: "DM screen card",
     description: "One reference table from the DM screen: pick which, add as many as you like.",
     widths: LIST_WIDTHS,
@@ -257,6 +278,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "conditions",
+    feature: "reliquary",
     title: "Conditions",
     description: "All sixteen conditions, with the rules text one tap away.",
     widths: LIST_WIDTHS,
@@ -266,6 +288,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "monster-pull",
+    feature: "bestiary",
     title: "Monster quick-pull",
     description: "A random monster for an improvised encounter, filtered by CR and type.",
     widths: LIST_WIDTHS,
@@ -297,6 +320,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "initiative-mini",
+    feature: "encounters",
     title: "Initiative",
     description: "Whose turn, what round, and everyone's HP; only while a combat is running.",
     widths: LIST_WIDTHS,
@@ -307,6 +331,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "encounter-gaps",
+    feature: "encounters",
     title: "Encounters needing prep",
     description: "Encounters missing combatants, a location or a reward.",
     widths: LIST_WIDTHS,
@@ -325,6 +350,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "recent-monsters",
+    feature: "bestiary",
     title: "Recently discovered monsters",
     description: "Bestiary entries the party has met lately.",
     widths: FULL_ONLY,
@@ -347,6 +373,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "rules-search",
+    feature: "reliquary",
     title: "Rules search",
     description: "Search the compendium without leaving the dashboard.",
     widths: LIST_WIDTHS,
@@ -356,6 +383,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "cursed-items",
+    feature: "item-vault",
     title: "Cursed items",
     description: "Cursed loot the party does not know about yet.",
     widths: LIST_WIDTHS,
@@ -463,6 +491,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "table-vitals",
+    feature: "party",
     title: "Table vitals",
     description: "Remaining spell slots, class resources and concentration, at a glance.",
     widths: LIST_WIDTHS,
@@ -480,6 +509,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
   },
   {
     id: "death-saves",
+    feature: "party",
     title: "Death saves",
     description: "Appears only while someone is dying: successes, failures, how close to either end.",
     // All three widths, though the card is never more than a few rows. The

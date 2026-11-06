@@ -9,6 +9,7 @@ import { CONDITIONS, getConditionDescription } from "@/rules/conditions";
 import type { Campaign } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { editionGameSystem } from "@/systems/registry";
 
 const update = vi.hoisted(() => vi.fn());
 vi.mock("@/composables/party/useParty", () => ({
@@ -31,7 +32,7 @@ function member(ruleset: RulesetKey, campaignId: string | null): PartyMember {
 function seatCampaign(ruleset: RulesetKey) {
   const store = useCampaignStore();
   store.activeCampaignId = CAMPAIGN_ID;
-  store.activeCampaign = { id: CAMPAIGN_ID, ruleset } as Campaign;
+  store.activeCampaign = { id: CAMPAIGN_ID, game_system: editionGameSystem(ruleset) } as Campaign;
 }
 
 /** What PartyTrackerRow does: scope the character, then render what is under it. */

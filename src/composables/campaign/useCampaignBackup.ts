@@ -19,7 +19,9 @@ import { remapBooksForImport } from "@/lib/scriptorium/bookTransfer";
 import type { JSONContent } from "@tiptap/core";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
 import { downloadBlob } from "@/lib/downloadBlob";
+import { isGameSystemKey } from "@/systems/registry";
 import { upgradeEncounterCoins, upgradeLootTableCoins, upgradePartyMemberCoins } from "@/lib/campaign/legacyCoins";
+import { upgradeLegacyGameSystem } from "@/lib/campaign/legacyGameSystem";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -553,7 +555,7 @@ export async function executeImport(
 
   // 1. Insert campaign
   const campaignInsert: Row = {
-    // `ruleset` and `allows_mixed_rulesets` ride along in this spread: the
+    // `game_system` and `allows_mixed_rulesets` ride along in this spread: the
     // restored campaign must keep both for its characters' editions to stay valid.
     ...backup.campaign,
     id: newCampaignId,
@@ -1243,6 +1245,12 @@ export function assertBackupCarriesCharacterEditions(backup: GrimoireBackup): vo
       `This backup is incomplete: ${dangling.length} character class(es) point at a class or subclass the file does not carry. Make a new backup from the campaign it came from.`,
     );
   }
+  // A campaign plays a game system (#934). A file from before that names an
+  // edition instead, which `upgradeLegacyGameSystem` has already translated;
+  // one that names neither cannot be placed in any system.
+  if (!isGameSystemKey(backup.campaign.game_system)) {
+    throw new RefusedBackupError(`${outdated} (The campaign does not record its game system.)`);
+  }
 }
 
 export function parseBackupFile(file: File): Promise<GrimoireBackup> {
@@ -1251,6 +1259,7 @@ export function parseBackupFile(file: File): Promise<GrimoireBackup> {
     reader.onload = (e) => {
       try {
         const json = JSON.parse(e.target!.result as string) as GrimoireBackup;
+        if (json && typeof json.campaign === "object" && json.campaign !== null) json.campaign = upgradeLegacyGameSystem(json.campaign);
         if (json.file_type !== "backup") {
           reject(new Error("Invalid file type. This appears to be a world bundle (.grimoire), not a campaign backup."));
           return;

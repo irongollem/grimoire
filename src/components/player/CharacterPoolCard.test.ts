@@ -36,8 +36,8 @@ vi.mock("@/composables/party/useCharacterPool", () => ({
 }));
 
 const character = { id: "pm1", name: "Mira", class: "Wizard", level: 3, ruleset: "2024", portrait_url: null } as unknown as PartyMember;
-const strict = { id: "c14", name: "Old Keep", ruleset: "2014", allows_mixed_rulesets: false } as Campaign;
-const open = { id: "c24", name: "New Keep", ruleset: "2024", allows_mixed_rulesets: false } as Campaign;
+const strict = { id: "c14", name: "Old Keep", game_system: "dnd5e-2014", allows_mixed_rulesets: false } as Campaign;
+const open = { id: "c24", name: "New Keep", game_system: "dnd5e-2024", allows_mixed_rulesets: false } as Campaign;
 
 function mountCard() {
   return mount(CharacterPoolCard, {
@@ -78,7 +78,7 @@ describe("CharacterPoolCard editions", () => {
     await tableButton(wrapper, "Old Keep").trigger("click");
     expect(attach).not.toHaveBeenCalled();
     const dialog = wrapper.findComponent({ name: "RulesetBounceDialog" });
-    expect(dialog.props("campaignRuleset")).toBe("2014");
+    expect(dialog.props("campaignGameSystem")).toBe("dnd5e-2014");
     expect(dialog.props("campaignName")).toBe("Old Keep");
   });
 
@@ -93,7 +93,7 @@ describe("CharacterPoolCard editions", () => {
   it("opens the dialog when an attach is refused anyway, and toasts any other failure", async () => {
     attach.mockRejectedValueOnce({
       code: "RS001",
-      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014" }),
+      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014", campaign_game_system: "dnd5e-2014" }),
     });
     const wrapper = mountCard();
     await openPicker(wrapper);

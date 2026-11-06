@@ -31,6 +31,7 @@
  * and gating it behind the AI toggle would strand a DM who has AI disabled
  * with nothing but duplicate rows on every import.
  */
+import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
@@ -129,8 +130,8 @@ interface RetrievalContext {
   /** campaigns.user_id — the owner whose global rows are in scope, never the caller. */
   ownerId: string;
   embeddingModel: string;
-  /** "2014" | "2024" — derived the same way generate-encounter derives it. */
-  ruleset: string;
+  /** The campaign system's 5e edition; undefined for Generic, which has no monster or item library (#934). */
+  ruleset: string | undefined;
   /** campaign_enabled_sources.source_slug rows, for the library side of monsters/items. */
   enabledSlugs: string[];
 }
@@ -201,6 +202,10 @@ async function fetchSimilarCandidates(
       .filter((r) => r.distance <= maxDistance)
       .map((r) => toSimilarCandidate("campaign", r.id, r.name, locationDetail(r), r.distance));
   }
+
+  // Generic campaign: no 5e monsters or items exist to match against, so there
+  // is nothing to suggest (never a fabricated 2014 scope).
+  if ((kind === "monsters" || kind === "items") && !ctx.ruleset) return [];
 
   if (kind === "monsters") {
     const [customRes, libraryRes] = await Promise.all([
@@ -318,7 +323,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ruleset")
+    .select("id, user_id, game_system")
     .eq("id", importRow.campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -407,12 +412,9 @@ serve(withCors(async (req: Request) => {
       });
 
       const needsMonsterOrItem = semanticEntities.some((e) => e.kind === "monsters" || e.kind === "items");
-      let ruleset = "2014";
+      const ruleset = gameSystemEdition(campaign.game_system);
       let enabledSlugs: string[] = [];
-      if (needsMonsterOrItem) {
-        // Same derivation generate-encounter uses -- ruleset is a two-value
-        // enum on the campaign, everything else collapses to "2014".
-        ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+      if (needsMonsterOrItem && ruleset) {
         const { data: enabledSourceRows, error: enabledSourceError } = await admin
           .from("campaign_enabled_sources")
           .select("source_slug")

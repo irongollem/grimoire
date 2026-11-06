@@ -1,10 +1,13 @@
 import { nextTick } from "vue";
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import DashboardShelf from "./DashboardShelf.vue";
 import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import { DASHBOARD_WIDGETS, type DashboardWidgetId } from "@/lib/dashboard/widgetCatalog";
 import { shelfWidgets } from "@/lib/dashboard/arrangeOps";
+
+const offersAll = () => true;
+vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ offers: () => true }) }));
 
 const prep = (): DashboardLayoutEntry[] =>
   DEFAULT_LAYOUTS.prep.widgets.map((entry) => ({ ...entry }));
@@ -42,13 +45,13 @@ describe("DashboardShelf", () => {
   // widget the DM wants or offers one that cannot be placed.
   it("offers exactly the widgets the layout has no room for", () => {
     const wrapper = open(prep());
-    const expected = shelfWidgets(prep(), "prep").map((widget) => widget.id);
+    const expected = shelfWidgets(prep(), "prep", offersAll).map((widget) => widget.id);
     expect(optionsOf(wrapper).map((option) => option.id)).toEqual(expected);
   });
 
   it("carries each widget's title and description into the option", () => {
     const first = optionsOf(open(prep()))[0];
-    const widget = shelfWidgets(prep(), "prep")[0];
+    const widget = shelfWidgets(prep(), "prep", offersAll)[0];
     expect(first?.name).toBe(widget?.title);
     expect(first?.description).toBe(widget?.description);
   });

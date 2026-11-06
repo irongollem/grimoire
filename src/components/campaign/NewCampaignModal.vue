@@ -5,15 +5,16 @@
     <form class="min-h-0 flex-1 flex flex-col overflow-hidden" @submit.prevent="submit">
       <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
         <div>
-          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">RULES EDITION</label>
-          <RulesetPicker v-model="form.ruleset" label="Rules edition" />
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">GAME SYSTEM</label>
+          <GameSystemPicker v-model="form.game_system" label="Game system" />
           <p class="text-caption text-muted-foreground mt-1">
-            Applies to character options, spells, creatures, items, rests, and encounter rules.
+            Decides the character sheets, creatures, items, rests and encounter rules this campaign uses. It cannot be changed to an unrelated system later.
           </p>
           <AppCheckbox
+            v-if="compatibleLabels.length > 0"
             v-model="form.allows_mixed_rulesets"
-            label="Allow characters built with the other edition"
-            hint="When unticked, a character built with the other edition is asked to bring a converted copy."
+            :label="`Allow characters built for ${compatibleLabels.join(' or ')}`"
+            hint="When unticked, a character built for another system is asked to bring a converted copy."
             class="mt-2 gap-2.5"
           />
         </div>
@@ -105,7 +106,7 @@
           type="submit"
           variant="primary"
           size="md"
-          :disabled="isSaving || !form.ruleset || form.calendar_id === null || calendarProblem !== null"
+          :disabled="isSaving || !form.game_system || form.calendar_id === null || calendarProblem !== null"
           :label="isSaving ? 'Saving…' : 'Create Campaign'"
         />
       </div>
@@ -134,8 +135,8 @@ import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import { customCalendarProblem } from "@/lib/calendar/customCalendar";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import type { Campaign } from "@/types/campaign.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import RulesetPicker from "@/components/rules/RulesetPicker.vue";
+import GameSystemPicker from "@/components/rules/GameSystemPicker.vue";
+import { defaultCurrencyFor, gameSystemLabel, switchableGameSystems, type GameSystemKey } from "@/systems/registry";
 
 const open = defineModel<boolean>({ required: true });
 const { showClaimOption = false } = defineProps<{
@@ -151,25 +152,30 @@ const { mutateAsync: claimOrphans } = useClaimOrphanedData();
 
 const availableCalendars = listCalendarAdapters();
 
-// The edition and the calendar both start unchosen. The edition is asked first
-// (#943), and a preselected one is an edition nobody picked; a preselected
-// calendar was Faerûn, a world nobody picked. The form cannot be submitted
-// without either.
+// The game system and the calendar both start unchosen. The system is asked
+// first (#943, #934), and a preselected one is a system nobody picked; a
+// preselected calendar was Faerûn, a world nobody picked. The form cannot be
+// submitted without either.
 const form = ref<{
   name: string;
   setting: string;
   calendar_id: string | null;
   current_year: number;
-  ruleset: RulesetKey | null;
+  game_system: GameSystemKey | null;
   allows_mixed_rulesets: boolean;
 }>({
   name: "",
   setting: "",
   calendar_id: null,
   current_year: 1,
-  ruleset: null,
+  game_system: null,
   allows_mixed_rulesets: false,
 });
+// The systems whose characters this one can seat, named for the checkbox. None for
+// a system compatible with nothing (Generic), which has no such choice to offer.
+const compatibleLabels = computed(() =>
+  form.value.game_system === null ? [] : switchableGameSystems(form.value.game_system).map(gameSystemLabel),
+);
 const customCalendarDef = ref<SettingCalendarDef | null>(null);
 const claimExisting = ref(true);
 const showPaywall = ref(false);
@@ -181,7 +187,7 @@ watch(open, (isOpen) => {
       setting: "",
       calendar_id: null,
       current_year: 1,
-      ruleset: null,
+      game_system: null,
       allows_mixed_rulesets: false,
     };
     customCalendarDef.value = null;
@@ -221,17 +227,20 @@ const calendarProblem = computed(() =>
 );
 
 async function submit() {
-  const ruleset = form.value.ruleset;
+  const gameSystem = form.value.game_system;
   const calendarId = form.value.calendar_id;
-  if (!ruleset || calendarId === null || calendarProblem.value !== null) return;
+  if (!gameSystem || calendarId === null || calendarProblem.value !== null) return;
   try {
     const created = await createCampaign({
       name: form.value.name,
       setting: form.value.setting.trim() || null,
       calendar_id: calendarId,
       current_year: form.value.current_year,
-      ruleset,
-      allows_mixed_rulesets: form.value.allows_mixed_rulesets,
+      game_system: gameSystem,
+      // A box ticked for one system must not follow the DM to a system that has no such choice.
+      allows_mixed_rulesets: compatibleLabels.value.length > 0 && form.value.allows_mixed_rulesets,
+      // A Generic campaign starts with one coin, not the five of 5e.
+      currency: defaultCurrencyFor(gameSystem),
       theme: DEFAULT_THEME_ID,
       health_visibility: "strategic",
       immersive_rolls: false,

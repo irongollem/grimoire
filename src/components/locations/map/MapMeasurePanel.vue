@@ -85,6 +85,7 @@ import {
   TRAVEL_PACES,
   type TravelPaceId,
 } from "@/rules/travelPace";
+import { gameSystemEdition } from "@/systems/registry";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import type { MapScale } from "@/types/location.types";
@@ -104,6 +105,7 @@ const emit = defineEmits<{ undo: []; clear: []; close: [] }>();
 const PACE_OPTIONS = TRAVEL_PACES.map((p) => ({ value: p.id, label: p.label }));
 
 const router = useRouter();
+const campaign = useCampaignStore();
 
 /** The map editor is where the scale is set (`PlaceMapPinsEditor`). */
 function openEditor() {
@@ -119,6 +121,7 @@ const routeNames = computed(() => {
 });
 
 const { ruleset: tableRuleset } = useTableRuleset();
+const hasEdition = computed(() => gameSystemEdition(campaign.activeGameSystem) !== undefined);
 
 /** What the pace costs, in the map's unit, and the travel day it assumes. */
 const paceNote = computed(() => {
@@ -126,7 +129,9 @@ const paceNote = computed(() => {
   const unit = scale?.unit ?? "mi";
   const perDay = formatDistance(fromMiles(pace.milesPerDay, unit), unit);
   // The effect is the one difference between the editions' pace rules.
-  const words = pace.effect[tableRuleset.value];
+  // A system with no 5e edition has no pace effect to quote (#934): `tableRuleset`
+  // falls back to 2014 there, so it is not read.
+  const words = hasEdition.value ? pace.effect[tableRuleset.value] : undefined;
   const effect = words ? ` ${words}` : "";
   return `${perDay} a day, ${TRAVEL_HOURS_PER_DAY} travel hours a day.${effect}`;
 });
@@ -134,7 +139,6 @@ const paceNote = computed(() => {
 // ── Add to calendar ───────────────────────────────────────────────────────────
 const eventOpen = ref(false);
 const calendar = useCalendarStore();
-const campaign = useCampaignStore();
 const { data: party } = useParty();
 
 /** The party members standing at the route's first place: they are the ones

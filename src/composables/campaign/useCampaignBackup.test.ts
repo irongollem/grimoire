@@ -46,7 +46,7 @@ function backupWith(over: Record<string, unknown>): GrimoireBackup {
   const base: Record<string, unknown> = {
     version: "2",
     file_type: "backup",
-    campaign: { id: "old-camp", name: "Old" },
+    campaign: { id: "old-camp", name: "Old", game_system: "dnd5e-2024" },
     ...over,
   };
   return new Proxy(base, {
@@ -104,6 +104,19 @@ describe("assertBackupCarriesCharacterEditions definitions", () => {
   });
 });
 
+describe("assertBackupCarriesCharacterEditions game system", () => {
+  // Fails if the check is dropped: a pre-#934 file names `ruleset` and would be restored into a campaign with no system.
+  it("refuses a backup whose campaign names no game system", () => {
+    const backup = backupWith({ campaign: { id: "old-camp", name: "Old", ruleset: "2024" } });
+    expect(() => assertBackupCarriesCharacterEditions(backup)).toThrow(/game system/);
+  });
+
+  it("accepts a Generic campaign", () => {
+    const backup = backupWith({ campaign: { id: "old-camp", name: "Old", game_system: "generic" } });
+    expect(() => assertBackupCarriesCharacterEditions(backup)).not.toThrow();
+  });
+});
+
 describe("executeImport restored campaign", () => {
   beforeEach(() => {
     inserted.length = 0;
@@ -122,7 +135,7 @@ describe("executeImport restored campaign", () => {
         anthropic_api_key: "sk-ant-old",
         gemini_api_key: "g-old",
         spotify_client_id: "sp-old",
-        ruleset: "2024",
+        game_system: "dnd5e-2024",
       },
     });
     const campaign = (await executeImport(backup, "Restored")) as { id: string };
@@ -135,7 +148,7 @@ describe("executeImport restored campaign", () => {
       anthropic_api_key: null,
       gemini_api_key: null,
       spotify_client_id: null,
-      ruleset: "2024",
+      game_system: "dnd5e-2024",
     });
     expect(row.id).not.toBe("old-camp");
     expect(row.id).toBe(campaign.id);
@@ -755,11 +768,19 @@ describe("restoring coins (#934)", () => {
 
 describe("parseBackupFile versions", () => {
   const file = (version: string) =>
-    new File([JSON.stringify({ version, file_type: "backup", quest_consequences: [], party_members: [], character_classes: [], custom_classes: [], custom_subclasses: [] })], "b.grimoire-backup");
+    new File([JSON.stringify({ version, file_type: "backup", campaign: { id: "c", game_system: "dnd5e-2014" }, quest_consequences: [], party_members: [], character_classes: [], custom_classes: [], custom_subclasses: [] })], "b.grimoire-backup");
 
   it("accepts versions 2 and 3 and refuses an older one with a message naming what it restores", async () => {
     await expect(parseBackupFile(file("2"))).resolves.toMatchObject({ version: "2" });
     await expect(parseBackupFile(file("3"))).resolves.toMatchObject({ version: "3" });
     await expect(parseBackupFile(file("1"))).rejects.toThrow(/versions 2 and 3/);
+  });
+
+  // Bug: every backup made before campaigns carried a game system was refused,
+  // and its old `ruleset` key would have ridden into an insert on a dropped column.
+  it("reads an older backup's edition as its game system", async () => {
+    const old = new File([JSON.stringify({ version: "3", file_type: "backup", campaign: { id: "c", ruleset: "2024" }, quest_consequences: [], party_members: [], character_classes: [], custom_classes: [], custom_subclasses: [] })], "b.grimoire-backup");
+    const backup = await parseBackupFile(old);
+    expect(backup.campaign).toEqual({ id: "c", game_system: "dnd5e-2024" });
   });
 });

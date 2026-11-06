@@ -1,4 +1,5 @@
 import type { Component } from "vue";
+import type { GameFeature } from "@/systems/registry";
 import {
   IconNetwork,
   IconNavAtlas,
@@ -30,6 +31,11 @@ export interface PlayerNavItem {
    * seeing a portal tab for a module the DM has switched off.
    */
   ruleKey?: string;
+  /**
+   * Hides this tab when the campaign's game system does not offer the feature
+   * (#934). Untagged tabs are neutral and show in every system.
+   */
+  feature?: GameFeature;
   /** Available even when no campaign membership is currently active. */
   standalone?: boolean;
 }
@@ -39,19 +45,21 @@ export interface PlayerNavItem {
 // Quests glyph (no dedicated backpack/journal glyph exists).
 export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { id: "hearth", to: "/play", label: "Hearth", icon: IconNavHearth },
-  { id: "character", to: "/play/character", label: "Character", icon: IconNavCharacterSheet },
-  { id: "spells", to: "/play/spells", label: "Spellbook", icon: IconNavSpellbook },
+  { id: "character", to: "/play/character", label: "Character", icon: IconNavCharacterSheet, feature: "party" },
+  { id: "spells", to: "/play/spells", label: "Spellbook", icon: IconNavSpellbook, feature: "spellbook" },
   { id: "journal", to: "/play/journal", label: "Journal", icon: IconNavQuests },
-  { id: "inventory", to: "/play/inventory", label: "Inventory", icon: IconNavItemVault },
+  { id: "inventory", to: "/play/inventory", label: "Inventory", icon: IconNavItemVault, feature: "party" },
   { id: "calendar", to: "/play/calendar", label: "Calendar", icon: IconNavCalendar },
+  // No `feature`: People holds the NPC ledger, which every system has. The party
+  // strip inside it hides itself where the system has no party (#934).
   { id: "party", to: "/play/party", label: "People", icon: IconNavParty },
   // The wall outlives a membership, so it stays reachable with no active campaign (#982).
   { id: "fallen", to: "/play/fallen", label: "Hall of the Fallen", icon: IconNavFallen, standalone: true },
   { id: "crafting", to: "/play/crafting", label: "Workshop", icon: IconNavWorkshop, ruleKey: "crafting" },
   { id: "downtime", to: "/play/downtime", label: "Interlude", icon: IconNavInterlude, ruleKey: "downtime" },
   { id: "atlas", to: "/play/atlas", label: "Atlas", icon: IconNavAtlas },
-  { id: "bestiary", to: "/play/bestiary", label: "Bestiary", icon: IconNavBestiary },
-  { id: "rules", to: "/play/rules", label: "Reliquary", icon: IconNavReliquary },
+  { id: "bestiary", to: "/play/bestiary", label: "Bestiary", icon: IconNavBestiary, feature: "bestiary" },
+  { id: "rules", to: "/play/rules", label: "Reliquary", icon: IconNavReliquary, feature: "reliquary" },
   { id: "factions", to: "/play/factions", label: "Factions", icon: IconNavFactions },
   // What the character knows of the world's ties, focus-first (#1084).
   { id: "web", to: "/play/web", label: "World web", icon: IconNetwork },
@@ -70,6 +78,14 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
 export function isNavItemActive(to: string, path: string): boolean {
   if (to === "/play") return path === "/play";
   return path === to || path.startsWith(to + "/");
+}
+
+/**
+ * Whether a tab shows for a system. The one rule behind the portal's tab bar
+ * and its saved order, so a tab a system lacks is absent from both.
+ */
+export function playerNavItemOffered(item: PlayerNavItem, offers: (feature: GameFeature) => boolean): boolean {
+  return item.feature === undefined || offers(item.feature);
 }
 
 export const MOBILE_NAV_SLOTS = 4;

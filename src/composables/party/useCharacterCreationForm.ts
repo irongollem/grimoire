@@ -21,6 +21,7 @@ import { useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCharacterCreationEdition } from "@/composables/party/useCharacterCreationEdition";
 import { isRulesetAdmissible, parseRulesetBounce, rulesetRules } from "@/composables/party/useCharacterRuleset";
+import { gameSystemEdition, gameSystemLabel } from "@/systems/registry";
 import { campaignToAttachAfterCreate } from "@/composables/party/characterCreationEdition";
 import { DEFAULT_WALK_SPEED, effectiveLanguages, effectiveSpeed } from "@/rules/speciesStats";
 import type { SpeciesStatsSource } from "@/rules/speciesStats";
@@ -1018,7 +1019,10 @@ export function useCharacterCreationForm() {
           }
           if (restsInPool) {
             const tableName = table?.name ?? "That table";
-            const tableRules = table ? `plays the ${rulesetRules(table.ruleset)}` : "does not take this edition";
+            const tableEdition = table ? gameSystemEdition(table.game_system) : undefined;
+            const tableRules = table
+              ? `plays ${tableEdition ? `the ${rulesetRules(tableEdition)}` : gameSystemLabel(table.game_system)}`
+              : "does not take this edition";
             useToast().info(`${f.name.trim()} rests in your pool: ${tableName} ${tableRules}.`);
           }
         }

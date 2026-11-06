@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { rulesetContextKey } from "../_shared/gameSystem.ts";
 import {
   fetchProviderConfigs,
   applyMultiplier,
@@ -105,7 +106,7 @@ serve(withCors(async (req: Request) => {
   const { data: campaign } = await admin
     .from("campaigns")
     .select(
-      "id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key",
+      "id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, game_system, openai_api_key, anthropic_api_key, gemini_api_key",
     )
     .eq("id", campaign_id)
     .maybeSingle();
@@ -113,20 +114,20 @@ serve(withCors(async (req: Request) => {
   if (!campaign) return new Response("Campaign not found", { status: 404 });
   if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
-  // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
-  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+  // Ruleset-aware generation (#564): the context row follows the campaign's 5e system; Generic has none.
+  const rulesetKey = rulesetContextKey(campaign.game_system);
 
   // ── Fetch system prompts from DB ────────────────────────────────────────────
   const { data: promptRows } = await admin
     .from("ai_system_prompts")
     .select("generator_type, content")
-    .in("generator_type", ["npc", "image_base", `ruleset_context_${ruleset}`]);
+    .in("generator_type", ["npc", "image_base", ...(rulesetKey ? [rulesetKey] : [])]);
   const promptRow = promptRows?.find((r) => r.generator_type === "npc");
   const imageBasePrompt =
     promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
-    promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
+    promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
   // DMs only: no player surface calls this, and it spends the campaign's

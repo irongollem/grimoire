@@ -1,6 +1,6 @@
 import type { RunningEncounterState, RunCombatant } from "@/types/encounter.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
-import { stepTurnIndex } from "@/rules/encounterCombatLogic";
+import { stepTurnIndex } from "@/rules/turnOrder";
 
 /**
  * HP-state bucket for a mini-tracker row.
@@ -9,7 +9,7 @@ import { stepTurnIndex } from "@/rules/encounterCombatLogic";
  * runner, so the DM should read "this one is in trouble" without doing
  * arithmetic on two numbers mid-fight. `downed` is drawn at exactly the same
  * `hp <= 0` boundary `findFirstActiveIndex`/`stepTurnIndex` use to decide who
- * still gets a turn (`src/rules/encounterCombatLogic.ts:46-71`) — a second HP
+ * still gets a turn (`src/rules/turnOrder.ts`) — a second HP
  * threshold here that disagreed with the one the turn engine already applies
  * would make "downed" mean two different things on the same card.
  */
@@ -57,7 +57,7 @@ function deriveHpState(hp: number, maxHp: number): CombatantHpState {
  * the exact comparator the runner, the player stats panel and the player
  * battle map all use, which is what makes `active_combatant_index` mean the
  * same row everywhere — and "who's next" comes from the runner's own
- * `stepTurnIndex` (`src/rules/encounterCombatLogic.ts:56-71`), wrapping
+ * `stepTurnIndex` (`src/rules/turnOrder.ts`), wrapping
  * included. Re-implementing either here would risk this card quietly
  * disagreeing with the runner about whose turn it visibly is, which is worse
  * than not showing a mini-tracker at all.

@@ -1,3 +1,4 @@
+import type { GameSystemKey } from "@/systems/registry";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CharacterEditionNotice from "./CharacterEditionNotice.vue";
@@ -32,7 +33,9 @@ function member(over: Partial<PartyMember>): PartyMember {
   return { id: "m1", name: "Mira", ruleset: "2014", owner_user_id: "u1", user_id: "dm", ...over } as PartyMember;
 }
 
-const table = { id: "c1", name: "Strahd", ruleset: "2024" as const, allows_mixed_rulesets: false };
+const table: { id: string; name: string; game_system: GameSystemKey; allows_mixed_rulesets: boolean } = {
+  id: "c1", name: "Strahd", game_system: "dnd5e-2024", allows_mixed_rulesets: false,
+};
 
 function mountNotice(m: PartyMember, campaign = table) {
   return mount(CharacterEditionNotice, { props: { member: m, campaign } });
@@ -49,6 +52,12 @@ describe("CharacterEditionNotice", () => {
 
   it("renders nothing when the editions match", () => {
     const wrapper = mountNotice(member({ ruleset: "2024" }));
+    expect(wrapper.html()).toBe("<!--v-if-->");
+  });
+
+  // Fails if a table with no edition is compared as "not the character's edition", which would offer to convert to nothing.
+  it("renders nothing at a Generic table, which has no edition to differ from", () => {
+    const wrapper = mountNotice(member({ ruleset: "2024" }), { ...table, game_system: "generic" });
     expect(wrapper.html()).toBe("<!--v-if-->");
   });
 

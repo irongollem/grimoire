@@ -5,6 +5,7 @@ import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { parseInvention } from "@/lib/crafting/invention";
 import { supabase } from "@/lib/supabase";
 import { useDiscardInvention } from "@/composables/crafting/useInventionQueue";
+import { systemOffers } from "@/systems/registry";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { CraftingDiscipline, CraftingInvention } from "@/types/crafting.types";
@@ -13,11 +14,14 @@ export const INVENTION_COST_KEY = "recipe_invention";
 export const INVENTION_WISH_LIMIT = 1000;
 export const INVENTION_NOTE_LIMIT = 500;
 
-/** Inventing needs the campaign's optional rule and its AI switch, both on. */
+/**
+ * Inventing needs the campaign's optional rule and its AI switch, both on, and a
+ * rules system to write mechanics for: `invent-recipe` refuses a Generic campaign (#934).
+ */
 export function useInventionAvailable() {
   const ruleOn = useIsRuleEnabled("crafting_ai_invention");
   const campaign = useCampaignStore();
-  return computed(() => ruleOn.value && campaign.isAiEnabled);
+  return computed(() => ruleOn.value && campaign.isAiEnabled && systemOffers(campaign.activeGameSystem, "rules-ai"));
 }
 
 /** The refusals a player can cause, in words; anything else keeps its own message. */

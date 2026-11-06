@@ -104,7 +104,7 @@ describe("JoinCampaignView", () => {
     mocks.join.mockRejectedValue({
       code: "RS001",
       message: "This table plays the 2014 rules and does not take 2024 characters",
-      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014" }),
+      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014", campaign_game_system: "dnd5e-2014" }),
     });
     const wrapper = mountView();
     await flushPromises();
@@ -115,7 +115,7 @@ describe("JoinCampaignView", () => {
     await flushPromises();
     const dialog = wrapper.findComponent({ name: "RulesetBounceDialog" });
     expect(dialog.exists()).toBe(true);
-    expect(dialog.props("campaignRuleset")).toBe("2014");
+    expect(dialog.props("campaignGameSystem")).toBe("dnd5e-2014");
     expect(dialog.props("campaignName")).toBeNull();
     expect(wrapper.text()).not.toContain("Invalid Invite");
 
@@ -178,7 +178,7 @@ describe("JoinCampaignView", () => {
     mocks.join.mockRejectedValue({
       code: "RS001",
       message: "This table plays the 2014 rules and does not take 2024 characters",
-      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014" }),
+      details: JSON.stringify({ character_ruleset: "2024", campaign_ruleset: "2014", campaign_game_system: "dnd5e-2014" }),
     });
     const wrapper = mountView();
     await flushPromises();

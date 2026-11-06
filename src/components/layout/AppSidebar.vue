@@ -217,6 +217,7 @@ import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
 import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useSubscription } from "@/composables/billing/useSubscription";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -258,12 +259,13 @@ onClickOutside(userMenuRef, (e) => {
 
 const { data: campaignRules } = useOptionalRules();
 const { mode: simulacrumMode } = useSimulacrumConfig();
+const { offers } = useGameSystem();
 const visibleNavGroups = computed(() =>
   NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) =>
       (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
-      !navItemHiddenByFlag(item, simulacrumMode.value === "hidden"),
+      !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers),
     ),
   })).filter((group) => group.items.length > 0),
 );

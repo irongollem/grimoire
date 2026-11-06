@@ -1,7 +1,7 @@
 import type { Climate } from "@/types/calendar.types";
 import type { WeatherPin } from "@/lib/calendar/weather";
 import type { SettingCalendarDef } from "@/settings/types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { GameSystemKey } from "@/systems/registry";
 import type { CurrencyConfig } from "@/lib/currency/currency";
 
 import type { TableShows } from "@/types/bookNook.types";
@@ -24,9 +24,9 @@ export interface Campaign {
   id: string;
   user_id: string;
   name: string;
-  /** Campaign-wide rules edition used by every rules-aware subsystem. */
-  ruleset: RulesetKey;
-  /** When true, characters of either edition may be seated in this campaign. */
+  /** The game system this campaign plays (#934); never empty. Its 5e edition, if it has one, comes from `gameSystemEdition`. */
+  game_system: GameSystemKey;
+  /** When true, characters built for a compatible system may be seated in this campaign (5e systems only). */
   allows_mixed_rulesets: boolean;
   description: string | null;
   /** The world the DM named; null = none named. */
@@ -112,7 +112,7 @@ export type CampaignInsert = Omit<
   | "map_memory"
   | "player_sight"
   | "optional_rules"
-  | "ruleset"
+  | "game_system"
   | "allows_mixed_rulesets"
   | ApiKeyFields
   | ProviderFields
@@ -143,7 +143,7 @@ export type CampaignInsert = Omit<
   map_memory?: Campaign["map_memory"];
   player_sight?: Campaign["player_sight"];
   optional_rules?: CampaignOptionalRules;
-  ruleset?: RulesetKey;
+  game_system?: GameSystemKey;
   allows_mixed_rulesets?: boolean;
   openai_api_key?: string | null;
   anthropic_api_key?: string | null;

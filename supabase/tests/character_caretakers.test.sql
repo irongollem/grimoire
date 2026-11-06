@@ -15,9 +15,9 @@ from generate_series(1, 5) as n;
 
 -- 1 Dana the DM, 2 Pia who owns Mira, 3 Tomas who owns Toma and minds Mira,
 -- 4 Oz at the same table, 5 Sam, DM of another table.
-insert into public.campaigns (id, user_id, name, ruleset) values
-  ('10590000-0000-4000-8000-0000000000c1', '10590000-0000-4000-8000-000000000001', 'Dana''s table', '2024'),
-  ('10590000-0000-4000-8000-0000000000c2', '10590000-0000-4000-8000-000000000005', 'Sam''s table', '2024');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('10590000-0000-4000-8000-0000000000c1', '10590000-0000-4000-8000-000000000001', 'Dana''s table', 'dnd5e-2024'),
+  ('10590000-0000-4000-8000-0000000000c2', '10590000-0000-4000-8000-000000000005', 'Sam''s table', 'dnd5e-2024');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('10590000-0000-4000-8000-0000000000c1', '10590000-0000-4000-8000-000000000001', 'dm', 'Dana'),

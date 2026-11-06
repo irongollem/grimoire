@@ -1,7 +1,7 @@
 <template>
   <AppModal open size="md" role="alertdialog" @close="dismiss">
     <ModalHeader
-      :title="`This table plays the ${rulesetRules(campaignRuleset)}`"
+      :title="`This table plays ${tablePlays}`"
       :subtitle="`${character.name} is built with the ${rulesetRules(character.ruleset)}.`"
       :icon="IconWarning"
       tone="gold"
@@ -11,13 +11,17 @@
 
     <div class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4 text-body text-foreground">
       <p>
-        {{ tableName }} plays the {{ rulesetRules(campaignRuleset) }} and does not take characters built with the
+        {{ tableName }} plays {{ tablePlays }} and does not take characters built with the
         {{ rulesetRules(character.ruleset) }}.
       </p>
-      <p class="text-muted-foreground">
+      <p v-if="campaignRuleset" class="text-muted-foreground">
         You can bring a copy of {{ character.name }} instead. The copy is rebuilt for
         the {{ rulesetRules(campaignRuleset) }} and joins in their place. The original stays exactly as it is in
         your pool, and anything that has no counterpart in the other edition is kept and flagged for you to review.
+      </p>
+      <p v-else class="text-muted-foreground" data-testid="bounce-no-conversion">
+        A {{ gameSystemLabel(campaignGameSystem) }} table has no sheets, so no copy of {{ character.name }} can be
+        made to fit. Choose a character built for another table.
       </p>
       <p v-if="error" class="text-caption text-destructive" role="alert" data-testid="bounce-error">{{ error }}</p>
     </div>
@@ -31,6 +35,7 @@
         @click="emit('chooseAnother')"
       />
       <AppButton
+        v-if="campaignRuleset"
         variant="primary"
         size="sm"
         label="Convert a copy and join"
@@ -63,10 +68,12 @@ import { IconWarning } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { rulesetRules, useConvertCharacterCopy } from "@/composables/party/useCharacterRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { gameSystemEdition, gameSystemLabel, type GameSystemKey } from "@/systems/registry";
 
-const { character, campaignRuleset, campaignName, bring } = defineProps<{
+const { character, campaignGameSystem, campaignName, bring } = defineProps<{
   character: { id: string; name: string; ruleset: RulesetKey };
-  campaignRuleset: RulesetKey;
+  /** The table's game system. A system with no 5e edition (Generic) offers no conversion. */
+  campaignGameSystem: GameSystemKey;
   /** Null when the caller cannot know it, as on the join page. */
   campaignName: string | null;
   /** Gets an admissible character to the table: an attach from the pool, a join from the invite page. */
@@ -87,6 +94,11 @@ const working = ref(false);
 const error = ref("");
 
 const tableName = computed(() => campaignName ?? "This table");
+const campaignRuleset = computed(() => gameSystemEdition(campaignGameSystem));
+// "the 2014 rules" for a 5e table, the system's own name otherwise.
+const tablePlays = computed(() =>
+  campaignRuleset.value ? `the ${rulesetRules(campaignRuleset.value)}` : gameSystemLabel(campaignGameSystem),
+);
 
 // Callers render the dialog behind a `v-if`, so each opening is a fresh mount
 // and never shows the last attempt's failure.
@@ -97,11 +109,13 @@ function dismiss() {
 }
 
 async function convertAndBring() {
+  const edition = campaignRuleset.value;
+  if (!edition) return;
   working.value = true;
   error.value = "";
   let copyId: string;
   try {
-    copyId = await convertCopy({ partyMemberId: character.id, ruleset: campaignRuleset });
+    copyId = await convertCopy({ partyMemberId: character.id, ruleset: edition });
   } catch (e) {
     error.value = `The copy could not be made. ${fromError(e)}`;
     working.value = false;

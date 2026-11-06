@@ -22,8 +22,8 @@ select ('97300000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0
        'authenticated', 'authenticated', 'libbg-' || n || '@example.invalid', '', '{}'::jsonb, '{}'::jsonb
 from generate_series(1, 2) as n;
 
-insert into public.campaigns (id, user_id, name, ruleset)
-values ('97300000-0000-4000-8000-0000000000c1', '97300000-0000-4000-8000-000000000001', 'Library backgrounds table', '2014');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('97300000-0000-4000-8000-0000000000c1', '97300000-0000-4000-8000-000000000001', 'Library backgrounds table', 'dnd5e-2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('97300000-0000-4000-8000-0000000000c1', '97300000-0000-4000-8000-000000000001', 'dm', 'DM')
 on conflict (campaign_id, user_id) do update set role = excluded.role;

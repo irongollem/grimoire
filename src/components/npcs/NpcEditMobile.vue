@@ -179,7 +179,7 @@
       </section>
 
       <!-- Stat Block card -->
-      <section class="space-y-3 rounded-xl border border-border bg-card p-4">
+      <section v-if="offers('stat-blocks')" class="space-y-3 rounded-xl border border-border bg-card p-4">
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-heading-sm font-bold text-foreground">Stat Block</h3>
           <AppCheckbox
@@ -311,6 +311,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
@@ -361,6 +362,9 @@ const {
   isSendingToScriptorium?: boolean;
   isAiEnabled?: boolean;
 }>();
+
+// A system without stat blocks (Generic, #934) has no Stat Block card.
+const { offers } = useGameSystem();
 
 const emit = defineEmits<{
   save: [];

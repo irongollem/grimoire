@@ -108,6 +108,8 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
+import type { GameFeature } from "@/systems/registry";
 import { useCampaignPendingContentReviews } from "@/composables/party/useCharacterContentReviews";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
@@ -190,10 +192,20 @@ const waitingCount = computed(() => pendingReviews.data.value?.length ?? 0);
 // signed-in account's own OAuth grants) so every DM keeps it.
 const OWNER_ONLY_TABS = new Set<SettingsTab>(["ai", "openbook", "danger"]);
 
+// Tabs that edit a rules system's own content: hidden in a campaign whose
+// system does not offer it (#934), as the nav hides the Codex.
+const SYSTEM_TABS: Partial<Record<SettingsTab, GameFeature>> = { classes: "character-codex", species: "character-codex" };
+const { offers } = useGameSystem();
+
 const tabs = computed(() => {
   // Import Document stays visible with AI off: a wiki export is read without
   // AI (#932), and the tab itself offers only that source until AI is on.
-  return ALL_TABS.filter((t) => campaignStore.isOwner || !OWNER_ONLY_TABS.has(t.id)).map((t) =>
+  return ALL_TABS.filter((t) => campaignStore.isOwner || !OWNER_ONLY_TABS.has(t.id))
+    .filter((t) => {
+      const feature = SYSTEM_TABS[t.id];
+      return feature === undefined || offers(feature);
+    })
+    .map((t) =>
     t.id === "members" && waitingCount.value > 0 ? { ...t, label: `${t.label} (${waitingCount.value})` } : t,
   );
 });

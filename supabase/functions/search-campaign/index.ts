@@ -1,3 +1,4 @@
+import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
@@ -184,7 +185,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign, error: campaignError } = await admin
     .from("campaigns")
-    .select("id, user_id, ruleset")
+    .select("id, user_id, game_system")
     .eq("id", campaignId)
     .maybeSingle();
   if (campaignError) {
@@ -237,20 +238,23 @@ serve(withCors(async (req: Request) => {
     return json({ error: e instanceof Error ? e.message : "Embedding failed" }, 502);
   }
 
-  // Same ruleset normalisation and source derivation as generate-loot /
-  // generate-encounter. An unreadable source list drops the library sides
+  // Same source derivation as generate-loot / generate-encounter. A Generic
+  // campaign has no edition and no 5e monster or library content, so those
+  // searches are skipped (never scoped to a fabricated 2014). An unreadable source list drops the library sides
   // (logged) rather than failing the search; it is never read as "none enabled".
-  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+  const ruleset = gameSystemEdition(campaign.game_system);
   const ownerId = campaign.user_id as string;
   const model = provider.model;
-  const { data: enabledRows, error: enabledError } = await admin
-    .from("campaign_enabled_sources")
-    .select("source_slug")
-    .eq("campaign_id", campaignId);
-  if (enabledError) console.error("search-campaign: enabled sources lookup failed:", enabledError.message);
-  const enabledSlugs = enabledError
-    ? []
-    : (enabledRows ?? []).map((r: { source_slug: string }) => r.source_slug);
+  // Only the library sides read the enabled sources, and a system with no edition has none.
+  let enabledSlugs: string[] = [];
+  if (ruleset) {
+    const { data: enabledRows, error: enabledError } = await admin
+      .from("campaign_enabled_sources")
+      .select("source_slug")
+      .eq("campaign_id", campaignId);
+    if (enabledError) console.error("search-campaign: enabled sources lookup failed:", enabledError.message);
+    else enabledSlugs = (enabledRows ?? []).map((r: { source_slug: string }) => r.source_slug);
+  }
 
   const scope = { p_campaign_id: campaignId, p_owner_id: ownerId, p_embedding_model: model };
 
@@ -270,14 +274,16 @@ serve(withCors(async (req: Request) => {
     runMatch("item", admin.rpc("match_custom_items", {
       query_embedding: vector, ...scope, p_rarities: [], p_exclude_attunement: false, match_count: MATCH_COUNT,
     }), simple("item", "name", itemDescriptor)),
-    runMatch("monster", admin.rpc("match_custom_monsters", {
-      query_embedding: vector, ...scope, p_ruleset: ruleset, match_count: MATCH_COUNT,
-    }), simple("monster", "name", monsterDescriptor)),
   ];
+  if (ruleset) {
+    jobs.push(runMatch("monster", admin.rpc("match_custom_monsters", {
+      query_embedding: vector, ...scope, p_ruleset: ruleset, match_count: MATCH_COUNT,
+    }), simple("monster", "name", monsterDescriptor)));
+  }
 
   // Library sides only when sources are enabled -- never called with an empty
   // array, which would loosen the predicate (the #567/#583 licensing mistake).
-  if (enabledSlugs.length > 0) {
+  if (ruleset && enabledSlugs.length > 0) {
     jobs.push(
       runMatch("library_item", admin.rpc("match_library_items", {
         query_embedding: vector, source_keys: ["grimoire-bundled", ...enabledSlugs], p_ruleset: ruleset,

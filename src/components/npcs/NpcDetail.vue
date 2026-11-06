@@ -133,7 +133,7 @@
           </div>
 
           <!-- Combat tab -->
-          <div v-else-if="activeTab === 'combat'" class="space-y-4">
+          <div v-else-if="activeTab === 'combat' && offers('stat-blocks')" class="space-y-4">
             <!-- Monster link + template — two ways to populate the stat block -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <!-- From template -->
@@ -225,6 +225,7 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -284,7 +285,12 @@ const TABS = [
   { key: 'combat',    label: 'Combat' },
 ] as const
 type TabKey = typeof TABS[number]['key']
-const TABS_BAR = TABS.map(t => ({ id: t.key, label: t.label }))
+// The Combat tab holds only the stat block and the ways to fill one, so a system
+// without stat blocks (Generic, #934) has no use for it.
+const { offers } = useGameSystem()
+const TABS_BAR = computed(() =>
+  TABS.filter(t => t.key !== 'combat' || offers('stat-blocks')).map(t => ({ id: t.key, label: t.label })),
+)
 
 
 // ── Props ─────────────────────────────────────────────────────────────────────

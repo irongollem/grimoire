@@ -20,9 +20,9 @@ select ('93610000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0
        'authenticated', 'authenticated', 'refusal-spell-' || n || '@example.invalid', '', '{}'::jsonb, '{}'::jsonb
 from generate_series(1, 4) as n;
 
-insert into public.campaigns (id, user_id, name, ruleset) values
-  ('93610000-0000-4000-8000-0000000000c1', '93610000-0000-4000-8000-000000000001', 'Dana''s table', '2024'),
-  ('93610000-0000-4000-8000-0000000000c2', '93610000-0000-4000-8000-000000000003', 'Sam''s table', '2024');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('93610000-0000-4000-8000-0000000000c1', '93610000-0000-4000-8000-000000000001', 'Dana''s table', 'dnd5e-2024'),
+  ('93610000-0000-4000-8000-0000000000c2', '93610000-0000-4000-8000-000000000003', 'Sam''s table', 'dnd5e-2024');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('93610000-0000-4000-8000-0000000000c1', '93610000-0000-4000-8000-000000000001', 'dm', 'Dana'),

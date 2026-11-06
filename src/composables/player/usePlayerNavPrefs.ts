@@ -1,8 +1,9 @@
 // Module-level state is intentional — singleton shared between PlayerLayout and PlayerSettingsView.
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, computed } from "vue";
-import { ALL_PLAYER_NAV, type PlayerNavItem } from "@/lib/playerNav";
+import { ALL_PLAYER_NAV, playerNavItemOffered, type PlayerNavItem } from "@/lib/playerNav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 
@@ -79,6 +80,7 @@ export function usePlayerNavPrefs() {
   // While it loads, `isRuleEffectivelyEnabled` falls back to the rule's
   // `defaultEnabled`, so an on-by-default tab never flickers out and back in.
   const { data: campaignRules } = useOptionalRules();
+  const { offers } = useGameSystem();
   const auth = useAuthStore();
   const appUi = useAppUiStore();
 
@@ -90,7 +92,9 @@ export function usePlayerNavPrefs() {
       return sortedNav.value.filter((item) => item.standalone);
     }
     return sortedNav.value.filter(
-      (item) => !item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey),
+      (item) =>
+        playerNavItemOffered(item, offers) &&
+        (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)),
     );
   });
 

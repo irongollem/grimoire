@@ -26,8 +26,8 @@ select ('94700000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0
        'authenticated', 'authenticated', 'owner-acts-' || n || '@example.invalid', '', '{}'::jsonb, '{}'::jsonb
 from generate_series(1, 4) as n;
 
-insert into public.campaigns (id, user_id, name, ruleset) values
-  ('94700000-0000-4000-8000-0000000000c1', '94700000-0000-4000-8000-000000000001', 'Dana''s table', '2014');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('94700000-0000-4000-8000-0000000000c1', '94700000-0000-4000-8000-000000000001', 'Dana''s table', 'dnd5e-2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('94700000-0000-4000-8000-0000000000c1', '94700000-0000-4000-8000-000000000001', 'dm', 'Dana'),
   ('94700000-0000-4000-8000-0000000000c1', '94700000-0000-4000-8000-000000000002', 'player', 'Pia'),

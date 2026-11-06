@@ -8,12 +8,14 @@ import type { MapScale } from "@/types/location.types";
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   party: [] as Array<{ id: string; current_location_id: string | null }>,
+  system: "dnd5e-2014",
 }));
 
 vi.mock("vue-router", () => ({
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(mocks.party) }) }));
+vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2014") }) }));
 vi.mock("@/stores/calendar", () => ({
   useCalendarStore: () => ({
     adapter: {
@@ -32,7 +34,7 @@ vi.mock("@/stores/calendar", () => ({
   }),
 }));
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ todayYear: 1495, todayMonth: 1, todayDay: 5 }),
+  useCampaignStore: () => ({ todayYear: 1495, todayMonth: 1, todayDay: 5, activeGameSystem: mocks.system }),
 }));
 
 const SCALE: MapScale = { unit: "mi", distance: 100, a: { x: 0.1, y: 0.5 }, b: { x: 0.6, y: 0.5 } };
@@ -65,6 +67,7 @@ function mountPanel(props: Partial<InstanceType<typeof MapMeasurePanel>["$props"
 beforeEach(() => {
   mocks.push.mockClear();
   mocks.party = [];
+  mocks.system = "dnd5e-2014";
 });
 
 describe("MapMeasurePanel", () => {
@@ -89,6 +92,17 @@ describe("MapMeasurePanel", () => {
     expect(wrapper.text()).toContain("3 days, 4 hours");
     expect(wrapper.text()).toContain("Waterdeep to Daggerford");
     expect(wrapper.text()).toContain("24 mi a day, 8 travel hours a day");
+  });
+
+  // #934: the pace effects are 5e rules (PHB 2014 "Travel Pace": a fast pace is -5 to passive Perception).
+  it.each([
+    ["dnd5e-2014", true],
+    ["generic", false],
+  ])("quotes the 5e pace effect only where the system has an edition (%s: %s)", (system, quoted) => {
+    mocks.system = system;
+    const wrapper = mountPanel({ pace: "fast", summary: summarizeRoute(POINTS, SCALE, SIZE, "fast") });
+    expect(wrapper.text().includes("passive Wisdom (Perception)")).toBe(quoted);
+    expect(wrapper.text()).toContain("30 mi a day"); // the distance still measures
   });
 
   it("reports undo, clear and close", async () => {

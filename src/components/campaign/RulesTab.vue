@@ -2,22 +2,29 @@
   <div class="space-y-4">
     <section class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
-        <h2 class="text-heading-sm font-semibold text-foreground">Rules edition</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Game system</h2>
         <p class="text-caption text-muted-foreground mt-1">
-          The edition this table plays by. Every character keeps the edition it was built with.
+          The system this table plays by.<template v-if="tableEdition"> Every character keeps the edition it was built with.</template>
         </p>
       </div>
-      <RulesetPicker
-        :model-value="selectedRuleset"
+      <!-- A system compatible with another may switch to it; one compatible with nothing is fixed at creation. -->
+      <GameSystemPicker
+        v-if="switchable.length > 0"
+        :model-value="gameSystem"
+        :only="[gameSystem, ...switchable]"
         :disabled="saving"
-        @update:model-value="setRuleset"
+        @update:model-value="setGameSystem"
       />
-      <p class="text-caption text-ink-caution/90">
-        Changing the edition does not change anyone's character. Characters built with the other edition keep their seat and are listed below.
+      <p v-else class="text-body text-foreground" data-testid="game-system-fixed">
+        <span class="font-semibold">{{ gameSystemLabel(gameSystem) }}</span>
+        <span class="text-muted-foreground"> was chosen when the campaign was created and cannot be changed.</span>
+      </p>
+      <p v-if="switchable.length > 0" class="text-caption text-ink-caution/90">
+        Changing the system does not change anyone's character. Characters built for the other one keep their seat and are listed below.
       </p>
       <!-- Inside this section, not beside the optional rules below: it is half of
-           the same decision (which edition, and whether the other one may sit down). -->
-      <div class="flex items-start gap-3 border-t border-border pt-3">
+           the same decision (which system, and whether the other one may sit down). -->
+      <div v-if="switchable.length > 0" class="flex items-start gap-3 border-t border-border pt-3">
         <ToggleSwitch
           size="lg"
           class="mt-0.5"
@@ -42,68 +49,70 @@
     </section>
 
     <RulesEditionMismatchList
-      v-if="mismatched.length"
+      v-if="tableEdition && mismatched.length"
       :characters="mismatched"
-      :campaign-ruleset="selectedRuleset"
+      :campaign-ruleset="tableEdition"
       :allows-mixed="allowsMixed"
     />
 
-    <p class="text-body text-muted-foreground">
-      Toggle optional D&amp;D rules on or off for this campaign. Enabled rules appear in the
-      Rules Reliquary for all players.
-    </p>
+    <template v-if="offersOptionalRules">
+      <p class="text-body text-muted-foreground">
+        Toggle optional D&amp;D rules on or off for this campaign. Enabled rules appear in the
+        Rules Reliquary for all players.
+      </p>
 
-    <div class="space-y-2">
-      <div
-        v-for="def in allRules"
-        :key="def.key"
-        class="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-2.5"
-      >
-        <!-- Toggle -->
-        <ToggleSwitch
-          size="lg"
-          class="mt-0.5"
-          :model-value="isEnabled(def.key)"
-          :aria-label="isEnabled(def.key) ? `Disable ${def.name}` : `Enable ${def.name}`"
-          :disabled="toggling === def.key"
-          @update:model-value="toggle(def.key)"
-        />
+      <div class="space-y-2">
+        <div
+          v-for="def in allRules"
+          :key="def.key"
+          class="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-2.5"
+        >
+          <!-- Toggle -->
+          <ToggleSwitch
+            size="lg"
+            class="mt-0.5"
+            :model-value="isEnabled(def.key)"
+            :aria-label="isEnabled(def.key) ? `Disable ${def.name}` : `Enable ${def.name}`"
+            :disabled="toggling === def.key"
+            @update:model-value="toggle(def.key)"
+          />
 
-        <!-- Rule info -->
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="text-caption font-semibold text-foreground">{{ def.name }}</span>
-            <span
-              v-if="isEnabled(def.key)"
-              class="text-eyebrow text-ink-success/80 uppercase"
-            >active</span>
-          </div>
-          <p class="text-caption text-muted-foreground mt-0.5">{{ def.summary }}</p>
+          <!-- Rule info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-caption font-semibold text-foreground">{{ def.name }}</span>
+              <span
+                v-if="isEnabled(def.key)"
+                class="text-eyebrow text-ink-success/80 uppercase"
+              >active</span>
+            </div>
+            <p class="text-caption text-muted-foreground mt-0.5">{{ def.summary }}</p>
 
-          <!-- Configurable parameters — shown only while the rule is enabled -->
-          <div v-if="def.config && isEnabled(def.key)" class="mt-2 flex flex-wrap gap-3">
-            <label
-              v-for="field in def.config"
-              :key="field.key"
-              class="flex items-center gap-2 text-caption text-muted-foreground"
-            >
-              <span>{{ field.label }}</span>
-              <AppInput
-                v-model.lazy="fieldModel(def.key, field).value"
-                type="number"
-                :min="field.min"
-                :max="field.max"
-                size="body-xs"
-                :block="false"
-                class="w-20"
-                :disabled="savingConfig === def.key"
-              />
-              <span v-if="field.unit">{{ field.unit }}</span>
-            </label>
+            <!-- Configurable parameters — shown only while the rule is enabled -->
+            <div v-if="def.config && isEnabled(def.key)" class="mt-2 flex flex-wrap gap-3">
+              <label
+                v-for="field in def.config"
+                :key="field.key"
+                class="flex items-center gap-2 text-caption text-muted-foreground"
+              >
+                <span>{{ field.label }}</span>
+                <AppInput
+                  v-model.lazy="fieldModel(def.key, field).value"
+                  type="number"
+                  :min="field.min"
+                  :max="field.max"
+                  size="body-xs"
+                  :block="false"
+                  class="w-20"
+                  :disabled="savingConfig === def.key"
+                />
+                <span v-if="field.unit">{{ field.unit }}</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -118,12 +127,18 @@ import {
 } from "@/composables/rules/useOptionalRules";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
-import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
+import {
+  gameSystemEdition,
+  gameSystemLabel,
+  switchableGameSystems,
+  systemOffers,
+  type GameSystemKey,
+} from "@/systems/registry";
 import type { RuleConfigField } from "@/types/rule.types";
 import { useParty } from "@/composables/party/useParty";
 import { useToast } from "@/composables/useToast";
 import type { CampaignUpdate } from "@/types/campaign.types";
-import RulesetPicker from "@/components/rules/RulesetPicker.vue";
+import GameSystemPicker from "@/components/rules/GameSystemPicker.vue";
 import RulesEditionMismatchList from "@/components/campaign/RulesEditionMismatchList.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
@@ -139,10 +154,14 @@ const { mutateAsync: updateCampaign } = useUpdateCampaign();
 const toast = useToast();
 const { data: party } = useParty();
 const saving = ref(false);
-const selectedRuleset = computed(() => campaign.activeCampaign?.ruleset ?? DEFAULT_RULESET);
+const gameSystem = computed<GameSystemKey>(() => campaign.activeGameSystem);
+const switchable = computed(() => switchableGameSystems(gameSystem.value));
+const tableEdition = computed(() => gameSystemEdition(gameSystem.value));
 const allowsMixed = computed(() => campaign.activeCampaign?.allows_mixed_rulesets ?? false);
+// The optional rules are D&D's: a system without a rules reference has none to toggle.
+const offersOptionalRules = computed(() => systemOffers(gameSystem.value, "reliquary"));
 const mismatched = computed(() =>
-  (party.value ?? []).filter((member) => member.ruleset !== selectedRuleset.value),
+  (party.value ?? []).filter((member) => member.ruleset !== tableEdition.value),
 );
 
 async function saveCampaign(update: CampaignUpdate) {
@@ -159,9 +178,9 @@ async function saveCampaign(update: CampaignUpdate) {
   }
 }
 
-async function setRuleset(ruleset: RulesetKey) {
-  if (ruleset === selectedRuleset.value) return;
-  await saveCampaign({ ruleset });
+async function setGameSystem(next: GameSystemKey) {
+  if (next === gameSystem.value) return;
+  await saveCampaign({ game_system: next });
 }
 
 async function setAllowsMixed(value: boolean) {

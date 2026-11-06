@@ -6,9 +6,13 @@ import { useAppUiStore } from "@/stores/ui/app";
 import type { CampaignRule } from "@/types/rule.types";
 
 const session = vi.hoisted(() => ({ isPlayer: true }));
+const game = vi.hoisted(() => ({ generic: false }));
 const rules = vi.hoisted(() => ({ rows: undefined as unknown }));
 
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
+vi.mock("@/composables/rules/useGameSystem", () => ({
+  useGameSystem: () => ({ offers: () => !game.generic }),
+}));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isPlayer: session.isPlayer }) }));
 vi.mock("@/composables/rules/useOptionalRules", async () => {
   const actual = await vi.importActual<typeof import("@/composables/rules/useOptionalRules")>("@/composables/rules/useOptionalRules");
@@ -82,6 +86,7 @@ describe("usePlayerNavPrefs visible tabs", () => {
     setActivePinia(createPinia());
     session.isPlayer = true;
     rules.rows = undefined;
+    game.generic = false;
   });
 
   it("hides a tab whose module the DM switched off, and keeps an on-by-default tab while the rules load", () => {
@@ -103,5 +108,27 @@ describe("usePlayerNavPrefs visible tabs", () => {
     session.isPlayer = false;
     useAppUiStore().dmPreviewMode = true;
     expect(usePlayerNavPrefs().sortedNav.value.map((i) => i.id)).toContain("hearth");
+  });
+
+  // Bug caught: the player tab bar ignoring the campaign's system, so a Generic
+  // campaign's players keep Character/Spellbook/Bestiary tabs that open 5e pages.
+  it("drops the 5e tabs in a system that offers none of them, keeping the neutral ones", () => {
+    const withFiveE = usePlayerNavPrefs().sortedNav.value.map((i) => i.id);
+    expect(withFiveE).toEqual(expect.arrayContaining(["character", "spells", "inventory", "party", "bestiary", "rules"]));
+    game.generic = true;
+    const ids = usePlayerNavPrefs().sortedNav.value.map((i) => i.id);
+    for (const id of ["character", "spells", "inventory", "bestiary", "rules"]) expect(ids).not.toContain(id);
+    // The People tab holds the NPC ledger, which every system has.
+    expect(ids).toEqual(expect.arrayContaining(["hearth", "journal", "atlas", "party"]));
+  });
+
+  // Bug caught: filtering only the default list, so a saved order that names a hidden tab revives it.
+  it("keeps a hidden tab out even when a saved order lists it", () => {
+    game.generic = true;
+    const prefs = usePlayerNavPrefs();
+    prefs.setNavOrder(["spells", "hearth"]);
+    const ids = prefs.sortedNav.value.map((i) => i.id);
+    expect(ids).not.toContain("spells");
+    prefs.setNavOrder([]);
   });
 });

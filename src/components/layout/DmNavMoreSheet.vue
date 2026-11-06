@@ -189,6 +189,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { useLazyMount } from "@/composables/useLazyMount";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
@@ -243,6 +244,7 @@ const hasCampaign = computed(() => !!campaignStore.activeCampaignId);
 
 const { data: campaignRules } = useOptionalRules();
 const { mode: simulacrumMode } = useSimulacrumConfig();
+const { offers } = useGameSystem();
 
 // Drive the grid off the real nav registry. `desktopOnly` items (A4/letter
 // output tools) are impractical on phone-sized viewports but a tablet has the
@@ -263,7 +265,7 @@ const groups = computed(() =>
         (item) =>
           (!item.desktopOnly || wideEnough.value) &&
           (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
-          !navItemHiddenByFlag(item, simulacrumMode.value === "hidden"),
+          !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers),
       ),
     }))
     .filter((group) => group.items.length > 0),

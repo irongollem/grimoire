@@ -4,6 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
+import { rulesetContextKey } from "../_shared/gameSystem.ts";
 import {
   fetchCreditCost,
   wholeCredits,
@@ -299,7 +300,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign, error: campaignErr } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", request.campaignId)
     .maybeSingle();
   if (campaignErr) {
@@ -317,18 +318,18 @@ serve(withCors(async (req: Request) => {
     return new Response("Forbidden", { status: 403 });
   }
 
-  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+  const rulesetKey = rulesetContextKey(campaign.game_system);
 
   const { data: promptRows, error: promptErr } = await admin
     .from("ai_system_prompts").select("generator_type, content")
-    .in("generator_type", [PROMPT_ROW, `ruleset_context_${ruleset}`]);
+    .in("generator_type", [PROMPT_ROW, ...(rulesetKey ? [rulesetKey] : [])]);
   if (promptErr) {
     console.error("Scriptorium draft prompt read failed:", promptErr.message);
     return jsonError(500, "Could not read the prompt configuration");
   }
   const promptRow = promptRows?.find((r) => r.generator_type === PROMPT_ROW);
   const rulesetContext =
-    promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
+    promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
   const ownerIsPro = await isUserPro(admin, campaign.user_id);

@@ -122,7 +122,7 @@ async function main() {
   sql(
     db,
     `with camp as (
-       select ruleset from public.campaigns where id = ${campaign}
+       select private.game_system_edition(game_system) as ruleset from public.campaigns where id = ${campaign}
      ), members as (
        insert into public.party_members (user_id, campaign_id, name, player_name, ruleset, level, sort_order)
        select ${dm}, ${campaign}, v.name, v.player_name, camp.ruleset, 4, v.sort_order
