@@ -15,6 +15,11 @@ const mocks = vi.hoisted(() => ({
   holdReads: null as null | Promise<void>,
   holdWrites: null as null | Promise<void>,
   errors: [] as string[],
+  generic: false,
+}));
+
+vi.mock("@/composables/rules/useGameSystem", () => ({
+  useGameSystem: () => ({ offers: () => !mocks.generic }),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -97,6 +102,7 @@ beforeEach(() => {
   mocks.holdReads = null;
   mocks.holdWrites = null;
   mocks.errors.length = 0;
+  mocks.generic = false;
 });
 
 /** Seed one saved row for the signed-in DM, the open campaign and a surface. */
@@ -111,6 +117,28 @@ function heightOf(id: string): WidgetHeight {
   if (widget === undefined) throw new Error(`fixture widget "${id}" is not registered`);
   return defaultHeightFor(widget);
 }
+
+describe("useDashboardLayout in a system without 5e", () => {
+  // Bug caught: the board rendering a widget whose game-system feature the
+  // campaign lacks (a Generic campaign showing the 5e party roster / death saves).
+  it("skips every widget the system lacks, from the defaults and from a saved layout", async () => {
+    mocks.generic = true;
+    const gated = DASHBOARD_WIDGETS.filter((w) => w.feature !== undefined).map((w) => w.id);
+    expect(gated).toEqual(expect.arrayContaining(["party", "death-saves", "monster-pull", "dm-screen-card"]));
+    saved("prep", { widgets: [{ key: "party", id: "party", width: "full" }, { key: "quests", id: "quests", width: "cell" }] });
+    const { api } = open(ref<DashboardSurface>("prep"));
+    await flushPromises();
+    const ids = api().widgets.value.map((e) => e.id);
+    expect(ids).toContain("quests");
+    for (const id of gated) expect(ids).not.toContain(id);
+    expect(api().newWidgetIds.value.every((id) => !gated.includes(id))).toBe(true);
+  });
+
+  it("keeps the 5e widgets where the system offers them", () => {
+    const { api } = open(ref<DashboardSurface>("prep"));
+    expect(api().widgets.value.map((e) => e.key)).toEqual(keysOf("prep"));
+  });
+});
 
 describe("useDashboardLayout", () => {
   // The dashboard has no loading state on purpose: an absent row merges to the

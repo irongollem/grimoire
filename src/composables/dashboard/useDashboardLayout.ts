@@ -9,7 +9,8 @@ import {
   parseDashboardLayout,
 } from "@/lib/dashboard/savedLayout";
 import type { DashboardLayout, DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
-import type { DashboardSurface, DashboardWidgetId } from "@/lib/dashboard/widgetCatalog";
+import { widgetById, widgetOffered, type DashboardSurface, type DashboardWidgetId } from "@/lib/dashboard/widgetCatalog";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 
 /**
  * A DM's saved dashboard arrangement, per campaign and per surface (#762).
@@ -81,6 +82,11 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
   // surface's defaults, so a DM who never customized sees exactly today's
   // dashboard immediately, with no flash of empty grid while the row is
   // fetched, and no skeleton to design for a case that is usually instant.
+  const { offers } = useGameSystem();
+  const isOffered = (entry: DashboardLayoutEntry | DashboardWidgetId): boolean => {
+    const widget = widgetById(typeof entry === "string" ? entry : entry.id);
+    return widget === undefined || widgetOffered(widget, offers);
+  };
   const merged = computed(() => mergeDashboardLayout(query.data.value ?? null, toValue(surface)));
 
   /**
@@ -161,8 +167,11 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
   });
 
   return {
-    widgets: computed(() => merged.value.widgets),
-    newWidgetIds: computed(() => merged.value.newWidgetIds),
+    // A widget the campaign's game system lacks is skipped here, at the one
+    // place the board, the draft and the shelf's "New" badges all read from;
+    // the saved row is left as it is (#934).
+    widgets: computed(() => merged.value.widgets.filter(isOffered)),
+    newWidgetIds: computed(() => merged.value.newWidgetIds.filter(isOffered)),
     dense: computed(() => merged.value.dense),
     isCustomized: computed(() => query.data.value != null),
     isSaving: computed(() => saveMutation.isPending.value || resetMutation.isPending.value),

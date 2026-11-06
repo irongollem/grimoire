@@ -38,6 +38,10 @@ vi.mock("@/lib/supabase", () => ({
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
 vi.mock("@/lib/themeRuntime", () => ({ setTheme: () => {}, setPlayerSeat: () => {} }));
 // The real one dynamically imports a shell .vue, which this has no use for.
+const game = vi.hoisted(() => ({ generic: false }));
+vi.mock("@/composables/rules/useGameSystem", () => ({
+  useGameSystem: () => ({ offers: () => !game.generic }),
+}));
 vi.mock("@/layouts/layoutLoader", () => ({ preloadLayout: async () => undefined }));
 
 import { setupRouterGuard } from "./index";
@@ -85,6 +89,8 @@ const TEST_ROUTES: RouteRecordRaw[] = [
   },
   { path: "/codex", name: "codex", component: Stub, meta: { requiresAuth: true, playerReadable: true } },
   { path: "/play/inventory", name: "play-inventory", component: Stub, meta: { requiresAuth: true, requiresPlayer: true, layout: "player" } },
+  { path: "/monsters", name: "monsters", component: Stub, meta: { requiresAuth: true } },
+  { path: "/play/spells", name: "play-spells", component: Stub, meta: { requiresAuth: true, requiresPlayer: true, layout: "player" } },
   { path: "/admin", name: "admin", component: Stub, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/play", name: "play", component: Stub, meta: { requiresAuth: true, requiresPlayer: true, layout: "player" } },
   { path: "/login", name: "login", component: Stub, meta: { layout: "auth", requiresGuest: true } },
@@ -119,6 +125,7 @@ beforeEach(() => {
   fake.reset();
   setActivePinia(createPinia());
   lensRefusal.value = null;
+  game.generic = false;
 });
 
 /** A `child_accounts` row for u1, who turns 16 (leaves the fence) on `adultOn`. */
@@ -599,5 +606,63 @@ describe("a public page (the Open Book, #1085)", () => {
       await router.push("/w/salt");
       expect(router.currentRoute.value.name).toBe("open-book");
     }
+  });
+});
+
+describe("the game-system fence (#934)", () => {
+  // Bug caught: hiding the nav entry but leaving the route open, so a bookmark
+  // or typed URL still reaches the Bestiary in a Generic campaign.
+  it("sends a DM away from a 5e route in a campaign whose system lacks it", async () => {
+    game.generic = true;
+    const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    await signedInDm("c1");
+    await router.push("/npcs");
+
+    await router.push("/monsters");
+
+    expect(router.currentRoute.value.name).toBe("dashboard");
+  });
+
+  it("lets the same DM into that route where the system offers it", async () => {
+    const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    await signedInDm("c1");
+
+    await router.push("/monsters");
+
+    expect(router.currentRoute.value.name).toBe("monsters");
+  });
+
+  // Bug caught: a blanket gate that locks a Generic campaign out of its neutral pages.
+  it("leaves a neutral route open in a campaign whose system lacks 5e", async () => {
+    game.generic = true;
+    const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    await signedInDm("c1");
+
+    await router.push("/npcs");
+
+    expect(router.currentRoute.value.name).toBe("npcs");
+  });
+
+  it("sends a player to the hearth, not the DM dashboard, from a 5e portal route", async () => {
+    game.generic = true;
+    const { router } = makeRouter([{ campaign_id: "c1", role: "player" }]);
+    await signedInPlayer();
+    useCampaignStore().activeCampaignId = "c1";
+    useAuthStore().membership = { role: "player" } as CampaignMember;
+
+    await router.push("/play/spells");
+
+    expect(router.currentRoute.value.name).toBe("play");
+  });
+
+  // With no campaign open there is no system to ask; the route's own shell copes.
+  it("refuses nothing while no campaign is open", async () => {
+    game.generic = true;
+    const { router } = makeRouter([]);
+    await signedInDm(null);
+
+    await router.push("/monsters");
+
+    expect(router.currentRoute.value.name).toBe("monsters");
   });
 });

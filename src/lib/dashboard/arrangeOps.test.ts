@@ -24,6 +24,8 @@ import { DASHBOARD_WIDGETS } from "./widgetCatalog";
 const RETIRED_WIDGET_ID = "widget-retired-in-a-later-deploy";
 
 
+const offersAll = () => true;
+
 const prep = (): DashboardLayoutEntry[] =>
   DEFAULT_LAYOUTS.prep.widgets.map((entry) => ({ ...entry }));
 
@@ -189,7 +191,7 @@ function everySlotFilled(surface: "prep" | "session"): DashboardLayoutEntry[] {
 
 describe("shelfWidgets", () => {
   it("offers exactly what the layout has no room for", () => {
-    const onShelf = shelfWidgets(prep(), "prep").map((w) => w.id);
+    const onShelf = shelfWidgets(prep(), "prep", offersAll).map((w) => w.id);
     expect(onShelf).toContain("live-encounter");
     expect(onShelf).toContain("session");
     expect(onShelf).toContain("recent-npcs");
@@ -197,16 +199,25 @@ describe("shelfWidgets", () => {
     expect(onShelf).not.toContain("party");
   });
 
+  // Bug caught: the picker offering a widget the system lacks, which the board then refuses to draw.
+  it("leaves off a widget whose game-system feature the system does not offer", () => {
+    const onShelf = shelfWidgets([], "session", () => false).map((w) => w.id);
+    expect(onShelf).toContain("quests");
+    expect(onShelf).not.toContain("party");
+    expect(onShelf).not.toContain("monster-pull");
+    expect(onShelf).not.toContain("death-saves");
+  });
+
   it("offers everything when the dashboard is empty", () => {
     const offered = DASHBOARD_WIDGETS.filter((w) => w.surfaces.includes("session")).map((w) => w.id);
-    expect(shelfWidgets([], "session").map((w) => w.id)).toEqual(offered);
+    expect(shelfWidgets([], "session", offersAll).map((w) => w.id)).toEqual(offered);
   });
 
   // Every *slot* filled, not every widget placed once — `dm-screen-card` allows
   // six, and a shelf that dropped it after the first would make the other five
   // unreachable.
   it("is empty once every slot is filled", () => {
-    expect(shelfWidgets(everySlotFilled("prep"), "prep")).toEqual([]);
+    expect(shelfWidgets(everySlotFilled("prep"), "prep", offersAll)).toEqual([]);
   });
 
   it("keeps offering a multi-instance widget while it is under its cap", () => {
@@ -216,7 +227,7 @@ describe("shelfWidgets", () => {
     if (dropped === undefined) return;
     // Freeing one slot of whichever widget owns the last one must put exactly
     // that widget back on the shelf, and nothing else.
-    expect(shelfWidgets(full.slice(0, -1), "prep").map((w) => w.id)).toEqual([dropped.id]);
+    expect(shelfWidgets(full.slice(0, -1), "prep", offersAll).map((w) => w.id)).toEqual([dropped.id]);
   });
 });
 

@@ -17,6 +17,12 @@ const NEUTRAL = [
   "src/components/chat",
   "src/lib/dashboard/quickDice.ts",
   "src/components/dashboard/widgets/QuickDiceWidget.vue",
+  // The surfaces that filter through the registry (#934): they name a feature, never a system.
+  "src/lib/nav.ts",
+  "src/lib/playerNav.ts",
+  "src/lib/dashboard/widgetCatalog.ts",
+  "src/lib/dashboard/arrangeOps.ts",
+  "src/router/systemFeatures.ts",
 ];
 
 /** The core never picks a system: it takes rules as a parameter. */

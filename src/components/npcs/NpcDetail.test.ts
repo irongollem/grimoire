@@ -68,6 +68,11 @@ vi.mock("@vueuse/core", async (importOriginal) => ({
   useMediaQuery: () => mobileMode,
 }));
 
+let statBlocksOffered = true;
+vi.mock("@/composables/rules/useGameSystem", () => ({
+  useGameSystem: () => ({ offers: () => statBlocksOffered }),
+}));
+
 const routerPush = vi.fn();
 const routerReplace = vi.fn();
 vi.mock("vue-router", () => ({
@@ -379,5 +384,24 @@ describe("NpcDetail — delete", () => {
     await vm.confirmDelete();
     expect(deleteNpc).toHaveBeenCalledTimes(1);
     expect(routerPush).toHaveBeenCalledWith("/npcs");
+  });
+});
+
+describe("NpcDetail — stat blocks follow the game system (#934)", () => {
+  beforeEach(() => {
+    statBlocksOffered = true;
+  });
+
+  const tabIds = (wrapper: ReturnType<typeof mountDetail>) =>
+    (wrapper.findComponent({ name: "TabBar" }).props("tabs") as { id: string }[]).map((t) => t.id);
+
+  // Bug caught: a Generic campaign's NPC form still offering the Combat tab,
+  // whose only content is the 5e stat block and the bestiary link.
+  it("offers the Combat tab only where the system has stat blocks", () => {
+    expect(tabIds(mountDetail(npc()))).toContain("combat");
+    statBlocksOffered = false;
+    const ids = tabIds(mountDetail(npc()));
+    expect(ids).not.toContain("combat");
+    expect(ids).toEqual(["lore", "inventory"]);
   });
 });

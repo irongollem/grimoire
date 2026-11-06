@@ -118,6 +118,7 @@ import { computed, ref, watch } from "vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconPack, IconReset } from "@/lib/icons";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { isDefaultLayout, shelfWidgets } from "@/lib/dashboard/arrangeOps";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type {
@@ -155,6 +156,8 @@ const emit = defineEmits<{
   "update:dense": [dense: boolean];
 }>();
 
+const { offers } = useGameSystem();
+
 // A Set so the "New" lookup is O(1) per option rather than an `includes` scan
 // repeated across the whole list on every render.
 const newIds = computed(() => new Set(newWidgetIds));
@@ -165,7 +168,7 @@ function selfHidingNote(widget: DashboardWidgetDef): string {
 }
 
 const options = computed<WidgetOption[]>(() =>
-  shelfWidgets(entries, surface).map((widget) => ({
+  shelfWidgets(entries, surface, offers).map((widget) => ({
     id: widget.id,
     name: widget.title,
     description: widget.description,

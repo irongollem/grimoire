@@ -33,6 +33,7 @@ import {
   IconNavWorkshop,
 } from "@/lib/icons";
 import type { Component } from "vue";
+import type { GameFeature } from "@/systems/registry";
 
 export interface NavItem {
   label: string;
@@ -58,6 +59,12 @@ export interface NavItem {
   ruleKey?: string;
   /** If set, item is hidden while the named feature's admin flag is "hidden" (see useSimulacrumConfig). */
   featureFlag?: "simulacrum";
+  /**
+   * If set, item is hidden in a campaign whose game system does not offer this
+   * feature (#934: a Generic campaign hides every 5e surface). Untagged items
+   * are neutral and show in every system.
+   */
+  feature?: GameFeature;
   /**
    * Hide below `md`. For tools that target letter/A4 output (Scriptorium, Card
    * Forge, The Mint, …) where the editing surface is impractical on a phone.
@@ -139,6 +146,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Encounters",
         to: "/encounters",
+        feature: "encounters",
         icon: IconNavEncounters,
         description: "Build & run combat",
         requiresCampaign: true,
@@ -153,6 +161,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Party",
         to: "/party",
+        feature: "party",
         icon: IconNavParty,
         description: "Track heroes & initiative",
         requiresCampaign: true,
@@ -239,18 +248,21 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Reliquary",
         to: "/rules",
+        feature: "reliquary",
         icon: IconNavReliquary,
         description: "DM screen, rules & custom systems",
       },
       {
         label: "Bestiary",
         to: "/monsters",
+        feature: "bestiary",
         icon: IconNavBestiary,
         description: "Monster builder & compendium",
       },
       {
         label: "Spellbook",
         to: "/spells",
+        feature: "spellbook",
         icon: IconNavSpellbook,
         description: "Custom spell compendium",
       },
@@ -258,12 +270,14 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Item Vault",
         shortLabel: "Items",
         to: "/vault",
+        feature: "item-vault",
         icon: IconNavItemVault,
         description: "Equipment & magic items",
       },
       {
         label: "Character Codex",
         to: "/codex",
+        feature: "character-codex",
         icon: IconNavCodex,
         description:
           "Species, backgrounds, classes & archetypes for your players",
@@ -309,6 +323,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Character Sheet",
         desktopOnly: true,
         to: "/character-sheet",
+        feature: "party",
         icon: IconNavCharacterSheet,
         description: "Export printable character sheets (select a party member)",
       },
@@ -424,19 +439,28 @@ const NAV_BY_ROUTE = new Map(NAV_ITEMS.map((item) => [item.to, item]));
  * without being removed here, and a silently shorter bar is a better failure
  * than a tab with no icon and no name.
  */
-export function sessionTabs(mode: DmMode): NavItem[] {
+export function sessionTabs(mode: DmMode, offers: FeatureOffers): NavItem[] {
   return SESSION_TAB_ROUTES[mode]
     .map((to) => NAV_BY_ROUTE.get(to))
-    .filter((item): item is NavItem => item !== undefined);
+    .filter((item): item is NavItem => item !== undefined && !navItemHiddenByFlag(item, false, offers));
 }
 
+/** Whether the active campaign's game system offers a feature (`useGameSystem().offers`). */
+export type FeatureOffers = (feature: GameFeature) => boolean;
+
 /**
- * The one place the featureFlag → visibility rule lives. Every nav consumer
- * (sidebar, mobile sheet, future ones) calls this instead of hand-writing the
- * predicate; adding a flagged feature means extending THIS function only.
+ * The one place the featureFlag and game-system → visibility rules live. Every
+ * nav consumer (sidebar, mobile sheet, the session bar via `sessionTabs`) calls
+ * this instead of hand-writing the predicate; adding a gate means extending THIS
+ * function only. `offers` is required so no consumer can forget the system.
  */
-export function navItemHiddenByFlag(item: NavItem, simulacrumHidden: boolean): boolean {
-  return item.featureFlag === "simulacrum" && simulacrumHidden;
+export function navItemHiddenByFlag(
+  item: NavItem,
+  simulacrumHidden: boolean,
+  offers: FeatureOffers,
+): boolean {
+  if (item.featureFlag === "simulacrum" && simulacrumHidden) return true;
+  return item.feature !== undefined && !offers(item.feature);
 }
 
 /** The DM Manual open on one page: `ManualHelpLink` and every "How … works" menu entry go through here. */

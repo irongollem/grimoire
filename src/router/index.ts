@@ -3,6 +3,8 @@ import type { QueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
+import { useGameSystem } from "@/composables/rules/useGameSystem";
+import { featureForPath } from "./systemFeatures";
 import { preloadLayout } from "@/layouts/layoutLoader";
 import {
   isPlayerArea,
@@ -138,6 +140,17 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
         const target = home();
         if (to.name !== target.name) return target;
       }
+    }
+
+    // The game-system fence (#934). A 5e route (bestiary, spellbook, character
+    // sheets, the player's character tabs) is closed in a campaign whose system
+    // does not offer it, so a bookmark or a typed URL cannot reach what the nav
+    // hides. The path decides, like the lens (./systemFeatures.ts). Read after the
+    // lens fence, which may just have closed the campaign; with none open there
+    // is no system to ask, and nothing to refuse.
+    const needed = featureForPath(to.path);
+    if (needed && campaignStore.activeCampaignId && !useGameSystem().offers(needed)) {
+      return { name: isPlayerArea(to.path) ? "play" : "dashboard" };
     }
 
     // The child-account fence (#919). Independent of the lens fence above: a
