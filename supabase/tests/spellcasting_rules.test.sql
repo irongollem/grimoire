@@ -8,8 +8,8 @@ values ('00000000-0000-4000-8000-000000000549', '00000000-0000-0000-0000-0000000
   'spell-tests@example.invalid', '', '{}'::jsonb, '{}'::jsonb)
 on conflict (id) do nothing;
 
-insert into public.campaigns (id, user_id, name, ruleset)
-values ('00000000-0000-4000-8000-000000000543', '00000000-0000-4000-8000-000000000549', 'Spell test 2024', '2024');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('00000000-0000-4000-8000-000000000543', '00000000-0000-4000-8000-000000000549', 'Spell test 2024', 'dnd5e-2024');
 
 insert into public.party_members (
   id, user_id, campaign_id, name, class, level, cha, proficiency_bonus,
@@ -66,7 +66,7 @@ insert into public.library_spells (
 set local request.jwt.claim.sub = '00000000-0000-4000-8000-000000000549';
 set local request.jwt.claim.role = 'authenticated';
 
-select is((select ruleset from public.campaigns where id = '00000000-0000-4000-8000-000000000543'), '2024', 'campaign owns the selected ruleset');
+select is((select game_system from public.campaigns where id = '00000000-0000-4000-8000-000000000543'), 'dnd5e-2024', 'campaign owns the selected game system');
 
 select lives_ok($$
   insert into public.character_spells (id, party_member_id, spell_id, source_type, source_class_id, is_prepared)
@@ -489,7 +489,7 @@ select is((select (class_resources #>> '{sorcery_points,current}')::integer
 
 -- #943: the table switching edition changes no character; each is converted
 -- on its own, which is what the retired campaign trigger used to do for all.
-update public.campaigns set ruleset = '2014'
+update public.campaigns set game_system = 'dnd5e-2014'
 where id = '00000000-0000-4000-8000-000000000543';
 select is((select ruleset from public.party_members where id = '00000000-0000-4000-8000-000000000544'), '2024',
   'a campaign switching edition leaves its characters on their own');

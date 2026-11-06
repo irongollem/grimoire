@@ -43,9 +43,9 @@ select ('94300000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0
        'authenticated', 'authenticated', 'character-ruleset-' || n || '@example.invalid', '', '{}'::jsonb, '{}'::jsonb
 from generate_series(1, 4) as n;
 
-insert into public.campaigns (id, user_id, name, ruleset, allows_mixed_rulesets) values
-  ('94300000-0000-4000-8000-0000000000c1', '94300000-0000-4000-8000-000000000001', 'Dana''s 2014 table', '2014', false),
-  ('94300000-0000-4000-8000-0000000000c2', '94300000-0000-4000-8000-000000000003', 'Sam''s 2024 table', '2024', true);
+insert into public.campaigns (id, user_id, name, game_system, allows_mixed_rulesets) values
+  ('94300000-0000-4000-8000-0000000000c1', '94300000-0000-4000-8000-000000000001', 'Dana''s 2014 table', 'dnd5e-2014', false),
+  ('94300000-0000-4000-8000-0000000000c2', '94300000-0000-4000-8000-000000000003', 'Sam''s 2024 table', 'dnd5e-2024', true);
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('94300000-0000-4000-8000-0000000000c1', '94300000-0000-4000-8000-000000000001', 'dm', 'Dana'),
@@ -352,7 +352,7 @@ reset role;
 select hasnt_function('public', 'review_characters_for_campaign_ruleset',
   'the trigger that rewrote characters on a campaign switch is gone');
 
-update public.campaigns set ruleset = '2024' where id = '94300000-0000-4000-8000-0000000000c1';
+update public.campaigns set game_system = 'dnd5e-2024' where id = '94300000-0000-4000-8000-0000000000c1';
 
 select is((pg_temp.pm('e1')).ruleset, '2014', 'a campaign switching edition does not change a seated character');
 select is((pg_temp.pm('e1')).campaign_id, '94300000-0000-4000-8000-0000000000c1'::uuid, 'which keeps its seat');

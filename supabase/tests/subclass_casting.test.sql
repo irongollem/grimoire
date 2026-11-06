@@ -29,7 +29,7 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
   (pg_temp.u('01'), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'subclass-casting-1@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   (pg_temp.u('02'), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'subclass-casting-2@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name, ruleset) values (pg_temp.u('c1'), pg_temp.u('01'), 'Ann''s table', '2014');
+insert into public.campaigns (id, user_id, name, game_system) values (pg_temp.u('c1'), pg_temp.u('01'), 'Ann''s table', 'dnd5e-2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values (pg_temp.u('c1'), pg_temp.u('01'), 'dm', 'Ann')
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 

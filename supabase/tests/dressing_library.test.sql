@@ -181,8 +181,8 @@ select ok(
 -- The source starts off: a new campaign and a new account do not get it. Asked
 -- of rows made here rather than of the whole table, which a DM switching the
 -- book on in a local stack would otherwise fail.
-insert into public.campaigns (id, user_id, name, ruleset)
-values ('10620000-0000-4000-8000-0000000000c1', '10620000-0000-4000-8000-000000000002', 'Ben''s table', '2024');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('10620000-0000-4000-8000-0000000000c1', '10620000-0000-4000-8000-000000000002', 'Ben''s table', 'dnd5e-2024');
 select is(
   (select count(*)::int from public.campaign_enabled_sources
     where source_slug = 'grimoire-dressing' and campaign_id = '10620000-0000-4000-8000-0000000000c1')

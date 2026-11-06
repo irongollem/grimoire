@@ -415,7 +415,7 @@ function ensureFixtureParty(dbUrl: string, ownerId: string): number {
     sql(
       dbUrl,
       `with camp as (
-         select ruleset from public.campaigns where id = ${quote(campaignId)}
+         select private.game_system_edition(game_system) as ruleset from public.campaigns where id = ${quote(campaignId)}
        ), members as (
          insert into public.party_members (user_id, campaign_id, name, player_name, ruleset, level, sort_order)
          select ${quote(ownerId)}, ${quote(campaignId)}, v.name, v.player_name, camp.ruleset, 4, v.sort_order
