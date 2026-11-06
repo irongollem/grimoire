@@ -59,6 +59,26 @@ matter. All three matter equally.
 If it fails: fix, re-run the whole thing. A partial re-run proves nothing about
 the steps you skipped.
 
+## Step 2b — Code-file budgets, from the build Step 2 just made
+
+```bash
+npm run perf:code
+```
+
+CI's performance job counts the chunks and stylesheets each journey fetches
+(`codeRequests` in `scripts/perf/budgets.json`) in a real browser, minutes
+after the push. This predicts the same counts from `dist/` in a second, and it
+has matched CI's run exactly on every journey step. The breach it exists for
+is the common one: a shared chunk that grew past the 8 kB inline threshold
+becomes a file of its own, and the dashboard fetches one more. It names the new
+file.
+
+Over budget, decide which it is. A file the page should not need: keep it off
+the page. A file that is now shared rather than copied (the usual case): raise
+`codeRequests` in `budgets.json` for the steps it names, and add the reason to
+its `$comment`, as the 5 Nov and 6 Nov entries do. Under budget: lower the
+number in the same change.
+
 ## Step 3 — Migration versions, if migrations changed
 
 ```bash

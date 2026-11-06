@@ -216,6 +216,37 @@ Rules for the check itself:
 - Changing the fixture changes the counts. If you add rows the journeys load,
   re-measure and update `budgets.json` in the same change.
 
+### Checking codeRequests before a push
+
+```bash
+npm run build && npm run perf:code      # /ship runs this after npm run verify
+```
+
+`scripts/perf/bundle/journey-code.ts` predicts each step's `codeRequests` from
+`dist/` alone and checks it against `budgets.json`, so a chunk breach fails
+`/ship` instead of the CI run after it. The build already says what a page
+fetches: `index.html` lists the boot files, and each lazy `import()` carries
+Vite's preload list (`__vite__mapDeps`) of every JS and CSS file it needs. A
+step's count is the boot files plus the preload lists of the lazy chunks it
+opens, less what earlier steps loaded, plus Vercel's two analytics scripts.
+Built from e172531's CI run it reproduced all eight steps exactly, and with
+`dm-cold` at its old budget of 82 it failed on `encounterCombatLogic`, the
+chunk #1149 pushed past the 8 kB inline threshold.
+
+Which lazy chunks a step opens (its roots) cannot be read from the build, so
+`journey-code.json` records them from a real run, with each step's file names
+so a breach can name what is new. When a journey starts opening a new lazy
+chunk, the model undercounts; CI's performance job compares the model with
+what it measured and leaves a warning saying so. Refresh from that run's
+`perf-journeys` artifact, against a build of the same commit:
+
+```bash
+npx tsx scripts/perf/bundle/journey-code.ts dist --roots-from ci.json
+```
+
+`PRIMED_BY` in the script mirrors which journeys open the dashboard (and
+`/npcs`) before they measure; change it with `journeys.ts`.
+
 ## History over time
 
 On pushes to `main` the `performance` job in `.github/workflows/release.yml`
