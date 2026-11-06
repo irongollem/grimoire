@@ -24,6 +24,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { gameSystemEdition, NO_RULES_SYSTEM_MESSAGE, rulesetContextKey } from "../_shared/gameSystem.ts";
 import {
   AI_PROMPT_LIMIT,
   AI_PROMPT_LIMIT_LONG,
@@ -53,22 +54,24 @@ interface GeneratorSpec {
   format?: TextOutputFormat;
   /** Longest accepted prompt; AI_PROMPT_LIMIT unless the input is the DM's own prose. */
   promptLimit?: number;
+  /** The output is shaped by D&D 5e rules (stat blocks, class tables, the item library): a Generic campaign gets none (#934). */
+  fiveE?: true;
 }
 
 const GENERATORS = {
-  spell:           { promptKey: "spell",           reason: "spell_generation" },
-  monster:         { promptKey: "monster",         reason: "monster_generation" },
-  item:            { promptKey: "item",            reason: "item_generation" },
+  spell:           { promptKey: "spell",           reason: "spell_generation", fiveE: true },
+  monster:         { promptKey: "monster",         reason: "monster_generation", fiveE: true },
+  item:            { promptKey: "item",            reason: "item_generation", fiveE: true },
   faction:         { promptKey: "faction",         reason: "faction_generation" },
-  feature:         { promptKey: "feature",         reason: "feature_generation" },
+  feature:         { promptKey: "feature",         reason: "feature_generation", fiveE: true },
   deity:           { promptKey: "deity",           reason: "deity_generation" },
-  species:         { promptKey: "species",         reason: "species_generation" },
-  background:      { promptKey: "background",      reason: "background_generation" },
-  custom_class:    { promptKey: "custom_class",    reason: "custom_class_generation" },
-  custom_subclass: { promptKey: "custom_subclass", reason: "custom_subclass_generation" },
-  class_feature:   { promptKey: "class_feature",   reason: "class_feature_generation" },
+  species:         { promptKey: "species",         reason: "species_generation", fiveE: true },
+  background:      { promptKey: "background",      reason: "background_generation", fiveE: true },
+  custom_class:    { promptKey: "custom_class",    reason: "custom_class_generation", fiveE: true },
+  custom_subclass: { promptKey: "custom_subclass", reason: "custom_subclass_generation", fiveE: true },
+  class_feature:   { promptKey: "class_feature",   reason: "class_feature_generation", fiveE: true },
   custom_rule:     { promptKey: "custom_rule",     reason: "custom_rule_generation" },
-  recipe:          { promptKey: "recipe",          reason: "recipe_generation" },
+  recipe:          { promptKey: "recipe",          reason: "recipe_generation", fiveE: true },
   calendar_event:  { promptKey: "calendar_event",  reason: "calendar_event_generation" },
   room:            { promptKey: "room",            reason: "room_generation" },
   quest_beat:      { promptKey: "quest_beat",      reason: "quest_beat_generation" },
@@ -158,7 +161,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return jsonError("Campaign not found", 404);
@@ -169,16 +172,17 @@ serve(withCors(async (req: Request) => {
   // this (see _shared/campaignAccess.ts).
   if (!(await isCampaignDm(admin, campaign, user.id))) return jsonError("Forbidden", 403);
 
-  // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
-  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+  if (spec.fiveE && !gameSystemEdition(campaign.game_system)) return jsonError(NO_RULES_SYSTEM_MESSAGE, 400);
+  // Ruleset-aware generation (#564): the context row follows the campaign's 5e system.
+  const rulesetKey = rulesetContextKey(campaign.game_system);
 
   const { data: promptRows } = await admin
     .from("ai_system_prompts").select("generator_type, content")
-    .in("generator_type", [promptKey, `ruleset_context_${ruleset}`]);
+    .in("generator_type", [promptKey, ...(rulesetKey ? [rulesetKey] : [])]);
   const promptRow = promptRows?.find((r) => r.generator_type === promptKey);
   // A missing ruleset row is a silent skip, not an error.
   const rulesetContext =
-    promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
+    promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return jsonError(`The ${generator} prompt is not configured`, 500);
 
   // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.

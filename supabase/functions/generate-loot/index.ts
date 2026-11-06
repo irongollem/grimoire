@@ -4,6 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
+import { gameSystemEdition, NO_RULES_SYSTEM_MESSAGE, rulesetContextKey } from "../_shared/gameSystem.ts";
 import {
   fetchCreditCost,
   wholeCredits,
@@ -188,7 +189,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -200,16 +201,20 @@ serve(withCors(async (req: Request) => {
     return new Response("Forbidden", { status: 403 });
   }
 
-  // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
-  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+  // Ruleset-aware generation (#564): the context row follows the campaign's 5e system.
+  // 5e-shaped output with no meaning in a Generic campaign (#934): the client
+  // hides the button, this is the server-side backstop. No edition, no fallback.
+  const ruleset = gameSystemEdition(campaign.game_system);
+  if (!ruleset) return new Response(NO_RULES_SYSTEM_MESSAGE, { status: 400 });
+  const rulesetKey = rulesetContextKey(campaign.game_system);
 
   const { data: promptRows } = await admin
     .from("ai_system_prompts").select("generator_type, content")
-    .in("generator_type", ["loot", `ruleset_context_${ruleset}`]);
+    .in("generator_type", ["loot", ...(rulesetKey ? [rulesetKey] : [])]);
   const promptRow = promptRows?.find((r) => r.generator_type === "loot");
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
-    promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
+    promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
   // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.

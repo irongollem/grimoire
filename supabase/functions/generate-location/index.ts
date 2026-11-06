@@ -8,6 +8,7 @@ import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, rese
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
+import { rulesetContextKey } from "../_shared/gameSystem.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -79,7 +80,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, game_system, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -91,17 +92,17 @@ serve(withCors(async (req: Request) => {
     return new Response("Forbidden", { status: 403 });
   }
 
-  // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
-  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+  // Ruleset-aware generation (#564): the context row follows the campaign's 5e system; Generic has none.
+  const rulesetKey = rulesetContextKey(campaign.game_system);
 
   const { data: promptRows } = await admin
     .from("ai_system_prompts").select("generator_type, content")
-    .in("generator_type", ["location", "image_base", `ruleset_context_${ruleset}`]);
+    .in("generator_type", ["location", "image_base", ...(rulesetKey ? [rulesetKey] : [])]);
   const promptRow = promptRows?.find((r) => r.generator_type === "location");
   const imageBasePrompt = promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
-    promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
+    promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
   // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
