@@ -292,7 +292,7 @@ export function createDeck(): DeckController {
     }
 
     store.setVolume(sound.id, volumeOf(info.pad));
-    const opts: PlayOptions = { fadeInMs: fadeInMs === undefined ? effectiveFades(info.pad, info.category).inMs : fadeInMs, loop };
+    const opts: PlayOptions = { fadeInMs: fadeInMs === undefined ? effectiveFades(info.pad, info.category).inMs : fadeInMs, loop, title: sound.name };
     let gain = 1;
     let shaped = false;
     if (info.pad.velocity && velocity !== undefined) {

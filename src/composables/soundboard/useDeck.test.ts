@@ -237,7 +237,7 @@ describe("trigger", () => {
   it("plays with the category, the sound's trim and the pad's fades (fails if the category were dropped: the sound would route to the ambient bus)", () => {
     const deck = boot({ pads: [pad("a")] });
     press(deck);
-    expect(h.store.play).toHaveBeenCalledWith("a", "https://x.test/a.mp3", "effects", 0.9, { fadeInMs: 0, loop: false });
+    expect(h.store.play).toHaveBeenCalledWith("a", "https://x.test/a.mp3", "effects", 0.9, { fadeInMs: 0, loop: false, title: "Sound a" });
     expect(h.store.setVolume).toHaveBeenCalledWith("a", 0.8);
   });
 
@@ -267,7 +267,7 @@ describe("toggle", () => {
   it("starts when silent and fades out with the pad's own fade when audible (fails if toggle never stopped)", () => {
     const deck = boot({ pads: [pad("m", { fade_out_ms: 900 })], sounds: [sound("m", "music")] });
     press(deck);
-    expect(h.store.play).toHaveBeenCalledWith("m", expect.any(String), "music", 0.9, { fadeInMs: 1000, loop: true });
+    expect(h.store.play).toHaveBeenCalledWith("m", expect.any(String), "music", 0.9, { fadeInMs: 1000, loop: true, title: "Sound m" });
     press(deck);
     expect(h.store.fadeOut).toHaveBeenCalledWith("m", 900);
   });
@@ -567,7 +567,7 @@ describe("tools", () => {
     press(deck, 0, 0);
     press(deck, 0, 1);
     expect(h.store.fadeOut).toHaveBeenCalledWith("a", 3000);
-    expect(h.store.play).toHaveBeenCalledWith("b", expect.any(String), "effects", 0.9, { fadeInMs: 3000, loop: false });
+    expect(h.store.play).toHaveBeenCalledWith("b", expect.any(String), "effects", 0.9, { fadeInMs: 3000, loop: false, title: "Sound b" });
   });
 
   it("solo solos the pad's sounds, and pressing the soloed pad clears it (fails if solo never toggled off)", () => {

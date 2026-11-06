@@ -1,5 +1,37 @@
 import { watch } from "vue";
+import type { AudioBus } from "@/lib/audio/audioEngine";
 import { useSoundboardStore } from "@/stores/soundboard";
+
+/** What the phone is told while the board plays without a music playlist. */
+export interface BoardSession {
+  title: string;
+  state: "playing" | "paused";
+}
+
+/**
+ * What the phone's Now Playing should say when no music playlist runs: the
+ * deck's pads and scenes. Null when nothing plays and nothing is paused.
+ *
+ * Since the deck (#1136) music is a pad, not a playlist, and until 7 Nov 2026
+ * the session said "none" while it played. CarPlay showed the logo with a play
+ * button, and audio that no media session claims is treated as a passing
+ * system sound: the car switched channels for it every time, heard as a
+ * reconnect every couple of seconds, and it kept fighting the next app.
+ *
+ * Music names it before a scene, a scene before any other sound.
+ */
+export function describeBoard(input: {
+  loose: { bus: AudioBus; title: string | undefined }[];
+  scenes: string[];
+  pausedAll: boolean;
+}): BoardSession | null {
+  const music = input.loose.find((s) => s.bus === "music" && s.title !== undefined);
+  const other = input.loose.find((s) => s.title !== undefined);
+  const title = music?.title ?? input.scenes[0] ?? other?.title ?? "Dungeon Grimoire";
+  if (input.loose.length > 0 || input.scenes.length > 0) return { title, state: "playing" };
+  if (input.pausedAll) return { title: "Dungeon Grimoire", state: "paused" };
+  return null;
+}
 
 export interface PublishedPosition {
   position: number;
@@ -35,8 +67,9 @@ export function positionNeedsPublish(
  * Call once from App.vue. Safe on browsers that don't support the API — the
  * guard at the top of the function exits early.
  *
- * Ambient playlists are intentionally excluded: they have no single "track"
- * to display and no meaningful next/previous concept.
+ * Without a music playlist the deck's pads and scenes are published instead
+ * (describeBoard): their name, playing or paused, and pause / play / stop
+ * mapped to Pause all, Resume and Stop all. There is no next or previous.
  */
 export function useMediaSession() {
   if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
@@ -66,6 +99,27 @@ export function useMediaSession() {
       syncSession();
     },
     { immediate: true },
+  );
+
+  // ── The board, when no music playlist runs ─────────────────────────────
+  //
+  // Keyed on what is said, not on every playback change, so the phone is told
+  // again only when the name or the state moves.
+
+  watch(
+    () => {
+      if (store.activeMusicPlaylist) return null;
+      const board = describeBoard({
+        loose: store.loosePlaying,
+        scenes: store.activeAmbientPlaylists.filter((s) => !s.paused).map((s) => s.playlistName),
+        pausedAll: store.isPausedAll,
+      });
+      return board === null ? null : `${board.state}\n${board.title}`;
+    },
+    (key) => {
+      if (store.activeMusicPlaylist) return;
+      syncBoard(key);
+    },
   );
 
   // ── Playback state — kept in sync as isPlaying flips ─────────────────
@@ -124,9 +178,12 @@ export function useMediaSession() {
     const pl = store.activeMusicPlaylist;
 
     if (!pl) {
-      navigator.mediaSession.playbackState = "none";
-      navigator.mediaSession.metadata = null;
-      clearHandlers();
+      const board = describeBoard({
+        loose: store.loosePlaying,
+        scenes: store.activeAmbientPlaylists.filter((s) => !s.paused).map((s) => s.playlistName),
+        pausedAll: store.isPausedAll,
+      });
+      syncBoard(board === null ? null : `${board.state}\n${board.title}`);
       return;
     }
 
@@ -174,6 +231,31 @@ export function useMediaSession() {
       if (!p || details.seekTime === undefined || details.seekTime === null) return;
       store.seek(p.trackSoundIds[p.currentIndex], details.seekTime);
     });
+  }
+
+  /** Publish the board as `state\ntitle`, or clear the session when nothing plays. */
+  function syncBoard(key: string | null) {
+    clearHandlers();
+    try {
+      navigator.mediaSession.setPositionState();
+    } catch {
+      // Older Safari takes no empty call; a stale scrubber is all that is lost.
+    }
+    if (key === null) {
+      navigator.mediaSession.playbackState = "none";
+      navigator.mediaSession.metadata = null;
+      return;
+    }
+    const [state, title] = key.split("\n");
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist: "Dungeon Grimoire",
+      artwork: [{ src: "/icon-512.png", type: "image/png", sizes: "512x512" }],
+    });
+    navigator.mediaSession.playbackState = state === "paused" ? "paused" : "playing";
+    navigator.mediaSession.setActionHandler("play", () => store.resumeAll());
+    navigator.mediaSession.setActionHandler("pause", () => store.pauseAll());
+    navigator.mediaSession.setActionHandler("stop", () => store.stopAll());
   }
 
   function clearHandlers() {

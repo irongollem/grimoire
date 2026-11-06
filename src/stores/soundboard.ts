@@ -385,7 +385,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     engine.attach(soundId, audio, bus);
     if (gainTrim !== undefined) engine.setSoundTrim(soundId, gainTrim);
     // Always set, so one press's velocity never leaks into the next play.
-    playMeta.set(soundId, { fileUrl, bus, gainTrim, playGain, rate });
+    playMeta.set(soundId, { fileUrl, bus, gainTrim, playGain, rate, title: opts?.title });
     engine.setSoundPlayGain(soundId, playGain);
     setRate(audio, rate);
     // A sound that starts under a solo comes up already dimmed, not at full level.
@@ -703,6 +703,21 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       ...(mpl ? mpl.trackSoundIds : []),
     ]);
   }
+
+  /**
+   * The sounds playing on their own (pads, not a playlist's or scene's layers),
+   * with the bus each rides and the name its press gave it. What the phone's
+   * Now Playing names when no music playlist is running (useMediaSession).
+   */
+  const loosePlaying = computed(() => {
+    const owned = playlistOwnedIds();
+    return Object.entries(playbackStates.value)
+      .filter(([id, st]) => st.isPlaying && !owned.has(id))
+      .map(([id]) => {
+        const meta = playMeta.get(id);
+        return { bus: meta?.bus ?? ("ambient" as AudioBus), title: meta?.title };
+      });
+  });
 
   /**
    * Silence everything without losing where anything was.
@@ -1369,6 +1384,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     soloIds,
     setSolo,
     isPausedAll,
+    loosePlaying,
     stopAll,
     releaseSound,
     pauseForCast,

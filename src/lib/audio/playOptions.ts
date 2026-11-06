@@ -10,6 +10,8 @@ export interface PlayOptions {
   rate?: number;
   /** Loop gaplessly (plain element loop where Web Audio is unavailable). */
   loop?: boolean;
+  /** What the phone's Now Playing (CarPlay, lock screen) calls this sound; the sound's name. */
+  title?: string;
 }
 
 /** What the last play of a sound used, so it can be converted to a loop without the caller repeating it. */
@@ -19,6 +21,7 @@ export interface PlayMeta {
   gainTrim: number | undefined;
   playGain: number;
   rate: number;
+  title: string | undefined;
 }
 
 /** The neutral values for anything a press left out; gain is floored at silence. */
