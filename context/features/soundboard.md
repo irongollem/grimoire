@@ -199,7 +199,7 @@ One model: Google's `lyria-3.5`, called through Google's **Interactions API** (`
 | `AddSoundDialog.vue`, `SoundProviderBrowser.vue`, `SoundProviderRow.vue` | The dialog around `SoundForm` and the provider search results |
 | `SoundTrimControl.vue` | Persisted per-sound loudness correction (`gain_trim`, 0.25x to 4x), inside the pad's settings. Live preview on `@input`, persists once on `@change` |
 | `SoundboardMixer.vue`, `SceneMixer.vue`, `VolumeSlider.vue` | The faders (master, buses, scene layers) shared by the dock's popover and the builder's drawer so the two cannot drift; `VolumeSlider` is the one shared range input (`accent` is `primary` or `green` for Spotify) |
-| `SoundEffectPicker.vue` | Wand-icon popover for the 6 `AudioEffectPreset` values: beside the master fader (the whole mix), and in a sound pad's settings in Full (`store.setEffect` on every take but Spotify; runtime only, as it always was) |
+| `SoundEffectPicker.vue` | Wand-icon popover for the `AudioEffectPreset` values: beside the master fader (the whole mix), beside each bus fader in the mixer (`store.setBusEffect`: every sound on Music, Ambience or Effects, filter only, so a Cave muffles and the master's reverb adds the echo), and in a sound pad's settings in Full (`store.setEffect` on every take but Spotify). All runtime only. Its `target` names what it colours in its title, so the mixer's four can be told apart |
 | `SoundCategoryFilter.vue` | Pill filter (All / Music / Ambience / Effects) in the library |
 | `PlaylistEditorDialog.vue`, `PlaylistTrackRow.vue` | Create/edit a scene or playlist: name, type (locked after creation), shuffle/repeat (music only), draggable track list |
 | `SoundPalette.vue`, `SoundPaletteRow.vue` | The `mod+shift+K` command palette |

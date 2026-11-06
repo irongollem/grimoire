@@ -18,6 +18,7 @@ const engineCalls = {
   fadeIn: vi.fn<(soundId: string, ms: number, fromSilence?: boolean) => void>(),
   fadeOut: vi.fn<(soundId: string, ms: number) => Promise<void>>(() => Promise.resolve()),
   setEffect: vi.fn(),
+  setBusEffect: vi.fn<(bus: AudioBus, preset: string) => void>(),
   setPan: vi.fn<(soundId: string, pan: number) => void>(),
   resume: vi.fn(),
   setDirectMode: vi.fn<(enabled: boolean) => void>(),
@@ -1725,5 +1726,15 @@ describe("loosePlaying, what Now Playing names without a playlist", () => {
     store.stop("song");
     await flush();
     expect(store.loosePlaying).toEqual([]);
+  });
+});
+
+describe("bus effects", () => {
+  it("puts one bus in a space and leaves the others dry", async () => {
+    const store = await loadStore();
+    store.setBusEffect("music", "through_door");
+    store.setBusEffect("ambient", "cave");
+    expect(store.busEffects).toEqual({ music: "through_door", ambient: "cave", effects: "none" });
+    expect(engineCalls.setBusEffect).toHaveBeenLastCalledWith("ambient", "cave");
   });
 });

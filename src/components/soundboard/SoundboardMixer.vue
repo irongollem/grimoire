@@ -46,6 +46,7 @@
                rather than sitting there doing nothing. -->
           <SoundEffectPicker
             v-if="!store.directOutput"
+            target="Master"
             :model-value="store.masterEffect"
             @update:model-value="store.setMasterEffect($event)"
           />
@@ -53,18 +54,27 @@
 
         <SceneMixer v-if="showScene" class="border-t border-border/50 pt-1.5" />
 
-        <VolumeSlider
-          v-for="bus in BUSES"
-          :key="bus.id"
-          class="min-w-0"
-          :label="bus.label"
-          wide
-          show-percent
-          :muted="store.masterVolume === 0"
-          :disabled-reason="store.volumeControlNote"
-          :model-value="store.busVolumes[bus.id]"
-          @update:model-value="store.setBusVolume(bus.id, $event)"
-        />
+        <!-- Each bus can sit in a space of its own ("the music is through a door"),
+             under the master's. Filter only: the reverb send is the master's and
+             each sound's, so a Cave here muffles and the master adds the echo. -->
+        <div v-for="bus in BUSES" :key="bus.id" class="flex min-w-0 items-center gap-2">
+          <VolumeSlider
+            class="min-w-0 flex-1"
+            :label="bus.label"
+            wide
+            show-percent
+            :muted="store.masterVolume === 0"
+            :disabled-reason="store.volumeControlNote"
+            :model-value="store.busVolumes[bus.id]"
+            @update:model-value="store.setBusVolume(bus.id, $event)"
+          />
+          <SoundEffectPicker
+            v-if="!store.directOutput"
+            :target="bus.label"
+            :model-value="store.busEffects[bus.id]"
+            @update:model-value="store.setBusEffect(bus.id, $event)"
+          />
+        </div>
 
         <!--
           A read-only echo, not a control. The mixer is for levels; two

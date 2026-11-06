@@ -1,18 +1,15 @@
 <template>
-  <div>
-    <!-- Trigger: wand icon, lights up when an effect is active -->
-    <button
-      ref="buttonEl"
-      type="button"
-      class="p-1.5 rounded-md border transition-colors"
-      :class="modelValue !== 'none'
-        ? 'border-gold-500/40 text-gold-400 bg-gold-500/10'
-        : 'border-border text-muted-foreground hover:text-foreground'"
-      :title="modelValue !== 'none' ? `Effect: ${currentLabel}. Click to change` : 'Add audio effect'"
+  <div ref="anchorEl" class="inline-flex">
+    <!-- Trigger: wand icon, lit gold while an effect is on. -->
+    <AppButton
+      :variant="modelValue !== 'none' ? 'tinted' : 'outline'"
+      tone="primary"
+      emphasis="soft"
+      size="icon-sm"
+      :icon="IconWand"
+      :tooltip="triggerTitle"
       @click="toggle"
-    >
-      <IconWand class="h-3 w-3" />
-    </button>
+    />
 
     <!-- Picker panel — teleported to avoid widget overflow clipping -->
     <Teleport to="body">
@@ -28,18 +25,17 @@
           data-slip class="fixed z-9999 flex gap-1 bg-card border border-border rounded-lg p-1.5 shadow-xl"
           :class="openUpward ? 'origin-bottom-right' : 'origin-top-right'"
         >
-          <button
+          <AppButton
             v-for="opt in OPTIONS"
             :key="opt.value"
-            type="button"
-            class="px-2 py-1 rounded-md text-label transition-colors whitespace-nowrap border"
-            :class="modelValue === opt.value
-              ? 'bg-gold-500/20 border-gold-500/40 text-gold-400'
-              : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'"
+            :variant="modelValue === opt.value ? 'tinted' : 'ghost'"
+            tone="primary"
+            emphasis="strong"
+            size="xs"
+            :label="opt.label"
+            class="whitespace-nowrap"
             @click.stop="pick(opt.value)"
-          >
-            {{ opt.label }}
-          </button>
+          />
         </div>
       </Transition>
     </Teleport>
@@ -49,9 +45,12 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onUnmounted } from "vue";
 import { IconWand } from "@/lib/icons";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { AudioEffectPreset } from "@/types/sound.types";
 
 const modelValue = defineModel<AudioEffectPreset>({ default: "none" });
+/** What the effect applies to ("Master", "Music"), so a stack of pickers can be told apart. */
+const { target } = defineProps<{ target?: string }>();
 
 const OPTIONS = [
   { value: "none"         as AudioEffectPreset, label: "Off"     },
@@ -63,7 +62,7 @@ const OPTIONS = [
   { value: "sewer"        as AudioEffectPreset, label: "Sewer"   },
 ] as const;
 
-const buttonEl = ref<HTMLButtonElement | null>(null);
+const anchorEl = ref<HTMLElement | null>(null);
 const open = ref(false);
 const openUpward = ref(true);
 const popupStyle = ref<Record<string, string>>({});
@@ -72,8 +71,13 @@ const currentLabel = computed(
   () => OPTIONS.find((o) => o.value === modelValue.value)?.label ?? "Off",
 );
 
+const triggerTitle = computed(() => {
+  const on = target === undefined ? "" : ` on ${target}`;
+  return modelValue.value !== "none" ? `Effect${on}: ${currentLabel.value}. Click to change` : `Add audio effect${on === "" ? "" : ` to ${target}`}`;
+});
+
 function updatePosition() {
-  const el = buttonEl.value;
+  const el = anchorEl.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
   const panelW = 300; // approximate panel width
