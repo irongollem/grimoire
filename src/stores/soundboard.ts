@@ -366,10 +366,30 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     opts?: PlayOptions,
   ): void {
     if (opts !== undefined && opts.loop === true) {
-      startGaplessLoop(soundId, fileUrl, category, gainTrim, opts);
-      return;
+      if (loopsGapless(busForCategory(category))) {
+        startGaplessLoop(soundId, fileUrl, category, gainTrim, opts);
+        return;
+      }
+      getState(soundId).isLooping = true;
     }
     playElement(soundId, fileUrl, category, gainTrim, opts);
+  }
+
+  /**
+   * Whether a loop on this bus runs as a gapless pair of elements, or as one
+   * element with the plain loop flag.
+   *
+   * Music loops on one element. The pair keeps a second element of the same file
+   * waiting at 0:00, and iOS shows that one in Now Playing: the lock screen and
+   * CarPlay read a looping music pad as paused at 0:00 while it played, with a
+   * play button, and CarPlay kept reconnecting under it. A pad with Loop off
+   * showed as a proper media stream (7 Nov 2026). The cost is the seam the pair
+   * hides, small in music. Ambience and effects keep the pair: a gap in rain or
+   * wind is what makes a bed sound like a loop, and they are not what Now
+   * Playing names.
+   */
+  function loopsGapless(bus: AudioBus): boolean {
+    return bus !== "music";
   }
 
   function playElement(
@@ -648,7 +668,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       if (loops.has(soundId)) return;
       const meta = playMeta.get(soundId);
       // A playlist track advances off its own end, so it keeps the plain flag.
-      if (engine.available && audio && state.isPlaying && meta !== undefined && !playlistOwnedIds().has(soundId)) {
+      if (engine.available && audio && state.isPlaying && meta !== undefined && loopsGapless(meta.bus) && !playlistOwnedIds().has(soundId)) {
         loops.adopt(soundId, meta);
         state.isLooping = false;
         audio.loop = false;

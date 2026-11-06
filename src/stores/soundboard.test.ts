@@ -1738,3 +1738,29 @@ describe("bus effects", () => {
     expect(engineCalls.setBusEffect).toHaveBeenLastCalledWith("ambient", "cave");
   });
 });
+
+// A looping music pad showed on the lock screen and CarPlay as paused at 0:00
+// (7 Nov 2026): iOS named the gapless pair's waiting second element. Music loops
+// on one element; a bed still gets the pair, whose seam would be heard.
+describe("which loops are a gapless pair", () => {
+  it.each([
+    ["music", 1, true],
+    ["ambient", 2, false],
+  ] as const)("a %s pad on loop runs on %i element(s)", async (category, elements, nativeLoop) => {
+    const store = await loadStore();
+    store.play("s", "https://example.test/s.mp3", category, undefined, { loop: true });
+    await flush();
+    expect(created).toHaveLength(elements);
+    expect(created[0].loop).toBe(nativeLoop);
+    expect(store.isLooping("s")).toBe(true);
+  });
+
+  it("turning Loop on for playing music sets the element's own loop instead of adding a partner", async () => {
+    const store = await loadStore();
+    store.play("s", "https://example.test/s.mp3", "music", undefined, {});
+    await flush();
+    store.setLooping("s", true);
+    expect(created).toHaveLength(1);
+    expect(created[0].loop).toBe(true);
+  });
+});
