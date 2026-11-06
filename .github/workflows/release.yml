@@ -265,6 +265,11 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Report the critical-path size
         run: npx tsx scripts/perf/bundle/critical-path.ts dist --json perf-results/critical-path.json
+      # /ship predicts codeRequests from the build (scripts/perf/bundle/journey-code.ts)
+      # with lazy-chunk roots taken from an earlier run. Warns, never fails, when
+      # that prediction stops matching this run, with how to refresh the roots.
+      - name: Compare the code-file model with this run
+        run: npx tsx scripts/perf/bundle/journey-code.ts dist --against perf-results/ci.json
       - name: Check the request budgets
         run: npx tsx scripts/perf/check-budgets.ts perf-results/ci.json
       # Every request each journey made (API paths and chunk paths), so an
