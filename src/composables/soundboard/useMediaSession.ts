@@ -130,11 +130,22 @@ export function useMediaSession() {
       if (!pl) return false;
       return store.getState(pl.trackSoundIds[pl.currentIndex]).isPlaying;
     },
-    (isPlaying) => {
-      if (!store.activeMusicPlaylist) return;
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-    },
+    () => assertPlaylistState(),
   );
+
+  /**
+   * Tell the OS whether the playlist's track is playing, every time anything about
+   * it is told, not only when our flag flips. iOS moves the lock screen to paused
+   * on its own when an element ends or pauses (a track that repeats, the outgoing
+   * half of a crossfade) while our flag stays true, so a state sent only on a
+   * change was never sent again: the lock screen and CarPlay showed a play button
+   * at 0:00 over music that was playing (7 Nov 2026).
+   */
+  function assertPlaylistState(): void {
+    const pl = store.activeMusicPlaylist;
+    if (!pl) return;
+    navigator.mediaSession.playbackState = store.getState(pl.trackSoundIds[pl.currentIndex]).isPlaying ? "playing" : "paused";
+  }
 
   // ── Position state — lets CarPlay show a scrubber ─────────────────────
   //
@@ -160,6 +171,7 @@ export function useMediaSession() {
       const now = performance.now();
       if (!positionNeedsPublish(published, pos, now)) return;
       published = { ...pos, at: now };
+      assertPlaylistState();
       try {
         navigator.mediaSession.setPositionState({
           duration: pos.duration,
@@ -225,6 +237,8 @@ export function useMediaSession() {
     navigator.mediaSession.setActionHandler("stop", () => {
       store.stopMusicPlaylist();
     });
+
+    assertPlaylistState();
 
     navigator.mediaSession.setActionHandler("seekto", (details) => {
       const p = store.activeMusicPlaylist;
