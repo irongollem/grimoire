@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { drawScene, type Images } from "./render.ts";
+import { describe, expect, it, vi } from "vitest";
+import { drawScene, frameImageKey, framedImages, FRAME_KEY, loadImages, type Images } from "./render.ts";
 import { cameraAt, parallax, screenFit, type Scene } from "./scene.ts";
 
 /** A canvas context that only writes down the transforms it is asked for. */
@@ -54,5 +54,45 @@ describe("drawScene", () => {
       ["scale", 2, 2],
       ["translate", -300, -312.5],
     ]);
+  });
+});
+
+describe("framedImages", () => {
+  const tall = { id: "tall" } as unknown as HTMLImageElement;
+  const wide = { id: "wide" } as unknown as HTMLImageElement;
+  const loaded: Images = new Map([["plate", wide], [frameImageKey("tall"), tall], [frameImageKey("wide"), wide]]);
+  // Bug: the Atlas picture, which sits in a page, drew the frame as well.
+  it("adds no frame for the Atlas", () => {
+    expect(framedImages(loaded, null).has(FRAME_KEY)).toBe(false);
+  });
+  // Bug: the phone stage drew the wide shape stretched.
+  it("picks the shape of the screen", () => {
+    expect(framedImages(loaded, "tall").get(FRAME_KEY)).toBe(tall);
+    expect(framedImages(loaded, "wide").get(FRAME_KEY)).toBe(wide);
+  });
+  it("leaves the map alone when that shape has not loaded", () => {
+    expect(framedImages(new Map(), "tall").has(FRAME_KEY)).toBe(false);
+  });
+});
+
+describe("loadImages", () => {
+  class FakeImage {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    crossOrigin = "";
+    set src(v: string) { queueMicrotask(() => (v.includes("bad") ? this.onerror?.() : this.onload?.())); }
+  }
+  // Bug: a frame file that 404s dropped the whole nook to its still.
+  it("plays without a frame that fails to load", async () => {
+    vi.stubGlobal("Image", FakeImage);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const withFrame = { ...scene, frame: { wide: "bad-frame.webp" } };
+    const out = await loadImages(withFrame, (s) => s, "wide");
+    expect([...out.keys()]).toEqual(["plate"]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    // A missing layer still fails the load.
+    await expect(loadImages({ ...scene, stack: [{ ...scene.stack[0], src: "bad.png" } as never] }, (s) => s)).rejects.toThrow(/missing/);
+    warn.mockRestore();
+    vi.unstubAllGlobals();
   });
 });

@@ -54,9 +54,11 @@ export interface Scene {
   /**
    * An ornamental frame with a transparent opening, drawn over everything in screen space; it never moves. A frame
    * covers a screen's edge, so it comes in two shapes, tall for a phone and wide for a TV or the website; a screen
-   * whose shape is missing shows no frame rather than a stretched one. `style` names the stock frame it came from.
+   * whose shape is missing shows no frame rather than a stretched one. `style` names the stock frame it came from
+   * (`own-…` for one the DM uploaded) and `name` what the picker calls an own frame. `fit` is how it meets a screen of another shape: `slice` (default) keeps
+   * its ornaments and stretches the plain bands, `cover` scales evenly and crops.
    */
-  frame?: { style?: string; tall?: string; wide?: string };
+  frame?: { style?: string; name?: string; fit?: "slice" | "cover"; tall?: string; wide?: string };
   /** Seconds after which every motion repeats exactly. */
   loop: number;
   /** Slow drift of the viewpoint, which is what makes the depths part (parallax). */

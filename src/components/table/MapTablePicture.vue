@@ -1,6 +1,6 @@
 <template>
   <div class="relative h-dvh w-screen overflow-hidden bg-black" data-testid="table-picture">
-    <BookNookPlayer v-if="nook" :scene="nook.scene" :still="nook.still_url" screen="wide" />
+    <BookNookPlayer v-if="nook" :scene="nook.scene" :still="nook.still_url" screen="wide" fullscreen />
     <Transition :name="reduced ? '' : 'arrival'">
       <div
         v-if="titleShown && place"

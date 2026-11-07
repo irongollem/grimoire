@@ -117,7 +117,7 @@
             :frame="scene.frame"
             @breathing="(breathing) => run({ op: 'breathing', breathing })"
             @mood="(mood) => run({ op: 'mood', mood })"
-            @frame="(frame) => run({ op: 'frame', frame: frame && { style: frame.style, tall: frame.tall, wide: frame.wide } })"
+            @frame="(frame) => run({ op: 'frame', frame: frame && { style: frame.style, name: frame.name, fit: frame.fit, tall: frame.tall, wide: frame.wide } })"
           />
           <StudioSoundRow :nook-id="nookId" />
         </div>

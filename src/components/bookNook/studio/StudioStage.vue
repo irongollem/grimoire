@@ -54,7 +54,7 @@ import { useElementSize } from "@vueuse/core";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { effectPoint, PICTURE_ID, withHidden, type StudioOp, type Target } from "@/lib/bookNook/edit";
 import { windowFor } from "@/lib/bookNook/framing";
-import { drawScene, type Images } from "@/lib/bookNook/render";
+import { drawScene, framedImages, type Images } from "@/lib/bookNook/render";
 import { layersOf, type Layer, type Point, type Rect, type Scene, type View } from "@/lib/bookNook/scene";
 import {
   anchorScreenPoint, fitStage, hitLayer, widthFromCornerDrag, imagePointAt, layerScreenRect, projectorFor, screenDeltaToRoom, screenOf,
@@ -106,6 +106,9 @@ const pixelRatio = () => Math.min(window.devicePixelRatio || 1, 1.5);
 const pixels = computed(() => ({ width: Math.round(size.value.width * pixelRatio()), height: Math.round(size.value.height * pixelRatio()) }));
 
 const view = computed<View>(() => ({ window: windowFor(scene, screenInfo.value.window), breathe: 1 }));
+// The frame belongs to the TV and the phone; the Atlas picture sits in a page and has none.
+const framed = computed(() => (screen === "atlas" ? null : screenInfo.value.window));
+const drawnImages = computed(() => framedImages(images, framed.value));
 const layers = computed(() => layersOf(scene));
 const projector = computed(() => projectorFor(scene, size.value, view.value, t));
 
@@ -114,7 +117,8 @@ watchPostEffect(() => {
   if (!el || !ready || pixels.value.width === 0) return;
   const ctx = el.getContext("2d");
   if (!ctx) return;
-  drawScene(ctx, withHidden(scene, hidden), images, t, view.value);
+  const drawn = withHidden(scene, hidden);
+  drawScene(ctx, framed.value ? drawn : { ...drawn, frame: undefined }, drawnImages.value, t, view.value);
 });
 
 // ── The selected thing ────────────────────────────────────────────────────────────────────────────────────────

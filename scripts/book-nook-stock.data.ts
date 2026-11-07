@@ -3,7 +3,7 @@
  * `library_nook_parts`. Data only; a test holds it equal to `CutoutPreset` / `FramePreset`.
  * `file` is the name in the painter folder (the candle flame predates the `stock-` naming).
  */
-import type { CutoutPreset, FramePreset, NookPartGroup } from "../src/types/bookNook.types.ts";
+import type { CutoutPreset, FrameFit, FramePreset, NookPartGroup } from "../src/types/bookNook.types.ts";
 
 export interface StockPart {
   id: string;
@@ -65,21 +65,27 @@ const cutouts: Omit<StockPart, "sort_order">[] = [
   cutout("rowing-boat", "air", "Rowing boat", { hold: "floats", motion: "Floating" }),
 ];
 
-const STYLES: [string, string][] = [
+// Stone must not stretch (its blocks would turn to slabs), so it covers the screen and is cropped at the sides;
+// the others keep their ends and centre and stretch the plain bands between (`frameSlices`).
+const STYLES: [string, string, FrameFit?][] = [
   ["arch", "Arch"],
   ["illuminated", "Illuminated border"],
   ["cameo", "Cameo"],
   ["deckled", "Deckled mount"],
+  ["window-wood", "Wooden window"],
+  ["window-panes", "Four-pane window"],
+  ["stone", "Stone wall", "cover"],
+  ["stone-bars", "Prison bars", "cover"],
 ];
 
-const frames: Omit<StockPart, "sort_order">[] = STYLES.flatMap(([style, label]) =>
+const frames: Omit<StockPart, "sort_order">[] = STYLES.flatMap(([style, label, fit]) =>
   (["tall", "wide"] as const).map((shape) => ({
     id: `frame-${style}-${shape}`,
     file: `frame-${style}-${shape}.png`,
     kind: "frame" as const,
     group_key: "frames" as const,
     name: `${label} (${shape})`,
-    preset: { shape } satisfies FramePreset,
+    preset: (fit ? { shape, fit } : { shape }) satisfies FramePreset,
   })),
 );
 

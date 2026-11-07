@@ -21,6 +21,24 @@ export async function uploadNookImage(blob: Blob, nookId: string, userId: string
   return url;
 }
 
+/**
+ * Stores an own frame as WebP at `location-images/{userId}/nooks/frames/{uuid}.webp`. Not in a nook's folder on
+ * purpose: a frame is the DM's and reused across nooks, and `nookFiles` deletes only what runs through
+ * `/nooks/{nookId}/`, so deleting the first nook that used it cannot break the others.
+ */
+export async function uploadNookFrame(blob: Blob, userId: string): Promise<string> {
+  const webp = await toWebP(new File([blob], "frame.png", { type: blob.type }), 4096);
+  if (webp.type !== "image/webp") throw new Error("the frame could not be converted to WebP");
+  const url = await uploadToBucket({
+    bucket: "locationImages",
+    blob: webp,
+    path: `${userId}/nooks/frames/${crypto.randomUUID()}.webp`,
+    contentType: "image/webp",
+  });
+  if (!url) throw new Error("the frame could not be stored");
+  return url;
+}
+
 export async function removeNookImages(urls: string[]): Promise<void> {
   await removeByPublicUrl("locationImages", ...urls);
 }

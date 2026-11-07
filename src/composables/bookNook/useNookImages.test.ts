@@ -64,4 +64,26 @@ describe("useNookImages", () => {
     await vi.waitFor(() => expect(nook.failed.value).toEqual(["bad.webp"]));
     expect(nook.ready.value).toBe(false);
   });
+
+  // Bug: the studio never fetched the frame, so a chosen frame was never drawn; and a slow frame must not hold the stage.
+  it("loads the frame's shapes beside the layers without holding ready, and drops them with the frame", async () => {
+    const scene = ref<Scene>({ ...base, frame: { style: "own-1", tall: "t.webp", wide: "w.webp" } });
+    const nook = mountImages(scene);
+    await vi.waitFor(() => expect(nook.images.value.has("$frame:wide")).toBe(true));
+    expect(nook.images.value.has("$frame:tall")).toBe(true);
+    expect(nook.ready.value).toBe(true);
+    expect(nook.sizes.value.has("$frame:wide")).toBe(false);
+    scene.value = { ...scene.value, frame: undefined };
+    await vi.waitFor(() => expect(nook.images.value.has("$frame:wide")).toBe(false));
+    expect(nook.images.value.has("$frame:tall")).toBe(false);
+  });
+
+  // Bug: a failed frame listed among the failed layers shows the "pictures could not be loaded" alarm.
+  it("does not report a failed frame as a failed layer", async () => {
+    const nook = mountImages(ref<Scene>({ ...base, frame: { wide: "bad-frame.webp" } }));
+    await vi.waitFor(() => expect(nook.ready.value).toBe(true));
+    await new Promise((r) => setTimeout(r, 5));
+    expect(nook.failed.value).toEqual([]);
+    expect(nook.images.value.has("$frame:wide")).toBe(false);
+  });
 });

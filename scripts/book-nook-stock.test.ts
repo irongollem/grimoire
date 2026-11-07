@@ -8,12 +8,12 @@ const HOLDS = ["stands", "hangs", "floats"];
 const MOTIONS = ["Flame", "Cloth", "Hanging", "Floating", "Wandering"];
 
 describe("the stock catalogue", () => {
-  it("has unique ids of the form stock-* / frame-*, and 32 cut-outs plus 8 frames", () => {
+  it("has unique ids of the form stock-* / frame-*, and 32 cut-outs plus 16 frames", () => {
     const ids = STOCK_PARTS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(id).toMatch(/^(stock|frame)-[a-z0-9-]+$/);
     expect(STOCK_PARTS.filter((p) => p.kind === "cutout")).toHaveLength(32);
-    expect(STOCK_PARTS.filter((p) => p.kind === "frame")).toHaveLength(8);
+    expect(STOCK_PARTS.filter((p) => p.kind === "frame")).toHaveLength(16);
   });
 
   it("gives every part a preset the Book Nook types accept and a kind-matching id", () => {
@@ -21,6 +21,8 @@ describe("the stock catalogue", () => {
       expect(part.id.startsWith(part.kind === "frame" ? "frame-" : "stock-")).toBe(true);
       if (part.kind === "frame") {
         expect(part.group_key).toBe("frames");
+        // Bug: a stone frame stretched by the slicing turns its blocks into slabs; only stone covers and crops.
+        expect((part.preset as FramePreset).fit === "cover").toBe(part.id.startsWith("frame-stone"));
         expect(["tall", "wide"]).toContain((part.preset as FramePreset).shape);
       } else {
         const p = part.preset as CutoutPreset;
@@ -97,6 +99,15 @@ describe("cleanAlpha", () => {
     expect(alpha(px, w, 4, 4)).toBe(0);
     expect(alpha(px, w, 3, 4)).toBe(0);
     expect(alpha(px, w, 0, 0)).toBe(255);
+  });
+
+  // Bug: the clearing started at the one centre pixel, which on a four-pane window is the cross, so no pane was cleared.
+  it("clears every pane round a window's cross and keeps the cross", () => {
+    const w = 11;
+    const px = image(w, 11, (x, y) => (x < 2 || x > 8 || y < 2 || y > 8 || x === 5 || y === 5 ? 255 : 60));
+    cleanAlpha(px, w, 11, "frame");
+    expect([alpha(px, w, 3, 3), alpha(px, w, 7, 3), alpha(px, w, 3, 7), alpha(px, w, 7, 7)]).toEqual([0, 0, 0, 0]);
+    expect([alpha(px, w, 5, 5), alpha(px, w, 5, 3), alpha(px, w, 3, 5)]).toEqual([255, 255, 255]);
   });
 
   // Bug: a cut-out's own half-clear middle (a lantern's glass) punched out as if it were a frame's opening.

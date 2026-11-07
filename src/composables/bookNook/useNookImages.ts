@@ -1,6 +1,6 @@
 import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from "vue";
 import { cutSides, type Side } from "@/lib/bookNook/framing";
-import type { Images } from "@/lib/bookNook/render";
+import { frameImageKey, type Images } from "@/lib/bookNook/render";
 import { layersOf, type Scene } from "@/lib/bookNook/scene";
 
 /** Largest side of the copy whose edges are read for cut sides: enough to see an opaque row, cheap to read. */
@@ -62,6 +62,42 @@ export function useNookImages(scene: MaybeRefOrGetter<Scene | null>) {
     };
     img.src = src;
   }
+
+  /**
+   * The frame's shapes, held beside the layers under `frameImageKey`. They never count toward `ready` and are not
+   * read for cut sides; one that fails is simply not shown (the stage draws no frame for it).
+   */
+  const frameLoading = new Map<string, string>();
+  const frameSources = computed(() => {
+    const f = toValue(scene)?.frame;
+    return { tall: f?.tall, wide: f?.wide };
+  });
+  watch(
+    frameSources,
+    (sources) => {
+      for (const shape of ["tall", "wide"] as const) {
+        const key = frameImageKey(shape);
+        const src = sources[shape];
+        if (!src) {
+          if (frameLoading.delete(key) || images.value.has(key)) {
+            const next = new Map(images.value);
+            next.delete(key);
+            images.value = next;
+          }
+          continue;
+        }
+        if (frameLoading.get(key) === src) continue;
+        frameLoading.set(key, src);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          if (frameLoading.get(key) === src) images.value = new Map(images.value).set(key, img);
+        };
+        img.src = src;
+      }
+    },
+    { immediate: true },
+  );
 
   watch(
     wanted,

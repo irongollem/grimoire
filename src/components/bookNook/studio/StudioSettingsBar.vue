@@ -19,24 +19,38 @@
     </label>
     <label class="flex items-center gap-2">
       <span class="text-label uppercase text-muted-foreground">Frame</span>
-      <!-- Frames from the stock shelf, one choice per style (its tall and wide shapes together); shown in full screen only. -->
-      <AppSelect :model-value="frameStyle" size="sm" aria-label="Frame" @update:model-value="pickFrame">
+      <!-- Frames from the stock shelf, one choice per style (its tall and wide shapes together), then the DM's own. -->
+      <AppSelect
+        :key="selectKey"
+        :model-value="frameStyle"
+        size="sm"
+        aria-label="Frame"
+        title="Shown on the TV and on phones in full screen."
+        @update:model-value="pickFrame"
+      >
         <option value="none">None</option>
         <option v-for="f in frames" :key="f.style" :value="f.style">{{ f.name }}</option>
+        <optgroup v-if="own.length" label="Yours">
+          <option v-for="f in own" :key="f.style" :value="f.style">{{ f.name }}</option>
+        </optgroup>
+        <option :value="UPLOAD">Upload your own…</option>
       </AppSelect>
     </label>
+    <UploadFrameDialog :open="uploading" @close="closeUpload" @picked="(f) => emit('frame', f)" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { breathingOf, type Breathing } from "@/lib/bookNook/edit";
 import { MOODS, moodOf, type MoodId } from "@/lib/bookNook/moods";
 import type { Scene } from "@/lib/bookNook/scene";
 import { useLibraryNookParts } from "@/composables/bookNook/useLibraryNookParts";
-import { framePairs, type FramePair } from "@/lib/bookNook/frames";
+import { framePairs, ownFramePairs, type FramePair } from "@/lib/bookNook/frames";
+import { useBookNooks } from "@/composables/bookNook/useBookNooks";
+import UploadFrameDialog from "./UploadFrameDialog.vue";
 
 /** The picture-wide settings besides the loop: breathing (Still, Gentle, Deep), a mood, and the frame. */
 const { camera, grade, frame } = defineProps<{ camera: Scene["camera"]; grade: Scene["grade"]; frame: Scene["frame"] }>();
@@ -44,9 +58,26 @@ const emit = defineEmits<{ breathing: [value: Breathing]; mood: [value: MoodId];
 
 const { data: parts } = useLibraryNookParts();
 const frames = computed(() => framePairs(parts.value ?? []));
+const { data: nooks } = useBookNooks();
+/** The campaign's own frames, with this nook's even before it is saved into the list. */
+const own = computed(() => ownFramePairs([...(nooks.value ?? []), { scene: { frame } }]));
 const frameStyle = computed(() => frame?.style ?? "none");
+
+const UPLOAD = "__upload";
+const uploading = ref(false);
+/** Bumped when the upload is cancelled so the select snaps back to the current frame. */
+const snap = ref(0);
+const selectKey = computed(() => `frame-${snap.value}`);
+function closeUpload() {
+  uploading.value = false;
+  snap.value++;
+}
 function pickFrame(style: string) {
-  emit("frame", style === "none" ? null : (frames.value.find((f) => f.style === style) ?? null));
+  if (style === UPLOAD) {
+    uploading.value = true;
+    return;
+  }
+  emit("frame", style === "none" ? null : ([...frames.value, ...own.value].find((f) => f.style === style) ?? null));
 }
 
 const BREATHING_OPTIONS = [

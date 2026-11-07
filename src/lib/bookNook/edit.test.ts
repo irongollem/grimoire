@@ -460,6 +460,10 @@ describe("setFrame", () => {
   it("removes the frame for None", () => {
     expect(setFrame(setFrame(base, { style: "frame-arch", tall: "t", wide: "w" }), null).frame).toBeUndefined();
   });
+  // Bug: an own frame lost its name on the way into the scene, so the picker listed it as "My frame".
+  it("keeps the name of an own frame", () => {
+    expect(setFrame(base, { style: "own-1", name: "Ivy", wide: "w" }).frame?.name).toBe("Ivy");
+  });
   // Bug: a frame with neither shape saved, which shows nothing and reads as chosen.
   it("refuses a frame with no picture", () => {
     expect(() => setFrame(base, { style: "frame-arch" })).toThrow(/no picture/);

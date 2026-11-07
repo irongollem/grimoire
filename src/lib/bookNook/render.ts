@@ -25,7 +25,7 @@ import {
   type Scene,
   type View,
 } from "./scene.ts";
-import { frameSlices } from "./frameSlices.ts";
+import { frameCover, frameSlices } from "./frameSlices.ts";
 import { particlesAt, type Particles } from "./particles.ts";
 import { castAt } from "./shadows.ts";
 
@@ -33,6 +33,21 @@ export type Images = Map<string, HTMLImageElement>;
 
 /** The images-map key of a scene's ornamental frame. */
 export const FRAME_KEY = "$frame";
+
+/** The key a frame's `shape` is held under when both shapes are loaded side by side (the studio). */
+export function frameImageKey(shape: "tall" | "wide"): string {
+  return `${FRAME_KEY}:${shape}`;
+}
+
+/**
+ * `images` as `drawScene` wants them for one screen: the frame of `shape` under `FRAME_KEY`, or none (an Atlas
+ * picture sits in a page and has no frame). Returns `images` itself when there is nothing to add.
+ */
+export function framedImages(images: Images, shape: "tall" | "wide" | null): Images {
+  const frame = shape ? images.get(frameImageKey(shape)) : undefined;
+  if (!frame) return images;
+  return new Map(images).set(FRAME_KEY, frame);
+}
 
 /**
  * Loads every layer's image (and the frame's, in the `screen`'s shape), each from `urlOf(src)`, and fails naming
@@ -43,9 +58,9 @@ export async function loadImages(scene: Scene, urlOf: (src: string) => string, s
   const missing: string[] = [];
   const wanted = layersOf(scene).map((layer) => ({ key: layer.id, src: layer.src }));
   const frameSrc = scene.frame?.[screen];
-  if (frameSrc) wanted.push({ key: FRAME_KEY, src: frameSrc });
+  const frame = frameSrc ? [{ key: FRAME_KEY, src: frameSrc }] : [];
   await Promise.all(
-    wanted.map(
+    [...wanted, ...frame].map(
       ({ key, src }) =>
         new Promise<void>((resolve) => {
           const img = new Image();
@@ -55,7 +70,9 @@ export async function loadImages(scene: Scene, urlOf: (src: string) => string, s
             resolve();
           };
           img.onerror = () => {
-            missing.push(src);
+            // A frame is ornament: the nook plays without it rather than dropping to its still.
+            if (key === FRAME_KEY) console.warn(`Scene ${scene.id}: the frame ${src} could not be loaded`);
+            else missing.push(src);
             resolve();
           };
           img.src = urlOf(src);
@@ -100,7 +117,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, scene: Scene, images: I
   }
   grade(ctx, scene, screen);
   const frame = scene.frame ? images.get(FRAME_KEY) : undefined;
-  if (frame) drawFrame(ctx, frame, screen, view);
+  if (frame) drawFrame(ctx, frame, screen, view, scene.frame?.fit);
   ctx.restore();
 }
 
@@ -156,10 +173,10 @@ function drawCast(ctx: CanvasRenderingContext2D, scene: Scene, layer: Layer, img
  * The ornamental frame, fixed to the screen: neither the camera, breathing nor tilt touches it. Under it, its
  * shadow on the room shifts with the tilt, so the opening has thickness.
  */
-function drawFrame(ctx: CanvasRenderingContext2D, frame: HTMLImageElement, screen: { width: number; height: number }, view?: View): void {
+function drawFrame(ctx: CanvasRenderingContext2D, frame: HTMLImageElement, screen: { width: number; height: number }, view?: View, fit: "slice" | "cover" = "slice"): void {
   const { width, height } = screen;
   const tilt = view?.tilt ?? { x: 0, y: 0 };
-  const fitted = fittedFrame(frame, width, height);
+  const fitted = fittedFrame(frame, width, height, fit);
   const shadow = silhouetteOf(fitted, width, height, Math.max(1, width * 0.015), 0, 0.7);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
@@ -169,15 +186,20 @@ function drawFrame(ctx: CanvasRenderingContext2D, frame: HTMLImageElement, scree
 }
 
 const fittedFrames = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
+/** The fit each cached canvas was built with, so a changed fit rebuilds it. */
+const fittedWith = new WeakMap<HTMLCanvasElement, string>();
 
-/** The frame laid onto a canvas of the screen's size in three slices (`frameSlices`), built once per size. */
-function fittedFrame(frame: HTMLImageElement, width: number, height: number): HTMLCanvasElement {
+/** The frame laid onto a canvas of the screen's size (`frameSlices`, or `frameCover`), built once per size and fit. */
+function fittedFrame(frame: HTMLImageElement, width: number, height: number, fit: "slice" | "cover"): HTMLCanvasElement {
   const cached = fittedFrames.get(frame);
-  if (cached && cached.width === width && cached.height === height) return cached;
+  if (cached && cached.width === width && cached.height === height && fittedWith.get(cached) === fit) return cached;
   const canvas = scratch(fittedFrames, frame, width, height);
+  fittedWith.set(canvas, fit);
   const c = context(canvas);
   c.clearRect(0, 0, width, height);
-  for (const { from, to } of frameSlices({ width: frame.naturalWidth, height: frame.naturalHeight }, { width, height })) {
+  const image = { width: frame.naturalWidth, height: frame.naturalHeight };
+  const slices = fit === "cover" ? [frameCover(image, { width, height })] : frameSlices(image, { width, height });
+  for (const { from, to } of slices) {
     c.drawImage(frame, from[0], from[1], from[2], from[3], to[0], to[1], to[2], to[3]);
   }
   return canvas;

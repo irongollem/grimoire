@@ -27,7 +27,7 @@ Each cut-out moves in a way named for what it does: **Flame**, **Cloth**, **Hang
 
 Shadows belong to the light, not to the person looking. Mark a cut-out as casting a shadow and choose the light it comes from. Near a flame the shadow falls away from the light and wavers with the flicker. It never stretches just because someone tilts their phone.
 
-Along the top you set the picture as a whole: the **loop** (every motion repeats exactly in it), **breathing** (Still, Gentle or Deep), a **mood**, and an optional **frame**. A frame is art that covers the edge of the screen when the picture is full screen. It never moves; the room moves behind it.
+Along the top you set the picture as a whole: the **loop** (every motion repeats exactly in it), **breathing** (Still, Gentle or Deep), a **mood**, and an optional **frame**. A frame is art that covers the edge of the screen when the picture fills it: on the TV's Table screen and on a player's phone in full screen. It never moves; the room moves behind it. The studio's TV and Phone previews show it. To use your own, pick **Upload your own…** and give it a wide picture, a tall one or both, each with a see-through middle; your frames are then offered in every nook of the campaign.
 
 Once the nook is shown in the Atlas, a **Sound** row appears under these settings. A nook's sound is its location's ambience, so changing it here changes the location, and the other way round. Leave it blank and the location uses its parent's sound; the field shows which. Press the note to hear it. It keeps playing after you leave the studio, as it does when you press Play on the location. Nothing plays just because you opened the nook.
 

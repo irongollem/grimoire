@@ -37,8 +37,12 @@ export interface CutoutPreset {
   motion?: "Flame" | "Cloth" | "Hanging" | "Floating" | "Wandering";
 }
 
+/** How a frame meets a screen of another shape: `slice` keeps its ornaments and stretches the plain bands, `cover` scales evenly and crops. */
+export type FrameFit = "slice" | "cover";
+
 export interface FramePreset {
   shape: "tall" | "wide";
+  fit?: FrameFit;
 }
 
 interface LibraryNookPartBase {

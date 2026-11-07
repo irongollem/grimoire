@@ -11,7 +11,7 @@ vi.mock("@/lib/storage", () => ({
   removeByPublicUrl: mocks.removeByPublicUrl,
 }));
 
-import { uploadNookImage, removeNookImages, nookFiles } from "./upload";
+import { uploadNookImage, uploadNookFrame, removeNookImages, nookFiles } from "./upload";
 
 const webp = new File(["x"], "n.webp", { type: "image/webp" });
 
@@ -80,5 +80,19 @@ describe("nookFiles", () => {
   it("does not repeat a file the scene and the still share", () => {
     const url = `${CDN}/u1/nooks/n1/a.webp`;
     expect(nookFiles({ stack: [layer(url)] } as never, url, "n1")).toEqual([url]);
+  });
+});
+
+describe("uploadNookFrame", () => {
+  // Bug: a frame stored in one nook's folder was deleted with that nook and broke every other nook using it.
+  it("stores under nooks/frames/, which no nook's file list reaches", async () => {
+    mocks.uploadToBucket.mockResolvedValue(`${CDN}/u1/nooks/frames/x.webp`);
+    await uploadNookFrame(new Blob(["p"], { type: "image/png" }), "u1");
+    const path = (mocks.uploadToBucket.mock.calls[0][0] as { path: string }).path;
+    expect(path).toMatch(/^u1\/nooks\/frames\/[0-9a-f-]+\.webp$/);
+    const url = `${CDN}/${path}`;
+    for (const id of ["n1", "n2"]) {
+      expect(nookFiles({ stack: [], frame: { tall: url, wide: url } } as never, null, id)).toEqual([]);
+    }
   });
 });

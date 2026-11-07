@@ -48,14 +48,21 @@ export const OPENING_ALPHA = 200;
  * Cleans a part's alpha in place (RGBA bytes). Generated cut-outs keep a faint warm or green haze outside
  * their silhouette, which shows as a smudge on a room; it is cleared, leaving soft edges as painted. A frame's
  * opening must be fully clear, or the room is seen through a veil: the model painted a faint checkerboard into
- * the cameo's (5 Nov 2026), so the whole opening (the region joined to the middle that is not near-opaque) is
- * cleared, whatever was painted into it.
+ * the cameo's (5 Nov 2026), so the whole opening (every region joined to the middle that is not near-opaque, so
+ * each pane of a window) is cleared, whatever was painted into it.
  */
 export function cleanAlpha(rgba: Uint8Array, width: number, height: number, kind: "cutout" | "frame"): void {
   for (let i = 3; i < rgba.length; i += 4) if (rgba[i] < HAZE_ALPHA) rgba[i] = 0;
   if (kind !== "frame") return;
   const seen = new Uint8Array(width * height);
-  const stack = [Math.floor(height / 2) * width + Math.floor(width / 2)];
+  // Seeded from every see-through pixel in the middle, not the one centre pixel: a window's cross or a middle
+  // prison bar sits on the centre, and each pane and each gap between bars is an opening of its own.
+  const stack: number[] = [];
+  for (let y = Math.floor(height * 0.3); y < Math.ceil(height * 0.7); y++) {
+    for (let x = Math.floor(width * 0.3); x < Math.ceil(width * 0.7); x++) {
+      if (rgba[(y * width + x) * 4 + 3] < OPENING_ALPHA) stack.push(y * width + x);
+    }
+  }
   while (stack.length > 0) {
     const at = stack.pop() as number;
     if (seen[at]) continue;

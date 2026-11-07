@@ -20,7 +20,7 @@ vi.mock("@/composables/bookNook/useBookNooks", () => ({
 
 import MapTablePicture from "./MapTablePicture.vue";
 
-const Player = defineComponent({ name: "BookNookPlayer", props: ["scene", "still", "screen", "fullscreen"], template: "<div data-testid='player' />" });
+const Player = defineComponent({ name: "BookNookPlayer", props: { scene: null, still: null, screen: null, fullscreen: Boolean }, template: "<div data-testid='player' />" });
 
 function mountIt() {
   return mount(MapTablePicture, { props: { placeId: h.id.value }, global: { stubs: { BookNookPlayer: Player } } });
@@ -38,10 +38,11 @@ describe("MapTablePicture", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("plays the wide nook with no frame (the TV breathes)", () => {
+  // Bug: the Table screen (the TV) never drew the nook's frame, though it is the whole screen.
+  it("plays the wide nook full screen so its frame shows", () => {
     const p = mountIt().getComponent(Player);
     expect(p.props("screen")).toBe("wide");
-    expect(p.props("fullscreen")).toBeFalsy();
+    expect(p.props("fullscreen")).toBe(true);
   });
 
   it("lays the place's name and its parent over the picture on arrival", () => {

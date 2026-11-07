@@ -330,7 +330,7 @@ export function setMood(scene: Scene, mood: MoodId): Scene {
 }
 
 /** The frame shown in full screen, or none. A frame is chosen as a pair of shapes, never one alone. */
-export function setFrame(scene: Scene, frame: { style: string; tall?: string; wide?: string } | null): Scene {
+export function setFrame(scene: Scene, frame: { style: string; name?: string; fit?: "slice" | "cover"; tall?: string; wide?: string } | null): Scene {
   if (!frame) {
     const next = { ...scene };
     delete next.frame;
@@ -611,7 +611,7 @@ export function depthBand(depth: number): DepthBand {
 
 /** What the inspector and the stage ask the draft to do; `applyOp` is the one door the draft opens. */
 export type StudioOp =
-  | { op: "frame"; frame: { style: string; tall?: string; wide?: string } | null }
+  | { op: "frame"; frame: { style: string; name?: string; fit?: "slice" | "cover"; tall?: string; wide?: string } | null }
   | { op: "move"; target: Target; to: Point }
   | { op: "resize"; id: string; width: number }
   | { op: "anchor"; id: string; anchor: Point; aspect: number }
