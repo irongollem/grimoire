@@ -17,6 +17,7 @@ const store = reactive({
   setMasterEffect: vi.fn(),
   setBusVolume: vi.fn(),
   setBusEffect: vi.fn(),
+  setDirectOutput: vi.fn(),
 });
 
 vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => store }));
@@ -46,6 +47,21 @@ describe("SoundboardMixer bus effects", () => {
   it("offers no effects under direct output", () => {
     store.directOutput = true;
     expect(mountMixer().findAllComponents({ name: "SoundEffectPicker" })).toHaveLength(0);
+    store.directOutput = false;
+  });
+});
+
+describe("SoundboardMixer output switch", () => {
+  // One tap from the deck in the car (wireless CarPlay stutters through the mixer,
+  // 7 Nov 2026). An inverted mapping would turn the mixer back on in the car.
+  it.each([
+    ["direct", false, true],
+    ["mixer", true, false],
+  ] as const)("picking %s while %s asks for direct output %s", (pick, startsDirect, expected) => {
+    store.directOutput = startsDirect;
+    const control = mountMixer().findComponent({ name: "SegmentedControl" });
+    control.vm.$emit("update:modelValue", pick);
+    expect(store.setDirectOutput).toHaveBeenLastCalledWith(expected);
     store.directOutput = false;
   });
 });

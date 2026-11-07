@@ -193,12 +193,13 @@ One model: Google's `lyria-3.5`, called through Google's **Interactions API** (`
 | `builder/LaneEditor.vue` | Rename a lane, set `one` / `together`, and pick what the campaign plays there by itself |
 | `builder/BuilderPlayDeck.vue`, `BuilderMixerDrawer.vue` | The builder's Play mode and the mixer drawer |
 | `DeckControllersSection.vue` | Launchpad status, lights, MIDI Learn bindings and the velocity curve, inside Board settings |
-| `BoardSettingsDialog.vue` | Triggers on/off, sharing to remote players, direct output, controllers |
+| `BoardSettingsDialog.vue` | Triggers on/off, sharing to remote players, direct output, controllers. Opened from the settings button in the /soundboard header (every width, phones included), the mixer's status line and the deck's settings popover |
 | `SoundboardPageTabs.vue` | Draggable page tabs: rename, delete, pad counts, quota-gated "Add Page"; a pad can be dropped on a tab |
 | `SoundForm.vue` | The add-sound form with its source tabs: URL, Upload, Spotify, Generate (AI), Library (our catalogue first, Freesound second). Over the 600-line soft max, flagged in #572 |
 | `AddSoundDialog.vue`, `SoundProviderBrowser.vue`, `SoundProviderRow.vue` | The dialog around `SoundForm` and the provider search results |
 | `SoundTrimControl.vue` | Persisted per-sound loudness correction (`gain_trim`, 0.25x to 4x), inside the pad's settings. Live preview on `@input`, persists once on `@change` |
 | `SoundboardMixer.vue`, `SceneMixer.vue`, `VolumeSlider.vue` | The faders (master, buses, scene layers) shared by the dock's popover and the builder's drawer so the two cannot drift; `VolumeSlider` is the one shared range input (`accent` is `primary` or `green` for Spotify) |
+| `SoundboardMixer.vue` (Output switch) | **Mixer / Direct (car)** at the foot of the shared mixer: the same `setDirectOutput` as Board settings, one tap from the deck on any page. Wireless CarPlay stutters through the mixer (the maintainer's tests, 7 Nov 2026: a single track, Loop off, stuttered; Direct output did not; a Bluetooth speaker never did), so the DM switches as they get in the car |
 | `SoundEffectPicker.vue` | Wand-icon popover for the `AudioEffectPreset` values: beside the master fader (the whole mix), beside each bus fader in the mixer (`store.setBusEffect`: every sound on Music, Ambience or Effects, filter only, so a Cave muffles and the master's reverb adds the echo), and in a sound pad's settings in Full (`store.setEffect` on every take but Spotify). All runtime only. Its `target` names what it colours in its title, so the mixer's four can be told apart |
 | `SoundCategoryFilter.vue` | Pill filter (All / Music / Ambience / Effects) in the library |
 | `PlaylistEditorDialog.vue`, `PlaylistTrackRow.vue` | Create/edit a scene or playlist: name, type (locked after creation), shuffle/repeat (music only), draggable track list |
