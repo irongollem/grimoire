@@ -67,6 +67,7 @@
       :default-type="list === 'scenes' ? 'ambient' : 'music'"
       @close="closeEditor"
     />
+    <SoundEditDialog :sound="editSound" @close="editSoundId = null" />
     <PaywallModal v-model="soundPaywall" resource="sounds" />
     <PaywallModal v-model="playlistPaywall" resource="soundboard_playlists" />
   </div>
@@ -89,6 +90,7 @@ import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import SoundCategoryFilter from "../SoundCategoryFilter.vue";
 import StarterScenesCard from "../StarterScenesCard.vue";
 import PlaylistEditorDialog from "../PlaylistEditorDialog.vue";
+import SoundEditDialog from "../SoundEditDialog.vue";
 import DeckLibraryRow from "./DeckLibraryRow.vue";
 import { libraryRows, type LibraryList, type LibraryPlacement, type LibraryRow } from "./libraryRows";
 
@@ -175,6 +177,9 @@ const soundPaywall = ref(false);
 const playlistPaywall = ref(false);
 const editorOpen = ref(false);
 const editTarget = ref<SoundboardPlaylist | null>(null);
+// By id, so the dialog reads the live cache row (artwork and trim write straight through).
+const editSoundId = ref<string | null>(null);
+const editSound = computed(() => (editSoundId.value === null ? null : (sounds.value ?? []).find((s) => s.id === editSoundId.value) ?? null));
 
 function openAddSound() {
   if (!canCreateSound.value) {
@@ -194,6 +199,10 @@ function openNewPlaylist() {
 }
 
 function openEdit(row: LibraryRow) {
+  if (row.sound) {
+    editSoundId.value = row.sound.id;
+    return;
+  }
   editTarget.value = row.playlist;
   editorOpen.value = true;
 }

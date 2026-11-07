@@ -139,9 +139,19 @@ describe("DeckPad appearance", () => {
     const hidden = mountPad(fixtureCell({ mode: "trigger", modeIsDefault: true }), { controls: "simple" });
     const gate = mountPad(fixtureCell({ mode: "gate", modeIsDefault: false }), { controls: "simple" });
     const full = mountPad(fixtureCell({ mode: "trigger", modeIsDefault: true }), { controls: "full" });
-    expect(hidden.find("svg[title]").exists()).toBe(false);
-    expect(gate.find("svg[title]").exists()).toBe(true);
-    expect(full.find("svg[title]").exists()).toBe(true);
+    expect(hidden.find("[data-launch-glyph]").exists()).toBe(false);
+    expect(gate.find("[data-launch-glyph]").exists()).toBe(true);
+    expect(full.find("[data-launch-glyph]").exists()).toBe(true);
+  });
+
+  it("names its kind, so a playlist reads apart from a music track and a scene from an ambience track", () => {
+    // Bug: colour is per category, so with no kind glyph these pairs looked identical.
+    const label = (over: Partial<DeckCellView>) => mountPad(fixtureCell(over)).attributes("aria-label");
+    expect(label({ kind: "sound", category: "music" })).toContain("Music track");
+    expect(label({ kind: "playlist", category: "music" })).toContain("Playlist");
+    expect(label({ kind: "sound", category: "ambient" })).toContain("Ambience track");
+    expect(label({ kind: "scene", category: "ambient" })).toContain("Scene");
+    expect(mountPad(fixtureCell({ kind: "scene", category: "ambient" })).get("[data-kind-glyph]").attributes("title")).toBe("Scene");
   });
 
   it("renders a void cell as a non-interactive, hidden element", () => {

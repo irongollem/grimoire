@@ -33,7 +33,7 @@ function sound(id: string, name: string, over: Partial<Sound> = {}): Sound {
 function mountPanel(canPlace: boolean) {
   return mount(DeckLibraryPanel, {
     props: { usedSoundIds: new Set(["a"]), usedPlaylistIds: new Set<string>(), canPlace },
-    global: { stubs: { PlaylistEditorDialog: true, PaywallModal: true, StarterScenesCard: true } },
+    global: { stubs: { PlaylistEditorDialog: true, SoundEditDialog: true, PaywallModal: true, StarterScenesCard: true } },
   });
 }
 
@@ -77,5 +77,13 @@ describe("DeckLibraryPanel", () => {
     await w.vm.$nextTick();
     expect(w.text()).toContain("Door slam");
     expect(w.text()).not.toContain("Thunder");
+  });
+
+  it("opens the sound editor from a sound row", async () => {
+    // Bug: after the deck redesign only scenes and playlists had Edit, so a sound could not be renamed or retyped.
+    const w = mountPanel(false);
+    await w.find("li").find("button[aria-label='Edit Door slam']").trigger("click");
+    expect(w.findComponent({ name: "SoundEditDialog" }).props("sound")).toMatchObject({ id: "a", name: "Door slam" });
+    expect(w.emitted("place")).toBeUndefined();
   });
 });

@@ -1,14 +1,15 @@
 <template>
-  <!-- Collapsed: a subtle "Trim…" affordance when untouched (fades in on card
-       hover, same as the empty-artist placeholder), or an always-visible gold
-       badge once the DM has actually corrected the loudness. -->
+  <!-- Collapsed: a quiet "Trim…" when untouched, or a gold badge once the DM
+       has corrected the loudness. It sits on a labelled settings row (pad
+       settings, the sound editor), so it is always visible: it used to fade in
+       on card hover, and with no card around it that left the row empty. -->
   <button
     v-if="!editing"
     type="button"
     class="rounded text-label transition-colors"
     :class="isTrimmed
       ? 'flex items-center gap-1 px-1.5 py-0.5 text-gold-400 bg-gold-500/10 border border-gold-500/20 hover:bg-gold-500/20'
-      : 'italic text-muted-foreground/40 [@media(hover:hover)]:text-muted-foreground/0 [@media(hover:hover)]:group-hover:text-muted-foreground/40 hover:text-muted-foreground!'"
+      : 'italic text-muted-foreground hover:text-foreground'"
     :title="isTrimmed ? `Trim ${committedLabel}. Click to adjust` : 'Correct this sound\'s loudness'"
     @click="startEdit"
   >{{ isTrimmed ? `Trim ${committedLabel}` : 'Trim…' }}</button>

@@ -139,7 +139,11 @@ export interface DeckCellView {
   soloed: boolean;
   /** Words for why it cannot play here, shown on the pad (no tooltips on a phone). */
   blockedReason: string | null;
-  /** A short line under the name: "3 layers", "3/12", "Spotify: this device only". */
+  /** The picture behind the pad, drawn in the pad's hue (`padArt`); null for none. */
+  art: string | null;
+  /** A scene's layers or a playlist's tracks, shown on the kind icon; null for a sound. */
+  count: number | null;
+  /** A short line under the name: "3/12" while a playlist plays, "Spotify: this device only". */
   meta: string | null;
   /** 1 to 8 for the top row, the key that fires it; null elsewhere. */
   keyLabel: string | null;

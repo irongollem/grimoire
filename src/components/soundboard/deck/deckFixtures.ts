@@ -20,6 +20,8 @@ export function fixtureCell(over: Partial<DeckCellView> = {}): DeckCellView {
     volume: 0.7,
     soloed: false,
     blockedReason: null,
+    art: null,
+    count: null,
     meta: null,
     keyLabel: null,
     ...over,

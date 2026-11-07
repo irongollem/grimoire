@@ -88,7 +88,7 @@
 
       <div v-if="sound" class="space-y-2 border-t border-border/50 pt-3">
         <p class="text-label-lg text-muted-foreground">Sound</p>
-        <SegmentedControl :model-value="sound.category" :options="CATEGORIES" block @update:model-value="setCategory" />
+        <SegmentedControl :model-value="sound.category" :options="SOUND_KIND_OPTIONS" block @update:model-value="setCategory" />
         <div class="relative flex min-h-9 items-center gap-2">
           <span class="text-caption text-muted-foreground">Loudness</span>
           <SoundTrimControl :sound="sound" />
@@ -115,6 +115,7 @@ import { useAudibleCheck, useSoundToggle } from "@/composables/soundboard/useSou
 import { useAutosave } from "@/composables/useAutosave";
 import { useConfirm } from "@/composables/useConfirm";
 import { padCategory, padKind } from "@/lib/audio/deck/deckModel";
+import { SOUND_KIND_OPTIONS } from "@/lib/audio/soundKinds";
 import type { DeckControls } from "@/lib/audio/deck/deckSurface";
 import type { AudioEffectPreset, LaunchMode, SoundCategory } from "@/types/sound.types";
 import { useSoundboardStore } from "@/stores/soundboard";
@@ -139,11 +140,6 @@ const MODES: { value: LaunchMode; label: string }[] = [
   { value: "toggle", label: "Toggle" },
   { value: "gate", label: "Gate" },
   { value: "repeat", label: "Repeat" },
-];
-const CATEGORIES: { value: SoundCategory; label: string }[] = [
-  { value: "ambient", label: "Ambient" },
-  { value: "music", label: "Music" },
-  { value: "effects", label: "Effects" },
 ];
 
 const uid = useId();

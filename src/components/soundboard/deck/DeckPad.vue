@@ -46,6 +46,19 @@
     @click="onClick"
     @dragstart="onDragStart"
   >
+    <!-- The sound's art, coloured in the pad's hue: the picture gives its light and
+         shade (luminosity blend) and the pad keeps its colour, so the hue still
+         says what it is. Quieter at rest, so a lit pad still stands out. -->
+    <span
+      v-if="cell.art !== null"
+      class="pointer-events-none absolute inset-0 isolate"
+      :class="[ART_BG[hue], lit ? 'opacity-40' : 'opacity-25']"
+      aria-hidden="true"
+      data-pad-art
+    >
+      <img :src="cell.art" alt="" class="h-full w-full object-cover mix-blend-luminosity" loading="lazy" draggable="false" />
+    </span>
+
     <!-- Volume tool: the level rises from the bottom, so the fill is the answer. -->
     <span
       v-if="tool === 'volume'"
@@ -66,7 +79,7 @@
 
     <!-- A guest's Keep sits in the top corner (DeckGrid draws it), so its name stops short of it. -->
     <span class="relative flex min-w-0 items-start gap-1.5" :class="cell.guest !== null ? 'pe-5 pointer-coarse:pe-9' : ''">
-      <!-- No kind icon: the pad's colour already says music, ambience or effect, and the name needs the room. -->
+      <!-- The name has the top line to itself; the kind icon sits at the start of the foot. -->
       <span
         class="min-w-0 flex-1 font-semibold leading-tight [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"
         :class="size === 'sm' ? 'text-label-lg' : 'text-body'"
@@ -76,10 +89,20 @@
     </span>
 
     <span class="relative flex min-w-0 items-center gap-1.5 text-label" :class="blockedText ? 'text-destructive' : footClass">
+      <!-- Colour says the category, but a playlist and a music track share one, and a scene and an
+           ambience track another: the kind icon is what tells them apart. -->
+      <KindGlyph
+        :kind="kind"
+        :count="cell.count"
+        icon-class="h-3 w-3"
+        :count-class="lit ? LIT_COUNT[hue] : 'text-card'"
+        :class="[lit ? '' : PAD_ICON[hue], squeezable, cell.count !== null ? 'me-1' : '']"
+        data-kind-glyph
+      />
       <!-- The launch mode is hidden in Simple when it is the default: it is noise until it differs. -->
       <!-- On a squeezed small pad the key number outranks these: the light already says it loops. -->
-      <component :is="modeIcon" v-if="showMode" class="h-3 w-3 shrink-0" :class="squeezable" :title="launchModeWords(cell.mode)" aria-hidden="true" />
-      <IconRepeat v-if="cell.loop" class="h-3 w-3 shrink-0" :class="[lit ? '' : PAD_ICON[category], squeezable]" aria-hidden="true" />
+      <component :is="modeIcon" v-if="showMode" class="h-3 w-3 shrink-0" :class="squeezable" :title="launchModeWords(cell.mode)" aria-hidden="true" data-launch-glyph />
+      <IconRepeat v-if="cell.loop" class="h-3 w-3 shrink-0" :class="[lit ? '' : PAD_ICON[hue], squeezable]" aria-hidden="true" />
       <span v-if="lit" class="flex h-2.5 shrink-0 items-end gap-px" aria-hidden="true">
         <span
           v-for="bar in 4"
@@ -124,10 +147,11 @@ import {
   IconRepeat,
 } from "@/lib/icons";
 import KeyCap from "@/components/soundboard/KeyCap.vue";
-import { PAD_GLOW, PAD_ICON, PAD_LIT, PAD_REST } from "@/lib/audio/soundCategories";
+import { PAD_GLOW, PAD_ICON, PAD_LIT, PAD_REST, padHueOf, type PadHue } from "@/lib/audio/soundCategories";
+import KindGlyph from "@/components/soundboard/KindGlyph.vue";
 import type { DeckCellView, DeckControls, DeckTool } from "@/lib/audio/deck/deckSurface";
-import type { LaunchMode, SoundCategory } from "@/types/sound.types";
-import { isLit, launchModeWords, padAccessibleName, padCategory, toolChipFor } from "./deckPadLook";
+import type { LaunchMode } from "@/types/sound.types";
+import { isLit, launchModeWords, padAccessibleName, padKindOf, toolChipFor } from "./deckPadLook";
 
 /**
  * One pad of the deck (#1136). It draws a `DeckCellView` and reports what the
@@ -180,8 +204,10 @@ const emit = defineEmits<{
 const el = ref<HTMLButtonElement | null>(null);
 
 const isVoid = computed(() => cell.padId === null && cell.guest === null && mode === "play");
-const category = computed<SoundCategory>(() => padCategory(cell));
+// The colour: the category's, or a playlist's or scene's own hue.
+const hue = computed<PadHue>(() => padHueOf(cell.kind, cell.category));
 const lit = computed(() => isLit(cell));
+const kind = computed(() => padKindOf(cell));
 const chip = computed(() => (mode === "play" && cell.guest === null ? toolChipFor(cell, tool) : null));
 const blockedText = computed(() => cell.light === "blocked" && cell.blockedReason !== null);
 
@@ -196,30 +222,53 @@ const showKey = computed(() => cell.keyLabel !== null && chip.value === null && 
 const touchClass = computed(() => (tool === "volume" ? "touch-none" : "touch-manipulation"));
 
 // Written out in full for Tailwind's scanner, like the maps in soundCategories.
-const FADING: Record<SoundCategory, string> = {
+const FADING: Record<PadHue, string> = {
   music: "bg-pad-music/30 border-pad-music",
   ambient: "bg-pad-ambient/30 border-pad-ambient",
   effects: "bg-pad-effects/30 border-pad-effects",
+  playlist: "bg-pad-playlist/30 border-pad-playlist",
+  scene: "bg-pad-scene/30 border-pad-scene",
 };
-const DUCKED: Record<SoundCategory, string> = {
+const DUCKED: Record<PadHue, string> = {
   music: "bg-pad-music/24 border-pad-music/60",
   ambient: "bg-pad-ambient/24 border-pad-ambient/60",
   effects: "bg-pad-effects/24 border-pad-effects/60",
+  playlist: "bg-pad-playlist/24 border-pad-playlist/60",
+  scene: "bg-pad-scene/24 border-pad-scene/60",
 };
-const SOLO_RING: Record<SoundCategory, string> = {
+const SOLO_RING: Record<PadHue, string> = {
   music: "ring-2 ring-pad-music ring-offset-2 ring-offset-background",
   ambient: "ring-2 ring-pad-ambient ring-offset-2 ring-offset-background",
   effects: "ring-2 ring-pad-effects ring-offset-2 ring-offset-background",
+  playlist: "ring-2 ring-pad-playlist ring-offset-2 ring-offset-background",
+  scene: "ring-2 ring-pad-scene ring-offset-2 ring-offset-background",
 };
-const LEVEL_FILL: Record<SoundCategory, string> = {
+const LEVEL_FILL: Record<PadHue, string> = {
   music: "bg-pad-music/30 border-pad-music",
   ambient: "bg-pad-ambient/30 border-pad-ambient",
   effects: "bg-pad-effects/30 border-pad-effects",
+  playlist: "bg-pad-playlist/30 border-pad-playlist",
+  scene: "bg-pad-scene/30 border-pad-scene",
 };
-const levelClass = computed(() => LEVEL_FILL[category.value]);
+const ART_BG: Record<PadHue, string> = {
+  music: "bg-pad-music",
+  ambient: "bg-pad-ambient",
+  effects: "bg-pad-effects",
+  playlist: "bg-pad-playlist",
+  scene: "bg-pad-scene",
+};
+// On a lit pad the count bubble is the pad's ink, so its number takes the pad's own colour.
+const LIT_COUNT: Record<PadHue, string> = {
+  music: "text-pad-music",
+  ambient: "text-pad-ambient",
+  effects: "text-pad-effects",
+  playlist: "text-pad-playlist",
+  scene: "text-pad-scene",
+};
+const levelClass = computed(() => LEVEL_FILL[hue.value]);
 
 const lookClass = computed(() => {
-  const cat = category.value;
+  const cat = hue.value;
   const classes: string[] = [];
   switch (cell.light) {
     case "playing":

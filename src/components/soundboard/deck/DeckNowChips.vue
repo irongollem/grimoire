@@ -7,7 +7,7 @@
     <span
       v-if="music !== null"
       class="inline-flex min-h-6.5 max-w-full items-center gap-1.5 rounded-sm border py-0.5 ps-2 pe-0.5 text-label font-semibold pointer-coarse:min-h-11"
-      :class="CHIP.music"
+      :class="CHIP.playlist"
       data-now="music"
     >
       <span class="truncate">{{ music.name }}</span>
@@ -21,7 +21,7 @@
       v-for="scene in scenes"
       :key="scene.playlistId"
       class="inline-flex min-h-6.5 max-w-full items-center gap-1.5 rounded-sm border py-0.5 ps-2 pe-0.5 text-label font-semibold pointer-coarse:min-h-11"
-      :class="CHIP.ambient"
+      :class="CHIP.scene"
       data-now="scene"
     >
       <span class="truncate">{{ scene.name }}</span>
@@ -48,7 +48,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import CausedByChip from "@/components/soundboard/CausedByChip.vue";
 import { IconClose, IconSkipForward } from "@/lib/icons";
 import { useNowPlaying } from "@/composables/soundboard/useNowPlaying";
-import type { SoundCategory } from "@/types/sound.types";
+import type { PadHue } from "@/lib/audio/soundCategories";
 
 /**
  * What is audible, as compact chips (#1136): a name, where it came from when a
@@ -60,9 +60,11 @@ import type { SoundCategory } from "@/types/sound.types";
 const { music, scenes, loose: looseSounds, isIdle } = useNowPlaying();
 
 // Written out in full for Tailwind's scanner.
-const CHIP: Record<SoundCategory, string> = {
+const CHIP: Record<PadHue, string> = {
   music: "border-pad-music bg-pad-music/12",
   ambient: "border-pad-ambient bg-pad-ambient/12",
   effects: "border-pad-effects bg-pad-effects/12",
+  playlist: "border-pad-playlist bg-pad-playlist/12",
+  scene: "border-pad-scene bg-pad-scene/12",
 };
 </script>

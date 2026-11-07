@@ -224,6 +224,10 @@
   --color-pad-ambient-fg: var(--pad-ambient-fg);
   --color-pad-effects: var(--pad-effects);
   --color-pad-effects-fg: var(--pad-effects-fg);
+  --color-pad-playlist: var(--pad-playlist);
+  --color-pad-playlist-fg: var(--pad-playlist-fg);
+  --color-pad-scene: var(--pad-scene);
+  --color-pad-scene-fg: var(--pad-scene-fg);
 
   /* Border radius */
   --radius-lg: var(--radius);
@@ -469,6 +473,11 @@
   --pad-music-fg: #16100c;
   --pad-ambient-fg: #16100c;
   --pad-effects-fg: #16100c;
+  /* A playlist sits beside music and a scene beside ambience, each a hue of its own (7 Nov 2026). */
+  --pad-playlist: #f08a5d;
+  --pad-scene: #57c4cf;
+  --pad-playlist-fg: #16100c;
+  --pad-scene-fg: #16100c;
 
   /* MONSTER_TYPE_BG */
   --monstertype-aberration: #7c3aed;

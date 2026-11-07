@@ -4,7 +4,7 @@
  * the screen and a hardware driver all read the same answers.
  */
 
-import type { DeckFeed, DeckLane, LaunchMode, SoundCategory, SoundboardPad } from "@/types/sound.types";
+import type { DeckFeed, DeckLane, LaunchMode, Sound, SoundCategory, SoundboardPad } from "@/types/sound.types";
 import type { DeckCellView, DeckPadKind } from "./deckSurface";
 import { DECK_LANES } from "./deckSurface";
 
@@ -190,6 +190,19 @@ export function effectiveFades(
   return { inMs: pad.fade_in_ms ?? base.inMs, outMs: pad.fade_out_ms ?? base.outMs };
 }
 
+/**
+ * The picture a pad shows: the art of the sound it is about to play or is
+ * playing (a sound pad's next take, a playlist's current track), else the first
+ * of its sounds that has art. Only sounds carry art; a playlist or scene borrows
+ * its tracks'. A pad whose sounds have none shows none.
+ */
+export function padArt(sounds: readonly Pick<Sound, "id" | "thumbnail_url">[], preferredId: string | null): string | null {
+  const preferred = preferredId === null ? undefined : sounds.find((s) => s.id === preferredId);
+  if (preferred !== undefined && preferred.thumbnail_url !== null) return preferred.thumbnail_url;
+  const first = sounds.find((s) => s.thumbnail_url !== null);
+  return first === undefined ? null : first.thumbnail_url;
+}
+
 // ── Grid ──────────────────────────────────────────────────────────────────
 
 type Slot = Pick<SoundboardPad, "lane" | "grid_row">;
@@ -281,6 +294,8 @@ export function emptyDeckCell(lane: number, row: number): DeckCellView {
     volume: 0,
     soloed: false,
     blockedReason: null,
+    art: null,
+    count: null,
     meta: null,
     keyLabel: null,
   };

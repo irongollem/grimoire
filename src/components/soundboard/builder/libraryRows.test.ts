@@ -46,11 +46,21 @@ describe("libraryRows", () => {
     expect(libraryRows("scenes", [], [playlist({})], new Map(), { query: "", category: "effects" })).toEqual([]);
   });
 
-  it("counts layers and tracks with the right noun", () => {
-    const scene = libraryRows("scenes", [], [playlist({})], new Map([["p1", 1]]), ALL)[0];
-    expect(scene?.meta).toBe("1 layer");
+  it("counts a scene's layers and a playlist's tracks, and nothing for a sound", () => {
+    // Bug: a count read from the wrong playlist id would badge every scene with the same number.
+    const scenes = libraryRows("scenes", [], [playlist({}), playlist({ id: "p3" })], new Map([["p1", 1], ["p3", 4]]), ALL);
+    expect(scenes.map((r) => r.count)).toEqual([1, 4]);
     const list = libraryRows("playlists", [], [playlist({ id: "p2", playlist_type: "music" })], new Map([["p2", 3]]), ALL)[0];
-    expect(list?.meta).toBe("3 tracks");
+    expect(list?.count).toBe(3);
+    expect(libraryRows("sounds", [sound({ id: "a" })], [], new Map(), ALL)[0]?.count).toBeNull();
+  });
+
+  it("tells a music track from a playlist and an ambience track from a scene", () => {
+    // Bug: the colour is shared within a category, so a row that took its kind from the category alone would call a scene an ambience track.
+    const sounds = [sound({ id: "m", category: "music" }), sound({ id: "a", category: "ambient" }), sound({ id: "e", category: "effects" })];
+    expect(libraryRows("sounds", sounds, [], new Map(), ALL).map((r) => r.kind)).toEqual(["music", "ambience", "effect"]);
+    expect(libraryRows("scenes", [], [playlist({})], new Map(), ALL)[0]?.kind).toBe("scene");
+    expect(libraryRows("playlists", [], [playlist({ id: "p2", playlist_type: "music" })], new Map(), ALL)[0]?.kind).toBe("playlist");
   });
 
   it("names the drag type by what is dragged", () => {

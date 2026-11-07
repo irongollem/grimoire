@@ -851,7 +851,7 @@ describe("scene and playlist pads", () => {
     expect(h.fetchTracks).not.toHaveBeenCalled();
   });
 
-  it("reports layers and tracks, and the track number while a playlist plays", () => {
+  it("counts layers and tracks for the kind icon, and gives the track number while a playlist plays", () => {
     h.data.byPlaylist.value = new Map([
       ["sc", [track("sc", "a"), track("sc", "b"), track("sc", "c")]],
       ["mp", [track("mp", "a"), track("mp", "b")]],
@@ -861,10 +861,13 @@ describe("scene and playlist pads", () => {
       sounds: [],
       playlists: [playlist("sc", "ambient"), playlist("mp", "music")],
     });
-    expect(cell(deck, 0, 0).meta).toBe("3 layers");
-    expect(cell(deck, 1, 0).meta).toBe("2 tracks");
+    expect(cell(deck, 0, 0).count).toBe(3);
+    expect(cell(deck, 1, 0).count).toBe(2);
+    expect(cell(deck, 0, 0).meta).toBeNull();
+    expect(cell(deck, 1, 0).meta).toBeNull();
     h.store.activeMusicPlaylist = { playlistId: "mp", trackSoundIds: ["a", "b"], currentIndex: 1, paused: false };
     expect(cell(deck, 1, 0).meta).toBe("2/2");
+    expect(cell(deck, 1, 0).count).toBe(2);
   });
 
   it("does not call a paused scene audible (fails if paused still lit the pad)", () => {

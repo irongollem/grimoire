@@ -71,6 +71,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { artUrl } from "@/lib/assets/artUrl";
 import DeckGrid from "./DeckGrid.vue";
 import DeckNowChips from "./DeckNowChips.vue";
 import DeckPad from "./DeckPad.vue";
@@ -93,6 +94,9 @@ function onTool({ tool: t, phase }: { tool: DeckTool; phase: DeckPhase }): void 
   if (phase === "toggle") tool.value = tool.value === t ? "play" : t;
   else tool.value = phase === "down" ? t : "play";
 }
+
+// Any picture in public/ will do: the catalogue only shows how art sits on a pad.
+const ART = artUrl("/assets/npcs/mystery-figure.webp");
 
 const CATEGORY_NAMES: Record<SoundCategory, string> = { music: "Tavern theme", ambient: "Rain, light", effects: "Door slam" };
 const categories: readonly SoundCategory[] = ["music", "ambient", "effects"];
@@ -120,8 +124,13 @@ const stateCells: StateCell[] = [
   { label: "held (gate under a finger)", cell: pad("effects", { light: "held", mode: "gate", modeIsDefault: false }) },
   { label: "blocked", cell: pad("music", { light: "blocked", blockedReason: "Spotify: this device only" }) },
   { label: "soloed", cell: pad("ambient", { light: "playing", soloed: true, loop: true }) },
-  { label: "scene", cell: pad("ambient", { kind: "scene", name: "Tavern", meta: "3 layers", mode: "toggle" }) },
-  { label: "playlist", cell: pad("music", { kind: "playlist", name: "Exploration", meta: "12 tracks" }) },
+  { label: "scene", cell: pad("ambient", { kind: "scene", name: "Tavern", count: 3, mode: "toggle" }) },
+  { label: "scene playing", cell: pad("ambient", { kind: "scene", name: "Tavern", count: 3, light: "looping", loop: true, mode: "toggle" }) },
+  { label: "playlist", cell: pad("music", { kind: "playlist", name: "Exploration", count: 12 }) },
+  { label: "playlist playing", cell: pad("music", { kind: "playlist", name: "Exploration", count: 12, meta: "3/12", light: "playing", progress: 0.3 }) },
+  { label: "with art", cell: pad("music", { name: "The stranger", art: ART }) },
+  { label: "with art, playing", cell: pad("music", { name: "The stranger", art: ART, light: "playing", progress: 0.5 }) },
+  { label: "scene with art", cell: pad("ambient", { kind: "scene", name: "Old mill", count: 4, art: ART }) },
   { label: "guest (started by a fight)", cell: pad("music", { padId: null, light: "playing", loop: true, keyLabel: null, meta: "From Goblin ambush", guest: { sourceId: "fight:1", label: "Goblin ambush", target: "playlist-1" } }) },
   { label: "void (play mode)", cell: fixtureEmpty() },
   { label: "empty (build mode)", cell: fixtureEmpty(), mode: "build" as const },

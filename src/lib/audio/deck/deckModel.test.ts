@@ -11,6 +11,7 @@ import {
   laneCategory,
   nextTakeIndex,
   padAt,
+  padArt,
   padCategory,
   padKind,
   pageLanes,
@@ -287,5 +288,26 @@ describe("steppedPageIndex", () => {
 
   it("treats an unknown page as the first", () => {
     expect(steppedPageIndex(3, -1, 1)).toBe(1);
+  });
+});
+
+describe("padArt", () => {
+  const a = { id: "a", thumbnail_url: null };
+  const b = { id: "b", thumbnail_url: "b.webp" };
+  const c = { id: "c", thumbnail_url: "c.webp" };
+
+  it("shows the art of the sound about to play, or playing", () => {
+    // Bug: always taking the first take's art would show the wrong picture on a pad whose next take has its own.
+    expect(padArt([a, b, c], "c")).toBe("c.webp");
+  });
+
+  it("falls back to the first sound with art when that one has none", () => {
+    expect(padArt([a, b, c], "a")).toBe("b.webp");
+    expect(padArt([a, b, c], null)).toBe("b.webp");
+  });
+
+  it("shows nothing when no sound has art", () => {
+    expect(padArt([a], "a")).toBeNull();
+    expect(padArt([], null)).toBeNull();
   });
 });
