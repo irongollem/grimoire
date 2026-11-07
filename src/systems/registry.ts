@@ -113,17 +113,6 @@ export function gameSystemEdition(system: GameSystemKey): RulesetKey | undefined
   return SYSTEMS[system].edition;
 }
 
-/**
- * The 5e edition of a system that must be 5e. Code that reaches for an edition
- * in a campaign whose system has none is a bug, and this says so instead of
- * quietly playing 2014 (the database's `private.game_system_edition` does the same).
- */
-export function requireGameSystemEdition(system: GameSystemKey): RulesetKey {
-  const edition = SYSTEMS[system].edition;
-  if (edition === undefined) throw new Error(`Game system ${system} has no D&D 5e edition`);
-  return edition;
-}
-
 /** The system a 5e character's edition belongs to. */
 export function editionGameSystem(edition: RulesetKey): GameSystemKey {
   return edition === "2024" ? "dnd5e-2024" : "dnd5e-2014";
@@ -132,11 +121,6 @@ export function editionGameSystem(edition: RulesetKey): GameSystemKey {
 /** The systems a campaign of `system` may switch to (compatible ones, itself excluded). */
 export function switchableGameSystems(system: GameSystemKey): readonly GameSystemKey[] {
   return GAME_SYSTEM_KEYS.filter((other) => other !== system && gameSystemsCompatible(system, other));
-}
-
-/** The dice rules of a game system. */
-export function diceRulesFor(system: GameSystemKey): DiceRules {
-  return SYSTEMS[system].dice;
 }
 
 /** The currency a new campaign of this game system starts with. */
