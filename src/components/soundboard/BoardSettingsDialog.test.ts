@@ -9,7 +9,7 @@ vi.mock("@/composables/soundboard/useAudioThemeTriggers", () => ({
 vi.mock("@/composables/soundboard/useSoundboardBroadcast", () => ({
   useSoundboardBroadcast: () => ({ broadcasting: ref(false), broadcastError: ref(null), setBroadcasting: vi.fn() }),
 }));
-vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({ directOutput: false, setDirectOutput: vi.fn() }) }));
+vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({ directOutput: false, setDirectOutput: vi.fn(), lastFileUrl: () => null, stopAll: vi.fn() }) }));
 
 describe("BoardSettingsDialog", () => {
   it("has a Controllers section and no pad-size control", () => {
