@@ -16,8 +16,8 @@ insert into public.locations (id, user_id, campaign_id, name, location_type) val
   ('78600000-0000-4000-8000-000000000020', '78600000-0000-4000-8000-000000000001', null, 'Ilvaren Reach', 'region'),
   ('78600000-0000-4000-8000-000000000021', '78600000-0000-4000-8000-000000000001', null, 'The Sunken Vault', 'dungeon');
 
-insert into public.campaigns (id, user_id, name, current_location_id)
-values ('78600000-0000-4000-8000-000000000010', '78600000-0000-4000-8000-000000000001', 'Position', '78600000-0000-4000-8000-000000000020');
+insert into public.campaigns (id, user_id, name, current_location_id, game_system)
+values ('78600000-0000-4000-8000-000000000010', '78600000-0000-4000-8000-000000000001', 'Position', '78600000-0000-4000-8000-000000000020', 'dnd5e-2014');
 
 update public.locations set campaign_id = '78600000-0000-4000-8000-000000000010'
  where id in ('78600000-0000-4000-8000-000000000020', '78600000-0000-4000-8000-000000000021');

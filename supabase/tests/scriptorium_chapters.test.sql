@@ -20,9 +20,9 @@ values
   ('98300000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sc-outsider@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('98300000-0000-4000-8000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sc-otherdm@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name) values
-  ('98300000-0000-4000-8000-000000000010', '98300000-0000-4000-8000-000000000001', 'Ashmouth'),
-  ('98300000-0000-4000-8000-000000000011', '98300000-0000-4000-8000-000000000006', 'Elsewhere');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('98300000-0000-4000-8000-000000000010', '98300000-0000-4000-8000-000000000001', 'Ashmouth', 'dnd5e-2014'),
+  ('98300000-0000-4000-8000-000000000011', '98300000-0000-4000-8000-000000000006', 'Elsewhere', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
   ('98300000-0000-4000-8000-000000000030', '98300000-0000-4000-8000-000000000003', '98300000-0000-4000-8000-000000000010', 'Holder', '2014'),

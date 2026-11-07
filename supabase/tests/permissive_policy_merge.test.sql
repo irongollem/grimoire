@@ -43,8 +43,8 @@ values
   ('99933000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'merge-stranger@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('99933000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'merge-admin@example.invalid', '', '{"role":"admin"}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('99933000-0000-4000-8000-000000000010', '99933000-0000-4000-8000-000000000001', 'Merge campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('99933000-0000-4000-8000-000000000010', '99933000-0000-4000-8000-000000000001', 'Merge campaign', 'dnd5e-2014');
 
 -- campaigns_create_dm_membership seats the DM; seat the player by hand.
 insert into public.campaign_members (campaign_id, user_id, role, display_name)

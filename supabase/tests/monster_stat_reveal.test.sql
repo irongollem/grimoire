@@ -25,8 +25,8 @@ values
   ('84200000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'reveal-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('84200000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'reveal-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('84200000-0000-4000-8000-000000000010', '84200000-0000-4000-8000-000000000001', 'Reveal campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('84200000-0000-4000-8000-000000000010', '84200000-0000-4000-8000-000000000001', 'Reveal campaign', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
 values ('84200000-0000-4000-8000-000000000020', '84200000-0000-4000-8000-000000000001', '84200000-0000-4000-8000-000000000002', '84200000-0000-4000-8000-000000000010', 'A hero', '2014');

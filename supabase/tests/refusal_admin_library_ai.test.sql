@@ -16,9 +16,9 @@ select ('93660000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0
        case when n = 5 then '{"role":"admin"}'::jsonb else '{}'::jsonb end, '{}'::jsonb
 from generate_series(1, 5) as n;
 
-insert into public.campaigns (id, user_id, name) values
-  ('93660000-0000-4000-8000-0000000000c1', '93660000-0000-4000-8000-000000000001', 'Dana''s table'),
-  ('93660000-0000-4000-8000-0000000000c2', '93660000-0000-4000-8000-000000000002', 'Eve''s table');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('93660000-0000-4000-8000-0000000000c1', '93660000-0000-4000-8000-000000000001', 'Dana''s table', 'dnd5e-2014'),
+  ('93660000-0000-4000-8000-0000000000c2', '93660000-0000-4000-8000-000000000002', 'Eve''s table', 'dnd5e-2014');
 
 -- Pat plays a character, so a recipe can be shared with Pat below.
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, is_dm_managed, ruleset)

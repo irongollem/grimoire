@@ -11,9 +11,9 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
   ('77700000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'entries-alice@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('77700000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'entries-bob@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('77700000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'entries-carol@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
-insert into public.campaigns (id, user_id, name) values
-  ('77700000-0000-4000-8000-000000000010', '77700000-0000-4000-8000-000000000001', 'Ledger campaign'),
-  ('77700000-0000-4000-8000-000000000011', '77700000-0000-4000-8000-000000000001', 'Second table');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('77700000-0000-4000-8000-000000000010', '77700000-0000-4000-8000-000000000001', 'Ledger campaign', 'dnd5e-2014'),
+  ('77700000-0000-4000-8000-000000000011', '77700000-0000-4000-8000-000000000001', 'Second table', 'dnd5e-2014');
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset) values
   ('77700000-0000-4000-8000-000000000020', '77700000-0000-4000-8000-000000000001', '77700000-0000-4000-8000-000000000002', '77700000-0000-4000-8000-000000000010', 'Alice''s hero', '2014'),
   ('77700000-0000-4000-8000-000000000021', '77700000-0000-4000-8000-000000000001', '77700000-0000-4000-8000-000000000003', '77700000-0000-4000-8000-000000000010', 'Bob''s hero', '2014');

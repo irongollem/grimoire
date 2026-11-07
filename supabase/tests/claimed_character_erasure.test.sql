@@ -37,10 +37,10 @@ values
   ('73500000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue735-owner@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('73500000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue735-new-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
+insert into public.campaigns (id, user_id, name, game_system)
 values
-  ('73500000-0000-4000-8000-000000000010', '73500000-0000-4000-8000-000000000001', 'Erasure campaign'),
-  ('73500000-0000-4000-8000-000000000011', '73500000-0000-4000-8000-000000000001', 'Transfer campaign');
+  ('73500000-0000-4000-8000-000000000010', '73500000-0000-4000-8000-000000000001', 'Erasure campaign', 'dnd5e-2014'),
+  ('73500000-0000-4000-8000-000000000011', '73500000-0000-4000-8000-000000000001', 'Transfer campaign', 'dnd5e-2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values

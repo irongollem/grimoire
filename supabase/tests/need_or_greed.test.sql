@@ -13,8 +13,8 @@ values
   ('a7700000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'nog-p2@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('a7700000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'nog-out@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('a7700000-0000-4000-8000-000000000010', 'a7700000-0000-4000-8000-000000000001', 'Need or greed');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('a7700000-0000-4000-8000-000000000010', 'a7700000-0000-4000-8000-000000000001', 'Need or greed', 'dnd5e-2014');
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset) values
   ('a7700000-0000-4000-8000-000000000021', 'a7700000-0000-4000-8000-000000000001', 'a7700000-0000-4000-8000-000000000002', 'a7700000-0000-4000-8000-000000000010', 'Mira', '2014'),
   ('a7700000-0000-4000-8000-000000000022', 'a7700000-0000-4000-8000-000000000001', 'a7700000-0000-4000-8000-000000000003', 'a7700000-0000-4000-8000-000000000010', 'Bram', '2014');

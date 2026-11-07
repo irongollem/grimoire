@@ -15,8 +15,8 @@ values
   ('91500000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tracker-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('91500000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'tracker-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('91500000-0000-4000-8000-000000000010', '91500000-0000-4000-8000-000000000001', 'Tracker campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('91500000-0000-4000-8000-000000000010', '91500000-0000-4000-8000-000000000001', 'Tracker campaign', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset)
 values ('91500000-0000-4000-8000-000000000020', '91500000-0000-4000-8000-000000000001', '91500000-0000-4000-8000-000000000010', 'Toddy', '2014');

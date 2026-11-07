@@ -11,8 +11,8 @@ values
   ('10730000-0000-4000-8000-000000000901', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue1073-senses-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('10730000-0000-4000-8000-000000000902', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue1073-senses-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('10730000-0000-4000-8000-000000000910', '10730000-0000-4000-8000-000000000901', 'Senses campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('10730000-0000-4000-8000-000000000910', '10730000-0000-4000-8000-000000000901', 'Senses campaign', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
 values ('10730000-0000-4000-8000-000000000920', '10730000-0000-4000-8000-000000000901', '10730000-0000-4000-8000-000000000902', '10730000-0000-4000-8000-000000000910', 'Vesna', '2014');

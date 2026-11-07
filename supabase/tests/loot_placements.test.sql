@@ -25,8 +25,8 @@ values
   ('66100000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue661-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('66100000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue661-outsider@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('66100000-0000-4000-8000-000000000010', '66100000-0000-4000-8000-000000000001', 'Beat loot campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('66100000-0000-4000-8000-000000000010', '66100000-0000-4000-8000-000000000001', 'Beat loot campaign', 'dnd5e-2014');
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
 values ('66100000-0000-4000-8000-000000000020', '66100000-0000-4000-8000-000000000001', '66100000-0000-4000-8000-000000000002', '66100000-0000-4000-8000-000000000010', 'Claiming hero', '2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values
@@ -171,8 +171,8 @@ select ok(
 -- migration 20260906225258 raised.
 
 reset role;
-insert into public.campaigns (id, user_id, name)
-values ('66100000-0000-4000-8000-000000000070', '66100000-0000-4000-8000-000000000001'::uuid, 'Other campaign')
+insert into public.campaigns (id, user_id, name, game_system)
+values ('66100000-0000-4000-8000-000000000070', '66100000-0000-4000-8000-000000000001'::uuid, 'Other campaign', 'dnd5e-2014')
 on conflict (id) do nothing;
 insert into public.locations (id, user_id, campaign_id, name)
 values

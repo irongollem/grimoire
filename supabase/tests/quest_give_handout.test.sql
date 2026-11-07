@@ -18,9 +18,9 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
   ('97100000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'gh-p1@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('97100000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'gh-p2@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name) values
-  ('97100000-0000-4000-8000-000000000010', '97100000-0000-4000-8000-000000000001', 'Given'),
-  ('97100000-0000-4000-8000-000000000011', '97100000-0000-4000-8000-000000000001', 'Other table');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('97100000-0000-4000-8000-000000000010', '97100000-0000-4000-8000-000000000001', 'Given', 'dnd5e-2014'),
+  ('97100000-0000-4000-8000-000000000011', '97100000-0000-4000-8000-000000000001', 'Other table', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
   ('97100000-0000-4000-8000-000000000030', '97100000-0000-4000-8000-000000000002', '97100000-0000-4000-8000-000000000010', 'Nessa', '2014'),

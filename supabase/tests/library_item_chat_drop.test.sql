@@ -14,8 +14,8 @@ select plan(7);
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('81900000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue819-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('81900000-0000-4000-8000-000000000010', '81900000-0000-4000-8000-000000000001', 'Drop table');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('81900000-0000-4000-8000-000000000010', '81900000-0000-4000-8000-000000000001', 'Drop table', 'dnd5e-2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values ('81900000-0000-4000-8000-000000000010', '81900000-0000-4000-8000-000000000001', 'dm', 'DM')
 on conflict (campaign_id, user_id) do update set role = excluded.role;
