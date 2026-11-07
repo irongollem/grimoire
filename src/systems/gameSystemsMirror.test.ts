@@ -1,7 +1,7 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GAME_SYSTEM_KEYS, editionGameSystem, gameSystemEdition, gameSystemsCompatible } from "@/systems/registry";
+import { DEFAULT_GAME_SYSTEM, GAME_SYSTEM_KEYS, editionGameSystem, gameSystemEdition, gameSystemsCompatible } from "@/systems/registry";
 
 /**
  * The database holds the game systems as a check constraint and a few helper
@@ -58,5 +58,16 @@ describe("game systems: database and registry", () => {
         expect(gameSystemsCompatible(a, b), `${a} / ${b}`).toBe(a === b || (fiveE.has(a) && fiveE.has(b)));
       }
     }
+  });
+
+  // Fails if the database's column default and the client's default system part:
+  // a campaign inserted without a system would play one the form never offered first.
+  it("the campaigns column defaults to the registry's default system", () => {
+    const dir = resolve(process.cwd(), "supabase/migrations");
+    const defaults = readdirSync(dir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .flatMap((file) => [...readFileSync(resolve(dir, file), "utf8").matchAll(/alter column game_system set default '([a-z0-9-]+)'/g)].map((m) => m[1]));
+    expect(defaults.at(-1)).toBe(DEFAULT_GAME_SYSTEM);
   });
 });

@@ -42,24 +42,27 @@ describe("NewCampaignModal", () => {
     expect(text).not.toContain("RULES EDITION");
   });
 
-  it("offers every game system, none chosen, and cannot create a campaign without one", async () => {
+  // Fails if the form starts on another system, or on none: a DM who leaves the
+  // picker alone gets a 5e 2024 campaign.
+  it("starts on D&D 5e (2024) and creates one without the picker being touched", async () => {
     const wrapper = mountModal();
-    expect(wrapper.findAll('[role="radio"]').map((option) => option.attributes("aria-checked"))).toEqual(["false", "false", "false"]);
+    expect(wrapper.findAll('[role="radio"]').map((option) => option.attributes("aria-checked"))).toEqual(["false", "true", "false"]);
     await chooseCalendar(wrapper, "gregorian");
     await wrapper.find("form").trigger("submit");
     await flushPromises();
-    expect(mocks.createCampaign).not.toHaveBeenCalled();
+    const [payload] = mocks.createCampaign.mock.calls[0] as [{ game_system: string }];
+    expect(payload.game_system).toBe("dnd5e-2024");
   });
 
   it("submits the chosen game system and the mixed-characters choice", async () => {
     const wrapper = mountModal();
-    await wrapper.findAll('[role="radio"]')[1].trigger("click");
+    await wrapper.findAll('[role="radio"]')[0].trigger("click");
     await chooseCalendar(wrapper, "gregorian");
     await wrapper.find('input[type="checkbox"]').setValue(true);
     await wrapper.find("form").trigger("submit");
     await flushPromises();
     const [payload] = mocks.createCampaign.mock.calls[0] as [{ game_system: string; allows_mixed_rulesets: boolean }];
-    expect(payload.game_system).toBe("dnd5e-2024");
+    expect(payload.game_system).toBe("dnd5e-2014");
     expect(payload.allows_mixed_rulesets).toBe(true);
     expect(payload).not.toHaveProperty("ruleset");
   });

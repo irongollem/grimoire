@@ -256,13 +256,13 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
       id, user_id, name, description, setting, current_year, calendar_id, theme,
       excluded_monster_ids, health_visibility, immersive_rolls, disabled_class_names,
       optional_rules, allow_chronicle_promotion, is_archived, current_month, current_day,
-      ai_enabled
+      ai_enabled, game_system, currency
     )
     select n.id, ${quote(ownerId)}, c.name || ' (fixture)', c.description, c.setting,
            c.current_year, c.calendar_id, c.theme, c.excluded_monster_ids,
            c.health_visibility, c.immersive_rolls, c.disabled_class_names,
            c.optional_rules, c.allow_chronicle_promotion, c.is_archived,
-           c.current_month, c.current_day, c.ai_enabled
+           c.current_month, c.current_day, c.ai_enabled, c.game_system, c.currency
       from public.campaigns c cross join _new_campaign n
      where c.id = ${quote(sourceId)};
 
