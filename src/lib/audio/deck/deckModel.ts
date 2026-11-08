@@ -26,10 +26,10 @@ export function defaultLanes(): DeckLane[] {
     { name: "Music", rule: "one", feed: "music" },
     { name: "Place", rule: "one", feed: "place" },
     { name: "Ambience", rule: "together", feed: "ambience" },
-    { name: "Effects", rule: "together" },
-    { name: "Effects", rule: "together" },
-    { name: "Effects", rule: "together" },
-    { name: "Effects", rule: "together" },
+    { name: "Combat", rule: "together" },
+    { name: "Creatures", rule: "together" },
+    { name: "Weather", rule: "together" },
+    { name: "Doors & traps", rule: "together" },
     { name: "Stingers", rule: "together" },
   ];
 }

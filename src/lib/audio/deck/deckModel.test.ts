@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   defaultLanes,
@@ -45,6 +47,32 @@ describe("pageLanes", () => {
     const first = defaultLanes();
     first[0] = { name: "Changed", rule: "together" };
     expect(defaultLanes()[0]).toEqual({ name: "Music", rule: "one", feed: "music" });
+  });
+});
+
+describe("defaultLanes and the database default", () => {
+  /** The `soundboard_pages.lanes` default the newest migration that sets one writes. */
+  function databaseDefault(): unknown {
+    const dir = join(process.cwd(), "supabase/migrations");
+    const pattern = /(?:add column lanes jsonb not null default|alter column lanes set default) '([\s\S]*?)'::jsonb/;
+    const newest = readdirSync(dir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .map((file) => pattern.exec(readFileSync(join(dir, file), "utf8")))
+      .filter((match) => match !== null)
+      .pop();
+    if (!newest) throw new Error("no migration sets soundboard_pages.lanes' default");
+    return JSON.parse(newest[1]!);
+  }
+
+  it("lays out the same lanes a new page gets from the database, so a page with no lanes yet reads as it will once saved", () => {
+    // The default lived in two places with only a comment between them.
+    expect(defaultLanes()).toEqual(databaseDefault());
+  });
+
+  it("names the four effect lanes, so a DM sees the lane names are theirs to change", () => {
+    const names = defaultLanes().map((lane) => lane.name);
+    expect(names.slice(3, 7)).toEqual(["Combat", "Creatures", "Weather", "Doors & traps"]);
   });
 });
 

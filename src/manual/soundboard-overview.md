@@ -35,7 +35,7 @@ Each page has **8 lanes** (columns) and as many rows as you need. A lane has a n
 - **One at a time.** A new pad crossfades the old one. New music replaces the old music.
 - **Together.** Everything overlaps. An effect never stops the music.
 
-A new page starts with Music and Place (one at a time), Ambience, four Effects lanes and Stingers (together). You can rename any lane and change its rule.
+A new page starts with Music and Place (one at a time), Ambience, four effect lanes named Combat, Creatures, Weather and Doors & traps, and Stingers (together). You can rename any lane and change its rule.
 
 ### Sound the campaign starts by itself
 
