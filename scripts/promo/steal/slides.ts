@@ -81,7 +81,7 @@ function slides(post: StealPost, dir: string, art: string): string[] {
       `.title { position: absolute; left: 0; right: 0; top: 70px; text-align: center; display: grid; gap: 6px; }
        .kicker { font-size: 32px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e2bd62; }
        .name { font-family: Fondamento, serif; font-size: 76px; }
-       .cf { position: absolute; width: 470px; border-radius: 22px; box-shadow: 0 30px 70px rgba(0,0,0,.7); }
+       .cf { position: absolute; width: 470px; filter: drop-shadow(0 26px 34px rgba(0,0,0,.7)); }
        .front { left: 46px; top: 310px; transform: rotate(-4deg); }
        .back { right: 46px; top: 350px; transform: rotate(4deg); }`,
     ),

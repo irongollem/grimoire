@@ -5,16 +5,21 @@
  * 103 in three hours), so each creature goes out twice: this Reel for reach,
  * and the carousel on the profile for whoever it sends there.
  *
- * It only teases the creature: its art, what it is, its hook, then where the
- * rest is. The page, the stat block and the card stay in the carousel.
+ * It opens on the creature's Card Forge card with its hook, flips it to the
+ * stats on the back, says where the rest is, and flips back, so its last frame
+ * is its first and Instagram's loop has no seam. A card rather than the
+ * bare art, because the art alone sells a picture; the stats sell a monster
+ * (the maintainer, 8 Nov 2026).
  *
  *   tsx --tsconfig tsconfig.node.json scripts/promo/steal/reel.ts [post id]
  *
- * Needs slides.ts to have run (it fetched the art). Writes promo-out/<post id>-reel/
- * with <id>.mp4, cover.jpg, cover.json and a manifest.json, so promo:post and the
- * Socials tab treat it as any other Reel.
+ * Needs slides.ts (the art) and cards.ts (the card, as Card Forge's own PNG export) to have run.
+ * The page is one timeline of Web Animations, paused and stepped a frame at a
+ * time, so every frame is exact. Writes promo-out/<post id>-reel/ with <id>.mp4,
+ * cover.jpg, cover.json and a manifest.json, so promo:post and the Socials tab
+ * treat it as any other Reel.
  */
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
@@ -25,8 +30,8 @@ import { STEAL_POSTS, type StealPost } from "./posts";
 const W = 1080;
 const H = 1920;
 const FPS = 30;
-const SECONDS = 12;
-/** When the hook is up and the profile line not yet: the frame Instagram shows as the cover. */
+const SECONDS = 17;
+/** The card face up with its hook: the frame Instagram shows as the cover. */
 const COVER_AT = 3;
 const ROOT = resolve(".");
 const url = (path: string) => pathToFileURL(path).href;
@@ -34,97 +39,164 @@ const FONTS = `
 @font-face { font-family: Fondamento; src: url("${url(join(ROOT, "node_modules/@fontsource/fondamento/files/fondamento-latin-400-normal.woff2"))}"); }
 @font-face { font-family: "Alegreya Sans"; font-weight: 700; src: url("${url(join(ROOT, "node_modules/@fontsource/alegreya-sans/files/alegreya-sans-latin-700-normal.woff2"))}"); }`;
 const WORDMARK = url(join(ROOT, "art-src/brand/dg-wordmark-dark.svg"));
-/** The bed under it: a brand tune from its middle, so neither its opening nor its ending is heard. */
-const BED = join(ROOT, "promo-out/brand/bed-1.mp3");
-const BED_FROM = 60;
+/**
+ * The sound is the creature's own place from the soundboard library and a paper flick on each
+ * turn of the card, not a tune (the maintainer was unsure of a brand tune under it, 8 Nov 2026).
+ */
+const LIBRARY = "https://cdn.dungeongrimoire.com/sounds/library";
+const FLIP_SOUND = "foley/sfx-100-pack--paper-02";
+/** When each turn of the card starts, in seconds: the flick lands on it. */
+const FLIPS_AT = [5.2, 14.4];
 const PROFILE_LINE = "The read-aloud, the stat block and a printable card are on our profile.";
+/** The card's style and size in Card Forge (cards.ts captures every pair). */
+const CARD = "inked-mtg";
 
 /*
  * Instagram lays its own buttons and caption over a Reel's bottom fifth and its
- * header over the top, so everything that must be read sits between 14% and 78%.
- * The art is a portrait card rather than full bleed: the demo's Memory-Magpie is
- * 400 x 500, and a card keeps its upscale under 1.7x.
+ * header over the top, so everything that must be read sits between 13% and 80%.
  */
-const CARD = { top: 380, width: 660 };
+const CARD_W = 700;
 const css = `${FONTS}
-html, body { margin: 0; background: transparent; }
+html, body { margin: 0; background: #15110d; }
 .frame { width: ${W}px; height: ${H}px; position: relative; overflow: hidden; font-family: "Alegreya Sans", sans-serif; color: #f1e4c8; }
-.bg { position: absolute; inset: -60px; background-size: cover; background-position: center; filter: blur(40px) brightness(.42) saturate(1.1); }
-.card { position: absolute; left: 50%; top: ${CARD.top}px; width: ${CARD.width}px; transform: translateX(-50%); border-radius: 18px; box-shadow: 0 40px 90px rgba(0,0,0,.7); }
-.kicker { position: absolute; left: 0; right: 0; top: 290px; text-align: center; font-size: 34px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e2bd62; text-shadow: 0 2px 16px rgba(0,0,0,.6); }
-.line { position: absolute; left: 90px; right: 90px; top: 1290px; height: 200px; display: flex; align-items: center; justify-content: center; text-align: center; text-wrap: balance; text-shadow: 0 4px 30px rgba(0,0,0,.7); }
-.hook { font-family: Fondamento, serif; font-size: 76px; line-height: 1.04; }
-.profile { font-size: 44px; line-height: 1.25; font-weight: 700; color: #f1e4c8; }
-.brand { position: absolute; left: 50%; top: 1510px; transform: translateX(-50%); width: 260px; opacity: .9; }`;
+.bg { position: absolute; inset: -80px; background-size: cover; background-position: center; filter: blur(44px) brightness(.4) saturate(1.1); }
+.kicker { position: absolute; left: 0; right: 0; top: 250px; text-align: center; font-size: 38px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e2bd62; text-shadow: 0 2px 16px rgba(0,0,0,.6); }
+.stage { position: absolute; left: 50%; top: 330px; width: ${CARD_W}px; aspect-ratio: 744 / 1041; margin-left: -${CARD_W / 2}px; perspective: 2400px; }
+.card { position: absolute; inset: 0; transform-style: preserve-3d; }
+/* The export has transparent rounded corners, so the shadow follows its outline. */
+.face { position: absolute; inset: 0; width: 100%; height: 100%; backface-visibility: hidden; filter: drop-shadow(0 34px 44px rgba(0,0,0,.65)); }
+.back { transform: rotateY(180deg); }
+.line { position: absolute; left: 90px; right: 90px; top: 1340px; height: 180px; display: flex; align-items: center; justify-content: center; text-align: center; text-wrap: balance; text-shadow: 0 4px 30px rgba(0,0,0,.7); }
+.hook { font-family: Fondamento, serif; font-size: 72px; line-height: 1.04; }
+.profile { font-size: 42px; line-height: 1.25; font-weight: 700; }
+.brand { position: absolute; left: 50%; top: 1530px; transform: translateX(-50%); width: 240px; }`;
 
-const doc = (body: string) => `<!doctype html><meta charset="utf-8"><style>${css}</style><div class="frame">${body}</div>`;
-
-/** The layers, each a full frame: the picture moves slowly, the words hold still over it. */
-function layers(post: StealPost, art: string): Record<string, string> {
-  return {
-    picture: doc(`<div class="bg" style="background-image:url('${url(art)}')"></div><img class="card" src="${url(art)}">`),
-    kicker: doc(`<div class="kicker">${post.kicker}</div>`),
-    hook: doc(`<div class="line hook">${post.hook}</div>`),
-    profile: doc(`<div class="line profile">${PROFILE_LINE}</div><img class="brand" src="${WORDMARK}">`),
-  };
+function page(post: StealPost, art: string, front: string, back: string): string {
+  return `<!doctype html><meta charset="utf-8"><style>${css}</style>
+<div class="frame">
+  <div class="bg" style="background-image:url('${url(art)}')"></div>
+  <div class="kicker">${post.kicker}</div>
+  <div class="stage"><div class="card"><img class="face" src="${url(front)}"><img class="face back" src="${url(back)}"></div></div>
+  <div class="line hook">${post.hook}</div>
+  <div class="line profile">${PROFILE_LINE}</div>
+  <img class="brand" src="${WORDMARK}">
+</div>`;
 }
 
-/** Fade a layer in at `inAt` and, when given, out at `outAt`, each over `f` seconds. */
-const fade = (label: string, inAt: number, outAt: number | null, f = 0.6) =>
-  `format=rgba,fade=t=in:st=${inAt}:d=${f}:alpha=1${outAt === null ? "" : `,fade=t=out:st=${outAt}:d=${f}:alpha=1`}[${label}]`;
+/**
+ * The timeline, in seconds. Each entry animates one element over the whole Reel
+ * with keyframes at `offset = t / SECONDS`, so stepping `currentTime` lands every
+ * element at the same moment.
+ */
+const at = (t: number) => t / SECONDS;
+/** A Web Animations keyframe, as the page reads it (the scripts' tsconfig has no DOM types). */
+type Frame = { offset: number; opacity?: number; transform?: string; easing?: string };
+const TIMELINE: Array<{ selector: string; keyframes: Frame[] }> = [
+  // The card drifts a little the whole time, so a still never reads as a slide, and is back where it began at the end.
+  { selector: ".stage", keyframes: [{ transform: "scale(1)", offset: 0 }, { transform: "scale(1.04)", offset: at(8.5) }, { transform: "scale(1)", offset: 1 }] },
+  {
+    selector: ".card",
+    keyframes: [
+      { transform: "rotateY(-6deg)", offset: 0 },
+      { transform: "rotateY(4deg)", offset: at(5.2), easing: "cubic-bezier(.5,0,.3,1)" },
+      { transform: "rotateY(174deg)", offset: at(6.3) },
+      { transform: "rotateY(184deg)", offset: at(14.4), easing: "cubic-bezier(.5,0,.3,1)" },
+      { transform: "rotateY(348deg)", offset: at(15.5) },
+      // 354 is -6 once round: the loop's first frame.
+      { transform: "rotateY(354deg)", offset: 1 },
+    ],
+  },
+  {
+    selector: ".hook",
+    keyframes: [
+      { opacity: 0, transform: "translateY(16px)", offset: 0 },
+      { opacity: 0, transform: "translateY(16px)", offset: at(0.9) },
+      { opacity: 1, transform: "translateY(0)", offset: at(1.6) },
+      { opacity: 1, transform: "translateY(0)", offset: at(4.8) },
+      { opacity: 0, transform: "translateY(0)", offset: at(5.3) },
+      { opacity: 0, offset: 1 },
+    ],
+  },
+  ...[".profile", ".brand"].map((selector) => ({
+    selector,
+    keyframes: [
+      { opacity: 0, offset: 0 },
+      { opacity: 0, offset: at(10.4) },
+      { opacity: 1, offset: at(11.2) },
+      { opacity: 1, offset: at(13.9) },
+      { opacity: 0, offset: at(14.4) },
+      { opacity: 0, offset: 1 },
+    ],
+  })),
+];
+
+/** A library sound, fetched once from the CDN into `dir`. */
+async function librarySound(slug: string, dir: string): Promise<string> {
+  const file = join(dir, `${slug.replace(/\//g, "_")}.ogg`);
+  if (!existsSync(file)) {
+    const res = await fetch(`${LIBRARY}/${slug}.ogg`);
+    if (!res.ok) throw new Error(`library sound ${slug}: HTTP ${res.status}`);
+    writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+  }
+  return file;
+}
 
 async function render(post: StealPost) {
   const source = resolve("promo-out", post.id);
   const artFile = readdirSync(source).find((f) => f.startsWith("art."));
+  const front = join(source, "pages", `card-${CARD}-front.png`);
+  const back = join(source, "pages", `card-${CARD}-back.png`);
   if (!artFile) throw new Error(`${post.id}: no art yet; run slides.ts first`);
+  if (!existsSync(front) || !existsSync(back)) throw new Error(`${post.id}: no Card Forge card yet; run cards.ts first`);
   const id = `${post.id}-reel`;
   const dir = resolve("promo-out", id);
   const work = join(dir, "work");
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
 
+  const html = join(work, "reel.html");
+  writeFileSync(html, page(post, join(source, artFile), front, back));
   const browser = await chromium.launch();
   try {
-    for (const [name, html] of Object.entries(layers(post, join(source, artFile)))) {
-      // The picture at twice the size, so the slow push-in has pixels to spare and does not shimmer.
-      const scale = name === "picture" ? 2 : 1;
-      const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: scale });
-      const file = join(work, `${name}.html`);
-      writeFileSync(file, html);
-      await page.goto(url(file));
-      await page.waitForTimeout(400);
-      await page.screenshot({ path: join(work, `${name}.png`), omitBackground: name !== "picture" });
-      await page.close();
+    const tab = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+    await tab.goto(url(html));
+    // Page code goes in as strings: the scripts' tsconfig has no DOM types.
+    await tab.evaluate("document.fonts.ready");
+    await tab.waitForTimeout(300);
+    await tab.evaluate(`for (const { selector, keyframes } of ${JSON.stringify(TIMELINE)}) {
+      const el = document.querySelector(selector);
+      if (el) el.animate(keyframes, { duration: ${SECONDS * 1000}, fill: "both" }).pause();
+    }`);
+    const frames = SECONDS * FPS;
+    for (let f = 0; f < frames; f++) {
+      await tab.evaluate(`for (const a of document.getAnimations()) a.currentTime = ${(f * 1000) / FPS};`);
+      await tab.screenshot({ path: join(work, `f${String(f).padStart(4, "0")}.jpg`), type: "jpeg", quality: 92 });
     }
   } finally {
     await browser.close();
   }
 
-  const frames = SECONDS * FPS;
-  const out = join(dir, `${id}.mp4`);
-  const mix = join(work, "bed.wav");
+  const ambience = await librarySound(post.ambience, work);
+  const flip = await librarySound(FLIP_SOUND, work);
+  const bed = join(work, "bed.wav");
   ffmpeg([
-    "-ss", String(BED_FROM), "-t", String(SECONDS), "-i", BED,
-    "-af", `afade=t=in:d=0.5,afade=t=out:st=${SECONDS - 1.5}:d=1.5,aresample=48000`, "-ac", "2", mix,
-  ]);
-  const gain = -14 - loudnessOf(mix);
-  ffmpeg([
-    "-loop", "1", "-i", join(work, "picture.png"),
-    "-loop", "1", "-i", join(work, "kicker.png"),
-    "-loop", "1", "-i", join(work, "hook.png"),
-    "-loop", "1", "-i", join(work, "profile.png"),
-    "-i", mix,
+    "-stream_loop", "-1", "-i", ambience, "-i", flip,
     "-filter_complex",
     [
-      `[0]zoompan=z='1+0.06*on/${frames}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=${frames}:s=${W}x${H}:fps=${FPS}[pic]`,
-      `[1]${fade("k", 0.4, null)}`,
-      `[2]${fade("h", 1.2, 6.6)}`,
-      `[3]${fade("p", 7.2, null)}`,
-      `[pic][k]overlay=format=auto[a];[a][h]overlay=format=auto[b];[b][p]overlay=format=auto,format=yuv420p[v]`,
-      `[4:a]volume=${gain.toFixed(2)}dB,alimiter=limit=0.89:level=false[aud]`,
+      `[0:a]atrim=0:${SECONDS},afade=t=in:d=0.6,afade=t=out:st=${SECONDS - 1.2}:d=1.2,aresample=48000,aformat=channel_layouts=stereo[amb]`,
+      `[1:a]aresample=48000,aformat=channel_layouts=stereo,asplit=${FLIPS_AT.length}${FLIPS_AT.map((_, i) => `[f${i}]`).join("")}`,
+      ...FLIPS_AT.map((t, i) => `[f${i}]adelay=${Math.round(t * 1000)}:all=1[d${i}]`),
+      `[amb]${FLIPS_AT.map((_, i) => `[d${i}]`).join("")}amix=inputs=${FLIPS_AT.length + 1}:duration=first:normalize=0[mix]`,
     ].join(";"),
-    "-map", "[v]", "-map", "[aud]", "-t", String(SECONDS),
-    "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-r", String(FPS),
+    "-map", "[mix]", "-t", String(SECONDS), bed,
+  ]);
+  const gain = -14 - loudnessOf(bed);
+  const out = join(dir, `${id}.mp4`);
+  ffmpeg([
+    "-framerate", String(FPS), "-i", join(work, "f%04d.jpg"), "-i", bed,
+    "-filter_complex", `[1:a]volume=${gain.toFixed(2)}dB,alimiter=limit=0.89:level=false[aud]`,
+    "-map", "0:v", "-map", "[aud]", "-t", String(SECONDS),
+    "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-pix_fmt", "yuv420p", "-r", String(FPS),
     "-c:a", "aac", "-ar", "48000", "-ac", "2", "-b:a", "192k", "-movflags", "+faststart", out,
   ]);
   ffmpeg(["-ss", String(COVER_AT), "-i", out, "-frames:v", "1", "-q:v", "2", join(dir, "cover.jpg")]);

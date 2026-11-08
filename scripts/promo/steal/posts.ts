@@ -18,6 +18,8 @@ export interface StealPost {
   /** Over the art on the cover slide: what kind of thing it is, then the hook. */
   kicker: string;
   hook: string;
+  /** The teaser Reel's sound: a CC0 loop from the soundboard library (`sound_library.slug`), so it needs no credit. */
+  ambience: string;
   /** The handout's chapter, as Tiptap JSON blocks (the embed is appended). */
   blocks: unknown[];
 }
@@ -36,6 +38,7 @@ export const STEAL_POSTS: StealPost[] = [
     documentId: "5e7a1000-0000-4000-8000-000000000001",
     kicker: "Steal this monster",
     hook: "The candy bowl that bites back",
+    ambience: "fire/fireplace-loop",
     blocks: [
       h1("The Toffee Maw"),
       p(text("A workshop fixture that isn't.", ["italic"])),
@@ -51,6 +54,7 @@ export const STEAL_POSTS: StealPost[] = [
     documentId: "5e7a1000-0000-4000-8000-000000000002",
     kicker: "Steal this creature",
     hook: "Thieves who give everything back. Eventually.",
+    ambience: "forest/birds-ambient",
     blocks: [
       h1("The Memory-Magpies"),
       p(text("They do not hoard. They curate.", ["italic"])),

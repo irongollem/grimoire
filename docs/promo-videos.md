@@ -93,11 +93,15 @@ app, `slides.ts` composes the 1080x1350 slides and their JPEGs).
 A new account's photo posts reach almost nobody (the first carousel had 8
 views in a day, the next Reel 103 in three hours), because Instagram shows
 Reels to people who do not follow an account and photo posts mostly to those
-who do. So each creature also gets a 12-second teaser Reel, `steal/reel.ts`:
-its art as a card, the kicker and the hook, then "the read-aloud, the stat
-block and a printable card are on our profile". It only teases the creature;
-the page and the card stay in the carousel. It writes `promo-out/<id>-reel/`
-as an ordinary Reel folder. Schedule the carousel an hour before its Reel, so
+who do. So each creature also gets a 17-second teaser Reel, `steal/reel.ts`:
+its Card Forge card face up with the kicker and the hook, a flip to the stats
+on the back, "the read-aloud, the stat block and a printable card are on our
+profile", and a flip back, so the loop has no seam. The card, not the bare
+art: art alone sells a picture, the stats sell a monster. The card is Card
+Forge's own Save front / Save back PNG (`cards.ts` presses the buttons), and
+the sound is the creature's place from the soundboard library (a CC0 loop
+named in `posts.ts`) with a paper flick on each flip. It writes
+`promo-out/<id>-reel/` as an ordinary Reel folder. Schedule the carousel an hour before its Reel, so
 it is the first thing on the profile when the Reel sends people there.
 
 `scripts/promo/schedule.json` lists when each post goes out (`{ id, at }`,
