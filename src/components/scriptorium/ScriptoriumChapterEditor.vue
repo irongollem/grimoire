@@ -180,7 +180,7 @@ const autosave = useAutosave({
     savedJson = json;
     cleanupRemovedRichTextImages(previous, json);
   },
-  errorMessage: "Could not save this chapter",
+  errorMessage: "Could not save your changes",
 });
 
 watch(

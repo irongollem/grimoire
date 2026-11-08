@@ -6,7 +6,7 @@
       <label class="block">
         <span class="mb-1 block text-caption text-muted-foreground">Title</span>
         <AppInput :model-value="draft.title" tone="underline" size="body" @update:model-value="patch({ title: $event })" />
-        <span v-if="!draft.title.trim()" class="mt-1 block text-caption text-destructive">A book needs a title before it saves.</span>
+        <span v-if="!draft.title.trim()" class="mt-1 block text-caption text-destructive">{{ draft.kind === "handout" ? "A handout" : "A book" }} needs a title before it saves.</span>
       </label>
 
       <div class="grid grid-cols-2 gap-x-4 gap-y-3">

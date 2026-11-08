@@ -33,7 +33,7 @@
       <slot name="give" />
     </template>
 
-    <AppButton variant="outline" size="icon-sm" :icon="IconSettings" tooltip="Book settings" @click="emit('settings')" />
+    <AppButton variant="outline" size="icon-sm" :icon="IconSettings" :tooltip="kind === 'handout' ? 'Handout settings' : 'Book settings'" @click="emit('settings')" />
   </header>
 </template>
 
