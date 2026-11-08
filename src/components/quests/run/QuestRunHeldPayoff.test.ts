@@ -77,6 +77,25 @@ describe("QuestRunHeldPayoff", () => {
     expect(wrapper.text()).toContain("The count ticks 2");
   });
 
+  // #1164: fifteen rows pushed What happens next a screen down.
+  it("folds a long list to four rows and opens the rest on Show all", async () => {
+    const loot = Array.from({ length: 5 }, (_, i) => ({ ...currencyLoot, id: `loot-${i}`, label: `Purse ${i}` }));
+    const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", loot, held: [heldEvent] } });
+    const rows = () => wrapper.findAllComponents({ name: "AppButton" }).filter((b) => ["Dispatch", "Fire now"].includes(b.props("label"))).length;
+    expect(rows()).toBe(4);
+    expect(wrapper.text()).toContain("6 to dispatch");
+    expect(wrapper.text()).not.toContain("Shifts an NPC's disposition");
+    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Show all 6")!.trigger("click");
+    expect(rows()).toBe(6);
+    expect(wrapper.text()).toContain("Shifts an NPC's disposition");
+  });
+
+  it("shows every row with no Show all when four or fewer wait", () => {
+    const loot = Array.from({ length: 3 }, (_, i) => ({ ...currencyLoot, id: `loot-${i}` }));
+    const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", loot, held: [heldEvent] } });
+    expect(wrapper.findAllComponents({ name: "AppButton" }).map((b) => b.props("label"))).toEqual(["Dispatch", "Dispatch", "Dispatch", "Fire now"]);
+  });
+
   const button = (w: ReturnType<typeof mount>, label: string) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
 
   it("says where a held event was held; a ledger verb ignores its stored delay, a world verb states it", () => {

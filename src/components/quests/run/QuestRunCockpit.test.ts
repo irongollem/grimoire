@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   locations: { value: [] as Array<Record<string, unknown>> },
   attachments: { value: [] as Array<Record<string, unknown>> },
   loot: { value: [] as Array<Record<string, unknown>> },
+  transitions: { value: [] as Array<Record<string, unknown>> },
   confirm: undefined as unknown as (...args: unknown[]) => Promise<boolean>,
   hotkeys: [] as Array<{ list: { value: Array<{ combo: string; handler: () => void }> }; options: { enabled: { value: boolean } } }>,
   threads: { value: [{ id: "thread-1", status: "live", label: "Main", created_at: "2026-01-01T00:00:00Z" }] as Array<Record<string, unknown>> },
@@ -71,6 +72,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestBeatEdges: () => ({ data: mocks.edges }),
   useQuestBeatAttachmentSummaries: () => ({ data: mocks.attachments }),
   useLootPlacements: () => ({ data: mocks.loot }),
+  useQuestBeatTransitionsForQuest: () => ({ data: mocks.transitions }),
   useQuestConsequences: () => ({ data: mocks.consequences }),
   useQuestUnlockEntry: () => ({ data: mocks.unlockEntry }),
   useQuestRuntimeJumpTargets: () => ({ data: mocks.targets }),
@@ -129,6 +131,7 @@ describe("QuestRunCockpit", () => {
     mocks.locations.value = [];
     mocks.attachments.value = [];
     mocks.loot.value = [];
+    mocks.transitions.value = [{ to_quest_id: "q1", to_beat_id: "b1", transition_kind: "enter" }];
     confirmMock.mockReset().mockResolvedValue(true);
     mocks.hotkeys = [];
     mocks.threads.value = [{ id: "thread-1", status: "live", label: "Main", created_at: "2026-01-01T00:00:00Z" }];
@@ -415,6 +418,8 @@ describe("QuestRunCockpit", () => {
       id: "b1", questId: "q1", expectedUpdatedAt: "version-1", update: { visibility: "revealed" },
     });
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    // A reveal is the DM's most frequent move; it must not stop to ask.
+    expect(confirmMock).not.toHaveBeenCalled();
   });
 
   it("falls back to the passed audience while the quest list is still loading", async () => {
@@ -458,7 +463,7 @@ describe("QuestRunCockpit", () => {
       target_exists: true, prep_gap: false, compact_detail: null, full_editor_to: null,
       role: "", is_required: true, metadata: {}, sort_order: 0, created_by: "dm", created_at: "now", ...over,
     });
-    const lootRow = (id: string, delivery_state: string) => ({ id, beat_id: "b1", quest_id: "q1", campaign_id: "c1", delivery_state });
+    const lootRow = (id: string, delivery_state: string, beat_id = "b1") => ({ id, beat_id, quest_id: "q1", campaign_id: "c1", delivery_state });
 
     it("gives the beat card only this beat's placements", () => {
       mocks.attachments.value = [attachment("mine", "b1"), attachment("theirs", "b2")];
@@ -466,8 +471,9 @@ describe("QuestRunCockpit", () => {
       expect((card.props("attachments") as Array<{ id: string }>).map((a) => a.id)).toEqual(["mine"]);
     });
 
-    it("hands the held payoff panel only loot still waiting to be dropped", () => {
-      mocks.loot.value = [lootRow("held-1", "held"), lootRow("chat-1", "chat"), lootRow("claimed-1", "claimed")];
+    // #1164: loot on a beat nobody has reached yet is prep, not held payoff.
+    it("hands the held payoff panel only loot still waiting to be dropped on a beat the run reached", () => {
+      mocks.loot.value = [lootRow("held-1", "held"), lootRow("chat-1", "chat"), lootRow("claimed-1", "claimed"), lootRow("ahead-1", "held", "b2")];
       const panel = mountRunning().findAllComponents({ name: "QuestRunHeldPayoff" })[0]!;
       expect((panel.props("loot") as Array<{ id: string }>).map((l) => l.id)).toEqual(["held-1"]);
     });

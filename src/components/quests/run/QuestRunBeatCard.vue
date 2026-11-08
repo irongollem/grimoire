@@ -86,7 +86,8 @@
         variant="primary"
         @click="emit('reveal')"
       />
-      <span v-else class="self-center text-caption text-elven-green">Visible to players</span>
+      <!-- Same size as the Reveal button it replaces, so the DM sees the reveal took. -->
+      <AppButton v-else as="span" variant="tinted" tone="success" emphasis="strong" size="sm" :icon="IconReveal" label="Visible to players" />
     </div>
   </article>
 </template>
@@ -113,6 +114,7 @@ import {
   IconMusicNote,
   IconNote,
   IconPackage,
+  IconReveal,
   IconUserRound,
 } from "@/lib/icons";
 

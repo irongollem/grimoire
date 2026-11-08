@@ -5,6 +5,7 @@ import {
   describeThreadCursor,
   findBeatArrival,
   formatSiteSummary,
+  lootHeldByTheRun,
   objectiveGateTargets,
   objectiveThreadHint,
   rankQuestJumpTargets,
@@ -14,6 +15,8 @@ import {
 } from "./run";
 import type { SiteGraphLocation } from "./run";
 import type {
+  LootPlacement,
+  QuestBeatTransition,
   QuestConsequence,
   QuestRoutePayoff,
   QuestRuntimeChoice,
@@ -259,6 +262,44 @@ describe("describeHeldLoot", () => {
 
   it("says an item stays unclaimed until it is dispatched", () => {
     expect(describeHeldLoot("item")).toBe("item · unclaimed once dispatched");
+  });
+});
+
+// #1164: a fresh run's first beat listed every unclaimed loot row in the quest
+// as "already fired". Held loot is loot on a beat the run has entered.
+describe("lootHeldByTheRun (#1164)", () => {
+  const loot = (id: string, beat_id: string, delivery_state: LootPlacement["delivery_state"] = "held"): LootPlacement => ({
+    id, beat_id, quest_id: "q1", location_id: null, campaign_id: "c1", kind: "item", item_id: null, library_item_id: null,
+    quantity: 1, label: id, payload: {}, source_type: "prepared", source_id: null, sort_order: 0,
+    dispatch_message_id: null, dispatched_at: null, delivery_state, quantity_remaining: 1, claimed_by_names: [], handed_out_this_session: false,
+  });
+  const arrive = (to_beat_id: string, transition_kind: QuestBeatTransition["transition_kind"] = "enter", to_quest_id = "q1"): QuestBeatTransition => ({
+    id: `t-${to_beat_id}-${transition_kind}`, campaign_id: "c1", from_quest_id: null, from_beat_id: null, to_quest_id, to_beat_id,
+    transition_kind, reason: null, runtime_version: 1, from_quest_title: null, from_beat_title: null, to_quest_title: null,
+    to_beat_title: null, provenance: {}, created_by: null, created_at: "2026-11-08T00:00:00Z", thread_id: "th1",
+  });
+  const ids = (rows: LootPlacement[]) => rows.map((row) => row.id);
+
+  it("leaves out loot on a beat the run has not reached", () => {
+    const rows = [loot("here", "b1"), loot("ahead", "b2")];
+    expect(ids(lootHeldByTheRun(rows, [arrive("b1")], "q1"))).toEqual(["here"]);
+  });
+
+  it("keeps loot on an earlier beat the DM left undropped", () => {
+    const rows = [loot("earlier", "b1"), loot("here", "b2")];
+    expect(ids(lootHeldByTheRun(rows, [arrive("b1"), arrive("b2", "forward")], "q1"))).toEqual(["earlier", "here"]);
+  });
+
+  it("leaves out loot already dropped in chat", () => {
+    expect(lootHeldByTheRun([loot("dropped", "b1", "chat")], [arrive("b1")], "q1")).toEqual([]);
+  });
+
+  it("does not count an assert row, which moves no cursor, as reaching its beat", () => {
+    expect(lootHeldByTheRun([loot("ahead", "b2")], [arrive("b2", "assert")], "q1")).toEqual([]);
+  });
+
+  it("does not count a transition into another quest's beat", () => {
+    expect(lootHeldByTheRun([loot("ahead", "b2")], [arrive("b2", "jump", "q2")], "q1")).toEqual([]);
   });
 });
 

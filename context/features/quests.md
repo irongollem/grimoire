@@ -1427,9 +1427,18 @@ show first. Below the header:
 - The current beat: normally `QuestRunBeatCard` (chips, read-aloud, how it
   plays, one action button per placement — `Roll Insight` first when the beat
   carries a `check`) plus `QuestRunHeldPayoff` (loot sitting in
-  `loot_placements` with `delivery_state: "held"`, and `quest_consequence_events`
-  rows with `held_at` set — both quest-wide, not beat-scoped, since a payoff
-  held three beats ago is still the DM's to dispatch today). **When the
+  `loot_placements` with `delivery_state: "held"` **on a beat some thread of
+  this quest has entered** (`lootHeldByTheRun`, from
+  `useQuestBeatTransitionsForQuest`), and `quest_consequence_events` rows with
+  `held_at` set — both quest-wide, not beat-scoped, since a payoff held three
+  beats ago is still the DM's to dispatch today). `delivery_state: "held"`
+  alone only means "not dropped yet", which all prepared loot is: filtered on
+  that alone, the first beat of a fresh run listed the whole quest's loot as
+  already fired (#1164). More than four entries fold behind **Show all N**, so
+  the scene stays in view. The beat card's **Reveal to players** writes
+  `visibility: revealed` with no confirm (#1164: the move a DM makes most, and
+  the dialog explained rather than protected); the button becomes a success
+  pill of the same size, "Visible to players", and Edit beat takes it back. **When the
   current beat is staged at a site with rooms, this column becomes
   `QuestSiteHandoff` instead** — see below.
 - **`QuestRunSessionPanel`** — Previous, Jump, End: the

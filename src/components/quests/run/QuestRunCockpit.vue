@@ -215,6 +215,7 @@ import {
   useCampaignLiveQuests,
   useQuestBeat,
   useQuestBeatAttachmentSummaries,
+  useQuestBeatTransitionsForQuest,
   useQuestBeatEdges,
   useQuestConsequences,
   useQuestUnlockEntry,
@@ -232,7 +233,7 @@ import { useLocation, useLocations } from "@/composables/locations/useLocations"
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { resolveStartBeatId } from "@/lib/quests/entry";
 import { rootBeatIds } from "@/lib/quests/graph";
-import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
+import { lootHeldByTheRun, rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
 import { threadBadge, threadTone } from "@/lib/quests/threads";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import { IconClipboard, IconClock, IconLinkAlt, IconPackage } from "@/lib/icons";
@@ -304,6 +305,8 @@ const questsQuery = useQuests();
 const liveQuestsQuery = useCampaignLiveQuests();
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
 const lootQuery = useLootPlacements({ questId });
+// Every thread's arrivals, so Held payoff knows which beats the run reached (#1164).
+const transitionsQuery = useQuestBeatTransitionsForQuest(questId);
 const objectivesQuery = useQuestObjectives(questId);
 const consequencesQuery = useQuestConsequences(questId);
 // The start card's own data (#871): the event log for the most recent bridge
@@ -400,7 +403,7 @@ const startCaption = computed(() => {
   return null;
 });
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
-const heldLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.delivery_state === "held"));
+const heldLoot = computed(() => lootHeldByTheRun(lootQuery.data.value ?? [], transitionsQuery.data.value ?? [], anchorQuestId));
 const previewBeat = computed(() => (beatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
 // The previewed beat always belongs to this quest now, so there is no other
 // quest whose audience could be the right one. The prop is the fallback for the
@@ -574,8 +577,10 @@ async function endSession() {
 }
 
 async function revealBeat(beatId: string) {
+  // No confirm: revealing is the move a DM makes most at the table, the
+  // badge that replaces the button shows it took, and Edit beat takes it back.
   const beat = beatsQuery.data.value?.find((row) => row.id === beatId);
-  if (!beat || !(await confirm(`Reveal “${beat.title}” to players? Advancing alone leaves it ${beat.visibility}.`))) return;
+  if (!beat) return;
   error.value = "";
   try {
     await updateBeat.mutateAsync({ id: beat.id, questId: beat.quest_id, expectedUpdatedAt: beat.updated_at, update: { visibility: "revealed" } });
