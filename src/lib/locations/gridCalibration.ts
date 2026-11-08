@@ -51,7 +51,7 @@ export interface ImageFractionRect {
 }
 
 /** `origin_cell_x/y`, defaulting to (0, 0) per that field's documented default. */
-function resolveOriginCell(calibration: GridCalibration): { x: number; y: number } {
+export function resolveOriginCell(calibration: GridCalibration): { x: number; y: number } {
   return {
     x: calibration.origin_cell_x ?? 0,
     y: calibration.origin_cell_y ?? 0,

@@ -262,7 +262,7 @@ async function onGenerateClick() {
   if (!requireCredits(credits, byok)) return;
   if (fixedTargetLabel) {
     const ok = await confirm(
-      "The styled map replaces this site's base image. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Check that the grid still lines up; the AI can drift a little, and Line up the grid on the Base image tab fixes it.",
+      "The styled map replaces this site's base image. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Walls, doors and lights keep working at the table, unseen under the painting. Check that the grid still lines up; the AI can drift a little, and Line up the grid on the Base image tab fixes it.",
       { title: "Style with AI", confirmLabel: "Generate" },
     );
     if (!ok) return;

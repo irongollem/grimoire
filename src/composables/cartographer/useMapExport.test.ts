@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ref } from "vue";
 import type { MapImageLayer } from "@/lib/locations/mapStack";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 
@@ -263,11 +264,36 @@ describe("useMapExport", () => {
           origin_cell_y: 0,
           grid_opacity: expect.any(Number),
         },
+        // The walls drawing is named for the site and carries the source's pack and darkness.
+        play: {
+          drawing: expect.objectContaining({ name: "Ashmouth Undercroft walls", darkness: "daylight", default_pack_id: null }),
+          mapLive: expect.objectContaining({ sprites: [] }),
+        },
       });
       // Unlike the free-pick flow, the fixed target is never cleared — the
       // next "Style with AI" click on the same site needs it seeded again,
       // and nothing else would re-seed it (the site itself hasn't changed).
       expect(exp.styleAtlasLocationId.value).toBe("site-1");
+    });
+
+    it("refuses to save to a site whose walls were not built with the render, before uploading anything", async () => {
+      // The site arrives after the render: the result has no walls drawing,
+      // and saving it would flatten the site with no walls at all.
+      const site = ref<{ id: string; name: string; picture: MapImageLayer | null } | null>(null);
+      const exp = useMapExport({
+        buildMap: () => fakeMap(),
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
+        mapName: () => "Test",
+        glyphs: () => ({}),
+        site: () => site.value,
+      });
+      await exp.onGenerateStyle();
+      site.value = { id: "site-1", name: "Ashmouth Undercroft", picture: null };
+      exp.styleAtlasLocationId.value = "site-1";
+      await exp.onSaveStyledToAtlas();
+      expect(exp.styleAtlasError.value).toBe("The styled map is not ready to save");
+      expect(mocks.uploadToBucket).not.toHaveBeenCalled();
+      expect(mocks.saveStyledSitePicture).not.toHaveBeenCalled();
     });
 
     it("derives grid_calibration from the bake's own fitted geometry, computed before sending, never from the returned image", async () => {

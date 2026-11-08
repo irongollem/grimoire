@@ -12,6 +12,19 @@ const KEEP_LAYOUT =
   "Repaint this top-down map image in the style below without changing its layout: every wall, door, stair and room outline stays exactly where the input image draws it, at the same size and position. Do not add rooms, walls, corridors or buildings the input does not have, and do not add a title, banner or cartouche. The small white words on the input are notes saying what belongs where: paint those things, and do not write the words.";
 
 /**
+ * The walls are the DM's and stay put; the furniture is a sketch of intent.
+ * Drawn from a tile palette, it comes in a few fixed facings and identical
+ * copies, and the model painted both literally: chairs turned away from the
+ * table they stood at, and two crates of pots side by side kept as two
+ * copies of one crate instead of one wider stack (the maintainer, styling
+ * the demo's inn, 8 Nov 2026). Each piece keeps its place, since tokens
+ * stand on that grid, but how it faces and how repeats read is the model's
+ * call.
+ */
+const INTERPRET_PROPS =
+  "The furniture and props in the input are a sketch of what stands where, drawn from a small set of stamps: keep each thing in its place, but paint it the way a real room would have it. Turn chairs and stools to face the table or counter they belong to, merge identical pieces standing side by side into one larger natural group rather than repeating the same piece, and vary repeated items so no two look copied.";
+
+/**
  * Every preset, the isometric one included. The app lays its own grid over a styled map at play, so a grid painted into the
  * picture competes with it: two sets of lines that never quite agree. Models add one unasked, because "battle map" is mostly
  * gridded pictures, and they repaint any cell lines they can see in the input (the old tile floors drew a square per cell).
@@ -45,7 +58,7 @@ export function buildMapStylePrompt(
 ): string {
   const preset = PRESET_PROMPTS[presetId] ? presetId : "playable";
   const parts: string[] = [];
-  if (preset !== "isometric") parts.push(KEEP_LAYOUT);
+  if (preset !== "isometric") parts.push(KEEP_LAYOUT, INTERPRET_PROPS);
   // Named as the subject, not left as a bare phrase: on its own the name read
   // as lettering to paint, and came back as a title banner.
   if (mapName.trim()) parts.push(`The place: ${mapName.trim()}.`);

@@ -5,6 +5,9 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import type { Location, LocationInsert, LocationType } from "@/types/location.types";
 import { LOCATION_SUMMARY_SELECT } from "@/types/location.types";
 import type { LocationPreset } from "@/data/settingLocations";
+import type { StyledPlay } from "@/cartographer/styledPlay";
+import { emptyLayers } from "@/types/dungeonMap.types";
+import { MAP_LIVE_VERSION } from "@/types/mapLive.types";
 
 /**
  * #596: locations flip from "new content defaults to global" to "new content
@@ -24,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   deleteUnreferenced: vi.fn(),
   stamp: vi.fn(),
   embed: vi.fn(),
+  createDungeonMap: vi.fn(),
 }));
 
 const activeCampaignId = ref<string | null>("campaign-1");
@@ -50,6 +54,8 @@ vi.mock("@/lib/populateSetting/settingContent", () => ({
   PLANAR_SOURCE: "planar",
 }));
 vi.mock("@/data/settingLocations", () => ({ PLANAR_LOCATIONS: [] }));
+// The fake does not generate ids or revs, which the save reads back off the new walls drawing.
+vi.mock("@/composables/cartographer/useDungeonMaps", () => ({ useCreateDungeonMap: () => ({ mutateAsync: mocks.createDungeonMap }) }));
 vi.mock("@/lib/supabase", () => ({
   supabase: { ...fake.client, functions: { invoke: mocks.invoke } },
   getCurrentUser: () => ({ id: "user-1" }),
@@ -107,6 +113,7 @@ beforeEach(() => {
   mocks.deleteUnreferenced.mockReset();
   mocks.stamp.mockReset();
   mocks.embed.mockReset();
+  mocks.createDungeonMap.mockReset().mockResolvedValue({ id: "walls-1", rev: 3 });
 });
 
 describe("getPinnableDescendants", () => {
@@ -297,20 +304,36 @@ describe("map layer writes", () => {
     unmount();
   });
 
-  it("saving a styled render as the picture unlinks the drawing in the same write, keeping the drawing's own map row", async () => {
-    fake.seed("locations", [place({ id: "site", map_layer_url: "layer.png", map_layer_stand_url: "stand.png", source_map_id: "m1", map_published_rev: 4 })]);
+  const play: StyledPlay = {
+    drawing: { name: "Keep walls", layers: emptyLayers(), darkness: "dim", default_pack_id: "pack", campaign_id: "campaign-1" },
+    mapLive: { version: MAP_LIVE_VERSION, darkness: "dim", groups: [], lights: [], sprites: [], walls: [{ id: "w", a: [0, 0], b: [1, 0] }], doors: [], solid: [] },
+  };
+
+  it("saving a styled render swaps the tile drawing for the walls drawing in one write, keeping the tile drawing's own row and the snapshot", async () => {
+    fake.seed("locations", [place({ id: "site", map_layer_url: "layer.png", map_layer_stand_url: "stand.png", source_map_id: "m1", map_published_rev: 4, map_live: null })]);
     fake.seed("dungeon_maps", [{ id: "m1" }]);
     const { result, unmount } = withQueryClient(() => useSaveStyledSitePicture());
-    await result.mutateAsync({ id: "site", mapUrl: "styled.png", calibration });
+    await result.mutateAsync({ id: "site", mapUrl: "styled.png", calibration, play });
+    expect(mocks.createDungeonMap).toHaveBeenCalledWith(play.drawing);
     expect(fake.rows("locations")[0]).toMatchObject({
       map_url: "styled.png",
       grid_calibration: calibration,
       map_layer_url: null,
       map_layer_stand_url: null,
-      source_map_id: null,
-      map_published_rev: null,
+      map_live: play.mapLive,
+      source_map_id: "walls-1",
+      map_published_rev: 3,
     });
-    expect(fake.rows("dungeon_maps")).toHaveLength(1);
+    expect(fake.rows("dungeon_maps").map((r) => r.id)).toEqual(["m1"]);
+    unmount();
+  });
+
+  it("a failed walls drawing insert leaves the location exactly as it was", async () => {
+    fake.seed("locations", [place({ id: "site", map_url: "old.png", map_layer_url: "layer.png", source_map_id: "m1", map_published_rev: 4 })]);
+    mocks.createDungeonMap.mockRejectedValue(new Error("insert failed"));
+    const { result, unmount } = withQueryClient(() => useSaveStyledSitePicture());
+    await expect(result.mutateAsync({ id: "site", mapUrl: "styled.png", calibration, play })).rejects.toThrow("insert failed");
+    expect(fake.rows("locations")[0]).toMatchObject({ map_url: "old.png", map_layer_url: "layer.png", source_map_id: "m1", map_published_rev: 4 });
     unmount();
   });
 

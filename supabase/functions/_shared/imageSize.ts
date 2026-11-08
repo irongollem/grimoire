@@ -46,3 +46,26 @@ export function isValidStyleImageSize(width: number, height: number): boolean {
   if (aspect < 1 / 3 || aspect > 3) return false;
   return true;
 }
+
+/**
+ * The AI map styler's pixel budget: every styling is rendered at this many
+ * pixels, at the map's own aspect (`chooseStyleImageSize` in
+ * `src/cartographer/bake.ts` spends it, rounding each edge down to 16).
+ */
+export const STYLE_PIXEL_BUDGET = 2560 * 1440;
+
+/** The size a styling is priced at when it stays within the budget. */
+export const STYLE_CHARGE_SIZE = "2560x1440";
+
+/**
+ * The size `style-map` charges a styling at. Image renders are priced by area
+ * like every other image generator (`sizeMultiplier`), and a styling is about
+ * 3.5 times a 1024 square, so a flat per-render price sold it below cost
+ * (8 Nov 2026). An honest client always sends at most the budget and pays the
+ * budget's price, which is the price the DM was shown before generating; an
+ * upload larger than the budget, which `isValidStyleImageSize` still accepts,
+ * pays for its own area.
+ */
+export function styleChargeSize(width: number, height: number): string {
+  return width * height > STYLE_PIXEL_BUDGET ? `${width}x${height}` : STYLE_CHARGE_SIZE;
+}

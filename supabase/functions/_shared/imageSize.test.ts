@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { isValidStyleImageSize, readPngDimensions } from "./imageSize.ts";
+import { isValidStyleImageSize, readPngDimensions, STYLE_CHARGE_SIZE, STYLE_PIXEL_BUDGET, styleChargeSize } from "./imageSize.ts";
+import { sizeMultiplier } from "./credit-math.ts";
 
 /** Builds just enough of a PNG (signature + IHDR) for `readPngDimensions` —
  *  the bytes after IHDR's width/height are never read, so they're zeroed. */
@@ -76,5 +77,24 @@ describe("isValidStyleImageSize", () => {
     expect(isValidStyleImageSize(1024.5, 1024)).toBe(false);
     expect(isValidStyleImageSize(0, 1024)).toBe(false);
     expect(isValidStyleImageSize(-1024, 1024)).toBe(false);
+  });
+});
+
+describe("styleChargeSize", () => {
+  it("prices a styling within the budget at the budget, so the charge is the price the DM was shown", () => {
+    // The client fits the inn's 1.34:1 map to 2208x1648, a little under the
+    // budget; charging that would bill one credit less than the modal said.
+    expect(styleChargeSize(2208, 1648)).toBe(STYLE_CHARGE_SIZE);
+    expect(styleChargeSize(2560, 1440)).toBe(STYLE_CHARGE_SIZE);
+  });
+
+  it("charges an upload larger than the budget for its own area, not the budget's", () => {
+    expect(styleChargeSize(3840, 2160)).toBe("3840x2160");
+  });
+
+  it("prices the budget by its area, about 3.5 times a 1024 square", () => {
+    const [w, h] = STYLE_CHARGE_SIZE.split("x").map(Number);
+    expect(w! * h!).toBe(STYLE_PIXEL_BUDGET);
+    expect(sizeMultiplier(STYLE_CHARGE_SIZE)).toBeCloseTo(3.52, 2);
   });
 });
