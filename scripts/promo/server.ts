@@ -10,10 +10,12 @@
  * the page after optimizing a newly found dependency, and without it the page
  * is left half loaded (an empty recipe list, seen once).
  * Its own cache directory keeps it out of the shared server's dependency cache.
+ * PROMO_PORT gives a take another port (and a cache of its own), so two
+ * episodes can be filmed at once.
  */
 import { createServer, type ViteDevServer } from "vite";
 
-const PORT = 5181;
+const PORT = Number(process.env.PROMO_PORT ?? 5181);
 
 export interface PromoServer {
   base: string;
@@ -24,7 +26,7 @@ export async function startPromoServer(): Promise<PromoServer> {
   const server: ViteDevServer = await createServer({
     configFile: "vite.config.ts",
     mode: "localdb",
-    cacheDir: "node_modules/.vite-promo",
+    cacheDir: PORT === 5181 ? "node_modules/.vite-promo" : `node_modules/.vite-promo-${PORT}`,
     logLevel: "warn",
     server: { port: PORT, strictPort: true, watch: null },
   });

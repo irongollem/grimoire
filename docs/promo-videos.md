@@ -36,7 +36,8 @@ last quarter second is cut, where the stop key's own click lands.
 The recorder starts its own app server on :5181 (`server.ts`) that does not
 watch files: other sessions edit this checkout, and on the shared :5173 every
 save reloaded the page mid-take. `PROMO_BASE_URL=<url>` films a server you run
-yourself instead.
+yourself instead, and `PROMO_PORT=<port>` gives the take's own server another
+port (and its own dependency cache), so two episodes can be filmed at once.
 
 `promo:record -- <id> --shot <shot id>` re-films one shot and keeps the others.
 A failed take saves the screen at that moment as `shots/<shot>.failed.png`.
