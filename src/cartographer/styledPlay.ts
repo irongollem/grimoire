@@ -26,7 +26,10 @@ export function wallsOnlyLayers(map: Pick<DungeonMap, "layers">): DungeonMapLaye
     if (!OCCLUDING_EDGES.has(wall.type)) continue;
     layers.walls[key] = { ...wall, visible: false };
   }
-  layers.lights = structuredClone(map.layers.lights);
+  // Copied by spreading, not structuredClone: the editor hands over its reactive map, and a Vue proxy cannot be cloned.
+  layers.lights = Object.fromEntries(
+    Object.entries(map.layers.lights).map(([key, placed]) => [key, { ...placed, light: { ...placed.light } }]),
+  );
   return layers;
 }
 

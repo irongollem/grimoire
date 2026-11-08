@@ -276,6 +276,23 @@ describe("useMapExport", () => {
       expect(exp.styleAtlasLocationId.value).toBe("site-1");
     });
 
+    it("builds the walls before the paid call, so a failure there costs the DM nothing", async () => {
+      // Bug (8 Nov 2026): the walls were built after style-map answered, and a
+      // throw there lost a render the DM had already paid for.
+      const map = fakeMap();
+      Object.defineProperty(map.layers, "lights", { get: () => { throw new Error("lights unreadable"); } });
+      const exp = useMapExport({
+        buildMap: () => map,
+        runtimes: () => new Map(), loadDressing: async () => new Map(),
+        mapName: () => "Test",
+        glyphs: () => ({}),
+        site: siteWithPicture(null),
+      });
+      await exp.onGenerateStyle();
+      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(exp.styleError.value).toBe("lights unreadable");
+    });
+
     it("refuses to save to a site whose walls were not built with the render, before uploading anything", async () => {
       // The site arrives after the render: the result has no walls drawing,
       // and saving it would flatten the site with no walls at all.

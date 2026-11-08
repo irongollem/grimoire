@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { reactive } from "vue";
 import { buildStyledPlay, snapshotOverPainting, wallsOnlyLayers } from "@/cartographer/styledPlay";
 import { buildMapLive } from "@/cartographer/mapLive";
 import { cellRectInImageFractions } from "@/lib/locations/gridCalibration";
@@ -43,6 +44,13 @@ describe("wallsOnlyLayers", () => {
     const layers = wallsOnlyLayers(src);
     expect(layers.lights.l1).toEqual(src.layers.lights.l1);
     expect(layers.lights.l1).not.toBe(src.layers.lights.l1);
+  });
+
+  it("copes with the editor's reactive map, which structuredClone refuses", () => {
+    // Bug (8 Nov 2026): cloning the lights of a Vue proxy threw after the paid
+    // render had come back, so the DM was charged and the render was lost.
+    const layers = wallsOnlyLayers(reactive(sourceMap()));
+    expect(layers.lights.l1).toEqual({ x: 4, y: 5, light: { color: "#fff", bright: 20, dim: 20 } });
   });
 });
 

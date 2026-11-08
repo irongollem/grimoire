@@ -229,6 +229,11 @@ export function useMapExport(opts: {
       const { blob: pngBlob, geometry, size } =
         await bakeAiStyleInput(map, opts.runtimes(), dressing, target?.picture ?? null, opts.glyphs(), provider);
       const image_b64 = await blobToBase64(pngBlob);
+      // Everything the save needs besides the picture is known before sending
+      // (see this module's header), and is built here, before the paid call,
+      // so nothing that can throw runs between the charge and the result.
+      const calibration = styledPictureCalibration(map, dressing, geometry);
+      const play = target ? buildStyledPlay(target.name, map, opts.runtimes(), dressing, calibration) : null;
 
       const { data, error } = await supabase.functions.invoke<StyleMapResponse>("style-map", {
         body: {
@@ -246,12 +251,11 @@ export function useMapExport(opts: {
 
       styleResultBlob.value = base64ToBlob(resultB64, "image/webp");
       // The input we sent and the size `style-map` was asked for are already
-      // known (`size`, from the bake functions above) — see this module's
+      // known (`size`, from the bake functions above); see this module's
       // header for why that makes the pre-send geometry a safe basis for the
       // calibration, with no need to measure what comes back to derive it.
-      const calibration = styledPictureCalibration(map, dressing, geometry);
       styleResultCalibration.value = calibration;
-      styleResultPlay.value = target ? buildStyledPlay(target.name, map, opts.runtimes(), dressing, calibration) : null;
+      styleResultPlay.value = play;
       void warnIfStyleResultSizeDrifted(styleResultBlob.value, size);
       if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
       styleResultUrl.value = URL.createObjectURL(styleResultBlob.value);
