@@ -290,11 +290,12 @@ Live card preview grid on screen (screen-sized rendering, separate from print si
 
 Under each preview card, **Save front** / **Save back** (whichever face is showing) downloads that face as a PNG at its print size, 63×88 mm (744×1041 px) or 70×120 mm (827×1419 px) at 300 dpi, with transparent rounded corners and no bleed. For posting a card, sending it to a player or dropping it into a VTT; nothing is generated, so no credits. Named after the entity, `Ashen_Warden_card_front.png`, like The Mint's tokens. Hidden in a loot deck for a non-item, which has no front to draw.
 
-`useCardImageExport` (`src/composables/cardforge/`) renders the preview card's own DOM; sizes and names live in `src/lib/cardforge/cardImage.ts`. Three decisions that look like oversights:
+`useCardImageExport` (`src/composables/cardforge/`) renders the preview card's own DOM; sizes and names live in `src/lib/cardforge/cardImage.ts`. Four decisions that look like oversights:
 
 - **modern-screenshot, not html2canvas.** html2canvas repaints the DOM itself and cannot draw the card designs (`color-mix`, `clip-path`, `mask-image` icons, `filter`; it throws on the first `color-mix`). modern-screenshot serialises the card into an SVG `foreignObject`, so the browser draws it as on screen, and inlines only the font families the card uses and every image it shows. It is lazy-loaded on the first save. Art comes from the CDN, which sends `Access-Control-Allow-Origin: *`, so inlining it never taints the canvas.
 - **The PNG is stamped 300 dpi by hand.** The library records 96 dpi × scale (357 dpi at the 3.72× a 200 px card needs), which would print "at actual size" as a 53 mm card. The composable sets `context.dpi` after `createContext`.
 - **A `clip-path` on the render's root.** Inside a `foreignObject`, a rounded card's `overflow: hidden` does not clip a transformed child, so the focal-cropped portrait filled the corners square. `inset(0 round <the card's radius>)` clips everything.
+- **Clamped text is cut by hand in the saved copy.** A back clamps its flavor footer and its last ability entry with `-webkit-line-clamp`; inside a `foreignObject` Chrome still clamps the lines but draws no "…", so saved cards ended mid-word ("(a single white feather", 8 Nov 2026). `src/lib/cardforge/lineClamp.ts` measures, on an unclamped copy laid out beside each clamped box, how much text fits with a "…", and writes that into the clone being drawn (`onCloneNode`). The live card is never changed.
 
 ---
 
