@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkReel, postReel, readSchedule, setScheduled } from "./publishing";
+import { checkReel, postReel, readSchedule, setScheduled, TITLE_COVER } from "./publishing";
 
 let root: string;
 const CAPTION = "Combat in Dungeon Grimoire.\n\n#dnd #ttrpg";
@@ -34,6 +34,13 @@ describe("checkReel", () => {
   it("passes a voiced, built Reel with its cover and a good caption", () => {
     reel(["a", "b"]);
     expect(checkReel(root, "ep", CAPTION)).toMatchObject({ problems: [], coverAt: 4.5, posted: null });
+  });
+
+  it("finds the title cover beside the video, and has none when it is absent", () => {
+    const dir = reel(["a", "b"]);
+    expect(checkReel(root, "ep", CAPTION).titleCover).toBeNull();
+    writeFileSync(join(dir, TITLE_COVER), "x");
+    expect(checkReel(root, "ep", CAPTION).titleCover).toBe(join(dir, TITLE_COVER));
   });
 
   it("refuses a silent draft: a shot with no take", () => {

@@ -81,6 +81,16 @@ publishes at once; the API cannot schedule. The cover is the assembler's
 `cover.jpg` frame, passed as its offset from `cover.json`. A posted Reel
 leaves `posted.json` beside it and is not posted twice without `--again`.
 
+A Reel's cover on the profile grid has to say what it is about, and a frame
+of the video does not: its first-shot caption sits where the grid's 3:4 crop
+cuts it (8 Nov 2026; only the two Workshop Reels, whose covers were made by
+hand, said anything). `covers.ts` makes `title-cover.jpg` in that shape: the
+logo, the title's promise as a small-caps headline, a pill naming the side and
+the feature, and one tilted crop of the episode's payoff screen (`COVERS` names
+the shot and the crop per episode). When the file is there, `promo:post` puts
+it on the CDN and sends it as the Reel's `cover_url` instead of the frame
+offset. For a Reel already posted, set it in the Instagram app.
+
 A post folder with `slides/slide-1.jpg`, `slide-2.jpg`, ... and no
 `manifest.json` is a **carousel** (`carousels.ts`), posted the same way: the
 dry run checks there are 2 to 20 slides, all JPEG and all the size of the

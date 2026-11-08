@@ -116,22 +116,34 @@ export async function recentMedia(token: string, igId: string, limit = 12): Prom
   }));
 }
 
+/** A Reel's cover: a frame of the video by its offset, or an image of its own at a public URL. */
+export type ReelCover = { atMs: number } | { url: string };
+
+/**
+ * The Reel container's fields. A cover image goes as `cover_url` and no frame
+ * offset: Instagram would take the image anyway, and sending both hides which
+ * one the post was meant to have.
+ */
+export function reelContainerParams(input: { caption: string; cover: ReelCover }): Record<string, string> {
+  return {
+    media_type: "REELS",
+    upload_type: "resumable",
+    caption: input.caption,
+    share_to_feed: "true",
+    ...("url" in input.cover ? { cover_url: input.cover.url } : { thumb_offset: String(Math.round(input.cover.atMs)) }),
+  };
+}
+
 /** Creates the Reel container, uploads the file into it, and returns the container id once Instagram has processed it. */
 export async function uploadReel(
   token: string,
   igId: string,
-  input: { video: Uint8Array; caption: string; coverAtMs: number },
+  input: { video: Uint8Array; caption: string; cover: ReelCover },
   log: (line: string) => void,
 ): Promise<string> {
   const container = await graph<{ id: string; uri: string }>(token, `${igId}/media`, {
     method: "POST",
-    params: {
-      media_type: "REELS",
-      upload_type: "resumable",
-      caption: input.caption,
-      share_to_feed: "true",
-      thumb_offset: String(Math.round(input.coverAtMs)),
-    },
+    params: reelContainerParams(input),
   });
   log(`container ${container.id}, uploading ${(input.video.byteLength / 1e6).toFixed(1)} MB`);
   // rupload answers "Request processing failed" now and then for a container

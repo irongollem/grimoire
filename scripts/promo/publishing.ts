@@ -11,6 +11,7 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { hostJpeg } from "./cdn";
 import { captionProblems, findAccount, postsLeft, publish, uploadReel } from "./instagram";
 import { parseSchedule, type ScheduleEntry } from "./schedule";
 import type { EpisodeManifest } from "./types";
@@ -35,11 +36,18 @@ export interface ReelCheck {
   caption: string | null;
   /** Seconds into the video of the cover frame. */
   coverAt: number | null;
+  /**
+   * The episode's title cover (covers.ts), when it has one: posted as the Reel's
+   * cover instead of the frame, so the profile grid says what the Reel is about.
+   */
+  titleCover: string | null;
   video: string;
   posted: PostedRecord | null;
 }
 
 const captionFile = (id: string) => join(CAPTIONS_DIR, `${id}.txt`);
+/** A Reel's designed cover beside its video (covers.ts). */
+export const TITLE_COVER = "title-cover.jpg";
 
 export function readCaption(id: string): string | null {
   return existsSync(captionFile(id)) ? readFileSync(captionFile(id), "utf8").trimEnd() : null;
@@ -76,7 +84,8 @@ export function checkReel(root: string, id: string, captionText: string | null =
   const dir = join(root, id);
   const video = join(dir, `${id}.mp4`);
   const problems: string[] = [];
-  const result = (coverAt: number | null): ReelCheck => ({ id, problems, caption: captionText, coverAt, video, posted: readPosted(root, id) });
+  const titleCover = existsSync(join(dir, TITLE_COVER)) ? join(dir, TITLE_COVER) : null;
+  const result = (coverAt: number | null): ReelCheck => ({ id, problems, caption: captionText, coverAt, titleCover, video, posted: readPosted(root, id) });
 
   const manifestFile = join(dir, "manifest.json");
   if (!existsSync(manifestFile)) {
@@ -127,7 +136,9 @@ export async function postReel(
   const quota = await postsLeft(token, account.id);
   if (quota.used >= quota.total) throw new Error(`No posts left: ${quota.used} of ${quota.total} used in the last 24 hours.`);
   const bytes = readFileSync(check.video);
-  const containerId = await uploadReel(token, account.id, { video: bytes, caption, coverAtMs: coverAt * 1000 }, log);
+  const cover = check.titleCover ? { url: await hostJpeg(id, check.titleCover, TITLE_COVER) } : { atMs: coverAt * 1000 };
+  if ("url" in cover) log(`cover ${cover.url}`);
+  const containerId = await uploadReel(token, account.id, { video: bytes, caption, cover }, log);
   const { mediaId, permalink } = await publish(token, account.id, containerId);
   const record: PostedRecord = { id, account: account.username, mediaId, permalink, postedAt: new Date().toISOString() };
   writeFileSync(join(root, id, "posted.json"), JSON.stringify(record, null, 2) + "\n");

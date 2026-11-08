@@ -4,16 +4,13 @@
  * and has no manifest.json (that is a Reel; see publishing.ts).
  *
  * Instagram takes photos only from a public URL (direct upload is for video),
- * so posting first puts the slides on the asset CDN under `promo/<id>/`,
- * named by their content so a changed slide never reuses an old URL, checks
- * each one loads, and only then hands the URLs to Instagram. They are public
- * from that moment, as the post is a minute later.
+ * so posting first puts the slides on the asset CDN (cdn.ts) and only then
+ * hands the URLs to Instagram. They are public from that moment, as the post
+ * is a minute later.
  */
-import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { putObject } from "../../supabase/functions/_shared/r2/client.ts";
-import { IMMUTABLE_CACHE_CONTROL, r2ConfigFrom } from "../../supabase/functions/_shared/r2/config.ts";
+import { hostJpeg } from "./cdn";
 import { captionProblems, createCarousel, findAccount, postsLeft, publish } from "./instagram";
 import { readCaption, readPosted, type PostedRecord } from "./publishing";
 
@@ -81,17 +78,9 @@ export function checkCarousel(root: string, id: string, captionText: string | nu
 
 /** Puts each slide on the asset CDN and returns its public URL, after checking it loads. */
 async function hostSlides(id: string, slides: string[], log: (line: string) => void): Promise<string[]> {
-  const r2 = r2ConfigFrom((k) => process.env[k]);
-  const cdn = process.env.ASSET_CDN_URL?.replace(/\/+$/, "");
-  if (!r2 || !cdn) throw new Error("R2_* and ASSET_CDN_URL must be set (npm run promo:post loads .env.local).");
   const urls: string[] = [];
   for (const [i, file] of slides.entries()) {
-    const body = readFileSync(file);
-    const key = `promo/${id}/${createHash("sha256").update(body).digest("hex").slice(0, 12)}-slide-${i + 1}.jpg`;
-    await putObject(r2, { key, body, contentType: "image/jpeg", cacheControl: IMMUTABLE_CACHE_CONTROL });
-    const url = `${cdn}/${key}`;
-    const res = await fetch(url, { method: "HEAD" });
-    if (!res.ok) throw new Error(`${url} answers ${res.status} after upload; Instagram could not fetch it.`);
+    const url = await hostJpeg(id, file, `slide-${i + 1}.jpg`);
     log(`hosted ${url}`);
     urls.push(url);
   }

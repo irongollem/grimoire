@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { checkCarousel, isCarousel, postCarousel } from "./carousels";
 import { accountSummary, findAccount, postsLeft, recentMedia, type RecentMedia } from "./instagram";
-import { checkReel, postReel, readSchedule, readPosted, setScheduled, writeCaption, type PostedRecord } from "./publishing";
+import { checkReel, postReel, readSchedule, readPosted, setScheduled, TITLE_COVER, writeCaption, type PostedRecord } from "./publishing";
 import type { EpisodeManifest } from "./types";
 
 export const EPISODE_ID = /^[a-z0-9][a-z0-9-]*$/i;
@@ -155,10 +155,17 @@ function reelRows(ctx: SocialsContext): ReelRow[] {
       caption: check.caption,
       coverAt: check.coverAt,
       hasVideo: existsSync(check.video),
-      hasCover: existsSync(join(ctx.root, id, "cover.jpg")),
+      hasCover: existsSync(coverFile(ctx.root, id)),
     });
   }
   return orderReels([...rows, ...carouselRows(ctx, scheduled)]);
+}
+
+/** The picture the tab shows for a post: a carousel's first slide, else the Reel's title cover, else its cover frame. */
+function coverFile(root: string, id: string): string {
+  if (isCarousel(root, id)) return join(root, id, "slides", "slide-1.jpg");
+  const title = join(root, id, TITLE_COVER);
+  return existsSync(title) ? title : join(root, id, "cover.jpg");
 }
 
 /** Returns true when it handled the request. */
@@ -202,7 +209,7 @@ export async function handleSocials(req: IncomingMessage, res: ServerResponse, u
   switch (route[1]) {
     case "cover":
       // A carousel's cover is its first slide.
-      ctx.sendFile(req, res, isCarousel(ctx.root, id) ? join(ctx.root, id, "slides", "slide-1.jpg") : join(ctx.root, id, "cover.jpg"), "image/jpeg");
+      ctx.sendFile(req, res, coverFile(ctx.root, id), "image/jpeg");
       return true;
     case "caption": {
       writeCaption(id, await readText(req));

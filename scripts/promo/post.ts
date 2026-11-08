@@ -64,7 +64,8 @@ async function dryRun(token: string, root: string, id: string): Promise<boolean>
   } else {
     const r = checkReel(root, id);
     console.log(`video     ${r.video}${r.problems.some((p) => p.startsWith("not assembled")) ? "" : ` (${durationOf(r.video).toFixed(1)} s)`}`);
-    if (r.coverAt !== null) console.log(`cover     the frame at ${r.coverAt.toFixed(2)} s (cover.jpg)`);
+    if (r.titleCover) console.log(`cover     ${r.titleCover}`);
+    else if (r.coverAt !== null) console.log(`cover     the frame at ${r.coverAt.toFixed(2)} s (cover.jpg)`);
     c = r;
   }
   console.log(`quota     ${quota.used} of ${quota.total} posts used in the last 24 hours`);
