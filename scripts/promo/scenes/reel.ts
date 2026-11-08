@@ -11,6 +11,8 @@ export interface ReelScene extends Scene {
   caption?: string;
   /** Seconds into the shot the line shows, when it should arrive with the view rather than at the start. */
   captionAt?: [number, number];
+  /** Seconds into the shot the Reel's cover is taken from; absent, the middle. */
+  coverAt?: number;
   /** A second line, below the picture's middle, given its own time so the first can be read alone. */
   tagline?: { text: string; at: [number, number] };
   sound?: {

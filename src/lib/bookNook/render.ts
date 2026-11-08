@@ -12,6 +12,7 @@
 import {
   billowOffset,
   cameraAt,
+  frameShift,
   layersOf,
   lightAt,
   motesAt,
@@ -117,7 +118,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, scene: Scene, images: I
   }
   grade(ctx, scene, screen);
   const frame = scene.frame ? images.get(FRAME_KEY) : undefined;
-  if (frame) drawFrame(ctx, frame, screen, view, scene.frame?.fit);
+  if (frame) drawFrame(ctx, frame, screen, view, scene.frame?.fit, frameShift(scene, t));
   ctx.restore();
 }
 
@@ -173,16 +174,28 @@ function drawCast(ctx: CanvasRenderingContext2D, scene: Scene, layer: Layer, img
  * The ornamental frame, fixed to the screen: neither the camera, breathing nor tilt touches it. Under it, its
  * shadow on the room shifts with the tilt, so the opening has thickness.
  */
-function drawFrame(ctx: CanvasRenderingContext2D, frame: HTMLImageElement, screen: { width: number; height: number }, view?: View, fit: "slice" | "cover" = "slice"): void {
+function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  frame: HTMLImageElement,
+  screen: { width: number; height: number },
+  view: View | undefined,
+  fit: "slice" | "cover" = "slice",
+  shift: { dx: number; dy: number; mx: number; my: number } = { dx: 0, dy: 0, mx: 0, my: 0 },
+): void {
   const { width, height } = screen;
   const tilt = view?.tilt ?? { x: 0, y: 0 };
-  const fitted = fittedFrame(frame, width, height, fit);
-  const shadow = silhouetteOf(fitted, width, height, Math.max(1, width * 0.015), 0, 0.7);
+  // A frame that follows the camera is fitted larger by the most it shifts, so the screen's edge stays covered.
+  const fw = width + 2 * shift.mx;
+  const fh = height + 2 * shift.my;
+  const fitted = fittedFrame(frame, fw, fh, fit);
+  const shadow = silhouetteOf(fitted, fw, fh, Math.max(1, width * 0.015), 0, 0.7);
+  const x = shift.dx - shift.mx;
+  const y = shift.dy - shift.my;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
-  ctx.drawImage(shadow, tilt.x * 0.012 * width, tilt.y * 0.01 * height + 0.004 * height);
-  ctx.drawImage(fitted, 0, 0);
+  ctx.drawImage(shadow, x + tilt.x * 0.012 * width, y + tilt.y * 0.01 * height + 0.004 * height);
+  ctx.drawImage(fitted, x, y);
 }
 
 const fittedFrames = new WeakMap<HTMLImageElement, HTMLCanvasElement>();

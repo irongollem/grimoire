@@ -41,7 +41,8 @@ canvas.width = scene.size.width;
 canvas.height = scene.size.height;
 const ctx = need(canvas.getContext("2d"), "2D canvas context");
 
-const images = loadImages(scene, (src) => "/art/" + encodeURIComponent(src));
+// A Reel is a phone's shape, so it takes a frame's tall shape, as a phone does in the app.
+const images = loadImages(scene, (src) => "/art/" + encodeURIComponent(src), scene.size.height > scene.size.width ? "tall" : "wide");
 let loaded: Awaited<typeof images> | null = null;
 
 /** Draws synchronously, so the canvas read straight after holds this frame and not the one before. */

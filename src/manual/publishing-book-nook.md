@@ -23,7 +23,7 @@ The **layers** are on the left, the picture is in the middle, and whatever you h
 
 Switch between **Front** and **Side** at the top. Front is the picture as people will see it: drag things into place. Side is like a toy theatre seen from the edge. Each thing is a card, and you drag it nearer or further away to set its depth. You never type a depth; a thing that stands on another shares its depth, so they stay together.
 
-Each cut-out moves in a way named for what it does: **Flame**, **Cloth**, **Hanging**, **Floating** or **Wandering**. Pick one and set its **Strength** and **Pace**. If you want to tune the exact numbers, they are tucked under **Exact**.
+Each cut-out moves in a way named for what it does: **Flame**, **Cloth**, **Hanging**, **Wagging**, **Floating** or **Wandering**. **Wagging** swings quickly about the part's pin, so drag the pin (the dot) to where the part joins: a dog's tail wags from its root. Pick one and set its **Strength** and **Pace**. If you want to tune the exact numbers, they are tucked under **Exact**.
 
 Shadows belong to the light, not to the person looking. Mark a cut-out as casting a shadow and choose the light it comes from. Near a flame the shadow falls away from the light and wavers with the flicker. It never stretches just because someone tilts their phone.
 

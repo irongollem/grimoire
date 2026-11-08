@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planTimeline, snapToFrame, VO_LEAD, type ShotInput } from "./timeline";
+import { coverOffset, planTimeline, snapToFrame, VO_LEAD, type ShotInput } from "./timeline";
 
 const shot = (over: Partial<ShotInput> = {}): ShotInput => ({
   id: "a",
@@ -97,5 +97,21 @@ describe("snapToFrame", () => {
 
   it("a duration a real part of a frame over still gets the next frame", () => {
     expect(snapToFrame(1 + 0.1 / 30) * 30).toBeCloseTo(31, 9);
+  });
+});
+
+describe("coverOffset", () => {
+  it("takes the first shot's middle when the manifest names no moment", () => {
+    expect(coverOffset({}, 25)).toBe(12.5);
+  });
+
+  // The prison cell (8 Nov 2026): its middle is mid-pan, with the dog behind the frame's middle bar.
+  it("takes the manifest's moment when it names one", () => {
+    expect(coverOffset({ coverAt: 10.5 }, 25)).toBe(10.5);
+  });
+
+  // Bug it fails on: a moment past the shot's end extracts no frame, and the Reel posts without a cover.
+  it.each([25, 30, -1])("refuses a moment outside the shot (%s s of 25)", (at) => {
+    expect(() => coverOffset({ coverAt: at }, 25)).toThrow(/outside the first shot/);
   });
 });

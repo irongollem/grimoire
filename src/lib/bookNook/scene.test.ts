@@ -5,6 +5,7 @@ import {
   TILT_REACH,
   billowOffset,
   cameraAt,
+  frameShift,
   layersOf,
   lightAt,
   motesAt,
@@ -167,6 +168,37 @@ describe("billowOffset", () => {
     for (const phase of [0, 1, 2.5, 4]) expect(billowOffset({ amount: 16, phase, waves: 0.8 }, 0)).toBeCloseTo(0, 9);
     const hem = [0, 1, 2.5, 4].map((phase) => Math.abs(billowOffset({ amount: 16, phase, waves: 0.8 }, 1)));
     expect(Math.max(...hem)).toBeGreaterThan(8);
+  });
+});
+
+describe("frameShift", () => {
+  const pan = [
+    { at: 0, x: -1200, y: 0 },
+    { at: 4, x: -1200, y: 0 },
+    { at: 10, x: 900, y: 0 },
+  ];
+  const panning = (follow?: number): Scene => ({
+    ...ROOM,
+    camera: { drift: 0, push: 0, path: pan },
+    frame: { style: "stone-bars", tall: "bars.png", ...(follow === undefined ? {} : { follow }) },
+  });
+
+  // Book Nook's rule (#1142): a frame never moves. Only a scene that asks for it (a Reel craning past bars) slides.
+  it("keeps a frame that does not follow still, however far the view travels", () => {
+    expect(frameShift(panning(), 8)).toEqual({ dx: 0, dy: 0, mx: 0, my: 0 });
+  });
+
+  it("slides the frame the way the view goes, by its share of the path", () => {
+    expect(frameShift(panning(0.04), 2).dx).toBeCloseTo(-48, 9);
+    expect(frameShift(panning(0.04), 10).dx).toBeCloseTo(36, 9);
+  });
+
+  // Bug it fails on: an oversize margin smaller than the slide shows the screen's edge past the frame at the ends.
+  it("fits the frame larger than the screen by at least as far as it ever slides", () => {
+    const scene = panning(0.04);
+    const { mx } = frameShift(scene, 0);
+    for (let t = 0; t < scene.loop; t += 0.25) expect(Math.abs(frameShift(scene, t).dx)).toBeLessThanOrEqual(mx);
+    expect(mx).toBe(48);
   });
 });
 

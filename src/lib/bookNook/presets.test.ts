@@ -15,6 +15,13 @@ describe("describeMotion", () => {
     }
   });
 
+  // Both are sways. Bug it fails on: reading every sway as Hanging showed a wagging tail as Custom, and picking
+  // Hanging again turned the wag into a slow sway.
+  it("tells a wag from a hang, though both are sways", () => {
+    expect(describeMotion({ kind: "sway", angle: 14, period: 0.55 }, layer, 12)).toEqual({ name: "Wagging", strength: "gentle", pace: "steady" });
+    expect(describeMotion({ kind: "sway", angle: 2.5, period: 4 }, layer, 12)).toEqual({ name: "Hanging", strength: "gentle", pace: "steady" });
+  });
+
   it("reads inn-dawn's tuned flame and curtain as presets", () => {
     expect(describeMotion({ kind: "flicker", amount: 0.09, speed: 2.4 }, { width: 64 }, 11)).toEqual({ name: "Flame", strength: "gentle", pace: "steady" });
     expect(describeMotion({ kind: "billow", amount: 16, period: 11, waves: 0.8 }, { width: 560 }, 11)).toEqual({ name: "Cloth", strength: "gentle", pace: "slow" });

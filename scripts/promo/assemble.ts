@@ -13,7 +13,7 @@ import { formatCanvas, layoutFor, type Layout } from "./layouts";
 import { chaptersText, srtText } from "./sidecars";
 import { BED_CROSSFADE, bedWindow, planBeds } from "./beds";
 import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme } from "./theme";
-import { planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
+import { coverOffset, planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
 import type { EpisodeManifest, Format, RecordedShot, Surface } from "./types";
 
 const INTERMEDIATE = ["-c:v", "libx264", "-crf", "14", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", "30", "-g", "30", "-an"];
@@ -301,11 +301,12 @@ async function main() {
     "-c:a", "aac", "-ar", "48000", "-ac", "2", "-b:a", "192k", "-movflags", "+faststart", out,
   ]);
 
-  // Cover: the composed frame from the middle of the first shot.
+  // Cover: the composed frame from the first shot, at the manifest's `coverAt` or else its middle.
   const first = tl.shots[0];
-  ffmpeg(["-ss", String(first.length / 2), "-i", join(work, "shot-0.mp4"), "-frames:v", "1", "-q:v", "2", join(dir, "cover.jpg")]);
+  const coverIn = coverOffset(manifest, first.length);
+  ffmpeg(["-ss", String(coverIn), "-i", join(work, "shot-0.mp4"), "-frames:v", "1", "-q:v", "2", join(dir, "cover.jpg")]);
   // The same frame in program time, for promo:post: Instagram picks a Reel's cover by its offset into the video.
-  writeFileSync(join(dir, "cover.json"), JSON.stringify({ at: first.start + first.length / 2 }) + "\n");
+  writeFileSync(join(dir, "cover.json"), JSON.stringify({ at: first.start + coverIn }) + "\n");
 
   if (format === "youtube") writeSidecars(dir, manifest, tl, inputs);
 

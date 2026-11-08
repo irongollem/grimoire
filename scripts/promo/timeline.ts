@@ -3,7 +3,7 @@
  * All times are seconds, snapped to the 30 fps frame grid so that every
  * segment (and its audio, 1600 samples per frame at 48 kHz) has an exact length.
  */
-import type { SoundCue } from "./types";
+import type { EpisodeManifest, SoundCue } from "./types";
 
 export const FPS = 30;
 /** The narration starts this long after the shot does. */
@@ -100,4 +100,16 @@ export function planTimeline(input: {
     cursor += length;
   }
   return { intro, shots, outro, total: cursor };
+}
+
+/**
+ * Seconds into the first shot (`length` long) the cover is taken from: the manifest's `coverAt`, else the middle.
+ * A `coverAt` outside the shot would leave the Reel without a cover, so it throws instead.
+ */
+export function coverOffset(manifest: Pick<EpisodeManifest, "coverAt">, length: number): number {
+  if (manifest.coverAt === undefined) return length / 2;
+  if (!(manifest.coverAt >= 0 && manifest.coverAt < length)) {
+    throw new Error(`coverAt ${manifest.coverAt} s is outside the first shot (0 to ${length} s)`);
+  }
+  return manifest.coverAt;
 }

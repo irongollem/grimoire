@@ -359,6 +359,19 @@ the types and maths are `src/lib/bookNook/scene.ts`, shared with the app's Book 
   later, answers with the setting's subtitle, "Stay as long as you like".
   `scenes/scene.test.ts` holds a tagline to at least two seconds after its title and
   no longer on screen than it.
+- `frame`: a Book Nook frame over the whole Reel, fixed while the room moves
+  behind it (#1142). A Reel is a phone's shape, so the page loads its `tall`
+  file from the art folder. The prison cell (8 Nov 2026) looks out through the
+  stock stone wall with bars (`fit: "cover"`) and pans a wide 1536x1024 plate
+  left to right. Its rests stay 170 plate pixels clear of the plate's ends,
+  where the opening would show black, and the dog rests between two bars,
+  because the frame's middle bar runs down the screen's centre. Its frame
+  `follow`s the pan (0.035 of the path, about 40 px at the ends), sliding the
+  way the view goes, so the bars move against the room as they would for a
+  viewer craning to see past them (the maintainer: a frame pinned dead still
+  read as the room scrolling behind a cut-out). The frame is fitted larger by
+  the most it slides, so the screen's edge never shows. In the app a frame
+  still never moves.
 
 **Loops without a seam.** Every motion's period is rounded to a whole number
 of cycles per `loop`, flicker is a sum of harmonics of the loop, and a wisp's
