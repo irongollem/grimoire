@@ -34,13 +34,17 @@ interface CoverSpec {
 
 /**
  * Per episode, the moment that is the episode's payoff. Clip pixels: a phone
- * shot is 1170 x 2078, a laptop shot 2880 x 1800.
+ * shot is 1170 x 2078, a tablet shot 1640 x 2360, a laptop shot 2880 x 1800.
  */
 export const COVERS: Record<string, CoverSpec> = {
   "combat-player": { shot: "turn", fromEnd: 1.2, crop: [0, 290, 1170, 1250] },
   "combat-dm": { shot: "damage", fromEnd: 1.2, crop: [1836, 110, 648, 1120] },
   "sheets-player": { shot: "sheet", fromEnd: 1.2, crop: [0, 140, 1170, 1120] },
   "sheets-dm": { shot: "tracker", fromEnd: 1.2, crop: [520, 270, 1300, 1060] },
+  "session-player": { shot: "live", fromEnd: 1.2, crop: [40, 260, 1600, 1120] },
+  "session-dm": { shot: "deck", fromEnd: 1.2, crop: [480, 1210, 1250, 520] },
+  "quests-player": { shot: "objective", fromEnd: 1.2, crop: [30, 300, 1110, 1090] },
+  "handouts-player": { shot: "open", fromEnd: 1.2, crop: [0, 0, 1170, 1150] },
 };
 
 /** "Combat: run the fight from one screen" → the feature and its promise, as the cover says them. */
