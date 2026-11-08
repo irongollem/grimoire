@@ -49,6 +49,16 @@ describe("ScriptoriumDocumentView", () => {
     expect(wrapper.find(".sc-document-view").classes()).toContain("theme-letter");
   });
 
+  it("is the paper standing alone, but not inside the reader, whose scroll area already is", async () => {
+    // Two paper surfaces drew a hairline frame around the text block alone in the phone reader (8 Nov 2026).
+    const letter = makeBook({ kind: "handout", theme: "letter" });
+    const alone = mount(ScriptoriumDocumentView, { props: { document: letter, content: text("Dear friends") } });
+    const inReader = mount(ScriptoriumDocumentView, { props: { document: letter, content: text("Dear friends"), layout: "reader" } });
+    await flushEditor();
+    expect(alone.find(".sc-document-view").classes()).toContain("sc-paper-surface");
+    expect(inReader.find(".sc-document-view").classes()).not.toContain("sc-paper-surface");
+  });
+
   it("defaults to the page layout (no reader modifier class)", async () => {
     const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook(), content: text("Hello") } });
     await flushEditor();

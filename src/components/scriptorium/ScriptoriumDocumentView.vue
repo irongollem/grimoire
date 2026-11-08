@@ -26,7 +26,8 @@
  * what a coverPage, noteBlock or entityEmbed node is, so a handout's cover,
  * read-aloud boxes and linked entities were silently dropped at the table —
  * and, as of #915 story 7, the phone reading view (ScriptoriumReader.vue),
- * via `layout="reader"`. That prop only adds a modifier class; every
+ * via `layout="reader"`. That prop adds a modifier class and leaves the paper
+ * to the reader's own scroll area (see `themeClass`); every
  * phone-specific override (cover-as-card, full-width images, scrollable
  * tables…) lives in ScriptoriumReader's own scoped styles, never here or in
  * the shared theme CSS.
@@ -91,7 +92,10 @@ const theme = computed<ScriptoriumTheme>(() => (doc.theme === "phb2014" ? "phb20
 // default — the phone reader and quest handouts mount this view read-only,
 // so getting this wrong wasn't merely a galley cosmetic gap (#917 story 2).
 provide(SCRIPTORIUM_THEME_KEY, theme);
-const themeClass = computed(() => [scriptoriumThemeClass(doc.theme), "sc-paper-surface"]);
+// The paper is painted once. In the phone reader its scroll area is the paper (ScriptoriumReader), so this
+// view inside it is not one too: two surfaces drew a hairline frame around the text block alone, the text
+// flush against it (8 Nov 2026). Standing alone (the quest runner's handout tool), this view is the paper.
+const themeClass = computed(() => [scriptoriumThemeClass(doc.theme), ...(layout === "reader" ? [] : ["sc-paper-surface"])]);
 
 // A shared handout always has a campaign (the player projections are keyed on
 // it), so a player document without one is not renderable rather than being
