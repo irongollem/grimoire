@@ -1,5 +1,10 @@
 <template>
-  <div class="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="Now playing" role="group">
+  <!--
+    One line, always: the dock header and the phone sheet each scroll it sideways. It used to wrap here and
+    take `flex-nowrap` from outside, but both classes landed on this element and the stylesheet's order let
+    `flex-wrap` win, so a second sound grew the dock and the page jumped (8 Nov 2026).
+  -->
+  <div class="flex min-w-0 flex-nowrap items-center gap-1.5" aria-label="Now playing" role="group">
     <span class="shrink-0 text-eyebrow font-bold text-primary">Now</span>
 
     <span v-if="isIdle" class="text-label text-muted-foreground italic">Nothing audible. The room is yours.</span>

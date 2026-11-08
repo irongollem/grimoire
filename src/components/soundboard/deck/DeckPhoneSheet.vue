@@ -102,7 +102,7 @@
           />
         </div>
 
-        <div class="shrink-0 overflow-x-auto px-3 pb-2"><DeckNowChips class="flex-nowrap" /></div>
+        <div class="shrink-0 overflow-x-auto px-3 pb-2"><DeckNowChips /></div>
 
         <div
           v-if="snapshot.lockedTool !== 'play'"

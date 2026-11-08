@@ -64,7 +64,7 @@
       <p class="text-caption text-muted-foreground">Transport, full and compact; Now chips</p>
       <DeckTransport :paused="false" :hush="false" :master-volume="0.8" />
       <DeckTransport :paused="true" :hush="true" :master-volume="0.4" compact />
-      <DeckNowChips />
+      <div class="overflow-x-auto"><DeckNowChips /></div>
     </div>
   </div>
 </template>
