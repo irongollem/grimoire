@@ -27,5 +27,7 @@
   // scripts/generate-dolls.ts` does.
   // The scene renderer runs in a browser and has its own config with the DOM
   // types (tsconfig.scenes.json).
-  "exclude": ["scripts/generate-dolls.ts", "scripts/promo/scenes/browser/**"]
+  // The inn map's test reaches canvas types through the dressing geometry, so
+  // tsconfig.scenes.json checks it.
+  "exclude": ["scripts/generate-dolls.ts", "scripts/promo/scenes/browser/**", "scripts/lib/demo-inn-map.test.ts"]
 }
