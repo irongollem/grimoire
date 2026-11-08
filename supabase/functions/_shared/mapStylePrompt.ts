@@ -17,12 +17,16 @@ const KEEP_LAYOUT =
  * copies, and the model painted both literally: chairs turned away from the
  * table they stood at, and two crates of pots side by side kept as two
  * copies of one crate instead of one wider stack (the maintainer, styling
- * the demo's inn, 8 Nov 2026). Each piece keeps its place, since tokens
- * stand on that grid, but how it faces and how repeats read is the model's
- * call.
+ * the demo's inn, 8 Nov 2026). Asking for "a real room" was not enough: the
+ * next render still kept stools with their backs to the bar and two barrel
+ * stamps as two piles (9 Nov 2026), because "without changing its layout"
+ * read as covering the furniture too. So the layout is scoped to the
+ * architecture and the two cases are named. Each piece keeps its squares,
+ * since tokens stand on that grid; how it faces and how repeats read is the
+ * model's call.
  */
 const INTERPRET_PROPS =
-  "The furniture and props in the input are a sketch of what stands where, drawn from a small set of stamps: keep each thing in its place, but paint it the way a real room would have it. Turn chairs and stools to face the table or counter they belong to, merge identical pieces standing side by side into one larger natural group rather than repeating the same piece, and vary repeated items so no two look copied.";
+  "The layout means the architecture only. The furniture and props are a rough placement sketch made from a few reused stamps, often turned the wrong way, so do not copy them literally: keep each thing on the same squares, but repaint it the way a real room would have it. Every chair, stool and bench faces the table, counter or hearth it stands at; if one in the input has its back to its table or counter, turn it around. Where the same prop repeats on neighbouring squares, such as two piles of barrels side by side, paint one larger pile filling all of those squares instead of separate copies. No two repeated items should look identical.";
 
 /**
  * Every preset, the isometric one included. The app lays its own grid over a styled map at play, so a grid painted into the

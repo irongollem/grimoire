@@ -167,7 +167,11 @@ export function buildInnLayers(): DungeonMapLayers {
   prop("dressing_barrels", 4, 10);
   prop("dressing_bar_counter", 4, 11);
   prop("dressing_bar_counter", 7, 10, 90);
-  for (const [x, y] of [[4, 12], [5, 12], [6, 12], [8, 11], [8, 12]] as const) prop("dressing_chair", x, y);
+  // A chair's art has its back at the top, so at rotation 0 it faces south. The stools under the bar face north
+  // into it (180) and the two beside its long arm face west into it (90); drawn at 0 they sat with their backs to
+  // the bar, and the AI styler painted them that way (the maintainer, 9 Nov 2026).
+  for (const [x, y] of [[4, 12], [5, 12], [6, 12]] as const) prop("dressing_chair", x, y, 180);
+  for (const [x, y] of [[8, 11], [8, 12]] as const) prop("dressing_chair", x, y, 90);
   // The hearth shares a chimney with the kitchen's: a rug, an armchair and a rocking chair before it.
   prop("dressing_rug", 9, 10);
   prop("dressing_hearth", 9, 9);
@@ -177,8 +181,9 @@ export function buildInnLayers(): DungeonMapLayers {
   prop("dressing_palace_feast_table", 12, 11);
   prop("dressing_bench", 12, 10);
   prop("dressing_bench", 12, 12);
-  prop("dressing_chair", 11, 11, 90);
-  prop("dressing_chair", 15, 11, 270);
+  // The table's end chairs face it: east from its west end (270), west from its east end (90).
+  prop("dressing_chair", 11, 11, 270);
+  prop("dressing_chair", 15, 11, 90);
   prop("dressing_home_dining_set", 17, 10);
   prop("dressing_home_dining_set", 15, 14);
   prop("dressing_home_dining_set", 13, 15);
@@ -188,8 +193,8 @@ export function buildInnLayers(): DungeonMapLayers {
   prop("dressing_candelabra", 4, 13);
   prop("dressing_home_coat_rack", 12, 17);
   prop("dressing_home_potted_herbs", 9, 17);
-  prop("dressing_barrels", 4, 16);
-  prop("dressing_barrels", 4, 17);
+  // One rack of casks along the west wall rather than two stamps of the same barrels.
+  prop("dressing_keg_rack", 4, 16, 90);
 
   // Kitchen
   prop("dressing_kitchen_worktable", 6, 3);

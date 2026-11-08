@@ -96,3 +96,23 @@ describe("the inn's furniture", () => {
     }
   });
 });
+
+describe("the inn's chairs", () => {
+  /** A chair's art has its back at the top: at rotation 0 it faces south, and rotation turns it clockwise. */
+  const FACING: Record<number, [number, number]> = { 0: [0, 1], 90: [-1, 0], 180: [0, -1], 270: [1, 0] };
+  const SEATS_AT = new Set(["dressing_bar_counter", "dressing_palace_feast_table", "dressing_home_dining_set", "dressing_desk"]);
+
+  it("every chair faces the table or counter beside it, so the styler is not handed one sitting with its back to it", () => {
+    // Fails on the bug the maintainer found (9 Nov 2026): the bar stools and the feast table's end chairs were
+    // drawn facing away, and the AI styler painted them exactly so.
+    const occupied = new Map<string, string>();
+    for (const { id, cells } of footprints()) for (const [x, y] of cells) occupied.set(`${x},${y}`, id);
+    const chairs = Object.values(buildInnLayers().dressing).filter((p) => p.prop_id === "dressing_chair");
+    expect(chairs.length).toBeGreaterThan(0);
+    for (const chair of chairs) {
+      const [dx, dy] = FACING[((chair.rotation % 360) + 360) % 360];
+      const faced = occupied.get(`${chair.x + dx},${chair.y + dy}`);
+      expect(faced !== undefined && SEATS_AT.has(faced), `chair at ${chair.x},${chair.y} faces ${faced}`).toBe(true);
+    }
+  });
+});

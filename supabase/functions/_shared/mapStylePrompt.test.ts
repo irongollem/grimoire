@@ -22,10 +22,11 @@ describe("buildMapStylePrompt", () => {
 
   it("asks for the furniture to be interpreted, not traced: chairs facing their table, side-by-side copies merged", () => {
     const prompt = buildMapStylePrompt("playable", "The Pulled Sugar Inn", null, null);
-    expect(prompt).toMatch(/Turn chairs and stools to face the table/);
-    expect(prompt).toMatch(/merge identical pieces standing side by side into one larger/);
+    expect(prompt).toMatch(/The layout means the architecture only/);
+    expect(prompt).toMatch(/if one in the input has its back to its table or counter, turn it around/);
+    expect(prompt).toMatch(/paint one larger pile filling all of those squares/);
     // Still after the walls-stay-put rule, which the model weighs most.
-    expect(prompt.indexOf("without changing its layout")).toBeLessThan(prompt.indexOf("Turn chairs"));
+    expect(prompt.indexOf("without changing its layout")).toBeLessThan(prompt.indexOf("architecture only"));
   });
 
   it("lets the isometric preset re-project the layout", () => {
