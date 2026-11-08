@@ -88,8 +88,17 @@ asset CDN under `promo/<id>/` (named by content hash) before Instagram fetches
 them, because the API takes photos only from a public URL. "Steal this" posts
 are carousels, made by `scripts/promo/steal/` (`handouts.ts` and `cards.ts`
 capture the Scriptorium page, the stat block and the Card Forge card from the
-app, `slides.ts` composes the 1080x1350 slides); convert the slides to JPEG
-before posting.
+app, `slides.ts` composes the 1080x1350 slides and their JPEGs).
+
+A new account's photo posts reach almost nobody (the first carousel had 8
+views in a day, the next Reel 103 in three hours), because Instagram shows
+Reels to people who do not follow an account and photo posts mostly to those
+who do. So each creature also gets a 12-second teaser Reel, `steal/reel.ts`:
+its art as a card, the kicker and the hook, then "the read-aloud, the stat
+block and a printable card are on our profile". It only teases the creature;
+the page and the card stay in the carousel. It writes `promo-out/<id>-reel/`
+as an ordinary Reel folder. Schedule the carousel an hour before its Reel, so
+it is the first thing on the profile when the Reel sends people there.
 
 `scripts/promo/schedule.json` lists when each post goes out (`{ id, at }`,
 the time with its offset). `promo:post -- --schedule` dry-runs everything on
