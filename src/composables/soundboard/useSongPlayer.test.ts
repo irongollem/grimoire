@@ -134,6 +134,23 @@ describe("useSongPlayer", () => {
     expect(player.playing.value).toBe(false);
   });
 
+  it("an older request's late failure does not undo a newer tap on the same song", async () => {
+    const { audio, player } = setup();
+    let rejectFirst!: (e: unknown) => void;
+    audio.play.mockImplementationOnce(() => {
+      audio.paused = false;
+      return new Promise<void>((_, reject) => (rejectFirst = reject));
+    });
+    const first = player.tap(song("a"));
+    await player.tap(song("a"));
+    await player.tap(song("a"));
+    rejectFirst(new DOMException("network", "NotSupportedError"));
+    await first;
+    expect(player.failedId.value).toBeNull();
+    expect(player.currentId.value).toBe("a");
+    expect(player.playing.value).toBe(true);
+  });
+
   it("marks a paused song the browser refuses to carry on", async () => {
     const { audio, player } = setup();
     await player.tap(song("a"));
@@ -161,13 +178,19 @@ describe("useSongPlayer and the lock screen", () => {
     mine.scope.stop();
     expect(session.metadata).toBeNull();
     expect(session.playbackState).toBe("none");
+    expect(session.setActionHandler).toHaveBeenCalledWith("play", null);
+    expect(session.setActionHandler).toHaveBeenCalledWith("pause", null);
 
     const again = setup();
     await again.player.tap(song("b"));
     const someoneElse = { title: "Soundboard" };
     session.metadata = someoneElse;
+    session.playbackState = "playing";
+    session.setActionHandler.mockClear();
     again.scope.stop();
     expect(session.metadata).toBe(someoneElse);
+    expect(session.playbackState).toBe("playing");
+    expect(session.setActionHandler).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 

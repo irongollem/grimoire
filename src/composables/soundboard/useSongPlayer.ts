@@ -23,6 +23,8 @@ export function useSongPlayer(createAudio: () => HTMLAudioElement = () => new Au
   const failedId = ref<string | null>(null);
 
   let audio: HTMLAudioElement | null = null;
+  /** Each play request's number, so an old request's late failure cannot undo a newer tap on the same song. */
+  let requestSeq = 0;
   /** The lock-screen metadata this page set, so leaving clears only its own. */
   let ownMetadata: MediaMetadata | null = null;
 
@@ -91,12 +93,13 @@ export function useSongPlayer(createAudio: () => HTMLAudioElement = () => new Au
   /** Plays the current element, and marks `id` as failed if the browser refuses it. */
   async function start(id: string) {
     const el = element();
+    const request = ++requestSeq;
     playing.value = true;
     try {
       await el.play();
     } catch (e) {
-      // A newer tap replaced this song, or a pause cancelled the load: neither is this song failing.
-      if (currentId.value !== id) return;
+      // A newer tap (on this song or another) or a pause that cancelled the load: neither is this request failing.
+      if (request !== requestSeq || currentId.value !== id) return;
       if (e instanceof DOMException && e.name === "AbortError") return;
       fail(id);
     }
