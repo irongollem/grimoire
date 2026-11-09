@@ -85,6 +85,8 @@ vi.mock("@/composables/ai/useImageGenerationLog", () => ({
 vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: mocks.allLocations }),
   useUpdateLocationPicture: () => ({ mutateAsync: mocks.updatePicture }),
+}));
+vi.mock("@/composables/locations/useSaveStyledSitePicture", () => ({
   useSaveStyledSitePicture: () => ({ mutateAsync: mocks.saveStyledSitePicture }),
 }));
 vi.mock("@/stores/campaign", () => ({
