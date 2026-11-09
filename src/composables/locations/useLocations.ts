@@ -201,7 +201,7 @@ export async function insertLocations(rows: readonly (LocationInsert & { id: str
   if (error) throw error;
 }
 
-export async function updateLocation(id: string, update: LocationUpdate): Promise<Location> {
+async function updateLocation(id: string, update: LocationUpdate): Promise<Location> {
   const { data, error } = await supabase
     .from("locations")
     .update(update)

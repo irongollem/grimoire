@@ -6,24 +6,17 @@ import type { StyledPlay } from "@/cartographer/styledPlay";
 import { emptyLayers } from "@/types/dungeonMap.types";
 import { MAP_LIVE_VERSION } from "@/types/mapLive.types";
 
-const { fake } = await vi.hoisted(async () => {
-  const { createSupabaseFake } = await import("@/test/supabaseFake");
-  return { fake: createSupabaseFake() };
-});
-const mocks = vi.hoisted(() => ({ createDungeonMap: vi.fn() }));
-
-// The fake does not generate ids or revs, which the save reads back off the new walls drawing.
-vi.mock("@/composables/cartographer/useDungeonMaps", () => ({ useCreateDungeonMap: () => ({ mutateAsync: mocks.createDungeonMap }) }));
-vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "user-1" }) }));
+// The writes themselves (one transaction, the key reusing its map, a refused place undoing the insert) are the
+// database's and are proven in supabase/tests/save_styled_site_picture.test.sql. This file holds the client to
+// sending one call with the right key.
+const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
+vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc }, getCurrentUser: () => ({ id: "user-1" }) }));
 
 const { useSaveStyledSitePicture } = await import("@/composables/locations/useSaveStyledSitePicture");
 
-function place(over: Record<string, unknown> & { id: string }): Record<string, unknown> {
-  return { user_id: "u", campaign_id: "campaign-1", parent_id: null, name: over.id, location_type: "building", sort_order: null, ...over };
-}
-
-function withQueryClient<T>(setup: () => T): { result: T; unmount: () => void } {
+function withQueryClient<T>(setup: () => T): { result: T; client: QueryClient; unmount: () => void } {
   let result!: T;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = mount(
     defineComponent({
       setup() {
@@ -31,49 +24,63 @@ function withQueryClient<T>(setup: () => T): { result: T; unmount: () => void } 
         return () => h("div");
       },
     }),
-    { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] } },
+    { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
   );
-  return { result, unmount: () => wrapper.unmount() };
+  return { result, client, unmount: () => wrapper.unmount() };
 }
 
+const calibration = { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0 };
+const makePlay = (): StyledPlay => ({
+  drawing: { name: "Keep walls", layers: emptyLayers(), darkness: "dim", default_pack_id: "pack", campaign_id: "campaign-1" },
+  mapLive: { version: MAP_LIVE_VERSION, darkness: "dim", groups: [], lights: [], sprites: [], walls: [{ id: "w", a: [0, 0], b: [1, 0] }], doors: [], solid: [] },
+});
+
 beforeEach(() => {
-  fake.reset();
-  mocks.createDungeonMap.mockReset().mockResolvedValue({ id: "walls-1", rev: 3 });
+  mocks.rpc.mockReset().mockResolvedValue({ data: { id: "site", source_map_id: "walls-1" }, error: null });
 });
 
 describe("useSaveStyledSitePicture", () => {
-  const calibration = { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0 };
-
-  const play: StyledPlay = {
-    drawing: { name: "Keep walls", layers: emptyLayers(), darkness: "dim", default_pack_id: "pack", campaign_id: "campaign-1" },
-    mapLive: { version: MAP_LIVE_VERSION, darkness: "dim", groups: [], lights: [], sprites: [], walls: [{ id: "w", a: [0, 0], b: [1, 0] }], doors: [], solid: [] },
-  };
-
-  it("saving a styled render swaps the tile drawing for the walls drawing in one write, keeping the tile drawing's own row and the snapshot", async () => {
-    fake.seed("locations", [place({ id: "site", map_layer_url: "layer.png", map_layer_stand_url: "stand.png", source_map_id: "m1", map_published_rev: 4, map_live: null })]);
-    fake.seed("dungeon_maps", [{ id: "m1" }]);
+  it("saves the render and its walls drawing in one call", async () => {
+    const play = makePlay();
     const { result, unmount } = withQueryClient(() => useSaveStyledSitePicture());
     await result.mutateAsync({ id: "site", mapUrl: "styled.png", calibration, play });
-    expect(mocks.createDungeonMap).toHaveBeenCalledWith(play.drawing);
-    expect(fake.rows("locations")[0]).toMatchObject({
-      map_url: "styled.png",
-      grid_calibration: calibration,
-      map_layer_url: null,
-      map_layer_stand_url: null,
-      map_live: play.mapLive,
-      source_map_id: "walls-1",
-      map_published_rev: 3,
-    });
-    expect(fake.rows("dungeon_maps").map((r) => r.id)).toEqual(["m1"]);
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.rpc).toHaveBeenCalledWith("save_styled_site_picture", expect.objectContaining({
+      p_location_id: "site",
+      p_map_url: "styled.png",
+      p_calibration: calibration,
+      p_map_live: play.mapLive,
+      p_drawing: expect.objectContaining({ name: "Keep walls", darkness: "dim", campaign_id: "campaign-1", default_pack_id: "pack" }),
+    }));
     unmount();
   });
 
-  it("a failed walls drawing insert leaves the location exactly as it was", async () => {
-    fake.seed("locations", [place({ id: "site", map_url: "old.png", map_layer_url: "layer.png", source_map_id: "m1", map_published_rev: 4 })]);
-    mocks.createDungeonMap.mockRejectedValue(new Error("insert failed"));
+  it("a second save of the same render sends the same key, so a lost answer cannot make a second map", async () => {
+    const play = makePlay();
     const { result, unmount } = withQueryClient(() => useSaveStyledSitePicture());
-    await expect(result.mutateAsync({ id: "site", mapUrl: "styled.png", calibration, play })).rejects.toThrow("insert failed");
-    expect(fake.rows("locations")[0]).toMatchObject({ map_url: "old.png", map_layer_url: "layer.png", source_map_id: "m1", map_published_rev: 4 });
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: new Error("connection dropped") });
+    await expect(result.mutateAsync({ id: "site", mapUrl: "a.png", calibration, play })).rejects.toThrow("connection dropped");
+    await result.mutateAsync({ id: "site", mapUrl: "b.png", calibration, play });
+    const [first, second] = mocks.rpc.mock.calls.map(([, args]) => args.p_request_id);
+    expect(first).toEqual(expect.any(String));
+    expect(second).toBe(first);
+    unmount();
+  });
+
+  it("a new render is a new save with a key of its own", async () => {
+    const { result, unmount } = withQueryClient(() => useSaveStyledSitePicture());
+    await result.mutateAsync({ id: "site", mapUrl: "a.png", calibration, play: makePlay() });
+    await result.mutateAsync({ id: "site", mapUrl: "b.png", calibration, play: makePlay() });
+    const [first, second] = mocks.rpc.mock.calls.map(([, args]) => args.p_request_id);
+    expect(second).not.toBe(first);
+    unmount();
+  });
+
+  it("refreshes the Cartographer's map list, where the walls drawing now appears", async () => {
+    const { result, client, unmount } = withQueryClient(() => useSaveStyledSitePicture());
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    await result.mutateAsync({ id: "site", mapUrl: "a.png", calibration, play: makePlay() });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["dungeon_maps"] });
     unmount();
   });
 });
