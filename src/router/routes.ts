@@ -345,6 +345,16 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Campaign Dashboard" },
   },
   {
+    // The songs page: the music a DM shared with players, as big picture buttons for a phone, pinned to the home
+    // screen as its own app (usePinnedPageManifest). Signed-in only: a player, a young player or the DM reads their
+    // own campaigns' songs through get_player_songs. The public layout gives it the whole screen with no app chrome,
+    // and accountScoped + playerReadable let either lens reach it, since it reads every campaign the account is in.
+    path: "/songs",
+    name: "songs",
+    component: () => import("@/views/soundboard/SongsView.vue"),
+    meta: { requiresAuth: true, accountScoped: true, playerReadable: true, layout: "public", darkChrome: true, title: "Grimoire Songs" },
+  },
+  {
     path: "/billing",
     name: "billing",
     component: () => import("@/views/BillingView.vue"),

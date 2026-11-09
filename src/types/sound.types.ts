@@ -195,14 +195,21 @@ export interface SoundboardPlaylist {
    * the free tier's playlist cap.
    */
   library_scene_slug: string | null;
+  /**
+   * A music playlist every member of the campaign may play on `/songs`, the
+   * big-button songs page for a player's phone (`get_player_songs`).
+   */
+  players_can_listen: boolean;
   created_at: string;
   updated_at: string;
 }
 
 export type SoundboardPlaylistInsert = Omit<
   SoundboardPlaylist,
-  "id" | "user_id" | "created_at" | "updated_at" | "tags" | "library_scene_slug"
+  "id" | "user_id" | "created_at" | "updated_at" | "tags" | "library_scene_slug" | "players_can_listen"
 > & {
+  /** Omit to keep the playlist to the DM (the column default). */
+  players_can_listen?: boolean;
   /** Omit to take the column default of no themes. */
   tags?: string[];
   /** Only the starter-scene builder sets this. */
@@ -211,7 +218,7 @@ export type SoundboardPlaylistInsert = Omit<
 export type SoundboardPlaylistUpdate = Partial<
   Pick<
     SoundboardPlaylist,
-    "name" | "playlist_type" | "shuffle" | "repeat" | "sort_order" | "tags"
+    "name" | "playlist_type" | "shuffle" | "repeat" | "sort_order" | "tags" | "players_can_listen"
   >
 >;
 

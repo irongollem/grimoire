@@ -3,6 +3,7 @@
     <div class="max-w-lg space-y-8">
       <PlayerSettingsDisplayName />
       <PlayerSettingsInstall />
+      <PlayerSettingsSongs />
       <PlayerSettingsCharacterClaim />
       <PlayerSettingsSessions />
       <PlayerSettingsCalendar />
@@ -44,6 +45,7 @@ import AccountSummarySection from "@/components/account/AccountSummarySection.vu
 import AiLabelsSetting from "@/components/account/AiLabelsSetting.vue";
 import PlayerSettingsDisplayName from "@/components/player/PlayerSettingsDisplayName.vue";
 import PlayerSettingsInstall from "@/components/player/PlayerSettingsInstall.vue";
+import PlayerSettingsSongs from "@/components/player/PlayerSettingsSongs.vue";
 import PlayerSettingsCharacterClaim from "@/components/player/PlayerSettingsCharacterClaim.vue";
 import PlayerSettingsSessions from "@/components/player/PlayerSettingsSessions.vue";
 import PlayerSettingsCalendar from "@/components/player/PlayerSettingsCalendar.vue";
