@@ -81,6 +81,7 @@ insert into definer_registry (name, kind, reason) values
   ('get_craftable_output_items', 'refuses', null),
   ('get_credit_calibration_hints', 'refuses', null),
   ('get_demo_status', 'self', 'whether the caller has a demo copy'),
+  ('get_player_songs', 'self', 'songs from playlists shared with players, in the caller''s own campaigns'),
   ('get_family_campaigns', 'self', 'the caller''s own children''s tables and the requests waiting on the caller'),
   ('get_image_provenance', 'refuses', null),
   ('get_loot_placements', 'refuses', null),

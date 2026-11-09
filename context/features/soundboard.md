@@ -425,11 +425,33 @@ A DM can share **the music slot only** with players in the portal. `soundboard_b
 - **A DM who closes the tab leaves `is_live` true.** Players hear the current track finish and then nothing. The row is corrected next time the DM opens the board.
 - The player receiver hears `soundboard_broadcast` rings from the campaign doorbell through `onCampaignRing` and re-reads the row with `load()`; there is no query to invalidate, only a live ref driving an element, so the signal is listener-only (`LISTENER_ONLY_SIGNALS`). It used to own a `postgres_changes` channel, which needed the table in the `supabase_realtime` publication (migration `20260728000003`); since #999 4.2 the table rings on every write instead.
 
+## Songs for players (`/songs`)
+
+A DM ticks **Players can listen** on a music playlist (`soundboard_playlists.players_can_listen`, in `PlaylistEditorDialog`), and everyone in that campaign can play its songs on `/songs`: big picture buttons two to a row, made for a phone pinned to the home screen. It began with the maintainer's five-year-old, a young player in his campaign who cannot read yet (9 Nov 2026). Unlike shared playback, it needs no session and no DM at the board: it is the table's songs, any time.
+
+| Piece | Role |
+| --- | --- |
+| `public.get_player_songs()` (`20261109134103`) | Every track of a flagged **music** playlist in every campaign the caller belongs to, minus Spotify. A definer with no argument (`self` in the definer registry); `supabase/tests/player_songs.test.sql` |
+| `src/lib/songs/songShelf.ts` | Pure: rows into one shelf per shared playlist, a stable picture and colour per song |
+| `usePlayerSongs` / `useSongPlayer` (`composables/soundboard/`) | The read (key `player-songs`, refreshed by the sounds, playlist and track rings) and a plain audio element |
+| `SongsView` + `SongTile` + `SongCover` | The page, a song's button and its face (art, or picture on colour); `PlayerSettingsSongs` links to it from a player's Settings once there is something to hear |
+| `usePinnedPageManifest` + `public/songs.webmanifest`, `public/songs-app/` | "Add to Home Screen" pins this page as **Grimoire Songs**, not the app's front door |
+
+**Decisions worth not undoing.**
+
+- **Signed in, never a public link.** The first idea was a token URL anyone could open. The child already had a young player's account in the campaign, so the page reads through that sign-in and nothing about a campaign is reachable without one. The parent signs the pinned app in once (an iOS home-screen app keeps its own storage, so the Safari session does not carry over).
+- **A definer instead of wider RLS**, for the same reason shared playback denormalises its row: a player policy on `sounds` would open the DM's whole library to share a few songs. The function returns name, file, cover art, artist and loudness trim, nothing else. `sounds` files are in a public bucket already, so the URL plays with no storage change.
+- **Nothing a song depends on is written.** A song with cover art (`thumbnail_url`) shows it; one without gets one of `SONG_PICTURES` (`lib/icons.ts`) on one of `SONG_COLOURS`, picked from a hash of the sound's id, so a song keeps its look when the DM adds or reorders songs. Its name sits small under the picture, for a grown-up. Playing shows a big pause sign and a progress bar on the button; a song that cannot play shows a muted speaker.
+- **One page per playlist, swiped sideways; its songs scroll up and down** (the maintainer's call, 9 Nov 2026). The pager is the browser's own horizontal scroll with snap points, so a swipe feels native and needs no gesture code. With more than one playlist a bar at the bottom shows each as its first song's face in a small circle, the current one ringed; a tap there jumps. A grown-up reads the playlist's name above the songs (and the campaign's, when the account plays in several).
+- **A tap plays that song and only that song.** Tap again to pause, again to carry on; a song plays to its end and stops. No queue, shuffle or repeat: what plays is always the button that was pressed.
+- **Not the soundboard store.** That is the DM's instrument (buses, lanes, cast, broadcast); the page uses one audio element and sets Media Session metadata so the lock screen shows the song.
+- **Public layout, signed-in route.** `/songs` uses the chrome-less `public` layout and mounts `TermsGate` itself, with `accountScoped` + `playerReadable` so either lens reaches it. The campaign doorbell is not mounted there; the read refetches when the page is opened or refocused.
+
 ## DM / Player Split
 
 **The soundboard itself is DM-only; players get one read-only stream.** `sounds`, `soundboard_pages`, `soundboard_playlists` (and the `soundboard_playlist_tracks` junction, scoped via the parent playlist's owner) all carry RLS of the form `auth.uid() = user_id`, with no player-facing SELECT policy, **shared playback did not change that**, because the broadcast row carries its own denormalised copy of the audible track. The Soundboard route (`/soundboard`) and every editing component in this doc are reachable only from the DM-side nav; there is no `/play/soundboard`.
 
-What a player can reach is `soundboard_broadcast`, SELECT only, via `PlayerAudioStream` in `PlayerLayout`, and only when the DM has switched sharing on for that session and the player has pressed Join on their own device. A player can never start, stop or retarget the table's audio: there is no player-facing INSERT, UPDATE or DELETE policy on that table.
+What a player can reach is `soundboard_broadcast`, SELECT only, and the songs of a playlist the DM marked "Players can listen", through `get_player_songs` (see Songs for players above). The stream plays through `PlayerAudioStream` in `PlayerLayout`, and only when the DM has switched sharing on for that session and the player has pressed Join on their own device. A player can never start, stop or retarget the table's audio: there is no player-facing INSERT, UPDATE or DELETE policy on that table.
 
 **Over MCP (29 Sep 2026).** Two read tools in `supabase/functions/_shared/mcp/tools.ts`: `soundboard` lists one campaign's pages, playlists (tracks as ordered `track_sound_ids`) and sounds, and `get_audio` returns one sound's bytes as an MCP `audio` content block, capped at `MAX_INLINE_AUDIO_BYTES` (12 MB). Both run under the connection's token, so the owner-only RLS above is the whole access story. `get_audio` fetches only URLs `isSafeStorageUrl` accepts (Supabase origin or the asset CDN); Spotify, Freesound previews and pasted URLs come back as links, never proxied.
 

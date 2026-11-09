@@ -40,6 +40,7 @@ import {
   Fence, Type, SunMoon,
   StepForward, ToggleRight, FastForward, TrendingDown, ChartNoAxesColumn,
   BowArrow, Pencil, Radius, Signal, Target,
+  Rabbit, Fish, Bird, Cat, Dog, Turtle, Snail, Rocket, Flower2, TreePine, Heart, Anchor, Castle, Squirrel, Rainbow, Shell,
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -272,6 +273,12 @@ export { VolumeX as IconMute }
 export { Music as IconMusic }
 export { Music2 as IconMusicNote }
 export { Cast as IconCast }
+// The songs page (/songs): what a song with no cover art shows instead, for a player who cannot read yet.
+// Things a small child names on sight, each one distinct in outline so two never look alike at a glance.
+export const SONG_PICTURES = [
+  Rabbit, Fish, Bird, Cat, Dog, Turtle, Snail, Rocket, Crown, Flower2,
+  TreePine, Sun, Moon, Star, Heart, Anchor, Castle, Squirrel, Rainbow, Shell,
+] as const
 // Deck (#1136): launch modes, the fade and solo tools, a pad's level.
 export { StepForward as IconLaunchTrigger }
 export { ToggleRight as IconLaunchToggle }
