@@ -435,7 +435,7 @@ A DM ticks **Players can listen** on a music playlist (`soundboard_playlists.pla
 | `src/lib/songs/songShelf.ts` | Pure: rows into one shelf per shared playlist, a stable picture and colour per song |
 | `usePlayerSongs` / `useSongPlayer` (`composables/soundboard/`) | The read (key `player-songs`, refreshed by the sounds, playlist and track rings) and a plain audio element |
 | `SongsView` + `SongTile` + `SongCover` | The page, a song's button and its face (art, or picture on colour); `PlayerSettingsSongs` links to it from a player's Settings once there is something to hear |
-| `usePinnedPageManifest` + `public/songs.webmanifest`, `public/songs-app/` | "Add to Home Screen" pins this page as **Grimoire Songs**, not the app's front door |
+| An inline script in `index.html` + `public/songs.webmanifest`, `public/songs-app/` | "Add to Home Screen" pins this page as **Grimoire Songs**, not the app's front door. Safari reads the manifest while the page loads, so it is chosen there by path, and every link to `/songs` is a full page load; a swap after the app started came too late, and a pin opened the front page (9 Nov 2026) |
 
 **Decisions worth not undoing.**
 
@@ -447,6 +447,19 @@ A DM ticks **Players can listen** on a music playlist (`soundboard_playlists.pla
 - **Not the soundboard store.** That is the DM's instrument (buses, lanes, cast, broadcast); the page uses one audio element and sets Media Session metadata so the lock screen shows the song.
 - **Public layout, signed-in route.** `/songs` uses the chrome-less `public` layout with `accountScoped` + `playerReadable`, so either lens reaches it. It does **not** mount `TermsGate`: a third importer split the gate into a start-up file of its own for every DM and player (the codeRequests budget). It asks `useTermsGate` instead, and while new terms wait it shows a note and an "Open Grimoire" button into the app, where the gate lives. It mounts `useCampaignLiveSync` itself, since the public layout does not, so the active campaign's playlist, track, sound and membership rings refresh it; other campaigns an account plays in refresh when the page is opened or refocused.
 - **The player follows the element, and the element follows the world.** A second tap while a song still loads cancels it; a pause from headphones or the lock screen turns the button off; a file that breaks mid-song, or a resume the browser refuses, marks the song failed; leaving the page hands the lock screen back unless something else has taken it since. `useSongPlayer.test.ts` holds each one.
+
+### The classic songs page (`/classic/songs.html`), for phones too old for the app
+
+The app's floor is Safari 15 (#896). The maintainer's son's iPhone 6 stops at iOS 12.5, and there the app never started: the splash sat until "Taking longer than it should" (9 Nov 2026). So the songs page has a classic version with a Safari 12 floor.
+
+- **One source, two builds.** `src/classic/songsClassic.ts` imports what it shares instead of restating it: `songShelf` (shelves, picture and colour per song), `useSongPlayer` (the player and all its edge cases), `signInEmail` (young players' login names) and `shouldShowTermsGate` with `isActiveChildLink` (the Terms rule, a young player exempt as in the app). `classicSongsPlugin` (vite.config.ts) compiles it with esbuild for `safari12`, `vue` aliased to `@vue/reactivity` (no Vue app, no supabase-js; sign-in and reads go straight to Supabase's REST endpoints), and inlines it into `src/classic/songs.html`, which is emitted as `classic/songs.html`. The pictures are `songPictures.generated.ts`, rendered from `SONG_PICTURES` by `scripts/classic-song-pictures.ts`; `songPictures.test.ts` fails when they drift.
+- **Old Safari's limits, written down so nobody "modernises" them.** No WebP before Safari 14, so a cover that will not load falls back to its picture, and the boot splash swaps its logo for `public/brand/logo-*.png`. No `gap` on flex rows, `aspect-ratio` or `inset`, so the CSS uses margins, padding-top squares and four offsets. esbuild cannot lower destructuring for Safari < 14.1 and refuses it; `supported: { destructuring: true }` tells it Safari 12's destructuring is fine, which it is.
+- **The service worker leaves `/classic/` alone** (`scripts/sw-template.js`): answering it with the shell would boot the very app that cannot run there.
+- **Live data:** no Realtime without supabase-js, so the page re-reads when it comes back to the front.
+
+**Too-old browsers, everywhere (index.html).** The first boot script probes `CSS.supports("aspect-ratio", "1")`, which arrived with the floor (Safari 15, Chrome 88, Firefox 89). Below it, `/songs` goes to the classic page, and every other path shows "This browser is too old for Grimoire…" with a link to the songs, instead of a reload that could never help. The watchdog stays quiet there.
+
+**Pinning.** Safari reads the manifest while the page loads, so a script in `index.html`'s head picks `songs.webmanifest`, its touch icon and title for `/songs`, and every link to `/songs` is a full page load. The manifest's `start_url` is `/songs` and its `scope` is `/`, so the pinned app's sign-in stays inside it and returns to the songs.
 
 ## DM / Player Split
 

@@ -2,7 +2,7 @@
   <!-- The songs page: the table's music on a player's phone, made for a player who cannot read yet. One page per
        shared playlist, swiped to sideways; its songs scroll up and down as big picture buttons, two to a row. Nothing
        a song depends on is written, and the page pins to the home screen as its own app. -->
-  <main class="songs-page mx-auto flex h-dvh w-full max-w-xl flex-col pt-[max(1rem,env(safe-area-inset-top))]">
+  <main class="songs-page mx-auto flex h-dvh w-full max-w-xl flex-col sm:max-w-5xl pt-[max(1rem,env(safe-area-inset-top))]">
     <!-- Grimoire's own songs page, not a generic player: the lockup and the word, small, out of the way. -->
     <header class="flex shrink-0 items-center justify-center gap-3 px-4 pb-3 pt-1">
       <BrandLogo class="h-7 w-auto" />
@@ -14,10 +14,11 @@
     <div v-if="termsWaiting" class="m-auto flex max-w-xs flex-col items-center gap-4 px-4 text-center text-white/80">
       <IconMusic class="h-24 w-24 text-white/40" aria-hidden="true" />
       <p class="text-body text-pretty">Grimoire's terms have changed. Open Grimoire to read them, then come back for the songs.</p>
-      <AppButton variant="outline" size="lg" to="/">Open Grimoire</AppButton>
+      <!-- A full page load, not a route change: it puts the app's own manifest back (index.html). -->
+      <AppButton variant="outline" size="lg" href="/">Open Grimoire</AppButton>
     </div>
 
-    <div v-else-if="isPending" class="grid grid-cols-2 gap-x-4 gap-y-5 px-4 pt-2" aria-busy="true" aria-label="Loading songs">
+    <div v-else-if="isPending" class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-7 xl:grid-cols-4 px-4 pt-2" aria-busy="true" aria-label="Loading songs">
       <div v-for="n in 4" :key="n" class="aspect-square animate-pulse rounded-[1.75rem] bg-white/10 motion-reduce:animate-none" />
     </div>
 
@@ -52,7 +53,7 @@
           <h2 class="truncate pb-3 text-center text-label text-white/60">
             <template v-if="manyCampaigns">{{ shelf.campaignName }} · </template>{{ shelf.playlistName }}
           </h2>
-          <div class="grid grid-cols-2 gap-x-4 gap-y-5">
+          <div class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-7 xl:grid-cols-4">
             <SongTile
               v-for="song in shelf.songs"
               :key="song.id"
@@ -100,7 +101,6 @@ import SongCover from "@/components/soundboard/songs/SongCover.vue";
 import SongTile from "@/components/soundboard/songs/SongTile.vue";
 import { usePlayerSongs } from "@/composables/soundboard/usePlayerSongs";
 import { useSongPlayer } from "@/composables/soundboard/useSongPlayer";
-import { usePinnedPageManifest } from "@/composables/usePinnedPageManifest";
 import { useTermsGate } from "@/composables/account/useTermsGate";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { IconMusic } from "@/lib/icons";
@@ -129,9 +129,4 @@ function goTo(i: number) {
 }
 const { currentId, playing, progress, failedId, tap } = useSongPlayer();
 
-usePinnedPageManifest({
-  manifest: "/songs.webmanifest",
-  appleTouchIcon: "/songs-app/apple-touch-icon.png",
-  appTitle: "Grimoire Songs",
-});
 </script>

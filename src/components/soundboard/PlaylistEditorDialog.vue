@@ -60,6 +60,16 @@
           label="Players can listen"
           hint="Everyone at the table can play these songs on their own phone, on the Songs page."
         />
+        <!-- A full page load, so the page arrives with its own manifest and pins as Grimoire Songs (index.html). -->
+        <AppButton
+          v-if="meta.players_can_listen"
+          variant="link"
+          size="inline"
+          href="/songs"
+          target="_blank"
+          label="Open the Songs page"
+          class="ms-7"
+        />
       </template>
 
       <!-- Themes -->

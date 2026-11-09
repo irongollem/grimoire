@@ -4,9 +4,8 @@
   "description": "The songs your DM shared with the table, in Dungeon Grimoire",
   "id": "/songs",
   "start_url": "/songs",
-  "scope": "/songs",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "theme_color": "#1c1612",
   "background_color": "#1c1612",
   "icons": [
