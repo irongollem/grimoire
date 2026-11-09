@@ -40,7 +40,8 @@ as $$
   join public.soundboard_playlists p
     on p.campaign_id = cm.campaign_id and p.players_can_listen and p.playlist_type = 'music'
   join public.soundboard_playlist_tracks t on t.playlist_id = p.id
-  join public.sounds s on s.id = t.sound_id
+  -- A track's sound must be the playlist's own campaign's: nothing here may hand a member another campaign's file.
+  join public.sounds s on s.id = t.sound_id and s.campaign_id = p.campaign_id
   where cm.user_id = (select auth.uid())
     and s.source_type <> 'spotify'
   order by c.name, c.id, p.sort_order, p.name, p.id, t.sort_order, s.name, s.id

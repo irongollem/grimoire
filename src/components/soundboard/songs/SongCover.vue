@@ -6,6 +6,8 @@
       v-if="song.coverUrl && !artFailed"
       :src="song.coverUrl"
       alt=""
+      loading="lazy"
+      decoding="async"
       class="absolute inset-0 h-full w-full object-cover"
       draggable="false"
       @error="artFailed = true"

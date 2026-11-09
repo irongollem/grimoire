@@ -172,7 +172,7 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   notice_board_pins: [NOTICE_BOARDS_KEY, PLAYER_NOTICE_BOARDS_KEY],
   // A role change (#590) moves a campaign between a DM's list and a player's,
   // so the other account's switcher and DM gate re-read the role-scoped lists.
-  campaign_members: ["campaign-members", "campaigns", "my-memberships"],
+  campaign_members: ["campaign-members", "campaigns", "my-memberships", PLAYER_SONGS_KEY],
   // A line a caretaker sends for a character reaches its owner's Hearth as it
   // is sent (#1059); the query is mounted only while there is a hand-over.
   campaign_messages: ["loot_placements", WHILE_AWAY_KEY],

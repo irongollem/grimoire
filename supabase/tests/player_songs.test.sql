@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(6);
+select plan(7);
 
 -- get_player_songs (20261109134103): the songs page reads only music playlists a DM marked
 -- "Players can listen", in campaigns the caller belongs to, and never a Spotify track. Players
@@ -15,7 +15,8 @@ values
   ('11090000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ps-stranger@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
 insert into public.campaigns (id, user_id, name) values
-  ('11090000-0000-4000-8000-000000000010', '11090000-0000-4000-8000-000000000001', 'Kind Country');
+  ('11090000-0000-4000-8000-000000000010', '11090000-0000-4000-8000-000000000001', 'Kind Country'),
+  ('11090000-0000-4000-8000-000000000011', '11090000-0000-4000-8000-000000000001', 'Another Table');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('11090000-0000-4000-8000-000000000010', '11090000-0000-4000-8000-000000000002', 'player', 'Kid')
@@ -25,7 +26,8 @@ insert into public.sounds (id, user_id, campaign_id, name, category, source_type
   ('11090000-0000-4000-8000-000000000020', '11090000-0000-4000-8000-000000000001', '11090000-0000-4000-8000-000000000010', 'PS-Shared-Song', 'music', 'upload', 'https://example.invalid/a.mp3'),
   ('11090000-0000-4000-8000-000000000021', '11090000-0000-4000-8000-000000000001', '11090000-0000-4000-8000-000000000010', 'PS-Spotify-Song', 'music', 'spotify', 'https://open.spotify.com/track/x'),
   ('11090000-0000-4000-8000-000000000022', '11090000-0000-4000-8000-000000000001', '11090000-0000-4000-8000-000000000010', 'PS-Private-Song', 'music', 'upload', 'https://example.invalid/b.mp3'),
-  ('11090000-0000-4000-8000-000000000023', '11090000-0000-4000-8000-000000000001', '11090000-0000-4000-8000-000000000010', 'PS-Ambient-Layer', 'ambient', 'upload', 'https://example.invalid/c.mp3');
+  ('11090000-0000-4000-8000-000000000023', '11090000-0000-4000-8000-000000000001', '11090000-0000-4000-8000-000000000010', 'PS-Ambient-Layer', 'ambient', 'upload', 'https://example.invalid/c.mp3'),
+  ('11090000-0000-4000-8000-000000000024', '11090000-0000-4000-8000-000000000001', '11090000-0000-4000-8000-000000000011', 'PS-Other-Campaign-Song', 'music', 'upload', 'https://example.invalid/d.mp3');
 
 insert into public.soundboard_playlists (id, user_id, campaign_id, name, playlist_type, players_can_listen) values
   ('11090000-0000-4000-8000-000000000030', '11090000-0000-4000-8000-000000000001', '11090000-0000-4000-8000-000000000010', 'Shared', 'music', true),
@@ -36,7 +38,9 @@ insert into public.soundboard_playlist_tracks (playlist_id, sound_id, sort_order
   ('11090000-0000-4000-8000-000000000030', '11090000-0000-4000-8000-000000000020', 0),
   ('11090000-0000-4000-8000-000000000030', '11090000-0000-4000-8000-000000000021', 1),
   ('11090000-0000-4000-8000-000000000031', '11090000-0000-4000-8000-000000000022', 0),
-  ('11090000-0000-4000-8000-000000000032', '11090000-0000-4000-8000-000000000023', 0);
+  ('11090000-0000-4000-8000-000000000032', '11090000-0000-4000-8000-000000000023', 0),
+  -- A track pointing at another campaign's sound: written as the table owner, past any client-side check.
+  ('11090000-0000-4000-8000-000000000030', '11090000-0000-4000-8000-000000000024', 2);
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -55,6 +59,10 @@ select is_empty(
 select is_empty(
   $$ select 1 from public.get_player_songs() where name = 'PS-Ambient-Layer' $$,
   'an ambient scene is not a song, even when flagged'
+);
+select is_empty(
+  $$ select 1 from public.get_player_songs() where name = 'PS-Other-Campaign-Song' $$,
+  'a shared playlist never hands a member another campaign''s sound'
 );
 select is_empty(
   $$ select 1 from public.get_player_songs() where name = 'PS-Spotify-Song' $$,

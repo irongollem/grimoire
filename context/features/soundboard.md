@@ -431,7 +431,7 @@ A DM ticks **Players can listen** on a music playlist (`soundboard_playlists.pla
 
 | Piece | Role |
 | --- | --- |
-| `public.get_player_songs()` (`20261109134103`) | Every track of a flagged **music** playlist in every campaign the caller belongs to, minus Spotify. A definer with no argument (`self` in the definer registry); `supabase/tests/player_songs.test.sql` |
+| `public.get_player_songs()` (`20261109134103`) | Every track of a flagged **music** playlist in every campaign the caller belongs to, minus Spotify and minus any sound from another campaign than the playlist's. A definer with no argument (`self` in the definer registry); `supabase/tests/player_songs.test.sql` |
 | `src/lib/songs/songShelf.ts` | Pure: rows into one shelf per shared playlist, a stable picture and colour per song |
 | `usePlayerSongs` / `useSongPlayer` (`composables/soundboard/`) | The read (key `player-songs`, refreshed by the sounds, playlist and track rings) and a plain audio element |
 | `SongsView` + `SongTile` + `SongCover` | The page, a song's button and its face (art, or picture on colour); `PlayerSettingsSongs` links to it from a player's Settings once there is something to hear |
@@ -445,7 +445,8 @@ A DM ticks **Players can listen** on a music playlist (`soundboard_playlists.pla
 - **One page per playlist, swiped sideways; its songs scroll up and down** (the maintainer's call, 9 Nov 2026). The pager is the browser's own horizontal scroll with snap points, so a swipe feels native and needs no gesture code. With more than one playlist a bar at the bottom shows each as its first song's face in a small circle, the current one ringed; a tap there jumps. A grown-up reads the playlist's name above the songs (and the campaign's, when the account plays in several).
 - **A tap plays that song and only that song.** Tap again to pause, again to carry on; a song plays to its end and stops. No queue, shuffle or repeat: what plays is always the button that was pressed.
 - **Not the soundboard store.** That is the DM's instrument (buses, lanes, cast, broadcast); the page uses one audio element and sets Media Session metadata so the lock screen shows the song.
-- **Public layout, signed-in route.** `/songs` uses the chrome-less `public` layout and mounts `TermsGate` itself, with `accountScoped` + `playerReadable` so either lens reaches it. The campaign doorbell is not mounted there; the read refetches when the page is opened or refocused.
+- **Public layout, signed-in route.** `/songs` uses the chrome-less `public` layout with `accountScoped` + `playerReadable`, so either lens reaches it. It does **not** mount `TermsGate`: a third importer split the gate into a start-up file of its own for every DM and player (the codeRequests budget). It asks `useTermsGate` instead, and while new terms wait it shows a note and an "Open Grimoire" button into the app, where the gate lives. It mounts `useCampaignLiveSync` itself, since the public layout does not, so the active campaign's playlist, track, sound and membership rings refresh it; other campaigns an account plays in refresh when the page is opened or refocused.
+- **The player follows the element, and the element follows the world.** A second tap while a song still loads cancels it; a pause from headphones or the lock screen turns the button off; a file that breaks mid-song, or a resume the browser refuses, marks the song failed; leaving the page hands the lock screen back unless something else has taken it since. `useSongPlayer.test.ts` holds each one.
 
 ## DM / Player Split
 

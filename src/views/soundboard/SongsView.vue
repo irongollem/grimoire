@@ -68,17 +68,18 @@
       </div>
 
       <!-- Which playlist: each one's first song as a small round picture, the current one ringed. A tap goes there.
-           Raw buttons, like the song pads: the picture is the whole control. -->
+           Raw buttons, like the song pads: the picture is the whole control. Centred by auto margins on the first and
+           last, not justify-center, which pushes the first ones past the scrollable edge once the row overflows. -->
       <nav
         v-if="shelves.length > 1"
-        class="flex shrink-0 justify-center gap-3 overflow-x-auto border-t border-white/10 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 [scrollbar-width:none]"
+        class="flex shrink-0 gap-3 overflow-x-auto border-t border-white/10 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 [scrollbar-width:none]"
         aria-label="Playlists"
       >
         <button
           v-for="(shelf, i) in shelves"
           :key="shelf.playlistId"
           type="button"
-          class="shrink-0 rounded-full transition-transform duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          class="shrink-0 rounded-full transition-transform first:ms-auto last:me-auto duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           :class="i === page ? 'scale-110 ring-[3px] ring-white' : 'opacity-60'"
           :aria-label="shelf.playlistName"
           :aria-current="i === page ? 'page' : undefined"
@@ -101,10 +102,14 @@ import { usePlayerSongs } from "@/composables/soundboard/usePlayerSongs";
 import { useSongPlayer } from "@/composables/soundboard/useSongPlayer";
 import { usePinnedPageManifest } from "@/composables/usePinnedPageManifest";
 import { useTermsGate } from "@/composables/account/useTermsGate";
+import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { IconMusic } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/motion";
 
 const { visible: termsWaiting } = useTermsGate();
+// The public layout mounts no doorbell, so the page joins the active campaign's itself: a DM sharing, changing or
+// unsharing a playlist, or a player leaving the table, reaches the open page. Other campaigns refresh on refocus.
+useCampaignLiveSync();
 const { data, isPending, isError, refetch } = usePlayerSongs();
 const shelves = computed(() => data.value ?? []);
 const manyCampaigns = computed(() => new Set(shelves.value.map((s) => s.campaignId)).size > 1);
