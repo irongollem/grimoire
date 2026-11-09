@@ -76,11 +76,8 @@ import type { GridCalibration } from "@/types/location.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import {
-  useAllLocations,
-  useSaveStyledSitePicture,
-  useUpdateLocationPicture,
-} from "@/composables/locations/useLocations";
+import { useAllLocations, useUpdateLocationPicture } from "@/composables/locations/useLocations";
+import { useSaveStyledSitePicture } from "@/composables/locations/useSaveStyledSitePicture";
 import { useCampaignStore } from "@/stores/campaign";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { STYLE_CHARGE_SIZE } from "@edge-shared/imageSize.ts";
