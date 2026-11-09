@@ -17,7 +17,9 @@ import { computed, isRef, ref } from "vue";
 // HOMEBREW_TABLES entry by that literal string (see useCampaigns.ts), so a
 // query key that drifts from the table name silently stops being refreshed
 // after a promote/delete disposition.
-const QUERY_KEY = "dungeon_maps";
+/** Root of every dungeon map read; also invalidated by a write made outside these hooks (useSaveStyledSitePicture). */
+export const DUNGEON_MAPS_KEY = "dungeon_maps";
+const QUERY_KEY = DUNGEON_MAPS_KEY;
 
 /** Rows are cast, not typed by the client, so a map saved before a layer
  *  existed arrives without that key. Every read goes through here.
@@ -78,7 +80,7 @@ async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
   return data ? convertStoredArea(data as DungeonMap) : null;
 }
 
-async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string }): Promise<DungeonMap> {
+export async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string }): Promise<DungeonMap> {
   const user = getCurrentUser();
   if (!user) throw new Error("Not authenticated");
   const payload = {

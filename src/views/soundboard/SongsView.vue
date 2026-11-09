@@ -9,7 +9,15 @@
       <span class="text-label-lg font-semibold uppercase text-[#efd9a0]">Songs</span>
     </header>
 
-    <div v-if="isPending" class="grid grid-cols-2 gap-x-4 gap-y-5 px-4 pt-2" aria-busy="true" aria-label="Loading songs">
+    <!-- New terms are waiting. The gate itself lives in the app's layouts; mounting it here as well split it into a
+         start-up file of its own for every DM and player (the codeRequests budget), so this page sends them there. -->
+    <div v-if="termsWaiting" class="m-auto flex max-w-xs flex-col items-center gap-4 px-4 text-center text-white/80">
+      <IconMusic class="h-24 w-24 text-white/40" aria-hidden="true" />
+      <p class="text-body text-pretty">Grimoire's terms have changed. Open Grimoire to read them, then come back for the songs.</p>
+      <AppButton variant="outline" size="lg" to="/">Open Grimoire</AppButton>
+    </div>
+
+    <div v-else-if="isPending" class="grid grid-cols-2 gap-x-4 gap-y-5 px-4 pt-2" aria-busy="true" aria-label="Loading songs">
       <div v-for="n in 4" :key="n" class="aspect-square animate-pulse rounded-[1.75rem] bg-white/10 motion-reduce:animate-none" />
     </div>
 
@@ -81,22 +89,22 @@
       </nav>
     </template>
   </main>
-  <TermsGate />
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BrandLogo from "@/components/brand/BrandLogo.vue";
-import TermsGate from "@/components/account/TermsGate.vue";
 import SongCover from "@/components/soundboard/songs/SongCover.vue";
 import SongTile from "@/components/soundboard/songs/SongTile.vue";
 import { usePlayerSongs } from "@/composables/soundboard/usePlayerSongs";
 import { useSongPlayer } from "@/composables/soundboard/useSongPlayer";
 import { usePinnedPageManifest } from "@/composables/usePinnedPageManifest";
+import { useTermsGate } from "@/composables/account/useTermsGate";
 import { IconMusic } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/motion";
 
+const { visible: termsWaiting } = useTermsGate();
 const { data, isPending, isError, refetch } = usePlayerSongs();
 const shelves = computed(() => data.value ?? []);
 const manyCampaigns = computed(() => new Set(shelves.value.map((s) => s.campaignId)).size > 1);

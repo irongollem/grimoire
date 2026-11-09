@@ -55,7 +55,7 @@ vi.mock("@/lib/populateSetting/settingContent", () => ({
 }));
 vi.mock("@/data/settingLocations", () => ({ PLANAR_LOCATIONS: [] }));
 // The fake does not generate ids or revs, which the save reads back off the new walls drawing.
-vi.mock("@/composables/cartographer/useDungeonMaps", () => ({ useCreateDungeonMap: () => ({ mutateAsync: mocks.createDungeonMap }) }));
+vi.mock("@/composables/cartographer/useDungeonMaps", () => ({ createDungeonMap: mocks.createDungeonMap, DUNGEON_MAPS_KEY: "dungeon_maps" }));
 vi.mock("@/lib/supabase", () => ({
   supabase: { ...fake.client, functions: { invoke: mocks.invoke } },
   getCurrentUser: () => ({ id: "user-1" }),

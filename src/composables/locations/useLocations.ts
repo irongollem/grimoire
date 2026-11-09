@@ -18,7 +18,6 @@ import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/pop
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
 import { isInteriorType } from "@/lib/locations/tiers";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
-import { useCreateDungeonMap } from "@/composables/cartographer/useDungeonMaps";
 import type { StyledPlay } from "@/cartographer/styledPlay";
 
 /** A location enriched with the chain of vague-container names we traversed
@@ -656,10 +655,14 @@ export function useUpdateLocationPicture() {
  */
 export function useSaveStyledSitePicture() {
   const queryClient = useQueryClient();
-  const createDungeonMap = useCreateDungeonMap();
   return useMutation({
     mutationFn: async ({ id, mapUrl, calibration, play }: { id: string; mapUrl: string; calibration: GridCalibration; play: StyledPlay }) => {
-      const walls = await createDungeonMap.mutateAsync(play.drawing);
+      // Loaded on the save, not with this module: every place list reads useLocations at start-up, and the dungeon
+      // map module brings the whole wall engine (areaToWalls) with it, a start-up file of its own for every DM and
+      // player (the codeRequests budget). Only a DM saving a styled map needs it.
+      const { createDungeonMap, DUNGEON_MAPS_KEY } = await import("@/composables/cartographer/useDungeonMaps");
+      const walls = await createDungeonMap(play.drawing);
+      void queryClient.invalidateQueries({ queryKey: [DUNGEON_MAPS_KEY] });
       return updateLocation(id, {
         map_url: mapUrl,
         grid_calibration: calibration,
