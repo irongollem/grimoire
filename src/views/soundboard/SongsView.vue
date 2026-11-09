@@ -6,7 +6,7 @@
     <!-- Grimoire's own songs page, not a generic player: the lockup and the word, small, out of the way. -->
     <header class="flex shrink-0 items-center justify-center gap-3 px-4 pb-3 pt-1">
       <BrandLogo class="h-7 w-auto" />
-      <span class="text-label-lg font-semibold uppercase tracking-[0.2em] text-[#efd9a0]">Songs</span>
+      <span class="text-label-lg font-semibold uppercase text-[#efd9a0]">Songs</span>
     </header>
 
     <div v-if="isPending" class="grid grid-cols-2 gap-x-4 gap-y-5 px-4 pt-2" aria-busy="true" aria-label="Loading songs">
