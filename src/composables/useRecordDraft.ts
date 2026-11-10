@@ -122,7 +122,10 @@ export function useRecordDraft<Row, Draft extends object>(
   const { source, identity, toDraft } = options;
   const initialRow = source() ?? null;
 
-  const draft = reactive(toDraft(initialRow)) as UnwrapNestedRefs<Draft>;
+  // Cloned like every later seed: a `toDraft` that passes a nested object through
+  // would otherwise hand the form the source's own object, which Vue Query keeps
+  // readonly, so every in-place edit to it is silently refused.
+  const draft = reactive(cloneDraftValue(toDraft(initialRow))) as UnwrapNestedRefs<Draft>;
   const plain = () => draft as unknown as Draft;
   // The server copy as a draft. Not reactive on purpose: `dirty` re-reads it
   // through `baselineVersion`, bumped on every write.
