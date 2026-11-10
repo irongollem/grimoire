@@ -70,7 +70,7 @@ describe("htmlToScriptoriumJson", () => {
     expect(furniture[0].props.position).toBe("top-left");
   });
 
-  it("lifts an absolute-positioned image into furniture via the current schema", () => {
+  it("lifts an absolute-positioned image from old HTML into art furniture, not an inline image the schema now reads it as", () => {
     const html =
       '<div class="sc-img-wrap sc-img-wrap--absolute" style="top:56.15px;left:158.8px;width:317.6px"><img data-layout-mode="absolute" data-pos-top="56.15px" data-pos-left="158.8px" width="317.6px" src="u"></div>';
     const { content, furniture } = htmlToScriptoriumJson(html, "ch1");

@@ -137,6 +137,8 @@ import { prefersReducedMotion } from "@/lib/motion";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { renderFurniture, CHAPTER_ID_ATTR } from "@/lib/scriptorium/furniture/renderFurniture";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "@/lib/scriptorium/editorConstants";
+import { measureChapterFlow } from "@/lib/scriptorium/pageFlow/measureFlow";
+import type { ChapterFlow } from "@/lib/scriptorium/pageFlow/types";
 import { scriptoriumLook, scriptoriumThemeClass } from "@/lib/scriptorium/looks";
 import { activeThemeId, darkTwinStyle } from "@/lib/themeRuntime";
 import { spreadCount, spreadPages } from "@/lib/scriptorium/spreads";
@@ -183,6 +185,8 @@ const emit = defineEmits<{
   "update:selectedFurnitureId": [id: string | null];
   layout: [result: BookLayoutResult | null];
   progress: [progress: { done: number; total: number } | null];
+  /** Where the open chapter's pages and columns start, after each layout. */
+  flow: [flow: ChapterFlow];
   close: [];
 }>();
 
@@ -208,8 +212,28 @@ const { isRendering, error, result, progress, scheduleRender } = useBookPreview(
   furniture: () => ({ items: furniture, options: { interactive: !inspect.value, selectedId: selectedFurnitureId } }),
   focusChapterId: () => focusChapterId,
   container: hostRef,
-  afterRender: () => applySpread(),
+  afterRender: () => {
+    emitFlow();
+    applySpread();
+  },
 });
+
+// ── The open chapter's pages, for the editor to draw (#1175) ────────────────
+/** Where the preview starts each page and column of the chapter being written. */
+function emitFlow() {
+  const host = hostRef.value;
+  // Inspect hides every page but one spread, so it measures nothing.
+  if (!host || inspect.value || !focusChapterId) return;
+  const pages = Array.from(host.querySelectorAll<HTMLElement>(".pagedjs_page"));
+  emit("flow", measureChapterFlow(pages, { chapterId: focusChapterId, twoColumn: settings.isTwoColumn }));
+}
+// A chapter switch lands on pages already laid out (the engine caches them).
+watch(
+  () => focusChapterId,
+  () => {
+    if (!isRendering.value) void nextTick(emitFlow);
+  },
+);
 
 watch(result, (value) => emit("layout", value));
 

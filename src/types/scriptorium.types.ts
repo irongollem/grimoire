@@ -128,7 +128,8 @@ export interface ScriptoriumNote {
  *  chapter with DM-only blocks and Deep halves already stripped server-side. */
 export interface PlayerHandout extends ReadableBook {
   chapters: { id: string; position: number; title: string }[];
-  chapter: { id: string; title: string; content: JSONContent } | null;
+  /** `art` is the pictures placed on the page, each tied to a block the player can see (#1175). */
+  chapter: { id: string; title: string; content: JSONContent; art: { blockId: string; src: string }[] } | null;
 }
 
 /** What the document list renders. Deliberately excludes `content` — the full

@@ -10,6 +10,7 @@
 
 import type { ScriptoriumPageSize } from "@/types/scriptorium.types";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "@/lib/scriptorium/editorConstants";
+import { PAGE_MARGINS_PX, PRINT_SLACK_PX } from "@/lib/scriptorium/pageGeometry";
 import { artUrl } from "@/lib/assets/artUrl";
 
 /** @page size keyword per page size. */
@@ -23,20 +24,6 @@ export interface PagedPreviewCssOptions {
   pageSize: ScriptoriumPageSize;
   inkFriendly: boolean;
 }
-
-// @page vertical margins (top 56 + bottom 53) — keep in sync with the @page
-// rule below; covers are sized to the resulting content area so they fill their
-// page exactly without overflowing into a fragment.
-/**
- * How much shorter than the printed page Paged.js lays each page out. The
- * book is paginated in the user's browser and printed by render-pdf's Chrome
- * on another machine, which lays every page's text out again. A block that
- * ends within a pixel of the page bottom and comes out a fraction taller
- * there falls into the page's off-page column and is not printed (#1115).
- * The printed page gets this room back, so a page always has a little more
- * height in print than its text was fitted to.
- */
-export const PRINT_SLACK_PX = 6;
 
 /** The page's text area, specific enough to override Paged.js's own rule. */
 export const PAGE_CONTENT_SELECTOR = ".pagedjs_page .pagedjs_pagebox > .pagedjs_area > .pagedjs_page_content";
@@ -52,10 +39,10 @@ export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   // logs "Unable to layout item" and draws the same image again on the next
   // page. A full-width chapter opener in a two-column A4 book did exactly
   // that, three times over (#915 story 6). Capping images at 80% of the
-  // content box (page height minus the 56 + 53 px @page margins below) leaves
+  // content box (page height minus the top and bottom @page margins) leaves
   // room for the heading that usually sits above one, and object-fit keeps the
   // picture's proportions when the cap shortens it.
-  const contentHeightPx = EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - 56 - 53;
+  const contentHeightPx = EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - PAGE_MARGINS_PX.top - PAGE_MARGINS_PX.bottom;
   const imageMaxHeightPx = Math.floor(contentHeightPx * 0.8);
 
   // Parchment chrome on the rendered page boxes (omitted in ink-friendly mode).
@@ -66,7 +53,7 @@ export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   return `
 @page {
   size: ${size};
-  margin: 56px 68px 53px;
+  margin: ${PAGE_MARGINS_PX.top}px ${PAGE_MARGINS_PX.right}px ${PAGE_MARGINS_PX.bottom}px ${PAGE_MARGINS_PX.left}px;
 }
 /* Break hints MUST live in the stylesheet handed to Paged.js — its chunker
    reads break properties from the CSS passed to its polisher, not from the

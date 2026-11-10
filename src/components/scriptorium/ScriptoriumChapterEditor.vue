@@ -10,18 +10,43 @@
       @open-block-picker="showBlockPicker = true"
       @open-cover-inspector="showCoverInspector = true"
       @edit-in-illuminator="editInIlluminator"
-      @set-image-pos="setImagePos"
+      :can-place-on-page="flow !== null"
+      @place-on-page="placeOnPage"
     />
 
     <!-- The themed galley: the sc-theme and look classes pull the book's own
          styling (src/assets/scriptorium/) onto the page being written. -->
-    <div class="relative min-h-0 flex-1 overflow-auto px-4 py-6 sm:px-8">
-      <EditorContent
-        :editor="editor"
-        class="phb-editor sc-theme mx-auto h-full max-w-3xl"
-        :class="[scriptoriumThemeClass(theme), { 'ink-friendly': inkFriendly }]"
-        data-testid="chapter-editor"
-      />
+    <div ref="scrollRef" class="relative min-h-0 flex-1 overflow-auto px-4 py-6">
+      <!-- The sheet is the real page, drawn at a display scale by a transform,
+           never CSS `zoom` (it lays text out again at the scaled size and a
+           line can break differently). The box around it takes the scaled size
+           so the scroll area matches what is drawn. -->
+      <div class="mx-auto" :style="scaleBoxStyle">
+        <div
+          ref="sheetRef"
+          class="relative origin-top-left"
+          :style="{ width: `${geometry.width}px`, transform: `scale(${sheetScale})` }"
+          :data-scale="sheetScale"
+        >
+          <EditorContent
+            :editor="editor"
+            class="phb-editor sc-theme"
+            :class="[
+              scriptoriumThemeClass(theme),
+              { 'ink-friendly': inkFriendly, 'sc-sheet--column-strip': isTwoColumn },
+            ]"
+            :style="sheetStyle"
+            data-testid="chapter-editor"
+          />
+          <EditorFurnitureLayer
+            :editor="editor"
+            :chapter-id="chapter.id"
+            :furniture="furniture"
+            :selected-id="selectedFurnitureId"
+            :geometry="sheetGeometry"
+          />
+        </div>
+      </div>
       <!-- AI Enhance: rewrite the selection, on credits (#992) -->
       <TextEnhanceBubble
         v-if="editor && enhanceAvailable"
@@ -81,16 +106,26 @@
  * is exactly the cost chapters exist to avoid; the JSON is read once, when a
  * save actually goes out.
  */
-import { computed, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import type { JSONContent } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
+import { PageFlow, offsetWithin, pageAt, type PageFlowStorage } from "@/lib/tiptap/pageFlow";
+import { FurnitureUnderlay } from "@/lib/tiptap/furnitureUnderlay";
+import { createFurnitureItem } from "@/lib/scriptorium/furniture/model";
+import { neighbourBlockId, placementFromBox } from "@/lib/scriptorium/furniture/editorPages";
+import { useFurnitureEditing } from "@/composables/scriptorium/useFurnitureEditing";
+import EditorFurnitureLayer from "@/components/scriptorium/EditorFurnitureLayer.vue";
+import type { ChapterFlow } from "@/lib/scriptorium/pageFlow/types";
 import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
 import { useSaveChapter } from "@/composables/scriptorium/useScriptoriumChapters";
 import { useScriptoriumIlluminator } from "@/composables/scriptorium/useScriptoriumIlluminator";
 import { cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 import { countWords } from "@/lib/scriptorium/chapterTitle";
 import { scriptoriumThemeClass } from "@/lib/scriptorium/looks";
+import { pageGeometry, pageGeometryCssVars } from "@/lib/scriptorium/pageGeometry";
+import { scaledBoxSize } from "@/composables/scriptorium/useScriptoriumZoom";
 import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
 import TextEnhanceBubble from "@/components/common/ai/TextEnhanceBubble.vue";
 import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
@@ -99,9 +134,12 @@ import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
 import CoverPageInspector from "@/components/scriptorium/CoverPageInspector.vue";
 import ScriptoriumEditorToolbar from "@/components/scriptorium/ScriptoriumEditorToolbar.vue";
 import type {
+  FurnitureAnchor,
   FurnitureKind,
+  PageFurnitureItem,
   ScriptoriumChapter,
   ScriptoriumDocType,
+  ScriptoriumPageSize,
   ScriptoriumTheme,
 } from "@/types/scriptorium.types";
 
@@ -110,18 +148,28 @@ const {
   documentId,
   theme,
   docType,
+  pageSize,
   isTwoColumn,
   inkFriendly,
   pagesLabel = null,
+  flow = null,
+  furniture,
+  selectedFurnitureId,
 } = defineProps<{
   chapter: ScriptoriumChapter;
   documentId: string;
   theme: ScriptoriumTheme;
   docType: ScriptoriumDocType;
+  pageSize: ScriptoriumPageSize;
   isTwoColumn: boolean;
   inkFriendly: boolean;
   /** "Pages 175 to 191", from the layout, when the book has been laid out. */
   pagesLabel?: string | null;
+  /** Where the preview starts this chapter's pages and columns; null shows one continuous sheet. */
+  flow?: ChapterFlow | null;
+  /** The book's page furniture: pictures placed on pages, drawn on the editor's pages in Split. */
+  furniture: PageFurnitureItem[];
+  selectedFurnitureId: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -133,7 +181,47 @@ const emit = defineEmits<{
   /** The editor exists: a block waiting to be focused can be. */
   ready: [];
   addFurniture: [kind: FurnitureKind];
+  "update:furniture": [items: PageFurnitureItem[]];
+  "update:selectedFurnitureId": [id: string | null];
 }>();
+
+const geometry = computed(() => pageGeometry(pageSize, isTwoColumn));
+const sheetScale = ref(1);
+const sheetHeight = ref(0);
+const scrollRef = ref<HTMLElement | null>(null);
+const sheetRef = ref<HTMLElement | null>(null);
+// --sc-sheet-scale is read by later waves (a drag measured on screen needs it).
+const sheetStyle = computed(() => ({
+  ...pageGeometryCssVars(geometry.value),
+  "--sc-sheet-scale": String(sheetScale.value),
+}));
+const scaleBoxStyle = computed(() => {
+  const { width, height } = scaledBoxSize(
+    { w: geometry.value.width, h: sheetHeight.value || geometry.value.height },
+    sheetScale.value,
+  );
+  return { width: `${width}px`, height: `${height}px` };
+});
+
+/** Side padding of the scroll box (px-4 on both sides), in px: page geometry is px throughout. */
+const PANE_GUTTER_PX = 32;
+function measureSheet() {
+  const pane = scrollRef.value;
+  const sheet = sheetRef.value;
+  if (!pane || !sheet) return;
+  const available = pane.clientWidth - PANE_GUTTER_PX;
+  sheetScale.value = available > 0 ? Math.min(1, available / geometry.value.width) : 1;
+  sheetHeight.value = sheet.offsetHeight;
+}
+let sheetObserver: ResizeObserver | null = null;
+onMounted(() => {
+  measureSheet();
+  if (typeof ResizeObserver === "undefined") return;
+  sheetObserver = new ResizeObserver(measureSheet);
+  if (scrollRef.value) sheetObserver.observe(scrollRef.value);
+  if (sheetRef.value) sheetObserver.observe(sheetRef.value);
+});
+watch(geometry, () => measureSheet(), { flush: "post" });
 
 const showAssetPanel = ref(false);
 const showBlockPicker = ref(false);
@@ -151,7 +239,8 @@ const { mutateAsync: saveChapter } = useSaveChapter();
 
 const editor = useEditor({
   content: chapter.content,
-  extensions: createScriptoriumExtensions(),
+  // PageFlow and FurnitureUnderlay are the editor's alone: the pages of the preview, and a surface behind the text for art.
+  extensions: [...createScriptoriumExtensions(), PageFlow, FurnitureUnderlay],
   onCreate({ editor: created }) {
     emit("edit", created.getJSON());
     emit("ready");
@@ -164,6 +253,17 @@ const editor = useEditor({
     emit("userEdit");
   },
 });
+
+// The preview lays out on a debounce; each layout hands the editor its pages.
+// The flow carries block ids, which the editor assigns just after it is
+// created, so it is set once the editor exists.
+watch(
+  [() => flow, editor],
+  ([value, ed]) => {
+    if (ed && !ed.isDestroyed) ed.commands.setChapterFlow(value);
+  },
+  { immediate: true },
+);
 
 const autosave = useAutosave({
   draft,
@@ -241,12 +341,64 @@ function blockIdAtCursor(): string | null {
   }
 }
 
-function setImagePos(side: "posTop" | "posLeft" | "posRight" | "posBottom", value: string) {
-  editor.value
-    ?.chain()
-    .focus()
-    .updateAttributes("image", { [side]: value || null })
-    .run();
+const sheetGeometry = computed(() => ({
+  width: geometry.value.width,
+  height: geometry.value.height,
+  marginTop: geometry.value.margins.top,
+}));
+
+// Drag, resize and select furniture on the sheet. The container is the whole
+// sheet, so a click anywhere outside an item (the text) deselects.
+useFurnitureEditing({
+  container: sheetRef,
+  enabled: () => flow !== null,
+  items: () => furniture,
+  onChange: (items) => emit("update:furniture", items),
+  onSelect: (id) => {
+    if (id !== selectedFurnitureId) emit("update:selectedFurnitureId", id);
+  },
+});
+
+/**
+ * Turn the selected picture into art placed on its page: same place, same
+ * width, in front of the text, and selected so it can be dragged at once. Only
+ * offered while the editor shows the laid-out pages (the toolbar disables it in
+ * Write mode), so there is always a page to measure it against.
+ */
+function placeOnPage() {
+  const ed = editor.value;
+  if (!ed || ed.isDestroyed) return;
+  const { selection } = ed.state;
+  if (!(selection instanceof NodeSelection) || selection.node.type.name !== "image") return;
+  const src: unknown = selection.node.attrs.src;
+  if (typeof src !== "string") return;
+
+  const pages = (ed.storage as unknown as { pageFlow?: PageFlowStorage }).pageFlow?.pages ?? [];
+  const page = pageAt(pages, selection.from);
+  const $from = ed.state.doc.resolve(selection.from);
+  let anchor: FurnitureAnchor = { type: "page", chapterId: chapter.id, page: 1 };
+  let placed: { x?: number; y?: number; width?: number } = {};
+  if (page) {
+    // An image inside a paragraph belongs to that block; a block image to its neighbour.
+    const own: unknown = $from.depth >= 1 ? $from.node(1).attrs.blockId : null;
+    const siblings = Array.from({ length: ed.state.doc.childCount }, (_, i) => {
+      const id: unknown = ed.state.doc.child(i).attrs.blockId;
+      return typeof id === "string" && id ? id : null;
+    });
+    const blockId = typeof own === "string" && own ? own : neighbourBlockId(siblings, $from.index(0));
+    anchor = blockId ? { type: "block", blockId } : { type: "page", chapterId: chapter.id, page: page.page };
+    const dom = ed.view.nodeDOM(selection.from);
+    if (dom instanceof HTMLElement) {
+      // The image may be wrapped; the picture itself is what is drawn.
+      const img = dom instanceof HTMLImageElement ? dom : (dom.querySelector("img") ?? dom);
+      const { top, left } = offsetWithin(img, ed.view.dom as HTMLElement);
+      placed = placementFromBox({ top, left, width: img.offsetWidth }, page, sheetGeometry.value);
+    }
+  }
+  const item = createFurnitureItem("art", anchor, { ...placed, z: "over", props: { src } });
+  ed.chain().focus().deleteSelection().run();
+  emit("update:furniture", [...furniture, item]);
+  emit("update:selectedFurnitureId", item.id);
 }
 
 const { selectedImageIsSupabase, editInIlluminator } = useScriptoriumIlluminator(
@@ -277,6 +429,7 @@ const CONTEXT_RADIUS = 300;
 const enhanceAvailable = useEnhanceAvailable();
 
 onUnmounted(() => {
+  sheetObserver?.disconnect();
   editor.value?.destroy();
 });
 

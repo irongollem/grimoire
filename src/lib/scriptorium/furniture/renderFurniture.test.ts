@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { renderFurniture } from "./renderFurniture";
+import { renderFurniture, buildFurnitureElement } from "./renderFurniture";
 import { createFurnitureItem } from "./model";
 import { WATERCOLOR_ASSETS } from "@/data/watercolorAssets";
 
@@ -154,6 +154,20 @@ describe("renderFurniture", () => {
       renderFurniture(c, [createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 })]);
       expect(box(c, 1).querySelector<HTMLElement>(".sc-furniture--art")!.style.pointerEvents).toBe("none");
     });
+  });
+
+  it("art behind the text is muted so text over it stays readable", () => {
+    const under = buildFurnitureElement(createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { z: "under", props: { src: "/a.png", opacity: 40 } }));
+    expect(under.style.opacity).toBe("0.4");
+    expect(under.style.mixBlendMode).toBe("multiply");
+    const dflt = buildFurnitureElement(createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { z: "under", props: { src: "/a.png" } }));
+    expect(dflt.style.opacity).toBe("0.4");
+  });
+
+  it("art in front of the text is shown at full strength", () => {
+    const over = buildFurnitureElement(createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { z: "over", props: { src: "/a.png", opacity: 40 } }));
+    expect(over.style.opacity).toBe("");
+    expect(over.style.mixBlendMode).toBe("");
   });
 
   it("is idempotent — re-render replaces, does not stack", () => {

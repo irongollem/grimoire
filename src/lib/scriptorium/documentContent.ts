@@ -137,10 +137,11 @@ function normalizeJsonDoc(doc: JSONContent, chapterId: string): NormalizedConten
  *
  * There is no `data-block-id` on markup this old, so every decoration found
  * this way anchors to page 1 — the same fallback the block-anchored lift uses
- * when there is no preceding block. Absolute-position images need no such
- * pre-pass: `ScriptoriumImage` still parses `data-layout-mode="absolute"`
- * directly, so `normalizeJsonDoc` lifts them the same way it would for JSON
- * input, after the HTML has already gone through Tiptap's own parser.
+ * when there is no preceding block. An absolute-position image
+ * (`img[data-layout-mode="absolute"]`) is lifted in the same pre-pass, through
+ * the same mapping as its JSON form: the image node no longer has that mode
+ * (#1175, a picture placed on the page is art furniture), so the schema would
+ * otherwise read it as an ordinary inline image.
  */
 export function htmlToScriptoriumJson(html: string, chapterId: string): NormalizedContent {
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -190,6 +191,20 @@ export function htmlToScriptoriumJson(html: string, chapterId: string): Normaliz
       }
       el.remove();
     });
+
+  doc.body.querySelectorAll('img[data-layout-mode="absolute"]').forEach((img) => {
+    const legacy: JSONContent = {
+      type: "image",
+      attrs: {
+        src: img.getAttribute("src"),
+        width: img.getAttribute("width"),
+        posTop: img.getAttribute("data-pos-top"),
+        posLeft: img.getAttribute("data-pos-left"),
+      },
+    };
+    furniture.push(legacyDecorationToFurniture(legacy, anchor));
+    (img.closest(".sc-img-wrap") ?? img).remove();
+  });
 
   const json = generateJSON(doc.body.innerHTML, createScriptoriumExtensions()) as JSONContent;
   const lifted = normalizeJsonDoc(json, chapterId);

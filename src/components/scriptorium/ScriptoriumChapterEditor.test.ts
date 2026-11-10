@@ -37,7 +37,7 @@ const chapter: ScriptoriumChapter = {
 
 function open() {
   const wrapper = mount(ScriptoriumChapterEditor, {
-    props: { chapter, documentId: "d1", theme: "onednd2024", docType: "custom", isTwoColumn: false, inkFriendly: false },
+    props: { chapter, documentId: "d1", theme: "onednd2024", docType: "custom", pageSize: "A4", isTwoColumn: false, inkFriendly: false, furniture: [], selectedFurnitureId: null },
     global: {
       stubs: {
         ScriptoriumEditorToolbar: true,

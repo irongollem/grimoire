@@ -10,6 +10,7 @@
 @import "./scriptorium/theme-journal.css";
 @import "./scriptorium/theme-plain.css";
 @import "./scriptorium-editor.css";
+@import "./scriptorium-page-flow.css";
 
 
 /* App stylesheet manifest. Order matters: fonts and Tailwind first, then tokens,

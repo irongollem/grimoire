@@ -80,6 +80,17 @@ describe("fetchHandout", () => {
     expect(fake.calls.some((c) => c.kind === "table" && c.target === "scriptorium_chapters")).toBe(false);
   });
 
+  it("keeps only the placed art a reader can draw, so a malformed or script-capable entry never reaches the page", async () => {
+    fake.onRpc("get_player_handout", () => ({
+      ...handout,
+      chapter: {
+        ...handout.chapter,
+        art: [{ blockId: "b1", src: "https://x.test/a.webp" }, { blockId: "b2", src: "javascript:alert(1)" }, { src: "https://x.test/b.webp" }],
+      },
+    }));
+    expect((await fetchHandout("mine-new", null))?.chapter?.art).toEqual([{ blockId: "b1", src: "https://x.test/a.webp" }]);
+  });
+
   it("returns null when the server refuses a withdrawn handout", async () => {
     fake.failNext("get_player_handout", { message: "Not authorized", code: "42501" });
     expect(await fetchHandout("mine-new", null)).toBeNull();

@@ -32,13 +32,6 @@ describe("ScriptoriumImage width", () => {
     const html = generateHTML(image({ width: "200", dataAlign: "right" }), EXT);
     expect(html).toMatch(/width:\s*200px;/);
   });
-
-  it("keeps a percent width on the absolute wrapper and survives a round trip", () => {
-    const html = generateHTML(image({ width: "100%", layoutMode: "absolute", posTop: "10px" }), EXT);
-    expect(html).not.toContain("%px");
-    const back = generateJSON(html, EXT) as JSONContent;
-    expect(back.content?.[0].attrs).toMatchObject({ width: "100%" });
-  });
 });
 
 describe("ScriptoriumImage alignment and layout", () => {
@@ -66,15 +59,16 @@ describe("ScriptoriumImage alignment and layout", () => {
     expect(generateHTML(image({ layoutMode: "wrapRight", gutterBleed: false }), EXT)).not.toContain("sc-img-wrap--gutter");
   });
 
-  it("positions only an absolute image, and only on the sides that were set", () => {
-    const abs = generateHTML(image({ layoutMode: "absolute", posTop: "10px", posLeft: "20px" }), EXT);
-    expect(abs).toMatch(/style="top:\s*10px;\s*left:\s*20px;/);
-    expect(abs).not.toContain("right:");
-    const wrapped = generateHTML(image({ layoutMode: "wrapLeft", posTop: "10px" }), EXT);
-    expect(wrapped).not.toMatch(/top:\s*10px/);
+  it("an old pasted absolute image parses as inline, not as a mode nothing draws", () => {
+    const html =
+      '<div class="sc-img-wrap sc-img-wrap--absolute"><img data-layout-mode="absolute" data-pos-top="10px" src="https://example.com/a.webp"></div>';
+    const attrs = (generateJSON(html, EXT) as JSONContent).content?.[0].attrs;
+    expect(attrs?.layoutMode).toBe("inline");
+    expect(attrs).not.toHaveProperty("posTop");
   });
 
-  it("writes no position attributes for an image that has none", () => {
-    expect(generateHTML(image({}), EXT)).not.toContain("data-pos-");
+  it("keeps a wrap mode through an HTML round trip", () => {
+    const html = generateHTML(image({ layoutMode: "wrapRight" }), EXT);
+    expect((generateJSON(html, EXT) as JSONContent).content?.[0].attrs?.layoutMode).toBe("wrapRight");
   });
 });

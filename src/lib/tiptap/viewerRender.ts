@@ -111,7 +111,7 @@ function isAllowedLinkHref(href: string): boolean {
 const IMAGE_DATA_URI = /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);/i;
 
 /** Network and relative images, blob: previews and raster data: URIs; never script-capable schemes. */
-function isSafeImageSrc(src: string): boolean {
+export function isSafeImageSrc(src: string): boolean {
   const cleaned = src.replace(SCHEME_NOISE, "");
   if (IMAGE_DATA_URI.test(cleaned)) return true;
   const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(cleaned);

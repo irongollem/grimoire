@@ -139,24 +139,6 @@ const CASES: Case[] = [
       ]),
     expectAttrs: { src: "https://example.com/a.webp", width: "220", dataAlign: "left", layoutMode: "inline" },
   },
-  {
-    label: "scriptoriumImage absolute mode preserves position offsets",
-    type: "image",
-    build: () =>
-      doc([
-        {
-          type: "image",
-          attrs: {
-            src: "https://example.com/b.webp",
-            width: "300",
-            layoutMode: "absolute",
-            posTop: "40px",
-            posLeft: "20px",
-          },
-        },
-      ]),
-    expectAttrs: { src: "https://example.com/b.webp", layoutMode: "absolute", posTop: "40px", posLeft: "20px" },
-  },
 ];
 
 describe("Scriptorium node parseHTML/renderHTML round trips", () => {

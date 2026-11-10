@@ -2,7 +2,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(61);
+select plan(63);
 
 -- A Scriptorium document is a book of chapters (#1115 story 13, 20261029222021).
 --
@@ -70,6 +70,20 @@ insert into public.scriptorium_chapters (id, document_id, position, title, word_
   ('98300000-0000-4000-8000-0000000000a8', '98300000-0000-4000-8000-000000000085', 0, 'Hidden', 1,
    '{"type":"doc","content":[{"type":"secretBlock","content":[{"type":"entityEmbed","attrs":{"entityType":"npc","entityId":"98300000-0000-4000-8000-000000000020","showArt":false,"reveal":null}}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"entityEmbed","attrs":{"entityType":"npc","entityId":"98300000-0000-4000-8000-000000000020","showArt":false,"reveal":null}}]}]}]}');
 
+-- 86: a shared handout whose furniture places pictures on its blocks (#1175).
+insert into public.scriptorium_documents (id, user_id, campaign_id, title, player_visible_to, page_furniture) values
+  ('98300000-0000-4000-8000-000000000086', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'Placed art', array['98300000-0000-4000-8000-000000000030']::uuid[],
+   '[{"id":"f1","kind":"art","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"under","props":{"src":"a.webp","opacity":60}},
+     {"id":"f2","kind":"art","anchor":{"type":"block","blockId":"s1"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"secret.webp"}},
+     {"id":"f3","kind":"art","anchor":{"type":"block","blockId":"d1"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"deep.webp"}},
+     {"id":"f4","kind":"art","anchor":{"type":"page","chapterId":"98300000-0000-4000-8000-0000000000a9","page":1},"x":10,"y":10,"width":40,"z":"over","props":{"src":"page.webp"}},
+     {"id":"f5","kind":"watercolor","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"under","props":{"variant":1}},
+     {"id":"f6","kind":"art","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"over","props":{"src":""}},
+     {"id":"f7","kind":"art","anchor":{"type":"block"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"orphan.webp"}}]'::jsonb);
+insert into public.scriptorium_chapters (id, document_id, position, title, word_count, content) values
+  ('98300000-0000-4000-8000-0000000000a9', '98300000-0000-4000-8000-000000000086', 0, 'Letter', 3,
+   '{"type":"doc","content":[{"type":"paragraph","attrs":{"blockId":"v1"},"content":[{"type":"text","text":"seen"}]},{"type":"paragraph","attrs":{"blockId":null},"content":[{"type":"text","text":"no id yet"}]},{"type":"secretBlock","content":[{"type":"paragraph","attrs":{"blockId":"s1"},"content":[{"type":"text","text":"HIDDEN"}]}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","attrs":{"blockId":"b1"},"content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","attrs":{"blockId":"d1"},"content":[{"type":"text","text":"grim"}]}]}]}]}');
+
 -- ── The holder: reads through get_player_handout, never from the table ──────
 
 set local role authenticated;
@@ -98,6 +112,15 @@ select ok(
   (public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'chapter' -> 'content')::text not like '%HIDDEN%'
   and (public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'chapter' -> 'content')::text not like '%secretBlock%',
   'a DM-only secret block never reaches the holder (fails if the projection stops stripping secretBlock)');
+
+select is(
+  jsonb_path_query_array(public.get_player_handout('98300000-0000-4000-8000-000000000086'), '$.chapter.art[*].blockId'),
+  '["v1"]'::jsonb,
+  'a picture placed from a secret block or a Deep lens half is withheld with its block (fails if chapter.art stops checking the stripped content)');
+select is(
+  public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'art',
+  '[{"blockId":"v1","src":"a.webp"}]'::jsonb,
+  'only block-anchored art with a picture reaches the reader, as blockId and src alone (fails if page art, watercolours, empty pictures, an anchor without an id, or positions are sent)');
 
 select ok(
   (public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'chapter' -> 'content')::text not like '%grim%'

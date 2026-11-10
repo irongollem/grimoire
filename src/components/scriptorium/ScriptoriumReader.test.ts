@@ -183,6 +183,27 @@ describe("ScriptoriumReader", () => {
     expect(wrapper.find("img[data-layout-mode]").exists()).toBe(true);
   });
 
+  it("shows placed art in the flow right after the block it was placed from", async () => {
+    const content: JSONContent = {
+      type: "doc",
+      content: [
+        { type: "paragraph", attrs: { blockId: "p1" }, content: [{ type: "text", text: "First" }] },
+        { type: "paragraph", attrs: { blockId: "p2" }, content: [{ type: "text", text: "Second" }] },
+      ],
+    };
+    const wrapper = mountReader({
+      chapter: { id: "c1", title: "One", content, art: [{ blockId: "p1", src: "https://example.com/placed.webp" }] },
+    });
+    await flushEditor();
+    const blocks = Array.from((wrapper.element as HTMLElement).querySelectorAll(".ProseMirror > *"));
+    expect(blocks.map((b) => b.tagName.toLowerCase() + (b.textContent ? ":" + b.textContent : ""))).toEqual([
+      "p:First",
+      expect.stringMatching(/^(img|div)$/),
+      "p:Second",
+    ]);
+    expect(wrapper.find('img[src="https://example.com/placed.webp"]').exists()).toBe(true);
+  });
+
   it("returns to the contents when the chapter being read is deleted, instead of going blank", async () => {
     const wrapper = mountReader({ chapters: CHAPTERS, chapter: null });
     await wrapper.findAll('nav[aria-label="Chapters"] button')[1].trigger("click");

@@ -2,13 +2,15 @@
  * Scriptorium-flavoured Tiptap Image extension.
  *
  * Adds: width (px, or a percentage string), dataAlign (right/left/center → float / centering style),
- * layoutMode (inline / wrapLeft / wrapRight / absolute), gutterBleed flag, and
- * absolute-position offsets (posTop/posLeft/posRight/posBottom).
+ * layoutMode (inline / wrapLeft / wrapRight) and a gutterBleed flag.
+ *
+ * A picture placed freely on the page is page furniture of kind "art"
+ * (PageFurnitureItem), not an image mode. Old HTML saying
+ * data-layout-mode="absolute" parses as inline.
  *
  * In `inline` mode the node renders as a bare <img> with inline float style.
- * In wrap/absolute modes it renders inside a `<div class="sc-img-wrap …">`
- * wrapper so the layout classes land on a block-level container; the wrapper
- * also carries the absolute offsets when applicable.
+ * In wrap modes it renders inside a `<div class="sc-img-wrap …">` wrapper so
+ * the layout classes land on a block-level container.
  */
 
 import Image from "@tiptap/extension-image";
@@ -61,7 +63,10 @@ export const ScriptoriumImage = Image.extend({
       },
       layoutMode: {
         default: "inline",
-        parseHTML: (el) => el.getAttribute("data-layout-mode") ?? "inline",
+        parseHTML: (el) => {
+          const mode = el.getAttribute("data-layout-mode");
+          return mode === "wrapLeft" || mode === "wrapRight" ? mode : "inline";
+        },
         renderHTML: (attrs) => ({
           "data-layout-mode": attrs.layoutMode ?? "inline",
         }),
@@ -74,11 +79,6 @@ export const ScriptoriumImage = Image.extend({
           "data-gutter-bleed": attrs.gutterBleed ? "true" : "false",
         }),
       },
-      // Absolute-position offsets (CSS value strings, e.g. "60px")
-      posTop:    posAttr("top"),
-      posLeft:   posAttr("left"),
-      posRight:  posAttr("right"),
-      posBottom: posAttr("bottom"),
     };
   },
   renderHTML({ HTMLAttributes }) {
@@ -93,17 +93,7 @@ export const ScriptoriumImage = Image.extend({
       .filter(Boolean)
       .join(" ");
 
-    const wrapperStyle: string[] = [];
-    if (mode === "absolute") {
-      const sides = ["data-pos-top", "data-pos-left", "data-pos-right", "data-pos-bottom"] as const;
-      for (const side of sides) {
-        const v = HTMLAttributes[side];
-        if (v) wrapperStyle.push(`${side.replace("data-pos-", "")}:${v}`);
-      }
-      if (HTMLAttributes.width) wrapperStyle.push(`width:${cssWidth(HTMLAttributes.width)}`);
-    }
-
-    // In wrap/absolute the wrapper owns layout — strip the float style off the img.
+    // In wrap modes the wrapper owns layout — strip the float style off the img.
     const imgAttrs = { ...HTMLAttributes };
     delete imgAttrs.style;
 
@@ -111,20 +101,8 @@ export const ScriptoriumImage = Image.extend({
       "div",
       {
         class: wrapperClass,
-        ...(wrapperStyle.length ? { style: wrapperStyle.join(";") } : {}),
       },
       ["img", imgAttrs],
     ];
   },
 }).configure({ inline: false, allowBase64: false });
-
-function posAttr(side: "top" | "left" | "right" | "bottom") {
-  const dataKey = `data-pos-${side}`;
-  const camelKey = `pos${side[0].toUpperCase()}${side.slice(1)}`;
-  return {
-    default: null as string | null,
-    parseHTML: (el: HTMLElement) => el.getAttribute(dataKey) ?? null,
-    renderHTML: (attrs: Record<string, unknown>) =>
-      attrs[camelKey] ? { [dataKey]: attrs[camelKey] as string } : {},
-  };
-}

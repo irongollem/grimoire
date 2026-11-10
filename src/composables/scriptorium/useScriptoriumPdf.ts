@@ -100,7 +100,7 @@ const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
  * the print sheet uses margin:0 and the page's own margins (baked in by
  * Paged.js) provide the gutter. print-color-adjust keeps the parchment. The
  * page's text area gets back the PRINT_SLACK_PX it was fitted without
- * (pagedPreviewCss.ts); this sheet comes last, so it wins. A table header
+ * (pageGeometry.ts); this sheet comes last, so it wins. A table header
  * prints once per table piece, as it was measured: Paged.js already copies
  * the header into each page's piece, and Chrome's print layout (not its
  * screen layout) also repeats it at a column break, which made a name table

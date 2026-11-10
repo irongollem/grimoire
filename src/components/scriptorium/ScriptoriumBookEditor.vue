@@ -64,14 +64,20 @@
           :document-id="doc.id"
           :theme="settings.draft.theme"
           :doc-type="doc.doc_type"
+          :page-size="settings.draft.pageSize"
           :is-two-column="settings.draft.isTwoColumn"
           :ink-friendly="settings.draft.inkFriendly"
           :pages-label="pagesLabel"
+          :flow="mode === 'write' || flow?.chapterId !== chapter.id ? null : flow"
           @edit="onEdit"
           @user-edit="onUserEdit"
           @status="onChapterStatus"
           @ready="onEditorReady"
+          :furniture="settings.draft.furniture"
+          :selected-furniture-id="selectedFurnitureId"
           @add-furniture="addFurniture"
+          @update:furniture="settings.patch({ furniture: $event })"
+          @update:selected-furniture-id="selectedFurnitureId = $event"
         >
           <!-- A handout is one chapter on one paper: it never grows a second (#1115). -->
           <template #footer>
@@ -108,6 +114,7 @@
           @update:furniture="settings.patch({ furniture: $event })"
           @update:selected-furniture-id="selectedFurnitureId = $event"
           @layout="layout = $event"
+          @flow="flow = $event"
           @close="mode = lastMode"
         >
           <template #layer="{ host }">
@@ -205,6 +212,7 @@ import { markEdited } from "@/ai/provenance";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 import { useBookChapterHtml, type LiveChapter } from "@/composables/scriptorium/useBookChapterHtml";
+import type { ChapterFlow } from "@/lib/scriptorium/pageFlow/types";
 import { useBookSettings } from "@/composables/scriptorium/useBookSettings";
 import { useUpdateScriptoriumDocument, useDeleteScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import {
@@ -343,6 +351,8 @@ function onEdit(json: JSONContent) {
 }
 
 const layout = ref<BookLayoutResult | null>(null);
+/** Where the open chapter's pages and columns start in the preview: the editor draws them (#1175). Write mode lays nothing out, so it shows none. */
+const flow = ref<ChapterFlow | null>(null);
 const pageRanges = computed(() => {
   const out: Record<string, { first: string | null; last: string | null }> = {};
   for (const span of layout.value?.chapters ?? []) out[span.id] = { first: span.firstLabel, last: span.lastLabel };

@@ -57,7 +57,7 @@
            own scoped styles below undo everything that assumes a physical page. -->
       <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass">
         <LoadingSpinner v-if="loading || !shown" />
-        <ScriptoriumDocumentView v-else :document="book" :content="shown.content" layout="reader" :audience="audience" />
+        <ScriptoriumDocumentView v-else :document="book" :content="shown.content" :art="shown.art" layout="reader" :audience="audience" />
       </div>
 
       <footer v-if="multiple && shownIndex >= 0" class="flex justify-between gap-2 border-t border-border px-3 py-2">
@@ -108,6 +108,7 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
 import { IconChevronLeft } from "@/lib/icons";
 import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
+import type { PlacedArt } from "@/lib/scriptorium/placedArtInFlow";
 import { documentScopeOf } from "@/lib/scriptorium/documentScope";
 import { DOC_TYPES } from "@/lib/scriptorium/editorConstants";
 import { KIND_LABELS } from "@/lib/scriptorium/documentCardMeta";
@@ -127,7 +128,7 @@ const {
   book: ReadableBook;
   chapters: { id: string; title: string }[];
   /** The chapter to show once one is chosen (the only one, for a handout); null while it loads. */
-  chapter: { id: string; title: string; content: JSONContent } | null;
+  chapter: { id: string; title: string; content: JSONContent; art?: PlacedArt[] } | null;
   loading?: boolean;
   /** Passed through to the renderer; "player" shows only what the handout
    *  itself reveals of each embedded entity (#970). */
@@ -326,7 +327,8 @@ watch(shownId, () => {
    page measure, which only crowds a single narrow column. Every image
    becomes a full-width block capped to a share of the viewport instead.
    `!important` because width/float/position are inline styles from
-   ScriptoriumImage's own renderHTML. `[data-layout-mode]` is set only by
+   ScriptoriumImage's own renderHTML. Placed art (#1175) is an image node the
+   reader inserts after its block, so it takes this same rule. `[data-layout-mode]` is set only by
    that node — never by the cover's hand-built <img> tags in coverPage.ts —
    so the cover art above is untouched. */
 :deep(img[data-layout-mode]) {
@@ -348,8 +350,7 @@ watch(shownId, () => {
    measure (.sc-theme .sc-img-wrap--wrapLeft/-wrapRight, theme-base.css) —
    needed there, wrong here where the wrapper IS the column. Unlike the
    properties above, max-width is never set inline (scriptoriumImage.ts only
-   puts top/left/right/bottom/width inline, and only in the "absolute" layout
-   mode), so this is a pure CSS-vs-CSS fight a more specific selector settles
+   puts width inline), so this is a pure CSS-vs-CSS fight a more specific selector settles
    outright — three classes (.sc-theme + the base + the modifier) beats the
    theme rule's two, no !important needed now that the theme's own image
    rules have settled (#915 story 6 round 2). */

@@ -46,8 +46,16 @@ function str(v: unknown, fallback = ""): string {
   return typeof v === "string" ? v : typeof v === "number" ? String(v) : fallback;
 }
 
+/**
+ * How strong art behind the text is when the DM has not set it (the
+ * inspector's "Strength"). 40 was chosen by looking at a dark portrait behind
+ * a paragraph on every paper (#1175): at 60 the ink over its darkest parts
+ * read grey; at 40 it stays black and the picture still reads.
+ */
+export const DEFAULT_UNDER_ART_OPACITY = 40;
+
 /** Build the decoration element for one item (positioned, no drag handles). */
-function buildElement(item: PageFurnitureItem): HTMLElement {
+export function buildFurnitureElement(item: PageFurnitureItem): HTMLElement {
   const zIndex = item.z === "over" ? "6" : "0";
 
   if (item.kind === "watercolor") {
@@ -76,6 +84,9 @@ function buildElement(item: PageFurnitureItem): HTMLElement {
   }
 
   if (item.kind === "art") {
+    // Art behind the text is muted and multiplied into the paper, so text over
+    // it stays readable on every paper. Art in front is shown as it is.
+    const behind = item.z === "under";
     const img = document.createElement("img");
     img.src = str(item.props.src);
     img.alt = "";
@@ -85,6 +96,7 @@ function buildElement(item: PageFurnitureItem): HTMLElement {
       `top:${item.y}%`,
       `width:${item.width}%`,
       "height:auto",
+      ...(behind ? [`opacity:${num(item.props.opacity, DEFAULT_UNDER_ART_OPACITY) / 100}`, "mix-blend-mode:multiply"] : []),
       "pointer-events:none",
       `z-index:${zIndex}`,
     ].join(";");
@@ -140,6 +152,26 @@ function decorate(el: HTMLElement, item: PageFurnitureItem): HTMLElement {
   return el;
 }
 
+/**
+ * Make a built decoration a pointer target, outlined when selected. The
+ * watermark's wrapper spans the whole page, and making *that* a target would
+ * swallow every click on the page, so only its text span is interactive; every
+ * other kind is its own bounded element. Editing lifts the decoration above the
+ * page content (covers and body text, even transparent regions, otherwise
+ * intercept the click); the true under/over layering is the non-interactive
+ * render used for print and the reader.
+ */
+export function makeGrabbable(el: HTMLElement, item: PageFurnitureItem, selected: boolean): void {
+  const hit = item.kind === "watermark" ? ((el.firstElementChild as HTMLElement | null) ?? el) : el;
+  hit.style.pointerEvents = "auto";
+  hit.style.cursor = "move";
+  el.style.zIndex = item.z === "over" ? "31" : "30";
+  if (selected) {
+    hit.style.outline = "2px solid oklch(0.6 0.2 250)";
+    hit.style.outlineOffset = "2px";
+  }
+}
+
 export interface RenderFurnitureOptions {
   /** Editor mode: make decorations clickable/draggable and outline the selected one. */
   interactive?: boolean;
@@ -173,26 +205,8 @@ export function renderFurniture(
     const page = resolvePage(pages, item.anchor, chapterPages);
     if (!page) continue;
     const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
-    const el = buildElement(item);
-    if (opts.interactive) {
-      // The clickable/draggable target. The watermark's wrapper spans the whole
-      // page — making *that* a pointer target would swallow every click on the
-      // page, so only its text span is interactive; every other kind is its own
-      // bounded element.
-      const hit =
-        item.kind === "watermark" ? (el.firstElementChild as HTMLElement | null) ?? el : el;
-      hit.style.pointerEvents = "auto";
-      hit.style.cursor = "move";
-      // Editing always lifts the decoration above the page content (covers and
-      // body text — even transparent regions — otherwise intercept the click),
-      // so every decoration stays grabbable. The true under/over layering is
-      // applied by the non-interactive render used for print and the reader.
-      el.style.zIndex = item.z === "over" ? "31" : "30";
-      if (item.id === opts.selectedId) {
-        hit.style.outline = "2px solid oklch(0.6 0.2 250)";
-        hit.style.outlineOffset = "2px";
-      }
-    }
+    const el = buildFurnitureElement(item);
+    if (opts.interactive) makeGrabbable(el, item, item.id === opts.selectedId);
     // Display layering: "under" goes behind the body content (earlier in the
     // DOM), "over" after. In interactive mode everything is appended last (and
     // z-lifted above) so it can be grabbed regardless of page content.

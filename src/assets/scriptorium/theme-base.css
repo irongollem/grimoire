@@ -116,6 +116,15 @@
      apart, and a sidebar's bar tips never collide with the box above it. */
   --sc-box-margin: 1.15em 0;
 }
+/* A page's base type, stated once for both sides: the preview/print page and
+   the editor sheet, so they cannot differ. Specificity is deliberately low
+   ((0,1,0) and (0,2,0)): the paper themes' own size and leading select
+   `.theme-x .pagedjs_page` and `.phb-editor.theme-x .ProseMirror` and win. */
+.pagedjs_page,
+.phb-editor .ProseMirror {
+  font-size: 16px;
+  line-height: 1.5;
+}
 .sc-theme h1 {
   font-family: var(--sc-heading-font);
   font-size: 1.25rem;
@@ -1126,10 +1135,6 @@
    the picture instead of wrapping beside it. */
 .sc-theme .sc-float-group {
   display: flow-root;
-}
-.sc-theme .sc-img-wrap--absolute {
-  position: absolute;
-  z-index: 10;
 }
 
 /* ── Linked entity stat blocks (#915 story 6) ───────────────────────────────

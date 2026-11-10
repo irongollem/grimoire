@@ -7,10 +7,11 @@
  * callouts, stat blocks, tables, quotes) comes from the shared theme files in
  * src/assets/scriptorium/ — the same CSS that styles the preview pages and
  * the PDF export. This file contains ONLY:
- *   1. the manuscript sheet itself (parchment surface, page text width)
- *   2. editor-only affordances: placeholder, selection outlines, and
- *      flattened/labelled placeholders for nodes that only make sense on a
- *      real paginated page (covers, watermarks, page-break markers, spacers).
+ *   1. the sheet itself: the real page, its size, margins and type (#1175)
+ *   2. editor-only affordances: placeholder, selection outlines, markers
+ *      that take no room (page and column breaks, spacers, numbering), and
+ *      collapsed placeholders for what only a laid-out page can draw (covers,
+ *      the table of contents).
  *
  * All rules are scoped under .phb-editor. Imported globally from main.css
  * (after the theme files, so equal-specificity affordances win the cascade).
@@ -30,9 +31,12 @@
 }
 
 /* ── The manuscript sheet ─────────────────────────────────────────────────── */
-/* Page text width = A4 page (794px) minus the .phb-page side padding (2×68px),
-   so galley line lengths track the single-column book measure. px here is
-   intrinsic page geometry, matching EDITOR_PAGE_DIMENSIONS_PX. */
+/* The sheet is the real page: the chosen page size with the same margins the
+   preview prints with. Both come from src/lib/scriptorium/pageGeometry.ts as
+   the --sc-* custom properties the chapter editor sets on .phb-editor, so a
+   line breaks here where it breaks in the book. The font size and line height
+   are the book's own (theme-base.css). The chapter editor scales the sheet
+   with a transform, so it never sets its own max-width or centring. */
 .phb-editor .ProseMirror {
   /* /assets/scriptorium/page-background.webp is deliberately excluded from
      src/generated/artManifest.json (see MANIFEST_EXCLUSIONS in
@@ -44,16 +48,31 @@
   background:
     url("/assets/scriptorium/page-background.webp") center / cover repeat-y,
     var(--sc-page-bg);
-  max-width: 658px;
-  min-height: 100%;
-  margin-inline: auto;
-  padding: 2.5rem 2rem 3rem;
+  box-sizing: border-box;
+  position: relative;
+  /* A stacking context of its own, so the furniture underlay (z-index -1) paints
+     above this paper and below the text (FurnitureUnderlay, #1175). */
+  isolation: isolate;
+  width: var(--sc-page-width);
+  min-height: var(--sc-page-height);
+  padding: var(--sc-margin-top) var(--sc-margin-right) var(--sc-margin-bottom) var(--sc-margin-left);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   font-family: var(--sc-body-font);
   color: var(--sc-ink);
-  line-height: 1.65;
-  font-size: 15px;
   outline: none;
+  /* Tiptap's own stylesheet turns ligatures off and sets break-spaces, where a
+     space at the end of a line takes room instead of hanging. Both change how
+     wide a line of the book's fonts is, so the sheet broke lines a word
+     earlier than the printed page (#1175). The page sets text like this. */
+  white-space: pre-wrap;
+  font-variant-ligatures: normal;
+  font-feature-settings: normal;
+}
+/* A two-column chapter, until real columns are laid in: the text is written in
+   a strip one column wide where column 1 sits, so lines break where the
+   preview's columns break. */
+.phb-editor.sc-sheet--column-strip .ProseMirror {
+  padding-right: calc(var(--sc-margin-right) + var(--sc-column-width) + var(--sc-column-gap));
 }
 .phb-editor.ink-friendly .ProseMirror {
   background: #fff;
@@ -70,28 +89,41 @@
 
 .phb-editor .ProseMirror img {
   max-width: 100%;
-  max-height: 640px;
+  /* The preview's cap (pagedPreviewCss.ts): 80% of the page height less its
+     top and bottom margins, without the print slack --sc-content-height has. */
+  max-height: calc((var(--sc-page-height) - var(--sc-margin-top) - var(--sc-margin-bottom)) * 0.8);
 }
 
-/* ── Page break marker (pageBreak node + legacy hr) ──────────────────────── */
-/* The paged book maps these to `break-before: page` (print.css); in the galley
-   they stay visible as a labelled divider. Legacy <hr> is kept until the
-   v1→v2 migration converts it to a pageBreak node. */
+/* ── Markers take no room ─────────────────────────────────────────────────
+   The sheet is the printed page (#1175), so a marker the page does not draw
+   must not move the text either: each one is drawn with an outline, a
+   zero-height line or a label positioned out of the flow, never with margin,
+   padding or a border the printed page lacks. The printed rules they mirror
+   are in theme-base.css (page break, spacers, column break, wide block). */
+
+/* Page break (pageBreak node + legacy hr): a dashed line where the break is. */
 .phb-editor .ProseMirror hr,
 .phb-editor .ProseMirror .sc-page-break {
   display: block;
   height: 0;
+  margin: 0;
   border: none;
-  border-top: 1px dashed color-mix(in srgb, var(--sc-accent) 55%, transparent);
-  margin: 1rem 0;
   position: relative;
   overflow: visible;
+}
+.phb-editor .ProseMirror hr::before,
+.phb-editor .ProseMirror .sc-page-break::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  border-top: 1px dashed color-mix(in srgb, var(--sc-accent) 55%, transparent);
+  pointer-events: none;
 }
 .phb-editor .ProseMirror hr::after,
 .phb-editor .ProseMirror .sc-page-break::after {
   content: "page break";
   position: absolute;
-  top: 50%;
+  top: 0;
   left: 50%;
   transform: translate(-50%, -50%);
   font-family: system-ui, sans-serif;
@@ -104,13 +136,13 @@
   pointer-events: none;
 }
 
-/* ── Spacer nodes ────────────────────────────────────────────────────────── */
+/* Spacers: their own height, outlined. */
 .phb-editor .ProseMirror .sc-spacer-v {
   display: block;
-  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
-  border-radius: 2px;
   position: relative;
-  min-height: 4px;
+  outline: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
+  outline-offset: -1px;
+  border-radius: 2px;
 }
 .phb-editor .ProseMirror .sc-spacer-v::after {
   content: "spacer";
@@ -127,29 +159,30 @@
 }
 .phb-editor .ProseMirror .sc-spacer-h {
   display: inline-block;
-  border: none;
-  border-bottom: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
   vertical-align: bottom;
-  min-width: 4px;
   height: 1em;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--sc-ink) 35%, transparent);
 }
 
-/* ── Column break ────────────────────────────────────────────────────────── */
-/* The galley is single-column; show the marker as a labelled divider. */
+/* Column break: a labelled line. On the editor's two-column pages it breaks
+   the column, as it does in print; on one column it only marks the place. */
 .phb-editor .ProseMirror .sc-column-break {
-  break-before: auto;
   display: block;
   height: 0;
-  border-top: 1px dashed color-mix(in srgb, var(--sc-col-rule, currentColor) 80%, transparent);
-  margin: 0.5rem 0;
+  margin: 0;
   position: relative;
+  break-before: auto;
 }
-.phb-editor .ProseMirror .sc-column-break::after {
+.phb-editor .ProseMirror.sc-flow-columns .sc-column-break {
+  break-before: column;
+}
+.phb-editor .ProseMirror .sc-column-break::before {
   content: "column break";
   position: absolute;
-  top: 50%;
+  top: 0;
   left: 50%;
   transform: translate(-50%, -50%);
+  border-top: 1px dashed color-mix(in srgb, var(--sc-col-rule, currentColor) 80%, transparent);
   font-family: system-ui, sans-serif;
   font-size: 9px;
   letter-spacing: 0.06em;
@@ -159,14 +192,11 @@
   pointer-events: none;
 }
 
-/* ── Wide block (column-span only means something on a two-column page) ───── */
+/* Wide block: the page's own span and margin (theme-base.css), outlined. */
 .phb-editor .ProseMirror .sc-wide {
-  column-span: none;
   outline: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
   outline-offset: 3px;
   border-radius: 2px;
-  padding: 0.25rem;
-  margin: 0.5rem 0;
   position: relative;
 }
 .phb-editor .ProseMirror .sc-wide::before {
@@ -179,45 +209,6 @@
   letter-spacing: 0.06em;
   color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
   pointer-events: none;
-}
-
-/* ── Watercolor image (kept in flow, marked) ─────────────────────────────── */
-.phb-editor .ProseMirror img[data-type="watercolor"] {
-  outline: 1px dashed color-mix(in srgb, var(--sc-ink) 40%, transparent);
-  outline-offset: 2px;
-  border-radius: 2px;
-  mix-blend-mode: multiply;
-}
-
-/* ── Watermark node (flattened placeholder) ──────────────────────────────── */
-.phb-editor .ProseMirror div[data-type="watermark"] {
-  position: static !important;
-  display: block;
-  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
-  border-radius: 2px;
-  padding: 0.25rem 0.75rem;
-  margin: 0.5rem 0;
-  overflow: hidden;
-  max-height: 3rem;
-}
-.phb-editor .ProseMirror div[data-type="watermark"] span {
-  position: static !important;
-  font-size: 1.25rem;
-  transform: none !important;
-  opacity: 0.45;
-}
-
-/* ── Artist credit node (flattened placeholder) ──────────────────────────── */
-.phb-editor .ProseMirror div[data-type="artistCredit"] {
-  position: static !important;
-  display: block;
-  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
-  border-radius: 2px;
-  padding: 0.15rem 0.5rem;
-  margin: 0.25rem 0;
-  font-size: 0.7rem;
-  font-style: italic;
-  opacity: 0.65;
 }
 
 /* ── Cover page atom (collapsed placeholder card) ────────────────────────── */
@@ -263,22 +254,33 @@
   display: none !important;
 }
 
-/* ── Page numbering markers (visible pills in the galley) ────────────────── */
+/* ── Page numbering markers ──────────────────────────────────────────────
+   Invisible on the printed page (theme-base.css), so here they take no height
+   either: a pill hung in the left margin beside where they sit. */
 .phb-editor .ProseMirror .sc-skip-counting,
 .phb-editor .ProseMirror .sc-reset-counting {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.1rem 0.5rem;
+  display: block;
+  height: 0;
+  position: relative;
+  cursor: default;
+  user-select: none;
+}
+.phb-editor .ProseMirror .sc-skip-counting::before,
+.phb-editor .ProseMirror .sc-reset-counting::before {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  margin-right: 0.5rem;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 0.1rem 0.4rem;
   border: 1px dashed color-mix(in srgb, var(--sc-ink) 40%, transparent);
   border-radius: 3px;
   font-family: system-ui, sans-serif;
   font-size: 10px;
   letter-spacing: 0.05em;
   color: color-mix(in srgb, var(--sc-ink) 55%, transparent);
-  background: color-mix(in srgb, var(--sc-ink) 5%, transparent);
-  cursor: default;
-  user-select: none;
-  margin: 0.25rem 0;
+  background: color-mix(in srgb, var(--sc-ink) 5%, var(--sc-page-bg));
 }
 .phb-editor .ProseMirror .sc-skip-counting::before {
   content: "skip #";
@@ -307,13 +309,6 @@
   content: "Table of Contents (auto-generated on preview)";
 }
 
-/* ── Absolutely-positioned image: kept in flow in the galley ─────────────── */
-.phb-editor .ProseMirror .sc-img-wrap--absolute {
-  position: static;
-  outline: 2px dashed oklch(0.7 0.15 250 / 0.6);
-  outline-offset: 2px;
-}
-
 /* ── ProseMirror selection outline ──────────────────────────────────────── */
 .phb-editor .ProseMirror .ProseMirror-selectednode,
 .phb-editor .ProseMirror img.ProseMirror-selectednode {
@@ -325,4 +320,23 @@
   outline: 2px solid oklch(0.6 0.2 250);
   outline-offset: 0px;
   background: oklch(0.6 0.2 250 / 0.2);
+}
+
+/* ── Page furniture on the editor's pages (#1175) ────────────────────────── */
+/* Art behind the text: one surface inside the root, above its paper, below its text. */
+.phb-editor .ProseMirror .sc-furniture-underlay {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+/* Furniture in front: over the sheet, taking no pointer events itself so the
+   text stays writable (the items turn their own on). */
+.sc-editor-furniture {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
 }

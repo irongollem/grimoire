@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "./editorConstants";
-import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR, PRINT_SLACK_PX } from "./pagedPreviewCss";
+import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR } from "./pagedPreviewCss";
+import { PRINT_SLACK_PX } from "./pageGeometry";
 
 const base = { pageSize: "A4" as const, inkFriendly: false };
 

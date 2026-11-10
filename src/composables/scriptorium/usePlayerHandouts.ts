@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import type { PlayerHandout, ScriptoriumDocument } from "@/types/scriptorium.types";
+import { parsePlacedArt } from "@/lib/scriptorium/placedArtInFlow";
 import { PLAYER_HANDOUTS_KEY } from "@/lib/campaignLiveSync/registry";
 
 /**
@@ -55,7 +56,10 @@ export async function fetchHandout(id: string, chapterId: string | null): Promis
     if (error.code === NOT_AUTHORIZED) return null;
     throw error;
   }
-  return data as unknown as PlayerHandout;
+  const handout = data as unknown as PlayerHandout;
+  // `art` crosses the wire as untrusted JSON: keep only entries a reader can draw.
+  if (handout.chapter) handout.chapter.art = parsePlacedArt((handout.chapter as { art?: unknown }).art);
+  return handout;
 }
 
 /** The handouts shared with the signed-in player in the active campaign. */

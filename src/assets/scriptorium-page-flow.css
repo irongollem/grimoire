@@ -1,0 +1,75 @@
+/*
+ * Page gaps and column breaks the editor draws from the preview's layout (#1175,
+ * lib/tiptap/pageFlow.ts). px is kept here: this is page geometry, as in
+ * theme-base.css, and a rem value would scale it away from the printed page.
+ * The gap's height is set by the plugin; these rules only paint it.
+ */
+
+.phb-editor .ProseMirror .sc-flow-gap {
+  position: relative;
+  display: block;
+  height: 0;
+  pointer-events: none;
+  user-select: none;
+}
+/* The fill above the band stays transparent: the page's own paper shows. The
+   band is the app background across the sheets' gap, full sheet width, with
+   the next page's top margin left below it. */
+.phb-editor .ProseMirror .sc-flow-gap-band {
+  position: absolute;
+  left: calc(-1 * var(--sc-margin-left));
+  right: calc(-1 * var(--sc-margin-right));
+  bottom: var(--sc-margin-top);
+  height: var(--sc-sheet-gap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--sc-ink) 55%, transparent);
+}
+
+.phb-editor .ProseMirror .sc-flow-colbreak {
+  display: block;
+  height: 0;
+  break-before: column;
+}
+
+.phb-editor .ProseMirror .sc-flow-tail {
+  display: block;
+  height: 0;
+  pointer-events: none;
+}
+
+/* In real columns the page spans are full width, and the wave-1 single-column
+   strip is off: three classes beat the strip rule's two. */
+.phb-editor .ProseMirror.sc-flow-columns .sc-flow-gap,
+.phb-editor .ProseMirror.sc-flow-columns .sc-flow-tail {
+  column-span: all;
+}
+.phb-editor.sc-sheet--column-strip .ProseMirror.sc-flow-columns {
+  padding-right: var(--sc-margin-right);
+}
+
+/* Blocks the preview's preparation reshaped (ChapterFlow.layoutClasses): the
+   same shape here. A table the preview sets across both columns spans them,
+   with the heading that names it, as theme-base.css does on the page (where
+   the table is a direct child; here Tiptap wraps it in .tableWrapper, which
+   carries the class). A picture's group ends at its paragraph, and the next
+   block starts below the picture, as .sc-float-group's flow-root does there. */
+.phb-editor .ProseMirror.sc-flow-columns > .sc-table--span,
+.phb-editor .ProseMirror.sc-flow-columns > :is(h2, h3, h4):has(+ .sc-table--span) {
+  column-span: all;
+}
+.phb-editor .ProseMirror .sc-flow-float-end + * {
+  clear: both;
+}
+/* The contents page and the covers are placeholders here but whole spans on
+   the page: spanning keeps the column row above them balanced the same way. */
+.phb-editor .ProseMirror.sc-flow-columns > nav[data-type="toc"],
+.phb-editor .ProseMirror.sc-flow-columns > [data-type="coverPage"] {
+  column-span: all;
+}

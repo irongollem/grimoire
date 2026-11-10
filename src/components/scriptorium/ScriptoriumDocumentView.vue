@@ -53,10 +53,11 @@ import { SCRIPTORIUM_THEME_KEY } from "@/lib/scriptorium/scriptoriumTheme";
 import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/lib/scriptorium/audience";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
+import { placedArtInFlow, type PlacedArt } from "@/lib/scriptorium/placedArtInFlow";
 import { scriptoriumThemeClass } from "@/lib/scriptorium/looks";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
-const { document: doc, content, layout = "page", audience = "dm" } = defineProps<{
+const { document: doc, content, layout = "page", audience = "dm", art } = defineProps<{
   /** The book's head: its look and its campaign. */
   document: Pick<ReadableBook, "theme" | "campaign_id">;
   /** The chapter to show, as the JSON object chapters are stored as. */
@@ -69,16 +70,20 @@ const { document: doc, content, layout = "page", audience = "dm" } = defineProps
    *  player-gated projections only (see EntityEmbedView.vue); "dm" is the
    *  default and today's behaviour. */
   audience?: "dm" | "player";
+  /** Pictures placed on the page, shown in the flow after the block each was placed from (#1175). */
+  art?: PlacedArt[];
 }>();
 
+const flowContent = computed(() => placedArtInFlow(content, art));
+
 const editor = useEditor({
-  content,
+  content: flowContent.value,
   editable: false,
   extensions: createScriptoriumExtensions(),
 });
 
 watch(
-  () => content,
+  flowContent,
   (next) => {
     editor.value?.commands.setContent(next);
   },

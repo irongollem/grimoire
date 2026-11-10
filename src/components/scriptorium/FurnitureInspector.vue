@@ -85,6 +85,13 @@
         <template v-else-if="item.kind === 'art'">
           <ImageUpload :model-value="str('src') || null" bucket="asset-images" placeholder="Drop art or click to upload"
             @update:model-value="patchProps({ src: $event ?? '' })" />
+          <!-- A picture behind the text is a wash, not a figure: it can be turned down so the words read. -->
+          <div v-if="item.z === 'under'" class="fi-row">
+            <span class="fi-label">Strength</span>
+            <input type="range" min="20" max="100" :value="num('opacity', DEFAULT_UNDER_ART_OPACITY)" class="fi-range"
+              @input="patchProps({ opacity: Number(($event.target as HTMLInputElement).value) })" />
+            <span class="fi-val">{{ num('opacity', DEFAULT_UNDER_ART_OPACITY) }}</span>
+          </div>
         </template>
 
         <!-- Width (watermark spans the page, so no width) + layer -->
@@ -98,15 +105,15 @@
           <span class="fi-label">Layer</span>
           <div class="flex gap-1 flex-1">
             <AppButton
-              variant="subtle" fill="muted" size="xs" class="flex-1 uppercase"
+              variant="subtle" fill="muted" size="xs" class="flex-1"
               :active="item.z === 'under'"
-              label="Behind"
+              label="Behind the text"
               @click="patch({ z: 'under' })"
             />
             <AppButton
-              variant="subtle" fill="muted" size="xs" class="flex-1 uppercase"
+              variant="subtle" fill="muted" size="xs" class="flex-1"
               :active="item.z === 'over'"
-              label="Above"
+              label="In front of the text"
               @click="patch({ z: 'over' })"
             />
           </div>
@@ -135,6 +142,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ColorInput from "@/components/common/controls/ColorInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { WATERCOLOR_COUNT } from "@/data/watercolorAssets";
+import { DEFAULT_UNDER_ART_OPACITY } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 
 const { item } = defineProps<{ item: PageFurnitureItem | null }>();

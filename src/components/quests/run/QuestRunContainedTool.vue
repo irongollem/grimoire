@@ -100,6 +100,7 @@
                 class="mt-2"
                 :document="handoutRecord"
                 :content="handoutChapter.content"
+                :art="placedArtOfFurniture(handoutRecord.page_furniture)"
               />
               <p v-else class="mt-2 text-caption italic text-muted-foreground">This handout has no body yet.</p>
               <p v-if="handoutChapters.length > 1" class="mt-2 text-caption text-muted-foreground">
@@ -157,6 +158,7 @@ import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
+import { placedArtOfFurniture } from "@/lib/scriptorium/placedArtInFlow";
 import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));

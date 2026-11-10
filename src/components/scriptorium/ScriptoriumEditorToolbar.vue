@@ -208,10 +208,14 @@
         <AppButton
           variant="ghost"
           size="icon-xs"
-          tooltip="Absolute position: pin image at exact page coordinates"
-          :active="editor.getAttributes('image').layoutMode === 'absolute'"
+          :tooltip="
+            canPlaceOnPage
+              ? 'Place on the page: drag it anywhere, in front of or behind the text'
+              : 'Switch to Split to place it on its page'
+          "
           :icon="IconPin"
-          @click="editor.chain().focus().updateAttributes('image', { layoutMode: 'absolute', posTop: '60', posLeft: '40', posRight: null, posBottom: null }).run()"
+          :disabled="!canPlaceOnPage"
+          @click="emit('placeOnPage')"
         />
         <!-- Bleed-into-gutter toggle (wrap modes only) -->
         <template
@@ -226,66 +230,6 @@
           >
             <span class="text-label font-bold leading-none">⇔</span>
           </AppButton>
-        </template>
-        <!-- Absolute position inputs (absolute mode only) -->
-        <template v-if="editor.getAttributes('image').layoutMode === 'absolute'">
-          <div class="w-px h-5 bg-border mx-0.5" />
-          <label class="flex items-center gap-0.5">
-            <span class="text-label text-muted-foreground">T</span>
-            <AppInput
-              v-model.lazy="posTopModel"
-              type="number"
-              min="0"
-              max="1200"
-              tone="card"
-              size="xs"
-              :block="false"
-              placeholder="px"
-              class="w-12 h-5.5 font-mono text-2xs"
-            />
-          </label>
-          <label class="flex items-center gap-0.5">
-            <span class="text-label text-muted-foreground">L</span>
-            <AppInput
-              v-model.lazy="posLeftModel"
-              type="number"
-              min="0"
-              max="800"
-              tone="card"
-              size="xs"
-              :block="false"
-              placeholder="px"
-              class="w-12 h-5.5 font-mono text-2xs"
-            />
-          </label>
-          <label class="flex items-center gap-0.5">
-            <span class="text-label text-muted-foreground">R</span>
-            <AppInput
-              v-model.lazy="posRightModel"
-              type="number"
-              min="0"
-              max="800"
-              tone="card"
-              size="xs"
-              :block="false"
-              placeholder="px"
-              class="w-12 h-5.5 font-mono text-2xs"
-            />
-          </label>
-          <label class="flex items-center gap-0.5">
-            <span class="text-label text-muted-foreground">B</span>
-            <AppInput
-              v-model.lazy="posBottomModel"
-              type="number"
-              min="0"
-              max="1200"
-              tone="card"
-              size="xs"
-              :block="false"
-              placeholder="px"
-              class="w-12 h-5.5 font-mono text-2xs"
-            />
-          </label>
         </template>
         <!-- Edit in Illuminator — only for asset-images bucket URLs -->
         <template v-if="selectedImageIsSupabase && hasDoc">
@@ -338,10 +282,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import type { Editor } from "@tiptap/vue-3";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
 import {
   IMAGE_SIZES,
 } from "@/lib/scriptorium/editorConstants";
@@ -373,12 +315,15 @@ const {
   showCoverInspector = false,
   selectedImageIsSupabase = false,
   hasDoc = false,
+  canPlaceOnPage = false,
 } = defineProps<{
   editor: Editor | undefined;
   showBlockPicker?: boolean;
   showCoverInspector?: boolean;
   selectedImageIsSupabase?: boolean;
   hasDoc?: boolean;
+  /** The editor shows the laid-out pages (Split), so a picture can be placed where it lands. */
+  canPlaceOnPage?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -386,26 +331,8 @@ const emit = defineEmits<{
   openBlockPicker: [];
   openCoverInspector: [];
   editInIlluminator: [];
-  setImagePos: [side: "posTop" | "posLeft" | "posRight" | "posBottom", value: string];
+  placeOnPage: [];
 }>();
-
-/**
- * Bridges the tiptap image-attribute reads (imperative, but reactive — see
- * @tiptap/vue-3's Editor, whose `.state` getter reads a debounced Vue ref) to
- * an AppInput v-model. `.lazy` keeps the original commit-on-change behaviour:
- * a value written per keystroke would move the image while still typing.
- */
-function imagePosModel(side: "posTop" | "posLeft" | "posRight" | "posBottom") {
-  return computed<string>({
-    get: () => editor?.getAttributes("image")[side] ?? "",
-    set: (value) => emit("setImagePos", side, value),
-  });
-}
-
-const posTopModel = imagePosModel("posTop");
-const posLeftModel = imagePosModel("posLeft");
-const posRightModel = imagePosModel("posRight");
-const posBottomModel = imagePosModel("posBottom");
 </script>
 
 <style scoped>

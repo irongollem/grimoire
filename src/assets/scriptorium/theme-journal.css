@@ -81,9 +81,6 @@
   font-size: 1rem;
   line-height: var(--sc-pitch);
 }
-.phb-editor.theme-journal .ProseMirror {
-  padding-block: calc(var(--sc-pitch) * 2);
-}
 .sc-paper-surface.theme-journal {
   padding-block: var(--sc-pitch);
 }
