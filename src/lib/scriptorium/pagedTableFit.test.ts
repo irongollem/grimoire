@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { spanWideTables, TABLE_SPAN_CLASS } from "./pagedTableFit";
 import { sourceIn } from "./pagedSource";
+
+afterEach(() => {
+  document.body.replaceChildren();
+});
 
 /**
  * jsdom has no layout: the two-column box is given a client width and its
  * column styles inline (658px with a 24px gap, so 317px columns), and each
- * table's first row the width it would lay out at.
+ * table's first row the width it would lay out at. The page is attached to
+ * the document, as a Paged.js page is: from jsdom 31, as in a browser, an
+ * element outside the document has no computed style at all.
  */
 function book(tables: Array<{ width: number; inBox?: boolean }>) {
   const markup =
@@ -21,6 +27,7 @@ function book(tables: Array<{ width: number; inBox?: boolean }>) {
     `</div>`;
   const wrapper = document.createElement("div");
   wrapper.innerHTML = markup;
+  document.body.append(wrapper);
   const parsed = document.createElement("div");
   parsed.innerHTML = markup;
   Object.defineProperty(wrapper.querySelector(".phb-two-col"), "clientWidth", { value: 658 });
