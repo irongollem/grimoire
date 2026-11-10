@@ -144,7 +144,7 @@ jobs:
       # than a GitHub release, so a version pinned here must exist on npm — the
       # two publication streams are not guaranteed to carry the same tags. It
       # also dropped the `github-token` input, which this repo never passed.
-      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: 2.109.1
       # Pull the stack's images from ghcr.io, as the Edge Function deploy below
@@ -222,7 +222,7 @@ jobs:
       - name: Install Chromium for the harness
         run: npx playwright install --with-deps chromium
       # Same pin as the database job; see the note there.
-      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: 2.109.1
       # Replays every migration. The data the journeys load is not from a seed
@@ -393,7 +393,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: 2.109.1
 
