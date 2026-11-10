@@ -16,7 +16,12 @@ import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme 
 import { coverOffset, planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
 import type { EpisodeManifest, Format, RecordedShot, Surface } from "./types";
 
-const INTERMEDIATE = ["-c:v", "libx264", "-crf", "14", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", "30", "-g", "30", "-an"];
+// Every piece in the standard video range, tagged so. The recordings come from the browser in full range, and a
+// card after a full-range shot was squeezed into the video range a second time when the pieces were joined: the
+// end card came out about 8% darker than the start card (10 Nov 2026).
+const INTERMEDIATE = ["-c:v", "libx264", "-crf", "14", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-color_range", "tv", "-r", "30", "-g", "30", "-an"];
+/** Converts a recording to the standard video range, as every other piece already is. */
+const TO_TV_RANGE = "scale=out_range=tv";
 const WAV = ["-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2"];
 const BG = "0xf2ece0";
 
@@ -106,7 +111,7 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, format: Format | un
       ...loop(join(work, `mask-${device}.png`)),
       ...text.inputs,
       "-filter_complex",
-      `[1:v]fps=30,scale=${w}:${h},${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuva420p[c];` +
+      `[1:v]fps=30,scale=${w}:${h}:out_range=tv,${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuva420p[c];` +
         `[2:v]format=gray[m];[c][m]alphamerge[s];` +
         `[0:v][s]overlay=${x}:${y}:format=auto[a];${text.graph}`,
       "-map", "[v]", "-t", String(L), ...INTERMEDIATE, out,
@@ -125,7 +130,7 @@ function renderShotVideo(p: PlannedShot, shot: RecordedShot, format: Format | un
   const { z, x: zx, y: zy } = zoompanExpressions(plan, canvas, home);
   const text = words(4);
   const window =
-    `[3:v]format=yuv420p[bd];[1:v]fps=30,${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuv420p[c];` +
+    `[3:v]format=yuv420p[bd];[1:v]fps=30,${TO_TV_RANGE},${hold}trim=duration=${L},setpts=PTS-STARTPTS,format=yuv420p[c];` +
     `[bd][c]overlay=${canvas.screenX}:${canvas.screenY}[cv];` +
     `[cv]zoompan=z='${z}':x='${zx}':y='${zy}':d=1:s=${w}x${h}:fps=30[zp]`;
   const place = `[zp]format=yuva420p[zv];[2:v]format=gray[m];[zv][m]alphamerge[s];[0:v][s]overlay=${x}:${y}:format=auto[a]`;
@@ -179,7 +184,7 @@ function renderBrandSegment(name: string, file: string | null, card: string, car
   const video = join(work, `${name}.mp4`);
   const audio = join(work, `${name}.wav`);
   if (file) {
-    const vf = `fps=30,scale=${canvas.width}:${canvas.height}:force_original_aspect_ratio=decrease,pad=${canvas.width}:${canvas.height}:(ow-iw)/2:(oh-ih)/2:color=${BG},setsar=1`;
+    const vf = `fps=30,scale=${canvas.width}:${canvas.height}:force_original_aspect_ratio=decrease:out_range=tv,pad=${canvas.width}:${canvas.height}:(ow-iw)/2:(oh-ih)/2:color=${BG},setsar=1`;
     ffmpeg(["-i", file, "-vf", vf, ...INTERMEDIATE, video]);
     const length = durationOf(video);
     if (hasAudio(file)) ffmpeg(["-i", file, "-af", `${STEREO_48K},apad=whole_dur=${length},atrim=0:${length}`, ...WAV, audio]);
@@ -297,7 +302,7 @@ async function main() {
     "-i", videoAll, "-i", mixWav,
     "-filter_complex", `[1:a]volume=${gain.toFixed(2)}dB,alimiter=limit=0.89:level=false[a]`,
     "-map", "0:v", "-map", "[a]", "-t", String(T),
-    "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-pix_fmt", "yuv420p", "-r", "30",
+    "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-pix_fmt", "yuv420p", "-color_range", "tv", "-r", "30",
     "-c:a", "aac", "-ar", "48000", "-ac", "2", "-b:a", "192k", "-movflags", "+faststart", out,
   ]);
 
