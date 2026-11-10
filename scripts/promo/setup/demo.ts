@@ -30,6 +30,16 @@ export function demoCampaignId(): string {
   return id;
 }
 
+/**
+ * Answers the campaign's AI question for a fresh demo copy, as "off". A copy whose `ai_enabled` was never chosen
+ * opens the first-visit "Bring AI to this campaign?" chooser over the DM's screen, which blocked every tap of a
+ * take after `dev:demo` made a new copy (10 Nov 2026). Off is what an unchosen campaign already shows, so the
+ * footage is unchanged; a choice already made (the Cartographer Reel styles with AI) is left alone.
+ */
+export function settleAiChoice(campaignId: string): void {
+  sql(localDb(), `update public.campaigns set ai_enabled = false where id = ${quote(campaignId)} and ai_enabled is null`);
+}
+
 /** The character the player fixture plays in the demo copy. */
 export function playerCharacter(campaignId: string): { id: string; name: string } {
   const row = sql(

@@ -8,17 +8,28 @@
  * The two "Steal this" documents are other work and are never touched: only this file's own id and rows named
  * "Untitled ..." with the handout kind are swept.
  */
+import { existsSync, readFileSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
 import { runSqlFile } from "../../lib/dev-campaign-io.ts";
 import { quote, sql } from "../../lib/dev-db.ts";
+import { readLocalStack } from "../../lib/dev-stack.ts";
 import { demoCampaignId, localDb } from "./demo.ts";
 
 export const LETTER_ID = "4a4d0000-0000-4000-8000-0000000000a1";
 export const LETTER_TITLE = "A Letter from the Lighthouse Keeper";
 
+/**
+ * The keeper's sketch of the demo's Spun Glass Hound, under the postscript: ink and watercolour, made from the
+ * monster's own art with the image model (10 Nov 2026), so a handout on camera shows it can carry a picture.
+ * It lives with the other promo assets in promo-out/ (never committed) and goes to local storage at setup.
+ */
+const SKETCH_FILE = "promo-out/handout-art/glass-hound-sketch.webp";
+const SKETCH_PATH = "promo/glass-hound-sketch.webp";
+
 const text = (t: string) => ({ type: "paragraph", content: [{ type: "text", text: t }] });
 
-/** The letter as a chapter body: a heading and four short paragraphs. */
-const LETTER = {
+/** The letter as a chapter body: a heading, four short paragraphs, a postscript and the keeper's sketch. */
+const letter = (sketchUrl: string) => ({
   type: "doc",
   content: [
     { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: LETTER_TITLE }] },
@@ -26,8 +37,22 @@ const LETTER = {
     text("The great lamp has gone dark, and the tide-bells ring all night with nobody to pull them."),
     text("Come to the Lighthouse before the next high tide. Bring a candle, a kind word, and a sweet tooth."),
     text("Yours in the dark, Keeper Marzipan"),
+    text("P.S. Something made of glass prowls the rocks at night. I drew it as best I could."),
+    { type: "image", attrs: { src: sketchUrl, alt: "The keeper's sketch of a glass hound on the rocks", width: "55%", dataAlign: "center" } },
   ],
-};
+});
+
+/** Puts the sketch in the local asset bucket and returns its public url. */
+async function uploadSketch(): Promise<string> {
+  if (!existsSync(SKETCH_FILE)) throw new Error(`The keeper's sketch is missing: ${SKETCH_FILE}`);
+  const stack = readLocalStack();
+  const admin = createClient(stack.API_URL, stack.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+  const { error } = await admin.storage
+    .from("asset-images")
+    .upload(SKETCH_PATH, readFileSync(SKETCH_FILE), { contentType: "image/webp", upsert: true });
+  if (error) throw new Error(`Could not upload the keeper's sketch: ${error.message}`);
+  return admin.storage.from("asset-images").getPublicUrl(SKETCH_PATH).data.publicUrl;
+}
 
 function sweepSql(c: string): string {
   return `delete from public.player_read_items where campaign_id = ${c} and entity_type = 'handout';
@@ -35,11 +60,11 @@ function sweepSql(c: string): string {
            where campaign_id = ${c} and kind = 'handout' and (id = ${quote(LETTER_ID)} or title like 'Untitled %');`;
 }
 
-export function setupHandouts(): void {
+export async function setupHandouts(): Promise<void> {
   const c = quote(demoCampaignId());
   const db = localDb();
   const owner = sql(db, `select user_id from public.campaigns where id = ${c}`);
-  const body = quote(JSON.stringify(LETTER));
+  const body = quote(JSON.stringify(letter(await uploadSketch())));
   runSqlFile(
     db,
     `begin;

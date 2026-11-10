@@ -38,12 +38,15 @@ export const handoutsPlayer: Episode = {
     {
       id: "open",
       caption: "Tap it to read it",
-      narration: "Tap the letter and it opens as a page you can read, in the look of its own paper.",
-      async run({ page, tap, hold, settled }) {
+      narration: "Tap the letter and it opens as a page you can read, on its own paper, sketches and all.",
+      async run({ page, tap, hold, settled, scrollTo }) {
         await tap(page.getByText(LETTER_TITLE).first(), 1200);
         await page.waitForURL(/\/play\/handouts\//);
         await settled();
-        await hold(4500);
+        await hold(2600);
+        // Down to the keeper's sketch under the postscript, so the page shows it carries a picture too.
+        await scrollTo(page.getByRole("img", { name: "The keeper's sketch of a glass hound on the rocks" }), 1600, 140);
+        await hold(2600);
       },
     },
     {
