@@ -71,7 +71,7 @@ export const sessionDm: Episode = {
     {
       id: "start",
       caption: "Start the session. Players see it.",
-      narration: "When the table sits down, press Start session. Your screen switches to the table, a live rail keeps the time, and the Deck lights up whatever starts by itself.",
+      narration: "Everyone seated? Press Start session. Your dashboard turns to At the table, the clock starts, and the inn's sounds begin by themselves.",
       async run({ page, tap, hold, focus }) {
         await tap(page.getByRole("button", { name: "Start session", exact: true }).first(), 1500);
         await tap(page.getByRole("dialog").getByRole("button", { name: "Start session 3" }).last(), 2200);
