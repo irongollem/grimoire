@@ -405,7 +405,7 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
  */
 function ensureFixtureParty(dbUrl: string, ownerId: string): number {
   const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
-  if (!campaignId) return 0;
+  if (!campaignId || !fixturePlays5e(dbUrl, campaignId, "party")) return 0;
 
   const already = Number(
     sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
@@ -631,7 +631,7 @@ function findClaimableCharacter(
  */
 function ensureFixtureBestiary(dbUrl: string, ownerId: string): number {
   const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
-  if (!campaignId) return 0;
+  if (!campaignId || !fixturePlays5e(dbUrl, campaignId, "bestiary")) return 0;
 
   // Guarded on creatures rather than on rows, because those are not the same
   // question: a campaign can have several sources enabled and still show an
@@ -674,6 +674,21 @@ function countFixtureMonsters(dbUrl: string, campaignId: string): number {
         )`,
     ),
   );
+}
+
+/**
+ * Whether the fixture campaign plays a 5e system. A clone is always made from
+ * one, but a fixture campaign left by an earlier run (or renamed by hand) may be
+ * Generic, which has no edition to build a party or a bestiary in (#934); that
+ * step is skipped rather than stopping the script before the player fixture.
+ */
+function fixturePlays5e(dbUrl: string, campaignId: string, step: string): boolean {
+  const is5e = sql(
+    dbUrl,
+    `select private.game_system_is_5e(game_system) from public.campaigns where id = ${quote(campaignId)}`,
+  ) === "t";
+  if (!is5e) console.log(`  fixture campaign plays no 5e system: no ${step} to seed`);
+  return is5e;
 }
 
 /** A SQL expression for the 5e edition the campaign plays. */
