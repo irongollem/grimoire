@@ -22,9 +22,9 @@ select ('93640000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0
        'authenticated', 'authenticated', 'projections-' || n || '@example.invalid', '', '{}'::jsonb, '{}'::jsonb
 from generate_series(1, 4) as n;
 
-insert into public.campaigns (id, user_id, name) values
-  ('93640000-0000-4000-8000-0000000000c1', '93640000-0000-4000-8000-000000000001', 'Table one'),
-  ('93640000-0000-4000-8000-0000000000c2', '93640000-0000-4000-8000-000000000004', 'Sam''s table');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('93640000-0000-4000-8000-0000000000c1', '93640000-0000-4000-8000-000000000001', 'Table one', 'dnd5e-2014'),
+  ('93640000-0000-4000-8000-0000000000c2', '93640000-0000-4000-8000-000000000004', 'Sam''s table', 'dnd5e-2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('93640000-0000-4000-8000-0000000000c1', '93640000-0000-4000-8000-000000000001', 'dm', 'DM'),

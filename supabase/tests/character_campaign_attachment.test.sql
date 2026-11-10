@@ -56,8 +56,8 @@ values
   ('73000000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue730-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('73000000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue730-other@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('73000000-0000-4000-8000-000000000010', '73000000-0000-4000-8000-000000000001', 'Durable Characters');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('73000000-0000-4000-8000-000000000010', '73000000-0000-4000-8000-000000000001', 'Durable Characters', 'dnd5e-2014');
 
 -- u3 is a member (so their failures below are authorization failures, not
 -- membership failures).
@@ -359,8 +359,8 @@ select ok(
 -- fires on that referential UPDATE and must not break campaign deletion).
 -- ---------------------------------------------------------------------------
 
-insert into public.campaigns (id, user_id, name)
-values ('73000000-0000-4000-8000-000000000011', '73000000-0000-4000-8000-000000000001', 'Doomed Campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('73000000-0000-4000-8000-000000000011', '73000000-0000-4000-8000-000000000001', 'Doomed Campaign', 'dnd5e-2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values ('73000000-0000-4000-8000-000000000011', '73000000-0000-4000-8000-000000000002', 'player', 'Player');
 

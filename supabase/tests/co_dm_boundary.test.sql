@@ -18,9 +18,9 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
   ('59000000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'codm-second@example.invalid',  '', '{}', '{}');
 
 -- The owner's campaign, and one the co-DM owns (somewhere to try to steal into).
-insert into public.campaigns (id, user_id, name) values
-  ('59000000-0000-4000-8000-000000000010', '59000000-0000-4000-8000-000000000001', 'The owner''s table'),
-  ('59000000-0000-4000-8000-000000000011', '59000000-0000-4000-8000-000000000002', 'The co-DM''s own');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('59000000-0000-4000-8000-000000000010', '59000000-0000-4000-8000-000000000001', 'The owner''s table', 'dnd5e-2014'),
+  ('59000000-0000-4000-8000-000000000011', '59000000-0000-4000-8000-000000000002', 'The co-DM''s own', 'dnd5e-2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('59000000-0000-4000-8000-000000000010', '59000000-0000-4000-8000-000000000002', 'dm', 'Co-DM'),

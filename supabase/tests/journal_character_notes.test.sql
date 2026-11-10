@@ -14,8 +14,8 @@ select ('97600000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0
        'authenticated', 'authenticated', 'journal-character-' || n || '@example.invalid', '', '{}'::jsonb, '{}'::jsonb
 from generate_series(1, 3) as n;
 
-insert into public.campaigns (id, user_id, name) values
-  ('97600000-0000-4000-8000-0000000000c1', '97600000-0000-4000-8000-000000000001', 'Journal table');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('97600000-0000-4000-8000-0000000000c1', '97600000-0000-4000-8000-000000000001', 'Journal table', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, owner_user_id, is_dm_managed, campaign_id, name, ruleset) values
   ('97600000-0000-4000-8000-0000000000a1', '97600000-0000-4000-8000-000000000002', '97600000-0000-4000-8000-000000000002', false,

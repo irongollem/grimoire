@@ -28,8 +28,8 @@ values
   ('19410000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'match-codm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('19410000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'match-stranger@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('19410000-0000-4000-8000-000000000010', '19410000-0000-4000-8000-000000000001', 'Match test campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('19410000-0000-4000-8000-000000000010', '19410000-0000-4000-8000-000000000001', 'Match test campaign', 'dnd5e-2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values ('19410000-0000-4000-8000-000000000010', '19410000-0000-4000-8000-000000000002', 'dm', 'Co-DM')

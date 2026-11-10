@@ -1,19 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RULESET, normalizeRuleset } from "./ruleset.types";
+import { DEFAULT_GAME_SYSTEM, gameSystemEdition } from "@/systems/registry";
+import { DEFAULT_RULESET } from "./ruleset.types";
 
-describe("campaign ruleset normalization", () => {
-  it("defaults missing, legacy, and invalid values to 2014", () => {
-    expect(DEFAULT_RULESET).toBe("2014");
-    expect(normalizeRuleset(null)).toBe("2014");
-    expect(normalizeRuleset(undefined)).toBe("2014");
-    expect(normalizeRuleset("legacy")).toBe("2014");
-    expect(normalizeRuleset("2025")).toBe("2014");
-    expect(normalizeRuleset("")).toBe("2014");
-  });
-
-  it("keeps either shared campaign edition as it is", () => {
-    expect(normalizeRuleset("2014")).toBe("2014");
-    expect(normalizeRuleset("2024")).toBe("2024");
+describe("DEFAULT_RULESET", () => {
+  // Fails if the default system moves and the default edition stays behind:
+  // a campaign not loaded yet would key its library reads on the wrong edition.
+  it("is the default game system's edition", () => {
+    expect(gameSystemEdition(DEFAULT_GAME_SYSTEM)).toBe(DEFAULT_RULESET);
   });
 });
-

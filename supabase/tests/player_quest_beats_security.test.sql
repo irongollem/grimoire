@@ -17,8 +17,8 @@ values
   ('67400000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue674-player-b@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('67400000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue674-attacker@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000001', 'Player-safe beats');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000001', 'Player-safe beats', 'dnd5e-2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values ('67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000001', 'dm', 'DM')
 on conflict (campaign_id, user_id) do update set role = excluded.role;

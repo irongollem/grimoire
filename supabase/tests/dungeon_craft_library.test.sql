@@ -24,8 +24,8 @@ create function pg_temp.as_user(p_n int, p_admin boolean default false) returns 
       else format('{"sub":"10600000-0000-4000-8000-00000000000%s","role":"authenticated"}', p_n) end, true);
 $$;
 
-insert into public.campaigns (id, user_id, name)
-values ('10600000-0000-4000-8000-000000000010', '10600000-0000-4000-8000-000000000002', 'Library table');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('10600000-0000-4000-8000-000000000010', '10600000-0000-4000-8000-000000000002', 'Library table', 'dnd5e-2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
   ('10600000-0000-4000-8000-000000000010', '10600000-0000-4000-8000-000000000002', 'dm', 'Ben')
 on conflict (campaign_id, user_id) do update set role = excluded.role;

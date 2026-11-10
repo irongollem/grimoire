@@ -166,10 +166,10 @@ values
 -- `gemini_api_key`: setting one trips enforce_byok_pro_only(), and making the
 -- fixture account Pro to satisfy an unrelated trigger would be fighting the
 -- schema to test a rule that applies to every credential column equally.
-insert into public.campaigns (id, user_id, name)
+insert into public.campaigns (id, user_id, name, game_system)
 values
-  ('32000000-0000-4000-8000-0000000000a2', '32000000-0000-4000-8000-0000000000a1', 'A''s campaign'),
-  ('32000000-0000-4000-8000-0000000000b2', '32000000-0000-4000-8000-0000000000b1', 'B''s campaign');
+  ('32000000-0000-4000-8000-0000000000a2', '32000000-0000-4000-8000-0000000000a1', 'A''s campaign', 'dnd5e-2014'),
+  ('32000000-0000-4000-8000-0000000000b2', '32000000-0000-4000-8000-0000000000b1', 'B''s campaign', 'dnd5e-2014');
 
 select is(
   (select jsonb_array_length(public.export_user_data('32000000-0000-4000-8000-0000000000a1') -> 'tables' -> 'campaigns')),

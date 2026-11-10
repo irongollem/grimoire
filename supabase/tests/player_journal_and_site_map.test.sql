@@ -25,8 +25,8 @@ values
   ('79800000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue798-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('79800000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue798-outsider@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('79800000-0000-4000-8000-000000000010', '79800000-0000-4000-8000-000000000001', 'Journal campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('79800000-0000-4000-8000-000000000010', '79800000-0000-4000-8000-000000000001', 'Journal campaign', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
 values ('79800000-0000-4000-8000-000000000020', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000002', '79800000-0000-4000-8000-000000000010', 'Nessa', '2014');
@@ -148,8 +148,8 @@ select ok(
 
 reset role;
 
-insert into public.campaigns (id, user_id, name)
-values ('79800000-0000-4000-8000-000000000011', '79800000-0000-4000-8000-000000000001', 'The other table');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('79800000-0000-4000-8000-000000000011', '79800000-0000-4000-8000-000000000001', 'The other table', 'dnd5e-2014');
 
 -- The room needs a legitimate home in the other campaign first: a room cannot
 -- exist without a parent that can hold it, so the exploit is a *reparent*, not

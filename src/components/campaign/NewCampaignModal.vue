@@ -106,7 +106,7 @@
           type="submit"
           variant="primary"
           size="md"
-          :disabled="isSaving || !form.game_system || form.calendar_id === null || calendarProblem !== null"
+          :disabled="isSaving || form.calendar_id === null || calendarProblem !== null"
           :label="isSaving ? 'Saving…' : 'Create Campaign'"
         />
       </div>
@@ -136,7 +136,7 @@ import { customCalendarProblem } from "@/lib/calendar/customCalendar";
 import DemoCampaignOffer from "@/components/campaign/DemoCampaignOffer.vue";
 import type { Campaign } from "@/types/campaign.types";
 import GameSystemPicker from "@/components/rules/GameSystemPicker.vue";
-import { defaultCurrencyFor, gameSystemLabel, switchableGameSystems, type GameSystemKey } from "@/systems/registry";
+import { DEFAULT_GAME_SYSTEM, defaultCurrencyFor, gameSystemLabel, switchableGameSystems, type GameSystemKey } from "@/systems/registry";
 
 const open = defineModel<boolean>({ required: true });
 const { showClaimOption = false } = defineProps<{
@@ -161,20 +161,20 @@ const form = ref<{
   setting: string;
   calendar_id: string | null;
   current_year: number;
-  game_system: GameSystemKey | null;
+  game_system: GameSystemKey;
   allows_mixed_rulesets: boolean;
 }>({
   name: "",
   setting: "",
   calendar_id: null,
   current_year: 1,
-  game_system: null,
+  game_system: DEFAULT_GAME_SYSTEM,
   allows_mixed_rulesets: false,
 });
 // The systems whose characters this one can seat, named for the checkbox. None for
 // a system compatible with nothing (Generic), which has no such choice to offer.
 const compatibleLabels = computed(() =>
-  form.value.game_system === null ? [] : switchableGameSystems(form.value.game_system).map(gameSystemLabel),
+  switchableGameSystems(form.value.game_system).map(gameSystemLabel),
 );
 const customCalendarDef = ref<SettingCalendarDef | null>(null);
 const claimExisting = ref(true);
@@ -187,7 +187,7 @@ watch(open, (isOpen) => {
       setting: "",
       calendar_id: null,
       current_year: 1,
-      game_system: null,
+      game_system: DEFAULT_GAME_SYSTEM,
       allows_mixed_rulesets: false,
     };
     customCalendarDef.value = null;
@@ -229,7 +229,7 @@ const calendarProblem = computed(() =>
 async function submit() {
   const gameSystem = form.value.game_system;
   const calendarId = form.value.calendar_id;
-  if (!gameSystem || calendarId === null || calendarProblem.value !== null) return;
+  if (calendarId === null || calendarProblem.value !== null) return;
   try {
     const created = await createCampaign({
       name: form.value.name,

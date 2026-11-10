@@ -13,8 +13,8 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
   ('91700000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'dm917@example.invalid',     '', '{}'::jsonb, '{}'::jsonb),
   ('91700000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'player917@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('91700000-0000-4000-8000-000000000010', '91700000-0000-4000-8000-000000000001', 'Cutout campaign');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('91700000-0000-4000-8000-000000000010', '91700000-0000-4000-8000-000000000001', 'Cutout campaign', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset)
 values ('91700000-0000-4000-8000-000000000020', '91700000-0000-4000-8000-000000000001', '91700000-0000-4000-8000-000000000010', 'Rosie', '2014');

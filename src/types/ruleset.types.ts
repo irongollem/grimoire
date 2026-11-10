@@ -2,7 +2,8 @@ export const RULESET_KEYS = ["2014", "2024"] as const;
 
 export type RulesetKey = (typeof RULESET_KEYS)[number];
 
-export const DEFAULT_RULESET: RulesetKey = "2014";
+/** The edition of the default game system (`DEFAULT_GAME_SYSTEM` in the registry). */
+export const DEFAULT_RULESET: RulesetKey = "2024";
 
 export const RULESET_OPTIONS: ReadonlyArray<{
   value: RulesetKey;
@@ -20,10 +21,6 @@ export const RULESET_OPTIONS: ReadonlyArray<{
     description: "The revised fifth-edition rules, class progressions, and content versions.",
   },
 ];
-
-export function normalizeRuleset(value: string | null | undefined): RulesetKey {
-  return value === "2024" ? "2024" : DEFAULT_RULESET;
-}
 
 // ── Ruleset reviews ───────────────────────────────────────────────────────────
 

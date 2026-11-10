@@ -238,8 +238,11 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
 
   const sourceId = sql(
     dbUrl,
+    // A 5e campaign only: the fixture seats 5e characters, and a Generic
+    // campaign has no edition to build them in (#934).
     `select c.id from public.campaigns c
        join public.locations l on l.campaign_id = c.id
+      where private.game_system_is_5e(c.game_system)
       group by c.id order by count(l.id) desc limit 1`,
   );
   if (!sourceId) return 0;
@@ -256,13 +259,13 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
       id, user_id, name, description, setting, current_year, calendar_id, theme,
       excluded_monster_ids, health_visibility, immersive_rolls, disabled_class_names,
       optional_rules, allow_chronicle_promotion, is_archived, current_month, current_day,
-      ai_enabled
+      ai_enabled, game_system, currency
     )
     select n.id, ${quote(ownerId)}, c.name || ' (fixture)', c.description, c.setting,
            c.current_year, c.calendar_id, c.theme, c.excluded_monster_ids,
            c.health_visibility, c.immersive_rolls, c.disabled_class_names,
            c.optional_rules, c.allow_chronicle_promotion, c.is_archived,
-           c.current_month, c.current_day, c.ai_enabled
+           c.current_month, c.current_day, c.ai_enabled, c.game_system, c.currency
       from public.campaigns c cross join _new_campaign n
      where c.id = ${quote(sourceId)};
 
@@ -402,7 +405,7 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
  */
 function ensureFixtureParty(dbUrl: string, ownerId: string): number {
   const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
-  if (!campaignId) return 0;
+  if (!campaignId || !fixturePlays5e(dbUrl, campaignId, "party")) return 0;
 
   const already = Number(
     sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
@@ -628,7 +631,7 @@ function findClaimableCharacter(
  */
 function ensureFixtureBestiary(dbUrl: string, ownerId: string): number {
   const campaignId = fixtureCampaign(dbUrl, ownerId)?.id;
-  if (!campaignId) return 0;
+  if (!campaignId || !fixturePlays5e(dbUrl, campaignId, "bestiary")) return 0;
 
   // Guarded on creatures rather than on rows, because those are not the same
   // question: a campaign can have several sources enabled and still show an
@@ -638,10 +641,12 @@ function ensureFixtureBestiary(dbUrl: string, ownerId: string): number {
   const already = countFixtureMonsters(dbUrl, campaignId);
   if (already > 0) return already;
 
-  // The source with the most creatures in it, so the grid is worth looking at.
+  // The source with the most creatures of the campaign's edition in it, so the
+  // grid is worth looking at (the bestiary shows only that edition's rows).
   const slug = sql(
     dbUrl,
     `select source from public.library_monsters
+      where ruleset = ${campaignEdition(campaignId)}
       group by source order by count(*) desc limit 1`,
   );
   if (!slug) return 0;
@@ -662,12 +667,33 @@ function countFixtureMonsters(dbUrl: string, campaignId: string): number {
     sql(
       dbUrl,
       `select count(*) from public.library_monsters m
-        where m.source in (
+        where m.ruleset = ${campaignEdition(campaignId)}
+          and m.source in (
           select source_slug from public.campaign_enabled_sources
            where campaign_id = ${quote(campaignId)}
         )`,
     ),
   );
+}
+
+/**
+ * Whether the fixture campaign plays a 5e system. A clone is always made from
+ * one, but a fixture campaign left by an earlier run (or renamed by hand) may be
+ * Generic, which has no edition to build a party or a bestiary in (#934); that
+ * step is skipped rather than stopping the script before the player fixture.
+ */
+function fixturePlays5e(dbUrl: string, campaignId: string, step: string): boolean {
+  const is5e = sql(
+    dbUrl,
+    `select private.game_system_is_5e(game_system) from public.campaigns where id = ${quote(campaignId)}`,
+  ) === "t";
+  if (!is5e) console.log(`  fixture campaign plays no 5e system: no ${step} to seed`);
+  return is5e;
+}
+
+/** A SQL expression for the 5e edition the campaign plays. */
+function campaignEdition(campaignId: string): string {
+  return `(select private.game_system_edition(game_system) from public.campaigns where id = ${quote(campaignId)})`;
 }
 
 main().catch((err: unknown) => {

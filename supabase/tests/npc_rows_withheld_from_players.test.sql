@@ -23,8 +23,8 @@ values
   ('93300000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'npcw-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('93300000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'npcw-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('93300000-0000-4000-8000-000000000010', '93300000-0000-4000-8000-000000000001', 'Withheld names');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('93300000-0000-4000-8000-000000000010', '93300000-0000-4000-8000-000000000001', 'Withheld names', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset)
 values ('93300000-0000-4000-8000-000000000030', '93300000-0000-4000-8000-000000000002', '93300000-0000-4000-8000-000000000010', 'Nessa', '2014');

@@ -8,13 +8,11 @@ import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { isLocalCiphertext, localKeyModeChosen, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
-import { gameSystemEdition, isGameSystemKey, setActiveGameSystem, type GameSystemKey } from "@/systems/registry";
+import { DEFAULT_GAME_SYSTEM, gameSystemEdition, isGameSystemKey, setActiveGameSystem, type GameSystemKey } from "@/systems/registry";
 
 const STORAGE_KEY      = "grimoire_active_campaign";
 const GAME_SYSTEM_HINT_KEY = "grimoire_active_campaign_game_system";
 
-/** What a campaign is read as before its row (or a usable hint) exists: the system every campaign began as. */
-const FALLBACK_GAME_SYSTEM: GameSystemKey = "dnd5e-2014";
 
 // Per-provider localStorage keys (local mode only)
 const LOCAL_KEYS: Record<string, string> = {
@@ -153,7 +151,7 @@ export const useCampaignStore = defineStore("campaign", () => {
   const activeGameSystem = computed<GameSystemKey>(() => {
     const fromRow = activeCampaign.value?.game_system;
     if (isGameSystemKey(fromRow)) return fromRow;
-    return gameSystemHint.value ?? FALLBACK_GAME_SYSTEM;
+    return gameSystemHint.value ?? DEFAULT_GAME_SYSTEM;
   });
   // The registry's non-reactive readers (the dice roller, the roll-mode
   // directive) follow the store through this.

@@ -260,79 +260,79 @@ describe("the campaign row and its id", () => {
 
   it("drops the held row as soon as the id moves to another campaign", () => {
     const store = useCampaignStore();
-    store.switchToCampaign(row("a", "dnd5e-2014"));
+    store.switchToCampaign(row("a", "dnd5e-2024"));
     store.activeCampaignId = "b";
     expect(store.activeCampaign).toBeNull();
   });
 
   it("keeps the row when the id is set to the one it already belongs to", () => {
     const store = useCampaignStore();
-    store.switchToCampaign(row("a", "dnd5e-2014"));
+    store.switchToCampaign(row("a", "dnd5e-2024"));
     store.activeCampaignId = "a";
     expect(store.activeCampaign?.id).toBe("a");
   });
 
-  it("answers 2014 for a campaign it has never seen, until the row says otherwise", () => {
+  it("answers the default, 5e 2024, for a campaign it has never seen, until the row says otherwise", () => {
     localStorage.setItem("grimoire_active_campaign", "a");
     const store = useCampaignStore();
-    expect(store.activeRuleset).toBe("2014");
-    store.switchToCampaign(row("a", "dnd5e-2024"));
     expect(store.activeRuleset).toBe("2024");
+    store.switchToCampaign(row("a", "dnd5e-2014"));
+    expect(store.activeRuleset).toBe("2014");
   });
 
   it("remembers the edition per campaign and uses it before the row arrives", async () => {
     const first = useCampaignStore();
-    first.switchToCampaign(row("a", "dnd5e-2024"));
+    first.switchToCampaign(row("a", "dnd5e-2014"));
     await nextTick();
-    expect(JSON.parse(localStorage.getItem(HINT) ?? "null")).toEqual({ id: "a", game_system: "dnd5e-2024" });
+    expect(JSON.parse(localStorage.getItem(HINT) ?? "null")).toEqual({ id: "a", game_system: "dnd5e-2014" });
 
     setActivePinia(createPinia());
     const reloaded = useCampaignStore();
     expect(reloaded.activeCampaign).toBeNull();
-    expect(reloaded.activeRuleset).toBe("2024");
+    expect(reloaded.activeRuleset).toBe("2014");
   });
 
   it("ignores a remembered edition that belongs to a different campaign", () => {
-    localStorage.setItem(HINT, JSON.stringify({ id: "other", game_system: "dnd5e-2024" }));
+    localStorage.setItem(HINT, JSON.stringify({ id: "other", game_system: "dnd5e-2014" }));
     localStorage.setItem("grimoire_active_campaign", "a");
-    expect(useCampaignStore().activeRuleset).toBe("2014");
+    expect(useCampaignStore().activeRuleset).toBe("2024");
   });
 
   it("drops the previous edition immediately when only the campaign id changes", async () => {
     const store = useCampaignStore();
-    store.switchToCampaign(row("a", "dnd5e-2024"));
+    store.switchToCampaign(row("a", "dnd5e-2014"));
     await nextTick();
-    expect(store.activeRuleset).toBe("2024");
+    expect(store.activeRuleset).toBe("2014");
 
     store.activeCampaignId = "b";
 
     expect(store.activeCampaign).toBeNull();
-    expect(store.activeRuleset).toBe("2014");
+    expect(store.activeRuleset).toBe("2024");
   });
 
   it("reads the target campaign's hint immediately when only the id changes", () => {
     localStorage.setItem("grimoire_active_campaign", "a");
-    localStorage.setItem(HINT, JSON.stringify({ id: "b", game_system: "dnd5e-2024" }));
+    localStorage.setItem(HINT, JSON.stringify({ id: "b", game_system: "dnd5e-2014" }));
     const store = useCampaignStore();
-    expect(store.activeRuleset).toBe("2014");
+    expect(store.activeRuleset).toBe("2024");
 
     store.activeCampaignId = "b";
 
     expect(store.activeCampaign).toBeNull();
-    expect(store.activeRuleset).toBe("2024");
+    expect(store.activeRuleset).toBe("2014");
   });
 
   it("survives a corrupt remembered edition", () => {
     localStorage.setItem(HINT, "{nope");
     localStorage.setItem("grimoire_active_campaign", "a");
-    expect(useCampaignStore().activeRuleset).toBe("2014");
+    expect(useCampaignStore().activeRuleset).toBe("2024");
   });
 
   // Fails if the hint stores an unknown key or the computed trusts it: a stale 'pathfinder' hint must read as the fallback.
   it("ignores a remembered system the app does not know", () => {
     localStorage.setItem(HINT, JSON.stringify({ id: "a", game_system: "pathfinder" }));
     localStorage.setItem("grimoire_active_campaign", "a");
-    expect(useCampaignStore().activeGameSystem).toBe("dnd5e-2014");
+    expect(useCampaignStore().activeGameSystem).toBe("dnd5e-2024");
   });
 });
 
@@ -342,7 +342,7 @@ describe("the active game system (#934)", () => {
   beforeEach(() => {
     localStorage.clear();
     setActivePinia(createPinia());
-    setActiveGameSystem("dnd5e-2014");
+    setActiveGameSystem("dnd5e-2024");
     mockUseAuthStore.mockReturnValue({ isChildAccount: false, membership: null, refreshMembership: vi.fn() } as MockAuthStore);
   });
 
@@ -354,18 +354,18 @@ describe("the active game system (#934)", () => {
     expect(store.activeGameSystem).toBe("generic");
     expect(registryActiveGameSystem()).toBe("generic");
 
-    store.switchToCampaign(row("b", "dnd5e-2024"));
+    store.switchToCampaign(row("b", "dnd5e-2014"));
     await nextTick();
-    expect(registryActiveGameSystem()).toBe("dnd5e-2024");
+    expect(registryActiveGameSystem()).toBe("dnd5e-2014");
   });
 
   // Fails if activeRuleset throws or reads the system key as an edition: 5e-only readers still mount for a tick in a Generic campaign.
   it("answers the default edition for a system with no edition, and the system's own otherwise", () => {
     const store = useCampaignStore();
     store.switchToCampaign(row("a", "generic"));
-    expect(store.activeRuleset).toBe("2014");
-    store.switchToCampaign(row("b", "dnd5e-2024"));
     expect(store.activeRuleset).toBe("2024");
+    store.switchToCampaign(row("b", "dnd5e-2014"));
+    expect(store.activeRuleset).toBe("2014");
   });
 });
 

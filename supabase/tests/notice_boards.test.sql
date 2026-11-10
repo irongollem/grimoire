@@ -16,9 +16,9 @@ values
   ('10640000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'board-outsider@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('10640000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'board-seatless@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name) values
-  ('10640000-0000-4000-8000-000000000010', '10640000-0000-4000-8000-000000000001', 'The Rusty Flagon'),
-  ('10640000-0000-4000-8000-000000000011', '10640000-0000-4000-8000-000000000004', 'Elsewhere');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('10640000-0000-4000-8000-000000000010', '10640000-0000-4000-8000-000000000001', 'The Rusty Flagon', 'dnd5e-2014'),
+  ('10640000-0000-4000-8000-000000000011', '10640000-0000-4000-8000-000000000004', 'Elsewhere', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
   ('10640000-0000-4000-8000-000000000020', '10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010', 'Wren', '2014'),

@@ -13,8 +13,8 @@ values
   ('97300000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bt-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('97300000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bt-p1@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name) values
-  ('97300000-0000-4000-8000-000000000010', '97300000-0000-4000-8000-000000000001', 'Sothery');
+insert into public.campaigns (id, user_id, name, game_system) values
+  ('97300000-0000-4000-8000-000000000010', '97300000-0000-4000-8000-000000000001', 'Sothery', 'dnd5e-2014');
 insert into public.party_members (id, user_id, campaign_id, name, ruleset) values
   ('97300000-0000-4000-8000-000000000020', '97300000-0000-4000-8000-000000000002', '97300000-0000-4000-8000-000000000010', 'Pip', '2014');
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id) values

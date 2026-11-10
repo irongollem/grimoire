@@ -23,6 +23,12 @@ export const GAME_SYSTEM_KEYS = ["dnd5e-2014", "dnd5e-2024", "generic"] as const
 export type GameSystemKey = (typeof GAME_SYSTEM_KEYS)[number];
 
 /**
+ * The system a new campaign is offered first, and what a campaign is read as
+ * before its row arrives (the database's column default is the same).
+ */
+export const DEFAULT_GAME_SYSTEM: GameSystemKey = "dnd5e-2024";
+
+/**
  * What a system offers beyond the neutral tools (quests, the Atlas and maps,
  * NPCs, factions, notes, the calendar, sessions, the soundboard, chat), which
  * every system has. A surface that needs one is hidden in a system without it.
@@ -133,7 +139,7 @@ export function defaultCurrencyFor(system: GameSystemKey): CurrencyConfig {
 // non-reactive readers below (the dice roller, the roll-mode directive) need
 // no store of their own and this module stays free of Pinia.
 
-let active: GameSystemKey = "dnd5e-2014";
+let active: GameSystemKey = DEFAULT_GAME_SYSTEM;
 
 /** Called by the campaign store with the active campaign's system. */
 export function setActiveGameSystem(system: GameSystemKey): void {

@@ -171,8 +171,8 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, r
 -- dump); this test publishes its own. Unpublished here, restored by rollback.
 update public.campaigns set demo_template = false, demo_version = null where demo_template;
 
-insert into public.campaigns (id, user_id, name)
-values ('91200000-0000-4000-8000-000000000010', '91200000-0000-4000-8000-000000000001', 'Sugarwell');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('91200000-0000-4000-8000-000000000010', '91200000-0000-4000-8000-000000000001', 'Sugarwell', 'dnd5e-2014');
 
 insert into public.locations (id, user_id, campaign_id, name, location_type) values
   ('91200000-0000-4000-8000-000000000020', '91200000-0000-4000-8000-000000000001',
@@ -341,8 +341,8 @@ select is(
 -- A client cannot flip the flag itself, admin or not.
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"91200000-0000-4000-8000-000000000002","role":"authenticated"}';
-insert into public.campaigns (id, user_id, name, demo_template, demo_version, demo_source, demo_offered)
-values ('91200000-0000-4000-8000-0000000000e1', '91200000-0000-4000-8000-000000000002', 'Hijack', true, 'x', 'x', true);
+insert into public.campaigns (id, user_id, name, demo_template, demo_version, demo_source, demo_offered, game_system)
+values ('91200000-0000-4000-8000-0000000000e1', '91200000-0000-4000-8000-000000000002', 'Hijack', true, 'x', 'x', true, 'dnd5e-2014');
 reset role;
 
 select is(
@@ -664,8 +664,8 @@ select is((public.check_quota('npcs') ->> 'current')::int, 0, 'demo NPCs do not 
 select is(((public.check_all_quotas() -> 'locations') ->> 'current')::int, 0, 'check_all_quotas agrees for locations');
 
 select lives_ok(
-  $$ insert into public.campaigns (id, user_id, name)
-     values ('91200000-0000-4000-8000-0000000000c2', '91200000-0000-4000-8000-000000000002', 'My own table') $$,
+  $$ insert into public.campaigns (id, user_id, name, game_system)
+     values ('91200000-0000-4000-8000-0000000000c2', '91200000-0000-4000-8000-000000000002', 'My own table', 'dnd5e-2014') $$,
   'with the demo loaded, a Free user can still create their own first campaign'
 );
 

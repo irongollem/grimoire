@@ -27,8 +27,8 @@ values
   ('98500000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'log-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('98500000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'log-outsider@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
-values ('98500000-0000-4000-8000-000000000010', '98500000-0000-4000-8000-000000000001', 'Logged');
+insert into public.campaigns (id, user_id, name, game_system)
+values ('98500000-0000-4000-8000-000000000010', '98500000-0000-4000-8000-000000000001', 'Logged', 'dnd5e-2014');
 
 insert into public.party_members (id, user_id, campaign_id, name, ruleset)
 values ('98500000-0000-4000-8000-000000000030', '98500000-0000-4000-8000-000000000002', '98500000-0000-4000-8000-000000000010', 'Wren', '2014');

@@ -57,11 +57,11 @@ describe("useRuleset scope", () => {
     expect(seen[0]).toEqual({ build: "2024", table: "2024" });
   });
 
-  it("falls back to 2014 with no campaign and no scope", () => {
+  it("falls back to the default edition, 2024, with no campaign and no scope", () => {
     setCampaign(null, null);
     const seen: Seen[] = [];
     mount(Reader(seen));
-    expect(seen[0]).toEqual({ build: "2014", table: "2014" });
+    expect(seen[0]).toEqual({ build: "2024", table: "2024" });
   });
 
   it("splits build and table for a member seated at the active campaign", () => {
@@ -162,7 +162,7 @@ describe("useRuleset scope", () => {
     expect(seen[0]).toEqual({ build: "2014", table: "2014" });
   });
 
-  it("provideRuleset with no edition and no campaign falls back to 2014, and to an enclosing scope when there is one", () => {
+  it("provideRuleset with no edition and no campaign falls back to the default edition, 2024, and to an enclosing scope when there is one", () => {
     setCampaign(null, null);
     const seen: Seen[] = [];
     mount(defineComponent({
@@ -171,10 +171,10 @@ describe("useRuleset scope", () => {
         return () => h(Reader(seen));
       },
     }));
-    expect(seen[0]).toEqual({ build: "2014", table: "2014" });
+    expect(seen[0]).toEqual({ build: "2024", table: "2024" });
 
     const nested: Seen[] = [];
-    const outerMember = ref<RulesetScopeMember | null>({ ruleset: "2024", campaign_id: null });
+    const outerMember = ref<RulesetScopeMember | null>({ ruleset: "2014", campaign_id: null });
     const inner = defineComponent({
       setup() {
         provideRuleset(null);
@@ -182,7 +182,7 @@ describe("useRuleset scope", () => {
       },
     });
     mount(Provider(outerMember, inner));
-    expect(nested[0]).toEqual({ build: "2024", table: "2024" });
+    expect(nested[0]).toEqual({ build: "2014", table: "2014" });
   });
 });
 

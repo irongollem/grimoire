@@ -14,10 +14,10 @@ values
   ('9e100000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'deity-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
   ('9e100000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'deity-player@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
-insert into public.campaigns (id, user_id, name)
+insert into public.campaigns (id, user_id, name, game_system)
 values
-  ('9e100000-0000-4000-8000-000000000010', '9e100000-0000-4000-8000-000000000001', 'Home Table'),
-  ('9e100000-0000-4000-8000-000000000011', '9e100000-0000-4000-8000-000000000001', 'Other Table');
+  ('9e100000-0000-4000-8000-000000000010', '9e100000-0000-4000-8000-000000000001', 'Home Table', 'dnd5e-2014'),
+  ('9e100000-0000-4000-8000-000000000011', '9e100000-0000-4000-8000-000000000001', 'Other Table', 'dnd5e-2014');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name)
 values
