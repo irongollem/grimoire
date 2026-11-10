@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- The classic songs page, for phones too old for the app (src/classic/songsClassic.ts). Built by
+         classicSongsPlugin in vite.config.ts, which inlines the compiled script below. Its CSS keeps to what
+         Safari 12 draws: no gap on flex rows, no aspect-ratio, no inset, no WebP. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1c1612" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Grimoire Songs" />
+    <meta name="robots" content="noindex" />
+    <link rel="apple-touch-icon" href="/songs-app/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/songs-app/icon-192.png" />
+    <title>Grimoire Songs</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: #1c1612; color: #efe6d6;
+        font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+        -webkit-text-size-adjust: 100%;
+        display: flex; flex-direction: column;
+      }
+      header {
+        flex: none; display: flex; align-items: center; justify-content: center;
+        padding: 12px 16px 8px; padding-top: calc(12px + env(safe-area-inset-top));
+      }
+      header img { width: 28px; height: 28px; border-radius: 6px; margin-right: 10px; }
+      header span { color: #efd9a0; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; font-size: 15px; }
+      #classic-root { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+
+      .message, .sign-in { margin: auto; max-width: 300px; padding: 24px 16px; text-align: center; }
+      .message p, .sign-in p { line-height: 1.4; }
+      .sign-in label { display: block; text-align: left; font-size: 14px; color: #c9bfae; margin-top: 14px; }
+      .sign-in input {
+        display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 12px;
+        font-size: 17px; border-radius: 10px; border: 1px solid #5a4d40; background: #2a221c; color: #efe6d6;
+      }
+      .sign-in .error { color: #f0a59a; font-size: 14px; }
+      .action {
+        margin-top: 18px; padding: 12px 22px; font-size: 17px; border-radius: 12px;
+        border: 1px solid #efd9a0; background: transparent; color: #efd9a0;
+      }
+
+      .pager {
+        flex: 1 1 auto; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden;
+        -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory;
+      }
+      .page {
+        flex: 0 0 100%; width: 100%; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch;
+        scroll-snap-align: start; padding: 0 16px 24px;
+      }
+      .page h2 { margin: 0 0 12px; font-size: 13px; font-weight: 400; text-align: center; color: rgba(239, 230, 214, 0.6); }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; grid-column-gap: 16px; grid-row-gap: 20px; }
+      /* An iPad fits three to a row, a wide one four, as the app's page does. */
+      @media (min-width: 600px) { .grid { grid-template-columns: 1fr 1fr 1fr; grid-column-gap: 24px; grid-row-gap: 28px; } }
+      @media (min-width: 1200px) { .grid { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+      .page > h2, .grid { max-width: 1000px; margin-left: auto; margin-right: auto; }
+      .cell { text-align: center; }
+      .tile {
+        position: relative; display: block; width: 100%; padding: 100% 0 0; border: 0; border-radius: 26px;
+        overflow: hidden; background: #2a221c; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+        -webkit-tap-highlight-color: transparent; cursor: pointer;
+      }
+      .tile.current { box-shadow: 0 0 0 6px #fff, 0 0 28px rgba(255, 255, 255, 0.35); }
+      .face { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: block; overflow: hidden; color: #fff; }
+      .face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .face svg { position: absolute; top: 21%; left: 21%; width: 58%; height: 58%; }
+      .badge { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: none; }
+      .tile.current .badge { display: block; background: rgba(0, 0, 0, 0.25); }
+      .badge svg {
+        position: absolute; top: 31%; left: 31%; width: 38%; height: 38%; box-sizing: border-box; padding: 9%;
+        border-radius: 50%; background: rgba(255, 255, 255, 0.9); fill: #000;
+      }
+      .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: rgba(0, 0, 0, 0.3); display: none; }
+      .tile.current .bar { display: block; }
+      .fill { display: block; height: 100%; width: 0; background: #fff; }
+      .failed { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: none; background: rgba(0, 0, 0, 0.55); color: #fff; }
+      .failed svg { position: absolute; top: 33%; left: 33%; width: 34%; height: 34%; }
+      .tile.is-failed .failed { display: block; }
+      .name { display: block; margin-top: 8px; font-size: 13px; color: rgba(255, 255, 255, 0.8); }
+
+      .playlists {
+        flex: none; display: flex; overflow-x: auto;
+        border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 10px 16px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      }
+      .dot {
+        flex: none; position: relative; width: 44px; height: 44px; margin: 0 6px; padding: 0; border: 0;
+        border-radius: 50%; overflow: hidden; opacity: 0.6; background: transparent;
+      }
+      /* Centred by auto margins: justify-content: center hides the first ones off the scrollable edge on old Safari. */
+      .dot:first-child { margin-left: auto; }
+      .dot:last-child { margin-right: auto; }
+      .dot .face { border-radius: 50%; }
+      .dot.current { opacity: 1; box-shadow: 0 0 0 3px #fff; }
+    </style>
+  </head>
+  <body>
+    <header><img src="/songs-app/icon-192.png" alt="" /><span>Grimoire Songs</span></header>
+    <main id="classic-root"><div class="message"><p>Loading…</p></div></main>
+    <!-- classic-songs-script -->
+  </body>
+</html>
