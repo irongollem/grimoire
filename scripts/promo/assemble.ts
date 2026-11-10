@@ -246,7 +246,10 @@ async function main() {
   const intro = brand ? renderBrandSegment("intro", introFile, join(work, "intro.png"), 1.2, work, frame) : null;
   const outro = brand ? renderBrandSegment("outro", outroFile, join(work, "outro.png"), 2, work, frame) : null;
 
-  const voFiles = manifest.shots.map((s) => findFirst(join(dir, "vo"), s.id, ["wav", "m4a", "mp3", "aif", "aiff"]));
+  // A shot with no narration plays without a voice, even if a take was recorded for it.
+  const voFiles = manifest.shots.map((s) =>
+    s.narration.trim() === "" ? null : findFirst(join(dir, "vo"), s.id, ["wav", "m4a", "mp3", "aif", "aiff"]),
+  );
   const inputs: ShotInput[] = manifest.shots.map((s, i) => ({
     id: s.id,
     clipDuration: durationOf(join(dir, s.file)),

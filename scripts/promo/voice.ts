@@ -238,20 +238,24 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   }
 
   if (method === "GET" && path === "/api/episodes") {
-    const list = episodeIds().map((id) => {
+    // A Reel with no narration has nothing to record: the picture-book scenes play to their music alone, and a
+    // take recorded for one was cut into it (10 Nov 2026), so they are not offered here.
+    const list = episodeIds().flatMap((id) => {
       const ep: Episode = { id, dir: join(ROOT, id), vo: join(ROOT, id, "vo") };
       const m = readManifest(ep);
-      return {
+      const narrated = m.shots.filter((s) => s.narration.trim() !== "");
+      if (narrated.length === 0) return [];
+      return [{
         id,
         title: m.title,
         account: m.account,
         format: m.format ?? "reel",
         pairedWith: m.pairedWith,
         recordedAt: m.recordedAt,
-        shots: m.shots.length,
-        takes: m.shots.filter((s) => takeFile(ep, s.id) !== null).length,
+        shots: narrated.length,
+        takes: narrated.filter((s) => takeFile(ep, s.id) !== null).length,
         reel: existsSync(join(ep.dir, `${id}.mp4`)),
-      };
+      }];
     });
     return json(res, 200, list);
   }
