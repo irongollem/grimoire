@@ -76,6 +76,22 @@
           />
         </div>
 
+        <!-- Output is a route, not a level, so it sits apart from the faders as a
+             two-way switch. It is here because the mixer opens from the deck on
+             every page: in the car (wireless CarPlay stutters through the mixer,
+             7 Nov 2026) one tap beats finding Board settings. Switching stops what
+             is playing, as it does from the dialog. -->
+        <div class="flex items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+          <span class="text-caption text-muted-foreground">Output</span>
+          <SegmentedControl
+            :model-value="store.directOutput ? 'direct' : 'mixer'"
+            :options="OUTPUT_OPTIONS"
+            variant="outline"
+            size="xs"
+            @update:model-value="store.setDirectOutput($event === 'direct')"
+          />
+        </div>
+
         <!--
           A read-only echo, not a control. The mixer is for levels; two
           checkboxes among the faders read as levels too. But this is still where
@@ -91,7 +107,6 @@
           <IconSettings class="h-3 w-3 shrink-0" />
           <span>
             Triggers {{ audioTriggersEnabled ? "on" : "off" }} · Sharing {{ broadcasting ? "on" : "off" }}
-            · Output {{ store.directOutput ? "direct" : "mixer" }}
           </span>
         </button>
 
@@ -120,6 +135,12 @@ import type { AudioBus } from "@/lib/audio/audioEngine";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import SceneMixer from "./SceneMixer.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+
+const OUTPUT_OPTIONS = [
+  { value: "mixer", label: "Mixer", tooltip: "Through the mixer: faders, fades and effects" },
+  { value: "direct", label: "Direct (car)", tooltip: "Straight to the device: no stutter over CarPlay, but no effects, and no faders on iPhone" },
+] as const;
 
 const BUSES = [
   { id: "music", label: "Music" },

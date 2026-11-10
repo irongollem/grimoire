@@ -8,14 +8,15 @@
       <!-- Board settings had exactly one way in: a muted status line at the
            bottom of the mixer drawer, which its own comment described as "a
            read-only echo, not a control". Three settings including remote-player
-           sharing and the CarPlay direct-output fix were effectively hidden. -->
+           sharing and the CarPlay direct-output fix were effectively hidden.
+           It shows at every width: hidden below sm, a phone (the device the DM
+           takes to the car) could only reach it through the deck's foldout. -->
       <AppButton
         variant="subtle"
         size="sm"
         :icon="IconSettings"
         aria-label="Board settings"
         tooltip="Board settings: triggers, sharing, output, controllers"
-        class="hidden sm:flex"
         @click="soundboardUi.soundboardSettingsOpen = true"
       />
 
