@@ -5,6 +5,7 @@
        it; players have their own portal nav. -->
   <nav
     v-if="isDm"
+    ref="bar"
     class="fixed inset-x-0 bottom-0 z-40 flex justify-center border-t border-border bg-card px-1.5 sidenav:hidden md:px-4"
     :style="barStyle"
   >
@@ -89,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, useTemplateRef, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   IconMore,
@@ -119,6 +120,29 @@ const { offers } = useGameSystem();
 const isDm = computed(() => auth.currentRole === "dm");
 
 const moreOpen = ref(false);
+
+// The bar's height depends on its font and the safe area, so it is measured
+// and published as `--bar-nav-height` on <html> for the layers that sit on it
+// (the folded sound deck). A guessed 4.5rem left a gap above a ~4rem bar.
+const bar = useTemplateRef<HTMLElement>("bar");
+let barObserver: ResizeObserver | null = null;
+function clearBarHeight(): void {
+  barObserver?.disconnect();
+  barObserver = null;
+  document.documentElement.style.removeProperty("--bar-nav-height");
+}
+watchEffect(() => {
+  clearBarHeight();
+  const node = bar.value;
+  if (node === null) return;
+  const publish = (): void =>
+    document.documentElement.style.setProperty("--bar-nav-height", `${node.getBoundingClientRect().height}px`);
+  publish();
+  if (typeof ResizeObserver === "undefined") return;
+  barObserver = new ResizeObserver(publish);
+  barObserver.observe(node);
+});
+onBeforeUnmount(clearBarHeight);
 
 // The pools live in the nav registry alongside the sidebar's own ordering, so
 // a label or icon cannot say one thing here and another there — see

@@ -4,10 +4,10 @@
     aria-label="Sound deck"
     data-testid="deck-phone"
     :data-size="shown"
-    class="fixed inset-x-0 z-55 border-border bg-card"
+    class="fixed inset-x-0 z-45 border-border bg-card"
     :class="open
       ? 'bottom-0 flex flex-col rounded-t-2xl border-t pb-[env(safe-area-inset-bottom)] shadow-2xl'
-      : 'bottom-[calc(4.5rem+env(safe-area-inset-bottom))] border-t'"
+      : 'bottom-[var(--bar-nav-height,calc(4.5rem+env(safe-area-inset-bottom)))] border-t'"
     :style="open ? { height: shown === 'full' ? '100dvh' : '70dvh' } : undefined"
   >
     <!-- Nothing built yet. -->
@@ -220,6 +220,9 @@ import { createTapOrHold } from "./tapOrHold";
  * bar (only while a session runs or something plays, otherwise a slim handle);
  * open it is a bottom sheet with four lanes at a time. Its folded height is
  * published as `--dock-bottom`; an open sheet covers the page and publishes none.
+ * It sits on the bar's measured height (`--bar-nav-height`, DmBottomNav) and at
+ * z-45: above the bar (z-40), below sheets, modals and toasts (z-50), so the
+ * More sheet covers it rather than the other way round.
  */
 
 const { empty = false } = defineProps<{ empty?: boolean }>();

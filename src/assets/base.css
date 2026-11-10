@@ -172,7 +172,8 @@ input[type="number"] {
    builder). On a desktop it sits in the page's flow under <main>, so only the
    fixed layers that hug the viewport's bottom edge need it: they add it to
    their own offset (`bottom-[calc(1.25rem+var(--dock-bottom,0px))]`), the phone
-   layers on top of the 4.5rem bottom bar. The page itself needs nothing but the
+   layers on top of the bottom bar (about 4.5rem; the folded phone deck sits on
+   its measured `--bar-nav-height`). The page itself needs nothing but the
    phone, where <main> adds it to its bar padding. A new fixed bottom-anchored
    layer does the same, so the deck is never covered.
 ───────────────────────────────────────────────────────────────────────────── */
