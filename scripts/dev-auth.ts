@@ -238,8 +238,11 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
 
   const sourceId = sql(
     dbUrl,
+    // A 5e campaign only: the fixture seats 5e characters, and a Generic
+    // campaign has no edition to build them in (#934).
     `select c.id from public.campaigns c
        join public.locations l on l.campaign_id = c.id
+      where private.game_system_is_5e(c.game_system)
       group by c.id order by count(l.id) desc limit 1`,
   );
   if (!sourceId) return 0;
@@ -638,10 +641,12 @@ function ensureFixtureBestiary(dbUrl: string, ownerId: string): number {
   const already = countFixtureMonsters(dbUrl, campaignId);
   if (already > 0) return already;
 
-  // The source with the most creatures in it, so the grid is worth looking at.
+  // The source with the most creatures of the campaign's edition in it, so the
+  // grid is worth looking at (the bestiary shows only that edition's rows).
   const slug = sql(
     dbUrl,
     `select source from public.library_monsters
+      where ruleset = ${campaignEdition(campaignId)}
       group by source order by count(*) desc limit 1`,
   );
   if (!slug) return 0;
@@ -662,12 +667,18 @@ function countFixtureMonsters(dbUrl: string, campaignId: string): number {
     sql(
       dbUrl,
       `select count(*) from public.library_monsters m
-        where m.source in (
+        where m.ruleset = ${campaignEdition(campaignId)}
+          and m.source in (
           select source_slug from public.campaign_enabled_sources
            where campaign_id = ${quote(campaignId)}
         )`,
     ),
   );
+}
+
+/** A SQL expression for the 5e edition the campaign plays. */
+function campaignEdition(campaignId: string): string {
+  return `(select private.game_system_edition(game_system) from public.campaigns where id = ${quote(campaignId)})`;
 }
 
 main().catch((err: unknown) => {
