@@ -111,6 +111,21 @@ select:not([multiple]):not([size]) {
   background-repeat: no-repeat;
 }
 /* ─────────────────────────────────────────────────────────────────────────────
+   Radio buttons take the theme's primary, as AppCheckbox's boxes do
+
+   A radio carries no chrome, so it stays a bare <input> (CLAUDE.md), and with
+   no accent of its own it drew the operating system's blue in every theme: in
+   the quest Advance dialog, a blue dot beside Vellum's ink-red tick (8 Nov
+   2026). Every radio that set its own accent already chose `accent-primary`;
+   the bare ones had simply been left out. In the base layer, so an `accent-*`
+   utility at a call site still overrides it (an unlayered rule would beat it).
+───────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  input[type="radio"] {
+    accent-color: var(--color-primary);
+  }
+}
+/* ─────────────────────────────────────────────────────────────────────────────
    Hide number input spinners globally
 ───────────────────────────────────────────────────────────────────────────── */
 input[type="number"]::-webkit-inner-spin-button,

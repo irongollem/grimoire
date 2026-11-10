@@ -1,6 +1,8 @@
 /**
- * Captures each "Steal this" post's Card Forge card, front and back, from the
- * app's own preview (`/forge`), so the card can join the post's slides.
+ * Saves each "Steal this" post's Card Forge card, front and back, through the
+ * card's own Save front / Save back buttons (`/forge`), so the slides and the
+ * teaser Reel show exactly the PNG a DM gets: print size, 300 dpi, transparent
+ * rounded corners.
  *   tsx --tsconfig tsconfig.node.json scripts/promo/steal/cards.ts [--base http://localhost:5173]
  * Writes promo-out/<post id>/pages/card-<style>-<size>-front.png and -back.png.
  */
@@ -48,26 +50,29 @@ async function main() {
       for (const style of STYLES) {
         await visible(page.getByRole("radio", { name: style.label, exact: true }).or(page.getByRole("button", { name: style.label, exact: true }))).click();
         await page.waitForTimeout(1200);
-        const cards = page.locator(".preview-card-wrapper").filter({ visible: true });
-        const n = await cards.count();
+        const slots = page.locator(".preview-card-slot").filter({ visible: true });
+        const n = await slots.count();
         for (let i = 0; i < n; i++) {
-          const card = cards.nth(i);
+          const slot = slots.nth(i);
+          const card = slot.locator(".preview-card-wrapper");
           const text = (await card.innerText()).toLowerCase();
           const post = posts.find((p) => text.includes(p.entity.name.toLowerCase()));
           if (!post) continue;
           const out = resolve("promo-out", post.id, "pages");
-          // The card tilts towards the pointer; park the pointer off the card before each shot.
-          await page.mouse.move(5, 5);
           await card.scrollIntoViewIfNeeded();
-          await page.waitForTimeout(400);
-          await card.screenshot({ path: join(out, `card-${style.id}-${size.id}-front.png`) });
+          for (const side of ["front", "back"] as const) {
+            if (side === "back") {
+              await card.click();
+              await page.waitForTimeout(1000);
+            }
+            const [download] = await Promise.all([
+              page.waitForEvent("download"),
+              slot.getByRole("button", { name: side === "front" ? "Save front" : "Save back" }).click(),
+            ]);
+            await download.saveAs(join(out, `card-${style.id}-${size.id}-${side}.png`));
+          }
           await card.click();
-          await page.mouse.move(5, 5);
-          await page.waitForTimeout(1200);
-          await card.screenshot({ path: join(out, `card-${style.id}-${size.id}-back.png`) });
-          await card.click();
-          await page.mouse.move(5, 5);
-          await page.waitForTimeout(1000);
+          await page.waitForTimeout(800);
         }
         console.log(`${style.id} ${size.id}: ${n} card(s)`);
       }

@@ -61,7 +61,6 @@ const {
   useCreateLocation,
   useUpdateLocation,
   useUpdateLocationPicture,
-  useSaveStyledSitePicture,
   useDeleteLocation,
   useAllLocations,
   useLocation,
@@ -294,23 +293,6 @@ describe("map layer writes", () => {
     const { result, unmount } = withQueryClient(() => useUpdateLocationPicture());
     await result.mutateAsync({ id: "site", mapUrl: "scan.png", calibration: null });
     expect(fake.rows("locations")[0]).toMatchObject({ map_url: "scan.png", grid_calibration: null });
-    unmount();
-  });
-
-  it("saving a styled render as the picture unlinks the drawing in the same write, keeping the drawing's own map row", async () => {
-    fake.seed("locations", [place({ id: "site", map_layer_url: "layer.png", map_layer_stand_url: "stand.png", source_map_id: "m1", map_published_rev: 4 })]);
-    fake.seed("dungeon_maps", [{ id: "m1" }]);
-    const { result, unmount } = withQueryClient(() => useSaveStyledSitePicture());
-    await result.mutateAsync({ id: "site", mapUrl: "styled.png", calibration });
-    expect(fake.rows("locations")[0]).toMatchObject({
-      map_url: "styled.png",
-      grid_calibration: calibration,
-      map_layer_url: null,
-      map_layer_stand_url: null,
-      source_map_id: null,
-      map_published_rev: null,
-    });
-    expect(fake.rows("dungeon_maps")).toHaveLength(1);
     unmount();
   });
 

@@ -3,7 +3,7 @@
  * vitest covers it directly (see vitest.config.ts's supabase/functions
  * include). The age/login-name rules themselves live in the shared
  * _shared/childAccount.ts; this module only narrows `unknown` JSON bodies and
- * classifies the two ambiguous errors index.ts has to map to a specific code.
+ * classifies the ambiguous auth/database errors index.ts has to map to a specific code.
  */
 import type { BirthMonth } from "../_shared/childAccount.ts";
 
@@ -40,6 +40,19 @@ export function isDuplicateEmailError(error: unknown): boolean {
   if (e.code === "email_exists") return true;
   const message = typeof e.message === "string" ? e.message.toLowerCase() : "";
   return message.includes("already been registered") || message.includes("already registered");
+}
+
+/**
+ * Supabase auth refusing a password that passed our own length rule: with
+ * leaked-password protection on, a password found in a known breach comes
+ * back as `AuthWeakPasswordError` (code `weak_password`, reasons ["pwned"]).
+ * Without this the parent saw "Something went wrong" and had no idea the
+ * password was the problem.
+ */
+export function isRejectedPasswordError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: unknown; name?: unknown };
+  return e.code === "weak_password" || e.name === "AuthWeakPasswordError";
 }
 
 /** A Postgres unique-violation (23505) on child_accounts.login_name specifically, not some other constraint on the same table. */

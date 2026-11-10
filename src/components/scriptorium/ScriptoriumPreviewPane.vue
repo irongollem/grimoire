@@ -23,7 +23,7 @@
       </span>
       <span class="flex-1" />
       <span>{{ lookText }}</span>
-      <span v-if="result" class="tabular-nums">{{ result.pageCount }} pages</span>
+      <span v-if="result && result.pageCount > 0" class="tabular-nums">{{ result.pageCount }} {{ result.pageCount === 1 ? "page" : "pages" }}</span>
       <div class="flex items-center overflow-hidden rounded border border-border">
         <AppButton
           variant="ghost"
@@ -81,9 +81,23 @@
                 { 'paged-book--spread': inspect, 'paged-book--lone': inspect && spread === 0 },
               ]"
               :style="{ '--spread-page-width': `${pageBox.w}px` }"
-              :title="inspect ? undefined : 'Click any block to edit it'"
               @click="onPagedClick"
             />
+            <!-- Nothing written yet: the layout has no pages, so show the bare
+                 sheet in its look rather than an empty stage. -->
+            <div
+              v-if="blankSheet"
+              class="sc-theme"
+              :class="[scriptoriumThemeClass(settings.theme), { 'ink-friendly': settings.inkFriendly }]"
+              data-testid="preview-blank-sheet"
+              aria-hidden="true"
+            >
+              <div
+                class="phb-page"
+                :class="{ 'ink-friendly': settings.inkFriendly }"
+                :style="{ width: `${pageBox.w}px`, height: `${pageBox.h}px` }"
+              />
+            </div>
           </div>
         </div>
         <p v-if="error" class="px-4 py-3 text-caption text-destructive" role="alert">{{ error }}</p>
@@ -198,6 +212,9 @@ const { isRendering, error, result, progress, scheduleRender } = useBookPreview(
 });
 
 watch(result, (value) => emit("layout", value));
+
+/** A book or handout with nothing on it yet lays out to no pages at all (the engine never paginates an empty chapter). */
+const blankSheet = computed(() => !inspect.value && !isRendering.value && !error.value && result.value?.pageCount === 0);
 watch(progress, (value) => emit("progress", value));
 
 const lookText = computed(() => `${scriptoriumLook(settings.theme).label} · ${settings.pageSize}`);

@@ -1,5 +1,6 @@
 import type { DeckCellView, DeckTool } from "@/lib/audio/deck/deckSurface";
-import type { SoundCategory, LaunchMode } from "@/types/sound.types";
+import { SOUND_KIND_LABEL, soundKindOf, type SoundKind } from "@/lib/audio/soundKinds";
+import type { LaunchMode } from "@/types/sound.types";
 
 /**
  * What a pad looks like and says, derived from its cell. Kept out of the
@@ -82,11 +83,13 @@ export function padAccessibleName(cell: DeckCellView, tool: DeckTool): string {
   const state = [STATE_WORDS[cell.light]];
   if (cell.light === "blocked" && cell.blockedReason !== null) state.push(cell.blockedReason);
   if (cell.soloed) state.push("soloed");
-  if (cell.guest !== null) return `${cell.name}. Started by ${cell.guest.label}. Pressing stops it. ${state.join(", ")}.`;
-  return `${cell.name}. ${action}. ${state.join(", ")}.`;
+  const kind = SOUND_KIND_LABEL[padKindOf(cell)];
+  if (cell.guest !== null) return `${cell.name}, ${kind}. Started by ${cell.guest.label}. Pressing stops it. ${state.join(", ")}.`;
+  return `${cell.name}, ${kind}. ${action}. ${state.join(", ")}.`;
 }
 
-/** Category used for colour when a pad somehow has none: the effects colour. */
-export function padCategory(cell: DeckCellView): SoundCategory {
-  return cell.category === null ? "effects" : cell.category;
+
+/** Music track, playlist, ambience track, scene or effect. */
+export function padKindOf(cell: DeckCellView): SoundKind {
+  return soundKindOf(cell.kind ?? "sound", cell.category);
 }

@@ -8,6 +8,7 @@
 
 import { DECK_HARDWARE_ROWS, DECK_LANES, type DeckCellView, type DeckSnapshot } from "../deckSurface";
 import type { LaunchpadButton, LaunchpadProfile } from "./launchpadProfiles";
+import { padHueOf, type PadHue } from "@/lib/audio/soundCategories";
 
 const SYSEX_START = 0xf0;
 const SYSEX_END = 0xf7;
@@ -99,7 +100,6 @@ export type LedSpec =
 export type LedFrame = Map<number, LedSpec>;
 
 type Rgb = readonly [number, number, number];
-type Category = "music" | "ambient" | "effects";
 
 // Picked by eye on a Launchpad X (3 Nov 2026), which shows two things the
 // screen colours cannot predict. The LEDs are not linear: an RGB value scaled
@@ -109,17 +109,24 @@ type Category = "music" | "ambient" | "effects";
 // screen's gold washes to white and its teal reads as the effects blue, so the
 // device gets its own saturated gold, a green for ambient, and a violet blue.
 // The Pro MK3 and Mini MK3 share the palette and the LEDs.
+//
+// Playlists and scenes took hues of their own on 7 Nov 2026 (orange beside the
+// gold, aqua beside the green). Those two were chosen from the palette's layout
+// (9/11 the orange group, 33/35 the cyan group) and have NOT been checked by eye
+// on the device yet; adjust them there, as the three above were.
 
 /** Playing, full RGB. */
-const CATEGORY_RGB: Record<Category, Rgb> = {
+const HUE_RGB: Record<PadHue, Rgb> = {
   music: [127, 75, 0],
   ambient: [0, 127, 60],
   effects: [40, 30, 127],
+  playlist: [127, 30, 0],
+  scene: [0, 110, 127],
 };
 /** Loaded and silent: the dim palette shade of the category. */
-const CATEGORY_READY_PALETTE: Record<Category, number> = { music: 126, ambient: 22, effects: 38 };
+const HUE_READY_PALETTE: Record<PadHue, number> = { music: 126, ambient: 22, effects: 38, playlist: 11, scene: 35 };
 /** Looping: the device pulses this palette colour by itself. */
-const CATEGORY_PULSE_PALETTE: Record<Category, number> = { music: 96, ambient: 21, effects: 45 };
+const HUE_PULSE_PALETTE: Record<PadHue, number> = { music: 96, ambient: 21, effects: 45, playlist: 9, scene: 33 };
 
 const PALETTE_BLOCKED = 121;
 const PALETTE_IDLE = 103;
@@ -139,22 +146,22 @@ function palette(color: number): LedSpec {
 
 export function cellLed(cell: DeckCellView | undefined): LedSpec {
   if (!cell) return OFF;
-  const category = cell.category ?? "effects";
+  const hue = padHueOf(cell.kind, cell.category);
   switch (cell.light) {
     case "off":
       return OFF;
     case "ready":
     // A ducked pad is still playing, under a solo; the dim shade says "turned down".
     case "ducked":
-      return palette(CATEGORY_READY_PALETTE[category]);
+      return palette(HUE_READY_PALETTE[hue]);
     case "playing":
     case "held":
-      return rgb(CATEGORY_RGB[category]);
+      return rgb(HUE_RGB[hue]);
     case "looping":
-      return { type: "pulse", color: CATEGORY_PULSE_PALETTE[category] };
+      return { type: "pulse", color: HUE_PULSE_PALETTE[hue] };
     case "fading":
       // A hard flash, unlike a loop's smooth pulse: on its way out.
-      return { type: "flash", color: CATEGORY_PULSE_PALETTE[category], between: CATEGORY_READY_PALETTE[category] };
+      return { type: "flash", color: HUE_PULSE_PALETTE[hue], between: HUE_READY_PALETTE[hue] };
     case "blocked":
       return palette(PALETTE_BLOCKED);
   }

@@ -301,6 +301,7 @@ import {
   IconDocument,
   IconClock,
   IconFaction,
+  IconFlag,
   IconHand,
   IconInvite,
   IconLayers,
@@ -453,7 +454,9 @@ function describePayoff(entry: QuestRoutePayoff): string {
 const PAYOFF_ICON: Record<QuestConsequenceAction, Component> = {
   raise: IconQuest,
   reveal: IconReveal,
-  complete: IconCheck,
+  // A flag, not a tick: each payoff row already has its checkbox, and a tick in a green tile beside it
+  // read as a second, already-ticked box (8 Nov 2026).
+  complete: IconFlag,
   fail: IconWarning,
   create_calendar_event: IconCalendar,
   send_broadcast: IconAnnounce,

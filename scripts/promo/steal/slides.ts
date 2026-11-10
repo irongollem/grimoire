@@ -7,8 +7,9 @@
  *   4 card    its Card Forge trading card, front and back (cards.ts captures them)
  *   5 close   where it was made: the Scriptorium page in the editor
  *   tsx --tsconfig tsconfig.node.json scripts/promo/steal/slides.ts [post id]
- * Writes promo-out/<post id>/slides/slide-N.png and post.html (the slides side by side, for review).
+ * Writes promo-out/<post id>/slides/slide-N.png, and slide-N.jpg beside each for posting.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -80,7 +81,7 @@ function slides(post: StealPost, dir: string, art: string): string[] {
       `.title { position: absolute; left: 0; right: 0; top: 70px; text-align: center; display: grid; gap: 6px; }
        .kicker { font-size: 32px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e2bd62; }
        .name { font-family: Fondamento, serif; font-size: 76px; }
-       .cf { position: absolute; width: 470px; border-radius: 22px; box-shadow: 0 30px 70px rgba(0,0,0,.7); }
+       .cf { position: absolute; width: 470px; filter: drop-shadow(0 26px 34px rgba(0,0,0,.7)); }
        .front { left: 46px; top: 310px; transform: rotate(-4deg); }
        .back { right: 46px; top: 350px; transform: rotate(4deg); }`,
     ),
@@ -142,6 +143,8 @@ async function main() {
         await page.waitForTimeout(500);
         await page.screenshot({ path: join(out, `slide-${i + 1}.png`) });
         rmSync(file);
+        // Instagram takes carousel photos as JPEG only (carousels.ts posts slides/slide-N.jpg).
+        execFileSync("ffmpeg", ["-v", "error", "-y", "-i", join(out, `slide-${i + 1}.png`), "-q:v", "2", join(out, `slide-${i + 1}.jpg`)]);
       }
       await page.close();
       console.log(`${post.id}: ${html.length} slides in ${out}`);

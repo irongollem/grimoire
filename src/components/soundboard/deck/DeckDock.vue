@@ -151,11 +151,16 @@
         </div>
       </template>
 
-      <!-- Peek: Deck size laid over the page. It pushes nothing, so the page never jumps. -->
+      <!--
+        Peek: Deck size laid over the page. It pushes nothing, so the page never jumps,
+        and it rises from the dock over the Row bar rather than sitting on top of it,
+        so the same pads never show twice.
+      -->
       <Transition v-bind="peekTransition">
         <div
           v-if="peek.peeking.value"
-          class="absolute inset-x-3 bottom-full z-30 mb-1 rounded-md border border-primary/60 bg-card p-3 shadow-xl"
+          ref="peekPanel"
+          class="absolute inset-x-3 bottom-1 z-30 rounded-md border border-primary/60 bg-card p-3 shadow-xl"
           data-slip
           data-testid="deck-peek"
           @pointerenter="peek.hold()"
@@ -171,6 +176,7 @@
 
 <script setup lang="ts">
 import { computed, useTemplateRef } from "vue";
+import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useDeck } from "@/composables/soundboard/useDeck";
 import { useDeckPeek } from "@/composables/soundboard/useDeckPeek";
@@ -206,6 +212,8 @@ const ui = useSoundboardUiStore();
 const { deckSize: size, deckPeekEnabled, deckPeekSignal } = storeToRefs(ui);
 
 const peek = useDeckPeek({ size, enabled: deckPeekEnabled, signal: deckPeekSignal });
+// A click anywhere else puts it away at once, like any other slip over the page.
+onClickOutside(useTemplateRef<HTMLElement>("peekPanel"), () => peek.close());
 
 function setSize(next: DeckSize): void {
   ui.deckSize = next;

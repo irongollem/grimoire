@@ -20,6 +20,7 @@ const mocks = await vi.hoisted(async () => {
   replace: vi.fn(),
   refetch: vi.fn(),
   list: vueRef<{ id: string; title: string }[]>([]),
+  kind: "book" as "book" | "handout",
   query: {} as Record<string, string>,
   };
 });
@@ -64,7 +65,7 @@ vi.mock("@/composables/scriptorium/useBookChapterHtml", () => ({
 }));
 vi.mock("@/composables/scriptorium/useBookSettings", () => ({
   useBookSettings: () => ({
-    draft: { title: "Sothery", kind: "book", theme: "onednd2024", pageSize: "A4", isTwoColumn: false, showPageNumbers: false, pageNumberStart: 1, footerText: "", inkFriendly: false, campaignId: null, furniture: [], isPublished: false, tags: [] },
+    draft: { title: "Sothery", kind: mocks.kind, theme: "onednd2024", pageSize: "A4", isTwoColumn: false, showPageNumbers: false, pageNumberStart: 1, footerText: "", inkFriendly: false, campaignId: null, furniture: [], isPublished: false, tags: [] },
     patch: vi.fn(),
     status: ref("saved"),
     saveError: ref(""),
@@ -87,9 +88,9 @@ const Rail = defineComponent({
 });
 const Editor = defineComponent({
   props: ["chapter"],
-  setup(_p, { expose }) {
+  setup(_p, { expose, slots }) {
     expose({ saveNow: mocks.saveNow, hold: mocks.hold, release: vi.fn(), focusBlock: mocks.focusBlock, blockIdAtCursor: () => null, dirty: false });
-    return () => h("div", { "data-testid": "chapter-editor-stub" });
+    return () => h("div", { "data-testid": "chapter-editor-stub" }, slots.footer?.());
   },
 });
 const Pane = defineComponent({
@@ -127,6 +128,7 @@ beforeEach(() => {
   Object.values(mocks).forEach((m) => typeof m === "function" && "mockReset" in m && m.mockReset());
   mocks.list.value = [{ id: "c1", title: "One" }, { id: "c2", title: "Two" }];
   mocks.query = {};
+  mocks.kind = "book";
   mocks.saveNow.mockResolvedValue(undefined);
   mocks.hold.mockResolvedValue(undefined);
   mocks.deleteDoc.mockResolvedValue(undefined);
@@ -168,6 +170,18 @@ describe("ScriptoriumBookEditor", () => {
     mocks.list.value = [{ id: "c2", title: "Two" }];
     await flushPromises();
     expect(mocks.hold).toHaveBeenCalled();
+  });
+
+  // #1115: a handout is one chapter on one paper, so its one chapter offers no second.
+  it.each([
+    ["book", true],
+    ["handout", false],
+  ] as const)("a one-chapter %s offers Add chapter: %s", async (kind, offered) => {
+    mocks.kind = kind;
+    mocks.list.value = [{ id: "c1", title: "One" }];
+    const wrapper = open();
+    await flushPromises();
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Add chapter"))).toBe(offered);
   });
 
   it("deletes the images of every chapter with the book, and leaves for the list", async () => {

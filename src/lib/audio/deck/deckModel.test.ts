@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   defaultLanes,
@@ -11,6 +13,7 @@ import {
   laneCategory,
   nextTakeIndex,
   padAt,
+  padArt,
   padCategory,
   padKind,
   pageLanes,
@@ -44,6 +47,32 @@ describe("pageLanes", () => {
     const first = defaultLanes();
     first[0] = { name: "Changed", rule: "together" };
     expect(defaultLanes()[0]).toEqual({ name: "Music", rule: "one", feed: "music" });
+  });
+});
+
+describe("defaultLanes and the database default", () => {
+  /** The `soundboard_pages.lanes` default the newest migration that sets one writes. */
+  function databaseDefault(): unknown {
+    const dir = join(process.cwd(), "supabase/migrations");
+    const pattern = /(?:add column lanes jsonb not null default|alter column lanes set default) '([\s\S]*?)'::jsonb/;
+    const newest = readdirSync(dir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .map((file) => pattern.exec(readFileSync(join(dir, file), "utf8")))
+      .filter((match) => match !== null)
+      .pop();
+    if (!newest) throw new Error("no migration sets soundboard_pages.lanes' default");
+    return JSON.parse(newest[1]!);
+  }
+
+  it("lays out the same lanes a new page gets from the database, so a page with no lanes yet reads as it will once saved", () => {
+    // The default lived in two places with only a comment between them.
+    expect(defaultLanes()).toEqual(databaseDefault());
+  });
+
+  it("names the four effect lanes, so a DM sees the lane names are theirs to change", () => {
+    const names = defaultLanes().map((lane) => lane.name);
+    expect(names.slice(3, 7)).toEqual(["Combat", "Creatures", "Weather", "Doors & traps"]);
   });
 });
 
@@ -287,5 +316,26 @@ describe("steppedPageIndex", () => {
 
   it("treats an unknown page as the first", () => {
     expect(steppedPageIndex(3, -1, 1)).toBe(1);
+  });
+});
+
+describe("padArt", () => {
+  const a = { id: "a", thumbnail_url: null };
+  const b = { id: "b", thumbnail_url: "b.webp" };
+  const c = { id: "c", thumbnail_url: "c.webp" };
+
+  it("shows the art of the sound about to play, or playing", () => {
+    // Bug: always taking the first take's art would show the wrong picture on a pad whose next take has its own.
+    expect(padArt([a, b, c], "c")).toBe("c.webp");
+  });
+
+  it("falls back to the first sound with art when that one has none", () => {
+    expect(padArt([a, b, c], "a")).toBe("b.webp");
+    expect(padArt([a, b, c], null)).toBe("b.webp");
+  });
+
+  it("shows nothing when no sound has art", () => {
+    expect(padArt([a], "a")).toBeNull();
+    expect(padArt([], null)).toBeNull();
   });
 });

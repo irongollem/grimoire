@@ -17,7 +17,7 @@
       />
     </div>
 
-    <DeckNowChips class="min-w-48 flex-1" />
+    <div class="min-w-48 flex-1 overflow-x-auto scrollbar-none"><DeckNowChips /></div>
 
     <DeckTransport
       :paused="snapshot.paused"

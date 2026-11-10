@@ -185,6 +185,7 @@ async function filmScene(s: ReelScene, url: string, dir: string): Promise<void> 
     account: "dm",
     format: "reel",
     brand: false,
+    ...(s.coverAt === undefined ? {} : { coverAt: s.coverAt }),
     recordedAt: new Date().toISOString(),
     shots: [shot],
   };

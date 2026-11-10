@@ -35,7 +35,7 @@ Each page has **8 lanes** (columns) and as many rows as you need. A lane has a n
 - **One at a time.** A new pad crossfades the old one. New music replaces the old music.
 - **Together.** Everything overlaps. An effect never stops the music.
 
-A new page starts with Music and Place (one at a time), Ambience, four Effects lanes and Stingers (together). You can rename any lane and change its rule.
+A new page starts with Music and Place (one at a time), Ambience, four effect lanes named Combat, Creatures, Weather and Doors & traps, and Stingers (together). You can rename any lane and change its rule.
 
 ### Sound the campaign starts by itself
 
@@ -99,6 +99,9 @@ Open the **Soundboard** page. On the left is a side panel with two sides, **Libr
 - **Place it.** Drag a row onto a slot, or select an empty slot and click the row. On a phone, tap an empty slot and the library opens on it: tap a sound to put it there.
 - **Add a take.** Drop a sound onto a pad that already has one and it becomes another take of that pad. With the pad's settings open, switch the panel to **Library** to drag one in.
 - **Move pads.** Drag a pad to another slot. If a pad is already there, the two swap. Drop a pad on a page tab to send it to that page.
+- **Edit a sound.** Press the pencil on its library row to rename it, set the artist and artwork your lock screen shows, change its kind (music track, ambience track or effect), correct its loudness, or delete it. Deleting a sound also takes it off every pad, scene and playlist it is on. A pad's own name in its settings only changes what that pad shows.
+- **Telling them apart.** Each kind has its own colour and icon: gold and a note for a music track, coral and a numbered list for a playlist, mint and wind for an ambience track, teal and stacked layers for a scene, blue and a lightning bolt for an effect. The icon is on every library row and at the start of every pad's bottom line, and a scene's or playlist's icon carries a small number: how many layers or tracks it has. A Launchpad lights them in the same five colours.
+- **Artwork.** A sound with artwork shows it on its pad, tinted in the pad's colour. A playlist or scene shows its tracks' artwork.
 - **Scenes and playlists.** Use **New scene** or **New playlist** in the library. The type is fixed when you create it. Free plans have a quota on these. A scene or playlist goes on an empty slot.
 - **Lanes.** Click a lane's name to rename it and choose how it plays.
 - **Pad settings.** Select a pad and the side panel shows its settings: name, loop, volume, launch mode, fade in and out (leave empty for the usual fade), whether each hit varies a little, and whether a controller's harder hit plays louder. Changes save by themselves; **Done** hands the panel back to the library.

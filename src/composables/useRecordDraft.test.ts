@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextTick, ref } from "vue";
+import { nextTick, readonly, ref } from "vue";
 import { changedColumns, draftValueEqual, mergeDraft, useRecordDraft } from "./useRecordDraft";
 
 interface Row { id: string; name: string; notes: string | null; tags: string[] }
@@ -115,6 +115,22 @@ describe("useRecordDraft (#946)", () => {
     const { draft, changes } = setup(row);
     draft.tags.push("spy");
     expect(changes(build)).toEqual({ tags: ["baker", "spy"] });
+  });
+
+  // Vue Query hands out its data deeply readonly. The campaign form passed the
+  // custom calendar through by reference, so the first draft held the cache's
+  // readonly object and "+ Add festival day", "+ Add moon" and "+ Add season"
+  // were all silently refused (10 Nov 2026).
+  it("writes into a nested object the source handed over readonly, as Vue Query's data is", () => {
+    interface CalRow { id: string; calendar: { festivals: string[] } }
+    const source = ref(readonly({ id: "c", calendar: { festivals: ["Midwinter"] } }) as CalRow);
+    const { draft, changes } = useRecordDraft({
+      source: () => source.value,
+      identity: (r: CalRow) => r.id,
+      toDraft: (r: CalRow | null) => ({ calendar: r?.calendar ?? { festivals: [] } }),
+    });
+    draft.calendar.festivals.push("Greengrass");
+    expect(changes((d) => d)).toEqual({ calendar: { festivals: ["Midwinter", "Greengrass"] } });
   });
 
   it("reset puts the server copy back", () => {

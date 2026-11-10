@@ -7,7 +7,7 @@
     </header>
 
     <div v-if="total" class="grid gap-2 sm:grid-cols-2">
-      <div v-for="entry in loot" :key="entry.id" class="flex items-center gap-2 rounded-lg border border-border p-2">
+      <div v-for="entry in shownLoot" :key="entry.id" class="flex items-center gap-2 rounded-lg border border-border p-2">
         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <component :is="lootIcon(entry.kind)" class="h-4 w-4" aria-hidden="true" />
         </span>
@@ -18,7 +18,7 @@
         <AppButton label="Dispatch" size="xs" variant="primary" :loading="dispatchingId === entry.id" @click="dispatchOne(entry.id)" />
       </div>
 
-      <div v-for="event in held" :key="event.event_id" class="flex items-center gap-2 rounded-lg border border-border p-2">
+      <div v-for="event in shownHeld" :key="event.event_id" class="flex items-center gap-2 rounded-lg border border-border p-2">
         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tone-arcane/15 text-ink-arcane">
           <IconClock class="h-4 w-4" aria-hidden="true" />
         </span>
@@ -29,6 +29,13 @@
         <AppButton label="Fire now" size="xs" variant="primary" :loading="firingId === event.event_id" @click="fireOne(event.event_id)" />
       </div>
     </div>
+    <AppButton
+      v-if="total > FOLDED_ROWS"
+      :label="expanded ? 'Show fewer' : `Show all ${total}`"
+      size="xs"
+      variant="subtle"
+      @click="expanded = !expanded"
+    />
     <p v-else class="text-caption italic text-muted-foreground">Nothing held back. Every fired consequence has already gone out.</p>
     <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
   </section>
@@ -86,6 +93,13 @@ function heldCaption(event: QuestHeldPayoff): string {
 }
 
 const total = computed(() => loot.length + held.length);
+
+// A long list folds to two rows of the grid (#1164) so the scene and What
+// happens next stay in view; the header still counts everything.
+const FOLDED_ROWS = 4;
+const expanded = ref(false);
+const shownLoot = computed(() => (expanded.value ? loot : loot.slice(0, FOLDED_ROWS)));
+const shownHeld = computed(() => (expanded.value ? held : held.slice(0, Math.max(0, FOLDED_ROWS - shownLoot.value.length))));
 const dispatchLoot = useDispatchLoot();
 const fireConsequence = useFireHeldConsequence();
 const dispatchingId = ref("");

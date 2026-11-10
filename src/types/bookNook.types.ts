@@ -34,7 +34,7 @@ export type NookPartGroup = "fire" | "cloth" | "creatures" | "air" | "frames";
 
 export interface CutoutPreset {
   hold?: "stands" | "hangs" | "floats";
-  motion?: "Flame" | "Cloth" | "Hanging" | "Floating" | "Wandering";
+  motion?: "Flame" | "Cloth" | "Hanging" | "Wagging" | "Floating" | "Wandering";
 }
 
 /** How a frame meets a screen of another shape: `slice` keeps its ornaments and stretches the plain bands, `cover` scales evenly and crops. */

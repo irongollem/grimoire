@@ -18,6 +18,8 @@ import { computed, isRef, ref } from "vue";
 // query key that drifts from the table name silently stops being refreshed
 // after a promote/delete disposition.
 const QUERY_KEY = "dungeon_maps";
+/** Root of every dungeon map read, for a write made outside these hooks (the styled save). */
+export const DUNGEON_MAPS_QUERY_KEY = QUERY_KEY;
 
 /** Rows are cast, not typed by the client, so a map saved before a layer
  *  existed arrives without that key. Every read goes through here.
@@ -78,10 +80,12 @@ async function fetchDungeonMap(id: string): Promise<DungeonMap | null> {
   return data ? convertStoredArea(data as DungeonMap) : null;
 }
 
-async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string }): Promise<DungeonMap> {
-  const user = getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
-  const payload = {
+/**
+ * A new map row as written, short of its owner: layers normalised, every unset field at its default. Shared by
+ * `createDungeonMap` and the styled save (`save_styled_site_picture`), which writes the row in the database.
+ */
+export function dungeonMapInsertPayload(map: Partial<DungeonMapInsert> & { name: string }) {
+  return {
     name: map.name,
     description: map.description ?? null,
     layers: readLayers(map.layers, { newKey: () => crypto.randomUUID() }),
@@ -93,8 +97,13 @@ async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string 
     // NULL = available in every campaign; unset defaults to that rather than
     // silently inheriting whatever campaign happens to be active (#789).
     campaign_id: map.campaign_id ?? null,
-    user_id: user.id,
   };
+}
+
+async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string }): Promise<DungeonMap> {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+  const payload = { ...dungeonMapInsertPayload(map), user_id: user.id };
   const { data, error } = await supabase
     .from("dungeon_maps")
     .insert(payload)

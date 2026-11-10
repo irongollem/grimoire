@@ -7,6 +7,20 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- The songs page pins as its own app, "Grimoire Songs" (src/views/soundboard/SongsView.vue). Safari reads the
+         manifest, the touch icon and the title while the page loads, so the songs page's own are chosen here,
+         before it does, and a page swap after the app starts comes too late: a pin made that way opened the
+         front page (9 Nov 2026). Every link to /songs is therefore a full page load. -->
+    <script>
+      if (/^\/songs\/?$/.test(location.pathname)) {
+        document.querySelector('link[rel="manifest"]').setAttribute("href", "/songs.webmanifest");
+        document.querySelector('link[rel="apple-touch-icon"]').setAttribute("href", "/songs-app/apple-touch-icon.png");
+        var songsTitle = document.createElement("meta");
+        songsTitle.name = "apple-mobile-web-app-title";
+        songsTitle.content = "Grimoire Songs";
+        document.head.appendChild(songsTitle);
+      }
+    </script>
     <!-- Open the connection to Supabase (DNS, TCP, TLS) while the JavaScript
          downloads, so the first query does not pay for it after the app has
          booted (#999). `crossorigin` because supabase-js calls are CORS
@@ -108,6 +122,10 @@
           Taking longer than it should.
           <button type="button" id="boot-reload">Reload</button>
         </p>
+        <p id="boot-too-old" hidden>
+          This browser is too old for Grimoire. It needs iOS 15 or later, or a recent Chrome, Firefox, Edge or Safari.
+          <a href="/classic/songs.html">Your table's songs still play here.</a>
+        </p>
       </div>
     </div>
     <style>
@@ -185,6 +203,9 @@
         color: var(--boot-fg, #2b2520);
       }
       #boot-stuck[hidden] { display: none; }
+      #boot-too-old { max-width: 22rem; padding: 0 1rem; text-align: center; line-height: 1.4; color: var(--boot-fg, #2b2118); font-family: -apple-system, system-ui, sans-serif; }
+      #boot-too-old[hidden] { display: none; }
+      #boot-too-old a { display: block; margin-top: 0.75rem; color: inherit; }
       #boot-stuck button:disabled { opacity: 0.6; }
       #boot-stuck button {
         padding: 0.5rem 1.5rem;
@@ -196,6 +217,20 @@
       }
     </style>
     <script>
+      // The app's floor is Safari 15 (#896; scripts/runtime-api-guard). Below it the bundle cannot run, and the
+      // splash used to sit there until "Taking longer than it should" offered a reload that could never help.
+      // aspect-ratio is the probe because it arrived with that floor (Safari 15, Chrome 88, Firefox 89). The songs
+      // page has a classic version for older phones (src/classic/), so /songs goes there instead.
+      var bootTooOld = !(window.CSS && CSS.supports && CSS.supports("aspect-ratio", "1"));
+      if (bootTooOld) {
+        if (/^\/songs\/?$/.test(location.pathname)) {
+          location.replace("/classic/songs.html");
+        } else {
+          document.getElementById("boot-too-old").hidden = false;
+          var bootFlag = document.querySelector("#boot-splash .dg-flag");
+          if (bootFlag) bootFlag.style.display = "none";
+        }
+      }
       try {
         var c = JSON.parse(localStorage.getItem("grimoire-splash-colors") || "null");
         if (c && c.background) {
@@ -207,6 +242,11 @@
         }
       } catch (e) {
         // Blocked or corrupt storage: the default colours stand.
+      }
+      // Safari before 14 cannot decode WebP, so a too-old browser gets the PNG copy of whichever logo is showing.
+      if (bootTooOld) {
+        var bootLogo = document.getElementById("boot-logo");
+        bootLogo.src = bootLogo.src.replace(/\.webp$/, ".png");
       }
       // The way out of a boot that never finishes. An installed app has no
       // reload button of its own, so without this the only escape was to kill
@@ -220,7 +260,7 @@
       // done by the time it is tapped; the wait is bounded at 10s regardless.
       setTimeout(function () {
         var stuck = document.getElementById("boot-stuck");
-        if (!stuck) return;
+        if (!stuck || bootTooOld) return;
         stuck.hidden = false;
         var sw = navigator.serviceWorker;
         // Settles once the update check has answered, so `installing` is set

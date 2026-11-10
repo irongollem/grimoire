@@ -13,6 +13,7 @@ import type { MapPass } from "./drawFrame";
 import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
+import { STYLE_PIXEL_BUDGET } from "@edge-shared/imageSize.ts";
 import { encodeWebp } from "@/lib/webpEncode";
 import { groundBounds } from "./groundRegions";
 import { dressingCellBounds, type DressingCatalog } from "./dressing";
@@ -252,7 +253,6 @@ const STYLE_MAX_ASPECT = 3;
  * in full here — cost is governed separately, by the flat credit charge,
  * not by trimming pixels.
  */
-const STYLE_PIXEL_BUDGET = 2560 * 1440; // 3,686,400 px
 const STYLE_MAX_EDGE = 3840;
 const STYLE_SIZE_STEP = 16;
 

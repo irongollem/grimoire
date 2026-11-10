@@ -36,6 +36,8 @@ function cell(over: Partial<DeckCellView> = {}): DeckCellView {
     volume: 1,
     soloed: false,
     blockedReason: null,
+    art: null,
+    count: null,
     meta: null,
     keyLabel: null,
     ...over,
@@ -141,6 +143,16 @@ describe("LED frame", () => {
     expect(c("looping", "music")).toEqual({ type: "pulse", color: 96 });
     expect(c("looping", "ambient")).toEqual({ type: "pulse", color: 21 });
     expect(c("looping", "effects")).toEqual({ type: "pulse", color: 45 });
+  });
+
+  it("lights a playlist and a scene in their own hue, not their category's", () => {
+    // Bug: keyed on category alone, a playlist lit as a music track and a scene as an ambience track.
+    const c = (light: DeckCellView["light"], kind: DeckCellView["kind"], category: DeckCellView["category"]) =>
+      cellLed(cell({ light, kind, category }));
+    expect(c("playing", "playlist", "music")).not.toEqual(c("playing", "sound", "music"));
+    expect(c("ready", "playlist", "music")).not.toEqual(c("ready", "sound", "music"));
+    expect(c("playing", "scene", "ambient")).not.toEqual(c("playing", "sound", "ambient"));
+    expect(c("looping", "scene", "ambient")).not.toEqual(c("looping", "sound", "ambient"));
   });
 
   it("flashes a fading pad between its pulse colour and its ready shade, so it reads apart from a loop", () => {

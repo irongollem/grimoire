@@ -3,6 +3,7 @@ import {
   asString,
   isDuplicateEmailError,
   isLoginNameUniqueViolation,
+  isRejectedPasswordError,
   isValidDisplayName,
   isValidPassword,
   parseBirth,
@@ -88,5 +89,20 @@ describe("isLoginNameUniqueViolation", () => {
     ).toBe(false);
     expect(isLoginNameUniqueViolation({ code: "23503", message: "login_name" })).toBe(false);
     expect(isLoginNameUniqueViolation(null)).toBe(false);
+  });
+});
+
+describe("isRejectedPasswordError", () => {
+  it("recognizes Supabase auth refusing a breached password", () => {
+    // The shape production returned for "Banaan123!" (7 Nov 2026).
+    expect(
+      isRejectedPasswordError({ name: "AuthWeakPasswordError", status: 422, code: "weak_password", reasons: ["pwned"] }),
+    ).toBe(true);
+  });
+
+  it("refuses other auth errors, so they still report create_failed", () => {
+    expect(isRejectedPasswordError({ name: "AuthApiError", code: "email_exists" })).toBe(false);
+    expect(isRejectedPasswordError({ name: "AuthApiError", code: "unexpected_failure" })).toBe(false);
+    expect(isRejectedPasswordError(null)).toBe(false);
   });
 });

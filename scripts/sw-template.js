@@ -393,6 +393,9 @@ self.addEventListener("fetch", (event) => {
   // link in a session email) is not the SPA: never answer that navigation with
   // the cached shell, which would boot the app on a route it doesn't have.
   if (req.mode === "navigate" && url.pathname.startsWith("/api/")) return;
+  // The classic songs page (/classic/songs.html) is a page of its own for phones too old for the app: answering it
+  // with the shell would boot the very app that cannot run there.
+  if (req.mode === "navigate" && url.pathname.startsWith("/classic/")) return;
 
   // SPA navigation — the cached shell, with no network request for the
   // document. A deploy reaches the user through the update check (the poll in

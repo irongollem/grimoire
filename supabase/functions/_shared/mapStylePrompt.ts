@@ -12,6 +12,23 @@ const KEEP_LAYOUT =
   "Repaint this top-down map image in the style below without changing its layout: every wall, door, stair and room outline stays exactly where the input image draws it, at the same size and position. Do not add rooms, walls, corridors or buildings the input does not have, and do not add a title, banner or cartouche. The small white words on the input are notes saying what belongs where: paint those things, and do not write the words.";
 
 /**
+ * The walls are the DM's and stay put; the furniture is a sketch of intent.
+ * Drawn from a tile palette, it comes in a few fixed facings and identical
+ * copies, and the model painted both literally: chairs turned away from the
+ * table they stood at, and two crates of pots side by side kept as two
+ * copies of one crate instead of one wider stack (the maintainer, styling
+ * the demo's inn, 8 Nov 2026). Asking for "a real room" was not enough: the
+ * next render still kept stools with their backs to the bar and two barrel
+ * stamps as two piles (9 Nov 2026), because "without changing its layout"
+ * read as covering the furniture too. So the layout is scoped to the
+ * architecture and the two cases are named. Each piece keeps its squares,
+ * since tokens stand on that grid; how it faces and how repeats read is the
+ * model's call.
+ */
+const INTERPRET_PROPS =
+  "The layout means the architecture only. The furniture and props are a rough placement sketch made from a few reused stamps, often turned the wrong way, so do not copy them literally: keep each thing on the same squares, but repaint it the way a real room would have it. Every chair, stool and bench faces the table, counter or hearth it stands at; if one in the input has its back to its table or counter, turn it around. Where the same prop repeats on neighbouring squares, such as two piles of barrels side by side, paint one larger pile filling all of those squares instead of separate copies. No two repeated items should look identical.";
+
+/**
  * Every preset, the isometric one included. The app lays its own grid over a styled map at play, so a grid painted into the
  * picture competes with it: two sets of lines that never quite agree. Models add one unasked, because "battle map" is mostly
  * gridded pictures, and they repaint any cell lines they can see in the input (the old tile floors drew a square per cell).
@@ -45,7 +62,7 @@ export function buildMapStylePrompt(
 ): string {
   const preset = PRESET_PROMPTS[presetId] ? presetId : "playable";
   const parts: string[] = [];
-  if (preset !== "isometric") parts.push(KEEP_LAYOUT);
+  if (preset !== "isometric") parts.push(KEEP_LAYOUT, INTERPRET_PROPS);
   // Named as the subject, not left as a bare phrase: on its own the name read
   // as lettering to paint, and came back as a title banner.
   if (mapName.trim()) parts.push(`The place: ${mapName.trim()}.`);

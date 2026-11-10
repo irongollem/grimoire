@@ -36,7 +36,8 @@ last quarter second is cut, where the stop key's own click lands.
 The recorder starts its own app server on :5181 (`server.ts`) that does not
 watch files: other sessions edit this checkout, and on the shared :5173 every
 save reloaded the page mid-take. `PROMO_BASE_URL=<url>` films a server you run
-yourself instead.
+yourself instead, and `PROMO_PORT=<port>` gives the take's own server another
+port (and its own dependency cache), so two episodes can be filmed at once.
 
 `promo:record -- <id> --shot <shot id>` re-films one shot and keeps the others.
 A failed take saves the screen at that moment as `shots/<shot>.failed.png`.
@@ -80,6 +81,16 @@ publishes at once; the API cannot schedule. The cover is the assembler's
 `cover.jpg` frame, passed as its offset from `cover.json`. A posted Reel
 leaves `posted.json` beside it and is not posted twice without `--again`.
 
+A Reel's cover on the profile grid has to say what it is about, and a frame
+of the video does not: its first-shot caption sits where the grid's 3:4 crop
+cuts it (8 Nov 2026; only the two Workshop Reels, whose covers were made by
+hand, said anything). `covers.ts` makes `title-cover.jpg` in that shape: the
+logo, the title's promise as a small-caps headline, a pill naming the side and
+the feature, and one tilted crop of the episode's payoff screen (`COVERS` names
+the shot and the crop per episode). When the file is there, `promo:post` puts
+it on the CDN and sends it as the Reel's `cover_url` instead of the frame
+offset. For a Reel already posted, set it in the Instagram app.
+
 A post folder with `slides/slide-1.jpg`, `slide-2.jpg`, ... and no
 `manifest.json` is a **carousel** (`carousels.ts`), posted the same way: the
 dry run checks there are 2 to 20 slides, all JPEG and all the size of the
@@ -88,8 +99,21 @@ asset CDN under `promo/<id>/` (named by content hash) before Instagram fetches
 them, because the API takes photos only from a public URL. "Steal this" posts
 are carousels, made by `scripts/promo/steal/` (`handouts.ts` and `cards.ts`
 capture the Scriptorium page, the stat block and the Card Forge card from the
-app, `slides.ts` composes the 1080x1350 slides); convert the slides to JPEG
-before posting.
+app, `slides.ts` composes the 1080x1350 slides and their JPEGs).
+
+A new account's photo posts reach almost nobody (the first carousel had 8
+views in a day, the next Reel 103 in three hours), because Instagram shows
+Reels to people who do not follow an account and photo posts mostly to those
+who do. So each creature also gets a 17-second teaser Reel, `steal/reel.ts`:
+its Card Forge card face up with the kicker and the hook, a flip to the stats
+on the back, "the read-aloud, the stat block and a printable card are on our
+profile", and a flip back, so the loop has no seam. The card, not the bare
+art: art alone sells a picture, the stats sell a monster. The card is Card
+Forge's own Save front / Save back PNG (`cards.ts` presses the buttons), and
+the sound is the creature's place from the soundboard library (a CC0 loop
+named in `posts.ts`) with a paper flick on each flip. It writes
+`promo-out/<id>-reel/` as an ordinary Reel folder. Schedule the carousel an hour before its Reel, so
+it is the first thing on the profile when the Reel sends people there.
 
 `scripts/promo/schedule.json` lists when each post goes out (`{ id, at }`,
 the time with its offset). `promo:post -- --schedule` dry-runs everything on
@@ -335,6 +359,19 @@ the types and maths are `src/lib/bookNook/scene.ts`, shared with the app's Book 
   later, answers with the setting's subtitle, "Stay as long as you like".
   `scenes/scene.test.ts` holds a tagline to at least two seconds after its title and
   no longer on screen than it.
+- `frame`: a Book Nook frame over the whole Reel, fixed while the room moves
+  behind it (#1142). A Reel is a phone's shape, so the page loads its `tall`
+  file from the art folder. The prison cell (8 Nov 2026) looks out through the
+  stock stone wall with bars (`fit: "cover"`) and pans a wide 1536x1024 plate
+  left to right. Its rests stay 170 plate pixels clear of the plate's ends,
+  where the opening would show black, and the dog rests between two bars,
+  because the frame's middle bar runs down the screen's centre. Its frame
+  `follow`s the pan (0.035 of the path, about 40 px at the ends), sliding the
+  way the view goes, so the bars move against the room as they would for a
+  viewer craning to see past them (the maintainer: a frame pinned dead still
+  read as the room scrolling behind a cut-out). The frame is fitted larger by
+  the most it slides, so the screen's edge never shows. In the app a frame
+  still never moves.
 
 **Loops without a seam.** Every motion's period is rounded to a whole number
 of cycles per `loop`, flicker is a sum of harmonics of the loop, and a wisp's

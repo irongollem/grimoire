@@ -53,14 +53,29 @@ describe("DeckDock", () => {
     expect(ui.deckSize).toBe("row");
   });
 
-  it("peeks over the page on a signal from the row, without changing the size", async () => {
-    ui.deckSize = "row";
+  it("peeks over the page on a signal from the handle, without changing the size", async () => {
     const w = dock();
     expect(w.find("[data-testid='deck-peek']").exists()).toBe(false);
     ui.deckPeekSignal += 1;
     await nextTick();
     expect(w.find("[data-testid='deck-peek']").exists()).toBe(true);
-    expect(ui.deckSize).toBe("row");
+    expect(ui.deckSize).toBe("tucked");
+  });
+
+  // The peek used to wait out its timer whatever the DM did, and every key press re-armed it (8 Nov 2026).
+  it("puts the peek away on a click elsewhere, and keeps it on a click inside", async () => {
+    const w = mount(DeckDock, { global: { stubs }, attachTo: document.body });
+    ui.deckPeekSignal += 1;
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    w.get("[data-testid='body']").element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await nextTick();
+    expect(w.find("[data-testid='deck-peek']").exists()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    document.body.click();
+    await nextTick();
+    expect(w.find("[data-testid='deck-peek']").exists()).toBe(false);
+    w.unmount();
   });
 
   it("does not peek on a signal when the setting is off", async () => {

@@ -26,8 +26,8 @@
 // standalone `/cartographer/:id` route sends. The save target is then fixed
 // to the site (no `EntityCombobox`, see `styleFixedTargetLabel`), and saving
 // flattens the stack: the styled render replaces the Picture and the
-// Drawing is unlinked (`useSaveStyledSitePicture`) rather than merely
-// overwriting `map_url` — see that mutation's docstring for the full field
+// tile Drawing is swapped for a walls-only one (`useSaveStyledSitePicture`,
+// `styledPlay.ts`) rather than merely overwriting `map_url` — see that mutation's docstring for the full field
 // list and why.
 //
 // ── Image sizing: two shapes, chosen from the campaign's real provider ─────
@@ -63,6 +63,7 @@
 
 import { computed, ref, watch } from "vue";
 import { bakeAiStyleInput, styledPictureCalibration } from "@/cartographer/aiStyleInput";
+import { buildStyledPlay, type StyledPlay } from "@/cartographer/styledPlay";
 import type { DressingCatalog } from "@/cartographer/dressing";
 import { blobToBase64, base64ToBlob } from "@/cartographer/imageCodec";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
@@ -75,13 +76,11 @@ import type { GridCalibration } from "@/types/location.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import {
-  useAllLocations,
-  useSaveStyledSitePicture,
-  useUpdateLocationPicture,
-} from "@/composables/locations/useLocations";
+import { useAllLocations, useUpdateLocationPicture } from "@/composables/locations/useLocations";
+import { useSaveStyledSitePicture } from "@/composables/locations/useSaveStyledSitePicture";
 import { useCampaignStore } from "@/stores/campaign";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
+import { STYLE_CHARGE_SIZE } from "@edge-shared/imageSize.ts";
 import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { downloadBlob } from "@/lib/downloadBlob";
 
@@ -151,8 +150,9 @@ export function useMapExport(opts: {
   const baking = ref(false);
 
   // M8 — AI Map Styler
-  // Flat credit cost regardless of the render's actual size — see this
-  // module's header for the sizing this pipeline now sends/requests.
+  // Priced by area like every image, at the styler's fixed pixel budget: the
+  // render always fills it, so the price shown here is the one style-map
+  // charges (`styleChargeSize`).
   const mapStyleCampaign = useCampaignStore();
   const { costOf: costOfCredits } = useAiCredits();
   /**
@@ -170,7 +170,7 @@ export function useMapExport(opts: {
   } = useCampaignProviders();
   const { logImageGeneration } = useImageGenerationLog();
   /** Null while the provider is unknown; the modal's `requireCredits` refuses it. */
-  const styleCost = computed(() => imageCredits(costOfCredits("map_style_generation")));
+  const styleCost = computed(() => imageCredits(costOfCredits("map_style_generation", { size: STYLE_CHARGE_SIZE })));
   const showStylePicker = ref(false);
   const showStyleResult = ref(false);
   const selectedPresetId = ref("playable");
@@ -183,6 +183,8 @@ export function useMapExport(opts: {
    *  Always set alongside `styleResultBlob` on a successful generation;
    *  read back by `onSaveStyledToAtlas`. */
   const styleResultCalibration = ref<GridCalibration | null>(null);
+  /** What keeps playing under the painting (walls drawing + snapshot), made from the same map as the calibration. */
+  const styleResultPlay = ref<StyledPlay | null>(null);
   const styleError = ref<string | null>(null);
   const styleAtlasLocationId = ref("");
   const styleAtlasError = ref<string | null>(null);
@@ -224,6 +226,11 @@ export function useMapExport(opts: {
       const { blob: pngBlob, geometry, size } =
         await bakeAiStyleInput(map, opts.runtimes(), dressing, target?.picture ?? null, opts.glyphs(), provider);
       const image_b64 = await blobToBase64(pngBlob);
+      // Everything the save needs besides the picture is known before sending
+      // (see this module's header), and is built here, before the paid call,
+      // so nothing that can throw runs between the charge and the result.
+      const calibration = styledPictureCalibration(map, dressing, geometry);
+      const play = target ? buildStyledPlay(target.name, map, opts.runtimes(), dressing, calibration) : null;
 
       const { data, error } = await supabase.functions.invoke<StyleMapResponse>("style-map", {
         body: {
@@ -241,10 +248,11 @@ export function useMapExport(opts: {
 
       styleResultBlob.value = base64ToBlob(resultB64, "image/webp");
       // The input we sent and the size `style-map` was asked for are already
-      // known (`size`, from the bake functions above) — see this module's
+      // known (`size`, from the bake functions above); see this module's
       // header for why that makes the pre-send geometry a safe basis for the
       // calibration, with no need to measure what comes back to derive it.
-      styleResultCalibration.value = styledPictureCalibration(map, dressing, geometry);
+      styleResultCalibration.value = calibration;
+      styleResultPlay.value = play;
       void warnIfStyleResultSizeDrifted(styleResultBlob.value, size);
       if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
       styleResultUrl.value = URL.createObjectURL(styleResultBlob.value);
@@ -263,6 +271,7 @@ export function useMapExport(opts: {
     styleResultBlob.value = null;
     styleResultUrl.value = null;
     styleResultCalibration.value = null;
+    styleResultPlay.value = null;
     showStyleResult.value = false;
     await onGenerateStyle();
   }
@@ -280,6 +289,12 @@ export function useMapExport(opts: {
     try {
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
+      // Checked before the upload, so a result that cannot be saved to the
+      // site leaves no orphaned picture in storage.
+      const sitePlay = fixedTarget.value ? styleResultPlay.value : null;
+      if (fixedTarget.value && (!styleResultCalibration.value || !sitePlay)) {
+        throw new Error("The styled map is not ready to save");
+      }
       const url = await uploadToBucket({
         bucket: "locationImages",
         blob: styleResultBlob.value,
@@ -288,13 +303,16 @@ export function useMapExport(opts: {
       });
       if (!url) throw new Error("Upload failed");
       if (fixedTarget.value) {
-        // Atlas Build: flatten the stack — the render replaces the Picture
-        // and the Drawing is unlinked, atomically. See the mutation's own
-        // docstring for the full field list and why.
+        // Atlas Build: flatten the stack. The render replaces the Picture, the
+        // tile Drawing is set aside and a walls-only one takes its place, so
+        // sight, light and the water's motion still play. See the mutation's
+        // own docstring for the full field list and why.
+        if (!styleResultCalibration.value || !sitePlay) throw new Error("The styled map is not ready to save");
         await saveStyledSitePicture.mutateAsync({
           id: styleAtlasLocationId.value,
           mapUrl: url,
           calibration: styleResultCalibration.value,
+          play: sitePlay,
         });
       } else {
         await updateLocationPicture.mutateAsync({

@@ -4,12 +4,12 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { isValidGeminiAspectRatio } from "../_shared/geminiAspect.ts";
-import { isValidStyleImageSize, readPngDimensions } from "../_shared/imageSize.ts";
+import { isValidStyleImageSize, readPngDimensions, styleChargeSize } from "../_shared/imageSize.ts";
 import { isFlexibleOpenAiModel } from "../_shared/openaiImageModel.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
 import { buildMapStylePrompt } from "../_shared/mapStylePrompt.ts";
@@ -163,7 +163,10 @@ serve(withCors(async (req: Request) => {
   const size = `${dims.width}x${dims.height}`;
 
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
-  const cost = wholeCredits(applyMultiplier(baseCost, img.imageMultiplier));
+  // By area, like every image generator; see styleChargeSize.
+  const cost = wholeCredits(
+    applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(styleChargeSize(dims.width, dims.height)),
+  );
 
   // Atomic affordability gate: hold the balance across the paid image call.
   // Throttle abusive burst volume before any paid provider work (issue #466).

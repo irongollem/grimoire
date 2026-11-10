@@ -13,6 +13,9 @@
 
     <InspectorSection title="How it moves">
       <SegmentedControl :model-value="motionValue" :options="MOTION_OPTIONS" size="sm" wrap @update:model-value="pickMotion" />
+      <p v-if="motionValue === 'Wagging'" class="text-caption text-muted-foreground" data-testid="wag-hint">
+        Swings quickly about its pin. Drag the pin (the dot) to where it joins, such as a tail's root.
+      </p>
       <template v-if="custom">
         <p class="text-caption text-muted-foreground" data-testid="motion-custom">Custom: tuned by hand. The numbers are under Exact.</p>
       </template>
@@ -140,6 +143,7 @@ const custom = computed(() => (layer.motions?.length ?? 0) > 1 || (described.val
 const preset = computed(() => (described.value && "name" in described.value ? described.value : null));
 const motionValue = computed(() => {
   if (!layer.motions?.length) return "None";
+  if (preset.value) return preset.value.name;
   return motion.value ? KIND_NAME[motion.value.kind] : "";
 });
 

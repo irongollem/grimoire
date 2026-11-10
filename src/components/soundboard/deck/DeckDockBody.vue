@@ -64,8 +64,8 @@ const clipped = computed(() => !fill && snapshot.value.rows > 2);
 
 // ── The row in view ─────────────────────────────────────────────────────────
 // Keys 1 to 8 fire the deck's row in view. Scrolling here makes it the top row
-// showing; opening here (Deck size, Full, a peek) scrolls to it, so the peek a
-// key opens from the Row bar shows the row that key just played.
+// showing; opening here (Deck size, Full, a peek) scrolls to it, so a peek from
+// the Row bar's edge opens on the row the bar was showing.
 
 const scroller = useTemplateRef<HTMLElement>("scroller");
 // The scroll event our own scrollTop write fires is not the DM choosing a row:

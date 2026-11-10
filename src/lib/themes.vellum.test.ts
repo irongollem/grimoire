@@ -64,7 +64,7 @@ describe("oxblood fill and ink", () => {
 // it; a theme that retints one, or a pad colour that stops carrying its ink,
 // breaks the "same colour everywhere" promise and the label on a lit pad.
 describe("deck pad tokens", () => {
-  const CATS = ["music", "ambient", "effects"] as const;
+  const CATS = ["music", "ambient", "effects", "playlist", "scene"] as const;
 
   it("are identical in both Vellum themes", () => {
     for (const c of CATS) {

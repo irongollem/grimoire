@@ -93,7 +93,8 @@ export function getPinnableDescendants(
   return result;
 }
 
-const QUERY_KEY = "locations";
+export const LOCATIONS_QUERY_KEY = "locations";
+const QUERY_KEY = LOCATIONS_QUERY_KEY;
 
 async function fetchLocations(campaignId: string, ownerId: string | null, parentId: string | null): Promise<Location[]> {
   // `campaign_id IS NULL` means "every campaign" everywhere else DM content is
@@ -611,57 +612,6 @@ export function useUpdateLocationPicture() {
   return useMutation({
     mutationFn: ({ id, mapUrl, calibration }: { id: string; mapUrl: string; calibration?: GridCalibration | null }) =>
       updateLocation(id, calibration !== undefined ? { map_url: mapUrl, grid_calibration: calibration } : { map_url: mapUrl }),
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
-    },
-  });
-}
-
-/**
- * Saves an AI-styled render as a site's Picture from Atlas Build, replacing
- * whatever Drawing currently sits on top of it — the render "bubbles down"
- * to the Picture layer (epic #884, decision 1). One atomic update, not a
- * `useUpdateLocationPicture` write followed by a separate clear: a two-step
- * sequence could be interrupted in between and leave a styled Picture
- * sitting underneath a Drawing still published over it, which is exactly
- * the "hidden under its own tiles" state this save exists to avoid (see
- * `MapStackImage.vue`'s `showsUnderlyingPicture`).
- *
- * The Drawing's own `dungeon_maps` row is NOT deleted or edited — only
- * unlinked (`source_map_id: null`), so it survives as an ordinary,
- * standalone map in the Cartographer: the DM can reopen it, or start a new
- * one, draw corrections over the styled Picture (shown as MapWorkbench's
- * reference ghost, keyed on the Picture's own `grid_calibration` — see its
- * `buildReferenceImage`) and republish later, which would put tiles back on
- * top again. `map_published_rev` is cleared alongside it, since a rev
- * number for a Drawing the location no longer points at can only read as
- * stale.
- *
- * `calibration` is a best-first-guess, not a guarantee: the caller derives
- * it from the input's own fitted geometry (`styledPictureCalibration`),
- * safe to write because the edge function requests exactly the size that
- * geometry was fitted to (`supabase/functions/style-map/index.ts`) — but
- * the model itself can still shrink or grow the grid a little in its own
- * render. The Picture layer's "Line up the grid on the map" (`MapGridLineUp`)
- * stays available and opens seeded from whatever this wrote, exactly as it
- * does for any other Picture.
- */
-export function useSaveStyledSitePicture() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, mapUrl, calibration }: { id: string; mapUrl: string; calibration: GridCalibration | null }) =>
-      updateLocation(id, {
-        map_url: mapUrl,
-        grid_calibration: calibration,
-        map_layer_url: null,
-        map_layer_stand_url: null,
-        map_layer_stand_live_url: null,
-        map_layer_calibration: null,
-        map_live: null,
-        source_map_id: null,
-        map_published_rev: null,
-      }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

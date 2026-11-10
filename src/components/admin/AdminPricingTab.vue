@@ -206,6 +206,7 @@
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
 import { sizeMultiplier } from "@/composables/ai/useAiCredits";
+import { STYLE_CHARGE_SIZE } from "@edge-shared/imageSize.ts";
 import { useAdminPricing } from "@/composables/admin/useAdminPricing";
 import type { CreditPackConfig, GenerationCreditCost, ImageQualityTier } from "@/composables/admin/useAdminPricing";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/admin/useAdminProviders";
@@ -381,6 +382,7 @@ const NON_SQUARE_NOTE: Record<string, { label: string; size: string }> = {
   chronicle_image: { label: "landscape", size: "1536x1024" },
   entity_image:    { label: "portrait",  size: "1024x1536" },
   portrait:        { label: "portrait",  size: "1024x1536" },
+  map_style_generation: { label: "styled map", size: STYLE_CHARGE_SIZE },
 };
 
 function derivedNonSquare(generationType: string): { label: string; cost: number } | null {

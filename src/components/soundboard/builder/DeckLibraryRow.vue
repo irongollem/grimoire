@@ -8,7 +8,7 @@
     @click="onPlace"
     @keydown.enter.self.prevent="onPlace"
   >
-    <span class="h-2 w-2 shrink-0 rounded-full" :class="DOT[row.category]" aria-hidden="true" />
+    <KindGlyph :kind="row.kind" :count="row.count" :class="[PAD_ICON[row.hue], row.count !== null ? 'me-1' : '']" />
     <span class="min-w-0 flex-1">
       <span class="block truncate text-body text-foreground">{{ row.name }}</span>
       <span class="block truncate text-caption-sm text-muted-foreground">
@@ -25,7 +25,6 @@
       @click.stop="emit('preview')"
     />
     <AppButton
-      v-if="row.playlist"
       variant="ghost"
       size="icon-xs"
       icon-size="md"
@@ -40,7 +39,8 @@
 <script setup lang="ts">
 import { IconEdit, IconPlay, IconStop } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import type { SoundCategory } from "@/types/sound.types";
+import { PAD_ICON } from "@/lib/audio/soundCategories";
+import KindGlyph from "../KindGlyph.vue";
 import { dragTypeFor, type LibraryRow } from "./libraryRows";
 
 const { row, onPage, canPlace, playing } = defineProps<{
@@ -50,12 +50,6 @@ const { row, onPage, canPlace, playing } = defineProps<{
   playing: boolean;
 }>();
 const emit = defineEmits<{ place: []; preview: []; edit: [] }>();
-
-const DOT: Record<SoundCategory, string> = {
-  ambient: "bg-tone-success",
-  music: "bg-gold-400",
-  effects: "bg-tone-info",
-};
 
 function onDragStart(event: DragEvent) {
   const data = event.dataTransfer;

@@ -378,6 +378,68 @@ function polyfillsPlugin(): Plugin {
 }
 
 /**
+ * The classic songs page, `/classic/songs.html`: the songs page for phones too old to run the app (iOS 12, the
+ * maintainer's son's iPhone 6; see src/classic/songsClassic.ts). A page of its own rather than a route, because the
+ * app's floor is Safari 15 and this one's is Safari 12: its script is compiled here by esbuild for `safari12`, with
+ * `vue` aliased to `@vue/reactivity` (the page shares the app's player and song logic but draws without Vue), and
+ * inlined into src/classic/songs.html. The Supabase URL and anon key are the build's own, as the app's are.
+ * Built in dev on request too, so a dev run serves the same page.
+ */
+function classicSongsPlugin(): Plugin {
+  let env: Record<string, string> = {};
+  const root = import.meta.dirname;
+
+  async function page(): Promise<string> {
+    const url = env.VITE_SUPABASE_URL;
+    const key = env.VITE_SUPABASE_ANON_KEY;
+    if (!url || !key) throw new Error("classic songs page: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required");
+    const result = await esbuildBuild({
+      entryPoints: [path.resolve(root, "src/classic/songsClassic.ts")],
+      bundle: true,
+      write: false,
+      format: "iife",
+      target: ["safari12"],
+      // esbuild lists destructuring from Safari 14.1 for one rare engine bug and cannot lower it; Safari 12 runs
+      // ordinary destructuring fine, which is all this bundle (and @vue/reactivity) uses.
+      supported: { destructuring: true },
+      minify: true,
+      platform: "browser",
+      alias: {
+        "@": path.resolve(root, "src"),
+        "@edge-shared": path.resolve(root, "supabase/functions/_shared"),
+        vue: path.resolve(root, "node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js"),
+      },
+      define: {
+        __CLASSIC_SUPABASE_URL__: JSON.stringify(url),
+        __CLASSIC_SUPABASE_ANON_KEY__: JSON.stringify(key),
+        "process.env.NODE_ENV": JSON.stringify("production"),
+      },
+    });
+    const script = result.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
+    const template = readFileSync(path.resolve(root, "src/classic/songs.html"), "utf8");
+    return template.replace("<!-- classic-songs-script -->", () => `<script>${script}</script>`);
+  }
+
+  return {
+    name: "grimoire-classic-songs",
+    configResolved(config) {
+      env = config.env as Record<string, string>;
+    },
+    configureServer(server) {
+      server.middlewares.use("/classic/songs.html", (_req, res, next) => {
+        page().then((html) => {
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          res.end(html);
+        }, next);
+      });
+    },
+    async generateBundle() {
+      this.emitFile({ type: "asset", fileName: "classic/songs.html", source: await page() });
+    },
+  };
+}
+
+/**
  * Fails the build when the boot payload grows past its budget.
  *
  * WHAT IT MEASURES, AND WHY THAT AND NOT THE SHELL. `swPlugin` already has
@@ -623,6 +685,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       // First: it injects the pre-boot polyfill script into index.html's head.
       polyfillsPlugin(),
+      classicSongsPlugin(),
       vue({
         template: {
           compilerOptions: {

@@ -24,7 +24,7 @@
       </template>
     </ScriptoriumBookHeader>
 
-    <div v-if="settings.draft.kind === 'handout'" class="shrink-0 border-b border-border px-4 py-2 sm:px-6">
+    <div v-if="isHandout" class="shrink-0 border-b border-border px-4 py-2 sm:px-6">
       <HandoutAudienceLine :handout="doc" />
     </div>
 
@@ -46,9 +46,12 @@
 
       <div class="flex min-h-0 min-w-0 flex-1" :class="{ hidden: mode === 'inspect' }">
         <div v-if="chapterList.length === 0 && !listLoading" class="m-auto">
-          <EmptyState title="This book has no chapters" description="Add one to start writing.">
+          <EmptyState
+            :title="isHandout ? 'This handout is blank' : 'This book has no chapters'"
+            :description="isHandout ? 'Start writing on it.' : 'Add one to start writing.'"
+          >
             <template #action>
-              <AppButton variant="primary" size="md" :icon="IconAdd" label="Add chapter" @click="addChapter" />
+              <AppButton variant="primary" size="md" :icon="IconAdd" :label="isHandout ? 'Start writing' : 'Add chapter'" @click="addChapter" />
             </template>
           </EmptyState>
         </div>
@@ -70,9 +73,10 @@
           @ready="onEditorReady"
           @add-furniture="addFurniture"
         >
+          <!-- A handout is one chapter on one paper: it never grows a second (#1115). -->
           <template #footer>
             <AppButton
-              v-if="chapterList.length <= 1"
+              v-if="chapterList.length <= 1 && !isHandout"
               variant="link"
               size="sm"
               :icon="IconAdd"
@@ -99,7 +103,7 @@
           :focus-chapter-id="currentId"
           :furniture="settings.draft.furniture"
           :selected-furniture-id="selectedFurnitureId"
-          :for-players="settings.draft.kind === 'handout'"
+          :for-players="isHandout"
           @edit-block="editBlock"
           @update:furniture="settings.patch({ furniture: $event })"
           @update:selected-furniture-id="selectedFurnitureId = $event"
@@ -243,6 +247,7 @@ onBeforeUnmount(() => {
 
 // ── Settings: the book's own row, saved by itself ───────────────────────────
 const settings = useBookSettings(() => doc);
+const isHandout = computed(() => settings.draft.kind === "handout");
 const themeRef = computed(() => settings.draft.theme);
 provide(SCRIPTORIUM_THEME_KEY, themeRef);
 
@@ -508,7 +513,10 @@ const showSettings = ref(false);
 const deleting = ref(false);
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
 async function destroy() {
-  if (!(await confirm(`Delete "${doc.title}"? This deletes every chapter and cannot be undone.`))) return;
+  const question = isHandout.value
+    ? `Delete "${doc.title}"? This cannot be undone.`
+    : `Delete "${doc.title}"? This deletes every chapter and cannot be undone.`;
+  if (!(await confirm(question))) return;
   deleting.value = true;
   await Promise.all([settings.hold(), chapterEditor.value?.hold()]);
   try {
@@ -521,7 +529,7 @@ async function destroy() {
     settings.release();
     chapterEditor.value?.release();
     deleting.value = false;
-    toast.error(e instanceof Error ? e.message : "Could not delete the book.");
+    toast.error(e instanceof Error ? e.message : isHandout.value ? "Could not delete the handout." : "Could not delete the book.");
   }
 }
 </script>

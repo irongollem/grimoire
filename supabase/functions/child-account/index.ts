@@ -60,6 +60,7 @@ import {
   asString,
   isDuplicateEmailError,
   isLoginNameUniqueViolation,
+  isRejectedPasswordError,
   isValidDisplayName,
   isValidPassword,
   parseBirth,
@@ -335,6 +336,7 @@ async function convertExistingAccount(
       console.error("child-account: could not remove the link after a failed conversion", childUserId, unlinkError);
     }
     if (isDuplicateEmailError(updateError)) return json({ error: "login_name_taken" }, 409);
+    if (isRejectedPasswordError(updateError)) return json({ error: "leaked_password" }, 422);
     console.error("child-account: updateUserById failed converting an existing account", updateError);
     return json({ error: "create_failed" }, 500);
   }
@@ -353,6 +355,7 @@ async function createNewAccount(
   });
   if (createError || !created?.user) {
     if (isDuplicateEmailError(createError)) return json({ error: "login_name_taken" }, 409);
+    if (isRejectedPasswordError(createError)) return json({ error: "leaked_password" }, 422);
     console.error("child-account: createUser failed", createError);
     return json({ error: "create_failed" }, 500);
   }
@@ -414,6 +417,7 @@ async function handleResetPassword(body: Record<string, unknown>, callerId: stri
 
   const { error } = await admin.auth.admin.updateUserById(childUserId, { password });
   if (error) {
+    if (isRejectedPasswordError(error)) return json({ error: "leaked_password" }, 422);
     console.error("child-account: reset-password updateUserById failed", error);
     return json({ error: "reset_failed" }, 500);
   }

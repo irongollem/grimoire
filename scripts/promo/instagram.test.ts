@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAPTION_MAX_CHARS, CAPTION_MAX_HASHTAGS, captionProblems } from "./instagram";
+import { CAPTION_MAX_CHARS, CAPTION_MAX_HASHTAGS, captionProblems, reelContainerParams } from "./instagram";
 
 const OK = "Combat in Dungeon Grimoire.\n\nRoll your own initiative.\n\n#dnd #dnd5e #ttrpg";
 
@@ -29,5 +29,19 @@ describe("captionProblems", () => {
     expect(captionProblems("Hi\n\n#dnd #dungeonmaster dmtips dndcrafting")).toEqual([
       "the hashtag line has words without a #: dmtips dndcrafting",
     ]);
+  });
+});
+
+describe("reelContainerParams", () => {
+  it("sends a title cover as cover_url and no frame offset, so the grid shows the designed cover", () => {
+    const p = reelContainerParams({ caption: OK, cover: { url: "https://cdn.example/promo/ep/abc-title-cover.jpg" } });
+    expect(p.cover_url).toBe("https://cdn.example/promo/ep/abc-title-cover.jpg");
+    expect(p).not.toHaveProperty("thumb_offset");
+  });
+
+  it("falls back to the frame at the cover time, in whole milliseconds", () => {
+    const p = reelContainerParams({ caption: OK, cover: { atMs: 5500.4 } });
+    expect(p.thumb_offset).toBe("5500");
+    expect(p).not.toHaveProperty("cover_url");
   });
 });

@@ -29,6 +29,8 @@ export const PLAYER_KIN_KEY = "player-kin";
 export const OPEN_BOOK_KEY = "open-book";
 export const OPEN_BOOK_RELEASES_KEY = "open-book-releases";
 export const OPEN_BOOK_ENTRIES_KEY = "open-book-entries";
+/** The songs page (/songs): tracks of playlists shared with players, refreshed by the playlist, track and sound rings. */
+export const PLAYER_SONGS_KEY = "player-songs";
 export const BEATS_KEY = "quest_beats";
 export const THREADS_KEY = "quest_threads";
 /** A quest's progress clocks (#1011). */
@@ -170,7 +172,7 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   notice_board_pins: [NOTICE_BOARDS_KEY, PLAYER_NOTICE_BOARDS_KEY],
   // A role change (#590) moves a campaign between a DM's list and a player's,
   // so the other account's switcher and DM gate re-read the role-scoped lists.
-  campaign_members: ["campaign-members", "campaigns", "my-memberships"],
+  campaign_members: ["campaign-members", "campaigns", "my-memberships", PLAYER_SONGS_KEY],
   // A line a caretaker sends for a character reaches its owner's Hearth as it
   // is sent (#1059); the query is mounted only while there is a hand-over.
   campaign_messages: ["loot_placements", WHILE_AWAY_KEY],
@@ -255,12 +257,12 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["crafting_recipe_modifiers", ["crafting-modifiers"]],
   ["campaign_enabled_sources", ["enabled-sources"]],
   ["campaign_tile_packs", ["user-tile-packs"]],
-  ["sounds", ["sounds", QUEST_BOARD_KEY]],
+  ["sounds", ["sounds", QUEST_BOARD_KEY, PLAYER_SONGS_KEY]],
   ["soundboard_pages", ["soundboard_pages"]],
   ["soundboard_pads", ["soundboard_pads"]],
   ["soundboard_pad_takes", ["soundboard_pads"]],
-  ["soundboard_playlists", ["soundboard_playlists", QUEST_BOARD_KEY]],
-  ["soundboard_playlist_tracks", ["soundboard_playlist_tracks"]],
+  ["soundboard_playlists", ["soundboard_playlists", QUEST_BOARD_KEY, PLAYER_SONGS_KEY]],
+  ["soundboard_playlist_tracks", ["soundboard_playlist_tracks", PLAYER_SONGS_KEY]],
   ["npc_sets", ["npc_sets"]],
   ["faction_npcs", ["faction-npcs", "player-faction-npcs", "npc-factions", PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   // A place's map: the DM's site views, and the players' site state.

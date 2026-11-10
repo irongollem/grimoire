@@ -52,6 +52,24 @@
             label="Repeat all"
           />
         </div>
+        <AppCheckbox
+          v-model="meta.players_can_listen"
+          size="sm"
+          label-role="label-lg"
+          label-weight="normal" label-tone="foreground"
+          label="Players can listen"
+          hint="Everyone at the table can play these songs on their own phone, on the Songs page."
+        />
+        <!-- A full page load, so the page arrives with its own manifest and pins as Grimoire Songs (index.html). -->
+        <AppButton
+          v-if="meta.players_can_listen"
+          variant="link"
+          size="inline"
+          href="/songs"
+          target="_blank"
+          label="Open the Songs page"
+          class="ms-7"
+        />
       </template>
 
       <!-- Themes -->
@@ -209,6 +227,7 @@ interface MetaDraft {
   playlist_type: PlaylistType;
   shuffle: boolean;
   repeat: boolean;
+  players_can_listen: boolean;
   tags: string[];
 }
 
@@ -227,13 +246,26 @@ const {
   identity: (row) => row.id,
   toDraft: (row) =>
     row
-      ? { name: row.name, playlist_type: row.playlist_type, shuffle: row.shuffle, repeat: row.repeat, tags: [...row.tags] }
-      : { name: "", playlist_type: defaultType, shuffle: false, repeat: true, tags: [] },
+      ? {
+          name: row.name,
+          playlist_type: row.playlist_type,
+          shuffle: row.shuffle,
+          repeat: row.repeat,
+          players_can_listen: row.players_can_listen,
+          tags: [...row.tags],
+        }
+      : { name: "", playlist_type: defaultType, shuffle: false, repeat: true, players_can_listen: false, tags: [] },
 });
 
 /** The playlist columns an edit writes. Pure: also run over the server copy. */
 function buildMeta(d: MetaDraft) {
-  return { name: d.name.trim(), shuffle: d.shuffle, repeat: d.repeat, tags: d.tags };
+  return {
+    name: d.name.trim(),
+    shuffle: d.shuffle,
+    repeat: d.repeat,
+    players_can_listen: d.players_can_listen,
+    tags: d.tags,
+  };
 }
 
 const {
@@ -285,6 +317,7 @@ const conflictLabels = computed(() => {
     name: "Name",
     shuffle: "Shuffle",
     repeat: "Repeat all",
+    players_can_listen: "Players can listen",
     tags: "Themes",
   };
   return [
@@ -299,7 +332,7 @@ function discardEdits() {
 }
 
 function startBlank() {
-  Object.assign(meta, { name: "", playlist_type: defaultType, shuffle: false, repeat: true, tags: [] });
+  Object.assign(meta, { name: "", playlist_type: defaultType, shuffle: false, repeat: true, players_can_listen: false, tags: [] });
   trackList.value = [];
 }
 

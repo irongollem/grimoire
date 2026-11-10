@@ -58,7 +58,20 @@ export interface Scene {
    * (`own-…` for one the DM uploaded) and `name` what the picker calls an own frame. `fit` is how it meets a screen of another shape: `slice` (default) keeps
    * its ornaments and stretches the plain bands, `cover` scales evenly and crops.
    */
-  frame?: { style?: string; name?: string; fit?: "slice" | "cover"; tall?: string; wide?: string };
+  frame?: {
+    style?: string;
+    name?: string;
+    fit?: "slice" | "cover";
+    tall?: string;
+    wide?: string;
+    /**
+     * How far the frame shifts against the camera's `path`, as a fraction of it (0.03 moves it 30 pixels for every
+     * 1000 the view travels). A viewer craning to see a room through an opening moves their head the other way, so
+     * the opening slides a little against the room rather than the room scrolling behind a still cut-out. Absent,
+     * the frame never moves.
+     */
+    follow?: number;
+  };
   /** Seconds after which every motion repeats exactly. */
   loop: number;
   /** Slow drift of the viewpoint, which is what makes the depths part (parallax). */
@@ -282,6 +295,24 @@ export function cameraAt(scene: Scene, t: number, view?: View): Camera {
     dx: breathe * scene.camera.drift * width * Math.sin(a) - path.x - (tilt && view ? tilt.x * TILT_REACH.x * view.window.w : 0),
     dy: breathe * scene.camera.drift * width * 0.5 * Math.sin(2 * a) - path.y - (tilt && view ? tilt.y * TILT_REACH.y * view.window.h : 0),
     scale: 1 + breathe * scene.camera.push * (0.5 - 0.5 * Math.cos(a)),
+  };
+}
+
+/**
+ * Where the frame is drawn at `t`: shifted by `dx`, `dy` (the camera path times `frame.follow`, the same way the
+ * view went, so it slides against the room), from a frame fitted `mx`, `my` larger on every side than the screen,
+ * the most it ever shifts, so its edge never shows. All zero for a frame that does not follow.
+ */
+export function frameShift(scene: Scene, t: number): { dx: number; dy: number; mx: number; my: number } {
+  const follow = scene.frame?.follow ?? 0;
+  const path = scene.camera.path;
+  if (!follow || !path || path.length === 0) return { dx: 0, dy: 0, mx: 0, my: 0 };
+  const at = pathAt(path, scene.loop, t);
+  return {
+    dx: at.x * follow,
+    dy: at.y * follow,
+    mx: Math.ceil(Math.max(...path.map((p) => Math.abs(p.x))) * follow),
+    my: Math.ceil(Math.max(...path.map((p) => Math.abs(p.y))) * follow),
   };
 }
 

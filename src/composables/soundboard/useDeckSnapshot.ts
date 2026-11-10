@@ -10,6 +10,7 @@ import {
   emptyDeckCell,
   isDefaultLaunchMode,
   laneCategory,
+  padArt,
   rowsForPage,
   keyRowFor,
   pageLanes,
@@ -33,10 +34,6 @@ import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 
 const SPOTIFY_SHARING_NOTE = "Spotify: this device only";
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
 
 export interface DeckSnapshotState {
   resolved: DeckResolved;
@@ -76,15 +73,25 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       const next = nextSound(info);
       return sharing.value && next !== null && next.source_type === "spotify" ? SPOTIFY_SHARING_NOTE : null;
     }
-    if (!playlist) return null;
-    if (info.kind === "scene") {
-      const tracks = byPlaylist.value?.get(playlist.id);
-      return tracks ? plural(tracks.length, "layer", "layers") : null;
-    }
+    // A scene's layers and a playlist's tracks are counted on the kind icon (`countOf`).
+    if (!playlist || info.kind === "scene") return null;
     const music = store.activeMusicPlaylist;
-    if (music && music.playlistId === playlist.id) return `${music.currentIndex + 1}/${music.trackSoundIds.length}`;
-    const tracks = byPlaylist.value?.get(playlist.id);
-    return tracks ? plural(tracks.length, "track", "tracks") : null;
+    return music && music.playlistId === playlist.id ? `${music.currentIndex + 1}/${music.trackSoundIds.length}` : null;
+  }
+
+  function artOf(info: DeckPadInfo): string | null {
+    if (info.kind === "sound") return padArt(info.sounds, nextSound(info)?.id ?? null);
+    if (!info.playlist) return null;
+    const tracks = byPlaylist.value?.get(info.playlist.id);
+    if (tracks === undefined) return null;
+    const music = store.activeMusicPlaylist;
+    const playing = music && music.playlistId === info.playlist.id ? music.trackSoundIds[music.currentIndex] : undefined;
+    return padArt(tracks.map((t) => t.sound), playing === undefined ? null : playing);
+  }
+
+  function countOf(info: DeckPadInfo): number | null {
+    if (info.kind === "sound" || !info.playlist) return null;
+    return byPlaylist.value?.get(info.playlist.id)?.length ?? null;
   }
 
 
@@ -115,6 +122,8 @@ export function useDeckSnapshot(state: DeckSnapshotState): ComputedRef<DeckSnaps
       volume: volumeOf(pad),
       soloed,
       blockedReason: blocked,
+      art: artOf(info),
+      count: countOf(info),
       meta: metaOf(info),
       keyLabel: rowKey(pad.lane, pad.grid_row, keyRow),
     };

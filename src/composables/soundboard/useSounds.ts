@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
 import { readDeckSlice } from "@/lib/audio/deck/deckBatch";
-import { uploadToBucket, deleteFromBucket } from "@/lib/storage";
+import { uploadToBucket, deleteFromBucket, removeByPublicUrl } from "@/lib/storage";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { toOpus } from "@/lib/mediaConvert";
@@ -42,6 +42,25 @@ async function updateSound(id: string, update: SoundUpdate): Promise<Sound> {
     .single();
   if (error) throw error;
   return data as Sound;
+}
+
+async function deleteSound(sound: Sound, currentUserId: string): Promise<void> {
+  const { error } = await supabase.from("sounds").delete().eq("id", sound.id);
+  if (error) throw error;
+  // Only the file's owner removes the underlying objects: a co-DM deleting the
+  // row must not take away an upload its owner may still hold elsewhere.
+  if (sound.user_id === currentUserId) {
+    // `library_id` is checked as well as `storage_path` even though catalogue
+    // rows are written with a null path. The catalogue file backs every
+    // campaign that added it, so one stray path on one row would take the
+    // sound away from everyone.
+    if (sound.storage_path && sound.library_id === null) {
+      await deleteFromBucket("sounds", [sound.storage_path]);
+    }
+    if (sound.thumbnail_url) {
+      await removeByPublicUrl("soundImages", sound.thumbnail_url);
+    }
+  }
 }
 
 // ── Query hooks ───────────────────────────────────────────────────────────
@@ -95,6 +114,39 @@ export function useUpdateSound() {
     mutationFn: ({ id, update }: { id: string; update: SoundUpdate }) =>
       updateSound(id, update),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
+    },
+  });
+}
+
+/** Deleting a sound also takes it off every pad, scene and playlist (the takes
+ *  and tracks cascade, and a pad left with no take goes with them). */
+export function useDeleteSound() {
+  const qc = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const auth = useAuthStore();
+
+  return useMutation({
+    mutationFn: (sound: Sound) => {
+      if (auth.user === null) throw new Error("useDeleteSound called signed out");
+      return deleteSound(sound, auth.user.id);
+    },
+    // Optimistic: the row leaves the library on the click, not after the round trip.
+    onMutate: async (sound) => {
+      const key = [QUERY_KEY, activeCampaignId.value];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<Sound[]>(key);
+      if (previous !== undefined) {
+        qc.setQueryData<Sound[]>(key, previous.filter((s) => s.id !== sound.id));
+      }
+      return { key, previous };
+    },
+    onError: (_err, _sound, context) => {
+      if (context !== undefined && context.previous !== undefined) {
+        qc.setQueryData(context.key, context.previous);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
     },
   });

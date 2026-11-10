@@ -6,7 +6,9 @@ import { ledgerVerbOf } from "./ledger";
 import { describeQuestRouteEffect } from "./gates";
 import { threadBadges } from "./threads";
 import type {
+  LootPlacement,
   LootPlacementKind,
+  QuestBeatTransition,
   QuestBeatVisibility,
   QuestConsequence,
   QuestConsequenceAction,
@@ -239,6 +241,29 @@ export function describeHeldPayoff(payoff: QuestHeldPayoff): string {
  */
 export function describeHeldLoot(kind: LootPlacementKind): string {
   return kind === "currency" ? `${kind} · prepared` : `${kind} · unclaimed once dispatched`;
+}
+
+/**
+ * The loot the cockpit's Held payoff offers: undispatched loot on a beat this
+ * quest's run has entered (#1164). `delivery_state: "held"` alone only means
+ * "not dropped yet", which every piece of prepared loot is, so on its own it
+ * listed the whole quest's loot on the first beat of a fresh run. Frame 04
+ * holds the loot of the beat the party is on, and frame 05 has loot the DM
+ * leaves unticked on Advance "stay in the cockpit until you dispatch it":
+ * both are beats the run reached. Any thread counts, since the panel is
+ * quest-wide. An `assert` row moves no cursor, so it reaches nothing.
+ */
+export function lootHeldByTheRun(
+  loot: readonly LootPlacement[],
+  transitions: readonly QuestBeatTransition[],
+  questId: string,
+): LootPlacement[] {
+  const reached = new Set<string>();
+  for (const row of transitions) {
+    if (row.transition_kind === "assert" || row.to_quest_id !== questId || !row.to_beat_id) continue;
+    reached.add(row.to_beat_id);
+  }
+  return loot.filter((row) => row.delivery_state === "held" && row.beat_id !== null && reached.has(row.beat_id));
 }
 
 export interface SpineArrivalDetail {

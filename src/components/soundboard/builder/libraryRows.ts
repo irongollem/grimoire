@@ -1,4 +1,6 @@
 import { isSpotifyCollection } from "@/lib/audio/spotifyAuth";
+import type { PadHue } from "@/lib/audio/soundCategories";
+import { KIND_OF_CATEGORY, SOUND_KIND_LABEL, type SoundKind } from "@/lib/audio/soundKinds";
 import type { Sound, SoundCategory, SoundboardPlaylist } from "@/types/sound.types";
 
 export type LibraryList = "sounds" | "scenes" | "playlists";
@@ -10,7 +12,13 @@ export interface LibraryRow {
   placement: LibraryPlacement;
   name: string;
   category: SoundCategory;
-  /** "3 layers", "12 tracks", or the category word for a single sound. */
+  /** Music track, playlist, ambience track, scene or effect: what colour alone cannot say. */
+  kind: SoundKind;
+  /** Its colour: the category's, or a playlist's or scene's own. */
+  hue: PadHue;
+  /** A scene's layers or a playlist's tracks, shown on the kind icon; null for a sound or while unknown. */
+  count: number | null;
+  /** The kind's word, "Scene", "Music track"; a Spotify collection says so. */
   meta: string;
   /** Set for sounds, so the preview button can play them. */
   sound: Sound | null;
@@ -29,15 +37,16 @@ function matches(filter: LibraryFilter, category: SoundCategory, name: string, t
   return name.toLowerCase().includes(q) || tags.some((tag) => tag.toLowerCase().includes(q));
 }
 
-const CATEGORY_WORD: Record<SoundCategory, string> = { ambient: "Ambient", music: "Music", effects: "Effect" };
-
 function soundRow(sound: Sound): LibraryRow {
   return {
     key: `sound:${sound.id}`,
     placement: { kind: "sound", id: sound.id },
     name: sound.name,
     category: sound.category,
-    meta: CATEGORY_WORD[sound.category],
+    kind: KIND_OF_CATEGORY[sound.category],
+    hue: sound.category,
+    count: null,
+    meta: SOUND_KIND_LABEL[KIND_OF_CATEGORY[sound.category]],
     sound,
     playlist: null,
   };
@@ -45,13 +54,16 @@ function soundRow(sound: Sound): LibraryRow {
 
 function playlistRow(playlist: SoundboardPlaylist, count: number | undefined): LibraryRow {
   const isScene = playlist.playlist_type === "ambient";
-  const noun = isScene ? "layer" : "track";
+  const kind: SoundKind = isScene ? "scene" : "playlist";
   return {
     key: `playlist:${playlist.id}`,
     placement: { kind: "playlist", id: playlist.id },
     name: playlist.name,
     category: isScene ? "ambient" : "music",
-    meta: count === undefined ? "" : `${count} ${noun}${count === 1 ? "" : "s"}`,
+    kind,
+    hue: kind,
+    count: count ?? null,
+    meta: SOUND_KIND_LABEL[kind],
     sound: null,
     playlist,
   };
@@ -84,7 +96,7 @@ export function libraryRows(
   const spotify = sounds
     .filter((s) => s.source_type === "spotify" && isSpotifyCollection(s.file_url))
     .filter((s) => matches(filter, "music", s.name, s.tags))
-    .map((s) => ({ ...soundRow(s), category: "music" as const, meta: "Spotify" }));
+    .map((s) => ({ ...soundRow(s), category: "music" as const, kind: "playlist" as const, hue: "playlist" as const, meta: "Playlist · Spotify" }));
   return [...rows, ...spotify];
 }
 

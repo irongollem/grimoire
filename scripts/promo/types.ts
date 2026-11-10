@@ -194,6 +194,11 @@ export interface EpisodeManifest {
    * is on the picture, whose sound is its own, and which loops without a seam with no card at either end.
    */
   brand?: false;
+  /**
+   * Seconds into the first shot the cover is taken from, when its middle is the wrong moment (a scene whose view
+   * is mid-pan there). Absent, the cover is the first shot's middle.
+   */
+  coverAt?: number;
   recordedAt: string;
   shots: RecordedShot[];
 }

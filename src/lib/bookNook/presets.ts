@@ -1,15 +1,15 @@
 /**
- * The studio's vocabulary over the engine's numbers. Five motions named for what they suit (Flame, Cloth,
- * Hanging, Floating, Wandering), each with one Strength and one Pace; the engine's own numbers sit behind
+ * The studio's vocabulary over the engine's numbers. Six motions named for what they suit (Flame, Cloth,
+ * Hanging, Wagging, Floating, Wandering), each with one Strength and one Pace; the engine's own numbers sit behind
  * "Exact". Everything is pure; a preset is a plain engine motion or effect, so a scene stores nothing new.
  */
 import { loopFrequency, type Effect, type Layer, type Motion, type Point, type Rect } from "./scene.ts";
 
-export type MotionName = "Flame" | "Cloth" | "Hanging" | "Floating" | "Wandering";
+export type MotionName = "Flame" | "Cloth" | "Hanging" | "Wagging" | "Floating" | "Wandering";
 export type Strength = "faint" | "gentle" | "lively";
 export type Pace = "slow" | "steady" | "quick";
 
-export const MOTION_NAMES: MotionName[] = ["Flame", "Cloth", "Hanging", "Floating", "Wandering"];
+export const MOTION_NAMES: MotionName[] = ["Flame", "Cloth", "Hanging", "Wagging", "Floating", "Wandering"];
 export const STRENGTHS: Strength[] = ["faint", "gentle", "lively"];
 export const PACES: Pace[] = ["slow", "steady", "quick"];
 
@@ -17,6 +17,9 @@ const AMOUNT = {
   Flame: [0.05, 0.09, 0.14],
   Cloth: [0.015, 0.03, 0.05],
   Hanging: [1.2, 2.5, 4],
+  // A tail, a flag, a pendulum: a quick wide swing about the pin, which the maker drags to where it joins (the
+  // prison cell's dog, 8 Nov 2026, wagged 16 degrees twice a second).
+  Wagging: [8, 14, 20],
   Floating: [0.01, 0.02, 0.035],
   Wandering: [0.05, 0.1, 0.18],
 };
@@ -24,6 +27,7 @@ const AMOUNT = {
 const PACE = {
   Flame: [1.6, 2.4, 3.4],
   Hanging: [6, 4, 2.5],
+  Wagging: [0.8, 0.55, 0.4],
   Floating: [5, 3, 2],
   cycles: [1, 2, 3],
 };
@@ -43,6 +47,8 @@ export function motionFor(name: MotionName, strength: Strength, pace: Pace, laye
       return { kind: "billow", amount: amount * layer.width, period: loop / cycles, waves: CLOTH_WAVES };
     case "Hanging":
       return { kind: "sway", angle: amount, period: at(PACE.Hanging, pace, PACES) };
+    case "Wagging":
+      return { kind: "sway", angle: amount, period: at(PACE.Wagging, pace, PACES) };
     case "Floating":
       return { kind: "bob", dy: amount * layer.width, period: at(PACE.Floating, pace, PACES) };
     case "Wandering":
@@ -60,28 +66,30 @@ export function describeMotion(
   layer: Pick<Layer, "width">,
   loop: number,
 ): { name: MotionName; strength: Strength; pace: Pace } | { custom: true } {
-  const name = nameOf(motion);
-  for (const strength of STRENGTHS) {
-    for (const pace of PACES) {
-      const preset = motionFor(name, strength, pace, layer, loop);
-      if (isPreset(motion, preset, loop)) return { name, strength, pace };
+  for (const name of namesOf(motion)) {
+    for (const strength of STRENGTHS) {
+      for (const pace of PACES) {
+        const preset = motionFor(name, strength, pace, layer, loop);
+        if (isPreset(motion, preset, loop)) return { name, strength, pace };
+      }
     }
   }
   return { custom: true };
 }
 
-function nameOf(motion: Motion): MotionName {
+/** The presets an engine motion could be: a sway is Hanging when slow and small, Wagging when quick and wide. */
+function namesOf(motion: Motion): MotionName[] {
   switch (motion.kind) {
     case "flicker":
-      return "Flame";
+      return ["Flame"];
     case "billow":
-      return "Cloth";
+      return ["Cloth"];
     case "sway":
-      return "Hanging";
+      return ["Hanging", "Wagging"];
     case "bob":
-      return "Floating";
+      return ["Floating"];
     case "drift":
-      return "Wandering";
+      return ["Wandering"];
   }
 }
 
