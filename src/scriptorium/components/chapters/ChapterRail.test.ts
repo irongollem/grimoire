@@ -86,11 +86,11 @@ describe("numbering the rest of the book", () => {
   // Fails on: a chapter whose pages are not known yet showing nothing, or a stale dash after numbering.
   it("shows a dash for a chapter with no pages yet, only while numbering", async () => {
     mountRail({ numbering: { done: 0, total: null } });
-    expect(wrapper.findAll("[data-chapter-row]")[2].text()).toContain("—");
+    expect(wrapper.findAll("[data-chapter-row]")[2].text()).toContain("–");
     expect(wrapper.findAll("[data-chapter-row]")[0].text()).toContain("Pages 5 to 49");
     expect(wrapper.get("[data-testid=rail-numbering]").text()).not.toContain("Chapter ");
     await wrapper.setProps({ numbering: null });
-    expect(wrapper.findAll("[data-chapter-row]")[2].text()).not.toContain("—");
+    expect(wrapper.findAll("[data-chapter-row]")[2].text()).not.toContain("–");
   });
 });
 

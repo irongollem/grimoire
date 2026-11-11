@@ -7,7 +7,7 @@
         v-for="(chapter, at) in chapters"
         :key="chapter.id"
         :chapter="chapter"
-        :pages="pagesLine(pageRanges[chapter.id]) ?? (numbering ? '—' : null)"
+        :pages="pagesLine(pageRanges[chapter.id]) ?? (numbering ? '–' : null)"
         :current="chapter.id === currentId"
         :first="at === 0"
         :last="at === chapters.length - 1"

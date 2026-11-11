@@ -2,6 +2,7 @@ import { computed, type Ref } from "vue";
 import type { JSONContent } from "@tiptap/core";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { chapterTitle, countWords } from "@/scriptorium/lib/chapterTitle";
 import type {
   ScriptoriumDocument,
@@ -79,8 +80,10 @@ async function createBook(input: {
     })),
   );
   if (chapterError) {
-    // The chapter failure is the cause worth reporting; a failed cleanup is not allowed to hide it.
-    await supabase.from("scriptorium_documents").delete().eq("id", created.id);
+    // The chapter failure is the cause the caller sees; a failed cleanup is reported on
+    // its own (an empty book left in the list), never thrown in its place.
+    const { error: cleanupError } = await supabase.from("scriptorium_documents").delete().eq("id", created.id);
+    if (cleanupError) reportHandledError(cleanupError, "scriptorium:create-rollback", { documentId: created.id });
     throw chapterError;
   }
   return created;

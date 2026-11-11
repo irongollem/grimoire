@@ -90,7 +90,7 @@ vi.mock("@/components/tiptap/EntityMentionNodeView.vue", () => ({ default: {} })
 vi.mock("@/components/tiptap/CalendarEventRefNodeView.vue", () => ({ default: {} }));
 vi.mock("@/components/tiptap/IllustrationSuggestionNodeView.vue", () => ({ default: {} }));
 vi.mock("@/components/tiptap/PendingImageNodeView.vue", () => ({ default: {} }));
-vi.mock("@/scriptorium/components/LensPairView.vue", () => ({ default: {} }));
+vi.mock("@/components/tiptap/LensPairView.vue", () => ({ default: {} }));
 
 // The viewer's extension list as RichTextViewer used to build it.
 function viewerExtensions(): Extensions {

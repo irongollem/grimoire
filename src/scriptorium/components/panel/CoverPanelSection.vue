@@ -40,6 +40,7 @@
 
     <PanelSection v-else-if="variant === 'back'" title="Words">
       <PanelField v-for="blurb in BLURBS" :key="blurb.key" :label="blurb.label">
+        <!-- Plain text on purpose: a blurb is a cover attribute that coverMarkup sets as a text node, never markup. -->
         <textarea
           :value="text(blurb.key)"
           :rows="blurb.rows"
