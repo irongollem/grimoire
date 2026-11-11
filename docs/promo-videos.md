@@ -139,9 +139,24 @@ The caption is `scripts/promo/captions/<id>.txt`. The token is
 `INSTAGRAM_SYSTEM_USER_TOKEN` in `.env.local`: a system user of the Dungeon
 Grimoire business portfolio, assigned the Instagram account, the Page and the
 "Grimoire Promo Studio" app, with `instagram_basic`,
-`instagram_content_publish`, `pages_read_engagement` and `pages_show_list`,
-never expiring. The API reaches the account through the Page it is linked to,
-so the account must stay linked to the Page.
+`instagram_content_publish`, `pages_read_engagement`, `pages_show_list` and
+`instagram_manage_insights` (for the stats below), never expiring. The API
+reaches the account through the Page it is linked to, so the account must stay
+linked to the Page. A new permission means generating a new token for the
+system user in Business settings (System users) and replacing the line in
+`.env.local`; ask for one only when a feature needs it, since the token sits
+on disk and can already post publicly.
+
+### Stats
+
+`npm run promo:stats` prints every post's views, reach, likes, saves, shares,
+comments and average watch time, and its views at one day old. Instagram
+reports lifetime totals only, so a week-old post always beats last night's; the
+"24h" column is the fair comparison. It comes from `promo-out/stats.jsonl`,
+which the posting job appends to whenever it posts and whenever a post turns
+one day old (`dayMarkDue`; with a post every night that is the same run). A
+failed read is logged and never stops a post. Posts that were older than a
+day when the snapshots began (11 Nov 2026) have no 24h figure.
 
 ## How it works
 

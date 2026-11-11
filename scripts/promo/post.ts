@@ -18,6 +18,7 @@ import { checkCarousel, isCarousel, postCarousel } from "./carousels";
 import { findAccount, postsLeft } from "./instagram";
 import { checkReel, postReel, readPosted, readSchedule, writeSchedule } from "./publishing";
 import { LATE_LIMIT_HOURS, nextDue, pushMissed } from "./schedule";
+import { dayMarkDue, postedRecords, takeSnapshot } from "./stats";
 
 function parseArgs(argv: string[]) {
   let root = "promo-out";
@@ -131,6 +132,7 @@ async function main() {
   const due = nextDue(schedule, posted, now);
   if (!due) {
     console.log(`${stamp} nothing due`);
+    if (dayMarkDue(postedRecords(root), now)) await snapshot(token, root, log);
     return;
   }
   console.log(`${stamp} posting ${due.id}, planned for ${due.at}`);
@@ -141,6 +143,17 @@ async function main() {
   } catch (e) {
     notify("Grimoire post NOT published", `${due.id}: ${e instanceof Error ? e.message : String(e)}`);
     throw e;
+  }
+  await snapshot(token, root, log);
+}
+
+/** Stats ride on the posting job (stats.ts); a failed read is logged and never fails the run, whose job is posting. */
+async function snapshot(token: string, root: string, log: (l: string) => void) {
+  try {
+    const rows = await takeSnapshot(token, root);
+    log(`stats snapshot of ${rows.length} posts`);
+  } catch (e) {
+    log(`stats snapshot failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

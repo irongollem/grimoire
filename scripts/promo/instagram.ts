@@ -116,6 +116,36 @@ export async function recentMedia(token: string, igId: string, limit = 12): Prom
   }));
 }
 
+/** A post's lifetime numbers. Instagram reports totals only, never per day, so views at a given age come from snapshots (stats.ts). */
+export interface MediaInsights {
+  views: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saved: number | null;
+  /** Reels only: the average time a play lasted, in milliseconds. */
+  avgWatchMs: number | null;
+}
+
+/** Needs `instagram_manage_insights` on the token. A metric the API leaves out stays null rather than becoming a fake zero. */
+export async function mediaInsights(token: string, mediaId: string, kind: "reel" | "carousel"): Promise<MediaInsights> {
+  const metrics = ["views", "reach", "likes", "comments", "shares", "saved", ...(kind === "reel" ? ["ig_reels_avg_watch_time"] : [])];
+  const res = await graph<{ data: { name: string; values: { value: number }[] }[] }>(token, `${mediaId}/insights`, {
+    params: { metric: metrics.join(",") },
+  });
+  const value = (name: string) => res.data.find((m) => m.name === name)?.values[0]?.value ?? null;
+  return {
+    views: value("views"),
+    reach: value("reach"),
+    likes: value("likes"),
+    comments: value("comments"),
+    shares: value("shares"),
+    saved: value("saved"),
+    avgWatchMs: value("ig_reels_avg_watch_time"),
+  };
+}
+
 /** A Reel's cover: a frame of the video by its offset, or an image of its own at a public URL. */
 export type ReelCover = { atMs: number } | { url: string };
 
