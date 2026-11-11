@@ -48,7 +48,7 @@ export const buttonVariants = cva(
         chip: "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
         /**
          * A row in a dropdown, popover or picker list — 38 sites across 22 files
-         * (ItemSendMenu, CampaignSwitcher, BlockPickerPanel, the spell/item search
+         * (ItemSendMenu, CampaignSwitcher, the Scriptorium's slash menu, the spell/item search
          * results, PlayerLayout's account menu…).
          *
          * These were the one cluster wave 1 could not convert at all, and the reason

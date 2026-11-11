@@ -2,9 +2,6 @@
   <div ref="rootRef" class="flex min-h-0 min-w-0 flex-1 flex-col bg-card">
     <ScriptoriumEditorToolbar
       :editor="editor"
-      :show-block-picker="showBlockPicker"
-      @open-asset-panel="showAssetPanel = true"
-      @open-block-picker="showBlockPicker = true"
       @show-cover="dismissedKey = null"
     />
 
@@ -98,22 +95,6 @@
       <span v-if="pagesLabel" class="text-caption italic text-muted-foreground">{{ pagesLabel }}</span>
     </footer>
 
-    <AssetInsertPanel :show="showAssetPanel" :editor="editor" @close="showAssetPanel = false" />
-    <BlockPickerPanel
-      :show="showBlockPicker"
-      :editor="editor"
-      :is-two-column="isTwoColumn"
-      @close="showBlockPicker = false"
-      @open-asset-panel="
-        showBlockPicker = false;
-        showAssetPanel = true;
-      "
-      @open-art-picker="
-        showBlockPicker = false;
-        showArtPicker = true;
-      "
-      @add-furniture="emit('addFurniture', $event)"
-    />
     <!-- The Illuminator over the book: Done returns to this page, Cancel drops what was done in it. -->
     <IlluminatorWorkbench
       v-if="workbench"
@@ -124,11 +105,6 @@
       :user-id="currentUserId()"
       @done="onWorkbenchDone"
       @cancel="workbench = null"
-    />
-    <ArtPickerModal
-      :show="showArtPicker"
-      @select="editor?.chain().focus().setImage({ src: $event }).run()"
-      @close="showArtPicker = false"
     />
   </div>
 </template>
@@ -147,7 +123,7 @@
  * is exactly the cost chapters exist to avoid; the JSON is read once, when a
  * save actually goes out.
  */
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import type { JSONContent } from "@tiptap/core";
 import { useMediaQuery } from "@vueuse/core";
@@ -170,12 +146,12 @@ import { cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
 import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
+import { storeToRefs } from "pinia";
+import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
+import { zoomScale } from "@/scriptorium/lib/zoom";
 import { scaledBoxSize } from "@/scriptorium/composables/useScriptoriumZoom";
 import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
 import TextEnhanceBubble from "@/components/common/ai/TextEnhanceBubble.vue";
-import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
-import AssetInsertPanel from "@/scriptorium/components/AssetInsertPanel.vue";
-import BlockPickerPanel from "@/scriptorium/components/BlockPickerPanel.vue";
 import ScriptoriumPanel from "@/scriptorium/components/panel/ScriptoriumPanel.vue";
 import ScriptoriumEditorToolbar from "@/scriptorium/components/ScriptoriumEditorToolbar.vue";
 import type {
@@ -238,6 +214,7 @@ const emit = defineEmits<{
 }>();
 
 const geometry = computed(() => pageGeometry(pageSize, isTwoColumn));
+const { scriptoriumZoom: zoom, scriptoriumDrawnScale: drawnScale } = storeToRefs(useScriptoriumUiStore());
 const sheetScale = ref(1);
 const sheetHeight = ref(0);
 const scrollRef = ref<HTMLElement | null>(null);
@@ -262,7 +239,8 @@ function measureSheet() {
   const sheet = sheetRef.value;
   if (!pane || !sheet) return;
   const available = pane.clientWidth - PANE_GUTTER_PX;
-  sheetScale.value = available > 0 ? Math.min(1, available / geometry.value.width) : 1;
+  sheetScale.value = zoomScale(zoom.value, available, geometry.value.width);
+  drawnScale.value = sheetScale.value;
   sheetHeight.value = sheet.offsetHeight;
 }
 let sheetObserver: ResizeObserver | null = null;
@@ -274,10 +252,17 @@ onMounted(() => {
   if (sheetRef.value) sheetObserver.observe(sheetRef.value);
 });
 watch(geometry, () => measureSheet(), { flush: "post" });
+// A new zoom keeps the caret where the writer was looking.
+watch(zoom, async () => {
+  measureSheet();
+  await nextTick();
+  const ed = editor.value;
+  if (!ed) return;
+  const node = ed.view.domAtPos(ed.state.selection.from).node;
+  const el = node instanceof Element ? node : node.parentElement;
+  el?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+});
 
-const showAssetPanel = ref(false);
-const showBlockPicker = ref(false);
-const showArtPicker = ref(false);
 
 const wordCount = ref(countWords(chapter.content));
 

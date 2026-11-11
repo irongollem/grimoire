@@ -3,7 +3,14 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
-import { BLOCK_REGISTRY, BLOCK_GROUP_ORDER } from "./blockRegistry";
+import {
+  BLOCK_REGISTRY,
+  BLOCK_GROUP_ORDER,
+  KIT_TILE_ORDER,
+  blockBlurb,
+  featuredBlocks,
+  findBlockEntry,
+} from "./blockRegistry";
 
 /** Depth-first search for a node of `type` anywhere in the document. */
 function hasNodeOfType(node: JSONContent, type: string): boolean {
@@ -181,12 +188,44 @@ describe("BLOCK_REGISTRY", () => {
     expect(editor.getHTML()).toBe(before);
   });
 
-  it("decoration entries carry a furnitureKind and no action", () => {
-    const decorations = BLOCK_REGISTRY.filter((e) => e.group === "Decoration");
-    expect(decorations.length).toBeGreaterThan(0);
-    for (const d of decorations) {
-      expect(d.furnitureKind).toBeTruthy();
-      expect(d.action).toBeUndefined();
+  // Fails on: a kit tile or toolbar button whose block went missing from the registry (a renamed entry),
+  // or the frame's order changing.
+  it("every featured kit tile exists, in the frame's order", () => {
+    expect(featuredBlocks().map((e) => e.kit)).toEqual(KIT_TILE_ORDER);
+  });
+
+  // Fails on: the "/" menu showing a paragraph for an entry, or a blank line.
+  it("every entry has a one-line blurb, and a featured one says what it is for", () => {
+    for (const entry of BLOCK_REGISTRY) {
+      const line = blockBlurb(entry);
+      expect(line.trim(), entry.label).not.toBe("");
+      expect(line, entry.label).not.toContain("\n");
+      expect(line.length, entry.label).toBeLessThan(110);
     }
+    expect(blockBlurb(findBlockEntry("Descriptive (Read-Aloud)")!)).toBe("Boxed text for the table");
+  });
+
+  // Fails on: page furniture coming back into the block list, where it has no editor to anchor to.
+  it("holds no page furniture: that is placed from the page panel", () => {
+    expect(BLOCK_REGISTRY.some((e) => "furnitureKind" in e)).toBe(false);
+  });
+
+  it('"Table" inserts a table with a header row', () => {
+    const editor = makeEditor();
+    findBlockEntry("Table")!.action!(editor);
+    const table = (editor.getJSON().content ?? []).find((n) => n.type === "table");
+    expect(table?.content).toHaveLength(3);
+    expect(hasNodeOfType(table!, "tableHeader")).toBe(true);
+  });
+
+  // Fails on: Drop cap in the kit or "/" doing nothing (or making a new paragraph) instead of flagging the paragraph at the caret.
+  it('"Drop cap" flags the paragraph the caret is in', () => {
+    const editor = makeEditor();
+    editor.commands.setContent({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Once upon" }] }] });
+    editor.commands.setTextSelection(3);
+    findBlockEntry("Drop cap")!.action!(editor);
+    expect(editor.getHTML()).toContain('class="sc-drop-cap"');
+    findBlockEntry("Drop cap")!.action!(editor);
+    expect(editor.getHTML()).not.toContain("sc-drop-cap");
   });
 });

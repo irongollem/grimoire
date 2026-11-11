@@ -36,6 +36,10 @@ import { CoverPage } from "@/scriptorium/tiptap/coverPage";
 import { BlockId } from "@/scriptorium/tiptap/blockId";
 import { PageBreak } from "@/scriptorium/tiptap/pageBreak";
 import { EntityEmbed } from "@/scriptorium/tiptap/entityEmbed";
+import { DropCap } from "@/scriptorium/tiptap/dropCap";
+import { BlockKeep } from "@/scriptorium/tiptap/blockKeep";
+import { KitDrop } from "@/scriptorium/tiptap/kitDrop";
+import { SlashMenu } from "@/scriptorium/tiptap/slashMenu";
 import { lensPairExtensions } from "@/lib/tiptap/lensPair";
 import { SecretBlock } from "@/lib/tiptap/secretBlock";
 
@@ -94,6 +98,12 @@ export function createScriptoriumExtensions() {
     BlockId,
     PageBreak,
     EntityEmbed,
+    // The book kit's writing tools: a drop cap, "keep on one page", dropping a kit item on the
+    // page, and "/" for any block. The last two only act in an editable editor.
+    DropCap,
+    BlockKeep,
+    KitDrop,
+    SlashMenu,
     ...lensPairExtensions({ creatable: true }),
     // "Only you see this" (#1115): a DM-only passage. It never prints and never
     // reaches a player; layoutContent.ts takes it out before anything is laid out.

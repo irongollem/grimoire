@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import ScriptoriumBookEditor from "./ScriptoriumBookEditor.vue";
 import ScriptoriumBookSettings from "./ScriptoriumBookSettings.vue";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
 import type { ScriptoriumDocument } from "@/scriptorium/types";
 
 const mocks = await vi.hoisted(async () => {
@@ -86,6 +87,12 @@ const Rail = defineComponent({
       ));
   },
 });
+/** v-show hides with an inline display:none; isVisible needs an attached tree, which these mounts are not. */
+const hidden = (w: { find: (s: string) => { attributes: (n: string) => string | undefined } }) =>
+  (w.find("[data-testid=kit]").attributes("style") ?? "").includes("display: none");
+const Kit = defineComponent({
+  setup: () => () => h("div", { "data-testid": "kit" }),
+});
 const Editor = defineComponent({
   props: ["chapter", "flow", "panelHidden", "pageContext"],
   emits: ["openSettings"],
@@ -139,6 +146,7 @@ function open() {
     global: {
       stubs: {
         ChapterRail: Rail,
+        BookKit: Kit,
         ScriptoriumChapterEditor: Editor,
         ScriptoriumPreviewPane: Pane,
         ScriptoriumBookHeader: Header,
@@ -214,6 +222,27 @@ describe("ScriptoriumBookEditor", () => {
     await wrapper.find("[data-testid=focus]").trigger("click");
     expect(wrapper.find("[data-testid=rail]").exists()).toBe(false);
     expect(localStorage.getItem("grimoire:scriptorium:focus")).toBe("true");
+  });
+
+  // Fails on: the book kit living only in a book with several chapters, so a handout or a one-chapter
+  // book has nothing to drag blocks from.
+  it("shows the book kit with no tabs when the book has one chapter", async () => {
+    mocks.list.value = [{ id: "c1", title: "One" }];
+    const wrapper = open();
+    await flushPromises();
+    expect(hidden(wrapper)).toBe(false);
+    expect(wrapper.find("[data-testid=rail-tabs]").exists()).toBe(false);
+  });
+
+  // Fails on: "From the campaign" on the toolbar doing nothing, because the kit is a tab the toolbar cannot reach.
+  it("the toolbar's request for the campaign search shows the Book kit tab", async () => {
+    const wrapper = open();
+    await flushPromises();
+    expect(hidden(wrapper)).toBe(true);
+    useScriptoriumUiStore().askForCampaignSearch();
+    await flushPromises();
+    expect(hidden(wrapper)).toBe(false);
+    expect(wrapper.find("[data-testid=rail]").exists()).toBe(false);
   });
 
   // Fails on: Focus hiding the chapter list but leaving the panel on screen.

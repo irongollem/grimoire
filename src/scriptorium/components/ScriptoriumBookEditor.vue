@@ -1,5 +1,8 @@
 <template>
-  <div class="relative flex h-dvh min-h-0 flex-col bg-background" data-testid="book-editor">
+  <div
+    class="relative flex h-dvh min-h-0 flex-col bg-background"
+    data-testid="book-editor"
+  >
     <ScriptoriumBookHeader
       v-model:focus="focus"
       :title="settings.draft.title"
@@ -30,11 +33,19 @@
     </div>
 
     <div class="flex min-h-0 flex-1">
-      <div
-        v-if="chapterList.length > 1 && !focus"
-        class="hidden w-68 shrink-0 border-r border-border md:block"
-      >
+      <!-- The left rail: the chapters, and the book kit of blocks, entries and art to write with (frame 13). -->
+      <div v-if="!focus" class="hidden w-68 shrink-0 flex-col border-r border-border md:flex" data-testid="left-rail">
+        <SegmentedControl
+          v-if="chapterList.length > 1"
+          v-model="railTab"
+          :options="RAIL_TABS"
+          size="sm"
+          block
+          class="shrink-0 px-3 pt-2.5 pb-1"
+          data-testid="rail-tabs"
+        />
         <ChapterRail
+          v-if="chapterList.length > 1 && railTab === 'chapters'"
           :document-id="doc.id"
           :chapters="chapterList"
           :current-id="currentId"
@@ -42,6 +53,11 @@
           :numbering="numbering"
           :before-leave="saveCurrent"
           @select="selectChapter"
+        />
+        <BookKit
+          v-show="railTab === 'kit' || chapterList.length <= 1"
+          :editor="chapterEditor?.editor"
+          :is-two-column="settings.draft.isTwoColumn"
         />
       </div>
 
@@ -190,7 +206,9 @@ import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import ChapterRail from "@/scriptorium/components/chapters/ChapterRail.vue";
+import BookKit from "@/scriptorium/components/kit/BookKit.vue";
 import InspectNotesDrawer from "@/scriptorium/components/inspect/InspectNotesDrawer.vue";
 import InspectNotesLayer from "@/scriptorium/components/inspect/InspectNotesLayer.vue";
 import HandoutAudienceLine from "@/scriptorium/components/HandoutAudienceLine.vue";
@@ -280,6 +298,14 @@ const layoutSettings = computed<BookLayoutSettings>(() => ({
 const { scriptoriumFocus: focus } = storeToRefs(useScriptoriumUiStore());
 const reading = ref(false);
 const notesOpen = ref(true);
+
+// ── The left rail: chapters, and the book kit (frame 13) ────────────────────
+type RailTab = "chapters" | "kit";
+const RAIL_TABS: SegmentedOption<RailTab>[] = [
+  { value: "chapters", label: "Chapters" },
+  { value: "kit", label: "Book kit" },
+];
+const { scriptoriumRailTab: railTab } = storeToRefs(useScriptoriumUiStore());
 
 // ── Chapters ────────────────────────────────────────────────────────────────
 const docId = computed(() => doc.id);

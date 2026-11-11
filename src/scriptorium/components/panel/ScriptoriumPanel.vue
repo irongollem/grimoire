@@ -49,6 +49,19 @@
 
     <ContentsPanelSection v-else-if="selection.kind === 'contents'" />
 
+    <BlockPanelSection
+      v-else-if="block"
+      :name="block.name"
+      :look-label="block.lookLabel"
+      :family="block.family"
+      :keep="block.keep"
+      :across="block.across"
+      :can-span="block.canSpan"
+      @keep="(v) => onNodeEdit({ keepTogether: v })"
+      @across="onAcross"
+      @open-settings="emit('openSettings')"
+    />
+
     <FooterPanelSection
       v-else-if="selection.kind === 'footer'"
       :page-label="footerPageLabel(selection.page)"
@@ -83,6 +96,7 @@ import { computed, inject, ref, toRaw } from "vue";
 import type { Editor } from "@tiptap/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
+import BlockPanelSection from "@/scriptorium/components/panel/BlockPanelSection.vue";
 import ContentsPanelSection from "@/scriptorium/components/panel/ContentsPanelSection.vue";
 import CoverPanelSection from "@/scriptorium/components/panel/CoverPanelSection.vue";
 import DecorationPanelSection from "@/scriptorium/components/panel/DecorationPanelSection.vue";
@@ -96,7 +110,11 @@ import type { AnchorState, PictureActions, PictureTarget } from "@/scriptorium/c
 import type { PanelSelection } from "@/scriptorium/composables/useScriptoriumSelection";
 import { blockPositions } from "@/scriptorium/lib/furniture/editorAnchors";
 import { EMBED_DETACH_EVENT, EMBED_OPEN_EVENT, signalEmbed } from "@/scriptorium/lib/panel/embedSignals";
+import { setAcross, wideAround } from "@/scriptorium/lib/panel/blockSpan";
 import { updateNodeAttrs } from "@/scriptorium/lib/panel/nodeAttrs";
+import { isTwoColumnPage } from "@/scriptorium/lib/kit/twoColumn";
+import { scriptoriumLook } from "@/scriptorium/lib/looks";
+import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import { onThisPage, type PageEntry } from "@/scriptorium/lib/panel/onThisPage";
 import { bookPageNumber, describePage, type PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
 import type { PageBox, PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
@@ -209,6 +227,39 @@ function onLayer(value: PictureLayer) {
   }
   const item = picture.value?.item;
   if (item) emit("updateItem", { ...item, z: value });
+}
+
+// ── A box or table ──────────────────────────────────────────────────────────
+const BLOCK_NAMES: Record<string, string> = {
+  descriptiveBlock: "Read-aloud",
+  noteBlock: "Sidebar",
+  quoteBlock: "Quote",
+  wideBlock: "Wide block",
+  blockquote: "Callout",
+  table: "Table",
+};
+const theme = inject(SCRIPTORIUM_THEME_KEY, null);
+const block = computed(() => {
+  const ed = rawEditor.value;
+  const n = node.value;
+  const sel = props.selection;
+  if (!ed || ed.isDestroyed || sel.kind !== "block" || !n) return null;
+  const look = theme ? scriptoriumLook(theme.value) : null;
+  const wide = n.type.name === "wideBlock";
+  return {
+    name: BLOCK_NAMES[n.type.name] ?? "Block",
+    lookLabel: look?.label ?? null,
+    family: look?.family ?? null,
+    keep: n.attrs.keepTogether === true,
+    across: wideAround(ed.state.doc, sel.pos) !== null,
+    // The wide block always has its switch (it is the thing that spans); the rest only in two columns.
+    canSpan: wide || isTwoColumnPage(ed),
+  };
+});
+
+function onAcross(value: boolean) {
+  const sel = props.selection;
+  if (rawEditor.value && sel.kind === "block") setAcross(rawEditor.value, sel.pos, value);
 }
 
 /** Writes to the node the selection names; the cover and the entry are edited this way. */

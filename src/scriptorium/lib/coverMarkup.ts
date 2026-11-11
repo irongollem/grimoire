@@ -37,7 +37,7 @@ export interface CoverPageAttrs {
   productUrl: string;
   /**
    * Optional background image URL.
-   * Authors replace this via the existing image toolbar / AssetInsertPanel.
+   * Authors replace it with Change art in the cover's panel section.
    */
   backgroundImage: string;
   /** Where the title sits (front cover). */

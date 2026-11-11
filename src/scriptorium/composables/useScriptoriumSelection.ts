@@ -12,6 +12,7 @@ import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import type { Editor } from "@tiptap/core";
 import { NodeSelection } from "@tiptap/pm/state";
 import { pageAt, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
+import { KEEPABLE_BLOCKS } from "@/scriptorium/tiptap/blockKeep";
 import type { FurnitureKind } from "@/scriptorium/types";
 
 export type PanelSelection =
@@ -22,6 +23,7 @@ export type PanelSelection =
   | { kind: "cover"; pos: number }
   | { kind: "embed"; pos: number }
   | { kind: "contents"; pos: number }
+  | { kind: "block"; pos: number }
   | { kind: "footer"; page: number };
 
 export interface SelectionInputs {
@@ -29,6 +31,8 @@ export interface SelectionInputs {
   node: { name: string; pos: number } | null;
   /** The cover page the cursor is in, when it is in one. */
   coverPos: number | null;
+  /** The innermost box or table the cursor is in (read-aloud, sidebar, quote, wide, callout, table). */
+  blockPos: number | null;
   /** The selected furniture, when one is. */
   furniture: { id: string; kind: FurnitureKind } | null;
   /** The page whose footer the DM clicked, when they did. */
@@ -54,8 +58,14 @@ export function deriveSelection(input: SelectionInputs): PanelSelection {
   if (node?.name === "entityEmbed") return { kind: "embed", pos: node.pos };
   if (node?.name === "coverPage") return { kind: "cover", pos: node.pos };
   if (node?.name === "tocBlock") return { kind: "contents", pos: node.pos };
+  if (node && isKeepable(node.name)) return { kind: "block", pos: node.pos };
   if (input.coverPos !== null) return { kind: "cover", pos: input.coverPos };
+  if (input.blockPos !== null) return { kind: "block", pos: input.blockPos };
   return { kind: "page", page: input.page };
+}
+
+function isKeepable(name: string): boolean {
+  return KEEPABLE_BLOCKS.some((n) => n === name);
 }
 
 /** A stable string for a selection, to tell "the same thing" from "something else". */
@@ -78,6 +88,15 @@ function coverAround(ed: Editor): number | null {
   const { $from } = ed.state.selection;
   for (let depth = $from.depth; depth > 0; depth--) {
     if ($from.node(depth).type.name === "coverPage") return $from.before(depth);
+  }
+  return null;
+}
+
+/** The innermost box or table around the caret: what the panel's block section is about. */
+function blockAround(ed: Editor): number | null {
+  const { $from } = ed.state.selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if (isKeepable($from.node(depth).type.name)) return $from.before(depth);
   }
   return null;
 }
@@ -125,6 +144,7 @@ export function useScriptoriumSelection(opts: {
     return deriveSelection({
       node: sel instanceof NodeSelection ? { name: sel.node.type.name, pos: sel.from } : null,
       coverPos: coverAround(ed),
+      blockPos: blockAround(ed),
       furniture: opts.furniture(),
       // The page flow keeps the clicked footer: it is page chrome, not something in the text.
       footer: flow?.footer ?? null,

@@ -2,12 +2,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { effectScope, nextTick, ref, shallowRef } from "vue";
 import { Editor } from "@tiptap/core";
+import type { JSONContent } from "@tiptap/core";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
 import { PageFlow, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import { deriveSelection, selectionKey, useScriptoriumSelection, type SelectionInputs } from "./useScriptoriumSelection";
 import type { FurnitureKind } from "@/scriptorium/types";
 
-const none: SelectionInputs = { node: null, coverPos: null, furniture: null, footer: null, page: 3 };
+const none: SelectionInputs = { node: null, coverPos: null, blockPos: null, furniture: null, footer: null, page: 3 };
 
 describe("deriveSelection", () => {
   // Fails on: the panel showing a stale text-selected picture while the DM is dragging art on the page.
@@ -41,10 +42,18 @@ describe("deriveSelection", () => {
     expect(deriveSelection({ ...none, footer: 15, furniture: { id: "f", kind: "art" } }).kind).toBe("picture");
   });
 
-  // Fails on: a node that has no section (a table, a callout) hiding the page the panel should describe.
+  // Fails on: a node that has no section (a spacer) hiding the page the panel should describe.
   it("describes the page when nothing it has a section for is selected", () => {
-    expect(deriveSelection({ ...none, node: { name: "table", pos: 2 } })).toEqual({ kind: "page", page: 3 });
+    expect(deriveSelection({ ...none, node: { name: "spacerVertical", pos: 2 } })).toEqual({ kind: "page", page: 3 });
     expect(deriveSelection(none)).toEqual({ kind: "page", page: 3 });
+  });
+
+  // Fails on: a read-aloud, sidebar or table having no panel (Keep on one page, Across both columns), on the
+  // selected box or on a caret inside it, or the box beating a cover that holds it.
+  it("a selected box, or a caret inside one, is a block; a cover holding it still wins", () => {
+    expect(deriveSelection({ ...none, node: { name: "descriptiveBlock", pos: 8 } })).toEqual({ kind: "block", pos: 8 });
+    expect(deriveSelection({ ...none, blockPos: 12 })).toEqual({ kind: "block", pos: 12 });
+    expect(deriveSelection({ ...none, blockPos: 12, coverPos: 0 })).toEqual({ kind: "cover", pos: 0 });
   });
 
   it("a cursor inside a cover is the cover", () => {
@@ -65,10 +74,10 @@ afterEach(() => {
 });
 
 describe("useScriptoriumSelection", () => {
-  function setup() {
+  function setup(content?: JSONContent) {
     const ed = new Editor({
       element: document.createElement("div"),
-      content: {
+      content: content ?? {
         type: "doc",
         content: [
           { type: "paragraph", attrs: { blockId: "b1" }, content: [{ type: "text", text: "One" }] },
@@ -120,6 +129,31 @@ describe("useScriptoriumSelection", () => {
     version.value++;
     await nextTick();
     expect(selection.value).toEqual({ kind: "decoration", id: "f1" });
+    scope.stop();
+  });
+
+  // Fails on: the caret inside a box naming no block, so Keep on one page never shows; and on the outer
+  // box winning when the caret is in a table inside it (the panel must describe the thing the caret is in).
+  it("is the innermost box around the caret", async () => {
+    const { ed, selection, scope } = setup({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Before" }] },
+        {
+          type: "wideBlock",
+          content: [
+            { type: "noteBlock", content: [{ type: "paragraph", content: [{ type: "text", text: "Inside" }] }] },
+          ],
+        },
+      ],
+    });
+    const wide = ed.state.doc.child(0).nodeSize;
+    ed.commands.setTextSelection(wide + 4);
+    await nextTick();
+    expect(selection.value).toEqual({ kind: "block", pos: wide + 1 });
+    ed.commands.setTextSelection(2);
+    await nextTick();
+    expect(selection.value.kind).toBe("page");
     scope.stop();
   });
 });

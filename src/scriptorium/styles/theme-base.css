@@ -292,6 +292,29 @@
   height: 0;
 }
 
+/* ── Drop cap ────────────────────────────────────────────────────────────── */
+/* The first letter of a paragraph flagged `dropCap`, three lines tall. One rule for
+   every look, in the editor and in print: a look tunes it with --sc-dropcap-color. */
+.sc-theme p.sc-drop-cap::first-letter {
+  float: left;
+  font-family: var(--sc-heading-font);
+  font-weight: 700;
+  font-size: 3.4em;
+  line-height: 0.82;
+  padding: 0.06em 0.1em 0 0;
+  color: var(--sc-dropcap-color, var(--sc-accent));
+}
+
+/* ── Keep on one page ────────────────────────────────────────────────────── */
+/* A block the writer asked to keep whole. Two classes of specificity beat the layout's own
+   "a very long box may break" call (.sc-box--long, pagedPreviewCss.ts): the writer's choice wins. */
+.sc-theme [data-keep="true"],
+.sc-theme .sc-note.sc-box--long[data-keep="true"],
+.sc-theme .sc-descriptive.sc-box--long[data-keep="true"],
+.sc-theme table.sc-table--long[data-keep="true"] {
+  break-inside: avoid;
+}
+
 /* ── Wide block ──────────────────────────────────────────────────────────── */
 .sc-theme .sc-wide {
   column-span: all;

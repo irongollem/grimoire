@@ -45,12 +45,12 @@ module.exports = {
         "The Scriptorium module keeps its own layering (#1176): its lib, illuminator lib and Tiptap extensions sit below its composables, components and views, and below the app's composables and stores.",
       // A Tiptap extension may import the Vue component that renders its node
       // view (entityEmbed -> EntityEmbedView, coverPage -> CoverPageView,
-      // tocBlock -> ContentsView), as a node-view extension does; it still may
-      // not reach composables, stores or views.
+      // tocBlock -> ContentsView) or its popup (slashMenu -> SlashMenuList), as a
+      // node-view extension does; it still may not reach composables, stores or views.
       from: { path: "^src/scriptorium/(lib|illuminator/lib|tiptap)/" },
       to: {
         path: "^src/(scriptorium/(composables|components|views|illuminator/components|stores)/|composables/|stores/)",
-        pathNot: "^src/scriptorium/components/(EntityEmbedView|CoverPageView|ContentsView)\\.vue$",
+        pathNot: "^src/scriptorium/components/(EntityEmbedView|CoverPageView|ContentsView|kit/SlashMenuList)\\.vue$",
       },
     },
     {

@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from "@vue/test-utils";
 import { nextTick } from "vue";
+import { createPinia, setActivePinia } from "pinia";
+import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ScriptoriumChapterEditor from "./ScriptoriumChapterEditor.vue";
 import type { ScriptoriumChapter } from "@/scriptorium/types";
@@ -41,9 +43,6 @@ function open(extra: Record<string, unknown> = {}, body: ScriptoriumChapter = ch
     global: {
       stubs: {
         ScriptoriumEditorToolbar: true,
-        AssetInsertPanel: true,
-        BlockPickerPanel: true,
-        ArtPickerModal: true,
         ScriptoriumPanel: true,
         TextEnhanceBubble: true,
       },
@@ -63,6 +62,8 @@ async function typeInto(wrapper: ReturnType<typeof open>) {
 }
 
 beforeEach(() => {
+  localStorage.clear();
+  setActivePinia(createPinia());
   mocks.save.mockReset().mockResolvedValue(chapter);
   mocks.cleanup.mockReset();
 });
@@ -182,5 +183,15 @@ describe("ScriptoriumChapterEditor's panel", () => {
     const wrapper = open({ panelHidden: true }, withPicture);
     await flushPromises();
     expect(aside(wrapper).exists()).toBe(false);
+  });
+});
+
+describe("ScriptoriumChapterEditor zoom", () => {
+  it("draws the page at the chosen percentage, not at a fit", async () => {
+    useScriptoriumUiStore().scriptoriumZoom = 150;
+    const wrapper = open();
+    await flushPromises();
+    expect(wrapper.get("[data-scale]").attributes("data-scale")).toBe("1.5");
+    wrapper.unmount();
   });
 });

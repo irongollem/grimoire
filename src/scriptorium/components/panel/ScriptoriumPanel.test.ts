@@ -21,7 +21,7 @@ const footerSettings = {
   draft: { showPageNumbers: true, pageNumberStart: 1, footerText: "", footerTitle: "chapter" as const },
   patch: vi.fn(),
 };
-const stubs = { ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true };
+const stubs = { ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
 const context: PanelPageContext = {
   paperLabel: "Grimoire · A4 · Two columns",
   chapterNumber: 3,
