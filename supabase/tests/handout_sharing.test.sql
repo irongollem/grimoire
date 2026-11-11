@@ -6,7 +6,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(36);
 
 -- A DM shares a Scriptorium handout with players (#970, 20261004105821).
 --
@@ -223,8 +223,13 @@ select lives_ok(
 select set_config('request.jwt.claim.sub', '97000000-0000-4000-8000-000000000002', true);
 
 select is(
-  (select array_agg(title order by title) from public.scriptorium_documents),
-  array['Wanted poster'], 'Nessa reads the poster and nothing else of the DM''s');
+  (select array_agg(title order by title)
+     from public.get_player_handouts('97000000-0000-4000-8000-000000000010', '97000000-0000-4000-8000-000000000030')),
+  array['Wanted poster'], 'Nessa lists the poster and nothing else of the DM''s');
+
+select is_empty(
+  $$ select id from public.scriptorium_documents $$,
+  'and reads no document row, the poster''s included: a placed picture''s original sits on it (fails if the select policy admits holders)');
 
 select is(
   (select name from public.get_player_visible_npcs('97000000-0000-4000-8000-000000000010')

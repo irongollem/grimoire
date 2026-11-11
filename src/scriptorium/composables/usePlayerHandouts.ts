@@ -16,11 +16,12 @@ import { PLAYER_HANDOUTS_KEY } from "@/lib/campaignLiveSync/registry";
  */
 
 // ── Reads ──────────────────────────────────────────────────────────────────────
-// RLS is a ceiling, not a filter (CLAUDE.md, Client Reads): both reads name the
-// campaign and the recipient themselves, so a stale link to a withdrawn handout
-// resolves to "absent" and the list never depends on the policy to narrow it.
-
-const LIST_COLUMNS = "id, title, doc_type, campaign_id, kind, theme, updated_at, created_at";
+// A player reads nothing of the documents table itself (20261111070730): a
+// placed picture's untreated original sits on the row, and row security cannot
+// hide a column. The list comes from get_player_handouts, which returns the list
+// columns of this campaign's handouts shared with this character (and refuses
+// anyone who is neither that character's player nor a DM of the campaign); one
+// handout comes from get_player_handout, which strips what players may not see.
 
 export type PlayerHandoutSummary = Pick<
   ScriptoriumDocument,
@@ -28,12 +29,10 @@ export type PlayerHandoutSummary = Pick<
 >;
 
 export async function fetchHandouts(campaignId: string, partyMemberId: string): Promise<PlayerHandoutSummary[]> {
-  const { data, error } = await supabase
-    .from("scriptorium_documents")
-    .select(LIST_COLUMNS)
-    .eq("campaign_id", campaignId)
-    .contains("player_visible_to", [partyMemberId])
-    .order("updated_at", { ascending: false });
+  const { data, error } = await supabase.rpc("get_player_handouts", {
+    p_campaign_id: campaignId,
+    p_party_member_id: partyMemberId,
+  });
   if (error) throw error;
   return data as PlayerHandoutSummary[];
 }

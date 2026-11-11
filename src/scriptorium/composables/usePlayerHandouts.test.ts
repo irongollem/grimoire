@@ -26,43 +26,31 @@ function mountWith<T>(setup: () => T): T {
   return out;
 }
 
-const doc = (id: string, over: Record<string, unknown> = {}) => ({
-  id, title: id, content: "{}", doc_type: "handout", campaign_id: "c1", player_visible_to: ["pm1"], updated_at: "2026-01-01",
-  tags: ["secret-tag"], ai_provenance: { model: "x" }, user_id: "dm-1", ...over,
-});
-
-/** What the DM keeps on the same row and a player must never be sent. */
-const DM_ONLY = ["*", "tags", "ai_provenance", "user_id", "player_visible_to"];
-
 beforeEach(() => {
   fake.reset();
   session.activeCampaignId = "c1";
   session.linkedPartyMemberId = "pm1";
-  fake.seed("scriptorium_documents", [
-    doc("mine-old", { updated_at: "2026-01-01" }),
-    doc("mine-new", { updated_at: "2026-02-01" }),
-    doc("shared-both", { player_visible_to: ["pm1", "pm2"], updated_at: "2026-01-15" }),
-    doc("theirs", { player_visible_to: ["pm2"] }),
-    doc("unshared", { player_visible_to: [] }),
-    doc("other-campaign", { campaign_id: "c2" }),
-  ]);
 });
 
-describe("fetchHandouts", () => {
-  it("lists only this campaign's handouts shared with this character, newest first", async () => {
-    const rows = await fetchHandouts("c1", "pm1");
-    expect(rows.map((r) => r.id)).toEqual(["mine-new", "shared-both", "mine-old"]);
-  });
+/** What get_player_handouts answers: the server picks the rows, the client never filters. */
+const listed = [
+  { id: "mine-new", title: "mine-new", doc_type: "handout", campaign_id: "c1", kind: "book", theme: "grimoire", updated_at: "2026-02-01", created_at: "2026-01-01" },
+  { id: "mine-old", title: "mine-old", doc_type: "handout", campaign_id: "c1", kind: "book", theme: "grimoire", updated_at: "2026-01-01", created_at: "2026-01-01" },
+];
 
-  it("never selects the body or the DM's own columns", async () => {
-    await fetchHandouts("c1", "pm1");
-    const columns = fake.calls[0]?.columns ?? "";
-    expect(columns).not.toBe("");
-    for (const hidden of [...DM_ONLY, "content"]) expect(columns.split(/,\s*/)).not.toContain(hidden);
+describe("fetchHandouts", () => {
+  it("asks get_player_handouts for this campaign and this character, and never reads the documents table", async () => {
+    fake.onRpc("get_player_handouts", () => listed);
+    const rows = await fetchHandouts("c1", "pm1");
+    expect(rows.map((r) => r.id)).toEqual(["mine-new", "mine-old"]);
+    const rpcs = fake.calls.filter((c) => c.kind === "rpc");
+    expect(rpcs.map((c) => c.payload)).toEqual([{ p_campaign_id: "c1", p_party_member_id: "pm1" }]);
+    // The row carries a placed picture's untreated original; a player's read of it was the leak.
+    expect(fake.calls.some((c) => c.kind === "table" && c.target === "scriptorium_documents")).toBe(false);
   });
 
   it("throws the error rather than reporting an empty list", async () => {
-    fake.failNext("scriptorium_documents", { message: "boom" });
+    fake.failNext("get_player_handouts", { message: "boom" });
     await expect(fetchHandouts("c1", "pm1")).rejects.toMatchObject({ message: "boom" });
   });
 });
@@ -105,9 +93,10 @@ describe("fetchHandout", () => {
 describe("the player's handout hooks", () => {
   it("read for a seated character, and read nothing for a DM without a seat", async () => {
     fake.onRpc("get_player_handout", (args) => ({ id: args.p_document_id, chapters: [], chapter: null }));
+    fake.onRpc("get_player_handouts", () => listed);
     const seated = mountWith(() => ({ list: usePlayerHandouts(), one: usePlayerHandout("mine-new") }));
     await flushPromises();
-    expect(seated.list.data.value?.map((d) => d.id)).toEqual(["mine-new", "shared-both", "mine-old"]);
+    expect(seated.list.data.value?.map((d) => d.id)).toEqual(["mine-new", "mine-old"]);
     expect(seated.one.data.value?.id).toBe("mine-new");
 
     fake.calls.length = 0;
