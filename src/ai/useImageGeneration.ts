@@ -19,6 +19,7 @@ import { waitForImageJob } from "@/ai/useImageJob";
 import { buildAiProvenance } from "@/ai/provenance";
 import { markGeneratedImageB64 } from "@edge-shared/provenance/mark.ts";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
+import { blobToBase64 } from "@/lib/blobToBase64";
 
 export type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
@@ -113,13 +114,6 @@ function buildScenePrompt(subject: string, descriptions: string[], setting: stri
   }
   parts.push(`Scene: ${subject}`);
   return parts.filter(Boolean).join("\n\n");
-}
-
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
 }
 
 /**

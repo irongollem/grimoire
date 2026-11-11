@@ -6,20 +6,13 @@ import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { blobToBase64 } from "@/lib/blobToBase64";
 
 type NookPartMode = "paint" | "lift" | "fill";
 
 interface NookPartResponse {
   image_b64: string | null;
   error?: string;
-}
-
-/** Base64 of a blob's bytes, without the data-URL prefix. */
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
 }
 
 /**

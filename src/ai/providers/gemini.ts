@@ -1,17 +1,9 @@
 import type { TextProvider, TextUsage, ImageProvider, ImageUsage, TextOutputFormat } from "./types";
+import { blobToBase64 } from "@/lib/blobToBase64";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL = "gemini-3.1-flash";
 const IMAGE_MODEL = "gemini-3.1-flash-image";
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return blob.arrayBuffer().then((buf) => {
-    const bytes = new Uint8Array(buf);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
-  });
-}
 
 function sizeToAspect(size: string): { aspectRatio: string; imageSize: string } {
   const m = /^(\d+)\s*x\s*(\d+)$/i.exec(size.trim());

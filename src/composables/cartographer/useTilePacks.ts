@@ -12,6 +12,7 @@ import { invokeTilePackGenerator as invoke } from "./tilePackGenerator";
 import { LIBRARY_PACKS_KEY } from "./useLibraryTilePacks";
 import type { TilePackGenerationJob, TilePackGenerationRun, UserTilePack } from "@/cartographer/userPack.types";
 import { cloneManifest } from "@/cartographer/cloneManifest";
+import { blobToBase64 } from "@/lib/blobToBase64";
 
 const PACKS_KEY = "user-tile-packs";
 const RUNS_KEY = "tile-pack-generation-runs";
@@ -152,13 +153,6 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
     ]),
   });
 
-  async function toBase64(blob: Blob): Promise<string> {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
-  }
-
   async function runJob(run: TilePackGenerationRun, job: TilePackGenerationJob): Promise<void> {
     // A `generated` job already has its raw stored and paid for; an earlier
     // session stopped before finishing it. `resume` hands that raw back
@@ -197,8 +191,8 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
       action: "complete",
       run_id: run.id,
       job_id: job.id,
-      image_b64: await toBase64(markedNormalized),
-      ...(styleRef ? { style_ref_b64: await toBase64(styleRef) } : {}),
+      image_b64: await blobToBase64(markedNormalized),
+      ...(styleRef ? { style_ref_b64: await blobToBase64(styleRef) } : {}),
     });
     // Slots that are this one turned a quarter, half or three-quarter turn.
     // A vertical wall is the horizontal wall rotated; rendering it separately
@@ -230,7 +224,7 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
         run_id: run.id,
         job_id: job.id,
         slot_id: derived.id,
-        image_b64: await toBase64(turned),
+        image_b64: await blobToBase64(turned),
       });
     }
     await refreshAfterJob();

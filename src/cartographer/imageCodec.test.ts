@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { blobToBase64, base64ToBlob } from "./imageCodec";
+import { blobToBase64 } from "@/lib/blobToBase64";
+import { base64ToBlob } from "./imageCodec";
 
 describe("blobToBase64 / base64ToBlob round trip", () => {
   it("round-trips arbitrary bytes, including values >= 0x80", async () => {
