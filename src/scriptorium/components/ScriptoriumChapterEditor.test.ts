@@ -125,25 +125,6 @@ describe("ScriptoriumChapterEditor's panel", () => {
   type PanelExposed = { editor: { commands: { setNodeSelection: (pos: number) => void; setTextSelection: (pos: number) => void } } };
   const aside = (w: ReturnType<typeof open>) => w.find("[data-testid=panel-aside]");
 
-  // Fails on: the two-column warning's "Place it on the page instead" doing nothing, so the contract between the two stories is dead.
-  it("places a picture on the page when the text asks by event, and takes it out of the text", async () => {
-    const wrapper = open({}, withPicture);
-    await flushPromises();
-    wrapper.element.dispatchEvent(new CustomEvent("sc-place-on-page", { bubbles: true, detail: { pos: 5 } }));
-    const placed = wrapper.emitted("update:furniture")?.at(-1)?.[0] as { kind: string; props: { src: string } }[];
-    expect(placed).toHaveLength(1);
-    expect(placed[0]).toMatchObject({ kind: "art", z: "over", props: { src: "p.webp" } });
-    expect(wrapper.emitted("update:selectedFurnitureId")?.at(-1)?.[0]).toBe((placed[0] as unknown as { id: string }).id);
-    expect(JSON.stringify((wrapper.vm as unknown as { editor: { getJSON: () => unknown } }).editor.getJSON())).not.toContain("p.webp");
-  });
-
-  it("ignores an event that names no picture", async () => {
-    const wrapper = open({}, withPicture);
-    await flushPromises();
-    wrapper.element.dispatchEvent(new CustomEvent("sc-place-on-page", { bubbles: true, detail: {} }));
-    expect(wrapper.emitted("update:furniture")).toBeUndefined();
-  });
-
   // Fails on: the panel covering the page's text column on a narrow screen: it must stay shut until something is selected.
   it("on a narrow screen opens for a selection, closes on its close button, and reopens for the next one", async () => {
     const wrapper = open({}, withPicture);

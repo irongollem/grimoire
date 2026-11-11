@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_FIT_SCALE, parseZoomChoice, stepZoom, zoomPercent, zoomScale } from "./zoom";
+import { MAX_FIT_SCALE, parseZoomChoice, stepZoom, zoomAnchorPoint, zoomPercent, zoomScale, zoomScrollDelta } from "./zoom";
 
 describe("zoomScale", () => {
   it("fills a wide space past 100%, but never past the largest step", () => {
@@ -41,5 +41,20 @@ describe("zoom choice", () => {
   it("reports the fitted size as a rounded percent", () => {
     expect(zoomPercent("fit", 0.876)).toBe(88);
     expect(zoomPercent(150, 1.5)).toBe(150);
+  });
+});
+
+describe("zoom keeps the spot in view", () => {
+  it("doubling the scale scrolls so the spot under the eye stays put", () => {
+    // Page edge drawn at 100, the spot at 400 on screen, scale 1 -> 2.
+    const point = zoomAnchorPoint(400, 100, 1);
+    expect(point).toBe(300);
+    // The page edge has not moved yet (same scroll), so the spot is now 300 px further down.
+    expect(zoomScrollDelta(point, 100, 2, 400)).toBe(300);
+  });
+  it("a page scrolled far down (its edge well above the view) keeps that far page, not the top", () => {
+    // Page 12 in view: the sheet starts 9000 px above the pane. Halving the scale scrolls back up by half the distance.
+    const point = zoomAnchorPoint(300, -9000, 1);
+    expect(zoomScrollDelta(point, -9000, 0.5, 300)).toBe(-4650);
   });
 });

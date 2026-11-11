@@ -73,6 +73,22 @@ afterEach(() => {
 });
 
 describe("page breaks", () => {
+  it("a page that opens on a whole box names the box, not the box's first paragraph", () => {
+    // Bug caught: naming the inner paragraph put the editor's page gap inside the box, leaving its
+    // empty frame at the foot of the page before (The Locked Workshop, page 12).
+    const p1 = page(1, '<p data-block-id="a">Before</p>');
+    const p2 = page(2, '<div class="sc-note" data-block-id="box"><p data-block-id="first">Inside</p></div>');
+    const flow = measureChapterFlow([p1, p2], { chapterId: CH, twoColumn: false }, fakeGeometry(new Map()));
+    expect(flow.breaks).toEqual([{ kind: "page", page: 2, at: { blockId: "box", textOffset: 0 } }]);
+  });
+
+  it("a box the printer split before a later paragraph keeps the break inside it, at that paragraph", () => {
+    const p1 = page(1, '<div class="sc-note" data-block-id="box"><p data-block-id="one">First</p></div>');
+    const p2 = page(2, '<div class="sc-note" data-block-id="box" data-split-from="x"><p data-block-id="two">Second</p></div>');
+    const flow = measureChapterFlow([p1, p2], { chapterId: CH, twoColumn: false }, fakeGeometry(new Map()));
+    expect(flow.breaks).toEqual([{ kind: "page", page: 2, at: { blockId: "two", textOffset: 0 } }]);
+  });
+
   it("a paragraph split across pages breaks at the characters page 1 printed, not before the paragraph", () => {
     // Bug caught: counting only this page's fragment gives offset 0 for the continuation.
     const p1 = page(1, '<p data-block-id="a">Hello world</p>');

@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
-import type { EditorState } from "@tiptap/pm/state";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { EditorView } from "@tiptap/pm/view";
 import { FLOW_LAYOUT_CLASSES, type ChapterFlow, type FlowPosition } from "@/scriptorium/lib/pageFlow/types";
@@ -271,81 +271,27 @@ function layoutClassDecorations(state: EditorState, flow: ChapterFlow): Decorati
 }
 
 /**
- * The warning beside a picture the printer moves (#1176 story 11). The widget
- * is zero height in flow and its note is absolutely placed in the margin, so
- * it never moves the page's text; contenteditable=false keeps its words out of
- * the layout-text count. ProseMirror builds a widget's DOM by hand, outside
- * Vue, so the two actions are plain `<button>` elements here (there is no
- * AppButton to mount), styled by scriptorium-page-flow.css.
+ * A wrapped picture the printer pushes on alone (#1176 story 11) is kept with
+ * its text from then on: its `keepWithText` is set, so the next layout groups
+ * it with its paragraph and the pair moves to the next column together, as a
+ * word processor moves a picture with its paragraph. The editor shows what
+ * prints, so there is nothing to explain. A picture the DM has set not to keep
+ * with its text (`false`, the panel's box unticked) is left to the printer.
+ * The change is the layout's, not the writer's, so undo never steps over it.
  */
-function pushedFloatWidget(imageBlockId: string, pos: number): Decoration {
-  return Decoration.widget(
-    pos,
-    (view) => {
-      const el = widgetEl(false, "sc-flow-pushed");
-      el.removeAttribute("aria-hidden");
-      el.dataset.imageBlockId = imageBlockId;
-      const note = document.createElement("div");
-      note.className = "sc-flow-pushed-note";
-      note.setAttribute("role", "note");
-      const title = document.createElement("strong");
-      title.className = "sc-flow-pushed-title";
-      title.textContent = "In print this picture moves to the next column";
-      const body = document.createElement("p");
-      body.className = "sc-flow-pushed-body";
-      body.textContent =
-        "It does not fit beside its text at the foot of this column, so the printer pushes it on and leaves the text here.";
-      const actions = document.createElement("div");
-      actions.className = "sc-flow-pushed-actions";
-
-      // The picture can have moved since the widget was drawn: find it again by id.
-      const imagePos = (): number | null => {
-        let found: number | null = null;
-        view.state.doc.descendants((node, p) => {
-          if (found === null && node.attrs.blockId === imageBlockId) found = p;
-          return found === null;
-        });
-        return found;
-      };
-      const keep = document.createElement("button");
-      keep.type = "button";
-      keep.className = "sc-flow-pushed-btn";
-      keep.textContent = "Keep it with its text";
-      keep.addEventListener("click", () => {
-        const at = imagePos();
-        if (at === null) return;
-        view.dispatch(view.state.tr.setNodeAttribute(at, "keepWithText", true));
-      });
-      const place = document.createElement("button");
-      place.type = "button";
-      place.className = "sc-flow-pushed-btn";
-      place.textContent = "Place it on the page instead";
-      place.addEventListener("click", () => {
-        const at = imagePos();
-        if (at === null) return;
-        view.dom.dispatchEvent(new CustomEvent("sc-place-on-page", { bubbles: true, detail: { pos: at } }));
-      });
-      actions.append(keep, place);
-      note.append(title, body, actions);
-      el.append(note);
-      return el;
-    },
-    { key: `pushed-${imageBlockId}`, side: -1, ignoreSelection: true, stopEvent: () => true },
-  );
-}
-
-function pushedFloatDecorations(state: EditorState, flow: ChapterFlow): Decoration[] {
-  if (flow.pushedFloats.length === 0) return [];
-  const wanted = new Set(flow.pushedFloats.map((f) => f.imageBlockId));
-  const out: Decoration[] = [];
+function keepPushedPictures(state: EditorState, flow: ChapterFlow): Transaction | null {
+  if (flow.pushedFloats.length === 0) return null;
+  const pushed = new Set(flow.pushedFloats.map((f) => f.imageBlockId));
+  let tr: Transaction | null = null;
   state.doc.descendants((node, pos) => {
     const id: unknown = node.attrs.blockId;
-    if (typeof id === "string" && wanted.has(id)) {
-      wanted.delete(id);
-      out.push(pushedFloatWidget(id, pos));
+    if (typeof id !== "string" || !pushed.has(id) || node.type.name !== "image") return true;
+    if (node.attrs.keepWithText === null || node.attrs.keepWithText === undefined) {
+      tr = (tr ?? state.tr).setNodeAttribute(pos, "keepWithText", true);
     }
+    return false;
   });
-  return out;
+  return tr === null ? null : (tr as Transaction).setMeta("addToHistory", false);
 }
 
 function buildDecorations(state: EditorState, storage: PageFlowStorage): DecorationSet {
@@ -353,7 +299,6 @@ function buildDecorations(state: EditorState, storage: PageFlowStorage): Decorat
   if (!fs || !fs.flow) return DecorationSet.empty;
   const decos = fs.breaks.map((b) => (b.kind === "page" ? gapWidget(b, storage) : columnWidget(b)));
   decos.push(...layoutClassDecorations(state, fs.flow));
-  decos.push(...pushedFloatDecorations(state, fs.flow));
   decos.push(
     Decoration.widget(
       state.doc.content.size,
@@ -432,6 +377,14 @@ export const PageFlow = Extension.create<Record<string, never>, PageFlowStorage>
             // character typed at a page's first position stays on that page).
             return { ...value, breaks: value.breaks.map((b) => ({ ...b, pos: tr.mapping.map(b.pos, -1) })) };
           },
+        },
+        appendTransaction: (trs, _old, state) => {
+          const arrived = trs.some((t) => {
+            const meta: unknown = t.getMeta(key);
+            return meta !== null && typeof meta === "object" && "flow" in meta;
+          });
+          const flow = arrived ? key.getState(state)?.flow : null;
+          return flow ? keepPushedPictures(state, flow) : null;
         },
         props: {
           decorations: (state) => buildDecorations(state, storage),

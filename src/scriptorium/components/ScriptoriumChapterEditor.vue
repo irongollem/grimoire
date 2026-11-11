@@ -161,7 +161,7 @@ import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
 import { storeToRefs } from "pinia";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
-import { zoomScale } from "@/scriptorium/lib/zoom";
+import { zoomAnchorPoint, zoomScale, zoomScrollDelta } from "@/scriptorium/lib/zoom";
 import { scaledBoxSize } from "@/scriptorium/composables/useScriptoriumZoom";
 import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
 import TextEnhanceBubble from "@/components/common/ai/TextEnhanceBubble.vue";
@@ -268,15 +268,35 @@ onMounted(() => {
   if (sheetRef.value) sheetObserver.observe(sheetRef.value);
 });
 watch(geometry, () => measureSheet(), { flush: "post" });
-// A new zoom keeps the caret where the writer was looking.
+/** The spot a zoom keeps in place, on screen: the caret when it is in view, else the middle of the pane. */
+function zoomAnchorOnScreen(pane: HTMLElement): { x: number; y: number } {
+  const box = pane.getBoundingClientRect();
+  const middle = { x: box.left + pane.clientWidth / 2, y: box.top + pane.clientHeight / 2 };
+  const ed = editor.value;
+  if (!ed || ed.isDestroyed) return middle;
+  const caret = ed.view.coordsAtPos(ed.state.selection.from);
+  const inView =
+    caret.top >= box.top &&
+    caret.bottom <= box.top + pane.clientHeight &&
+    caret.left >= box.left &&
+    caret.left <= box.left + pane.clientWidth;
+  return inView ? { x: caret.left, y: caret.top } : middle;
+}
+// A new zoom keeps the spot the writer was looking at where it was (zoomAnchorPoint).
 watch(zoom, async () => {
+  const pane = scrollRef.value;
+  const sheet = sheetRef.value;
+  const before = sheetScale.value;
+  const anchor = pane && sheet ? zoomAnchorOnScreen(pane) : null;
+  const sheetBefore = sheet?.getBoundingClientRect();
   measureSheet();
   await nextTick();
-  const ed = editor.value;
-  if (!ed) return;
-  const node = ed.view.domAtPos(ed.state.selection.from).node;
-  const el = node instanceof Element ? node : node.parentElement;
-  el?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  if (!pane || !sheet || !anchor || !sheetBefore || before <= 0) return;
+  const sheetAfter = sheet.getBoundingClientRect();
+  const px = zoomAnchorPoint(anchor.x, sheetBefore.left, before);
+  const py = zoomAnchorPoint(anchor.y, sheetBefore.top, before);
+  pane.scrollLeft += zoomScrollDelta(px, sheetAfter.left, sheetScale.value, anchor.x);
+  pane.scrollTop += zoomScrollDelta(py, sheetAfter.top, sheetScale.value, anchor.y);
 });
 
 
@@ -503,15 +523,6 @@ watch(selection, (now) => {
   if (now.kind === "page") dismissedKey.value = null;
 });
 
-// The two-column warning offers "Place it on the page instead": it asks from inside the text, by event.
-function onPlaceOnPage(event: Event) {
-  if (!(event instanceof CustomEvent)) return;
-  const detail: unknown = event.detail;
-  const pos = typeof detail === "object" && detail !== null && "pos" in detail ? detail.pos : null;
-  if (typeof pos === "number") pictures.placeOnPage(pos);
-}
-onMounted(() => rootRef.value?.addEventListener("sc-place-on-page", onPlaceOnPage));
-onUnmounted(() => rootRef.value?.removeEventListener("sc-place-on-page", onPlaceOnPage));
 
 const SCRIPTORIUM_STYLE: Partial<Record<ScriptoriumDocType, string>> = {
   spell:

@@ -123,19 +123,11 @@ function fragmentOffsets(contents: HTMLElement[]): Map<Element, number> {
   return before;
 }
 
-function positionOf(
-  leaf: Leaf,
-  before: Map<Element, number>,
-): FlowPosition | null {
-  const block = nearestBlock(leaf.node);
-  const blockId = block?.getAttribute("data-block-id");
-  if (!block || blockId == null) return null;
-  const prior = before.get(block);
-  if (prior === undefined) return null;
+/** The layout characters of `block` before the leaf. */
+function leafOffset(block: Element, leaf: Leaf): number {
   let within = 0;
   for (const t of layoutTextNodes(block)) {
-    if (t === leaf.node)
-      return { blockId, textOffset: prior + within + leaf.index };
+    if (t === leaf.node) return within + leaf.index;
     // An element leaf sits after the text nodes that precede it, and before the rest.
     if (
       !isText(leaf.node) &&
@@ -144,7 +136,36 @@ function positionOf(
       break;
     within += t.data.length;
   }
-  return { blockId, textOffset: prior + within };
+  return within;
+}
+
+function positionOf(
+  leaf: Leaf,
+  before: Map<Element, number>,
+): FlowPosition | null {
+  let block = nearestBlock(leaf.node);
+  if (!block) return null;
+  const prior = before.get(block);
+  if (prior === undefined) return null;
+  const textOffset = prior + leafOffset(block, leaf);
+  // The very start of a box's first paragraph is the start of the box: a page
+  // that opens on a whole box names the box, so the editor draws the page gap
+  // before the box and not between its frame and its first line, which left
+  // an empty frame at the foot of the page before. A box the printer split
+  // there (a continuation fragment) keeps the inner position.
+  if (textOffset === 0) {
+    for (
+      let outer = block.parentElement?.closest("[data-block-id]");
+      outer && !outer.closest(CHROME_SELECTOR);
+      outer = outer.parentElement?.closest("[data-block-id]")
+    ) {
+      if (outer.hasAttribute("data-split-from") || before.get(outer) !== 0 || leafOffset(outer, leaf) !== 0) break;
+      block = outer;
+    }
+  }
+  const blockId = block.getAttribute("data-block-id");
+  if (blockId == null) return null;
+  return { blockId, textOffset };
 }
 
 /** The first leaf at or after `from` that sits in a block, as a position. */

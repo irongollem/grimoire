@@ -45,6 +45,22 @@ export function stepZoom(percentNow: number, direction: 1 | -1): number {
   return [...ZOOM_STEPS].reverse().find((s) => s < percentNow) ?? MIN_PERCENT;
 }
 
+/**
+ * Zooming keeps one spot of the page where it is on screen: the caret when it
+ * is in view, else the middle of the view. Scrolling to the caret instead
+ * sent a reader who had scrolled away from it (to page 12, with the caret
+ * still on the cover) back to the caret's page. Along one axis, in screen px:
+ * `screen` is where the spot is, `sheetStart` where the page's edge is drawn.
+ */
+export function zoomAnchorPoint(screen: number, sheetStart: number, scale: number): number {
+  return (screen - sheetStart) / scale;
+}
+
+/** How far to scroll, after the new scale is drawn, to put that spot back at `screen`. */
+export function zoomScrollDelta(point: number, sheetStart: number, scale: number, screen: number): number {
+  return sheetStart + point * scale - screen;
+}
+
 /** What the middle button says. */
 export function zoomLabel(choice: ZoomChoice): string {
   return choice === "fit" ? "Fit" : `${choice}%`;

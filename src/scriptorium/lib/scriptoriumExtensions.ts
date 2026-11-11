@@ -34,7 +34,7 @@ import { Attribution } from "@/scriptorium/tiptap/attribution";
 import { TocBlock } from "@/scriptorium/tiptap/tocBlock";
 import { CoverPage } from "@/scriptorium/tiptap/coverPage";
 import { BlockId } from "@/scriptorium/tiptap/blockId";
-import { PageBreak } from "@/scriptorium/tiptap/pageBreak";
+import { PageBreak, PageBreakKeys } from "@/scriptorium/tiptap/pageBreak";
 import { EntityEmbed } from "@/scriptorium/tiptap/entityEmbed";
 import { DropCap } from "@/scriptorium/tiptap/dropCap";
 import { BlockKeep } from "@/scriptorium/tiptap/blockKeep";
@@ -97,6 +97,8 @@ export function createScriptoriumExtensions() {
     CoverPage,
     BlockId,
     PageBreak,
+    // Ctrl+Enter starts a new page at the caret.
+    PageBreakKeys,
     EntityEmbed,
     // The book kit's writing tools: a drop cap, "keep on one page", dropping a kit item on the
     // page, and "/" for any block. The last two only act in an editable editor.

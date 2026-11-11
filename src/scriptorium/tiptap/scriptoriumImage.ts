@@ -84,10 +84,21 @@ export const ScriptoriumImage = Image.extend({
       // Keep a wrapped picture with its paragraph in print even when the
       // paragraph is long (#1176 story 11): the layout groups them, so the
       // browser can never push the picture into the next column alone.
+      // Three ways: null (not chosen: the editor sets true the first time the
+      // printer pushes it, see keepPushedPictures in pageFlow.ts), true, and
+      // false (the DM unticked it: the printer may move it on alone).
       keepWithText: {
-        default: false,
-        parseHTML: (el) => el.getAttribute("data-keep-with-text") === "true",
-        renderHTML: (attrs) => (attrs.keepWithText ? { "data-keep-with-text": "true" } : {}),
+        default: null,
+        parseHTML: (el) => {
+          const v = el.getAttribute("data-keep-with-text");
+          return v === "true" ? true : v === "false" ? false : null;
+        },
+        renderHTML: (attrs) =>
+          attrs.keepWithText === true
+            ? { "data-keep-with-text": "true" }
+            : attrs.keepWithText === false
+              ? { "data-keep-with-text": "false" }
+              : {},
       },
       // How it sits on the paper (#1176 story 9c): "paper" is printed into it (multiply), "top" is drawn as it is.
       // Unset means "top". The look's CSS draws it, in the editor and in print alike, and a player's copy keeps it.

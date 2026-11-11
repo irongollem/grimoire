@@ -37,8 +37,8 @@
         <AppCheckbox
           size="sm"
           label="Keep with its text"
-          hint="In print the picture stays with its paragraph, even a long one."
-          :model-value="nodeAttrs.keepWithText === true"
+          hint="When it does not fit at the foot of a column, the picture and its paragraph move on together. Untick it to let the picture move on alone."
+          :model-value="nodeAttrs.keepWithText !== false"
           @update:model-value="emit('nodeAttrs', { keepWithText: $event })"
         />
       </template>
