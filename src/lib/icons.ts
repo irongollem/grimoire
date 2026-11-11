@@ -10,7 +10,7 @@ import {
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   ChevronsUpDown, Circle, CircleCheck, CircleUser, Clipboard, Clock, Code, Coins,
-  Columns2, Component, Copy, CreditCard, Crosshair, Crown,
+  Columns2, Component, Copy, CreditCard, Crop, Crosshair, Crown,
   Dna, DoorClosed, DoorOpen, Download, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
@@ -97,6 +97,7 @@ export { Clipboard as IconClipboard }
 export { ScanEye as IconScan }
 export { Stamp as IconStamp }
 export { Scissors as IconScissors }
+export { Crop as IconCrop }
 export { Brush as IconBrush }
 export { Eraser as IconEraser }
 export { Hand as IconHand }

@@ -23,7 +23,7 @@
       @stays="(v) => onStays(picture?.item ?? null, v)"
       @pick="picker = { mode: 'replace' }"
       @replace="(src) => picture && pictures.replaceSrc(picture.target, src)"
-      @edit="emit('editPicture')"
+      @edit="emit('editPicture', $event)"
       @remove="picture && pictures.remove(picture.target)"
     />
 
@@ -119,6 +119,7 @@ import { onThisPage, type PageEntry } from "@/scriptorium/lib/panel/onThisPage";
 import { bookPageNumber, describePage, type PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
 import type { PageBox, PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import type { FurnitureKind, PageFurnitureItem } from "@/scriptorium/types";
+import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { IconClose } from "@/lib/icons";
 
 const props = defineProps<{
@@ -142,7 +143,8 @@ const emit = defineEmits<{
   addFurniture: [kind: FurnitureKind];
   updateItem: [item: PageFurnitureItem];
   selectFurniture: [id: string | null];
-  editPicture: [];
+  /** Open the Illuminator on the picture, on the Crop tool when asked. */
+  editPicture: [tool?: WorkbenchTool];
 }>();
 
 // A reactive wrapper around the editor would hand ProseMirror proxies of its own state, and a
@@ -212,7 +214,7 @@ function anchorFor(item: PageFurnitureItem): AnchorState {
   return props.pictures.anchorState(item);
 }
 
-const editHint = "Only pictures in your library can be edited";
+const editHint = "Only pictures stored in Grimoire can be edited";
 
 function onLayer(value: PictureLayer) {
   const target = picture.value?.target;

@@ -58,6 +58,11 @@
       <p class="text-caption italic text-muted-foreground">Drag the picture on the page to move it; drag its corner to resize.</p>
     </PanelSection>
 
+    <!-- Paper: how the picture sits on the page, for a picture in the text and for art on it (frame 11). -->
+    <PanelSection v-if="nodeAttrs || item" title="Paper">
+      <SegmentedControl :model-value="blendValue" :options="BLEND_OPTIONS" size="xs" wrap data-testid="panel-picture-blend" @update:model-value="setBlend" />
+    </PanelSection>
+
     <!-- Quick edits: the picture's recipe, written where the picture sits (frame 11). -->
     <PictureEditSection v-if="canEdit && values" :values="values" @patch="onTreatment" @workbench="emit('edit')" />
 
@@ -73,6 +78,16 @@
           :disabled="!canEdit"
           :tooltip="canEdit ? 'Open the Illuminator over the book' : editHint"
           @click="emit('edit')"
+        />
+        <AppButton
+          variant="subtle"
+          size="sm"
+          :icon="IconCrop"
+          label="Crop"
+          :disabled="!canEdit"
+          :tooltip="canEdit ? 'Open the Illuminator on the Crop tool' : editHint"
+          data-testid="panel-crop"
+          @click="emit('edit', 'crop')"
         />
       </div>
       <ImageUpload
@@ -111,7 +126,9 @@ import { mergeTreatmentPatch, type TreatmentPatch } from "@/scriptorium/lib/pane
 import { numProp } from "@/scriptorium/lib/panel/propReaders";
 import type { AnchorState } from "@/scriptorium/composables/useEditorPictures";
 import type { PageFurnitureItem } from "@/scriptorium/types";
-import { IconAddImage, IconBrush, IconDelete, IconLibrary } from "@/lib/icons";
+import { artBlend, imageBlend, type PictureBlend } from "@/scriptorium/lib/furniture/blend";
+import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
+import { IconAddImage, IconBrush, IconCrop, IconDelete, IconLibrary } from "@/lib/icons";
 
 export type PictureLayer = "under" | "over" | "text";
 
@@ -137,7 +154,7 @@ const emit = defineEmits<{
   stays: [value: string | undefined];
   pick: [];
   replace: [src: string];
-  edit: [];
+  edit: [tool?: WorkbenchTool];
   remove: [];
 }>();
 
@@ -169,6 +186,16 @@ const sizeOptions: SegmentedOption<string>[] = IMAGE_SIZES.map((s) => ({
   tooltip: `${s.w} px wide`,
 }));
 const sizeValue = computed(() => String(nodeAttrs?.width ?? ""));
+
+const BLEND_OPTIONS: SegmentedOption<PictureBlend>[] = [
+  { value: "paper", label: "Printed into the paper", tooltip: "The paper's grain and colour show through, as if printed on it" },
+  { value: "top", label: "On top", tooltip: "Drawn as it is, over the paper" },
+];
+const blendValue = computed<PictureBlend>(() => (nodeAttrs ? imageBlend(nodeAttrs) : item ? artBlend(item) : "top"));
+function setBlend(blend: PictureBlend) {
+  if (nodeAttrs) emit("nodeAttrs", { blend });
+  else if (item) emit("item", { props: { ...item.props, blend } });
+}
 
 const ALIGN_OPTIONS: SegmentedOption<string>[] = [
   { value: "left", label: "Left" },

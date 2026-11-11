@@ -42,6 +42,9 @@
         @contextmenu.prevent
       />
 
+      <!-- A tool's own overlay: the crop box. -->
+      <slot />
+
       <template v-if="ready">
         <span class="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-background/80 px-2 py-0.5 text-eyebrow uppercase text-foreground">Before</span>
         <span class="pointer-events-none absolute bottom-2 right-2 rounded-sm bg-background/80 px-2 py-0.5 text-eyebrow uppercase text-primary">After</span>

@@ -15,6 +15,7 @@
 import type { PageFurnitureItem, FurnitureAnchor } from "@/scriptorium/types";
 import { watercolorAsset, watercolorSrc } from "@/data/watercolorAssets";
 import { followsBlock, placeAtAnchor, topPct } from "@/scriptorium/lib/furniture/anchorOffset";
+import { artBlend } from "@/scriptorium/lib/furniture/blend";
 
 const FURNITURE_CLASS = "sc-furniture";
 
@@ -97,8 +98,8 @@ export function buildFurnitureElement(item: PageFurnitureItem): HTMLElement {
   }
 
   if (item.kind === "art") {
-    // Art behind the text is muted and multiplied into the paper, so text over
-    // it stays readable on every paper. Art in front is shown as it is.
+    // Art behind the text is muted and, unless it was set to sit on top, multiplied into the paper, so text over
+    // it stays readable on every paper. Art in front is shown as it is unless it was printed into the paper.
     const behind = item.z === "under";
     const img = document.createElement("img");
     img.src = str(item.props.src);
@@ -113,7 +114,10 @@ export function buildFurnitureElement(item: PageFurnitureItem): HTMLElement {
       ...positionDeclarations(item),
       `width:${item.width}%`,
       "height:auto",
-      ...(behind ? [`opacity:${num(item.props.opacity, DEFAULT_UNDER_ART_OPACITY) / 100}`, "mix-blend-mode:multiply"] : []),
+      // Set for export only (printImages.ts): the crop's shape, so the layout measures the real box.
+      ...(num(item.props.aspect, 0) > 0 ? [`aspect-ratio:${num(item.props.aspect, 0)}`] : []),
+      ...(behind ? [`opacity:${num(item.props.opacity, DEFAULT_UNDER_ART_OPACITY) / 100}`] : []),
+      ...(artBlend(item) === "paper" ? ["mix-blend-mode:multiply"] : []),
       "pointer-events:none",
       `z-index:${zIndex}`,
     ].join(";");

@@ -12,6 +12,7 @@ import { reactive, watch } from "vue";
 import { useAutosave } from "@/composables/useAutosave";
 import { ASSET_IMAGES_BUCKET, removeStorageImages } from "@/composables/useImageUpload";
 import { draftValueEqual } from "@/composables/useRecordDraft";
+import { getCurrentUser } from "@/lib/supabase";
 import { removedFurnitureUrls } from "@/scriptorium/lib/furniture/artUrls";
 import { useUpdateScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
@@ -115,7 +116,7 @@ export function useBookSettings(doc: () => ScriptoriumDocument) {
       if (Object.keys(changed).length > 0) await update({ id: doc().id, update: changed });
       // Art the saved list no longer holds (a superseded bake, a removed picture)
       // leaves storage once the save has landed, never before.
-      const removed = removedFurnitureUrls(lastSaved.furniture, snapshot.furniture);
+      const removed = removedFurnitureUrls(lastSaved.furniture, snapshot.furniture, getCurrentUser()?.id);
       lastSaved = snapshot;
       if (removed.length > 0) void removeStorageImages(ASSET_IMAGES_BUCKET, ...removed);
     },

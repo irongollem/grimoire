@@ -8,6 +8,7 @@ import type { PageFurnitureItem } from "@/scriptorium/types";
 
 vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: vi.fn() }));
 
+import { removeStorageImages } from "@/composables/useImageUpload";
 import { staleFurnitureArt, staleImageNodes, usePictureBakes, type BakeFn } from "./usePictureBakes";
 
 const recipe: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/m.png" }] };
@@ -142,6 +143,31 @@ describe("baking stale pictures", () => {
     await api.bakeStale();
     expect(imageAttrs(ed)).toMatchObject({ src: "https://cdn/orig.webp" });
     expect(discard).toHaveBeenCalledWith("https://cdn/late.webp");
+  });
+
+  // Fails on: the default discard deleting whatever URL a bake handed back, rather than only the author's own bake.
+  it("by default removes a bake nothing took only when it is the author's own file", async () => {
+    const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u1/ill-late.webp";
+    const theirs = "https://x.supabase.co/storage/v1/object/public/asset-images/u2/ill-late.webp";
+    for (const url of [own, theirs]) {
+      vi.mocked(removeStorageImages).mockClear();
+      const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
+      const changed: IlluminateSettings = { v: 1, seed: 2, steps: [{ type: "mask", url: "https://cdn/other.png" }] };
+      let calls = 0;
+      const api = usePictureBakes({
+        editor: () => ed,
+        furniture: () => [],
+        setFurniture: vi.fn(),
+        userId: () => "u1",
+        bake: async () => {
+          if (++calls > 1) throw new Error("stop");
+          ed.commands.updateAttributes("image", { illuminate: changed });
+          return { url, hash };
+        },
+      });
+      await api.bakeStale();
+      expect(vi.mocked(removeStorageImages).mock.calls.length).toBe(url === own ? 1 : 0);
+    }
   });
 
   it("carries on with the other pictures when one fails, and reports it", async () => {

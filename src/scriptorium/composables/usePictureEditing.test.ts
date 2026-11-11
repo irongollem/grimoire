@@ -7,8 +7,11 @@ import type { PictureActions } from "@/scriptorium/composables/useEditorPictures
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 
 vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
-// The bucket check is the registry's; here a URL is ours when it says so.
-vi.mock("@/lib/storage", () => ({ isBucketUrl: (_b: string, url: unknown) => typeof url === "string" && url.includes("/asset-images/") }));
+// A URL is ours when the storage registry can read a bucket and a path out of it, in either URL shape.
+vi.mock("@/lib/storage", async () => {
+  const urls = await vi.importActual<typeof import("@/lib/storage/urls")>("@/lib/storage/urls");
+  return { parsePublicUrl: urls.parsePublicUrl };
+});
 vi.mock("@/scriptorium/composables/usePictureBakes", () => ({ usePictureBakes: () => ({ schedule: vi.fn() }) }));
 vi.mock("@/scriptorium/composables/usePicturePreviews", () => ({ usePicturePreviews: () => ({ schedule: vi.fn() }) }));
 
@@ -34,6 +37,7 @@ function setup(values: Record<string, unknown> | null, selection: PanelSelection
       setFurniture: vi.fn(),
       firstPageLabel: () => "175",
       sheet: () => null,
+      pageAspect: () => 0.75,
     }),
   );
   if (!api) throw new Error("no api");
@@ -51,37 +55,51 @@ describe("originalOf", () => {
 });
 
 describe("the workbench for the selected picture", () => {
-  // Fails on: Edit picture being offered for a picture from another bucket, whose bytes a canvas cannot read.
-  it("can edit only pictures in our own bucket", () => {
-    expect(setup({ src: "https://cdn/asset-images/u/a.webp" }).api.canEditPicture.value).toBe(true);
-    expect(setup({ src: "https://cdn/monster-images/a.webp" }).api.canEditPicture.value).toBe(false);
+  // Fails on: Edit picture staying limited to asset-images, so a place's or a monster's art could not be edited,
+  // or opening for an outside picture, whose bytes taint the canvas.
+  it("can edit any picture served from our storage, in either URL shape, and no outside one", () => {
+    expect(setup({ src: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp" }).api.canEditPicture.value).toBe(true);
+    expect(setup({ src: "https://x.supabase.co/storage/v1/object/public/monster-images/a.webp" }).api.canEditPicture.value).toBe(true);
+    expect(setup({ src: "https://cdn.example.com/location-images/u/a.webp" }).api.canEditPicture.value).toBe(true);
+    expect(setup({ src: "https://elsewhere.example/a.png" }).api.canEditPicture.value).toBe(false);
   });
 
   // Fails on: a treated picture opening on its bake, or its Done label naming the chapter page instead of the book page.
   it("opens on the original and its recipe, and goes back to the page in the book", () => {
-    const { api } = setup({ src: "https://cdn/asset-images/u/bake.webp", original: "https://cdn/asset-images/u/orig.webp", illuminate: recipe, alt: "Rosie" });
+    const { api } = setup({ src: "https://x.supabase.co/storage/v1/object/public/asset-images/u/bake.webp", original: "https://x.supabase.co/storage/v1/object/public/asset-images/u/orig.webp", illuminate: recipe, alt: "Rosie" });
     api.openWorkbench();
-    expect(api.workbench.value).toMatchObject({ original: "https://cdn/asset-images/u/orig.webp", settings: recipe, name: "Rosie", pageLabel: "page 176" });
+    expect(api.workbench.value).toMatchObject({ original: "https://x.supabase.co/storage/v1/object/public/asset-images/u/orig.webp", settings: recipe, name: "Rosie", pageLabel: "page 176" });
   });
 
   it("does not open for a picture it cannot edit", () => {
-    const { api } = setup({ src: "https://cdn/monster-images/a.webp" });
+    const { api } = setup({ src: "https://elsewhere.example/a.png" });
     api.openWorkbench();
     expect(api.workbench.value).toBeNull();
   });
 
+  // Fails on: the Crop button opening the workbench on another tool, or art on the page not offering the page's shape.
+  it("opens on the tool asked for, and knows the page's shape only for art on the page", () => {
+    const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp";
+    const inText = setup({ src: own });
+    inText.api.openWorkbench("crop");
+    expect(inText.api.workbench.value).toMatchObject({ tool: "crop", pageAspect: null });
+    const onPage = setup({ src: own }, { kind: "picture", source: "furniture", id: "f1" } as PanelSelection);
+    onPage.api.openWorkbench();
+    expect(onPage.api.workbench.value).toMatchObject({ tool: "edges", pageAspect: 0.75 });
+  });
+
   // Fails on: Done writing the recipe without the original, so Reset has nothing to go back to.
   it("writes the recipe over the original on Done and closes", () => {
-    const { api, treat } = setup({ src: "https://cdn/asset-images/u/a.webp" });
+    const { api, treat } = setup({ src: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp" });
     api.openWorkbench();
     api.onWorkbenchDone(recipe);
-    expect(treat).toHaveBeenCalledWith({ source: "node", pos: 5 }, { original: "https://cdn/asset-images/u/a.webp", illuminate: recipe });
+    expect(treat).toHaveBeenCalledWith({ source: "node", pos: 5 }, { original: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp", illuminate: recipe });
     expect(api.workbench.value).toBeNull();
   });
 
   // Fails on: Done after the picture was deleted behind the workbench throwing or writing into nothing.
   it("writes nothing when the picture is gone", () => {
-    const { api, treat } = setup({ src: "https://cdn/asset-images/u/a.webp" });
+    const { api, treat } = setup({ src: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp" });
     api.openWorkbench();
     const gone = setup(null);
     gone.api.workbench.value = api.workbench.value;

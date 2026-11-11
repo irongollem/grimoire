@@ -254,6 +254,11 @@
 .sc-theme img {
   max-width: 100%;
 }
+/* "Printed into the paper" (#1176 story 9c): the picture multiplies into the paper, so its grain and colour
+   show through. Art on the page sets the same thing inline (renderFurniture.ts); this is for a picture in the text. */
+.sc-theme img[data-blend="paper"] {
+  mix-blend-mode: multiply;
+}
 
 /* ── Page-break markers ──────────────────────────────────────────────────── */
 /* Both the explicit pageBreak node and a legacy <hr> force a new page in the

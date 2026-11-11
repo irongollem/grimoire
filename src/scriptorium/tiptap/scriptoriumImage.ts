@@ -15,6 +15,7 @@
 
 import Image from "@tiptap/extension-image";
 import { parseSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { asBlend } from "@/scriptorium/lib/furniture/blend";
 
 /**
  * A width as CSS: a bare number is pixels, a percentage stays a percentage (the
@@ -87,6 +88,16 @@ export const ScriptoriumImage = Image.extend({
         default: false,
         parseHTML: (el) => el.getAttribute("data-keep-with-text") === "true",
         renderHTML: (attrs) => (attrs.keepWithText ? { "data-keep-with-text": "true" } : {}),
+      },
+      // How it sits on the paper (#1176 story 9c): "paper" is printed into it (multiply), "top" is drawn as it is.
+      // Unset means "top". The look's CSS draws it, in the editor and in print alike, and a player's copy keeps it.
+      blend: {
+        default: null,
+        parseHTML: (el) => asBlend(el.getAttribute("data-blend")),
+        renderHTML: (attrs) => {
+          const blend = asBlend(attrs.blend);
+          return blend ? { "data-blend": blend } : {};
+        },
       },
       // A treated picture keeps its edits as a recipe (#1176 story 9): `original`
       // is the untouched picture, `illuminate` the steps (an object in the JSON,

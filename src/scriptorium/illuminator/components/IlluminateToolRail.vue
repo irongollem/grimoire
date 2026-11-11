@@ -28,12 +28,13 @@
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
-import { IconBrush, IconCenter, IconGrid, IconScan, IconScissors, IconWater, type AppIcon } from "@/lib/icons";
+import { IconBrush, IconCenter, IconCrop, IconGrid, IconScan, IconScissors, IconWater, type AppIcon } from "@/lib/icons";
 
 defineProps<{ tool: WorkbenchTool }>();
 const emit = defineEmits<{ "update:tool": [value: WorkbenchTool] }>();
 
 const TOOLS: { value: WorkbenchTool; label: string; icon: AppIcon }[] = [
+  { value: "crop", label: "Crop", icon: IconCrop },
   { value: "edges", label: "Edges", icon: IconScissors },
   { value: "colour", label: "Colour", icon: IconWater },
   { value: "vignette", label: "Vignette", icon: IconScan },
@@ -41,6 +42,5 @@ const TOOLS: { value: WorkbenchTool; label: string; icon: AppIcon }[] = [
   { value: "focus", label: "Focus", icon: IconCenter },
   { value: "brush", label: "Brush", icon: IconBrush },
 ];
-// Crop is on the sheet, but a recipe has no crop step yet: it would change the picture's size, which the bake and print do not expect.
-const LATER = ["Crop", "Draw", "Text", "Layers"];
+const LATER = ["Draw", "Text", "Layers"];
 </script>

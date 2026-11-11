@@ -26,7 +26,8 @@
         <span class="text-caption text-muted-foreground">{{ row.note }}</span>
         <GenerationCostBadge :credits="row.credits" :show-balance="false" />
       </div>
-      <PanelField v-if="row.action === 'extend'" label="Toward">
+      <!-- Space above, like the other rows: it sat tight under the caption. -->
+      <PanelField v-if="row.action === 'extend'" label="Toward" class="mt-2">
         <SegmentedControl v-model="edge" :options="EDGE_OPTIONS" size="xs" block />
       </PanelField>
     </div>

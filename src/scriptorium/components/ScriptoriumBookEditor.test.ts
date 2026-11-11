@@ -35,7 +35,7 @@ vi.mock("vue-router", () => ({
 vi.mock("@/composables/useUnsavedGuard", () => ({ useUnsavedGuard: vi.fn() }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), success: vi.fn() }) }));
-vi.mock("@/composables/useImageUpload", () => ({ removeRichTextImages: (...a: unknown[]) => mocks.removeImages(...a) }));
+vi.mock("@/scriptorium/composables/chapterImageCleanup", () => ({ removeChapterImages: (...a: unknown[]) => mocks.removeImages(...a) }));
 vi.mock("@/composables/campaign/useCampaigns", () => ({ useAllDmCampaigns: () => ({ data: ref([]) }) }));
 vi.mock("@/stores/campaign", async () => {
   const { defineStore } = await import("pinia");

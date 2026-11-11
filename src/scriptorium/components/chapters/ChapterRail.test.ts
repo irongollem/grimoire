@@ -17,7 +17,7 @@ vi.mock("@/scriptorium/composables/useScriptoriumChapters", () => ({
   useReorderChapters: () => ({ mutateAsync: mocks.reorder }),
   useBookChaptersFull: () => ({ data: ref(undefined), refetch: mocks.refetch }),
 }));
-vi.mock("@/composables/useImageUpload", () => ({ removeRichTextImages: mocks.removeImages }));
+vi.mock("@/scriptorium/composables/chapterImageCleanup", () => ({ removeChapterImages: mocks.removeImages }));
 
 import { useConfirm } from "@/composables/useConfirm";
 import ChapterRail from "./ChapterRail.vue";

@@ -39,7 +39,14 @@ export interface MaskStep { type: "mask"; url: string }
  */
 export interface AiStep { type: "ai"; action: string; output: string }
 
-export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | MaskStep | AiStep;
+/**
+ * The part of the base picture that is kept, as fractions of it (0 to 1, from the top left). It is applied
+ * before every other step, so they all work on the cropped picture, and the bake, the page and print are all
+ * the cropped size. It is not drawn by applySteps: the renderers cut the base with it (crop.ts).
+ */
+export interface CropStep { type: "crop"; x: number; y: number; w: number; h: number }
+
+export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | MaskStep | AiStep | CropStep;
 export type StepType = IlluminateStep["type"];
 
 export interface IlluminateSettings {
@@ -49,8 +56,8 @@ export interface IlluminateSettings {
   steps: IlluminateStep[];
 }
 
-/** The order the steps run in: the texture sits under the vignette on purpose, and the mask erases last. */
-export const STEP_ORDER: readonly StepType[] = ["ai", "grade", "dof", "texture", "vignette", "edges", "mask"];
+/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, and the mask erases last. */
+export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "mask"];
 
 // ─── Defensive parsing ──────────────────────────────────────────────────────
 
@@ -181,6 +188,23 @@ function parseEdges(raw: Record<string, unknown>): EdgesStep {
   };
 }
 
+/** Smallest side a crop may keep, as a fraction: a sliver is a mistake, and it would bake to nothing. */
+export const MIN_CROP = 0.05;
+
+/** A crop clamped into the picture, or null when it keeps all of it (so it is no edit at all). */
+export function clampCrop(x: number, y: number, w: number, h: number): CropStep | null {
+  const cw = Math.min(1, Math.max(MIN_CROP, w));
+  const ch = Math.min(1, Math.max(MIN_CROP, h));
+  const cx = Math.min(1 - cw, Math.max(0, x));
+  const cy = Math.min(1 - ch, Math.max(0, y));
+  if (cw >= 0.9999 && ch >= 0.9999) return null;
+  return { type: "crop", x: cx, y: cy, w: cw, h: ch };
+}
+
+function parseCrop(raw: Record<string, unknown>): CropStep | null {
+  return clampCrop(num(raw.x, 0), num(raw.y, 0), num(raw.w, 1), num(raw.h, 1));
+}
+
 function parseStep(raw: unknown): IlluminateStep | null {
   if (!isRecord(raw)) return null;
   switch (raw.type) {
@@ -189,6 +213,7 @@ function parseStep(raw: unknown): IlluminateStep | null {
     case "vignette": return parseVignette(raw);
     case "texture": return parseTexture(raw);
     case "edges": return parseEdges(raw);
+    case "crop": return parseCrop(raw);
     case "mask": {
       const url = nonEmptyString(raw.url);
       return url ? { type: "mask", url } : null;

@@ -9,8 +9,15 @@ const recipe: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "edges", sty
 
 function harness(natural: { width: number; height: number }, sizes: number[]) {
   const drawn: number[][] = [];
+  const sources: number[][] = [];
   const made: number[][] = [];
-  const ctx = { drawImage: (_i: unknown, _x: number, _y: number, w: number, h: number) => drawn.push([w, h]) };
+  // The base is drawn with the source rectangle first (the crop), then where it lands.
+  const ctx = {
+    drawImage: (...a: number[]) => {
+      if (a.length === 9) sources.push(a.slice(1, 5));
+      drawn.push(a.slice(-2));
+    },
+  };
   const deps = {
     loadImage: vi.fn(async () => natural as unknown as HTMLImageElement),
     makeCanvas: (w: number, h: number) => {
@@ -19,7 +26,7 @@ function harness(natural: { width: number; height: number }, sizes: number[]) {
     },
     encode: vi.fn(async (_canvas: unknown, _quality: number) => new Blob([new Uint8Array(sizes.shift() ?? 0)], { type: "image/webp" })),
   };
-  return { deps, drawn, made };
+  return { deps, drawn, made, sources };
 }
 
 describe("bakeSize", () => {
@@ -63,5 +70,33 @@ describe("renderBake", () => {
     const { deps } = harness({ width: 100, height: 100 }, [1]);
     await expect(renderBake("o.webp", { v: 1, seed: 1, steps: [] }, 100, deps)).rejects.toThrow(/Nothing to bake/);
     expect(deps.loadImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("renderBake with a crop", () => {
+  const cropped = (steps: IlluminateSettings["steps"]): IlluminateSettings => ({ v: 1, seed: 1, steps });
+
+  // Fails on: the bake coming out at the whole picture's size, so a cropped picture prints a different shape than it shows.
+  it("bakes the kept part at its own size", async () => {
+    const { deps, made, drawn, sources } = harness({ width: 1000, height: 500 }, [10]);
+    await renderBake("o.webp", cropped([{ type: "crop", x: 0.25, y: 0, w: 0.5, h: 1 }]), 100, deps);
+    expect(made).toEqual([[500, 500]]);
+    expect(sources).toEqual([[250, 0, 500, 500]]);
+    expect(drawn).toEqual([[500, 500]]);
+  });
+
+  // Fails on: the long-edge cap being worked out before the crop, so a crop of a huge picture is shrunk for no reason.
+  it("caps the long edge of the kept part, not of the whole picture", async () => {
+    const { deps, made } = harness({ width: 8000, height: 4000 }, [10]);
+    await renderBake("o.webp", cropped([{ type: "crop", x: 0, y: 0, w: 0.25, h: 0.5 }]), 100, deps);
+    expect(made).toEqual([[2000, 2000]]);
+  });
+
+  // Fails on: steps after the crop working on the whole picture, so a mask lands in the wrong place on the cropped one.
+  it("runs the other steps over the cropped canvas", async () => {
+    const { deps, drawn } = harness({ width: 1000, height: 500 }, [10]);
+    await renderBake("o.webp", cropped([{ type: "crop", x: 0, y: 0, w: 0.5, h: 1 }, { type: "mask", url: "m.webp" }]), 100, deps);
+    // The base, then the mask: both fill the 500 by 500 canvas, not the 1000 by 500 picture.
+    expect(drawn).toEqual([[500, 500], [500, 500]]);
   });
 });

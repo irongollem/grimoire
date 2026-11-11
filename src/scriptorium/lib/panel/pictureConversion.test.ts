@@ -17,6 +17,14 @@ describe("pictureConversion", () => {
     expect(toPage).toEqual({ src: "b", original: "o", illuminate: recipe, bakedFor: "h" });
   });
 
+  // Fails on: a chosen Paper blend resetting when Layer moves the picture between the text and the page.
+  it("carries an explicit blend across both ways, and invents none", () => {
+    expect(imageAttrsFromFurniture({ width: 40, props: { src: "b", blend: "top" } }, 800)).toMatchObject({ blend: "top" });
+    expect(furniturePropsFromImage({ src: "b", blend: "paper" })).toEqual({ src: "b", blend: "paper" });
+    expect(furniturePropsFromImage({ src: "b", blend: null })).toEqual({ src: "b" });
+    expect(imageAttrsFromFurniture({ width: 40, props: { src: "b" } }, 800)).not.toHaveProperty("blend");
+  });
+
   it("makes nothing from a picture with no file", () => {
     expect(imageAttrsFromFurniture({ width: 40, props: { src: "" } }, 800)).toBeNull();
     expect(furniturePropsFromImage({ src: null })).toBeNull();

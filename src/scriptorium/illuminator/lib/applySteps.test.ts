@@ -61,6 +61,15 @@ describe("applySteps", () => {
     expect(load).toHaveBeenCalledWith("mask.png");
   });
 
+  // Fails on: applySteps trying to draw the crop itself (it only sets the canvas the others run on), or a crop
+  // knocking the other steps out of order.
+  it("does not draw a crop, and the steps after it still run", async () => {
+    const crop = { type: "crop", x: 0.1, y: 0.1, w: 0.5, h: 0.5 } as const;
+    const ops = await run({ v: 1, seed: 1, steps: [mask, grade, crop] });
+    expect(calls).toEqual(["grade"]);
+    expect(ops).toEqual(["op:destination-out", "draw@destination-out", "op:source-over"]);
+  });
+
   it("dispatches the edge style, handing the paper tear the recipe's seed", async () => {
     await run({ v: 1, seed: 42, steps: [{ type: "edges", style: "paper", top: paperSide, right: paperSide, bottom: paperSide, left: paperSide }] });
     expect(calls).toEqual(["edges:paper:42"]);

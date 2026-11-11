@@ -177,6 +177,18 @@ describe("renderFurniture", () => {
     expect(over.style.mixBlendMode).toBe("");
   });
 
+  // Fails on: the blend choice being ignored, or art behind the text losing its multiply by default (every existing book would change).
+  it("art takes the paper blend that was chosen, and keeps today's look when none was", () => {
+    const art = (z: "under" | "over", props: Record<string, string | number>) =>
+      buildFurnitureElement(createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { z, props: { src: "/a.png", ...props } }));
+    expect(art("over", { blend: "paper" }).style.mixBlendMode).toBe("multiply");
+    expect(art("under", { blend: "top" }).style.mixBlendMode).toBe("");
+    // A top blend on art behind the text still mutes it: the strength is its own setting.
+    expect(art("under", { blend: "top" }).style.opacity).toBe("0.4");
+    expect(art("under", {}).style.mixBlendMode).toBe("multiply");
+    expect(art("over", {}).style.mixBlendMode).toBe("");
+  });
+
   it("is idempotent — re-render replaces, does not stack", () => {
     const c = makeContainer(1);
     const item = createFurnitureItem("watermark", { type: "page", chapterId: "c1", page: 1 });

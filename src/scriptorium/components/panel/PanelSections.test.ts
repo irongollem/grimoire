@@ -151,11 +151,35 @@ describe("PicturePanelSection", () => {
     });
   });
 
+  // Fails on: Crop opening the workbench on its first tool, so the button does nothing a writer can see.
+  it("opens the Illuminator on the Crop tool from Crop, and is disabled with the reason for a picture that cannot be edited", async () => {
+    const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { src: "a.webp" } }, global: { stubs } });
+    await press(w, "Crop");
+    expect(w.emitted("edit")).toEqual([["crop"]]);
+    const blocked = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { src: "https://elsewhere/a.png" }, canEdit: false, editHint: "why not" }, global: { stubs } });
+    const [crop] = buttons(blocked, "Crop");
+    expect(crop.attributes("disabled")).toBeDefined();
+    expect(crop.attributes("title")).toBe("why not");
+  });
+
+  // Fails on: Paper writing to the wrong home, or a picture showing the wrong choice lit (art behind the text is printed into the paper).
+  it("sets Paper on a picture in the text as an attribute and on art on the page as a prop, lighting the right choice", async () => {
+    const text = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { layoutMode: "inline" } }, global: { stubs } });
+    expect(buttons(text, "On top")[0].attributes("aria-pressed")).toBe("true");
+    await press(text, "Printed into the paper");
+    expect(text.emitted("nodeAttrs")?.at(-1)).toEqual([{ blend: "paper" }]);
+
+    const behind = mount(PicturePanelSection, { props: { ...nodeProps, layer: "under", where: "Placed on page 2", nodeAttrs: null, item: item({ z: "under" }), anchor }, global: { stubs } });
+    expect(buttons(behind, "Printed into the paper")[0].attributes("aria-pressed")).toBe("true");
+    await press(behind, "On top");
+    expect(behind.emitted("item")?.at(-1)).toEqual([{ props: { src: "a.webp", blend: "top" } }]);
+  });
+
   it("explains why Edit picture is unavailable", () => {
-    const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: {}, canEdit: false, editHint: "Only pictures in your library can be edited" }, global: { stubs } });
+    const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: {}, canEdit: false, editHint: "Only pictures stored in Grimoire can be edited" }, global: { stubs } });
     const edit = w.findAll("button").find((b) => b.text() === "Edit picture…");
     expect(edit?.attributes("disabled")).toBeDefined();
-    expect(edit?.attributes("title")).toBe("Only pictures in your library can be edited");
+    expect(edit?.attributes("title")).toBe("Only pictures stored in Grimoire can be edited");
   });
 });
 

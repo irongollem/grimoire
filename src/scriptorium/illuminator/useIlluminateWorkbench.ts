@@ -23,6 +23,8 @@ import { encodeWebp } from "@/lib/webpEncode";
 import { uploadToBucket } from "@/lib/storage";
 import { applySteps, processImage } from "@/scriptorium/illuminator/lib/applySteps";
 import { createBrushMaskController, DEFAULT_BRUSH_STATE, type BrushState } from "@/scriptorium/illuminator/lib/brushMask";
+import { croppedSize, drawBase } from "@/scriptorium/illuminator/lib/crop";
+import { dragCrop, fitRatio, FULL_CROP, shapeRatio, type CropHandle, type CropRect, type CropShape } from "@/scriptorium/illuminator/lib/cropBox";
 import { DEFAULT_COLOUR_GRADING, type ColourGradingOptions } from "@/scriptorium/illuminator/lib/colourGrading";
 import { DEFAULT_DOF_BLUR, drawFocalCrosshair, type DofBlurOptions } from "@/scriptorium/illuminator/lib/dofBlur";
 import { DEFAULT_EDGE_TREATMENT, type EdgeTreatmentOptions } from "@/scriptorium/illuminator/lib/edgeTreatment";
@@ -30,10 +32,10 @@ import { loadDomImage, type LoadImage } from "@/scriptorium/illuminator/lib/load
 import { FADED_SIDE, PAPER_PANEL_SIDE, type EdgeStyle } from "@/scriptorium/illuminator/lib/recipeEdits";
 import { DEFAULT_TEXTURE_OVERLAY, type DecodedImage, type TextureOverlayOptions } from "@/scriptorium/illuminator/lib/textureOverlay";
 import { DEFAULT_PAPER_SIDE, PAPER_SIDES, type PaperEdgeOptions, type PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
-import { baseImageUrl, type AiStep, type IlluminateSettings, type IlluminateStep } from "@/scriptorium/illuminator/lib/treatment";
+import { baseImageUrl, clampCrop, type AiStep, type IlluminateSettings, type IlluminateStep } from "@/scriptorium/illuminator/lib/treatment";
 import { DEFAULT_VIGNETTE, type VignetteOptions } from "@/scriptorium/illuminator/lib/vignette";
 
-export type WorkbenchTool = "edges" | "colour" | "vignette" | "texture" | "focus" | "brush";
+export type WorkbenchTool = "crop" | "edges" | "colour" | "vignette" | "texture" | "focus" | "brush";
 
 /** Long edge of the working preview: sharp on screen, cheap enough to redraw as a slider moves. */
 const MAX_PREVIEW = 900;
@@ -57,6 +59,8 @@ export interface WorkbenchOptions {
   canvases: () => { before: HTMLCanvasElement | null; after: HTMLCanvasElement | null };
   /** The hotkeys belong to the workbench only while it is open. */
   active?: () => boolean;
+  /** Width over height of the page the picture sits on, for art placed on the page; null for a picture in the text. */
+  pageAspect?: () => number | null;
 }
 
 export function useIlluminateWorkbench(opts: WorkbenchOptions) {
@@ -91,6 +95,10 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   /** The stored texture picture, and what to call it. */
   const textureUrl = ref<string | null>(null);
   const textureFilename = ref("");
+  /** The crop box, in fractions of the base picture; the whole picture when nothing is cropped. */
+  const crop = reactive<CropRect>({ ...FULL_CROP });
+  const cropShape = ref<CropShape>("free");
+  const pageAspect = computed(() => opts.pageAspect?.() ?? null);
   const brush = reactive<BrushState>(structuredClone(DEFAULT_BRUSH_STATE));
   const brushController = createBrushMaskController();
   /** A saved mask the picture came with, until the author paints a different one. */
@@ -156,6 +164,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     textureEnabled.value = false;
     textureUrl.value = null;
     textureFilename.value = "";
+    Object.assign(crop, FULL_CROP);
+    cropShape.value = "free";
     Object.assign(brush, structuredClone(DEFAULT_BRUSH_STATE));
     brushController.clear();
     maskUrl.value = null;
@@ -206,6 +216,9 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
         case "ai":
           aiStep.value = step;
           break;
+        case "crop":
+          Object.assign(crop, { x: step.x, y: step.y, w: step.w, h: step.h });
+          break;
       }
     }
   }
@@ -214,6 +227,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   function buildSettings(forPreview: boolean): IlluminateSettings {
     const steps: IlluminateStep[] = [];
     if (aiStep.value) steps.push({ ...aiStep.value });
+    const kept = clampCrop(crop.x, crop.y, crop.w, crop.h);
+    if (kept) steps.push(kept);
     if (gradingEnabled.value) steps.push({ type: "grade", options: { ...grading } });
     if (dofEnabled.value) {
       const { enabled: _enabled, ...options } = dof;
@@ -265,11 +280,22 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     return loaded;
   };
 
+  function previewOf(size: { width: number; height: number }) {
+    const scale = Math.min(1, MAX_PREVIEW / Math.max(size.width, size.height));
+    return { width: Math.round(size.width * scale), height: Math.round(size.height * scale) };
+  }
+
+  /** The picture as it comes out: the crop applied. The brush is painted on this, and the stage shows it. */
+  const outputSize = computed(() => {
+    const img = image.value;
+    if (!img) return { width: 0, height: 0 };
+    return previewOf(croppedSize({ width: img.naturalWidth, height: img.naturalHeight }, buildSettings(true)));
+  });
+  /** What the stage shows: the whole picture while the crop box is being set, else the output. */
   const previewSize = computed(() => {
     const img = image.value;
     if (!img) return { width: 0, height: 0 };
-    const scale = Math.min(1, MAX_PREVIEW / Math.max(img.naturalWidth, img.naturalHeight));
-    return { width: Math.round(img.naturalWidth * scale), height: Math.round(img.naturalHeight * scale) };
+    return tool.value === "crop" ? previewOf({ width: img.naturalWidth, height: img.naturalHeight }) : outputSize.value;
   });
 
   async function open() {
@@ -300,9 +326,14 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     scratch.height = ph;
     const ctx = scratch.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-    ctx.drawImage(img, 0, 0, pw, ph);
+    // Setting the crop shows the whole picture (and no strokes, which belong to the cropped one).
+    const cropping = tool.value === "crop";
+    const recipe = buildSettings(true);
+    const drawn = cropping ? { ...recipe, steps: recipe.steps.filter((step) => step.type !== "crop" && step.type !== "mask") } : recipe;
+    const natural = { width: img.naturalWidth, height: img.naturalHeight };
+    drawBase(ctx, img, natural, drawn, pw, ph);
     try {
-      await applySteps(ctx, pw, ph, buildSettings(true), loader, { sourceWidth: img.naturalWidth });
+      await applySteps(ctx, pw, ph, drawn, loader, { sourceWidth: croppedSize(natural, drawn).width });
     } catch {
       // A texture that cannot load leaves the rest of the picture drawn.
     }
@@ -346,17 +377,23 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   const settingsKey = computed(() => JSON.stringify(buildSettings(true)));
   watch([settingsKey, maskVersion, tool], scheduleRender);
 
-  // The brush's canvas is sized to the preview; a new base of the same size (an AI result) keeps the strokes.
+  // The brush's canvas is sized to the output (the cropped picture); a new base of the same size (an AI result) keeps the strokes.
+  // While the crop box is being set the size is not final, so it waits for another tool.
   let brushSize = "";
-  watch(image, async (img) => {
-    if (!img) return;
-    const size = `${previewSize.value.width}x${previewSize.value.height}`;
+  watch([image, () => `${outputSize.value.width}x${outputSize.value.height}`, tool], async ([img, size, current]) => {
+    if (!img || current === "crop") return;
     if (size === brushSize) {
       scheduleRender();
       return;
     }
+    // A different shape (a crop, an AI result) means strokes painted before would land in the wrong place.
+    if (brushSize !== "" && hasStrokes.value) {
+      toast.info("The brush strokes were cleared because the picture changed shape.");
+      maskUrl.value = null;
+      maskDirty.value = true;
+    }
     brushSize = size;
-    brushController.resize(previewSize.value.width, previewSize.value.height);
+    brushController.resize(outputSize.value.width, outputSize.value.height);
     hasStrokes.value = false;
     if (maskUrl.value) {
       try {
@@ -475,6 +512,26 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     textureEnabled.value = false;
   }
 
+  // ── Crop ──────────────────────────────────────────────────────────────────
+  function setCropShape(shape: CropShape) {
+    cropShape.value = shape;
+    const ratio = shapeRatio(shape, pageAspect.value);
+    const img = image.value;
+    if (ratio !== null && img) Object.assign(crop, fitRatio(crop, ratio, img.naturalWidth / img.naturalHeight));
+  }
+
+  /** A drag of the crop box: `start` is the box when the drag began, (dx, dy) how far it went, in fractions of the picture. */
+  function dragCropBox(handle: CropHandle, start: CropRect, dx: number, dy: number) {
+    const img = image.value;
+    if (!img) return;
+    Object.assign(crop, dragCrop(start, handle, dx, dy, shapeRatio(cropShape.value, pageAspect.value), img.naturalWidth / img.naturalHeight));
+  }
+
+  function resetCrop() {
+    Object.assign(crop, FULL_CROP);
+    cropShape.value = "free";
+  }
+
   /** Every tool back to nothing, the brush's strokes included. */
   function resetAll() {
     const keepSeed = seed.value;
@@ -560,7 +617,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   }
 
   return {
-    image, loadError, tool, previewSize, aiStep, baseUrl, setAiResult, clearAiResult,
+    image, loadError, tool, previewSize, crop, cropShape, pageAspect, setCropShape, dragCropBox, resetCrop, aiStep, baseUrl, setAiResult, clearAiResult,
     edgeStyle, classic, paper, grading, gradingEnabled, vignette, vignetteEnabled, dof, dofEnabled,
     texture, textureEnabled, textureUrl, textureFilename, brush, hasStrokes, brushCursor,
     comparePos, showOriginal, busy, copied, clipboardSupported, hasEdits,

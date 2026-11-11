@@ -16,10 +16,12 @@
  * load) keeps its original source, so the export never loses an image.
  */
 
+import type { PageFurnitureItem } from "@/scriptorium/types";
 import { hasTransparentPixels } from "@/lib/mediaConvert";
 import { applySteps } from "@/scriptorium/illuminator/lib/applySteps";
+import { cropOf, croppedSize, drawBase } from "@/scriptorium/illuminator/lib/crop";
 import { loadDomImage } from "@/scriptorium/illuminator/lib/loadImage";
-import { baseImageUrl, hasSteps, parseSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { baseImageUrl, hasSteps, parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 
 /** Print resolution the pictures are resampled to. */
 export const PRINT_PPI = 300;
@@ -69,13 +71,64 @@ export function printRecipe(el: HTMLImageElement) {
   return original && hasSteps(settings) ? { base: baseImageUrl(original, settings), settings } : null;
 }
 
+/** Width over height a recipe's picture comes out at, or null when the recipe does not crop. */
+async function croppedAspect(original: string, settings: IlluminateSettings): Promise<number | null> {
+  if (!cropOf(settings)) return null;
+  const base = await loadDomImage(baseImageUrl(original, settings));
+  const { width, height } = croppedSize({ width: base.naturalWidth, height: base.naturalHeight }, settings);
+  return width / height;
+}
+
+/**
+ * Cropped pictures take the crop's shape BEFORE the book is laid out (#1176 story 9c). The stored `src` is a bake
+ * that may be stale or missing (an edit made seconds before the export), so the box Paged.js measures would
+ * otherwise have the old shape, and compactPrintImages, which redraws after layout, would put the cropped render
+ * into it. Giving the picture the crop's aspect first means the layout paginates the real size and the redraw
+ * fills its box exactly: it can never print stretched or squashed. Text that has no cropped picture is
+ * returned untouched, never re-serialised.
+ */
+export async function fitCroppedPictures(html: string): Promise<string> {
+  if (!html.includes("data-illuminate") || !html.includes("crop")) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  let changed = false;
+  await Promise.all(
+    Array.from(doc.body.querySelectorAll("img[data-original][data-illuminate]")).map(async (img) => {
+      const original = img.getAttribute("data-original");
+      const settings = parseSettings(img.getAttribute("data-illuminate"));
+      if (!original || !settings) return;
+      const aspect = await croppedAspect(original, settings).catch(() => null);
+      if (aspect === null) return;
+      const style = (img.getAttribute("style") ?? "").replace(/;?\s*$/, "");
+      img.setAttribute("style", `${style}${style ? ";" : ""}aspect-ratio:${aspect};height:auto`);
+      changed = true;
+    }),
+  );
+  return changed ? doc.body.innerHTML : html;
+}
+
+/** The same for art placed on pages: the item carries the crop's aspect, which the furniture render draws. */
+export async function fitCroppedArt(items: readonly PageFurnitureItem[]): Promise<PageFurnitureItem[]> {
+  return Promise.all(
+    items.map(async (item) => {
+      if (item.kind !== "art") return item;
+      const original = item.props.original;
+      const settings = parseSettings(item.props.illuminate);
+      if (typeof original !== "string" || !settings) return item;
+      const aspect = await croppedAspect(original, settings).catch(() => null);
+      return aspect === null ? item : { ...item, props: { ...item.props, aspect } };
+    }),
+  );
+}
+
 async function compactOne(el: HTMLImageElement): Promise<void> {
   const rect = el.getBoundingClientRect();
   const recipe = printRecipe(el);
   const from = recipe?.base ?? el.currentSrc;
   if (!from || rect.width === 0 || rect.height === 0) return;
   const source = await loadDomImage(from);
-  const natural = { width: source.naturalWidth, height: source.naturalHeight };
+  const full = { width: source.naturalWidth, height: source.naturalHeight };
+  // A cropped picture prints at the cropped size, from the same cut the bake and the page make.
+  const natural = recipe ? croppedSize(full, recipe.settings) : full;
   const target = printPixelSize(natural, { width: rect.width, height: rect.height });
   if (!recipe && !needsCompacting(el.currentSrc, natural, target)) return;
 
@@ -84,7 +137,8 @@ async function compactOne(el: HTMLImageElement): Promise<void> {
   canvas.height = target.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  ctx.drawImage(source, 0, 0, target.width, target.height);
+  if (recipe) drawBase(ctx, source, full, recipe.settings, target.width, target.height);
+  else ctx.drawImage(source, 0, 0, target.width, target.height);
   if (recipe) await applySteps(ctx, target.width, target.height, recipe.settings, loadDomImage, { sourceWidth: natural.width });
   // getImageData throws on a tainted canvas; the caller keeps the original.
   const opaque = !hasTransparentPixels(ctx.getImageData(0, 0, target.width, target.height).data);

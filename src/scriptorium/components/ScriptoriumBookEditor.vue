@@ -232,7 +232,7 @@ import {
   useScriptoriumChapter,
 } from "@/scriptorium/composables/useScriptoriumChapters";
 import { useScriptoriumPdf } from "@/scriptorium/composables/useScriptoriumPdf";
-import { removeRichTextImages } from "@/composables/useImageUpload";
+import { removeChapterImages } from "@/scriptorium/composables/chapterImageCleanup";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
@@ -591,7 +591,7 @@ async function destroy() {
     // Every chapter's images go with the book, so read every body first.
     const bodies = await html.fullQuery.refetch({ throwOnError: true });
     await deleteDoc(doc.id);
-    for (const row of bodies.data ?? []) removeRichTextImages(JSON.stringify(row.content));
+    for (const row of bodies.data ?? []) removeChapterImages(JSON.stringify(row.content));
     router.replace("/scriptorium");
   } catch (e: unknown) {
     settings.release();

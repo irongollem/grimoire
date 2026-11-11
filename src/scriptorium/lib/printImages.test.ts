@@ -10,7 +10,9 @@ vi.mock("@/scriptorium/illuminator/lib/loadImage", () => ({
   },
 }));
 
-import { compactPrintImages, needsCompacting, printPixelSize, printRecipe, PRINT_PPI } from "./printImages";
+import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
+import { buildFurnitureElement } from "@/scriptorium/lib/furniture/renderFurniture";
+import { compactPrintImages, fitCroppedArt, fitCroppedPictures, needsCompacting, printPixelSize, printRecipe, PRINT_PPI } from "./printImages";
 
 describe("printPixelSize", () => {
   it("resamples to 300 ppi of the printed size", () => {
@@ -135,6 +137,18 @@ describe("compactPrintImages with a recipe", () => {
     expect(img.src).toContain("data:image/png");
   });
 
+  // Fails on: print redrawing the whole picture into a box the shape of the crop, or sizing it from the uncropped picture.
+  it("prints the kept part of a cropped picture at its size, the other steps working on it", async () => {
+    const ctx = stubCanvas();
+    const cropped = JSON.stringify({ v: 1, seed: 1, steps: [{ type: "crop", x: 0.5, y: 0, w: 0.5, h: 1 }, { type: "mask", url: "https://cdn/m.png" }] });
+    await compactPrintImages(mount(treatedImg({ "data-original": "https://cdn/o.webp", "data-illuminate": cropped }), { width: 400, height: 400 }));
+    // The 400 x 200 original keeps its right half: 200 x 200, which is below print size for a 400 px box.
+    expect(ctx.drawImage).toHaveBeenCalledWith(expect.anything(), 200, 0, 200, 200, 0, 0, 200, 200);
+    const [, w, h, , , opts] = mocks.applySteps.mock.calls[0];
+    expect([w, h]).toEqual([200, 200]);
+    expect(opts).toEqual({ sourceWidth: 200 });
+  });
+
   it("loads the AI output as the picture to redraw when the recipe has one", async () => {
     stubCanvas();
     const ai = JSON.stringify({ v: 1, seed: 1, steps: [{ type: "ai", action: "cutout", output: "https://cdn/ai.webp" }] });
@@ -156,5 +170,41 @@ describe("compactPrintImages with a recipe", () => {
     await compactPrintImages(mount(img));
     expect(mocks.loaded).toEqual(["https://cdn/stale-bake.webp"]);
     expect(mocks.applySteps).not.toHaveBeenCalled();
+  });
+});
+
+describe("cropped pictures are given their shape before layout", () => {
+  const cropped = JSON.stringify({ v: 1, seed: 1, steps: [{ type: "crop", x: 0.5, y: 0, w: 0.5, h: 1 }] });
+
+  // Fails on: layout measuring a stale bake's box (the 400 x 200 original here, 2:1) while print redraws the
+  // square crop into it, which would stretch the picture. The mocked picture is 400 x 200, its crop 200 x 200.
+  it("sets the crop's aspect on a recipe picture in the chapter html, keeping its width", async () => {
+    const html = `<p>x</p><img src="https://cdn/stale.webp" style="float:right;width:200px" data-original="https://cdn/o.webp" data-illuminate='${cropped}'>`;
+    const out = await fitCroppedPictures(html);
+    const img = new DOMParser().parseFromString(out, "text/html").querySelector("img")!;
+    expect(img.style.aspectRatio).toBe("1 / 1");
+    expect(img.style.width).toBe("200px");
+    expect(img.style.height).toBe("auto");
+  });
+
+  // Fails on: re-serialising every chapter's html, or touching pictures that do not crop.
+  it("leaves html with no cropped picture exactly as it was", async () => {
+    const plain = `<p>a <b>b</b></p><img src="x.webp" data-original="o" data-illuminate='${RECIPE}'>`;
+    expect(await fitCroppedPictures(plain)).toBe(plain);
+    // The word "crop" in the text must not make an uncropped picture take a new box.
+    const word = `<p>a crop of wheat</p><img src="x.webp" data-original="o" data-illuminate='${RECIPE}'>`;
+    expect(await fitCroppedPictures(word)).toBe(word);
+    expect(await fitCroppedPictures("<p>no pictures</p>")).toBe("<p>no pictures</p>");
+  });
+
+  // Fails on: art on a page being laid out at the stale bake's shape.
+  it("gives cropped art its aspect, drawn by the furniture render, and leaves other items alone", async () => {
+    const art = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { props: { src: "s", original: "https://cdn/o.webp", illuminate: cropped } });
+    const plain = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { props: { src: "s" } });
+    const [fitted, same] = await fitCroppedArt([art, plain]);
+    expect(fitted.props.aspect).toBe(1);
+    expect(same).toBe(plain);
+    expect(buildFurnitureElement(fitted).style.aspectRatio).toBe("1 / 1");
+    expect(buildFurnitureElement(plain).style.aspectRatio).toBe("");
   });
 });

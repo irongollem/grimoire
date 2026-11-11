@@ -2,7 +2,8 @@
  * The one pipeline (#1176 story 9). A recipe (IlluminateSettings) is applied to
  * a canvas the same way for the live preview, the full-resolution bake in a
  * Worker and the print redraw: grade, depth of field, texture, vignette, edges,
- * then the mask. The texture sits under the vignette on purpose, so the
+ * then the mask. The crop is the one step it does not draw: it sets the canvas
+ * the others run on (crop.ts). The texture sits under the vignette on purpose, so the
  * vignette darkens it too, and the mask erases last.
  *
  * Steps run in that order whatever order the recipe lists them in
@@ -11,6 +12,7 @@
  */
 import { applyColourGrading } from "./colourGrading";
 import { applyDofBlur } from "./dofBlur";
+import { drawBase, croppedSize } from "./crop";
 import { applyEdgeTreatmentToCtx } from "./edgeTreatment";
 import { loadDomImage, type LoadImage } from "./loadImage";
 import { applyTextureOverlay, decodedSize } from "./textureOverlay";
@@ -71,6 +73,9 @@ export async function applySteps(
       case "ai":
         // Its output is the base the caller drew first (baseImageUrl), not a layer.
         break;
+      case "crop":
+        // Already cut out by whoever drew the base (drawBase): the canvas is the cropped size.
+        break;
     }
   }
 }
@@ -81,15 +86,15 @@ export async function processImage(
   settings: IlluminateSettings,
   loadImage: LoadImage = loadDomImage,
 ): Promise<Blob> {
-  const w = image.naturalWidth;
-  const h = image.naturalHeight;
+  const natural = { width: image.naturalWidth, height: image.naturalHeight };
+  const { width: w, height: h } = croppedSize(natural, settings);
 
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas is unavailable.");
-  ctx.drawImage(image, 0, 0, w, h);
+  drawBase(ctx, image, natural, settings, w, h);
 
   await applySteps(ctx, w, h, settings, loadImage);
 

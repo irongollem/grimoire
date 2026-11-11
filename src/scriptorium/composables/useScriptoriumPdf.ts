@@ -42,7 +42,7 @@ import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildPagedPreviewCss } from "@/scriptorium/lib/pagedPreviewCss";
 import { createBookLayout } from "@/scriptorium/lib/bookLayout/createBookLayout";
 import type { BookChapterInput } from "@/scriptorium/lib/bookLayout/types";
-import { compactPrintImages } from "@/scriptorium/lib/printImages";
+import { compactPrintImages, fitCroppedArt, fitCroppedPictures } from "@/scriptorium/lib/printImages";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 import type { ScriptoriumFooterTitle, ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
 import scriptoriumFontsCss from "@/scriptorium/styles/fonts.css?inline";
@@ -205,9 +205,12 @@ export function useScriptoriumPdf() {
     // pages, then footers, contents numbers and furniture over all the pages.
     const book = createBookLayout(host);
     try {
+      // Cropped pictures take the crop's shape before layout, so a stale bake cannot give them the wrong box.
+      const chapters = await Promise.all(opts.chapters.map(async (c) => ({ ...c, html: await fitCroppedPictures(c.html) })));
+      const furniture = await fitCroppedArt(opts.furniture);
       const laid = await book.layout(
         {
-          chapters: opts.chapters,
+          chapters,
           settings: {
             pageSize: opts.pageSize,
             isTwoColumn: opts.isTwoColumn,
@@ -220,7 +223,7 @@ export function useScriptoriumPdf() {
             theme: opts.theme,
           },
           stylesheets: [{ "scriptorium-paged.css": pagedCss }],
-          furniture: { items: opts.furniture }, // non-interactive, decorations only
+          furniture: { items: furniture }, // non-interactive, decorations only
         },
         {
           onChapter: ({ done, total }) => {

@@ -8,6 +8,7 @@
  * It is never stored.
  */
 import { applySteps } from "./applySteps";
+import { croppedSize, drawBase } from "./crop";
 import { loadDomImage, type LoadImage } from "./loadImage";
 import { baseImageUrl, type IlluminateSettings } from "./treatment";
 
@@ -20,16 +21,18 @@ export async function renderPreviewBlob(
   loadImage: LoadImage = loadDomImage,
 ): Promise<Blob> {
   const image = await loadDomImage(baseImageUrl(originalUrl, settings));
-  const scale = Math.min(1, PAGE_PREVIEW_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
-  const w = Math.max(1, Math.round(image.naturalWidth * scale));
-  const h = Math.max(1, Math.round(image.naturalHeight * scale));
+  const natural = { width: image.naturalWidth, height: image.naturalHeight };
+  const kept = croppedSize(natural, settings);
+  const scale = Math.min(1, PAGE_PREVIEW_EDGE / Math.max(kept.width, kept.height));
+  const w = Math.max(1, Math.round(kept.width * scale));
+  const h = Math.max(1, Math.round(kept.height * scale));
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas is unavailable.");
-  ctx.drawImage(image, 0, 0, w, h);
-  await applySteps(ctx, w, h, settings, loadImage, { sourceWidth: image.naturalWidth });
+  drawBase(ctx, image, natural, settings, w, h);
+  await applySteps(ctx, w, h, settings, loadImage, { sourceWidth: kept.width });
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("The preview could not be drawn."))), "image/png");
   });

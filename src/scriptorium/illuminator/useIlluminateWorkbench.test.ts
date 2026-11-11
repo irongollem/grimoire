@@ -208,3 +208,99 @@ describe("an AI result", () => {
     expect(wb.baseUrl.value).toBe("https://cdn/orig.webp");
   });
 });
+
+describe("crop", () => {
+  const cropped: IlluminateSettings = { v: 1, seed: 5, steps: [{ type: "crop", x: 0.25, y: 0, w: 0.5, h: 1 }, { type: "mask", url: "https://cdn/mask.webp" }] };
+
+  // Fails on: Done dropping the crop (the tool not reading its step back), so the picture comes back uncropped.
+  it("opens on a recipe's crop and hands it back, ahead of the other steps", async () => {
+    const wb = open(cropped);
+    await wb.open();
+    await flushPromises();
+    expect(wb.buildSettings(false)).toEqual(cropped);
+  });
+
+  // Fails on: a crop box left at the whole picture still writing a step, so every picture opened in Crop gets re-baked for nothing.
+  it("writes no step for a box that keeps the whole picture, and Reset crop brings that back", async () => {
+    const wb = open(cropped);
+    await wb.open();
+    await flushPromises();
+    wb.resetCrop();
+    expect(wb.buildSettings(false).steps.map((s) => s.type)).toEqual(["mask"]);
+  });
+
+  // Fails on: the stage showing the cropped picture while the crop box is being set, so the box could never be moved outward.
+  it("shows the whole picture while setting the crop and the kept part otherwise", async () => {
+    const wb = open(cropped);
+    await wb.open();
+    wb.tool.value = "crop";
+    expect(wb.previewSize.value).toEqual({ width: 400, height: 300 });
+    wb.tool.value = "edges";
+    // Half the width of a 400 by 300 picture, the whole height.
+    expect(wb.previewSize.value).toEqual({ width: 200, height: 300 });
+  });
+
+  // Fails on: a shape that is square in fractions rather than in pixels, and a drag that breaks the shape.
+  it("keeps a chosen shape through a corner drag", async () => {
+    const wb = open(null);
+    await wb.open();
+    wb.setCropShape("1:1");
+    expect((wb.crop.w * 400) / (wb.crop.h * 300)).toBeCloseTo(1);
+    const start = { ...wb.crop };
+    wb.dragCropBox("se", start, -0.2, -0.2);
+    expect((wb.crop.w * 400) / (wb.crop.h * 300)).toBeCloseTo(1);
+    expect(wb.crop.x).toBeCloseTo(start.x);
+    expect(wb.buildSettings(false).steps.some((s) => s.type === "crop")).toBe(true);
+  });
+
+  // Fails on: Page not being a shape the art can fill, or being offered for a picture in the text.
+  it("fits the page's shape for art on the page", async () => {
+    const wb = useIlluminateWorkbench({
+      original: () => "https://cdn/orig.webp",
+      settings: () => null,
+      userId: () => "u1",
+      pageAspect: () => 0.5,
+      canvases: () => ({ before: null, after: null }),
+    });
+    await wb.open();
+    wb.setCropShape("page");
+    expect((wb.crop.w * 400) / (wb.crop.h * 300)).toBeCloseTo(0.5);
+    expect(open(null).pageAspect.value).toBeNull();
+  });
+
+  // Fails on: Reset all keeping the crop, so "everything back to nothing" leaves the picture cut.
+  it("goes with Reset all", async () => {
+    const wb = open(cropped);
+    await wb.open();
+    wb.resetAll();
+    expect(wb.buildSettings(false).steps).toEqual([]);
+  });
+
+  // Fails on: strokes painted on the whole picture staying on a cropped one, erasing the wrong part; and the
+  // brush canvas keeping the uncropped size, so a new stroke lands out of place.
+  it("clears the brush strokes when the crop changes the picture's shape", async () => {
+    const wb = open({ v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/mask.webp" }] });
+    await wb.open();
+    await flushPromises();
+    expect(wb.hasStrokes.value).toBe(true);
+    mocks.controller.resize.mockClear();
+    wb.dragCropBox("e", { x: 0, y: 0, w: 1, h: 1 }, -0.5, 0);
+    await flushPromises();
+    expect(mocks.controller.resize).toHaveBeenCalledWith(200, 300);
+    expect(wb.hasStrokes.value).toBe(false);
+    expect(wb.buildSettings(false).steps.some((s) => s.type === "mask")).toBe(false);
+  });
+
+  // Fails on: the brush being resized, and its strokes thrown away, on every pixel of a crop drag.
+  it("waits for the crop tool to be left before the brush follows the new shape", async () => {
+    const wb = open({ v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/mask.webp" }] });
+    await wb.open();
+    await flushPromises();
+    mocks.controller.resize.mockClear();
+    wb.tool.value = "crop";
+    wb.dragCropBox("e", { x: 0, y: 0, w: 1, h: 1 }, -0.5, 0);
+    await flushPromises();
+    expect(mocks.controller.resize).not.toHaveBeenCalled();
+    expect(wb.hasStrokes.value).toBe(true);
+  });
+});

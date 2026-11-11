@@ -21,7 +21,11 @@ Select a picture on the page. The panel beside the page shows **Edit picture** w
 
 Press **More tools: open the Illuminator** for everything else. The Illuminator opens over the book. **Done, back to page N** returns you to the same page with your edits in place. **Cancel** drops the session.
 
-You can edit a picture in the text and a picture placed on the page in the same way. Only pictures from your own library can be edited.
+You can edit a picture in the text and a picture placed on the page in the same way. Any picture stored in Grimoire can be edited: one you uploaded, a portrait, a place's art or a library picture. A picture linked from another website cannot.
+
+Press **Crop** beside **Edit picture** to trim the picture. Drag the box or its handles, or choose a shape: Free, 1:1, 4:3, 3:2, 16:9, or Page for a picture placed on the page. The picture on the page and in the PDF takes the new shape.
+
+Under **Paper**, choose **Printed into the paper** to let the paper's colour and grain show through the picture, as if it were printed on the page, or **On top** to show it as it is.
 
 ## Key ideas
 

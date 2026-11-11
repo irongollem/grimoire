@@ -42,7 +42,7 @@
           v-model:compare-pos="wb.comparePos.value"
           :size="wb.previewSize.value"
           :show-original="wb.showOriginal.value"
-          :compare-off="wb.tool.value === 'brush' || wb.tool.value === 'focus'"
+          :compare-off="wb.tool.value === 'brush' || wb.tool.value === 'focus' || wb.tool.value === 'crop'"
           :cursor-class="cursorClass"
           :load-error="wb.loadError.value"
           :brush-cursor="wb.brushCursor"
@@ -52,7 +52,9 @@
           @brush-up="wb.onBrushUp"
           @brush-enter="wb.brushCursor.visible = wb.tool.value === 'brush'"
           @brush-leave="wb.brushCursor.visible = false"
-        />
+        >
+          <IlluminateCropBox v-if="wb.tool.value === 'crop'" :crop="wb.crop" :locked="cropLocked" @drag="wb.dragCropBox" />
+        </IlluminateStage>
 
         <aside :aria-label="toolTitle" class="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
           <div class="flex flex-col gap-0.5 px-4 pt-4">
@@ -60,8 +62,17 @@
             <span class="font-heading text-heading-sm">{{ toolTitle }}</span>
           </div>
 
+          <IlluminateCropPanel
+            v-if="wb.tool.value === 'crop'"
+            :shape="wb.cropShape.value"
+            :crop="wb.crop"
+            :page-aspect="wb.pageAspect.value"
+            @shape="wb.setCropShape"
+            @reset="wb.resetCrop"
+          />
+
           <IlluminateEdgesTool
-            v-if="wb.tool.value === 'edges'"
+            v-else-if="wb.tool.value === 'edges'"
             :edge-style="wb.edgeStyle.value"
             :classic="wb.classic"
             :paper="wb.paper"
@@ -161,11 +172,12 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
-import { useRoute } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import IlluminateBrushPanel from "@/scriptorium/illuminator/components/IlluminateBrushPanel.vue";
 import IlluminateAskSection from "@/scriptorium/illuminator/components/IlluminateAskSection.vue";
+import IlluminateCropBox from "@/scriptorium/illuminator/components/IlluminateCropBox.vue";
+import IlluminateCropPanel from "@/scriptorium/illuminator/components/IlluminateCropPanel.vue";
 import IlluminateColorGradingPanel from "@/scriptorium/illuminator/components/IlluminateColorGradingPanel.vue";
 import IlluminateDofPanel from "@/scriptorium/illuminator/components/IlluminateDofPanel.vue";
 import IlluminateEdgesTool from "@/scriptorium/illuminator/components/IlluminateEdgesTool.vue";
@@ -178,13 +190,13 @@ import type { EdgeOptions } from "@/scriptorium/illuminator/lib/edgeTreatment";
 import type { PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import { isArtLook } from "@edge-shared/scriptoriumLookStyles.ts";
-import { useScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
-import { useIlluminateWorkbench } from "@/scriptorium/illuminator/useIlluminateWorkbench";
+import type { ScriptoriumTheme } from "@/scriptorium/types";
+import { useIlluminateWorkbench, type WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { useToast } from "@/composables/useToast";
 import { IconCheck, IconClipboard, IconDownload, IconImage, IconSave } from "@/lib/icons";
 
-const { original, settings, name, pageLabel, userId } = defineProps<{
+const { original, settings, name, pageLabel, userId, documentId, theme, pageAspect = null, startTool = "edges" } = defineProps<{
   /** The untouched picture the recipe applies to. */
   original: string;
   /** The recipe it has now, or null for a picture with no edits. */
@@ -194,6 +206,14 @@ const { original, settings, name, pageLabel, userId } = defineProps<{
   /** "page 3": where Done goes back to. */
   pageLabel: string;
   userId: string | undefined;
+  /** The book or handout this picture is in: the AI actions are paid for against it. */
+  documentId: string;
+  /** Its look, so an AI picture can be asked for in the book's style. */
+  theme: ScriptoriumTheme;
+  /** Width over height of the page, for art placed on the page (the crop's Page shape); null for a picture in the text. */
+  pageAspect?: number | null;
+  /** The tool it opens on: Crop, from the panel's Crop button. */
+  startTool?: WorkbenchTool;
 }>();
 
 const emit = defineEmits<{
@@ -212,26 +232,27 @@ const wb = useIlluminateWorkbench({
   original: () => original,
   settings: () => settings,
   userId: () => userId,
+  pageAspect: () => pageAspect,
   canvases: () => ({ before: stage.value?.beforeEl ?? null, after: stage.value?.afterEl ?? null }),
 });
 
-// The AI actions are paid for against a document the server checks belongs to the caller. The workbench only
-// opens inside a document's editor, whose route names it.
-const route = useRoute();
-const documentId = computed(() => String(route.params.id));
-const { data: bookDoc } = useScriptoriumDocument(documentId);
+wb.tool.value = startTool;
+
+// The AI actions are paid for against a document the server checks belongs to the caller; the chapter editor
+// that opens the workbench knows it and its look.
 const look = computed(() => {
-  if (!bookDoc.value) return null;
-  const { id, label } = scriptoriumLook(bookDoc.value.theme);
+  const { id, label } = scriptoriumLook(theme);
   return { label, id: isArtLook(id) ? id : null };
 });
+// With a shape set only the corners resize.
+const cropLocked = computed(() => wb.cropShape.value !== "free");
 const baseSize = computed(() => (wb.image.value ? { width: wb.image.value.naturalWidth, height: wb.image.value.naturalHeight } : null));
 
 onMounted(() => void wb.open());
 onBeforeUnmount(wb.dispose);
 onClickOutside(saveMenuRoot, () => (saveMenu.value = false));
 
-const TITLES = { edges: "Edges", colour: "Colour", vignette: "Vignette", texture: "Texture", focus: "Focus", brush: "Brush" } as const;
+const TITLES = { crop: "Crop", edges: "Edges", colour: "Colour", vignette: "Vignette", texture: "Texture", focus: "Focus", brush: "Brush" } as const;
 const toolTitle = computed(() => TITLES[wb.tool.value]);
 const cursorClass = computed(() => {
   if (wb.tool.value === "brush") return "cursor-none";

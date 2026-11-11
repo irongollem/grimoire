@@ -16,9 +16,11 @@ vi.mock("@/scriptorium/composables/useScriptoriumChapters", () => ({
   useSaveChapter: () => ({ mutateAsync: mocks.save }),
 }));
 vi.mock("@/composables/useImageUpload", () => ({
-  cleanupRemovedRichTextImages: (...args: unknown[]) => mocks.cleanup(...args),
   ASSET_IMAGES_BUCKET: "asset-images",
   removeStorageImages: vi.fn(),
+}));
+vi.mock("@/scriptorium/composables/chapterImageCleanup", () => ({
+  cleanupRemovedChapterImages: (...args: unknown[]) => mocks.cleanup(...args),
 }));
 vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
 vi.mock("@/ai/useTextEnhancement", async () => {

@@ -11,7 +11,8 @@
 import { computed, ref, watch, type Ref } from "vue";
 import type { Editor } from "@tiptap/core";
 import { getCurrentUser } from "@/lib/supabase";
-import { isBucketUrl } from "@/lib/storage";
+import { parsePublicUrl } from "@/lib/storage";
+import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import { usePictureBakes } from "@/scriptorium/composables/usePictureBakes";
 import { usePicturePreviews } from "@/scriptorium/composables/usePicturePreviews";
@@ -28,6 +29,10 @@ export interface OpenWorkbench {
   name: string;
   /** "page 3": where Done goes back to. */
   pageLabel: string;
+  /** The tool it opens on (Crop, from the panel's Crop button). */
+  tool: WorkbenchTool;
+  /** The page's width over height for art placed on the page (the crop's Page shape); null for a picture in the text. */
+  pageAspect: number | null;
 }
 
 interface Options {
@@ -41,6 +46,17 @@ interface Options {
   firstPageLabel: () => string | null;
   /** Where the pictures are drawn: the sheet. */
   sheet: () => ParentNode | null;
+  /** The page's width over height. */
+  pageAspect: () => number;
+}
+
+/**
+ * Whether a picture can be edited: any picture served from our storage, in either URL shape. The recipe only
+ * ever reads the original, so it need not live in the bucket the bakes go to. An outside picture cannot be read
+ * back into a canvas (it would taint it), so it stays as it is.
+ */
+export function isEditablePicture(url: string | null): url is string {
+  return url !== null && parsePublicUrl(url) !== null;
 }
 
 /** The file edits start from: the untouched original of a treated picture, else the picture itself. */
@@ -92,16 +108,15 @@ export function usePictureEditing(opts: Options) {
     void opts.furniture();
     return target.value ? opts.pictures.valuesOf(target.value) : null;
   });
-  // Only pictures in our own bucket can be read back into a canvas, so only they can be edited.
-  const canEditPicture = computed(() => isBucketUrl("assetImages", originalOf(values.value)));
+  const canEditPicture = computed(() => isEditablePicture(originalOf(values.value)));
 
   const workbench = ref<OpenWorkbench | null>(null);
 
-  function openWorkbench() {
+  function openWorkbench(tool: WorkbenchTool = "edges") {
     const t = target.value;
     const v = values.value;
     const original = originalOf(v);
-    if (!t || !v || !original || !isBucketUrl("assetImages", original)) return;
+    if (!t || !v || !isEditablePicture(original)) return;
     const label = [v.alt, v.title].find((x): x is string => typeof x === "string" && x.trim() !== "");
     const page = opts.pictures.pageOfPicture(t);
     const inBook = page === null ? null : bookPageNumber(opts.firstPageLabel(), page);
@@ -111,6 +126,8 @@ export function usePictureEditing(opts: Options) {
       settings: parseSettings(v.illuminate),
       name: label ?? "your picture",
       pageLabel: page === null ? "the page" : `page ${inBook ?? page}`,
+      tool,
+      pageAspect: t.source === "furniture" ? opts.pageAspect() : null,
     };
   }
 

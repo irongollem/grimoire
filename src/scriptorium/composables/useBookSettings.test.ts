@@ -7,6 +7,7 @@ import type { PageFurnitureItem, ScriptoriumDocument } from "@/scriptorium/types
 
 const mocks = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn() }));
 vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: mocks.remove }));
+vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => ({ id: "u1" }) }));
 vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useUpdateScriptoriumDocument: () => ({ mutateAsync: mocks.update }),
 }));
@@ -72,6 +73,12 @@ describe("book settings", () => {
 });
 
 describe("book art cleanup", () => {
+  const asset = (bucket: string, path: string) => `https://x.supabase.co/storage/v1/object/public/${bucket}/${path}`;
+  const bakeA = asset("asset-images", "u1/ill-a.webp");
+  const bakeB = asset("asset-images", "u1/ill-b.webp");
+  const ownUpload = asset("asset-images", "u1/rte-170.webp");
+  const placeArt = asset("location-images", "u2/room.webp");
+
   function art(props: Record<string, string>): PageFurnitureItem {
     const item = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
     return { ...item, props: { ...item.props, ...props } };
@@ -90,28 +97,32 @@ describe("book art cleanup", () => {
 
   it("the first bake never deletes the original", async () => {
     const removed = await saveWith(
-      [art({ src: "orig.webp", original: "orig.webp" })],
-      [art({ src: "bake-a.webp", original: "orig.webp", bakedFor: "h" })],
+      [art({ src: ownUpload, original: ownUpload })],
+      [art({ src: bakeA, original: ownUpload, bakedFor: "h" })],
     );
     expect(removed).toEqual([]);
   });
 
   it("deletes a superseded bake after the save", async () => {
     const removed = await saveWith(
-      [art({ src: "bake-a.webp", original: "orig.webp" })],
-      [art({ src: "bake-b.webp", original: "orig.webp" })],
+      [art({ src: bakeA, original: placeArt })],
+      [art({ src: bakeB, original: placeArt })],
     );
-    expect(removed).toEqual(["bake-a.webp"]);
+    expect(removed).toEqual([bakeA]);
   });
 
-  it("deletes the original once the picture is removed from the book", async () => {
-    const removed = await saveWith([art({ src: "bake-a.webp", original: "orig.webp" })], []);
-    expect(removed.sort()).toEqual(["bake-a.webp", "orig.webp"]);
+  // Fails on: removing the picture from the book deleting the original, which may be a place's art or the author's own picture.
+  it("deletes the bake, never the original, once the picture is removed from the book", async () => {
+    for (const original of [placeArt, ownUpload]) {
+      mocks.remove.mockClear();
+      const removed = await saveWith([art({ src: bakeA, original })], []);
+      expect(removed).toEqual([bakeA]);
+    }
   });
 
   it("deletes nothing when the save fails, so a retry still finds the old picture", async () => {
     mocks.update.mockRejectedValue(new Error("offline"));
-    const removed = await saveWith([art({ src: "bake-a.webp", original: "orig.webp" })], []);
+    const removed = await saveWith([art({ src: bakeA, original: placeArt })], []);
     expect(removed).toEqual([]);
   });
 });

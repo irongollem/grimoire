@@ -5,6 +5,7 @@
  * starts it.
  */
 import { applySteps } from "./applySteps";
+import { croppedSize, drawBase } from "./crop";
 import type { LoadImage } from "./loadImage";
 import { decodedSize, type DecodedImage } from "./textureOverlay";
 import { baseImageUrl, hasSteps, type IlluminateSettings } from "./treatment";
@@ -37,12 +38,14 @@ export async function renderBake(
   // The base is the AI result when the recipe has one; the original is never touched.
   const original: DecodedImage = await deps.loadImage(baseImageUrl(originalUrl, settings));
   const natural = decodedSize(original);
-  const { width, height } = bakeSize(natural);
+  // The crop sets the size: a cropped picture bakes to exactly what it shows and prints.
+  const kept = croppedSize(natural, settings);
+  const { width, height } = bakeSize(kept);
 
   const canvas = deps.makeCanvas(width, height);
   const ctx = scratchContext(canvas);
-  ctx.drawImage(original, 0, 0, width, height);
-  await applySteps(ctx, width, height, settings, deps.loadImage, { sourceWidth: natural.width });
+  drawBase(ctx, original, natural, settings, width, height);
+  await applySteps(ctx, width, height, settings, deps.loadImage, { sourceWidth: kept.width });
 
   for (const quality of BAKE_QUALITIES) {
     const blob = await deps.encode(canvas, quality);

@@ -29,6 +29,7 @@ export {
 export {
   getPublicUrl,
   isBucketUrl,
+  parsePublicUrl,
 } from "./urls";
 
 export {

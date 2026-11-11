@@ -80,7 +80,7 @@
           @add-furniture="emit('addFurniture', $event)"
           @update-item="updateItem"
           @select-furniture="emit('update:selectedFurnitureId', $event)"
-          @edit-picture="openWorkbench"
+          @edit-picture="openWorkbench($event)"
         />
       </aside>
     </div>
@@ -103,6 +103,10 @@
       :name="workbench.name"
       :page-label="workbench.pageLabel"
       :user-id="currentUserId()"
+      :document-id="documentId"
+      :theme="theme"
+      :start-tool="workbench.tool"
+      :page-aspect="workbench.pageAspect"
       @done="onWorkbenchDone"
       @cancel="workbench = null"
     />
@@ -142,7 +146,7 @@ import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
 import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
 import { useSaveChapter } from "@/scriptorium/composables/useScriptoriumChapters";
 import { usePictureEditing } from "@/scriptorium/composables/usePictureEditing";
-import { cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
+import { cleanupRemovedChapterImages } from "@/scriptorium/composables/chapterImageCleanup";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
 import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
@@ -314,7 +318,7 @@ const autosave = useAutosave({
     const previous = savedJson;
     await saveChapter({ id: chapter.id, documentId, content });
     savedJson = json;
-    cleanupRemovedRichTextImages(previous, json);
+    cleanupRemovedChapterImages(previous, json);
   },
   errorMessage: "Could not save your changes",
 });
@@ -463,6 +467,7 @@ const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId
   setFurniture: (items) => emit("update:furniture", items),
   firstPageLabel: () => pageContext.firstPageLabel,
   sheet: () => sheetRef.value,
+  pageAspect: () => sheetGeometry.value.width / sheetGeometry.value.height,
 });
 function updateItem(item: PageFurnitureItem) {
   emit("update:furniture", furniture.map((f) => (f.id === item.id ? item : f)));

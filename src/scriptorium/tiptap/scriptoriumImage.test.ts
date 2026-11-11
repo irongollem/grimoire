@@ -105,3 +105,20 @@ describe("ScriptoriumImage recipe", () => {
     expect(attrsOf('<img src="https://cdn/a.webp" data-illuminate="{oops">')?.illuminate).toBeNull();
   });
 });
+
+describe("ScriptoriumImage blend", () => {
+  const attrsOf = (html: string) => (generateJSON(html, EXT) as JSONContent).content?.[0].attrs;
+
+  // Fails on: the choice not reaching the markup, so print and a player's copy lose how the picture sits on the paper.
+  it("writes the paper blend as data-blend and reads it back, through a wrapper too", () => {
+    expect(generateHTML(image({ blend: "paper" }), EXT)).toContain('data-blend="paper"');
+    expect(attrsOf(generateHTML(image({ blend: "paper" }), EXT))?.blend).toBe("paper");
+    expect(attrsOf(generateHTML(image({ layoutMode: "wrapLeft", blend: "paper" }), EXT))?.blend).toBe("paper");
+    expect(attrsOf(generateHTML(image({ blend: "top" }), EXT))?.blend).toBe("top");
+  });
+
+  it("writes nothing for a picture that was never given one, and ignores a value that is not a blend", () => {
+    expect(generateHTML(image({}), EXT)).not.toContain("data-blend");
+    expect(attrsOf('<img src="https://cdn/a.webp" data-blend="screen">')?.blend).toBeNull();
+  });
+});
