@@ -35,11 +35,19 @@ begin
     raise exception 'At most 500 pictures at a time' using errcode = '22023';
   end if;
 
+  -- One pass over each table, keeping only what names any of the caller's
+  -- files; each candidate is then looked for in that short list.
+  with naming as materialized (
+    select c.content::text as body from public.scriptorium_chapters c
+     where strpos(c.content::text, '/' || v_uid::text || '/ill-') > 0
+    union all
+    select d.page_furniture::text from public.scriptorium_documents d
+     where strpos(d.page_furniture::text, '/' || v_uid::text || '/ill-') > 0
+  )
   select coalesce(array_agg(u), '{}'::text[]) into v_in_use
     from unnest(coalesce(p_urls, '{}'::text[])) as u
    where strpos(u, '/' || v_uid::text || '/ill-') = 0
-      or exists (select 1 from public.scriptorium_chapters c where strpos(c.content::text, u) > 0)
-      or exists (select 1 from public.scriptorium_documents d where strpos(d.page_furniture::text, u) > 0);
+      or exists (select 1 from naming n where strpos(n.body, u) > 0);
   return v_in_use;
 end;
 $$;

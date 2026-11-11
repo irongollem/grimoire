@@ -34,7 +34,8 @@ begin
        and coalesce(p_node -> 'attrs' ->> 'bakedFor', '') = '' then
       return null;
     end if;
-    return jsonb_set(p_node, '{attrs}', (p_node -> 'attrs') - 'original' - 'illuminate' - 'bakedFor');
+    -- No early return: a hand-written image with children of its own is walked like any node.
+    p_node := jsonb_set(p_node, '{attrs}', (p_node -> 'attrs') - 'original' - 'illuminate' - 'bakedFor');
   end if;
 
   if jsonb_typeof(p_node) <> 'object'

@@ -102,10 +102,10 @@ begin
 
   -- Anything the strip could not reach (a node outside a `content` array) is
   -- withheld whole, as before. A surviving `lensPair` or `lensDeep` means a
-  -- Deep half may still be inside.
+  -- Deep half may still be inside, and a surviving picture recipe an original.
   if v_out is null or jsonb_path_exists(
     v_out,
-    'strict $.** ? (@.type == "secretBlock" || @.type == "lensPair" || @.type == "lensDeep")'
+    'strict $.** ? (@.type == "secretBlock" || @.type == "lensPair" || @.type == "lensDeep" || (@.type == "image" && (exists(@.attrs.original) || exists(@.attrs.illuminate) || exists(@.attrs.bakedFor))))'
   ) then
     return null;
   end if;

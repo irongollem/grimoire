@@ -2,7 +2,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(75);
+select plan(78);
 
 -- A Scriptorium document is a book of chapters (#1115 story 13, 20261029222021).
 --
@@ -108,6 +108,17 @@ select is(
     'https://x.test/asset-images/98300000-0000-4000-8000-000000000001/ill-used.webp',
     'https://x.test/asset-images/98300000-0000-4000-8000-000000000003/ill-theirs.webp'],
   'only an own ill- file nothing names is free to delete; one a book still names, and anyone else''s, come back in use (fails if the reference or owner check is dropped)');
+select set_config('request.jwt.claim.sub', '', true);
+select throws_ok(
+  $$ select public.scriptorium_pictures_in_use(array['https://x.test/asset-images/98300000-0000-4000-8000-000000000001/ill-gone.webp']) $$,
+  '42501', null, 'a caller with no account is refused, never answered (fails if the auth check is dropped)');
+select set_config('request.jwt.claim.sub', '98300000-0000-4000-8000-000000000001', true);
+select throws_ok(
+  $$ select public.scriptorium_pictures_in_use(array_fill('x'::text, array[501])) $$,
+  '22023', null, 'more than 500 pictures at once is refused (fails if the cap is dropped)');
+select ok(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"s"},"content":[{"type":"image","attrs":{"src":"t","original":"NESTED-ORIGINAL.webp"}}]}]}') not like '%NESTED-ORIGINAL%',
+  'a picture nested inside a hand-written picture loses its original too (fails if the strip stops at the outer picture)');
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ── The holder: reads through get_player_handout, never from the table ──────
