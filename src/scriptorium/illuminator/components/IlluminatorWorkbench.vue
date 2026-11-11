@@ -134,10 +134,16 @@
             <AppButton variant="ghost" size="inline-xs" label="Reset all to defaults" :disabled="!wb.hasEdits.value" @click="wb.resetAll" />
           </div>
 
-          <!-- Story 10 builds "Ask the Illuminator" here: the sparkle-marked AI actions, absent when AI is off for the campaign. -->
-          <div data-slot="ask-the-illuminator" data-testid="ask-the-illuminator-slot">
-            <slot name="ai" />
-          </div>
+          <IlluminateAskSection
+            :base-url="wb.baseUrl.value"
+            :natural="baseSize"
+            :document-id="documentId"
+            :user-id="userId"
+            :look="look"
+            :has-ai-result="wb.aiStep.value !== null"
+            @result="(url, action) => void wb.setAiResult(url, action)"
+            @use-original="wb.clearAiResult"
+          />
         </aside>
       </div>
     </div>
@@ -150,13 +156,16 @@
  * over the Scriptorium, not a page of its own. It opens on a picture's recipe
  * and hands one back on Done; Cancel hands back nothing. Every tool the old
  * Illuminator page had is here: edges (now with the torn-paper tear), colour,
- * vignette, texture, focus and the brush, with a before/after divider.
+ * vignette, texture, focus and the brush, with a before/after divider, and
+ * "Ask the Illuminator" (story 10) for the AI picture actions.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
+import { useRoute } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import IlluminateBrushPanel from "@/scriptorium/illuminator/components/IlluminateBrushPanel.vue";
+import IlluminateAskSection from "@/scriptorium/illuminator/components/IlluminateAskSection.vue";
 import IlluminateColorGradingPanel from "@/scriptorium/illuminator/components/IlluminateColorGradingPanel.vue";
 import IlluminateDofPanel from "@/scriptorium/illuminator/components/IlluminateDofPanel.vue";
 import IlluminateEdgesTool from "@/scriptorium/illuminator/components/IlluminateEdgesTool.vue";
@@ -168,6 +177,9 @@ import { DEFAULT_COLOUR_GRADING, type ColourGradingOptions } from "@/scriptorium
 import type { EdgeOptions } from "@/scriptorium/illuminator/lib/edgeTreatment";
 import type { PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { isArtLook } from "@edge-shared/scriptoriumLookStyles.ts";
+import { useScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
+import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import { useIlluminateWorkbench } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { useToast } from "@/composables/useToast";
 import { IconCheck, IconClipboard, IconDownload, IconImage, IconSave } from "@/lib/icons";
@@ -202,6 +214,18 @@ const wb = useIlluminateWorkbench({
   userId: () => userId,
   canvases: () => ({ before: stage.value?.beforeEl ?? null, after: stage.value?.afterEl ?? null }),
 });
+
+// The AI actions are paid for against a document the server checks belongs to the caller. The workbench only
+// opens inside a document's editor, whose route names it.
+const route = useRoute();
+const documentId = computed(() => String(route.params.id));
+const { data: bookDoc } = useScriptoriumDocument(documentId);
+const look = computed(() => {
+  if (!bookDoc.value) return null;
+  const { id, label } = scriptoriumLook(bookDoc.value.theme);
+  return { label, id: isArtLook(id) ? id : null };
+});
+const baseSize = computed(() => (wb.image.value ? { width: wb.image.value.naturalWidth, height: wb.image.value.naturalHeight } : null));
 
 onMounted(() => void wb.open());
 onBeforeUnmount(wb.dispose);

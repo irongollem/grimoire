@@ -30,7 +30,7 @@ import { loadDomImage, type LoadImage } from "@/scriptorium/illuminator/lib/load
 import { FADED_SIDE, PAPER_PANEL_SIDE, type EdgeStyle } from "@/scriptorium/illuminator/lib/recipeEdits";
 import { DEFAULT_TEXTURE_OVERLAY, type DecodedImage, type TextureOverlayOptions } from "@/scriptorium/illuminator/lib/textureOverlay";
 import { DEFAULT_PAPER_SIDE, PAPER_SIDES, type PaperEdgeOptions, type PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
-import { type IlluminateSettings, type IlluminateStep } from "@/scriptorium/illuminator/lib/treatment";
+import { baseImageUrl, type AiStep, type IlluminateSettings, type IlluminateStep } from "@/scriptorium/illuminator/lib/treatment";
 import { DEFAULT_VIGNETTE, type VignetteOptions } from "@/scriptorium/illuminator/lib/vignette";
 
 export type WorkbenchTool = "edges" | "colour" | "vignette" | "texture" | "focus" | "brush";
@@ -62,7 +62,12 @@ export interface WorkbenchOptions {
 export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   const toast = useToast();
 
+  /** The picture every step is drawn over: the AI result when there is one, else the original. */
   const image = shallowRef<HTMLImageElement | null>(null);
+  /** The untouched original, for the before side of the divider. */
+  const originalImage = shallowRef<HTMLImageElement | null>(null);
+  /** An AI picture action's stored result. It is the base image, not a layer (treatment.ts). */
+  const aiStep = ref<AiStep | null>(null);
   const loadError = ref("");
   const tool = ref<WorkbenchTool>("edges");
   const seed = ref(Math.floor(Math.random() * 1e9));
@@ -162,6 +167,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   /** Put a recipe's steps into the tools. A step is on; a tool with no step is off with its defaults. */
   function loadSettings(settings: IlluminateSettings | null) {
     resetState();
+    aiStep.value = null;
     if (!settings) return;
     seed.value = settings.seed;
     for (const step of settings.steps) {
@@ -198,6 +204,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
           maskUrl.value = step.url;
           break;
         case "ai":
+          aiStep.value = step;
           break;
       }
     }
@@ -206,6 +213,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   /** The tools as a recipe. The preview paints the brush from its canvas; the final recipe points at the stored mask. */
   function buildSettings(forPreview: boolean): IlluminateSettings {
     const steps: IlluminateStep[] = [];
+    if (aiStep.value) steps.push({ ...aiStep.value });
     if (gradingEnabled.value) steps.push({ type: "grade", options: { ...grading } });
     if (dofEnabled.value) {
       const { enabled: _enabled, ...options } = dof;
@@ -265,9 +273,12 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   });
 
   async function open() {
-    loadSettings(opts.settings());
+    const recipe = opts.settings();
+    loadSettings(recipe);
     try {
-      image.value = await loadDomImage(opts.original());
+      originalImage.value = await loadDomImage(opts.original());
+      const base = baseImageUrl(opts.original(), recipe);
+      image.value = base === opts.original() ? originalImage.value : await loadDomImage(base);
     } catch {
       loadError.value = "The picture could not be opened.";
     }
@@ -297,10 +308,15 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     }
     if (token !== renderToken) return;
 
-    if (before && (before.width !== pw || before.height !== ph)) {
+    // The before side is always the original, fitted whole inside the base's shape (an AI result may differ).
+    const was = originalImage.value;
+    if (before && was) {
       before.width = pw;
       before.height = ph;
-      before.getContext("2d")?.drawImage(img, 0, 0, pw, ph);
+      const fit = Math.min(pw / was.naturalWidth, ph / was.naturalHeight);
+      const w = was.naturalWidth * fit;
+      const h = was.naturalHeight * fit;
+      before.getContext("2d")?.drawImage(was, (pw - w) / 2, (ph - h) / 2, w, h);
     }
     after.width = pw;
     after.height = ph;
@@ -330,8 +346,16 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   const settingsKey = computed(() => JSON.stringify(buildSettings(true)));
   watch([settingsKey, maskVersion, tool], scheduleRender);
 
+  // The brush's canvas is sized to the preview; a new base of the same size (an AI result) keeps the strokes.
+  let brushSize = "";
   watch(image, async (img) => {
     if (!img) return;
+    const size = `${previewSize.value.width}x${previewSize.value.height}`;
+    if (size === brushSize) {
+      scheduleRender();
+      return;
+    }
+    brushSize = size;
     brushController.resize(previewSize.value.width, previewSize.value.height);
     hasStrokes.value = false;
     if (maskUrl.value) {
@@ -505,11 +529,38 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
       toast.success("Saved as a new picture in your pictures.");
     });
 
-  /** Whether the tools hold any edit at all. */
-  const hasEdits = computed(() => buildSettings(true).steps.length > 0);
+  /** Whether the tools hold any edit at all. An AI result is the base picture, undone on its own, not a tool. */
+  const hasEdits = computed(() => buildSettings(true).steps.some((step) => step.type !== "ai"));
+
+  // ── AI result ─────────────────────────────────────────────────────────────
+  /** The picture the next AI action works from: the current base. */
+  const baseUrl = computed(() => aiStep.value?.output ?? opts.original());
+
+  /** Make a stored AI picture the base. A second action's output replaces the first, and the action records the chain. */
+  async function setAiResult(url: string, action: string) {
+    const next = await loadDomImage(url);
+    const was = image.value;
+    aiStep.value = { type: "ai", action: aiStep.value ? `${aiStep.value.action}+${action}` : action, output: url };
+    // Strokes painted on a differently shaped picture would land in the wrong place: they go with it.
+    if (was && Math.abs(was.naturalWidth / was.naturalHeight - next.naturalWidth / next.naturalHeight) > 0.01) {
+      brushController.clear();
+      maskUrl.value = null;
+      maskDirty.value = true;
+      hasStrokes.value = false;
+      maskVersion.value++;
+    }
+    image.value = next;
+  }
+
+  /** Back to the original picture: the AI result leaves the recipe. The stored output stays where it is. */
+  function clearAiResult() {
+    if (!aiStep.value) return;
+    aiStep.value = null;
+    image.value = originalImage.value;
+  }
 
   return {
-    image, loadError, tool, previewSize,
+    image, loadError, tool, previewSize, aiStep, baseUrl, setAiResult, clearAiResult,
     edgeStyle, classic, paper, grading, gradingEnabled, vignette, vignetteEnabled, dof, dofEnabled,
     texture, textureEnabled, textureUrl, textureFilename, brush, hasStrokes, brushCursor,
     comparePos, showOriginal, busy, copied, clipboardSupported, hasEdits,

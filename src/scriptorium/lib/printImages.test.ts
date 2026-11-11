@@ -80,11 +80,19 @@ function treatedImg(attrs: Record<string, string>): HTMLImageElement {
 
 describe("printRecipe", () => {
   it("needs both the original and a recipe with steps", () => {
-    expect(printRecipe(treatedImg({ "data-original": "https://cdn/o.webp", "data-illuminate": RECIPE }))?.original).toBe("https://cdn/o.webp");
+    expect(printRecipe(treatedImg({ "data-original": "https://cdn/o.webp", "data-illuminate": RECIPE }))?.base).toBe("https://cdn/o.webp");
     expect(printRecipe(treatedImg({ "data-illuminate": RECIPE }))).toBeNull();
     expect(printRecipe(treatedImg({ "data-original": "o" }))).toBeNull();
     expect(printRecipe(treatedImg({ "data-original": "o", "data-illuminate": JSON.stringify({ v: 1, seed: 1, steps: [] }) }))).toBeNull();
     expect(printRecipe(treatedImg({ "data-original": "o", "data-illuminate": "{oops" }))).toBeNull();
+  });
+});
+
+describe("printRecipe with an AI result", () => {
+  // Bug: print redrew the original and the paid-for AI picture never reached the PDF.
+  it("prints over the AI output, not the original", () => {
+    const ai = JSON.stringify({ v: 1, seed: 1, steps: [{ type: "ai", action: "ink", output: "https://cdn/ai.webp" }] });
+    expect(printRecipe(treatedImg({ "data-original": "https://cdn/o.webp", "data-illuminate": ai }))?.base).toBe("https://cdn/ai.webp");
   });
 });
 
@@ -125,6 +133,13 @@ describe("compactPrintImages with a recipe", () => {
     expect(settings.steps[0]).toMatchObject({ type: "mask" });
     expect(opts).toEqual({ sourceWidth: 400 });
     expect(img.src).toContain("data:image/png");
+  });
+
+  it("loads the AI output as the picture to redraw when the recipe has one", async () => {
+    stubCanvas();
+    const ai = JSON.stringify({ v: 1, seed: 1, steps: [{ type: "ai", action: "cutout", output: "https://cdn/ai.webp" }] });
+    await compactPrintImages(mount(treatedImg({ "data-original": "https://cdn/o.webp", "data-illuminate": ai })));
+    expect(mocks.loaded).toEqual(["https://cdn/ai.webp"]);
   });
 
   it("applies the recipe even to a JPEG original already at print size, which an untreated one would skip", async () => {

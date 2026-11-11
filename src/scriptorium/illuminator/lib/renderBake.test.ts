@@ -39,6 +39,14 @@ describe("renderBake", () => {
     expect(deps.encode).toHaveBeenCalledTimes(1);
   });
 
+  // Bug: the bake loaded the original, so the page and the player's copy lost the AI result.
+  it("draws over the AI output when the recipe has one", async () => {
+    const { deps } = harness({ width: 100, height: 100 }, [10]);
+    const ai: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "ai", action: "ink", output: "ai.webp" }] };
+    await renderBake("o.webp", ai, 100, deps);
+    expect(deps.loadImage).toHaveBeenCalledWith("ai.webp");
+  });
+
   it("steps the quality down until the WebP fits the storage limit", async () => {
     const { deps } = harness({ width: 100, height: 100 }, [500, 300, 90]);
     const blob = await renderBake("o.webp", recipe, 100, deps);

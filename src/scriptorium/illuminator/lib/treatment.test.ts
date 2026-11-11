@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_COLOUR_GRADING } from "./colourGrading";
 import { DEFAULT_PAPER_SIDE } from "./tornPaper";
-import { hashSettings, hasSteps, parseSettings, pictureUrls, type IlluminateSettings } from "./treatment";
+import { aiStepOf, baseImageUrl, hashSettings, hasSteps, parseSettings, pictureUrls, withAiStep, type IlluminateSettings } from "./treatment";
 
 const grade = (brightness: number): IlluminateSettings["steps"][number] => ({
   type: "grade",
@@ -99,5 +99,32 @@ describe("pictureUrls and hasSteps", () => {
     expect(hasSteps(settings([]))).toBe(false);
     expect(hasSteps(null)).toBe(false);
     expect(hasSteps(settings([grade(0)]))).toBe(true);
+  });
+});
+
+describe("baseImageUrl", () => {
+  const ai = { type: "ai", action: "ink", output: "https://cdn/ai.webp" } as const;
+
+  // Bug: a renderer that loaded `original` straight away ignored the AI result the author paid for.
+  it("is the AI output when the recipe has one, else the original", () => {
+    expect(baseImageUrl("o.webp", settings([grade(0.1), ai]))).toBe("https://cdn/ai.webp");
+    expect(baseImageUrl("o.webp", settings([grade(0.1)]))).toBe("o.webp");
+    expect(baseImageUrl("o.webp", null)).toBe("o.webp");
+  });
+});
+
+describe("withAiStep", () => {
+  it("replaces the AI step, keeps the other steps and the seed, and removes it on null", () => {
+    const first = withAiStep(settings([grade(0.1)], 7), { type: "ai", action: "cutout", output: "a" }, 99);
+    expect(first.seed).toBe(7);
+    expect(first.steps.map((s) => s.type)).toEqual(["ai", "grade"]);
+    const second = withAiStep(first, { type: "ai", action: "cutout+ink", output: "b" }, 99);
+    expect(aiStepOf(second)).toMatchObject({ action: "cutout+ink", output: "b" });
+    expect(second.steps).toHaveLength(2);
+    expect(withAiStep(second, null, 99).steps.map((s) => s.type)).toEqual(["grade"]);
+  });
+
+  it("starts a recipe from the given seed when there was none", () => {
+    expect(withAiStep(null, { type: "ai", action: "ink", output: "a" }, 42).seed).toBe(42);
   });
 });

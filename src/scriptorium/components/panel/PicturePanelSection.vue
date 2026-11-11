@@ -6,6 +6,8 @@
         <div class="min-w-0">
           <h2 class="text-eyebrow uppercase text-primary">Picture</h2>
           <p class="text-body text-foreground" data-testid="panel-picture-where">{{ where }}</p>
+          <!-- The label of record is in the picture's own bytes; this chip is for the author, and never prints. -->
+          <AiImageBadge :src="src" inline />
         </div>
       </div>
     </PanelSection>
@@ -96,6 +98,7 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import PanelField from "@/scriptorium/components/panel/PanelField.vue";
 import PanelRange from "@/scriptorium/components/panel/PanelRange.vue";

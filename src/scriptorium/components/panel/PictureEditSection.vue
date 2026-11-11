@@ -59,7 +59,7 @@
         :icon="IconUndo"
         label="Reset to the original picture"
         data-testid="panel-reset-picture"
-        @click="emit('patch', resetPatch(values))"
+        @click="reset"
       />
     </div>
   </PanelSection>
@@ -100,8 +100,9 @@ import {
   type EdgeSlider,
 } from "@/scriptorium/illuminator/lib/recipeEdits";
 import { PAPER_SIDES, type PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
-import { parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { aiStepOf, parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import { resetPatch, treatmentPatch, type TreatmentPatch } from "@/scriptorium/lib/panel/pictureTreatment";
+import { useConfirm } from "@/composables/useConfirm";
 import { IconSettings, IconUndo } from "@/lib/icons";
 
 const { values } = defineProps<{
@@ -133,6 +134,14 @@ const sidesHint = computed(() => {
 // Warmth and Contrast run -1 to +1 in the recipe; the panel shows 0 to 100 with 50 as neutral.
 const toPanel = (v: number) => Math.round((v + 1) * 50);
 const fromPanel = (v: number) => v / 50 - 1;
+
+const { confirm } = useConfirm();
+
+/** Back to the original file. An AI result cannot be made again for free, so it asks first. */
+async function reset() {
+  if (aiStepOf(settings.value) && !(await confirm("This drops the AI result you paid for.", { title: "Use the original picture?", confirmLabel: "Drop it", danger: true }))) return;
+  emit("patch", resetPatch(values));
+}
 
 function change(next: IlluminateSettings) {
   emit("patch", treatmentPatch(values, next));

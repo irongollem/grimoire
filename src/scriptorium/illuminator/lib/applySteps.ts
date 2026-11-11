@@ -6,7 +6,8 @@
  * vignette darkens it too, and the mask erases last.
  *
  * Steps run in that order whatever order the recipe lists them in
- * (normaliseSettings). An `ai` step is typed but not applied yet.
+ * (normaliseSettings). An `ai` step is not drawn: it is the picture the steps are
+ * drawn over (baseImageUrl).
  */
 import { applyColourGrading } from "./colourGrading";
 import { applyDofBlur } from "./dofBlur";
@@ -68,7 +69,7 @@ export async function applySteps(
         break;
       }
       case "ai":
-        // Not applied yet: a later story stores an AI edit's output here.
+        // Its output is the base the caller drew first (baseImageUrl), not a layer.
         break;
     }
   }

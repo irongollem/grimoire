@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 
 const mocks = vi.hoisted(() => ({
+  loaded: [] as string[],
   upload: vi.fn(async () => "https://cdn/new-mask.webp"),
   encode: vi.fn(async () => new Blob(["m"], { type: "image/webp" })),
   controller: {
@@ -24,7 +25,8 @@ vi.mock("@/lib/storage", () => ({ uploadToBucket: mocks.upload }));
 vi.mock("@/lib/webpEncode", () => ({ encodeWebp: mocks.encode }));
 vi.mock("@/lib/mediaConvert", () => ({ toWebP: vi.fn() }));
 vi.mock("@/scriptorium/illuminator/lib/loadImage", () => ({
-  loadDomImage: async () => {
+  loadDomImage: async (url: string) => {
+    mocks.loaded.push(url);
     const img = document.createElement("img");
     Object.defineProperty(img, "naturalWidth", { value: 400 });
     Object.defineProperty(img, "naturalHeight", { value: 300 });
@@ -66,6 +68,7 @@ function open(settings: IlluminateSettings | null = recipe) {
 }
 
 beforeEach(() => {
+  mocks.loaded.length = 0;
   mocks.upload.mockClear();
   mocks.encode.mockClear();
   mocks.controller.hasStrokes = false;
@@ -161,5 +164,47 @@ describe("edge styles", () => {
     wb.setEdgeStyle("paper");
     wb.setEdgeStyle("straight");
     expect(wb.buildSettings(false).steps).toEqual([]);
+  });
+});
+
+describe("an AI result", () => {
+  const withAi: IlluminateSettings = { v: 1, seed: 3, steps: [{ type: "ai", action: "ink", output: "https://cdn/ai.webp" }, { type: "mask", url: "https://cdn/mask.webp" }] };
+
+  // Bug: the workbench opened on the original, so the paid-for AI picture was never what the author edited.
+  it("opens on the AI output as the picture to edit, and still loads the original for the before side", async () => {
+    const wb = open(withAi);
+    await wb.open();
+    expect(mocks.loaded.slice(0, 2)).toEqual(["https://cdn/orig.webp", "https://cdn/ai.webp"]);
+    expect(wb.baseUrl.value).toBe("https://cdn/ai.webp");
+  });
+
+  // Bug: Done wrote a recipe without the ai step, so the next bake went back to the original.
+  it("hands the AI step back, first, and does not count it as a tool edit", async () => {
+    const wb = open(withAi);
+    await wb.open();
+    await flushPromises();
+    expect(wb.buildSettings(false).steps[0]).toEqual({ type: "ai", action: "ink", output: "https://cdn/ai.webp" });
+    expect(wb.hasEdits.value).toBe(true);
+    const onlyAi = open({ v: 1, seed: 1, steps: [{ type: "ai", action: "ink", output: "a" }] });
+    await onlyAi.open();
+    expect(onlyAi.hasEdits.value).toBe(false);
+  });
+
+  // Bug: a second action replaced the chain's record, so the recipe lost that the picture was cut out first.
+  it("a second action replaces the output and records the chain", async () => {
+    const wb = open(null);
+    await wb.open();
+    await wb.setAiResult("https://cdn/a.webp", "cutout");
+    expect(wb.baseUrl.value).toBe("https://cdn/a.webp");
+    await wb.setAiResult("https://cdn/b.webp", "watercolour");
+    expect(wb.buildSettings(false).steps.filter((s) => s.type === "ai")).toEqual([{ type: "ai", action: "cutout+watercolour", output: "https://cdn/b.webp" }]);
+  });
+
+  it("going back to the original drops the step and works from the original again", async () => {
+    const wb = open(withAi);
+    await wb.open();
+    wb.clearAiResult();
+    expect(wb.buildSettings(false).steps.some((s) => s.type === "ai")).toBe(false);
+    expect(wb.baseUrl.value).toBe("https://cdn/orig.webp");
   });
 });

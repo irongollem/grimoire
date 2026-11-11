@@ -9,7 +9,7 @@
  */
 import { applySteps } from "./applySteps";
 import { loadDomImage, type LoadImage } from "./loadImage";
-import type { IlluminateSettings } from "./treatment";
+import { baseImageUrl, type IlluminateSettings } from "./treatment";
 
 /** Long edge of a page preview: sharp enough at the page's display size, cheap enough to redo as a slider moves. */
 export const PAGE_PREVIEW_EDGE = 720;
@@ -19,7 +19,7 @@ export async function renderPreviewBlob(
   settings: IlluminateSettings,
   loadImage: LoadImage = loadDomImage,
 ): Promise<Blob> {
-  const image = await loadDomImage(originalUrl);
+  const image = await loadDomImage(baseImageUrl(originalUrl, settings));
   const scale = Math.min(1, PAGE_PREVIEW_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
   const w = Math.max(1, Math.round(image.naturalWidth * scale));
   const h = Math.max(1, Math.round(image.naturalHeight * scale));

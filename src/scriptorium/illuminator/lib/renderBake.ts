@@ -7,7 +7,7 @@
 import { applySteps } from "./applySteps";
 import type { LoadImage } from "./loadImage";
 import { decodedSize, type DecodedImage } from "./textureOverlay";
-import { hasSteps, type IlluminateSettings } from "./treatment";
+import { baseImageUrl, hasSteps, type IlluminateSettings } from "./treatment";
 import { scratchContext, type ScratchCanvas } from "./scratch";
 
 /** Long edge a bake is capped at: effects over a 4096 px canvas are fast enough, and larger never prints better at book sizes. */
@@ -34,7 +34,8 @@ export async function renderBake(
   deps: BakeDeps,
 ): Promise<Blob> {
   if (!hasSteps(settings)) throw new Error("Nothing to bake: the picture has no edits.");
-  const original: DecodedImage = await deps.loadImage(originalUrl);
+  // The base is the AI result when the recipe has one; the original is never touched.
+  const original: DecodedImage = await deps.loadImage(baseImageUrl(originalUrl, settings));
   const natural = decodedSize(original);
   const { width, height } = bakeSize(natural);
 

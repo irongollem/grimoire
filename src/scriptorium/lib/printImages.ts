@@ -19,7 +19,7 @@
 import { hasTransparentPixels } from "@/lib/mediaConvert";
 import { applySteps } from "@/scriptorium/illuminator/lib/applySteps";
 import { loadDomImage } from "@/scriptorium/illuminator/lib/loadImage";
-import { hasSteps, parseSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { baseImageUrl, hasSteps, parseSettings } from "@/scriptorium/illuminator/lib/treatment";
 
 /** Print resolution the pictures are resampled to. */
 export const PRINT_PPI = 300;
@@ -60,18 +60,19 @@ export function needsCompacting(src: string, natural: PixelSize, target: PixelSi
  * A treated picture prints from its recipe, not its bake (#1176 story 9): the
  * `<img>` carries `data-original` and `data-illuminate`, and the steps are
  * applied to the original here, so print never shows a stale or missing bake.
+ * `base` is the picture they are drawn over: the AI result when the recipe has one, else the original.
  * Null when the picture carries no recipe, or an empty one.
  */
 export function printRecipe(el: HTMLImageElement) {
   const original = el.getAttribute("data-original");
   const settings = parseSettings(el.getAttribute("data-illuminate"));
-  return original && hasSteps(settings) ? { original, settings } : null;
+  return original && hasSteps(settings) ? { base: baseImageUrl(original, settings), settings } : null;
 }
 
 async function compactOne(el: HTMLImageElement): Promise<void> {
   const rect = el.getBoundingClientRect();
   const recipe = printRecipe(el);
-  const from = recipe?.original ?? el.currentSrc;
+  const from = recipe?.base ?? el.currentSrc;
   if (!from || rect.width === 0 || rect.height === 0) return;
   const source = await loadDomImage(from);
   const natural = { width: source.naturalWidth, height: source.naturalHeight };

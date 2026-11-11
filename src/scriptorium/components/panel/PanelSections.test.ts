@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const confirmMock = vi.hoisted(() => vi.fn());
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: confirmMock }) }));
 import CoverPanelSection from "./CoverPanelSection.vue";
 import DecorationPanelSection from "./DecorationPanelSection.vue";
 import EmbedPanelSection from "./EmbedPanelSection.vue";
@@ -8,7 +11,7 @@ import PicturePanelSection from "./PicturePanelSection.vue";
 import PlacementFields from "./PlacementFields.vue";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 
-const stubs = { ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true };
+const stubs = { ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
 const anchor = { page: 2, hasParagraph: true, canFree: true };
 
 function buttons(w: ReturnType<typeof mount>, text: string) {
@@ -23,6 +26,8 @@ function press(w: ReturnType<typeof mount>, text: string) {
 function item(over: Partial<PageFurnitureItem> = {}): PageFurnitureItem {
   return { id: "f1", kind: "art", anchor: { type: "block", blockId: "b1" }, x: 10, y: 5, width: 40, z: "over", props: { src: "a.webp" }, ...over };
 }
+
+beforeEach(() => confirmMock.mockReset());
 
 describe("PicturePanelSection", () => {
   const nodeProps = { src: "a.webp", layer: "text" as const, where: "In the text", canEdit: true, anchor: null, item: null };
@@ -102,6 +107,24 @@ describe("PicturePanelSection", () => {
       });
       await press(edited, "Reset to the original picture");
       expect(edited.emitted("nodeAttrs")?.at(-1)).toEqual([{ original: null, illuminate: null, bakedFor: null, src: "a.webp" }]);
+    });
+
+    // Fails on: one click dropping an AI result that cost credits and cannot be made again for free.
+    it("asks before putting the original back over an AI result, and leaves the picture alone on No", async () => {
+      const aiRecipe = { v: 1, seed: 1, steps: [{ type: "ai", action: "ink", output: "ai.webp" }] };
+      const w = mount(PicturePanelSection, {
+        props: { ...nodeProps, src: "bake.webp", nodeAttrs: { src: "bake.webp", original: "a.webp", illuminate: aiRecipe } },
+        global: { stubs },
+      });
+      confirmMock.mockResolvedValueOnce(false);
+      await press(w, "Reset to the original picture");
+      await flushPromises();
+      expect(confirmMock.mock.calls[0][0]).toBe("This drops the AI result you paid for.");
+      expect(w.emitted("nodeAttrs")).toBeUndefined();
+      confirmMock.mockResolvedValueOnce(true);
+      await press(w, "Reset to the original picture");
+      await flushPromises();
+      expect(w.emitted("nodeAttrs")?.at(-1)).toEqual([{ original: null, illuminate: null, bakedFor: null, src: "a.webp" }]);
     });
 
     // Fails on: Warmth writing the slider's 0-100 straight into a -1 to +1 value.

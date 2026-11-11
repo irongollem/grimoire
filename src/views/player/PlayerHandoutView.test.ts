@@ -26,12 +26,12 @@ const doc = {
   title: "A Letter",
   updated_at: "2026-10-02T00:00:00Z",
   chapters: [{ id: "c1", position: 0, title: "Dear friends" }],
-  chapter: { id: "c1", title: "Dear friends", content: { type: "doc", content: [] } },
+  chapter: { id: "c1", title: "Dear friends", content: { type: "doc", content: [{ type: "image", attrs: { src: "in-text.webp" } }] }, art: [{ blockId: "b1", src: "placed.webp" }] },
 } as unknown as PlayerHandout;
 
 function mountView() {
   return mount(PlayerHandoutView, {
-    global: { stubs: { ScriptoriumReader: { props: ["book", "chapters", "chapter", "audience", "backTo"], emits: ["selectChapter"], template: '<div data-testid="reader" @click="$emit(\'selectChapter\', \'c9\')">{{ book.title }} {{ chapters.length }} {{ chapter.title }} {{ audience }} {{ backTo }}</div>' }, LoadingSpinner: true, AppButton: true } },
+    global: { stubs: { ScriptoriumReader: { props: ["book", "chapters", "chapter", "audience", "backTo"], emits: ["selectChapter"], template: '<div data-testid="reader" @click="$emit(\'selectChapter\', \'c9\')">{{ book.title }} {{ chapters.length }} {{ chapter.title }} {{ audience }} {{ backTo }}</div>' }, LoadingSpinner: true, AppButton: true, AiImageBadge: { props: ['src'], template: '<i data-testid="ai-badge">{{ src }}</i>' } } },
   });
 }
 
@@ -59,6 +59,16 @@ describe("PlayerHandoutView", () => {
     await flushPromises();
     expect(w.get('[data-testid="reader"]').text()).toBe("A Letter 1 Dear friends player /play/journal?tab=handouts");
     expect(mocks.markRead).toHaveBeenCalledWith({ entityType: "handout", entityId: "h1" });
+  });
+
+  // Bug: the AI-made chip sat inside the reader, on the paper, where it would print; or placed art was never labelled.
+  it("labels the chapter's pictures beside the reader, not inside it", async () => {
+    mocks.state.doc = doc;
+    const w = mountView();
+    await flushPromises();
+    const labels = w.get('[data-testid="handout-ai-labels"]');
+    expect(labels.findAll('[data-testid="ai-badge"]').map((b) => b.text())).toEqual(["in-text.webp", "placed.webp"]);
+    expect(w.get('[data-testid="reader"]').find('[data-testid="ai-badge"]').exists()).toBe(false);
   });
 
   it("keeps the reader on screen while the next chapter loads, so it does not lose its place in the book", async () => {

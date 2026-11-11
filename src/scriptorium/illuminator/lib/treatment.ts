@@ -33,7 +33,10 @@ export interface PaperEdgesStep { type: "edges"; style: "paper"; top: PaperSideO
 export type EdgesStep = ClassicEdgesStep | PaperEdgesStep;
 /** An alpha PNG: wherever it is painted, the picture is erased. */
 export interface MaskStep { type: "mask"; url: string }
-/** Reserved for a later story: an AI edit's stored output. Typed now, not applied yet. */
+/**
+ * An AI picture action's stored output (#1176 story 10). It is the recipe's base image, not a filter: every
+ * renderer starts from baseImageUrl() and applySteps skips it. `action` records the chain ("cutout+ink").
+ */
 export interface AiStep { type: "ai"; action: string; output: string }
 
 export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | MaskStep | AiStep;
@@ -278,6 +281,26 @@ export function pictureUrls(settings: IlluminateSettings | null): string[] {
         return [];
     }
   });
+}
+
+/** The AI step of a recipe, if it has one. */
+export function aiStepOf(settings: IlluminateSettings | null): AiStep | null {
+  const step = settings?.steps.find((s): s is AiStep => s.type === "ai");
+  return step ?? null;
+}
+
+/**
+ * The picture every other step is drawn over: an AI result when the recipe has one, else the original. One
+ * rule for the workbench, the quick preview, the bake and the print redraw, so they cannot disagree about it.
+ */
+export function baseImageUrl(original: string, settings: IlluminateSettings | null): string {
+  return aiStepOf(settings)?.output ?? original;
+}
+
+/** The recipe with its AI step set (replacing any), or removed when `step` is null. */
+export function withAiStep(settings: IlluminateSettings | null, step: AiStep | null, seed: number): IlluminateSettings {
+  const rest = (settings?.steps ?? []).filter((s) => s.type !== "ai");
+  return normaliseSettings({ v: 1, seed: settings?.seed ?? seed, steps: step ? [step, ...rest] : rest });
 }
 
 /** Whether the recipe changes the picture at all. */

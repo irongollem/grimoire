@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  MAX_NOOK_IMAGE_BYTES,
-  base64DecodedLength,
-  nookPartPrompt,
-  validateNookPartRequest,
-} from "./validateNookPartRequest";
+import { MAX_PNG_BYTES as MAX_NOOK_IMAGE_BYTES, base64DecodedLength } from "../_shared/pngRequest";
+import { nookPartPrompt, validateNookPartRequest } from "./validateNookPartRequest";
 
 const CAMPAIGN = "11111111-1111-4111-8111-111111111111";
 const NOOK = "22222222-2222-4222-8222-222222222222";
