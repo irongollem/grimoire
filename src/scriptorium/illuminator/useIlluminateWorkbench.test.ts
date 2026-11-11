@@ -1,0 +1,165 @@
+// @vitest-environment happy-dom
+import { flushPromises } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
+
+const mocks = vi.hoisted(() => ({
+  upload: vi.fn(async () => "https://cdn/new-mask.webp"),
+  encode: vi.fn(async () => new Blob(["m"], { type: "image/webp" })),
+  controller: {
+    maskCanvas: null as unknown as HTMLCanvasElement,
+    hasStrokes: false,
+    resize: vi.fn(),
+    loadMask: vi.fn(),
+    clear: vi.fn(),
+    applyToCtx: vi.fn(),
+    onPointerDown: vi.fn(),
+    onPointerMove: vi.fn(),
+    onPointerUp: vi.fn(),
+    undo: vi.fn(() => false),
+  },
+}));
+
+vi.mock("@/lib/storage", () => ({ uploadToBucket: mocks.upload }));
+vi.mock("@/lib/webpEncode", () => ({ encodeWebp: mocks.encode }));
+vi.mock("@/lib/mediaConvert", () => ({ toWebP: vi.fn() }));
+vi.mock("@/scriptorium/illuminator/lib/loadImage", () => ({
+  loadDomImage: async () => {
+    const img = document.createElement("img");
+    Object.defineProperty(img, "naturalWidth", { value: 400 });
+    Object.defineProperty(img, "naturalHeight", { value: 300 });
+    return img;
+  },
+}));
+vi.mock("@/scriptorium/illuminator/lib/brushMask", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/scriptorium/illuminator/lib/brushMask")>()),
+  createBrushMaskController: () => {
+    mocks.controller.maskCanvas = document.createElement("canvas");
+    return mocks.controller;
+  },
+}));
+
+import { useIlluminateWorkbench } from "./useIlluminateWorkbench";
+
+const paperSide = (enabled: boolean) => ({ enabled, roughness: 0.7, depth: 0.3, fibres: 0.2, shadow: 0.1 });
+const recipe: IlluminateSettings = {
+  v: 1,
+  seed: 42,
+  steps: [
+    { type: "grade", options: { brightness: 0.1, contrast: 0.2, saturation: -0.3, temperature: 0.4, hue: 5 } },
+    { type: "dof", options: { focalX: 0.3, focalY: 0.6, focusRadius: 0.4, blurStrength: 0.5, desaturation: 0.2, falloff: "cubic" } },
+    { type: "texture", url: "https://cdn/grain.webp", blendMode: "multiply", opacity: 0.5, scale: 1.5 },
+    { type: "vignette", options: { strength: 0.35, softness: 0.4, mode: "colour", colour: "#112233" } },
+    { type: "edges", style: "paper", top: paperSide(true), right: paperSide(false), bottom: paperSide(false), left: paperSide(true) },
+    { type: "mask", url: "https://cdn/mask.webp" },
+  ],
+};
+
+function open(settings: IlluminateSettings | null = recipe) {
+  const wb = useIlluminateWorkbench({
+    original: () => "https://cdn/orig.webp",
+    settings: () => settings,
+    userId: () => "u1",
+    canvases: () => ({ before: null, after: null }),
+  });
+  return wb;
+}
+
+beforeEach(() => {
+  mocks.upload.mockClear();
+  mocks.encode.mockClear();
+  mocks.controller.hasStrokes = false;
+  mocks.controller.loadMask.mockImplementation(() => { mocks.controller.hasStrokes = true; });
+  mocks.controller.clear.mockImplementation(() => { mocks.controller.hasStrokes = false; });
+});
+
+describe("opening a recipe", () => {
+  // Fails on: a tool that does not read its step back, so the workbench opens blank and Done overwrites the picture's edits.
+  it("hands the same recipe back when nothing was changed", async () => {
+    const wb = open();
+    await wb.open();
+    await flushPromises();
+    expect(wb.buildSettings(false)).toEqual(recipe);
+  });
+
+  // Fails on: a picture the Illuminator never touched opening with a step in it, so a plain Done would bake an empty edit.
+  it("is an empty recipe for a picture with no edits", async () => {
+    const wb = open(null);
+    await wb.open();
+    expect(wb.buildSettings(false).steps).toEqual([]);
+    expect(wb.hasEdits.value).toBe(false);
+  });
+});
+
+describe("finishing", () => {
+  // Fails on: Done uploading the saved mask again on every visit, which leaves a new orphan file each time.
+  it("keeps a saved mask's url and uploads nothing when the strokes were not touched", async () => {
+    const wb = open();
+    await wb.open();
+    await flushPromises();
+    const done = await wb.finish();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(done.steps.at(-1)).toEqual({ type: "mask", url: "https://cdn/mask.webp" });
+  });
+
+  // Fails on: new strokes being saved as the old mask's url, so the page never shows them.
+  it("uploads the mask as WebP when the strokes changed, and points the recipe at it", async () => {
+    const wb = open();
+    await wb.open();
+    await flushPromises();
+    mocks.controller.undo.mockReturnValueOnce(true);
+    wb.undoBrush();
+    const done = await wb.finish();
+    expect(mocks.upload).toHaveBeenCalledWith(expect.objectContaining({ bucket: "assetImages", contentType: "image/webp" }));
+    expect(done.steps.at(-1)).toEqual({ type: "mask", url: "https://cdn/new-mask.webp" });
+  });
+
+  // Fails on: an erased mask still being saved because the old url was kept.
+  it("drops the mask step when the strokes were cleared", async () => {
+    const wb = open();
+    await wb.open();
+    await flushPromises();
+    wb.clearBrush();
+    expect((await wb.finish()).steps.some((s) => s.type === "mask")).toBe(false);
+  });
+});
+
+describe("edge styles", () => {
+  // Fails on: choosing a style on a straight picture tearing nothing, which reads as the chip doing nothing.
+  it("tears all four sides when a style is chosen and none was torn", async () => {
+    const wb = open(null);
+    await wb.open();
+    wb.setEdgeStyle("paper");
+    const step = wb.buildSettings(false).steps[0];
+    expect(step).toMatchObject({ type: "edges", style: "paper", top: { enabled: true }, left: { enabled: true } });
+  });
+
+  // Fails on: Faded leaving classic's strokes in, and going back to classic leaving the fade in.
+  it("fades smoothly and goes back to the stroked tear", async () => {
+    const wb = open(null);
+    await wb.open();
+    wb.setEdgeStyle("faded");
+    expect(wb.classic.top.variation).toBe(0);
+    wb.setEdgeStyle("classic");
+    expect(wb.classic.top.variation).toBeGreaterThan(0.5);
+  });
+
+  // Fails on: a side switched off for one style coming back on in the other.
+  it("keeps the torn sides when the style changes", async () => {
+    const wb = open(null);
+    await wb.open();
+    wb.setEdgeStyle("paper");
+    wb.setEdgeSideEnabled("top", false);
+    wb.setEdgeStyle("classic");
+    expect(wb.classic.top.enabled).toBe(false);
+    expect(wb.classic.left.enabled).toBe(true);
+  });
+
+  it("has no edges step for Straight", async () => {
+    const wb = open(null);
+    await wb.open();
+    wb.setEdgeStyle("paper");
+    wb.setEdgeStyle("straight");
+    expect(wb.buildSettings(false).steps).toEqual([]);
+  });
+});

@@ -129,9 +129,12 @@ describe("baking stale pictures", () => {
   it("does not take a result for a recipe the picture no longer has", async () => {
     const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
     const changed: IlluminateSettings = { v: 1, seed: 2, steps: [{ type: "mask", url: "https://cdn/other.png" }] };
+    let calls = 0;
     const { api, discard } = setup({
       editor: ed,
       bake: async () => {
+        // The first bake finishes after the edit; the pass then moves on to the new recipe, which this stub refuses.
+        if (++calls > 1) throw new Error("stop");
         ed.commands.updateAttributes("image", { illuminate: changed });
         return { url: "https://cdn/late.webp", hash };
       },
@@ -171,5 +174,55 @@ describe("baking stale pictures", () => {
     release();
     await first;
     expect(slow.api.running.value).toBe(false);
+  });
+});
+
+describe("keeping up with edits", () => {
+  // Fails on: an edit made while a bake runs being left stale until the next keystroke, because the pass only looked once.
+  it("bakes a picture edited while another bake was running, in the same pass", async () => {
+    const other: IlluminateSettings = { v: 1, seed: 3, steps: [{ type: "mask", url: "https://cdn/two.png" }] };
+    const ed = editorWith({ original: "https://cdn/a.webp", illuminate: recipe });
+    const bake = vi.fn<BakeFn>(async (original) => {
+      if (original.endsWith("a.webp")) {
+        ed.commands.insertContent({ type: "image", attrs: { src: "https://cdn/b.webp", original: "https://cdn/b.webp", illuminate: other } });
+        return { url: "https://cdn/a-bake.webp", hash };
+      }
+      return { url: "https://cdn/b-bake.webp", hash: hashSettings(other) };
+    });
+    const { api } = setup({ editor: ed, bake });
+    await api.bakeStale();
+    expect(bake).toHaveBeenCalledTimes(2);
+    expect(api.pending()).toEqual([]);
+  });
+
+  // Fails on: a picture whose bake fails being retried on every later edit, which hammers the worker and the bucket.
+  it("does not retry a failed bake until its recipe changes", async () => {
+    const ed = editorWith({ original: "https://cdn/a.webp", illuminate: recipe });
+    const bake = vi.fn<BakeFn>(async () => { throw new Error("boom"); });
+    const { api } = setup({ editor: ed, bake });
+    await api.bakeStale();
+    await api.bakeStale();
+    expect(bake).toHaveBeenCalledTimes(1);
+    expect(api.pending()).toEqual([]);
+    ed.commands.updateAttributes("image", { illuminate: { ...recipe, seed: 5 } });
+    expect(api.pending()).toHaveLength(1);
+  });
+
+  // Fails on: a bake starting on every slider move, which is the cost the 1.2 s wait exists to avoid.
+  it("waits for edits to stop before baking", async () => {
+    vi.useFakeTimers();
+    try {
+      const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
+      const { api, bake } = setup({ editor: ed });
+      api.schedule();
+      await vi.advanceTimersByTimeAsync(1000);
+      api.schedule();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(bake).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(300);
+      expect(bake).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

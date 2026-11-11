@@ -12,9 +12,12 @@
  * edits, not over a cache refresh). Furniture goes out through `setFurniture`,
  * which receives the whole updated array.
  *
- * Bakes run one at a time: a bake is a heavy job.
+ * Bakes run one at a time: a bake is a heavy job. `schedule()` waits for the
+ * author to stop editing before one starts, and a picture whose bake failed is
+ * not tried again until its recipe changes, so a broken one does not retry on
+ * every keystroke.
  */
-import { ref } from "vue";
+import { getCurrentScope, onScopeDispose, ref } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ASSET_IMAGES_BUCKET, removeStorageImages } from "@/composables/useImageUpload";
@@ -70,6 +73,9 @@ export interface PictureBakesOptions {
   discard?: (url: string) => void;
 }
 
+/** A bake starts this long after the last edit. */
+const BAKE_DELAY_MS = 1200;
+
 const keyOf = (p: StalePicture) => `${p.original}\n${p.hash}`;
 
 export function usePictureBakes(options: PictureBakesOptions) {
@@ -77,10 +83,15 @@ export function usePictureBakes(options: PictureBakesOptions) {
   const discard = options.discard ?? ((url: string) => void removeStorageImages(ASSET_IMAGES_BUCKET, url));
   const running = ref(false);
   const errors = ref<string[]>([]);
+  const failed = new Set<string>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
 
   function pending(): StalePicture[] {
     const ed = options.editor();
-    const all = [...(ed ? staleImageNodes(ed.state.doc) : []), ...staleFurnitureArt(options.furniture())];
+    const all = [...(ed && !ed.isDestroyed ? staleImageNodes(ed.state.doc) : []), ...staleFurnitureArt(options.furniture())].filter(
+      (p) => !failed.has(keyOf(p)),
+    );
     const unique = new Map<string, StalePicture>();
     for (const p of all) unique.set(keyOf(p), p);
     return [...unique.values()];
@@ -89,7 +100,7 @@ export function usePictureBakes(options: PictureBakesOptions) {
   /** Set src + bakedFor on every image node still holding this recipe. Returns how many. */
   function applyToNodes(p: StalePicture, url: string): number {
     const ed = options.editor();
-    if (!ed) return 0;
+    if (!ed || ed.isDestroyed) return 0;
     const tr = ed.state.tr;
     let count = 0;
     ed.state.doc.descendants((node, pos) => {
@@ -122,11 +133,15 @@ export function usePictureBakes(options: PictureBakesOptions) {
   /** Bake every stale picture. Resolves when all are done; one failing picture does not stop the rest. */
   async function bakeStale(): Promise<void> {
     const userId = options.userId();
-    if (running.value || !userId) return;
+    if (running.value || !userId || disposed) return;
     running.value = true;
     errors.value = [];
     try {
-      for (const p of pending()) {
+      // Re-read after each bake: the author may have edited another picture meanwhile.
+      // A picture is tried once per pass, so a result that nothing took can never loop.
+      const tried = new Set<string>();
+      for (let p = pending().find((x) => !tried.has(keyOf(x))); p; p = pending().find((x) => !tried.has(keyOf(x)))) {
+        tried.add(keyOf(p));
         try {
           const { url } = await bake(p.original, p.settings, userId);
           // The author may have edited the picture while it baked: only what
@@ -134,6 +149,7 @@ export function usePictureBakes(options: PictureBakesOptions) {
           const applied = applyToNodes(p, url) + applyToFurniture(p, url);
           if (applied === 0) discard(url);
         } catch (err) {
+          failed.add(keyOf(p));
           errors.value.push(err instanceof Error ? err.message : "A picture could not be baked.");
         }
       }
@@ -142,5 +158,19 @@ export function usePictureBakes(options: PictureBakesOptions) {
     }
   }
 
-  return { running, errors, pending, bakeStale };
+  /** Bake once the author has stopped editing for `delay` ms. */
+  function schedule(delay = BAKE_DELAY_MS): void {
+    if (disposed) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => void bakeStale(), delay);
+  }
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      disposed = true;
+      clearTimeout(timer);
+    });
+  }
+
+  return { running, errors, pending, bakeStale, schedule };
 }

@@ -377,7 +377,6 @@ export const IconNavScriptorium = glyph(ASSET_GLYPHS.scriptorium);
 export const IconNavCharacterSheet = glyph(ASSET_GLYPHS.charactersheet);
 export const IconNavCardForge = glyph(ASSET_GLYPHS.cardforge);
 export const IconNavMint = glyph(ASSET_GLYPHS.mint);
-export const IconNavIlluminator = glyph(ASSET_GLYPHS.illuminator);
 export const IconNavCartographer = glyph(ASSET_GLYPHS.cartographer);
 
 // ── Custom dice glyph (the d20) ───────────────────────────────────────────────

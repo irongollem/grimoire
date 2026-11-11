@@ -25,6 +25,8 @@ export interface BrushMaskController {
   readonly maskCanvas: HTMLCanvasElement;
   readonly hasStrokes: boolean;
   resize(w: number, h: number): void;
+  /** Paint a saved mask (an alpha picture, painted where the picture is erased) in as the starting strokes. */
+  loadMask(source: CanvasImageSource): void;
   applyToCtx(ctx: CanvasRenderingContext2D, w: number, h: number): void;
   onPointerDown(
     e: PointerEvent,
@@ -182,6 +184,13 @@ export function createBrushMaskController(): BrushMaskController {
     undoStack.length = 0;
     _hasStrokes = false;
     isDrawing = false;
+  }
+
+  function loadMask(source: CanvasImageSource): void {
+    maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    maskCtx.drawImage(source, 0, 0, maskCanvas.width, maskCanvas.height);
+    undoStack.length = 0;
+    _hasStrokes = true;
   }
 
   function toPx(
@@ -381,6 +390,7 @@ export function createBrushMaskController(): BrushMaskController {
     maskCanvas,
     get hasStrokes() { return _hasStrokes; },
     resize,
+    loadMask,
     applyToCtx,
     onPointerDown,
     onPointerMove,

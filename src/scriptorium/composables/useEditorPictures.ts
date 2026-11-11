@@ -20,7 +20,7 @@ import { blockPositions, blockTopPx } from "@/scriptorium/lib/furniture/editorAn
 import { furniturePlacement } from "@/scriptorium/lib/furniture/renderFurniture";
 import { furniturePropsFromImage, imageAttrsFromFurniture } from "@/scriptorium/lib/panel/pictureConversion";
 import { followParagraph, stayOnPage } from "@/scriptorium/lib/panel/anchorChange";
-import { clearTreatmentPatch, withoutTreatment } from "@/scriptorium/lib/panel/pictureTreatment";
+import { clearTreatmentPatch, mergeTreatmentPatch, withoutTreatment, type TreatmentPatch } from "@/scriptorium/lib/panel/pictureTreatment";
 import { removeNodeAt, updateNodeAttrs } from "@/scriptorium/lib/panel/nodeAttrs";
 import type { FurnitureAnchor, PageFurnitureItem } from "@/scriptorium/types";
 
@@ -41,11 +41,17 @@ export interface PictureActions {
   putInText: (id: string) => void;
   replaceSrc: (target: PictureTarget, src: string) => void;
   remove: (target: PictureTarget) => void;
+  /** The picture's own values (an image node's attrs, or art props): src, original, illuminate, bakedFor. */
+  valuesOf: (target: PictureTarget) => Record<string, unknown> | null;
+  /** Write a treatment change: one undo step for a picture in the text; art on the page has no undo. */
+  treat: (target: PictureTarget, patch: TreatmentPatch) => void;
   chooseCorner: (item: PageFurnitureItem, value: string | undefined) => void;
   chooseAnchor: (item: PageFurnitureItem, value: string | undefined) => void;
   anchorState: (item: PageFurnitureItem) => AnchorState;
   /** The page of the chapter a placed picture is drawn on, or null. */
   pageOf: (item: PageFurnitureItem) => number | null;
+  /** The chapter page a picture is on, whichever home it is in, or null when nothing is laid out. */
+  pageOfPicture: (target: PictureTarget) => number | null;
   /** New art in front of the text, on the caret's page. */
   addArt: (src: string) => void;
 }
@@ -182,6 +188,25 @@ export function useEditorPictures(opts: Options): PictureActions {
     opts.select(null);
   }
 
+  function valuesOf(target: PictureTarget): Record<string, unknown> | null {
+    if (target.source === "node") {
+      const ed = live();
+      const node = ed?.state.doc.nodeAt(target.pos);
+      return node && node.type.name === "image" ? { ...node.attrs } : null;
+    }
+    const item = opts.furniture().find((f) => f.id === target.id);
+    return item ? { ...item.props } : null;
+  }
+
+  function treat(target: PictureTarget, patch: TreatmentPatch) {
+    if (target.source === "node") {
+      const ed = live();
+      if (ed) updateNodeAttrs(ed, target.pos, patch);
+      return;
+    }
+    opts.setFurniture(opts.furniture().map((f) => (f.id === target.id ? { ...f, props: mergeTreatmentPatch(f.props, patch) } : f)));
+  }
+
   function placement(item: PageFurnitureItem) {
     return furniturePlacement(item.id, opts.sheet() ?? document);
   }
@@ -190,6 +215,15 @@ export function useEditorPictures(opts: Options): PictureActions {
     const placed = placement(item)?.page;
     if (placed !== undefined) return placed;
     return item.anchor.type === "page" ? item.anchor.page : null;
+  }
+
+  function pageOfPicture(target: PictureTarget): number | null {
+    if (target.source === "furniture") {
+      const item = opts.furniture().find((f) => f.id === target.id);
+      return item ? pageOf(item) : null;
+    }
+    const ed = live();
+    return ed ? (pageAt(pagesOf(ed), target.pos)?.page ?? null) : null;
   }
 
   function freeHere(item: PageFurnitureItem) {
@@ -262,5 +296,5 @@ export function useEditorPictures(opts: Options): PictureActions {
     opts.select(item.id);
   }
 
-  return { placeOnPage, putInText, replaceSrc, remove, chooseCorner, chooseAnchor, anchorState, pageOf, addArt };
+  return { placeOnPage, putInText, replaceSrc, remove, valuesOf, treat, chooseCorner, chooseAnchor, anchorState, pageOf, pageOfPicture, addArt };
 }

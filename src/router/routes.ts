@@ -1193,14 +1193,6 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/tokenforge/TokenForgeView.vue"),
     meta: { requiresAuth: true, title: "The Mint" },
   },
-  // Illuminator
-  {
-    path: "/illuminate",
-    name: "illuminate",
-    component: () => import("@/scriptorium/views/IlluminatorView.vue"),
-    meta: { requiresAuth: true, title: "Illuminator" },
-  },
-
   // Admin
   {
     path: "/admin",

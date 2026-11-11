@@ -65,6 +65,69 @@ describe("PicturePanelSection", () => {
     expect(front.text()).not.toContain("Strength");
   });
 
+  describe("quick edits", () => {
+    const edges = (w: ReturnType<typeof mount>) => {
+      const patch = w.emitted("nodeAttrs")?.at(-1)?.[0] as { illuminate: { steps: { type: string; style?: string }[] }; original: string };
+      return patch;
+    };
+
+    // Fails on: the first edit not keeping the file it started from, so Reset has nothing to put back.
+    it("writes a torn-paper recipe over the original when Torn paper is chosen on an untouched picture", async () => {
+      const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { src: "a.webp" } }, global: { stubs } });
+      await press(w, "Torn paper");
+      const patch = edges(w);
+      expect(patch.original).toBe("a.webp");
+      expect(patch.illuminate.steps).toMatchObject([{ type: "edges", style: "paper" }]);
+    });
+
+    // Fails on: art on the page receiving a recipe object, which furniture props cannot hold.
+    it("writes the recipe of art on the page as JSON text into its props", async () => {
+      const w = mount(PicturePanelSection, {
+        props: { ...nodeProps, layer: "over", where: "Placed on page 2", nodeAttrs: null, item: item(), anchor },
+        global: { stubs },
+      });
+      await press(w, "Sepia");
+      const patch = w.emitted("item")?.at(-1)?.[0] as { props: Record<string, string> };
+      expect(patch.props.original).toBe("a.webp");
+      expect(JSON.parse(patch.props.illuminate).steps[0].type).toBe("grade");
+    });
+
+    // Fails on: Reset offered on a picture that was never edited, or doing anything but putting the original back.
+    it("offers Reset only for an edited picture, and it puts the original back", async () => {
+      const plain = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { src: "a.webp" } }, global: { stubs } });
+      expect(buttons(plain, "Reset to the original picture")).toHaveLength(0);
+      const edited = mount(PicturePanelSection, {
+        props: { ...nodeProps, src: "bake.webp", nodeAttrs: { src: "bake.webp", original: "a.webp", illuminate: { v: 1, seed: 1, steps: [] } } },
+        global: { stubs },
+      });
+      await press(edited, "Reset to the original picture");
+      expect(edited.emitted("nodeAttrs")?.at(-1)).toEqual([{ original: null, illuminate: null, bakedFor: null, src: "a.webp" }]);
+    });
+
+    // Fails on: Warmth writing the slider's 0-100 straight into a -1 to +1 value.
+    it("maps Warmth from the panel's 0 to 100 onto the recipe's -1 to +1", async () => {
+      const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { src: "a.webp" } }, global: { stubs } });
+      const warmth = w.find('input[aria-label="Warmth"]');
+      await warmth.setValue(100);
+      const patch = edges(w);
+      expect(patch.illuminate.steps[0]).toMatchObject({ type: "grade", options: { temperature: 1 } });
+    });
+
+    // Fails on: "More tools" being a dead end, so the workbench cannot be reached from the panel.
+    it("opens the workbench from More tools and from Edit picture", async () => {
+      const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { src: "a.webp" } }, global: { stubs } });
+      await press(w, "More tools: open the Illuminator…");
+      await press(w, "Edit picture…");
+      expect(w.emitted("edit")).toHaveLength(2);
+    });
+
+    // Fails on: quick edits showing for a picture the canvas cannot read, where every edit would fail to bake.
+    it("hides the quick edits for a picture that cannot be edited", () => {
+      const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: { src: "https://elsewhere/a.png" }, canEdit: false }, global: { stubs } });
+      expect(w.find('[data-testid="panel-picture-edit"]').exists()).toBe(false);
+    });
+  });
+
   it("explains why Edit picture is unavailable", () => {
     const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: {}, canEdit: false, editHint: "Only pictures in your library can be edited" }, global: { stubs } });
     const edit = w.findAll("button").find((b) => b.text() === "Edit picture…");
@@ -115,35 +178,14 @@ describe("DecorationPanelSection", () => {
 });
 
 describe("CoverPanelSection", () => {
-  // Fails on: a cover edit waiting for an Apply the panel no longer has.
-  it("a cover's title edit saves without an Apply", async () => {
-    const w = mount(CoverPanelSection, { props: { attrs: { variant: "front", title: "", subtitle: "" } }, global: { stubs } });
-    await w.find('input[placeholder="Document Title"]').setValue("The Understage");
-    expect(w.emitted("update")).toEqual([[{ title: "The Understage" }]]);
-    expect(buttons(w, "Apply")).toHaveLength(0);
-    expect(buttons(w, "Cancel")).toHaveLength(0);
-  });
-
   it.each([
-    ["front", ["Title", "Subtitle", "Background art"]],
-    ["inside", ["Title", "Subtitle", "Background art"]],
-    ["part", ["Part number", "Subtitle"]],
-    ["back", ["Subtitle", "Blurb 1", "Blurb 2", "Blurb 3", "Tagline", "Product URL", "Background art"]],
-  ])("a %s cover has the fields the cover dialog had", (variant, labels) => {
+    ["front", ["Art"]],
+    ["inside", ["Art"]],
+    ["part", ["Part number"]],
+    ["back", ["Blurb 1", "Blurb 2", "Blurb 3", "Tagline", "Product URL", "Art"]],
+  ])("a %s cover keeps the fields it has that are not typed on the cover", (variant, labels) => {
     const w = mount(CoverPanelSection, { props: { attrs: { variant } }, global: { stubs } });
     for (const label of labels) expect(w.text().toLowerCase(), label).toContain(label.toLowerCase());
-    if (variant === "part") expect(w.text()).not.toContain("Background art");
-  });
-
-  // Fails on: the darken-behind-the-title option showing on a cover with no art, or on a cover that is not the front.
-  it("offers Darken behind the title only on a front cover that has art", async () => {
-    const bare = mount(CoverPanelSection, { props: { attrs: { variant: "front", backgroundImage: "" } }, global: { stubs } });
-    expect(bare.text()).not.toContain("Darken behind the title");
-    const inside = mount(CoverPanelSection, { props: { attrs: { variant: "inside", backgroundImage: "a.webp" } }, global: { stubs } });
-    expect(inside.text()).not.toContain("Darken behind the title");
-    const front = mount(CoverPanelSection, { props: { attrs: { variant: "front", backgroundImage: "a.webp", titleScrim: true } }, global: { stubs } });
-    await front.find('input[type="checkbox"]').setValue(false);
-    expect(front.emitted("update")).toEqual([[{ titleScrim: false }]]);
   });
 
   it("writes back-cover blurbs from their text areas", async () => {
@@ -159,7 +201,7 @@ describe("EmbedPanelSection", () => {
   // Fails on: a hover-toolbar option lost in the move to the panel.
   it("a monster has every control the entry's toolbar had", () => {
     const w = embed({ entityType: "monster" });
-    for (const label of ["Auto", "Column", "Wide", "Cutout", "Picture", "Top", "Bottom", "Open", "Detach…"]) expect(buttons(w, label).length, label).toBeGreaterThan(0);
+    for (const label of ["Auto", "One column", "Full width", "Cutout", "Picture", "Top", "Bottom", "Open", "Detach…"]) expect(buttons(w, label).length, label).toBeGreaterThan(0);
     for (const label of ["Show the art", "Show the lore", "Starts a new page"]) expect(w.text(), label).toContain(label);
     expect(w.findComponent({ name: "EmbedRevealControl" }).exists()).toBe(true);
   });
@@ -168,10 +210,10 @@ describe("EmbedPanelSection", () => {
   it("shows only the controls an entity type has", () => {
     const npc = embed({ entityType: "npc" });
     expect(npc.text()).not.toContain("Show the lore");
-    expect(buttons(npc, "Wide")).toHaveLength(1);
+    expect(buttons(npc, "Full width")).toHaveLength(1);
     const spell = embed({ entityType: "spell" });
     expect(spell.text()).not.toContain("Show the art");
-    expect(buttons(spell, "Wide")).toHaveLength(0);
+    expect(buttons(spell, "Full width")).toHaveLength(0);
     const deity = embed({ entityType: "deity" });
     expect(deity.text()).toContain("Show the art");
     expect(buttons(deity, "Cutout")).toHaveLength(0);

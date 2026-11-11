@@ -76,14 +76,14 @@
           :furniture="furniture"
           :pictures="pictures"
           :context="pageContext"
-          :can-edit-picture="selectedImageIsSupabase"
+          :can-edit-picture="canEditPicture"
           :closable="!wide"
           @close="closePanel"
           @open-settings="emit('openSettings')"
           @add-furniture="emit('addFurniture', $event)"
           @update-item="updateItem"
           @select-furniture="emit('update:selectedFurnitureId', $event)"
-          @edit-picture="editInIlluminator"
+          @edit-picture="openWorkbench"
         />
       </aside>
     </div>
@@ -113,6 +113,17 @@
         showArtPicker = true;
       "
       @add-furniture="emit('addFurniture', $event)"
+    />
+    <!-- The Illuminator over the book: Done returns to this page, Cancel drops what was done in it. -->
+    <IlluminatorWorkbench
+      v-if="workbench"
+      :original="workbench.original"
+      :settings="workbench.settings"
+      :name="workbench.name"
+      :page-label="workbench.pageLabel"
+      :user-id="currentUserId()"
+      @done="onWorkbenchDone"
+      @cancel="workbench = null"
     />
     <ArtPickerModal
       :show="showArtPicker"
@@ -149,11 +160,12 @@ import { useFurnitureEditing } from "@/scriptorium/composables/useFurnitureEditi
 import { useEditorPictures } from "@/scriptorium/composables/useEditorPictures";
 import { selectionKey, useScriptoriumSelection } from "@/scriptorium/composables/useScriptoriumSelection";
 import type { PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
+import IlluminatorWorkbench from "@/scriptorium/illuminator/components/IlluminatorWorkbench.vue";
 import EditorFurnitureLayer from "@/scriptorium/components/EditorFurnitureLayer.vue";
 import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
 import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
 import { useSaveChapter } from "@/scriptorium/composables/useScriptoriumChapters";
-import { useScriptoriumIlluminator } from "@/scriptorium/composables/useScriptoriumIlluminator";
+import { usePictureEditing } from "@/scriptorium/composables/usePictureEditing";
 import { cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
 import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
@@ -437,12 +449,6 @@ function onFurnitureMoved(pages: number[]) {
 }
 onUnmounted(() => clearTimeout(noticeTimer));
 
-const { selectedImageIsSupabase, editInIlluminator } = useScriptoriumIlluminator(
-  editor,
-  computed(() => documentId),
-  computed(() => chapter.id),
-);
-
 // ── The panel beside the page (#1176) ───────────────────────────────────────
 const rootRef = ref<HTMLElement | null>(null);
 const { selection, version: selectionVersion } = useScriptoriumSelection({
@@ -459,6 +465,18 @@ const pictures = useEditorPictures({
   furniture: () => furniture,
   setFurniture: (items) => emit("update:furniture", items),
   select: (id) => emit("update:selectedFurnitureId", id),
+  sheet: () => sheetRef.value,
+});
+
+// ── The Illuminator in the book (#1176 story 9b) ────────────────────────────
+const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId } = usePictureEditing({
+  editor,
+  selection,
+  version: selectionVersion,
+  pictures,
+  furniture: () => furniture,
+  setFurniture: (items) => emit("update:furniture", items),
+  firstPageLabel: () => pageContext.firstPageLabel,
   sheet: () => sheetRef.value,
 });
 function updateItem(item: PageFurnitureItem) {

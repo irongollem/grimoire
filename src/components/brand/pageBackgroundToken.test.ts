@@ -38,7 +38,7 @@ const ALLOWED: Record<string, string> = {
   "src/views/locations/PlaceMapEditorView.vue": "Edit map replaces the app shell (editorFocus, #1125): its loading and missing states are the page",
   "src/components/locations/map/PlaceMapSimpleEditor.vue": "a town's Edit map replaces the app shell (editorFocus, #1125): it is the page",
   "src/views/bookNook/BookNookStudioView.vue": "the Book Nook studio replaces the app shell (editorFocus, #1142): it and its loading and missing states are the page",
-  "src/scriptorium/components/ScriptoriumPreviewPane.vue": "Read as spreads is a fixed inset-0 full-screen page over everything",
+  "src/scriptorium/components/ScriptoriumPreviewPane.vue": "Read as spreads is a fixed inset-0 full-screen page over everything", "src/scriptorium/illuminator/components/IlluminatorWorkbench.vue": "the Illuminator workbench is a fixed inset-0 full-screen page over the book",
   "src/components/locations/atlas/AtlasMapZoom.vue": "opaque absolute inset-0 layer that replaces the map pane",
   "src/components/common/controls/fieldVariants.ts": "tone.default is the field-on-a-page recipe; Vellum overrides it",
 };

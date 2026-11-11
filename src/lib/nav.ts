@@ -15,7 +15,6 @@ import {
   IconNavSessions,
   IconNavHeroes,
   IconNavBookNook,
-  IconNavIlluminator,
   IconNavInterlude,
   IconNavItemVault,
   IconNavMint,
@@ -349,13 +348,6 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Forge 3D minis from portraits",
         requiresCampaign: true,
         featureFlag: "simulacrum",
-      },
-      {
-        label: "Illuminator",
-        desktopOnly: true,
-        to: "/illuminate",
-        icon: IconNavIlluminator,
-        description: "Apply torn-edge effects to images",
       },
       {
         label: "Book Nook",

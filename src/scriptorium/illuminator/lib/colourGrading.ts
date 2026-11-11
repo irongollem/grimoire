@@ -31,6 +31,7 @@ export const GRADING_PRESETS: Array<{ label: string; values: ColourGradingOption
   { label: "Sepia",   values: { brightness: -0.05, contrast: -0.1,  saturation: -0.7, temperature:  0.35, hue:  0 } },
   { label: "Moonlit", values: { brightness: -0.1,  contrast:  0.1,  saturation: -0.4, temperature: -0.4,  hue: 10 } },
   { label: "Vivid",   values: { brightness:  0.05, contrast:  0.15, saturation:  0.4, temperature:  0.1,  hue:  0 } },
+  { label: "Ink sketch", values: { brightness:  0.08, contrast:  0.45, saturation: -1,   temperature:  0.05, hue:  0 } },
 ];
 
 // ─── HSL ↔ RGB helpers ───────────────────────────────────────────────────────

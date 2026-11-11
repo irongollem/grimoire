@@ -180,3 +180,37 @@ describe("replacing a picture", () => {
     expect(ed.getJSON().content?.[1]?.attrs).toMatchObject({ src: "new.webp", original: null, bakedFor: null });
   });
 });
+
+describe("treating a picture", () => {
+  const edit = { v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/m.png" }] };
+
+  // Fails on: an edit to art on the page writing a recipe object into props, which are strings and numbers only.
+  it("stores a recipe on art as JSON text and leaves the rest of the art alone", () => {
+    const { state, pictures } = setup([art({ props: { src: "a.webp", opacity: 40 } })]);
+    pictures.treat({ source: "furniture", id: "f1" }, { original: "a.webp", illuminate: edit as never });
+    expect(state.furniture[0].props).toEqual({ src: "a.webp", opacity: 40, original: "a.webp", illuminate: JSON.stringify(edit) });
+  });
+
+  // Fails on: Reset on art leaving the old bake as the picture, or leaving a null recipe key behind.
+  it("puts the original back on art and drops its recipe", () => {
+    const { state, pictures } = setup([art()]);
+    pictures.treat({ source: "furniture", id: "f1" }, { original: null, illuminate: null, bakedFor: null, src: "o.webp" });
+    expect(state.furniture[0].props).toEqual({ src: "o.webp" });
+  });
+
+  // Fails on: a picture in the text being treated by a write that is not one undo step, so Undo skips over the edit.
+  it("writes an image node's recipe and reads it back, in one transaction", () => {
+    const { ed, pictures } = setup([], [para("b1", "One"), { type: "image", attrs: { src: "p.webp" } }]);
+    const pos = ed.state.doc.child(0).nodeSize;
+    pictures.treat({ source: "node", pos }, { original: "p.webp", illuminate: edit as never });
+    expect(pictures.valuesOf({ source: "node", pos })).toMatchObject({ src: "p.webp", original: "p.webp", illuminate: edit });
+    ed.commands.undo();
+    expect(pictures.valuesOf({ source: "node", pos })).toMatchObject({ original: null, illuminate: null });
+  });
+
+  it("has no values for a target that is gone", () => {
+    const { pictures } = setup([]);
+    expect(pictures.valuesOf({ source: "furniture", id: "nope" })).toBeNull();
+    expect(pictures.valuesOf({ source: "node", pos: 0 })).toBeNull();
+  });
+});

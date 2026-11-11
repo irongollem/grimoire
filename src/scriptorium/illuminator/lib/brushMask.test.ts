@@ -386,3 +386,15 @@ describe("createBrushMaskController — applyToCtx", () => {
     expect(target.opHistory).toEqual(["destination-out", "multiply"]);
   });
 });
+
+describe("createBrushMaskController — loadMask", () => {
+  // Fails on: reopening a picture whose mask was saved, then saving again with no stroke: the mask would be
+  // dropped because the controller thinks nothing was ever painted.
+  it("counts a loaded mask as strokes and has nothing to undo", () => {
+    const controller = makeController();
+    expect(controller.hasStrokes).toBe(false);
+    controller.loadMask(document.createElement("canvas"));
+    expect(controller.hasStrokes).toBe(true);
+    expect(controller.undo()).toBe(false);
+  });
+});

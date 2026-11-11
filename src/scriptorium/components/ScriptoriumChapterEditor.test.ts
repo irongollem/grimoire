@@ -15,11 +15,10 @@ vi.mock("@/scriptorium/composables/useScriptoriumChapters", () => ({
 }));
 vi.mock("@/composables/useImageUpload", () => ({
   cleanupRemovedRichTextImages: (...args: unknown[]) => mocks.cleanup(...args),
+  ASSET_IMAGES_BUCKET: "asset-images",
+  removeStorageImages: vi.fn(),
 }));
-vi.mock("@/scriptorium/composables/useScriptoriumIlluminator", async () => {
-  const { ref } = await import("vue");
-  return { useScriptoriumIlluminator: () => ({ selectedImageIsSupabase: ref(false), editInIlluminator: vi.fn() }) };
-});
+vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
 vi.mock("@/ai/useTextEnhancement", async () => {
   const { ref } = await import("vue");
   return { useEnhanceAvailable: () => ref(false) };

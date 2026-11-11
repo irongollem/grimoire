@@ -56,6 +56,9 @@
       <p class="text-caption italic text-muted-foreground">Drag the picture on the page to move it; drag its corner to resize.</p>
     </PanelSection>
 
+    <!-- Quick edits: the picture's recipe, written where the picture sits (frame 11). -->
+    <PictureEditSection v-if="canEdit && values" :values="values" @patch="onTreatment" @workbench="emit('edit')" />
+
     <PanelSection>
       <div class="flex flex-wrap gap-2">
         <AppButton variant="subtle" size="sm" :icon="IconLibrary" label="Replace…" @click="emit('pick')" />
@@ -63,10 +66,10 @@
         <AppButton
           variant="subtle"
           size="sm"
-          :icon="IconExternalLink"
+          :icon="IconBrush"
           label="Edit picture…"
           :disabled="!canEdit"
-          :tooltip="canEdit ? 'Open it in the Illuminator' : editHint"
+          :tooltip="canEdit ? 'Open the Illuminator over the book' : editHint"
           @click="emit('edit')"
         />
       </div>
@@ -97,13 +100,15 @@ import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import PanelField from "@/scriptorium/components/panel/PanelField.vue";
 import PanelRange from "@/scriptorium/components/panel/PanelRange.vue";
 import PanelSection from "@/scriptorium/components/panel/PanelSection.vue";
+import PictureEditSection from "@/scriptorium/components/panel/PictureEditSection.vue";
 import PlacementFields from "@/scriptorium/components/panel/PlacementFields.vue";
 import { IMAGE_SIZES } from "@/scriptorium/lib/editorConstants";
 import { DEFAULT_UNDER_ART_OPACITY } from "@/scriptorium/lib/furniture/renderFurniture";
+import { mergeTreatmentPatch, type TreatmentPatch } from "@/scriptorium/lib/panel/pictureTreatment";
 import { numProp } from "@/scriptorium/lib/panel/propReaders";
 import type { AnchorState } from "@/scriptorium/composables/useEditorPictures";
 import type { PageFurnitureItem } from "@/scriptorium/types";
-import { IconAddImage, IconDelete, IconExternalLink, IconLibrary } from "@/lib/icons";
+import { IconAddImage, IconBrush, IconDelete, IconLibrary } from "@/lib/icons";
 
 export type PictureLayer = "under" | "over" | "text";
 
@@ -134,6 +139,15 @@ const emit = defineEmits<{
 }>();
 
 const showUpload = ref(false);
+
+/** The picture's own values, whichever home it is in: what the quick edits read. */
+const values = computed<Record<string, unknown> | null>(() => nodeAttrs ?? item?.props ?? null);
+
+/** A quick edit is written to the image node as attrs, or to the art item as props. */
+function onTreatment(patch: TreatmentPatch) {
+  if (nodeAttrs) emit("nodeAttrs", patch);
+  else if (item) emit("item", { props: mergeTreatmentPatch(item.props, patch) as PageFurnitureItem["props"] });
+}
 function onUploaded(src: string | null) {
   if (!src) return;
   showUpload.value = false;
