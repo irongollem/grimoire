@@ -1602,18 +1602,30 @@
 }
 
 /* ── Book paper (#1176) ────────────────────────────────────────────────────
-   A book's own paper, laid over its look's: `sc-paper--grey|white|parchment`
-   sits on the same `.sc-theme` element as the look (bookSurfaceClasses). Each
-   one sets the colour token every page painter already reads and a faint
-   grain, drawn as two inline SVG noise tiles (a fine tooth and a soft mottle)
-   so the PDF renderer, which loads nothing but the HTML it is sent, paints it
-   too. The class is never added in ink-friendly mode, which prints plain
-   white. A grain tile is an `feTurbulence` filter: low alpha, no image file. */
+   A book's own paper, laid over its look's: `sc-paper--<tone>` sits on the
+   same `.sc-theme` element as the look (bookSurfaceClasses). Each one sets the
+   colour token every page painter already reads and its grain. The two greys
+   are the maintainer's own handmade paper scans, tileable, at
+   /assets/scriptorium/paper/ (kept out of the art manifest for the same reason
+   as page-background.webp above: the PDF export inlines this literal path as a
+   data: URI, so the path must never move). White and parchment keep a faint
+   grain drawn as inline SVG noise. The class is never added in ink-friendly
+   mode, which prints plain white. */
+/* The scans are dark and strong on their own; a pale veil over them keeps their
+   fibres and lifts the sheet to the light grey of a printed supplement page
+   (the maintainer's references sit around #dcdad5). The token is the result's
+   average, for anything that paints the bare colour. */
 .sc-paper--grey {
-  --sc-page-bg: #e9e8e3;
+  --sc-page-bg: #dbd9d4;
   --sc-paper-grain:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='t'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .3 0 0 0 0 .32 0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23t)'/></svg>") 0 0 / 200px 200px repeat,
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='.006 .009' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .42 0 0 0 0 .43 0 0 0 0 .45 0 0 0 .3 -.08'/></filter><rect width='100%' height='100%' filter='url(%23m)'/></svg>") 0 0 / 800px 800px repeat;
+    linear-gradient(rgb(244 243 239 / 0.62), rgb(244 243 239 / 0.62)),
+    url("/assets/scriptorium/paper/grey.webp") 0 0 / 627px 627px repeat;
+}
+.sc-paper--warm-grey {
+  --sc-page-bg: #dad5cd;
+  --sc-paper-grain:
+    linear-gradient(rgb(245 241 233 / 0.6), rgb(245 241 233 / 0.6)),
+    url("/assets/scriptorium/paper/warm-grey.webp") 0 0 / 627px 627px repeat;
 }
 .sc-paper--white {
   --sc-page-bg: #fbfaf6;
@@ -1630,15 +1642,19 @@
    and print), the bare sheet and the reader's surface. These replace the look's
    texture image: the paper is the book's own choice. */
 .phb-editor.sc-paper--grey .ProseMirror,
+.phb-editor.sc-paper--warm-grey .ProseMirror,
 .phb-editor.sc-paper--white .ProseMirror,
 .phb-editor.sc-paper--parchment .ProseMirror,
 .sc-paper--grey .pagedjs_page,
+.sc-paper--warm-grey .pagedjs_page,
 .sc-paper--white .pagedjs_page,
 .sc-paper--parchment .pagedjs_page,
 .sc-paper--grey .phb-page,
+.sc-paper--warm-grey .phb-page,
 .sc-paper--white .phb-page,
 .sc-paper--parchment .phb-page,
 .sc-paper-surface.sc-paper--grey,
+.sc-paper-surface.sc-paper--warm-grey,
 .sc-paper-surface.sc-paper--white,
 .sc-paper-surface.sc-paper--parchment {
   background: var(--sc-paper-grain), var(--sc-page-bg);

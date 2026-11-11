@@ -1,7 +1,7 @@
 -- A book's paper and its footer style (#1176, the fishing-supplement pages).
 --
 -- `paper_tone` lays a book on a paper of its own instead of the look's: grey
--- (a cool stone-grey sheet, the page the maintainer asked for), white, or
+-- or warm grey (the maintainer's own handmade paper scans), white, or
 -- parchment. Null is the look's own paper. A handout's paper is its theme, so
 -- only books offer it.
 --
@@ -14,7 +14,7 @@
 
 alter table public.scriptorium_documents
   add column paper_tone text
-    constraint scriptorium_documents_paper_tone_check check (paper_tone in ('grey', 'white', 'parchment')),
+    constraint scriptorium_documents_paper_tone_check check (paper_tone in ('grey', 'warm-grey', 'white', 'parchment')),
   add column footer_style text not null default 'plain'
     constraint scriptorium_documents_footer_style_check check (footer_style in ('plain', 'ribbon'));
 

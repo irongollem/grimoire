@@ -34,7 +34,7 @@ export type ScriptoriumPageSize = "A4" | "A5" | "Letter";
  */
 export type ScriptoriumFooterTitle = "chapter" | "book" | "custom";
 /** A book's own paper, laid over its look's; null (the column's default) is the look's own. */
-export type ScriptoriumPaperTone = "grey" | "white" | "parchment";
+export type ScriptoriumPaperTone = "grey" | "warm-grey" | "white" | "parchment";
 /** How the running title is set at the foot of the page. */
 export type ScriptoriumFooterStyle = "plain" | "ribbon";
 

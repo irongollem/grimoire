@@ -100,7 +100,7 @@ describe("bookSurfaceClasses", () => {
   });
 
   it("round-trips the paper choice through the control's values, null being the look's own", () => {
-    expect(PAPER_CHOICES.map((c) => paperToneFromChoice(c.value))).toEqual([null, "grey", "white", "parchment"]);
+    expect(PAPER_CHOICES.map((c) => paperToneFromChoice(c.value))).toEqual([null, "grey", "warm-grey", "white", "parchment"]);
   });
 
   it("has CSS for every paper and for the ribbon, each look carrying its ribbon colours", () => {

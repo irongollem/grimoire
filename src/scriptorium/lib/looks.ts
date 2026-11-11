@@ -46,9 +46,10 @@ const LOOKS: Record<ScriptoriumTheme, ScriptoriumLook> = {
 export const PAPERS: readonly ScriptoriumPaper[] = ["letter", "notice", "journal", "plain"];
 
 /** The book paper choices, in the order Book settings shows them. */
-export const PAPER_TONES: readonly ScriptoriumPaperTone[] = ["grey", "white", "parchment"];
+export const PAPER_TONES: readonly ScriptoriumPaperTone[] = ["grey", "warm-grey", "white", "parchment"];
 export const PAPER_TONE_LABELS: Record<ScriptoriumPaperTone, string> = {
   grey: "Grey",
+  "warm-grey": "Warm grey",
   white: "White",
   parchment: "Parchment",
 };
