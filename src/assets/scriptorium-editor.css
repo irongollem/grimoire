@@ -340,3 +340,56 @@
   pointer-events: none;
   z-index: 2;
 }
+
+/* A picture behind the text, under the pointer: a faint dashed outline and a
+   handle above the words, since text may cover all of it (#1175). */
+.sc-editor-hover {
+  outline: 1px dashed oklch(0.6 0.2 250 / 0.55);
+  outline-offset: 0;
+}
+.sc-editor-hover-handle {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.4rem;
+  border: 1px solid oklch(0.6 0.2 250 / 0.6);
+  border-radius: 9999px;
+  background: oklch(0.99 0.005 250 / 0.92);
+  color: oklch(0.4 0.15 250);
+  font: 600 0.6875rem / 1 system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  cursor: move;
+  pointer-events: auto;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* The selected picture behind the text: a solid frame (dashed when pinned to a
+   corner) above the words, and a knob in the corner it resizes from. */
+.sc-editor-hover--selected {
+  outline: 2px solid oklch(0.6 0.2 250);
+}
+.sc-editor-hover--pinned {
+  outline-style: dashed;
+}
+.sc-editor-hover-knob {
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid oklch(0.6 0.2 250);
+  border-radius: 0.15rem;
+  background: oklch(0.99 0.005 250);
+  pointer-events: auto;
+  touch-action: none;
+}
+.sc-editor-hover-knob--bottom-right { right: 0; bottom: 0; cursor: nwse-resize; }
+.sc-editor-hover-knob--top-left { left: 0; top: 0; cursor: nwse-resize; }
+.sc-editor-hover-knob--bottom-left { left: 0; bottom: 0; cursor: nesw-resize; }
+.sc-editor-hover-knob--top-right { right: 0; top: 0; cursor: nesw-resize; }
+.sc-editor-hover--pill-low .sc-editor-hover-handle {
+  top: auto;
+  bottom: 0.25rem;
+}

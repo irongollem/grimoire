@@ -27,6 +27,8 @@
           class="relative origin-top-left"
           :style="{ width: `${geometry.width}px`, transform: `scale(${sheetScale})` }"
           :data-scale="sheetScale"
+          @pointermove="onSheetPointerMove"
+          @pointerleave="onSheetPointerLeave"
         >
           <EditorContent
             :editor="editor"
@@ -39,6 +41,7 @@
             data-testid="chapter-editor"
           />
           <EditorFurnitureLayer
+            ref="furnitureLayerRef"
             :editor="editor"
             :chapter-id="chapter.id"
             :furniture="furniture"
@@ -349,15 +352,43 @@ const sheetGeometry = computed(() => ({
 
 // Drag, resize and select furniture on the sheet. The container is the whole
 // sheet, so a click anywhere outside an item (the text) deselects.
+const furnitureLayerRef = ref<InstanceType<typeof EditorFurnitureLayer> | null>(null);
 useFurnitureEditing({
   container: sheetRef,
   enabled: () => flow !== null,
+  // Pictures behind the text: a press where there is no text, or on the hover handle.
+  hitTest: (e) => furnitureLayerRef.value?.hitTest(e) ?? null,
   items: () => furniture,
   onChange: (items) => emit("update:furniture", items),
   onSelect: (id) => {
     if (id !== selectedFurnitureId) emit("update:selectedFurnitureId", id);
   },
 });
+
+// Hover over the sheet: the handle for a picture behind the text, and a move
+// cursor where a press would pick one. At most once per animation frame.
+let hoverFrame = 0;
+let hoverPoint: { x: number; y: number } | null = null;
+function onSheetPointerMove(e: PointerEvent) {
+  if (flow === null || e.buttons !== 0) return;
+  hoverPoint = { x: e.clientX, y: e.clientY };
+  if (hoverFrame) return;
+  hoverFrame = requestAnimationFrame(() => {
+    hoverFrame = 0;
+    const sheet = sheetRef.value;
+    const point = hoverPoint;
+    if (!sheet || !point) return;
+    sheet.style.cursor = furnitureLayerRef.value?.hover(point) ? "move" : "";
+  });
+}
+function onSheetPointerLeave() {
+  cancelAnimationFrame(hoverFrame);
+  hoverFrame = 0;
+  hoverPoint = null;
+  furnitureLayerRef.value?.clearHover();
+  if (sheetRef.value) sheetRef.value.style.cursor = "";
+}
+onUnmounted(() => cancelAnimationFrame(hoverFrame));
 
 /**
  * Turn the selected picture into art placed on its page: same place, same

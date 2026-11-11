@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { renderFurniture, buildFurnitureElement } from "./renderFurniture";
+import { renderFurniture, buildFurnitureElement, furniturePlacement } from "./renderFurniture";
 import { createFurnitureItem } from "./model";
 import { WATERCOLOR_ASSETS } from "@/data/watercolorAssets";
 
@@ -181,5 +181,37 @@ describe("renderFurniture", () => {
   it("no-ops when there are no pages", () => {
     const c = document.createElement("div");
     expect(() => renderFurniture(c, [createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 })])).not.toThrow();
+  });
+});
+
+describe("corner-pinned art", () => {
+  const anchor = { type: "page", chapterId: "c1", page: 1 } as const;
+
+  it("a bottom-right corner item is placed from right and bottom, so widening it grows it leftwards and upwards", () => {
+    const item = { ...createFurnitureItem("art", anchor, { x: 0, y: 0, width: 30 }), corner: "bottom-right" as const };
+    const el = buildFurnitureElement(item);
+    expect([el.style.right, el.style.bottom, el.style.left, el.style.top]).toEqual(["0%", "0%", "", ""]);
+  });
+
+  it("a top-left corner item keeps left/top, and a watercolour is cornered too", () => {
+    const item = { ...createFurnitureItem("watercolor", anchor, { x: 2, y: 3 }), corner: "top-left" as const };
+    const el = buildFurnitureElement(item);
+    expect([el.style.left, el.style.top, el.style.right]).toEqual(["2%", "3%", ""]);
+  });
+
+  it("a watermark ignores the corner", () => {
+    const item = { ...createFurnitureItem("watermark", anchor), corner: "top-right" as const };
+    expect(buildFurnitureElement(item).style.right).toBe("");
+  });
+
+  it("finds the page an item is drawn on and the first block on the preview's copy of it", () => {
+    const root = makeContainer(2, "blk", 2);
+    renderFurniture(root, [createFurnitureItem("art", { type: "page", chapterId: "c1", page: 2 })]);
+    const id = root.querySelector<HTMLElement>("[data-furniture-id]")!.dataset.furnitureId!;
+    expect(furniturePlacement(id, root)).toEqual({ chapterId: "c1", page: 2, firstBlockId: "blk", heightPct: null });
+  });
+
+  it("answers null when nothing is laid out, so the inspector can disable its controls", () => {
+    expect(furniturePlacement("nope", document.createElement("div"))).toBeNull();
   });
 });

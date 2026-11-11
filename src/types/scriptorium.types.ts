@@ -40,6 +40,9 @@ export type FurnitureAnchor =
   | { type: "page"; chapterId: string; page: number } // 1-based page WITHIN the chapter
   | { type: "block"; blockId: string }; // page that contains this block
 
+/** A page corner a picture can be pinned to, flush against both paper edges. */
+export type FurnitureCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
 export interface PageFurnitureItem {
   id: string;
   kind: FurnitureKind;
@@ -48,6 +51,13 @@ export interface PageFurnitureItem {
   x: number; // left, % of page width
   y: number; // top, % of page height
   width: number; // % of page width
+  /**
+   * Art and watercolour only. When set, `x` is the inset from this corner's
+   * vertical paper edge and `y` from its horizontal one (both % of the page,
+   * 0/0 = flush against both), so widening the item grows it away from the
+   * corner. Absent = free placement from the top-left.
+   */
+  corner?: FurnitureCorner;
   /** Behind the text (under) or above it (over). */
   z: "under" | "over";
   /** Kind-specific data: variant, color, opacity, text, rotation, src, position… */

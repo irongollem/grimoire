@@ -243,3 +243,115 @@ describe("useFurnitureEditing", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 });
+
+describe("useFurnitureEditing corners", () => {
+  // Box 200x200; the target is 60x40 px = 30% x 20% of it.
+  function cornerDom() {
+    const d = buildDom();
+    stubRect(d.target, { left: 70, top: 80, right: 130, bottom: 120, width: 60, height: 40 });
+    d.page.dataset.chapterId = "c1";
+    d.page.dataset.chapterPage = "3";
+    return d;
+  }
+
+  it("snapping into a corner pins a block-anchored item to its page", async () => {
+    const { container, page, target } = cornerDom();
+    items = [item({ x: 20, y: 20, width: 30, anchor: { type: "block", blockId: "b1" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    // start in the middle (outside the resize zone), pull flush to the top-left
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointermove", 75 - 40, 85 - 40);
+    dispatchPointer(window, "pointerup", 75 - 40, 85 - 40);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(moved).toMatchObject({ corner: "top-left", x: 0, y: 0, anchor: { type: "page", chapterId: "c1", page: 3 } });
+    expect(page.isConnected).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("keeps the anchor when the page carries no chapter attributes", async () => {
+    const { container, page, target } = cornerDom();
+    delete page.dataset.chapterId;
+    delete page.dataset.chapterPage;
+    items = [item({ x: 20, y: 20, width: 30, anchor: { type: "block", blockId: "b1" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointerup", 35, 45);
+    expect((onChange.mock.calls[0][0] as PageFurnitureItem[])[0].anchor).toEqual({ type: "block", blockId: "b1" });
+    wrapper.unmount();
+  });
+
+  it("shows the snap on the element while dragging and frees it when pulled past the threshold", async () => {
+    const { container, target } = cornerDom();
+    items = [item({ x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointermove", 35, 45);
+    expect(target.classList.contains("sc-furniture--snapped")).toBe(true);
+    expect([target.style.left, target.style.top]).toEqual(["0%", "0%"]);
+    dispatchPointer(window, "pointermove", 55, 65); // 10% away: free again
+    expect(target.classList.contains("sc-furniture--snapped")).toBe(false);
+    dispatchPointer(window, "pointerup", 55, 65);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect("corner" in moved).toBe(false);
+    expect([moved.x, moved.y]).toEqual([10, 10]);
+    wrapper.unmount();
+  });
+
+  it("a cornered item dragged out of its corner gets left/top coordinates from where it is", async () => {
+    const { container, target } = cornerDom();
+    // bottom-right pin: drawn at left = 100-30-0 = 70%, top = 100-20-0 = 80%
+    items = [item({ corner: "bottom-right", x: 0, y: 0, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 100, 100); // middle: not the inner (top-left) corner
+    dispatchPointer(window, "pointerup", 80, 80); // -10% each way
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect("corner" in moved).toBe(false);
+    expect([moved.x, moved.y]).toEqual([60, 70]);
+    wrapper.unmount();
+  });
+
+  it("resizes a cornered item from the inner corner, with the delta flipped so the pinned corner stays put", async () => {
+    const { container, target } = cornerDom();
+    items = [item({ corner: "bottom-right", x: 0, y: 0, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 71, 81); // top-left of the item: the inner corner
+    dispatchPointer(window, "pointermove", 51, 81); // pulled 20px (10%) left: wider
+    expect(target.style.width).toBe("40%");
+    dispatchPointer(window, "pointerup", 51, 81);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect([moved.width, moved.corner, moved.x, moved.y]).toEqual([40, "bottom-right", 0, 0]);
+    wrapper.unmount();
+  });
+
+  it("a drag re-finds its element after a redraw replaced it", async () => {
+    const { container, page, target } = cornerDom();
+    items = [item({ x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    const fresh = document.createElement("div");
+    fresh.dataset.furnitureId = "f1";
+    target.replaceWith(fresh);
+    dispatchPointer(window, "pointermove", 95, 85); // +10%
+    expect(fresh.style.left).toBe("30%");
+    expect(page.contains(fresh)).toBe(true);
+    dispatchPointer(window, "pointerup", 95, 85);
+    wrapper.unmount();
+  });
+
+  it("never snaps a watermark", async () => {
+    const { container, target } = cornerDom();
+    items = [item({ kind: "watermark", x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointerup", 35, 45);
+    expect("corner" in (onChange.mock.calls[0][0] as PageFurnitureItem[])[0]).toBe(false);
+    wrapper.unmount();
+  });
+});

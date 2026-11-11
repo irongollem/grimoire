@@ -10,6 +10,7 @@ import type {
   PageFurnitureItem,
   FurnitureKind,
   FurnitureAnchor,
+  FurnitureCorner,
 } from "@/types/scriptorium.types";
 
 /** Sensible position + props defaults per decoration kind. */
@@ -51,6 +52,56 @@ export function createFurnitureItem(
   };
 }
 
+export const FURNITURE_CORNERS: readonly FurnitureCorner[] = ["top-left", "top-right", "bottom-left", "bottom-right"];
+
+/**
+ * How close, in % of the page, a dragged picture's edges must come to a corner
+ * (on both axes) before it snaps flush into it. 2.5% is about 5 mm on an A4
+ * sheet: near enough that a hand aiming for the corner lands in it, far
+ * enough that a picture placed deliberately near a margin is not grabbed.
+ */
+export const SNAP_PCT = 2.5;
+
+/** The corner a box (left/top/width/height, % of the page) is within SNAP_PCT of on both axes, or null. */
+export function snapCorner(left: number, top: number, width: number, height: number): FurnitureCorner | null {
+  const nearLeft = left <= SNAP_PCT;
+  const nearRight = 100 - (left + width) <= SNAP_PCT;
+  const nearTop = top <= SNAP_PCT;
+  const nearBottom = 100 - (top + height) <= SNAP_PCT;
+  if (nearTop && nearLeft) return "top-left";
+  if (nearTop && nearRight) return "top-right";
+  if (nearBottom && nearLeft) return "bottom-left";
+  if (nearBottom && nearRight) return "bottom-right";
+  return null;
+}
+
+/**
+ * The left/top coordinates an item has where it is drawn, wherever it is
+ * pinned. A bottom-corner inset needs the item's drawn height as a % of the
+ * page (`heightPct`), which only a laid-out page can give: without it the
+ * answer is null rather than a guess. The width is the item's own, unless the
+ * caller measured it (`widthPct`).
+ */
+export function freeCoordinates(
+  item: PageFurnitureItem,
+  heightPct: number | null,
+  widthPct: number = item.width,
+): { x: number; y: number } | null {
+  const c = item.corner;
+  if (!c) return { x: item.x, y: item.y };
+  if (c.startsWith("bottom") && heightPct === null) return null;
+  const round = (v: number) => Math.max(0, Math.min(100, Math.round(v * 10) / 10));
+  return {
+    x: round(c.endsWith("right") ? 100 - widthPct - item.x : item.x),
+    y: round(c.startsWith("bottom") && heightPct !== null ? 100 - heightPct - item.y : item.y),
+  };
+}
+
+/** Only these kinds can be pinned to a corner; a watermark and an artist credit place themselves. */
+export function canPinToCorner(kind: FurnitureKind): boolean {
+  return kind === "art" || kind === "watercolor";
+}
+
 const KINDS: FurnitureKind[] = ["watercolor", "watermark", "artistCredit", "art"];
 
 function isValidAnchor(a: unknown): a is FurnitureAnchor {
@@ -75,6 +126,7 @@ export function parsePageFurniture(raw: unknown): PageFurnitureItem[] {
     if (typeof o.id !== "string") continue;
     if (!KINDS.includes(o.kind as FurnitureKind)) continue;
     if (!isValidAnchor(o.anchor)) continue;
+    const corner = FURNITURE_CORNERS.find((c) => c === o.corner);
     out.push({
       id: o.id,
       kind: o.kind as FurnitureKind,
@@ -82,6 +134,7 @@ export function parsePageFurniture(raw: unknown): PageFurnitureItem[] {
       x: typeof o.x === "number" ? o.x : 0,
       y: typeof o.y === "number" ? o.y : 0,
       width: typeof o.width === "number" ? o.width : 30,
+      ...(corner ? { corner } : {}),
       z: o.z === "over" ? "over" : "under",
       props: o.props && typeof o.props === "object" ? (o.props as Record<string, string | number>) : {},
     });

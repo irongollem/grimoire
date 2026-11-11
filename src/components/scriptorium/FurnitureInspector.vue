@@ -101,6 +101,27 @@
             @input="patch({ width: Number(($event.target as HTMLInputElement).value) })" />
           <span class="fi-val">{{ Math.round(item.width) }}</span>
         </div>
+        <!-- Pinning: a picture in a page corner hugs both paper edges and stays on that page. -->
+        <template v-if="canPinToCorner(item.kind)">
+          <div class="fi-row items-start">
+            <span class="fi-label mt-1">Place</span>
+            <SegmentedControl
+              :model-value="item.corner ?? 'free'"
+              :options="placeOptions()"
+              size="xs" wrap block class="flex-1"
+              @update:model-value="chooseCorner"
+            />
+          </div>
+          <div class="fi-row items-start">
+            <span class="fi-label mt-1">Stays</span>
+            <SegmentedControl
+              :model-value="item.anchor.type"
+              :options="anchorOptions()"
+              size="xs" wrap block class="flex-1"
+              @update:model-value="chooseAnchor"
+            />
+          </div>
+        </template>
         <div class="fi-row">
           <span class="fi-label">Layer</span>
           <div class="flex gap-1 flex-1">
@@ -142,8 +163,10 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ColorInput from "@/components/common/controls/ColorInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { WATERCOLOR_COUNT } from "@/data/watercolorAssets";
-import { DEFAULT_UNDER_ART_OPACITY } from "@/lib/scriptorium/furniture/renderFurniture";
-import type { PageFurnitureItem } from "@/types/scriptorium.types";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { DEFAULT_UNDER_ART_OPACITY, furniturePlacement } from "@/lib/scriptorium/furniture/renderFurniture";
+import { FURNITURE_CORNERS, canPinToCorner, freeCoordinates } from "@/lib/scriptorium/furniture/model";
+import type { FurnitureAnchor, FurnitureCorner, PageFurnitureItem } from "@/types/scriptorium.types";
 
 const { item } = defineProps<{ item: PageFurnitureItem | null }>();
 
@@ -210,6 +233,86 @@ function str(key: string, fallback = ""): string {
 }
 function clampInt(s: string, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(Number(s) || min)));
+}
+
+const CORNER_LABELS: Record<FurnitureCorner, string> = {
+  "top-left": "Top left",
+  "top-right": "Top right",
+  "bottom-left": "Bottom left",
+  "bottom-right": "Bottom right",
+};
+const PLACE_OPTIONS = [
+  { value: "free", label: "Free" },
+  ...FURNITURE_CORNERS.map((c) => ({ value: c, label: CORNER_LABELS[c] })),
+];
+
+/**
+ * Back to Free keeps a cornered picture where it is drawn. For a bottom corner
+ * that needs its drawn height, which only a laid-out page gives, so without
+ * one Free waits (disabled) rather than moving the picture to a guess.
+ */
+function freeHere(): { x: number; y: number } | null {
+  if (!item) return null;
+  const placement = furniturePlacement(item.id);
+  return freeCoordinates(item, placement ? placement.heightPct : null);
+}
+function placeOptions() {
+  const blocked = !!item?.corner && freeHere() === null;
+  return PLACE_OPTIONS.map((o) => (o.value === "free" && blocked ? { ...o, disabled: true, tooltip: NO_PAGE_REASON } : o));
+}
+const NO_PAGE_REASON = "The page this sits on is not laid out yet.";
+
+/** The page this item is drawn on, as an anchor; null when nothing is laid out. */
+function pageAnchor(): FurnitureAnchor | null {
+  if (!item) return null;
+  const p = furniturePlacement(item.id);
+  return p ? { type: "page", chapterId: p.chapterId, page: p.page } : null;
+}
+
+function chooseCorner(value: string | undefined) {
+  if (!item || !value) return;
+  const corner = FURNITURE_CORNERS.find((c) => c === value);
+  if (!corner) {
+    // Back to free: keep it where it is drawn, as left/top coordinates.
+    const here = freeHere();
+    if (!here) return;
+    const free: PageFurnitureItem = { ...item, ...here };
+    delete free.corner;
+    emit("update", free);
+    return;
+  }
+  // Flush into the corner, on the page it is drawn on now.
+  emit("update", { ...item, corner, x: 0, y: 0, anchor: pageAnchor() ?? item.anchor });
+}
+
+function anchorOptions() {
+  const p = item ? furniturePlacement(item.id) : null;
+  const onPage = item?.anchor.type === "page";
+  return [
+    {
+      value: "block",
+      label: "Moves with its paragraph",
+      disabled: onPage && !p?.firstBlockId,
+      tooltip: onPage && !p?.firstBlockId ? "No paragraph is laid out on this page to follow." : undefined,
+    },
+    {
+      value: "page",
+      label: p ? `Stays on page ${p.page}` : "Stays on its page",
+      disabled: !onPage && !p,
+      tooltip: !onPage && !p ? NO_PAGE_REASON : undefined,
+    },
+  ];
+}
+
+function chooseAnchor(value: string | undefined) {
+  if (!item || !value || value === item.anchor.type) return;
+  if (value === "page") {
+    const anchor = pageAnchor();
+    if (anchor) emit("update", { ...item, anchor });
+    return;
+  }
+  const p = furniturePlacement(item.id);
+  if (p?.firstBlockId) emit("update", { ...item, anchor: { type: "block", blockId: p.firstBlockId } });
 }
 
 function patch(p: Partial<PageFurnitureItem>) {
