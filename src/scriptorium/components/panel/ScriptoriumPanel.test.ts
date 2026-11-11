@@ -99,6 +99,14 @@ describe("ScriptoriumPanel", () => {
     expect(ed.getJSON().content?.[0]?.attrs).toMatchObject({ variant: "front", titlePlace: "top" });
   });
 
+  // Fails on: a divider's style control not reaching the divider node, or going to the paragraph the caret is in.
+  it("writes the divider style into the selected divider", async () => {
+    const { wrapper, ed } = open({ kind: "divider", pos: 0 }, [{ type: "divider", attrs: { variant: "flourish" } }, para("b1")]);
+    expect(wrapper.find("[data-testid=panel-divider]").exists()).toBe(true);
+    await press(wrapper, "Stars");
+    expect(ed.getJSON().content?.[0]?.attrs).toMatchObject({ variant: "stars" });
+  });
+
   // Fails on: Layer doing nothing, or placing the picture in front when Behind was chosen.
   it("moves a picture in the text onto the page at the layer picked", async () => {
     const { wrapper, pictures } = open({ kind: "picture", source: "node", pos: 5 }, [para("b1"), { type: "image", attrs: { src: "p.webp" } }]);

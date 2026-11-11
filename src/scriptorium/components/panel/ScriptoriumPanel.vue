@@ -47,6 +47,8 @@
       @detach="onEmbedSignal(EMBED_DETACH_EVENT)"
     />
 
+    <DividerPanelSection v-else-if="node && selection.kind === 'divider'" :variant="node.attrs.variant" @update="onNodeEdit" />
+
     <ContentsPanelSection v-else-if="selection.kind === 'contents'" />
 
     <BlockPanelSection
@@ -102,6 +104,7 @@ import BlockPanelSection from "@/scriptorium/components/panel/BlockPanelSection.
 import ContentsPanelSection from "@/scriptorium/components/panel/ContentsPanelSection.vue";
 import CoverPanelSection from "@/scriptorium/components/panel/CoverPanelSection.vue";
 import DecorationPanelSection from "@/scriptorium/components/panel/DecorationPanelSection.vue";
+import DividerPanelSection from "@/scriptorium/components/panel/DividerPanelSection.vue";
 import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.vue";
 import FooterPanelSection from "@/scriptorium/components/panel/FooterPanelSection.vue";
 import PagePanelSection from "@/scriptorium/components/panel/PagePanelSection.vue";

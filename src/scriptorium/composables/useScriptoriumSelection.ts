@@ -23,6 +23,7 @@ export type PanelSelection =
   | { kind: "cover"; pos: number }
   | { kind: "embed"; pos: number }
   | { kind: "contents"; pos: number }
+  | { kind: "divider"; pos: number }
   | { kind: "block"; pos: number }
   | { kind: "footer"; page: number };
 
@@ -58,6 +59,7 @@ export function deriveSelection(input: SelectionInputs): PanelSelection {
   if (node?.name === "entityEmbed") return { kind: "embed", pos: node.pos };
   if (node?.name === "coverPage") return { kind: "cover", pos: node.pos };
   if (node?.name === "tocBlock") return { kind: "contents", pos: node.pos };
+  if (node?.name === "divider") return { kind: "divider", pos: node.pos };
   if (node && isKeepable(node.name)) return { kind: "block", pos: node.pos };
   if (input.coverPos !== null) return { kind: "cover", pos: input.coverPos };
   if (input.blockPos !== null) return { kind: "block", pos: input.blockPos };

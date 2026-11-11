@@ -76,6 +76,14 @@ describe("BLOCK_REGISTRY", () => {
     expect(types).not.toContain("horizontalRule");
   });
 
+  it('"Divider" is a kit tile and a rule node, never an hr', () => {
+    const entry = BLOCK_REGISTRY.find((e) => e.label === "Divider")!;
+    expect(KIT_TILE_ORDER).toContain(entry.kit);
+    const editor = makeEditor();
+    entry.action!(editor);
+    expect((editor.getJSON().content ?? []).map((n) => n.type)).not.toContain("horizontalRule");
+  });
+
   // Each menu entry must insert what its label promises. Swapping two actions
   // still yields a valid document, so only the label-to-node pairing catches it.
   it.each([
@@ -84,6 +92,7 @@ describe("BLOCK_REGISTRY", () => {
     ["Part Divider", "coverPage", { variant: "part" }],
     ["Back Cover", "coverPage", { variant: "back" }],
     ["Table of Contents", "tocBlock", undefined],
+    ["Divider", "divider", { variant: "flourish" }],
     ["Note", "noteBlock", undefined],
     ["Wide Block", "wideBlock", undefined],
     ["Callout Box", "blockquote", undefined],

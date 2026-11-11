@@ -35,6 +35,7 @@ import { TocBlock } from "@/scriptorium/tiptap/tocBlock";
 import { CoverPage } from "@/scriptorium/tiptap/coverPage";
 import { BlockId } from "@/scriptorium/tiptap/blockId";
 import { PageBreak, PageBreakKeys } from "@/scriptorium/tiptap/pageBreak";
+import { Divider } from "@/scriptorium/tiptap/divider";
 import { EntityEmbed } from "@/scriptorium/tiptap/entityEmbed";
 import { DropCap } from "@/scriptorium/tiptap/dropCap";
 import { BlockKeep } from "@/scriptorium/tiptap/blockKeep";
@@ -100,6 +101,7 @@ export function createScriptoriumExtensions() {
     PageBreak,
     // Ctrl+Enter starts a new page at the caret.
     PageBreakKeys,
+    Divider,
     EntityEmbed,
     // What Detach leaves behind keeps the entry's look (#1176): its `sc-` classes, spans and picture.
     ...detachedEntryExtensions(),

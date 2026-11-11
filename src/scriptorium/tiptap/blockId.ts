@@ -43,6 +43,7 @@ export const BLOCK_ID_TYPES = [
   "spacerVertical",
   "entityEmbed",
   "classedBlock",
+  "divider",
 ] as const;
 
 /**

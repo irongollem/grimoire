@@ -77,6 +77,7 @@ export const KIT_TILE_ORDER: readonly string[] = [
   "Bright / Deep",
   "Quote",
   "Page break",
+  "Divider",
 ];
 
 /** Controls the display order of groups in the kit and the "/" menu. */
@@ -182,6 +183,16 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     description: "Split the document at this point onto a new page",
     icon: IconMinus,
     action: (editor) => editor.chain().focus().insertPageBreak().run(),
+  },
+  {
+    group: "Layout",
+    label: "Divider",
+    kit: "Divider",
+    blurb: "A rule with a flourish",
+    description:
+      "A fine rule with a small ornament in its middle, for under a chapter's title and subtitle. Pick its style in the panel beside the page.",
+    icon: IconMinus,
+    action: (editor) => editor.chain().focus().insertDivider().run(),
   },
   {
     group: "Layout",

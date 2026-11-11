@@ -46,6 +46,7 @@ Documents are tagged with a type that drives the colour-coded badge in the list 
 - `wideBlock`: a block that spans both columns
 - `columnBreak`: forces a new column
 - `pageBreak`: forces a new page (this replaced the old horizontal-rule convention; see `documentContent.ts`'s import-boundary normalization for legacy documents)
+- `divider`: the fine rule with a small ornament that closes a chapter's title block (style Flourish, Rule or Stars, chosen in `panel/DividerPanelSection.vue`). It is `div.sc-divider`, never an `<hr>`: an `hr` is a legacy page break in print and StarterKit's horizontalRule owns the tag. The ornament is a CSS mask over the look's accent (`--sc-divider-color`, default `--sc-accent`) in `theme-base.css`, so it recolours with every look and paper and prints
 - `skipCounting` / `resetCounting`: structural page-numbering controls
 - `SpacerVertical` / `SpacerHorizontal`: layout spacers
 - `ScriptoriumImage`: the image node, with layout modes (size presets, align, float-left/float-right with text wrap, gutter-bleed in wrap mode), its options (size S/M/L/XL, align, wrap, gutter bleed, keep with its text) are in the panel's Picture section when the image is selected. It has no free-placement mode: the Picture section's **Layer** control (Behind the text, In front, In the text) moves the picture between the text and the page: Behind or In front turns it into art furniture (see Page furniture). An old pasted `data-layout-mode="absolute"` image parses as inline; the import boundary (`documentContent.ts`) lifts one into art furniture

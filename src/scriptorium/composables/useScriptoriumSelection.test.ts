@@ -34,6 +34,8 @@ describe("deriveSelection", () => {
     expect(deriveSelection({ ...none, node: { name: "entityEmbed", pos: 9 } })).toEqual({ kind: "embed", pos: 9 });
     expect(deriveSelection({ ...none, node: { name: "coverPage", pos: 0 } })).toEqual({ kind: "cover", pos: 0 });
     expect(deriveSelection({ ...none, node: { name: "tocBlock", pos: 6 } })).toEqual({ kind: "contents", pos: 6 });
+    // Fails on: a selected divider falling through to the page section, so its style can never be changed.
+    expect(deriveSelection({ ...none, node: { name: "divider", pos: 7 } })).toEqual({ kind: "divider", pos: 7 });
   });
 
   // Fails on: a clicked footer losing to the text's selection, so the panel never shows the footer's options.
