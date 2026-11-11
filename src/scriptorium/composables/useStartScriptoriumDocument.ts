@@ -5,6 +5,7 @@ import { handoutDefaults, scriptoriumLook } from "@/scriptorium/lib/looks";
 import { splitIntoChapters } from "@/scriptorium/data/templates/chapters";
 import type { ScriptoriumTemplate } from "@/scriptorium/data/templates";
 import type { ScriptoriumDocInsert, ScriptoriumPaper } from "@/scriptorium/types";
+import { footerTitleFor } from "@/scriptorium/lib/footerTitle";
 
 /**
  * Starting a document is one write (#1115): a handout on a chosen paper, or a
@@ -36,6 +37,7 @@ export function useStartScriptoriumDocument() {
       is_two_column: defaults.is_two_column,
       show_page_numbers: defaults.show_page_numbers,
       footer_text: defaults.footer_text,
+      footer_title: footerTitleFor(defaults.footer_text),
     };
     return (await mutateAsync({ book })).id;
   }
@@ -53,6 +55,7 @@ export function useStartScriptoriumDocument() {
       ink_friendly: s.inkFriendly,
       show_page_numbers: s.showPageNumbers,
       footer_text: s.footerText,
+      footer_title: footerTitleFor(s.footerText),
       page_number_start: s.pageNumberStart,
       tags: [...s.tags],
     };

@@ -224,6 +224,8 @@ import { bundlePreselection } from "@/scriptorium/lib/bundlePreselection";
 import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import { paperLine, type PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
+import { PRINTED_BOOK_KEY, createPrintedBook } from "@/scriptorium/composables/usePrintedBook";
+import { FOOTER_SETTINGS_KEY } from "@/scriptorium/lib/footerTitle";
 import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import type { BookLayoutResult, BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -253,6 +255,11 @@ const settings = useBookSettings(() => doc);
 const isHandout = computed(() => settings.draft.kind === "handout");
 const themeRef = computed(() => settings.draft.theme);
 provide(SCRIPTORIUM_THEME_KEY, themeRef);
+// What the printed book says (its contents page, how its entries were fitted): written by the preview after
+// each layout, drawn by the page's contents block and linked entries.
+provide(PRINTED_BOOK_KEY, createPrintedBook());
+// A footer clicked on the page edits the same settings as Book settings (#1176 story 6).
+provide(FOOTER_SETTINGS_KEY, { draft: settings.draft, patch: settings.patch });
 
 const layoutSettings = computed<BookLayoutSettings>(() => ({
   pageSize: settings.draft.pageSize,
@@ -260,6 +267,8 @@ const layoutSettings = computed<BookLayoutSettings>(() => ({
   showPageNumbers: settings.draft.showPageNumbers,
   pageNumberStart: settings.draft.pageNumberStart,
   footerText: settings.draft.footerText,
+  footerTitle: settings.draft.footerTitle,
+  bookTitle: settings.draft.title,
   inkFriendly: settings.draft.inkFriendly,
   theme: settings.draft.theme,
 }));
@@ -531,6 +540,7 @@ async function runExport(bundle?: GrimoireBundle): Promise<boolean> {
     isTwoColumn: settings.draft.isTwoColumn,
     showPageNumbers: settings.draft.showPageNumbers,
     footerText: settings.draft.footerText,
+    footerTitle: settings.draft.footerTitle,
     pageNumberStart: settings.draft.pageNumberStart,
     furniture: settings.draft.furniture,
     bundle,

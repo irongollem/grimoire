@@ -31,7 +31,8 @@ import { removePagedStyles, pagedStyleElements } from "../pagedStyles";
 import { preparePagedBody } from "../pagedPrepare";
 import { fillPagedTocPages, headingsOfHtml } from "../pagedToc";
 import type { BookHeading } from "../pagedToc";
-import { injectPagedFooters } from "../pagedFooters";
+import { injectPagedFooters, isRectoIndex } from "../pagedFooters";
+import { chapterTitleOf, runningTitle } from "../footerTitle";
 import { computePageLabels, flagsFromHtml, BLANK_PAGE_ATTR } from "../pageNumbering";
 import type { PageNumberFlags } from "../pageNumbering";
 import { renderFurniture, CHAPTER_ID_ATTR, CHAPTER_PAGE_ATTR } from "../furniture/renderFurniture";
@@ -264,6 +265,7 @@ export function createBookLayout(host: HTMLElement, engineOptions: BookLayoutEng
     interface Slot {
       el: HTMLElement;
       chapterId: string;
+      chapterTitle: string;
       pageInChapter: number | null;
       flags: PageNumberFlags;
     }
@@ -271,8 +273,9 @@ export function createBookLayout(host: HTMLElement, engineOptions: BookLayoutEng
     for (const c of filled) {
       const entry = cache.get(c.id);
       if (!entry) continue;
+      const chapterTitle = chapterTitleOf(c.html);
       entry.pages.forEach((el, i) => {
-        slots.push({ el, chapterId: c.id, pageInChapter: i + 1, flags: entry.flags[i] });
+        slots.push({ el, chapterId: c.id, chapterTitle, pageInChapter: i + 1, flags: entry.flags[i] });
       });
       if (needsBlankPageAfter(entry.pages.length, c.id === lastFilledId)) {
         const last = entry.pages[entry.pages.length - 1];
@@ -281,6 +284,7 @@ export function createBookLayout(host: HTMLElement, engineOptions: BookLayoutEng
         slots.push({
           el: blank,
           chapterId: c.id,
+          chapterTitle,
           pageInChapter: null,
           flags: { isUnnumberedCover: false, hasSkip: false, hasReset: false, isBlank: true },
         });
@@ -293,9 +297,20 @@ export function createBookLayout(host: HTMLElement, engineOptions: BookLayoutEng
     );
     injectPagedFooters(host, {
       showPageNumbers: settings.showPageNumbers,
-      footerText: settings.footerText,
       start: settings.pageNumberStart,
       labels,
+      flags: slots.map((s) => s.flags),
+      titles: slots.map((s, i) =>
+        runningTitle(
+          {
+            mode: settings.footerTitle,
+            bookTitle: settings.bookTitle,
+            chapterTitle: s.chapterTitle,
+            custom: settings.footerText,
+          },
+          isRectoIndex(i),
+        ),
+      ),
     });
     fillPagedTocPages(host, {
       showPageNumbers: settings.showPageNumbers,

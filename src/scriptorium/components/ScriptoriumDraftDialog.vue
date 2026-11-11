@@ -270,7 +270,7 @@ async function save(draft: Draft) {
       const { content } = htmlToScriptoriumJson(d.html, "");
       const filing: Pick<
         ScriptoriumDocInsert,
-        "title" | "doc_type" | "campaign_id" | "tags" | "is_published" | "page_number_start" | "ink_friendly" | "ai_provenance"
+        "title" | "doc_type" | "campaign_id" | "tags" | "is_published" | "page_number_start" | "ink_friendly" | "ai_provenance" | "footer_title"
       > = {
         title: d.title,
         doc_type: "custom",
@@ -280,6 +280,8 @@ async function save(draft: Draft) {
         page_number_start: 1,
         ink_friendly: false,
         ai_provenance: d.ai_provenance,
+        // A draft comes with no footer text, so its pages carry their chapters' titles.
+        footer_title: "chapter",
       };
       const book: ScriptoriumDocInsert =
         d.kind === "handout"

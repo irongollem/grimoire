@@ -14,7 +14,7 @@
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { FurnitureKind } from "@/scriptorium/types";
-import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconHash, IconInfo, IconLensPair, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconRefresh, IconScrollText, IconSecret, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
+import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconInfo, IconLensPair, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconScrollText, IconSecret, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
 import {
   frontCoverTemplate,
   insideCoverTemplate,
@@ -390,21 +390,5 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
       "Auto-generated TOC from all H1/H2/H3 headings in the document. Place this block on its own page; the preview and PDF replace it with a live linked list with dotted leaders and page numbers.",
     icon: IconList,
     action: (editor) => editor.chain().focus().insertTocBlock().run(),
-  },
-  {
-    group: "Structural",
-    label: "Skip Page Number",
-    description:
-      "Marks this page so its number is omitted and the running counter does not advance (e.g. for a full-page illustration).",
-    icon: IconHash,
-    action: (editor) => editor.chain().focus().insertSkipCounting().run(),
-  },
-  {
-    group: "Structural",
-    label: "Reset Page Counter",
-    description:
-      "Resets the running page counter back to the document\u2019s starting number from this page onwards. Useful after a cover page or unnumbered front matter.",
-    icon: IconRefresh,
-    action: (editor) => editor.chain().focus().insertResetCounting().run(),
   },
 ];

@@ -31,6 +31,8 @@ function open() {
         showPageNumbers: false,
         pageNumberStart: 1,
         footerText: "",
+        footerTitle: "chapter",
+        bookTitle: "A letter",
         inkFriendly: false,
         theme: "letter",
       },

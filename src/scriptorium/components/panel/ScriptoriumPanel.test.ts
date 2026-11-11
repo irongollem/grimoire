@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import ScriptoriumPanel from "./ScriptoriumPanel.vue";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
+import { FOOTER_SETTINGS_KEY } from "@/scriptorium/lib/footerTitle";
 import { PageFlow, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import type { PictureActions } from "@/scriptorium/composables/useEditorPictures";
 import type { PanelSelection } from "@/scriptorium/composables/useScriptoriumSelection";
@@ -16,6 +17,10 @@ vi.mock("@/scriptorium/lib/panel/embedSignals", async (importOriginal) => ({
   signalEmbed: mocks.signal,
 }));
 
+const footerSettings = {
+  draft: { showPageNumbers: true, pageNumberStart: 1, footerText: "", footerTitle: "chapter" as const },
+  patch: vi.fn(),
+};
 const stubs = { ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true };
 const context: PanelPageContext = {
   paperLabel: "Grimoire · A4 · Two columns",
@@ -41,6 +46,9 @@ function makePictures(): PictureActions {
     remove: vi.fn(),
     chooseCorner: vi.fn(),
     chooseAnchor: vi.fn(),
+    valuesOf: () => null,
+    treat: vi.fn(),
+    pageOfPicture: () => null,
     anchorState: () => ({ page: 2, hasParagraph: true, canFree: true }),
     pageOf: () => 2,
     addArt: vi.fn(),
@@ -53,7 +61,7 @@ function open(selection: PanelSelection, content: object[], furniture: PageFurni
   const pictures = makePictures();
   const wrapper = mount(ScriptoriumPanel, {
     props: { selection, editor: ed, version: 0, chapterId: "c1", furniture, pictures, context, canEditPicture: true, closable: false },
-    global: { stubs },
+    global: { stubs, provide: { [FOOTER_SETTINGS_KEY as symbol]: footerSettings } },
   });
   return { ed, pictures, wrapper };
 }
@@ -84,10 +92,10 @@ describe("ScriptoriumPanel", () => {
   });
 
   // Fails on: a cover edit that does not reach the cover node, or one that goes to whatever the cursor is in.
-  it("writes a cover's title into the cover node, live", async () => {
-    const { wrapper, ed } = open({ kind: "cover", pos: 0 }, [{ type: "coverPage", attrs: { variant: "front", title: "" } }, para("b1")]);
-    await wrapper.find('input[placeholder="Document Title"]').setValue("The Understage");
-    expect(ed.getJSON().content?.[0]?.attrs).toMatchObject({ variant: "front", title: "The Understage" });
+  it("writes a cover control into the cover node, live", async () => {
+    const { wrapper, ed } = open({ kind: "cover", pos: 0 }, [{ type: "coverPage", attrs: { variant: "front" } }, para("b1")]);
+    await press(wrapper, "Top");
+    expect(ed.getJSON().content?.[0]?.attrs).toMatchObject({ variant: "front", titlePlace: "top" });
   });
 
   // Fails on: Layer doing nothing, or placing the picture in front when Behind was chosen.
@@ -127,7 +135,7 @@ describe("ScriptoriumPanel", () => {
 
   it("changes a linked entry's options on the entry itself", async () => {
     const { wrapper, ed } = open({ kind: "embed", pos: 5 }, [para("b1"), { type: "entityEmbed", attrs: { entityType: "monster", entityId: "e1", showLore: true } }]);
-    await press(wrapper, "Wide");
+    await press(wrapper, "Full width");
     expect(ed.getJSON().content?.[1]?.attrs).toMatchObject({ size: "wide" });
   });
 
@@ -138,5 +146,31 @@ describe("ScriptoriumPanel", () => {
     await wrapper.setProps({ version: 1 });
     await press(wrapper, "Watermark");
     expect(wrapper.emitted("selectFurniture")).toEqual([["w1"]]);
+  });
+
+  // Fails on: the footer's page-only choices writing nothing (or to the wrong page), so a footer clicked on page 2 changes page 1.
+  it("a footer's page-only choices write the marker on that footer's own page, and read it back", async () => {
+    const { wrapper, ed } = open({ kind: "footer", page: 2 }, [para("b1"), para("b2")]);
+    const pageFlow = (ed.storage as unknown as { pageFlow: PageFlowStorage }).pageFlow;
+    const second = ed.state.doc.child(0).nodeSize;
+    pageFlow.pages = [
+      { page: 1, startPos: 0, contentTop: 0, contentHeight: 900 },
+      { page: 2, startPos: second, contentTop: 900, contentHeight: 900 },
+    ];
+    await wrapper.setProps({ version: 1 });
+    const box = wrapper.findAll("label").find((l) => l.text().startsWith("No footer on page"));
+    await box?.find("input").setValue(true);
+    const kinds = (ed.getJSON().content ?? []).map((n) => n.type);
+    expect(kinds).toEqual(["paragraph", "skipCounting", "paragraph"]);
+    await wrapper.setProps({ version: 2 });
+    const again = wrapper.findAll("label").find((l) => l.text().startsWith("No footer on page"));
+    expect(again?.find<HTMLInputElement>("input").element.checked).toBe(true);
+  });
+
+  it("the book-wide choices go to the book's settings", async () => {
+    footerSettings.patch.mockReset();
+    const { wrapper } = open({ kind: "footer", page: 1 }, [para("b1")]);
+    await press(wrapper, "Book");
+    expect(footerSettings.patch).toHaveBeenCalledWith({ footerTitle: "book" });
   });
 });

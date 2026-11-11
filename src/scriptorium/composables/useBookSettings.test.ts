@@ -14,7 +14,7 @@ vi.mock("@/scriptorium/composables/useScriptorium", () => ({
 const doc = {
   id: "d1", title: "Sothery", kind: "book", doc_type: "custom", campaign_id: null, theme: "onednd2024",
   page_size: "A4", is_two_column: true, ink_friendly: false, show_page_numbers: true, page_number_start: 1,
-  footer_text: "", is_published: false, tags: [], page_furniture: [], updated_at: "t1",
+  footer_text: "", footer_title: "chapter", is_published: false, tags: [], page_furniture: [], updated_at: "t1",
 } as unknown as ScriptoriumDocument;
 
 beforeEach(() => {
@@ -32,6 +32,12 @@ describe("book settings", () => {
   it("sends only the columns that changed", () => {
     const before = toSettingsDraft(doc);
     expect(changedSettings(before, { ...before, pageSize: "A5" })).toEqual({ page_size: "A5" });
+  });
+
+  it("saves the running title choice by itself, and sends nothing else with it", () => {
+    // Bug caught: footer_title left out of the row, so the choice made on a footer is never saved.
+    const before = toSettingsDraft(doc);
+    expect(changedSettings(before, { ...before, footerTitle: "custom" })).toEqual({ footer_title: "custom" });
   });
 
   it("keeps an edit that failed to save and sends it on the next try", async () => {

@@ -18,6 +18,8 @@ function fakeEditor(pages: PageBox[], blocks: { id: string; pos: number; top: nu
   const doms = new Map<number, HTMLElement>();
   for (const b of blocks) {
     const el = document.createElement("p");
+    // A top-level block sits in the editor's root, which is what its offsets are measured from.
+    Object.defineProperty(el, "offsetParent", { value: root });
     Object.defineProperty(el, "offsetTop", { value: b.top });
     Object.defineProperty(el, "offsetLeft", { value: 0 });
     doms.set(b.pos, el);

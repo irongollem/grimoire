@@ -25,11 +25,61 @@
   align-items: center;
   justify-content: center;
   background: var(--background);
+}
+
+/* A page's footer (#1176 story 6, canvas frame 10): the element the printer draws
+   (.sc-footer, styled by the theme), hung in the bottom margin the gap stands
+   for, so it takes no room from the text. The slot is the sheet's full width and
+   the footer's own height (32px, as in theme-base.css). */
+.phb-editor .ProseMirror .sc-flow-footer {
+  position: absolute;
+  left: calc(-1 * var(--sc-margin-left));
+  right: calc(-1 * var(--sc-margin-right));
+  bottom: calc(var(--sc-margin-top) + var(--sc-sheet-gap));
+  height: 32px;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 2px;
+}
+/* The last page's footer hangs below the tail, in the root's own bottom padding. */
+.phb-editor .ProseMirror .sc-flow-tail {
+  position: relative;
+}
+.phb-editor .ProseMirror .sc-flow-tail > .sc-flow-footer {
+  bottom: auto;
+  top: calc(100% + var(--sc-margin-bottom) - 32px);
+}
+.phb-editor .ProseMirror .sc-flow-footer:hover {
+  outline: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
+}
+.phb-editor .ProseMirror .sc-flow-footer.is-selected {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+/* A page with no footer: nothing is drawn until the pointer is over it, so the footer can still be chosen and put back. */
+.phb-editor .ProseMirror .sc-flow-footer-none {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
   font-family: system-ui, sans-serif;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
   color: color-mix(in srgb, var(--sc-ink) 55%, transparent);
+  opacity: 0;
+}
+.phb-editor .ProseMirror .sc-flow-footer:hover .sc-flow-footer-none,
+.phb-editor .ProseMirror .sc-flow-footer.is-selected .sc-flow-footer-none {
+  opacity: 1;
+}
+
+/* The page-numbering markers stay in the text as what they are stored as, but
+   show as nothing: the page's footer says what they do. (The element in the
+   selector wins over the chip's rule in scriptorium-editor.css.) */
+.phb-editor .ProseMirror div.sc-skip-counting::before,
+.phb-editor .ProseMirror div.sc-reset-counting::before {
+  content: none;
 }
 
 .phb-editor .ProseMirror .sc-flow-colbreak {

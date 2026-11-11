@@ -49,7 +49,14 @@
 
     <ContentsPanelSection v-else-if="selection.kind === 'contents'" />
 
-    <FooterPanelSection v-else-if="selection.kind === 'footer'" :page="selection.page" />
+    <FooterPanelSection
+      v-else-if="selection.kind === 'footer'"
+      :page-label="footerPageLabel(selection.page)"
+      :settings="footerSettings().draft"
+      :markers="footerMarkers"
+      @settings="(values) => footerSettings().patch(values)"
+      @markers="onFooterMarkers"
+    />
 
     <PagePanelSection
       v-else
@@ -72,7 +79,7 @@
  * Edits go to the node the selection names, by position, so a field touched
  * after the cursor moved still changes the thing the panel is showing.
  */
-import { computed, ref, toRaw } from "vue";
+import { computed, inject, ref, toRaw } from "vue";
 import type { Editor } from "@tiptap/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
@@ -83,6 +90,8 @@ import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.
 import FooterPanelSection from "@/scriptorium/components/panel/FooterPanelSection.vue";
 import PagePanelSection from "@/scriptorium/components/panel/PagePanelSection.vue";
 import PicturePanelSection, { type PictureLayer } from "@/scriptorium/components/panel/PicturePanelSection.vue";
+import { FOOTER_SETTINGS_KEY, type FooterSettingsAccess } from "@/scriptorium/lib/footerTitle";
+import { NO_MARKERS, pageMarkerTransaction, readPageMarkers, type PageMarkers } from "@/scriptorium/lib/pageMarkers";
 import type { AnchorState, PictureActions, PictureTarget } from "@/scriptorium/composables/useEditorPictures";
 import type { PanelSelection } from "@/scriptorium/composables/useScriptoriumSelection";
 import { blockPositions } from "@/scriptorium/lib/furniture/editorAnchors";
@@ -231,6 +240,35 @@ function onArtPicked(url: string) {
   picker.value = null;
   if (mode === "add") props.pictures.addArt(url);
   else if (mode === "replace" && picture.value) props.pictures.replaceSrc(picture.value.target, url);
+}
+
+// ── A footer ────────────────────────────────────────────────────────────────
+// The book's own footer settings, provided by the book editor.
+const footerAccess = inject(FOOTER_SETTINGS_KEY, null);
+function footerSettings(): FooterSettingsAccess {
+  if (!footerAccess) throw new Error("The book editor must provide FOOTER_SETTINGS_KEY for a selected footer.");
+  return footerAccess;
+}
+
+function footerPageLabel(page: number): string {
+  return String(bookPageNumber(props.context.firstPageLabel, page) ?? page);
+}
+
+/** What the selected footer's page carries, re-read on every transaction. */
+const footerMarkers = computed<PageMarkers>(() => {
+  void props.version;
+  const ed = rawEditor.value;
+  const sel = props.selection;
+  if (!ed || ed.isDestroyed || sel.kind !== "footer") return NO_MARKERS;
+  return readPageMarkers(ed.state.doc, pagesOf(ed), sel.page);
+});
+
+function onFooterMarkers(next: PageMarkers) {
+  const ed = rawEditor.value;
+  const sel = props.selection;
+  if (!ed || ed.isDestroyed || sel.kind !== "footer") return;
+  const tr = pageMarkerTransaction(ed.state, pagesOf(ed), sel.page, next);
+  if (tr) ed.view.dispatch(tr);
 }
 
 // ── The page ────────────────────────────────────────────────────────────────

@@ -15,6 +15,8 @@
  *     (Jeffrey, 30 Oct 2026, #1115);
  *   - a "reset #" marker resets the counter to the start value;
  *   - a "skip #" marker leaves the page unnumbered and does NOT advance;
+ *     it also takes the footer away, unless it keeps the running title
+ *     ("Don't count this page", #1176 story 6);
  *   - otherwise the page takes the current counter, which then advances.
  */
 
@@ -23,6 +25,8 @@ export interface PageNumberFlags {
   isUnnumberedCover: boolean;
   /** "skip #" marker present — unnumbered, non-advancing. */
   hasSkip: boolean;
+  /** The skip marker keeps the footer's running title ("Don't count this page"). */
+  keepsFooter?: boolean;
   /** "reset #" marker present — counter resets to start before this page. */
   hasReset: boolean;
   /**
@@ -50,6 +54,7 @@ export function flagsFromHtml(html: string): PageNumberFlags {
   return {
     isUnnumberedCover,
     hasSkip: html.includes('data-type="skip-counting"'),
+    keepsFooter: /data-type="skip-counting"[^>]*data-keep-footer="true"/.test(html),
     hasReset: html.includes('data-type="reset-counting"'),
   };
 }
@@ -85,4 +90,14 @@ export function computePageLabels(
     if (f.hasSkip) return null;
     return String(counter++);
   });
+}
+
+/**
+ * Whether a page draws a footer. A numbered page does; a page the DM left out
+ * of the count keeps one (without a number) only when asked to. Covers and
+ * blank pages never do, and with page numbers off there are no footers.
+ */
+export function pageHasFooter(f: PageNumberFlags, label: string | null, showPageNumbers: boolean): boolean {
+  if (!showPageNumbers || f.isBlank || f.isUnnumberedCover) return false;
+  return label !== null || (f.hasSkip && f.keepsFooter === true);
 }

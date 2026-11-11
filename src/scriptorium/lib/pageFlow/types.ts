@@ -32,10 +32,27 @@ export interface FlowBreak {
   at: FlowPosition | "page-end";
 }
 
+/**
+ * The footer one page printed, read off the laid-out page so the editor draws
+ * what the printer will (#1176 story 6). `shown` is false for a page with no
+ * footer at all.
+ */
+export interface FlowFooter {
+  shown: boolean;
+  /** A right-hand page: the number is at its right edge. */
+  recto: boolean;
+  /** The printed page number; null when the page is not numbered. */
+  label: string | null;
+  /** The running title. */
+  title: string;
+}
+
 export interface ChapterFlow {
   chapterId: string;
   /** Pages the chapter's own text takes. */
   pageCount: number;
+  /** The footer of each of those pages, in order. */
+  footers: FlowFooter[];
   twoColumn: boolean;
   /** In document order: every page break, and in two columns one column break per page. */
   breaks: FlowBreak[];

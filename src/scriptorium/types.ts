@@ -28,6 +28,12 @@ export type ScriptoriumTheme = ScriptoriumBookTheme | ScriptoriumPaper;
 
 export type ScriptoriumPageSize = "A4" | "A5" | "Letter";
 
+/**
+ * What a right-hand page's running title says: the chapter's title, the book's,
+ * or the book's own footer text. Left-hand pages always carry the book's title.
+ */
+export type ScriptoriumFooterTitle = "chapter" | "book" | "custom";
+
 /* ── Page furniture (Phase D, #456) ──────────────────────────────────────────
  * Decorations (watercolours, watermarks, artist credits, free art) live OUTSIDE
  * the Tiptap content stream, in a sibling `page_furniture` column, so they can
@@ -87,6 +93,8 @@ export interface ScriptoriumDocument {
   word_count: number;
   show_page_numbers: boolean;
   footer_text: string;
+  /** Which running title the right-hand pages carry; `footer_text` is the "custom" one. */
+  footer_title: ScriptoriumFooterTitle;
   page_number_start: number;
   /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
    * Optional until the column + editor wiring land (foundation-only for now). */
@@ -164,6 +172,7 @@ export type ScriptoriumDocumentSummary = Pick<
   scriptorium_chapters: { count: number }[];
 };
 
+/** `footer_title` is left to the column's default ("chapter") on insert. */
 export type ScriptoriumDocInsert = Omit<
   ScriptoriumDocument,
   "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to" | "word_count"

@@ -7,23 +7,59 @@
  * the shared numbering algorithm — giving the same behaviour as the legacy
  * preview and PDF export.
  *
- * A footer is rendered only on numbered pages (label !== null); cover pages,
- * skipped pages, and page-numbers-off all get no footer, matching the legacy
- * `v-if="label !== null"` rule. Footer text therefore rides with the number.
+ * A footer is drawn on numbered pages, and on a page left out of the count
+ * only when that page keeps its running title (#1176 story 6, pageHasFooter).
+ * Covers, "no footer" pages and page-numbers-off get none. The editor draws
+ * the very same footer element (buildFooter) from what the preview measured.
  */
 
-import { flagsFromPage, computePageLabels } from "./pageNumbering";
+import { flagsFromPage, computePageLabels, pageHasFooter, type PageNumberFlags } from "./pageNumbering";
 
 export interface PagedFooterOptions {
   showPageNumbers: boolean;
-  footerText: string;
   start: number;
+  /**
+   * The running title of each page, in page order (lib/footerTitle.ts says
+   * which: the book's on a left page, the chapter's or custom text on a right).
+   */
+  titles: string[];
   /**
    * Labels already worked out for these pages (the book layout computes them
    * once for footers and the contents page alike). Without it they are derived
    * from the pages.
    */
   labels?: (string | null)[];
+  /** The numbering flags of each page, when the caller already has them. */
+  flags?: PageNumberFlags[];
+}
+
+/** Recto (even index = right page) → number on the right; verso → left. */
+export function isRectoIndex(index: number): boolean {
+  return index % 2 === 0;
+}
+
+/** The footer element a page carries; the editor builds the same one. */
+export function buildFooter(doc: Document, f: { label: string | null; title: string; recto: boolean }): HTMLElement {
+  const footer = doc.createElement("div");
+  footer.className = `sc-footer ${f.recto ? "sc-footer--recto" : "sc-footer--verso"}`;
+
+  const text = doc.createElement("span");
+  text.className = "sc-footer-text";
+  text.textContent = f.title;
+
+  // A page that keeps its title but is left out of the count has no number to print.
+  if (f.label === null) {
+    footer.append(text);
+    return footer;
+  }
+  const numLeft = doc.createElement("span");
+  numLeft.className = "sc-footer-num sc-footer-num--left";
+  numLeft.textContent = f.label;
+  const numRight = doc.createElement("span");
+  numRight.className = "sc-footer-num sc-footer-num--right";
+  numRight.textContent = f.label;
+  footer.append(numLeft, text, numRight);
+  return footer;
 }
 
 /**
@@ -32,36 +68,20 @@ export interface PagedFooterOptions {
  */
 export function injectPagedFooters(container: HTMLElement, opts: PagedFooterOptions): void {
   const pages = Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
+  const flags = opts.flags ?? pages.map(flagsFromPage);
   const labels =
     opts.labels ??
-    computePageLabels(pages.map(flagsFromPage), {
+    computePageLabels(flags, {
       showPageNumbers: opts.showPageNumbers,
       start: opts.start,
     });
 
   pages.forEach((page, i) => {
     page.querySelector(".sc-footer")?.remove();
-    const label = labels[i];
-    if (label === null) return; // covers, skips, blank pages, numbers-off → no footer
-
+    if (!pageHasFooter(flags[i], labels[i], opts.showPageNumbers)) return;
     const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
-    const footer = document.createElement("div");
-    // Recto (even index = right page) → number on the right; verso → left.
-    footer.className = `sc-footer ${i % 2 === 0 ? "sc-footer--recto" : "sc-footer--verso"}`;
-
-    const numLeft = document.createElement("span");
-    numLeft.className = "sc-footer-num sc-footer-num--left";
-    numLeft.textContent = label;
-
-    const text = document.createElement("span");
-    text.className = "sc-footer-text";
-    text.textContent = opts.footerText;
-
-    const numRight = document.createElement("span");
-    numRight.className = "sc-footer-num sc-footer-num--right";
-    numRight.textContent = label;
-
-    footer.append(numLeft, text, numRight);
-    box.appendChild(footer);
+    box.appendChild(
+      buildFooter(page.ownerDocument, { label: labels[i], title: opts.titles[i], recto: isRectoIndex(i) }),
+    );
   });
 }

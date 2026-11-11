@@ -46,6 +46,9 @@ async function layoutFixture(): Promise<LaidOutFixture> {
       showPageNumbers: true,
       pageNumberStart: 1,
       footerText: "The Sunken Gate",
+      // Left pages carry the book's title and right pages each chapter's, as a printed book does.
+      footerTitle: "chapter",
+      bookTitle: "The Sunken Gate",
       inkFriendly: false,
       theme,
     },

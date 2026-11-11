@@ -1,5 +1,5 @@
 import type { PagedStylesheet } from "pagedjs";
-import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
+import type { ScriptoriumFooterTitle, ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 import type { RenderFurnitureOptions } from "../furniture/renderFurniture";
 
@@ -13,7 +13,7 @@ export interface BookChapterInput {
  * Everything but the chapters' text that decides how the book comes out.
  * `pageSize`, `isTwoColumn`, `inkFriendly`, `theme` and `showPageNumbers`
  * change how a chapter lays out, so a change to one lays every chapter out
- * again. `pageNumberStart` and `footerText` only change what is written onto
+ * again. `pageNumberStart`, `footerText`, `footerTitle` and `bookTitle` only change what is written onto
  * the laid-out pages, so they cost no layout at all.
  */
 export interface BookLayoutSettings {
@@ -22,6 +22,9 @@ export interface BookLayoutSettings {
   showPageNumbers: boolean;
   pageNumberStart: number;
   footerText: string;
+  /** Which running title the right-hand pages carry; the left-hand ones say `bookTitle`. */
+  footerTitle: ScriptoriumFooterTitle;
+  bookTitle: string;
   inkFriendly: boolean;
   theme: ScriptoriumTheme;
 }

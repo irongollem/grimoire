@@ -86,8 +86,6 @@ export function useScriptoriumSelection(opts: {
   editor: Ref<Editor | undefined>;
   /** The selected furniture, as the shell holds it. */
   furniture: () => { id: string; kind: FurnitureKind } | null;
-  /** The page whose footer is selected, as the shell holds it (#1176 story 6). */
-  footer?: () => number | null;
 }) {
   // Bumped on every transaction and every new layout: the editor is not reactive, these are its change signals.
   const version = ref(0);
@@ -122,12 +120,14 @@ export function useScriptoriumSelection(opts: {
     const ed = opts.editor.value;
     if (!ed || ed.isDestroyed) return { kind: "page", page: null };
     const sel = ed.state.selection;
-    const pages = (ed.storage as unknown as { pageFlow?: PageFlowStorage }).pageFlow?.pages ?? [];
+    const flow = (ed.storage as unknown as { pageFlow?: PageFlowStorage }).pageFlow;
+    const pages = flow?.pages ?? [];
     return deriveSelection({
       node: sel instanceof NodeSelection ? { name: sel.node.type.name, pos: sel.from } : null,
       coverPos: coverAround(ed),
       furniture: opts.furniture(),
-      footer: opts.footer?.() ?? null,
+      // The page flow keeps the clicked footer: it is page chrome, not something in the text.
+      footer: flow?.footer ?? null,
       page: pageAt(pages, sel.from)?.page ?? null,
     });
   });

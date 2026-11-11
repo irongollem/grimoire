@@ -440,3 +440,22 @@ describe("pushed floats", () => {
     ]);
   });
 });
+
+describe("footers (#1176 story 6)", () => {
+  it("reads each page's printed footer, and says plainly when a page has none", () => {
+    // Bug caught: drawing a footer the printer did not (or none where it did) puts the editor's page out of step with print.
+    const foot = (label: string | null, title: string) =>
+      `<div class="sc-footer sc-footer--recto">${label === null ? "" : `<span class="sc-footer-num">${label}</span>`}<span class="sc-footer-text">${title}</span></div>`;
+    const p1 = page(1, "<p>a</p>");
+    p1.insertAdjacentHTML("beforeend", foot("15", "The Understage"));
+    const p2 = page(2, "<p>b</p>");
+    const p3 = page(3, "<p>c</p>");
+    p3.insertAdjacentHTML("beforeend", foot(null, "Kept title"));
+    const flow = measureChapterFlow([p1, p2, p3], { chapterId: CH, twoColumn: false }, fakeGeometry(new Map()));
+    expect(flow.footers).toEqual([
+      { shown: true, recto: true, label: "15", title: "The Understage" },
+      { shown: false, recto: false, label: null, title: "" },
+      { shown: true, recto: true, label: null, title: "Kept title" },
+    ]);
+  });
+});

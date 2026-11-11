@@ -53,6 +53,7 @@ const baseDoc: ScriptoriumDocInsert = {
   ink_friendly: false,
   show_page_numbers: false,
   footer_text: "",
+  footer_title: "chapter",
   page_number_start: 1,
 };
 

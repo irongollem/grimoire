@@ -8,7 +8,7 @@
 
 import { CHAPTER_ID_ATTR } from "@/scriptorium/lib/furniture/renderFurniture";
 import { layoutTextLength, layoutTextNodes } from "./layoutText";
-import type { ChapterFlow, FlowBreak, FlowPosition, PushedFloat } from "./types";
+import type { ChapterFlow, FlowBreak, FlowFooter, FlowPosition, PushedFloat } from "./types";
 
 export interface FlowRect {
   left: number;
@@ -303,10 +303,23 @@ export function measureChapterFlow(
   return {
     chapterId: opts.chapterId,
     pageCount: own.length,
+    footers: own.map((p, i) => footerOf(p, i % 2 === 0)),
     twoColumn: opts.twoColumn,
     breaks,
     layoutClasses: layoutClassesOf(contents.filter((c): c is HTMLElement => c !== null)),
     pushedFloats: pushedFloatsOf(contents, opts.twoColumn, geometry),
+  };
+}
+
+/** The footer a laid-out page carries (pagedFooters.ts), or the fact that it has none. A chapter opens on a right-hand page, so its odd pages are right-hand. */
+function footerOf(page: HTMLElement, recto: boolean): FlowFooter {
+  const footer = page.querySelector(".sc-footer");
+  if (!footer) return { shown: false, recto, label: null, title: "" };
+  return {
+    shown: true,
+    recto,
+    label: footer.querySelector(".sc-footer-num")?.textContent ?? null,
+    title: footer.querySelector(".sc-footer-text")?.textContent ?? "",
   };
 }
 

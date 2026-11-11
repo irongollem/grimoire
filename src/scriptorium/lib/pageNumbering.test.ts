@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { flagsFromHtml, flagsFromPage, computePageLabels, type PageNumberFlags } from "./pageNumbering";
+import { flagsFromHtml, flagsFromPage, computePageLabels, pageHasFooter, type PageNumberFlags } from "./pageNumbering";
 
 const plain: PageNumberFlags = { isUnnumberedCover: false, hasSkip: false, hasReset: false };
 
@@ -65,5 +65,29 @@ describe("blank pages", () => {
     page.setAttribute("data-blank-page", "");
     expect(flagsFromPage(page).isBlank).toBe(true);
     expect(flagsFromPage(document.createElement("div")).isBlank).toBeUndefined();
+  });
+});
+
+describe("which pages draw a footer", () => {
+  const skipped: PageNumberFlags = { ...plain, hasSkip: true };
+
+  it("a numbered page does; a skipped one only when it keeps its running title", () => {
+    // Bug caught: "Don't count" printing no footer at all, or "No footer" still printing the title.
+    expect(pageHasFooter(plain, "4", true)).toBe(true);
+    expect(pageHasFooter(skipped, null, true)).toBe(false);
+    expect(pageHasFooter({ ...skipped, keepsFooter: true }, null, true)).toBe(true);
+  });
+
+  it("covers, blank pages and a book without page numbers never do", () => {
+    // Bug caught: a kept footer drawn on a cover, or on a handout that prints no numbers.
+    expect(pageHasFooter({ ...skipped, keepsFooter: true, isUnnumberedCover: true }, null, true)).toBe(false);
+    expect(pageHasFooter({ ...skipped, keepsFooter: true, isBlank: true }, null, true)).toBe(false);
+    expect(pageHasFooter({ ...skipped, keepsFooter: true }, null, false)).toBe(false);
+    expect(pageHasFooter(plain, "4", false)).toBe(false);
+  });
+
+  it("a kept footer is read from the marker's own attribute, not from any skip marker on the page", () => {
+    expect(flagsFromHtml('<div data-type="skip-counting" data-keep-footer="true"></div>').keepsFooter).toBe(true);
+    expect(flagsFromHtml('<div data-type="skip-counting"></div><div data-keep-footer="true"></div>').keepsFooter).toBe(false);
   });
 });

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
-import { PageFlow, gapHeights, pageAt, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
+import { PageFlow, gapHeights, offsetWithin, pageAt, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import type { ChapterFlow, FlowBreak } from "@/scriptorium/lib/pageFlow/types";
 
 let editor: Editor | null = null;
@@ -35,7 +35,11 @@ function flowOf(
   layoutClasses: ChapterFlow["layoutClasses"] = {},
   pushedFloats: ChapterFlow["pushedFloats"] = [],
 ): ChapterFlow {
-  return { chapterId: "c", pageCount: 2, twoColumn, breaks, layoutClasses, pushedFloats };
+  const footers = [
+    { shown: true, recto: true, label: "14", title: "The Understage" },
+    { shown: false, recto: false, label: null, title: "" },
+  ];
+  return { chapterId: "c", pageCount: 2, footers, twoColumn, breaks, layoutClasses, pushedFloats };
 }
 
 async function setFlow(ed: Editor, flow: ChapterFlow | null) {
@@ -267,5 +271,112 @@ describe("a picture the printer pushes on", () => {
     const { ed } = await withPushed();
     await setFlow(ed, flowOf([], true));
     expect(ed.view.dom.querySelector(".sc-flow-pushed")).toBeNull();
+  });
+});
+
+describe("page footers (#1176 story 6)", () => {
+  const twoPages = async () => {
+    editor = await makeEditor("<p>one</p><p>two</p>");
+    const ids = blockIds(editor);
+    await setFlow(editor, flowOf([{ kind: "page", page: 2, at: { blockId: ids[1], textOffset: 0 } }]));
+    return editor;
+  };
+  const slots = (ed: Editor) => Array.from(ed.view.dom.querySelectorAll<HTMLElement>(".sc-flow-footer"));
+  const storageOf = (ed: Editor) => (ed.storage as unknown as { pageFlow: PageFlowStorage }).pageFlow;
+  const press = (el: Element) => el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+
+  it("draws each page's printed footer: page 1's before page 2, the last page's after the text", async () => {
+    // Bug caught: a footer drawn from the wrong page's record (off by one) shows the next page's number on this sheet.
+    const ed = await twoPages();
+    await vi.waitFor(() => expect(slots(ed)[0].dataset.page).toBe("1"));
+    const [first, last] = slots(ed);
+    expect(first.closest(".sc-flow-gap")).not.toBeNull();
+    expect(first.querySelector(".sc-footer-text")?.textContent).toBe("The Understage");
+    expect(first.querySelector(".sc-footer-num")?.textContent).toBe("14");
+    expect(last.closest(".sc-flow-tail")).not.toBeNull();
+    expect(last.dataset.page).toBe("2");
+    expect(last.classList.contains("sc-flow-footer--none")).toBe(true);
+    expect(last.textContent).toBe("No footer");
+  });
+
+  it("a footer press selects it, and the text, a key or Escape lets it go", async () => {
+    // Bug caught: a footer that stays selected after the DM goes back to writing keeps the panel on it.
+    const ed = await twoPages();
+    await vi.waitFor(() => expect(slots(ed)[0].dataset.page).toBe("1"));
+    const seen = vi.fn();
+    storageOf(ed).listeners.add(seen);
+    const press1 = press(slots(ed)[0]);
+    expect(press1).toBe(false); // default prevented: the editor keeps its selection and focus
+    expect(storageOf(ed).footer).toBe(1);
+    expect(slots(ed)[0].classList.contains("is-selected")).toBe(true);
+    expect(seen).toHaveBeenCalledTimes(1);
+
+    press(ed.view.dom.querySelector("p") as Element);
+    expect(storageOf(ed).footer).toBeNull();
+    expect(slots(ed)[0].classList.contains("is-selected")).toBe(false);
+
+    press(slots(ed)[1]);
+    expect(storageOf(ed).footer).toBe(2);
+    ed.view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(storageOf(ed).footer).toBeNull();
+  });
+
+  // Fails on: a stopEvent written as (view, event), which ProseMirror calls with the event alone, so it
+  // never matched and the editor handled every press on a footer as a press in the text.
+  it("tells the editor to leave presses on a footer alone, and only those", async () => {
+    const ed = await twoPages();
+    await vi.waitFor(() => expect(slots(ed)[0].dataset.page).toBe("1"));
+    const widgets: { spec: { stopEvent?: (event: Event) => boolean } }[] = [];
+    ed.view.someProp("decorations", (f) => {
+      f.call(ed.view, ed.state)?.forEachSet((set) => widgets.push(...(set.find() as unknown as typeof widgets)));
+    });
+    const gap = widgets.find((w) => typeof w.spec.stopEvent === "function");
+    expect(gap).toBeDefined();
+    const onFooter = new MouseEvent("mousedown");
+    Object.defineProperty(onFooter, "target", { value: slots(ed)[0] });
+    const elsewhere = new MouseEvent("mousedown");
+    Object.defineProperty(elsewhere, "target", { value: ed.view.dom.querySelector("p") });
+    expect(gap?.spec.stopEvent?.(onFooter)).toBe(true);
+    expect(gap?.spec.stopEvent?.(elsewhere)).toBe(false);
+  });
+
+  it("drops the selection when the chapter's layout goes", async () => {
+    const ed = await twoPages();
+    await vi.waitFor(() => expect(slots(ed)[0].dataset.page).toBe("1"));
+    press(slots(ed)[0]);
+    await setFlow(ed, null);
+    await vi.waitFor(() => expect(storageOf(ed).footer).toBeNull());
+  });
+});
+
+describe("offsetWithin", () => {
+  function box(el: HTMLElement, rect: { top: number; left: number; width: number }, props: Record<string, unknown>) {
+    el.getBoundingClientRect = () => ({ ...rect, height: 0, right: 0, bottom: 0, x: rect.left, y: rect.top, toJSON: () => ({}) }) as DOMRect;
+    for (const [k, v] of Object.entries(props)) Object.defineProperty(el, k, { value: v, configurable: true });
+  }
+
+  // Fails on: summing offsetTop through a block the page split in two, which put a page gap
+  // ten thousand pixels down the chapter (the offsets count from the block's unsplit flow).
+  it("reads a nested element where it is drawn, with the sheet's display scale divided out", () => {
+    const root = document.createElement("div");
+    const block = document.createElement("div");
+    const gap = document.createElement("div");
+    root.append(block);
+    block.append(gap);
+    // The sheet is drawn at half size: 794 px wide on the page, 397 px on screen.
+    box(root, { top: 50, left: 20, width: 397 }, { offsetWidth: 794, clientTop: 0, clientLeft: 0 });
+    box(block, { top: 60, left: 20, width: 397 }, { offsetParent: root, offsetTop: 20, offsetLeft: 0 });
+    box(gap, { top: 150, left: 30, width: 100 }, { offsetParent: block, offsetTop: 9000, offsetLeft: 0 });
+    expect(offsetWithin(gap, root)).toEqual({ top: 200, left: 20 });
+  });
+
+  it("reads a child of the root from its own offsets", () => {
+    const root = document.createElement("div");
+    const child = document.createElement("div");
+    root.append(child);
+    Object.defineProperty(child, "offsetParent", { value: root });
+    Object.defineProperty(child, "offsetTop", { value: 812 });
+    Object.defineProperty(child, "offsetLeft", { value: 40 });
+    expect(offsetWithin(child, root)).toEqual({ top: 812, left: 40 });
   });
 });

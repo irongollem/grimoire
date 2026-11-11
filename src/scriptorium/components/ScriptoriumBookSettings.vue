@@ -69,10 +69,25 @@
         <AppCheckbox label="Published" :model-value="draft.isPublished" @update:model-value="patch({ isPublished: $event })" />
       </div>
 
-      <label class="block">
-        <span class="mb-1 block text-caption text-muted-foreground">Footer text</span>
-        <AppInput :model-value="draft.footerText" tone="underline" size="body" @update:model-value="patch({ footerText: $event })" />
-      </label>
+      <div class="space-y-2">
+        <span class="block text-caption text-muted-foreground">Running title, right pages</span>
+        <SegmentedControl
+          :model-value="draft.footerTitle"
+          :options="FOOTER_TITLES"
+          aria-label="Running title on right pages"
+          @update:model-value="patch({ footerTitle: $event })"
+        />
+        <AppInput
+          v-if="draft.footerTitle === 'custom'"
+          :model-value="draft.footerText"
+          tone="underline"
+          size="body"
+          aria-label="Footer text"
+          placeholder="Your own running title"
+          @update:model-value="patch({ footerText: $event })"
+        />
+        <p class="text-caption text-muted-foreground">Left pages carry the book's title. Footers can also be changed on the page itself.</p>
+      </div>
 
       <div>
         <span class="mb-1 block text-caption text-muted-foreground">Tags</span>
@@ -99,6 +114,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
@@ -106,7 +122,7 @@ import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { themeForKind, type BookSettingsDraft } from "@/scriptorium/composables/useBookSettings";
 import type { AutosaveStatus as AutosaveState } from "@/composables/useAutosave";
 import { BOOK_LOOKS, PAPERS, scriptoriumLook } from "@/scriptorium/lib/looks";
-import type { ScriptoriumKind, ScriptoriumPageSize } from "@/scriptorium/types";
+import type { ScriptoriumFooterTitle, ScriptoriumKind, ScriptoriumPageSize } from "@/scriptorium/types";
 
 const { open, draft, chapterCount, campaignOptions, status, error = "", deleting = false } = defineProps<{
   open: boolean;
@@ -125,6 +141,11 @@ const emit = defineEmits<{
 }>();
 
 const PAGE_SIZES: ScriptoriumPageSize[] = ["A4", "A5", "Letter"];
+const FOOTER_TITLES: SegmentedOption<ScriptoriumFooterTitle>[] = [
+  { value: "chapter", label: "Chapter" },
+  { value: "book", label: "Book" },
+  { value: "custom", label: "Custom" },
+];
 
 const heading = computed(() => (draft.kind === "handout" ? "Handout Settings" : "Book Settings"));
 const looks = computed(() => (draft.kind === "handout" ? PAPERS : BOOK_LOOKS));

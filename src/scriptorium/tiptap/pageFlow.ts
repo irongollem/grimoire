@@ -5,6 +5,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { EditorView } from "@tiptap/pm/view";
 import { FLOW_LAYOUT_CLASSES, type ChapterFlow, type FlowPosition } from "@/scriptorium/lib/pageFlow/types";
 import { locateLayoutOffset } from "@/scriptorium/lib/pageFlow/layoutText";
+import { buildFooter } from "@/scriptorium/lib/pagedFooters";
 
 /*
  * PageFlow (#1175): the editor shows the pages the preview lays out.
@@ -13,7 +14,9 @@ import { locateLayoutOffset } from "@/scriptorium/lib/pageFlow/layoutText";
  * page and column starts (a ChapterFlow). This extension draws that: a gap
  * between sheets where a page starts, and in a two-column chapter a forced
  * column break where the second column starts. Both are widget decorations,
- * so they never enter the document.
+ * so they never enter the document. Each page's footer is drawn too, from the
+ * footer the preview printed, in the bottom margin the gap represents; a click
+ * on one selects it for the panel (#1176 story 6).
  */
 
 declare module "@tiptap/core" {
@@ -37,6 +40,8 @@ export interface PageBox {
 
 export interface PageFlowStorage {
   pages: PageBox[];
+  /** The page whose footer the DM clicked, until they click into the text, press a key or Escape. */
+  footer: number | null;
   listeners: Set<() => void>;
 }
 
@@ -148,20 +153,84 @@ function widgetEl(inline: boolean, className: string): HTMLElement {
   return el;
 }
 
-function gapWidget(b: ResolvedBreak): Decoration {
+/** The footer of page k hangs in the gap before page k+1, or in the tail after the last page. */
+function footerSlot(view: EditorView, storage: PageFlowStorage): HTMLElement {
+  const slot = document.createElement("div");
+  slot.className = "sc-flow-footer";
+  // mousedown, not click: the editor keeps its focus and selection while the footer is chosen.
+  slot.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const page = Number(slot.dataset.page);
+    if (Number.isInteger(page)) selectFooter(view.dom, storage, page);
+  });
+  return slot;
+}
+
+function inFooter(event: Event): boolean {
+  return event.target instanceof Element && event.target.closest(".sc-flow-footer") !== null;
+}
+
+/** Marks the selected footer on the page and tells the listeners (the panel). */
+export function selectFooter(root: HTMLElement, storage: PageFlowStorage, page: number | null) {
+  if (storage.footer === page) return;
+  storage.footer = page;
+  markSelectedFooter(root, storage);
+  storage.listeners.forEach((fn) => fn());
+}
+
+function markSelectedFooter(root: HTMLElement, storage: PageFlowStorage) {
+  root.querySelectorAll<HTMLElement>(".sc-flow-footer").forEach((slot) => {
+    slot.classList.toggle("is-selected", storage.footer !== null && slot.dataset.page === String(storage.footer));
+  });
+}
+
+/**
+ * Draws each page's footer into its slot, from the footers the preview printed.
+ * The element is the one the printer makes (buildFooter); a page with no
+ * footer gets a quiet "No footer" that only shows on hover, so it can still be clicked.
+ */
+function paintFooters(root: HTMLElement, flow: ChapterFlow, storage: PageFlowStorage) {
+  root.querySelectorAll<HTMLElement>(".sc-flow-footer").forEach((slot) => {
+    const host = slot.parentElement;
+    if (!host) return;
+    const page = host.classList.contains("sc-flow-gap") ? Number(host.dataset.page) - 1 : flow.footers.length;
+    const footer = flow.footers[page - 1];
+    if (!footer) {
+      slot.replaceChildren();
+      delete slot.dataset.page;
+      delete slot.dataset.sig;
+      return;
+    }
+    const sig = JSON.stringify([page, footer]);
+    if (slot.dataset.sig === sig) return;
+    slot.dataset.page = String(page);
+    slot.dataset.sig = sig;
+    slot.classList.toggle("sc-flow-footer--none", !footer.shown);
+    if (footer.shown) {
+      slot.replaceChildren(buildFooter(document, footer));
+    } else {
+      const none = document.createElement("span");
+      none.className = "sc-flow-footer-none";
+      none.textContent = "No footer";
+      slot.replaceChildren(none);
+    }
+  });
+  markSelectedFooter(root, storage);
+}
+
+function gapWidget(b: ResolvedBreak, storage: PageFlowStorage): Decoration {
   return Decoration.widget(
     b.pos,
-    () => {
+    (view) => {
       const el = widgetEl(b.inline, "sc-flow-gap");
       el.dataset.page = String(b.page);
       el.style.setProperty("--sc-sheet-gap", `${SHEET_GAP}px`);
       const band = document.createElement("span");
       band.className = "sc-flow-gap-band";
-      band.textContent = `Page ${b.page}`;
-      el.appendChild(band);
+      el.append(band, footerSlot(view, storage));
       return el;
     },
-    { key: `gap-${b.page}-${b.inline}`, side: 0, ignoreSelection: true },
+    { key: `gap-${b.page}-${b.inline}`, side: 0, ignoreSelection: true, stopEvent: inFooter },
   );
 }
 
@@ -279,20 +348,21 @@ function pushedFloatDecorations(state: EditorState, flow: ChapterFlow): Decorati
   return out;
 }
 
-function buildDecorations(state: EditorState): DecorationSet {
+function buildDecorations(state: EditorState, storage: PageFlowStorage): DecorationSet {
   const fs = key.getState(state);
   if (!fs || !fs.flow) return DecorationSet.empty;
-  const decos = fs.breaks.map((b) => (b.kind === "page" ? gapWidget(b) : columnWidget(b)));
+  const decos = fs.breaks.map((b) => (b.kind === "page" ? gapWidget(b, storage) : columnWidget(b)));
   decos.push(...layoutClassDecorations(state, fs.flow));
   decos.push(...pushedFloatDecorations(state, fs.flow));
   decos.push(
     Decoration.widget(
       state.doc.content.size,
-      () => {
+      (view) => {
         const el = widgetEl(false, "sc-flow-tail");
+        el.appendChild(footerSlot(view, storage));
         return el;
       },
-      { key: "tail", side: 1, ignoreSelection: true },
+      { key: "tail", side: 1, ignoreSelection: true, stopEvent: inFooter },
     ),
   );
   return DecorationSet.create(state.doc, decos);
@@ -303,28 +373,30 @@ function cssPx(style: CSSStyleDeclaration, name: string): number {
 }
 
 /**
- * offsetTop / offsetLeft summed up to `root`: unscaled px, unaffected by the
- * sheet's CSS transform. The editor measures every page and placed picture
- * with this, never with getBoundingClientRect.
+ * Where `el` is drawn inside `root`, in the page's own unscaled px (the sheet
+ * is drawn at a display scale by a CSS transform, which this divides out).
+ *
+ * A child of the root reads its offsetTop directly. Anything deeper is read
+ * from where it is drawn: inside a block the page or column split in two (a
+ * long linked entry, a note), offsetTop counts from the block's unsplit flow,
+ * so summing offsets put a page gap thousands of pixels down the chapter.
  */
 export function offsetWithin(el: HTMLElement, root: HTMLElement): { top: number; left: number } {
-  let top = 0;
-  let left = 0;
-  let cur: HTMLElement | null = el;
-  while (cur && cur !== root) {
-    top += cur.offsetTop;
-    left += cur.offsetLeft;
-    const parent: Element | null = cur.offsetParent;
-    cur = parent instanceof HTMLElement ? parent : null;
-  }
-  return { top, left };
+  if (el.offsetParent === root) return { top: el.offsetTop, left: el.offsetLeft };
+  const box = el.getBoundingClientRect();
+  const frame = root.getBoundingClientRect();
+  const scale = root.offsetWidth > 0 && frame.width > 0 ? frame.width / root.offsetWidth : 1;
+  return {
+    top: (box.top - frame.top) / scale - root.clientTop,
+    left: (box.left - frame.left) / scale - root.clientLeft,
+  };
 }
 
 export const PageFlow = Extension.create<Record<string, never>, PageFlowStorage>({
   name: "pageFlow",
 
   addStorage() {
-    return { pages: [], listeners: new Set<() => void>() };
+    return { pages: [], footer: null, listeners: new Set<() => void>() };
   },
 
   addCommands() {
@@ -362,7 +434,19 @@ export const PageFlow = Extension.create<Record<string, never>, PageFlowStorage>
           },
         },
         props: {
-          decorations: buildDecorations,
+          decorations: (state) => buildDecorations(state, storage),
+          handleDOMEvents: {
+            // A press in the text (the footers stop their own) leaves the footer.
+            mousedown: (view) => {
+              selectFooter(view.dom, storage, null);
+              return false;
+            },
+          },
+          handleKeyDown: (view, event) => {
+            if (storage.footer === null) return false;
+            selectFooter(view.dom, storage, null);
+            return event.key === "Escape";
+          },
           attributes(state): Record<string, string> {
             return key.getState(state)?.flow?.twoColumn ? { class: "phb-two-col sc-flow-columns" } : {};
           },
@@ -376,12 +460,14 @@ export const PageFlow = Extension.create<Record<string, never>, PageFlowStorage>
             const fs = key.getState(view.state);
             const root = view.dom;
             if (!fs || !fs.flow) {
+              if (storage.footer !== null) storage.footer = null;
               if (storage.pages.length > 0) {
                 storage.pages = [];
                 storage.listeners.forEach((fn) => fn());
               }
               return;
             }
+            paintFooters(root, fs.flow, storage);
             const style = getComputedStyle(root);
             const geometry: PageGeometry = {
               contentHeight: cssPx(style, "--sc-content-height"),

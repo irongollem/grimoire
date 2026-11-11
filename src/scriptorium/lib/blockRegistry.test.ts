@@ -84,8 +84,6 @@ describe("BLOCK_REGISTRY", () => {
     ["Pull Quote", "quoteBlock", undefined],
     ["Lens Pair", "lensPair", undefined],
     ["Only you see this", "secretBlock", undefined],
-    ["Skip Page Number", "skipCounting", undefined],
-    ["Reset Page Counter", "resetCounting", undefined],
     ["Monster Stat Block", "noteBlock", undefined],
     ["Monster Stat Block (Wide)", "wideBlock", undefined],
   ] as const)('"%s" inserts a %s node', (label, nodeType, attrs) => {

@@ -19,6 +19,7 @@ import type {
   PageFurnitureItem,
   ScriptoriumDocUpdate,
   ScriptoriumDocument,
+  ScriptoriumFooterTitle,
   ScriptoriumKind,
   ScriptoriumPageSize,
   ScriptoriumTheme,
@@ -35,6 +36,7 @@ export interface BookSettingsDraft {
   showPageNumbers: boolean;
   pageNumberStart: number;
   footerText: string;
+  footerTitle: ScriptoriumFooterTitle;
   isPublished: boolean;
   tags: string[];
   furniture: PageFurnitureItem[];
@@ -52,6 +54,7 @@ export function toSettingsDraft(doc: ScriptoriumDocument): BookSettingsDraft {
     showPageNumbers: doc.show_page_numbers,
     pageNumberStart: doc.page_number_start,
     footerText: doc.footer_text,
+    footerTitle: doc.footer_title,
     isPublished: doc.is_published,
     tags: [...doc.tags],
     furniture: [...(doc.page_furniture ?? [])],
@@ -71,6 +74,7 @@ export function settingsRow(d: BookSettingsDraft): ScriptoriumDocUpdate {
     show_page_numbers: d.showPageNumbers,
     page_number_start: d.pageNumberStart,
     footer_text: d.footerText,
+    footer_title: d.footerTitle,
     is_published: d.isPublished,
     tags: d.tags,
     page_furniture: d.furniture,

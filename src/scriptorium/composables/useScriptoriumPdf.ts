@@ -44,7 +44,7 @@ import { createBookLayout } from "@/scriptorium/lib/bookLayout/createBookLayout"
 import type { BookChapterInput } from "@/scriptorium/lib/bookLayout/types";
 import { compactPrintImages } from "@/scriptorium/lib/printImages";
 import type { PageFurnitureItem } from "@/scriptorium/types";
-import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
+import type { ScriptoriumFooterTitle, ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
 import scriptoriumFontsCss from "@/scriptorium/styles/fonts.css?inline";
 import { scriptoriumThemeClass, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
 import { buildPdfDocumentHtml, serializeStyle } from "@/scriptorium/lib/printDocument";
@@ -134,6 +134,8 @@ export interface PdfDocumentOptions {
   isTwoColumn: boolean;
   showPageNumbers: boolean;
   footerText: string;
+  /** What the right-hand pages' running title says; left pages carry `title`. */
+  footerTitle: ScriptoriumFooterTitle;
   pageNumberStart: number;
   furniture: PageFurnitureItem[];
 }
@@ -212,6 +214,8 @@ export function useScriptoriumPdf() {
             showPageNumbers: opts.showPageNumbers,
             pageNumberStart: opts.pageNumberStart,
             footerText: opts.footerText,
+            footerTitle: opts.footerTitle,
+            bookTitle: opts.title,
             inkFriendly: opts.inkFriendly,
             theme: opts.theme,
           },

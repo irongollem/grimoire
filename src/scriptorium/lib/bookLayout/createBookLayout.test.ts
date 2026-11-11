@@ -53,6 +53,8 @@ const settings: BookLayoutSettings = {
   showPageNumbers: true,
   pageNumberStart: 1,
   footerText: "Foot",
+  footerTitle: "chapter",
+  bookTitle: "The Book",
   inkFriendly: false,
   theme: "onednd2024",
 };
@@ -166,6 +168,19 @@ describe("the cache", () => {
     const res = await book.layout(input(chapters, { settings: { ...settings, pageNumberStart: 9, footerText: "New" } }));
     expect(mocks.runs).toHaveLength(2);
     expect(res?.pages[0].label).toBe("9");
+  });
+
+  it("writes the book's title on left pages and the chapter's on right pages, with no new layout when the choice changes", async () => {
+    const { book, host } = setup();
+    const chapters = [{ id: "a", html: '<div data-pages="2"><h1>The Understage</h1></div>' }];
+    await book.layout(input(chapters));
+    const titles = () => Array.from(host.querySelectorAll(".sc-footer-text")).map((e) => e.textContent);
+    expect(titles()).toEqual(["The Understage", "The Book"]);
+    await book.layout(input(chapters, { settings: { ...settings, footerTitle: "custom" } }));
+    expect(titles()).toEqual(["Foot", "The Book"]);
+    await book.layout(input(chapters, { settings: { ...settings, footerTitle: "book" } }));
+    expect(titles()).toEqual(["The Book", "The Book"]);
+    expect(mocks.runs).toHaveLength(1);
   });
 
   it("renumbers later chapters when an earlier one grows, without laying them out again", async () => {

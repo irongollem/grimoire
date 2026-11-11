@@ -24,6 +24,7 @@ import { escapeHtml } from "@/lib/escapeHtml";
 import type { Defenses } from "@/types/statBlock.types";
 import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import { entityArtFiguresHtml } from "./entityArt";
+import { footerTitleFor } from "@/scriptorium/lib/footerTitle";
 import type { Deity } from "@/types/deity.types";
 import type { Species, SpeciesTrait } from "@/types/species.types";
 import type { Faction } from "@/types/faction.types";
@@ -71,6 +72,7 @@ export function bookInsertFromImport(
     ink_friendly: data.ink_friendly,
     show_page_numbers: data.show_page_numbers,
     footer_text: data.footer_text,
+    footer_title: footerTitleFor(data.footer_text),
     page_number_start: data.page_number_start,
   };
 }
