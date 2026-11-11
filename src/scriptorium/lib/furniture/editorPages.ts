@@ -9,6 +9,7 @@
  * the unscaled 96 dpi page model, never screen pixels.
  */
 import type { FurnitureAnchor, PageFurnitureItem } from "@/scriptorium/types";
+import { topPct } from "@/scriptorium/lib/furniture/anchorOffset";
 import { pageAt, type PageBox } from "@/scriptorium/tiptap/pageFlow";
 
 export interface SheetGeometry {
@@ -30,7 +31,11 @@ export function pageRect(page: PageBox, g: SheetGeometry): PageRect {
   return { top: page.contentTop - g.marginTop, left: 0, width: g.width, height: g.height };
 }
 
-/** The page of this chapter an anchor lands on, or null when it is on none (another chapter, a deleted block). */
+/**
+ * The page of this chapter an anchor lands on, or null when it is on none
+ * (another chapter, a deleted block). A page anchor past the chapter's end
+ * lands on its last page: the chapter got shorter and the picture waits there.
+ */
 export function pageForAnchor(
   anchor: FurnitureAnchor,
   chapterId: string,
@@ -38,10 +43,25 @@ export function pageForAnchor(
   blockPos: (blockId: string) => number | null,
 ): PageBox | null {
   if (anchor.type === "page") {
-    return anchor.chapterId === chapterId ? (pages.find((p) => p.page === anchor.page) ?? null) : null;
+    if (anchor.chapterId !== chapterId) return null;
+    return pages.find((p) => p.page === anchor.page) ?? lastPage(pages);
   }
   const pos = blockPos(anchor.blockId);
   return pos === null ? null : pageAt(pages, pos);
+}
+
+function lastPage(pages: readonly PageBox[]): PageBox | null {
+  return pages.reduce<PageBox | null>((last, p) => (!last || p.page > last.page ? p : last), null);
+}
+
+/** The page number a page-anchored item names when this chapter no longer has it, else null. */
+export function missingPageNumber(
+  anchor: FurnitureAnchor,
+  chapterId: string,
+  pages: readonly PageBox[],
+): number | null {
+  if (anchor.type !== "page" || anchor.chapterId !== chapterId || pages.length === 0) return null;
+  return pages.some((p) => p.page === anchor.page) ? null : anchor.page;
 }
 
 /** This chapter's furniture grouped by the editor page it is drawn on. */
@@ -60,6 +80,11 @@ export function itemsByPage(
     else out.set(page, [item]);
   }
   return out;
+}
+
+/** A block's top, given in the editor root's px, as a % of the height of `page`'s sheet. */
+export function blockTopPct(blockTop: number, page: PageBox, g: SheetGeometry): number | null {
+  return topPct(blockTop, pageRect(page, g).top, g.height);
 }
 
 const pct = (v: number) => Math.max(0, Math.min(100, Math.round(v * 10) / 10));

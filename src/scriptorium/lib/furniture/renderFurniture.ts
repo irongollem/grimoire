@@ -14,6 +14,7 @@
 
 import type { PageFurnitureItem, FurnitureAnchor } from "@/scriptorium/types";
 import { watercolorAsset, watercolorSrc } from "@/data/watercolorAssets";
+import { followsBlock, placeAtAnchor, topPct } from "@/scriptorium/lib/furniture/anchorOffset";
 
 const FURNITURE_CLASS = "sc-furniture";
 
@@ -30,9 +31,11 @@ function resolvePage(
   pages: HTMLElement[],
   anchor: FurnitureAnchor,
   chapterPages: Map<string, HTMLElement>,
+  lastPages: Map<string, HTMLElement>,
 ): HTMLElement | null {
   if (anchor.type === "page") {
-    return chapterPages.get(`${anchor.chapterId}\u0000${anchor.page}`) ?? null;
+    // A page the chapter no longer reaches (it got shorter) waits on its last page rather than vanishing.
+    return chapterPages.get(`${anchor.chapterId}\u0000${anchor.page}`) ?? lastPages.get(anchor.chapterId) ?? null;
   }
   // block anchor: the page whose content contains the block id. UUIDs are
   // selector-safe, so they can be interpolated directly.
@@ -205,14 +208,18 @@ export function renderFurniture(
   if (!pages.length) return;
 
   const chapterPages = new Map<string, HTMLElement>();
+  const lastPages = new Map<string, HTMLElement>();
   for (const p of pages) {
     const chapterId = p.getAttribute(CHAPTER_ID_ATTR);
     const n = p.getAttribute(CHAPTER_PAGE_ATTR);
-    if (chapterId !== null && n !== null) chapterPages.set(`${chapterId}\u0000${n}`, p);
+    if (chapterId === null || n === null) continue;
+    chapterPages.set(`${chapterId}\u0000${n}`, p);
+    const last = lastPages.get(chapterId);
+    if (!last || Number(n) > Number(last.getAttribute(CHAPTER_PAGE_ATTR))) lastPages.set(chapterId, p);
   }
 
   for (const item of items) {
-    const page = resolvePage(pages, item.anchor, chapterPages);
+    const page = resolvePage(pages, item.anchor, chapterPages, lastPages);
     if (!page) continue;
     const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
     const el = buildFurnitureElement(item);
@@ -222,6 +229,14 @@ export function renderFurniture(
     // z-lifted above) so it can be grabbed regardless of page content.
     if (item.z === "under" && !opts.interactive) box.insertBefore(el, box.firstChild);
     else box.appendChild(el);
+    // A picture that follows its paragraph is placed from the paragraph's top on this page.
+    if (followsBlock(item) && item.anchor.type === "block") {
+      const block = page.querySelector<HTMLElement>(`[data-block-id="${item.anchor.blockId}"]`);
+      const boxRect = box.getBoundingClientRect();
+      // Rect ratios, so a scaled page (the preview's zoom) measures the same as a printed one.
+      const top = block ? topPct(block.getBoundingClientRect().top, boxRect.top, boxRect.height) : null;
+      if (top !== null) placeAtAnchor(el, item, box, top);
+    }
   }
 }
 

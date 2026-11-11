@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { itemsByPage, neighbourBlockId, pageForAnchor, pageRect, placementFromBox } from "./editorPages";
+import { blockTopPct, itemsByPage, missingPageNumber, neighbourBlockId, pageForAnchor, pageRect, placementFromBox } from "./editorPages";
 import { createFurnitureItem } from "./model";
 import type { PageBox } from "@/scriptorium/tiptap/pageFlow";
 
@@ -20,7 +20,21 @@ describe("editor page furniture", () => {
   it("an item whose block is gone, or that is on another chapter, is not drawn", () => {
     expect(pageForAnchor({ type: "block", blockId: "gone" }, "c1", pages, blockPos)).toBeNull();
     expect(pageForAnchor({ type: "page", chapterId: "other", page: 1 }, "c1", pages, blockPos)).toBeNull();
-    expect(pageForAnchor({ type: "page", chapterId: "c1", page: 9 }, "c1", pages, blockPos)).toBeNull();
+  });
+
+  it("a page anchor past the chapter's end is drawn on its last page, and says which page is gone", () => {
+    const gone = { type: "page", chapterId: "c1", page: 9 } as const;
+    expect(pageForAnchor(gone, "c1", pages, blockPos)?.page).toBe(2);
+    expect(missingPageNumber(gone, "c1", pages)).toBe(9);
+    expect(missingPageNumber({ type: "page", chapterId: "c1", page: 2 }, "c1", pages)).toBeNull();
+    expect(missingPageNumber({ type: "block", blockId: "a" }, "c1", pages)).toBeNull();
+    expect(missingPageNumber(gone, "c1", [])).toBeNull();
+  });
+
+  it("a block's top is read against its own page, so page 2's paragraphs are not measured from page 1", () => {
+    // Page 2's sheet starts at 1124 - 50 = 1074; a block at 1274 is 200px down a 1000px sheet.
+    expect(blockTopPct(1274, pages[1], G)).toBe(20);
+    expect(blockTopPct(250, pages[0], G)).toBe(25);
   });
 
   it("groups items by their page and leaves out the ones that are on none", () => {

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderFurniture, buildFurnitureElement, furniturePlacement } from "./renderFurniture";
 import { createFurnitureItem } from "./model";
 import { WATERCOLOR_ASSETS } from "@/data/watercolorAssets";
@@ -59,10 +59,17 @@ describe("renderFurniture", () => {
     expect(box(c, 3).querySelector(".sc-furniture--art")).toBeTruthy();
   });
 
+  it("a page anchor past the chapter's end draws on its last page", () => {
+    const c = makeContainer(2);
+    renderFurniture(c, [createFurnitureItem("art", { type: "page", chapterId: "c1", page: 5 })]);
+    expect(box(c, 1).querySelector(".sc-furniture")).toBeNull();
+    expect(box(c, 2).querySelector(".sc-furniture--art")).toBeTruthy();
+  });
+
   it("skips items whose anchor can't be resolved", () => {
     const c = makeContainer(2);
     renderFurniture(c, [
-      createFurnitureItem("watercolor", { type: "page", chapterId: "c1", page: 9 }),
+      createFurnitureItem("watercolor", { type: "page", chapterId: "other", page: 1 }),
       createFurnitureItem("art", { type: "block", blockId: "missing" }),
     ]);
     expect(c.querySelectorAll(".sc-furniture")).toHaveLength(0);
@@ -213,5 +220,56 @@ describe("corner-pinned art", () => {
 
   it("answers null when nothing is laid out, so the inspector can disable its controls", () => {
     expect(furniturePlacement("nope", document.createElement("div"))).toBeNull();
+  });
+});
+
+describe("a picture that follows its paragraph", () => {
+  const rect = (top: number, height = 0) =>
+    ({ x: 0, y: top, top, left: 0, right: 0, bottom: top + height, width: 0, height, toJSON() {} }) as DOMRect;
+
+  /** Page `blockPage` holds the paragraph `blk`, whose top is `blockTop` px down a 1000px page box. */
+  function laidOut(blockPage: number, blockTop: number): HTMLElement {
+    const c = makeContainer(3, "blk", blockPage);
+    for (const b of Array.from(c.querySelectorAll<HTMLElement>(".pagedjs_pagebox"))) b.getBoundingClientRect = () => rect(0, 1000);
+    c.querySelector<HTMLElement>("[data-block-id]")!.getBoundingClientRect = () => rect(blockTop, 20);
+    return c;
+  }
+  const item = () => createFurnitureItem("art", { type: "block", blockId: "blk" }, { x: 10, y: 5, width: 30 });
+
+  it("a paragraph moving to the next page takes its picture with it to the same place beside it", () => {
+    const before = laidOut(2, 300);
+    const after = laidOut(3, 100);
+    const it1 = item();
+    renderFurniture(before, [it1]);
+    renderFurniture(after, [it1]);
+    // Same offset below the paragraph, whichever page and height it lands at.
+    expect(box(before, 2).querySelector<HTMLElement>(".sc-furniture")!.style.top).toBe("35%");
+    expect(box(after, 3).querySelector<HTMLElement>(".sc-furniture")!.style.top).toBe("15%");
+  });
+
+  it("tells the drag code where the paragraph's top is, so it can write an offset", () => {
+    const c = laidOut(1, 300);
+    renderFurniture(c, [item()]);
+    expect(box(c, 1).querySelector<HTMLElement>(".sc-furniture")!.dataset.anchorTop).toBe("30");
+  });
+
+  it("a picture never leaves the page when its paragraph sits at the foot", () => {
+    const c = laidOut(1, 950);
+    const heights = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("pagedjs_pagebox") ? 1000 : 200;
+    });
+    renderFurniture(c, [item()]);
+    heights.mockRestore();
+    // 95% + 5% would put its top at 100%; it is held to 100 - its 20% height.
+    expect(box(c, 1).querySelector<HTMLElement>(".sc-furniture")!.style.top).toBe("80%");
+  });
+
+  it("a page-anchored or cornered picture keeps its own page coordinates", () => {
+    const c = laidOut(1, 300);
+    const onPage = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 }, { x: 10, y: 5 });
+    const cornered = { ...item(), corner: "top-left" as const, x: 0, y: 0 };
+    renderFurniture(c, [onPage, cornered]);
+    for (const el of Array.from(box(c, 1).querySelectorAll<HTMLElement>(".sc-furniture"))) expect(el.dataset.anchorTop).toBeUndefined();
+    expect(box(c, 1).querySelector<HTMLElement>(`[data-furniture-id="${onPage.id}"]`)!.style.top).toBe("5%");
   });
 });

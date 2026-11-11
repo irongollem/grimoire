@@ -13,6 +13,7 @@
 
 import { onBeforeUnmount, watch, type Ref } from "vue";
 import { canPinToCorner, freeCoordinates, snapCorner } from "@/scriptorium/lib/furniture/model";
+import { clampTop, followsBlock, offsetFromDrawnTop } from "@/scriptorium/lib/furniture/anchorOffset";
 import { CHAPTER_ID_ATTR, CHAPTER_PAGE_ATTR } from "@/scriptorium/lib/furniture/renderFurniture";
 import type { FurnitureAnchor, FurnitureCorner, PageFurnitureItem } from "@/scriptorium/types";
 
@@ -48,8 +49,11 @@ export function movePatch(
   left: number,
   top: number,
   corner: FurnitureCorner | null,
+  /** The anchor block's top (% of the page) when the item follows a block: `y` is then the offset from it. */
+  anchorTop: number | null = null,
 ): Pick<PageFurnitureItem, "x" | "y"> & { corner?: FurnitureCorner } {
-  return corner ? { corner, x: 0, y: 0 } : { x: clampPct(left), y: clampPct(top) };
+  if (corner) return { corner, x: 0, y: 0 };
+  return { x: clampPct(left), y: anchorTop === null ? clampPct(top) : offsetFromDrawnTop(top, anchorTop) };
 }
 
 /** Pin a block-anchored item to the page it is drawn on; any other anchor, or an undrawn page, is kept. */
@@ -78,6 +82,8 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
     /** Left/top of the item as free coordinates, wherever it was pinned. */
     startLeft: number;
     startTop: number;
+    /** Set when the item follows a block: top is then a drawn top, and this is the block's top (% of the page). */
+    anchorTop: number | null;
     startWidth: number;
     widthPct: number;
     heightPct: number;
@@ -114,6 +120,13 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
     // A box with no height (not laid out) gives nothing to drag against.
     const start = freeCoordinates(item, boxRect.height > 0 ? heightPct : null, widthPct);
     if (!start) return;
+    // A picture that follows a paragraph is dragged by where it is drawn; its y is only an offset from the block.
+    const anchorAttr = target.dataset.anchorTop;
+    const anchorTop = followsBlock(item) && anchorAttr !== undefined && Number.isFinite(Number(anchorAttr)) ? Number(anchorAttr) : null;
+    if (anchorTop !== null) {
+      if (boxRect.height <= 0) return;
+      start.y = clampPct(((r.top - boxRect.top) / boxRect.height) * 100);
+    }
     drag = {
       target,
       box,
@@ -127,6 +140,7 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
       startClientY: e.clientY,
       startLeft: start.x,
       startTop: start.y,
+      anchorTop,
       startWidth: item.width,
       widthPct,
       heightPct,
@@ -143,6 +157,12 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
     return clampPct(d.startWidth + grows, 5);
   }
 
+  /** A followed picture stays inside its page; any other is held to the page's edges. */
+  function dragTop(d: NonNullable<typeof drag>, dy: number): number {
+    const raw = d.startTop + dy;
+    return d.anchorTop === null ? clampPct(raw) : clampPct(clampTop(raw, d.heightPct));
+  }
+
   function onPointerMove(e: PointerEvent) {
     if (!drag) return;
     // Selecting an item makes the editor layer and the preview pass redraw, which
@@ -157,7 +177,7 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
       return;
     }
     const left = clampPct(drag.startLeft + dx);
-    const top = clampPct(drag.startTop + dy);
+    const top = dragTop(drag, dy);
     drag.snapped = drag.canSnap ? snapCorner(left, top, drag.widthPct, drag.heightPct) : null;
     const c = drag.snapped;
     style.left = c?.endsWith("left") ? "0%" : c ? "" : `${left}%`;
@@ -182,9 +202,9 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
       next = { ...current, width: widthFor(d, dx) };
     } else {
       const left = clampPct(d.startLeft + dx);
-      const top = clampPct(d.startTop + dy);
+      const top = dragTop(d, dy);
       const corner = d.canSnap ? snapCorner(left, top, d.widthPct, d.heightPct) : null;
-      next = { ...current, ...movePatch(left, top, corner) };
+      next = { ...current, ...movePatch(left, top, corner, d.anchorTop) };
       if (!corner) delete next.corner;
     }
     if (next.corner) next = { ...next, anchor: pinnedAnchor(next, d.box) };

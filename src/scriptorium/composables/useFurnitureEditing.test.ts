@@ -269,6 +269,36 @@ describe("useFurnitureEditing corners", () => {
     wrapper.unmount();
   });
 
+  it("dragging a picture that follows its paragraph writes the offset from that paragraph, not a page position", async () => {
+    const { container, target } = cornerDom();
+    target.dataset.anchorTop = "30"; // the paragraph's top, 30% down the 200px page
+    // The target is drawn at top 80px of 200: 40%. Its stored y (5) is only an offset.
+    items = [item({ x: 20, y: 5, width: 30, anchor: { type: "block", blockId: "b1" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointermove", 75, 85 + 20); // down 10% of the page: drawn at 50%
+    dispatchPointer(window, "pointerup", 75, 85 + 20);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(moved.y).toBe(20); // 50% drawn - 30% paragraph
+    expect(moved.anchor).toEqual({ type: "block", blockId: "b1" });
+    wrapper.unmount();
+  });
+
+  it("a dragged picture is held on its page, so it cannot be dropped off the foot", async () => {
+    const { container, target } = cornerDom();
+    target.dataset.anchorTop = "30";
+    items = [item({ x: 20, y: 5, width: 30, anchor: { type: "block", blockId: "b1" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointermove", 75, 85 + 500);
+    dispatchPointer(window, "pointerup", 75, 85 + 500);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(moved.y).toBe(50); // top held at 100 - its 20% height = 80%; 80 - 30
+    wrapper.unmount();
+  });
+
   it("keeps the anchor when the page carries no chapter attributes", async () => {
     const { container, page, target } = cornerDom();
     delete page.dataset.chapterId;

@@ -19,10 +19,19 @@
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { PageFurnitureItem } from "@/scriptorium/types";
-import type { PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
+import { pageAt, type PageBox, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import type { FurnitureUnderlayStorage } from "@/scriptorium/tiptap/furnitureUnderlay";
 import { buildFurnitureElement, makeGrabbable } from "@/scriptorium/lib/furniture/renderFurniture";
-import { itemsByPage, pageRect, type SheetGeometry } from "@/scriptorium/lib/furniture/editorPages";
+import {
+  blockTopPct,
+  itemsByPage,
+  missingPageNumber,
+  pageRect,
+  type SheetGeometry,
+} from "@/scriptorium/lib/furniture/editorPages";
+import { followsBlock, placeAtAnchor, reanchored } from "@/scriptorium/lib/furniture/anchorOffset";
+import { buildAnchorMark, buildGoneNote } from "@/scriptorium/lib/furniture/anchorMark";
+import { blockPositions, blockTopPx } from "@/scriptorium/lib/furniture/editorAnchors";
 import {
   behindHandleFor,
   behindPick,
@@ -38,6 +47,13 @@ const { editor, chapterId, furniture, selectedId, geometry } = defineProps<{
   furniture: PageFurnitureItem[];
   selectedId: string | null;
   geometry: SheetGeometry;
+}>();
+
+const emit = defineEmits<{
+  /** A new layout moved these pictures to another page with their paragraph (the pages they are on now). */
+  moved: [pages: number[]];
+  /** The anchor mark was dragged onto another paragraph. */
+  "update:furniture": [items: PageFurnitureItem[]];
 }>();
 
 /** The editor's own storage entries; the extensions are registered only in the chapter editor. */
@@ -58,19 +74,22 @@ function pageBox(rect: ReturnType<typeof pageRect>, page: number): HTMLElement {
   return box;
 }
 
-function blockPositions(ed: Editor): Map<string, number> {
-  const byId = new Map<string, number>();
-  ed.state.doc.descendants((node, pos) => {
-    const id: unknown = node.attrs.blockId;
-    if (typeof id === "string" && !byId.has(id)) byId.set(id, pos);
-  });
-  return byId;
-}
-
 /** Bumped when the furniture, selection, chapter or geometry change: the inputs a measure alone cannot. */
 let inputs = 0;
 /** What the last draw drew: the page measure runs after every keystroke, and most of them move no picture. */
 let drawn = "";
+
+/** Where each item was drawn last time, so a layout that carries a picture to another page with its paragraph can say so. */
+const lastPlaced = new Map<string, { page: number; blockId: string }>();
+
+/** An anchor block's top on its page, in the sheet's px and in % of the page, or null when it is not drawn. */
+function anchorTop(ed: Editor, item: PageFurnitureItem, page: PageBox, blocks: Map<string, number>) {
+  if (!followsBlock(item) || item.anchor.type !== "block") return null;
+  const pos = blocks.get(item.anchor.blockId);
+  const px = pos === undefined ? null : blockTopPx(ed, pos);
+  const pct = px === null ? null : blockTopPct(px, page, geometry);
+  return px === null || pct === null ? null : { pct, px: px - pageRect(page, geometry).top };
+}
 
 function draw() {
   const overlay = overlayRef.value;
@@ -83,10 +102,15 @@ function draw() {
   const pages = flow?.pages ?? [];
   const blocks = blockPositions(ed);
   const grouped = itemsByPage(furniture, chapterId, pages, (id) => blocks.get(id) ?? null);
+  const tops = new Map<string, ReturnType<typeof anchorTop>>();
+  for (const [page, items] of grouped) for (const item of items) tops.set(item.id, anchorTop(ed, item, page, blocks));
   const signature = [
     inputs,
     underlay ? 1 : 0,
-    ...[...grouped].map(([page, items]) => `${page.page}@${page.contentTop}:${items.map((i) => i.id).join(",")}`),
+    ...[...grouped].map(
+      ([page, items]) =>
+        `${page.page}@${page.contentTop}:${items.map((i) => `${i.id}~${Math.round((tops.get(i.id)?.pct ?? -1) * 10)}`).join(",")}`,
+    ),
   ].join("|");
   if (signature === drawn) return;
   drawn = signature;
@@ -96,6 +120,8 @@ function draw() {
   selectedEl = null;
   underlay?.replaceChildren();
 
+  const placements: { el: HTMLElement; item: PageFurnitureItem; box: HTMLElement; top: number }[] = [];
+  const marks: { page: PageBox; item: PageFurnitureItem; el: HTMLElement; px: number | null }[] = [];
   for (const [page, items] of grouped) {
     const rect = pageRect(page, geometry);
     const front = pageBox(rect, page.page);
@@ -107,15 +133,160 @@ function draw() {
         // Behind the text, selected or not: it stays under the words. Selection is
         // a frame drawn above them (showSelected), and a press reaches it through hitTest.
         behind.appendChild(el);
+        placeLater(placements, el, item, behind, tops.get(item.id)?.pct);
       } else {
         makeGrabbable(el, item, selected);
         front.appendChild(el);
+        placeLater(placements, el, item, front, tops.get(item.id)?.pct);
       }
+      marks.push({ page, item, el, px: tops.get(item.id)?.px ?? null });
     }
     if (front.childElementCount) overlay.appendChild(front);
     if (behind.childElementCount && underlay) underlay.appendChild(behind);
   }
+  // Placed once they are in the page: a picture's height is only known there.
+  for (const p of placements) placeAtAnchor(p.el, p.item, p.box, p.top);
+  drawNotes(overlay, marks, pages);
+  trackMoves(grouped);
   showSelected();
+}
+
+function placeLater(
+  list: { el: HTMLElement; item: PageFurnitureItem; box: HTMLElement; top: number }[],
+  el: HTMLElement,
+  item: PageFurnitureItem,
+  box: HTMLElement,
+  top: number | undefined,
+) {
+  if (top !== undefined) list.push({ el, item, box, top });
+}
+
+/** The anchor mark for the selected picture that follows a paragraph, and a note on any whose page is gone. */
+function drawNotes(
+  overlay: HTMLElement,
+  drawnItems: { page: PageBox; item: PageFurnitureItem; el: HTMLElement; px: number | null }[],
+  pages: readonly PageBox[],
+) {
+  for (const { page, item, el, px } of drawnItems) {
+    const rect = pageRect(page, geometry);
+    const drawnTop = parseFloat(el.style.top);
+    const gone = missingPageNumber(item.anchor, chapterId, pages);
+    const wantsMark = item.id === selectedId && px !== null && Number.isFinite(drawnTop);
+    if (gone === null && !wantsMark) continue;
+    const box = pageBox(rect, page.page);
+    if (wantsMark && px !== null) {
+      box.appendChild(
+        buildAnchorMark(item.id, {
+          anchorTop: px,
+          itemLeft: (item.x / 100) * rect.width,
+          itemTop: (drawnTop / 100) * rect.height,
+        }),
+      );
+    }
+    if (gone !== null) {
+      const corner = item.corner;
+      const left = corner ? (corner.endsWith("left") ? 2 : 40) : item.x;
+      const top = corner ? (corner.startsWith("top") ? 2 : 94) : item.y;
+      box.appendChild(buildGoneNote(gone, left, top));
+    }
+    overlay.appendChild(box);
+  }
+}
+
+/** Tells the shell about every picture a new layout carried to another page with its paragraph. */
+function trackMoves(grouped: Map<PageBox, PageFurnitureItem[]>) {
+  const movedTo: number[] = [];
+  const seen = new Set<string>();
+  for (const [page, items] of grouped) {
+    for (const item of items) {
+      seen.add(item.id);
+      if (!followsBlock(item) || item.anchor.type !== "block") {
+        lastPlaced.delete(item.id);
+        continue;
+      }
+      const before = lastPlaced.get(item.id);
+      // Only the same paragraph on another page is the layout's doing; a new anchor is the DM's own.
+      if (before && before.blockId === item.anchor.blockId && before.page !== page.page) movedTo.push(page.page);
+      lastPlaced.set(item.id, { page: page.page, blockId: item.anchor.blockId });
+    }
+  }
+  for (const id of lastPlaced.keys()) if (!seen.has(id)) lastPlaced.delete(id);
+  if (movedTo.length) emit("moved", movedTo);
+}
+
+// ── The anchor mark: drag it onto another paragraph (#1176) ──────────────────
+// No keyboard route: a picture's anchor is changed by pointer, and the
+// inspector's "Moves with its paragraph" / "Stays on page" stays the other way.
+
+interface MarkDrag {
+  id: string;
+  mark: HTMLElement;
+  startY: number;
+  scale: number;
+}
+let markDrag: MarkDrag | null = null;
+
+function onOverlayDown(e: PointerEvent) {
+  const mark = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-anchor-mark]") : null;
+  const overlay = overlayRef.value;
+  if (!mark || !overlay) return;
+  // The sheet's own pointerdown deselects; this press is not a click on the page.
+  e.stopPropagation();
+  e.preventDefault();
+  const o = overlay.getBoundingClientRect();
+  markDrag = {
+    id: mark.dataset.anchorMark ?? "",
+    mark,
+    startY: e.clientY,
+    scale: overlay.offsetWidth > 0 ? o.width / overlay.offsetWidth : 1,
+  };
+  // Out of the way, so the text under the pointer can be found when it is let go.
+  mark.style.pointerEvents = "none";
+  window.addEventListener("pointermove", onMarkMove);
+  window.addEventListener("pointerup", onMarkUp, { once: true });
+}
+
+function onMarkMove(e: PointerEvent) {
+  if (!markDrag) return;
+  markDrag.mark.style.transform = `translateY(${(e.clientY - markDrag.startY) / markDrag.scale}px)`;
+}
+
+/** The top-level block under a point, by its stable id. */
+function blockIdAt(ed: Editor, x: number, y: number): string | null {
+  const hit = ed.view.posAtCoords({ left: x, top: y });
+  if (!hit) return null;
+  const $pos = ed.state.doc.resolve(hit.pos);
+  const node = $pos.depth >= 1 ? $pos.node(1) : ($pos.nodeAfter ?? $pos.nodeBefore);
+  const id: unknown = node?.attrs.blockId;
+  return typeof id === "string" && id ? id : null;
+}
+
+function onMarkUp(e: PointerEvent) {
+  window.removeEventListener("pointermove", onMarkMove);
+  const d = markDrag;
+  markDrag = null;
+  const ed = editor;
+  if (!d || !ed || ed.isDestroyed) return;
+  d.mark.style.transform = "";
+  d.mark.style.pointerEvents = "";
+  const item = furniture.find((i) => i.id === d.id);
+  const blockId = blockIdAt(ed, e.clientX, e.clientY);
+  if (!item || !blockId || (item.anchor.type === "block" && item.anchor.blockId === blockId)) return;
+  const blocks = blockPositions(ed);
+  const pos = blocks.get(blockId);
+  const page = pos === undefined ? null : pageAt(storageOf(ed).pageFlow?.pages ?? [], pos);
+  const px = pos === undefined ? null : blockTopPx(ed, pos);
+  const drawnEl =
+    overlayRef.value?.querySelector<HTMLElement>(`[data-furniture-id="${d.id}"]`) ??
+    storageOf(ed).furnitureUnderlay?.element?.querySelector<HTMLElement>(`[data-furniture-id="${d.id}"]`);
+  const drawnTop = drawnEl ? parseFloat(drawnEl.style.top) : NaN;
+  const newTop = page && px !== null ? blockTopPct(px, page, geometry) : null;
+  if (newTop === null || !Number.isFinite(drawnTop)) return;
+  lastPlaced.delete(d.id);
+  emit(
+    "update:furniture",
+    furniture.map((i) => (i.id === d.id ? reanchored(i, drawnTop, blockId, newTop) : i)),
+  );
 }
 
 // ── Pictures behind the text, reached from the page (#1175) ────────────────
@@ -332,7 +503,10 @@ function unsubscribe() {
   underlay = undefined;
 }
 
-onMounted(() => subscribe(editor));
+onMounted(() => {
+  subscribe(editor);
+  overlayRef.value?.addEventListener("pointerdown", onOverlayDown);
+});
 watch(() => editor, subscribe);
 watch(
   () => [furniture, selectedId, chapterId, geometry] as const,
@@ -342,5 +516,9 @@ watch(
   },
   { flush: "post" },
 );
-onBeforeUnmount(unsubscribe);
+onBeforeUnmount(() => {
+  unsubscribe();
+  overlayRef.value?.removeEventListener("pointerdown", onOverlayDown);
+  window.removeEventListener("pointermove", onMarkMove);
+});
 </script>

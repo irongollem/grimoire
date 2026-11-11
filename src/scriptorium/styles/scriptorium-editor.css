@@ -393,3 +393,49 @@
   top: auto;
   bottom: 0.25rem;
 }
+
+/* The anchor mark (#1176): in the page's left margin, level with the paragraph
+   a selected picture follows, with a hairline to the picture. px throughout is
+   the unscaled page model and hairlines. */
+.sc-anchor-mark-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: oklch(0.45 0.15 250);
+}
+.sc-anchor-hairline {
+  position: absolute;
+  background: oklch(0.6 0.2 250 / 0.55);
+}
+.sc-anchor-mark {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid oklch(0.6 0.2 250 / 0.7);
+  border-radius: 9999px;
+  background: oklch(0.99 0.005 250 / 0.95);
+  color: oklch(0.4 0.15 250);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+.sc-anchor-mark:active {
+  cursor: grabbing;
+}
+/* A page that is gone: a small note beside the picture waiting on the last page. */
+.sc-gone-note {
+  position: absolute;
+  max-width: 60%;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid oklch(0.6 0.2 250 / 0.5);
+  border-radius: 0.25rem;
+  background: oklch(0.99 0.005 250 / 0.95);
+  color: oklch(0.4 0.15 250);
+  font: italic 0.6875rem / 1.3 system-ui, sans-serif;
+  pointer-events: none;
+  z-index: 40;
+}
+.sc-gone-note--above {
+  transform: translateY(-100%);
+}

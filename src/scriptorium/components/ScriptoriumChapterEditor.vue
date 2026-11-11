@@ -47,6 +47,8 @@
             :furniture="furniture"
             :selected-id="selectedFurnitureId"
             :geometry="sheetGeometry"
+            @moved="onFurnitureMoved"
+            @update:furniture="emit('update:furniture', $event)"
           />
         </div>
       </div>
@@ -62,6 +64,10 @@
 
     <footer class="flex shrink-0 items-center gap-4 border-t border-border bg-muted/20 px-4 py-1.5">
       <slot name="footer" />
+      <!-- Said quietly, and only for a few seconds: a layout carried a picture along with its paragraph. -->
+      <span v-if="movedNotice" role="status" class="text-caption italic text-muted-foreground" data-testid="picture-moved">
+        {{ movedNotice }}
+      </span>
       <span class="ml-auto text-caption italic text-muted-foreground">{{ wordCount }} words</span>
       <span v-if="pagesLabel" class="text-caption italic text-muted-foreground">{{ pagesLabel }}</span>
     </footer>
@@ -113,11 +119,15 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import type { JSONContent } from "@tiptap/core";
 import { NodeSelection } from "@tiptap/pm/state";
+import { prefersReducedMotion } from "@/lib/motion";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
 import { PageFlow, offsetWithin, pageAt, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import { FurnitureUnderlay } from "@/scriptorium/tiptap/furnitureUnderlay";
 import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
-import { neighbourBlockId, placementFromBox } from "@/scriptorium/lib/furniture/editorPages";
+import { blockTopPct, neighbourBlockId, placementFromBox } from "@/scriptorium/lib/furniture/editorPages";
+import { offsetFromDrawnTop } from "@/scriptorium/lib/furniture/anchorOffset";
+import { blockPositions, blockTopPx } from "@/scriptorium/lib/furniture/editorAnchors";
+import { movedNoticeText } from "@/scriptorium/lib/furniture/movedNotice";
 import { useFurnitureEditing } from "@/scriptorium/composables/useFurnitureEditing";
 import EditorFurnitureLayer from "@/scriptorium/components/EditorFurnitureLayer.vue";
 import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
@@ -424,6 +434,14 @@ function placeOnPage() {
       const img = dom instanceof HTMLImageElement ? dom : (dom.querySelector("img") ?? dom);
       const { top, left } = offsetWithin(img, ed.view.dom as HTMLElement);
       placed = placementFromBox({ top, left, width: img.offsetWidth }, page, sheetGeometry.value);
+      // A picture that follows a paragraph is written as an offset from that paragraph's top, so the
+      // paragraph moving to another page takes the picture with it to the same place beside it.
+      if (anchor.type === "block" && placed.y !== undefined) {
+        const blockPos = blockPositions(ed).get(anchor.blockId);
+        const blockPx = blockPos === undefined ? null : blockTopPx(ed, blockPos);
+        const blockPct = blockPx === null ? null : blockTopPct(blockPx, page, sheetGeometry.value);
+        if (blockPct !== null) placed = { ...placed, y: offsetFromDrawnTop(placed.y, blockPct) };
+      }
     }
   }
   const item = createFurnitureItem("art", anchor, { ...placed, z: "over", props: { src } });
@@ -431,6 +449,17 @@ function placeOnPage() {
   emit("update:furniture", [...furniture, item]);
   emit("update:selectedFurnitureId", item.id);
 }
+
+/** The footer line shown for a few seconds after a layout carries a picture to another page. */
+const movedNotice = ref("");
+const NOTICE_MS = 6000;
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+function onFurnitureMoved(pages: number[]) {
+  movedNotice.value = movedNoticeText(pages);
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => (movedNotice.value = ""), NOTICE_MS);
+}
+onUnmounted(() => clearTimeout(noticeTimer));
 
 const { selectedImageIsSupabase, editInIlluminator } = useScriptoriumIlluminator(
   editor,
@@ -464,10 +493,26 @@ onUnmounted(() => {
   editor.value?.destroy();
 });
 
+/**
+ * Brings page `page` of this chapter into view (the export's print check names
+ * pages). Page 1 is the top of the sheet; a later page starts at its gap, which
+ * exists once the chapter is laid out, so this says whether it found it.
+ */
+function scrollToPage(page: number): boolean {
+  const ed = editor.value;
+  if (!ed || ed.isDestroyed) return false;
+  const root = ed.view.dom as HTMLElement;
+  const target = page <= 1 ? root : root.querySelector<HTMLElement>(`.sc-flow-gap[data-page="${page}"]`);
+  if (!target) return false;
+  target.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  return true;
+}
+
 defineExpose({
   editor,
   saveNow: autosave.saveNow,
   focusBlock,
+  scrollToPage,
   blockIdAtCursor,
   dirty: autosave.dirty,
   hold: autosave.hold,
