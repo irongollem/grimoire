@@ -52,7 +52,7 @@ function open(selection: PanelSelection, content: object[], furniture: PageFurni
   editor = ed;
   const pictures = makePictures();
   const wrapper = mount(ScriptoriumPanel, {
-    props: { selection, editor: ed, version: 0, chapterId: "c1", furniture, pictures, context, canEditNodePicture: true, closable: false },
+    props: { selection, editor: ed, version: 0, chapterId: "c1", furniture, pictures, context, canEditPicture: true, closable: false },
     global: { stubs },
   });
   return { ed, pictures, wrapper };
@@ -109,12 +109,14 @@ describe("ScriptoriumPanel", () => {
   });
 
   // Fails on: Edit picture being offered for art on the page, which has no Illuminator route yet.
-  it("keeps Edit picture off for art on the page and on for a library picture in the text", () => {
-    const art: PageFurnitureItem = { id: "f1", kind: "art", anchor: { type: "block", blockId: "b1" }, x: 0, y: 0, width: 40, z: "over", props: { src: "a.webp" } };
-    const onPage = open({ kind: "picture", source: "furniture", id: "f1" }, [para("b1")], [art]);
-    expect(onPage.wrapper.findAll("button").find((b) => b.text() === "Edit picture…")?.attributes("disabled")).toBeDefined();
-    const inText = open({ kind: "picture", source: "node", pos: 5 }, [para("b1"), { type: "image", attrs: { src: "p.webp" } }]);
-    expect(inText.wrapper.findAll("button").find((b) => b.text() === "Edit picture…")?.attributes("disabled")).toBeUndefined();
+  // Fails on: the contents page or a footer falling through to the page section, so the panel describes the wrong thing.
+  it("shows the contents section for the contents page and the footer section for a footer", () => {
+    const contents = open({ kind: "contents", pos: 5 }, [para("b1"), { type: "tocBlock" }]);
+    expect(contents.wrapper.find('[data-testid="panel-contents"]').exists()).toBe(true);
+    expect(contents.wrapper.find('[data-testid="panel-page"]').exists()).toBe(false);
+    const footer = open({ kind: "footer", page: 15 }, [para("b1")]);
+    expect(footer.wrapper.find('[data-testid="panel-footer"]').exists()).toBe(true);
+    expect(footer.wrapper.find('[data-testid="panel-page"]').exists()).toBe(false);
   });
 
   it("asks a linked entry to detach where it is drawn", async () => {

@@ -20,7 +20,9 @@ export type PanelSelection =
   | { kind: "picture"; source: "furniture"; id: string }
   | { kind: "decoration"; id: string }
   | { kind: "cover"; pos: number }
-  | { kind: "embed"; pos: number };
+  | { kind: "embed"; pos: number }
+  | { kind: "contents"; pos: number }
+  | { kind: "footer"; page: number };
 
 export interface SelectionInputs {
   /** The editor's selected node, when the selection is a whole node. */
@@ -29,14 +31,16 @@ export interface SelectionInputs {
   coverPos: number | null;
   /** The selected furniture, when one is. */
   furniture: { id: string; kind: FurnitureKind } | null;
+  /** The page whose footer the DM clicked, when they did. */
+  footer: number | null;
   /** The page of the open chapter the caret is on. */
   page: number | null;
 }
 
 /**
- * A picture placed on the page is what the DM last pressed, so it wins over a
- * node the text still has selected; after that a selected node, then a cursor
- * in a cover, then the page.
+ * A picture placed on the page (or a footer) is what the DM last pressed, so it
+ * wins over a node the text still has selected; after that a selected node,
+ * then a cursor in a cover, then the page.
  */
 export function deriveSelection(input: SelectionInputs): PanelSelection {
   const { furniture, node } = input;
@@ -45,9 +49,11 @@ export function deriveSelection(input: SelectionInputs): PanelSelection {
       ? { kind: "picture", source: "furniture", id: furniture.id }
       : { kind: "decoration", id: furniture.id };
   }
+  if (input.footer !== null) return { kind: "footer", page: input.footer };
   if (node?.name === "image") return { kind: "picture", source: "node", pos: node.pos };
   if (node?.name === "entityEmbed") return { kind: "embed", pos: node.pos };
   if (node?.name === "coverPage") return { kind: "cover", pos: node.pos };
+  if (node?.name === "tocBlock") return { kind: "contents", pos: node.pos };
   if (input.coverPos !== null) return { kind: "cover", pos: input.coverPos };
   return { kind: "page", page: input.page };
 }
@@ -61,6 +67,8 @@ export function selectionKey(s: PanelSelection): string {
       return s.source === "node" ? `picture:node:${s.pos}` : `picture:furniture:${s.id}`;
     case "decoration":
       return `decoration:${s.id}`;
+    case "footer":
+      return `footer:${s.page}`;
     default:
       return `${s.kind}:${s.pos}`;
   }
@@ -78,6 +86,8 @@ export function useScriptoriumSelection(opts: {
   editor: Ref<Editor | undefined>;
   /** The selected furniture, as the shell holds it. */
   furniture: () => { id: string; kind: FurnitureKind } | null;
+  /** The page whose footer is selected, as the shell holds it (#1176 story 6). */
+  footer?: () => number | null;
 }) {
   // Bumped on every transaction and every new layout: the editor is not reactive, these are its change signals.
   const version = ref(0);
@@ -117,6 +127,7 @@ export function useScriptoriumSelection(opts: {
       node: sel instanceof NodeSelection ? { name: sel.node.type.name, pos: sel.from } : null,
       coverPos: coverAround(ed),
       furniture: opts.furniture(),
+      footer: opts.footer?.() ?? null,
       page: pageAt(pages, sel.from)?.page ?? null,
     });
   });

@@ -66,10 +66,10 @@ describe("PicturePanelSection", () => {
   });
 
   it("explains why Edit picture is unavailable", () => {
-    const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: {}, canEdit: false, editHint: "Coming with the Illuminator move" }, global: { stubs } });
+    const w = mount(PicturePanelSection, { props: { ...nodeProps, nodeAttrs: {}, canEdit: false, editHint: "Only pictures in your library can be edited" }, global: { stubs } });
     const edit = w.findAll("button").find((b) => b.text() === "Edit picture…");
     expect(edit?.attributes("disabled")).toBeDefined();
-    expect(edit?.attributes("title")).toBe("Coming with the Illuminator move");
+    expect(edit?.attributes("title")).toBe("Only pictures in your library can be edited");
   });
 });
 

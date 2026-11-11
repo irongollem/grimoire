@@ -76,7 +76,7 @@
           :furniture="furniture"
           :pictures="pictures"
           :context="pageContext"
-          :can-edit-node-picture="selectedImageIsSupabase"
+          :can-edit-picture="selectedImageIsSupabase"
           :closable="!wide"
           @close="closePanel"
           @open-settings="emit('openSettings')"

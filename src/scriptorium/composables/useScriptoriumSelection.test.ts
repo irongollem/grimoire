@@ -7,7 +7,7 @@ import { PageFlow, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import { deriveSelection, selectionKey, useScriptoriumSelection, type SelectionInputs } from "./useScriptoriumSelection";
 import type { FurnitureKind } from "@/scriptorium/types";
 
-const none: SelectionInputs = { node: null, coverPos: null, furniture: null, page: 3 };
+const none: SelectionInputs = { node: null, coverPos: null, furniture: null, footer: null, page: 3 };
 
 describe("deriveSelection", () => {
   // Fails on: the panel showing a stale text-selected picture while the DM is dragging art on the page.
@@ -32,6 +32,13 @@ describe("deriveSelection", () => {
     expect(deriveSelection({ ...none, node: { name: "image", pos: 4 } })).toEqual({ kind: "picture", source: "node", pos: 4 });
     expect(deriveSelection({ ...none, node: { name: "entityEmbed", pos: 9 } })).toEqual({ kind: "embed", pos: 9 });
     expect(deriveSelection({ ...none, node: { name: "coverPage", pos: 0 } })).toEqual({ kind: "cover", pos: 0 });
+    expect(deriveSelection({ ...none, node: { name: "tocBlock", pos: 6 } })).toEqual({ kind: "contents", pos: 6 });
+  });
+
+  // Fails on: a clicked footer losing to the text's selection, so the panel never shows the footer's options.
+  it("a clicked footer wins over the text's selection, and a placed picture wins over the footer", () => {
+    expect(deriveSelection({ ...none, footer: 15, node: { name: "image", pos: 4 } })).toEqual({ kind: "footer", page: 15 });
+    expect(deriveSelection({ ...none, footer: 15, furniture: { id: "f", kind: "art" } }).kind).toBe("picture");
   });
 
   // Fails on: a node that has no section (a table, a callout) hiding the page the panel should describe.
@@ -47,6 +54,7 @@ describe("deriveSelection", () => {
   it("tells one selection from another by key", () => {
     expect(selectionKey({ kind: "picture", source: "node", pos: 4 })).not.toBe(selectionKey({ kind: "picture", source: "node", pos: 5 }));
     expect(selectionKey({ kind: "page", page: 1 })).toBe(selectionKey({ kind: "page", page: 2 }));
+    expect(selectionKey({ kind: "footer", page: 14 })).not.toBe(selectionKey({ kind: "footer", page: 15 }));
   });
 });
 

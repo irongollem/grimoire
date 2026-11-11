@@ -47,6 +47,10 @@
       @detach="onEmbedSignal(EMBED_DETACH_EVENT)"
     />
 
+    <ContentsPanelSection v-else-if="selection.kind === 'contents'" />
+
+    <FooterPanelSection v-else-if="selection.kind === 'footer'" :page="selection.page" />
+
     <PagePanelSection
       v-else
       :description="description"
@@ -72,9 +76,11 @@ import { computed, ref, toRaw } from "vue";
 import type { Editor } from "@tiptap/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
+import ContentsPanelSection from "@/scriptorium/components/panel/ContentsPanelSection.vue";
 import CoverPanelSection from "@/scriptorium/components/panel/CoverPanelSection.vue";
 import DecorationPanelSection from "@/scriptorium/components/panel/DecorationPanelSection.vue";
 import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.vue";
+import FooterPanelSection from "@/scriptorium/components/panel/FooterPanelSection.vue";
 import PagePanelSection from "@/scriptorium/components/panel/PagePanelSection.vue";
 import PicturePanelSection, { type PictureLayer } from "@/scriptorium/components/panel/PicturePanelSection.vue";
 import type { AnchorState, PictureActions, PictureTarget } from "@/scriptorium/composables/useEditorPictures";
@@ -97,8 +103,8 @@ const props = defineProps<{
   furniture: PageFurnitureItem[];
   pictures: PictureActions;
   context: PanelPageContext;
-  /** An image node selected in the text is one the Illuminator can open. */
-  canEditNodePicture: boolean;
+  /** The selected picture (in the text or on the page) is one the Illuminator can open. */
+  canEditPicture: boolean;
   /** A slide-over has a close button of its own. */
   closable: boolean;
 }>();
@@ -179,10 +185,7 @@ function anchorFor(item: PageFurnitureItem): AnchorState {
   return props.pictures.anchorState(item);
 }
 
-const canEditPicture = computed(() => picture.value?.target.source === "node" && props.canEditNodePicture);
-const editHint = computed(() =>
-  picture.value?.target.source === "furniture" ? "Coming with the Illuminator move" : "Only pictures in your library can be edited",
-);
+const editHint = "Only pictures in your library can be edited";
 
 function onLayer(value: PictureLayer) {
   const target = picture.value?.target;
