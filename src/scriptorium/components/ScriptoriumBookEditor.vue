@@ -79,6 +79,7 @@
           ref="chapterEditor"
           :chapter="chapter"
           :document-id="doc.id"
+          :campaign-id="doc.campaign_id"
           :theme="settings.draft.theme"
           :doc-type="doc.doc_type"
           :page-size="settings.draft.pageSize"
@@ -232,7 +233,10 @@ import {
   useScriptoriumChapter,
 } from "@/scriptorium/composables/useScriptoriumChapters";
 import { useScriptoriumPdf } from "@/scriptorium/composables/useScriptoriumPdf";
-import { removeChapterImages } from "@/scriptorium/composables/chapterImageCleanup";
+import { markForSweep, sweepInBackground } from "@/scriptorium/composables/illuminatorSweep";
+import { chapterUrlsToDelete } from "@/scriptorium/lib/chapterImages";
+import { furnitureMadeUrls } from "@/scriptorium/lib/furniture/artUrls";
+import { getCurrentUser } from "@/lib/supabase";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
@@ -266,6 +270,13 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   appUi.editorFocus = false;
+});
+// Files the session dropped leave storage when the editor closes, after the last saves have landed,
+// so undo could reach them all session. Flushing here (the children's own unmount flush then finds
+// nothing dirty) is what lets the sweep wait for the final save's marks.
+onBeforeUnmount(() => {
+  if (deleting.value) return;
+  void Promise.all([settings.saveNow(), chapterEditor.value?.saveNow()]).then(sweepInBackground, sweepInBackground);
 });
 
 // ── Settings: the book's own row, saved by itself ───────────────────────────
@@ -591,7 +602,11 @@ async function destroy() {
     // Every chapter's images go with the book, so read every body first.
     const bodies = await html.fullQuery.refetch({ throwOnError: true });
     await deleteDoc(doc.id);
-    for (const row of bodies.data ?? []) removeChapterImages(JSON.stringify(row.content));
+    const userId = getCurrentUser()?.id;
+    for (const row of bodies.data ?? []) markForSweep(...chapterUrlsToDelete(JSON.stringify(row.content), userId));
+    markForSweep(...furnitureMadeUrls(settings.draft.furniture, userId));
+    // The rows are gone, so nothing refers to these unless a picture was pasted into another book.
+    sweepInBackground();
     router.replace("/scriptorium");
   } catch (e: unknown) {
     settings.release();

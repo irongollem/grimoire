@@ -149,6 +149,7 @@
             :base-url="wb.baseUrl.value"
             :natural="baseSize"
             :document-id="documentId"
+            :campaign-id="campaignId"
             :user-id="userId"
             :look="look"
             :has-ai-result="wb.aiStep.value !== null"
@@ -196,7 +197,7 @@ import { useIlluminateWorkbench, type WorkbenchTool } from "@/scriptorium/illumi
 import { useToast } from "@/composables/useToast";
 import { IconCheck, IconClipboard, IconDownload, IconImage, IconSave } from "@/lib/icons";
 
-const { original, settings, name, pageLabel, userId, documentId, theme, pageAspect = null, startTool = "edges" } = defineProps<{
+const { original, settings, name, pageLabel, userId, documentId, campaignId, theme, pageAspect = null, startTool = "edges" } = defineProps<{
   /** The untouched picture the recipe applies to. */
   original: string;
   /** The recipe it has now, or null for a picture with no edits. */
@@ -208,6 +209,8 @@ const { original, settings, name, pageLabel, userId, documentId, theme, pageAspe
   userId: string | undefined;
   /** The book or handout this picture is in: the AI actions are paid for against it. */
   documentId: string;
+  /** That book's campaign (null for an account-wide book); AI picture actions need it to be the active one. */
+  campaignId: string | null;
   /** Its look, so an AI picture can be asked for in the book's style. */
   theme: ScriptoriumTheme;
   /** Width over height of the page, for art placed on the page (the crop's Page shape); null for a picture in the text. */

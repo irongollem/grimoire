@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   upload: vi.fn(),
   ack: vi.fn(),
-  campaign: { isAiEnabled: true, activeCampaign: { id: "campaign-1" } as { id: string } | null },
+  campaign: { isAiEnabled: true, activeCampaignId: "campaign-1" as string | null },
   prepare: vi.fn(),
   prepareExtend: vi.fn(),
   restore: vi.fn(),
@@ -26,13 +26,13 @@ vi.mock("@/scriptorium/illuminator/lib/aiPictureCanvas", () => ({
 import { useIlluminatePicture, useIlluminatePictureCost } from "./useIlluminatePicture";
 
 const IMAGE_B64 = btoa("fake-webp-bytes");
-const run = { baseUrl: "https://cdn/o.webp", documentId: "doc-1", userId: "u1" };
+const run = { baseUrl: "https://cdn/o.webp", documentId: "doc-1", campaignId: "campaign-1", userId: "u1" };
 
 describe("useIlluminatePicture", () => {
   beforeEach(() => {
     for (const m of [mocks.invoke, mocks.upload, mocks.ack, mocks.prepare, mocks.prepareExtend, mocks.restore]) m.mockReset();
     mocks.campaign.isAiEnabled = true;
-    mocks.campaign.activeCampaign = { id: "campaign-1" };
+    mocks.campaign.activeCampaignId = "campaign-1";
     mocks.ack.mockResolvedValue(true);
     mocks.prepare.mockResolvedValue({ image: new Blob(["png"]), size: "1024x1024" });
     mocks.invoke.mockResolvedValue({ data: { image_b64: IMAGE_B64 }, error: null });
@@ -50,6 +50,12 @@ describe("useIlluminatePicture", () => {
     expect(mocks.upload.mock.calls[0][0]).toMatchObject({ bucket: "assetImages", contentType: "image/webp" });
     expect(mocks.upload.mock.calls[0][0].path).toMatch(/^u1\/ill-ai-[0-9a-f]{8}\.webp$/);
     expect(isGenerating.value).toBe(false);
+  });
+
+  // Bug: a book of another campaign (or an account-wide one) sent the active campaign's id and failed 404 server-side.
+  it.each([["another campaign", "campaign-2"], ["an unnamed campaign", ""]])("refuses, with no request, for %s", async (_n, campaignId) => {
+    await expect(useIlluminatePicture().run({ ...run, campaignId, action: "cutout" })).rejects.toThrow(/campaign/);
+    expect(mocks.invoke).not.toHaveBeenCalled();
   });
 
   // Bug: AI-off campaigns could still reach the paid function through a stale panel.

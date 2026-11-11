@@ -12,6 +12,7 @@ import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { extendLayout, type AiSize, type ExtendLayout, type PageEdge } from "@/scriptorium/illuminator/lib/aiPicture";
 import { prepareExtend, preparePicture, restoreOriginal } from "@/scriptorium/illuminator/lib/aiPictureCanvas";
 import { loadDomImage } from "@/scriptorium/illuminator/lib/loadImage";
+import { blobToBase64 } from "@/lib/blobToBase64";
 
 export type IlluminateAction = "cutout" | "ink" | "watercolour" | "extend" | "match";
 
@@ -23,20 +24,14 @@ interface IlluminateResponse {
   error?: string;
 }
 
-/** Base64 of a blob's bytes, without the data-URL prefix. */
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
-
 export interface IlluminateRun {
   action: IlluminateAction;
   /** The picture to act on: the recipe's current base, so a second action builds on the first. */
   baseUrl: string;
   /** The document the picture is in; the server checks it belongs to the campaign and the caller. */
   documentId: string;
+  /** The campaign the document belongs to; it must be the active one, because AI is switched per campaign. */
+  campaignId: string;
   userId: string;
   /** match: which book look to restyle to. The server owns the words; only the name travels. */
   look?: ScriptoriumArtLook;
@@ -76,9 +71,8 @@ export function useIlluminatePicture() {
 
   async function run(opts: IlluminateRun): Promise<string | null> {
     if (isGenerating.value) throw new Error("A picture action is already running.");
+    if (opts.campaignId !== campaign.activeCampaignId) throw failed("Switch to this book's campaign to use AI picture actions.");
     if (!campaign.isAiEnabled) throw failed("AI features are disabled for this campaign.");
-    const campaignId = campaign.activeCampaign?.id;
-    if (!campaignId) throw failed("No active campaign selected.");
     if (NEEDS_LIKENESS.includes(opts.action) && !(await likeness.ensureLikenessAck())) return null;
 
     isGenerating.value = true;
@@ -95,7 +89,7 @@ export function useIlluminatePicture() {
       const prepared = layout ? await prepareExtend(source, layout) : await preparePicture(source);
 
       const body: Record<string, string> = {
-        campaign_id: campaignId,
+        campaign_id: opts.campaignId,
         document_id: opts.documentId,
         action: opts.action,
         size: prepared.size,

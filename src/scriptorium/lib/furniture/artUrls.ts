@@ -30,3 +30,8 @@ export function removedFurnitureUrls(
   const made = previous.flatMap((item) => (item.kind === "art" ? madeUrls(item.props, userId) : []));
   return [...new Set(made)].filter((url) => !kept.has(url));
 }
+
+/** Every file the Illuminator made for the author across the art items: what deleting the whole book may delete. */
+export function furnitureMadeUrls(items: readonly PageFurnitureItem[], userId: string | null | undefined): string[] {
+  return [...new Set(items.flatMap((item) => (item.kind === "art" ? madeUrls(item.props, userId) : [])))];
+}

@@ -10,8 +10,9 @@
 -- private.strip_secret_nodes (get_player_handout, private.book_body for
 -- sharing, a quest's give-handout and a notice board's take, and
 -- withhold_secret_blocks for every other projection), so the strip lives
--- there: an image node keeps `src` and loses the three recipe keys. Nothing
--- else in the function changes.
+-- there: an image node keeps `src` and loses the three recipe keys, and an
+-- image whose bake is still pending is withheld whole. Nothing else in the
+-- function changes.
 
 create or replace function private.strip_secret_nodes(p_node jsonb)
 returns jsonb
@@ -22,10 +23,17 @@ as $$
 declare
   v_content jsonb;
 begin
-  -- A picture's recipe is the DM's: players read the baked `src` only.
+  -- A picture's recipe is the DM's: players read the baked `src` only. While
+  -- an edit's bake is pending (a recipe, no `bakedFor`: every recipe edit
+  -- clears it), `src` is still the original or an older bake, which may show
+  -- exactly what the edit hides, so the picture is withheld until it lands.
   if jsonb_typeof(p_node) = 'object'
      and p_node ->> 'type' = 'image'
      and jsonb_typeof(p_node -> 'attrs') = 'object' then
+    if jsonb_typeof(p_node -> 'attrs' -> 'illuminate') in ('object', 'string')
+       and coalesce(p_node -> 'attrs' ->> 'bakedFor', '') = '' then
+      return null;
+    end if;
     return jsonb_set(p_node, '{attrs}', (p_node -> 'attrs') - 'original' - 'illuminate' - 'bakedFor');
   end if;
 

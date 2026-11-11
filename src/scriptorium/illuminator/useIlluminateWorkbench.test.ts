@@ -5,6 +5,7 @@ import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment
 
 const mocks = vi.hoisted(() => ({
   loaded: [] as string[],
+  mark: vi.fn(),
   upload: vi.fn(async () => "https://cdn/new-mask.webp"),
   encode: vi.fn(async () => new Blob(["m"], { type: "image/webp" })),
   controller: {
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/storage", () => ({ uploadToBucket: mocks.upload }));
+vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: mocks.mark }));
 vi.mock("@/lib/webpEncode", () => ({ encodeWebp: mocks.encode }));
 vi.mock("@/lib/mediaConvert", () => ({ toWebP: vi.fn() }));
 vi.mock("@/scriptorium/illuminator/lib/loadImage", () => ({
@@ -70,6 +72,7 @@ function open(settings: IlluminateSettings | null = recipe) {
 beforeEach(() => {
   mocks.loaded.length = 0;
   mocks.upload.mockClear();
+  mocks.mark.mockClear();
   mocks.encode.mockClear();
   mocks.controller.hasStrokes = false;
   mocks.controller.loadMask.mockImplementation(() => { mocks.controller.hasStrokes = true; });
@@ -115,6 +118,17 @@ describe("finishing", () => {
     const done = await wb.finish();
     expect(mocks.upload).toHaveBeenCalledWith(expect.objectContaining({ bucket: "assetImages", contentType: "image/webp" }));
     expect(done.steps.at(-1)).toEqual({ type: "mask", url: "https://cdn/new-mask.webp" });
+  });
+
+  // Fails on: a mask uploaded and then dropped (Cancel, a re-upload) never being collected, since only marked files are swept.
+  it("marks the mask it uploads for the sweep", async () => {
+    const wb = open();
+    await wb.open();
+    await flushPromises();
+    mocks.controller.undo.mockReturnValueOnce(true);
+    wb.undoBrush();
+    await wb.finish();
+    expect(mocks.mark).toHaveBeenCalledWith("https://cdn/new-mask.webp");
   });
 
   // Fails on: an erased mask still being saved because the old url was kept.
@@ -198,6 +212,15 @@ describe("an AI result", () => {
     expect(wb.baseUrl.value).toBe("https://cdn/a.webp");
     await wb.setAiResult("https://cdn/b.webp", "watercolour");
     expect(wb.buildSettings(false).steps.filter((s) => s.type === "ai")).toEqual([{ type: "ai", action: "cutout+watercolour", output: "https://cdn/b.webp" }]);
+  });
+
+  // Fails on: the first, replaced AI result (a paid picture) staying in storage forever.
+  it("marks every AI result it is handed, so a replaced one is collected", async () => {
+    const wb = open(null);
+    await wb.open();
+    await wb.setAiResult("https://cdn/a.webp", "cutout");
+    await wb.setAiResult("https://cdn/b.webp", "watercolour");
+    expect(mocks.mark.mock.calls.flat()).toEqual(["https://cdn/a.webp", "https://cdn/b.webp"]);
   });
 
   it("going back to the original drops the step and works from the original again", async () => {

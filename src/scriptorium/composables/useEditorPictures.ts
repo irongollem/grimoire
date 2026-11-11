@@ -41,6 +41,8 @@ export interface PictureActions {
   putInText: (id: string) => void;
   replaceSrc: (target: PictureTarget, src: string) => void;
   remove: (target: PictureTarget) => void;
+  /** Where the image node with this block id sits now, or null when it is gone. Positions shift as the document is edited; ids do not. */
+  nodePosByBlockId: (blockId: string) => number | null;
   /** The picture's own values (an image node's attrs, or art props): src, original, illuminate, bakedFor. */
   valuesOf: (target: PictureTarget) => Record<string, unknown> | null;
   /** Write a treatment change: one undo step for a picture in the text; art on the page has no undo. */
@@ -198,6 +200,18 @@ export function useEditorPictures(opts: Options): PictureActions {
     return item ? { ...item.props } : null;
   }
 
+  function nodePosByBlockId(blockId: string): number | null {
+    const ed = live();
+    if (!ed) return null;
+    let found: number | null = null;
+    ed.state.doc.descendants((node, pos) => {
+      if (found !== null) return false;
+      if (node.type.name === "image" && node.attrs.blockId === blockId) found = pos;
+      return true;
+    });
+    return found;
+  }
+
   function treat(target: PictureTarget, patch: TreatmentPatch) {
     if (target.source === "node") {
       const ed = live();
@@ -296,5 +310,5 @@ export function useEditorPictures(opts: Options): PictureActions {
     opts.select(item.id);
   }
 
-  return { placeOnPage, putInText, replaceSrc, remove, valuesOf, treat, chooseCorner, chooseAnchor, anchorState, pageOf, pageOfPicture, addArt };
+  return { placeOnPage, putInText, replaceSrc, remove, valuesOf, nodePosByBlockId, treat, chooseCorner, chooseAnchor, anchorState, pageOf, pageOfPicture, addArt };
 }

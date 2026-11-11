@@ -6,7 +6,8 @@ import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
 import type { PageFurnitureItem, ScriptoriumDocument } from "@/scriptorium/types";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn() }));
-vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: mocks.remove }));
+// A file leaves storage only through the sweep; a save only marks it.
+vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: mocks.remove }));
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => ({ id: "u1" }) }));
 vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useUpdateScriptoriumDocument: () => ({ mutateAsync: mocks.update }),
@@ -92,7 +93,7 @@ describe("book art cleanup", () => {
     await nextTick();
     await settings.saveNow();
     scope.stop();
-    return mocks.remove.mock.calls.flatMap((c) => c.slice(1)) as string[];
+    return mocks.remove.mock.calls.flatMap((c) => c) as string[];
   }
 
   it("the first bake never deletes the original", async () => {
@@ -103,7 +104,7 @@ describe("book art cleanup", () => {
     expect(removed).toEqual([]);
   });
 
-  it("deletes a superseded bake after the save", async () => {
+  it("marks a superseded bake for the sweep after the save", async () => {
     const removed = await saveWith(
       [art({ src: bakeA, original: placeArt })],
       [art({ src: bakeB, original: placeArt })],
@@ -112,7 +113,7 @@ describe("book art cleanup", () => {
   });
 
   // Fails on: removing the picture from the book deleting the original, which may be a place's art or the author's own picture.
-  it("deletes the bake, never the original, once the picture is removed from the book", async () => {
+  it("marks the bake, never the original, once the picture is removed from the book", async () => {
     for (const original of [placeArt, ownUpload]) {
       mocks.remove.mockClear();
       const removed = await saveWith([art({ src: bakeA, original })], []);
@@ -120,7 +121,7 @@ describe("book art cleanup", () => {
     }
   });
 
-  it("deletes nothing when the save fails, so a retry still finds the old picture", async () => {
+  it("marks nothing when the save fails, so a retry still finds the old picture", async () => {
     mocks.update.mockRejectedValue(new Error("offline"));
     const removed = await saveWith([art({ src: bakeA, original: placeArt })], []);
     expect(removed).toEqual([]);

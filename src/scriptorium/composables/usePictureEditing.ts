@@ -10,6 +10,7 @@
  */
 import { computed, ref, watch, type Ref } from "vue";
 import type { Editor } from "@tiptap/core";
+import { useToast } from "@/composables/useToast";
 import { getCurrentUser } from "@/lib/supabase";
 import { parsePublicUrl } from "@/lib/storage";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
@@ -24,6 +25,8 @@ import type { PageFurnitureItem } from "@/scriptorium/types";
 
 export interface OpenWorkbench {
   target: PictureTarget;
+  /** The image node's block id: its position moves when the document does, its id does not. */
+  blockId: string | null;
   original: string;
   settings: IlluminateSettings | null;
   name: string;
@@ -68,7 +71,10 @@ export function originalOf(values: Readonly<Record<string, unknown>> | null): st
   return typeof url === "string" && url !== "" ? url : null;
 }
 
+const CHANGED = "That picture changed while you were editing it, so your edit was not applied.";
+
 export function usePictureEditing(opts: Options) {
+  const toast = useToast();
   const currentUserId = () => getCurrentUser()?.id;
 
   const bakes = usePictureBakes({
@@ -120,8 +126,10 @@ export function usePictureEditing(opts: Options) {
     const label = [v.alt, v.title].find((x): x is string => typeof x === "string" && x.trim() !== "");
     const page = opts.pictures.pageOfPicture(t);
     const inBook = page === null ? null : bookPageNumber(opts.firstPageLabel(), page);
+    const id: unknown = v.blockId;
     workbench.value = {
       target: t,
+      blockId: t.source === "node" && typeof id === "string" && id !== "" ? id : null,
       original,
       settings: parseSettings(v.illuminate),
       name: label ?? "your picture",
@@ -135,9 +143,25 @@ export function usePictureEditing(opts: Options) {
     const open = workbench.value;
     workbench.value = null;
     if (!open) return;
-    // The picture may have been removed while the workbench was open.
-    const now = opts.pictures.valuesOf(open.target);
-    if (now) opts.pictures.treat(open.target, treatmentPatch(now, settings));
+    // The document may have changed while the workbench was open (another device's save, text typed above):
+    // find the picture again by what it is, and write nothing to anything else.
+    let target = open.target;
+    if (target.source === "node" && open.blockId !== null) {
+      const pos = opts.pictures.nodePosByBlockId(open.blockId);
+      if (pos === null) {
+        toast.error(CHANGED);
+        return;
+      }
+      target = { source: "node", pos };
+    }
+    const now = opts.pictures.valuesOf(target);
+    // Removed while open: nothing to write.
+    if (!now) return;
+    if (originalOf(now) !== open.original) {
+      toast.error(CHANGED);
+      return;
+    }
+    opts.pictures.treat(target, treatmentPatch(now, settings));
   }
 
   return { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId };

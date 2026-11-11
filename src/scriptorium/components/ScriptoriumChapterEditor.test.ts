@@ -19,9 +19,7 @@ vi.mock("@/composables/useImageUpload", () => ({
   ASSET_IMAGES_BUCKET: "asset-images",
   removeStorageImages: vi.fn(),
 }));
-vi.mock("@/scriptorium/composables/chapterImageCleanup", () => ({
-  cleanupRemovedChapterImages: (...args: unknown[]) => mocks.cleanup(...args),
-}));
+vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: (...args: unknown[]) => mocks.cleanup(...args) }));
 vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
 vi.mock("@/ai/useTextEnhancement", async () => {
   const { ref } = await import("vue");
@@ -41,7 +39,7 @@ const chapter: ScriptoriumChapter = {
 
 function open(extra: Record<string, unknown> = {}, body: ScriptoriumChapter = chapter) {
   const wrapper = mount(ScriptoriumChapterEditor, {
-    props: { ...extra, chapter: body, documentId: "d1", theme: "onednd2024", docType: "custom", pageSize: "A4", isTwoColumn: false, inkFriendly: false, furniture: [], selectedFurnitureId: null, pageContext: { paperLabel: "", chapterNumber: 1, chapterTitle: "", isHandout: false, firstPageLabel: null, bookPageCount: null } },
+    props: { ...extra, chapter: body, documentId: "d1", campaignId: "c1", theme: "onednd2024", docType: "custom", pageSize: "A4", isTwoColumn: false, inkFriendly: false, furniture: [], selectedFurnitureId: null, pageContext: { paperLabel: "", chapterNumber: 1, chapterTitle: "", isHandout: false, firstPageLabel: null, bookPageCount: null } },
     global: {
       stubs: {
         ScriptoriumEditorToolbar: true,
@@ -99,14 +97,13 @@ describe("ScriptoriumChapterEditor", () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
-  it("deletes the images an edit removed from this chapter, once the save landed", async () => {
+  it("marks the images an edit removed from this chapter for the sweep, once the save landed", async () => {
     const exposed = await typeInto(open());
     await exposed.saveNow();
     expect(mocks.cleanup).toHaveBeenCalledTimes(1);
-    expect(mocks.cleanup.mock.calls[0]![0]).toContain('"One"');
   });
 
-  it("does not clean images when the save failed", async () => {
+  it("marks nothing when the save failed", async () => {
     mocks.save.mockRejectedValueOnce(new Error("offline"));
     const exposed = await typeInto(open());
     await exposed.saveNow();

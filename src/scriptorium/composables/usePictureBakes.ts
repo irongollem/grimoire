@@ -20,9 +20,8 @@
 import { getCurrentScope, onScopeDispose, ref } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { ASSET_IMAGES_BUCKET, removeStorageImages } from "@/composables/useImageUpload";
+import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { bakeAndUpload, type BakeResult } from "@/scriptorium/illuminator/lib/bakeUpload";
-import { isMadeByIlluminator } from "@/scriptorium/illuminator/lib/ownedPictures";
 import { hashSettings, hasSteps, parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 
@@ -81,12 +80,9 @@ const keyOf = (p: StalePicture) => `${p.original}\n${p.hash}`;
 
 export function usePictureBakes(options: PictureBakesOptions) {
   const bake: BakeFn = options.bake ?? bakeAndUpload;
-  // A bake nothing took is the Illuminator's own file; anything else is never ours to remove.
-  const discard =
-    options.discard ??
-    ((url: string) => {
-      if (isMadeByIlluminator(url, options.userId())) void removeStorageImages(ASSET_IMAGES_BUCKET, url);
-    });
+  // A bake nothing took, or one a new bake replaced, is only marked: undo may bring the old one back,
+  // and the sweep keeps whatever a chapter or page still uses.
+  const discard = options.discard ?? ((url: string) => markForSweep(url));
   const running = ref(false);
   const errors = ref<string[]>([]);
   const failed = new Set<string>();

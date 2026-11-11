@@ -6,9 +6,9 @@ import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
 import { hashSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 
-vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: vi.fn() }));
+vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: vi.fn() }));
 
-import { removeStorageImages } from "@/composables/useImageUpload";
+import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { staleFurnitureArt, staleImageNodes, usePictureBakes, type BakeFn } from "./usePictureBakes";
 
 const recipe: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/m.png" }] };
@@ -145,12 +145,11 @@ describe("baking stale pictures", () => {
     expect(discard).toHaveBeenCalledWith("https://cdn/late.webp");
   });
 
-  // Fails on: the default discard deleting whatever URL a bake handed back, rather than only the author's own bake.
-  it("by default removes a bake nothing took only when it is the author's own file", async () => {
+  // Fails on: the default discard deleting a bake at once instead of marking it for the sweep (undo may need it).
+  it("by default only marks a bake nothing took, leaving the removal to the sweep", async () => {
     const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u1/ill-late.webp";
-    const theirs = "https://x.supabase.co/storage/v1/object/public/asset-images/u2/ill-late.webp";
-    for (const url of [own, theirs]) {
-      vi.mocked(removeStorageImages).mockClear();
+    for (const url of [own]) {
+      vi.mocked(markForSweep).mockClear();
       const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
       const changed: IlluminateSettings = { v: 1, seed: 2, steps: [{ type: "mask", url: "https://cdn/other.png" }] };
       let calls = 0;
@@ -166,7 +165,7 @@ describe("baking stale pictures", () => {
         },
       });
       await api.bakeStale();
-      expect(vi.mocked(removeStorageImages).mock.calls.length).toBe(url === own ? 1 : 0);
+      expect(vi.mocked(markForSweep)).toHaveBeenCalledWith(url);
     }
   });
 

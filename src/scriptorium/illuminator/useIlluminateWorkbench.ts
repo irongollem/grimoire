@@ -21,6 +21,7 @@ import { downloadBlob } from "@/lib/downloadBlob";
 import { toWebP } from "@/lib/mediaConvert";
 import { encodeWebp } from "@/lib/webpEncode";
 import { uploadToBucket } from "@/lib/storage";
+import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { applySteps, processImage } from "@/scriptorium/illuminator/lib/applySteps";
 import { createBrushMaskController, DEFAULT_BRUSH_STATE, type BrushState } from "@/scriptorium/illuminator/lib/brushMask";
 import { croppedSize, drawBase } from "@/scriptorium/illuminator/lib/crop";
@@ -262,6 +263,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
       const blob = await encodeWebp(brushController.maskCanvas, MASK_QUALITY);
       const url = await uploadToBucket({ bucket: "assetImages", blob, path: `${user}/ill-mask-${crypto.randomUUID().slice(0, 8)}.webp`, contentType: "image/webp" });
       if (!url) throw new Error("Could not store the brush strokes.");
+      // Marked at once: the sweep keeps it only if the saved recipe refers to it.
+      markForSweep(url);
       maskUrl.value = url;
       maskDirty.value = false;
     }
@@ -498,6 +501,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
       const webp = await toWebP(file);
       const url = await uploadToBucket({ bucket: "assetImages", blob: webp, path: `${user}/ill-texture-${crypto.randomUUID().slice(0, 8)}.webp`, contentType: webp.type });
       if (!url) throw new Error("upload failed");
+      markForSweep(url);
       textureUrl.value = url;
       textureFilename.value = file.name.replace(/\.[^.]+$/, "");
       textureEnabled.value = true;
@@ -595,6 +599,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
 
   /** Make a stored AI picture the base. A second action's output replaces the first, and the action records the chain. */
   async function setAiResult(url: string, action: string) {
+    // A second action replaces the first, and Cancel drops both: mark it, the sweep keeps what the recipe commits.
+    markForSweep(url);
     const next = await loadDomImage(url);
     const was = image.value;
     aiStep.value = { type: "ai", action: aiStep.value ? `${aiStep.value.action}+${action}` : action, output: url };

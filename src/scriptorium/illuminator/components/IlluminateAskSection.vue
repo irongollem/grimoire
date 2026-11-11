@@ -1,5 +1,5 @@
 <template>
-  <section v-if="campaign.isAiEnabled" class="flex flex-col gap-2 border-t border-border p-4" data-testid="ask-the-illuminator">
+  <section v-if="offered" class="flex flex-col gap-2 border-t border-border p-4" data-testid="ask-the-illuminator">
     <div class="flex items-baseline justify-between gap-2">
       <h2 class="flex items-center gap-1.5 text-eyebrow uppercase text-tone-arcane">
         <IconGenerate class="size-3.5" aria-hidden="true" />
@@ -72,12 +72,14 @@ import type { ScriptoriumArtLook } from "@edge-shared/scriptoriumLookStyles.ts";
 import { useCampaignStore } from "@/stores/campaign";
 import { extendLayout, nearestAiSize, sendDimensions, type AiSize, type PageEdge } from "@/scriptorium/illuminator/lib/aiPicture";
 
-const { baseUrl, natural, documentId, userId, look, hasAiResult } = defineProps<{
+const { baseUrl, natural, documentId, campaignId, userId, look, hasAiResult } = defineProps<{
   /** The picture the next action works from: the AI result if there is one, else the original. */
   baseUrl: string;
   /** That picture's pixel size, once it has loaded; the price follows the shape it will be sent in. */
   natural: { width: number; height: number } | null;
   documentId: string;
+  /** The book's campaign, null for an account-wide book. AI is offered only when it is the active campaign. */
+  campaignId: string | null;
   userId: string | undefined;
   /** The book's look: its name for the caption, and which of the server's art looks it is (null on a handout paper). */
   look: { label: string; id: ScriptoriumArtLook | null } | null;
@@ -104,6 +106,8 @@ const EDGE_OPTIONS: SegmentedOption<PageEdge>[] = [
   { value: "left", label: "Left" },
 ];
 const edge = ref<PageEdge>("right");
+/** AI is per campaign, so the actions exist only for a book of the active campaign with AI on there. */
+const offered = computed(() => campaignId !== null && campaignId === campaign.activeCampaignId && campaign.isAiEnabled);
 const running = ref<IlluminateAction | null>(null);
 
 /** The oblong the picture is sent in; null until it has loaded, so no price is shown that would then jump. */
@@ -147,7 +151,7 @@ const rows = computed<Row[]>(() => [
 ]);
 
 async function ask(action: IlluminateAction) {
-  if (!userId) {
+  if (!userId || campaignId === null) {
     toast.error("Sign in again to use this.");
     return;
   }
@@ -157,6 +161,7 @@ async function ask(action: IlluminateAction) {
       action,
       baseUrl,
       documentId,
+      campaignId,
       userId,
       look: action === "match" ? (look?.id ?? undefined) : undefined,
       edge: action === "extend" ? edge.value : undefined,

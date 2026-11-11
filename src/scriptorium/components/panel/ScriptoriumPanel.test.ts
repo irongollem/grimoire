@@ -47,6 +47,7 @@ function makePictures(): PictureActions {
     chooseCorner: vi.fn(),
     chooseAnchor: vi.fn(),
     valuesOf: () => null,
+    nodePosByBlockId: () => null,
     treat: vi.fn(),
     pageOfPicture: () => null,
     anchorState: () => ({ page: 2, hasParagraph: true, canFree: true }),

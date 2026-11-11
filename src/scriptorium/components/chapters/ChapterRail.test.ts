@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   del: vi.fn(),
   reorder: vi.fn(),
   refetch: vi.fn(),
-  removeImages: vi.fn(),
+  mark: vi.fn(),
+  sweep: vi.fn(),
 }));
 
 vi.mock("@/scriptorium/composables/useScriptoriumChapters", () => ({
@@ -17,7 +18,8 @@ vi.mock("@/scriptorium/composables/useScriptoriumChapters", () => ({
   useReorderChapters: () => ({ mutateAsync: mocks.reorder }),
   useBookChaptersFull: () => ({ data: ref(undefined), refetch: mocks.refetch }),
 }));
-vi.mock("@/scriptorium/composables/chapterImageCleanup", () => ({ removeChapterImages: mocks.removeImages }));
+vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
+vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: mocks.mark, sweepInBackground: mocks.sweep }));
 
 import { useConfirm } from "@/composables/useConfirm";
 import ChapterRail from "./ChapterRail.vue";
@@ -156,7 +158,8 @@ describe("deleting", () => {
     useConfirm()._resolve(true);
     await flushPromises();
     expect(mocks.del).toHaveBeenCalledWith({ id: "b", documentId: "book" });
-    expect(mocks.removeImages).toHaveBeenCalledWith(JSON.stringify({ type: "doc" }));
+    expect(mocks.mark).toHaveBeenCalled();
+    expect(mocks.sweep).toHaveBeenCalled();
     expect(selected()).toEqual(["c"]);
   });
 
@@ -192,7 +195,7 @@ describe("deleting", () => {
     await clickDelete("Peoples");
     useConfirm()._resolve(true);
     await flushPromises();
-    expect(mocks.removeImages).not.toHaveBeenCalled();
+    expect(mocks.sweep).not.toHaveBeenCalled();
     expect(selected()).toEqual([]);
     expect(wrapper.text()).toContain("A book needs at least one chapter.");
   });

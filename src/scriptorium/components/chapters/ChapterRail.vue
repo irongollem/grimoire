@@ -76,7 +76,9 @@ import {
   useReorderChapters,
 } from "@/scriptorium/composables/useScriptoriumChapters";
 import { useConfirm } from "@/composables/useConfirm";
-import { removeChapterImages } from "@/scriptorium/composables/chapterImageCleanup";
+import { markForSweep, sweepInBackground } from "@/scriptorium/composables/illuminatorSweep";
+import { chapterUrlsToDelete } from "@/scriptorium/lib/chapterImages";
+import { getCurrentUser } from "@/lib/supabase";
 import { IconAdd } from "@/lib/icons";
 import { dropSlot, moveBy, moveToSlot, neighbourAfterDelete, pagesLine } from "@/scriptorium/lib/chapters/railOrder";
 import type { ScriptoriumChapterSummary } from "@/scriptorium/types";
@@ -167,7 +169,10 @@ async function remove(chapter: ScriptoriumChapterSummary) {
     const body = (bodies.data.value ?? (await bodies.refetch({ throwOnError: true })).data)?.find((row) => row.id === chapter.id);
     const next = chapter.id === currentId ? neighbourAfterDelete(ids.value, chapter.id) : null;
     await deleteChapter.mutateAsync({ id: chapter.id, documentId });
-    if (body) removeChapterImages(JSON.stringify(body.content));
+    if (body) {
+      markForSweep(...chapterUrlsToDelete(JSON.stringify(body.content), getCurrentUser()?.id));
+      sweepInBackground();
+    }
     if (next) emit("select", next);
   } catch (e: unknown) {
     errorText.value = message(e, "Could not delete the chapter.");

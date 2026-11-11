@@ -29,12 +29,18 @@ describe("editing a picture's recipe", () => {
 
   // Fails on: the first edit not remembering the untouched file, so Reset has nothing to put back.
   it("keeps the file as it was as the original on the first edit", () => {
-    expect(treatmentPatch({ src: "a.webp" }, recipe())).toEqual({ original: "a.webp", illuminate: recipe() });
+    expect(treatmentPatch({ src: "a.webp" }, recipe())).toEqual({ original: "a.webp", illuminate: recipe(), bakedFor: null });
   });
 
   // Fails on: a second edit taking the first bake as the original, so edits stack on a baked picture and Reset restores the bake.
   it("keeps the original it already has on later edits", () => {
-    expect(treatmentPatch({ src: "bake.webp", original: "a.webp", bakedFor: "h" }, recipe())).toEqual({ original: "a.webp", illuminate: recipe() });
+    expect(treatmentPatch({ src: "bake.webp", original: "a.webp", bakedFor: "h" }, recipe())).toEqual({ original: "a.webp", illuminate: recipe(), bakedFor: null });
+  });
+
+  // Fails on: an edit keeping the old bake hash, so players are served the previous bake (or the raw file) as if it were the new recipe.
+  it("clears bakedFor on a first and a later edit, so a pending bake is visible", () => {
+    expect(treatmentPatch({ src: "a.webp" }, recipe())).toHaveProperty("bakedFor", null);
+    expect(treatmentPatch({ src: "bake.webp", original: "a.webp", bakedFor: "h" }, recipe())).toHaveProperty("bakedFor", null);
   });
 
   // Fails on: a recipe emptied by hand leaving a bake of nothing behind instead of the picture.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createFurnitureItem } from "./model";
-import { furniturePictureUrls, removedFurnitureUrls } from "./artUrls";
+import { furnitureMadeUrls, furniturePictureUrls, removedFurnitureUrls } from "./artUrls";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 
 const asset = (bucket: string, path: string) => `https://x.supabase.co/storage/v1/object/public/${bucket}/${path}`;
@@ -77,5 +77,13 @@ describe("removedFurnitureUrls", () => {
   it("keeps a bake another art item still holds", () => {
     const before = [art({ src: bakeA, original: placeArt }), art({ src: bakeA, original: placeArt })];
     expect(removedFurnitureUrls(before, [before[1]], "u1")).toEqual([]);
+  });
+});
+
+describe("furnitureMadeUrls", () => {
+  // Fails on: deleting a book leaving its page art's bake and masks behind, or taking the original with them.
+  it("is every file the Illuminator made across the art items, never an original", () => {
+    const items = [art({ src: bakeA, original: placeArt, illuminate: recipe }), art({ src: ownUpload })];
+    expect(furnitureMadeUrls(items, "u1").sort()).toEqual([bakeA, mask].sort());
   });
 });

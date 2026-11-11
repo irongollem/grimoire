@@ -6,6 +6,8 @@ import type { PanelSelection } from "@/scriptorium/composables/useScriptoriumSel
 import type { PictureActions } from "@/scriptorium/composables/useEditorPictures";
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 
+const toastError = vi.fn();
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError }) }));
 vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
 // A URL is ours when the storage registry can read a bucket and a path out of it, in either URL shape.
 vi.mock("@/lib/storage", async () => {
@@ -19,10 +21,15 @@ import { originalOf, usePictureEditing } from "./usePictureEditing";
 
 const recipe: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "vignette", options: { strength: 0.3, softness: 0.5, mode: "transparent", colour: "#000000" } }] };
 
-function setup(values: Record<string, unknown> | null, selection: PanelSelection = { kind: "picture", source: "node", pos: 5 }) {
+function setup(
+  values: Record<string, unknown> | null,
+  selection: PanelSelection = { kind: "picture", source: "node", pos: 5 },
+  at: (id: string) => number | null = () => 5,
+) {
   const treat = vi.fn();
   const pictures = {
     valuesOf: () => values,
+    nodePosByBlockId: at,
     treat,
     pageOfPicture: () => 2,
   } as unknown as PictureActions;
@@ -93,7 +100,7 @@ describe("the workbench for the selected picture", () => {
     const { api, treat } = setup({ src: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp" });
     api.openWorkbench();
     api.onWorkbenchDone(recipe);
-    expect(treat).toHaveBeenCalledWith({ source: "node", pos: 5 }, { original: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp", illuminate: recipe });
+    expect(treat).toHaveBeenCalledWith({ source: "node", pos: 5 }, { original: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp", illuminate: recipe, bakedFor: null });
     expect(api.workbench.value).toBeNull();
   });
 
@@ -105,6 +112,37 @@ describe("the workbench for the selected picture", () => {
     gone.api.workbench.value = api.workbench.value;
     gone.api.onWorkbenchDone(recipe);
     expect(gone.treat).not.toHaveBeenCalled();
+    expect(treat).not.toHaveBeenCalled();
+  });
+  const OWN = "https://x.supabase.co/storage/v1/object/public/asset-images/u/";
+
+  // Fails on: Done writing to whatever sits at the remembered position, so a picture that moved (text typed above,
+  // another device's save) lost its place and a different picture got this recipe.
+  it("writes to the picture it opened on after it moved, and not to another one at the old position", () => {
+    const moved = setup({ src: `${OWN}a.webp`, blockId: "b1" }, undefined, () => 9);
+    moved.api.openWorkbench();
+    moved.api.onWorkbenchDone(recipe);
+    expect(moved.treat).toHaveBeenCalledWith({ source: "node", pos: 9 }, expect.anything());
+
+    // Another picture now sits at the old position: the one that was opened is gone.
+    toastError.mockClear();
+    const gone = setup({ src: `${OWN}other.webp`, blockId: "b2" }, undefined, () => null);
+    gone.api.openWorkbench();
+    gone.api.onWorkbenchDone(recipe);
+    expect(gone.treat).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(expect.stringContaining("changed while you were editing"));
+  });
+
+  // Fails on: the id surviving but its picture having been replaced by another file, which would still take the recipe.
+  it("does not write when the picture under that id is a different file now", () => {
+    const { api, treat } = setup({ src: `${OWN}a.webp`, blockId: "b1" });
+    api.openWorkbench();
+    // The same block id, another file: swap what valuesOf answers by reopening against changed values.
+    const open = api.workbench.value;
+    const changed = setup({ src: `${OWN}replaced.webp`, blockId: "b1" });
+    changed.api.workbench.value = open;
+    changed.api.onWorkbenchDone(recipe);
+    expect(changed.treat).not.toHaveBeenCalled();
     expect(treat).not.toHaveBeenCalled();
   });
 });

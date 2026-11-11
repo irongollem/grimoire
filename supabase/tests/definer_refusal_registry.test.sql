@@ -130,6 +130,7 @@ insert into definer_registry (name, kind, reason) values
   ('resolve_loot_roll', 'refuses', null),
   ('restore_character', 'refuses', null),
   ('restore_sorcery_points', 'refuses', null),
+  ('scriptorium_pictures_in_use', 'self', 'answers only about the caller''s own ill- files (anything else comes back in use); takes no uuid, so it cannot name another account'),
   ('search_quest_runtime_jump_targets', 'refuses', null),
   ('set_character_down', 'refuses', null),
   ('set_character_spell_prepared', 'refuses', null),

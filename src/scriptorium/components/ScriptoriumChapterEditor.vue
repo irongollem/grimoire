@@ -104,6 +104,7 @@
       :page-label="workbench.pageLabel"
       :user-id="currentUserId()"
       :document-id="documentId"
+      :campaign-id="campaignId"
       :theme="theme"
       :start-tool="workbench.tool"
       :page-aspect="workbench.pageAspect"
@@ -146,7 +147,9 @@ import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
 import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
 import { useSaveChapter } from "@/scriptorium/composables/useScriptoriumChapters";
 import { usePictureEditing } from "@/scriptorium/composables/usePictureEditing";
-import { cleanupRemovedChapterImages } from "@/scriptorium/composables/chapterImageCleanup";
+import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
+import { chapterUrlsRemoved } from "@/scriptorium/lib/chapterImages";
+import { getCurrentUser } from "@/lib/supabase";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
 import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
@@ -170,6 +173,7 @@ import type {
 const {
   chapter,
   documentId,
+  campaignId,
   theme,
   docType,
   pageSize,
@@ -184,6 +188,8 @@ const {
 } = defineProps<{
   chapter: ScriptoriumChapter;
   documentId: string;
+  /** The book's campaign (null for an account-wide book): AI picture actions run only in the active one. */
+  campaignId: string | null;
   theme: ScriptoriumTheme;
   docType: ScriptoriumDocType;
   pageSize: ScriptoriumPageSize;
@@ -318,7 +324,8 @@ const autosave = useAutosave({
     const previous = savedJson;
     await saveChapter({ id: chapter.id, documentId, content });
     savedJson = json;
-    cleanupRemovedChapterImages(previous, json);
+    // Marked, not deleted: the file may still be on a page or in another chapter, and undo may bring it back.
+    markForSweep(...chapterUrlsRemoved(previous, json, getCurrentUser()?.id));
   },
   errorMessage: "Could not save your changes",
 });

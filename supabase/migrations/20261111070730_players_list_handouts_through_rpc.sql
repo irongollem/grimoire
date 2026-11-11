@@ -63,8 +63,10 @@ grant execute on function public.get_player_handouts(uuid, uuid) to authenticate
 
 -- withhold_secret_blocks guards every other player projection of rich text,
 -- and it skipped the strip when a value held no secret block or lens pair, so
--- an image node kept its recipe there. An image now sends the value through
--- the strip as well; nothing else in the function changes.
+-- an image node kept its recipe there. An image that carries a recipe key now
+-- sends the value through the strip as well (an ordinary picture still passes
+-- untouched, so a description with an inline picture costs no tree walk);
+-- nothing else in the function changes.
 create or replace function private.withhold_secret_blocks(p_value text)
 returns text
 language plpgsql
@@ -91,7 +93,7 @@ begin
 
   if not jsonb_path_exists(
     v_doc,
-    'strict $.** ? (@.type == "secretBlock" || @.type == "lensPair" || @.type == "lensBright" || @.type == "lensDeep" || @.type == "image")'
+    'strict $.** ? (@.type == "secretBlock" || @.type == "lensPair" || @.type == "lensBright" || @.type == "lensDeep" || (@.type == "image" && (exists(@.attrs.original) || exists(@.attrs.illuminate) || exists(@.attrs.bakedFor))))'
   ) then
     return p_value;
   end if;

@@ -46,13 +46,15 @@ export type TreatmentPatch = Partial<Record<(typeof TREATMENT_KEYS)[number] | "s
 /**
  * The write for a picture whose recipe is now `next`. The first edit keeps the
  * file as it was as `original`; later edits keep the original they already
- * have. `bakedFor` is left alone, so the bake sees a stale hash and catches up.
+ * have. `bakedFor` is cleared: until the bake lands, `src` is the untouched file or
+a bake of an older recipe, and an empty `bakedFor` is how the server knows to
+withhold the picture from players rather than show them that.
  * A recipe with nothing in it is the original picture again.
  */
 export function treatmentPatch(source: Readonly<Record<string, unknown>>, next: IlluminateSettings): TreatmentPatch {
   if (!hasSteps(next)) return resetPatch(source);
   const original = typeof source.original === "string" && source.original !== "" ? source.original : source.src;
-  return { original, illuminate: next };
+  return { original, illuminate: next, bakedFor: null };
 }
 
 /** Back to the untouched file: its recipe and bake go, and `original` becomes the picture. */

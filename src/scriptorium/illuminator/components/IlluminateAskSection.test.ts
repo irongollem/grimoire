@@ -3,7 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  campaign: { isAiEnabled: true },
+  campaign: { isAiEnabled: true, activeCampaignId: "c1" as string | null },
   run: vi.fn(),
   confirm: vi.fn(),
   toast: { error: vi.fn() },
@@ -28,6 +28,7 @@ const props = {
   baseUrl: "https://cdn/o.webp",
   natural: { width: 1000, height: 1000 },
   documentId: "doc-1",
+  campaignId: "c1" as string | null,
   userId: "u1",
   look: { label: "Grimoire", id: "grimoire" } as { label: string; id: ScriptoriumArtLook | null } | null,
   hasAiResult: false,
@@ -37,6 +38,7 @@ const mountIt = (over: Partial<typeof props> = {}) => mount(IlluminateAskSection
 
 beforeEach(() => {
   mocks.campaign.isAiEnabled = true;
+  mocks.campaign.activeCampaignId = "c1";
   mocks.run.mockReset().mockResolvedValue("https://cdn/ai.webp");
   mocks.confirm.mockReset();
   mocks.toast.error.mockReset();
@@ -47,6 +49,11 @@ describe("Ask the Illuminator", () => {
   it("is absent when AI is off for the campaign", () => {
     mocks.campaign.isAiEnabled = false;
     expect(mountIt().find("[data-testid='ask-the-illuminator']").exists()).toBe(false);
+  });
+
+  // Bug: a book of another campaign (or none) showed actions the server answers 404 to, on the wrong campaign's AI flag.
+  it.each([["another campaign", "c2"], ["no campaign", null]])("is absent for a book of %s", (_n, campaignId) => {
+    expect(mountIt({ campaignId }).find("[data-testid='ask-the-illuminator']").exists()).toBe(false);
   });
 
   it("offers the five actions with their prices, and the look's name on Match", () => {
@@ -61,7 +68,7 @@ describe("Ask the Illuminator", () => {
     const w = mountIt({ baseUrl: "https://cdn/ai-1.webp" });
     await w.find("[data-testid='ask-ink']").trigger("click");
     await flushPromises();
-    expect(mocks.run).toHaveBeenCalledWith(expect.objectContaining({ action: "ink", baseUrl: "https://cdn/ai-1.webp", documentId: "doc-1", userId: "u1" }));
+    expect(mocks.run).toHaveBeenCalledWith(expect.objectContaining({ action: "ink", baseUrl: "https://cdn/ai-1.webp", documentId: "doc-1", campaignId: "c1", userId: "u1" }));
     expect(w.emitted("result")).toEqual([["https://cdn/ai.webp", "ink"]]);
   });
 

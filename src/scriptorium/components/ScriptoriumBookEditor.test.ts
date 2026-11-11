@@ -16,7 +16,8 @@ const mocks = await vi.hoisted(async () => {
   hold: vi.fn(),
   focusBlock: vi.fn(),
   deleteDoc: vi.fn(),
-  removeImages: vi.fn(),
+  mark: vi.fn(),
+  sweep: vi.fn(),
   confirm: vi.fn(),
   replace: vi.fn(),
   refetch: vi.fn(),
@@ -35,7 +36,8 @@ vi.mock("vue-router", () => ({
 vi.mock("@/composables/useUnsavedGuard", () => ({ useUnsavedGuard: vi.fn() }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), success: vi.fn() }) }));
-vi.mock("@/scriptorium/composables/chapterImageCleanup", () => ({ removeChapterImages: (...a: unknown[]) => mocks.removeImages(...a) }));
+vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
+vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: (...a: unknown[]) => mocks.mark(...a), sweepInBackground: () => mocks.sweep() }));
 vi.mock("@/composables/campaign/useCampaigns", () => ({ useAllDmCampaigns: () => ({ data: ref([]) }) }));
 vi.mock("@/stores/campaign", async () => {
   const { defineStore } = await import("pinia");
@@ -321,18 +323,32 @@ describe("ScriptoriumBookEditor", () => {
     expect(wrapper.findAll("button").some((b) => b.text().includes("Add chapter"))).toBe(offered);
   });
 
-  it("deletes the images of every chapter with the book, and leaves for the list", async () => {
+  // Fails on: a deleted book leaving its chapters' Illuminator files behind, or sweeping before they are marked.
+  it("marks every chapter's Illuminator files, then sweeps, when the book is deleted, and leaves for the list", async () => {
+    const url = (name: string) => `https://x.supabase.co/storage/v1/object/public/asset-images/u1/${name}`;
+    const image = (src: string) => ({ type: "doc", content: [{ type: "image", attrs: { src } }] });
     mocks.refetch.mockResolvedValue({
-      data: [{ content: { n: "chapter one art" } }, { content: { n: "chapter two art" } }],
+      data: [{ content: image(url("ill-one.webp")) }, { content: image(url("ill-two.webp")) }],
     });
     const wrapper = open();
     await flushPromises();
     wrapper.findComponent(ScriptoriumBookSettings).vm.$emit("delete");
     await flushPromises();
     expect(mocks.deleteDoc).toHaveBeenCalledWith("d1");
-    expect(mocks.removeImages).toHaveBeenCalledTimes(2);
-    expect(mocks.removeImages.mock.calls.map((c) => c[0]).join()).toContain("chapter two art");
+    const marked = mocks.mark.mock.calls.flat();
+    expect(marked).toContain(url("ill-one.webp"));
+    expect(marked).toContain(url("ill-two.webp"));
+    expect(mocks.sweep).toHaveBeenCalledTimes(1);
     expect(mocks.replace).toHaveBeenCalledWith("/scriptorium");
+  });
+
+  // Fails on: the sweep not running when the editor closes, so dropped files leak for good.
+  it("sweeps once the final saves have landed when the editor closes", async () => {
+    const wrapper = open();
+    await flushPromises();
+    wrapper.unmount();
+    await flushPromises();
+    expect(mocks.sweep).toHaveBeenCalledTimes(1);
   });
 
   it("deletes nothing when the delete is not confirmed", async () => {
