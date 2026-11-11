@@ -17,6 +17,7 @@
       tooltip="Hide the chapter list while you write"
       @click="focus = !focus"
     />
+    <ZoomControl />
     <AppButton variant="outline" size="md" label="Read as spreads" @click="emit('read')" />
 
     <!-- A book: Share beside the primary Export PDF. A handout: Print beside the primary Give to players. -->
@@ -52,6 +53,7 @@
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ZoomControl from "@/scriptorium/components/ZoomControl.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import type { AutosaveStatus as AutosaveState } from "@/composables/useAutosave";
 import { pdfExportProgressLabel, type PdfExportProgress } from "@/scriptorium/composables/useScriptoriumPdf";
